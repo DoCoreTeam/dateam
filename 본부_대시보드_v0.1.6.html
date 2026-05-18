@@ -52,8 +52,6 @@ header.top .container { padding-top: 56px; padding-bottom: 56px; position: relat
 .eyebrow { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
   opacity: 0.85; font-weight: 600; }
 .title { font-size: 38px; font-weight: 800; line-height: 1.15; margin: 10px 0 0; letter-spacing: -0.02em; }
-#logo-area { cursor: pointer; transition: opacity 0.15s; display: inline-block; }
-#logo-area:hover { opacity: 0.75; }
 .subtitle { margin: 14px 0 0; font-size: 15px; opacity: 0.92; max-width: 720px; }
 .version-badge {
   background: rgba(255,255,255,0.14);
@@ -400,10 +398,8 @@ canvas { max-width: 100%; }
   <div class="container">
     <div class="row between" style="align-items:flex-start;">
       <div style="flex:1; min-width: 260px;">
-        <div id="logo-area" role="button" tabindex="0" aria-label="개요 탭으로 이동">
-          <div class="eyebrow">DATA-ALLIANCE · 신규 본부</div>
-          <h1 class="title">김도현 본부장 본부 운영 대시보드</h1>
-        </div>
+        <div class="eyebrow">DATA-ALLIANCE · 신규 본부</div>
+        <h1 class="title">김도현 본부장 본부 운영 대시보드</h1>
         <p class="subtitle">gcube와 시티큐브를 두 축으로, 글로벌 AI 인프라와 스마트시티 시민서비스 시장을 동시에 락인(Lock-in)하는 프로덕트 중심 본부.</p>
       </div>
       <div class="version-badge">
@@ -1297,20 +1293,6 @@ Object.entries(ROUTINES).forEach(([name, p])=>{
     <div class="pw-grid">${dayHtml}</div>`;
   rg.appendChild(card);
 });
-
-// Logo → overview tab
-(()=>{
-  const logo = document.getElementById('logo-area');
-  const goOverview = ()=>{
-    document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.remove('active'));
-    document.querySelector('nav.tabs button[data-tab="overview"]').classList.add('active');
-    document.querySelectorAll('.tab-content').forEach(x=>x.classList.remove('active'));
-    document.getElementById('tab-overview').classList.add('active');
-    window.scrollTo({top:0,behavior:'smooth'});
-  };
-  logo.addEventListener('click', goOverview);
-  logo.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); goOverview(); } });
-})();
 
 // Tabs
 document.querySelectorAll('nav.tabs button').forEach(btn=>{
