@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>데이터얼라이언스 신규 본부 대시보드 v0.1.7</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,"SF Pro Text","Apple SD Gothic Neo","Segoe UI",Roboto,sans-serif;background:#f8fafc;color:#0f172a;-webkit-font-smoothing:antialiased;line-height:1.55;}
+button{font-family:inherit;cursor:pointer;border:none;}
+table{border-collapse:collapse;width:100%;}
+.container{max-width:1240px;margin:0 auto;padding:0 24px;}
+.grid{display:grid;gap:16px;}.grid-2{grid-template-columns:repeat(2,1fr);}.grid-3{grid-template-columns:repeat(3,1fr);}.grid-4{grid-template-columns:repeat(4,1fr);}
+@media(max-width:900px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr;}}
+.flex{display:flex;}.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;}.between{justify-content:space-between;}.center{justify-content:center;align-items:center;}
+.gap-sm{gap:8px;}.gap-md{gap:16px;}.gap-lg{gap:24px;}
+header.top{background:radial-gradient(1200px 400px at 90% -10%,rgba(168,85,247,.45),transparent),radial-gradient(900px 400px at 10% 110%,rgba(14,165,233,.45),transparent),linear-gradient(135deg,#4f46e5 0%,#6366f1 50%,#7c3aed 100%);color:#fff;position:relative;overflow:hidden;}
+header.top .container{padding-top:56px;padding-bottom:56px;position:relative;}
+.eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.85;font-weight:600;}
+.title{font-size:38px;font-weight:800;line-height:1.15;margin:10px 0 0;letter-spacing:-.02em;}
+.subtitle{margin:14px 0 0;font-size:15px;opacity:.92;max-width:720px;}
+.version-badge{background:rgba(255,255,255,.14);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:14px 18px;border-radius:14px;border:1px solid rgba(255,255,255,.18);text-align:right;}
+.version-badge .v{font-size:26px;font-weight:800;}
+.version-badge .label{font-size:11px;opacity:.8;letter-spacing:.1em;text-transform:uppercase;}
+.version-badge .date{font-size:12px;opacity:.85;margin-top:2px;}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:32px;}
+@media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr);}}
+.stat{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:18px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
+.stat .num{font-size:32px;font-weight:800;letter-spacing:-.02em;line-height:1;}
+.stat .lbl{font-size:12px;margin-top:8px;opacity:.92;}
+nav.tabs{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.92);backdrop-filter:saturate(180%) blur(12px);-webkit-backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid #e2e8f0;}
+nav.tabs .container{display:flex;gap:6px;padding-top:12px;padding-bottom:12px;overflow-x:auto;}
+nav.tabs button{background:transparent;color:#475569;padding:9px 16px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap;transition:all .18s ease;}
+nav.tabs button:hover{background:#f1f5f9;color:#0f172a;}
+nav.tabs button.active{background:#0f172a;color:#fff;}
+main{padding:32px 0 64px;}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:18px;box-shadow:0 1px 2px rgba(0,0,0,.03),0 8px 24px rgba(15,23,42,.04);padding:28px;}
+.card h2{font-size:20px;font-weight:800;margin:0 0 12px;letter-spacing:-.01em;}
+.card h3{font-size:16px;font-weight:800;margin:0 0 14px;letter-spacing:-.01em;}
+.card p.lead{font-size:17px;line-height:1.7;color:#334155;margin:0;}
+.muted{color:#64748b;font-size:13px;}.tiny{color:#64748b;font-size:11px;}
+.tab-content{display:none;}.tab-content.active{display:block;}
+.section-title{font-size:24px;font-weight:800;letter-spacing:-.01em;margin:0 0 4px;}
+.section-sub{color:#64748b;font-size:13px;margin:0 0 20px;}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 11px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.02em;}
+.pill.dot::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;}
+.tone-sky{--c:#0284c7;--bg:#e0f2fe;--bd:#38bdf8;}
+.tone-indigo{--c:#4f46e5;--bg:#e0e7ff;--bd:#818cf8;}
+.tone-violet{--c:#7c3aed;--bg:#ede9fe;--bd:#a78bfa;}
+.tone-emerald{--c:#059669;--bg:#d1fae5;--bd:#34d399;}
+.tone-amber{--c:#b45309;--bg:#fef3c7;--bd:#fbbf24;}
+.tone-rose{--c:#be123c;--bg:#ffe4e6;--bd:#fb7185;}
+.tone-slate{--c:#334155;--bg:#f1f5f9;--bd:#94a3b8;}
+.pill[class*="tone-"]{background:var(--bg);color:var(--c);}
+.filter-btn{background:#fff;border:1px solid #e2e8f0;color:#334155;padding:7px 14px;border-radius:999px;font-size:12px;font-weight:600;transition:all .15s ease;}
+.filter-btn:hover{border-color:#cbd5e1;background:#f8fafc;}
+.filter-btn.active{background:#0f172a;color:#fff;border-color:#0f172a;}
+.axis-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px;}
+@media(max-width:800px){.axis-grid{grid-template-columns:1fr;}}
+.axis{background:linear-gradient(135deg,#f0f9ff 0%,#eef2ff 50%,#faf5ff 100%);border:1px solid #e2e8f0;border-radius:14px;padding:18px;}
+.axis .num{font-size:11px;font-weight:800;letter-spacing:.15em;color:#6366f1;}
+.axis .name{font-weight:700;margin-top:4px;}
+.axis .desc{font-size:12px;color:#475569;margin-top:6px;line-height:1.5;}
+.miss-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px;}
+@media(max-width:900px){.miss-grid{grid-template-columns:1fr;}}
+.miss{border:1px solid #e2e8f0;border-radius:14px;padding:16px;background:#fff;transition:all .18s ease;}
+.miss:hover{border-color:#6366f1;box-shadow:0 8px 18px rgba(99,102,241,.08);transform:translateY(-2px);}
+.miss .n{font-size:11px;font-weight:800;color:#6366f1;letter-spacing:.1em;}
+.miss .t{font-weight:700;margin-top:4px;font-size:14px;}
+.miss .d{font-size:12px;color:#64748b;margin-top:6px;line-height:1.5;}
+.proj-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+@media(max-width:900px){.proj-grid{grid-template-columns:1fr;}}
+.proj{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:22px;box-shadow:0 1px 2px rgba(0,0,0,.03),0 8px 18px rgba(15,23,42,.04);transition:all .18s ease;}
+.proj:hover{transform:translateY(-3px);box-shadow:0 4px 8px rgba(0,0,0,.04),0 18px 32px rgba(15,23,42,.08);}
+.proj .head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.proj .name{font-weight:800;font-size:16px;line-height:1.35;letter-spacing:-.01em;}
+.proj .client{font-size:12px;color:#64748b;margin-top:4px;}
+.proj .meta-r{text-align:right;font-size:11px;}
+.proj .meta-r .lbl{color:#64748b;}
+.proj .meta-r .v{font-weight:700;color:#0f172a;margin-top:2px;}
+.progress{height:8px;background:#e2e8f0;border-radius:999px;overflow:hidden;margin-top:6px;}
+.progress>span{display:block;height:100%;background:linear-gradient(90deg,#0ea5e9,#6366f1,#a855f7);border-radius:999px;}
+.proj .foot{margin-top:14px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#475569;}
+.member-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+@media(max-width:1100px){.member-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:700px){.member-grid{grid-template-columns:1fr;}}
+.member{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:22px;border-top:4px solid var(--bd);box-shadow:0 1px 2px rgba(0,0,0,.03),0 8px 18px rgba(15,23,42,.04);}
+.member .name{font-size:18px;font-weight:800;letter-spacing:-.01em;}
+.member .role{font-size:12px;font-weight:700;color:var(--c);margin-top:2px;}
+.member .domain{font-size:12px;color:#475569;margin-top:10px;background:var(--bg);padding:8px 10px;border-radius:8px;}
+.member h4{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:#64748b;margin:14px 0 6px;font-weight:700;}
+.member ul{list-style:none;padding:0;margin:0;}
+.member ul li{font-size:13px;padding:3px 0;color:#334155;}
+.member ul li::before{content:'•';color:var(--bd);margin-right:6px;font-weight:700;}
+.member .split{margin-top:14px;padding-top:12px;border-top:1px dashed #e2e8f0;font-size:12px;color:#475569;}
+.matrix{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:6px;box-shadow:0 1px 2px rgba(0,0,0,.03),0 8px 18px rgba(15,23,42,.04);overflow:auto;}
+.matrix table{font-size:13px;}
+.matrix thead th{text-align:left;padding:14px 16px;font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#64748b;background:#f8fafc;border-bottom:1px solid #e2e8f0;}
+.matrix thead th:first-child{border-top-left-radius:12px;}
+.matrix thead th:last-child{border-top-right-radius:12px;}
+.matrix tbody td{padding:12px 16px;border-bottom:1px solid #f1f5f9;vertical-align:middle;}
+.matrix tbody tr:last-child td{border-bottom:none;}
+.matrix tbody tr:hover{background:#fafbff;}
+.kpi-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px dashed #e2e8f0;font-size:14px;}
+.kpi-row:last-child{border-bottom:none;}
+.kpi-row .v{font-weight:800;color:#0f172a;}
+.okr{border-left:4px solid var(--bd);border-radius:12px;background:var(--bg);padding:16px 18px;margin-top:12px;}
+.okr .o{font-weight:800;font-size:14px;color:#0f172a;}
+.okr .lead{font-size:11px;color:var(--c);margin-top:2px;font-weight:600;}
+.okr ul{margin:12px 0 0;padding:0;list-style:none;}
+.okr ul li{display:flex;gap:8px;align-items:flex-start;padding:5px 0;font-size:13px;color:#334155;}
+.kr-tag{flex-shrink:0;background:#fff;color:var(--c);border:1px solid var(--bd);font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;letter-spacing:.05em;}
+.bullet-list{padding:0;margin:0;list-style:none;}
+.bullet-list li{padding:6px 0;font-size:14px;color:#334155;}
+.bullet-list li::before{content:'▸';color:#6366f1;margin-right:8px;font-weight:700;}
+.bullet-list li b{color:#0f172a;}
+.rhythm-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+@media(max-width:900px){.rhythm-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:500px){.rhythm-grid{grid-template-columns:1fr;}}
+.rhythm{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px;border-top:4px solid var(--bd);}
+.rhythm .when{font-size:11px;font-weight:800;color:var(--c);letter-spacing:.05em;}
+.rhythm .what{font-weight:700;margin-top:4px;font-size:14px;}
+.rhythm .who{font-size:12px;color:#64748b;margin-top:6px;line-height:1.5;}
+.prin-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+@media(max-width:800px){.prin-grid{grid-template-columns:1fr;}}
+.prin{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px;transition:all .18s ease;}
+.prin:hover{border-color:#6366f1;box-shadow:0 8px 18px rgba(99,102,241,.08);}
+.prin .t{font-weight:800;font-size:14px;}
+.prin .d{font-size:13px;color:#475569;margin-top:8px;line-height:1.6;}
+.callout{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#e2e8f0;border-radius:18px;padding:28px;}
+.callout h3{color:#fff;font-size:18px;margin:0 0 14px;}
+.callout ol{margin:0;padding-left:22px;}
+.callout ol li{padding:5px 0;font-size:14px;line-height:1.6;}
+.callout ol li b{color:#c7d2fe;}
+footer.bottom{border-top:1px solid #e2e8f0;background:#fff;margin-top:40px;}
+footer.bottom .container{padding-top:24px;padding-bottom:24px;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;font-size:12px;color:#64748b;}
+.mb-sm{margin-bottom:12px;}.mb-md{margin-bottom:20px;}.mb-lg{margin-bottom:28px;}
+.mt-md{margin-top:20px;}.mt-lg{margin-top:28px;}
+.text-amber{color:#b45309;}
+canvas{max-width:100%;}
+.sched-legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;font-size:12px;color:#475569;}
+.sched-legend .item{display:inline-flex;align-items:center;gap:6px;}
+.sched-legend .swatch{width:14px;height:14px;border-radius:4px;border:1px solid rgba(0,0,0,.06);}
+.sw-fixed{background:#4f46e5;}.sw-deep{background:#ede9fe;}.sw-internal{background:#e0f2fe;}.sw-external{background:#fef3c7;}.sw-rest{background:#f1f5f9;}
+.fixed-slots{background:linear-gradient(135deg,#eef2ff,#e0e7ff);border:1px solid #c7d2fe;border-radius:14px;padding:16px 18px;margin-bottom:18px;}
+.fixed-slots h4{margin:0 0 10px;font-size:13px;color:#4338ca;letter-spacing:.05em;text-transform:uppercase;font-weight:800;}
+.fixed-slots .row-list{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+@media(max-width:900px){.fixed-slots .row-list{grid-template-columns:repeat(2,1fr);}}
+.fixed-slot{background:#fff;border-radius:10px;padding:10px 12px;border:1px solid #e0e7ff;}
+.fixed-slot .when{font-size:11px;font-weight:800;color:#4f46e5;}
+.fixed-slot .what{font-size:13px;font-weight:700;margin-top:2px;color:#0f172a;}
+.fixed-slot .who{font-size:11px;color:#64748b;margin-top:2px;}
+.ext-slots{background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:16px 18px;margin-bottom:22px;}
+.ext-slots h4{margin:0 0 10px;font-size:13px;color:#b45309;letter-spacing:.05em;text-transform:uppercase;font-weight:800;}
+.ext-slots .row-list{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+@media(max-width:900px){.ext-slots .row-list{grid-template-columns:repeat(2,1fr);}}
+.ext-slot{background:#fff;border-radius:10px;padding:10px 12px;border:1px solid #fde68a;}
+.ext-slot .when{font-size:11px;font-weight:800;color:#b45309;}
+.ext-slot .what{font-size:13px;font-weight:700;margin-top:2px;color:#0f172a;}
+.ext-slot .who{font-size:11px;color:#64748b;margin-top:2px;}
+.person-week{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:18px 20px;box-shadow:0 1px 2px rgba(0,0,0,.03),0 8px 18px rgba(15,23,42,.04);margin-bottom:16px;border-left:5px solid var(--bd);}
+.person-week .pw-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+.person-week .pw-name{font-weight:800;font-size:16px;}
+.person-week .pw-role{font-size:12px;color:var(--c);font-weight:600;}
+.person-week .pw-split{font-size:11px;color:#475569;background:var(--bg);padding:4px 10px;border-radius:999px;font-weight:600;}
+.pw-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+@media(max-width:900px){.pw-grid{grid-template-columns:repeat(2,1fr);}}
+.pw-day{background:#fafbff;border:1px solid #e2e8f0;border-radius:10px;padding:10px;min-height:100px;display:flex;flex-direction:column;gap:4px;}
+.pw-day .day-h{font-size:11px;font-weight:800;letter-spacing:.08em;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;}
+.pw-day .day-h .ie{font-size:9px;padding:1px 6px;border-radius:999px;font-weight:700;}
+.day-int{background:#e0f2fe;color:#0369a1;}.day-ext{background:#fef3c7;color:#b45309;}
+.slot{font-size:11px;padding:4px 7px;border-radius:6px;line-height:1.35;color:#1e293b;border-left:3px solid transparent;background:#fff;}
+.slot b{font-weight:700;color:#0f172a;}
+.slot .t{font-size:9.5px;color:#64748b;font-weight:700;letter-spacing:.02em;}
+.slot.fixed{background:#4f46e5;color:#fff;border-left-color:#312e81;}
+.slot.fixed b{color:#fff;}
+.slot.fixed .t{color:rgba(255,255,255,.85);}
+.slot.deep{background:#ede9fe;border-left-color:#7c3aed;}
+.slot.internal{background:#e0f2fe;border-left-color:#0284c7;}
+.slot.external{background:#fef3c7;border-left-color:#d97706;}
+
+/* ===== Admin Edit Mode ===== */
+.edit-banner{display:none;position:fixed;top:0;left:0;right:0;z-index:500;background:#4f46e5;color:#fff;padding:9px 16px;font-size:13px;font-weight:700;text-align:center;box-shadow:0 2px 8px rgba(79,70,229,.3);}
+body.edit-mode .edit-banner{display:block;}
+body.edit-mode{padding-top:38px;}
+body.edit-mode nav.tabs{top:38px;}
+
+.admin-fab{position:fixed;bottom:24px;right:24px;z-index:400;background:#0f172a;color:#fff;border-radius:50px;padding:11px 18px;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.25);border:none;cursor:pointer;transition:all .2s;}
+.admin-fab:hover{background:#334155;transform:translateY(-2px);}
+.admin-panel{position:fixed;bottom:72px;right:24px;z-index:399;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:16px;min-width:210px;box-shadow:0 8px 32px rgba(15,23,42,.12);display:none;flex-direction:column;gap:8px;}
+.admin-panel.open{display:flex;}
+.ap-title{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px;}
+.ap-btn{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;color:#0f172a;cursor:pointer;text-align:left;transition:all .15s;width:100%;font-family:inherit;}
+.ap-btn:hover{background:#f1f5f9;}
+.ap-btn.primary{background:#eef2ff;color:#4338ca;border-color:#c7d2fe;}
+.ap-btn.primary:hover{background:#e0e7ff;}
+.ap-btn.success{background:#f0fdf4;color:#166534;border-color:#bbf7d0;}
+.ap-btn.success:hover{background:#dcfce7;}
+.ap-btn.danger{background:#fef2f2;color:#dc2626;border-color:#fecaca;}
+.ap-btn.danger:hover{background:#fee2e2;}
+.ap-btn:disabled{opacity:.55;cursor:not-allowed;}
+.ap-token-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#64748b;padding:4px 2px;}
+.ap-btn-sm{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:7px;padding:3px 10px;font-size:12px;font-weight:600;color:#475569;cursor:pointer;font-family:inherit;}
+.ap-btn-sm:hover{background:#e2e8f0;}
+/* ── CRUDL ── */
+.crud-del{display:none;position:absolute;top:6px;right:6px;background:#fee2e2;color:#dc2626;border:none;border-radius:50%;width:22px;height:22px;font-size:14px;font-weight:700;cursor:pointer;z-index:10;padding:0;line-height:1;align-items:center;justify-content:center;}
+.crud-del:hover{background:#fecaca;}
+body.edit-mode .crud-del{display:flex;}
+.crud-del-inline{display:none;background:none;border:none;color:#dc2626;font-size:14px;font-weight:700;cursor:pointer;padding:0 4px;line-height:1;vertical-align:middle;}
+body.edit-mode .crud-del-inline{display:inline;}
+.crud-add{display:none;width:100%;margin-top:10px;padding:8px 14px;background:#f0fdf4;border:1.5px dashed #86efac;border-radius:10px;color:#16a34a;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:center;grid-column:1/-1;}
+.crud-add:hover{background:#dcfce7;}
+body.edit-mode .crud-add{display:block;}
+.crud-add-kr{display:none;background:none;border:1px dashed #86efac;border-radius:6px;color:#16a34a;font-size:11px;font-weight:600;cursor:pointer;padding:2px 8px;margin-top:6px;font-family:inherit;}
+body.edit-mode .crud-add-kr{display:inline-block;}
+.crud-add-slot{display:none;background:none;border:1px dashed #a5b4fc;border-radius:6px;color:#6366f1;font-size:11px;font-weight:600;cursor:pointer;padding:2px 8px;margin-top:4px;font-family:inherit;width:100%;}
+body.edit-mode .crud-add-slot{display:block;}
+
+.pw-overlay{display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.5);align-items:center;justify-content:center;}
+.pw-overlay.open{display:flex;}
+.pw-box{background:#fff;border-radius:20px;padding:36px 32px;width:320px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+.pw-box h3{font-size:20px;font-weight:800;margin:0 0 6px;}
+.pw-box p{font-size:13px;color:#64748b;margin:0 0 20px;}
+.pw-box input{width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;font-size:20px;text-align:center;letter-spacing:.4em;font-family:inherit;margin-bottom:12px;box-sizing:border-box;transition:border-color .15s;}
+.pw-box input:focus{outline:none;border-color:#4f46e5;}
+.pw-box .pw-submit{width:100%;background:#4f46e5;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .15s;}
+.pw-box .pw-submit:hover{background:#4338ca;}
+.pw-err{color:#dc2626;font-size:13px;margin-top:8px;display:none;}
+
+body.edit-mode [data-path]{outline:1.5px dashed rgba(165,180,252,.8);border-radius:3px;cursor:text;}
+body.edit-mode [data-path]:hover{background:rgba(99,102,241,.18);outline-color:rgba(99,102,241,.9);outline-style:solid;}
+body.edit-mode [data-path]:focus{background:rgba(255,255,255,.22);outline:2px solid #6366f1;box-shadow:0 0 0 3px rgba(79,70,229,.25);}
+
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:11px 22px;border-radius:999px;font-size:14px;font-weight:600;z-index:700;pointer-events:none;transition:opacity .3s;opacity:0;}
+.toast.show{opacity:1;}
+
+/* ── Org Chart ── */
+.org-tree{overflow-x:auto;padding:8px 0 16px;}
+.org-level{display:flex;justify-content:center;gap:12px;position:relative;}
+.org-level+.org-level{margin-top:36px;}
+.org-node-wrap{display:flex;flex-direction:column;align-items:center;position:relative;}
+.org-node-wrap::before{content:'';position:absolute;top:-18px;left:50%;width:2px;height:18px;background:#cbd5e1;}
+.org-level:first-child>.org-node-wrap::before{display:none;}
+.org-connector{position:relative;display:flex;justify-content:center;}
+.org-connector::before{content:'';position:absolute;top:0;left:50%;width:2px;height:18px;background:#cbd5e1;}
+.org-children{display:flex;gap:12px;position:relative;margin-top:36px;}
+.org-children::before{content:'';position:absolute;top:-18px;left:0;right:0;height:2px;background:#cbd5e1;}
+.org-children>.org-node-wrap::before{display:block;}
+.org-node{border-radius:14px;padding:14px 18px;min-width:160px;max-width:220px;text-align:center;border:2px solid transparent;position:relative;transition:box-shadow .15s;}
+.org-node:hover{box-shadow:0 4px 16px rgba(0,0,0,.12);}
+.org-node.ext{border-style:dashed !important;opacity:.85;}
+.org-node-name{font-size:14px;font-weight:800;margin-bottom:4px;}
+.org-node-role{font-size:11px;line-height:1.4;opacity:.75;}
+.org-node.tone-slate{background:#f1f5f9;border-color:#94a3b8;}.org-node.tone-slate .org-node-name{color:#0f172a;}
+.org-node.tone-sky{background:#e0f2fe;border-color:#38bdf8;}.org-node.tone-sky .org-node-name{color:#0369a1;}
+.org-node.tone-indigo{background:#e0e7ff;border-color:#818cf8;}.org-node.tone-indigo .org-node-name{color:#3730a3;}
+.org-node.tone-violet{background:#ede9fe;border-color:#a78bfa;}.org-node.tone-violet .org-node-name{color:#5b21b6;}
+.org-node.tone-emerald{background:#d1fae5;border-color:#34d399;}.org-node.tone-emerald .org-node-name{color:#065f46;}
+.org-node.tone-rose{background:#ffe4e6;border-color:#fb7185;}.org-node.tone-rose .org-node-name{color:#be123c;}
+.org-ext-badge{font-size:9px;font-weight:700;background:#e2e8f0;color:#475569;border-radius:4px;padding:1px 5px;position:absolute;top:6px;right:8px;}
+body.edit-mode .org-crud-add{display:inline-flex;}
+body.edit-mode .org-crud-del{display:inline-flex;}
+.org-crud-add,.org-crud-del{display:none;align-items:center;justify-content:center;border:none;border-radius:50%;width:22px;height:22px;font-size:14px;font-weight:700;cursor:pointer;line-height:1;font-family:inherit;}
+.org-crud-add{background:#e0e7ff;color:#4f46e5;margin-top:6px;}
+.org-crud-del{background:#fee2e2;color:#dc2626;position:absolute;top:-8px;right:-8px;width:20px;height:20px;font-size:12px;}
+</style>
+</head>
+<body>
+
+<div class="edit-banner">✏️ 편집 모드 — 파란 테두리 텍스트를 클릭해서 수정하세요 &nbsp;|&nbsp; 수정 후 [저장] 또는 [HTML 다운로드]</div>
+
+<header class="top">
+  <div class="container" id="header-container">
+  </div>
+</header>
+
+<nav class="tabs">
+  <div class="container">
+    <button data-tab="overview" class="active">개요</button>
+    <button data-tab="projects">프로젝트 6</button>
+    <button data-tab="rr">본부원 R&amp;R</button>
+    <button data-tab="kpi">KPI / OKR</button>
+    <button data-tab="rhythm">운영 리듬</button>
+    <button data-tab="routine">주간 루틴</button>
+    <button data-tab="principles">업무지침</button>
+  </div>
+</nav>
+
+<main>
+<div class="container">
+
+<section id="tab-overview" class="tab-content active">
+  <div class="card mb-md">
+    <h2>본부 비전</h2>
+    <p class="lead">gcube와 시티큐브를 두 축으로,<br/>
+      <b style="color:#4f46e5;">글로벌 AI 인프라</b>와
+      <b style="color:#0284c7;">스마트시티 시민서비스</b> 시장을 동시에 락인(Lock-in)하는 프로덕트 중심 본부.
+    </p>
+    <div class="axis-grid">
+      <div class="axis"><div class="num">AXIS 1</div><div class="name">시티큐브 SaaS 완성</div><div class="desc">블록체인 기반 시민 인증·통합 포인트의 표준</div></div>
+      <div class="axis"><div class="num">AXIS 2</div><div class="name">gcube 락인 프로덕트</div><div class="desc">개발자/비개발자용 오픈소스 1주 단위 출시</div></div>
+      <div class="axis"><div class="num">AXIS 3</div><div class="name">공급·수요 채널</div><div class="desc">GPU 공급자 확보 + 수요 기업 채널 영업 동시</div></div>
+    </div>
+  </div>
+  <div class="card mb-md">
+    <h2>본부 미션 (책임 영역 9)</h2>
+    <p class="muted" style="margin:-6px 0 0;">우선순위 순서대로</p>
+    <div class="miss-grid" id="mission-grid"></div>
+  </div>
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>개발 우선순위 (시간 배분 가이드)</h3>
+      <div id="dev-split-chart"></div>
+    </div>
+    <div class="card">
+      <h3>2026 KPI 시계열 (누적)</h3>
+      <div id="kpi-chart"></div>
+    </div>
+  </div>
+</section>
+
+<section id="tab-projects" class="tab-content">
+  <div class="row between mb-md" style="align-items:flex-end;">
+    <div>
+      <h2 class="section-title">진행 중인 10개 프로젝트</h2>
+      <p class="section-sub">사이트 6개(김태형 PM) + 영업·공급 4개(본부장 PM) · 매주 월요일 09:00 1줄 상태 갱신</p>
+    </div>
+    <div class="row gap-sm">
+      <button class="filter-btn active" data-filter="all">전체 (10)</button>
+      <button class="filter-btn" data-filter="사이트">사이트 (6)</button>
+      <button class="filter-btn" data-filter="영업·공급">영업·공급 (4)</button>
+    </div>
+  </div>
+  <div class="proj-grid" id="projects-grid"></div>
+</section>
+
+<section id="tab-rr" class="tab-content">
+  <h2 class="section-title">본부원 R&amp;R</h2>
+  <p class="section-sub">프로젝트별 PM 매핑 + 본부 차원 도메인 오너십</p>
+  <div class="card mb-lg">
+    <h3 style="margin:0 0 16px;">조직도</h3>
+    <div id="org-chart"></div>
+  </div>
+  <div class="member-grid mb-lg" id="members-grid"></div>
+  <h3 style="font-size:18px;font-weight:800;margin:0 0 12px;">A. 사이트 프로젝트 6개 — R&amp;R 매트릭스</h3>
+  <div class="matrix" style="margin-bottom:20px;">
+    <table><thead><tr><th>프로젝트</th><th>사이트 PM</th><th>개발 PM</th><th>백엔드 (페어)</th><th>프론트엔드 (페어)</th><th>정책·문서</th></tr></thead><tbody id="rr-matrix"></tbody></table>
+  </div>
+  <h3 style="font-size:18px;font-weight:800;margin:0 0 12px;">B. 영업·공급 프로젝트 4개 — R&amp;R 매트릭스</h3>
+  <div class="matrix">
+    <table><thead><tr><th>프로젝트</th><th>Primary PM</th><th>외부 리드</th><th>백오피스</th><th>동참</th><th>핵심 KPI</th></tr></thead><tbody id="rr-matrix-biz"></tbody></table>
+  </div>
+</section>
+
+<section id="tab-kpi" class="tab-content">
+  <h2 class="section-title">KPI · OKR 4계층</h2>
+  <p class="section-sub">주간 → 분기 → 반기 → 연간</p>
+  <div class="card mb-md">
+    <div class="row gap-sm mb-sm"><span class="pill tone-sky dot">주간</span><h3 style="margin:0;">전 본부원 공통 KPI</h3></div>
+    <div id="kpi-weekly-rows"></div>
+  </div>
+  <div class="card mb-md">
+    <div class="row gap-sm mb-md"><span class="pill tone-indigo dot">Q2 2026</span><h3 style="margin:0;">분기 OKR</h3></div>
+    <div id="okr-list"></div>
+  </div>
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="row gap-sm mb-sm"><span class="pill tone-emerald dot">반기</span><h3 style="margin:0;">2026 H1</h3></div>
+      <ul class="bullet-list" id="kpi-h1-list"></ul>
+    </div>
+    <div class="card">
+      <div class="row gap-sm mb-sm"><span class="pill tone-rose dot">연간</span><h3 style="margin:0;">2026 전체</h3></div>
+      <ul class="bullet-list" id="kpi-year-list"></ul>
+    </div>
+  </div>
+</section>
+
+<section id="tab-rhythm" class="tab-content">
+  <h2 class="section-title">1주 단위 운영 리듬</h2>
+  <p class="section-sub">월요일 시작 · 금요일 마감</p>
+  <div class="rhythm-grid mb-lg" style="grid-template-columns:repeat(5,1fr);" id="rhythm-cards"></div>
+  <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:12px;padding:14px 18px;margin-bottom:24px;font-size:13px;color:#78350f;">
+    <b>🚨 금 12:00 = Code Freeze</b> · <b>🚀 금 14:00 = GitHub Release</b> (오유정 Release Manager 책임)
+  </div>
+  <h3 style="font-size:18px;font-weight:800;margin:0 0 8px;">2026 연간 위클리 마일스톤 (W19~W52)</h3>
+  <p class="muted" style="margin:0 0 14px;">분기별 색상 · 공휴일 회복 주 명시 · 매주 월 09시 위클리에서 점검</p>
+  <div style="display:flex;align-items:center;gap:10px;margin:14px 0 8px;"><span class="pill tone-violet dot">Q2</span><h4 style="margin:0;font-size:14px;">기반 구축 + 시티큐브 SaaS 1.0 (W19~W26 · 5/4~6/28)</h4></div>
+  <div class="matrix" style="margin-bottom:18px;"><table><thead><tr><th style="width:60px;">Week</th><th style="width:110px;">기간</th><th>핵심 마일스톤</th></tr></thead><tbody>
+    <tr><td><b>W19</b></td><td class="tiny">5/4–5/10</td><td>본부 출범 · 운영서 v0.1.3 / 루틴 v0.1.2 / 대시보드 v0.1.7 배포 · 10개 프로젝트 진단</td></tr>
+    <tr><td><b>W20</b></td><td class="tiny">5/11–5/17</td><td>시티큐브 SaaS 아키텍처 v1.0 확정 · <b>gcube 오픈소스 #1</b> · 가격정책 v1.0 초안</td></tr>
+    <tr><td><b>W21</b></td><td class="tiny">5/18–5/24</td><td>용인 시티큐브 SaaS 알파 · 평택 시민앱 BE 골격 · <b>gcube #2</b> · 임원 주간보고 정착</td></tr>
+    <tr><td><b>W22</b></td><td class="tiny">5/25–5/31</td><td>gcube 공급자 누적 10개사 · 김해 시민증 PoC 시연 · <b>gcube #3</b></td></tr>
+    <tr><td><b>W23</b></td><td class="tiny">6/1–6/7</td><td>시티큐브 SaaS 베타 1차 · 광주 데이터허브 베타 준비 · <b>gcube #4</b></td></tr>
+    <tr><td><b>W24</b></td><td class="tiny">6/8–6/14</td><td>시티큐브 SaaS 베타 2차 · 광주 데이터허브 베타 공개 · <b>gcube #5</b></td></tr>
+    <tr><td><b>W25</b></td><td class="tiny">6/15–6/21</td><td><b>시티큐브 SaaS v1.0.0 RC</b> · 칠곡 공공자전거 베타 · <b>gcube #6</b></td></tr>
+    <tr><td><b>W26</b></td><td class="tiny">6/22–6/28</td><td>🎉 <b>시티큐브 SaaS v1.0.0 정식 출시 (용인)</b> · <b>gcube #7·#8</b> · Q2 회고</td></tr>
+  </tbody></table></div>
+  <div style="display:flex;align-items:center;gap:10px;margin:14px 0 8px;"><span class="pill tone-sky dot">Q3</span><h4 style="margin:0;font-size:14px;">확산 + 유료 고객 5개 (W27~W40 · 6/29~10/4)</h4></div>
+  <div class="matrix" style="margin-bottom:18px;"><table><thead><tr><th style="width:60px;">Week</th><th style="width:110px;">기간</th><th>핵심 마일스톤</th></tr></thead><tbody>
+    <tr><td><b>W27</b></td><td class="tiny">6/29–7/5</td><td>Q3 킥오프 · 시티큐브 SaaS 운영 첫 주 · <b>gcube #9</b></td></tr>
+    <tr><td><b>W28</b></td><td class="tiny">7/6–7/12</td><td>김해 시민증 정식 출시 준비 · <b>gcube #10</b></td></tr>
+    <tr><td><b>W30</b></td><td class="tiny">7/20–7/26</td><td>시티큐브 SaaS 두 번째 지자체 PoC · <b>gcube #12</b> (반기 12개 달성)</td></tr>
+    <tr><td><b>W31</b></td><td class="tiny">7/27–8/2</td><td>🎉 <b>평택 시민앱 v1.0 출시</b> · <b>gcube #13</b></td></tr>
+    <tr><td><b>W35</b></td><td class="tiny">8/24–8/30</td><td>🎉 <b>칠곡 공공자전거 v1.0 출시</b> · <b>gcube #17</b></td></tr>
+    <tr><td><b>W40</b></td><td class="tiny">9/28–10/4</td><td>🎉 <b>시티큐브 SaaS 다섯 번째 지자체 계약</b> · Q3 회고</td></tr>
+  </tbody></table></div>
+  <div style="display:flex;align-items:center;gap:10px;margin:14px 0 8px;"><span class="pill tone-rose dot">Q4</span><h4 style="margin:0;font-size:14px;">글로벌 진출 + 2027 사업계획 (W41~W52 · 10/5~12/27)</h4></div>
+  <div class="matrix" style="margin-bottom:18px;"><table><thead><tr><th style="width:60px;">Week</th><th style="width:110px;">기간</th><th>핵심 마일스톤</th></tr></thead><tbody>
+    <tr><td><b>W41</b></td><td class="tiny">10/5–10/11</td><td>Q4 킥오프 · 영문 사이트·문서 베타 공개 · <b>gcube #21</b></td></tr>
+    <tr><td><b>W46</b></td><td class="tiny">11/9–11/15</td><td>🎉 <b>gcube 공급자 누적 50개사 달성</b> · <b>gcube #26</b></td></tr>
+    <tr><td><b>W50</b></td><td class="tiny">12/7–12/13</td><td>🎉 <b>gcube #30 (연간 30개 달성)</b></td></tr>
+    <tr style="background:#fef3c7;"><td><b>W52</b></td><td class="tiny">12/21–12/27</td><td>🎄 <b>2026 결산 + 2027 사업계획 v1.0 발표 + 본부 송년 회고</b></td></tr>
+  </tbody></table></div>
+</section>
+
+<section id="tab-routine" class="tab-content">
+  <h2 class="section-title">주간 루틴 — 사람별 × 요일별</h2>
+  <p class="section-sub">4대 고정 슬롯에 정렬됨 · 깨질 수 있으나 지키려고 노력하는 매뉴얼</p>
+  <div class="sched-legend">
+    <span class="item"><span class="swatch sw-fixed"></span>본부 고정 슬롯</span>
+    <span class="item"><span class="swatch sw-deep"></span>Deep Work</span>
+    <span class="item"><span class="swatch sw-internal"></span>내부 협업</span>
+    <span class="item"><span class="swatch sw-external"></span>외부 미팅</span>
+  </div>
+  <div class="fixed-slots">
+    <h4>본부 5대 고정 슬롯 (가급적 깨지 않음)</h4>
+    <div class="row-list" style="grid-template-columns:repeat(5,1fr);" id="fixed-slots-list"></div>
+  </div>
+  <div class="ext-slots">
+    <h4>외부 미팅 권장 슬롯</h4>
+    <div class="row-list" id="ext-slots-list"></div>
+  </div>
+  <div id="routine-grids"></div>
+  <div class="callout" style="margin-top:24px;">
+    <h3>깨야 할 때의 규칙 (4가지)</h3>
+    <ol>
+      <li><b>고정 슬롯 4개</b>를 깨야 하면 → 24시간 전에 본부장에게 공유.</li>
+      <li><b>다른 본부원의 Deep Work</b>를 깨야 하면 → 비동기 메시지 먼저, 30분 무응답 시에만 동기 호출.</li>
+      <li><b>외부 미팅이 권장 슬롯 밖</b>에 잡히면 → 캘린더에 빨간색으로 표시.</li>
+      <li><b>휴가·병가</b> → 캘린더 비공개 일정 OK. 단, 위클리 메모에 포함.</li>
+    </ol>
+  </div>
+</section>
+
+<section id="tab-principles" class="tab-content">
+  <h2 class="section-title">업무 지침 8원칙</h2>
+  <p class="section-sub">본부원 모두가 따르는 운영 규칙</p>
+  <div class="prin-grid mb-lg" id="principles-grid"></div>
+  <div class="callout">
+    <h3>본부장이 본부원에게 요청하는 6가지</h3>
+    <ol>
+      <li><b>모든 산출물에 버전을 붙여라.</b> vX.Y.Z + 동일 메시지의 커밋. 롤백 가능 상태 유지.</li>
+      <li><b>글로벌·다국어를 처음부터.</b> ko/en은 기본, SEO/AEO/GEO 우선순위에 따라 추가.</li>
+      <li><b>락인이 없는 프로덕트는 만들지 마라.</b> gcube 또는 시티큐브와의 연결고리를 항상 가질 것.</li>
+      <li><b>요구사항을 그냥 처리하지 마라.</b> 패턴으로 분류하고 신규 프로덕트의 씨앗으로 보고.</li>
+      <li><b>잊혀진 프로젝트를 만들지 마라.</b> 모든 프로젝트는 매주 1줄 상태가 갱신된다.</li>
+      <li><b>막히면 30분 안에 손을 들어라.</b> 우선순위 충돌·외부 블로커는 즉시 본부장에게.</li>
+    </ol>
+  </div>
+</section>
+
+</div>
+</main>
+
+<footer class="bottom">
+  <div class="container">
+    <div>© 2026 데이터얼라이언스 · 본부 운영 대시보드 v0.1.7</div>
+    <div>관리자 편집 모드 탑재 · 운영서 v0.1.3 / 운영루틴 v0.1.2 동봉</div>
+  </div>
+</footer>
+
+<!-- Admin UI -->
+<div class="pw-overlay" id="pw-overlay">
+  <div class="pw-box">
+    <h3>🔐 관리자 인증</h3>
+    <p>비밀번호를 입력하세요</p>
+    <input type="password" id="pw-input" placeholder="••••" maxlength="20" onkeydown="if(event.key==='Enter'){event.preventDefault();checkPw();}">
+    <button class="pw-submit" onclick="checkPw()">확인</button>
+    <div class="pw-err" id="pw-err">비밀번호가 틀렸습니다</div>
+  </div>
+</div>
+
+<button class="admin-fab" onclick="toggleAdminPanel()">⚙ 관리</button>
+
+<div class="admin-panel" id="admin-panel">
+  <div class="ap-title">관리자 패널</div>
+  <button class="ap-btn primary" id="edit-toggle-btn" onclick="toggleEdit()">✏️ 편집 모드 시작</button>
+  <button class="ap-btn success" id="deploy-btn" onclick="deployToGitHub()">☁️ 저장 & 배포</button>
+  <button class="ap-btn" onclick="saveAll()">💾 로컬 저장</button>
+  <button class="ap-btn" onclick="downloadHTML()">⬇️ HTML 다운로드</button>
+  <div class="ap-token-row">
+    <span id="token-status">🔑 토큰: 없음</span>
+    <button class="ap-btn-sm" onclick="setGhToken()">설정</button>
+  </div>
+  <button class="ap-btn danger" onclick="resetData()">↺ 기본값 초기화</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// BEGIN_INIT_DATA
+const INIT_DATA={"meta":{"org":"DATA-ALLIANCE · 신규 본부","title":"김도현 본부장 본부 운영 대시보드","subtitle":"gcube와 시티큐브를 두 축으로, 글로벌 AI 인프라와 스마트시티 시민서비스 시장을 동시에 락인(Lock-in)하는 프로덕트 중심 본부.","version":"v0.2.0","date":"2026-05-18","stats":[{"num":"5","lbl":"본부원 (페어 1쌍 포함)"},{"num":"10","lbl":"진행 프로젝트 (사이트 6 + 영업·공급 4)"},{"num":"5","lbl":"본부 고정 슬롯"},{"num":"1주","lbl":"출시 사이클 + AI 코딩"}]},"weeklyKpi":[{"label":"금요일 17:00 데모 마일스톤 달성률","target":"≥ 90%"},{"label":"프로젝트 1줄 상태 업데이트","target":"100%"},{"label":"채널 신규 요구사항 수집","target":"≥ 3건/주"}],"h1Kpi":["시티큐브 SaaS 유료 고객 ≥ 1개 (용인 우선)","gcube 오픈소스 프로덕트 누적 ≥ 12개","6개 프로젝트 중 4개 이상 알파/베타 도달","본부 매출 인식 가능 금액: [목표 미정 — 본부장 확정 필요]"],"yearKpi":["시티큐브 SaaS 유료 고객 ≥ 5개 지자체·기관","gcube 오픈소스 프로덕트 누적 ≥ 30개 (글로벌 사용자 보유 ≥ 5개)","gcube 공급자 누적 ≥ 50개사","신규 공공사업 수주 ≥ 3건","영문 사이트/문서/SaaS UI 완비 (글로벌 SEO/AEO/GEO 인덱싱)"],"rhythmCards":[{"when":"월 09:00 · 40분","what":"본부 위클리","who":"전원 · 본부장 진행","tone":"sky"},{"when":"월 11:00 · 60분","what":"임원 주간보고","who":"본부장 단독 · 자료 4명 전달","tone":"violet"},{"when":"월 14:00 · 60분","what":"gcube 스프린트 킥오프","who":"오유정 메인 · 박현숙 지원","tone":"indigo"},{"when":"수 10:00 · 60분","what":"영업·공급자 채널 점검","who":"김태형 리드 · 이도현 보좌","tone":"emerald"},{"when":"금 17:00 · 60분","what":"출시 데모 + 회고","who":"전원 · 본부장 진행","tone":"rose"}],"extSlots":[{"when":"화 09:30–11:30","what":"해외 화상 (오전)","who":"김도현 본부장 — 해외 GPU/IR/파트너"},{"when":"화 14:00–17:00","what":"외부 영업·발주처 (오후)","who":"본부장(의사결정자) + 김태형(발주처)"},{"when":"목 10:00–11:30","what":"해외 화상 (오전)","who":"김도현 본부장 — IR·언론·글로벌"},{"when":"목 14:00–17:00","what":"외부 공급·발주처 (오후)","who":"본부장(GPU 공급자) + 김태형(발주처)"}],"routines":[{"name":"김도현 본부장","tone":"slate","role":"본부 총괄 · 외근 다수","split":"외부 미팅 50% · 운영 30% · 충남 PM·신규 사업 20%","week":{"mon":[["09:00","본부 위클리 (40분)","fixed"],["09:40","1:1 이도현 (30분)","internal"],["10:10","1:1 김태형 (30분)","internal"],["11:00","임원 주간보고 (단독, 60분)","fixed"],["14:00","스프린트 킥오프 참관","fixed"],["15:30","신규 사업 / 충남","deep"]],"tue":[["09:30","해외 화상 (해외 GPU/파트너)","external"],["11:00","충남 AI Deep Work","deep"],["14:00","외부 의사결정자 ① (대기업/공공)","external"],["15:30","외부 의사결정자 ②","external"]],"wed":[["09:00","충남 진척 점검","internal"],["10:00","채널 점검 (참관·외근시 비대면)","fixed"],["14:00","외부 영업 미팅 (수요)","external"],["16:00","충남 PoC Deep Work","deep"]],"thu":[["09:30","해외 화상 (IR/글로벌)","external"],["11:00","신규 사업 아이데이션","deep"],["14:00","외부 GPU 공급자 ①","external"],["15:30","외부 GPU 공급자 ②","external"]],"fri":[["09:00","주간 KR 점검","internal"],["10:00","충남 AI Deep Work","deep"],["13:00","답신·내부 협업","internal"],["14:00","다음주 우선순위 확정","deep"],["17:00","출시 데모 + 회고","fixed"]]}},{"name":"이도현 실장","tone":"sky","role":"내부 백오피스 (가격·공급 풀 + 기획·문서·정책)","split":"가격·공급 풀 30% · 기획·문서 30% · 정책·계약 20% · 제안서 20%","week":{"mon":[["09:00","본부 위클리","fixed"],["09:00전","임원보고 자료 본부장 전달","internal"],["09:40","1:1 본부장 (30분)","internal"],["14:00","스프린트 참관","fixed"],["15:00","정책 문서 (개인정보·약관)","deep"]],"tue":[["09:00","메일·답신 트리아지","internal"],["10:30","시민증·포인트 정책 작성","deep"],["14:00","제안서 Deep Work","deep"],["15:30","🔥 가격정책 v1.X 갱신 (정기)","deep"]],"wed":[["09:00","위클리 노트 정리","internal"],["10:00","채널 점검 (자료 보좌)","fixed"],["14:00","제안서 Deep Work","deep"],["15:30","🔥 공급자 풀 등록·정리 (정기)","deep"]],"thu":[["09:00","메일·답신 트리아지","internal"],["10:30","데이터 거버넌스 정책","deep"],["14:00","제안서 Deep Work","deep"],["15:30","🔥 공급자별 단가표 v1.X (정기)","deep"]],"fri":[["09:00","정책 문서 갱신","deep"],["09:30","차주 외근 자료 패키지 준비","internal"],["13:00","본부 운영 KPI 정리","internal"],["14:00","운영서 격주 갱신","deep"],["17:00","출시 데모 + 회고","fixed"]]}},{"name":"김태형 실장","tone":"indigo","role":"사이트 PM 총괄 + gcube 수요 채널 동참","split":"사이트 PM 60% · 발주처+gcube 수요 채널 25% · 데이터 컨설팅 15%","week":{"mon":[["09:00","본부 위클리","fixed"],["10:30","사이트 6개 진척 종합 → 위클리 보고서","internal"],["14:00","스프린트 (참관 30분)","fixed"],["15:30","충남 + 평택 진척","internal"]],"tue":[["09:30","박현숙 동기화 (정기 30분)","internal"],["14:00","발주처 ① + gcube 수요 ① (지자체 A)","external"],["15:30","발주처 ② + 채널 영업 ②","external"]],"wed":[["10:00","채널 점검 리드","fixed"],["11:00","광주·용인 점검 + gcube 수요 채널 후보 발굴","internal"],["14:00","광주·용인 진척","internal"]],"thu":[["09:30","박현숙 동기화 (정기 30분)","internal"],["14:00","발주처 ① + gcube 수요 ① (지자체 C)","external"],["15:30","발주처 ② + 채널 영업 ②","external"]],"fri":[["09:00","사이트 6개 일주일 진척","internal"],["14:00","충남 PoC 정리","deep"],["17:00","출시 데모 + 회고","fixed"]]}},{"name":"김성구 책임","tone":"violet","role":"개발 PM · comverse 커뮤니케이션 · AI 코딩 검수 · Release Manager","split":"개발 PM·comverse 커뮤니케이션 50% · 코드리뷰·AI검수 30% · Release Manager·오픈소스 20%","week":{"mon":[["09:00","본부 위클리","fixed"],["09:30","comverse 개발 sync (15분)","internal"],["10:30","1주 출시 프로덕트 설계","deep"],["14:00","스프린트 (comverse 요구사항 전달)","fixed"],["15:30","🤖 AI 생성 코드 검수","deep"]],"tue":[["09:00","comverse 개발 진척 점검","internal"],["09:30","김태형 동기화 (정기 30분)","internal"],["11:00","시티큐브 SaaS Deep Work (리뷰·조율)","deep"],["14:00","용인 SaaS 기술 조율 (comverse)","deep"]],"wed":[["09:30","comverse 개발 sync","internal"],["10:00","시티큐브 아키텍처 결정","deep"],["14:00","🌐 커뮤니티 트리아지 (정기 120분)","internal"],["16:00","gcube 오픈소스 빌드 (🤖 AI)","deep"]],"thu":[["09:30","comverse 개발 sync","internal"],["10:30","김태형 동기화 (정기)","internal"],["14:00","결제·정산 모듈 comverse 리뷰","deep"],["15:30","🤖 AI 생성 코드 검수","deep"]],"fri":[["09:00","출시 빌드 폴리싱","deep"],["09:30","comverse 주간 개발 리뷰","internal"],["12:00","🚨 Code Freeze","fixed"],["14:00","🚀 GitHub Release","fixed"],["17:00","출시 데모 + 회고","fixed"]]}}],"missions":[["1","시티큐브 완성/디벨롭","블록체인 기반 인증 + 통합 포인트 코어 완성"],["2","gcube 오픈소스 1주 단위 출시","개발자/비개발자용 도구를 gcube 리소스에 락인"],["3","본부원 브레인스토밍 기반 신규/고도화","주간 아이데이션 → 즉시 1주 빌드"],["4","gcube 공급자 확보·관리·가격정책","공급자 커뮤니케이션 상시 운영"],["5","다양한 채널 통한 수요 기업 확보","지자체·MSP·대학·연구소·스타트업"],["6","공공사업/신규 프로젝트 기획→제안","기획 → 방향 수립 → 제안 완료"],["7","개발 우선순위 엄수","시티큐브 → gcube 오픈소스 → 고도화"],["8","블록체인 기반 신규 프로젝트 발굴","gcube와 연관성이 깊은 사업"],["9","다양한 채널 요구사항 분석·발굴","수요 패턴화 → 프로덕트 시드"]],"projects":[{"id":"S1","name":"평택 스마트시티 통합 시민앱","client":"더불어 평택 / 평택시","pm":"김태형 실장","phase":"진행중","target":"6월 베타","progress":55,"tag":"사이트","tone":"sky"},{"id":"S2","name":"광주 스마트시티 데이터허브","client":"광주광역시","pm":"김태형 실장","phase":"진행중","target":"6월 베타","progress":50,"tag":"사이트","tone":"indigo"},{"id":"S3","name":"용인 시티포인트 → 시티큐브 SaaS 전환","client":"용인시","pm":"김태형 실장","phase":"진행중","target":"6/30 v1.0.0","progress":65,"tag":"사이트","tone":"violet"},{"id":"S4","name":"칠곡군 공공자전거","client":"칠곡군","pm":"김태형 실장","phase":"진행중","target":"6월 베타","progress":45,"tag":"사이트","tone":"emerald"},{"id":"S5","name":"김해 시민증 + 전자지갑","client":"김해시","pm":"김태형 실장","phase":"진행중","target":"Q3 정식","progress":35,"tag":"사이트","tone":"amber"},{"id":"S6","name":"충남 AI 대전환","client":"충청남도","pm":"김태형 + 김도현","phase":"제안·기획","target":"Q3 착수","progress":20,"tag":"사이트","tone":"rose"},{"id":"B1","name":"gcube 수요 영업 (채널+직접)","client":"본부 자체 (채널: 김태형 동참)","pm":"김도현 본부장","phase":"상시","target":"Q2 미팅 20+ / MOU 3+","progress":25,"tag":"영업·공급","tone":"slate"},{"id":"B2","name":"gcube 공급자 확보","client":"본부 자체 (백오피스: 이도현)","pm":"김도현 본부장","phase":"상시","target":"Q2 신규 10개사","progress":30,"tag":"영업·공급","tone":"slate"},{"id":"B3","name":"시티큐브 영업","client":"본부 자체","pm":"김도현 본부장","phase":"상시","target":"Q2 신규 유료 1+","progress":15,"tag":"영업·공급","tone":"slate"},{"id":"B4","name":"공공기관 프로젝트 영업","client":"본부 자체 (제안서: 이도현)","pm":"김도현 본부장","phase":"상시","target":"Q2 제안서 5+","progress":20,"tag":"영업·공급","tone":"slate"}],"members":[{"name":"김도현 본부장","role":"본부 총괄 · 외근 다수 · 영업·공급 4 PM","tone":"slate","domain":"외부 의사결정자·공공기관 · 영업·공급 4개 프로젝트 Primary PM","pm":["B1 gcube 수요 영업 (Primary)","B2 gcube 공급자 확보 (Primary)","B3 시티큐브 영업 (Primary)","B4 공공기관 프로젝트 영업 (Primary)","S6 충남 AI 대전환 (김태형과 공동)"],"extras":["외부 의사결정자 미팅 (대기업·공공 C-레벨)","GPU 공급자 외부 미팅 → 24시간 내 이도현에게 전달","공공기관 미팅 (신규 사업 제안 영업)","IR / 언론 / 글로벌 파트너십","임원 주간보고 (월 11시 단독)"],"timesplit":"외부 미팅(영업·공급·공공) 50% · 본부 운영 30% · 충남 PM·신규 사업 20%"},{"name":"이도현 실장","role":"내부 백오피스 (가격·공급 풀 + 기획·문서·정책)","tone":"sky","domain":"가격정책·공급자 풀·공급단가 + 운영서·제안서·계약서·정책 문서 오너","pm":["없음 — 사이트 PM은 김태형, 개발 PM은 박현숙, 영업·공급 PM은 본부장"],"extras":["🔥 가격정책 v1.X 수립·갱신 (화 15:30 정기)","🔥 공급자 풀 관리 (수 15:30 정기)","🔥 공급자별 공급단가 v1.X (목 15:30 정기)","🔥 본부장 외근 결과 24시간 처리 (화·목 17시)","임원 주간보고 자료 패키지 (월 09시 전)","제안서 리드 작성 (분기 5건+)","시민증·포인트 정책 (약관·개인정보·데이터 거버넌스)"],"timesplit":"가격·공급 풀 30% · 기획·문서 30% · 정책·계약 20% · 제안서 20%"},{"name":"김태형 실장","role":"사이트 PM 총괄 + gcube 수요 채널 동참","tone":"indigo","domain":"6개 사이트 모두 PM + 사이트 발주처 인접 gcube 수요 채널 발굴","pm":["S1 평택·S2 광주·S3 용인·S4 칠곡·S5 김해 (Primary)","S6 충남 AI 대전환 (본부장 공동)","B1 gcube 수요 영업 (채널 동참)"],"extras":["발주처 외부 미팅 (화·목 오후 정기)","발주처 미팅 시 인접 지자체에 gcube 수요 영업 동시 진행","김성구(개발 PM)과 정기 동기화 (화·목 09:30)","월요일 위클리에 사이트 6개 1줄 상태 갱신","외부 미팅 24시간 내 회의록·액션 공유"],"timesplit":"사이트 PM 60% · 발주처+gcube 수요 채널 외부 미팅 25% · 데이터/AI 컨설팅 15%"},{"name":"김성구 책임","role":"개발 PM · 시티큐브 코어 · comverse 커뮤니케이션 · AI 코딩 검수","tone":"violet","domain":"개발팀 백로그·아키텍처·기술 결정 + comverse 외주 개발 커뮤니케이션 + AI 코딩 본부 표준 + 오픈소스 Release Manager","pm":["개발 PM (comverse 통해 시티큐브 SaaS 개발 조율)","S3 용인 시티큐브 SaaS 전환 (comverse 개발 리드)","1주 단위 gcube 오픈소스 출시 (Release Manager)"],"extras":["comverse 개발 요구사항 전달·조율 (정기 데일리 sync)","🤖 AI 도구 본부 표준 결정 + AI 생성 코드 검수","풀스택 기본 (시티큐브 코어 리뷰 + gcube 오픈소스 빌드)","🚨 금 12:00 = Code Freeze","🚀 금 14:00 = GitHub Release (한/영 체인지로그)","🌐 수 14:00–16:00 커뮤니티 정기 트리아지 (Discord/GitHub)","용인 SaaS·칠곡 모바일·광주 UI comverse 산출물 검수","다국어(i18n) 빌드 파이프라인","분기당 외부 피드백 패턴 리포트"],"timesplit":"개발 PM·comverse 커뮤니케이션 50% · 코드리뷰·AI검수 30% · Release Manager·오픈소스 20%"}],"rrMatrix":[["평택 통합 시민앱","김태형 실장","김성구 책임","comverse (백엔드)","comverse (프론트)","이도현 실장"],["광주 데이터허브","김태형 실장","김성구 책임","comverse (백엔드)","comverse (프론트)","이도현 실장"],["용인 시티큐브 SaaS 전환","김태형 실장","김성구 책임 (리드)","comverse (백엔드 메인)","comverse (프론트 메인)","이도현 실장"],["칠곡 공공자전거","김태형 실장","김성구 책임","comverse (백엔드)","comverse (프론트)","이도현 실장"],["김해 시민증/전자지갑","김태형 실장","김성구 책임","comverse (백엔드)","comverse (프론트)","이도현 실장"],["충남 AI 대전환","김태형 + 김도현","김성구 책임 (필요시)","comverse (필요시)","—","이도현 실장"]],"rrBiz":[["gcube 수요 영업 (채널+직접)","김도현 본부장","김도현 (직접)","이도현 (자료·계약·단가)","김태형 (채널)","미팅 20+ / MOU 3+"],["gcube 공급자 확보","김도현 본부장","김도현 (외근으로 발굴)","🔥 이도현 (풀·단가·계약)","—","신규 10개사 (Tier 2/3)"],["시티큐브 영업","김도현 본부장","김도현","이도현 (제안서·정책)","김태형 (사이트 발주처에 임베드)","신규 유료 1개+"],["공공기관 프로젝트 영업","김도현 본부장","김도현","이도현 (제안서 리드 작성)","김태형 (기존 발주처 추가 사업)","제안서 5건+"]],"okr":[{"O":"O1. 시티큐브 SaaS를 시장에 출시한다.","lead":"김성구 책임 (개발 PM) · 보좌: 김태형 실장 (사이트 PM) · 개발: comverse","tone":"violet","krs":["용인 시티큐브 SaaS v1.0.0 6/30까지 정식 출시","멀티테넌시·과금 모듈 완성 (박현숙 리드)","평택·김해 통합 시민앱에 시티큐브 SDK 임베드 완료"]},{"O":"O2. gcube 락인 오픈소스를 1주 단위로 출시한다.","lead":"김성구 책임 (Release Manager)","tone":"emerald","krs":["분기 누적 8개 이상 출시 (주 1개 페이스)","출시 프로덕트 중 4개 이상 외부 사용자 채택","모든 출시 프로덕트 한국어/영어 i18n 기본"]},{"O":"O3. gcube 공급/수요 양면을 안정화한다.","lead":"김도현 본부장 (외근 리드) · 보좌: 이도현 실장 (계약·단가표)","tone":"sky","krs":["GPU 공급자 신규 10개사 확보 (본부장 외부 미팅 리드)","신규 수요 미팅 20건+ , MOU 3건+ (김태형 발주처 측 동참)","공급/수요 단가표 v1.0 수립 (이도현 작성, 본부 승인)"]},{"O":"O4. 신규 공공/민간 제안을 수주 파이프라인에 진입시킨다.","lead":"김도현 본부장 · 보좌: 이도현 실장 (제안서 리드 작성)","tone":"rose","krs":["신규 제안서 제출 5건 이상 (이도현 리드 작성, 본부장 검토)","충남 AI 대전환 — 본부 제안 채택 및 착수 합의","블록체인 기반 신규 사업 아이템 3개 사내 제안"]}],"principles":[["3.1 우선순위 원칙","시티큐브 완성 → gcube 오픈소스 → 고도화. 충돌 시 즉시 본부장 에스컬레이션."],["3.2 1주 단위 출시","월요일 확정, 금요일 출시. 1주 못 끝나는 큰 기능은 MVP로 쪼갠다."],["3.3 글로벌·다국어 우선","ko/en 기본 + SEO/AEO/GEO 메타 첫 빌드부터."],["3.4 락인 설계","오픈소스마다 gcube/시티큐브 락인 포인트 1개 이상 필수."],["3.5 버전 관리","vX.Y.Z + 동일 메시지 커밋. 롤백 항상 가능."],["3.6 명확성 (No Ambiguity)","무엇·왜·언제까지·산출물 형태 4가지 항상 포함."],["3.7 분석→발굴","요구사항을 패턴화 → 신규 프로덕트 시드로 등록."],["3.8 다중 프로젝트 추적","월요일 09:00에 모든 프로젝트의 1줄 상태."]],"devSplit":[{"color":"#6366f1","label":"시티큐브 완성","pct":50},{"color":"#0ea5e9","label":"gcube 오픈소스 신규","pct":35},{"color":"#a855f7","label":"고도화 및 기타","pct":15}],"kpiChart":{"labels":["Q2","Q3","Q4"],"maxVal":50,"series":[{"color":"#6366f1","name":"시티큐브 SaaS 유료 고객","values":[0.5,3,5]},{"color":"#0ea5e9","name":"gcube 오픈소스","values":[8,20,30]},{"color":"#a855f7","name":"gcube 공급자","values":[15,30,50]}]},"orgChart":{"nodes":[{"id":"root","name":"DATA-ALLIANCE 신규 본부","role":"","tone":"slate","parent":null,"ext":false},{"id":"boss","name":"김도현 본부장","role":"본부 총괄 · 영업·공급 PM","tone":"slate","parent":"root","ext":false},{"id":"lee","name":"이도현 실장","role":"내부 백오피스","tone":"sky","parent":"boss","ext":false},{"id":"kim_th","name":"김태형 실장","role":"사이트 PM 총괄 (6개)","tone":"indigo","parent":"boss","ext":false},{"id":"kim_sg","name":"김성구 책임","role":"개발 PM · comverse 커뮤니케이션","tone":"violet","parent":"boss","ext":false},{"id":"comverse","name":"comverse","role":"외주 — 시티큐브 개발","tone":"emerald","parent":"kim_sg","ext":true}]}};
+// END_INIT_DATA
+
+let DATA={},editMode=false,adminUnlocked=false;
+
+function dc(o){return JSON.parse(JSON.stringify(o));}
+function loadData(){try{const s=localStorage.getItem('dash_v17');DATA=s?JSON.parse(s):dc(INIT_DATA);}catch(e){DATA=dc(INIT_DATA);}}
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
+function toggleAdminPanel(){
+  if(!adminUnlocked){document.getElementById('pw-overlay').classList.add('open');setTimeout(()=>document.getElementById('pw-input').focus(),50);return;}
+  document.getElementById('admin-panel').classList.toggle('open');
+  updateTokenStatus();
+}
+function checkPw(){
+  const v=document.getElementById('pw-input').value;
+  if(v==='2026'){adminUnlocked=true;document.getElementById('pw-overlay').classList.remove('open');document.getElementById('pw-input').value='';document.getElementById('pw-err').style.display='none';document.getElementById('admin-panel').classList.add('open');}
+  else{document.getElementById('pw-err').style.display='block';document.getElementById('pw-input').select();}
+}
+
+function toggleEdit(){
+  if(!editMode){
+    editMode=true;
+    document.body.classList.add('edit-mode');
+    document.getElementById('edit-toggle-btn').textContent='✏️ 편집 모드 종료';
+    document.getElementById('edit-toggle-btn').className='ap-btn danger';
+    renderAll();
+  }else{
+    collectEdits();
+    editMode=false;
+    document.body.classList.remove('edit-mode');
+    document.getElementById('edit-toggle-btn').textContent='✏️ 편집 모드 시작';
+    document.getElementById('edit-toggle-btn').className='ap-btn primary';
+    renderAll();
+    showToast('편집 반영됨 — 저장하려면 [저장] 클릭');
+  }
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function ed(path,txt){return `<span data-path="${path}">${esc(txt)}</span>`;}
+
+function collectEdits(){
+  document.querySelectorAll('[data-path][contenteditable="true"]').forEach(el=>{
+    const p=el.dataset.path.split('|'),v=el.textContent.trim();
+    switch(p[0]){
+      case'META':if(p[1]==='stats')DATA.meta.stats[+p[2]][p[3]]=v;else DATA.meta[p[1]]=v;break;
+      case'WK':DATA.weeklyKpi[+p[1]][p[2]]=v;break;
+      case'H1':DATA.h1Kpi[+p[1]]=v;break;
+      case'YR':DATA.yearKpi[+p[1]]=v;break;
+      case'RH':DATA.rhythmCards[+p[1]][p[2]]=v;break;
+      case'ES':DATA.extSlots[+p[1]][p[2]]=v;break;
+      case'RT':if(p.length===3)DATA.routines[+p[1]][p[2]]=v;else DATA.routines[+p[1]].week[p[2]][+p[3]][1]=v;break;
+      case'M':DATA.missions[+p[1]][+p[2]]=v;break;
+      case'P':DATA.projects[+p[1]][p[2]]=p[2]==='progress'?+v:v;break;
+      case'MB':if(p.length===3)DATA.members[+p[1]][p[2]]=v;else DATA.members[+p[1]][p[2]][+p[3]]=v;break;
+      case'RR':DATA.rrMatrix[+p[1]][+p[2]]=v;break;
+      case'RB':DATA.rrBiz[+p[1]][+p[2]]=v;break;
+      case'O':if(p[2]==='O')DATA.okr[+p[1]].O=v;else if(p[2]==='lead')DATA.okr[+p[1]].lead=v;else DATA.okr[+p[1]].krs[+p[3]]=v;break;
+      case'PR':DATA.principles[+p[1]][p[2]==='t'?0:1]=v;break;
+      case'DS':if(p[2]==='pct')DATA.devSplit[+p[1]].pct=+v;else DATA.devSplit[+p[1]][p[2]]=v;break;
+      case'KC':if(p[1]==='max')DATA.kpiChart.maxVal=+v;else if(p[1]==='label')DATA.kpiChart.labels[+p[2]]=v;else if(p[1]==='series')DATA.kpiChart.series[+p[2]][p[3]]=v;else DATA.kpiChart.series[+p[1]].values[+p[2]]=+v;break;
+      case'OC':{const node=DATA.orgChart.nodes.find(n=>n.id===p[1]);if(node)node[p[2]]=v;break;}
+    }
+  });
+}
+
+function saveAll(){collectEdits();localStorage.setItem('dash_v17',JSON.stringify(DATA));showToast('✓ 로컬 저장 완료');}
+
+// ── CRUDL helpers ──
+const CRUD_DEFAULTS={
+  missions:()=>[(DATA.missions.length+1).toString(),'새 미션 제목','미션 설명'],
+  projects:()=>({id:'P'+Date.now(),name:'새 프로젝트',client:'',pm:'',phase:'기획',target:'',progress:0,tag:'사이트',tone:'slate'}),
+  rhythmCards:()=>({when:'',what:'새 슬롯',who:'',tone:'sky'}),
+  extSlots:()=>({when:'',what:'새 외부 슬롯',who:''}),
+  weeklyKpi:()=>({label:'새 KPI 항목',target:'—'}),
+  h1Kpi:()=>'새 H1 KPI',
+  yearKpi:()=>'새 연간 KPI',
+  okr:()=>({O:'새 Objective',lead:'',tone:'slate',krs:['새 KR']}),
+  principles:()=>['새 원칙 제목','원칙 설명'],
+};
+function crudDel(section,idx){collectEdits();DATA[section].splice(+idx,1);renderAll();showToast('삭제됨');}
+function crudAdd(section){collectEdits();DATA[section].push(CRUD_DEFAULTS[section]());renderAll();showToast('+ 추가됨');}
+function crudDelKR(oi,ki){collectEdits();DATA.okr[+oi].krs.splice(+ki,1);renderAll();showToast('KR 삭제됨');}
+function crudAddKR(oi){collectEdits();DATA.okr[+oi].krs.push('새 KR');renderAll();showToast('KR 추가됨');}
+function crudAddSlot(pi,day){collectEdits();DATA.routines[+pi].week[day].push(['09:00','새 일정','internal']);renderAll();showToast('슬롯 추가됨');}
+function crudDelSlot(pi,day,si){collectEdits();DATA.routines[+pi].week[day].splice(+si,1);renderAll();showToast('슬롯 삭제됨');}
+function crudAddMemberItem(mi,field){collectEdits();DATA.members[+mi][field].push(field==='pm'?'새 PM 역할':'새 책임 항목');renderAll();showToast('+ 추가됨');}
+function crudDelMemberItem(mi,field,idx){collectEdits();DATA.members[+mi][field].splice(+idx,1);renderAll();showToast('삭제됨');}
+function reDS(){collectEdits();renderDevSplit();if(editMode)document.querySelectorAll('[data-path]').forEach(el=>{el.contentEditable='true';el.spellcheck=false;});}
+function reKC(){collectEdits();renderKpiChart();if(editMode)document.querySelectorAll('[data-path]').forEach(el=>{el.contentEditable='true';el.spellcheck=false;});}
+function crudAddDevSplit(){reDS();DATA.devSplit.push({color:'#94a3b8',label:'새 항목',pct:0});reDS();showToast('+ 추가됨');}
+function crudDelDevSplit(i){reDS();DATA.devSplit.splice(+i,1);reDS();showToast('삭제됨');}
+function crudAddKpiSeries(){reKC();DATA.kpiChart.series.push({color:'#94a3b8',name:'새 시리즈',values:DATA.kpiChart.labels.map(()=>0)});reKC();showToast('+ 추가됨');}
+function crudDelKpiSeries(si){reKC();DATA.kpiChart.series.splice(+si,1);reKC();showToast('삭제됨');}
+function crudAddKpiQuarter(){reKC();DATA.kpiChart.labels.push('Q'+(DATA.kpiChart.labels.length+1));DATA.kpiChart.series.forEach(s=>s.values.push(0));reKC();showToast('+ 추가됨');}
+function crudDelKpiQuarter(qi){reKC();DATA.kpiChart.labels.splice(+qi,1);DATA.kpiChart.series.forEach(s=>s.values.splice(+qi,1));reKC();showToast('삭제됨');}
+
+function reOC(){collectEdits();renderOrgChart();if(editMode)document.querySelectorAll('[data-path]').forEach(el=>{el.contentEditable='true';el.spellcheck=false;});}
+function crudAddOrgNode(parentId){reOC();const newId='node_'+Date.now();DATA.orgChart.nodes.push({id:newId,name:'새 구성원',role:'역할',tone:'slate',parent:parentId,ext:false});reOC();showToast('+ 노드 추가됨');}
+function crudDelOrgNode(nodeId){reOC();DATA.orgChart.nodes=DATA.orgChart.nodes.filter(n=>n.id!==nodeId&&n.parent!==nodeId);reOC();showToast('삭제됨');}
+
+function renderOrgChart(){
+  const el=document.getElementById('org-chart');
+  if(!el)return;
+  const nodes=DATA.orgChart.nodes;
+  function buildTree(parentId){
+    return nodes.filter(n=>n.parent===parentId).map(n=>{
+      const children=buildTree(n.id);
+      const toneColors={slate:'#94a3b8',sky:'#38bdf8',indigo:'#818cf8',violet:'#a78bfa',emerald:'#34d399',rose:'#fb7185'};
+      const delBtn=editMode?`<button class="org-crud-del" onclick="crudDelOrgNode('${n.id}')" title="삭제">×</button>`:'';
+      const addBtn=`<button class="org-crud-add" onclick="crudAddOrgNode('${n.id}')" title="하위 노드 추가">+</button>`;
+      const namePath=`OC|${n.id}|name`;
+      const rolePath=`OC|${n.id}|role`;
+      const nameEl=editMode
+        ?`<span data-path="${namePath}" contenteditable="true" spellcheck="false" class="org-node-name">${n.name}</span>`
+        :`<div class="org-node-name">${n.name}</div>`;
+      const roleEl=n.role?(editMode
+        ?`<span data-path="${rolePath}" contenteditable="true" spellcheck="false" class="org-node-role">${n.role}</span>`
+        :`<div class="org-node-role">${n.role}</div>`):'';
+      const extBadge=n.ext?`<span class="org-ext-badge">외주</span>`:'';
+      const nodeHtml=`<div class="org-node-wrap">
+        <div class="org-node tone-${n.tone||'slate'}${n.ext?' ext':''}">
+          ${extBadge}${delBtn}
+          ${nameEl}${roleEl}
+        </div>
+        ${addBtn}
+        ${children.length?`<div class="org-children">${children.join('')}</div>`:''}
+      </div>`;
+      return nodeHtml;
+    });
+  }
+  const roots=nodes.filter(n=>!n.parent);
+  el.innerHTML=`<div class="org-tree"><div class="org-level">${roots.map(r=>{
+    const children=buildTree(r.id);
+    const toneColors={slate:'#94a3b8',sky:'#38bdf8',indigo:'#818cf8',violet:'#a78bfa',emerald:'#34d399',rose:'#fb7185'};
+    const delBtn=editMode?`<button class="org-crud-del" onclick="crudDelOrgNode('${r.id}')" title="삭제">×</button>`:'';
+    const addBtn=`<button class="org-crud-add" onclick="crudAddOrgNode('${r.id}')" title="하위 노드 추가">+</button>`;
+    const namePath=`OC|${r.id}|name`;
+    const rolePath=`OC|${r.id}|role`;
+    const nameEl=editMode
+      ?`<span data-path="${namePath}" contenteditable="true" spellcheck="false" class="org-node-name">${r.name}</span>`
+      :`<div class="org-node-name">${r.name}</div>`;
+    const roleEl=r.role?(editMode
+      ?`<span data-path="${rolePath}" contenteditable="true" spellcheck="false" class="org-node-role">${r.role}</span>`
+      :`<div class="org-node-role">${r.role}</div>`):'';
+    return `<div class="org-node-wrap">
+      <div class="org-node tone-${r.tone||'slate'}${r.ext?' ext':''}">
+        ${delBtn}
+        ${nameEl}${roleEl}
+      </div>
+      ${addBtn}
+      ${children.length?`<div class="org-children">${children.join('')}</div>`:''}
+    </div>`;
+  }).join('')}</div></div>`;
+}
+
+const db=s=>s.replace(/'/g,"\\'");
+
+function updateTokenStatus(){
+  const s=document.getElementById('token-status');
+  if(s)s.textContent=localStorage.getItem('gh_token')?'🔑 토큰: 설정됨':'🔑 토큰: 없음';
+}
+function setGhToken(){
+  const cur=localStorage.getItem('gh_token');
+  const t=prompt('GitHub Personal Access Token\n(Contents: write 권한 필요)'+(cur?'\n현재: 설정됨 — 빈칸 입력 시 삭제':''),cur||'');
+  if(t===null)return;
+  if(t.trim()){localStorage.setItem('gh_token',t.trim());updateTokenStatus();showToast('🔑 토큰 저장됨');}
+  else{localStorage.removeItem('gh_token');updateTokenStatus();showToast('🔑 토큰 삭제됨');}
+}
+
+async function deployToGitHub(){
+  let token=localStorage.getItem('gh_token');
+  if(!token){
+    token=prompt('GitHub Personal Access Token을 입력하세요.\n(Settings → Developer settings → Personal access tokens → Contents: write)');
+    if(!token)return;
+    localStorage.setItem('gh_token',token.trim());
+    updateTokenStatus();
+    token=token.trim();
+  }
+  collectEdits();
+  // Auto-increment patch version
+  const ver=(DATA.meta.version||'v0.1.7').replace(/[^0-9.]/g,'');
+  const parts=ver.split('.').map(Number);
+  parts[2]=(parts[2]||0)+1;
+  const newVer='v'+parts.join('.');
+  DATA.meta.version=newVer;
+  DATA.meta.date=new Date().toISOString().slice(0,10);
+
+  let html='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+  html=html.replace(/ contenteditable="(true|false)"/g,'').replace(/ spellcheck="false"/g,'');
+  html=html.replace(/class="admin-panel open"/,'class="admin-panel"');
+  html=html.replace(/class="pw-overlay open"/,'class="pw-overlay"');
+  html=html.replace(/\/\/ BEGIN_INIT_DATA[\s\S]*?\/\/ END_INIT_DATA/,`// BEGIN_INIT_DATA\nconst INIT_DATA=${JSON.stringify(DATA)};\n// END_INIT_DATA`);
+
+  const owner='DoCoreTeam',repo='dateam';
+  const filename='dashboard.html';
+  const apiUrl=`https://api.github.com/repos/${owner}/${repo}/contents/${filename}`;
+  const headers={'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'};
+
+  const btn=document.getElementById('deploy-btn');
+  btn.disabled=true;btn.textContent='⏳ 배포 중...';
+  try{
+    const getRes=await fetch(apiUrl,{headers});
+    if(!getRes.ok)throw new Error(`파일 조회 실패 (${getRes.status}) — 토큰 또는 레포 확인`);
+    const{sha}=await getRes.json();
+    const content=btoa(unescape(encodeURIComponent(html)));
+    const putRes=await fetch(apiUrl,{method:'PUT',headers,body:JSON.stringify({message:`${newVer}: 대시보드 업데이트`,content,sha})});
+    if(!putRes.ok){const e=await putRes.json();throw new Error(e.message||`PUT 실패 (${putRes.status})`);}
+    localStorage.setItem('dash_v17',JSON.stringify(DATA));
+    renderAll();
+    showToast(`✅ 배포 완료 — ${newVer} | GitHub Pages 반영까지 1-2분`);
+  }catch(e){
+    // version rollback
+    parts[2]-=1;DATA.meta.version='v'+parts.join('.');
+    if(e.message.includes('401')||e.message.includes('403')){localStorage.removeItem('gh_token');updateTokenStatus();showToast('❌ 인증 실패 — 토큰을 다시 설정하세요');}
+    else showToast('❌ 배포 실패: '+e.message);
+  }finally{
+    btn.disabled=false;btn.textContent='☁️ 저장 & 배포';
+  }
+}
+function resetData(){if(!confirm('기본값으로 되돌리겠습니까?\n로컬 저장 내용이 삭제됩니다.'))return;localStorage.removeItem('dash_v17');DATA=dc(INIT_DATA);renderAll();if(editMode)toggleEdit();showToast('↺ 초기화 완료');}
+
+function downloadHTML(){
+  collectEdits();
+  let html='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+  html=html.replace(/ contenteditable="(true|false)"/g,'').replace(/ spellcheck="false"/g,'');
+  html=html.replace(/class="admin-panel open"/,'class="admin-panel"');
+  html=html.replace(/class="pw-overlay open"/,'class="pw-overlay"');
+  html=html.replace(/\/\/ BEGIN_INIT_DATA[\s\S]*?\/\/ END_INIT_DATA/,`// BEGIN_INIT_DATA\nconst INIT_DATA=${JSON.stringify(DATA)};\n// END_INIT_DATA`);
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'}));a.download='dashboard.html';a.click();showToast('⬇️ 다운로드 완료');
+}
+
+// ===== Render =====
+function mk(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!==undefined)e.innerHTML=html;return e;}
+
+function renderMissions(){
+  const g=document.getElementById('mission-grid');g.innerHTML='';
+  DATA.missions.forEach(([n,t,d],i)=>{
+    const c=mk('div','miss');c.style.position='relative';
+    c.innerHTML=`${editMode?`<button class="crud-del" onclick="crudDel('missions',${i})" title="삭제">×</button>`:''}<div class="n">#${ed(`M|${i}|0`,n)}</div><div class="t">${ed(`M|${i}|1`,t)}</div><div class="d">${ed(`M|${i}|2`,d)}</div>`;
+    g.appendChild(c);
+  });
+  if(editMode)g.insertAdjacentHTML('beforeend','<button class="crud-add" onclick="crudAdd(\'missions\')">+ 미션 추가</button>');
+}
+
+let curFilter='all';
+function renderProjects(filter){
+  if(filter!==undefined)curFilter=filter;
+  const g=document.getElementById('projects-grid');g.innerHTML='';
+  DATA.projects.filter(p=>curFilter==='all'||p.tag===curFilter).forEach((p,_,arr)=>{
+    const i=DATA.projects.indexOf(p);
+    const c=mk('div','proj');c.style.position='relative';
+    c.innerHTML=`${editMode?`<button class="crud-del" onclick="crudDel('projects',${i})" title="삭제">×</button>`:''}<div class="head"><div><div class="row gap-sm" style="margin-bottom:8px;"><span class="pill tone-${p.tone} dot">${esc(p.tag)}</span><span class="tiny">#${esc(p.id)}</span></div><div class="name">${ed(`P|${i}|name`,p.name)}</div><div class="client">${ed(`P|${i}|client`,p.client)}</div></div><div class="meta-r"><div class="lbl">목표</div><div class="v">${ed(`P|${i}|target`,p.target)}</div></div></div><div style="margin-top:16px;"><div class="row between" style="font-size:11px;color:#64748b;"><span>진행도 (예상)</span><span style="font-weight:800;color:#0f172a;">${ed(`P|${i}|progress`,p.progress)}%</span></div><div class="progress"><span style="width:${Math.min(100,Math.max(0,+p.progress))}%"></span></div></div><div class="foot"><div><span class="muted">PM</span> · <b style="color:#0f172a;">${ed(`P|${i}|pm`,p.pm)}</b></div><span class="pill tone-slate">${ed(`P|${i}|phase`,p.phase)}</span></div>`;
+    g.appendChild(c);
+  });
+  if(editMode){g.insertAdjacentHTML('beforeend','<button class="crud-add" onclick="crudAdd(\'projects\')">+ 프로젝트 추가</button>');document.querySelectorAll('[data-path]').forEach(el=>{el.contentEditable='true';el.spellcheck=false;});}
+}
+
+function renderMembers(){
+  const g=document.getElementById('members-grid');g.innerHTML='';
+  DATA.members.forEach((m,i)=>{
+    const c=mk('div','member tone-'+m.tone);
+    const pmH=m.pm.map((x,j)=>`<li>${editMode?`<button class="crud-del-inline" onclick="crudDelMemberItem(${i},'pm',${j})" title="삭제">×</button> `:''}<span>${ed(`MB|${i}|pm|${j}`,x)}</span></li>`).join('')+(editMode?`<li><button class="crud-add-kr" onclick="crudAddMemberItem(${i},'pm')">+ PM 역할 추가</button></li>`:'');
+    const exH=m.extras.map((x,j)=>`<li>${editMode?`<button class="crud-del-inline" onclick="crudDelMemberItem(${i},'extras',${j})" title="삭제">×</button> `:''}<span>${ed(`MB|${i}|extras|${j}`,x)}</span></li>`).join('')+(editMode?`<li><button class="crud-add-kr" onclick="crudAddMemberItem(${i},'extras')">+ 책임 추가</button></li>`:'');
+    c.innerHTML=`<div class="name">${ed(`MB|${i}|name`,m.name)}</div><div class="role">${ed(`MB|${i}|role`,m.role)}</div><div class="domain"><b>도메인</b> · ${ed(`MB|${i}|domain`,m.domain)}</div><h4>PM 담당</h4><ul>${pmH}</ul><h4>추가 책임</h4><ul>${exH}</ul><div class="split"><b>시간 배분:</b> ${ed(`MB|${i}|timesplit`,m.timesplit)}</div>`;
+    g.appendChild(c);
+  });
+}
+
+function renderRR(){
+  const t=document.getElementById('rr-matrix');t.innerHTML='';
+  DATA.rrMatrix.forEach((row,ri)=>{
+    const tr=mk('tr');
+    tr.innerHTML=row.map((c,ci)=>ci===0?`<td><b>${ed(`RR|${ri}|${ci}`,c)}</b></td>`:`<td>${ed(`RR|${ri}|${ci}`,c)}</td>`).join('');
+    t.appendChild(tr);
+  });
+  const tb=document.getElementById('rr-matrix-biz');tb.innerHTML='';
+  DATA.rrBiz.forEach((row,ri)=>{
+    const tr=mk('tr');
+    tr.innerHTML=row.map((c,ci)=>ci===0?`<td><b>${ed(`RB|${ri}|${ci}`,c)}</b></td>`:`<td>${ed(`RB|${ri}|${ci}`,c)}</td>`).join('');
+    tb.appendChild(tr);
+  });
+}
+
+function renderOKR(){
+  const g=document.getElementById('okr-list');g.innerHTML='';
+  DATA.okr.forEach((o,i)=>{
+    const c=mk('div','okr tone-'+o.tone);c.style.position='relative';
+    const krH=o.krs.map((k,ki)=>`<li><span class="kr-tag">KR${ki+1}</span><span>${ed(`O|${i}|kr|${ki}`,k)}</span>${editMode?`<button class="crud-del-inline" onclick="crudDelKR(${i},${ki})" title="KR 삭제">×</button>`:''}</li>`).join('');
+    c.innerHTML=`${editMode?`<button class="crud-del" onclick="crudDel('okr',${i})" title="OKR 삭제">×</button>`:''}<div class="o">${ed(`O|${i}|O`,o.O)}</div><div class="lead">Lead: ${ed(`O|${i}|lead`,o.lead)}</div><ul>${krH}</ul>${editMode?`<button class="crud-add-kr" onclick="crudAddKR(${i})">+ KR 추가</button>`:''}`;
+    g.appendChild(c);
+  });
+  if(editMode)g.insertAdjacentHTML('beforeend','<button class="crud-add" onclick="crudAdd(\'okr\')">+ OKR 추가</button>');
+}
+
+function renderPrinciples(){
+  const g=document.getElementById('principles-grid');g.innerHTML='';
+  DATA.principles.forEach(([t,d],i)=>{
+    const c=mk('div','prin');c.style.position='relative';
+    c.innerHTML=`${editMode?`<button class="crud-del" onclick="crudDel('principles',${i})" title="삭제">×</button>`:''}<div class="t">${ed(`PR|${i}|t`,t)}</div><div class="d">${ed(`PR|${i}|d`,d)}</div>`;
+    g.appendChild(c);
+  });
+  if(editMode)g.insertAdjacentHTML('beforeend','<button class="crud-add" onclick="crudAdd(\'principles\')">+ 업무지침 추가</button>');
+}
+
+const DAYS=[{code:'mon',label:'월',mode:'int'},{code:'tue',label:'화',mode:'ext'},{code:'wed',label:'수',mode:'int'},{code:'thu',label:'목',mode:'ext'},{code:'fri',label:'금',mode:'int'}];
+
+function renderHeader(){
+  const m=DATA.meta;
+  const statsH=m.stats.map((s,i)=>`<div class="stat"><div class="num">${ed(`META|stats|${i}|num`,s.num)}</div><div class="lbl">${ed(`META|stats|${i}|lbl`,s.lbl)}</div></div>`).join('');
+  document.getElementById('header-container').innerHTML=`<div class="row between" style="align-items:flex-start;"><div style="flex:1;min-width:260px;"><div class="eyebrow">${ed('META|org',m.org)}</div><h1 class="title">${ed('META|title',m.title)}</h1><p class="subtitle">${ed('META|subtitle',m.subtitle)}</p></div><div class="version-badge"><div class="label">Version</div><div class="v">${ed('META|version',m.version)}</div><div class="date">${ed('META|date',m.date)}</div></div></div><div class="stats">${statsH}</div>`;
+}
+
+function renderKpiRows(){
+  const g=document.getElementById('kpi-weekly-rows');
+  g.innerHTML=DATA.weeklyKpi.map((k,i)=>`<div class="kpi-row" style="position:relative">${editMode?`<button class="crud-del" style="top:50%;transform:translateY(-50%)" onclick="crudDel('weeklyKpi',${i})" title="삭제">×</button>`:''}<span>${ed(`WK|${i}|label`,k.label)}</span><span class="v">${ed(`WK|${i}|target`,k.target)}</span></div>`).join('');
+  if(editMode)g.insertAdjacentHTML('beforeend','<button class="crud-add" onclick="crudAdd(\'weeklyKpi\')">+ KPI 추가</button>');
+}
+function renderH1Kpi(){
+  const g=document.getElementById('kpi-h1-list');
+  g.innerHTML=DATA.h1Kpi.map((k,i)=>`<li style="position:relative">${editMode?`<button class="crud-del-inline" onclick="crudDel('h1Kpi',${i})" title="삭제">×</button> `:''}<span>${ed(`H1|${i}`,k)}</span></li>`).join('');
+  if(editMode)g.insertAdjacentHTML('beforeend','<li><button class="crud-add" style="margin-top:4px" onclick="crudAdd(\'h1Kpi\')">+ H1 KPI 추가</button></li>');
+}
+function renderYearKpi(){
+  const g=document.getElementById('kpi-year-list');
+  g.innerHTML=DATA.yearKpi.map((k,i)=>`<li style="position:relative">${editMode?`<button class="crud-del-inline" onclick="crudDel('yearKpi',${i})" title="삭제">×</button> `:''}<span>${ed(`YR|${i}`,k)}</span></li>`).join('');
+  if(editMode)g.insertAdjacentHTML('beforeend','<li><button class="crud-add" style="margin-top:4px" onclick="crudAdd(\'yearKpi\')">+ 연간 KPI 추가</button></li>');
+}
+function renderRhythm(){
+  const rc=document.getElementById('rhythm-cards');
+  rc.innerHTML=DATA.rhythmCards.map((r,i)=>`<div class="rhythm tone-${r.tone}" style="position:relative">${editMode?`<button class="crud-del" onclick="crudDel('rhythmCards',${i})" title="삭제">×</button>`:''}<div class="when">${ed(`RH|${i}|when`,r.when)}</div><div class="what">${ed(`RH|${i}|what`,r.what)}</div><div class="who">${ed(`RH|${i}|who`,r.who)}</div></div>`).join('');
+  if(editMode)rc.insertAdjacentHTML('beforeend','<button class="crud-add" onclick="crudAdd(\'rhythmCards\')">+ 리듬 슬롯 추가</button>');
+
+  const fl=document.getElementById('fixed-slots-list');
+  fl.innerHTML=DATA.rhythmCards.map((r,i)=>`<div class="fixed-slot" style="position:relative">${editMode?`<button class="crud-del" onclick="crudDel('rhythmCards',${i})" title="삭제">×</button>`:''}<div class="when">${ed(`RH|${i}|when`,r.when)}</div><div class="what">${ed(`RH|${i}|what`,r.what)}</div><div class="who">${ed(`RH|${i}|who`,r.who)}</div></div>`).join('');
+  if(editMode)fl.insertAdjacentHTML('beforeend','<button class="crud-add" onclick="crudAdd(\'rhythmCards\')">+ 고정 슬롯 추가</button>');
+
+  const el=document.getElementById('ext-slots-list');
+  el.innerHTML=DATA.extSlots.map((s,i)=>`<div class="ext-slot" style="position:relative">${editMode?`<button class="crud-del" onclick="crudDel('extSlots',${i})" title="삭제">×</button>`:''}<div class="when">${ed(`ES|${i}|when`,s.when)}</div><div class="what">${ed(`ES|${i}|what`,s.what)}</div><div class="who">${ed(`ES|${i}|who`,s.who)}</div></div>`).join('');
+  if(editMode)el.insertAdjacentHTML('beforeend','<button class="crud-add" onclick="crudAdd(\'extSlots\')">+ 외부 슬롯 추가</button>');
+}
+
+function renderRoutines(){
+  const rg=document.getElementById('routine-grids');rg.innerHTML='';
+  DATA.routines.forEach((p,pi)=>{
+    const card=mk('div','person-week tone-'+p.tone);
+    let dayHtml='';
+    DAYS.forEach(d=>{
+      const slots=(p.week&&p.week[d.code])||[];
+      const ieLabel=d.mode==='int'?'내부의 날':'외부의 날';
+      const ieClass=d.mode==='int'?'day-int':'day-ext';
+      const sH=slots.map(([t,what,kind],si)=>`<div class="slot ${kind}" style="position:relative">${editMode?`<button class="crud-del" style="top:50%;transform:translateY(-50%);right:4px" onclick="crudDelSlot(${pi},'${d.code}',${si})" title="삭제">×</button>`:''}<div class="t">${esc(t)}</div><b>${ed(`RT|${pi}|${d.code}|${si}`,what)}</b></div>`).join('');
+      const addSlotBtn=editMode?`<button class="crud-add-slot" onclick="crudAddSlot(${pi},'${d.code}')">+ 슬롯 추가</button>`:'';
+      dayHtml+=`<div class="pw-day"><div class="day-h"><span>${d.label}</span><span class="ie ${ieClass}">${ieLabel}</span></div>${sH}${addSlotBtn}</div>`;
+    });
+    card.innerHTML=`<div class="pw-head"><div><div class="pw-name">${ed(`RT|${pi}|name`,p.name)}</div><div class="pw-role">${ed(`RT|${pi}|role`,p.role)}</div></div><div class="pw-split">${ed(`RT|${pi}|split`,p.split)}</div></div><div class="pw-grid">${dayHtml}</div>`;
+    rg.appendChild(card);
+  });
+}
+
+function renderDevSplit(){
+  const g=document.getElementById('dev-split-chart');if(!g)return;
+  const ds=DATA.devSplit||[];
+  const circ=2*Math.PI*72;
+  let off=0;
+  const segs=ds.map((s,i)=>{const dash=(s.pct/100)*circ;const seg=`<circle r="72" fill="none" stroke="${s.color}" stroke-width="28" stroke-dasharray="${dash.toFixed(2)} ${circ.toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" stroke-linecap="butt"/>`;off+=dash;return seg;});
+  const legend=ds.map((s,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<ds.length-1?'border-bottom:1px dashed #e2e8f0;':''}"><span style="width:12px;height:12px;border-radius:3px;background:${s.color};display:inline-block;flex-shrink:0;"></span><div style="flex:1;font-size:13px;"><b>${ed(`DS|${i}|label`,s.label)}</b></div><div style="font-weight:800;font-size:14px;">${ed(`DS|${i}|pct`,s.pct)}%</div></div>`).join('');
+  const editPanel=editMode?`<div style="margin-top:14px;border-top:1px dashed #e2e8f0;padding-top:12px;"><div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">도넛 차트 설정</div>${ds.map((s,i)=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><input type="color" value="${s.color}" title="색상" onchange="DATA.devSplit[${i}].color=this.value;reDS();" style="width:30px;height:30px;border:1px solid #e2e8f0;padding:2px;cursor:pointer;border-radius:6px;"><span data-path="DS|${i}|label" style="flex:1;border-bottom:1px solid #cbd5e1;padding:3px 6px;font-size:13px;min-width:80px;">${esc(s.label)}</span><span style="font-size:11px;color:#94a3b8;">%</span><span data-path="DS|${i}|pct" style="width:38px;border-bottom:1px solid #cbd5e1;padding:3px 4px;text-align:center;font-size:13px;font-weight:700;">${s.pct}</span><button class="crud-del-inline" onclick="crudDelDevSplit(${i})" title="삭제">×</button></div>`).join('')}<button class="crud-add-kr" onclick="crudAddDevSplit()">+ 항목 추가</button></div>`:'';
+  g.innerHTML=`<div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;margin-top:8px;"><svg viewBox="-100 -100 200 200" style="width:180px;height:180px;flex-shrink:0;"><circle r="72" fill="none" stroke="#f1f5f9" stroke-width="28"/><g transform="rotate(-90)">${segs.join('')}</g><text x="0" y="-2" text-anchor="middle" font-size="14" font-weight="800" fill="#0f172a" font-family="Pretendard,sans-serif">개발</text><text x="0" y="16" text-anchor="middle" font-size="11" fill="#64748b" font-family="Pretendard,sans-serif">시간 배분</text></svg><div style="flex:1;min-width:160px;">${legend}</div></div>${editPanel}`;
+}
+
+function renderKpiChart(){
+  const g=document.getElementById('kpi-chart');if(!g)return;
+  const kc=DATA.kpiChart||{labels:[],maxVal:50,series:[]};
+  const W=420,H=220,pL=50,pT=20,pB=45,pR=10,cH=H-pT-pB,cW=W-pL-pR;
+  const nQ=kc.labels.length,nS=kc.series.length;
+  const gW=nQ?cW/nQ:cW,bW=18,bG=4,gbW=nS*(bW+bG)-bG;
+  const step=kc.maxVal<=10?1:kc.maxVal<=20?2:kc.maxVal<=50?10:Math.ceil(kc.maxVal/5/10)*10;
+  const ticks=Array.from({length:Math.floor(kc.maxVal/step)+1},(_,i)=>i*step);
+  const grid=ticks.map(v=>{const y=pT+cH*(1-v/kc.maxVal);return `<line x1="${pL}" y1="${y.toFixed(1)}" x2="${W-pR}" y2="${y.toFixed(1)}" stroke="#f1f5f9" stroke-width="1"/><text x="${pL-4}" y="${(y+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#94a3b8">${v}</text>`;}).join('');
+  let bars='',vals='',qlbls='';
+  kc.labels.forEach((ql,qi)=>{
+    const gX=pL+qi*gW+(gW-gbW)/2;
+    kc.series.forEach((s,si)=>{const v=s.values[qi]||0;const bH=Math.max(2,(v/kc.maxVal)*cH);const bX=gX+si*(bW+bG);const bY=pT+cH-bH;bars+=`<rect x="${bX.toFixed(1)}" y="${bY.toFixed(1)}" width="${bW}" height="${bH.toFixed(1)}" fill="${s.color}" rx="3"/>`;});
+    const lastV=(kc.series[nS-1]?.values[qi])||0;const lastBX=gX+(nS-1)*(bW+bG);const lastBH=Math.max(2,(lastV/kc.maxVal)*cH);if(lastV>0)vals+=`<text x="${(lastBX+bW/2).toFixed(1)}" y="${(pT+cH-lastBH-4).toFixed(1)}" text-anchor="middle" font-size="10" fill="#475569" font-weight="700">${lastV}</text>`;
+    qlbls+=`<text x="${(gX+gbW/2).toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="12" font-weight="700" fill="#475569">${ql}</text>`;
+  });
+  const lgnd=kc.series.map(s=>`<div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:2px;background:${s.color};"></span>${esc(s.name)}</div>`).join('');
+  const editPanel=editMode?`<div style="margin-top:14px;border-top:1px dashed #e2e8f0;padding-top:12px;"><div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">바 차트 설정</div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;"><b style="color:#475569;">쿼터:</b>${kc.labels.map((l,qi)=>`<span data-path="KC|label|${qi}" style="border-bottom:1px solid #cbd5e1;padding:2px 8px;font-size:12px;">${l}</span><button class="crud-del-inline" onclick="crudDelKpiQuarter(${qi})" title="삭제">×</button>`).join('')}<button class="crud-add-kr" onclick="crudAddKpiQuarter()">+ 추가</button><span style="color:#94a3b8;margin-left:8px;">최대값:</span><span data-path="KC|max" style="border-bottom:1px solid #cbd5e1;padding:2px 8px;font-size:12px;">${kc.maxVal}</span></div><table style="width:100%;font-size:12px;border-collapse:collapse;"><thead><tr><th style="text-align:left;padding:4px 6px;color:#64748b;">색상</th><th style="text-align:left;padding:4px 6px;color:#64748b;">시리즈명</th>${kc.labels.map(l=>`<th style="padding:4px 6px;color:#64748b;text-align:center;">${l}</th>`).join('')}<th></th></tr></thead><tbody>${kc.series.map((s,si)=>`<tr><td style="padding:4px 6px;"><input type="color" value="${s.color}" onchange="DATA.kpiChart.series[${si}].color=this.value;reKC();" style="width:28px;height:26px;border:1px solid #e2e8f0;padding:2px;cursor:pointer;border-radius:4px;"></td><td style="padding:4px 6px;"><span data-path="KC|series|${si}|name" style="border-bottom:1px solid #cbd5e1;padding:2px 4px;font-size:12px;">${esc(s.name)}</span></td>${s.values.map((v,qi)=>`<td style="padding:4px 6px;text-align:center;"><span data-path="KC|${si}|${qi}" style="display:inline-block;min-width:30px;border-bottom:1px solid #cbd5e1;padding:2px 4px;">${v}</span></td>`).join('')}<td style="padding:4px 6px;"><button class="crud-del-inline" onclick="crudDelKpiSeries(${si})" title="삭제">×</button></td></tr>`).join('')}</tbody></table><button class="crud-add-kr" onclick="crudAddKpiSeries()" style="margin-top:8px;">+ 시리즈 추가</button></div>`:'';
+  g.innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;margin-top:6px;" font-family="Pretendard,sans-serif"><line x1="${pL}" y1="${pT+cH}" x2="${W-pR}" y2="${pT+cH}" stroke="#cbd5e1" stroke-width="1"/>${grid}${bars}${vals}${qlbls}</svg><div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:10px;font-size:11px;color:#475569;">${lgnd}</div>${editPanel}`;
+}
+
+function renderAll(){renderHeader();renderMissions();renderProjects();renderMembers();renderRR();renderKpiRows();renderH1Kpi();renderYearKpi();renderOKR();renderRhythm();renderPrinciples();renderRoutines();renderDevSplit();renderKpiChart();renderOrgChart();if(editMode)document.querySelectorAll('[data-path]').forEach(el=>{el.contentEditable='true';el.spellcheck=false;});}
+
+// Filter buttons
+document.querySelectorAll('.filter-btn').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.filter-btn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');renderProjects(b.dataset.filter);
+  });
+});
+
+// Tab switching
+document.querySelectorAll('nav.tabs button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(x=>x.classList.remove('active'));
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+});
+
+loadData();
+renderAll();
+</script>
+</body>
+</html>

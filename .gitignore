@@ -1,0 +1,12 @@
+*.DS_Store
+.claude/
+node_modules/
+.env
+.env.*
+*.log
+npm-debug.log*
+.idea/
+.vscode/
+Thumbs.db
+*.swp
+*~
