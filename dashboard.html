@@ -509,7 +509,7 @@ const INIT_DATA={"meta":{"org":"DATA-ALLIANCE · 신규 본부","title":"김도�
 let DATA={},editMode=false,adminUnlocked=false;
 
 function dc(o){return JSON.parse(JSON.stringify(o));}
-function loadData(){try{const s=localStorage.getItem('dash_v17');DATA=s?JSON.parse(s):dc(INIT_DATA);}catch(e){DATA=dc(INIT_DATA);}}
+function loadData(){try{const s=localStorage.getItem('dash_v17');if(s){const stored=JSON.parse(s);if(stored.meta&&stored.meta.version!==INIT_DATA.meta.version){localStorage.removeItem('dash_v17');DATA=dc(INIT_DATA);}else{DATA=stored;}}else{DATA=dc(INIT_DATA);}}catch(e){DATA=dc(INIT_DATA);}}
 function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 
 function toggleAdminPanel(){
