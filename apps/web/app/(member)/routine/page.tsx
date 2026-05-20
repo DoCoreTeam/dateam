@@ -3,12 +3,14 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getWeekStart, toDateString } from '@/lib/utils'
 import { addDays } from 'date-fns'
 import RoutineGrid from './RoutineGrid'
+import type { Profile } from '@/types/database'
 
 interface RoutineTemplate {
-  member?: string
-  title?: string
-  frequency?: string
-  desc?: string
+  name: string
+  items?: string[]
+  role?: string
+  split?: string
+  schedule?: Record<string, string[]>
 }
 
 const DEFAULT_ROUTINES = ['Morning Standup', '리포트 확인', '이슈 로그', '업무 마감 체크']
@@ -21,6 +23,15 @@ export default async function RoutinePage() {
 
   if (!user) redirect('/login')
 
+  const adminClient = createAdminClient()
+
+  // 현재 유저 프로필 (name 필요)
+  const { data: profile } = await adminClient
+    .from('profiles')
+    .select('name, must_change_password')
+    .eq('id', user.id)
+    .single() as unknown as { data: Pick<Profile, 'name' | 'must_change_password'> | null; error: unknown }
+
   const weekStart = getWeekStart()
   const weekStartStr = toDateString(weekStart)
 
@@ -32,7 +43,6 @@ export default async function RoutinePage() {
   const todayStr = toDateString(new Date())
 
   // org_content에서 routine_templates 로드
-  const adminClient = createAdminClient()
   const { data: rtRow } = await adminClient
     .from('org_content')
     .select('value')
@@ -40,10 +50,19 @@ export default async function RoutinePage() {
     .single() as unknown as { data: { value: RoutineTemplate[] } | null; error: unknown }
 
   const templates = Array.isArray(rtRow?.value) ? (rtRow.value as RoutineTemplate[]) : []
+
+  // 현재 유저의 이름으로 해당 멤버 루틴 템플릿 찾기
+  const myTemplate = profile?.name
+    ? templates.find((t) => t.name === profile.name)
+    : null
+
   const routineNames =
-    templates.length > 0
-      ? templates.map((t) => t.title ?? '').filter(Boolean)
+    myTemplate?.items && myTemplate.items.length > 0
+      ? myTemplate.items
       : DEFAULT_ROUTINES
+
+  // 이름이 설정되지 않은 경우 안내
+  const hasName = !!profile?.name && myTemplate != null
 
   // 이번 주 루틴 체크 데이터
   const { data: routineChecks } = await supabase
@@ -77,9 +96,23 @@ export default async function RoutinePage() {
           루틴 체크
         </h1>
         <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>
-          {weekLabel} ({weekStartStr} ~ {weekDates[6]})
+          {hasName ? `${profile.name} · ` : ''}{weekLabel} ({weekStartStr} ~ {weekDates[6]})
         </p>
       </div>
+
+      {!hasName && (
+        <div style={{
+          padding: '1rem 1.25rem',
+          borderRadius: '0.625rem',
+          marginBottom: '1.5rem',
+          backgroundColor: '#fffbeb',
+          border: '1px solid #fde68a',
+          color: '#92400e',
+          fontSize: '0.875rem',
+        }}>
+          프로필 이름이 조직도와 연결되지 않았습니다. 이름을 설정하면 개인 루틴이 표시됩니다.
+        </div>
+      )}
 
       <RoutineGrid
         weekDates={weekDates}

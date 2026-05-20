@@ -1,11 +1,16 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getWeekStart, toDateString } from '@/lib/utils'
 import { subWeeks } from 'date-fns'
 import { CheckSquare } from 'lucide-react'
 import type { Profile, RoutineCheck } from '@/types/database'
 
-const ROUTINES = ['Morning Standup', '리포트 확인', '이슈 로그', '업무 마감 체크']
+interface RoutineTemplate {
+  name: string
+  items?: string[]
+}
+
+const DEFAULT_ITEMS = ['Morning Standup', '리포트 확인', '이슈 로그', '업무 마감 체크']
 
 interface PageProps {
   searchParams: Promise<{ week?: string }>
@@ -13,6 +18,7 @@ interface PageProps {
 
 export default async function AdminRoutinePage({ searchParams }: PageProps) {
   const supabase = await createClient()
+  const adminClient = createAdminClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -29,12 +35,22 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
 
   const selectedWeek = week ?? weekOptions[0]
 
-  // 전체 팀원
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, name')
-    .is('deleted_at', null)
-    .order('name') as unknown as { data: Pick<Profile, 'id' | 'name'>[] | null; error: unknown }
+  // 전체 팀원 + routine_templates 병렬 로드
+  const [profilesResult, rtResult] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('id, name')
+      .is('deleted_at', null)
+      .order('name') as unknown as Promise<{ data: Pick<Profile, 'id' | 'name'>[] | null }>,
+    adminClient
+      .from('org_content')
+      .select('value')
+      .eq('key', 'routine_templates')
+      .single() as unknown as Promise<{ data: { value: RoutineTemplate[] } | null }>,
+  ])
+
+  const profiles = profilesResult.data ?? []
+  const templates: RoutineTemplate[] = Array.isArray(rtResult.data?.value) ? rtResult.data!.value : []
 
   // 선택 주의 루틴 체크 데이터
   const { data: checks } = await supabase
@@ -42,27 +58,30 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
     .select('user_id, routine_name, is_completed')
     .eq('week_start', selectedWeek) as unknown as { data: Pick<RoutineCheck, 'user_id' | 'routine_name' | 'is_completed'>[] | null; error: unknown }
 
-  // 팀원별 × 루틴별 달성률 계산
+  // 팀원별 체크 집계
   const checkMap: Record<string, Record<string, number>> = {}
-  const checkTotal: Record<string, Record<string, number>> = {}
-
   ;(checks ?? []).forEach((c) => {
     if (!checkMap[c.user_id]) checkMap[c.user_id] = {}
-    if (!checkTotal[c.user_id]) checkTotal[c.user_id] = {}
     if (!checkMap[c.user_id][c.routine_name]) checkMap[c.user_id][c.routine_name] = 0
-    if (!checkTotal[c.user_id][c.routine_name]) checkTotal[c.user_id][c.routine_name] = 0
-
-    checkTotal[c.user_id][c.routine_name] += 1
     if (c.is_completed) checkMap[c.user_id][c.routine_name] += 1
   })
 
-  // 전체 달성률
-  const allCompleted = (checks ?? []).filter((c) => c.is_completed).length
-  const allTotal = (profiles?.length ?? 0) * ROUTINES.length * 7
+  // 전체 달성률 계산 (각 멤버 루틴 기준)
+  let allCompleted = 0
+  let allTotal = 0
+  profiles.forEach((p) => {
+    const template = templates.find((t) => t.name === p.name)
+    const items = template?.items?.length ? template.items : DEFAULT_ITEMS
+    const userChecks = checkMap[p.id] ?? {}
+    items.forEach((item) => {
+      allTotal += 7
+      allCompleted += Math.min(userChecks[item] ?? 0, 7)
+    })
+  })
   const overallRate = allTotal > 0 ? Math.round((allCompleted / allTotal) * 100) : 0
 
   return (
-    <div style={{ maxWidth: '900px' }}>
+    <div style={{ maxWidth: '960px' }}>
       <div style={{ marginBottom: '1.75rem' }}>
         <h1
           style={{
@@ -76,7 +95,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
           루틴 달성 현황
         </h1>
         <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>
-          팀 전체 루틴 달성률을 주차별로 확인합니다
+          팀원별 개인 루틴 달성률을 주차별로 확인합니다
         </p>
       </div>
 
@@ -129,7 +148,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
         </div>
       </div>
 
-      {/* 달성률 테이블 */}
+      {/* 팀원별 루틴 달성 카드 */}
       <div className="card" style={{ overflow: 'hidden' }}>
         <div
           style={{
@@ -146,67 +165,76 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
           </h2>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table-base" style={{ minWidth: '600px' }}>
-            <thead>
-              <tr>
-                <th>팀원</th>
-                {ROUTINES.map((r) => (
-                  <th key={r} style={{ textAlign: 'center' }}>{r}</th>
-                ))}
-                <th style={{ textAlign: 'center' }}>평균</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(profiles ?? []).map((profile) => {
-                const userChecks = checkMap[profile.id] ?? {}
-                const userTotal = checkTotal[profile.id] ?? {}
+        <table className="table-base">
+          <thead>
+            <tr>
+              <th>팀원</th>
+              <th>루틴 항목</th>
+              <th style={{ textAlign: 'center', width: '120px' }}>달성률</th>
+            </tr>
+          </thead>
+          <tbody>
+            {profiles.map((profile) => {
+              const template = templates.find((t) => t.name === profile.name)
+              const items = template?.items?.length ? template.items : DEFAULT_ITEMS
+              const userChecks = checkMap[profile.id] ?? {}
 
-                const routineRates = ROUTINES.map((r) => {
-                  const completed = userChecks[r] ?? 0
-                  const total = 7
-                  return Math.round((completed / total) * 100)
-                })
+              let completed = 0
+              let total = 0
+              items.forEach((item) => {
+                total += 7
+                completed += Math.min(userChecks[item] ?? 0, 7)
+              })
+              const rate = total > 0 ? Math.round((completed / total) * 100) : 0
 
-                const avgRate = Math.round(routineRates.reduce((a, b) => a + b, 0) / ROUTINES.length)
-
-                return (
-                  <tr key={profile.id}>
-                    <td>
-                      <span style={{ fontWeight: 500, color: '#374151' }}>{profile.name}</span>
-                    </td>
-                    {routineRates.map((rate, i) => (
-                      <td key={i} style={{ textAlign: 'center' }}>
-                        <span
-                          className="badge"
-                          style={{
-                            backgroundColor:
-                              rate >= 80 ? '#ecfdf5' : rate >= 50 ? '#fffbeb' : '#fef2f2',
-                            color:
-                              rate >= 80 ? '#065f46' : rate >= 50 ? '#92400e' : '#991b1b',
-                          }}
-                        >
-                          {rate}%
-                        </span>
-                      </td>
-                    ))}
-                    <td style={{ textAlign: 'center' }}>
-                      <span
-                        style={{
-                          fontWeight: 700,
-                          fontSize: '0.9375rem',
-                          color: avgRate >= 70 ? '#059669' : avgRate >= 40 ? '#d97706' : '#dc2626',
-                        }}
-                      >
-                        {avgRate}%
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+              return (
+                <tr key={profile.id}>
+                  <td>
+                    <div style={{ fontWeight: 500, color: '#374151' }}>{profile.name || '-'}</div>
+                    {!template && profile.name && (
+                      <div style={{ fontSize: '0.7rem', color: '#f59e0b', marginTop: '2px' }}>
+                        조직도 미연결
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                      {items.map((item) => {
+                        const itemCount = Math.min(userChecks[item] ?? 0, 7)
+                        const itemRate = Math.round((itemCount / 7) * 100)
+                        return (
+                          <span
+                            key={item}
+                            className="badge"
+                            style={{
+                              backgroundColor: itemRate >= 80 ? '#ecfdf5' : itemRate >= 40 ? '#fffbeb' : '#f8fafc',
+                              color: itemRate >= 80 ? '#065f46' : itemRate >= 40 ? '#92400e' : '#64748b',
+                              fontSize: '0.6875rem',
+                            }}
+                            title={`${itemCount}/7일`}
+                          >
+                            {item} {itemRate}%
+                          </span>
+                        )
+                      })}
+                    </div>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        fontSize: '1rem',
+                        color: rate >= 70 ? '#059669' : rate >= 40 ? '#d97706' : '#dc2626',
+                      }}
+                    >
+                      {rate}%
+                    </span>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   )
