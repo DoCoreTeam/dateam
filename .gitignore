@@ -19,3 +19,5 @@ apps/web/out/
 
 # pnpm
 pnpm-lock.yaml
+.playwright-mcp/
+*.png
