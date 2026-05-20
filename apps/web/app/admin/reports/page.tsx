@@ -5,6 +5,18 @@ import { subWeeks } from 'date-fns'
 import { FileText } from 'lucide-react'
 import type { Profile, WeeklyReport } from '@/types/database'
 
+function RichCell({ html }: { html: string }) {
+  if (!html) return <span style={{ color: '#cbd5e1', fontSize: '0.8125rem' }}>-</span>
+  if (html.startsWith('<')) {
+    return <div className="report-rich" dangerouslySetInnerHTML={{ __html: html }} />
+  }
+  return (
+    <p style={{ margin: 0, fontSize: '0.8125rem', color: '#374151', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+      {html}
+    </p>
+  )
+}
+
 interface PageProps {
   searchParams: Promise<{ week?: string; member?: string }>
 }
@@ -154,47 +166,14 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
                       <td>
                         <span className="badge badge-indigo">{report.category}</span>
                       </td>
-                      <td>
-                        <p
-                          style={{
-                            margin: 0,
-                            fontSize: '0.8125rem',
-                            color: '#374151',
-                            lineHeight: 1.6,
-                            whiteSpace: 'pre-wrap',
-                            maxWidth: '280px',
-                          }}
-                        >
-                          {report.performance || '-'}
-                        </p>
+                      <td style={{ maxWidth: '280px' }}>
+                        <RichCell html={report.performance} />
                       </td>
-                      <td>
-                        <p
-                          style={{
-                            margin: 0,
-                            fontSize: '0.8125rem',
-                            color: '#374151',
-                            lineHeight: 1.6,
-                            whiteSpace: 'pre-wrap',
-                            maxWidth: '220px',
-                          }}
-                        >
-                          {report.plan || '-'}
-                        </p>
+                      <td style={{ maxWidth: '220px' }}>
+                        <RichCell html={report.plan} />
                       </td>
-                      <td>
-                        <p
-                          style={{
-                            margin: 0,
-                            fontSize: '0.8125rem',
-                            color: '#374151',
-                            lineHeight: 1.6,
-                            whiteSpace: 'pre-wrap',
-                            maxWidth: '200px',
-                          }}
-                        >
-                          {report.issues || '-'}
-                        </p>
+                      <td style={{ maxWidth: '200px' }}>
+                        <RichCell html={report.issues} />
                       </td>
                     </tr>
                   )
