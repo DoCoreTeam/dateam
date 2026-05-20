@@ -100,10 +100,8 @@ const KPI_TARGET_COLS: ColumnDef[] = [
 ]
 
 const ROUTINE_COLS: ColumnDef[] = [
-  { key: 'member', label: '멤버', placeholder: '멤버 이름', width: '80px' },
-  { key: 'title', label: '루틴 제목', placeholder: '루틴 이름', width: '160px' },
-  { key: 'frequency', label: '주기', placeholder: '매일/매주', width: '80px' },
-  { key: 'desc', label: '설명', type: 'textarea', placeholder: '루틴 설명' },
+  { key: 'name', label: '멤버 이름', placeholder: '김도현 본부장', width: '140px' },
+  { key: 'items', label: '루틴 항목', type: 'tags', placeholder: '항목1, 항목2, 항목3' },
 ]
 
 // ─── 타입 ────────────────────────────────────────────────────────────────

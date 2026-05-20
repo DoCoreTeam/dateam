@@ -75,7 +75,31 @@ export async function setProfileNameAction(
 }
 
 export async function getOrgMemberNames(): Promise<string[]> {
-  return getValidMemberNames()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const adminClient = createAdminClient()
+  const [allNames, takenResult] = await Promise.all([
+    getValidMemberNames(),
+    adminClient.from('profiles').select('name').not('name', 'is', null),
+  ])
+
+  const takenNames = new Set(
+    (takenResult.data ?? [])
+      .map((p: { name: string | null }) => p.name)
+      .filter((n): n is string => !!n)
+  )
+
+  // exclude names taken by other users (allow own current name if any)
+  const { data: myProfile } = await adminClient
+    .from('profiles')
+    .select('name')
+    .eq('id', user?.id ?? '')
+    .single() as unknown as { data: { name: string | null } | null }
+
+  const myCurrentName = myProfile?.name ?? null
+
+  return allNames.filter((n) => !takenNames.has(n) || n === myCurrentName)
 }
 
 export async function changePassword(formData: FormData): Promise<never> {
