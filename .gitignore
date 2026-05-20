@@ -2,7 +2,9 @@
 .claude/
 node_modules/
 .env
-.env.*
+.env.local
+.env.*.local
+apps/web/.env.local
 *.log
 npm-debug.log*
 .idea/
@@ -10,3 +12,10 @@ npm-debug.log*
 Thumbs.db
 *.swp
 *~
+
+# Next.js
+apps/web/.next/
+apps/web/out/
+
+# pnpm
+pnpm-lock.yaml

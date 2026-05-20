@@ -1,8 +1,11 @@
 {
   "name": "newax",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
-    "test": "echo \"No tests required for documentation project\""
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "start": "pnpm --filter web start",
+    "test": "echo \"No tests configured\" && exit 0"
   }
 }
