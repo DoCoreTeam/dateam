@@ -30,7 +30,7 @@ export default async function AdminContentPage() {
   )
 
   return (
-    <div style={{ maxWidth: '900px' }}>
+    <div>
       <div style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.375rem' }}>
           <Settings2 size={20} color="#6366f1" />

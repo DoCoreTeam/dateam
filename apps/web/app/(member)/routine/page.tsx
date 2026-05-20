@@ -82,7 +82,7 @@ export default async function RoutinePage() {
   })()
 
   return (
-    <div style={{ maxWidth: '900px' }}>
+    <div>
       <div style={{ marginBottom: '1.75rem' }}>
         <h1
           style={{

@@ -52,7 +52,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
   const { data: reports } = await query as { data: ReportWithProfile[] | null; error: unknown }
 
   return (
-    <div style={{ maxWidth: '1100px' }}>
+    <div>
       <div style={{ marginBottom: '1.75rem' }}>
         <h1
           style={{

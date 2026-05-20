@@ -18,7 +18,7 @@ export default async function AdminUsersPage() {
     .order('created_at', { ascending: true }) as unknown as { data: Profile[] | null; error: unknown }
 
   return (
-    <div style={{ maxWidth: '900px' }}>
+    <div>
       <div style={{ marginBottom: '1.75rem' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>
           사용자 관리

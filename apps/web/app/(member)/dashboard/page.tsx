@@ -15,13 +15,14 @@ export default async function DashboardPage() {
 
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
+  const adminClient = createAdminClient()
+  const { data: profile } = await adminClient
     .from('profiles')
     .select('name')
     .eq('id', user.id)
     .single() as unknown as { data: Pick<Profile, 'name'> | null; error: unknown }
 
-  const displayName = profile?.name ?? '팀원'
+  const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
 
   const weekStart = getWeekStart()
   const weekStartStr = toDateString(weekStart)
@@ -60,7 +61,6 @@ export default async function DashboardPage() {
     .limit(3) as unknown as { data: Pick<WeeklyReport, 'week_start' | 'category' | 'created_at'>[] | null; error: unknown }
 
   // 본부 현황 데이터 (org_content)
-  const adminClient = createAdminClient()
   const { data: metaRow } = await adminClient.from('org_content').select('value').eq('key', 'META').single() as unknown as { data: { value: unknown } | null; error: unknown }
   const { data: missionsRow } = await adminClient.from('org_content').select('value').eq('key', 'missions').single() as unknown as { data: { value: unknown } | null; error: unknown }
   const { data: okrRow } = await adminClient.from('org_content').select('value').eq('key', 'okr').single() as unknown as { data: { value: unknown } | null; error: unknown }
@@ -74,7 +74,7 @@ export default async function DashboardPage() {
   const okrList = okrRow?.value as Array<{ objective: string; lead: string; key_results: string[] }> | null | undefined
 
   return (
-    <div style={{ maxWidth: '960px' }}>
+    <div>
       {/* 헤더 */}
       <div style={{ marginBottom: '2rem' }}>
         <h1

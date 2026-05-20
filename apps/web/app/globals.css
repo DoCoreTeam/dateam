@@ -5,6 +5,8 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
+
   --color-bg: #f8fafc;
   --color-surface: #ffffff;
   --color-text: #0f172a;
@@ -111,6 +113,14 @@
   .input-field:focus {
     border-color: var(--color-brand);
     box-shadow: 0 0 0 3px rgb(99 102 241 / 0.15);
+  }
+
+  .input-field:-webkit-autofill,
+  .input-field:-webkit-autofill:hover,
+  .input-field:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--color-text);
+    -webkit-box-shadow: 0 0 0 1000px var(--color-surface) inset;
+    box-shadow: 0 0 0 1000px var(--color-surface) inset;
   }
 
   .label {

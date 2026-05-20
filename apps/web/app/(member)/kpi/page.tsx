@@ -29,7 +29,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
   const today = toDateString(new Date())
 
   return (
-    <div style={{ maxWidth: '860px' }}>
+    <div>
       <div style={{ marginBottom: '1.75rem' }}>
         <h1
           style={{

@@ -81,7 +81,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
   const overallRate = allTotal > 0 ? Math.round((allCompleted / allTotal) * 100) : 0
 
   return (
-    <div style={{ maxWidth: '960px' }}>
+    <div>
       <div style={{ marginBottom: '1.75rem' }}>
         <h1
           style={{

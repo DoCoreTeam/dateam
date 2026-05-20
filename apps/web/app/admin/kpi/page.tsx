@@ -65,7 +65,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
   ).sort()
 
   return (
-    <div style={{ maxWidth: '1100px' }}>
+    <div>
       <div style={{ marginBottom: '1.75rem' }}>
         <h1
           style={{

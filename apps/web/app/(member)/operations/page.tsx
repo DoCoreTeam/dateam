@@ -89,9 +89,6 @@ export default async function OperationsPage() {
   return (
     <div
       style={{
-        padding: '2rem',
-        maxWidth: '1100px',
-        margin: '0 auto',
         display: 'flex',
         flexDirection: 'column',
         gap: '2.5rem',
