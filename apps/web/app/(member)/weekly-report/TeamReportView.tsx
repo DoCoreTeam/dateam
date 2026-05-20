@@ -109,19 +109,19 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
                     )}
                     <td style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top', color: '#475569', whiteSpace: 'nowrap' }}>{r.category}</td>
                     <td style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top', maxWidth: '260px' }}>
-                      <div style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', lineHeight: 1.55, color: '#374151', whiteSpace: 'pre-wrap' }}>
-                        {r.performance || <span style={{ color: '#cbd5e1' }}>—</span>}
-                      </div>
+                      {r.performance && r.performance !== '<p></p>' ? (
+                        <div className="report-rich" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', lineHeight: 1.55 }} dangerouslySetInnerHTML={{ __html: r.performance }} />
+                      ) : <span style={{ color: '#cbd5e1' }}>—</span>}
                     </td>
                     <td style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top', maxWidth: '260px' }}>
-                      <div style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', lineHeight: 1.55, color: '#374151', whiteSpace: 'pre-wrap' }}>
-                        {r.plan || <span style={{ color: '#cbd5e1' }}>—</span>}
-                      </div>
+                      {r.plan && r.plan !== '<p></p>' ? (
+                        <div className="report-rich" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', lineHeight: 1.55 }} dangerouslySetInnerHTML={{ __html: r.plan }} />
+                      ) : <span style={{ color: '#cbd5e1' }}>—</span>}
                     </td>
                     <td style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top' }}>
-                      <div style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.55, color: '#374151', whiteSpace: 'pre-wrap' }}>
-                        {r.issues || <span style={{ color: '#cbd5e1' }}>—</span>}
-                      </div>
+                      {r.issues && r.issues !== '<p></p>' ? (
+                        <div className="report-rich" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.55 }} dangerouslySetInnerHTML={{ __html: r.issues }} />
+                      ) : <span style={{ color: '#cbd5e1' }}>—</span>}
                     </td>
                   </tr>
                 ))
@@ -156,10 +156,10 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
               { label: '성과', value: modal.performance },
               { label: '계획', value: modal.plan },
               { label: '이슈/협조사항', value: modal.issues },
-            ].map(({ label, value }) => value ? (
+            ].map(({ label, value }) => value && value !== '<p></p>' ? (
               <div key={label} style={{ marginBottom: '1rem' }}>
                 <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.375rem' }}>{label}</p>
-                <p style={{ fontSize: '0.875rem', color: '#374151', lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>{value}</p>
+                <div className="report-rich" style={{ fontSize: '0.875rem', lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: value }} />
               </div>
             ) : null)}
           </div>
