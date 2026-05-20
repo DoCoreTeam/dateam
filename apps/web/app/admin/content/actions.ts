@@ -2,6 +2,7 @@
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 
 async function requireAdmin() {
   const supabase = await createClient()
@@ -23,7 +24,7 @@ async function requireAdmin() {
   return { user, adminClient }
 }
 
-export async function updateOrgContent(key: string, value: unknown): Promise<void> {
+async function updateOrgContent(key: string, value: unknown): Promise<void> {
   const ctx = await requireAdmin()
   if (!ctx) return
 
@@ -34,10 +35,17 @@ export async function updateOrgContent(key: string, value: unknown): Promise<voi
     .update({ value: value as Record<string, unknown>, updated_by: user.id })
     .eq('key', key)
 
-  redirect('/admin/content')
+  revalidatePath('/admin/content')
+  revalidatePath('/dashboard')
+  revalidatePath('/operations')
 }
 
-// --- 섹션별 Server Action ---
+function parseJson(raw: string | null): unknown {
+  if (!raw) return null
+  try { return JSON.parse(raw) } catch { return null }
+}
+
+// ─── 섹션별 Server Action ─────────────────────────────────────────────────
 
 export async function updateMeta(formData: FormData): Promise<void> {
   const value = {
@@ -48,103 +56,59 @@ export async function updateMeta(formData: FormData): Promise<void> {
     date: formData.get('date') as string,
   }
   await updateOrgContent('META', value)
+  redirect('/admin/content')
 }
 
 export async function updateProjects(formData: FormData): Promise<void> {
-  const raw = formData.get('projects_json') as string
-  let value: unknown
-  try {
-    value = JSON.parse(raw)
-  } catch {
-    return
-  }
-  await updateOrgContent('projects', value)
+  const value = parseJson(formData.get('projects_json') as string)
+  if (value) await updateOrgContent('projects', value)
+  redirect('/admin/content')
 }
 
 export async function updateMembers(formData: FormData): Promise<void> {
-  const raw = formData.get('members_json') as string
-  let value: unknown
-  try {
-    value = JSON.parse(raw)
-  } catch {
-    return
-  }
-  await updateOrgContent('members', value)
+  const value = parseJson(formData.get('members_json') as string)
+  if (value) await updateOrgContent('members', value)
+  redirect('/admin/content')
 }
 
 export async function updateMissions(formData: FormData): Promise<void> {
-  const raw = formData.get('missions_json') as string
-  let value: unknown
-  try {
-    value = JSON.parse(raw)
-  } catch {
-    return
-  }
-  await updateOrgContent('missions', value)
+  const value = parseJson(formData.get('missions_json') as string)
+  if (value) await updateOrgContent('missions', value)
+  redirect('/admin/content')
 }
 
 export async function updateOkr(formData: FormData): Promise<void> {
-  const raw = formData.get('okr_json') as string
-  let value: unknown
-  try {
-    value = JSON.parse(raw)
-  } catch {
-    return
-  }
-  await updateOrgContent('okr', value)
+  const value = parseJson(formData.get('okr_json') as string)
+  if (value) await updateOrgContent('okr', value)
+  redirect('/admin/content')
 }
 
 export async function updatePrinciples(formData: FormData): Promise<void> {
-  const raw = formData.get('principles_json') as string
-  let value: unknown
-  try {
-    value = JSON.parse(raw)
-  } catch {
-    return
-  }
-  await updateOrgContent('principles', value)
+  const value = parseJson(formData.get('principles_json') as string)
+  if (value) await updateOrgContent('principles', value)
+  redirect('/admin/content')
 }
 
 export async function updateKpiTargets(formData: FormData): Promise<void> {
-  const raw = formData.get('kpi_targets_json') as string
-  let value: unknown
-  try {
-    value = JSON.parse(raw)
-  } catch {
-    return
-  }
-  await updateOrgContent('kpi_targets', value)
+  const value = parseJson(formData.get('kpi_targets_json') as string)
+  if (value) await updateOrgContent('kpi_targets', value)
+  redirect('/admin/content')
 }
 
 export async function updateRhythm(formData: FormData): Promise<void> {
-  const raw = formData.get('rhythm_json') as string
-  let value: unknown
-  try {
-    value = JSON.parse(raw)
-  } catch {
-    return
-  }
-  await updateOrgContent('rhythm', value)
+  const value = parseJson(formData.get('rhythm_json') as string)
+  if (value) await updateOrgContent('rhythm', value)
+  redirect('/admin/content')
 }
 
 export async function updateRoutineTemplates(formData: FormData): Promise<void> {
-  const raw = formData.get('routine_templates_json') as string
-  let value: unknown
-  try {
-    value = JSON.parse(raw)
-  } catch {
-    return
-  }
-  await updateOrgContent('routine_templates', value)
+  const value = parseJson(formData.get('routine_templates_json') as string)
+  if (value) await updateOrgContent('routine_templates', value)
+  redirect('/admin/content')
 }
 
 export async function updateDevSplit(formData: FormData): Promise<void> {
-  const raw = formData.get('dev_split_json') as string
-  let value: unknown
-  try {
-    value = JSON.parse(raw)
-  } catch {
-    return
-  }
-  await updateOrgContent('dev_split', value)
+  const value = parseJson(formData.get('dev_split_json') as string)
+  if (value) await updateOrgContent('dev_split', value)
+  redirect('/admin/content')
 }

@@ -59,3 +59,27 @@ export async function deleteKpi(id: string) {
   revalidatePath('/dashboard')
   return { success: true }
 }
+
+export async function updateKpi(
+  id: string,
+  data: { metric_name: string; value: number; unit: string; period_start: string; period_end: string }
+): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return { error: '인증이 필요합니다' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from('kpi_entries') as any)
+    .update(data)
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/kpi')
+  revalidatePath('/dashboard')
+  return { success: true }
+}

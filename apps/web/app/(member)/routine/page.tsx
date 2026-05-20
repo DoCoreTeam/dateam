@@ -1,8 +1,17 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getWeekStart, toDateString } from '@/lib/utils'
 import { addDays } from 'date-fns'
 import RoutineGrid from './RoutineGrid'
+
+interface RoutineTemplate {
+  member?: string
+  title?: string
+  frequency?: string
+  desc?: string
+}
+
+const DEFAULT_ROUTINES = ['Morning Standup', '리포트 확인', '이슈 로그', '업무 마감 체크']
 
 export default async function RoutinePage() {
   const supabase = await createClient()
@@ -21,6 +30,20 @@ export default async function RoutinePage() {
   )
 
   const todayStr = toDateString(new Date())
+
+  // org_content에서 routine_templates 로드
+  const adminClient = createAdminClient()
+  const { data: rtRow } = await adminClient
+    .from('org_content')
+    .select('value')
+    .eq('key', 'routine_templates')
+    .single() as unknown as { data: { value: RoutineTemplate[] } | null; error: unknown }
+
+  const templates = Array.isArray(rtRow?.value) ? (rtRow.value as RoutineTemplate[]) : []
+  const routineNames =
+    templates.length > 0
+      ? templates.map((t) => t.title ?? '').filter(Boolean)
+      : DEFAULT_ROUTINES
 
   // 이번 주 루틴 체크 데이터
   const { data: routineChecks } = await supabase
@@ -63,6 +86,7 @@ export default async function RoutinePage() {
         weekStart={weekStartStr}
         initialChecks={routineChecks ?? []}
         todayStr={todayStr}
+        routineNames={routineNames}
       />
     </div>
   )

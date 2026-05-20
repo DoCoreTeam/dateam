@@ -1,7 +1,7 @@
-# Fix Plan — dashboard.html 통합
+# Fix Plan — dashboard.html 통합 + CRUDL완성 + UI CRUD + Tiptap 에디터
 생성: 2026-05-20
 
-## Phase 0: DOC-FIRST
+## Phase 0: DOC-FIRST (Loop 1 완료)
 - [x] PROMPT.md 생성
 - [x] fix_plan.md 생성
 
@@ -35,7 +35,33 @@
 ## Phase 8: Admin 접속 버튼
 - [x] 멤버 레이아웃 헤더에 admin role 시 "관리자 패널" 버튼 표시
 
-## Phase 9: 마무리
+## Phase 9: 마무리 (Loop 1 완료)
 - [x] dashboard.html → dashboard.html.legacy 처리
 - [x] 빌드 검증 (tsc --noEmit 통과)
 - [x] git commit
+
+## Loop 2: CRUDL + UI CRUD + Tiptap
+
+## Phase 10: Tiptap 설치 + 에디터 컴포넌트
+- [x] @tiptap/react @tiptap/pm @tiptap/starter-kit 설치
+- [x] TiptapEditor.tsx 컴포넌트 생성
+- [x] WeeklyReportForm에 Tiptap 통합 (카드 구조로 재설계)
+
+## Phase 11: Admin Content — DynamicTable 컴포넌트
+- [x] DynamicTable.tsx (client) — 행 추가/삭제/편집 + hidden JSON input
+- [x] ContentSections.tsx (client) — 모든 섹션 DynamicTable 적용
+- [x] admin/content/page.tsx — JSON textarea 전부 교체 완료
+- [x] DynamicKeyValue — rhythm/dev_split key-value UI
+
+## Phase 12: 누락 CRUDL 구현
+- [x] weekly_reports: deleteWeeklyReport action + ReportAccordion 삭제 버튼 + HTML 렌더링
+- [x] kpi_entries: updateKpi action + KpiRow 인라인 편집 UI
+
+## Phase 13: routine_templates → /routine 연동
+- [x] /routine 페이지 org_content.routine_templates 읽어 표시
+- [x] RoutineGrid ROUTINES 하드코딩 제거 → routineNames prop으로 교체
+
+## Phase 14: 검증 + 마무리
+- [x] tsc --noEmit 통과
+- [x] 빌드 성공
+- [ ] git commit

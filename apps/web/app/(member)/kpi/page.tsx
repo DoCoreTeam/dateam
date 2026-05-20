@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { toDateString } from '@/lib/utils'
 import { insertKpi } from './actions'
-import KpiDeleteButton from './KpiDeleteButton'
+import KpiRow from './KpiRow'
 import { TrendingUp, Plus } from 'lucide-react'
 import type { KpiEntry } from '@/types/database'
 
@@ -165,48 +165,25 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
         </div>
 
         {kpiEntries && kpiEntries.length > 0 ? (
-          <table className="table-base">
-            <thead>
-              <tr>
-                <th>지표명</th>
-                <th>값</th>
-                <th>단위</th>
-                <th>기간</th>
-                <th>등록일</th>
-                <th style={{ width: '60px' }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {kpiEntries.map((kpi) => (
-                <tr key={kpi.id}>
-                  <td>
-                    <span style={{ fontWeight: 500, color: '#374151' }}>{kpi.metric_name}</span>
-                  </td>
-                  <td>
-                    <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '1rem' }}>
-                      {kpi.value.toLocaleString()}
-                    </span>
-                  </td>
-                  <td>
-                    <span style={{ color: '#64748b', fontSize: '0.8125rem' }}>{kpi.unit || '-'}</span>
-                  </td>
-                  <td>
-                    <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
-                      {kpi.period_start} ~ {kpi.period_end}
-                    </span>
-                  </td>
-                  <td>
-                    <span style={{ fontSize: '0.8125rem', color: '#94a3b8' }}>
-                      {new Date(kpi.created_at).toLocaleDateString('ko-KR')}
-                    </span>
-                  </td>
-                  <td>
-                    <KpiDeleteButton id={kpi.id} />
-                  </td>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="table-base" style={{ minWidth: '640px' }}>
+              <thead>
+                <tr>
+                  <th>지표명</th>
+                  <th>값</th>
+                  <th>단위</th>
+                  <th>기간 시작</th>
+                  <th>기간 종료</th>
+                  <th style={{ width: '90px' }}></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {kpiEntries.map((kpi) => (
+                  <KpiRow key={kpi.id} entry={kpi} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#94a3b8' }}>
             <TrendingUp size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />

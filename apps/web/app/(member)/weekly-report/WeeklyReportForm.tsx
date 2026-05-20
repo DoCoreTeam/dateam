@@ -2,8 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, Save } from 'lucide-react'
+import { Plus, Trash2, Save, ChevronDown } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import { upsertWeeklyReport } from './actions'
+
+const TiptapEditor = dynamic(() => import('@/components/ui/TiptapEditor'), { ssr: false })
 
 interface Row {
   category: string
@@ -18,8 +21,6 @@ interface WeeklyReportFormProps {
   pastCategories: string[]
   prefillRows: Row[]
 }
-
-const CELL_BORDER = '1px solid #e2e8f0'
 
 function getWeekDateRange(weekStart: string): { perf: string; plan: string } {
   const start = new Date(weekStart)
@@ -54,6 +55,7 @@ export default function WeeklyReportForm({
   const [pending, setPending] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
 
   const dateRange = getWeekDateRange(selectedWeek)
 
@@ -63,16 +65,30 @@ export default function WeeklyReportForm({
 
   function removeRow(idx: number) {
     setRows((prev) => prev.filter((_, i) => i !== idx))
+    setCollapsed((prev) => {
+      const next = new Set<number>()
+      prev.forEach((i) => { if (i < idx) next.add(i); else if (i > idx) next.add(i - 1) })
+      return next
+    })
   }
 
   function updateRow(idx: number, field: keyof Row, value: string) {
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, [field]: value } : r)))
   }
 
+  function toggleCollapse(idx: number) {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(idx)) next.delete(idx)
+      else next.add(idx)
+      return next
+    })
+  }
+
   function handleWeekChange(week: string) {
     setSelectedWeek(week)
-    // 주차 변경 시 입력 내용 초기화 (혼재 방지)
     setRows([{ ...EMPTY_ROW }])
+    setCollapsed(new Set())
     setSubmitSuccess(false)
     setSubmitError('')
   }
@@ -103,20 +119,6 @@ export default function WeeklyReportForm({
     }
 
     setPending(false)
-  }
-
-  const taStyle: React.CSSProperties = {
-    width: '100%',
-    border: 'none',
-    outline: 'none',
-    resize: 'vertical',
-    fontSize: '0.8125rem',
-    lineHeight: 1.55,
-    color: '#0f172a',
-    background: 'transparent',
-    padding: '0.25rem 0.375rem',
-    minHeight: '80px',
-    fontFamily: 'inherit',
   }
 
   return (
@@ -153,77 +155,174 @@ export default function WeeklyReportForm({
         </div>
       )}
 
-      {/* 구분 자동완성 datalist */}
+      {/* category 자동완성 datalist */}
       <datalist id="category-list">
         {pastCategories.map((c) => <option key={c} value={c} />)}
       </datalist>
 
-      {/* 테이블 */}
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8375rem' }}>
-          <thead>
-            <tr style={{ backgroundColor: '#f8fafc' }}>
-              <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: '#475569', border: CELL_BORDER, width: '110px', whiteSpace: 'nowrap' }}>
-                구분
-              </th>
-              <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: '#475569', border: CELL_BORDER }}>
-                성과
-                <span style={{ fontWeight: 400, fontSize: '0.75rem', color: '#94a3b8', marginLeft: '0.375rem' }}>({dateRange.perf})</span>
-              </th>
-              <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: '#475569', border: CELL_BORDER }}>
-                계획
-                <span style={{ fontWeight: 400, fontSize: '0.75rem', color: '#94a3b8', marginLeft: '0.375rem' }}>({dateRange.plan})</span>
-              </th>
-              <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: '#475569', border: CELL_BORDER, width: '20%' }}>
-                이슈/협조사항
-              </th>
-              <th style={{ padding: '0.625rem 0.5rem', border: CELL_BORDER, width: '36px' }} />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, idx) => (
-              <tr key={idx} style={{ backgroundColor: idx % 2 === 1 ? '#fafafa' : '#fff' }}>
-                <td style={{ padding: '0.375rem', border: CELL_BORDER, verticalAlign: 'top' }}>
-                  <input
-                    type="text"
-                    list="category-list"
-                    value={row.category}
-                    onChange={(e) => updateRow(idx, 'category', e.target.value)}
-                    placeholder="구분 입력..."
-                    style={{ width: '100%', border: 'none', outline: 'none', fontSize: '0.8125rem', color: '#0f172a', background: 'transparent', padding: '0.25rem 0.375rem', fontFamily: 'inherit' }}
+      {/* 섹션 카드 목록 */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {rows.map((row, idx) => {
+          const isCollapsed = collapsed.has(idx)
+          return (
+            <div
+              key={idx}
+              style={{
+                border: '1px solid #e2e8f0',
+                borderRadius: '0.75rem',
+                overflow: 'hidden',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              }}
+            >
+              {/* 카드 헤더 */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.625rem',
+                  padding: '0.625rem 1rem',
+                  background: '#f8fafc',
+                  borderBottom: isCollapsed ? 'none' : '1px solid #e2e8f0',
+                }}
+              >
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', minWidth: '1.25rem' }}>
+                  {idx + 1}
+                </span>
+                <input
+                  type="text"
+                  list="category-list"
+                  value={row.category}
+                  onChange={(e) => updateRow(idx, 'category', e.target.value)}
+                  placeholder="구분 (예: 개발, 기획, 운영…)"
+                  style={{
+                    flex: 1,
+                    border: 'none',
+                    outline: 'none',
+                    background: 'transparent',
+                    fontSize: '0.9375rem',
+                    fontWeight: 600,
+                    color: '#0f172a',
+                    fontFamily: 'inherit',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => toggleCollapse(idx)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0.25rem', display: 'flex' }}
+                  title={isCollapsed ? '펼치기' : '접기'}
+                >
+                  <ChevronDown
+                    size={16}
+                    style={{ transform: isCollapsed ? 'rotate(-90deg)' : 'none', transition: 'transform 200ms' }}
                   />
-                </td>
-                <td style={{ padding: '0.375rem', border: CELL_BORDER, verticalAlign: 'top' }}>
-                  <textarea value={row.performance} onChange={(e) => updateRow(idx, 'performance', e.target.value)} placeholder="이번 주 주요 성과..." rows={4} style={taStyle} />
-                </td>
-                <td style={{ padding: '0.375rem', border: CELL_BORDER, verticalAlign: 'top' }}>
-                  <textarea value={row.plan} onChange={(e) => updateRow(idx, 'plan', e.target.value)} placeholder="다음 주 계획..." rows={4} style={taStyle} />
-                </td>
-                <td style={{ padding: '0.375rem', border: CELL_BORDER, verticalAlign: 'top' }}>
-                  <textarea value={row.issues} onChange={(e) => updateRow(idx, 'issues', e.target.value)} placeholder="이슈 또는 협조사항..." rows={4} style={taStyle} />
-                </td>
-                <td style={{ padding: '0.375rem', border: CELL_BORDER, verticalAlign: 'middle', textAlign: 'center' }}>
-                  {rows.length > 1 && (
-                    <button type="button" onClick={() => removeRow(idx)} aria-label="행 삭제" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0.25rem', display: 'flex', alignItems: 'center' }}>
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </button>
+                {rows.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeRow(idx)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: '0.25rem', display: 'flex' }}
+                    title="섹션 삭제"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* 카드 바디 (에디터 3개) */}
+              {!isCollapsed && (
+                <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {/* 성과 */}
+                  <div>
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        color: '#6366f1',
+                        marginBottom: '0.375rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      성과 <span style={{ color: '#94a3b8', fontWeight: 400 }}>({dateRange.perf})</span>
+                    </div>
+                    <TiptapEditor
+                      value={row.performance}
+                      onChange={(html) => updateRow(idx, 'performance', html)}
+                      placeholder="이번 주 주요 성과를 입력하세요…"
+                      minHeight={100}
+                    />
+                  </div>
+
+                  {/* 계획 */}
+                  <div>
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        color: '#0891b2',
+                        marginBottom: '0.375rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      계획 <span style={{ color: '#94a3b8', fontWeight: 400 }}>({dateRange.plan})</span>
+                    </div>
+                    <TiptapEditor
+                      value={row.plan}
+                      onChange={(html) => updateRow(idx, 'plan', html)}
+                      placeholder="다음 주 계획을 입력하세요…"
+                      minHeight={100}
+                    />
+                  </div>
+
+                  {/* 이슈 */}
+                  <div>
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        color: '#dc2626',
+                        marginBottom: '0.375rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      이슈/협조사항
+                    </div>
+                    <TiptapEditor
+                      value={row.issues}
+                      onChange={(html) => updateRow(idx, 'issues', html)}
+                      placeholder="이슈 또는 협조사항을 입력하세요…"
+                      minHeight={80}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
-      {/* 행 추가 + 저장 */}
-      <div style={{ marginTop: '0.875rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* 섹션 추가 + 저장 */}
+      <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button
           type="button"
           onClick={addRow}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem', color: '#6366f1', background: 'none', border: '1px dashed #c7d2fe', borderRadius: '0.5rem', padding: '0.5rem 0.875rem', cursor: 'pointer' }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.375rem',
+            fontSize: '0.8125rem',
+            color: '#6366f1',
+            background: 'none',
+            border: '1px dashed #c7d2fe',
+            borderRadius: '0.5rem',
+            padding: '0.5rem 0.875rem',
+            cursor: 'pointer',
+          }}
         >
           <Plus size={14} />
-          행 추가
+          섹션 추가
         </button>
         <button type="submit" className="btn-primary" disabled={pending}>
           <Save size={15} />

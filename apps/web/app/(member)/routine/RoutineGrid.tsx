@@ -5,7 +5,6 @@ import { upsertRoutineCheck } from './actions'
 import { cn } from '@/lib/utils'
 import type { RoutineCheck } from '@/types/database'
 
-const ROUTINES = ['Morning Standup', '리포트 확인', '이슈 로그', '업무 마감 체크']
 const DAY_LABELS = ['월', '화', '수', '목', '금', '토', '일']
 
 interface RoutineGridProps {
@@ -13,6 +12,7 @@ interface RoutineGridProps {
   weekStart: string
   initialChecks: RoutineCheck[]
   todayStr: string
+  routineNames: string[]
 }
 
 export default function RoutineGrid({
@@ -20,6 +20,7 @@ export default function RoutineGrid({
   weekStart,
   initialChecks,
   todayStr,
+  routineNames,
 }: RoutineGridProps) {
   const [isPending, startTransition] = useTransition()
 
@@ -42,7 +43,7 @@ export default function RoutineGrid({
     })
   }
 
-  const totalCells = ROUTINES.length * 7
+  const totalCells = routineNames.length * 7
   const completedCells = Object.values(checks).filter(Boolean).length
   const overallRate = Math.round((completedCells / totalCells) * 100)
 
@@ -139,7 +140,7 @@ export default function RoutineGrid({
               </tr>
             </thead>
             <tbody>
-              {ROUTINES.map((routine, rIdx) => {
+              {routineNames.map((routine, rIdx) => {
                 const rowCompleted = weekDates.filter((d) => checks[`${routine}|${d}`]).length
                 const rowRate = Math.round((rowCompleted / 7) * 100)
 
@@ -148,7 +149,7 @@ export default function RoutineGrid({
                     <td
                       style={{
                         padding: '0.875rem 1.25rem',
-                        borderBottom: rIdx < ROUTINES.length - 1 ? '1px solid #f1f5f9' : 'none',
+                        borderBottom: rIdx < routineNames.length - 1 ? '1px solid #f1f5f9' : 'none',
                         verticalAlign: 'middle',
                       }}
                     >
@@ -176,7 +177,7 @@ export default function RoutineGrid({
                           style={{
                             padding: '0.875rem 0.5rem',
                             textAlign: 'center',
-                            borderBottom: rIdx < ROUTINES.length - 1 ? '1px solid #f1f5f9' : 'none',
+                            borderBottom: rIdx < routineNames.length - 1 ? '1px solid #f1f5f9' : 'none',
                             backgroundColor: isToday ? '#fafbff' : 'transparent',
                           }}
                         >
