@@ -1,59 +1,27 @@
 import type React from 'react'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getWeekStart, toDateString } from '@/lib/utils'
 import { subWeeks } from 'date-fns'
-import { upsertWeeklyReport } from './actions'
+import WeeklyReportForm from './WeeklyReportForm'
+import TeamReportView from './TeamReportView'
 import ReportAccordion from './ReportAccordion'
-import { CATEGORIES } from './constants'
-import { FileText, Save } from 'lucide-react'
+import { FileText, Users } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
 
-const CELL_BORDER = '1px solid #e2e8f0'
-
-function thStyle(extra?: React.CSSProperties): React.CSSProperties {
-  return {
-    padding: '0.625rem 0.75rem',
-    textAlign: 'left',
-    fontWeight: 600,
-    color: '#475569',
-    border: CELL_BORDER,
-    whiteSpace: 'nowrap',
-    ...extra,
-  }
-}
-
-function tdStyle(): React.CSSProperties {
-  return { padding: '0.375rem', border: CELL_BORDER, verticalAlign: 'top' }
-}
-
-function tdLabelStyle(): React.CSSProperties {
-  return {
-    padding: '0.625rem 0.75rem',
-    border: CELL_BORDER,
-    fontWeight: 600,
-    color: '#334155',
-    whiteSpace: 'nowrap',
-    verticalAlign: 'middle',
-  }
-}
-
-const taStyle: React.CSSProperties = {
-  width: '100%',
-  border: 'none',
-  outline: 'none',
-  resize: 'vertical',
-  fontSize: '0.8125rem',
-  lineHeight: 1.55,
-  color: '#0f172a',
-  background: 'transparent',
-  padding: '0.25rem 0.375rem',
-  minHeight: '88px',
-  fontFamily: 'inherit',
+interface TeamRow {
+  user_id: string
+  category: string
+  performance: string
+  plan: string
+  issues: string
+  week_start: string
+  profiles: { name: string } | null
 }
 
 interface PageProps {
-  searchParams: Promise<{ error?: string; success?: string }>
+  searchParams: Promise<{ tab?: string }>
 }
 
 export default async function WeeklyReportPage({ searchParams }: PageProps) {
@@ -64,17 +32,16 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
 
   if (!user) redirect('/login')
 
-  const { error, success } = await searchParams
+  const { tab } = await searchParams
+  const activeTab = tab === 'team' ? 'team' : 'mine'
 
-  // 최근 8주 선택지
   const weekOptions = Array.from({ length: 8 }, (_, i) => {
     const d = getWeekStart(subWeeks(new Date(), i))
     return toDateString(d)
   })
-
   const thisWeek = weekOptions[0]
 
-  // 내 주간보고 히스토리
+  // 내 보고 히스토리
   const { data: reports } = await supabase
     .from('weekly_reports')
     .select('*')
@@ -83,39 +50,61 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     .order('week_start', { ascending: false })
     .order('category', { ascending: true }) as unknown as { data: WeeklyReport[] | null; error: unknown }
 
-  // 이번 주 기존 데이터 (폼 프리필용)
+  // 이번 주 내 데이터 (프리필)
   const thisWeekData = (reports ?? []).filter((r) => r.week_start === thisWeek)
-  const prefill = Object.fromEntries(
-    CATEGORIES.map((cat) => {
-      const r = thisWeekData.find((x) => x.category === cat)
-      return [cat, { performance: r?.performance ?? '', plan: r?.plan ?? '', issues: r?.issues ?? '' }]
-    })
-  ) as Record<string, { performance: string; plan: string; issues: string }>
+  const prefillRows = thisWeekData.map((r) => ({
+    category: r.category,
+    performance: r.performance,
+    plan: r.plan,
+    issues: r.issues,
+  }))
 
-  // 주차별 그룹화
+  // 과거 구분 목록 (datalist용)
+  const pastCategories = Array.from(new Set((reports ?? []).map((r) => r.category))).filter(Boolean)
+
+  // 주차별 그룹화 (내 보고 히스토리)
   const grouped = (reports ?? []).reduce<Record<string, WeeklyReport[]>>((acc, r) => {
     if (!acc[r.week_start]) acc[r.week_start] = []
     acc[r.week_start].push(r)
     return acc
   }, {})
+  const groups = Object.entries(grouped).map(([weekStart, reps]) => ({ weekStart, reports: reps }))
 
-  const groups = Object.entries(grouped).map(([weekStart, reps]) => ({
-    weekStart,
-    reports: reps,
+  // 팀 전체 보고 (이번 주 초기값) — 002 migration 적용 후 member도 조회 가능
+  const { data: teamRaw } = await supabase
+    .from('weekly_reports')
+    .select('user_id, category, performance, plan, issues, week_start, profiles(name)')
+    .eq('week_start', thisWeek)
+    .is('deleted_at', null)
+    .order('category', { ascending: true }) as unknown as { data: TeamRow[] | null; error: unknown }
+
+  const teamReports = (teamRaw ?? []).map((r) => ({
+    userId: r.user_id,
+    userName: r.profiles?.name ?? '알 수 없음',
+    category: r.category,
+    performance: r.performance,
+    plan: r.plan,
+    issues: r.issues,
+    weekStart: r.week_start,
   }))
 
+  const tabStyle = (isActive: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.375rem',
+    padding: '0.5rem 1rem',
+    fontSize: '0.875rem',
+    fontWeight: isActive ? 600 : 500,
+    color: isActive ? '#6366f1' : '#64748b',
+    borderBottom: isActive ? '2px solid #6366f1' : '2px solid transparent',
+    cursor: 'pointer',
+    textDecoration: 'none',
+  })
+
   return (
-    <div style={{ maxWidth: '860px' }}>
+    <div style={{ width: '100%' }}>
       <div style={{ marginBottom: '1.75rem' }}>
-        <h1
-          style={{
-            fontSize: '1.5rem',
-            fontWeight: 700,
-            color: '#0f172a',
-            letterSpacing: '-0.03em',
-            margin: 0,
-          }}
-        >
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>
           주간보고
         </h1>
         <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>
@@ -123,139 +112,49 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
         </p>
       </div>
 
-      {/* 작성 폼 */}
-      <div className="card" style={{ padding: '1.5rem', marginBottom: '1.75rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-          <FileText size={16} color="#6366f1" />
-          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>
-            보고서 작성
-          </h2>
+      {/* 탭 */}
+      <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
+        <Link href="/weekly-report?tab=mine" style={tabStyle(activeTab === 'mine')}>
+          <FileText size={14} />
+          내 보고
+        </Link>
+        <Link href="/weekly-report?tab=team" style={tabStyle(activeTab === 'team')}>
+          <Users size={14} />
+          팀 전체
+        </Link>
+      </div>
+
+      {activeTab === 'mine' ? (
+        <>
+          <div className="card" style={{ padding: '1.5rem', marginBottom: '1.75rem', width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+              <FileText size={16} color="#6366f1" />
+              <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>보고서 작성</h2>
+            </div>
+            <WeeklyReportForm
+              weekOptions={weekOptions}
+              thisWeek={thisWeek}
+              pastCategories={pastCategories}
+              prefillRows={prefillRows}
+            />
+          </div>
+
+          <div>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', marginBottom: '1rem', letterSpacing: '-0.01em' }}>
+              과거 주간보고
+            </h2>
+            <ReportAccordion groups={groups} />
+          </div>
+        </>
+      ) : (
+        <div className="card" style={{ padding: '1.5rem', width: '100%', boxSizing: 'border-box' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+            <Users size={16} color="#6366f1" />
+            <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>팀 전체 주간보고</h2>
+          </div>
+          <TeamReportView weekOptions={weekOptions} thisWeek={thisWeek} initialReports={teamReports} />
         </div>
-
-        {error && (
-          <div
-            role="alert"
-            style={{
-              padding: '0.75rem 1rem',
-              backgroundColor: '#fef2f2',
-              border: '1px solid #fecaca',
-              borderRadius: '0.625rem',
-              marginBottom: '1rem',
-              fontSize: '0.8125rem',
-              color: '#b91c1c',
-            }}
-          >
-            {decodeURIComponent(error)}
-          </div>
-        )}
-
-        {success && (
-          <div
-            role="status"
-            style={{
-              padding: '0.75rem 1rem',
-              backgroundColor: '#f0fdf4',
-              border: '1px solid #bbf7d0',
-              borderRadius: '0.625rem',
-              marginBottom: '1rem',
-              fontSize: '0.8125rem',
-              color: '#15803d',
-            }}
-          >
-            주간보고가 저장되었습니다
-          </div>
-        )}
-
-        <form action={upsertWeeklyReport}>
-          <div style={{ marginBottom: '1.25rem', maxWidth: '320px' }}>
-            <label htmlFor="week_start" className="label">주차</label>
-            <select
-              id="week_start"
-              name="week_start"
-              required
-              className="input-field"
-              style={{ cursor: 'pointer' }}
-            >
-              {weekOptions.map((w) => (
-                <option key={w} value={w}>
-                  {new Date(w).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })} 주
-                  {w === thisWeek ? ' (이번 주)' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8375rem' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f8fafc' }}>
-                  <th style={thStyle({ width: '80px' })}>구분</th>
-                  <th style={thStyle()}>성과</th>
-                  <th style={thStyle()}>계획</th>
-                  <th style={thStyle({ width: '22%' })}>이슈/협조사항</th>
-                </tr>
-              </thead>
-              <tbody>
-                {CATEGORIES.map((cat, idx) => (
-                  <tr key={cat} style={{ backgroundColor: idx % 2 === 1 ? '#fafafa' : '#fff' }}>
-                    <td style={tdLabelStyle()}>{cat}</td>
-                    <td style={tdStyle()}>
-                      <textarea
-                        name={`${cat}_performance`}
-                        defaultValue={prefill[cat]?.performance}
-                        placeholder="이번 주 주요 성과..."
-                        rows={4}
-                        style={taStyle}
-                      />
-                    </td>
-                    <td style={tdStyle()}>
-                      <textarea
-                        name={`${cat}_plan`}
-                        defaultValue={prefill[cat]?.plan}
-                        placeholder="다음 주 계획..."
-                        rows={4}
-                        style={taStyle}
-                      />
-                    </td>
-                    <td style={tdStyle()}>
-                      <textarea
-                        name={`${cat}_issues`}
-                        defaultValue={prefill[cat]?.issues}
-                        placeholder="이슈 또는 협조사항..."
-                        rows={4}
-                        style={taStyle}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="submit" className="btn-primary">
-              <Save size={15} />
-              저장
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* 히스토리 */}
-      <div>
-        <h2
-          style={{
-            fontSize: '1rem',
-            fontWeight: 600,
-            color: '#0f172a',
-            marginBottom: '1rem',
-            letterSpacing: '-0.01em',
-          }}
-        >
-          과거 주간보고
-        </h2>
-        <ReportAccordion groups={groups} />
-      </div>
+      )}
     </div>
   )
 }
