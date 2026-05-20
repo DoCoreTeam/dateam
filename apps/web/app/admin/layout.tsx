@@ -45,6 +45,8 @@ export default async function AdminLayout({
 
   if (!user) redirect('/login')
 
+  if (user.user_metadata?.must_change_password) redirect('/change-password')
+
   const { data: profile } = await supabase
     .from('profiles')
     .select('name, role')
