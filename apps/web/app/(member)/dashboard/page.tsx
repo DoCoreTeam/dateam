@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getWeekStart, toDateString } from '@/lib/utils'
 import Link from 'next/link'
 import { ArrowRight, CheckCircle2, TrendingUp, FileText } from 'lucide-react'
@@ -59,6 +59,20 @@ export default async function DashboardPage() {
     .order('week_start', { ascending: false })
     .limit(3) as unknown as { data: Pick<WeeklyReport, 'week_start' | 'category' | 'created_at'>[] | null; error: unknown }
 
+  // 본부 현황 데이터 (org_content)
+  const adminClient = createAdminClient()
+  const { data: metaRow } = await adminClient.from('org_content').select('value').eq('key', 'META').single() as unknown as { data: { value: unknown } | null; error: unknown }
+  const { data: missionsRow } = await adminClient.from('org_content').select('value').eq('key', 'missions').single() as unknown as { data: { value: unknown } | null; error: unknown }
+  const { data: okrRow } = await adminClient.from('org_content').select('value').eq('key', 'okr').single() as unknown as { data: { value: unknown } | null; error: unknown }
+
+  const meta = metaRow?.value as {
+    org: string; title: string; subtitle: string; version: string; date: string;
+    stats: Array<{ num: string; lbl: string }>
+  } | null | undefined
+
+  const missions = missionsRow?.value as Array<{ num: string; title: string; desc: string }> | null | undefined
+  const okrList = okrRow?.value as Array<{ objective: string; lead: string; key_results: string[] }> | null | undefined
+
   return (
     <div style={{ maxWidth: '960px' }}>
       {/* 헤더 */}
@@ -83,6 +97,319 @@ export default async function DashboardPage() {
           })}
         </p>
       </div>
+
+      {/* 본부 현황 배너 */}
+      {meta && (
+        <div
+          style={{
+            borderRadius: '1.25rem',
+            background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #7c3aed 100%)',
+            padding: '2rem',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: '2rem',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {/* 배경 장식 */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundImage: 'radial-gradient(circle at 80% 20%, rgba(255,255,255,0.08) 0%, transparent 50%)',
+              pointerEvents: 'none',
+            }}
+          />
+
+          {/* 좌측: 텍스트 */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                color: 'rgba(255,255,255,0.6)',
+                margin: '0 0 0.375rem',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >
+              {meta.org}
+            </p>
+            <h2
+              style={{
+                fontSize: 'clamp(1.25rem, 2vw, 1.75rem)',
+                fontWeight: 700,
+                color: '#ffffff',
+                margin: '0 0 0.375rem',
+                letterSpacing: '-0.03em',
+                lineHeight: 1.2,
+              }}
+            >
+              {meta.title}
+            </h2>
+            <p
+              style={{
+                fontSize: '0.875rem',
+                color: 'rgba(255,255,255,0.65)',
+                margin: '0 0 1.25rem',
+              }}
+            >
+              {meta.subtitle}
+            </p>
+            {/* version badge */}
+            <span
+              style={{
+                display: 'inline-block',
+                fontSize: '0.6875rem',
+                fontWeight: 600,
+                color: 'rgba(255,255,255,0.7)',
+                backgroundColor: 'rgba(255,255,255,0.12)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '999px',
+                padding: '0.2rem 0.625rem',
+                letterSpacing: '0.04em',
+              }}
+            >
+              {meta.version} · {meta.date}
+            </span>
+          </div>
+
+          {/* 우측: stats 2×2 grid */}
+          {meta.stats && meta.stats.length > 0 && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '0.625rem',
+                flexShrink: 0,
+              }}
+            >
+              {meta.stats.slice(0, 4).map((stat, i) => (
+                <div
+                  key={i}
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.12)',
+                    backdropFilter: 'blur(8px)',
+                    border: '1px solid rgba(255,255,255,0.18)',
+                    borderRadius: '0.875rem',
+                    padding: '0.875rem 1rem',
+                    textAlign: 'center',
+                    minWidth: '5.5rem',
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: '1.375rem',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      margin: 0,
+                      letterSpacing: '-0.03em',
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    {stat.num}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: '0.6875rem',
+                      color: 'rgba(255,255,255,0.65)',
+                      margin: '0.25rem 0 0',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {stat.lbl}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* OKR 섹션 */}
+      {okrList && okrList.length > 0 && (
+        <section aria-labelledby="okr-heading" style={{ marginBottom: '1.5rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '0.875rem',
+            }}
+          >
+            <h2
+              id="okr-heading"
+              style={{
+                fontSize: '1rem',
+                fontWeight: 700,
+                color: '#0f172a',
+                margin: 0,
+                letterSpacing: '-0.02em',
+              }}
+            >
+              이번 분기 OKR
+            </h2>
+            <span
+              style={{
+                fontSize: '0.8125rem',
+                color: '#6366f1',
+                fontWeight: 500,
+                cursor: 'default',
+              }}
+            >
+              전체 보기 →
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '0.875rem',
+            }}
+          >
+            {okrList.slice(0, 4).map((okr, i) => (
+              <div
+                key={i}
+                className="card"
+                style={{ padding: '1.25rem' }}
+              >
+                <p
+                  style={{
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: '#0f172a',
+                    margin: '0 0 0.625rem',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {okr.objective}
+                </p>
+                {okr.key_results && okr.key_results.length > 0 && (
+                  <ul
+                    style={{
+                      listStyle: 'none',
+                      margin: '0 0 0.75rem',
+                      padding: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.3rem',
+                    }}
+                  >
+                    {okr.key_results.map((kr, j) => (
+                      <li
+                        key={j}
+                        style={{
+                          fontSize: '0.75rem',
+                          color: '#64748b',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '0.375rem',
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            color: '#6366f1',
+                            flexShrink: 0,
+                            marginTop: '0.1em',
+                          }}
+                        >
+                          ·
+                        </span>
+                        {kr}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p
+                  style={{
+                    fontSize: '0.6875rem',
+                    color: '#94a3b8',
+                    margin: 0,
+                    fontWeight: 500,
+                  }}
+                >
+                  Lead · {okr.lead}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 미션 목록 */}
+      {missions && missions.length > 0 && (
+        <section aria-labelledby="missions-heading" style={{ marginBottom: '1.5rem' }}>
+          <h2
+            id="missions-heading"
+            style={{
+              fontSize: '1rem',
+              fontWeight: 700,
+              color: '#0f172a',
+              margin: '0 0 0.875rem',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            본부 미션
+          </h2>
+          <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
+            <ol
+              style={{
+                listStyle: 'none',
+                margin: 0,
+                padding: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0',
+              }}
+            >
+              {missions.slice(0, 5).map((mission, i) => (
+                <li
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'baseline',
+                    gap: '0.75rem',
+                    padding: '0.625rem 0',
+                    borderBottom: i < Math.min(missions.length, 5) - 1 ? '1px solid #f1f5f9' : 'none',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '0.6875rem',
+                      fontWeight: 700,
+                      color: '#6366f1',
+                      backgroundColor: '#eef2ff',
+                      borderRadius: '0.375rem',
+                      padding: '0.125rem 0.4rem',
+                      flexShrink: 0,
+                      letterSpacing: '0.02em',
+                    }}
+                  >
+                    {mission.num}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '0.875rem',
+                      color: '#334155',
+                      fontWeight: 500,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {mission.title}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+      )}
 
       {/* 상단 요약 카드 3개 */}
       <div
