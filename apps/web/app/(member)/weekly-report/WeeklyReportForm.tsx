@@ -56,7 +56,6 @@ export default function WeeklyReportForm({
   const [rows, setRows] = useState<Row[]>(prefillRows.length > 0 ? prefillRows : [{ ...EMPTY_ROW }])
   const [pending, setPending] = useState(false)
   const [submitError, setSubmitError] = useState('')
-  const [submitSuccess, setSubmitSuccess] = useState(false)
 
   type ModalTarget = { rowIdx: number; field: 'performance' | 'plan' | 'issues' } | null
   const [modalTarget, setModalTarget] = useState<ModalTarget>(null)
@@ -84,7 +83,6 @@ export default function WeeklyReportForm({
   function handleWeekChange(week: string) {
     setSelectedWeek(week)
     setRows([{ ...EMPTY_ROW }])
-    setSubmitSuccess(false)
     setSubmitError('')
   }
 
@@ -92,7 +90,6 @@ export default function WeeklyReportForm({
     e.preventDefault()
     setPending(true)
     setSubmitError('')
-    setSubmitSuccess(false)
 
     const formData = new FormData()
     formData.set('week_start', selectedWeek)
@@ -107,12 +104,7 @@ export default function WeeklyReportForm({
     const result = await upsertWeeklyReport(formData)
 
     if (result.ok) {
-      setSubmitSuccess(true)
-      if (initialWeek !== thisWeek) {
-        router.push('/weekly-report?tab=mine')
-      } else {
-        router.refresh()
-      }
+      router.push('/weekly-report?tab=mine&saved=1')
     } else {
       setSubmitError(result.error)
     }
@@ -192,12 +184,6 @@ export default function WeeklyReportForm({
           {submitError}
         </div>
       )}
-      {submitSuccess && (
-        <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '0.625rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#15803d' }}>
-          주간보고가 저장되었습니다
-        </div>
-      )}
-
       {/* category 자동완성 */}
       <datalist id="category-list">
         {pastCategories.map((c) => <option key={c} value={c} />)}

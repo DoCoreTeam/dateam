@@ -21,7 +21,7 @@ interface TeamRow {
 }
 
 interface PageProps {
-  searchParams: Promise<{ tab?: string; editWeek?: string }>
+  searchParams: Promise<{ tab?: string; editWeek?: string; saved?: string }>
 }
 
 export default async function WeeklyReportPage({ searchParams }: PageProps) {
@@ -32,8 +32,9 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
 
   if (!user) redirect('/login')
 
-  const { tab, editWeek } = await searchParams
+  const { tab, editWeek, saved } = await searchParams
   const activeTab = tab === 'team' ? 'team' : 'mine'
+  const justSaved = saved === '1'
 
   const weekOptions = Array.from({ length: 8 }, (_, i) => {
     const d = getWeekStart(subWeeks(new Date(), i))
@@ -129,6 +130,11 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
 
       {activeTab === 'mine' ? (
         <>
+          {justSaved && (
+            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '0.625rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#15803d' }}>
+              주간보고가 저장되었습니다
+            </div>
+          )}
           <div className="card" style={{ padding: '1.5rem', marginBottom: '1.75rem', width: '100%', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
               <FileText size={16} color="#6366f1" />
