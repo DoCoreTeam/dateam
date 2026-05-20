@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { ChevronDown, Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ChevronDown, Trash2, Pencil } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
 import { deleteWeeklyReport } from './actions'
 
@@ -85,13 +86,14 @@ function ReportCard({ report, onDelete }: { report: WeeklyReport; onDelete: () =
           ) : (
             <button
               onClick={() => setConfirmDelete(true)}
-              title="삭제"
               style={{
-                background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8',
-                padding: '0.25rem', display: 'flex', alignItems: 'center',
+                display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                fontSize: '0.75rem', padding: '0.25rem 0.625rem', background: '#f1f5f9',
+                color: '#64748b', border: 'none', borderRadius: '0.3rem', cursor: 'pointer',
               }}
             >
-              <Trash2 size={13} />
+              <Trash2 size={11} />
+              삭제
             </button>
           )}
         </div>
@@ -129,6 +131,7 @@ function ReportCard({ report, onDelete }: { report: WeeklyReport; onDelete: () =
 }
 
 export default function ReportAccordion({ groups }: ReportAccordionProps) {
+  const router = useRouter()
   const [openWeeks, setOpenWeeks] = useState<Set<string>>(
     new Set(groups.length > 0 ? [groups[0].weekStart] : [])
   )
@@ -140,6 +143,11 @@ export default function ReportAccordion({ groups }: ReportAccordionProps) {
       else next.add(weekStart)
       return next
     })
+  }
+
+  function handleEdit(weekStart: string) {
+    router.push(`/weekly-report?tab=mine&editWeek=${weekStart}`)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   if (groups.length === 0) {
@@ -158,25 +166,41 @@ export default function ReportAccordion({ groups }: ReportAccordionProps) {
 
         return (
           <div key={group.weekStart} className="card" style={{ overflow: 'hidden' }}>
-            <button
-              onClick={() => toggleWeek(group.weekStart)}
-              aria-expanded={isOpen}
+            <div
               style={{
-                width: '100%', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center',
-                justifyContent: 'space-between', background: 'none', border: 'none', cursor: 'pointer',
-                borderBottom: isOpen ? '1px solid #e2e8f0' : 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '1rem 1.25rem', borderBottom: isOpen ? '1px solid #e2e8f0' : 'none',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <button
+                onClick={() => toggleWeek(group.weekStart)}
+                aria-expanded={isOpen}
+                style={{
+                  flex: 1, display: 'flex', alignItems: 'center', gap: '0.75rem',
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left',
+                }}
+              >
                 <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a' }}>{weekLabel} 주</span>
                 <span className="badge badge-slate">{group.reports.length}건</span>
-              </div>
-              <ChevronDown
-                size={16}
-                color="#94a3b8"
-                style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 200ms' }}
-              />
-            </button>
+                <ChevronDown
+                  size={16}
+                  color="#94a3b8"
+                  style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 200ms', marginLeft: '0.25rem' }}
+                />
+              </button>
+              <button
+                onClick={() => handleEdit(group.weekStart)}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                  fontSize: '0.8125rem', fontWeight: 500, padding: '0.375rem 0.75rem',
+                  background: '#eef2ff', color: '#4338ca', border: 'none',
+                  borderRadius: '0.5rem', cursor: 'pointer', flexShrink: 0,
+                }}
+              >
+                <Pencil size={12} />
+                수정
+              </button>
+            </div>
 
             {isOpen && (
               <div style={{ padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>

@@ -1,4 +1,6 @@
-import { changePassword } from './actions'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { changePassword, getOrgMemberNames } from './actions'
+import type { Profile } from '@/types/database'
 
 interface PageProps {
   searchParams: Promise<{ error?: string }>
@@ -6,6 +8,29 @@ interface PageProps {
 
 export default async function ChangePasswordPage({ searchParams }: PageProps) {
   const { error } = await searchParams
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  let currentName: string | null = null
+  let availableNames: string[] = []
+
+  if (user) {
+    const adminClient = createAdminClient()
+    const { data: profile } = await adminClient
+      .from('profiles')
+      .select('name')
+      .eq('id', user.id)
+      .single() as unknown as { data: Pick<Profile, 'name'> | null }
+
+    currentName = profile?.name ?? null
+
+    if (!currentName) {
+      availableNames = await getOrgMemberNames()
+    }
+  }
+
+  const needsName = !currentName
 
   return (
     <div
@@ -68,6 +93,42 @@ export default async function ChangePasswordPage({ searchParams }: PageProps) {
         )}
 
         <form action={changePassword} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {needsName && (
+            <div>
+              <label htmlFor="name" className="label">
+                내 이름 <span style={{ color: '#dc2626' }}>*</span>
+              </label>
+              {availableNames.length > 0 ? (
+                <select
+                  id="name"
+                  name="name"
+                  required
+                  className="input-field"
+                  style={{ width: '100%', boxSizing: 'border-box', cursor: 'pointer' }}
+                  defaultValue=""
+                >
+                  <option value="" disabled>조직도에서 내 이름 선택</option>
+                  {availableNames.map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  required
+                  placeholder="실명 입력 (조직도에 등록된 이름)"
+                  className="input-field"
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              )}
+              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.375rem' }}>
+                조직도에 등록된 이름과 일치해야 합니다
+              </p>
+            </div>
+          )}
+
           <div>
             <label htmlFor="password" className="label">새 비밀번호</label>
             <input

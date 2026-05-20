@@ -21,7 +21,7 @@ interface TeamRow {
 }
 
 interface PageProps {
-  searchParams: Promise<{ tab?: string }>
+  searchParams: Promise<{ tab?: string; editWeek?: string }>
 }
 
 export default async function WeeklyReportPage({ searchParams }: PageProps) {
@@ -32,7 +32,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
 
   if (!user) redirect('/login')
 
-  const { tab } = await searchParams
+  const { tab, editWeek } = await searchParams
   const activeTab = tab === 'team' ? 'team' : 'mine'
 
   const weekOptions = Array.from({ length: 8 }, (_, i) => {
@@ -50,9 +50,10 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     .order('week_start', { ascending: false })
     .order('category', { ascending: true }) as unknown as { data: WeeklyReport[] | null; error: unknown }
 
-  // 이번 주 내 데이터 (프리필)
-  const thisWeekData = (reports ?? []).filter((r) => r.week_start === thisWeek)
-  const prefillRows = thisWeekData.map((r) => ({
+  // 수정 모드: editWeek가 유효한 주차면 그 주 데이터로 프리필
+  const initialWeek = (editWeek && weekOptions.includes(editWeek)) ? editWeek : thisWeek
+  const formSourceData = (reports ?? []).filter((r) => r.week_start === initialWeek)
+  const prefillRows = formSourceData.map((r) => ({
     category: r.category,
     performance: r.performance,
     plan: r.plan,
@@ -134,6 +135,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
             <WeeklyReportForm
               weekOptions={weekOptions}
               thisWeek={thisWeek}
+              initialWeek={initialWeek}
               pastCategories={pastCategories}
               prefillRows={prefillRows}
             />

@@ -5,15 +5,35 @@ import { addDays } from 'date-fns'
 import RoutineGrid from './RoutineGrid'
 import type { Profile } from '@/types/database'
 
+type RoutineItemRaw = string | { name: string; freq?: 'daily' | 'weekly' }
+
 interface RoutineTemplate {
   name: string
-  items?: string[]
+  items?: RoutineItemRaw[]
   role?: string
   split?: string
   schedule?: Record<string, string[]>
 }
 
-const DEFAULT_ROUTINES = ['Morning Standup', '리포트 확인', '이슈 로그', '업무 마감 체크']
+export interface RoutineItemParsed {
+  name: string
+  freq: 'daily' | 'weekly'
+}
+
+function parseItems(items: RoutineItemRaw[]): RoutineItemParsed[] {
+  return items.map((item) =>
+    typeof item === 'string'
+      ? { name: item, freq: 'weekly' as const }
+      : { name: item.name, freq: item.freq ?? 'weekly' }
+  )
+}
+
+const DEFAULT_ROUTINES: RoutineItemParsed[] = [
+  { name: 'Morning Standup', freq: 'daily' },
+  { name: '리포트 확인', freq: 'daily' },
+  { name: '이슈 로그', freq: 'daily' },
+  { name: '업무 마감 체크', freq: 'daily' },
+]
 
 export default async function RoutinePage() {
   const supabase = await createClient()
@@ -56,9 +76,9 @@ export default async function RoutinePage() {
     ? templates.find((t) => t.name === profile.name)
     : null
 
-  const routineNames =
+  const routineItems: RoutineItemParsed[] =
     myTemplate?.items && myTemplate.items.length > 0
-      ? myTemplate.items
+      ? parseItems(myTemplate.items)
       : DEFAULT_ROUTINES
 
   // 이름이 설정되지 않은 경우 안내
@@ -119,7 +139,7 @@ export default async function RoutinePage() {
         weekStart={weekStartStr}
         initialChecks={routineChecks ?? []}
         todayStr={todayStr}
-        routineNames={routineNames}
+        routineItems={routineItems}
       />
     </div>
   )

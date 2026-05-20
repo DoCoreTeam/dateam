@@ -2,11 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, Save } from 'lucide-react'
+import { Plus, Trash2, Save, Pencil } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { upsertWeeklyReport } from './actions'
 
-const TiptapEditor = dynamic(() => import('@/components/ui/TiptapEditor'), { ssr: false })
+const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 
 interface Row {
   category: string
@@ -18,6 +18,7 @@ interface Row {
 interface WeeklyReportFormProps {
   weekOptions: string[]
   thisWeek: string
+  initialWeek: string
   pastCategories: string[]
   prefillRows: Row[]
 }
@@ -46,15 +47,25 @@ const EMPTY_ROW: Row = { category: '', performance: '', plan: '', issues: '' }
 export default function WeeklyReportForm({
   weekOptions,
   thisWeek,
+  initialWeek,
   pastCategories,
   prefillRows,
 }: WeeklyReportFormProps) {
   const router = useRouter()
-  const [selectedWeek, setSelectedWeek] = useState(thisWeek)
+  const [selectedWeek, setSelectedWeek] = useState(initialWeek)
   const [rows, setRows] = useState<Row[]>(prefillRows.length > 0 ? prefillRows : [{ ...EMPTY_ROW }])
   const [pending, setPending] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [submitSuccess, setSubmitSuccess] = useState(false)
+
+  type ModalTarget = { rowIdx: number; field: 'performance' | 'plan' | 'issues' } | null
+  const [modalTarget, setModalTarget] = useState<ModalTarget>(null)
+
+  const FIELD_LABELS: Record<'performance' | 'plan' | 'issues', string> = {
+    performance: '성과',
+    plan: '계획',
+    issues: '이슈/협조사항',
+  }
 
   const dateRange = getWeekDateRange(selectedWeek)
 
@@ -97,7 +108,11 @@ export default function WeeklyReportForm({
 
     if (result.ok) {
       setSubmitSuccess(true)
-      router.refresh()
+      if (initialWeek !== thisWeek) {
+        router.push('/weekly-report?tab=mine')
+      } else {
+        router.refresh()
+      }
     } else {
       setSubmitError(result.error)
     }
@@ -116,8 +131,41 @@ export default function WeeklyReportForm({
     whiteSpace: 'nowrap',
   }
 
+  const isEditMode = initialWeek !== thisWeek
+
   return (
+    <>
+    {modalTarget && (
+      <EditorModal
+        title={`${rows[modalTarget.rowIdx].category || '항목'} — ${FIELD_LABELS[modalTarget.field]}`}
+        value={rows[modalTarget.rowIdx][modalTarget.field]}
+        placeholder={
+          modalTarget.field === 'performance' ? '이번 주 주요 성과…'
+          : modalTarget.field === 'plan' ? '다음 주 계획…'
+          : '이슈 또는 협조사항…'
+        }
+        onChange={(html) => updateRow(modalTarget.rowIdx, modalTarget.field, html)}
+        onClose={() => setModalTarget(null)}
+      />
+    )}
     <form onSubmit={handleSubmit}>
+      {/* 수정 모드 배너 */}
+      {isEditMode && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0.75rem 1rem', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe',
+          borderRadius: '0.625rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1d4ed8',
+        }}>
+          <span>✏️ <strong>{new Date(initialWeek).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 주</strong> 보고서 수정 중</span>
+          <button
+            type="button"
+            onClick={() => router.push('/weekly-report?tab=mine')}
+            style={{ fontSize: '0.8125rem', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: '0.125rem 0.375rem' }}
+          >
+            취소
+          </button>
+        </div>
+      )}
       {/* 주차 선택 */}
       <div style={{ marginBottom: '1.25rem' }}>
         <label htmlFor="week_start" className="label">주차</label>
@@ -198,32 +246,23 @@ export default function WeeklyReportForm({
                   />
                 </td>
                 {/* 성과 */}
-                <td style={{ padding: '0.5rem', verticalAlign: 'top', borderRight: '1px solid #f1f5f9' }}>
-                  <TiptapEditor
-                    value={row.performance}
-                    onChange={(html) => updateRow(idx, 'performance', html)}
-                    placeholder="이번 주 주요 성과…"
-                    minHeight={120}
-                  />
-                </td>
+                <EditorCell
+                  value={row.performance}
+                  placeholder="이번 주 주요 성과…"
+                  onClick={() => setModalTarget({ rowIdx: idx, field: 'performance' })}
+                />
                 {/* 계획 */}
-                <td style={{ padding: '0.5rem', verticalAlign: 'top', borderRight: '1px solid #f1f5f9' }}>
-                  <TiptapEditor
-                    value={row.plan}
-                    onChange={(html) => updateRow(idx, 'plan', html)}
-                    placeholder="다음 주 계획…"
-                    minHeight={120}
-                  />
-                </td>
+                <EditorCell
+                  value={row.plan}
+                  placeholder="다음 주 계획…"
+                  onClick={() => setModalTarget({ rowIdx: idx, field: 'plan' })}
+                />
                 {/* 이슈 */}
-                <td style={{ padding: '0.5rem', verticalAlign: 'top', borderRight: '1px solid #f1f5f9' }}>
-                  <TiptapEditor
-                    value={row.issues}
-                    onChange={(html) => updateRow(idx, 'issues', html)}
-                    placeholder="이슈 또는 협조사항…"
-                    minHeight={120}
-                  />
-                </td>
+                <EditorCell
+                  value={row.issues}
+                  placeholder="이슈 또는 협조사항…"
+                  onClick={() => setModalTarget({ rowIdx: idx, field: 'issues' })}
+                />
                 {/* 삭제 */}
                 <td style={{ padding: '0.5rem', verticalAlign: 'top', textAlign: 'center' }}>
                   {rows.length > 1 && (
@@ -264,5 +303,71 @@ export default function WeeklyReportForm({
         </button>
       </div>
     </form>
+    </>
+  )
+}
+
+function EditorCell({
+  value,
+  placeholder,
+  onClick,
+}: {
+  value: string
+  placeholder: string
+  onClick: () => void
+}) {
+  const hasContent = !!value && value !== '<p></p>'
+
+  return (
+    <td
+      onClick={onClick}
+      style={{
+        padding: '0.5rem',
+        verticalAlign: 'top',
+        borderRight: '1px solid #f1f5f9',
+        cursor: 'pointer',
+        minHeight: '80px',
+      }}
+    >
+      <div
+        style={{
+          minHeight: '80px',
+          padding: '0.5rem 0.625rem',
+          borderRadius: '0.5rem',
+          border: '1px dashed #e2e8f0',
+          position: 'relative',
+          transition: 'border-color 120ms, background 120ms',
+        }}
+        onMouseEnter={(e) => {
+          const el = e.currentTarget as HTMLDivElement
+          el.style.borderColor = '#a5b4fc'
+          el.style.backgroundColor = '#f8f9ff'
+        }}
+        onMouseLeave={(e) => {
+          const el = e.currentTarget as HTMLDivElement
+          el.style.borderColor = '#e2e8f0'
+          el.style.backgroundColor = 'transparent'
+        }}
+      >
+        {hasContent ? (
+          <div
+            className="report-rich"
+            style={{ pointerEvents: 'none', userSelect: 'none' }}
+            // HTML from Tiptap editor controlled by authenticated user
+            dangerouslySetInnerHTML={{ __html: value }}
+          />
+        ) : (
+          <span style={{ fontSize: '0.8125rem', color: '#cbd5e1' }}>{placeholder}</span>
+        )}
+        <div
+          style={{
+            position: 'absolute', top: '0.375rem', right: '0.375rem',
+            color: '#a5b4fc', opacity: 0.7,
+          }}
+        >
+          <Pencil size={11} />
+        </div>
+      </div>
+    </td>
   )
 }

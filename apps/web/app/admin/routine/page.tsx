@@ -5,12 +5,32 @@ import { subWeeks } from 'date-fns'
 import { CheckSquare } from 'lucide-react'
 import type { Profile, RoutineCheck } from '@/types/database'
 
+type RoutineItemRaw = string | { name: string; freq?: 'daily' | 'weekly' }
+
 interface RoutineTemplate {
   name: string
-  items?: string[]
+  items?: RoutineItemRaw[]
 }
 
-const DEFAULT_ITEMS = ['Morning Standup', '리포트 확인', '이슈 로그', '업무 마감 체크']
+interface RoutineItemParsed {
+  name: string
+  freq: 'daily' | 'weekly'
+}
+
+function parseItems(items: RoutineItemRaw[]): RoutineItemParsed[] {
+  return items.map((item) =>
+    typeof item === 'string'
+      ? { name: item, freq: 'weekly' as const }
+      : { name: item.name, freq: item.freq ?? 'weekly' }
+  )
+}
+
+const DEFAULT_ITEMS: RoutineItemParsed[] = [
+  { name: 'Morning Standup', freq: 'daily' },
+  { name: '리포트 확인', freq: 'daily' },
+  { name: '이슈 로그', freq: 'daily' },
+  { name: '업무 마감 체크', freq: 'daily' },
+]
 
 interface PageProps {
   searchParams: Promise<{ week?: string }>
@@ -50,7 +70,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
   ])
 
   const profiles = profilesResult.data ?? []
-  const templates: RoutineTemplate[] = Array.isArray(rtResult.data?.value) ? rtResult.data!.value : []
+  const templates: RoutineTemplate[] = Array.isArray(rtResult.data?.value) ? (rtResult.data!.value as RoutineTemplate[]) : []
 
   // 선택 주의 루틴 체크 데이터
   const { data: checks } = await supabase
@@ -66,16 +86,17 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
     if (c.is_completed) checkMap[c.user_id][c.routine_name] += 1
   })
 
-  // 전체 달성률 계산 (각 멤버 루틴 기준)
+  // 전체 달성률 계산 (weekly=1, daily=7)
   let allCompleted = 0
   let allTotal = 0
   profiles.forEach((p) => {
     const template = templates.find((t) => t.name === p.name)
-    const items = template?.items?.length ? template.items : DEFAULT_ITEMS
+    const items: RoutineItemParsed[] = template?.items?.length ? parseItems(template.items) : DEFAULT_ITEMS
     const userChecks = checkMap[p.id] ?? {}
     items.forEach((item) => {
-      allTotal += 7
-      allCompleted += Math.min(userChecks[item] ?? 0, 7)
+      const max = item.freq === 'weekly' ? 1 : 7
+      allTotal += max
+      allCompleted += Math.min(userChecks[item.name] ?? 0, max)
     })
   })
   const overallRate = allTotal > 0 ? Math.round((allCompleted / allTotal) * 100) : 0
@@ -176,14 +197,15 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
           <tbody>
             {profiles.map((profile) => {
               const template = templates.find((t) => t.name === profile.name)
-              const items = template?.items?.length ? template.items : DEFAULT_ITEMS
+              const items: RoutineItemParsed[] = template?.items?.length ? parseItems(template.items) : DEFAULT_ITEMS
               const userChecks = checkMap[profile.id] ?? {}
 
               let completed = 0
               let total = 0
               items.forEach((item) => {
-                total += 7
-                completed += Math.min(userChecks[item] ?? 0, 7)
+                const max = item.freq === 'weekly' ? 1 : 7
+                total += max
+                completed += Math.min(userChecks[item.name] ?? 0, max)
               })
               const rate = total > 0 ? Math.round((completed / total) * 100) : 0
 
@@ -200,20 +222,21 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
                   <td>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
                       {items.map((item) => {
-                        const itemCount = Math.min(userChecks[item] ?? 0, 7)
-                        const itemRate = Math.round((itemCount / 7) * 100)
+                        const max = item.freq === 'weekly' ? 1 : 7
+                        const itemCount = Math.min(userChecks[item.name] ?? 0, max)
+                        const itemRate = Math.round((itemCount / max) * 100)
                         return (
                           <span
-                            key={item}
+                            key={item.name}
                             className="badge"
                             style={{
                               backgroundColor: itemRate >= 80 ? '#ecfdf5' : itemRate >= 40 ? '#fffbeb' : '#f8fafc',
                               color: itemRate >= 80 ? '#065f46' : itemRate >= 40 ? '#92400e' : '#64748b',
                               fontSize: '0.6875rem',
                             }}
-                            title={`${itemCount}/7일`}
+                            title={item.freq === 'weekly' ? `${itemCount}/1회` : `${itemCount}/7일`}
                           >
-                            {item} {itemRate}%
+                            {item.name} {item.freq === 'weekly' ? (itemRate === 100 ? '✓' : '미완') : `${itemRate}%`}
                           </span>
                         )
                       })}

@@ -105,6 +105,7 @@ export async function getOrgMemberNames(): Promise<string[]> {
 export async function changePassword(formData: FormData): Promise<never> {
   const newPassword = formData.get('password') as string
   const confirm = formData.get('confirm') as string
+  const name = (formData.get('name') as string | null) || undefined
 
   if (!newPassword || newPassword.length < 8) {
     redirect('/change-password?error=' + encodeURIComponent('비밀번호는 8자 이상이어야 합니다'))
@@ -113,7 +114,7 @@ export async function changePassword(formData: FormData): Promise<never> {
     redirect('/change-password?error=' + encodeURIComponent('비밀번호가 일치하지 않습니다'))
   }
 
-  const result = await changePasswordAction(newPassword)
+  const result = await changePasswordAction(newPassword, name)
   if (!result.ok) {
     redirect('/change-password?error=' + encodeURIComponent(result.error))
   }
