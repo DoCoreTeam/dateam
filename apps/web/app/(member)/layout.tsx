@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/ui/Sidebar'
 import LogoutButton from '@/components/ui/LogoutButton'
+import Link from 'next/link'
 import {
   LayoutDashboard,
   CheckSquare,
@@ -128,7 +129,27 @@ export default async function MemberLayout({
             <strong style={{ color: '#0f172a', fontWeight: 600 }}>{displayName}</strong>
             님
           </span>
-          <LogoutButton />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {profile?.role === 'admin' && (
+              <Link
+                href="/admin/users"
+                style={{
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  color: '#dc2626',
+                  textDecoration: 'none',
+                  padding: '0.375rem 0.75rem',
+                  border: '1px solid #fecaca',
+                  borderRadius: '0.5rem',
+                  backgroundColor: '#fef2f2',
+                  transition: 'background 120ms',
+                }}
+              >
+                관리자 패널 →
+              </Link>
+            )}
+            <LogoutButton />
+          </div>
         </header>
 
         {/* 메인 콘텐츠 */}

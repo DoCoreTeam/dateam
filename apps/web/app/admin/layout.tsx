@@ -2,11 +2,13 @@ import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/ui/Sidebar'
 import LogoutButton from '@/components/ui/LogoutButton'
+import Link from 'next/link'
 import {
   Users,
   FileText,
   CheckSquare,
   BarChart2,
+  Settings2,
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
 
@@ -30,6 +32,11 @@ const ADMIN_NAV_ITEMS = [
     href: '/admin/kpi',
     label: 'KPI 집계',
     icon: <BarChart2 size={16} />,
+  },
+  {
+    href: '/admin/content',
+    label: '콘텐츠 관리',
+    icon: <Settings2 size={16} />,
   },
 ]
 
@@ -126,7 +133,24 @@ export default async function AdminLayout({
               {displayName}
             </span>
           </div>
-          <LogoutButton />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <Link
+              href="/dashboard"
+              style={{
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                color: '#4f46e5',
+                textDecoration: 'none',
+                padding: '0.375rem 0.75rem',
+                border: '1px solid #c7d2fe',
+                borderRadius: '0.5rem',
+                backgroundColor: '#eef2ff',
+              }}
+            >
+              ← 멤버 화면
+            </Link>
+            <LogoutButton />
+          </div>
         </header>
 
         <main style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
