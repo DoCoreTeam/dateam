@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getWeekStart, toDateString } from '@/lib/utils'
 import { subWeeks } from 'date-fns'
 import { FileText } from 'lucide-react'
@@ -27,20 +27,22 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
 
   const selectedWeek = week ?? weekOptions[0]
 
-  // 전체 팀원 목록
-  const { data: profiles } = await supabase
+  const adminClient = createAdminClient()
+
+  // 전체 팀원 목록 (RLS 우회 — 어드민 전용 페이지)
+  const { data: profiles } = await adminClient
     .from('profiles')
     .select('id, name')
     .is('deleted_at', null)
     .order('name') as unknown as { data: Pick<Profile, 'id' | 'name'>[] | null; error: unknown }
 
-  // 선택한 주의 주간보고
+  // 선택한 주의 주간보고 (RLS 우회 — 어드민 전용 페이지)
   type ReportWithProfile = WeeklyReport & { profiles: { name: string } }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = (supabase as any)
+  let query = (adminClient as any)
     .from('weekly_reports')
-    .select('*, profiles!inner(name)')
+    .select('*, profiles(name)')
     .eq('week_start', selectedWeek)
     .is('deleted_at', null)
     .order('category')

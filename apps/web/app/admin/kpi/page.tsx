@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { toDateString } from '@/lib/utils'
 import { BarChart2 } from 'lucide-react'
 import type { Profile, KpiEntry } from '@/types/database'
@@ -28,20 +28,22 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
   const selectedStart = period_start ?? defaultStart
   const selectedEnd = period_end ?? today
 
-  // 전체 팀원
-  const { data: profiles } = await supabase
+  const adminClient = createAdminClient()
+
+  // 전체 팀원 (RLS 우회 — 어드민 전용 페이지)
+  const { data: profiles } = await adminClient
     .from('profiles')
     .select('id, name')
     .is('deleted_at', null)
     .order('name') as unknown as { data: Pick<Profile, 'id' | 'name'>[] | null; error: unknown }
 
-  // 기간 필터 KPI
+  // 기간 필터 KPI (RLS 우회 — 어드민 전용 페이지)
   type KpiEntryWithProfile = KpiEntry & { profiles: { name: string } }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = (supabase as any)
+  let query = (adminClient as any)
     .from('kpi_entries')
-    .select('*, profiles!inner(name)')
+    .select('*, profiles(name)')
     .order('period_end', { ascending: false })
 
   if (selectedStart) query = query.gte('period_end', selectedStart)
