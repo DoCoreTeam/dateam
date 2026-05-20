@@ -69,7 +69,9 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     acc[r.week_start].push(r)
     return acc
   }, {})
-  const groups = Object.entries(grouped).map(([weekStart, reps]) => ({ weekStart, reports: reps }))
+  const groups = Object.entries(grouped)
+    .filter(([weekStart]) => weekStart !== thisWeek)
+    .map(([weekStart, reps]) => ({ weekStart, reports: reps }))
 
   // 팀 전체 보고 (이번 주 초기값) — 002 migration 적용 후 member도 조회 가능
   const { data: teamRaw } = await supabase
