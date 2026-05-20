@@ -1,0 +1,160 @@
+- generic [ref=e1]:
+  - generic [ref=e177]: ✏️ 편집 모드 — 파란 테두리 텍스트를 클릭해서 수정하세요 | 수정 후 [저장] 또는 [HTML 다운로드]
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e178]:
+        - generic [ref=e179]:
+          - generic [ref=e180]: DATA-ALLIANCE · 신규 본부
+          - heading "김도현 본부장 본부 운영 대시보드" [level=1] [ref=e181]
+          - paragraph [ref=e182]: gcube와 시티큐브를 두 축으로, 글로벌 AI 인프라와 스마트시티 시민서비스 시장을 동시에 락인(Lock-in)하는 프로덕트 중심 본부.
+        - generic [ref=e183]:
+          - generic [ref=e184]: Version
+          - generic [ref=e185]: v0.1.7
+          - generic [ref=e186]: 2026-05-18
+      - generic [ref=e187]:
+        - generic [ref=e188]:
+          - generic [ref=e189]: "5"
+          - generic [ref=e190]: 본부원 (페어 1쌍 포함)
+        - generic [ref=e191]:
+          - generic [ref=e192]: "10"
+          - generic [ref=e193]: 진행 프로젝트 (사이트 6 + 영업·공급 4)
+        - generic [ref=e194]:
+          - generic [ref=e195]: "5"
+          - generic [ref=e196]: 본부 고정 슬롯
+        - generic [ref=e197]:
+          - generic [ref=e198]: 1주
+          - generic [ref=e199]: 출시 사이클 + AI 코딩
+  - navigation [ref=e26]:
+    - generic [ref=e27]:
+      - button "개요" [ref=e28] [cursor=pointer]
+      - button "프로젝트 6" [ref=e29] [cursor=pointer]
+      - button "본부원 R&R" [ref=e30] [cursor=pointer]
+      - button "KPI / OKR" [ref=e31] [cursor=pointer]
+      - button "운영 리듬" [ref=e32] [cursor=pointer]
+      - button "주간 루틴" [ref=e33] [cursor=pointer]
+      - button "업무지침" [ref=e34] [cursor=pointer]
+  - main [ref=e35]:
+    - generic [ref=e36]:
+      - generic [ref=e37]:
+        - generic [ref=e38]:
+          - heading "본부 비전" [level=2] [ref=e39]
+          - paragraph [ref=e40]:
+            - text: gcube와 시티큐브를 두 축으로,
+            - text: 글로벌 AI 인프라와 스마트시티 시민서비스 시장을 동시에 락인(Lock-in)하는 프로덕트 중심 본부.
+          - generic [ref=e41]:
+            - generic [ref=e42]:
+              - generic [ref=e43]: AXIS 1
+              - generic [ref=e44]: 시티큐브 SaaS 완성
+              - generic [ref=e45]: 블록체인 기반 시민 인증·통합 포인트의 표준
+            - generic [ref=e46]:
+              - generic [ref=e47]: AXIS 2
+              - generic [ref=e48]: gcube 락인 프로덕트
+              - generic [ref=e49]: 개발자/비개발자용 오픈소스 1주 단위 출시
+            - generic [ref=e50]:
+              - generic [ref=e51]: AXIS 3
+              - generic [ref=e52]: 공급·수요 채널
+              - generic [ref=e53]: GPU 공급자 확보 + 수요 기업 채널 영업 동시
+        - generic [ref=e54]:
+          - heading "본부 미션 (책임 영역 9)" [level=2] [ref=e55]
+          - paragraph [ref=e56]: 우선순위 순서대로
+          - generic [ref=e57]:
+            - generic [ref=e200]:
+              - button "×" [ref=e201] [cursor=pointer]
+              - generic [ref=e202]: "#1"
+              - generic [ref=e203]: 시티큐브 완성/디벨롭
+              - generic [ref=e204]: 블록체인 기반 인증 + 통합 포인트 코어 완성
+            - generic [ref=e205]:
+              - button "×" [ref=e206] [cursor=pointer]
+              - generic [ref=e207]: "#2"
+              - generic [ref=e208]: gcube 오픈소스 1주 단위 출시
+              - generic [ref=e209]: 개발자/비개발자용 도구를 gcube 리소스에 락인
+            - generic [ref=e210]:
+              - button "×" [ref=e211] [cursor=pointer]
+              - generic [ref=e212]: "#3"
+              - generic [ref=e213]: 본부원 브레인스토밍 기반 신규/고도화
+              - generic [ref=e214]: 주간 아이데이션 → 즉시 1주 빌드
+            - generic [ref=e215]:
+              - button "×" [ref=e216] [cursor=pointer]
+              - generic [ref=e217]: "#4"
+              - generic [ref=e218]: gcube 공급자 확보·관리·가격정책
+              - generic [ref=e219]: 공급자 커뮤니케이션 상시 운영
+            - generic [ref=e220]:
+              - button "×" [ref=e221] [cursor=pointer]
+              - generic [ref=e222]: "#5"
+              - generic [ref=e223]: 다양한 채널 통한 수요 기업 확보
+              - generic [ref=e224]: 지자체·MSP·대학·연구소·스타트업
+            - generic [ref=e225]:
+              - button "×" [ref=e226] [cursor=pointer]
+              - generic [ref=e227]: "#6"
+              - generic [ref=e228]: 공공사업/신규 프로젝트 기획→제안
+              - generic [ref=e229]: 기획 → 방향 수립 → 제안 완료
+            - generic [ref=e230]:
+              - button "×" [ref=e231] [cursor=pointer]
+              - generic [ref=e232]: "#7"
+              - generic [ref=e233]: 개발 우선순위 엄수
+              - generic [ref=e234]: 시티큐브 → gcube 오픈소스 → 고도화
+            - generic [ref=e235]:
+              - button "×" [ref=e236] [cursor=pointer]
+              - generic [ref=e237]: "#8"
+              - generic [ref=e238]: 블록체인 기반 신규 프로젝트 발굴
+              - generic [ref=e239]: gcube와 연관성이 깊은 사업
+            - generic [ref=e240]:
+              - button "×" [ref=e241] [cursor=pointer]
+              - generic [ref=e242]: "#9"
+              - generic [ref=e243]: 다양한 채널 요구사항 분석·발굴
+              - generic [ref=e244]: 수요 패턴화 → 프로덕트 시드
+            - button "+ 미션 추가" [ref=e245] [cursor=pointer]
+        - generic [ref=e94]:
+          - generic [ref=e95]:
+            - heading "개발 우선순위 (시간 배분 가이드)" [level=3] [ref=e96]
+            - generic [ref=e97]:
+              - img [ref=e98]:
+                - generic [ref=e104]: 개발
+                - generic [ref=e105]: 시간 배분
+              - generic [ref=e106]:
+                - generic [ref=e107]:
+                  - generic [ref=e109]: 시티큐브 완성
+                  - generic [ref=e110]: 50%
+                - generic [ref=e111]:
+                  - generic [ref=e113]: gcube 오픈소스 신규
+                  - generic [ref=e114]: 35%
+                - generic [ref=e115]:
+                  - generic [ref=e117]: 고도화 및 기타
+                  - generic [ref=e118]: 15%
+          - generic [ref=e119]:
+            - heading "2026 KPI 시계열 (누적)" [level=3] [ref=e120]
+            - img [ref=e121]:
+              - generic [ref=e123]:
+                - generic [ref=e124]: "50"
+                - generic [ref=e125]: "40"
+                - generic [ref=e126]: "30"
+                - generic [ref=e127]: "20"
+                - generic [ref=e128]: "10"
+                - generic [ref=e129]: "0"
+              - generic [ref=e134]: Q2
+              - generic [ref=e139]: Q3
+              - generic [ref=e144]: Q4
+              - generic [ref=e145]:
+                - generic [ref=e146]: "5"
+                - generic [ref=e147]: "30"
+                - generic [ref=e148]: "50"
+            - generic [ref=e149]:
+              - generic [ref=e150]: 시티큐브 SaaS 유료 고객
+              - generic [ref=e152]: gcube 오픈소스
+              - generic [ref=e154]: gcube 공급자
+      - text: • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • ▸ ▸ ▸ ▸ ▸ ▸ ▸ ▸ ▸ ▸ ▸
+  - contentinfo [ref=e156]:
+    - generic [ref=e157]:
+      - generic [ref=e158]: © 2026 데이터얼라이언스 · 본부 운영 대시보드 v0.1.7
+      - generic [ref=e159]: 관리자 편집 모드 탑재 · 운영서 v0.1.3 / 운영루틴 v0.1.2 동봉
+  - button "⚙ 관리" [ref=e160] [cursor=pointer]
+  - generic [ref=e167]:
+    - generic [ref=e168]: 관리자 패널
+    - button "✏️ 편집 모드 종료" [active] [ref=e246] [cursor=pointer]
+    - button "☁️ 저장 & 배포" [ref=e170] [cursor=pointer]
+    - button "💾 로컬 저장" [ref=e171] [cursor=pointer]
+    - button "⬇️ HTML 다운로드" [ref=e172] [cursor=pointer]
+    - generic [ref=e173]:
+      - generic [ref=e174]: "🔑 토큰: 없음"
+      - button "설정" [ref=e175] [cursor=pointer]
+    - button "↺ 기본값 초기화" [ref=e176] [cursor=pointer]

@@ -1,0 +1,20 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e6]: dostock.
+    - paragraph [ref=e7]: 내 전략으로 자동매매. 수익이 날 때만 3%.
+  - generic [ref=e9]:
+    - button "Google로 로그인" [ref=e11] [cursor=pointer]:
+      - img [ref=e12]
+      - text: Google로 로그인
+    - generic [ref=e19]: 또는
+    - generic [ref=e21]:
+      - textbox "이메일 주소" [ref=e22]
+      - button "이메일로 로그인" [ref=e23] [cursor=pointer]
+  - paragraph [ref=e24]:
+    - text: 로그인 시
+    - link "이용약관" [ref=e25] [cursor=pointer]:
+      - /url: /terms
+    - text: 및
+    - link "개인정보처리방침" [ref=e26] [cursor=pointer]:
+      - /url: /privacy
+    - text: 에 동의합니다.

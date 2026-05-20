@@ -124,18 +124,6 @@ function ReportCard({ report, onDelete }: { report: WeeklyReport; onDelete: () =
         </div>
       )}
 
-      <style>{`
-        .report-rich h2 { font-size: 1rem; font-weight: 700; margin: 0.5rem 0 0.2rem; color: #0f172a; }
-        .report-rich h3 { font-size: 0.9rem; font-weight: 600; margin: 0.4rem 0 0.2rem; color: #1e293b; }
-        .report-rich p { margin: 0.15rem 0; font-size: 0.875rem; color: #374151; line-height: 1.6; }
-        .report-rich ul, .report-rich ol { padding-left: 1.25rem; margin: 0.2rem 0; }
-        .report-rich li { font-size: 0.875rem; color: #374151; margin: 0.1rem 0; }
-        .report-rich blockquote { border-left: 3px solid #6366f1; padding-left: 0.625rem; margin: 0.4rem 0; color: #64748b; font-style: italic; }
-        .report-rich pre { background: #1e293b; color: #e2e8f0; border-radius: 0.3rem; padding: 0.5rem 0.75rem; font-size: 0.8rem; overflow-x: auto; margin: 0.4rem 0; }
-        .report-rich strong { font-weight: 700; }
-        .report-rich em { font-style: italic; }
-        .report-rich hr { border: none; border-top: 1px solid #e2e8f0; margin: 0.5rem 0; }
-      `}</style>
     </div>
   )
 }

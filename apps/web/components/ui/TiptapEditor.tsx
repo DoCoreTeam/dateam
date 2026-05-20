@@ -62,7 +62,19 @@ export default function TiptapEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
 
-  if (!editor) return null
+  if (!editor) return (
+    <div
+      style={{
+        border: '1px solid #e2e8f0',
+        borderRadius: '0.5rem',
+        minHeight: `${minHeight}px`,
+        background: '#fff',
+        padding: '0.625rem 0.75rem',
+        color: '#94a3b8',
+        fontSize: '0.875rem',
+      }}
+    />
+  )
 
   return (
     <div
@@ -190,20 +202,6 @@ export default function TiptapEditor({
       {/* 에디터 본문 */}
       <EditorContent editor={editor} />
 
-      <style>{`
-        .tiptap-content h2 { font-size: 1.125rem; font-weight: 700; margin: 0.75rem 0 0.25rem; color: #0f172a; }
-        .tiptap-content h3 { font-size: 1rem; font-weight: 600; margin: 0.625rem 0 0.25rem; color: #1e293b; }
-        .tiptap-content p { margin: 0.2rem 0; line-height: 1.6; font-size: 0.875rem; color: #334155; }
-        .tiptap-content ul, .tiptap-content ol { padding-left: 1.5rem; margin: 0.25rem 0; }
-        .tiptap-content li { margin: 0.15rem 0; font-size: 0.875rem; color: #334155; }
-        .tiptap-content blockquote { border-left: 3px solid #6366f1; padding-left: 0.75rem; margin: 0.5rem 0; color: #64748b; font-style: italic; }
-        .tiptap-content pre { background: #1e293b; color: #e2e8f0; border-radius: 0.375rem; padding: 0.75rem 1rem; font-family: monospace; font-size: 0.8125rem; overflow-x: auto; margin: 0.5rem 0; }
-        .tiptap-content code { background: #f1f5f9; padding: 0.125rem 0.3rem; border-radius: 0.25rem; font-family: monospace; font-size: 0.8125rem; }
-        .tiptap-content hr { border: none; border-top: 1px solid #e2e8f0; margin: 0.75rem 0; }
-        .tiptap-content p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #94a3b8; pointer-events: none; float: left; height: 0; }
-        .tiptap-content strong { font-weight: 700; }
-        .tiptap-content em { font-style: italic; }
-      `}</style>
     </div>
   )
 }

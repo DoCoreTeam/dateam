@@ -1,0 +1,90 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e20]
+  - generic [ref=e21]:
+    - complementary [ref=e22]:
+      - generic [ref=e24]:
+        - generic [ref=e26]: "N"
+        - generic [ref=e27]: newAX
+      - navigation "주 메뉴" [ref=e28]:
+        - list [ref=e29]:
+          - listitem [ref=e30]:
+            - link "대시보드" [ref=e31] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e33]
+              - text: 대시보드
+          - listitem [ref=e38]:
+            - link "루틴 체크" [ref=e39] [cursor=pointer]:
+              - /url: /routine
+              - img [ref=e41]
+              - text: 루틴 체크
+          - listitem [ref=e44]:
+            - link "KPI" [ref=e45] [cursor=pointer]:
+              - /url: /kpi
+              - img [ref=e47]
+              - text: KPI
+          - listitem [ref=e48]:
+            - link "주간보고" [ref=e49] [cursor=pointer]:
+              - /url: /weekly-report
+              - img [ref=e51]
+              - text: 주간보고
+      - generic [ref=e55]:
+        - generic [ref=e56]: M
+        - generic [ref=e57]: michaelkim@data-alliance.com
+    - generic [ref=e58]:
+      - banner [ref=e59]:
+        - generic [ref=e60]:
+          - text: 안녕하세요,
+          - strong [ref=e61]: michaelkim@data-alliance.com
+          - text: 님
+        - button "로그아웃" [ref=e62] [cursor=pointer]:
+          - img [ref=e63]
+          - generic [ref=e66]: 로그아웃
+      - main [ref=e67]:
+        - generic [ref=e68]:
+          - generic [ref=e69]:
+            - heading "안녕하세요, 팀원님" [level=1] [ref=e70]
+            - paragraph [ref=e71]: 2026년 5월 20일 수요일
+          - generic [ref=e72]:
+            - generic [ref=e74]:
+              - generic [ref=e75]:
+                - paragraph [ref=e76]: 이번 주 루틴
+                - paragraph [ref=e77]: 0%
+                - paragraph [ref=e78]: 0 / 28 완료
+              - img [ref=e80]
+            - generic [ref=e84]:
+              - generic [ref=e85]:
+                - paragraph [ref=e86]: 오늘 루틴
+                - paragraph [ref=e87]: 0%
+                - paragraph [ref=e88]: 0 / 4 항목
+              - img [ref=e90]
+            - link "주간보고 작성 이번 주 기록하기 최근 0건 작성됨" [ref=e93] [cursor=pointer]:
+              - /url: /weekly-report
+              - generic [ref=e95]:
+                - generic [ref=e96]:
+                  - paragraph [ref=e97]: 주간보고 작성
+                  - paragraph [ref=e98]: 이번 주 기록하기
+                  - paragraph [ref=e99]: 최근 0건 작성됨
+                - img [ref=e100]
+          - generic [ref=e102]:
+            - generic [ref=e103]:
+              - generic [ref=e104]:
+                - generic [ref=e105]:
+                  - img [ref=e106]
+                  - heading "내 KPI" [level=2] [ref=e109]
+                - link "전체 보기" [ref=e110] [cursor=pointer]:
+                  - /url: /kpi
+              - generic [ref=e111]:
+                - img [ref=e112]
+                - paragraph [ref=e115]: 아직 KPI 데이터가 없습니다
+                - link "+ KPI 입력하기" [ref=e116] [cursor=pointer]:
+                  - /url: /kpi
+            - generic [ref=e117]:
+              - generic [ref=e118]:
+                - generic [ref=e119]:
+                  - img [ref=e120]
+                  - heading "최근 주간보고" [level=2] [ref=e123]
+                - link "작성하기" [ref=e124] [cursor=pointer]:
+                  - /url: /weekly-report
+              - generic [ref=e125]:
+                - img [ref=e126]
+                - paragraph [ref=e129]: 작성된 주간보고가 없습니다

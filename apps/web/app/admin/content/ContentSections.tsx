@@ -1,6 +1,7 @@
 'use client'
 
 import DynamicTable, { type ColumnDef } from '@/components/ui/DynamicTable'
+import DynamicKeyValue from '@/components/ui/DynamicKeyValue'
 
 // ─── 스타일 ───────────────────────────────────────────────────────────────
 
@@ -22,21 +23,39 @@ const CARD_HEADER: React.CSSProperties = {
 }
 const CARD_BODY: React.CSSProperties = { padding: '1.25rem 1.5rem' }
 const LABEL: React.CSSProperties = {
-  display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#64748b',
-  marginBottom: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.05em',
+  display: 'block',
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  color: '#64748b',
+  marginBottom: '0.3rem',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
 }
 const INPUT: React.CSSProperties = {
-  width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0',
-  borderRadius: '0.4rem', fontSize: '0.875rem', color: '#0f172a',
-  background: '#fff', boxSizing: 'border-box',
+  width: '100%',
+  padding: '0.5rem 0.75rem',
+  border: '1px solid #e2e8f0',
+  borderRadius: '0.4rem',
+  fontSize: '0.875rem',
+  color: '#0f172a',
+  background: '#fff',
+  boxSizing: 'border-box',
 }
 const SUBMIT: React.CSSProperties = {
-  marginTop: '1rem', padding: '0.5rem 1.25rem', background: '#6366f1',
-  color: '#fff', border: 'none', borderRadius: '0.4rem',
-  fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer',
+  marginTop: '1rem',
+  padding: '0.5rem 1.25rem',
+  background: '#6366f1',
+  color: '#fff',
+  border: 'none',
+  borderRadius: '0.4rem',
+  fontSize: '0.875rem',
+  fontWeight: 600,
+  cursor: 'pointer',
 }
 const FIELD_GRID: React.CSSProperties = {
-  display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+  gap: '1rem',
 }
 
 // ─── 컬럼 정의 ───────────────────────────────────────────────────────────
@@ -89,6 +108,14 @@ const ROUTINE_COLS: ColumnDef[] = [
 
 // ─── 타입 ────────────────────────────────────────────────────────────────
 
+interface MetaValue {
+  org?: string
+  title?: string
+  subtitle?: string
+  version?: string
+  date?: string
+}
+
 interface ContentSectionsProps {
   data: Record<string, unknown>
   actions: {
@@ -105,12 +132,39 @@ interface ContentSectionsProps {
   }
 }
 
-interface MetaValue {
-  org?: string
-  title?: string
-  subtitle?: string
-  version?: string
-  date?: string
+// ─── 헬퍼 ────────────────────────────────────────────────────────────────
+
+function ensureArray(v: unknown): Record<string, unknown>[] {
+  return Array.isArray(v) ? (v as Record<string, unknown>[]) : []
+}
+
+function SectionCard({
+  title,
+  badge,
+  badgeColor,
+  badgeText,
+  children,
+}: {
+  title: string
+  badge: string
+  badgeColor: string
+  badgeText: string
+  children: React.ReactNode
+}) {
+  return (
+    <section style={CARD}>
+      <div style={CARD_HEADER}>
+        <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}>{title}</span>
+        <span
+          className="badge"
+          style={{ marginLeft: 'auto', fontSize: '0.7rem', background: badgeColor, color: badgeText }}
+        >
+          {badge}
+        </span>
+      </div>
+      <div style={CARD_BODY}>{children}</div>
+    </section>
+  )
 }
 
 // ─── 메인 ────────────────────────────────────────────────────────────────
@@ -216,128 +270,5 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         </form>
       </SectionCard>
     </>
-  )
-}
-
-// ─── 헬퍼 ────────────────────────────────────────────────────────────────
-
-function ensureArray(v: unknown): Record<string, unknown>[] {
-  return Array.isArray(v) ? (v as Record<string, unknown>[]) : []
-}
-
-// ─── 공용 카드 ────────────────────────────────────────────────────────────
-
-function SectionCard({
-  title,
-  badge,
-  badgeColor,
-  badgeText,
-  children,
-}: {
-  title: string
-  badge: string
-  badgeColor: string
-  badgeText: string
-  children: React.ReactNode
-}) {
-  return (
-    <section style={CARD}>
-      <div style={CARD_HEADER}>
-        <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}>{title}</span>
-        <span
-          className="badge"
-          style={{ marginLeft: 'auto', fontSize: '0.7rem', background: badgeColor, color: badgeText }}
-        >
-          {badge}
-        </span>
-      </div>
-      <div style={CARD_BODY}>{children}</div>
-    </section>
-  )
-}
-
-// ─── DynamicKeyValue (rhythm / dev_split 용) ─────────────────────────────
-
-import { useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
-
-function DynamicKeyValue({
-  name,
-  initialData,
-  addLabel = '항목 추가',
-}: {
-  name: string
-  initialData: Record<string, unknown>
-  addLabel?: string
-}) {
-  const [pairs, setPairs] = useState<{ k: string; v: string }[]>(
-    Object.entries(initialData).map(([k, v]) => ({ k, v: String(v) }))
-  )
-
-  const value = Object.fromEntries(pairs.map((p) => [p.k, p.v]))
-
-  function addPair() {
-    setPairs((prev) => [...prev, { k: '', v: '' }])
-  }
-
-  function removePair(idx: number) {
-    setPairs((prev) => prev.filter((_, i) => i !== idx))
-  }
-
-  function update(idx: number, field: 'k' | 'v', val: string) {
-    setPairs((prev) => prev.map((p, i) => (i === idx ? { ...p, [field]: val } : p)))
-  }
-
-  const INPUT_SM: React.CSSProperties = {
-    flex: 1, padding: '0.4rem 0.6rem', border: '1px solid #e2e8f0',
-    borderRadius: '0.3rem', fontSize: '0.8125rem', color: '#0f172a',
-    background: '#fff', minWidth: 0,
-  }
-
-  return (
-    <div>
-      <input type="hidden" name={name} value={JSON.stringify(value)} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '0.625rem' }}>
-        {pairs.map((p, idx) => (
-          <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <input
-              type="text"
-              value={p.k}
-              onChange={(e) => update(idx, 'k', e.target.value)}
-              placeholder="키"
-              style={{ ...INPUT_SM, maxWidth: '160px', fontWeight: 600 }}
-            />
-            <span style={{ color: '#94a3b8', flexShrink: 0 }}>:</span>
-            <input
-              type="text"
-              value={p.v}
-              onChange={(e) => update(idx, 'v', e.target.value)}
-              placeholder="값"
-              style={INPUT_SM}
-            />
-            <button
-              type="button"
-              onClick={() => removePair(idx)}
-              style={{ padding: '0.3rem', border: 'none', borderRadius: '0.3rem', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', flexShrink: 0, display: 'flex' }}
-            >
-              <Trash2 size={13} />
-            </button>
-          </div>
-        ))}
-      </div>
-      <button
-        type="button"
-        onClick={addPair}
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
-          padding: '0.375rem 0.75rem', border: '1px dashed #c7d2fe',
-          borderRadius: '0.4rem', background: '#f5f3ff', color: '#6366f1',
-          fontSize: '0.8125rem', fontWeight: 500, cursor: 'pointer',
-        }}
-      >
-        <Plus size={13} />
-        {addLabel}
-      </button>
-    </div>
   )
 }

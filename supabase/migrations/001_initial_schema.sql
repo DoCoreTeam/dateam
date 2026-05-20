@@ -24,13 +24,14 @@ $$;
 --    Supabase auth.users 를 1:1 확장하는 공개 프로필 테이블
 -- ---------------------------------------------------------------------------
 CREATE TABLE profiles (
-  id          UUID        PRIMARY KEY REFERENCES auth.users (id) ON DELETE CASCADE,
-  name        TEXT        NOT NULL DEFAULT '',
-  role        TEXT        NOT NULL DEFAULT 'member'
-                          CHECK (role IN ('admin', 'member')),
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  deleted_at  TIMESTAMPTZ
+  id                   UUID        PRIMARY KEY REFERENCES auth.users (id) ON DELETE CASCADE,
+  name                 TEXT        NOT NULL DEFAULT '',
+  role                 TEXT        NOT NULL DEFAULT 'member'
+                                   CHECK (role IN ('admin', 'member')),
+  must_change_password BOOLEAN     NOT NULL DEFAULT FALSE,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at           TIMESTAMPTZ
 );
 
 -- updated_at 자동 갱신 트리거

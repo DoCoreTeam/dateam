@@ -33,26 +33,18 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // 비로그인 → /login 리다이렉트 (단, /login 자체는 허용)
+  // 비로그인 → /login 리다이렉트
   if (!user && pathname !== '/login') {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // /admin/* 접근 시 role 확인
-  if (user && pathname.startsWith('/admin')) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile || profile.role !== 'admin') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
-      return NextResponse.redirect(url)
-    }
+  // 로그인 후 /login 접근 → /dashboard
+  if (user && pathname === '/login') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard'
+    return NextResponse.redirect(url)
   }
 
   return supabaseResponse

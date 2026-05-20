@@ -1,0 +1,107 @@
+import { changePassword } from './actions'
+
+interface PageProps {
+  searchParams: Promise<{ error?: string }>
+}
+
+export default async function ChangePasswordPage({ searchParams }: PageProps) {
+  const { error } = await searchParams
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #f0f4ff 0%, #fafafa 100%)',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '420px',
+          background: 'white',
+          borderRadius: '1.25rem',
+          padding: '2.5rem',
+          boxShadow: '0 4px 24px rgb(0 0 0 / 0.08)',
+        }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div
+            style={{
+              width: '3rem',
+              height: '3rem',
+              borderRadius: '0.875rem',
+              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              fontSize: '1.375rem',
+            }}
+          >
+            🔒
+          </div>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+            비밀번호 변경
+          </h1>
+          <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.5rem', lineHeight: 1.6 }}>
+            임시 비밀번호를 사용 중입니다.<br />새 비밀번호를 설정해 주세요.
+          </p>
+        </div>
+
+        {error && (
+          <div
+            style={{
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '0.625rem',
+              padding: '0.75rem 1rem',
+              marginBottom: '1rem',
+              fontSize: '0.875rem',
+              color: '#dc2626',
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        <form action={changePassword} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div>
+            <label htmlFor="password" className="label">새 비밀번호</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              minLength={8}
+              placeholder="8자 이상 입력"
+              className="input-field"
+              style={{ width: '100%', boxSizing: 'border-box' }}
+            />
+          </div>
+          <div>
+            <label htmlFor="confirm" className="label">비밀번호 확인</label>
+            <input
+              id="confirm"
+              name="confirm"
+              type="password"
+              required
+              placeholder="동일한 비밀번호 입력"
+              className="input-field"
+              style={{ width: '100%', boxSizing: 'border-box' }}
+            />
+          </div>
+          <button
+            type="submit"
+            className="btn-primary"
+            style={{ marginTop: '0.5rem', width: '100%' }}
+          >
+            변경하고 시작하기
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}

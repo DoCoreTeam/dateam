@@ -112,3 +112,21 @@ export async function updateDevSplit(formData: FormData): Promise<void> {
   if (value) await updateOrgContent('dev_split', value)
   redirect('/admin/content')
 }
+
+export async function updateH1Kpi(formData: FormData): Promise<void> {
+  const value = parseJson(formData.get('h1_kpi_json') as string)
+  if (value) await updateOrgContent('h1_kpi', value)
+  redirect('/admin/content')
+}
+
+export async function updateYearKpi(formData: FormData): Promise<void> {
+  const value = parseJson(formData.get('year_kpi_json') as string)
+  if (value) await updateOrgContent('year_kpi', value)
+  redirect('/admin/content')
+}
+
+export async function updateExtSlots(formData: FormData): Promise<void> {
+  const value = parseJson(formData.get('ext_slots_json') as string)
+  if (value) await updateOrgContent('ext_slots', value)
+  redirect('/admin/content')
+}

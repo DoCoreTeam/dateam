@@ -64,4 +64,4 @@
 ## Phase 14: 검증 + 마무리
 - [x] tsc --noEmit 통과
 - [x] 빌드 성공
-- [ ] git commit
+- [x] git commit (b4943cd)

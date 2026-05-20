@@ -1,0 +1,30 @@
+- generic [active]:
+  - alert [ref=e1]
+  - dialog "Server Error" [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - navigation [ref=e8]:
+          - button "previous" [disabled] [ref=e9]:
+            - img "previous" [ref=e10]
+          - button "next" [disabled] [ref=e12]:
+            - img "next" [ref=e13]
+          - generic [ref=e15]: 1 of 1 error
+          - generic [ref=e16]:
+            - text: Next.js (14.2.29) is outdated
+            - link "(learn more)" [ref=e18] [cursor=pointer]:
+              - /url: https://nextjs.org/docs/messages/version-staleness
+        - heading "Server Error" [level=1] [ref=e19]
+        - paragraph [ref=e20]:
+          - text: "Error: The edge runtime does not support Node.js 'fs' module. Learn More:"
+          - link "https://nextjs.org/docs/messages/node-module-in-edge-runtime" [ref=e21] [cursor=pointer]:
+            - /url: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+        - generic [ref=e22]: This error happened while generating the page. Any console logs will be displayed in the terminal window.
+      - generic [ref=e23]:
+        - heading "Source" [level=2] [ref=e24]
+        - generic [ref=e25]:
+          - link "middleware.ts (54:46) @ writeFileSync" [ref=e27] [cursor=pointer]:
+            - generic [ref=e28]: middleware.ts (54:46) @ writeFileSync
+            - img [ref=e29]
+          - generic [ref=e33]: "52 | } 53 | > 54 | const { writeFileSync } = require('fs'); writeFileSync('/tmp/mw-debug.log', `profile=${JSON.stringify(profile)} path=${pathname}\\n`, { flag: 'a' }) | ^ 55 | // 임시 비밀번호 강제 변경 — /change-password 외 모든 경로 차단 56 | if (profile?.must_change_password && pathname !== '/change-password') { 57 | const url = request.nextUrl.clone()"
+        - heading "Call Stack" [level=2] [ref=e34]
+        - button "Show collapsed frames" [ref=e35] [cursor=pointer]

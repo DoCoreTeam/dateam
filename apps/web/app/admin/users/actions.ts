@@ -1,44 +1,55 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export async function changeRole(userId: string, newRole: 'admin' | 'member') {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
+  const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: '인증이 필요합니다' }
 
-  // 본인 role 확인
   const { data: myProfile } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .single() as unknown as { data: { role: 'admin' | 'member' } | null; error: unknown }
+    .single() as unknown as { data: { role: string } | null; error: unknown }
 
-  if (!myProfile || myProfile.role !== 'admin') {
-    return { error: '관리자 권한이 필요합니다' }
-  }
+  if (!myProfile || myProfile.role !== 'admin') return { error: '관리자 권한이 필요합니다' }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase.from('profiles') as any)
-    .update({ role: newRole })
-    .eq('id', userId)
-
+  const { error } = await (supabase.from('profiles') as any).update({ role: newRole }).eq('id', userId)
   if (error) return { error: error.message }
 
   revalidatePath('/admin/users')
   return { success: true }
 }
 
-// TODO: 새 팀원 생성은 service_role key가 필요한 Admin API를 사용해야 합니다.
-// 현재는 UI 레이어만 구현되어 있으며, 실제 사용자 생성은 별도 서버(Edge Function 등)를 통해 구현해야 합니다.
-// Supabase Admin API: supabase.auth.admin.createUser({ email, password, user_metadata: { name } })
-export async function inviteUser(_formData: FormData) {
-  return {
-    error:
-      'TODO: Admin API(service_role key)가 필요합니다. Supabase Edge Function 또는 별도 API 서버를 통해 구현하세요.',
-  }
+export async function inviteUser(formData: FormData): Promise<{ success?: boolean; error?: string }> {
+  const email = (formData.get('email') as string)?.trim()
+  const name = (formData.get('name') as string)?.trim()
+  const tempPassword = (formData.get('tempPassword') as string)?.trim()
+
+  if (!email || !name || !tempPassword) return { error: '모든 필드를 입력해주세요' }
+  if (tempPassword.length < 6) return { error: '임시 비밀번호는 6자 이상이어야 합니다' }
+
+  const adminClient = createAdminClient()
+
+  const { data, error: createError } = await adminClient.auth.admin.createUser({
+    email,
+    password: tempPassword,
+    email_confirm: true,
+    user_metadata: { name },
+  })
+
+  if (createError) return { error: createError.message }
+
+  // 트리거 실행 대기 후 profiles 업데이트
+  await new Promise((r) => setTimeout(r, 1000))
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (adminClient.from('profiles') as any)
+    .upsert({ id: data.user.id, name, role: 'member', must_change_password: true })
+
+  revalidatePath('/admin/users')
+  return { success: true }
 }
