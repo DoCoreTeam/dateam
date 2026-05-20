@@ -29,7 +29,6 @@ export async function changePasswordAction(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // 이름 검증 (제공된 경우)
   if (name !== undefined) {
     const validNames = await getValidMemberNames()
     if (!validNames.includes(name)) {
@@ -47,6 +46,28 @@ export async function changePasswordAction(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (adminClient.from('profiles') as any)
     .update(updateFields)
+    .eq('id', user.id)
+
+  revalidatePath('/', 'layout')
+  return { ok: true }
+}
+
+export async function setProfileNameAction(
+  name: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const validNames = await getValidMemberNames()
+  if (!validNames.includes(name)) {
+    return { ok: false, error: `'${name}'은(는) 조직도에 등록된 이름이 아닙니다` }
+  }
+
+  const adminClient = createAdminClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (adminClient.from('profiles') as any)
+    .update({ name })
     .eq('id', user.id)
 
   revalidatePath('/', 'layout')

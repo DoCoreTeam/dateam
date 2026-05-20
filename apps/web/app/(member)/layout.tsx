@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/ui/Sidebar'
 import LogoutButton from '@/components/ui/LogoutButton'
+import PasswordChangeModal from '@/components/ui/PasswordChangeModal'
+import NameSetupModal from '@/components/ui/NameSetupModal'
 import Link from 'next/link'
 import {
   LayoutDashboard,
@@ -52,15 +54,12 @@ export default async function MemberLayout({
 
   if (!user) redirect('/login')
 
-  // user_metadata로 must_change_password 체크 (DB 쿼리 불필요, getUser()에 포함됨)
-  if (user.user_metadata?.must_change_password) redirect('/change-password')
-
   const adminClient = createAdminClient()
   const { data: profile } = await adminClient
     .from('profiles')
-    .select('name, role')
+    .select('name, role, must_change_password')
     .eq('id', user.id)
-    .single() as unknown as { data: Pick<Profile, 'name' | 'role'> | null; error: unknown }
+    .single() as unknown as { data: Pick<Profile, 'name' | 'role' | 'must_change_password'> | null; error: unknown }
 
   const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
 
@@ -157,6 +156,8 @@ export default async function MemberLayout({
           {children}
         </main>
       </div>
+      {profile?.must_change_password && <PasswordChangeModal />}
+      {!profile?.must_change_password && !profile?.name && <NameSetupModal />}
     </div>
   )
 }

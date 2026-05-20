@@ -36,25 +36,9 @@ export default function Sidebar({ items, footer }: SidebarProps) {
           borderBottom: '1px solid rgb(255 255 255 / 0.06)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-          <div
-            style={{
-              width: '2rem',
-              height: '2rem',
-              borderRadius: '0.5rem',
-              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <span style={{ color: 'white', fontSize: '0.875rem', fontWeight: 700 }}>N</span>
-          </div>
-          <span style={{ color: 'white', fontSize: '1rem', fontWeight: 600, letterSpacing: '-0.01em' }}>
-            newAX
-          </span>
-        </div>
+        <span style={{ color: 'white', fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+          AX사업본부
+        </span>
       </div>
 
       {/* 네비게이션 */}
