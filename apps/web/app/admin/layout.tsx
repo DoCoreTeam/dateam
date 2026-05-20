@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/ui/Sidebar'
 import LogoutButton from '@/components/ui/LogoutButton'
 import {
@@ -47,7 +47,8 @@ export default async function AdminLayout({
 
   if (user.user_metadata?.must_change_password) redirect('/change-password')
 
-  const { data: profile } = await supabase
+  const adminClient = createAdminClient()
+  const { data: profile } = await adminClient
     .from('profiles')
     .select('name, role')
     .eq('id', user.id)

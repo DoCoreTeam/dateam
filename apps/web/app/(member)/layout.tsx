@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/ui/Sidebar'
 import LogoutButton from '@/components/ui/LogoutButton'
 import {
@@ -7,6 +7,7 @@ import {
   CheckSquare,
   BarChart2,
   FileText,
+  Building2,
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
 
@@ -31,6 +32,11 @@ const NAV_ITEMS = [
     label: '주간보고',
     icon: <FileText size={16} />,
   },
+  {
+    href: '/operations',
+    label: '본부 운영',
+    icon: <Building2 size={16} />,
+  },
 ]
 
 export default async function MemberLayout({
@@ -45,13 +51,17 @@ export default async function MemberLayout({
 
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
+  // user_metadata로 must_change_password 체크 (DB 쿼리 불필요, getUser()에 포함됨)
+  if (user.user_metadata?.must_change_password) redirect('/change-password')
+
+  const adminClient = createAdminClient()
+  const { data: profile } = await adminClient
     .from('profiles')
     .select('name, role')
     .eq('id', user.id)
     .single() as unknown as { data: Pick<Profile, 'name' | 'role'> | null; error: unknown }
 
-  const displayName = profile?.name ?? user.email ?? '팀원'
+  const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
