@@ -22,32 +22,45 @@ export async function insertKpi(formData: FormData) {
 
   if (!user) redirect('/login')
 
-  // kpi_metric_idx = 숫자 인덱스 (kpi_targets 배열 순서)
-  const idxStr = formData.get('kpi_metric_idx') as string
-  const idx = parseInt(idxStr, 10)
+  // kpi_metric_ref = "source:index" 형식 (예: "kpi_targets:0", "h1_kpi:1", "year_kpi:2")
+  const ref = formData.get('kpi_metric_ref') as string
   const value = parseFloat(formData.get('value') as string)
   const periodStart = formData.get('period_start') as string
   const periodEnd = formData.get('period_end') as string
 
-  if (isNaN(idx) || isNaN(value) || !periodStart || !periodEnd) {
+  const [source, idxStr] = (ref ?? '').split(':')
+  const idx = parseInt(idxStr, 10)
+  const validSources = ['kpi_targets', 'h1_kpi', 'year_kpi']
+
+  if (!validSources.includes(source) || isNaN(idx) || isNaN(value) || !periodStart || !periodEnd) {
     err('모든 필드를 올바르게 입력해주세요')
   }
 
-  // 서버에서 템플릿 재조회 — 클라이언트 입력값 미신뢰
+  // 서버에서 org_content 재조회 — 클라이언트 입력값 미신뢰
   const adminClient = createAdminClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: targetsRow } = await (adminClient as any)
+  const { data: contentRow } = await (adminClient as any)
     .from('org_content')
     .select('value')
-    .eq('key', 'kpi_targets')
+    .eq('key', source)
     .single() as { data: { value: unknown } | null }
 
-  const kpiTargets: WeeklyKpiTarget[] = Array.isArray(targetsRow?.value) ? (targetsRow!.value as WeeklyKpiTarget[]) : []
-  const template = kpiTargets[idx]
-  if (!template) err('유효하지 않은 KPI 항목입니다')
+  let metricName: string
+  let unit: string
 
-  const metricName = template.label
-  const unit = template.unit ?? ''
+  if (source === 'kpi_targets') {
+    const kpiTargets: WeeklyKpiTarget[] = Array.isArray(contentRow?.value) ? (contentRow!.value as WeeklyKpiTarget[]) : []
+    const template = kpiTargets[idx]
+    if (!template) err('유효하지 않은 KPI 항목입니다')
+    metricName = template.label
+    unit = template.unit ?? ''
+  } else {
+    const items: string[] = Array.isArray(contentRow?.value) ? (contentRow!.value as string[]) : []
+    const item = items[idx]
+    if (!item) err('유효하지 않은 KPI 항목입니다')
+    metricName = item
+    unit = ''
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase.from('kpi_entries') as any).insert({

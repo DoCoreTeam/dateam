@@ -24,10 +24,16 @@ const INPUT: React.CSSProperties = {
 export default function KpiRow({
   entry,
   weeklyTargets = [],
+  h1Kpi = [],
+  yearKpi = [],
 }: {
   entry: KpiEntry
   weeklyTargets?: WeeklyKpiTarget[]
+  h1Kpi?: string[]
+  yearKpi?: string[]
 }) {
+  const hasDropdown = weeklyTargets.length > 0 || h1Kpi.length > 0 || yearKpi.length > 0
+
   const [editing, setEditing] = useState(false)
   const [pending, startTransition] = useTransition()
   const [form, setForm] = useState({
@@ -38,11 +44,32 @@ export default function KpiRow({
     period_end: entry.period_end,
   })
 
-  function handleMetricChange(idx: string, targets: WeeklyKpiTarget[]) {
-    const i = parseInt(idx, 10)
-    const t = targets[i]
-    if (!t) return
-    setForm((prev) => ({ ...prev, metric_name: t.label, unit: t.unit ?? '' }))
+  function handleMetricChange(ref: string) {
+    const [source, idxStr] = ref.split(':')
+    const i = parseInt(idxStr, 10)
+    if (source === 'kpi_targets') {
+      const t = weeklyTargets[i]
+      if (!t) return
+      setForm((prev) => ({ ...prev, metric_name: t.label, unit: t.unit ?? '' }))
+    } else if (source === 'h1_kpi') {
+      const item = h1Kpi[i]
+      if (!item) return
+      setForm((prev) => ({ ...prev, metric_name: item, unit: '' }))
+    } else if (source === 'year_kpi') {
+      const item = yearKpi[i]
+      if (!item) return
+      setForm((prev) => ({ ...prev, metric_name: item, unit: '' }))
+    }
+  }
+
+  function currentRef(): string {
+    const wi = weeklyTargets.findIndex((t) => t.label === form.metric_name)
+    if (wi >= 0) return `kpi_targets:${wi}`
+    const hi = h1Kpi.findIndex((t) => t === form.metric_name)
+    if (hi >= 0) return `h1_kpi:${hi}`
+    const yi = yearKpi.findIndex((t) => t === form.metric_name)
+    if (yi >= 0) return `year_kpi:${yi}`
+    return ''
   }
 
   function handleSave() {
@@ -71,17 +98,33 @@ export default function KpiRow({
     return (
       <tr style={{ background: '#f0f9ff', opacity: pending ? 0.5 : 1 }}>
         <td style={{ padding: '0.4rem 0.75rem' }}>
-          {weeklyTargets.length > 0 ? (
+          {hasDropdown ? (
             <select
-              value={String(weeklyTargets.findIndex((t) => t.label === form.metric_name))}
-              onChange={(e) => handleMetricChange(e.target.value, weeklyTargets)}
+              value={currentRef()}
+              onChange={(e) => handleMetricChange(e.target.value)}
               style={INPUT}
             >
-              {weeklyTargets.map((kpi, i) => (
-                <option key={i} value={String(i)}>
-                  {kpi.label}
-                </option>
-              ))}
+              {weeklyTargets.length > 0 && (
+                <optgroup label="주간 KPI">
+                  {weeklyTargets.map((kpi, i) => (
+                    <option key={i} value={`kpi_targets:${i}`}>{kpi.label}</option>
+                  ))}
+                </optgroup>
+              )}
+              {h1Kpi.length > 0 && (
+                <optgroup label="상반기 KPI (H1)">
+                  {h1Kpi.map((item, i) => (
+                    <option key={i} value={`h1_kpi:${i}`}>{item}</option>
+                  ))}
+                </optgroup>
+              )}
+              {yearKpi.length > 0 && (
+                <optgroup label="연간 KPI">
+                  {yearKpi.map((item, i) => (
+                    <option key={i} value={`year_kpi:${i}`}>{item}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           ) : (
             <input value={form.metric_name} onChange={(e) => upd('metric_name', e.target.value)} style={INPUT} />

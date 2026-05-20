@@ -212,7 +212,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
           </div>
         )}
 
-        {weeklyTargets.length === 0 ? (
+        {weeklyTargets.length === 0 && h1Kpi.length === 0 && yearKpi.length === 0 ? (
           <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0, padding: '1rem 0' }}>
             관리자가 KPI 항목을 설정하지 않았습니다. 관리자에게 문의하세요.
           </p>
@@ -224,21 +224,39 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 140px', gap: '0.875rem', alignItems: 'end' }}>
               <div>
-                <label htmlFor="kpi_metric_idx" className="label">KPI 항목</label>
+                <label htmlFor="kpi_metric_ref" className="label">KPI 항목</label>
                 <select
-                  id="kpi_metric_idx"
-                  name="kpi_metric_idx"
+                  id="kpi_metric_ref"
+                  name="kpi_metric_ref"
                   required
                   defaultValue=""
                   className="input-field"
                   style={{ cursor: 'pointer' }}
                 >
                   <option value="" disabled>항목 선택</option>
-                  {weeklyTargets.map((kpi, i) => (
-                    <option key={i} value={String(i)}>
-                      {kpi.label} (목표: {kpi.target})
-                    </option>
-                  ))}
+                  {weeklyTargets.length > 0 && (
+                    <optgroup label="주간 KPI">
+                      {weeklyTargets.map((kpi, i) => (
+                        <option key={i} value={`kpi_targets:${i}`}>
+                          {kpi.label} (목표: {kpi.target})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {h1Kpi.length > 0 && (
+                    <optgroup label="상반기 KPI (H1)">
+                      {h1Kpi.map((item, i) => (
+                        <option key={i} value={`h1_kpi:${i}`}>{item}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {yearKpi.length > 0 && (
+                    <optgroup label="연간 KPI">
+                      {yearKpi.map((item, i) => (
+                        <option key={i} value={`year_kpi:${i}`}>{item}</option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </div>
 
@@ -293,7 +311,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
               </thead>
               <tbody>
                 {kpiEntries.map((kpi) => (
-                  <KpiRow key={kpi.id} entry={kpi} weeklyTargets={weeklyTargets} />
+                  <KpiRow key={kpi.id} entry={kpi} weeklyTargets={weeklyTargets} h1Kpi={h1Kpi} yearKpi={yearKpi} />
                 ))}
               </tbody>
             </table>
