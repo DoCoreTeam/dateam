@@ -1,8 +1,18 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+
+interface WeeklyKpiTarget {
+  label: string
+  target: string
+  unit?: string
+}
+
+function err(msg: string): never {
+  redirect(`/kpi?error=${encodeURIComponent(msg)}`)
+}
 
 export async function insertKpi(formData: FormData) {
   const supabase = await createClient()
@@ -12,27 +22,44 @@ export async function insertKpi(formData: FormData) {
 
   if (!user) redirect('/login')
 
-  const metricName = formData.get('metric_name') as string
+  // kpi_metric_idx = 숫자 인덱스 (kpi_targets 배열 순서)
+  const idxStr = formData.get('kpi_metric_idx') as string
+  const idx = parseInt(idxStr, 10)
   const value = parseFloat(formData.get('value') as string)
-  const unit = formData.get('unit') as string
   const periodStart = formData.get('period_start') as string
   const periodEnd = formData.get('period_end') as string
 
-  if (!metricName || isNaN(value) || !periodStart || !periodEnd) {
-    redirect('/kpi?error=모든 필드를 올바르게 입력해주세요')
+  if (isNaN(idx) || isNaN(value) || !periodStart || !periodEnd) {
+    err('모든 필드를 올바르게 입력해주세요')
   }
+
+  // 서버에서 템플릿 재조회 — 클라이언트 입력값 미신뢰
+  const adminClient = createAdminClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: targetsRow } = await (adminClient as any)
+    .from('org_content')
+    .select('value')
+    .eq('key', 'kpi_targets')
+    .single() as { data: { value: unknown } | null }
+
+  const kpiTargets: WeeklyKpiTarget[] = Array.isArray(targetsRow?.value) ? (targetsRow!.value as WeeklyKpiTarget[]) : []
+  const template = kpiTargets[idx]
+  if (!template) err('유효하지 않은 KPI 항목입니다')
+
+  const metricName = template.label
+  const unit = template.unit ?? ''
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase.from('kpi_entries') as any).insert({
     user_id: user.id,
     metric_name: metricName,
     value,
-    unit: unit || '',
+    unit,
     period_start: periodStart,
     period_end: periodEnd,
   })
 
-  if (error) redirect(`/kpi?error=${encodeURIComponent(error.message)}`)
+  if (error) err(error.message)
 
   revalidatePath('/kpi')
   revalidatePath('/dashboard')
