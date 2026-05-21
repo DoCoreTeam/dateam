@@ -23,6 +23,7 @@ interface WeeklyReportFormProps {
   pastCategories: string[]
   prefillRows: Row[]
   isFirstTimeUser: boolean
+  hasCarryForward?: boolean
 }
 
 function getWeekDateRange(weekStart: string): { perf: string; plan: string } {
@@ -53,6 +54,7 @@ export default function WeeklyReportForm({
   pastCategories,
   prefillRows,
   isFirstTimeUser,
+  hasCarryForward = false,
 }: WeeklyReportFormProps) {
   const router = useRouter()
   const [selectedWeek, setSelectedWeek] = useState(initialWeek)
@@ -180,6 +182,17 @@ export default function WeeklyReportForm({
           </button>
         </div>
       )}
+      {/* carry-forward 안내 */}
+      {hasCarryForward && (
+        <div role="status" aria-live="polite" style={{
+          padding: '0.75rem 1rem', backgroundColor: '#eff6ff',
+          border: '1px solid #bfdbfe', borderRadius: '0.625rem',
+          marginBottom: '1rem', fontSize: '0.8125rem', color: '#1d4ed8',
+        }}>
+          전주 계획에서 성과를 이월했습니다. 실제 성과로 수정 후 저장해 주세요.
+        </div>
+      )}
+
       {/* 주차 선택 */}
       <div style={{ marginBottom: '1.25rem' }}>
         <label htmlFor="week_start" className="label">주차</label>
