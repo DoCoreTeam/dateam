@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useRef, useCallback } from 'react'
+import { useState, useTransition, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Trash2, Save, Pencil, AlertTriangle, RotateCcw, Sparkles } from 'lucide-react'
 import dynamic from 'next/dynamic'
@@ -8,6 +8,12 @@ import { upsertWeeklyReport, deleteAllWeeklyReports } from './actions'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 const SpotlightOnboarding = dynamic(() => import('@/components/ui/SpotlightOnboarding'), { ssr: false })
+
+const REFINE_STEPS = [
+  { label: '내용 분석 중…',    detail: '입력 내용과 전주 데이터 비교 중' },
+  { label: 'AI 정비 중…',      detail: 'Gemini AI가 내용을 다듬는 중' },
+  { label: '결과 적용 중…',    detail: '정비된 내용을 반영하는 중' },
+]
 
 interface Row {
   category: string
@@ -70,12 +76,33 @@ export default function WeeklyReportForm({
   const [resetPending, startResetTransition] = useTransition()
   const [isRefining, setIsRefining] = useState(false)
   const [refineError, setRefineError] = useState('')
+  const [refineStep, setRefineStep] = useState(0)
+  const [refineElapsed, setRefineElapsed] = useState(0)
   const [highlightedKeys, setHighlightedKeys] = useState<Set<string>>(new Set())
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const refineTimerRefs = useRef<ReturnType<typeof setTimeout>[]>([])
+  const refineIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  function clearRefineTimers() {
+    refineTimerRefs.current.forEach(clearTimeout)
+    refineTimerRefs.current = []
+    if (refineIntervalRef.current) { clearInterval(refineIntervalRef.current); refineIntervalRef.current = null }
+  }
+
+  useEffect(() => () => { clearRefineTimers() }, [])
 
   const handleRefine = useCallback(async () => {
+    clearRefineTimers()
     setRefineError('')
+    setRefineStep(0)
+    setRefineElapsed(0)
     setIsRefining(true)
+
+    const startedAt = Date.now()
+    refineIntervalRef.current = setInterval(() => setRefineElapsed(Math.floor((Date.now() - startedAt) / 1000)), 500)
+    refineTimerRefs.current.push(setTimeout(() => setRefineStep(1), 1200))
+    refineTimerRefs.current.push(setTimeout(() => setRefineStep(2), 5500))
+
     try {
       const res = await fetch('/api/weekly-report/refine', {
         method: 'POST',
@@ -103,6 +130,7 @@ export default function WeeklyReportForm({
     } catch {
       setRefineError('네트워크 오류가 발생했습니다')
     } finally {
+      clearRefineTimers()
       setIsRefining(false)
     }
   }, [rows, prevWeekCategories])
@@ -192,6 +220,13 @@ export default function WeeklyReportForm({
 
   return (
     <>
+    <style>{`
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @keyframes progress-indeterminate {
+        0%   { transform: translateX(-100%); }
+        100% { transform: translateX(400%); }
+      }
+    `}</style>
     <SpotlightOnboarding autoStart={isFirstTimeUser} />
     {modalTarget && (
       <EditorModal
@@ -413,6 +448,36 @@ export default function WeeklyReportForm({
           </button>
         </div>
       </div>
+
+      {/* AI 정비 진행 상태 */}
+      {isRefining && (
+        <div
+          role="status"
+          aria-live="polite"
+          aria-label={`AI 정비 중 — ${REFINE_STEPS[Math.min(refineStep, REFINE_STEPS.length - 1)].label}`}
+          style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', background: '#faf5ff', border: '1px solid #ddd6fe', borderRadius: '0.625rem' }}
+        >
+          <span style={{ display: 'inline-block', width: '0.875rem', height: '0.875rem', border: '2px solid rgba(139,92,246,0.3)', borderTopColor: '#8b5cf6', borderRadius: '50%', flexShrink: 0, animation: 'spin 0.7s linear infinite' }} />
+          <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', flexShrink: 0 }}>
+            {REFINE_STEPS.map((_, i) => {
+              const done = i < refineStep
+              const active = i === refineStep
+              return (
+                <span key={i} style={{ width: done ? 7 : active ? 9 : 5, height: done ? 7 : active ? 9 : 5, borderRadius: '50%', background: done ? '#7c3aed' : active ? '#a78bfa' : '#ddd6fe', transition: 'all 300ms', flexShrink: 0 }} />
+              )
+            })}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', minWidth: 0 }}>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#6d28d9' }}>{REFINE_STEPS[Math.min(refineStep, REFINE_STEPS.length - 1)].label}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div role="progressbar" aria-busy="true" style={{ width: 80, height: 3, borderRadius: 3, background: '#ede9fe', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
+                <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '40%', borderRadius: 3, background: '#8b5cf6', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
+              </div>
+              <span style={{ fontSize: '0.6875rem', color: '#a78bfa', whiteSpace: 'nowrap' }}>{refineElapsed}초</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 초기화 강성 경고 */}
       {showResetConfirm && (
