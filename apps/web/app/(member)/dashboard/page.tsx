@@ -177,36 +177,6 @@ export default async function DashboardPage() {
             </section>
           )}
 
-          {/* 본부 미션 */}
-          {missions && missions.length > 0 && (
-            <section aria-labelledby="missions-heading">
-              <h2 id="missions-heading" style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.875rem', letterSpacing: '-0.02em' }}>
-                본부 미션
-              </h2>
-              <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
-                <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
-                  {missions.slice(0, 5).map((mission, i) => (
-                    <li key={mission.num ?? i} style={{
-                      display: 'flex', alignItems: 'baseline', gap: '0.75rem',
-                      padding: '0.625rem 0',
-                      borderBottom: i < Math.min(missions.length, 5) - 1 ? '1px solid #f1f5f9' : 'none',
-                    }}>
-                      <span style={{
-                        fontSize: '0.6875rem', fontWeight: 700, color: '#6366f1',
-                        backgroundColor: '#eef2ff', borderRadius: '0.375rem',
-                        padding: '0.125rem 0.4rem', flexShrink: 0, letterSpacing: '0.02em',
-                      }}>
-                        {mission.num}
-                      </span>
-                      <span style={{ fontSize: '0.875rem', color: '#334155', fontWeight: 500, lineHeight: 1.4 }}>
-                        {mission.title}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            </section>
-          )}
         </div>
 
         {/* ── 우 컬럼: 개인 현황 ── */}
@@ -361,6 +331,37 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* 본부 미션 — 풀 width */}
+      {missions && missions.length > 0 && (
+        <section aria-labelledby="missions-heading" style={{ marginTop: '1.5rem' }}>
+          <h2 id="missions-heading" style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.875rem', letterSpacing: '-0.02em' }}>
+            본부 미션
+          </h2>
+          <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
+            <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {missions.slice(0, 5).map((mission, i) => (
+                <li key={mission.num ?? i} style={{
+                  display: 'flex', alignItems: 'baseline', gap: '0.75rem',
+                  padding: '0.625rem 0',
+                  borderBottom: i < Math.min(missions.length, 5) - 1 ? '1px solid #f1f5f9' : 'none',
+                }}>
+                  <span style={{
+                    fontSize: '0.6875rem', fontWeight: 700, color: '#6366f1',
+                    backgroundColor: '#eef2ff', borderRadius: '0.375rem',
+                    padding: '0.125rem 0.4rem', flexShrink: 0, letterSpacing: '0.02em',
+                  }}>
+                    {mission.num}
+                  </span>
+                  <span style={{ fontSize: '0.875rem', color: '#334155', fontWeight: 500, lineHeight: 1.4 }}>
+                    {mission.title}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+      )}
     </div>
   )
 }
