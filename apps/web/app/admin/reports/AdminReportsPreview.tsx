@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, CheckCircle2 } from 'lucide-react'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 
 interface AdminReportsPreviewProps {
   week: string
   member: string
+  orgName?: string
 }
 
 type PreviewRow = {
@@ -55,19 +56,46 @@ function RichCell({ html }: { html: string }) {
   )
 }
 
-export default function AdminReportsPreview({ week, member }: AdminReportsPreviewProps) {
+const STEPS = [
+  { label: '보고서 데이터 조회 중…', detail: 'DB에서 주간보고 불러오는 중' },
+  { label: 'Gemini AI 정제 중…',    detail: '오타·중복·포맷을 AI가 교정하는 중' },
+  { label: '결과 정리 중…',         detail: '정제된 데이터를 테이블로 변환하는 중' },
+]
+
+export default function AdminReportsPreview({ week, member, orgName = '' }: AdminReportsPreviewProps) {
   const [rows, setRows] = useState<PreviewRow[]>([])
   const [editingCell, setEditingCell] = useState<EditingCell>(null)
   const [loading, setLoading] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [statusStep, setStatusStep] = useState(0)
+  const [elapsed, setElapsed] = useState(0)
   const reqIdRef = useRef(0)
   const downloadingRef = useRef(false)
+  const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([])
+  const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  function clearTimers() {
+    timerRefs.current.forEach(clearTimeout)
+    timerRefs.current = []
+    if (elapsedRef.current) { clearInterval(elapsedRef.current); elapsedRef.current = null }
+  }
+
+  useEffect(() => () => clearTimers(), [])
 
   async function handlePreview() {
+    clearTimers()
     setLoading(true)
     setError(null)
+    setStatusStep(0)
+    setElapsed(0)
     const myId = ++reqIdRef.current
+
+    const startedAt = Date.now()
+    elapsedRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 500)
+    timerRefs.current.push(setTimeout(() => setStatusStep(1), 1800))
+    timerRefs.current.push(setTimeout(() => setStatusStep(2), 6000))
+
     try {
       const params = new URLSearchParams({ week })
       if (member) params.set('member', member)
@@ -84,7 +112,10 @@ export default function AdminReportsPreview({ week, member }: AdminReportsPrevie
         setError(err instanceof Error ? err.message : '알 수 없는 오류')
       }
     } finally {
-      if (myId === reqIdRef.current) setLoading(false)
+      if (myId === reqIdRef.current) {
+        clearTimers()
+        setLoading(false)
+      }
     }
   }
 
@@ -123,10 +154,20 @@ export default function AdminReportsPreview({ week, member }: AdminReportsPrevie
 
   return (
     <>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes progress-indeterminate {
+          0%   { transform: translateX(-100%); }
+          100% { transform: translateX(400%); }
+        }
+        @keyframes char-wave {
+          0%, 100% { color: #1e1b4b; opacity: 1; }
+          50%       { color: #d1d5db; opacity: 0.45; }
+        }
+      `}</style>
 
       {/* Trigger button */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.5rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.75rem' }}>
         <button
           onClick={handlePreview}
           disabled={loading}
@@ -146,6 +187,61 @@ export default function AdminReportsPreview({ week, member }: AdminReportsPrevie
             : <Sparkles size={15} />}
           AI 정제 미리보기
         </button>
+
+        {/* Status panel — visible while loading */}
+        {loading && (
+          <div style={{ width: '100%', maxWidth: 420, background: '#f8f7ff', border: '1px solid #e9d5ff', borderRadius: '0.625rem', padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+            {/* Step list */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+              {STEPS.map((step, i) => {
+                const done = i < statusStep
+                const active = i === statusStep
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {done
+                      ? <CheckCircle2 size={14} color="#7c3aed" style={{ flexShrink: 0 }} />
+                      : <span style={{ width: 14, height: 14, borderRadius: '50%', flexShrink: 0, border: active ? '2px solid #7c3aed' : '2px solid #d8b4fe', background: active ? 'none' : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {active && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#7c3aed', display: 'inline-block' }} />}
+                        </span>}
+                    <div>
+                      <span style={{ fontSize: '0.8125rem', fontWeight: active ? 600 : 400, color: done ? '#7c3aed' : active ? '#1e1b4b' : '#94a3b8' }}>
+                        {step.label}
+                      </span>
+                      {active && (
+                        <span style={{ display: 'block', fontSize: '0.7rem', color: '#9ca3af', marginTop: '0.0625rem' }}>{step.detail}</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Progress bar */}
+            <div style={{ height: 4, borderRadius: 4, background: '#ede9fe', overflow: 'hidden', position: 'relative' }}>
+              <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '30%', borderRadius: 4, background: 'linear-gradient(90deg, #8b5cf6, #6366f1)', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
+            </div>
+
+            {/* Org name wave + elapsed */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {orgName && (
+                <span aria-hidden style={{ fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '0.04em', userSelect: 'none' }}>
+                  {orgName.split('').map((ch, i) => (
+                    <span
+                      key={i}
+                      style={{
+                        display: 'inline-block',
+                        animation: `char-wave 1.8s ease-in-out infinite`,
+                        animationDelay: `${i * 0.1}s`,
+                      }}
+                    >{ch}</span>
+                  ))}
+                </span>
+              )}
+              <span style={{ fontSize: '0.7rem', color: '#a78bfa' }}>경과 {elapsed}초…</span>
+            </div>
+          </div>
+        )}
+
         {error && <p style={{ margin: 0, fontSize: '0.8125rem', color: '#ef4444' }}>{error}</p>}
       </div>
 

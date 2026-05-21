@@ -42,6 +42,13 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
 
   const adminClient = createAdminClient()
 
+  // META에서 org명 읽기
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: metaRow } = await (adminClient as any)
+    .from('org_content').select('value').eq('key', 'META').single()
+  const meta = (metaRow?.value as Record<string, unknown>) ?? {}
+  const orgName = (meta.org as string | undefined) || (meta.title as string | undefined) || ''
+
   // 전체 팀원 목록 (RLS 우회 — 어드민 전용 페이지)
   const { data: profiles } = await adminClient
     .from('profiles')
@@ -146,7 +153,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
 
       {/* AI 정제 미리보기 */}
       <div style={{ marginBottom: '1.5rem' }}>
-        <AdminReportsPreview week={selectedWeek} member={member ?? ''} />
+        <AdminReportsPreview week={selectedWeek} member={member ?? ''} orgName={orgName} />
       </div>
 
       {/* 보고서 테이블 */}
