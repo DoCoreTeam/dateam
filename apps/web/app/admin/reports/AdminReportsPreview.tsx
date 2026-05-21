@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { Sparkles, RefreshCw } from 'lucide-react'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
+import AXDotLoader from '@/components/ui/AXDotLoader'
 
 interface AdminReportsPreviewProps {
   week: string
@@ -218,7 +219,6 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
   return (
     <>
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes progress-indeterminate {
           0%   { transform: translateX(-100%); }
           100% { transform: translateX(400%); }
@@ -292,9 +292,7 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
             flexShrink: 0,
           }}
         >
-          {loading
-            ? <span style={{ display: 'inline-block', width: '0.875rem', height: '0.875rem', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-            : <Sparkles size={15} />}
+          {loading ? <AXDotLoader size={5} color="#fff" /> : <Sparkles size={15} />}
           AI 주간보고 취합
         </button>
 

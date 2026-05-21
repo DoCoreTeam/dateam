@@ -1,7 +1,7 @@
 import type React from 'react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getWeekStart, toDateString } from '@/lib/utils'
 import { subWeeks } from 'date-fns'
 import WeeklyReportForm from './WeeklyReportForm'
@@ -37,6 +37,11 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
   const activeTab = tab === 'team' ? 'team' : 'mine'
   const justSaved = saved === '1'
   const justReset = reset === '1'
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: metaRow } = await (createAdminClient() as any).from('org_content').select('value').eq('key', 'META').single()
+  const meta = (metaRow?.value as Record<string, unknown>) ?? {}
+  const orgName = typeof meta.org === 'string' ? meta.org : typeof meta.title === 'string' ? meta.title : ''
 
   const weekOptions = Array.from({ length: 8 }, (_, i) => {
     const d = getWeekStart(subWeeks(new Date(), i))
@@ -183,6 +188,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
               hasCarryForward={hasCarryForward}
               hasSavedData={prefillRows.length > 0}
               prevWeekCategories={prevWeekCategories}
+              orgName={orgName}
             />
           </div>
 

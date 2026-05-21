@@ -33,6 +33,7 @@ interface WeeklyReportFormProps {
   hasCarryForward?: boolean
   hasSavedData?: boolean
   prevWeekCategories?: string[]
+  orgName?: string
 }
 
 function getWeekDateRange(weekStart: string): { perf: string; plan: string } {
@@ -66,6 +67,7 @@ export default function WeeklyReportForm({
   hasCarryForward = false,
   hasSavedData = false,
   prevWeekCategories = [],
+  orgName = '',
 }: WeeklyReportFormProps) {
   const router = useRouter()
   const [selectedWeek, setSelectedWeek] = useState(initialWeek)
@@ -255,7 +257,6 @@ export default function WeeklyReportForm({
   return (
     <>
     <style>{`
-      @keyframes spin { to { transform: rotate(360deg); } }
       @keyframes progress-indeterminate {
         0%   { transform: translateX(-100%); }
         100% { transform: translateX(400%); }
@@ -277,48 +278,23 @@ export default function WeeklyReportForm({
           WebkitBackdropFilter: 'blur(6px)',
         }}
       >
-        <div style={{
-          background: '#fff', borderRadius: '1.25rem', padding: '2rem 2.5rem',
-          boxShadow: '0 20px 60px rgba(109,40,217,0.15)',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem',
-          minWidth: '280px',
-        }}>
-          <span style={{
-            display: 'inline-block', width: '2.5rem', height: '2.5rem',
-            border: '3px solid rgba(139,92,246,0.25)', borderTopColor: '#8b5cf6',
-            borderRadius: '50%', animation: 'spin 0.7s linear infinite',
-          }} />
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#6d28d9' }}>
-              {REFINE_STEPS[Math.min(refineStep, REFINE_STEPS.length - 1)].label}
-            </p>
-            <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: '#a78bfa' }}>
-              {REFINE_STEPS[Math.min(refineStep, REFINE_STEPS.length - 1)].detail}
-            </p>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
-            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-              {REFINE_STEPS.map((_, i) => {
-                const done = i < refineStep
-                const active = i === refineStep
-                return (
-                  <span key={i} style={{
-                    width: done ? 8 : active ? 10 : 6,
-                    height: done ? 8 : active ? 10 : 6,
-                    borderRadius: '50%',
-                    background: done ? '#7c3aed' : active ? '#a78bfa' : '#ddd6fe',
-                    transition: 'all 300ms',
-                  }} />
-                )
-              })}
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem' }}>
+          {orgName && (
+            <div aria-hidden style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '0.08em', userSelect: 'none' }}>
+              {orgName.split('').map((ch, i) => (
+                <span key={i} style={{ display: 'inline-block', animation: 'char-wave 1.8s ease-in-out infinite', animationDelay: `${i * 0.12}s` }}>
+                  {ch}
+                </span>
+              ))}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div role="progressbar" aria-busy="true" style={{ width: 160, height: 3, borderRadius: 3, background: '#ede9fe', overflow: 'hidden', position: 'relative' }}>
-                <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '40%', borderRadius: 3, background: '#8b5cf6', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
-              </div>
-              <span style={{ fontSize: '0.6875rem', color: '#a78bfa', whiteSpace: 'nowrap' }}>{refineElapsed}초</span>
-            </div>
+          )}
+          <span aria-hidden style={{ fontSize: '0.875rem', color: '#6d28d9', fontWeight: 600 }}>
+            {REFINE_STEPS[Math.min(refineStep, REFINE_STEPS.length - 1)].label}
+          </span>
+          <div role="progressbar" aria-busy="true" aria-label="AI 다듬기 진행 중" style={{ width: 120, height: 3, borderRadius: 3, background: '#ede9fe', overflow: 'hidden', position: 'relative' }}>
+            <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '40%', borderRadius: 3, background: '#8b5cf6', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
           </div>
+          <span aria-hidden style={{ fontSize: '0.75rem', color: '#a78bfa' }}>{refineElapsed}초</span>
         </div>
       </div>
     )}

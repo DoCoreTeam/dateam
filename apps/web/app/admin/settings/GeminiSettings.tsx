@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Key, CheckCircle, XCircle, Loader2, Trash2, RefreshCw } from 'lucide-react'
+import { Key, CheckCircle, XCircle, Trash2, RefreshCw } from 'lucide-react'
+import AXDotLoader from '@/components/ui/AXDotLoader'
 import { saveGeminiKey, deleteGeminiKey, checkGeminiHealth } from './actions'
 import GeminiModelPicker from './GeminiModelPicker'
 
@@ -93,7 +94,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
                 disabled={deletePending}
                 style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
               >
-                {deletePending ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Trash2 size={12} />}
+                {deletePending ? <AXDotLoader size={4} color="#dc2626" /> : <Trash2 size={12} />}
                 삭제
               </button>
             </div>
@@ -125,7 +126,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
               className="btn-primary"
               style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.375rem' }}
             >
-              {savePending ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : null}
+              {savePending ? <AXDotLoader size={4} color="#fff" /> : null}
               저장
             </button>
           </div>
@@ -177,9 +178,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
               cursor: hasKey ? 'pointer' : 'not-allowed',
             }}
           >
-            {healthPending
-              ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
-              : <RefreshCw size={13} />}
+            {healthPending ? <AXDotLoader size={4} color="#fff" /> : <RefreshCw size={13} />}
             헬스체크
           </button>
         </div>
