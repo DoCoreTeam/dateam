@@ -7,7 +7,6 @@ import { subWeeks } from 'date-fns'
 import WeeklyReportForm from './WeeklyReportForm'
 import TeamReportView from './TeamReportView'
 import ReportAccordion from './ReportAccordion'
-import CurrentWeekReports from './CurrentWeekReports'
 import { FileText, Users } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
 
@@ -22,7 +21,7 @@ interface TeamRow {
 }
 
 interface PageProps {
-  searchParams: Promise<{ tab?: string; editWeek?: string; saved?: string }>
+  searchParams: Promise<{ tab?: string; editWeek?: string; saved?: string; reset?: string }>
 }
 
 export default async function WeeklyReportPage({ searchParams }: PageProps) {
@@ -33,9 +32,10 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
 
   if (!user) redirect('/login')
 
-  const { tab, editWeek, saved } = await searchParams
+  const { tab, editWeek, saved, reset } = await searchParams
   const activeTab = tab === 'team' ? 'team' : 'mine'
   const justSaved = saved === '1'
+  const justReset = reset === '1'
 
   const weekOptions = Array.from({ length: 8 }, (_, i) => {
     const d = getWeekStart(subWeeks(new Date(), i))
@@ -55,7 +55,6 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
   // 수정 모드: editWeek가 유효한 주차면 그 주 데이터로 프리필
   const initialWeek = (editWeek && weekOptions.includes(editWeek)) ? editWeek : thisWeek
   const formSourceData = (reports ?? []).filter((r) => r.week_start === initialWeek)
-  const thisWeekReports = (reports ?? []).filter((r) => r.week_start === thisWeek)
   const prefillRows = formSourceData.map((r) => ({
     category: r.category,
     performance: r.performance,
@@ -137,6 +136,11 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
               주간보고가 저장되었습니다
             </div>
           )}
+          {justReset && (
+            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.625rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
+              보고서가 초기화되었습니다
+            </div>
+          )}
           <div className="card" style={{ padding: '1.5rem', marginBottom: '1.75rem', width: '100%', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
               <FileText size={16} color="#6366f1" />
@@ -150,8 +154,6 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
               prefillRows={prefillRows}
             />
           </div>
-
-          <CurrentWeekReports reports={thisWeekReports} />
 
           <div>
             <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', marginBottom: '1rem', letterSpacing: '-0.01em' }}>
