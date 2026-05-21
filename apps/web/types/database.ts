@@ -44,6 +44,13 @@ export interface RoutineCheck {
   updated_at: string
 }
 
+export interface OrgContent {
+  key: string
+  value: Json
+  created_at: string
+  updated_at: string
+}
+
 export type Json =
   | string
   | number

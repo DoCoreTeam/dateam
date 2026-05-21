@@ -3,7 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getWeekStart, toDateString } from '@/lib/utils'
 import Link from 'next/link'
 import { ArrowRight, CheckCircle2, TrendingUp, FileText } from 'lucide-react'
-import type { Profile, KpiEntry, RoutineCheck, WeeklyReport } from '@/types/database'
+import type { Profile, KpiEntry, RoutineCheck, WeeklyReport, OrgContent, Json } from '@/types/database'
 
 const ROUTINES = ['Morning Standup', '리포트 확인', '이슈 로그', '업무 마감 체크']
 
@@ -16,23 +16,53 @@ export default async function DashboardPage() {
   if (!user) redirect('/login')
 
   const adminClient = createAdminClient()
-  const { data: profile } = await adminClient
-    .from('profiles')
-    .select('name')
-    .eq('id', user.id)
-    .single() as unknown as { data: Pick<Profile, 'name'> | null; error: unknown }
-
-  const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
-
   const weekStart = getWeekStart()
   const weekStartStr = toDateString(weekStart)
 
-  const { data: routineChecks } = await supabase
-    .from('routine_checks')
-    .select('routine_name, check_date, is_completed')
-    .eq('user_id', user.id)
-    .eq('week_start', weekStartStr)
-    .eq('is_completed', true) as unknown as { data: Pick<RoutineCheck, 'routine_name' | 'check_date' | 'is_completed'>[] | null; error: unknown }
+  type OrgRow = Pick<OrgContent, 'key' | 'value'>
+  const orgQuery = adminClient
+    .from('org_content')
+    .select('key, value')
+    .in('key', ['META', 'missions', 'okr']) as unknown as Promise<{ data: OrgRow[] | null; error: unknown }>
+
+  const [profileResult, routineResult, kpiResult, reportsResult, orgResult] = await Promise.all([
+    adminClient.from('profiles').select('name').eq('id', user.id).single(),
+    supabase
+      .from('routine_checks')
+      .select('routine_name, check_date, is_completed')
+      .eq('user_id', user.id)
+      .eq('week_start', weekStartStr)
+      .eq('is_completed', true),
+    supabase
+      .from('kpi_entries')
+      .select('metric_name, value, unit, period_end')
+      .eq('user_id', user.id)
+      .order('period_end', { ascending: false })
+      .limit(4),
+    supabase
+      .from('weekly_reports')
+      .select('week_start, category, created_at')
+      .eq('user_id', user.id)
+      .order('week_start', { ascending: false })
+      .limit(3),
+    orgQuery,
+  ])
+
+  const profile = profileResult.data as Pick<Profile, 'name'> | null
+  const routineChecks = routineResult.data as Pick<RoutineCheck, 'routine_name' | 'check_date' | 'is_completed'>[] | null
+  const kpiEntries = kpiResult.data as Pick<KpiEntry, 'metric_name' | 'value' | 'unit' | 'period_end'>[] | null
+  const reports = reportsResult.data as Pick<WeeklyReport, 'week_start' | 'category' | 'created_at'>[] | null
+
+  const orgRows = (orgResult as { data: OrgRow[] | null }).data ?? []
+  const orgMap = Object.fromEntries(orgRows.map((r) => [r.key, r.value]))
+  const meta = orgMap['META'] as {
+    org: string; title: string; subtitle: string; version: string; date: string;
+    stats: Array<{ num: string; lbl: string }>
+  } | null | undefined
+  const missions = orgMap['missions'] as Array<{ num: string; title: string; desc: string }> | null | undefined
+  const okrList = orgMap['okr'] as Array<{ objective: string; lead: string; key_results: string[] }> | null | undefined
+
+  const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
 
   const completedCount = routineChecks?.length ?? 0
   const totalPossible = ROUTINES.length * 7
@@ -41,32 +71,6 @@ export default async function DashboardPage() {
   const todayStr = toDateString(new Date())
   const todayChecks = routineChecks?.filter((c) => c.check_date === todayStr) ?? []
   const todayRate = Math.round((todayChecks.length / ROUTINES.length) * 100)
-
-  const { data: kpiEntries } = await supabase
-    .from('kpi_entries')
-    .select('metric_name, value, unit, period_end')
-    .eq('user_id', user.id)
-    .order('period_end', { ascending: false })
-    .limit(4) as unknown as { data: Pick<KpiEntry, 'metric_name' | 'value' | 'unit' | 'period_end'>[] | null; error: unknown }
-
-  const { data: reports } = await supabase
-    .from('weekly_reports')
-    .select('week_start, category, created_at')
-    .eq('user_id', user.id)
-    .order('week_start', { ascending: false })
-    .limit(3) as unknown as { data: Pick<WeeklyReport, 'week_start' | 'category' | 'created_at'>[] | null; error: unknown }
-
-  const { data: metaRow } = await adminClient.from('org_content').select('value').eq('key', 'META').single() as unknown as { data: { value: unknown } | null; error: unknown }
-  const { data: missionsRow } = await adminClient.from('org_content').select('value').eq('key', 'missions').single() as unknown as { data: { value: unknown } | null; error: unknown }
-  const { data: okrRow } = await adminClient.from('org_content').select('value').eq('key', 'okr').single() as unknown as { data: { value: unknown } | null; error: unknown }
-
-  const meta = metaRow?.value as {
-    org: string; title: string; subtitle: string; version: string; date: string;
-    stats: Array<{ num: string; lbl: string }>
-  } | null | undefined
-
-  const missions = missionsRow?.value as Array<{ num: string; title: string; desc: string }> | null | undefined
-  const okrList = okrRow?.value as Array<{ objective: string; lead: string; key_results: string[] }> | null | undefined
 
   const routineColor = achievementRate >= 70 ? '#059669' : achievementRate >= 40 ? '#d97706' : '#dc2626'
 
@@ -130,7 +134,7 @@ export default async function DashboardPage() {
               {meta.stats && meta.stats.length > 0 && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.625rem', flexShrink: 0 }}>
                   {meta.stats.slice(0, 4).map((stat, i) => (
-                    <div key={i} style={{
+                    <div key={stat.lbl ?? i} style={{
                       backgroundColor: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)',
                       border: '1px solid rgba(255,255,255,0.18)', borderRadius: '0.875rem',
                       padding: '0.875rem 1rem', textAlign: 'center', minWidth: '5.5rem',
@@ -152,7 +156,7 @@ export default async function DashboardPage() {
               </h2>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.875rem' }}>
                 {okrList.slice(0, 4).map((okr, i) => (
-                  <div key={i} className="card" style={{ padding: '1.25rem' }}>
+                  <div key={okr.objective ?? i} className="card" style={{ padding: '1.25rem' }}>
                     <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', margin: '0 0 0.625rem', lineHeight: 1.4 }}>
                       {okr.objective}
                     </p>
@@ -182,7 +186,7 @@ export default async function DashboardPage() {
               <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
                 <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
                   {missions.slice(0, 5).map((mission, i) => (
-                    <li key={i} style={{
+                    <li key={mission.num ?? i} style={{
                       display: 'flex', alignItems: 'baseline', gap: '0.75rem',
                       padding: '0.625rem 0',
                       borderBottom: i < Math.min(missions.length, 5) - 1 ? '1px solid #f1f5f9' : 'none',
@@ -212,7 +216,7 @@ export default async function DashboardPage() {
           <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.125rem' }}>
               <CheckCircle2 size={15} color="#059669" />
-              <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>내 루틴 현황</h2>
+              <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>내 루틴 현황</h3>
             </div>
 
             {/* 이번 주 루틴 */}
@@ -223,7 +227,14 @@ export default async function DashboardPage() {
                   {achievementRate}%
                 </span>
               </div>
-              <div style={{ height: '4px', backgroundColor: '#f1f5f9', borderRadius: '999px', overflow: 'hidden' }}>
+              <div
+                role="progressbar"
+                aria-valuenow={achievementRate}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`이번 주 루틴 달성률 ${achievementRate}%`}
+                style={{ height: '4px', backgroundColor: '#f1f5f9', borderRadius: '999px', overflow: 'hidden' }}
+              >
                 <div style={{ height: '100%', width: `${achievementRate}%`, borderRadius: '999px', backgroundColor: routineColor }} />
               </div>
               <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.3rem 0 0' }}>
@@ -241,7 +252,14 @@ export default async function DashboardPage() {
                   {todayRate}%
                 </span>
               </div>
-              <div style={{ height: '4px', backgroundColor: '#f1f5f9', borderRadius: '999px', overflow: 'hidden' }}>
+              <div
+                role="progressbar"
+                aria-valuenow={todayRate}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`오늘 루틴 달성률 ${todayRate}%`}
+                style={{ height: '4px', backgroundColor: '#f1f5f9', borderRadius: '999px', overflow: 'hidden' }}
+              >
                 <div style={{ height: '100%', width: `${todayRate}%`, borderRadius: '999px', backgroundColor: '#6366f1' }} />
               </div>
               <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.3rem 0 0' }}>
@@ -265,7 +283,7 @@ export default async function DashboardPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <FileText size={15} color="#6366f1" />
-                <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>주간보고</h2>
+                <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>주간보고</h3>
               </div>
               <Link href="/weekly-report" style={{ fontSize: '0.75rem', color: '#6366f1', textDecoration: 'none', fontWeight: 600 }}>
                 작성하기 →
@@ -275,7 +293,7 @@ export default async function DashboardPage() {
             {reports && reports.length > 0 ? (
               <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {reports.map((report, i) => (
-                  <li key={i} style={{
+                  <li key={`${report.week_start}-${report.category}-${i}`} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '0.5rem 0.75rem',
                     backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px solid #f1f5f9',
@@ -307,7 +325,7 @@ export default async function DashboardPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <TrendingUp size={15} color="#6366f1" />
-                <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>내 KPI</h2>
+                <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>내 KPI</h3>
               </div>
               <Link href="/kpi" style={{ fontSize: '0.75rem', color: '#6366f1', textDecoration: 'none', fontWeight: 600 }}>
                 전체 보기 →
@@ -317,7 +335,7 @@ export default async function DashboardPage() {
             {kpiEntries && kpiEntries.length > 0 ? (
               <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {kpiEntries.map((kpi, i) => (
-                  <li key={i} style={{
+                  <li key={`${kpi.period_end}-${kpi.metric_name}-${i}`} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '0.5rem 0.75rem',
                     backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px solid #f1f5f9',
@@ -326,7 +344,7 @@ export default async function DashboardPage() {
                       {kpi.metric_name}
                     </span>
                     <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', flexShrink: 0 }}>
-                      {kpi.value.toLocaleString()}
+                      {kpi.value != null ? kpi.value.toLocaleString() : '—'}
                       {kpi.unit && <span style={{ fontSize: '0.6875rem', color: '#94a3b8', marginLeft: '0.2rem' }}>{kpi.unit}</span>}
                     </span>
                   </li>
