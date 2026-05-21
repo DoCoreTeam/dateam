@@ -4,6 +4,7 @@ import { getWeekStart, toDateString } from '@/lib/utils'
 import { subWeeks } from 'date-fns'
 import { FileText, Download } from 'lucide-react'
 import type { Profile, WeeklyReport } from '@/types/database'
+import AdminReportsPreview from './AdminReportsPreview'
 
 function RichCell({ html }: { html: string }) {
   if (!html) return <span style={{ color: '#cbd5e1', fontSize: '0.8125rem' }}>-</span>
@@ -141,6 +142,11 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
             DOCX 다운로드
           </a>
         </form>
+      </div>
+
+      {/* AI 정제 미리보기 */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <AdminReportsPreview week={selectedWeek} member={member ?? ''} />
       </div>
 
       {/* 보고서 테이블 */}
