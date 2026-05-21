@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, RefreshCw } from 'lucide-react'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 
@@ -45,6 +45,36 @@ function sanitizeHtml(html: string): string {
   )
 }
 
+const CACHE_V = 1
+const CACHE_TTL = 24 * 60 * 60 * 1000
+
+interface CacheEntry { v: number; savedAt: number; rows: PreviewRow[] }
+
+function cacheKey(week: string, member: string) {
+  return `ai-preview::${week}::${member || 'all'}`
+}
+
+function readCache(week: string, member: string): PreviewRow[] | null {
+  try {
+    const raw = sessionStorage.getItem(cacheKey(week, member))
+    if (!raw) return null
+    const entry = JSON.parse(raw) as CacheEntry
+    if (entry.v !== CACHE_V || Date.now() - entry.savedAt > CACHE_TTL) return null
+    const rows = entry.rows
+    if (!Array.isArray(rows) || rows.length === 0) return null
+    const f = rows[0]
+    if (typeof f !== 'object' || f === null || !('userName' in f) || !('category' in f) || !('performance' in f)) return null
+    return rows
+  } catch { return null }
+}
+
+function writeCache(week: string, member: string, rows: PreviewRow[]) {
+  try {
+    const entry: CacheEntry = { v: CACHE_V, savedAt: Date.now(), rows }
+    sessionStorage.setItem(cacheKey(week, member), JSON.stringify(entry))
+  } catch { /* quota 초과 등 무시 */ }
+}
+
 function RichCell({ html }: { html: string }) {
   if (!html) return <span style={{ color: '#cbd5e1' }}>-</span>
   if (html.startsWith('<'))
@@ -64,6 +94,7 @@ const STEPS = [
 
 export default function AdminReportsPreview({ week, member, orgName = '' }: AdminReportsPreviewProps) {
   const [rows, setRows] = useState<PreviewRow[]>([])
+  const [fromCache, setFromCache] = useState(false)
   const [editingCell, setEditingCell] = useState<EditingCell>(null)
   const [loading, setLoading] = useState(false)
   const [downloading, setDownloading] = useState(false)
@@ -74,6 +105,18 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
   const downloadingRef = useRef(false)
   const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([])
   const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // 마운트/필터 변경 시 sessionStorage에서 복원
+  useEffect(() => {
+    const cached = readCache(week, member)
+    if (cached) {
+      setRows(cached)
+      setFromCache(true)
+    } else {
+      setRows([])
+      setFromCache(false)
+    }
+  }, [week, member])
 
   function clearTimers() {
     timerRefs.current.forEach(clearTimeout)
@@ -87,6 +130,7 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
     clearTimers()
     setLoading(true)
     setError(null)
+    setFromCache(false)
     setStatusStep(0)
     setElapsed(0)
     const myId = ++reqIdRef.current
@@ -107,6 +151,7 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
       const data = await res.json() as { reports: PreviewRow[] }
       if (myId !== reqIdRef.current) return
       setRows(data.reports)
+      writeCache(week, member, data.reports)
     } catch (err) {
       if (myId === reqIdRef.current) {
         setError(err instanceof Error ? err.message : '알 수 없는 오류')
@@ -146,7 +191,11 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
   }
 
   function updateCell(rowIdx: number, field: EditableField, value: string) {
-    setRows(prev => prev.map((row, i) => (i === rowIdx ? { ...row, [field]: value } : row)))
+    setRows(prev => {
+      const next = prev.map((row, i) => (i === rowIdx ? { ...row, [field]: value } : row))
+      writeCache(week, member, next)
+      return next
+    })
   }
 
   const activeCell = editingCell !== null ? rows[editingCell.rowIdx] : null
@@ -185,38 +234,22 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
           AI 정제 미리보기
         </button>
 
-        {/* Inline status — 버튼 옆에 붙어 레이아웃 영향 없음 */}
+        {/* Inline loading status */}
         {loading && (
           <div role="status" aria-live="polite" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
-            {/* Step dots */}
             <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexShrink: 0 }}>
               {STEPS.map((_, i) => {
                 const done = i < statusStep
                 const active = i === statusStep
                 return (
-                  <span
-                    key={i}
-                    style={{
-                      width: done ? 8 : active ? 10 : 6,
-                      height: done ? 8 : active ? 10 : 6,
-                      borderRadius: '50%',
-                      background: done ? '#7c3aed' : active ? '#a78bfa' : '#ddd6fe',
-                      transition: 'all 300ms',
-                      flexShrink: 0,
-                    }}
-                  />
+                  <span key={i} style={{ width: done ? 8 : active ? 10 : 6, height: done ? 8 : active ? 10 : 6, borderRadius: '50%', background: done ? '#7c3aed' : active ? '#a78bfa' : '#ddd6fe', transition: 'all 300ms', flexShrink: 0 }} />
                 )
               })}
             </div>
-
-            {/* Current step label */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', minWidth: 0 }}>
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#6d28d9', whiteSpace: 'nowrap' }}>
-                {STEPS[statusStep].label}
-              </span>
+              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#6d28d9', whiteSpace: 'nowrap' }}>{STEPS[statusStep].label}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                {/* Thin progress bar */}
-                <div role="progressbar" aria-label="AI 정제 진행 중" style={{ width: 80, height: 3, borderRadius: 3, background: '#ede9fe', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
+                <div role="progressbar" style={{ width: 80, height: 3, borderRadius: 3, background: '#ede9fe', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
                   <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '40%', borderRadius: 3, background: '#8b5cf6', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
                 </div>
                 <span style={{ fontSize: '0.6875rem', color: '#a78bfa', whiteSpace: 'nowrap' }}>{elapsed}초</span>
@@ -233,17 +266,23 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
         <div className="card" style={{ marginTop: '1.5rem', overflow: 'hidden', border: '1px solid #e2e8f0', borderRadius: '0.75rem' }}>
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', background: 'linear-gradient(to right, #f8f7ff, #fdf4ff)', borderBottom: '1px solid #e9d5ff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
               <Sparkles size={16} color="#7c3aed" />
               <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#1e1b4b' }}>AI 정제 미리보기</span>
               <span style={{ padding: '0.125rem 0.5rem', background: '#ede9fe', color: '#6d28d9', borderRadius: '9999px', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.04em' }}>
                 Gemini AI
               </span>
+              {fromCache && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.125rem 0.5rem', background: '#fef9c3', color: '#92400e', borderRadius: '9999px', fontSize: '0.6875rem', fontWeight: 600 }}>
+                  <RefreshCw size={10} />
+                  세션 캐시 — 최신 데이터로 다시 생성하려면 버튼을 누르세요
+                </span>
+              )}
             </div>
             <button
               onClick={handleDownload}
               disabled={downloading}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, cursor: downloading ? 'not-allowed' : 'pointer', opacity: downloading ? 0.7 : 1, transition: 'opacity 150ms' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, cursor: downloading ? 'not-allowed' : 'pointer', opacity: downloading ? 0.7 : 1, transition: 'opacity 150ms', flexShrink: 0 }}
             >
               {downloading ? '다운로드 중…' : 'DOCX 다운로드'}
             </button>
