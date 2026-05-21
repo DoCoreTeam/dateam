@@ -7,6 +7,7 @@ import { subWeeks } from 'date-fns'
 import WeeklyReportForm from './WeeklyReportForm'
 import TeamReportView from './TeamReportView'
 import ReportAccordion from './ReportAccordion'
+import OnboardingRestartLink from './OnboardingRestartLink'
 import { FileText, Users } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
 
@@ -142,9 +143,12 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
             </div>
           )}
           <div className="card" style={{ padding: '1.5rem', marginBottom: '1.75rem', width: '100%', boxSizing: 'border-box' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-              <FileText size={16} color="#6366f1" />
-              <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>보고서 작성</h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FileText size={16} color="#6366f1" />
+                <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>보고서 작성</h2>
+              </div>
+              <OnboardingRestartLink variant="icon" />
             </div>
             <WeeklyReportForm
               key={`${initialWeek}-${justReset ? 'reset' : 'normal'}`}
@@ -153,6 +157,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
               initialWeek={initialWeek}
               pastCategories={pastCategories}
               prefillRows={prefillRows}
+              isFirstTimeUser={(reports ?? []).length === 0}
             />
           </div>
 
@@ -162,6 +167,8 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
             </h2>
             <ReportAccordion groups={groups} />
           </div>
+
+          <OnboardingRestartLink variant="text" />
         </>
       ) : (
         <div className="card" style={{ padding: '1.5rem', width: '100%', boxSizing: 'border-box' }}>

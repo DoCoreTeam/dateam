@@ -2,11 +2,12 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, Save, Pencil, AlertTriangle, RotateCcw } from 'lucide-react'
+import { Plus, Trash2, Save, Pencil, AlertTriangle, RotateCcw, HelpCircle } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { upsertWeeklyReport, deleteAllWeeklyReports } from './actions'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
+const SpotlightOnboarding = dynamic(() => import('@/components/ui/SpotlightOnboarding'), { ssr: false })
 
 interface Row {
   category: string
@@ -21,6 +22,7 @@ interface WeeklyReportFormProps {
   initialWeek: string
   pastCategories: string[]
   prefillRows: Row[]
+  isFirstTimeUser: boolean
 }
 
 function getWeekDateRange(weekStart: string): { perf: string; plan: string } {
@@ -50,6 +52,7 @@ export default function WeeklyReportForm({
   initialWeek,
   pastCategories,
   prefillRows,
+  isFirstTimeUser,
 }: WeeklyReportFormProps) {
   const router = useRouter()
   const [selectedWeek, setSelectedWeek] = useState(initialWeek)
@@ -145,6 +148,7 @@ export default function WeeklyReportForm({
 
   return (
     <>
+    <SpotlightOnboarding autoStart={isFirstTimeUser} />
     {modalTarget && (
       <EditorModal
         title={`${rows[modalTarget.rowIdx].category || '항목'} — ${FIELD_LABELS[modalTarget.field]}`}
@@ -230,7 +234,10 @@ export default function WeeklyReportForm({
             {rows.map((row, idx) => (
               <tr key={idx} style={{ borderBottom: idx < rows.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
                 {/* 구분 */}
-                <td style={{ padding: '0.75rem 0.875rem', verticalAlign: 'top', borderRight: '1px solid #f1f5f9' }}>
+                <td
+                  id={idx === 0 ? 'onboarding-category' : undefined}
+                  style={{ padding: '0.75rem 0.875rem', verticalAlign: 'top', borderRight: '1px solid #f1f5f9' }}
+                >
                   <input
                     type="text"
                     list="category-list"
@@ -251,18 +258,21 @@ export default function WeeklyReportForm({
                 </td>
                 {/* 성과 */}
                 <EditorCell
+                  id={idx === 0 ? 'onboarding-performance' : undefined}
                   value={row.performance}
                   placeholder="이번 주 주요 성과…"
                   onClick={() => setModalTarget({ rowIdx: idx, field: 'performance' })}
                 />
                 {/* 계획 */}
                 <EditorCell
+                  id={idx === 0 ? 'onboarding-plan' : undefined}
                   value={row.plan}
                   placeholder="다음 주 계획…"
                   onClick={() => setModalTarget({ rowIdx: idx, field: 'plan' })}
                 />
                 {/* 이슈 */}
                 <EditorCell
+                  id={idx === 0 ? 'onboarding-issues' : undefined}
                   value={row.issues}
                   placeholder="이슈 또는 협조사항…"
                   onClick={() => setModalTarget({ rowIdx: idx, field: 'issues' })}
@@ -382,10 +392,12 @@ export default function WeeklyReportForm({
 }
 
 function EditorCell({
+  id,
   value,
   placeholder,
   onClick,
 }: {
+  id?: string
   value: string
   placeholder: string
   onClick: () => void
@@ -394,6 +406,7 @@ function EditorCell({
 
   return (
     <td
+      id={id}
       onClick={onClick}
       style={{
         padding: '0.5rem',

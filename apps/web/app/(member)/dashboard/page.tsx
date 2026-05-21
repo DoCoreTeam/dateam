@@ -4,6 +4,7 @@ import { getWeekStart, toDateString } from '@/lib/utils'
 import Link from 'next/link'
 import { ArrowRight, CheckCircle2, TrendingUp, FileText } from 'lucide-react'
 import type { Profile, KpiEntry, RoutineCheck, WeeklyReport, OrgContent, Json } from '@/types/database'
+import WeeklyReportBannerButton from '@/components/ui/WeeklyReportBannerButton'
 
 const ROUTINES = ['Morning Standup', '리포트 확인', '이슈 로그', '업무 마감 체크']
 
@@ -68,6 +69,10 @@ export default async function DashboardPage() {
   const totalPossible = ROUTINES.length * 7
   const achievementRate = totalPossible > 0 ? Math.round((completedCount / totalPossible) * 100) : 0
 
+  const isFriday = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', weekday: 'short' }).format(new Date()) === 'Fri'
+  const hasThisWeekReport = (reports ?? []).some((r) => r.week_start === weekStartStr)
+  const showGlow = isFriday && !hasThisWeekReport
+
   const todayStr = toDateString(new Date())
   const todayChecks = routineChecks?.filter((c) => c.check_date === todayStr) ?? []
   const todayRate = Math.round((todayChecks.length / ROUTINES.length) * 100)
@@ -130,15 +135,7 @@ export default async function DashboardPage() {
                   }}>
                     {meta.version} · {meta.date}
                   </span>
-                  <Link href="/weekly-report" style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                    fontSize: '0.6875rem', fontWeight: 600,
-                    color: '#ffffff', backgroundColor: 'rgba(255,255,255,0.18)',
-                    border: '1px solid rgba(255,255,255,0.35)', borderRadius: '999px',
-                    padding: '0.2rem 0.75rem', textDecoration: 'none', letterSpacing: '0.02em',
-                  }}>
-                    주간보고 작성 →
-                  </Link>
+                  <WeeklyReportBannerButton showGlow={showGlow} />
                 </div>
               </div>
 
