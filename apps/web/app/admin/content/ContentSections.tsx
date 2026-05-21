@@ -1,7 +1,10 @@
 'use client'
 
+import { useState, useRef, useCallback, useEffect } from 'react'
 import DynamicTable, { type ColumnDef } from '@/components/ui/DynamicTable'
 import DynamicKeyValue from '@/components/ui/DynamicKeyValue'
+
+type Toast = { msg: string; ok: boolean }
 
 // ─── 스타일 ───────────────────────────────────────────────────────────────
 
@@ -168,6 +171,32 @@ function SectionCard({
 // ─── 메인 ────────────────────────────────────────────────────────────────
 
 export default function ContentSections({ data, actions }: ContentSectionsProps) {
+  const [toast, setToast] = useState<Toast | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const showToast = useCallback((ok: boolean) => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    setToast({ msg: ok ? '저장되었습니다' : '저장 실패', ok })
+    timerRef.current = setTimeout(() => setToast(null), 3000)
+  }, [])
+
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
+
+
+  const submit = useCallback(
+    (action: (fd: FormData) => Promise<void>) =>
+      async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        try {
+          await action(new FormData(e.currentTarget))
+          showToast(true)
+        } catch {
+          showToast(false)
+        }
+      },
+    [showToast]
+  )
+
   const meta = (data['META'] ?? {}) as MetaValue
   const projects = ensureArray(data['projects'])
   const members = ensureArray(data['members'])
@@ -181,9 +210,23 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
 
   return (
     <>
+      {toast && (
+        <div role="alert" aria-live="polite" style={{
+          position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 9999,
+          padding: '0.75rem 1.25rem',
+          background: toast.ok ? '#16a34a' : '#dc2626',
+          color: '#fff', borderRadius: '0.5rem',
+          fontSize: '0.875rem', fontWeight: 600,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+          pointerEvents: 'none',
+        }}>
+          {toast.ok ? '✓ ' : '✕ '}{toast.msg}
+        </div>
+      )}
+
       {/* 1. META */}
       <SectionCard title="본부 기본 정보" badge="META" badgeColor="#ede9fe" badgeText="#7c3aed">
-        <form action={actions.updateMeta}>
+        <form onSubmit={submit(actions.updateMeta)}>
           <div style={FIELD_GRID}>
             {(
               [
@@ -206,7 +249,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
 
       {/* 2. projects */}
       <SectionCard title="프로젝트" badge="projects" badgeColor="#dbeafe" badgeText="#1d4ed8">
-        <form action={actions.updateProjects}>
+        <form onSubmit={submit(actions.updateProjects)}>
           <DynamicTable name="projects_json" columns={PROJECT_COLS} initialData={projects} addLabel="프로젝트 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
         </form>
@@ -214,7 +257,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
 
       {/* 3. members */}
       <SectionCard title="멤버" badge="members" badgeColor="#dcfce7" badgeText="#15803d">
-        <form action={actions.updateMembers}>
+        <form onSubmit={submit(actions.updateMembers)}>
           <DynamicTable name="members_json" columns={MEMBER_COLS} initialData={members} addLabel="멤버 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
         </form>
@@ -222,7 +265,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
 
       {/* 4. missions */}
       <SectionCard title="미션" badge="missions" badgeColor="#fef9c3" badgeText="#a16207">
-        <form action={actions.updateMissions}>
+        <form onSubmit={submit(actions.updateMissions)}>
           <DynamicTable name="missions_json" columns={MISSION_COLS} initialData={missions} addLabel="미션 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
         </form>
@@ -230,7 +273,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
 
       {/* 5. okr */}
       <SectionCard title="OKR" badge="okr" badgeColor="#fee2e2" badgeText="#dc2626">
-        <form action={actions.updateOkr}>
+        <form onSubmit={submit(actions.updateOkr)}>
           <DynamicTable name="okr_json" columns={OKR_COLS} initialData={okr} addLabel="OKR 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
         </form>
@@ -238,7 +281,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
 
       {/* 6. principles */}
       <SectionCard title="원칙" badge="principles" badgeColor="#f3e8ff" badgeText="#7c3aed">
-        <form action={actions.updatePrinciples}>
+        <form onSubmit={submit(actions.updatePrinciples)}>
           <DynamicTable name="principles_json" columns={PRINCIPLE_COLS} initialData={principles} addLabel="원칙 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
         </form>
@@ -246,7 +289,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
 
       {/* 7. kpi_targets */}
       <SectionCard title="KPI 목표" badge="kpi_targets" badgeColor="#dbeafe" badgeText="#1d4ed8">
-        <form action={actions.updateKpiTargets}>
+        <form onSubmit={submit(actions.updateKpiTargets)}>
           <DynamicTable name="kpi_targets_json" columns={KPI_TARGET_COLS} initialData={kpiTargets} addLabel="KPI 목표 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
         </form>
@@ -254,7 +297,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
 
       {/* 8. routine_templates */}
       <SectionCard title="루틴 템플릿" badge="routine_templates" badgeColor="#fef3c7" badgeText="#b45309">
-        <form action={actions.updateRoutineTemplates}>
+        <form onSubmit={submit(actions.updateRoutineTemplates)}>
           <DynamicTable name="routine_templates_json" columns={ROUTINE_COLS} initialData={routineTemplates} addLabel="루틴 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
         </form>
@@ -262,7 +305,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
 
       {/* 9. rhythm */}
       <SectionCard title="리듬 (Rhythm)" badge="rhythm" badgeColor="#f0fdf4" badgeText="#15803d">
-        <form action={actions.updateRhythm}>
+        <form onSubmit={submit(actions.updateRhythm)}>
           <DynamicKeyValue name="rhythm_json" initialData={rhythm} addLabel="리듬 항목 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
         </form>
@@ -270,7 +313,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
 
       {/* 10. dev_split */}
       <SectionCard title="개발 분배" badge="dev_split" badgeColor="#ede9fe" badgeText="#7c3aed">
-        <form action={actions.updateDevSplit}>
+        <form onSubmit={submit(actions.updateDevSplit)}>
           <DynamicKeyValue name="dev_split_json" initialData={devSplit} addLabel="항목 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
         </form>
