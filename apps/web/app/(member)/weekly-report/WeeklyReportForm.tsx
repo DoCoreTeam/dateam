@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, Save, Pencil, AlertTriangle, RotateCcw, HelpCircle } from 'lucide-react'
+import { Plus, Trash2, Save, Pencil, AlertTriangle, RotateCcw, Sparkles } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { upsertWeeklyReport, deleteAllWeeklyReports } from './actions'
 
@@ -25,6 +25,7 @@ interface WeeklyReportFormProps {
   isFirstTimeUser: boolean
   hasCarryForward?: boolean
   hasSavedData?: boolean
+  prevWeekCategories?: string[]
 }
 
 function getWeekDateRange(weekStart: string): { perf: string; plan: string } {
@@ -57,6 +58,7 @@ export default function WeeklyReportForm({
   isFirstTimeUser,
   hasCarryForward = false,
   hasSavedData = false,
+  prevWeekCategories = [],
 }: WeeklyReportFormProps) {
   const router = useRouter()
   const [selectedWeek, setSelectedWeek] = useState(initialWeek)
@@ -66,6 +68,44 @@ export default function WeeklyReportForm({
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetError, setResetError] = useState('')
   const [resetPending, startResetTransition] = useTransition()
+  const [isRefining, setIsRefining] = useState(false)
+  const [refineError, setRefineError] = useState('')
+  const [highlightedKeys, setHighlightedKeys] = useState<Set<string>>(new Set())
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleRefine = useCallback(async () => {
+    setRefineError('')
+    setIsRefining(true)
+    try {
+      const res = await fetch('/api/weekly-report/refine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows, prevCategories: prevWeekCategories }),
+      })
+      const data = await res.json() as { rows?: Row[]; error?: string }
+      if (!res.ok || !data.rows) {
+        setRefineError(data.error ?? 'AI 정비 중 오류가 발생했습니다')
+        return
+      }
+      const refined: Row[] = data.rows
+      const changed = new Set<string>()
+      refined.forEach((r, idx) => {
+        const orig = rows.find((o) => o.category === r.category) ?? rows[idx]
+        if (!orig) return
+        if (r.performance !== orig.performance) changed.add(`${r.category}-performance`)
+        if (r.plan !== orig.plan) changed.add(`${r.category}-plan`)
+        if (r.issues !== orig.issues) changed.add(`${r.category}-issues`)
+      })
+      setRows(refined)
+      setHighlightedKeys(changed)
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current)
+      highlightTimerRef.current = setTimeout(() => setHighlightedKeys(new Set()), 4000)
+    } catch {
+      setRefineError('네트워크 오류가 발생했습니다')
+    } finally {
+      setIsRefining(false)
+    }
+  }, [rows, prevWeekCategories])
 
   const hasExistingData = hasSavedData
 
@@ -221,6 +261,11 @@ export default function WeeklyReportForm({
           {submitError}
         </div>
       )}
+      {refineError && (
+        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.625rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
+          {refineError}
+        </div>
+      )}
       {/* category 자동완성 */}
       <datalist id="category-list">
         {pastCategories.map((c) => <option key={c} value={c} />)}
@@ -276,6 +321,7 @@ export default function WeeklyReportForm({
                   id={idx === 0 ? 'onboarding-performance' : undefined}
                   value={row.performance}
                   placeholder="이번 주 주요 성과…"
+                  highlighted={highlightedKeys.has(`${row.category}-performance`)}
                   onClick={() => setModalTarget({ rowIdx: idx, field: 'performance' })}
                 />
                 {/* 계획 */}
@@ -283,6 +329,7 @@ export default function WeeklyReportForm({
                   id={idx === 0 ? 'onboarding-plan' : undefined}
                   value={row.plan}
                   placeholder="다음 주 계획…"
+                  highlighted={highlightedKeys.has(`${row.category}-plan`)}
                   onClick={() => setModalTarget({ rowIdx: idx, field: 'plan' })}
                 />
                 {/* 이슈 */}
@@ -290,6 +337,7 @@ export default function WeeklyReportForm({
                   id={idx === 0 ? 'onboarding-issues' : undefined}
                   value={row.issues}
                   placeholder="이슈 또는 협조사항…"
+                  highlighted={highlightedKeys.has(`${row.category}-issues`)}
                   onClick={() => setModalTarget({ rowIdx: idx, field: 'issues' })}
                 />
                 {/* 삭제 */}
@@ -331,7 +379,7 @@ export default function WeeklyReportForm({
             <button
               type="button"
               onClick={() => setShowResetConfirm(true)}
-              disabled={pending || resetPending}
+              disabled={pending || resetPending || isRefining}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
                 fontSize: '0.8125rem', color: '#dc2626', background: '#fff1f2',
@@ -343,7 +391,23 @@ export default function WeeklyReportForm({
               초기화
             </button>
           )}
-          <button type="submit" className="btn-primary" disabled={pending || resetPending}>
+          <button
+            type="button"
+            onClick={handleRefine}
+            disabled={pending || resetPending || isRefining}
+            title="AI가 작성한 내용을 정비합니다 (빈 항목에는 내용을 생성하지 않습니다)"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
+              fontSize: '0.8125rem', color: '#7c3aed', background: '#f5f3ff',
+              border: '1px solid #ddd6fe', borderRadius: '0.5rem',
+              padding: '0.5rem 0.875rem', cursor: isRefining ? 'wait' : 'pointer',
+              opacity: isRefining ? 0.7 : 1,
+            }}
+          >
+            <Sparkles size={13} />
+            {isRefining ? 'AI 정비 중...' : 'AI 정비'}
+          </button>
+          <button type="submit" className="btn-primary" disabled={pending || resetPending || isRefining}>
             <Save size={15} />
             {pending ? '저장 중...' : '저장'}
           </button>
@@ -410,11 +474,13 @@ function EditorCell({
   id,
   value,
   placeholder,
+  highlighted = false,
   onClick,
 }: {
   id?: string
   value: string
   placeholder: string
+  highlighted?: boolean
   onClick: () => void
 }) {
   const hasContent = !!value && value !== '<p></p>'
@@ -436,7 +502,8 @@ function EditorCell({
           minHeight: '80px',
           padding: '0.5rem 0.625rem',
           borderRadius: '0.5rem',
-          border: '1px dashed #e2e8f0',
+          border: highlighted ? '1px solid #a78bfa' : '1px dashed #e2e8f0',
+          background: highlighted ? '#faf5ff' : 'transparent',
           position: 'relative',
           transition: 'border-color 120ms, background 120ms',
         }}

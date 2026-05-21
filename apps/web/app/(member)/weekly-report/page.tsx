@@ -63,8 +63,13 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     issues: r.issues,
   }))
 
-  // carry-forward: 이번 주 보고가 없고 이번 주 폼이면, 전주 계획 → 성과로 이월
+  // 전주 구분 목록 (AI 정비에서 신규 카테고리 판별용)
   const prevWeek = weekOptions[1] ?? null
+  const prevWeekCategories = prevWeek
+    ? Array.from(new Set((reports ?? []).filter((r) => r.week_start === prevWeek).map((r) => r.category))).filter(Boolean)
+    : []
+
+  // carry-forward: 이번 주 보고가 없고 이번 주 폼이면, 전주 계획 → 성과로 이월
   const isNonEmptyPlan = (plan: string) =>
     !!plan && plan !== '<p></p>' && plan !== '<p><br></p>' && plan.trim() !== ''
   const carryForwardRows =
@@ -177,6 +182,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
               isFirstTimeUser={(reports ?? []).length === 0}
               hasCarryForward={hasCarryForward}
               hasSavedData={prefillRows.length > 0}
+              prevWeekCategories={prevWeekCategories}
             />
           </div>
 
