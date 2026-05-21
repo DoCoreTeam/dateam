@@ -37,9 +37,9 @@ export default function Sidebar({ items, footer }: SidebarProps) {
           borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}
       >
-        <span style={{ color: '#fff', fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+        <Link href="/dashboard" style={{ color: '#fff', fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.02em', textDecoration: 'none' }}>
           AX사업본부
-        </span>
+        </Link>
       </div>
 
       {/* 네비게이션 */}
