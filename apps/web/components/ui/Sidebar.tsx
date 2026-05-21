@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { cn } from '@/lib/utils'
+import { useState } from 'react'
 
 interface NavItem {
   href: string
@@ -17,6 +17,7 @@ interface SidebarProps {
 
 export default function Sidebar({ items, footer }: SidebarProps) {
   const pathname = usePathname()
+  const [hoveredHref, setHoveredHref] = useState<string | null>(null)
 
   return (
     <aside
@@ -33,32 +34,47 @@ export default function Sidebar({ items, footer }: SidebarProps) {
       <div
         style={{
           padding: '1.5rem 1.25rem',
-          borderBottom: '1px solid rgb(255 255 255 / 0.06)',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}
       >
-        <span style={{ color: 'white', fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+        <span style={{ color: '#fff', fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
           AX사업본부
         </span>
       </div>
 
       {/* 네비게이션 */}
-      <nav style={{ flex: 1, padding: '0.75rem 0.75rem' }} aria-label="주 메뉴">
+      <nav style={{ flex: 1, padding: '0.75rem' }} aria-label="주 메뉴">
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
           {items.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+            const isHovered = hoveredHref === item.href && !isActive
             return (
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={cn(
-                    'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all',
-                    isActive
-                      ? 'bg-indigo-600 text-white'
-                      : 'text-slate-400 hover:text-white hover:bg-white/5'
-                  )}
-                  style={{ textDecoration: 'none' }}
+                  onMouseEnter={() => setHoveredHref(item.href)}
+                  onMouseLeave={() => setHoveredHref(null)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.625rem',
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '0.5rem',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    textDecoration: 'none',
+                    transition: 'background-color 120ms, color 120ms',
+                    backgroundColor: isActive
+                      ? '#4f46e5'
+                      : isHovered
+                      ? 'rgba(255,255,255,0.07)'
+                      : 'transparent',
+                    color: isActive || isHovered ? '#fff' : '#94a3b8',
+                  }}
                 >
-                  <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.7 }}>{item.icon}</span>
+                  <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.7, display: 'flex', alignItems: 'center' }}>
+                    {item.icon}
+                  </span>
                   {item.label}
                 </Link>
               </li>
@@ -69,7 +85,7 @@ export default function Sidebar({ items, footer }: SidebarProps) {
 
       {/* 푸터 */}
       {footer && (
-        <div style={{ padding: '0.75rem', borderTop: '1px solid rgb(255 255 255 / 0.06)' }}>
+        <div style={{ padding: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           {footer}
         </div>
       )}
