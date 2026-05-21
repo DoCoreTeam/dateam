@@ -136,18 +136,16 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
 
   return (
     <>
-      {/* 어두운 오버레이 */}
+      {/* 클릭 캡처 레이어 (투명 — 시각 효과 없음) */}
       <div
         onClick={finish}
         style={{
           position: 'fixed', inset: 0, zIndex: 9998,
-          background: 'rgba(2, 6, 23, 0.72)',
-          backdropFilter: 'blur(2px)',
-          WebkitBackdropFilter: 'blur(2px)',
+          background: 'transparent',
         }}
       />
 
-      {/* 스포트라이트 컷아웃 */}
+      {/* 스포트라이트 컷아웃: box-shadow가 바깥을 어둡게, 안쪽 타겟은 밝게 유지 */}
       {rect && (
         <div
           style={{
@@ -157,10 +155,11 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
             width: rect.width + PAD * 2,
             height: rect.height + PAD * 2,
             zIndex: 9999,
-            borderRadius: '0.625rem',
-            boxShadow: '0 0 0 200vmax rgba(2, 6, 23, 0.72)',
+            borderRadius: '0.75rem',
+            boxShadow: '0 0 0 200vmax rgba(2, 6, 23, 0.78)',
             pointerEvents: 'none',
-            outline: '2px solid rgba(99, 102, 241, 0.8)',
+            outline: '2.5px solid rgba(99, 102, 241, 0.9)',
+            outlineOffset: '0px',
           }}
         />
       )}
