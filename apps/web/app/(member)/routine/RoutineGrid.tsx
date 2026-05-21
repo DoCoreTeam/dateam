@@ -81,7 +81,10 @@ export default function RoutineGrid({
     const newValue = !checks[key]
     setChecks((prev) => ({ ...prev, [key]: newValue }))
     startTransition(async () => {
-      await upsertRoutineCheck(routineName, checkDate, weekStart, newValue)
+      const result = await upsertRoutineCheck(routineName, checkDate, weekStart, newValue)
+      if (result.error) {
+        setChecks((prev) => ({ ...prev, [key]: !newValue }))
+      }
     })
   }
 
