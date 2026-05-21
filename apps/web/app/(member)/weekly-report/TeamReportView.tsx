@@ -24,17 +24,23 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
   const [selectedWeek, setSelectedWeek] = useState(thisWeek)
   const [reports, setReports] = useState<MemberReport[]>(initialReports)
   const [loading, setLoading] = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [modal, setModal] = useState<MemberReport | null>(null)
 
   async function fetchWeek(week: string) {
     setReports([])
+    setFetchError(null)
     setLoading(true)
     try {
       const res = await fetch(`/api/weekly-report/team?week=${week}`)
       if (res.ok) {
         const data = await res.json() as MemberReport[]
         setReports(data)
+      } else {
+        setFetchError('데이터를 불러오지 못했습니다. 다시 시도해주세요.')
       }
+    } catch {
+      setFetchError('네트워크 오류가 발생했습니다. 다시 시도해주세요.')
     } finally {
       setLoading(false)
     }
@@ -75,8 +81,15 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
         {loading && <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>불러오는 중...</span>}
       </div>
 
+      {/* 에러 */}
+      {fetchError && (
+        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.625rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
+          {fetchError}
+        </div>
+      )}
+
       {/* 팀 보고 테이블 */}
-      {members.length === 0 ? (
+      {!fetchError && members.length === 0 && !loading ? (
         <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#94a3b8', fontSize: '0.875rem' }}>
           해당 주차 작성된 보고가 없습니다
         </div>

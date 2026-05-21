@@ -43,12 +43,18 @@ export async function inviteUser(formData: FormData): Promise<{ success?: boolea
 
   if (createError) return { error: createError.message }
 
-  // 트리거 실행 대기 후 profiles 업데이트
-  await new Promise((r) => setTimeout(r, 1000))
-
+  // auth.users 생성 직후 profiles를 직접 upsert (트리거 경합 없이 확정)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (adminClient.from('profiles') as any)
-    .upsert({ id: data.user.id, name, role: 'member', must_change_password: true })
+  const { error: profileError } = await (adminClient.from('profiles') as any)
+    .upsert(
+      { id: data.user.id, name, role: 'member', must_change_password: true },
+      { onConflict: 'id' }
+    )
+
+  if (profileError) {
+    console.error('[inviteUser] profile upsert error', profileError)
+    return { error: '사용자 생성 중 오류가 발생했습니다' }
+  }
 
   revalidatePath('/admin/users')
   return { success: true }

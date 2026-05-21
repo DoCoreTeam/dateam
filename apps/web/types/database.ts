@@ -29,6 +29,7 @@ export interface KpiEntry {
   unit: string
   period_start: string
   period_end: string
+  kpi_template_label: string | null
   created_at: string
   updated_at: string
 }
