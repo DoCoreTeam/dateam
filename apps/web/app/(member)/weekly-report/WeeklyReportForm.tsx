@@ -88,6 +88,7 @@ export default function WeeklyReportForm({
   const refineTimerRefs = useRef<ReturnType<typeof setTimeout>[]>([])
   const refineIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const refinedRowsRef = useRef<Row[]>([])
+  const lastRefinedSnapshotRef = useRef<string>('')
 
   function clearRefineTimers() {
     refineTimerRefs.current.forEach(clearTimeout)
@@ -98,6 +99,12 @@ export default function WeeklyReportForm({
   useEffect(() => () => { clearRefineTimers() }, [])
 
   const handleRefine = useCallback(async () => {
+    const snapshot = JSON.stringify(rows)
+    if (lastRefinedSnapshotRef.current === snapshot) {
+      setRefineError('이미 다듬어진 내용입니다. 내용을 수정한 후 다시 시도해 주세요.')
+      return
+    }
+
     clearRefineTimers()
     setRefineError('')
     setRefineStep(0)
@@ -136,10 +143,12 @@ export default function WeeklyReportForm({
       })
 
       if (items.length === 0) {
+        lastRefinedSnapshotRef.current = snapshot
         setRefineError('변경된 내용이 없습니다')
         return
       }
 
+      lastRefinedSnapshotRef.current = snapshot
       setDiffItems(items)
       setShowDiffModal(true)
     } catch {
@@ -165,6 +174,7 @@ export default function WeeklyReportForm({
     })
     const changed = new Set<string>()
     confirmedItems.filter((i) => i.accepted).forEach((i) => changed.add(`${i.category}-${i.field}`))
+    lastRefinedSnapshotRef.current = JSON.stringify(newRows)
     setRows(newRows)
     setHighlightedKeys(changed)
     if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current)
