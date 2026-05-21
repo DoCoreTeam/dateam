@@ -7,6 +7,7 @@ const securityHeaders = [
 ]
 
 const nextConfig = {
+  serverExternalPackages: ['sanitize-html'],
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }]
   },
