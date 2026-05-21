@@ -1,0 +1,86 @@
+'use server'
+
+import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
+
+const GEMINI_KEY = 'gemini_api_key'
+
+async function requireAdmin() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const adminClient = createAdminClient()
+  const { data: profile } = await adminClient
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single() as unknown as { data: { role: string } | null }
+
+  return profile?.role === 'admin' ? adminClient : null
+}
+
+export async function saveGeminiKey(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  const apiKey = (formData.get('apiKey') as string)?.trim()
+  if (!apiKey) return { ok: false, error: 'API 키를 입력해주세요' }
+
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (client as any)
+    .from('org_content')
+    .upsert({ key: GEMINI_KEY, value: apiKey }, { onConflict: 'key' })
+
+  if (error) return { ok: false, error: '저장 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  return { ok: true }
+}
+
+export async function deleteGeminiKey(): Promise<{ ok: boolean; error?: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (client as any)
+    .from('org_content')
+    .delete()
+    .eq('key', GEMINI_KEY)
+
+  if (error) return { ok: false, error: '삭제 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  return { ok: true }
+}
+
+export async function checkGeminiHealth(): Promise<{ ok: boolean; message: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, message: '관리자 권한이 필요합니다' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (client as any)
+    .from('org_content')
+    .select('value')
+    .eq('key', GEMINI_KEY)
+    .single()
+
+  if (!data?.value) return { ok: false, message: '저장된 API 키가 없습니다' }
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${data.value as string}`,
+      { headers: { 'Content-Type': 'application/json' }, cache: 'no-store' }
+    )
+
+    if (res.ok) {
+      const json = await res.json() as { models?: unknown[] }
+      return { ok: true, message: `연결 성공 — ${json.models?.length ?? 0}개 모델 사용 가능` }
+    }
+
+    const errJson = await res.json().catch(() => ({})) as { error?: { message?: string } }
+    return { ok: false, message: `API 오류: ${errJson?.error?.message ?? res.statusText}` }
+  } catch {
+    return { ok: false, message: '네트워크 오류가 발생했습니다' }
+  }
+}

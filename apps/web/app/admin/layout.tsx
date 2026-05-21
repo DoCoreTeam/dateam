@@ -11,6 +11,7 @@ import {
   CheckSquare,
   BarChart2,
   Settings2,
+  Key,
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
 
@@ -39,6 +40,11 @@ const ADMIN_NAV_ITEMS = [
     href: '/admin/content',
     label: '콘텐츠 관리',
     icon: <Settings2 size={16} />,
+  },
+  {
+    href: '/admin/settings',
+    label: 'API 설정',
+    icon: <Key size={16} />,
   },
 ]
 
