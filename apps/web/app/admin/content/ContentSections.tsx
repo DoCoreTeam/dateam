@@ -1,8 +1,13 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { Sparkles } from 'lucide-react'
 import DynamicTable, { type ColumnDef } from '@/components/ui/DynamicTable'
 import DynamicKeyValue from '@/components/ui/DynamicKeyValue'
+import AXDotLoader from '@/components/ui/AXDotLoader'
+import ContentDiffModal from '@/components/ui/ContentDiffModal'
+import { aiApplySection } from './actions'
 
 type Toast = { msg: string; ok: boolean }
 
@@ -145,12 +150,14 @@ function SectionCard({
   badgeColor,
   badgeText,
   children,
+  headerAction,
 }: {
   title: string
   badge: string
   badgeColor: string
   badgeText: string
   children: React.ReactNode
+  headerAction?: React.ReactNode
 }) {
   return (
     <section style={CARD}>
@@ -162,6 +169,7 @@ function SectionCard({
         >
           {badge}
         </span>
+        {headerAction}
       </div>
       <div style={CARD_BODY}>{children}</div>
     </section>
@@ -170,9 +178,33 @@ function SectionCard({
 
 // ─── 메인 ────────────────────────────────────────────────────────────────
 
+interface AiPromptState {
+  sectionKey: string
+  sectionName: string
+  columns: ColumnDef[]
+  data: Record<string, unknown>[]
+}
+
+interface AiDiffState {
+  sectionKey: string
+  sectionName: string
+  columns: ColumnDef[]
+  original: Record<string, unknown>[]
+  proposed: Record<string, unknown>[]
+}
+
 export default function ContentSections({ data, actions }: ContentSectionsProps) {
+  const router = useRouter()
   const [toast, setToast] = useState<Toast | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // AI state
+  const [aiPromptModal, setAiPromptModal] = useState<AiPromptState | null>(null)
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const [aiDiff, setAiDiff] = useState<AiDiffState | null>(null)
+  const [aiApplying, setAiApplying] = useState(false)
 
   const showToast = useCallback((ok: boolean) => {
     if (timerRef.current) clearTimeout(timerRef.current)
@@ -181,6 +213,81 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
   }, [])
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
+
+  const openAiModal = useCallback((state: AiPromptState) => {
+    setAiError(null)
+    setAiPrompt('')
+    setAiPromptModal(state)
+  }, [])
+
+  const handleAiRun = useCallback(async () => {
+    if (!aiPromptModal || !aiPrompt.trim()) return
+    setAiLoading(true)
+    setAiError(null)
+    try {
+      const res = await fetch('/api/content/ai-edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sectionName: aiPromptModal.sectionName,
+          columns: aiPromptModal.columns.map((c) => ({ key: c.key, label: c.label, type: c.type })),
+          currentData: aiPromptModal.data,
+          prompt: aiPrompt,
+        }),
+      })
+      const json = await res.json() as { data?: Record<string, unknown>[]; error?: string }
+      if (!res.ok) { setAiError(json.error ?? 'AI 오류가 발생했습니다'); return }
+      setAiDiff({
+        sectionKey: aiPromptModal.sectionKey,
+        sectionName: aiPromptModal.sectionName,
+        columns: aiPromptModal.columns,
+        original: aiPromptModal.data,
+        proposed: json.data ?? [],
+      })
+      setAiPromptModal(null)
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'AI 오류가 발생했습니다')
+    } finally {
+      setAiLoading(false)
+    }
+  }, [aiPromptModal, aiPrompt])
+
+  const handleAiApply = useCallback(async () => {
+    if (!aiDiff) return
+    setAiApplying(true)
+    const result = await aiApplySection(aiDiff.sectionKey, aiDiff.proposed)
+    setAiApplying(false)
+    setAiDiff(null)
+    if (result.ok) {
+      showToast(true)
+      router.refresh()
+    } else {
+      showToast(false)
+    }
+  }, [aiDiff, showToast, router])
+
+  const AiButton = ({ sectionKey, sectionName, columns, currentData }: {
+    sectionKey: string
+    sectionName: string
+    columns: ColumnDef[]
+    currentData: Record<string, unknown>[]
+  }) => (
+    <button
+      type="button"
+      onClick={() => openAiModal({ sectionKey, sectionName, columns, data: currentData })}
+      style={{
+        marginLeft: '0.5rem',
+        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+        padding: '0.25rem 0.625rem',
+        background: '#eef2ff', color: '#4338ca',
+        border: '1px solid #c7d2fe', borderRadius: '0.375rem',
+        fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
+      }}
+    >
+      <Sparkles size={11} />
+      AI 작성
+    </button>
+  )
 
 
   const submit = useCallback(
@@ -198,6 +305,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
   )
 
   const meta = (data['META'] ?? {}) as MetaValue
+  const orgName = typeof meta.org === 'string' ? meta.org : typeof meta.title === 'string' ? meta.title : ''
   const projects = ensureArray(data['projects'])
   const members = ensureArray(data['members'])
   const missions = ensureArray(data['missions'])
@@ -224,6 +332,143 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         </div>
       )}
 
+      {/* AI 프롬프트 모달 */}
+      {aiPromptModal && !aiLoading && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed', inset: 0, zIndex: 8000,
+            background: 'rgba(15,23,42,0.45)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '1rem',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setAiPromptModal(null) }}
+        >
+          <div style={{
+            background: '#fff',
+            borderRadius: '0.875rem',
+            boxShadow: '0 16px 48px rgba(0,0,0,0.2)',
+            width: '100%', maxWidth: '480px',
+            padding: '1.5rem',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+              <Sparkles size={16} color="#6366f1" />
+              <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a' }}>
+                AI 작성 — {aiPromptModal.sectionName}
+              </span>
+            </div>
+            <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: '0 0 0.75rem' }}>
+              수정 요청을 자유롭게 입력하세요. AI가 현재 데이터를 기반으로 반영합니다.
+            </p>
+            <textarea
+              autoFocus
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleAiRun() }}
+              placeholder={`예: "평택 스마트시티 진행률을 95로 올려줘" / "김철수 PM 추가해줘" / "완료된 프로젝트 삭제해줘"`}
+              rows={4}
+              style={{
+                width: '100%', padding: '0.625rem 0.875rem',
+                border: '1px solid #e2e8f0', borderRadius: '0.5rem',
+                fontSize: '0.875rem', color: '#0f172a',
+                resize: 'vertical', fontFamily: 'inherit',
+                boxSizing: 'border-box', outline: 'none',
+              }}
+              onFocus={(e) => { e.target.style.borderColor = '#6366f1' }}
+              onBlur={(e) => { e.target.style.borderColor = '#e2e8f0' }}
+            />
+            {aiError && (
+              <div style={{
+                marginTop: '0.5rem', padding: '0.5rem 0.75rem',
+                background: '#fef2f2', border: '1px solid #fecaca',
+                borderRadius: '0.4rem', fontSize: '0.8125rem', color: '#b91c1c',
+              }}>
+                {aiError}
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
+              <button
+                type="button"
+                onClick={() => setAiPromptModal(null)}
+                style={{
+                  padding: '0.5rem 1rem', background: 'transparent',
+                  color: '#64748b', border: '1px solid #e2e8f0',
+                  borderRadius: '0.5rem', fontSize: '0.875rem', cursor: 'pointer',
+                }}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleAiRun}
+                disabled={!aiPrompt.trim()}
+                style={{
+                  padding: '0.5rem 1.25rem',
+                  background: aiPrompt.trim() ? '#6366f1' : '#e2e8f0',
+                  color: aiPrompt.trim() ? '#fff' : '#94a3b8',
+                  border: 'none', borderRadius: '0.5rem',
+                  fontSize: '0.875rem', fontWeight: 600,
+                  cursor: aiPrompt.trim() ? 'pointer' : 'not-allowed',
+                  display: 'flex', alignItems: 'center', gap: '0.375rem',
+                }}
+              >
+                <Sparkles size={13} />
+                AI 실행 <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>(⌘↵)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI 로딩 오버레이 */}
+      {aiLoading && (
+        <div
+          aria-live="polite"
+          aria-label="AI 편집 중"
+          style={{
+            position: 'fixed', inset: 0, zIndex: 8500,
+            background: 'rgba(15,23,42,0.7)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: '1.5rem',
+          }}
+        >
+          {orgName && (
+            <div aria-hidden style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '0.08em' }}>
+              {orgName.split('').map((ch, i) => (
+                <span
+                  key={i}
+                  style={{
+                    display: 'inline-block',
+                    animation: 'char-wave 1.8s ease-in-out infinite',
+                    animationDelay: `${i * 0.12}s`,
+                  }}
+                >
+                  {ch}
+                </span>
+              ))}
+            </div>
+          )}
+          {!orgName && <AXDotLoader size={10} color="#fff" />}
+          <p style={{ color: '#e2e8f0', fontSize: '0.9rem', margin: 0 }}>AI가 수정 요청을 처리 중입니다…</p>
+        </div>
+      )}
+
+      {/* AI diff 모달 */}
+      {aiDiff && (
+        <ContentDiffModal
+          sectionName={aiDiff.sectionName}
+          columns={aiDiff.columns}
+          original={aiDiff.original}
+          proposed={aiDiff.proposed}
+          loading={aiApplying}
+          onConfirm={handleAiApply}
+          onCancel={() => setAiDiff(null)}
+        />
+      )}
+
       {/* 1. META */}
       <SectionCard title="본부 기본 정보" badge="META" badgeColor="#ede9fe" badgeText="#7c3aed">
         <form onSubmit={submit(actions.updateMeta)}>
@@ -248,7 +493,9 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 2. projects */}
-      <SectionCard title="프로젝트" badge="projects" badgeColor="#dbeafe" badgeText="#1d4ed8">
+      <SectionCard title="프로젝트" badge="projects" badgeColor="#dbeafe" badgeText="#1d4ed8"
+        headerAction={<AiButton sectionKey="projects" sectionName="프로젝트" columns={PROJECT_COLS} currentData={projects} />}
+      >
         <form onSubmit={submit(actions.updateProjects)}>
           <DynamicTable name="projects_json" columns={PROJECT_COLS} initialData={projects} addLabel="프로젝트 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
@@ -256,7 +503,9 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 3. members */}
-      <SectionCard title="멤버" badge="members" badgeColor="#dcfce7" badgeText="#15803d">
+      <SectionCard title="멤버" badge="members" badgeColor="#dcfce7" badgeText="#15803d"
+        headerAction={<AiButton sectionKey="members" sectionName="멤버" columns={MEMBER_COLS} currentData={members} />}
+      >
         <form onSubmit={submit(actions.updateMembers)}>
           <DynamicTable name="members_json" columns={MEMBER_COLS} initialData={members} addLabel="멤버 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
@@ -264,7 +513,9 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 4. missions */}
-      <SectionCard title="미션" badge="missions" badgeColor="#fef9c3" badgeText="#a16207">
+      <SectionCard title="미션" badge="missions" badgeColor="#fef9c3" badgeText="#a16207"
+        headerAction={<AiButton sectionKey="missions" sectionName="미션" columns={MISSION_COLS} currentData={missions} />}
+      >
         <form onSubmit={submit(actions.updateMissions)}>
           <DynamicTable name="missions_json" columns={MISSION_COLS} initialData={missions} addLabel="미션 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
@@ -272,7 +523,9 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 5. okr */}
-      <SectionCard title="OKR" badge="okr" badgeColor="#fee2e2" badgeText="#dc2626">
+      <SectionCard title="OKR" badge="okr" badgeColor="#fee2e2" badgeText="#dc2626"
+        headerAction={<AiButton sectionKey="okr" sectionName="OKR" columns={OKR_COLS} currentData={okr} />}
+      >
         <form onSubmit={submit(actions.updateOkr)}>
           <DynamicTable name="okr_json" columns={OKR_COLS} initialData={okr} addLabel="OKR 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
@@ -280,7 +533,9 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 6. principles */}
-      <SectionCard title="원칙" badge="principles" badgeColor="#f3e8ff" badgeText="#7c3aed">
+      <SectionCard title="원칙" badge="principles" badgeColor="#f3e8ff" badgeText="#7c3aed"
+        headerAction={<AiButton sectionKey="principles" sectionName="원칙" columns={PRINCIPLE_COLS} currentData={principles} />}
+      >
         <form onSubmit={submit(actions.updatePrinciples)}>
           <DynamicTable name="principles_json" columns={PRINCIPLE_COLS} initialData={principles} addLabel="원칙 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
@@ -288,7 +543,9 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 7. kpi_targets */}
-      <SectionCard title="KPI 목표" badge="kpi_targets" badgeColor="#dbeafe" badgeText="#1d4ed8">
+      <SectionCard title="KPI 목표" badge="kpi_targets" badgeColor="#dbeafe" badgeText="#1d4ed8"
+        headerAction={<AiButton sectionKey="kpi_targets" sectionName="KPI 목표" columns={KPI_TARGET_COLS} currentData={kpiTargets} />}
+      >
         <form onSubmit={submit(actions.updateKpiTargets)}>
           <DynamicTable name="kpi_targets_json" columns={KPI_TARGET_COLS} initialData={kpiTargets} addLabel="KPI 목표 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
@@ -296,7 +553,9 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 8. routine_templates */}
-      <SectionCard title="루틴 템플릿" badge="routine_templates" badgeColor="#fef3c7" badgeText="#b45309">
+      <SectionCard title="루틴 템플릿" badge="routine_templates" badgeColor="#fef3c7" badgeText="#b45309"
+        headerAction={<AiButton sectionKey="routine_templates" sectionName="루틴 템플릿" columns={ROUTINE_COLS} currentData={routineTemplates} />}
+      >
         <form onSubmit={submit(actions.updateRoutineTemplates)}>
           <DynamicTable name="routine_templates_json" columns={ROUTINE_COLS} initialData={routineTemplates} addLabel="루틴 추가" />
           <button type="submit" style={SUBMIT}>저장</button>

@@ -224,7 +224,8 @@
   .tiptap-content h2 { font-size: 1.125rem; font-weight: 700; margin: 0.75rem 0 0.25rem; color: #0f172a; }
   .tiptap-content h3 { font-size: 1rem; font-weight: 600; margin: 0.625rem 0 0.25rem; color: #1e293b; }
   .tiptap-content p { margin: 0.2rem 0; line-height: 1.6; font-size: 0.875rem; color: #334155; }
-  .tiptap-content ul, .tiptap-content ol { margin: 0.25rem 0 0.25rem 1.25rem; padding: 0; }
+  .tiptap-content ul { margin: 0.25rem 0 0.25rem 1.25rem; padding: 0; list-style-type: disc; }
+  .tiptap-content ol { margin: 0.25rem 0 0.25rem 1.25rem; padding: 0; list-style-type: decimal; }
   .tiptap-content li { margin: 0.15rem 0; font-size: 0.875rem; color: #334155; line-height: 1.6; }
   .tiptap-content blockquote { border-left: 3px solid #c7d2fe; margin: 0.5rem 0; padding: 0.25rem 0.75rem; color: #64748b; background: #f8fafc; border-radius: 0 0.25rem 0.25rem 0; }
   .tiptap-content pre { background: #1e293b; color: #e2e8f0; padding: 0.75rem 1rem; border-radius: 0.4rem; font-size: 0.8125rem; overflow-x: auto; margin: 0.4rem 0; }
@@ -240,7 +241,8 @@
   .report-rich h2 { font-size: 1rem; font-weight: 700; margin: 0.5rem 0 0.2rem; color: #0f172a; }
   .report-rich h3 { font-size: 0.9375rem; font-weight: 600; margin: 0.4rem 0 0.15rem; color: #1e293b; }
   .report-rich p { margin: 0.15rem 0; line-height: 1.6; font-size: 0.875rem; color: #374151; }
-  .report-rich ul, .report-rich ol { margin: 0.2rem 0 0.2rem 1.2rem; padding: 0; }
+  .report-rich ul { margin: 0.2rem 0 0.2rem 1.2rem; padding: 0; list-style-type: disc; }
+  .report-rich ol { margin: 0.2rem 0 0.2rem 1.2rem; padding: 0; list-style-type: decimal; }
   .report-rich li { margin: 0.1rem 0; font-size: 0.875rem; color: #374151; line-height: 1.6; }
   .report-rich blockquote { border-left: 3px solid #c7d2fe; margin: 0.4rem 0; padding: 0.2rem 0.625rem; color: #64748b; background: #f8fafc; border-radius: 0 0.25rem 0.25rem 0; }
   .report-rich pre { background: #1e293b; color: #e2e8f0; padding: 0.625rem 0.875rem; border-radius: 0.4rem; font-size: 0.8125rem; overflow-x: auto; margin: 0.3rem 0; }

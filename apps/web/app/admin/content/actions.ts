@@ -143,3 +143,28 @@ export async function updateExtSlots(formData: FormData): Promise<void> {
   if (value) await updateOrgContent('ext_slots', value)
   redirect('/admin/content')
 }
+
+const AI_ALLOWED_SECTION_KEYS = new Set([
+  'projects', 'members', 'missions', 'okr',
+  'principles', 'kpi_targets', 'routine_templates',
+])
+
+export async function aiApplySection(
+  sectionKey: string,
+  data: unknown[]
+): Promise<{ ok: boolean; error?: string }> {
+  if (!AI_ALLOWED_SECTION_KEYS.has(sectionKey)) {
+    return { ok: false, error: '허용되지 않은 섹션입니다' }
+  }
+  if (!Array.isArray(data)) {
+    return { ok: false, error: '데이터 형식이 올바르지 않습니다' }
+  }
+  try {
+    const ctx = await requireAdmin()
+    if (!ctx) return { ok: false, error: '관리자 권한이 필요합니다' }
+    await updateOrgContent(sectionKey, data)
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : '저장 실패' }
+  }
+}
