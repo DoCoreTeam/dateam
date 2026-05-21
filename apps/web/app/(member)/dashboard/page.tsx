@@ -121,14 +121,25 @@ export default async function DashboardPage() {
                 <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.65)', margin: '0 0 1.25rem' }}>
                   {meta.subtitle}
                 </p>
-                <span style={{
-                  display: 'inline-block', fontSize: '0.6875rem', fontWeight: 600,
-                  color: 'rgba(255,255,255,0.7)', backgroundColor: 'rgba(255,255,255,0.12)',
-                  border: '1px solid rgba(255,255,255,0.2)', borderRadius: '999px',
-                  padding: '0.2rem 0.625rem', letterSpacing: '0.04em',
-                }}>
-                  {meta.version} · {meta.date}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span style={{
+                    display: 'inline-block', fontSize: '0.6875rem', fontWeight: 600,
+                    color: 'rgba(255,255,255,0.7)', backgroundColor: 'rgba(255,255,255,0.12)',
+                    border: '1px solid rgba(255,255,255,0.2)', borderRadius: '999px',
+                    padding: '0.2rem 0.625rem', letterSpacing: '0.04em',
+                  }}>
+                    {meta.version} · {meta.date}
+                  </span>
+                  <Link href="/weekly-report" style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                    fontSize: '0.6875rem', fontWeight: 600,
+                    color: '#ffffff', backgroundColor: 'rgba(255,255,255,0.18)',
+                    border: '1px solid rgba(255,255,255,0.35)', borderRadius: '999px',
+                    padding: '0.2rem 0.75rem', textDecoration: 'none', letterSpacing: '0.02em',
+                  }}>
+                    주간보고 작성 →
+                  </Link>
+                </div>
               </div>
 
               {meta.stats && meta.stats.length > 0 && (
