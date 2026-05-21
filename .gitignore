@@ -21,3 +21,12 @@ apps/web/out/
 pnpm-lock.yaml
 .playwright-mcp/
 *.png
+
+# Ralph 내부 작업 로그
+.ralph/
+
+# TypeScript 빌드 캐시
+apps/web/tsconfig.tsbuildinfo
+
+# npm lock (pnpm 프로젝트)
+package-lock.json
