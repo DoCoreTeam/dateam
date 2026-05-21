@@ -61,6 +61,35 @@ export async function deleteUser(userId: string): Promise<{ success?: boolean; e
   return { success: true }
 }
 
+export async function resetUserPassword(
+  userId: string,
+  userEmail: string
+): Promise<{ ok: true; link: string } | { ok: false; error: string }> {
+  const ctx = await requireAdmin()
+  if (!ctx) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const adminClient = createAdminClient()
+
+  // must_change_password 플래그 설정
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (adminClient.from('profiles') as any)
+    .update({ must_change_password: true })
+    .eq('id', userId)
+
+  // Supabase recovery link 생성 (비밀번호 없이 클릭만으로 로그인)
+  const { data, error } = await adminClient.auth.admin.generateLink({
+    type: 'recovery',
+    email: userEmail,
+  })
+
+  if (error || !data.properties?.action_link) {
+    return { ok: false, error: error?.message ?? '링크 생성 실패' }
+  }
+
+  revalidatePath('/admin/users')
+  return { ok: true, link: data.properties.action_link }
+}
+
 export async function inviteUser(formData: FormData): Promise<{ success?: boolean; error?: string }> {
   const email = (formData.get('email') as string)?.trim()
   const name = (formData.get('name') as string)?.trim()

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/ui/Sidebar'
+import SidebarProfile from '@/components/ui/SidebarProfile'
 import NavigationLoader from '@/components/ui/NavigationLoader'
 import LogoutButton from '@/components/ui/LogoutButton'
 import PasswordChangeModal from '@/components/ui/PasswordChangeModal'
@@ -63,51 +64,13 @@ export default async function MemberLayout({
     .single() as unknown as { data: Pick<Profile, 'name' | 'role' | 'must_change_password'> | null; error: unknown }
 
   const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
+  const userEmail = user.email ?? ''
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar
         items={NAV_ITEMS}
-        footer={
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.625rem',
-              padding: '0.5rem 0.5rem',
-            }}
-          >
-            <div
-              style={{
-                width: '1.875rem',
-                height: '1.875rem',
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #6366f1, #818cf8)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: 'white',
-              }}
-            >
-              {displayName.charAt(0).toUpperCase()}
-            </div>
-            <span
-              style={{
-                fontSize: '0.8125rem',
-                color: '#cbd5e1',
-                flex: 1,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {displayName}
-            </span>
-          </div>
-        }
+        footer={<SidebarProfile name={displayName} email={userEmail} />}
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>

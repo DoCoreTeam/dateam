@@ -72,7 +72,7 @@ export default async function ChangePasswordPage({ searchParams }: PageProps) {
             비밀번호 변경
           </h1>
           <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.5rem', lineHeight: 1.6 }}>
-            임시 비밀번호를 사용 중입니다.<br />새 비밀번호를 설정해 주세요.
+            새 비밀번호를 설정해 주세요.
           </p>
         </div>
 
