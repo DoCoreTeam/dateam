@@ -65,6 +65,7 @@ export default async function AdminLayout({
     .from('profiles')
     .select('name, role, must_change_password')
     .eq('id', user.id)
+    .is('deleted_at', null)
     .single() as unknown as { data: Pick<Profile, 'name' | 'role' | 'must_change_password'> | null; error: unknown }
 
   if (!profile || profile.role !== 'admin') redirect('/dashboard')

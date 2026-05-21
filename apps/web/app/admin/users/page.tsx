@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { Users, UserPlus } from 'lucide-react'
 import RoleToggle from './RoleToggle'
 import InviteForm from './InviteForm'
+import DeleteUserButton from './DeleteUserButton'
 import type { Profile } from '@/types/database'
 
 export default async function AdminUsersPage() {
@@ -55,6 +56,7 @@ export default async function AdminUsersPage() {
               <th>초기PW변경</th>
               <th>가입일</th>
               <th style={{ width: '120px' }}>역할 변경</th>
+              <th style={{ width: '100px' }}>삭제</th>
             </tr>
           </thead>
           <tbody>
@@ -96,6 +98,9 @@ export default async function AdminUsersPage() {
                 </td>
                 <td>
                   <RoleToggle userId={profile.id} currentRole={profile.role} isSelf={profile.id === user.id} />
+                </td>
+                <td>
+                  <DeleteUserButton userId={profile.id} userName={profile.name ?? profile.id} isSelf={profile.id === user.id} />
                 </td>
               </tr>
             ))}

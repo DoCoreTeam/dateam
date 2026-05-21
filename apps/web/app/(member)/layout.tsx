@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/ui/Sidebar'
+import NavigationLoader from '@/components/ui/NavigationLoader'
 import LogoutButton from '@/components/ui/LogoutButton'
 import PasswordChangeModal from '@/components/ui/PasswordChangeModal'
 import NameSetupModal from '@/components/ui/NameSetupModal'
@@ -158,6 +159,7 @@ export default async function MemberLayout({
       </div>
       {profile?.must_change_password && <PasswordChangeModal />}
       {!profile?.must_change_password && !profile?.name && <NameSetupModal />}
+      <NavigationLoader orgName="AX사업본부" />
     </div>
   )
 }

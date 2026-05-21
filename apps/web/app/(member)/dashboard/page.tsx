@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ArrowRight, CheckCircle2, TrendingUp, FileText } from 'lucide-react'
 import type { Profile, KpiEntry, RoutineCheck, WeeklyReport, OrgContent, Json } from '@/types/database'
 import WeeklyReportBannerButton from '@/components/ui/WeeklyReportBannerButton'
+import FridaySpotlightOverlay from '@/components/ui/FridaySpotlightOverlay'
 
 const ROUTINES = ['Morning Standup', '리포트 확인', '이슈 로그', '업무 마감 체크']
 
@@ -81,6 +82,7 @@ export default async function DashboardPage() {
 
   return (
     <div>
+      <FridaySpotlightOverlay showGlow={showGlow} />
       {/* 헤더 */}
       <div style={{ marginBottom: '1.75rem' }}>
         <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>

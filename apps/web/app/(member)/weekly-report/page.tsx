@@ -38,10 +38,15 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
   const justSaved = saved === '1'
   const justReset = reset === '1'
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: metaRow } = await (createAdminClient() as any).from('org_content').select('value').eq('key', 'META').single()
-  const meta = (metaRow?.value as Record<string, unknown>) ?? {}
-  const orgName = typeof meta.org === 'string' ? meta.org : typeof meta.title === 'string' ? meta.title : ''
+  let orgName = ''
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: metaRow } = await (createAdminClient() as any).from('org_content').select('value').eq('key', 'META').single()
+    const meta = (metaRow?.value as Record<string, unknown>) ?? {}
+    orgName = typeof meta.org === 'string' ? meta.org : typeof meta.title === 'string' ? meta.title : ''
+  } catch (err) {
+    console.warn('[weekly-report] org_content lookup failed; orgName will be empty', err)
+  }
 
   const weekOptions = Array.from({ length: 8 }, (_, i) => {
     const d = getWeekStart(subWeeks(new Date(), i))
