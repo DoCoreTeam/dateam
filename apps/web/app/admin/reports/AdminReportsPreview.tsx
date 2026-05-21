@@ -105,6 +105,8 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
   const downloadingRef = useRef(false)
   const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([])
   const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const prevFocusRef = useRef<HTMLElement | null>(null)
 
   // 마운트/필터 변경 시 sessionStorage에서 복원
   useEffect(() => {
@@ -127,6 +129,16 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
   }
 
   useEffect(() => () => clearTimers(), [])
+
+  useEffect(() => {
+    if (loading) {
+      prevFocusRef.current = document.activeElement as HTMLElement
+      overlayRef.current?.focus()
+    } else {
+      prevFocusRef.current?.focus()
+      prevFocusRef.current = null
+    }
+  }, [loading])
 
   async function handlePreview() {
     clearTimers()
@@ -213,6 +225,56 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
         }
       `}</style>
 
+      {/* Full-screen loading overlay */}
+      {loading && (
+        <div
+          ref={overlayRef}
+          role="status"
+          aria-live="polite"
+          aria-label={`AI 취합 중 — ${STEPS[Math.min(statusStep, STEPS.length - 1)].label}`}
+          tabIndex={-1}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9998,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+            background: 'rgba(248, 247, 255, 0.55)',
+            outline: 'none',
+          }}
+        >
+          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem' }}>
+            {orgName && (
+              <div aria-hidden style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '0.08em', userSelect: 'none' }}>
+                {orgName.split('').map((ch, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      display: 'inline-block',
+                      animation: 'char-wave 1.8s ease-in-out infinite',
+                      animationDelay: `${i * 0.12}s`,
+                    }}
+                  >
+                    {ch}
+                  </span>
+                ))}
+              </div>
+            )}
+            <span aria-hidden style={{ fontSize: '0.875rem', color: '#6d28d9', fontWeight: 600 }}>
+              {STEPS[Math.min(statusStep, STEPS.length - 1)].label}
+            </span>
+            <div
+              role="progressbar"
+              aria-busy="true"
+              aria-label="AI 취합 진행 중"
+              style={{ width: 120, height: 3, borderRadius: 3, background: '#ede9fe', overflow: 'hidden', position: 'relative' }}
+            >
+              <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '40%', borderRadius: 3, background: '#8b5cf6', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
+            </div>
+            <span aria-hidden style={{ fontSize: '0.75rem', color: '#a78bfa' }}>{elapsed}초</span>
+          </div>
+        </div>
+      )}
+
       {/* Trigger button + inline status */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <button
@@ -236,9 +298,9 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
           AI 주간보고 취합
         </button>
 
-        {/* Inline loading status */}
+        {/* Inline loading status — aria-hidden: overlay가 동일 정보를 발화함 */}
         {loading && (
-          <div role="status" aria-live="polite" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+          <div aria-hidden="true" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
             <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexShrink: 0 }}>
               {STEPS.map((_, i) => {
                 const done = i < statusStep
@@ -249,9 +311,9 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
               })}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', minWidth: 0 }}>
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#6d28d9', whiteSpace: 'nowrap' }}>{STEPS[statusStep].label}</span>
+              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#6d28d9', whiteSpace: 'nowrap' }}>{STEPS[Math.min(statusStep, STEPS.length - 1)].label}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div role="progressbar" style={{ width: 80, height: 3, borderRadius: 3, background: '#ede9fe', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
+                <div role="progressbar" aria-busy="true" aria-label="AI 취합 진행 중" style={{ width: 80, height: 3, borderRadius: 3, background: '#ede9fe', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
                   <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '40%', borderRadius: 3, background: '#8b5cf6', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
                 </div>
                 <span style={{ fontSize: '0.6875rem', color: '#a78bfa', whiteSpace: 'nowrap' }}>{elapsed}초</span>
