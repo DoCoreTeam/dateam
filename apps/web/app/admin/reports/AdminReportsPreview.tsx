@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import { Sparkles, CheckCircle2 } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 
@@ -160,14 +160,10 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
           0%   { transform: translateX(-100%); }
           100% { transform: translateX(400%); }
         }
-        @keyframes char-wave {
-          0%, 100% { color: #1e1b4b; opacity: 1; }
-          50%       { color: #d1d5db; opacity: 0.45; }
-        }
       `}</style>
 
-      {/* Trigger button */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.75rem' }}>
+      {/* Trigger button + inline status */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <button
           onClick={handlePreview}
           disabled={loading}
@@ -178,8 +174,9 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
             color: '#fff', border: 'none', borderRadius: '0.5rem',
             fontSize: '0.875rem', fontWeight: 600,
             cursor: loading ? 'not-allowed' : 'pointer',
-            opacity: loading ? 0.75 : 1, transition: 'opacity 200ms',
+            opacity: loading ? 0.85 : 1, transition: 'opacity 200ms',
             boxShadow: '0 2px 8px rgba(99,102,241,0.35)',
+            flexShrink: 0,
           }}
         >
           {loading
@@ -188,56 +185,42 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
           AI 정제 미리보기
         </button>
 
-        {/* Status panel — visible while loading */}
+        {/* Inline status — 버튼 옆에 붙어 레이아웃 영향 없음 */}
         {loading && (
-          <div style={{ width: '100%', maxWidth: 420, background: '#f8f7ff', border: '1px solid #e9d5ff', borderRadius: '0.625rem', padding: '0.875rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-            {/* Step list */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-              {STEPS.map((step, i) => {
+          <div role="status" aria-live="polite" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+            {/* Step dots */}
+            <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexShrink: 0 }}>
+              {STEPS.map((_, i) => {
                 const done = i < statusStep
                 const active = i === statusStep
                 return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    {done
-                      ? <CheckCircle2 size={14} color="#7c3aed" style={{ flexShrink: 0 }} />
-                      : <span style={{ width: 14, height: 14, borderRadius: '50%', flexShrink: 0, border: active ? '2px solid #7c3aed' : '2px solid #d8b4fe', background: active ? 'none' : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {active && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#7c3aed', display: 'inline-block' }} />}
-                        </span>}
-                    <div>
-                      <span style={{ fontSize: '0.8125rem', fontWeight: active ? 600 : 400, color: done ? '#7c3aed' : active ? '#1e1b4b' : '#94a3b8' }}>
-                        {step.label}
-                      </span>
-                      {active && (
-                        <span style={{ display: 'block', fontSize: '0.7rem', color: '#9ca3af', marginTop: '0.0625rem' }}>{step.detail}</span>
-                      )}
-                    </div>
-                  </div>
+                  <span
+                    key={i}
+                    style={{
+                      width: done ? 8 : active ? 10 : 6,
+                      height: done ? 8 : active ? 10 : 6,
+                      borderRadius: '50%',
+                      background: done ? '#7c3aed' : active ? '#a78bfa' : '#ddd6fe',
+                      transition: 'all 300ms',
+                      flexShrink: 0,
+                    }}
+                  />
                 )
               })}
             </div>
 
-            {/* Progress bar */}
-            <div style={{ height: 4, borderRadius: 4, background: '#ede9fe', overflow: 'hidden', position: 'relative' }}>
-              <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '30%', borderRadius: 4, background: 'linear-gradient(90deg, #8b5cf6, #6366f1)', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
-            </div>
-
-            {/* Org name wave + elapsed */}
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {orgName && (
-                <span aria-hidden style={{ fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '0.04em', userSelect: 'none' }}>
-                  {orgName.split('').map((ch, i) => (
-                    <span
-                      key={i}
-                      style={{
-                        display: 'inline-block',
-                        animation: `char-wave 1.8s ease-in-out infinite`,
-                        animationDelay: `${i * 0.1}s`,
-                      }}
-                    >{ch}</span>
-                  ))}
-                </span>
-              )}
-              <span style={{ fontSize: '0.7rem', color: '#a78bfa' }}>경과 {elapsed}초…</span>
+            {/* Current step label */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', minWidth: 0 }}>
+              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#6d28d9', whiteSpace: 'nowrap' }}>
+                {STEPS[statusStep].label}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {/* Thin progress bar */}
+                <div role="progressbar" aria-label="AI 정제 진행 중" style={{ width: 80, height: 3, borderRadius: 3, background: '#ede9fe', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
+                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '40%', borderRadius: 3, background: '#8b5cf6', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
+                </div>
+                <span style={{ fontSize: '0.6875rem', color: '#a78bfa', whiteSpace: 'nowrap' }}>{elapsed}초</span>
+              </div>
             </div>
           </div>
         )}
