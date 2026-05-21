@@ -20,15 +20,17 @@ export default async function AdminSettingsPage() {
   const adminClient = createAdminClient()
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: keyData } = await (adminClient as any)
+  const { data: metaData } = await (adminClient as any)
     .from('org_content')
     .select('value')
-    .eq('key', GEMINI_KEY)
+    .eq('key', 'META')
     .single()
 
-  const storedKey = keyData?.value as string | undefined
+  const meta = (metaData?.value as Record<string, unknown>) ?? {}
+  const storedKey = meta[GEMINI_KEY] as string | undefined
   const hasKey = !!storedKey
   const maskedKey = storedKey ? maskKey(storedKey) : null
+  const savedModel = (meta.gemini_model as string | undefined) ?? null
 
   return (
     <div>
@@ -46,7 +48,7 @@ export default async function AdminSettingsPage() {
         <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>AI 모델 연동</h2>
       </div>
 
-      <GeminiSettings hasKey={hasKey} maskedKey={maskedKey} />
+      <GeminiSettings hasKey={hasKey} maskedKey={maskedKey} savedModel={savedModel} />
     </div>
   )
 }

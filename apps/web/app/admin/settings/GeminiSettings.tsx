@@ -3,13 +3,15 @@
 import { useState, useTransition } from 'react'
 import { Key, CheckCircle, XCircle, Loader2, Trash2, RefreshCw } from 'lucide-react'
 import { saveGeminiKey, deleteGeminiKey, checkGeminiHealth } from './actions'
+import GeminiModelPicker from './GeminiModelPicker'
 
 interface GeminiSettingsProps {
   hasKey: boolean
   maskedKey: string | null
+  savedModel: string | null
 }
 
-export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initialMasked }: GeminiSettingsProps) {
+export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initialMasked, savedModel }: GeminiSettingsProps) {
   const [hasKey, setHasKey] = useState(initialHasKey)
   const [maskedKey, setMaskedKey] = useState(initialMasked)
   const [inputKey, setInputKey] = useState('')
@@ -29,7 +31,6 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
         setHasKey(true)
         setInputKey('')
         setShowInput(false)
-        // 마스킹: 입력값 앞부분 + ••• + 끝 4자리
         const k = (formData.get('apiKey') as string).trim()
         setMaskedKey(k.slice(0, 7) + '••••••••' + k.slice(-4))
       } else {
@@ -154,7 +155,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
         </div>
       )}
 
-      {/* 헬스체크 구분선 */}
+      {/* 헬스체크 */}
       <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1rem', marginTop: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
           <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>연결 테스트</span>
@@ -210,6 +211,9 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
           </p>
         )}
       </div>
+
+      {/* 모델 선택 */}
+      <GeminiModelPicker hasKey={hasKey} savedModel={savedModel} />
     </div>
   )
 }
