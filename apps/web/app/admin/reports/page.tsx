@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getWeekStart, toDateString } from '@/lib/utils'
 import { subWeeks } from 'date-fns'
-import { FileText } from 'lucide-react'
+import { FileText, Download } from 'lucide-react'
 import type { Profile, WeeklyReport } from '@/types/database'
 
 function RichCell({ html }: { html: string }) {
@@ -121,6 +121,25 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
           </div>
 
           <button type="submit" className="btn-primary">조회</button>
+          <a
+            href={`/api/reports/export?week=${selectedWeek}${member ? `&member=${member}` : ''}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.375rem',
+              padding: '0.5rem 1rem',
+              backgroundColor: '#16a34a',
+              color: '#fff',
+              borderRadius: '0.5rem',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              textDecoration: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <Download size={14} />
+            DOCX 다운로드
+          </a>
         </form>
       </div>
 
