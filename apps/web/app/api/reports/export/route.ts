@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
   const meta = (metaData?.value as Record<string, unknown>) ?? {}
   const geminiKey = meta.gemini_api_key as string | undefined
   const geminiModel = (meta.gemini_model as string | undefined) ?? 'gemini-1.5-flash'
-  const orgName = (meta.org as string | undefined) ?? ''
+  const orgName = (meta.org as string | undefined) || (meta.title as string | undefined) || ''
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (adminClient as any)
