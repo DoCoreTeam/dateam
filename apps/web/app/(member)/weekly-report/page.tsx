@@ -7,6 +7,7 @@ import { subWeeks } from 'date-fns'
 import WeeklyReportForm from './WeeklyReportForm'
 import TeamReportView from './TeamReportView'
 import ReportAccordion from './ReportAccordion'
+import CurrentWeekReports from './CurrentWeekReports'
 import { FileText, Users } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
 
@@ -54,6 +55,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
   // 수정 모드: editWeek가 유효한 주차면 그 주 데이터로 프리필
   const initialWeek = (editWeek && weekOptions.includes(editWeek)) ? editWeek : thisWeek
   const formSourceData = (reports ?? []).filter((r) => r.week_start === initialWeek)
+  const thisWeekReports = (reports ?? []).filter((r) => r.week_start === thisWeek)
   const prefillRows = formSourceData.map((r) => ({
     category: r.category,
     performance: r.performance,
@@ -148,6 +150,8 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
               prefillRows={prefillRows}
             />
           </div>
+
+          <CurrentWeekReports reports={thisWeekReports} />
 
           <div>
             <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', marginBottom: '1rem', letterSpacing: '-0.01em' }}>
