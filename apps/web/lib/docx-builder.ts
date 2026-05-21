@@ -15,6 +15,7 @@ import { parse } from 'node-html-parser'
 
 export interface ReportRow {
   userName: string
+  orgName: string
   category: string
   performance: string
   plan: string
@@ -163,6 +164,7 @@ export function buildDocx(reports: ReportRow[]): { doc: Document; filename: stri
       const cells: TableCell[] = []
 
       if (idx === 0) {
+        const orgName = rows[0].orgName
         cells.push(
           new TableCell({
             rowSpan: rows.length,
@@ -172,7 +174,11 @@ export function buildDocx(reports: ReportRow[]): { doc: Document; filename: stri
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: name, bold: true, size: SIZE, font: FONT })],
+                children: [new TextRun({ text: orgName, bold: true, size: SIZE, font: FONT })],
+              }),
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: name, size: SIZE, font: FONT })],
               }),
             ],
           })
