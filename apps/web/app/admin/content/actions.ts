@@ -48,7 +48,20 @@ function parseJson(raw: string | null): unknown {
 // ─── 섹션별 Server Action ─────────────────────────────────────────────────
 
 export async function updateMeta(formData: FormData): Promise<void> {
+  const ctx = await requireAdmin()
+  if (!ctx) return
+  const { adminClient } = ctx
+
+  // 기존 META 읽어서 머지 — gemini_api_key/gemini_model 등 다른 필드 보존
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existing } = await (adminClient.from('org_content') as any)
+    .select('value')
+    .eq('key', 'META')
+    .single()
+  const prev = (existing?.value as Record<string, unknown>) ?? {}
+
   const value = {
+    ...prev,
     org: formData.get('org') as string,
     title: formData.get('title') as string,
     subtitle: formData.get('subtitle') as string,

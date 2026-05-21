@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { CheckCircle, XCircle, Loader2, RefreshCw, Cpu } from 'lucide-react'
 import { getGeminiModels, saveGeminiModel } from './actions'
 
@@ -17,6 +17,14 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
   const [modelMsg, setModelMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [modelsPending, startModels] = useTransition()
   const [modelSavePending, startModelSave] = useTransition()
+
+  useEffect(() => {
+    if (!hasKey) {
+      setModels([])
+      setModelsLoaded(false)
+      setModelMsg(null)
+    }
+  }, [hasKey])
 
   function handleLoadModels() {
     setModelMsg(null)
