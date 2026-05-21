@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
+import { HelpCircle } from 'lucide-react'
 import { STORAGE_KEY, ONBOARDING_START_EVENT } from '@/components/ui/SpotlightOnboarding'
 
 interface OnboardingRestartLinkProps {
@@ -22,25 +23,26 @@ export default function OnboardingRestartLink({ variant }: OnboardingRestartLink
       <button
         type="button"
         onClick={handleClick}
-        title="작성 가이드 보기"
         aria-label="작성 가이드 보기"
         style={{
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          width: '1.75rem', height: '1.75rem',
-          background: 'none', border: '1px solid #e2e8f0', borderRadius: '50%',
-          cursor: 'pointer', color: '#94a3b8', fontSize: '0.875rem',
-          transition: 'border-color 120ms, color 120ms',
+          display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+          padding: '0.3rem 0.75rem',
+          background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '9999px',
+          cursor: 'pointer', color: '#4338ca', fontSize: '0.75rem', fontWeight: 600,
+          transition: 'background 120ms, border-color 120ms',
+          flexShrink: 0,
         }}
         onMouseEnter={(e) => {
-          ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#6366f1'
-          ;(e.currentTarget as HTMLButtonElement).style.color = '#6366f1'
+          ;(e.currentTarget as HTMLButtonElement).style.background = '#e0e7ff'
+          ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#a5b4fc'
         }}
         onMouseLeave={(e) => {
-          ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#e2e8f0'
-          ;(e.currentTarget as HTMLButtonElement).style.color = '#94a3b8'
+          ;(e.currentTarget as HTMLButtonElement).style.background = '#eef2ff'
+          ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#c7d2fe'
         }}
       >
-        ?
+        <HelpCircle size={13} />
+        작성 가이드
       </button>
     )
   }
@@ -51,20 +53,22 @@ export default function OnboardingRestartLink({ variant }: OnboardingRestartLink
         type="button"
         onClick={handleClick}
         style={{
+          display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
           background: 'none', border: 'none', cursor: 'pointer',
-          fontSize: '0.8125rem', color: '#94a3b8',
+          fontSize: '0.8125rem', color: '#6366f1', fontWeight: 500,
           textDecoration: 'underline', textDecorationColor: 'transparent',
           transition: 'color 120ms, text-decoration-color 120ms',
         }}
         onMouseEnter={(e) => {
-          ;(e.currentTarget as HTMLButtonElement).style.color = '#6366f1'
-          ;(e.currentTarget as HTMLButtonElement).style.textDecorationColor = '#6366f1'
+          ;(e.currentTarget as HTMLButtonElement).style.color = '#4338ca'
+          ;(e.currentTarget as HTMLButtonElement).style.textDecorationColor = '#4338ca'
         }}
         onMouseLeave={(e) => {
-          ;(e.currentTarget as HTMLButtonElement).style.color = '#94a3b8'
+          ;(e.currentTarget as HTMLButtonElement).style.color = '#6366f1'
           ;(e.currentTarget as HTMLButtonElement).style.textDecorationColor = 'transparent'
         }}
       >
+        <HelpCircle size={13} />
         처음이신가요? 작성 가이드 보기
       </button>
     </div>
