@@ -27,6 +27,7 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
   const [modal, setModal] = useState<MemberReport | null>(null)
 
   async function fetchWeek(week: string) {
+    setReports([])
     setLoading(true)
     try {
       const res = await fetch(`/api/weekly-report/team?week=${week}`)

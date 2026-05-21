@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { upsertRoutineCheck } from './actions'
 import { cn } from '@/lib/utils'
 import type { RoutineCheck } from '@/types/database'
-import type { RoutineItemParsed } from './page'
+import type { RoutineItemParsed } from '@/lib/routine-defaults'
 
 const DAY_LABELS = ['월', '화', '수', '목', '금', '토', '일']
 

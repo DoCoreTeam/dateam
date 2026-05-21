@@ -4,6 +4,8 @@ import { getWeekStart, toDateString } from '@/lib/utils'
 import { addDays } from 'date-fns'
 import RoutineGrid from './RoutineGrid'
 import type { Profile } from '@/types/database'
+import { DEFAULT_ROUTINES } from '@/lib/routine-defaults'
+import type { RoutineItemParsed } from '@/lib/routine-defaults'
 
 type RoutineItemRaw = string | { name: string; freq?: 'daily' | 'weekly' }
 
@@ -15,11 +17,6 @@ interface RoutineTemplate {
   schedule?: Record<string, string[]>
 }
 
-export interface RoutineItemParsed {
-  name: string
-  freq: 'daily' | 'weekly'
-}
-
 function parseItems(items: RoutineItemRaw[]): RoutineItemParsed[] {
   return items.map((item) =>
     typeof item === 'string'
@@ -27,13 +24,6 @@ function parseItems(items: RoutineItemRaw[]): RoutineItemParsed[] {
       : { name: item.name, freq: item.freq ?? 'weekly' }
   )
 }
-
-const DEFAULT_ROUTINES: RoutineItemParsed[] = [
-  { name: 'Morning Standup', freq: 'daily' },
-  { name: '리포트 확인', freq: 'daily' },
-  { name: '이슈 로그', freq: 'daily' },
-  { name: '업무 마감 체크', freq: 'daily' },
-]
 
 export default async function RoutinePage() {
   const supabase = await createClient()

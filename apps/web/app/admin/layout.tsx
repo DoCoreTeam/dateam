@@ -153,7 +153,7 @@ export default async function AdminLayout({
           </div>
         </header>
 
-        <main style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
+        <main style={{ flex: 1, padding: '2rem', overflowY: 'auto', backgroundColor: 'var(--color-bg)' }}>
           {children}
         </main>
       </div>

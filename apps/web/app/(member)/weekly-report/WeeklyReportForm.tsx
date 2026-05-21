@@ -81,9 +81,7 @@ export default function WeeklyReportForm({
   }
 
   function handleWeekChange(week: string) {
-    setSelectedWeek(week)
-    setRows([{ ...EMPTY_ROW }])
-    setSubmitError('')
+    router.push(`/weekly-report?tab=mine&editWeek=${week}`)
   }
 
   async function handleSubmit(e: React.FormEvent) {

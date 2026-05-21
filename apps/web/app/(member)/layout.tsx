@@ -152,7 +152,7 @@ export default async function MemberLayout({
         </header>
 
         {/* 메인 콘텐츠 */}
-        <main style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
+        <main style={{ flex: 1, padding: '2rem', overflowY: 'auto', backgroundColor: 'var(--color-bg)' }}>
           {children}
         </main>
       </div>

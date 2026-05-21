@@ -4,17 +4,14 @@ import { getWeekStart, toDateString } from '@/lib/utils'
 import { subWeeks } from 'date-fns'
 import { CheckSquare } from 'lucide-react'
 import type { Profile, RoutineCheck } from '@/types/database'
+import { DEFAULT_ROUTINES as DEFAULT_ITEMS } from '@/lib/routine-defaults'
+import type { RoutineItemParsed } from '@/lib/routine-defaults'
 
 type RoutineItemRaw = string | { name: string; freq?: 'daily' | 'weekly' }
 
 interface RoutineTemplate {
   name: string
   items?: RoutineItemRaw[]
-}
-
-interface RoutineItemParsed {
-  name: string
-  freq: 'daily' | 'weekly'
 }
 
 function parseItems(items: RoutineItemRaw[]): RoutineItemParsed[] {
@@ -24,13 +21,6 @@ function parseItems(items: RoutineItemRaw[]): RoutineItemParsed[] {
       : { name: item.name, freq: item.freq ?? 'weekly' }
   )
 }
-
-const DEFAULT_ITEMS: RoutineItemParsed[] = [
-  { name: 'Morning Standup', freq: 'daily' },
-  { name: '리포트 확인', freq: 'daily' },
-  { name: '이슈 로그', freq: 'daily' },
-  { name: '업무 마감 체크', freq: 'daily' },
-]
 
 interface PageProps {
   searchParams: Promise<{ week?: string }>
