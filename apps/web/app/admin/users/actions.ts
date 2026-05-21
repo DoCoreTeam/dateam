@@ -61,28 +61,21 @@ export async function deleteUser(userId: string): Promise<{ success?: boolean; e
   return { success: true }
 }
 
-function generateTempPassword(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  let result = 'AX-'
-  for (let i = 0; i < 4; i++) result += chars[Math.floor(Math.random() * chars.length)]
-  result += '-'
-  for (let i = 0; i < 4; i++) result += chars[Math.floor(Math.random() * chars.length)]
-  return result
-}
+// login/actions.ts의 RESET_SENTINEL과 반드시 동일해야 함
+const RESET_SENTINEL = 'AX_RESET_REQUIRED_2024!'
 
 export async function resetUserPassword(
   userId: string,
   _userEmail: string
-): Promise<{ ok: true; tempPassword: string } | { ok: false; error: string }> {
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const ctx = await requireAdmin()
   if (!ctx) return { ok: false, error: '관리자 권한이 필요합니다' }
 
   const adminClient = createAdminClient()
-  const tempPassword = generateTempPassword()
 
-  // 임시 비밀번호 설정
+  // 센티넬 비밀번호로 설정 → 사용자는 비밀번호 빈칸으로 로그인 가능
   const { error: authError } = await adminClient.auth.admin.updateUserById(userId, {
-    password: tempPassword,
+    password: RESET_SENTINEL,
   })
   if (authError) return { ok: false, error: authError.message }
 
@@ -93,7 +86,7 @@ export async function resetUserPassword(
     .eq('id', userId)
 
   revalidatePath('/admin/users')
-  return { ok: true, tempPassword }
+  return { ok: true }
 }
 
 export async function inviteUser(formData: FormData): Promise<{ success?: boolean; error?: string }> {

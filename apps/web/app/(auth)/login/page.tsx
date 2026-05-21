@@ -115,9 +115,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 id="password"
                 name="password"
                 type="password"
-                required
                 autoComplete="current-password"
-                placeholder="••••••••"
+                placeholder="비밀번호 (초기화된 경우 빈칸으로 로그인)"
                 className="input-field"
               />
             </div>
