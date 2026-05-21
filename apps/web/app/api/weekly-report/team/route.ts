@@ -8,7 +8,7 @@ interface TeamRow {
   plan: string
   issues: string
   week_start: string
-  profiles: { name: string } | null
+  profiles: { name: string; role: string } | null
 }
 
 export async function GET(request: Request) {
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase
     .from('weekly_reports')
-    .select('user_id, category, performance, plan, issues, week_start, profiles(name)')
+    .select('user_id, category, performance, plan, issues, week_start, profiles(name, role)')
     .eq('week_start', week)
     .is('deleted_at', null)
     .order('category', { ascending: true }) as unknown as { data: TeamRow[] | null; error: { message: string } | null }
@@ -37,15 +37,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const reports = (data ?? []).map((r) => ({
-    userId: r.user_id,
-    userName: r.profiles?.name ?? '알 수 없음',
-    category: r.category,
-    performance: r.performance,
-    plan: r.plan,
-    issues: r.issues,
-    weekStart: r.week_start,
-  }))
+  const reports = (data ?? [])
+    .map((r) => ({
+      userId: r.user_id,
+      userName: r.profiles?.name ?? '알 수 없음',
+      role: r.profiles?.role ?? 'member',
+      category: r.category,
+      performance: r.performance,
+      plan: r.plan,
+      issues: r.issues,
+      weekStart: r.week_start,
+    }))
+    .sort((a, b) => (a.role === 'admin' ? -1 : 1) - (b.role === 'admin' ? -1 : 1))
 
   return NextResponse.json(reports)
 }

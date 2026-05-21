@@ -18,7 +18,7 @@ interface TeamRow {
   plan: string
   issues: string
   week_start: string
-  profiles: { name: string } | null
+  profiles: { name: string; role: string } | null
 }
 
 interface PageProps {
@@ -111,20 +111,23 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
   // 팀 전체 보고 (이번 주 초기값) — 002 migration 적용 후 member도 조회 가능
   const { data: teamRaw } = await supabase
     .from('weekly_reports')
-    .select('user_id, category, performance, plan, issues, week_start, profiles(name)')
+    .select('user_id, category, performance, plan, issues, week_start, profiles(name, role)')
     .eq('week_start', thisWeek)
     .is('deleted_at', null)
     .order('category', { ascending: true }) as unknown as { data: TeamRow[] | null; error: unknown }
 
-  const teamReports = (teamRaw ?? []).map((r) => ({
-    userId: r.user_id,
-    userName: r.profiles?.name ?? '알 수 없음',
-    category: r.category,
-    performance: r.performance,
-    plan: r.plan,
-    issues: r.issues,
-    weekStart: r.week_start,
-  }))
+  const teamReports = (teamRaw ?? [])
+    .map((r) => ({
+      userId: r.user_id,
+      userName: r.profiles?.name ?? '알 수 없음',
+      role: r.profiles?.role ?? 'member',
+      category: r.category,
+      performance: r.performance,
+      plan: r.plan,
+      issues: r.issues,
+      weekStart: r.week_start,
+    }))
+    .sort((a, b) => (a.role === 'admin' ? -1 : 1) - (b.role === 'admin' ? -1 : 1))
 
   const tabStyle = (isActive: boolean): React.CSSProperties => ({
     display: 'flex',

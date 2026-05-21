@@ -5,6 +5,7 @@ import { useState } from 'react'
 interface MemberReport {
   userId: string
   userName: string
+  role?: string
   category: string
   performance: string
   plan: string
@@ -58,7 +59,12 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
     return acc
   }, {})
 
-  const members = Object.keys(grouped)
+  // 본부장(admin)을 항상 최상위로
+  const memberRole = new Map<string, string>()
+  reports.forEach((r) => { if (!memberRole.has(r.userName)) memberRole.set(r.userName, r.role ?? 'member') })
+  const members = Object.keys(grouped).sort((a, b) =>
+    (memberRole.get(a) === 'admin' ? 0 : 1) - (memberRole.get(b) === 'admin' ? 0 : 1)
+  )
 
   return (
     <div>
