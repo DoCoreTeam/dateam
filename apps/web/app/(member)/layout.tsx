@@ -67,7 +67,7 @@ export default async function MemberLayout({
   const userEmail = user.email ?? ''
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Sidebar
         items={NAV_ITEMS}
         footer={<SidebarProfile name={displayName} email={userEmail} />}

@@ -73,7 +73,7 @@ export default async function AdminLayout({
   const displayName = profile.name ?? user.email ?? '관리자'
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Sidebar
         items={ADMIN_NAV_ITEMS}
         footer={
