@@ -147,6 +147,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
               <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>보고서 작성</h2>
             </div>
             <WeeklyReportForm
+              key={`${initialWeek}-${justReset ? 'reset' : 'normal'}`}
               weekOptions={weekOptions}
               thisWeek={thisWeek}
               initialWeek={initialWeek}
