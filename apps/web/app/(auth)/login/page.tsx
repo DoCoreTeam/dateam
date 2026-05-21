@@ -26,21 +26,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       >
         {/* 로고 영역 */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '3rem',
-              height: '3rem',
-              borderRadius: '0.875rem',
-              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-              marginBottom: '1rem',
-              boxShadow: '0 4px 14px rgb(99 102 241 / 0.35)',
-            }}
-          >
-            <span style={{ color: 'white', fontSize: '1.25rem', fontWeight: 700 }}>N</span>
-          </div>
           <h1
             style={{
               fontSize: '1.5rem',
@@ -50,7 +35,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               margin: 0,
             }}
           >
-            newAX
+            AX사업본부
           </h1>
           <p
             style={{
