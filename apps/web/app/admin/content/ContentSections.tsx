@@ -185,10 +185,18 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       <SectionCard title="본부 기본 정보" badge="META" badgeColor="#ede9fe" badgeText="#7c3aed">
         <form action={actions.updateMeta}>
           <div style={FIELD_GRID}>
-            {(['org', 'title', 'subtitle', 'version', 'date'] as (keyof MetaValue)[]).map((f) => (
-              <div key={f}>
-                <label htmlFor={`meta_${f}`} style={LABEL}>{f}</label>
-                <input id={`meta_${f}`} name={f} defaultValue={String(meta[f] ?? '')} style={INPUT} />
+            {(
+              [
+                { key: 'org',      label: '조직명 (DOCX 조직 컬럼 표시)' },
+                { key: 'title',    label: '본부 이름' },
+                { key: 'subtitle', label: '부제' },
+                { key: 'version',  label: '버전' },
+                { key: 'date',     label: '기준일' },
+              ] as { key: keyof MetaValue; label: string }[]
+            ).map(({ key, label }) => (
+              <div key={key}>
+                <label htmlFor={`meta_${key}`} style={LABEL}>{label}</label>
+                <input id={`meta_${key}`} name={key} defaultValue={String(meta[key] ?? '')} style={INPUT} />
               </div>
             ))}
           </div>
