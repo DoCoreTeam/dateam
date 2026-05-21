@@ -88,7 +88,7 @@ function RichCell({ html }: { html: string }) {
 
 const STEPS = [
   { label: '보고서 데이터 조회 중…', detail: 'DB에서 주간보고 불러오는 중' },
-  { label: 'Gemini AI 정제 중…',    detail: '오타·중복·포맷을 AI가 교정하는 중' },
+  { label: 'AI 취합 중…',           detail: '오타·중복·포맷을 AI가 교정하는 중' },
   { label: '결과 정리 중…',         detail: '정제된 데이터를 테이블로 변환하는 중' },
 ]
 
@@ -110,13 +110,15 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
   useEffect(() => {
     const cached = readCache(week, member)
     if (cached) {
-      setRows(cached)
+      const normalized = orgName ? cached.map(r => ({ ...r, orgName })) : cached
+      if (orgName) writeCache(week, member, normalized)
+      setRows(normalized)
       setFromCache(true)
     } else {
       setRows([])
       setFromCache(false)
     }
-  }, [week, member])
+  }, [week, member, orgName])
 
   function clearTimers() {
     timerRefs.current.forEach(clearTimeout)
@@ -231,7 +233,7 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
           {loading
             ? <span style={{ display: 'inline-block', width: '0.875rem', height: '0.875rem', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
             : <Sparkles size={15} />}
-          AI 정제 미리보기
+          AI 주간보고 취합
         </button>
 
         {/* Inline loading status */}
@@ -268,7 +270,7 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', background: 'linear-gradient(to right, #f8f7ff, #fdf4ff)', borderBottom: '1px solid #e9d5ff' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
               <Sparkles size={16} color="#7c3aed" />
-              <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#1e1b4b' }}>AI 정제 미리보기</span>
+              <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#1e1b4b' }}>AI 주간보고 취합</span>
               <span style={{ padding: '0.125rem 0.5rem', background: '#ede9fe', color: '#6d28d9', borderRadius: '9999px', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.04em' }}>
                 Gemini AI
               </span>

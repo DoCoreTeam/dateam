@@ -151,7 +151,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
         </form>
       </div>
 
-      {/* AI 정제 미리보기 */}
+      {/* AI 주간보고 취합 */}
       <div style={{ marginBottom: '1.5rem' }}>
         <AdminReportsPreview week={selectedWeek} member={member ?? ''} orgName={orgName} />
       </div>
