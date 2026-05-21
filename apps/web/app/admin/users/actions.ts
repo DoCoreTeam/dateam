@@ -61,33 +61,39 @@ export async function deleteUser(userId: string): Promise<{ success?: boolean; e
   return { success: true }
 }
 
+function generateTempPassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let result = 'AX-'
+  for (let i = 0; i < 4; i++) result += chars[Math.floor(Math.random() * chars.length)]
+  result += '-'
+  for (let i = 0; i < 4; i++) result += chars[Math.floor(Math.random() * chars.length)]
+  return result
+}
+
 export async function resetUserPassword(
   userId: string,
-  userEmail: string
-): Promise<{ ok: true; link: string } | { ok: false; error: string }> {
+  _userEmail: string
+): Promise<{ ok: true; tempPassword: string } | { ok: false; error: string }> {
   const ctx = await requireAdmin()
   if (!ctx) return { ok: false, error: '관리자 권한이 필요합니다' }
 
   const adminClient = createAdminClient()
+  const tempPassword = generateTempPassword()
 
-  // must_change_password 플래그 설정
+  // 임시 비밀번호 설정
+  const { error: authError } = await adminClient.auth.admin.updateUserById(userId, {
+    password: tempPassword,
+  })
+  if (authError) return { ok: false, error: authError.message }
+
+  // must_change_password 플래그 설정 — 로그인 직후 변경 강제
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (adminClient.from('profiles') as any)
     .update({ must_change_password: true })
     .eq('id', userId)
 
-  // Supabase recovery link 생성 (비밀번호 없이 클릭만으로 로그인)
-  const { data, error } = await adminClient.auth.admin.generateLink({
-    type: 'recovery',
-    email: userEmail,
-  })
-
-  if (error || !data.properties?.action_link) {
-    return { ok: false, error: error?.message ?? '링크 생성 실패' }
-  }
-
   revalidatePath('/admin/users')
-  return { ok: true, link: data.properties.action_link }
+  return { ok: true, tempPassword }
 }
 
 export async function inviteUser(formData: FormData): Promise<{ success?: boolean; error?: string }> {
