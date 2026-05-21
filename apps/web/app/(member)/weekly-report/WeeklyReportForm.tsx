@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Plus, Trash2, Save, Pencil, AlertTriangle, RotateCcw, Sparkles } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { upsertWeeklyReport, deleteAllWeeklyReports } from './actions'
+import DiffConfirmModal, { type DiffItem } from '@/components/ui/DiffConfirmModal'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 const SpotlightOnboarding = dynamic(() => import('@/components/ui/SpotlightOnboarding'), { ssr: false })
@@ -79,9 +80,12 @@ export default function WeeklyReportForm({
   const [refineStep, setRefineStep] = useState(0)
   const [refineElapsed, setRefineElapsed] = useState(0)
   const [highlightedKeys, setHighlightedKeys] = useState<Set<string>>(new Set())
+  const [diffItems, setDiffItems] = useState<DiffItem[]>([])
+  const [showDiffModal, setShowDiffModal] = useState(false)
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const refineTimerRefs = useRef<ReturnType<typeof setTimeout>[]>([])
   const refineIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const refinedRowsRef = useRef<Row[]>([])
 
   function clearRefineTimers() {
     refineTimerRefs.current.forEach(clearTimeout)
@@ -115,18 +119,27 @@ export default function WeeklyReportForm({
         return
       }
       const refined: Row[] = data.rows
-      const changed = new Set<string>()
-      refined.forEach((r, idx) => {
-        const orig = rows.find((o) => o.category === r.category) ?? rows[idx]
+      refinedRowsRef.current = refined
+
+      const fields: Array<DiffItem['field']> = ['performance', 'plan', 'issues']
+      const items: DiffItem[] = []
+      refined.forEach((r) => {
+        const orig = rows.find((o) => o.category === r.category)
         if (!orig) return
-        if (r.performance !== orig.performance) changed.add(`${r.category}-performance`)
-        if (r.plan !== orig.plan) changed.add(`${r.category}-plan`)
-        if (r.issues !== orig.issues) changed.add(`${r.category}-issues`)
+        fields.forEach((f) => {
+          if (r[f] !== orig[f]) {
+            items.push({ category: r.category, field: f, original: orig[f], refined: r[f], accepted: true })
+          }
+        })
       })
-      setRows(refined)
-      setHighlightedKeys(changed)
-      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current)
-      highlightTimerRef.current = setTimeout(() => setHighlightedKeys(new Set()), 4000)
+
+      if (items.length === 0) {
+        setRefineError('변경된 내용이 없습니다')
+        return
+      }
+
+      setDiffItems(items)
+      setShowDiffModal(true)
     } catch {
       setRefineError('네트워크 오류가 발생했습니다')
     } finally {
@@ -134,6 +147,27 @@ export default function WeeklyReportForm({
       setIsRefining(false)
     }
   }, [rows, prevWeekCategories])
+
+  const handleDiffConfirm = useCallback((confirmedItems: DiffItem[]) => {
+    setShowDiffModal(false)
+    const fields: Array<DiffItem['field']> = ['performance', 'plan', 'issues']
+    const newRows = refinedRowsRef.current.map((refined) => {
+      const orig = rows.find((o) => o.category === refined.category)
+      if (!orig) return refined
+      const applied = { ...refined }
+      fields.forEach((f) => {
+        const di = confirmedItems.find((d) => d.category === refined.category && d.field === f)
+        applied[f] = di ? (di.accepted ? di.refined : di.original) : refined[f]
+      })
+      return applied
+    })
+    const changed = new Set<string>()
+    confirmedItems.filter((i) => i.accepted).forEach((i) => changed.add(`${i.category}-${i.field}`))
+    setRows(newRows)
+    setHighlightedKeys(changed)
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current)
+    highlightTimerRef.current = setTimeout(() => setHighlightedKeys(new Set()), 4000)
+  }, [rows])
 
   const hasExistingData = hasSavedData
 
@@ -228,6 +262,75 @@ export default function WeeklyReportForm({
       }
     `}</style>
     <SpotlightOnboarding autoStart={isFirstTimeUser} />
+
+    {/* 전체화면 AI 다듬기 로딩 오버레이 */}
+    {isRefining && (
+      <div
+        role="status"
+        aria-live="polite"
+        aria-label={`AI로 다듬는 중 — ${REFINE_STEPS[Math.min(refineStep, REFINE_STEPS.length - 1)].label}`}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 9998,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(248,247,255,0.55)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+        }}
+      >
+        <div style={{
+          background: '#fff', borderRadius: '1.25rem', padding: '2rem 2.5rem',
+          boxShadow: '0 20px 60px rgba(109,40,217,0.15)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem',
+          minWidth: '280px',
+        }}>
+          <span style={{
+            display: 'inline-block', width: '2.5rem', height: '2.5rem',
+            border: '3px solid rgba(139,92,246,0.25)', borderTopColor: '#8b5cf6',
+            borderRadius: '50%', animation: 'spin 0.7s linear infinite',
+          }} />
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#6d28d9' }}>
+              {REFINE_STEPS[Math.min(refineStep, REFINE_STEPS.length - 1)].label}
+            </p>
+            <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: '#a78bfa' }}>
+              {REFINE_STEPS[Math.min(refineStep, REFINE_STEPS.length - 1)].detail}
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
+            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+              {REFINE_STEPS.map((_, i) => {
+                const done = i < refineStep
+                const active = i === refineStep
+                return (
+                  <span key={i} style={{
+                    width: done ? 8 : active ? 10 : 6,
+                    height: done ? 8 : active ? 10 : 6,
+                    borderRadius: '50%',
+                    background: done ? '#7c3aed' : active ? '#a78bfa' : '#ddd6fe',
+                    transition: 'all 300ms',
+                  }} />
+                )
+              })}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div role="progressbar" aria-busy="true" style={{ width: 160, height: 3, borderRadius: 3, background: '#ede9fe', overflow: 'hidden', position: 'relative' }}>
+                <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '40%', borderRadius: 3, background: '#8b5cf6', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
+              </div>
+              <span style={{ fontSize: '0.6875rem', color: '#a78bfa', whiteSpace: 'nowrap' }}>{refineElapsed}초</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {showDiffModal && (
+      <DiffConfirmModal
+        items={diffItems}
+        onConfirm={handleDiffConfirm}
+        onCancel={() => setShowDiffModal(false)}
+      />
+    )}
+
     {modalTarget && (
       <EditorModal
         title={`${rows[modalTarget.rowIdx].category || '항목'} — ${FIELD_LABELS[modalTarget.field]}`}
@@ -440,7 +543,7 @@ export default function WeeklyReportForm({
             }}
           >
             <Sparkles size={13} />
-            {isRefining ? 'AI 정비 중...' : 'AI 정비'}
+            {isRefining ? '다듬는 중...' : 'AI로 다듬기'}
           </button>
           <button type="submit" className="btn-primary" disabled={pending || resetPending || isRefining}>
             <Save size={15} />
@@ -449,35 +552,6 @@ export default function WeeklyReportForm({
         </div>
       </div>
 
-      {/* AI 정비 진행 상태 */}
-      {isRefining && (
-        <div
-          role="status"
-          aria-live="polite"
-          aria-label={`AI 정비 중 — ${REFINE_STEPS[Math.min(refineStep, REFINE_STEPS.length - 1)].label}`}
-          style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', background: '#faf5ff', border: '1px solid #ddd6fe', borderRadius: '0.625rem' }}
-        >
-          <span style={{ display: 'inline-block', width: '0.875rem', height: '0.875rem', border: '2px solid rgba(139,92,246,0.3)', borderTopColor: '#8b5cf6', borderRadius: '50%', flexShrink: 0, animation: 'spin 0.7s linear infinite' }} />
-          <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', flexShrink: 0 }}>
-            {REFINE_STEPS.map((_, i) => {
-              const done = i < refineStep
-              const active = i === refineStep
-              return (
-                <span key={i} style={{ width: done ? 7 : active ? 9 : 5, height: done ? 7 : active ? 9 : 5, borderRadius: '50%', background: done ? '#7c3aed' : active ? '#a78bfa' : '#ddd6fe', transition: 'all 300ms', flexShrink: 0 }} />
-              )
-            })}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', minWidth: 0 }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#6d28d9' }}>{REFINE_STEPS[Math.min(refineStep, REFINE_STEPS.length - 1)].label}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div role="progressbar" aria-busy="true" style={{ width: 80, height: 3, borderRadius: 3, background: '#ede9fe', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
-                <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '40%', borderRadius: 3, background: '#8b5cf6', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
-              </div>
-              <span style={{ fontSize: '0.6875rem', color: '#a78bfa', whiteSpace: 'nowrap' }}>{refineElapsed}초</span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 초기화 강성 경고 */}
       {showResetConfirm && (
