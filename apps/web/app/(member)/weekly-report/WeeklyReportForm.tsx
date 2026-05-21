@@ -24,6 +24,7 @@ interface WeeklyReportFormProps {
   prefillRows: Row[]
   isFirstTimeUser: boolean
   hasCarryForward?: boolean
+  hasSavedData?: boolean
 }
 
 function getWeekDateRange(weekStart: string): { perf: string; plan: string } {
@@ -55,6 +56,7 @@ export default function WeeklyReportForm({
   prefillRows,
   isFirstTimeUser,
   hasCarryForward = false,
+  hasSavedData = false,
 }: WeeklyReportFormProps) {
   const router = useRouter()
   const [selectedWeek, setSelectedWeek] = useState(initialWeek)
@@ -65,7 +67,7 @@ export default function WeeklyReportForm({
   const [resetError, setResetError] = useState('')
   const [resetPending, startResetTransition] = useTransition()
 
-  const hasExistingData = prefillRows.length > 0
+  const hasExistingData = hasSavedData
 
   function handleReset() {
     setResetError('')

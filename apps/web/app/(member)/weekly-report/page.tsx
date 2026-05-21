@@ -176,6 +176,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
               prefillRows={prefillRows.length > 0 ? prefillRows : carryForwardRows}
               isFirstTimeUser={(reports ?? []).length === 0}
               hasCarryForward={hasCarryForward}
+              hasSavedData={prefillRows.length > 0}
             />
           </div>
 
