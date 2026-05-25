@@ -48,7 +48,7 @@ function sanitizeHtml(html: string): string {
   )
 }
 
-const CACHE_V = 3
+const CACHE_V = 4
 const CACHE_TTL = 24 * 60 * 60 * 1000
 
 interface CacheEntry { v: number; savedAt: number; rows: PreviewRow[] }
