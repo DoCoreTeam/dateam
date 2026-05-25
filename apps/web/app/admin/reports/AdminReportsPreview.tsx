@@ -48,7 +48,7 @@ function sanitizeHtml(html: string): string {
   )
 }
 
-const CACHE_V = 2
+const CACHE_V = 3
 const CACHE_TTL = 24 * 60 * 60 * 1000
 
 interface CacheEntry { v: number; savedAt: number; rows: PreviewRow[] }
@@ -365,28 +365,44 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, rowIdx) => (
-                  <tr key={rowIdx} style={{ borderBottom: '1px solid #f1f5f9', verticalAlign: 'top' }}>
-                    <td style={{ padding: '0.75rem 0.875rem', whiteSpace: 'nowrap' }}>
-                      <div style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: 600 }}>{row.orgName}</div>
-                      {row.userName && (
-                        <div style={{ fontSize: '0.8125rem', color: '#374151', fontWeight: 500, marginTop: '0.125rem' }}>{row.userName}</div>
-                      )}
-                    </td>
-                    <td style={{ padding: '0.75rem 0.875rem', fontSize: '0.8125rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{row.category}</td>
-                    {EDITABLE_FIELDS.map(field => (
-                      <td key={field} style={{ padding: '0.75rem 0.875rem', verticalAlign: 'top' }}>
-                        <RichCell html={row[field]} />
-                        <button
-                          onClick={() => setEditingCell({ rowIdx, field })}
-                          style={{ marginTop: '0.375rem', padding: '0.125rem 0.375rem', fontSize: '0.7rem', color: '#9ca3af', background: 'none', border: '1px solid #e5e7eb', borderRadius: '0.25rem', cursor: 'pointer', lineHeight: 1.4 }}
+                {(() => {
+                  // 동일 orgName 연속 행 → rowSpan 계산
+                  const spanMap = new Map<number, number>()
+                  let i = 0
+                  while (i < rows.length) {
+                    let j = i + 1
+                    while (j < rows.length && rows[j].orgName === rows[i].orgName) j++
+                    spanMap.set(i, j - i)
+                    i = j
+                  }
+                  return rows.map((row, rowIdx) => (
+                    <tr key={rowIdx} style={{ borderBottom: '1px solid #f1f5f9', verticalAlign: 'top' }}>
+                      {spanMap.has(rowIdx) && (
+                        <td
+                          rowSpan={spanMap.get(rowIdx)}
+                          style={{ padding: '0.75rem 0.875rem', whiteSpace: 'nowrap', verticalAlign: 'middle', borderRight: '1px solid #f1f5f9' }}
                         >
-                          수정
-                        </button>
-                      </td>
-                    ))}
-                  </tr>
-                ))}
+                          <div style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: 600 }}>{row.orgName}</div>
+                          {row.userName && (
+                            <div style={{ fontSize: '0.8125rem', color: '#374151', fontWeight: 500, marginTop: '0.125rem' }}>{row.userName}</div>
+                          )}
+                        </td>
+                      )}
+                      <td style={{ padding: '0.75rem 0.875rem', fontSize: '0.8125rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{row.category}</td>
+                      {EDITABLE_FIELDS.map(field => (
+                        <td key={field} style={{ padding: '0.75rem 0.875rem', verticalAlign: 'top' }}>
+                          <RichCell html={row[field]} />
+                          <button
+                            onClick={() => setEditingCell({ rowIdx, field })}
+                            style={{ marginTop: '0.375rem', padding: '0.125rem 0.375rem', fontSize: '0.7rem', color: '#9ca3af', background: 'none', border: '1px solid #e5e7eb', borderRadius: '0.25rem', cursor: 'pointer', lineHeight: 1.4 }}
+                          >
+                            수정
+                          </button>
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                })()}
               </tbody>
             </table>
           </div>
