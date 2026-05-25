@@ -31,7 +31,9 @@ const BORDER = {
 }
 
 const FONT = '맑은 고딕'
-const SIZE = 18 // 9pt in half-points
+const SIZE_ORG = 24  // 12pt in half-points
+const SIZE_CAT = 20  // 10pt in half-points
+const SIZE = 18      // 9pt in half-points
 
 function htmlToParagraphs(html: string): Paragraph[] {
   const EMPTY = [new Paragraph({ children: [new TextRun({ text: '-', size: SIZE, font: FONT })] })]
@@ -166,7 +168,7 @@ export function buildDocx(reports: ReportRow[]): { doc: Document; filename: stri
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: orgName, bold: true, size: SIZE, font: FONT })],
+                children: [new TextRun({ text: orgName, bold: true, size: SIZE_ORG, font: FONT })],
               }),
             ],
           })
@@ -177,7 +179,7 @@ export function buildDocx(reports: ReportRow[]): { doc: Document; filename: stri
         new TableCell({
           borders: BORDER,
           verticalAlign: VerticalAlign.TOP,
-          children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: row.category, size: SIZE, font: FONT })] })],
+          children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: row.category, bold: true, size: SIZE_CAT, font: FONT })] })],
         }),
         new TableCell({ borders: BORDER, verticalAlign: VerticalAlign.TOP, children: htmlToParagraphs(row.performance) }),
         new TableCell({ borders: BORDER, verticalAlign: VerticalAlign.TOP, children: htmlToParagraphs(row.plan) }),
@@ -212,7 +214,7 @@ export function buildDocx(reports: ReportRow[]): { doc: Document; filename: stri
               verticalAlign: VerticalAlign.CENTER,
               shading: { type: ShadingType.CLEAR, fill: 'F2F2F2' },
               children: [
-                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: orgName, bold: true, size: SIZE, font: FONT })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: orgName, bold: true, size: SIZE_ORG, font: FONT })] }),
                 new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: name, size: SIZE, font: FONT })] }),
               ],
             })
@@ -223,7 +225,7 @@ export function buildDocx(reports: ReportRow[]): { doc: Document; filename: stri
           new TableCell({
             borders: BORDER,
             verticalAlign: VerticalAlign.TOP,
-            children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: row.category, size: SIZE, font: FONT })] })],
+            children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: row.category, bold: true, size: SIZE_CAT, font: FONT })] })],
           }),
           new TableCell({ borders: BORDER, verticalAlign: VerticalAlign.TOP, children: htmlToParagraphs(row.performance) }),
           new TableCell({ borders: BORDER, verticalAlign: VerticalAlign.TOP, children: htmlToParagraphs(row.plan) }),
