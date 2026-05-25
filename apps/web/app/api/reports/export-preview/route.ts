@@ -5,7 +5,7 @@ import { Packer } from 'docx'
 import { z } from 'zod'
 
 const rowSchema = z.object({
-  userName: z.string().max(200),
+  userName: z.string().max(200).optional().default(''),
   orgName: z.string().max(200),
   category: z.string().max(100),
   performance: z.string().max(20000),

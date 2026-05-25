@@ -18,6 +18,8 @@ type PreviewRow = {
   performance: string; plan: string; issues: string; weekStart: string
 }
 
+// 구버전 캐시(사람별 분류) 무효화를 위해 버전 올림
+
 type EditingCell = { rowIdx: number; field: 'performance' | 'plan' | 'issues' } | null
 
 const EDITABLE_FIELDS = ['performance', 'plan', 'issues'] as const
@@ -46,7 +48,7 @@ function sanitizeHtml(html: string): string {
   )
 }
 
-const CACHE_V = 1
+const CACHE_V = 2
 const CACHE_TTL = 24 * 60 * 60 * 1000
 
 interface CacheEntry { v: number; savedAt: number; rows: PreviewRow[] }
@@ -64,7 +66,7 @@ function readCache(week: string, member: string): PreviewRow[] | null {
     const rows = entry.rows
     if (!Array.isArray(rows) || rows.length === 0) return null
     const f = rows[0]
-    if (typeof f !== 'object' || f === null || !('userName' in f) || !('category' in f) || !('performance' in f)) return null
+    if (typeof f !== 'object' || f === null || !('category' in f) || !('performance' in f)) return null
     return rows
   } catch { return null }
 }
@@ -367,7 +369,9 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
                   <tr key={rowIdx} style={{ borderBottom: '1px solid #f1f5f9', verticalAlign: 'top' }}>
                     <td style={{ padding: '0.75rem 0.875rem', whiteSpace: 'nowrap' }}>
                       <div style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: 600 }}>{row.orgName}</div>
-                      <div style={{ fontSize: '0.8125rem', color: '#374151', fontWeight: 500, marginTop: '0.125rem' }}>{row.userName}</div>
+                      {row.userName && (
+                        <div style={{ fontSize: '0.8125rem', color: '#374151', fontWeight: 500, marginTop: '0.125rem' }}>{row.userName}</div>
+                      )}
                     </td>
                     <td style={{ padding: '0.75rem 0.875rem', fontSize: '0.8125rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{row.category}</td>
                     {EDITABLE_FIELDS.map(field => (

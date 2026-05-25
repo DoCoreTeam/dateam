@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { buildDocx } from '@/lib/docx-builder'
-import { refineReports } from '@/lib/gemini-refine'
+import { mergeAndRefineByCategory } from '@/lib/gemini-refine'
 import { Packer } from 'docx'
 import type { WeeklyReport } from '@/types/database'
 
@@ -63,35 +63,45 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: '해당 주차 데이터가 없습니다' }, { status: 404 })
   }
 
-  const rows = reports.map((r) => ({
+  const forMerge = reports.map((r) => ({
+    userName: r.profiles?.name ?? '알 수 없음',
+    category: r.category,
+    performance: r.performance,
+    plan: r.plan,
+    issues: r.issues,
+  }))
+
+  const weekStart = reports[0]?.week_start ?? new Date().toISOString().slice(0, 10)
+
+  const toRawRow = (r: ReportWithProfile) => ({
     userName: r.profiles?.name ?? '알 수 없음',
     orgName,
     category: r.category,
     performance: r.performance,
     plan: r.plan,
     issues: r.issues,
-    weekStart: r.week_start,
-  }))
+    weekStart,
+  })
 
-  // AI 정제 (API 키 있을 때만, 실패 시 원본 사용)
-  let finalRows = rows
+  // AI 병합 (API 키 있을 때만, 실패 시 원본 데이터로 개인별 출력)
+  let finalRows: import('@/lib/docx-builder').ReportRow[]
   if (geminiKey) {
     try {
-      const forRefine = rows.map(({ userName, category, performance, plan, issues }) => ({
-        userName, category, performance, plan, issues,
+      const merged = await mergeAndRefineByCategory(forMerge, geminiKey, geminiModel)
+      finalRows = merged.map((r) => ({
+        userName: '',
+        orgName,
+        category: r.category,
+        performance: r.performance,
+        plan: r.plan,
+        issues: r.issues,
+        weekStart,
       }))
-      const refined = await refineReports(forRefine, geminiKey, geminiModel)
-      // userName+category 키 기반 매핑 (순서 변경에 대한 안전장치)
-      const refinedMap = new Map(refined.map((r) => [`${r.userName}::${r.category}`, r]))
-      finalRows = rows.map((orig) => {
-        const key = `${orig.userName}::${orig.category}`
-        const r = refinedMap.get(key)
-        if (!r) return orig
-        return { ...r, orgName: orig.orgName, weekStart: orig.weekStart }
-      })
     } catch {
-      // AI 정제 실패 시 원본 데이터로 진행
+      finalRows = reports.map(toRawRow)
     }
+  } else {
+    finalRows = reports.map(toRawRow)
   }
 
   const { doc, filename } = buildDocx(finalRows)

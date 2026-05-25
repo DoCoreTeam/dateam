@@ -108,16 +108,8 @@ export function buildDocx(reports: ReportRow[]): { doc: Document; filename: stri
   const weekNum = getISOWeek(d)
   const filename = `Weekly_DA_${d.getFullYear()}_${String(d.getMonth() + 1).padStart(2, '0')}_week${weekNum}.docx`
 
-  // 이름 기준으로 그룹화 (입력 순서 유지)
-  const order: string[] = []
-  const grouped: Record<string, ReportRow[]> = {}
-  for (const r of reports) {
-    if (!grouped[r.userName]) {
-      grouped[r.userName] = []
-      order.push(r.userName)
-    }
-    grouped[r.userName].push(r)
-  }
+  // 팀 단위 병합 보고서 (userName 없음) vs 개인별 보고서 분기
+  const isTeamReport = reports.length > 0 && reports.every((r) => !r.userName)
 
   const headerCellStyle = {
     borders: BORDER,
@@ -158,16 +150,16 @@ export function buildDocx(reports: ReportRow[]): { doc: Document; filename: stri
 
   const dataRows: TableRow[] = []
 
-  for (const name of order) {
-    const rows = grouped[name]
-    rows.forEach((row, idx) => {
+  if (isTeamReport) {
+    // 팀 단위: 조직 셀이 모든 행에 rowSpan
+    const orgName = reports[0].orgName
+    reports.forEach((row, idx) => {
       const cells: TableCell[] = []
 
       if (idx === 0) {
-        const orgName = rows[0].orgName
         cells.push(
           new TableCell({
-            rowSpan: rows.length,
+            rowSpan: reports.length,
             borders: BORDER,
             verticalAlign: VerticalAlign.CENTER,
             shading: { type: ShadingType.CLEAR, fill: 'F2F2F2' },
@@ -175,10 +167,6 @@ export function buildDocx(reports: ReportRow[]): { doc: Document; filename: stri
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 children: [new TextRun({ text: orgName, bold: true, size: SIZE, font: FONT })],
-              }),
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: name, size: SIZE, font: FONT })],
               }),
             ],
           })
@@ -189,32 +177,62 @@ export function buildDocx(reports: ReportRow[]): { doc: Document; filename: stri
         new TableCell({
           borders: BORDER,
           verticalAlign: VerticalAlign.TOP,
-          children: [
-            new Paragraph({
-              alignment: AlignmentType.CENTER,
-              children: [new TextRun({ text: row.category, size: SIZE, font: FONT })],
-            }),
-          ],
+          children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: row.category, size: SIZE, font: FONT })] })],
         }),
-        new TableCell({
-          borders: BORDER,
-          verticalAlign: VerticalAlign.TOP,
-          children: htmlToParagraphs(row.performance),
-        }),
-        new TableCell({
-          borders: BORDER,
-          verticalAlign: VerticalAlign.TOP,
-          children: htmlToParagraphs(row.plan),
-        }),
-        new TableCell({
-          borders: BORDER,
-          verticalAlign: VerticalAlign.TOP,
-          children: htmlToParagraphs(row.issues),
-        })
+        new TableCell({ borders: BORDER, verticalAlign: VerticalAlign.TOP, children: htmlToParagraphs(row.performance) }),
+        new TableCell({ borders: BORDER, verticalAlign: VerticalAlign.TOP, children: htmlToParagraphs(row.plan) }),
+        new TableCell({ borders: BORDER, verticalAlign: VerticalAlign.TOP, children: htmlToParagraphs(row.issues) })
       )
 
       dataRows.push(new TableRow({ children: cells }))
     })
+  } else {
+    // 개인별: 이름 기준으로 그룹화
+    const order: string[] = []
+    const grouped: Record<string, ReportRow[]> = {}
+    for (const r of reports) {
+      if (!grouped[r.userName]) {
+        grouped[r.userName] = []
+        order.push(r.userName)
+      }
+      grouped[r.userName].push(r)
+    }
+
+    for (const name of order) {
+      const rows = grouped[name]
+      rows.forEach((row, idx) => {
+        const cells: TableCell[] = []
+
+        if (idx === 0) {
+          const orgName = rows[0].orgName
+          cells.push(
+            new TableCell({
+              rowSpan: rows.length,
+              borders: BORDER,
+              verticalAlign: VerticalAlign.CENTER,
+              shading: { type: ShadingType.CLEAR, fill: 'F2F2F2' },
+              children: [
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: orgName, bold: true, size: SIZE, font: FONT })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: name, size: SIZE, font: FONT })] }),
+              ],
+            })
+          )
+        }
+
+        cells.push(
+          new TableCell({
+            borders: BORDER,
+            verticalAlign: VerticalAlign.TOP,
+            children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: row.category, size: SIZE, font: FONT })] })],
+          }),
+          new TableCell({ borders: BORDER, verticalAlign: VerticalAlign.TOP, children: htmlToParagraphs(row.performance) }),
+          new TableCell({ borders: BORDER, verticalAlign: VerticalAlign.TOP, children: htmlToParagraphs(row.plan) }),
+          new TableCell({ borders: BORDER, verticalAlign: VerticalAlign.TOP, children: htmlToParagraphs(row.issues) })
+        )
+
+        dataRows.push(new TableRow({ children: cells }))
+      })
+    }
   }
 
   const table = new Table({

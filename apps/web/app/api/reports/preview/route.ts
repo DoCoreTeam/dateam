@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { refineReports } from '@/lib/gemini-refine'
+import { mergeAndRefineByCategory } from '@/lib/gemini-refine'
 import type { WeeklyReport } from '@/types/database'
 
 type ReportWithProfile = WeeklyReport & { profiles: { name: string } | null }
@@ -62,28 +62,27 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: '해당 주차 데이터가 없습니다' }, { status: 404 })
     }
 
-    const rows = raw.map((r) => ({
+    const forMerge = raw.map((r) => ({
       userName: r.profiles?.name ?? '알 수 없음',
+      category: r.category,
+      performance: r.performance,
+      plan: r.plan,
+      issues: r.issues,
+    }))
+
+    const weekStart = raw[0]?.week_start ?? new Date().toISOString().slice(0, 10)
+
+    const merged = await mergeAndRefineByCategory(forMerge, apiKey, model)
+
+    const reports = merged.map((r) => ({
+      userName: '',
       orgName,
       category: r.category,
       performance: r.performance,
       plan: r.plan,
       issues: r.issues,
-      weekStart: r.week_start,
+      weekStart,
     }))
-
-    const forRefine = rows.map(({ userName, category, performance, plan, issues }) => ({
-      userName, category, performance, plan, issues,
-    }))
-
-    const refined = await refineReports(forRefine, apiKey, model)
-    const refinedMap = new Map(refined.map((r) => [`${r.userName}::${r.category}`, r]))
-
-    const reports = rows.map((orig) => {
-      const r = refinedMap.get(`${orig.userName}::${orig.category}`)
-      if (!r) return orig
-      return { ...r, orgName: orig.orgName, weekStart: orig.weekStart }
-    })
 
     return NextResponse.json({ reports })
   } catch (err: unknown) {
