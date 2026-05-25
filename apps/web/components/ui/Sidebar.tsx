@@ -89,6 +89,13 @@ export default function Sidebar({ items, footer }: SidebarProps) {
           {footer}
         </div>
       )}
+
+      {/* 버전 */}
+      <div style={{ padding: '0.5rem 1.25rem 0.75rem', textAlign: 'right' }}>
+        <span style={{ fontSize: '0.6rem', color: '#334155', letterSpacing: '0.04em' }}>
+          v{process.env.NEXT_PUBLIC_APP_VERSION ?? '—'}
+        </span>
+      </div>
     </aside>
   )
 }

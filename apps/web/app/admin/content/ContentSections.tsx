@@ -205,6 +205,8 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
   const [aiError, setAiError] = useState<string | null>(null)
   const [aiDiff, setAiDiff] = useState<AiDiffState | null>(null)
   const [aiApplying, setAiApplying] = useState(false)
+  // incremented on AI apply to force DynamicTable remount (uncontrolled component)
+  const [tableKeys, setTableKeys] = useState<Record<string, number>>({})
 
   const showToast = useCallback((ok: boolean) => {
     if (timerRef.current) clearTimeout(timerRef.current)
@@ -257,8 +259,11 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
     setAiApplying(true)
     const result = await aiApplySection(aiDiff.sectionKey, aiDiff.proposed)
     setAiApplying(false)
+    const sectionKey = aiDiff.sectionKey
     setAiDiff(null)
     if (result.ok) {
+      // Force remount of DynamicTable for this section (uncontrolled component)
+      setTableKeys((prev) => ({ ...prev, [sectionKey]: (prev[sectionKey] ?? 0) + 1 }))
       showToast(true)
       router.refresh()
     } else {
@@ -497,7 +502,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         headerAction={<AiButton sectionKey="projects" sectionName="프로젝트" columns={PROJECT_COLS} currentData={projects} />}
       >
         <form onSubmit={submit(actions.updateProjects)}>
-          <DynamicTable name="projects_json" columns={PROJECT_COLS} initialData={projects} addLabel="프로젝트 추가" />
+          <DynamicTable key={`projects-${tableKeys['projects'] ?? 0}`} name="projects_json" columns={PROJECT_COLS} initialData={projects} addLabel="프로젝트 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
         </form>
       </SectionCard>
@@ -507,7 +512,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         headerAction={<AiButton sectionKey="members" sectionName="멤버" columns={MEMBER_COLS} currentData={members} />}
       >
         <form onSubmit={submit(actions.updateMembers)}>
-          <DynamicTable name="members_json" columns={MEMBER_COLS} initialData={members} addLabel="멤버 추가" />
+          <DynamicTable key={`members-${tableKeys['members'] ?? 0}`} name="members_json" columns={MEMBER_COLS} initialData={members} addLabel="멤버 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
         </form>
       </SectionCard>
@@ -517,7 +522,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         headerAction={<AiButton sectionKey="missions" sectionName="미션" columns={MISSION_COLS} currentData={missions} />}
       >
         <form onSubmit={submit(actions.updateMissions)}>
-          <DynamicTable name="missions_json" columns={MISSION_COLS} initialData={missions} addLabel="미션 추가" />
+          <DynamicTable key={`missions-${tableKeys['missions'] ?? 0}`} name="missions_json" columns={MISSION_COLS} initialData={missions} addLabel="미션 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
         </form>
       </SectionCard>
@@ -527,7 +532,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         headerAction={<AiButton sectionKey="okr" sectionName="OKR" columns={OKR_COLS} currentData={okr} />}
       >
         <form onSubmit={submit(actions.updateOkr)}>
-          <DynamicTable name="okr_json" columns={OKR_COLS} initialData={okr} addLabel="OKR 추가" />
+          <DynamicTable key={`okr-${tableKeys['okr'] ?? 0}`} name="okr_json" columns={OKR_COLS} initialData={okr} addLabel="OKR 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
         </form>
       </SectionCard>
@@ -537,7 +542,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         headerAction={<AiButton sectionKey="principles" sectionName="원칙" columns={PRINCIPLE_COLS} currentData={principles} />}
       >
         <form onSubmit={submit(actions.updatePrinciples)}>
-          <DynamicTable name="principles_json" columns={PRINCIPLE_COLS} initialData={principles} addLabel="원칙 추가" />
+          <DynamicTable key={`principles-${tableKeys['principles'] ?? 0}`} name="principles_json" columns={PRINCIPLE_COLS} initialData={principles} addLabel="원칙 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
         </form>
       </SectionCard>
@@ -547,7 +552,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         headerAction={<AiButton sectionKey="kpi_targets" sectionName="KPI 목표" columns={KPI_TARGET_COLS} currentData={kpiTargets} />}
       >
         <form onSubmit={submit(actions.updateKpiTargets)}>
-          <DynamicTable name="kpi_targets_json" columns={KPI_TARGET_COLS} initialData={kpiTargets} addLabel="KPI 목표 추가" />
+          <DynamicTable key={`kpi_targets-${tableKeys['kpi_targets'] ?? 0}`} name="kpi_targets_json" columns={KPI_TARGET_COLS} initialData={kpiTargets} addLabel="KPI 목표 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
         </form>
       </SectionCard>
@@ -557,7 +562,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         headerAction={<AiButton sectionKey="routine_templates" sectionName="루틴 템플릿" columns={ROUTINE_COLS} currentData={routineTemplates} />}
       >
         <form onSubmit={submit(actions.updateRoutineTemplates)}>
-          <DynamicTable name="routine_templates_json" columns={ROUTINE_COLS} initialData={routineTemplates} addLabel="루틴 추가" />
+          <DynamicTable key={`routine_templates-${tableKeys['routine_templates'] ?? 0}`} name="routine_templates_json" columns={ROUTINE_COLS} initialData={routineTemplates} addLabel="루틴 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
         </form>
       </SectionCard>
