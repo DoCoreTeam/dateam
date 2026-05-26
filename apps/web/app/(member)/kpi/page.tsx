@@ -317,7 +317,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
             </table>
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#94a3b8' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1rem', color: '#94a3b8', textAlign: 'center' }}>
             <TrendingUp size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
             <p style={{ margin: 0, fontSize: '0.875rem' }}>아직 등록된 실적이 없습니다</p>
           </div>

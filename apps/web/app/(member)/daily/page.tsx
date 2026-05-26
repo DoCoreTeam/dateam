@@ -354,6 +354,36 @@ export default function DailyPage() {
               )}
             </form>
 
+          {/* 이월된 미완료 항목 (오늘만 표시) */}
+          {isToday && (carryoverLoading || carryoverLogs.length > 0) && (
+            <div style={{ marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.625rem' }}>
+                <span style={{
+                  fontSize: '0.75rem', fontWeight: 700,
+                  color: '#92400e', background: '#fffbeb',
+                  border: '1px solid #fde68a',
+                  padding: '0.15rem 0.5rem', borderRadius: '0.25rem',
+                }}>
+                  이월된 미완료
+                </span>
+                {!carryoverLoading && (
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{carryoverLogs.length}건</span>
+                )}
+              </div>
+              {carryoverLoading ? (
+                <div style={{ color: '#94a3b8', fontSize: '0.875rem', paddingLeft: '0.5rem' }}>로딩 중...</div>
+              ) : (
+                <CarryoverList
+                  logs={carryoverLogs}
+                  isPending={isPending}
+                  onResolve={handleResolve}
+                  onMoveToToday={handleMoveToToday}
+                  onIgnore={handleIgnore}
+                />
+              )}
+            </div>
+          )}
+
           {/* 타임라인 */}
           {loading ? (
             <div style={{ textAlign: 'center', color: '#94a3b8', padding: '3rem 0' }}>로딩 중...</div>
@@ -609,6 +639,96 @@ function LogList({
                 )}
               </div>
             )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* 이월 항목 목록 컴포넌트 */
+interface CarryoverListProps {
+  logs: DailyLog[]
+  isPending: boolean
+  onResolve: (id: string) => void
+  onMoveToToday: (id: string) => void
+  onIgnore: (id: string) => void
+}
+
+function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: CarryoverListProps) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+      {logs.map((log) => {
+        const type = ENTRY_MAP[log.entry_type]
+        const d = new Date(log.log_date + 'T00:00:00')
+        const dateLabel = `${d.getMonth() + 1}/${d.getDate()}(${WEEK_DAYS[d.getDay()]})`
+
+        return (
+          <div key={log.id} style={{
+            background: '#fffbeb',
+            border: '1px solid #fde68a',
+            borderLeft: `3px solid ${type.color}`,
+            borderRadius: '0 0.5rem 0.5rem 0',
+            padding: '0.625rem 0.875rem',
+            opacity: isPending ? 0.6 : 1,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '10rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
+                  <span style={{
+                    fontSize: '0.6875rem', fontWeight: 700, color: type.color,
+                    background: type.bg, border: `1px solid ${type.border}`,
+                    padding: '0.1rem 0.35rem', borderRadius: '0.25rem',
+                  }}>
+                    {type.label}
+                  </span>
+                  <span style={{ fontSize: '0.6875rem', color: '#92400e', background: '#fef3c7', padding: '0.1rem 0.35rem', borderRadius: '0.25rem' }}>
+                    {dateLabel} 이월
+                  </span>
+                </div>
+                <p style={{
+                  margin: 0, fontSize: '0.875rem', color: '#1e293b',
+                  lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                }}>
+                  {log.content}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0, alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => onResolve(log.id)}
+                  disabled={isPending}
+                  style={{
+                    padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 600,
+                    background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0',
+                    borderRadius: '0.375rem', cursor: 'pointer',
+                  }}
+                >
+                  완료
+                </button>
+                <button
+                  onClick={() => onMoveToToday(log.id)}
+                  disabled={isPending}
+                  style={{
+                    padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 600,
+                    background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe',
+                    borderRadius: '0.375rem', cursor: 'pointer',
+                  }}
+                >
+                  오늘로
+                </button>
+                <button
+                  onClick={() => onIgnore(log.id)}
+                  disabled={isPending}
+                  style={{
+                    padding: '0.25rem 0.5rem', fontSize: '0.75rem',
+                    background: 'none', color: '#94a3b8', border: '1px solid #e2e8f0',
+                    borderRadius: '0.375rem', cursor: 'pointer',
+                  }}
+                >
+                  무시
+                </button>
+              </div>
+            </div>
           </div>
         )
       })}

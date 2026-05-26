@@ -142,6 +142,7 @@ export interface DailyLog {
   logged_at: string
   content: string
   entry_type: DailyLogEntryType
+  is_resolved: boolean
   created_at: string
   updated_at: string
 }

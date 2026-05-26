@@ -40,7 +40,7 @@ export default async function ContactsPage() {
         </div>
 
         {list.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#94a3b8', fontSize: '0.875rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1rem', color: '#94a3b8', fontSize: '0.875rem', textAlign: 'center' }}>
             <Users size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
             <p style={{ margin: 0 }}>등록된 담당자가 없습니다</p>
           </div>
