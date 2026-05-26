@@ -88,3 +88,16 @@ CSS는 반드시 `globals.css` 또는 CSS 모듈에 작성한다.
 
 ## 버전
 v0.3.9
+
+## 버전 업데이트 체크리스트 (필수 — 누락 시 UI 버전 불일치 발생)
+
+버전 변경 시 아래 **모든** 항목을 반드시 업데이트한다:
+
+1. `/package.json` — `"version"` 필드 ← **단일 소스 (next.config.js가 여기서 자동 주입)**
+2. `/apps/web/package.json` — `"version"` 필드 (monorepo 동기화)
+3. `CLAUDE.md` (이 파일) — `## 버전` 라인
+
+> **왜 중요한가**: `apps/web/next.config.js:2`가 `require('../../package.json').version`을 읽어
+> 빌드 타임에 `NEXT_PUBLIC_APP_VERSION`으로 주입한다.
+> 사이드바(`MobileShell.tsx:261`)는 이 env var를 표시한다.
+> **루트 `package.json`이 단일 소스** — `.env.local`로 재정의하지 말 것.
