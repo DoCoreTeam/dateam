@@ -23,6 +23,7 @@ import {
   CalendarDays,
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
+import SWRProvider from './SWRProvider'
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: '대시보드', icon: <LayoutDashboard size={16} /> },
@@ -106,7 +107,7 @@ export default async function MemberLayout({ children }: { children: React.React
           </>
         }
       >
-        {children}
+        <SWRProvider>{children}</SWRProvider>
       </MobileShell>
       {profile?.must_change_password && <PasswordChangeModal />}
       {!profile?.must_change_password && !profile?.name && <NameSetupModal />}

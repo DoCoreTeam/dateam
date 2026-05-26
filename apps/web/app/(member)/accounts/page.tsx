@@ -1,9 +1,21 @@
-import { redirect } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+'use client'
+
+import useSWRInfinite from 'swr/infinite'
+import { useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { Briefcase, Plus } from 'lucide-react'
+import { Briefcase, Plus, Loader2 } from 'lucide-react'
 import type { Account } from '@/types/database'
 import AccountActions from './AccountActions'
+
+const PAGE_SIZE = 20
+
+type PageData = { items: Account[]; nextCursor: string | null; hasMore: boolean }
+
+function getKey(pageIndex: number, prev: PageData | null) {
+  if (pageIndex > 0 && !prev?.nextCursor) return null
+  const cursor = prev?.nextCursor ? `&cursor=${encodeURIComponent(prev.nextCursor)}` : ''
+  return `/api/accounts?limit=${PAGE_SIZE}${cursor}`
+}
 
 function fitColor(score: number | null) {
   if (score === null) return { color: '#94a3b8', background: '#f8fafc' }
@@ -12,20 +24,25 @@ function fitColor(score: number | null) {
   return { color: '#dc2626', background: '#fef2f2' }
 }
 
-export default async function AccountsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+export default function AccountsPage() {
+  const { data, size, setSize, isLoading, isValidating } = useSWRInfinite<PageData>(getKey)
 
-  const adminClient = createAdminClient()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const adm = adminClient as any
-  const { data: accounts } = await adm
-    .from('accounts')
-    .select('*')
-    .order('created_at', { ascending: false }) as { data: Account[] | null }
+  const accounts = data?.flatMap((p) => p.items) ?? []
+  const hasMore = data?.[data.length - 1]?.hasMore ?? false
 
-  const list = accounts ?? []
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && hasMore && !isValidating) setSize(size + 1)
+      },
+      { threshold: 0.1 }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [hasMore, isValidating, size, setSize])
 
   return (
     <div>
@@ -48,10 +65,14 @@ export default async function AccountsPage() {
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Briefcase size={16} color="#6366f1" />
           <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>전체 거래처</h2>
-          <span className="badge badge-slate">{list.length}개</span>
+          <span className="badge badge-slate">{accounts.length}개</span>
         </div>
 
-        {list.length === 0 ? (
+        {isLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 1rem' }}>
+            <Loader2 size={24} style={{ color: '#6366f1', animation: 'spin 1s linear infinite' }} />
+          </div>
+        ) : accounts.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1rem', color: '#94a3b8', fontSize: '0.875rem', textAlign: 'center' }}>
             <Briefcase size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
             <p style={{ margin: 0 }}>등록된 거래처가 없습니다</p>
@@ -72,7 +93,7 @@ export default async function AccountsPage() {
               </tr>
             </thead>
             <tbody>
-              {list.map((acc) => {
+              {accounts.map((acc) => {
                 const fc = fitColor(acc.fit_score)
                 return (
                   <tr key={acc.id}>
@@ -115,6 +136,13 @@ export default async function AccountsPage() {
               })}
             </tbody>
           </table>
+        )}
+
+        <div ref={sentinelRef} style={{ height: 1 }} />
+        {isValidating && !isLoading && (
+          <div style={{ textAlign: 'center', padding: '1rem', color: '#94a3b8' }}>
+            <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+          </div>
         )}
       </div>
     </div>
