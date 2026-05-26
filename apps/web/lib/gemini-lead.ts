@@ -34,7 +34,51 @@ export interface ParsedLeadData {
   fit_score?: number
   fit_reason?: string
   tags?: string[]
+  // BULK_MODE 전용 필드
+  gpu_demand_intensity?: 'High' | 'Medium' | 'Low' | null
+  deal_value_billion?: number | null
+  product_recommendation?: string | null
+  bulk_import_row?: number
 }
+
+export interface ColumnIndexMap {
+  companyName: number
+  gpuDemand?: number
+  tier?: number
+  businessJudge?: number
+  region?: number
+  contactName?: number
+  contactTitle?: number
+  contactPhone?: number
+  contactEmail?: number
+  productRecommendation?: number
+  dealValueBillion?: number
+  fitScore?: number
+  notes?: number
+}
+
+const BULK_LEAD_PARSE_PROMPT = `당신은 CRM 데이터 정규화 전문가입니다.
+아래는 고객 데이터베이스에서 추출한 행 목록입니다. 각 행을 JSON 객체로 변환하여 배열로 반환하세요.
+
+[필드 매핑 규칙]
+- 회사명 → company_name (필수)
+- GPU수요강도 → gpu_demand_intensity: "High"/"Medium"/"Low" (한글이면 변환: 높음→High, 중간→Medium, 낮음→Low)
+- Tier → segment: T1→"Enterprise", T2→"Mid-Market", T3→"SMB" (없으면 그대로)
+- 소재지 → region (시/도 단위 정규화)
+- 담당자 → contact_name
+- 직책 → contact_title
+- 연락처 → contact_phone (하이픈 정규화)
+- 이메일 → contact_email (소문자 정규화)
+- 추천제안 → product_recommendation
+- 예상딜밸류(억) → deal_value_billion (숫자만, 단위 제거, null 허용)
+- 적합도 → fit_score (0-100 정수, null 허용)
+- 비고 → deal_description
+
+[출력 형식]
+반드시 JSON 배열만 반환. 마크다운 없음. 설명 없음.
+[{"company_name": "...", "gpu_demand_intensity": "High", "segment": "Enterprise", ...}, ...]
+
+[데이터]`
 
 const LEAD_PARSE_PROMPT = `당신은 B2B 영업 CRM 전문가입니다. 아래 입력에서 거래처/담당자/영업기회 정보를 추출하여 JSON으로 반환하세요.
 
@@ -181,6 +225,52 @@ export async function parseLeadInput(
   } catch {
     throw new Error('Gemini 리드 파싱 JSON 오류')
   }
+}
+
+export async function parseBulkLeadChunk(
+  rows: string[][],
+  colMap: ColumnIndexMap,
+  apiKey: string,
+  model: string,
+  userId?: string | null,
+  chunkStartRow = 0
+): Promise<ParsedLeadData[]> {
+  const rowsText = rows.map((row, i) => {
+    const fields: Record<string, string> = {}
+    if (colMap.companyName < row.length) fields['회사명'] = row[colMap.companyName] ?? ''
+    if (colMap.gpuDemand !== undefined && colMap.gpuDemand < row.length) fields['GPU수요강도'] = row[colMap.gpuDemand] ?? ''
+    if (colMap.tier !== undefined && colMap.tier < row.length) fields['Tier'] = row[colMap.tier] ?? ''
+    if (colMap.businessJudge !== undefined && colMap.businessJudge < row.length) fields['사업판단'] = row[colMap.businessJudge] ?? ''
+    if (colMap.region !== undefined && colMap.region < row.length) fields['소재지'] = row[colMap.region] ?? ''
+    if (colMap.contactName !== undefined && colMap.contactName < row.length) fields['담당자'] = row[colMap.contactName] ?? ''
+    if (colMap.contactTitle !== undefined && colMap.contactTitle < row.length) fields['직책'] = row[colMap.contactTitle] ?? ''
+    if (colMap.contactPhone !== undefined && colMap.contactPhone < row.length) fields['연락처'] = row[colMap.contactPhone] ?? ''
+    if (colMap.contactEmail !== undefined && colMap.contactEmail < row.length) fields['이메일'] = row[colMap.contactEmail] ?? ''
+    if (colMap.productRecommendation !== undefined && colMap.productRecommendation < row.length) fields['추천제안'] = row[colMap.productRecommendation] ?? ''
+    if (colMap.dealValueBillion !== undefined && colMap.dealValueBillion < row.length) fields['예상딜밸류(억)'] = row[colMap.dealValueBillion] ?? ''
+    if (colMap.fitScore !== undefined && colMap.fitScore < row.length) fields['적합도'] = row[colMap.fitScore] ?? ''
+    if (colMap.notes !== undefined && colMap.notes < row.length) fields['비고'] = row[colMap.notes] ?? ''
+    return `행${chunkStartRow + i + 1}: ${JSON.stringify(fields)}`
+  }).join('\n')
+
+  const prompt = `${BULK_LEAD_PARSE_PROMPT}\n${rowsText}`
+  const { text, usage } = await callGemini(prompt, apiKey, model)
+
+  logTokenUsage({ userId: userId ?? null, feature: 'lead-parse' as AiFeature, model, ...usage })
+
+  let parsed: ParsedLeadData[]
+  try {
+    const raw = JSON.parse(text)
+    parsed = Array.isArray(raw) ? raw as ParsedLeadData[] : []
+  } catch {
+    // 파싱 실패 시 빈 배열 (각 행을 failed로 처리)
+    return rows.map((_, i) => ({ bulk_import_row: chunkStartRow + i + 1 }))
+  }
+
+  return parsed.map((item, i) => ({
+    ...item,
+    bulk_import_row: chunkStartRow + i + 1,
+  }))
 }
 
 export async function scoreFit(

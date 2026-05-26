@@ -110,9 +110,11 @@ const AXLoadingOverlay = forwardRef<HTMLDivElement, AXLoadingOverlayProps>(
               style={{
                 fontSize: '0.8125rem',
                 color: isDark ? '#94a3b8' : '#7c3aed',
-                maxWidth: '280px',
+                maxWidth: '320px',
                 overflowWrap: 'anywhere',
-                lineHeight: 1.45,
+                lineHeight: 1.6,
+                whiteSpace: 'pre-line',
+                textAlign: 'center',
               }}
             >
               {sublabel}

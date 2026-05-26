@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import type { ParsedLeadData } from '@/lib/gemini-lead'
 import AXLoadingOverlay from '@/components/ui/AXLoadingOverlay'
 import ParsedCard from './ParsedCard'
+import BulkImportProgress from './BulkImportProgress'
+
+const BULK_EXTENSIONS = new Set(['xlsx', 'xls'])
 
 type Tab = 'prompt' | 'file'
 
@@ -46,6 +49,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
+  const [bulkFile, setBulkFile] = useState<File | null>(null)
 
   function addFiles(incoming: FileList | null) {
     if (!incoming) return
@@ -53,6 +57,11 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
     for (const file of Array.from(incoming)) {
       if (file.size === 0) { setError(`${file.name}: 빈 파일입니다`); continue }
       if (file.size > MAX_FILE_BYTES) { setError(`${file.name}: 파일이 너무 큽니다 (최대 20MB)`); continue }
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+      if (BULK_EXTENSIONS.has(ext)) {
+        // XLSX/XLS → BULK_MODE 경로로 분기
+        setBulkFile(file); setError(''); return
+      }
       next.push({ file, status: 'pending' })
     }
     setFiles(prev => [...prev, ...next])
@@ -208,8 +217,17 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
         </div>
       )}
 
-      {/* 파일 탭 */}
-      {tab === 'file' && (
+      {/* 파일 탭 — BULK_MODE */}
+      {tab === 'file' && bulkFile && (
+        <BulkImportProgress
+          file={bulkFile}
+          onComplete={() => { setBulkFile(null); router.refresh() }}
+          onCancel={() => setBulkFile(null)}
+        />
+      )}
+
+      {/* 파일 탭 — SINGLE_MODE */}
+      {tab === 'file' && !bulkFile && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div className={`dropzone${isDragging ? ' dropzone-active' : ''}`}
             onDragOver={e => { e.preventDefault(); setIsDragging(true) }}

@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { parseLeadInput, parseLeadFromVision, isVisionMimeType, scoreFit } from '@/lib/gemini-lead'
 import type { ParsedLeadData } from '@/lib/gemini-lead'
+import { handleBulkMode, isBulkMimeType } from '@/lib/lead-bulk-import'
 
-const MAX_FILE_BYTES = 20 * 1024 * 1024 // 20MB — Gemini Vision inline 한도
-const MAX_TEXT_BYTES = 100 * 1024       // 100KB — 텍스트 추출 결과 cap
+export const maxDuration = 300
+
+const MAX_FILE_BYTES = 20 * 1024 * 1024
+const MAX_TEXT_BYTES = 100 * 1024
 const MAX_XLSX_SHEETS = 10
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -95,14 +98,23 @@ export async function POST(req: NextRequest) {
     const { apiKey, model } = await getSettings(adminClient)
     if (!apiKey) return NextResponse.json({ error: 'Gemini API 키가 설정되지 않았습니다' }, { status: 500 })
 
-    try {
-      const arrayBuffer = await file.arrayBuffer()
-      const buffer = Buffer.from(arrayBuffer)
-      const mimeType = file.type || 'application/octet-stream'
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    const mimeType = file.type || 'application/octet-stream'
 
+    // ── BULK_MODE 감지 (XLSX/XLS만) ────────────────────────
+    if (isBulkMimeType(mimeType, ext)) {
+      const bulkResponse = await handleBulkMode(buffer, file.name, user.id, adm, apiKey, model)
+      const ctHeader = bulkResponse.headers.get('content-type') ?? ''
+      if (ctHeader.includes('text/event-stream')) return bulkResponse
+      const jsonBody = await bulkResponse.json() as { bulk?: boolean }
+      if (jsonBody.bulk !== false) return bulkResponse
+      // SINGLE_MODE fallthrough
+    }
+
+    try {
       let parsed: ParsedLeadData
       if (isVisionMimeType(mimeType) || ['jpg','jpeg','png','webp','gif','bmp','tiff','tif','heic','heif','avif','pdf'].includes(ext)) {
-        // 확장자 기반으로 MIME 보정 (브라우저가 빈 type을 보내는 경우 대비)
         const effectiveMime = mimeType !== 'application/octet-stream' ? mimeType
           : ext === 'pdf' ? 'application/pdf' : `image/${ext}`
         parsed = await parseLeadFromVision(buffer, effectiveMime, apiKey, model, user.id)
@@ -126,18 +138,13 @@ export async function POST(req: NextRequest) {
       }
 
       const { data: intake, error } = await adm.from('lead_intakes').insert({
-        user_id: user.id,
-        source,
-        raw_input: file.name,
-        status: 'completed',
-        parsed_data: parsed,
-        fit_score: parsed.fit_score ?? null,
+        user_id: user.id, source, raw_input: file.name, status: 'completed',
+        parsed_data: parsed, fit_score: parsed.fit_score ?? null,
       }).select().single()
 
       if (error) throw error
       return NextResponse.json({ success: true, intake, parsed })
     } catch (err) {
-      // 내부 에러 로그 (사용자에게는 일반 메시지)
       console.error('[lead-parse file]', err)
       const { error: catchInsertErr } = await adm.from('lead_intakes').insert({
         user_id: user.id, source, raw_input: file.name, status: 'failed', parsed_data: null, fit_score: null,
@@ -170,12 +177,8 @@ export async function POST(req: NextRequest) {
     }
 
     const { data: intake, error } = await adm.from('lead_intakes').insert({
-      user_id: user.id,
-      source,
-      raw_input: rawInput,
-      status: 'completed',
-      parsed_data: parsed,
-      fit_score: parsed.fit_score ?? null,
+      user_id: user.id, source, raw_input: rawInput, status: 'completed',
+      parsed_data: parsed, fit_score: parsed.fit_score ?? null,
     }).select().single()
 
     if (error) throw error

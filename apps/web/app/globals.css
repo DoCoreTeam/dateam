@@ -943,3 +943,28 @@
   transition: background 120ms;
 }
 .checkin-close-btn:hover { background: #4f46e5; }
+
+/* ── Bulk Import ─────────────────────────────── */
+.bulk-result-summary {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+.bulk-result-error {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+.bulk-progress-bar-bg {
+  width: 100%;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bulk-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #818cf8);
+  border-radius: 4px;
+  transition: width 400ms ease-out;
+}
