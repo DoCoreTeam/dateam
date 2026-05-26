@@ -221,7 +221,7 @@ export default function CalendarPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
               {calCells.map((day, idx) => {
                 if (day === null) {
-                  return <div key={`empty-${idx}`} style={{ minHeight: '3.5rem' }} />
+                  return <div key={`empty-${idx}`} style={{ minHeight: '4.75rem' }} />
                 }
                 const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
                 const summary = summaryMap.get(dateStr)
@@ -262,7 +262,7 @@ export default function CalendarPage() {
                         {/* 블로커 표시 */}
                         {summary.hasBlocker && (
                           <span style={{
-                            fontSize: '0.5625rem',
+                            fontSize: '0.625rem',
                             fontWeight: 700,
                             color: '#dc2626',
                             background: '#fef2f2',
@@ -271,7 +271,7 @@ export default function CalendarPage() {
                             lineHeight: 1.4,
                             textAlign: 'center',
                           }}>
-                            블로커
+                            🚫
                           </span>
                         )}
                         {/* 미리보기 텍스트 */}
@@ -284,10 +284,12 @@ export default function CalendarPage() {
                             </div>
                           )
                         })}
-                        {/* 총 건수 */}
-                        <span style={{ fontSize: '0.5625rem', color: '#94a3b8', textAlign: 'center' }}>
-                          {summary.total}건
-                        </span>
+                        {/* 총 건수 (2건 초과 시에만 표시) */}
+                        {summary.total > 2 && (
+                          <span style={{ fontSize: '0.625rem', color: '#94a3b8', textAlign: 'center' }}>
+                            +{summary.total - 2}건 더
+                          </span>
+                        )}
                       </div>
                     )}
                   </button>
