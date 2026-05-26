@@ -4,16 +4,18 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { KeyRound, LogOut, ChevronUp } from 'lucide-react'
+import { KeyRound, LogOut, ChevronUp, LayoutDashboard } from 'lucide-react'
 
 interface SidebarProfileProps {
   name: string
   email: string
+  isAdmin?: boolean
 }
 
-export default function SidebarProfile({ name, email }: SidebarProfileProps) {
+export default function SidebarProfile({ name, email, isAdmin = false }: SidebarProfileProps) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -23,8 +25,18 @@ export default function SidebarProfile({ name, email }: SidebarProfileProps) {
         setOpen(false)
       }
     }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
     document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [open])
 
   const handleLogout = async () => {
@@ -54,6 +66,30 @@ export default function SidebarProfile({ name, email }: SidebarProfileProps) {
             zIndex: 100,
           }}
         >
+          {isAdmin && (
+            <>
+              <Link
+                href="/admin/users"
+                onClick={() => setOpen(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.625rem',
+                  padding: '0.75rem 1rem',
+                  fontSize: '0.8125rem',
+                  color: '#a5b4fc',
+                  textDecoration: 'none',
+                  transition: 'background 120ms',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(99,102,241,0.12)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <LayoutDashboard size={14} />
+                관리자 패널
+              </Link>
+              <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '0 0.75rem' }} />
+            </>
+          )}
           <Link
             href="/change-password"
             onClick={() => setOpen(false)}
@@ -100,6 +136,7 @@ export default function SidebarProfile({ name, email }: SidebarProfileProps) {
 
       {/* 프로필 버튼 */}
       <button
+        ref={triggerRef}
         onClick={() => setOpen(!open)}
         style={{
           display: 'flex',

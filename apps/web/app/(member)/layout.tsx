@@ -93,7 +93,7 @@ export default async function MemberLayout({ children }: { children: React.React
         groups={profile?.role === 'admin' ? NAV_GROUPS : []}
         logoUrl={branding.logoUrl}
         brandName={branding.brandName}
-        footer={<SidebarProfile name={displayName} email={userEmail} />}
+        footer={<SidebarProfile name={displayName} email={userEmail} isAdmin={profile?.role === 'admin'} />}
         adminHref={profile?.role === 'admin' ? '/admin/users' : undefined}
         headerLeft={
           <span style={{ fontSize: '0.875rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
