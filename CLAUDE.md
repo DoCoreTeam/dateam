@@ -89,18 +89,22 @@ v{버전}: {변경 내용} claude
 ```
 
 **규칙:**
-- 형식: `v0.0.0: 변경 내용 요약 claude`
-- 커밋 메시지 **맨 마지막**에 반드시 `claude` 명시 (공백 후 추가)
-- 버전은 현재 프로젝트 버전 사용
+- 커밋 메시지 **제목줄 맨 마지막**에 반드시 소문자 `claude` 추가 (공백 1칸 후)
+- 버전은 `package.json`의 현재 버전 사용
+- `Co-Authored-By` 트레일러는 커밋 본문 영역에 별도 유지 (본 규칙과 무관)
+
+**예외:** merge / revert 커밋은 Git 자동 생성 메시지 사용 — `claude` 불요
 
 **예시:**
 ```bash
 # ✅ 올바른 예
-git commit -m "v0.4.5: 거래처 목록 검색 필터 추가 claude"
+git commit -m "v0.4.6: 거래처 목록 검색 필터 추가 claude"
 git commit -m "v0.4.6: 모바일 카드 레이아웃 버그 수정 claude"
 
-# ❌ 금지 — claude 누락
-git commit -m "v0.4.5: 거래처 목록 검색 필터 추가"
+# ❌ 금지
+git commit -m "v0.4.6: 거래처 목록 검색 필터 추가"        # claude 누락
+git commit -m "v0.4.6: 거래처 목록 검색 필터 추가 Claude"  # 대문자 금지
+git commit -m "claude v0.4.6: 거래처 목록 검색 필터 추가"  # 위치 오류
 ```
 
 ## 기술 스택
