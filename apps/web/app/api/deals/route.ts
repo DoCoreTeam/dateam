@@ -7,17 +7,19 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const LIMIT = 20
-  const cursor = req.nextUrl.searchParams.get('cursor') // created_at ISO string
+  const cursorRaw = req.nextUrl.searchParams.get('cursor')
+  const [cursorTime, cursorId] = cursorRaw ? cursorRaw.split('__') : [null, null]
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase as any)
     .from('deals')
     .select('*, accounts(name)')
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(LIMIT + 1)
 
-  if (cursor) {
-    query = query.lt('created_at', cursor)
+  if (cursorTime && cursorId) {
+    query = query.or(`created_at.lt.${cursorTime},and(created_at.eq.${cursorTime},id.lt.${cursorId})`)
   }
 
   const { data, error } = await query
@@ -25,7 +27,8 @@ export async function GET(req: NextRequest) {
 
   const hasMore = data.length > LIMIT
   const items = hasMore ? data.slice(0, LIMIT) : data
-  const nextCursor = hasMore ? items[items.length - 1].created_at : null
+  const last = items[items.length - 1]
+  const nextCursor = hasMore && last ? `${last.created_at}__${last.id}` : null
 
   return NextResponse.json({ items, nextCursor, hasMore })
 }

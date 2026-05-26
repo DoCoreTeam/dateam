@@ -13,8 +13,7 @@ type PageData = { items: Account[]; nextCursor: string | null; hasMore: boolean 
 
 function getKey(pageIndex: number, prev: PageData | null) {
   if (pageIndex > 0 && !prev?.nextCursor) return null
-  const cursor = prev?.nextCursor ? `&cursor=${encodeURIComponent(prev.nextCursor)}` : ''
-  return `/api/accounts?limit=${PAGE_SIZE}${cursor}`
+  return prev?.nextCursor ? `/api/accounts?cursor=${encodeURIComponent(prev.nextCursor)}` : '/api/accounts'
 }
 
 function fitColor(score: number | null) {

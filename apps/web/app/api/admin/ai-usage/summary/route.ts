@@ -18,21 +18,18 @@ export async function GET() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
   const [todayRes, monthRes, totalRes, metaRes] = await Promise.all([
-    adm.from('ai_token_logs').select('total_tokens').gte('created_at', todayStart),
-    adm.from('ai_token_logs').select('total_tokens').gte('created_at', monthStart),
-    adm.from('ai_token_logs').select('total_tokens'),
+    adm.from('ai_token_logs').select('total_tokens.sum()').gte('created_at', todayStart).maybeSingle(),
+    adm.from('ai_token_logs').select('total_tokens.sum()').gte('created_at', monthStart).maybeSingle(),
+    adm.from('ai_token_logs').select('total_tokens.sum()').maybeSingle(),
     adm.from('org_content').select('value').eq('key', 'META').single(),
   ])
-
-  const sum = (rows: { total_tokens: number }[] | null) =>
-    rows?.reduce((s, r) => s + r.total_tokens, 0) ?? 0
 
   const meta = (metaRes.data?.value as Record<string, unknown>) ?? {}
   const threshold = typeof meta.ai_token_alert_threshold === 'number' ? meta.ai_token_alert_threshold : 1_000_000
 
-  const todayTokens = sum(todayRes.data)
-  const monthTokens = sum(monthRes.data)
-  const totalTokens = sum(totalRes.data)
+  const todayTokens = (todayRes.data as { sum: number } | null)?.sum ?? 0
+  const monthTokens = (monthRes.data as { sum: number } | null)?.sum ?? 0
+  const totalTokens = (totalRes.data as { sum: number } | null)?.sum ?? 0
 
   return NextResponse.json({
     today_tokens: todayTokens,

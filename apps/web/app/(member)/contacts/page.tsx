@@ -13,8 +13,7 @@ const PAGE_SIZE = 20
 
 function getKey(pageIndex: number, prev: PageData | null) {
   if (pageIndex > 0 && !prev?.nextCursor) return null
-  const cursor = prev?.nextCursor ? `&cursor=${encodeURIComponent(prev.nextCursor)}` : ''
-  return `/api/contacts?limit=${PAGE_SIZE}${cursor}`
+  return prev?.nextCursor ? `/api/contacts?cursor=${encodeURIComponent(prev.nextCursor)}` : '/api/contacts'
 }
 
 export default function ContactsPage() {

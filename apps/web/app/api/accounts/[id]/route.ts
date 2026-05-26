@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 
 interface Ctx { params: Promise<{ id: string }> }
 
@@ -9,11 +9,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await req.json()
-  const adminClient = createAdminClient()
+  const raw = await req.json()
+  const ALLOWED = ['name','industry','segment','size','region','website','phone','address','fit_score','fit_reason','tags'] as const
+  const body = Object.fromEntries(ALLOWED.filter(k => k in raw).map(k => [k, raw[k]]))
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (adminClient as any)
-    .from('accounts').update(body).eq('id', id).select().single()
+  const { data, error } = await (supabase as any)
+    .from('accounts').update(body).eq('id', id).select().maybeSingle()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
@@ -25,9 +26,8 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const adminClient = createAdminClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (adminClient as any).from('accounts').delete().eq('id', id)
+  const { error } = await (supabase as any).from('accounts').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }

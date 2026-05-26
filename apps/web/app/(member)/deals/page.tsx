@@ -24,8 +24,7 @@ const STAGE_STYLE: Record<string, { color: string; bg: string; border: string }>
 
 function getKey(pageIndex: number, prev: PageData | null) {
   if (pageIndex > 0 && !prev?.nextCursor) return null
-  const cursor = prev?.nextCursor ? `&cursor=${encodeURIComponent(prev.nextCursor)}` : ''
-  return `/api/deals?limit=${PAGE_SIZE}${cursor}`
+  return prev?.nextCursor ? `/api/deals?cursor=${encodeURIComponent(prev.nextCursor)}` : '/api/deals'
 }
 
 export default function DealsPage() {
