@@ -30,3 +30,6 @@ apps/web/tsconfig.tsbuildinfo
 
 # npm lock (pnpm 프로젝트)
 package-lock.json
+
+# 구버전 아카이브 파일
+docs/old/
