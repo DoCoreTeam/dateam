@@ -299,7 +299,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
 
         {kpiEntries && kpiEntries.length > 0 ? (
           <div className="table-responsive">
-            <table className="table-base" style={{ minWidth: '560px' }}>
+            <table className="table-base table-card">
               <thead>
                 <tr>
                   <th>KPI 항목</th>

@@ -196,7 +196,7 @@ export default function RoutineGrid({
             </div>
           )}
           <div className="table-responsive">
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
+            <table className="table-base table-card" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   <th style={{ padding: '1rem 1.25rem', textAlign: 'left', fontSize: '0.8125rem', fontWeight: 600, color: '#64748b', borderBottom: '1px solid #e2e8f0', width: '200px' }}>
@@ -223,7 +223,7 @@ export default function RoutineGrid({
 
                   return (
                     <tr key={item.name}>
-                      <td style={{ padding: '0.875rem 1.25rem', borderBottom: rIdx < dailyItems.length - 1 ? '1px solid #f1f5f9' : 'none', verticalAlign: 'middle' }}>
+                      <td className="card-header" style={{ padding: '0.875rem 1.25rem', borderBottom: rIdx < dailyItems.length - 1 ? '1px solid #f1f5f9' : 'none', verticalAlign: 'middle' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
                           <span style={{ fontSize: '0.875rem', color: '#374151', fontWeight: 500 }}>{item.name}</span>
                           <span className={cn('badge', rowRate === 100 ? 'badge-emerald' : 'badge-slate')} style={{ fontSize: '0.6875rem', flexShrink: 0 }}>
@@ -231,14 +231,14 @@ export default function RoutineGrid({
                           </span>
                         </div>
                       </td>
-                      {weekDates.map((date) => {
+                      {weekDates.map((date, i) => {
                         const key = `${item.name}|${date}`
                         const isChecked = !!checks[key]
                         const isToday = date === todayStr
                         const isFuture = date > todayStr
 
                         return (
-                          <td key={date} style={{ padding: '0.875rem 0.5rem', textAlign: 'center', borderBottom: rIdx < dailyItems.length - 1 ? '1px solid #f1f5f9' : 'none', backgroundColor: isToday ? '#fafbff' : 'transparent' }}>
+                          <td key={date} data-label={DAY_LABELS[i]} style={{ padding: '0.875rem 0.5rem', textAlign: 'center', borderBottom: rIdx < dailyItems.length - 1 ? '1px solid #f1f5f9' : 'none', backgroundColor: isToday ? '#fafbff' : 'transparent' }}>
                             <CheckBox
                               checked={isChecked}
                               disabled={isPending || isFuture}

@@ -439,20 +439,13 @@ export default async function OperationsPage() {
           >
             R&R 매트릭스
           </h2>
-          <div
-            style={{
-              background: '#fff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '1rem',
-              overflowX: 'auto',
-            }}
-          >
+          <div className="table-responsive">
             <table
+              className="table-base table-card"
               style={{
                 width: '100%',
                 borderCollapse: 'collapse',
                 fontSize: '0.875rem',
-                minWidth: '560px',
               }}
             >
               <thead>
@@ -489,6 +482,8 @@ export default async function OperationsPage() {
                     {row.map((cell, colIdx) => (
                       <td
                         key={colIdx}
+                        className={colIdx === 0 ? 'card-header' : undefined}
+                        data-label={colIdx > 0 ? rrHeaders[colIdx] : undefined}
                         style={{
                           padding: '0.75rem 1rem',
                           color: colIdx === 0 ? '#0f172a' : '#475569',

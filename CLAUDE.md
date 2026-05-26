@@ -80,6 +80,29 @@ CSS는 반드시 `globals.css` 또는 CSS 모듈에 작성한다.
 - `.table-responsive` 래퍼 + `minWidth` 조합 (가로 스크롤 유발) → `.table-card` 사용
 - 클라이언트 컴포넌트 내 `<style>` 태그 (hydration 오류 유발)
 
+## Git 커밋 규칙
+
+### 커밋 메시지 형식 (필수)
+
+```
+v{버전}: {변경 내용} claude
+```
+
+**규칙:**
+- 형식: `v0.0.0: 변경 내용 요약 claude`
+- 커밋 메시지 **맨 마지막**에 반드시 `claude` 명시 (공백 후 추가)
+- 버전은 현재 프로젝트 버전 사용
+
+**예시:**
+```bash
+# ✅ 올바른 예
+git commit -m "v0.4.5: 거래처 목록 검색 필터 추가 claude"
+git commit -m "v0.4.6: 모바일 카드 레이아웃 버그 수정 claude"
+
+# ❌ 금지 — claude 누락
+git commit -m "v0.4.5: 거래처 목록 검색 필터 추가"
+```
+
 ## 기술 스택
 - Next.js 14+ (App Router)
 - Tailwind CSS + globals.css 유틸
@@ -87,7 +110,7 @@ CSS는 반드시 `globals.css` 또는 CSS 모듈에 작성한다.
 - TypeScript
 
 ## 버전
-v0.4.5
+v0.4.6
 
 ## 버전 업데이트 체크리스트 (필수 — 누락 시 UI 버전 불일치 발생)
 

@@ -100,8 +100,8 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
           해당 주차 작성된 보고가 없습니다
         </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+        <div className="table-responsive">
+          <table className="table-base table-card" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
             <thead>
               <tr style={{ backgroundColor: '#f8fafc' }}>
                 <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: '#475569', border: CELL_BORDER, width: '90px' }}>이름</th>
@@ -119,26 +119,30 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
                     style={{ cursor: 'pointer', backgroundColor: rIdx % 2 === 0 ? '#fff' : '#fafafa' }}
                     onClick={() => setModal(r)}
                   >
+                    <td className="mobile-only card-header">
+                      <span style={{ fontWeight: 600, color: '#334155' }}>{name}</span>
+                    </td>
                     {rIdx === 0 && (
                       <td
                         rowSpan={grouped[name].length}
+                        className="card-hide"
                         style={{ padding: '0.75rem', border: CELL_BORDER, fontWeight: 600, color: '#334155', verticalAlign: 'middle', whiteSpace: 'nowrap', backgroundColor: '#f8fafc' }}
                       >
                         {name}
                       </td>
                     )}
-                    <td style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top', color: '#475569', whiteSpace: 'nowrap' }}>{r.category}</td>
-                    <td style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top', maxWidth: '260px' }}>
+                    <td data-label="구분" style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top', color: '#475569', whiteSpace: 'nowrap' }}>{r.category}</td>
+                    <td data-label="성과" style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top', maxWidth: '260px' }}>
                       {r.performance && r.performance !== '<p></p>' ? (
                         <div className="report-rich" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', lineHeight: 1.55 }} dangerouslySetInnerHTML={{ __html: r.performance }} />
                       ) : <span style={{ color: '#cbd5e1' }}>—</span>}
                     </td>
-                    <td style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top', maxWidth: '260px' }}>
+                    <td data-label="계획" style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top', maxWidth: '260px' }}>
                       {r.plan && r.plan !== '<p></p>' ? (
                         <div className="report-rich" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', lineHeight: 1.55 }} dangerouslySetInnerHTML={{ __html: r.plan }} />
                       ) : <span style={{ color: '#cbd5e1' }}>—</span>}
                     </td>
-                    <td style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top' }}>
+                    <td data-label="이슈" style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top' }}>
                       {r.issues && r.issues !== '<p></p>' ? (
                         <div className="report-rich" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.55 }} dangerouslySetInnerHTML={{ __html: r.issues }} />
                       ) : <span style={{ color: '#cbd5e1' }}>—</span>}

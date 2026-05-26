@@ -306,8 +306,8 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
           </div>
 
           {/* Table */}
-          <div style={{ overflowX: 'auto' }}>
-            <table className="table-base" style={{ minWidth: 900, width: '100%', borderCollapse: 'collapse' }}>
+          <div className="table-responsive">
+            <table className="table-base table-card" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#f8fafc' }}>
                   {TH_COLS.map(({ label, width }) => (
@@ -330,9 +330,13 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
                   }
                   return rows.map((row, rowIdx) => (
                     <tr key={rowIdx} style={{ borderBottom: '1px solid #f1f5f9', verticalAlign: 'top' }}>
+                      <td className="mobile-only card-header">
+                        <span style={{ fontWeight: 600, color: '#6366f1' }}>{row.orgName} {row.userName ? `(${row.userName})` : ''}</span>
+                      </td>
                       {spanMap.has(rowIdx) && (
                         <td
                           rowSpan={spanMap.get(rowIdx)}
+                          className="card-hide"
                           style={{ padding: '0.75rem 0.875rem', whiteSpace: 'nowrap', verticalAlign: 'middle', borderRight: '1px solid #f1f5f9' }}
                         >
                           <div style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: 600 }}>{row.orgName}</div>
@@ -341,9 +345,9 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
                           )}
                         </td>
                       )}
-                      <td style={{ padding: '0.75rem 0.875rem', fontSize: '0.8125rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{row.category}</td>
+                      <td data-label="구분" style={{ padding: '0.75rem 0.875rem', fontSize: '0.8125rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{row.category}</td>
                       {EDITABLE_FIELDS.map(field => (
-                        <td key={field} style={{ padding: '0.75rem 0.875rem', verticalAlign: 'top' }}>
+                        <td key={field} data-label={FIELD_LABELS[field]} style={{ padding: '0.75rem 0.875rem', verticalAlign: 'top' }}>
                           <RichCell html={row[field]} />
                           <button
                             onClick={() => setEditingCell({ rowIdx, field })}

@@ -132,7 +132,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
 
         {allMetrics.length > 0 ? (
           <div className="table-responsive">
-            <table className="table-base" style={{ minWidth: '600px' }}>
+            <table className="table-base table-card">
               <thead>
                 <tr>
                   <th>팀원</th>
@@ -156,7 +156,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
                   const userMetrics = latestByUser[profile.id] ?? {}
                   return (
                     <tr key={profile.id}>
-                      <td><span style={{ fontWeight: 500, color: '#374151' }}>{profile.name}</span></td>
+                      <td className="card-header"><span style={{ fontWeight: 500, color: '#374151' }}>{profile.name}</span></td>
                       {allMetrics.map((metric) => {
                         const entry = userMetrics[metric]
                         const t = targetMap.get(metric)
@@ -167,7 +167,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
                             : null
 
                         return (
-                          <td key={metric} style={{ textAlign: 'right' }}>
+                          <td key={metric} data-label={metric} style={{ textAlign: 'right' }}>
                             {entry ? (
                               <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
                                 <span>
