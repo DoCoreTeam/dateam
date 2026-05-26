@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Camera, Loader2, ImageOff, RefreshCw } from 'lucide-react'
 import type { Contact, Account } from '@/types/database'
+import { CONTACT_ROLES } from '@/lib/crm'
 
 interface Props {
   contact?: Contact
@@ -26,6 +27,7 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
     phone: contact?.phone ?? '',
     mobile: contact?.mobile ?? '',
     linkedin: contact?.linkedin ?? '',
+    role: contact?.role ?? '',
     notes: contact?.notes ?? '',
   })
 
@@ -119,6 +121,7 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
       phone: form.phone || null,
       mobile: form.mobile || null,
       linkedin: form.linkedin || null,
+      role: form.role || null,
       notes: form.notes || null,
       business_card_drive_id: businessCardDriveId,
     }
@@ -278,6 +281,13 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
           <div>
             <label className="label">LinkedIn</label>
             <input className="input-field" value={form.linkedin} onChange={(e) => set('linkedin', e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <label className="label">역할</label>
+            <select className="input-field" value={form.role} onChange={(e) => set('role', e.target.value)} style={inputStyle}>
+              <option value="">선택</option>
+              {CONTACT_ROLES.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
           </div>
         </div>
         <div>

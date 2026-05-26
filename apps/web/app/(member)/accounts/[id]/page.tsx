@@ -64,6 +64,8 @@ export default async function AccountDetailPage({ params }: PageProps) {
                 {account.industry && <span className="badge badge-slate">{account.industry}</span>}
                 {account.segment && <span className="badge badge-indigo">{account.segment}</span>}
                 {account.size && <span className="badge" style={{ background: '#f8fafc', color: '#64748b' }}>{account.size}</span>}
+                {account.account_type && <span className="badge" style={{ background: '#fff7ed', color: '#c2410c' }}>{account.account_type}</span>}
+                {account.gpu_demand_intensity && <span className="badge" style={{ background: '#f0fdf4', color: '#16a34a' }}>GPU {account.gpu_demand_intensity}</span>}
               </div>
             </div>
           </div>
@@ -96,6 +98,18 @@ export default async function AccountDetailPage({ params }: PageProps) {
                 <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
                   <Phone size={15} color="#6366f1" style={{ flexShrink: 0 }} />
                   <span style={{ fontSize: '0.875rem', color: '#374151' }}>{account.phone}</span>
+                </div>
+              )}
+              {account.registration_number && (
+                <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', minWidth: '5rem' }}>번호</span>
+                  <span style={{ fontSize: '0.875rem', color: '#374151' }}>{account.registration_number}</span>
+                </div>
+              )}
+              {account.source && (
+                <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', minWidth: '5rem' }}>출처</span>
+                  <span style={{ fontSize: '0.875rem', color: '#374151' }}>{account.source}</span>
                 </div>
               )}
               {account.region && (

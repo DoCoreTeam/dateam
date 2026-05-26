@@ -9,13 +9,24 @@ import BulkImportProgress from './BulkImportProgress'
 
 const BULK_EXTENSIONS = new Set(['xlsx', 'xls'])
 
-type Tab = 'prompt' | 'file'
+type Tab = 'prompt' | 'file' | 'voice'
 
 type FileItem = {
   file: File
   status: 'pending' | 'processing' | 'done' | 'error'
   parsed?: ParsedLeadData
+  intakeId?: string
   error?: string
+}
+
+type SpeechRecognitionLike = {
+  lang: string
+  interimResults: boolean
+  onstart: (() => void) | null
+  onend: (() => void) | null
+  onerror: (() => void) | null
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null
+  start: () => void
 }
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024
@@ -52,6 +63,8 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const [bulkFile, setBulkFile] = useState<File | null>(null)
+  const [voiceSupported, setVoiceSupported] = useState(true)
+  const [listening, setListening] = useState(false)
 
   function addFiles(incoming: FileList | null) {
     if (!incoming) return
@@ -69,8 +82,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
     setFiles(prev => [...prev, ...next])
   }
 
-  async function handleTextSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function parseTextInput(source: 'prompt' | 'voice') {
     if (submittingRef.current) return
     if (!rawInput.trim()) { setError('내용을 입력하세요'); return }
     submittingRef.current = true
@@ -79,7 +91,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
       const res = await fetch('/api/leads/parse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ raw_input: rawInput, source: 'prompt' }),
+        body: JSON.stringify({ raw_input: rawInput, source }),
       })
       const data = await res.json() as { parsed?: ParsedLeadData; intake?: { id: string }; error?: string }
       if (!res.ok) { setError(data.error ?? '오류가 발생했습니다'); return }
@@ -88,6 +100,16 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
       submittingRef.current = false
       setLoading(false)
     }
+  }
+
+  async function handleTextSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    await parseTextInput('prompt')
+  }
+
+  async function handleVoiceSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    await parseTextInput('voice')
   }
 
   async function handleFileAnalyze() {
@@ -103,7 +125,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
         const res = await fetch('/api/leads/parse', { method: 'POST', body: fd })
         const data = await res.json() as { parsed?: ParsedLeadData; intake?: { id: string }; error?: string }
         if (!res.ok) throw new Error(data.error ?? '오류가 발생했습니다')
-        setFiles(prev => prev.map(f => f.file === item.file ? { ...f, status: 'done', parsed: data.parsed } : f))
+        setFiles(prev => prev.map(f => f.file === item.file ? { ...f, status: 'done', parsed: data.parsed, intakeId: data.intake?.id } : f))
       } catch (err) {
         const msg = err instanceof Error ? err.message : '오류가 발생했습니다'
         setFiles(prev => prev.map(f => f.file === item.file ? { ...f, status: 'error', error: msg } : f))
@@ -116,43 +138,60 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
     if (!result || submittingRef.current) return
     submittingRef.current = true
     setCreating(true)
-    const { parsed } = result
-    if (parsed.company_name) {
-      const accRes = await fetch('/api/accounts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: parsed.company_name, industry: parsed.industry, segment: parsed.segment,
-          size: parsed.size, region: parsed.region, website: parsed.website,
-          phone: parsed.company_phone, address: parsed.address,
-          fit_score: parsed.fit_score, tags: parsed.tags ?? [],
-        }),
-      })
-      const accData = await accRes.json() as { id?: string }
-      if (parsed.contact_name && accData.id) {
-        await fetch('/api/contacts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            account_id: accData.id, name: parsed.contact_name, title: parsed.contact_title,
-            department: parsed.contact_department, email: parsed.contact_email,
-            phone: parsed.contact_phone, mobile: parsed.contact_mobile,
-          }),
-        })
-      }
-      if (accData.id) {
-        await fetch('/api/deals', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            account_id: accData.id,
-            title: parsed.deal_title ?? `${parsed.company_name} 신규 협력`,
-            description: parsed.deal_description, next_action: parsed.next_action, stage: '신규',
-          }),
-        })
-      }
-    }
+    await createFromIntakes([result.intakeId])
     setCreated(true); setCreating(false); submittingRef.current = false; router.refresh()
+  }
+
+  async function createFromIntakes(intakeIds: string[]) {
+    const ids = intakeIds.filter(Boolean)
+    if (!ids.length) return
+    const res = await fetch('/api/leads/bulk-confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ intakeIds: ids }),
+    })
+    if (!res.ok) {
+      const data = await res.json() as { error?: string }
+      setError(data.error ?? 'CRM 등록 실패')
+    }
+  }
+
+  async function handleFileCreate(item: FileItem) {
+    if (!item.intakeId) return
+    setCreating(true)
+    await createFromIntakes([item.intakeId])
+    setCreating(false)
+    router.refresh()
+  }
+
+  function startVoiceInput() {
+    const win = window as typeof window & {
+      SpeechRecognition?: new () => SpeechRecognitionLike
+      webkitSpeechRecognition?: new () => SpeechRecognitionLike
+    }
+    const SpeechCtor = win.SpeechRecognition ?? win.webkitSpeechRecognition
+    if (!SpeechCtor) {
+      setVoiceSupported(false)
+      setError('이 브라우저는 음성 인식을 지원하지 않습니다')
+      return
+    }
+    const recognition = new SpeechCtor()
+    recognition.lang = 'ko-KR'
+    recognition.interimResults = false
+    recognition.onstart = () => setListening(true)
+    recognition.onend = () => setListening(false)
+    recognition.onerror = () => {
+      setListening(false)
+      setError('음성 인식 중 오류가 발생했습니다')
+    }
+    recognition.onresult = (event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => {
+      const text = Array.from(event.results)
+        .map((result) => result[0]?.transcript ?? '')
+        .join(' ')
+        .trim()
+      if (text) setRawInput((prev) => [prev, text].filter(Boolean).join('\n'))
+    }
+    recognition.start()
   }
 
   const processingFile = files.find(f => f.status === 'processing')
@@ -175,6 +214,8 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
           onClick={() => { setTab('prompt'); setError('') }}>텍스트 입력</button>
         <button className={`tab-btn${tab === 'file' ? ' tab-btn-active' : ''}`}
           onClick={() => { setTab('file'); setError('') }}>명함/문서</button>
+        <button className={`tab-btn${tab === 'voice' ? ' tab-btn-active' : ''}`}
+          onClick={() => { setTab('voice'); setError('') }}>음성</button>
       </div>
 
       {/* 텍스트 탭 */}
@@ -223,6 +264,44 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
         </div>
       )}
 
+      {tab === 'voice' && !result && (
+        <form onSubmit={handleVoiceSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div>
+            <label className="label">음성 인식 결과</label>
+            <textarea value={rawInput} onChange={e => setRawInput(e.target.value)} rows={6}
+              placeholder="마이크로 말하면 여기에 텍스트가 채워집니다"
+              style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6 }} />
+            {!voiceSupported && <p style={{ color: '#dc2626', fontSize: '0.8125rem', margin: '0.375rem 0 0' }}>브라우저 음성 인식이 지원되지 않습니다</p>}
+          </div>
+          {error && <p style={{ color: '#dc2626', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button type="button" onClick={startVoiceInput} disabled={listening} className="intake-action-btn">
+              {listening ? '듣는 중...' : '음성 입력 시작'}
+            </button>
+            <button type="submit" disabled={loading} className="btn-primary"
+              style={{ padding: '0.75rem 1.5rem', fontSize: '0.9375rem', minHeight: '48px', maxWidth: '200px' }}>
+              {loading ? 'AI 분석중...' : 'AI 분석'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {tab === 'voice' && result && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <ParsedCard parsed={result.parsed} />
+          {created ? (
+            <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '0.75rem', padding: '1rem', textAlign: 'center' }}>
+              <p style={{ color: '#0284c7', fontWeight: 600, margin: 0 }}>거래처·담당자·영업기회가 CRM에 등록되었습니다</p>
+            </div>
+          ) : (
+            <button onClick={handleCreate} disabled={creating} className="btn-primary"
+              style={{ padding: '0.625rem 1.25rem', minHeight: '44px', maxWidth: '240px' }}>
+              {creating ? '등록중...' : '거래처/담당자/영업기회 생성'}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* 파일 탭 — BULK_MODE */}
       {tab === 'file' && bulkFile && (
         <BulkImportProgress
@@ -266,7 +345,17 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
                       {item.status === 'done'       && <span className="file-status-done">완료</span>}
                       {item.status === 'error'      && <span className="file-status-error">오류</span>}
                     </div>
-                    {item.status === 'done'  && item.parsed && <ParsedCard parsed={item.parsed} />}
+                    {item.status === 'done'  && item.parsed && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        <ParsedCard parsed={item.parsed} />
+                        {item.intakeId && (
+                          <button onClick={() => handleFileCreate(item)} disabled={creating} className="btn-primary"
+                            style={{ padding: '0.5rem 1rem', minHeight: '40px', maxWidth: '220px' }}>
+                            {creating ? '등록중...' : 'CRM 등록'}
+                          </button>
+                        )}
+                      </div>
+                    )}
                     {item.status === 'error' && <p style={{ fontSize: '0.8125rem', color: '#dc2626', margin: 0 }}>{item.error}</p>}
                   </div>
                   {item.status === 'pending' && (

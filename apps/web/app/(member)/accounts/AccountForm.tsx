@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Account } from '@/types/database'
+import { ACCOUNT_SEGMENTS, ACCOUNT_TYPES, GPU_DEMAND_LEVELS } from '@/lib/crm'
 
 interface Props {
   account?: Account
@@ -22,10 +23,14 @@ export default function AccountForm({ account }: Props) {
     phone: account?.phone ?? '',
     address: account?.address ?? '',
     description: account?.description ?? '',
+    account_type: account?.account_type ?? '',
+    gpu_demand_intensity: account?.gpu_demand_intensity ?? '',
+    registration_number: account?.registration_number ?? '',
+    source: account?.source ?? '',
     tags: account?.tags?.join(', ') ?? '',
   })
   const [fitScore, setFitScore] = useState<number | null>(account?.fit_score ?? null)
-  const [fitReason, setFitReason] = useState('')
+  const [fitReason, setFitReason] = useState(account?.fit_reason ?? '')
   const [error, setError] = useState('')
 
   function set(field: string, value: string) {
@@ -64,8 +69,13 @@ export default function AccountForm({ account }: Props) {
       phone: form.phone || null,
       address: form.address || null,
       description: form.description || null,
+      account_type: form.account_type || null,
+      gpu_demand_intensity: form.gpu_demand_intensity || null,
+      registration_number: form.registration_number || null,
+      source: form.source || null,
       tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
       fit_score: fitScore,
+      fit_reason: fitReason || null,
     }
 
     const url = account ? `/api/accounts/${account.id}` : '/api/accounts'
@@ -92,6 +102,20 @@ export default function AccountForm({ account }: Props) {
         </div>
         <div className="responsive-grid-cols-2" style={{ gap: '0.75rem' }}>
           <div>
+            <label className="label">거래처유형 *</label>
+            <select className="input-field" value={form.account_type} onChange={(e) => set('account_type', e.target.value)} style={inputStyle}>
+              <option value="">선택</option>
+              {ACCOUNT_TYPES.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">GPU수요강도</label>
+            <select className="input-field" value={form.gpu_demand_intensity} onChange={(e) => set('gpu_demand_intensity', e.target.value)} style={inputStyle}>
+              <option value="">선택</option>
+              {GPU_DEMAND_LEVELS.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+          <div>
             <label className="label">업종</label>
             <select className="input-field" value={form.industry} onChange={(e) => set('industry', e.target.value)} style={inputStyle}>
               <option value="">선택</option>
@@ -102,7 +126,7 @@ export default function AccountForm({ account }: Props) {
             <label className="label">세그먼트</label>
             <select className="input-field" value={form.segment} onChange={(e) => set('segment', e.target.value)} style={inputStyle}>
               <option value="">선택</option>
-              {['엔터프라이즈', 'SMB', '공공', '스타트업'].map((v) => <option key={v} value={v}>{v}</option>)}
+              {ACCOUNT_SEGMENTS.map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
           </div>
           <div>
@@ -119,6 +143,17 @@ export default function AccountForm({ account }: Props) {
               {['서울', '경기', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '기타'].map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
           </div>
+        </div>
+        <div>
+          <label className="label">사업자·기관번호</label>
+          <input className="input-field" value={form.registration_number} onChange={(e) => set('registration_number', e.target.value)} placeholder="10자리 번호" style={inputStyle} />
+        </div>
+        <div>
+          <label className="label">출처</label>
+          <select className="input-field" value={form.source} onChange={(e) => set('source', e.target.value)} style={inputStyle}>
+            <option value="">선택</option>
+            {['민간DB', '공공수요예보', '프롬프트', '명함', '음성', '수동'].map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
         </div>
         <div>
           <label className="label">웹사이트</label>

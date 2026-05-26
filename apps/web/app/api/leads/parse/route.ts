@@ -131,14 +131,14 @@ export async function POST(req: NextRequest) {
 
       if (!parsed.company_name?.trim()) {
         const { error: failErr } = await adm.from('lead_intakes').insert({
-          user_id: user.id, source, raw_input: file.name, status: 'failed', parsed_data: parsed, fit_score: null,
+          user_id: user.id, source, raw_input: file.name, original_file_name: file.name, status: 'failed', parsed_data: parsed, fit_score: null,
         })
         if (failErr) console.error('[lead-parse file failed-insert]', failErr)
         return NextResponse.json({ error: '파일에서 회사명 등 리드 정보를 추출하지 못했습니다. 명함·제안서·미팅메모 등 리드 관련 파일을 사용해주세요.' }, { status: 422 })
       }
 
       const { data: intake, error } = await adm.from('lead_intakes').insert({
-        user_id: user.id, source, raw_input: file.name, status: 'completed',
+        user_id: user.id, source, raw_input: file.name, original_file_name: file.name, status: 'completed',
         parsed_data: parsed, fit_score: parsed.fit_score ?? null,
       }).select().single()
 
@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       console.error('[lead-parse file]', err)
       const { error: catchInsertErr } = await adm.from('lead_intakes').insert({
-        user_id: user.id, source, raw_input: file.name, status: 'failed', parsed_data: null, fit_score: null,
+        user_id: user.id, source, raw_input: file.name, original_file_name: file.name, status: 'failed', parsed_data: null, fit_score: null,
       })
       if (catchInsertErr) console.error('[lead-parse file catch-insert]', catchInsertErr)
       return NextResponse.json({ error: '파일 분석 중 오류가 발생했습니다' }, { status: 500 })

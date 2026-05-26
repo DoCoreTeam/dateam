@@ -69,7 +69,7 @@ export interface Account {
   user_id: string
   name: string
   industry: string | null
-  segment: '엔터프라이즈' | 'SMB' | '공공' | '스타트업' | null
+  segment: 'T1' | 'T2' | '공공' | '파트너' | '엔터프라이즈' | 'SMB' | '스타트업' | null
   size: string | null
   region: string | null
   website: string | null
@@ -77,10 +77,13 @@ export interface Account {
   address: string | null
   description: string | null
   fit_score: number | null
+  fit_reason: string | null
   tags: string[]
   source: string | null
   account_type: string | null
   gpu_demand_intensity: string | null
+  registration_number: string | null
+  owner_user_id: string | null
   created_at: string
   updated_at: string
 }
@@ -125,6 +128,9 @@ export interface Deal {
   hw_included: boolean
   is_new_deal: boolean
   expected_date: string | null
+  funding_source: string | null
+  procurement_status: string | null
+  source: string | null
   created_at: string
   updated_at: string
 }
@@ -138,6 +144,10 @@ export interface DealActivity {
   type: ActivityType
   content: string
   ai_parsed: boolean
+  ai_extracted: boolean
+  extracted_todos: Json
+  extracted_events: Json
+  suggested_stage: string | null
   created_at: string
 }
 
@@ -157,6 +167,10 @@ export interface LeadIntake {
   linked_deal_id: string | null
   fit_score: number | null
   duplicate_of: string | null
+  supplement_questions: Json
+  duplicate_flags: Json
+  original_file_name: string | null
+  converted_at: string | null
   notes: string | null
   created_at: string
   updated_at: string

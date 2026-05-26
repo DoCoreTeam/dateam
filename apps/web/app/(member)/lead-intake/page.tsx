@@ -9,6 +9,7 @@ function statusBadge(status: string) {
     pending: { color: '#d97706', bg: '#fffbeb', label: '대기' },
     processing: { color: '#0284c7', bg: '#f0f9ff', label: '처리중' },
     completed: { color: '#16a34a', bg: '#f0fdf4', label: '완료' },
+    crm_registered: { color: '#4f46e5', bg: '#eef2ff', label: 'CRM 등록' },
     failed: { color: '#dc2626', bg: '#fef2f2', label: '실패' },
   }
   return map[status] ?? { color: '#64748b', bg: '#f8fafc', label: status }
@@ -16,7 +17,7 @@ function statusBadge(status: string) {
 
 function sourceLabel(source: string) {
   const map: Record<string, string> = {
-    prompt: '텍스트', business_card: '명함', file: '파일', manual: '직접입력',
+    prompt: '텍스트', business_card: '명함', card_scan: '명함', file: '파일', manual: '직접입력', voice: '음성', xlsx_bulk: '대량파일',
   }
   return map[source] ?? source
 }

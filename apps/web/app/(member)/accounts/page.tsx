@@ -8,11 +8,12 @@ import type { Account } from '@/types/database'
 import AccountActions from './AccountActions'
 import SlidePanel from '@/components/ui/SlidePanel'
 import { useDebounce } from '@/hooks/useDebounce'
+import { ACCOUNT_SEGMENTS } from '@/lib/crm'
 
 type PageData = { items: Account[]; nextCursor: string | null; hasMore: boolean; capped?: boolean }
 type SortField = 'created_at' | 'name' | 'fit_score' | 'industry' | 'region' | 'gpu_demand_intensity'
 
-const SEGMENTS = ['엔터프라이즈', 'SMB', '공공', '스타트업'] as const
+const SEGMENTS = ACCOUNT_SEGMENTS
 
 function fitColor(score: number | null) {
   if (score === null) return { color: '#94a3b8', background: '#f8fafc' }

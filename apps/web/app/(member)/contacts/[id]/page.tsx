@@ -38,6 +38,7 @@ export default async function ContactDetailPage({ params }: PageProps) {
                   <> · <Link href={`/accounts/${data.accounts.id}`} style={{ color: '#6366f1', textDecoration: 'none' }}>{data.accounts.name}</Link></>
                 )}
               </div>
+              {data.role && <span className="badge badge-slate" style={{ marginTop: '0.375rem' }}>{data.role}</span>}
             </div>
           </div>
           <Link href={`/contacts/${id}/edit`} className="btn-primary" style={{ textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.875rem', minHeight: '44px', display: 'flex', alignItems: 'center' }}>

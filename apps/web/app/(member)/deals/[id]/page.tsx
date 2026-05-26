@@ -101,6 +101,13 @@ export default async function DealDetailPage({ params }: PageProps) {
               {deal.description && (
                 <p style={{ fontSize: '0.875rem', color: '#374151', margin: '0.25rem 0 0', lineHeight: 1.6 }}>{deal.description}</p>
               )}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                {deal.lead_type && <span className="badge badge-slate">{deal.lead_type}</span>}
+                {deal.product && <span className="badge badge-indigo">{deal.product}</span>}
+                {deal.fit_score !== null && <span className="badge" style={{ background: '#f0fdf4', color: '#16a34a' }}>Fit {deal.fit_score}</span>}
+                {deal.expected_date && <span className="badge" style={{ background: '#f8fafc', color: '#64748b' }}>예상 {deal.expected_date}</span>}
+                {deal.hw_included && <span className="badge" style={{ background: '#fff7ed', color: '#c2410c' }}>HW</span>}
+              </div>
             </div>
           </div>
 
@@ -131,9 +138,14 @@ export default async function DealDetailPage({ params }: PageProps) {
                 <span style={{ fontSize: '1.125rem', flexShrink: 0 }}>{ACTIVITY_ICON[act.type] ?? '📝'}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '0.8125rem', color: '#374151', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{act.content}</div>
+                  {act.suggested_stage && (
+                    <div style={{ fontSize: '0.75rem', color: '#6366f1', marginTop: '0.25rem' }}>
+                      단계 제안: {act.suggested_stage}
+                    </div>
+                  )}
                   <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
                     {new Date(act.created_at).toLocaleString('ko-KR')}
-                    {act.ai_parsed && <span style={{ marginLeft: '0.375rem', color: '#6366f1' }}>· AI파싱</span>}
+                    {act.ai_extracted && <span style={{ marginLeft: '0.375rem', color: '#6366f1' }}>· AI 추출</span>}
                   </div>
                 </div>
               </div>

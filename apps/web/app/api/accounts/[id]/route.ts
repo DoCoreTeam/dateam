@@ -10,7 +10,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const raw = await req.json()
-  const ALLOWED = ['name','industry','segment','size','region','website','phone','address','fit_score','fit_reason','tags'] as const
+  const ALLOWED = [
+    'name', 'industry', 'segment', 'size', 'region', 'website', 'phone', 'address',
+    'description', 'fit_score', 'fit_reason', 'tags', 'source', 'account_type',
+    'gpu_demand_intensity', 'registration_number', 'owner_user_id',
+  ] as const
   const body = Object.fromEntries(ALLOWED.filter(k => k in raw).map(k => [k, raw[k]]))
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
