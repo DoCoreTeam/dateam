@@ -90,7 +90,7 @@ export default async function MemberLayout({ children }: { children: React.React
     <>
       <MobileShell
         items={navItemsWithBadge}
-        groups={NAV_GROUPS}
+        groups={profile?.role === 'admin' ? NAV_GROUPS : []}
         logoUrl={branding.logoUrl}
         brandName={branding.brandName}
         footer={<SidebarProfile name={displayName} email={userEmail} />}
