@@ -79,6 +79,8 @@ export interface Account {
   fit_score: number | null
   tags: string[]
   source: string | null
+  account_type: string | null
+  gpu_demand_intensity: string | null
   created_at: string
   updated_at: string
 }
@@ -96,6 +98,7 @@ export interface Contact {
   linkedin: string | null
   notes: string | null
   business_card_drive_id: string | null
+  role: string | null
   created_at: string
   updated_at: string
 }
@@ -116,6 +119,12 @@ export interface Deal {
   next_action: string | null
   next_action_date: string | null
   tags: string[]
+  lead_type: string | null
+  product: string | null
+  fit_score: number | null
+  hw_included: boolean
+  is_new_deal: boolean
+  expected_date: string | null
   created_at: string
   updated_at: string
 }

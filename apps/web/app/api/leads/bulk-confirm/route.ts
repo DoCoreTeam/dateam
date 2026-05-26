@@ -71,6 +71,8 @@ export async function POST(req: NextRequest) {
           address: parsed.address ?? null,
           fit_score: parsed.fit_score ?? null,
           description: parsed.deal_description ?? null,
+          account_type: parsed.account_type ?? null,
+          gpu_demand_intensity: parsed.gpu_demand_intensity ?? null,
         }).select('id').single()
         if (accErr) throw accErr
         accountId = newAccount.id
@@ -102,6 +104,7 @@ export async function POST(req: NextRequest) {
             email: parsed.contact_email?.trim().toLowerCase() ?? null,
             phone: parsed.contact_phone ?? null,
             mobile: parsed.contact_mobile ?? null,
+            role: parsed.contact_role ?? null,
           }).select('id').single()
           if (conErr) throw conErr
           contactId = newContact.id
@@ -116,9 +119,14 @@ export async function POST(req: NextRequest) {
         account_id: accountId,
         contact_id: contactId,
         title: dealTitle,
-        description: parsed.deal_description ?? parsed.product_recommendation ?? null,
+        description: parsed.deal_description ?? null,
         stage: '신규',
         value: parsed.deal_value_billion ? parsed.deal_value_billion * 100000000 : null,
+        lead_type: parsed.lead_type ?? null,
+        product: parsed.product_recommendation ?? null,
+        fit_score: parsed.fit_score ?? null,
+        hw_included: parsed.hw_included ?? false,
+        is_new_deal: parsed.is_new_deal ?? true,
       })
       if (dealErr) throw dealErr
 

@@ -1,0 +1,306 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>gcube 리드 관리 구조 설계 v1.0 (4객체 · 듀얼 입력)</title>
+<style>
+:root{--navy:#0f1e3d;--navy2:#1b2f57;--ink:#1a2233;--muted:#5b6678;--line:#e6eaf1;--bg:#e9edf3;--blue:#1f6feb;--teal:#12b3a6;--gold:#c79100;--good:#1aa05a;--bad:#d92d3a;}
+*{box-sizing:border-box}body{margin:0;font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",-apple-system,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6;font-size:14px}
+h1,h2,h3,h4{line-height:1.26;color:var(--navy);margin:0}
+.page{max-width:1080px;margin:20px auto;background:#fff;border:1px solid var(--line);border-radius:14px;padding:30px 36px 34px;box-shadow:0 5px 18px rgba(15,30,61,.07)}
+.cover{background:radial-gradient(120% 140% at 80% 0%,#1d50a0,#14294d 45%,#0c1730);color:#fff;border:none;padding:50px 42px}
+.cover h1{color:#fff;font-size:31px;letter-spacing:-.6px;margin:12px 0 10px;line-height:1.2}.cover .sub{color:#cfe0ff;font-size:14.5px;max-width:820px;line-height:1.7}
+.brow{display:flex;gap:8px;flex-wrap:wrap}.badge{font-size:11.5px;font-weight:700;padding:5px 12px;border-radius:999px}
+.badge.c{background:var(--bad);color:#fff}.badge.v{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.3)}.badge.g{background:var(--teal);color:#04201d}
+.cover .meta{display:flex;gap:24px;flex-wrap:wrap;margin-top:20px;color:#9fb4d8;font-size:12.5px}.cover .meta b{color:#fff}
+.ph{display:flex;align-items:center;gap:11px;border-bottom:2px solid var(--navy);padding-bottom:9px;margin-bottom:14px}
+.pn{font-size:12.5px;font-weight:800;color:#fff;background:var(--navy);border-radius:7px;padding:4px 11px}.ph h2{font-size:21px;letter-spacing:-.3px}
+.intent{color:var(--muted);font-size:13px;margin:0 0 14px;line-height:1.7}
+.diagram{background:#fff;border:1px solid var(--line);border-radius:13px;padding:14px;margin:8px 0}.diagram svg{display:block;width:100%;height:auto}
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+.ic{font-size:11px;font-weight:700;padding:2px 9px;border-radius:6px}
+.ic.f{background:#e7f0ff;color:#1f5fd0}.ic.m{background:#e7f7ef;color:#0d6b3c}.ic.a{background:#fff3d6;color:#9a6a00}.ic.s{background:#eef1f6;color:#5b6678}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin:8px 0}
+table{border-collapse:collapse;width:100%;font-size:12.4px;background:#fff}
+th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--navy2);color:#fff;font-weight:700;font-size:11.2px;white-space:nowrap}
+tbody tr:nth-child(even){background:#fafbfe}
+.req{color:var(--bad);font-weight:800}
+.blabel{display:inline-block;font-size:10.5px;font-weight:800;color:#7a8699;background:#eef1f6;border-radius:5px;padding:3px 9px;letter-spacing:.5px;margin:12px 0 6px}
+.objhdr{display:flex;align-items:center;gap:10px;margin:14px 0 4px}
+.objhdr .num{width:30px;height:30px;border-radius:9px;background:var(--teal);color:#04201d;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:15px}
+.objhdr h3{font-size:16px}.objhdr .sub{font-size:12px;color:var(--muted)}
+.grid{display:grid;gap:13px}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}
+.card{border:1px solid var(--line);border-radius:12px;padding:15px 17px;background:linear-gradient(180deg,#fbfcfe,#fff)}
+.card h4{font-size:14px;margin-bottom:6px}.card p{font-size:12.8px;color:#33404f;margin:5px 0;line-height:1.7}
+.note{border-radius:11px;padding:13px 16px;margin:12px 0;font-size:12.9px;line-height:1.7}.note.b{background:#eef5ff;border:1px solid #c4dbff}.note.w{background:#fff8ec;border:1px solid #f3d79b}.note .h{font-weight:800;color:var(--navy);display:block;margin-bottom:3px}
+.steps{display:grid;gap:8px}.step{display:flex;gap:11px;background:linear-gradient(100deg,#f5f8fd,#fff);border:1px solid var(--line);border-radius:10px;padding:11px 13px}.step .si{flex:0 0 58px;font-weight:800;color:var(--teal);font-size:12px}.step b{color:var(--navy)}.step span{font-size:12.4px;color:#3a4757}
+.screen{border:1px solid #cdd7e6;border-radius:12px;overflow:hidden;margin:8px 0;box-shadow:0 6px 18px rgba(15,30,61,.1)}
+.screen .sbar{background:#e8edf5;padding:8px 13px;font-size:11.5px;color:#5b6678;font-weight:600;border-bottom:1px solid #cdd7e6;display:flex;gap:7px;align-items:center}
+.screen .dots i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.screen .sbody{padding:15px;background:#fff}
+.fld{margin:7px 0}.fld label{font-size:11.5px;color:var(--muted);font-weight:700;display:block;margin-bottom:3px}
+.fld .box{border:1.4px solid #d4dcea;border-radius:8px;padding:8px 11px;font-size:12.7px;color:#33404f;background:#fff}
+.fld .box.act{border-color:var(--blue);background:#f3f8ff}
+.fld .req{color:var(--bad)}
+.hint{font-size:11px;color:#0d6b3c;background:#eefaf4;border:1px solid #cfe6d8;border-radius:7px;padding:6px 10px;margin-top:6px}
+.submit{margin-top:9px;background:var(--blue);color:#fff;font-weight:800;text-align:center;padding:9px;border-radius:8px;font-size:12.8px}
+.src{font-size:10.5px;color:#8a97a8;margin:6px 2px;line-height:1.5}
+.pb{display:inline-block;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:6px;margin:1px}
+.pb.man{background:#e7f7ef;color:#0d6b3c}.pb.auto{background:#eef1f6;color:#5b6678}.pb.file{background:#e7f0ff;color:#1f5fd0}
+.pb.ai{background:#c79100;color:#1a1400;box-shadow:0 0 0 1.6px #8a6500 inset}
+.adm{display:inline-block;font-size:9.5px;font-weight:700;padding:1px 8px;border-radius:999px;border:1.4px solid #b9c8e4;color:#1f5fd0;background:#fff;margin:1px}
+.adm.off{border-color:#d4dcea;color:#9aa7bd}
+.thread{border:1px solid var(--line);border-radius:12px;padding:5px;background:#f7f9fd;margin:6px 0}
+.cmt{background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin:5px}
+.cmt .meta{font-size:11px;color:#5b6678;font-weight:700;margin-bottom:3px}.cmt .txt{font-size:12.5px;color:#33404f;line-height:1.6}
+.aiext{background:#fff8ec;border:1px solid #f3d79b;border-radius:9px;padding:9px 11px;margin:5px}
+.aiext .h{font-size:10px;font-weight:800;color:#9a6a00;margin-bottom:5px;letter-spacing:.3px}
+.tchip{display:inline-block;font-size:11.3px;font-weight:700;padding:3px 10px;border-radius:7px;margin:2px 3px 2px 0}
+.tchip.todo{background:#e7f0ff;color:#1f5fd0}.tchip.cal{background:#e7f7ef;color:#0d6b3c}
+footer{max-width:1080px;margin:8px auto 26px;color:var(--muted);font-size:11.5px;text-align:center}
+@media print{body{background:#fff}.page{box-shadow:none;border:none;margin:0;border-radius:0;page-break-after:always}.cover{page-break-after:always}footer{display:none}}
+@media(max-width:880px){.g3,.g2{grid-template-columns:1fr}}
+</style></head><body>
+
+<div class="page cover">
+<div class="brow"><span class="badge c">대외비</span><span class="badge v">v1.0 · 2026-05-26</span><span class="badge g">AX사업본부 영업본부</span></div>
+<h1>리드 관리 구조 설계 — 4객체 &amp; 듀얼 입력</h1>
+<div class="sub">리드는 프롬프트, 명함 스캔, 음성, 파일 업로드의 멀티모달 AI 인테이크로 받는다. AI가 입력을 파싱해 충분하면 자동으로 채우고 부족하면 되물어 채운 뒤, 표준 CRM 4객체(거래처·담당자·영업기회)로 적재한다. 민간 고객 DB와 공공 수요예보 엑셀은 파일 업로드로 대량 적재한다.</div>
+<div class="meta"><div>구조 <b>거래처·담당자·영업기회 + 리드 인테이크</b></div><div>입력 <b>프롬프트·명함·음성·파일</b></div><div>AI <b>파싱·자동채움·되물음</b></div></div>
+</div>
+
+<!-- 01 구조 한눈에 -->
+<div class="page">
+<div class="ph"><span class="pn">01</span><h2>구조 한눈에</h2></div>
+<div class="note w"><span class="h">구조가 안 잡히던 이유</span>민간 DB는 회사 단위(회사 1개 = 리드처럼 보임), 공공 수요예보는 사업 단위(기관 1개가 사업 여러 개 보유)다. 단위가 달라 한 표에 못 담는다. 해법은 표준 4객체로 나누고, 모든 입력을 하나의 AI 인테이크로 받아 같은 거래처에 매다는 것이다.</div>
+<div class="diagram">
+<svg viewBox="0 0 820 520" xmlns="http://www.w3.org/2000/svg" font-family="inherit">
+<defs><marker id="ar" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto"><path d="M0,0 L9,3.5 L0,7 Z" fill="#9aa7bd"/></marker></defs>
+<text x="30" y="28" font-size="12" font-weight="800" fill="#0f1e3d">리드 인테이크 — 4가지 입력 모드</text>
+<rect x="30" y="38" width="180" height="56" rx="11" fill="#1b3a6e"/><text x="120" y="63" text-anchor="middle" fill="#fff" font-size="13.5" font-weight="700">프롬프트</text><text x="120" y="82" text-anchor="middle" fill="#cfe0ff" font-size="11">자연어 입력</text>
+<rect x="222" y="38" width="180" height="56" rx="11" fill="#1b3a6e"/><text x="312" y="63" text-anchor="middle" fill="#fff" font-size="13.5" font-weight="700">명함 스캔</text><text x="312" y="82" text-anchor="middle" fill="#cfe0ff" font-size="11">사진 OCR</text>
+<rect x="414" y="38" width="180" height="56" rx="11" fill="#1b3a6e"/><text x="504" y="63" text-anchor="middle" fill="#fff" font-size="13.5" font-weight="700">음성</text><text x="504" y="82" text-anchor="middle" fill="#cfe0ff" font-size="11">말하면 변환(STT)</text>
+<rect x="606" y="38" width="184" height="56" rx="11" fill="#1b3a6e"/><text x="698" y="63" text-anchor="middle" fill="#fff" font-size="13.5" font-weight="700">파일 업로드</text><text x="698" y="82" text-anchor="middle" fill="#cfe0ff" font-size="11">DB·수요예보 엑셀</text>
+<rect x="200" y="150" width="420" height="68" rx="13" fill="#c79100"/><text x="410" y="178" text-anchor="middle" fill="#1a1400" font-size="15" font-weight="800">AI 리드 인테이크 (멀티모달)</text><text x="410" y="199" text-anchor="middle" fill="#3a2e00" font-size="11.5">파싱 후 충분하면 자동 채움, 부족하면 되물어 채움</text>
+<rect x="60" y="278" width="220" height="58" rx="12" fill="#12b3a6"/><text x="170" y="303" text-anchor="middle" fill="#04201d" font-size="13.5" font-weight="800">거래처 Account</text><text x="170" y="322" text-anchor="middle" fill="#04332e" font-size="11">회사 · 기관</text>
+<rect x="300" y="278" width="220" height="58" rx="12" fill="#12b3a6"/><text x="410" y="303" text-anchor="middle" fill="#04201d" font-size="13.5" font-weight="800">담당자 Contact</text><text x="410" y="322" text-anchor="middle" fill="#04332e" font-size="11">사람 · 연락처</text>
+<rect x="540" y="278" width="220" height="58" rx="12" fill="#12b3a6"/><text x="650" y="303" text-anchor="middle" fill="#04201d" font-size="13.5" font-weight="800">영업기회 Deal</text><text x="650" y="322" text-anchor="middle" fill="#04332e" font-size="11">금액 · 단계 · 시기</text>
+<text x="80" y="384" font-size="12" font-weight="700" fill="#0f1e3d">파이프라인 단계</text>
+<rect x="80" y="394" width="660" height="32" rx="9" fill="#eef1f6" stroke="#d4dcea"/>
+<g font-size="11" text-anchor="middle" fill="#0f1e3d"><text x="146" y="415" font-weight="700">신규</text><text x="240" y="415">검증</text><text x="334" y="415">컨택</text><text x="410" y="415">PoC</text><text x="486" y="415">제안</text><text x="580" y="415">협상</text><text x="682" y="415" fill="#1aa05a" font-weight="700">수주</text></g>
+<g stroke="#d4dcea"><line x1="193" y1="396" x2="193" y2="424"/><line x1="287" y1="396" x2="287" y2="424"/><line x1="371" y1="396" x2="371" y2="424"/><line x1="447" y1="396" x2="447" y2="424"/><line x1="531" y1="396" x2="531" y2="424"/><line x1="631" y1="396" x2="631" y2="424"/></g>
+<text x="410" y="456" text-anchor="middle" font-size="11.5" fill="#5b6678">민간은 회사를 거래처로, 공공은 기관을 거래처로, 사업을 영업기회로 적재</text>
+<g stroke="#9aa7bd" stroke-width="2" fill="none" marker-end="url(#ar)">
+<path d="M120 94 C 120 124, 300 124, 340 148"/><path d="M312 94 C 312 120, 370 122, 392 148"/><path d="M504 94 C 504 120, 450 122, 428 148"/><path d="M698 94 C 698 124, 520 124, 480 148"/>
+<line x1="410" y1="218" x2="410" y2="274"/><path d="M410 336 C 410 360, 410 360, 410 390"/></g>
+</svg>
+</div>
+<span class="blabel">입력 방식 4가지 (모든 필드는 이 중 하나로 채워짐)</span>
+<div class="legend"><span class="pb file">파일</span> 파일 임포트 가능 &nbsp; <span class="pb man">수동</span> 직접 입력 &nbsp; <span class="pb ai">AI</span> AI 채움·추천(수정 가능) &nbsp; <span class="pb auto">자동계산</span> 수동 불가 &nbsp; <span class="adm">노출</span><span class="adm off">숨김</span> 어드민 설정</div>
+</div>
+
+<!-- 02 4객체 필드 스키마 -->
+<div class="page">
+<div class="ph"><span class="pn">02</span><h2>3객체 필드 스키마 (밸리데이션·어드민)</h2></div>
+<div class="intent">리드를 제외한 세 객체의 모든 항목은 처리 방식, 밸리데이션(검증) 정책, 어드민 노출 설정을 함께 정의한다. 수치 계산 항목만 수동 입력이 불가하고, 그 외에는 AI가 채운 값도 직접 수정할 수 있다.</div>
+<div class="legend"><span class="pb file">파일</span> 파일 임포트 가능 &nbsp; <span class="pb man">수동</span> 직접 입력 &nbsp; <span class="pb ai">AI</span> AI 채움·추천(수정 가능) &nbsp; <span class="pb auto">자동계산</span> 수동 불가 &nbsp; <span class="adm">노출</span><span class="adm off">숨김</span> 어드민 토글 &nbsp; <span class="req">*</span> 필수</div>
+<div class="note w"><span class="h">제약사항 — 초기 적재는 파일 임포트</span>초기 데이터는 직접 입력이 아니라 두 종류의 엑셀 파일 업로드로 적재한다([파일] 배지가 그 대상 항목이다). 파일 종류·시트·칼럼 구조와 객체 매핑은 05장에 정확히 명시했다. 관리자는 항목별로 노출·숨김, 필수·선택, 밸리데이션 규칙(형식·선택목록·범위·중복키)을 설정한다.</div>
+
+<div class="objhdr"><div class="num">1</div><h3>거래처 (Account)</h3><span class="sub">조직 1건 — 회사 또는 기관</span></div>
+<div class="tbl"><table><thead><tr><th>필드</th><th>처리</th><th>밸리데이션 정책</th><th>어드민</th></tr></thead><tbody>
+<tr><td>거래처ID</td><td><span class="pb auto">자동계산</span></td><td>고유 채번, 변경 불가</td><td><span class="adm off">숨김</span></td></tr>
+<tr><td>거래처명 <span class="req">*</span></td><td><span class="pb file">파일</span><span class="pb man">수동</span></td><td>필수, 2자 이상, 거래처 중복 검사</td><td><span class="adm">노출</span></td></tr>
+<tr><td>거래처유형 <span class="req">*</span></td><td><span class="pb file">파일</span><span class="pb man">수동</span></td><td>필수, 선택목록 8종(민간·국가기관·지자체·공공기관·교육·대학·병원·파트너)</td><td><span class="adm">노출</span></td></tr>
+<tr><td>사업자·기관번호</td><td><span class="pb file">파일</span><span class="pb ai">AI</span><span class="pb man">수동</span></td><td>형식 10자리, 고유키(중복 차단)</td><td><span class="adm">노출</span></td></tr>
+<tr><td>사업영역·산업</td><td><span class="pb file">파일</span><span class="pb ai">AI</span><span class="pb man">수동</span></td><td>자유서술 200자, AI 보강 후 수정 가능</td><td><span class="adm">노출</span></td></tr>
+<tr><td>GPU수요강도</td><td><span class="pb file">파일</span><span class="pb ai">AI</span><span class="pb man">수동</span></td><td>선택목록(최상·상·중·하)</td><td><span class="adm">노출</span></td></tr>
+<tr><td>세그먼트</td><td><span class="pb file">파일</span><span class="pb ai">AI</span><span class="pb man">수동</span></td><td>선택목록(T1·T2·공공·파트너)</td><td><span class="adm">노출</span></td></tr>
+<tr><td>소재지</td><td><span class="pb file">파일</span><span class="pb man">수동</span></td><td>주소 형식</td><td><span class="adm off">숨김</span></td></tr>
+<tr><td>소유 영업 <span class="req">*</span></td><td><span class="pb man">수동</span><span class="pb ai">AI</span></td><td>필수, 사용자 존재 검사(AI 라우팅 후 변경 가능)</td><td><span class="adm">노출</span></td></tr>
+<tr><td>출처 <span class="req">*</span></td><td><span class="pb file">파일</span><span class="pb man">수동</span></td><td>필수, 선택목록(파일 종류로 자동 설정, 수정 가능)</td><td><span class="adm">노출</span></td></tr>
+<tr><td>생성일·수정일</td><td><span class="pb auto">자동계산</span></td><td>자동 기록</td><td><span class="adm off">숨김</span></td></tr>
+</tbody></table></div>
+
+<div class="objhdr"><div class="num">2</div><h3>담당자 (Contact)</h3><span class="sub">거래처에 여러 명</span></div>
+<div class="tbl"><table><thead><tr><th>필드</th><th>처리</th><th>밸리데이션 정책</th><th>어드민</th></tr></thead><tbody>
+<tr><td>담당자ID</td><td><span class="pb auto">자동계산</span></td><td>고유 채번</td><td><span class="adm off">숨김</span></td></tr>
+<tr><td>거래처(연결) <span class="req">*</span></td><td><span class="pb file">파일</span><span class="pb man">수동</span></td><td>필수, 거래처 존재 검사</td><td><span class="adm">노출</span></td></tr>
+<tr><td>이름 <span class="req">*</span></td><td><span class="pb file">파일</span><span class="pb man">수동</span></td><td>필수</td><td><span class="adm">노출</span></td></tr>
+<tr><td>직책</td><td><span class="pb file">파일</span><span class="pb man">수동</span></td><td>자유 50자</td><td><span class="adm">노출</span></td></tr>
+<tr><td>휴대폰·전화</td><td><span class="pb file">파일</span><span class="pb man">수동</span></td><td>전화번호 형식</td><td><span class="adm">노출</span></td></tr>
+<tr><td>이메일</td><td><span class="pb file">파일</span><span class="pb man">수동</span></td><td>이메일 형식, 고유키</td><td><span class="adm">노출</span></td></tr>
+<tr><td>역할</td><td><span class="pb man">수동</span><span class="pb ai">AI</span></td><td>선택목록(의사결정자·실무·추천자) · 민간 파일의 직책에서 AI 추정</td><td><span class="adm">노출</span></td></tr>
+<tr><td>메모</td><td><span class="pb man">수동</span></td><td>자유</td><td><span class="adm off">숨김</span></td></tr>
+</tbody></table></div>
+</div>
+
+<!-- 02-b 영업기회/리드 -->
+<div class="page">
+<div class="objhdr"><div class="num">3</div><h3>영업기회 (Deal)</h3><span class="sub">거래처에 여러 건 — 돈이 걸린 단위</span></div>
+<div class="tbl"><table><thead><tr><th>필드</th><th>처리</th><th>밸리데이션 정책</th><th>어드민</th></tr></thead><tbody>
+<tr><td>기회ID</td><td><span class="pb auto">자동계산</span></td><td>고유 채번</td><td><span class="adm off">숨김</span></td></tr>
+<tr><td>거래처(연결) <span class="req">*</span></td><td><span class="pb file">파일</span><span class="pb man">수동</span></td><td>필수, 거래처 존재 검사</td><td><span class="adm">노출</span></td></tr>
+<tr><td>기회명 <span class="req">*</span></td><td><span class="pb file">파일</span><span class="pb man">수동</span></td><td>필수(공공은 사업명, 민간은 도입 건명)</td><td><span class="adm">노출</span></td></tr>
+<tr><td>리드유형</td><td><span class="pb file">파일</span><span class="pb man">수동</span></td><td>선택목록(기업형·사업형, 파일 종류로 자동)</td><td><span class="adm">노출</span></td></tr>
+<tr><td>제품</td><td><span class="pb file">파일</span><span class="pb ai">AI</span><span class="pb man">수동</span></td><td>다중 선택목록(gcube임대·하이퍼큐브·예약형·번들)</td><td><span class="adm">노출</span></td></tr>
+<tr><td>예상금액</td><td><span class="pb file">파일</span><span class="pb ai">AI</span><span class="pb man">수동</span></td><td>숫자 0 이상, 원화(AI 추정 후 수정 가능)</td><td><span class="adm">노출</span></td></tr>
+<tr><td>신규·계속</td><td><span class="pb file">파일</span><span class="pb man">수동</span></td><td>선택목록(공공 전용)</td><td><span class="adm">노출</span></td></tr>
+<tr><td>HW도입여부</td><td><span class="pb file">파일</span><span class="pb man">수동</span></td><td>Y/N(공공, 하이퍼큐브 신호)</td><td><span class="adm">노출</span></td></tr>
+<tr><td>예상시기·마감</td><td><span class="pb file">파일</span><span class="pb man">수동</span></td><td>날짜 또는 분기(공공 발주시기)</td><td><span class="adm">노출</span></td></tr>
+<tr><td>단계 <span class="req">*</span></td><td><span class="pb man">수동</span><span class="pb auto">자동기본</span></td><td>필수, 선택목록 8단계(파일 임포트 시 신규로 시작)</td><td><span class="adm">노출</span></td></tr>
+<tr><td>확률%</td><td><span class="pb auto">자동계산</span></td><td>단계 연동 계산, 수동 불가</td><td><span class="adm">노출</span></td></tr>
+<tr><td>적합도점수</td><td><span class="pb file">파일</span><span class="pb ai">AI</span><span class="pb man">수동</span></td><td>0–100 범위(AI 산정 후 수정 가능)</td><td><span class="adm">노출</span></td></tr>
+<tr><td>다음액션·기한</td><td><span class="pb ai">AI</span><span class="pb man">수동</span></td><td>텍스트, 날짜</td><td><span class="adm">노출</span></td></tr>
+<tr><td>사업개요·메모</td><td><span class="pb file">파일</span><span class="pb ai">AI</span><span class="pb man">수동</span></td><td>자유서술</td><td><span class="adm">노출</span></td></tr>
+<tr><td>재원·발주여부</td><td><span class="pb file">파일</span><span class="pb man">수동</span></td><td>선택목록(공공 전용)</td><td><span class="adm">노출</span></td></tr>
+<tr><td>활동기록(댓글)</td><td><span class="pb man">수동</span><span class="pb ai">AI</span></td><td>시간순 누적, AI가 할 일·일정 자동 추출</td><td><span class="adm">노출</span></td></tr>
+<tr><td>출처·생성일·수정일</td><td><span class="pb auto">자동계산</span></td><td>자동 기록</td><td><span class="adm off">숨김</span></td></tr>
+</tbody></table></div>
+<div class="note b" style="margin-top:10px"><span class="h">영업기회 활동 기록 (댓글) + AI 자동 추출</span>딜마다 행위 기록을 댓글처럼 시간순으로 계속 남긴다. 댓글을 쓰면 AI가 그 안에서 할 일(To-Do)과 일정을 자동으로 뽑아 등록하고, 다음 단계 변경까지 제안한다.</div>
+<div class="g2 grid">
+<div><span class="blabel">활동 기록 (시간순 누적)</span>
+<div class="thread">
+<div class="cmt"><div class="meta">영업담당 · 5/26 14:20</div><div class="txt">스캐터랩 김지원 팀장 통화. 다음 주 화요일 PoC 환경 데모 요청. 견적서는 이번 주 금요일까지 발송 약속.</div></div>
+<div class="aiext"><div class="h">AI 자동 추출</div><span class="tchip todo">할 일 · 견적서 발송 · 기한 5/29(금)</span><span class="tchip cal">일정 · PoC 데모 · 6/2(화) · 스캐터랩</span></div>
+<div class="cmt"><div class="meta">영업담당 · 5/29 18:05</div><div class="txt">견적서 발송 완료. 무마진 PoC 조건 검토하겠다고 회신.</div></div>
+<div class="aiext"><div class="h">AI 자동 추출</div><span class="tchip cal">일정 · 회신 팔로업 · 6/3(수)</span><span class="tchip todo">단계 변경 제안 · 컨택을 PoC로</span></div>
+</div></div>
+<div><span class="blabel">동작 설계</span>
+<div class="card"><h4>댓글에서 자동 등록</h4><p>댓글 저장 시 AI가 행위 유형, 할 일, 기한, 일정, 다음 단계를 추출한다.</p>
+<h4>연동</h4><p>추출된 할 일은 담당자 To-Do, 일정은 캘린더에 자동 등록되고, 딜의 다음액션과 단계 변경을 제안한다.</p>
+<h4>이력</h4><p>모든 댓글과 추출 결과가 딜에 시간순으로 쌓여 영업 히스토리가 된다.</p></div></div>
+</div>
+
+<div class="objhdr"><div class="num">4</div><h3>리드 인테이크 (Lead Intake)</h3><span class="sub">멀티모달 AI 캡처 — 프롬프트·명함·음성·파일</span></div>
+<div class="note b"><span class="h">리드는 표가 아니라 입력창이다</span>영업담당은 프롬프트에 자연어로 쓰거나, 명함을 찍거나, 말로 입력하거나, 엑셀을 올린다. AI가 내용을 파싱해서 필수 정보가 충분하면 강도·세그먼트·적합도·사업개요·다음액션까지 스스로 채워 거래처·담당자·영업기회를 자동 생성하고, 부족하면 한두 가지만 되물어 채운다. 원본 입력(원문·명함 이미지·음성)은 증빙으로 보관한다.</div>
+<div class="tbl"><table><thead><tr><th>필드</th><th>입력</th><th>설명</th></tr></thead><tbody>
+<tr><td>입력모드</td><td><span class="ic s">자동</span></td><td>프롬프트, 명함스캔, 음성, 파일</td></tr>
+<tr><td>원문·첨부</td><td><span class="ic m">수동</span></td><td>입력 원문, 명함 이미지, 음성 파일</td></tr>
+<tr><td>파싱 결과</td><td><span class="ic a">AI</span></td><td>거래처·담당자·영업기회 후보 추출</td></tr>
+<tr><td>보완 질문·답변</td><td><span class="ic a">AI</span><span class="ic m">수동</span></td><td>부족 필드를 AI가 되물어 채움</td></tr>
+<tr><td>상태</td><td><span class="ic s">자동</span></td><td>신규, 검증중, 전환완료, 보류, 폐기</td></tr>
+<tr><td>중복 플래그</td><td><span class="ic a">AI</span></td><td>기존 거래처·영업기회 매칭</td></tr>
+<tr><td>전환(convert)</td><td><span class="ic s">자동</span></td><td>거래처+담당자+영업기회 동시 생성</td></tr>
+</tbody></table></div>
+</div>
+
+<!-- 03 리드 인테이크 4모드 -->
+<div class="page">
+<div class="ph"><span class="pn">03</span><h2>리드 인테이크 — 4모드와 AI 채움</h2></div>
+<div class="intent">영업담당은 양식을 채우지 않는다. 떠오르는 대로 쓰거나, 명함을 찍거나, 말하거나, 엑셀을 올리면 AI가 알아서 정리한다.</div>
+<div class="g4 grid" style="grid-template-columns:repeat(4,1fr)">
+<div class="card"><h4>프롬프트</h4><p>자연어로 메모. "오늘 OO 김부장 미팅, H100 5장 검토".</p></div>
+<div class="card"><h4>명함 스캔</h4><p>명함 사진 1장. 회사·이름·직책·연락처·이메일 자동 추출(OCR).</p></div>
+<div class="card"><h4>음성</h4><p>말로 입력. STT로 텍스트 변환 후 동일하게 파싱.</p></div>
+<div class="card"><h4>파일 업로드</h4><p>민간 378·공공 수요예보 엑셀을 올려 대량 적재.</p></div>
+</div>
+
+<div class="g2 grid" style="margin-top:8px">
+<div>
+<span class="blabel">AI 채움 로직 — 충분하면 자동, 부족하면 되물음</span>
+<div class="screen">
+<div class="sbar"><span class="dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span> 리드 인테이크 (프롬프트)</div>
+<div class="sbody">
+<div class="fld"><label>영업담당</label><div class="box act">오늘 스캐터랩 김지원 팀장 미팅. 자체 LLM 학습용 H100 5장, 6개월 검토 중.</div></div>
+<div class="hint">AI: 스캐터랩(민간, 자체 LLM 최상)으로 거래처 인식. 담당자 김지원 팀장, 영업기회 "H100 5장·6개월"(예상 2.2억) 생성. 예산 확정 시기만 알려주세요.</div>
+<div class="fld" style="margin-top:7px"><label>영업담당</label><div class="box">2분기 내 결정 예정</div></div>
+<div class="hint">AI: 반영 완료. 적합도 90, 세그먼트 T2, 다음액션 "무마진 PoC 제안"으로 세팅. 거래처·담당자·영업기회 3건 생성됨.</div>
+</div>
+</div>
+</div>
+<div>
+<span class="blabel">명함 스캔 예시</span>
+<div class="screen">
+<div class="sbar"><span class="dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span> 리드 인테이크 (명함)</div>
+<div class="sbody">
+<div class="box" style="text-align:center;color:#5b6678;padding:18px;border-style:dashed">명함 사진 촬영 또는 업로드</div>
+<div class="hint" style="margin-top:8px">AI 추출: 거래처 = (주)예시AI · 담당자 = 박정현 CTO · 010-0000-0000 · cto@exampleai.kr</div>
+<div class="hint">AI: 거래처유형이 민간인지 공공인지 한 가지만 확인해 주세요. (부족 필드 되물음)</div>
+<div class="submit">확인하고 거래처·담당자 생성</div>
+</div>
+</div>
+</div>
+</div>
+
+<span class="blabel">처리 흐름 (모든 모드 공통)</span>
+<div class="steps">
+<div class="step"><span class="si">1</span><div><b>입력</b><br><span>프롬프트·명함·음성·파일 중 무엇이든</span></div></div>
+<div class="step"><span class="si">2</span><div><b>AI 파싱</b><br><span>거래처·담당자·영업기회 후보 추출, 중복 검사</span></div></div>
+<div class="step"><span class="si">3</span><div><b>충분성 판단</b><br><span>필수 충분하면 자동 채움, 부족하면 한두 가지만 되물음</span></div></div>
+<div class="step"><span class="si">4</span><div><b>보강·생성</b><br><span>강도·세그먼트·적합도·다음액션 채워 3객체 생성, 원본은 증빙 보관</span></div></div>
+</div>
+<span class="blabel">공통 규칙</span>
+<div class="g3 grid">
+<div class="card"><h4>중복 판정 키</h4><p>거래처는 사업자번호(없으면 정규화 회사명), 담당자는 이메일, 영업기회는 거래처와 사업명 조합으로 중복을 막는다.</p></div>
+<div class="card"><h4>1대 다 허용</h4><p>한 거래처에 영업기회 여러 개. 공공 기관은 사업이 여러 개이기 때문이다.</p></div>
+<div class="card"><h4>단계·확률 연동</h4><p>단계를 바꾸면 확률이 자동으로 따라 바뀌고, 본부 전환율 KPI가 산출된다.</p></div>
+</div>
+</div>
+
+<!-- 04 AI 레이어 + 구현 -->
+<div class="page">
+<div class="ph"><span class="pn">04</span><h2>AI 레이어 (필수)와 구현</h2></div>
+<span class="blabel">AI가 붙는 다섯 자리</span>
+<div class="g2 grid">
+<div class="card"><h4>1. 적합도 스코어링</h4><p>GPU 수요 강도, 규모, 타이밍, 접점을 넣어 0–100 자동 채점. 지금의 수작업 강도 평가를 자동화하는 자리.</p></div>
+<div class="card"><h4>2. 자동 보강</h4><p>회사명·기관명만으로 사업내용·투자·매출·뉴스를 채운다. 공공 사업은 발주 담당부서를 찾아 붙인다.</p></div>
+<div class="card"><h4>3. 중복 제거·매칭</h4><p>같은 거래처·사업을 자동 병합. 대학·병원은 민간과 공공 양쪽에 나오므로 기관명·사업자번호로 합친다.</p></div>
+<div class="card"><h4>4. 세그먼트·라우팅</h4><p>T1·T2·공공으로 자동 분류하고 담당 영업에게 배정한다.</p></div>
+<div class="card"><h4>5. 다음 액션 추천</h4><p>단계·강도에 맞는 제안(무마진 PoC, 등록 20% 쿠폰, 하이퍼큐브)과 멘트를 제시한다.</p></div>
+<div class="card" style="border-color:#c4dbff;background:#f5f9ff"><h4>적재 트리거</h4><p>파일 임포트 직후, 수동 저장 직후, 단계 변경 시 AI가 자동 실행되도록 워크플로우에 건다.</p></div>
+</div>
+<span class="blabel">구현 단계</span>
+<div class="steps">
+<div class="step"><span class="si">1단계</span><div><b>객체 생성</b><br><span>거래처·담당자·영업기회·리드 4객체와 위 통합 필드 정의</span></div></div>
+<div class="step"><span class="si">2단계</span><div><b>데이터 적재</b><br><span>민간 378을 기업형, 공공 수요예보 사업을 사업형으로 임포트(기존 Excel이 임포트 양식)</span></div></div>
+<div class="step"><span class="si">3단계</span><div><b>AI 연결</b><br><span>스코어링·보강·라우팅을 임포트·저장 워크플로우에 연결</span></div></div>
+<div class="step"><span class="si">4단계</span><div><b>대시보드</b><br><span>단계별 전환율, 세그먼트별 파이프라인 KPI 보드 구성</span></div></div>
+</div>
+<div class="note w"><span class="h">시스템별 매핑</span>HubSpot이면 Companies·Contacts·Deals에 위 필드를 커스텀 속성으로 추가하고 Breeze AI로 보강한다. Notion·Airtable이면 연결된 DB 3개로 만들고 CSV 임포트와 자체 LLM API로 붙인다. Salesforce면 Account·Contact·Opportunity에 그대로 매핑된다.</div>
+</div>
+
+<!-- 05 초기 적재 파일 구조 -->
+<div class="page">
+<div class="ph"><span class="pn">05</span><h2>초기 적재 파일 구조와 매핑</h2></div>
+<div class="note w"><span class="h">제약사항</span>초기 데이터는 직접 입력이 아니라 파일 임포트로 적재한다. 두 종류의 엑셀을 업로드한다. 스키마에서 [파일] 배지가 붙은 항목이 이 파일로 채워지는 칸이다. 임포트 시 거래처·담당자·영업기회 중복은 자동 병합되고, 비어 있는 칸은 AI가 보강한다.</div>
+
+<span class="blabel">파일 1 — 민간 고객 (gcube_고객전수평가_378_v1.0.xlsx, 시트 "고객 전수 평가(378)")</span>
+<div class="tbl"><table><thead><tr><th>파일 칼럼</th><th>적재 객체 . 필드</th></tr></thead><tbody>
+<tr><td>회사명</td><td>거래처 . 거래처명</td></tr>
+<tr><td>(고정값 "민간")</td><td>거래처 . 거래처유형</td></tr>
+<tr><td>GPU수요강도</td><td>거래처 . GPU수요강도</td></tr>
+<tr><td>Tier</td><td>거래처 . 세그먼트</td></tr>
+<tr><td>사업(판단)</td><td>거래처 . 사업영역, 영업기회 . 사업개요</td></tr>
+<tr><td>소재지</td><td>거래처 . 소재지</td></tr>
+<tr><td>담당자, 직책, 연락처, 이메일</td><td>담당자 . 이름·직책·전화·이메일</td></tr>
+<tr><td>추천제안</td><td>영업기회 . 제품</td></tr>
+<tr><td>예상딜밸류(억)</td><td>영업기회 . 예상금액</td></tr>
+<tr><td>적합도</td><td>영업기회 . 적합도점수</td></tr>
+<tr><td>비고</td><td>영업기회 . 다음액션·메모</td></tr>
+</tbody></table></div>
+<div class="src">민간 파일에는 사업자번호·발주시기·신규계속 칼럼이 없다. 이 칸은 수동 또는 AI 보강으로 채운다.</div>
+
+<span class="blabel">파일 2 — 공공 수요예보 (gcube_공공수요예보_영업타겟_v2.0.xlsx, 시트 5종)</span>
+<div class="tbl"><table><thead><tr><th>시트</th><th>주요 칼럼</th><th>적재</th></tr></thead><tbody>
+<tr><td>SW신규_AI클라우드(우선)</td><td>기관유형, 기관명, 사업명, 사업개요, 당해금액, 발주시기, 신규/계속, HW도입, 재원, 제안각도</td><td>거래처 + 영업기회 (우선)</td></tr>
+<tr><td>SW계속_유지관리(참고)</td><td>기관명, 사업명, 사업개요, 당해금액, 발주시기</td><td>영업기회 (참고)</td></tr>
+<tr><td>ICT_서버GPU스토리지</td><td>유형, 기관명, 품목명, HW예산, 수량, 발주여부, 사업명, 제안각도</td><td>거래처 + 영업기회</td></tr>
+<tr><td>SaaS_클라우드</td><td>기관명, 품목명, 구매예산</td><td>영업기회</td></tr>
+<tr><td>요약</td><td>집계 시트</td><td>적재 제외</td></tr>
+</tbody></table></div>
+<span class="blabel">공공 칼럼과 객체 매핑</span>
+<div class="tbl"><table><thead><tr><th>파일 칼럼</th><th>적재 객체 . 필드</th></tr></thead><tbody>
+<tr><td>기관명</td><td>거래처 . 거래처명</td></tr>
+<tr><td>기관유형 (공공기관·지자체·국가기관·교육)</td><td>거래처 . 거래처유형</td></tr>
+<tr><td>사업명</td><td>영업기회 . 기회명</td></tr>
+<tr><td>사업개요</td><td>영업기회 . 사업개요</td></tr>
+<tr><td>당해금액·총사업금액, HW예산, 구매예산</td><td>영업기회 . 예상금액</td></tr>
+<tr><td>발주시기</td><td>영업기회 . 예상시기·마감</td></tr>
+<tr><td>신규/계속</td><td>영업기회 . 신규·계속</td></tr>
+<tr><td>HW도입</td><td>영업기회 . HW도입여부</td></tr>
+<tr><td>재원, 발주여부</td><td>영업기회 . 재원·발주여부</td></tr>
+<tr><td>gcube 제안각도</td><td>영업기회 . 제품, 다음액션</td></tr>
+</tbody></table></div>
+<div class="note b"><span class="h">임포트 규칙</span>출처는 파일 종류로 자동 설정한다(민간DB 또는 공공수요예보). 리드유형은 민간 파일이면 기업형, 공공 파일이면 사업형. 단계는 전부 신규로 시작한다. 한 기관에 사업이 여러 개면 거래처 1건에 영업기회 여러 건으로 적재한다(공공 파일의 핵심 특성).</div>
+</div>
+
+<footer>AX사업본부 영업본부 · 리드 관리 구조 설계 v1.0 · 대외비 · 4객체(거래처·담당자·영업기회·리드) · 파일+수동 듀얼 입력 · AI 필수</footer>
+</body></html>

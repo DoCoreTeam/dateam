@@ -232,6 +232,9 @@ export default function DealsPage() {
                     <th className={`sort-th${sort === 'probability' ? ' active' : ''}`} onClick={() => handleSort('probability')}>
                       확률 <SortIcon field="probability" sort={sort} dir={sortDir} />
                     </th>
+                    <th>리드유형</th>
+                    <th>제품</th>
+                    <th style={{ textAlign: 'center' }}>적합도</th>
                     <th>거래처</th>
                   </tr>
                 </thead>
@@ -260,6 +263,19 @@ export default function DealsPage() {
                       </td>
                       <td data-label="확률">
                         <span style={{ fontSize: '0.875rem', color: '#374151' }}>{d.probability}%</span>
+                      </td>
+                      <td data-label="리드유형">
+                        {d.lead_type
+                          ? <span className="badge badge-slate" style={{ fontSize: '0.75rem' }}>{d.lead_type}</span>
+                          : <span style={{ color: '#cbd5e1' }}>-</span>}
+                      </td>
+                      <td data-label="제품">
+                        <span style={{ fontSize: '0.8125rem', color: '#374151' }}>{d.product ?? '-'}</span>
+                      </td>
+                      <td data-label="적합도" style={{ textAlign: 'center' }}>
+                        {d.fit_score !== null
+                          ? <span style={{ fontSize: '0.75rem', fontWeight: 700, color: d.fit_score >= 70 ? '#16a34a' : d.fit_score >= 40 ? '#d97706' : '#dc2626' }}>{d.fit_score}</span>
+                          : <span style={{ color: '#cbd5e1' }}>-</span>}
                       </td>
                       <td data-label="거래처" onClick={e => e.stopPropagation()}>
                         {d.accounts?.name ? (

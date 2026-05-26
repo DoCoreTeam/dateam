@@ -15,6 +15,8 @@ export function detectBulkMode(headers: string[]): ColumnIndexMap | null {
   if (companyName === undefined) return null
   return {
     companyName,
+    industry: idx(['업종', '산업', '업태']),
+    accountType: idx(['거래처유형', '고객유형', '유형']),
     gpuDemand: idx(['GPU수요강도', 'GPU 수요강도']),
     tier: idx(['Tier', 'tier', '티어']),
     businessJudge: idx(['사업', '판단']),

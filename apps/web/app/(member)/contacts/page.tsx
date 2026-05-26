@@ -121,6 +121,7 @@ export default function ContactsPage() {
                   직책/부서 <SortIcon field="title" sort={sort} dir={sortDir} />
                 </th>
                 <th>연락처</th>
+                <th>역할</th>
                 <th>거래처</th>
               </tr>
             </thead>
@@ -162,6 +163,11 @@ export default function ContactsPage() {
                         </div>
                       )}
                     </div>
+                  </td>
+                  <td data-label="역할">
+                    {c.role
+                      ? <span className="badge badge-slate" style={{ fontSize: '0.75rem' }}>{c.role}</span>
+                      : <span style={{ color: '#cbd5e1', fontSize: '0.8125rem' }}>-</span>}
                   </td>
                   <td data-label="거래처" onClick={e => e.stopPropagation()}>
                     {c.accounts?.name ? (

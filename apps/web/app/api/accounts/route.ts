@@ -3,7 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { safeLike, safeEq } from '@/lib/postgrest-safe'
 
 const LIMIT = 20
-const SORT_ALLOW = new Set(['created_at', 'name', 'fit_score', 'industry', 'region', 'segment'])
+const SORT_ALLOW = new Set(['created_at', 'name', 'fit_score', 'industry', 'region', 'segment', 'gpu_demand_intensity'])
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()

@@ -10,7 +10,7 @@ import SlidePanel from '@/components/ui/SlidePanel'
 import { useDebounce } from '@/hooks/useDebounce'
 
 type PageData = { items: Account[]; nextCursor: string | null; hasMore: boolean; capped?: boolean }
-type SortField = 'created_at' | 'name' | 'fit_score' | 'industry' | 'region'
+type SortField = 'created_at' | 'name' | 'fit_score' | 'industry' | 'region' | 'gpu_demand_intensity'
 
 const SEGMENTS = ['엔터프라이즈', 'SMB', '공공', '스타트업'] as const
 
@@ -153,6 +153,10 @@ export default function AccountsPage() {
                 <th className={`sort-th${sort === 'region' ? ' active' : ''}`} onClick={() => handleSort('region')}>
                   지역 <SortIcon field="region" sort={sort} dir={sortDir} />
                 </th>
+                <th className={`sort-th${sort === 'gpu_demand_intensity' ? ' active' : ''}`} onClick={() => handleSort('gpu_demand_intensity')}>
+                  GPU수요 <SortIcon field="gpu_demand_intensity" sort={sort} dir={sortDir} />
+                </th>
+                <th>거래처유형</th>
                 <th className={`sort-th${sort === 'fit_score' ? ' active' : ''}`} style={{ textAlign: 'center' }} onClick={() => handleSort('fit_score')}>
                   Fit <SortIcon field="fit_score" sort={sort} dir={sortDir} />
                 </th>
@@ -189,6 +193,16 @@ export default function AccountsPage() {
                         : <span style={{ color: '#cbd5e1' }}>-</span>}
                     </td>
                     <td data-label="지역"><span style={{ color: '#64748b', fontSize: '0.8125rem' }}>{acc.region ?? '-'}</span></td>
+                    <td data-label="GPU수요">
+                      {acc.gpu_demand_intensity
+                        ? <span className={`badge ${acc.gpu_demand_intensity === 'High' ? 'badge-indigo' : acc.gpu_demand_intensity === 'Medium' ? 'badge-slate' : ''}`} style={{ fontSize: '0.75rem' }}>{acc.gpu_demand_intensity}</span>
+                        : <span style={{ color: '#cbd5e1' }}>-</span>}
+                    </td>
+                    <td data-label="거래처유형">
+                      {acc.account_type
+                        ? <span className="badge badge-slate" style={{ fontSize: '0.75rem' }}>{acc.account_type}</span>
+                        : <span style={{ color: '#cbd5e1' }}>-</span>}
+                    </td>
                     <td data-label="Fit" style={{ textAlign: 'center' }}>
                       {acc.fit_score !== null
                         ? <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '9999px', ...fc }}>{acc.fit_score}</span>
@@ -234,6 +248,12 @@ function AccountDetail({ account, onClose }: { account: Account; onClose: () => 
         {account.industry && <span className="badge badge-slate">{account.industry}</span>}
         {account.segment  && <span className="badge badge-indigo">{account.segment}</span>}
         {account.size     && <span className="badge" style={{ background: '#f8fafc', color: '#64748b' }}>{account.size}</span>}
+        {account.account_type && <span className="badge" style={{ background: '#fef3c7', color: '#92400e', fontSize: '0.75rem' }}>{account.account_type}</span>}
+        {account.gpu_demand_intensity && (
+          <span className={`badge ${account.gpu_demand_intensity === 'High' ? 'badge-indigo' : 'badge-slate'}`} style={{ fontSize: '0.75rem' }}>
+            GPU {account.gpu_demand_intensity}
+          </span>
+        )}
         {account.fit_score !== null && (
           <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.625rem', borderRadius: '9999px', ...fc }}>
             Fit {account.fit_score}점
