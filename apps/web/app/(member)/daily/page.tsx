@@ -902,6 +902,16 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
         }}>
           <div>
             <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>✨ AI 분석 결과</div>
+            {loading && editItems.length === 0 && (
+              <div style={{ fontSize: '0.75rem', color: '#6366f1', marginTop: '0.125rem' }}>
+                분석 중...
+              </div>
+            )}
+            {loading && editItems.length > 0 && (
+              <div style={{ fontSize: '0.75rem', color: '#6366f1', marginTop: '0.125rem' }}>
+                {editItems.length}개 항목 발견 — 계속 분석 중...
+              </div>
+            )}
             {!loading && editItems.length > 0 && (
               <div style={{ fontSize: '0.75rem', color: '#6366f1', marginTop: '0.125rem' }}>
                 {editItems.length}개 항목 감지됨 — 확인 후 저장하세요
@@ -930,14 +940,19 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
           )}
 
           {loading && editItems.length === 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {[1, 2].map(i => (
-                <div key={i} style={{
-                  background: '#f8fafc', border: '1px solid #e2e8f0',
-                  borderRadius: '0.625rem', padding: '1rem', height: '5rem',
-                  animation: 'pulse 1.5s ease-in-out infinite',
-                }} />
-              ))}
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              justifyContent: 'center', gap: '1rem', padding: '2.5rem 1rem',
+            }}>
+              <div className="ai-analyzing-spinner" />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#4f46e5', marginBottom: '0.25rem' }}>
+                  AI가 업무를 분석하고 있습니다
+                </div>
+                <div className="ai-analyzing-dots" style={{ fontSize: '0.8125rem', color: '#94a3b8' }}>
+                  업무 항목을 추출 중
+                </div>
+              </div>
             </div>
           )}
 
