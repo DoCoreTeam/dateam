@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Plus, Trash2, Save, Pencil, AlertTriangle, RotateCcw, Sparkles } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { upsertWeeklyReport, deleteAllWeeklyReports } from './actions'
+import AXLoadingOverlay from '@/components/ui/AXLoadingOverlay'
 import DiffConfirmModal, { type DiffItem } from '@/components/ui/DiffConfirmModal'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
@@ -293,40 +294,13 @@ export default function WeeklyReportForm({
     <>
     <SpotlightOnboarding autoStart={isFirstTimeUser} />
 
-    {/* 전체화면 AI 다듬기 로딩 오버레이 */}
-    {isRefining && (
-      <div
-        role="status"
-        aria-live="polite"
-        aria-label={`AI로 다듬는 중 — ${REFINE_STEPS[Math.min(refineStep, REFINE_STEPS.length - 1)].label}`}
-        style={{
-          position: 'fixed', inset: 0, zIndex: 9998,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(248,247,255,0.55)',
-          backdropFilter: 'blur(6px)',
-          WebkitBackdropFilter: 'blur(6px)',
-        }}
-      >
-        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem' }}>
-          {orgName && (
-            <div aria-hidden style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '0.08em', userSelect: 'none' }}>
-              {orgName.split('').map((ch, i) => (
-                <span key={i} style={{ display: 'inline-block', animation: 'char-wave 1.8s ease-in-out infinite', animationDelay: `${i * 0.12}s` }}>
-                  {ch}
-                </span>
-              ))}
-            </div>
-          )}
-          <span aria-hidden style={{ fontSize: '0.875rem', color: '#6d28d9', fontWeight: 600 }}>
-            {REFINE_STEPS[Math.min(refineStep, REFINE_STEPS.length - 1)].label}
-          </span>
-          <div role="progressbar" aria-busy="true" aria-label="AI 다듬기 진행 중" style={{ width: 120, height: 3, borderRadius: 3, background: '#ede9fe', overflow: 'hidden', position: 'relative' }}>
-            <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '40%', borderRadius: 3, background: '#8b5cf6', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
-          </div>
-          <span aria-hidden style={{ fontSize: '0.75rem', color: '#a78bfa' }}>{refineElapsed}초</span>
-        </div>
-      </div>
-    )}
+    <AXLoadingOverlay
+      isLoading={isRefining}
+      brandName={orgName || undefined}
+      label={REFINE_STEPS[Math.min(refineStep, REFINE_STEPS.length - 1)].label}
+      elapsed={refineElapsed}
+      ariaLabel={`AI로 다듬는 중 — ${REFINE_STEPS[Math.min(refineStep, REFINE_STEPS.length - 1)].label}`}
+    />
 
     {showDiffModal && (
       <DiffConfirmModal

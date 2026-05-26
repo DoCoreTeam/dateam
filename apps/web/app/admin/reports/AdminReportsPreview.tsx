@@ -6,6 +6,7 @@ import { Sparkles, RefreshCw } from 'lucide-react'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 import AXDotLoader from '@/components/ui/AXDotLoader'
+import AXLoadingOverlay from '@/components/ui/AXLoadingOverlay'
 
 interface AdminReportsPreviewProps {
   week: string
@@ -220,62 +221,14 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
 
   return (
     <>
-      <style>{`
-        @keyframes progress-indeterminate {
-          0%   { transform: translateX(-100%); }
-          100% { transform: translateX(400%); }
-        }
-      `}</style>
-
-      {/* Full-screen loading overlay */}
-      {loading && (
-        <div
-          ref={overlayRef}
-          role="status"
-          aria-live="polite"
-          aria-label={`AI 취합 중 — ${STEPS[Math.min(statusStep, STEPS.length - 1)].label}`}
-          tabIndex={-1}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 9998,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            backdropFilter: 'blur(6px)',
-            WebkitBackdropFilter: 'blur(6px)',
-            background: 'rgba(248, 247, 255, 0.55)',
-            outline: 'none',
-          }}
-        >
-          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem' }}>
-            {orgName && (
-              <div aria-hidden style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '0.08em', userSelect: 'none' }}>
-                {orgName.split('').map((ch, i) => (
-                  <span
-                    key={i}
-                    style={{
-                      display: 'inline-block',
-                      animation: 'char-wave 1.8s ease-in-out infinite',
-                      animationDelay: `${i * 0.12}s`,
-                    }}
-                  >
-                    {ch}
-                  </span>
-                ))}
-              </div>
-            )}
-            <span aria-hidden style={{ fontSize: '0.875rem', color: '#6d28d9', fontWeight: 600 }}>
-              {STEPS[Math.min(statusStep, STEPS.length - 1)].label}
-            </span>
-            <div
-              role="progressbar"
-              aria-busy="true"
-              aria-label="AI 취합 진행 중"
-              style={{ width: 120, height: 3, borderRadius: 3, background: '#ede9fe', overflow: 'hidden', position: 'relative' }}
-            >
-              <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '40%', borderRadius: 3, background: '#8b5cf6', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
-            </div>
-            <span aria-hidden style={{ fontSize: '0.75rem', color: '#a78bfa' }}>{elapsed}초</span>
-          </div>
-        </div>
-      )}
+      <AXLoadingOverlay
+        ref={overlayRef}
+        isLoading={loading}
+        brandName={orgName || undefined}
+        label={STEPS[Math.min(statusStep, STEPS.length - 1)].label}
+        elapsed={elapsed}
+        ariaLabel={`AI 취합 중 — ${STEPS[Math.min(statusStep, STEPS.length - 1)].label}`}
+      />
 
       {/* Trigger button + inline status */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>

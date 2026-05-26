@@ -28,14 +28,18 @@ export default async function LeadIntakePage() {
 
   const adminClient = createAdminClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: intakes } = await (adminClient as any)
-    .from('lead_intakes')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(20) as { data: LeadIntake[] | null }
+  const adm = adminClient as any
 
-  const list = intakes ?? []
+  const [intakesRes, metaRes] = await Promise.all([
+    adm.from('lead_intakes').select('*').eq('user_id', user.id)
+      .order('created_at', { ascending: false }).limit(20) as Promise<{ data: LeadIntake[] | null }>,
+    adm.from('org_content').select('value').eq('key', 'META').single() as Promise<{ data: { value: Record<string, unknown> } | null }>,
+  ])
+
+  const list = intakesRes.data ?? []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const meta = (metaRes.data?.value as any) ?? {}
+  const brandName: string = typeof meta.org === 'string' ? meta.org : typeof meta.title === 'string' ? meta.title : ''
 
   return (
     <div>
@@ -55,7 +59,7 @@ export default async function LeadIntakePage() {
           <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>새 리드 입력</h2>
         </div>
         <div style={{ padding: '1.5rem' }}>
-          <LeadIntakeForm />
+          <LeadIntakeForm brandName={brandName} />
         </div>
       </div>
 

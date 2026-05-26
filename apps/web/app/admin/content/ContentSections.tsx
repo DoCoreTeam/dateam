@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Sparkles } from 'lucide-react'
 import DynamicTable, { type ColumnDef } from '@/components/ui/DynamicTable'
 import DynamicKeyValue from '@/components/ui/DynamicKeyValue'
-import AXDotLoader from '@/components/ui/AXDotLoader'
+import AXLoadingOverlay from '@/components/ui/AXLoadingOverlay'
 import ContentDiffModal from '@/components/ui/ContentDiffModal'
 import { aiApplySection } from './actions'
 
@@ -427,39 +427,14 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         </div>
       )}
 
-      {/* AI 로딩 오버레이 */}
-      {aiLoading && (
-        <div
-          aria-live="polite"
-          aria-label="AI 편집 중"
-          style={{
-            position: 'fixed', inset: 0, zIndex: 8500,
-            background: 'rgba(15,23,42,0.7)',
-            backdropFilter: 'blur(8px)',
-            display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center', gap: '1.5rem',
-          }}
-        >
-          {orgName && (
-            <div aria-hidden style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '0.08em' }}>
-              {orgName.split('').map((ch, i) => (
-                <span
-                  key={i}
-                  style={{
-                    display: 'inline-block',
-                    animation: 'char-wave 1.8s ease-in-out infinite',
-                    animationDelay: `${i * 0.12}s`,
-                  }}
-                >
-                  {ch}
-                </span>
-              ))}
-            </div>
-          )}
-          {!orgName && <AXDotLoader size={10} color="#fff" />}
-          <p style={{ color: '#e2e8f0', fontSize: '0.9rem', margin: 0 }}>AI가 수정 요청을 처리 중입니다…</p>
-        </div>
-      )}
+      <AXLoadingOverlay
+        isLoading={aiLoading}
+        brandName={orgName || undefined}
+        label="AI가 수정 요청을 처리 중입니다…"
+        ariaLabel="AI 편집 중"
+        variant="dark"
+        zIndex={8500}
+      />
 
       {/* AI diff 모달 */}
       {aiDiff && (
