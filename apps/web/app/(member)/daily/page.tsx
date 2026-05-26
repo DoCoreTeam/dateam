@@ -136,11 +136,9 @@ export default function DailyPage() {
   }
 
   const nextDay = () => {
-    if (isToday) return
     const d = new Date(selectedDate + 'T00:00:00')
     d.setDate(d.getDate() + 1)
-    const next = toDateStr(d)
-    setSelectedDate(next > today ? today : next)
+    setSelectedDate(toDateStr(d))
   }
 
   const goToday = () => setSelectedDate(today)
@@ -253,23 +251,11 @@ export default function DailyPage() {
               )}
             </div>
 
-            <button
-              onClick={nextDay}
-              disabled={isToday}
-              title={isToday ? '오늘이 최신입니다' : '다음 날'}
-              style={{
-                ...navBtnStyle,
-                opacity: isToday ? 0.3 : 1,
-                cursor: isToday ? 'not-allowed' : 'pointer',
-              }}
-            >
-              ▶
-            </button>
+            <button onClick={nextDay} style={navBtnStyle}>▶</button>
           </div>
 
-          {/* 입력 폼 (오늘만) */}
-          {isToday && (
-            <form onSubmit={handleSubmit} style={{
+          {/* 입력 폼 */}
+          <form onSubmit={handleSubmit} style={{
               background: '#fff', border: '1px solid #e2e8f0',
               borderRadius: '0.75rem', padding: '1rem', marginBottom: '1.25rem',
             }}>
@@ -328,7 +314,6 @@ export default function DailyPage() {
                 <p style={{ color: '#dc2626', fontSize: '0.8125rem', margin: '0.5rem 0 0' }}>{error}</p>
               )}
             </form>
-          )}
 
           {/* 타임라인 */}
           {loading ? (
