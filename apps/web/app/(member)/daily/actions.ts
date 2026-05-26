@@ -53,7 +53,7 @@ export async function getWeekLogs(weekStart: string): Promise<DailyLog[]> {
   const start = new Date(weekStart + 'T00:00:00')
   const end = new Date(start)
   end.setDate(end.getDate() + 6)
-  const to = end.toISOString().slice(0, 10)
+  const to = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`
 
   const { data } = await (supabase.from('daily_logs') as any)
     .select('*')

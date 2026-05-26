@@ -11,7 +11,7 @@ const ENTRY_TYPES = {
 } as const
 
 function toDateStr(d: Date) {
-  return d.toISOString().slice(0, 10)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function formatDate(dateStr: string) {
@@ -49,11 +49,10 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
   const selectedUser = params.user ?? ''
   const selectedType = params.type ?? ''
 
-  // 멤버 목록
+  // 멤버 목록 (관리자 포함 전체)
   const { data: members } = await adminClient
     .from('profiles')
     .select('id, name')
-    .eq('role', 'member')
     .is('deleted_at', null)
     .order('name') as unknown as { data: Pick<Profile, 'id' | 'name'>[] | null; error: unknown }
 

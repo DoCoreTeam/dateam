@@ -17,7 +17,7 @@ const ENTRY_TYPES: Record<DailyLogEntryType, { label: string; color: string; bg:
 const WEEK_DAYS = ['일', '월', '화', '수', '목', '금', '토']
 
 function toDateStr(d: Date) {
-  return d.toISOString().slice(0, 10)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function getMonday(date: Date) {
