@@ -9,7 +9,7 @@ import SlidePanel from '@/components/ui/SlidePanel'
 import { useDebounce } from '@/hooks/useDebounce'
 
 type DealWithAccount = Deal & { accounts: Pick<Account, 'id' | 'name'> | null }
-type PageData = { items: DealWithAccount[]; nextCursor: string | null; hasMore: boolean; total: number }
+type PageData = { items: DealWithAccount[]; nextCursor: string | null; hasMore: boolean; total: number; capped?: boolean }
 type SortField = 'created_at' | 'title' | 'stage' | 'value' | 'probability'
 
 const STAGES = ['신규', '검증', '컨택', 'PoC', '제안', '협상', '수주', '실패'] as const
@@ -67,6 +67,7 @@ export default function DealsPage() {
 
   const list = data?.flatMap((p) => p.items) ?? []
   const hasMore = data?.[data.length - 1]?.hasMore ?? false
+  const isCapped = data?.[data.length - 1]?.capped ?? false
   const hasFilters = debouncedSearch || filterStage || sort !== 'created_at'
   const totalCount = data?.[0]?.total ?? 0
 
@@ -84,12 +85,12 @@ export default function DealsPage() {
     const el = sentinelRef.current
     if (!el) return
     const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting && hasMore && !isValidating) setSize(size + 1) },
+      ([entry]) => { if (entry.isIntersecting && hasMore && !isValidating) setSize(s => s + 1) },
       { threshold: 0.1 }
     )
     obs.observe(el)
     return () => obs.disconnect()
-  }, [hasMore, isValidating, size, setSize])
+  }, [hasMore, isValidating, setSize])
 
   function handleSort(field: SortField) {
     if (sort === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -277,6 +278,11 @@ export default function DealsPage() {
             {isValidating && !isLoading && (
               <div style={{ textAlign: 'center', padding: '1rem', color: '#94a3b8' }}>
                 <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+              </div>
+            )}
+            {isCapped && (
+              <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: '#92400e', background: '#fffbeb', borderTop: '1px solid #fde68a' }}>
+                결과가 500건을 초과합니다. 검색 조건을 좁혀주세요.
               </div>
             )}
           </div>

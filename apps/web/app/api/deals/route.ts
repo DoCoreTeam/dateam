@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { safeLike, safeEq } from '@/lib/postgrest-safe'
 
 const LIMIT = 20
 const SORT_ALLOW = new Set(['created_at', 'title', 'stage', 'value', 'probability'])
@@ -11,8 +12,8 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams
   const cursorRaw = sp.get('cursor')
-  const search    = sp.get('search')?.trim() ?? ''
-  const stage     = sp.get('stage')?.trim() ?? ''
+  const search    = safeLike(sp.get('search') ?? '')
+  const stage     = safeEq(sp.get('stage') ?? '')
   const sortField = SORT_ALLOW.has(sp.get('sort') ?? '') ? sp.get('sort')! : 'created_at'
   const sortAsc   = sp.get('dir') === 'asc'
 
@@ -28,8 +29,9 @@ export async function GET(req: NextRequest) {
   if (search) query = query.ilike('title', `%${search}%`)
   if (stage)  query = query.eq('stage', stage)
 
+  const CAP = 500
   if (hasFilters) {
-    query = query.limit(500)
+    query = query.limit(CAP + 1)
   } else {
     const [cursorTime, cursorId] = cursorRaw ? cursorRaw.split('__') : [null, null]
     if (cursorTime && cursorId) {
@@ -50,7 +52,8 @@ export async function GET(req: NextRequest) {
   const total = count ?? 0
 
   if (hasFilters) {
-    return NextResponse.json({ items: data, nextCursor: null, hasMore: false, total })
+    const capped = data.length > CAP
+    return NextResponse.json({ items: capped ? data.slice(0, CAP) : data, nextCursor: null, hasMore: false, capped, total })
   }
 
   const hasMore = data.length > LIMIT

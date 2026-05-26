@@ -1,36 +1,61 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { safeLike, safeEq } from '@/lib/postgrest-safe'
+
+const LIMIT = 20
+const SORT_ALLOW = new Set(['created_at', 'name', 'fit_score', 'industry', 'region', 'segment'])
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const LIMIT = 20
-  // cursor = "created_at__id" 복합 키 (동률 데이터 누락 방지)
-  const cursorRaw = req.nextUrl.searchParams.get('cursor')
-  const [cursorTime, cursorId] = cursorRaw ? cursorRaw.split('__') : [null, null]
+  const sp = req.nextUrl.searchParams
+  const cursorRaw = sp.get('cursor')
+  const search    = safeLike(sp.get('search') ?? '')
+  const segment   = safeEq(sp.get('segment') ?? '')
+  const industry  = safeLike(sp.get('industry') ?? '')
+  const region    = safeLike(sp.get('region') ?? '')
+  const sortField = SORT_ALLOW.has(sp.get('sort') ?? '') ? sp.get('sort')! : 'created_at'
+  const sortAsc   = sp.get('dir') === 'asc'
+
+  const hasFilters = search || segment || industry || region || sortField !== 'created_at'
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase as any)
     .from('accounts')
     .select('*')
-    .order('created_at', { ascending: false })
+    .order(sortField, { ascending: sortAsc })
     .order('id', { ascending: false })
-    .limit(LIMIT + 1)
 
-  if (cursorTime && cursorId) {
-    query = query.or(`created_at.lt.${cursorTime},and(created_at.eq.${cursorTime},id.lt.${cursorId})`)
+  if (search)   query = query.ilike('name', `%${search}%`)
+  if (segment)  query = query.eq('segment', segment)
+  if (industry) query = query.ilike('industry', `%${industry}%`)
+  if (region)   query = query.ilike('region', `%${region}%`)
+
+  const CAP = 500
+  if (hasFilters) {
+    query = query.limit(CAP + 1)
+  } else {
+    const [cursorTime, cursorId] = cursorRaw ? cursorRaw.split('__') : [null, null]
+    if (cursorTime && cursorId) {
+      query = query.or(`created_at.lt.${cursorTime},and(created_at.eq.${cursorTime},id.lt.${cursorId})`)
+    }
+    query = query.limit(LIMIT + 1)
   }
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const hasMore = data.length > LIMIT
-  const items = hasMore ? data.slice(0, LIMIT) : data
-  const last = items[items.length - 1]
-  const nextCursor = hasMore && last ? `${last.created_at}__${last.id}` : null
+  if (hasFilters) {
+    const capped = data.length > CAP
+    return NextResponse.json({ items: capped ? data.slice(0, CAP) : data, nextCursor: null, hasMore: false, capped })
+  }
 
+  const hasMore = data.length > LIMIT
+  const items   = hasMore ? data.slice(0, LIMIT) : data
+  const last    = items[items.length - 1]
+  const nextCursor = hasMore && last ? `${last.created_at}__${last.id}` : null
   return NextResponse.json({ items, nextCursor, hasMore })
 }
 
