@@ -135,8 +135,48 @@ export default function LeadIntakeForm() {
     setCreated(true); setCreating(false); router.refresh()
   }
 
+  const processingFile = files.find(f => f.status === 'processing')
+  const pendingTotal = files.filter(f => f.status === 'pending' || f.status === 'processing' || f.status === 'done').length
+  const doneCount = files.filter(f => f.status === 'done').length
+  const isFileProcessing = !!processingFile
+
   return (
     <div>
+      {/* 공통 로딩 오버레이 */}
+      {(loading || isFileProcessing) && (
+        <div
+          role="status"
+          aria-live="polite"
+          aria-label={loading ? 'AI 텍스트 분석 중' : `파일 분석 중 — ${processingFile?.file.name}`}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9998,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(248,247,255,0.55)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+          }}
+        >
+          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem', padding: '0 1.5rem' }}>
+            <span aria-hidden style={{ fontSize: '1rem', color: '#6d28d9', fontWeight: 700 }}>
+              {loading ? 'AI 분석 중…' : `파일 분석 중… (${doneCount + 1} / ${pendingTotal})`}
+            </span>
+            {isFileProcessing && (
+              <span aria-hidden style={{ fontSize: '0.8125rem', color: '#7c3aed', maxWidth: '280px', wordBreak: 'break-all', lineHeight: 1.45 }}>
+                {processingFile.file.name}
+              </span>
+            )}
+            {loading && (
+              <span aria-hidden style={{ fontSize: '0.8125rem', color: '#7c3aed' }}>
+                입력 내용을 AI가 구조화하는 중
+              </span>
+            )}
+            <div role="progressbar" aria-busy="true" style={{ width: 120, height: 3, borderRadius: 3, background: '#ede9fe', overflow: 'hidden', position: 'relative' }}>
+              <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '40%', borderRadius: 3, background: '#8b5cf6', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
         <button className={`tab-btn${tab === 'prompt' ? ' tab-btn-active' : ''}`}
           onClick={() => { setTab('prompt'); setError('') }}>텍스트 입력</button>

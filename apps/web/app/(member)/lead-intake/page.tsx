@@ -80,25 +80,28 @@ export default async function LeadIntakePage() {
                 const sb = statusBadge(intake.status)
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const parsed = intake.parsed_data as any
-                const companyName = parsed?.company_name ?? '-'
+                const TITLE_MAX = 40
+                const truncate = (s: string) => s.length > TITLE_MAX ? s.substring(0, TITLE_MAX) + '…' : s
+                const companyName = parsed?.company_name ?? null
+                const displayTitle = companyName ? truncate(companyName) : (intake.raw_input ? truncate(intake.raw_input) : '파일 업로드')
+                const displaySub = companyName && intake.raw_input ? truncate(intake.raw_input) : null
                 return (
                   <tr key={intake.id}>
                     <td className="card-header">
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '0.5rem' }}>
-                        <div>
-                          <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.875rem' }}>{companyName}</div>
-                          <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.125rem' }}>
-                            {intake.raw_input ? intake.raw_input.substring(0, 40) + '...' : '파일 업로드'}
-                          </div>
+                      <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '0.5rem' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayTitle}</div>
+                          {displaySub && (
+                            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displaySub}</div>
+                          )}
                         </div>
-                        <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: '9999px', color: sb.color, background: sb.bg, flexShrink: 0 }}>{sb.label}</span>
                       </div>
                     </td>
                     <td data-label="출처">
                       <span className="badge badge-slate" style={{ fontSize: '0.75rem' }}>{sourceLabel(intake.source)}</span>
                     </td>
                     <td data-label="상태">
-                      <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: sb.color }}>{sb.label}</span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '9999px', color: sb.color, background: sb.bg }}>{sb.label}</span>
                     </td>
                     <td data-label="Fit">
                       {intake.fit_score !== null ? (
