@@ -9,6 +9,7 @@ interface NavItem {
   href: string
   label: string
   icon: React.ReactNode
+  badge?: number
 }
 
 export interface NavGroup {
@@ -168,7 +169,17 @@ export default function MobileShell({
                     <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.7, display: 'flex', alignItems: 'center' }}>
                       {item.icon}
                     </span>
-                    {item.label}
+                    <span style={{ flex: 1 }}>{item.label}</span>
+                    {item.badge != null && item.badge > 0 && (
+                      <span style={{
+                        fontSize: '0.6rem', fontWeight: 700, lineHeight: 1,
+                        backgroundColor: '#ef4444', color: '#fff',
+                        borderRadius: '999px', padding: '0.2rem 0.4rem',
+                        minWidth: '1.1rem', textAlign: 'center', flexShrink: 0,
+                      }}>
+                        {item.badge > 9 ? '9+' : item.badge}
+                      </span>
+                    )}
                   </Link>
                 </li>
               )

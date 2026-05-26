@@ -8,7 +8,9 @@ import { getBranding } from '@/lib/branding'
 import LogoutButton from '@/components/ui/LogoutButton'
 import PasswordChangeModal from '@/components/ui/PasswordChangeModal'
 import NameSetupModal from '@/components/ui/NameSetupModal'
+import RoutineCheckinGate from '@/components/ui/RoutineCheckinGate'
 import Link from 'next/link'
+import { getRoutineWeeklyStatus } from './routine/actions'
 import {
   LayoutDashboard,
   CheckSquare,
@@ -54,23 +56,29 @@ export default async function MemberLayout({ children }: { children: React.React
   if (!user) redirect('/login')
 
   const adminClient = createAdminClient()
-  const [branding, profileResult] = await Promise.all([
+  const [branding, profileResult, routineStatus] = await Promise.all([
     getBranding(),
     adminClient
       .from('profiles')
       .select('name, role, must_change_password')
       .eq('id', user.id)
       .single() as unknown as Promise<{ data: Pick<Profile, 'name' | 'role' | 'must_change_password'> | null; error: unknown }>,
+    getRoutineWeeklyStatus(),
   ])
   const profile = profileResult.data
+  const routineBadge = routineStatus?.pendingCount ?? 0
 
   const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
   const userEmail = user.email ?? ''
 
+  const navItemsWithBadge = NAV_ITEMS.map((item) =>
+    item.href === '/routine' ? { ...item, badge: routineBadge } : item
+  )
+
   return (
     <>
       <MobileShell
-        items={NAV_ITEMS}
+        items={navItemsWithBadge}
         groups={NAV_GROUPS}
         logoUrl={branding.logoUrl}
         brandName={branding.brandName}
@@ -112,6 +120,13 @@ export default async function MemberLayout({ children }: { children: React.React
       {profile?.must_change_password && <PasswordChangeModal />}
       {!profile?.must_change_password && !profile?.name && <NameSetupModal />}
       <NavigationLoader brandName={branding.brandName} logoUrl={branding.logoUrl} />
+      {routineStatus && routineStatus.weeklyItems.length > 0 && (
+        <RoutineCheckinGate
+          weekStart={routineStatus.weekStart}
+          weeklyItems={routineStatus.weeklyItems}
+          initialCompletedNames={routineStatus.completedNames}
+        />
+      )}
     </>
   )
 }

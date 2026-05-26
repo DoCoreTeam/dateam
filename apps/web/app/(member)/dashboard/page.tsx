@@ -6,8 +6,17 @@ import { ArrowRight, CheckCircle2, TrendingUp, FileText } from 'lucide-react'
 import type { Profile, KpiEntry, RoutineCheck, WeeklyReport, OrgContent, Json } from '@/types/database'
 import WeeklyReportBannerButton from '@/components/ui/WeeklyReportBannerButton'
 import FridaySpotlightOverlay from '@/components/ui/FridaySpotlightOverlay'
+import { DEFAULT_ROUTINES } from '@/lib/routine-defaults'
+import type { RoutineItemParsed } from '@/lib/routine-defaults'
 
-const ROUTINES = ['Morning Standup', '리포트 확인', '이슈 로그', '업무 마감 체크']
+type RoutineItemRaw = string | { name: string; freq?: 'daily' | 'weekly' }
+function parseRoutineItemsDash(items: RoutineItemRaw[]): RoutineItemParsed[] {
+  return items.map((item) =>
+    typeof item === 'string'
+      ? { name: item, freq: 'weekly' as const }
+      : { name: item.name, freq: item.freq ?? 'weekly' }
+  )
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -25,13 +34,13 @@ export default async function DashboardPage() {
   const orgQuery = adminClient
     .from('org_content')
     .select('key, value')
-    .in('key', ['META', 'missions', 'okr']) as unknown as Promise<{ data: OrgRow[] | null; error: unknown }>
+    .in('key', ['META', 'missions', 'okr', 'routine_templates']) as unknown as Promise<{ data: OrgRow[] | null; error: unknown }>
 
   const [profileResult, routineResult, kpiResult, reportsResult, orgResult] = await Promise.all([
     adminClient.from('profiles').select('name').eq('id', user.id).single(),
     supabase
       .from('routine_checks')
-      .select('routine_name, check_date, is_completed')
+      .select('routine_name')
       .eq('user_id', user.id)
       .eq('week_start', weekStartStr)
       .eq('is_completed', true),
@@ -51,7 +60,7 @@ export default async function DashboardPage() {
   ])
 
   const profile = profileResult.data as Pick<Profile, 'name'> | null
-  const routineChecks = routineResult.data as Pick<RoutineCheck, 'routine_name' | 'check_date' | 'is_completed'>[] | null
+  const routineChecks = routineResult.data as Pick<RoutineCheck, 'routine_name'>[] | null
   const kpiEntries = kpiResult.data as Pick<KpiEntry, 'metric_name' | 'value' | 'unit' | 'period_end'>[] | null
   const reports = reportsResult.data as Pick<WeeklyReport, 'week_start' | 'category' | 'created_at'>[] | null
 
@@ -66,17 +75,24 @@ export default async function DashboardPage() {
 
   const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
 
+  // 실제 루틴 아이템 계산
+  const routineTemplates = orgMap['routine_templates'] as { name: string; items?: RoutineItemRaw[] }[] | null | undefined
+  const myTemplate = Array.isArray(routineTemplates) && profile?.name
+    ? routineTemplates.find((t) => t.name === (profile as Pick<Profile, 'name'>).name)
+    : null
+  const routineItems: RoutineItemParsed[] =
+    myTemplate?.items && myTemplate.items.length > 0
+      ? parseRoutineItemsDash(myTemplate.items)
+      : DEFAULT_ROUTINES
+  const weeklyItems = routineItems.filter((i) => i.freq === 'weekly')
+
   const completedCount = routineChecks?.length ?? 0
-  const totalPossible = ROUTINES.length * 7
+  const totalPossible = weeklyItems.length
   const achievementRate = totalPossible > 0 ? Math.round((completedCount / totalPossible) * 100) : 0
 
   const isFriday = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', weekday: 'short' }).format(new Date()) === 'Fri'
   const hasThisWeekReport = (reports ?? []).some((r) => r.week_start === weekStartStr)
   const showGlow = isFriday && !hasThisWeekReport
-
-  const todayStr = toDateString(new Date())
-  const todayChecks = routineChecks?.filter((c) => c.check_date === todayStr) ?? []
-  const todayRate = Math.round((todayChecks.length / ROUTINES.length) * 100)
 
   const routineColor = achievementRate >= 70 ? '#059669' : achievementRate >= 40 ? '#d97706' : '#dc2626'
 
@@ -219,32 +235,7 @@ export default async function DashboardPage() {
                 <div style={{ height: '100%', width: `${achievementRate}%`, borderRadius: '999px', backgroundColor: routineColor }} />
               </div>
               <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.3rem 0 0' }}>
-                {completedCount} / {totalPossible} 완료
-              </p>
-            </div>
-
-            <div style={{ height: '1px', backgroundColor: '#f1f5f9', margin: '0 0 1rem' }} />
-
-            {/* 오늘 루틴 */}
-            <div style={{ marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.4rem' }}>
-                <span style={{ fontSize: '0.8125rem', color: '#64748b', fontWeight: 500 }}>오늘</span>
-                <span style={{ fontSize: '1.375rem', fontWeight: 700, letterSpacing: '-0.03em', color: '#6366f1' }}>
-                  {todayRate}%
-                </span>
-              </div>
-              <div
-                role="progressbar"
-                aria-valuenow={todayRate}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label={`오늘 루틴 달성률 ${todayRate}%`}
-                style={{ height: '4px', backgroundColor: '#f1f5f9', borderRadius: '999px', overflow: 'hidden' }}
-              >
-                <div style={{ height: '100%', width: `${todayRate}%`, borderRadius: '999px', backgroundColor: '#6366f1' }} />
-              </div>
-              <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.3rem 0 0' }}>
-                {todayChecks.length} / {ROUTINES.length} 항목
+                {completedCount} / {totalPossible} 항목 완료
               </p>
             </div>
 

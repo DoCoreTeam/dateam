@@ -735,3 +735,206 @@
   flex: 1;
   text-align: left;
 }
+
+/* ── 루틴 체크인 FAB ──────────────────────────── */
+.routine-fab {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 90;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  background: #6366f1;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45);
+  transition: background 120ms, transform 120ms;
+}
+.routine-fab:hover { background: #4f46e5; transform: scale(1.05); }
+.routine-fab:active { transform: scale(0.97); }
+.routine-fab-badge {
+  position: absolute;
+  top: -0.2rem;
+  right: -0.2rem;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.15rem 0.35rem;
+  min-width: 1rem;
+  text-align: center;
+  border: 1.5px solid #fff;
+}
+
+/* ── 루틴 체크인 모달 ────────────────────────── */
+.checkin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 200;
+  animation: fade-in 180ms var(--ease-out) forwards;
+}
+.checkin-modal {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 201;
+  background: #fff;
+  border-radius: 1.25rem 1.25rem 0 0;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  animation: panel-slide-up 240ms var(--ease-out) forwards;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.12);
+}
+@media (min-width: 640px) {
+  .checkin-modal {
+    bottom: auto;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
+    border-radius: 1.25rem;
+    width: 100%;
+    max-width: 420px;
+    animation: modal-pop 200ms var(--ease-out) forwards;
+  }
+}
+@keyframes modal-pop {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.checkin-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1.25rem 1.25rem 0.875rem;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
+}
+.checkin-modal-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #6366f1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 0.25rem;
+}
+.checkin-modal-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+.checkin-modal-close {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 1.125rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.checkin-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+}
+.checkin-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 100ms;
+  border-bottom: 1px solid #f8fafc;
+}
+.checkin-item:last-child { border-bottom: none; }
+.checkin-item:hover { background: #f8fafc; }
+.checkin-item-done { background: #fafbff; }
+.checkin-checkbox {
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 0.4375rem;
+  border: 1.5px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 120ms var(--ease-out);
+}
+.checkin-checkbox-done {
+  background: #6366f1;
+  border-color: #6366f1;
+}
+.checkin-item-label {
+  flex: 1;
+  font-size: 0.9375rem;
+  color: #1e293b;
+  font-weight: 500;
+}
+.checkin-done-badge {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #059669;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.4rem;
+  flex-shrink: 0;
+}
+.checkin-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1.25rem;
+  border-top: 1px solid #f1f5f9;
+  flex-shrink: 0;
+}
+.checkin-progress {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+  margin: 0;
+}
+.checkin-all-done {
+  font-size: 0.875rem;
+  color: #059669;
+  font-weight: 600;
+  margin: 0;
+}
+.checkin-close-btn {
+  padding: 0.5rem 1.25rem;
+  background: #6366f1;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms;
+}
+.checkin-close-btn:hover { background: #4f46e5; }
