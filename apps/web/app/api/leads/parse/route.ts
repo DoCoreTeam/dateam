@@ -117,6 +117,14 @@ export async function POST(req: NextRequest) {
 
       parsed = await applyFitScore(parsed, apiKey, model, user.id)
 
+      if (!parsed.company_name?.trim()) {
+        const { error: failErr } = await adm.from('lead_intakes').insert({
+          user_id: user.id, source, raw_input: file.name, status: 'failed', parsed_data: parsed, fit_score: null,
+        })
+        if (failErr) console.error('[lead-parse file failed-insert]', failErr)
+        return NextResponse.json({ error: '파일에서 회사명 등 리드 정보를 추출하지 못했습니다. 명함·제안서·미팅메모 등 리드 관련 파일을 사용해주세요.' }, { status: 422 })
+      }
+
       const { data: intake, error } = await adm.from('lead_intakes').insert({
         user_id: user.id,
         source,
@@ -131,9 +139,10 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       // 내부 에러 로그 (사용자에게는 일반 메시지)
       console.error('[lead-parse file]', err)
-      await adm.from('lead_intakes').insert({
+      const { error: catchInsertErr } = await adm.from('lead_intakes').insert({
         user_id: user.id, source, raw_input: file.name, status: 'failed', parsed_data: null, fit_score: null,
-      }).select().single()
+      })
+      if (catchInsertErr) console.error('[lead-parse file catch-insert]', catchInsertErr)
       return NextResponse.json({ error: '파일 분석 중 오류가 발생했습니다' }, { status: 500 })
     }
   }
@@ -151,6 +160,14 @@ export async function POST(req: NextRequest) {
   try {
     let parsed = await parseLeadInput(rawInput, apiKey, model, user.id)
     parsed = await applyFitScore(parsed, apiKey, model, user.id)
+
+    if (!parsed.company_name?.trim()) {
+      const { error: failErr } = await adm.from('lead_intakes').insert({
+        user_id: user.id, source, raw_input: rawInput, status: 'failed', parsed_data: parsed, fit_score: null,
+      })
+      if (failErr) console.error('[lead-parse text failed-insert]', failErr)
+      return NextResponse.json({ error: '입력에서 회사명 등 리드 정보를 추출하지 못했습니다. 명함 정보, 미팅 메모, 이메일 등 리드 관련 내용을 입력해주세요.' }, { status: 422 })
+    }
 
     const { data: intake, error } = await adm.from('lead_intakes').insert({
       user_id: user.id,
