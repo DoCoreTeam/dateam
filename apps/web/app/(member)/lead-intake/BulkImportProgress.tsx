@@ -187,6 +187,15 @@ export default function BulkImportProgress({ file, onComplete, onCancel }: BulkI
         variant="light"
       />
 
+      {/* CRM 등록 중: 공통 로딩 오버레이 */}
+      <AXLoadingOverlay
+        isLoading={confirming}
+        label="CRM 등록 중…"
+        sublabel={`거래처·담당자·영업기회 생성 중\n${success}건 처리 중입니다`}
+        ariaLabel="CRM 등록 진행 중"
+        variant="light"
+      />
+
       {/* 완료 후: 결과 + CRM 등록 액션 */}
       {done && !confirmed && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -207,7 +216,7 @@ export default function BulkImportProgress({ file, onComplete, onCancel }: BulkI
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             <button onClick={handleConfirmAll} disabled={confirming} className="btn-primary"
               style={{ padding: '0.625rem 1.25rem', minHeight: '44px' }}>
-              {confirming ? 'CRM 등록 중…' : `전체 CRM 등록 (${success}건)`}
+              {`전체 CRM 등록 (${success}건)`}
             </button>
             <button onClick={onCancel}
               style={{ padding: '0.625rem 1.25rem', minHeight: '44px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.875rem', color: '#64748b' }}>
