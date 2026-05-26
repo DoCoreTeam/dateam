@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { getMonthLogSummary, getWeekLogs } from '../daily/actions'
 import type { DayLogSummary } from '../daily/actions'
 import type { DailyLog, DailyLogEntryType } from '@/types/database'
+import DayDetailPanel from './DayDetailPanel'
 
 const ENTRY_TYPES: Record<DailyLogEntryType, { label: string; color: string; bg: string; border: string }> = {
   done:    { label: '완료',   color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
@@ -44,7 +44,6 @@ function formatTime(isoStr: string) {
 }
 
 export default function CalendarPage() {
-  const router = useRouter()
   const today = new Date()
   const todayStr = toDateStr(today)
 
@@ -60,6 +59,9 @@ export default function CalendarPage() {
   const [weekStart, setWeekStart] = useState(() => toDateStr(getSunday(getMonday(today))))
   const [weekLogs, setWeekLogs] = useState<DailyLog[]>([])
   const [weekLoading, setWeekLoading] = useState(false)
+
+  // 패널
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const [, startTransition] = useTransition()
 
@@ -127,6 +129,9 @@ export default function CalendarPage() {
 
   return (
     <div className="page-inner">
+      {selectedDate && (
+        <DayDetailPanel date={selectedDate} onClose={() => setSelectedDate(null)} />
+      )}
       {/* 헤더 */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -228,63 +233,59 @@ export default function CalendarPage() {
                 return (
                   <button
                     key={day}
-                    onClick={() => router.push(`/daily?date=${dateStr}`)}
+                    onClick={() => setSelectedDate(dateStr)}
                     style={{
-                      minHeight: '3.5rem',
+                      minHeight: '4.75rem',
                       background: isToday ? '#eff6ff' : '#fff',
                       border: isToday ? '1px solid #3b82f6' : '1px solid #f1f5f9',
                       borderRadius: '0.5rem',
-                      padding: '0.375rem 0.25rem',
+                      padding: '0.3rem 0.25rem 0.375rem',
                       cursor: 'pointer',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
-                      gap: '0.25rem',
+                      gap: '0.2rem',
                       transition: 'background 0.1s',
+                      overflow: 'hidden',
                     }}
                   >
                     <span style={{
                       fontSize: '0.8125rem',
                       fontWeight: isToday ? 700 : 400,
                       color: isToday ? '#3b82f6' : isSun ? '#dc2626' : isSat ? '#2563eb' : '#0f172a',
+                      flexShrink: 0,
                     }}>
                       {day}
                     </span>
                     {summary && (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', width: '100%' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '2px', width: '100%' }}>
                         {/* 블로커 표시 */}
                         {summary.hasBlocker && (
                           <span style={{
-                            fontSize: '0.625rem',
+                            fontSize: '0.5625rem',
                             fontWeight: 700,
                             color: '#dc2626',
                             background: '#fef2f2',
                             padding: '0 0.25rem',
                             borderRadius: '0.125rem',
                             lineHeight: 1.4,
+                            textAlign: 'center',
                           }}>
                             블로커
                           </span>
                         )}
-                        {/* 타입별 점 */}
-                        <div style={{ display: 'flex', gap: '2px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                          {(Object.entries(ENTRY_TYPES) as [DailyLogEntryType, typeof ENTRY_TYPES[DailyLogEntryType]][])
-                            .filter(([k]) => (summary.counts[k] ?? 0) > 0)
-                            .map(([k, v]) => (
-                              <span
-                                key={k}
-                                style={{
-                                  width: '6px', height: '6px',
-                                  borderRadius: '50%',
-                                  background: v.color,
-                                  display: 'inline-block',
-                                  flexShrink: 0,
-                                }}
-                                title={`${v.label} ${summary.counts[k]}건`}
-                              />
-                            ))}
-                        </div>
-                        <span style={{ fontSize: '0.625rem', color: '#94a3b8' }}>
+                        {/* 미리보기 텍스트 */}
+                        {summary.preview.map((p, pi) => {
+                          const t = ENTRY_TYPES[p.entry_type]
+                          return (
+                            <div key={pi} className="cal-preview-item">
+                              <span className="cal-preview-dot" style={{ background: t.color }} />
+                              <span className="cal-preview-text">{p.content}</span>
+                            </div>
+                          )
+                        })}
+                        {/* 총 건수 */}
+                        <span style={{ fontSize: '0.5625rem', color: '#94a3b8', textAlign: 'center' }}>
                           {summary.total}건
                         </span>
                       </div>
@@ -383,7 +384,7 @@ export default function CalendarPage() {
                           <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{dayLogs.length}건</span>
                         )}
                         <button
-                          onClick={() => router.push(`/daily?date=${dateStr}`)}
+                          onClick={() => setSelectedDate(dateStr)}
                           style={{
                             fontSize: '0.75rem', color: '#3b82f6',
                             background: 'none', border: '1px solid #bfdbfe',
