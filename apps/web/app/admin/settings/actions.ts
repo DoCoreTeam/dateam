@@ -112,6 +112,23 @@ export async function saveGeminiModel(model: string): Promise<{ ok: boolean; err
   return { ok: true }
 }
 
+export async function saveTokenAlertThreshold(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  const raw = (formData.get('threshold') as string)?.replace(/,/g, '').trim()
+  const threshold = parseInt(raw, 10)
+  if (isNaN(threshold) || threshold < 0) return { ok: false, error: '올바른 숫자를 입력해주세요' }
+
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  const { error } = await setMetaValue(client, { ...meta, ai_token_alert_threshold: threshold })
+
+  if (error) return { ok: false, error: '저장 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  return { ok: true }
+}
+
 export async function checkGeminiHealth(): Promise<{ ok: boolean; message: string }> {
   const client = await requireAdmin()
   if (!client) return { ok: false, message: '관리자 권한이 필요합니다' }

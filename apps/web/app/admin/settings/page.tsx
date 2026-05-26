@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { Key, Palette } from 'lucide-react'
+import { Key, Palette, Bell } from 'lucide-react'
 import GeminiSettings from './GeminiSettings'
 import BrandingSettings from './BrandingSettings'
+import TokenAlertSettings from './TokenAlertSettings'
 import { getBranding } from '@/lib/branding'
 
 const GEMINI_KEY = 'gemini_api_key'
@@ -32,6 +33,7 @@ export default async function AdminSettingsPage() {
     .single()
 
   const meta = (metaData?.value as Record<string, unknown>) ?? {}
+  const tokenAlertThreshold = typeof meta.ai_token_alert_threshold === 'number' ? meta.ai_token_alert_threshold : 1_000_000
   const storedKey = meta[GEMINI_KEY] as string | undefined
   const hasKey = !!storedKey
   const maskedKey = storedKey ? maskKey(storedKey) : null
@@ -64,6 +66,15 @@ export default async function AdminSettingsPage() {
           <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>AI 모델 연동</h2>
         </div>
         <GeminiSettings hasKey={hasKey} maskedKey={maskedKey} savedModel={savedModel} />
+      </section>
+
+      {/* AI 토큰 알림 설정 */}
+      <section>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+          <Bell size={15} color="#6366f1" />
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>AI 토큰 알림</h2>
+        </div>
+        <TokenAlertSettings currentThreshold={tokenAlertThreshold} />
       </section>
     </div>
   )

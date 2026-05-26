@@ -10,6 +10,7 @@ import {
   FileText,
   CheckSquare,
   BarChart2,
+  BarChart3,
   Settings2,
   SlidersHorizontal,
   NotebookPen,
@@ -23,6 +24,7 @@ const ADMIN_NAV_ITEMS = [
   { href: '/admin/daily-logs', label: '일일로그', icon: <NotebookPen size={16} /> },
   { href: '/admin/routine', label: '루틴 현황', icon: <CheckSquare size={16} /> },
   { href: '/admin/kpi', label: 'KPI 집계', icon: <BarChart2 size={16} /> },
+  { href: '/admin/ai-usage', label: 'AI 사용량', icon: <BarChart3 size={16} /> },
   { href: '/admin/content', label: '콘텐츠 관리', icon: <Settings2 size={16} /> },
   { href: '/admin/settings', label: '시스템 설정', icon: <SlidersHorizontal size={16} /> },
 ]
