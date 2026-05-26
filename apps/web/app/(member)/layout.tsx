@@ -5,11 +5,9 @@ import type { NavGroup } from '@/components/ui/MobileShell'
 import SidebarProfile from '@/components/ui/SidebarProfile'
 import NavigationLoader from '@/components/ui/NavigationLoader'
 import { getBranding } from '@/lib/branding'
-import LogoutButton from '@/components/ui/LogoutButton'
 import PasswordChangeModal from '@/components/ui/PasswordChangeModal'
 import NameSetupModal from '@/components/ui/NameSetupModal'
 import RoutineCheckinGate from '@/components/ui/RoutineCheckinGate'
-import Link from 'next/link'
 import { getRoutineWeeklyStatus } from './routine/actions'
 import { getTodayPlannedCount } from './daily/actions'
 import { cookies } from 'next/headers'
@@ -101,29 +99,6 @@ export default async function MemberLayout({ children }: { children: React.React
             <strong style={{ color: '#0f172a', fontWeight: 600 }}>{displayName}</strong>
             님
           </span>
-        }
-        headerRight={
-          <>
-            {profile?.role === 'admin' && (
-              <Link
-                href="/admin/users"
-                className="desktop-only"
-                style={{
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  color: '#dc2626',
-                  textDecoration: 'none',
-                  padding: '0.375rem 0.75rem',
-                  border: '1px solid #fecaca',
-                  borderRadius: '0.5rem',
-                  backgroundColor: '#fef2f2',
-                }}
-              >
-                관리자 패널 →
-              </Link>
-            )}
-            <LogoutButton />
-          </>
         }
       >
         <SWRProvider>{children}</SWRProvider>
