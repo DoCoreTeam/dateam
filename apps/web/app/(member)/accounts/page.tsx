@@ -168,7 +168,7 @@ export default function AccountsPage() {
                 const fc = fitColor(acc.fit_score)
                 return (
                   <tr key={acc.id} style={{ cursor: 'pointer' }} onClick={() => setSelected(acc)}>
-                    <td className="card-header" onClick={e => e.stopPropagation()}>
+                    <td className="card-header">
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '0.5rem' }}>
                         <div>
                           <button

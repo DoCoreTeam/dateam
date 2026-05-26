@@ -128,7 +128,7 @@ export default function ContactsPage() {
             <tbody>
               {contacts.map((c) => (
                 <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => setSelected(c)}>
-                  <td className="card-header" onClick={e => e.stopPropagation()}>
+                  <td className="card-header">
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '0.5rem' }}>
                       <div>
                         <button
