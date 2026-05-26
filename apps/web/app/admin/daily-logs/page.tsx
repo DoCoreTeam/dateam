@@ -85,7 +85,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
     <div className="page-inner">
       <div style={{ marginBottom: '1.5rem' }}>
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-          일일로그 모니터링
+          일일업무 모니터링
         </h1>
         <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.25rem' }}>
           팀원들의 일일 업무 기록을 확인합니다.

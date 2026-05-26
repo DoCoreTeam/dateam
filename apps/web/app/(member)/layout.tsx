@@ -31,7 +31,7 @@ import SWRProvider from './SWRProvider'
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: '대시보드', icon: <LayoutDashboard size={16} /> },
-  { href: '/daily', label: '일일로그', icon: <NotebookPen size={16} /> },
+  { href: '/daily', label: '일일업무', icon: <NotebookPen size={16} /> },
   { href: '/calendar', label: '캘린더', icon: <CalendarDays size={16} /> },
   { href: '/routine', label: '루틴 체크', icon: <CheckSquare size={16} /> },
   { href: '/kpi', label: 'KPI', icon: <BarChart2 size={16} /> },
