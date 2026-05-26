@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
 import { getDailyLogs, addDailyLog, updateDailyLog, deleteDailyLog, getWeekLogs, getCarryoverLogs, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, addMultipleDailyLogs } from './actions'
 import type { AiParsedItem } from './actions'
 import type { DailyLog, DailyLogEntryType } from '@/types/database'
@@ -289,29 +290,15 @@ export default function DailyPage() {
   }
 
   return (
-    <div className="page-inner" style={{ maxWidth: '720px' }}>
+    <div className="page-inner daily-page">
 
       {/* 뷰 탭 */}
-      <div style={{
-        display: 'flex', gap: '0.25rem',
-        background: '#f1f5f9', borderRadius: '0.5rem', padding: '0.25rem',
-        marginBottom: '1.25rem', width: 'fit-content',
-      }}>
+      <div className="daily-view-tabs" aria-label="일일업무 보기 전환">
         {(['day', 'week'] as const).map((m) => (
           <button
             key={m}
             onClick={() => setViewMode(m)}
-            style={{
-              padding: '0.375rem 1rem',
-              borderRadius: '0.375rem',
-              border: 'none',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              background: viewMode === m ? '#fff' : 'transparent',
-              color: viewMode === m ? '#0f172a' : '#64748b',
-              boxShadow: viewMode === m ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-            }}
+            className={`daily-view-tab ${viewMode === m ? 'is-active' : ''}`}
           >
             {m === 'day' ? '일간' : '주간'}
           </button>
@@ -322,11 +309,10 @@ export default function DailyPage() {
       {viewMode === 'day' && (
         <>
           {/* 날짜 네비게이션 */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '0.5rem',
-            marginBottom: '1.25rem',
-          }}>
-            <button onClick={prevDay} style={navBtnStyle}>◀</button>
+          <div className="daily-date-nav">
+            <button onClick={prevDay} className="calendar-nav-btn" aria-label="이전 날">
+              <ChevronLeft size={16} strokeWidth={2.4} />
+            </button>
 
             <div style={{
               flex: 1, display: 'flex', alignItems: 'center',
@@ -362,35 +348,32 @@ export default function DailyPage() {
               )}
             </div>
 
-            <button onClick={nextDay} style={navBtnStyle}>▶</button>
+            <button onClick={nextDay} className="calendar-nav-btn" aria-label="다음 날">
+              <ChevronRight size={16} strokeWidth={2.4} />
+            </button>
           </div>
 
           {/* 입력 폼 */}
-          <div style={{
-              background: '#fff', border: '1px solid #e2e8f0',
-              borderRadius: '0.75rem', padding: '1rem', marginBottom: '1.25rem',
-            }}>
-              <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+          <div className="daily-compose-card">
+              <div className="daily-type-row">
                 {ENTRY_TYPES.map((t) => (
                   <button
                     key={t.value}
                     type="button"
                     onClick={() => setEntryType(t.value)}
+                    className="daily-type-chip"
                     style={{
-                      padding: '0.3rem 0.625rem', borderRadius: '0.375rem',
-                      fontSize: '0.8125rem',
                       fontWeight: entryType === t.value ? 700 : 500,
                       border: `1px solid ${entryType === t.value ? t.border : '#e2e8f0'}`,
                       background: entryType === t.value ? t.bg : '#f8fafc',
                       color: entryType === t.value ? t.color : '#64748b',
-                      cursor: 'pointer',
                     }}
                   >
                     {t.label}
                   </button>
                 ))}
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
+              <div className="daily-compose-row">
                 <textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
@@ -402,28 +385,23 @@ export default function DailyPage() {
                   }}
                   placeholder="업무 내용 자유롭게 입력 — AI가 분류해드립니다 (Ctrl+Enter)"
                   rows={2}
-                  style={{
-                    flex: 1, border: '1px solid #e2e8f0', borderRadius: '0.5rem',
-                    padding: '0.625rem 0.75rem', fontSize: '0.9375rem',
-                    resize: 'vertical', outline: 'none', fontFamily: 'inherit', lineHeight: 1.6,
-                  }}
+                  className="daily-compose-textarea"
                 />
                 <button
                   type="button"
                   onClick={handleAiSave}
                   disabled={aiLoading || !content.trim()}
+                  className="daily-ai-save"
                   style={{
-                    padding: '0.625rem 1rem',
                     background: aiLoading ? '#94a3b8' : 'linear-gradient(135deg, #6366f1, #3b82f6)',
-                    color: '#fff',
-                    border: 'none', borderRadius: '0.5rem', fontWeight: 600,
-                    fontSize: '0.875rem', cursor: aiLoading || !content.trim() ? 'not-allowed' : 'pointer',
-                    whiteSpace: 'nowrap',
+                    cursor: aiLoading || !content.trim() ? 'not-allowed' : 'pointer',
                     opacity: !content.trim() ? 0.5 : 1, height: '2.5rem',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1px',
                   }}
                 >
-                  <span>{aiLoading ? '분석중' : '✨ AI 저장'}</span>
+                  <span className="daily-ai-save-label">
+                    {!aiLoading && <Sparkles size={14} strokeWidth={2.4} />}
+                    {aiLoading ? '분석중' : 'AI 저장'}
+                  </span>
                   {!aiLoading && <span style={{ fontSize: '0.6rem', opacity: 0.75 }}>Ctrl+↵</span>}
                 </button>
               </div>
@@ -515,11 +493,15 @@ export default function DailyPage() {
         <>
           {/* 주 네비게이션 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-            <button onClick={prevWeek} style={navBtnStyle}>◀</button>
-            <span style={{ fontSize: '0.875rem', color: '#475569', flex: 1, textAlign: 'center', minWidth: '10rem' }}>
+            <button onClick={prevWeek} className="calendar-nav-btn" aria-label="이전 주">
+              <ChevronLeft size={16} strokeWidth={2.4} />
+            </button>
+            <span className="calendar-period-label" style={{ flex: 1, minWidth: '10rem' }}>
               {weekDates[0]} ~ {weekEnd}
             </span>
-            <button onClick={nextWeek} style={navBtnStyle}>▶</button>
+            <button onClick={nextWeek} className="calendar-nav-btn" aria-label="다음 주">
+              <ChevronRight size={16} strokeWidth={2.4} />
+            </button>
             {!isCurrentWeek && (
               <button
                 onClick={goCurrentWeek}
@@ -831,13 +813,6 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
       })}
     </div>
   )
-}
-
-const navBtnStyle: React.CSSProperties = {
-  width: '2.25rem', height: '2.25rem', borderRadius: '0.5rem',
-  border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.875rem',
-  cursor: 'pointer', display: 'flex', alignItems: 'center',
-  justifyContent: 'center', color: '#475569', flexShrink: 0,
 }
 
 const iconBtn: React.CSSProperties = {

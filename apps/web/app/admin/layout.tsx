@@ -1,10 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import MobileShell from '@/components/ui/MobileShell'
-import LogoutButton from '@/components/ui/LogoutButton'
+import AdminUserMenu from '@/components/ui/AdminUserMenu'
 import PasswordChangeModal from '@/components/ui/PasswordChangeModal'
 import NameSetupModal from '@/components/ui/NameSetupModal'
-import Link from 'next/link'
 import {
   Users,
   FileText,
