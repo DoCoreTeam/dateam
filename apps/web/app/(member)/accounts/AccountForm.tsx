@@ -100,81 +100,89 @@ export default function AccountForm({ account }: Props) {
           <label className="label">거래처명 *</label>
           <input className="input-field" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="(주)예시컴퍼니" required style={inputStyle} />
         </div>
-        <div className="responsive-grid-cols-2" style={{ gap: '0.75rem' }}>
-          <div>
-            <label className="label">거래처유형 *</label>
-            <select className="input-field" value={form.account_type} onChange={(e) => set('account_type', e.target.value)} style={inputStyle}>
-              <option value="">선택</option>
-              {ACCOUNT_TYPES.map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">GPU수요강도</label>
-            <select className="input-field" value={form.gpu_demand_intensity} onChange={(e) => set('gpu_demand_intensity', e.target.value)} style={inputStyle}>
-              <option value="">선택</option>
-              {GPU_DEMAND_LEVELS.map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">업종</label>
-            <select className="input-field" value={form.industry} onChange={(e) => set('industry', e.target.value)} style={inputStyle}>
-              <option value="">선택</option>
-              {['IT', '제조', '금융', '의료', '유통', '공공', '교육', '기타'].map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">세그먼트</label>
-            <select className="input-field" value={form.segment} onChange={(e) => set('segment', e.target.value)} style={inputStyle}>
-              <option value="">선택</option>
-              {ACCOUNT_SEGMENTS.map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">기업 규모</label>
-            <select className="input-field" value={form.size} onChange={(e) => set('size', e.target.value)} style={inputStyle}>
-              <option value="">선택</option>
-              {['대기업', '중견기업', '중소기업', '스타트업'].map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">지역</label>
-            <select className="input-field" value={form.region} onChange={(e) => set('region', e.target.value)} style={inputStyle}>
-              <option value="">선택</option>
-              {['서울', '경기', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '기타'].map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </div>
-        </div>
-        <div>
-          <label className="label">사업자·기관번호</label>
-          <input className="input-field" value={form.registration_number} onChange={(e) => set('registration_number', e.target.value)} placeholder="10자리 번호" style={inputStyle} />
-        </div>
-        <div>
-          <label className="label">출처</label>
-          <select className="input-field" value={form.source} onChange={(e) => set('source', e.target.value)} style={inputStyle}>
-            <option value="">선택</option>
-            {['민간DB', '공공수요예보', '프롬프트', '명함', '음성', '수동'].map((v) => <option key={v} value={v}>{v}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="label">웹사이트</label>
-          <input className="input-field" value={form.website} onChange={(e) => set('website', e.target.value)} placeholder="https://example.com" style={inputStyle} />
-        </div>
-        <div>
-          <label className="label">전화</label>
-          <input className="input-field" value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="02-0000-0000" style={inputStyle} />
-        </div>
-        <div>
-          <label className="label">주소</label>
-          <input className="input-field" value={form.address} onChange={(e) => set('address', e.target.value)} placeholder="서울시 강남구..." style={inputStyle} />
-        </div>
         <div>
           <label className="label">설명</label>
           <textarea className="input-field" value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} placeholder="거래처 설명..." style={{ ...inputStyle, resize: 'vertical' }} />
         </div>
-        <div>
-          <label className="label">태그 (쉼표 구분)</label>
-          <input className="input-field" value={form.tags} onChange={(e) => set('tags', e.target.value)} placeholder="AI, 클라우드, 2024H2" style={inputStyle} />
-        </div>
+
+        <details style={{ border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.875rem 1rem', background: '#f8fafc' }}>
+          <summary style={{ cursor: 'pointer', color: '#475569', fontSize: '0.875rem', fontWeight: 700 }}>
+            상세 필드 열기
+          </summary>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+            <div className="responsive-grid-cols-2" style={{ gap: '0.75rem' }}>
+              <div>
+                <label className="label">거래처유형</label>
+                <select className="input-field" value={form.account_type} onChange={(e) => set('account_type', e.target.value)} style={inputStyle}>
+                  <option value="">선택</option>
+                  {ACCOUNT_TYPES.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">GPU수요강도</label>
+                <select className="input-field" value={form.gpu_demand_intensity} onChange={(e) => set('gpu_demand_intensity', e.target.value)} style={inputStyle}>
+                  <option value="">선택</option>
+                  {GPU_DEMAND_LEVELS.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">업종</label>
+                <select className="input-field" value={form.industry} onChange={(e) => set('industry', e.target.value)} style={inputStyle}>
+                  <option value="">선택</option>
+                  {['IT', '제조', '금융', '의료', '유통', '공공', '교육', '기타'].map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">세그먼트</label>
+                <select className="input-field" value={form.segment} onChange={(e) => set('segment', e.target.value)} style={inputStyle}>
+                  <option value="">선택</option>
+                  {ACCOUNT_SEGMENTS.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">기업 규모</label>
+                <select className="input-field" value={form.size} onChange={(e) => set('size', e.target.value)} style={inputStyle}>
+                  <option value="">선택</option>
+                  {['대기업', '중견기업', '중소기업', '스타트업'].map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">지역</label>
+                <select className="input-field" value={form.region} onChange={(e) => set('region', e.target.value)} style={inputStyle}>
+                  <option value="">선택</option>
+                  {['서울', '경기', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '기타'].map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="label">사업자·기관번호</label>
+              <input className="input-field" value={form.registration_number} onChange={(e) => set('registration_number', e.target.value)} placeholder="10자리 번호" style={inputStyle} />
+            </div>
+            <div>
+              <label className="label">출처</label>
+              <select className="input-field" value={form.source} onChange={(e) => set('source', e.target.value)} style={inputStyle}>
+                <option value="">선택</option>
+                {['민간DB', '공공수요예보', '프롬프트', '명함', '음성', '수동'].map((v) => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">웹사이트</label>
+              <input className="input-field" value={form.website} onChange={(e) => set('website', e.target.value)} placeholder="https://example.com" style={inputStyle} />
+            </div>
+            <div>
+              <label className="label">전화</label>
+              <input className="input-field" value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="02-0000-0000" style={inputStyle} />
+            </div>
+            <div>
+              <label className="label">주소</label>
+              <input className="input-field" value={form.address} onChange={(e) => set('address', e.target.value)} placeholder="서울시 강남구..." style={inputStyle} />
+            </div>
+            <div>
+              <label className="label">태그 (쉼표 구분)</label>
+              <input className="input-field" value={form.tags} onChange={(e) => set('tags', e.target.value)} placeholder="AI, 클라우드, 2024H2" style={inputStyle} />
+            </div>
+          </div>
+        </details>
 
         {/* AI Fit Score */}
         <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '1rem' }}>

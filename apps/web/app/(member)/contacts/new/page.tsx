@@ -1,12 +1,14 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import ContactForm from '../ContactForm'
 import type { Account } from '@/types/database'
+import LeadIntakeForm from '../../lead-intake/LeadIntakeForm'
 
-interface PageProps { searchParams: Promise<{ account_id?: string }> }
+interface PageProps { searchParams: Promise<{ account_id?: string; mode?: string }> }
 
 export default async function NewContactPage({ searchParams }: PageProps) {
-  const { account_id } = await searchParams
+  const { account_id, mode } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -18,9 +20,24 @@ export default async function NewContactPage({ searchParams }: PageProps) {
   return (
     <div>
       <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>담당자 추가</h1>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>
+          {mode === 'manual' ? '담당자 수동 입력' : 'AI로 담당자 추가'}
+        </h1>
       </div>
-      <ContactForm accounts={accounts ?? []} defaultAccountId={account_id} />
+      {mode === 'manual' ? (
+        <ContactForm accounts={accounts ?? []} defaultAccountId={account_id} />
+      ) : (
+        <>
+          <div className="card" style={{ padding: '1.5rem', maxWidth: '760px' }}>
+            <LeadIntakeForm />
+          </div>
+          <div style={{ marginTop: '1rem' }}>
+            <Link href="/contacts/new?mode=manual" style={{ color: '#64748b', fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none' }}>
+              수동 입력으로 전환
+            </Link>
+          </div>
+        </>
+      )}
     </div>
   )
 }

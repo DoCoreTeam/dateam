@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import useSWRInfinite from 'swr/infinite'
 import Link from 'next/link'
-import { Briefcase, Plus, Loader2, Search, X, Globe, Phone, MapPin, ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
+import { Briefcase, Plus, Loader2, Search, X, Globe, Phone, MapPin, ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown, Sparkles } from 'lucide-react'
 import type { Account } from '@/types/database'
 import AccountActions from './AccountActions'
 import SlidePanel from '@/components/ui/SlidePanel'
@@ -91,9 +91,14 @@ export default function AccountsPage() {
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>거래처</h1>
           <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>고객사 및 잠재 거래처 관리</p>
         </div>
-        <Link href="/accounts/new" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', minHeight: '44px' }}>
-          <Plus size={16} /> 거래처 추가
-        </Link>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <Link href="/lead-intake?target=account" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', minHeight: '44px' }}>
+            <Sparkles size={16} /> AI로 추가
+          </Link>
+          <Link href="/accounts/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', minHeight: '44px', border: '1px solid #e2e8f0', color: '#64748b', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
+            <Plus size={16} /> 수동 입력
+          </Link>
+        </div>
       </div>
 
       <div className="card">
@@ -136,7 +141,7 @@ export default function AccountsPage() {
             <p style={{ margin: 0 }}>{hasFilters ? '검색 결과가 없습니다' : '등록된 거래처가 없습니다'}</p>
             {!hasFilters && (
               <Link href="/accounts/new" style={{ marginTop: '1rem', display: 'inline-block', color: '#6366f1', fontSize: '0.875rem', fontWeight: 600 }}>
-                첫 거래처 추가하기 →
+                AI로 첫 거래처 추가하기 →
               </Link>
             )}
           </div>

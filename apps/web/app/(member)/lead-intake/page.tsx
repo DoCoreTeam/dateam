@@ -22,7 +22,17 @@ function sourceLabel(source: string) {
   return map[source] ?? source
 }
 
-export default async function LeadIntakePage() {
+interface PageProps { searchParams: Promise<{ target?: string }> }
+
+function targetLabel(target?: string) {
+  if (target === 'account') return '거래처'
+  if (target === 'contact') return '담당자'
+  if (target === 'deal') return '영업기회'
+  return '리드'
+}
+
+export default async function LeadIntakePage({ searchParams }: PageProps) {
+  const { target } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -46,10 +56,10 @@ export default async function LeadIntakePage() {
     <div>
       <div style={{ marginBottom: '1.75rem' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>
-          리드 인테이크
+          {targetLabel(target)} 인테이크
         </h1>
         <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>
-          텍스트나 파일로 리드를 입력하면 AI가 자동으로 거래처·담당자·영업기회를 분석합니다
+          텍스트, 명함, 음성, 파일을 입력하면 AI가 거래처·담당자·영업기회를 분석하고 생성 후보를 만듭니다
         </p>
       </div>
 

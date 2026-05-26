@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import useSWRInfinite from 'swr/infinite'
 import Link from 'next/link'
-import { TrendingUp, Plus, Loader2, Search, X, ExternalLink, Briefcase, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
+import { TrendingUp, Plus, Loader2, Search, X, ExternalLink, Briefcase, ChevronUp, ChevronDown, ChevronsUpDown, Sparkles } from 'lucide-react'
 import type { Deal, Account } from '@/types/database'
 import SlidePanel from '@/components/ui/SlidePanel'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -111,9 +111,14 @@ export default function DealsPage() {
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>영업기회</h1>
           <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>영업 파이프라인 관리</p>
         </div>
-        <Link href="/deals/new" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', minHeight: '44px' }}>
-          <Plus size={16} /> 영업기회 추가
-        </Link>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <Link href="/lead-intake?target=deal" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', minHeight: '44px' }}>
+            <Sparkles size={16} /> AI로 추가
+          </Link>
+          <Link href="/deals/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', minHeight: '44px', border: '1px solid #e2e8f0', color: '#64748b', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
+            <Plus size={16} /> 수동 입력
+          </Link>
+        </div>
       </div>
 
       {/* 요약 카드 */}
