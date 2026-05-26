@@ -45,6 +45,8 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
   const [creating, setCreating] = useState(false)
   const [created, setCreated] = useState(false)
 
+  const submittingRef = useRef(false)
+
   const [files, setFiles] = useState<FileItem[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -69,7 +71,9 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
 
   async function handleTextSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (submittingRef.current) return
     if (!rawInput.trim()) { setError('내용을 입력하세요'); return }
+    submittingRef.current = true
     setLoading(true); setError(''); setResult(null)
     try {
       const res = await fetch('/api/leads/parse', {
@@ -81,6 +85,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
       if (!res.ok) { setError(data.error ?? '오류가 발생했습니다'); return }
       setResult({ parsed: data.parsed!, intakeId: data.intake?.id ?? '' })
     } finally {
+      submittingRef.current = false
       setLoading(false)
     }
   }
@@ -108,7 +113,8 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
   }
 
   async function handleCreate() {
-    if (!result) return
+    if (!result || submittingRef.current) return
+    submittingRef.current = true
     setCreating(true)
     const { parsed } = result
     if (parsed.company_name) {
@@ -146,7 +152,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
         })
       }
     }
-    setCreated(true); setCreating(false); router.refresh()
+    setCreated(true); setCreating(false); submittingRef.current = false; router.refresh()
   }
 
   const processingFile = files.find(f => f.status === 'processing')
