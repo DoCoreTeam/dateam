@@ -9,8 +9,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const raw = await req.json()
-  const ALLOWED = ['account_id','name','title','department','email','phone','mobile'] as const
+  const raw = await req.json() as Record<string, unknown>
+  const ALLOWED = ['account_id', 'name', 'title', 'department', 'email', 'phone', 'mobile', 'linkedin', 'notes', 'business_card_drive_id'] as const
   const body = Object.fromEntries(ALLOWED.filter(k => k in raw).map(k => [k, raw[k]]))
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
