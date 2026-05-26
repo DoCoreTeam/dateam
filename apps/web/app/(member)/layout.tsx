@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import MobileShell from '@/components/ui/MobileShell'
+import type { NavGroup } from '@/components/ui/MobileShell'
 import SidebarProfile from '@/components/ui/SidebarProfile'
 import NavigationLoader from '@/components/ui/NavigationLoader'
 import { getBranding } from '@/lib/branding'
@@ -14,6 +15,10 @@ import {
   BarChart2,
   FileText,
   Building2,
+  Briefcase,
+  Users,
+  TrendingUp,
+  Inbox,
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
 
@@ -23,6 +28,18 @@ const NAV_ITEMS = [
   { href: '/kpi', label: 'KPI', icon: <BarChart2 size={16} /> },
   { href: '/weekly-report', label: '주간보고', icon: <FileText size={16} /> },
   { href: '/operations', label: '본부 운영', icon: <Building2 size={16} /> },
+]
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: '프로젝트관리',
+    items: [
+      { href: '/accounts', label: '거래처', icon: <Briefcase size={16} /> },
+      { href: '/contacts', label: '담당자', icon: <Users size={16} /> },
+      { href: '/deals', label: '영업기회', icon: <TrendingUp size={16} /> },
+      { href: '/lead-intake', label: '리드 인테이크', icon: <Inbox size={16} /> },
+    ],
+  },
 ]
 
 export default async function MemberLayout({ children }: { children: React.ReactNode }) {
@@ -49,6 +66,7 @@ export default async function MemberLayout({ children }: { children: React.React
     <>
       <MobileShell
         items={NAV_ITEMS}
+        groups={NAV_GROUPS}
         logoUrl={branding.logoUrl}
         brandName={branding.brandName}
         footer={<SidebarProfile name={displayName} email={userEmail} />}

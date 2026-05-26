@@ -11,8 +11,14 @@ interface NavItem {
   icon: React.ReactNode
 }
 
+export interface NavGroup {
+  label: string
+  items: NavItem[]
+}
+
 interface MobileShellProps {
   items: NavItem[]
+  groups?: NavGroup[]
   footer?: React.ReactNode
   logoUrl?: string | null
   brandName?: string
@@ -24,6 +30,7 @@ interface MobileShellProps {
 
 export default function MobileShell({
   items,
+  groups,
   footer,
   logoUrl,
   brandName = 'AX사업본부',
@@ -129,7 +136,8 @@ export default function MobileShell({
         </div>
 
         {/* 네비게이션 */}
-        <nav style={{ flex: 1, padding: '0.75rem' }} aria-label="주 메뉴">
+        <nav style={{ flex: 1, padding: '0.75rem', overflowY: 'auto' }} aria-label="주 메뉴">
+          {/* 기본 아이템 */}
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
             {items.map((item, idx) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
@@ -166,6 +174,57 @@ export default function MobileShell({
               )
             })}
           </ul>
+          {/* 그룹 아이템 */}
+          {groups?.map((group) => (
+            <div key={group.label} style={{ marginTop: '1rem' }}>
+              <p style={{
+                fontSize: '0.6875rem',
+                fontWeight: 600,
+                color: '#475569',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                padding: '0 0.75rem',
+                margin: '0 0 0.25rem',
+              }}>
+                {group.label}
+              </p>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
+                {group.items.map((item) => {
+                  const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                  const isHovered = hoveredHref === item.href && !isActive
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        onMouseEnter={() => setHoveredHref(item.href)}
+                        onMouseLeave={() => setHoveredHref(null)}
+                        aria-current={isActive ? 'page' : undefined}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.625rem',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: '0.5rem',
+                          fontSize: '0.875rem',
+                          fontWeight: 500,
+                          textDecoration: 'none',
+                          transition: 'background-color 120ms, color 120ms',
+                          backgroundColor: isActive ? '#4f46e5' : isHovered ? 'rgba(255,255,255,0.07)' : 'transparent',
+                          color: isActive || isHovered ? '#fff' : '#94a3b8',
+                          minHeight: '44px',
+                        }}
+                      >
+                        <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.7, display: 'flex', alignItems: 'center' }}>
+                          {item.icon}
+                        </span>
+                        {item.label}
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
 
         {/* 모바일 전용 어드민/멤버 전환 */}
