@@ -178,6 +178,8 @@ export interface LeadIntake {
 
 export type DailyLogEntryType = 'done' | 'doing' | 'planned' | 'blocker' | 'note'
 
+export type DailyLogPriority = 'urgent' | 'high' | 'normal' | 'low'
+
 export interface DailyLog {
   id: string
   user_id: string
@@ -186,6 +188,13 @@ export interface DailyLog {
   content: string
   entry_type: DailyLogEntryType
   is_resolved: boolean
+  priority: DailyLogPriority
+  scheduled_at: string | null
+  ai_processed: boolean
+  ai_confidence: number | null
+  original_input: string | null
+  linked_account_id: string | null
+  linked_contact_id: string | null
   created_at: string
   updated_at: string
 }
@@ -198,6 +207,7 @@ export type AiFeature =
   | 'account-fit-score'
   | 'deal-activity-parse'
   | 'content-ai-edit'
+  | 'daily-ai-save'
 
 export interface AiTokenLog {
   id: string

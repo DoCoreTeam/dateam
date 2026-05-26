@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useTransition } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { getDailyLogs, addDailyLog, updateDailyLog, deleteDailyLog, getWeekLogs, getCarryoverLogs, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog } from './actions'
+import { getDailyLogs, addDailyLog, updateDailyLog, deleteDailyLog, getWeekLogs, getCarryoverLogs, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, addMultipleDailyLogs } from './actions'
+import type { AiParsedItem } from './actions'
 import type { DailyLog, DailyLogEntryType } from '@/types/database'
 
 const ENTRY_TYPES: { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[] = [
@@ -72,6 +73,13 @@ export default function DailyPage() {
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
 
+  // AI 저장 상태
+  const [aiHintCount, setAiHintCount] = useState(0)
+  const [aiPanelOpen, setAiPanelOpen] = useState(false)
+  const [aiItems, setAiItems] = useState<AiParsedItem[]>([])
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState('')
+
   const isToday = selectedDate === today
 
   // 일간 로드
@@ -109,17 +117,83 @@ export default function DailyPage() {
     })
   }, [weekStart, viewMode])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!content.trim()) return
-    setError('')
+  // debounce: 입력 중 간단 휴리스틱으로 항목 수 추정 (API 호출 없음)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!content.trim()) { setAiHintCount(0); return }
+      // 줄바꿈 또는 마침표/느낌표 기준으로 대략적 항목 수 추정
+      const segments = content
+        .split(/\n|[。.!?]/)
+        .map(s => s.trim())
+        .filter(s => s.length > 3)
+      setAiHintCount(Math.max(1, segments.length))
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [content])
+
+  const handleAiSave = async () => {
+    if (!content.trim() || aiLoading) return
+    setAiError('')
+    setAiItems([])
+    setAiPanelOpen(true)
+    setAiLoading(true)
+
+    try {
+      const res = await fetch('/api/ai/analyze-work', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: content, date: selectedDate }),
+      })
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({ error: 'AI 분석 실패' }))
+        setAiError((errJson as { error?: string }).error ?? 'AI 분석 실패')
+        setAiLoading(false)
+        return
+      }
+
+      const reader = res.body?.getReader()
+      if (!reader) { setAiError('스트림 오류'); setAiLoading(false); return }
+
+      const decoder = new TextDecoder()
+      let buf = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        const lines = buf.split('\n')
+        buf = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6).trim()
+          if (data === '[DONE]') break
+          try {
+            const item = JSON.parse(data) as AiParsedItem
+            item.originalInput = content
+            setAiItems(prev => [...prev, item])
+          } catch { /* skip */ }
+        }
+      }
+    } catch {
+      setAiError('네트워크 오류가 발생했습니다')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const handleAiConfirm = async (items: AiParsedItem[]) => {
+    if (items.length === 0) return
     startTransition(async () => {
-      const result = await addDailyLog(content, entryType, selectedDate)
+      const result = await addMultipleDailyLogs(items, selectedDate)
       if (result.ok) {
         setContent('')
+        setAiHintCount(0)
+        setAiPanelOpen(false)
+        setAiItems([])
         await loadLogs(selectedDate)
       } else {
-        setError(result.error)
+        setAiError(result.error)
       }
     })
   }
@@ -292,7 +366,7 @@ export default function DailyPage() {
           </div>
 
           {/* 입력 폼 */}
-          <form onSubmit={handleSubmit} style={{
+          <div style={{
               background: '#fff', border: '1px solid #e2e8f0',
               borderRadius: '0.75rem', padding: '1rem', marginBottom: '1.25rem',
             }}>
@@ -323,10 +397,10 @@ export default function DailyPage() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                       e.preventDefault()
-                      handleSubmit(e as unknown as React.FormEvent)
+                      handleAiSave()
                     }
                   }}
-                  placeholder="업무 내용 입력 (Ctrl+Enter 저장)"
+                  placeholder="업무 내용 자유롭게 입력 — AI가 분류해드립니다 (Ctrl+Enter)"
                   rows={2}
                   style={{
                     flex: 1, border: '1px solid #e2e8f0', borderRadius: '0.5rem',
@@ -335,24 +409,47 @@ export default function DailyPage() {
                   }}
                 />
                 <button
-                  type="submit"
-                  disabled={isPending || !content.trim()}
+                  type="button"
+                  onClick={handleAiSave}
+                  disabled={aiLoading || !content.trim()}
                   style={{
-                    padding: '0.625rem 1rem', background: '#3b82f6', color: '#fff',
+                    padding: '0.625rem 1rem',
+                    background: aiLoading ? '#94a3b8' : 'linear-gradient(135deg, #6366f1, #3b82f6)',
+                    color: '#fff',
                     border: 'none', borderRadius: '0.5rem', fontWeight: 600,
-                    fontSize: '0.875rem', cursor: 'pointer', whiteSpace: 'nowrap',
-                    opacity: isPending || !content.trim() ? 0.5 : 1, height: '2.5rem',
+                    fontSize: '0.875rem', cursor: aiLoading || !content.trim() ? 'not-allowed' : 'pointer',
+                    whiteSpace: 'nowrap',
+                    opacity: !content.trim() ? 0.5 : 1, height: '2.5rem',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1px',
                   }}
                 >
-                  <span>{isPending ? '저장중' : '저장'}</span>
-                  {!isPending && <span style={{ fontSize: '0.6rem', opacity: 0.75, letterSpacing: '0.01em' }}>Ctrl+↵</span>}
+                  <span>{aiLoading ? '분석중' : '✨ AI 저장'}</span>
+                  {!aiLoading && <span style={{ fontSize: '0.6rem', opacity: 0.75 }}>Ctrl+↵</span>}
                 </button>
               </div>
+              {content.trim() && aiHintCount > 0 && !aiPanelOpen && (
+                <p style={{ color: '#6366f1', fontSize: '0.8rem', margin: '0.5rem 0 0', opacity: 0.8 }}>
+                  ✨ {aiHintCount}개 항목 감지됨
+                </p>
+              )}
               {error && (
                 <p style={{ color: '#dc2626', fontSize: '0.8125rem', margin: '0.5rem 0 0' }}>{error}</p>
               )}
-            </form>
+            </div>
+
+          {/* AI 결과 패널 */}
+          {aiPanelOpen && (
+            <AiResultPanel
+              items={aiItems}
+              loading={aiLoading}
+              error={aiError}
+              originalText={content}
+              onReanalyze={handleAiSave}
+              onConfirm={handleAiConfirm}
+              onClose={() => { setAiPanelOpen(false); setAiItems([]) }}
+              isPending={isPending}
+            />
+          )}
 
           {/* 이월된 미완료 항목 (오늘만 표시) */}
           {isToday && (carryoverLoading || carryoverLogs.length > 0) && (
@@ -759,4 +856,238 @@ const actionBtnSecondary: React.CSSProperties = {
   padding: '0.375rem 0.875rem', background: '#f1f5f9', color: '#475569',
   border: 'none', borderRadius: '0.375rem', fontSize: '0.8125rem',
   fontWeight: 600, cursor: 'pointer',
+}
+
+/* ─── AI 결과 패널 ─── */
+
+const PRIORITY_LABELS: Record<string, string> = {
+  urgent: '긴급', high: '높음', normal: '보통', low: '낮음',
+}
+const PRIORITY_COLORS: Record<string, string> = {
+  urgent: '#dc2626', high: '#ea580c', normal: '#64748b', low: '#94a3b8',
+}
+
+interface AiResultPanelProps {
+  items: AiParsedItem[]
+  loading: boolean
+  error: string
+  originalText: string
+  onReanalyze: () => void
+  onConfirm: (items: AiParsedItem[]) => void
+  onClose: () => void
+  isPending: boolean
+}
+
+function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose, isPending }: AiResultPanelProps) {
+  const [editItems, setEditItems] = useState<AiParsedItem[]>(items)
+
+  // items 스트리밍으로 추가될 때마다 동기화
+  useEffect(() => {
+    setEditItems(items)
+  }, [items])
+
+  const updateItem = (idx: number, patch: Partial<AiParsedItem>) => {
+    setEditItems(prev => prev.map((item, i) => i === idx ? { ...item, ...patch } : item))
+  }
+
+  return (
+    <>
+      <div className="ai-panel-overlay" onClick={onClose} />
+      <div className="ai-panel">
+        {/* 헤더 */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0',
+          background: 'linear-gradient(135deg, #f5f3ff, #eff6ff)',
+        }}>
+          <div>
+            <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>✨ AI 분석 결과</div>
+            {!loading && editItems.length > 0 && (
+              <div style={{ fontSize: '0.75rem', color: '#6366f1', marginTop: '0.125rem' }}>
+                {editItems.length}개 항목 감지됨 — 확인 후 저장하세요
+              </div>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none', border: 'none', fontSize: '1.25rem',
+              color: '#94a3b8', cursor: 'pointer', lineHeight: 1, padding: '0.25rem',
+            }}
+          >×</button>
+        </div>
+
+        {/* 컨텐츠 */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.25rem' }}>
+          {error && (
+            <div style={{
+              background: '#fef2f2', border: '1px solid #fecaca',
+              borderRadius: '0.5rem', padding: '0.75rem 1rem',
+              color: '#dc2626', fontSize: '0.875rem', marginBottom: '1rem',
+            }}>
+              {error}
+            </div>
+          )}
+
+          {loading && editItems.length === 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {[1, 2].map(i => (
+                <div key={i} style={{
+                  background: '#f8fafc', border: '1px solid #e2e8f0',
+                  borderRadius: '0.625rem', padding: '1rem', height: '5rem',
+                  animation: 'pulse 1.5s ease-in-out infinite',
+                }} />
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {editItems.map((item, idx) => (
+              <div
+                key={idx}
+                className="ai-item-card"
+                style={{ animationDelay: `${idx * 0.08}s` }}
+              >
+                <AiItemCard
+                  item={item}
+                  onChange={(patch) => updateItem(idx, patch)}
+                />
+              </div>
+            ))}
+          </div>
+
+          {loading && editItems.length > 0 && (
+            <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.8125rem', padding: '0.75rem 0' }}>
+              분석 중...
+            </div>
+          )}
+        </div>
+
+        {/* 하단 버튼 */}
+        <div style={{
+          padding: '1rem 1.25rem', borderTop: '1px solid #e2e8f0',
+          display: 'flex', gap: '0.625rem',
+          background: '#fff',
+        }}>
+          <button
+            onClick={onReanalyze}
+            disabled={loading}
+            style={{
+              flex: 1, padding: '0.625rem', background: '#f1f5f9', color: '#475569',
+              border: '1px solid #e2e8f0', borderRadius: '0.5rem',
+              fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer',
+              opacity: loading ? 0.5 : 1,
+            }}
+          >
+            다시 분석
+          </button>
+          <button
+            onClick={() => onConfirm(editItems)}
+            disabled={loading || isPending || editItems.length === 0}
+            style={{
+              flex: 2, padding: '0.625rem',
+              background: 'linear-gradient(135deg, #6366f1, #3b82f6)',
+              color: '#fff', border: 'none', borderRadius: '0.5rem',
+              fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer',
+              opacity: loading || isPending || editItems.length === 0 ? 0.5 : 1,
+            }}
+          >
+            {isPending ? '저장 중...' : `확정 저장 (${editItems.length}개)`}
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+interface AiItemCardProps {
+  item: AiParsedItem
+  onChange: (patch: Partial<AiParsedItem>) => void
+}
+
+function AiItemCard({ item, onChange }: AiItemCardProps) {
+  const statusInfo = ENTRY_MAP[item.status] ?? ENTRY_MAP['note']
+
+  return (
+    <div style={{
+      background: '#fff', border: `1px solid ${statusInfo.border}`,
+      borderLeft: `3px solid ${statusInfo.color}`,
+      borderRadius: '0 0.5rem 0.5rem 0', padding: '0.75rem 0.875rem',
+    }}>
+      {/* 제목 */}
+      <input
+        value={item.title}
+        onChange={(e) => onChange({ title: e.target.value })}
+        style={{
+          width: '100%', border: 'none', borderBottom: '1px solid #e2e8f0',
+          padding: '0 0 0.375rem', fontSize: '0.9375rem', fontWeight: 600,
+          color: '#0f172a', outline: 'none', background: 'transparent',
+          boxSizing: 'border-box', marginBottom: '0.625rem',
+        }}
+      />
+
+      {/* 메타 배지 행 */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', alignItems: 'center' }}>
+        {/* 상태 */}
+        <select
+          value={item.status}
+          onChange={(e) => onChange({ status: e.target.value as DailyLogEntryType })}
+          style={{
+            padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem',
+            fontWeight: 700, border: `1px solid ${statusInfo.border}`,
+            background: statusInfo.bg, color: statusInfo.color, cursor: 'pointer',
+          }}
+        >
+          {ENTRY_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+        </select>
+
+        {/* 우선순위 */}
+        <select
+          value={item.priority}
+          onChange={(e) => onChange({ priority: e.target.value as AiParsedItem['priority'] })}
+          style={{
+            padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem',
+            fontWeight: 600, border: '1px solid #e2e8f0',
+            background: '#f8fafc', color: PRIORITY_COLORS[item.priority] ?? '#64748b',
+            cursor: 'pointer',
+          }}
+        >
+          {Object.entries(PRIORITY_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+
+        {/* 날짜 */}
+        {item.scheduledDate && (
+          <span style={{
+            fontSize: '0.75rem', color: '#7c3aed', background: '#f5f3ff',
+            border: '1px solid #ddd6fe', borderRadius: '0.25rem',
+            padding: '0.2rem 0.5rem',
+          }}>
+            📅 {item.scheduledDate}{item.scheduledTime ? ` ${item.scheduledTime}` : ''}
+          </span>
+        )}
+
+        {/* 거래처 */}
+        {item.accountName && (
+          <span style={{
+            fontSize: '0.75rem', color: '#0369a1', background: '#f0f9ff',
+            border: '1px solid #bae6fd', borderRadius: '0.25rem',
+            padding: '0.2rem 0.5rem',
+          }}>
+            🏢 {item.accountName}
+          </span>
+        )}
+
+        {/* 담당자 */}
+        {item.contactName && (
+          <span style={{
+            fontSize: '0.75rem', color: '#0f766e', background: '#f0fdfa',
+            border: '1px solid #99f6e4', borderRadius: '0.25rem',
+            padding: '0.2rem 0.5rem',
+          }}>
+            👤 {item.contactName}
+          </span>
+        )}
+      </div>
+    </div>
+  )
 }

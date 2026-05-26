@@ -2,7 +2,21 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import type { DailyLog, DailyLogEntryType } from '@/types/database'
+import type { DailyLog, DailyLogEntryType, DailyLogPriority } from '@/types/database'
+
+export interface AiParsedItem {
+  title: string
+  status: DailyLogEntryType
+  scheduledDate: string | null
+  scheduledTime: string | null
+  priority: DailyLogPriority
+  accountId: string | null
+  contactId: string | null
+  accountName: string | null
+  contactName: string | null
+  confidence: number
+  originalInput: string
+}
 
 export interface DayLogSummary {
   date: string
@@ -238,4 +252,45 @@ export async function ignoreCarryoverLog(id: string): Promise<{ ok: true } | { o
 
   revalidatePath('/daily')
   return { ok: true }
+}
+
+export async function addMultipleDailyLogs(
+  items: AiParsedItem[],
+  logDate: string
+): Promise<{ ok: true; data: DailyLog[] } | { ok: false; error: string }> {
+  if (items.length === 0) return { ok: false, error: '저장할 항목이 없습니다.' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '로그인이 필요합니다.' }
+
+  const rows = items.map((item) => {
+    const scheduledAt = item.scheduledDate
+      ? item.scheduledTime
+        ? `${item.scheduledDate}T${item.scheduledTime}:00+09:00`
+        : `${item.scheduledDate}T00:00:00+09:00`
+      : null
+    return {
+      user_id: user.id,
+      log_date: logDate,
+      content: item.title,
+      entry_type: item.status,
+      priority: item.priority,
+      scheduled_at: scheduledAt,
+      ai_processed: true,
+      ai_confidence: item.confidence,
+      original_input: item.originalInput,
+      linked_account_id: item.accountId ?? null,
+      linked_contact_id: item.contactId ?? null,
+    }
+  })
+
+  const { data, error } = await (supabase.from('daily_logs') as any)
+    .insert(rows)
+    .select()
+
+  if (error) return { ok: false, error: (error as Error).message }
+
+  revalidatePath('/daily')
+  return { ok: true, data: data as DailyLog[] }
 }
