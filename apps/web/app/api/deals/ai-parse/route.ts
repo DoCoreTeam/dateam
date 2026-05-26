@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { logTokenUsage } from '@/lib/token-logger'
+import type { AiFeature } from '@/types/database'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -43,9 +45,21 @@ export async function POST(req: NextRequest) {
   })
 
   if (!res.ok) return NextResponse.json({ error: 'Gemini API 오류' }, { status: 500 })
-  const json = await res.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
+  const json = await res.json() as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[]
+    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
+  }
   const text = json.candidates?.[0]?.content?.parts?.[0]?.text
   if (!text) return NextResponse.json({ error: 'Gemini 응답 없음' }, { status: 500 })
+
+  logTokenUsage({
+    userId: user.id,
+    feature: 'deal-activity-parse' as AiFeature,
+    model,
+    promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
+    outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
+    totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
+  })
 
   try {
     const parsed = JSON.parse(text) as { summary?: string }

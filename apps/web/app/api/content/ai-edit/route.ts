@@ -61,7 +61,8 @@ export async function POST(req: NextRequest) {
       currentData as Record<string, unknown>[],
       prompt,
       apiKey,
-      model
+      model,
+      user.id
     )
     return NextResponse.json({ data: result })
   } catch (err) {

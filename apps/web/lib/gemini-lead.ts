@@ -1,4 +1,17 @@
+import { logTokenUsage } from '@/lib/token-logger'
+import type { AiFeature } from '@/types/database'
+
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
+
+const GEMINI_VISION_MIME_TYPES = new Set([
+  'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif',
+  'image/bmp', 'image/tiff', 'image/heic', 'image/heif', 'image/avif',
+  'application/pdf',
+])
+
+export function isVisionMimeType(mimeType: string): boolean {
+  return GEMINI_VISION_MIME_TYPES.has(mimeType.toLowerCase())
+}
 
 export interface ParsedLeadData {
   company_name?: string
@@ -64,11 +77,69 @@ const FIT_SCORE_PROMPT = `당신은 AX사업본부(AI·디지털전환 컨설팅
 
 결과: {"fit_score": 0-100, "fit_reason": "이유 한 문장"} JSON만 반환`
 
+async function callGeminiWithVision(
+  base64Data: string,
+  mimeType: string,
+  apiKey: string,
+  model: string
+): Promise<{ text: string; usage: { promptTokens: number; outputTokens: number; totalTokens: number } }> {
+  const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
+  const body = {
+    contents: [{
+      role: 'user',
+      parts: [
+        { inlineData: { mimeType, data: base64Data } },
+        { text: LEAD_PARSE_PROMPT },
+      ],
+    }],
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
+  }
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+    body: JSON.stringify(body),
+    cache: 'no-store',
+  })
+  if (!res.ok) throw new Error(`Gemini Vision API error: ${res.status}`)
+  const json = await res.json() as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[]
+    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
+  }
+  const text = json.candidates?.[0]?.content?.parts?.[0]?.text
+  if (!text) throw new Error('Gemini Vision 응답이 비어 있습니다')
+  return {
+    text,
+    usage: {
+      promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
+      outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
+      totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
+    },
+  }
+}
+
+export async function parseLeadFromVision(
+  buffer: Buffer,
+  mimeType: string,
+  apiKey: string,
+  model: string,
+  userId?: string | null
+): Promise<ParsedLeadData> {
+  const base64 = buffer.toString('base64')
+  const { text, usage } = await callGeminiWithVision(base64, mimeType, apiKey, model)
+  try {
+    const parsed = JSON.parse(text) as ParsedLeadData
+    logTokenUsage({ userId: userId ?? null, feature: 'lead-parse' as AiFeature, model, ...usage })
+    return parsed
+  } catch {
+    throw new Error('Gemini Vision 리드 파싱 JSON 오류')
+  }
+}
+
 async function callGemini(
   prompt: string,
   apiKey: string,
   model: string
-): Promise<string> {
+): Promise<{ text: string; usage: { promptTokens: number; outputTokens: number; totalTokens: number } }> {
   const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
   const body = {
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -81,21 +152,31 @@ async function callGemini(
     cache: 'no-store',
   })
   if (!res.ok) throw new Error(`Gemini API error: ${res.status}`)
-  const json = await res.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
+  const json = await res.json() as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[]
+    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
+  }
   const text = json.candidates?.[0]?.content?.parts?.[0]?.text
   if (!text) throw new Error('Gemini 응답이 비어 있습니다')
-  return text
+  const usage = {
+    promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
+    outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
+    totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
+  }
+  return { text, usage }
 }
 
 export async function parseLeadInput(
   rawInput: string,
   apiKey: string,
-  model: string
+  model: string,
+  userId?: string | null
 ): Promise<ParsedLeadData> {
   const prompt = `${LEAD_PARSE_PROMPT}\n\n입력:\n${rawInput}`
-  const text = await callGemini(prompt, apiKey, model)
+  const { text, usage } = await callGemini(prompt, apiKey, model)
   try {
     const parsed = JSON.parse(text)
+    logTokenUsage({ userId: userId ?? null, feature: 'lead-parse' as AiFeature, model, ...usage })
     return parsed as ParsedLeadData
   } catch {
     throw new Error('Gemini 리드 파싱 JSON 오류')
@@ -105,12 +186,14 @@ export async function parseLeadInput(
 export async function scoreFit(
   accountInfo: { name: string; industry?: string | null; segment?: string | null; size?: string | null; region?: string | null },
   apiKey: string,
-  model: string
+  model: string,
+  userId?: string | null
 ): Promise<{ fit_score: number; fit_reason: string }> {
   const prompt = `${FIT_SCORE_PROMPT}\n\n거래처:\n${JSON.stringify(accountInfo, null, 2)}`
-  const text = await callGemini(prompt, apiKey, model)
+  const { text, usage } = await callGemini(prompt, apiKey, model)
   try {
     const parsed = JSON.parse(text) as { fit_score?: number; fit_reason?: string }
+    logTokenUsage({ userId: userId ?? null, feature: 'account-fit-score' as AiFeature, model, ...usage })
     return {
       fit_score: typeof parsed.fit_score === 'number' ? Math.min(100, Math.max(0, parsed.fit_score)) : 50,
       fit_reason: typeof parsed.fit_reason === 'string' ? parsed.fit_reason : '',

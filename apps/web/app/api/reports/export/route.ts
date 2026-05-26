@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
   let finalRows: import('@/lib/docx-builder').ReportRow[]
   if (geminiKey) {
     try {
-      const merged = await mergeAndRefineByCategory(forMerge, geminiKey, geminiModel)
+      const merged = await mergeAndRefineByCategory(forMerge, geminiKey, geminiModel, user.id)
       finalRows = merged.map((r) => ({
         userName: '',
         orgName,

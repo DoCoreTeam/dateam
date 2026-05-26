@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
 
     const weekStart = raw[0]?.week_start ?? new Date().toISOString().slice(0, 10)
 
-    const merged = await mergeAndRefineByCategory(forMerge, apiKey, model)
+    const merged = await mergeAndRefineByCategory(forMerge, apiKey, model, user.id)
 
     const reports = merged.map((r) => ({
       userName: '',

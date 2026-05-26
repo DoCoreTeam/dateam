@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   if (!apiKey) return NextResponse.json({ error: 'Gemini API 키 미설정' }, { status: 500 })
 
   try {
-    const result = await scoreFit(body, apiKey, model)
+    const result = await scoreFit(body, apiKey, model, user.id)
     return NextResponse.json(result)
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : '오류' }, { status: 500 })

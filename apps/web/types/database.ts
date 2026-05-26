@@ -146,6 +146,28 @@ export interface DailyLog {
   updated_at: string
 }
 
+export type AiFeature =
+  | 'weekly-report-refine'
+  | 'report-preview-merge'
+  | 'report-export'
+  | 'lead-parse'
+  | 'account-fit-score'
+  | 'deal-activity-parse'
+  | 'content-ai-edit'
+
+export interface AiTokenLog {
+  id: string
+  created_at: string
+  user_id: string | null
+  feature: AiFeature
+  model: string
+  prompt_tokens: number
+  output_tokens: number
+  total_tokens: number
+  success: boolean
+  error_message: string | null
+}
+
 export interface OrgContent {
   key: string
   value: Json
@@ -219,6 +241,20 @@ export interface Database {
         Relationships: [
           {
             foreignKeyName: 'daily_logs_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      ai_token_logs: {
+        Row: AiTokenLog
+        Insert: Omit<AiTokenLog, 'id' | 'created_at'>
+        Update: Partial<Omit<AiTokenLog, 'id' | 'created_at'>>
+        Relationships: [
+          {
+            foreignKeyName: 'ai_token_logs_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
             referencedRelation: 'profiles'

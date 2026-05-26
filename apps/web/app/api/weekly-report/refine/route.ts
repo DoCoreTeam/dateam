@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const refined = await refineWeeklyReport(validRows, apiKey, model)
+    const refined = await refineWeeklyReport(validRows, apiKey, model, user.id)
 
     // New categories (not in prev week) bubble to top
     const prevCats = Array.isArray(prevCategories) ? (prevCategories as string[]) : []

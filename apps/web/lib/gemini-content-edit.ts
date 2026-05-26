@@ -1,3 +1,6 @@
+import { logTokenUsage } from '@/lib/token-logger'
+import type { AiFeature } from '@/types/database'
+
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
 export interface ColumnSchema {
@@ -12,7 +15,8 @@ export async function aiEditContentSection(
   currentData: Record<string, unknown>[],
   userPrompt: string,
   apiKey: string,
-  model: string
+  model: string,
+  userId?: string | null
 ): Promise<Record<string, unknown>[]> {
   const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
 
@@ -61,9 +65,19 @@ ${schemaDesc}
 
   const json = (await res.json()) as {
     candidates?: { content?: { parts?: { text?: string }[] } }[]
+    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
   }
   const text = json.candidates?.[0]?.content?.parts?.[0]?.text
   if (!text) throw new Error('Gemini 응답이 비어 있습니다')
+
+  logTokenUsage({
+    userId: userId ?? null,
+    feature: 'content-ai-edit' as AiFeature,
+    model,
+    promptTokens: json.usageMetadata?.promptTokenCount ?? 0,
+    outputTokens: json.usageMetadata?.candidatesTokenCount ?? 0,
+    totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
+  })
 
   const parsed = JSON.parse(text)
   if (!Array.isArray(parsed)) throw new Error('Gemini 응답 형식이 올바르지 않습니다')
