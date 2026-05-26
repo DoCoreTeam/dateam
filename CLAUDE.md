@@ -129,3 +129,5 @@ v0.4.7
 > 빌드 타임에 `NEXT_PUBLIC_APP_VERSION`으로 주입한다.
 > 사이드바(`MobileShell.tsx:261`)는 이 env var를 표시한다.
 > **루트 `package.json`이 단일 소스** — `.env.local`로 재정의하지 말 것.
+
+패치 버전(3rd)은 `0`부터 `999`까지 입력 가능하다. 999 초과 시 MINOR(2nd)를 1 올리고 PATCH는 0으로 리셋한다.
