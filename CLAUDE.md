@@ -87,4 +87,4 @@ CSS는 반드시 `globals.css` 또는 CSS 모듈에 작성한다.
 - TypeScript
 
 ## 버전
-v0.3.5
+v0.3.6

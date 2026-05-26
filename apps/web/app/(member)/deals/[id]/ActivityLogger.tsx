@@ -93,14 +93,15 @@ export default function ActivityLogger({ dealId }: Props) {
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.currentTarget.form?.requestSubmit() } }}
             rows={3}
-            placeholder="활동 내용을 입력하세요..."
+            placeholder="활동 내용을 입력하세요... (Ctrl+Enter 저장)"
             style={{ width: '100%', padding: '0.625rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box' }}
           />
           {error && <p style={{ color: '#dc2626', fontSize: '0.8125rem', margin: 0 }}>{error}</p>}
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <button type="submit" disabled={loading} className="btn-primary" style={{ fontSize: '0.8125rem', padding: '0.5rem 1rem', minHeight: '36px' }}>
-              {loading ? '저장중...' : '저장'}
+              {loading ? '저장중...' : '저장'}{!loading && <span style={{ fontSize: '0.65rem', opacity: 0.65, marginLeft: '0.3rem' }}>Ctrl+↵</span>}
             </button>
             <button type="button" onClick={handleAiParse} disabled={aiLoading} style={{ fontSize: '0.8125rem', padding: '0.5rem 0.875rem', minHeight: '36px', background: '#f0f9ff', color: '#0284c7', border: '1px solid #bae6fd', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>
               {aiLoading ? 'AI분석중...' : '🤖 AI정리'}

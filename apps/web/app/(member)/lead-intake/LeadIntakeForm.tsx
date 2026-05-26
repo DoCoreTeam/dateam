@@ -146,7 +146,11 @@ export default function LeadIntakeForm() {
 
       {/* 텍스트 탭 */}
       {tab === 'prompt' && !result && (
-        <form onSubmit={handleTextSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <form
+          onSubmit={handleTextSubmit}
+          onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.currentTarget.requestSubmit() } }}
+          style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+        >
           <div>
             <label className="label">리드 정보 입력</label>
             <textarea value={rawInput} onChange={e => setRawInput(e.target.value)} rows={6}
@@ -159,7 +163,7 @@ export default function LeadIntakeForm() {
           {error && <p style={{ color: '#dc2626', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
           <button type="submit" disabled={loading} className="btn-primary"
             style={{ padding: '0.75rem 1.5rem', fontSize: '0.9375rem', minHeight: '48px', maxWidth: '200px' }}>
-            {loading ? 'AI 분석중...' : 'AI 분석'}
+            {loading ? 'AI 분석중...' : 'AI 분석'}{!loading && <span style={{ fontSize: '0.7rem', opacity: 0.65, marginLeft: '0.375rem' }}>Ctrl+↵</span>}
           </button>
         </form>
       )}

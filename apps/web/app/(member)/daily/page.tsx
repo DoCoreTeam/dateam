@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { getDailyLogs, addDailyLog, updateDailyLog, deleteDailyLog, getWeekLogs } from './actions'
+import { getDailyLogs, addDailyLog, updateDailyLog, deleteDailyLog, getWeekLogs, getCarryoverLogs, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog } from './actions'
 import type { DailyLog, DailyLogEntryType } from '@/types/database'
 
 const ENTRY_TYPES: { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[] = [
@@ -59,6 +59,10 @@ export default function DailyPage() {
   const [weekLogs, setWeekLogs] = useState<DailyLog[]>([])
   const [weekLoading, setWeekLoading] = useState(false)
 
+  // 이월 항목 상태
+  const [carryoverLogs, setCarryoverLogs] = useState<DailyLog[]>([])
+  const [carryoverLoading, setCarryoverLoading] = useState(false)
+
   // 입력 상태
   const [content, setContent] = useState('')
   const [entryType, setEntryType] = useState<DailyLogEntryType>('done')
@@ -78,8 +82,20 @@ export default function DailyPage() {
     setLoading(false)
   }
 
+  // 이월 항목 로드 (오늘 뷰에서만)
+  const loadCarryover = async (date: string) => {
+    setCarryoverLoading(true)
+    const data = await getCarryoverLogs(date)
+    setCarryoverLogs(data)
+    setCarryoverLoading(false)
+  }
+
   useEffect(() => {
-    if (viewMode === 'day') loadLogs(selectedDate)
+    if (viewMode === 'day') {
+      loadLogs(selectedDate)
+      if (selectedDate === today) loadCarryover(today)
+      else setCarryoverLogs([])
+    }
   }, [selectedDate, viewMode])
 
   // 주간 로드
@@ -105,6 +121,27 @@ export default function DailyPage() {
       } else {
         setError(result.error)
       }
+    })
+  }
+
+  const handleResolve = async (id: string) => {
+    startTransition(async () => {
+      await resolveCarryoverLog(id)
+      await Promise.all([loadLogs(selectedDate), loadCarryover(today)])
+    })
+  }
+
+  const handleMoveToToday = async (id: string) => {
+    startTransition(async () => {
+      await moveCarryoverToToday(id, today)
+      await Promise.all([loadLogs(selectedDate), loadCarryover(today)])
+    })
+  }
+
+  const handleIgnore = async (id: string) => {
+    startTransition(async () => {
+      await ignoreCarryoverLog(id)
+      await loadCarryover(today)
     })
   }
 
@@ -305,9 +342,11 @@ export default function DailyPage() {
                     border: 'none', borderRadius: '0.5rem', fontWeight: 600,
                     fontSize: '0.875rem', cursor: 'pointer', whiteSpace: 'nowrap',
                     opacity: isPending || !content.trim() ? 0.5 : 1, height: '2.5rem',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1px',
                   }}
                 >
-                  {isPending ? '저장중' : '저장'}
+                  <span>{isPending ? '저장중' : '저장'}</span>
+                  {!isPending && <span style={{ fontSize: '0.6rem', opacity: 0.75, letterSpacing: '0.01em' }}>Ctrl+↵</span>}
                 </button>
               </div>
               {error && (
@@ -521,6 +560,13 @@ function LogList({
                 <textarea
                   value={editContent}
                   onChange={(e) => onEditContentChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                      e.preventDefault()
+                      onUpdate(log.id)
+                    }
+                  }}
+                  placeholder="Ctrl+Enter로 저장"
                   rows={3}
                   autoFocus
                   style={{
@@ -530,7 +576,7 @@ function LogList({
                   }}
                 />
                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                  <button onClick={() => onUpdate(log.id)} disabled={isPending} style={actionBtnPrimary}>저장</button>
+                  <button onClick={() => onUpdate(log.id)} disabled={isPending} style={actionBtnPrimary}>저장 <span style={{ fontSize: '0.65rem', opacity: 0.7 }}>Ctrl+↵</span></button>
                   <button onClick={onCancelEdit} style={actionBtnSecondary}>취소</button>
                 </div>
               </div>

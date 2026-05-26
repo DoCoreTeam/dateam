@@ -81,7 +81,11 @@ export default function AccountForm({ account }: Props) {
 
   return (
     <div className="card" style={{ padding: '1.5rem', maxWidth: '640px' }}>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <form
+        onSubmit={handleSubmit}
+        onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.currentTarget.requestSubmit() } }}
+        style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+      >
         <div>
           <label className="label">거래처명 *</label>
           <input className="input-field" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="(주)예시컴퍼니" required style={inputStyle} />
@@ -159,7 +163,7 @@ export default function AccountForm({ account }: Props) {
 
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           <button type="submit" disabled={loading} className="btn-primary" style={{ minHeight: '44px', padding: '0.625rem 1.5rem' }}>
-            {loading ? '저장중...' : account ? '수정' : '거래처 등록'}
+            {loading ? '저장중...' : account ? '수정' : '거래처 등록'}{!loading && <span style={{ fontSize: '0.7rem', opacity: 0.65, marginLeft: '0.375rem' }}>Ctrl+↵</span>}
           </button>
           <button type="button" onClick={() => router.back()} style={{ minHeight: '44px', padding: '0.625rem 1.25rem', background: 'none', border: '1px solid #e2e8f0', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.875rem', color: '#64748b' }}>
             취소

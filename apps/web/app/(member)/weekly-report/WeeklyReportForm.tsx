@@ -349,7 +349,10 @@ export default function WeeklyReportForm({
         onClose={() => setModalTarget(null)}
       />
     )}
-    <form onSubmit={handleSubmit}>
+    <form
+      onSubmit={handleSubmit}
+      onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.currentTarget.requestSubmit() } }}
+    >
       {/* 수정 모드 배너 */}
       {isEditMode && (
         <div style={{
@@ -579,7 +582,7 @@ export default function WeeklyReportForm({
           </button>
           <button type="submit" className="btn-primary" disabled={pending || resetPending || isRefining}>
             <Save size={15} />
-            {pending ? '저장 중...' : '저장'}
+            {pending ? '저장 중...' : '저장'}{!pending && <span style={{ fontSize: '0.7rem', opacity: 0.65, marginLeft: '0.375rem' }}>Ctrl+↵</span>}
           </button>
         </div>
       </div>
