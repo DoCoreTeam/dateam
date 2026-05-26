@@ -86,6 +86,21 @@ export default async function ContactDetailPage({ params }: PageProps) {
           )}
         </div>
       </div>
+
+      {data.business_card_drive_id && (
+        <div className="card" style={{ maxWidth: '480px', padding: '1.5rem', marginTop: '1rem' }}>
+          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: '0 0 1rem' }}>명함 이미지</h2>
+          <div style={{ position: 'relative', width: '100%', aspectRatio: '1.7 / 1', overflow: 'hidden', borderRadius: '0.625rem', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/api/files/drive/${data.business_card_drive_id}`}
+              alt="명함"
+              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
