@@ -53,7 +53,8 @@ export default async function AdminUsersPage() {
           <span className="badge badge-slate">{profiles?.length ?? 0}명</span>
         </div>
 
-        <table className="table-base">
+        <div className="table-responsive">
+        <table className="table-base" style={{ minWidth: '700px' }}>
           <thead>
             <tr>
               <th>이름</th>
@@ -125,6 +126,7 @@ export default async function AdminUsersPage() {
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )

@@ -94,7 +94,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* 2-column 메인 레이아웃 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 352px', gap: '1.5rem', alignItems: 'start' }}>
+      <div className="responsive-grid-2">
 
         {/* ── 좌 컬럼: 조직 정보 ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', minWidth: 0 }}>
@@ -108,7 +108,8 @@ export default async function DashboardPage() {
               display: 'flex',
               alignItems: 'flex-start',
               justifyContent: 'space-between',
-              gap: '2rem',
+              gap: '1.25rem',
+              flexWrap: 'wrap',
               position: 'relative',
               overflow: 'hidden',
             }}>
@@ -164,7 +165,7 @@ export default async function DashboardPage() {
               <h2 id="okr-heading" style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.875rem', letterSpacing: '-0.02em' }}>
                 이번 분기 OKR
               </h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.875rem' }}>
+              <div className="responsive-grid-cols-2">
                 {okrList.slice(0, 4).map((okr, i) => (
                   <div key={okr.objective ?? i} className="card" style={{ padding: '1.25rem' }}>
                     <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', margin: '0 0 0.625rem', lineHeight: 1.4 }}>

@@ -107,13 +107,7 @@ export default async function OperationsPage() {
         >
           진행 프로젝트
         </h2>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '1rem',
-          }}
-        >
+        <div className="responsive-grid-cols-2">
           {projects.map((project, idx) => {
             const isDim = project.progress === 0
             return (
@@ -258,13 +252,7 @@ export default async function OperationsPage() {
         >
           본부 멤버
         </h2>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '1rem',
-          }}
-        >
+        <div className="responsive-grid-cols-2">
           {members.map((member, idx) => {
             const visiblePMs = member.pm?.slice(0, 3) ?? []
             const extraPMCount = (member.pm?.length ?? 0) - visiblePMs.length

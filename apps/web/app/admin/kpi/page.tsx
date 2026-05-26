@@ -131,7 +131,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
         </div>
 
         {allMetrics.length > 0 ? (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="table-responsive">
             <table className="table-base" style={{ minWidth: '600px' }}>
               <thead>
                 <tr>
@@ -207,7 +207,8 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0' }}>
           <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>전체 KPI 로그</h2>
         </div>
-        <table className="table-base">
+        <div className="table-responsive">
+        <table className="table-base" style={{ minWidth: '560px' }}>
           <thead>
             <tr>
               <th>팀원</th>
@@ -246,6 +247,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )

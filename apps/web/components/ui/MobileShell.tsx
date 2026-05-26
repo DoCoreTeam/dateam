@@ -1,0 +1,253 @@
+'use client'
+
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+import { Menu, X } from 'lucide-react'
+
+interface NavItem {
+  href: string
+  label: string
+  icon: React.ReactNode
+}
+
+interface MobileShellProps {
+  items: NavItem[]
+  footer?: React.ReactNode
+  logoUrl?: string | null
+  brandName?: string
+  headerLeft?: React.ReactNode
+  headerRight?: React.ReactNode
+  children: React.ReactNode
+  adminHref?: string
+}
+
+export default function MobileShell({
+  items,
+  footer,
+  logoUrl,
+  brandName = 'AX사업본부',
+  headerLeft,
+  headerRight,
+  children,
+  adminHref,
+}: MobileShellProps) {
+  const pathname = usePathname()
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [hoveredHref, setHoveredHref] = useState<string | null>(null)
+  const hamburgerRef = useRef<HTMLButtonElement>(null)
+  const firstNavRef = useRef<HTMLAnchorElement>(null)
+
+  const closeMobile = useCallback(() => setMobileOpen(false), [])
+
+  // 라우트 변경 시 닫기
+  useEffect(() => {
+    closeMobile()
+  }, [pathname, closeMobile])
+
+  // body 스크롤 잠금
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden'
+      // 드로어 열리면 첫 링크로 포커스
+      setTimeout(() => firstNavRef.current?.focus(), 50)
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [mobileOpen])
+
+  // ESC 키 닫기
+  useEffect(() => {
+    if (!mobileOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeMobile()
+        hamburgerRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [mobileOpen, closeMobile])
+
+  return (
+    <div className="app-shell">
+      {/* 모바일 딤 오버레이 */}
+      <div
+        className={`sidebar-overlay${mobileOpen ? ' overlay-open' : ''}`}
+        onClick={closeMobile}
+        aria-hidden="true"
+      />
+
+      {/* 사이드바 */}
+      <aside
+        id="main-sidebar"
+        className={`app-sidebar${mobileOpen ? ' sidebar-open' : ''}`}
+        aria-label="주 사이드바"
+        style={{
+          minHeight: '100vh',
+          backgroundColor: '#1e293b',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* 브랜드 */}
+        <div style={{
+          padding: '1.25rem',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <Link href={items[0]?.href ?? '/dashboard'} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt={brandName}
+                style={{ maxHeight: '32px', maxWidth: '160px', objectFit: 'contain' }}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+              />
+            ) : (
+              <span style={{ color: '#fff', fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+                {brandName}
+              </span>
+            )}
+          </Link>
+          <button
+            className="mobile-only-flex"
+            onClick={closeMobile}
+            aria-label="메뉴 닫기"
+            style={{
+              background: 'transparent', border: 'none',
+              color: '#94a3b8', cursor: 'pointer',
+              alignItems: 'center', padding: '0.25rem',
+            }}
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* 네비게이션 */}
+        <nav style={{ flex: 1, padding: '0.75rem' }} aria-label="주 메뉴">
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
+            {items.map((item, idx) => {
+              const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+              const isHovered = hoveredHref === item.href && !isActive
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    ref={idx === 0 ? firstNavRef : undefined}
+                    onMouseEnter={() => setHoveredHref(item.href)}
+                    onMouseLeave={() => setHoveredHref(null)}
+                    aria-current={isActive ? 'page' : undefined}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.625rem',
+                      padding: '0.5rem 0.75rem',
+                      borderRadius: '0.5rem',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      textDecoration: 'none',
+                      transition: 'background-color 120ms, color 120ms',
+                      backgroundColor: isActive ? '#4f46e5' : isHovered ? 'rgba(255,255,255,0.07)' : 'transparent',
+                      color: isActive || isHovered ? '#fff' : '#94a3b8',
+                      minHeight: '44px',
+                    }}
+                  >
+                    <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.7, display: 'flex', alignItems: 'center' }}>
+                      {item.icon}
+                    </span>
+                    {item.label}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </nav>
+
+        {/* 모바일 전용 어드민/멤버 전환 */}
+        {adminHref && (
+          <div className="mobile-only" style={{ padding: '0.5rem 0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <Link
+              href={adminHref}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '0.625rem 1rem',
+                borderRadius: '0.5rem',
+                fontSize: '0.8125rem', fontWeight: 600,
+                textDecoration: 'none',
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                color: '#cbd5e1',
+                minHeight: '44px',
+              }}
+            >
+              {adminHref.startsWith('/admin') ? '관리자 패널 →' : '← 멤버 화면'}
+            </Link>
+          </div>
+        )}
+
+        {/* 푸터 */}
+        {footer && (
+          <div style={{ padding: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            {footer}
+          </div>
+        )}
+
+        {/* 버전 */}
+        <div style={{ padding: '0.375rem 1rem 0.625rem', textAlign: 'center' }}>
+          <span style={{ fontSize: '0.6875rem', color: '#475569', letterSpacing: '0.06em', fontWeight: 600 }}>
+            v{process.env.NEXT_PUBLIC_APP_VERSION ?? '—'}
+          </span>
+        </div>
+      </aside>
+
+      {/* 메인 영역 */}
+      <div className="app-content">
+        {/* 상단바 */}
+        <header style={{
+          height: '56px',
+          backgroundColor: 'white',
+          borderBottom: '1px solid #e2e8f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 1.5rem',
+          flexShrink: 0,
+          gap: '0.75rem',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', minWidth: 0 }}>
+            {/* 모바일 햄버거 */}
+            <button
+              ref={hamburgerRef}
+              className="mobile-menu-btn"
+              onClick={() => setMobileOpen(true)}
+              aria-label="메뉴 열기"
+              aria-expanded={mobileOpen}
+              aria-controls="main-sidebar"
+            >
+              <Menu size={20} />
+            </button>
+            {headerLeft && (
+              <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                {headerLeft}
+              </div>
+            )}
+          </div>
+          {headerRight && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+              {headerRight}
+            </div>
+          )}
+        </header>
+
+        {/* 콘텐츠 */}
+        <main className="page-inner" style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-bg)' }}>
+          {children}
+        </main>
+      </div>
+    </div>
+  )
+}

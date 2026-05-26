@@ -195,7 +195,7 @@ export default function RoutineGrid({
               <span className="badge badge-slate" style={{ fontSize: '0.6875rem' }}>매일</span>
             </div>
           )}
-          <div style={{ overflowX: 'auto' }}>
+          <div className="table-responsive">
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
               <thead>
                 <tr>

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import Sidebar from '@/components/ui/Sidebar'
+import MobileShell from '@/components/ui/MobileShell'
 import SidebarProfile from '@/components/ui/SidebarProfile'
 import NavigationLoader from '@/components/ui/NavigationLoader'
 import { getBranding } from '@/lib/branding'
@@ -18,42 +18,16 @@ import {
 import type { Profile } from '@/types/database'
 
 const NAV_ITEMS = [
-  {
-    href: '/dashboard',
-    label: '대시보드',
-    icon: <LayoutDashboard size={16} />,
-  },
-  {
-    href: '/routine',
-    label: '루틴 체크',
-    icon: <CheckSquare size={16} />,
-  },
-  {
-    href: '/kpi',
-    label: 'KPI',
-    icon: <BarChart2 size={16} />,
-  },
-  {
-    href: '/weekly-report',
-    label: '주간보고',
-    icon: <FileText size={16} />,
-  },
-  {
-    href: '/operations',
-    label: '본부 운영',
-    icon: <Building2 size={16} />,
-  },
+  { href: '/dashboard', label: '대시보드', icon: <LayoutDashboard size={16} /> },
+  { href: '/routine', label: '루틴 체크', icon: <CheckSquare size={16} /> },
+  { href: '/kpi', label: 'KPI', icon: <BarChart2 size={16} /> },
+  { href: '/weekly-report', label: '주간보고', icon: <FileText size={16} /> },
+  { href: '/operations', label: '본부 운영', icon: <Building2 size={16} /> },
 ]
 
-export default async function MemberLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default async function MemberLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) redirect('/login')
 
@@ -72,37 +46,26 @@ export default async function MemberLayout({
   const userEmail = user.email ?? ''
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <Sidebar
+    <>
+      <MobileShell
         items={NAV_ITEMS}
         logoUrl={branding.logoUrl}
         brandName={branding.brandName}
         footer={<SidebarProfile name={displayName} email={userEmail} />}
-      />
-
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {/* 상단바 */}
-        <header
-          style={{
-            height: '56px',
-            backgroundColor: 'white',
-            borderBottom: '1px solid #e2e8f0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0 1.5rem',
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ fontSize: '0.875rem', color: '#64748b' }}>
+        adminHref={profile?.role === 'admin' ? '/admin/users' : undefined}
+        headerLeft={
+          <span style={{ fontSize: '0.875rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             안녕하세요,{' '}
             <strong style={{ color: '#0f172a', fontWeight: 600 }}>{displayName}</strong>
             님
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        }
+        headerRight={
+          <>
             {profile?.role === 'admin' && (
               <Link
                 href="/admin/users"
+                className="desktop-only"
                 style={{
                   fontSize: '0.8125rem',
                   fontWeight: 600,
@@ -112,24 +75,20 @@ export default async function MemberLayout({
                   border: '1px solid #fecaca',
                   borderRadius: '0.5rem',
                   backgroundColor: '#fef2f2',
-                  transition: 'background 120ms',
                 }}
               >
                 관리자 패널 →
               </Link>
             )}
             <LogoutButton />
-          </div>
-        </header>
-
-        {/* 메인 콘텐츠 */}
-        <main style={{ flex: 1, padding: '2rem', overflowY: 'auto', backgroundColor: 'var(--color-bg)' }}>
-          {children}
-        </main>
-      </div>
+          </>
+        }
+      >
+        {children}
+      </MobileShell>
       {profile?.must_change_password && <PasswordChangeModal />}
       {!profile?.must_change_password && !profile?.name && <NameSetupModal />}
       <NavigationLoader brandName={branding.brandName} logoUrl={branding.logoUrl} />
-    </div>
+    </>
   )
 }

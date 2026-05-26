@@ -98,7 +98,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
             <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>참고용 — 관리자가 설정한 목표입니다</span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
+          <div className="responsive-grid-cols-3" style={{ marginBottom: '1rem' }}>
             {weeklyTargets.length > 0 && (
               <div className="card" style={{ padding: '1.25rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.875rem' }}>
@@ -154,7 +154,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
           {okrList.length > 0 && (
             <div className="card" style={{ padding: '1.25rem' }}>
               <p style={{ ...SECTION_TITLE, color: '#7c3aed' }}>분기 OKR</p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.875rem' }}>
+              <div className="responsive-grid-cols-2">
                 {okrList.map((okr, i) => (
                   <div key={i} style={{ borderLeft: '3px solid #7c3aed', paddingLeft: '0.875rem', paddingTop: '0.25rem', paddingBottom: '0.25rem' }}>
                     <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.25rem', lineHeight: 1.4 }}>
@@ -222,7 +222,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
             <input type="hidden" name="period_start" value={weekStart} />
             <input type="hidden" name="period_end" value={weekEnd} />
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 140px', gap: '0.875rem', alignItems: 'end' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.875rem', alignItems: 'end' }} className="responsive-grid-cols-3">
               <div>
                 <label htmlFor="kpi_metric_ref" className="label">KPI 항목</label>
                 <select
@@ -298,7 +298,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
         </div>
 
         {kpiEntries && kpiEntries.length > 0 ? (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="table-responsive">
             <table className="table-base" style={{ minWidth: '560px' }}>
               <thead>
                 <tr>

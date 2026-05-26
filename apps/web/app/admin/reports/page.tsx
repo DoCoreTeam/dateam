@@ -175,7 +175,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
         </div>
 
         {reports && reports.length > 0 ? (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="table-responsive">
             <table className="table-base" style={{ minWidth: '800px' }}>
               <thead>
                 <tr>

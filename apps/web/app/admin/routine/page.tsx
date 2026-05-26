@@ -176,7 +176,8 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
           </h2>
         </div>
 
-        <table className="table-base">
+        <div className="table-responsive">
+        <table className="table-base" style={{ minWidth: '500px' }}>
           <thead>
             <tr>
               <th>팀원</th>
@@ -248,6 +249,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
             })}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )
