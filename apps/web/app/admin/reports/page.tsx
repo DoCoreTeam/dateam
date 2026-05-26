@@ -157,7 +157,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
       </div>
 
       {/* 보고서 테이블 */}
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div className="card">
         <div
           style={{
             padding: '1.25rem 1.5rem',
@@ -175,44 +175,45 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
         </div>
 
         {reports && reports.length > 0 ? (
-          <div className="table-responsive">
-            <table className="table-base" style={{ minWidth: '800px' }}>
-              <thead>
-                <tr>
-                  <th style={{ width: '100px' }}>팀원</th>
-                  <th style={{ width: '80px' }}>구분</th>
-                  <th>성과</th>
-                  <th>계획</th>
-                  <th>이슈/협조사항</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reports.map((report) => {
-                  return (
-                    <tr key={report.id}>
-                      <td>
-                        <span style={{ fontWeight: 500, color: '#374151' }}>
+          <table className="table-base table-card">
+            <thead>
+              <tr>
+                <th style={{ width: '100px' }}>팀원</th>
+                <th style={{ width: '80px' }}>구분</th>
+                <th>성과</th>
+                <th>계획</th>
+                <th>이슈/협조사항</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reports.map((report) => {
+                return (
+                  <tr key={report.id}>
+                    <td className="card-header">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontWeight: 600, color: '#0f172a' }}>
                           {report.profiles?.name ?? '-'}
                         </span>
-                      </td>
-                      <td>
                         <span className="badge badge-indigo">{report.category}</span>
-                      </td>
-                      <td style={{ maxWidth: '280px' }}>
-                        <RichCell html={report.performance} />
-                      </td>
-                      <td style={{ maxWidth: '220px' }}>
-                        <RichCell html={report.plan} />
-                      </td>
-                      <td style={{ maxWidth: '200px' }}>
-                        <RichCell html={report.issues} />
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                    </td>
+                    <td className="card-hide">
+                      <span className="badge badge-indigo">{report.category}</span>
+                    </td>
+                    <td data-label="성과" style={{ maxWidth: '280px' }}>
+                      <RichCell html={report.performance} />
+                    </td>
+                    <td data-label="계획" style={{ maxWidth: '220px' }}>
+                      <RichCell html={report.plan} />
+                    </td>
+                    <td data-label="이슈" style={{ maxWidth: '200px' }}>
+                      <RichCell html={report.issues} />
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         ) : (
           <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#94a3b8', fontSize: '0.875rem' }}>
             <FileText size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />

@@ -152,7 +152,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
       </div>
 
       {/* 팀원별 루틴 달성 카드 */}
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div className="card">
         <div
           style={{
             padding: '1.25rem 1.5rem',
@@ -168,8 +168,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
           </h2>
         </div>
 
-        <div className="table-responsive">
-        <table className="table-base" style={{ minWidth: '500px' }}>
+        <table className="table-base table-card">
           <thead>
             <tr>
               <th>팀원</th>
@@ -194,15 +193,22 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
 
               return (
                 <tr key={profile.id}>
-                  <td>
-                    <div style={{ fontWeight: 500, color: '#374151' }}>{profile.name || '-'}</div>
-                    {!template && profile.name && (
-                      <div style={{ fontSize: '0.7rem', color: '#f59e0b', marginTop: '2px' }}>
-                        조직도 미연결
+                  <td className="card-header">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '0.5rem' }}>
+                      <div>
+                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{profile.name || '-'}</div>
+                        {!template && profile.name && (
+                          <div style={{ fontSize: '0.7rem', color: '#f59e0b', marginTop: '2px' }}>
+                            조직도 미연결
+                          </div>
+                        )}
                       </div>
-                    )}
+                      <span style={{ fontWeight: 700, fontSize: '1.125rem', color: rate >= 70 ? '#059669' : rate >= 40 ? '#d97706' : '#dc2626', flexShrink: 0 }}>
+                        {rate}%
+                      </span>
+                    </div>
                   </td>
-                  <td>
+                  <td data-label="루틴">
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
                       {items.map((item) => {
                         const max = item.freq === 'weekly' ? 1 : 7
@@ -225,14 +231,8 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
                       })}
                     </div>
                   </td>
-                  <td style={{ textAlign: 'center' }}>
-                    <span
-                      style={{
-                        fontWeight: 700,
-                        fontSize: '1rem',
-                        color: rate >= 70 ? '#059669' : rate >= 40 ? '#d97706' : '#dc2626',
-                      }}
-                    >
+                  <td className="card-hide" style={{ textAlign: 'center' }}>
+                    <span style={{ fontWeight: 700, fontSize: '1rem', color: rate >= 70 ? '#059669' : rate >= 40 ? '#d97706' : '#dc2626' }}>
                       {rate}%
                     </span>
                   </td>
@@ -241,7 +241,6 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
             })}
           </tbody>
         </table>
-        </div>
       </div>
     </div>
   )

@@ -46,15 +46,14 @@ export default async function AdminUsersPage() {
       </div>
 
       {/* 사용자 목록 */}
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div className="card">
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Users size={16} color="#6366f1" />
           <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>전체 팀원</h2>
           <span className="badge badge-slate">{profiles?.length ?? 0}명</span>
         </div>
 
-        <div className="table-responsive">
-        <table className="table-base" style={{ minWidth: '700px' }}>
+        <table className="table-base table-card">
           <thead>
             <tr>
               <th>이름</th>
@@ -71,7 +70,7 @@ export default async function AdminUsersPage() {
               const email = emailMap.get(profile.id) ?? ''
               return (
                 <tr key={profile.id}>
-                  <td>
+                  <td className="card-header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
                       <div style={{
                         width: '2rem', height: '2rem', borderRadius: '50%',
@@ -89,13 +88,13 @@ export default async function AdminUsersPage() {
                       </div>
                     </div>
                   </td>
-                  <td>
+                  <td data-label="역할">
                     <span className={`badge ${profile.role === 'admin' ? 'badge-indigo' : 'badge-slate'}`}
                       style={profile.role === 'admin' ? { backgroundColor: '#fef2f2', color: '#dc2626' } : undefined}>
                       {profile.role}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="초기PW">
                     <span style={{
                       fontSize: '0.75rem', fontWeight: 600,
                       color: profile.must_change_password ? '#d97706' : '#16a34a',
@@ -103,22 +102,22 @@ export default async function AdminUsersPage() {
                       {profile.must_change_password ? '대기중' : '완료'}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="가입일">
                     <span style={{ color: '#64748b', fontSize: '0.8125rem' }}>
                       {new Date(profile.created_at).toLocaleDateString('ko-KR')}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="역할 변경">
                     <RoleToggle userId={profile.id} currentRole={profile.role} isSelf={profile.id === user.id} />
                   </td>
-                  <td>
+                  <td data-label="PW초기화">
                     <ResetPasswordButton
                       userId={profile.id}
                       userEmail={email}
                       userName={profile.name ?? '-'}
                     />
                   </td>
-                  <td>
+                  <td data-label="삭제">
                     <DeleteUserButton userId={profile.id} userName={profile.name ?? profile.id} isSelf={profile.id === user.id} />
                   </td>
                 </tr>
@@ -126,7 +125,6 @@ export default async function AdminUsersPage() {
             })}
           </tbody>
         </table>
-        </div>
       </div>
     </div>
   )
