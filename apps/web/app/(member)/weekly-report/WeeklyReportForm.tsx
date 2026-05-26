@@ -181,6 +181,8 @@ export default function WeeklyReportForm({
     highlightTimerRef.current = setTimeout(() => setHighlightedKeys(new Set()), 4000)
   }, [rows])
 
+  const [invalidCategoryRows, setInvalidCategoryRows] = useState<Set<number>>(new Set())
+
   const hasExistingData = hasSavedData
 
   function handleReset() {
@@ -215,6 +217,14 @@ export default function WeeklyReportForm({
 
   function removeRow(idx: number) {
     setRows((prev) => prev.filter((_, i) => i !== idx))
+    setInvalidCategoryRows((prev) => {
+      const next = new Set<number>()
+      prev.forEach((i) => {
+        if (i < idx) next.add(i)
+        else if (i > idx) next.add(i - 1)
+      })
+      return next
+    })
   }
 
   function updateRow(idx: number, field: keyof Row, value: string) {
@@ -227,8 +237,23 @@ export default function WeeklyReportForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setPending(true)
     setSubmitError('')
+
+    // 구분 필수 검증 — 내용이 있는 행 중 구분이 빈 행만 차단 (actions.ts skip 조건과 동기화)
+    const isEmptyHtml = (v: string) => !v || v === '<p></p>' || v === '<p><br></p>' || !v.trim()
+    const emptyCategoryRows = new Set<number>()
+    rows.forEach((r, i) => {
+      const hasContent = !isEmptyHtml(r.performance) || !isEmptyHtml(r.plan) || !isEmptyHtml(r.issues)
+      if (!r.category.trim() && hasContent) emptyCategoryRows.add(i)
+    })
+    if (emptyCategoryRows.size > 0) {
+      setInvalidCategoryRows(emptyCategoryRows)
+      setSubmitError(`구분을 입력해 주세요 (${emptyCategoryRows.size}개 행)`)
+      return
+    }
+    setInvalidCategoryRows(new Set())
+
+    setPending(true)
 
     const formData = new FormData()
     formData.set('week_start', selectedWeek)
@@ -421,18 +446,31 @@ export default function WeeklyReportForm({
                       type="text"
                       list="category-list"
                       value={row.category}
-                      onChange={(e) => updateRow(idx, 'category', e.target.value)}
-                      placeholder="구분"
+                      onChange={(e) => {
+                        const value = e.target.value
+                        updateRow(idx, 'category', value)
+                        if (value.trim() && invalidCategoryRows.has(idx)) {
+                          setInvalidCategoryRows((prev) => {
+                            const next = new Set(prev)
+                            next.delete(idx)
+                            return next
+                          })
+                        }
+                      }}
+                      placeholder="구분 (필수)"
                       style={{
                         flex: 1,
-                        border: 'none',
+                        border: invalidCategoryRows.has(idx) ? '1px solid #ef4444' : 'none',
+                        borderRadius: invalidCategoryRows.has(idx) ? '0.375rem' : 0,
                         outline: 'none',
                         fontSize: '0.875rem',
                         fontWeight: 600,
                         color: '#0f172a',
-                        background: 'transparent',
+                        background: invalidCategoryRows.has(idx) ? '#fef2f2' : 'transparent',
                         fontFamily: 'inherit',
                         minWidth: 0,
+                        padding: invalidCategoryRows.has(idx) ? '0.25rem 0.375rem' : 0,
+                        transition: 'background 120ms, border-color 120ms',
                       }}
                     />
                     {rows.length > 1 && (
