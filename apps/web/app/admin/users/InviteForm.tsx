@@ -41,20 +41,20 @@ export default function InviteForm() {
           {result.msg}
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 160px auto', gap: '0.75rem', alignItems: 'end' }}>
-        <div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-end' }}>
+        <div style={{ flex: '1 1 180px', minWidth: 0 }}>
           <label className="label">이메일</label>
           <input name="email" type="email" required placeholder="team@example.com" className="input-field" />
         </div>
-        <div>
+        <div style={{ flex: '1 1 100px', minWidth: 0 }}>
           <label className="label">이름</label>
           <input name="name" type="text" required placeholder="홍길동" className="input-field" />
         </div>
-        <div>
+        <div style={{ flex: '1 1 130px', minWidth: 0 }}>
           <label className="label">임시 비밀번호</label>
           <input name="tempPassword" type="text" required minLength={6} placeholder="6자 이상" className="input-field" />
         </div>
-        <button type="submit" className="btn-primary" disabled={pending} style={{ whiteSpace: 'nowrap' }}>
+        <button type="submit" className="btn-primary" disabled={pending} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
           <UserPlus size={14} />
           {pending ? '생성 중...' : '계정 생성'}
         </button>

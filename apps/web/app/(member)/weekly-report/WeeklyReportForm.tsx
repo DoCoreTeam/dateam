@@ -266,12 +266,6 @@ export default function WeeklyReportForm({
 
   return (
     <>
-    <style>{`
-      @keyframes progress-indeterminate {
-        0%   { transform: translateX(-100%); }
-        100% { transform: translateX(400%); }
-      }
-    `}</style>
     <SpotlightOnboarding autoStart={isFirstTimeUser} />
 
     {/* 전체화면 AI 다듬기 로딩 오버레이 */}
@@ -396,8 +390,8 @@ export default function WeeklyReportForm({
       </datalist>
 
       {/* 테이블 */}
-      <div style={{ overflowX: 'auto', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+      <div className="report-form-wrap" style={{ overflowX: 'auto', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+        <table className="report-form-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: '500px' }}>
           <colgroup>
             <col style={{ width: '120px' }} />
             <col />
@@ -422,23 +416,37 @@ export default function WeeklyReportForm({
                   id={idx === 0 ? 'onboarding-category' : undefined}
                   style={{ padding: '0.75rem 0.875rem', verticalAlign: 'top', borderRight: '1px solid #f1f5f9' }}
                 >
-                  <input
-                    type="text"
-                    list="category-list"
-                    value={row.category}
-                    onChange={(e) => updateRow(idx, 'category', e.target.value)}
-                    placeholder="구분"
-                    style={{
-                      width: '100%',
-                      border: 'none',
-                      outline: 'none',
-                      fontSize: '0.875rem',
-                      fontWeight: 600,
-                      color: '#0f172a',
-                      background: 'transparent',
-                      fontFamily: 'inherit',
-                    }}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <input
+                      type="text"
+                      list="category-list"
+                      value={row.category}
+                      onChange={(e) => updateRow(idx, 'category', e.target.value)}
+                      placeholder="구분"
+                      style={{
+                        flex: 1,
+                        border: 'none',
+                        outline: 'none',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: '#0f172a',
+                        background: 'transparent',
+                        fontFamily: 'inherit',
+                        minWidth: 0,
+                      }}
+                    />
+                    {rows.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeRow(idx)}
+                        title="행 삭제"
+                        className="report-form-delete-mobile"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: '0.25rem', alignItems: 'center', flexShrink: 0 }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
                 </td>
                 {/* 성과 */}
                 <EditorCell
@@ -484,7 +492,7 @@ export default function WeeklyReportForm({
       </div>
 
       {/* 행 추가 + 초기화 + 저장 */}
-      <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
         <button
           type="button"
           onClick={addRow}
@@ -498,7 +506,7 @@ export default function WeeklyReportForm({
           <Plus size={14} />
           행 추가
         </button>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
           {hasExistingData && !showResetConfirm && (
             <button
               type="button"

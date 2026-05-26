@@ -111,17 +111,9 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
       </div>
 
       {/* 필터 + 전체 달성률 */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr auto',
-          gap: '1rem',
-          marginBottom: '1.5rem',
-          alignItems: 'stretch',
-        }}
-      >
+      <div className="responsive-grid-2" style={{ marginBottom: '1.5rem', alignItems: 'stretch' }}>
         <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
-          <form style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
+          <form style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div>
               <label htmlFor="week" className="label">주차 선택</label>
               <select
@@ -129,7 +121,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
                 name="week"
                 defaultValue={selectedWeek}
                 className="input-field"
-                style={{ width: '220px', cursor: 'pointer' }}
+                style={{ width: 'clamp(160px, 100%, 220px)', cursor: 'pointer' }}
               >
                 {weekOptions.map((w) => (
                   <option key={w} value={w}>

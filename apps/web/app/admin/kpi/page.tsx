@@ -109,14 +109,14 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
 
       {/* 기간 필터 */}
       <div className="card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
-        <form style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
+        <form style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div>
             <label htmlFor="period_start" className="label">기간 시작</label>
-            <input id="period_start" name="period_start" type="date" defaultValue={selectedStart} className="input-field" style={{ width: '160px' }} />
+            <input id="period_start" name="period_start" type="date" defaultValue={selectedStart} className="input-field" style={{ width: 'clamp(140px, 100%, 160px)' }} />
           </div>
           <div>
             <label htmlFor="period_end" className="label">기간 종료</label>
-            <input id="period_end" name="period_end" type="date" defaultValue={selectedEnd} className="input-field" style={{ width: '160px' }} />
+            <input id="period_end" name="period_end" type="date" defaultValue={selectedEnd} className="input-field" style={{ width: 'clamp(140px, 100%, 160px)' }} />
           </div>
           <button type="submit" className="btn-primary">조회</button>
         </form>
