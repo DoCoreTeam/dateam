@@ -151,6 +151,21 @@ export async function deleteDailyLog(id: string): Promise<{ ok: true } | { ok: f
   return { ok: true }
 }
 
+export async function getTodayPlannedCount(): Promise<number> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return 0
+
+  const today = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Seoul' })
+  const { count } = await (supabase.from('daily_logs') as any)
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('log_date', today)
+    .eq('entry_type', 'planned')
+
+  return count ?? 0
+}
+
 // 이월된 미완료 항목 조회 (오늘 기준 최근 7일, planned/doing/blocker 중 is_resolved=false)
 export async function getCarryoverLogs(today: string): Promise<DailyLog[]> {
   const supabase = await createClient()

@@ -47,6 +47,12 @@ export default function CalendarPage() {
   const today = new Date()
   const todayStr = toDateStr(today)
 
+  // 캘린더 방문 시 배지 소멸을 위한 cookie 설정
+  useEffect(() => {
+    const d = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Seoul' })
+    document.cookie = `calendar_seen_date=${d}; path=/; max-age=172800; SameSite=Lax`
+  }, [])
+
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
 
   // 월간

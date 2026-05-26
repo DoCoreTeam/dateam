@@ -11,6 +11,8 @@ import NameSetupModal from '@/components/ui/NameSetupModal'
 import RoutineCheckinGate from '@/components/ui/RoutineCheckinGate'
 import Link from 'next/link'
 import { getRoutineWeeklyStatus } from './routine/actions'
+import { getTodayPlannedCount } from './daily/actions'
+import { cookies } from 'next/headers'
 import {
   LayoutDashboard,
   CheckSquare,
@@ -56,7 +58,12 @@ export default async function MemberLayout({ children }: { children: React.React
   if (!user) redirect('/login')
 
   const adminClient = createAdminClient()
-  const [branding, profileResult, routineStatus] = await Promise.all([
+  const cookieStore = await cookies()
+  const todayStr = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Seoul' })
+  const calendarSeenDate = cookieStore.get('calendar_seen_date')?.value
+  const shouldCountCalendar = calendarSeenDate !== todayStr
+
+  const [branding, profileResult, routineStatus, calendarCount] = await Promise.all([
     getBranding(),
     adminClient
       .from('profiles')
@@ -64,16 +71,20 @@ export default async function MemberLayout({ children }: { children: React.React
       .eq('id', user.id)
       .single() as unknown as Promise<{ data: Pick<Profile, 'name' | 'role' | 'must_change_password'> | null; error: unknown }>,
     getRoutineWeeklyStatus(),
+    shouldCountCalendar ? getTodayPlannedCount() : Promise.resolve(0),
   ])
   const profile = profileResult.data
   const routineBadge = routineStatus?.pendingCount ?? 0
+  const calendarBadge = calendarCount
 
   const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
   const userEmail = user.email ?? ''
 
-  const navItemsWithBadge = NAV_ITEMS.map((item) =>
-    item.href === '/routine' ? { ...item, badge: routineBadge } : item
-  )
+  const navItemsWithBadge = NAV_ITEMS.map((item) => {
+    if (item.href === '/routine') return { ...item, badge: routineBadge }
+    if (item.href === '/calendar') return { ...item, badge: calendarBadge }
+    return item
+  })
 
   return (
     <>
