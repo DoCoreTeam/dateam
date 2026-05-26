@@ -39,6 +39,8 @@ export async function POST(req: NextRequest) {
   let skipped = 0
   const errors: string[] = []
 
+  const ALLOWED_SEGMENTS = new Set(['엔터프라이즈', 'SMB', '공공', '스타트업'])
+
   for (const intake of (intakes ?? [])) {
     const parsed = intake.parsed_data as ParsedLeadData
     if (!parsed?.company_name?.trim()) { skipped++; continue }
@@ -55,18 +57,20 @@ export async function POST(req: NextRequest) {
       let accountId: string | null = existingAccount?.id ?? null
 
       if (!accountId) {
+        const rawSegment = parsed.segment ?? null
+        const segment = rawSegment && ALLOWED_SEGMENTS.has(rawSegment) ? rawSegment : null
         const { data: newAccount, error: accErr } = await adm.from('accounts').insert({
           user_id: user.id,
           name: parsed.company_name.trim(),
           industry: parsed.industry ?? null,
-          segment: parsed.segment ?? null,
+          segment,
           size: parsed.size ?? null,
           region: parsed.region ?? null,
           website: parsed.website ?? null,
           phone: parsed.company_phone ?? null,
           address: parsed.address ?? null,
           fit_score: parsed.fit_score ?? null,
-          notes: parsed.deal_description ?? null,
+          description: parsed.deal_description ?? null,
         }).select('id').single()
         if (accErr) throw accErr
         accountId = newAccount.id
@@ -113,7 +117,7 @@ export async function POST(req: NextRequest) {
         contact_id: contactId,
         title: dealTitle,
         description: parsed.deal_description ?? parsed.product_recommendation ?? null,
-        stage: 'new',
+        stage: '신규',
         value: parsed.deal_value_billion ? parsed.deal_value_billion * 100000000 : null,
       })
       if (dealErr) throw dealErr
