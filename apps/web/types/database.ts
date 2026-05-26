@@ -133,6 +133,19 @@ export interface LeadIntake {
   updated_at: string
 }
 
+export type DailyLogEntryType = 'done' | 'doing' | 'planned' | 'blocker' | 'note'
+
+export interface DailyLog {
+  id: string
+  user_id: string
+  log_date: string
+  logged_at: string
+  content: string
+  entry_type: DailyLogEntryType
+  created_at: string
+  updated_at: string
+}
+
 export interface OrgContent {
   key: string
   value: Json
@@ -192,6 +205,20 @@ export interface Database {
         Relationships: [
           {
             foreignKeyName: 'routine_checks_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      daily_logs: {
+        Row: DailyLog
+        Insert: Omit<DailyLog, 'id' | 'logged_at' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<DailyLog, 'id' | 'user_id' | 'log_date' | 'created_at'>>
+        Relationships: [
+          {
+            foreignKeyName: 'daily_logs_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
             referencedRelation: 'profiles'

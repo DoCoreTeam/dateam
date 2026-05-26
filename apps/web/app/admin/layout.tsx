@@ -12,6 +12,7 @@ import {
   BarChart2,
   Settings2,
   SlidersHorizontal,
+  NotebookPen,
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import { getBranding } from '@/lib/branding'
@@ -19,6 +20,7 @@ import { getBranding } from '@/lib/branding'
 const ADMIN_NAV_ITEMS = [
   { href: '/admin/users', label: '사용자 관리', icon: <Users size={16} /> },
   { href: '/admin/reports', label: '주간보고 취합', icon: <FileText size={16} /> },
+  { href: '/admin/daily-logs', label: '일일로그', icon: <NotebookPen size={16} /> },
   { href: '/admin/routine', label: '루틴 현황', icon: <CheckSquare size={16} /> },
   { href: '/admin/kpi', label: 'KPI 집계', icon: <BarChart2 size={16} /> },
   { href: '/admin/content', label: '콘텐츠 관리', icon: <Settings2 size={16} /> },

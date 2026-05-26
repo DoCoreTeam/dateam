@@ -19,11 +19,13 @@ import {
   Users,
   TrendingUp,
   Inbox,
+  NotebookPen,
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: '대시보드', icon: <LayoutDashboard size={16} /> },
+  { href: '/daily', label: '일일로그', icon: <NotebookPen size={16} /> },
   { href: '/routine', label: '루틴 체크', icon: <CheckSquare size={16} /> },
   { href: '/kpi', label: 'KPI', icon: <BarChart2 size={16} /> },
   { href: '/weekly-report', label: '주간보고', icon: <FileText size={16} /> },
