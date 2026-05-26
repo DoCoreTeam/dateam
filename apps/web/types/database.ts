@@ -1,3 +1,22 @@
+export interface OAuthToken {
+  id: string
+  provider: string
+  access_token: string
+  refresh_token: string
+  token_expiry: string
+  account_email: string
+  updated_at: string
+}
+
+export interface OAuthTokenInsert {
+  provider: string
+  access_token: string
+  refresh_token: string
+  token_expiry: string
+  account_email: string
+  updated_at?: string
+}
+
 export interface Profile {
   id: string
   name: string
@@ -76,6 +95,7 @@ export interface Contact {
   mobile: string | null
   linkedin: string | null
   notes: string | null
+  business_card_drive_id: string | null
   created_at: string
   updated_at: string
 }
@@ -112,8 +132,8 @@ export interface DealActivity {
   created_at: string
 }
 
-export type LeadSource = 'prompt' | 'business_card' | 'file' | 'manual'
-export type LeadStatus = 'pending' | 'processing' | 'completed' | 'failed'
+export type LeadSource = 'prompt' | 'business_card' | 'file' | 'manual' | 'xlsx_bulk' | 'card_scan' | 'voice'
+export type LeadStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'crm_registered'
 
 export interface LeadIntake {
   id: string
@@ -262,6 +282,12 @@ export interface Database {
             referencedColumns: ['id']
           }
         ]
+      }
+      oauth_tokens: {
+        Row: OAuthToken
+        Insert: OAuthTokenInsert
+        Update: Partial<OAuthTokenInsert>
+        Relationships: []
       }
     }
     Views: {
