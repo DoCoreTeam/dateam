@@ -1,11 +1,15 @@
 import { signIn } from './actions'
+import { getBranding } from '@/lib/branding'
 
 interface LoginPageProps {
   searchParams: Promise<{ error?: string }>
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const { error } = await searchParams
+  const [{ error }, branding] = await Promise.all([
+    searchParams,
+    getBranding(),
+  ])
 
   return (
     <main
@@ -26,17 +30,26 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       >
         {/* 로고 영역 */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <h1
-            style={{
-              fontSize: '1.5rem',
-              fontWeight: 700,
-              color: '#0f172a',
-              letterSpacing: '-0.02em',
-              margin: 0,
-            }}
-          >
-            AX사업본부
-          </h1>
+          {branding.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={branding.logoUrl}
+              alt={branding.brandName}
+              style={{ maxHeight: '64px', maxWidth: '240px', objectFit: 'contain', margin: '0 auto 0.5rem' }}
+            />
+          ) : (
+            <h1
+              style={{
+                fontSize: '1.5rem',
+                fontWeight: 700,
+                color: '#0f172a',
+                letterSpacing: '-0.02em',
+                margin: 0,
+              }}
+            >
+              {branding.brandName}
+            </h1>
+          )}
           <p
             style={{
               fontSize: '0.875rem',

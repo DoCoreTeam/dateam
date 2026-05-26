@@ -13,9 +13,11 @@ interface NavItem {
 interface SidebarProps {
   items: NavItem[]
   footer?: React.ReactNode
+  logoUrl?: string | null
+  brandName?: string
 }
 
-export default function Sidebar({ items, footer }: SidebarProps) {
+export default function Sidebar({ items, footer, logoUrl, brandName = 'AX사업본부' }: SidebarProps) {
   const pathname = usePathname()
   const [hoveredHref, setHoveredHref] = useState<string | null>(null)
 
@@ -33,12 +35,26 @@ export default function Sidebar({ items, footer }: SidebarProps) {
       {/* 브랜드 */}
       <div
         style={{
-          padding: '1.5rem 1.25rem',
+          padding: '1.25rem 1.25rem',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex',
+          alignItems: 'center',
         }}
       >
-        <Link href="/dashboard" style={{ color: '#fff', fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.02em', textDecoration: 'none' }}>
-          AX사업본부
+        <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoUrl}
+              alt={brandName}
+              style={{ maxHeight: '32px', maxWidth: '160px', objectFit: 'contain' }}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+            />
+          ) : (
+            <span style={{ color: '#fff', fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+              {brandName}
+            </span>
+          )}
         </Link>
       </div>
 

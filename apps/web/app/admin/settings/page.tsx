@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { Key } from 'lucide-react'
+import { Key, Palette } from 'lucide-react'
 import GeminiSettings from './GeminiSettings'
+import BrandingSettings from './BrandingSettings'
+import { getBranding } from '@/lib/branding'
 
 const GEMINI_KEY = 'gemini_api_key'
 
@@ -17,7 +19,10 @@ export default async function AdminSettingsPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const adminClient = createAdminClient()
+  const [branding, adminClient] = await Promise.all([
+    getBranding(),
+    Promise.resolve(createAdminClient()),
+  ])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: metaData } = await (adminClient as any)
@@ -33,22 +38,33 @@ export default async function AdminSettingsPage() {
   const savedModel = (meta.gemini_model as string | undefined) ?? null
 
   return (
-    <div>
-      <div style={{ marginBottom: '1.75rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+      <div>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>
-          API 설정
+          시스템 설정
         </h1>
         <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>
-          외부 AI API 키를 관리합니다
+          브랜딩 및 외부 API를 관리합니다
         </p>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-        <Key size={15} color="#6366f1" />
-        <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>AI 모델 연동</h2>
-      </div>
+      {/* 브랜딩 설정 */}
+      <section>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+          <Palette size={15} color="#6366f1" />
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>브랜딩 설정</h2>
+        </div>
+        <BrandingSettings initialLogoUrl={branding.logoUrl} initialBrandName={branding.brandName} />
+      </section>
 
-      <GeminiSettings hasKey={hasKey} maskedKey={maskedKey} savedModel={savedModel} />
+      {/* API 설정 */}
+      <section>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+          <Key size={15} color="#6366f1" />
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>AI 모델 연동</h2>
+        </div>
+        <GeminiSettings hasKey={hasKey} maskedKey={maskedKey} savedModel={savedModel} />
+      </section>
     </div>
   )
 }

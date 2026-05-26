@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/ui/Sidebar'
 import SidebarProfile from '@/components/ui/SidebarProfile'
 import NavigationLoader from '@/components/ui/NavigationLoader'
+import { getBranding } from '@/lib/branding'
 import LogoutButton from '@/components/ui/LogoutButton'
 import PasswordChangeModal from '@/components/ui/PasswordChangeModal'
 import NameSetupModal from '@/components/ui/NameSetupModal'
@@ -57,11 +58,15 @@ export default async function MemberLayout({
   if (!user) redirect('/login')
 
   const adminClient = createAdminClient()
-  const { data: profile } = await adminClient
-    .from('profiles')
-    .select('name, role, must_change_password')
-    .eq('id', user.id)
-    .single() as unknown as { data: Pick<Profile, 'name' | 'role' | 'must_change_password'> | null; error: unknown }
+  const [branding, profileResult] = await Promise.all([
+    getBranding(),
+    adminClient
+      .from('profiles')
+      .select('name, role, must_change_password')
+      .eq('id', user.id)
+      .single() as unknown as Promise<{ data: Pick<Profile, 'name' | 'role' | 'must_change_password'> | null; error: unknown }>,
+  ])
+  const profile = profileResult.data
 
   const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
   const userEmail = user.email ?? ''
@@ -70,6 +75,8 @@ export default async function MemberLayout({
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Sidebar
         items={NAV_ITEMS}
+        logoUrl={branding.logoUrl}
+        brandName={branding.brandName}
         footer={<SidebarProfile name={displayName} email={userEmail} />}
       />
 
@@ -122,7 +129,7 @@ export default async function MemberLayout({
       </div>
       {profile?.must_change_password && <PasswordChangeModal />}
       {!profile?.must_change_password && !profile?.name && <NameSetupModal />}
-      <NavigationLoader orgName="AX사업본부" />
+      <NavigationLoader brandName={branding.brandName} logoUrl={branding.logoUrl} />
     </div>
   )
 }

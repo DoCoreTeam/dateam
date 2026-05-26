@@ -11,9 +11,10 @@ import {
   CheckSquare,
   BarChart2,
   Settings2,
-  Key,
+  SlidersHorizontal,
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
+import { getBranding } from '@/lib/branding'
 
 const ADMIN_NAV_ITEMS = [
   {
@@ -43,8 +44,8 @@ const ADMIN_NAV_ITEMS = [
   },
   {
     href: '/admin/settings',
-    label: 'API 설정',
-    icon: <Key size={16} />,
+    label: '시스템 설정',
+    icon: <SlidersHorizontal size={16} />,
   },
 ]
 
@@ -61,12 +62,16 @@ export default async function AdminLayout({
   if (!user) redirect('/login')
 
   const adminClient = createAdminClient()
-  const { data: profile } = await adminClient
-    .from('profiles')
-    .select('name, role, must_change_password')
-    .eq('id', user.id)
-    .is('deleted_at', null)
-    .single() as unknown as { data: Pick<Profile, 'name' | 'role' | 'must_change_password'> | null; error: unknown }
+  const [branding, profileResult] = await Promise.all([
+    getBranding(),
+    adminClient
+      .from('profiles')
+      .select('name, role, must_change_password')
+      .eq('id', user.id)
+      .is('deleted_at', null)
+      .single() as unknown as Promise<{ data: Pick<Profile, 'name' | 'role' | 'must_change_password'> | null; error: unknown }>,
+  ])
+  const profile = profileResult.data
 
   if (!profile || profile.role !== 'admin') redirect('/dashboard')
 
@@ -76,6 +81,8 @@ export default async function AdminLayout({
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Sidebar
         items={ADMIN_NAV_ITEMS}
+        logoUrl={branding.logoUrl}
+        brandName={branding.brandName}
         footer={
           <div
             style={{

@@ -4,10 +4,11 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 
 interface NavigationLoaderProps {
-  orgName: string
+  brandName: string
+  logoUrl?: string | null
 }
 
-export default function NavigationLoader({ orgName }: NavigationLoaderProps) {
+export default function NavigationLoader({ brandName, logoUrl }: NavigationLoaderProps) {
   const pathname = usePathname()
   const [loading, setLoading] = useState(false)
   const pendingRef = useRef(false)
@@ -38,7 +39,7 @@ export default function NavigationLoader({ orgName }: NavigationLoaderProps) {
 
   if (!loading) return null
 
-  const chars = orgName.split('')
+  const chars = brandName.split('')
 
   return (
     <div
@@ -57,23 +58,33 @@ export default function NavigationLoader({ orgName }: NavigationLoaderProps) {
       }}
     >
       <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem' }}>
-        <div
-          aria-hidden
-          style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '0.08em', userSelect: 'none' }}
-        >
-          {chars.map((ch, i) => (
-            <span
-              key={i}
-              style={{
-                display: 'inline-block',
-                animation: 'char-wave 1.8s ease-in-out infinite',
-                animationDelay: `${i * 0.12}s`,
-              }}
-            >
-              {ch === ' ' ? ' ' : ch}
-            </span>
-          ))}
-        </div>
+        {logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            aria-hidden
+            src={logoUrl}
+            alt={brandName}
+            style={{ maxHeight: '56px', maxWidth: '200px', objectFit: 'contain' }}
+          />
+        ) : (
+          <div
+            aria-hidden
+            style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '0.08em', userSelect: 'none' }}
+          >
+            {chars.map((ch, i) => (
+              <span
+                key={i}
+                style={{
+                  display: 'inline-block',
+                  animation: 'char-wave 1.8s ease-in-out infinite',
+                  animationDelay: `${i * 0.12}s`,
+                }}
+              >
+                {ch === ' ' ? ' ' : ch}
+              </span>
+            ))}
+          </div>
+        )}
 
         <div
           aria-hidden
