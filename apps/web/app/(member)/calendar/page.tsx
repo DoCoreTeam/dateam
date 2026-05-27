@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { DayLogSummary } from "../daily/actions";
@@ -73,6 +74,7 @@ function calDdayLabel(scheduledDate: string, todayStr: string): string | null {
 }
 
 export default function CalendarPage() {
+  const router = useRouter();
   const today = new Date();
   const todayStr = toDateStr(today);
 
@@ -332,6 +334,10 @@ export default function CalendarPage() {
                                 key={pi}
                                 className={`cal-preview-item cal-preview-${p.entry_type}`}
                                 title={`${t.label}: ${p.content}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(`/daily?date=${dateStr}`);
+                                }}
                               >
                                 <span className="cal-preview-type">
                                   {t.label}
