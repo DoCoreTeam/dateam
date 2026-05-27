@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useTransition } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
-import { getDailyLogs, addDailyLog, updateDailyLog, deleteDailyLog, getWeekLogs, getCarryoverLogs, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, addMultipleDailyLogs } from './actions'
+import { ChevronLeft, ChevronRight, Sparkles, MessageSquare } from 'lucide-react'
+import useSWR, { mutate } from 'swr'
+import { fetcher } from '@/lib/swr-config'
+import { addDailyLog, updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread } from './actions'
 import type { AiParsedItem } from './actions'
-import type { DailyLog, DailyLogEntryType } from '@/types/database'
+import type { DailyLog, DailyLogEntryType, DailyLogThread } from '@/types/database'
 
 const ENTRY_TYPES: { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[] = [
   { value: 'done',    label: '완료',   color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
@@ -49,8 +51,6 @@ export default function DailyPage() {
 
   // 일간 상태
   const [selectedDate, setSelectedDate] = useState(initialDate)
-  const [logs, setLogs] = useState<DailyLog[]>([])
-  const [loading, setLoading] = useState(true)
 
   // 주간 상태
   const [weekStart, setWeekStart] = useState(() => {
@@ -58,12 +58,20 @@ export default function DailyPage() {
     mon.setDate(mon.getDate() - 1) // 일요일부터
     return toDateStr(mon)
   })
-  const [weekLogs, setWeekLogs] = useState<DailyLog[]>([])
-  const [weekLoading, setWeekLoading] = useState(false)
 
-  // 이월 항목 상태
-  const [carryoverLogs, setCarryoverLogs] = useState<DailyLog[]>([])
-  const [carryoverLoading, setCarryoverLoading] = useState(false)
+  // SWR 훅 — 일간 로그
+  const dailyKey = viewMode === 'day' ? `/api/daily/logs?date=${selectedDate}` : null
+  const { data: logs = [], isLoading: loading } = useSWR<DailyLog[]>(dailyKey, fetcher)
+
+  // SWR 훅 — 이월 로그 (오늘만)
+  const carryoverKey = (viewMode === 'day' && selectedDate === today)
+    ? `/api/daily/carryover?today=${today}`
+    : null
+  const { data: carryoverLogs = [], isLoading: carryoverLoading } = useSWR<DailyLog[]>(carryoverKey, fetcher)
+
+  // SWR 훅 — 주간 로그
+  const weekKey = viewMode === 'week' ? `/api/daily/week?start=${weekStart}` : null
+  const { data: weekLogs = [], isLoading: weekLoading } = useSWR<DailyLog[]>(weekKey, fetcher)
 
   // 입력 상태
   const [content, setContent] = useState('')
@@ -82,41 +90,6 @@ export default function DailyPage() {
   const [aiError, setAiError] = useState('')
 
   const isToday = selectedDate === today
-
-  // 일간 로드
-  const loadLogs = async (date: string) => {
-    setLoading(true)
-    const data = await getDailyLogs(date)
-    setLogs(data)
-    setLoading(false)
-  }
-
-  // 이월 항목 로드 (오늘 뷰에서만)
-  const loadCarryover = async (date: string) => {
-    setCarryoverLoading(true)
-    const data = await getCarryoverLogs(date)
-    setCarryoverLogs(data)
-    setCarryoverLoading(false)
-  }
-
-  useEffect(() => {
-    if (viewMode === 'day') {
-      loadLogs(selectedDate)
-      if (selectedDate === today) loadCarryover(today)
-      else setCarryoverLogs([])
-    }
-  }, [selectedDate, viewMode])
-
-  // 주간 로드
-  useEffect(() => {
-    if (viewMode !== 'week') return
-    setWeekLoading(true)
-    startTransition(async () => {
-      const data = await getWeekLogs(weekStart)
-      setWeekLogs(data)
-      setWeekLoading(false)
-    })
-  }, [weekStart, viewMode])
 
   // debounce: 입력 중 간단 휴리스틱으로 항목 수 추정 (API 호출 없음)
   useEffect(() => {
@@ -192,7 +165,7 @@ export default function DailyPage() {
         setAiHintCount(0)
         setAiPanelOpen(false)
         setAiItems([])
-        await loadLogs(selectedDate)
+        await mutate(`/api/daily/logs?date=${selectedDate}`)
       } else {
         setAiError(result.error)
       }
@@ -202,21 +175,27 @@ export default function DailyPage() {
   const handleResolve = async (id: string) => {
     startTransition(async () => {
       await resolveCarryoverLog(id)
-      await Promise.all([loadLogs(selectedDate), loadCarryover(today)])
+      await Promise.all([
+        mutate(`/api/daily/logs?date=${selectedDate}`),
+        mutate(`/api/daily/carryover?today=${today}`),
+      ])
     })
   }
 
   const handleMoveToToday = async (id: string) => {
     startTransition(async () => {
       await moveCarryoverToToday(id, today)
-      await Promise.all([loadLogs(selectedDate), loadCarryover(today)])
+      await Promise.all([
+        mutate(`/api/daily/logs?date=${selectedDate}`),
+        mutate(`/api/daily/carryover?today=${today}`),
+      ])
     })
   }
 
   const handleIgnore = async (id: string) => {
     startTransition(async () => {
       await ignoreCarryoverLog(id)
-      await loadCarryover(today)
+      await mutate(`/api/daily/carryover?today=${today}`)
     })
   }
 
@@ -226,7 +205,7 @@ export default function DailyPage() {
       const result = await updateDailyLog(id, editContent, editType)
       if (result.ok) {
         setEditingId(null)
-        await loadLogs(selectedDate)
+        await mutate(`/api/daily/logs?date=${selectedDate}`)
       } else {
         setError(result.error)
       }
@@ -237,7 +216,7 @@ export default function DailyPage() {
     if (!confirm('이 항목을 삭제할까요?')) return
     startTransition(async () => {
       await deleteDailyLog(id)
-      await loadLogs(selectedDate)
+      await mutate(`/api/daily/logs?date=${selectedDate}`)
     })
   }
 
@@ -746,6 +725,9 @@ function LogList({
                       {type.label}
                     </span>
                     <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{formatTime(log.logged_at)}</span>
+                    {log.target_date && (
+                      <DdayBadge targetDate={log.target_date} today={toDateStr(new Date())} />
+                    )}
                   </div>
                   <p style={{
                     margin: 0, fontSize: '0.9375rem', color: '#1e293b',
@@ -905,6 +887,9 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
     setEditItems(items)
   }, [items])
 
+  // 같은 originGroupId를 공유하는 항목들이 있으면 묶음 배너 표시
+  const hasOriginGroup = editItems.length > 1 && editItems.some(i => i.originGroupId != null)
+
   const updateItem = (idx: number, patch: Partial<AiParsedItem>) => {
     setEditItems(prev => prev.map((item, i) => i === idx ? { ...item, ...patch } : item))
   }
@@ -948,6 +933,20 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
 
         {/* 컨텐츠 */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.25rem' }}>
+          {/* 같은 묶음 안내 배너 */}
+          {hasOriginGroup && !loading && (
+            <div style={{
+              background: '#f0f9ff', border: '1px solid #bae6fd',
+              borderRadius: '0.5rem', padding: '0.5rem 0.875rem',
+              marginBottom: '0.875rem',
+              fontSize: '0.8125rem', color: '#0369a1',
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+            }}>
+              <span>🔗</span>
+              <span>같은 입력에서 분리된 <strong>{editItems.length}개</strong> 항목 묶음입니다 — 개별 확인 후 함께 저장됩니다</span>
+            </div>
+          )}
+
           {error && (
             <div style={{
               background: '#fef2f2', border: '1px solid #fecaca',
@@ -1039,8 +1038,25 @@ interface AiItemCardProps {
   onChange: (patch: Partial<AiParsedItem>) => void
 }
 
+const CERTAINTY_LABEL: Record<string, string> = {
+  exact: 'AI 확정', inferred: 'AI 추정', none: '',
+}
+const CERTAINTY_COLOR: Record<string, string> = {
+  exact: '#7c3aed', inferred: '#d97706', none: '#94a3b8',
+}
+
+function DdayBadge({ targetDate, today }: { targetDate: string; today: string }) {
+  const diff = Math.round(
+    (new Date(targetDate + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000
+  )
+  if (diff === 0) return <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.2rem', padding: '0.1rem 0.3rem' }}>D-day</span>
+  if (diff > 0) return <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#7c3aed', background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: '0.2rem', padding: '0.1rem 0.3rem' }}>D-{diff}</span>
+  return <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '0.2rem', padding: '0.1rem 0.3rem' }}>D+{Math.abs(diff)}</span>
+}
+
 function AiItemCard({ item, onChange }: AiItemCardProps) {
   const statusInfo = ENTRY_MAP[item.status] ?? ENTRY_MAP['note']
+  const today = toDateStr(new Date())
 
   return (
     <div style={{
@@ -1089,14 +1105,38 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
           {Object.entries(PRIORITY_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
 
-        {/* 날짜 */}
-        {item.scheduledDate && (
+        {/* 타겟 날짜 (사용자 편집 가능) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>📅</span>
+          <input
+            type="date"
+            value={item.targetDate ?? ''}
+            onChange={(e) => onChange({ targetDate: e.target.value || null, targetDateCertainty: 'exact' })}
+            style={{
+              padding: '0.15rem 0.375rem', borderRadius: '0.25rem', fontSize: '0.75rem',
+              border: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569',
+              cursor: 'pointer', outline: 'none',
+            }}
+          />
+          {item.targetDate && item.targetDateCertainty !== 'none' && (
+            <span style={{
+              fontSize: '0.65rem', color: CERTAINTY_COLOR[item.targetDateCertainty] ?? '#94a3b8',
+              fontStyle: 'italic',
+            }}>
+              {CERTAINTY_LABEL[item.targetDateCertainty]}
+            </span>
+          )}
+          {item.targetDate && <DdayBadge targetDate={item.targetDate} today={today} />}
+        </div>
+
+        {/* 예약 시간 */}
+        {item.scheduledTime && (
           <span style={{
             fontSize: '0.75rem', color: '#7c3aed', background: '#f5f3ff',
             border: '1px solid #ddd6fe', borderRadius: '0.25rem',
             padding: '0.2rem 0.5rem',
           }}>
-            📅 {item.scheduledDate}{item.scheduledTime ? ` ${item.scheduledTime}` : ''}
+            ⏰ {item.scheduledTime}
           </span>
         )}
 
@@ -1121,6 +1161,17 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
             👤 {item.contactName}
           </span>
         )}
+
+        {/* AI 태그 */}
+        {item.tags?.map(tag => (
+          <span key={tag} style={{
+            fontSize: '0.7rem', color: '#6366f1', background: '#eef2ff',
+            border: '1px solid #c7d2fe', borderRadius: '0.25rem',
+            padding: '0.1rem 0.375rem',
+          }}>
+            #{tag}
+          </span>
+        ))}
       </div>
     </div>
   )
