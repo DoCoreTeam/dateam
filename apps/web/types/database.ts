@@ -206,6 +206,8 @@ export interface DailyLog {
   origin_group_id: string | null
   parent_log_id: string | null
   source_type: DailyLogSourceType | null
+  // AI 파생 관계 설명 (023 migration)
+  flow_reason: string | null
   created_at: string
   updated_at: string
 }
