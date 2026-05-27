@@ -353,138 +353,182 @@ export default function DailyPage() {
             </button>
           </div>
 
-          {/* 입력 폼 */}
-          <div className="daily-compose-card">
-              <div className="daily-type-row">
-                {ENTRY_TYPES.map((t) => (
+          <div className="responsive-grid-2">
+            {/* 좌측 메인 영역: 입력 폼 및 업무 타임라인 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', minWidth: 0 }}>
+              {/* 입력 폼 */}
+              <div className="daily-compose-card">
+                <div className="daily-type-row">
+                  {ENTRY_TYPES.map((t) => (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => setEntryType(t.value)}
+                      className="daily-type-chip"
+                      style={{
+                        fontWeight: entryType === t.value ? 700 : 500,
+                        border: `1px solid ${entryType === t.value ? t.border : '#e2e8f0'}`,
+                        background: entryType === t.value ? t.bg : '#f8fafc',
+                        color: entryType === t.value ? t.color : '#64748b',
+                      }}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="daily-compose-row">
+                  <textarea
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault()
+                        handleAiSave()
+                      }
+                    }}
+                    placeholder="업무 내용 자유롭게 입력 — AI가 분류해드립니다 (Ctrl+Enter)"
+                    rows={2}
+                    className="daily-compose-textarea"
+                  />
                   <button
-                    key={t.value}
                     type="button"
-                    onClick={() => setEntryType(t.value)}
-                    className="daily-type-chip"
+                    onClick={handleAiSave}
+                    disabled={aiLoading || !content.trim()}
+                    className="daily-ai-save"
                     style={{
-                      fontWeight: entryType === t.value ? 700 : 500,
-                      border: `1px solid ${entryType === t.value ? t.border : '#e2e8f0'}`,
-                      background: entryType === t.value ? t.bg : '#f8fafc',
-                      color: entryType === t.value ? t.color : '#64748b',
+                      background: aiLoading ? '#94a3b8' : 'linear-gradient(135deg, #6366f1, #3b82f6)',
+                      cursor: aiLoading || !content.trim() ? 'not-allowed' : 'pointer',
+                      opacity: !content.trim() ? 0.5 : 1, height: '2.5rem',
                     }}
                   >
-                    {t.label}
+                    <span className="daily-ai-save-label">
+                      {!aiLoading && <Sparkles size={14} strokeWidth={2.4} />}
+                      {aiLoading ? '분석중' : 'AI 저장'}
+                    </span>
+                    {!aiLoading && <span style={{ fontSize: '0.6rem', opacity: 0.75 }}>Ctrl+↵</span>}
                   </button>
-                ))}
-              </div>
-              <div className="daily-compose-row">
-                <textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                      e.preventDefault()
-                      handleAiSave()
-                    }
-                  }}
-                  placeholder="업무 내용 자유롭게 입력 — AI가 분류해드립니다 (Ctrl+Enter)"
-                  rows={2}
-                  className="daily-compose-textarea"
-                />
-                <button
-                  type="button"
-                  onClick={handleAiSave}
-                  disabled={aiLoading || !content.trim()}
-                  className="daily-ai-save"
-                  style={{
-                    background: aiLoading ? '#94a3b8' : 'linear-gradient(135deg, #6366f1, #3b82f6)',
-                    cursor: aiLoading || !content.trim() ? 'not-allowed' : 'pointer',
-                    opacity: !content.trim() ? 0.5 : 1, height: '2.5rem',
-                  }}
-                >
-                  <span className="daily-ai-save-label">
-                    {!aiLoading && <Sparkles size={14} strokeWidth={2.4} />}
-                    {aiLoading ? '분석중' : 'AI 저장'}
-                  </span>
-                  {!aiLoading && <span style={{ fontSize: '0.6rem', opacity: 0.75 }}>Ctrl+↵</span>}
-                </button>
-              </div>
-              {content.trim() && aiHintCount > 0 && !aiPanelOpen && (
-                <p style={{ color: '#6366f1', fontSize: '0.8rem', margin: '0.5rem 0 0', opacity: 0.8 }}>
-                  ✨ {aiHintCount}개 항목 감지됨
-                </p>
-              )}
-              {error && (
-                <p style={{ color: '#dc2626', fontSize: '0.8125rem', margin: '0.5rem 0 0' }}>{error}</p>
-              )}
-            </div>
-
-          {/* AI 결과 패널 */}
-          {aiPanelOpen && (
-            <AiResultPanel
-              items={aiItems}
-              loading={aiLoading}
-              error={aiError}
-              originalText={content}
-              onReanalyze={handleAiSave}
-              onConfirm={handleAiConfirm}
-              onClose={() => { setAiPanelOpen(false); setAiItems([]) }}
-              isPending={isPending}
-            />
-          )}
-
-          {/* 이월된 미완료 항목 (오늘만 표시) */}
-          {isToday && (carryoverLoading || carryoverLogs.length > 0) && (
-            <div style={{ marginBottom: '1.25rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.625rem' }}>
-                <span style={{
-                  fontSize: '0.75rem', fontWeight: 700,
-                  color: '#92400e', background: '#fffbeb',
-                  border: '1px solid #fde68a',
-                  padding: '0.15rem 0.5rem', borderRadius: '0.25rem',
-                }}>
-                  이월된 미완료
-                </span>
-                {!carryoverLoading && (
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{carryoverLogs.length}건</span>
+                </div>
+                {content.trim() && aiHintCount > 0 && !aiPanelOpen && (
+                  <p style={{ color: '#6366f1', fontSize: '0.8rem', margin: '0.5rem 0 0', opacity: 0.8 }}>
+                    ✨ {aiHintCount}개 항목 감지됨
+                  </p>
+                )}
+                {error && (
+                  <p style={{ color: '#dc2626', fontSize: '0.8125rem', margin: '0.5rem 0 0' }}>{error}</p>
                 )}
               </div>
-              {carryoverLoading ? (
-                <div style={{ color: '#94a3b8', fontSize: '0.875rem', paddingLeft: '0.5rem' }}>로딩 중...</div>
-              ) : (
-                <CarryoverList
-                  logs={carryoverLogs}
+
+              {/* AI 결과 패널 */}
+              {aiPanelOpen && (
+                <AiResultPanel
+                  items={aiItems}
+                  loading={aiLoading}
+                  error={aiError}
+                  originalText={content}
+                  onReanalyze={handleAiSave}
+                  onConfirm={handleAiConfirm}
+                  onClose={() => { setAiPanelOpen(false); setAiItems([]) }}
                   isPending={isPending}
-                  onResolve={handleResolve}
-                  onMoveToToday={handleMoveToToday}
-                  onIgnore={handleIgnore}
+                />
+              )}
+
+              {/* 타임라인 */}
+              {loading ? (
+                <div style={{ textAlign: 'center', color: '#94a3b8', padding: '3rem 0' }}>로딩 중...</div>
+              ) : logs.length === 0 ? (
+                <div style={{
+                  textAlign: 'center', color: '#94a3b8', padding: '3rem 0',
+                  border: '1px dashed #e2e8f0', borderRadius: '0.75rem',
+                }}>
+                  {isToday ? '오늘 첫 업무 로그를 작성해 보세요.' : '이 날의 업무 로그가 없습니다.'}
+                </div>
+              ) : (
+                <LogList
+                  logs={logs}
+                  isToday={isToday}
+                  editingId={editingId}
+                  editContent={editContent}
+                  editType={editType}
+                  isPending={isPending}
+                  onStartEdit={(log) => { setEditingId(log.id); setEditContent(log.content); setEditType(log.entry_type) }}
+                  onCancelEdit={() => setEditingId(null)}
+                  onUpdate={handleUpdate}
+                  onDelete={handleDelete}
+                  onEditContentChange={setEditContent}
+                  onEditTypeChange={setEditType}
                 />
               )}
             </div>
-          )}
 
-          {/* 타임라인 */}
-          {loading ? (
-            <div style={{ textAlign: 'center', color: '#94a3b8', padding: '3rem 0' }}>로딩 중...</div>
-          ) : logs.length === 0 ? (
-            <div style={{
-              textAlign: 'center', color: '#94a3b8', padding: '3rem 0',
-              border: '1px dashed #e2e8f0', borderRadius: '0.75rem',
-            }}>
-              {isToday ? '오늘 첫 업무 로그를 작성해 보세요.' : '이 날의 업무 로그가 없습니다.'}
+            {/* 우측 사이드 영역: 이월 업무 및 오늘의 현황 통계 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* 이월된 미완료 항목 (오늘만 표시) */}
+              {isToday && (carryoverLoading || carryoverLogs.length > 0) && (
+                <div className="carryover-card">
+                  <div className="carryover-header">
+                    <h3 className="carryover-title">이월된 미완료 업무</h3>
+                    {!carryoverLoading && (
+                      <span className="badge badge-indigo" style={{ fontSize: '0.725rem' }}>
+                        {carryoverLogs.length}건
+                      </span>
+                    )}
+                  </div>
+                  {carryoverLoading ? (
+                    <div style={{ color: '#94a3b8', fontSize: '0.875rem', padding: '0.5rem 0' }}>로딩 중...</div>
+                  ) : (
+                    <CarryoverList
+                      logs={carryoverLogs}
+                      isPending={isPending}
+                      onResolve={handleResolve}
+                      onMoveToToday={handleMoveToToday}
+                      onIgnore={handleIgnore}
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* 오늘의 업무 현황 통계 카드 */}
+              <div className="daily-stats-card">
+                <div className="daily-stats-header">
+                  <h3 className="daily-stats-title">업무 현황 요약</h3>
+                  {logs.length > 0 && (
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 550 }}>
+                      총 {logs.length}개 로그
+                    </span>
+                  )}
+                </div>
+                
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
+                  <span style={{ fontSize: '0.8125rem', color: '#64748b', fontWeight: 500 }}>완료율</span>
+                  <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#10b981' }}>
+                    {logs.length > 0 ? Math.round((logs.filter(l => l.entry_type === 'done').length / logs.length) * 100) : 0}%
+                  </span>
+                </div>
+                
+                <div className="daily-stats-progress-bg">
+                  <div 
+                    className="daily-stats-progress-bar" 
+                    style={{ width: `${logs.length > 0 ? Math.round((logs.filter(l => l.entry_type === 'done').length / logs.length) * 100) : 0}%` }} 
+                  />
+                </div>
+                
+                <div className="daily-stats-grid">
+                  <div className="daily-stats-item doing">
+                    <div className="daily-stats-item-label">진행중</div>
+                    <div className="daily-stats-item-val">{logs.filter(l => l.entry_type === 'doing').length}</div>
+                  </div>
+                  <div className="daily-stats-item planned">
+                    <div className="daily-stats-item-label">예정</div>
+                    <div className="daily-stats-item-val">{logs.filter(l => l.entry_type === 'planned').length}</div>
+                  </div>
+                  <div className="daily-stats-item blocker">
+                    <div className="daily-stats-item-label">블로커</div>
+                    <div className="daily-stats-item-val">{logs.filter(l => l.entry_type === 'blocker').length}</div>
+                  </div>
+                </div>
+              </div>
             </div>
-          ) : (
-            <LogList
-              logs={logs}
-              isToday={isToday}
-              editingId={editingId}
-              editContent={editContent}
-              editType={editType}
-              isPending={isPending}
-              onStartEdit={(log) => { setEditingId(log.id); setEditContent(log.content); setEditType(log.entry_type) }}
-              onCancelEdit={() => setEditingId(null)}
-              onUpdate={handleUpdate}
-              onDelete={handleDelete}
-              onEditContentChange={setEditContent}
-              onEditTypeChange={setEditType}
-            />
-          )}
+          </div>
         </>
       )}
 
