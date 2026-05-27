@@ -646,10 +646,15 @@ export default function DailyPage() {
                         {dayLogs.map((log) => {
                           const t = ENTRY_MAP[log.entry_type]
                           return (
-                            <div key={log.id} style={{
-                              display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
-                              paddingLeft: '0.5rem', borderLeft: `2px solid ${t.color}`,
-                            }}>
+                            <div
+                              key={log.id}
+                              onClick={() => { setViewMode('day'); setSelectedDate(dateStr) }}
+                              style={{
+                                display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                                paddingLeft: '0.5rem', borderLeft: `2px solid ${t.color}`,
+                                cursor: 'pointer',
+                              }}
+                            >
                               <span style={{
                                 fontSize: '0.6875rem', fontWeight: 700, color: t.color,
                                 background: t.bg, border: `1px solid ${t.border}`,
@@ -718,12 +723,16 @@ function LogList({
 
         return (
           <div key={log.id}>
-            <div style={{
-              background: '#fff', border: '1px solid #e2e8f0',
-              borderLeft: `3px solid ${type.color}`,
-              borderRadius: threadOpen ? '0 0.5rem 0 0' : '0 0.5rem 0.5rem 0',
-              padding: '0.75rem 1rem',
-            }}>
+            <div
+              onClick={() => { if (!isEditing) setFlowLog(log) }}
+              style={{
+                background: '#fff', border: '1px solid #e2e8f0',
+                borderLeft: `3px solid ${type.color}`,
+                borderRadius: threadOpen ? '0 0.5rem 0 0' : '0 0.5rem 0.5rem 0',
+                padding: '0.75rem 1rem',
+                cursor: isEditing ? 'default' : 'pointer',
+              }}
+            >
               {isEditing ? (
                 <div>
                   <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '0.625rem' }}>
@@ -791,7 +800,10 @@ function LogList({
                       {log.content}
                     </p>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0, alignItems: 'center' }}>
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ display: 'flex', gap: '0.25rem', flexShrink: 0, alignItems: 'center' }}
+                  >
                     <button
                       onClick={() => setOpenThreadId(threadOpen ? null : log.id)}
                       style={{
