@@ -33,8 +33,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await (supabase.from('daily_logs') as any)
     .select('log_date, entry_type, content, target_date')
     .eq('user_id', user.id)
-    .gte('log_date', from)
-    .lte('log_date', to)
+    .or(`and(log_date.gte.${from},log_date.lte.${to}),and(target_date.gte.${from},target_date.lte.${to})`)
     .order('log_date', { ascending: true })
     .order('logged_at', { ascending: true })
     .limit(MONTH_LIMIT)
@@ -45,22 +44,34 @@ export async function GET(req: NextRequest) {
   }
   if (data?.length === MONTH_LIMIT) console.warn('[api/calendar/month] limit reached')
 
+  type RowType = { log_date: string; entry_type: DailyLogEntryType; content: string; target_date: string | null }
+
   const map = new Map<string, DayLogSummary>()
-  for (const row of (data ?? []) as { log_date: string; entry_type: DailyLogEntryType; content: string; target_date: string | null }[]) {
-    if (!map.has(row.log_date)) {
-      map.set(row.log_date, {
-        date: row.log_date,
+
+  const addToDay = (date: string, row: RowType) => {
+    if (!map.has(date)) {
+      map.set(date, {
+        date,
         total: 0,
         hasBlocker: false,
         counts: { done: 0, doing: 0, planned: 0, blocker: 0, note: 0 },
         preview: [],
       })
     }
-    const s = map.get(row.log_date)!
+    const s = map.get(date)!
     s.total++
     s.counts[row.entry_type]++
     if (row.entry_type === 'blocker') s.hasBlocker = true
     if (s.preview.length < 2) s.preview.push({ entry_type: row.entry_type, content: row.content, target_date: row.target_date ?? null })
+  }
+
+  for (const row of (data ?? []) as RowType[]) {
+    if (row.log_date >= from && row.log_date <= to) {
+      addToDay(row.log_date, row)
+    }
+    if (row.target_date && row.target_date !== row.log_date && row.target_date >= from && row.target_date <= to) {
+      addToDay(row.target_date, row)
+    }
   }
 
   const result = Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date))

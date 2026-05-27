@@ -3,6 +3,8 @@
 import { useState, useEffect, useTransition } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Sparkles, MessageSquare } from 'lucide-react'
+import { KnowledgeGraphView } from './KnowledgeGraphView'
+import { LogFlowView } from './LogFlowView'
 import useSWR, { mutate } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread } from './actions'
@@ -686,9 +688,11 @@ function LogList({
   onStartEdit, onCancelEdit, onUpdate, onDelete, onEditContentChange, onEditTypeChange,
 }: LogListProps) {
   const [openThreadId, setOpenThreadId] = useState<string | null>(null)
+  const [flowLog, setFlowLog] = useState<DailyLog | null>(null)
   const todayStr = toDateStr(new Date())
 
   return (
+    <>
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       {logs.map((log) => {
         const type = ENTRY_MAP[log.entry_type]
@@ -782,6 +786,11 @@ function LogList({
                     >
                       <MessageSquare size={13} strokeWidth={2} />
                     </button>
+                    <button
+                      onClick={() => setFlowLog(log)}
+                      style={{ ...iconBtn, color: '#64748b' }}
+                      title="플로우"
+                    >🌊</button>
                     {isToday && (
                       <>
                         <button onClick={() => onStartEdit(log)} style={iconBtn}>수정</button>
@@ -797,6 +806,8 @@ function LogList({
         )
       })}
     </div>
+    {flowLog && <LogFlowView log={flowLog} allLogs={logs} onClose={() => setFlowLog(null)} />}
+    </>
   )
 }
 
@@ -1490,172 +1501,3 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
   )
 }
 
-/* ─── 지식그래프 뷰 ─── */
-
-interface GraphNode {
-  id: string
-  label: string
-  type: DailyLogEntryType
-  x: number
-  y: number
-  originGroupId: string | null
-}
-
-function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
-  const W = 560
-  const H = 400
-  const R = 18
-
-  // origin_group_id 기준으로 묶음 색상 할당
-  const groupColors: Record<string, string> = {}
-  const GROUP_PALETTE = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6']
-  let groupIdx = 0
-  for (const log of logs) {
-    if (log.origin_group_id && !(log.origin_group_id in groupColors)) {
-      groupColors[log.origin_group_id] = GROUP_PALETTE[groupIdx % GROUP_PALETTE.length]
-      groupIdx++
-    }
-  }
-
-  // origin_group 기준으로 정렬하여 같은 그룹 노드가 원 위에서 인접하도록 배치
-  const sortedLogs = [...logs].sort((a, b) => {
-    const ga = a.origin_group_id ?? 'zzz'
-    const gb = b.origin_group_id ?? 'zzz'
-    return ga < gb ? -1 : ga > gb ? 1 : 0
-  })
-
-  const cx = W / 2
-  const cy = H / 2 - 10
-  const radius = Math.min(W, H) / 2 - R - 32
-
-  const nodeMap = new Map<string, GraphNode>()
-  const nodes: GraphNode[] = sortedLogs.map((log, i) => {
-    const angle = (2 * Math.PI * i) / sortedLogs.length - Math.PI / 2
-    const node: GraphNode = {
-      id: log.id,
-      label: log.content.slice(0, 18) + (log.content.length > 18 ? '…' : ''),
-      type: log.entry_type,
-      x: cx + radius * Math.cos(angle),
-      y: cy + radius * Math.sin(angle),
-      originGroupId: log.origin_group_id,
-    }
-    nodeMap.set(log.id, node)
-    return node
-  })
-
-  // origin_group_id가 같은 노드끼리 점선 엣지 (AI 묶음)
-  const groupEdges: { x1: number; y1: number; x2: number; y2: number; color: string }[] = []
-  const groupMap = new Map<string, GraphNode[]>()
-  for (const n of nodes) {
-    if (n.originGroupId) {
-      if (!groupMap.has(n.originGroupId)) groupMap.set(n.originGroupId, [])
-      groupMap.get(n.originGroupId)!.push(n)
-    }
-  }
-  groupMap.forEach((members, gid) => {
-    const color = groupColors[gid] ?? '#94a3b8'
-    for (let i = 0; i < members.length - 1; i++) {
-      groupEdges.push({ x1: members[i].x, y1: members[i].y, x2: members[i + 1].x, y2: members[i + 1].y, color })
-    }
-  })
-
-  // parent_log_id 엣지 (실선 오렌지, 화살표)
-  const parentEdges: { x1: number; y1: number; x2: number; y2: number }[] = []
-  for (const log of logs) {
-    if (log.parent_log_id) {
-      const parent = nodeMap.get(log.parent_log_id)
-      const child = nodeMap.get(log.id)
-      if (parent && child) {
-        parentEdges.push({ x1: parent.x, y1: parent.y, x2: child.x, y2: child.y })
-      }
-    }
-  }
-
-  return (
-    <div style={{
-      border: '1px solid #e2e8f0', borderRadius: '0.75rem',
-      background: '#fafafa', overflow: 'hidden',
-    }}>
-      <div style={{
-        padding: '0.625rem 1rem', borderBottom: '1px solid #e2e8f0',
-        fontSize: '0.8125rem', fontWeight: 600, color: '#475569',
-        display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
-      }}>
-        <span>🔗 당일 업무 관계도</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', color: '#64748b', fontWeight: 400 }}>
-          <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#6366f1" strokeWidth="1.5" strokeDasharray="4 3" /></svg>
-          AI 묶음
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', color: '#64748b', fontWeight: 400 }}>
-          <svg width="20" height="8"><line x1="0" y1="4" x2="16" y2="4" stroke="#f97316" strokeWidth="1.5" /><polygon points="16,1 20,4 16,7" fill="#f97316" /></svg>
-          스레드 파생
-        </span>
-      </div>
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', maxHeight: `${H}px` }}>
-        <defs>
-          <marker id="arrowOrange" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-            <polygon points="0,0 6,3 0,6" fill="#f97316" />
-          </marker>
-        </defs>
-
-        {/* 묶음 엣지 (AI origin_group — 점선) */}
-        {groupEdges.map((e, i) => (
-          <line
-            key={`g${i}`}
-            x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
-            stroke={e.color} strokeWidth={1.5} strokeOpacity={0.4} strokeDasharray="4 3"
-          />
-        ))}
-
-        {/* 스레드 파생 엣지 (parent_log_id — 실선 오렌지 화살표) */}
-        {parentEdges.map((e, i) => {
-          const dx = e.x2 - e.x1
-          const dy = e.y2 - e.y1
-          const len = Math.sqrt(dx * dx + dy * dy)
-          if (len === 0) return null
-          const ux = dx / len
-          const uy = dy / len
-          const x1 = e.x1 + ux * R
-          const y1 = e.y1 + uy * R
-          const x2 = e.x2 - ux * (R + 6)
-          const y2 = e.y2 - uy * (R + 6)
-          return (
-            <line
-              key={`p${i}`}
-              x1={x1} y1={y1} x2={x2} y2={y2}
-              stroke="#f97316" strokeWidth={2} strokeOpacity={0.8}
-              markerEnd="url(#arrowOrange)"
-            />
-          )
-        })}
-
-        {/* 노드 */}
-        {nodes.map((n) => {
-          const t = ENTRY_MAP[n.type]
-          const groupColor = n.originGroupId ? (groupColors[n.originGroupId] ?? '#e2e8f0') : '#e2e8f0'
-          return (
-            <g key={n.id}>
-              <title>{n.label}</title>
-              {/* 묶음 링 */}
-              {n.originGroupId && (
-                <circle cx={n.x} cy={n.y} r={R + 4} fill="none" stroke={groupColor} strokeWidth={2} strokeOpacity={0.4} />
-              )}
-              {/* 노드 원 */}
-              <circle cx={n.x} cy={n.y} r={R} fill={t.bg} stroke={t.color} strokeWidth={2} />
-              {/* 상태 초성 */}
-              <text x={n.x} y={n.y + 1} textAnchor="middle" dominantBaseline="middle"
-                fontSize="9" fontWeight="700" fill={t.color}>
-                {t.label.slice(0, 2)}
-              </text>
-              {/* 레이블 */}
-              <text x={n.x} y={n.y + R + 12} textAnchor="middle"
-                fontSize="9" fill="#475569" style={{ pointerEvents: 'none' }}>
-                {n.label}
-              </text>
-            </g>
-          )
-        })}
-      </svg>
-    </div>
-  )
-}

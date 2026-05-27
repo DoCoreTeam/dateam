@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { getDailyLogs } from '../daily/actions'
+import { getCalendarDayLogs } from '../daily/actions'
 import type { DailyLog, DailyLogEntryType } from '@/types/database'
 
 const ENTRY_TYPES: Record<DailyLogEntryType, { label: string; color: string; bg: string; border: string }> = {
@@ -38,7 +38,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
 
   useEffect(() => {
     setLoading(true)
-    getDailyLogs(date).then((data) => {
+    getCalendarDayLogs(date).then((data) => {
       setLogs(data)
       setLoading(false)
     })
@@ -142,6 +142,15 @@ export default function DayDetailPanel({ date, onClose }: Props) {
                         <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                           {formatTime(log.logged_at)}
                         </span>
+                        {log.log_date !== date && (
+                          <span style={{
+                            fontSize: '0.65rem', color: '#6366f1',
+                            background: '#eef2ff', border: '1px solid #c7d2fe',
+                            padding: '0.05rem 0.35rem', borderRadius: '0.25rem',
+                          }}>
+                            작성 {log.log_date}
+                          </span>
+                        )}
                       </div>
                       <p style={{
                         margin: 0, fontSize: '0.875rem', color: '#1e293b',

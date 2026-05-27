@@ -129,6 +129,24 @@ export async function getDailyLogs(date: string): Promise<DailyLog[]> {
   return (data ?? []) as DailyLog[]
 }
 
+// 캘린더 날짜 클릭용 — log_date OR target_date가 해당 날짜인 로그 모두 반환
+export async function getCalendarDayLogs(date: string): Promise<DailyLog[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data } = await (supabase.from('daily_logs') as any)
+    .select('*')
+    .eq('user_id', user.id)
+    .or(`log_date.eq.${date},target_date.eq.${date}`)
+    .order('logged_at', { ascending: true })
+    .limit(500)
+
+  const rows = (data ?? []) as DailyLog[]
+  // 동일 id 중복 제거 (log_date=date AND target_date=date인 경우)
+  return Array.from(new Map(rows.map(r => [r.id, r])).values())
+}
+
 export async function addDailyLog(
   content: string,
   entryType: DailyLogEntryType,
