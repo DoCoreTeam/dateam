@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Sparkles, MessageSquare } from 'lucide-react'
 import { KnowledgeGraphView } from './KnowledgeGraphView'
@@ -61,6 +61,22 @@ export default function DailyPage() {
     mon.setDate(mon.getDate() - 1) // 일요일부터
     return toDateStr(mon)
   })
+
+  // URL date 파라미터 변경 감지 → selectedDate 동기화
+  // ref로 마지막 동기화 날짜를 추적해 사용자 뷰 전환(주간↔일간)을 덮어쓰지 않음
+  const lastSyncedDate = useRef<string | null>(initialDate !== today ? initialDate : null)
+  const dateParam = searchParams.get('date')
+  useEffect(() => {
+    if (
+      dateParam &&
+      dateParam !== lastSyncedDate.current &&
+      /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
+    ) {
+      lastSyncedDate.current = dateParam
+      setSelectedDate(dateParam)
+      setViewMode('day')
+    }
+  }, [dateParam])
 
   // SWR 훅 — 일간 로그
   const dailyKey = viewMode === 'day' ? `/api/daily/logs?date=${selectedDate}` : null
