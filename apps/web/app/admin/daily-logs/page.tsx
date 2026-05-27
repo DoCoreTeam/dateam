@@ -57,11 +57,13 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
     .order('name') as unknown as { data: Pick<Profile, 'id' | 'name'>[] | null; error: unknown }
 
   // 로그 쿼리
+  const ADMIN_LOG_LIMIT = 2000
   let query = (supabase.from('daily_logs') as any)
     .select('*, profiles!inner(name)')
     .eq('log_date', selectedDate)
     .order('user_id')
     .order('logged_at', { ascending: true })
+    .limit(ADMIN_LOG_LIMIT)
 
   if (selectedUser) query = query.eq('user_id', selectedUser)
   if (selectedType) query = query.eq('entry_type', selectedType)

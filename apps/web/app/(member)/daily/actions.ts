@@ -35,12 +35,19 @@ export async function getMonthLogSummary(year: number, month: number): Promise<D
   const lastDay = new Date(year, month, 0).getDate()
   const to = `${year}-${String(month).padStart(2, '0')}-${lastDay}`
 
+  const MONTH_LIMIT = 2000
   const { data } = await (supabase.from('daily_logs') as any)
     .select('log_date, entry_type, content')
     .eq('user_id', user.id)
     .gte('log_date', from)
     .lte('log_date', to)
+    .order('log_date', { ascending: true })
     .order('logged_at', { ascending: true })
+    .limit(MONTH_LIMIT)
+
+  if (data?.length === MONTH_LIMIT) {
+    console.warn('[daily] getMonthLogSummary limit reached — possible truncation')
+  }
 
   const map = new Map<string, DayLogSummary>()
   for (const row of (data ?? []) as { log_date: string; entry_type: DailyLogEntryType; content: string }[]) {
@@ -75,6 +82,7 @@ export async function getWeekLogs(weekStart: string): Promise<DailyLog[]> {
   end.setDate(end.getDate() + 6)
   const to = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`
 
+  const WEEK_LIMIT = 1000
   const { data } = await (supabase.from('daily_logs') as any)
     .select('*')
     .eq('user_id', user.id)
@@ -82,6 +90,11 @@ export async function getWeekLogs(weekStart: string): Promise<DailyLog[]> {
     .lte('log_date', to)
     .order('log_date', { ascending: true })
     .order('logged_at', { ascending: true })
+    .limit(WEEK_LIMIT)
+
+  if (data?.length === WEEK_LIMIT) {
+    console.warn('[daily] getWeekLogs limit reached — possible truncation')
+  }
 
   return (data ?? []) as DailyLog[]
 }
@@ -91,11 +104,17 @@ export async function getDailyLogs(date: string): Promise<DailyLog[]> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
 
+  const DAY_LIMIT = 500
   const { data } = await (supabase.from('daily_logs') as any)
     .select('*')
     .eq('user_id', user.id)
     .eq('log_date', date)
     .order('logged_at', { ascending: true })
+    .limit(DAY_LIMIT)
+
+  if (data?.length === DAY_LIMIT) {
+    console.warn('[daily] getDailyLogs limit reached — possible truncation')
+  }
 
   return (data ?? []) as DailyLog[]
 }
@@ -190,6 +209,7 @@ export async function getCarryoverLogs(today: string): Promise<DailyLog[]> {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
   const from = `${sevenDaysAgo.getFullYear()}-${String(sevenDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysAgo.getDate()).padStart(2, '0')}`
 
+  const CARRYOVER_LIMIT = 100
   const { data } = await (supabase.from('daily_logs') as any)
     .select('*')
     .eq('user_id', user.id)
@@ -199,6 +219,11 @@ export async function getCarryoverLogs(today: string): Promise<DailyLog[]> {
     .lt('log_date', today)
     .order('log_date', { ascending: false })
     .order('logged_at', { ascending: true })
+    .limit(CARRYOVER_LIMIT)
+
+  if (data?.length === CARRYOVER_LIMIT) {
+    console.warn('[daily] getCarryoverLogs limit reached — possible truncation')
+  }
 
   return (data ?? []) as DailyLog[]
 }
@@ -259,6 +284,7 @@ export async function addMultipleDailyLogs(
   logDate: string
 ): Promise<{ ok: true; data: DailyLog[] } | { ok: false; error: string }> {
   if (items.length === 0) return { ok: false, error: '저장할 항목이 없습니다.' }
+  if (items.length > 100) return { ok: false, error: '한 번에 최대 100개까지 저장할 수 있습니다.' }
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
