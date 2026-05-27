@@ -121,12 +121,14 @@ export default function DayDetailPanel({ date, onClose }: Props) {
                 return (
                   <div
                     key={log.id}
+                    onClick={() => router.push(`/daily?date=${date}`)}
                     style={{
                       display: 'flex', alignItems: 'flex-start', gap: '0.625rem',
                       padding: '0.625rem 0.75rem',
                       borderLeft: `3px solid ${t.color}`,
                       background: log.entry_type === 'blocker' ? '#fef2f2' : '#fafafa',
                       borderRadius: '0 0.375rem 0.375rem 0',
+                      cursor: 'pointer',
                     }}
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
