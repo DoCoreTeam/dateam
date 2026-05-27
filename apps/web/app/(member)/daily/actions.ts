@@ -2,13 +2,23 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import type { DailyLog, DailyLogEntryType, DailyLogPriority } from '@/types/database'
+import type {
+  DailyLog, DailyLogEntryType, DailyLogPriority,
+  DailyLogRelation, DailyLogRelationType,
+  DailyLogThread, DailyLogTag,
+} from '@/types/database'
 
 export interface AiParsedItem {
   title: string
   status: DailyLogEntryType
   scheduledDate: string | null
   scheduledTime: string | null
+  // 관계 시스템 필드
+  targetDate: string | null
+  targetDateCertainty: 'exact' | 'inferred' | 'none'
+  tags: string[]
+  originGroupId: string | null
+  promptVersion: string | null
   priority: DailyLogPriority
   accountId: string | null
   contactId: string | null
@@ -290,12 +300,20 @@ export async function addMultipleDailyLogs(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: '로그인이 필요합니다.' }
 
+  // origin_group_id는 모든 항목이 공유 (같은 입력에서 분리)
+  const originGroupId = items[0]?.originGroupId ?? null
+
   const rows = items.map((item) => {
     const scheduledAt = item.scheduledDate
       ? item.scheduledTime
         ? `${item.scheduledDate}T${item.scheduledTime}:00+09:00`
         : `${item.scheduledDate}T00:00:00+09:00`
       : null
+
+    const targetDate = item.targetDate ?? null
+    // targetDateCertainty가 none이거나 status=note면 target_date_set_by 없음
+    const targetDateSetBy = targetDate && item.targetDateCertainty !== 'none' ? 'ai' as const : null
+
     return {
       user_id: user.id,
       log_date: logDate,
@@ -308,15 +326,187 @@ export async function addMultipleDailyLogs(
       original_input: item.originalInput,
       linked_account_id: item.accountId ?? null,
       linked_contact_id: item.contactId ?? null,
+      // 관계 시스템 필드
+      target_date: targetDate,
+      target_date_set_by: targetDateSetBy,
+      origin_group_id: originGroupId,
+      source_type: 'ai_split' as const,
     }
   })
 
+  // 취약점 5 방어: 단일 트랜잭션으로 전체 저장
   const { data, error } = await (supabase.from('daily_logs') as any)
     .insert(rows)
     .select()
 
   if (error) return { ok: false, error: (error as Error).message }
 
+  const savedLogs = data as DailyLog[]
+
+  // 태그 저장 (fire-and-forget — 태그 실패가 업무 저장을 막지 않음)
+  const tagRows = items.flatMap((item, idx) => {
+    const logId = savedLogs[idx]?.id
+    if (!logId) return []
+    return (item.tags ?? []).map(tag => ({
+      log_id: logId,
+      tag_name: tag,
+      tag_type: 'ai' as const,
+    }))
+  })
+
+  if (tagRows.length > 0) {
+    await (supabase.from('daily_log_tags') as any)
+      .upsert(tagRows, { onConflict: 'log_id,tag_name', ignoreDuplicates: true })
+  }
+
   revalidatePath('/daily')
-  return { ok: true, data: data as DailyLog[] }
+  return { ok: true, data: savedLogs }
+}
+
+// ─── 스레드 CRUD ────────────────────────────────────────────
+
+export async function getThreads(logId: string): Promise<DailyLogThread[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data } = await (supabase.from('daily_log_threads') as any)
+    .select('*')
+    .eq('log_id', logId)
+    .order('created_at', { ascending: true })
+    .limit(200)
+
+  return (data ?? []) as DailyLogThread[]
+}
+
+export async function addThread(
+  logId: string,
+  content: string
+): Promise<{ ok: true; data: DailyLogThread } | { ok: false; error: string }> {
+  if (!content.trim()) return { ok: false, error: '내용을 입력해 주세요.' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '로그인이 필요합니다.' }
+
+  const { data, error } = await (supabase.from('daily_log_threads') as any)
+    .insert({ log_id: logId, author_type: 'user', content: content.trim() })
+    .select()
+    .single()
+
+  if (error) return { ok: false, error: (error as Error).message }
+
+  revalidatePath('/daily')
+  return { ok: true, data: data as DailyLogThread }
+}
+
+// ─── 태그 CRUD ──────────────────────────────────────────────
+
+export async function getTags(logId: string): Promise<DailyLogTag[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data } = await (supabase.from('daily_log_tags') as any)
+    .select('*')
+    .eq('log_id', logId)
+    .order('created_at', { ascending: true })
+
+  return (data ?? []) as DailyLogTag[]
+}
+
+export async function addTag(
+  logId: string,
+  tagName: string,
+  tagType: 'ai' | 'user' = 'user'
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '로그인이 필요합니다.' }
+
+  const { error } = await (supabase.from('daily_log_tags') as any)
+    .upsert({ log_id: logId, tag_name: tagName.trim(), tag_type: tagType }, { onConflict: 'log_id,tag_name', ignoreDuplicates: true })
+
+  if (error) return { ok: false, error: (error as Error).message }
+  return { ok: true }
+}
+
+// ─── 관계 CRUD ──────────────────────────────────────────────
+
+export async function getRelations(logId: string): Promise<DailyLogRelation[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data } = await (supabase.from('daily_log_relations') as any)
+    .select('*')
+    .or(`from_log_id.eq.${logId},to_log_id.eq.${logId}`)
+    .order('created_at', { ascending: true })
+    .limit(100)
+
+  return (data ?? []) as DailyLogRelation[]
+}
+
+export async function addRelation(
+  fromLogId: string,
+  toLogId: string,
+  relationType: DailyLogRelationType,
+  createdBy: 'ai' | 'user' = 'user'
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (fromLogId === toLogId) return { ok: false, error: '자기 자신과의 관계는 추가할 수 없습니다.' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '로그인이 필요합니다.' }
+
+  const { error } = await (supabase.from('daily_log_relations') as any)
+    .upsert(
+      { from_log_id: fromLogId, to_log_id: toLogId, relation_type: relationType, created_by: createdBy },
+      { onConflict: 'from_log_id,to_log_id,relation_type', ignoreDuplicates: true }
+    )
+
+  if (error) return { ok: false, error: (error as Error).message }
+  return { ok: true }
+}
+
+// ─── 같은 묶음(origin_group) 업무 조회 ──────────────────────
+
+export async function getOriginGroupLogs(originGroupId: string): Promise<DailyLog[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data } = await (supabase.from('daily_logs') as any)
+    .select('*')
+    .eq('origin_group_id', originGroupId)
+    .eq('user_id', user.id)
+    .order('logged_at', { ascending: true })
+    .limit(50)
+
+  return (data ?? []) as DailyLog[]
+}
+
+// ─── target_date 업데이트 ────────────────────────────────────
+
+export async function updateTargetDate(
+  logId: string,
+  targetDate: string | null
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '로그인이 필요합니다.' }
+
+  const { error } = await (supabase.from('daily_logs') as any)
+    .update({
+      target_date: targetDate,
+      target_date_set_by: targetDate ? 'user' : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', logId)
+    .eq('user_id', user.id)
+
+  if (error) return { ok: false, error: (error as Error).message }
+
+  revalidatePath('/daily')
+  return { ok: true }
 }

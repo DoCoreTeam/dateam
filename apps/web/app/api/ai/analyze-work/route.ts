@@ -3,44 +3,30 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
+const PROMPT_KEY = 'daily.analyze-work'
 
-const ANALYZE_SYSTEM_PROMPT = `당신은 업무 로그 파서입니다. 사용자의 자유형 텍스트에서 업무 항목을 추출합니다.
+// 취약점 2 방어: 하드코딩 대신 DB에서 프롬프트 로드
+async function loadPrompt(adminClient: ReturnType<typeof createAdminClient>): Promise<{ content: string; version: string } | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (adminClient as any)
+    .from('ai_prompts')
+    .select('content, version')
+    .eq('prompt_key', PROMPT_KEY)
+    .eq('active', true)
+    .single()
 
-## 출력 형식
-각 업무 항목을 독립된 JSON 객체로, 한 줄에 하나씩 출력하세요 (NDJSON).
-배열 없이, 마크다운 없이, 순수 JSON 줄만 출력하세요.
-
-## 각 항목 구조
-{"title":"업무 제목","status":"done|doing|planned|blocker|note","scheduledDate":"YYYY-MM-DD 또는 null","scheduledTime":"HH:MM 또는 null","priority":"urgent|high|normal|low","accountName":"거래처명 또는 null","contactName":"담당자명 또는 null","confidence":0.0~1.0}
-
-## 추출 규칙
-1. 하나의 텍스트에 여러 업무가 있으면 각각 분리
-2. 상태 판단:
-   - 과거형/완료 표현 → done
-   - 현재 진행 중 → doing
-   - 미래/예정/할 것 → planned
-   - 막힘/문제/이슈 → blocker
-   - 단순 메모 → note
-3. 날짜 파싱 (기준: {TODAY}):
-   - "오늘" → {TODAY}
-   - "내일" → {TOMORROW}
-   - "다음주 월요일" → 다음 주 월요일 날짜
-   - 날짜 없으면 null
-4. 우선순위:
-   - "긴급", "urgent", "빠른" → urgent
-   - "중요", "중요한" → high
-   - 그 외 → normal
-5. 거래처/담당자: 아래 목록과 매칭하되, 확신 없으면 null
-   거래처 목록: {ACCOUNTS}
-   담당자 목록: {CONTACTS}
-6. confidence: 해당 항목 추출에 대한 확신도 (0.0~1.0)`
+  if (!data) return null
+  return { content: data.content as string, version: data.version as string }
+}
 
 interface ParsedWorkItem {
   title: string
   status: 'done' | 'doing' | 'planned' | 'blocker' | 'note'
-  scheduledDate: string | null
+  targetDate: string | null
+  targetDateCertainty: 'exact' | 'inferred' | 'none'
   scheduledTime: string | null
   priority: 'urgent' | 'high' | 'normal' | 'low'
+  tags: string[]
   accountName: string | null
   contactName: string | null
   confidence: number
@@ -65,15 +51,20 @@ export async function POST(req: NextRequest) {
 
   if (!text) return NextResponse.json({ error: '텍스트가 없습니다' }, { status: 400 })
 
-  // Fetch API config
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: metaRow } = await (createAdminClient() as any)
-    .from('org_content')
-    .select('value')
-    .eq('key', 'META')
-    .single()
+  const adminClient = createAdminClient()
 
-  const meta = (metaRow?.value as Record<string, unknown>) ?? {}
+  // Fetch API config & prompt in parallel
+  const [metaResult, promptResult] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (adminClient as any).from('org_content').select('value').eq('key', 'META').single(),
+    loadPrompt(adminClient),
+  ])
+
+  if (!promptResult) {
+    return NextResponse.json({ error: 'AI 프롬프트가 설정되지 않았습니다' }, { status: 500 })
+  }
+
+  const meta = (metaResult.data?.value as Record<string, unknown>) ?? {}
   const apiKey = typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : ''
   const model = typeof meta.gemini_model === 'string' ? meta.gemini_model : 'gemini-2.0-flash'
 
@@ -83,7 +74,9 @@ export async function POST(req: NextRequest) {
 
   // Fetch accounts & contacts for context
   const [{ data: accounts }, { data: contacts }] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase.from('accounts') as any).select('id, name').eq('user_id', user.id).limit(200),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase.from('contacts') as any).select('id, name').eq('user_id', user.id).limit(200),
   ])
 
@@ -94,7 +87,16 @@ export async function POST(req: NextRequest) {
   tomorrow.setDate(tomorrow.getDate() + 1)
   const tomorrowStr = tomorrow.toISOString().split('T')[0]
 
-  const systemPrompt = ANALYZE_SYSTEM_PROMPT
+  // origin_group 생성 (취약점 2 방어: 트랜잭션으로 group 먼저 생성)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: originGroup } = await (supabase.from('daily_log_origin_groups') as any)
+    .insert({ user_id: user.id, original_input: text })
+    .select('id')
+    .single()
+
+  const originGroupId: string | null = originGroup?.id ?? null
+
+  const systemPrompt = promptResult.content
     .replace('{TODAY}', date)
     .replace('{TODAY}', date)
     .replace('{TOMORROW}', tomorrowStr)
@@ -121,7 +123,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `AI API 오류 (${geminiRes.status})` }, { status: 502 })
   }
 
-  // Stream Gemini SSE → collect full text → parse NDJSON → stream items to client
   const encoder = new TextEncoder()
   let fullText = ''
   let promptTokens = 0
@@ -161,9 +162,7 @@ export async function POST(req: NextRequest) {
               totalTokens = chunk.usageMetadata.totalTokenCount ?? totalTokens
             }
 
-            // Try to emit completed NDJSON lines
             const ndjsonLines = fullText.split('\n')
-            // Keep last potentially incomplete line in fullText
             fullText = ndjsonLines.pop() ?? ''
 
             for (const ndjsonLine of ndjsonLines) {
@@ -172,7 +171,6 @@ export async function POST(req: NextRequest) {
               try {
                 const item = JSON.parse(trimmed) as ParsedWorkItem
 
-                // Resolve account/contact IDs from names
                 if (item.accountName) {
                   const match = accountList.find(a => a.name === item.accountName)
                   item.accountId = match?.id ?? null
@@ -186,10 +184,19 @@ export async function POST(req: NextRequest) {
                   item.contactId = null
                 }
 
-                // Emit SSE event to client
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify(item)}\n\n`))
+                // origin_group_id와 prompt 버전 정보를 클라이언트로 전달
+                const enriched = {
+                  ...item,
+                  originGroupId: originGroupId,
+                  promptVersion: promptResult.version,
+                  originalInput: text,
+                  // 하위 호환: scheduledDate 필드 유지
+                  scheduledDate: item.targetDate,
+                }
+
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(enriched)}\n\n`))
               } catch {
-                // incomplete JSON, skip
+                // incomplete JSON
               }
             }
           } catch {
@@ -198,7 +205,6 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Process any remaining text
       if (fullText.trim()) {
         try {
           const item = JSON.parse(fullText.trim()) as ParsedWorkItem
@@ -214,13 +220,19 @@ export async function POST(req: NextRequest) {
           } else {
             item.contactId = null
           }
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(item)}\n\n`))
+          const enriched = {
+            ...item,
+            originGroupId: originGroupId,
+            promptVersion: promptResult.version,
+            originalInput: text,
+            scheduledDate: item.targetDate,
+          }
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(enriched)}\n\n`))
         } catch {
           // ignore
         }
       }
 
-      // Token logging (fire-and-forget)
       logTokenUsage({
         userId: user.id,
         feature: 'daily-ai-save',

@@ -89,6 +89,9 @@ export default function DailyPage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState('')
 
+  // 지식그래프 상태
+  const [graphOpen, setGraphOpen] = useState(false)
+
   const isToday = selectedDate === today
 
   // debounce: 입력 중 간단 휴리스틱으로 항목 수 추정 (API 호출 없음)
@@ -411,6 +414,29 @@ export default function DailyPage() {
                 />
               )}
 
+              {/* 타임라인 헤더 + 관계도 버튼 */}
+              {logs.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => setGraphOpen(v => !v)}
+                    style={{
+                      fontSize: '0.75rem', fontWeight: 600,
+                      color: graphOpen ? '#6366f1' : '#64748b',
+                      background: graphOpen ? '#eef2ff' : '#f8fafc',
+                      border: `1px solid ${graphOpen ? '#c7d2fe' : '#e2e8f0'}`,
+                      borderRadius: '0.375rem', padding: '0.25rem 0.625rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🔗 관계도 {graphOpen ? '닫기' : '보기'}
+                  </button>
+                </div>
+              )}
+
+              {graphOpen && logs.length > 0 && (
+                <KnowledgeGraphView logs={logs} />
+              )}
+
               {/* 타임라인 */}
               {loading ? (
                 <div style={{ textAlign: 'center', color: '#94a3b8', padding: '3rem 0' }}>로딩 중...</div>
@@ -657,96 +683,220 @@ function LogList({
   logs, isToday, editingId, editContent, editType, isPending,
   onStartEdit, onCancelEdit, onUpdate, onDelete, onEditContentChange, onEditTypeChange,
 }: LogListProps) {
+  const [openThreadId, setOpenThreadId] = useState<string | null>(null)
+  const todayStr = toDateStr(new Date())
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       {logs.map((log) => {
         const type = ENTRY_MAP[log.entry_type]
         const isEditing = editingId === log.id
+        const threadOpen = openThreadId === log.id
 
         return (
-          <div key={log.id} style={{
-            background: '#fff', border: '1px solid #e2e8f0',
-            borderLeft: `3px solid ${type.color}`,
-            borderRadius: '0 0.5rem 0.5rem 0', padding: '0.75rem 1rem',
-          }}>
-            {isEditing ? (
-              <div>
-                <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '0.625rem' }}>
-                  {ENTRY_TYPES.map((t) => (
-                    <button
-                      key={t.value}
-                      type="button"
-                      onClick={() => onEditTypeChange(t.value)}
-                      style={{
-                        padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem',
-                        fontWeight: editType === t.value ? 700 : 400,
-                        border: `1px solid ${editType === t.value ? t.border : '#e2e8f0'}`,
-                        background: editType === t.value ? t.bg : '#f8fafc',
-                        color: editType === t.value ? t.color : '#94a3b8', cursor: 'pointer',
-                      }}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
+          <div key={log.id}>
+            <div style={{
+              background: '#fff', border: '1px solid #e2e8f0',
+              borderLeft: `3px solid ${type.color}`,
+              borderRadius: threadOpen ? '0 0.5rem 0 0' : '0 0.5rem 0.5rem 0',
+              padding: '0.75rem 1rem',
+            }}>
+              {isEditing ? (
+                <div>
+                  <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '0.625rem' }}>
+                    {ENTRY_TYPES.map((t) => (
+                      <button
+                        key={t.value}
+                        type="button"
+                        onClick={() => onEditTypeChange(t.value)}
+                        style={{
+                          padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem',
+                          fontWeight: editType === t.value ? 700 : 400,
+                          border: `1px solid ${editType === t.value ? t.border : '#e2e8f0'}`,
+                          background: editType === t.value ? t.bg : '#f8fafc',
+                          color: editType === t.value ? t.color : '#94a3b8', cursor: 'pointer',
+                        }}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => onEditContentChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault()
+                        onUpdate(log.id)
+                      }
+                    }}
+                    placeholder="Ctrl+Enter로 저장"
+                    rows={3}
+                    autoFocus
+                    style={{
+                      width: '100%', border: '1px solid #e2e8f0', borderRadius: '0.375rem',
+                      padding: '0.5rem', fontSize: '0.9375rem', resize: 'vertical',
+                      outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    <button onClick={() => onUpdate(log.id)} disabled={isPending} style={actionBtnPrimary}>저장 <span style={{ fontSize: '0.65rem', opacity: 0.7 }}>Ctrl+↵</span></button>
+                    <button onClick={onCancelEdit} style={actionBtnSecondary}>취소</button>
+                  </div>
                 </div>
-                <textarea
-                  value={editContent}
-                  onChange={(e) => onEditContentChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                      e.preventDefault()
-                      onUpdate(log.id)
-                    }
-                  }}
-                  placeholder="Ctrl+Enter로 저장"
-                  rows={3}
-                  autoFocus
-                  style={{
-                    width: '100%', border: '1px solid #e2e8f0', borderRadius: '0.375rem',
-                    padding: '0.5rem', fontSize: '0.9375rem', resize: 'vertical',
-                    outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-                  }}
-                />
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                  <button onClick={() => onUpdate(log.id)} disabled={isPending} style={actionBtnPrimary}>저장 <span style={{ fontSize: '0.65rem', opacity: 0.7 }}>Ctrl+↵</span></button>
-                  <button onClick={onCancelEdit} style={actionBtnSecondary}>취소</button>
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem', flexWrap: 'wrap' }}>
-                    <span style={{
-                      display: 'inline-block', fontSize: '0.6875rem', fontWeight: 700,
-                      color: type.color, background: type.bg,
-                      border: `1px solid ${type.border}`,
-                      padding: '0.1rem 0.4rem', borderRadius: '0.25rem',
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem', flexWrap: 'wrap' }}>
+                      <span style={{
+                        display: 'inline-block', fontSize: '0.6875rem', fontWeight: 700,
+                        color: type.color, background: type.bg,
+                        border: `1px solid ${type.border}`,
+                        padding: '0.1rem 0.4rem', borderRadius: '0.25rem',
+                      }}>
+                        {type.label}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{formatTime(log.logged_at)}</span>
+                      {log.target_date && (
+                        <DdayBadge targetDate={log.target_date} today={todayStr} />
+                      )}
+                    </div>
+                    <p style={{
+                      margin: 0, fontSize: '0.9375rem', color: '#1e293b',
+                      lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                     }}>
-                      {type.label}
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{formatTime(log.logged_at)}</span>
-                    {log.target_date && (
-                      <DdayBadge targetDate={log.target_date} today={toDateStr(new Date())} />
+                      {log.content}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0, alignItems: 'center' }}>
+                    <button
+                      onClick={() => setOpenThreadId(threadOpen ? null : log.id)}
+                      style={{
+                        ...iconBtn,
+                        color: threadOpen ? '#6366f1' : '#94a3b8',
+                        display: 'flex', alignItems: 'center', gap: '0.2rem',
+                      }}
+                      title="스레드"
+                    >
+                      <MessageSquare size={13} strokeWidth={2} />
+                    </button>
+                    {isToday && (
+                      <>
+                        <button onClick={() => onStartEdit(log)} style={iconBtn}>수정</button>
+                        <button onClick={() => onDelete(log.id)} style={{ ...iconBtn, color: '#dc2626' }}>삭제</button>
+                      </>
                     )}
                   </div>
-                  <p style={{
-                    margin: 0, fontSize: '0.9375rem', color: '#1e293b',
-                    lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                  }}>
-                    {log.content}
-                  </p>
                 </div>
-                {isToday && (
-                  <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
-                    <button onClick={() => onStartEdit(log)} style={iconBtn}>수정</button>
-                    <button onClick={() => onDelete(log.id)} style={{ ...iconBtn, color: '#dc2626' }}>삭제</button>
-                  </div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
+            {threadOpen && <ThreadView logId={log.id} />}
           </div>
         )
       })}
+    </div>
+  )
+}
+
+/* 스레드 뷰 컴포넌트 */
+function ThreadView({ logId }: { logId: string }) {
+  const [threads, setThreads] = useState<DailyLogThread[]>([])
+  const [threadLoading, setThreadLoading] = useState(true)
+  const [input, setInput] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const load = async () => {
+    setThreadLoading(true)
+    const data = await getThreads(logId)
+    setThreads(data)
+    setThreadLoading(false)
+  }
+
+  useEffect(() => { load() }, [logId])
+
+  const handleSubmit = async () => {
+    if (!input.trim() || submitting) return
+    setSubmitting(true)
+    const result = await addThread(logId, input.trim())
+    if (result.ok) {
+      setInput('')
+      await load()
+    }
+    setSubmitting(false)
+  }
+
+  return (
+    <div style={{
+      border: '1px solid #e2e8f0', borderTop: 'none',
+      borderRadius: '0 0 0.5rem 0.5rem',
+      background: '#f8fafc', padding: '0.75rem 1rem',
+    }}>
+      {threadLoading ? (
+        <div style={{ fontSize: '0.8rem', color: '#94a3b8', padding: '0.25rem 0' }}>로딩 중...</div>
+      ) : threads.length === 0 ? (
+        <div style={{ fontSize: '0.8rem', color: '#94a3b8', paddingBottom: '0.5rem' }}>
+          아직 스레드가 없습니다. 관련 내용을 자유롭게 남겨보세요.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
+          {threads.map((t) => (
+            <div key={t.id} style={{
+              display: 'flex', gap: '0.5rem',
+              justifyContent: t.author_type === 'user' ? 'flex-end' : 'flex-start',
+            }}>
+              <div style={{
+                maxWidth: '80%',
+                background: t.author_type === 'user' ? '#eff6ff' : '#f0fdf4',
+                border: `1px solid ${t.author_type === 'user' ? '#bfdbfe' : '#bbf7d0'}`,
+                borderRadius: t.author_type === 'user' ? '0.75rem 0.75rem 0 0.75rem' : '0.75rem 0.75rem 0.75rem 0',
+                padding: '0.5rem 0.75rem',
+              }}>
+                <p style={{
+                  margin: 0, fontSize: '0.875rem', color: '#1e293b',
+                  lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                }}>
+                  {t.content}
+                </p>
+                <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '0.25rem', textAlign: 'right' }}>
+                  {t.author_type === 'ai' ? '🤖 AI' : '나'} · {formatTime(t.created_at)}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+              e.preventDefault()
+              handleSubmit()
+            }
+          }}
+          placeholder="관련 내용을 자유롭게 남기세요 (Ctrl+Enter)"
+          rows={2}
+          style={{
+            flex: 1, border: '1px solid #e2e8f0', borderRadius: '0.375rem',
+            padding: '0.5rem', fontSize: '0.875rem', resize: 'none',
+            outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+            background: '#fff',
+          }}
+        />
+        <button
+          onClick={handleSubmit}
+          disabled={submitting || !input.trim()}
+          style={{
+            padding: '0.5rem 0.875rem', background: '#6366f1', color: '#fff',
+            border: 'none', borderRadius: '0.375rem', fontSize: '0.8125rem',
+            fontWeight: 600, cursor: submitting || !input.trim() ? 'not-allowed' : 'pointer',
+            opacity: submitting || !input.trim() ? 0.5 : 1, whiteSpace: 'nowrap',
+          }}
+        >
+          {submitting ? '저장 중' : '남기기'}
+        </button>
+      </div>
     </div>
   )
 }
@@ -1173,6 +1323,120 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
           </span>
         ))}
       </div>
+    </div>
+  )
+}
+
+/* ─── 지식그래프 뷰 ─── */
+
+interface GraphNode {
+  id: string
+  label: string
+  type: DailyLogEntryType
+  x: number
+  y: number
+  originGroupId: string | null
+}
+
+function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
+  const W = 560
+  const H = 300
+  const R = 18
+
+  // origin_group_id 기준으로 묶음 색상 할당
+  const groupColors: Record<string, string> = {}
+  const GROUP_PALETTE = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6']
+  let groupIdx = 0
+  for (const log of logs) {
+    if (log.origin_group_id && !(log.origin_group_id in groupColors)) {
+      groupColors[log.origin_group_id] = GROUP_PALETTE[groupIdx % GROUP_PALETTE.length]
+      groupIdx++
+    }
+  }
+
+  // 단순 원형 배치 (DB 관계 엣지 없이 origin_group 클러스터로만 시각화)
+  const nodes: GraphNode[] = logs.map((log, i) => {
+    const angle = (2 * Math.PI * i) / logs.length - Math.PI / 2
+    const cx = W / 2
+    const cy = H / 2
+    const radius = Math.min(W, H) / 2 - R - 24
+    return {
+      id: log.id,
+      label: log.content.slice(0, 18) + (log.content.length > 18 ? '…' : ''),
+      type: log.entry_type,
+      x: cx + radius * Math.cos(angle),
+      y: cy + radius * Math.sin(angle),
+      originGroupId: log.origin_group_id,
+    }
+  })
+
+  // origin_group_id가 같은 노드끼리 엣지 표시 (지식그래프 원칙: same_origin은 관계가 아닌 시각적 클러스터)
+  const groupEdges: { x1: number; y1: number; x2: number; y2: number; color: string }[] = []
+  const groupMap = new Map<string, GraphNode[]>()
+  for (const n of nodes) {
+    if (n.originGroupId) {
+      if (!groupMap.has(n.originGroupId)) groupMap.set(n.originGroupId, [])
+      groupMap.get(n.originGroupId)!.push(n)
+    }
+  }
+  groupMap.forEach((members, gid) => {
+    const color = groupColors[gid] ?? '#94a3b8'
+    for (let i = 0; i < members.length - 1; i++) {
+      groupEdges.push({ x1: members[i].x, y1: members[i].y, x2: members[i + 1].x, y2: members[i + 1].y, color })
+    }
+  })
+
+  return (
+    <div style={{
+      border: '1px solid #e2e8f0', borderRadius: '0.75rem',
+      background: '#fafafa', overflow: 'hidden',
+    }}>
+      <div style={{
+        padding: '0.625rem 1rem', borderBottom: '1px solid #e2e8f0',
+        fontSize: '0.8125rem', fontWeight: 600, color: '#475569',
+        display: 'flex', alignItems: 'center', gap: '0.5rem',
+      }}>
+        <span>🔗 당일 업무 관계도</span>
+        <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 400 }}>
+          — 같은 색 선은 같은 AI 입력 묶음
+        </span>
+      </div>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', maxHeight: '300px' }}>
+        {/* 묶음 엣지 */}
+        {groupEdges.map((e, i) => (
+          <line
+            key={i}
+            x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
+            stroke={e.color} strokeWidth={1.5} strokeOpacity={0.35} strokeDasharray="4 3"
+          />
+        ))}
+
+        {/* 노드 */}
+        {nodes.map((n) => {
+          const t = ENTRY_MAP[n.type]
+          const groupColor = n.originGroupId ? (groupColors[n.originGroupId] ?? '#e2e8f0') : '#e2e8f0'
+          return (
+            <g key={n.id}>
+              {/* 묶음 링 */}
+              {n.originGroupId && (
+                <circle cx={n.x} cy={n.y} r={R + 4} fill="none" stroke={groupColor} strokeWidth={2} strokeOpacity={0.4} />
+              )}
+              {/* 노드 원 */}
+              <circle cx={n.x} cy={n.y} r={R} fill={t.bg} stroke={t.color} strokeWidth={2} />
+              {/* 상태 초성 */}
+              <text x={n.x} y={n.y + 1} textAnchor="middle" dominantBaseline="middle"
+                fontSize="9" fontWeight="700" fill={t.color}>
+                {t.label.slice(0, 2)}
+              </text>
+              {/* 레이블 */}
+              <text x={n.x} y={n.y + R + 12} textAnchor="middle"
+                fontSize="9" fill="#475569" style={{ pointerEvents: 'none' }}>
+                {n.label}
+              </text>
+            </g>
+          )
+        })}
+      </svg>
     </div>
   )
 }

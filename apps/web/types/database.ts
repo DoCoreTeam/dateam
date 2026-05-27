@@ -180,6 +180,11 @@ export type DailyLogEntryType = 'done' | 'doing' | 'planned' | 'blocker' | 'note
 
 export type DailyLogPriority = 'urgent' | 'high' | 'normal' | 'low'
 
+export type DailyLogTargetDateSetBy = 'ai' | 'user'
+export type DailyLogSourceType = 'manual' | 'ai_split' | 'ai_derived' | 'thread_derived'
+export type DailyLogRelationType = 'derived_from' | 'blocks' | 'related' | 'mentioned'
+export type TagType = 'ai' | 'user'
+
 export interface DailyLog {
   id: string
   user_id: string
@@ -195,8 +200,61 @@ export interface DailyLog {
   original_input: string | null
   linked_account_id: string | null
   linked_contact_id: string | null
+  // 관계 시스템 필드 (022 migration)
+  target_date: string | null
+  target_date_set_by: DailyLogTargetDateSetBy | null
+  origin_group_id: string | null
+  parent_log_id: string | null
+  source_type: DailyLogSourceType | null
   created_at: string
   updated_at: string
+}
+
+export interface DailyLogOriginGroup {
+  id: string
+  user_id: string
+  original_input: string
+  created_at: string
+}
+
+export interface DailyLogRelation {
+  id: string
+  from_log_id: string
+  to_log_id: string
+  relation_type: DailyLogRelationType
+  created_by: 'ai' | 'user'
+  created_at: string
+}
+
+export interface DailyLogThread {
+  id: string
+  log_id: string
+  author_type: 'user' | 'ai'
+  content: string
+  ai_analysis: Record<string, unknown> | null
+  ai_actions_taken: Record<string, unknown> | null
+  prompt_key: string | null
+  prompt_version: string | null
+  created_at: string
+}
+
+export interface DailyLogTag {
+  id: string
+  log_id: string
+  tag_name: string
+  tag_type: TagType
+  created_at: string
+}
+
+export interface AiPrompt {
+  id: string
+  prompt_key: string
+  version: string
+  model_hint: string
+  content: string
+  output_schema: Record<string, unknown> | null
+  active: boolean
+  created_at: string
 }
 
 export type AiFeature =

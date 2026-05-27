@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect } from "react";
+import useSWR from "swr";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { getMonthLogSummary, getWeekLogs } from "../daily/actions";
 import type { DayLogSummary } from "../daily/actions";
 import type { DailyLog, DailyLogEntryType } from "@/types/database";
+import { fetcher } from "@/lib/swr-config";
 import DayDetailPanel from "./DayDetailPanel";
 
 const ENTRY_TYPES: Record<
@@ -77,42 +78,28 @@ export default function CalendarPage() {
   // 월간
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
-  const [monthSummary, setMonthSummary] = useState<DayLogSummary[]>([]);
-  const [monthLoading, setMonthLoading] = useState(false);
 
   // 주간
   const [weekStart, setWeekStart] = useState(() =>
     toDateStr(getSunday(getMonday(today))),
   );
-  const [weekLogs, setWeekLogs] = useState<DailyLog[]>([]);
-  const [weekLoading, setWeekLoading] = useState(false);
 
   // 패널
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  const [, startTransition] = useTransition();
+  // SWR: 월간 요약
+  const monthKey = viewMode === "month"
+    ? `/api/calendar/month?year=${year}&month=${month}`
+    : null;
+  const { data: monthSummary = [], isLoading: monthLoading } =
+    useSWR<DayLogSummary[]>(monthKey, fetcher);
 
-  // 월간 데이터 로드
-  useEffect(() => {
-    if (viewMode !== "month") return;
-    setMonthLoading(true);
-    startTransition(async () => {
-      const data = await getMonthLogSummary(year, month);
-      setMonthSummary(data);
-      setMonthLoading(false);
-    });
-  }, [year, month, viewMode]);
-
-  // 주간 데이터 로드
-  useEffect(() => {
-    if (viewMode !== "week") return;
-    setWeekLoading(true);
-    startTransition(async () => {
-      const data = await getWeekLogs(weekStart);
-      setWeekLogs(data);
-      setWeekLoading(false);
-    });
-  }, [weekStart, viewMode]);
+  // SWR: 주간 로그
+  const weekKey = viewMode === "week"
+    ? `/api/daily/week?start=${weekStart}`
+    : null;
+  const { data: weekLogs = [], isLoading: weekLoading } =
+    useSWR<DailyLog[]>(weekKey, fetcher);
 
   // 요약 맵
   const summaryMap = new Map<string, DayLogSummary>(
