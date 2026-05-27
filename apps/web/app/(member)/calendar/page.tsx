@@ -63,6 +63,15 @@ function formatTime(isoStr: string) {
   return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 }
 
+function calDdayLabel(scheduledDate: string, todayStr: string): string | null {
+  const diff = Math.round(
+    (new Date(scheduledDate + "T00:00:00").getTime() - new Date(todayStr + "T00:00:00").getTime()) / 86400000
+  )
+  if (diff === 0) return "D-day"
+  if (diff > 0) return `D-${diff}`
+  return null
+}
+
 export default function CalendarPage() {
   const today = new Date();
   const todayStr = toDateStr(today);
@@ -317,6 +326,7 @@ export default function CalendarPage() {
                           {/* 미리보기 텍스트 */}
                           {summary.preview.map((p, pi) => {
                             const t = ENTRY_TYPES[p.entry_type];
+                            const ddayLabel = p.target_date ? calDdayLabel(p.target_date, todayStr) : null;
                             return (
                               <div
                                 key={pi}
@@ -326,6 +336,17 @@ export default function CalendarPage() {
                                 <span className="cal-preview-type">
                                   {t.label}
                                 </span>
+                                {ddayLabel && (
+                                  <span style={{
+                                    fontSize: "0.6rem", fontWeight: 700,
+                                    color: ddayLabel === "D-day" ? "#dc2626" : "#7c3aed",
+                                    background: ddayLabel === "D-day" ? "#fef2f2" : "#f5f3ff",
+                                    borderRadius: "0.2rem", padding: "0 0.2rem",
+                                    flexShrink: 0,
+                                  }}>
+                                    {ddayLabel}
+                                  </span>
+                                )}
                                 <span className="cal-preview-text">
                                   {p.content}
                                 </span>
