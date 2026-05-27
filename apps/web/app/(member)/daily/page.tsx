@@ -10,6 +10,7 @@ import { fetcher } from '@/lib/swr-config'
 import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread } from './actions'
 import type { AiParsedItem } from './actions'
 import type { DailyLog, DailyLogEntryType, DailyLogThread } from '@/types/database'
+import { DdayBadge, todayLocal } from '@/lib/dday'
 
 const ENTRY_TYPES: { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[] = [
   { value: 'done',    label: '완료',   color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
@@ -1369,14 +1370,6 @@ const CERTAINTY_COLOR: Record<string, string> = {
   exact: '#7c3aed', inferred: '#d97706', none: '#94a3b8',
 }
 
-function DdayBadge({ targetDate, today }: { targetDate: string; today: string }) {
-  const diff = Math.round(
-    (new Date(targetDate + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000
-  )
-  if (diff === 0) return <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.2rem', padding: '0.1rem 0.3rem' }}>D-day</span>
-  if (diff > 0) return <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#7c3aed', background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: '0.2rem', padding: '0.1rem 0.3rem' }}>D-{diff}</span>
-  return <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '0.2rem', padding: '0.1rem 0.3rem' }}>D+{Math.abs(diff)}</span>
-}
 
 function AiItemCard({ item, onChange }: AiItemCardProps) {
   const statusInfo = ENTRY_MAP[item.status] ?? ENTRY_MAP['note']

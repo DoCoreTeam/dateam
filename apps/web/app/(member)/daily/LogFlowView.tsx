@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import type { DailyLog, DailyLogEntryType } from '@/types/database'
+import { DdayBadge, todayLocal } from '@/lib/dday'
 
 const ENTRY_TYPES: { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[] = [
   { value: 'done',    label: '완료',   color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
@@ -193,9 +194,11 @@ export function LogFlowView({ log, allLogs, onClose }: {
                           </span>
                         )}
                         {n.log.target_date && (
-                          <span style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: 'auto' }}>
-                            📅 {n.log.target_date}
-                          </span>
+                          <DdayBadge
+                            targetDate={n.log.target_date}
+                            today={todayLocal()}
+                            style={{ marginLeft: 'auto' }}
+                          />
                         )}
                       </div>
                       <p style={{
