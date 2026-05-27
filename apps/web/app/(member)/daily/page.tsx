@@ -451,6 +451,7 @@ export default function DailyPage() {
                 <LogList
                   logs={logs}
                   isToday={isToday}
+                  selectedDate={selectedDate}
                   editingId={editingId}
                   editContent={editContent}
                   editType={editType}
@@ -667,6 +668,7 @@ export default function DailyPage() {
 interface LogListProps {
   logs: DailyLog[]
   isToday: boolean
+  selectedDate: string
   editingId: string | null
   editContent: string
   editType: DailyLogEntryType
@@ -680,7 +682,7 @@ interface LogListProps {
 }
 
 function LogList({
-  logs, isToday, editingId, editContent, editType, isPending,
+  logs, isToday, selectedDate, editingId, editContent, editType, isPending,
   onStartEdit, onCancelEdit, onUpdate, onDelete, onEditContentChange, onEditTypeChange,
 }: LogListProps) {
   const [openThreadId, setOpenThreadId] = useState<string | null>(null)
@@ -790,7 +792,7 @@ function LogList({
                 </div>
               )}
             </div>
-            {threadOpen && <ThreadView logId={log.id} />}
+            {threadOpen && <ThreadView logId={log.id} selectedDate={selectedDate} />}
           </div>
         )
       })}
@@ -799,11 +801,17 @@ function LogList({
 }
 
 /* 스레드 뷰 컴포넌트 */
-function ThreadView({ logId }: { logId: string }) {
+function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: string }) {
   const [threads, setThreads] = useState<DailyLogThread[]>([])
   const [threadLoading, setThreadLoading] = useState(true)
   const [input, setInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [aiItems, setAiItems] = useState<AiParsedItem[]>([])
+  const [aiLoading, setAiLoading] = useState(false)
+  const [showAiResult, setShowAiResult] = useState(false)
+  const [aiAnalyzeError, setAiAnalyzeError] = useState<string | null>(null)
+
+  const todayForBadge = toDateStr(new Date())
 
   const load = async () => {
     setThreadLoading(true)
@@ -814,12 +822,88 @@ function ThreadView({ logId }: { logId: string }) {
 
   useEffect(() => { load() }, [logId])
 
+  const handleAiAnalyze = async () => {
+    if (!input.trim() || aiLoading) return
+    setAiLoading(true)
+    setAiItems([])
+    setShowAiResult(false)
+    setAiAnalyzeError(null)
+    try {
+      const res = await fetch('/api/ai/analyze-work', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: input.trim(), date: selectedDate }),
+      })
+      if (!res.ok || !res.body) {
+        setAiAnalyzeError(`AI 분석 실패 (${res.status})`)
+        setAiLoading(false)
+        return
+      }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      const parsed: AiParsedItem[] = []
+      let buf = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        const lines = buf.split('\n')
+        buf = lines.pop() ?? ''
+        for (const line of lines) {
+          const t = line.trim()
+          if (!t || !t.startsWith('data: ')) continue
+          const jsonStr = t.slice(6)
+          if (jsonStr === '[DONE]') continue
+          try {
+            const obj = JSON.parse(jsonStr)
+            if (obj.title) { parsed.push(obj); setAiItems([...parsed]) }
+          } catch { /* skip malformed lines */ }
+        }
+      }
+    } catch {
+      setAiAnalyzeError('AI 서버 연결 실패')
+    }
+    setAiLoading(false)
+    setShowAiResult(true)
+  }
+
   const handleSubmit = async () => {
     if (!input.trim() || submitting) return
     setSubmitting(true)
     const result = await addThread(logId, input.trim())
     if (result.ok) {
       setInput('')
+      setAiItems([])
+      setShowAiResult(false)
+      await load()
+    }
+    setSubmitting(false)
+  }
+
+  const [aiConfirmError, setAiConfirmError] = useState<string | null>(null)
+
+  const handleAiConfirm = async () => {
+    if (!input.trim() || submitting || aiItems.length === 0) return
+    setSubmitting(true)
+    setAiConfirmError(null)
+    const threadResult = await addThread(logId, input.trim())
+    if (!threadResult.ok) {
+      setAiConfirmError('스레드 저장 실패')
+      setSubmitting(false)
+      return
+    }
+    if (threadResult.ok) {
+      const saveResult = await addMultipleDailyLogs(aiItems, selectedDate, logId)
+      if (!saveResult.ok) {
+        setAiConfirmError(`업무 등록 실패: ${saveResult.error}`)
+        setSubmitting(false)
+        return
+      }
+      await mutate(`/api/daily/logs?date=${selectedDate}`)
+      setInput('')
+      setAiItems([])
+      setShowAiResult(false)
+      setAiConfirmError(null)
       await load()
     }
     setSubmitting(false)
@@ -865,6 +949,69 @@ function ThreadView({ logId }: { logId: string }) {
           ))}
         </div>
       )}
+
+      {/* AI 분석 결과 미니 패널 */}
+      {showAiResult && aiItems.length > 0 && (
+        <div style={{
+          background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: '0.5rem',
+          padding: '0.625rem 0.75rem', marginBottom: '0.625rem',
+        }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#7c3aed', marginBottom: '0.375rem' }}>
+            ✨ AI 분석 결과 ({aiItems.length}개)
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '0.5rem' }}>
+            {aiItems.map((item, i) => {
+              const t = ENTRY_MAP[item.status as DailyLogEntryType] ?? ENTRY_MAP['note']
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
+                  <span style={{
+                    fontSize: '0.6rem', fontWeight: 700, color: t.color,
+                    background: t.bg, border: `1px solid ${t.border}`,
+                    padding: '0.05rem 0.3rem', borderRadius: '0.2rem',
+                  }}>{t.label}</span>
+                  <span style={{ fontSize: '0.8125rem', color: '#1e293b', flex: 1 }}>{item.title}</span>
+                  {item.targetDate && <DdayBadge targetDate={item.targetDate} today={todayForBadge} />}
+                </div>
+              )
+            })}
+          </div>
+          {aiConfirmError && (
+            <div style={{ fontSize: '0.75rem', color: '#dc2626', marginBottom: '0.375rem' }}>
+              {aiConfirmError}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: '0.375rem' }}>
+            <button
+              onClick={handleAiConfirm}
+              disabled={submitting}
+              style={{
+                padding: '0.375rem 0.75rem', background: '#7c3aed', color: '#fff',
+                border: 'none', borderRadius: '0.375rem', fontSize: '0.75rem',
+                fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer',
+                opacity: submitting ? 0.5 : 1, whiteSpace: 'nowrap',
+              }}
+            >
+              {submitting ? '저장 중...' : '스레드 저장 + 업무 등록'}
+            </button>
+            <button
+              onClick={() => setShowAiResult(false)}
+              style={{
+                padding: '0.375rem 0.625rem', background: 'none', color: '#64748b',
+                border: '1px solid #e2e8f0', borderRadius: '0.375rem', fontSize: '0.75rem',
+                cursor: 'pointer',
+              }}
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
+
+      {aiAnalyzeError && (
+        <div style={{ fontSize: '0.75rem', color: '#dc2626', marginBottom: '0.375rem' }}>
+          {aiAnalyzeError}
+        </div>
+      )}
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
         <textarea
           value={input}
@@ -884,18 +1031,34 @@ function ThreadView({ logId }: { logId: string }) {
             background: '#fff',
           }}
         />
-        <button
-          onClick={handleSubmit}
-          disabled={submitting || !input.trim()}
-          style={{
-            padding: '0.5rem 0.875rem', background: '#6366f1', color: '#fff',
-            border: 'none', borderRadius: '0.375rem', fontSize: '0.8125rem',
-            fontWeight: 600, cursor: submitting || !input.trim() ? 'not-allowed' : 'pointer',
-            opacity: submitting || !input.trim() ? 0.5 : 1, whiteSpace: 'nowrap',
-          }}
-        >
-          {submitting ? '저장 중' : '남기기'}
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+          <button
+            onClick={handleAiAnalyze}
+            disabled={aiLoading || !input.trim()}
+            style={{
+              padding: '0.375rem 0.75rem', background: '#7c3aed', color: '#fff',
+              border: 'none', borderRadius: '0.375rem', fontSize: '0.75rem',
+              fontWeight: 600, cursor: aiLoading || !input.trim() ? 'not-allowed' : 'pointer',
+              opacity: aiLoading || !input.trim() ? 0.5 : 1, whiteSpace: 'nowrap',
+              display: 'flex', alignItems: 'center', gap: '0.25rem',
+            }}
+          >
+            <Sparkles size={12} strokeWidth={2.4} />
+            {aiLoading ? '분석중' : 'AI 분석'}
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting || !input.trim()}
+            style={{
+              padding: '0.375rem 0.75rem', background: '#6366f1', color: '#fff',
+              border: 'none', borderRadius: '0.375rem', fontSize: '0.75rem',
+              fontWeight: 600, cursor: submitting || !input.trim() ? 'not-allowed' : 'pointer',
+              opacity: submitting || !input.trim() ? 0.5 : 1, whiteSpace: 'nowrap',
+            }}
+          >
+            {submitting ? '저장 중' : '남기기'}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -1340,7 +1503,7 @@ interface GraphNode {
 
 function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
   const W = 560
-  const H = 300
+  const H = 400
   const R = 18
 
   // origin_group_id 기준으로 묶음 색상 할당
@@ -1354,13 +1517,21 @@ function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
     }
   }
 
-  // 단순 원형 배치 (DB 관계 엣지 없이 origin_group 클러스터로만 시각화)
-  const nodes: GraphNode[] = logs.map((log, i) => {
-    const angle = (2 * Math.PI * i) / logs.length - Math.PI / 2
-    const cx = W / 2
-    const cy = H / 2
-    const radius = Math.min(W, H) / 2 - R - 24
-    return {
+  // origin_group 기준으로 정렬하여 같은 그룹 노드가 원 위에서 인접하도록 배치
+  const sortedLogs = [...logs].sort((a, b) => {
+    const ga = a.origin_group_id ?? 'zzz'
+    const gb = b.origin_group_id ?? 'zzz'
+    return ga < gb ? -1 : ga > gb ? 1 : 0
+  })
+
+  const cx = W / 2
+  const cy = H / 2 - 10
+  const radius = Math.min(W, H) / 2 - R - 32
+
+  const nodeMap = new Map<string, GraphNode>()
+  const nodes: GraphNode[] = sortedLogs.map((log, i) => {
+    const angle = (2 * Math.PI * i) / sortedLogs.length - Math.PI / 2
+    const node: GraphNode = {
       id: log.id,
       label: log.content.slice(0, 18) + (log.content.length > 18 ? '…' : ''),
       type: log.entry_type,
@@ -1368,9 +1539,11 @@ function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
       y: cy + radius * Math.sin(angle),
       originGroupId: log.origin_group_id,
     }
+    nodeMap.set(log.id, node)
+    return node
   })
 
-  // origin_group_id가 같은 노드끼리 엣지 표시 (지식그래프 원칙: same_origin은 관계가 아닌 시각적 클러스터)
+  // origin_group_id가 같은 노드끼리 점선 엣지 (AI 묶음)
   const groupEdges: { x1: number; y1: number; x2: number; y2: number; color: string }[] = []
   const groupMap = new Map<string, GraphNode[]>()
   for (const n of nodes) {
@@ -1386,6 +1559,18 @@ function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
     }
   })
 
+  // parent_log_id 엣지 (실선 오렌지, 화살표)
+  const parentEdges: { x1: number; y1: number; x2: number; y2: number }[] = []
+  for (const log of logs) {
+    if (log.parent_log_id) {
+      const parent = nodeMap.get(log.parent_log_id)
+      const child = nodeMap.get(log.id)
+      if (parent && child) {
+        parentEdges.push({ x1: parent.x, y1: parent.y, x2: child.x, y2: child.y })
+      }
+    }
+  }
+
   return (
     <div style={{
       border: '1px solid #e2e8f0', borderRadius: '0.75rem',
@@ -1394,22 +1579,55 @@ function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
       <div style={{
         padding: '0.625rem 1rem', borderBottom: '1px solid #e2e8f0',
         fontSize: '0.8125rem', fontWeight: 600, color: '#475569',
-        display: 'flex', alignItems: 'center', gap: '0.5rem',
+        display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
       }}>
         <span>🔗 당일 업무 관계도</span>
-        <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 400 }}>
-          — 같은 색 선은 같은 AI 입력 묶음
+        <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', color: '#64748b', fontWeight: 400 }}>
+          <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#6366f1" strokeWidth="1.5" strokeDasharray="4 3" /></svg>
+          AI 묶음
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', color: '#64748b', fontWeight: 400 }}>
+          <svg width="20" height="8"><line x1="0" y1="4" x2="16" y2="4" stroke="#f97316" strokeWidth="1.5" /><polygon points="16,1 20,4 16,7" fill="#f97316" /></svg>
+          스레드 파생
         </span>
       </div>
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', maxHeight: '300px' }}>
-        {/* 묶음 엣지 */}
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', maxHeight: `${H}px` }}>
+        <defs>
+          <marker id="arrowOrange" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <polygon points="0,0 6,3 0,6" fill="#f97316" />
+          </marker>
+        </defs>
+
+        {/* 묶음 엣지 (AI origin_group — 점선) */}
         {groupEdges.map((e, i) => (
           <line
-            key={i}
+            key={`g${i}`}
             x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
-            stroke={e.color} strokeWidth={1.5} strokeOpacity={0.35} strokeDasharray="4 3"
+            stroke={e.color} strokeWidth={1.5} strokeOpacity={0.4} strokeDasharray="4 3"
           />
         ))}
+
+        {/* 스레드 파생 엣지 (parent_log_id — 실선 오렌지 화살표) */}
+        {parentEdges.map((e, i) => {
+          const dx = e.x2 - e.x1
+          const dy = e.y2 - e.y1
+          const len = Math.sqrt(dx * dx + dy * dy)
+          if (len === 0) return null
+          const ux = dx / len
+          const uy = dy / len
+          const x1 = e.x1 + ux * R
+          const y1 = e.y1 + uy * R
+          const x2 = e.x2 - ux * (R + 6)
+          const y2 = e.y2 - uy * (R + 6)
+          return (
+            <line
+              key={`p${i}`}
+              x1={x1} y1={y1} x2={x2} y2={y2}
+              stroke="#f97316" strokeWidth={2} strokeOpacity={0.8}
+              markerEnd="url(#arrowOrange)"
+            />
+          )
+        })}
 
         {/* 노드 */}
         {nodes.map((n) => {
@@ -1417,6 +1635,7 @@ function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
           const groupColor = n.originGroupId ? (groupColors[n.originGroupId] ?? '#e2e8f0') : '#e2e8f0'
           return (
             <g key={n.id}>
+              <title>{n.label}</title>
               {/* 묶음 링 */}
               {n.originGroupId && (
                 <circle cx={n.x} cy={n.y} r={R + 4} fill="none" stroke={groupColor} strokeWidth={2} strokeOpacity={0.4} />

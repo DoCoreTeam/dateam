@@ -291,7 +291,8 @@ export async function ignoreCarryoverLog(id: string): Promise<{ ok: true } | { o
 
 export async function addMultipleDailyLogs(
   items: AiParsedItem[],
-  logDate: string
+  logDate: string,
+  parentLogId?: string
 ): Promise<{ ok: true; data: DailyLog[] } | { ok: false; error: string }> {
   if (items.length === 0) return { ok: false, error: '저장할 항목이 없습니다.' }
   if (items.length > 100) return { ok: false, error: '한 번에 최대 100개까지 저장할 수 있습니다.' }
@@ -330,7 +331,8 @@ export async function addMultipleDailyLogs(
       target_date: targetDate,
       target_date_set_by: targetDateSetBy,
       origin_group_id: originGroupId,
-      source_type: 'ai_split' as const,
+      source_type: parentLogId ? 'thread_derived' as const : 'ai_split' as const,
+      parent_log_id: parentLogId ?? null,
     }
   })
 
