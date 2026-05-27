@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Sparkles, MessageSquare } from 'lucide-react'
 import useSWR, { mutate } from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { addDailyLog, updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread } from './actions'
+import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread } from './actions'
 import type { AiParsedItem } from './actions'
 import type { DailyLog, DailyLogEntryType, DailyLogThread } from '@/types/database'
 
@@ -189,7 +189,7 @@ export default function DailyPage() {
     startTransition(async () => {
       await moveCarryoverToToday(id, today)
       await Promise.all([
-        mutate(`/api/daily/logs?date=${selectedDate}`),
+        mutate(`/api/daily/logs?date=${today}`),
         mutate(`/api/daily/carryover?today=${today}`),
       ])
     })

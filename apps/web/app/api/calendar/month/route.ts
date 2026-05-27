@@ -39,7 +39,10 @@ export async function GET(req: NextRequest) {
     .order('logged_at', { ascending: true })
     .limit(MONTH_LIMIT)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[api/calendar/month]', error)
+    return NextResponse.json({ error: '데이터 조회 실패' }, { status: 500 })
+  }
   if (data?.length === MONTH_LIMIT) console.warn('[api/calendar/month] limit reached')
 
   const map = new Map<string, DayLogSummary>()
@@ -61,5 +64,7 @@ export async function GET(req: NextRequest) {
   }
 
   const result = Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date))
-  return NextResponse.json(result)
+  return NextResponse.json(result, {
+    headers: { 'Cache-Control': 'private, no-store' },
+  })
 }

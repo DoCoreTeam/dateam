@@ -27,8 +27,13 @@ export async function GET(req: NextRequest) {
     .order('logged_at', { ascending: true })
     .limit(WEEK_LIMIT)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[api/daily/week]', error)
+    return NextResponse.json({ error: '데이터 조회 실패' }, { status: 500 })
+  }
   if (data?.length === WEEK_LIMIT) console.warn('[api/daily/week] limit reached')
 
-  return NextResponse.json(data as DailyLog[])
+  return NextResponse.json(data as DailyLog[], {
+    headers: { 'Cache-Control': 'private, no-store' },
+  })
 }
