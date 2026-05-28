@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/server'
+import { unstable_cache } from 'next/cache'
 
 export const DEFAULT_BRAND_NAME = 'AX사업본부'
 
@@ -7,7 +8,7 @@ export interface BrandingConfig {
   logoUrl: string | null
 }
 
-export async function getBranding(): Promise<BrandingConfig> {
+const fetchBranding = async (): Promise<BrandingConfig> => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const adminClient = createAdminClient() as any
@@ -39,3 +40,9 @@ export async function getBranding(): Promise<BrandingConfig> {
     return { brandName: DEFAULT_BRAND_NAME, logoUrl: null }
   }
 }
+
+export const getBranding = unstable_cache(
+  fetchBranding,
+  ['branding-config'],
+  { revalidate: 3600, tags: ['branding'] }
+)

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import type { Profile } from '@/types/database'
 
 const BUCKET = 'branding'
@@ -103,6 +103,7 @@ export async function POST(req: NextRequest) {
   }
 
   revalidatePath('/', 'layout')
+  revalidateTag('branding')
 
   // 응답용 logoUrl 계산
   let logoUrl: string | null = null

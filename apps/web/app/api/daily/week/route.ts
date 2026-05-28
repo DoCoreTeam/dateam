@@ -34,6 +34,6 @@ export async function GET(req: NextRequest) {
   if (data?.length === WEEK_LIMIT) console.warn('[api/daily/week] limit reached')
 
   return NextResponse.json(data as DailyLog[], {
-    headers: { 'Cache-Control': 'private, no-store' },
+    headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' },
   })
 }

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { getCalendarDayLogs } from '../daily/actions'
+import useSWR from 'swr'
+import { fetcher } from '@/lib/swr-config'
 import type { DailyLog, DailyLogEntryType } from '@/types/database'
 
 const ENTRY_TYPES: Record<DailyLogEntryType, { label: string; color: string; bg: string; border: string }> = {
@@ -33,16 +34,10 @@ interface Props {
 
 export default function DayDetailPanel({ date, onClose }: Props) {
   const router = useRouter()
-  const [logs, setLogs] = useState<DailyLog[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    setLoading(true)
-    getCalendarDayLogs(date).then((data) => {
-      setLogs(data)
-      setLoading(false)
-    })
-  }, [date])
+  const { data: logs = [], isLoading: loading } = useSWR<DailyLog[]>(
+    `/api/daily/logs?date=${date}`,
+    fetcher
+  )
 
   // ESC 키로 닫기
   useEffect(() => {

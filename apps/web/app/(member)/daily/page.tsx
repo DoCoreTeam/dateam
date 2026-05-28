@@ -3,8 +3,9 @@
 import { useState, useEffect, useTransition, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Sparkles, MessageSquare } from 'lucide-react'
-import { KnowledgeGraphView } from './KnowledgeGraphView'
-import { LogFlowView } from './LogFlowView'
+import dynamic from 'next/dynamic'
+const KnowledgeGraphView = dynamic(() => import('./KnowledgeGraphView').then(m => ({ default: m.KnowledgeGraphView })), { ssr: false })
+const LogFlowView = dynamic(() => import('./LogFlowView').then(m => ({ default: m.LogFlowView })), { ssr: false })
 import useSWR, { mutate } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread } from './actions'
