@@ -102,6 +102,16 @@ export default function DailyPage() {
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
 
+  // 삭제 컨펌 모달 상태
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; id: string | null }>({ open: false, id: null })
+  // 토스트 상태
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({ show: false, message: '', type: 'success' })
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ show: true, message, type })
+    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000)
+  }
+
   // AI 저장 상태
   const [aiHintCount, setAiHintCount] = useState(0)
   const [aiPanelOpen, setAiPanelOpen] = useState(false)
@@ -235,10 +245,29 @@ export default function DailyPage() {
     })
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('이 항목을 삭제할까요?')) return
+  const handleDelete = (id: string) => {
+    setConfirmModal({ open: true, id })
+  }
+
+  const handleDeleteConfirm = async () => {
+    const id = confirmModal.id
+    if (!id) return
+    setConfirmModal({ open: false, id: null })
+
+    // optimistic: 즉시 목록에서 제거
+    mutate(
+      `/api/daily/logs?date=${selectedDate}`,
+      (logs as DailyLog[]).filter((l) => l.id !== id),
+      { revalidate: false }
+    )
+
     startTransition(async () => {
-      await deleteDailyLog(id)
+      const result = await deleteDailyLog(id)
+      if (result.ok) {
+        showToast('업무가 삭제되었습니다')
+      } else {
+        showToast(result.error || '삭제에 실패했습니다', 'error')
+      }
       await mutate(`/api/daily/logs?date=${selectedDate}`)
     })
   }
@@ -292,6 +321,20 @@ export default function DailyPage() {
   }
 
   return (
+    <>
+    {confirmModal.open && (
+      <DeleteConfirmModal
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setConfirmModal({ open: false, id: null })}
+      />
+    )}
+    {toast.show && (
+      <div className="toast-container">
+        <div className={`toast toast-${toast.type}`}>
+          {toast.type === 'success' ? '✓' : '✕'} {toast.message}
+        </div>
+      </div>
+    )}
     <div className="page-inner daily-page">
 
       {/* 뷰 탭 */}
@@ -686,6 +729,7 @@ export default function DailyPage() {
         </>
       )}
     </div>
+    </>
   )
 }
 
@@ -1523,3 +1567,19 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
   )
 }
 
+/* ─── 삭제 확인 모달 ─── */
+function DeleteConfirmModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="confirm-modal-overlay" onClick={onCancel}>
+      <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="confirm-modal-icon">🗑️</div>
+        <div className="confirm-modal-title">업무 삭제</div>
+        <div className="confirm-modal-desc">이 항목을 삭제할까요?<br />삭제하면 되돌릴 수 없습니다.</div>
+        <div className="confirm-modal-actions">
+          <button className="confirm-modal-btn-cancel" onClick={onCancel}>취소</button>
+          <button className="confirm-modal-btn-delete" onClick={onConfirm}>삭제</button>
+        </div>
+      </div>
+    </div>
+  )
+}
