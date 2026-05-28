@@ -99,6 +99,7 @@ export default function DailyPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [editType, setEditType] = useState<DailyLogEntryType>('done')
+  const [editTargetDate, setEditTargetDate] = useState<string>('')
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
 
@@ -235,7 +236,7 @@ export default function DailyPage() {
   const handleUpdate = async (id: string) => {
     if (!editContent.trim()) return
     startTransition(async () => {
-      const result = await updateDailyLog(id, editContent, editType)
+      const result = await updateDailyLog(id, editContent, editType, editTargetDate || null)
       if (result.ok) {
         setEditingId(null)
         await mutate(`/api/daily/logs?date=${selectedDate}`)
@@ -519,12 +520,14 @@ export default function DailyPage() {
                   editContent={editContent}
                   editType={editType}
                   isPending={isPending}
-                  onStartEdit={(log) => { setEditingId(log.id); setEditContent(log.content); setEditType(log.entry_type) }}
+                  onStartEdit={(log) => { setEditingId(log.id); setEditContent(log.content); setEditType(log.entry_type); setEditTargetDate(log.target_date ?? '') }}
                   onCancelEdit={() => setEditingId(null)}
                   onUpdate={handleUpdate}
                   onDelete={handleDelete}
                   onEditContentChange={setEditContent}
                   onEditTypeChange={setEditType}
+                  editTargetDate={editTargetDate}
+                  onEditTargetDateChange={setEditTargetDate}
                 />
               )}
             </div>
@@ -741,6 +744,7 @@ interface LogListProps {
   editingId: string | null
   editContent: string
   editType: DailyLogEntryType
+  editTargetDate: string
   isPending: boolean
   onStartEdit: (log: DailyLog) => void
   onCancelEdit: () => void
@@ -748,11 +752,12 @@ interface LogListProps {
   onDelete: (id: string) => void
   onEditContentChange: (v: string) => void
   onEditTypeChange: (v: DailyLogEntryType) => void
+  onEditTargetDateChange: (v: string) => void
 }
 
 function LogList({
-  logs, isToday, selectedDate, editingId, editContent, editType, isPending,
-  onStartEdit, onCancelEdit, onUpdate, onDelete, onEditContentChange, onEditTypeChange,
+  logs, isToday, selectedDate, editingId, editContent, editType, editTargetDate, isPending,
+  onStartEdit, onCancelEdit, onUpdate, onDelete, onEditContentChange, onEditTypeChange, onEditTargetDateChange,
 }: LogListProps) {
   const [openThreadId, setOpenThreadId] = useState<string | null>(null)
   const [flowLog, setFlowLog] = useState<DailyLog | null>(null)
@@ -816,6 +821,28 @@ function LogList({
                       outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
                     }}
                   />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.375rem', flexWrap: 'wrap' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap' }}>일정 날짜</label>
+                    <input
+                      type="date"
+                      value={editTargetDate}
+                      onChange={(e) => onEditTargetDateChange(e.target.value)}
+                      style={{
+                        border: '1px solid #e2e8f0', borderRadius: '0.25rem',
+                        padding: '0.2rem 0.4rem', fontSize: '0.8125rem',
+                        color: '#0f172a', outline: 'none', cursor: 'pointer',
+                      }}
+                    />
+                    {editTargetDate && (
+                      <button
+                        type="button"
+                        onClick={() => onEditTargetDateChange('')}
+                        style={{ fontSize: '0.75rem', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                      >
+                        ✕ 제거
+                      </button>
+                    )}
+                  </div>
                   <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                     <button onClick={() => onUpdate(log.id)} disabled={isPending} style={actionBtnPrimary}>저장 <span style={{ fontSize: '0.65rem', opacity: 0.7 }}>Ctrl+↵</span></button>
                     <button onClick={onCancelEdit} style={actionBtnSecondary}>취소</button>
@@ -865,12 +892,8 @@ function LogList({
                       style={{ ...iconBtn, color: '#64748b' }}
                       title="플로우"
                     >🌊</button>
-                    {isToday && (
-                      <>
-                        <button onClick={() => onStartEdit(log)} style={iconBtn}>수정</button>
-                        <button onClick={() => onDelete(log.id)} style={{ ...iconBtn, color: '#dc2626' }}>삭제</button>
-                      </>
-                    )}
+                    <button onClick={() => onStartEdit(log)} style={iconBtn}>수정</button>
+                    <button onClick={() => onDelete(log.id)} style={{ ...iconBtn, color: '#dc2626' }}>삭제</button>
                   </div>
                 </div>
               )}

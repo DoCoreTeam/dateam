@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
@@ -34,10 +35,13 @@ interface Props {
 
 export default function DayDetailPanel({ date, onClose }: Props) {
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
   const { data: logs = [], isLoading: loading } = useSWR<DailyLog[]>(
     `/api/daily/logs?date=${date}`,
     fetcher
   )
+
+  useEffect(() => { setMounted(true) }, [])
 
   // ESC 키로 닫기
   useEffect(() => {
@@ -49,7 +53,9 @@ export default function DayDetailPanel({ date, onClose }: Props) {
   const today = new Date().toISOString().slice(0, 10)
   const isToday = date === today
 
-  return (
+  if (!mounted) return null
+
+  return createPortal(
     <>
       <div className="day-panel-backdrop" onClick={onClose} />
       <div className="day-panel">
@@ -163,6 +169,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
           )}
         </div>
       </div>
-    </>
+    </>,
+    document.body
   )
 }

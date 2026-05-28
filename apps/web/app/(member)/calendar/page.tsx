@@ -96,7 +96,7 @@ export default function CalendarPage() {
   );
 
   // 패널
-  const [selectedDate, setSelectedDate] = useState<string | null>(todayStr);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   // SWR: 월간 요약
   const monthKey = viewMode === "month"

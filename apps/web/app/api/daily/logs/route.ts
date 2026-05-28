@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await (supabase.from('daily_logs') as any)
     .select('*')
     .eq('user_id', user.id)
-    .eq('log_date', date)
+    .or(`log_date.eq.${date},target_date.eq.${date}`)
     .order('logged_at', { ascending: true })
     .limit(DAY_LIMIT)
 

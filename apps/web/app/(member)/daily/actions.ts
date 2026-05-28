@@ -177,7 +177,8 @@ export async function addDailyLog(
 export async function updateDailyLog(
   id: string,
   content: string,
-  entryType: DailyLogEntryType
+  entryType: DailyLogEntryType,
+  targetDate?: string | null
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!content.trim()) return { ok: false, error: '내용을 입력해 주세요.' }
 
@@ -185,8 +186,18 @@ export async function updateDailyLog(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: '로그인이 필요합니다.' }
 
+  const updatePayload: Record<string, unknown> = {
+    content: content.trim(),
+    entry_type: entryType,
+    updated_at: new Date().toISOString(),
+  }
+  if (targetDate !== undefined) {
+    updatePayload.target_date = targetDate || null
+    if (targetDate) updatePayload.target_date_set_by = 'user'
+  }
+
   const { error } = await (supabase.from('daily_logs') as any)
-    .update({ content: content.trim(), entry_type: entryType, updated_at: new Date().toISOString() })
+    .update(updatePayload)
     .eq('id', id)
     .eq('user_id', user.id)
 
