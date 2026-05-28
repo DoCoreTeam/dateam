@@ -3,7 +3,17 @@
 import { useState, useCallback } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { ChevronRight, Plus, Zap, Info } from 'lucide-react'
+import { ChevronRight, Plus, Zap, Info, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+
+type SortKey = 'model' | 'supply' | 'sell'
+type SortDir = 'asc' | 'desc'
+
+function SortIcon({ col, sortConfig }: { col: SortKey; sortConfig: { key: SortKey; dir: SortDir } | null }) {
+  if (sortConfig?.key !== col) return <ArrowUpDown size={11} style={{ opacity: 0.35, marginLeft: 3, verticalAlign: 'middle' }} />
+  return sortConfig.dir === 'asc'
+    ? <ArrowUp size={11} style={{ color: 'var(--gpu-accent)', marginLeft: 3, verticalAlign: 'middle' }} />
+    : <ArrowDown size={11} style={{ color: 'var(--gpu-accent)', marginLeft: 3, verticalAlign: 'middle' }} />
+}
 
 interface Supplier {
   name: string
@@ -16,6 +26,7 @@ interface GpuProduct {
   model_name: string
   memory: string
   tier: 1 | 2 | 3
+  gpu_count: number
   pricing_mode: 'quote' | 'direct'
   lowest_unit_price_usd: number | null
   lowest_supplier: Supplier | null
@@ -62,9 +73,10 @@ interface ExpandedRowProps {
   productId: string
   usdKrw: number
   marginPct: number
+  currencyMode: 'KRW' | 'USD'
 }
 
-function ExpandedRow({ productId, usdKrw, marginPct }: ExpandedRowProps) {
+function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRowProps) {
   const { data } = useSWR<{ quotes: Quote[] }>(
     `/api/pricing/gpu/quotes?product_id=${productId}`,
     fetcher
@@ -99,11 +111,13 @@ function ExpandedRow({ productId, usdKrw, marginPct }: ExpandedRowProps) {
             </div>
             <div>
               <div className="gpu-mono" style={{ fontSize: '13.5px', fontWeight: 700 }}>
-                {fmtUSD(q.unit_price_usd)}
+                {currencyMode === 'KRW' ? fmtKRW(Math.round(q.unit_price_usd * usdKrw)) : fmtUSD(q.unit_price_usd)}
                 <span style={{ fontSize: '10px', color: 'var(--gpu-muted)', fontWeight: 400 }}>/GPU·hr</span>
               </div>
               <div style={{ fontSize: '11px', color: 'var(--gpu-muted)', marginTop: 2 }}>
-                판매 {fmtKRW(sellKrw)}/hr
+                {currencyMode === 'KRW'
+                  ? <>{fmtUSD(q.unit_price_usd)} · 판매 {fmtKRW(sellKrw)}/hr</>
+                  : <>판매 {fmtUSD(sellKrw / usdKrw)}/hr · {fmtKRW(sellKrw)}</>}
               </div>
             </div>
             <div style={{ fontSize: '11px', color: 'var(--gpu-muted)' }}>{q.term ?? '—'}</div>
@@ -152,6 +166,8 @@ export default function PriceTableTab({ onGoToIntake }: PriceTableTabProps) {
   const [marginInput, setMarginInput] = useState<number | null>(null)
   const [marginSaving, setMarginSaving] = useState(false)
   const [bannerDismissed, setBannerDismissed] = useState(false)
+  const [currencyMode, setCurrencyMode] = useState<'KRW' | 'USD'>('KRW')
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; dir: SortDir } | null>(null)
 
   const products = data?.products ?? []
   const marginPct = marginInput ?? data?.margin_pct ?? 18
@@ -200,9 +216,33 @@ export default function PriceTableTab({ onGoToIntake }: PriceTableTabProps) {
 
   const computeSellKrw = (p: GpuProduct) => {
     if (p.pricing_mode === 'direct') return p.sell_price_krw
-    if (!p.lowest_unit_price_usd) return null
+    if (p.lowest_unit_price_usd == null) return null
     return Math.round(p.lowest_unit_price_usd * (1 + marginPct / 100) * usdKrw)
   }
+
+  const handleSort = (key: SortKey) => {
+    setSortConfig((prev) =>
+      prev?.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }
+    )
+  }
+
+  const sorted = sortConfig
+    ? [...filtered].sort((a, b) => {
+        const dir = sortConfig.dir === 'asc' ? 1 : -1
+        if (sortConfig.key === 'model') return a.model_name.localeCompare(b.model_name, 'ko') * dir
+        if (sortConfig.key === 'supply') {
+          const aP = a.lowest_unit_price_usd ?? (dir > 0 ? Infinity : -Infinity)
+          const bP = b.lowest_unit_price_usd ?? (dir > 0 ? Infinity : -Infinity)
+          return (aP - bP) * dir
+        }
+        if (sortConfig.key === 'sell') {
+          const aS = computeSellKrw(a) ?? (dir > 0 ? Infinity : -Infinity)
+          const bS = computeSellKrw(b) ?? (dir > 0 ? Infinity : -Infinity)
+          return (aS - bS) * dir
+        }
+        return 0
+      })
+    : filtered
 
   return (
     <div>
@@ -261,25 +301,37 @@ export default function PriceTableTab({ onGoToIntake }: PriceTableTabProps) {
           />
         </div>
         <div className="gpu-seg">
-          {[0, 1, 2, 3].map((t) => (
+          {([0, 1, 2, 3] as const).map((t) => (
             <button
               key={t}
               className={tierFilter === t ? 'on' : ''}
               onClick={() => setTierFilter(t)}
             >
-              {t === 0 ? '전체' : `Tier ${t}`}
+              {t === 0 ? `전체 ${products.length}` : `T${t} · ${[stats.t1, stats.t2, stats.t3][t - 1]}`}
             </button>
           ))}
         </div>
-        <button
-          className="gpu-btn"
-          style={{ fontSize: 12, gap: 4, color: showAll ? 'var(--gpu-accent)' : undefined }}
-          onClick={() => setShowAll((v) => !v)}
-          title={showAll ? '견적 있는 상품만 보기' : '전체 121개 상품 보기'}
-        >
-          <Info size={13} />
-          {showAll ? `전체 ${products.length}개` : `견적 ${pricedProducts.length}개`}
-        </button>
+        {/* 통화 토글 */}
+        <div className="gpu-seg">
+          <button className={currencyMode === 'KRW' ? 'on' : ''} onClick={() => setCurrencyMode('KRW')} title="원화 기준으로 표시">₩ 원</button>
+          <button className={currencyMode === 'USD' ? 'on' : ''} onClick={() => setCurrencyMode('USD')} title="달러 기준으로 표시">$ 달러</button>
+        </div>
+        <div className="gpu-seg">
+          <button
+            className={!showAll ? 'on' : ''}
+            onClick={() => setShowAll(false)}
+            title="견적이 확정된 상품만 표시"
+          >
+            견적확정만 · {pricedProducts.length}
+          </button>
+          <button
+            className={showAll ? 'on' : ''}
+            onClick={() => setShowAll(true)}
+            title="견적 없는 상품 포함 전체 표시"
+          >
+            전체상품 · {products.length}
+          </button>
+        </div>
         <button className="gpu-btn gpu-btn-primary" onClick={onGoToIntake}>
           <Plus size={15} /> 견적 등록
         </button>
@@ -339,16 +391,32 @@ export default function PriceTableTab({ onGoToIntake }: PriceTableTabProps) {
         <table className="gpu-table">
           <thead>
             <tr>
-              <th>GPU 모델</th>
-              <th>최저 공급가 <span className="gpu-th-note">(시간당)</span></th>
+              <th
+                onClick={() => handleSort('model')}
+                style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+              >
+                GPU 모델<SortIcon col="model" sortConfig={sortConfig} />
+              </th>
+              <th
+                onClick={() => handleSort('supply')}
+                style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+              >
+                최저 공급가 <span className="gpu-th-note">(시간당 · {currencyMode === 'KRW' ? '원화' : '달러'})</span><SortIcon col="supply" sortConfig={sortConfig} />
+              </th>
               <th>최저가 공급사</th>
-              <th className="r">gcube 판매가 <span className="gpu-th-note">(마진 적용)</span></th>
+              <th
+                className="r"
+                onClick={() => handleSort('sell')}
+                style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+              >
+                gcube 판매가 <span className="gpu-th-note">(마진 적용 · {currencyMode === 'KRW' ? '원화' : '달러'})</span><SortIcon col="sell" sortConfig={sortConfig} />
+              </th>
               <th>견적 상태</th>
               <th style={{ width: 40 }}></th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((p) => {
+            {sorted.map((p) => {
               const tier = TIER_CONFIG[p.tier]
               const isExpanded = expandedId === p.id
               const sellKrw = computeSellKrw(p)
@@ -368,7 +436,7 @@ export default function PriceTableTab({ onGoToIntake }: PriceTableTabProps) {
                         <span>{p.memory}</span>
                       </div>
                       <div>
-                        <div className="gpu-model-nm">{p.model_name}</div>
+                        <div className="gpu-model-nm">{p.model_name} <span style={{ fontSize: '11px', color: 'var(--gpu-muted)', fontWeight: 400 }}>×{p.gpu_count}GPU</span></div>
                         <div className="gpu-model-meta">
                           <span className={`gpu-badge ${tier.badge}`} style={{ fontSize: '10px' }}>{tier.label}</span>
                           {' '}{tier.name}
@@ -381,8 +449,16 @@ export default function PriceTableTab({ onGoToIntake }: PriceTableTabProps) {
                       <div style={{ fontSize: '12px', color: 'var(--gpu-muted)' }}>견적 없음</div>
                     ) : p.lowest_unit_price_usd != null ? (
                       <>
-                        <div className="gpu-price-main">{fmtUSD(p.lowest_unit_price_usd)}</div>
-                        <div className="gpu-price-sub">/GPU·hr</div>
+                        <div className="gpu-price-main">
+                          {currencyMode === 'KRW'
+                            ? fmtKRW(Math.round(p.lowest_unit_price_usd * usdKrw))
+                            : fmtUSD(p.lowest_unit_price_usd)}
+                        </div>
+                        <div className="gpu-price-sub">
+                          {currencyMode === 'KRW'
+                            ? <>{fmtUSD(p.lowest_unit_price_usd)} · /GPU·hr</>
+                            : <>/GPU·hr · {fmtKRW(Math.round(p.lowest_unit_price_usd * usdKrw))}</>}
+                        </div>
                       </>
                     ) : (
                       <div style={{ fontSize: '12px', color: 'var(--gpu-faint)' }}>견적 대기</div>
@@ -403,8 +479,16 @@ export default function PriceTableTab({ onGoToIntake }: PriceTableTabProps) {
                   <td className="r">
                     {sellKrw != null ? (
                       <>
-                        <div className="gpu-price-main">{fmtKRW(sellKrw)}</div>
-                        <div className="gpu-price-sub">/hr</div>
+                        <div className="gpu-price-main">
+                          {currencyMode === 'KRW'
+                            ? fmtKRW(sellKrw)
+                            : fmtUSD(sellKrw / usdKrw)}
+                        </div>
+                        <div className="gpu-price-sub">
+                          {currencyMode === 'KRW'
+                            ? <>{fmtUSD(sellKrw / usdKrw)} · /hr</>
+                            : <>/hr · {fmtKRW(sellKrw)}</>}
+                        </div>
                       </>
                     ) : (
                       <span style={{ fontSize: '12px', color: 'var(--gpu-faint)' }}>—</span>
@@ -443,7 +527,7 @@ export default function PriceTableTab({ onGoToIntake }: PriceTableTabProps) {
                           {sellKrw && <strong className="gpu-mono">{fmtKRW(sellKrw)}/hr (현재가)</strong>}
                         </div>
                       ) : (
-                        <ExpandedRow productId={p.id} usdKrw={usdKrw} marginPct={marginPct} />
+                        <ExpandedRow productId={p.id} usdKrw={usdKrw} marginPct={marginPct} currencyMode={currencyMode} />
                       )}
                     </td>
                   </tr>

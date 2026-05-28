@@ -139,7 +139,7 @@ export default function QuoteRegisterTab() {
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const items = e.clipboardData.items
-    for (const item of items) {
+    for (const item of Array.from(items)) {
       if (item.type.startsWith('image/')) {
         const file = item.getAsFile()
         if (file) { processFile(file); e.preventDefault(); return }
@@ -261,7 +261,6 @@ export default function QuoteRegisterTab() {
             )}
 
             <input
-              ref={fileInputRef}
               id="gpu-file-input"
               type="file"
               accept=".txt,.csv,.md,.json,.pdf,.xlsx,.docx,.png,.jpg,.jpeg,.webp"
@@ -270,7 +269,7 @@ export default function QuoteRegisterTab() {
             />
 
             {(rawText || attached) && (
-              <button className="gpu-btn" style={{ marginTop: 8, fontSize: 12 }} onClick={resetQuote}>
+              <button className="gpu-btn" style={{ marginTop: 8, fontSize: 12 }} onClick={() => resetQuote()}>
                 초기화
               </button>
             )}
