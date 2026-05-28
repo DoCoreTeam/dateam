@@ -96,7 +96,7 @@ export default function CalendarPage() {
   );
 
   // 패널
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(todayStr);
 
   // SWR: 월간 요약
   const monthKey = viewMode === "month"
@@ -155,7 +155,7 @@ export default function CalendarPage() {
   const isCurrentWeek = weekDates.includes(todayStr);
 
   return (
-    <div className="page-inner">
+    <div>
       {selectedDate && (
         <DayDetailPanel
           date={selectedDate}

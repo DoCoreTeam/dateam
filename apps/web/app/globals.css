@@ -1122,7 +1122,7 @@
   color: #2563eb;
 }
 .calendar-day-cell {
-  min-height: clamp(5.75rem, 9vw, 7.75rem);
+  min-height: max(4rem, min(7.75rem, calc((100dvh - 380px) / 6)));
   border: none;
   border-right: 1px solid #edf1f6;
   border-bottom: 1px solid #edf1f6;
