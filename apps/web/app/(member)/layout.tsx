@@ -23,6 +23,7 @@ import {
   Inbox,
   NotebookPen,
   CalendarDays,
+  DollarSign,
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import SWRProvider from './SWRProvider'
@@ -45,6 +46,12 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/contacts', label: '담당자', icon: <Users size={16} /> },
       { href: '/deals', label: '영업기회', icon: <TrendingUp size={16} /> },
       { href: '/lead-intake', label: '리드 인테이크', icon: <Inbox size={16} /> },
+    ],
+  },
+  {
+    label: '가격정책',
+    items: [
+      { href: '/pricing/gpu', label: 'GPU 가격관리', icon: <DollarSign size={16} /> },
     ],
   },
 ]
@@ -88,7 +95,7 @@ export default async function MemberLayout({ children }: { children: React.React
     <>
       <MobileShell
         items={navItemsWithBadge}
-        groups={profile?.role === 'admin' ? NAV_GROUPS : []}
+        groups={profile?.role === 'admin' ? NAV_GROUPS : NAV_GROUPS.filter(g => g.label === '가격정책')}
         logoUrl={branding.logoUrl}
         brandName={branding.brandName}
         footer={<SidebarProfile name={displayName} email={userEmail} isAdmin={profile?.role === 'admin'} />}

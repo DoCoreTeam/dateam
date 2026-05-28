@@ -1,7 +1,7 @@
 # newAX 프로젝트 코딩 정책 (Codex)
 
 > 이 파일은 Codex CLI가 읽는 정책 메모리입니다.
-> `CLAUDE.md`의 핵심 정책을 공유하며, Codex 전용 추가 컨벤션을 포함합니다.
+> `GEMINI.md`의 핵심 정책을 공유하며, Codex 전용 추가 컨벤션을 포함합니다.
 
 ## 기술 스택
 
@@ -12,13 +12,13 @@
 
 ## 버전
 
-v0.4.28
+v0.4.29
 
 버전 변경 시 아래 **모든** 항목을 반드시 업데이트한다:
 
 1. `/package.json` — `"version"` 필드 ← 단일 소스 (`next.config.js`가 자동 주입)
 2. `/apps/web/package.json` — `"version"` 필드 (monorepo 동기화)
-3. `CLAUDE.md` — `## 버전` 라인
+3. `GEMINI.md` — `## 버전` 라인
 4. `AGENTS.md` (이 파일) — `## 버전` 라인
 
 > `apps/web/next.config.js:2`가 `require('../../package.json').version`을 읽어

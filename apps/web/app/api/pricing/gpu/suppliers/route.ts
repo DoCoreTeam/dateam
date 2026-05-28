@@ -75,3 +75,32 @@ export async function GET() {
     return NextResponse.json({ error: 'Failed to fetch suppliers' }, { status: 500 })
   }
 }
+
+const COLORS = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#3b82f6','#ec4899','#14b8a6','#f97316','#84cc16']
+
+export async function POST(request: Request) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any
+    const body = await request.json()
+    const { name, location, contact } = body
+    if (!name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 })
+
+    const color = COLORS[Math.floor(Math.random() * COLORS.length)]
+    const { data, error } = await db
+      .from('suppliers')
+      .insert({ name: name.trim(), location: location?.trim() || null, contact: contact?.trim() || null, color })
+      .select()
+      .single()
+
+    if (error) throw error
+    return NextResponse.json({ supplier: data })
+  } catch (err) {
+    console.error('[pricing/suppliers POST]', err)
+    return NextResponse.json({ error: 'Failed to create supplier' }, { status: 500 })
+  }
+}

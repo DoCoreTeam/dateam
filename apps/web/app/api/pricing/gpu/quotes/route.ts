@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 export async function GET(request: Request) {
   try {
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     const {
-      product_id, supplier_id, unit_price_usd, original_currency,
+      product_id, supplier_id, supplier_name, unit_price_usd, original_currency,
       original_price, original_unit, term, min_qty, valid_until,
       source_format, evidence_drive_file_id, evidence_hash, ai_confidence,
     } = body
@@ -46,10 +46,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'product_id and unit_price_usd are required' }, { status: 400 })
     }
 
+    // Find or create supplier from name if supplier_id not provided
+    const COLORS = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#3b82f6','#ec4899','#14b8a6','#f97316','#84cc16']
+    let finalSupplierId = supplier_id || null
+    if (!finalSupplierId && supplier_name?.trim()) {
+      const { data: existing } = await db
+        .from('suppliers')
+        .select('id')
+        .ilike('name', supplier_name.trim())
+        .maybeSingle()
+      if (existing) {
+        finalSupplierId = existing.id
+      } else {
+        const color = COLORS[Math.floor(Math.random() * COLORS.length)]
+        const { data: created } = await db
+          .from('suppliers')
+          .insert({ name: supplier_name.trim(), color, location: null })
+          .select('id')
+          .single()
+        finalSupplierId = created?.id ?? null
+      }
+    }
+
     const { data, error } = await db
       .from('supply_quotes')
       .insert({
-        product_id, supplier_id, unit_price_usd: Number(unit_price_usd),
+        product_id, supplier_id: finalSupplierId, unit_price_usd: Number(unit_price_usd),
         original_currency, original_price: original_price ? Number(original_price) : null,
         original_unit, term, min_qty, valid_until: valid_until || null,
         source_format: source_format || 'text',
@@ -65,11 +87,13 @@ export async function POST(request: Request) {
 
     if (error) throw error
 
-    await db.from('gpu_audit_logs').insert({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const adminDb = createAdminClient() as any
+    await adminDb.from('gpu_audit_logs').insert({
       action_type: 'quote_registered',
       actor: user.email,
       product_id,
-      detail: { quote_id: data.id, unit_price_usd, supplier_id },
+      detail: { quote_id: data.id, unit_price_usd, supplier_id: finalSupplierId },
       evidence_ref: evidence_drive_file_id ?? data.id,
     })
 

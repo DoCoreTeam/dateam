@@ -72,10 +72,7 @@ export default function GpuPricingClient() {
       <div className="gpu-topbar">
         <div>
           <div className="gpu-crumb">가격정책</div>
-          <h2 className="gpu-page-title">
-            GPU 가격관리
-            <span className="gpu-version-pill">v0.4.1</span>
-          </h2>
+          <h2 className="gpu-page-title">GPU 가격관리</h2>
         </div>
         <div className="gpu-topbar-right">
           {usdKrw != null && (

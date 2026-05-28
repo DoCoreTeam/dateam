@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 export async function POST(
   _req: Request,
@@ -29,7 +29,9 @@ export async function POST(
 
     if (error) throw error
 
-    await db.from('gpu_audit_logs').insert({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const adminDb = createAdminClient() as any
+    await adminDb.from('gpu_audit_logs').insert({
       action_type: 'quote_confirmed',
       actor: user.email,
       product_id: (quote.gpu_products as Record<string, unknown>)?.id as string,
