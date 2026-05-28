@@ -762,6 +762,48 @@
   }
 }
 
+/* ─── 홈 페이지 레이아웃 ────────────────────────────────────────────
+ * 데스크탑/태블릿(≥768px): 2열 CSS Grid
+ * 모바일(<768px): Flex column + order 재배치
+ * HomeQuickEntry 단일 마운트 보장
+ * ─────────────────────────────────────────────────────────────────── */
+
+/* 데스크탑/태블릿 2열 그리드 */
+@media (min-width: 768px) {
+  .home-layout {
+    display: grid;
+    grid-template-columns: 1fr 352px;
+    column-gap: 1.25rem;
+    row-gap: 1.25rem;
+    align-items: start;
+  }
+  .home-section-header   { grid-column: 1 / -1; grid-row: 1; }
+  .home-section-mission  { grid-column: 1 / -1; grid-row: 2; }
+  .home-section-calendar { grid-column: 1; grid-row: 3 / 5; }
+  .home-section-quick    { grid-column: 2; grid-row: 3; }
+  .home-section-weekly   { grid-column: 2; grid-row: 4; }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .home-layout {
+    grid-template-columns: 1fr 280px;
+  }
+}
+
+/* 모바일: flex column + order (헤더→오늘업무→미션OKR→주간보고→캘린더) */
+@media (max-width: 767px) {
+  .home-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .home-section-header   { order: 1; }
+  .home-section-quick    { order: 2; }
+  .home-section-mission  { order: 3; }
+  .home-section-weekly   { order: 4; }
+  .home-section-calendar { order: 5; }
+}
+
 /* ─── 태블릿 미디어쿼리 (768px ~ 1023px) ──────────────────────── */
 @media (min-width: 768px) and (max-width: 1023px) {
   .app-sidebar {
