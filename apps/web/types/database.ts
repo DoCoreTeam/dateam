@@ -1,3 +1,87 @@
+// GPU Pricing types
+export interface GpuSupplier {
+  id: string
+  name: string
+  location: string | null
+  contact: string | null
+  color: string | null
+  created_at: string
+}
+
+export interface GpuProduct {
+  id: string
+  model_name: string
+  memory: string
+  tier: 1 | 2 | 3
+  pricing_mode: 'quote' | 'direct'
+  created_at: string
+}
+
+export interface SupplyQuote {
+  id: string
+  product_id: string | null
+  supplier_id: string | null
+  unit_price_usd: number
+  original_currency: string | null
+  original_price: number | null
+  original_unit: string | null
+  term: string | null
+  min_qty: string | null
+  valid_until: string | null
+  source_format: string | null
+  evidence_drive_file_id: string | null
+  evidence_hash: string | null
+  ai_confidence: number | null
+  status: string
+  received_at: string | null
+  registered_by: string | null
+  confirmed_by: string | null
+  confirmed_at: string | null
+  created_at: string
+}
+
+export interface DirectPrice {
+  id: string
+  product_id: string | null
+  sell_price_krw: number
+  note: string | null
+  set_by: string | null
+  set_at: string
+  is_current: boolean
+}
+
+export interface FxRate {
+  rate_date: string
+  usd_krw: number
+  source: string
+  fetched_at: string
+}
+
+export interface PricingSettings {
+  id: number
+  margin_pct: number
+  updated_by: string | null
+  updated_at: string
+}
+
+export interface GpuAuditLog {
+  id: string
+  ts: string
+  actor: string | null
+  action_type: string | null
+  product_id: string | null
+  detail: Record<string, unknown> | null
+  evidence_ref: string | null
+}
+
+export interface VLowestQuote {
+  product_id: string | null
+  quote_id: string | null
+  supplier_id: string | null
+  unit_price_usd: number | null
+  valid_until: string | null
+}
+
 export interface OAuthToken {
   id: string
   provider: string
@@ -380,6 +464,48 @@ export interface Database {
         Row: OAuthToken
         Insert: OAuthTokenInsert
         Update: Partial<OAuthTokenInsert>
+        Relationships: []
+      }
+      suppliers: {
+        Row: { [K in keyof GpuSupplier]: GpuSupplier[K] }
+        Insert: { [K in keyof Omit<GpuSupplier, 'id' | 'created_at'>]: Omit<GpuSupplier, 'id' | 'created_at'>[K] }
+        Update: { [K in keyof Partial<Omit<GpuSupplier, 'id' | 'created_at'>>]: Partial<Omit<GpuSupplier, 'id' | 'created_at'>>[K] }
+        Relationships: []
+      }
+      gpu_products: {
+        Row: { [K in keyof GpuProduct]: GpuProduct[K] }
+        Insert: { [K in keyof Omit<GpuProduct, 'id' | 'created_at'>]: Omit<GpuProduct, 'id' | 'created_at'>[K] }
+        Update: { [K in keyof Partial<Omit<GpuProduct, 'id' | 'created_at'>>]: Partial<Omit<GpuProduct, 'id' | 'created_at'>>[K] }
+        Relationships: []
+      }
+      supply_quotes: {
+        Row: { [K in keyof SupplyQuote]: SupplyQuote[K] }
+        Insert: { [K in keyof Omit<SupplyQuote, 'id' | 'created_at'>]: Omit<SupplyQuote, 'id' | 'created_at'>[K] }
+        Update: { [K in keyof Partial<Omit<SupplyQuote, 'id' | 'created_at'>>]: Partial<Omit<SupplyQuote, 'id' | 'created_at'>>[K] }
+        Relationships: []
+      }
+      direct_prices: {
+        Row: { [K in keyof DirectPrice]: DirectPrice[K] }
+        Insert: { [K in keyof Omit<DirectPrice, 'id' | 'set_at'>]: Omit<DirectPrice, 'id' | 'set_at'>[K] }
+        Update: { [K in keyof Partial<Omit<DirectPrice, 'id' | 'set_at'>>]: Partial<Omit<DirectPrice, 'id' | 'set_at'>>[K] }
+        Relationships: []
+      }
+      fx_rates: {
+        Row: { [K in keyof FxRate]: FxRate[K] }
+        Insert: { [K in keyof Omit<FxRate, 'fetched_at'>]: Omit<FxRate, 'fetched_at'>[K] }
+        Update: { [K in keyof Partial<Omit<FxRate, 'fetched_at'>>]: Partial<Omit<FxRate, 'fetched_at'>>[K] }
+        Relationships: []
+      }
+      pricing_settings: {
+        Row: { [K in keyof PricingSettings]: PricingSettings[K] }
+        Insert: { [K in keyof Partial<PricingSettings>]: Partial<PricingSettings>[K] }
+        Update: { [K in keyof Partial<PricingSettings>]: Partial<PricingSettings>[K] }
+        Relationships: []
+      }
+      gpu_audit_logs: {
+        Row: { [K in keyof GpuAuditLog]: GpuAuditLog[K] }
+        Insert: { [K in keyof Omit<GpuAuditLog, 'id' | 'ts'>]: Omit<GpuAuditLog, 'id' | 'ts'>[K] }
+        Update: { [K in keyof Partial<Omit<GpuAuditLog, 'id' | 'ts'>>]: Partial<Omit<GpuAuditLog, 'id' | 'ts'>>[K] }
         Relationships: []
       }
     }

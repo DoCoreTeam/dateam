@@ -1,0 +1,446 @@
+'use client'
+
+import { useState, useCallback } from 'react'
+import useSWR from 'swr'
+import { fetcher } from '@/lib/swr-config'
+import { ChevronRight, Plus, Zap, Info } from 'lucide-react'
+
+interface Supplier {
+  name: string
+  color: string
+  location?: string
+}
+
+interface GpuProduct {
+  id: string
+  model_name: string
+  memory: string
+  tier: 1 | 2 | 3
+  pricing_mode: 'quote' | 'direct'
+  lowest_unit_price_usd: number | null
+  lowest_supplier: Supplier | null
+  lowest_valid_until: string | null
+  sell_price_krw: number | null
+  sell_price_usd: number | null
+  pending_count: number
+}
+
+interface ProductsResponse {
+  products: GpuProduct[]
+  margin_pct: number
+  usd_krw: number
+  fx_date: string | null
+}
+
+interface Quote {
+  id: string
+  unit_price_usd: number
+  term: string | null
+  min_qty: string | null
+  valid_until: string | null
+  source_format: string | null
+  ai_confidence: number | null
+  suppliers: Supplier | null
+}
+
+const TIER_CONFIG = {
+  1: { label: 'Tier 1', name: '전용 고성능', badge: 'gpu-badge-t1', chipColor: '#13151c' },
+  2: { label: 'Tier 2', name: '점유형',     badge: 'gpu-badge-t2', chipColor: '#1e40af' },
+  3: { label: 'Tier 3', name: '간헐 공급',   badge: 'gpu-badge-t3', chipColor: '#b45309' },
+}
+
+const fmtUSD = (v: number) => '$' + v.toFixed(2)
+const fmtKRW = (v: number) => '₩' + Math.round(v).toLocaleString('ko-KR')
+const fmtDday = (dateStr: string) => {
+  const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000)
+  if (diff < 0) return { label: '만료', color: 'var(--gpu-red)' }
+  if (diff <= 7) return { label: `D-${diff}`, color: 'var(--gpu-amber)' }
+  return { label: `D-${diff}`, color: 'var(--gpu-green)' }
+}
+
+interface ExpandedRowProps {
+  productId: string
+  usdKrw: number
+  marginPct: number
+}
+
+function ExpandedRow({ productId, usdKrw, marginPct }: ExpandedRowProps) {
+  const { data } = useSWR<{ quotes: Quote[] }>(
+    `/api/pricing/gpu/quotes?product_id=${productId}`,
+    fetcher
+  )
+  const quotes = data?.quotes ?? []
+
+  if (quotes.length === 0) {
+    return (
+      <div className="gpu-expand-empty">
+        확정된 견적이 없습니다 — 견적 등록 탭에서 공급 견적을 등록해 주세요.
+      </div>
+    )
+  }
+
+  return (
+    <div className="gpu-expand-body">
+      <div className="gpu-expand-head">
+        <Info size={13} /> 전체 공급사 견적 (낮은 순) · 최저가는 동일 tier 내에서만 비교
+      </div>
+      {quotes.map((q, i) => {
+        const sellKrw = q.unit_price_usd * (1 + marginPct / 100) * usdKrw
+        const dday = q.valid_until ? fmtDday(q.valid_until) : null
+        const isBest = i === 0
+        return (
+          <div key={q.id} className={`gpu-qline${isBest ? ' gpu-qline-best' : ''}`}>
+            <div className="gpu-qline-sup">
+              {q.suppliers && (
+                <span className="gpu-sdot" style={{ background: q.suppliers.color }} />
+              )}
+              <span style={{ fontWeight: 600 }}>{q.suppliers?.name ?? '—'}</span>
+              {isBest && <span className="gpu-badge-best">최저가</span>}
+            </div>
+            <div>
+              <div className="gpu-mono" style={{ fontSize: '13.5px', fontWeight: 700 }}>
+                {fmtUSD(q.unit_price_usd)}
+                <span style={{ fontSize: '10px', color: 'var(--gpu-muted)', fontWeight: 400 }}>/GPU·hr</span>
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--gpu-muted)', marginTop: 2 }}>
+                판매 {fmtKRW(sellKrw)}/hr
+              </div>
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--gpu-muted)' }}>{q.term ?? '—'}</div>
+            <div style={{ fontSize: '11px', color: 'var(--gpu-muted)' }}>{q.min_qty ?? '—'}</div>
+            <div>
+              {dday && (
+                <span className="gpu-mono" style={{ fontSize: '10.5px', fontWeight: 700, color: dday.color }}>
+                  {dday.label}
+                </span>
+              )}
+              {q.valid_until && (
+                <div style={{ fontSize: '10px', color: 'var(--gpu-faint)' }}>{q.valid_until}</div>
+              )}
+            </div>
+            <div style={{ fontSize: '10px', color: 'var(--gpu-faint)' }}>
+              {q.ai_confidence != null && (
+                <div className="gpu-conf">
+                  <div className="gpu-conf-bar">
+                    <i
+                      className={q.ai_confidence >= 80 ? '' : q.ai_confidence >= 50 ? 'mid' : 'low'}
+                      style={{ width: `${q.ai_confidence}%` }}
+                    />
+                  </div>
+                  {q.ai_confidence}%
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+interface PriceTableTabProps {
+  onGoToIntake: () => void
+}
+
+export default function PriceTableTab({ onGoToIntake }: PriceTableTabProps) {
+  const { data, mutate: revalidate } = useSWR<ProductsResponse>('/api/pricing/gpu/products', fetcher, {
+    refreshInterval: 60000,
+  })
+  const [tierFilter, setTierFilter] = useState(0)
+  const [search, setSearch] = useState('')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [marginInput, setMarginInput] = useState<number | null>(null)
+  const [marginSaving, setMarginSaving] = useState(false)
+  const [bannerDismissed, setBannerDismissed] = useState(false)
+
+  const products = data?.products ?? []
+  const marginPct = marginInput ?? data?.margin_pct ?? 18
+  const usdKrw = data?.usd_krw ?? 1400
+  const fxDate = data?.fx_date
+
+  const filtered = products.filter((p) => {
+    if (tierFilter !== 0 && p.tier !== tierFilter) return false
+    if (search) {
+      const q = search.toLowerCase()
+      return p.model_name.toLowerCase().includes(q) || p.memory.toLowerCase().includes(q)
+    }
+    return true
+  })
+
+  const stats = {
+    total: products.length,
+    t1: products.filter((p) => p.tier === 1).length,
+    t2: products.filter((p) => p.tier === 2).length,
+    t3: products.filter((p) => p.tier === 3).length,
+    pending: products.reduce((a, p) => a + p.pending_count, 0),
+  }
+
+  const handleMarginSave = useCallback(async (val: number) => {
+    setMarginSaving(true)
+    try {
+      const res = await fetch('/api/pricing/gpu/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ margin_pct: val }),
+      })
+      if (res.ok) {
+        setMarginInput(null)
+        await revalidate()
+      }
+    } finally {
+      setMarginSaving(false)
+    }
+  }, [revalidate])
+
+  const computeSellKrw = (p: GpuProduct) => {
+    if (p.pricing_mode === 'direct') return p.sell_price_krw
+    if (!p.lowest_unit_price_usd) return null
+    return Math.round(p.lowest_unit_price_usd * (1 + marginPct / 100) * usdKrw)
+  }
+
+  return (
+    <div>
+      {/* 최저가 갱신 배너 */}
+      {!bannerDismissed && stats.pending > 0 && (
+        <div className="gpu-banner">
+          <div className="gpu-banner-dot">
+            <Zap size={16} color="#5b5ef0" />
+          </div>
+          <div>
+            <strong>검토 대기</strong> · AI 추출 견적 <strong>{stats.pending}건</strong>이 검토를 기다리고 있습니다 — 검토 대기 탭에서 확인 후 확정하면 가격표에 반영됩니다
+          </div>
+          <button className="gpu-banner-close" onClick={() => setBannerDismissed(true)}>×</button>
+        </div>
+      )}
+
+      {/* 통계 */}
+      <div className="gpu-stats">
+        <div className="gpu-stat">
+          <div className="gpu-stat-lbl">관리 상품 (모델×tier)</div>
+          <div className="gpu-stat-val">{stats.total}<span className="gpu-stat-unit">개</span></div>
+          <div className="gpu-stat-sub">T1 {stats.t1} · T2 {stats.t2} · T3 {stats.t3}</div>
+        </div>
+        <div className="gpu-stat">
+          <div className="gpu-stat-lbl">T1·T2 최저가 보유</div>
+          <div className="gpu-stat-val">
+            {products.filter((p) => p.tier !== 3 && p.lowest_unit_price_usd != null).length}
+            <span className="gpu-stat-unit">개</span>
+          </div>
+          <div className="gpu-stat-sub">견적 확정 상품</div>
+        </div>
+        <div className="gpu-stat">
+          <div className="gpu-stat-lbl">검토 대기 견적</div>
+          <div className="gpu-stat-val" style={{ color: stats.pending > 0 ? 'var(--gpu-amber)' : undefined }}>
+            {stats.pending}<span className="gpu-stat-unit">건</span>
+          </div>
+          <div className="gpu-stat-sub">확정 전 가격표 미반영</div>
+        </div>
+        <div className="gpu-stat">
+          <div className="gpu-stat-lbl">오늘 환율</div>
+          <div className="gpu-stat-val gpu-mono" style={{ fontSize: '18px' }}>
+            {usdKrw.toLocaleString('ko-KR')}
+          </div>
+          <div className="gpu-stat-sub">KRW/USD{fxDate ? ` · ${fxDate}` : ''}</div>
+        </div>
+      </div>
+
+      {/* 툴바 */}
+      <div className="gpu-toolbar">
+        <div className="gpu-search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input
+            placeholder="모델명 검색 (H100, B200, 4090 ...)"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="gpu-seg">
+          {[0, 1, 2, 3].map((t) => (
+            <button
+              key={t}
+              className={tierFilter === t ? 'on' : ''}
+              onClick={() => setTierFilter(t)}
+            >
+              {t === 0 ? '전체' : `Tier ${t}`}
+            </button>
+          ))}
+        </div>
+        <button className="gpu-btn gpu-btn-primary" onClick={onGoToIntake}>
+          <Plus size={15} /> 견적 등록
+        </button>
+      </div>
+
+      {/* 마진 바 */}
+      <div className="gpu-margin-bar">
+        <div className="gpu-mb-left">
+          <div className="gpu-mb-icon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#5b5ef0" strokeWidth="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          </div>
+          <div>
+            <strong>gcube 판매 마진</strong>
+            <div className="gpu-mb-eq">최저 공급원가 × (1 + 마진) = 판매가</div>
+          </div>
+        </div>
+        <div className="gpu-mb-ctrl">
+          {[15, 18, 20, 25].map((preset) => (
+            <button
+              key={preset}
+              className={`gpu-mb-preset${marginPct === preset ? ' on' : ''}`}
+              onClick={() => { setMarginInput(preset); handleMarginSave(preset) }}
+            >
+              {preset}%
+            </button>
+          ))}
+          <div className="gpu-mb-input">
+            <button onClick={() => { const v = Math.max(0, marginPct - 1); setMarginInput(v); handleMarginSave(v) }}>−</button>
+            <input
+              type="number"
+              value={marginPct}
+              onChange={(e) => setMarginInput(Number(e.target.value))}
+              onBlur={() => handleMarginSave(marginPct)}
+            />
+            <span className="gpu-mb-pct">%</span>
+            <button onClick={() => { const v = marginPct + 1; setMarginInput(v); handleMarginSave(v) }}>+</button>
+          </div>
+          {marginSaving && <span style={{ fontSize: '11px', color: 'var(--gpu-muted)' }}>저장 중…</span>}
+        </div>
+        <div className="gpu-mb-note">
+          <Info size={12} /> 전 모델 일괄 적용 · 변경 즉시 판매가 컬럼에 반영 · 모델별 개별 마진 재설정은 다음 버전 예정
+        </div>
+      </div>
+
+      {/* Tier 범례 */}
+      <div className="gpu-tier-legend">
+        <span className="gpu-tl"><span className="gpu-badge gpu-badge-t1">Tier 1</span>전용 고성능 · 보장형</span>
+        <span className="gpu-tl"><span className="gpu-badge gpu-badge-t2">Tier 2</span>점유형(예약 단독) · 보장형</span>
+        <span className="gpu-tl"><span className="gpu-badge gpu-badge-t3">Tier 3</span>간헐 공급(중단/재개) · 최저가</span>
+        <span className="gpu-tier-legend-note">
+          <Info size={13} /> 최저가는 동일 모델·tier 안에서만 비교
+        </span>
+      </div>
+
+      {/* 가격표 */}
+      <div className="gpu-panel">
+        <table className="gpu-table">
+          <thead>
+            <tr>
+              <th>GPU 모델</th>
+              <th>최저 공급가 <span className="gpu-th-note">(시간당)</span></th>
+              <th>최저가 공급사</th>
+              <th className="r">gcube 판매가 <span className="gpu-th-note">(마진 적용)</span></th>
+              <th>견적 상태</th>
+              <th style={{ width: 40 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((p) => {
+              const tier = TIER_CONFIG[p.tier]
+              const isExpanded = expandedId === p.id
+              const sellKrw = computeSellKrw(p)
+              const dday = p.lowest_valid_until ? fmtDday(p.lowest_valid_until) : null
+              const firstLetter = p.model_name.charAt(0)
+
+              return [
+                <tr
+                  key={p.id}
+                  className={`gpu-row-main${isExpanded ? ' open' : ''}`}
+                  onClick={() => setExpandedId(isExpanded ? null : p.id)}
+                >
+                  <td>
+                    <div className="gpu-model-cell">
+                      <div className="gpu-chip" style={{ background: tier.chipColor }}>
+                        {firstLetter}
+                        <span>{p.memory}</span>
+                      </div>
+                      <div>
+                        <div className="gpu-model-nm">{p.model_name}</div>
+                        <div className="gpu-model-meta">
+                          <span className={`gpu-badge ${tier.badge}`} style={{ fontSize: '10px' }}>{tier.label}</span>
+                          {' '}{tier.name}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    {p.pricing_mode === 'direct' ? (
+                      <div style={{ fontSize: '12px', color: 'var(--gpu-muted)' }}>견적 없음</div>
+                    ) : p.lowest_unit_price_usd != null ? (
+                      <>
+                        <div className="gpu-price-main">{fmtUSD(p.lowest_unit_price_usd)}</div>
+                        <div className="gpu-price-sub">/GPU·hr</div>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: '12px', color: 'var(--gpu-faint)' }}>견적 대기</div>
+                    )}
+                  </td>
+                  <td>
+                    {p.pricing_mode === 'direct' ? (
+                      <span style={{ fontSize: '12px', color: 'var(--gpu-muted)' }}>gcube 직접 설정</span>
+                    ) : p.lowest_supplier ? (
+                      <div className="gpu-supplier-tag">
+                        <span className="gpu-sdot" style={{ background: p.lowest_supplier.color }} />
+                        {p.lowest_supplier.name}
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '12px', color: 'var(--gpu-faint)' }}>—</span>
+                    )}
+                  </td>
+                  <td className="r">
+                    {sellKrw != null ? (
+                      <>
+                        <div className="gpu-price-main">{fmtKRW(sellKrw)}</div>
+                        <div className="gpu-price-sub">/hr</div>
+                      </>
+                    ) : (
+                      <span style={{ fontSize: '12px', color: 'var(--gpu-faint)' }}>—</span>
+                    )}
+                  </td>
+                  <td>
+                    {p.pricing_mode === 'direct' ? (
+                      <span className="gpu-badge gpu-badge-amber">직접입력</span>
+                    ) : p.lowest_unit_price_usd != null ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <span className="gpu-badge gpu-badge-green">견적 확정</span>
+                        {dday && (
+                          <span className="gpu-mono" style={{ fontSize: '10px', color: dday.color }}>{dday.label}</span>
+                        )}
+                      </div>
+                    ) : p.pending_count > 0 ? (
+                      <span className="gpu-badge gpu-badge-amber">검토 대기 {p.pending_count}건</span>
+                    ) : (
+                      <span className="gpu-badge gpu-badge-gray">견적 없음</span>
+                    )}
+                  </td>
+                  <td>
+                    <ChevronRight
+                      size={18}
+                      className={`gpu-chev${isExpanded ? ' open' : ''}`}
+                    />
+                  </td>
+                </tr>,
+                isExpanded && (
+                  <tr key={`${p.id}-expand`} className="gpu-detail-row">
+                    <td colSpan={6} style={{ padding: 0 }}>
+                      {p.pricing_mode === 'direct' ? (
+                        <div className="gpu-expand-body gpu-expand-direct">
+                          <Info size={13} />
+                          <span>Tier 3 — 공급 견적 없음. 판매가는 직접 입력 방식으로 관리됩니다.</span>
+                          {sellKrw && <strong className="gpu-mono">{fmtKRW(sellKrw)}/hr (현재가)</strong>}
+                        </div>
+                      ) : (
+                        <ExpandedRow productId={p.id} usdKrw={usdKrw} marginPct={marginPct} />
+                      )}
+                    </td>
+                  </tr>
+                ),
+              ]
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="gpu-empty-hint">
+        행을 클릭하면 해당 모델의 <strong>전체 공급사 견적</strong>이 펼쳐지며, 각 견적의 근거자료를 바로 확인할 수 있습니다
+      </div>
+    </div>
+  )
+}
