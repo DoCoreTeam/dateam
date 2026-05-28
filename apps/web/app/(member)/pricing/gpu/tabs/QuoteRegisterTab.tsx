@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { Sparkles, DollarSign, CheckCircle2, AlertCircle, Send, Paperclip, X } from 'lucide-react'
+import { Sparkles, CheckCircle2, AlertCircle, Send, Paperclip, X } from 'lucide-react'
 
 interface Supplier {
   id: string
@@ -86,14 +86,9 @@ interface AttachedFile {
 }
 
 export default function QuoteRegisterTab() {
-  const [mode, setMode] = useState<'quote' | 'direct'>('quote')
   const [rawText, setRawText] = useState('')
   const [attached, setAttached] = useState<AttachedFile | null>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [t3ModelInput, setT3ModelInput] = useState('')
-  const [t3Krw, setT3Krw] = useState('')
-  const [t3Note, setT3Note] = useState('')
-  const [selectedProduct, setSelectedProduct] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
@@ -104,13 +99,9 @@ export default function QuoteRegisterTab() {
 
   const { data: productsData, mutate: mutateProducts } = useSWR<{ products: GpuProduct[] }>('/api/pricing/gpu/products', fetcher)
   const { data: suppliersData, mutate: mutateSuppliers } = useSWR<{ suppliers: Supplier[] }>('/api/pricing/gpu/suppliers', fetcher)
-  const { data: settingsData } = useSWR<{ usd_krw: number }>('/api/pricing/gpu/settings', fetcher)
 
   const allProducts = productsData?.products ?? []
   const suppliers = suppliersData?.suppliers ?? []
-  const usdKrw = settingsData?.usd_krw ?? 1400
-  const t3Usd = t3Krw ? (Number(t3Krw) / usdKrw).toFixed(4) : ''
-  const directProducts = allProducts.filter((p) => p.pricing_mode === 'direct')
 
   useEffect(() => {
     if (parseTimer.current) clearTimeout(parseTimer.current)
@@ -193,30 +184,6 @@ export default function QuoteRegisterTab() {
     }
   }
 
-  const handleDirectSubmit = async () => {
-    if (!t3Krw) { setErrorMsg('판매가를 입력해 주세요.'); return }
-    setSubmitting(true); setErrorMsg('')
-    try {
-      const res = await fetch('/api/pricing/gpu/direct-prices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          product_id: selectedProduct || null,
-          model_input: t3ModelInput || null,
-          sell_price_krw: Number(t3Krw),
-          note: t3Note || null,
-        }),
-      })
-      if (!res.ok) throw new Error('등록 실패')
-      setSuccessMsg('판매가가 가격표에 즉시 반영되었습니다.')
-      setT3Krw(''); setT3ModelInput(''); setT3Note(''); setSelectedProduct('')
-    } catch {
-      setErrorMsg('등록 중 오류가 발생했습니다.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   const matchedProduct = allProducts.find(p => p.id === parsed.productId)
   const isNewSupplier = parsed.supplierName
     ? !suppliers.find(s => s.name.toLowerCase() === parsed.supplierName!.toLowerCase())
@@ -225,42 +192,19 @@ export default function QuoteRegisterTab() {
 
   return (
     <div>
-      {/* 모드 선택 */}
-      <div className="gpu-intake-mode">
-        <button className={`gpu-im${mode === 'quote' ? ' on' : ''}`} onClick={() => setMode('quote')}>
-          <div className="gpu-im-ic" style={{ background: mode === 'quote' ? 'var(--gpu-accent-soft)' : '#f3f4f8', color: 'var(--gpu-accent)' }}>
-            <Sparkles size={18} />
-          </div>
-          <div>
-            <div className="gpu-im-title">Tier 1·2 공급견적 등록</div>
-            <div className="gpu-im-desc">견적서·메일·캡처를 입력 → 원가 추적 → 마진 적용</div>
-          </div>
-        </button>
-        <button className={`gpu-im${mode === 'direct' ? ' on' : ''}`} onClick={() => setMode('direct')}>
-          <div className="gpu-im-ic" style={{ background: mode === 'direct' ? 'var(--gpu-amber-soft)' : '#f3f4f8', color: 'var(--gpu-amber)' }}>
-            <DollarSign size={18} />
-          </div>
-          <div>
-            <div className="gpu-im-title">Tier 3 판매가 직접 설정</div>
-            <div className="gpu-im-desc">간헐 공급 — 견적 없이 gcube 판매가를 직접 입력</div>
-          </div>
-        </button>
-      </div>
-
       {successMsg && <div className="gpu-success-msg">✓ {successMsg}</div>}
       {errorMsg && <div className="gpu-error-msg">✕ {errorMsg}</div>}
 
-      {/* Tier 1·2: 통합 프롬프트 입력 + AI 분석 결과 */}
-      {mode === 'quote' && (
-        <div className="gpu-grid2">
+      {/* 전 Tier 공통 프롬프트 입력 + AI 분석 결과 */}
+      <div className="gpu-grid2">
           {/* 왼쪽: 단일 통합 입력창 */}
           <div className="gpu-panel gpu-card-pad">
             <div className="gpu-card-title">
               <span className="gpu-step">1</span>
-              견적 내용 붙여넣기
+              견적 내용 붙여넣기 (전 Tier 공통)
             </div>
             <div className="gpu-card-desc">
-              메일·메신저·견적서를 그대로 붙여넣으세요. AI가 자동으로 분석합니다.
+              Tier 1·2·3 모두 여기서 등록하세요. 메일·메신저·견적서를 그대로 붙여넣으면 AI가 자동으로 분석합니다.
             </div>
 
             {/* 통합 입력 영역 — 드래그앤드롭 + 텍스트 + 이미지 붙여넣기 */}
@@ -395,51 +339,7 @@ export default function QuoteRegisterTab() {
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Tier 3 직접 입력 */}
-      {mode === 'direct' && (
-        <div className="gpu-panel gpu-card-pad" style={{ maxWidth: 580 }}>
-          <div className="gpu-card-title">
-            <span className="gpu-step" style={{ background: 'var(--gpu-amber)' }}>T3</span>
-            Tier 3 판매가 직접 설정
-          </div>
-          <div className="gpu-card-desc">
-            Tier 3는 공급사 견적을 받지 않습니다. gcube 판매가를 직접 입력하면 검토 단계 없이 바로 가격표에 반영됩니다.
-          </div>
-          <div className="gpu-field">
-            <label>GPU 상품 선택</label>
-            <select className="gpu-inp" value={selectedProduct} onChange={(e) => setSelectedProduct(e.target.value)}>
-              <option value="">— Tier 3 상품 선택 —</option>
-              {directProducts.map((p) => (
-                <option key={p.id} value={p.id}>{p.model_name} {p.memory} (T{p.tier})</option>
-              ))}
-            </select>
-          </div>
-          <div className="gpu-field-grid">
-            <div className="gpu-field">
-              <label>판매가 (KRW/hr)</label>
-              <input className="gpu-inp" type="number" placeholder="예) 800" value={t3Krw} onChange={(e) => setT3Krw(e.target.value)} />
-            </div>
-            <div className="gpu-field">
-              <label>USD 환산 (오늘 매매기준율 자동)</label>
-              <input className="gpu-inp" value={t3Usd ? `$${t3Usd}` : '—'} disabled style={{ background: '#f3f4f8' }} />
-            </div>
-          </div>
-          <div className="gpu-field">
-            <label>메모 (선택)</label>
-            <input className="gpu-inp" placeholder="예) 수요 기반 직접 책정" value={t3Note} onChange={(e) => setT3Note(e.target.value)} />
-          </div>
-          <div className="gpu-t3-notice">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--gpu-accent)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-            변경 즉시 가격표에 반영 · <strong>타임스탬프·작성자 로그 자동 기록</strong> · 이전 값은 변동 이력에 보존
-          </div>
-          <button className="gpu-btn gpu-btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleDirectSubmit} disabled={submitting}>
-            {submitting ? '저장 중…' : '판매가 저장 · 가격표 반영'}
-          </button>
-        </div>
-      )}
+      </div>
     </div>
   )
 }
