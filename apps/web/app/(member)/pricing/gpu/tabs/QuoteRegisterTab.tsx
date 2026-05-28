@@ -94,7 +94,6 @@ export default function QuoteRegisterTab() {
   const [errorMsg, setErrorMsg] = useState('')
   const [parsed, setParsed] = useState<Parsed>({ confidence: 0 })
   const parseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const { data: productsData, mutate: mutateProducts } = useSWR<{ products: GpuProduct[] }>('/api/pricing/gpu/products', fetcher)
@@ -232,14 +231,14 @@ export default function QuoteRegisterTab() {
 
               {/* 하단 액션 바 */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid #f0f0f0' }}>
-                <button
+                <label
+                  htmlFor="gpu-file-input"
                   className="gpu-btn"
-                  style={{ padding: '4px 8px', fontSize: 12, gap: 4, color: '#6b7280' }}
-                  onClick={() => fileInputRef.current?.click()}
+                  style={{ padding: '4px 8px', fontSize: 12, gap: 4, color: '#6b7280', cursor: 'pointer' }}
                   title="파일 또는 이미지 첨부 (PDF · XLSX · PNG · JPG)"
                 >
                   <Paperclip size={13} /> 파일 첨부
-                </button>
+                </label>
                 <span style={{ fontSize: 11, color: '#d1d5db' }}>Ctrl+V로 이미지 붙여넣기 가능</span>
               </div>
             </div>
@@ -263,6 +262,7 @@ export default function QuoteRegisterTab() {
 
             <input
               ref={fileInputRef}
+              id="gpu-file-input"
               type="file"
               accept=".txt,.csv,.md,.json,.pdf,.xlsx,.docx,.png,.jpg,.jpeg,.webp"
               style={{ display: 'none' }}
