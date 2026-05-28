@@ -8,6 +8,11 @@ import type {
   DailyLogThread, DailyLogTag,
 } from '@/types/database'
 
+function revalidateDailyCalendarViews() {
+  revalidatePath('/daily')
+  revalidatePath('/calendar')
+}
+
 export interface AiParsedItem {
   title: string
   status: DailyLogEntryType
@@ -170,7 +175,7 @@ export async function addDailyLog(
 
   if (error) return { ok: false, error: (error as Error).message }
 
-  revalidatePath('/daily')
+  revalidateDailyCalendarViews()
   return { ok: true, data: data as DailyLog }
 }
 
@@ -203,7 +208,7 @@ export async function updateDailyLog(
 
   if (error) return { ok: false, error: (error as Error).message }
 
-  revalidatePath('/daily')
+  revalidateDailyCalendarViews()
   return { ok: true }
 }
 
@@ -219,7 +224,7 @@ export async function deleteDailyLog(id: string): Promise<{ ok: true } | { ok: f
 
   if (error) return { ok: false, error: (error as Error).message }
 
-  revalidatePath('/daily')
+  revalidateDailyCalendarViews()
   return { ok: true }
 }
 
@@ -280,7 +285,7 @@ export async function resolveCarryoverLog(id: string): Promise<{ ok: true } | { 
 
   if (error) return { ok: false, error: (error as Error).message }
 
-  revalidatePath('/daily')
+  revalidateDailyCalendarViews()
   return { ok: true }
 }
 
@@ -297,7 +302,7 @@ export async function moveCarryoverToToday(id: string, today: string): Promise<{
 
   if (error) return { ok: false, error: (error as Error).message }
 
-  revalidatePath('/daily')
+  revalidateDailyCalendarViews()
   return { ok: true }
 }
 
@@ -314,7 +319,7 @@ export async function ignoreCarryoverLog(id: string): Promise<{ ok: true } | { o
 
   if (error) return { ok: false, error: (error as Error).message }
 
-  revalidatePath('/daily')
+  revalidateDailyCalendarViews()
   return { ok: true }
 }
 
@@ -390,7 +395,7 @@ export async function addMultipleDailyLogs(
       .upsert(tagRows, { onConflict: 'log_id,tag_name', ignoreDuplicates: true })
   }
 
-  revalidatePath('/daily')
+  revalidateDailyCalendarViews()
   return { ok: true, data: savedLogs }
 }
 
@@ -427,7 +432,7 @@ export async function addThread(
 
   if (error) return { ok: false, error: (error as Error).message }
 
-  revalidatePath('/daily')
+  revalidateDailyCalendarViews()
   return { ok: true, data: data as DailyLogThread }
 }
 
@@ -538,6 +543,6 @@ export async function updateTargetDate(
 
   if (error) return { ok: false, error: (error as Error).message }
 
-  revalidatePath('/daily')
+  revalidateDailyCalendarViews()
   return { ok: true }
 }

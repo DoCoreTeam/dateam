@@ -24,6 +24,14 @@ const ENTRY_MAP = Object.fromEntries(ENTRY_TYPES.map((t) => [t.value, t])) as Re
 
 const WEEK_DAYS = ['일', '월', '화', '수', '목', '금', '토']
 
+function isDailyCalendarCacheKey(key: unknown) {
+  return typeof key === 'string' && (
+    key.startsWith('/api/daily/logs?date=') ||
+    key.startsWith('/api/daily/week?start=') ||
+    key.startsWith('/api/calendar/month?')
+  )
+}
+
 function toDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
@@ -239,7 +247,7 @@ export default function DailyPage() {
       const result = await updateDailyLog(id, editContent, editType, editTargetDate || null)
       if (result.ok) {
         setEditingId(null)
-        await mutate(`/api/daily/logs?date=${selectedDate}`)
+        await mutate(isDailyCalendarCacheKey)
       } else {
         setError(result.error)
       }

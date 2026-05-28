@@ -76,6 +76,6 @@ export async function GET(req: NextRequest) {
 
   const result = Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date))
   return NextResponse.json(result, {
-    headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' },
+    headers: { 'Cache-Control': 'no-store' },
   })
 }

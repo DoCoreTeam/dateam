@@ -134,9 +134,18 @@ export default function CalendarPage() {
   });
 
   const weekLogsMap = new Map<string, DailyLog[]>();
+  const weekDateSet = new Set(weekDates);
   for (const log of weekLogs) {
-    if (!weekLogsMap.has(log.log_date)) weekLogsMap.set(log.log_date, []);
-    weekLogsMap.get(log.log_date)!.push(log);
+    const visibleDates = [log.log_date];
+    if (log.target_date && log.target_date !== log.log_date) {
+      visibleDates.push(log.target_date);
+    }
+
+    for (const date of visibleDates) {
+      if (!weekDateSet.has(date)) continue;
+      if (!weekLogsMap.has(date)) weekLogsMap.set(date, []);
+      weekLogsMap.get(date)!.push(log);
+    }
   }
 
   // 주간 이전/다음

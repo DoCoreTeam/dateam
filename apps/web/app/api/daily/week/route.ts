@@ -21,8 +21,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await (supabase.from('daily_logs') as any)
     .select('*')
     .eq('user_id', user.id)
-    .gte('log_date', start)
-    .lte('log_date', end)
+    .or(`and(log_date.gte.${start},log_date.lte.${end}),and(target_date.gte.${start},target_date.lte.${end})`)
     .order('log_date', { ascending: true })
     .order('logged_at', { ascending: true })
     .limit(WEEK_LIMIT)
@@ -34,6 +33,6 @@ export async function GET(req: NextRequest) {
   if (data?.length === WEEK_LIMIT) console.warn('[api/daily/week] limit reached')
 
   return NextResponse.json(data as DailyLog[], {
-    headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' },
+    headers: { 'Cache-Control': 'no-store' },
   })
 }
