@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic'
 import { upsertWeeklyReport, deleteAllWeeklyReports } from './actions'
 import AXLoadingOverlay from '@/components/ui/AXLoadingOverlay'
 import DiffConfirmModal, { type DiffItem } from '@/components/ui/DiffConfirmModal'
+import DailyTaskSelector from './DailyTaskSelector'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 const SpotlightOnboarding = dynamic(() => import('@/components/ui/SpotlightOnboarding'), { ssr: false })
@@ -374,6 +375,14 @@ export default function WeeklyReportForm({
           ))}
         </select>
       </div>
+
+      {/* 일일업무에서 주간보고 생성 */}
+      <DailyTaskSelector
+        weekStart={selectedWeek}
+        onGenerate={(generatedRows) => {
+          setRows(generatedRows.length > 0 ? generatedRows : [{ ...EMPTY_ROW }])
+        }}
+      />
 
       {/* 알림 */}
       {submitError && (
