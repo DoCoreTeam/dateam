@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { Sparkles, DollarSign, CheckCircle2, AlertCircle, Send } from 'lucide-react'
+import { Sparkles, DollarSign, CheckCircle2, AlertCircle, Send, Paperclip, X } from 'lucide-react'
 
 interface Supplier {
   id: string
@@ -78,10 +78,18 @@ function parseQuoteText(text: string, products: GpuProduct[]): Parsed {
   return result
 }
 
+interface AttachedFile {
+  name: string
+  mimeType: string
+  previewUrl?: string  // 이미지일 때만
+  textContent?: string // 텍스트 파일일 때만
+}
+
 export default function QuoteRegisterTab() {
   const [mode, setMode] = useState<'quote' | 'direct'>('quote')
-  const [inputType, setInputType] = useState<'text' | 'file' | 'img'>('text')
   const [rawText, setRawText] = useState('')
+  const [attached, setAttached] = useState<AttachedFile | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
   const [t3ModelInput, setT3ModelInput] = useState('')
   const [t3Krw, setT3Krw] = useState('')
   const [t3Note, setT3Note] = useState('')
@@ -91,6 +99,8 @@ export default function QuoteRegisterTab() {
   const [errorMsg, setErrorMsg] = useState('')
   const [parsed, setParsed] = useState<Parsed>({ confidence: 0 })
   const parseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const { data: productsData, mutate: mutateProducts } = useSWR<{ products: GpuProduct[] }>('/api/pricing/gpu/products', fetcher)
   const { data: suppliersData, mutate: mutateSuppliers } = useSWR<{ suppliers: Supplier[] }>('/api/pricing/gpu/suppliers', fetcher)
@@ -111,8 +121,44 @@ export default function QuoteRegisterTab() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawText, allProducts.length])
 
+  const processFile = useCallback((file: File) => {
+    const isText = file.type.startsWith('text/') || /\.(txt|csv|md|json)$/i.test(file.name)
+    const isImage = file.type.startsWith('image/')
+
+    if (isText) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const content = e.target?.result as string
+        setRawText(content)
+        setAttached({ name: file.name, mimeType: file.type, textContent: content })
+      }
+      reader.readAsText(file)
+    } else if (isImage) {
+      const url = URL.createObjectURL(file)
+      setAttached({ name: file.name, mimeType: file.type, previewUrl: url })
+    } else {
+      setAttached({ name: file.name, mimeType: file.type })
+    }
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault(); setIsDragging(false)
+    const file = e.dataTransfer.files[0]
+    if (file) processFile(file)
+  }, [processFile])
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile()
+        if (file) { processFile(file); e.preventDefault(); return }
+      }
+    }
+  }, [processFile])
+
   const resetQuote = (keepMsg?: boolean) => {
-    setRawText(''); setParsed({ confidence: 0 })
+    setRawText(''); setParsed({ confidence: 0 }); setAttached(null)
     if (!keepMsg) { setSuccessMsg(''); setErrorMsg('') }
   }
 
@@ -204,10 +250,10 @@ export default function QuoteRegisterTab() {
       {successMsg && <div className="gpu-success-msg">✓ {successMsg}</div>}
       {errorMsg && <div className="gpu-error-msg">✕ {errorMsg}</div>}
 
-      {/* Tier 1·2: 텍스트 입력 + AI 분석 결과 */}
+      {/* Tier 1·2: 통합 프롬프트 입력 + AI 분석 결과 */}
       {mode === 'quote' && (
         <div className="gpu-grid2">
-          {/* 왼쪽: 텍스트 입력만 */}
+          {/* 왼쪽: 단일 통합 입력창 */}
           <div className="gpu-panel gpu-card-pad">
             <div className="gpu-card-title">
               <span className="gpu-step">1</span>
@@ -217,32 +263,69 @@ export default function QuoteRegisterTab() {
               메일·메신저·견적서를 그대로 붙여넣으세요. AI가 자동으로 분석합니다.
             </div>
 
-            <div className="gpu-intake-tabs">
-              {(['text', 'file', 'img'] as const).map((t) => (
-                <button key={t} className={`gpu-it${inputType === t ? ' on' : ''}`} onClick={() => setInputType(t)}>
-                  {t === 'text' ? '텍스트' : t === 'file' ? '견적서 파일' : '이미지'}
-                </button>
-              ))}
-            </div>
-
-            {inputType === 'text' && (
+            {/* 통합 입력 영역 — 드래그앤드롭 + 텍스트 + 이미지 붙여넣기 */}
+            <div
+              style={{
+                position: 'relative',
+                borderRadius: 10,
+                border: `1.5px ${isDragging ? 'dashed var(--gpu-accent)' : 'solid #e5e7eb'}`,
+                background: isDragging ? 'var(--gpu-accent-soft)' : '#fff',
+                transition: 'border-color 0.15s, background 0.15s',
+              }}
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+            >
               <textarea
+                ref={textareaRef}
                 className="gpu-intake-textarea"
-                style={{ minHeight: 240 }}
-                placeholder={"메일·메신저 내용을 그대로 붙여넣으세요\n\n예) [GMI Cloud] H100 SXM 80GB: $2.10/GPU·hr (8장 이상)\n약정: 3개월 | 견적 유효: 2026-06-15"}
+                style={{ minHeight: 200, border: 'none', borderRadius: 10, background: 'transparent', resize: 'vertical' }}
+                placeholder={"메일·메신저 내용을 그대로 붙여넣으세요. 파일·이미지는 끌어다 놓거나 📎 버튼으로 첨부하세요.\n\n예) [GMI Cloud] H100 SXM 80GB: $2.10/GPU·hr (8장 이상)\n약정: 3개월 | 견적 유효: 2026-06-15"}
                 value={rawText}
                 onChange={(e) => { setRawText(e.target.value); setSuccessMsg(''); setErrorMsg('') }}
+                onPaste={handlePaste}
               />
-            )}
-            {(inputType === 'file' || inputType === 'img') && (
-              <div className="gpu-dropzone" style={{ minHeight: 180 }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-                <div className="gpu-dropzone-title">{inputType === 'file' ? '견적서 파일을 끌어다 놓거나 클릭' : '메신저 캡처 / 견적 이미지'}</div>
-                <div className="gpu-dropzone-sub">{inputType === 'file' ? 'PDF · XLSX · DOCX (최대 20MB)' : 'Ctrl+V 또는 클릭 · PNG · JPG'}</div>
+
+              {/* 하단 액션 바 */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid #f0f0f0' }}>
+                <button
+                  className="gpu-btn"
+                  style={{ padding: '4px 8px', fontSize: 12, gap: 4, color: '#6b7280' }}
+                  onClick={() => fileInputRef.current?.click()}
+                  title="파일 또는 이미지 첨부 (PDF · XLSX · PNG · JPG)"
+                >
+                  <Paperclip size={13} /> 파일 첨부
+                </button>
+                <span style={{ fontSize: 11, color: '#d1d5db' }}>Ctrl+V로 이미지 붙여넣기 가능</span>
+              </div>
+            </div>
+
+            {/* 첨부 파일 미리보기 */}
+            {attached && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 10px', borderRadius: 8, background: '#f8faff', border: '1px solid #e0e7ff' }}>
+                {attached.previewUrl
+                  ? <img src={attached.previewUrl} alt={attached.name} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
+                  : <Paperclip size={16} style={{ color: '#6366f1', flexShrink: 0 }} />
+                }
+                <span style={{ fontSize: 12, color: '#374151', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attached.name}</span>
+                {!attached.textContent && !attached.previewUrl && (
+                  <span style={{ fontSize: 11, color: '#9ca3af' }}>텍스트 내용을 직접 붙여넣어 주세요</span>
+                )}
+                <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#9ca3af' }} onClick={() => setAttached(null)}>
+                  <X size={14} />
+                </button>
               </div>
             )}
 
-            {rawText && (
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,.csv,.md,.json,.pdf,.xlsx,.docx,.png,.jpg,.jpeg,.webp"
+              style={{ display: 'none' }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) processFile(f); e.target.value = '' }}
+            />
+
+            {(rawText || attached) && (
               <button className="gpu-btn" style={{ marginTop: 8, fontSize: 12 }} onClick={resetQuote}>
                 초기화
               </button>

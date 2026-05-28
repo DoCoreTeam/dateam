@@ -158,7 +158,13 @@ export default function PriceTableTab({ onGoToIntake }: PriceTableTabProps) {
   const usdKrw = data?.usd_krw ?? 1400
   const fxDate = data?.fx_date
 
-  const filtered = products.filter((p) => {
+  // 견적 있는 상품만 기본 표시 (confirmed quote 또는 direct 판매가)
+  const pricedProducts = products.filter((p) =>
+    p.lowest_unit_price_usd != null || (p.pricing_mode === 'direct' && p.sell_price_krw != null)
+  )
+  const [showAll, setShowAll] = useState(false)
+
+  const filtered = (showAll ? products : pricedProducts).filter((p) => {
     if (tierFilter !== 0 && p.tier !== tierFilter) return false
     if (search) {
       const q = search.toLowerCase()
@@ -265,6 +271,15 @@ export default function PriceTableTab({ onGoToIntake }: PriceTableTabProps) {
             </button>
           ))}
         </div>
+        <button
+          className="gpu-btn"
+          style={{ fontSize: 12, gap: 4, color: showAll ? 'var(--gpu-accent)' : undefined }}
+          onClick={() => setShowAll((v) => !v)}
+          title={showAll ? '견적 있는 상품만 보기' : '전체 121개 상품 보기'}
+        >
+          <Info size={13} />
+          {showAll ? `전체 ${products.length}개` : `견적 ${pricedProducts.length}개`}
+        </button>
         <button className="gpu-btn gpu-btn-primary" onClick={onGoToIntake}>
           <Plus size={15} /> 견적 등록
         </button>
