@@ -3,8 +3,8 @@ import { test, expect } from '@playwright/test'
 test.describe('GPU DB Chat', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/pricing/gpu')
-    // DB 질문 탭 클릭
-    await page.getByRole('button', { name: 'DB 질문' }).click()
+    // AI 조회 패널 열기
+    await page.getByTestId('ai-panel-toggle').click()
     await expect(page.getByTestId('db-chat-input')).toBeVisible()
   })
 
@@ -19,7 +19,6 @@ test.describe('GPU DB Chat', () => {
 
     // 분석 중... 텍스트가 사라지고 실제 답변이 있어야 함
     await expect(page.getByText('분석 중...')).toBeHidden({ timeout: 30000 })
-    // AI 답변 메시지가 표시됐는지 확인 (assistantMsg가 visible)
     await expect(assistantMsg).toBeVisible({ timeout: 5000 })
   })
 

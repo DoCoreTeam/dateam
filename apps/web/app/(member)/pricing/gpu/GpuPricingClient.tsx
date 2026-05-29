@@ -14,7 +14,7 @@ const HistoryTab = dynamic(() => import('./tabs/HistoryTab'), { ssr: false })
 const InventoryTab = dynamic(() => import('./tabs/InventoryTab'), { ssr: false })
 const DbChatTab = dynamic(() => import('./tabs/DbChatTab'), { ssr: false })
 
-type TabId = 'board' | 'intake' | 'review' | 'inventory' | 'suppliers' | 'log' | 'chat'
+type TabId = 'board' | 'intake' | 'review' | 'inventory' | 'suppliers' | 'log'
 
 interface SettingsData {
   usd_krw: number | null
@@ -28,6 +28,7 @@ interface ReviewPendingData {
 
 export default function GpuPricingClient() {
   const [activeTab, setActiveTab] = useState<TabId>('board')
+  const [showAiPanel, setShowAiPanel] = useState(false)
   const { data: settings, mutate: mutateSettings } = useSWR<SettingsData>('/api/pricing/gpu/settings', fetcher, {
     refreshInterval: 300000,
   })
@@ -41,7 +42,6 @@ export default function GpuPricingClient() {
   const usdKrw = settings?.usd_krw
   const fxDate = settings?.fx_date
 
-  // 오늘 환율 데이터가 없으면 자동 갱신 (마운트 1회 — useRef로 중복 방지)
   const fxFetched = useRef(false)
   useEffect(() => {
     if (fxFetched.current) return
@@ -85,11 +85,6 @@ export default function GpuPricingClient() {
       label: '변동 이력',
       icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>,
     },
-    {
-      id: 'chat',
-      label: 'DB 질문',
-      icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
-    },
   ]
 
   return (
@@ -116,8 +111,8 @@ export default function GpuPricingClient() {
         </div>
       </div>
 
-      {/* 탭 */}
-      <div className="gpu-tabs">
+      {/* 탭 + AI 조회 토글 */}
+      <div className="gpu-tabs" style={{ display: 'flex', alignItems: 'center' }}>
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -131,19 +126,69 @@ export default function GpuPricingClient() {
             )}
           </button>
         ))}
+        <div style={{ marginLeft: 'auto', paddingRight: 4 }}>
+          <button
+            data-testid="ai-panel-toggle"
+            className={`gpu-btn${showAiPanel ? ' gpu-btn-primary' : ''}`}
+            style={{ fontSize: 12, gap: 5, display: 'flex', alignItems: 'center' }}
+            onClick={() => {
+              if (activeTab !== 'board') setActiveTab('board')
+              setShowAiPanel((v) => !v)
+            }}
+            title="가격표 탭에서 AI 조회 패널 토글"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            AI 조회
+          </button>
+        </div>
       </div>
 
       {/* 탭 컨텐츠 */}
       <div className="gpu-tab-content">
         {activeTab === 'board' && (
-          <PriceTableTab onGoToIntake={() => setActiveTab('intake')} />
+          <div style={{ display: 'flex', gap: 0, minHeight: 0 }}>
+            <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
+              <PriceTableTab onGoToIntake={() => setActiveTab('intake')} />
+            </div>
+            {showAiPanel && (
+              <div style={{
+                width: 360,
+                flexShrink: 0,
+                borderLeft: '1px solid var(--gpu-border)',
+                display: 'flex',
+                flexDirection: 'column',
+              }}>
+                <div style={{
+                  padding: '8px 12px',
+                  borderBottom: '1px solid var(--gpu-border)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: 'var(--gpu-muted)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}>
+                  AI 조회
+                  <button
+                    className="gpu-btn"
+                    style={{ padding: '2px 6px', fontSize: 11 }}
+                    onClick={() => setShowAiPanel(false)}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                  <DbChatTab />
+                </div>
+              </div>
+            )}
+          </div>
         )}
         {activeTab === 'intake' && <QuoteRegisterTab />}
         {activeTab === 'review' && <ReviewTab />}
         {activeTab === 'inventory' && <InventoryTab />}
         {activeTab === 'suppliers' && <SuppliersTab />}
         {activeTab === 'log' && <HistoryTab />}
-        {activeTab === 'chat' && <DbChatTab />}
       </div>
     </div>
   )
