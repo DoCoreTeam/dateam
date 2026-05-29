@@ -14,28 +14,34 @@ interface Step {
 
 const STEPS: Step[] = [
   {
+    targetId: 'onboarding-daily-selector',
+    title: '✨ AI로 주간보고 자동 생성',
+    description: '이 버튼을 클릭하면 이번 주 일일업무가 목록으로 나타납니다. 포함할 업무를 선택하고 "주간보고 생성"을 누르면 AI가 자동으로 성과·계획·이슈를 작성해 드립니다.',
+    stepLabel: '1/5',
+  },
+  {
     targetId: 'onboarding-category',
     title: '구분',
-    description: '업무 카테고리를 입력하세요. 예: 영업, 마케팅, 기획',
-    stepLabel: '1/4',
+    description: '업무 카테고리를 입력하세요. 예: 영업, 마케팅, 기획 (AI 생성 시 자동으로 분류됩니다)',
+    stepLabel: '2/5',
   },
   {
     targetId: 'onboarding-performance',
     title: '성과',
-    description: '이번 주 완료한 업무와 결과를 작성합니다',
-    stepLabel: '2/4',
+    description: '이번 주 완료한 업무와 결과를 작성합니다. 클릭하면 편집기가 열립니다.',
+    stepLabel: '3/5',
   },
   {
     targetId: 'onboarding-plan',
     title: '계획',
     description: '다음 주 진행할 업무 계획을 작성합니다',
-    stepLabel: '3/4',
+    stepLabel: '4/5',
   },
   {
     targetId: 'onboarding-issues',
     title: '이슈/협조사항',
     description: '진행 중 발생한 문제나 도움이 필요한 사항을 작성합니다',
-    stepLabel: '4/4',
+    stepLabel: '5/5',
   },
 ]
 

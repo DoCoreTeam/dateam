@@ -143,6 +143,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
     <div style={{ marginBottom: '1.25rem', border: '1px solid #e2e8f0', borderRadius: '0.75rem', overflow: 'hidden' }}>
       {/* 헤더 */}
       <button
+        id="onboarding-daily-selector"
         type="button"
         onClick={() => setIsOpen((v) => !v)}
         style={{
