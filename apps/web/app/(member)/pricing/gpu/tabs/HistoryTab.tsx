@@ -14,13 +14,22 @@ interface AuditLog {
 }
 
 const ACTION_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  quote_registered: { label: '견적 등록',     color: '#2563eb', bg: '#e8f0ff' },
-  quote_confirmed:  { label: '견적 확정',     color: '#15a35a', bg: '#e6f7ee' },
-  lowest_changed:   { label: '최저가 변경',   color: '#5b5ef0', bg: '#eef0fe' },
-  expired:          { label: '만료',          color: '#e0405a', bg: '#fdebee' },
-  direct_set:       { label: '판매가 직접설정', color: '#d97706', bg: '#fef3e2' },
-  margin_changed:   { label: '마진 변경',     color: '#7c3aed', bg: '#f1ebfe' },
-  rejected:         { label: '반려',          color: '#6b7280', bg: '#f0f1f4' },
+  quote_registered:        { label: '견적 등록',     color: '#2563eb', bg: '#e8f0ff' },
+  quote_confirmed:         { label: '견적 확정',     color: '#15a35a', bg: '#e6f7ee' },
+  lowest_changed:          { label: '최저가 변경',   color: '#5b5ef0', bg: '#eef0fe' },
+  expired:                 { label: '만료',          color: '#e0405a', bg: '#fdebee' },
+  direct_set:              { label: '판매가 직접설정', color: '#d97706', bg: '#fef3e2' },
+  margin_changed:          { label: '마진 변경',     color: '#7c3aed', bg: '#f1ebfe' },
+  rejected:                { label: '반려',          color: '#6b7280', bg: '#f0f1f4' },
+  // AI 리뷰 게이트
+  review_created:          { label: 'AI 분석 등록',  color: '#4338ca', bg: '#eef2ff' },
+  review_finalized:        { label: '검토 확정',     color: '#15a35a', bg: '#e6f7ee' },
+  review_rejected:         { label: '검토 반려',     color: '#dc2626', bg: '#fee2e2' },
+  review_recheck_completed:{ label: 'AI 재분석',     color: '#0891b2', bg: '#e0f7fa' },
+  // 풀 재고 / 가용량
+  pool_stock_changed:      { label: 'T3 재고 변경',  color: '#b45309', bg: '#fef3e2' },
+  availability_registered: { label: '가용량 등록',   color: '#0d9488', bg: '#f0fdfa' },
+  inquiry_sent:            { label: '문의 발송',     color: '#0ea5e9', bg: '#f0f9ff' },
 }
 
 export default function HistoryTab() {
@@ -81,6 +90,12 @@ export default function HistoryTab() {
                       {log.action_type === 'margin_changed' && `마진 → ${(log.detail as Record<string, unknown>).margin_pct}%`}
                       {log.action_type === 'quote_registered' && `단가 $${(log.detail as Record<string, unknown>).unit_price_usd}/hr`}
                       {log.action_type === 'direct_set' && `판매가 ₩${Number((log.detail as Record<string, unknown>).sell_price_krw).toLocaleString()}/hr`}
+                      {log.action_type === 'review_created' && `신뢰도 ${(log.detail as Record<string, unknown>).overall_confidence}%`}
+                      {log.action_type === 'review_finalized' && `단가 $${(log.detail as Record<string, unknown>).unit_price_usd}/hr · 신뢰도 ${(log.detail as Record<string, unknown>).overall_confidence}%`}
+                      {log.action_type === 'review_rejected' && ((log.detail as Record<string, unknown>).reason as string | null ?? '사유 없음')}
+                      {log.action_type === 'review_recheck_completed' && `${(log.detail as Record<string, unknown>).iteration_no}차 재분석 · 신뢰도 ${(log.detail as Record<string, unknown>).overall_confidence}%`}
+                      {log.action_type === 'pool_stock_changed' && `풀 재고 → ${(log.detail as Record<string, unknown>).pool_qty}대`}
+                      {log.action_type === 'availability_registered' && `상태: ${(log.detail as Record<string, unknown>).status} · ${(log.detail as Record<string, unknown>).resp_qty ?? '—'}대`}
                     </div>
                   )}
                   <div className="gpu-log-actor">

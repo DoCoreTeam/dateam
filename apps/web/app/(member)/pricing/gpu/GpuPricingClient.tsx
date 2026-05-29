@@ -11,8 +11,9 @@ const QuoteRegisterTab = dynamic(() => import('./tabs/QuoteRegisterTab'), { ssr:
 const ReviewTab = dynamic(() => import('./tabs/ReviewTab'), { ssr: false })
 const SuppliersTab = dynamic(() => import('./tabs/SuppliersTab'), { ssr: false })
 const HistoryTab = dynamic(() => import('./tabs/HistoryTab'), { ssr: false })
+const InventoryTab = dynamic(() => import('./tabs/InventoryTab'), { ssr: false })
 
-type TabId = 'board' | 'intake' | 'review' | 'suppliers' | 'log'
+type TabId = 'board' | 'intake' | 'review' | 'inventory' | 'suppliers' | 'log'
 
 interface SettingsData {
   usd_krw: number | null
@@ -20,8 +21,8 @@ interface SettingsData {
   margin_pct: number
 }
 
-interface PendingData {
-  quotes: unknown[]
+interface ReviewPendingData {
+  items: unknown[]
 }
 
 export default function GpuPricingClient() {
@@ -29,11 +30,13 @@ export default function GpuPricingClient() {
   const { data: settings } = useSWR<SettingsData>('/api/pricing/gpu/settings', fetcher, {
     refreshInterval: 300000,
   })
-  const { data: pendingData } = useSWR<PendingData>('/api/pricing/gpu/quotes/pending', fetcher, {
-    refreshInterval: 30000,
-  })
+  const { data: reviewData } = useSWR<ReviewPendingData>(
+    '/api/pricing/gpu/review?status=pending',
+    fetcher,
+    { refreshInterval: 30000 }
+  )
 
-  const pendingCount = pendingData?.quotes?.length ?? 0
+  const pendingCount = reviewData?.items?.length ?? 0
   const usdKrw = settings?.usd_krw
   const fxDate = settings?.fx_date
 
@@ -45,7 +48,7 @@ export default function GpuPricingClient() {
     },
     {
       id: 'intake',
-      label: '공급견적 등록',
+      label: '통합 입력',
       icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>,
     },
     {
@@ -53,6 +56,11 @@ export default function GpuPricingClient() {
       label: '검토 대기',
       icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>,
       badge: pendingCount,
+    },
+    {
+      id: 'inventory',
+      label: '재고/문의',
+      icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>,
     },
     {
       id: 'suppliers',
@@ -80,6 +88,7 @@ export default function GpuPricingClient() {
               <span className="gpu-fx-dot" />
               오늘 매매기준율
               <span className="gpu-mono">1 USD = {usdKrw.toLocaleString('ko-KR')}원</span>
+              {fxDate && <span style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>{fxDate}</span>}
               <span className="gpu-badge gpu-badge-green" style={{ fontSize: '9px', padding: '1px 6px' }}>자동</span>
             </div>
           )}
@@ -113,6 +122,7 @@ export default function GpuPricingClient() {
         )}
         {activeTab === 'intake' && <QuoteRegisterTab />}
         {activeTab === 'review' && <ReviewTab />}
+        {activeTab === 'inventory' && <InventoryTab />}
         {activeTab === 'suppliers' && <SuppliersTab />}
         {activeTab === 'log' && <HistoryTab />}
       </div>

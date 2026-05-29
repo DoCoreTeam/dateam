@@ -352,6 +352,7 @@ export type AiFeature =
   | 'deal-activity-parse'
   | 'content-ai-edit'
   | 'daily-ai-save'
+  | 'gpu-quote-extract'
 
 export interface AiTokenLog {
   id: string
