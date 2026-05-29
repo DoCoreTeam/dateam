@@ -2349,6 +2349,15 @@
 .gpu-pricing-root {
   font-family: 'Pretendard', -apple-system, sans-serif;
   color: var(--gpu-ink);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.gpu-tab-content {
+  flex: 1;
+  overflow: clip;
+  min-height: 0;
 }
 
 /* topbar */
@@ -2451,7 +2460,6 @@
   background: var(--gpu-accent-soft);
   color: var(--gpu-accent-ink);
 }
-.gpu-tab-content { min-height: 400px; }
 
 /* banner */
 .gpu-banner {

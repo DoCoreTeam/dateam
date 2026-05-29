@@ -146,7 +146,7 @@ export default function GpuPricingClient() {
       {/* 탭 컨텐츠 */}
       <div className="gpu-tab-content">
         {activeTab === 'board' && (
-          <div style={{ display: 'flex', gap: 0, minHeight: 0, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', gap: 0, height: '100%', minHeight: 0, overflow: 'hidden' }}>
             <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
               <PriceTableTab onGoToIntake={() => setActiveTab('intake')} />
             </div>
