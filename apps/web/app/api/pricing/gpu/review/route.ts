@@ -87,13 +87,20 @@ export async function POST(req: NextRequest) {
     channel?: unknown
     is_test?: unknown
     evidence_drive_file_id?: unknown
+    imageData?: unknown
   }
   try { body = await req.json() } catch {
     return NextResponse.json({ error: '요청 형식 오류' }, { status: 400 })
   }
 
   const text = typeof body.text === 'string' ? body.text.trim() : ''
-  if (!text) return NextResponse.json({ error: '분석할 텍스트가 없습니다' }, { status: 400 })
+  const imgInput = (body.imageData && typeof body.imageData === 'object')
+    ? body.imageData as { data?: unknown; mimeType?: unknown }
+    : null
+  const imageBase64 = typeof imgInput?.data === 'string' ? imgInput.data : null
+  const imageMimeType = typeof imgInput?.mimeType === 'string' ? imgInput.mimeType : 'image/jpeg'
+
+  if (!text && !imageBase64) return NextResponse.json({ error: '분석할 텍스트 또는 이미지가 없습니다' }, { status: 400 })
 
   const channel = typeof body.channel === 'string' ? body.channel : 'own'
   const isTest = body.is_test === true
@@ -110,13 +117,18 @@ export async function POST(req: NextRequest) {
 
   const url = `${GEMINI_API_BASE}/models/${config.model}:generateContent`
 
+  const promptText = `${prompt.content}\n\n${text ? '입력 텍스트:\n' + text : '위 이미지에서 GPU 견적 정보를 추출하세요.'}`
+  const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = []
+  if (imageBase64) parts.push({ inlineData: { data: imageBase64, mimeType: imageMimeType } })
+  parts.push({ text: promptText })
+
   let geminiRes: Response
   try {
     geminiRes = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.apiKey },
       body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: `${prompt.content}\n\n입력 텍스트:\n${text}` }] }],
+        contents: [{ role: 'user', parts }],
         generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
       }),
     })

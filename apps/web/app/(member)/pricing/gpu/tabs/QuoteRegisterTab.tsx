@@ -39,6 +39,7 @@ interface AttachedFile {
   mimeType: string
   previewUrl?: string
   textContent?: string
+  base64Data?: string
 }
 
 export default function QuoteRegisterTab() {
@@ -66,8 +67,14 @@ export default function QuoteRegisterTab() {
       }
       reader.readAsText(file)
     } else if (isImage) {
-      const url = URL.createObjectURL(file)
-      setAttached({ name: file.name, mimeType: file.type, previewUrl: url })
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string
+        const base64 = dataUrl.split(',')[1] ?? ''
+        const url = URL.createObjectURL(file)
+        setAttached({ name: file.name, mimeType: file.type, previewUrl: url, base64Data: base64 })
+      }
+      reader.readAsDataURL(file)
     } else {
       setAttached({ name: file.name, mimeType: file.type })
     }
@@ -96,14 +103,21 @@ export default function QuoteRegisterTab() {
 
   const handleAnalyze = useCallback(async () => {
     const text = rawText.trim() || attached?.textContent?.trim() || ''
-    if (!text) { setErrorMsg('분석할 텍스트를 입력해 주세요.'); return }
+    const hasImage = !!attached?.base64Data
+    if (!text && !hasImage) { setErrorMsg('텍스트 또는 이미지를 입력해 주세요.'); return }
+
+    const effectiveChannel = hasImage && !text ? 'img' : channel
 
     setAnalyzing(true); setErrorMsg(''); setSuccessMsg(''); setAnalysisResult(null)
     try {
+      const payload: Record<string, unknown> = { text, channel: effectiveChannel, is_test: isTest }
+      if (hasImage) {
+        payload.imageData = { data: attached!.base64Data, mimeType: attached!.mimeType }
+      }
       const res = await fetch('/api/pricing/gpu/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, channel, is_test: isTest }),
+        body: JSON.stringify(payload),
       })
       const j = await res.json()
       if (!res.ok) { setErrorMsg(j.error ?? 'AI 분석 실패'); return }
