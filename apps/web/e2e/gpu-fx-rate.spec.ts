@@ -31,7 +31,7 @@ test.describe('GPU 환율 (FX Rate)', () => {
 
   test('POST /api/pricing/gpu/fx — 환율 fetch 및 DB 저장', async ({ request }) => {
     const res = await request.post('/api/pricing/gpu/fx')
-    // 200: 정상 | 500: API키 미설정 | 502: 한국수출입은행 응답 없음(휴일)
+    // 200: 정상 | 500: admin panel에 API키 미설정 | 502: 한국수출입은행 응답 없음(휴일)
     expect([200, 500, 502]).toContain(res.status())
 
     if (res.status() === 200) {

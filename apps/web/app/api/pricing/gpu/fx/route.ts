@@ -24,9 +24,17 @@ export async function POST() {
     const { data: { user }, error: authErr } = await supabase.auth.getUser()
     if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const apiKey = process.env.KOREAEXIM_API_KEY
+    const adminForKey = createAdminClient()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: metaRow } = await (adminForKey as any)
+      .from('org_content')
+      .select('value')
+      .eq('key', 'META')
+      .single()
+    const meta = (metaRow?.value as Record<string, unknown>) ?? {}
+    const apiKey = typeof meta.koreaexim_api_key === 'string' ? meta.koreaexim_api_key : ''
     if (!apiKey) {
-      return NextResponse.json({ error: 'KOREAEXIM_API_KEY not configured' }, { status: 500 })
+      return NextResponse.json({ error: '환율 API 키가 설정되지 않았습니다 (관리자 설정에서 등록)' }, { status: 500 })
     }
 
     let rate: number | null = null

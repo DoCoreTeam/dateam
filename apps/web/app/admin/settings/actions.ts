@@ -129,6 +129,60 @@ export async function saveTokenAlertThreshold(formData: FormData): Promise<{ ok:
   return { ok: true }
 }
 
+export async function saveKoraeximKey(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  const apiKey = (formData.get('apiKey') as string)?.trim()
+  if (!apiKey) return { ok: false, error: 'API 키를 입력해주세요' }
+
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  const { error } = await setMetaValue(client, { ...meta, koreaexim_api_key: apiKey })
+
+  if (error) return { ok: false, error: '저장 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  return { ok: true }
+}
+
+export async function deleteKoraeximKey(): Promise<{ ok: boolean; error?: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  delete meta.koreaexim_api_key
+  const { error } = await setMetaValue(client, meta)
+
+  if (error) return { ok: false, error: '삭제 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  return { ok: true }
+}
+
+export async function checkKoraeximHealth(): Promise<{ ok: boolean; message: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, message: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  const apiKey = meta.koreaexim_api_key as string | undefined
+  if (!apiKey) return { ok: false, message: '저장된 API 키가 없습니다' }
+
+  try {
+    const today = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Seoul' }).replace(/-/g, '')
+    const url = `https://www.koreaexim.go.kr/site/program/financial/exchangeJSON?authkey=${apiKey}&searchdate=${today}&data=AP01`
+    const res = await fetch(url, { cache: 'no-store' })
+    if (!res.ok) return { ok: false, message: `API 응답 오류: ${res.status}` }
+    const json = await res.json() as unknown[]
+    if (!Array.isArray(json)) return { ok: false, message: '비정상 응답 (API 키를 확인해주세요)' }
+    if (json.length === 0) return { ok: false, message: '데이터 없음 (휴장일이거나 키가 유효하지 않습니다)' }
+    const usdRow = (json as Record<string, string>[]).find((r) => r.cur_unit === 'USD')
+    if (!usdRow) return { ok: false, message: '연결 성공 — USD 환율 데이터 없음' }
+    return { ok: true, message: `연결 성공 — 오늘 USD/KRW: ${usdRow.deal_bas_r}원` }
+  } catch {
+    return { ok: false, message: '네트워크 오류가 발생했습니다' }
+  }
+}
+
 export async function checkGeminiHealth(): Promise<{ ok: boolean; message: string }> {
   const client = await requireAdmin()
   if (!client) return { ok: false, message: '관리자 권한이 필요합니다' }
