@@ -122,6 +122,7 @@ export async function POST(
       original_price: typeof merged.original_price === 'number' ? merged.original_price : null,
       original_unit: typeof merged.original_unit === 'string' ? merged.original_unit : null,
       term: typeof merged.term === 'string' ? merged.term : null,
+      term_months: typeof merged.term_months === 'number' ? merged.term_months : null,
       min_qty: typeof merged.min_qty === 'string' ? merged.min_qty : null,
       valid_until: typeof merged.valid_until === 'string' ? merged.valid_until : null,
       source_format: item.channel ?? 'own',
