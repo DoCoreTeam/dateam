@@ -3,6 +3,19 @@ import type { AiFeature } from '@/types/database'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
+function parseGeminiJson(text: string): unknown {
+  try {
+    return JSON.parse(text)
+  } catch {
+    const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
+    try {
+      return JSON.parse(stripped)
+    } catch {
+      throw new Error('AI 응답을 파싱할 수 없습니다. 다시 시도해 주세요.')
+    }
+  }
+}
+
 export interface MergedCategoryReport {
   category: string
   performance: string
@@ -144,9 +157,9 @@ export async function mergeAndRefineByCategory(
 
   let parsed: unknown
   try {
-    parsed = JSON.parse(text)
-  } catch {
-    throw new Error('Gemini 병합 응답 JSON 파싱 실패')
+    parsed = parseGeminiJson(text)
+  } catch (e) {
+    throw e instanceof Error ? e : new Error('Gemini 병합 응답 JSON 파싱 실패')
   }
   if (!Array.isArray(parsed) || parsed.length === 0) {
     throw new Error('Gemini 병합 응답 형식이 올바르지 않습니다')
@@ -208,7 +221,12 @@ export async function refineWeeklyReport(
     totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
   })
 
-  const parsed = JSON.parse(text)
+  let parsed: unknown
+  try {
+    parsed = parseGeminiJson(text)
+  } catch (e) {
+    throw e instanceof Error ? e : new Error('AI 응답을 파싱할 수 없습니다. 다시 시도해 주세요.')
+  }
   if (!Array.isArray(parsed)) throw new Error('Gemini 응답 형식이 올바르지 않습니다')
 
   return rows.map((src) => {
@@ -285,7 +303,12 @@ export async function refineReports(
     totalTokens: json.usageMetadata?.totalTokenCount ?? 0,
   })
 
-  const parsed = JSON.parse(text)
+  let parsed: unknown
+  try {
+    parsed = parseGeminiJson(text)
+  } catch (e) {
+    throw e instanceof Error ? e : new Error('AI 응답을 파싱할 수 없습니다. 다시 시도해 주세요.')
+  }
   if (!Array.isArray(parsed) || parsed.length !== reports.length) {
     throw new Error('Gemini 응답 형식이 올바르지 않습니다')
   }

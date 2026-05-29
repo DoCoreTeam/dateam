@@ -78,9 +78,10 @@ export async function generateWeeklyFromDailyTasks(
 
   let parsed: unknown
   try {
-    parsed = JSON.parse(text)
+    const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
+    parsed = JSON.parse(stripped)
   } catch {
-    throw new Error('Gemini 응답 JSON 파싱 실패')
+    throw new Error('AI 응답을 파싱할 수 없습니다. 다시 시도해 주세요.')
   }
 
   if (!Array.isArray(parsed) || parsed.length === 0) {
