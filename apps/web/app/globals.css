@@ -2109,6 +2109,53 @@
   }
 }
 
+/* GPU AI 사이드패널 — 인라인 슬라이딩 */
+.gpu-ai-sidebar {
+  flex-shrink: 0;
+  width: 0;
+  overflow: hidden;
+  border-left: 0 solid var(--gpu-border);
+  transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              border-left-width 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+}
+.gpu-ai-sidebar--open {
+  width: 360px;
+  border-left-width: 1px;
+}
+@media (max-width: 767px) {
+  .gpu-ai-sidebar--open {
+    width: 100%;
+  }
+}
+.gpu-ai-sidebar-inner {
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+@media (max-width: 767px) {
+  .gpu-ai-sidebar-inner {
+    width: 100vw;
+  }
+}
+
+/* DB Chat 스트리밍 커서 */
+.db-chat-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 14px;
+  background: currentColor;
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: db-chat-blink 0.8s step-end infinite;
+}
+@keyframes db-chat-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
 /* AI 분석 중 스피너 */
 .ai-analyzing-spinner {
   width: 2.5rem;

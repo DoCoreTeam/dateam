@@ -146,18 +146,12 @@ export default function GpuPricingClient() {
       {/* 탭 컨텐츠 */}
       <div className="gpu-tab-content">
         {activeTab === 'board' && (
-          <div style={{ display: 'flex', gap: 0, minHeight: 0 }}>
+          <div style={{ display: 'flex', gap: 0, minHeight: 0, overflow: 'hidden' }}>
             <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
               <PriceTableTab onGoToIntake={() => setActiveTab('intake')} />
             </div>
-            {showAiPanel && (
-              <div style={{
-                width: 360,
-                flexShrink: 0,
-                borderLeft: '1px solid var(--gpu-border)',
-                display: 'flex',
-                flexDirection: 'column',
-              }}>
+            <div className={`gpu-ai-sidebar${showAiPanel ? ' gpu-ai-sidebar--open' : ''}`}>
+              <div className="gpu-ai-sidebar-inner">
                 <div style={{
                   padding: '8px 12px',
                   borderBottom: '1px solid var(--gpu-border)',
@@ -167,6 +161,7 @@ export default function GpuPricingClient() {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
+                  flexShrink: 0,
                 }}>
                   AI 조회
                   <button
@@ -181,7 +176,7 @@ export default function GpuPricingClient() {
                   <DbChatTab />
                 </div>
               </div>
-            )}
+            </div>
           </div>
         )}
         {activeTab === 'intake' && <QuoteRegisterTab />}

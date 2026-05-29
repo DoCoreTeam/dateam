@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
@@ -48,7 +49,7 @@ async function buildDbSnapshot(supabase: Awaited<ReturnType<typeof createClient>
         .order('ts', { ascending: false })
         .limit(150),
       sb.from('suppliers').select('id,name,country,tier'),
-      sb.from('fx_rates').select('usd_krw,date').order('date', { ascending: false }).limit(1),
+      sb.from('fx_rates').select('usd_krw,rate_date').order('rate_date', { ascending: false }).limit(1),
       sb.from('pricing_settings').select('margin_pct').limit(1),
       sb.from('review_items')
         .select('id,product_hint,supplier_hint,status,overall_confidence,confirmed_at,created_at')
@@ -57,11 +58,9 @@ async function buildDbSnapshot(supabase: Awaited<ReturnType<typeof createClient>
         .limit(50),
     ])
 
-  // 공급사 ID → 이름 매핑
   const supplierMap: Record<string, string> = {}
   for (const s of suppliers.data ?? []) supplierMap[s.id] = s.name
 
-  // quotes에 supplier_name 주입
   const enrichedQuotes = (quotes.data ?? []).map((q: Record<string, unknown>) => ({
     ...q,
     supplier_name: typeof q.supplier_id === 'string' ? (supplierMap[q.supplier_id] ?? null) : null,
@@ -123,14 +122,13 @@ export async function POST(req: NextRequest) {
 
   const systemPrompt = prompt.content.replace('{{DB_SNAPSHOT}}', JSON.stringify(snapshot, null, 2))
 
-  // 멀티턴: history + 새 질문을 Gemini contents 배열로 변환
   const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = []
   for (const msg of history) {
     contents.push({ role: msg.role === 'assistant' ? 'model' : 'user', parts: [{ text: msg.content }] })
   }
   contents.push({ role: 'user', parts: [{ text: query }] })
 
-  const url = `${GEMINI_API_BASE}/models/${config.model}:generateContent`
+  const url = `${GEMINI_API_BASE}/models/${config.model}:streamGenerateContent?alt=sse`
   let geminiRes: Response
   try {
     geminiRes = await fetch(url, {
@@ -146,39 +144,111 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'AI 서버 연결 실패' }, { status: 502 })
   }
 
-  if (!geminiRes.ok) {
+  if (!geminiRes.ok || !geminiRes.body) {
     return NextResponse.json({ error: `AI API 오류 (${geminiRes.status})` }, { status: 502 })
   }
 
-  const geminiJson = await geminiRes.json() as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
-  }
+  const encoder = new TextEncoder()
+  let fullText = ''
+  let lastAnswerLen = 0
+  let usageMeta: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } = {}
 
-  const rawText = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-  const usage = geminiJson.usageMetadata ?? {}
+  const stream = new ReadableStream({
+    async start(controller) {
+      const reader = geminiRes.body!.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
 
-  logTokenUsage({
-    userId: user.id,
-    feature: 'gpu-db-chat',
-    model: config.model,
-    promptTokens: usage.promptTokenCount ?? 0,
-    outputTokens: usage.candidatesTokenCount ?? 0,
-    totalTokens: usage.totalTokenCount ?? 0,
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buf += decoder.decode(value, { stream: true })
+          const lines = buf.split('\n')
+          buf = lines.pop() ?? ''
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue
+            const jsonStr = line.slice(6).trim()
+            if (!jsonStr) continue
+
+            try {
+              const gc = JSON.parse(jsonStr) as {
+                candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+                usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
+              }
+              if (gc.usageMetadata) usageMeta = gc.usageMetadata
+              const text = gc.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+              fullText += text
+
+              // answer 필드 텍스트 점진 추출
+              const markerIdx = fullText.indexOf('"answer":')
+              if (markerIdx !== -1) {
+                let qi = markerIdx + 9
+                while (qi < fullText.length && fullText[qi] !== '"') qi++
+                if (qi < fullText.length) {
+                  let raw = ''
+                  let i = qi + 1
+                  while (i < fullText.length) {
+                    if (fullText[i] === '\\' && i + 1 < fullText.length) {
+                      const nx = fullText[i + 1]
+                      if (nx === 'n') raw += '\n'
+                      else if (nx === '"') raw += '"'
+                      else if (nx === '\\') raw += '\\'
+                      else raw += nx
+                      i += 2
+                    } else if (fullText[i] === '"') {
+                      break
+                    } else {
+                      raw += fullText[i++]
+                    }
+                  }
+                  if (raw.length > lastAnswerLen) {
+                    const chunk = raw.slice(lastAnswerLen)
+                    lastAnswerLen = raw.length
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ chunk })}\n\n`))
+                  }
+                }
+              }
+            } catch { /* skip malformed chunk */ }
+          }
+        }
+      } catch (err) {
+        console.error('[db-chat] stream error:', err)
+      }
+
+      // 최종 JSON 파싱 → done 이벤트
+      try {
+        const parsed: ChatResponse = JSON.parse(fullText)
+        logTokenUsage({
+          userId: user.id,
+          feature: 'gpu-db-chat',
+          model: config.model,
+          promptTokens: usageMeta.promptTokenCount ?? 0,
+          outputTokens: usageMeta.candidatesTokenCount ?? 0,
+          totalTokens: usageMeta.totalTokenCount ?? 0,
+        })
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+          done: true,
+          answer: typeof parsed.answer === 'string' ? parsed.answer : '',
+          data: Array.isArray(parsed.data) ? parsed.data : [],
+          source_tables: Array.isArray(parsed.source_tables) ? parsed.source_tables : [],
+          found: parsed.found === true,
+        })}\n\n`))
+      } catch {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, error: 'AI 응답 파싱 실패' })}\n\n`))
+      }
+
+      controller.close()
+    },
   })
 
-  let parsed: ChatResponse
-  try {
-    parsed = JSON.parse(rawText)
-  } catch {
-    console.error('[db-chat] AI 응답 파싱 실패:', rawText.slice(0, 200))
-    return NextResponse.json({ error: 'AI 응답 파싱 실패' }, { status: 500 })
-  }
-
-  return NextResponse.json({
-    answer: typeof parsed.answer === 'string' ? parsed.answer : '',
-    data: Array.isArray(parsed.data) ? parsed.data : [],
-    source_tables: Array.isArray(parsed.source_tables) ? parsed.source_tables : [],
-    found: parsed.found === true,
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    },
   })
 }

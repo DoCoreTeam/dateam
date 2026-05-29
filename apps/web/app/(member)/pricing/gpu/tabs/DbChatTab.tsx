@@ -6,6 +6,7 @@ import { Send, RotateCcw, MessageSquare } from 'lucide-react'
 interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
+  streaming?: boolean
   data?: Record<string, unknown>[]
   source_tables?: string[]
   found?: boolean
@@ -25,10 +26,14 @@ export default function DbChatTab() {
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const msgCountRef = useRef(0)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    if (messages.length !== msgCountRef.current) {
+      msgCountRef.current = messages.length
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages.length])
 
   async function sendMessage(query: string) {
     if (!query.trim() || loading) return
@@ -44,26 +49,93 @@ export default function DbChatTab() {
       content: m.content,
     }))
 
+    // placeholder streaming message
+    const streamingMsg: ChatMessage = { role: 'assistant', content: '', streaming: true }
+    setMessages((prev) => [...prev, streamingMsg])
+
     try {
       const res = await fetch('/api/pricing/gpu/db-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: query.trim(), history }),
       })
-      const json = await res.json()
-      if (!res.ok) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: '', error: json.error ?? 'AI 오류' }])
-      } else {
-        setMessages((prev) => [...prev, {
-          role: 'assistant',
-          content: json.answer ?? '',
-          data: json.data,
-          source_tables: json.source_tables,
-          found: json.found,
-        }])
+
+      if (!res.ok || !res.body) {
+        let errMsg = 'AI 오류'
+        try { const j = await res.json(); errMsg = j.error ?? errMsg } catch { /* ignore */ }
+        setMessages((prev) => {
+          const next = [...prev]
+          next[next.length - 1] = { role: 'assistant', content: '', error: errMsg }
+          return next
+        })
+        return
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        const lines = buf.split('\n')
+        buf = lines.pop() ?? ''
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const jsonStr = line.slice(6).trim()
+          if (!jsonStr) continue
+          try {
+            const evt = JSON.parse(jsonStr) as {
+              chunk?: string
+              done?: boolean
+              answer?: string
+              data?: Record<string, unknown>[]
+              source_tables?: string[]
+              found?: boolean
+              error?: string
+            }
+            if (evt.chunk !== undefined) {
+              setMessages((prev) => {
+                const next = [...prev]
+                const last = next[next.length - 1]
+                if (last?.role === 'assistant') {
+                  next[next.length - 1] = { ...last, content: last.content + evt.chunk }
+                }
+                return next
+              })
+            } else if (evt.done) {
+              if (evt.error) {
+                setMessages((prev) => {
+                  const next = [...prev]
+                  next[next.length - 1] = { role: 'assistant', content: '', error: evt.error }
+                  return next
+                })
+              } else {
+                setMessages((prev) => {
+                  const next = [...prev]
+                  next[next.length - 1] = {
+                    role: 'assistant',
+                    content: evt.answer ?? '',
+                    streaming: false,
+                    data: evt.data,
+                    source_tables: evt.source_tables,
+                    found: evt.found,
+                  }
+                  return next
+                })
+              }
+            }
+          } catch { /* skip malformed */ }
+        }
       }
     } catch {
-      setMessages((prev) => [...prev, { role: 'assistant', content: '', error: '네트워크 오류' }])
+      setMessages((prev) => {
+        const next = [...prev]
+        next[next.length - 1] = { role: 'assistant', content: '', error: '네트워크 오류' }
+        return next
+      })
     } finally {
       setLoading(false)
       setTimeout(() => inputRef.current?.focus(), 50)
@@ -81,16 +153,17 @@ export default function DbChatTab() {
     if (!data || data.length === 0) return null
     const cols = Object.keys(data[0])
     return (
-      <div style={{ marginTop: 8 }}>
-        <table className="table-base table-card" style={{ fontSize: 12 }}>
+      <div style={{ marginTop: 8, maxWidth: '100%', overflow: 'hidden' }}>
+        <table className="table-base table-card" style={{ fontSize: 11, width: '100%', tableLayout: 'fixed' }}>
           <thead>
-            <tr>{cols.map((c) => <th key={c}>{c}</th>)}</tr>
+            <tr>{cols.map((c) => <th key={c} style={{ wordBreak: 'break-word' }}>{c}</th>)}</tr>
           </thead>
           <tbody>
             {data.map((row, i) => (
               <tr key={i}>
                 {cols.map((c, ci) => (
-                  <td key={c} {...(ci === 0 ? { className: 'card-header' } : { 'data-label': c })}>
+                  <td key={c} style={{ wordBreak: 'break-word' }}
+                    {...(ci === 0 ? { className: 'card-header' } : { 'data-label': c })}>
                     {String(row[c] ?? '')}
                   </td>
                 ))}
@@ -118,9 +191,9 @@ export default function DbChatTab() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 200px)', minHeight: 400, gap: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: 0 }}>
       {/* 메시지 영역 */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', color: 'var(--gpu-muted)', marginTop: 60 }}>
             <MessageSquare size={32} style={{ opacity: 0.3, marginBottom: 8 }} />
@@ -132,21 +205,30 @@ export default function DbChatTab() {
         {messages.map((msg, idx) => (
           <div key={idx} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
             <div style={{
-              maxWidth: '80%',
+              maxWidth: '88%',
               padding: '10px 14px',
               borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
               background: msg.role === 'user' ? 'var(--gpu-accent, #2563eb)' : 'var(--gpu-surface2, #f3f4f6)',
               color: msg.role === 'user' ? '#fff' : 'var(--gpu-text)',
               fontSize: 13,
               lineHeight: 1.6,
+              wordBreak: 'break-word',
+              overflowWrap: 'break-word',
+              minWidth: 0,
             }}>
               {msg.error ? (
                 <span style={{ color: msg.role === 'user' ? '#fca5a5' : '#ef4444' }}>{msg.error}</span>
               ) : (
                 <>
                   <span dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
-                  {msg.data && msg.data.length > 0 && renderTable(msg.data)}
-                  {msg.source_tables && msg.source_tables.length > 0 && (
+                  {msg.streaming && msg.content.length === 0 && (
+                    <span className="db-chat-cursor" />
+                  )}
+                  {msg.streaming && msg.content.length > 0 && (
+                    <span className="db-chat-cursor" />
+                  )}
+                  {!msg.streaming && msg.data && msg.data.length > 0 && renderTable(msg.data)}
+                  {!msg.streaming && msg.source_tables && msg.source_tables.length > 0 && (
                     <div style={{ marginTop: 6, fontSize: 10, opacity: 0.6 }}>
                       참조: {msg.source_tables.join(', ')}
                     </div>
@@ -157,13 +239,6 @@ export default function DbChatTab() {
           </div>
         ))}
 
-        {loading && (
-          <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-            <div style={{ padding: '10px 14px', background: 'var(--gpu-surface2, #f3f4f6)', borderRadius: '12px 12px 12px 2px', fontSize: 13, color: 'var(--gpu-muted)' }}>
-              분석 중...
-            </div>
-          </div>
-        )}
         <div ref={bottomRef} />
       </div>
 
@@ -180,23 +255,24 @@ export default function DbChatTab() {
       )}
 
       {/* 입력 영역 */}
-      <div style={{ padding: '12px 16px', borderTop: '1px solid var(--gpu-border)', display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+      <div style={{ padding: '12px 16px', borderTop: '1px solid var(--gpu-border)', display: 'flex', gap: 8, alignItems: 'flex-end', flexShrink: 0 }}>
         <textarea
           ref={inputRef}
           data-testid="db-chat-input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="GPU 견적/가격/공급사에 대해 질문하세요... (Enter 전송, Shift+Enter 줄바꿈)"
+          placeholder="GPU 견적/가격/공급사에 대해 질문하세요..."
           rows={2}
           style={{
             flex: 1, resize: 'none', border: '1px solid var(--gpu-border)', borderRadius: 8,
             padding: '8px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none',
             background: 'var(--gpu-surface, #fff)', color: 'var(--gpu-text)',
+            minWidth: 0,
           }}
           disabled={loading}
         />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
           <button
             data-testid="db-chat-send"
             className="gpu-btn gpu-btn-primary"
