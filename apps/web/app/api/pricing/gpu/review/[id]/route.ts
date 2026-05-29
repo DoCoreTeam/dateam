@@ -80,17 +80,22 @@ export async function POST(
     return NextResponse.json({ error: '확정할 단가(unit_price_usd)가 없습니다' }, { status: 400 })
   }
 
-  // product_id 찾기 (모델명+메모리+tier로 매칭)
+  // product_id 찾기 — 전체 이름 먼저, 안 되면 토큰별 fallback (NVIDIA H100 SXM → H100)
   let productId: string | null = null
   if (typeof merged.model_name === 'string' && merged.model_name) {
+    const tier = merged.tier_suggestion ?? 1
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: products } = await (supabase as any)
-      .from('gpu_products')
-      .select('id')
-      .ilike('model_name', `%${merged.model_name}%`)
-      .eq('tier', merged.tier_suggestion ?? 1)
-      .limit(1)
-    productId = products?.[0]?.id ?? null
+    const db = supabase as any
+    const tokens = merged.model_name.trim().split(/\s+/).filter((t) => t.length >= 2)
+    for (const token of tokens) {
+      const { data: products } = await db
+        .from('gpu_products')
+        .select('id')
+        .ilike('model_name', `%${token}%`)
+        .eq('tier', tier)
+        .limit(1)
+      if (products?.[0]?.id) { productId = products[0].id; break }
+    }
   }
 
   // supplier_id 찾기 — 사용자가 직접 선택한 경우 우선 사용

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { Plus } from 'lucide-react'
@@ -18,13 +19,25 @@ interface SupplierStats {
 export default function SuppliersTab() {
   const { data } = useSWR<{ suppliers: SupplierStats[] }>('/api/pricing/gpu/suppliers', fetcher)
   const suppliers = data?.suppliers ?? []
+  const [search, setSearch] = useState('')
+
+  const filtered = search.trim()
+    ? suppliers.filter((s) =>
+        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        (s.location ?? '').toLowerCase().includes(search.toLowerCase())
+      )
+    : suppliers
 
   return (
     <div>
       <div className="gpu-toolbar">
         <div className="gpu-search">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
-          <input placeholder="공급사 검색" readOnly />
+          <input
+            placeholder="공급사 검색"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
         <button className="gpu-btn">
           <Plus size={15} /> 공급사 추가
@@ -32,7 +45,7 @@ export default function SuppliersTab() {
       </div>
 
       <div className="gpu-sup-grid">
-        {suppliers.map((s) => (
+        {filtered.map((s) => (
           <div key={s.id} className="gpu-sup-card">
             <div className="gpu-sup-head">
               <div className="gpu-sup-logo" style={{ background: s.color }}>
@@ -75,9 +88,9 @@ export default function SuppliersTab() {
           </div>
         ))}
 
-        {suppliers.length === 0 && (
+        {filtered.length === 0 && (
           <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 24px', color: 'var(--gpu-faint)', fontSize: '13px' }}>
-            등록된 공급사가 없습니다
+            {suppliers.length === 0 ? '등록된 공급사가 없습니다' : '검색 결과가 없습니다'}
           </div>
         )}
       </div>

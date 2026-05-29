@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 
@@ -11,6 +12,17 @@ interface AuditLog {
   detail: Record<string, unknown> | null
   evidence_ref: string | null
   gpu_products: { model_name: string; memory: string; tier: number } | null
+}
+
+const FILTER_ACTION_TYPES: Record<string, string[]> = {
+  '최저가 변경': ['lowest_changed'],
+  '등록/수정': [
+    'quote_registered', 'quote_confirmed', 'direct_set', 'margin_changed',
+    'pool_stock_changed', 'availability_registered', 'review_created',
+    'review_finalized', 'review_rejected', 'review_recheck_completed',
+    'rejected', 'inquiry_sent',
+  ],
+  '만료': ['expired'],
 }
 
 const ACTION_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -97,29 +109,56 @@ function renderDetail(type: string, detail: Record<string, unknown>): string | n
 export default function HistoryTab() {
   const { data } = useSWR<{ logs: AuditLog[] }>('/api/pricing/gpu/audit', fetcher)
   const logs = data?.logs ?? []
+  const [filter, setFilter] = useState('전체')
+  const [search, setSearch] = useState('')
+
+  const filtered = logs.filter((log) => {
+    if (filter !== '전체') {
+      const allowed = FILTER_ACTION_TYPES[filter] ?? []
+      if (!allowed.includes(log.action_type)) return false
+    }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase()
+      const cfg = ACTION_CONFIG[log.action_type]
+      const model = log.gpu_products?.model_name?.toLowerCase() ?? ''
+      const actor = log.actor?.toLowerCase() ?? ''
+      const label = cfg?.label?.toLowerCase() ?? log.action_type.toLowerCase()
+      const detail = log.detail ?? {}
+      const supplier = (
+        String(detail.supplier_hint ?? detail.supplier_name ?? detail.supplier ?? '')
+      ).toLowerCase()
+      if (!model.includes(q) && !actor.includes(q) && !label.includes(q) && !supplier.includes(q)) return false
+    }
+    return true
+  })
+
+  const tabs = ['전체', '최저가 변경', '등록/수정', '만료']
 
   return (
     <div>
       <div className="gpu-toolbar">
         <div className="gpu-search">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
-          <input placeholder="이력 검색 (모델·공급사·작업)" readOnly />
+          <input
+            placeholder="이력 검색 (모델·공급사·작업)"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
         <div className="gpu-seg">
-          <button className="on">전체</button>
-          <button>최저가 변경</button>
-          <button>등록/수정</button>
-          <button>만료</button>
+          {tabs.map((t) => (
+            <button key={t} className={filter === t ? 'on' : ''} onClick={() => setFilter(t)}>{t}</button>
+          ))}
         </div>
       </div>
 
       <div className="gpu-panel gpu-card-pad">
-        {logs.length === 0 ? (
+        {filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--gpu-faint)', fontSize: '13px' }}>
-            변동 이력이 없습니다
+            {logs.length === 0 ? '변동 이력이 없습니다' : '검색 결과가 없습니다'}
           </div>
         ) : (
-          logs.map((log) => {
+          filtered.map((log) => {
             const cfg = ACTION_CONFIG[log.action_type] ?? { label: log.action_type, color: '#6b7280', bg: '#f0f1f4' }
             const product = log.gpu_products
             const ts = new Date(log.ts)
