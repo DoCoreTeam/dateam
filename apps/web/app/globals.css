@@ -2356,7 +2356,7 @@
 
 .gpu-tab-content {
   flex: 1;
-  overflow: clip;
+  overflow: auto;
   min-height: 0;
 }
 
