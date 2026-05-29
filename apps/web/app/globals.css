@@ -4,6 +4,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 전역 스크롤바 숨김 */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
 :root {
   color-scheme: light;
 
