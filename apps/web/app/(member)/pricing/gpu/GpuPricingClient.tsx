@@ -12,8 +12,9 @@ const ReviewTab = dynamic(() => import('./tabs/ReviewTab'), { ssr: false })
 const SuppliersTab = dynamic(() => import('./tabs/SuppliersTab'), { ssr: false })
 const HistoryTab = dynamic(() => import('./tabs/HistoryTab'), { ssr: false })
 const InventoryTab = dynamic(() => import('./tabs/InventoryTab'), { ssr: false })
+const DbChatTab = dynamic(() => import('./tabs/DbChatTab'), { ssr: false })
 
-type TabId = 'board' | 'intake' | 'review' | 'inventory' | 'suppliers' | 'log'
+type TabId = 'board' | 'intake' | 'review' | 'inventory' | 'suppliers' | 'log' | 'chat'
 
 interface SettingsData {
   usd_krw: number | null
@@ -84,6 +85,11 @@ export default function GpuPricingClient() {
       label: '변동 이력',
       icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>,
     },
+    {
+      id: 'chat',
+      label: 'DB 질문',
+      icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
+    },
   ]
 
   return (
@@ -137,6 +143,7 @@ export default function GpuPricingClient() {
         {activeTab === 'inventory' && <InventoryTab />}
         {activeTab === 'suppliers' && <SuppliersTab />}
         {activeTab === 'log' && <HistoryTab />}
+        {activeTab === 'chat' && <DbChatTab />}
       </div>
     </div>
   )

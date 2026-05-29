@@ -353,6 +353,7 @@ export type AiFeature =
   | 'content-ai-edit'
   | 'daily-ai-save'
   | 'gpu-quote-extract'
+  | 'gpu-db-chat'
 
 export interface AiTokenLog {
   id: string
