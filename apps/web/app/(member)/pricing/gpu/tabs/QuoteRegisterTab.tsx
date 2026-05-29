@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { mutate as globalMutate } from 'swr'
 import { Sparkles, Send, Paperclip, X, RotateCcw } from 'lucide-react'
 
@@ -79,12 +79,30 @@ export default function QuoteRegisterTab() {
   const [attached, setAttached] = useState<AttachedFile | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
+  const [analyzeStep, setAnalyzeStep] = useState(0)
   const [analysisResult, setAnalysisResult] = useState<ReviewItemResult | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
   const [channel, setChannel] = useState('own')
   const [isTest, setIsTest] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const ANALYZE_STEPS = [
+    { msg: '요청 전송 중…', sub: 'AI 서버에 데이터를 전송하고 있습니다' },
+    { msg: 'Gemini AI 분석 중…', sub: '이미지·텍스트에서 GPU 견적 정보를 인식하고 있습니다' },
+    { msg: '견적 정보 추출 중…', sub: '모델명·단가·약정·수량 정보를 구조화하고 있습니다' },
+    { msg: '신뢰도 평가 중…', sub: '추출된 각 항목의 정확도를 검증하고 있습니다' },
+    { msg: '결과 정리 중…', sub: '검토 대기 목록에 등록할 데이터를 준비하고 있습니다' },
+  ]
+
+  useEffect(() => {
+    if (!analyzing) { setAnalyzeStep(0); return }
+    const delays = [0, 2500, 5000, 8000, 11000]
+    const timers = delays.map((delay, i) =>
+      setTimeout(() => setAnalyzeStep(i), delay)
+    )
+    return () => timers.forEach(clearTimeout)
+  }, [analyzing])
 
   const processFile = useCallback((file: File) => {
     const isText = file.type.startsWith('text/') || /\.(txt|csv|md|json)$/i.test(file.name)
@@ -299,11 +317,27 @@ export default function QuoteRegisterTab() {
           </div>
 
           {analyzing ? (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14, padding: '32px 0' }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, padding: '32px 0' }}>
               <Sparkles size={36} className="gpu-analyzing-icon" />
               <div style={{ textAlign: 'center' }}>
-                <div className="gpu-analyzing-text" style={{ fontSize: 14, fontWeight: 600, color: 'var(--gpu-accent)' }}>Gemini AI 분석 중…</div>
-                <div style={{ fontSize: 12, color: 'var(--gpu-muted)', marginTop: 4 }}>이미지·텍스트에서 견적 정보를 추출하고 있습니다</div>
+                <div className="gpu-analyzing-text" style={{ fontSize: 14, fontWeight: 600, color: 'var(--gpu-accent)' }} data-testid="analyze-step-msg">
+                  {ANALYZE_STEPS[analyzeStep]?.msg ?? ANALYZE_STEPS[0].msg}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--gpu-muted)', marginTop: 4 }}>
+                  {ANALYZE_STEPS[analyzeStep]?.sub ?? ANALYZE_STEPS[0].sub}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                {ANALYZE_STEPS.map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: 6, height: 6, borderRadius: '50%',
+                      background: i <= analyzeStep ? 'var(--gpu-accent)' : '#e5e7eb',
+                      transition: 'background 0.4s',
+                    }}
+                  />
+                ))}
               </div>
             </div>
           ) : !result ? (

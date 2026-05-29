@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.apiKey },
       body: JSON.stringify({
         contents: [{ role: 'user', parts }],
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
+        generationConfig: { responseMimeType: 'application/json', temperature: 0 },
       }),
     })
   } catch {
