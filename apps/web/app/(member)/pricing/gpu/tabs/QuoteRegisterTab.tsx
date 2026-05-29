@@ -74,13 +74,86 @@ interface AttachedFile {
   base64Data?: string
 }
 
+function getTabLabel(item: ReviewItemResult): string {
+  const extracted = item.current_extracted ?? {}
+  const model = typeof extracted.model_name === 'string' ? extracted.model_name : ''
+  const mem = typeof extracted.memory === 'string' ? extracted.memory : ''
+  return model ? `${model}${mem ? ' ' + mem : ''}` : item.product_hint ?? '모델'
+}
+
+function getConfColor(pct: number | null): string {
+  if (pct == null) return '#9ca3af'
+  if (pct >= 80) return 'var(--gpu-green)'
+  if (pct >= 60) return 'var(--gpu-amber)'
+  return 'var(--gpu-red)'
+}
+
+function ResultPanel({ item }: { item: ReviewItemResult }) {
+  const extracted = item.current_extracted ?? {}
+  const confidence = item.current_confidence ?? {}
+  const overallPct = item.overall_confidence ?? 0
+  const impact = IMPACT_CONFIG[item.impact_level ?? 'steady'] ?? IMPACT_CONFIG.steady
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* 임팩트 배지 */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+        <span className="gpu-badge" style={{ background: impact.color, color: '#fff', fontSize: 10 }}>
+          {impact.label}
+        </span>
+        {item.product_hint && (
+          <span className="gpu-badge gpu-badge-gray">{item.product_hint}</span>
+        )}
+        {item.supplier_hint
+          ? <span className="gpu-badge gpu-badge-gray">{item.supplier_hint}</span>
+          : <span className="gpu-badge" style={{ background: 'var(--gpu-amber)', color: '#fff', fontSize: 10 }}>⚠ 공급사 미확인</span>
+        }
+        <span className="gpu-badge" style={{ background: getConfColor(overallPct), color: '#fff', fontSize: 10 }}>
+          신뢰도 {overallPct}%
+        </span>
+      </div>
+
+      {/* 필드별 */}
+      {Object.entries(extracted).map(([key, val]) => {
+        const conf = confidence[key]
+        const isNull = val === null || val === undefined
+        const displayVal = formatExtractedValue(key, val)
+        const isLow = typeof conf === 'number' && conf < 90
+        return (
+          <div
+            key={key}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
+              borderRadius: 8,
+              background: isNull ? '#f9fafb' : isLow ? '#fff7ed' : '#f9fafb',
+              border: `1px solid ${isNull ? '#f0f0f0' : isLow ? '#fed7aa' : '#e5e7eb'}`,
+              opacity: isNull ? 0.55 : 1,
+            }}
+          >
+            <span style={{ fontSize: 12, color: 'var(--gpu-muted)', minWidth: 80 }}>{CONF_LABELS[key] ?? key}</span>
+            <span style={{ fontSize: 13, fontWeight: isNull ? 400 : 600, flex: 1, color: isNull ? '#9ca3af' : '#111827', fontStyle: isNull ? 'italic' : 'normal' }}>
+              {displayVal}
+            </span>
+            {typeof conf === 'number' && !isNull && (
+              <span style={{ fontSize: 11, fontWeight: 700, color: isLow ? 'var(--gpu-amber)' : 'var(--gpu-green)' }}>
+                {conf}%
+              </span>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function QuoteRegisterTab() {
   const [rawText, setRawText] = useState('')
   const [attached, setAttached] = useState<AttachedFile | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [analyzeStep, setAnalyzeStep] = useState(0)
-  const [analysisResult, setAnalysisResult] = useState<ReviewItemResult | null>(null)
+  const [analysisResults, setAnalysisResults] = useState<ReviewItemResult[]>([])
+  const [activeTabIdx, setActiveTabIdx] = useState(0)
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
   const [channel, setChannel] = useState('own')
@@ -147,8 +220,8 @@ export default function QuoteRegisterTab() {
   }, [processFile])
 
   const reset = useCallback(() => {
-    setRawText(''); setAttached(null); setAnalysisResult(null)
-    setErrorMsg(''); setSuccessMsg('')
+    setRawText(''); setAttached(null); setAnalysisResults([])
+    setActiveTabIdx(0); setErrorMsg(''); setSuccessMsg('')
   }, [])
 
   const handleAnalyze = useCallback(async () => {
@@ -158,7 +231,7 @@ export default function QuoteRegisterTab() {
 
     const effectiveChannel = hasImage && !text ? 'img' : channel
 
-    setAnalyzing(true); setErrorMsg(''); setSuccessMsg(''); setAnalysisResult(null)
+    setAnalyzing(true); setErrorMsg(''); setSuccessMsg(''); setAnalysisResults([]); setActiveTabIdx(0)
     try {
       const payload: Record<string, unknown> = { text, channel: effectiveChannel, is_test: isTest }
       if (hasImage) {
@@ -171,9 +244,17 @@ export default function QuoteRegisterTab() {
       })
       const j = await res.json()
       if (!res.ok) { setErrorMsg(j.error ?? 'AI 분석 실패'); return }
-      setAnalysisResult(j.item)
+
+      // 단일 item or 복수 items 처리
+      const results: ReviewItemResult[] = j.items ?? (j.item ? [j.item] : [])
+      setAnalysisResults(results)
       await globalMutate('/api/pricing/gpu/review?status=pending')
-      setSuccessMsg('AI 분석이 완료되어 검토 대기 탭에 추가되었습니다.')
+      const count = results.length
+      setSuccessMsg(
+        count > 1
+          ? `AI 분석 완료 — ${count}개 모델이 검토 대기 탭에 추가되었습니다.`
+          : 'AI 분석이 완료되어 검토 대기 탭에 추가되었습니다.'
+      )
     } catch {
       setErrorMsg('서버 연결 실패')
     } finally {
@@ -181,11 +262,7 @@ export default function QuoteRegisterTab() {
     }
   }, [rawText, attached, channel, isTest])
 
-  const result = analysisResult
-  const extracted = result?.current_extracted ?? {}
-  const confidence = result?.current_confidence ?? {}
-  const overallPct = result?.overall_confidence ?? 0
-  const impact = IMPACT_CONFIG[result?.impact_level ?? 'steady'] ?? IMPACT_CONFIG.steady
+  const hasResults = analysisResults.length > 0
 
   return (
     <div>
@@ -223,7 +300,7 @@ export default function QuoteRegisterTab() {
               ref={textareaRef}
               className="gpu-intake-textarea"
               style={{ minHeight: 180, border: 'none', borderRadius: 10, background: 'transparent', resize: 'vertical' }}
-              placeholder={"메일·메신저 내용을 그대로 붙여넣으세요.\n\n예) [GMI Cloud] H100 SXM 80GB: $2.10/GPU·hr (8장 이상)\n약정: 3개월 | 견적 유효: 2026-06-15\n가용: 현재 32장 즉시 공급 가능"}
+              placeholder={"메일·메신저 내용을 그대로 붙여넣으세요.\n\n예) [GMI Cloud] H100 SXM 80GB: $2.10/GPU·hr (8장 이상)\n약정: 3개월 | 견적 유효: 2026-06-15\nA100 80GB: $1.50/GPU·hr (온디맨드)\n가용: 현재 32장 즉시 공급 가능"}
               value={rawText}
               onChange={(e) => { setRawText(e.target.value); setSuccessMsg(''); setErrorMsg('') }}
               onPaste={handlePaste}
@@ -261,7 +338,6 @@ export default function QuoteRegisterTab() {
             onChange={(e) => { const f = e.target.files?.[0]; if (f) processFile(f); e.target.value = '' }}
           />
 
-          {/* 채널 & 테스트 설정 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
               <span style={{ color: 'var(--gpu-muted)' }}>채널</span>
@@ -293,7 +369,7 @@ export default function QuoteRegisterTab() {
               <Sparkles size={14} />
               {analyzing ? 'AI 분석 중…' : 'AI 분석 시작'}
             </button>
-            {(rawText || attached || result) && (
+            {(rawText || attached || hasResults) && (
               <button className="gpu-btn" onClick={reset}>
                 <RotateCcw size={13} /> 초기화
               </button>
@@ -306,12 +382,9 @@ export default function QuoteRegisterTab() {
           <div className="gpu-card-title">
             <Sparkles size={15} style={{ color: 'var(--gpu-accent)' }} />
             AI 추출 결과
-            {result && (
-              <span
-                className="gpu-badge"
-                style={{ marginLeft: 8, background: overallPct >= 80 ? 'var(--gpu-green)' : overallPct >= 60 ? 'var(--gpu-amber)' : 'var(--gpu-red)', color: '#fff', fontSize: 10 }}
-              >
-                신뢰도 {overallPct}%
+            {analysisResults.length > 1 && (
+              <span className="gpu-badge" style={{ marginLeft: 8, background: 'var(--gpu-accent)', color: '#fff', fontSize: 10 }}>
+                {analysisResults.length}개 모델 감지
               </span>
             )}
           </div>
@@ -340,62 +413,71 @@ export default function QuoteRegisterTab() {
                 ))}
               </div>
             </div>
-          ) : !result ? (
+          ) : !hasResults ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '32px 0', color: '#9ca3af' }}>
               <Sparkles size={36} style={{ opacity: 0.3 }} />
               <div style={{ textAlign: 'center', fontSize: 13, lineHeight: 1.6 }}>
-                왼쪽에 내용을 붙여넣고<br/>&quot;AI 분석 시작&quot;을 누르세요
+                왼쪽에 내용을 붙여넣고<br />&quot;AI 분석 시작&quot;을 누르세요
               </div>
             </div>
           ) : (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, overflowY: 'auto' }}>
-              {/* 임팩트 배지 */}
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
-                <span className="gpu-badge" style={{ background: impact.color, color: '#fff', fontSize: 10 }}>
-                  {impact.label}
-                </span>
-                {result.product_hint && (
-                  <span className="gpu-badge gpu-badge-gray">{result.product_hint}</span>
-                )}
-                {result.supplier_hint
-                  ? <span className="gpu-badge gpu-badge-gray">{result.supplier_hint}</span>
-                  : <span className="gpu-badge" style={{ background: 'var(--gpu-amber)', color: '#fff', fontSize: 10 }}>⚠ 공급사 미확인</span>
-                }
-              </div>
+              {/* 탭 (2개 이상일 때만 표시) */}
+              {analysisResults.length > 1 && (
+                <div
+                  data-testid="multi-model-tabs"
+                  style={{ display: 'flex', gap: 4, flexWrap: 'wrap', borderBottom: '2px solid #e5e7eb', paddingBottom: 8, marginBottom: 4 }}
+                >
+                  {analysisResults.map((item, idx) => {
+                    const label = getTabLabel(item)
+                    const conf = item.overall_confidence
+                    const isActive = idx === activeTabIdx
+                    return (
+                      <button
+                        key={item.id}
+                        data-testid={`model-tab-${idx}`}
+                        onClick={() => setActiveTabIdx(idx)}
+                        style={{
+                          padding: '5px 12px',
+                          borderRadius: '6px 6px 0 0',
+                          border: `1.5px solid ${isActive ? 'var(--gpu-accent)' : '#e5e7eb'}`,
+                          borderBottom: isActive ? '2px solid #fff' : '1.5px solid #e5e7eb',
+                          background: isActive ? '#fff' : '#f8fafc',
+                          color: isActive ? 'var(--gpu-accent)' : '#6b7280',
+                          fontWeight: isActive ? 700 : 500,
+                          fontSize: 12,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          marginBottom: -2,
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 6, height: 6, borderRadius: '50%',
+                            background: getConfColor(conf),
+                            flexShrink: 0,
+                          }}
+                        />
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
 
-              {/* 필드별 */}
-              {Object.entries(extracted).map(([key, val]) => {
-                const conf = confidence[key]
-                const isNull = val === null || val === undefined
-                const displayVal = formatExtractedValue(key, val)
-                const isLow = typeof conf === 'number' && conf < 90
-                return (
-                  <div
-                    key={key}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
-                      borderRadius: 8,
-                      background: isNull ? '#f9fafb' : isLow ? '#fff7ed' : '#f9fafb',
-                      border: `1px solid ${isNull ? '#f0f0f0' : isLow ? '#fed7aa' : '#e5e7eb'}`,
-                      opacity: isNull ? 0.55 : 1,
-                    }}
-                  >
-                    <span style={{ fontSize: 12, color: 'var(--gpu-muted)', minWidth: 80 }}>{CONF_LABELS[key] ?? key}</span>
-                    <span style={{ fontSize: 13, fontWeight: isNull ? 400 : 600, flex: 1, color: isNull ? '#9ca3af' : '#111827', fontStyle: isNull ? 'italic' : 'normal' }}>
-                      {displayVal}
-                    </span>
-                    {typeof conf === 'number' && !isNull && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: isLow ? 'var(--gpu-amber)' : 'var(--gpu-green)' }}>
-                        {conf}%
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
+              {/* 선택된 모델 결과 */}
+              {analysisResults[activeTabIdx] && (
+                <ResultPanel item={analysisResults[activeTabIdx]} />
+              )}
 
               <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 12, color: '#15803d' }}>
                 <Send size={12} style={{ marginRight: 5, verticalAlign: 'middle' }} />
-                검토 대기 탭에 추가되었습니다. 본부장 검토 후 가격표에 반영됩니다.
+                {analysisResults.length > 1
+                  ? `${analysisResults.length}개 항목이 검토 대기에 추가되었습니다. 본부장 검토 후 가격표에 반영됩니다.`
+                  : '검토 대기 탭에 추가되었습니다. 본부장 검토 후 가격표에 반영됩니다.'
+                }
               </div>
             </div>
           )}

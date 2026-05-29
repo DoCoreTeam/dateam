@@ -8,6 +8,8 @@ const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 interface ReviewItem {
   id: string
   source_input_id: string | null
+  source_batch_id: string | null
+  batch_index: number
   product_hint: string | null
   supplier_hint: string | null
   channel: string | null
@@ -158,82 +160,107 @@ export async function POST(req: NextRequest) {
     totalTokens: usage.totalTokenCount ?? 0,
   })
 
-  let extracted: {
+  type SingleExtracted = {
     extracted?: Record<string, unknown>
     confidence?: Record<string, number | null>
     evidence?: Record<string, string | null>
     impact_assessment?: { level?: string; label?: string; note?: string }
   }
-  try { extracted = JSON.parse(rawText) } catch {
-    return NextResponse.json({ error: 'AI 응답 파싱 실패', raw: rawText }, { status: 500 })
+  type MultiExtracted = { items?: SingleExtracted[] }
+
+  let parsed: SingleExtracted & MultiExtracted
+  try { parsed = JSON.parse(rawText) } catch {
+    console.error('[review POST] AI 응답 파싱 실패:', rawText.slice(0, 200))
+    return NextResponse.json({ error: 'AI 응답 파싱 실패' }, { status: 500 })
   }
 
-  const confidence = extracted.confidence ?? {}
-  const values = Object.values(confidence).filter((v): v is number => typeof v === 'number')
-  const overallConfidence = values.length > 0
-    ? Math.round(values.reduce((a, b) => a + b, 0) / values.length)
-    : null
+  // v2.0 프롬프트: items 배열 / v1.x 하위 호환: items 키 자체가 없을 때만 단일 객체로 래핑
+  // parsed.items === [] (빈 배열)은 "모델 없음"이므로 래핑하지 않고 400 반환
+  if (Array.isArray(parsed.items) && parsed.items.length === 0) {
+    return NextResponse.json({ error: 'AI가 GPU 모델을 인식하지 못했습니다' }, { status: 422 })
+  }
+  const itemsList: SingleExtracted[] = Array.isArray(parsed.items)
+    ? parsed.items.slice(0, 50) // 최대 50개 배치 제한
+    : [{ extracted: parsed.extracted, confidence: parsed.confidence, evidence: parsed.evidence, impact_assessment: parsed.impact_assessment }]
 
-  const impactLevel = (extracted.impact_assessment?.level ?? 'steady') as
-    'new_model' | 'price_low_change' | 'big_swing' | 'steady'
+  const batchId = crypto.randomUUID()
 
-  // review_item 생성
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: item, error: insertError } = await (supabase as any)
-    .from('review_items')
-    .insert({
+  // N건 배치 insert
+  const insertRows = itemsList.map((item, idx) => {
+    const conf = item.confidence ?? {}
+    const confValues = Object.values(conf).filter((v): v is number => typeof v === 'number')
+    const overallConf = confValues.length > 0
+      ? Math.round(confValues.reduce((a, b) => a + b, 0) / confValues.length)
+      : null
+    const impactLevel = (item.impact_assessment?.level ?? 'steady') as string
+
+    return {
       source_input_id: driveFileId,
-      product_hint: typeof extracted.extracted?.model_name === 'string'
-        ? `${extracted.extracted.model_name} ${extracted.extracted.memory ?? ''}`.trim()
+      source_batch_id: itemsList.length > 1 ? batchId : null,
+      batch_index: idx,
+      product_hint: typeof item.extracted?.model_name === 'string'
+        ? `${item.extracted.model_name} ${item.extracted.memory ?? ''}`.trim()
         : null,
-      supplier_hint: typeof extracted.extracted?.supplier === 'string'
-        ? extracted.extracted.supplier
-        : null,
+      supplier_hint: typeof item.extracted?.supplier === 'string' ? item.extracted.supplier : null,
       channel,
       impact_level: impactLevel,
       status: 'pending',
       current_iteration: 1,
-      current_extracted: extracted.extracted ?? null,
-      current_confidence: extracted.confidence ?? null,
-      overall_confidence: overallConfidence,
+      current_extracted: item.extracted ?? null,
+      current_confidence: item.confidence ?? null,
+      overall_confidence: overallConf,
       is_test: isTest,
-    })
+    }
+  })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: insertedItems, error: insertError } = await (supabase as any)
+    .from('review_items')
+    .insert(insertRows)
     .select()
-    .single()
 
   if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
 
-  // review_iterations 1차 기록
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
-    .from('review_iterations')
-    .insert({
-      review_item_id: item.id,
-      iteration_no: 1,
-      extracted: extracted.extracted ?? {},
-      confidence: extracted.confidence ?? {},
-      evidence: extracted.evidence ?? {},
-      user_feedback: null,
-      ai_model_used: config.model,
-      prompt_version: prompt.version,
-      is_test: isTest,
-    })
+  const insertedArr = (insertedItems ?? []) as ReviewItem[]
 
-  // audit_log (gpu_audit_logs는 service_role 전용 — adminClient 사용)
+  // review_iterations 배치 기록 (실패해도 롤백 불가 — 로그만 남김)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (adminClient as any)
+  const { error: iterError } = await (supabase as any)
+    .from('review_iterations')
+    .insert(
+      insertedArr.map((dbItem, idx) => ({
+        review_item_id: dbItem.id,
+        iteration_no: 1,
+        extracted: itemsList[idx]?.extracted ?? {},
+        confidence: itemsList[idx]?.confidence ?? {},
+        evidence: itemsList[idx]?.evidence ?? {},
+        user_feedback: null,
+        ai_model_used: config.model,
+        prompt_version: prompt.version,
+        is_test: isTest,
+      }))
+    )
+  if (iterError) console.error('[review POST] review_iterations insert failed:', iterError.message)
+
+  // audit_log (실패해도 비치명적)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: auditError } = await (adminClient as any)
     .from('gpu_audit_logs')
     .insert({
       actor: user.email ?? user.id,
       action_type: 'review_created',
       detail: {
-        review_item_id: item.id,
-        product_hint: item.product_hint,
-        supplier_hint: item.supplier_hint,
-        overall_confidence: overallConfidence,
+        batch_id: itemsList.length > 1 ? batchId : null,
+        count: insertedArr.length,
+        review_item_ids: insertedArr.map((i) => i.id),
         is_test: isTest,
       },
     })
+  if (auditError) console.error('[review POST] gpu_audit_logs insert failed:', auditError.message)
 
-  return NextResponse.json({ item })
+  // 하위 호환: 단일 모델이면 item(단수), 복수면 items+count+batch_id
+  if (insertedArr.length === 1) {
+    return NextResponse.json({ item: insertedArr[0] })
+  }
+  return NextResponse.json({ items: insertedArr, count: insertedArr.length, batch_id: batchId })
 }
