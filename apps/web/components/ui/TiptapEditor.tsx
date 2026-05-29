@@ -1,6 +1,7 @@
 'use client'
 
 import { useEditor, EditorContent } from '@tiptap/react'
+import { Extension } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -17,6 +18,26 @@ interface TiptapEditorProps {
   placeholder?: string
   minHeight?: number
 }
+
+const TabIndent = Extension.create({
+  name: 'tabIndent',
+  addKeyboardShortcuts() {
+    return {
+      Tab: () => {
+        if (this.editor.can().sinkListItem('listItem')) {
+          return this.editor.commands.sinkListItem('listItem')
+        }
+        return this.editor.commands.insertContent('    ')
+      },
+      'Shift-Tab': () => {
+        if (this.editor.can().liftListItem('listItem')) {
+          return this.editor.commands.liftListItem('listItem')
+        }
+        return false
+      },
+    }
+  },
+})
 
 const BTN: React.CSSProperties = {
   padding: '0.3rem 0.45rem',
@@ -44,6 +65,7 @@ const BTN_ACTIVE: React.CSSProperties = {
 const DIVIDER = (
   <span style={{ width: '1px', background: '#e2e8f0', margin: '0 0.125rem', alignSelf: 'stretch', display: 'inline-block' }} />
 )
+
 
 const TEXT_COLORS = [
   { label: '기본', value: '' },
@@ -87,6 +109,7 @@ export default function TiptapEditor({
       TextStyle,
       Color,
       Link.configure({ openOnClick: false, HTMLAttributes: { rel: 'noopener noreferrer' } }),
+      TabIndent,
     ],
     content: value || '',
     onUpdate({ editor }) {

@@ -275,6 +275,7 @@
     line-height: 1.6;
     font-size: 0.875rem;
     color: #334155;
+    white-space: pre-wrap;
   }
   .tiptap-content ul {
     margin: 0.25rem 0 0.25rem 1.25rem;
@@ -361,6 +362,7 @@
     line-height: 1.6;
     font-size: 0.875rem;
     color: #374151;
+    white-space: pre-wrap;
   }
   .report-rich ul {
     margin: 0.2rem 0 0.2rem 1.2rem;
