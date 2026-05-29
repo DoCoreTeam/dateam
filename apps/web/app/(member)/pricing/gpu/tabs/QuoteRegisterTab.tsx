@@ -89,7 +89,7 @@ export default function QuoteRegisterTab() {
 
   const ANALYZE_STEPS = [
     { msg: '요청 전송 중…', sub: 'AI 서버에 데이터를 전송하고 있습니다' },
-    { msg: 'Gemini AI 분석 중…', sub: '이미지·텍스트에서 GPU 견적 정보를 인식하고 있습니다' },
+    { msg: 'AI 분석 중…', sub: '이미지·텍스트에서 GPU 견적 정보를 인식하고 있습니다' },
     { msg: '견적 정보 추출 중…', sub: '모델명·단가·약정·수량 정보를 구조화하고 있습니다' },
     { msg: '신뢰도 평가 중…', sub: '추출된 각 항목의 정확도를 검증하고 있습니다' },
     { msg: '결과 정리 중…', sub: '검토 대기 목록에 등록할 데이터를 준비하고 있습니다' },
@@ -205,7 +205,7 @@ export default function QuoteRegisterTab() {
             견적·가용량 정보 붙여넣기
           </div>
           <div className="gpu-card-desc">
-            메일·메신저·견적서를 그대로 붙여넣으면 Gemini AI가 가격·수량·공급사를 자동 추출합니다.
+            메일·메신저·견적서를 그대로 붙여넣으면 AI가 가격·수량·공급사를 자동 추출합니다.
           </div>
 
           <div

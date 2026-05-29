@@ -14,7 +14,7 @@ const SpotlightOnboarding = dynamic(() => import('@/components/ui/SpotlightOnboa
 
 const REFINE_STEPS = [
   { label: '내용 분석 중…',    detail: '입력 내용과 전주 데이터 비교 중' },
-  { label: 'AI 정비 중…',      detail: 'Gemini AI가 내용을 다듬는 중' },
+  { label: 'AI 정비 중…',      detail: 'AI가 내용을 다듬는 중' },
   { label: '결과 적용 중…',    detail: '정비된 내용을 반영하는 중' },
 ]
 
