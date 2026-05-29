@@ -43,6 +43,7 @@ export async function POST(
 
   const now = new Date().toISOString()
   const actorName = user.email ?? user.id
+  const adminClient = createAdminClient()
 
   if (action === 'reject') {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,7 +104,6 @@ export async function POST(
     supplierId = suppliers?.[0]?.id ?? null
   }
 
-  const adminClient = createAdminClient()
   // supply_quotes는 service_role 전용 RLS — adminClient 사용
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: quoteError } = await (adminClient as any)

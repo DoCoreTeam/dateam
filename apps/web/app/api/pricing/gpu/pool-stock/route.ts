@@ -80,8 +80,8 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // 판매가도 같이 변경하는 경우 direct_prices 업데이트 (service_role 전용 RLS — adminClient 사용)
+  const adminClient = createAdminClient()
   if (sellPriceKrw !== null) {
-    const adminClient = createAdminClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (adminClient as any)
       .from('direct_prices')
