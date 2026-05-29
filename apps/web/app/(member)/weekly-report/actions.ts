@@ -63,10 +63,11 @@ export async function upsertWeeklyReport(
 
   // replace_weekly_report RPC: DELETE + INSERT를 단일 트랜잭션으로 실행 (migration 033)
   // 분리된 2-step으로 하면 DELETE 성공 후 INSERT 실패 시 해당 주차 데이터 전소실 위험이 있음
+  // p_rows를 배열로 직접 전달 — JSON.stringify 시 Supabase가 이중 직렬화해 스칼라가 됨
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any).rpc('replace_weekly_report', {
     p_week_start: weekStart,
-    p_rows: JSON.stringify(rows),
+    p_rows: rows,
   })
 
   if (error) return { ok: false, error: error.message }
