@@ -129,15 +129,14 @@ export default function GpuPricingClient() {
         <div style={{ marginLeft: 'auto', paddingRight: 4 }}>
           <button
             data-testid="ai-panel-toggle"
-            className={`gpu-btn${showAiPanel ? ' gpu-btn-primary' : ''}`}
-            style={{ fontSize: 12, gap: 5, display: 'flex', alignItems: 'center' }}
+            className={`gpu-ai-toggle${showAiPanel ? ' gpu-ai-toggle--on' : ''}`}
             onClick={() => {
               if (activeTab !== 'board') setActiveTab('board')
               setShowAiPanel((v) => !v)
             }}
             title="가격표 탭에서 AI 조회 패널 토글"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
             AI 조회
           </button>
         </div>

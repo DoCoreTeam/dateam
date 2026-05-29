@@ -2118,6 +2118,43 @@
   }
 }
 
+/* AI 조회 토글 버튼 — 그라디언트 CTA */
+.gpu-ai-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(99, 66, 237, 0.28);
+  transition: opacity 0.15s, box-shadow 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+.gpu-ai-toggle:hover {
+  opacity: 0.9;
+  box-shadow: 0 3px 12px rgba(99, 66, 237, 0.4);
+  transform: translateY(-1px);
+}
+.gpu-ai-toggle:active {
+  transform: translateY(0);
+  opacity: 1;
+}
+.gpu-ai-toggle--on {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  box-shadow: 0 0 0 3px rgba(99, 66, 237, 0.2), 0 2px 8px rgba(99, 66, 237, 0.35);
+  animation: gpu-ai-glow 2s ease-in-out infinite;
+}
+@keyframes gpu-ai-glow {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(99, 66, 237, 0.2), 0 2px 8px rgba(99, 66, 237, 0.35); }
+  50%       { box-shadow: 0 0 0 5px rgba(99, 66, 237, 0.12), 0 4px 16px rgba(99, 66, 237, 0.45); }
+}
+
 /* GPU AI 사이드패널 — 인라인 슬라이딩 */
 .gpu-ai-sidebar {
   flex-shrink: 0;
