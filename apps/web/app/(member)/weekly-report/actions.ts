@@ -1,12 +1,9 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import type { Database } from '@/types/database'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import sanitizeHtml from 'sanitize-html'
-
-type WeeklyReportInsert = Database['public']['Tables']['weekly_reports']['Insert']
 
 const SANITIZE_OPTS: sanitizeHtml.IOptions = {
   allowedTags: ['p', 'strong', 'em', 'u', 's', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'code', 'pre', 'blockquote', 'br', 'span', 'mark', 'hr'],
@@ -39,7 +36,8 @@ export async function upsertWeeklyReport(
   }
 
   const rowCount = Math.min(Math.max(0, Number(formData.get('row_count') ?? 0)), 50)
-  const rows: WeeklyReportInsert[] = []
+  // category가 중복되면 마지막 행 우선 (Map으로 dedup — UNIQUE 제약 위반 방지)
+  const rowMap = new Map<string, { performance: string; plan: string; issues: string }>()
 
   for (let i = 0; i < rowCount; i++) {
     const category = (formData.get(`row_category_${i}`) as string)?.trim()
@@ -49,16 +47,26 @@ export async function upsertWeeklyReport(
 
     if (!category || (!performance && !plan && !issues)) continue
 
-    rows.push({ user_id: user.id, week_start: weekStart, category, performance, plan, issues, deleted_at: null })
+    rowMap.set(category, { performance, plan, issues })
   }
 
-  if (rows.length === 0) {
+  if (rowMap.size === 0) {
     return { ok: false, error: '최소 하나의 항목을 입력해주세요' }
   }
 
+  const rows = Array.from(rowMap.entries()).map(([category, fields]) => ({
+    category,
+    performance: fields.performance,
+    plan: fields.plan,
+    issues: fields.issues,
+  }))
+
+  // replace_weekly_report RPC: DELETE + INSERT를 단일 트랜잭션으로 실행 (migration 033)
+  // 분리된 2-step으로 하면 DELETE 성공 후 INSERT 실패 시 해당 주차 데이터 전소실 위험이 있음
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase.from('weekly_reports') as any).upsert(rows, {
-    onConflict: 'user_id,week_start,category',
+  const { error } = await (supabase as any).rpc('replace_weekly_report', {
+    p_week_start: weekStart,
+    p_rows: JSON.stringify(rows),
   })
 
   if (error) return { ok: false, error: error.message }
