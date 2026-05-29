@@ -1,4 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
+import * as path from 'path'
+
+const AUTH_STATE = path.join(__dirname, 'apps/web/e2e/auth-state.json')
 
 export default defineConfig({
   testDir: './apps/web/e2e',
@@ -11,6 +14,18 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'setup',
+      testMatch: /auth\.setup\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: AUTH_STATE,
+      },
+      dependencies: ['setup'],
+    },
   ],
 })
