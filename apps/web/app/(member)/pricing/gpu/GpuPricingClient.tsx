@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import dynamic from 'next/dynamic'
@@ -27,7 +27,7 @@ interface ReviewPendingData {
 
 export default function GpuPricingClient() {
   const [activeTab, setActiveTab] = useState<TabId>('board')
-  const { data: settings } = useSWR<SettingsData>('/api/pricing/gpu/settings', fetcher, {
+  const { data: settings, mutate: mutateSettings } = useSWR<SettingsData>('/api/pricing/gpu/settings', fetcher, {
     refreshInterval: 300000,
   })
   const { data: reviewData } = useSWR<ReviewPendingData>(
@@ -39,6 +39,18 @@ export default function GpuPricingClient() {
   const pendingCount = reviewData?.items?.length ?? 0
   const usdKrw = settings?.usd_krw
   const fxDate = settings?.fx_date
+
+  // 오늘 환율 데이터가 없으면 자동 갱신 (마운트 1회 — useRef로 중복 방지)
+  const fxFetched = useRef(false)
+  useEffect(() => {
+    if (fxFetched.current) return
+    const today = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Seoul' })
+    if (fxDate === today) return
+    fxFetched.current = true
+    fetch('/api/pricing/gpu/fx', { method: 'POST' })
+      .then((res) => { if (res.ok) mutateSettings() })
+      .catch(() => {})
+  }, [fxDate, mutateSettings])
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode; badge?: number }[] = [
     {
@@ -87,7 +99,7 @@ export default function GpuPricingClient() {
             <div className="gpu-fx-pill" title="매 영업일 한국수출입은행 매매기준율을 자동으로 받아옵니다">
               <span className="gpu-fx-dot" />
               오늘 매매기준율
-              <span className="gpu-mono">1 USD = {usdKrw.toLocaleString('ko-KR')}원</span>
+              <span className="gpu-mono">1 USD = {Math.round(usdKrw).toLocaleString('ko-KR')}원</span>
               {fxDate && <span style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>{fxDate}</span>}
               <span className="gpu-badge gpu-badge-green" style={{ fontSize: '9px', padding: '1px 6px' }}>자동</span>
             </div>
