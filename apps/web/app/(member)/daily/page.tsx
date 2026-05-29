@@ -8,7 +8,7 @@ const KnowledgeGraphView = dynamic(() => import('./KnowledgeGraphView').then(m =
 const LogFlowView = dynamic(() => import('./LogFlowView').then(m => ({ default: m.LogFlowView })), { ssr: false })
 import useSWR, { mutate } from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread } from './actions'
+import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread, updateDailyLogStatus } from './actions'
 import type { AiParsedItem } from './actions'
 import type { DailyLog, DailyLogEntryType, DailyLogThread } from '@/types/database'
 import { DdayBadge, todayLocal } from '@/lib/dday'
@@ -250,6 +250,21 @@ export default function DailyPage() {
         await mutate(isDailyCalendarCacheKey)
       } else {
         setError(result.error)
+      }
+    })
+  }
+
+  const handleStatusChange = async (id: string, newType: DailyLogEntryType) => {
+    mutate(
+      `/api/daily/logs?date=${selectedDate}`,
+      (prev: DailyLog[] | undefined) => prev?.map(l => l.id === id ? { ...l, entry_type: newType } : l),
+      { revalidate: false }
+    )
+    startTransition(async () => {
+      const result = await updateDailyLogStatus(id, newType)
+      if (!result.ok) {
+        await mutate(`/api/daily/logs?date=${selectedDate}`)
+        showToast(result.error || 'status 변경 실패', 'error')
       }
     })
   }
@@ -532,6 +547,7 @@ export default function DailyPage() {
                   onCancelEdit={() => setEditingId(null)}
                   onUpdate={handleUpdate}
                   onDelete={handleDelete}
+                  onStatusChange={handleStatusChange}
                   onEditContentChange={setEditContent}
                   onEditTypeChange={setEditType}
                   editTargetDate={editTargetDate}
@@ -758,6 +774,7 @@ interface LogListProps {
   onCancelEdit: () => void
   onUpdate: (id: string) => void
   onDelete: (id: string) => void
+  onStatusChange: (id: string, type: DailyLogEntryType) => void
   onEditContentChange: (v: string) => void
   onEditTypeChange: (v: DailyLogEntryType) => void
   onEditTargetDateChange: (v: string) => void
@@ -765,11 +782,19 @@ interface LogListProps {
 
 function LogList({
   logs, isToday, selectedDate, editingId, editContent, editType, editTargetDate, isPending,
-  onStartEdit, onCancelEdit, onUpdate, onDelete, onEditContentChange, onEditTypeChange, onEditTargetDateChange,
+  onStartEdit, onCancelEdit, onUpdate, onDelete, onStatusChange, onEditContentChange, onEditTypeChange, onEditTargetDateChange,
 }: LogListProps) {
   const [openThreadId, setOpenThreadId] = useState<string | null>(null)
   const [flowLog, setFlowLog] = useState<DailyLog | null>(null)
+  const [statusPopoverId, setStatusPopoverId] = useState<string | null>(null)
   const todayStr = toDateStr(new Date())
+
+  useEffect(() => {
+    if (!statusPopoverId) return
+    const close = () => setStatusPopoverId(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [statusPopoverId])
 
   return (
     <>
@@ -860,14 +885,52 @@ function LogList({
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem', flexWrap: 'wrap' }}>
-                      <span style={{
-                        display: 'inline-block', fontSize: '0.6875rem', fontWeight: 700,
-                        color: type.color, background: type.bg,
-                        border: `1px solid ${type.border}`,
-                        padding: '0.1rem 0.4rem', borderRadius: '0.25rem',
-                      }}>
-                        {type.label}
-                      </span>
+                      <div style={{ position: 'relative', display: 'inline-block' }}>
+                        <button
+                          data-testid={`status-badge-${log.id}`}
+                          onClick={(e) => { e.stopPropagation(); setStatusPopoverId(statusPopoverId === log.id ? null : log.id) }}
+                          style={{
+                            display: 'inline-block', fontSize: '0.6875rem', fontWeight: 700,
+                            color: type.color, background: type.bg,
+                            border: `1px solid ${type.border}`,
+                            padding: '0.1rem 0.4rem', borderRadius: '0.25rem',
+                            cursor: 'pointer', outline: 'none',
+                          }}
+                          title="클릭하여 상태 변경"
+                        >
+                          {type.label} ▾
+                        </button>
+                        {statusPopoverId === log.id && (
+                          <div
+                            data-testid={`status-popover-${log.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              position: 'absolute', top: '100%', left: 0, zIndex: 50,
+                              background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.5rem',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)', padding: '0.375rem',
+                              display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '80px',
+                              marginTop: '0.25rem',
+                            }}
+                          >
+                            {ENTRY_TYPES.map((t) => (
+                              <button
+                                key={t.value}
+                                data-testid={`status-option-${t.value}`}
+                                onClick={() => { onStatusChange(log.id, t.value); setStatusPopoverId(null) }}
+                                style={{
+                                  fontSize: '0.6875rem', fontWeight: t.value === log.entry_type ? 700 : 400,
+                                  color: t.color, background: t.value === log.entry_type ? t.bg : 'transparent',
+                                  border: `1px solid ${t.value === log.entry_type ? t.border : 'transparent'}`,
+                                  padding: '0.2rem 0.5rem', borderRadius: '0.25rem',
+                                  cursor: 'pointer', textAlign: 'left', outline: 'none',
+                                }}
+                              >
+                                {t.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{formatTime(log.logged_at)}</span>
                       {log.target_date && (
                         <DdayBadge targetDate={log.target_date} today={todayStr} />

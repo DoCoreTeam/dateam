@@ -212,6 +212,25 @@ export async function updateDailyLog(
   return { ok: true }
 }
 
+export async function updateDailyLogStatus(
+  id: string,
+  entryType: DailyLogEntryType,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '로그인이 필요합니다.' }
+
+  const { error } = await (supabase.from('daily_logs') as any)
+    .update({ entry_type: entryType, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) return { ok: false, error: (error as Error).message }
+
+  revalidateDailyCalendarViews()
+  return { ok: true }
+}
+
 export async function deleteDailyLog(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
