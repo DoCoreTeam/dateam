@@ -169,7 +169,7 @@ export async function checkKoraeximHealth(): Promise<{ ok: boolean; message: str
 
   try {
     const today = new Date().toLocaleDateString('sv', { timeZone: 'Asia/Seoul' }).replace(/-/g, '')
-    const url = `https://www.koreaexim.go.kr/site/program/financial/exchangeJSON?authkey=${apiKey}&searchdate=${today}&data=AP01`
+    const url = `https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON?authkey=${apiKey}&searchdate=${today}&data=AP01`
     const res = await fetch(url, { cache: 'no-store' })
     if (!res.ok) return { ok: false, message: `API 응답 오류: ${res.status}` }
     const json = await res.json() as unknown[]
