@@ -80,13 +80,15 @@ export async function POST(
     return NextResponse.json({ error: '확정할 단가(unit_price_usd)가 없습니다' }, { status: 400 })
   }
 
-  // product_id 찾기 — 전체 이름 먼저, 안 되면 토큰별 fallback (NVIDIA H100 SXM → H100)
+  // product_id 찾기 — 토큰 매칭 후 없으면 AI 추출 데이터로 자동 생성
   let productId: string | null = null
+  let productAutoCreated = false
   if (typeof merged.model_name === 'string' && merged.model_name) {
-    const tier = merged.tier_suggestion ?? 1
+    const modelName = merged.model_name.trim()
+    const tier = typeof merged.tier_suggestion === 'number' ? merged.tier_suggestion : 1
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any
-    const tokens = merged.model_name.trim().split(/\s+/).filter((t) => t.length >= 2)
+    const tokens = modelName.split(/\s+/).filter((t: string) => t.length >= 2)
     for (const token of tokens) {
       const { data: products } = await db
         .from('gpu_products')
@@ -95,6 +97,22 @@ export async function POST(
         .eq('tier', tier)
         .limit(1)
       if (products?.[0]?.id) { productId = products[0].id; break }
+    }
+
+    // 매칭 실패 → AI 추출 데이터로 신규 product 자동 생성
+    if (!productId) {
+      const memory = typeof merged.memory === 'string' ? merged.memory : null
+      const series = modelName.split(/\s+/)[0] // "H100 SXM" → "H100", "B300" → "B300"
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: newProduct } = await (adminClient as any)
+        .from('gpu_products')
+        .insert({ model_name: modelName, memory, tier, series, pricing_mode: 'quote' })
+        .select('id')
+        .single()
+      if (newProduct?.id) {
+        productId = newProduct.id
+        productAutoCreated = true
+      }
     }
   }
 
@@ -161,6 +179,7 @@ export async function POST(
         unit_price_usd: unitPriceUsd,
         supplier_hint: item.supplier_hint,
         overall_confidence: item.overall_confidence,
+        product_auto_created: productAutoCreated,
       },
     })
 
