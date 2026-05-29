@@ -1,9 +1,223 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { AlertTriangle, CheckCircle2, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, RotateCcw, ChevronDown, ChevronUp, Search, Plus, Building2, X } from 'lucide-react'
+
+interface Supplier {
+  id: string
+  name: string
+  color: string
+  location: string | null
+}
+
+// 공급사명 유사도 점수 (0~1)
+function supplierScore(extracted: string, name: string): number {
+  const a = extracted.toLowerCase().replace(/[\s\-_.]/g, '')
+  const b = name.toLowerCase().replace(/[\s\-_.]/g, '')
+  if (a === b) return 1
+  if (b.includes(a) || a.includes(b)) return 0.85
+  // 약어 매칭: CoreWeave → CW, Lambda Labs → LL
+  const abbr = name.split(/[\s\-_]/).map((w) => w[0] ?? '').join('').toLowerCase()
+  if (abbr === a) return 0.9
+  return 0
+}
+
+interface SupplierPickerProps {
+  extractedName: string
+  confidence: number | null
+  onSelect: (supplier: Supplier | null) => void
+  onManualName: (name: string) => void
+  selectedId: string | null
+  manualName: string
+  allSuppliers: Supplier[]
+}
+
+function SupplierPicker({ extractedName, confidence, onSelect, onManualName, selectedId, manualName, allSuppliers }: SupplierPickerProps) {
+  const [open, setOpen] = useState((confidence ?? 100) < 90)
+  const [query, setQuery] = useState('')
+  const [manualMode, setManualMode] = useState(false)
+  const [manualInput, setManualInput] = useState(manualName)
+  const [dupWarning, setDupWarning] = useState('')
+
+  const suggestions = useMemo(() =>
+    allSuppliers
+      .map((s) => ({ ...s, score: supplierScore(extractedName, s.name) }))
+      .filter((s) => s.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3),
+    [allSuppliers, extractedName]
+  )
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return allSuppliers
+    const q = query.toLowerCase()
+    return allSuppliers.filter((s) =>
+      s.name.toLowerCase().includes(q) || (s.location ?? '').toLowerCase().includes(q)
+    )
+  }, [allSuppliers, query])
+
+  const selected = allSuppliers.find((s) => s.id === selectedId)
+
+  function handleManualConfirm() {
+    const trimmed = manualInput.trim()
+    if (!trimmed) return
+    const dup = allSuppliers.find((s) => supplierScore(trimmed, s.name) > 0.8)
+    if (dup) {
+      setDupWarning(`"${dup.name}"과(와) 유사한 공급사가 이미 등록되어 있습니다. 선택하시겠어요?`)
+      return
+    }
+    setDupWarning('')
+    onManualName(trimmed)
+    onSelect(null)
+    setOpen(false)
+  }
+
+  const confidenceLow = (confidence ?? 100) < 90
+
+  return (
+    <div style={{ marginTop: 4 }}>
+      {/* 현재 선택 표시 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        {selected ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, background: selected.color + '22', border: `1px solid ${selected.color}55`, fontSize: 12, fontWeight: 600, color: selected.color }}>
+            <Building2 size={11} /> {selected.name}
+            <button onClick={() => { onSelect(null); onManualName('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: selected.color, display: 'flex', padding: 0 }}><X size={11} /></button>
+          </span>
+        ) : manualName ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 12, fontWeight: 600, color: '#15803d' }}>
+            <Plus size={11} /> {manualName} (신규)
+            <button onClick={() => { onManualName(''); setManualInput('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#15803d', display: 'flex', padding: 0 }}><X size={11} /></button>
+          </span>
+        ) : (
+          <span style={{ fontSize: 12, color: confidenceLow ? '#b45309' : 'var(--gpu-faint)' }}>
+            {confidenceLow ? '⚠️ 공급사 확인 필요' : '공급사 미선택 (AI 추출값 사용)'}
+          </span>
+        )}
+        <button
+          onClick={() => setOpen((v) => !v)}
+          style={{ fontSize: 11, color: 'var(--gpu-accent)', background: 'none', border: '1px solid var(--gpu-accent)', borderRadius: 12, padding: '2px 8px', cursor: 'pointer' }}
+        >
+          {open ? '닫기' : (selected || manualName) ? '변경' : '선택'}
+        </button>
+      </div>
+
+      {open && (
+        <div style={{ marginTop: 8, borderRadius: 10, border: '1px solid #e0e7ff', background: '#f8faff', padding: '10px 12px' }}>
+          {/* 추천 공급사 */}
+          {suggestions.length > 0 && (
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#4338ca', marginBottom: 5 }}>✦ 유사 공급사 추천</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {suggestions.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => { onSelect(s); onManualName(''); setOpen(false) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
+                      borderRadius: 8, border: `1.5px solid ${selectedId === s.id ? s.color : '#c7d2fe'}`,
+                      background: selectedId === s.id ? s.color + '18' : '#fff',
+                      cursor: 'pointer', textAlign: 'left',
+                    }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{s.name}</span>
+                    {s.location && <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>{s.location}</span>}
+                    <span style={{ fontSize: 10, color: '#6366f1', fontWeight: 700 }}>{Math.round(s.score * 100)}% 일치</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 전체 검색 */}
+          <div style={{ marginBottom: 6 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 5 }}>등록된 공급사 검색</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, padding: '6px 10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff' }}>
+              <Search size={13} style={{ color: 'var(--gpu-muted)', flexShrink: 0 }} />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="공급사명 검색…"
+                style={{ flex: 1, border: 'none', outline: 'none', fontSize: 12, background: 'transparent' }}
+              />
+            </div>
+            <div style={{ maxHeight: 150, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {filtered.length === 0 ? (
+                <div style={{ fontSize: 12, color: 'var(--gpu-faint)', padding: '6px 4px' }}>검색 결과 없음</div>
+              ) : filtered.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => { onSelect(s); onManualName(''); setOpen(false) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px',
+                    borderRadius: 7, border: `1px solid ${selectedId === s.id ? s.color : 'transparent'}`,
+                    background: selectedId === s.id ? s.color + '18' : 'transparent',
+                    cursor: 'pointer', textAlign: 'left',
+                  }}
+                >
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: 12, color: '#1e293b' }}>{s.name}</span>
+                  {s.location && <span style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>{s.location}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 직접 입력 */}
+          <div style={{ borderTop: '1px solid #e0e7ff', paddingTop: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Plus size={11} /> 직접 입력 (신규 공급사)
+            </div>
+            {!manualMode ? (
+              <button
+                onClick={() => { setManualMode(true); setManualInput(extractedName) }}
+                style={{ fontSize: 11, color: 'var(--gpu-muted)', background: 'none', border: '1px dashed #d1d5db', borderRadius: 7, padding: '5px 12px', cursor: 'pointer' }}
+              >
+                "{extractedName}" 이름으로 직접 등록
+              </button>
+            ) : (
+              <div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    value={manualInput}
+                    onChange={(e) => { setManualInput(e.target.value); setDupWarning('') }}
+                    placeholder="공급사명"
+                    style={{ flex: 1, padding: '6px 10px', borderRadius: 7, border: '1px solid #c7d2fe', fontSize: 12 }}
+                  />
+                  <button
+                    onClick={handleManualConfirm}
+                    className="gpu-btn gpu-btn-primary"
+                    style={{ fontSize: 11, padding: '0 12px' }}
+                    disabled={!manualInput.trim()}
+                  >
+                    확인
+                  </button>
+                  <button onClick={() => { setManualMode(false); setDupWarning('') }} className="gpu-btn" style={{ fontSize: 11, padding: '0 10px' }}>취소</button>
+                </div>
+                {dupWarning && (
+                  <div style={{ marginTop: 6, fontSize: 11, color: '#92400e', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 6, padding: '5px 9px' }}>
+                    {dupWarning}
+                    {allSuppliers.filter((s) => supplierScore(manualInput, s.name) > 0.8).map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => { onSelect(s); onManualName(''); setOpen(false); setManualMode(false); setDupWarning('') }}
+                        style={{ marginLeft: 8, fontSize: 11, color: s.color, fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        {s.name} 선택
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 interface ReviewItem {
   id: string
@@ -51,7 +265,7 @@ function ConfidenceBar({ value, label }: { value: number | null; label: string }
   )
 }
 
-function ReviewCard({ item, onDone }: { item: ReviewItem; onDone: () => void }) {
+function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: () => void; allSuppliers: Supplier[] }) {
   const [expanded, setExpanded] = useState(false)
   const [checking, setChecking] = useState<Set<string>>(new Set())
   const [confirming, setConfirming] = useState(false)
@@ -61,6 +275,8 @@ function ReviewCard({ item, onDone }: { item: ReviewItem; onDone: () => void }) 
   const [feedback, setFeedback] = useState('')
   const [rechecking, setRechecking] = useState(false)
   const [recheckErr, setRecheckErr] = useState('')
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
+  const [manualSupplierName, setManualSupplierName] = useState('')
 
   const extracted = item.current_extracted ?? {}
   const confidence = item.current_confidence ?? {}
@@ -85,13 +301,19 @@ function ReviewCard({ item, onDone }: { item: ReviewItem; onDone: () => void }) 
   const handleConfirm = useCallback(async () => {
     setConfirming(true)
     try {
+      const body: Record<string, unknown> = {
+        action: 'confirm',
+        confirmed_items: Array.from(checking),
+      }
+      if (selectedSupplier) {
+        body.supplier_id = selectedSupplier.id
+      } else if (manualSupplierName) {
+        body.override_extracted = { supplier: manualSupplierName }
+      }
       const res = await fetch(`/api/pricing/gpu/review/${item.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'confirm',
-          confirmed_items: Array.from(checking),
-        }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) {
         const j = await res.json()
@@ -102,7 +324,7 @@ function ReviewCard({ item, onDone }: { item: ReviewItem; onDone: () => void }) 
     } finally {
       setConfirming(false)
     }
-  }, [item.id, checking, onDone])
+  }, [item.id, checking, onDone, selectedSupplier, manualSupplierName])
 
   const handleReject = useCallback(async () => {
     setRejecting(true)
@@ -197,31 +419,52 @@ function ReviewCard({ item, onDone }: { item: ReviewItem; onDone: () => void }) 
           const isLow = conf != null && conf < 90
           const isChecked = checking.has(f)
 
+          const isSupplier = f === 'supplier'
+
           return (
             <div
               key={f}
               style={{
-                display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+                padding: '8px 10px',
                 borderRadius: 8,
                 background: isLow ? (isChecked ? '#f0fdf4' : '#fff7ed') : '#f9fafb',
                 border: `1px solid ${isLow ? (isChecked ? '#bbf7d0' : '#fed7aa') : '#e5e7eb'}`,
               }}
             >
-              {isLow ? (
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={() => toggleCheck(f)}
-                  style={{ width: 15, height: 15, accentColor: 'var(--gpu-green)', flexShrink: 0 }}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {isLow ? (
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggleCheck(f)}
+                    style={{ width: 15, height: 15, accentColor: 'var(--gpu-green)', flexShrink: 0 }}
+                  />
+                ) : (
+                  <CheckCircle2 size={15} style={{ color: 'var(--gpu-green)', flexShrink: 0 }} />
+                )}
+                <span style={{ minWidth: 72, fontSize: 12, color: 'var(--gpu-muted)' }}>{CONF_LABELS[f] ?? f}</span>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#111827' }}>
+                  {isSupplier
+                    ? (() => {
+                        const display = selectedSupplier?.name ?? (manualSupplierName || null) ?? (val != null ? String(val) : null)
+                        return display ?? <span style={{ color: 'var(--gpu-faint)', fontWeight: 400 }}>미인식</span>
+                      })()
+                    : val != null ? String(val) : <span style={{ color: 'var(--gpu-faint)', fontWeight: 400 }}>미인식</span>
+                  }
+                </span>
+                <ConfidenceBar value={conf ?? null} label="" />
+              </div>
+              {isSupplier && (
+                <SupplierPicker
+                  extractedName={val != null ? String(val) : (item.supplier_hint ?? '')}
+                  confidence={conf ?? null}
+                  onSelect={setSelectedSupplier}
+                  onManualName={setManualSupplierName}
+                  selectedId={selectedSupplier?.id ?? null}
+                  manualName={manualSupplierName}
+                  allSuppliers={allSuppliers}
                 />
-              ) : (
-                <CheckCircle2 size={15} style={{ color: 'var(--gpu-green)', flexShrink: 0 }} />
               )}
-              <span style={{ minWidth: 72, fontSize: 12, color: 'var(--gpu-muted)' }}>{CONF_LABELS[f] ?? f}</span>
-              <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#111827' }}>
-                {val != null ? String(val) : <span style={{ color: 'var(--gpu-faint)', fontWeight: 400 }}>미인식</span>}
-              </span>
-              <ConfidenceBar value={conf ?? null} label="" />
             </div>
           )
         })}
@@ -311,7 +554,14 @@ export default function ReviewTab() {
     '/api/pricing/gpu/review?status=pending',
     fetcher
   )
+  const { data: suppliersData } = useSWR<{ suppliers: Supplier[] }>(
+    '/api/pricing/gpu/suppliers',
+    fetcher
+  )
   const items = data?.items ?? []
+  const allSuppliers = (suppliersData?.suppliers ?? []).map((s) => ({
+    id: s.id, name: s.name, color: s.color, location: s.location,
+  }))
 
   const handleDone = useCallback(async () => {
     await revalidate()
@@ -337,7 +587,7 @@ export default function ReviewTab() {
         </div>
       ) : (
         items.map((item) => (
-          <ReviewCard key={item.id} item={item} onDone={handleDone} />
+          <ReviewCard key={item.id} item={item} onDone={handleDone} allSuppliers={allSuppliers} />
         ))
       )}
     </div>

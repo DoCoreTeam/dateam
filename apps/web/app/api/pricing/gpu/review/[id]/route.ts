@@ -20,6 +20,7 @@ export async function POST(
     confirmed_items?: unknown
     rejected_reason?: unknown
     override_extracted?: unknown
+    supplier_id?: unknown
   }
   try { body = await req.json() } catch {
     return NextResponse.json({ error: '요청 형식 오류' }, { status: 400 })
@@ -92,9 +93,9 @@ export async function POST(
     productId = products?.[0]?.id ?? null
   }
 
-  // supplier_id 찾기
-  let supplierId: string | null = null
-  if (typeof merged.supplier === 'string' && merged.supplier) {
+  // supplier_id 찾기 — 사용자가 직접 선택한 경우 우선 사용
+  let supplierId: string | null = typeof body.supplier_id === 'string' ? body.supplier_id : null
+  if (!supplierId && typeof merged.supplier === 'string' && merged.supplier) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: suppliers } = await (supabase as any)
       .from('suppliers')
