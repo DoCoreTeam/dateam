@@ -162,6 +162,7 @@ export default function CalendarPage() {
 
   const weekEnd = weekDates[6];
   const isCurrentWeek = weekDates.includes(todayStr);
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1;
 
   return (
     <div>
@@ -267,6 +268,17 @@ export default function CalendarPage() {
             >
               <ChevronRight size={16} strokeWidth={2.4} />
             </button>
+            {!isCurrentMonth && (
+              <button
+                onClick={() => {
+                  setYear(today.getFullYear());
+                  setMonth(today.getMonth() + 1);
+                }}
+                className="calendar-nav-btn is-today-btn"
+              >
+                오늘
+              </button>
+            )}
           </div>
 
           {/* 요일 헤더 */}
