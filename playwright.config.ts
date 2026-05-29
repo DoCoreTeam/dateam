@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 import * as path from 'path'
+import * as dotenv from 'dotenv'
+
+dotenv.config({ path: path.join(__dirname, 'apps/web/.env.local') })
 
 const AUTH_STATE = path.join(__dirname, 'apps/web/e2e/auth-state.json')
 
