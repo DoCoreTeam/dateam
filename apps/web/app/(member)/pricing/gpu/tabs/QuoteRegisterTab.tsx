@@ -18,14 +18,45 @@ interface ReviewItemResult {
 
 const CONF_LABELS: Record<string, string> = {
   model_name: '모델명',
-  unit_price_usd: '단가 (USD)',
+  memory: '메모리',
   supplier: '공급사',
+  unit_price_usd: '단가 (USD)',
+  original_price: '원본 금액',
+  original_currency: '원본 통화',
+  original_unit: '원본 단위',
   term: '약정 원문',
   term_months: '약정 (개월)',
-  valid_until: '유효기간',
   min_qty: '최소 수량',
-  memory: '메모리',
+  valid_until: '유효기간',
   tier_suggestion: 'Tier 추천',
+  tier_reason: 'Tier 근거',
+  has_quantity_info: '재고 정보',
+  quantity: '재고 현황',
+}
+
+const QTY_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  available_full:    { label: '재고 있음',  color: '#15803d' },
+  available_partial: { label: '일부 가능',  color: '#b45309' },
+  out_of_stock:      { label: '재고 없음',  color: '#dc2626' },
+  declined:          { label: '공급 거절',  color: '#7c3aed' },
+  pending:           { label: '확인 중',    color: '#6b7280' },
+}
+
+function formatExtractedValue(key: string, val: unknown): string {
+  if (val === null || val === undefined) return '—'
+  if (typeof val === 'boolean') return val ? '있음' : '없음'
+  if (key === 'quantity' && typeof val === 'object' && val !== null) {
+    const q = val as Record<string, unknown>
+    const statusKey = typeof q.status === 'string' ? q.status : ''
+    const statusLabel = QTY_STATUS_LABELS[statusKey]?.label ?? statusKey
+    const qty = q.resp_qty !== null && q.resp_qty !== undefined ? ` · ${q.resp_qty}개` : ''
+    return `${statusLabel}${qty}`
+  }
+  if (typeof val === 'object') {
+    const raw = JSON.stringify(val)
+    return raw.length > 80 ? raw.slice(0, 80) + '…' : raw
+  }
+  return String(val)
 }
 
 const IMPACT_CONFIG: Record<string, { label: string; color: string }> = {
@@ -302,12 +333,7 @@ export default function QuoteRegisterTab() {
               {Object.entries(extracted).map(([key, val]) => {
                 const conf = confidence[key]
                 const isNull = val === null || val === undefined
-                const rawStr = isNull
-                  ? '—'
-                  : typeof val === 'object'
-                    ? JSON.stringify(val)
-                    : String(val)
-                const displayVal = rawStr.length > 80 ? rawStr.slice(0, 80) + '…' : rawStr
+                const displayVal = formatExtractedValue(key, val)
                 const isLow = typeof conf === 'number' && conf < 90
                 return (
                   <div
