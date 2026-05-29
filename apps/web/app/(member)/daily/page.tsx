@@ -255,6 +255,7 @@ export default function DailyPage() {
   }
 
   const handleStatusChange = async (id: string, newType: DailyLogEntryType) => {
+    // 낙관적 업데이트 — 현재 일간 뷰 즉시 반영
     mutate(
       `/api/daily/logs?date=${selectedDate}`,
       (prev: DailyLog[] | undefined) => prev?.map(l => l.id === id ? { ...l, entry_type: newType } : l),
@@ -262,7 +263,10 @@ export default function DailyPage() {
     )
     startTransition(async () => {
       const result = await updateDailyLogStatus(id, newType)
-      if (!result.ok) {
+      if (result.ok) {
+        // 성공: week/calendar SWR 캐시 전체 무효화 (handleUpdate와 동일 패턴)
+        await mutate(isDailyCalendarCacheKey)
+      } else {
         await mutate(`/api/daily/logs?date=${selectedDate}`)
         showToast(result.error || 'status 변경 실패', 'error')
       }

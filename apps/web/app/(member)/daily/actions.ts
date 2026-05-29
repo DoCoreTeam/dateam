@@ -221,7 +221,12 @@ export async function updateDailyLogStatus(
   if (!user) return { ok: false, error: '로그인이 필요합니다.' }
 
   const { error } = await (supabase.from('daily_logs') as any)
-    .update({ entry_type: entryType, updated_at: new Date().toISOString() })
+    .update({
+      entry_type: entryType,
+      updated_at: new Date().toISOString(),
+      // done으로 변경 시 이월 목록에서 제거 (resolveCarryoverLog와 동일 정책)
+      is_resolved: entryType === 'done',
+    })
     .eq('id', id)
     .eq('user_id', user.id)
 
