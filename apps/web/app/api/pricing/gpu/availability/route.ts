@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 
 // GET /api/pricing/gpu/availability?product_id=xxx — 가용량 요약
@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
   if (auth.error) return auth.error
 
   const supabase = await createClient()
+  const adminClient = createAdminClient()
   const user = auth.user
 
   let body: {
@@ -128,9 +129,9 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // audit_log
+  // audit_log (gpu_audit_logs는 service_role 전용 — adminClient 사용)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
+  await (adminClient as any)
     .from('gpu_audit_logs')
     .insert({
       actor,

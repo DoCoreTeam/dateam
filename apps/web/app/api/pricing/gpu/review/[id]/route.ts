@@ -57,7 +57,7 @@ export async function POST(
       .eq('id', id)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any)
+    await (adminClient as any)
       .from('gpu_audit_logs')
       .insert({
         actor: actorName,
@@ -141,9 +141,9 @@ export async function POST(
     })
     .eq('id', id)
 
-  // audit_log
+  // audit_log (gpu_audit_logs는 service_role 전용 — adminClient 사용)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
+  await (adminClient as any)
     .from('gpu_audit_logs')
     .insert({
       actor: actorName,
