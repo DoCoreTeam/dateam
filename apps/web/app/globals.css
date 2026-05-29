@@ -89,7 +89,9 @@
 @media (prefers-reduced-motion: reduce) {
   *[style*="char-wave"],
   *[style*="ax-dot-pulse"],
-  *[style*="progress-indeterminate"] {
+  *[style*="progress-indeterminate"],
+  .gpu-analyzing-icon,
+  .gpu-analyzing-text {
     animation: none !important;
   }
 }
@@ -3117,6 +3119,16 @@
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: none; }
 }
+@keyframes gpu-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes gpu-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.95); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+.gpu-analyzing-icon { animation: gpu-spin 2s linear infinite; color: var(--gpu-accent); }
+.gpu-analyzing-text { animation: gpu-pulse 1.5s ease-in-out infinite; }
 
 /* mobile overrides */
 @media (max-width: 767px) {

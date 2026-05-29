@@ -267,9 +267,12 @@ export default function QuoteRegisterTab() {
           </div>
 
           {analyzing ? (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: 'var(--gpu-muted)', fontSize: 13 }}>
-              <Sparkles size={32} style={{ opacity: 0.4 }} />
-              Gemini AI가 분석 중입니다…
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14, padding: '32px 0' }}>
+              <Sparkles size={36} className="gpu-analyzing-icon" />
+              <div style={{ textAlign: 'center' }}>
+                <div className="gpu-analyzing-text" style={{ fontSize: 14, fontWeight: 600, color: 'var(--gpu-accent)' }}>Gemini AI 분석 중…</div>
+                <div style={{ fontSize: 12, color: 'var(--gpu-muted)', marginTop: 4 }}>이미지·텍스트에서 견적 정보를 추출하고 있습니다</div>
+              </div>
             </div>
           ) : !result ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '32px 0', color: '#9ca3af' }}>
@@ -288,28 +291,39 @@ export default function QuoteRegisterTab() {
                 {result.product_hint && (
                   <span className="gpu-badge gpu-badge-gray">{result.product_hint}</span>
                 )}
-                {result.supplier_hint && (
-                  <span className="gpu-badge gpu-badge-gray">{result.supplier_hint}</span>
-                )}
+                {result.supplier_hint
+                  ? <span className="gpu-badge gpu-badge-gray">{result.supplier_hint}</span>
+                  : <span className="gpu-badge" style={{ background: 'var(--gpu-amber)', color: '#fff', fontSize: 10 }}>⚠ 공급사 미확인</span>
+                }
               </div>
 
               {/* 필드별 */}
               {Object.entries(extracted).map(([key, val]) => {
                 const conf = confidence[key]
-                const isLow = conf != null && conf < 90
+                const isNull = val === null || val === undefined
+                const rawStr = isNull
+                  ? '—'
+                  : typeof val === 'object'
+                    ? JSON.stringify(val)
+                    : String(val)
+                const displayVal = rawStr.length > 80 ? rawStr.slice(0, 80) + '…' : rawStr
+                const isLow = typeof conf === 'number' && conf < 90
                 return (
                   <div
                     key={key}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
                       borderRadius: 8,
-                      background: isLow ? '#fff7ed' : '#f9fafb',
-                      border: `1px solid ${isLow ? '#fed7aa' : '#e5e7eb'}`,
+                      background: isNull ? '#f9fafb' : isLow ? '#fff7ed' : '#f9fafb',
+                      border: `1px solid ${isNull ? '#f0f0f0' : isLow ? '#fed7aa' : '#e5e7eb'}`,
+                      opacity: isNull ? 0.55 : 1,
                     }}
                   >
                     <span style={{ fontSize: 12, color: 'var(--gpu-muted)', minWidth: 80 }}>{CONF_LABELS[key] ?? key}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, flex: 1, color: '#111827' }}>{String(val)}</span>
-                    {conf != null && (
+                    <span style={{ fontSize: 13, fontWeight: isNull ? 400 : 600, flex: 1, color: isNull ? '#9ca3af' : '#111827', fontStyle: isNull ? 'italic' : 'normal' }}>
+                      {displayVal}
+                    </span>
+                    {typeof conf === 'number' && !isNull && (
                       <span style={{ fontSize: 11, fontWeight: 700, color: isLow ? 'var(--gpu-amber)' : 'var(--gpu-green)' }}>
                         {conf}%
                       </span>
