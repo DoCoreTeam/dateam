@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { RefreshCw, TrendingUp, AlertTriangle } from 'lucide-react'
+import { RefreshCw, TrendingUp, AlertTriangle, Plus, X } from 'lucide-react'
 
 interface Competitor {
   id: string
@@ -123,6 +123,175 @@ function PositionBar({
   )
 }
 
+interface Mapping {
+  id: string
+  competitor_id: string
+  gpu_product_id: string
+  competitor_sku: string
+  pricing_model: string
+  competitors: { id: string; name: string } | null
+  gpu_products: { id: string; model_name: string; memory: string } | null
+}
+
+function PriceRegisterModal({
+  mappings,
+  onClose,
+  onSaved,
+}: {
+  mappings: Mapping[]
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [mappingId, setMappingId] = useState(mappings[0]?.id ?? '')
+  const [priceUsd, setPriceUsd] = useState('')
+  const [sourceUrl, setSourceUrl] = useState('')
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const price = parseFloat(priceUsd)
+    if (!mappingId || isNaN(price) || price <= 0) {
+      setError('매핑과 가격(양수)을 입력하세요.')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/pricing/gpu/market/prices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mapping_id: mappingId,
+          price_usd: price,
+          source_url: sourceUrl || null,
+          source_type: sourceUrl ? 'webpage' : 'manual',
+          notes: notes || null,
+        }),
+      })
+      if (!res.ok) {
+        const j = await res.json()
+        throw new Error(j.error ?? 'Unknown error')
+      }
+      onSaved()
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '저장 실패')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 9000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }} onClick={onClose}>
+      <form
+        onSubmit={handleSubmit}
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#fff', borderRadius: 14, padding: '24px 28px', width: 460,
+          boxShadow: '0 24px 64px rgba(16,22,40,.22)', display: 'flex', flexDirection: 'column', gap: 16,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--gpu-ink)' }}>경쟁사 가격 등록</div>
+          <button type="button" onClick={onClose} className="gpu-btn" style={{ padding: '2px 6px' }}>
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* 매핑 선택 */}
+        <div>
+          <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gpu-muted)', display: 'block', marginBottom: 5 }}>
+            경쟁사 × 제품 매핑
+          </label>
+          <select
+            value={mappingId}
+            onChange={e => setMappingId(e.target.value)}
+            className="gpu-input"
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--gpu-border)', fontSize: 13 }}
+          >
+            {mappings.map(m => (
+              <option key={m.id} value={m.id}>
+                {m.competitors?.name ?? '?'} — {m.gpu_products?.model_name} {m.gpu_products?.memory} ({PRICING_MODEL_LABEL[m.pricing_model] ?? m.pricing_model})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* URL 입력 */}
+        <div>
+          <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gpu-muted)', display: 'block', marginBottom: 5 }}>
+            출처 URL <span style={{ fontWeight: 400 }}>(경쟁사 가격 페이지)</span>
+          </label>
+          <input
+            type="url"
+            value={sourceUrl}
+            onChange={e => setSourceUrl(e.target.value)}
+            placeholder="https://www.runpod.io/pricing"
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--gpu-border)', fontSize: 13, boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {/* 가격 입력 */}
+        <div>
+          <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gpu-muted)', display: 'block', marginBottom: 5 }}>
+            관측 가격 (USD/GPU·hr) <span style={{ color: 'var(--gpu-red)' }}>*</span>
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0.01"
+            value={priceUsd}
+            onChange={e => setPriceUsd(e.target.value)}
+            placeholder="예: 2.39"
+            required
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--gpu-border)', fontSize: 13, boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {/* 메모 */}
+        <div>
+          <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gpu-muted)', display: 'block', marginBottom: 5 }}>
+            메모 (선택)
+          </label>
+          <input
+            type="text"
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="예: 프로모션 가격, 인하 감지됨 등"
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--gpu-border)', fontSize: 13, boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {error && (
+          <div style={{ fontSize: 12, color: 'var(--gpu-red)', background: '#fff3f4', padding: '8px 12px', borderRadius: 7 }}>
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button type="button" onClick={onClose} className="gpu-btn" disabled={saving}>취소</button>
+          <button
+            type="submit"
+            disabled={saving}
+            style={{
+              background: 'var(--gpu-accent)', color: '#fff', border: 'none',
+              borderRadius: 8, padding: '8px 20px', fontWeight: 600, fontSize: 13,
+              cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? .7 : 1,
+            }}
+          >
+            {saving ? '저장 중…' : '가격 등록'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 export default function MarketTab() {
   const { data, isLoading, mutate } = useSWR<MarketData>('/api/pricing/gpu/market', fetcher, {
     refreshInterval: 0,
@@ -130,10 +299,14 @@ export default function MarketTab() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [activeComps, setActiveComps] = useState<Set<string>>(new Set())
   const [refreshing, setRefreshing] = useState(false)
+  const [showRegister, setShowRegister] = useState(false)
+
+  const { data: mappingsData } = useSWR<{ mappings: Mapping[] }>('/api/pricing/gpu/market/mappings', fetcher)
 
   const summary = data?.summary
   const products = data?.products ?? []
   const competitors = data?.competitors ?? []
+  const mappings = mappingsData?.mappings ?? []
 
   const toggleComp = (id: string) => {
     setActiveComps(prev => {
@@ -167,6 +340,14 @@ export default function MarketTab() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {showRegister && mappings.length > 0 && (
+        <PriceRegisterModal
+          mappings={mappings}
+          onClose={() => setShowRegister(false)}
+          onSaved={() => mutate()}
+        />
+      )}
+
       {/* 안내 배너 */}
       <div className="gpu-banner" style={{ marginBottom: 0 }}>
         <TrendingUp size={16} color="var(--gpu-accent)" style={{ flexShrink: 0 }} />
@@ -174,15 +355,25 @@ export default function MarketTab() {
           <b>경쟁사 시장 트랙</b> · 공급가·판매가와 독립된 차원에서 경쟁사 가격 추적 · 신선도 <b>48시간</b> ·{' '}
           <span style={{ color: 'var(--gpu-muted)' }}>수집 가격은 내부 의사결정용 — 외부 자료에 직접 인용 금지</span>
         </div>
-        <button
-          className="gpu-btn"
-          style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5 }}
-          onClick={handleRefresh}
-          disabled={refreshing}
-        >
-          <RefreshCw size={12} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }} />
-          새로고침
-        </button>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            className="gpu-btn"
+            style={{ display: 'flex', alignItems: 'center', gap: 5,
+              background: 'var(--gpu-accent)', color: '#fff', border: 'none', fontWeight: 600 }}
+            onClick={() => setShowRegister(true)}
+          >
+            <Plus size={13} /> 가격 등록
+          </button>
+          <button
+            className="gpu-btn"
+            style={{ display: 'flex', alignItems: 'center', gap: 5 }}
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCw size={12} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }} />
+            새로고침
+          </button>
+        </div>
       </div>
 
       {/* 요약 통계 */}

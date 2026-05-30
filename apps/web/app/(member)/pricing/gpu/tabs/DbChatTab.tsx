@@ -24,14 +24,16 @@ export default function DbChatTab() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const msgAreaRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const msgCountRef = useRef(0)
 
   useEffect(() => {
     if (messages.length !== msgCountRef.current) {
       msgCountRef.current = messages.length
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      if (msgAreaRef.current) {
+        msgAreaRef.current.scrollTop = msgAreaRef.current.scrollHeight
+      }
     }
   }, [messages.length])
 
@@ -193,7 +195,7 @@ export default function DbChatTab() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: 0 }}>
       {/* 메시지 영역 */}
-      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
+      <div ref={msgAreaRef} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', color: 'var(--gpu-muted)', marginTop: 60 }}>
             <MessageSquare size={32} style={{ opacity: 0.3, marginBottom: 8 }} />
@@ -239,7 +241,6 @@ export default function DbChatTab() {
           </div>
         ))}
 
-        <div ref={bottomRef} />
       </div>
 
       {/* 빠른 질문 */}
