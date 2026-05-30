@@ -70,10 +70,10 @@ export async function GET() {
       mappingsByProduct.get(pid)!.push(m)
     }
 
-    // 우리 판매가(공급 최저가 기반) 조회
+    // 우리 공급 최저가 조회
     const { data: ourPrices, error: ourErr } = await db
       .from('v_lowest_quotes')
-      .select('product_id, unit_price_usd, margin_pct')
+      .select('product_id, unit_price_usd, supplier_id')
 
     if (ourErr) {
       console.warn('[market] v_lowest_quotes error, fallback empty:', ourErr.message)
@@ -84,6 +84,33 @@ export async function GET() {
       const row = p as Record<string, unknown>
       const pid = row.product_id as string
       if (!ourPriceMap.has(pid)) ourPriceMap.set(pid, row)
+    }
+
+    // 전역 마진 설정
+    const { data: settings } = await db.from('pricing_settings').select('margin_pct').eq('id', 1).single()
+    const globalMargin = (settings?.margin_pct as number) ?? 18
+
+    // 전략 설정 (전역 + 모델별)
+    const { data: stratConfigs } = await db
+      .from('pricing_strategy_config')
+      .select('*')
+    const globalStrat = (stratConfigs ?? []).find((s: Record<string, unknown>) => s.scope === 'global') ?? {
+      edge_pct_normal: 3, edge_pct_aggressive: 10, margin_pct: 18, concede_margin_pct: 12,
+    }
+    const stratMap = new Map<string, Record<string, unknown>>()
+    for (const s of stratConfigs ?? []) {
+      const row = s as Record<string, unknown>
+      if (row.scope === 'model_specific' && row.product_id) {
+        stratMap.set(row.product_id as string, row)
+      }
+    }
+
+    // 자체 거래 이력
+    const { data: histStats } = await db.from('supply_history_stats').select('*')
+    const histMap = new Map<string, Record<string, unknown>>()
+    for (const h of histStats ?? []) {
+      const row = h as Record<string, unknown>
+      histMap.set(row.product_id as string, row)
     }
 
     const now = Date.now()
@@ -119,14 +146,36 @@ export async function GET() {
 
       const ourData = ourPriceMap.get(pid)
       const supplyMin = ourData?.unit_price_usd as number | undefined
-      const marginPct = (ourData?.margin_pct as number | undefined) ?? 18
+      const marginPct = globalMargin
       const ourSalePrice = supplyMin != null ? supplyMin * (1 + marginPct / 100) : null
+
+      // 전략 설정 (모델별 오버라이드 or 전역)
+      const modelStrat = stratMap.get(pid)
+      const strategy = {
+        edge_pct_normal: (modelStrat?.edge_pct_normal as number) ?? (globalStrat.edge_pct_normal as number),
+        edge_pct_aggressive: (modelStrat?.edge_pct_aggressive as number) ?? (globalStrat.edge_pct_aggressive as number),
+        margin_pct: (modelStrat?.margin_pct as number) ?? (globalStrat.margin_pct as number),
+        concede_margin_pct: (modelStrat?.concede_margin_pct as number) ?? (globalStrat.concede_margin_pct as number),
+        is_overridden: !!modelStrat,
+      }
+
+      // 자체 거래 이력
+      const hist = histMap.get(pid)
+      const supplyHistory = hist ? {
+        sample_count: hist.sample_count as number,
+        min_usd: hist.min_usd as number,
+        p25_usd: hist.p25_usd as number,
+        median_usd: hist.median_usd as number,
+        p75_usd: hist.p75_usd as number,
+        max_usd: hist.max_usd as number,
+        is_active: hist.is_active as boolean,
+      } : null
 
       // 신선한 가격으로 시장 범위 계산
       const freshPrices = enrichedCompetitors
-        .filter((c) => c.is_fresh && c.price_usd != null)
-        .map((c) => c.price_usd as number)
-        .sort((a, b) => a - b)
+        .filter((c: { is_fresh: boolean; price_usd: number | null }) => c.is_fresh && c.price_usd != null)
+        .map((c: { price_usd: number | null }) => c.price_usd as number)
+        .sort((a: number, b: number) => a - b)
 
       let market_min: number | null = null
       let market_max: number | null = null
@@ -145,9 +194,12 @@ export async function GET() {
         product: prod,
         competitors: enrichedCompetitors,
         our_price_usd: ourSalePrice,
+        current_supply_usd: supplyMin ?? null,
         market_min,
         market_max,
         market_median,
+        strategy,
+        supply_history: supplyHistory,
       }
     })
 
