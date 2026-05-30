@@ -30,6 +30,7 @@ interface ReviewPendingData {
 export default function GpuPricingClient() {
   const [activeTab, setActiveTab] = useState<TabId>('board')
   const [showAiPanel, setShowAiPanel] = useState(false)
+  const [boardSearch, setBoardSearch] = useState('')
   const { data: settings, mutate: mutateSettings } = useSWR<SettingsData>('/api/pricing/gpu/settings', fetcher, {
     refreshInterval: 300000,
   })
@@ -153,7 +154,7 @@ export default function GpuPricingClient() {
         {activeTab === 'board' && (
           <div style={{ display: 'flex', gap: 0, height: '100%', minHeight: 0, overflow: 'hidden' }}>
             <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
-              <PriceTableTab onGoToIntake={() => setActiveTab('intake')} />
+              <PriceTableTab onGoToIntake={() => setActiveTab('intake')} initialSearch={boardSearch} onSearchConsumed={() => setBoardSearch('')} />
             </div>
             <div className={`gpu-ai-sidebar${showAiPanel ? ' gpu-ai-sidebar--open' : ''}`}>
               <div className="gpu-ai-sidebar-inner">
@@ -186,7 +187,12 @@ export default function GpuPricingClient() {
         )}
         {activeTab === 'intake' && <QuoteRegisterTab />}
         {activeTab === 'review' && <ReviewTab />}
-        {activeTab === 'market' && <MarketTab />}
+        {activeTab === 'market' && (
+          <MarketTab
+            onGoToPriceTable={(modelName) => { setBoardSearch(modelName); setActiveTab('board') }}
+            onOpenAI={(modelName) => { setBoardSearch(modelName); setActiveTab('board'); setShowAiPanel(true) }}
+          />
+        )}
         {activeTab === 'inventory' && <InventoryTab />}
         {activeTab === 'suppliers' && <SuppliersTab />}
         {activeTab === 'log' && <HistoryTab />}

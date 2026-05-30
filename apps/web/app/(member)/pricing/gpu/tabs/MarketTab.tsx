@@ -210,7 +210,12 @@ function judgeColor(j: string) {
 }
 
 // 분석 탭 컨텐츠
-function AnalyzePanel({ p, activeGroups }: { p: ProductGroup; activeGroups: Set<string> }) {
+function AnalyzePanel({ p, activeGroups, onGoToPriceTable, onOpenAI }: {
+  p: ProductGroup
+  activeGroups: Set<string>
+  onGoToPriceTable?: (modelName: string) => void
+  onOpenAI?: (modelName: string) => void
+}) {
   const freshComps = p.competitors.filter(c => c.is_fresh && c.price_usd != null)
   const cheaperItems = freshComps
     .filter(c => p.our_price_usd != null && c.price_usd! < p.our_price_usd)
@@ -330,12 +335,12 @@ function AnalyzePanel({ p, activeGroups }: { p: ProductGroup; activeGroups: Set<
       {/* 액션 버튼 */}
       <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
         <button className="gpu-btn" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}
-          onClick={e => e.stopPropagation()}>
+          onClick={e => { e.stopPropagation(); onOpenAI?.(p.product.model_name) }}>
           <BarChart2 size={12} />
           AI 조회로 심층 분석
         </button>
         <button className="gpu-btn" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}
-          onClick={e => e.stopPropagation()}>
+          onClick={e => { e.stopPropagation(); onGoToPriceTable?.(p.product.model_name) }}>
           <TrendingUp size={12} />
           가격표에서 보기
         </button>
@@ -767,7 +772,10 @@ function PriceRegisterModal({
   )
 }
 
-export default function MarketTab() {
+export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
+  onGoToPriceTable?: (modelName: string) => void
+  onOpenAI?: (modelName: string) => void
+}) {
   const { data, isLoading, mutate } = useSWR<MarketData>('/api/pricing/gpu/market', fetcher, {
     refreshInterval: 0,
   })
@@ -1100,7 +1108,7 @@ export default function MarketTab() {
                       {/* 탭 패널 */}
                       <div style={{ padding: '14px 18px 18px' }}>
                         {currentTab === 'analyze' && (
-                          <AnalyzePanel p={p} activeGroups={activeGroups} />
+                          <AnalyzePanel p={p} activeGroups={activeGroups} onGoToPriceTable={onGoToPriceTable} onOpenAI={onOpenAI} />
                         )}
                         {currentTab === 'strategy' && (
                           <StrategyPanel p={p} />

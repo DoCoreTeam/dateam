@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { ChevronRight, Plus, Zap, Info, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
@@ -154,9 +154,11 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
 
 interface PriceTableTabProps {
   onGoToIntake: () => void
+  initialSearch?: string
+  onSearchConsumed?: () => void
 }
 
-export default function PriceTableTab({ onGoToIntake }: PriceTableTabProps) {
+export default function PriceTableTab({ onGoToIntake, initialSearch, onSearchConsumed }: PriceTableTabProps) {
   const { data, mutate: revalidate } = useSWR<ProductsResponse>('/api/pricing/gpu/products', fetcher, {
     refreshInterval: 60000,
   })
@@ -168,6 +170,13 @@ export default function PriceTableTab({ onGoToIntake }: PriceTableTabProps) {
   const [bannerDismissed, setBannerDismissed] = useState(false)
   const [currencyMode, setCurrencyMode] = useState<'KRW' | 'USD'>('KRW')
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; dir: SortDir } | null>(null)
+
+  useEffect(() => {
+    if (initialSearch) {
+      setSearch(initialSearch)
+      onSearchConsumed?.()
+    }
+  }, [initialSearch]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const products = data?.products ?? []
   const marginPct = marginInput ?? data?.margin_pct ?? 18
