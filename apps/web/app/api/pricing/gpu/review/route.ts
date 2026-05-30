@@ -34,6 +34,7 @@ interface CompetitorPriceItem {
   memory: string
   price_usd: number
   pricing_model: string
+  notes?: string
 }
 
 async function getGeminiConfig(adminClient: ReturnType<typeof createAdminClient>) {
@@ -114,8 +115,16 @@ async function fetchUrlText(url: string): Promise<string> {
 const CLASSIFY_PROMPT = `당신은 GPU 클라우드 가격 분석 AI입니다. 입력된 내용을 분석하여 분류하세요.
 
 분류 기준:
-- competitor_pricing: RunPod, Lambda Labs, AWS, CoreWeave, Vast.ai, NHN Cloud, NAVER Cloud, Azure, GCP 등 경쟁 클라우드 서비스의 GPU 가격 정보
+- competitor_pricing: RunPod, Lambda Labs, AWS, CoreWeave, Vast.ai, NHN Cloud, NAVER Cloud, Azure, GCP, Runyour AI, SaladCloud 등 경쟁 클라우드 서비스의 GPU 가격 정보
 - supplier_quote: AX사업본부가 구매/공급받는 GPU 하드웨어/클라우드 자원 견적 (공급사로부터 받은 견적)
+
+【중요 — 가격 단위 변환 규칙】
+가격이 달러($, USD)가 아닌 다른 단위인 경우 반드시 USD로 변환하세요:
+- KRW / 원 / ₩ / P(포인트) / C(크레딧): 1 USD = 1370 KRW 기준으로 나누어 USD 환산. notes 필드에 원본 가격 기재
+  예) 3,615 C/hr → price_usd: 2.64, notes: "원본: 3,615 KRW/hr (1USD=1370KRW 기준 환산)"
+- JPY / 円: 1 USD = 155 JPY 기준
+- EUR / €: 1 EUR = 1.09 USD 기준
+- 그 외 통화: 최신 환율 추정 적용, notes에 원본 기재
 
 competitor_pricing인 경우 JSON 반환:
 {
@@ -126,13 +135,15 @@ competitor_pricing인 경우 JSON 반환:
       "model_name": "H100",
       "memory": "80GB",
       "price_usd": 2.39,
-      "pricing_model": "on-demand"
+      "pricing_model": "on-demand",
+      "notes": "원본: 3,615 KRW/hr (1USD=1370KRW 환산)"
     }
   ]
 }
 
 pricing_model 값: "on-demand" | "reserved-1y" | "reserved-3y" | "spot"
 memory 값: "80GB", "40GB", "24GB" 등 숫자+단위
+notes 필드: 통화 변환이 있을 때만 기재, USD 직접 가격이면 생략 가능
 
 supplier_quote이거나 GPU 가격이 아닌 경우:
 { "type": "supplier" }
@@ -251,6 +262,7 @@ async function saveCompetitorPrices(
       observed_at: now,
       confidence: 85,
       is_stale: false,
+      ...(item.notes ? { notes: item.notes } : {}),
     })
 
     saved.push({ competitor: item.competitor_name, model: item.model_name, memory, price_usd: item.price_usd })
