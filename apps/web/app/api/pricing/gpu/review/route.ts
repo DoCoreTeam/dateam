@@ -28,6 +28,14 @@ interface ReviewItem {
   updated_at: string
 }
 
+interface CompetitorPriceItem {
+  competitor_name: string
+  model_name: string
+  memory: string
+  price_usd: number
+  pricing_model: string
+}
+
 async function getGeminiConfig(adminClient: ReturnType<typeof createAdminClient>) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (adminClient as any)
@@ -51,6 +59,204 @@ async function getPrompt(adminClient: ReturnType<typeof createAdminClient>) {
     .eq('active', true)
     .single()
   return data as { content: string; version: string; model_hint: string } | null
+}
+
+async function callGemini(
+  apiKey: string,
+  model: string,
+  parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }>,
+  jsonMode = true,
+) {
+  const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts }],
+      generationConfig: jsonMode ? { responseMimeType: 'application/json', temperature: 0 } : { temperature: 0 },
+    }),
+  })
+  return res
+}
+
+// URL에서 텍스트 추출 (HTML 파싱)
+async function fetchUrlText(url: string): Promise<string> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 12000)
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'Accept': 'text/html,application/xhtml+xml',
+      },
+    })
+    if (!res.ok) return ''
+    const html = await res.text()
+    // 간단한 HTML 태그 제거
+    return html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+      .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 15000)
+  } catch {
+    return ''
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+const CLASSIFY_PROMPT = `당신은 GPU 클라우드 가격 분석 AI입니다. 입력된 내용을 분석하여 분류하세요.
+
+분류 기준:
+- competitor_pricing: RunPod, Lambda Labs, AWS, CoreWeave, Vast.ai, NHN Cloud, NAVER Cloud, Azure, GCP 등 경쟁 클라우드 서비스의 GPU 가격 정보
+- supplier_quote: AX사업본부가 구매/공급받는 GPU 하드웨어/클라우드 자원 견적 (공급사로부터 받은 견적)
+
+competitor_pricing인 경우 JSON 반환:
+{
+  "type": "competitor",
+  "items": [
+    {
+      "competitor_name": "회사명",
+      "model_name": "H100",
+      "memory": "80GB",
+      "price_usd": 2.39,
+      "pricing_model": "on-demand"
+    }
+  ]
+}
+
+pricing_model 값: "on-demand" | "reserved-1y" | "reserved-3y" | "spot"
+memory 값: "80GB", "40GB", "24GB" 등 숫자+단위
+
+supplier_quote이거나 GPU 가격이 아닌 경우:
+{ "type": "supplier" }
+
+JSON만 반환. 설명 없이.`
+
+// 경쟁사 가격 DB 저장 (자동 upsert)
+async function saveCompetitorPrices(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: any,
+  items: CompetitorPriceItem[],
+  sourceUrl: string | null,
+): Promise<{ competitor: string; model: string; memory: string; price_usd: number }[]> {
+  const saved: { competitor: string; model: string; memory: string; price_usd: number }[] = []
+  const now = new Date().toISOString()
+
+  for (const item of items) {
+    if (!item.competitor_name || !item.model_name || !item.price_usd) continue
+
+    // 1. 경쟁사 find or create
+    let competitorId: string
+    const { data: existingComp } = await db
+      .from('competitors')
+      .select('id')
+      .ilike('name', item.competitor_name.trim())
+      .single()
+
+    if (existingComp?.id) {
+      competitorId = existingComp.id
+    } else {
+      const compName = item.competitor_name.trim()
+      const { data: newComp, error: compErr } = await db
+        .from('competitors')
+        .insert({
+          name: compName,
+          short_name: compName.slice(0, 20),
+          type: 'cloud_provider',
+        })
+        .select('id')
+        .single()
+      if (compErr || !newComp) {
+        console.error('[competitor] 경쟁사 생성 실패:', compErr?.message)
+        continue
+      }
+      competitorId = newComp.id
+    }
+
+    // 2. GPU 모델 find or create
+    let gpuProductId: string
+    const memory = item.memory?.trim() ?? ''
+    const { data: existingGpu } = await db
+      .from('gpu_products')
+      .select('id')
+      .ilike('model_name', item.model_name.trim())
+      .eq('memory', memory)
+      .single()
+
+    if (existingGpu?.id) {
+      gpuProductId = existingGpu.id
+    } else {
+      const { data: newGpu, error: gpuErr } = await db
+        .from('gpu_products')
+        .insert({
+          model_name: item.model_name.trim(),
+          memory,
+          tier: 1,
+          pricing_mode: 'on-demand',
+          gpu_count: 1,
+          vcpu: 12,
+          ram_gb: 16,
+          storage_gb: 512,
+        })
+        .select('id')
+        .single()
+      if (gpuErr || !newGpu) {
+        console.error('[competitor] GPU 모델 생성 실패:', gpuErr?.message)
+        continue
+      }
+      gpuProductId = newGpu.id
+    }
+
+    // 3. 매핑 find or create
+    let mappingId: string
+    const pricingModel = (item.pricing_model ?? 'on_demand').replace(/-/g, '_')
+    const { data: existingMap } = await db
+      .from('competitor_product_mapping')
+      .select('id')
+      .eq('competitor_id', competitorId)
+      .eq('gpu_product_id', gpuProductId)
+      .eq('pricing_model', pricingModel)
+      .single()
+
+    if (existingMap?.id) {
+      mappingId = existingMap.id
+    } else {
+      const sku = `${item.model_name} ${memory} (${pricingModel})`.trim()
+      const { data: newMap, error: mapErr } = await db
+        .from('competitor_product_mapping')
+        .insert({ competitor_id: competitorId, gpu_product_id: gpuProductId, competitor_sku: sku, pricing_model: pricingModel, is_active: true })
+        .select('id')
+        .single()
+      if (mapErr || !newMap) {
+        console.error('[competitor] 매핑 생성 실패:', mapErr?.message)
+        continue
+      }
+      mappingId = newMap.id
+    }
+
+    // 4. 시장 가격 등록
+    await db.from('market_prices').insert({
+      mapping_id: mappingId,
+      price_usd: item.price_usd,
+      source_url: sourceUrl,
+      source_type: sourceUrl ? 'webpage' : 'manual',
+      recorded_at: now,
+      observed_at: now,
+      confidence: 85,
+      is_stale: false,
+    })
+
+    saved.push({ competitor: item.competitor_name, model: item.model_name, memory, price_usd: item.price_usd })
+  }
+
+  return saved
 }
 
 // GET /api/pricing/gpu/review — 검토 대기 목록
@@ -81,7 +287,6 @@ export async function POST(req: NextRequest) {
   if (auth.error) return auth.error
 
   const supabase = await createClient()
-  // user는 admin gate를 통과했으므로 auth.user 사용
   const user = auth.user
 
   let body: {
@@ -95,45 +300,87 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '요청 형식 오류' }, { status: 400 })
   }
 
-  const text = typeof body.text === 'string' ? body.text.trim() : ''
+  const rawInputText = typeof body.text === 'string' ? body.text.trim() : ''
   const imgInput = (body.imageData && typeof body.imageData === 'object')
     ? body.imageData as { data?: unknown; mimeType?: unknown }
     : null
   const imageBase64 = typeof imgInput?.data === 'string' ? imgInput.data : null
   const imageMimeType = typeof imgInput?.mimeType === 'string' ? imgInput.mimeType : 'image/jpeg'
 
-  if (!text && !imageBase64) return NextResponse.json({ error: '분석할 텍스트 또는 이미지가 없습니다' }, { status: 400 })
+  if (!rawInputText && !imageBase64) return NextResponse.json({ error: '분석할 텍스트 또는 이미지가 없습니다' }, { status: 400 })
 
   const channel = typeof body.channel === 'string' ? body.channel : 'own'
   const isTest = body.is_test === true
   const driveFileId = typeof body.evidence_drive_file_id === 'string' ? body.evidence_drive_file_id : null
 
   const adminClient = createAdminClient()
-  const [config, prompt] = await Promise.all([
-    getGeminiConfig(adminClient),
-    getPrompt(adminClient),
-  ])
-
+  const config = await getGeminiConfig(adminClient)
   if (!config.apiKey) return NextResponse.json({ error: 'AI 키가 설정되지 않았습니다' }, { status: 500 })
+
+  // ── URL 감지 및 fetch ──────────────────────────────
+  const urlMatch = rawInputText.match(/https?:\/\/[^\s]+/)
+  const sourceUrl = urlMatch?.[0] ?? null
+  let contentText = rawInputText
+
+  if (sourceUrl && !imageBase64) {
+    const fetched = await fetchUrlText(sourceUrl)
+    if (fetched) contentText = fetched
+  }
+
+  // ── AI 1단계: 입력 분류 (경쟁사 vs 공급가) ──────────
+  if (!imageBase64) {
+    const classifyParts: Array<{ text: string }> = [
+      { text: `${CLASSIFY_PROMPT}\n\n입력:\n${contentText}` },
+    ]
+    let classifyRes: Response
+    try {
+      classifyRes = await callGemini(config.apiKey, config.model, classifyParts)
+    } catch {
+      return NextResponse.json({ error: 'AI 서버 연결 실패' }, { status: 502 })
+    }
+
+    if (classifyRes.ok) {
+      const classifyJson = await classifyRes.json() as {
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+      }
+      const classifyRaw = classifyJson.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+      try {
+        const classified = JSON.parse(classifyRaw) as {
+          type: 'competitor' | 'supplier'
+          items?: CompetitorPriceItem[]
+        }
+
+        if (classified.type === 'competitor' && Array.isArray(classified.items) && classified.items.length > 0) {
+          // ── 경쟁사 가격 저장 경로 ──────────────────────
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const db = supabase as any
+          const saved = await saveCompetitorPrices(db, classified.items, sourceUrl)
+
+          if (saved.length === 0) {
+            return NextResponse.json({ error: 'AI가 유효한 경쟁사 가격을 추출하지 못했습니다' }, { status: 422 })
+          }
+
+          return NextResponse.json({ type: 'competitor', saved, count: saved.length, source_url: sourceUrl })
+        }
+      } catch {
+        // 분류 실패 → supplier 플로우로 폴백
+        console.warn('[review POST] 분류 파싱 실패, supplier 플로우로 폴백')
+      }
+    }
+  }
+
+  // ── 공급가 견적 처리 (기존 플로우) ─────────────────
+  const prompt = await getPrompt(adminClient)
   if (!prompt) return NextResponse.json({ error: 'AI 프롬프트가 설정되지 않았습니다' }, { status: 500 })
 
-  const url = `${GEMINI_API_BASE}/models/${config.model}:generateContent`
-
-  const promptText = `${prompt.content}\n\n${text ? '입력 텍스트:\n' + text : '위 이미지에서 GPU 견적 정보를 추출하세요.'}`
+  const promptText = `${prompt.content}\n\n${contentText ? '입력 텍스트:\n' + contentText : '위 이미지에서 GPU 견적 정보를 추출하세요.'}`
   const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = []
   if (imageBase64) parts.push({ inlineData: { data: imageBase64, mimeType: imageMimeType } })
   parts.push({ text: promptText })
 
   let geminiRes: Response
   try {
-    geminiRes = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.apiKey },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts }],
-        generationConfig: { responseMimeType: 'application/json', temperature: 0 },
-      }),
-    })
+    geminiRes = await callGemini(config.apiKey, config.model, parts)
   } catch {
     return NextResponse.json({ error: 'AI 서버 연결 실패' }, { status: 502 })
   }
@@ -150,7 +397,6 @@ export async function POST(req: NextRequest) {
   const rawText = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
   const usage = geminiJson.usageMetadata ?? {}
 
-  // 토큰 로깅 (fire-and-forget)
   logTokenUsage({
     userId: user.id,
     feature: 'gpu-quote-extract',
@@ -174,18 +420,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'AI 응답 파싱 실패' }, { status: 500 })
   }
 
-  // v2.0 프롬프트: items 배열 / v1.x 하위 호환: items 키 자체가 없을 때만 단일 객체로 래핑
-  // parsed.items === [] (빈 배열)은 "모델 없음"이므로 래핑하지 않고 400 반환
   if (Array.isArray(parsed.items) && parsed.items.length === 0) {
     return NextResponse.json({ error: 'AI가 GPU 모델을 인식하지 못했습니다' }, { status: 422 })
   }
   const itemsList: SingleExtracted[] = Array.isArray(parsed.items)
-    ? parsed.items.slice(0, 50) // 최대 50개 배치 제한
+    ? parsed.items.slice(0, 50)
     : [{ extracted: parsed.extracted, confidence: parsed.confidence, evidence: parsed.evidence, impact_assessment: parsed.impact_assessment }]
 
   const batchId = crypto.randomUUID()
 
-  // N건 배치 insert
   const insertRows = itemsList.map((item, idx) => {
     const conf = item.confidence ?? {}
     const confValues = Object.values(conf).filter((v): v is number => typeof v === 'number')
@@ -223,7 +466,6 @@ export async function POST(req: NextRequest) {
 
   const insertedArr = (insertedItems ?? []) as ReviewItem[]
 
-  // review_iterations 배치 기록 (실패해도 롤백 불가 — 로그만 남김)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: iterError } = await (supabase as any)
     .from('review_iterations')
@@ -242,7 +484,6 @@ export async function POST(req: NextRequest) {
     )
   if (iterError) console.error('[review POST] review_iterations insert failed:', iterError.message)
 
-  // audit_log (실패해도 비치명적)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: auditError } = await (adminClient as any)
     .from('gpu_audit_logs')
@@ -258,9 +499,8 @@ export async function POST(req: NextRequest) {
     })
   if (auditError) console.error('[review POST] gpu_audit_logs insert failed:', auditError.message)
 
-  // 하위 호환: 단일 모델이면 item(단수), 복수면 items+count+batch_id
   if (insertedArr.length === 1) {
-    return NextResponse.json({ item: insertedArr[0] })
+    return NextResponse.json({ type: 'supplier', item: insertedArr[0] })
   }
-  return NextResponse.json({ items: insertedArr, count: insertedArr.length, batch_id: batchId })
+  return NextResponse.json({ type: 'supplier', items: insertedArr, count: insertedArr.length, batch_id: batchId })
 }
