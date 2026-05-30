@@ -18,7 +18,16 @@ export async function GET() {
 
     if (compErr) throw compErr
 
-    // 최신 시장 가격 (매핑 + 가격 + 상품 정보 JOIN)
+    // 전체 GPU 상품 카탈로그 (가격표와 동일한 기준)
+    const { data: allProducts, error: prodErr } = await db
+      .from('gpu_products')
+      .select('id, model_name, memory, tier, pricing_mode, gpu_count')
+      .order('tier')
+      .order('model_name')
+
+    if (prodErr) throw prodErr
+
+    // 경쟁사 매핑 (active만)
     const { data: mappings, error: mapErr } = await db
       .from('competitor_product_mapping')
       .select(`
@@ -35,7 +44,7 @@ export async function GET() {
     const { data: latestPrices, error: priceErr } = mappingIds.length > 0
       ? await db
           .from('market_prices')
-          .select('mapping_id, price_usd, recorded_at, confidence, notes')
+          .select('mapping_id, price_usd, recorded_at, confidence, notes, source_url')
           .in('mapping_id', mappingIds)
           .order('recorded_at', { ascending: false })
       : { data: [], error: null }
@@ -52,31 +61,14 @@ export async function GET() {
       }
     }
 
-    // 데이터 조합
-    const now = Date.now()
-    const enriched = (mappings ?? []).map((m: Record<string, unknown>) => {
-      const priceData = latestPriceMap.get(m.id as string)
-      const recordedAt = priceData?.recorded_at as string | undefined
-      const hoursAgo = recordedAt
-        ? (now - new Date(recordedAt).getTime()) / 3600000
-        : null
-      const isFresh = hoursAgo !== null && hoursAgo <= MARKET_FRESH_HOURS
-
-      return {
-        mapping_id: m.id,
-        competitor: m.competitors,
-        product: m.gpu_products,
-        competitor_sku: m.competitor_sku,
-        pricing_model: m.pricing_model,
-        region: m.region,
-        price_usd: priceData?.price_usd ?? null,
-        recorded_at: recordedAt ?? null,
-        hours_ago: hoursAgo !== null ? Math.round(hoursAgo) : null,
-        is_fresh: isFresh,
-        confidence: priceData?.confidence ?? null,
-        notes: priceData?.notes ?? null,
-      }
-    })
+    // gpu_product_id → 매핑 목록 인덱스
+    const mappingsByProduct = new Map<string, typeof mappings>()
+    for (const m of mappings ?? []) {
+      const row = m as Record<string, unknown>
+      const pid = row.gpu_product_id as string
+      if (!mappingsByProduct.has(pid)) mappingsByProduct.set(pid, [])
+      mappingsByProduct.get(pid)!.push(m)
+    }
 
     // 우리 판매가(공급 최저가 기반) 조회
     const { data: ourPrices, error: ourErr } = await db
@@ -91,66 +83,73 @@ export async function GET() {
     for (const p of ourPrices ?? []) {
       const row = p as Record<string, unknown>
       const pid = row.product_id as string
-      if (!ourPriceMap.has(pid)) {
-        ourPriceMap.set(pid, row)
-      }
+      if (!ourPriceMap.has(pid)) ourPriceMap.set(pid, row)
     }
 
-    // 상품별 집계 (포지셔닝 계산)
-    const productMap = new Map<string, {
-      product: Record<string, unknown>,
-      competitors: typeof enriched,
-      our_price_usd: number | null,
-      market_min: number | null,
-      market_max: number | null,
-      market_median: number | null,
-    }>()
+    const now = Date.now()
 
-    for (const item of enriched) {
-      const pid = (item.product as Record<string, unknown>)?.id as string
-      if (!pid) continue
-      if (!productMap.has(pid)) {
-        const ourData = ourPriceMap.get(pid)
-        const supplyMin = ourData?.unit_price_usd as number | undefined
-        const marginPct = (ourData?.margin_pct as number | undefined) ?? 18
-        const ourSalePrice = supplyMin != null ? supplyMin * (1 + marginPct / 100) : null
+    // 전체 상품 기준으로 집계 (LEFT JOIN — 경쟁사 데이터 없어도 포함)
+    const products = (allProducts ?? []).map((prod: Record<string, unknown>) => {
+      const pid = prod.id as string
+      const prodMappings = mappingsByProduct.get(pid) ?? []
 
-        productMap.set(pid, {
-          product: item.product as Record<string, unknown>,
-          competitors: [],
-          our_price_usd: ourSalePrice,
-          market_min: null,
-          market_max: null,
-          market_median: null,
-        })
-      }
-      productMap.get(pid)!.competitors.push(item)
-    }
+      // 각 매핑에 최신 가격 enriched
+      const enrichedCompetitors = prodMappings.map((m: Record<string, unknown>) => {
+        const priceData = latestPriceMap.get(m.id as string)
+        const recordedAt = priceData?.recorded_at as string | undefined
+        const hoursAgo = recordedAt
+          ? (now - new Date(recordedAt).getTime()) / 3600000
+          : null
+        const isFresh = hoursAgo !== null && hoursAgo <= MARKET_FRESH_HOURS
 
-    // 시장 범위 계산 (신선한 가격만)
-    for (const entry of Array.from(productMap.values())) {
-      const freshPrices = entry.competitors
-        .filter((c: Record<string, unknown>) => c.is_fresh && c.price_usd != null)
-        .map((c: Record<string, unknown>) => c.price_usd as number)
-        .sort((a: number, b: number) => a - b)
+        return {
+          mapping_id: m.id,
+          competitor: m.competitors,
+          competitor_sku: m.competitor_sku,
+          pricing_model: m.pricing_model,
+          region: m.region,
+          price_usd: priceData?.price_usd ?? null,
+          recorded_at: recordedAt ?? null,
+          hours_ago: hoursAgo !== null ? Math.round(hoursAgo) : null,
+          is_fresh: isFresh,
+          confidence: priceData?.confidence ?? null,
+          notes: priceData?.notes ?? null,
+        }
+      })
+
+      const ourData = ourPriceMap.get(pid)
+      const supplyMin = ourData?.unit_price_usd as number | undefined
+      const marginPct = (ourData?.margin_pct as number | undefined) ?? 18
+      const ourSalePrice = supplyMin != null ? supplyMin * (1 + marginPct / 100) : null
+
+      // 신선한 가격으로 시장 범위 계산
+      const freshPrices = enrichedCompetitors
+        .filter((c) => c.is_fresh && c.price_usd != null)
+        .map((c) => c.price_usd as number)
+        .sort((a, b) => a - b)
+
+      let market_min: number | null = null
+      let market_max: number | null = null
+      let market_median: number | null = null
 
       if (freshPrices.length > 0) {
-        entry.market_min = freshPrices[0]
-        entry.market_max = freshPrices[freshPrices.length - 1]
+        market_min = freshPrices[0]
+        market_max = freshPrices[freshPrices.length - 1]
         const mid = Math.floor(freshPrices.length / 2)
-        entry.market_median = freshPrices.length % 2 === 0
+        market_median = freshPrices.length % 2 === 0
           ? (freshPrices[mid - 1] + freshPrices[mid]) / 2
           : freshPrices[mid]
       }
-    }
 
-    const products = Array.from(productMap.values())
-      .sort((a, b) => {
-        const ta = (a.product.tier as number) ?? 99
-        const tb = (b.product.tier as number) ?? 99
-        if (ta !== tb) return ta - tb
-        return ((a.product.model_name as string) ?? '').localeCompare(b.product.model_name as string)
-      })
+      return {
+        product: prod,
+        competitors: enrichedCompetitors,
+        our_price_usd: ourSalePrice,
+        market_min,
+        market_max,
+        market_median,
+      }
+    })
 
     // 요약 통계
     let lowCount = 0, midCount = 0, highCount = 0

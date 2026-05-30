@@ -169,7 +169,7 @@ async function saveCompetitorPrices(
         .insert({
           name: compName,
           short_name: compName.slice(0, 20),
-          type: 'cloud_provider',
+          type: 'specialist',
         })
         .select('id')
         .single()
@@ -199,7 +199,7 @@ async function saveCompetitorPrices(
           model_name: item.model_name.trim(),
           memory,
           tier: 1,
-          pricing_mode: 'on-demand',
+          pricing_mode: 'quote',
           gpu_count: 1,
           vcpu: 12,
           ram_gb: 16,
@@ -351,9 +351,9 @@ export async function POST(req: NextRequest) {
         }
 
         if (classified.type === 'competitor' && Array.isArray(classified.items) && classified.items.length > 0) {
-          // ── 경쟁사 가격 저장 경로 ──────────────────────
+          // ── 경쟁사 가격 저장 경로 (service_role — competitors/mapping INSERT 권한 필요)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const db = supabase as any
+          const db = adminClient as any
           const saved = await saveCompetitorPrices(db, classified.items, sourceUrl)
 
           if (saved.length === 0) {
