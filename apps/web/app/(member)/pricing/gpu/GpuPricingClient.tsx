@@ -13,8 +13,9 @@ const SuppliersTab = dynamic(() => import('./tabs/SuppliersTab'), { ssr: false }
 const HistoryTab = dynamic(() => import('./tabs/HistoryTab'), { ssr: false })
 const InventoryTab = dynamic(() => import('./tabs/InventoryTab'), { ssr: false })
 const DbChatTab = dynamic(() => import('./tabs/DbChatTab'), { ssr: false })
+const MarketTab = dynamic(() => import('./tabs/MarketTab'), { ssr: false })
 
-type TabId = 'board' | 'intake' | 'review' | 'inventory' | 'suppliers' | 'log'
+type TabId = 'board' | 'intake' | 'review' | 'inventory' | 'market' | 'suppliers' | 'log'
 
 interface SettingsData {
   usd_krw: number | null
@@ -69,6 +70,11 @@ export default function GpuPricingClient() {
       label: '검토 대기',
       icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>,
       badge: pendingCount,
+    },
+    {
+      id: 'market',
+      label: '시장 비교',
+      icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 4 4 5-5"/><path d="M14 10h5v5"/></svg>,
     },
     {
       id: 'inventory',
@@ -180,6 +186,7 @@ export default function GpuPricingClient() {
         )}
         {activeTab === 'intake' && <QuoteRegisterTab />}
         {activeTab === 'review' && <ReviewTab />}
+        {activeTab === 'market' && <MarketTab />}
         {activeTab === 'inventory' && <InventoryTab />}
         {activeTab === 'suppliers' && <SuppliersTab />}
         {activeTab === 'log' && <HistoryTab />}
