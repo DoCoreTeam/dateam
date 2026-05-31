@@ -188,15 +188,19 @@ export default function ApiKeysPage() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <code style={{ fontSize: 12, color: '#64748b', fontFamily: 'monospace' }}>{k.masked_key}</code>
-                    {k.raw_key && (
-                      <button
-                        onClick={() => copyText(k.raw_key!, k.id + '-copy')}
-                        title="API 키 복사"
-                        style={{ display: 'flex', alignItems: 'center', padding: '3px 7px', borderRadius: 5, border: '1px solid rgba(255,255,255,0.1)', background: copiedId === k.id + '-copy' ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.04)', color: copiedId === k.id + '-copy' ? '#10b981' : '#64748b', cursor: 'pointer', transition: 'all 0.15s' }}
-                      >
-                        {copiedId === k.id + '-copy' ? <Check size={12} /> : <Copy size={12} />}
-                      </button>
-                    )}
+                    <button
+                      onClick={() => {
+                        if (k.raw_key) {
+                          copyText(k.raw_key, k.id + '-copy')
+                        } else {
+                          alert('이전에 생성된 키는 원문을 불러올 수 없습니다. 기존 키를 폐기하고 새 키를 생성해주세요.')
+                        }
+                      }}
+                      title={k.raw_key ? 'API 키 복사' : '원문 없음 — 새 키 생성 필요'}
+                      style={{ display: 'flex', alignItems: 'center', padding: '3px 7px', borderRadius: 5, border: '1px solid rgba(255,255,255,0.1)', background: copiedId === k.id + '-copy' ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.04)', color: copiedId === k.id + '-copy' ? '#10b981' : k.raw_key ? '#64748b' : '#334155', cursor: 'pointer', transition: 'all 0.15s', opacity: k.raw_key ? 1 : 0.5 }}
+                    >
+                      {copiedId === k.id + '-copy' ? <Check size={12} /> : <Copy size={12} />}
+                    </button>
                   </div>
                   <div style={{ display: 'flex', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 12, color: '#475569' }}>생성일: {fmt(k.created_at)}</span>
