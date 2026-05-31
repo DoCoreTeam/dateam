@@ -867,13 +867,13 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
       )}
 
       {/* 안내 배너 */}
-      <div className="gpu-banner" style={{ marginBottom: 0 }}>
+      <div className="gpu-banner gpu-banner-market" style={{ marginBottom: 0 }}>
         <TrendingUp size={16} color="var(--gpu-accent)" style={{ flexShrink: 0 }} />
-        <div>
-          <b>경쟁사 시장 트랙</b> · 공급가·판매가와 독립된 차원에서 경쟁사 가격 추적 · 신선도 <b>48시간</b> ·{' '}
-          <span style={{ color: 'var(--gpu-muted)' }}>수집 가격은 내부 의사결정용 — 외부 자료에 직접 인용 금지</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <b>경쟁사 시장 트랙</b> · 공급가·판매가와 독립된 차원에서 경쟁사 가격 추적 · 신선도 <b>48시간</b>
+          <span className="gpu-banner-sub"> · 수집 가격은 내부 의사결정용 — 외부 자료에 직접 인용 금지</span>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="gpu-banner-actions">
           <div className="gpu-fx-pill" title="현재 적용 환율" style={{ fontSize: 11 }}>
             1 USD = <span className="gpu-mono">{Math.round(usdKrw).toLocaleString('ko-KR')}원</span>
           </div>
@@ -883,14 +883,14 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
           </div>
           <button
             className="gpu-btn"
-            style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'var(--gpu-accent)', color: '#fff', border: 'none', fontWeight: 600 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'var(--gpu-accent)', color: '#fff', border: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
             onClick={() => setShowRegister(true)}
           >
             <Plus size={13} /> 가격 등록
           </button>
           <button
             className="gpu-btn"
-            style={{ display: 'flex', alignItems: 'center', gap: 5 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}
             onClick={handleRefresh}
             disabled={refreshing}
           >

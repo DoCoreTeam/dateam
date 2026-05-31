@@ -2550,6 +2550,33 @@
 }
 .gpu-banner-close:hover { opacity: 1; }
 
+/* market banner mobile */
+.gpu-banner-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.gpu-banner-sub {
+  color: var(--gpu-muted);
+}
+@media (max-width: 767px) {
+  .gpu-banner-market {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .gpu-banner-actions {
+    margin-left: 0;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .gpu-banner-sub {
+    display: none;
+  }
+}
+
 /* stats */
 .gpu-stats {
   display: grid;
