@@ -203,7 +203,7 @@ function RoleCard(props: CardProps) {
 }
 
 function DeptCard(props: CardProps) {
-  const { node } = props
+  const { node, headName } = props
   const c = TYPE_COLORS.department
   const personCount = node.children.filter(ch => ch.type === 'person').length
   return (
@@ -219,6 +219,12 @@ function DeptCard(props: CardProps) {
           )}
         </div>
         {node.subtitle && <p style={{ margin: '0.2rem 0 0', fontSize: '0.72rem', color: 'rgba(255,255,255,0.65)' }}>{node.subtitle}</p>}
+        {headName && (
+          <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <Crown size={11} color={c.badge} />
+            <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.85)' }}>{headName}</span>
+          </div>
+        )}
         <ActionBar {...props} />
       </div>
     </DragDropWrapper>

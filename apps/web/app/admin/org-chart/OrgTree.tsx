@@ -79,6 +79,11 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
       .map(n => ({ ...n, children: buildTree(nodes, n.id) }))
   }
 
+  function getHeadName(node: OrgNode): string | null {
+    if (!node.head_user_id) return null
+    return allProfiles.find(p => p.id === node.head_user_id)?.name ?? null
+  }
+
   function renderNode(node: OrgNodeWithChildren): React.ReactNode {
     const siblings = getSiblings(node)
     const card = (
@@ -86,6 +91,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
         node={node}
         siblings={siblings}
         activeId={activeId}
+        headName={getHeadName(node)}
         onAdd={(parentId, parentType) => setAddModal({ parentId, parentType })}
         onEdit={(n) => setEditModal(n)}
         onDelete={(n) => setDeleteConfirm(n)}
@@ -124,6 +130,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
                 node={{ ...root, children: root.children }}
                 siblings={[root]}
                 activeId={activeId}
+                headName={getHeadName(root)}
                 onAdd={(parentId, parentType) => setAddModal({ parentId, parentType })}
                 onEdit={(n) => setEditModal(n)}
                 onDelete={(n) => setDeleteConfirm(n)}
@@ -154,7 +161,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
           parentId={addModal.parentId}
           parentType={addModal.parentType}
           allProfiles={allProfiles}
-          existingPersonUserIds={nodes.filter(n => n.parent_id === addModal.parentId && n.type === 'person' && n.user_id).map(n => n.user_id!)}
+          existingPersonUserIds={nodes.filter(n => n.type === 'person' && n.user_id).map(n => n.user_id!)}
           onClose={() => setAddModal(null)}
         />
       )}
