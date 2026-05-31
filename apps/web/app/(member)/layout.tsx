@@ -23,11 +23,13 @@ import {
   CalendarDays,
   DollarSign,
   Tag,
+  PlusCircle,
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import SWRProvider from './SWRProvider'
 
 const NAV_ITEMS = [
+  { href: '/intake', label: '통합 입력', icon: <PlusCircle size={16} /> },
   { href: '/home', label: '홈', icon: <Home size={16} /> },
   { href: '/daily', label: '일일업무', icon: <NotebookPen size={16} /> },
   { href: '/calendar', label: '캘린더', icon: <CalendarDays size={16} /> },

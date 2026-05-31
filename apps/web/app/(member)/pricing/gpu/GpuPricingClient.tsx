@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import dynamic from 'next/dynamic'
 import { Download, Plus } from 'lucide-react'
+import Link from 'next/link'
 
 const PriceTableTab = dynamic(() => import('./tabs/PriceTableTab'), { ssr: false })
-const QuoteRegisterTab = dynamic(() => import('./tabs/QuoteRegisterTab'), { ssr: false })
 const ReviewTab = dynamic(() => import('./tabs/ReviewTab'), { ssr: false })
 const SuppliersTab = dynamic(() => import('./tabs/SuppliersTab'), { ssr: false })
 const HistoryTab = dynamic(() => import('./tabs/HistoryTab'), { ssr: false })
@@ -17,7 +18,7 @@ const MarketTab = dynamic(() => import('./tabs/MarketTab'), { ssr: false })
 const SalePriceCatalogPage = dynamic(() => import('../catalog/page'), { ssr: false })
 
 type MainTabId = 'board' | 'market' | 'inventory' | 'catalog'
-type SecondaryTabId = 'intake' | 'review' | 'suppliers' | 'log'
+type SecondaryTabId = 'review' | 'suppliers' | 'log'
 type TabId = MainTabId | SecondaryTabId
 
 interface SettingsData {
@@ -54,6 +55,7 @@ const MAIN_TABS: { id: MainTabId; label: string; icon: React.ReactNode }[] = [
 ]
 
 export default function GpuPricingClient() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabId>('board')
   const [showAiPanel, setShowAiPanel] = useState(false)
   const [boardSearch, setBoardSearch] = useState('')
@@ -106,13 +108,14 @@ export default function GpuPricingClient() {
           <button className="gpu-btn">
             <Download size={15} /> Export
           </button>
-          <button
+          <Link
+            href="/intake"
             className="gpu-btn gpu-btn-primary"
-            onClick={() => setActiveTab('intake')}
             title="공급가·경쟁사 통합 입력"
+            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}
           >
             <Plus size={15} /> 통합 입력
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -147,12 +150,6 @@ export default function GpuPricingClient() {
             label: '변동 이력',
             badge: 0,
             icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>,
-          },
-          {
-            id: 'intake' as SecondaryTabId,
-            label: '통합 입력',
-            badge: 0,
-            icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>,
           },
         ].map((item) => (
           <button
@@ -211,7 +208,7 @@ export default function GpuPricingClient() {
           <div style={{ display: 'flex', gap: 0, height: '100%', minHeight: 0, overflow: 'hidden' }}>
             <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
               <PriceTableTab
-                onGoToIntake={() => setActiveTab('intake')}
+                onGoToIntake={() => router.push('/intake')}
                 onGoToReview={() => setActiveTab('review')}
                 initialSearch={boardSearch}
                 onSearchConsumed={() => setBoardSearch('')}
@@ -266,7 +263,6 @@ export default function GpuPricingClient() {
             <SalePriceCatalogPage />
           </div>
         )}
-        {activeTab === 'intake' && <div style={{ height: '100%', overflowY: 'auto' }}><QuoteRegisterTab /></div>}
         {activeTab === 'review' && <div style={{ height: '100%', overflowY: 'auto' }}><ReviewTab /></div>}
         {activeTab === 'suppliers' && <div style={{ height: '100%', overflowY: 'auto' }}><SuppliersTab /></div>}
         {activeTab === 'log' && <div style={{ height: '100%', overflowY: 'auto' }}><HistoryTab /></div>}
