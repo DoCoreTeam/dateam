@@ -944,6 +944,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
   const [activeComps, setActiveComps] = useState<Set<string>>(new Set())
   const [activeGroups, setActiveGroups] = useState<Set<string>>(new Set(Object.keys(COMP_GROUPS)))
   const [refreshing, setRefreshing] = useState(false)
+  const [refreshResult, setRefreshResult] = useState<{ urls_checked: number; prices_updated: number } | null>(null)
   const [showRegister, setShowRegister] = useState(false)
   const [showCompModal, setShowCompModal] = useState(false)
   const [viewMode, setViewMode] = useState<'table' | 'strategy'>('table')
@@ -978,6 +979,16 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
 
   const handleRefresh = async () => {
     setRefreshing(true)
+    setRefreshResult(null)
+    try {
+      const res = await fetch('/api/pricing/gpu/market/refresh', { method: 'POST' })
+      if (res.ok) {
+        const result = await res.json() as { urls_checked: number; prices_updated: number }
+        setRefreshResult(result)
+      }
+    } catch {
+      // 오류 시 DB 데이터만 새로고침
+    }
     await mutate()
     setRefreshing(false)
   }
@@ -1045,6 +1056,23 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
           </button>
         </div>
       </div>
+
+      {/* AI 새로고침 결과 */}
+      {refreshResult && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: refreshResult.prices_updated > 0 ? 'var(--gpu-green-bg, #f0fdf4)' : 'var(--gpu-card-bg)', border: '1px solid', borderColor: refreshResult.prices_updated > 0 ? 'var(--gpu-green, #22c55e)' : 'var(--gpu-border)', borderRadius: 8, fontSize: 13 }}>
+          <RefreshCw size={13} color={refreshResult.prices_updated > 0 ? '#16a34a' : 'var(--gpu-muted)'} />
+          <span>
+            <b>{refreshResult.urls_checked}개 URL</b> AI 분석 완료 ·{' '}
+            {refreshResult.prices_updated > 0
+              ? <><b style={{ color: '#16a34a' }}>{refreshResult.prices_updated}개 가격</b> 업데이트됨</>
+              : <span style={{ color: 'var(--gpu-muted)' }}>새로운 가격 없음</span>
+            }
+          </span>
+          <button onClick={() => setRefreshResult(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gpu-muted)', padding: '2px 4px' }}>
+            <X size={12} />
+          </button>
+        </div>
+      )}
 
       {/* 요약 통계 */}
       {summary && (
