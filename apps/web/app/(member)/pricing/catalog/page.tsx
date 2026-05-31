@@ -152,7 +152,7 @@ export default function SalePriceCatalogPage() {
   })
 
   const fmtKrw = (v: number) => `₩${Math.round(v).toLocaleString('ko-KR')}`
-  const fmtUsd = (v: number, dec = 0) => `$${v.toFixed(dec)}`
+  const fmtUsd = (v: number, dec = 0) => `$${v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec })}`
   const fmtHours = (h: number) => h >= 10000 ? `${(h / 10000).toFixed(1)}만h` : h >= 1000 ? `${(h / 1000).toFixed(1)}천h` : `${h}h`
 
   // 커스텀 시간이 있으면 6개월 대신 커스텀 컬럼 표시

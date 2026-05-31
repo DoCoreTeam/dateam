@@ -60,7 +60,7 @@ const TIER_CONFIG = {
   3: { label: 'Tier 3', name: '간헐 공급',   badge: 'gpu-badge-t3', chipColor: '#b45309' },
 }
 
-const fmtUSD = (v: number) => '$' + v.toFixed(2)
+const fmtUSD = (v: number) => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtKRW = (v: number) => '₩' + Math.round(v).toLocaleString('ko-KR')
 const fmtDday = (dateStr: string) => {
   const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000)
@@ -508,6 +508,8 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                         <span className="gpu-sdot" style={{ background: p.lowest_supplier.color }} />
                         {p.lowest_supplier.name}
                       </div>
+                    ) : p.lowest_unit_price_usd != null ? (
+                      <span style={{ fontSize: '12px', color: 'var(--gpu-amber)' }}>공급사 미지정</span>
                     ) : (
                       <span style={{ fontSize: '12px', color: 'var(--gpu-faint)' }}>—</span>
                     )}

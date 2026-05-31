@@ -86,7 +86,7 @@ function makeFmt(mode: CurrencyMode, usdKrw: number) {
   return (usd: number) =>
     mode === 'KRW'
       ? `₩${Math.round(usd * usdKrw).toLocaleString('ko-KR')}`
-      : `$${usd.toFixed(2)}`
+      : `$${usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 const PRICING_MODEL_LABEL: Record<string, string> = {
