@@ -54,7 +54,7 @@ function DragDropWrapper({
 }: {
   node: OrgNode; activeId: string | null; children: React.ReactNode; droppable?: boolean
 }) {
-  const { setNodeRef: setDragRef, attributes, listeners, isDragging } = useDraggable({ id: node.id })
+  const { setNodeRef: setDragRef, attributes, listeners } = useDraggable({ id: node.id })
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id: node.id, disabled: !droppable })
 
   const mergedRef = (el: HTMLElement | null) => {
@@ -68,7 +68,10 @@ function DragDropWrapper({
   return (
     <div
       ref={mergedRef}
+      {...attributes}
+      {...listeners}
       style={{
+        display: 'inline-block',
         position: 'relative',
         borderRadius: '0.75rem',
         background: node.type === 'person' ? '#fff' : c.bg,
@@ -80,16 +83,17 @@ function DragDropWrapper({
         transition: 'box-shadow 0.15s, border-color 0.15s',
         minWidth: '160px',
         maxWidth: '220px',
+        cursor: 'grab',
+        touchAction: 'none',
+        verticalAlign: 'top',
       }}
     >
-      {/* Drag handle */}
+      {/* Drag handle — visual only */}
       <div
-        {...attributes}
-        {...listeners}
         style={{
           position: 'absolute', top: '6px', left: '6px',
-          cursor: 'grab', color: node.type === 'person' ? '#94a3b8' : 'rgba(255,255,255,0.5)',
-          touchAction: 'none',
+          color: node.type === 'person' ? '#94a3b8' : 'rgba(255,255,255,0.5)',
+          pointerEvents: 'none',
         }}
       >
         <GripVertical size={13} />
@@ -116,33 +120,33 @@ function ActionBar({
 }: CardProps & { showAdd?: boolean }) {
   const siblingIds = siblings.map(s => s.id)
   const idx = siblingIds.indexOf(node.id)
-  const c = TYPE_COLORS[node.type]
   const btnStyle = {
     background: 'none', border: 'none', cursor: 'pointer', padding: '3px',
     borderRadius: '4px', color: node.type === 'person' ? '#94a3b8' : 'rgba(255,255,255,0.7)',
     display: 'flex', alignItems: 'center',
   }
+  const stop = (e: React.PointerEvent) => e.stopPropagation()
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginTop: '6px', justifyContent: 'flex-end' }}>
       {idx > 0 && (
-        <button style={btnStyle} onClick={() => onReorder(node.id, 'up', siblingIds)} title="위로">
+        <button style={btnStyle} onPointerDown={stop} onClick={() => onReorder(node.id, 'up', siblingIds)} title="위로">
           <ChevronUp size={13} />
         </button>
       )}
       {idx < siblings.length - 1 && (
-        <button style={btnStyle} onClick={() => onReorder(node.id, 'down', siblingIds)} title="아래로">
+        <button style={btnStyle} onPointerDown={stop} onClick={() => onReorder(node.id, 'down', siblingIds)} title="아래로">
           <ChevronDown size={13} />
         </button>
       )}
       {showAdd && (
-        <button style={btnStyle} onClick={() => onAdd(node.id, node.type)} title="하위 추가">
+        <button style={btnStyle} onPointerDown={stop} onClick={() => onAdd(node.id, node.type)} title="하위 추가">
           <Plus size={13} />
         </button>
       )}
-      <button style={btnStyle} onClick={() => onEdit(node)} title="수정">
+      <button style={btnStyle} onPointerDown={stop} onClick={() => onEdit(node)} title="수정">
         <Pencil size={13} />
       </button>
-      <button style={{ ...btnStyle, color: node.type === 'person' ? '#ef4444' : 'rgba(255,150,150,0.9)' }} onClick={() => onDelete(node)} title="삭제">
+      <button style={{ ...btnStyle, color: node.type === 'person' ? '#ef4444' : 'rgba(255,150,150,0.9)' }} onPointerDown={stop} onClick={() => onDelete(node)} title="삭제">
         <Trash2 size={13} />
       </button>
     </div>

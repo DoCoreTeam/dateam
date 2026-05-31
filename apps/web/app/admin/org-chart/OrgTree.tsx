@@ -117,6 +117,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
 
       <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div style={{ overflowX: 'auto', padding: '1.5rem 0' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', minWidth: 'max-content', margin: '0 auto' }}>
           <Tree
             label={
               <NodeCard
@@ -136,6 +137,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
           >
             {root.children.map(child => renderNode(child))}
           </Tree>
+          </div>
         </div>
 
         <DragOverlay>
