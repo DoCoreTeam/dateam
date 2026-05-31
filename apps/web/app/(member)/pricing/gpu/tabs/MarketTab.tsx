@@ -1246,8 +1246,8 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
       {/* 모델별 시장 포지셔닝 매트릭스 */}
       <div>
         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-ink)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {viewMode === 'table' ? '모델별 시장 포지셔닝' : '1등 전략 — 전체 요약'}
-          {viewMode === 'table' && <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 500 }}>— 행 클릭 → 분석/전략 탭</span>}
+          {viewMode === 'table' ? '모델별 경쟁현황' : '전략적 금액 — 전체 요약'}
+          {viewMode === 'table' && <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 500 }}>— 행 클릭 → 경쟁현황/전략적 금액 탭</span>}
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 0, border: '1.5px solid var(--gpu-border)', borderRadius: 8, overflow: 'hidden' }}>
             <button
               onClick={() => setViewMode('table')}
@@ -1258,8 +1258,8 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
               }}
             >
               <BarChart2 size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-              <span className="desktop-only">시장 포지셔닝</span>
-              <span className="mobile-only">포지셔닝</span>
+              <span className="desktop-only">경쟁현황</span>
+              <span className="mobile-only">경쟁</span>
             </button>
             <button
               onClick={() => setViewMode('strategy')}
@@ -1271,7 +1271,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
               }}
             >
               <Target size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-              <span>1등 전략</span>
+              <span>전략적 금액</span>
             </button>
           </div>
         </div>
@@ -1414,8 +1414,8 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                           }}
                         >
                           <BarChart2 size={13} />
-                          <span className="desktop-only">시장 위치 분석</span>
-                          <span className="mobile-only">분석</span>
+                          <span className="desktop-only">경쟁현황</span>
+                          <span className="mobile-only">경쟁</span>
                         </button>
                         <button
                           onClick={e => { e.stopPropagation(); setExpandedTab(prev => ({ ...prev, [pid]: 'strategy' })) }}
@@ -1429,8 +1429,8 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                           }}
                         >
                           <Target size={13} />
-                          <span className="desktop-only">1등 전략</span>
-                          <span className="mobile-only">전략</span>
+                          <span className="desktop-only">전략적 금액</span>
+                          <span className="mobile-only">금액</span>
                           {hasStrategy && (() => {
                             const scn = computeScenarios(p)
                             const recommended = scn?.find(s => s.judge === 'ok') || scn?.find(s => s.judge === 'warn') || scn?.[0]
