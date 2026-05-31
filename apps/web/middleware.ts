@@ -49,11 +49,30 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // 로그인 후 /login 접근 → /dashboard
+  // 로그인 후 /login 접근 → /dashboard (단, api_user는 /api-keys로)
   if (user && pathname === '/login') {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
+  }
+
+  // api_user 권한 제한 — 내부 페이지 접근 차단
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    const userRole = (profile as { role?: string } | null)?.role
+    if (userRole === 'api_user') {
+      const allowedPrefixes = ['/api-keys', '/change-password', '/develop', '/api-access', '/login']
+      const isAllowed = allowedPrefixes.some(p => pathname === p || pathname.startsWith(p + '/'))
+      if (!isAllowed) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/api-keys'
+        return NextResponse.redirect(url)
+      }
+    }
   }
 
   return supabaseResponse

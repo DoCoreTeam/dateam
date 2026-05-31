@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 type Section = 'overview' | 'auth' | 'products' | 'quote' | 'inventory' | 'demo' | 'keys' | 'errors'
 
@@ -15,6 +16,17 @@ const EXAMPLE_KEY = 'ax_live_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4'
 export default function DevelopPage() {
   const [activeSection, setActiveSection] = useState<Section>('overview')
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [showDashboardLink, setShowDashboardLink] = useState(false)
+
+  useEffect(() => {
+    const sb = createClient()
+    sb.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data } = await sb.from('profiles').select('role').eq('id', user.id).single()
+      const role = (data as { role?: string } | null)?.role
+      if (role === 'admin' || role === 'member') setShowDashboardLink(true)
+    })
+  }, [])
 
   function copy(text: string, id: string) {
     setCopiedId(id)
@@ -50,9 +62,11 @@ export default function DevelopPage() {
               </button>
             ))}
           </nav>
-          <a href="/home" style={{ padding: '6px 14px', borderRadius: 8, background: 'rgba(99,102,241,0.1)', color: '#a5b4fc', fontSize: 13, fontWeight: 500, textDecoration: 'none', border: '1px solid rgba(99,102,241,0.2)' }}>
-            ← 대시보드
-          </a>
+          {showDashboardLink && (
+            <a href="/home" style={{ padding: '6px 14px', borderRadius: 8, background: 'rgba(99,102,241,0.1)', color: '#a5b4fc', fontSize: 13, fontWeight: 500, textDecoration: 'none', border: '1px solid rgba(99,102,241,0.2)' }}>
+              ← 대시보드
+            </a>
+          )}
         </div>
       </header>
 

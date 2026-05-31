@@ -57,7 +57,7 @@ export async function approveRequest(requestId: string): Promise<{ success: bool
   // 프로필 생성 — upsert로 트리거 자동생성 충돌 방지, must_change_password 강제 true
   await adminClient
     .from('profiles')
-    .upsert({ id: newUser.user.id, name: req.name, role: 'member', must_change_password: true }, { onConflict: 'id' })
+    .upsert({ id: newUser.user.id, name: req.name, role: 'api_user', must_change_password: true }, { onConflict: 'id' })
 
   // 신청 상태 업데이트
   await adminClient
