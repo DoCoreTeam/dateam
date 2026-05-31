@@ -108,10 +108,22 @@ export default function SalePriceCatalogPage() {
       `6개월 (4,320h): ${fmtKrw(price.krw * HR_4320)}`,
       `연간 (8,760h): ${fmtKrw(price.krw * HR_8760)}`,
     ]
-    navigator.clipboard.writeText(lines.join('\n')).then(() => {
-      setCopiedId(p.id)
-      setTimeout(() => setCopiedId(null), 2000)
-    }).catch(() => {})
+    const text = lines.join('\n')
+    setCopiedId(p.id)
+    setTimeout(() => setCopiedId(null), 2000)
+    navigator.clipboard?.writeText(text).catch(() => {
+      // fallback for non-secure context
+      try {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      } catch (_) {}
+    })
   }
 
   const pricedProducts = products.filter((p) =>
