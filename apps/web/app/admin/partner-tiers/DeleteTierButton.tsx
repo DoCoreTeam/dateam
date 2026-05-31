@@ -1,0 +1,67 @@
+'use client'
+
+import { useState, useTransition } from 'react'
+import { Trash2 } from 'lucide-react'
+import { deleteTier } from './actions'
+
+export default function DeleteTierButton({ tierId, tierName }: { tierId: string; tierName: string }) {
+  const [confirming, setConfirming] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+
+  function handleDelete() {
+    setError(null)
+    startTransition(async () => {
+      const result = await deleteTier(tierId)
+      if (result.error) {
+        setError(result.error)
+        setConfirming(false)
+      }
+    })
+  }
+
+  if (confirming) {
+    return (
+      <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.75rem', color: '#dc2626' }}>삭제?</span>
+        <button
+          onClick={handleDelete}
+          disabled={isPending}
+          style={{
+            padding: '0.25rem 0.5rem', borderRadius: '0.25rem',
+            background: '#dc2626', color: 'white', border: 'none',
+            fontSize: '0.75rem', cursor: isPending ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {isPending ? '...' : '확인'}
+        </button>
+        <button
+          onClick={() => setConfirming(false)}
+          style={{
+            padding: '0.25rem 0.5rem', borderRadius: '0.25rem',
+            background: '#f1f5f9', color: '#475569', border: 'none',
+            fontSize: '0.75rem', cursor: 'pointer',
+          }}
+        >
+          취소
+        </button>
+        {error && <span style={{ fontSize: '0.75rem', color: '#dc2626' }}>{error}</span>}
+      </span>
+    )
+  }
+
+  return (
+    <button
+      onClick={() => setConfirming(true)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: '0.25rem',
+        padding: '0.375rem 0.625rem', borderRadius: '0.375rem',
+        background: '#fef2f2', color: '#dc2626',
+        border: 'none', fontSize: '0.8125rem', cursor: 'pointer',
+      }}
+      title={`${tierName} 삭제`}
+    >
+      <Trash2 size={13} /> 삭제
+    </button>
+  )
+}
