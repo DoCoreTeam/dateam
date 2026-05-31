@@ -634,6 +634,148 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
   )
 }
 
+// 1등 전략 전체 요약 뷰
+function StrategyOverviewPanel({ products, fmt }: { products: ProductGroup[]; fmt: (v: number) => string }) {
+  const [scenarioKey, setScenarioKey] = useState<'aggressive' | 'normal' | 'concede'>('normal')
+
+  const SCENARIO_LABELS = {
+    aggressive: '공격적 1등',
+    normal: '무난한 1등',
+    concede: '마진 양보',
+  }
+
+  const rows = products.map(p => {
+    const scns = computeScenarios(p)
+    if (!scns) return { p, scn: null }
+    const scn = scns.find(s => s.key === scenarioKey) ?? scns[1]
+    return { p, scn }
+  })
+
+  const hasAny = rows.some(r => r.scn != null)
+  if (!hasAny) {
+    return (
+      <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--gpu-faint)' }}>
+        <AlertTriangle size={28} style={{ opacity: 0.4, marginBottom: 8 }} />
+        <div style={{ fontSize: 13 }}>전략 계산에 필요한 공급가 또는 시장가 데이터가 없습니다</div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* 시나리오 선택 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 600 }}>시나리오:</span>
+        {(Object.keys(SCENARIO_LABELS) as Array<keyof typeof SCENARIO_LABELS>).map(key => (
+          <button
+            key={key}
+            onClick={() => setScenarioKey(key)}
+            style={{
+              padding: '5px 13px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: '.12s',
+              border: `1.5px solid ${scenarioKey === key ? 'var(--gpu-accent)' : 'var(--gpu-border)'}`,
+              background: scenarioKey === key ? 'var(--gpu-accent-bg)' : '#fff',
+              color: scenarioKey === key ? 'var(--gpu-accent)' : 'var(--gpu-muted)',
+            }}
+          >
+            {SCENARIO_LABELS[key]}
+          </button>
+        ))}
+      </div>
+
+      {/* 전략 요약 테이블 */}
+      <div className="gpu-panel" style={{ overflow: 'hidden' }}>
+        {/* 헤더 */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr 1fr 1.1fr',
+          gap: 12, padding: '10px 18px',
+          background: '#fafbfc', borderBottom: '1px solid var(--gpu-border)',
+          fontSize: 10.5, color: 'var(--gpu-muted)', fontWeight: 600,
+          textTransform: 'uppercase', letterSpacing: '.04em',
+        }}>
+          <div>GPU 모델</div>
+          <div>현재 공급가</div>
+          <div>시장 최저가</div>
+          <div>목표 판매가</div>
+          <div>필요 공급가</div>
+          <div>갭 / 판정</div>
+        </div>
+
+        {rows.map(({ p, scn }) => {
+          const pid = p.product.id
+          if (!scn) {
+            return (
+              <div key={pid} style={{
+                display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr 1fr 1.1fr',
+                gap: 12, padding: '12px 18px', alignItems: 'center',
+                borderBottom: '1px solid #f1f2f6', opacity: 0.5,
+              }}>
+                <div>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gpu-ink)' }}>{p.product.model_name}</span>
+                  <span style={{ fontSize: 11, color: 'var(--gpu-muted)', marginLeft: 6 }}>{p.product.memory}</span>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--gpu-faint)', gridColumn: '2 / 7' }}>데이터 부족 — 공급가 또는 시장가 필요</div>
+              </div>
+            )
+          }
+
+          const jc = judgeColor(scn.judge)
+          const gapAmount = (p.current_supply_usd ?? 0) - scn.requiredSupplyUsd
+          const isGapOk = gapAmount <= 0
+
+          return (
+            <div key={pid} style={{
+              display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr 1fr 1.1fr',
+              gap: 12, padding: '13px 18px', alignItems: 'center',
+              borderBottom: '1px solid #f1f2f6', transition: '.12s',
+            }}>
+              {/* 모델 */}
+              <div>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-ink)' }}>{p.product.model_name}</span>
+                <span style={{ fontSize: 11, color: 'var(--gpu-muted)', marginLeft: 6 }}>{p.product.memory}</span>
+              </div>
+              {/* 현재 공급가 */}
+              <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 600, color: 'var(--gpu-ink-2)' }}>
+                {p.current_supply_usd != null ? fmt(p.current_supply_usd) : <span style={{ color: 'var(--gpu-faint)' }}>—</span>}
+              </div>
+              {/* 시장 최저가 */}
+              <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 600, color: 'var(--gpu-accent)' }}>
+                {p.market_min != null ? fmt(p.market_min) : <span style={{ color: 'var(--gpu-faint)' }}>—</span>}
+              </div>
+              {/* 목표 판매가 */}
+              <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: 'var(--gpu-green)' }}>
+                {fmt(scn.targetSellUsd)}
+                <div style={{ fontSize: 10, fontFamily: 'sans-serif', color: 'var(--gpu-faint)', fontWeight: 400 }}>−{scn.edgePct}%</div>
+              </div>
+              {/* 필요 공급가 */}
+              <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: jc.color }}>
+                {fmt(scn.requiredSupplyUsd)}
+                <div style={{ fontSize: 10, fontFamily: 'sans-serif', color: 'var(--gpu-faint)', fontWeight: 400 }}>마진 {scn.marginPct}%</div>
+              </div>
+              {/* 갭 + 판정 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ fontFamily: 'monospace', fontSize: 12.5, fontWeight: 700, color: isGapOk ? 'var(--gpu-green)' : 'var(--gpu-amber)' }}>
+                  {isGapOk ? '▼' : '▲'}{fmt(Math.abs(gapAmount))}
+                  <span style={{ fontSize: 10, fontWeight: 400, marginLeft: 4 }}>({Math.abs(scn.supplyChangePct).toFixed(1)}%)</span>
+                </div>
+                <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: jc.bg, color: jc.color, alignSelf: 'flex-start', whiteSpace: 'nowrap' }}>
+                  {judgeLabel(scn.judge)}
+                </span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* 범례 */}
+      <div style={{ fontSize: 11, color: 'var(--gpu-faint)', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+        <span>▼ 현재 공급가가 낮아 추가 인하 여력 없음 (이미 가능)</span>
+        <span>▲ 목표 공급가 달성까지 남은 인하 금액</span>
+        <span>판정: ✓ 현실적(15% 이내) · ⚠ 도전적(25% 이내) · ✗ 어려움(25% 초과)</span>
+      </div>
+    </div>
+  )
+}
+
 function PriceRegisterModal({
   mappings,
   onClose,
@@ -804,6 +946,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
   const [refreshing, setRefreshing] = useState(false)
   const [showRegister, setShowRegister] = useState(false)
   const [showCompModal, setShowCompModal] = useState(false)
+  const [viewMode, setViewMode] = useState<'table' | 'strategy'>('table')
 
   const usdKrw = data?.usd_krw ?? 1400
   const fmt = makeFmt(currencyMode, usdKrw)
@@ -1102,12 +1245,42 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
 
       {/* 모델별 시장 포지셔닝 매트릭스 */}
       <div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-ink)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-          모델별 시장 포지셔닝
-          <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 500 }}>— 행 클릭 → 분석/전략 탭</span>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-ink)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {viewMode === 'table' ? '모델별 시장 포지셔닝' : '1등 전략 — 전체 요약'}
+          {viewMode === 'table' && <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 500 }}>— 행 클릭 → 분석/전략 탭</span>}
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 0, border: '1.5px solid var(--gpu-border)', borderRadius: 8, overflow: 'hidden' }}>
+            <button
+              onClick={() => setViewMode('table')}
+              style={{
+                padding: '5px 13px', fontSize: 11.5, fontWeight: 600, border: 'none', cursor: 'pointer', transition: '.12s',
+                background: viewMode === 'table' ? 'var(--gpu-accent)' : '#fff',
+                color: viewMode === 'table' ? '#fff' : 'var(--gpu-muted)',
+              }}
+            >
+              <BarChart2 size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+              <span className="desktop-only">시장 포지셔닝</span>
+              <span className="mobile-only">포지셔닝</span>
+            </button>
+            <button
+              onClick={() => setViewMode('strategy')}
+              style={{
+                padding: '5px 13px', fontSize: 11.5, fontWeight: 600, border: 'none', cursor: 'pointer', transition: '.12s',
+                borderLeft: '1.5px solid var(--gpu-border)',
+                background: viewMode === 'strategy' ? 'var(--gpu-accent)' : '#fff',
+                color: viewMode === 'strategy' ? '#fff' : 'var(--gpu-muted)',
+              }}
+            >
+              <Target size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+              <span>1등 전략</span>
+            </button>
+          </div>
         </div>
 
-        <div className="gpu-panel" style={{ overflow: 'hidden' }}>
+        {viewMode === 'strategy' ? (
+          <StrategyOverviewPanel products={filteredProducts} fmt={fmt} />
+        ) : null}
+
+        <div className="gpu-panel" style={{ overflow: 'hidden', display: viewMode === 'table' ? undefined : 'none' }}>
           {/* 헤더 */}
           <div className="gpu-market-grid" style={{
             display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1.5fr 36px',
