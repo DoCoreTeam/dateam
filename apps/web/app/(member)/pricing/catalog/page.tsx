@@ -168,32 +168,55 @@ export default function SalePriceCatalogPage() {
           />
         </div>
         {/* 시간 계산기 */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          border: '1px solid var(--gpu-border)', borderRadius: 7,
-          padding: '0 10px', background: customHours ? 'rgba(99,102,241,0.06)' : 'transparent',
-          borderColor: customHours ? 'var(--gpu-accent)' : 'var(--gpu-border)',
+        <label style={{
+          display: 'flex', alignItems: 'center', gap: 0,
+          border: `1.5px solid ${customHours ? 'var(--gpu-accent)' : '#d1d5db'}`,
+          borderRadius: 8,
+          background: '#fff',
+          height: 34,
+          boxShadow: customHours ? '0 0 0 3px rgba(99,102,241,0.12)' : '0 1px 2px rgba(0,0,0,0.05)',
+          cursor: 'text',
+          overflow: 'hidden',
+          transition: 'border-color 0.15s, box-shadow 0.15s',
         }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={customHours ? 'var(--gpu-accent)' : 'var(--gpu-muted)'} strokeWidth="2">
-            <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-          </svg>
+          <span style={{
+            padding: '0 8px 0 10px',
+            fontSize: 11, fontWeight: 700,
+            color: customHours ? 'var(--gpu-accent)' : '#6b7280',
+            whiteSpace: 'nowrap',
+            userSelect: 'none',
+            letterSpacing: '0.02em',
+          }}>
+            시간 계산
+          </span>
+          <div style={{ width: 1, height: 16, background: customHours ? 'rgba(99,102,241,0.3)' : '#e5e7eb' }} />
           <input
             type="number"
             min="1"
             max="99999"
-            placeholder="시간 입력"
+            placeholder="0"
             value={hoursInput}
             onChange={(e) => setHoursInput(e.target.value)}
             style={{
-              width: 72, border: 'none', outline: 'none', background: 'transparent',
-              fontSize: 12, color: customHours ? 'var(--gpu-accent)' : '#374151', fontWeight: customHours ? 600 : 400,
+              width: 64, border: 'none', outline: 'none', background: 'transparent',
+              fontSize: 13, padding: '0 6px',
+              color: customHours ? 'var(--gpu-accent)' : '#111827',
+              fontWeight: customHours ? 700 : 500,
+              fontFamily: 'monospace',
             }}
           />
-          <span style={{ fontSize: 11, color: customHours ? 'var(--gpu-accent)' : 'var(--gpu-muted)', whiteSpace: 'nowrap' }}>시간 비용</span>
-          {customHours && (
-            <button onClick={() => setHoursInput('')} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--gpu-muted)', fontSize: 12, padding: '0 2px' }}>✕</button>
+          {customHours ? (
+            <>
+              <span style={{ fontSize: 11, color: 'var(--gpu-accent)', fontWeight: 600, paddingRight: 4 }}>h</span>
+              <button
+                onClick={() => setHoursInput('')}
+                style={{ border: 'none', background: 'rgba(99,102,241,0.1)', cursor: 'pointer', color: 'var(--gpu-accent)', fontSize: 11, padding: '0 8px', height: '100%', fontWeight: 700 }}
+              >✕</button>
+            </>
+          ) : (
+            <span style={{ fontSize: 11, color: '#9ca3af', paddingRight: 10 }}>h</span>
           )}
-        </div>
+        </label>
         <div className="gpu-seg">
           {([0, 1, 2, 3] as const).map((t) => (
             <button key={t} className={tierFilter === t ? 'on' : ''} onClick={() => setTierFilter(t)}>
