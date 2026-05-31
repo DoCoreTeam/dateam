@@ -243,30 +243,17 @@ export default function SalePriceCatalogPage() {
               </span>
             </div>
             <div
-              style={{ ...thBase, textAlign: 'right', cursor: 'pointer', color: sortKey === 'price' ? 'var(--gpu-accent)' : 'var(--gpu-muted)' }}
+              style={{ ...thBase, textAlign: 'right', cursor: 'pointer', color: sortKey === 'price' ? 'var(--gpu-accent)' : customHours ? 'var(--gpu-accent)' : 'var(--gpu-muted)' }}
               onClick={() => handleSort('price')}
             >
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
-                / 1시간 <SortIcon active={sortKey === 'price'} dir={sortDir} />
+                {customHours ? <>/ {customHours.toLocaleString()}<span style={{ fontWeight: 400, opacity: 0.8 }}>시간</span></> : '/ 1시간'}
+                <SortIcon active={sortKey === 'price'} dir={sortDir} />
               </span>
             </div>
-            {/* 커스텀 시간 컬럼 헤더 */}
-            {customHours ? (
-              <div style={{ ...thBase, textAlign: 'right', color: 'var(--gpu-accent)', fontWeight: 700 }}>
-                / {customHours.toLocaleString()}시간
-              </div>
-            ) : (
-              <div style={{ ...thBase, textAlign: 'right' }}>/ 월 <span style={{ fontWeight: 400, opacity: 0.7 }}>({fmtHours(HR_720)})</span></div>
-            )}
-            <div style={{ ...thBase, textAlign: 'right' }}>
-              {customHours
-                ? <>/ 월 <span style={{ fontWeight: 400, opacity: 0.7 }}>({fmtHours(HR_720)})</span></>
-                : <>/ 6개월 <span style={{ fontWeight: 400, opacity: 0.7 }}>({fmtHours(HR_4320)})</span></>
-              }
-            </div>
-            <div style={{ ...thBase, textAlign: 'right' }}>
-              / 연간 <span style={{ fontWeight: 400, opacity: 0.7 }}>({fmtHours(HR_8760)})</span>
-            </div>
+            <div style={{ ...thBase, textAlign: 'right' }}>/ 월 <span style={{ fontWeight: 400, opacity: 0.7 }}>({fmtHours(HR_720)})</span></div>
+            <div style={{ ...thBase, textAlign: 'right' }}>/ 6개월 <span style={{ fontWeight: 400, opacity: 0.7 }}>({fmtHours(HR_4320)})</span></div>
+            <div style={{ ...thBase, textAlign: 'right' }}>/ 연간 <span style={{ fontWeight: 400, opacity: 0.7 }}>({fmtHours(HR_8760)})</span></div>
           </div>
 
           {/* 데이터 행 */}
@@ -313,42 +300,36 @@ export default function SalePriceCatalogPage() {
                     </span>
                   </div>
 
-                  {/* /1h */}
+                  {/* /1시간 or /N시간 */}
                   <div style={{ textAlign: 'right' }}>
                     {price ? (
-                      <>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gpu-accent)', fontFamily: 'monospace' }}>
-                          {currencyMode === 'KRW' ? fmtKrw(price.krw) : fmtUsd(price.usd, 2)}
-                        </div>
-                        <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>
-                          {currencyMode === 'KRW' ? fmtUsd(price.usd, 2) + '/hr' : fmtKrw(price.krw) + '/hr'}
-                        </div>
-                      </>
+                      customHours ? (
+                        <>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gpu-accent)', fontFamily: 'monospace' }}>
+                            {fmt(customHours, 0)}
+                          </div>
+                          <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>
+                            {currencyMode === 'KRW' ? fmtUsd(price.usd * customHours, 0) : fmtKrw(price.krw * customHours)}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gpu-accent)', fontFamily: 'monospace' }}>
+                            {currencyMode === 'KRW' ? fmtKrw(price.krw) : fmtUsd(price.usd, 2)}
+                          </div>
+                          <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>
+                            {currencyMode === 'KRW' ? fmtUsd(price.usd, 2) + '/hr' : fmtKrw(price.krw) + '/hr'}
+                          </div>
+                        </>
+                      )
                     ) : <span style={{ fontSize: 12, color: 'var(--gpu-muted)' }}>준비 중</span>}
                   </div>
 
-                  {/* 커스텀 시간 or /월 */}
-                  {customHours ? (
-                    <div style={{ textAlign: 'right' }}>
-                      {price ? (
-                        <>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)', fontFamily: 'monospace' }}>
-                            {fmt(customHours, 2)}
-                          </div>
-                          <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>{customHours.toLocaleString()}시간</div>
-                        </>
-                      ) : <span style={{ color: 'var(--gpu-muted)', fontSize: 12 }}>—</span>}
-                    </div>
-                  ) : (
-                    <PriceCell value={fmt(HR_720)} sub="30일 · 720h" />
-                  )}
+                  {/* /월 — 항상 표시 */}
+                  <PriceCell value={fmt(HR_720)} sub="30일 · 720h" />
 
-                  {/* /6개월 or /월 (커스텀 시 월로 대체) */}
-                  {customHours ? (
-                    <PriceCell value={fmt(HR_720)} sub="30일 · 720h" />
-                  ) : (
-                    <PriceCell value={fmt(HR_4320)} sub="180일 · 4,320h" />
-                  )}
+                  {/* /6개월 — 항상 표시 */}
+                  <PriceCell value={fmt(HR_4320)} sub="180일 · 4,320h" />
 
                   {/* /연간 */}
                   <PriceCell value={fmt(HR_8760)} sub="365일 · 8,760h" green />
