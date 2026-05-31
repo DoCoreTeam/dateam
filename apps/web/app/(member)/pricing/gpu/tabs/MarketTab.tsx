@@ -61,6 +61,7 @@ interface ProductGroup {
 interface MarketData {
   competitors: Competitor[]
   products: ProductGroup[]
+  usd_krw: number
   summary: {
     low_count: number
     mid_count: number
@@ -77,6 +78,15 @@ interface Mapping {
   pricing_model: string
   competitors: { id: string; name: string } | null
   gpu_products: { id: string; model_name: string; memory: string } | null
+}
+
+type CurrencyMode = 'KRW' | 'USD'
+
+function makeFmt(mode: CurrencyMode, usdKrw: number) {
+  return (usd: number) =>
+    mode === 'KRW'
+      ? `₩${Math.round(usd * usdKrw).toLocaleString('ko-KR')}`
+      : `$${usd.toFixed(2)}`
 }
 
 const PRICING_MODEL_LABEL: Record<string, string> = {
@@ -102,10 +112,6 @@ const COMP_GROUPS: Record<string, { label: string; types: string[] }> = {
 
 const HISTORY_MIN_SAMPLES = 5
 
-function fmtUSD(v: number) {
-  return `$${v.toFixed(2)}`
-}
-
 function FreshnessDot({ hoursAgo, maxHours = 48 }: { hoursAgo: number | null; maxHours?: number }) {
   if (hoursAgo === null) return <span style={{ color: 'var(--gpu-faint)', fontSize: 11 }}>—</span>
   const isFresh = hoursAgo <= maxHours
@@ -120,8 +126,9 @@ function FreshnessDot({ hoursAgo, maxHours = 48 }: { hoursAgo: number | null; ma
   )
 }
 
-function PositionBar({ ourPrice, marketMin, marketMax, marketMedian }: {
+function PositionBar({ ourPrice, marketMin, marketMax, marketMedian, fmt }: {
   ourPrice: number | null; marketMin: number | null; marketMax: number | null; marketMedian: number | null
+  fmt: (v: number) => string
 }) {
   if (ourPrice == null || marketMin == null || marketMax == null || marketMin === marketMax) {
     return <span style={{ fontSize: 11, color: 'var(--gpu-faint)', fontStyle: 'italic' }}>데이터 부족</span>
@@ -135,8 +142,8 @@ function PositionBar({ ourPrice, marketMin, marketMax, marketMedian }: {
   return (
     <div style={{ minWidth: 140 }}>
       <div style={{ fontSize: 10, color: 'var(--gpu-muted)', marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
-        <span style={{ fontFamily: 'monospace' }}>${marketMin.toFixed(2)}</span>
-        <span style={{ fontFamily: 'monospace' }}>${marketMax.toFixed(2)}</span>
+        <span style={{ fontFamily: 'monospace' }}>{fmt(marketMin)}</span>
+        <span style={{ fontFamily: 'monospace' }}>{fmt(marketMax)}</span>
       </div>
       <div style={{ position: 'relative', height: 6, background: 'linear-gradient(90deg,#e7f5ec 0%,#fef3e2 50%,#fdebee 100%)', borderRadius: 3 }}>
         <div style={{
@@ -152,7 +159,7 @@ function PositionBar({ ourPrice, marketMin, marketMax, marketMedian }: {
           {isLow ? '저가 ↓' : isHigh ? '고가 ↑' : '중간'}
         </span>
         {marketMedian != null && (
-          <span style={{ marginLeft: 6 }}>중앙값 <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>${marketMedian.toFixed(2)}</span></span>
+          <span style={{ marginLeft: 6 }}>중앙값 <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{fmt(marketMedian)}</span></span>
         )}
       </div>
     </div>
@@ -210,9 +217,10 @@ function judgeColor(j: string) {
 }
 
 // 분석 탭 컨텐츠
-function AnalyzePanel({ p, activeGroups, onGoToPriceTable, onOpenAI }: {
+function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI }: {
   p: ProductGroup
   activeGroups: Set<string>
+  fmt: (v: number) => string
   onGoToPriceTable?: (modelName: string, productId: string) => void
   onOpenAI?: (modelName: string, productId: string) => void
 }) {
@@ -227,7 +235,7 @@ function AnalyzePanel({ p, activeGroups, onGoToPriceTable, onOpenAI }: {
   const ourRank = p.our_price_usd != null ? allPricesWithOurs.indexOf(p.our_price_usd) + 1 : null
 
   const insight = cheaperItems.length > 0
-    ? `${cheaperItems.length}곳이 우리보다 저렴 · 최저 ${cheaperItems[0].competitor.name} ${fmtUSD(cheaperItems[0].price_usd!)} · 우리 ${ourRank}위/${allPricesWithOurs.length}곳`
+    ? `${cheaperItems.length}곳이 우리보다 저렴 · 최저 ${cheaperItems[0].competitor.name} ${fmt(cheaperItems[0].price_usd!)} · 우리 ${ourRank}위/${allPricesWithOurs.length}곳`
     : freshComps.length > 0
     ? `우리가 시장 최저가 · ${freshComps.length}곳 중 1위`
     : '신선한 시장 데이터 없음'
@@ -312,7 +320,7 @@ function AnalyzePanel({ p, activeGroups, onGoToPriceTable, onOpenAI }: {
                         {PRICING_MODEL_LABEL[x.pricing_model] ?? x.pricing_model}
                       </span>
                       <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12.5 }}>
-                        {x.price_usd != null ? `$${x.price_usd.toFixed(2)}` : '—'}
+                        {x.price_usd != null ? fmt(x.price_usd) : '—'}
                       </span>
                       {vsTxt && (
                         <span style={{ fontSize: 10, fontWeight: 700, color: vsCls, fontFamily: 'monospace' }}>
@@ -350,7 +358,7 @@ function AnalyzePanel({ p, activeGroups, onGoToPriceTable, onOpenAI }: {
 }
 
 // 전략 탭 컨텐츠
-function StrategyPanel({ p }: { p: ProductGroup }) {
+function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string }) {
   const [edgePct, setEdgePct] = useState(p.strategy.edge_pct_normal)
   const [marginPct, setMarginPct] = useState(p.strategy.margin_pct)
   const [selectedScenario, setSelectedScenario] = useState<string>('normal')
@@ -419,7 +427,7 @@ function StrategyPanel({ p }: { p: ProductGroup }) {
             border: '1.5px solid #ddd9fb', borderRadius: 10,
           }}>
             <div style={{ fontSize: 10, color: 'var(--gpu-muted)', fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>현재 시장 최저가</div>
-            <div style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, color: 'var(--gpu-accent)' }}>{fmtUSD(market_min)}</div>
+            <div style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, color: 'var(--gpu-accent)' }}>{fmt(market_min)}</div>
             <div style={{ fontSize: 10, color: 'var(--gpu-muted)', marginTop: 3 }}>경쟁사 최저</div>
           </div>
           <div style={{ color: 'var(--gpu-muted)', fontSize: 18, fontWeight: 700 }}>→</div>
@@ -430,7 +438,7 @@ function StrategyPanel({ p }: { p: ProductGroup }) {
             border: '1.5px solid #cfe7d8', borderRadius: 10,
           }}>
             <div style={{ fontSize: 10, color: 'var(--gpu-muted)', fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>목표 1등 판매가</div>
-            <div style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, color: 'var(--gpu-green)' }}>{fmtUSD(normalScn.targetSellUsd)}</div>
+            <div style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, color: 'var(--gpu-green)' }}>{fmt(normalScn.targetSellUsd)}</div>
             <div style={{ fontSize: 10, color: 'var(--gpu-muted)', marginTop: 3 }}>시장 최저 −{edgePct}%</div>
           </div>
           <div style={{ color: 'var(--gpu-muted)', fontSize: 18, fontWeight: 700 }}>←</div>
@@ -441,7 +449,7 @@ function StrategyPanel({ p }: { p: ProductGroup }) {
             border: `1.5px solid ${isGapOk ? '#cfe7d8' : '#f5d2a0'}`, borderRadius: 10,
           }}>
             <div style={{ fontSize: 10, color: 'var(--gpu-muted)', fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>필요 공급가</div>
-            <div style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, color: isGapOk ? 'var(--gpu-green)' : 'var(--gpu-amber)' }}>{fmtUSD(normalScn.requiredSupplyUsd)}</div>
+            <div style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, color: isGapOk ? 'var(--gpu-green)' : 'var(--gpu-amber)' }}>{fmt(normalScn.requiredSupplyUsd)}</div>
             <div style={{ fontSize: 10, color: 'var(--gpu-muted)', marginTop: 3 }}>÷ (1 + 마진 {marginPct}%)</div>
           </div>
         </div>
@@ -454,17 +462,17 @@ function StrategyPanel({ p }: { p: ProductGroup }) {
         }}>
           <span style={{ fontSize: 16 }}>{isGapOk ? '✓' : '⚠'}</span>
           <div style={{ flex: 1 }}>
-            현재 공급가 <strong style={{ fontFamily: 'monospace' }}>{fmtUSD(current_supply_usd)}</strong>
-            {' · '}1등 위해 필요한 공급가 <strong style={{ fontFamily: 'monospace' }}>{fmtUSD(normalScn.requiredSupplyUsd)}</strong>
+            현재 공급가 <strong style={{ fontFamily: 'monospace' }}>{fmt(current_supply_usd)}</strong>
+            {' · '}1등 위해 필요한 공급가 <strong style={{ fontFamily: 'monospace' }}>{fmt(normalScn.requiredSupplyUsd)}</strong>
             <br />
             <span style={{ fontSize: 11, color: isGapOk ? 'var(--gpu-green)' : 'var(--gpu-amber)' }}>
               {isGapOk
                 ? '→ 이미 1등 가능한 공급가 보유. 현 마진 유지'
-                : `→ 공급가를 ${fmtUSD(gapAmount)} (${gapPct.toFixed(1)}%) 더 낮춰야 1등 가능`}
+                : `→ 공급가를 ${fmt(gapAmount)} (${gapPct.toFixed(1)}%) 더 낮춰야 1등 가능`}
             </span>
           </div>
           <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 14, color: isGapOk ? 'var(--gpu-green)' : 'var(--gpu-amber)' }}>
-            {isGapOk ? '+' : '−'}{fmtUSD(Math.abs(gapAmount))}
+            {isGapOk ? '+' : '−'}{fmt(Math.abs(gapAmount))}
           </div>
         </div>
       </div>
@@ -543,10 +551,10 @@ function StrategyPanel({ p }: { p: ProductGroup }) {
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--gpu-muted)', marginBottom: 5 }}>우위 마진 <strong>−{s.edgePct}%</strong> · gcube 마진 <strong>{s.marginPct}%</strong></div>
                 <div style={{ fontSize: 11, color: 'var(--gpu-ink-2)', marginBottom: 4 }}>
-                  판매가 <strong style={{ fontFamily: 'monospace' }}>{fmtUSD(s.targetSellUsd)}</strong>
+                  판매가 <strong style={{ fontFamily: 'monospace' }}>{fmt(s.targetSellUsd)}</strong>
                 </div>
                 <div style={{ fontSize: 11, marginBottom: 6 }}>
-                  필요 공급가 <strong style={{ fontFamily: 'monospace', fontSize: 13, color: jc.color }}>{fmtUSD(s.requiredSupplyUsd)}</strong>
+                  필요 공급가 <strong style={{ fontFamily: 'monospace', fontSize: 13, color: jc.color }}>{fmt(s.requiredSupplyUsd)}</strong>
                 </div>
                 <div style={{
                   fontSize: 10, fontWeight: 600, fontFamily: 'monospace',
@@ -556,7 +564,7 @@ function StrategyPanel({ p }: { p: ProductGroup }) {
                 </div>
                 <div style={{ fontSize: 9.5, color: 'var(--gpu-faint)', marginTop: 5, borderTop: '1px solid #f1f2f6', paddingTop: 5 }}>
                   {s.basis === 'history' && supply_history
-                    ? `이력 ${supply_history.sample_count}건 기반 (${fmtUSD(supply_history.min_usd)}~${fmtUSD(supply_history.max_usd)})`
+                    ? `이력 ${supply_history.sample_count}건 기반 (${fmt(supply_history.min_usd)}~${fmt(supply_history.max_usd)})`
                     : `비율 폴백 (인하 폭 ${Math.abs(s.supplyChangePct).toFixed(0)}%)`}
                 </div>
               </div>
@@ -572,7 +580,7 @@ function StrategyPanel({ p }: { p: ProductGroup }) {
       }}>
         <strong>판정 근거</strong>{' '}
         {useHistory && supply_history ? (
-          <>자체 거래 이력 <strong>{supply_history.sample_count}건</strong> · {fmtUSD(supply_history.min_usd)} ~ {fmtUSD(supply_history.max_usd)} (p25 {fmtUSD(supply_history.p25_usd)} / 중앙 {fmtUSD(supply_history.median_usd)})</>
+          <>자체 거래 이력 <strong>{supply_history.sample_count}건</strong> · {fmt(supply_history.min_usd)} ~ {fmt(supply_history.max_usd)} (p25 {fmt(supply_history.p25_usd)} / 중앙 {fmt(supply_history.median_usd)})</>
         ) : (
           <>자체 이력 부족 ({supply_history?.sample_count ?? 0}건 {'<'} 임계 {HISTORY_MIN_SAMPLES}건) — 단순 비율 기반 판정</>
         )}
@@ -779,12 +787,16 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
   const { data, isLoading, mutate } = useSWR<MarketData>('/api/pricing/gpu/market', fetcher, {
     refreshInterval: 0,
   })
+  const [currencyMode, setCurrencyMode] = useState<CurrencyMode>('KRW')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [expandedTab, setExpandedTab] = useState<Record<string, 'analyze' | 'strategy'>>({})
   const [activeComps, setActiveComps] = useState<Set<string>>(new Set())
   const [activeGroups, setActiveGroups] = useState<Set<string>>(new Set(Object.keys(COMP_GROUPS)))
   const [refreshing, setRefreshing] = useState(false)
   const [showRegister, setShowRegister] = useState(false)
+
+  const usdKrw = data?.usd_krw ?? 1400
+  const fmt = makeFmt(currencyMode, usdKrw)
 
   const { data: mappingsData } = useSWR<{ mappings: Mapping[] }>('/api/pricing/gpu/market/mappings', fetcher)
 
@@ -852,6 +864,13 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
           <span style={{ color: 'var(--gpu-muted)' }}>수집 가격은 내부 의사결정용 — 외부 자료에 직접 인용 금지</span>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="gpu-fx-pill" title="현재 적용 환율" style={{ fontSize: 11 }}>
+            1 USD = <span className="gpu-mono">{Math.round(usdKrw).toLocaleString('ko-KR')}원</span>
+          </div>
+          <div className="gpu-seg">
+            <button className={currencyMode === 'KRW' ? 'on' : ''} onClick={() => setCurrencyMode('KRW')}>₩ 원</button>
+            <button className={currencyMode === 'USD' ? 'on' : ''} onClick={() => setCurrencyMode('USD')}>$ 달러</button>
+          </div>
           <button
             className="gpu-btn"
             style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'var(--gpu-accent)', color: '#fff', border: 'none', fontWeight: 600 }}
@@ -1023,7 +1042,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                     <div>
                       {p.our_price_usd != null ? (
                         <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 14, color: 'var(--gpu-accent)' }}>
-                          ${p.our_price_usd.toFixed(2)}<span style={{ fontSize: 10, color: 'var(--gpu-muted)', fontWeight: 400 }}>/hr</span>
+                          {fmt(p.our_price_usd)}<span style={{ fontSize: 10, color: 'var(--gpu-muted)', fontWeight: 400 }}>/hr</span>
                         </span>
                       ) : (
                         <span style={{ fontSize: 11, color: 'var(--gpu-faint)' }}>공급가 없음</span>
@@ -1034,7 +1053,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                       {min != null && max != null ? (
                         <div>
                           <div style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12.5 }}>
-                            ${min.toFixed(2)} ~ ${max.toFixed(2)}
+                            {fmt(min)} ~ {fmt(max)}
                           </div>
                           <div style={{ fontSize: 10.5, color: 'var(--gpu-muted)', marginTop: 2 }}>
                             {freshComps.length}개 경쟁사 (신선)
@@ -1050,6 +1069,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                       marketMin={p.market_min}
                       marketMax={p.market_max}
                       marketMedian={p.market_median}
+                      fmt={fmt}
                     />
 
                     <div style={{ color: 'var(--gpu-faint)', transition: '.2s', transform: isOpen ? 'rotate(180deg)' : 'none', display: 'flex', justifyContent: 'center' }}>
@@ -1108,10 +1128,10 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                       {/* 탭 패널 */}
                       <div style={{ padding: '14px 18px 18px' }}>
                         {currentTab === 'analyze' && (
-                          <AnalyzePanel p={p} activeGroups={activeGroups} onGoToPriceTable={(name, id) => onGoToPriceTable?.(name, id)} onOpenAI={(name, id) => onOpenAI?.(name, id)} />
+                          <AnalyzePanel p={p} activeGroups={activeGroups} onGoToPriceTable={(name, id) => onGoToPriceTable?.(name, id)} onOpenAI={(name, id) => onOpenAI?.(name, id)} fmt={fmt} />
                         )}
                         {currentTab === 'strategy' && (
-                          <StrategyPanel p={p} />
+                          <StrategyPanel p={p} fmt={fmt} />
                         )}
                       </div>
                     </div>

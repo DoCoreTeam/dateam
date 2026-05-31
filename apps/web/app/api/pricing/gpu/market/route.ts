@@ -9,6 +9,15 @@ export async function GET() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any
 
+    // 환율
+    const { data: fxData } = await db
+      .from('fx_rates')
+      .select('usd_krw')
+      .order('rate_date', { ascending: false })
+      .limit(1)
+      .single()
+    const usdKrw: number = fxData?.usd_krw ?? 1400
+
     // 경쟁사 목록
     const { data: competitors, error: compErr } = await db
       .from('competitors')
@@ -216,6 +225,7 @@ export async function GET() {
     return NextResponse.json({
       competitors: competitors ?? [],
       products,
+      usd_krw: usdKrw,
       summary: {
         low_count: lowCount,
         mid_count: midCount,
