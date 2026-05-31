@@ -170,10 +170,55 @@ function CompanyCard(props: CardProps) {
   )
 }
 
+function InlineMember({
+  person, dark, onEdit, onDelete,
+}: {
+  person: OrgNodeWithChildren
+  dark: boolean
+  onEdit: (n: OrgNode) => void
+  onDelete: (n: OrgNode) => void
+}) {
+  const stop = (e: React.PointerEvent) => e.stopPropagation()
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: '0.4rem',
+      marginTop: '0.35rem',
+      padding: '0.25rem 0.35rem',
+      borderRadius: '0.4rem',
+      background: dark ? 'rgba(255,255,255,0.08)' : '#f8fafc',
+    }}>
+      <div style={{
+        width: '1.5rem', height: '1.5rem', borderRadius: '50%', flexShrink: 0,
+        background: dark ? 'rgba(255,255,255,0.2)' : 'linear-gradient(135deg,#6366f1,#818cf8)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: '0.65rem', fontWeight: 700, color: '#fff',
+      }}>
+        {person.name.charAt(0)}
+      </div>
+      <span style={{ fontSize: '0.72rem', color: dark ? 'rgba(255,255,255,0.85)' : '#334155', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {person.name}
+        {person.subtitle && <span style={{ opacity: 0.65 }}> · {person.subtitle}</span>}
+      </span>
+      <button
+        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', borderRadius: '3px', display: 'flex', alignItems: 'center', color: dark ? 'rgba(255,255,255,0.6)' : '#94a3b8', flexShrink: 0 }}
+        onPointerDown={stop} onClick={() => onEdit(person)} title="수정"
+      >
+        <Pencil size={11} />
+      </button>
+      <button
+        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', borderRadius: '3px', display: 'flex', alignItems: 'center', color: dark ? 'rgba(255,150,150,0.8)' : '#ef4444', flexShrink: 0 }}
+        onPointerDown={stop} onClick={() => onDelete(person)} title="삭제"
+      >
+        <Trash2 size={11} />
+      </button>
+    </div>
+  )
+}
+
 function RoleCard(props: CardProps) {
-  const { node, headName } = props
+  const { node } = props
   const c = TYPE_COLORS.role
-  const personChild = props.node.children.find(ch => ch.type === 'person')
+  const personChildren = node.children.filter(ch => ch.type === 'person')
   return (
     <DragDropWrapper node={node} activeId={props.activeId}>
       <div style={{ padding: '0.75rem 1rem 0.75rem 1.5rem' }}>
@@ -181,21 +226,9 @@ function RoleCard(props: CardProps) {
           <Crown size={14} color={c.badge} />
           <span style={{ fontSize: '0.875rem', fontWeight: 700, color: c.text }}>{node.name}</span>
         </div>
-        {personChild && (
-          <div style={{ marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <div style={{
-              width: '1.5rem', height: '1.5rem', borderRadius: '50%',
-              background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', fontSize: '0.65rem', fontWeight: 700, color: '#fff',
-            }}>
-              {personChild.name.charAt(0)}
-            </div>
-            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.85)' }}>
-              {personChild.name}
-              {personChild.subtitle && <span style={{ opacity: 0.7 }}> · {personChild.subtitle}</span>}
-            </span>
-          </div>
-        )}
+        {personChildren.map(p => (
+          <InlineMember key={p.id} person={p} dark onEdit={props.onEdit} onDelete={props.onDelete} />
+        ))}
         <ActionBar {...props} />
       </div>
     </DragDropWrapper>
@@ -205,16 +238,16 @@ function RoleCard(props: CardProps) {
 function DeptCard(props: CardProps) {
   const { node, headName } = props
   const c = TYPE_COLORS.department
-  const personCount = node.children.filter(ch => ch.type === 'person').length
+  const personChildren = node.children.filter(ch => ch.type === 'person')
   return (
     <DragDropWrapper node={node} activeId={props.activeId}>
       <div style={{ padding: '0.75rem 1rem 0.75rem 1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Users size={14} color={c.badge} />
           <span style={{ fontSize: '0.875rem', fontWeight: 700, color: c.text, flex: 1 }}>{node.name}</span>
-          {personCount > 0 && (
+          {personChildren.length > 0 && (
             <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: '999px', padding: '1px 7px', flexShrink: 0 }}>
-              {personCount}명
+              {personChildren.length}명
             </span>
           )}
         </div>
@@ -235,19 +268,19 @@ function PersonCard(props: CardProps) {
   const { node } = props
   return (
     <DragDropWrapper node={node} activeId={props.activeId} droppable={false}>
-      <div style={{ padding: '0.65rem 0.875rem 0.65rem 1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div style={{ padding: '0.35rem 0.75rem 0.35rem 1.4rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
           <div style={{
-            width: '2rem', height: '2rem', borderRadius: '50%',
+            width: '1.6rem', height: '1.6rem', borderRadius: '50%',
             background: 'linear-gradient(135deg,#6366f1,#818cf8)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '0.75rem', fontWeight: 700, color: '#fff', flexShrink: 0,
+            fontSize: '0.68rem', fontWeight: 700, color: '#fff', flexShrink: 0,
           }}>
-            {node.name.charAt(0) || <User size={12} />}
+            {node.name.charAt(0) || <User size={11} />}
           </div>
           <div>
-            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#1e293b' }}>{node.name}</div>
-            {node.subtitle && <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{node.subtitle}</div>}
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e293b' }}>{node.name}</div>
+            {node.subtitle && <div style={{ fontSize: '0.68rem', color: '#64748b' }}>{node.subtitle}</div>}
           </div>
         </div>
         <ActionBar {...props} showAdd={false} />

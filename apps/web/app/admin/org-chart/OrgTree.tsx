@@ -98,10 +98,15 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
         onReorder={handleReorder}
       />
     )
-    if (node.children.length === 0) return <TreeNode key={node.id} label={card} />
+    // role: persons shown inline in card — exclude from tree; department: persons shown as tree nodes
+    const treeChildren = node.type === 'role'
+      ? node.children.filter(ch => ch.type !== 'person')
+      : node.children
+
+    if (treeChildren.length === 0) return <TreeNode key={node.id} label={card} />
     return (
       <TreeNode key={node.id} label={card}>
-        {node.children.map(child => renderNode(child))}
+        {treeChildren.map(child => renderNode(child))}
       </TreeNode>
     )
   }
