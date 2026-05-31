@@ -803,6 +803,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
   const [activeGroups, setActiveGroups] = useState<Set<string>>(new Set(Object.keys(COMP_GROUPS)))
   const [refreshing, setRefreshing] = useState(false)
   const [showRegister, setShowRegister] = useState(false)
+  const [showCompModal, setShowCompModal] = useState(false)
 
   const usdKrw = data?.usd_krw ?? 1400
   const fmt = makeFmt(currencyMode, usdKrw)
@@ -933,7 +934,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
         </div>
       )}
 
-      {/* 그룹 토글 */}
+      {/* 그룹 + 경쟁사 필터 */}
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: 6, padding: '10px 14px',
         background: '#fff', border: '1px solid var(--gpu-border)', borderRadius: 11, alignItems: 'center',
@@ -956,23 +957,144 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
         <div style={{ width: 1, height: 16, background: 'var(--gpu-border)', margin: '0 4px' }} />
         <span style={{ fontSize: 10.5, color: 'var(--gpu-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginRight: 2 }}>경쟁사:</span>
         <button
-          className={`gpu-comp-chip${activeComps.size === 0 ? ' active' : ''}`}
-          onClick={() => setActiveComps(new Set())}
+          onClick={() => setShowCompModal(true)}
+          style={{
+            padding: '4px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+            display: 'flex', alignItems: 'center', gap: 6, transition: '.12s',
+            border: activeComps.size > 0 ? '1px solid var(--gpu-accent)' : '1px solid var(--gpu-border)',
+            background: activeComps.size > 0 ? 'var(--gpu-accent-bg)' : '#fff',
+            color: activeComps.size > 0 ? 'var(--gpu-accent)' : 'var(--gpu-muted)',
+          }}
         >
-          전체
+          {activeComps.size > 0 ? (
+            <>
+              {Array.from(activeComps).slice(0, 3).map(id => {
+                const c = competitors.find(x => x.id === id)
+                return c ? <span key={id} style={{ width: 7, height: 7, borderRadius: '50%', background: c.color, display: 'inline-block' }} /> : null
+              })}
+              {activeComps.size > 3 && <span style={{ fontSize: 10 }}>+{activeComps.size - 3}</span>}
+              {activeComps.size}개 선택
+            </>
+          ) : '전체 ▾'}
         </button>
-        {competitors.map(c => (
+        {activeComps.size > 0 && (
           <button
-            key={c.id}
-            className={`gpu-comp-chip${activeComps.has(c.id) ? ' active' : ''}`}
-            onClick={() => toggleComp(c.id)}
-            style={activeComps.has(c.id) ? { borderColor: c.color, color: c.color, background: `${c.color}15` } : {}}
+            onClick={() => setActiveComps(new Set())}
+            style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--gpu-border)', background: '#fff', color: 'var(--gpu-muted)', fontSize: 11, cursor: 'pointer' }}
           >
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: c.color, display: 'inline-block' }} />
-            {c.name}
+            초기화
           </button>
-        ))}
+        )}
       </div>
+
+      {/* 경쟁사 선택 모달 */}
+      {showCompModal && (
+        <div
+          onClick={() => setShowCompModal(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#fff', borderRadius: 14, padding: '20px 24px', width: 400, maxWidth: '90vw',
+              boxShadow: '0 12px 40px rgba(0,0,0,0.18)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--gpu-ink)' }}>경쟁사 선택</span>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {activeComps.size > 0 && (
+                  <button
+                    onClick={() => setActiveComps(new Set())}
+                    style={{ fontSize: 11, color: 'var(--gpu-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    전체 해제
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowCompModal(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--gpu-muted)', display: 'flex' }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {Object.entries(COMP_GROUPS).map(([groupKey, group]) => {
+                const groupComps = competitors.filter(c => group.types.includes(c.type))
+                if (groupComps.length === 0) return null
+                return (
+                  <div key={groupKey}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--gpu-muted)', textTransform: 'uppercase', letterSpacing: '.06em', padding: '8px 4px 4px' }}>
+                      {group.label}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {groupComps.map(c => (
+                        <button
+                          key={c.id}
+                          onClick={() => toggleComp(c.id)}
+                          style={{
+                            padding: '5px 12px', borderRadius: 7, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', transition: '.12s',
+                            border: activeComps.has(c.id) ? `1.5px solid ${c.color}` : '1px solid var(--gpu-border)',
+                            background: activeComps.has(c.id) ? `${c.color}18` : '#fafafa',
+                            color: activeComps.has(c.id) ? c.color : 'var(--gpu-ink)',
+                            display: 'flex', alignItems: 'center', gap: 6,
+                          }}
+                        >
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: c.color, display: 'inline-block', flexShrink: 0 }} />
+                          {c.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+              {/* 그룹 미분류 경쟁사 */}
+              {(() => {
+                const ungrouped = competitors.filter(c =>
+                  !Object.values(COMP_GROUPS).some(g => g.types.includes(c.type))
+                )
+                if (ungrouped.length === 0) return null
+                return (
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--gpu-muted)', textTransform: 'uppercase', letterSpacing: '.06em', padding: '8px 4px 4px' }}>기타</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {ungrouped.map(c => (
+                        <button
+                          key={c.id}
+                          onClick={() => toggleComp(c.id)}
+                          style={{
+                            padding: '5px 12px', borderRadius: 7, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', transition: '.12s',
+                            border: activeComps.has(c.id) ? `1.5px solid ${c.color}` : '1px solid var(--gpu-border)',
+                            background: activeComps.has(c.id) ? `${c.color}18` : '#fafafa',
+                            color: activeComps.has(c.id) ? c.color : 'var(--gpu-ink)',
+                            display: 'flex', alignItems: 'center', gap: 6,
+                          }}
+                        >
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: c.color, display: 'inline-block', flexShrink: 0 }} />
+                          {c.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+            <button
+              onClick={() => setShowCompModal(false)}
+              style={{
+                marginTop: 18, width: '100%', padding: '10px', borderRadius: 8,
+                background: 'var(--gpu-accent)', color: '#fff', border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+              }}
+            >
+              확인 {activeComps.size > 0 ? `(${activeComps.size}개 선택됨)` : '(전체)'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 모델별 시장 포지셔닝 매트릭스 */}
       <div>
