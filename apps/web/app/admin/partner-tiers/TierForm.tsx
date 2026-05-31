@@ -28,10 +28,11 @@ export default function TierForm({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    const form = e.currentTarget
     setPending(true)
     setError(null)
 
-    const formData = new FormData(e.currentTarget)
+    const formData = new FormData(form)
     const result = mode === 'create'
       ? await createTier(formData)
       : await updateTier(tierId!, formData)
@@ -39,7 +40,7 @@ export default function TierForm({
     if (result.error) {
       setError(result.error)
     } else if (mode === 'create') {
-      (e.currentTarget as HTMLFormElement).reset()
+      form.reset()
     } else if (onCancel) {
       onCancel()
     }
