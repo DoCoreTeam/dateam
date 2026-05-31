@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { KeyRound, LogOut, ChevronUp, LayoutDashboard } from 'lucide-react'
+import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2 } from 'lucide-react'
 
 interface SidebarProfileProps {
   name: string
@@ -108,6 +108,25 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
           >
             <KeyRound size={14} />
             비밀번호 변경
+          </Link>
+          <Link
+            href="/api-keys"
+            onClick={() => setOpen(false)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.625rem',
+              padding: '0.75rem 1rem',
+              fontSize: '0.8125rem',
+              color: '#cbd5e1',
+              textDecoration: 'none',
+              transition: 'background 120ms',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            <Code2 size={14} />
+            API Keys
           </Link>
           <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '0 0.75rem' }} />
           <button
