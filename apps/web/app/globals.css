@@ -2575,6 +2575,27 @@
   .gpu-banner-sub {
     display: none;
   }
+  /* 모바일: 버튼 텍스트 숨기고 아이콘만 표시 */
+  .gpu-btn-text-mob {
+    display: none;
+  }
+  /* 통계 카드 하위 텍스트 숨김 */
+  .gpu-stat-sub {
+    display: none;
+  }
+  /* 마켓 테이블 컬럼 축소: GPU모델 + 내가격 + 화살표만 */
+  .gpu-market-grid {
+    grid-template-columns: 1.6fr 1fr 28px !important;
+    gap: 8px !important;
+    padding: 10px 12px !important;
+  }
+  .gpu-market-col-hide {
+    display: none !important;
+  }
+  /* 그룹 필터 레이블 */
+  .gpu-filter-label-mob {
+    display: none;
+  }
 }
 
 /* stats */

@@ -103,11 +103,11 @@ const TIER_CONFIG: Record<number, { label: string; name: string; badge: string; 
   3: { label: 'Tier 3', name: '간헐 공급',   badge: 'gpu-badge-t3', chipColor: '#b45309' },
 }
 
-const COMP_GROUPS: Record<string, { label: string; types: string[] }> = {
-  hyperscaler: { label: '하이퍼스케일러', types: ['hyperscaler'] },
-  specialist: { label: '전용 서비스', types: ['specialist'] },
-  marketplace: { label: '마켓플레이스', types: ['marketplace'] },
-  domestic: { label: '국내', types: ['domestic'] },
+const COMP_GROUPS: Record<string, { label: string; short: string; types: string[] }> = {
+  hyperscaler: { label: '하이퍼스케일러', short: '하이퍼', types: ['hyperscaler'] },
+  specialist: { label: '전용 서비스', short: '전용', types: ['specialist'] },
+  marketplace: { label: '마켓플레이스', short: '마켓', types: ['marketplace'] },
+  domestic: { label: '국내', short: '국내', types: ['domestic'] },
 }
 
 const HISTORY_MIN_SAMPLES = 5
@@ -883,19 +883,22 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
           </div>
           <button
             className="gpu-btn"
+            title="가격 등록"
             style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'var(--gpu-accent)', color: '#fff', border: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
             onClick={() => setShowRegister(true)}
           >
-            <Plus size={13} /> 가격 등록
+            <Plus size={13} />
+            <span className="gpu-btn-text-mob">가격 등록</span>
           </button>
           <button
             className="gpu-btn"
+            title="새로고침"
             style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}
             onClick={handleRefresh}
             disabled={refreshing}
           >
             <RefreshCw size={12} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }} />
-            새로고침
+            <span className="gpu-btn-text-mob">새로고침</span>
           </button>
         </div>
       </div>
@@ -939,7 +942,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
         display: 'flex', flexWrap: 'wrap', gap: 6, padding: '10px 14px',
         background: '#fff', border: '1px solid var(--gpu-border)', borderRadius: 11, alignItems: 'center',
       }}>
-        <span style={{ fontSize: 10.5, color: 'var(--gpu-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginRight: 2 }}>그룹:</span>
+        <span className="gpu-filter-label-mob" style={{ fontSize: 10.5, color: 'var(--gpu-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginRight: 2 }}>그룹:</span>
         {Object.entries(COMP_GROUPS).map(([key, group]) => (
           <button
             key={key}
@@ -951,11 +954,12 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
               fontSize: 11.5, fontWeight: 600, cursor: 'pointer', transition: '.12s',
             }}
           >
-            {group.label}
+            <span className="desktop-only">{group.label}</span>
+            <span className="mobile-only">{group.short}</span>
           </button>
         ))}
         <div style={{ width: 1, height: 16, background: 'var(--gpu-border)', margin: '0 4px' }} />
-        <span style={{ fontSize: 10.5, color: 'var(--gpu-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginRight: 2 }}>경쟁사:</span>
+        <span className="gpu-filter-label-mob" style={{ fontSize: 10.5, color: 'var(--gpu-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginRight: 2 }}>경쟁사:</span>
         <button
           onClick={() => setShowCompModal(true)}
           style={{
@@ -1105,17 +1109,17 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
 
         <div className="gpu-panel" style={{ overflow: 'hidden' }}>
           {/* 헤더 */}
-          <div style={{
+          <div className="gpu-market-grid" style={{
             display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1.5fr 36px',
             gap: 14, padding: '10px 18px',
             background: '#fafbfc', borderBottom: '1px solid var(--gpu-border)',
             fontSize: 10.5, color: 'var(--gpu-muted)', fontWeight: 600,
             textTransform: 'uppercase', letterSpacing: '.04em',
           }}>
-            <div>GPU 모델 / Tier</div>
-            <div>gcube 판매가</div>
-            <div>시장 범위 (USD/hr)</div>
-            <div>가격 포지셔닝</div>
+            <div>GPU 모델</div>
+            <div>내 가격</div>
+            <div className="gpu-market-col-hide">시장 범위</div>
+            <div className="gpu-market-col-hide">포지셔닝</div>
             <div />
           </div>
 
@@ -1146,6 +1150,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                   {/* 메인 행 */}
                   <div
                     onClick={() => setExpandedId(isOpen ? null : pid)}
+                    className="gpu-market-grid"
                     style={{
                       display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1.5fr 36px',
                       gap: 14, padding: '14px 18px', alignItems: 'center',
@@ -1185,28 +1190,30 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                       )}
                     </div>
 
-                    <div>
+                    <div className="gpu-market-col-hide">
                       {min != null && max != null ? (
                         <div>
                           <div style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12.5 }}>
                             {fmt(min)} ~ {fmt(max)}
                           </div>
                           <div style={{ fontSize: 10.5, color: 'var(--gpu-muted)', marginTop: 2 }}>
-                            {freshComps.length}개 경쟁사 (신선)
+                            {freshComps.length}개 경쟁사
                           </div>
                         </div>
                       ) : (
-                        <span style={{ fontSize: 11, color: 'var(--gpu-faint)', fontStyle: 'italic' }}>데이터 없음</span>
+                        <span style={{ fontSize: 11, color: 'var(--gpu-faint)', fontStyle: 'italic' }}>—</span>
                       )}
                     </div>
 
-                    <PositionBar
-                      ourPrice={p.our_price_usd}
-                      marketMin={p.market_min}
-                      marketMax={p.market_max}
-                      marketMedian={p.market_median}
-                      fmt={fmt}
-                    />
+                    <div className="gpu-market-col-hide">
+                      <PositionBar
+                        ourPrice={p.our_price_usd}
+                        marketMin={p.market_min}
+                        marketMax={p.market_max}
+                        marketMedian={p.market_median}
+                        fmt={fmt}
+                      />
+                    </div>
 
                     <div style={{ color: 'var(--gpu-faint)', transition: '.2s', transform: isOpen ? 'rotate(180deg)' : 'none', display: 'flex', justifyContent: 'center' }}>
                       ▼
@@ -1234,7 +1241,8 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                           }}
                         >
                           <BarChart2 size={13} />
-                          시장 위치 분석
+                          <span className="desktop-only">시장 위치 분석</span>
+                          <span className="mobile-only">분석</span>
                         </button>
                         <button
                           onClick={e => { e.stopPropagation(); setExpandedTab(prev => ({ ...prev, [pid]: 'strategy' })) }}
@@ -1248,7 +1256,8 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                           }}
                         >
                           <Target size={13} />
-                          1등 전략
+                          <span className="desktop-only">1등 전략</span>
+                          <span className="mobile-only">전략</span>
                           {hasStrategy && (() => {
                             const scn = computeScenarios(p)
                             const recommended = scn?.find(s => s.judge === 'ok') || scn?.find(s => s.judge === 'warn') || scn?.[0]
