@@ -408,9 +408,6 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
           </div>
           {marginSaving && <span style={{ fontSize: '11px', color: 'var(--gpu-muted)' }}>저장 중…</span>}
         </div>
-        <div className="gpu-mb-note">
-          <Info size={12} /> 전 모델 일괄 적용 · 변경 즉시 판매가 컬럼에 반영 · 모델별 개별 마진 재설정은 다음 버전 예정
-        </div>
       </div>
 
       {/* Tier 범례 */}

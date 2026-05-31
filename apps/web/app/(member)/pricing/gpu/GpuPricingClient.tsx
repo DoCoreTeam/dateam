@@ -116,8 +116,8 @@ export default function GpuPricingClient() {
         </div>
       </div>
 
-      {/* 메인 탭 */}
-      <div className="gpu-tabs" style={{ display: 'flex', alignItems: 'center' }}>
+      {/* 메인 탭 + 더보기 인라인 */}
+      <div className="gpu-tabs" style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--gpu-border)', paddingBottom: 0 }}>
         {MAIN_TABS.map((tab) => (
           <button
             key={tab.id}
@@ -128,54 +128,31 @@ export default function GpuPricingClient() {
             {tab.label}
           </button>
         ))}
-        {activeTab === 'board' && (
-          <div style={{ marginLeft: 'auto', paddingRight: 4 }}>
-            <button
-              data-testid="ai-panel-toggle"
-              className={`gpu-ai-toggle${showAiPanel ? ' gpu-ai-toggle--on' : ''}`}
-              onClick={() => setShowAiPanel((v) => !v)}
-              title="AI 조회 패널 토글"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-              AI 조회
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* 보조 기능 nav */}
-      <div style={{
-        display: 'flex',
-        gap: 4,
-        padding: '4px 0 6px',
-        borderBottom: '1px solid var(--gpu-border)',
-        alignItems: 'center',
-      }}>
-        <span style={{ fontSize: 11, color: 'var(--gpu-muted)', marginRight: 4, paddingLeft: 2 }}>더보기:</span>
+        <div style={{ width: 1, height: 16, background: 'var(--gpu-border)', margin: '0 6px', flexShrink: 0 }} />
         {[
           {
             id: 'review' as SecondaryTabId,
             label: '검토 대기',
             badge: pendingCount,
-            icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>,
+            icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>,
           },
           {
             id: 'suppliers' as SecondaryTabId,
             label: '공급사',
             badge: 0,
-            icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>,
+            icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>,
           },
           {
             id: 'log' as SecondaryTabId,
             label: '변동 이력',
             badge: 0,
-            icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>,
+            icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>,
           },
           {
             id: 'intake' as SecondaryTabId,
             label: '통합 입력',
             badge: 0,
-            icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>,
+            icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>,
           },
         ].map((item) => (
           <button
@@ -184,8 +161,8 @@ export default function GpuPricingClient() {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 4,
-              padding: '3px 10px',
+              gap: 3,
+              padding: '3px 8px',
               borderRadius: 5,
               border: '1px solid',
               borderColor: activeTab === item.id ? 'var(--gpu-accent)' : 'var(--gpu-border)',
@@ -195,6 +172,7 @@ export default function GpuPricingClient() {
               fontWeight: activeTab === item.id ? 600 : 400,
               cursor: 'pointer',
               transition: 'all 0.15s',
+              marginRight: 3,
             }}
           >
             {item.icon}
@@ -212,6 +190,19 @@ export default function GpuPricingClient() {
             )}
           </button>
         ))}
+        {activeTab === 'board' && (
+          <div style={{ marginLeft: 'auto', paddingRight: 4, flexShrink: 0 }}>
+            <button
+              data-testid="ai-panel-toggle"
+              className={`gpu-ai-toggle${showAiPanel ? ' gpu-ai-toggle--on' : ''}`}
+              onClick={() => setShowAiPanel((v) => !v)}
+              title="AI 조회 패널 토글"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+              AI 조회
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 탭 컨텐츠 */}
@@ -258,21 +249,27 @@ export default function GpuPricingClient() {
           </div>
         )}
         {activeTab === 'market' && (
-          <MarketTab
-            onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board') }}
-            onOpenAI={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board'); setShowAiPanel(true) }}
-          />
+          <div style={{ height: '100%', overflow: 'hidden' }}>
+            <MarketTab
+              onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board') }}
+              onOpenAI={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board'); setShowAiPanel(true) }}
+            />
+          </div>
         )}
-        {activeTab === 'inventory' && <InventoryTab />}
+        {activeTab === 'inventory' && (
+          <div style={{ height: '100%', overflow: 'hidden' }}>
+            <InventoryTab />
+          </div>
+        )}
         {activeTab === 'catalog' && (
           <div style={{ overflow: 'auto', height: '100%' }}>
             <SalePriceCatalogPage />
           </div>
         )}
-        {activeTab === 'intake' && <QuoteRegisterTab />}
-        {activeTab === 'review' && <ReviewTab />}
-        {activeTab === 'suppliers' && <SuppliersTab />}
-        {activeTab === 'log' && <HistoryTab />}
+        {activeTab === 'intake' && <div style={{ height: '100%', overflowY: 'auto' }}><QuoteRegisterTab /></div>}
+        {activeTab === 'review' && <div style={{ height: '100%', overflowY: 'auto' }}><ReviewTab /></div>}
+        {activeTab === 'suppliers' && <div style={{ height: '100%', overflowY: 'auto' }}><SuppliersTab /></div>}
+        {activeTab === 'log' && <div style={{ height: '100%', overflowY: 'auto' }}><HistoryTab /></div>}
       </div>
     </div>
   )

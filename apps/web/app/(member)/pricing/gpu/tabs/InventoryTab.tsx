@@ -229,7 +229,9 @@ export default function InventoryTab() {
   const tier3WithPool = inventory.filter((p) => p.tier === 3 && p.pool_qty != null && p.pool_qty > 0).length
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* ── 고정 헤더 ── */}
+      <div style={{ flexShrink: 0 }}>
       {/* 요약 통계 */}
       <div className="gpu-stats">
         <div className="gpu-stat">
@@ -279,6 +281,10 @@ export default function InventoryTab() {
         </div>
       </div>
 
+      </div>{/* end 고정 헤더 */}
+
+      {/* ── 스크롤 영역 ── */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 12 }}>
       {/* 리스트 */}
       {filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--gpu-faint)', fontSize: 13 }}>
@@ -287,6 +293,7 @@ export default function InventoryTab() {
       ) : (
         filtered.map((item) => <InventoryCard key={item.id} item={item} />)
       )}
+      </div>{/* end 스크롤 영역 */}
     </div>
   )
 }

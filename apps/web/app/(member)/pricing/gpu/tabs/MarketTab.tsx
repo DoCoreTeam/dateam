@@ -1021,7 +1021,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {showRegister && mappings.length > 0 && (
         <PriceRegisterModal
           mappings={mappings}
@@ -1030,6 +1030,8 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
         />
       )}
 
+      {/* ── 고정 헤더 ── */}
+      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
       {/* 안내 배너 */}
       <div className="gpu-banner gpu-banner-market" style={{ marginBottom: 0 }}>
         <TrendingUp size={16} color="var(--gpu-accent)" style={{ flexShrink: 0 }} />
@@ -1187,6 +1189,10 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
           </button>
         )}
       </div>
+      </div>{/* end 고정 헤더 */}
+
+      {/* ── 스크롤 영역 ── */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 12 }}>
 
       {/* 경쟁사 선택 모달 */}
       {showCompModal && (
@@ -1524,6 +1530,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
         ⓘ 수집한 경쟁사 가격은 <b style={{ color: 'var(--gpu-ink-2)' }}>내부 의사결정용</b>입니다 ·
         외부 자료(제안서·홈페이지)에 직접 인용 금지 · 신선도 기준: <b style={{ color: 'var(--gpu-ink-2)' }}>48시간</b>
       </div>
+      </div>{/* end 스크롤 영역 */}
     </div>
   )
 }
