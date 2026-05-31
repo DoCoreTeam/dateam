@@ -45,7 +45,7 @@ export function AddNodeModal({ parentId, parentType, allProfiles, existingPerson
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  const availableProfiles = allProfiles.filter(p => !existingPersonUserIds.includes(p.id))
+  const availableProfiles = allProfiles.filter(p => !existingPersonUserIds.includes(p.id) && p.name.trim())
 
   function handleUserSelect(uid: string) {
     setUserId(uid)
