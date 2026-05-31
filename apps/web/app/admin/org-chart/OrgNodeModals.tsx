@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { X } from 'lucide-react'
 import type { OrgNode, OrgNodeType, OrgNodeWithChildren } from './OrgNodeCard'
-import { createNode, updateNode } from './actions'
+import { createNode, updateNode, moveNode } from './actions'
 
 interface Profile {
   id: string
@@ -119,42 +119,64 @@ export function AddNodeModal({ parentId, parentType, allProfiles, existingPerson
 interface EditModalProps {
   node: OrgNode
   allProfiles: Profile[]
+  allNodes?: OrgNode[]
   onClose: () => void
 }
 
-export function EditNodeModal({ node, allProfiles, onClose }: EditModalProps) {
+export function EditNodeModal({ node, allProfiles, allNodes = [], onClose }: EditModalProps) {
   const [name, setName] = useState(node.name)
   const [subtitle, setSubtitle] = useState(node.subtitle ?? '')
   const [headUserId, setHeadUserId] = useState(node.head_user_id ?? '')
+  const [parentId, setParentId] = useState(node.parent_id ?? '')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const showHead = node.type === 'department' || node.type === 'role'
+  // candidates: non-person, not self, not a descendant of self
+  const descendantIds = new Set<string>()
+  function collectDescendants(id: string) {
+    allNodes.filter(n => n.parent_id === id).forEach(n => {
+      descendantIds.add(n.id)
+      collectDescendants(n.id)
+    })
+  }
+  collectDescendants(node.id)
+  const parentCandidates = allNodes.filter(n => n.type !== 'person' && n.id !== node.id && !descendantIds.has(n.id))
 
   function handleSubmit() {
-    if (!name.trim()) { setError('이름을 입력하세요'); return }
+    if (node.type !== 'person' && !name.trim()) { setError('이름을 입력하세요'); return }
     setError(null)
     startTransition(async () => {
-      const res = await updateNode(node.id, {
-        name: name.trim(),
-        subtitle: subtitle.trim() || null,
-        ...(showHead ? { head_user_id: headUserId || null } : {}),
-      })
-      if (res.error) setError(res.error)
-      else onClose()
+      if (parentId && parentId !== (node.parent_id ?? '')) {
+        const mv = await moveNode(node.id, parentId)
+        if (mv.error) { setError(mv.error); return }
+      }
+      if (node.type !== 'person') {
+        const res = await updateNode(node.id, {
+          name: name.trim(),
+          subtitle: subtitle.trim() || null,
+          ...(showHead ? { head_user_id: headUserId || null } : {}),
+        })
+        if (res.error) { setError(res.error); return }
+      }
+      onClose()
     })
   }
 
   return (
     <Modal title="노드 수정" onClose={onClose}>
-      <label style={labelStyle}>
-        <span style={labelTextStyle}>이름 *</span>
-        <input value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
-      </label>
-      <label style={labelStyle}>
-        <span style={labelTextStyle}>{node.type === 'person' ? '직급/직책' : '설명 / 부제목'}</span>
-        <input value={subtitle} onChange={e => setSubtitle(e.target.value)} style={inputStyle} />
-      </label>
+      {node.type !== 'person' && (
+        <label style={labelStyle}>
+          <span style={labelTextStyle}>이름 *</span>
+          <input value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
+        </label>
+      )}
+      {node.type !== 'person' && (
+        <label style={labelStyle}>
+          <span style={labelTextStyle}>설명 / 부제목</span>
+          <input value={subtitle} onChange={e => setSubtitle(e.target.value)} style={inputStyle} />
+        </label>
+      )}
       {showHead && (
         <label style={labelStyle}>
           <span style={labelTextStyle}>부서장</span>
@@ -164,6 +186,17 @@ export function EditNodeModal({ node, allProfiles, onClose }: EditModalProps) {
               <option key={p.id} value={p.id}>
                 {p.name}{p.position ? ` (${p.position})` : p.rank ? ` (${p.rank})` : ''}
               </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {parentCandidates.length > 0 && (
+        <label style={labelStyle}>
+          <span style={labelTextStyle}>상위 노드 변경</span>
+          <select value={parentId} onChange={e => setParentId(e.target.value)} style={inputStyle}>
+            <option value="">— 현재 위치 유지 —</option>
+            {parentCandidates.map(n => (
+              <option key={n.id} value={n.id}>{n.name}</option>
             ))}
           </select>
         </label>

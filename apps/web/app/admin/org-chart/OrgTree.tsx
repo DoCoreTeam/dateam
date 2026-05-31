@@ -176,7 +176,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
       )}
 
       {editModal && (
-        <EditNodeModal node={editModal} allProfiles={allProfiles} onClose={() => setEditModal(null)} />
+        <EditNodeModal node={editModal} allProfiles={allProfiles} allNodes={nodes} onClose={() => setEditModal(null)} />
       )}
 
       {deleteConfirm && (

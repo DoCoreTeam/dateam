@@ -16,6 +16,7 @@ import {
   ClipboardList,
   Key,
   Tag,
+  Network,
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import { getBranding } from '@/lib/branding'
@@ -30,6 +31,7 @@ const ADMIN_NAV_ITEMS = [
   { href: '/admin/kpi', label: 'KPI 집계', icon: <BarChart2 size={16} /> },
   { href: '/admin/ai-usage', label: 'AI 사용량', icon: <BarChart3 size={16} /> },
   { href: '/admin/partner-tiers', label: '파트너 등급', icon: <Tag size={16} /> },
+  { href: '/admin/org-chart', label: '조직도 관리', icon: <Network size={16} /> },
   { href: '/admin/content', label: '콘텐츠 관리', icon: <Settings2 size={16} /> },
   { href: '/admin/settings', label: '시스템 설정', icon: <SlidersHorizontal size={16} /> },
 ]
