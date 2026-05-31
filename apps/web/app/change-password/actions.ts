@@ -21,6 +21,21 @@ async function getValidMemberNames(): Promise<string[]> {
   return data.value.map((t) => t.name).filter(Boolean)
 }
 
+export async function getMyProfileData(): Promise<{ name: string | null; isOrgMember: boolean }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { name: null, isOrgMember: false }
+
+  const adminClient = createAdminClient()
+  const [profileResult, orgNames] = await Promise.all([
+    (adminClient.from('profiles') as any).select('name').eq('id', user.id).single(),
+    getValidMemberNames(),
+  ])
+  const profileName: string | null = profileResult.data?.name ?? null
+  const isOrgMember = profileName !== null && orgNames.includes(profileName)
+  return { name: profileName, isOrgMember }
+}
+
 export async function changePasswordAction(
   newPassword: string,
   name?: string
@@ -31,7 +46,12 @@ export async function changePasswordAction(
 
   if (name !== undefined) {
     const validNames = await getValidMemberNames()
-    if (!validNames.includes(name)) {
+    // 조직도에 없는 이름이어도 본인 프로필에 이미 설정된 이름이면 허용 (외부 API 사용자)
+    const adminClient = createAdminClient()
+    const { data: myProfile } = await (adminClient.from('profiles') as any)
+      .select('name').eq('id', user.id).single()
+    const isOwnName = myProfile?.name === name
+    if (!validNames.includes(name) && !isOwnName) {
       return { ok: false, error: `'${name}'은(는) 조직도에 등록된 이름이 아닙니다` }
     }
   }

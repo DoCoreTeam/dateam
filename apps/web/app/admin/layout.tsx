@@ -13,12 +13,16 @@ import {
   Settings2,
   SlidersHorizontal,
   NotebookPen,
+  ClipboardList,
+  Key,
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import { getBranding } from '@/lib/branding'
 
 const ADMIN_NAV_ITEMS = [
   { href: '/admin/users', label: '사용자 관리', icon: <Users size={16} /> },
+  { href: '/admin/api-access', label: 'API 접근 신청', icon: <ClipboardList size={16} /> },
+  { href: '/admin/api-keys', label: 'API 키 관리', icon: <Key size={16} /> },
   { href: '/admin/reports', label: '주간보고 취합', icon: <FileText size={16} /> },
   { href: '/admin/daily-logs', label: '일일업무', icon: <NotebookPen size={16} /> },
   { href: '/admin/routine', label: '루틴 현황', icon: <CheckSquare size={16} /> },

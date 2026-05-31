@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { changePasswordAction, getOrgMemberNames } from '@/app/change-password/actions'
+import { changePasswordAction, getOrgMemberNames, getMyProfileData } from '@/app/change-password/actions'
 
 export default function PasswordChangeModal() {
   const router = useRouter()
@@ -12,9 +12,19 @@ export default function PasswordChangeModal() {
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
   const [memberNames, setMemberNames] = useState<string[]>([])
+  const [existingName, setExistingName] = useState<string | null>(null)
 
   useEffect(() => {
-    getOrgMemberNames().then(setMemberNames)
+    getMyProfileData().then(({ name: profileName, isOrgMember }) => {
+      if (profileName && !isOrgMember) {
+        // 외부 API 사용자 — 이름 이미 설정됨, 이름 선택 단계 생략
+        setExistingName(profileName)
+        setName(profileName)
+      } else {
+        // 내부 직원 — 조직도에서 이름 선택
+        getOrgMemberNames().then(setMemberNames)
+      }
+    })
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -109,22 +119,31 @@ export default function PasswordChangeModal() {
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div>
-            <label htmlFor="pw-name" className="label">본인 이름 (조직도 기준)</label>
-            <select
-              id="pw-name"
-              required
-              className="input-field"
-              style={{ width: '100%', boxSizing: 'border-box', cursor: 'pointer' }}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            >
-              <option value="">이름 선택...</option>
-              {memberNames.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
+          {existingName ? (
+            <div>
+              <label className="label">이름</label>
+              <div style={{ padding: '0.625rem 0.875rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontSize: '0.875rem', color: '#334155' }}>
+                {existingName}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label htmlFor="pw-name" className="label">본인 이름 (조직도 기준)</label>
+              <select
+                id="pw-name"
+                required
+                className="input-field"
+                style={{ width: '100%', boxSizing: 'border-box', cursor: 'pointer' }}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              >
+                <option value="">이름 선택...</option>
+                {memberNames.map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label htmlFor="pw-new" className="label">새 비밀번호</label>
             <input

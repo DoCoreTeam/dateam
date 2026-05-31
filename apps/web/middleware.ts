@@ -33,8 +33,12 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Public routes: API key authenticated or open documentation
-  if (pathname.startsWith('/api/public/') || pathname === '/develop' || pathname.startsWith('/develop/')) {
+  // Public routes: API key authenticated, open documentation, or access request
+  if (
+    pathname.startsWith('/api/public/') ||
+    pathname === '/develop' || pathname.startsWith('/develop/') ||
+    pathname === '/api-access' || pathname.startsWith('/api-access/')
+  ) {
     return NextResponse.next({ request })
   }
 
