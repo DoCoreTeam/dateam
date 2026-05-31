@@ -10,6 +10,7 @@ interface NavItem {
   label: string
   icon: React.ReactNode
   badge?: number
+  highlight?: boolean
 }
 
 export interface NavGroup {
@@ -108,7 +109,7 @@ export default function MobileShell({
           alignItems: 'center',
           justifyContent: 'space-between',
         }}>
-          <Link href={items[0]?.href ?? '/dashboard'} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+          <Link href="/home" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -144,6 +145,7 @@ export default function MobileShell({
             {items.map((item, idx) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
               const isHovered = hoveredHref === item.href && !isActive
+              const isHighlight = item.highlight && !isActive
               return (
                 <li key={item.href}>
                   <Link
@@ -159,15 +161,22 @@ export default function MobileShell({
                       padding: '0.5rem 0.75rem',
                       borderRadius: '0.5rem',
                       fontSize: '0.875rem',
-                      fontWeight: 500,
+                      fontWeight: isHighlight ? 700 : 500,
                       textDecoration: 'none',
-                      transition: 'background-color 120ms, color 120ms',
-                      backgroundColor: isActive ? '#4f46e5' : isHovered ? 'rgba(255,255,255,0.07)' : 'transparent',
-                      color: isActive || isHovered ? '#fff' : '#94a3b8',
+                      transition: 'opacity 120ms, transform 120ms',
+                      background: isActive
+                        ? '#4f46e5'
+                        : isHighlight
+                        ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
+                        : isHovered ? 'rgba(255,255,255,0.07)' : 'transparent',
+                      color: isActive || isHighlight ? '#fff' : isHovered ? '#fff' : '#94a3b8',
                       minHeight: '44px',
+                      boxShadow: isHighlight && !isActive ? '0 2px 10px rgba(99,102,241,0.4)' : 'none',
+                      opacity: isHighlight && isHovered ? 0.88 : 1,
+                      letterSpacing: isHighlight ? '0.01em' : undefined,
                     }}
                   >
-                    <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.7, display: 'flex', alignItems: 'center' }}>
+                    <span style={{ flexShrink: 0, opacity: isActive || isHighlight ? 1 : 0.7, display: 'flex', alignItems: 'center' }}>
                       {item.icon}
                     </span>
                     <span style={{ flex: 1 }}>{item.label}</span>
@@ -348,6 +357,18 @@ export default function MobileShell({
           {children}
         </main>
       </div>
+
+      {/* 통합 입력 FAB — 모바일 전용 */}
+      <Link
+        href="/intake"
+        className="intake-fab mobile-only-flex"
+        aria-label="통합 입력"
+        style={{ textDecoration: 'none' }}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+      </Link>
     </div>
   )
 }

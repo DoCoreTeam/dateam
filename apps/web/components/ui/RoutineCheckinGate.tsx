@@ -48,21 +48,6 @@ export default function RoutineCheckinGate({ weekStart, weeklyItems, initialComp
 
   return (
     <>
-      {/* 모바일 FAB */}
-      <button
-        className="routine-fab mobile-only-flex"
-        onClick={() => setOpen(true)}
-        aria-label="이번 주 루틴 체크"
-      >
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <path d="M7 10l2.5 2.5L14 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          <rect x="2" y="2" width="16" height="16" rx="4" stroke="currentColor" strokeWidth="1.5"/>
-        </svg>
-        {pendingCount > 0 && (
-          <span className="routine-fab-badge">{pendingCount > 9 ? '9+' : pendingCount}</span>
-        )}
-      </button>
-
       {/* 체크인 모달 */}
       {open && (
         <>
