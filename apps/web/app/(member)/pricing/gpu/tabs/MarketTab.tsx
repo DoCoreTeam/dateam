@@ -268,7 +268,7 @@ function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI }: {
         padding: '10px 14px', background: '#f3f4f8', borderRadius: 9, fontSize: 12.5,
       }}>
         <span style={{ fontSize: 16 }}>🧠</span>
-        <span dangerouslySetInnerHTML={{ __html: insight.replace(/<b>/g, '<b>').replace(/<\/b>/g, '</b>') }} />
+        <span>{insight}</span>
       </div>
 
       {/* 경쟁사별 카드 그리드 */}
@@ -279,7 +279,16 @@ function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI }: {
         <div style={{ fontSize: 12, color: 'var(--gpu-faint)', padding: '12px 0' }}>해당 그룹의 경쟁사 데이터 없음</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
-          {Object.entries(byComp).map(([, items]) => {
+          {Object.entries(byComp)
+            .sort(([, aItems], [, bItems]) => {
+              const aMin = Math.min(...aItems.map(x => x.price_usd ?? Infinity))
+              const bMin = Math.min(...bItems.map(x => x.price_usd ?? Infinity))
+              if (!Number.isFinite(aMin) && !Number.isFinite(bMin)) return 0
+              if (!Number.isFinite(aMin)) return 1
+              if (!Number.isFinite(bMin)) return -1
+              return aMin - bMin
+            })
+            .map(([, items]) => {
             const c = items[0].competitor
             items.sort((a, b) => pmOrder.indexOf(a.pricing_model) - pmOrder.indexOf(b.pricing_model))
             const firstDiff = p.our_price_usd != null && items[0].price_usd != null
