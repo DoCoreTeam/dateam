@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import MobileShell from '@/components/ui/MobileShell'
 import type { NavGroup } from '@/components/ui/MobileShell'
 import SidebarProfile from '@/components/ui/SidebarProfile'
+import QuickNav from '@/components/ui/QuickNav'
 import NavigationLoader from '@/components/ui/NavigationLoader'
 import { getBranding } from '@/lib/branding'
 import PasswordChangeModal from '@/components/ui/PasswordChangeModal'
@@ -103,6 +104,7 @@ export default async function MemberLayout({ children }: { children: React.React
             님
           </span>
         }
+        headerRight={<QuickNav />}
       >
         <SWRProvider>{children}</SWRProvider>
       </MobileShell>
