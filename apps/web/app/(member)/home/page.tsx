@@ -73,9 +73,38 @@ export default async function HomePage() {
           <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>
             안녕하세요, {displayName}님
           </h1>
-          <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9375rem' }}>
-            {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.375rem', flexWrap: 'wrap' }}>
+            <span style={{ color: '#64748b', fontSize: '0.9375rem' }}>
+              {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
+            </span>
+            {[
+              { href: '/kpi', label: 'KPI', icon: <BarChart2 size={12} />, color: '#6366f1', bg: '#eef2ff' },
+              { href: '/routine', label: '루틴', icon: <CheckSquare size={12} />, color: '#0891b2', bg: '#ecfeff' },
+              { href: '/operations', label: '본부 운영', icon: <Building2 size={12} />, color: '#059669', bg: '#ecfdf5' },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '0.375rem',
+                  background: item.bg,
+                  color: item.color,
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  border: `1px solid ${item.color}33`,
+                  lineHeight: 1.4,
+                }}
+              >
+                {item.icon}
+                {item.label}
+              </Link>
+            ))}
+          </div>
         </div>
 
         {/* 오늘 업무 — 모바일 2번째, 데스크탑 우측 상단 */}
@@ -129,40 +158,6 @@ export default async function HomePage() {
             </div>
           </div>
         )}
-
-        {/* 바로가기 — 모바일 3.5번째, 데스크탑 전체폭 */}
-        <div className="home-section-shortcuts">
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            {[
-              { href: '/kpi', label: 'KPI', icon: <BarChart2 size={16} />, color: '#6366f1', bg: '#eef2ff' },
-              { href: '/routine', label: '루틴 체크', icon: <CheckSquare size={16} />, color: '#0891b2', bg: '#ecfeff' },
-              { href: '/operations', label: '본부 운영', icon: <Building2 size={16} />, color: '#059669', bg: '#ecfdf5' },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.5rem 1rem',
-                  borderRadius: '0.625rem',
-                  background: item.bg,
-                  color: item.color,
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                  border: `1px solid ${item.color}22`,
-                  transition: 'opacity 120ms',
-                  minHeight: '44px',
-                }}
-              >
-                {item.icon}
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        </div>
 
         {/* 미니 캘린더 — 모바일 5번째, 데스크탑 좌측(row 3~4 span) */}
         <div className="home-section-calendar">
