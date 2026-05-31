@@ -156,9 +156,11 @@ interface PriceTableTabProps {
   onGoToIntake: () => void
   initialSearch?: string
   onSearchConsumed?: () => void
+  initialProductId?: string | null
+  onProductFocusConsumed?: () => void
 }
 
-export default function PriceTableTab({ onGoToIntake, initialSearch, onSearchConsumed }: PriceTableTabProps) {
+export default function PriceTableTab({ onGoToIntake, initialSearch, onSearchConsumed, initialProductId, onProductFocusConsumed }: PriceTableTabProps) {
   const { data, mutate: revalidate } = useSWR<ProductsResponse>('/api/pricing/gpu/products', fetcher, {
     refreshInterval: 60000,
   })
@@ -177,6 +179,17 @@ export default function PriceTableTab({ onGoToIntake, initialSearch, onSearchCon
       onSearchConsumed?.()
     }
   }, [initialSearch]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!initialProductId) return
+    setExpandedId(initialProductId)
+    onProductFocusConsumed?.()
+    // scroll the row into view after render
+    requestAnimationFrame(() => {
+      const row = document.getElementById(`gpu-row-${initialProductId}`)
+      row?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [initialProductId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const products = data?.products ?? []
   const marginPct = marginInput ?? data?.margin_pct ?? 18
@@ -435,6 +448,7 @@ export default function PriceTableTab({ onGoToIntake, initialSearch, onSearchCon
               return [
                 <tr
                   key={p.id}
+                  id={`gpu-row-${p.id}`}
                   className={`gpu-row-main${isExpanded ? ' open' : ''}`}
                   onClick={() => setExpandedId(isExpanded ? null : p.id)}
                 >

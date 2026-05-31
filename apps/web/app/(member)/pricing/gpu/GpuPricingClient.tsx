@@ -31,6 +31,7 @@ export default function GpuPricingClient() {
   const [activeTab, setActiveTab] = useState<TabId>('board')
   const [showAiPanel, setShowAiPanel] = useState(false)
   const [boardSearch, setBoardSearch] = useState('')
+  const [boardFocusProductId, setBoardFocusProductId] = useState<string | null>(null)
   const { data: settings, mutate: mutateSettings } = useSWR<SettingsData>('/api/pricing/gpu/settings', fetcher, {
     refreshInterval: 300000,
   })
@@ -154,7 +155,7 @@ export default function GpuPricingClient() {
         {activeTab === 'board' && (
           <div style={{ display: 'flex', gap: 0, height: '100%', minHeight: 0, overflow: 'hidden' }}>
             <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
-              <PriceTableTab onGoToIntake={() => setActiveTab('intake')} initialSearch={boardSearch} onSearchConsumed={() => setBoardSearch('')} />
+              <PriceTableTab onGoToIntake={() => setActiveTab('intake')} initialSearch={boardSearch} onSearchConsumed={() => setBoardSearch('')} initialProductId={boardFocusProductId} onProductFocusConsumed={() => setBoardFocusProductId(null)} />
             </div>
             <div className={`gpu-ai-sidebar${showAiPanel ? ' gpu-ai-sidebar--open' : ''}`}>
               <div className="gpu-ai-sidebar-inner">
@@ -189,8 +190,8 @@ export default function GpuPricingClient() {
         {activeTab === 'review' && <ReviewTab />}
         {activeTab === 'market' && (
           <MarketTab
-            onGoToPriceTable={(modelName) => { setBoardSearch(modelName); setActiveTab('board') }}
-            onOpenAI={(modelName) => { setBoardSearch(modelName); setActiveTab('board'); setShowAiPanel(true) }}
+            onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board') }}
+            onOpenAI={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board'); setShowAiPanel(true) }}
           />
         )}
         {activeTab === 'inventory' && <InventoryTab />}

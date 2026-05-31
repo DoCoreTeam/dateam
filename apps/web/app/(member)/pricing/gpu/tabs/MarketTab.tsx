@@ -213,8 +213,8 @@ function judgeColor(j: string) {
 function AnalyzePanel({ p, activeGroups, onGoToPriceTable, onOpenAI }: {
   p: ProductGroup
   activeGroups: Set<string>
-  onGoToPriceTable?: (modelName: string) => void
-  onOpenAI?: (modelName: string) => void
+  onGoToPriceTable?: (modelName: string, productId: string) => void
+  onOpenAI?: (modelName: string, productId: string) => void
 }) {
   const freshComps = p.competitors.filter(c => c.is_fresh && c.price_usd != null)
   const cheaperItems = freshComps
@@ -335,12 +335,12 @@ function AnalyzePanel({ p, activeGroups, onGoToPriceTable, onOpenAI }: {
       {/* 액션 버튼 */}
       <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
         <button className="gpu-btn" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}
-          onClick={e => { e.stopPropagation(); onOpenAI?.(p.product.model_name) }}>
+          onClick={e => { e.stopPropagation(); onOpenAI?.(p.product.model_name, p.product.id) }}>
           <BarChart2 size={12} />
           AI 조회로 심층 분석
         </button>
         <button className="gpu-btn" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}
-          onClick={e => { e.stopPropagation(); onGoToPriceTable?.(p.product.model_name) }}>
+          onClick={e => { e.stopPropagation(); onGoToPriceTable?.(p.product.model_name, p.product.id) }}>
           <TrendingUp size={12} />
           가격표에서 보기
         </button>
@@ -773,8 +773,8 @@ function PriceRegisterModal({
 }
 
 export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
-  onGoToPriceTable?: (modelName: string) => void
-  onOpenAI?: (modelName: string) => void
+  onGoToPriceTable?: (modelName: string, productId: string) => void
+  onOpenAI?: (modelName: string, productId: string) => void
 }) {
   const { data, isLoading, mutate } = useSWR<MarketData>('/api/pricing/gpu/market', fetcher, {
     refreshInterval: 0,
@@ -1108,7 +1108,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                       {/* 탭 패널 */}
                       <div style={{ padding: '14px 18px 18px' }}>
                         {currentTab === 'analyze' && (
-                          <AnalyzePanel p={p} activeGroups={activeGroups} onGoToPriceTable={onGoToPriceTable} onOpenAI={onOpenAI} />
+                          <AnalyzePanel p={p} activeGroups={activeGroups} onGoToPriceTable={(name, id) => onGoToPriceTable?.(name, id)} onOpenAI={(name, id) => onOpenAI?.(name, id)} />
                         )}
                         {currentTab === 'strategy' && (
                           <StrategyPanel p={p} />
