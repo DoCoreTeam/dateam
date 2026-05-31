@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { ChevronRight, Plus, Zap, Info, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { ChevronRight, Plus, Zap, Info, ArrowUpDown, ArrowUp, ArrowDown, Tag } from 'lucide-react'
 
 type SortKey = 'model' | 'supply' | 'sell'
 type SortDir = 'asc' | 'desc'
@@ -41,6 +41,12 @@ interface ProductsResponse {
   margin_pct: number
   usd_krw: number
   fx_date: string | null
+}
+
+interface PartnerTier {
+  id: string
+  name: string
+  discount_rate: number
 }
 
 interface Quote {
@@ -165,6 +171,9 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
   const { data, mutate: revalidate } = useSWR<ProductsResponse>('/api/pricing/gpu/products', fetcher, {
     refreshInterval: 60000,
   })
+  const { data: partnerData } = useSWR<{ tiers: PartnerTier[] }>('/api/pricing/gpu/partner-tiers', fetcher)
+  const partnerTiers = partnerData?.tiers ?? []
+  const [selectedTierId, setSelectedTierId] = useState<string | null>(null)
   const [tierFilter, setTierFilter] = useState(0)
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -242,6 +251,13 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
     if (p.lowest_unit_price_usd == null) return null
     return Math.round(p.lowest_unit_price_usd * (1 + marginPct / 100) * usdKrw)
   }
+
+  const selectedTier = partnerTiers.find((t) => t.id === selectedTierId) ?? null
+  const computePartnerKrw = (sellKrw: number | null) => {
+    if (sellKrw == null || selectedTier == null) return null
+    return Math.round(sellKrw * (1 - selectedTier.discount_rate / 100))
+  }
+  const colCount = selectedTier ? 7 : 6
 
   const handleSort = (key: SortKey) => {
     setSortConfig((prev) =>
@@ -369,6 +385,26 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
             전체상품 · {products.length}
           </button>
         </div>
+        {partnerTiers.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+            <Tag size={13} style={{ color: 'var(--gpu-muted)', flexShrink: 0 }} />
+            <select
+              value={selectedTierId ?? ''}
+              onChange={(e) => setSelectedTierId(e.target.value || null)}
+              style={{
+                fontSize: '12px', padding: '0.3rem 0.5rem', borderRadius: '0.375rem',
+                border: '1px solid var(--gpu-border)', background: 'var(--gpu-surface)',
+                color: selectedTierId ? 'var(--gpu-accent)' : 'var(--gpu-muted)',
+                cursor: 'pointer', outline: 'none', fontWeight: selectedTierId ? 600 : 400,
+              }}
+            >
+              <option value="">파트너 할인 없음</option>
+              {partnerTiers.map((t) => (
+                <option key={t.id} value={t.id}>{t.name} ({t.discount_rate}%↓)</option>
+              ))}
+            </select>
+          </div>
+        )}
         <button className="gpu-btn gpu-btn-primary" onClick={onGoToIntake}>
           <Plus size={15} /> 견적 등록
         </button>
@@ -450,6 +486,11 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                 gcube 판매가 <span className="gpu-th-note">(마진 적용 · {currencyMode === 'KRW' ? '원화' : '달러'})</span><SortIcon col="sell" sortConfig={sortConfig} />
               </th>
               <th>견적 상태</th>
+              {selectedTier && (
+                <th className="r" style={{ color: 'var(--gpu-accent)', whiteSpace: 'nowrap' }}>
+                  {selectedTier.name} 할인가 <span className="gpu-th-note">({selectedTier.discount_rate}%↓)</span>
+                </th>
+              )}
               <th style={{ width: 40 }}></th>
             </tr>
           </thead>
@@ -458,6 +499,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
               const tier = TIER_CONFIG[p.tier]
               const isExpanded = expandedId === p.id
               const sellKrw = computeSellKrw(p)
+              const partnerKrw = computePartnerKrw(sellKrw)
               const dday = p.lowest_valid_until ? fmtDday(p.lowest_valid_until) : null
               const firstLetter = p.model_name.charAt(0)
 
@@ -551,6 +593,26 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                       <span className="gpu-badge gpu-badge-gray">견적 없음</span>
                     )}
                   </td>
+                  {selectedTier && (
+                    <td className="r">
+                      {partnerKrw != null ? (
+                        <>
+                          <div className="gpu-price-main" style={{ color: 'var(--gpu-accent)' }}>
+                            {currencyMode === 'KRW'
+                              ? fmtKRW(partnerKrw)
+                              : fmtUSD(partnerKrw / usdKrw)}
+                          </div>
+                          <div className="gpu-price-sub">
+                            {currencyMode === 'KRW'
+                              ? <>{fmtUSD(partnerKrw / usdKrw)} · /hr</>
+                              : <>/hr · {fmtKRW(partnerKrw)}</>}
+                          </div>
+                        </>
+                      ) : (
+                        <span style={{ fontSize: '12px', color: 'var(--gpu-faint)' }}>—</span>
+                      )}
+                    </td>
+                  )}
                   <td>
                     <ChevronRight
                       size={18}
@@ -560,7 +622,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                 </tr>,
                 isExpanded && (
                   <tr key={`${p.id}-expand`} className="gpu-detail-row">
-                    <td colSpan={6} style={{ padding: 0 }}>
+                    <td colSpan={colCount} style={{ padding: 0 }}>
                       {p.pricing_mode === 'direct' ? (
                         <div className="gpu-expand-body gpu-expand-direct">
                           <Info size={13} />
