@@ -221,6 +221,7 @@ export default function GpuPricingClient() {
             <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
               <PriceTableTab
                 onGoToIntake={() => setActiveTab('intake')}
+                onGoToReview={() => setActiveTab('review')}
                 initialSearch={boardSearch}
                 onSearchConsumed={() => setBoardSearch('')}
                 initialProductId={boardFocusProductId}

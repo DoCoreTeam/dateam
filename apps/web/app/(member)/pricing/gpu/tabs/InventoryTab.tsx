@@ -73,7 +73,10 @@ function InventoryCard({ item }: { item: InventoryItem }) {
   return (
     <div className="gpu-rev-card" style={{ padding: '14px 16px' }}>
       {/* 헤더 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: hasData ? 'pointer' : 'default' }}
+        onClick={() => hasData && setExpanded((v) => !v)}
+      >
         <div className="gpu-chip" style={{ width: 38, height: 38, flexShrink: 0 }}>
           {item.model_name.charAt(0)}
           <span style={{ fontSize: 8 }}>{item.memory}</span>
@@ -114,12 +117,9 @@ function InventoryCard({ item }: { item: InventoryItem }) {
           )}
 
           {hasData && (
-            <button
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gpu-muted)', padding: 4 }}
-              onClick={() => setExpanded((v) => !v)}
-            >
+            <span style={{ color: 'var(--gpu-muted)', padding: 4, lineHeight: 0 }}>
               {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </button>
+            </span>
           )}
         </div>
       </div>

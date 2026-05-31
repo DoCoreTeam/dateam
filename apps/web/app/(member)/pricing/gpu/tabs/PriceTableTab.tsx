@@ -154,13 +154,14 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
 
 interface PriceTableTabProps {
   onGoToIntake: () => void
+  onGoToReview?: () => void
   initialSearch?: string
   onSearchConsumed?: () => void
   initialProductId?: string | null
   onProductFocusConsumed?: () => void
 }
 
-export default function PriceTableTab({ onGoToIntake, initialSearch, onSearchConsumed, initialProductId, onProductFocusConsumed }: PriceTableTabProps) {
+export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearch, onSearchConsumed, initialProductId, onProductFocusConsumed }: PriceTableTabProps) {
   const { data, mutate: revalidate } = useSWR<ProductsResponse>('/api/pricing/gpu/products', fetcher, {
     refreshInterval: 60000,
   })
@@ -283,12 +284,20 @@ export default function PriceTableTab({ onGoToIntake, initialSearch, onSearchCon
 
       {/* 통계 */}
       <div className="gpu-stats">
-        <div className="gpu-stat">
+        <div
+          className="gpu-stat gpu-stat-clickable"
+          title="클릭하면 Tier 필터 순환"
+          onClick={() => setTierFilter(t => (t + 1) % 4 as 0 | 1 | 2 | 3)}
+        >
           <div className="gpu-stat-lbl">관리 상품 (모델×tier)</div>
           <div className="gpu-stat-val">{stats.total}<span className="gpu-stat-unit">개</span></div>
-          <div className="gpu-stat-sub">T1 {stats.t1} · T2 {stats.t2} · T3 {stats.t3}</div>
+          <div className="gpu-stat-sub">T1 {stats.t1} · T2 {stats.t2} · T3 {stats.t3}{tierFilter > 0 ? ` · T${tierFilter} 필터 중` : ''}</div>
         </div>
-        <div className="gpu-stat">
+        <div
+          className="gpu-stat gpu-stat-clickable"
+          title="견적 확정 상품만 보기"
+          onClick={() => { setShowAll(false); setTierFilter(0) }}
+        >
           <div className="gpu-stat-lbl">T1·T2 최저가 보유</div>
           <div className="gpu-stat-val">
             {products.filter((p) => p.tier !== 3 && p.lowest_unit_price_usd != null).length}
@@ -296,12 +305,16 @@ export default function PriceTableTab({ onGoToIntake, initialSearch, onSearchCon
           </div>
           <div className="gpu-stat-sub">견적 확정 상품</div>
         </div>
-        <div className="gpu-stat">
+        <div
+          className="gpu-stat gpu-stat-clickable"
+          title="검토 대기 탭으로 이동"
+          onClick={() => onGoToReview?.()}
+        >
           <div className="gpu-stat-lbl">검토 대기 견적</div>
           <div className="gpu-stat-val" style={{ color: stats.pending > 0 ? 'var(--gpu-amber)' : undefined }}>
             {stats.pending}<span className="gpu-stat-unit">건</span>
           </div>
-          <div className="gpu-stat-sub">확정 전 가격표 미반영</div>
+          <div className="gpu-stat-sub">{stats.pending > 0 ? '클릭하면 검토 탭으로' : '확정 전 가격표 미반영'}</div>
         </div>
         <div className="gpu-stat">
           <div className="gpu-stat-lbl">오늘 환율</div>

@@ -75,6 +75,7 @@ export default function SalePriceCatalogPage() {
   const [sortKey, setSortKey] = useState<SortKey>('tier')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [hoursInput, setHoursInput] = useState('')
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const products = data?.products ?? []
   const usdKrw = data?.usd_krw ?? 1400
@@ -94,6 +95,23 @@ export default function SalePriceCatalogPage() {
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(key); setSortDir('asc') }
+  }
+
+  const handleRowClick = (p: GpuProduct) => {
+    const price = getSellPrice(p)
+    if (!price) return
+    const lines = [
+      `[GPU 판매가격표]`,
+      `${p.model_name} ${p.memory} (Tier ${p.tier})`,
+      `시간당: ${fmtKrw(price.krw)} / ${fmtUsd(price.usd, 2)}`,
+      `월 (720h): ${fmtKrw(price.krw * HR_720)}`,
+      `6개월 (4,320h): ${fmtKrw(price.krw * HR_4320)}`,
+      `연간 (8,760h): ${fmtKrw(price.krw * HR_8760)}`,
+    ]
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      setCopiedId(p.id)
+      setTimeout(() => setCopiedId(null), 2000)
+    }).catch(() => {})
   }
 
   const pricedProducts = products.filter((p) =>
@@ -297,13 +315,25 @@ export default function SalePriceCatalogPage() {
                 ? (calcKrw(h) != null ? fmtKrw(calcKrw(h)!) : null)
                 : (calcUsd(h) != null ? fmtUsd(calcUsd(h)!, dec) : null)
 
+              const isCopied = copiedId === p.id
               return (
                 <div
                   key={p.id}
-                  style={{ display: 'grid', gridTemplateColumns: COL, gap: 8, padding: '12px 20px', alignItems: 'center', borderBottom: '1px solid var(--gpu-border)', transition: 'background 0.15s' }}
+                  style={{ display: 'grid', gridTemplateColumns: COL, gap: 8, padding: '12px 20px', alignItems: 'center', borderBottom: '1px solid var(--gpu-border)', transition: 'background 0.15s', cursor: price ? 'pointer' : 'default', position: 'relative' }}
+                  title={price ? '클릭하면 가격 복사' : undefined}
+                  onClick={() => handleRowClick(p)}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--gpu-hover)' }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '' }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = isCopied ? '#f0fdf4' : '' }}
                 >
+                  {isCopied && (
+                    <div style={{
+                      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                      background: 'rgba(240,253,244,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      borderRadius: 0, fontSize: 13, fontWeight: 700, color: '#16a34a', pointerEvents: 'none', zIndex: 2,
+                    }}>
+                      ✓ 클립보드에 복사됨
+                    </div>
+                  )}
                   {/* 모델 */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <GpuChip model={p.model_name} memory={p.memory} />

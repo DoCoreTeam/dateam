@@ -2617,6 +2617,9 @@
 .gpu-stat-val { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
 .gpu-stat-unit { font-size: 13px; color: var(--gpu-muted); font-weight: 600; margin-left: 3px; }
 .gpu-stat-sub { font-size: 11.5px; color: var(--gpu-faint); margin-top: 5px; }
+.gpu-stat-clickable { cursor: pointer; transition: transform 0.12s, box-shadow 0.12s; }
+.gpu-stat-clickable:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-color: var(--gpu-accent) !important; }
+.gpu-stat-clickable:active { transform: translateY(0); }
 
 /* toolbar */
 .gpu-toolbar {
@@ -3305,6 +3308,7 @@
 .gpu-stat-label { font-size: 11px; color: var(--gpu-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
 .gpu-stat-value { font-size: 28px; font-weight: 800; font-family: 'JetBrains Mono', ui-monospace, monospace; line-height: 1.1; }
 .gpu-stat-unit { font-size: 13px; color: var(--gpu-muted); font-weight: 600; margin-left: 3px; }
+.gpu-stat-card-active { border-color: var(--gpu-accent) !important; background: var(--gpu-accent-bg) !important; }
 .gpu-stat-sub { font-size: 11.5px; color: var(--gpu-faint); margin-top: 5px; }
 
 .gpu-comp-chip {

@@ -948,6 +948,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
   const [showRegister, setShowRegister] = useState(false)
   const [showCompModal, setShowCompModal] = useState(false)
   const [viewMode, setViewMode] = useState<'table' | 'strategy'>('table')
+  const [positionFilter, setPositionFilter] = useState<null | 'low' | 'mid' | 'high'>(null)
 
   const usdKrw = data?.usd_krw ?? 1400
   const fmt = makeFmt(currencyMode, usdKrw)
@@ -995,12 +996,21 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
 
   const getExpandedTab = (pid: string) => expandedTab[pid] ?? 'analyze'
 
-  const filteredProducts = products.map(p => ({
-    ...p,
-    competitors: activeComps.size === 0
-      ? p.competitors
-      : p.competitors.filter(c => activeComps.has(c.competitor.id)),
-  }))
+  const getProductPosition = (p: ProductGroup): 'low' | 'mid' | 'high' | null => {
+    if (p.our_price_usd == null || p.market_median == null) return null
+    if (p.our_price_usd < p.market_median * 0.9) return 'low'
+    if (p.our_price_usd > p.market_median * 1.1) return 'high'
+    return 'mid'
+  }
+
+  const filteredProducts = products
+    .filter(p => positionFilter == null || getProductPosition(p) === positionFilter)
+    .map(p => ({
+      ...p,
+      competitors: activeComps.size === 0
+        ? p.competitors
+        : p.competitors.filter(c => activeComps.has(c.competitor.id)),
+    }))
 
   if (isLoading) {
     return (
@@ -1077,33 +1087,49 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
       {/* 요약 통계 */}
       {summary && (
         <div className="responsive-grid-cols-4" style={{ gap: 12 }}>
-          <div className="gpu-stat-card">
+          <div
+            className={`gpu-stat-card gpu-stat-clickable${positionFilter === 'low' ? ' gpu-stat-card-active' : ''}`}
+            title="저가 진영 모델만 보기"
+            onClick={() => setPositionFilter(p => p === 'low' ? null : 'low')}
+          >
             <div className="gpu-stat-label">저가 진영 모델</div>
             <div className="gpu-stat-value" style={{ color: 'var(--gpu-green)' }}>
               {summary.low_count}<span className="gpu-stat-unit">/{products.length}</span>
             </div>
-            <div className="gpu-stat-sub">시장 하위 33% 안</div>
+            <div className="gpu-stat-sub">{positionFilter === 'low' ? '필터 적용 중 · 다시 클릭하면 해제' : '시장 하위 33% 안'}</div>
           </div>
-          <div className="gpu-stat-card">
+          <div
+            className={`gpu-stat-card gpu-stat-clickable${positionFilter === 'mid' ? ' gpu-stat-card-active' : ''}`}
+            title="중간 진영 모델만 보기"
+            onClick={() => setPositionFilter(p => p === 'mid' ? null : 'mid')}
+          >
             <div className="gpu-stat-label">중간 진영</div>
             <div className="gpu-stat-value" style={{ color: 'var(--gpu-amber)' }}>
               {summary.mid_count}<span className="gpu-stat-unit">/{products.length}</span>
             </div>
-            <div className="gpu-stat-sub">중앙값 ±10% 이내</div>
+            <div className="gpu-stat-sub">{positionFilter === 'mid' ? '필터 적용 중 · 다시 클릭하면 해제' : '중앙값 ±10% 이내'}</div>
           </div>
-          <div className="gpu-stat-card">
+          <div
+            className={`gpu-stat-card gpu-stat-clickable${positionFilter === 'high' ? ' gpu-stat-card-active' : ''}`}
+            title="고가 진영 모델만 보기"
+            onClick={() => setPositionFilter(p => p === 'high' ? null : 'high')}
+          >
             <div className="gpu-stat-label">고가 진영</div>
             <div className="gpu-stat-value" style={{ color: 'var(--gpu-red)' }}>
               {summary.high_count}<span className="gpu-stat-unit">/{products.length}</span>
             </div>
-            <div className="gpu-stat-sub">재가격 검토 권고</div>
+            <div className="gpu-stat-sub">{positionFilter === 'high' ? '필터 적용 중 · 다시 클릭하면 해제' : '재가격 검토 권고'}</div>
           </div>
-          <div className="gpu-stat-card">
+          <div
+            className="gpu-stat-card gpu-stat-clickable"
+            title="경쟁사 필터 열기"
+            onClick={() => setShowCompModal(true)}
+          >
             <div className="gpu-stat-label">활성 경쟁사</div>
             <div className="gpu-stat-value" style={{ color: 'var(--gpu-accent)' }}>
               {summary.competitor_count}<span className="gpu-stat-unit">곳</span>
             </div>
-            <div className="gpu-stat-sub">global·domestic</div>
+            <div className="gpu-stat-sub">클릭하면 경쟁사 필터</div>
           </div>
         </div>
       )}
