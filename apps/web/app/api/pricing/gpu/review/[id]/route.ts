@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
+import { normalizeMemory } from '@/lib/gpu/normalize'
 
 // POST /api/pricing/gpu/review/[id] — 확정 또는 반려
 export async function POST(
@@ -101,7 +102,7 @@ export async function POST(
 
     // 매칭 실패 → AI 추출 데이터로 신규 product 자동 생성
     if (!productId) {
-      const memory = typeof merged.memory === 'string' ? merged.memory : null
+      const memory = normalizeMemory(typeof merged.memory === 'string' ? merged.memory : null)
       const series = modelName.split(/\s+/)[0] // "H100 SXM" → "H100", "B300" → "B300"
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: newProduct } = await (adminClient as any)

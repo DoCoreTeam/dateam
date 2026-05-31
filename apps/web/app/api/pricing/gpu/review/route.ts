@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
+import { normalizeMemory } from '@/lib/gpu/normalize'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -193,7 +194,7 @@ async function saveCompetitorPrices(
 
     // 2. GPU 모델 find or create
     let gpuProductId: string
-    const memory = item.memory?.trim() ?? ''
+    const memory = normalizeMemory(item.memory ?? '')
     const { data: existingGpu } = await db
       .from('gpu_products')
       .select('id')
@@ -265,7 +266,7 @@ async function saveCompetitorPrices(
       ...(item.notes ? { notes: item.notes } : {}),
     })
 
-    saved.push({ competitor: item.competitor_name, model: item.model_name, memory, price_usd: item.price_usd })
+    saved.push({ competitor: item.competitor_name, model: item.model_name, memory: memory ?? '', price_usd: item.price_usd })
   }
 
   return saved
