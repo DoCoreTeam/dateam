@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-type Section = 'overview' | 'auth' | 'products' | 'quote' | 'inventory' | 'demo' | 'errors'
+type Section = 'overview' | 'auth' | 'products' | 'quote' | 'inventory' | 'fx' | 'suppliers' | 'market' | 'settings' | 'pool-stock' | 'accounts' | 'contacts' | 'deals' | 'demo' | 'errors'
 
 function useOrigin(fallback = 'https://your-domain.com') {
   const [origin, setOrigin] = useState(fallback)
@@ -50,7 +50,11 @@ export default function DevelopPage() {
   const navSections: { id: Section; label: string }[] = [
     { id: 'overview', label: '개요' }, { id: 'auth', label: '인증' },
     { id: 'products', label: '제품' }, { id: 'quote', label: '견적' },
-    { id: 'inventory', label: '재고' }, { id: 'demo', label: '🧪 데모' },
+    { id: 'inventory', label: '재고' }, { id: 'fx', label: '환율' },
+    { id: 'suppliers', label: '공급사' }, { id: 'market', label: '시장비교' },
+    { id: 'settings', label: '가격설정' }, { id: 'pool-stock', label: '풀재고' },
+    { id: 'accounts', label: '거래처' }, { id: 'contacts', label: '담당자' },
+    { id: 'deals', label: '영업기회' }, { id: 'demo', label: '🧪 데모' },
     { id: 'errors', label: '오류 코드' },
   ]
 
@@ -96,8 +100,14 @@ export default function DevelopPage() {
               ))}
             </div>
             <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>엔드포인트</div>
-              {[{id:'products' as Section,label:'제품 목록'},{id:'quote' as Section,label:'견적 계산'},{id:'inventory' as Section,label:'재고 조회'}].map(({id,label}) => (
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>GPU 가격</div>
+              {([{id:'products',label:'제품 목록'},{id:'quote',label:'견적 계산'},{id:'inventory',label:'재고 조회'},{id:'fx',label:'환율'},{id:'suppliers',label:'공급사'},{id:'market',label:'시장 비교'},{id:'settings',label:'가격 설정'},{id:'pool-stock',label:'풀 재고'}] as {id:Section;label:string}[]).map(({id,label}) => (
+                <SidebarItem key={id} active={activeSection===id} onClick={() => setActiveSection(id)}>{label}</SidebarItem>
+              ))}
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>CRM</div>
+              {([{id:'accounts',label:'거래처'},{id:'contacts',label:'담당자'},{id:'deals',label:'영업기회'}] as {id:Section;label:string}[]).map(({id,label}) => (
                 <SidebarItem key={id} active={activeSection===id} onClick={() => setActiveSection(id)}>{label}</SidebarItem>
               ))}
             </div>
@@ -118,6 +128,14 @@ export default function DevelopPage() {
           {activeSection === 'products' && <ProductsSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
           {activeSection === 'quote' && <QuoteSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
           {activeSection === 'inventory' && <InventorySection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
+          {activeSection === 'fx' && <FxSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
+          {activeSection === 'suppliers' && <SuppliersSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
+          {activeSection === 'market' && <MarketSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
+          {activeSection === 'settings' && <SettingsSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
+          {activeSection === 'pool-stock' && <PoolStockSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
+          {activeSection === 'accounts' && <AccountsSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
+          {activeSection === 'contacts' && <ContactsSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
+          {activeSection === 'deals' && <DealsSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
           {activeSection === 'demo' && <DemoSection />}
           {activeSection === 'errors' && <ErrorsSection />}
         </main>
@@ -147,8 +165,8 @@ function CodeBlock({ code, id, onCopy, copiedId }: { code: string; id: string; o
   )
 }
 
-function Badge({ method }: { method: 'GET' | 'POST' | 'DELETE' }) {
-  const colors: Record<string, string> = { GET: '#10b981', POST: '#6366f1', DELETE: '#ef4444' }
+function Badge({ method }: { method: 'GET' | 'POST' | 'PATCH' | 'DELETE' }) {
+  const colors: Record<string, string> = { GET: '#10b981', POST: '#6366f1', PATCH: '#f59e0b', DELETE: '#ef4444' }
   return <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, background: colors[method] + '22', color: colors[method], fontWeight: 700, fontSize: 12, fontFamily: 'monospace' }}>{method}</span>
 }
 
@@ -595,6 +613,410 @@ function DemoSection() {
           </pre>
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── 섹션: 환율 ──────────────────────────────────────────────────────────────
+
+function FxSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
+  const origin = useOrigin()
+  return (
+    <div>
+      <H1>환율 (FX Rates)</H1>
+      <P>최근 환율 이력을 조회합니다. 가격 계산에 사용되는 USD/KRW 환율 데이터입니다.</P>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <Badge method="GET" />
+        <code style={{ color: '#a5b4fc', fontSize: 14 }}>/fx</code>
+      </div>
+      <CodeBlock id="fx-get" onCopy={onCopy} copiedId={copiedId} code={`curl ${origin}/api/public/v1/fx \\
+  -H "X-API-Key: ${exampleKey}"`} />
+
+      <H2>응답</H2>
+      <CodeBlock id="fx-resp" onCopy={onCopy} copiedId={copiedId} code={`{
+  "success": true,
+  "data": [
+    { "rate_date": "2026-05-31", "usd_krw": 1505.8, "source": "koreaexim" },
+    ...
+  ],
+  "meta": { "total": 7 }
+}`} />
+    </div>
+  )
+}
+
+// ─── 섹션: 공급사 ─────────────────────────────────────────────────────────────
+
+function SuppliersSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
+  const origin = useOrigin()
+  return (
+    <div>
+      <H1>공급사 (Suppliers)</H1>
+      <P>GPU 공급사 목록과 통계(활성 견적 수, 최저가 달성 수, 마지막 견적 수신일)를 조회합니다.</P>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <Badge method="GET" />
+        <code style={{ color: '#a5b4fc', fontSize: 14 }}>/suppliers</code>
+      </div>
+      <CodeBlock id="sup-get" onCopy={onCopy} copiedId={copiedId} code={`curl ${origin}/api/public/v1/suppliers \\
+  -H "X-API-Key: ${exampleKey}"`} />
+
+      <H2>공급사 등록</H2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <Badge method="POST" />
+        <code style={{ color: '#a5b4fc', fontSize: 14 }}>/suppliers</code>
+      </div>
+      <CodeBlock id="sup-post" onCopy={onCopy} copiedId={copiedId} code={`curl -X POST ${origin}/api/public/v1/suppliers \\
+  -H "X-API-Key: ${exampleKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "name": "ABC Corp", "location": "서울", "contact": "010-1234-5678" }'`} />
+
+      <H2>요청 바디 (POST)</H2>
+      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+          <thead><tr style={{ background: '#1e293b' }}>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#94a3b8', fontSize: 12 }}>필드</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#94a3b8', fontSize: 12 }}>타입</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#94a3b8', fontSize: 12 }}>설명</th>
+          </tr></thead>
+          <tbody>
+            <ParamRow name="name" type="string" required desc="공급사 이름" />
+            <ParamRow name="location" type="string" desc="위치 (선택)" />
+            <ParamRow name="contact" type="string" desc="연락처 (선택)" />
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// ─── 섹션: 시장 비교 ──────────────────────────────────────────────────────────
+
+function MarketSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
+  const origin = useOrigin()
+  return (
+    <div>
+      <H1>시장 비교 (Market)</H1>
+      <P>경쟁사 가격과 자사 가격을 비교한 시장 분석 데이터를 반환합니다. 전략 설정, 공급 이력, 신선도 정보를 포함합니다.</P>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <Badge method="GET" />
+        <code style={{ color: '#a5b4fc', fontSize: 14 }}>/market</code>
+      </div>
+      <CodeBlock id="mkt-get" onCopy={onCopy} copiedId={copiedId} code={`curl ${origin}/api/public/v1/market \\
+  -H "X-API-Key: ${exampleKey}"`} />
+
+      <H2>응답 구조</H2>
+      <CodeBlock id="mkt-resp" onCopy={onCopy} copiedId={copiedId} code={`{
+  "success": true,
+  "data": {
+    "competitors": [...],
+    "products": [
+      {
+        "product": { "id": "...", "model_name": "H100 SXM5", ... },
+        "competitors": [
+          { "competitor": {...}, "price_usd": 3.2, "is_fresh": true, ... }
+        ],
+        "our_price_usd": 2.95,
+        "market_min": 2.8,
+        "market_max": 3.5,
+        "market_median": 3.1,
+        "strategy": { "edge_pct_normal": 3, ... },
+        "supply_history": { "median_usd": 2.4, ... }
+      }
+    ],
+    "usd_krw": 1505.8,
+    "summary": { "low_count": 5, "mid_count": 10, "high_count": 2, "competitor_count": 12 }
+  }
+}`} />
+    </div>
+  )
+}
+
+// ─── 섹션: 가격 설정 ──────────────────────────────────────────────────────────
+
+function SettingsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
+  const origin = useOrigin()
+  return (
+    <div>
+      <H1>가격 설정 (Settings)</H1>
+      <P>전역 마진율과 최신 환율 정보를 조회하거나 업데이트합니다.</P>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <Badge method="GET" />
+        <code style={{ color: '#a5b4fc', fontSize: 14 }}>/settings</code>
+      </div>
+      <CodeBlock id="set-get" onCopy={onCopy} copiedId={copiedId} code={`curl ${origin}/api/public/v1/settings \\
+  -H "X-API-Key: ${exampleKey}"`} />
+
+      <H2>마진율 업데이트</H2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <Badge method="PATCH" />
+        <code style={{ color: '#a5b4fc', fontSize: 14 }}>/settings</code>
+      </div>
+      <CodeBlock id="set-patch" onCopy={onCopy} copiedId={copiedId} code={`curl -X PATCH ${origin}/api/public/v1/settings \\
+  -H "X-API-Key: ${exampleKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "margin_pct": 20 }'`} />
+
+      <H2>응답</H2>
+      <CodeBlock id="set-resp" onCopy={onCopy} copiedId={copiedId} code={`{
+  "success": true,
+  "data": {
+    "margin_pct": 18,
+    "usd_krw": 1505.8,
+    "fx_date": "2026-05-31",
+    "updated_at": "2026-05-31T00:00:00Z",
+    "updated_by": "admin@example.com"
+  }
+}`} />
+    </div>
+  )
+}
+
+// ─── 섹션: 풀 재고 ───────────────────────────────────────────────────────────
+
+function PoolStockSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
+  const origin = useOrigin()
+  return (
+    <div>
+      <H1>풀 재고 (Pool Stock)</H1>
+      <P>직접 공급 풀(Tier 3)의 재고 수량을 조회하거나 업데이트합니다.</P>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <Badge method="GET" />
+        <code style={{ color: '#a5b4fc', fontSize: 14 }}>/pool-stock</code>
+      </div>
+      <CodeBlock id="ps-get" onCopy={onCopy} copiedId={copiedId} code={`# 전체 조회
+curl ${origin}/api/public/v1/pool-stock \\
+  -H "X-API-Key: ${exampleKey}"
+
+# 특정 제품 조회
+curl "${origin}/api/public/v1/pool-stock?product_id=PRODUCT_ID" \\
+  -H "X-API-Key: ${exampleKey}"`} />
+
+      <H2>재고 업데이트</H2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <Badge method="POST" />
+        <code style={{ color: '#a5b4fc', fontSize: 14 }}>/pool-stock</code>
+      </div>
+      <CodeBlock id="ps-post" onCopy={onCopy} copiedId={copiedId} code={`curl -X POST ${origin}/api/public/v1/pool-stock \\
+  -H "X-API-Key: ${exampleKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "product_id": "PRODUCT_ID",
+    "pool_qty": 10,
+    "sell_price_krw": 5000000,
+    "note": "5월 입고분"
+  }'`} />
+
+      <H2>요청 바디 (POST)</H2>
+      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+          <thead><tr style={{ background: '#1e293b' }}>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#94a3b8', fontSize: 12 }}>필드</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#94a3b8', fontSize: 12 }}>타입</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#94a3b8', fontSize: 12 }}>설명</th>
+          </tr></thead>
+          <tbody>
+            <ParamRow name="product_id" type="string (UUID)" required desc="GPU 제품 ID" />
+            <ParamRow name="pool_qty" type="number" required desc="재고 수량 (0 이상)" />
+            <ParamRow name="sell_price_krw" type="number" desc="판매가 KRW (선택 — 입력 시 direct_prices도 업데이트)" />
+            <ParamRow name="note" type="string" desc="메모 (선택)" />
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// ─── 섹션: 거래처 ─────────────────────────────────────────────────────────────
+
+function AccountsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
+  const origin = useOrigin()
+  return (
+    <div>
+      <H1>거래처 (Accounts)</H1>
+      <P>CRM 거래처 데이터를 CRUD합니다. 커서 기반 페이지네이션과 필터를 지원합니다.</P>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <Badge method="GET" />
+        <code style={{ color: '#a5b4fc', fontSize: 14 }}>/accounts</code>
+      </div>
+      <CodeBlock id="acc-get" onCopy={onCopy} copiedId={copiedId} code={`# 목록 조회 (커서 페이지네이션)
+curl "${origin}/api/public/v1/accounts?sort=name&dir=asc" \\
+  -H "X-API-Key: ${exampleKey}"
+
+# 검색
+curl "${origin}/api/public/v1/accounts?search=삼성&segment=T1" \\
+  -H "X-API-Key: ${exampleKey}"
+
+# 단건 조회
+curl ${origin}/api/public/v1/accounts/ACCOUNT_ID \\
+  -H "X-API-Key: ${exampleKey}"`} />
+
+      <H2>거래처 생성</H2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <Badge method="POST" />
+        <code style={{ color: '#a5b4fc', fontSize: 14 }}>/accounts</code>
+      </div>
+      <CodeBlock id="acc-post" onCopy={onCopy} copiedId={copiedId} code={`curl -X POST ${origin}/api/public/v1/accounts \\
+  -H "X-API-Key: ${exampleKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "name": "주식회사 테스트", "industry": "IT", "segment": "T2", "region": "서울" }'`} />
+
+      <H2>거래처 수정 / 삭제</H2>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+        <Badge method="PATCH" />
+        <Badge method="DELETE" />
+        <code style={{ color: '#a5b4fc', fontSize: 14 }}>/accounts/{'{id}'}</code>
+      </div>
+      <CodeBlock id="acc-patch" onCopy={onCopy} copiedId={copiedId} code={`# 수정
+curl -X PATCH ${origin}/api/public/v1/accounts/ACCOUNT_ID \\
+  -H "X-API-Key: ${exampleKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "description": "중요 고객", "fit_score": 85 }'
+
+# 삭제
+curl -X DELETE ${origin}/api/public/v1/accounts/ACCOUNT_ID \\
+  -H "X-API-Key: ${exampleKey}"`} />
+
+      <H2>쿼리 파라미터 (GET 목록)</H2>
+      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+          <thead><tr style={{ background: '#1e293b' }}>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#94a3b8', fontSize: 12 }}>파라미터</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#94a3b8', fontSize: 12 }}>타입</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#94a3b8', fontSize: 12 }}>설명</th>
+          </tr></thead>
+          <tbody>
+            <ParamRow name="cursor" type="string" desc="다음 페이지 커서 (이전 응답의 nextCursor 값)" />
+            <ParamRow name="search" type="string" desc="거래처명 검색" />
+            <ParamRow name="segment" type="string" desc="세그먼트 필터 (T1, T2, 공공, ...)" />
+            <ParamRow name="industry" type="string" desc="업종 필터 (부분 일치)" />
+            <ParamRow name="region" type="string" desc="지역 필터 (부분 일치)" />
+            <ParamRow name="sort" type="string" desc="정렬 필드: created_at, name, fit_score, industry, region" />
+            <ParamRow name="dir" type="asc | desc" desc="정렬 방향 (기본: desc)" />
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// ─── 섹션: 담당자 ─────────────────────────────────────────────────────────────
+
+function ContactsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
+  const origin = useOrigin()
+  return (
+    <div>
+      <H1>담당자 (Contacts)</H1>
+      <P>거래처 담당자를 조회하거나 등록합니다.</P>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <Badge method="GET" />
+        <code style={{ color: '#a5b4fc', fontSize: 14 }}>/contacts</code>
+      </div>
+      <CodeBlock id="con-get" onCopy={onCopy} copiedId={copiedId} code={`curl "${origin}/api/public/v1/contacts?search=김" \\
+  -H "X-API-Key: ${exampleKey}"
+
+# 단건 조회
+curl ${origin}/api/public/v1/contacts/CONTACT_ID \\
+  -H "X-API-Key: ${exampleKey}"`} />
+
+      <H2>담당자 생성</H2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <Badge method="POST" />
+        <code style={{ color: '#a5b4fc', fontSize: 14 }}>/contacts</code>
+      </div>
+      <CodeBlock id="con-post" onCopy={onCopy} copiedId={copiedId} code={`curl -X POST ${origin}/api/public/v1/contacts \\
+  -H "X-API-Key: ${exampleKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "name": "홍길동",
+    "email": "hong@example.com",
+    "title": "CTO",
+    "account_id": "ACCOUNT_ID"
+  }'`} />
+
+      <H2>담당자 수정 / 삭제</H2>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+        <Badge method="PATCH" />
+        <Badge method="DELETE" />
+        <code style={{ color: '#a5b4fc', fontSize: 14 }}>/contacts/{'{id}'}</code>
+      </div>
+      <CodeBlock id="con-patch" onCopy={onCopy} copiedId={copiedId} code={`curl -X PATCH ${origin}/api/public/v1/contacts/CONTACT_ID \\
+  -H "X-API-Key: ${exampleKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "title": "CEO", "phone": "010-1234-5678" }'`} />
+    </div>
+  )
+}
+
+// ─── 섹션: 영업기회 ──────────────────────────────────────────────────────────
+
+function DealsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCopy: (t: string, id: string) => void; copiedId: string | null }) {
+  const origin = useOrigin()
+  return (
+    <div>
+      <H1>영업기회 (Deals)</H1>
+      <P>영업기회를 조회하거나 등록합니다. 스테이지를 변경하면 성공 확률이 자동 계산됩니다.</P>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <Badge method="GET" />
+        <code style={{ color: '#a5b4fc', fontSize: 14 }}>/deals</code>
+      </div>
+      <CodeBlock id="dea-get" onCopy={onCopy} copiedId={copiedId} code={`curl "${origin}/api/public/v1/deals?stage=PoC" \\
+  -H "X-API-Key: ${exampleKey}"
+
+# 단건 조회
+curl ${origin}/api/public/v1/deals/DEAL_ID \\
+  -H "X-API-Key: ${exampleKey}"`} />
+
+      <H2>영업기회 생성</H2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <Badge method="POST" />
+        <code style={{ color: '#a5b4fc', fontSize: 14 }}>/deals</code>
+      </div>
+      <CodeBlock id="dea-post" onCopy={onCopy} copiedId={copiedId} code={`curl -X POST ${origin}/api/public/v1/deals \\
+  -H "X-API-Key: ${exampleKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "title": "H100 임대 계약",
+    "account_id": "ACCOUNT_ID",
+    "value": 50000000,
+    "stage": "컨택"
+  }'`} />
+
+      <H2>스테이지 → 확률 자동 변환</H2>
+      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+          <thead><tr style={{ background: '#1e293b' }}>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#94a3b8', fontSize: 12 }}>stage</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#94a3b8', fontSize: 12 }}>probability</th>
+          </tr></thead>
+          <tbody>
+            {[['신규','5%'],['검증','15%'],['컨택','30%'],['PoC','50%'],['제안','65%'],['협상','80%'],['수주','100%'],['실패','0%']].map(([s,p]) => (
+              <tr key={s}>
+                <td style={{ padding: '8px 16px', borderBottom: '1px solid #1e293b' }}><code style={{ color: '#a5b4fc' }}>{s}</code></td>
+                <td style={{ padding: '8px 16px', borderBottom: '1px solid #1e293b', color: '#64748b' }}>{p}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <H2>영업기회 수정 / 삭제</H2>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+        <Badge method="PATCH" />
+        <Badge method="DELETE" />
+        <code style={{ color: '#a5b4fc', fontSize: 14 }}>/deals/{'{id}'}</code>
+      </div>
+      <CodeBlock id="dea-patch" onCopy={onCopy} copiedId={copiedId} code={`curl -X PATCH ${origin}/api/public/v1/deals/DEAL_ID \\
+  -H "X-API-Key: ${exampleKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "stage": "제안", "value": 80000000 }'`} />
     </div>
   )
 }
