@@ -104,6 +104,8 @@ export interface OAuthTokenInsert {
 export interface Profile {
   id: string
   name: string
+  rank: string | null
+  position: string | null
   role: 'admin' | 'member'
   must_change_password: boolean
   created_at: string

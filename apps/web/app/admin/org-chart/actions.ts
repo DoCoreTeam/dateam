@@ -142,3 +142,60 @@ export async function removeMember(departmentId: string, userId: string) {
   revalidatePath('/org')
   return { error: null }
 }
+
+export async function createRank(name: string) {
+  const ctx = await requireAdmin()
+  if (!ctx) return { error: '권한 없음' }
+  const { error } = await ctx.db.from('org_ranks').insert({ name, display_order: 999 })
+  if (error) {
+    const e = error as { message: string; code?: string }
+    return { error: e.code === '23505' ? '이미 존재하는 직급입니다' : e.message }
+  }
+  revalidatePath('/admin/org-chart')
+  return { error: null }
+}
+
+export async function deleteRank(id: number) {
+  const ctx = await requireAdmin()
+  if (!ctx) return { error: '권한 없음' }
+  const { error } = await ctx.db.from('org_ranks').delete().eq('id', id)
+  if (error) return { error: (error as { message: string }).message }
+  revalidatePath('/admin/org-chart')
+  return { error: null }
+}
+
+export async function createPosition(name: string) {
+  const ctx = await requireAdmin()
+  if (!ctx) return { error: '권한 없음' }
+  const { error } = await ctx.db.from('org_positions').insert({ name, display_order: 999 })
+  if (error) {
+    const e = error as { message: string; code?: string }
+    return { error: e.code === '23505' ? '이미 존재하는 직책입니다' : e.message }
+  }
+  revalidatePath('/admin/org-chart')
+  return { error: null }
+}
+
+export async function deletePosition(id: number) {
+  const ctx = await requireAdmin()
+  if (!ctx) return { error: '권한 없음' }
+  const { error } = await ctx.db.from('org_positions').delete().eq('id', id)
+  if (error) return { error: (error as { message: string }).message }
+  revalidatePath('/admin/org-chart')
+  return { error: null }
+}
+
+export async function updateUserProfile(
+  userId: string,
+  data: { name: string; rank: string | null; position: string | null },
+) {
+  const ctx = await requireAdmin()
+  if (!ctx) return { error: '권한 없음' }
+  const { error } = await ctx.db.from('profiles')
+    .update({ name: data.name, rank: data.rank || null, position: data.position || null })
+    .eq('id', userId)
+  if (error) return { error: (error as { message: string }).message }
+  revalidatePath('/admin/users')
+  revalidatePath('/admin/org-chart')
+  return { error: null }
+}
