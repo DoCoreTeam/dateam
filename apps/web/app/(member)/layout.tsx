@@ -13,10 +13,7 @@ import { getTodayPlannedCount } from './daily/actions'
 import { cookies } from 'next/headers'
 import {
   Home,
-  CheckSquare,
-  BarChart2,
   FileText,
-  Building2,
   Briefcase,
   Users,
   TrendingUp,
@@ -34,9 +31,6 @@ const NAV_ITEMS = [
   { href: '/daily', label: '일일업무', icon: <NotebookPen size={16} /> },
   { href: '/calendar', label: '캘린더', icon: <CalendarDays size={16} /> },
   { href: '/weekly-report', label: '주간보고', icon: <FileText size={16} /> },
-  { href: '/kpi', label: 'KPI', icon: <BarChart2 size={16} /> },
-  { href: '/routine', label: '루틴 체크', icon: <CheckSquare size={16} /> },
-  { href: '/operations', label: '본부 운영', icon: <Building2 size={16} /> },
 ]
 
 const NAV_GROUPS: NavGroup[] = [

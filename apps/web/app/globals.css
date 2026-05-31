@@ -790,11 +790,12 @@
     row-gap: 1.25rem;
     align-items: start;
   }
-  .home-section-header   { grid-column: 1 / -1; grid-row: 1; }
-  .home-section-mission  { grid-column: 1 / -1; grid-row: 2; }
-  .home-section-calendar { grid-column: 1; grid-row: 3 / 5; }
-  .home-section-quick    { grid-column: 2; grid-row: 3; }
-  .home-section-weekly   { grid-column: 2; grid-row: 4; }
+  .home-section-header    { grid-column: 1 / -1; grid-row: 1; }
+  .home-section-mission   { grid-column: 1 / -1; grid-row: 2; }
+  .home-section-shortcuts { grid-column: 1 / -1; grid-row: 3; }
+  .home-section-calendar  { grid-column: 1; grid-row: 4 / 6; }
+  .home-section-quick     { grid-column: 2; grid-row: 4; }
+  .home-section-weekly    { grid-column: 2; grid-row: 5; }
 }
 
 @media (min-width: 768px) and (max-width: 1023px) {
@@ -810,11 +811,12 @@
     flex-direction: column;
     gap: 1.25rem;
   }
-  .home-section-header   { order: 1; }
-  .home-section-quick    { order: 2; }
-  .home-section-mission  { order: 3; }
-  .home-section-weekly   { order: 4; }
-  .home-section-calendar { order: 5; }
+  .home-section-header    { order: 1; }
+  .home-section-quick     { order: 2; }
+  .home-section-mission   { order: 3; }
+  .home-section-shortcuts { order: 4; }
+  .home-section-weekly    { order: 5; }
+  .home-section-calendar  { order: 6; }
 }
 
 /* ─── 태블릿 미디어쿼리 (768px ~ 1023px) ──────────────────────── */

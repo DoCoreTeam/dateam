@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, ChevronDown } from 'lucide-react'
 
 interface NavItem {
   href: string
@@ -43,6 +43,7 @@ export default function MobileShell({
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [hoveredHref, setHoveredHref] = useState<string | null>(null)
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   const hamburgerRef = useRef<HTMLButtonElement>(null)
   const firstNavRef = useRef<HTMLAnchorElement>(null)
 
@@ -186,56 +187,85 @@ export default function MobileShell({
             })}
           </ul>
           {/* 그룹 아이템 */}
-          {groups?.map((group) => (
-            <div key={group.label} style={{ marginTop: '1rem' }}>
-              <p style={{
-                fontSize: '0.6875rem',
-                fontWeight: 600,
-                color: '#475569',
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                padding: '0 0.75rem',
-                margin: '0 0 0.25rem',
-              }}>
-                {group.label}
-              </p>
-              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
-                {group.items.map((item) => {
-                  const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
-                  const isHovered = hoveredHref === item.href && !isActive
-                  return (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        onMouseEnter={() => setHoveredHref(item.href)}
-                        onMouseLeave={() => setHoveredHref(null)}
-                        aria-current={isActive ? 'page' : undefined}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.625rem',
-                          padding: '0.5rem 0.75rem',
-                          borderRadius: '0.5rem',
-                          fontSize: '0.875rem',
-                          fontWeight: 500,
-                          textDecoration: 'none',
-                          transition: 'background-color 120ms, color 120ms',
-                          backgroundColor: isActive ? '#4f46e5' : isHovered ? 'rgba(255,255,255,0.07)' : 'transparent',
-                          color: isActive || isHovered ? '#fff' : '#94a3b8',
-                          minHeight: '44px',
-                        }}
-                      >
-                        <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.7, display: 'flex', alignItems: 'center' }}>
-                          {item.icon}
-                        </span>
-                        {item.label}
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
-            </div>
-          ))}
+          {groups?.map((group) => {
+            const isCollapsed = collapsedGroups.has(group.label)
+            const toggleGroup = () => setCollapsedGroups((prev) => {
+              const next = new Set(prev)
+              if (next.has(group.label)) next.delete(group.label)
+              else next.add(group.label)
+              return next
+            })
+            return (
+              <div key={group.label} style={{ marginTop: '1rem' }}>
+                <button
+                  onClick={toggleGroup}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    color: '#475569',
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    padding: '0.25rem 0.75rem',
+                    margin: '0 0 0.25rem',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    borderRadius: '0.375rem',
+                    transition: 'background-color 120ms',
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(255,255,255,0.05)' }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent' }}
+                >
+                  {group.label}
+                  <ChevronDown
+                    size={12}
+                    style={{ transition: 'transform 200ms', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}
+                  />
+                </button>
+                {!isCollapsed && (
+                  <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
+                    {group.items.map((item) => {
+                      const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                      const isHovered = hoveredHref === item.href && !isActive
+                      return (
+                        <li key={item.href}>
+                          <Link
+                            href={item.href}
+                            onMouseEnter={() => setHoveredHref(item.href)}
+                            onMouseLeave={() => setHoveredHref(null)}
+                            aria-current={isActive ? 'page' : undefined}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.625rem',
+                              padding: '0.5rem 0.75rem',
+                              borderRadius: '0.5rem',
+                              fontSize: '0.875rem',
+                              fontWeight: 500,
+                              textDecoration: 'none',
+                              transition: 'background-color 120ms, color 120ms',
+                              backgroundColor: isActive ? '#4f46e5' : isHovered ? 'rgba(255,255,255,0.07)' : 'transparent',
+                              color: isActive || isHovered ? '#fff' : '#94a3b8',
+                              minHeight: '44px',
+                            }}
+                          >
+                            <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.7, display: 'flex', alignItems: 'center' }}>
+                              {item.icon}
+                            </span>
+                            {item.label}
+                          </Link>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+            )
+          })}
         </nav>
 
         {/* 모바일 전용 어드민/멤버 전환 */}

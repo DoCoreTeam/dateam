@@ -6,7 +6,7 @@ import type { OrgContent, WeeklyReport } from '@/types/database'
 import HomeMiniCalendar from './HomeMiniCalendar'
 import HomeQuickEntry from './HomeQuickEntry'
 import Link from 'next/link'
-import { FileText, Target } from 'lucide-react'
+import { FileText, Target, BarChart2, CheckSquare, Building2 } from 'lucide-react'
 import FridaySpotlightOverlay from '@/components/ui/FridaySpotlightOverlay'
 
 export default async function HomePage() {
@@ -129,6 +129,40 @@ export default async function HomePage() {
             </div>
           </div>
         )}
+
+        {/* 바로가기 — 모바일 3.5번째, 데스크탑 전체폭 */}
+        <div className="home-section-shortcuts">
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {[
+              { href: '/kpi', label: 'KPI', icon: <BarChart2 size={16} />, color: '#6366f1', bg: '#eef2ff' },
+              { href: '/routine', label: '루틴 체크', icon: <CheckSquare size={16} />, color: '#0891b2', bg: '#ecfeff' },
+              { href: '/operations', label: '본부 운영', icon: <Building2 size={16} />, color: '#059669', bg: '#ecfdf5' },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '0.625rem',
+                  background: item.bg,
+                  color: item.color,
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  border: `1px solid ${item.color}22`,
+                  transition: 'opacity 120ms',
+                  minHeight: '44px',
+                }}
+              >
+                {item.icon}
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </div>
 
         {/* 미니 캘린더 — 모바일 5번째, 데스크탑 좌측(row 3~4 span) */}
         <div className="home-section-calendar">
