@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import CompanyForm from './CompanyForm'
-import OrgTree, { type Department, type Member } from './OrgTree'
+import OrgTree from './OrgTree'
 import RankPositionManager from './RankPositionManager'
+import type { OrgNode } from './OrgNodeCard'
 
 export const metadata = { title: '조직도 관리 | 어드민' }
 
@@ -15,55 +16,22 @@ export default async function OrgChartAdminPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = adminClient as any
 
-  const [companyRes, deptsRes, membersRes, profilesRes, authUsersRes, ranksRes, positionsRes] = await Promise.all([
+  const [companyRes, nodesRes, profilesRes, ranksRes, positionsRes] = await Promise.all([
     db.from('org_company').select('name, description').eq('id', 1).single(),
-    db.from('org_departments').select('id, name, description, parent_id, display_order').order('display_order'),
-    db.from('org_department_members').select('department_id, user_id, profiles(id, name)'),
-    db.from('profiles').select('id, name').is('deleted_at', null).order('name'),
-    adminClient.auth.admin.listUsers({ perPage: 1000 }),
+    db.from('org_nodes').select('id, type, parent_id, name, subtitle, display_order, head_user_id, user_id, color').order('display_order'),
+    db.from('profiles').select('id, name, rank, position').is('deleted_at', null).order('name'),
     db.from('org_ranks').select('id, name, display_order').order('display_order'),
     db.from('org_positions').select('id, name, display_order').order('display_order'),
   ])
 
-  const emailMap = new Map(
-    (authUsersRes.data?.users ?? []).map((u) => [u.id, u.email ?? ''])
-  )
-
   const company = companyRes.data as { name: string; description: string | null } | null
+  const nodes = (nodesRes.data ?? []) as OrgNode[]
+  const allProfiles = (profilesRes.data ?? []) as { id: string; name: string; rank: string | null; position: string | null }[]
   const ranks = (ranksRes.data ?? []) as { id: number; name: string; display_order: number }[]
   const positions = (positionsRes.data ?? []) as { id: number; name: string; display_order: number }[]
-  const rawDepts = (deptsRes.data ?? []) as {
-    id: string; name: string; description: string | null; parent_id: string | null; display_order: number
-  }[]
-  const rawMembers = (membersRes.data ?? []) as {
-    department_id: string; user_id: string; profiles: { id: string; name: string | null } | null
-  }[]
-  const allProfiles: Member[] = (profilesRes.data ?? []).map(
-    (p: { id: string; name: string | null }) => ({
-      id: p.id,
-      name: p.name,
-      email: emailMap.get(p.id) ?? null,
-    })
-  )
-
-  const membersByDept = rawMembers.reduce<Record<string, Member[]>>((acc, m) => {
-    if (!m.profiles) return acc
-    acc[m.department_id] = acc[m.department_id] ?? []
-    acc[m.department_id].push({
-      id: m.user_id,
-      name: m.profiles.name,
-      email: emailMap.get(m.user_id) ?? null,
-    })
-    return acc
-  }, {})
-
-  const departments: Department[] = rawDepts.map((d) => ({
-    ...d,
-    members: membersByDept[d.id] ?? [],
-  }))
 
   return (
-    <div className="page-inner" style={{ maxWidth: '860px' }}>
+    <div className="page-inner" style={{ maxWidth: '1200px' }}>
       <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.25rem', fontWeight: 700, color: '#1e293b' }}>
         조직도 관리
       </h2>
@@ -73,7 +41,7 @@ export default async function OrgChartAdminPage() {
         defaultDescription={company?.description ?? ''}
       />
 
-      <OrgTree departments={departments} allProfiles={allProfiles} companyName={company?.name} />
+      <OrgTree nodes={nodes} allProfiles={allProfiles} />
 
       <div style={{ marginTop: '2.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '2rem' }}>
         <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.1rem', fontWeight: 700, color: '#1e293b' }}>
