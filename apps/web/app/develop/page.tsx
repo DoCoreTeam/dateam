@@ -17,14 +17,23 @@ export default function DevelopPage() {
   const [activeSection, setActiveSection] = useState<Section>('overview')
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showDashboardLink, setShowDashboardLink] = useState(false)
+  const [showApplyLink, setShowApplyLink] = useState(false)
 
   useEffect(() => {
     const sb = createClient()
     sb.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
+      if (!user) {
+        setShowApplyLink(true)
+        return
+      }
       const { data } = await sb.from('profiles').select('role').eq('id', user.id).single()
       const role = (data as { role?: string } | null)?.role
-      if (role === 'admin' || role === 'member') setShowDashboardLink(true)
+      if (role === 'admin' || role === 'member') {
+        setShowDashboardLink(true)
+      } else {
+        // api_user: 이미 계정 있음 — 신청 불필요, 키 관리 페이지 링크
+        setShowApplyLink(false)
+      }
     })
   }, [])
 
@@ -62,11 +71,18 @@ export default function DevelopPage() {
               </button>
             ))}
           </nav>
-          {showDashboardLink && (
-            <a href="/home" style={{ padding: '6px 14px', borderRadius: 8, background: 'rgba(99,102,241,0.1)', color: '#a5b4fc', fontSize: 13, fontWeight: 500, textDecoration: 'none', border: '1px solid rgba(99,102,241,0.2)' }}>
-              ← 대시보드
-            </a>
-          )}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {showDashboardLink && (
+              <a href="/home" style={{ padding: '6px 14px', borderRadius: 8, background: 'rgba(99,102,241,0.1)', color: '#a5b4fc', fontSize: 13, fontWeight: 500, textDecoration: 'none', border: '1px solid rgba(99,102,241,0.2)' }}>
+                ← 대시보드
+              </a>
+            )}
+            {showApplyLink && (
+              <a href="/api-access" style={{ padding: '6px 14px', borderRadius: 8, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+                API 키 신청 →
+              </a>
+            )}
+          </div>
         </div>
       </header>
 
@@ -167,6 +183,17 @@ function OverviewSection({ onCopy, copiedId }: { onCopy: (t: string, id: string)
   const origin = useOrigin()
   return (
     <div>
+      {/* API 키 신청 CTA 배너 */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08))', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 12, padding: '16px 24px', marginBottom: 32, gap: 16 }}>
+        <div>
+          <div style={{ fontWeight: 700, color: '#e2e8f0', fontSize: 14, marginBottom: 4 }}>AX API 사용을 시작하려면</div>
+          <div style={{ color: '#94a3b8', fontSize: 13 }}>계정을 신청하면 담당자 승인 후 API 키를 발급받을 수 있습니다.</div>
+        </div>
+        <a href="/api-access" style={{ flexShrink: 0, padding: '8px 20px', borderRadius: 8, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff', fontSize: 13, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+          API 키 신청 →
+        </a>
+      </div>
+
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 13, color: '#6366f1', fontWeight: 600, marginBottom: 8 }}>AX GPU 가격 API</div>
         <H1>개발자 문서</H1>
