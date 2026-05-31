@@ -268,7 +268,9 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
     : filtered
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* ── 고정 헤더 영역 ── */}
+      <div style={{ flexShrink: 0 }}>
       {/* 최저가 갱신 배너 */}
       {!bannerDismissed && stats.pending > 0 && (
         <div className="gpu-banner">
@@ -376,7 +378,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
       <div className="gpu-margin-bar">
         <div className="gpu-mb-left">
           <div className="gpu-mb-icon">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#5b5ef0" strokeWidth="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5b5ef0" strokeWidth="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
           </div>
           <div>
             <strong>gcube 판매 마진</strong>
@@ -421,6 +423,10 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
         </span>
       </div>
 
+      </div>{/* end 고정 헤더 */}
+
+      {/* ── 스크롤 영역 (리스트만) ── */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
       {/* 가격표 */}
       <div className="gpu-panel">
         <table className="gpu-table">
@@ -578,6 +584,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
       <div className="gpu-empty-hint">
         행을 클릭하면 해당 모델의 <strong>전체 공급사 견적</strong>이 펼쳐지며, 각 견적의 근거자료를 바로 확인할 수 있습니다
       </div>
+      </div>{/* end 스크롤 영역 */}
     </div>
   )
 }

@@ -147,7 +147,7 @@ export default function GpuPricingClient() {
       <div style={{
         display: 'flex',
         gap: 4,
-        padding: '6px 0 8px',
+        padding: '4px 0 6px',
         borderBottom: '1px solid var(--gpu-border)',
         alignItems: 'center',
       }}>
@@ -218,7 +218,7 @@ export default function GpuPricingClient() {
       <div className="gpu-tab-content">
         {activeTab === 'board' && (
           <div style={{ display: 'flex', gap: 0, height: '100%', minHeight: 0, overflow: 'hidden' }}>
-            <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
+            <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
               <PriceTableTab
                 onGoToIntake={() => setActiveTab('intake')}
                 onGoToReview={() => setActiveTab('review')}
