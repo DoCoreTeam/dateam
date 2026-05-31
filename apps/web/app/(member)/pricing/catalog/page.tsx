@@ -108,45 +108,32 @@ export default function SalePriceCatalogPage() {
       </div>
 
       {/* 필터 바 */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
-        <div style={{ position: 'relative', flex: '1 1 180px', minWidth: 140, maxWidth: 280 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-            style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--gpu-muted)' }}>
-            <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+      <div className="gpu-toolbar" style={{ marginBottom: 16 }}>
+        <div className="gpu-search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.3-4.3" />
           </svg>
           <input
             type="text"
-            placeholder="모델 검색..."
+            placeholder="모델 검색 (H100, B200, 4090 ...)"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="gpu-search"
-            style={{ paddingLeft: 32, width: '100%' }}
           />
         </div>
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div className="gpu-seg">
           {([0, 1, 2, 3] as const).map((t) => (
             <button
               key={t}
-              className={`gpu-filter-btn${tierFilter === t ? ' active' : ''}`}
+              className={tierFilter === t ? 'on' : ''}
               onClick={() => setTierFilter(t)}
-              style={t !== 0 ? {
-                borderLeft: `3px solid ${TIER_INFO[t as 1|2|3].color}`,
-              } : {}}
             >
               {t === 0 ? '전체' : `Tier ${t}`}
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
-          {(['KRW', 'USD'] as const).map((c) => (
-            <button
-              key={c}
-              className={`gpu-filter-btn${currencyMode === c ? ' active' : ''}`}
-              onClick={() => setCurrencyMode(c)}
-            >
-              {c === 'KRW' ? '₩ 원' : '$ 달러'}
-            </button>
-          ))}
+        <div className="gpu-seg" style={{ marginLeft: 'auto' }}>
+          <button className={currencyMode === 'KRW' ? 'on' : ''} onClick={() => setCurrencyMode('KRW')}>₩ 원</button>
+          <button className={currencyMode === 'USD' ? 'on' : ''} onClick={() => setCurrencyMode('USD')}>$ 달러</button>
         </div>
       </div>
 
