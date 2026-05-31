@@ -36,6 +36,6 @@ export async function GET(req: NextRequest) {
   if (data?.length === CARRYOVER_LIMIT) console.warn('[api/daily/carryover] limit reached')
 
   return NextResponse.json(data as DailyLog[], {
-    headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' },
+    headers: { 'Cache-Control': 'no-store' },
   })
 }
