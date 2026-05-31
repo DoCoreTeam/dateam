@@ -7,6 +7,7 @@ interface ApiKey {
   id: string
   name: string
   masked_key: string
+  raw_key?: string
   status: 'active' | 'revoked'
   created_at: string
   last_used_at: string | null
@@ -133,7 +134,7 @@ export default function ApiKeysPage() {
             <Check size={16} color="#10b981" />
             <span style={{ fontWeight: 700, color: '#10b981' }}>API key created — copy it now</span>
           </div>
-          <p style={{ color: '#94a3b8', fontSize: 13, margin: '0 0 12px' }}>This key will not be shown again. Store it in a secure place like a password manager or secrets manager.</p>
+          <p style={{ color: '#94a3b8', fontSize: 13, margin: '0 0 12px' }}>이 키는 언제든지 API Keys 페이지에서 다시 복사할 수 있습니다.</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#0f172a', borderRadius: 8, padding: '10px 14px', border: '1px solid #1e293b' }}>
             <code style={{ flex: 1, fontSize: 13, color: '#e2e8f0', wordBreak: 'break-all', fontFamily: 'monospace' }}>{newKeyResult.key}</code>
             <button onClick={() => copyText(newKeyResult.key, 'newkey')} style={{ flexShrink: 0, padding: '4px 10px', borderRadius: 6, border: '1px solid #334155', background: '#1e293b', color: copiedId === 'newkey' ? '#10b981' : '#94a3b8', fontSize: 12, cursor: 'pointer' }}>
@@ -185,7 +186,18 @@ export default function ApiKeysPage() {
                     <span style={{ fontWeight: 600, fontSize: 15 }}>{k.name}</span>
                     <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 100, background: 'rgba(16,185,129,0.1)', color: '#10b981', fontWeight: 600 }}>active</span>
                   </div>
-                  <code style={{ fontSize: 12, color: '#64748b', fontFamily: 'monospace' }}>{k.masked_key}</code>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <code style={{ fontSize: 12, color: '#64748b', fontFamily: 'monospace' }}>{k.masked_key}</code>
+                    {k.raw_key && (
+                      <button
+                        onClick={() => copyText(k.raw_key!, k.id + '-copy')}
+                        title="API 키 복사"
+                        style={{ display: 'flex', alignItems: 'center', padding: '3px 7px', borderRadius: 5, border: '1px solid rgba(255,255,255,0.1)', background: copiedId === k.id + '-copy' ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.04)', color: copiedId === k.id + '-copy' ? '#10b981' : '#64748b', cursor: 'pointer', transition: 'all 0.15s' }}
+                      >
+                        {copiedId === k.id + '-copy' ? <Check size={12} /> : <Copy size={12} />}
+                      </button>
+                    )}
+                  </div>
                   <div style={{ display: 'flex', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 12, color: '#475569' }}>생성일: {fmt(k.created_at)}</span>
                     <span style={{ fontSize: 12, color: '#475569' }}>마지막 사용: {fmt(k.last_used_at)}</span>

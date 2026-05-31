@@ -16,7 +16,7 @@ export async function GET() {
   const admin = createAdminClient() as any
   const { data, error } = await admin
     .from('api_keys')
-    .select('id, name, key_prefix, created_at, last_used_at, revoked_at, request_count, rate_limit_per_minute')
+    .select('id, name, key_prefix, raw_key, created_at, last_used_at, revoked_at, request_count, rate_limit_per_minute')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await admin
     .from('api_keys')
-    .insert({ user_id: user.id, name: parsed.data.name, key_prefix: prefix, key_hash: hash })
+    .insert({ user_id: user.id, name: parsed.data.name, key_prefix: prefix, key_hash: hash, raw_key: key })
     .select('id, name, key_prefix, created_at')
     .single()
 
