@@ -89,20 +89,24 @@ export async function POST(
     const tier = typeof merged.tier_suggestion === 'number' ? merged.tier_suggestion : 1
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any
+    // memory를 먼저 정규화 — 매칭 + 생성 양쪽에서 동일하게 사용
+    const memory = normalizeMemory(typeof merged.memory === 'string' ? merged.memory : null)
     const tokens = modelName.split(/\s+/).filter((t: string) => t.length >= 2)
     for (const token of tokens) {
-      const { data: products } = await db
+      // memory가 있으면 model_name+memory 조합으로 정확 매칭 → 동일 칩명 다른 용량 오매칭 방지
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let q = (db as any)
         .from('gpu_products')
         .select('id')
         .ilike('model_name', `%${token}%`)
         .eq('tier', tier)
-        .limit(1)
+      if (memory) q = q.eq('memory', memory)
+      const { data: products } = await q.limit(1)
       if (products?.[0]?.id) { productId = products[0].id; break }
     }
 
     // 매칭 실패 → AI 추출 데이터로 신규 product 자동 생성
     if (!productId) {
-      const memory = normalizeMemory(typeof merged.memory === 'string' ? merged.memory : null)
       const series = modelName.split(/\s+/)[0] // "H100 SXM" → "H100", "B300" → "B300"
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: newProduct } = await (adminClient as any)

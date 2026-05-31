@@ -1040,7 +1040,12 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                         <span>{p.product.memory}</span>
                       </div>
                       <div>
-                        <div className="gpu-model-nm">{p.product.model_name}</div>
+                        <div className="gpu-model-nm">
+                          {p.product.model_name}
+                          {p.product.memory && !p.product.model_name.replace(/\s+/g, '').toLowerCase().includes(p.product.memory.toLowerCase()) && (
+                            <span style={{ fontSize: '11px', color: 'var(--gpu-muted)', fontWeight: 400, marginLeft: 5 }}>{p.product.memory}</span>
+                          )}
+                        </div>
                         <div className="gpu-model-meta">
                           <span className={`gpu-badge ${tierCfg.badge}`} style={{ fontSize: '10px' }}>{tierCfg.label}</span>
                           {' '}{tierCfg.name}
