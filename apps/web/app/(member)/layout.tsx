@@ -24,6 +24,7 @@ import {
   NotebookPen,
   CalendarDays,
   DollarSign,
+  Tag,
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import SWRProvider from './SWRProvider'
@@ -52,6 +53,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: '가격정책',
     items: [
       { href: '/pricing/gpu', label: 'GPU 가격관리', icon: <DollarSign size={16} /> },
+      { href: '/pricing/catalog', label: '판매가격표', icon: <Tag size={16} /> },
     ],
   },
 ]
