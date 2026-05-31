@@ -4,6 +4,13 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { mutate as globalMutate } from 'swr'
 import { Sparkles, Send, Paperclip, X, RotateCcw } from 'lucide-react'
 
+interface CompetitorSavedItem {
+  competitor: string
+  model: string
+  memory: string
+  price_usd: number
+}
+
 interface ReviewItemResult {
   id: string
   product_hint: string | null
@@ -153,6 +160,7 @@ export default function QuoteRegisterTab() {
   const [analyzing, setAnalyzing] = useState(false)
   const [analyzeStep, setAnalyzeStep] = useState(0)
   const [analysisResults, setAnalysisResults] = useState<ReviewItemResult[]>([])
+  const [competitorResults, setCompetitorResults] = useState<CompetitorSavedItem[]>([])
   const [activeTabIdx, setActiveTabIdx] = useState(0)
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
@@ -221,7 +229,7 @@ export default function QuoteRegisterTab() {
 
   const reset = useCallback(() => {
     setRawText(''); setAttached(null); setAnalysisResults([])
-    setActiveTabIdx(0); setErrorMsg(''); setSuccessMsg('')
+    setCompetitorResults([]); setActiveTabIdx(0); setErrorMsg(''); setSuccessMsg('')
   }, [])
 
   const handleAnalyze = useCallback(async () => {
@@ -231,7 +239,7 @@ export default function QuoteRegisterTab() {
 
     const effectiveChannel = hasImage && !text ? 'img' : channel
 
-    setAnalyzing(true); setErrorMsg(''); setSuccessMsg(''); setAnalysisResults([]); setActiveTabIdx(0)
+    setAnalyzing(true); setErrorMsg(''); setSuccessMsg(''); setAnalysisResults([]); setCompetitorResults([]); setActiveTabIdx(0)
     try {
       const payload: Record<string, unknown> = { text, channel: effectiveChannel, is_test: isTest }
       if (hasImage) {
@@ -245,16 +253,24 @@ export default function QuoteRegisterTab() {
       const j = await res.json()
       if (!res.ok) { setErrorMsg(j.error ?? 'AI 분석 실패'); return }
 
-      // 단일 item or 복수 items 처리
-      const results: ReviewItemResult[] = j.items ?? (j.item ? [j.item] : [])
-      setAnalysisResults(results)
-      await globalMutate('/api/pricing/gpu/review?status=pending')
-      const count = results.length
-      setSuccessMsg(
-        count > 1
-          ? `AI 분석 완료 — ${count}개 모델이 검토 대기 탭에 추가되었습니다.`
-          : 'AI 분석이 완료되어 검토 대기 탭에 추가되었습니다.'
-      )
+      if (j.type === 'competitor') {
+        // 경쟁사 가격 자동 저장 완료
+        const saved: CompetitorSavedItem[] = j.saved ?? []
+        setCompetitorResults(saved)
+        await globalMutate('/api/pricing/gpu/market')
+        setSuccessMsg(`경쟁사 가격 ${saved.length}건이 시장 비교에 자동 등록되었습니다.`)
+      } else {
+        // 공급가 견적 → 검토 대기
+        const results: ReviewItemResult[] = j.items ?? (j.item ? [j.item] : [])
+        setAnalysisResults(results)
+        await globalMutate('/api/pricing/gpu/review?status=pending')
+        const count = results.length
+        setSuccessMsg(
+          count > 1
+            ? `AI 분석 완료 — ${count}개 모델이 검토 대기 탭에 추가되었습니다.`
+            : 'AI 분석이 완료되어 검토 대기 탭에 추가되었습니다.'
+        )
+      }
     } catch {
       setErrorMsg('서버 연결 실패')
     } finally {
@@ -263,6 +279,7 @@ export default function QuoteRegisterTab() {
   }, [rawText, attached, channel, isTest])
 
   const hasResults = analysisResults.length > 0
+  const hasCompetitorResults = competitorResults.length > 0
 
   return (
     <div>
@@ -411,6 +428,33 @@ export default function QuoteRegisterTab() {
                     }}
                   />
                 ))}
+              </div>
+            </div>
+          ) : hasCompetitorResults ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, overflowY: 'auto' }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+                <span className="gpu-badge" style={{ background: 'var(--gpu-accent)', color: '#fff', fontSize: 10 }}>
+                  경쟁사 가격
+                </span>
+                <span className="gpu-badge" style={{ background: 'var(--gpu-green)', color: '#fff', fontSize: 10 }}>
+                  자동 저장 완료
+                </span>
+              </div>
+              {competitorResults.map((item, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+                    borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0',
+                  }}
+                >
+                  <span style={{ fontSize: 12, color: '#374151', fontWeight: 600, minWidth: 80 }}>{item.competitor}</span>
+                  <span style={{ fontSize: 12, color: '#6b7280', flex: 1 }}>{item.model} {item.memory}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }}>${item.price_usd}/hr</span>
+                </div>
+              ))}
+              <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 12, color: '#15803d' }}>
+                시장 비교 탭에서 즉시 확인할 수 있습니다.
               </div>
             </div>
           ) : !hasResults ? (
