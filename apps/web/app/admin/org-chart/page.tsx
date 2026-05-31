@@ -68,7 +68,7 @@ export default async function OrgChartAdminPage() {
         defaultDescription={company?.description ?? ''}
       />
 
-      <OrgTree departments={departments} allProfiles={allProfiles} />
+      <OrgTree departments={departments} allProfiles={allProfiles} companyName={company?.name} />
     </div>
   )
 }
