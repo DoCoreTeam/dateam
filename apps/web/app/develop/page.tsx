@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-type Section = 'overview' | 'auth' | 'products' | 'quote' | 'inventory' | 'demo' | 'keys' | 'errors'
+type Section = 'overview' | 'auth' | 'products' | 'quote' | 'inventory' | 'demo' | 'errors'
 
 function useOrigin(fallback = 'https://your-domain.com') {
   const [origin, setOrigin] = useState(fallback)
@@ -51,7 +51,7 @@ export default function DevelopPage() {
     { id: 'overview', label: '개요' }, { id: 'auth', label: '인증' },
     { id: 'products', label: '제품' }, { id: 'quote', label: '견적' },
     { id: 'inventory', label: '재고' }, { id: 'demo', label: '🧪 데모' },
-    { id: 'keys', label: 'API Keys' }, { id: 'errors', label: '오류 코드' },
+    { id: 'errors', label: '오류 코드' },
   ]
 
   return (
@@ -107,9 +107,7 @@ export default function DevelopPage() {
             </div>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>참조</div>
-              {[{id:'keys' as Section,label:'API Keys'},{id:'errors' as Section,label:'오류 코드'}].map(({id,label}) => (
-                <SidebarItem key={id} active={activeSection===id} onClick={() => setActiveSection(id)}>{label}</SidebarItem>
-              ))}
+              <SidebarItem active={activeSection==='errors'} onClick={() => setActiveSection('errors')}>오류 코드</SidebarItem>
             </div>
           </nav>
         </aside>
@@ -121,7 +119,6 @@ export default function DevelopPage() {
           {activeSection === 'quote' && <QuoteSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
           {activeSection === 'inventory' && <InventorySection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
           {activeSection === 'demo' && <DemoSection />}
-          {activeSection === 'keys' && <KeysSection onCopy={copy} copiedId={copiedId} />}
           {activeSection === 'errors' && <ErrorsSection />}
         </main>
       </div>
@@ -598,68 +595,6 @@ function DemoSection() {
           </pre>
         </div>
       )}
-    </div>
-  )
-}
-
-// ─── 섹션: API Keys ───────────────────────────────────────────────────────────
-
-function KeysSection({ onCopy, copiedId }: { onCopy: (t: string, id: string) => void; copiedId: string | null }) {
-  return (
-    <div>
-      <H1>API Keys 관리</H1>
-      <P>세션 인증 기반 API Keys 관리 엔드포인트입니다.</P>
-
-      <div style={{ padding: '14px 18px', background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 10, marginBottom: 24 }}>
-        <div style={{ fontWeight: 600, color: '#a5b4fc', marginBottom: 4, fontSize: 14 }}>💡 세션 인증 필요</div>
-        <p style={{ color: '#94a3b8', fontSize: 13, margin: 0 }}>이 엔드포인트는 API 키가 아닌 로그인 세션(쿠키)이 필요합니다. 대시보드 UI에서 사용하세요.</p>
-      </div>
-
-      {[
-        { method: 'GET' as const, path: '/api/user/api-keys', desc: '내 API 키 목록 조회', code: `GET /api/user/api-keys
-
-// 응답
-{
-  "success": true,
-  "data": [
-    {
-      "id": "uuid",
-      "name": "프로덕션 연동",
-      "masked_key": "ax_live_a1b2c3d4••••••••••••••••••••••",
-      "status": "active",
-      "created_at": "2026-05-01T00:00:00Z",
-      "request_count": 1423,
-      "rate_limit_per_minute": 60
-    }
-  ]
-}` },
-        { method: 'POST' as const, path: '/api/user/api-keys', desc: '새 API 키 생성 — 전체 키는 한 번만 표시', code: `POST /api/user/api-keys
-Content-Type: application/json
-
-{ "name": "내 통합 서비스" }
-
-// 응답
-{
-  "success": true,
-  "data": {
-    "key": "ax_live_a1b2c3d4e5f6...",
-    "note": "이 키는 다시 표시되지 않습니다. 안전한 곳에 보관하세요."
-  }
-}` },
-        { method: 'DELETE' as const, path: '/api/user/api-keys/{id}', desc: '즉시 키 폐기', code: `DELETE /api/user/api-keys/{key_id}
-
-// 응답
-{ "success": true, "message": "API key revoked successfully." }` },
-      ].map(({ method, path, desc, code }) => (
-        <div key={path} style={{ border: '1px solid #1e293b', borderRadius: 10, padding: '20px 24px', marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <Badge method={method} />
-            <code style={{ fontSize: 13, color: '#e2e8f0', background: '#0f172a', padding: '4px 12px', borderRadius: 6, border: '1px solid #1e293b' }}>{path}</code>
-          </div>
-          <P>{desc}</P>
-          <CodeBlock id={`keys-${method}-${path}`} onCopy={onCopy} copiedId={copiedId} code={code} />
-        </div>
-      ))}
     </div>
   )
 }
