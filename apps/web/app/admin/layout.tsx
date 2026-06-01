@@ -36,14 +36,6 @@ const ADMIN_NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: '부서운영',
-    items: [
-      { href: '/admin/routine', label: '루틴 현황', icon: <CheckSquare size={16} /> },
-      { href: '/admin/kpi', label: 'KPI 집계', icon: <BarChart2 size={16} /> },
-      { href: '/admin/content', label: '콘텐츠 관리', icon: <Building2 size={16} /> },
-    ],
-  },
-  {
     label: 'API · 시스템',
     items: [
       { href: '/admin/api', label: 'API 관리', icon: <Key size={16} /> },
@@ -55,6 +47,14 @@ const ADMIN_NAV_GROUPS: NavGroup[] = [
     label: '비즈니스',
     items: [
       { href: '/admin/partner-tiers', label: '파트너 등급', icon: <Tag size={16} /> },
+    ],
+  },
+  {
+    label: '부서운영',
+    items: [
+      { href: '/admin/routine', label: '루틴 현황', icon: <CheckSquare size={16} /> },
+      { href: '/admin/kpi', label: 'KPI 집계', icon: <BarChart2 size={16} /> },
+      { href: '/admin/content', label: '콘텐츠 관리', icon: <Building2 size={16} /> },
     ],
   },
 ]
