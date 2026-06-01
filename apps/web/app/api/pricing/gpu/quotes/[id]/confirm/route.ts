@@ -22,6 +22,23 @@ export async function POST(
     if (fetchErr || !quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
 
     const now = new Date().toISOString()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const adminDb = createAdminClient() as any
+
+    // 멱등: 동일 (상품·공급사·계약기간) 기존 confirmed 견적을 superseded로 이력화
+    // (부분 유니크 인덱스 위반 방지 + 공급사당 활성 1건 유지)
+    if (quote.product_id && quote.supplier_id) {
+      let supQ = adminDb
+        .from('supply_quotes')
+        .update({ status: 'superseded' })
+        .eq('product_id', quote.product_id)
+        .eq('supplier_id', quote.supplier_id)
+        .eq('status', 'confirmed')
+        .neq('id', params.id)
+      supQ = quote.term_months == null ? supQ.is('term_months', null) : supQ.eq('term_months', quote.term_months)
+      await supQ
+    }
+
     const { error } = await db
       .from('supply_quotes')
       .update({ status: 'confirmed', confirmed_by: user.email, confirmed_at: now })
@@ -29,8 +46,6 @@ export async function POST(
 
     if (error) throw error
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const adminDb = createAdminClient() as any
     await adminDb.from('gpu_audit_logs').insert({
       action_type: 'quote_confirmed',
       actor: user.email,
