@@ -42,10 +42,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: '프로젝트관리',
     items: [
-      { href: '/accounts', label: '거래처', icon: <Briefcase size={16} /> },
-      { href: '/contacts', label: '담당자', icon: <Users size={16} /> },
-      { href: '/deals', label: '영업기회', icon: <TrendingUp size={16} /> },
-      { href: '/lead-intake', label: '리드 인테이크', icon: <Inbox size={16} /> },
+      { href: '/lead-intake', label: '프로젝트관리', icon: <Inbox size={16} /> },
     ],
   },
   {
