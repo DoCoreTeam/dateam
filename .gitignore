@@ -14,8 +14,16 @@ Thumbs.db
 *~
 
 # Next.js
+.next/
 apps/web/.next/
 apps/web/out/
+
+# Test artifacts
+test-results/
+apps/web/test-results/
+
+# Playwright auth session (contains tokens — never commit)
+apps/web/e2e/auth-state.json
 
 # pnpm
 pnpm-lock.yaml

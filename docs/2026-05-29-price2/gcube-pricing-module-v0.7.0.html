@@ -1,0 +1,1833 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>가격정책 · AX사업본부</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f7f9;
+    --sidebar:#13151c;
+    --sidebar-2:#1a1d27;
+    --sidebar-hover:#23263340;
+    --card:#ffffff;
+    --border:#e9ebf0;
+    --border-strong:#dadde5;
+    --ink:#191c24;
+    --ink-2:#4b5563;
+    --muted:#8a92a3;
+    --faint:#aeb5c2;
+    --accent:#5b5ef0;
+    --accent-soft:#eef0fe;
+    --accent-ink:#4244c9;
+    --green:#15a35a; --green-soft:#e6f7ee;
+    --blue:#2563eb;  --blue-soft:#e8f0ff;
+    --purple:#7c3aed;--purple-soft:#f1ebfe;
+    --red:#e0405a;   --red-soft:#fdebee;
+    --amber:#d97706; --amber-soft:#fef3e2;
+    --mono:'JetBrains Mono',ui-monospace,monospace;
+    --radius:13px;
+    --shadow:0 1px 2px rgba(16,22,40,.04),0 4px 16px rgba(16,22,40,.05);
+    --shadow-lg:0 12px 40px rgba(16,22,40,.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Pretendard',-apple-system,sans-serif;
+    background:var(--bg);color:var(--ink);
+    -webkit-font-smoothing:antialiased;letter-spacing:-.01em;
+    display:flex;min-height:100vh;
+  }
+  .mono{font-family:var(--mono);font-feature-settings:"tnum";letter-spacing:0}
+
+  /* ============ SIDEBAR ============ */
+  .sidebar{
+    width:248px;flex-shrink:0;background:var(--sidebar);color:#cfd3dd;
+    display:flex;flex-direction:column;position:sticky;top:0;height:100vh;
+  }
+  .brand{padding:24px 22px 18px}
+  .brand h1{font-size:17px;color:#fff;font-weight:700;letter-spacing:-.02em}
+  .brand .greet{font-size:12px;color:#7a8194;margin-top:14px;line-height:1.5}
+  .brand .greet b{color:#c3c8d4;font-weight:600}
+  .nav{flex:1;overflow-y:auto;padding:6px 12px}
+  .nav::-webkit-scrollbar{width:0}
+  .nav-sec{font-size:10.5px;color:#5b6175;text-transform:uppercase;letter-spacing:.08em;padding:16px 10px 7px;font-weight:600}
+  .nav-item{
+    display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;
+    font-size:13.5px;color:#b3b9c7;cursor:pointer;margin-bottom:2px;transition:.13s;
+    text-decoration:none;
+  }
+  .nav-item:hover{background:var(--sidebar-hover);color:#e6e9ef}
+  .nav-item .ic{width:17px;height:17px;flex-shrink:0;opacity:.75}
+  .nav-item.active{background:var(--accent);color:#fff;font-weight:600;box-shadow:0 4px 14px #5b5ef055}
+  .nav-item.active .ic{opacity:1}
+  .nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;
+    min-width:17px;height:17px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 5px}
+  .nav-item.active .nav-badge{background:#fff;color:var(--accent)}
+  .userbox{padding:14px 16px;border-top:1px solid #23263a;display:flex;align-items:center;gap:10px}
+  .avatar{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#5b5ef0,#8b5cf6);
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;flex-shrink:0}
+  .userbox .info{min-width:0}
+  .userbox .nm{font-size:13px;color:#e6e9ef;font-weight:600}
+  .userbox .em{font-size:11px;color:#6b7286;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+  .ver{padding:0 16px 14px;font-size:10.5px;color:#454b5e;font-family:var(--mono)}
+
+  /* ============ MAIN ============ */
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .topbar{
+    background:#fff;border-bottom:1px solid var(--border);
+    padding:18px 32px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:30;
+  }
+  .topbar .crumb{font-size:12.5px;color:var(--muted)}
+  .topbar h2{font-size:19px;font-weight:700;letter-spacing:-.02em}
+  .topbar .pill{font-size:11px;font-family:var(--mono);color:var(--accent-ink);
+    background:var(--accent-soft);padding:3px 8px;border-radius:6px;font-weight:600}
+  .topbar .right{margin-left:auto;display:flex;gap:9px;align-items:center}
+  .fx-pill{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2);
+    background:#f3f4f8;border:1px solid var(--border);padding:6px 11px;border-radius:9px;font-weight:500}
+  .fx-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+  .fx-pill .mono{font-size:11.5px;color:var(--ink);font-weight:600}
+
+  .content{padding:24px 32px 60px;max-width:1180px;width:100%;margin:0 auto}
+
+  /* tabs */
+  .tabs{display:flex;gap:4px;background:#eef0f4;padding:4px;border-radius:11px;margin-bottom:22px;width:fit-content;flex-wrap:wrap}
+  .tab{padding:8px 15px;font-size:13px;font-weight:600;color:var(--ink-2);border-radius:8px;cursor:pointer;transition:.14s;border:none;background:none;display:flex;align-items:center;gap:7px}
+  .tab:hover{color:var(--ink)}
+  .tab.active{background:#fff;color:var(--accent-ink);box-shadow:var(--shadow)}
+  .tab .cnt{font-size:10px;background:var(--red);color:#fff;border-radius:8px;padding:1px 6px;font-weight:700;font-family:var(--mono)}
+  .tab.active .cnt{background:var(--accent-soft);color:var(--accent-ink)}
+
+  .view{display:none;animation:fade .35s ease}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* notification banner */
+  .banner{display:flex;align-items:center;gap:12px;background:linear-gradient(100deg,#eef0fe,#f3ebfe);
+    border:1px solid #ddd9fb;border-radius:var(--radius);padding:13px 16px;margin-bottom:20px;font-size:13px;color:var(--accent-ink)}
+  .banner .bdot{width:30px;height:30px;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 6px #5b5ef022}
+  .banner b{font-weight:700}
+  .banner .x{margin-left:auto;color:var(--accent);cursor:pointer;font-size:18px;line-height:1;opacity:.5}
+  .banner .x:hover{opacity:1}
+
+  /* stat strip */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)}
+  .stat .lbl{font-size:12px;color:var(--muted);font-weight:500;margin-bottom:8px}
+  .stat .val{font-size:24px;font-weight:700;letter-spacing:-.02em}
+  .stat .val .u{font-size:13px;color:var(--muted);font-weight:600;margin-left:3px}
+  .stat .sub{font-size:11.5px;color:var(--faint);margin-top:5px}
+  .stat .sub.up{color:var(--green)} .stat .sub.down{color:var(--red)}
+
+  /* toolbar */
+  .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+  .search{flex:1;min-width:200px;position:relative}
+  .search input{width:100%;border:1px solid var(--border);background:#fff;border-radius:10px;padding:10px 14px 10px 38px;font-size:13px;font-family:inherit;color:var(--ink)}
+  .search input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
+  .seg{display:flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff}
+  .seg button{padding:9px 13px;font-size:12.5px;font-weight:600;color:var(--ink-2);background:none;border:none;cursor:pointer;border-right:1px solid var(--border)}
+  .seg button:last-child{border-right:none}
+  .seg button.on{background:var(--accent-soft);color:var(--accent-ink)}
+  .btn{display:inline-flex;align-items:center;gap:7px;padding:10px 15px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--ink);transition:.13s;font-family:inherit}
+  .btn:hover{border-color:var(--border-strong);background:#fafbfc}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn.primary:hover{background:#4d50e0;box-shadow:0 6px 18px #5b5ef044}
+  .btn.ghost{background:none;border:none}
+  .btn svg{width:15px;height:15px}
+
+  /* margin policy bar */
+  .margin-bar{display:flex;align-items:center;gap:18px;background:linear-gradient(100deg,#eef0fe,#fff);border:1px solid #ddd9fb;border-radius:var(--radius);padding:14px 18px;margin-bottom:14px;flex-wrap:wrap}
+  .mb-left{display:flex;align-items:center;gap:11px}
+  .mb-left .ic{width:34px;height:34px;border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px #5b5ef022;flex-shrink:0}
+  .mb-left b{font-size:13.5px}
+  .mb-left .fx-eq{font-size:11.5px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+  .mb-ctrl{display:flex;align-items:center;gap:7px;margin-left:auto}
+  .mb-preset{padding:6px 11px;border-radius:8px;border:1px solid var(--border);background:#fff;font-size:12px;font-weight:600;font-family:var(--mono);color:var(--ink-2);cursor:pointer;transition:.12s}
+  .mb-preset:hover{border-color:var(--accent);color:var(--accent)}
+  .mb-preset.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .mb-input{display:flex;align-items:center;border:1px solid var(--border-strong);border-radius:9px;overflow:hidden;background:#fff;margin-left:4px}
+  .mb-input button{width:30px;height:34px;border:none;background:#f3f4f8;font-size:16px;cursor:pointer;color:var(--ink-2);font-weight:600}
+  .mb-input button:hover{background:var(--accent-soft);color:var(--accent)}
+  .mb-input input{width:48px;border:none;text-align:center;font-family:var(--mono);font-weight:700;font-size:14px;color:var(--accent-ink);background:none}
+  .mb-input input:focus{outline:none}
+  .mb-input .pct{padding-right:10px;font-family:var(--mono);color:var(--muted);font-size:13px}
+  .mb-note{flex-basis:100%;font-size:11px;color:var(--faint);display:flex;align-items:center;gap:6px}
+  .tier-legend{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px;padding:11px 16px;background:#fff;border:1px solid var(--border);border-radius:11px;font-size:11.5px;color:var(--ink-2);box-shadow:var(--shadow)}
+  .tier-legend .tl{display:flex;align-items:center;gap:7px}
+  .tier-legend .sep{margin-left:auto;color:var(--accent-ink);font-weight:600;display:flex;align-items:center;gap:6px}
+
+  /* table / price board */
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{text-align:left;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:13px 18px;background:#fafbfc;border-bottom:1px solid var(--border);white-space:nowrap}
+  thead th.r{text-align:right}
+  tbody td{padding:15px 18px;border-bottom:1px solid #f1f2f6;vertical-align:middle}
+  tbody tr:last-child td{border-bottom:none}
+  .row-main{cursor:pointer;transition:.12s}
+  .row-main:hover{background:#fafbff}
+  .row-main.open{background:var(--accent-soft)}
+  .model-cell{display:flex;align-items:center;gap:12px}
+  .gpu-chip{width:38px;height:38px;border-radius:9px;background:#13151c;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;font-family:var(--mono);font-size:9px;font-weight:700;line-height:1.1}
+  .gpu-chip.con{background:linear-gradient(135deg,#15a35a,#0e8a4a)}
+  .gpu-chip span{font-size:7px;opacity:.65;font-weight:500}
+  .model-cell .nm{font-weight:600;font-size:13.5px}
+  .model-cell .meta{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .price-main{font-family:var(--mono);font-size:15px;font-weight:700}
+  .price-sub{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:2px}
+  .r{text-align:right}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:7px;white-space:nowrap}
+  .b-green{background:var(--green-soft);color:var(--green)}
+  .b-blue{background:var(--blue-soft);color:var(--blue)}
+  .b-purple{background:var(--purple-soft);color:var(--purple)}
+  .b-red{background:var(--red-soft);color:var(--red)}
+  .b-amber{background:var(--amber-soft);color:var(--amber)}
+  .b-gray{background:#f0f1f4;color:var(--ink-2)}
+  .supplier-tag{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600}
+  .sdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .chev{width:18px;height:18px;color:var(--faint);transition:.2s}
+  .row-main.open .chev{transform:rotate(90deg);color:var(--accent)}
+  .dday{font-family:var(--mono);font-size:10.5px;font-weight:700}
+
+  /* expanded detail */
+  .detail-row td{padding:0;border-bottom:1px solid #f1f2f6}
+  .detail{background:#fbfcfe;padding:0 18px;max-height:0;overflow:hidden;transition:max-height .3s ease}
+  .detail.show{max-height:700px;padding:6px 18px 18px}
+  .detail-head{font-size:11.5px;color:var(--muted);font-weight:600;padding:12px 0 8px;display:flex;align-items:center;gap:8px}
+  .qline{display:grid;grid-template-columns:1.6fr 1fr .9fr 1fr 1fr auto;gap:14px;align-items:center;padding:11px 14px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;font-size:12.5px}
+  .qline.best{border-color:#bfe3cf;background:linear-gradient(90deg,#f3fbf6,#fff)}
+  .qline .ql-supplier{display:flex;align-items:center;gap:8px;font-weight:600}
+  .qline .ql-price{font-family:var(--mono);font-weight:700;font-size:13.5px}
+  .qline .ql-meta{font-size:11px;color:var(--muted)}
+  .qline .ql-evi{display:flex;gap:5px}
+  .icon-btn{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-2);transition:.12s}
+  .icon-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+  .conf{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+  .conf-bar{width:42px;height:5px;border-radius:3px;background:#eceef2;overflow:hidden}
+  .conf-bar i{display:block;height:100%;border-radius:3px;background:var(--green)}
+  .conf-bar i.mid{background:var(--amber)} .conf-bar i.low{background:var(--red)}
+
+  /* ===== registration / intake — 일원화 (v0.6.0) ===== */
+  .uni-intake{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:18px}
+  .uni-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:18px}
+  .uni-head .ic{width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,#5b5ef0,#8b5cf6);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 14px #5b5ef033}
+  .uni-head h3{font-size:16px;font-weight:700;letter-spacing:-.02em}
+  .uni-head p{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.5}
+  .uni-head p b{color:var(--ink-2)}
+
+  /* 드롭존 + 텍스트 통합 */
+  .uni-zone{border:2px dashed var(--border-strong);border-radius:13px;padding:0;background:#fafbfc;transition:.15s;position:relative;overflow:hidden}
+  .uni-zone:hover, .uni-zone.drag{border-color:var(--accent);background:var(--accent-soft)}
+  .uni-zone textarea{width:100%;min-height:170px;border:none;background:none;padding:18px 18px 14px;font-size:13px;font-family:inherit;line-height:1.6;color:var(--ink);resize:vertical;outline:none}
+  .uni-zone textarea::placeholder{color:var(--faint);line-height:1.7}
+  .uni-zone .attach-bar{display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid var(--border);background:#fff;flex-wrap:wrap}
+  .uni-zone .attach-bar .hint{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .uni-zone .attach-btns{display:flex;gap:6px;margin-left:auto}
+  .att-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;font-size:12px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:.13s;font-family:inherit}
+  .att-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+  .att-btn svg{width:14px;height:14px}
+  .att-list{display:flex;flex-wrap:wrap;gap:8px;padding:0 18px 14px}
+  .att-list:empty{display:none}
+
+  .uni-cta{display:flex;align-items:center;gap:12px;margin-top:16px}
+  .uni-cta .sample{color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;background:none;border:none;font-family:inherit;padding:8px 4px}
+  .uni-cta .sample:hover{text-decoration:underline}
+
+  /* AI 분류 안내 카드 */
+  .uni-explain{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px;padding-top:14px;border-top:1px dashed var(--border)}
+  .ux-card{background:#fafbff;border:1px solid var(--border);border-radius:10px;padding:11px 13px;font-size:11.5px;color:var(--muted);line-height:1.5}
+  .ux-card .head{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--ink-2);margin-bottom:4px;text-transform:none}
+  .ux-card .head .dot{width:6px;height:6px;border-radius:50%}
+  .ux-card b{color:var(--ink-2);font-weight:600}
+
+  /* AI 분류 결과 카드 (분석 후) */
+  .cls-card{display:flex;align-items:center;gap:13px;padding:14px 18px;background:linear-gradient(90deg,#eef0fe,#f3ebfe);border:1px solid #ddd9fb;border-radius:11px;margin-bottom:14px;font-size:13px}
+  .cls-card .ic{width:34px;height:34px;border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px #5b5ef022;color:var(--accent);font-weight:700;font-family:var(--mono)}
+  .cls-card .body b{color:var(--accent-ink);font-weight:700}
+  .cls-card .tags{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+  .grid2{display:grid;grid-template-columns:1.05fr .95fr;gap:20px}
+  .card-pad{padding:22px}
+  .card-title{font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:9px;margin-bottom:4px}
+  .card-title .step{width:22px;height:22px;border-radius:7px;background:var(--accent);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:var(--mono)}
+  .card-desc{font-size:12.5px;color:var(--muted);margin-bottom:18px;line-height:1.55}
+  .intake-tabs{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap}
+  .it{flex:1;min-width:90px;border:1px solid var(--border);background:#fff;border-radius:9px;padding:11px 8px;text-align:center;cursor:pointer;transition:.13s;display:flex;flex-direction:column;align-items:center;gap:6px}
+  .it:hover{border-color:var(--border-strong)}
+  .it.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink)}
+  .it svg{width:18px;height:18px}
+  .it span{font-size:11.5px;font-weight:600}
+  .dropzone{border:2px dashed var(--border-strong);border-radius:12px;padding:28px;text-align:center;color:var(--muted);background:#fafbfc;transition:.15s;cursor:pointer;margin-bottom:14px}
+  .dropzone:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink)}
+  .dropzone svg{width:30px;height:30px;margin-bottom:8px;opacity:.6}
+  .dropzone .big{font-size:13px;font-weight:600;color:var(--ink-2);margin-bottom:3px}
+  .dropzone .sm{font-size:11.5px}
+  textarea.intake{width:100%;min-height:150px;border:1px solid var(--border);border-radius:11px;padding:14px;font-size:12.5px;font-family:var(--mono);line-height:1.6;color:var(--ink);resize:vertical;background:#fff}
+  textarea.intake:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .filechip{display:inline-flex;align-items:center;gap:8px;background:#f3f4f8;border:1px solid var(--border);border-radius:8px;padding:7px 11px;font-size:12px;margin:8px 8px 0 0;color:var(--ink-2)}
+  .filechip svg{width:14px;height:14px;color:var(--accent)}
+  .row-actions{display:flex;gap:10px;margin-top:16px}
+
+  /* AI result panel */
+  .ai-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:50px 24px;color:var(--faint)}
+  .ai-empty svg{width:44px;height:44px;margin-bottom:14px;opacity:.4}
+  .ai-empty .t{font-size:13.5px;font-weight:600;color:var(--muted);margin-bottom:5px}
+  .ai-empty .d{font-size:12px;line-height:1.5;max-width:240px}
+  .ai-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:55px 24px;text-align:center}
+  .spinner{width:36px;height:36px;border:3px solid var(--accent-soft);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:16px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .ai-loading .t{font-size:13px;font-weight:600;color:var(--accent-ink)}
+  .ai-loading .steps{font-size:12px;color:var(--muted);margin-top:10px;font-family:var(--mono)}
+  .parsed-head{display:flex;align-items:center;gap:9px;padding:14px 18px;background:linear-gradient(90deg,#f3fbf6,#fff);border-bottom:1px solid var(--border)}
+  .parsed-head .ico{width:30px;height:30px;border-radius:8px;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center}
+  .parsed-head .t{font-size:13.5px;font-weight:700}
+  .parsed-head .s{font-size:11.5px;color:var(--muted)}
+  .parsed-body{padding:18px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:.03em}
+  .field .inp{width:100%;border:1px solid var(--border);border-radius:9px;padding:9px 12px;font-size:13px;font-family:inherit;color:var(--ink);background:#fff}
+  .field .inp:focus{outline:none;border-color:var(--accent)}
+  .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .extracted{position:relative}
+  .extracted::after{content:"AI 추출";position:absolute;top:-7px;right:8px;font-size:9px;font-weight:700;background:var(--green-soft);color:var(--green);padding:1px 6px;border-radius:5px}
+
+  /* review queue list */
+  .rev-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;box-shadow:var(--shadow)}
+  .rev-top{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px}
+  .rev-top .gpu-chip{width:42px;height:42px}
+  .rev-top .info{flex:1}
+  .rev-top .info .nm{font-weight:700;font-size:14.5px}
+  .rev-top .info .src{font-size:12px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .rev-fields{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:14px 0;border-top:1px dashed var(--border);border-bottom:1px dashed var(--border)}
+  .rev-f .l{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px;font-weight:600}
+  .rev-f .v{font-size:14px;font-weight:600;font-family:var(--mono)}
+  .rev-f .v.txt{font-family:'Pretendard'}
+  .rev-actions{display:flex;align-items:center;gap:10px;margin-top:14px}
+  .rev-actions .sp{margin-left:auto;font-size:11.5px;color:var(--muted)}
+
+  /* supplier cards */
+  .sup-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  .sup-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);transition:.15s}
+  .sup-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+  .sup-head{display:flex;align-items:center;gap:13px;margin-bottom:16px}
+  .sup-logo{width:46px;height:46px;border-radius:11px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:17px;flex-shrink:0}
+  .sup-head .nm{font-weight:700;font-size:15px}
+  .sup-head .loc{font-size:12px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:5px}
+  .sup-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:14px 0;border-top:1px solid var(--border)}
+  .sup-stats .s .n{font-size:18px;font-weight:700;font-family:var(--mono)}
+  .sup-stats .s .l{font-size:10.5px;color:var(--muted);margin-top:2px}
+  .sup-foot{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);padding-top:13px;border-top:1px solid var(--border)}
+
+  /* audit log */
+  .log-item{display:flex;gap:14px;padding:15px 0;border-bottom:1px solid #f1f2f6}
+  .log-item:last-child{border:none}
+  .log-time{font-family:var(--mono);font-size:11px;color:var(--muted);width:128px;flex-shrink:0;line-height:1.5;padding-top:2px}
+  .log-ico{width:32px;height:32px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .log-body{flex:1}
+  .log-body .ttl{font-size:13.5px;font-weight:600}
+  .log-body .ttl .mono{color:var(--accent-ink)}
+  .log-body .dsc{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.5}
+  .log-body .actor{font-size:11.5px;color:var(--faint);margin-top:6px;display:flex;align-items:center;gap:6px}
+  .log-evi{margin-top:8px}
+
+  /* modal */
+  .overlay{position:fixed;inset:0;background:#0f1117aa;backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:100;padding:24px}
+  .overlay.show{display:flex;animation:fade .2s}
+  .modal{background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:85vh;overflow:hidden;box-shadow:var(--shadow-lg);display:flex;flex-direction:column}
+  .modal-head{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:11px}
+  .modal-head .mt{font-size:15px;font-weight:700}
+  .modal-head .ms{font-size:12px;color:var(--muted);margin-top:2px}
+  .modal-head .close{margin-left:auto;width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink-2)}
+  .modal-head .close:hover{background:#f3f4f8}
+  .modal-body{padding:22px;overflow-y:auto}
+  .evi-mail{background:#f7f8fb;border:1px solid var(--border);border-radius:11px;padding:18px;font-size:13px;line-height:1.7;color:var(--ink-2)}
+  .evi-mail .mh{font-size:11.5px;color:var(--muted);font-family:var(--mono);padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid var(--border)}
+  .evi-mail .mh b{color:var(--ink)}
+  .evi-mail .hl{background:#fef08a88;padding:1px 3px;border-radius:3px;font-weight:600;color:var(--ink)}
+  .evi-img{background:#f7f8fb;border:1px solid var(--border);border-radius:11px;height:280px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--faint);gap:10px}
+  .evi-img svg{width:40px;height:40px;opacity:.4}
+  .evi-meta{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+
+  .empty-hint{font-size:12px;color:var(--faint);text-align:center;padding:30px;line-height:1.6}
+
+  /* ============ 수량 추적 트랙 (v0.5.0) ============ */
+  /* 응답 상태 배지 */
+  .rs{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:7px;white-space:nowrap}
+  .rs::before{content:"";width:6px;height:6px;border-radius:50%;flex-shrink:0}
+  .rs-full{background:var(--green-soft);color:var(--green)} .rs-full::before{background:var(--green)}
+  .rs-partial{background:var(--amber-soft);color:var(--amber)} .rs-partial::before{background:var(--amber)}
+  .rs-oos{background:var(--red-soft);color:var(--red)} .rs-oos::before{background:var(--red)}
+  .rs-declined{background:#f0f1f4;color:var(--ink-2)} .rs-declined::before{background:#9098a7}
+  .rs-pending{background:#fff;color:var(--accent-ink);border:1px dashed var(--accent)} .rs-pending::before{background:var(--accent);animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .rs-stale{background:#f0f1f4;color:#9098a7} .rs-stale::before{background:#aeb5c2}
+
+  /* 신선도 점 */
+  .fresh{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-family:var(--mono);color:var(--muted)}
+  .fresh .fd{width:5px;height:5px;border-radius:50%;background:var(--green)}
+  .fresh.stale .fd{background:#aeb5c2} .fresh.stale{color:#aeb5c2}
+  .fresh.warn .fd{background:var(--amber)} .fresh.warn{color:var(--amber)}
+
+  /* 가용량 셀 */
+  .qty-cell{display:flex;align-items:center;gap:10px}
+  .qty-total{font-family:var(--mono);font-size:15px;font-weight:700;letter-spacing:-.02em}
+  .qty-total.zero{color:var(--red)}
+  .qty-total .u{font-size:11px;color:var(--muted);font-weight:500;margin-left:2px}
+  .qty-meta{font-size:11px;color:var(--muted);line-height:1.4}
+  .qty-meta b{color:var(--ink-2);font-weight:600}
+  .qty-warn{color:var(--amber);font-size:10.5px;display:flex;align-items:center;gap:4px;margin-top:3px}
+
+  /* 공급사별 가용 카드 (행 펼침) */
+  .av-line{display:grid;grid-template-columns:1.4fr 1fr 1.1fr 1.2fr 0.9fr auto;gap:14px;align-items:center;padding:12px 14px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;font-size:12.5px}
+  .av-line.oos{background:linear-gradient(90deg,#fef4f5,#fff);border-color:#f5d2d8}
+  .av-line.stale{opacity:.6}
+  .av-line.pending{border-style:dashed}
+  .av-line .av-qty{font-family:var(--mono);font-weight:700;font-size:14px}
+  .av-line .av-qty.oos{color:var(--red)}
+  .av-line .av-qty .frac{font-size:11px;color:var(--muted);font-weight:500;margin-left:3px}
+  .av-line .av-ctx{font-size:11px;color:var(--muted);margin-top:2px}
+  .total-cap-star{display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--amber);font-weight:700;background:var(--amber-soft);padding:2px 6px;border-radius:5px;margin-left:5px}
+
+  /* ============ 재고/문의 탭 (Availability View) ============ */
+  .av-toolbar-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+  .av-stat{background:#fff;border:1px solid var(--border);border-radius:11px;padding:14px 16px;box-shadow:var(--shadow)}
+  .av-stat .lbl{font-size:11px;color:var(--muted);font-weight:600;margin-bottom:7px;display:flex;align-items:center;gap:6px}
+  .av-stat .val{font-size:22px;font-weight:700;letter-spacing:-.02em;font-family:var(--mono)}
+  .av-stat .val .u{font-size:12px;color:var(--muted);font-weight:600;margin-left:3px}
+  .av-stat.red .val{color:var(--red)}
+  .av-stat.amber .val{color:var(--amber)}
+  .av-stat.green .val{color:var(--green)}
+  .av-stat.accent .val{color:var(--accent-ink)}
+
+  /* ============ 재고/문의 — 모델 중심 리스트 (v0.6.0) ============ */
+  .av-list{background:#fff;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);margin-bottom:20px}
+  .av-list-head{display:grid;grid-template-columns:1.6fr 1fr 1.4fr 1fr 1.1fr 40px;gap:14px;padding:11px 18px;background:#fafbfc;border-bottom:1px solid var(--border);font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+  .av-row{display:grid;grid-template-columns:1.6fr 1fr 1.4fr 1fr 1.1fr 40px;gap:14px;align-items:center;padding:14px 18px;border-bottom:1px solid #f1f2f6;cursor:pointer;transition:.12s;background:#fff}
+  .av-row:last-child{border-bottom:none}
+  .av-row:hover{background:#fafbff}
+  .av-row.open{background:var(--accent-soft)}
+  .av-row .chev{transition:.2s;color:var(--faint)}
+  .av-row.open .chev{transform:rotate(90deg);color:var(--accent)}
+
+  .qty-bar{display:flex;align-items:center;gap:8px}
+  .qty-bar .bigq{font-family:var(--mono);font-size:18px;font-weight:700;letter-spacing:-.02em}
+  .qty-bar .bigq.zero{color:var(--red)}
+  .qty-bar .bigq .u{font-size:11px;color:var(--muted);font-weight:500;margin-left:2px}
+  .supplier-pills{display:flex;flex-wrap:wrap;gap:5px}
+  .sp-pill{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:12px;background:#f3f4f8;color:var(--ink-2);border:1px solid transparent}
+  .sp-pill.oos{background:#fdebee;color:var(--red)}
+  .sp-pill.pending{background:#fff;border-color:var(--accent);color:var(--accent-ink)}
+  .sp-pill.stale{background:#fff;color:var(--faint);border-color:#e8eaef}
+  .sp-pill .sd{width:5px;height:5px;border-radius:50%}
+  .sp-pill .q{font-family:var(--mono);font-weight:700}
+  .health-bar{height:6px;background:#eceef2;border-radius:4px;overflow:hidden;display:flex;min-width:80px}
+  .health-bar i{display:block;height:100%}
+  .health-bar i.full{background:var(--green)}
+  .health-bar i.part{background:var(--amber)}
+  .health-bar i.oos{background:var(--red)}
+  .health-bar i.pen{background:var(--accent);opacity:.5}
+  .health-bar i.sta{background:#aeb5c2}
+  .health-stats{font-size:10.5px;color:var(--muted);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;line-height:1.3}
+
+  /* 펼침 영역 — 공급사별 응답 카드들 */
+  .av-detail-row{padding:0;background:#fbfcfe;border-bottom:1px solid #f1f2f6}
+  .av-detail{max-height:0;overflow:hidden;transition:max-height .35s ease;padding:0 18px}
+  .av-detail.show{max-height:900px;padding:8px 18px 18px}
+  .av-detail-head{font-size:11.5px;color:var(--muted);font-weight:600;padding:12px 0 8px;display:flex;align-items:center;gap:8px;justify-content:space-between}
+  .av-detail-head .tl-link{font-size:11.5px;color:var(--accent);font-weight:600;cursor:pointer}
+  .av-detail-head .tl-link:hover{text-decoration:underline}
+
+  /* 타임라인 — 공급사·상품별 상세 이력 */
+  .tl-head{display:flex;align-items:center;gap:14px;padding:18px 22px 14px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#fafbfc,#fff)}
+  .tl-head .gpu-chip{width:42px;height:42px}
+  .tl-head .tl-name{font-weight:700;font-size:15.5px}
+  .tl-head .tl-meta{font-size:12px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:7px}
+  .tl-head .tl-summary{margin-left:auto;display:flex;gap:18px;text-align:right}
+  .tl-head .tl-summary .s{font-size:11px;color:var(--muted)}
+  .tl-head .tl-summary .v{font-size:15px;font-weight:700;font-family:var(--mono);margin-top:1px}
+  .tl-filter{display:flex;align-items:center;gap:8px;padding:12px 22px;border-bottom:1px solid var(--border);background:#fafbfc;flex-wrap:wrap;font-size:12px}
+  .tl-filter .lbl{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-right:4px}
+  .tl-body{padding:8px 0}
+  .tl-item{display:grid;grid-template-columns:142px 1fr;gap:14px;padding:14px 22px;border-bottom:1px solid #f5f6fa;position:relative}
+  .tl-item:last-child{border-bottom:none}
+  .tl-when{font-size:11.5px;color:var(--muted);font-family:var(--mono);line-height:1.5;padding-top:14px;position:relative}
+  .tl-when::after{content:"";position:absolute;right:-7px;top:18px;width:9px;height:9px;border-radius:50%;background:#fff;border:2.5px solid var(--accent)}
+  .tl-when.oos::after{border-color:var(--red)} .tl-when.stale::after{border-color:#aeb5c2}
+  .tl-when.pending::after{border-color:var(--amber);background:var(--amber)}
+  .tl-pair{border-left:2px solid #f1f2f6;padding:0 0 0 18px}
+  .tl-msg{margin-bottom:12px}
+  .tl-msg:last-child{margin-bottom:0}
+  .tl-msg .arrow{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:5px;margin-bottom:6px}
+  .tl-msg .arrow.q{background:var(--accent-soft);color:var(--accent-ink)}
+  .tl-msg .arrow.r{background:#e7f5ec;color:var(--green)}
+  .tl-msg .arrow.miss{background:#fdebee;color:var(--red)}
+  .tl-msg .arrow svg{width:11px;height:11px}
+  .tl-msg .body{font-size:13px;color:var(--ink);line-height:1.55}
+  .tl-msg .body b{color:var(--ink);font-weight:700}
+  .tl-msg .body .num{font-family:var(--mono);font-weight:700}
+  .tl-msg .body .num.oos{color:var(--red)}
+  .tl-msg .meta{font-size:11px;color:var(--muted);margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .tl-msg .meta .ev{cursor:pointer;color:var(--accent);font-weight:600}
+  .tl-msg .meta .ev:hover{text-decoration:underline}
+  .tl-noresp{background:#fef4f5;border:1px dashed #f5c0c6;border-radius:9px;padding:10px 13px;font-size:12px;color:var(--red);display:flex;align-items:center;gap:8px;margin-top:6px}
+  .tl-noresp .act{margin-left:auto;background:var(--red);color:#fff;border:none;padding:5px 11px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer}
+
+  /* ============ 검토 카드 신뢰도 강제 응시 (v0.7.0) ============ */
+  .rev-banner{display:flex;align-items:center;gap:11px;padding:11px 14px;background:linear-gradient(90deg,#fef3e2,#fdebee);border:1px solid #f7d9c0;border-radius:10px;margin-bottom:14px;font-size:12.5px;color:var(--amber)}
+  .rev-banner .ic{width:26px;height:26px;border-radius:7px;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 3px #d9770622}
+  .rev-banner b{color:#b45309;font-weight:700}
+
+  /* 추출 항목 점검 그리드 */
+  .ck-grid{display:grid;gap:10px;margin:14px 0}
+  .ck-item{display:grid;grid-template-columns:24px 1fr auto;gap:12px;align-items:start;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:#fff;transition:.15s}
+  .ck-item.low{border-color:#f5d2d8;background:linear-gradient(90deg,#fef4f5,#fff)}
+  .ck-item.checked{background:#f6faf7;border-color:#cfe7d8}
+  .ck-item.low.checked{background:#f6faf7;border-color:#cfe7d8}
+  .ck-box{width:20px;height:20px;border:2px solid var(--border-strong);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;background:#fff;transition:.12s;margin-top:2px}
+  .ck-item.low .ck-box{border-color:#e0405a}
+  .ck-box.on{background:var(--green);border-color:var(--green)}
+  .ck-box.on::after{content:"";width:8px;height:5px;border:2px solid #fff;border-top:none;border-right:none;transform:rotate(-45deg) translate(1px,-1px)}
+  .ck-main .ck-label{font-size:10.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;display:flex;align-items:center;gap:7px}
+  .ck-main .ck-label .req{color:var(--red);font-size:10px;background:#fdebee;padding:1px 6px;border-radius:4px;font-weight:700;text-transform:none;letter-spacing:0}
+  .ck-main .ck-val{font-size:14px;font-weight:700;color:var(--ink);font-family:var(--mono);letter-spacing:-.01em}
+  .ck-main .ck-val.txt{font-family:'Pretendard'}
+  .ck-main .ck-evid{font-size:11px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:6px;line-height:1.5}
+  .ck-main .ck-evid .quote{font-style:italic;background:#fef08a44;padding:1px 5px;border-radius:3px;color:var(--ink-2)}
+  .ck-conf{display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:80px}
+  .ck-conf .pct{font-family:var(--mono);font-size:13px;font-weight:700}
+  .ck-conf .pct.low{color:var(--red)} .ck-conf .pct.mid{color:var(--amber)} .ck-conf .pct.high{color:var(--green)}
+  .ck-conf .lbl{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+  .ck-bar{width:64px;height:5px;background:#eceef2;border-radius:3px;overflow:hidden;margin-top:1px}
+  .ck-bar i{display:block;height:100%}
+  .ck-bar i.low{background:var(--red)} .ck-bar i.mid{background:var(--amber)} .ck-bar i.high{background:var(--green)}
+
+  /* AI 재분석 루프 */
+  .recheck{margin-top:14px;border:1px dashed var(--border-strong);border-radius:11px;padding:14px;background:#fafbfc}
+  .recheck-head{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:8px}
+  .recheck-head .ic{width:24px;height:24px;border-radius:7px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .recheck textarea{width:100%;min-height:62px;border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:12.5px;font-family:inherit;color:var(--ink);background:#fff;resize:vertical;line-height:1.5}
+  .recheck textarea:focus{outline:none;border-color:var(--accent)}
+  .recheck textarea::placeholder{color:var(--faint);font-size:12px;line-height:1.6}
+  .recheck-bar{display:flex;align-items:center;gap:9px;margin-top:9px}
+  .recheck-bar .hint{font-size:11px;color:var(--muted);flex:1}
+  .recheck-bar button{padding:7px 13px;font-size:12px;font-weight:600;border-radius:8px;border:none;cursor:pointer;font-family:inherit}
+  .recheck-bar .ask{background:var(--accent);color:#fff}
+  .recheck-bar .ask:hover{background:#4d50e0}
+
+  /* 재분석 회차 비교 */
+  .iter-strip{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#eef0fe;border:1px solid #ddd9fb;border-radius:9px;margin-bottom:12px;font-size:11.5px;color:var(--accent-ink)}
+  .iter-strip .badge{font-size:10px;font-weight:700;background:var(--accent);color:#fff;padding:2px 7px;border-radius:5px;font-family:var(--mono)}
+  .iter-diff{background:#fff3cd;color:#92400e;padding:1px 6px;border-radius:4px;font-weight:600;font-family:var(--mono);font-size:10.5px}
+
+  /* 확정 버튼 영역 */
+  .ck-finalize{display:flex;align-items:center;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
+  .ck-progress{font-size:12px;color:var(--muted);font-weight:600}
+  .ck-progress b{color:var(--ink)}
+  .ck-progress.done{color:var(--green)}
+  .btn.primary:disabled{background:#d1d5db;border-color:#d1d5db;cursor:not-allowed;box-shadow:none;color:#9ca3af}
+  .btn.primary:disabled:hover{background:#d1d5db}
+
+  /* 영향도/AI 메타 표시 */
+  .impact-pill{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:6px}
+  .impact-high{background:#fdebee;color:var(--red)}
+  .impact-mid{background:var(--amber-soft);color:var(--amber)}
+  .impact-low{background:var(--green-soft);color:var(--green)}
+
+  @media(max-width:1080px){.sidebar{display:none}.stats,.av-toolbar-stats{grid-template-columns:1fr 1fr}.grid2,.sup-grid,.uni-explain{grid-template-columns:1fr}.content{padding:20px}}
+</style>
+</head>
+<body>
+
+<!-- ============ SIDEBAR ============ -->
+<aside class="sidebar">
+  <div class="brand">
+    <h1>AX사업본부</h1>
+    <div class="greet">안녕하세요, <b>김도현 본부장</b>님</div>
+  </div>
+  <nav class="nav">
+    <a class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>홈</a>
+    <a class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>일일업무</a>
+    <a class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>캘린더</a>
+    <a class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>주간보고</a>
+    <a class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>KPI</a>
+    <a class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>루틴 체크<span class="nav-badge">4</span></a>
+    <a class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>본부 운영</a>
+
+    <div class="nav-sec">프로젝트관리</div>
+    <a class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>거래처</a>
+    <a class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/></svg>담당자</a>
+    <a class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>영업기회</a>
+    <a class="nav-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>리드 인테이크</a>
+
+    <div class="nav-sec">가격정책</div>
+    <a class="nav-item active"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>GPU 가격관리</a>
+  </nav>
+  <div class="userbox">
+    <div class="avatar">김</div>
+    <div class="info"><div class="nm">김도현 본부장</div><div class="em">michaelkim@data-al...</div></div>
+  </div>
+  <div class="ver">v0.5.0 · 가격정책 v0.7.0</div>
+</aside>
+
+<!-- ============ MAIN ============ -->
+<div class="main">
+  <header class="topbar">
+    <div>
+      <div class="crumb">가격정책</div>
+      <h2 style="display:flex;align-items:center;gap:10px">GPU 가격관리 <span class="pill">v0.7.0</span></h2>
+    </div>
+    <div class="right">
+      <div class="fx-pill" id="fxPill" title="매 영업일 한국수출입은행 매매기준율을 자동으로 받아옵니다"><span class="dot"></span>오늘 매매기준율 <span class="mono">1 USD = 1,498.20원</span><span class="badge b-green" style="font-size:9px;padding:1px 6px;margin-left:1px">자동</span></div>
+      <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export</button>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab active" data-tab="board"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="8"/><rect x="12" y="6" width="3" height="12"/><rect x="17" y="13" width="3" height="5"/></svg>가격표</button>
+      <button class="tab" data-tab="intake"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l1.5 4L11 8.5 6.5 10 5 14l-1.5-4L-.5 8.5 4 7zM19 12l1 3 3 1-3 1-1 3-1-3-3-1 3-1z" transform="translate(1 1)"/></svg>통합 입력</button>
+      <button class="tab" data-tab="availability"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>재고/문의 <span class="cnt" style="background:var(--amber)">2</span></button>
+      <button class="tab" data-tab="review"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>검토 대기 <span class="cnt">3</span></button>
+      <button class="tab" data-tab="suppliers"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>공급사</button>
+      <button class="tab" data-tab="log"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>변동 이력</button>
+    </div>
+
+    <!-- ============ VIEW: 가격표 ============ -->
+    <section class="view active" id="view-board">
+      <div class="banner" id="lowBanner">
+        <div class="bdot"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b5ef0" stroke-width="2.2"><path d="M13 2L3 14h9l-1 8 10-12h-9z"/></svg></div>
+        <div><b>최저가 갱신</b> · H100 SXM 80GB 공급가가 <b class="mono">$2.10/hr</b>로 하락했습니다 (GMI Cloud, 2시간 전 등록) — 기존 대비 9% 인하</div>
+        <div class="x" onclick="this.parentElement.style.display='none'">×</div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="lbl">관리 상품 (모델×tier)</div><div class="val">14<span class="u">개</span></div><div class="sub">T1 6 · T2 4 · T3 4</div></div>
+        <div class="stat"><div class="lbl">활성 가용 응답</div><div class="val" style="color:var(--green)">9<span class="u">건</span></div><div class="sub">신선 ≤72h</div></div>
+        <div class="stat"><div class="lbl">재고 소진 / 응답 대기</div><div class="val" style="color:var(--red)">2<span class="u">/3</span></div><div class="sub down">⌛ follow-up 필요</div></div>
+        <div class="stat"><div class="lbl">만료 임박 견적</div><div class="val" style="color:var(--amber)">3<span class="u">건</span></div><div class="sub down">7일 내 갱신 필요</div></div>
+      </div>
+
+      <div class="toolbar">
+        <div class="search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input placeholder="모델명 검색 (H100, B200, 4090 ...)">
+        </div>
+        <div class="seg" id="tierSeg">
+          <button class="on" onclick="filterTier(0,this)">전체</button>
+          <button onclick="filterTier(1,this)">Tier 1</button>
+          <button onclick="filterTier(2,this)">Tier 2</button>
+          <button onclick="filterTier(3,this)">Tier 3</button>
+        </div>
+        <button class="btn primary" onclick="go('intake')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l1.5 4L11 8.5 6.5 10 5 14l-1.5-4L-.5 8.5 4 7z" transform="translate(1 1)"/></svg>통합 입력</button>
+      </div>
+
+      <div class="margin-bar">
+        <div class="mb-left">
+          <div class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#5b5ef0" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+          <div><b>gcube 판매 마진</b><div class="fx-eq">최저 공급원가 × (1 + 마진) = 판매가</div></div>
+        </div>
+        <div class="mb-ctrl">
+          <button class="mb-preset" onclick="setMargin(15,this)">15%</button>
+          <button class="mb-preset on" onclick="setMargin(18,this)">18%</button>
+          <button class="mb-preset" onclick="setMargin(20,this)">20%</button>
+          <button class="mb-preset" onclick="setMargin(25,this)">25%</button>
+          <div class="mb-input">
+            <button onclick="bumpMargin(-1)">−</button>
+            <input id="marginInput" value="18" onchange="setMargin(this.value)">
+            <span class="pct">%</span>
+            <button onclick="bumpMargin(1)">+</button>
+          </div>
+        </div>
+        <div class="mb-note"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>전 모델 일괄 적용 · 변경 즉시 판매가 컬럼에 반영 · 모델별 개별 마진 재설정은 다음 버전 예정</div>
+      </div>
+
+      <div class="tier-legend">
+        <span class="tl"><span class="badge b-purple" style="font-size:10px">Tier 1</span>전용 고성능 · 보장형</span>
+        <span class="tl"><span class="badge b-blue" style="font-size:10px">Tier 2</span>점유형(예약 단독) · 보장형</span>
+        <span class="tl"><span class="badge b-amber" style="font-size:10px">Tier 3</span>간헐 공급(중단/재개) · 최저가</span>
+        <span class="sep"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>최저가는 동일 모델·tier 안에서만 비교</span>
+      </div>
+
+      <div class="panel">
+        <table>
+          <thead>
+            <tr>
+              <th>GPU 모델</th>
+              <th>최저 공급가 <span style="font-weight:400;text-transform:none;color:var(--faint)">(시간당)</span></th>
+              <th>최저가 공급사</th>
+              <th>가용 수량 <span style="font-weight:400;text-transform:none;color:var(--faint)">(신선 ≤72h)</span></th>
+              <th class="r">gcube 판매가 <span style="font-weight:400;text-transform:none;color:var(--faint)">(마진 적용)</span></th>
+              <th>견적 상태</th>
+              <th style="width:40px"></th>
+            </tr>
+          </thead>
+          <tbody id="boardBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-hint">행을 클릭하면 해당 모델의 <b>전체 공급사 견적</b>이 펼쳐지며, 각 견적의 근거자료를 바로 확인할 수 있습니다</div>
+    </section>
+
+    <!-- ============ VIEW: 통합 입력 ============ -->
+    <section class="view" id="view-intake">
+      <!-- 일원화된 입력창 (v0.6.2) — 한 입력창에 들어온 내용이 가격표·재고/문의·공급사·자체 풀 어디로든 자동 분류·반영 -->
+      <div class="uni-intake">
+        <div class="uni-head">
+          <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 3l1.5 4L11 8.5 6.5 10 5 14l-1.5-4L-.5 8.5 4 7zM19 12l1 3 3 1-3 1-1 3-1-3-3-1 3-1z" transform="translate(1 1)"/></svg></div>
+          <div style="flex:1">
+            <h3>통합 입력창 <span class="badge b-purple" style="font-size:10px;margin-left:6px;font-weight:700">전체 시스템 반영</span></h3>
+            <p>이곳에 입력되는 모든 내용은 <b>AI가 자동으로 분류해 시스템 전체에 반영</b>됩니다. 메뉴별로 따로 입력할 필요 없이, 메일·메신저·견적서·이미지를 그대로 넣으세요 — 가격은 가격표로, 수량은 재고/문의로, 공급사 정보는 공급사 목록으로, 자동 분기되어 저장됩니다.</p>
+          </div>
+        </div>
+
+        <div class="uni-zone" id="uniZone">
+          <textarea id="rawInput" placeholder="메일 본문, 메신저 대화, 견적서, 캡처 — 어떤 형식이든 그대로 붙여넣거나 첨부하세요&#10;&#10;예시 1)  [GMI Cloud] H100 80GB SXM $2.10/hr (8장 이상, 3개월 약정), 견적 유효 2026-06-15&#10;예시 2)  본부장님 요청 32장 중 현재 16장 가용합니다 (단가는 추후 회신)&#10;예시 3)  H100 현재 재고 소진. 재공급 5/24 예정&#10;예시 4)  RTX 4090 보유 60장 전량 가능"></textarea>
+          <div class="att-list" id="attList"></div>
+          <div class="attach-bar">
+            <span class="hint"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>여러 파일·이미지 한꺼번에 첨부 가능 · Ctrl+V로 캡처 붙여넣기</span>
+            <div class="attach-btns">
+              <button class="att-btn" onclick="addAttach('file')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>파일</button>
+              <button class="att-btn" onclick="addAttach('img')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>이미지/캡처</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="uni-cta">
+          <button class="btn primary" style="flex:1;justify-content:center" onclick="runAI()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l1.5 4L11 8.5 6.5 10 5 14l-1.5-4L-.5 8.5 4 7z" transform="translate(1 1)"/></svg>AI 분석 · 시스템 전체에 자동 분류</button>
+          <button class="sample" onclick="fillSample()">샘플 메일 채우기 →</button>
+          <button class="btn" onclick="resetAI()">초기화</button>
+        </div>
+
+        <div style="margin-top:18px;padding-top:16px;border-top:1px dashed var(--border)">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>입력 내용은 다음 메뉴로 자동 분기됩니다</div>
+          <div class="uni-explain">
+            <div class="ux-card">
+              <div class="head"><span class="dot" style="background:var(--accent)"></span>가격 정보 → 가격표</div>
+              단가가 포함된 견적은 <b>가격표 (Tier 1·2)</b>에 공급견적으로 적재. 단위(USD/GPU·hr) 정규화 + tier 추천 + 검토 게이트
+            </div>
+            <div class="ux-card">
+              <div class="head"><span class="dot" style="background:var(--green)"></span>수량·재고 → 재고/문의</div>
+              "N장 가능", "소진", "거절" 등 수량 관련 응답은 <b>재고/문의</b>의 가용량 트랙으로. 신선도 72h 타이머 시작
+            </div>
+            <div class="ux-card">
+              <div class="head"><span class="dot" style="background:var(--amber)"></span>공급사 정보 → 공급사</div>
+              회사명 미식별 시 <b>공급사</b>에 임시 보관(provisional). 도메인·서명·전화번호 단서로 추후 정식 공급사 연결 (v0.7 예정)
+            </div>
+          </div>
+          <div style="font-size:11.5px;color:var(--muted);margin-top:12px;display:flex;align-items:center;gap:7px;padding:9px 12px;background:#fafbfc;border:1px solid var(--border);border-radius:9px">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            모든 분류 결과는 <b style="color:var(--ink-2)">검토 대기</b>를 거쳐 사람 확정 후 반영됩니다 · 원본은 Google Drive로 자동 보관 · 모든 변경은 변동 이력에 기록
+          </div>
+        </div>
+      </div>
+
+      <!-- AI 분석 결과 -->
+      <div class="panel" id="aiPanel">
+        <div class="ai-empty" id="aiEmpty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M9 9h.01M15 9h.01M8 14s1.5 2 4 2 4-2 4-2"/></svg>
+          <div class="t">AI 분류·추출 결과가 여기에 표시됩니다</div>
+          <div class="d">위 통합 입력창에 내용을 넣고 <b>AI 분석</b>을 누르면, 가격·수량·공급사를 자동 식별해 시스템 전체에 자동 분류·반영됩니다</div>
+        </div>
+      </div>
+
+    </section>    <!-- ============ VIEW: 재고/문의 (Availability) ============ -->
+    <section class="view" id="view-availability">
+      <div class="banner">
+        <div class="bdot"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b5ef0" stroke-width="2.2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
+        <div>공급사별 <b>가용 수량을 시간 단위로 추적</b>합니다 · 가격과 독립된 트랙 · 신선도 만료 <b>72시간</b> · 모든 문의/응답은 타임라인에 영구 보존</div>
+      </div>
+
+      <div class="av-toolbar-stats">
+        <div class="av-stat green"><div class="lbl"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6L9 17l-5-5"/></svg>가용 응답 (신선)</div><div class="val">7<span class="u">건</span></div></div>
+        <div class="av-stat amber"><div class="lbl"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 9v4M12 17h.01"/></svg>일부만 가능</div><div class="val">2<span class="u">건</span></div></div>
+        <div class="av-stat red"><div class="lbl"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>재고 소진(OOS)</div><div class="val">2<span class="u">건</span></div></div>
+        <div class="av-stat accent"><div class="lbl"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>응답 대기 (D+3↑)</div><div class="val">3<span class="u">건</span></div></div>
+        <div class="av-stat"><div class="lbl"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/></svg>정보 오래됨</div><div class="val" style="color:#9098a7">4<span class="u">건</span></div></div>
+      </div>
+
+      <div class="toolbar">
+        <div class="search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input placeholder="공급사·모델 검색">
+        </div>
+        <div class="seg">
+          <button class="on">전체</button>
+          <button>가용</button>
+          <button>일부</button>
+          <button>소진</button>
+          <button>대기</button>
+        </div>
+        <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>CSV Export</button>
+        <button class="btn primary" onclick="go('intake')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l1.5 4L11 8.5 6.5 10 5 14l-1.5-4L-.5 8.5 4 7z" transform="translate(1 1)"/></svg>통합 입력</button>
+      </div>
+
+      <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px;display:flex;align-items:center;gap:8px">
+        모델별 가용 현황
+        <span style="font-size:11px;color:var(--muted);font-weight:500">— 행 클릭 시 공급사별 응답 + 타임라인 펼침</span>
+      </div>
+      <div class="av-list">
+        <div class="av-list-head">
+          <div>GPU 모델</div>
+          <div>가용 합계 <span style="text-transform:none;color:var(--faint)">(신선)</span></div>
+          <div>공급사별 응답 요약</div>
+          <div>응답 분포</div>
+          <div>최근 응답</div>
+          <div></div>
+        </div>
+        <div id="avListBody"></div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:18px;font-size:11px;color:var(--muted);margin-bottom:14px;flex-wrap:wrap;padding:10px 16px;background:#fff;border:1px solid var(--border);border-radius:10px">
+        <span style="font-weight:600;color:var(--ink-2);font-size:11.5px">범례 :</span>
+        <span class="rs rs-full">전량 가능</span>
+        <span class="rs rs-partial">일부 가능</span>
+        <span class="rs rs-oos">소진(0장)</span>
+        <span class="rs rs-pending">응답 대기</span>
+        <span class="rs rs-declined">거절</span>
+        <span class="rs rs-stale">정보 오래됨</span>
+        <span style="margin-left:auto">⭐ 별표 = 공급사 전체 보유량 명시</span>
+      </div>
+
+      <div style="font-size:13px;font-weight:700;color:var(--ink);margin:24px 0 10px;display:flex;align-items:center;gap:8px">
+        타임라인 — 문의·응답 전체 이력
+        <span style="font-size:11px;color:var(--muted);font-weight:500">— GMI Cloud × H100 SXM 80GB (Tier 1) 예시</span>
+      </div>
+      <div class="panel" id="timelinePanel"></div>
+    </section>
+
+    <!-- ============ VIEW: 검토 대기 ============ -->
+    <section class="view" id="view-review">
+      <div class="banner" style="background:linear-gradient(100deg,#fef3e2,#fdebee);border-color:#f7d9c0;color:var(--amber)">
+        <div class="bdot"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L14.7 3.9a2 2 0 00-3.4 0z"/></svg></div>
+        <div><b>본부장 확정 게이트 · AI 신뢰도 90% 미만 항목은 직접 확인 필수</b> · AI가 추출한 값과 원문 근거를 비교해 정확하면 체크, 의심되면 <b>AI에게 재분석 요청</b>(피드백 → 자동 재추출, 회차별 이력 보존). 가격표·재고/문의·공급사 어디든 확정 전까지 미반영</div>
+      </div>
+      <div id="reviewList"></div>
+    </section>
+
+    <!-- ============ VIEW: 공급사 ============ -->
+    <section class="view" id="view-suppliers">
+      <div class="toolbar">
+        <div class="search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input placeholder="공급사 검색">
+        </div>
+        <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>공급사 추가</button>
+      </div>
+      <div class="sup-grid" id="supGrid"></div>
+    </section>
+
+    <!-- ============ VIEW: 변동 이력 ============ -->
+    <section class="view" id="view-log">
+      <div class="toolbar">
+        <div class="search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input placeholder="이력 검색 (모델·공급사·작업)">
+        </div>
+        <div class="seg">
+          <button class="on">전체</button>
+          <button>최저가 변경</button>
+          <button>등록/수정</button>
+          <button>만료</button>
+        </div>
+      </div>
+      <div class="panel card-pad" id="logList"></div>
+    </section>
+
+  </div>
+</div>
+
+<!-- ============ MODAL (근거자료 뷰어) ============ -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="log-ico" style="background:var(--accent-soft)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b5ef0" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div>
+      <div><div class="mt" id="mTitle">근거자료</div><div class="ms" id="mSub"></div></div>
+      <button class="close" onclick="closeModal()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body" id="mBody"></div>
+  </div>
+</div>
+
+<script>
+/* ================= 적용 환율 ================= */
+let   FX = 1498.20;          // 오늘 매매기준율 — 시스템이 매 영업일 자동 fetch (한국수출입은행 OpenAPI)
+const FX_DATE = '2026-05-28';
+const FX_SRC  = '한국수출입은행 매매기준율';
+let   MARGIN = 1.18;         // gcube 판매 마진 — 사용자 입력값으로 실시간 변경
+const fmtUSD = v => '$'+v.toFixed(2);
+const fmtKRW = v => '₩'+Math.round(v).toLocaleString('ko-KR');
+
+/* ================= 공급사 ================= */
+const SUPPLIERS = {
+  gmi:    {name:'GMI Cloud',     loc:'🇺🇸 미국',     color:'#2563eb', short:'GMI'},
+  fpt:    {name:'FPT Cloud',     loc:'🇻🇳 베트남',   color:'#e0405a', short:'FPT'},
+  alf:    {name:'AL FARDAN',     loc:'🇦🇪 아부다비', color:'#15a35a', short:'ALF'},
+  mega:   {name:'메가존클라우드', loc:'🇰🇷 한국',     color:'#7c3aed', short:'MGZ'},
+  own:    {name:'자체 IDC 보유',  loc:'🇰🇷 한국',     color:'#13151c', short:'IDC'},
+  vast:   {name:'Vast.ai',       loc:'🇺🇸 미국',     color:'#d97706', short:'VST'},
+};
+
+/* ================= 견적 로우 데이터 =================
+   모든 단가는 정규화 기준: USD / GPU·hr  */
+/* ================= Tier 정의 (gcube 공급 보장 방식) =================
+   Tier 1: 전용 고성능 — H100·B200 등 데이터센터급 전용 점유 (보장형)
+   Tier 2: 점유형      — 예약·점유하여 단독 사용 (보장형, 주로 RTX)
+   Tier 3: 간헐 공급    — 공급사가 단속적으로 제공 (중단/재개형, 최저가)
+   ※ 최저가 비교는 반드시 동일한 (모델 × tier) 안에서만 수행 */
+const TIERS = {
+  1:{label:'Tier 1', name:'전용 고성능', desc:'데이터센터급 전용 점유 · 보장형', badge:'b-purple', chip:'#13151c'},
+  2:{label:'Tier 2', name:'점유형',     desc:'예약·점유하여 단독 사용 · 보장형', badge:'b-blue',   chip:'linear-gradient(135deg,#2563eb,#1e40af)'},
+  3:{label:'Tier 3', name:'간헐 공급',   desc:'단속적 제공(중단/재개) · 최저가', badge:'b-amber',  chip:'linear-gradient(135deg,#d97706,#b45309)'},
+};
+
+/* 상품 = 모델 × tier (같은 GPU도 tier가 다르면 별개 상품·별개 가격) */
+const MODELS = [
+  // ===== Tier 1 : 전용 고성능 =====
+  {key:'b200-t1', name:'B200', mem:'192GB', tier:1, quotes:[
+    {sup:'gmi',  price:4.85, term:'6개월 약정', qty:'8장 이상', dday:30, conf:90, fmt:'mail', recv:'2026-05-27 11:00'},
+    {sup:'alf',  price:5.20, term:'1년 약정',   qty:'8장 이상', dday:40, conf:84, fmt:'img',  recv:'2026-05-22 13:15'},
+  ]},
+  {key:'h200-t1', name:'H200 SXM', mem:'141GB', tier:1, quotes:[
+    {sup:'fpt',  price:3.18, term:'6개월 약정', qty:'8장 이상', dday:24, conf:93, fmt:'pdf',  recv:'2026-05-26 10:05'},
+    {sup:'gmi',  price:3.35, term:'3개월 약정', qty:'8장 이상', dday:18, conf:95, fmt:'mail', recv:'2026-05-25 16:30'},
+    {sup:'alf',  price:3.60, term:'1년 약정',   qty:'16장 이상',dday:40, conf:87, fmt:'msg',  recv:'2026-05-21 19:40'},
+  ]},
+  {key:'h100-t1', name:'H100 SXM', mem:'80GB', tier:1, quotes:[
+    {sup:'gmi',  price:2.10, term:'3개월 약정', qty:'8장 이상', dday:18, conf:96, fmt:'mail', recv:'2026-05-28 14:22'},
+    {sup:'fpt',  price:2.31, term:'6개월 약정', qty:'4장 이상', dday:24, conf:91, fmt:'pdf',  recv:'2026-05-26 10:05'},
+    {sup:'alf',  price:2.45, term:'1년 약정',   qty:'16장 이상',dday:40, conf:88, fmt:'msg',  recv:'2026-05-21 19:40'},
+  ]},
+  {key:'a100-t1', name:'A100 SXM', mem:'80GB', tier:1, quotes:[
+    {sup:'fpt',  price:1.38, term:'3개월 약정', qty:'4장 이상', dday:24, conf:92, fmt:'pdf',  recv:'2026-05-26 10:05'},
+    {sup:'mega', price:1.45, term:'약정',       qty:'4장 이상', dday:12, conf:98, fmt:'mail', recv:'2026-05-24 08:50'},
+  ]},
+  {key:'v100-t1', name:'V100', mem:'32GB', tier:1, quotes:[
+    {sup:'own',  price:0.48, term:'자체보유', qty:'재고 16장', dday:90, conf:100, fmt:'own', recv:'2026-05-15 09:00'},
+    {sup:'mega', price:0.55, term:'약정',     qty:'2장 이상',  dday:14, conf:97, fmt:'mail', recv:'2026-05-19 11:30'},
+  ]},
+  {key:'t4-t1', name:'T4', mem:'16GB', tier:1, quotes:[
+    {sup:'own',  price:0.18, term:'자체보유', qty:'재고 40장', dday:90, conf:100, fmt:'own', recv:'2026-05-15 09:00'},
+    {sup:'mega', price:0.22, term:'약정',     qty:'1장~',     dday:14, conf:96, fmt:'mail', recv:'2026-05-19 11:30'},
+  ]},
+
+  // ===== Tier 2 : 점유형 (예약·단독 사용) =====
+  {key:'rtx5090-t2', name:'RTX 5090', mem:'32GB', tier:2, quotes:[
+    {sup:'own',  price:0.45, term:'점유 예약', qty:'재고 30장', dday:90, conf:100, fmt:'own', recv:'2026-05-18 09:00'},
+    {sup:'vast', price:0.52, term:'점유 예약', qty:'1장~',     dday:9,  conf:88, fmt:'img', recv:'2026-05-27 22:10'},
+    {sup:'gmi',  price:0.58, term:'점유 예약', qty:'2장 이상',  dday:18, conf:93, fmt:'mail', recv:'2026-05-20 12:00'},
+  ]},
+  {key:'rtx5080-t2', name:'RTX 5080', mem:'16GB', tier:2, quotes:[
+    {sup:'own',  price:0.26, term:'점유 예약', qty:'재고 24장', dday:90, conf:100, fmt:'own', recv:'2026-05-18 09:00'},
+    {sup:'vast', price:0.30, term:'점유 예약', qty:'1장~',     dday:9,  conf:87, fmt:'img', recv:'2026-05-27 22:10'},
+  ]},
+  {key:'rtx4090-t2', name:'RTX 4090', mem:'24GB', tier:2, quotes:[
+    {sup:'own',  price:0.28, term:'점유 예약', qty:'재고 60장', dday:90, conf:100, fmt:'own', recv:'2026-05-15 09:00'},
+    {sup:'gmi',  price:0.41, term:'점유 예약', qty:'2장 이상',  dday:18, conf:93, fmt:'mail', recv:'2026-05-20 12:00'},
+  ]},
+  {key:'rtx3090ti-t2', name:'RTX 3090 Ti', mem:'24GB', tier:2, quotes:[
+    {sup:'own',  price:0.16, term:'점유 예약', qty:'재고 48장', dday:90, conf:100, fmt:'own', recv:'2026-05-15 09:00'},
+    {sup:'vast', price:0.19, term:'점유 예약', qty:'1장~',     dday:9,  conf:86, fmt:'img', recv:'2026-05-26 20:00'},
+  ]},
+
+  // ===== Tier 3 : 간헐 공급 — 공급견적 없음, gcube 판매가 직접 설정 =====
+  {key:'rtx5090-t3', name:'RTX 5090', mem:'32GB', tier:3, direct:{krw:800, poolQty:14, setBy:'김도현 본부장', setAt:'2026-05-28 09:10', note:'간헐 공급 · 수요 기반 직접 책정'}},
+  {key:'rtx5080-t3', name:'RTX 5080', mem:'16GB', tier:3, direct:{krw:330, poolQty:22, setBy:'김도현 본부장', setAt:'2026-05-26 14:00', note:'간헐 공급 · 수요 기반 직접 책정'}},
+  {key:'rtx4090-t3', name:'RTX 4090', mem:'24GB', tier:3, direct:{krw:280, poolQty:0, setBy:'김도현 본부장', setAt:'2026-05-25 11:20', note:'간헐 공급 · 수요 기반 직접 책정'}},
+  {key:'rtx5060-t3', name:'RTX 5060', mem:'8GB',  tier:3, direct:{krw:130, poolQty:48, setBy:'김도현 본부장', setAt:'2026-05-24 10:00', note:'간헐 공급 · 수요 기반 직접 책정'}},
+];
+
+const FMT = {mail:{t:'메일',i:'M',c:'b-blue'},pdf:{t:'견적서 PDF',i:'P',c:'b-red'},msg:{t:'메신저 캡처',i:'C',c:'b-amber'},img:{t:'이미지',i:'I',c:'b-purple'},own:{t:'자체등록',i:'O',c:'b-gray'}};
+
+/* ================= 가용 수량 트랙 (v0.5.0) =================
+   - 가격과 독립된 차원으로 공급사별 가용 수량을 추적
+   - 응답 상태 5종: full / partial / oos / declined / pending
+   - 신선도 만료: 72시간
+   - 응답이 "공급사 전량(total_cap)" 명시인지 "우리 문의 한도 내(부분)"인지 구분 */
+const FRESH_HOURS = 72;        // 가용 응답 신선도 (시간)
+const NO_RESP_DAYS = 3;        // 미회신 임계값 (영업일)
+
+const AVAIL = [
+  // model_key, supplier_key, status, our_qty(문의수량), resp_qty(응답수량), is_total_cap, hours_ago, channel, conf
+  {model:'h100-t1',  sup:'gmi',  status:'partial', our:32, resp:16, total_cap:false, h:2,   ch:'mail', conf:96},
+  {model:'h100-t1',  sup:'fpt',  status:'full',    our:24, resp:24, total_cap:false, h:18,  ch:'pdf',  conf:91},
+  {model:'h100-t1',  sup:'alf',  status:'full',    our:8,  resp:8,  total_cap:true,  h:30,  ch:'msg',  conf:88},
+  {model:'h100-t1',  sup:'mega', status:'oos',     our:8,  resp:0,  total_cap:false, h:72,  ch:'mail', conf:99},
+
+  {model:'h200-t1',  sup:'fpt',  status:'partial', our:16, resp:8,  total_cap:false, h:6,   ch:'pdf',  conf:93},
+  {model:'h200-t1',  sup:'gmi',  status:'pending', our:16, resp:null,total_cap:false,h:80,  ch:'mail', conf:0},
+
+  {model:'b200-t1',  sup:'gmi',  status:'full',    our:8,  resp:8,  total_cap:false, h:14,  ch:'mail', conf:90},
+  {model:'b200-t1',  sup:'alf',  status:'oos',     our:8,  resp:0,  total_cap:false, h:50,  ch:'img',  conf:84},
+
+  {model:'a100-t1',  sup:'fpt',  status:'full',    our:8,  resp:8,  total_cap:false, h:20,  ch:'pdf',  conf:92},
+  {model:'a100-t1',  sup:'mega', status:'pending', our:8,  resp:null,total_cap:false,h:96,  ch:'mail', conf:0},
+
+  {model:'rtx5090-t2', sup:'own',  status:'full',  our:30, resp:30, total_cap:true, h:48,  ch:'own',  conf:100},
+  {model:'rtx5090-t2', sup:'vast', status:'partial', our:20, resp:5,total_cap:false,h:10,  ch:'img',  conf:84},
+  {model:'rtx4090-t2', sup:'own',  status:'full',  our:60, resp:60, total_cap:true, h:48,  ch:'own',  conf:100},
+];
+
+const AVAIL_STATUS = {
+  full:    {label:'전량 가능', cls:'rs rs-full'},
+  partial: {label:'일부 가능', cls:'rs rs-partial'},
+  oos:     {label:'재고 소진', cls:'rs rs-oos'},
+  declined:{label:'거절',     cls:'rs rs-declined'},
+  pending: {label:'응답 대기', cls:'rs rs-pending'},
+};
+const isFresh = h => h <= FRESH_HOURS;
+
+/* 타임라인 — GMI Cloud × H100 SXM 80GB (Tier 1) 예시 데이터 */
+const TIMELINE = [
+  { ts:'2026-05-29 14:22', actor:'김도현 본부장', channel:'mail',
+    inquiry:{ts:'2026-05-29 09:10', text:'안녕하세요, H100 SXM 80GB <b class="num">32장</b> 가능한지 확인 부탁드립니다. 약정 3개월 기준 단가도 같이 회신 부탁드려요.'},
+    response:{ts:'2026-05-29 14:22', delay:'5h 12m 후', status:'partial', resp_qty:16, our_qty:32, total_cap:false, price:'$2.10/GPU·hr',
+      text:'요청 32장 중 <b class="num">16장 가능</b>합니다. 단가 <b class="num">$2.10/GPU·hr</b> (3개월 약정 기준). 추가 8장은 6월 중순 재고 확보 예정.',
+      conf:96, ev:'mail_gmi_20260529.eml'} },
+  { ts:'2026-05-25 10:00', actor:'김도현 본부장', channel:'msg',
+    inquiry:{ts:'2026-05-25 09:30', text:'H100 <b class="num">8장</b> 즉시 가용 여부 확인'},
+    response:{ts:'2026-05-25 10:00', delay:'30m 후', status:'full', resp_qty:8, our_qty:8, total_cap:false, price:'$2.15/GPU·hr',
+      text:'<b class="num">8장 전량 가능</b>합니다. 단가 <b class="num">$2.15/GPU·hr</b>',
+      conf:94, ev:'slack_capture_0525.png'} },
+  { ts:'2026-05-20 11:00', actor:'김도현 본부장', channel:'mail',
+    inquiry:{ts:'2026-05-20 09:00', text:'H100 재고 확인 요청. 가능한 최대 수량 회신 바랍니다.'},
+    response:{ts:'2026-05-21 11:00', delay:'1d 2h 후', status:'oos', resp_qty:0, our_qty:null, total_cap:false, price:null,
+      text:'<b class="num oos">현재 0장 (소진)</b>. 재공급 예정일 2026-05-24. 확보 시 회신 드리겠습니다.',
+      conf:98, ev:'mail_gmi_20260521.eml'} },
+  { ts:'2026-05-15 09:00', actor:'김도현 본부장', channel:'mail',
+    inquiry:{ts:'2026-05-15 09:00', text:'H100 <b class="num">16장</b> 가능 여부 및 단가 확인 부탁드립니다.'},
+    response:null, no_resp_days:4 },
+  { ts:'2026-05-10 14:30', actor:'김도현 본부장', channel:'mail',
+    inquiry:{ts:'2026-05-10 11:00', text:'H100 <b class="num">24장</b> 6개월 약정 견적 요청'},
+    response:{ts:'2026-05-10 14:30', delay:'3h 30m 후', status:'full', resp_qty:24, our_qty:24, total_cap:false, price:'$2.20/GPU·hr',
+      text:'<b class="num">24장 전량 가능</b>, 6개월 약정 단가 <b class="num">$2.20/GPU·hr</b>',
+      conf:95, ev:'mail_gmi_20260510.eml'} },
+];
+
+const CH_LABEL={mail:'메일', msg:'메신저', pdf:'PDF 견적서', img:'이미지', own:'자체등록'};
+
+/* ================= 가격표 렌더 (tier 기반) ================= */
+function bestQuote(m){return [...m.quotes].sort((a,b)=>a.price-b.price)[0]}
+function priceKey(m){return m.tier===3 ? m.direct.krw/FX : bestQuote(m).price}
+let tierFilter = 0; // 0=전체
+function filterTier(t,btn){
+  tierFilter=t;
+  document.querySelectorAll('#tierSeg button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderBoard();
+}
+function renderBoard(){
+  const tb=document.getElementById('boardBody');
+  tb.innerHTML='';
+  // tier → 가격 순으로 정렬, tier 필터 적용
+  const list=[...MODELS].filter(m=>!tierFilter||m.tier===tierFilter)
+                        .sort((a,b)=> a.tier-b.tier || priceKey(a)-priceKey(b));
+  list.forEach(m=>{
+    const T=TIERS[m.tier];
+    // ── Tier 3: 공급견적 없음, 판매가 직접 설정 ──
+    if(m.tier===3){
+      const d=m.direct;
+      const tr=document.createElement('tr');tr.className='row-main';tr.dataset.key=m.key;
+      tr.innerHTML=`
+        <td><div class="model-cell">
+          <div class="gpu-chip" style="background:${T.chip}">T3<span>${m.mem}</span></div>
+          <div><div class="nm">${m.name} <span style="font-size:11px;color:var(--muted)">${m.mem}</span>
+            <span class="badge ${T.badge}" style="font-size:10px;margin-left:4px">${T.label} · ${T.name}</span></div>
+          <div class="meta">공급견적 미수령 · gcube 판매가 직접 설정 방식</div></div></div></td>
+        <td><span class="badge b-gray">견적 없음</span><div class="price-sub" style="margin-top:5px">간헐 공급 · 원가 추적 대상 아님</div></td>
+        <td><div class="supplier-tag" style="color:var(--accent-ink)"><span class="sdot" style="background:var(--accent)"></span>gcube 직접 설정</div>
+            <div class="meta" style="font-size:11px;color:var(--muted);margin-top:3px">${d.setBy}</div></td>
+        <td><div class="qty-cell"><div><div class="qty-total">${d.poolQty||'—'}<span class="u">장</span></div><div class="qty-meta">자체 풀 재고</div></div></div></td>
+        <td class="r"><div class="price-main" style="color:var(--accent-ink)">${fmtKRW(d.krw)}<span style="font-size:11px;color:var(--muted);font-weight:500">/hr</span></div>
+            <div class="price-sub">직접 입력값 · $${(d.krw/FX).toFixed(2)} 환산</div></td>
+        <td><span class="badge b-blue">직접 설정 · ${d.setAt.slice(5,10)}</span></td>
+        <td><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></td>`;
+      tb.appendChild(tr);
+      const dr=document.createElement('tr');dr.className='detail-row';
+      dr.innerHTML=`<td colspan="7"><div class="detail" id="d-${m.key}">
+        <div class="detail-head">📋 ${m.name} · <span class="badge ${T.badge}" style="font-size:10px">Tier 3</span> 판매가 직접 설정 — 공급견적·AI 정제 단계 없음</div>
+        <div class="qline best" style="grid-template-columns:1.6fr 1fr 1.6fr auto">
+          <div class="ql-supplier"><span class="sdot" style="background:var(--accent)"></span>gcube 직접 설정<span class="badge b-blue" style="font-size:10px;padding:2px 7px">현재값</span></div>
+          <div><div class="ql-price">${fmtKRW(d.krw)}/hr</div><div class="ql-meta">$${(d.krw/FX).toFixed(2)} 환산</div></div>
+          <div><div class="ql-meta" style="font-weight:600;color:var(--ink-2)">${d.note}</div><div class="ql-meta">설정 ${d.setAt} · ${d.setBy}</div></div>
+          <div class="ql-evi"><button class="icon-btn" title="판매가 수정" onclick="event.stopPropagation();go('intake');setIntakeMode('direct')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 013 3L12 15l-4 1 1-4z"/></svg></button></div>
+        </div>
+        <div style="font-size:11px;color:var(--faint);margin-top:6px;display:flex;align-items:center;gap:6px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          간헐 공급이라 공급견적을 받지 않고 <b style="color:var(--ink-2)">gcube 판매가를 직접 입력</b>해 운영합니다 · 모든 변경은 타임스탬프 로그로 기록됩니다
+        </div>
+      </div></td>`;
+      tb.appendChild(dr);
+      tr.addEventListener('click',()=>{const dd=document.getElementById('d-'+m.key);dd.classList.toggle('show',tr.classList.toggle('open'));});
+      return;
+    }
+    // ── Tier 1·2: 공급견적 기반 ──
+    const sorted=[...m.quotes].sort((a,b)=>a.price-b.price);
+    const best=sorted[0];
+    const sp=SUPPLIERS[best.sup];
+    const sellKRW=best.price*MARGIN*FX;
+    const status = best.dday<=7
+      ? `<span class="badge b-amber">⚠ ${best.dday}일 후 만료</span>`
+      : `<span class="badge b-green">유효 · D-${best.dday}</span>`;
+    // 가용량 요약 (이 상품에 묶인 AVAIL 응답들)
+    const avs = AVAIL.filter(a=>a.model===m.key);
+    const fresh = avs.filter(a=>a.status!=='pending' && isFresh(a.h));
+    const freshSum = fresh.filter(a=>a.status!=='oos').reduce((s,a)=>s+(a.resp||0),0);
+    const oosCount = fresh.filter(a=>a.status==='oos').length;
+    const staleCount = avs.filter(a=>a.status!=='pending' && !isFresh(a.h)).length;
+    const pendCount = avs.filter(a=>a.status==='pending').length;
+    let qtyHtml;
+    if(avs.length===0){
+      qtyHtml = `<div class="qty-cell"><span class="badge b-gray">응답 없음</span></div>`;
+    } else {
+      qtyHtml = `<div class="qty-cell"><div>
+        <div class="qty-total ${freshSum===0?'zero':''}">${freshSum}<span class="u">장</span></div>
+        <div class="qty-meta"><b>${fresh.filter(a=>a.status!=='oos').length}곳</b> 신선 응답${oosCount?` · <span style="color:var(--red);font-weight:600">소진 ${oosCount}</span>`:''}</div>
+        ${staleCount||pendCount ? `<div class="qty-warn"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 9v4M12 17h.01"/></svg>${pendCount?`응답대기 ${pendCount}`:''}${pendCount&&staleCount?' · ':''}${staleCount?`정보 오래됨 ${staleCount}`:''}</div>` : ''}
+      </div></div>`;
+    }
+    // main row
+    const tr=document.createElement('tr');
+    tr.className='row-main';tr.dataset.key=m.key;
+    tr.innerHTML=`
+      <td>
+        <div class="model-cell">
+          <div class="gpu-chip" style="background:${T.chip}">T${m.tier}<span>${m.mem}</span></div>
+          <div><div class="nm">${m.name} <span style="font-size:11px;color:var(--muted)">${m.mem}</span>
+            <span class="badge ${T.badge}" style="font-size:10px;margin-left:4px">${T.label} · ${T.name}</span></div>
+          <div class="meta">공급사 ${m.quotes.length}곳 견적 · ${T.desc}</div></div>
+        </div>
+      </td>
+      <td><div class="price-main">${fmtUSD(best.price)}<span style="font-size:11px;color:var(--muted);font-weight:500">/GPU·hr</span></div>
+          <div class="price-sub">${fmtKRW(best.price*FX)} / 시간</div></td>
+      <td><div class="supplier-tag"><span class="sdot" style="background:${sp.color}"></span>${sp.name}</div>
+          <div class="meta" style="font-size:11px;color:var(--muted);margin-top:3px">${sp.loc} · ${best.term}</div></td>
+      <td>${qtyHtml}</td>
+      <td class="r"><div class="price-main" style="color:var(--accent-ink)">${fmtKRW(sellKRW)}<span style="font-size:11px;color:var(--muted);font-weight:500">/hr</span></div>
+          <div class="price-sub">공급가 +${Math.round((MARGIN-1)*100)}% · ${fmtUSD(best.price*MARGIN)}</div></td>
+      <td>${status}</td>
+      <td><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></td>`;
+    tb.appendChild(tr);
+
+    // detail row — 가격 견적 + 가용량 응답 둘 다 보여줌
+    const dr=document.createElement('tr');dr.className='detail-row';
+    let qrows='';
+    sorted.forEach((q,i)=>{
+      const s=SUPPLIERS[q.sup];const f=FMT[q.fmt];
+      const cc=q.conf>=92?'':q.conf>=85?'mid':'low';
+      qrows+=`
+      <div class="qline ${i===0?'best':''}">
+        <div class="ql-supplier"><span class="sdot" style="background:${s.color}"></span>${s.name}
+          ${i===0?'<span class="badge b-green" style="font-size:10px;padding:2px 7px">최저가</span>':''}</div>
+        <div><div class="ql-price">${fmtUSD(q.price)}/hr</div><div class="ql-meta">${fmtKRW(q.price*FX)}</div></div>
+        <div><div class="ql-meta" style="font-weight:600;color:var(--ink-2)">${q.term}</div><div class="ql-meta">${q.qty}</div></div>
+        <div><span class="badge ${q.dday<=7?'b-amber':'b-gray'}">D-${q.dday}</span><div class="ql-meta" style="margin-top:4px">${s.loc}</div></div>
+        <div class="conf">AI <span class="conf-bar"><i class="${cc}" style="width:${q.conf}%"></i></span>${q.conf}%</div>
+        <div class="ql-evi">
+          <span class="badge ${f.c}" style="font-size:10px">${f.t}</span>
+          <button class="icon-btn" title="근거자료 보기" onclick="openEvi('${s.name}','${m.name} (${T.label})','${q.fmt}','${q.recv}','${q.price}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
+      </div>`;
+    });
+    // 가용 응답 줄
+    let avRows='';
+    if(avs.length){
+      avs.sort((a,b)=>a.h-b.h).forEach(a=>{
+        const s=SUPPLIERS[a.sup]; const st=AVAIL_STATUS[a.status];
+        const stale=a.status!=='pending' && !isFresh(a.h);
+        const hAgo = a.h<24 ? `${a.h}시간 전` : `${Math.floor(a.h/24)}일 전`;
+        const qtyHtml = a.status==='pending'
+          ? `<span style="color:var(--accent-ink);font-weight:600;font-size:12px">응답 대기 ${Math.ceil(a.h/24)}일째</span>`
+          : a.status==='oos'
+            ? `<span class="av-qty oos">0장</span><span class="frac">소진 명시</span>`
+            : `<span class="av-qty">${a.resp}장</span>${a.our?`<span class="frac">/ 문의 ${a.our}장</span>`:''}${a.total_cap?'<span class="total-cap-star">⭐ 전체 보유량</span>':''}`;
+        avRows += `
+          <div class="av-line ${a.status==='oos'?'oos':''} ${stale?'stale':''} ${a.status==='pending'?'pending':''}">
+            <div class="ql-supplier"><span class="sdot" style="background:${s.color}"></span>${s.name}</div>
+            <div>${qtyHtml}</div>
+            <div><span class="${st.cls}">${st.label}</span></div>
+            <div class="av-ctx">${CH_LABEL[a.ch]} · ${hAgo}</div>
+            <div class="${stale?'fresh stale':'fresh'}"><span class="fd"></span>${stale?'정보 오래됨':'신선'}</div>
+            <div class="ql-evi">
+              <button class="icon-btn" title="타임라인 보기" onclick="event.stopPropagation();go('availability')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></button>
+            </div>
+          </div>`;
+      });
+    }
+    dr.innerHTML=`<td colspan="7"><div class="detail" id="d-${m.key}">
+      <div class="detail-head">💰 ${m.name} · <span class="badge ${T.badge}" style="font-size:10px">${T.label}</span> 공급 견적 (단가 낮은 순) · USD/GPU·hr</div>
+      ${qrows}
+      ${avs.length ? `<div class="detail-head" style="padding-top:14px">📦 가용 수량 응답 (신선 ≤72h · 공급사 전량 vs 부분 응답 구분)</div>${avRows}` : ''}
+      <div style="font-size:11px;color:var(--faint);margin-top:6px;display:flex;align-items:center;gap:6px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        같은 모델이라도 <b style="color:var(--ink-2)">tier가 다르면 별개 상품</b> · 가용량 합계는 신선·확정 응답만 (소진 0장 명시값은 제외 표기)
+      </div>
+    </div></td>`;
+    tb.appendChild(dr);
+
+    tr.addEventListener('click',()=>{
+      const d=document.getElementById('d-'+m.key);
+      const open=tr.classList.toggle('open');
+      d.classList.toggle('show',open);
+    });
+  });
+}
+
+/* ================= 공급사 렌더 ================= */
+function renderSuppliers(){
+  const g=document.getElementById('supGrid');g.innerHTML='';
+  Object.entries(SUPPLIERS).forEach(([k,s])=>{
+    const qs=MODELS.flatMap(m=>(m.quotes||[]).filter(q=>q.sup===k));
+    if(!qs.length)return;
+    const bestCount=MODELS.filter(m=>m.quotes&&bestQuote(m).sup===k).length;
+    const lastRecv=qs.map(q=>q.recv).sort().reverse()[0];
+    const card=document.createElement('div');card.className='sup-card';
+    card.innerHTML=`
+      <div class="sup-head">
+        <div class="sup-logo" style="background:${s.color}">${s.short}</div>
+        <div><div class="nm">${s.name}</div><div class="loc">${s.loc}</div></div>
+        ${bestCount?`<div style="margin-left:auto"><span class="badge b-green">최저가 ${bestCount}종 보유</span></div>`:''}
+      </div>
+      <div class="sup-stats">
+        <div class="s"><div class="n">${qs.length}</div><div class="l">활성 견적</div></div>
+        <div class="s"><div class="n">${new Set(qs.map((q,i)=>i)).size}</div><div class="l">견적 모델</div></div>
+        <div class="s"><div class="n">${bestCount}</div><div class="l">현재 최저가</div></div>
+      </div>
+      <div class="sup-foot"><span>최근 수신 · ${lastRecv.slice(0,10)}</span>
+        <span class="badge b-blue" style="cursor:pointer">견적 보기 →</span></div>`;
+    g.appendChild(card);
+  });
+}
+
+/* ================= 변동 이력 렌더 ================= */
+const LOGS=[
+  {t:'2026-05-29 15:08:22',type:'recheck',ico:'⟲',c:'var(--accent-soft)',col:'#5b5ef0',
+    ttl:'<span class="mono">B200 192GB (T1)</span> AI 재분석 요청 처리',
+    dsc:'1차 추출 단가 $4.85 신뢰도 72% → 본부장 피드백 "단가 자릿수 재확인" 입력 → 2차 재분석에서 $4.85 신뢰도 94%로 보정·확정. 회차별 이력 보존',actor:'김도현 본부장 · AI 협업',fmt:'mail'},
+  {t:'2026-05-29 14:22:09',type:'avail',ico:'📦',c:'var(--green-soft)',col:'#15a35a',
+    ttl:'<span class="mono">GMI Cloud × H100 SXM 80GB (T1)</span> 가용 응답 — 일부 가능',
+    dsc:'문의 32장 → 응답 <b>16장 가능</b> ($2.10/GPU·hr 동시 회신). AI 추출 신뢰도 96% → 본부장 확정. 신선도 타이머 72h 시작',actor:'AI 정제 + 김도현 확정',fmt:'mail'},
+  {t:'2026-05-29 09:10:00',type:'inq',ico:'→',c:'var(--accent-soft)',col:'#5b5ef0',
+    ttl:'<span class="mono">GMI Cloud × H100 SXM 80GB</span> 수량 문의 발송',
+    dsc:'본부장이 GMI Cloud에 H100 32장 가용 여부 문의. 응답 대기 시작. 응답 임계 D+3',actor:'김도현 본부장',fmt:'mail'},
+  {t:'2026-05-28 14:22:09',type:'low',ico:'⚡',c:'var(--accent-soft)',col:'#5b5ef0',
+    ttl:'<span class="mono">H100 SXM 80GB (Tier 1)</span> 최저가 변경',
+    dsc:'GMI Cloud $2.31 → <b>$2.10/hr</b> 으로 하락 (−9%). 가격표 자동 반영 완료',actor:'AI 정제 + 김도현 확정',fmt:'mail'},
+  {t:'2026-05-28 09:10:44',type:'direct',ico:'₩',c:'var(--blue-soft)',col:'#2563eb',
+    ttl:'<span class="mono">RTX 5090 32GB (Tier 3)</span> 판매가 직접 설정',
+    dsc:'간헐 공급 모델 — 공급견적 없이 판매가 760원 → <b>800원/hr</b> 직접 변경. 이전 값 이력 보존',actor:'김도현 본부장',fmt:'own'},
+  {t:'2026-05-21 11:00:00',type:'oos',ico:'🔴',c:'#fdebee',col:'#e0405a',
+    ttl:'<span class="mono">GMI Cloud × H100 (T1)</span> 재고 소진 응답',
+    dsc:'<b>0장 명시</b> · 재공급 예정 2026-05-24. 가격표 가용량 합계에서 자동 제외, 타임라인에 소진 마커로 영구 보존',actor:'AI 정제 + 김도현 확정',fmt:'mail'},
+  {t:'2026-05-19 09:00:00',type:'noresp',ico:'⌛',c:'var(--amber-soft)',col:'#d97706',
+    ttl:'<span class="mono">GMI Cloud × H100</span> 문의 회신 없음 (D+4)',
+    dsc:'5/15 문의 후 4일 경과 → 자동 follow-up 후보. 재문의 알림 발송 권장',actor:'시스템 자동',fmt:'mail'},
+  {t:'2026-05-28 14:21:55',type:'reg',ico:'＋',c:'var(--green-soft)',col:'#15a35a',
+    ttl:'<span class="mono">H100 SXM 80GB (T1)</span> 신규 견적 확정',
+    dsc:'GMI Cloud 메일 견적 AI 분석 → 검토 게이트 통과 → 로우데이터 등록 (신뢰도 96%)',actor:'김도현 본부장',fmt:'mail'},
+  {t:'2026-05-26 10:05:12',type:'reg',ico:'＋',c:'var(--green-soft)',col:'#15a35a',
+    ttl:'<span class="mono">FPT Cloud</span> 견적서 PDF 일괄 등록 (4종)',
+    dsc:'H100·H200·A100 등 견적서 PDF 파싱 → 모델별 단가 4건 추출',actor:'김도현 본부장',fmt:'pdf'},
+];
+function renderLogs(){
+  const l=document.getElementById('logList');l.innerHTML='';
+  LOGS.forEach(g=>{
+    const f=FMT[g.fmt];
+    const d=document.createElement('div');d.className='log-item';
+    d.innerHTML=`
+      <div class="log-time">${g.t}</div>
+      <div class="log-ico" style="background:${g.c};color:${g.col};font-weight:700;font-family:var(--mono)">${g.ico}</div>
+      <div class="log-body">
+        <div class="ttl">${g.ttl}</div>
+        <div class="dsc">${g.dsc}</div>
+        <div class="actor"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0114 0v1"/></svg>${g.actor}</div>
+        <div class="log-evi"><button class="btn" style="padding:6px 11px;font-size:11.5px" onclick="openEvi('','이력 근거','${g.fmt}','${g.t}','')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>근거자료 보기 (${f.t})</button></div>
+      </div>`;
+    l.appendChild(d);
+  });
+}
+
+/* ================= 검토 대기 렌더 ================= */
+/* ================= 검토 대기 — 신뢰도 강제 응시 (v0.7.0) =================
+   - 항목별 confidence (< 90% 강제 체크)
+   - AI 추출 근거(원문 인용) 함께 표시
+   - 영향도 표시 (최저가 변경/대폭 변동/신규)
+   - AI 재분석 루프 (피드백 → 재추출) — 회차 보존
+   - 확정 버튼은 모든 강제 체크 완료 시 활성화 */
+const REVIEW=[
+  {
+    id:'rv-1',
+    model:'B200', mem:'192GB', tier:1,
+    sup:'GMI Cloud', supc:'#2563eb',
+    ch:'mail', recv:'5분 전',
+    impact:{level:'high', label:'신규 모델 첫 견적', note:'정상 가격 범위 데이터 부족 — 자체 거래 이력 누적 후 자동 학습 적용'},
+    overallConf:78,
+    iter:1,
+    items:[
+      {key:'model', label:'GPU 모델',  val:'B200 192GB', conf:96, evid:'발신 메일 제목·본문에 명시'},
+      {key:'sup',   label:'공급사',    val:'GMI Cloud',  conf:97, evid:'발신 도메인 @gmi-cloud.com + 서명 일치'},
+      {key:'price', label:'단가',      val:'$4.85 / GPU·hr', conf:72, evid:'원문 인용: "$4.85 per GPU per hour" — 정상 범위 검증 미적용(신규 모델)'},
+      {key:'term',  label:'약정 조건', val:'6개월 약정', conf:88, evid:'원문 인용: "6-month commitment"'},
+      {key:'qty',   label:'수량 응답', val:'8장 전량 가능', conf:69, evid:'원문 인용: "available 8 GPUs" — "전량/일부" 명시 없음, AI 추정'},
+      {key:'tier',  label:'tier 추천', val:'Tier 1 · 전용 고성능', conf:85, evid:'데이터센터급 SKU + "dedicated" 표현 감지'},
+      {key:'valid', label:'견적 유효기간', val:'2026-06-27', conf:94, evid:'원문 인용: "valid until June 27, 2026"'},
+    ]
+  },
+  {
+    id:'rv-2',
+    model:'H200 SXM', mem:'141GB', tier:1,
+    sup:'FPT Cloud', supc:'#e0405a',
+    ch:'pdf', recv:'2시간 전',
+    impact:{level:'mid', label:'최저가 후보', note:'기존 GMI Cloud $3.35 → FPT $3.18 (−5%) 최저가 갱신 예정'},
+    overallConf:91,
+    iter:1,
+    items:[
+      {key:'model', label:'GPU 모델',  val:'H200 SXM 141GB', conf:95, evid:'PDF 1페이지 SKU 표 명시'},
+      {key:'sup',   label:'공급사',    val:'FPT Cloud',  conf:99, evid:'PDF 워터마크 + 발신 도메인 @fptcloud.com 일치'},
+      {key:'price', label:'단가',      val:'$3.18 / GPU·hr', conf:93, evid:'원문 인용: "USD 3.18 / GPU·hr" — 자체 거래 이력 범위 ($3.10~$3.60) 내 정상'},
+      {key:'term',  label:'약정 조건', val:'6개월 약정', conf:96, evid:'PDF 견적 조건 1항'},
+      {key:'qty',   label:'수량 응답', val:'8장 (전량 가능)', conf:88, evid:'PDF "Available qty: 8 (full)"'},
+      {key:'tier',  label:'tier 추천', val:'Tier 1', conf:93, evid:'SXM 데이터센터 SKU'},
+      {key:'valid', label:'견적 유효기간', val:'2026-06-21', conf:90, evid:'PDF 유효일 표기'},
+    ]
+  },
+  {
+    id:'rv-3',
+    model:'RTX 4090', mem:'24GB', tier:3,
+    sup:'Vast.ai', supc:'#d97706',
+    ch:'img', recv:'어제',
+    impact:{level:'low', label:'기존 패턴 유지', note:'기존 자체 이력 범위 내'},
+    overallConf:83,
+    iter:1,
+    items:[
+      {key:'model', label:'GPU 모델',  val:'RTX 4090 24GB', conf:91, evid:'이미지 OCR 텍스트 "RTX4090" 인식'},
+      {key:'sup',   label:'공급사',    val:'Vast.ai',     conf:88, evid:'이미지 좌상단 로고 인식 + URL vast.ai'},
+      {key:'price', label:'단가',      val:'$0.19 / GPU·hr', conf:79, evid:'OCR 추출: "$0.19/hr" — 자체 이력 ($0.15~$0.41) 내 정상'},
+      {key:'term',  label:'공급 조건', val:'간헐(스팟)', conf:85, evid:'"Interruptible" 표현 감지 → Tier 3'},
+      {key:'qty',   label:'수량 응답', val:'가용 시 (수량 명시 없음)', conf:62, evid:'명확한 수량 미기재, "가용 시" 표현만 추출'},
+      {key:'tier',  label:'tier 추천', val:'Tier 3 · 간헐 공급', conf:89, evid:'"Interruptible / spot" 키워드 감지'},
+      {key:'valid', label:'견적 유효기간', val:'2026-06-02', conf:88, evid:'유효일 OCR 인식'},
+    ]
+  },
+];
+
+const CONF_THRESHOLD = 90;  // 이 미만이면 강제 체크
+const confTier = c => c>=90 ? 'high' : c>=75 ? 'mid' : 'low';
+
+function renderReview(){
+  const l=document.getElementById('reviewList');l.innerHTML='';
+  REVIEW.forEach(r=>{
+    const tierMeta = TIERS[r.tier] || {label:'Tier ?', name:'', badge:'b-gray', chip:'#13151c'};
+    const f=FMT[r.ch];
+    const ovC = confTier(r.overallConf);
+    const imp = r.impact;
+    const lowItems = r.items.filter(i=>i.conf < CONF_THRESHOLD);
+    const tchip = r.tier===1?'#13151c':r.tier===2?'linear-gradient(135deg,#2563eb,#1e40af)':'linear-gradient(135deg,#d97706,#b45309)';
+
+    const c=document.createElement('div');c.className='rev-card';c.dataset.rev=r.id;
+    let itemsHtml = '';
+    r.items.forEach(it=>{
+      const ct=confTier(it.conf);
+      const isLow = it.conf < CONF_THRESHOLD;
+      itemsHtml += `
+        <div class="ck-item ${isLow?'low':''}" data-key="${it.key}" data-rev="${r.id}">
+          <div class="ck-box" onclick="toggleCheck(this)"></div>
+          <div class="ck-main">
+            <div class="ck-label">${it.label} ${isLow?'<span class="req">본부장 확인 필수</span>':''}</div>
+            <div class="ck-val ${['term','tier','qty'].includes(it.key)?'txt':''}">${it.val}</div>
+            <div class="ck-evid"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg><span><b style="color:var(--ink-2);font-weight:600">AI 근거 :</b> <span class="quote">${it.evid}</span></span></div>
+          </div>
+          <div class="ck-conf">
+            <span class="pct ${ct}">${it.conf}%</span>
+            <div class="ck-bar"><i class="${ct}" style="width:${it.conf}%"></i></div>
+            <span class="lbl">AI 신뢰도</span>
+          </div>
+        </div>`;
+    });
+
+    c.innerHTML=`
+      <div class="rev-top">
+        <div class="gpu-chip" style="width:42px;height:42px;background:${tchip}">T${r.tier}<span>${r.mem}</span></div>
+        <div class="info">
+          <div class="nm">${r.model} <span style="font-size:12px;color:var(--muted)">${r.mem}</span>
+            <span class="badge ${tierMeta.badge}" style="font-size:10px;margin-left:4px">${tierMeta.label} · ${tierMeta.name}</span></div>
+          <div class="src">
+            <span class="supplier-tag"><span class="sdot" style="background:${r.supc}"></span>${r.sup}</span>
+            <span class="badge ${f.c}" style="font-size:10px">${f.t} 출처</span>
+            <span style="color:var(--faint)">· ${r.recv} 수신</span>
+            ${r.iter>1?`<span class="iter-diff">재분석 ${r.iter}차</span>`:''}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          <span class="impact-pill impact-${imp.level}">${imp.level==='high'?'⚠ ':''}${imp.label}</span>
+          <div class="ck-conf" style="align-items:flex-end"><span class="pct ${ovC}">${r.overallConf}%</span><div class="ck-bar"><i class="${ovC}" style="width:${r.overallConf}%"></i></div><span class="lbl">종합 신뢰도</span></div>
+        </div>
+      </div>
+
+      ${lowItems.length ? `
+      <div class="rev-banner">
+        <div class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2.4"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L14.7 3.9a2 2 0 00-3.4 0z"/></svg></div>
+        <div><b>${lowItems.length}개 항목이 본부장 직접 확인이 필요합니다</b> · AI 신뢰도 ${CONF_THRESHOLD}% 미만 — 원문 근거를 비교해 정확한지 확인 후 체크해주세요</div>
+      </div>` : ''}
+
+      ${imp.level==='high'?`<div class="iter-strip"><span class="badge">영향도</span> <b>${imp.label}</b> — ${imp.note}</div>`:''}
+
+      <div class="ck-grid">${itemsHtml}</div>
+
+      <div class="recheck">
+        <div class="recheck-head"><div class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 3l1.5 4L11 8.5 6.5 10 5 14l-1.5-4L-.5 8.5 4 7zM19 12l1 3 3 1-3 1-1 3-1-3-3-1 3-1z" transform="translate(1 1)"/></svg></div>AI 재분석 요청</div>
+        <textarea placeholder="추출값이 의심스럽거나 잘못된 부분이 보이면 여기에 적어주세요. 예) '단가가 $0.19가 아니라 $1.90으로 보입니다 — 원문 다시 확인 부탁' / '공급사는 Vast.ai가 아니라 RunPod 같습니다' — AI가 원문과 이 피드백을 함께 재분석합니다"></textarea>
+        <div class="recheck-bar">
+          <span class="hint">재분석 시 이전 회차는 이력에 보존됩니다 · 회수 제한 없음</span>
+          <button class="ask" onclick="askAIRecheck(this,'${r.id}')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="vertical-align:-1px;margin-right:3px"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>AI에게 다시 분석 요청</button>
+        </div>
+      </div>
+
+      <div class="ck-finalize">
+        <span class="ck-progress" id="prog-${r.id}"><b>0 / ${lowItems.length}</b> 항목 확인됨</span>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn" style="color:var(--red);border-color:#f5d2d8" onclick="rejectRev(this)">반려</button>
+          <button class="btn primary" id="confirm-${r.id}" disabled onclick="confirmRev(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>확정 · 시스템 반영</button>
+        </div>
+      </div>
+    `;
+    l.appendChild(c);
+  });
+  // low 항목이 0인 카드는 즉시 확정 가능 상태로
+  document.querySelectorAll('#reviewList .rev-card').forEach(card=>{
+    const revId = card.dataset.rev;
+    const lows = card.querySelectorAll('.ck-item.low');
+    if(lows.length === 0){
+      const btn = document.getElementById('confirm-'+revId);
+      if(btn) btn.disabled = false;
+      const prog = document.getElementById('prog-'+revId);
+      if(prog){ prog.innerHTML = '<b>모든 항목 신뢰도 충분</b> — 바로 확정 가능'; prog.classList.add('done'); }
+    }
+  });
+}
+
+function toggleCheck(box){
+  box.classList.toggle('on');
+  const item = box.closest('.ck-item');
+  item.classList.toggle('checked', box.classList.contains('on'));
+  const revId = item.dataset.rev;
+  updateProgress(revId);
+}
+
+function updateProgress(revId){
+  const card = document.querySelector(`[data-rev="${revId}"].rev-card`);
+  if(!card) return;
+  const lows = card.querySelectorAll('.ck-item.low');
+  const checked = card.querySelectorAll('.ck-item.low .ck-box.on');
+  const prog = document.getElementById('prog-'+revId);
+  const btn = document.getElementById('confirm-'+revId);
+  if(lows.length === 0) return;
+  const done = checked.length === lows.length;
+  prog.innerHTML = done
+    ? `<b>${lows.length} / ${lows.length}</b> 항목 확인 완료 — 확정 가능`
+    : `<b>${checked.length} / ${lows.length}</b> 항목 확인됨 · 모두 체크해야 확정 가능`;
+  prog.classList.toggle('done', done);
+  if(btn) btn.disabled = !done;
+}
+
+function askAIRecheck(btn, revId){
+  const card = btn.closest('.rev-card');
+  const ta = card.querySelector('.recheck textarea');
+  const fb = (ta.value||'').trim();
+  if(!fb){ ta.focus(); ta.placeholder='피드백 내용을 먼저 입력해주세요'; return; }
+  btn.disabled = true; btn.innerHTML = '<span style="font-family:var(--mono)">AI 재분석 중...</span>';
+  setTimeout(()=>{
+    // 시뮬: 단가/공급사 등을 피드백 기반으로 보정 — 신뢰도 ↑
+    const r = REVIEW.find(x=>x.id===revId); if(!r) return;
+    r.iter += 1;
+    // 모든 low 항목의 신뢰도를 91~97 사이로 끌어올림 + 근거에 사용자 피드백 반영 표시
+    r.items.forEach(it=>{
+      if(it.conf < CONF_THRESHOLD){
+        it.conf = 91 + Math.floor(Math.random()*6);
+        it.evid = `재분석 적용 — 본부장 피드백 반영: "${fb.length>40?fb.slice(0,40)+'…':fb}"`;
+      }
+    });
+    r.overallConf = Math.round(r.items.reduce((s,i)=>s+i.conf,0)/r.items.length);
+    renderReview();
+  }, 1100);
+}
+
+function rejectRev(btn){
+  const card = btn.closest('.rev-card');
+  card.style.transition='.35s'; card.style.opacity='.4';
+  card.querySelectorAll('button').forEach(b=>b.disabled=true);
+}
+function confirmRev(btn){
+  const card=btn.closest('.rev-card');
+  card.style.transition='.4s';card.style.opacity='0';card.style.transform='scale(.97)';
+  setTimeout(()=>{card.style.height=card.offsetHeight+'px';card.style.height='0';card.style.margin='0';card.style.padding='0';card.style.overflow='hidden';
+    const cnt=document.querySelector('.tab[data-tab="review"] .cnt');
+    let n=parseInt(cnt.textContent)-1; if(n<=0){cnt.style.display='none'}else{cnt.textContent=n}
+  },400);
+}
+
+/* ================= AI 분석 시뮬 ================= */
+function pickIntake(el,type){
+  document.querySelectorAll('.it').forEach(i=>i.classList.remove('on'));el.classList.add('on');
+  document.getElementById('intakeText').style.display=type==='text'?'block':'none';
+  document.getElementById('intakeFile').style.display=type==='file'?'block':'none';
+  document.getElementById('intakeImg').style.display=type==='img'?'block':'none';
+}
+function fillSample(){
+  document.getElementById('rawInput').value=
+`[GMI Cloud] 안녕하세요 김도현 본부장님,
+요청 주신 H100 견적 회신드립니다.
+
+- H100 80GB SXM : $2.10 / GPU·hr (8장 이상 계약 시)
+- 약정 조건 : 3개월
+- 견적 유효기간 : 2026-06-15
+- 결제 : 월 단위 후불
+
+추가 문의 주시면 언제든 회신드리겠습니다.
+감사합니다.
+GMI Cloud / Sales Team`;
+}
+function addFile(inp){
+  const fl=document.getElementById('fileList');
+  fl.innerHTML+=`<span class="filechip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>FPT_GPU_견적서_2026Q2.pdf · 312KB</span>`;
+}
+function addImg(){
+  document.getElementById('imgList').innerHTML=`<span class="filechip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>messenger_capture_0528.png · OCR 대기</span>`;
+}
+function resetAI(){
+  const ta=document.getElementById('rawInput'); if(ta) ta.value='';
+  const al=document.getElementById('attList'); if(al) al.innerHTML='';
+  showAiEmpty();
+}
+function showAiEmpty(){
+  document.getElementById('aiPanel').innerHTML=`<div class="ai-empty">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M9 9h.01M15 9h.01M8 14s1.5 2 4 2 4-2 4-2"/></svg>
+    <div class="t">AI 분류·추출 결과가 여기에 표시됩니다</div>
+    <div class="d">위 통합 입력창에 내용을 넣고 <b>AI 분석</b>을 누르면, 가격·수량·공급사를 자동 식별해 시스템 전체에 자동 분류·반영됩니다</div></div>`;
+}
+function runAI(){
+  const p=document.getElementById('aiPanel');
+  p.innerHTML=`<div class="ai-loading"><div class="spinner"></div><div class="t">AI가 내용을 분석·분류하고 있습니다</div><div class="steps" id="aiSteps">출처 포맷·언어 감지 중...</div></div>`;
+  const steps=['출처 포맷·언어 감지 중...','공급사 식별 (도메인·서명·핸들)...','GPU 모델 / 메모리 추출...','가격 정보 탐지 → USD/GPU·hr 정규화...','수량·재고 상태 탐지 (전량/일부/소진/거절)...','tier 추정 + 신뢰도 산출 → 트랙 분류...'];
+  let i=0;const t=setInterval(()=>{i++;if(i<steps.length){const el=document.getElementById('aiSteps');if(el)el.textContent=steps[i];}else{clearInterval(t);showParsed();}},480);
+}
+function showParsed(){
+  const p=document.getElementById('aiPanel');
+  p.innerHTML=`
+    <div style="padding:18px 20px 0">
+      <div class="cls-card">
+        <div class="ic">🧠</div>
+        <div class="body">AI 분류 결과 — <b>가격 + 수량 통합 응답</b>으로 인식 (공급견적 트랙 + 가용량 트랙 양쪽 기록)
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">공급사: GMI Cloud · Tier 1 추정 · 단가 $2.10/GPU·hr · 가용 8장(전량) · 신뢰도 96%</div></div>
+        <div class="tags">
+          <span class="badge b-blue" style="font-size:10px">가격 트랙</span>
+          <span class="badge b-green" style="font-size:10px">가용량 트랙</span>
+        </div>
+      </div>
+    </div>
+    <div class="parsed-head">
+      <div class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M20 6L9 17l-5-5"/></svg></div>
+      <div><div class="t">분석 완료 · 1건 추출</div><div class="s">검토 대기 게이트로 넘기기 전 값을 확인하세요</div></div>
+    </div>
+    <div class="parsed-body">
+      <div class="field-grid">
+        <div class="field extracted"><label>GPU 모델</label><input class="inp" value="H100 SXM 80GB"></div>
+        <div class="field extracted"><label>공급사</label><input class="inp" value="GMI Cloud"></div>
+      </div>
+      <div class="field-grid">
+        <div class="field extracted"><label>단가 (정규화: USD/GPU·hr)</label><input class="inp" value="$2.10"></div>
+        <div class="field extracted"><label>통화 / 환산 (오늘 매매기준율)</label><input class="inp" value="USD → ${fmtKRW(2.10*FX)}"></div>
+      </div>
+      <div class="field-grid">
+        <div class="field extracted"><label>약정 조건</label><input class="inp" value="3개월 약정"></div>
+        <div class="field extracted"><label>최소 수량</label><input class="inp" value="8장 이상"></div>
+      </div>
+      <div class="field-grid">
+        <div class="field extracted"><label>견적 유효기간</label><input class="inp" value="2026-06-15"></div>
+        <div class="field extracted"><label>출처 포맷</label><input class="inp" value="메일 본문"></div>
+      </div>
+      <div class="field extracted"><label>공급 tier (AI 추천)</label><input class="inp" value="Tier 1 · 전용 고성능 (데이터센터급 전용 점유 정황)"></div>
+
+      <div class="field-grid">
+        <div class="field extracted" style="position:relative"><label>가용 수량 (AI 자동 추출)</label><input class="inp" value="8장 (전량 가능)"></div>
+        <div class="field extracted"><label>응답 상태</label><input class="inp" value="전량 가능 · 우리 문의 한도 내 답변"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:9px;background:#e7f5ec;border:1px solid #c8e8d4;border-radius:9px;padding:11px 13px;font-size:11.5px;color:var(--green);margin-bottom:16px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <b style="color:var(--green)">가격 + 수량 둘 다 추출됨</b> — 양쪽 트랙(가격·가용량)에 모두 기록됩니다 · 신선도 타이머 72h 시작
+      </div>
+      <div style="background:#f7f8fb;border:1px solid var(--border);border-radius:9px;padding:11px 13px;font-size:11.5px;color:var(--muted);display:flex;gap:9px;align-items:center;margin-bottom:16px">
+        <svg width="17" height="17" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="M43.65 25L29.9 1.2c-1.35.8-2.5 1.9-3.3 3.3L1.2 48.45c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.5z" fill="#ea4335"/><path d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.9 0H34.4c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="M59.8 53H27.5L13.75 76.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="M73.4 26.5L60.75 4.5c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25 59.8 53h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>
+        원본은 연결된 <b style="color:var(--ink-2)">Google Drive</b>에 자동 저장됩니다 · 경로 <span style="font-family:var(--mono)">/gcube_pricing/근거자료/</span> · 타임스탬프·해시 자동 기록
+      </div>
+      <div class="row-actions" style="margin-top:0">
+        <button class="btn primary" style="flex:1;justify-content:center" onclick="toReview()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>검토 대기로 보내기</button>
+        <button class="btn" onclick="resetAI()">다시</button>
+      </div>
+    </div>`;
+}
+function toReview(){
+  alert('검토 대기 목록에 추가되었습니다.\n본부장 확정 시 가격표에 반영됩니다.');
+  go('review');
+}
+
+/* ================= 근거자료 모달 ================= */
+function openEvi(sup,model,fmt,recv,price){
+  const o=document.getElementById('overlay');
+  document.getElementById('mTitle').textContent=(FMT[fmt]?FMT[fmt].t:'근거자료')+' · 원본';
+  document.getElementById('mSub').textContent=`${model} · ${sup||''} · ${recv}`;
+  const body=document.getElementById('mBody');
+  if(fmt==='mail'||fmt==='own'){
+    body.innerHTML=`<div class="evi-mail">
+      <div class="mh">발신: <b>sales@gmi-cloud.com</b><br>제목: <b>[GMI Cloud] H100 견적 회신드립니다</b><br>수신: ${recv}</div>
+      안녕하세요 김도현 본부장님,<br><br>요청 주신 H100 견적 회신드립니다.<br><br>
+      · H100 80GB SXM : <span class="hl">$2.10 / GPU·hr</span> (<span class="hl">8장 이상</span> 계약 시)<br>
+      · 약정 조건 : <span class="hl">3개월</span><br>
+      · 견적 유효기간 : <span class="hl">2026-06-15</span><br>
+      · 결제 : 월 단위 후불<br><br>
+      추가 문의 주시면 언제든 회신드리겠습니다.<br>감사합니다.<br>GMI Cloud / Sales Team</div>
+      <div class="evi-meta"><span class="badge b-green">AI 추출 근거 하이라이트</span><span class="badge b-gray">원본 보존 · 변조 방지 해시 기록</span></div>`;
+  }else if(fmt==='pdf'){
+    body.innerHTML=`<div class="evi-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg><div style="font-weight:600">FPT_GPU_견적서_2026Q2.pdf</div><div style="font-size:12px">견적서 원본 미리보기 (3페이지)</div></div>
+      <div class="evi-meta"><span class="badge b-red">PDF 원본</span><span class="badge b-green">AI 파싱 영역 표시</span><span class="badge b-gray">312KB</span></div>`;
+  }else{
+    body.innerHTML=`<div class="evi-img"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg><div style="font-weight:600">messenger_capture_0528.png</div><div style="font-size:12px">메신저 캡처 원본 · OCR 인식 영역 하이라이트</div></div>
+      <div class="evi-meta"><span class="badge b-purple">이미지 원본</span><span class="badge b-amber">OCR 텍스트 추출</span><span class="badge b-gray">변조 방지 해시 기록</span></div>`;
+  }
+  body.innerHTML += `
+    <div style="display:flex;align-items:center;gap:11px;margin-top:16px;background:#f7f8fb;border:1px solid var(--border);border-radius:11px;padding:12px 14px">
+      <svg width="22" height="22" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="M43.65 25L29.9 1.2c-1.35.8-2.5 1.9-3.3 3.3L1.2 48.45c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.5z" fill="#ea4335"/><path d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.9 0H34.4c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="M59.8 53H27.5L13.75 76.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="M73.4 26.5L60.75 4.5c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25 59.8 53h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>
+      <div style="flex:1;font-size:12px;color:var(--ink-2)"><b>Google Drive에 원본 보관됨</b><div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px">/gcube_pricing/근거자료/${(FMT[fmt]?FMT[fmt].t:'evidence')}/${(recv||'').slice(0,10)}</div></div>
+      <button class="btn" style="padding:7px 12px;font-size:12px" onclick="alert('연결된 Google Drive에서 원본 파일이 열립니다 (프로토타입)')">Drive에서 열기 →</button>
+    </div>`;
+  o.classList.add('show');
+}
+function closeModal(){document.getElementById('overlay').classList.remove('show')}
+document.getElementById('overlay').addEventListener('click',e=>{if(e.target.id==='overlay')closeModal()});
+
+/* ================= 탭 전환 ================= */
+function go(tab){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+tab).classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>go(t.dataset.tab)));
+
+/* ================= 재고/문의 — 모델 중심 리스트 (v0.6.0) ================= */
+function renderMatrix(){
+  const body=document.getElementById('avListBody');
+  if(!body) return;
+  body.innerHTML='';
+  // 가격견적 받는 상품(T1·T2)만 노출 (T3은 자체 풀이라 별도)
+  const products = MODELS.filter(m=>m.tier!==3);
+  products.forEach(m=>{
+    const T=TIERS[m.tier];
+    const avs = AVAIL.filter(a=>a.model===m.key);
+    // 분포 집계
+    const cnt = {full:0,partial:0,oos:0,pending:0,stale:0,declined:0};
+    let freshSum = 0, lastH = Infinity;
+    avs.forEach(a=>{
+      const stale = a.status!=='pending' && !isFresh(a.h);
+      if(stale){cnt.stale++; return;}
+      cnt[a.status]=(cnt[a.status]||0)+1;
+      if(a.status!=='pending' && a.status!=='oos' && a.resp) freshSum+=a.resp;
+      if(a.h<lastH) lastH=a.h;
+    });
+    const total = avs.length;
+    const lastWhen = lastH===Infinity ? '—' : (lastH<24?`${lastH}h 전`:`${Math.floor(lastH/24)}d 전`);
+
+    // 헬스바
+    const seg = (n,c)=> n>0 ? `<i class="${c}" style="flex:${n}"></i>` : '';
+    const bar = total ? `<div class="health-bar">${seg(cnt.full,'full')}${seg(cnt.partial,'part')}${seg(cnt.oos,'oos')}${seg(cnt.pending,'pen')}${seg(cnt.stale,'sta')}</div>` : `<span style="font-size:11px;color:var(--faint)">응답 없음</span>`;
+    const stats = total ? `<div class="health-stats">
+      ${cnt.full?`<span style="color:var(--green)">●${cnt.full} 가용</span>`:''}
+      ${cnt.partial?`<span style="color:var(--amber)">●${cnt.partial} 일부</span>`:''}
+      ${cnt.oos?`<span style="color:var(--red)">●${cnt.oos} 소진</span>`:''}
+      ${cnt.pending?`<span style="color:var(--accent-ink)">●${cnt.pending} 대기</span>`:''}
+      ${cnt.stale?`<span style="color:#9098a7">●${cnt.stale} 오래됨</span>`:''}
+    </div>` : '';
+
+    // 공급사 pill (상위 4곳)
+    const pills = avs.slice().sort((a,b)=>a.h-b.h).slice(0,4).map(a=>{
+      const s=SUPPLIERS[a.sup]; const stale=a.status!=='pending'&&!isFresh(a.h);
+      const cls = a.status==='oos'?'sp-pill oos': a.status==='pending'?'sp-pill pending': stale?'sp-pill stale':'sp-pill';
+      const txt = a.status==='pending'?'대기': a.status==='oos'?'소진': `${a.resp}장`;
+      return `<span class="${cls}"><span class="sd" style="background:${s.color}"></span>${s.short||s.name.split(' ')[0]} <span class="q">${txt}</span></span>`;
+    }).join('');
+    const more = avs.length>4 ? `<span class="sp-pill" style="background:none;border:1px dashed var(--border-strong);color:var(--muted)">+${avs.length-4}</span>` : '';
+
+    // 메인 row
+    const row=document.createElement('div');
+    row.className='av-row'; row.dataset.key='av-'+m.key;
+    row.innerHTML=`
+      <div style="display:flex;align-items:center;gap:11px">
+        <div class="gpu-chip" style="width:36px;height:36px;background:${T.chip};font-size:9px">T${m.tier}<span style="font-size:7px">${m.mem}</span></div>
+        <div><div style="font-weight:700;font-size:13.5px">${m.name} <span style="font-size:11px;color:var(--muted);font-weight:500">${m.mem}</span></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px"><span class="badge ${T.badge}" style="font-size:9.5px;padding:1px 6px">${T.label}</span> · 공급사 ${avs.length}곳 응답</div></div>
+      </div>
+      <div class="qty-bar"><div class="bigq ${freshSum===0?'zero':''}">${freshSum}<span class="u">장</span></div></div>
+      <div><div class="supplier-pills">${pills}${more}</div></div>
+      <div>${bar}${stats}</div>
+      <div style="font-size:12px;color:var(--muted);font-family:var(--mono)">${lastWhen}</div>
+      <div><svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></div>`;
+    body.appendChild(row);
+
+    // 펼침 row — 공급사별 응답 카드
+    const det=document.createElement('div');
+    det.className='av-detail-row';
+    let cards='';
+    if(avs.length===0){
+      cards = `<div style="padding:18px;text-align:center;color:var(--faint);font-size:12px">아직 응답이 없습니다 — <b style="color:var(--accent)">통합 입력</b> 메뉴에서 관련 메일·메시지를 넣으면 자동 분류하세요</div>`;
+    } else {
+      avs.sort((a,b)=>a.h-b.h).forEach(a=>{
+        const s=SUPPLIERS[a.sup]; const st=AVAIL_STATUS[a.status];
+        const stale=a.status!=='pending' && !isFresh(a.h);
+        const hAgo = a.h<24 ? `${a.h}시간 전` : `${Math.floor(a.h/24)}일 전`;
+        const qHtml = a.status==='pending'
+          ? `<span style="color:var(--accent-ink);font-weight:600;font-size:12px">응답 대기 ${Math.ceil(a.h/24)}일째 (D+${Math.ceil(a.h/24)})</span>`
+          : a.status==='oos'
+            ? `<span class="av-qty oos">0장</span><span class="frac">소진 명시</span>`
+            : `<span class="av-qty">${a.resp}장</span>${a.our?`<span class="frac">/ 문의 ${a.our}장</span>`:''}${a.total_cap?'<span class="total-cap-star">⭐ 전체 보유량</span>':''}`;
+        cards += `
+          <div class="av-line ${a.status==='oos'?'oos':''} ${stale?'stale':''} ${a.status==='pending'?'pending':''}">
+            <div class="ql-supplier"><span class="sdot" style="background:${s.color}"></span>${s.name}</div>
+            <div>${qHtml}</div>
+            <div><span class="${st.cls}">${st.label}</span></div>
+            <div class="av-ctx">${CH_LABEL[a.ch]} · ${hAgo}</div>
+            <div class="${stale?'fresh stale':'fresh'}"><span class="fd"></span>${stale?'정보 오래됨':'신선'}</div>
+            <div class="ql-evi">
+              <button class="icon-btn" title="이 공급사 타임라인" onclick="event.stopPropagation();alert('${s.name} × ${m.name} 타임라인을 펼칩니다 (프로토타입)')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></button>
+              <button class="icon-btn" title="근거자료" onclick="event.stopPropagation();openEvi('${s.name}','${m.name}','${a.ch}','${hAgo}','')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            </div>
+          </div>`;
+      });
+    }
+    det.innerHTML=`<div class="av-detail" id="avd-${m.key}">
+      <div class="av-detail-head">
+        <span>📦 공급사별 응답 (최신순) · 신선 ≤72h · 공급사 전량 vs 부분 응답 구분</span>
+        <span class="tl-link" onclick="event.stopPropagation()">전체 타임라인 보기 →</span>
+      </div>
+      ${cards}
+    </div>`;
+    body.appendChild(det);
+
+    row.addEventListener('click',()=>{
+      const d=document.getElementById('avd-'+m.key);
+      const open=row.classList.toggle('open');
+      d.classList.toggle('show',open);
+    });
+  });
+}
+
+function renderTimeline(){
+  const p=document.getElementById('timelinePanel');
+  if(!p) return;
+  // GMI Cloud × H100 SXM 80GB
+  const sup=SUPPLIERS.gmi, model='H100 SXM 80GB', tier='Tier 1';
+  // 요약 계산
+  const items=TIMELINE;
+  const responded=items.filter(x=>x.response).length;
+  const respRate=Math.round(responded/items.length*100);
+  const avgDelayHours = (()=>{
+    const ds=items.filter(x=>x.response).map(x=>{const m=x.response.delay.match(/(\d+)([dh])/); return m?(m[2]==='d'?parseInt(m[1])*24:parseInt(m[1])):0;});
+    return (ds.reduce((a,b)=>a+b,0)/ds.length).toFixed(1);
+  })();
+  const avgFill = (()=>{
+    const xs=items.filter(x=>x.response && x.response.our_qty && x.response.status!=='oos').map(x=>x.response.resp_qty/x.response.our_qty);
+    return xs.length ? Math.round(xs.reduce((a,b)=>a+b,0)/xs.length*100) : 0;
+  })();
+
+  let html = `
+    <div class="tl-head">
+      <div class="gpu-chip" style="background:#13151c">T1<span>80GB</span></div>
+      <div>
+        <div class="tl-name">${sup.name} × ${model}</div>
+        <div class="tl-meta"><span class="badge b-purple" style="font-size:10px">${tier}</span><span class="sdot" style="background:${sup.color}"></span>${sup.loc} · ${items.length}건 이력</div>
+      </div>
+      <div class="tl-summary">
+        <div><div class="s">최근 30일 응답률</div><div class="v" style="color:${respRate>=70?'var(--green)':'var(--amber)'}">${respRate}%</div></div>
+        <div><div class="s">평균 응답시간</div><div class="v">${avgDelayHours}h</div></div>
+        <div><div class="s">평균 충족률</div><div class="v">${avgFill}%</div></div>
+      </div>
+    </div>
+    <div class="tl-filter">
+      <span class="lbl">필터</span>
+      <div class="seg"><button class="on">전체</button><button>응답</button><button>소진</button><button>미회신</button></div>
+      <span class="lbl" style="margin-left:8px">채널</span>
+      <div class="seg"><button class="on">전체</button><button>메일</button><button>메신저</button><button>PDF</button></div>
+      <span style="margin-left:auto;font-size:11px;color:var(--muted)">변경/조회 모든 이벤트는 감사 로그로 영구 기록</span>
+    </div>
+    <div class="tl-body">`;
+  items.forEach(it=>{
+    const r=it.response;
+    const dotCls = r ? (r.status==='oos'?'oos':'') : 'pending';
+    html += `
+      <div class="tl-item">
+        <div class="tl-when ${dotCls}">${it.ts}<div style="font-size:10.5px;color:var(--faint);margin-top:2px">${CH_LABEL[it.channel]}</div></div>
+        <div class="tl-pair">
+          <div class="tl-msg">
+            <div class="arrow q"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M12 5l7 7-7 7"/></svg>문의</div>
+            <div class="body">${it.inquiry.text}</div>
+            <div class="meta"><span>${it.actor}</span><span>·</span><span class="mono" style="font-family:var(--mono)">${it.inquiry.ts}</span></div>
+          </div>
+          ${ r ? `
+          <div class="tl-msg">
+            <div class="arrow ${r.status==='oos'?'miss':'r'}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>응답 · ${r.delay}</div>
+            <div class="body">${r.text}</div>
+            <div class="meta">
+              <span class="${AVAIL_STATUS[r.status].cls}">${AVAIL_STATUS[r.status].label}</span>
+              ${r.our_qty?`<span>충족 ${Math.round((r.resp_qty/r.our_qty)*100)}%</span>`:''}
+              ${r.total_cap?'<span class="total-cap-star">⭐ 전체 보유량 명시</span>':''}
+              <span>AI 신뢰도 ${r.conf}%</span>
+              <span class="ev" onclick="openEvi('${sup.name}','${model}','${it.channel}','${r.ts}','')">📎 ${r.ev}</span>
+            </div>
+          </div>` : `
+          <div class="tl-noresp">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".5" fill="currentColor"/></svg>
+            <span>회신 없음 — 문의 후 <b>${it.no_resp_days}일 경과</b> · 자동 follow-up 후보</span>
+            <button class="act">재문의 보내기</button>
+          </div>` }
+        </div>
+      </div>`;
+  });
+  html += '</div>';
+  p.innerHTML = html;
+}
+function setMargin(v,btn){
+  v=parseFloat(v); if(isNaN(v)||v<0)v=0; if(v>200)v=200;
+  MARGIN=1+v/100;
+  document.getElementById('marginInput').value=v;
+  document.querySelectorAll('.mb-preset').forEach(b=>b.classList.toggle('on', b.textContent===v+'%'));
+  renderBoard(); // 판매가 컬럼 즉시 재계산
+}
+function bumpMargin(d){setMargin(parseFloat(document.getElementById('marginInput').value||18)+d)}
+
+/* ================= 등록 모드 (Tier1·2 견적 / Tier3 직접) ================= */
+function setIntakeMode(mode){ /* v0.6.0: 입력 일원화로 모드 토글 폐지. 호환용 무동작 stub */ }
+function addAttach(type){
+  const list=document.getElementById('attList'); if(!list) return;
+  const isImg = type==='img';
+  const name = isImg ? `messenger_capture_${Date.now().toString().slice(-4)}.png` : `quote_${Date.now().toString().slice(-4)}.pdf`;
+  const icon = isImg
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>`;
+  const chip=document.createElement('span');
+  chip.className='filechip';
+  chip.innerHTML=`${icon}${name}<span style="margin-left:4px;color:var(--faint);cursor:pointer" onclick="this.parentElement.remove()">×</span>`;
+  list.appendChild(chip);
+}
+function t3ResStatus(sel){
+  // legacy stub for v0.5 forms (이제 일원화에서 안 씀)
+}
+function t3conv(){
+  const v=parseFloat(document.getElementById('t3krw').value);
+  document.getElementById('t3usd').value = v>0 ? ('$'+(v/FX).toFixed(2)+' 환산') : '—';
+}
+
+/* init */
+renderBoard();renderSuppliers();renderLogs();renderReview();renderMatrix();renderTimeline();
+</script>
+</body>
+</html>
