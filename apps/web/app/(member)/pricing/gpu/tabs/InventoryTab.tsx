@@ -219,7 +219,7 @@ export default function InventoryTab() {
     if (tierFilter !== 0 && p.tier !== tierFilter) return false
     if (search) {
       const q = search.toLowerCase()
-      return p.model_name.toLowerCase().includes(q) || p.memory.toLowerCase().includes(q)
+      return (p.model_name ?? '').toLowerCase().includes(q) || (p.memory ?? '').toLowerCase().includes(q)
     }
     return true
   })

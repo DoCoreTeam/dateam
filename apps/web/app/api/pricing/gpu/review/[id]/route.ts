@@ -121,16 +121,31 @@ export async function POST(
     }
   }
 
-  // supplier_id 찾기 — 사용자가 직접 선택한 경우 우선 사용
+  // supplier_id 찾기 — 사용자가 직접 선택한 경우 우선, 없으면 이름으로 find-or-create
   let supplierId: string | null = typeof body.supplier_id === 'string' ? body.supplier_id : null
-  if (!supplierId && typeof merged.supplier === 'string' && merged.supplier) {
+  // merged.supplier 우선, 없으면 review_item의 supplier_hint(AI 추출 공급사명) 폴백
+  const supplierName = (typeof merged.supplier === 'string' && merged.supplier.trim())
+    ? merged.supplier.trim()
+    : (typeof item.supplier_hint === 'string' && item.supplier_hint.trim() ? item.supplier_hint.trim() : null)
+  if (!supplierId && supplierName) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: suppliers } = await (supabase as any)
+    const { data: existing } = await (supabase as any)
       .from('suppliers')
       .select('id')
-      .ilike('name', `%${merged.supplier}%`)
+      .ilike('name', supplierName)
       .limit(1)
-    supplierId = suppliers?.[0]?.id ?? null
+    if (existing?.[0]?.id) {
+      supplierId = existing[0].id
+    } else {
+      // 없으면 신규 공급사 생성 (suppliers 쓰기는 service_role 전용 RLS — adminClient)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: newSup } = await (adminClient as any)
+        .from('suppliers')
+        .insert({ name: supplierName })
+        .select('id')
+        .single()
+      supplierId = newSup?.id ?? null
+    }
   }
 
   // supply_quotes는 service_role 전용 RLS — adminClient 사용

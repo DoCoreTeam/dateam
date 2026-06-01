@@ -206,17 +206,12 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
   const usdKrw = data?.usd_krw ?? 1400
   const fxDate = data?.fx_date
 
-  // 견적 있는 상품만 기본 표시 (confirmed quote 또는 direct 판매가)
-  const pricedProducts = products.filter((p) =>
-    p.lowest_unit_price_usd != null || (p.pricing_mode === 'direct' && p.sell_price_krw != null)
-  )
-  const [showAll, setShowAll] = useState(false)
-
-  const filtered = (showAll ? products : pricedProducts).filter((p) => {
+  // 항상 전체 상품 표시 (견적확정만/전체상품 구분 제거)
+  const filtered = products.filter((p) => {
     if (tierFilter !== 0 && p.tier !== tierFilter) return false
     if (search) {
       const q = search.toLowerCase()
-      return p.model_name.toLowerCase().includes(q) || p.memory.toLowerCase().includes(q)
+      return (p.model_name ?? '').toLowerCase().includes(q) || (p.memory ?? '').toLowerCase().includes(q)
     }
     return true
   })
@@ -313,8 +308,8 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
         </div>
         <div
           className="gpu-stat gpu-stat-clickable"
-          title="견적 확정 상품만 보기"
-          onClick={() => { setShowAll(false); setTierFilter(0) }}
+          title="전체 필터 초기화"
+          onClick={() => { setTierFilter(0) }}
         >
           <div className="gpu-stat-lbl">T1·T2 최저가 보유</div>
           <div className="gpu-stat-val">
@@ -370,18 +365,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
           <button className={currencyMode === 'USD' ? 'on' : ''} onClick={() => setCurrencyMode('USD')} title="달러 기준으로 표시">$ 달러</button>
         </div>
         <div className="gpu-seg">
-          <button
-            className={!showAll ? 'on' : ''}
-            onClick={() => setShowAll(false)}
-            title="견적이 확정된 상품만 표시"
-          >
-            견적확정만 · {pricedProducts.length}
-          </button>
-          <button
-            className={showAll ? 'on' : ''}
-            onClick={() => setShowAll(true)}
-            title="견적 없는 상품 포함 전체 표시"
-          >
+          <button className="on" title="전체 상품 표시" style={{ cursor: 'default' }}>
             전체상품 · {products.length}
           </button>
         </div>
