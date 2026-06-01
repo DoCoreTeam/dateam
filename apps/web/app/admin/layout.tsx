@@ -10,10 +10,8 @@ import {
   CheckSquare,
   BarChart2,
   BarChart3,
-  Settings2,
   SlidersHorizontal,
   NotebookPen,
-  ClipboardList,
   Key,
   Tag,
   Network,
@@ -44,8 +42,7 @@ const ADMIN_NAV_GROUPS: NavGroup[] = [
   {
     label: 'API · 시스템',
     items: [
-      { href: '/admin/api-access', label: 'API 접근 신청', icon: <ClipboardList size={16} /> },
-      { href: '/admin/api-keys', label: 'API 키 관리', icon: <Key size={16} /> },
+      { href: '/admin/api', label: 'API 관리', icon: <Key size={16} /> },
       { href: '/admin/ai-usage', label: 'AI 사용량', icon: <Bot size={16} /> },
       { href: '/admin/settings', label: '시스템 설정', icon: <SlidersHorizontal size={16} /> },
     ],
