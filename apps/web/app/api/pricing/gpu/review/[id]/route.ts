@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { normalizeMemory } from '@/lib/gpu/normalize'
+import { parseGpuCount, toPerGpuPrice } from '@/lib/gpu/parse-quantity'
+import { inferTier } from '@/lib/gpu/tier-dict'
 
 // POST /api/pricing/gpu/review/[id] — 확정 또는 반려
 export async function POST(
@@ -76,17 +78,25 @@ export async function POST(
   const overrideExtracted = (body.override_extracted ?? {}) as Record<string, unknown>
   const merged = { ...extracted, ...overrideExtracted }
 
-  const unitPriceUsd = typeof merged.unit_price_usd === 'number' ? merged.unit_price_usd : null
-  if (!unitPriceUsd) {
+  const rawUnitPrice = typeof merged.unit_price_usd === 'number' ? merged.unit_price_usd : null
+  if (!rawUnitPrice) {
     return NextResponse.json({ error: '확정할 단가(unit_price_usd)가 없습니다' }, { status: 400 })
   }
+  // 수량 파싱: model_name·original_unit·min_qty 등에서 GPU 장수 추출 → 1장당 단가 환산
+  const originalUnit = typeof merged.original_unit === 'string' ? merged.original_unit : null
+  const qtyHint = [merged.model_name, originalUnit, merged.min_qty, merged.term]
+    .filter((v) => typeof v === 'string').join(' ')
+  const gpuCount = parseGpuCount(qtyHint, typeof merged.gpu_count === 'number' ? merged.gpu_count : 1)
+  // 원본은 보존, unit_price_usd는 1장당으로 정규화 저장
+  const unitPriceUsd = toPerGpuPrice(rawUnitPrice, gpuCount, originalUnit)
 
   // product_id 찾기 — 토큰 매칭 후 없으면 AI 추출 데이터로 자동 생성
   let productId: string | null = null
   let productAutoCreated = false
   if (typeof merged.model_name === 'string' && merged.model_name) {
     const modelName = merged.model_name.trim()
-    const tier = typeof merged.tier_suggestion === 'number' ? merged.tier_suggestion : 1
+    // tier 자동판정: 시리즈 사전 우선, AI 제안 보정 (RTX 소비자가 T1로 오는 버그 교정)
+    const tier = inferTier(modelName, typeof merged.tier_suggestion === 'number' ? merged.tier_suggestion : null)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any
     // memory를 먼저 정규화 — 매칭 + 생성 양쪽에서 동일하게 사용
@@ -148,6 +158,21 @@ export async function POST(
     }
   }
 
+  // 멱등: 동일 (상품·공급사·계약기간) 기존 confirmed 견적이 있으면 superseded로 이력화
+  // (공급사가 같은 견적을 다시 넣어도 활성은 1건만 유지 + 이전 가격 이력 보존)
+  const termMonths = typeof merged.term_months === 'number' ? merged.term_months : null
+  if (productId && supplierId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let supQ = (adminClient as any)
+      .from('supply_quotes')
+      .update({ status: 'superseded' })
+      .eq('product_id', productId)
+      .eq('supplier_id', supplierId)
+      .eq('status', 'confirmed')
+    supQ = termMonths === null ? supQ.is('term_months', null) : supQ.eq('term_months', termMonths)
+    await supQ
+  }
+
   // supply_quotes는 service_role 전용 RLS — adminClient 사용
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: quoteError } = await (adminClient as any)
@@ -156,11 +181,12 @@ export async function POST(
       product_id: productId,
       supplier_id: supplierId,
       unit_price_usd: unitPriceUsd,
+      gpu_count: gpuCount,
       original_currency: typeof merged.original_currency === 'string' ? merged.original_currency : null,
       original_price: typeof merged.original_price === 'number' ? merged.original_price : null,
-      original_unit: typeof merged.original_unit === 'string' ? merged.original_unit : null,
+      original_unit: originalUnit,
       term: typeof merged.term === 'string' ? merged.term : null,
-      term_months: typeof merged.term_months === 'number' ? merged.term_months : null,
+      term_months: termMonths,
       min_qty: typeof merged.min_qty === 'string' ? merged.min_qty : null,
       valid_until: typeof merged.valid_until === 'string' ? merged.valid_until : null,
       source_format: item.channel ?? 'own',

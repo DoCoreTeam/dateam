@@ -1,0 +1,65 @@
+// GPU 견적 수량 파싱 + 1장당 단가 정규화
+// 입력이 어떤 형태로 와도 gpu_count를 추출하고 per-GPU 단가로 환산한다.
+// 원본(original_price/original_unit)은 호출측에서 그대로 보존한다.
+
+/**
+ * 텍스트에서 GPU 장수 추출.
+ *  "8GPU" / "x8" / "×8" / "8장" / "box(8)" / "8-GPU" / "8 GPUs" → 8
+ *  단서 없으면 fallback(기본 1) 반환.
+ */
+export function parseGpuCount(
+  raw: string | null | undefined,
+  fallback = 1,
+): number {
+  if (!raw) return fallback
+  const s = String(raw).toLowerCase()
+
+  // 우선순위 패턴들 (가장 명시적인 것부터)
+  const patterns: RegExp[] = [
+    /[x×]\s*(\d{1,2})\b/,            // x8, ×8
+    /\b(\d{1,2})\s*[x×]\b/,          // 8x
+    /\(\s*(\d{1,2})\s*(?:gpu|장|ea)?\s*\)/, // box(8), (8장)
+    /\b(\d{1,2})\s*gpus?\b/,         // 8GPU, 8 GPUs
+    /\b(\d{1,2})\s*장\b/,            // 8장
+    /\bgpu\s*[:x×]?\s*(\d{1,2})\b/,  // GPU 8, GPU:8
+  ]
+  for (const re of patterns) {
+    const m = s.match(re)
+    if (m) {
+      const n = parseInt(m[1], 10)
+      if (n >= 1 && n <= 16) return n
+    }
+  }
+  return fallback
+}
+
+/**
+ * original_unit 문자열이 "박스(여러 장) 기준 가격"인지 판단.
+ *  "USD/box", "/8GPU", "박스" 등 → true (총액 → ÷ count 필요)
+ *  "USD/GPU·hr", "per GPU" 등 → false (이미 1장당)
+ */
+export function isBoxPriced(originalUnit: string | null | undefined): boolean {
+  if (!originalUnit) return false
+  const s = originalUnit.toLowerCase()
+  // 명시적 per-GPU 표기면 박스 아님
+  if (/per\s*gpu|\/\s*gpu|gpu\s*[·*]\s*hr|gpu당|장당/.test(s)) return false
+  // box / 총액 / 세트 표기면 박스
+  if (/box|세트|set|총|\/\s*\d+\s*gpu|\(\s*\d+/.test(s)) return true
+  return false
+}
+
+/**
+ * 1장당 단가 환산.
+ *  - 박스가격이면 price ÷ gpuCount
+ *  - per-GPU 가격이면 price 그대로
+ * @returns 1장당 단가 (소수 4자리 반올림)
+ */
+export function toPerGpuPrice(
+  price: number,
+  gpuCount: number,
+  originalUnit: string | null | undefined,
+): number {
+  if (!price || gpuCount < 1) return price
+  const perGpu = isBoxPriced(originalUnit) ? price / gpuCount : price
+  return Math.round(perGpu * 10000) / 10000
+}
