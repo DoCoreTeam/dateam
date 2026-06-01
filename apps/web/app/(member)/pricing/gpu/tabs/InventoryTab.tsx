@@ -109,6 +109,12 @@ function InventoryCard({ item }: { item: InventoryItem }) {
               </div>
               <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>풀 재고 (GPU)</div>
             </div>
+          ) : (item.fresh_available_qty === 0 && item.supplier_availability.length === 0 && item.has_active_quote) ? (
+            // 견적은 있으나 가용량 응답 없음 → 0(품절)이 아니라 "확인 필요"
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--gpu-green)' }}>공급가능</div>
+              <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>수량 확인 필요</div>
+            </div>
           ) : (
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 20, fontWeight: 800, color: item.fresh_available_qty > 0 ? 'var(--gpu-green)' : 'var(--gpu-faint)', fontFamily: 'var(--font-mono, monospace)' }}>
