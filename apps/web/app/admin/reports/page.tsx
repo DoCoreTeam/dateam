@@ -178,8 +178,8 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
           <table className="table-base table-card">
             <thead>
               <tr>
-                <th style={{ width: '100px' }}>팀원</th>
-                <th style={{ width: '80px' }}>구분</th>
+                <th style={{ width: '120px', whiteSpace: 'nowrap' }}>팀원</th>
+                <th style={{ width: '80px', whiteSpace: 'nowrap' }}>구분</th>
                 <th>성과</th>
                 <th>계획</th>
                 <th>이슈/협조사항</th>
@@ -190,14 +190,11 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
                 return (
                   <tr key={report.id}>
                     <td className="card-header">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontWeight: 600, color: '#0f172a' }}>
-                          {report.profiles?.name ?? '-'}
-                        </span>
-                        <span className="badge badge-indigo">{report.category}</span>
-                      </div>
+                      <span style={{ fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                        {report.profiles?.name ?? '-'}
+                      </span>
                     </td>
-                    <td className="card-hide">
+                    <td data-label="구분">
                       <span className="badge badge-indigo">{report.category}</span>
                     </td>
                     <td data-label="성과" style={{ maxWidth: '280px' }}>
