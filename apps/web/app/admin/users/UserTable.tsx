@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Pencil } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Pencil, ChevronUp, ChevronDown, ChevronsUpDown, Search } from 'lucide-react'
 import RoleToggle from './RoleToggle'
 import ResetPasswordButton from './ResetPasswordButton'
 import DeleteUserButton from './DeleteUserButton'
@@ -22,20 +22,112 @@ interface Props {
   positions: RankItem[]
 }
 
+type SortKey = 'name' | 'rank' | 'role' | 'created_at'
+type SortDir = 'asc' | 'desc'
+
+function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
+  if (col !== sortKey) return <ChevronsUpDown size={13} style={{ opacity: 0.35 }} />
+  return sortDir === 'asc' ? <ChevronUp size={13} /> : <ChevronDown size={13} />
+}
+
 export default function UserTable({ profiles, emailMap, currentUserId, ranks, positions }: Props) {
   const [editTarget, setEditTarget] = useState<Profile | null>(null)
+  const [search, setSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'member'>('all')
+  const [sortKey, setSortKey] = useState<SortKey>('name')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return profiles
+      .filter(p => {
+        if (roleFilter !== 'all' && p.role !== roleFilter) return false
+        if (!q) return true
+        const email = (emailMap[p.id] ?? '').toLowerCase()
+        return (p.name ?? '').toLowerCase().includes(q) || email.includes(q) || (p.rank ?? '').includes(q)
+      })
+      .sort((a, b) => {
+        let va = '', vb = ''
+        if (sortKey === 'name') { va = a.name ?? ''; vb = b.name ?? '' }
+        else if (sortKey === 'rank') { va = a.rank ?? ''; vb = b.rank ?? '' }
+        else if (sortKey === 'role') { va = a.role; vb = b.role }
+        else if (sortKey === 'created_at') { va = a.created_at; vb = b.created_at }
+        const cmp = va.localeCompare(vb, 'ko')
+        return sortDir === 'asc' ? cmp : -cmp
+      })
+  }, [profiles, emailMap, search, roleFilter, sortKey, sortDir])
+
+  const thStyle: React.CSSProperties = { cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }
 
   return (
     <>
+      {/* 검색 / 필터 바 */}
+      <div style={{ padding: '0.875rem 1.25rem', borderBottom: '1px solid #e2e8f0', display: 'flex', flexWrap: 'wrap', gap: '0.625rem', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 0 }}>
+          <Search size={14} style={{ position: 'absolute', left: '0.625rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+          <input
+            type="search"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="이름 · 이메일 · 직급 검색"
+            className="input-field"
+            style={{ paddingLeft: '2rem', fontSize: '0.8125rem', height: '2rem' }}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: '0.375rem' }}>
+          {(['all', 'admin', 'member'] as const).map(r => (
+            <button
+              key={r}
+              onClick={() => setRoleFilter(r)}
+              style={{
+                padding: '0.25rem 0.75rem', fontSize: '0.8rem', borderRadius: '999px', cursor: 'pointer',
+                border: roleFilter === r ? '1px solid #6366f1' : '1px solid #e2e8f0',
+                background: roleFilter === r ? '#eef2ff' : '#fff',
+                color: roleFilter === r ? '#4f46e5' : '#64748b',
+                fontWeight: roleFilter === r ? 600 : 400,
+              }}
+            >
+              {r === 'all' ? '전체' : r}
+            </button>
+          ))}
+        </div>
+        <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginLeft: 'auto' }}>{filtered.length}명</span>
+      </div>
+
       <table className="table-base table-card">
         <thead>
           <tr>
-            <th>이름</th>
-            <th>직급</th>
+            <th onClick={() => toggleSort('name')} style={thStyle}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                이름 <SortIcon col="name" sortKey={sortKey} sortDir={sortDir} />
+              </span>
+            </th>
+            <th onClick={() => toggleSort('rank')} style={thStyle}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                직급 <SortIcon col="rank" sortKey={sortKey} sortDir={sortDir} />
+              </span>
+            </th>
             <th>직책</th>
-            <th>역할</th>
+            <th onClick={() => toggleSort('role')} style={thStyle}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                역할 <SortIcon col="role" sortKey={sortKey} sortDir={sortDir} />
+              </span>
+            </th>
             <th>초기PW변경</th>
-            <th>가입일</th>
+            <th onClick={() => toggleSort('created_at')} style={thStyle}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                가입일 <SortIcon col="created_at" sortKey={sortKey} sortDir={sortDir} />
+              </span>
+            </th>
             <th style={{ width: '80px' }}>수정</th>
             <th style={{ width: '120px' }}>역할 변경</th>
             <th style={{ width: '110px' }}>PW초기화</th>
@@ -43,7 +135,13 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
           </tr>
         </thead>
         <tbody>
-          {profiles.map((profile) => {
+          {filtered.length === 0 ? (
+            <tr>
+              <td colSpan={10} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8', fontSize: '0.875rem' }}>
+                검색 결과가 없습니다
+              </td>
+            </tr>
+          ) : filtered.map((profile) => {
             const email = emailMap[profile.id] ?? ''
             return (
               <tr key={profile.id}>

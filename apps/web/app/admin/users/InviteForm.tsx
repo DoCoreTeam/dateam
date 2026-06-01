@@ -18,7 +18,7 @@ export default function InviteForm() {
     const res = await inviteUser(formData)
 
     if (res.success) {
-      setResult({ ok: true, msg: '팀원 계정이 생성되었습니다. 첫 로그인 시 비밀번호 변경 모달이 표시됩니다.' })
+      setResult({ ok: true, msg: '구성원 계정이 생성되었습니다. 첫 로그인 시 비밀번호를 설정해야 합니다.' })
       form.reset()
     } else {
       setResult({ ok: false, msg: res.error ?? '오류가 발생했습니다' })
@@ -50,17 +50,13 @@ export default function InviteForm() {
           <label className="label">이름</label>
           <input name="name" type="text" required placeholder="홍길동" className="input-field" />
         </div>
-        <div style={{ flex: '1 1 130px', minWidth: 0 }}>
-          <label className="label">임시 비밀번호</label>
-          <input name="tempPassword" type="text" required minLength={6} placeholder="6자 이상" className="input-field" />
-        </div>
         <button type="submit" className="btn-primary" disabled={pending} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
           <UserPlus size={14} />
           {pending ? '생성 중...' : '계정 생성'}
         </button>
       </div>
       <p style={{ marginTop: '0.625rem', fontSize: '0.75rem', color: '#94a3b8' }}>
-        생성된 팀원은 임시 비밀번호로 로그인 시 비밀번호 변경 모달이 자동으로 표시됩니다.
+        계정 생성 후 구성원은 비밀번호 빈칸으로 첫 로그인하여 새 비밀번호를 설정합니다.
       </p>
     </form>
   )

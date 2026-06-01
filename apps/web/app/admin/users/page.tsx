@@ -35,7 +35,7 @@ export default async function AdminUsersPage() {
           사용자 관리
         </h1>
         <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>
-          팀원 계정 생성 및 역할 관리
+          구성원 계정 생성 및 역할 관리
         </p>
       </div>
 
@@ -44,7 +44,7 @@ export default async function AdminUsersPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
           <UserPlus size={16} color="#6366f1" />
           <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>
-            새 팀원 초대
+            새 구성원 초대
           </h2>
         </div>
         <InviteForm />
@@ -54,7 +54,7 @@ export default async function AdminUsersPage() {
       <div className="card">
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Users size={16} color="#6366f1" />
-          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>전체 팀원</h2>
+          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>전체 구성원</h2>
           <span className="badge badge-slate">{profiles.length}명</span>
         </div>
 

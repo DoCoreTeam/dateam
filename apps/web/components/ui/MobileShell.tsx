@@ -161,15 +161,18 @@ export default function MobileShell({
                       padding: '0.5rem 0.75rem',
                       borderRadius: '0.5rem',
                       fontSize: '0.875rem',
-                      fontWeight: isHighlight ? 700 : 500,
+                      fontWeight: isActive || isHighlight ? 700 : 500,
                       textDecoration: 'none',
-                      transition: 'opacity 120ms, transform 120ms',
+                      transition: 'opacity 120ms, transform 120ms, border-color 120ms',
                       background: isActive
-                        ? '#4f46e5'
+                        ? 'rgba(99,102,241,0.1)'
                         : isHighlight
                         ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
                         : isHovered ? 'rgba(255,255,255,0.07)' : 'transparent',
-                      color: isActive || isHighlight ? '#fff' : isHovered ? '#fff' : '#94a3b8',
+                      border: isActive
+                        ? '1px solid rgba(99,102,241,0.55)'
+                        : '1px solid transparent',
+                      color: isActive ? '#c7d2fe' : isHighlight ? '#fff' : isHovered ? '#fff' : '#94a3b8',
                       minHeight: '44px',
                       boxShadow: isHighlight && !isActive ? '0 2px 10px rgba(99,102,241,0.4)' : 'none',
                       opacity: isHighlight && isHovered ? 0.88 : 1,
@@ -254,11 +257,12 @@ export default function MobileShell({
                               padding: '0.5rem 0.75rem',
                               borderRadius: '0.5rem',
                               fontSize: '0.875rem',
-                              fontWeight: 500,
+                              fontWeight: isActive ? 700 : 500,
                               textDecoration: 'none',
-                              transition: 'background-color 120ms, color 120ms',
-                              backgroundColor: isActive ? '#4f46e5' : isHovered ? 'rgba(255,255,255,0.07)' : 'transparent',
-                              color: isActive || isHovered ? '#fff' : '#94a3b8',
+                              transition: 'background-color 120ms, color 120ms, border-color 120ms',
+                              backgroundColor: isActive ? 'rgba(99,102,241,0.1)' : isHovered ? 'rgba(255,255,255,0.07)' : 'transparent',
+                              border: isActive ? '1px solid rgba(99,102,241,0.55)' : '1px solid transparent',
+                              color: isActive ? '#c7d2fe' : isHovered ? '#fff' : '#94a3b8',
                               minHeight: '44px',
                             }}
                           >

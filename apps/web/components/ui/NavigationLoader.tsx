@@ -39,8 +39,6 @@ export default function NavigationLoader({ brandName, logoUrl }: NavigationLoade
 
   if (!loading) return null
 
-  const chars = brandName.split('')
-
   return (
     <div
       role="status"
@@ -67,22 +65,32 @@ export default function NavigationLoader({ brandName, logoUrl }: NavigationLoade
             style={{ maxHeight: '56px', maxWidth: '200px', objectFit: 'contain' }}
           />
         ) : (
-          <div
-            aria-hidden
-            style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '0.08em', userSelect: 'none' }}
-          >
-            {chars.map((ch, i) => (
-              <span
-                key={i}
-                style={{
-                  display: 'inline-block',
-                  animation: 'char-wave 1.8s ease-in-out infinite',
-                  animationDelay: `${i * 0.12}s`,
-                }}
-              >
-                {ch === ' ' ? ' ' : ch}
-              </span>
-            ))}
+          <div aria-hidden className="da-loader-logo">
+            {/* DATA ALLIANCE 로고: 두 개의 쉐브론이 X자를 형성 */}
+            <svg
+              viewBox="0 0 80 56"
+              width="80"
+              height="56"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="da-loader-mark"
+            >
+              <polyline
+                points="4,4 36,28 4,52"
+                stroke="#06b6d4"
+                strokeWidth="7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <polyline
+                points="76,4 44,28 76,52"
+                stroke="#06b6d4"
+                strokeWidth="7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <div className="da-loader-text">DATA ALLIANCE</div>
           </div>
         )}
 
@@ -104,7 +112,7 @@ export default function NavigationLoader({ brandName, logoUrl }: NavigationLoade
               left: 0,
               height: '100%',
               width: '40%',
-              backgroundColor: '#6366f1',
+              backgroundColor: '#06b6d4',
               borderRadius: '999px',
               animation: 'progress-indeterminate 1.2s ease-in-out infinite',
             }}

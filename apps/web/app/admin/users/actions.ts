@@ -92,16 +92,14 @@ export async function resetUserPassword(
 export async function inviteUser(formData: FormData): Promise<{ success?: boolean; error?: string }> {
   const email = (formData.get('email') as string)?.trim()
   const name = (formData.get('name') as string)?.trim()
-  const tempPassword = (formData.get('tempPassword') as string)?.trim()
 
-  if (!email || !name || !tempPassword) return { error: '모든 필드를 입력해주세요' }
-  if (tempPassword.length < 6) return { error: '임시 비밀번호는 6자 이상이어야 합니다' }
+  if (!email || !name) return { error: '이메일과 이름을 입력해주세요' }
 
   const adminClient = createAdminClient()
 
   const { data, error: createError } = await adminClient.auth.admin.createUser({
     email,
-    password: tempPassword,
+    password: RESET_SENTINEL,
     email_confirm: true,
     user_metadata: { name },
   })

@@ -1,5 +1,4 @@
 import { createAdminClient } from '@/lib/supabase/server'
-import { unstable_cache } from 'next/cache'
 
 export const DEFAULT_BRAND_NAME = 'AX사업본부'
 
@@ -8,7 +7,9 @@ export interface BrandingConfig {
   logoUrl: string | null
 }
 
-const fetchBranding = async (): Promise<BrandingConfig> => {
+// unstable_cache 제거: Route Handler의 revalidateTag가 완전히 동작하지 않는 Next.js 14 이슈
+// 레이아웃 렌더 시마다 DB 직접 조회 (설정값이므로 성능 영향 무시)
+export const getBranding = async (): Promise<BrandingConfig> => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const adminClient = createAdminClient() as any
@@ -40,9 +41,3 @@ const fetchBranding = async (): Promise<BrandingConfig> => {
     return { brandName: DEFAULT_BRAND_NAME, logoUrl: null }
   }
 }
-
-export const getBranding = unstable_cache(
-  fetchBranding,
-  ['branding-config'],
-  { revalidate: 3600, tags: ['branding'] }
-)
