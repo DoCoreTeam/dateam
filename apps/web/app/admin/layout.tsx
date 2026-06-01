@@ -17,23 +17,46 @@ import {
   Key,
   Tag,
   Network,
+  Bot,
+  Building2,
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import { getBranding } from '@/lib/branding'
+import type { NavGroup } from '@/components/ui/MobileShell'
 
-const ADMIN_NAV_ITEMS = [
-  { href: '/admin/users', label: '사용자 관리', icon: <Users size={16} /> },
-  { href: '/admin/api-access', label: 'API 접근 신청', icon: <ClipboardList size={16} /> },
-  { href: '/admin/api-keys', label: 'API 키 관리', icon: <Key size={16} /> },
-  { href: '/admin/reports', label: '주간보고 취합', icon: <FileText size={16} /> },
-  { href: '/admin/daily-logs', label: '일일업무', icon: <NotebookPen size={16} /> },
-  { href: '/admin/routine', label: '루틴 현황', icon: <CheckSquare size={16} /> },
-  { href: '/admin/kpi', label: 'KPI 집계', icon: <BarChart2 size={16} /> },
-  { href: '/admin/ai-usage', label: 'AI 사용량', icon: <BarChart3 size={16} /> },
-  { href: '/admin/partner-tiers', label: '파트너 등급', icon: <Tag size={16} /> },
-  { href: '/admin/org-chart', label: '조직도 관리', icon: <Network size={16} /> },
-  { href: '/admin/content', label: '콘텐츠 관리', icon: <Settings2 size={16} /> },
-  { href: '/admin/settings', label: '시스템 설정', icon: <SlidersHorizontal size={16} /> },
+const ADMIN_NAV_GROUPS: NavGroup[] = [
+  {
+    label: '구성원 관리',
+    items: [
+      { href: '/admin/users', label: '사용자 관리', icon: <Users size={16} /> },
+      { href: '/admin/org-chart', label: '조직도 관리', icon: <Network size={16} /> },
+    ],
+  },
+  {
+    label: '업무 현황',
+    items: [
+      { href: '/admin/daily-logs', label: '일일업무', icon: <NotebookPen size={16} /> },
+      { href: '/admin/routine', label: '루틴 현황', icon: <CheckSquare size={16} /> },
+      { href: '/admin/reports', label: '주간보고 취합', icon: <FileText size={16} /> },
+      { href: '/admin/kpi', label: 'KPI 집계', icon: <BarChart2 size={16} /> },
+    ],
+  },
+  {
+    label: 'API · 시스템',
+    items: [
+      { href: '/admin/api-access', label: 'API 접근 신청', icon: <ClipboardList size={16} /> },
+      { href: '/admin/api-keys', label: 'API 키 관리', icon: <Key size={16} /> },
+      { href: '/admin/ai-usage', label: 'AI 사용량', icon: <Bot size={16} /> },
+      { href: '/admin/settings', label: '시스템 설정', icon: <SlidersHorizontal size={16} /> },
+    ],
+  },
+  {
+    label: '비즈니스',
+    items: [
+      { href: '/admin/partner-tiers', label: '파트너 등급', icon: <Tag size={16} /> },
+      { href: '/admin/content', label: '콘텐츠 관리', icon: <Building2 size={16} /> },
+    ],
+  },
 ]
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -61,7 +84,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <>
       <MobileShell
-        items={ADMIN_NAV_ITEMS}
+        items={[]}
+        groups={ADMIN_NAV_GROUPS}
         logoUrl={branding.logoUrl}
         brandName={branding.brandName}
         footer={<AdminUserMenu displayName={displayName} />}
