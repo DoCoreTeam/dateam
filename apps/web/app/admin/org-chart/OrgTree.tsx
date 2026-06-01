@@ -200,7 +200,17 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
       />
     )
     const card = topOffset > 0
-      ? <div style={{ paddingTop: topOffset }}>{cardEl}</div>
+      ? (
+        <div style={{ paddingTop: topOffset, position: 'relative' }}>
+          <div style={{
+            position: 'absolute', top: 0, left: '50%',
+            transform: 'translateX(-50%)',
+            width: '2px', height: topOffset,
+            background: '#c7d2fe',
+          }} />
+          {cardEl}
+        </div>
+      )
       : cardEl
 
     // role: persons shown inline in card — exclude from tree

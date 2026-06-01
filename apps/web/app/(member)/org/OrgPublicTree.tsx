@@ -307,7 +307,17 @@ export default function OrgPublicTree({
       />
     )
     const label = topOffset > 0
-      ? <div style={{ paddingTop: topOffset }}>{card}</div>
+      ? (
+        <div style={{ paddingTop: topOffset, position: 'relative' }}>
+          <div style={{
+            position: 'absolute', top: 0, left: '50%',
+            transform: 'translateX(-50%)',
+            width: '2px', height: topOffset,
+            background: '#c7d2fe',
+          }} />
+          {card}
+        </div>
+      )
       : card
 
     if (structuralChildren.length === 0 && personChildren.length === 0) {
