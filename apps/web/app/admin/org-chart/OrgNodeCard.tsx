@@ -1,6 +1,20 @@
 'use client'
 
-import { GripVertical, Plus, Pencil, Trash2, Crown, ChevronUp, ChevronDown, Building2, User, Users } from 'lucide-react'
+import { GripVertical, Plus, Pencil, Trash2, Crown, ChevronUp, ChevronDown, Building2, User, Users, Copy, Check } from 'lucide-react'
+import { useState } from 'react'
+
+function CopyBtn({ email }: { email: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(email).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500) }) }}
+      title="이메일 복사"
+      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', color: copied ? '#22c55e' : '#94a3b8', display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle', flexShrink: 0 }}
+    >
+      {copied ? <Check size={10} /> : <Copy size={10} />}
+    </button>
+  )
+}
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 
 export type OrgNodeType = 'company' | 'role' | 'department' | 'person'
@@ -317,7 +331,12 @@ function PersonCard(props: CardProps) {
           <div>
             <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e293b' }}>{displayName}</div>
             {label && <div style={{ fontSize: '0.68rem', color: '#64748b' }}>{label}</div>}
-            {profile?.email && <div style={{ fontSize: '0.62rem', color: '#94a3b8', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>{profile.email}</div>}
+            {profile?.email && (
+              <div style={{ fontSize: '0.62rem', color: '#94a3b8', marginTop: '1px', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>{profile.email}</span>
+                <CopyBtn email={profile.email} />
+              </div>
+            )}
           </div>
         </div>
         <ActionBar {...props} showAdd={false} />

@@ -15,15 +15,15 @@ export default async function OrgPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const adb = adminClient as any
 
-  const [nodesRes, profilesRes, authUsersRes] = await Promise.all([
+  const [nodesRes, profilesRes, emailRes] = await Promise.all([
     db.from('org_nodes').select('id, type, parent_id, name, subtitle, display_order, head_user_id, user_id, color').order('display_order'),
     adb.from('profiles').select('id, name, rank, position').is('deleted_at', null),
-    adminClient.auth.admin.listUsers({ perPage: 1000 }),
+    adb.rpc('get_user_emails'),
   ])
 
   const emailMap: Record<string, string> = {}
-  for (const u of authUsersRes.data?.users ?? []) {
-    if (u.email) emailMap[u.id] = u.email
+  for (const row of (emailRes.data ?? []) as { id: string; email: string }[]) {
+    if (row.email) emailMap[row.id] = row.email
   }
 
   const profileMap: Record<string, { name: string; rank: string | null; position: string | null }> = {}

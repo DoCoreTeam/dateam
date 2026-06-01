@@ -79,6 +79,9 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
 
   if (node.type === 'role') {
     const personChild = node.children.find(ch => ch.type === 'person')
+    const displayPerson = personChild
+      ? { name: personChild.name, subtitle: personChild.subtitle }
+      : headName ? { name: headName, subtitle: null } : null
     return (
       <div style={{
         display: 'inline-block', padding: '0.65rem 1rem', borderRadius: '0.75rem',
@@ -89,14 +92,14 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
           <Crown size={13} color="#a5b4fc" />
           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>{node.name}</span>
         </div>
-        {personChild && (
+        {displayPerson && (
           <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <div style={{ width: '1.35rem', height: '1.35rem', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 700, color: '#fff' }}>
-              {personChild.name.charAt(0)}
+              {displayPerson.name.charAt(0)}
             </div>
             <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.85)' }}>
-              {personChild.name}
-              {personChild.subtitle && <span style={{ opacity: 0.7 }}> · {personChild.subtitle}</span>}
+              {displayPerson.name}
+              {displayPerson.subtitle && <span style={{ opacity: 0.7 }}> · {displayPerson.subtitle}</span>}
             </span>
           </div>
         )}
@@ -196,13 +199,19 @@ export default function OrgPublicTree({
     const container = containerRef.current
     const content = contentRef.current
     if (!container || !content) return
+    // 현재 transform 임시 제거 후 자연 크기 측정
+    const prev = content.style.transform
+    content.style.transform = 'none'
+    const naturalW = content.offsetWidth || content.scrollWidth
+    const naturalH = content.offsetHeight || content.scrollHeight
+    content.style.transform = prev
+    if (!naturalW || !naturalH) return
     const cw = container.clientWidth
     const ch = container.clientHeight
-    const naturalW = content.scrollWidth
-    const naturalH = content.scrollHeight
     const newScale = Math.min((cw - 40) / naturalW, (ch - 40) / naturalH, 1)
     const newTx = (cw - naturalW * newScale) / 2
-    setZoom({ scale: Math.max(0.2, newScale), tx: newTx, ty: 20 })
+    const newTy = Math.max(20, (ch - naturalH * newScale) / 2)
+    setZoom({ scale: Math.max(0.15, newScale), tx: newTx, ty: newTy })
   }, [])
 
   const handleWheel = useCallback((e: WheelEvent) => {
@@ -228,7 +237,7 @@ export default function OrgPublicTree({
   }, [handleWheel])
 
   useEffect(() => {
-    const timer = setTimeout(fitToScreen, 150)
+    const timer = setTimeout(fitToScreen, 400)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -259,7 +268,7 @@ export default function OrgPublicTree({
     const label = (
       <NodeCard
         node={node}
-        headName={node.type === 'department' ? getHeadName(node.head_user_id) : null}
+        headName={(node.type === 'department' || node.type === 'role') ? getHeadName(node.head_user_id) : null}
         email={node.type === 'person' && node.user_id ? emailMap[node.user_id] : undefined}
       />
     )
