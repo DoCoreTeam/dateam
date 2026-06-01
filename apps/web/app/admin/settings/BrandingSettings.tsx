@@ -110,7 +110,6 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName }: B
 
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
           <label
-            htmlFor="brand-logo-file"
             style={{
               display: 'flex', alignItems: 'center', gap: '0.375rem',
               padding: '0.375rem 0.75rem', fontSize: '0.8125rem', fontWeight: 500,
@@ -119,6 +118,13 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName }: B
             }}
           >
             <Upload size={13} /> 파일 선택
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/svg+xml,image/webp"
+              style={{ position: 'absolute', width: 0, height: 0, opacity: 0, overflow: 'hidden' }}
+              onChange={handleFileChange}
+            />
           </label>
           {logoUrl && !previewUrl && (
             <button
@@ -139,14 +145,6 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName }: B
         <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.375rem' }}>
           PNG / JPG / SVG / WebP · 최대 2MB · 권장: 가로 400px 이상
         </p>
-        <input
-          ref={fileInputRef}
-          id="brand-logo-file"
-          type="file"
-          accept="image/png,image/jpeg,image/svg+xml,image/webp"
-          style={{ display: 'none' }}
-          onChange={handleFileChange}
-        />
       </div>
 
       {/* 브랜드명 */}
