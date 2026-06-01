@@ -109,9 +109,8 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName }: B
         </div>
 
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
+          <label
+            htmlFor="brand-logo-file"
             style={{
               display: 'flex', alignItems: 'center', gap: '0.375rem',
               padding: '0.375rem 0.75rem', fontSize: '0.8125rem', fontWeight: 500,
@@ -120,7 +119,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName }: B
             }}
           >
             <Upload size={13} /> 파일 선택
-          </button>
+          </label>
           {logoUrl && !previewUrl && (
             <button
               type="button"
@@ -142,6 +141,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName }: B
         </p>
         <input
           ref={fileInputRef}
+          id="brand-logo-file"
           type="file"
           accept="image/png,image/jpeg,image/svg+xml,image/webp"
           style={{ display: 'none' }}
