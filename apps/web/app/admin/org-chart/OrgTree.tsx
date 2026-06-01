@@ -181,15 +181,44 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
         onReorder={handleReorder}
       />
     )
-    // role: persons shown inline in card — exclude from tree; department: persons shown as tree nodes
-    const treeChildren = node.type === 'role'
+    // role: persons shown inline in card — exclude from tree
+    // department: persons shown as vertical column (single tree branch) — exclude from horizontal siblings
+    const structuralChildren = (node.type === 'role' || node.type === 'department')
       ? node.children.filter(ch => ch.type !== 'person')
       : node.children
 
-    if (treeChildren.length === 0) return <TreeNode key={node.id} label={card} />
+    const personColumn = node.type === 'department'
+      ? node.children.filter(ch => ch.type === 'person')
+      : []
+
+    if (structuralChildren.length === 0 && personColumn.length === 0) {
+      return <TreeNode key={node.id} label={card} />
+    }
+
     return (
       <TreeNode key={node.id} label={card}>
-        {treeChildren.map(child => renderNode(child, depth + 1))}
+        {structuralChildren.map(child => renderNode(child, depth + 1))}
+        {personColumn.length > 0 && (
+          <TreeNode label={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+              {personColumn.map(p => (
+                <NodeCard
+                  key={p.id}
+                  node={{ ...p, children: [] }}
+                  siblings={personColumn.map(pk => ({ ...pk, children: [] }))}
+                  activeId={activeId}
+                  headName={null}
+                  depth={depth + 1}
+                  allProfiles={allProfiles}
+                  onAdd={(parentId, parentType) => setAddModal({ parentId, parentType })}
+                  onEdit={(n) => setEditModal(n)}
+                  onDelete={(n) => setDeleteConfirm(n)}
+                  onReorder={handleReorder}
+                />
+              ))}
+            </div>
+          } />
+        )}
       </TreeNode>
     )
   }

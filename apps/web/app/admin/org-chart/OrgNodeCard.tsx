@@ -199,6 +199,7 @@ function InlineMember({
   onDelete: (n: OrgNode) => void
 }) {
   const stop = (e: React.PointerEvent) => e.stopPropagation()
+  const displayName = profile?.name || person.name
   const label = rankLabel(profile, person.subtitle)
   return (
     <div style={{
@@ -214,10 +215,10 @@ function InlineMember({
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '0.65rem', fontWeight: 700, color: '#fff',
       }}>
-        {person.name.charAt(0)}
+        {displayName.charAt(0)}
       </div>
       <span style={{ fontSize: '0.72rem', color: dark ? 'rgba(255,255,255,0.85)' : '#334155', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {person.name}
+        {displayName}
         {label && <span style={{ opacity: 0.65 }}> {label}</span>}
       </span>
       <button
@@ -280,11 +281,6 @@ function DeptCard(props: CardProps) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Users size={iconSize} color={c.badge} />
           <span style={{ fontSize, fontWeight: 700, color: c.text, flex: 1 }}>{node.name}</span>
-          {personChildren.length > 0 && (
-            <span style={{ fontSize: '0.68rem', background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: '999px', padding: '1px 6px', flexShrink: 0 }}>
-              {personChildren.length}명
-            </span>
-          )}
         </div>
         {node.subtitle && <p style={{ margin: '0.15rem 0 0', fontSize: '0.68rem', color: 'rgba(255,255,255,0.65)' }}>{node.subtitle}</p>}
         {headName && (
@@ -302,6 +298,8 @@ function DeptCard(props: CardProps) {
 function PersonCard(props: CardProps) {
   const { node } = props
   const profile = props.allProfiles?.find(pr => pr.id === node.user_id)
+  // prefer live profile name over the snapshot stored in org_nodes.name
+  const displayName = profile?.name || node.name
   const label = rankLabel(profile, node.subtitle)
   return (
     <DragDropWrapper node={node} activeId={props.activeId} droppable={false}>
@@ -313,10 +311,10 @@ function PersonCard(props: CardProps) {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '0.68rem', fontWeight: 700, color: '#fff', flexShrink: 0,
           }}>
-            {node.name.charAt(0) || <User size={11} />}
+            {displayName.charAt(0) || <User size={11} />}
           </div>
           <div>
-            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e293b' }}>{node.name}</div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e293b' }}>{displayName}</div>
             {label && <div style={{ fontSize: '0.68rem', color: '#64748b' }}>{label}</div>}
           </div>
         </div>
