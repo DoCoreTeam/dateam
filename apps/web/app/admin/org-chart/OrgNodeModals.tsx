@@ -31,7 +31,7 @@ const TYPE_LABELS: Record<OrgNodeType, string> = {
 
 const ALLOWED_CHILD_TYPES: Record<OrgNodeType, OrgNodeType[]> = {
   company:    ['role', 'department', 'person', 'company'],
-  role:       ['person'],
+  role:       ['department', 'person'],
   department: ['department', 'person'],
   person:     [],
 }

@@ -18,7 +18,7 @@ export default async function OrgChartAdminPage() {
 
   const [companyRes, nodesRes, profilesRes, ranksRes, positionsRes] = await Promise.all([
     db.from('org_company').select('name, description').eq('id', 1).single(),
-    db.from('org_nodes').select('id, type, parent_id, name, subtitle, display_order, head_user_id, user_id, color').order('display_order'),
+    db.from('org_nodes').select('id, type, parent_id, name, subtitle, display_order, head_user_id, user_id, color').order('display_order').order('id'),
     db.from('profiles').select('id, name, rank, position').is('deleted_at', null).order('name'),
     db.from('org_ranks').select('id, name, display_order').order('display_order'),
     db.from('org_positions').select('id, name, display_order').order('display_order'),

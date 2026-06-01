@@ -24,7 +24,11 @@ interface Props {
 function buildTree(nodes: OrgNode[], parentId: string | null): OrgNodeWithChildren[] {
   return nodes
     .filter(n => n.parent_id === parentId)
-    .sort((a, b) => a.display_order - b.display_order)
+    .sort((a, b) => {
+      const diff = a.display_order - b.display_order
+      if (diff !== 0) return diff
+      return a.id.localeCompare(b.id)
+    })
     .map(n => ({ ...n, children: buildTree(nodes, n.id) }))
 }
 
