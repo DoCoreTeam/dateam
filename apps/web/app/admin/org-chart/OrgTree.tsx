@@ -14,6 +14,7 @@ interface Profile {
   name: string
   rank: string | null
   position: string | null
+  email?: string | null
 }
 
 interface Props {

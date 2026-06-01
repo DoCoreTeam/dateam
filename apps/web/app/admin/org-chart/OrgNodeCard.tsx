@@ -33,6 +33,7 @@ interface Profile {
   name: string
   rank: string | null
   position: string | null
+  email?: string | null
 }
 
 interface CardProps {
@@ -316,6 +317,7 @@ function PersonCard(props: CardProps) {
           <div>
             <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e293b' }}>{displayName}</div>
             {label && <div style={{ fontSize: '0.68rem', color: '#64748b' }}>{label}</div>}
+            {profile?.email && <div style={{ fontSize: '0.62rem', color: '#94a3b8', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>{profile.email}</div>}
           </div>
         </div>
         <ActionBar {...props} showAdd={false} />
