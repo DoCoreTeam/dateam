@@ -270,7 +270,10 @@ export default function WeeklyReportForm({
     const result = await upsertWeeklyReport(formData)
 
     if (result.ok) {
-      router.push('/weekly-report?tab=mine&saved=1')
+      const dest = selectedWeek !== thisWeek
+        ? `/weekly-report?tab=mine&editWeek=${selectedWeek}&saved=1`
+        : '/weekly-report?tab=mine&saved=1'
+      router.push(dest)
     } else {
       setSubmitError(result.error)
     }
