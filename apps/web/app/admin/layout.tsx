@@ -32,9 +32,15 @@ const ADMIN_NAV_GROUPS: NavGroup[] = [
     label: '업무 현황',
     items: [
       { href: '/admin/daily-logs', label: '일일업무', icon: <NotebookPen size={16} /> },
-      { href: '/admin/routine', label: '루틴 현황', icon: <CheckSquare size={16} /> },
       { href: '/admin/reports', label: '주간보고 취합', icon: <FileText size={16} /> },
+    ],
+  },
+  {
+    label: '부서운영',
+    items: [
+      { href: '/admin/routine', label: '루틴 현황', icon: <CheckSquare size={16} /> },
       { href: '/admin/kpi', label: 'KPI 집계', icon: <BarChart2 size={16} /> },
+      { href: '/admin/content', label: '콘텐츠 관리', icon: <Building2 size={16} /> },
     ],
   },
   {
@@ -49,7 +55,6 @@ const ADMIN_NAV_GROUPS: NavGroup[] = [
     label: '비즈니스',
     items: [
       { href: '/admin/partner-tiers', label: '파트너 등급', icon: <Tag size={16} /> },
-      { href: '/admin/content', label: '콘텐츠 관리', icon: <Building2 size={16} /> },
     ],
   },
 ]
