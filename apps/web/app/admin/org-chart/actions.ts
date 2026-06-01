@@ -80,12 +80,21 @@ export async function createNode(data: {
   const name = data.name.trim()
   if (!name) return { error: '이름을 입력하세요' }
 
+  // Always append at end: max sibling display_order + 1
+  const { data: siblings } = await ctx.db
+    .from('org_nodes')
+    .select('display_order')
+    .eq('parent_id', data.parent_id)
+  const maxOrder = (siblings && siblings.length > 0)
+    ? Math.max(...(siblings as { display_order: number }[]).map(s => s.display_order))
+    : -1
+
   const insert: Record<string, unknown> = {
     type: data.type,
     parent_id: data.parent_id,
     name,
     subtitle: data.subtitle?.trim() || null,
-    display_order: 999,
+    display_order: maxOrder + 1,
   }
 
   if (data.type === 'person' && data.user_id) {
