@@ -177,6 +177,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
   const [tierFilter, setTierFilter] = useState(0)
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [collapsedModels, setCollapsedModels] = useState<Set<string>>(new Set())
   const [marginInput, setMarginInput] = useState<number | null>(null)
   const [marginSaving, setMarginSaving] = useState(false)
   const [bannerDismissed, setBannerDismissed] = useState(false)
@@ -277,6 +278,54 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
         return 0
       })
     : filtered
+
+  // ── 모델 그룹핑 + 수량 변형(x1/x4/x8) 자동 도출 ──
+  // 같은 model_name을 그룹으로 묶고, quote 상품은 1장당 단가 기준으로 표준 구성(1/4/8)을 도출.
+  const STD_CONFIGS = [1, 4, 8]
+  type DisplayRow = GpuProduct & { _derived?: boolean }
+  interface ModelGroup { model: string; tier: 1 | 2 | 3; perGpu: number | null; rows: DisplayRow[] }
+
+  const modelGroups: ModelGroup[] = (() => {
+    const byModel = new Map<string, GpuProduct[]>()
+    for (const p of sorted) {
+      const arr = byModel.get(p.model_name) ?? []
+      arr.push(p); byModel.set(p.model_name, arr)
+    }
+    const groups: ModelGroup[] = []
+    for (const [model, variants] of Array.from(byModel.entries())) {
+      // 1장당 단가: gpu_count 가장 작은 견적 보유 변형에서 도출 (unit ÷ count)
+      const priced = variants.filter((v) => v.lowest_unit_price_usd != null).sort((a, b) => a.gpu_count - b.gpu_count)
+      const base = priced[0]
+      const perGpu = base ? (base.lowest_unit_price_usd as number) / Math.max(base.gpu_count, 1) : null
+      const existingCounts = new Set(variants.map((v) => v.gpu_count))
+      const rows: DisplayRow[] = [...variants]
+      // quote 상품이고 1장당 단가가 있으면 표준 구성 자동 도출(없는 것만)
+      if (base && base.pricing_mode === 'quote' && perGpu != null) {
+        for (const n of STD_CONFIGS) {
+          if (existingCounts.has(n)) continue
+          rows.push({
+            ...base,
+            id: `${base.id}__x${n}`,
+            gpu_count: n,
+            lowest_unit_price_usd: Math.round(perGpu * n * 10000) / 10000,
+            sell_price_krw: null,
+            _derived: true,
+          })
+        }
+      }
+      rows.sort((a, b) => a.gpu_count - b.gpu_count)
+      groups.push({ model, tier: variants[0].tier, perGpu, rows })
+    }
+    return groups
+  })()
+
+  function toggleModel(model: string) {
+    setCollapsedModels((prev) => {
+      const next = new Set(prev)
+      if (next.has(model)) next.delete(model); else next.add(model)
+      return next
+    })
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -479,7 +528,26 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
             </tr>
           </thead>
           <tbody>
-            {sorted.map((p) => {
+            {modelGroups.flatMap((group) => {
+              const tierCfg = TIER_CONFIG[group.tier]
+              const collapsed = collapsedModels.has(group.model)
+              const groupHeader = (
+                <tr key={`grp-${group.model}`} className="gpu-group-header" onClick={() => toggleModel(group.model)} style={{ cursor: 'pointer', background: '#fafbff' }}>
+                  <td colSpan={colCount}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <ChevronRight size={15} style={{ transform: collapsed ? 'none' : 'rotate(90deg)', transition: 'transform 0.15s', color: 'var(--gpu-muted)' }} />
+                      <span className={`gpu-badge ${tierCfg.badge}`} style={{ fontSize: 10 }}>{tierCfg.label}</span>
+                      <strong style={{ fontSize: 13.5, color: '#0f172a' }}>{group.model}</strong>
+                      <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>
+                        {group.rows.length}개 구성{group.perGpu != null ? ` · 1장당 ${currencyMode === 'KRW' ? fmtKRW(Math.round(group.perGpu * usdKrw)) : fmtUSD(group.perGpu)}/GPU·hr` : ''}
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              )
+              if (collapsed) return [groupHeader]
+
+              const memberRows = group.rows.flatMap((p) => {
               const tier = TIER_CONFIG[p.tier]
               const isExpanded = expandedId === p.id
               const sellKrw = computeSellKrw(p)
@@ -492,7 +560,8 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                   key={p.id}
                   id={`gpu-row-${p.id}`}
                   className={`gpu-row-main${isExpanded ? ' open' : ''}`}
-                  onClick={() => setExpandedId(isExpanded ? null : p.id)}
+                  onClick={() => !p._derived && setExpandedId(isExpanded ? null : p.id)}
+                  style={p._derived ? { opacity: 0.92 } : undefined}
                 >
                   <td>
                     <div className="gpu-model-cell">
@@ -501,7 +570,9 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                         <span>{p.memory}</span>
                       </div>
                       <div>
-                        <div className="gpu-model-nm">{p.model_name} <span style={{ fontSize: '11px', color: 'var(--gpu-muted)', fontWeight: 400 }}>×{p.gpu_count}GPU</span></div>
+                        <div className="gpu-model-nm">{p.model_name} <span style={{ fontSize: '11px', color: 'var(--gpu-muted)', fontWeight: 400 }}>×{p.gpu_count}GPU</span>
+                          {p._derived && <span style={{ fontSize: '10px', color: 'var(--gpu-accent)', marginLeft: 4, fontWeight: 600 }}>추정</span>}
+                        </div>
                         <div className="gpu-model-meta">
                           <span className={`gpu-badge ${tier.badge}`} style={{ fontSize: '10px' }}>{tier.label}</span>
                           {' '}{tier.name}
@@ -562,7 +633,9 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                     )}
                   </td>
                   <td>
-                    {p.pricing_mode === 'direct' ? (
+                    {p._derived ? (
+                      <span className="gpu-badge" style={{ background: '#eef2ff', color: 'var(--gpu-accent)' }}>1장당×{p.gpu_count} 추정</span>
+                    ) : p.pricing_mode === 'direct' ? (
                       <span className="gpu-badge gpu-badge-amber">직접입력</span>
                     ) : p.lowest_unit_price_usd != null ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -598,13 +671,15 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                     </td>
                   )}
                   <td>
-                    <ChevronRight
-                      size={18}
-                      className={`gpu-chev${isExpanded ? ' open' : ''}`}
-                    />
+                    {!p._derived && (
+                      <ChevronRight
+                        size={18}
+                        className={`gpu-chev${isExpanded ? ' open' : ''}`}
+                      />
+                    )}
                   </td>
                 </tr>,
-                isExpanded && (
+                (isExpanded && !p._derived) && (
                   <tr key={`${p.id}-expand`} className="gpu-detail-row">
                     <td colSpan={colCount} style={{ padding: 0 }}>
                       {p.pricing_mode === 'direct' ? (
@@ -620,6 +695,8 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                   </tr>
                 ),
               ]
+              })
+              return [groupHeader, ...memberRows]
             })}
           </tbody>
         </table>
