@@ -30,7 +30,7 @@ export async function GET() {
     // 전체 GPU 상품 카탈로그 (가격표와 동일한 기준)
     const { data: allProducts, error: prodErr } = await db
       .from('gpu_products')
-      .select('id, model_name, memory, tier, pricing_mode, gpu_count')
+      .select('id, model_name, memory, tier, pricing_mode, gpu_count, vcpu, ram_gb, storage_gb')
       .order('tier')
       .order('model_name')
 

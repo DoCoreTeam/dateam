@@ -4,6 +4,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { ChevronDown, ChevronUp, Package } from 'lucide-react'
+import { formatSpec } from '@/lib/gpu/format-spec'
 
 interface SupplierAvail {
   supplier_id: string | null
@@ -21,6 +22,9 @@ interface InventoryItem {
   memory: string
   tier: 1 | 2 | 3
   gpu_count: number
+  vcpu?: number | null
+  ram_gb?: number | null
+  storage_gb?: number | null
   pricing_mode: string
   fresh_available_qty: number
   oos_supplier_count: number
@@ -93,7 +97,7 @@ function InventoryCard({ item }: { item: InventoryItem }) {
             </span>
           </div>
           <div style={{ fontSize: 11, color: 'var(--gpu-muted)', marginTop: 2 }}>
-            ×{item.gpu_count} GPU
+            {formatSpec(item)}
             {item.latest_response_at && (
               <> · 최근 응답: {new Date(item.latest_response_at).toLocaleDateString('ko-KR')}</>
             )}
@@ -105,7 +109,7 @@ function InventoryCard({ item }: { item: InventoryItem }) {
           {item.tier === 3 && item.pool_qty != null ? (
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 20, fontWeight: 800, color: item.pool_qty > 0 ? 'var(--gpu-green)' : 'var(--gpu-red)', fontFamily: 'var(--font-mono, monospace)' }}>
-                {item.pool_qty}
+                {item.pool_qty.toLocaleString()}
               </div>
               <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>풀 재고 (GPU)</div>
             </div>
@@ -118,7 +122,7 @@ function InventoryCard({ item }: { item: InventoryItem }) {
           ) : (
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 20, fontWeight: 800, color: item.fresh_available_qty > 0 ? 'var(--gpu-green)' : 'var(--gpu-faint)', fontFamily: 'var(--font-mono, monospace)' }}>
-                {item.fresh_available_qty}
+                {item.fresh_available_qty.toLocaleString()}
               </div>
               <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>가용 (신선)</div>
             </div>
@@ -179,7 +183,7 @@ function InventoryCard({ item }: { item: InventoryItem }) {
                 )}
               </div>
               <div style={{ fontSize: 22, fontWeight: 800, color: item.pool_qty > 0 ? '#15803d' : 'var(--gpu-red)', fontFamily: 'var(--font-mono, monospace)' }}>
-                {item.pool_qty} GPU
+                {item.pool_qty.toLocaleString()} GPU
               </div>
             </div>
           )}
@@ -195,7 +199,7 @@ function InventoryCard({ item }: { item: InventoryItem }) {
                 <span style={{ fontSize: 11, color: status.color, fontWeight: 600 }}>{status.label}</span>
                 {sa.resp_qty != null && (
                   <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', minWidth: 40, textAlign: 'right' }}>
-                    {sa.resp_qty} GPU
+                    {sa.resp_qty.toLocaleString()} GPU
                   </span>
                 )}
                 <span style={{ fontSize: 10, color: freshness.color, minWidth: 32 }}>{freshness.label}</span>

@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { ChevronRight, Plus, Zap, Info, ArrowUpDown, ArrowUp, ArrowDown, Tag } from 'lucide-react'
+import { formatSpec, scaleSpec } from '@/lib/gpu/format-spec'
 
 type SortKey = 'model' | 'supply' | 'sell'
 type SortDir = 'asc' | 'desc'
@@ -27,6 +28,9 @@ interface GpuProduct {
   memory: string
   tier: 1 | 2 | 3
   gpu_count: number
+  vcpu?: number
+  ram_gb?: number
+  storage_gb?: number
   pricing_mode: 'quote' | 'direct'
   lowest_unit_price_usd: number | null
   lowest_supplier: Supplier | null
@@ -303,10 +307,14 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
       if (base && base.pricing_mode === 'quote' && perGpu != null) {
         for (const n of STD_CONFIGS) {
           if (existingCounts.has(n)) continue
+          const sc = scaleSpec(base, n)
           rows.push({
             ...base,
             id: `${base.id}__x${n}`,
             gpu_count: n,
+            vcpu: sc.vcpu ?? base.vcpu,
+            ram_gb: sc.ram_gb ?? base.ram_gb,
+            storage_gb: sc.storage_gb ?? base.storage_gb,
             lowest_unit_price_usd: Math.round(perGpu * n * 10000) / 10000,
             sell_price_krw: null,
             _derived: true,
@@ -577,6 +585,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                           <span className={`gpu-badge ${tier.badge}`} style={{ fontSize: '10px' }}>{tier.label}</span>
                           {' '}{tier.name}
                         </div>
+                        <div style={{ fontSize: '10.5px', color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p)}</div>
                       </div>
                     </div>
                   </td>

@@ -11,7 +11,7 @@ export async function GET() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: products, error: pErr } = await (supabase as any)
     .from('gpu_products')
-    .select('id, model_name, memory, tier, gpu_count, pricing_mode')
+    .select('id, model_name, memory, tier, gpu_count, vcpu, ram_gb, storage_gb, pricing_mode')
     .order('tier')
     .order('model_name')
 
@@ -79,6 +79,9 @@ export async function GET() {
     memory: string
     tier: number
     gpu_count: number
+    vcpu: number | null
+    ram_gb: number | null
+    storage_gb: number | null
     pricing_mode: string
   }) => {
     const summary = availSummaryMap.get(p.id) as {

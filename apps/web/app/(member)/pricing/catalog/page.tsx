@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
+import { formatSpec } from '@/lib/gpu/format-spec'
 
 interface GpuProduct {
   id: string
@@ -10,6 +11,9 @@ interface GpuProduct {
   memory: string
   tier: 1 | 2 | 3
   gpu_count: number
+  vcpu?: number | null
+  ram_gb?: number | null
+  storage_gb?: number | null
   pricing_mode: 'quote' | 'direct'
   lowest_unit_price_usd: number | null
   sell_price_krw: number | null
@@ -354,7 +358,7 @@ export default function SalePriceCatalogPage() {
                         {p.model_name}
                         {gpuCount > 1 && <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 400, marginLeft: 5 }}>×{gpuCount}GPU</span>}
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--gpu-muted)', marginTop: 1 }}>{p.memory} VRAM</div>
+                      <div style={{ fontSize: 11, color: 'var(--gpu-muted)', marginTop: 1 }}>{formatSpec(p)}</div>
                     </div>
                   </div>
 

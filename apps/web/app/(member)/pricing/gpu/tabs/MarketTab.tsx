@@ -4,6 +4,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { RefreshCw, TrendingUp, AlertTriangle, Plus, X, BarChart2, Target, FileText, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { formatSpec } from '@/lib/gpu/format-spec'
 
 type StratSortKey = 'model' | 'supply' | 'market' | 'target' | 'required' | 'gap'
 
@@ -26,7 +27,7 @@ interface Competitor {
 interface MarketEntry {
   mapping_id: string
   competitor: Competitor
-  product: { id: string; model_name: string; memory: string; tier: number }
+  product: { id: string; model_name: string; memory: string; tier: number; gpu_count?: number; vcpu?: number | null; ram_gb?: number | null; storage_gb?: number | null }
   competitor_sku: string
   pricing_model: string
   region: string | null
@@ -56,7 +57,7 @@ interface Strategy {
 }
 
 interface ProductGroup {
-  product: { id: string; model_name: string; memory: string; tier: number }
+  product: { id: string; model_name: string; memory: string; tier: number; gpu_count?: number; vcpu?: number | null; ram_gb?: number | null; storage_gb?: number | null }
   competitors: MarketEntry[]
   our_price_usd: number | null
   current_supply_usd: number | null
@@ -765,6 +766,7 @@ function StrategyOverviewPanel({ products, fmt }: { products: ProductGroup[]; fm
                 <div>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gpu-ink)' }}>{p.product.model_name}</span>
                   <span style={{ fontSize: 11, color: 'var(--gpu-muted)', marginLeft: 6 }}>{p.product.memory}</span>
+                  <div style={{ fontSize: 10.5, color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p.product)}</div>
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--gpu-faint)', gridColumn: '2 / 7' }}>데이터 부족 — 공급가 또는 시장가 필요</div>
               </div>
@@ -785,6 +787,7 @@ function StrategyOverviewPanel({ products, fmt }: { products: ProductGroup[]; fm
               <div>
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-ink)' }}>{p.product.model_name}</span>
                 <span style={{ fontSize: 11, color: 'var(--gpu-muted)', marginLeft: 6 }}>{p.product.memory}</span>
+                <div style={{ fontSize: 10.5, color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p.product)}</div>
               </div>
               {/* 현재 공급가 */}
               <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 600, color: 'var(--gpu-ink-2)' }}>
@@ -1463,6 +1466,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                           <span className={`gpu-badge ${tierCfg.badge}`} style={{ fontSize: '10px' }}>{tierCfg.label}</span>
                           {' '}{tierCfg.name}
                         </div>
+                        <div style={{ fontSize: '10.5px', color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p.product)}</div>
                       </div>
                     </div>
 
