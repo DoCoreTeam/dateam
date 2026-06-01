@@ -58,20 +58,31 @@ interface NodeCardProps {
   email?: string | null
 }
 
+const CARD_W = 172
+
+function EmailRow({ email }: { email: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginTop: '2px', width: '100%', overflow: 'hidden' }}>
+      <span style={{ fontSize: '0.6rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{email}</span>
+      <CopyEmailBtn email={email} />
+    </div>
+  )
+}
+
 function NodeCard({ node, headName, email }: NodeCardProps) {
   if (node.type === 'company') {
     return (
       <div style={{
         display: 'inline-block', padding: '0.75rem 1.25rem', borderRadius: '0.75rem',
         background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', border: '2px solid #4f46e5',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)', minWidth: '140px', maxWidth: '200px', textAlign: 'left',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)', width: `${CARD_W + 28}px`, textAlign: 'left', overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <Building2 size={14} color="#c7d2fe" />
-          <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff' }}>{node.name}</span>
+          <Building2 size={14} color="#c7d2fe" style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
         </div>
         {node.subtitle && (
-          <p style={{ margin: '0.2rem 0 0', fontSize: '0.72rem', color: 'rgba(255,255,255,0.7)' }}>{node.subtitle}</p>
+          <p style={{ margin: '0.2rem 0 0', fontSize: '0.72rem', color: 'rgba(255,255,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.subtitle}</p>
         )}
       </div>
     )
@@ -86,21 +97,27 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
       <div style={{
         display: 'inline-block', padding: '0.65rem 1rem', borderRadius: '0.75rem',
         background: 'linear-gradient(135deg,#1e1b4b,#312e81)', border: '2px solid #312e81',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)', minWidth: '130px', maxWidth: '200px', textAlign: 'left',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)', width: `${CARD_W}px`, textAlign: 'left', overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <Crown size={13} color="#a5b4fc" />
-          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>{node.name}</span>
+          <Crown size={13} color="#a5b4fc" style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
         </div>
         {displayPerson && (
-          <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <div style={{ width: '1.35rem', height: '1.35rem', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 700, color: '#fff' }}>
+          <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
+            <div style={{ width: '1.35rem', height: '1.35rem', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
               {displayPerson.name.charAt(0)}
             </div>
-            <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.85)' }}>
+            <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {displayPerson.name}
               {displayPerson.subtitle && <span style={{ opacity: 0.7 }}> · {displayPerson.subtitle}</span>}
             </span>
+          </div>
+        )}
+        {email && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginTop: '3px', overflow: 'hidden' }}>
+            <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{email}</span>
+            <CopyEmailBtn email={email} />
           </div>
         )}
       </div>
@@ -113,11 +130,11 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
       <div style={{
         display: 'inline-block', padding: '0.65rem 1rem', borderRadius: '0.75rem',
         background: 'linear-gradient(135deg,#3730a3,#4338ca)', border: '2px solid #4338ca',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)', minWidth: '120px', maxWidth: '190px', textAlign: 'left',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)', width: `${CARD_W}px`, textAlign: 'left', overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <Users size={13} color="#c7d2fe" />
-          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', flex: 1 }}>{node.name}</span>
+          <Users size={13} color="#c7d2fe" style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
           {personChildren.length > 0 && (
             <span style={{ fontSize: '0.65rem', background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: '999px', padding: '1px 6px', flexShrink: 0 }}>
               {personChildren.length}명
@@ -125,11 +142,17 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
           )}
         </div>
         {headName && (
-          <div style={{ marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <div style={{ marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.3rem', overflow: 'hidden' }}>
             <div style={{ width: '1.1rem', height: '1.1rem', borderRadius: '50%', background: 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
               {headName.charAt(0)}
             </div>
-            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.8)' }}>{headName}</span>
+            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.8)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{headName}</span>
+          </div>
+        )}
+        {email && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginTop: '3px', overflow: 'hidden' }}>
+            <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{email}</span>
+            <CopyEmailBtn email={email} />
           </div>
         )}
       </div>
@@ -141,9 +164,9 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
     <div style={{
       display: 'inline-block', padding: '0.5rem 0.875rem', borderRadius: '0.75rem',
       background: '#fff', border: '2px solid #e2e8f0',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.06)', minWidth: '110px', maxWidth: '180px', textAlign: 'left',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.06)', width: `${CARD_W}px`, textAlign: 'left', overflow: 'hidden',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
         <div style={{
           width: '1.75rem', height: '1.75rem', borderRadius: '50%',
           background: 'linear-gradient(135deg,#6366f1,#818cf8)',
@@ -152,15 +175,10 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
         }}>
           {node.name.charAt(0) || <User size={10} />}
         </div>
-        <div>
-          <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e293b' }}>{node.name}</div>
-          {node.subtitle && <div style={{ fontSize: '0.68rem', color: '#64748b' }}>{node.subtitle}</div>}
-          {email && (
-            <div style={{ fontSize: '0.62rem', color: '#94a3b8', marginTop: '1px', display: 'flex', alignItems: 'center', gap: '2px' }}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '130px' }}>{email}</span>
-              <CopyEmailBtn email={email} />
-            </div>
-          )}
+        <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+          <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</div>
+          {node.subtitle && <div style={{ fontSize: '0.68rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.subtitle}</div>}
+          {email && <EmailRow email={email} />}
         </div>
       </div>
     </div>
@@ -265,11 +283,13 @@ export default function OrgPublicTree({
       ? node.children.filter(ch => ch.type === 'person')
       : []
 
+    const isHeadCard = node.type === 'department' || node.type === 'role'
+    const headEmail = isHeadCard && node.head_user_id ? emailMap[node.head_user_id] : undefined
     const label = (
       <NodeCard
         node={node}
-        headName={(node.type === 'department' || node.type === 'role') ? getHeadName(node.head_user_id) : null}
-        email={node.type === 'person' && node.user_id ? emailMap[node.user_id] : undefined}
+        headName={isHeadCard ? getHeadName(node.head_user_id) : null}
+        email={node.type === 'person' && node.user_id ? emailMap[node.user_id] : headEmail}
       />
     )
 
