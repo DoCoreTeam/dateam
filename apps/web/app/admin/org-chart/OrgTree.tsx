@@ -81,7 +81,14 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
 
   function getHeadName(node: OrgNode): string | null {
     if (!node.head_user_id) return null
-    return allProfiles.find(p => p.id === node.head_user_id)?.name ?? null
+    const profile = allProfiles.find(p => p.id === node.head_user_id)
+    if (!profile) return null
+    const r = profile.rank
+    const pos = profile.position
+    if (r && pos) return `${profile.name} ${r}(${pos})`
+    if (r) return `${profile.name} ${r}`
+    if (pos) return `${profile.name} ${pos}`
+    return profile.name
   }
 
   function renderNode(node: OrgNodeWithChildren, depth = 1): React.ReactNode {
