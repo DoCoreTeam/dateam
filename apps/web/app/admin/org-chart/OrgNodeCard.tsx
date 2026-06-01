@@ -237,7 +237,7 @@ function InlineMember({
 }
 
 function RoleCard(props: CardProps) {
-  const { node, depth = 1 } = props
+  const { node, headName, depth = 1 } = props
   const c = TYPE_COLORS.role
   const personChildren = node.children.filter(ch => ch.type === 'person')
   const scale = Math.max(0, depth - 1)
@@ -250,6 +250,12 @@ function RoleCard(props: CardProps) {
           <Crown size={scale > 0 ? 12 : 14} color={c.badge} />
           <span style={{ fontSize, fontWeight: 700, color: c.text }}>{node.name}</span>
         </div>
+        {headName && (
+          <div style={{ marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <Crown size={10} color={c.badge} />
+            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.85)' }}>{headName}</span>
+          </div>
+        )}
         {personChildren.map(p => (
           <InlineMember key={p.id} person={p} dark profile={props.allProfiles?.find(pr => pr.id === p.user_id)} onEdit={props.onEdit} onDelete={props.onDelete} />
         ))}
