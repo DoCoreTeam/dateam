@@ -14,7 +14,6 @@ import {
   NotebookPen,
   Key,
   Tag,
-  Network,
   Bot,
   Building2,
 } from 'lucide-react'
@@ -26,8 +25,7 @@ const ADMIN_NAV_GROUPS: NavGroup[] = [
   {
     label: '구성원 관리',
     items: [
-      { href: '/admin/users', label: '사용자 관리', icon: <Users size={16} /> },
-      { href: '/admin/org-chart', label: '조직도 관리', icon: <Network size={16} /> },
+      { href: '/admin/members', label: '구성원 관리', icon: <Users size={16} /> },
     ],
   },
   {
