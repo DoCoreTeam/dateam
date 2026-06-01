@@ -36,7 +36,7 @@ const GPU_ICONS: Record<string, string> = {
 }
 
 function GpuChip({ model, memory }: { model: string; memory: string }) {
-  const bg = GPU_ICONS[model[0]?.toUpperCase() ?? ''] ?? '#1a1a1a'
+  const bg = GPU_ICONS[(model ?? '')[0]?.toUpperCase() ?? ''] ?? '#1a1a1a'
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -44,7 +44,7 @@ function GpuChip({ model, memory }: { model: string; memory: string }) {
       color: '#fff', fontSize: 11, fontWeight: 700, flexShrink: 0,
       fontFamily: 'monospace', lineHeight: 1,
     }}>
-      <span style={{ fontSize: 9 }}>{memory.replace('GB', '')}</span>
+      <span style={{ fontSize: 9 }}>{(memory ?? '').replace('GB', '')}</span>
       <span style={{ fontSize: 7, opacity: 0.7 }}>GB</span>
     </span>
   )

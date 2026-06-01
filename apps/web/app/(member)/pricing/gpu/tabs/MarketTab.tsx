@@ -3,7 +3,16 @@
 import { useState } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { RefreshCw, TrendingUp, AlertTriangle, Plus, X, BarChart2, Target, FileText } from 'lucide-react'
+import { RefreshCw, TrendingUp, AlertTriangle, Plus, X, BarChart2, Target, FileText, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+
+type StratSortKey = 'model' | 'supply' | 'market' | 'target' | 'required' | 'gap'
+
+function StratSortIcon({ col, sortKey, sortDir }: { col: StratSortKey; sortKey: StratSortKey; sortDir: 'asc' | 'desc' }) {
+  if (sortKey !== col) return <ArrowUpDown size={11} style={{ opacity: 0.35, flexShrink: 0 }} />
+  return sortDir === 'asc'
+    ? <ArrowUp size={11} style={{ color: 'var(--gpu-accent)', flexShrink: 0 }} />
+    : <ArrowDown size={11} style={{ color: 'var(--gpu-accent)', flexShrink: 0 }} />
+}
 
 interface Competitor {
   id: string
@@ -637,6 +646,13 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
 // 1등 전략 전체 요약 뷰
 function StrategyOverviewPanel({ products, fmt }: { products: ProductGroup[]; fmt: (v: number) => string }) {
   const [scenarioKey, setScenarioKey] = useState<'aggressive' | 'normal' | 'concede'>('normal')
+  const [sortKey, setSortKey] = useState<StratSortKey>('model')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+
+  const handleSort = (k: StratSortKey) => {
+    if (sortKey === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortKey(k); setSortDir('asc') }
+  }
 
   const SCENARIO_LABELS = {
     aggressive: '공격적 1등',
@@ -649,6 +665,29 @@ function StrategyOverviewPanel({ products, fmt }: { products: ProductGroup[]; fm
     if (!scns) return { p, scn: null }
     const scn = scns.find(s => s.key === scenarioKey) ?? scns[1]
     return { p, scn }
+  })
+
+  // 데이터 부족(scn=null) 행은 항상 하단으로, 나머지는 선택 컬럼 기준 정렬
+  const sortedRows = [...rows].sort((a, b) => {
+    if (!a.scn && !b.scn) return 0
+    if (!a.scn) return 1
+    if (!b.scn) return -1
+    const dir = sortDir === 'asc' ? 1 : -1
+    let cmp = 0
+    switch (sortKey) {
+      case 'model': cmp = a.p.product.model_name.localeCompare(b.p.product.model_name, 'ko'); break
+      case 'supply': cmp = (a.p.current_supply_usd ?? Infinity) - (b.p.current_supply_usd ?? Infinity); break
+      case 'market': cmp = (a.p.market_min ?? Infinity) - (b.p.market_min ?? Infinity); break
+      case 'target': cmp = a.scn.targetSellUsd - b.scn.targetSellUsd; break
+      case 'required': cmp = a.scn.requiredSupplyUsd - b.scn.requiredSupplyUsd; break
+      case 'gap': {
+        const ga = (a.p.current_supply_usd ?? 0) - a.scn.requiredSupplyUsd
+        const gb = (b.p.current_supply_usd ?? 0) - b.scn.requiredSupplyUsd
+        cmp = ga - gb
+        break
+      }
+    }
+    return cmp * dir
   })
 
   const hasAny = rows.some(r => r.scn != null)
@@ -692,15 +731,29 @@ function StrategyOverviewPanel({ products, fmt }: { products: ProductGroup[]; fm
           fontSize: 10.5, color: 'var(--gpu-muted)', fontWeight: 600,
           textTransform: 'uppercase', letterSpacing: '.04em',
         }}>
-          <div>GPU 모델</div>
-          <div>현재 공급가</div>
-          <div>시장 최저가</div>
-          <div>목표 판매가</div>
-          <div>필요 공급가</div>
-          <div>갭 / 판정</div>
+          {([
+            ['model', 'GPU 모델'],
+            ['supply', '현재 공급가'],
+            ['market', '시장 최저가'],
+            ['target', '목표 판매가'],
+            ['required', '필요 공급가'],
+            ['gap', '갭 / 판정'],
+          ] as [StratSortKey, string][]).map(([key, label]) => (
+            <div
+              key={key}
+              onClick={() => handleSort(key)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                cursor: 'pointer', userSelect: 'none',
+                color: sortKey === key ? 'var(--gpu-accent)' : undefined,
+              }}
+            >
+              {label} <StratSortIcon col={key} sortKey={sortKey} sortDir={sortDir} />
+            </div>
+          ))}
         </div>
 
-        {rows.map(({ p, scn }) => {
+        {sortedRows.map(({ p, scn }) => {
           const pid = p.product.id
           if (!scn) {
             return (

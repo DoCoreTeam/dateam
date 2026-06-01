@@ -214,6 +214,10 @@ export default function InventoryTab() {
 
   const [tierFilter, setTierFilter] = useState(0)
   const [search, setSearch] = useState('')
+  const [sortKey, setSortKey] = useState<'tier' | 'model' | 'qty_desc' | 'qty_asc'>('tier')
+
+  const availQty = (p: InventoryItem) =>
+    p.tier === 3 && p.pool_qty != null ? p.pool_qty : p.fresh_available_qty
 
   const filtered = inventory.filter((p) => {
     if (tierFilter !== 0 && p.tier !== tierFilter) return false
@@ -222,6 +226,14 @@ export default function InventoryTab() {
       return (p.model_name ?? '').toLowerCase().includes(q) || (p.memory ?? '').toLowerCase().includes(q)
     }
     return true
+  })
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortKey === 'model') return (a.model_name ?? '').localeCompare(b.model_name ?? '', 'ko')
+    if (sortKey === 'qty_desc') return availQty(b) - availQty(a)
+    if (sortKey === 'qty_asc') return availQty(a) - availQty(b)
+    // tier
+    return a.tier - b.tier || (a.model_name ?? '').localeCompare(b.model_name ?? '', 'ko')
   })
 
   const totalFresh = inventory.reduce((a, p) => a + p.fresh_available_qty, 0)
@@ -279,6 +291,22 @@ export default function InventoryTab() {
             </button>
           ))}
         </div>
+        <select
+          value={sortKey}
+          onChange={(e) => setSortKey(e.target.value as typeof sortKey)}
+          aria-label="정렬 기준"
+          style={{
+            marginLeft: 'auto', height: 34, borderRadius: 8,
+            border: '1.5px solid var(--gpu-border)', background: '#fff',
+            padding: '0 10px', fontSize: 12.5, fontWeight: 600,
+            color: 'var(--gpu-ink)', cursor: 'pointer',
+          }}
+        >
+          <option value="tier">정렬: Tier 순</option>
+          <option value="model">정렬: 모델명</option>
+          <option value="qty_desc">정렬: 가용량 많은순</option>
+          <option value="qty_asc">정렬: 가용량 적은순</option>
+        </select>
       </div>
 
       </div>{/* end 고정 헤더 */}
@@ -291,7 +319,7 @@ export default function InventoryTab() {
           가용량 정보가 없습니다
         </div>
       ) : (
-        filtered.map((item) => <InventoryCard key={item.id} item={item} />)
+        sorted.map((item) => <InventoryCard key={item.id} item={item} />)
       )}
       </div>{/* end 스크롤 영역 */}
     </div>

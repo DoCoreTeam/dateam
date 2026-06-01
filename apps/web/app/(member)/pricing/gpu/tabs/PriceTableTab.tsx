@@ -9,10 +9,10 @@ type SortKey = 'model' | 'supply' | 'sell'
 type SortDir = 'asc' | 'desc'
 
 function SortIcon({ col, sortConfig }: { col: SortKey; sortConfig: { key: SortKey; dir: SortDir } | null }) {
-  if (sortConfig?.key !== col) return <ArrowUpDown size={11} style={{ opacity: 0.35, marginLeft: 3, verticalAlign: 'middle' }} />
+  if (sortConfig?.key !== col) return <ArrowUpDown size={11} style={{ opacity: 0.35, flexShrink: 0 }} />
   return sortConfig.dir === 'asc'
-    ? <ArrowUp size={11} style={{ color: 'var(--gpu-accent)', marginLeft: 3, verticalAlign: 'middle' }} />
-    : <ArrowDown size={11} style={{ color: 'var(--gpu-accent)', marginLeft: 3, verticalAlign: 'middle' }} />
+    ? <ArrowUp size={11} style={{ color: 'var(--gpu-accent)', flexShrink: 0 }} />
+    : <ArrowDown size={11} style={{ color: 'var(--gpu-accent)', flexShrink: 0 }} />
 }
 
 interface Supplier {
@@ -453,13 +453,13 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                 onClick={() => handleSort('model')}
                 style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
               >
-                GPU 모델<SortIcon col="model" sortConfig={sortConfig} />
+                <span className="gpu-th-sort">GPU 모델<SortIcon col="model" sortConfig={sortConfig} /></span>
               </th>
               <th
                 onClick={() => handleSort('supply')}
                 style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
               >
-                최저 공급가 <span className="gpu-th-note">(시간당 · {currencyMode === 'KRW' ? '원화' : '달러'})</span><SortIcon col="supply" sortConfig={sortConfig} />
+                <span className="gpu-th-sort">최저 공급가 <span className="gpu-th-note">(시간당 · {currencyMode === 'KRW' ? '원화' : '달러'})</span><SortIcon col="supply" sortConfig={sortConfig} /></span>
               </th>
               <th>최저가 공급사</th>
               <th
@@ -467,7 +467,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                 onClick={() => handleSort('sell')}
                 style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
               >
-                gcube 판매가 <span className="gpu-th-note">(마진 적용 · {currencyMode === 'KRW' ? '원화' : '달러'})</span><SortIcon col="sell" sortConfig={sortConfig} />
+                <span className="gpu-th-sort gpu-th-sort-r">gcube 판매가 <span className="gpu-th-note">(마진 적용 · {currencyMode === 'KRW' ? '원화' : '달러'})</span><SortIcon col="sell" sortConfig={sortConfig} /></span>
               </th>
               <th>견적 상태</th>
               {selectedTier && (

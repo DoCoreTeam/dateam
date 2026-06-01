@@ -2900,6 +2900,8 @@
 }
 .gpu-table tbody tr:last-child > td { border-bottom: none; }
 .gpu-th-note { font-weight: 400; text-transform: none; color: var(--gpu-faint); }
+.gpu-th-sort { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; }
+.gpu-th-sort-r { justify-content: flex-end; }
 .r { text-align: right; }
 .gpu-row-main { cursor: pointer; transition: 0.12s; }
 .gpu-row-main:hover { background: #fafbff; }
