@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Tree, TreeNode } from 'react-organizational-chart'
-import { Building2, Crown, Users, User } from 'lucide-react'
+import { Building2, Crown, Users, User, Copy, Check } from 'lucide-react'
 
 type OrgNodeType = 'company' | 'role' | 'department' | 'person'
 
@@ -32,7 +32,33 @@ function buildTree(nodes: OrgNode[], parentId: string | null): OrgNodeWithChildr
     .map(n => ({ ...n, children: buildTree(nodes, n.id) }))
 }
 
-function NodeCard({ node }: { node: OrgNodeWithChildren }) {
+function CopyEmailBtn({ email }: { email: string }) {
+  const [copied, setCopied] = useState(false)
+  function handleCopy(e: React.MouseEvent) {
+    e.stopPropagation()
+    navigator.clipboard.writeText(email).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      title="이메일 복사"
+      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', color: copied ? '#22c55e' : '#94a3b8', display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}
+    >
+      {copied ? <Check size={10} /> : <Copy size={10} />}
+    </button>
+  )
+}
+
+interface NodeCardProps {
+  node: OrgNodeWithChildren
+  headName?: string | null
+  email?: string | null
+}
+
+function NodeCard({ node, headName, email }: NodeCardProps) {
   if (node.type === 'company') {
     return (
       <div style={{
@@ -65,11 +91,7 @@ function NodeCard({ node }: { node: OrgNodeWithChildren }) {
         </div>
         {personChild && (
           <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <div style={{
-              width: '1.35rem', height: '1.35rem', borderRadius: '50%',
-              background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', fontSize: '0.6rem', fontWeight: 700, color: '#fff',
-            }}>
+            <div style={{ width: '1.35rem', height: '1.35rem', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 700, color: '#fff' }}>
               {personChild.name.charAt(0)}
             </div>
             <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.85)' }}>
@@ -99,8 +121,13 @@ function NodeCard({ node }: { node: OrgNodeWithChildren }) {
             </span>
           )}
         </div>
-        {node.subtitle && (
-          <p style={{ margin: '0.15rem 0 0', fontSize: '0.7rem', color: 'rgba(255,255,255,0.65)' }}>{node.subtitle}</p>
+        {headName && (
+          <div style={{ marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <div style={{ width: '1.1rem', height: '1.1rem', borderRadius: '50%', background: 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+              {headName.charAt(0)}
+            </div>
+            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.8)' }}>{headName}</span>
+          </div>
         )}
       </div>
     )
@@ -111,7 +138,7 @@ function NodeCard({ node }: { node: OrgNodeWithChildren }) {
     <div style={{
       display: 'inline-block', padding: '0.5rem 0.875rem', borderRadius: '0.75rem',
       background: '#fff', border: '2px solid #e2e8f0',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.06)', minWidth: '110px', maxWidth: '170px', textAlign: 'left',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.06)', minWidth: '110px', maxWidth: '180px', textAlign: 'left',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
         <div style={{
@@ -125,46 +152,45 @@ function NodeCard({ node }: { node: OrgNodeWithChildren }) {
         <div>
           <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e293b' }}>{node.name}</div>
           {node.subtitle && <div style={{ fontSize: '0.68rem', color: '#64748b' }}>{node.subtitle}</div>}
+          {email && (
+            <div style={{ fontSize: '0.62rem', color: '#94a3b8', marginTop: '1px', display: 'flex', alignItems: 'center', gap: '2px' }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '130px' }}>{email}</span>
+              <CopyEmailBtn email={email} />
+            </div>
+          )}
         </div>
       </div>
     </div>
   )
 }
 
-function renderNode(node: OrgNodeWithChildren): React.ReactNode {
-  const structuralChildren = node.children.filter(ch => ch.type !== 'person')
-  const personChildren = node.type === 'department'
-    ? node.children.filter(ch => ch.type === 'person')
-    : []
-
-  const label = <NodeCard node={node} />
-
-  if (structuralChildren.length === 0 && personChildren.length === 0) {
-    return <TreeNode key={node.id} label={label} />
-  }
-
-  return (
-    <TreeNode key={node.id} label={label}>
-      {structuralChildren.map(child => renderNode(child))}
-      {personChildren.length > 0 && (
-        <TreeNode label={
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-            {personChildren.map(p => (
-              <NodeCard key={p.id} node={{ ...p, children: [] }} />
-            ))}
-          </div>
-        } />
-      )}
-    </TreeNode>
-  )
-}
-
-export default function OrgPublicTree({ nodes }: { nodes: OrgNode[] }) {
+export default function OrgPublicTree({
+  nodes,
+  emailMap = {},
+  profileMap = {},
+}: {
+  nodes: OrgNode[]
+  emailMap?: Record<string, string>
+  profileMap?: Record<string, { name: string; rank: string | null; position: string | null }>
+}) {
   const containerRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const [zoom, setZoom] = useState({ scale: 0.85, tx: 0, ty: 20 })
   const isPanning = useRef(false)
   const panStart = useRef({ x: 0, y: 0, tx: 0, ty: 0 })
+
+  function getHeadName(headUserId: string | null): string | null {
+    if (!headUserId) return null
+    // profileMap 우선, 없으면 person 노드에서 fallback
+    const profile = profileMap[headUserId]
+    if (profile) {
+      const label = profile.position || profile.rank || ''
+      return label ? `${profile.name} ${label}` : profile.name
+    }
+    const personNode = nodes.find(n => n.type === 'person' && n.user_id === headUserId)
+    if (personNode) return personNode.subtitle ? `${personNode.name} ${personNode.subtitle}` : personNode.name
+    return null
+  }
 
   const fitToScreen = useCallback(() => {
     const container = containerRef.current
@@ -204,7 +230,7 @@ export default function OrgPublicTree({ nodes }: { nodes: OrgNode[] }) {
   useEffect(() => {
     const timer = setTimeout(fitToScreen, 150)
     return () => clearTimeout(timer)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function handlePanDown(e: React.MouseEvent<HTMLDivElement>) {
@@ -223,6 +249,44 @@ export default function OrgPublicTree({ nodes }: { nodes: OrgNode[] }) {
   }
 
   function handlePanUp() { isPanning.current = false }
+
+  function renderNode(node: OrgNodeWithChildren): React.ReactNode {
+    const structuralChildren = node.children.filter(ch => ch.type !== 'person')
+    const personChildren = node.type === 'department'
+      ? node.children.filter(ch => ch.type === 'person')
+      : []
+
+    const label = (
+      <NodeCard
+        node={node}
+        headName={node.type === 'department' ? getHeadName(node.head_user_id) : null}
+        email={node.type === 'person' && node.user_id ? emailMap[node.user_id] : undefined}
+      />
+    )
+
+    if (structuralChildren.length === 0 && personChildren.length === 0) {
+      return <TreeNode key={node.id} label={label} />
+    }
+
+    return (
+      <TreeNode key={node.id} label={label}>
+        {structuralChildren.map(child => renderNode(child))}
+        {personChildren.length > 0 && (
+          <TreeNode label={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+              {personChildren.map(p => (
+                <NodeCard
+                  key={p.id}
+                  node={{ ...p, children: [] }}
+                  email={p.user_id ? emailMap[p.user_id] : undefined}
+                />
+              ))}
+            </div>
+          } />
+        )}
+      </TreeNode>
+    )
+  }
 
   const roots = buildTree(nodes, null)
 
@@ -261,17 +325,13 @@ export default function OrgPublicTree({ nodes }: { nodes: OrgNode[] }) {
         <button onClick={() => setZoom({ scale: 1, tx: 50, ty: 30 })} style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '0.65rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>1:1</button>
       </div>
 
-      {/* 스케일 표시 */}
       <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.85)', border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.7rem', color: '#64748b', pointerEvents: 'none' }}>
         {Math.round(zoom.scale * 100)}%
       </div>
-
-      {/* 조작 힌트 */}
       <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.8)', border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.68rem', color: '#94a3b8', pointerEvents: 'none' }}>
         스크롤: 줌 · 드래그: 이동
       </div>
 
-      {/* 캔버스 */}
       <div
         ref={contentRef}
         style={{

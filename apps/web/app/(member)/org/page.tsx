@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import OrgPublicTree from './OrgPublicTree'
 
 export const metadata = { title: '조직도 | AX사업본부' }
@@ -9,15 +9,28 @@ export default async function OrgPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const adminClient = createAdminClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adb = adminClient as any
 
-  const [companyRes, nodesRes] = await Promise.all([
-    db.from('org_company').select('name, description').eq('id', 1).single(),
+  const [nodesRes, profilesRes, authUsersRes] = await Promise.all([
     db.from('org_nodes').select('id, type, parent_id, name, subtitle, display_order, head_user_id, user_id, color').order('display_order'),
+    adb.from('profiles').select('id, name, rank, position').is('deleted_at', null),
+    adminClient.auth.admin.listUsers({ perPage: 1000 }),
   ])
 
-  const company = companyRes.data as { name: string; description: string | null } | null
+  const emailMap: Record<string, string> = {}
+  for (const u of authUsersRes.data?.users ?? []) {
+    if (u.email) emailMap[u.id] = u.email
+  }
+
+  const profileMap: Record<string, { name: string; rank: string | null; position: string | null }> = {}
+  for (const p of (profilesRes.data ?? []) as { id: string; name: string; rank: string | null; position: string | null }[]) {
+    profileMap[p.id] = p
+  }
+
   const nodes = (nodesRes.data ?? []) as {
     id: string
     type: 'company' | 'role' | 'department' | 'person'
@@ -32,7 +45,7 @@ export default async function OrgPage() {
 
   return (
     <div className="page-inner">
-      <OrgPublicTree nodes={nodes} />
+      <OrgPublicTree nodes={nodes} emailMap={emailMap} profileMap={profileMap} />
     </div>
   )
 }

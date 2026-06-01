@@ -16,17 +16,26 @@ export default async function OrgChartAdminPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = adminClient as any
 
-  const [companyRes, nodesRes, profilesRes, ranksRes, positionsRes] = await Promise.all([
+  const [companyRes, nodesRes, profilesRes, ranksRes, positionsRes, authUsersRes] = await Promise.all([
     db.from('org_company').select('name, description').eq('id', 1).single(),
     db.from('org_nodes').select('id, type, parent_id, name, subtitle, display_order, head_user_id, user_id, color').order('display_order').order('id'),
     db.from('profiles').select('id, name, rank, position').is('deleted_at', null).order('name'),
     db.from('org_ranks').select('id, name, display_order').order('display_order'),
     db.from('org_positions').select('id, name, display_order').order('display_order'),
+    adminClient.auth.admin.listUsers({ perPage: 1000 }),
   ])
+
+  const emailMap: Record<string, string> = {}
+  for (const u of authUsersRes.data?.users ?? []) {
+    if (u.email) emailMap[u.id] = u.email
+  }
 
   const company = companyRes.data as { name: string; description: string | null } | null
   const nodes = (nodesRes.data ?? []) as OrgNode[]
-  const allProfiles = (profilesRes.data ?? []) as { id: string; name: string; rank: string | null; position: string | null }[]
+  const allProfiles = (profilesRes.data ?? []).map((p: { id: string; name: string; rank: string | null; position: string | null }) => ({
+    ...p,
+    email: emailMap[p.id] ?? null,
+  }))
   const ranks = (ranksRes.data ?? []) as { id: number; name: string; display_order: number }[]
   const positions = (positionsRes.data ?? []) as { id: number; name: string; display_order: number }[]
 
