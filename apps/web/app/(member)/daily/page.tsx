@@ -12,6 +12,8 @@ import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToTod
 import type { AiParsedItem } from './actions'
 import type { DailyLog, DailyLogEntryType, DailyLogThread } from '@/types/database'
 import { DdayBadge, todayLocal } from '@/lib/dday'
+import MemoListView from '@/components/ui/memo/MemoListView'
+import UnreviewedMemoWidget from '@/components/ui/memo/UnreviewedMemoWidget'
 
 const ENTRY_TYPES: { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[] = [
   { value: 'done',    label: '완료',   color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
@@ -59,7 +61,8 @@ export default function DailyPage() {
   const today = toDateStr(new Date())
   const initialDate = searchParams.get('date') ?? today
 
-  const [viewMode, setViewMode] = useState<'day' | 'week'>('day')
+  const initialView = searchParams.get('view') === 'memo' ? 'memo' : 'day'
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'memo'>(initialView)
 
   // 일간 상태
   const [selectedDate, setSelectedDate] = useState(initialDate)
@@ -367,16 +370,23 @@ export default function DailyPage() {
 
       {/* 뷰 탭 */}
       <div className="daily-view-tabs" aria-label="일일업무 보기 전환">
-        {(['day', 'week'] as const).map((m) => (
+        {(['day', 'week', 'memo'] as const).map((m) => (
           <button
             key={m}
             onClick={() => setViewMode(m)}
             className={`daily-view-tab ${viewMode === m ? 'is-active' : ''}`}
           >
-            {m === 'day' ? '일간' : '주간'}
+            {m === 'day' ? '일간' : m === 'week' ? '주간' : '메모'}
           </button>
         ))}
       </div>
+
+      {/* ===== 메모 뷰 ===== */}
+      {viewMode === 'memo' && (
+        <div style={{ marginTop: '1rem' }}>
+          <MemoListView />
+        </div>
+      )}
 
       {/* ===== 일간 뷰 ===== */}
       {viewMode === 'day' && (
@@ -562,6 +572,8 @@ export default function DailyPage() {
 
             {/* 우측 사이드 영역: 이월 업무 및 오늘의 현황 통계 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* 확인 안 한 메모 위젯 */}
+              <UnreviewedMemoWidget variant="full" />
               {/* 이월된 미완료 항목 (오늘만 표시) */}
               {isToday && (carryoverLoading || carryoverLogs.length > 0) && (
                 <div className="carryover-card">

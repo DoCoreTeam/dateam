@@ -8,6 +8,7 @@ import HomeQuickEntry from './HomeQuickEntry'
 import Link from 'next/link'
 import { FileText, Target, BarChart2, CheckSquare, Building2 } from 'lucide-react'
 import FridaySpotlightOverlay from '@/components/ui/FridaySpotlightOverlay'
+import UnreviewedMemoWidget from '@/components/ui/memo/UnreviewedMemoWidget'
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -108,8 +109,9 @@ export default async function HomePage() {
         </div>
 
         {/* 오늘 업무 — 모바일 2번째, 데스크탑 우측 상단 */}
-        <div className="home-section-quick">
+        <div className="home-section-quick" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <HomeQuickEntry todayStr={todayStr} initialLogs={todayLogs} />
+          <UnreviewedMemoWidget variant="compact" />
         </div>
 
         {/* 미션 & OKR — 모바일 3번째, 데스크탑 전체폭(헤더 아래) */}

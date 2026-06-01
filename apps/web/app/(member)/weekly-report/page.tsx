@@ -8,6 +8,7 @@ import WeeklyReportForm from './WeeklyReportForm'
 import TeamReportView from './TeamReportView'
 import ReportAccordion from './ReportAccordion'
 import OnboardingRestartLink from './OnboardingRestartLink'
+import WeeklyMemoReview from '@/components/ui/memo/WeeklyMemoReview'
 import { FileText, Users } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
 
@@ -177,6 +178,8 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
               보고서가 초기화되었습니다
             </div>
           )}
+          {/* 미처리 메모 리뷰 nudge */}
+          <WeeklyMemoReview />
           <div className="card" style={{ padding: '1.5rem', marginBottom: '1.75rem', width: '100%', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

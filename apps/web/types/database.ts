@@ -294,9 +294,14 @@ export interface DailyLog {
   source_type: DailyLogSourceType | null
   // AI 파생 관계 설명 (023 migration)
   flow_reason: string | null
+  // 메모 발견·처리 시스템 (042 migration) — entry_type='note'만 사용
+  memo_status: MemoStatus | null
+  memo_reviewed_at: string | null
   created_at: string
   updated_at: string
 }
+
+export type MemoStatus = 'new' | 'reviewed' | 'actioned'
 
 export interface DailyLogOriginGroup {
   id: string
@@ -356,6 +361,8 @@ export type AiFeature =
   | 'daily-ai-save'
   | 'gpu-quote-extract'
   | 'gpu-db-chat'
+  | 'memo-embedding'
+  | 'memo-cluster-label'
 
 export interface AiTokenLog {
   id: string

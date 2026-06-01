@@ -132,9 +132,20 @@
   *[style*="ax-dot-pulse"],
   *[style*="progress-indeterminate"],
   .gpu-analyzing-icon,
-  .gpu-analyzing-text {
+  .gpu-analyzing-text,
+  .memo-pulse {
     animation: none !important;
   }
+}
+
+/* 메모 위젯: 오래된(stale) 메모 주의 환기 펄스 (compositor-friendly) */
+@keyframes memo-pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
+  70%  { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+.memo-pulse {
+  animation: memo-pulse-ring 2.2s ease-out infinite;
 }
 
 @keyframes bannerGlow {

@@ -1,12 +1,45 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { embedText, toVectorLiteral } from '@/lib/gemini-embedding'
 import type {
   DailyLog, DailyLogEntryType, DailyLogPriority,
   DailyLogRelation, DailyLogRelationType,
-  DailyLogThread, DailyLogTag,
+  DailyLogThread, DailyLogTag, MemoStatus,
 } from '@/types/database'
+
+// ── 메모 임베딩 헬퍼 ──────────────────────────────────────────────
+// Gemini API 키를 org_content META에서 조회 (없으면 env fallback)
+async function getGeminiApiKey(): Promise<string> {
+  try {
+    const adm = createAdminClient()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (adm as any).from('org_content').select('value').eq('key', 'META').single()
+    const meta = (data?.value ?? {}) as Record<string, unknown>
+    return (meta.gemini_api_key as string) || process.env.GEMINI_API_KEY || ''
+  } catch {
+    return process.env.GEMINI_API_KEY || ''
+  }
+}
+
+// 메모 행에 임베딩 생성 후 저장 (실패해도 메모 자체는 유지 — best effort)
+async function embedMemoRow(logId: string, userId: string, content: string): Promise<void> {
+  const apiKey = await getGeminiApiKey()
+  if (!apiKey) return
+  const result = await embedText(content, apiKey, userId)
+  if (!result) return
+  try {
+    const adm = createAdminClient()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (adm as any).from('daily_logs')
+      .update({ embedding: toVectorLiteral(result.embedding) })
+      .eq('id', logId)
+      .eq('user_id', userId)
+  } catch (e) {
+    console.error('[embedMemoRow] failed', e)
+  }
+}
 
 function revalidateDailyCalendarViews() {
   revalidatePath('/daily')
@@ -163,17 +196,24 @@ export async function addDailyLog(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: '로그인이 필요합니다.' }
 
+  const isNote = entryType === 'note'
   const { data, error } = await (supabase.from('daily_logs') as any)
     .insert({
       user_id: user.id,
       log_date: logDate,
       content: content.trim(),
       entry_type: entryType,
+      ...(isNote ? { memo_status: 'new' as MemoStatus } : {}),
     })
     .select()
     .single()
 
   if (error) return { ok: false, error: (error as Error).message }
+
+  // 메모면 임베딩 생성 (best effort — 실패해도 메모는 저장됨)
+  if (isNote && data?.id) {
+    await embedMemoRow(data.id as string, user.id, content.trim())
+  }
 
   revalidateDailyCalendarViews()
   return { ok: true, data: data as DailyLog }
@@ -201,12 +241,21 @@ export async function updateDailyLog(
     if (targetDate) updatePayload.target_date_set_by = 'user'
   }
 
+  // 메모로 전환되거나 메모 내용이 바뀌면 임베딩 재생성 + 신규 상태 (note만)
+  if (entryType === 'note') {
+    updatePayload.memo_status = 'new'
+  }
+
   const { error } = await (supabase.from('daily_logs') as any)
     .update(updatePayload)
     .eq('id', id)
     .eq('user_id', user.id)
 
   if (error) return { ok: false, error: (error as Error).message }
+
+  if (entryType === 'note') {
+    await embedMemoRow(id, user.id, content.trim())
+  }
 
   revalidateDailyCalendarViews()
   return { ok: true }
@@ -391,6 +440,8 @@ export async function addMultipleDailyLogs(
       origin_group_id: originGroupId,
       source_type: parentLogId ? 'thread_derived' as const : 'ai_split' as const,
       parent_log_id: parentLogId ?? null,
+      // 메모는 신규 상태로 (042) — 임베딩은 저장 후 별도 처리
+      ...(item.status === 'note' ? { memo_status: 'new' as MemoStatus } : {}),
     }
   })
 
@@ -417,6 +468,12 @@ export async function addMultipleDailyLogs(
   if (tagRows.length > 0) {
     await (supabase.from('daily_log_tags') as any)
       .upsert(tagRows, { onConflict: 'log_id,tag_name', ignoreDuplicates: true })
+  }
+
+  // 메모(note) 항목 임베딩 생성 (best effort, 순차)
+  const noteLogs = savedLogs.filter((l) => l.entry_type === 'note')
+  for (const note of noteLogs) {
+    await embedMemoRow(note.id, user.id, note.content)
   }
 
   revalidateDailyCalendarViews()
@@ -569,4 +626,106 @@ export async function updateTargetDate(
 
   revalidateDailyCalendarViews()
   return { ok: true }
+}
+
+// ─── 메모 lifecycle: 확인/보관 ───────────────────────────────
+
+export async function setMemoStatus(
+  logId: string,
+  status: MemoStatus
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '로그인이 필요합니다.' }
+
+  const { error } = await (supabase.from('daily_logs') as any)
+    .update({
+      memo_status: status,
+      memo_reviewed_at: status === 'new' ? null : new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', logId)
+    .eq('user_id', user.id)
+    .eq('entry_type', 'note')
+
+  if (error) return { ok: false, error: (error as Error).message }
+
+  revalidatePath('/daily')
+  revalidatePath('/home')
+  return { ok: true }
+}
+
+// 여러 메모 일괄 보관 (주간보고 리뷰에서 사용)
+export async function bulkArchiveMemos(
+  logIds: string[]
+): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  if (logIds.length === 0) return { ok: true, count: 0 }
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '로그인이 필요합니다.' }
+
+  const { error } = await (supabase.from('daily_logs') as any)
+    .update({ memo_status: 'actioned', memo_reviewed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .in('id', logIds)
+    .eq('user_id', user.id)
+    .eq('entry_type', 'note')
+
+  if (error) return { ok: false, error: (error as Error).message }
+  revalidatePath('/daily')
+  revalidatePath('/home')
+  return { ok: true, count: logIds.length }
+}
+
+// ─── 메모 → 업무 승격(promote) ───────────────────────────────
+// note → planned/doing 전환 + 원본 메모를 actioned로 + derived_from 엣지
+
+export async function promoteMemoToTask(
+  memoId: string,
+  newType: 'planned' | 'doing',
+  targetDate: string | null
+): Promise<{ ok: true; taskId: string } | { ok: false; error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '로그인이 필요합니다.' }
+
+  // 1. 원본 메모 조회 (본인 + note 확인)
+  const { data: memo } = await (supabase.from('daily_logs') as any)
+    .select('id, content, log_date, entry_type')
+    .eq('id', memoId)
+    .eq('user_id', user.id)
+    .eq('entry_type', 'note')
+    .single()
+  if (!memo) return { ok: false, error: '메모를 찾을 수 없습니다.' }
+
+  // 2. 새 업무 생성 (메모에서 파생)
+  const { data: task, error: insErr } = await (supabase.from('daily_logs') as any)
+    .insert({
+      user_id: user.id,
+      log_date: memo.log_date,
+      content: memo.content,
+      entry_type: newType,
+      target_date: targetDate || null,
+      target_date_set_by: targetDate ? 'user' : null,
+      source_type: 'thread_derived',
+      parent_log_id: memoId,
+    })
+    .select('id')
+    .single()
+  if (insErr || !task) return { ok: false, error: insErr ? (insErr as Error).message : '업무 생성 실패' }
+
+  // 3. derived_from 엣지 (task → memo)
+  await (supabase.from('daily_log_relations') as any).upsert(
+    { from_log_id: task.id, to_log_id: memoId, relation_type: 'derived_from', created_by: 'user' },
+    { onConflict: 'from_log_id,to_log_id,relation_type', ignoreDuplicates: true }
+  )
+
+  // 4. 원본 메모를 actioned로 정리
+  await (supabase.from('daily_logs') as any)
+    .update({ memo_status: 'actioned', memo_reviewed_at: new Date().toISOString() })
+    .eq('id', memoId)
+    .eq('user_id', user.id)
+
+  revalidateDailyCalendarViews()
+  revalidatePath('/home')
+  return { ok: true, taskId: task.id as string }
 }
