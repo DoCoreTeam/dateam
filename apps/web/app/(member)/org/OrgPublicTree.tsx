@@ -284,7 +284,14 @@ export default function OrgPublicTree({
       : []
 
     const isHeadCard = node.type === 'department' || node.type === 'role'
-    const headEmail = isHeadCard && node.head_user_id ? emailMap[node.head_user_id] : undefined
+    const rolePersonChild = node.type === 'role' ? node.children.find(ch => ch.type === 'person') : null
+    const headEmail = isHeadCard
+      ? (node.head_user_id
+          ? emailMap[node.head_user_id]
+          : rolePersonChild?.user_id
+            ? emailMap[rolePersonChild.user_id]
+            : undefined)
+      : undefined
     const label = (
       <NodeCard
         node={node}

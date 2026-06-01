@@ -165,6 +165,16 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
     return profile.name
   }
 
+  function getHeadEmail(node: OrgNode): string | null {
+    // head_user_id 우선, 없으면 role의 첫 번째 person child
+    const uid = node.head_user_id
+      ?? (node as OrgNodeWithChildren).children?.find(c => c.type === 'person')?.user_id
+      ?? null
+    if (!uid) return null
+    const profile = allProfiles.find(p => p.id === uid)
+    return (profile as Profile & { email?: string | null })?.email ?? null
+  }
+
   function renderNode(node: OrgNodeWithChildren, depth = 1): React.ReactNode {
     const siblings = getSiblings(node)
     const card = (
@@ -173,6 +183,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
         siblings={siblings}
         activeId={activeId}
         headName={getHeadName(node)}
+        headEmail={getHeadEmail(node)}
         depth={depth}
         allProfiles={allProfiles}
         onAdd={(parentId, parentType) => setAddModal({ parentId, parentType })}
@@ -309,6 +320,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
                   siblings={[root]}
                   activeId={activeId}
                   headName={getHeadName(root)}
+                  headEmail={getHeadEmail(root)}
                   depth={0}
                   allProfiles={allProfiles}
                   onAdd={(parentId, parentType) => setAddModal({ parentId, parentType })}

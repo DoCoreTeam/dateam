@@ -55,6 +55,7 @@ interface CardProps {
   siblings: OrgNodeWithChildren[]
   activeId: string | null
   headName?: string | null
+  headEmail?: string | null
   depth?: number
   allProfiles?: Profile[]
   onAdd: (parentId: string, parentType: OrgNodeType) => void
@@ -232,10 +233,18 @@ function InlineMember({
       }}>
         {displayName.charAt(0)}
       </div>
-      <span style={{ fontSize: '0.72rem', color: dark ? 'rgba(255,255,255,0.85)' : '#334155', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {displayName}
-        {label && <span style={{ opacity: 0.65 }}> {label}</span>}
-      </span>
+      <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+        <div style={{ fontSize: '0.72rem', color: dark ? 'rgba(255,255,255,0.85)' : '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {displayName}
+          {label && <span style={{ opacity: 0.65 }}> {label}</span>}
+        </div>
+        {profile?.email && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px', overflow: 'hidden' }}>
+            <span style={{ fontSize: '0.6rem', color: dark ? 'rgba(255,255,255,0.5)' : '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{profile.email}</span>
+            <CopyBtn email={profile.email} />
+          </div>
+        )}
+      </div>
       <button
         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', borderRadius: '3px', display: 'flex', alignItems: 'center', color: dark ? 'rgba(255,255,255,0.6)' : '#94a3b8', flexShrink: 0 }}
         onPointerDown={stop} onClick={() => onEdit(person)} title="수정"
@@ -253,7 +262,7 @@ function InlineMember({
 }
 
 function RoleCard(props: CardProps) {
-  const { node, headName, depth = 1 } = props
+  const { node, headName, headEmail, depth = 1 } = props
   const c = TYPE_COLORS.role
   const personChildren = node.children.filter(ch => ch.type === 'person')
   const scale = Math.max(0, depth - 1)
@@ -267,9 +276,17 @@ function RoleCard(props: CardProps) {
           <span style={{ fontSize, fontWeight: 700, color: c.text }}>{node.name}</span>
         </div>
         {headName && (
-          <div style={{ marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-            <Crown size={10} color={c.badge} />
-            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.85)' }}>{headName}</span>
+          <div style={{ marginTop: '0.25rem', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <Crown size={10} color={c.badge} style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{headName}</span>
+            </div>
+            {headEmail && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginTop: '1px', overflow: 'hidden' }}>
+                <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{headEmail}</span>
+                <CopyBtn email={headEmail} />
+              </div>
+            )}
           </div>
         )}
         {personChildren.map(p => (
@@ -282,7 +299,7 @@ function RoleCard(props: CardProps) {
 }
 
 function DeptCard(props: CardProps) {
-  const { node, headName, depth = 1 } = props
+  const { node, headName, headEmail, depth = 1 } = props
   const c = TYPE_COLORS.department
   const personChildren = node.children.filter(ch => ch.type === 'person')
   const scale = Math.max(0, depth - 1)
@@ -299,9 +316,17 @@ function DeptCard(props: CardProps) {
         </div>
         {node.subtitle && <p style={{ margin: '0.15rem 0 0', fontSize: '0.68rem', color: 'rgba(255,255,255,0.65)' }}>{node.subtitle}</p>}
         {headName && (
-          <div style={{ marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-            <Crown size={10} color={c.badge} />
-            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.85)' }}>{headName}</span>
+          <div style={{ marginTop: '0.3rem', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <Crown size={10} color={c.badge} style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{headName}</span>
+            </div>
+            {headEmail && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginTop: '1px', overflow: 'hidden' }}>
+                <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{headEmail}</span>
+                <CopyBtn email={headEmail} />
+              </div>
+            )}
           </div>
         )}
         <ActionBar {...props} />
