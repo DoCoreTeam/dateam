@@ -8,9 +8,13 @@ import WeeklyReportForm from './WeeklyReportForm'
 import TeamReportView from './TeamReportView'
 import ReportAccordion from './ReportAccordion'
 import OnboardingRestartLink from './OnboardingRestartLink'
+import OrgWeeklyView from './OrgWeeklyView'
 import WeeklyMemoReview from '@/components/ui/memo/WeeklyMemoReview'
-import { FileText, Users } from 'lucide-react'
+import { FileText, Users, Network } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
+import { resolveOrgScope, deptMemberUserIds, hasOrgScope } from '@/lib/org-scope'
+
+interface MergedRow { category: string; performance: string; plan: string; issues: string }
 
 interface TeamRow {
   user_id: string
@@ -23,7 +27,7 @@ interface TeamRow {
 }
 
 interface PageProps {
-  searchParams: Promise<{ tab?: string; editWeek?: string; saved?: string; reset?: string }>
+  searchParams: Promise<{ tab?: string; editWeek?: string; saved?: string; reset?: string; orgWeek?: string }>
 }
 
 export default async function WeeklyReportPage({ searchParams }: PageProps) {
@@ -34,10 +38,16 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
 
   if (!user) redirect('/login')
 
-  const { tab, editWeek, saved, reset } = await searchParams
-  const activeTab = tab === 'team' ? 'team' : 'mine'
+  const { tab, editWeek, saved, reset, orgWeek } = await searchParams
   const justSaved = saved === '1'
   const justReset = reset === '1'
+
+  // 조직 권한 스코프 (조직 현황 탭 노출/데이터)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adminForScope = createAdminClient() as any
+  const orgScope = await resolveOrgScope(adminForScope, user.id)
+  const showOrgTab = hasOrgScope(orgScope)
+  const activeTab = tab === 'team' ? 'team' : tab === 'org' && showOrgTab ? 'org' : 'mine'
 
   let orgName = ''
   try {
@@ -130,6 +140,40 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     }))
     .sort((a, b) => (a.role === 'admin' ? -1 : 1) - (b.role === 'admin' ? -1 : 1))
 
+  // 조직 현황 탭 데이터 (부서 카드 통계 + 취합본)
+  const orgWeekStart = (orgWeek && weekOptions.includes(orgWeek)) ? orgWeek : thisWeek
+  let orgDeptStats: Record<string, { memberCount: number; reportedCount: number; agg: 'none' | 'draft' | 'confirmed' }> = {}
+  let orgDeptBodies: Record<string, MergedRow[]> = {}
+  if (activeTab === 'org' && showOrgTab) {
+    const readable = orgScope.readableDeptIds
+    // 이번 주차 보고 제출자 집합
+    const { data: weekReps } = await adminForScope
+      .from('weekly_reports')
+      .select('user_id')
+      .eq('week_start', orgWeekStart)
+      .is('deleted_at', null) as { data: { user_id: string }[] | null }
+    const reporters = new Set((weekReps ?? []).map((r) => r.user_id))
+    // 취합 스냅샷
+    const { data: snaps } = await adminForScope
+      .from('dept_weekly_reports')
+      .select('department_id, body, status')
+      .eq('week_start', orgWeekStart)
+      .in('department_id', readable.length ? readable : ['00000000-0000-0000-0000-000000000000']) as {
+        data: { department_id: string; body: MergedRow[]; status: 'draft' | 'confirmed' }[] | null
+      }
+    const snapMap = new Map((snaps ?? []).map((s) => [s.department_id, s]))
+    for (const deptId of readable) {
+      const members = deptMemberUserIds(orgScope, deptId)
+      const snap = snapMap.get(deptId)
+      orgDeptStats[deptId] = {
+        memberCount: members.length,
+        reportedCount: members.filter((m) => reporters.has(m)).length,
+        agg: snap ? snap.status : 'none',
+      }
+      if (snap) orgDeptBodies[deptId] = snap.body ?? []
+    }
+  }
+
   const tabStyle = (isActive: boolean): React.CSSProperties => ({
     display: 'flex',
     alignItems: 'center',
@@ -164,6 +208,12 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
           <Users size={14} />
           팀 전체
         </Link>
+        {showOrgTab && (
+          <Link href="/weekly-report?tab=org" style={tabStyle(activeTab === 'org')}>
+            <Network size={14} />
+            조직 현황
+          </Link>
+        )}
       </div>
 
       {activeTab === 'mine' ? (
@@ -212,13 +262,31 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
 
           <OnboardingRestartLink variant="text" />
         </>
-      ) : (
+      ) : activeTab === 'team' ? (
         <div className="card" style={{ padding: '1.5rem', width: '100%', boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
             <Users size={16} color="#6366f1" />
             <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>팀 전체 주간보고</h2>
           </div>
           <TeamReportView weekOptions={weekOptions} thisWeek={thisWeek} initialReports={teamReports} />
+        </div>
+      ) : (
+        <div className="card" style={{ padding: '1.5rem', width: '100%', boxSizing: 'border-box' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+            <Network size={16} color="#6366f1" />
+            <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>조직 현황 — 부서 취합 주간보고</h2>
+          </div>
+          <OrgWeeklyView
+            weekStart={orgWeekStart}
+            weekOptions={weekOptions}
+            nodes={orgScope.nodes.map((n) => ({ id: n.id, type: n.type, parent_id: n.parent_id, name: n.name }))}
+            editableDeptIds={orgScope.editableDeptIds}
+            readableDeptIds={orgScope.readableDeptIds}
+            isExecutive={orgScope.isExecutive}
+            scopeRootIds={orgScope.scopeRootIds}
+            deptStats={orgDeptStats}
+            deptBodies={orgDeptBodies}
+          />
         </div>
       )}
     </div>
