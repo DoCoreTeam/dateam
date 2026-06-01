@@ -36,6 +36,13 @@ export async function GET() {
     .select('product_id, pool_qty, set_at, note')
     .eq('is_current', true)
 
+  // 확정 견적 보유 여부 (가격표↔재고 일관 — 견적 있으면 "공급 가능" 신호)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: lowestQuotes } = await (supabase as any)
+    .from('v_lowest_quotes')
+    .select('product_id, unit_price_usd')
+  const quoteMap = new Map((lowestQuotes ?? []).map((q: { product_id: string; unit_price_usd: number }) => [q.product_id, q.unit_price_usd]))
+
   // 공급사 정보
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: suppliers } = await (supabase as any)
@@ -99,6 +106,9 @@ export async function GET() {
       pool_set_at: pool?.set_at ?? null,
       pool_note: pool?.note ?? null,
       supplier_availability: supplierAvail,
+      // 가격표↔재고 일관: 확정 견적이 있으면 가용량 응답이 없어도 "공급 가능"으로 표시
+      has_active_quote: quoteMap.has(p.id),
+      lowest_unit_price_usd: quoteMap.get(p.id) ?? null,
     }
   })
 

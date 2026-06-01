@@ -31,6 +31,8 @@ interface InventoryItem {
   pool_set_at: string | null
   pool_note: string | null
   supplier_availability: SupplierAvail[]
+  has_active_quote?: boolean
+  lowest_unit_price_usd?: number | null
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -148,7 +150,10 @@ function InventoryCard({ item }: { item: InventoryItem }) {
             검토 중 {item.pending_review_count}개
           </span>
         )}
-        {item.supplier_availability.length === 0 && item.pool_qty == null && (
+        {item.supplier_availability.length === 0 && item.pool_qty == null && item.has_active_quote && (
+          <span className="gpu-badge" style={{ background: '#ecfdf5', color: '#059669', fontSize: 10 }}>견적 보유 · 공급 가능</span>
+        )}
+        {item.supplier_availability.length === 0 && item.pool_qty == null && !item.has_active_quote && (
           <span className="gpu-badge gpu-badge-gray" style={{ fontSize: 10 }}>가용량 정보 없음</span>
         )}
       </div>
