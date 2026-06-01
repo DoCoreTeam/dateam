@@ -824,41 +824,33 @@
  * HomeQuickEntry 단일 마운트 보장
  * ─────────────────────────────────────────────────────────────────── */
 
-/* 데스크탑/태블릿 2열 그리드 */
-@media (min-width: 768px) {
-  .home-layout {
-    display: grid;
-    grid-template-columns: 1fr 352px;
-    column-gap: 1.25rem;
-    row-gap: 1.25rem;
-    align-items: start;
-  }
-  .home-section-header   { grid-column: 1 / -1; grid-row: 1; }
-  .home-section-mission  { grid-column: 1 / -1; grid-row: 2; }
-  .home-section-calendar { grid-column: 1; grid-row: 3 / 5; }
-  .home-section-quick    { grid-column: 2; grid-row: 3; }
-  .home-section-weekly   { grid-column: 2; grid-row: 4; }
+/* 홈 레이아웃: 헤더 → 위젯 3종 횡배치 → 캘린더 (한 화면에 정렬) */
+.home-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
+/* 위젯 3종: 데스크탑 횡배치(작은 카드 3컬럼) */
+.home-section-widgets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+.home-widget-col { min-width: 0; }
+
+/* 태블릿(768~1023px): 동일 3컬럼 유지하되 간격 축소 */
 @media (min-width: 768px) and (max-width: 1023px) {
-  .home-layout {
-    grid-template-columns: 1fr 280px;
-  }
+  .home-section-widgets { gap: 0.875rem; }
 }
 
-/* 모바일: flex column + order (헤더→오늘업무→미션OKR→주간보고→캘린더) */
+/* 모바일(<768px): 세로 스택 — 오늘업무 → 확인안한메모 → 주간보고 순서 유지 */
 @media (max-width: 767px) {
-  .home-layout {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
+  .home-section-widgets {
+    grid-template-columns: 1fr;
+    gap: 1rem;
   }
-  .home-section-header    { order: 1; }
-  .home-section-quick     { order: 2; }
-  .home-section-mission   { order: 3; }
-  .home-section-shortcuts { order: 4; }
-  .home-section-weekly    { order: 5; }
-  .home-section-calendar  { order: 6; }
 }
 
 /* ─── 태블릿 미디어쿼리 (768px ~ 1023px) ──────────────────────── */

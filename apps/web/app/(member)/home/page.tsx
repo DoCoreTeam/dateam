@@ -2,11 +2,11 @@ import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getCalendarDayLogs, getMonthLogSummary } from '../daily/actions'
 import { getWeekStart, toDateString } from '@/lib/utils'
-import type { OrgContent, WeeklyReport } from '@/types/database'
+import type { WeeklyReport } from '@/types/database'
 import HomeMiniCalendar from './HomeMiniCalendar'
 import HomeQuickEntry from './HomeQuickEntry'
 import Link from 'next/link'
-import { FileText, Target, BarChart2, CheckSquare, Building2 } from 'lucide-react'
+import { FileText, BarChart2, CheckSquare, Building2 } from 'lucide-react'
 import FridaySpotlightOverlay from '@/components/ui/FridaySpotlightOverlay'
 import UnreviewedMemoWidget from '@/components/ui/memo/UnreviewedMemoWidget'
 
@@ -23,13 +23,7 @@ export default async function HomePage() {
   const weekStart = getWeekStart()
   const weekStartStr = toDateString(weekStart)
 
-  type OrgRow = Pick<OrgContent, 'key' | 'value'>
-  const orgQuery = adminClient
-    .from('org_content')
-    .select('key, value')
-    .in('key', ['missions', 'okr']) as unknown as Promise<{ data: OrgRow[] | null; error: unknown }>
-
-  const [profileResult, todayLogs, monthSummary, reportsResult, orgResult] = await Promise.all([
+  const [profileResult, todayLogs, monthSummary, reportsResult] = await Promise.all([
     adminClient.from('profiles').select('name').eq('id', user.id).single(),
     getCalendarDayLogs(todayStr),
     getMonthLogSummary(year, month),
@@ -39,33 +33,24 @@ export default async function HomePage() {
       .eq('user_id', user.id)
       .order('week_start', { ascending: false })
       .limit(3),
-    orgQuery,
   ])
 
   const profile = profileResult.data as { name: string } | null
   const reports = reportsResult.data as Pick<WeeklyReport, 'week_start' | 'category' | 'created_at'>[] | null
-
-  const orgRows = (orgResult as { data: OrgRow[] | null }).data ?? []
-  const orgMap = Object.fromEntries(orgRows.map((r) => [r.key, r.value]))
-  const missions = orgMap['missions'] as Array<{ num: string; title: string; desc: string }> | null | undefined
-  const okrList = orgMap['okr'] as Array<{ objective: string; lead: string; key_results: string[] }> | null | undefined
 
   const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
   const isFriday = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', weekday: 'short' }).format(new Date()) === 'Fri'
   const hasThisWeekReport = (reports ?? []).some((r) => r.week_start === weekStartStr)
   const showGlow = isFriday && !hasThisWeekReport
 
-  const hasMissionOkr = (missions && missions.length > 0) || (okrList && okrList.length > 0)
-
   return (
     <div>
       <FridaySpotlightOverlay showGlow={showGlow} />
 
       {/*
-        레이아웃 전략:
-        - 데스크탑/태블릿(≥768px): CSS Grid 2열 (캘린더 좌, 나머지 우)
-        - 모바일(<768px): Flex column + order (헤더→오늘업무→미션OKR→주간보고→캘린더)
-        HomeQuickEntry는 단일 마운트 — 이중 마운트 없음
+        레이아웃 전략 (flex column):
+        - 헤더 / 위젯 3종 횡배치(데스크탑 grid 3col) / 캘린더 전체폭
+        - 모바일(<768px): 동일 DOM 순서로 세로 스택 — 헤더→오늘업무→메모→주간보고→캘린더
       */}
       <div className="home-layout">
 
@@ -108,81 +93,30 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* 오늘 업무 — 모바일 2번째, 데스크탑 우측 상단 */}
-        <div className="home-section-quick" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <HomeQuickEntry todayStr={todayStr} initialLogs={todayLogs} />
-          <UnreviewedMemoWidget variant="compact" />
-        </div>
-
-        {/* 미션 & OKR — 모바일 3번째, 데스크탑 전체폭(헤더 아래) */}
-        {hasMissionOkr && (
-          <div className="home-section-mission card" style={{ padding: '1.25rem 1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.875rem' }}>
-              <Target size={15} color="#6366f1" />
-              <h2 style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>미션 & OKR</h2>
-            </div>
-            <div className="responsive-grid-cols-2" style={{ gap: '1rem' }}>
-              {missions && missions.length > 0 && (
-                <div>
-                  <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', margin: '0 0 0.5rem', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                    본부 미션
-                  </p>
-                  <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                    {missions.slice(0, 3).map((m, i) => (
-                      <li key={i} style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-                        <span style={{
-                          fontSize: '0.6875rem', fontWeight: 700, color: '#6366f1',
-                          background: '#eef2ff', borderRadius: '0.3rem', padding: '0.1rem 0.35rem', flexShrink: 0,
-                        }}>
-                          {m.num}
-                        </span>
-                        <span style={{ fontSize: '0.875rem', color: '#334155', lineHeight: 1.4 }}>{m.title}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-              {okrList && okrList.length > 0 && (
-                <div>
-                  <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', margin: '0 0 0.5rem', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                    이번 분기 목표
-                  </p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                    {okrList.slice(0, 3).map((okr, i) => (
-                      <div key={i} style={{ display: 'flex', gap: '0.375rem', alignItems: 'flex-start' }}>
-                        <span style={{ color: '#6366f1', flexShrink: 0, fontSize: '0.75rem', marginTop: '0.125rem' }}>·</span>
-                        <span style={{ fontSize: '0.875rem', color: '#334155', lineHeight: 1.4 }}>{okr.objective}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+        {/* 위젯 3종 횡배치 — 오늘업무 · 확인안한메모 · 주간보고 (모바일: 세로 스택 순서 유지) */}
+        <div className="home-section-widgets">
+          {/* 오늘 업무 */}
+          <div className="home-widget-col home-widget-quick">
+            <HomeQuickEntry todayStr={todayStr} initialLogs={todayLogs} />
           </div>
-        )}
 
-        {/* 미니 캘린더 — 모바일 5번째, 데스크탑 좌측(row 3~4 span) */}
-        <div className="home-section-calendar">
-          <HomeMiniCalendar
-            year={year}
-            month={month}
-            todayStr={todayStr}
-            monthSummary={monthSummary}
-          />
-        </div>
-
-        {/* 주간보고 — 모바일 4번째, 데스크탑 우측 하단 */}
-        <div className="home-section-weekly card" style={{ padding: '1.25rem 1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <FileText size={15} color="#6366f1" />
-              <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>주간보고</h3>
-            </div>
-            <Link href="/weekly-report" style={{ fontSize: '0.75rem', color: '#6366f1', textDecoration: 'none', fontWeight: 600 }}>
-              {showGlow ? '이번 주 작성하기 →' : '작성하기 →'}
-            </Link>
+          {/* 확인 안 한 메모 */}
+          <div className="home-widget-col home-widget-memo">
+            <UnreviewedMemoWidget variant="compact" />
           </div>
-          {reports && reports.length > 0 ? (
+
+          {/* 주간보고 */}
+          <div className="home-widget-col home-widget-weekly card" style={{ padding: '1.25rem 1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FileText size={15} color="#6366f1" />
+                <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>주간보고</h3>
+              </div>
+              <Link href="/weekly-report" style={{ fontSize: '0.75rem', color: '#6366f1', textDecoration: 'none', fontWeight: 600 }}>
+                {showGlow ? '이번 주 작성하기 →' : '작성하기 →'}
+              </Link>
+            </div>
+            {reports && reports.length > 0 ? (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               {reports.map((r, i) => (
                 <li key={i} style={{
@@ -197,12 +131,23 @@ export default async function HomePage() {
                 </li>
               ))}
             </ul>
-          ) : (
-            <p style={{ fontSize: '0.8125rem', color: '#94a3b8', margin: 0, textAlign: 'center' }}>
-              아직 주간보고가 없습니다.{' '}
-              <Link href="/weekly-report" style={{ color: '#6366f1', fontWeight: 600 }}>작성하기</Link>
-            </p>
-          )}
+            ) : (
+              <p style={{ fontSize: '0.8125rem', color: '#94a3b8', margin: 0, textAlign: 'center' }}>
+                아직 주간보고가 없습니다.{' '}
+                <Link href="/weekly-report" style={{ color: '#6366f1', fontWeight: 600 }}>작성하기</Link>
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* 미니 캘린더 — 위젯 아래 전체폭 */}
+        <div className="home-section-calendar">
+          <HomeMiniCalendar
+            year={year}
+            month={month}
+            todayStr={todayStr}
+            monthSummary={monthSummary}
+          />
         </div>
 
       </div>

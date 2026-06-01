@@ -30,8 +30,6 @@ export default function HomeMiniCalendar({ year, month, todayStr, monthSummary }
     month: 'long',
   })
 
-  const todaySummary = summaryMap.get(todayStr)
-
   return (
     <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
@@ -65,7 +63,7 @@ export default function HomeMiniCalendar({ year, month, todayStr, monthSummary }
       {/* 날짜 그리드 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
         {cells.map((day, idx) => {
-          if (!day) return <div key={idx} style={{ minHeight: 44 }} />
+          if (!day) return <div key={idx} style={{ minHeight: 32 }} />
           const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
           const isToday = dateStr === todayStr
           const summary = summaryMap.get(dateStr)
@@ -82,7 +80,7 @@ export default function HomeMiniCalendar({ year, month, todayStr, monthSummary }
                 padding: '0.25rem 0',
                 borderRadius: '0.5rem', border: 'none',
                 background: isToday ? '#6366f1' : 'transparent',
-                cursor: 'pointer', minHeight: 44,
+                cursor: 'pointer', minHeight: 32,
               }}
             >
               <span style={{
@@ -107,36 +105,6 @@ export default function HomeMiniCalendar({ year, month, todayStr, monthSummary }
         })}
       </div>
 
-      {/* 오늘 업무 미리보기 */}
-      {todaySummary && todaySummary.preview.length > 0 && (
-        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
-          <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', margin: '0 0 0.5rem', letterSpacing: '0.02em' }}>
-            오늘 업무 미리보기
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-            {todaySummary.preview.slice(0, 3).map((p, i) => {
-              const dotColor = p.entry_type === 'done'
-                ? '#16a34a'
-                : p.entry_type === 'blocker'
-                  ? '#dc2626'
-                  : p.entry_type === 'doing'
-                    ? '#2563eb'
-                    : '#6366f1'
-              return (
-                <div key={i} style={{ display: 'flex', gap: '0.375rem', alignItems: 'flex-start' }}>
-                  <span style={{ color: dotColor, flexShrink: 0, fontSize: '0.625rem', marginTop: '0.2rem' }}>●</span>
-                  <span style={{
-                    fontSize: '0.8125rem', color: '#334155',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-                  }}>
-                    {p.content}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
