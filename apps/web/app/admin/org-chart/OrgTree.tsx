@@ -175,9 +175,16 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
     return (profile as Profile & { email?: string | null })?.email ?? null
   }
 
-  function renderNode(node: OrgNodeWithChildren, depth = 1): React.ReactNode {
+  function childTopOffset(childType: OrgNodeType, siblings: OrgNodeWithChildren[]): number {
+    const hasRole = siblings.some(s => s.type === 'role')
+    const hasDept = siblings.some(s => s.type === 'department')
+    if (!hasRole || !hasDept) return 0
+    return childType === 'department' ? 48 : 0
+  }
+
+  function renderNode(node: OrgNodeWithChildren, depth = 1, topOffset = 0): React.ReactNode {
     const siblings = getSiblings(node)
-    const card = (
+    const cardEl = (
       <NodeCard
         node={node}
         siblings={siblings}
@@ -192,6 +199,10 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
         onReorder={handleReorder}
       />
     )
+    const card = topOffset > 0
+      ? <div style={{ paddingTop: topOffset }}>{cardEl}</div>
+      : cardEl
+
     // role: persons shown inline in card — exclude from tree
     // department: persons shown as vertical column (single tree branch) — exclude from horizontal siblings
     const structuralChildren = (node.type === 'role' || node.type === 'department')
@@ -208,7 +219,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
 
     return (
       <TreeNode key={node.id} label={card}>
-        {structuralChildren.map(child => renderNode(child, depth + 1))}
+        {structuralChildren.map(child => renderNode(child, depth + 1, childTopOffset(child.type, structuralChildren)))}
         {personColumn.length > 0 && (
           <TreeNode label={
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>

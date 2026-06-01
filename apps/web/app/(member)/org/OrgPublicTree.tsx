@@ -277,7 +277,14 @@ export default function OrgPublicTree({
 
   function handlePanUp() { isPanning.current = false }
 
-  function renderNode(node: OrgNodeWithChildren): React.ReactNode {
+  function childTopOffset(childType: OrgNodeType, siblings: OrgNodeWithChildren[]): number {
+    const hasRole = siblings.some(s => s.type === 'role')
+    const hasDept = siblings.some(s => s.type === 'department')
+    if (!hasRole || !hasDept) return 0
+    return childType === 'department' ? 48 : 0
+  }
+
+  function renderNode(node: OrgNodeWithChildren, topOffset = 0): React.ReactNode {
     const structuralChildren = node.children.filter(ch => ch.type !== 'person')
     const personChildren = node.type === 'department'
       ? node.children.filter(ch => ch.type === 'person')
@@ -292,13 +299,16 @@ export default function OrgPublicTree({
             ? emailMap[rolePersonChild.user_id]
             : undefined)
       : undefined
-    const label = (
+    const card = (
       <NodeCard
         node={node}
         headName={isHeadCard ? getHeadName(node.head_user_id) : null}
         email={node.type === 'person' && node.user_id ? emailMap[node.user_id] : headEmail}
       />
     )
+    const label = topOffset > 0
+      ? <div style={{ paddingTop: topOffset }}>{card}</div>
+      : card
 
     if (structuralChildren.length === 0 && personChildren.length === 0) {
       return <TreeNode key={node.id} label={label} />
@@ -306,7 +316,7 @@ export default function OrgPublicTree({
 
     return (
       <TreeNode key={node.id} label={label}>
-        {structuralChildren.map(child => renderNode(child))}
+        {structuralChildren.map(child => renderNode(child, childTopOffset(child.type, structuralChildren)))}
         {personChildren.length > 0 && (
           <TreeNode label={
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
