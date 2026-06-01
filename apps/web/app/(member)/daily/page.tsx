@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition, useRef } from 'react'
+import { useState, useEffect, useTransition, useRef, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Sparkles, MessageSquare } from 'lucide-react'
 import dynamic from 'next/dynamic'
@@ -12,6 +12,7 @@ import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToTod
 import type { AiParsedItem } from './actions'
 import type { DailyLog, DailyLogEntryType, DailyLogThread } from '@/types/database'
 import { DdayBadge, todayLocal } from '@/lib/dday'
+import { groupDailyLogs } from './grouping'
 import MemoListView from '@/components/ui/memo/MemoListView'
 import UnreviewedMemoWidget from '@/components/ui/memo/UnreviewedMemoWidget'
 
@@ -803,7 +804,18 @@ function LogList({
   const [openThreadId, setOpenThreadId] = useState<string | null>(null)
   const [flowLog, setFlowLog] = useState<DailyLog | null>(null)
   const [statusPopoverId, setStatusPopoverId] = useState<string | null>(null)
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const todayStr = toDateStr(new Date())
+
+  const groups = useMemo(() => groupDailyLogs(logs), [logs])
+
+  const toggleGroup = (key: string) =>
+    setExpandedGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
 
   useEffect(() => {
     if (!statusPopoverId) return
@@ -812,15 +824,12 @@ function LogList({
     return () => document.removeEventListener('click', close)
   }, [statusPopoverId])
 
-  return (
-    <>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-      {logs.map((log) => {
-        const type = ENTRY_MAP[log.entry_type]
-        const isEditing = editingId === log.id
-        const threadOpen = openThreadId === log.id
+  const renderCard = (log: DailyLog) => {
+    const type = ENTRY_MAP[log.entry_type]
+    const isEditing = editingId === log.id
+    const threadOpen = openThreadId === log.id
 
-        return (
+    return (
           <div key={log.id}>
             <div
               onClick={() => { if (!isEditing) setFlowLog(log) }}
@@ -986,6 +995,41 @@ function LogList({
               )}
             </div>
             {threadOpen && <ThreadView logId={log.id} selectedDate={selectedDate} />}
+          </div>
+        )
+  }
+
+  return (
+    <>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {groups.map((group) => {
+        if (!group.isBatch) return renderCard(group.logs[0])
+        // 묶음 안의 카드를 편집/스레드 작성 중이면 접기 방지 (입력 손실 방지)
+        const hasActiveChild = group.logs.some((l) => l.id === editingId || l.id === openThreadId)
+        const isOpen = expandedGroups.has(group.key) || hasActiveChild
+        const subsId = `daily-group-subs-${group.key}`
+        return (
+          <div key={group.key} className="daily-group">
+            <button
+              type="button"
+              className="daily-group-header"
+              aria-expanded={isOpen}
+              aria-controls={subsId}
+              onClick={() => toggleGroup(group.key)}
+            >
+              <span className="daily-group-chevron" aria-hidden>{isOpen ? '▾' : '▸'}</span>
+              <span className="daily-group-icon" aria-hidden>📥</span>
+              <span className="daily-group-label">{group.label}</span>
+              <span className="daily-group-meta">{formatTime(group.loggedAt)} · {group.count}건</span>
+              {group.doneCount > 0 && (
+                <span className="daily-group-done">완료 {group.doneCount}/{group.count}</span>
+              )}
+            </button>
+            {isOpen && (
+              <div id={subsId} className="daily-group-subs">
+                {group.logs.map(renderCard)}
+              </div>
+            )}
           </div>
         )
       })}

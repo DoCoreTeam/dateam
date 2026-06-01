@@ -3431,3 +3431,73 @@
 .gpu-panel-header:hover { background: #f6f7fa; }
 .gpu-panel-header.open { border-bottom-color: var(--gpu-border); }
 .gpu-panel-body { padding: 14px 16px; overflow-x: auto; }
+
+/* 일일업무 입력 묶음(메인-서브) 그룹 */
+.daily-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.daily-group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.625rem 0.875rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #94a3b8;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: #1e293b;
+  transition: background 0.12s;
+}
+.daily-group-header:hover { background: #f1f5f9; }
+.daily-group-chevron {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: #64748b;
+  width: 0.875rem;
+}
+.daily-group-icon { flex-shrink: 0; font-size: 0.875rem; }
+.daily-group-label {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.daily-group-meta {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+.daily-group-done {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #059669;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.25rem;
+  white-space: nowrap;
+}
+.daily-group-subs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-left: 1rem;
+  border-left: 2px solid #e2e8f0;
+  margin-left: 0.5rem;
+}
+@media (max-width: 767px) {
+  .daily-group-subs { padding-left: 0.625rem; margin-left: 0.25rem; }
+  .daily-group-meta { font-size: 0.6875rem; }
+}

@@ -555,7 +555,7 @@ export default function DemoSection() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: result.success ? '#10b981' : '#ef4444', display: 'inline-block' }} />
               <span style={{ fontSize: 13, fontWeight: 600, color: '#94a3b8' }}>{activeDemo}</span>
-              {result.success && <span style={{ fontSize: 11, color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '2px 7px', borderRadius: 100 }}>200 OK</span>}
+              {result.success === true && <span style={{ fontSize: 11, color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '2px 7px', borderRadius: 100 }}>200 OK</span>}
               {!result.success && <span style={{ fontSize: 11, color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '2px 7px', borderRadius: 100 }}>오류</span>}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
