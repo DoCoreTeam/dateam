@@ -8,6 +8,7 @@ import type { DayLogSummary } from "../daily/actions";
 import type { DailyLog, DailyLogEntryType } from "@/types/database";
 import { fetcher } from "@/lib/swr-config";
 import DayDetailPanel from "./DayDetailPanel";
+import RecommendPanel from "./RecommendPanel";
 
 interface CalEventLite {
   id: string; title: string; start_at: string; end_at: string | null; all_day: boolean; source: string;
@@ -253,6 +254,9 @@ export default function CalendarPage() {
           ))}
         </div>
       </div>
+
+      {/* AI 일정 추천 */}
+      <RecommendPanel />
 
       {/* ===== 월간 뷰 ===== */}
       {viewMode === "month" && (
