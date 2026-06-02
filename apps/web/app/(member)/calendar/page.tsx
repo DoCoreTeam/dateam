@@ -9,6 +9,10 @@ import type { DailyLog, DailyLogEntryType } from "@/types/database";
 import { fetcher } from "@/lib/swr-config";
 import DayDetailPanel from "./DayDetailPanel";
 
+interface CalEventLite {
+  id: string; title: string; start_at: string; end_at: string | null; all_day: boolean; source: string;
+}
+
 const ENTRY_TYPES: Record<
   DailyLogEntryType,
   { label: string; color: string; bg: string; border: string }
@@ -111,6 +115,27 @@ export default function CalendarPage() {
     : null;
   const { data: weekLogs = [], isLoading: weekLoading } =
     useSWR<DailyLog[]>(weekKey, fetcher);
+
+  // SWR: 일정(calendar_events) — 보이는 범위
+  const evRange = viewMode === "month"
+    ? {
+        start: `${year}-${String(month).padStart(2, "0")}-01`,
+        end: `${year}-${String(month).padStart(2, "0")}-${String(new Date(year, month, 0).getDate()).padStart(2, "0")}`,
+      }
+    : {
+        start: weekStart,
+        end: toDateStr(new Date(new Date(`${weekStart}T00:00:00Z`).getTime() + 6 * 864e5)),
+      };
+  const { data: calEvents = [] } = useSWR<CalEventLite[]>(
+    `/api/calendar/events?start=${evRange.start}&end=${evRange.end}`,
+    fetcher,
+  );
+  const eventsByDate = new Map<string, CalEventLite[]>();
+  for (const ev of calEvents) {
+    const d = ev.start_at.slice(0, 10);
+    if (!eventsByDate.has(d)) eventsByDate.set(d, []);
+    eventsByDate.get(d)!.push(ev);
+  }
 
   // 요약 맵
   const summaryMap = new Map<string, DayLogSummary>(
@@ -338,6 +363,18 @@ export default function CalendarPage() {
                       >
                         {day}
                       </span>
+                      {/* 일정(calendar_events) 칩 */}
+                      {eventsByDate.get(dateStr)?.map((ev) => (
+                        <div
+                          key={ev.id}
+                          className="cal-event-chip"
+                          title={ev.title}
+                          onClick={(e) => { e.stopPropagation(); setSelectedDate(dateStr); }}
+                        >
+                          <span className="cal-event-time">{ev.all_day ? "종일" : ev.start_at.slice(11, 16)}</span>
+                          {ev.title}
+                        </div>
+                      ))}
                       {summary && (
                         <div className="calendar-event-stack">
                           {/* 블로커 표시 */}

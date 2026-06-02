@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import useSWR from 'swr'
+import useSWR, { mutate as globalMutate } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import type { DailyLog, DailyLogEntryType } from '@/types/database'
 import EventModal from './EventModal'
@@ -54,9 +54,15 @@ export default function DayDetailPanel({ date, onClose }: Props) {
   )
   const [showModal, setShowModal] = useState(false)
 
+  // 페이지 월/주 범위 일정 SWR까지 모두 재검증
+  const revalidateAllEvents = () => {
+    mutateEvents()
+    globalMutate((key) => typeof key === 'string' && key.startsWith('/api/calendar/events'))
+  }
+
   async function onDeleteEvent(id: string) {
     await deleteCalendarEvent(id)
-    mutateEvents()
+    revalidateAllEvents()
   }
 
   useEffect(() => { setMounted(true) }, [])
@@ -220,7 +226,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
         <EventModal
           date={date}
           onClose={() => setShowModal(false)}
-          onSaved={() => { setShowModal(false); mutateEvents() }}
+          onSaved={() => { setShowModal(false); revalidateAllEvents() }}
         />
       )}
     </>,
