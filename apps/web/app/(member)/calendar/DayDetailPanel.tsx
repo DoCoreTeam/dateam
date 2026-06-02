@@ -6,6 +6,14 @@ import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import type { DailyLog, DailyLogEntryType } from '@/types/database'
+import EventModal from './EventModal'
+import { deleteCalendarEvent } from './actions'
+import { CalendarPlus, Trash2 } from 'lucide-react'
+
+interface CalEvent {
+  id: string; title: string; start_at: string; end_at: string | null; all_day: boolean
+  source: string; link_kind: string | null; status: string; user_id: string
+}
 
 const ENTRY_TYPES: Record<DailyLogEntryType, { label: string; color: string; bg: string; border: string }> = {
   done:    { label: '완료',   color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
@@ -40,6 +48,16 @@ export default function DayDetailPanel({ date, onClose }: Props) {
     `/api/daily/logs?date=${date}`,
     fetcher
   )
+  const { data: events = [], mutate: mutateEvents } = useSWR<CalEvent[]>(
+    `/api/calendar/events?start=${date}&end=${date}`,
+    fetcher
+  )
+  const [showModal, setShowModal] = useState(false)
+
+  async function onDeleteEvent(id: string) {
+    await deleteCalendarEvent(id)
+    mutateEvents()
+  }
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -79,6 +97,17 @@ export default function DayDetailPanel({ date, onClose }: Props) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <button
+              onClick={() => setShowModal(true)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                padding: '0.375rem 0.625rem', fontSize: '0.8125rem',
+                background: '#eef2ff', color: '#6366f1', border: '1px solid #c7d2fe',
+                borderRadius: '0.375rem', cursor: 'pointer', fontWeight: 600, minHeight: 36,
+              }}
+            >
+              <CalendarPlus size={14} /> 일정
+            </button>
+            <button
               onClick={() => router.push(`/daily?date=${date}`)}
               style={{
                 padding: '0.375rem 0.75rem', fontSize: '0.8125rem',
@@ -107,6 +136,24 @@ export default function DayDetailPanel({ date, onClose }: Props) {
 
         {/* 본문 */}
         <div className="day-panel-body">
+          {/* 일정 (calendar_events) */}
+          {events.length > 0 && (
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#6366f1', marginBottom: '0.4rem', letterSpacing: '0.02em' }}>일정</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {events.map((ev) => (
+                  <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.625rem', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '0.5rem' }}>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#4338ca', whiteSpace: 'nowrap' }}>
+                      {ev.all_day ? '종일' : formatTime(ev.start_at)}{!ev.all_day && ev.end_at ? `~${formatTime(ev.end_at)}` : ''}
+                    </span>
+                    <span style={{ flex: 1, fontSize: '0.85rem', color: '#1e293b', minWidth: 0 }}>{ev.title}</span>
+                    {ev.source === 'ai' && <span style={{ fontSize: '0.6rem', color: '#7c3aed' }}>AI</span>}
+                    <button onClick={() => onDeleteEvent(ev.id)} aria-label="삭제" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1', flexShrink: 0 }}><Trash2 size={13} /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {loading ? (
             <div style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem 0', fontSize: '0.875rem' }}>
               로딩 중...
@@ -169,6 +216,13 @@ export default function DayDetailPanel({ date, onClose }: Props) {
           )}
         </div>
       </div>
+      {showModal && (
+        <EventModal
+          date={date}
+          onClose={() => setShowModal(false)}
+          onSaved={() => { setShowModal(false); mutateEvents() }}
+        />
+      )}
     </>,
     document.body
   )

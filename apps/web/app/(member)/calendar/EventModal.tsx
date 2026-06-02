@@ -1,0 +1,135 @@
+'use client'
+
+import { useState } from 'react'
+import { Sparkles, X } from 'lucide-react'
+import { createCalendarEvent } from './actions'
+
+interface Props {
+  date: string // YYYY-MM-DD 기본 날짜
+  onClose: () => void
+  onSaved: () => void
+}
+
+export default function EventModal({ date, onClose, onSaved }: Props) {
+  const [nl, setNl] = useState('')
+  const [aiBusy, setAiBusy] = useState(false)
+  const [title, setTitle] = useState('')
+  const [startDate, setStartDate] = useState(date)
+  const [startTime, setStartTime] = useState('09:00')
+  const [endTime, setEndTime] = useState('')
+  const [allDay, setAllDay] = useState(false)
+  const [desc, setDesc] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+
+  // 자연어 → analyze-work 재사용 → 폼 프리필
+  async function parseNl() {
+    if (!nl.trim() || aiBusy) return
+    setAiBusy(true); setMsg(null)
+    try {
+      const res = await fetch('/api/ai/analyze-work', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: nl.trim(), date: startDate }),
+      })
+      if (!res.ok || !res.body) { setMsg('AI 파싱 실패'); setAiBusy(false); return }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let first: any = null
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        const lines = buf.split('\n'); buf = lines.pop() ?? ''
+        for (const line of lines) {
+          const t = line.trim()
+          if (!t.startsWith('data: ')) continue
+          const j = t.slice(6)
+          if (j === '[DONE]') continue
+          try { const o = JSON.parse(j); if (o.title && !first) first = o } catch { /* skip */ }
+        }
+      }
+      if (first) {
+        setTitle(first.title)
+        if (first.targetDate) setStartDate(first.targetDate)
+        if (first.scheduledTime) setStartTime(first.scheduledTime)
+        setMsg('AI가 채웠습니다 — 확인 후 저장하세요')
+      } else setMsg('파싱 결과 없음 — 직접 입력하세요')
+    } catch { setMsg('AI 서버 연결 실패') }
+    setAiBusy(false)
+  }
+
+  async function save() {
+    if (!title.trim()) { setMsg('제목을 입력하세요'); return }
+    setBusy(true); setMsg(null)
+    const start_at = allDay ? `${startDate}T00:00:00` : `${startDate}T${startTime}:00`
+    const end_at = !allDay && endTime ? `${startDate}T${endTime}:00` : null
+    const r = await createCalendarEvent({ title: title.trim(), start_at, end_at, all_day: allDay, description: desc || null })
+    setBusy(false)
+    if (!r.ok) { setMsg(r.error ?? '저장 실패'); return }
+    onSaved()
+  }
+
+  return (
+    <div onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      <div style={{ width: '100%', maxWidth: 460, background: '#fff', borderRadius: '1rem', padding: '1.5rem', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>일정 등록</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={18} /></button>
+        </div>
+
+        {/* 자연어 */}
+        <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.875rem' }}>
+          <input value={nl} onChange={(e) => setNl(e.target.value)} placeholder="자연어: 내일 오후 3시 A사 미팅"
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); parseNl() } }}
+            style={{ flex: 1, border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '0.5rem 0.625rem', fontSize: '0.8125rem', outline: 'none' }} />
+          <button onClick={parseNl} disabled={aiBusy} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8125rem', fontWeight: 600, color: '#fff', background: '#7c3aed', border: 'none', borderRadius: '0.5rem', padding: '0.5rem 0.75rem', cursor: aiBusy ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+            <Sparkles size={14} /> {aiBusy ? '파싱중' : 'AI 파싱'}
+          </button>
+        </div>
+
+        {msg && <div role="status" style={{ padding: '0.5rem 0.75rem', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '0.5rem', marginBottom: '0.75rem', fontSize: '0.78rem', color: '#4338ca' }}>{msg}</div>}
+
+        <label style={lbl}>제목</label>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="일정 제목" style={inp} />
+
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 130 }}>
+            <label style={lbl}>날짜</label>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={inp} />
+          </div>
+          {!allDay && (
+            <>
+              <div style={{ width: 100 }}>
+                <label style={lbl}>시작</label>
+                <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={inp} />
+              </div>
+              <div style={{ width: 100 }}>
+                <label style={lbl}>종료</label>
+                <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} style={inp} />
+              </div>
+            </>
+          )}
+        </div>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.75rem', fontSize: '0.8125rem', color: '#475569', cursor: 'pointer' }}>
+          <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} /> 종일
+        </label>
+
+        <label style={{ ...lbl, marginTop: '0.75rem' }}>설명 (선택)</label>
+        <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }} />
+
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ fontSize: '0.8125rem', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer' }}>취소</button>
+          <button onClick={save} disabled={busy} style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff', background: '#6366f1', border: 'none', borderRadius: '0.5rem', padding: '0.5rem 1.25rem', cursor: busy ? 'wait' : 'pointer' }}>{busy ? '저장중' : '저장'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const lbl: React.CSSProperties = { display: 'block', fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }
+const inp: React.CSSProperties = { width: '100%', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '0.5rem 0.625rem', fontSize: '0.8125rem', outline: 'none', boxSizing: 'border-box' }
