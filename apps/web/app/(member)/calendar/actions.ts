@@ -91,6 +91,7 @@ export interface CalendarEventInput {
   link_kind?: 'daily' | 'weekly' | 'memo' | null
   link_id?: string | null
   source?: 'user' | 'ai' | 'rule'
+  rrule?: string | null
 }
 
 interface Result {
@@ -123,6 +124,7 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<Re
         start_at: input.start_at,
         end_at: input.end_at ?? null,
         all_day: input.all_day ?? false,
+        rrule: input.rrule ?? null,
         source: input.source ?? 'user',
         link_kind: input.link_kind ?? null,
         link_id: input.link_id ?? null,

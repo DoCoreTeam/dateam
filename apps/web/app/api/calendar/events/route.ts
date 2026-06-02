@@ -14,14 +14,14 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '인증 필요' }, { status: 401 })
 
-  // start_at이 [start 00:00, end 23:59:59] 범위에 걸치는 일정
-  const from = `${start}T00:00:00`
-  const to = `${end}T23:59:59`
+  const fromMs = new Date(`${start}T00:00:00Z`).getTime()
+  const toMs = new Date(`${end}T23:59:59Z`).getTime()
+
+  // 단발: 범위 내 시작 / 반복: 시작이 범위 끝 이전이면 후보 (전개는 아래)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase.from('calendar_events') as any)
-    .select('id, title, description, start_at, end_at, all_day, source, link_kind, link_id, status, user_id')
-    .gte('start_at', from)
-    .lte('start_at', to)
+    .select('id, title, description, start_at, end_at, all_day, source, link_kind, link_id, status, user_id, rrule')
+    .lte('start_at', `${end}T23:59:59`)
     .order('start_at', { ascending: true })
     .limit(1000)
 
@@ -29,5 +29,29 @@ export async function GET(req: NextRequest) {
     console.error('[api/calendar/events]', error)
     return NextResponse.json({ error: '조회 실패' }, { status: 500 })
   }
-  return NextResponse.json(data ?? [])
+
+  // 반복 전개 (FREQ=DAILY / WEEKLY 단순 지원)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const out: any[] = []
+  for (const ev of data ?? []) {
+    const baseMs = new Date(ev.start_at).getTime()
+    if (!ev.rrule) {
+      if (baseMs >= fromMs && baseMs <= toMs) out.push({ ...ev, base_id: ev.id })
+      continue
+    }
+    const stepDays = /FREQ=WEEKLY/i.test(ev.rrule) ? 7 : 1
+    const stepMs = stepDays * 864e5
+    let occ = baseMs
+    let guard = 0
+    while (occ <= toMs && guard < 400) {
+      if (occ >= fromMs) {
+        const iso = new Date(occ).toISOString()
+        out.push({ ...ev, id: `${ev.id}:${iso.slice(0, 10)}`, base_id: ev.id, start_at: iso })
+      }
+      occ += stepMs
+      guard++
+    }
+  }
+  out.sort((a, b) => (a.start_at < b.start_at ? -1 : 1))
+  return NextResponse.json(out)
 }

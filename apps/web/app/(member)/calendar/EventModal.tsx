@@ -18,6 +18,7 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
   const [startTime, setStartTime] = useState('09:00')
   const [endTime, setEndTime] = useState('')
   const [allDay, setAllDay] = useState(false)
+  const [repeat, setRepeat] = useState<'none' | 'daily' | 'weekly'>('none')
   const [desc, setDesc] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
@@ -66,7 +67,8 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
     setBusy(true); setMsg(null)
     const start_at = allDay ? `${startDate}T00:00:00` : `${startDate}T${startTime}:00`
     const end_at = !allDay && endTime ? `${startDate}T${endTime}:00` : null
-    const r = await createCalendarEvent({ title: title.trim(), start_at, end_at, all_day: allDay, description: desc || null })
+    const rrule = repeat === 'daily' ? 'FREQ=DAILY' : repeat === 'weekly' ? 'FREQ=WEEKLY' : null
+    const r = await createCalendarEvent({ title: title.trim(), start_at, end_at, all_day: allDay, description: desc || null, rrule })
     setBusy(false)
     if (!r.ok) { setMsg(r.error ?? '저장 실패'); return }
     onSaved()
@@ -115,9 +117,20 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
           )}
         </div>
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.75rem', fontSize: '0.8125rem', color: '#475569', cursor: 'pointer' }}>
-          <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} /> 종일
-        </label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: '#475569', cursor: 'pointer' }}>
+            <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} /> 종일
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: '#475569' }}>
+            반복
+            <select value={repeat} onChange={(e) => setRepeat(e.target.value as 'none' | 'daily' | 'weekly')}
+              style={{ border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.3rem 0.5rem', fontSize: '0.8125rem' }}>
+              <option value="none">안 함</option>
+              <option value="daily">매일</option>
+              <option value="weekly">매주</option>
+            </select>
+          </label>
+        </div>
 
         <label style={{ ...lbl, marginTop: '0.75rem' }}>설명 (선택)</label>
         <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }} />

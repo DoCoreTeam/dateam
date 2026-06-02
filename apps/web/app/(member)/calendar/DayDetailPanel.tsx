@@ -11,8 +11,8 @@ import { deleteCalendarEvent } from './actions'
 import { CalendarPlus, Trash2 } from 'lucide-react'
 
 interface CalEvent {
-  id: string; title: string; start_at: string; end_at: string | null; all_day: boolean
-  source: string; link_kind: string | null; status: string; user_id: string
+  id: string; base_id?: string; title: string; start_at: string; end_at: string | null; all_day: boolean
+  source: string; link_kind: string | null; status: string; user_id: string; rrule?: string | null
 }
 
 const ENTRY_TYPES: Record<DailyLogEntryType, { label: string; color: string; bg: string; border: string }> = {
@@ -153,8 +153,9 @@ export default function DayDetailPanel({ date, onClose }: Props) {
                       {ev.all_day ? '종일' : formatTime(ev.start_at)}{!ev.all_day && ev.end_at ? `~${formatTime(ev.end_at)}` : ''}
                     </span>
                     <span style={{ flex: 1, fontSize: '0.85rem', color: '#1e293b', minWidth: 0 }}>{ev.title}</span>
+                    {ev.rrule && <span style={{ fontSize: '0.6rem', color: '#6366f1' }} title="반복">↻</span>}
                     {ev.source === 'ai' && <span style={{ fontSize: '0.6rem', color: '#7c3aed' }}>AI</span>}
-                    <button onClick={() => onDeleteEvent(ev.id)} aria-label="삭제" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1', flexShrink: 0 }}><Trash2 size={13} /></button>
+                    <button onClick={() => onDeleteEvent(ev.base_id ?? ev.id)} aria-label="삭제" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1', flexShrink: 0 }}><Trash2 size={13} /></button>
                   </div>
                 ))}
               </div>

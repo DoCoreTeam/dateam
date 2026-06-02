@@ -1,0 +1,15 @@
+import { chromium } from '@playwright/test'
+const BASE='http://localhost:3100',PW='QaHier!2026'
+const b=await chromium.launch({headless:true});const ctx=await b.newContext({viewport:{width:1280,height:900}});const p=await ctx.newPage()
+const errs=[];p.on('console',m=>{if(m.type()==='error')errs.push(m.text())});p.on('pageerror',e=>errs.push('PE:'+e.message))
+await p.goto(BASE+'/login',{waitUntil:'domcontentloaded'});await p.waitForSelector('input[type="email"]',{timeout:30000})
+await p.locator('input[type="email"]').first().fill('qa_m1@qa.dataalliance.local')
+await p.locator('input[type="password"]').first().fill(PW);await p.waitForTimeout(400)
+await p.locator('button[type="submit"]').first().click();await p.waitForTimeout(3500)
+await p.goto(BASE+'/calendar',{waitUntil:'domcontentloaded'});await p.waitForTimeout(3500)
+const cells=await p.locator('.calendar-day-cell').count()
+const today=await p.locator('.calendar-day-cell.is-today').count()
+const url=p.url()
+await p.screenshot({path:'.qa-dbg/cal.png',fullPage:true})
+console.log(JSON.stringify({url, total_cells:cells, today_cells:today, errs:errs.slice(0,5)}))
+await b.close()
