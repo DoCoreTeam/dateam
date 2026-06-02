@@ -81,6 +81,14 @@ export async function resolveOrgScope(admin: any, userId: string): Promise<OrgSc
     .filter((m) => !m.parent_id || !managedIds.includes(m.parent_id))
     .map((m) => m.id)
 
+  // 팀원(관할 노드 없음): 본인 소속 부서를 대시보드 시작점으로 (조회 전용)
+  if (scopeRootIds.length === 0 && !isExecutive) {
+    const myDepts = nodes
+      .filter((n) => n.type === 'person' && n.user_id === userId && n.parent_id)
+      .map((n) => n.parent_id as string)
+    scopeRootIds = Array.from(new Set(myDepts))
+  }
+
   if (isExecutive) {
     // 전사: 모든 부서 노드 readable + 대시보드는 루트에서 시작
     nodes.filter((n) => n.type === 'department').forEach((n) => readable.add(n.id))
