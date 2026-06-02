@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseGpuCount, isBoxPriced, toPerGpuPrice } from './parse-quantity'
+import { parseGpuCount, isBoxPriced, toPerGpuPrice } from './parse-quantity.ts'
 
 test('parseGpuCount — 다양한 입력 형식', () => {
   assert.equal(parseGpuCount('B300 8GPU'), 8)

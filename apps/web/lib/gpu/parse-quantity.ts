@@ -20,7 +20,7 @@ export function parseGpuCount(
     /\b(\d{1,2})\s*[x×]\b/,          // 8x
     /\(\s*(\d{1,2})\s*(?:gpu|장|ea)?\s*\)/, // box(8), (8장)
     /\b(\d{1,2})\s*gpus?\b/,         // 8GPU, 8 GPUs
-    /\b(\d{1,2})\s*장\b/,            // 8장
+    /(\d{1,2})\s*장/,                // 8장 (한글 단위 — \b는 비-ASCII 뒤에서 미작동)
     /\bgpu\s*[:x×]?\s*(\d{1,2})\b/,  // GPU 8, GPU:8
   ]
   for (const re of patterns) {
