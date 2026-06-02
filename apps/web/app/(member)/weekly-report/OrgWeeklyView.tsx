@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { ChevronRight, Lock, Pencil, Users, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Lock, Pencil, Users, Sparkles } from 'lucide-react'
 import { aggregateDept, saveDeptReport } from './org-actions'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
@@ -32,9 +32,16 @@ const FIELDS = [
   { key: 'issues' as const, label: '이슈/협조' },
 ]
 
+/** 월요일 기준 주차를 deltaWeeks 만큼 이동 (UTC 안전) */
+function shiftWeek(monday: string, deltaWeeks: number): string {
+  const d = new Date(monday + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + deltaWeeks * 7)
+  return d.toISOString().slice(0, 10)
+}
+
 interface Props {
   weekStart: string
-  weekOptions: string[]
+  thisWeek: string
   nodes: SlimNode[]
   editableDeptIds: string[]
   readableDeptIds: string[]
@@ -45,7 +52,10 @@ interface Props {
 }
 
 export default function OrgWeeklyView(props: Props) {
-  const { weekStart, weekOptions, nodes, editableDeptIds, deptStats, deptBodies } = props
+  const { weekStart, thisWeek, nodes, editableDeptIds, deptStats, deptBodies } = props
+  const prevWeek = shiftWeek(weekStart, -1)
+  const nextWeek = shiftWeek(weekStart, 1)
+  const atCurrent = weekStart >= thisWeek
   const [stack, setStack] = useState<string[]>(() => props.scopeRootIds.slice(0, 1))
 
   const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes])
@@ -80,13 +90,29 @@ export default function OrgWeeklyView(props: Props) {
 
   return (
     <div style={{ width: '100%' }}>
-      <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-        {weekOptions.slice(0, 6).map((w) => (
-          <Link key={w} href={`/weekly-report?tab=org&orgWeek=${w}`} prefetch={false}
-            style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem', borderRadius: '0.375rem', textDecoration: 'none', fontWeight: w === weekStart ? 700 : 500, color: w === weekStart ? '#6366f1' : '#64748b', background: w === weekStart ? '#eef2ff' : '#f8fafc', border: '1px solid #e2e8f0' }}>
-            {w}
+      {/* 주차 네비 — 이전/다음 화살표 (무한 과거 이동, 미래는 이번 주까지) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+        <Link href={`/weekly-report?tab=org&orgWeek=${prevWeek}`} prefetch={false} aria-label="이전 주"
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: '0.5rem', border: '1px solid #e2e8f0', background: '#fff', color: '#475569', textDecoration: 'none' }}>
+          <ChevronLeft size={16} />
+        </Link>
+        <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', minWidth: 96, textAlign: 'center' }}>{weekStart} 주</span>
+        {atCurrent ? (
+          <span aria-label="다음 주" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: '0.5rem', border: '1px solid #f1f5f9', background: '#f8fafc', color: '#cbd5e1' }}>
+            <ChevronRight size={16} />
+          </span>
+        ) : (
+          <Link href={`/weekly-report?tab=org&orgWeek=${nextWeek}`} prefetch={false} aria-label="다음 주"
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: '0.5rem', border: '1px solid #e2e8f0', background: '#fff', color: '#475569', textDecoration: 'none' }}>
+            <ChevronRight size={16} />
           </Link>
-        ))}
+        )}
+        {!atCurrent && (
+          <Link href="/weekly-report?tab=org" prefetch={false}
+            style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem', borderRadius: '0.375rem', textDecoration: 'none', color: '#6366f1', background: '#eef2ff', border: '1px solid #c7d2fe' }}>
+            이번 주
+          </Link>
+        )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexWrap: 'wrap', marginBottom: '1rem', fontSize: '0.8125rem' }}>

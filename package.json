@@ -1,12 +1,15 @@
 {
   "name": "newax",
-  "version": "0.6.14",
+  "version": "0.6.15",
   "private": true,
   "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "pnpm --filter web dev",
     "build": "pnpm --filter web build",
     "start": "pnpm --filter web start",
+    "ralph": "node scripts/ralph-codex.mjs",
+    "ralph:once": "node scripts/ralph-codex.mjs --once",
+    "ralph:status": "node scripts/ralph-codex.mjs --status",
     "test": "echo \"No tests configured\""
   },
   "dependencies": {

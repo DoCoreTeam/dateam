@@ -10,7 +10,7 @@ import ReportAccordion from './ReportAccordion'
 import OnboardingRestartLink from './OnboardingRestartLink'
 import OrgWeeklyView from './OrgWeeklyView'
 import WeeklyMemoReview from '@/components/ui/memo/WeeklyMemoReview'
-import { FileText, Users, Network } from 'lucide-react'
+import { FileText, Users, GitBranch } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
 import { resolveOrgScope, deptMemberUserIds, hasOrgScope } from '@/lib/org-scope'
 
@@ -141,7 +141,10 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     .sort((a, b) => (a.role === 'admin' ? -1 : 1) - (b.role === 'admin' ? -1 : 1))
 
   // 조직 현황 탭 데이터 (부서 카드 통계 + 취합본)
-  const orgWeekStart = (orgWeek && weekOptions.includes(orgWeek)) ? orgWeek : thisWeek
+  // orgWeek는 월요일 형식이면 무제한 과거/현재까지 허용 (화살표 네비) — 8주 윈도우에 묶이지 않음
+  const isValidMonday = (s?: string) =>
+    !!s && /^\d{4}-\d{2}-\d{2}$/.test(s) && new Date(`${s}T00:00:00Z`).getUTCDay() === 1
+  const orgWeekStart = isValidMonday(orgWeek) ? (orgWeek as string) : thisWeek
   let orgDeptStats: Record<string, { memberCount: number; reportedCount: number; agg: 'none' | 'draft' | 'confirmed' }> = {}
   let orgDeptBodies: Record<string, MergedRow[]> = {}
   if (activeTab === 'org' && showOrgTab) {
@@ -210,7 +213,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
         </Link>
         {showOrgTab && (
           <Link href="/weekly-report?tab=org" style={tabStyle(activeTab === 'org')}>
-            <Network size={14} />
+            <GitBranch size={14} />
             조직 현황
           </Link>
         )}
@@ -273,12 +276,12 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
       ) : (
         <div className="card" style={{ padding: '1.5rem', width: '100%', boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-            <Network size={16} color="#6366f1" />
+            <GitBranch size={16} color="#6366f1" />
             <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>조직 현황 — 부서 취합 주간보고</h2>
           </div>
           <OrgWeeklyView
             weekStart={orgWeekStart}
-            weekOptions={weekOptions}
+            thisWeek={thisWeek}
             nodes={orgScope.nodes.map((n) => ({ id: n.id, type: n.type, parent_id: n.parent_id, name: n.name }))}
             editableDeptIds={orgScope.editableDeptIds}
             readableDeptIds={orgScope.readableDeptIds}

@@ -24,7 +24,7 @@ import {
   DollarSign,
   Tag,
   PlusCircle,
-  GitBranch,
+  Network,
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import SWRProvider from './SWRProvider'
@@ -35,7 +35,7 @@ const NAV_ITEMS = [
   { href: '/daily', label: '일일업무', icon: <NotebookPen size={16} /> },
   { href: '/calendar', label: '캘린더', icon: <CalendarDays size={16} /> },
   { href: '/weekly-report', label: '주간보고', icon: <FileText size={16} /> },
-  { href: '/org', label: '조직도', icon: <GitBranch size={16} /> },
+  { href: '/org', label: '조직도', icon: <Network size={16} /> },
 ]
 
 const NAV_GROUPS: NavGroup[] = [
