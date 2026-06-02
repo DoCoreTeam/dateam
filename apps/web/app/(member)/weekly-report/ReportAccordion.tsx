@@ -89,7 +89,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
                 정말 삭제하시겠습니까?
               </p>
               <p style={{ fontSize: '0.8125rem', color: '#7f1d1d', margin: 0, lineHeight: 1.5 }}>
-                <strong>"{report.category}"</strong> 항목의 성과·계획·이슈 데이터가 모두 영구 삭제됩니다.
+                <strong>&quot;{report.category}&quot;</strong> 항목의 성과·계획·이슈 데이터가 모두 영구 삭제됩니다.
                 이 작업은 <strong>되돌릴 수 없습니다.</strong>
               </p>
             </div>

@@ -175,7 +175,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
                 onClick={() => { setManualMode(true); setManualInput(extractedName) }}
                 style={{ fontSize: 11, color: 'var(--gpu-muted)', background: 'none', border: '1px dashed #d1d5db', borderRadius: 7, padding: '5px 12px', cursor: 'pointer' }}
               >
-                "{extractedName}" 이름으로 직접 등록
+                &quot;{extractedName}&quot; 이름으로 직접 등록
               </button>
             ) : (
               <div>

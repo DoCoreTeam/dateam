@@ -119,3 +119,25 @@ export function deptMemberUserIds(scope: OrgScope, deptId: string): string[] {
 export function hasOrgScope(scope: OrgScope): boolean {
   return scope.isExecutive || scope.editableDeptIds.length > 0 || scope.readableDeptIds.length > 0
 }
+
+/**
+ * 사용자가 특정 부서(이름)에 소속/관할인지 판정 — 서버 전용.
+ * true 조건: 본인 person 노드가 그 부서 서브트리 안 · 그 부서(또는 상위)의 head · admin.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function isInDivisionByName(admin: any, userId: string, deptName: string, isAdmin = false): Promise<boolean> {
+  if (isAdmin) return true
+  const { data: nodes = [] } = await admin
+    .from('org_nodes')
+    .select('id,type,parent_id,head_user_id,user_id,name') as { data: OrgNode[] }
+  const { data: closure = [] } = await admin
+    .from('org_node_closure')
+    .select('ancestor_id,descendant_id') as { data: { ancestor_id: string; descendant_id: string }[] }
+  const dept = nodes.find((n) => n.type === 'department' && n.name === deptName)
+  if (!dept) return false
+  const subtree = new Set(closure.filter((c) => c.ancestor_id === dept.id).map((c) => c.descendant_id))
+  const myPersonInSubtree = nodes.some((n) => n.type === 'person' && n.user_id === userId && subtree.has(n.id))
+  const deptAndAncestors = new Set(closure.filter((c) => c.descendant_id === dept.id).map((c) => c.ancestor_id))
+  const iManageDeptOrAbove = nodes.some((n) => n.head_user_id === userId && deptAndAncestors.has(n.id))
+  return myPersonInSubtree || iManageDeptOrAbove
+}

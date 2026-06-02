@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { FileText, BarChart2, CheckSquare, Building2 } from 'lucide-react'
 import FridaySpotlightOverlay from '@/components/ui/FridaySpotlightOverlay'
 import UnreviewedMemoWidget from '@/components/ui/memo/UnreviewedMemoWidget'
+import { isInDivisionByName } from '@/lib/org-scope'
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -24,7 +25,7 @@ export default async function HomePage() {
   const weekStartStr = toDateString(weekStart)
 
   const [profileResult, todayLogs, monthSummary, reportsResult] = await Promise.all([
-    adminClient.from('profiles').select('name').eq('id', user.id).single(),
+    adminClient.from('profiles').select('name, role').eq('id', user.id).single(),
     getCalendarDayLogs(todayStr),
     getMonthLogSummary(year, month),
     supabase
@@ -35,8 +36,11 @@ export default async function HomePage() {
       .limit(3),
   ])
 
-  const profile = profileResult.data as { name: string } | null
+  const profile = profileResult.data as { name: string; role: string } | null
   const reports = reportsResult.data as Pick<WeeklyReport, 'week_start' | 'category' | 'created_at'>[] | null
+
+  // KPI·루틴·본부운영 타일은 AX사업본부 소속(또는 관할/admin)에게만 노출
+  const showAxTiles = await isInDivisionByName(adminClient, user.id, 'AX사업본부', profile?.role === 'admin')
 
   const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
   const isFriday = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', weekday: 'short' }).format(new Date()) === 'Fri'
@@ -63,7 +67,7 @@ export default async function HomePage() {
             <span style={{ color: '#64748b', fontSize: '0.9375rem' }}>
               {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
             </span>
-            {[
+            {showAxTiles && [
               { href: '/kpi', label: 'KPI', icon: <BarChart2 size={12} />, color: '#6366f1', bg: '#eef2ff' },
               { href: '/routine', label: '루틴', icon: <CheckSquare size={12} />, color: '#0891b2', bg: '#ecfeff' },
               { href: '/operations', label: '본부 운영', icon: <Building2 size={12} />, color: '#059669', bg: '#ecfdf5' },
