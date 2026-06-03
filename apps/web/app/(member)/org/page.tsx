@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import OrgPublicTree from './OrgPublicTree'
+import OrgPublicTree from './OrgPublicTreeClient'
 
 export const metadata = { title: '조직도 | AX사업본부' }
 
