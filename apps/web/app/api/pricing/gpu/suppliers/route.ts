@@ -8,7 +8,7 @@ export async function GET() {
     const db = supabase as any
     const { data: suppliers, error } = await db
       .from('suppliers')
-      .select('id, name, location, color, contact, created_at')
+      .select('id, name, location, color, contact, country, website, description, created_at')
       .order('name')
 
     if (error) throw error
@@ -87,13 +87,21 @@ export async function POST(request: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any
     const body = await request.json()
-    const { name, location, contact } = body
+    const { name, location, contact, country, website, description, color: colorIn } = body
     if (!name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 })
 
-    const color = COLORS[Math.floor(Math.random() * COLORS.length)]
+    const color = (typeof colorIn === 'string' && colorIn.trim()) || COLORS[Math.floor(Math.random() * COLORS.length)]
     const { data, error } = await db
       .from('suppliers')
-      .insert({ name: name.trim(), location: location?.trim() || null, contact: contact?.trim() || null, color })
+      .insert({
+        name: name.trim(),
+        location: location?.trim() || null,
+        contact: contact?.trim() || null,
+        country: country?.trim() || null,
+        website: website?.trim() || null,
+        description: description?.trim() || null,
+        color,
+      })
       .select()
       .single()
 
