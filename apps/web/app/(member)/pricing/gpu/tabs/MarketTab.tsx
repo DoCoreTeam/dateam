@@ -92,6 +92,13 @@ interface Mapping {
 
 type CurrencyMode = 'KRW' | 'USD'
 
+interface RefreshResult {
+  urls_checked: number
+  prices_updated: number
+  message?: string
+  results?: { url: string; competitor: string; prices_found: number; error?: string }[]
+}
+
 function makeFmt(mode: CurrencyMode, usdKrw: number) {
   return (usd: number) =>
     mode === 'KRW'
@@ -234,21 +241,22 @@ function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI }: {
   onGoToPriceTable?: (modelName: string, productId: string) => void
   onOpenAI?: (modelName: string, productId: string) => void
 }) {
-  const freshComps = p.competitors.filter(c => c.is_fresh && c.price_usd != null)
-  const cheaperItems = freshComps
+  // 최신 가격(나이 무관) 기준 — 신선도로 버리지 않음
+  const pricedComps = p.competitors.filter(c => c.price_usd != null)
+  const cheaperItems = pricedComps
     .filter(c => p.our_price_usd != null && c.price_usd! < p.our_price_usd)
     .sort((a, b) => (a.price_usd ?? 0) - (b.price_usd ?? 0))
 
-  const allPricesWithOurs = [...freshComps.map(c => c.price_usd as number)]
+  const allPricesWithOurs = [...pricedComps.map(c => c.price_usd as number)]
   if (p.our_price_usd != null) allPricesWithOurs.push(p.our_price_usd)
   allPricesWithOurs.sort((a, b) => a - b)
   const ourRank = p.our_price_usd != null ? allPricesWithOurs.indexOf(p.our_price_usd) + 1 : null
 
   const insight = cheaperItems.length > 0
     ? `${cheaperItems.length}곳이 우리보다 저렴 · 최저 ${cheaperItems[0].competitor.name} ${fmt(cheaperItems[0].price_usd!)} · 우리 ${ourRank}위/${allPricesWithOurs.length}곳`
-    : freshComps.length > 0
-    ? `우리가 시장 최저가 · ${freshComps.length}곳 중 1위`
-    : '신선한 시장 데이터 없음'
+    : pricedComps.length > 0
+    ? `우리가 시장 최저가 · ${pricedComps.length}곳 중 1위`
+    : '수집된 시장 가격 없음'
 
   // 경쟁사별 그룹핑
   const byComp: Record<string, MarketEntry[]> = {}
@@ -1000,11 +1008,18 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
   const [activeComps, setActiveComps] = useState<Set<string>>(new Set())
   const [activeGroups, setActiveGroups] = useState<Set<string>>(new Set(Object.keys(COMP_GROUPS)))
   const [refreshing, setRefreshing] = useState(false)
-  const [refreshResult, setRefreshResult] = useState<{ urls_checked: number; prices_updated: number } | null>(null)
+  const [refreshResult, setRefreshResult] = useState<RefreshResult | null>(null)
   const [showRegister, setShowRegister] = useState(false)
   const [showCompModal, setShowCompModal] = useState(false)
   const [viewMode, setViewMode] = useState<'table' | 'strategy'>('table')
   const [positionFilter, setPositionFilter] = useState<null | 'low' | 'mid' | 'high'>(null)
+  // Tier 카테고리 그룹 접힘 — 기본 전부 접힘(가격표와 동일 UX)
+  const [collapsedTiers, setCollapsedTiers] = useState<Set<number>>(new Set([1, 2, 3]))
+  const toggleTier = (t: number) => setCollapsedTiers(prev => {
+    const next = new Set(prev)
+    if (next.has(t)) next.delete(t); else next.add(t)
+    return next
+  })
 
   const usdKrw = data?.usd_krw ?? 1400
   const fmt = makeFmt(currencyMode, usdKrw)
@@ -1040,7 +1055,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
     try {
       const res = await fetch('/api/pricing/gpu/market/refresh', { method: 'POST' })
       if (res.ok) {
-        const result = await res.json() as { urls_checked: number; prices_updated: number }
+        const result = await res.json() as RefreshResult
         setRefreshResult(result)
       }
     } catch {
@@ -1068,6 +1083,11 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
         : p.competitors.filter(c => activeComps.has(c.competitor.id)),
     }))
 
+  // Tier(1/2/3) 카테고리로 그룹핑 — 가격표와 동일 구조
+  const tierGroups: { tier: number; products: typeof filteredProducts }[] = [1, 2, 3]
+    .map(t => ({ tier: t, products: filteredProducts.filter(p => p.product.tier === t) }))
+    .filter(g => g.products.length > 0)
+
   if (isLoading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200 }}>
@@ -1092,7 +1112,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
       <div className="gpu-banner gpu-banner-market" style={{ marginBottom: 0 }}>
         <TrendingUp size={16} color="var(--gpu-accent)" style={{ flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <b>경쟁사 시장 트랙</b> · 공급가·판매가와 독립된 차원에서 경쟁사 가격 추적 · 신선도 <b>48시간</b>
+          <b>경쟁사 시장 트랙</b> · 공급가·판매가와 독립된 차원에서 경쟁사 가격 추적 · <b>마지막 수집값 항상 표시</b>(신선도는 배지 참고)
           <span className="gpu-banner-sub"> · 수집 가격은 내부 의사결정용 — 외부 자료에 직접 인용 금지</span>
         </div>
         <div className="gpu-banner-actions">
@@ -1126,21 +1146,53 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
       </div>
 
       {/* AI 새로고침 결과 */}
-      {refreshResult && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: refreshResult.prices_updated > 0 ? 'var(--gpu-green-bg, #f0fdf4)' : 'var(--gpu-card-bg)', border: '1px solid', borderColor: refreshResult.prices_updated > 0 ? 'var(--gpu-green, #22c55e)' : 'var(--gpu-border)', borderRadius: 8, fontSize: 13 }}>
-          <RefreshCw size={13} color={refreshResult.prices_updated > 0 ? '#16a34a' : 'var(--gpu-muted)'} />
-          <span>
-            <b>{refreshResult.urls_checked}개 URL</b> AI 분석 완료 ·{' '}
-            {refreshResult.prices_updated > 0
-              ? <><b style={{ color: '#16a34a' }}>{refreshResult.prices_updated}개 가격</b> 업데이트됨</>
-              : <span style={{ color: 'var(--gpu-muted)' }}>새로운 가격 없음</span>
-            }
-          </span>
-          <button onClick={() => setRefreshResult(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gpu-muted)', padding: '2px 4px' }}>
-            <X size={12} />
-          </button>
-        </div>
-      )}
+      {refreshResult && (() => {
+        const ok = refreshResult.prices_updated > 0
+        const results = refreshResult.results ?? []
+        const successUrls = results.filter(r => r.prices_found > 0).length
+        const failUrls = results.filter(r => !!r.error).length
+        return (
+          <div style={{ background: ok ? 'var(--gpu-green-bg, #f0fdf4)' : 'var(--gpu-card-bg)', border: '1px solid', borderColor: ok ? 'var(--gpu-green, #22c55e)' : 'var(--gpu-border)', borderRadius: 8, fontSize: 13, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px' }}>
+              <RefreshCw size={13} color={ok ? '#16a34a' : 'var(--gpu-muted)'} />
+              <span style={{ flex: 1 }}>
+                {refreshResult.urls_checked === 0 ? (
+                  <span style={{ color: 'var(--gpu-muted)' }}>{refreshResult.message ?? '분석할 URL이 없습니다 — 가격 등록 또는 경쟁사 URL 추가가 필요합니다'}</span>
+                ) : (
+                  <>
+                    <b>{refreshResult.urls_checked}개 URL</b> AI 분석 ·{' '}
+                    {ok
+                      ? <><b style={{ color: '#16a34a' }}>{refreshResult.prices_updated}개 가격</b> 업데이트</>
+                      : <span style={{ color: 'var(--gpu-muted)' }}>새 가격 없음</span>}
+                    {results.length > 0 && (
+                      <span style={{ color: 'var(--gpu-muted)', marginLeft: 6, fontSize: 12 }}>
+                        (성공 {successUrls}{failUrls > 0 ? ` · 실패 ${failUrls}` : ''})
+                      </span>
+                    )}
+                  </>
+                )}
+              </span>
+              <button onClick={() => setRefreshResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gpu-muted)', padding: '2px 4px' }}>
+                <X size={12} />
+              </button>
+            </div>
+            {results.length > 0 && (
+              <div style={{ borderTop: '1px solid var(--gpu-border)', maxHeight: 160, overflowY: 'auto' }}>
+                {results.map((r, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px', fontSize: 11.5, borderBottom: i < results.length - 1 ? '1px solid #f1f2f6' : 'none' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: r.error ? 'var(--gpu-red, #ef4444)' : r.prices_found > 0 ? 'var(--gpu-green, #22c55e)' : 'var(--gpu-muted)' }} />
+                    <span style={{ fontWeight: 600, minWidth: 0, flexShrink: 0 }}>{r.competitor}</span>
+                    <span style={{ color: 'var(--gpu-faint)', fontFamily: 'monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.url}</span>
+                    <span style={{ flexShrink: 0, color: r.error ? 'var(--gpu-red, #ef4444)' : r.prices_found > 0 ? '#16a34a' : 'var(--gpu-muted)' }}>
+                      {r.error ? r.error : `${r.prices_found}건`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* 요약 통계 */}
       {summary && (
@@ -1418,15 +1470,31 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
               <div style={{ fontSize: 13 }}>시장 데이터가 없습니다</div>
             </div>
           ) : (
-            filteredProducts.map(p => {
+            tierGroups.flatMap(g => {
+              const gCfg = TIER_CONFIG[g.tier] ?? { label: `T${g.tier}`, name: '', badge: '', chipColor: '#666' }
+              const gCollapsed = collapsedTiers.has(g.tier)
+              const header = (
+                <div
+                  key={`tier-${g.tier}`}
+                  onClick={() => toggleTier(g.tier)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', cursor: 'pointer', background: '#fafbff', borderBottom: '1px solid #f1f2f6', userSelect: 'none' }}
+                >
+                  <span style={{ transform: gCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform .15s', color: 'var(--gpu-muted)', display: 'inline-flex', fontSize: 11 }}>▶</span>
+                  <span className={`gpu-badge ${gCfg.badge}`} style={{ fontSize: 10 }}>{gCfg.label}</span>
+                  <strong style={{ fontSize: 13, color: '#0f172a' }}>{gCfg.name}</strong>
+                  <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>{g.products.length}개 모델</span>
+                </div>
+              )
+              if (gCollapsed) return [header]
+              const rows = g.products.map(p => {
               const pid = p.product.id
               const isOpen = expandedId === pid
               const tier = p.product.tier
               const tierCfg = TIER_CONFIG[tier] ?? { label: 'T?', name: '', badge: '', chipColor: '#666' }
               const currentTab = getExpandedTab(pid)
 
-              const freshComps = p.competitors.filter(c => c.is_fresh && c.price_usd != null)
-              const allPrices = freshComps.map(c => c.price_usd as number).sort((a, b) => a - b)
+              const pricedComps = p.competitors.filter(c => c.price_usd != null)
+              const allPrices = pricedComps.map(c => c.price_usd as number).sort((a, b) => a - b)
               const min = allPrices[0] ?? null
               const max = allPrices[allPrices.length - 1] ?? null
 
@@ -1487,7 +1555,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                             {fmt(min)} ~ {fmt(max)}
                           </div>
                           <div style={{ fontSize: 10.5, color: 'var(--gpu-muted)', marginTop: 2 }}>
-                            {freshComps.length}개 경쟁사
+                            {pricedComps.length}개 경쟁사
                           </div>
                         </div>
                       ) : (
@@ -1573,6 +1641,8 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                   )}
                 </div>
               )
+              })
+              return [header, ...rows]
             })
           )}
         </div>
@@ -1585,7 +1655,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
         display: 'flex', alignItems: 'center', gap: 7,
       }}>
         ⓘ 수집한 경쟁사 가격은 <b style={{ color: 'var(--gpu-ink-2)' }}>내부 의사결정용</b>입니다 ·
-        외부 자료(제안서·홈페이지)에 직접 인용 금지 · 신선도 기준: <b style={{ color: 'var(--gpu-ink-2)' }}>48시간</b>
+        외부 자료(제안서·홈페이지)에 직접 인용 금지 · 가격은 <b style={{ color: 'var(--gpu-ink-2)' }}>마지막 수집값을 항상 표시</b>(수집 시점은 신선도 배지로 확인)
       </div>
       </div>{/* end 스크롤 영역 */}
     </div>

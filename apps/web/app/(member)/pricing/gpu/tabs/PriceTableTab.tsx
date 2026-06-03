@@ -113,10 +113,14 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
         return (
           <div key={q.id} className={`gpu-qline${isBest ? ' gpu-qline-best' : ''}`}>
             <div className="gpu-qline-sup">
-              {q.suppliers && (
+              {q.suppliers ? (
                 <span className="gpu-sdot" style={{ background: q.suppliers.color }} />
+              ) : (
+                <span className="gpu-sdot" style={{ background: 'var(--gpu-amber)' }} />
               )}
-              <span style={{ fontWeight: 600 }}>{q.suppliers?.name ?? '—'}</span>
+              <span style={{ fontWeight: 600, color: q.suppliers ? undefined : 'var(--gpu-amber)' }}>
+                {q.suppliers?.name ?? '공급사 미지정'}
+              </span>
               {isBest && <span className="gpu-badge-best">최저가</span>}
             </div>
             <div>
@@ -182,6 +186,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [collapsedModels, setCollapsedModels] = useState<Set<string>>(new Set())
+  const [groupsInitialized, setGroupsInitialized] = useState(false)
   const [marginInput, setMarginInput] = useState<number | null>(null)
   const [marginSaving, setMarginSaving] = useState(false)
   const [bannerDismissed, setBannerDismissed] = useState(false)
@@ -207,6 +212,14 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
   }, [initialProductId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const products = data?.products ?? []
+
+  // 모델 그룹 기본 접힘 — 최초 로드 시 전체 모델을 접힘 상태로 초기화
+  useEffect(() => {
+    if (groupsInitialized || products.length === 0) return
+    setCollapsedModels(new Set(products.map((p) => p.model_name)))
+    setGroupsInitialized(true)
+  }, [products, groupsInitialized])
+
   const marginPct = marginInput ?? data?.margin_pct ?? 18
   const usdKrw = data?.usd_krw ?? 1400
   const fxDate = data?.fx_date

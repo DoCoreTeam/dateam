@@ -21,6 +21,14 @@ export async function POST(
 
     if (fetchErr || !quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 })
 
+    // 정합성 가드 — 공급사/상품 없는 견적은 확정 불가 (가격표 "공급사 미지정" 재발 방지)
+    if (!quote.supplier_id) {
+      return NextResponse.json({ error: '공급사가 지정되지 않은 견적은 확정할 수 없습니다. 공급사를 먼저 지정하세요.' }, { status: 400 })
+    }
+    if (!quote.product_id) {
+      return NextResponse.json({ error: '상품(GPU 모델)이 연결되지 않은 견적은 확정할 수 없습니다.' }, { status: 400 })
+    }
+
     const now = new Date().toISOString()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const adminDb = createAdminClient() as any

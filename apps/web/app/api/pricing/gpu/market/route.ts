@@ -180,9 +180,11 @@ export async function GET() {
         is_active: hist.is_active as boolean,
       } : null
 
-      // 신선한 가격으로 시장 범위 계산
-      const freshPrices = enrichedCompetitors
-        .filter((c: { is_fresh: boolean; price_usd: number | null }) => c.is_fresh && c.price_usd != null)
+      // 시장 범위 계산 — 매핑별 최신 가격(나이 무관) 사용.
+      // 신선도(is_fresh/hours_ago)는 숨김 기준이 아니라 표시 전용으로만 사용한다.
+      // (만료로 가격을 버리면 "데이터 부족"으로 사라지므로, 마지막 수집값을 항상 표시)
+      const latestPrices = enrichedCompetitors
+        .filter((c: { price_usd: number | null }) => c.price_usd != null)
         .map((c: { price_usd: number | null }) => c.price_usd as number)
         .sort((a: number, b: number) => a - b)
 
@@ -190,13 +192,13 @@ export async function GET() {
       let market_max: number | null = null
       let market_median: number | null = null
 
-      if (freshPrices.length > 0) {
-        market_min = freshPrices[0]
-        market_max = freshPrices[freshPrices.length - 1]
-        const mid = Math.floor(freshPrices.length / 2)
-        market_median = freshPrices.length % 2 === 0
-          ? (freshPrices[mid - 1] + freshPrices[mid]) / 2
-          : freshPrices[mid]
+      if (latestPrices.length > 0) {
+        market_min = latestPrices[0]
+        market_max = latestPrices[latestPrices.length - 1]
+        const mid = Math.floor(latestPrices.length / 2)
+        market_median = latestPrices.length % 2 === 0
+          ? (latestPrices[mid - 1] + latestPrices[mid]) / 2
+          : latestPrices[mid]
       }
 
       return {
