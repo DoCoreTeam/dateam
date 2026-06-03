@@ -519,6 +519,7 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
+    min-height: 0; /* flex 스크롤 체인 완성 — 내부 main의 overflowY:auto 활성화 */
   }
 
   /* 모바일 햄버거 버튼 (데스크탑 숨김) */
@@ -604,6 +605,18 @@
 
 /* ─── 모바일 미디어쿼리 (< 768px) ─────────────────────────────── */
 @media (max-width: 767px) {
+  /* 모바일: 사이드바가 fixed로 빠지므로 셸의 고정높이/overflow:hidden을 풀어
+     문서 전체가 자연 스크롤되게 한다 (내부 main 스크롤 의존 제거) */
+  .app-shell {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+  .app-content {
+    overflow: visible;
+  }
+
   .app-sidebar {
     position: fixed;
     top: 0;
