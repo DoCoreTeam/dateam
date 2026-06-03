@@ -11,6 +11,7 @@ import AXLoadingOverlay from '@/components/ui/AXLoadingOverlay'
 interface AdminReportsPreviewProps {
   week: string
   member: string
+  members?: string // 부서 필터 시 소속 멤버 user_id csv
   orgName?: string
 }
 
@@ -96,7 +97,8 @@ const STEPS = [
   { label: '결과 정리 중…',         detail: '정제된 데이터를 테이블로 변환하는 중' },
 ]
 
-export default function AdminReportsPreview({ week, member, orgName = '' }: AdminReportsPreviewProps) {
+export default function AdminReportsPreview({ week, member, members = '', orgName = '' }: AdminReportsPreviewProps) {
+  const tag = member || (members ? `d:${members}` : '') // 캐시/필터 구분 태그
   const [rows, setRows] = useState<PreviewRow[]>([])
   const [fromCache, setFromCache] = useState(false)
   const [editingCell, setEditingCell] = useState<EditingCell>(null)
@@ -114,17 +116,17 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
 
   // 마운트/필터 변경 시 sessionStorage에서 복원
   useEffect(() => {
-    const cached = readCache(week, member)
+    const cached = readCache(week, tag)
     if (cached) {
       const normalized = orgName ? cached.map(r => ({ ...r, orgName })) : cached
-      if (orgName) writeCache(week, member, normalized)
+      if (orgName) writeCache(week, tag, normalized)
       setRows(normalized)
       setFromCache(true)
     } else {
       setRows([])
       setFromCache(false)
     }
-  }, [week, member, orgName])
+  }, [week, member, members, orgName])
 
   function clearTimers() {
     timerRefs.current.forEach(clearTimeout)
@@ -161,6 +163,7 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
     try {
       const params = new URLSearchParams({ week })
       if (member) params.set('member', member)
+      if (members) params.set('members', members)
       const res = await fetch(`/api/reports/preview?${params.toString()}`)
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string }
@@ -169,7 +172,7 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
       const data = await res.json() as { reports: PreviewRow[] }
       if (myId !== reqIdRef.current) return
       setRows(data.reports)
-      writeCache(week, member, data.reports)
+      writeCache(week, tag, data.reports)
     } catch (err) {
       if (myId === reqIdRef.current) {
         setError(err instanceof Error ? err.message : '알 수 없는 오류')
@@ -211,7 +214,7 @@ export default function AdminReportsPreview({ week, member, orgName = '' }: Admi
   function updateCell(rowIdx: number, field: EditableField, value: string) {
     setRows(prev => {
       const next = prev.map((row, i) => (i === rowIdx ? { ...row, [field]: value } : row))
-      writeCache(week, member, next)
+      writeCache(week, tag, next)
       return next
     })
   }

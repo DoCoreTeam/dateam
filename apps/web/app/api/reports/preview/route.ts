@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
 
     const week = req.nextUrl.searchParams.get('week')
     const member = req.nextUrl.searchParams.get('member')
+    const membersCsv = req.nextUrl.searchParams.get('members') // 부서 필터 멤버 user_id csv
+    const memberIds = membersCsv ? membersCsv.split(',').filter(Boolean) : null
 
     if (!week || !/^\d{4}-\d{2}-\d{2}$/.test(week)) {
       return NextResponse.json({ error: 'week 파라미터가 필요합니다' }, { status: 400 })
@@ -53,7 +55,8 @@ export async function GET(req: NextRequest) {
       .is('deleted_at', null)
       .order('category')
 
-    if (member) query = query.eq('user_id', member)
+    if (memberIds) query = query.in('user_id', memberIds.length > 0 ? memberIds : ['00000000-0000-0000-0000-000000000000'])
+    else if (member) query = query.eq('user_id', member)
 
     const { data: raw, error } = await query as { data: ReportWithProfile[] | null; error: unknown }
 

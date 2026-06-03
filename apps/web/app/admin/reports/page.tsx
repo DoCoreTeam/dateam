@@ -19,7 +19,7 @@ function RichCell({ html }: { html: string }) {
 }
 
 interface PageProps {
-  searchParams: Promise<{ week?: string; member?: string }>
+  searchParams: Promise<{ week?: string; member?: string; sel?: string }>
 }
 
 export default async function AdminReportsPage({ searchParams }: PageProps) {
@@ -30,7 +30,11 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
 
   if (!user) redirect('/login')
 
-  const { week, member } = await searchParams
+  const { week, member: memberParam, sel } = await searchParams
+  // sel 통합 파라미터: "" 전체 / "d:<deptId>" 부서 / "<userId>" 개인 (member 레거시 호환)
+  const selValue = sel ?? (memberParam ? memberParam : '')
+  const dept = selValue.startsWith('d:') ? selValue.slice(2) : undefined
+  const member = !dept && selValue ? selValue : undefined
 
   // 최근 8주 선택지
   const weekOptions = Array.from({ length: 8 }, (_, i) => {
@@ -56,6 +60,25 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
     .is('deleted_at', null)
     .order('name') as unknown as { data: Pick<Profile, 'id' | 'name'>[] | null; error: unknown }
 
+  // 부서 목록 (조직도)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: deptNodes } = await (adminClient as any)
+    .from('org_nodes').select('id, name').eq('type', 'department').order('display_order') as { data: { id: string; name: string }[] | null }
+
+  // 부서 선택 시 소속 멤버 user_id 집합 (closure 서브트리 내 person)
+  let deptMemberIds: string[] | null = null
+  if (dept) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: clo } = await (adminClient as any).from('org_node_closure').select('descendant_id').eq('ancestor_id', dept) as { data: { descendant_id: string }[] | null }
+    const descIds = (clo ?? []).map((c) => c.descendant_id)
+    if (descIds.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: persons } = await (adminClient as any).from('org_nodes').select('user_id').eq('type', 'person').in('id', descIds) as { data: { user_id: string | null }[] | null }
+      deptMemberIds = (persons ?? []).map((p) => p.user_id).filter((x): x is string => !!x)
+    } else deptMemberIds = []
+  }
+  const memberCsv = deptMemberIds ? deptMemberIds.join(',') : ''
+
   // 선택한 주의 주간보고 (RLS 우회 — 어드민 전용 페이지)
   type ReportWithProfile = WeeklyReport & { profiles: { name: string } }
 
@@ -67,7 +90,9 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
     .is('deleted_at', null)
     .order('category')
 
-  if (member) {
+  if (dept) {
+    query = query.in('user_id', deptMemberIds && deptMemberIds.length > 0 ? deptMemberIds : ['00000000-0000-0000-0000-000000000000'])
+  } else if (member) {
     query = query.eq('user_id', member)
   }
 
@@ -113,24 +138,33 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
           </div>
 
           <div>
-            <label htmlFor="member" className="label">팀원 필터</label>
+            <label htmlFor="sel" className="label">부서 / 팀원 필터</label>
             <select
-              id="member"
-              name="member"
-              defaultValue={member ?? ''}
+              id="sel"
+              name="sel"
+              defaultValue={selValue}
               className="input-field"
-              style={{ width: 'clamp(120px, 100%, 160px)', cursor: 'pointer' }}
+              style={{ width: 'clamp(160px, 100%, 200px)', cursor: 'pointer' }}
             >
               <option value="">전체 팀원</option>
-              {(profiles ?? []).map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
+              {(deptNodes ?? []).length > 0 && (
+                <optgroup label="부서별">
+                  {(deptNodes ?? []).map((d) => (
+                    <option key={d.id} value={`d:${d.id}`}>{d.name}</option>
+                  ))}
+                </optgroup>
+              )}
+              <optgroup label="개인별">
+                {(profiles ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </optgroup>
             </select>
           </div>
 
           <button type="submit" className="btn-primary">조회</button>
           <a
-            href={`/api/reports/export?week=${selectedWeek}${member ? `&member=${member}` : ''}`}
+            href={`/api/reports/export?week=${selectedWeek}${member ? `&member=${member}` : ''}${memberCsv ? `&members=${memberCsv}` : ''}`}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -153,7 +187,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
 
       {/* AI 주간보고 취합 */}
       <div style={{ marginBottom: '1.5rem' }}>
-        <AdminReportsPreview week={selectedWeek} member={member ?? ''} orgName={orgName} />
+        <AdminReportsPreview week={selectedWeek} member={member ?? ''} members={memberCsv} orgName={orgName} />
       </div>
 
       {/* 보고서 테이블 */}
