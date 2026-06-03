@@ -159,6 +159,20 @@ export async function POST(
     }
   }
 
+  // 정합성 정의 (필수 불변식) — 확정 견적은 상품·공급사가 반드시 특정되어야 한다.
+  // 못 찾으면 "공급사 미지정/상품 미연결" 불량 데이터가 적재되므로 확정 차단(검토 단계로 되돌림).
+  // 같은 규칙을 quotes/[id]/confirm 라우트와 DB 트리거(052)에서도 강제 — 3중 방어.
+  if (!productId) {
+    return NextResponse.json({
+      error: '상품(GPU 모델)을 특정할 수 없어 확정할 수 없습니다. 모델명을 보정한 뒤 다시 확정하세요.',
+    }, { status: 422 })
+  }
+  if (!supplierId) {
+    return NextResponse.json({
+      error: '공급사를 특정할 수 없어 확정할 수 없습니다. 검토 화면에서 공급사를 지정한 뒤 확정하세요.',
+    }, { status: 422 })
+  }
+
   // 멱등: 동일 (상품·공급사·계약기간) 기존 confirmed 견적이 있으면 superseded로 이력화
   // (공급사가 같은 견적을 다시 넣어도 활성은 1건만 유지 + 이전 가격 이력 보존)
   const termMonths = typeof merged.term_months === 'number' ? merged.term_months : null
