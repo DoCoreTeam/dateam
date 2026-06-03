@@ -12,6 +12,7 @@ interface AdminReportsPreviewProps {
   week: string
   member: string
   members?: string // 부서 필터 시 소속 멤버 user_id csv
+  deptName?: string // 부서 필터 시 부서명 (조직 칸 표시용)
   orgName?: string
 }
 
@@ -97,8 +98,9 @@ const STEPS = [
   { label: '결과 정리 중…',         detail: '정제된 데이터를 테이블로 변환하는 중' },
 ]
 
-export default function AdminReportsPreview({ week, member, members = '', orgName = '' }: AdminReportsPreviewProps) {
+export default function AdminReportsPreview({ week, member, members = '', deptName = '', orgName = '' }: AdminReportsPreviewProps) {
   const tag = member || (members ? `d:${members}` : '') // 캐시/필터 구분 태그
+  const displayOrg = deptName || orgName // 부서 필터 시 부서명, 아니면 회사명
   const [rows, setRows] = useState<PreviewRow[]>([])
   const [fromCache, setFromCache] = useState(false)
   const [editingCell, setEditingCell] = useState<EditingCell>(null)
@@ -118,15 +120,15 @@ export default function AdminReportsPreview({ week, member, members = '', orgNam
   useEffect(() => {
     const cached = readCache(week, tag)
     if (cached) {
-      const normalized = orgName ? cached.map(r => ({ ...r, orgName })) : cached
-      if (orgName) writeCache(week, tag, normalized)
+      const normalized = displayOrg ? cached.map(r => ({ ...r, orgName: displayOrg })) : cached
+      if (displayOrg) writeCache(week, tag, normalized)
       setRows(normalized)
       setFromCache(true)
     } else {
       setRows([])
       setFromCache(false)
     }
-  }, [week, member, members, orgName])
+  }, [week, member, members, displayOrg])
 
   function clearTimers() {
     timerRefs.current.forEach(clearTimeout)
@@ -171,8 +173,9 @@ export default function AdminReportsPreview({ week, member, members = '', orgNam
       }
       const data = await res.json() as { reports: PreviewRow[] }
       if (myId !== reqIdRef.current) return
-      setRows(data.reports)
-      writeCache(week, tag, data.reports)
+      const rowsOut = displayOrg ? data.reports.map(r => ({ ...r, orgName: displayOrg })) : data.reports
+      setRows(rowsOut)
+      writeCache(week, tag, rowsOut)
     } catch (err) {
       if (myId === reqIdRef.current) {
         setError(err instanceof Error ? err.message : '알 수 없는 오류')

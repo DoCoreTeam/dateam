@@ -78,6 +78,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
     } else deptMemberIds = []
   }
   const memberCsv = deptMemberIds ? deptMemberIds.join(',') : ''
+  const deptName = dept ? ((deptNodes ?? []).find((d) => d.id === dept)?.name ?? '') : ''
 
   // 선택한 주의 주간보고 (RLS 우회 — 어드민 전용 페이지)
   type ReportWithProfile = WeeklyReport & { profiles: { name: string } }
@@ -187,7 +188,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
 
       {/* AI 주간보고 취합 */}
       <div style={{ marginBottom: '1.5rem' }}>
-        <AdminReportsPreview week={selectedWeek} member={member ?? ''} members={memberCsv} orgName={orgName} />
+        <AdminReportsPreview week={selectedWeek} member={member ?? ''} members={memberCsv} deptName={deptName} orgName={orgName} />
       </div>
 
       {/* 보고서 테이블 */}
