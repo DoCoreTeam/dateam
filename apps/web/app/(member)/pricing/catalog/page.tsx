@@ -4,6 +4,9 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { formatSpec } from '@/lib/gpu/format-spec'
+import { buildTierModelGroups, tierKey, modelKey } from '@/lib/gpu/group'
+import { TierHeader, ModelHeader } from '@/components/gpu/CategoryGroup'
+import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 
 interface GpuProduct {
   id: string
@@ -25,9 +28,6 @@ interface ProductsResponse {
   margin_pct: number
   usd_krw: number
 }
-
-type SortKey = 'model' | 'tier' | 'price'
-type SortDir = 'asc' | 'desc'
 
 const TIER_INFO = {
   1: { label: 'Tier 1', desc: '전용 고성능·보장형', color: '#13151c' },
@@ -54,17 +54,6 @@ function GpuChip({ model, memory }: { model: string; memory: string }) {
   )
 }
 
-function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
-  return (
-    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ marginLeft: 2, opacity: active ? 1 : 0.3, flexShrink: 0 }}>
-      {(!active || dir === 'asc')
-        ? <path d="M5 2L8 7H2L5 2Z" fill={active ? 'var(--gpu-accent)' : 'currentColor'} />
-        : <path d="M5 8L2 3H8L5 8Z" fill="var(--gpu-accent)" />
-      }
-    </svg>
-  )
-}
-
 const HR_720 = 24 * 30
 const HR_4320 = 24 * 180
 const HR_8760 = 24 * 365
@@ -76,8 +65,6 @@ export default function SalePriceCatalogPage() {
   const [tierFilter, setTierFilter] = useState<0 | 1 | 2 | 3>(0)
   const [currencyMode, setCurrencyMode] = useState<'KRW' | 'USD'>('KRW')
   const [search, setSearch] = useState('')
-  const [sortKey, setSortKey] = useState<SortKey>('tier')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [hoursInput, setHoursInput] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
@@ -94,11 +81,6 @@ export default function SalePriceCatalogPage() {
     if (!p.lowest_unit_price_usd) return null
     const usd = p.lowest_unit_price_usd * (1 + marginPct / 100)
     return { krw: Math.round(usd * usdKrw), usd }
-  }
-
-  const handleSort = (key: SortKey) => {
-    if (sortKey === key) setSortDir((d) => d === 'asc' ? 'desc' : 'asc')
-    else { setSortKey(key); setSortDir('asc') }
   }
 
   const handleRowClick = (p: GpuProduct) => {
@@ -143,17 +125,12 @@ export default function SalePriceCatalogPage() {
     return true
   })
 
-  const sorted = [...filtered].sort((a, b) => {
-    let cmp = 0
-    if (sortKey === 'model') cmp = a.model_name.localeCompare(b.model_name)
-    else if (sortKey === 'tier') cmp = a.tier - b.tier || a.model_name.localeCompare(b.model_name)
-    else if (sortKey === 'price') {
-      const pa = getSellPrice(a)?.usd ?? Infinity
-      const pb = getSellPrice(b)?.usd ?? Infinity
-      cmp = pa - pb
-    }
-    return sortDir === 'asc' ? cmp : -cmp
-  })
+  // Tier→모델 2단계 그룹 (4개 메뉴 공용 구조)
+  const tierGroups = buildTierModelGroups(filtered)
+  const allKeys = pricedProducts.flatMap((p) => [tierKey(p.tier), modelKey(p.tier, p.model_name)])
+  const { isCollapsed, toggle } = useCollapsibleGroups(allKeys, true)
+  const searching = search.trim().length > 0
+  const collapsedOf = (key: string) => (searching ? false : isCollapsed(key))
 
   const fmtKrw = (v: number) => `₩${Math.round(v).toLocaleString('ko-KR')}`
   const fmtUsd = (v: number, dec = 0) => `$${v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec })}`
@@ -285,41 +262,53 @@ export default function SalePriceCatalogPage() {
         <div style={{ background: 'var(--gpu-surface)', borderRadius: 12, border: '1px solid var(--gpu-border)', overflow: 'hidden' }}>
           {/* 헤더 행 */}
           <div style={{ display: 'grid', gridTemplateColumns: COL, gap: 8, padding: '10px 20px', background: 'var(--gpu-bg)', borderBottom: '1px solid var(--gpu-border)' }}>
-            <div
-              style={{ ...thBase, display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer', color: sortKey === 'model' ? 'var(--gpu-accent)' : 'var(--gpu-muted)' }}
-              onClick={() => handleSort('model')}
-            >
-              GPU 모델 <SortIcon active={sortKey === 'model'} dir={sortDir} />
-            </div>
-            <div
-              style={{ ...thBase, textAlign: 'center', cursor: 'pointer', color: sortKey === 'tier' ? 'var(--gpu-accent)' : 'var(--gpu-muted)' }}
-              onClick={() => handleSort('tier')}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                구분 <SortIcon active={sortKey === 'tier'} dir={sortDir} />
-              </span>
-            </div>
-            <div
-              style={{ ...thBase, textAlign: 'right', cursor: 'pointer', color: sortKey === 'price' ? 'var(--gpu-accent)' : customHours ? 'var(--gpu-accent)' : 'var(--gpu-muted)' }}
-              onClick={() => handleSort('price')}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
-                {customHours ? <>/ {customHours.toLocaleString()}<span style={{ fontWeight: 400, opacity: 0.8 }}>시간</span></> : '/ 1시간'}
-                <SortIcon active={sortKey === 'price'} dir={sortDir} />
-              </span>
+            <div style={{ ...thBase }}>GPU 모델</div>
+            <div style={{ ...thBase, textAlign: 'center' }}>구분</div>
+            <div style={{ ...thBase, textAlign: 'right', color: customHours ? 'var(--gpu-accent)' : 'var(--gpu-muted)' }}>
+              {customHours ? <>/ {customHours.toLocaleString()}<span style={{ fontWeight: 400, opacity: 0.8 }}>시간</span></> : '/ 1시간'}
             </div>
             <div style={{ ...thBase, textAlign: 'right' }}>/ 월 <span style={{ fontWeight: 400, opacity: 0.7 }}>({fmtHours(HR_720)})</span></div>
             <div style={{ ...thBase, textAlign: 'right' }}>/ 6개월 <span style={{ fontWeight: 400, opacity: 0.7 }}>({fmtHours(HR_4320)})</span></div>
             <div style={{ ...thBase, textAlign: 'right' }}>/ 연간 <span style={{ fontWeight: 400, opacity: 0.7 }}>({fmtHours(HR_8760)})</span></div>
           </div>
 
-          {/* 데이터 행 */}
-          {sorted.length === 0 ? (
+          {/* 데이터 행 — Tier → 모델 2단계 그룹 (4개 메뉴 공용) */}
+          {filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--gpu-muted)', fontSize: 13 }}>
               {search ? `"${search}"에 해당하는 모델이 없습니다` : '등록된 가격이 없습니다'}
             </div>
           ) : (
-            sorted.map((p) => {
+            tierGroups.flatMap((tg) => {
+              const tC = collapsedOf(tierKey(tg.tier))
+              const tierHeaderEl = (
+                <div key={`t${tg.tier}`} style={{ padding: '6px 14px', borderBottom: '1px solid var(--gpu-border)' }}>
+                  <TierHeader tier={tg.tier} modelCount={tg.count} itemCount={tg.itemCount} collapsed={tC} onToggle={() => toggle(tierKey(tg.tier))} />
+                </div>
+              )
+              if (tC) return [tierHeaderEl]
+              const modelEls = tg.models.flatMap((mg) => {
+                const mC = collapsedOf(modelKey(tg.tier, mg.model))
+                const modelHeaderEl = (
+                  <div key={`m${tg.tier}-${mg.model}`} style={{ padding: '4px 14px 4px 22px', borderBottom: '1px solid var(--gpu-border)' }}>
+                    <ModelHeader tier={tg.tier} model={mg.model} itemCount={mg.items.length} collapsed={mC} onToggle={() => toggle(modelKey(tg.tier, mg.model))} />
+                  </div>
+                )
+                if (mC) return [modelHeaderEl]
+                return [modelHeaderEl, ...mg.items.map((p) => renderRow(p))]
+              })
+              return [tierHeaderEl, ...modelEls]
+            })
+          )}
+        </div>
+      )}
+
+      <div style={{ marginTop: 12, fontSize: 11, color: 'var(--gpu-muted)', textAlign: 'right' }}>
+        * 부가세 별도 · 가격은 시장 상황에 따라 변동될 수 있습니다
+      </div>
+    </div>
+  )
+
+  function renderRow(p: GpuProduct) {
               const price = getSellPrice(p)
               const tierConf = TIER_INFO[p.tier]
               const gpuCount = p.gpu_count ?? 1
@@ -404,16 +393,7 @@ export default function SalePriceCatalogPage() {
                   <PriceCell value={fmt(HR_8760)} sub="365일 · 8,760h" green />
                 </div>
               )
-            })
-          )}
-        </div>
-      )}
-
-      <div style={{ marginTop: 12, fontSize: 11, color: 'var(--gpu-muted)', textAlign: 'right' }}>
-        * 부가세 별도 · 가격은 시장 상황에 따라 변동될 수 있습니다
-      </div>
-    </div>
-  )
+  }
 }
 
 function PriceCell({ value, sub, green }: { value: string | null; sub: string; green?: boolean }) {

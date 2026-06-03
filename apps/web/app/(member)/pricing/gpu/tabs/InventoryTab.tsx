@@ -1,10 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import useSWR from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { ChevronDown, ChevronUp, Package } from 'lucide-react'
 import { formatSpec } from '@/lib/gpu/format-spec'
+import { SupplierBadge } from '@/components/gpu/SupplierBadge'
+import { mutateGpu } from '@/lib/gpu/swr-keys'
+import { buildTierModelGroups, tierKey, modelKey } from '@/lib/gpu/group'
+import { TierHeader, ModelHeader } from '@/components/gpu/CategoryGroup'
+import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 
 interface SupplierAvail {
   supplier_id: string | null
@@ -37,6 +42,20 @@ interface InventoryItem {
   supplier_availability: SupplierAvail[]
   has_active_quote?: boolean
   lowest_unit_price_usd?: number | null
+  effective_unit_price_usd?: number | null
+  effective_supplier?: { name: string; color: string } | null
+  is_propagated?: boolean
+  quote_suppliers?: QuoteSupplier[]
+}
+
+interface QuoteSupplier {
+  supplier_id: string | null
+  name: string
+  color: string
+  per_gpu_usd: number
+  unit_price_usd: number
+  resp_qty: number | null
+  has_qty: boolean
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -70,11 +89,62 @@ function HealthBar({ qty, max }: { qty: number; max: number }) {
   )
 }
 
-function InventoryCard({ item }: { item: InventoryItem }) {
+function QtyInput({ item, sup, onSaved }: { item: InventoryItem; sup: QuoteSupplier; onSaved: () => void }) {
+  const [qty, setQty] = useState<string>(sup.resp_qty != null ? String(sup.resp_qty) : '')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const save = async () => {
+    const n = parseInt(qty, 10)
+    if (isNaN(n) || n < 0) { setErr('0 이상의 수량'); return }
+    setSaving(true); setErr(null)
+    try {
+      const res = await fetch('/api/pricing/gpu/availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: item.id,
+          supplier_id: sup.supplier_id,
+          status: n > 0 ? 'available_partial' : 'out_of_stock',
+          resp_qty: n,
+          is_test: true,
+        }),
+      })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error ?? '저장 실패'); return }
+      onSaved()
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <input
+        type="number"
+        min={0}
+        value={qty}
+        onChange={(e) => setQty(e.target.value)}
+        placeholder="수량"
+        aria-label={`${sup.name} 가용 수량 입력`}
+        style={{ width: 64, height: 28, borderRadius: 6, border: '1.5px solid var(--gpu-border)', padding: '0 8px', fontSize: 12.5, textAlign: 'right' }}
+      />
+      <button
+        onClick={save}
+        disabled={saving}
+        className="gpu-btn"
+        style={{ height: 28, padding: '0 10px', fontSize: 12, fontWeight: 600, background: 'var(--gpu-accent, #5b5ef0)', color: '#fff', borderRadius: 6 }}
+      >
+        {saving ? '저장…' : sup.has_qty ? '수정' : '입력'}
+      </button>
+      {err && <span style={{ fontSize: 10.5, color: 'var(--gpu-red)' }}>{err}</span>}
+    </div>
+  )
+}
+
+function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () => void }) {
   const [expanded, setExpanded] = useState(false)
   const maxQty = item.supplier_availability.reduce((a, s) => Math.max(a, s.resp_qty ?? 0), item.fresh_available_qty || 10)
 
-  const hasData = item.supplier_availability.length > 0 || item.pool_qty != null
+  const quoteSuppliers = item.quote_suppliers ?? []
+  const hasData = item.supplier_availability.length > 0 || item.pool_qty != null || quoteSuppliers.length > 0
 
   return (
     <div className="gpu-rev-card" style={{ padding: '14px 16px' }}>
@@ -171,6 +241,34 @@ function InventoryCard({ item }: { item: InventoryItem }) {
       {/* 공급사별 상세 (펼침) */}
       {expanded && (
         <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* 확정 견적 공급사 + 인라인 수량 입력 (가용량 응답이 없어도 공급사·가격 노출) */}
+          {quoteSuppliers.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-muted)' }}>
+                확정 견적 공급사 · 가용 수량 입력
+              </div>
+              {quoteSuppliers.map((sup, i) => (
+                <div key={i} style={{ padding: '8px 12px', borderRadius: 8, background: '#fff', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <SupplierBadge name={sup.name} color={sup.color} kind={sup.name === 'gcube' ? 'self' : 'ours'} unassigned={sup.supplier_id == null} />
+                  <span style={{ fontSize: 12, color: 'var(--gpu-muted)', fontFamily: 'var(--font-mono, monospace)' }}>
+                    ${sup.unit_price_usd.toFixed(2)} <span style={{ fontSize: 10 }}>(×{item.gpu_count} 구성)</span>
+                  </span>
+                  <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {sup.has_qty && sup.resp_qty != null && (
+                      <span style={{ fontSize: 12, fontWeight: 700, color: sup.resp_qty > 0 ? 'var(--gpu-green)' : 'var(--gpu-red)' }}>
+                        현재 {sup.resp_qty} GPU
+                      </span>
+                    )}
+                    {!sup.has_qty && (
+                      <span style={{ fontSize: 11, color: 'var(--gpu-faint)' }}>수량 미입력</span>
+                    )}
+                    {sup.supplier_id != null && <QtyInput item={item} sup={sup} onSaved={onMutate} />}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {item.tier === 3 && item.pool_qty != null && (
             <div style={{ padding: '8px 12px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
@@ -225,14 +323,12 @@ export default function InventoryTab() {
   const { data } = useSWR<{ inventory: InventoryItem[] }>('/api/pricing/gpu/inventory', fetcher, {
     refreshInterval: 60000,
   })
+  const { mutate } = useSWRConfig()
+  const handleMutate = () => mutateGpu(mutate)
   const inventory = data?.inventory ?? []
 
   const [tierFilter, setTierFilter] = useState(0)
   const [search, setSearch] = useState('')
-  const [sortKey, setSortKey] = useState<'tier' | 'model' | 'qty_desc' | 'qty_asc'>('tier')
-
-  const availQty = (p: InventoryItem) =>
-    p.tier === 3 && p.pool_qty != null ? p.pool_qty : p.fresh_available_qty
 
   const filtered = inventory.filter((p) => {
     if (tierFilter !== 0 && p.tier !== tierFilter) return false
@@ -243,13 +339,13 @@ export default function InventoryTab() {
     return true
   })
 
-  const sorted = [...filtered].sort((a, b) => {
-    if (sortKey === 'model') return (a.model_name ?? '').localeCompare(b.model_name ?? '', 'ko')
-    if (sortKey === 'qty_desc') return availQty(b) - availQty(a)
-    if (sortKey === 'qty_asc') return availQty(a) - availQty(b)
-    // tier
-    return a.tier - b.tier || (a.model_name ?? '').localeCompare(b.model_name ?? '', 'ko')
-  })
+  // Tier→모델 2단계 그룹 (4개 메뉴 공용 구조)
+  const tierGroups = buildTierModelGroups(filtered)
+  const allKeys = inventory.flatMap((p) => [tierKey(p.tier), modelKey(p.tier, p.model_name)])
+  const { isCollapsed, toggle } = useCollapsibleGroups(allKeys, true)
+  // 검색 중에는 매칭 결과를 펼쳐 보여줌
+  const searching = search.trim().length > 0
+  const collapsedOf = (key: string) => (searching ? false : isCollapsed(key))
 
   const totalFresh = inventory.reduce((a, p) => a + p.fresh_available_qty, 0)
   const oosCount = inventory.filter((p) => p.oos_supplier_count > 0).length
@@ -306,35 +402,37 @@ export default function InventoryTab() {
             </button>
           ))}
         </div>
-        <select
-          value={sortKey}
-          onChange={(e) => setSortKey(e.target.value as typeof sortKey)}
-          aria-label="정렬 기준"
-          style={{
-            marginLeft: 'auto', height: 34, borderRadius: 8,
-            border: '1.5px solid var(--gpu-border)', background: '#fff',
-            padding: '0 10px', fontSize: 12.5, fontWeight: 600,
-            color: 'var(--gpu-ink)', cursor: 'pointer',
-          }}
-        >
-          <option value="tier">정렬: Tier 순</option>
-          <option value="model">정렬: 모델명</option>
-          <option value="qty_desc">정렬: 가용량 많은순</option>
-          <option value="qty_asc">정렬: 가용량 적은순</option>
-        </select>
       </div>
 
       </div>{/* end 고정 헤더 */}
 
       {/* ── 스크롤 영역 ── */}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 12 }}>
-      {/* 리스트 */}
+      {/* 리스트 — Tier → 모델 2단계 그룹 (4개 메뉴 공용) */}
       {filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--gpu-faint)', fontSize: 13 }}>
           가용량 정보가 없습니다
         </div>
       ) : (
-        sorted.map((item) => <InventoryCard key={item.id} item={item} />)
+        tierGroups.map((tg) => {
+          const tCollapsed = collapsedOf(tierKey(tg.tier))
+          return (
+            <div key={`t${tg.tier}`} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <TierHeader tier={tg.tier} modelCount={tg.count} itemCount={tg.itemCount} collapsed={tCollapsed} onToggle={() => toggle(tierKey(tg.tier))} />
+              {!tCollapsed && tg.models.map((mg) => {
+                const mCollapsed = collapsedOf(modelKey(tg.tier, mg.model))
+                return (
+                  <div key={mg.model} style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 8 }}>
+                    <ModelHeader tier={tg.tier} model={mg.model} itemCount={mg.items.length} collapsed={mCollapsed} onToggle={() => toggle(modelKey(tg.tier, mg.model))} />
+                    {!mCollapsed && mg.items.map((item) => (
+                      <InventoryCard key={item.id} item={item} onMutate={handleMutate} />
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })
       )}
       </div>{/* end 스크롤 영역 */}
     </div>

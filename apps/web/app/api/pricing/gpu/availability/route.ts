@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
+import { recordAvailability } from '@/lib/gpu/repository'
 
 // GET /api/pricing/gpu/availability?product_id=xxx — 가용량 요약
 export async function GET(req: NextRequest) {
@@ -83,67 +84,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `status는 ${validStatuses.join('|')} 중 하나` }, { status: 400 })
   }
 
-  const receivedAt = typeof body.received_at === 'string' ? body.received_at : new Date().toISOString()
-  const expiresAt = new Date(receivedAt)
-  expiresAt.setHours(expiresAt.getHours() + 72) // 72h freshness
-
   const actor = user.email ?? user.id
   const supplierId = typeof body.supplier_id === 'string' ? body.supplier_id : null
 
-  // 이전 current 비활성화 (같은 product×supplier 조합)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let deactivateQuery = (supabase as any)
-    .from('availability_responses')
-    .update({ is_current: false })
-    .eq('product_id', productId)
-    .eq('is_current', true)
+  // L1 단일 쓰기 서비스 경유 (이전 current 비활성화 + 감사로그 + L4 캐시 무효화)
+  const result = await recordAvailability(supabase, adminClient, {
+    productId,
+    supplierId,
+    status,
+    respQty: typeof body.resp_qty === 'number' ? body.resp_qty : null,
+    isTotalCapacity: body.is_total_capacity === true,
+    unitPriceUsd: typeof body.unit_price_usd === 'number' ? body.unit_price_usd : null,
+    actor,
+    isTest: body.is_test === true,
+  })
 
-  if (supplierId) deactivateQuery = deactivateQuery.eq('supplier_id', supplierId)
-  else deactivateQuery = deactivateQuery.is('supplier_id', null)
-
-  await deactivateQuery
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: newRecord, error } = await (supabase as any)
-    .from('availability_responses')
-    .insert({
-      product_id: productId,
-      supplier_id: supplierId,
-      inquiry_id: typeof body.inquiry_id === 'string' ? body.inquiry_id : null,
-      review_item_id: typeof body.review_item_id === 'string' ? body.review_item_id : null,
-      our_qty: typeof body.our_qty === 'number' ? body.our_qty : null,
-      status,
-      resp_qty: typeof body.resp_qty === 'number' ? Math.max(0, body.resp_qty) : null,
-      is_total_capacity: body.is_total_capacity === true,
-      unit_price_usd: typeof body.unit_price_usd === 'number' ? body.unit_price_usd : null,
-      channel: typeof body.channel === 'string' ? body.channel : 'own',
-      received_at: receivedAt,
-      expires_at: expiresAt.toISOString(),
-      is_current: true,
-      confirmed_by: actor,
-      confirmed_at: new Date().toISOString(),
-      is_test: body.is_test === true,
-    })
-    .select()
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  // audit_log (gpu_audit_logs는 service_role 전용 — adminClient 사용)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (adminClient as any)
-    .from('gpu_audit_logs')
-    .insert({
-      actor,
-      action_type: 'availability_registered',
-      product_id: productId,
-      detail: {
-        status,
-        resp_qty: body.resp_qty,
-        supplier_id: supplierId,
-        is_test: body.is_test === true,
-      },
-    })
-
-  return NextResponse.json({ record: newRecord })
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 })
+  return NextResponse.json({ record: result.record })
 }

@@ -4,6 +4,7 @@ import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { normalizeMemory } from '@/lib/gpu/normalize'
 import { parseGpuCount, toPerGpuPrice } from '@/lib/gpu/parse-quantity'
 import { inferTier } from '@/lib/gpu/tier-dict'
+import { revalidateGpu } from '@/lib/gpu/revalidate'
 
 // POST /api/pricing/gpu/review/[id] — 확정 또는 반려
 export async function POST(
@@ -228,6 +229,9 @@ export async function POST(
         product_auto_created: productAutoCreated,
       },
     })
+
+  // L4 — 견적 확정 시 4개 메뉴 캐시 원자 무효화
+  revalidateGpu()
 
   return NextResponse.json({ ok: true })
 }

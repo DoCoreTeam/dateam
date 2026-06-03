@@ -15,6 +15,17 @@ test('parseGpuCount — 다양한 입력 형식', () => {
   assert.equal(parseGpuCount('', 2), 2)         // fallback 지정
 })
 
+test('parseGpuCount — min_qty(최소주문)를 gpu_count로 오인 금지 (결함 C)', () => {
+  // "8장 이상" = 최소주문 → 구성 장수 아님 → fallback 1
+  assert.equal(parseGpuCount('8장 이상 주문'), 1)
+  assert.equal(parseGpuCount('최소 8 GPU'), 1)
+  assert.equal(parseGpuCount('8 GPUs or more'), 1)
+  assert.equal(parseGpuCount('min 4'), 1)
+  // 진짜 구성 표기는 그대로 인식
+  assert.equal(parseGpuCount('B200 ×8 구성'), 8)
+  assert.equal(parseGpuCount('8장 세트'), 8)
+})
+
 test('isBoxPriced — per-GPU vs 박스 판별', () => {
   assert.equal(isBoxPriced('USD/GPU·hr'), false)
   assert.equal(isBoxPriced('per GPU'), false)

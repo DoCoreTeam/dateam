@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { revalidateGpu } from '@/lib/gpu/revalidate'
 
 export async function POST(
   _req: Request,
@@ -65,6 +66,7 @@ export async function POST(
       },
     })
 
+    revalidateGpu()
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('[quotes/confirm]', err)

@@ -5,6 +5,7 @@ import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { RefreshCw, TrendingUp, AlertTriangle, Plus, X, BarChart2, Target, FileText, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { formatSpec } from '@/lib/gpu/format-spec'
+import { SupplierBadge } from '@/components/gpu/SupplierBadge'
 
 type StratSortKey = 'model' | 'supply' | 'market' | 'target' | 'required' | 'gap'
 
@@ -59,6 +60,7 @@ interface Strategy {
 interface ProductGroup {
   product: { id: string; model_name: string; memory: string; tier: number; gpu_count?: number; vcpu?: number | null; ram_gb?: number | null; storage_gb?: number | null }
   competitors: MarketEntry[]
+  our_suppliers?: OurSupplier[]
   our_price_usd: number | null
   current_supply_usd: number | null
   market_min: number | null
@@ -66,6 +68,16 @@ interface ProductGroup {
   market_median: number | null
   strategy: Strategy
   supply_history: SupplyHistory | null
+}
+
+interface OurSupplier {
+  supplier_id: string | null
+  name: string
+  color: string
+  per_gpu_usd: number
+  unit_price_usd: number
+  sell_price_usd: number
+  is_ours: boolean
 }
 
 interface MarketData {
@@ -288,6 +300,33 @@ function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI }: {
         <span style={{ fontSize: 16 }}>🧠</span>
         <span>{insight}</span>
       </div>
+
+      {/* 우리 공급사 (경쟁사와 같은 시장에 배지로 구분 표시) */}
+      {(p.our_suppliers ?? []).length > 0 && (
+        <>
+          <div style={{ fontSize: 11, color: 'var(--gpu-accent)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em' }}>
+            우리 공급사 · 원가 / 판매가
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+            {(p.our_suppliers ?? []).map((s, i) => (
+              <div key={i} style={{
+                background: 'rgba(91,94,240,0.04)', border: '1.5px solid var(--gpu-accent, #5b5ef0)',
+                borderRadius: 10, padding: '10px 12px', fontSize: 12,
+              }}>
+                <div style={{ marginBottom: 6 }}>
+                  <SupplierBadge name={s.name} color={s.color} kind={s.name === 'gcube' ? 'self' : 'ours'} unassigned={s.supplier_id == null} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                  <span style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>원가</span>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{fmt(s.unit_price_usd)}</span>
+                  <span style={{ fontSize: 10, color: 'var(--gpu-muted)', marginLeft: 4 }}>판매</span>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 800, color: 'var(--gpu-accent)' }}>{fmt(s.sell_price_usd)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* 경쟁사별 카드 그리드 */}
       <div style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>
@@ -1020,6 +1059,13 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
     if (next.has(t)) next.delete(t); else next.add(t)
     return next
   })
+  // 모델 하위그룹 접힘 — 기본 접힘(열린 모델만 Set에 보관). 4개 메뉴 동일 Tier→모델 구조.
+  const [openModels, setOpenModels] = useState<Set<string>>(new Set())
+  const toggleMarketModel = (key: string) => setOpenModels(prev => {
+    const next = new Set(prev)
+    if (next.has(key)) next.delete(key); else next.add(key)
+    return next
+  })
 
   const usdKrw = data?.usd_krw ?? 1400
   const fmt = makeFmt(currencyMode, usdKrw)
@@ -1482,11 +1528,11 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                   <span style={{ transform: gCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform .15s', color: 'var(--gpu-muted)', display: 'inline-flex', fontSize: 11 }}>▶</span>
                   <span className={`gpu-badge ${gCfg.badge}`} style={{ fontSize: 10 }}>{gCfg.label}</span>
                   <strong style={{ fontSize: 13, color: '#0f172a' }}>{gCfg.name}</strong>
-                  <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>{g.products.length}개 모델</span>
+                  <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>{new Set(g.products.map(p => p.product.model_name)).size}개 모델 · {g.products.length}개 구성</span>
                 </div>
               )
               if (gCollapsed) return [header]
-              const rows = g.products.map(p => {
+              const renderProductRow = (p: (typeof g.products)[number]) => {
               const pid = p.product.id
               const isOpen = expandedId === pid
               const tier = p.product.tier
@@ -1641,8 +1687,34 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                   )}
                 </div>
               )
+              }
+              // Tier 안에서 모델로 한 번 더 그룹 (B200의 ×1/×2/×4/×8을 한 모델로 묶음)
+              const byModel = new Map<string, typeof g.products>()
+              for (const p of g.products) {
+                const m = p.product.model_name
+                if (!byModel.has(m)) byModel.set(m, [])
+                byModel.get(m)!.push(p)
+              }
+              const modelEls = Array.from(byModel.keys()).sort((a, b) => a.localeCompare(b, 'ko')).flatMap(model => {
+                const prods = byModel.get(model)!
+                const mKey = `${g.tier}:${model}`
+                const mOpen = openModels.has(mKey)
+                const modelHeader = (
+                  <div
+                    key={`m-${mKey}`}
+                    onClick={() => toggleMarketModel(mKey)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 18px 7px 30px', cursor: 'pointer', background: '#fff', borderBottom: '1px solid #f4f5f9', userSelect: 'none' }}
+                  >
+                    <span style={{ transform: mOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s', color: 'var(--gpu-muted)', display: 'inline-flex', fontSize: 10 }}>▶</span>
+                    <span className={`gpu-badge ${gCfg.badge}`} style={{ fontSize: 9.5 }}>T{g.tier}</span>
+                    <strong style={{ fontSize: 12.5, color: '#111827' }}>{model}</strong>
+                    <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>{prods.length}개 구성</span>
+                  </div>
+                )
+                if (!mOpen) return [modelHeader]
+                return [modelHeader, ...prods.map(renderProductRow)]
               })
-              return [header, ...rows]
+              return [header, ...modelEls]
             })
           )}
         </div>

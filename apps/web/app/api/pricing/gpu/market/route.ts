@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getGpuCatalog, modelKeyOf } from '@/lib/gpu/pricing'
 
 const MARKET_FRESH_HOURS = 48
 
@@ -79,25 +80,10 @@ export async function GET() {
       mappingsByProduct.get(pid)!.push(m)
     }
 
-    // 우리 공급 최저가 조회
-    const { data: ourPrices, error: ourErr } = await db
-      .from('v_lowest_quotes')
-      .select('product_id, unit_price_usd, supplier_id')
-
-    if (ourErr) {
-      console.warn('[market] v_lowest_quotes error, fallback empty:', ourErr.message)
-    }
-
-    const ourPriceMap = new Map<string, Record<string, unknown>>()
-    for (const p of ourPrices ?? []) {
-      const row = p as Record<string, unknown>
-      const pid = row.product_id as string
-      if (!ourPriceMap.has(pid)) ourPriceMap.set(pid, row)
-    }
-
-    // 전역 마진 설정
-    const { data: settings } = await db.from('pricing_settings').select('margin_pct').eq('id', 1).single()
-    const globalMargin = (settings?.margin_pct as number) ?? 18
+    // 우리 가격 — L2 SSOT(getGpuCatalog) 경유: 1장당 전파 effective + 모델별 공급사 목록
+    const catalog = await getGpuCatalog(db)
+    const catalogByProduct = new Map(catalog.products.map((p) => [p.id, p]))
+    const globalMargin = catalog.margin_pct
 
     // 전략 설정 (전역 + 모델별)
     const { data: stratConfigs } = await db
@@ -153,10 +139,25 @@ export async function GET() {
         }
       })
 
-      const ourData = ourPriceMap.get(pid)
-      const supplyMin = ourData?.unit_price_usd as number | undefined
-      const marginPct = globalMargin
-      const ourSalePrice = supplyMin != null ? supplyMin * (1 + marginPct / 100) : null
+      const catProd = catalogByProduct.get(pid)
+      const supplyMin = catProd?.effective_unit_price_usd ?? undefined
+      const ourSalePrice = catProd?.sell_price_usd ?? null
+
+      // 우리 공급사 목록 (시장비교에 경쟁사와 함께 표시 — 공급사 배지)
+      const mk = modelKeyOf({ model_name: prod.model_name as string, tier: prod.tier as number })
+      const ourSuppliers = (catalog.suppliersByModel.get(mk) ?? []).map((s) => {
+        // 이 구성(gpu_count)에 전파된 1장당 단가 기준 공급원가/판매가
+        const unitForConfig = Math.round(s.per_gpu_usd * (prod.gpu_count as number) * 10000) / 10000
+        return {
+          supplier_id: s.supplier_id,
+          name: s.name,
+          color: s.color,
+          per_gpu_usd: s.per_gpu_usd,
+          unit_price_usd: unitForConfig,           // 공급원가 (이 구성 총액)
+          sell_price_usd: unitForConfig * (1 + globalMargin / 100), // 우리 판매가
+          is_ours: true,
+        }
+      })
 
       // 전략 설정 (모델별 오버라이드 or 전역)
       const modelStrat = stratMap.get(pid)
@@ -204,6 +205,7 @@ export async function GET() {
       return {
         product: prod,
         competitors: enrichedCompetitors,
+        our_suppliers: ourSuppliers,
         our_price_usd: ourSalePrice,
         current_supply_usd: supplyMin ?? null,
         market_min,

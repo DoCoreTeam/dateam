@@ -1,59 +1,15 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getGpuCatalog } from '@/lib/gpu/pricing'
 
+// GET /api/pricing/gpu/products — 가격표/고객판매가 공용 (L2 SSOT 경유)
 export async function GET() {
   try {
     const supabase = await createClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any
 
-    const [productsRes, lowestRes, directRes, settingsRes, fxRes] = await Promise.all([
-      db.from('gpu_products').select('*').order('tier').order('model_name'),
-      db.from('v_lowest_quotes').select('*, suppliers(name, color)'),
-      db.from('direct_prices').select('*, gpu_products(id)').eq('is_current', true),
-      db.from('pricing_settings').select('margin_pct').eq('id', 1).single(),
-      db.from('fx_rates').select('usd_krw, rate_date').order('rate_date', { ascending: false }).limit(1).single(),
-    ])
-
-    const lowestMap = new Map(
-      (lowestRes.data ?? []).map((q: Record<string, unknown>) => [q.product_id as string, q])
-    )
-    const directMap = new Map(
-      (directRes.data ?? []).map((p: Record<string, unknown>) => [(p.gpu_products as Record<string, unknown>)?.id as string, p])
-    )
-
-    const marginPct = settingsRes.data?.margin_pct ?? 18
-    const usdKrw = fxRes.data?.usd_krw ?? 1400
-
-    const products = (productsRes.data ?? []).map((p: Record<string, unknown>) => {
-      const id = p.id as string
-      if (p.pricing_mode === 'quote') {
-        const lowest = lowestMap.get(id) as Record<string, unknown> | undefined
-        const unitPriceUsd = lowest ? Number(lowest.unit_price_usd) : null
-        const sellPriceKrw = unitPriceUsd
-          ? Math.round(unitPriceUsd * (1 + marginPct / 100) * Number(usdKrw))
-          : null
-        return {
-          ...p,
-          lowest_unit_price_usd: unitPriceUsd,
-          lowest_supplier: (lowest?.suppliers as Record<string, unknown>) ?? null,
-          lowest_valid_until: lowest?.valid_until ?? null,
-          sell_price_krw: sellPriceKrw,
-          sell_price_usd: unitPriceUsd ? unitPriceUsd * (1 + marginPct / 100) : null,
-        }
-      } else {
-        const direct = directMap.get(id) as Record<string, unknown> | undefined
-        const sellPriceKrw = direct ? Number(direct.sell_price_krw) : null
-        return {
-          ...p,
-          lowest_unit_price_usd: null,
-          lowest_supplier: null,
-          lowest_valid_until: null,
-          sell_price_krw: sellPriceKrw,
-          sell_price_usd: sellPriceKrw ? sellPriceKrw / Number(usdKrw) : null,
-        }
-      }
-    })
+    const catalog = await getGpuCatalog(db)
 
     // pending count per product
     const pendingRes = await db
@@ -67,14 +23,39 @@ export async function GET() {
       pendingCountMap.set(pid, (pendingCountMap.get(pid) ?? 0) + 1)
     }
 
+    // effective(1장당 전파)를 legacy 필드명에 매핑 → 기존 UI 호환 + 메뉴 정합
+    const products = catalog.products.map((p) => ({
+      id: p.id,
+      model_name: p.model_name,
+      memory: p.memory,
+      tier: p.tier,
+      pricing_mode: p.pricing_mode,
+      gpu_count: p.gpu_count,
+      vcpu: p.vcpu,
+      ram_gb: p.ram_gb,
+      storage_gb: p.storage_gb,
+      series: p.series,
+      // legacy 호환 (effective = 1장당 전파 반영값)
+      lowest_unit_price_usd: p.effective_unit_price_usd,
+      lowest_supplier: p.effective_supplier,
+      lowest_valid_until: p.own_valid_until,
+      sell_price_krw: p.sell_price_krw,
+      sell_price_usd: p.sell_price_usd,
+      // 신규 SSOT 필드
+      per_gpu_usd: p.per_gpu_usd,
+      effective_unit_price_usd: p.effective_unit_price_usd,
+      effective_supplier: p.effective_supplier,
+      is_propagated: p.is_propagated,
+      own_lowest_usd: p.own_lowest_usd,
+      own_supplier: p.own_supplier,
+      pending_count: pendingCountMap.get(p.id) ?? 0,
+    }))
+
     return NextResponse.json({
-      products: products.map((p: Record<string, unknown>) => ({
-        ...p,
-        pending_count: pendingCountMap.get(p.id as string) ?? 0,
-      })),
-      margin_pct: marginPct,
-      usd_krw: usdKrw,
-      fx_date: fxRes.data?.rate_date ?? null,
+      products,
+      margin_pct: catalog.margin_pct,
+      usd_krw: catalog.usd_krw,
+      fx_date: catalog.fx_date,
     })
   } catch (err) {
     console.error('[pricing/products]', err)

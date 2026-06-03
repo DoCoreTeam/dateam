@@ -38,6 +38,9 @@ interface GpuProduct {
   sell_price_krw: number | null
   sell_price_usd: number | null
   pending_count: number
+  is_propagated?: boolean
+  per_gpu_usd?: number | null
+  own_lowest_usd?: number | null
 }
 
 interface ProductsResponse {
@@ -186,6 +189,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [collapsedModels, setCollapsedModels] = useState<Set<string>>(new Set())
+  const [collapsedTiers, setCollapsedTiers] = useState<Set<number>>(new Set())
   const [groupsInitialized, setGroupsInitialized] = useState(false)
   const [marginInput, setMarginInput] = useState<number | null>(null)
   const [marginSaving, setMarginSaving] = useState(false)
@@ -217,6 +221,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
   useEffect(() => {
     if (groupsInitialized || products.length === 0) return
     setCollapsedModels(new Set(products.map((p) => p.model_name)))
+    setCollapsedTiers(new Set(products.map((p) => p.tier)))
     setGroupsInitialized(true)
   }, [products, groupsInitialized])
 
@@ -344,6 +349,14 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
     setCollapsedModels((prev) => {
       const next = new Set(prev)
       if (next.has(model)) next.delete(model); else next.add(model)
+      return next
+    })
+  }
+
+  function toggleTier(tier: number) {
+    setCollapsedTiers((prev) => {
+      const next = new Set(prev)
+      if (next.has(tier)) next.delete(tier); else next.add(tier)
       return next
     })
   }
@@ -549,7 +562,13 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
             </tr>
           </thead>
           <tbody>
-            {modelGroups.flatMap((group) => {
+            {(() => {
+              const byTier = new Map<number, typeof modelGroups>()
+              for (const g of modelGroups) {
+                if (!byTier.has(g.tier)) byTier.set(g.tier, [])
+                byTier.get(g.tier)!.push(g)
+              }
+              const renderGroup = (group: (typeof modelGroups)[number]) => {
               const tierCfg = TIER_CONFIG[group.tier]
               const collapsed = collapsedModels.has(group.model)
               const groupHeader = (
@@ -661,7 +680,13 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                       <span className="gpu-badge gpu-badge-amber">직접입력</span>
                     ) : p.lowest_unit_price_usd != null ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                        <span className="gpu-badge gpu-badge-green">견적 확정</span>
+                        {p.is_propagated ? (
+                          <span className="gpu-badge" style={{ background: '#eef2ff', color: 'var(--gpu-accent)' }} title="모델 최저 1장당 단가를 이 구성에 전파한 추정가">
+                            1장당 전파(추정)
+                          </span>
+                        ) : (
+                          <span className="gpu-badge gpu-badge-green">견적 확정</span>
+                        )}
                         {dday && (
                           <span className="gpu-mono" style={{ fontSize: '10px', color: dday.color }}>{dday.label}</span>
                         )}
@@ -719,7 +744,27 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
               ]
               })
               return [groupHeader, ...memberRows]
-            })}
+              }
+              return Array.from(byTier.keys()).sort((a, b) => a - b).flatMap((tier) => {
+                const tierCollapsed = collapsedTiers.has(tier)
+                const tcfg = TIER_CONFIG[tier as 1 | 2 | 3]
+                const groups = byTier.get(tier)!
+                const tierHeader = (
+                  <tr key={`tier-${tier}`} className="gpu-group-header" onClick={() => toggleTier(tier)} style={{ cursor: 'pointer', background: '#f1f3f9' }}>
+                    <td colSpan={colCount}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <ChevronRight size={16} style={{ transform: tierCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform 0.15s', color: 'var(--gpu-muted)' }} />
+                        <span className={`gpu-badge ${tcfg.badge}`} style={{ fontSize: 10.5 }}>{tcfg.label}</span>
+                        <strong style={{ fontSize: 13.5, color: '#0f172a' }}>{tcfg.name}</strong>
+                        <span style={{ fontSize: 11.5, color: 'var(--gpu-muted)' }}>{groups.length}개 모델</span>
+                      </div>
+                    </td>
+                  </tr>
+                )
+                if (tierCollapsed) return [tierHeader]
+                return [tierHeader, ...groups.flatMap(renderGroup)]
+              })
+            })()}
           </tbody>
         </table>
       </div>

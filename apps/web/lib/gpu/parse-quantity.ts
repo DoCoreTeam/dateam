@@ -14,6 +14,16 @@ export function parseGpuCount(
   if (!raw) return fallback
   const s = String(raw).toLowerCase()
 
+  // 결함 C 가드 — "8장 이상", "최소 8", "8개+" 등 최소주문수량(min_qty)을 구성 장수로 오인 금지.
+  // 숫자 뒤에 이상/이상~/min/최소/+/~ 가 붙으면 그 숫자는 min_qty 신호 → 후보에서 제외.
+  const isMinQtyContext = (idx: number, len: number): boolean => {
+    const after = s.slice(idx + len, idx + len + 10)
+    if (/^\s*(이상|개이상|장이상|\+|~|or\s*more|min)/.test(after)) return true
+    const before = s.slice(Math.max(0, idx - 6), idx)
+    if (/(최소\s*|min(\.|imum)?\s*|이상\s*)$/.test(before)) return true
+    return false
+  }
+
   // 우선순위 패턴들 (가장 명시적인 것부터)
   const patterns: RegExp[] = [
     /[x×]\s*(\d{1,2})\b/,            // x8, ×8
@@ -25,9 +35,9 @@ export function parseGpuCount(
   ]
   for (const re of patterns) {
     const m = s.match(re)
-    if (m) {
+    if (m && m.index != null) {
       const n = parseInt(m[1], 10)
-      if (n >= 1 && n <= 16) return n
+      if (n >= 1 && n <= 16 && !isMinQtyContext(m.index, m[0].length)) return n
     }
   }
   return fallback
