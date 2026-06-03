@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { Plus, X, Globe, MapPin, Trash2, Save, ExternalLink } from 'lucide-react'
+import { Plus, X, Globe, Trash2, Save, ExternalLink, Sparkles, ChevronRight } from 'lucide-react'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
+import { countryFlag } from '@/lib/gpu/country-flag'
 
 interface SupplierStats {
   id: string
@@ -25,13 +26,16 @@ interface SupplierDetail {
     id: string; name: string; location: string | null; color: string; contact: string | null
     country: string | null; website: string | null; description: string | null
   }
-  quotes: Array<{
-    id: string; unit_price_usd: number; gpu_count: number; status: string
-    term: string | null; valid_until: string | null
-    gpu_products: { model_name: string; memory: string | null; tier: number } | null
-  }>
+  quotes: QuoteRow[]
   availability: Array<{ id: string; status: string; resp_qty: number | null; gpu_products: { model_name: string } | null }>
   stats: { total_quotes: number; confirmed_quotes: number; models: number }
+}
+
+interface QuoteRow {
+  id: string; unit_price_usd: number; gpu_count: number; status: string
+  term: string | null; term_months: number | null; min_qty: string | null; valid_until: string | null
+  original_price: number | null; original_currency: string | null; original_unit: string | null
+  gpu_products: { model_name: string; memory: string | null; tier: number } | null
 }
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6', '#ec4899', '#14b8a6', '#f97316', '#84cc16']
@@ -59,11 +63,144 @@ function Field({ label, value, onChange, textarea }: { label: string; value: str
   )
 }
 
+interface Suggestion { gpu_count?: number; price_basis?: string; unit_price_usd?: number; per_gpu_usd?: number; reason?: string; confidence?: number }
+
+function QuoteEditModal({ quote, onClose, onChanged }: { quote: QuoteRow; onClose: () => void; onChanged: () => void }) {
+  const [f, setF] = useState({
+    unit_price_usd: String(quote.unit_price_usd ?? ''),
+    gpu_count: String(quote.gpu_count ?? 1),
+    term: quote.term ?? '',
+    min_qty: quote.min_qty ?? '',
+    valid_until: quote.valid_until ?? '',
+  })
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [memo, setMemo] = useState('')
+  const [analyzing, setAnalyzing] = useState(false)
+  const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
+  const set = (k: string, v: string) => setF((p) => ({ ...p, [k]: v }))
+
+  const save = async () => {
+    setSaving(true); setErr(null)
+    try {
+      const res = await fetch(`/api/pricing/gpu/quotes/${quote.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          unit_price_usd: Number(f.unit_price_usd), gpu_count: Number(f.gpu_count),
+          term: f.term, min_qty: f.min_qty, valid_until: f.valid_until || null,
+        }),
+      })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error ?? '저장 실패'); return }
+      onChanged(); onClose()
+    } finally { setSaving(false) }
+  }
+
+  const del = async () => {
+    if (!confirm('이 견적을 삭제할까요?')) return
+    setSaving(true); setErr(null)
+    try {
+      const res = await fetch(`/api/pricing/gpu/quotes/${quote.id}`, { method: 'DELETE' })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error ?? '삭제 실패'); return }
+      onChanged(); onClose()
+    } finally { setSaving(false) }
+  }
+
+  const reanalyze = async () => {
+    setAnalyzing(true); setErr(null); setSuggestion(null)
+    try {
+      const res = await fetch(`/api/pricing/gpu/quotes/${quote.id}/reanalyze`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ memo }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { setErr(j.error ?? 'AI 재분석 실패'); return }
+      setSuggestion(j.suggestion as Suggestion)
+    } finally { setAnalyzing(false) }
+  }
+
+  const applySuggestion = () => {
+    if (!suggestion) return
+    setF((p) => ({
+      ...p,
+      unit_price_usd: suggestion.unit_price_usd != null ? String(suggestion.unit_price_usd) : p.unit_price_usd,
+      gpu_count: suggestion.gpu_count != null ? String(suggestion.gpu_count) : p.gpu_count,
+    }))
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(560px, 100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: '1px solid var(--gpu-border)' }}>
+          <strong style={{ fontSize: 15, flex: 1 }}>
+            {quote.gpu_products?.model_name ?? '상품 미연결'} {quote.gpu_products?.memory ?? ''} 견적 수정
+          </strong>
+          <button onClick={onClose} className="gpu-btn" style={{ padding: 6 }}><X size={16} /></button>
+        </div>
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* 편집 필드 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <Field label="단가 USD (구성 총액/hr)" value={f.unit_price_usd} onChange={(v) => set('unit_price_usd', v)} />
+            <Field label="GPU 장수" value={f.gpu_count} onChange={(v) => set('gpu_count', v)} />
+            <Field label="계약 기간" value={f.term} onChange={(v) => set('term', v)} />
+            <Field label="최소 수량" value={f.min_qty} onChange={(v) => set('min_qty', v)} />
+            <Field label="유효기한 (YYYY-MM-DD)" value={f.valid_until} onChange={(v) => set('valid_until', v)} />
+          </div>
+
+          {/* 이전 입력값(원본) — 그대로 보존 표시 */}
+          <div style={{ padding: '10px 12px', borderRadius: 8, background: '#f9fafb', border: '1px solid #eef0f6' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-muted)', marginBottom: 4 }}>이전 입력값 (원본 · 보존됨)</div>
+            <div style={{ fontSize: 12, color: 'var(--gpu-ink-2)', fontFamily: 'monospace' }}>
+              {quote.original_price != null ? `${quote.original_price} ${quote.original_currency ?? ''} ${quote.original_unit ?? ''}` : '원본 입력값 없음'}
+            </div>
+          </div>
+
+          {/* AI 재분석 */}
+          <div style={{ padding: '12px', borderRadius: 8, background: 'rgba(91,94,240,0.05)', border: '1px solid var(--gpu-accent, #5b5ef0)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <Sparkles size={14} style={{ color: 'var(--gpu-accent)' }} />
+              <strong style={{ fontSize: 12.5 }}>AI 재분석</strong>
+              <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>원본값 기준으로 장수·단가 재정규화 제안</span>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="추가 메모(선택): 예) 640GB는 8장 세트"
+                style={{ flex: 1, height: 30, fontSize: 12, padding: '0 8px', borderRadius: 6, border: '1.5px solid var(--gpu-border)' }} />
+              <button onClick={reanalyze} disabled={analyzing} className="gpu-btn gpu-btn-primary" style={{ gap: 5, whiteSpace: 'nowrap' }}>
+                <Sparkles size={13} /> {analyzing ? '분석 중…' : '재분석'}
+              </button>
+            </div>
+            {suggestion && (
+              <div style={{ marginTop: 10, fontSize: 12.5 }}>
+                <div style={{ display: 'flex', gap: 12, fontFamily: 'monospace', fontWeight: 700 }}>
+                  <span>장수 {suggestion.gpu_count}</span>
+                  <span>단가 ${suggestion.unit_price_usd}</span>
+                  <span>1장당 ${suggestion.per_gpu_usd}</span>
+                  <span style={{ color: 'var(--gpu-muted)', fontWeight: 400 }}>{suggestion.price_basis}</span>
+                  {suggestion.confidence != null && <span style={{ marginLeft: 'auto', color: 'var(--gpu-accent)' }}>{suggestion.confidence}%</span>}
+                </div>
+                {suggestion.reason && <div style={{ marginTop: 4, color: 'var(--gpu-muted)' }}>{suggestion.reason}</div>}
+                <button onClick={applySuggestion} className="gpu-btn" style={{ marginTop: 8, fontSize: 12, gap: 5 }}>
+                  <ChevronRight size={13} /> 제안값 입력에 반영
+                </button>
+              </div>
+            )}
+          </div>
+
+          {err && <div style={{ fontSize: 12, color: 'var(--gpu-red)' }}>{err}</div>}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={save} disabled={saving} className="gpu-btn gpu-btn-primary" style={{ gap: 5 }}><Save size={14} /> {saving ? '저장 중…' : '저장'}</button>
+            <button onClick={del} disabled={saving} className="gpu-btn" style={{ marginLeft: 'auto', color: 'var(--gpu-red)', gap: 5 }}><Trash2 size={14} /> 삭제</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SupplierDetailModal({ id, onClose, onChanged }: { id: string; onClose: () => void; onChanged: () => void }) {
   const { data, mutate } = useSWR<SupplierDetail>(`/api/pricing/gpu/suppliers/${id}`, fetcher)
   const [form, setForm] = useState<Record<string, string> | null>(null)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [editQuote, setEditQuote] = useState<QuoteRow | null>(null)
 
   const s = data?.supplier
   const f = form ?? (s ? { name: s.name, country: s.country ?? '', website: s.website ?? '', contact: s.contact ?? '', location: s.location ?? '', description: s.description ?? '', color: s.color ?? COLORS[0] } : null)
@@ -97,7 +234,10 @@ function SupplierDetailModal({ id, onClose, onChanged }: { id: string; onClose: 
         {/* 헤더 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid var(--gpu-border)', position: 'sticky', top: 0, background: '#fff' }}>
           <div className="gpu-sup-logo" style={{ background: f?.color || s?.color }}>{(s?.name ?? '?').charAt(0)}</div>
-          <strong style={{ fontSize: 16, flex: 1 }}>{s?.name ?? '로딩…'}</strong>
+          <strong style={{ fontSize: 16, flex: 1 }}>
+            {s?.name ?? '로딩…'}
+            {s?.country && <span style={{ marginLeft: 8, fontSize: 15, fontWeight: 400 }}>{countryFlag(s.country)} {s.country}</span>}
+          </strong>
           {data && (
             <span style={{ fontSize: 11.5, color: 'var(--gpu-muted)' }}>
               확정 {data.stats.confirmed_quotes}건 · {data.stats.models}개 모델
@@ -155,7 +295,8 @@ function SupplierDetailModal({ id, onClose, onChanged }: { id: string; onClose: 
                   {data.quotes.map((q) => {
                     const st = STATUS_LABEL[q.status] ?? { t: q.status, c: 'var(--gpu-faint)' }
                     return (
-                      <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 7, background: '#f9fafb', border: '1px solid #eef0f6', fontSize: 12.5 }}>
+                      <div key={q.id} onClick={() => setEditQuote(q)} title="클릭하면 견적 수정·삭제·AI 재분석"
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 7, background: '#f9fafb', border: '1px solid #eef0f6', fontSize: 12.5, cursor: 'pointer' }}>
                         <span style={{ fontWeight: 600, minWidth: 110 }}>
                           {q.gpu_products?.model_name ?? '상품 미연결'}
                           {q.gpu_products?.memory && <span style={{ color: 'var(--gpu-muted)', fontWeight: 400 }}> {q.gpu_products.memory}</span>}
@@ -163,6 +304,7 @@ function SupplierDetailModal({ id, onClose, onChanged }: { id: string; onClose: 
                         <span style={{ color: 'var(--gpu-muted)' }}>×{q.gpu_count}GPU</span>
                         <span style={{ fontFamily: 'monospace', fontWeight: 700, marginLeft: 'auto' }}>{fmtUSD(q.unit_price_usd)}</span>
                         <span style={{ fontSize: 11, fontWeight: 600, color: st.c, minWidth: 36, textAlign: 'right' }}>{st.t}</span>
+                        <ChevronRight size={14} style={{ color: 'var(--gpu-faint)' }} />
                       </div>
                     )
                   })}
@@ -187,6 +329,14 @@ function SupplierDetailModal({ id, onClose, onChanged }: { id: string; onClose: 
           </div>
         )}
       </div>
+
+      {editQuote && (
+        <QuoteEditModal
+          quote={editQuote}
+          onClose={() => setEditQuote(null)}
+          onChanged={() => { mutate(); onChanged() }}
+        />
+      )}
     </div>
   )
 }
@@ -269,7 +419,7 @@ export default function SuppliersTab() {
               <div style={{ flex: 1 }}>
                 <div className="gpu-sup-nm">{s.name}</div>
                 <div className="gpu-sup-loc" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {s.country && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><MapPin size={11} />{s.country}</span>}
+                  {s.country && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><span style={{ fontSize: 14 }}>{countryFlag(s.country)}</span>{s.country}</span>}
                   {s.website && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--gpu-accent)' }}><Globe size={11} />사이트</span>}
                 </div>
               </div>

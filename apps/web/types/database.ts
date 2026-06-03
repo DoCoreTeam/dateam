@@ -360,6 +360,7 @@ export type AiFeature =
   | 'content-ai-edit'
   | 'daily-ai-save'
   | 'gpu-quote-extract'
+  | 'gpu-quote-reanalyze'
   | 'gpu-db-chat'
   | 'memo-embedding'
   | 'memo-cluster-label'

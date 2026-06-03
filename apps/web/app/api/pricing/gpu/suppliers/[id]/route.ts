@@ -26,7 +26,7 @@ export async function GET(
   // 이 공급사의 모든 견적 (상품 조인)
   const { data: quotes } = await db
     .from('supply_quotes')
-    .select('id, unit_price_usd, gpu_count, status, term, term_months, min_qty, valid_until, received_at, confirmed_at, source_format, gpu_products(id, model_name, memory, tier, gpu_count)')
+    .select('id, unit_price_usd, gpu_count, status, term, term_months, min_qty, valid_until, received_at, confirmed_at, source_format, original_price, original_currency, original_unit, gpu_products(id, model_name, memory, tier, gpu_count)')
     .eq('supplier_id', id)
     .order('status')
     .order('unit_price_usd', { ascending: true })
