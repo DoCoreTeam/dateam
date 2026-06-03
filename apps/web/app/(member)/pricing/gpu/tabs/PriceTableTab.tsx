@@ -221,7 +221,8 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
   useEffect(() => {
     if (groupsInitialized || products.length === 0) return
     setCollapsedModels(new Set(products.map((p) => p.model_name)))
-    setCollapsedTiers(new Set(products.map((p) => p.tier)))
+    // Tier 1은 기본 펼침(모델은 접힘 유지), Tier 2·3만 접힘
+    setCollapsedTiers(new Set(products.map((p) => p.tier).filter((t) => t !== 1)))
     setGroupsInitialized(true)
   }, [products, groupsInitialized])
 

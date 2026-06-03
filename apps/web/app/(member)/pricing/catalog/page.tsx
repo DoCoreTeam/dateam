@@ -128,7 +128,7 @@ export default function SalePriceCatalogPage() {
   // Tier→모델 2단계 그룹 (4개 메뉴 공용 구조)
   const tierGroups = buildTierModelGroups(filtered)
   const allKeys = pricedProducts.flatMap((p) => [tierKey(p.tier), modelKey(p.tier, p.model_name)])
-  const { isCollapsed, toggle } = useCollapsibleGroups(allKeys, true)
+  const { isCollapsed, toggle } = useCollapsibleGroups(allKeys, true, [tierKey(1)])
   const searching = search.trim().length > 0
   const collapsedOf = (key: string) => (searching ? false : isCollapsed(key))
 

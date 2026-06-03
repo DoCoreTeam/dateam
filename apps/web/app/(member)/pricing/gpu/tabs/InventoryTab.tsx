@@ -342,7 +342,7 @@ export default function InventoryTab() {
   // Tier→모델 2단계 그룹 (4개 메뉴 공용 구조)
   const tierGroups = buildTierModelGroups(filtered)
   const allKeys = inventory.flatMap((p) => [tierKey(p.tier), modelKey(p.tier, p.model_name)])
-  const { isCollapsed, toggle } = useCollapsibleGroups(allKeys, true)
+  const { isCollapsed, toggle } = useCollapsibleGroups(allKeys, true, [tierKey(1)])
   // 검색 중에는 매칭 결과를 펼쳐 보여줌
   const searching = search.trim().length > 0
   const collapsedOf = (key: string) => (searching ? false : isCollapsed(key))

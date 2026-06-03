@@ -1052,8 +1052,8 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
   const [showCompModal, setShowCompModal] = useState(false)
   const [viewMode, setViewMode] = useState<'table' | 'strategy'>('table')
   const [positionFilter, setPositionFilter] = useState<null | 'low' | 'mid' | 'high'>(null)
-  // Tier 카테고리 그룹 접힘 — 기본 전부 접힘(가격표와 동일 UX)
-  const [collapsedTiers, setCollapsedTiers] = useState<Set<number>>(new Set([1, 2, 3]))
+  // Tier 카테고리 그룹 접힘 — Tier 1 기본 펼침, Tier 2·3 접힘(4개 메뉴 동일 UX)
+  const [collapsedTiers, setCollapsedTiers] = useState<Set<number>>(new Set([2, 3]))
   const toggleTier = (t: number) => setCollapsedTiers(prev => {
     const next = new Set(prev)
     if (next.has(t)) next.delete(t); else next.add(t)
