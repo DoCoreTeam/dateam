@@ -183,9 +183,10 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
   const [msg, setMsg] = useState<string | null>(null)
   const [members, setMembers] = useState<{ name: string; category: string }[]>([])
   const [streamRows, setStreamRows] = useState<MergedRow[]>([])
+  const [localStatus, setLocalStatus] = useState<DeptStat['agg']>(agg)
   const [editingCell, setEditingCell] = useState<{ idx: number; field: 'performance' | 'plan' | 'issues' } | null>(null)
 
-  useEffect(() => { setRows(initialBody); setDirty(false) }, [initialBody])
+  useEffect(() => { setRows(initialBody); setDirty(false); setLocalStatus(agg) }, [initialBody, agg])
 
   // 스트리밍 취합: 카테고리가 통합되는 대로 실시간 표시
   async function onAggregate() {
@@ -231,10 +232,12 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
     setBusy(false)
     if (!r.ok) { setMsg(r.error ?? '저장 실패'); return }
     setMsg(confirm ? '확정 저장 완료' : '임시 저장 완료'); setDirty(false)
+    setLocalStatus(confirm ? 'confirmed' : 'draft')
     router.refresh()
   }
   const updateCell = (idx: number, field: 'performance' | 'plan' | 'issues', html: string) => {
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, [field]: html } : r))); setDirty(true)
+    setLocalStatus('draft')
   }
 
   const activeValue = editingCell ? rows[editingCell.idx]?.[editingCell.field] ?? '' : ''
@@ -246,7 +249,7 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
           <Sparkles size={16} color="#7c3aed" />
           <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#1e1b4b' }}>{deptName} 취합 주간보고</span>
-          {aggBadge(agg)}
+          {aggBadge(localStatus)}
           {!editable && <span style={{ fontSize: '0.6875rem', color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}><Lock size={11} /> 조회 전용</span>}
         </div>
         {editable && (
@@ -324,9 +327,13 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
       )}
 
       {editable && rows.length > 0 && (
-        <div style={{ display: 'flex', gap: '0.5rem', padding: '0.875rem 1.25rem', borderTop: '1px solid #f1f5f9' }}>
-          <button onClick={() => save(true)} disabled={busy} style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff', background: '#059669', border: 'none', borderRadius: '0.5rem', padding: '0.5rem 1rem', cursor: 'pointer' }}>확정</button>
-          <button onClick={() => save(false)} disabled={busy} style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#475569', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '0.5rem 1rem', cursor: 'pointer' }}>임시저장</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.875rem 1.25rem', borderTop: '1px solid #f1f5f9' }}>
+          {localStatus === 'confirmed' && !dirty ? (
+            <button disabled style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#059669', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '0.5rem', padding: '0.5rem 1rem', cursor: 'default' }}>✓ 확정됨</button>
+          ) : (
+            <button onClick={() => save(true)} disabled={busy} style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff', background: '#059669', border: 'none', borderRadius: '0.5rem', padding: '0.5rem 1rem', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>{dirty && localStatus === 'confirmed' ? '재확정' : '확정'}</button>
+          )}
+          <button onClick={() => save(false)} disabled={busy} style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#475569', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '0.5rem 1rem', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>임시저장</button>
           {dirty && <span style={{ alignSelf: 'center', fontSize: '0.75rem', color: '#d97706' }}>저장되지 않은 변경</span>}
         </div>
       )}
