@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import useSWR from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
+import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { ChevronRight, Plus, Zap, Info, ArrowUpDown, ArrowUp, ArrowDown, Tag } from 'lucide-react'
 import { formatSpec, scaleSpec } from '@/lib/gpu/format-spec'
 
@@ -89,11 +90,59 @@ interface ExpandedRowProps {
   currencyMode: 'KRW' | 'USD'
 }
 
+interface SupplierOpt { id: string; name: string; color: string }
+
+function AssignSupplier({ quoteId, onAssigned }: { quoteId: string; onAssigned: () => void }) {
+  const { data } = useSWR<{ suppliers: SupplierOpt[] }>('/api/pricing/gpu/suppliers', fetcher)
+  const suppliers = data?.suppliers ?? []
+  const [sel, setSel] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const assign = async () => {
+    if (!sel) return
+    setSaving(true); setErr(null)
+    try {
+      const res = await fetch(`/api/pricing/gpu/quotes/${quoteId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supplier_id: sel }),
+      })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error ?? '지정 실패'); return }
+      onAssigned()
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }} onClick={(e) => e.stopPropagation()}>
+      <select
+        value={sel}
+        onChange={(e) => setSel(e.target.value)}
+        aria-label="공급사 지정"
+        style={{ height: 26, fontSize: 11.5, borderRadius: 6, border: '1.5px solid var(--gpu-amber)', padding: '0 6px', maxWidth: 150 }}
+      >
+        <option value="">공급사 선택…</option>
+        {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+      </select>
+      <button
+        onClick={assign}
+        disabled={!sel || saving}
+        className="gpu-btn"
+        style={{ height: 26, padding: '0 9px', fontSize: 11.5, fontWeight: 600, background: sel ? 'var(--gpu-accent, #5b5ef0)' : '#cbd5e1', color: '#fff', borderRadius: 6 }}
+      >
+        {saving ? '지정 중…' : '지정'}
+      </button>
+      {err && <span style={{ fontSize: 10.5, color: 'var(--gpu-red)' }}>{err}</span>}
+    </div>
+  )
+}
+
 function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRowProps) {
   const { data } = useSWR<{ quotes: Quote[] }>(
     `/api/pricing/gpu/quotes?product_id=${productId}`,
     fetcher
   )
+  const { mutate } = useSWRConfig()
   const quotes = data?.quotes ?? []
 
   if (quotes.length === 0) {
@@ -116,15 +165,20 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
         return (
           <div key={q.id} className={`gpu-qline${isBest ? ' gpu-qline-best' : ''}`}>
             <div className="gpu-qline-sup">
-              {q.suppliers ? (
-                <span className="gpu-sdot" style={{ background: q.suppliers.color }} />
-              ) : (
-                <span className="gpu-sdot" style={{ background: 'var(--gpu-amber)' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {q.suppliers ? (
+                  <span className="gpu-sdot" style={{ background: q.suppliers.color }} />
+                ) : (
+                  <span className="gpu-sdot" style={{ background: 'var(--gpu-amber)' }} />
+                )}
+                <span style={{ fontWeight: 600, color: q.suppliers ? undefined : 'var(--gpu-amber)' }}>
+                  {q.suppliers?.name ?? '공급사 미지정'}
+                </span>
+                {isBest && <span className="gpu-badge-best">최저가</span>}
+              </div>
+              {!q.suppliers && (
+                <AssignSupplier quoteId={q.id} onAssigned={() => { mutate(`/api/pricing/gpu/quotes?product_id=${productId}`); mutateGpu(mutate) }} />
               )}
-              <span style={{ fontWeight: 600, color: q.suppliers ? undefined : 'var(--gpu-amber)' }}>
-                {q.suppliers?.name ?? '공급사 미지정'}
-              </span>
-              {isBest && <span className="gpu-badge-best">최저가</span>}
             </div>
             <div>
               <div className="gpu-mono" style={{ fontSize: '13.5px', fontWeight: 700 }}>
