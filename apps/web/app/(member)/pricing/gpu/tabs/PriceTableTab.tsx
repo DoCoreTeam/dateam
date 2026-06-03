@@ -568,11 +568,8 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
         </div>
       </div>
 
-      {/* Tier 범례 */}
+      {/* Tier 안내 (설명 제거 — Tier 등급만) */}
       <div className="gpu-tier-legend">
-        <span className="gpu-tl"><span className="gpu-badge gpu-badge-t1">Tier 1</span>전용 고성능 · 보장형</span>
-        <span className="gpu-tl"><span className="gpu-badge gpu-badge-t2">Tier 2</span>점유형(예약 단독) · 보장형</span>
-        <span className="gpu-tl"><span className="gpu-badge gpu-badge-t3">Tier 3</span>간헐 공급(중단/재개) · 최저가</span>
         <span className="gpu-tier-legend-note">
           <Info size={13} /> 최저가는 동일 모델·tier 안에서만 비교
         </span>
@@ -670,7 +667,6 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                         </div>
                         <div className="gpu-model-meta">
                           <span className={`gpu-badge ${tier.badge}`} style={{ fontSize: '10px' }}>{tier.label}</span>
-                          {' '}{tier.name}
                         </div>
                         <div style={{ fontSize: '10.5px', color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p)}</div>
                       </div>
@@ -810,7 +806,6 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <ChevronRight size={16} style={{ transform: tierCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform 0.15s', color: 'var(--gpu-muted)' }} />
                         <span className={`gpu-badge ${tcfg.badge}`} style={{ fontSize: 10.5 }}>{tcfg.label}</span>
-                        <strong style={{ fontSize: 13.5, color: '#0f172a' }}>{tcfg.name}</strong>
                         <span style={{ fontSize: 11.5, color: 'var(--gpu-muted)' }}>{groups.length}개 모델</span>
                       </div>
                     </td>

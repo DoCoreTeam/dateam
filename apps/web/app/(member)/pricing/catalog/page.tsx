@@ -250,7 +250,6 @@ export default function SalePriceCatalogPage() {
             borderLeft: `3px solid ${TIER_INFO[t].color}`, fontSize: 11, color: 'var(--gpu-muted)',
           }}>
             <span style={{ fontWeight: 700, color: '#374151' }}>Tier {t}</span>
-            <span>{TIER_INFO[t].desc}</span>
           </div>
         ))}
       </div>
