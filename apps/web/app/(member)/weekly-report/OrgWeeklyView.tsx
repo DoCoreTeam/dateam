@@ -11,7 +11,8 @@ const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: 
 
 interface SlimNode { id: string; type: string; parent_id: string | null; name: string }
 interface DeptStat { memberCount: number; reportedCount: number; agg: 'none' | 'draft' | 'confirmed' }
-interface MergedRow { category: string; performance: string; plan: string; issues: string }
+interface AuthorBlock { name: string; rank?: string; performance: string; plan: string; issues: string }
+interface MergedRow { category: string; authors: AuthorBlock[] }
 
 // 기존 취합(AdminReportsPreview)과 동일한 sanitize/표시 규칙
 const ALLOWED_TAGS = /^(p|ul|ol|li|strong|em|br|span|b|i)$/i
@@ -181,10 +182,10 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
-  const [members, setMembers] = useState<{ name: string; category: string }[]>([])
+  const [members, setMembers] = useState<{ name: string; rank?: string; category: string }[]>([])
   const [streamRows, setStreamRows] = useState<MergedRow[]>([])
   const [localStatus, setLocalStatus] = useState<DeptStat['agg']>(agg)
-  const [editingCell, setEditingCell] = useState<{ idx: number; field: 'performance' | 'plan' | 'issues' } | null>(null)
+  const [editingCell, setEditingCell] = useState<{ idx: number; authorIdx: number; field: 'performance' | 'plan' | 'issues' } | null>(null)
 
   useEffect(() => { setRows(initialBody); setDirty(false); setLocalStatus(agg) }, [initialBody, agg])
 
@@ -235,12 +236,14 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
     setLocalStatus(confirm ? 'confirmed' : 'draft')
     router.refresh()
   }
-  const updateCell = (idx: number, field: 'performance' | 'plan' | 'issues', html: string) => {
-    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, [field]: html } : r))); setDirty(true)
+  const updateCell = (idx: number, authorIdx: number, field: 'performance' | 'plan' | 'issues', html: string) => {
+    setRows((prev) => prev.map((r, i) => i === idx
+      ? { ...r, authors: r.authors.map((a, ai) => ai === authorIdx ? { ...a, [field]: html } : a) }
+      : r)); setDirty(true)
     setLocalStatus('draft')
   }
 
-  const activeValue = editingCell ? rows[editingCell.idx]?.[editingCell.field] ?? '' : ''
+  const activeValue = editingCell ? rows[editingCell.idx]?.authors?.[editingCell.authorIdx]?.[editingCell.field] ?? '' : ''
 
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden', border: '1px solid #e2e8f0', borderRadius: '0.75rem' }}>
@@ -273,7 +276,7 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                 {members.map((m, i) => (
                   <span key={i} style={{ fontSize: '0.72rem', color: '#475569', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.15rem 0.45rem' }}>
-                    {m.name} · {m.category}
+                    {m.name}{m.rank ? ` ${m.rank}` : ''} · {m.category}
                   </span>
                 ))}
               </div>
@@ -296,33 +299,33 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
           {editable ? '아직 취합본이 없습니다. 상단 "AI 취합"으로 부서원 보고를 모으세요.' : '아직 확정된 취합본이 없습니다.'}
         </p>
       ) : (
-        <div className="table-responsive">
-          <table className="table-base table-card" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#f8fafc' }}>
-                <th style={{ padding: '0.625rem 0.875rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #e2e8f0', width: '120px', whiteSpace: 'nowrap' }}>구분</th>
-                {FIELDS.map((f) => (
-                  <th key={f.key} style={{ padding: '0.625rem 0.875rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>{f.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, idx) => (
-                <tr key={`${row.category}-${idx}`} style={{ borderBottom: '1px solid #f1f5f9', verticalAlign: 'top' }}>
-                  <td className="mobile-only card-header"><span style={{ fontWeight: 700, color: '#4338ca' }}>{row.category}</span></td>
-                  <td data-label="구분" style={{ padding: '0.75rem 0.875rem', fontSize: '0.8125rem', color: '#4338ca', fontWeight: 600, whiteSpace: 'nowrap' }}>{row.category}</td>
-                  {FIELDS.map((f) => (
-                    <td key={f.key} data-label={f.label} style={{ padding: '0.75rem 0.875rem', verticalAlign: 'top' }}>
-                      <RichCell html={row[f.key]} />
-                      {editable && (
-                        <button onClick={() => setEditingCell({ idx, field: f.key })} style={{ marginTop: '0.375rem', padding: '0.125rem 0.375rem', fontSize: '0.7rem', color: '#9ca3af', background: 'none', border: '1px solid #e5e7eb', borderRadius: '0.25rem', cursor: 'pointer' }}>수정</button>
-                      )}
-                    </td>
-                  ))}
-                </tr>
+        <div>
+          {rows.map((row, idx) => (
+            <div key={`${row.category}-${idx}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
+              {/* 카테고리 섹션 헤더 */}
+              <div style={{ padding: '0.625rem 1.25rem', background: '#f8fafc', fontWeight: 700, fontSize: '0.8125rem', color: '#4338ca' }}>{row.category}</div>
+              {/* 작성자 소블록 (직급→이름 순 보존) */}
+              {(row.authors ?? []).map((au, ai) => (
+                <div key={ai} style={{ padding: '0.75rem 1.25rem', borderTop: ai > 0 ? '1px dashed #e2e8f0' : 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a' }}>{au.name}</span>
+                    {au.rank && <span style={{ fontSize: '0.66rem', color: '#7c3aed', background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: '0.25rem', padding: '0.05rem 0.35rem' }}>{au.rank}</span>}
+                  </div>
+                  <div className="responsive-grid-cols-3" style={{ display: 'grid', gap: '0.75rem' }}>
+                    {FIELDS.map((f) => (
+                      <div key={f.key}>
+                        <div style={{ fontSize: '0.66rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.2rem' }}>{f.label}</div>
+                        <RichCell html={au[f.key]} />
+                        {editable && (
+                          <button onClick={() => setEditingCell({ idx, authorIdx: ai, field: f.key })} style={{ marginTop: '0.3rem', padding: '0.1rem 0.35rem', fontSize: '0.68rem', color: '#9ca3af', background: 'none', border: '1px solid #e5e7eb', borderRadius: '0.25rem', cursor: 'pointer' }}>수정</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          ))}
         </div>
       )}
 
@@ -342,7 +345,7 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
         <EditorModal
           title={`${FIELDS.find((f) => f.key === editingCell.field)?.label} 수정`}
           value={activeValue}
-          onChange={(html: string) => updateCell(editingCell.idx, editingCell.field, html)}
+          onChange={(html: string) => updateCell(editingCell.idx, editingCell.authorIdx, editingCell.field, html)}
           onClose={() => setEditingCell(null)}
         />
       )}

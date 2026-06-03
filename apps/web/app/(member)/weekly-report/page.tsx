@@ -14,7 +14,8 @@ import { FileText, Users, GitBranch } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
 import { resolveOrgScope, deptMemberUserIds, hasOrgScope } from '@/lib/org-scope'
 
-interface MergedRow { category: string; performance: string; plan: string; issues: string }
+interface AuthorBlock { name: string; rank?: string; performance: string; plan: string; issues: string }
+interface MergedRow { category: string; authors: AuthorBlock[] }
 
 interface TeamRow {
   user_id: string
