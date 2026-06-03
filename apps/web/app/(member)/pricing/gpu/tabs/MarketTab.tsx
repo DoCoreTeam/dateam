@@ -1526,7 +1526,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                   style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', cursor: 'pointer', background: '#fafbff', borderBottom: '1px solid #f1f2f6', userSelect: 'none' }}
                 >
                   <span style={{ transform: gCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform .15s', color: 'var(--gpu-muted)', display: 'inline-flex', fontSize: 11 }}>▶</span>
-                  <span className={`gpu-badge ${gCfg.badge}`} style={{ fontSize: 10 }}>{gCfg.label}</span>
+                  <strong style={{ fontSize: 13, color: '#0f172a' }}>{gCfg.label}</strong>
                   <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>{new Set(g.products.map(p => p.product.model_name)).size}개 모델 · {g.products.length}개 구성</span>
                 </div>
               )

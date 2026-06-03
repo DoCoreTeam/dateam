@@ -805,7 +805,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                     <td colSpan={colCount}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <ChevronRight size={16} style={{ transform: tierCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform 0.15s', color: 'var(--gpu-muted)' }} />
-                        <span className={`gpu-badge ${tcfg.badge}`} style={{ fontSize: 10.5 }}>{tcfg.label}</span>
+                        <strong style={{ fontSize: 13.5, color: '#0f172a' }}>{tcfg.label}</strong>
                         <span style={{ fontSize: 11.5, color: 'var(--gpu-muted)' }}>{groups.length}개 모델</span>
                       </div>
                     </td>
