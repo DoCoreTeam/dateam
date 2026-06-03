@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { ChevronLeft, ChevronRight, Lock, Pencil, Users, Sparkles } from 'lucide-react'
-import { aggregateDept, saveDeptReport } from './org-actions'
+import { saveDeptReport } from './org-actions'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 
@@ -181,17 +181,49 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+  const [members, setMembers] = useState<{ name: string; category: string }[]>([])
+  const [streamRows, setStreamRows] = useState<MergedRow[]>([])
   const [editingCell, setEditingCell] = useState<{ idx: number; field: 'performance' | 'plan' | 'issues' } | null>(null)
 
   useEffect(() => { setRows(initialBody); setDirty(false) }, [initialBody])
 
+  // 스트리밍 취합: 카테고리가 통합되는 대로 실시간 표시
   async function onAggregate() {
-    setBusy(true); setMsg(null)
-    const r = await aggregateDept(deptId, weekStart)
-    setBusy(false)
-    if (!r.ok) { setMsg(r.error ?? '취합 실패'); return }
-    setRows((r.body as MergedRow[]) ?? []); setDirty(true)
-    setMsg('AI 취합 완료 — 셀별 "수정"으로 다듬고 [확정]하세요')
+    setBusy(true); setMsg(null); setMembers([]); setStreamRows([])
+    try {
+      const res = await fetch('/api/reports/aggregate-stream', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deptId, weekStart }),
+      })
+      if (!res.ok || !res.body) { setMsg(`취합 실패: ${await res.text().catch(() => res.status)}`); setBusy(false); return }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      const collected: MergedRow[] = []
+      let buf = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        const lines = buf.split('\n\n'); buf = lines.pop() ?? ''
+        for (const line of lines) {
+          const t = line.trim()
+          if (!t.startsWith('data:')) continue
+          try {
+            const ev = JSON.parse(t.slice(5).trim())
+            if (ev.type === 'members') setMembers(ev.members ?? [])
+            else if (ev.type === 'category' && ev.item?.category) { collected.push(ev.item); setStreamRows([...collected]) }
+            else if (ev.type === 'error') setMsg(ev.message ?? '취합 실패')
+          } catch { /* skip */ }
+        }
+      }
+      setBusy(false)
+      if (collected.length > 0) {
+        setRows(collected); setDirty(true)
+        setMsg('AI 취합 완료 — 셀별 "수정"으로 다듬고 [확정]하세요')
+      }
+    } catch (e) {
+      setBusy(false); setMsg(e instanceof Error ? e.message : '취합 실패')
+    }
   }
   async function save(confirm: boolean) {
     setBusy(true); setMsg(null)
@@ -226,7 +258,37 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
 
       {msg && <div role="status" style={{ padding: '0.625rem 1.25rem', background: '#eef2ff', borderBottom: '1px solid #c7d2fe', fontSize: '0.8125rem', color: '#4338ca' }}>{msg}</div>}
 
-      {rows.length === 0 ? (
+      {busy ? (
+        <div style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem', fontWeight: 700, color: '#7c3aed', marginBottom: '0.75rem' }}>
+            <Sparkles size={15} /> 취합 중…
+          </div>
+          {/* 취합 대상 부서원 보고 + 상태 */}
+          {members.length > 0 && (
+            <div style={{ marginBottom: '0.875rem' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>취합 대상 부서원 보고 {members.length}건</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                {members.map((m, i) => (
+                  <span key={i} style={{ fontSize: '0.72rem', color: '#475569', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.15rem 0.45rem' }}>
+                    {m.name} · {m.category}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* 실시간 통합 카테고리 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+            {streamRows.length === 0 ? (
+              <span style={{ fontSize: '0.8rem', color: '#a78bfa' }}>부서원 보고를 종합하는 중…</span>
+            ) : streamRows.map((r, i) => (
+              <div key={i} style={{ fontSize: '0.82rem', color: '#1e293b' }}>
+                <span style={{ color: '#16a34a', fontWeight: 700, marginRight: '0.35rem' }}>✓</span>
+                <span style={{ fontWeight: 600 }}>{r.category}</span> 카테고리 통합됨
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : rows.length === 0 ? (
         <p style={{ padding: '1.25rem', color: '#94a3b8', fontSize: '0.875rem', margin: 0 }}>
           {editable ? '아직 취합본이 없습니다. 상단 "AI 취합"으로 부서원 보고를 모으세요.' : '아직 확정된 취합본이 없습니다.'}
         </p>

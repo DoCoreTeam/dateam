@@ -23,7 +23,7 @@ export interface MergedCategoryReport {
   issues: string
 }
 
-const MERGE_BY_CATEGORY_PROMPT = `당신은 기업 주간보고서 편집 전문가입니다. 여러 팀원의 주간보고를 팀 전체 하나의 통합 보고서로 작성합니다.
+export const MERGE_BY_CATEGORY_PROMPT = `당신은 기업 주간보고서 편집 전문가입니다. 여러 팀원의 주간보고를 팀 전체 하나의 통합 보고서로 작성합니다.
 
 ## 1단계: 구분(category) 의미론적 통합
 입력된 모든 구분 값을 파악한 뒤, 업무 도메인 관점에서 실질적으로 같은 업무 영역에 해당하는 구분들을 하나로 묶으세요.
