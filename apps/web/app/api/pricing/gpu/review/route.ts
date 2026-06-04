@@ -354,9 +354,25 @@ export async function POST(req: NextRequest) {
   if (Array.isArray(parsed.items) && parsed.items.length === 0) {
     return NextResponse.json({ error: 'AI가 GPU 모델을 인식하지 못했습니다' }, { status: 422 })
   }
-  const itemsList: SingleExtracted[] = Array.isArray(parsed.items)
+  const rawItemsList: SingleExtracted[] = Array.isArray(parsed.items)
     ? parsed.items.slice(0, 50)
     : [{ extracted: parsed.extracted, confidence: parsed.confidence, evidence: parsed.evidence, impact_assessment: parsed.impact_assessment }]
+
+  // 빈 추출 가드 — 모델명이 없는 항목은 GPU 견적이 아님(쓰레기 항목 생성 방지).
+  // SPA URL 단독 등으로 본문에서 모델/가격을 못 찾은 경우 검토 대기에 빈 항목을 만들지 않고 안내. (PF1)
+  const isMeaningful = (item: SingleExtracted): boolean => {
+    const name = item.extracted?.model_name
+    return typeof name === 'string' && name.trim().length > 0
+  }
+  const itemsList = rawItemsList.filter(isMeaningful)
+  if (itemsList.length === 0) {
+    const hadUrl = urls.length > 0
+    return NextResponse.json({
+      error: hadUrl
+        ? 'URL 본문에서 GPU 모델·가격을 찾지 못했습니다. 페이지의 가격표 내용을 직접 붙여넣어 주세요.'
+        : 'AI가 GPU 모델을 인식하지 못했습니다. 모델명·가격이 포함된 내용을 입력해 주세요.',
+    }, { status: 422 })
+  }
 
   const batchId = crypto.randomUUID()
 
