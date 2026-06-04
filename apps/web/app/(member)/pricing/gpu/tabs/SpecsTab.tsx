@@ -4,6 +4,7 @@ import { useState } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { Sparkles, X, Save, Pencil } from 'lucide-react'
+import { useEscClose } from '@/lib/use-esc-close'
 
 interface Spec {
   model_name: string
@@ -64,6 +65,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
   const [gen, setGen] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }))
+  useEscClose(onClose)
 
   const save = async () => {
     setSaving(true); setErr(null)

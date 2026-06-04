@@ -6,6 +6,7 @@ import { fetcher } from '@/lib/swr-config'
 import { Plus, X, Globe, Trash2, Save, ExternalLink, Sparkles, ChevronRight, Pencil } from 'lucide-react'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { countryFlag } from '@/lib/gpu/country-flag'
+import { useEscClose } from '@/lib/use-esc-close'
 
 interface SupplierStats {
   id: string
@@ -99,6 +100,7 @@ function QuoteEditModal({ quote, onClose, onChanged }: { quote: QuoteRow; onClos
   const [analyzing, setAnalyzing] = useState(false)
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
   const set = (k: string, v: string) => setF((p) => ({ ...p, [k]: v }))
+  useEscClose(onClose)
 
   const save = async () => {
     setSaving(true); setErr(null)
@@ -224,6 +226,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
   const [editing, setEditing] = useState(false)              // 조회-우선: 기본 조회, 수정 클릭 시 편집
   const [newContact, setNewContact] = useState({ name: '', title: '', email: '', phone: '' })
   const [contactSaving, setContactSaving] = useState(false)
+  useEscClose(onClose, !editQuote)                           // 견적 모달 열렸을 땐 비활성(자식 우선)
 
   const s = data?.supplier
   const f = form ?? (s ? { name: s.name, country: s.country ?? '', website: s.website ?? '', contact: s.contact ?? '', location: s.location ?? '', description: s.description ?? '', color: s.color ?? COLORS[0] } : null)
@@ -449,6 +452,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const set = (k: string, v: string) => setF({ ...f, [k]: v })
+  useEscClose(onClose)
 
   const create = async () => {
     if (!f.name.trim()) { setErr('공급사명을 입력하세요'); return }
