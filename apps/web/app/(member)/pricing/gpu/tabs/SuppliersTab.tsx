@@ -301,9 +301,14 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <div style={{ fontSize: 12, fontWeight: 700 }}>회사 정보</div>
                 {!editing && (
-                  <button onClick={() => { setForm(null); setEditing(true) }} className="gpu-btn" style={{ marginLeft: 'auto', gap: 4, fontSize: 12 }}>
-                    <Pencil size={13} /> 수정
-                  </button>
+                  <>
+                    <button onClick={() => { setForm(null); setEditing(true) }} className="gpu-btn" style={{ marginLeft: 'auto', gap: 4, fontSize: 12 }}>
+                      <Pencil size={13} /> 수정
+                    </button>
+                    <button onClick={del} disabled={saving} className="gpu-btn" style={{ gap: 4, fontSize: 12, color: 'var(--gpu-red)' }}>
+                      <Trash2 size={13} /> 삭제
+                    </button>
+                  </>
                 )}
               </div>
 
