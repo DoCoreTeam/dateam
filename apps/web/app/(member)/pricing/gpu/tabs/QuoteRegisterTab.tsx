@@ -502,67 +502,66 @@ export default function QuoteRegisterTab() {
                 </div>
               )}
             </div>
-          ) : supplierPreview.length > 0 && !hasResults ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, overflowY: 'auto' }} data-testid="supplier-preview">
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
-                <span className="gpu-badge" style={{ background: '#6366f1', color: '#fff', fontSize: 10 }}>공급사 견적</span>
-                <span className="gpu-badge" style={{ background: committed ? 'var(--gpu-green)' : 'var(--gpu-amber)', color: '#fff', fontSize: 10 }}>
-                  {committed ? '검토 대기 추가됨' : '저장 대기'}
-                </span>
-              </div>
-              {supplierPreview.map((it, i) => {
-                const ex = (it?.extracted ?? {}) as Record<string, unknown>
-                const name = `${ex.model_name ?? ''} ${ex.memory ?? ''}`.trim()
-                const priceVal = ex.unit_price_usd ?? ex.price_usd
-                const price = priceVal != null ? `$${priceVal}/hr` : '—'
-                return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, background: '#eef2ff', border: '1px solid #c7d2fe' }}>
-                    <span style={{ fontSize: 12, color: '#374151', fontWeight: 600, flex: 1 }}>{name || '(모델 미상)'}</span>
-                    {ex.supplier ? <span style={{ fontSize: 11, color: '#6b7280' }}>{String(ex.supplier)}</span> : null}
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5' }}>{price}</span>
+          ) : (supplierPreview.length > 0 || hasCompetitorResults) && !hasResults ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8, overflowY: 'auto' }}>
+              {/* 경쟁사 가격 (혼합 시 위) */}
+              {hasCompetitorResults && (
+                <div data-testid="competitor-preview" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+                    <span className="gpu-badge" style={{ background: 'var(--gpu-accent)', color: '#fff', fontSize: 10 }}>🟢 경쟁사 가격</span>
+                    <span className="gpu-badge" style={{ background: applied ? 'var(--gpu-green)' : 'var(--gpu-amber)', color: '#fff', fontSize: 10 }}>
+                      {applied ? '반영 완료' : '반영 대기'}
+                    </span>
                   </div>
-                )
-              })}
-              {!committed ? (
-                <button onClick={commitSupplier} disabled={committing} className="gpu-btn gpu-btn-primary" data-testid="supplier-commit-btn" style={{ marginTop: 8, justifyContent: 'center', gap: 6 }}>
-                  {committing ? '저장 중…' : `검토 대기에 추가 (${supplierPreview.length}건)`}
-                </button>
-              ) : (
-                <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 12, color: '#15803d' }}>
-                  ✓ 검토 대기 탭에 추가되었습니다. 본부장 검토 후 가격표에 반영됩니다.
+                  {competitorResults.map((item, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                      <span style={{ fontSize: 12, color: '#374151', fontWeight: 600, minWidth: 80 }}>{item.competitor}</span>
+                      <span style={{ fontSize: 12, color: '#6b7280', flex: 1 }}>{item.model} {item.memory}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }}>${item.price_usd}/hr</span>
+                    </div>
+                  ))}
+                  {!applied ? (
+                    <button onClick={applyCompetitor} disabled={applying} className="gpu-btn gpu-btn-primary" style={{ marginTop: 4, justifyContent: 'center', gap: 6 }}>
+                      {applying ? '반영 중…' : `시장비교에 반영 (${competitorResults.length}건)`}
+                    </button>
+                  ) : (
+                    <div style={{ padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 12, color: '#15803d' }}>
+                      ✓ 시장 비교 탭에 반영되었습니다.
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          ) : hasCompetitorResults ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, overflowY: 'auto' }}>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
-                <span className="gpu-badge" style={{ background: 'var(--gpu-accent)', color: '#fff', fontSize: 10 }}>
-                  경쟁사 가격
-                </span>
-                <span className="gpu-badge" style={{ background: applied ? 'var(--gpu-green)' : 'var(--gpu-amber)', color: '#fff', fontSize: 10 }}>
-                  {applied ? '반영 완료' : '반영 대기'}
-                </span>
-              </div>
-              {competitorResults.map((item, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
-                    borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0',
-                  }}
-                >
-                  <span style={{ fontSize: 12, color: '#374151', fontWeight: 600, minWidth: 80 }}>{item.competitor}</span>
-                  <span style={{ fontSize: 12, color: '#6b7280', flex: 1 }}>{item.model} {item.memory}</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }}>${item.price_usd}/hr</span>
-                </div>
-              ))}
-              {!applied ? (
-                <button onClick={applyCompetitor} disabled={applying} className="gpu-btn gpu-btn-primary" style={{ marginTop: 8, justifyContent: 'center', gap: 6 }}>
-                  {applying ? '반영 중…' : `시장비교에 반영 (${competitorResults.length}건)`}
-                </button>
-              ) : (
-                <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 12, color: '#15803d' }}>
-                  ✓ 시장 비교 탭에 반영되었습니다.
+              {/* 공급사 견적 */}
+              {supplierPreview.length > 0 && (
+                <div data-testid="supplier-preview" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+                    <span className="gpu-badge" style={{ background: '#6366f1', color: '#fff', fontSize: 10 }}>🟡 공급사 견적</span>
+                    <span className="gpu-badge" style={{ background: committed ? 'var(--gpu-green)' : 'var(--gpu-amber)', color: '#fff', fontSize: 10 }}>
+                      {committed ? '검토 대기 추가됨' : '저장 대기'}
+                    </span>
+                  </div>
+                  {supplierPreview.map((it, i) => {
+                    const ex = (it?.extracted ?? {}) as Record<string, unknown>
+                    const name = `${ex.model_name ?? ''} ${ex.memory ?? ''}`.trim()
+                    const priceVal = ex.unit_price_usd ?? ex.price_usd
+                    const price = priceVal != null ? `$${priceVal}/hr` : '—'
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, background: '#eef2ff', border: '1px solid #c7d2fe' }}>
+                        <span style={{ fontSize: 12, color: '#374151', fontWeight: 600, flex: 1 }}>{name || '(모델 미상)'}</span>
+                        {ex.supplier ? <span style={{ fontSize: 11, color: '#6b7280' }}>{String(ex.supplier)}</span> : null}
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5' }}>{price}</span>
+                      </div>
+                    )
+                  })}
+                  {!committed ? (
+                    <button onClick={commitSupplier} disabled={committing} className="gpu-btn gpu-btn-primary" data-testid="supplier-commit-btn" style={{ marginTop: 4, justifyContent: 'center', gap: 6 }}>
+                      {committing ? '저장 중…' : `검토 대기에 추가 (${supplierPreview.length}건)`}
+                    </button>
+                  ) : (
+                    <div style={{ padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 12, color: '#15803d' }}>
+                      ✓ 검토 대기 탭에 추가되었습니다. 본부장 검토 후 가격표에 반영됩니다.
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -63,21 +63,31 @@ export async function POST(req: NextRequest) {
           [{ text: `${classifyPrompt}\n\n${schemaDigest}${specContext}\n\n입력:\n${contentText}` }],
           (delta) => send('token', { phase: 'classify', delta }),
         )
-        let classified: { type?: string; items?: unknown[] } = {}
+        let classified: { type?: string; items?: unknown[]; supplier_present?: boolean } = {}
         try { classified = JSON.parse(classifyText) } catch { /* fallthrough */ }
 
+        // R3: 혼합 입력 — 경쟁사 가격을 먼저 내보내고, supplier_present면 공급가 추출까지 이어감(데이터 손실 방지)
+        let competitorEmitted = false
         if (classified.type === 'competitor' && Array.isArray(classified.items) && classified.items.length > 0) {
-          send('progress', { step: 'classified', msg: `경쟁사 가격 ${classified.items.length}건으로 판별 — 미리보기 생성` })
+          send('progress', { step: 'classified', msg: `경쟁사 가격 ${classified.items.length}건 추출` })
           send('preview', { type: 'competitor', items: classified.items, source_url: sourceUrl })
-          send('done', { type: 'competitor', count: classified.items.length })
-          controller.close(); return
+          competitorEmitted = true
+          if (!classified.supplier_present) {
+            send('done', { type: 'competitor', count: classified.items.length })
+            controller.close(); return
+          }
+          send('progress', { step: 'mixed', msg: '입력에 우리 공급 견적도 포함 — 공급가도 이어서 추출합니다.' })
         }
 
         // 4) 공급가 추출 — 스트리밍(실시간 토큰)
         send('progress', { step: 'extract', msg: '공급사 견적에서 모델·가격·약정을 추출하는 중…' })
         const prompt = await getExtractPrompt(adminClient)
         if (!prompt) { send('error', { msg: 'AI 추출 프롬프트 미설정' }); controller.close(); return }
-        const promptText = `${prompt.content}\n\n${schemaDigest}${specContext}\n\n입력 텍스트:\n${contentText}`
+        // 혼합 입력일 때: 경쟁사 클라우드 가격은 제외하고 우리가 공급받는 견적만 추출(중복 혼입 방지)
+        const exclusionNote = competitorEmitted
+          ? '\n\n【중요】 이 입력에는 경쟁사 클라우드 가격(RunPod·Lambda·AWS 등 시세 참고)이 섞여 있습니다. 그것들은 제외하고, "우리가 공급받는 공급사 견적"만 items로 추출하세요. 경쟁사 시세는 절대 items에 포함하지 마세요.'
+          : ''
+        const promptText = `${prompt.content}${exclusionNote}\n\n${schemaDigest}${specContext}\n\n입력 텍스트:\n${contentText}`
         const extractText = await callGeminiStream(
           config.apiKey, config.model,
           [{ text: promptText }],
@@ -113,6 +123,11 @@ export async function POST(req: NextRequest) {
         }
 
         if (items.length === 0) {
+          if (competitorEmitted) {
+            // 혼합인데 공급가 추출이 비면 경쟁사만으로 정상 종료
+            send('done', { type: 'competitor', count: 0 })
+            controller.close(); return
+          }
           send('error', { msg: urls.length > 0
             ? 'URL 본문에서 GPU 모델·가격을 찾지 못했습니다. 페이지 내용을 직접 붙여넣어 주세요.'
             : 'GPU 모델을 인식하지 못했습니다. 모델명·가격이 포함된 내용을 입력해 주세요.' })
@@ -121,7 +136,7 @@ export async function POST(req: NextRequest) {
 
         send('progress', { step: 'extracted', msg: `공급사 견적 ${items.length}건 추출 완료 — 미리보기 생성` })
         send('preview', { type: 'supplier', items })
-        send('done', { type: 'supplier', count: items.length })
+        send('done', { type: competitorEmitted ? 'mixed' : 'supplier', count: items.length })
         controller.close()
       } catch (e) {
         send('error', { msg: e instanceof Error ? e.message : 'AI 분석 실패' })
