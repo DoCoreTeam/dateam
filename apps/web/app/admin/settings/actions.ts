@@ -70,6 +70,66 @@ export async function deleteGeminiKey(): Promise<{ ok: boolean; error?: string }
   return { ok: true }
 }
 
+// ── DB 연결 설정 (PostgreSQL 연결 문자열) — Gemini 키와 동일 패턴 ──
+
+// 연결 문자열 마스킹: 비밀번호 가림 (postgresql://user:****@host...)
+export function maskDbUrl(url: string): string {
+  return url.replace(/(postgres(?:ql)?:\/\/[^:]+:)([^@]+)(@)/i, (_m, a, _pw, c) => `${a}••••••••${c}`)
+}
+
+export async function saveDbUrl(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  const dbUrl = (formData.get('dbUrl') as string)?.trim()
+  if (!dbUrl) return { ok: false, error: 'DB 연결 문자열을 입력해주세요' }
+  if (!/^postgres(ql)?:\/\//i.test(dbUrl)) return { ok: false, error: 'postgresql:// 형식이어야 합니다' }
+
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  const { error } = await setMetaValue(client, { ...meta, db_connection_url: dbUrl })
+  if (error) return { ok: false, error: '저장 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  return { ok: true }
+}
+
+export async function deleteDbUrl(): Promise<{ ok: boolean; error?: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  delete meta.db_connection_url
+  const { error } = await setMetaValue(client, meta)
+  if (error) return { ok: false, error: '삭제 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  return { ok: true }
+}
+
+// DB 헬스체크 — 저장된 연결 문자열로 실제 접속해 SELECT 1
+export async function checkDbHealth(): Promise<{ ok: boolean; message: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, message: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  const dbUrl = meta.db_connection_url as string | undefined
+  if (!dbUrl) return { ok: false, message: 'DB 연결 문자열을 먼저 저장해주세요' }
+
+  const { Client } = await import('pg')
+  const pg = new Client({ connectionString: dbUrl, connectionTimeoutMillis: 8000, ssl: { rejectUnauthorized: false } })
+  const t0 = Date.now()
+  try {
+    await pg.connect()
+    const r = await pg.query('select version()')
+    const ver = String(r.rows?.[0]?.version ?? '').split(' ').slice(0, 2).join(' ')
+    return { ok: true, message: `연결 성공 (${Date.now() - t0}ms · ${ver})` }
+  } catch (e) {
+    return { ok: false, message: `연결 실패: ${e instanceof Error ? e.message : '알 수 없는 오류'}` }
+  } finally {
+    try { await pg.end() } catch { /* noop */ }
+  }
+}
+
 export async function getGeminiModels(): Promise<{ ok: boolean; models?: string[]; error?: string }> {
   const client = await requireAdmin()
   if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }

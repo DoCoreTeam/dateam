@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { Key, Palette, Bell, Cloud } from 'lucide-react'
+import { Key, Palette, Bell, Cloud, Database } from 'lucide-react'
 import GeminiSettings from './GeminiSettings'
+import DbSettings from './DbSettings'
 import KoraeximSettings from './KoraeximSettings'
 import BrandingSettings from './BrandingSettings'
 import TokenAlertSettings from './TokenAlertSettings'
@@ -54,6 +55,10 @@ export default async function AdminSettingsPage({
   const hasKoraeximKey = !!storedKoraeximKey
   const maskedKoraeximKey = storedKoraeximKey ? maskKey(storedKoraeximKey) : null
 
+  const storedDbUrl = meta.db_connection_url as string | undefined
+  const hasDbUrl = !!storedDbUrl
+  const maskedDbUrl = storedDbUrl ? storedDbUrl.replace(/(postgres(?:ql)?:\/\/[^:]+:)([^@]+)(@)/i, (_m, a, _pw, c) => `${a}••••••••${c}`) : null
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
       {driveParam === 'connected' && <DriveConnectedBanner />}
@@ -91,6 +96,15 @@ export default async function AdminSettingsPage({
           <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>환율 API 연동</h2>
         </div>
         <KoraeximSettings hasKey={hasKoraeximKey} maskedKey={maskedKoraeximKey} />
+      </section>
+
+      {/* DB 연결 설정 */}
+      <section>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+          <Database size={15} color="#6366f1" />
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>DB 연결</h2>
+        </div>
+        <DbSettings hasUrl={hasDbUrl} maskedUrl={maskedDbUrl} />
       </section>
 
       {/* AI 토큰 알림 설정 */}
