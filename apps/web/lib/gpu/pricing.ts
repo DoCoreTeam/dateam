@@ -190,6 +190,17 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
     ])
   )
 
+  // 모델별 list(공시가) 1장당 — 파생 구성(×2/×4/×8)에 공시가를 per-card로 전파해 고객가 산출
+  const listPerCardByModel = new Map<string, number>()
+  for (const q of allConfirmed) {
+    if (q.price_type !== 'list' || !isValid(q.valid_until)) continue
+    const meta = productById.get(q.product_id); if (!meta) continue
+    const mk = modelKeyOf(meta)
+    const perCard = q.unit_price_usd / Math.max(q.gpu_count, 1)
+    const prev = listPerCardByModel.get(mk)
+    if (prev == null || perCard < prev) listPerCardByModel.set(mk, perCard)
+  }
+
   // 구성(product)별 자기 최저견적
   const ownLowestByProduct = new Map<string, ConfirmedQuote>()
   // 모델별 최저 1장당 + 공급사별 최저
@@ -331,6 +342,10 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
           basis = 'list'
           const listSup = listQ.supplier_id ? supplierMap.get(listQ.supplier_id) ?? null : null
           effectiveSupplier = listSup ? { name: listSup.name, color: listSup.color } : null
+        } else {
+          // 자기 구성에 공시가 없음 → 모델 공시가 1장당 × 장수로 전파(파생 구성 ×2/×4/×8 고객가)
+          const perCard = listPerCardByModel.get(mk)
+          if (perCard != null) { sellUsd = Math.round(perCard * count * PER_GPU_DP) / PER_GPU_DP; basis = 'list' }
         }
       }
       return {
