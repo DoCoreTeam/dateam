@@ -161,6 +161,11 @@ export default function QuoteRegisterTab() {
   const [analyzeStep, setAnalyzeStep] = useState(0)
   const [analysisResults, setAnalysisResults] = useState<ReviewItemResult[]>([])
   const [competitorResults, setCompetitorResults] = useState<CompetitorSavedItem[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [previewItems, setPreviewItems] = useState<any[]>([])   // 반영 대기 경쟁가 원본
+  const [previewSourceUrl, setPreviewSourceUrl] = useState<string | null>(null)
+  const [applied, setApplied] = useState(false)
+  const [applying, setApplying] = useState(false)
   const [activeTabIdx, setActiveTabIdx] = useState(0)
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
@@ -240,6 +245,7 @@ export default function QuoteRegisterTab() {
     const effectiveChannel = hasImage && !text ? 'img' : channel
 
     setAnalyzing(true); setErrorMsg(''); setSuccessMsg(''); setAnalysisResults([]); setCompetitorResults([]); setActiveTabIdx(0)
+    setPreviewItems([]); setPreviewSourceUrl(null); setApplied(false)
     try {
       const payload: Record<string, unknown> = { text, channel: effectiveChannel, is_test: isTest }
       if (hasImage) {
@@ -254,11 +260,12 @@ export default function QuoteRegisterTab() {
       if (!res.ok) { setErrorMsg(j.error ?? 'AI 분석 실패'); return }
 
       if (j.type === 'competitor') {
-        // 경쟁사 가격 자동 저장 완료
-        const saved: CompetitorSavedItem[] = j.saved ?? []
-        setCompetitorResults(saved)
-        await globalMutate('/api/pricing/gpu/market')
-        setSuccessMsg(`경쟁사 가격 ${saved.length}건이 시장 비교에 자동 등록되었습니다.`)
+        // 경쟁사 가격: 미리보기만 (저장 X) → 사용자가 '반영' 눌러야 등록
+        const preview = (j.preview ?? []) as Array<{ competitor_name: string; model_name: string; memory?: string; price_usd: number }>
+        setCompetitorResults(preview.map((p) => ({ competitor: p.competitor_name, model: p.model_name, memory: p.memory ?? '', price_usd: p.price_usd })))
+        setPreviewItems(j.preview ?? [])
+        setPreviewSourceUrl(j.source_url ?? null)
+        setSuccessMsg(`경쟁사 가격 ${preview.length}건 추출됨 — 확인 후 '시장비교에 반영'을 누르세요.`)
       } else {
         // 공급가 견적 → 검토 대기
         const results: ReviewItemResult[] = j.items ?? (j.item ? [j.item] : [])
@@ -277,6 +284,25 @@ export default function QuoteRegisterTab() {
       setAnalyzing(false)
     }
   }, [rawText, attached, channel, isTest])
+
+  // 경쟁가 미리보기를 시장비교에 실제 반영(저장)
+  const applyCompetitor = useCallback(async () => {
+    if (previewItems.length === 0) return
+    setApplying(true); setErrorMsg('')
+    try {
+      const res = await fetch('/api/pricing/gpu/market/import', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: previewItems, source_url: previewSourceUrl }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { setErrorMsg(j.error ?? '반영 실패'); return }
+      await globalMutate('/api/pricing/gpu/market')
+      setApplied(true)
+      setSuccessMsg(`경쟁사 가격 ${j.count}건이 시장 비교에 반영되었습니다.`)
+    } catch {
+      setErrorMsg('반영 실패')
+    } finally { setApplying(false) }
+  }, [previewItems, previewSourceUrl])
 
   const hasResults = analysisResults.length > 0
   const hasCompetitorResults = competitorResults.length > 0
@@ -436,8 +462,8 @@ export default function QuoteRegisterTab() {
                 <span className="gpu-badge" style={{ background: 'var(--gpu-accent)', color: '#fff', fontSize: 10 }}>
                   경쟁사 가격
                 </span>
-                <span className="gpu-badge" style={{ background: 'var(--gpu-green)', color: '#fff', fontSize: 10 }}>
-                  자동 저장 완료
+                <span className="gpu-badge" style={{ background: applied ? 'var(--gpu-green)' : 'var(--gpu-amber)', color: '#fff', fontSize: 10 }}>
+                  {applied ? '반영 완료' : '반영 대기'}
                 </span>
               </div>
               {competitorResults.map((item, i) => (
@@ -453,9 +479,15 @@ export default function QuoteRegisterTab() {
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }}>${item.price_usd}/hr</span>
                 </div>
               ))}
-              <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 12, color: '#15803d' }}>
-                시장 비교 탭에서 즉시 확인할 수 있습니다.
-              </div>
+              {!applied ? (
+                <button onClick={applyCompetitor} disabled={applying} className="gpu-btn gpu-btn-primary" style={{ marginTop: 8, justifyContent: 'center', gap: 6 }}>
+                  {applying ? '반영 중…' : `시장비교에 반영 (${competitorResults.length}건)`}
+                </button>
+              ) : (
+                <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 12, color: '#15803d' }}>
+                  ✓ 시장 비교 탭에 반영되었습니다.
+                </div>
+              )}
             </div>
           ) : !hasResults ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '32px 0', color: '#9ca3af' }}>

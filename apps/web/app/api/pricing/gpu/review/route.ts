@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
-import { normalizeMemory } from '@/lib/gpu/normalize'
+import type { CompetitorPriceItem } from '@/lib/gpu/competitor-import'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -29,14 +29,6 @@ interface ReviewItem {
   updated_at: string
 }
 
-interface CompetitorPriceItem {
-  competitor_name: string
-  model_name: string
-  memory: string
-  price_usd: number
-  pricing_model: string
-  notes?: string
-}
 
 async function getGeminiConfig(adminClient: ReturnType<typeof createAdminClient>) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -161,126 +153,6 @@ supplier_quote이거나 GPU 가격이 아닌 경우:
 
 JSON만 반환. 설명 없이.`
 
-// 경쟁사 가격 DB 저장 (자동 upsert)
-async function saveCompetitorPrices(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  db: any,
-  items: CompetitorPriceItem[],
-  sourceUrl: string | null,
-): Promise<{ competitor: string; model: string; memory: string; price_usd: number }[]> {
-  const saved: { competitor: string; model: string; memory: string; price_usd: number }[] = []
-  const now = new Date().toISOString()
-
-  for (const item of items) {
-    if (!item.competitor_name || !item.model_name || !item.price_usd) continue
-
-    // 1. 경쟁사 find or create
-    let competitorId: string
-    const { data: existingComp } = await db
-      .from('competitors')
-      .select('id')
-      .ilike('name', item.competitor_name.trim())
-      .single()
-
-    if (existingComp?.id) {
-      competitorId = existingComp.id
-    } else {
-      const compName = item.competitor_name.trim()
-      const { data: newComp, error: compErr } = await db
-        .from('competitors')
-        .insert({
-          name: compName,
-          short_name: compName.slice(0, 20),
-          type: 'specialist',
-        })
-        .select('id')
-        .single()
-      if (compErr || !newComp) {
-        console.error('[competitor] 경쟁사 생성 실패:', compErr?.message)
-        continue
-      }
-      competitorId = newComp.id
-    }
-
-    // 2. GPU 모델 find or create
-    let gpuProductId: string
-    const memory = normalizeMemory(item.memory ?? '')
-    const { data: existingGpu } = await db
-      .from('gpu_products')
-      .select('id')
-      .ilike('model_name', item.model_name.trim())
-      .eq('memory', memory)
-      .single()
-
-    if (existingGpu?.id) {
-      gpuProductId = existingGpu.id
-    } else {
-      const { data: newGpu, error: gpuErr } = await db
-        .from('gpu_products')
-        .insert({
-          model_name: item.model_name.trim(),
-          memory,
-          tier: 1,
-          pricing_mode: 'quote',
-          gpu_count: 1,
-          vcpu: 12,
-          ram_gb: 16,
-          storage_gb: 512,
-        })
-        .select('id')
-        .single()
-      if (gpuErr || !newGpu) {
-        console.error('[competitor] GPU 모델 생성 실패:', gpuErr?.message)
-        continue
-      }
-      gpuProductId = newGpu.id
-    }
-
-    // 3. 매핑 find or create
-    let mappingId: string
-    const pricingModel = (item.pricing_model ?? 'on_demand').replace(/-/g, '_')
-    const { data: existingMap } = await db
-      .from('competitor_product_mapping')
-      .select('id')
-      .eq('competitor_id', competitorId)
-      .eq('gpu_product_id', gpuProductId)
-      .eq('pricing_model', pricingModel)
-      .single()
-
-    if (existingMap?.id) {
-      mappingId = existingMap.id
-    } else {
-      const sku = `${item.model_name} ${memory} (${pricingModel})`.trim()
-      const { data: newMap, error: mapErr } = await db
-        .from('competitor_product_mapping')
-        .insert({ competitor_id: competitorId, gpu_product_id: gpuProductId, competitor_sku: sku, pricing_model: pricingModel, is_active: true })
-        .select('id')
-        .single()
-      if (mapErr || !newMap) {
-        console.error('[competitor] 매핑 생성 실패:', mapErr?.message)
-        continue
-      }
-      mappingId = newMap.id
-    }
-
-    // 4. 시장 가격 등록
-    await db.from('market_prices').insert({
-      mapping_id: mappingId,
-      price_usd: item.price_usd,
-      source_url: sourceUrl,
-      source_type: sourceUrl ? 'webpage' : 'manual',
-      recorded_at: now,
-      observed_at: now,
-      confidence: 85,
-      is_stale: false,
-      ...(item.notes ? { notes: item.notes } : {}),
-    })
-
-    saved.push({ competitor: item.competitor_name, model: item.model_name, memory: memory ?? '', price_usd: item.price_usd })
-  }
-
-  return saved
-}
 
 // GET /api/pricing/gpu/review — 검토 대기 목록
 export async function GET(req: NextRequest) {
@@ -374,16 +246,8 @@ export async function POST(req: NextRequest) {
         }
 
         if (classified.type === 'competitor' && Array.isArray(classified.items) && classified.items.length > 0) {
-          // ── 경쟁사 가격 저장 경로 (service_role — competitors/mapping INSERT 권한 필요)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const db = adminClient as any
-          const saved = await saveCompetitorPrices(db, classified.items, sourceUrl)
-
-          if (saved.length === 0) {
-            return NextResponse.json({ error: 'AI가 유효한 경쟁사 가격을 추출하지 못했습니다' }, { status: 422 })
-          }
-
-          return NextResponse.json({ type: 'competitor', saved, count: saved.length, source_url: sourceUrl })
+          // ── 경쟁사 가격: 자동 저장하지 않고 "미리보기"만 반환 → 사용자가 '반영' 눌러야 저장
+          return NextResponse.json({ type: 'competitor', preview: classified.items, count: classified.items.length, source_url: sourceUrl })
         }
       } catch {
         // 분류 실패 → supplier 플로우로 폴백
