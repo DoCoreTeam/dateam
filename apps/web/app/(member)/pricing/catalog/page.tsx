@@ -344,7 +344,7 @@ export default function SalePriceCatalogPage() {
                     <div>
                       <div style={{ fontWeight: 700, fontSize: 13, color: '#111827' }}>
                         {p.model_name}
-                        {gpuCount > 1 && <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 400, marginLeft: 5 }}>×{gpuCount}GPU</span>}
+                        <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 400, marginLeft: 5 }}>×{gpuCount}GPU</span>
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--gpu-muted)', marginTop: 1 }}>{formatSpec(p)}</div>
                     </div>
