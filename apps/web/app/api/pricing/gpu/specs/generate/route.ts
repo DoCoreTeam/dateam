@@ -25,11 +25,12 @@ export async function POST(req: NextRequest) {
   if (body.model_name) {
     targets = [body.model_name]
   } else if (body.all) {
+    // 부족 정보 보완 — gpu_specs 행이 없거나 칩 데이터시트(architecture)가 비어있는 모델 전부
     const { data: products } = await (supabase as any).from('gpu_products').select('model_name') // eslint-disable-line @typescript-eslint/no-explicit-any
-    const { data: specs } = await db.from('gpu_specs').select('model_name')
-    const have = new Set((specs ?? []).map((s: { model_name: string }) => s.model_name))
+    const { data: specs } = await db.from('gpu_specs').select('model_name, architecture')
+    const complete = new Set((specs ?? []).filter((s: { architecture: string | null }) => s.architecture).map((s: { model_name: string }) => s.model_name))
     const distinct = Array.from(new Set((products ?? []).map((p: { model_name: string }) => p.model_name)))
-    targets = (distinct as string[]).filter((m) => !have.has(m))
+    targets = (distinct as string[]).filter((m) => !complete.has(m))
   }
   if (targets.length === 0) return NextResponse.json({ error: '대상 모델이 없습니다' }, { status: 400 })
 

@@ -446,9 +446,9 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
       })
     : filtered
 
-  // ── 모델 그룹핑 + 수량 변형(x1/x4/x8) 자동 도출 ──
-  // 같은 model_name을 그룹으로 묶고, quote 상품은 1장당 단가 기준으로 표준 구성(1/4/8)을 도출.
-  const STD_CONFIGS = [1, 4, 8]
+  // ── 모델 그룹핑 + 수량 변형(x1/x2/x4/x8) 자동 도출 ──
+  // 같은 model_name을 그룹으로 묶고, quote 상품은 1장당 단가 기준으로 표준 구성(1/2/4/8)을 도출.
+  const STD_CONFIGS = [1, 2, 4, 8]
   type DisplayRow = GpuProduct & { _derived?: boolean }
   interface ModelGroup { model: string; tier: 1 | 2 | 3; perGpu: number | null; rows: DisplayRow[] }
 

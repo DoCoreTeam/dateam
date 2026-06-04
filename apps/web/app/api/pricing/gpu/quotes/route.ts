@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { ensureSupplierAccount } from '@/lib/gpu/supplier-create'
 
 export async function GET(request: Request) {
   try {
@@ -61,10 +62,12 @@ export async function POST(request: Request) {
         const color = COLORS[Math.floor(Math.random() * COLORS.length)]
         const { data: created } = await db
           .from('suppliers')
-          .insert({ name: supplier_name.trim(), color, location: null })
-          .select('id')
+          .insert({ name: supplier_name.trim(), color, location: null, source: 'integrated' })
+          .select('id, name, country, website, description, color, logo_url')
           .single()
         finalSupplierId = created?.id ?? null
+        // 회사=accounts 통합 — 통합입력 자동생성 공급사도 account 링크
+        if (created?.id) { try { await ensureSupplierAccount(createAdminClient(), created, user.id) } catch { /* 비치명적 */ } }
       }
     }
 

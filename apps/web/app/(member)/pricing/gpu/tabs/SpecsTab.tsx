@@ -206,10 +206,11 @@ export default function SpecsTab() {
   const [search, setSearch] = useState('')
 
   const refresh = () => mutate('/api/pricing/gpu/specs')
-  const missing = models.filter((m) => !m.has_spec).length
+  // 부족 정보 = 칩 데이터시트(아키텍처) 미보유 모델 (VRAM만 시드된 것 포함)
+  const missing = models.filter((m) => !m.spec?.architecture).length
 
   const bulkGenerate = async () => {
-    if (!confirm(`스펙 없는 모델 ${missing}개를 AI로 일괄 생성할까요?`)) return
+    if (!confirm(`데이터시트 부족 모델 ${missing}개를 AI로 일괄 채울까요?`)) return
     setBulkGen(true)
     try {
       const res = await fetch('/api/pricing/gpu/specs/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) })
@@ -230,7 +231,7 @@ export default function SpecsTab() {
           <input placeholder="GPU 모델 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <button className="gpu-btn gpu-btn-primary" onClick={bulkGenerate} disabled={bulkGen || missing === 0} style={{ gap: 5 }}>
-          <Sparkles size={15} /> {bulkGen ? 'AI 생성 중…' : `AI 일괄 생성 (스펙없음 ${missing})`}
+          <Sparkles size={15} /> {bulkGen ? 'AI 생성 중…' : `AI 일괄 채우기 (부족 ${missing})`}
         </button>
       </div>
 

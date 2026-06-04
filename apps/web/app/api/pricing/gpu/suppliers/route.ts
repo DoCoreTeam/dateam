@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { logoFromWebsite, ensureSupplierAccount } from '@/lib/gpu/supplier-create'
 
 export async function GET() {
   try {
@@ -8,7 +9,7 @@ export async function GET() {
     const db = supabase as any
     const { data: suppliers, error } = await db
       .from('suppliers')
-      .select('id, name, location, color, contact, country, website, description, logo_url, created_at')
+      .select('id, name, location, color, contact, country, website, description, logo_url, source, created_at')
       .order('name')
 
     if (error) throw error
@@ -91,6 +92,9 @@ export async function POST(request: Request) {
     if (!name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 })
 
     const color = (typeof colorIn === 'string' && colorIn.trim()) || COLORS[Math.floor(Math.random() * COLORS.length)]
+    const websiteVal = website?.trim() || null
+    const logo_url = logoFromWebsite(websiteVal)                    // 웹사이트 → 로고 자동 수집
+    const source = body.source === 'integrated' ? 'integrated' : 'manual'  // 수동 추가는 manual
     const { data, error } = await db
       .from('suppliers')
       .insert({
@@ -98,15 +102,20 @@ export async function POST(request: Request) {
         location: location?.trim() || null,
         contact: contact?.trim() || null,
         country: country?.trim() || null,
-        website: website?.trim() || null,
+        website: websiteVal,
         description: description?.trim() || null,
-        color,
+        color, logo_url, source,
       })
       .select()
       .single()
 
     if (error) throw error
-    return NextResponse.json({ supplier: data })
+    // accounts(is_supplier) 생성·링크 (회사=accounts 통합 — 담당자/딜 매핑 일관)
+    const account_id = await ensureSupplierAccount(createAdminClient(), {
+      id: data.id, name: data.name, country: data.country, website: data.website,
+      description: data.description, color: data.color, logo_url: data.logo_url,
+    }, user.id)
+    return NextResponse.json({ supplier: { ...data, account_id } })
   } catch (err) {
     console.error('[pricing/suppliers POST]', err)
     return NextResponse.json({ error: 'Failed to create supplier' }, { status: 500 })
