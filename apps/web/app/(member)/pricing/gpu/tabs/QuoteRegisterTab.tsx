@@ -322,10 +322,12 @@ export default function QuoteRegisterTab() {
         <div className="gpu-panel gpu-card-pad">
           <div className="gpu-card-title">
             <span className="gpu-step">1</span>
-            견적·가용량 정보 붙여넣기
+            가격·견적 정보 붙여넣기
           </div>
           <div className="gpu-card-desc">
-            메일·메신저·견적서를 그대로 붙여넣으면 AI가 가격·수량·공급사를 자동 추출합니다.
+            경쟁사 가격 · 공급사 견적 · 가격 페이지 내용 — 무엇이든 붙여넣으면 AI가 종류를 자동 판별합니다.
+            <br />🟢 경쟁사 가격 → 시장 비교에 반영 / 🟡 공급사 견적 → 검토 대기 후 가격표 반영.
+            클라우드사 가상 인스턴스명은 보유 스펙과 대조해 표준 모델로 매핑합니다.
           </div>
 
           <div
@@ -343,7 +345,7 @@ export default function QuoteRegisterTab() {
               ref={textareaRef}
               className="gpu-intake-textarea"
               style={{ minHeight: 180, border: 'none', borderRadius: 10, background: 'transparent', resize: 'vertical' }}
-              placeholder={"메일·메신저 내용을 그대로 붙여넣으세요.\n\n예) [GMI Cloud] H100 SXM 80GB: $2.10/GPU·hr (8장 이상)\n약정: 3개월 | 견적 유효: 2026-06-15\nA100 80GB: $1.50/GPU·hr (온디맨드)\n가용: 현재 32장 즉시 공급 가능"}
+              placeholder={"메일·메신저·가격표 내용을 그대로 붙여넣으세요. AI가 경쟁사/공급가를 자동 분류합니다.\n\n예1) 공급가 — [GMI Cloud] H100 SXM 80GB: $2.10/GPU·hr (8장 이상)\n약정: 3개월 | 가용: 32장 즉시\n\n예2) 경쟁사 — NHN Cloud 인스턴스 80GB HBM3 SXM, 시간당 5,500원\n(가상 인스턴스명도 스펙으로 표준 모델 매핑)"}
               value={rawText}
               onChange={(e) => { setRawText(e.target.value); setSuccessMsg(''); setErrorMsg('') }}
               onPaste={handlePaste}
