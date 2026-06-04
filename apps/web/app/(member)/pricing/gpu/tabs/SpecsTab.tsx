@@ -223,22 +223,40 @@ export default function SpecsTab() {
   const models = data?.models ?? []
   const [open, setOpen] = useState<ModelRow | null>(null)
   const [bulkGen, setBulkGen] = useState(false)
+  const [bulkProg, setBulkProg] = useState<{ done: number; total: number; current: string; log: string } | null>(null)
   const [search, setSearch] = useState('')
 
   const refresh = () => mutate('/api/pricing/gpu/specs')
   // 부족 정보 = 칩 데이터시트(아키텍처) 미보유 모델 (VRAM만 시드된 것 포함)
   const missing = models.filter((m) => !m.spec?.architecture).length
 
+  // 일괄 생성 — SSE 실시간 진행(어떤 모델/몇 번째)
   const bulkGenerate = async () => {
     if (!confirm(`데이터시트 부족 모델 ${missing}개를 AI로 일괄 채울까요?`)) return
-    setBulkGen(true)
+    setBulkGen(true); setBulkProg({ done: 0, total: missing, current: '', log: '' })
     try {
-      const res = await fetch('/api/pricing/gpu/specs/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) })
-      const j = await res.json().catch(() => ({}))
-      if (!res.ok) alert(j.error ?? 'AI 일괄 생성 실패')
-      else alert(`AI 생성 완료: ${j.generated}/${j.total}`)
+      const res = await fetch('/api/pricing/gpu/specs/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ all: true, stream: true }),
+      })
+      if (!res.ok || !res.body) { alert('AI 일괄 생성 시작 실패'); return }
+      const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = ''; let finished = false
+      while (!finished) {
+        const { done, value } = await reader.read(); if (done) break
+        buf += dec.decode(value, { stream: true })
+        const chunks = buf.split('\n\n'); buf = chunks.pop() ?? ''
+        for (const c of chunks) {
+          const ev = c.match(/event: (.+)/)?.[1]?.trim(); const dm = c.match(/data: (.+)/)?.[1]
+          if (!ev || !dm) continue
+          let d: Record<string, unknown> = {}; try { d = JSON.parse(dm) } catch { continue }
+          if (ev === 'start') setBulkProg({ done: 0, total: Number(d.total) || missing, current: '', log: '' })
+          else if (ev === 'progress') setBulkProg((p) => ({ done: Number(d.done) || p?.done || 0, total: Number(d.total) || p?.total || missing, current: String(d.model ?? ''), log: String(d.msg ?? '') }))
+          else if (ev === 'complete') { finished = true; setBulkProg(null); refresh(); alert(`AI 생성 완료: ${d.generated}/${d.total}`) }
+        }
+      }
+      reader.cancel().catch(() => {})
       refresh()
-    } finally { setBulkGen(false) }
+    } catch { alert('AI 일괄 생성 실패') } finally { setBulkGen(false); setBulkProg(null) }
   }
 
   const filtered = search.trim() ? models.filter((m) => m.model_name.toLowerCase().includes(search.toLowerCase())) : models
@@ -251,9 +269,24 @@ export default function SpecsTab() {
           <input placeholder="GPU 모델 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <button className="gpu-btn gpu-btn-primary" onClick={bulkGenerate} disabled={bulkGen || missing === 0} style={{ gap: 5 }}>
-          <Sparkles size={15} /> {bulkGen ? 'AI 생성 중…' : `AI 일괄 채우기 (부족 ${missing})`}
+          <Sparkles size={15} /> {bulkGen ? (bulkProg ? `생성 중 ${bulkProg.done}/${bulkProg.total}` : 'AI 생성 중…') : `AI 일괄 채우기 (부족 ${missing})`}
         </button>
       </div>
+
+      {/* 일괄 생성 실시간 진행 */}
+      {bulkProg && (
+        <div style={{ margin: '0 0 12px', padding: '10px 14px', borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <Sparkles size={14} className="gpu-analyzing-icon" style={{ color: 'var(--gpu-accent)' }} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }}>AI 데이터시트 생성 중 — {bulkProg.done}/{bulkProg.total}</span>
+            <span style={{ marginLeft: 'auto', fontSize: 12, color: '#64748b' }}>{bulkProg.current}</span>
+          </div>
+          <div style={{ height: 6, borderRadius: 4, background: '#e2e8f0', overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${bulkProg.total ? Math.round((bulkProg.done / bulkProg.total) * 100) : 0}%`, background: 'var(--gpu-accent)', transition: 'width .3s' }} />
+          </div>
+          {bulkProg.log && <div style={{ fontSize: 11.5, color: '#475569', marginTop: 6 }}>{bulkProg.log}</div>}
+        </div>
+      )}
 
       <table className="table-base table-card">
         <thead>

@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   const auth = await requireAdminApi()
   if (auth.error) return auth.error
 
-  let body: { model_name?: string; all?: boolean }
+  let body: { model_name?: string; all?: boolean; stream?: boolean }
   try { body = await req.json() } catch { body = {} }
 
   const supabase = await createClient()
@@ -41,9 +41,10 @@ export async function POST(req: NextRequest) {
   const model = typeof meta.gemini_model === 'string' ? meta.gemini_model : 'gemini-2.0-flash'
   if (!apiKey) return NextResponse.json({ error: 'AI 키가 설정되지 않았습니다' }, { status: 500 })
 
-  const results: Array<{ model_name: string; ok: boolean; error?: string }> = []
+  const list = targets.slice(0, 60) // 안전 상한
 
-  for (const modelName of targets.slice(0, 60)) { // 안전 상한
+  // 한 모델 데이터시트 생성·저장
+  const genOne = async (modelName: string): Promise<{ ok: boolean; error?: string; confidence?: number | null }> => {
     const prompt = `당신은 NVIDIA/데이터센터 GPU 사양 전문가입니다. 아래 GPU 모델의 공식 데이터시트 사양을 추출하세요. 모르는 값은 null로 두되, 추정하지 말고 알려진 사실만 채우세요.
 
 ## 모델
@@ -67,48 +68,54 @@ ${modelName}
   "release_year": <정수 또는 null>,
   "confidence": <0-100, 데이터시트 확신도>
 }`
-
     let res: Response
     try {
       res = await fetch(`${GEMINI_API_BASE}/models/${model}:generateContent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
-        }),
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.1 } }),
       })
-    } catch {
-      results.push({ model_name: modelName, ok: false, error: 'AI 연결 실패' }); continue
-    }
-    if (!res.ok) { results.push({ model_name: modelName, ok: false, error: `AI ${res.status}` }); continue }
-
-    const j = await res.json() as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
-      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number }
-    }
+    } catch { return { ok: false, error: 'AI 연결 실패' } }
+    if (!res.ok) return { ok: false, error: `AI ${res.status}` }
+    const j = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } }
     const rawText = j.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
     const usage = j.usageMetadata ?? {}
-    logTokenUsage({
-      userId: auth.user.id, feature: 'gpu-spec-generate', model,
-      promptTokens: usage.promptTokenCount ?? 0, outputTokens: usage.candidatesTokenCount ?? 0, totalTokens: usage.totalTokenCount ?? 0,
-    })
-
+    logTokenUsage({ userId: auth.user.id, feature: 'gpu-spec-generate', model, promptTokens: usage.promptTokenCount ?? 0, outputTokens: usage.candidatesTokenCount ?? 0, totalTokens: usage.totalTokenCount ?? 0 })
     let parsed: Record<string, unknown>
-    try { parsed = JSON.parse(rawText) } catch { results.push({ model_name: modelName, ok: false, error: '파싱 실패' }); continue }
-
+    try { parsed = JSON.parse(rawText) } catch { return { ok: false, error: '파싱 실패' } }
     const confidence = typeof parsed.confidence === 'number' ? parsed.confidence : null
     delete parsed.confidence
     const { error } = await db.from('gpu_specs').upsert({
-      model_name: modelName,
-      ...parsed,
-      ai_generated: true,
-      ai_confidence: confidence,
-      ai_model: model,
-      updated_at: new Date().toISOString(),
+      model_name: modelName, ...parsed, ai_generated: true, ai_confidence: confidence, ai_model: model, updated_at: new Date().toISOString(),
     }, { onConflict: 'model_name' })
-    results.push({ model_name: modelName, ok: !error, error: error?.message })
+    return { ok: !error, error: error?.message, confidence }
   }
 
-  return NextResponse.json({ generated: results.filter((r) => r.ok).length, total: targets.length, results })
+  // 스트리밍 모드(일괄) — 모델별 실시간 진행 SSE
+  if (body.stream) {
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (event: string, data: unknown) => controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`))
+        let done = 0, okCount = 0
+        send('start', { total: list.length })
+        for (const modelName of list) {
+          send('progress', { phase: 'generating', model: modelName, done, total: list.length, msg: `${modelName} 데이터시트 생성 중…` })
+          const r = await genOne(modelName)
+          done++; if (r.ok) okCount++
+          send('progress', { phase: 'done', model: modelName, ok: r.ok, confidence: r.confidence ?? null, done, total: list.length, msg: r.ok ? `${modelName} 완료${r.confidence != null ? ` (신뢰도 ${r.confidence}%)` : ''}` : `${modelName} 실패: ${r.error ?? ''}` })
+        }
+        send('complete', { generated: okCount, total: list.length })
+        controller.close()
+      },
+    })
+    return new Response(stream, { headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no' } })
+  }
+
+  // 비스트리밍(단건/호환) — 끝에 한 번에 응답
+  const results: Array<{ model_name: string; ok: boolean; error?: string }> = []
+  for (const modelName of list) {
+    const r = await genOne(modelName)
+    results.push({ model_name: modelName, ok: r.ok, error: r.error })
+  }
+  return NextResponse.json({ generated: results.filter((r) => r.ok).length, total: list.length, results })
 }
