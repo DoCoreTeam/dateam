@@ -241,32 +241,13 @@ export default function QuoteRegisterTab() {
     setPreviewItems([]); setPreviewSourceUrl(null); setApplied(false)
     setLiveMsgs([]); setStreamText(''); setSupplierPreview([]); setCommitted(false)
 
-    // 이미지 입력은 기존 비스트리밍 POST 사용(스트림 미지원), 텍스트는 SSE 스트리밍
-    if (hasImage && !text) {
-      try {
-        const res = await fetch('/api/pricing/gpu/review', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, channel: effectiveChannel, is_test: isTest, imageData: { data: attached!.base64Data, mimeType: attached!.mimeType } }),
-        })
-        const j = await res.json()
-        if (!res.ok) { setErrorMsg(j.error ?? 'AI 분석 실패'); return }
-        if (j.type === 'competitor') {
-          const preview = (j.preview ?? []) as Array<{ competitor_name: string; model_name: string; memory?: string; price_usd: number }>
-          setCompetitorResults(preview.map((p) => ({ competitor: p.competitor_name, model: p.model_name, memory: p.memory ?? '', price_usd: p.price_usd })))
-          setPreviewItems(j.preview ?? []); setPreviewSourceUrl(j.source_url ?? null)
-        } else {
-          setAnalysisResults(j.items ?? (j.item ? [j.item] : []))
-          await globalMutate('/api/pricing/gpu/review?status=pending')
-        }
-      } catch { setErrorMsg('서버 연결 실패') } finally { setAnalyzing(false) }
-      return
-    }
-
-    // ── 텍스트: SSE 실시간 스트리밍 ──
+    // ── 텍스트·이미지 모두 SSE 실시간 스트리밍 ──
     try {
+      const payload: Record<string, unknown> = { text, channel: effectiveChannel, is_test: isTest }
+      if (hasImage) payload.imageData = { data: attached!.base64Data, mimeType: attached!.mimeType }
       const res = await fetch('/api/pricing/gpu/review/stream', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, channel: effectiveChannel, is_test: isTest }),
+        body: JSON.stringify(payload),
       })
       if (!res.ok || !res.body) { setErrorMsg('AI 분석 시작 실패'); setAnalyzing(false); return }
       const reader = res.body.getReader()

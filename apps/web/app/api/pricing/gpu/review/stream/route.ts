@@ -18,10 +18,13 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient()
   void supabase
 
-  let body: { text?: unknown; channel?: unknown }
+  let body: { text?: unknown; channel?: unknown; imageData?: unknown }
   try { body = await req.json() } catch { return new Response('bad request', { status: 400 }) }
   const rawInputText = typeof body.text === 'string' ? body.text.trim() : ''
-  if (!rawInputText) return new Response('분석할 텍스트가 없습니다', { status: 400 })
+  const imgInput = (body.imageData && typeof body.imageData === 'object') ? body.imageData as { data?: unknown; mimeType?: unknown } : null
+  const imageBase64 = typeof imgInput?.data === 'string' ? imgInput.data : null
+  const imageMimeType = typeof imgInput?.mimeType === 'string' ? imgInput.mimeType : 'image/jpeg'
+  if (!rawInputText && !imageBase64) return new Response('분석할 텍스트 또는 이미지가 없습니다', { status: 400 })
 
   const adminClient = createAdminClient()
   const config = await getGeminiConfig(adminClient)
@@ -55,16 +58,20 @@ export async function POST(req: NextRequest) {
           loadSpecContext(adminClient),
         ])
 
-        // 3) 분류 (경쟁사 vs 공급가) — 스트리밍
-        send('progress', { step: 'classify', msg: '경쟁사 가격인지 공급사 견적인지 판별하는 중…' })
-        const classifyPrompt = await getClassifyPrompt(adminClient, CLASSIFY_FALLBACK)
-        const classifyText = await callGeminiStream(
-          config.apiKey, config.model,
-          [{ text: `${classifyPrompt}\n\n${schemaDigest}${specContext}\n\n입력:\n${contentText}` }],
-          (delta) => send('token', { phase: 'classify', delta }),
-        )
+        // 3) 분류 (경쟁사 vs 공급가) — 스트리밍 (이미지는 분류 건너뛰고 바로 추출)
         let classified: { type?: string; items?: unknown[]; supplier_present?: boolean } = {}
-        try { classified = JSON.parse(classifyText) } catch { /* fallthrough */ }
+        if (!imageBase64) {
+          send('progress', { step: 'classify', msg: '경쟁사 가격인지 공급사 견적인지 판별하는 중…' })
+          const classifyPrompt = await getClassifyPrompt(adminClient, CLASSIFY_FALLBACK)
+          const classifyText = await callGeminiStream(
+            config.apiKey, config.model,
+            [{ text: `${classifyPrompt}\n\n${schemaDigest}${specContext}\n\n입력:\n${contentText}` }],
+            (delta) => send('token', { phase: 'classify', delta }),
+          )
+          try { classified = JSON.parse(classifyText) } catch { /* fallthrough */ }
+        } else {
+          send('progress', { step: 'ocr', msg: '이미지에서 견적 정보를 읽는 중…' })
+        }
 
         // R3: 혼합 입력 — 경쟁사 가격을 먼저 내보내고, supplier_present면 공급가 추출까지 이어감(데이터 손실 방지)
         let competitorEmitted = false
@@ -87,10 +94,13 @@ export async function POST(req: NextRequest) {
         const exclusionNote = competitorEmitted
           ? '\n\n【중요】 이 입력에는 경쟁사 클라우드 가격(RunPod·Lambda·AWS 등 시세 참고)이 섞여 있습니다. 그것들은 제외하고, "우리가 공급받는 공급사 견적"만 items로 추출하세요. 경쟁사 시세는 절대 items에 포함하지 마세요.'
           : ''
-        const promptText = `${prompt.content}${exclusionNote}\n\n${schemaDigest}${specContext}\n\n입력 텍스트:\n${contentText}`
+        const promptText = `${prompt.content}${exclusionNote}\n\n${schemaDigest}${specContext}\n\n${contentText ? '입력 텍스트:\n' + contentText : '위 이미지에서 GPU 견적 정보를 추출하세요.'}`
+        const extractParts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = []
+        if (imageBase64) extractParts.push({ inlineData: { data: imageBase64, mimeType: imageMimeType } })
+        extractParts.push({ text: promptText })
         const extractText = await callGeminiStream(
           config.apiKey, config.model,
-          [{ text: promptText }],
+          extractParts,
           (delta) => send('token', { phase: 'extract', delta }),
         )
         let parsed: { items?: Array<{ extracted?: Record<string, unknown> }>; extracted?: Record<string, unknown> } = {}
