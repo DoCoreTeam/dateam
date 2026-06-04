@@ -94,6 +94,74 @@ export async function loadSpecContext(adminClient: ReturnType<typeof createAdmin
 
 export { SCHEMA_CONTRACT }
 
+// R1: DB 전체 스키마 자가인지 — get_schema_digest() RPC로 라이브 DB 구조(컬럼·enum·FK)를 런타임 파생.
+// 메모리/정적계약서 의존 제거 — 새 컬럼·enum이 생기면 자동 반영. RPC 실패 시 정적 SCHEMA_CONTRACT 폴백.
+export async function loadSchemaDigest(adminClient: ReturnType<typeof createAdminClient>): Promise<string> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (adminClient as any).rpc('get_schema_digest')
+    if (error || typeof data !== 'string' || data.trim().length === 0) return SCHEMA_CONTRACT
+    return `${SCHEMA_CONTRACT}\n\n【현재 DB 스키마 (런타임 자동 파생 — 이 구조에 정확히 맞춰 추출)】${data}`
+  } catch {
+    return SCHEMA_CONTRACT
+  }
+}
+
+// 비스트리밍 Gemini 호출(합성용) — 단일 텍스트 반환.
+export async function callGeminiOnce(
+  apiKey: string, model: string, text: string, jsonMode = false,
+): Promise<string> {
+  const res = await fetch(`${GEMINI_API_BASE}/models/${model}:generateContent`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text }] }], generationConfig: jsonMode ? { responseMimeType: 'application/json', temperature: 0 } : { temperature: 0.2 } }),
+  })
+  if (!res.ok) throw new Error(`gemini ${res.status}`)
+  const j = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }
+  return j.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+}
+
+// 짧은 결정적 해시(Date/random 미사용) — 합성 프롬프트 키 생성용
+export function shortHash(s: string): string {
+  let h = 5381
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0
+  return h.toString(36).slice(0, 8)
+}
+
+// R2: 프롬프트 자가합성 — 미준비 입력에 맞는 추출 프롬프트를 AI가 생성 → ai_prompts에 draft(active=false) 저장.
+// active=false라 정상 플로우(active=true 필터)엔 영향 없음 → 사람 검수 후 승격. 동일 입력형태 재합성 방지(키=해시).
+export async function synthesizeExtractPrompt(
+  adminClient: ReturnType<typeof createAdminClient>,
+  apiKey: string, model: string, sampleInput: string, schemaDigest: string,
+): Promise<{ content: string; promptKey: string } | null> {
+  try {
+    const meta = `당신은 데이터 추출 프롬프트를 설계하는 메타 AI입니다.
+아래 [입력 샘플]은 기존 추출 프롬프트로는 GPU 가격 정보를 뽑지 못한 변칙 형식입니다.
+[DB 스키마]에 정확히 맞춰 이 형식에서 모델명·메모리·단가(USD/GPU·시간)·약정·수량을 뽑아낼
+새로운 추출 프롬프트(한국어)를 작성하세요. 출력은 {"items":[{"extracted":{...}}]} JSON 형식을 요구해야 합니다.
+프롬프트 본문만 반환(설명·코드펜스 없이).
+
+[DB 스키마]${schemaDigest}
+
+[입력 샘플]
+${sampleInput.slice(0, 4000)}`
+    const content = (await callGeminiOnce(apiKey, model, meta, false)).trim()
+    if (!content || content.length < 40) return null
+    const promptKey = `gpu.auto-synth.${shortHash(sampleInput.slice(0, 200))}`
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = adminClient as any
+    // 이미 같은 키 draft 있으면 갱신(중복 방지)
+    const { data: existing } = await db.from('ai_prompts').select('id').eq('prompt_key', promptKey).maybeSingle?.() ?? { data: null }
+    if (existing?.id) {
+      await db.from('ai_prompts').update({ content, version: 'draft' }).eq('id', existing.id)
+    } else {
+      await db.from('ai_prompts').insert({ prompt_key: promptKey, version: 'draft', active: false, content })
+    }
+    return { content, promptKey }
+  } catch {
+    return null
+  }
+}
+
 // Gemini 스트리밍 호출 — streamGenerateContent(SSE). 텍스트 델타를 onDelta로 흘림.
 export async function callGeminiStream(
   apiKey: string, model: string,

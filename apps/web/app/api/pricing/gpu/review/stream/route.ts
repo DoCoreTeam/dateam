@@ -3,7 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import {
   getGeminiConfig, getExtractPrompt, getClassifyPrompt, extractUrls, fetchUrlText,
-  loadSpecContext, callGeminiStream, SCHEMA_CONTRACT,
+  loadSpecContext, callGeminiStream, loadSchemaDigest, synthesizeExtractPrompt,
 } from '@/lib/gpu/extract-helpers'
 
 // 통합입력 실시간 스트리밍 분석 — SSE.
@@ -48,16 +48,19 @@ export async function POST(req: NextRequest) {
           send('progress', { step: 'url_done', msg: merged ? 'URL 본문을 수집했습니다.' : 'URL에서 가격 정보를 찾지 못해 입력 텍스트로 진행합니다.' })
         }
 
-        // 2) 보유 스펙 카탈로그 로드
-        send('progress', { step: 'spec', msg: '보유 GPU 스펙 카탈로그를 불러오는 중…' })
-        const specContext = await loadSpecContext(adminClient)
+        // 2) DB 스키마 자가인지 + 보유 스펙 카탈로그 로드
+        send('progress', { step: 'schema', msg: 'DB 스키마와 보유 GPU 스펙을 인지하는 중…' })
+        const [schemaDigest, specContext] = await Promise.all([
+          loadSchemaDigest(adminClient),
+          loadSpecContext(adminClient),
+        ])
 
         // 3) 분류 (경쟁사 vs 공급가) — 스트리밍
         send('progress', { step: 'classify', msg: '경쟁사 가격인지 공급사 견적인지 판별하는 중…' })
         const classifyPrompt = await getClassifyPrompt(adminClient, CLASSIFY_FALLBACK)
         const classifyText = await callGeminiStream(
           config.apiKey, config.model,
-          [{ text: `${classifyPrompt}\n\n${SCHEMA_CONTRACT}${specContext}\n\n입력:\n${contentText}` }],
+          [{ text: `${classifyPrompt}\n\n${schemaDigest}${specContext}\n\n입력:\n${contentText}` }],
           (delta) => send('token', { phase: 'classify', delta }),
         )
         let classified: { type?: string; items?: unknown[] } = {}
@@ -74,7 +77,7 @@ export async function POST(req: NextRequest) {
         send('progress', { step: 'extract', msg: '공급사 견적에서 모델·가격·약정을 추출하는 중…' })
         const prompt = await getExtractPrompt(adminClient)
         if (!prompt) { send('error', { msg: 'AI 추출 프롬프트 미설정' }); controller.close(); return }
-        const promptText = `${prompt.content}\n\n${SCHEMA_CONTRACT}${specContext}\n\n입력 텍스트:\n${contentText}`
+        const promptText = `${prompt.content}\n\n${schemaDigest}${specContext}\n\n입력 텍스트:\n${contentText}`
         const extractText = await callGeminiStream(
           config.apiKey, config.model,
           [{ text: promptText }],
@@ -83,13 +86,31 @@ export async function POST(req: NextRequest) {
         let parsed: { items?: Array<{ extracted?: Record<string, unknown> }>; extracted?: Record<string, unknown> } = {}
         try { parsed = JSON.parse(extractText) } catch { send('error', { msg: 'AI 응답 파싱 실패' }); controller.close(); return }
 
-        const rawItems = Array.isArray(parsed.items)
-          ? parsed.items
-          : (parsed.extracted ? [{ extracted: parsed.extracted }] : [])
-        const items = rawItems.filter((it) => {
+        const meaningful = (arr: Array<{ extracted?: Record<string, unknown> }>) => arr.filter((it) => {
           const n = it?.extracted?.model_name
           return typeof n === 'string' && n.trim().length > 0
         }).slice(0, 50)
+        let items = meaningful(Array.isArray(parsed.items) ? parsed.items : (parsed.extracted ? [{ extracted: parsed.extracted }] : []))
+
+        // R2: 미준비 입력 → 프롬프트 자가합성 후 1회 재시도 (URL 없을 때만 — URL빈손은 안내가 맞음)
+        if (items.length === 0 && urls.length === 0 && contentText.trim().length > 10) {
+          send('progress', { step: 'synthesize', msg: '준비된 규칙으로 못 뽑았습니다 — 이 형식에 맞는 추출 프롬프트를 새로 만드는 중…' })
+          const synth = await synthesizeExtractPrompt(adminClient, config.apiKey, config.model, contentText, schemaDigest)
+          if (synth) {
+            send('progress', { step: 'synthesized', msg: `맞춤 추출 규칙 생성(draft: ${synth.promptKey}) — 재추출 중…` })
+            const retryText = await callGeminiStream(
+              config.apiKey, config.model,
+              [{ text: `${synth.content}\n\n${schemaDigest}${specContext}\n\n입력 텍스트:\n${contentText}` }],
+              (delta) => send('token', { phase: 'retry', delta }),
+            )
+            let retryParsed: { items?: Array<{ extracted?: Record<string, unknown> }>; extracted?: Record<string, unknown> } = {}
+            try { retryParsed = JSON.parse(retryText) } catch { /* ignore */ }
+            items = meaningful(Array.isArray(retryParsed.items) ? retryParsed.items : (retryParsed.extracted ? [{ extracted: retryParsed.extracted }] : []))
+            if (items.length > 0) {
+              send('progress', { step: 'synth_ok', msg: `자가합성 규칙으로 ${items.length}건 추출 성공 (검수 대기 draft로 저장됨)` })
+            }
+          }
+        }
 
         if (items.length === 0) {
           send('error', { msg: urls.length > 0
