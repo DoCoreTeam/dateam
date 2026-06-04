@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
-import { ChevronRight, Plus, Zap, Info, ArrowUpDown, ArrowUp, ArrowDown, Tag } from 'lucide-react'
+import { ChevronRight, Plus, Zap, Info, ArrowUpDown, ArrowUp, ArrowDown, Tag, X, Trash2 } from 'lucide-react'
 import { formatSpec, scaleSpec } from '@/lib/gpu/format-spec'
 
 type SortKey = 'model' | 'supply' | 'sell'
@@ -288,6 +288,62 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
   )
 }
 
+// 파트너 등급(partner_tiers) 관리 모달 — 목록/추가/수정/삭제 (CRUD)
+function PartnerTierManagerModal({ tiers, onClose, onChanged }: { tiers: PartnerTier[]; onClose: () => void; onChanged: () => void }) {
+  const [name, setName] = useState('')
+  const [rate, setRate] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const add = async () => {
+    if (!name.trim() || !rate) { setErr('등급명·할인율 입력'); return }
+    setBusy(true); setErr(null)
+    try {
+      const res = await fetch('/api/pricing/gpu/partner-tiers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name.trim(), discount_rate: Number(rate) }) })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error ?? '추가 실패'); return }
+      setName(''); setRate(''); onChanged()
+    } finally { setBusy(false) }
+  }
+  const patch = async (id: string, body: Record<string, unknown>) => {
+    const res = await fetch(`/api/pricing/gpu/partner-tiers/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    if (res.ok) onChanged(); else alert('수정 실패')
+  }
+  const del = async (id: string, nm: string) => {
+    if (!confirm(`'${nm}' 등급을 삭제할까요?`)) return
+    const res = await fetch(`/api/pricing/gpu/partner-tiers/${id}`, { method: 'DELETE' })
+    if (res.ok) onChanged(); else alert('삭제 실패')
+  }
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(480px,100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--gpu-border)' }}>
+          <strong style={{ fontSize: 15, flex: 1 }}>파트너 등급 관리</strong>
+          <button onClick={onClose} className="gpu-btn" style={{ padding: 6 }}><X size={16} /></button>
+        </div>
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {tiers.length === 0 && <div style={{ fontSize: 12, color: 'var(--gpu-faint)' }}>등록된 등급이 없습니다</div>}
+          {tiers.map((t) => (
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, padding: '6px 8px', borderRadius: 7, background: '#f9fafb', border: '1px solid #eef0f6' }}>
+              <input defaultValue={t.name} onBlur={(e) => e.target.value.trim() && e.target.value !== t.name && patch(t.id, { name: e.target.value.trim() })}
+                style={{ flex: 1, height: 28, fontSize: 12, border: '1px solid var(--gpu-border)', borderRadius: 6, padding: '0 6px' }} />
+              <input defaultValue={String(t.discount_rate)} onBlur={(e) => Number(e.target.value) !== t.discount_rate && patch(t.id, { discount_rate: Number(e.target.value) })} inputMode="decimal"
+                style={{ width: 56, height: 28, fontSize: 12, border: '1px solid var(--gpu-border)', borderRadius: 6, padding: '0 6px' }} />
+              <span style={{ color: 'var(--gpu-muted)' }}>%↓</span>
+              <button onClick={() => del(t.id, t.name)} className="gpu-btn" style={{ padding: 4, color: 'var(--gpu-red)' }}><Trash2 size={13} /></button>
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', borderTop: '1px solid var(--gpu-border)', paddingTop: 10 }}>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="등급명 (예: 골드)" style={{ flex: 1, height: 30, fontSize: 12.5, border: '1.5px solid var(--gpu-border)', borderRadius: 6, padding: '0 8px' }} />
+            <input value={rate} onChange={(e) => setRate(e.target.value)} placeholder="15" inputMode="decimal" style={{ width: 56, height: 30, fontSize: 12.5, border: '1.5px solid var(--gpu-border)', borderRadius: 6, padding: '0 6px' }} />
+            <span style={{ fontSize: 12, color: 'var(--gpu-muted)' }}>%↓</span>
+            <button onClick={add} disabled={busy} className="gpu-btn gpu-btn-primary" style={{ gap: 4 }}>추가</button>
+          </div>
+          {err && <div style={{ fontSize: 12, color: 'var(--gpu-red)' }}>{err}</div>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface PriceTableTabProps {
   onGoToIntake: () => void
   onGoToReview?: () => void
@@ -305,9 +361,10 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
   const { data, mutate: revalidate } = useSWR<ProductsResponse>('/api/pricing/gpu/products', fetcher, {
     refreshInterval: 60000,
   })
-  const { data: partnerData } = useSWR<{ tiers: PartnerTier[] }>('/api/pricing/gpu/partner-tiers', fetcher)
+  const { data: partnerData, mutate: mutatePartner } = useSWR<{ tiers: PartnerTier[] }>('/api/pricing/gpu/partner-tiers', fetcher)
   const partnerTiers = partnerData?.tiers ?? []
   const [selectedTierId, setSelectedTierId] = useState<string | null>(null)
+  const [showTierMgr, setShowTierMgr] = useState(false)
   const [tierFilter, setTierFilter] = useState(0)
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -597,9 +654,9 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
             전체상품 · {products.length}
           </button>
         </div>
-        {partnerTiers.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-            <Tag size={13} style={{ color: 'var(--gpu-muted)', flexShrink: 0 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+          <Tag size={13} style={{ color: 'var(--gpu-muted)', flexShrink: 0 }} />
+          {partnerTiers.length > 0 && (
             <select
               value={selectedTierId ?? ''}
               onChange={(e) => setSelectedTierId(e.target.value || null)}
@@ -615,8 +672,9 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                 <option key={t.id} value={t.id}>{t.name} ({t.discount_rate}%↓)</option>
               ))}
             </select>
-          </div>
-        )}
+          )}
+          <button onClick={() => setShowTierMgr(true)} className="gpu-btn" style={{ fontSize: 11, padding: '0.3rem 0.5rem' }} title="파트너 등급 관리">등급 관리</button>
+        </div>
         <button className="gpu-btn gpu-btn-primary" onClick={onGoToIntake}>
           <Plus size={15} /> 견적 등록
         </button>
@@ -924,6 +982,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
         행을 클릭하면 해당 모델의 <strong>전체 공급사 견적</strong>이 펼쳐지며, 각 견적의 근거자료를 바로 확인할 수 있습니다
       </div>
       </div>{/* end 스크롤 영역 */}
+      {showTierMgr && <PartnerTierManagerModal tiers={partnerTiers} onClose={() => setShowTierMgr(false)} onChanged={() => mutatePartner()} />}
     </div>
   )
 }
