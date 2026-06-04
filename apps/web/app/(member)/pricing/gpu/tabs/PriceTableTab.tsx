@@ -258,17 +258,6 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
     }
   }, [initialSearch]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (!initialProductId) return
-    setExpandedId(initialProductId)
-    onProductFocusConsumed?.()
-    // scroll the row into view after render
-    requestAnimationFrame(() => {
-      const row = document.getElementById(`gpu-row-${initialProductId}`)
-      row?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    })
-  }, [initialProductId]) // eslint-disable-line react-hooks/exhaustive-deps
-
   const products = data?.products ?? []
 
   // 모델 그룹 기본 접힘 — 최초 로드 시 전체 모델을 접힘 상태로 초기화
@@ -279,6 +268,24 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
     setCollapsedTiers(new Set(products.map((p) => p.tier).filter((t) => t !== 1)))
     setGroupsInitialized(true)
   }, [products, groupsInitialized])
+
+  // 외부(시장비교·공급사)에서 특정 상품으로 탐색 진입 시: 그룹 초기화(전체 접힘) 이후에 실행되어야
+  // 해당 Tier·모델 그룹을 펼치고 견적까지 열어 위치를 보여준다.
+  useEffect(() => {
+    if (!initialProductId || !groupsInitialized) return
+    const prod = products.find((p) => p.id === initialProductId)
+    if (prod) {
+      setCollapsedTiers((prev) => { const n = new Set(prev); n.delete(prod.tier); return n })
+      setCollapsedModels((prev) => { const n = new Set(prev); n.delete(prod.model_name); return n })
+    }
+    setExpandedId(initialProductId)
+    onProductFocusConsumed?.()
+    // scroll the row into view after render
+    requestAnimationFrame(() => {
+      const row = document.getElementById(`gpu-row-${initialProductId}`)
+      row?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [initialProductId, groupsInitialized]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const marginPct = marginInput ?? data?.margin_pct ?? 18
   const usdKrw = data?.usd_krw ?? 1400

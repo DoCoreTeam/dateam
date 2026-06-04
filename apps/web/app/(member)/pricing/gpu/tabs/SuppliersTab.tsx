@@ -35,7 +35,7 @@ interface QuoteRow {
   id: string; unit_price_usd: number; gpu_count: number; status: string
   term: string | null; term_months: number | null; min_qty: string | null; valid_until: string | null
   original_price: number | null; original_currency: string | null; original_unit: string | null
-  gpu_products: { model_name: string; memory: string | null; tier: number } | null
+  gpu_products: { id: string; model_name: string; memory: string | null; tier: number } | null
 }
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6', '#ec4899', '#14b8a6', '#f97316', '#84cc16']
@@ -195,7 +195,7 @@ function QuoteEditModal({ quote, onClose, onChanged }: { quote: QuoteRow; onClos
   )
 }
 
-function SupplierDetailModal({ id, onClose, onChanged }: { id: string; onClose: () => void; onChanged: () => void }) {
+function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id: string; onClose: () => void; onChanged: () => void; onGoToPriceTable?: (modelName: string, productId: string) => void }) {
   const { data, mutate } = useSWR<SupplierDetail>(`/api/pricing/gpu/suppliers/${id}`, fetcher)
   const [form, setForm] = useState<Record<string, string> | null>(null)
   const [saving, setSaving] = useState(false)
@@ -294,17 +294,27 @@ function SupplierDetailModal({ id, onClose, onChanged }: { id: string; onClose: 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {data.quotes.map((q) => {
                     const st = STATUS_LABEL[q.status] ?? { t: q.status, c: 'var(--gpu-faint)' }
+                    const prod = q.gpu_products
+                    const canLocate = !!(prod && onGoToPriceTable)
                     return (
-                      <div key={q.id} onClick={() => setEditQuote(q)} title="클릭하면 견적 수정·삭제·AI 재분석"
-                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 7, background: '#f9fafb', border: '1px solid #eef0f6', fontSize: 12.5, cursor: 'pointer' }}>
-                        <span style={{ fontWeight: 600, minWidth: 110 }}>
-                          {q.gpu_products?.model_name ?? '상품 미연결'}
-                          {q.gpu_products?.memory && <span style={{ color: 'var(--gpu-muted)', fontWeight: 400 }}> {q.gpu_products.memory}</span>}
-                        </span>
-                        <span style={{ color: 'var(--gpu-muted)' }}>×{q.gpu_count}GPU</span>
-                        <span style={{ fontFamily: 'monospace', fontWeight: 700, marginLeft: 'auto' }}>{fmtUSD(q.unit_price_usd)}</span>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: st.c, minWidth: 36, textAlign: 'right' }}>{st.t}</span>
-                        <ChevronRight size={14} style={{ color: 'var(--gpu-faint)' }} />
+                      <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 7, background: '#f9fafb', border: '1px solid #eef0f6', fontSize: 12.5 }}>
+                        <button onClick={() => setEditQuote(q)} title="클릭하면 견적 수정·삭제·AI 재분석"
+                          style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, padding: 0, background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', textAlign: 'left' }}>
+                          <span style={{ fontWeight: 600, minWidth: 110 }}>
+                            {prod?.model_name ?? '상품 미연결'}
+                            {prod?.memory && <span style={{ color: 'var(--gpu-muted)', fontWeight: 400 }}> {prod.memory}</span>}
+                          </span>
+                          <span style={{ color: 'var(--gpu-muted)' }}>×{q.gpu_count}GPU</span>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 700, marginLeft: 'auto' }}>{fmtUSD(q.unit_price_usd)}</span>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: st.c, minWidth: 36, textAlign: 'right' }}>{st.t}</span>
+                        </button>
+                        <button
+                          onClick={() => { if (canLocate && prod) { onClose(); onGoToPriceTable!(prod.model_name, prod.id) } }}
+                          disabled={!canLocate}
+                          title={canLocate ? '가격표에서 이 가격 위치 보기' : '상품 미연결 — 가격표 탐색 불가'}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: '3px 6px', borderRadius: 6, border: '1px solid var(--gpu-border)', background: '#fff', color: canLocate ? 'var(--gpu-accent)' : 'var(--gpu-faint)', fontSize: 11, fontWeight: 600, cursor: canLocate ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          가격표 <ChevronRight size={13} />
+                        </button>
                       </div>
                     )
                   })}
@@ -382,7 +392,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   )
 }
 
-export default function SuppliersTab() {
+export default function SuppliersTab({ onGoToPriceTable }: { onGoToPriceTable?: (modelName: string, productId: string) => void }) {
   const { data } = useSWR<{ suppliers: SupplierStats[] }>('/api/pricing/gpu/suppliers', fetcher)
   const { mutate } = useSWRConfig()
   const suppliers = data?.suppliers ?? []
@@ -455,7 +465,7 @@ export default function SuppliersTab() {
         )}
       </div>
 
-      {openId && <SupplierDetailModal id={openId} onClose={() => setOpenId(null)} onChanged={refresh} />}
+      {openId && <SupplierDetailModal id={openId} onClose={() => setOpenId(null)} onChanged={refresh} onGoToPriceTable={onGoToPriceTable} />}
       {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreated={refresh} />}
     </div>
   )

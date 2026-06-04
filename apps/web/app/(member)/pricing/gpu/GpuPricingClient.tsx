@@ -264,7 +264,7 @@ export default function GpuPricingClient() {
           </div>
         )}
         {activeTab === 'review' && <div style={{ height: '100%', overflowY: 'auto' }}><ReviewTab /></div>}
-        {activeTab === 'suppliers' && <div style={{ height: '100%', overflowY: 'auto' }}><SuppliersTab /></div>}
+        {activeTab === 'suppliers' && <div style={{ height: '100%', overflowY: 'auto' }}><SuppliersTab onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board') }} /></div>}
         {activeTab === 'log' && <div style={{ height: '100%', overflowY: 'auto' }}><HistoryTab /></div>}
       </div>
     </div>
