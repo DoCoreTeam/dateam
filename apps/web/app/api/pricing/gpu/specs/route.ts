@@ -11,28 +11,32 @@ export async function GET() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const { data: products } = await db.from('gpu_products').select('model_name, tier, memory').order('tier').order('model_name')
+  const { data: products } = await db
+    .from('gpu_products')
+    .select('id, model_name, tier, memory, gpu_count, vcpu, ram_gb, storage_gb, series')
+    .order('tier').order('model_name').order('gpu_count')
   const { data: specs } = await db.from('gpu_specs').select('*')
 
   const specByModel = new Map<string, Record<string, unknown>>()
   for (const s of specs ?? []) specByModel.set(s.model_name as string, s)
 
-  // 모델 단위 distinct (구성 중복 제거)
-  const seen = new Set<string>()
-  const rows: Record<string, unknown>[] = []
+  // 모델 단위 그룹 (구성=gpu_products 인스턴스 스펙 배열 포함 — 4탭 표시 스펙의 단일 편집 소스)
+  const byModel = new Map<string, Record<string, unknown>>()
   for (const p of products ?? []) {
     const key = p.model_name as string
-    if (seen.has(key)) continue
-    seen.add(key)
-    rows.push({
-      model_name: key,
-      tier: p.tier,
-      memory: p.memory,
-      spec: specByModel.get(key) ?? null,
-      has_spec: specByModel.has(key),
+    if (!byModel.has(key)) {
+      byModel.set(key, {
+        model_name: key, tier: p.tier, memory: p.memory,
+        spec: specByModel.get(key) ?? null, has_spec: specByModel.has(key),
+        configs: [],
+      })
+    }
+    ;(byModel.get(key)!.configs as Record<string, unknown>[]).push({
+      id: p.id, gpu_count: p.gpu_count, memory: p.memory,
+      vcpu: p.vcpu, ram_gb: p.ram_gb, storage_gb: p.storage_gb, series: p.series,
     })
   }
-  return NextResponse.json({ models: rows })
+  return NextResponse.json({ models: Array.from(byModel.values()) })
 }
 
 const EDITABLE = [

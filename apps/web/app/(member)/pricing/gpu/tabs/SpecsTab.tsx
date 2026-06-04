@@ -27,7 +27,8 @@ interface Spec {
   ai_generated: boolean
   ai_confidence: number | null
 }
-interface ModelRow { model_name: string; tier: number; memory: string | null; spec: Spec | null; has_spec: boolean }
+interface ConfigRow { id: string; gpu_count: number; memory: string | null; vcpu: number | null; ram_gb: number | null; storage_gb: number | null; series: string | null }
+interface ModelRow { model_name: string; tier: number; memory: string | null; spec: Spec | null; has_spec: boolean; configs: ConfigRow[] }
 
 const FIELDS: { key: keyof Spec; label: string; type?: 'number' | 'bool' }[] = [
   { key: 'architecture', label: '아키텍처' },
@@ -54,36 +55,52 @@ function fmt(v: unknown): string {
   return String(v)
 }
 
+// 통합 스펙 모달 — 구성별 인스턴스 스펙(가격표 등 표시값) + 칩 데이터시트를 한 화면·한 수정·한 저장·한 AI로 관리.
 function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => void; onSaved: () => void }) {
   const [editing, setEditing] = useState(!row.has_spec)
-  const [form, setForm] = useState<Record<string, string>>(() => {
+  const [chip, setChip] = useState<Record<string, string>>(() => {
     const f: Record<string, string> = {}
     for (const { key } of FIELDS) { const v = row.spec?.[key]; f[key] = v === null || v === undefined ? '' : String(v) }
     return f
   })
+  const [cfgs, setCfgs] = useState(() => row.configs.map((c) => ({
+    id: c.id, gpu_count: c.gpu_count,
+    memory: c.memory ?? '', vcpu: c.vcpu == null ? '' : String(c.vcpu),
+    ram_gb: c.ram_gb == null ? '' : String(c.ram_gb), storage_gb: c.storage_gb == null ? '' : String(c.storage_gb),
+  })))
   const [saving, setSaving] = useState(false)
   const [gen, setGen] = useState(false)
   const [err, setErr] = useState<string | null>(null)
-  const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }))
+  const setChipF = (k: string, v: string) => setChip((p) => ({ ...p, [k]: v }))
+  const setCfgF = (id: string, k: string, v: string) => setCfgs((p) => p.map((c) => c.id === id ? { ...c, [k]: v } : c))
   useEscClose(onClose)
 
-  const save = async () => {
+  // 한 번의 저장 = 칩 데이터시트(gpu_specs) + 모든 구성 인스턴스 스펙(gpu_products) 동시 저장
+  const saveAll = async () => {
     setSaving(true); setErr(null)
     try {
-      const payload: Record<string, unknown> = { model_name: row.model_name }
+      const chipPayload: Record<string, unknown> = { model_name: row.model_name }
       for (const { key, type } of FIELDS) {
-        const raw = form[key as string]
-        if (type === 'number') payload[key] = raw === '' ? null : Number(raw)
-        else if (type === 'bool') payload[key] = raw === '' ? null : raw === 'true'
-        else payload[key] = raw
+        const raw = chip[key as string]
+        if (type === 'number') chipPayload[key] = raw === '' ? null : Number(raw)
+        else if (type === 'bool') chipPayload[key] = raw === '' ? null : raw === 'true'
+        else chipPayload[key] = raw
       }
-      const res = await fetch('/api/pricing/gpu/specs', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-      if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error ?? '저장 실패'); return }
+      const r1 = await fetch('/api/pricing/gpu/specs', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(chipPayload) })
+      if (!r1.ok) { const j = await r1.json().catch(() => ({})); setErr(j.error ?? '칩 스펙 저장 실패'); return }
+      for (const c of cfgs) {
+        const r2 = await fetch(`/api/pricing/gpu/products/${c.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ memory: c.memory, vcpu: c.vcpu, ram_gb: c.ram_gb, storage_gb: c.storage_gb }),
+        })
+        if (!r2.ok) { const j = await r2.json().catch(() => ({})); setErr(j.error ?? `구성(×${c.gpu_count}) 저장 실패`); return }
+      }
       onSaved(); onClose()
     } finally { setSaving(false) }
   }
 
-  const regenerate = async () => {
+  // AI 자동완성 — 부족 정보(칩 데이터시트)를 AI가 채움
+  const aiFill = async () => {
     setGen(true); setErr(null)
     try {
       const res = await fetch('/api/pricing/gpu/specs/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model_name: row.model_name }) })
@@ -93,55 +110,81 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
     } finally { setGen(false) }
   }
 
+  const aiBtn = (
+    <button onClick={aiFill} disabled={gen} className="gpu-btn" style={{ gap: 5, marginLeft: 'auto', borderColor: 'var(--gpu-accent,#5b5ef0)', color: 'var(--gpu-accent,#5b5ef0)' }}>
+      <Sparkles size={14} /> {gen ? 'AI 자동완성 중…' : 'AI 자동완성 (부족정보)'}
+    </button>
+  )
+
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(640px,100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(680px,100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: '1px solid var(--gpu-border)', position: 'sticky', top: 0, background: '#fff' }}>
           <strong style={{ fontSize: 16, flex: 1 }}>{row.model_name} <span style={{ fontSize: 12, color: 'var(--gpu-muted)', fontWeight: 400 }}>Tier {row.tier}</span></strong>
-          {row.spec?.ai_generated && <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.1)', borderRadius: 5, padding: '2px 7px' }}>AI 생성 {row.spec.ai_confidence != null ? `${row.spec.ai_confidence}%` : ''}</span>}
+          {row.spec?.ai_generated && <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.1)', borderRadius: 5, padding: '2px 7px' }}>AI {row.spec.ai_confidence != null ? `${row.spec.ai_confidence}%` : ''}</span>}
           <button onClick={onClose} className="gpu-btn" style={{ padding: 6 }}><X size={16} /></button>
         </div>
-        <div style={{ padding: 20 }}>
-          {!editing ? (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 18px' }}>
-                {FIELDS.map(({ key, label }) => (
-                  <div key={key as string} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12.5, borderBottom: '1px solid #f1f3f9', padding: '4px 0' }}>
-                    <span style={{ color: 'var(--gpu-muted)' }}>{label}</span>
-                    <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>{fmt(row.spec?.[key])}</span>
-                  </div>
-                ))}
+
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* 구성별(×N GPU) 스펙 — 한 리스트의 일부. 장수에 따라 VRAM/vCPU/RAM/SSD가 다르므로 구성별로 입력 */}
+          {cfgs.map((c) => (
+            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 700, fontSize: 12.5, minWidth: 60, color: 'var(--gpu-accent,#5b5ef0)' }}>×{c.gpu_count} GPU</span>
+              {(['memory', 'vcpu', 'ram_gb', 'storage_gb'] as const).map((k) => {
+                const lbl = k === 'memory' ? 'VRAM' : k === 'vcpu' ? 'vCPU' : k === 'ram_gb' ? 'RAM(GB)' : 'SSD(GB)'
+                return editing ? (
+                  <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    <span style={{ fontSize: 10.5, color: 'var(--gpu-muted)' }}>{lbl}</span>
+                    <input value={c[k]} onChange={(e) => setCfgF(c.id, k, e.target.value)} style={{ width: k === 'memory' ? 62 : 54, height: 28, fontSize: 12, borderRadius: 6, border: '1.5px solid var(--gpu-border)', padding: '0 6px' }} />
+                  </span>
+                ) : (
+                  <span key={k} style={{ fontSize: 12 }}><span style={{ color: 'var(--gpu-muted)' }}>{lbl} </span><b>{c[k] || '—'}</b></span>
+                )
+              })}
+            </div>
+          ))}
+
+          <div style={{ borderTop: '1px solid #f1f3f9' }} />
+
+          {/* 나머지 스펙 항목 — 같은 통합 리스트. 부족분은 AI 자동완성 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: editing ? 10 : '8px 18px' }}>
+            {FIELDS.map(({ key, label, type }) => editing ? (
+              <label key={key as string} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--gpu-muted)' }}>{label}{key === 'architecture' && <span style={{ color: 'var(--gpu-red)' }}> *</span>}</span>
+                {type === 'bool' ? (
+                  <select value={chip[key as string]} onChange={(e) => setChipF(key as string, e.target.value)} style={{ height: 30, fontSize: 12.5, borderRadius: 6, border: '1.5px solid var(--gpu-border)', padding: '0 6px' }}>
+                    <option value="">미상</option><option value="true">지원</option><option value="false">미지원</option>
+                  </select>
+                ) : (
+                  <input value={chip[key as string]} onChange={(e) => setChipF(key as string, e.target.value)} inputMode={type === 'number' ? 'decimal' : undefined}
+                    style={{ height: 30, fontSize: 12.5, borderRadius: 6, border: '1.5px solid var(--gpu-border)', padding: '0 8px' }} />
+                )}
+              </label>
+            ) : (
+              <div key={key as string} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12.5, borderBottom: '1px solid #f1f3f9', padding: '4px 0' }}>
+                <span style={{ color: 'var(--gpu-muted)' }}>{label}</span>
+                <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>{fmt(row.spec?.[key])}</span>
               </div>
-              <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+            ))}
+          </div>
+
+          {err && <div style={{ fontSize: 12, color: 'var(--gpu-red)' }}>{err}</div>}
+
+          {/* 통합 액션 — 한 화면, 한 수정/저장, AI 자동완성 */}
+          <div style={{ display: 'flex', gap: 8, paddingTop: 4, borderTop: '1px solid var(--gpu-border)', marginTop: 2 }}>
+            {!editing ? (
+              <>
                 <button onClick={() => setEditing(true)} className="gpu-btn gpu-btn-primary" style={{ gap: 5 }}><Pencil size={14} /> 수정</button>
-                <button onClick={regenerate} disabled={gen} className="gpu-btn" style={{ gap: 5, marginLeft: 'auto' }}><Sparkles size={14} /> {gen ? 'AI 생성 중…' : 'AI 재생성'}</button>
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {FIELDS.map(({ key, label, type }) => (
-                  <label key={key as string} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--gpu-muted)' }}>{label}{(key === 'vram_gb' || key === 'architecture') && <span style={{ color: 'var(--gpu-red)' }}> *</span>}</span>
-                    {type === 'bool' ? (
-                      <select value={form[key as string]} onChange={(e) => set(key as string, e.target.value)} style={{ height: 30, fontSize: 12.5, borderRadius: 6, border: '1.5px solid var(--gpu-border)', padding: '0 6px' }}>
-                        <option value="">미상</option><option value="true">지원</option><option value="false">미지원</option>
-                      </select>
-                    ) : (
-                      <input value={form[key as string]} onChange={(e) => set(key as string, e.target.value)} inputMode={type === 'number' ? 'decimal' : undefined}
-                        style={{ height: 30, fontSize: 12.5, borderRadius: 6, border: '1.5px solid var(--gpu-border)', padding: '0 8px' }} />
-                    )}
-                  </label>
-                ))}
-              </div>
-              {err && <div style={{ marginTop: 10, fontSize: 12, color: 'var(--gpu-red)' }}>{err}</div>}
-              <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
-                <button onClick={save} disabled={saving} className="gpu-btn gpu-btn-primary" style={{ gap: 5 }}><Save size={14} /> {saving ? '저장 중…' : '저장'}</button>
+                {aiBtn}
+              </>
+            ) : (
+              <>
+                <button onClick={saveAll} disabled={saving} className="gpu-btn gpu-btn-primary" style={{ gap: 5 }}><Save size={14} /> {saving ? '저장 중…' : '저장'}</button>
                 {row.has_spec && <button onClick={() => setEditing(false)} className="gpu-btn">취소</button>}
-                <button onClick={regenerate} disabled={gen} className="gpu-btn" style={{ gap: 5, marginLeft: 'auto' }}><Sparkles size={14} /> {gen ? 'AI…' : 'AI 재생성'}</button>
-              </div>
-            </>
-          )}
+                {aiBtn}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -187,16 +230,19 @@ export default function SpecsTab() {
 
       <table className="table-base table-card">
         <thead>
-          <tr><th>GPU 모델</th><th>아키텍처</th><th>VRAM</th><th>FP16</th><th>TDP</th><th>상태</th></tr>
+          <tr><th>GPU 모델</th><th>구성</th><th>VRAM · vCPU · RAM · SSD</th><th>아키텍처</th><th>FP16</th><th>상태</th></tr>
         </thead>
         <tbody>
-          {filtered.map((m) => (
+          {filtered.map((m) => {
+            const base = m.configs[0]
+            const inst = base ? [base.memory ? `VRAM ${base.memory}` : null, base.vcpu ? `${base.vcpu} vCPU` : null, base.ram_gb ? `${base.ram_gb}GB RAM` : null, base.storage_gb ? `${base.storage_gb}GB SSD` : null].filter(Boolean).join(' · ') : '—'
+            return (
             <tr key={m.model_name} onClick={() => setOpen(m)} style={{ cursor: 'pointer' }}>
               <td className="card-header"><span style={{ fontWeight: 700 }}>{m.model_name}</span> <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>T{m.tier}</span></td>
+              <td data-label="구성">{m.configs.length}개</td>
+              <td data-label="표시 스펙" style={{ fontSize: 11.5 }}>{inst || '—'}</td>
               <td data-label="아키텍처">{fmt(m.spec?.architecture)}</td>
-              <td data-label="VRAM">{m.spec?.vram_gb ? `${m.spec.vram_gb}GB` : '—'}{m.spec?.vram_type ? ` ${m.spec.vram_type}` : ''}</td>
               <td data-label="FP16">{m.spec?.fp16_tflops ? `${m.spec.fp16_tflops} TF` : '—'}</td>
-              <td data-label="TDP">{m.spec?.tdp_w ? `${m.spec.tdp_w}W` : '—'}</td>
               <td data-label="상태">
                 {!m.has_spec
                   ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-amber)' }}>스펙 없음</span>
@@ -207,7 +253,7 @@ export default function SpecsTab() {
                       : <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-muted)' }}>기존값(VRAM)</span>}
               </td>
             </tr>
-          ))}
+          )})}
           {filtered.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--gpu-faint)' }}>모델이 없습니다</td></tr>}
         </tbody>
       </table>
