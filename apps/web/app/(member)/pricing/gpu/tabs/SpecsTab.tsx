@@ -110,6 +110,13 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
     } finally { setGen(false) }
   }
 
+  const deleteSpec = async () => {
+    if (!confirm(`'${row.model_name}' 칩 데이터시트를 삭제(초기화)할까요?`)) return
+    const res = await fetch(`/api/pricing/gpu/specs?model_name=${encodeURIComponent(row.model_name)}`, { method: 'DELETE' })
+    if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error ?? '삭제 실패'); return }
+    onSaved(); onClose()
+  }
+
   const aiBtn = (
     <button onClick={aiFill} disabled={gen} className="gpu-btn" style={{ gap: 5, marginLeft: 'auto', borderColor: 'var(--gpu-accent,#5b5ef0)', color: 'var(--gpu-accent,#5b5ef0)' }}>
       <Sparkles size={14} /> {gen ? 'AI 자동완성 중…' : 'AI 자동완성 (부족정보)'}
@@ -181,6 +188,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
             {!editing ? (
               <>
                 <button onClick={() => setEditing(true)} className="gpu-btn gpu-btn-primary" style={{ gap: 5 }}><Pencil size={14} /> 수정</button>
+                {row.spec?.architecture && <button onClick={deleteSpec} className="gpu-btn" style={{ gap: 4, color: 'var(--gpu-red)' }}><X size={13} /> 스펙 삭제</button>}
                 {aiBtn}
               </>
             ) : (

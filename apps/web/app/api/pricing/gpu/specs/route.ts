@@ -68,3 +68,16 @@ export async function PATCH(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ spec: data })
 }
+
+// DELETE /api/pricing/gpu/specs?model_name=<m> — 칩 데이터시트 삭제(스펙 초기화)
+export async function DELETE(req: NextRequest) {
+  const auth = await requireAdminApi()
+  if (auth.error) return auth.error
+  const modelName = new URL(req.url).searchParams.get('model_name')
+  if (!modelName) return NextResponse.json({ error: 'model_name 필요' }, { status: 400 })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = createAdminClient() as any
+  const { error } = await db.from('gpu_specs').delete().eq('model_name', modelName)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
+}
