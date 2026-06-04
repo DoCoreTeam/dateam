@@ -28,6 +28,7 @@ interface Competitor {
 
 interface MarketEntry {
   mapping_id: string
+  price_id: string | null
   competitor: Competitor
   product: { id: string; model_name: string; memory: string; tier: number; gpu_count?: number; vcpu?: number | null; ram_gb?: number | null; storage_gb?: number | null }
   competitor_sku: string
@@ -247,12 +248,13 @@ function judgeColor(j: string) {
 }
 
 // 분석 탭 컨텐츠
-function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI }: {
+function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI, onDeletePrice }: {
   p: ProductGroup
   activeGroups: Set<string>
   fmt: (v: number) => string
   onGoToPriceTable?: (modelName: string, productId: string) => void
   onOpenAI?: (modelName: string, productId: string) => void
+  onDeletePrice?: (priceId: string) => void
 }) {
   // 최신 가격(나이 무관) 기준 — 신선도로 버리지 않음
   const pricedComps = p.competitors.filter(c => c.price_usd != null)
@@ -393,6 +395,10 @@ function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI }: {
                         <span style={{ fontSize: 10, fontWeight: 700, color: vsCls, fontFamily: 'monospace' }}>
                           {vsTxt}
                         </span>
+                      )}
+                      {x.price_id && onDeletePrice && (
+                        <button onClick={() => onDeletePrice(x.price_id as string)} title="이 경쟁가 삭제"
+                          style={{ marginLeft: 'auto', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--gpu-faint)', fontSize: 12, lineHeight: 1, padding: '0 2px' }}>🗑</button>
                       )}
                     </div>
                   )
@@ -1043,6 +1049,12 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
   const { data, isLoading, mutate } = useSWR<MarketData>('/api/pricing/gpu/market', fetcher, {
     refreshInterval: 0,
   })
+  const deleteMarketPrice = async (priceId: string) => {
+    if (!confirm('이 경쟁가를 삭제할까요?')) return
+    const res = await fetch(`/api/pricing/gpu/market/prices?id=${priceId}`, { method: 'DELETE' })
+    if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error ?? '삭제 실패'); return }
+    mutate()
+  }
   const [currencyMode, setCurrencyMode] = useState<CurrencyMode>('KRW')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [expandedTab, setExpandedTab] = useState<Record<string, 'analyze' | 'strategy'>>({})
@@ -1677,7 +1689,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                       {/* 탭 패널 */}
                       <div style={{ padding: '14px 18px 18px' }}>
                         {currentTab === 'analyze' && (
-                          <AnalyzePanel p={p} activeGroups={activeGroups} onGoToPriceTable={(name, id) => onGoToPriceTable?.(name, id)} onOpenAI={(name, id) => onOpenAI?.(name, id)} fmt={fmt} />
+                          <AnalyzePanel p={p} activeGroups={activeGroups} onGoToPriceTable={(name, id) => onGoToPriceTable?.(name, id)} onOpenAI={(name, id) => onOpenAI?.(name, id)} fmt={fmt} onDeletePrice={deleteMarketPrice} />
                         )}
                         {currentTab === 'strategy' && (
                           <StrategyPanel p={p} fmt={fmt} />

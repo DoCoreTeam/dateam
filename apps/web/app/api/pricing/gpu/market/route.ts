@@ -54,7 +54,7 @@ export async function GET() {
     const { data: latestPrices, error: priceErr } = mappingIds.length > 0
       ? await db
           .from('market_prices')
-          .select('mapping_id, price_usd, recorded_at, confidence, notes, source_url')
+          .select('id, mapping_id, price_usd, recorded_at, confidence, notes, source_url')
           .in('mapping_id', mappingIds)
           .order('recorded_at', { ascending: false })
       : { data: [], error: null }
@@ -126,6 +126,7 @@ export async function GET() {
 
         return {
           mapping_id: m.id,
+          price_id: priceData?.id ?? null,
           competitor: m.competitors,
           competitor_sku: m.competitor_sku,
           pricing_model: m.pricing_model,
