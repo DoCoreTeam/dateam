@@ -177,7 +177,20 @@ export default function QuoteRegisterTab() {
   const [supplierPreview, setSupplierPreview] = useState<any[]>([])  // 공급가 추출 미리보기(저장 X)
   const [committing, setCommitting] = useState(false)
   const [committed, setCommitted] = useState(false)
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null)  // 공급가 미리보기 상세 펼침
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // 스트림 raw JSON → 자연어 파싱 (내부 필드명 노출 안 함). 누적 버퍼에서 모델·가격을 뽑아 친화적으로 표시.
+  const streamFindings: Array<{ model: string; price?: string }> = (() => {
+    if (!streamText) return []
+    const found: Array<{ model: string; price?: string }> = []
+    const re = /"model_name"\s*:\s*"([^"]+)"(?:[\s\S]*?"(?:unit_price_usd|price_usd)"\s*:\s*([0-9.]+))?/g
+    let m: RegExpExecArray | null
+    while ((m = re.exec(streamText)) !== null) {
+      if (m[1] && m[1].trim()) found.push({ model: m[1].trim(), price: m[2] })
+    }
+    return found.slice(-6)
+  })()
 
   // (실 진행은 SSE progress 이벤트로 표시 — 가짜 타이머 제거)
 
@@ -227,7 +240,7 @@ export default function QuoteRegisterTab() {
     setRawText(''); setAttached(null); setAnalysisResults([])
     setCompetitorResults([]); setActiveTabIdx(0); setErrorMsg(''); setSuccessMsg('')
     setLiveMsgs([]); setStreamText(''); setSupplierPreview([]); setCommitted(false)
-    setPreviewItems([]); setPreviewSourceUrl(null); setApplied(false)
+    setPreviewItems([]); setPreviewSourceUrl(null); setApplied(false); setExpandedIdx(null)
   }, [])
 
   const handleAnalyze = useCallback(async () => {
@@ -475,11 +488,17 @@ export default function QuoteRegisterTab() {
                   )
                 })}
               </div>
-              {/* AI가 지금 쓰고 있는 실 토큰 */}
-              {streamText && (
-                <div style={{ marginTop: 4, padding: '8px 10px', borderRadius: 8, background: '#0f172a', border: '1px solid #1e293b', maxHeight: 160, overflowY: 'auto' }}>
-                  <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>AI 추출 스트림 (실시간)</div>
-                  <pre style={{ margin: 0, fontSize: 10.5, lineHeight: 1.5, color: '#7dd3fc', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'ui-monospace, monospace' }}>{streamText}<span style={{ opacity: 0.6 }}>▋</span></pre>
+              {/* AI가 찾고 있는 항목 — 자연어 파싱(raw JSON 비노출) */}
+              {streamFindings.length > 0 && (
+                <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>찾은 항목</div>
+                  {streamFindings.map((f, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 6, background: '#f8fafc', border: '1px solid #e2e8f0', fontSize: 12 }}>
+                      <span style={{ color: 'var(--gpu-accent)' }}>✦</span>
+                      <span style={{ fontWeight: 600, color: '#334155', flex: 1 }}>{f.model}</span>
+                      {f.price && <span style={{ fontWeight: 700, color: '#4f46e5' }}>${f.price}/hr</span>}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -526,11 +545,40 @@ export default function QuoteRegisterTab() {
                     const name = `${ex.model_name ?? ''} ${ex.memory ?? ''}`.trim()
                     const priceVal = ex.unit_price_usd ?? ex.price_usd
                     const price = priceVal != null ? `$${priceVal}/hr` : '—'
+                    const open = expandedIdx === i
+                    const detailRows: Array<[string, string]> = []
+                    // 객체/배열은 스킵(내부 구조 노출·[object Object] 방지) — 원시값만 자연어로
+                    const push = (label: string, v: unknown) => {
+                      if (v === null || v === undefined) return
+                      if (typeof v === 'object') return
+                      const s = String(v).trim()
+                      if (s !== '') detailRows.push([label, s])
+                    }
+                    const qty = typeof ex.min_qty === 'object' ? null : ex.min_qty
+                    push('약정', ex.term ?? (ex.term_months ? `${ex.term_months}개월` : null))
+                    push('최소 수량', qty)
+                    push('유효기간', ex.valid_until)
+                    push('원본 금액', ex.original_price != null && typeof ex.original_price !== 'object' ? `${ex.original_price} ${ex.original_currency ?? ''}`.trim() : null)
+                    push('원본 단위', ex.original_unit)
+                    push('추천 Tier', ex.tier_suggestion)
                     return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, background: '#eef2ff', border: '1px solid #c7d2fe' }}>
-                        <span style={{ fontSize: 12, color: '#374151', fontWeight: 600, flex: 1 }}>{name || '(모델 미상)'}</span>
-                        {ex.supplier ? <span style={{ fontSize: 11, color: '#6b7280' }}>{String(ex.supplier)}</span> : null}
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5' }}>{price}</span>
+                      <div key={i} style={{ borderRadius: 8, background: '#eef2ff', border: '1px solid #c7d2fe', overflow: 'hidden' }}>
+                        <div onClick={() => setExpandedIdx(open ? null : i)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', cursor: 'pointer' }}>
+                          <span style={{ fontSize: 11, color: '#94a3b8' }}>{open ? '▾' : '▸'}</span>
+                          <span style={{ fontSize: 12, color: '#374151', fontWeight: 600, flex: 1 }}>{name || '(모델 미상)'}</span>
+                          {ex.supplier ? <span style={{ fontSize: 11, color: '#6b7280' }}>{String(ex.supplier)}</span> : null}
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5' }}>{price}</span>
+                        </div>
+                        {open && (
+                          <div style={{ padding: '4px 12px 10px 28px', display: 'flex', flexDirection: 'column', gap: 3, borderTop: '1px solid #ddd6fe', background: '#f5f3ff' }}>
+                            {detailRows.length > 0 ? detailRows.map(([k, v]) => (
+                              <div key={k} style={{ display: 'flex', fontSize: 11.5, gap: 8 }}>
+                                <span style={{ color: '#8b8b9e', minWidth: 64 }}>{k}</span>
+                                <span style={{ color: '#374151', fontWeight: 500 }}>{v}</span>
+                              </div>
+                            )) : <span style={{ fontSize: 11.5, color: '#94a3b8' }}>추가 상세 정보 없음</span>}
+                          </div>
+                        )}
                       </div>
                     )
                   })}
