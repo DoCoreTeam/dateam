@@ -1042,6 +1042,73 @@ function PriceRegisterModal({
   )
 }
 
+// 경쟁사-제품 매핑(competitor_product_mapping) 관리 — 목록/추가/수정/삭제 (CRUD)
+function MappingManagerModal({ mappings, competitors, onClose, onChanged }: {
+  mappings: Mapping[]; competitors: Competitor[]; onClose: () => void; onChanged: () => void
+}) {
+  useEscClose(onClose)
+  const { data: prodData } = useSWR<{ products: { id: string; model_name: string; memory: string }[] }>('/api/pricing/gpu/products', fetcher)
+  const products = prodData?.products ?? []
+  const [compId, setCompId] = useState('')
+  const [prodId, setProdId] = useState('')
+  const [sku, setSku] = useState('')
+  const [pm, setPm] = useState('on_demand')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const add = async () => {
+    if (!compId || !prodId) { setErr('경쟁사·제품 선택'); return }
+    setBusy(true); setErr(null)
+    try {
+      const res = await fetch('/api/pricing/gpu/market/mappings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ competitor_id: compId, gpu_product_id: prodId, competitor_sku: sku || null, pricing_model: pm }) })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error ?? '추가 실패'); return }
+      setSku(''); onChanged()
+    } finally { setBusy(false) }
+  }
+  const del = async (id: string) => {
+    if (!confirm('이 매핑을 삭제할까요? (연결된 시세도 함께 삭제)')) return
+    const res = await fetch(`/api/pricing/gpu/market/mappings/${id}`, { method: 'DELETE' })
+    if (res.ok) onChanged(); else alert('삭제 실패')
+  }
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(620px,100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--gpu-border)' }}>
+          <strong style={{ fontSize: 15, flex: 1 }}>경쟁사 매핑 관리 ({mappings.length})</strong>
+          <button onClick={onClose} className="gpu-btn" style={{ padding: 6 }}><X size={16} /></button>
+        </div>
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px auto', gap: 6, alignItems: 'center', borderBottom: '1px solid var(--gpu-border)', paddingBottom: 10 }}>
+            <select value={compId} onChange={(e) => setCompId(e.target.value)} style={{ height: 30, fontSize: 12, border: '1.5px solid var(--gpu-border)', borderRadius: 6 }}>
+              <option value="">경쟁사…</option>{competitors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <select value={prodId} onChange={(e) => setProdId(e.target.value)} style={{ height: 30, fontSize: 12, border: '1.5px solid var(--gpu-border)', borderRadius: 6 }}>
+              <option value="">제품…</option>{products.map((p) => <option key={p.id} value={p.id}>{p.model_name} {p.memory}</option>)}
+            </select>
+            <select value={pm} onChange={(e) => setPm(e.target.value)} style={{ height: 30, fontSize: 12, border: '1.5px solid var(--gpu-border)', borderRadius: 6 }}>
+              {Object.entries(PRICING_MODEL_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <button onClick={add} disabled={busy} className="gpu-btn gpu-btn-primary">추가</button>
+          </div>
+          <input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="SKU (선택)" style={{ height: 28, fontSize: 12, border: '1px solid var(--gpu-border)', borderRadius: 6, padding: '0 8px' }} />
+          {err && <div style={{ fontSize: 12, color: 'var(--gpu-red)' }}>{err}</div>}
+          <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {mappings.map((m) => (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '6px 8px', borderRadius: 7, background: '#f9fafb', border: '1px solid #eef0f6' }}>
+                <span style={{ fontWeight: 700, minWidth: 90 }}>{m.competitors?.name ?? '?'}</span>
+                <span style={{ flex: 1 }}>{m.gpu_products?.model_name} {m.gpu_products?.memory}</span>
+                <span style={{ fontSize: 10.5, color: 'var(--gpu-muted)' }}>{PRICING_MODEL_LABEL[m.pricing_model] ?? m.pricing_model}</span>
+                <button onClick={() => del(m.id)} className="gpu-btn" style={{ padding: 4, color: 'var(--gpu-red)' }}>🗑</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
   onGoToPriceTable?: (modelName: string, productId: string) => void
   onOpenAI?: (modelName: string, productId: string) => void
@@ -1063,6 +1130,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
   const [refreshing, setRefreshing] = useState(false)
   const [refreshResult, setRefreshResult] = useState<RefreshResult | null>(null)
   const [showRegister, setShowRegister] = useState(false)
+  const [showMappingMgr, setShowMappingMgr] = useState(false)
   const [showCompModal, setShowCompModal] = useState(false)
   const [viewMode, setViewMode] = useState<'table' | 'strategy'>('table')
   const [positionFilter, setPositionFilter] = useState<null | 'low' | 'mid' | 'high'>(null)
@@ -1084,7 +1152,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
   const usdKrw = data?.usd_krw ?? 1400
   const fmt = makeFmt(currencyMode, usdKrw)
 
-  const { data: mappingsData } = useSWR<{ mappings: Mapping[] }>('/api/pricing/gpu/market/mappings', fetcher)
+  const { data: mappingsData, mutate: mutateMappings } = useSWR<{ mappings: Mapping[] }>('/api/pricing/gpu/market/mappings', fetcher)
 
   const summary = data?.summary
   const products = data?.products ?? []
@@ -1165,6 +1233,14 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
           onSaved={() => mutate()}
         />
       )}
+      {showMappingMgr && (
+        <MappingManagerModal
+          mappings={mappings}
+          competitors={data?.competitors ?? []}
+          onClose={() => setShowMappingMgr(false)}
+          onChanged={() => { mutateMappings(); mutate() }}
+        />
+      )}
 
       {/* ── 고정 헤더 ── */}
       <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1191,6 +1267,14 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
           >
             <Plus size={13} />
             <span className="gpu-btn-text-mob">가격 등록</span>
+          </button>
+          <button
+            className="gpu-btn"
+            title="경쟁사 매핑 관리"
+            style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}
+            onClick={() => setShowMappingMgr(true)}
+          >
+            <span className="gpu-btn-text-mob">매핑 관리</span>
           </button>
           <button
             className="gpu-btn"
