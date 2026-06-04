@@ -68,6 +68,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
     memory: c.memory ?? '', vcpu: c.vcpu == null ? '' : String(c.vcpu),
     ram_gb: c.ram_gb == null ? '' : String(c.ram_gb), storage_gb: c.storage_gb == null ? '' : String(c.storage_gb),
   })))
+  const [tier, setTier] = useState(String(row.tier))   // 수동 tier override
   const [saving, setSaving] = useState(false)
   const [gen, setGen] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -91,7 +92,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
       for (const c of cfgs) {
         const r2 = await fetch(`/api/pricing/gpu/products/${c.id}`, {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ memory: c.memory, vcpu: c.vcpu, ram_gb: c.ram_gb, storage_gb: c.storage_gb }),
+          body: JSON.stringify({ memory: c.memory, vcpu: c.vcpu, ram_gb: c.ram_gb, storage_gb: c.storage_gb, tier: Number(tier) }),
         })
         if (!r2.ok) { const j = await r2.json().catch(() => ({})); setErr(j.error ?? `구성(×${c.gpu_count}) 저장 실패`); return }
       }
@@ -127,7 +128,18 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(680px,100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: '1px solid var(--gpu-border)', position: 'sticky', top: 0, background: '#fff' }}>
-          <strong style={{ fontSize: 16, flex: 1 }}>{row.model_name} <span style={{ fontSize: 12, color: 'var(--gpu-muted)', fontWeight: 400 }}>Tier {row.tier}</span></strong>
+          <strong style={{ fontSize: 16, flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+            {row.model_name}
+            {editing ? (
+              <select value={tier} onChange={(e) => setTier(e.target.value)} title="Tier 변경 (데이터센터=1/워크스테이션=2/소비자=3)" style={{ height: 26, fontSize: 12, borderRadius: 6, border: '1.5px solid var(--gpu-border)', padding: '0 6px', fontWeight: 600 }}>
+                <option value="1">Tier 1 (데이터센터)</option>
+                <option value="2">Tier 2 (워크스테이션)</option>
+                <option value="3">Tier 3 (소비자)</option>
+              </select>
+            ) : (
+              <span style={{ fontSize: 12, color: 'var(--gpu-muted)', fontWeight: 400 }}>Tier {row.tier}</span>
+            )}
+          </strong>
           {row.spec?.ai_generated && <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.1)', borderRadius: 5, padding: '2px 7px' }}>AI {row.spec.ai_confidence != null ? `${row.spec.ai_confidence}%` : ''}</span>}
           <button onClick={onClose} className="gpu-btn" style={{ padding: 6 }}><X size={16} /></button>
         </div>

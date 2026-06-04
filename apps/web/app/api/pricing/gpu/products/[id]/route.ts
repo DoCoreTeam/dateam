@@ -22,6 +22,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (k === 'memory' || k === 'series') patch[k] = (typeof v === 'string' && v.trim()) ? v.trim() : null
     else patch[k] = (v === '' || v === null) ? null : Number(v)   // vcpu/ram_gb/storage_gb (storage_gb nullable)
   }
+  // tier 수동 변경 (1/2/3) — 데이터센터=T1/워크스테이션=T2/소비자=T3 자동분류를 사용자가 override
+  if ('tier' in body) {
+    const t = Number(body.tier)
+    if (![1, 2, 3].includes(t)) return NextResponse.json({ error: 'tier는 1·2·3만 가능합니다' }, { status: 400 })
+    patch.tier = t
+  }
   // 필수: vcpu/ram_gb는 null 불가
   if ('vcpu' in patch && patch.vcpu == null) return NextResponse.json({ error: 'vCPU는 비울 수 없습니다' }, { status: 400 })
   if ('ram_gb' in patch && patch.ram_gb == null) return NextResponse.json({ error: 'RAM은 비울 수 없습니다' }, { status: 400 })
@@ -29,6 +35,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createAdminClient() as any
+
+  // tier 변경 시 중복 충돌 가드 — 동일 model+memory+gpu_count+vcpu가 목표 tier에 이미 있으면 차단(정합성)
+  if ('tier' in patch) {
+    const { data: cur } = await db.from('gpu_products').select('model_name, memory, gpu_count, vcpu').eq('id', id).single()
+    if (cur) {
+      const { data: clash } = await db.from('gpu_products').select('id')
+        .eq('model_name', cur.model_name).eq('memory', cur.memory)
+        .eq('gpu_count', cur.gpu_count).eq('vcpu', cur.vcpu).eq('tier', patch.tier)
+        .neq('id', id).limit(1)
+      if (clash && clash.length > 0) return NextResponse.json({ error: '같은 구성이 해당 Tier에 이미 존재합니다' }, { status: 409 })
+    }
+  }
+
   const { data, error } = await db.from('gpu_products').update(patch).eq('id', id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
