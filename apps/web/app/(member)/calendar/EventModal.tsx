@@ -1,4 +1,5 @@
 'use client'
+import { useEscClose } from '@/lib/use-esc-close'
 
 import { useState } from 'react'
 import { Sparkles, X } from 'lucide-react'
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function EventModal({ date, onClose, onSaved }: Props) {
+  useEscClose(onClose)
   const [nl, setNl] = useState('')
   const [aiBusy, setAiBusy] = useState(false)
   const [title, setTitle] = useState('')

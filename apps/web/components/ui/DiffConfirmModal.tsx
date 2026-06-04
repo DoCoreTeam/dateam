@@ -1,4 +1,5 @@
 'use client'
+import { useEscClose } from '@/lib/use-esc-close'
 
 import { useState } from 'react'
 
@@ -39,6 +40,7 @@ function RichPreview({ html }: { html: string }) {
 }
 
 export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffConfirmModalProps) {
+  useEscClose(onCancel)
   const [localItems, setLocalItems] = useState<DiffItem[]>(items)
 
   const toggle = (idx: number) =>

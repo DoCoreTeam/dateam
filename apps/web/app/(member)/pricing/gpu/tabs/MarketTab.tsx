@@ -1,4 +1,5 @@
 'use client'
+import { useEscClose } from '@/lib/use-esc-close'
 
 import { useState } from 'react'
 import useSWR from 'swr'
@@ -888,6 +889,7 @@ function PriceRegisterModal({
   onClose: () => void
   onSaved: () => void
 }) {
+  useEscClose(onClose)
   const [mappingId, setMappingId] = useState(mappings[0]?.id ?? '')
   const [priceUsd, setPriceUsd] = useState('')
   const [sourceUrl, setSourceUrl] = useState('')

@@ -1,4 +1,5 @@
 'use client'
+import { useEscClose } from '@/lib/use-esc-close'
 
 import { useState } from 'react'
 import type { ColumnDef } from '@/components/ui/DynamicTable'
@@ -76,6 +77,7 @@ export default function ContentDiffModal({
   onCancel,
   loading = false,
 }: ContentDiffModalProps) {
+  useEscClose(onCancel)
   const keyCol = columns[0]?.key ?? 'id'
   const rows = diffRows(original, proposed, keyCol)
 

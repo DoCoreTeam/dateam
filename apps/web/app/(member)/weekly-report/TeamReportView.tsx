@@ -1,4 +1,5 @@
 'use client'
+import { useEscClose } from '@/lib/use-esc-close'
 
 import { useState } from 'react'
 
@@ -27,6 +28,7 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
   const [loading, setLoading] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [modal, setModal] = useState<MemberReport | null>(null)
+  useEscClose(() => setModal(null), !!modal)
 
   async function fetchWeek(week: string) {
     setReports([])

@@ -1,4 +1,5 @@
 'use client'
+import { useEscClose } from '@/lib/use-esc-close'
 
 import { useState, useTransition } from 'react'
 import { X, ArrowUpRight } from 'lucide-react'
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
+  useEscClose(onClose)
   const [newType, setNewType] = useState<'planned' | 'doing'>('planned')
   const [targetDate, setTargetDate] = useState('')
   const [error, setError] = useState<string | null>(null)

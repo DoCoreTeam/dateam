@@ -1,4 +1,5 @@
 'use client'
+import { useEscClose } from '@/lib/use-esc-close'
 
 import { useState, useTransition } from 'react'
 import { X } from 'lucide-react'
@@ -29,6 +30,7 @@ export default function EditProfileModal({
   positions,
   onClose,
 }: Props) {
+  useEscClose(onClose)
   const [name, setName] = useState(defaultName)
   const [rank, setRank] = useState(defaultRank ?? '')
   const [position, setPosition] = useState(defaultPosition ?? '')

@@ -1,4 +1,5 @@
 'use client'
+import { useEscClose } from '@/lib/use-esc-close'
 
 import { useState, useTransition } from 'react'
 import { X } from 'lucide-react'
@@ -210,6 +211,7 @@ export function EditNodeModal({ node, allProfiles, allNodes = [], onClose }: Edi
 // ── Shared UI ─────────────────────────────────────────────────────────────────
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  useEscClose(onClose)
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
       <div style={{ background: '#fff', borderRadius: '0.75rem', width: '380px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
