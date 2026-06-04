@@ -55,31 +55,65 @@ async function getPrompt(adminClient: ReturnType<typeof createAdminClient>) {
   return data as { content: string; version: string; model_hint: string } | null
 }
 
-// 기존 보유 GPU 스펙 컨텍스트 — AI가 입력의 모호한 모델명을 "기존 스펙"과 대조·추론하도록 주입 (P3)
-// 고정 스키마(gpu_products/gpu_specs)에서 파생하므로 별도 매개체 불필요.
+// 보유 GPU 모델 카탈로그(스펙 포함) — 클라우드사의 가상/인스턴스 모델명을 스펙으로 대조해
+// 우리 표준 model_name으로 매핑하도록 AI에 주입 (P3 + 스펙 기반 매핑).
+// 고정 스키마(gpu_products + gpu_specs)에서 런타임 파생 — 별도 매개체 불필요.
 async function loadSpecContext(adminClient: ReturnType<typeof createAdminClient>): Promise<string> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (adminClient as any)
-      .from('gpu_products')
-      .select('model_name, memory')
-      .order('model_name', { ascending: true })
-      .limit(200)
-    const rows = (data ?? []) as Array<{ model_name: string | null; memory: string | null }>
-    if (rows.length === 0) return ''
-    // 모델명+메모리 조합을 중복 제거해 레퍼런스 목록 구성
-    const seen = new Set<string>()
-    const list: string[] = []
-    for (const r of rows) {
-      const name = (r.model_name ?? '').trim()
-      if (!name) continue
-      const label = r.memory ? `${name} ${r.memory}` : name
-      if (seen.has(label)) continue
-      seen.add(label)
-      list.push(label)
+    const db = adminClient as any
+    const [prodRes, specRes] = await Promise.all([
+      db.from('gpu_products').select('model_name, memory').order('model_name', { ascending: true }).limit(300),
+      db.from('gpu_specs').select('model_name, architecture, vram_gb, vram_type, interface').limit(300),
+    ])
+    const prods = (prodRes.data ?? []) as Array<{ model_name: string | null; memory: string | null }>
+    const specs = (specRes.data ?? []) as Array<{
+      model_name: string | null; architecture: string | null; vram_gb: number | null; vram_type: string | null; interface: string | null
+    }>
+
+    // 표준 모델명 집합 — gpu_products 기준
+    const canonical = new Set<string>()
+    for (const p of prods) { const n = (p.model_name ?? '').trim(); if (n) canonical.add(n) }
+    if (canonical.size === 0) return ''
+
+    // 모델별 스펙 인덱스
+    const specByModel = new Map<string, { arch?: string; vram?: number; vramType?: string; iface?: string }>()
+    for (const s of specs) {
+      const n = (s.model_name ?? '').trim()
+      if (!n) continue
+      specByModel.set(n, {
+        arch: s.architecture ?? undefined,
+        vram: s.vram_gb ?? undefined,
+        vramType: s.vram_type ?? undefined,
+        iface: s.interface ?? undefined,
+      })
     }
-    if (list.length === 0) return ''
-    return `\n\n【보유 GPU 모델 레퍼런스 — 입력의 모호한 모델명은 아래 기존 모델과 대조해 가장 적합한 것으로 매핑하세요】\n${list.join(' | ')}`
+
+    // 카탈로그 라인: "H100 (VRAM 80GB HBM3, Hopper, SXM)" 형태 — 스펙 없으면 메모리만
+    const memByModel = new Map<string, Set<string>>()
+    for (const p of prods) {
+      const n = (p.model_name ?? '').trim(); if (!n) continue
+      if (p.memory) { if (!memByModel.has(n)) memByModel.set(n, new Set()); memByModel.get(n)!.add(p.memory) }
+    }
+    const lines: string[] = []
+    for (const name of Array.from(canonical).sort()) {
+      const sp = specByModel.get(name)
+      const parts: string[] = []
+      if (sp?.vram) parts.push(`VRAM ${sp.vram}GB${sp.vramType ? ' ' + sp.vramType : ''}`)
+      else if (memByModel.get(name)?.size) parts.push(`VRAM ${Array.from(memByModel.get(name)!).join('/')}`)
+      if (sp?.arch) parts.push(sp.arch)
+      if (sp?.iface) parts.push(sp.iface)
+      lines.push(parts.length ? `${name} (${parts.join(', ')})` : name)
+    }
+    if (lines.length === 0) return ''
+
+    return `\n\n【중요 — 클라우드 가상 모델명 → 표준 모델 매핑】
+클라우드사(NHN·NAVER·AWS 등)는 GPU를 자체 인스턴스/가상 이름으로 부릅니다(예: "g2", "GPU-A100-1", "vGPU 80G").
+입력의 모델/인스턴스명이 표준과 다르면, 아래 보유 모델 카탈로그의 스펙(VRAM 용량·메모리타입·아키텍처·인터페이스)과 대조해
+가장 일치하는 표준 model_name으로 매핑하세요. 예) "80GB HBM3 SXM" 단서 → H100. 매핑이 명확하지 않을 때만 원문 모델명을 유지하세요.
+
+[보유 모델 카탈로그]
+${lines.join(' | ')}`
   } catch {
     return ''
   }
