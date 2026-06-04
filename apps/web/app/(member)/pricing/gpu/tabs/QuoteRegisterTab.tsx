@@ -155,7 +155,8 @@ function ResultPanel({ item }: { item: ReviewItemResult }) {
 
 export default function QuoteRegisterTab() {
   const [rawText, setRawText] = useState('')
-  const [attached, setAttached] = useState<AttachedFile | null>(null)
+  const [attached, setAttached] = useState<AttachedFile | null>(null)   // 텍스트 파일(단일)
+  const [images, setImages] = useState<AttachedFile[]>([])              // 이미지(다중)
   const [isDragging, setIsDragging] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [analysisResults, setAnalysisResults] = useState<ReviewItemResult[]>([])
@@ -212,7 +213,8 @@ export default function QuoteRegisterTab() {
         const dataUrl = e.target?.result as string
         const base64 = dataUrl.split(',')[1] ?? ''
         const url = URL.createObjectURL(file)
-        setAttached({ name: file.name, mimeType: file.type, previewUrl: url, base64Data: base64 })
+        // 다중 이미지 — 누적 추가
+        setImages((p) => [...p, { name: file.name, mimeType: file.type, previewUrl: url, base64Data: base64 }])
       }
       reader.readAsDataURL(file)
     } else {
@@ -220,24 +222,27 @@ export default function QuoteRegisterTab() {
     }
   }, [])
 
+  // 여러 파일 한 번에 처리
+  const processFiles = useCallback((files: FileList | File[]) => {
+    for (const f of Array.from(files)) processFile(f)
+  }, [processFile])
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); setIsDragging(false)
-    const file = e.dataTransfer.files[0]
-    if (file) processFile(file)
-  }, [processFile])
+    if (e.dataTransfer.files?.length) processFiles(e.dataTransfer.files)
+  }, [processFiles])
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const items = e.clipboardData.items
+    const imgs: File[] = []
     for (const item of Array.from(items)) {
-      if (item.type.startsWith('image/')) {
-        const file = item.getAsFile()
-        if (file) { processFile(file); e.preventDefault(); return }
-      }
+      if (item.type.startsWith('image/')) { const f = item.getAsFile(); if (f) imgs.push(f) }
     }
-  }, [processFile])
+    if (imgs.length) { processFiles(imgs); e.preventDefault(); return }
+  }, [processFiles])
 
   const reset = useCallback(() => {
-    setRawText(''); setAttached(null); setAnalysisResults([])
+    setRawText(''); setAttached(null); setImages([]); setAnalysisResults([])
     setCompetitorResults([]); setActiveTabIdx(0); setErrorMsg(''); setSuccessMsg('')
     setLiveMsgs([]); setStreamText(''); setSupplierPreview([]); setCommitted(false)
     setPreviewItems([]); setPreviewSourceUrl(null); setApplied(false); setExpandedIdx(null)
@@ -245,7 +250,8 @@ export default function QuoteRegisterTab() {
 
   const handleAnalyze = useCallback(async () => {
     const text = rawText.trim() || attached?.textContent?.trim() || ''
-    const hasImage = !!attached?.base64Data
+    const imgPayload = images.filter((im) => im.base64Data).map((im) => ({ data: im.base64Data as string, mimeType: im.mimeType }))
+    const hasImage = imgPayload.length > 0
     if (!text && !hasImage) { setErrorMsg('텍스트 또는 이미지를 입력해 주세요.'); return }
     const effectiveChannel = hasImage && !text ? 'img' : channel
 
@@ -257,7 +263,7 @@ export default function QuoteRegisterTab() {
     // ── 텍스트·이미지 모두 SSE 실시간 스트리밍 ──
     try {
       const payload: Record<string, unknown> = { text, channel: effectiveChannel, is_test: isTest }
-      if (hasImage) payload.imageData = { data: attached!.base64Data, mimeType: attached!.mimeType }
+      if (hasImage) payload.images = imgPayload
       const res = await fetch('/api/pricing/gpu/review/stream', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -302,7 +308,7 @@ export default function QuoteRegisterTab() {
     } finally {
       setAnalyzing(false); setStreamText('')
     }
-  }, [rawText, attached, channel, isTest])
+  }, [rawText, attached, images, channel, isTest])
 
   // 공급가 미리보기 → 검토 대기 저장(버튼)
   const commitSupplier = useCallback(async () => {
@@ -398,12 +404,10 @@ export default function QuoteRegisterTab() {
             </div>
           </div>
 
+          {/* 텍스트 파일 첨부(단일) */}
           {attached && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 10px', borderRadius: 8, background: '#f8faff', border: '1px solid #e0e7ff' }}>
-              {attached.previewUrl
-                ? <img src={attached.previewUrl} alt={attached.name} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
-                : <Paperclip size={16} style={{ color: '#6366f1', flexShrink: 0 }} />
-              }
+              <Paperclip size={16} style={{ color: '#6366f1', flexShrink: 0 }} />
               <span style={{ fontSize: 12, color: '#374151', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attached.name}</span>
               <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#9ca3af' }} onClick={() => setAttached(null)}>
                 <X size={14} />
@@ -411,12 +415,29 @@ export default function QuoteRegisterTab() {
             </div>
           )}
 
+          {/* 이미지 첨부(다중) — 썸네일 그리드 */}
+          {images.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }} data-testid="image-thumbs">
+              {images.map((im, i) => (
+                <div key={i} style={{ position: 'relative', width: 56, height: 56, borderRadius: 8, overflow: 'hidden', border: '1px solid #e0e7ff' }}>
+                  {im.previewUrl && <img src={im.previewUrl} alt={im.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                  <button onClick={() => setImages((p) => p.filter((_, idx) => idx !== i))} title="제거"
+                    style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', background: 'rgba(15,23,42,.7)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                    <X size={11} />
+                  </button>
+                </div>
+              ))}
+              <span style={{ alignSelf: 'center', fontSize: 11.5, color: '#64748b' }}>{images.length}장</span>
+            </div>
+          )}
+
           <input
             id="gpu-file-input-v2"
             type="file"
+            multiple
             accept=".txt,.csv,.md,.json,.png,.jpg,.jpeg,.webp"
             style={{ display: 'none' }}
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) processFile(f); e.target.value = '' }}
+            onChange={(e) => { if (e.target.files?.length) processFiles(e.target.files); e.target.value = '' }}
           />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
@@ -445,12 +466,12 @@ export default function QuoteRegisterTab() {
               className="gpu-btn gpu-btn-primary"
               style={{ flex: 1, justifyContent: 'center' }}
               onClick={handleAnalyze}
-              disabled={analyzing || (!rawText.trim() && !attached)}
+              disabled={analyzing || (!rawText.trim() && !attached && images.length === 0)}
             >
               <Sparkles size={14} />
               {analyzing ? 'AI 분석 중…' : 'AI 분석 시작'}
             </button>
-            {(rawText || attached || hasResults) && (
+            {(rawText || attached || images.length > 0 || hasResults) && (
               <button className="gpu-btn" onClick={reset}>
                 <RotateCcw size={13} /> 초기화
               </button>

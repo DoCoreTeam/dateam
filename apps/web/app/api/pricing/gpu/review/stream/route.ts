@@ -18,13 +18,19 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient()
   void supabase
 
-  let body: { text?: unknown; channel?: unknown; imageData?: unknown }
+  let body: { text?: unknown; channel?: unknown; imageData?: unknown; images?: unknown }
   try { body = await req.json() } catch { return new Response('bad request', { status: 400 }) }
   const rawInputText = typeof body.text === 'string' ? body.text.trim() : ''
-  const imgInput = (body.imageData && typeof body.imageData === 'object') ? body.imageData as { data?: unknown; mimeType?: unknown } : null
-  const imageBase64 = typeof imgInput?.data === 'string' ? imgInput.data : null
-  const imageMimeType = typeof imgInput?.mimeType === 'string' ? imgInput.mimeType : 'image/jpeg'
-  if (!rawInputText && !imageBase64) return new Response('분석할 텍스트 또는 이미지가 없습니다', { status: 400 })
+  // 다중 이미지(images[]) 우선, 없으면 단일 imageData(하위호환)
+  const rawImages: Array<{ data?: unknown; mimeType?: unknown }> = Array.isArray(body.images)
+    ? body.images as Array<{ data?: unknown; mimeType?: unknown }>
+    : (body.imageData && typeof body.imageData === 'object' ? [body.imageData as { data?: unknown; mimeType?: unknown }] : [])
+  const imageParts = rawImages
+    .filter((im) => typeof im?.data === 'string' && (im.data as string).length > 0)
+    .slice(0, 10)
+    .map((im) => ({ inlineData: { data: im.data as string, mimeType: typeof im.mimeType === 'string' ? im.mimeType : 'image/jpeg' } }))
+  const hasImages = imageParts.length > 0
+  if (!rawInputText && !hasImages) return new Response('분석할 텍스트 또는 이미지가 없습니다', { status: 400 })
 
   const adminClient = createAdminClient()
   const config = await getGeminiConfig(adminClient)
@@ -60,7 +66,7 @@ export async function POST(req: NextRequest) {
 
         // 3) 분류 (경쟁사 vs 공급가) — 스트리밍 (이미지는 분류 건너뛰고 바로 추출)
         let classified: { type?: string; items?: unknown[]; supplier_present?: boolean } = {}
-        if (!imageBase64) {
+        if (!hasImages) {
           send('progress', { step: 'classify', msg: '경쟁사 가격인지 공급사 견적인지 판별하는 중…' })
           const classifyPrompt = await getClassifyPrompt(adminClient, CLASSIFY_FALLBACK)
           const classifyText = await callGeminiStream(
@@ -96,7 +102,7 @@ export async function POST(req: NextRequest) {
           : ''
         const promptText = `${prompt.content}${exclusionNote}\n\n${schemaDigest}${specContext}\n\n${contentText ? '입력 텍스트:\n' + contentText : '위 이미지에서 GPU 견적 정보를 추출하세요.'}`
         const extractParts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = []
-        if (imageBase64) extractParts.push({ inlineData: { data: imageBase64, mimeType: imageMimeType } })
+        if (hasImages) extractParts.push(...imageParts)
         extractParts.push({ text: promptText })
         const extractText = await callGeminiStream(
           config.apiKey, config.model,
