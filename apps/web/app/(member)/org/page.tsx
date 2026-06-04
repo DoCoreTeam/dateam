@@ -1,8 +1,12 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import OrgPublicTree from './OrgPublicTreeClient'
+import { getBranding } from '@/lib/branding'
 
-export const metadata = { title: '조직도 | AX사업본부' }
+export async function generateMetadata() {
+  const { brandName } = await getBranding()
+  return { title: `조직도 | ${brandName}` }
+}
 
 export default async function OrgPage() {
   const supabase = await createClient()

@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import type { CompetitorPriceItem } from '@/lib/gpu/competitor-import'
+import { SCHEMA_CONTRACT } from '@/lib/gpu/schema-contract'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -53,6 +54,23 @@ async function getPrompt(adminClient: ReturnType<typeof createAdminClient>) {
     .eq('active', true)
     .single()
   return data as { content: string; version: string; model_hint: string } | null
+}
+
+// 분류 프롬프트를 DB(ai_prompts)에서 로드 — 코드 하드코딩 탈피(S3). 미존재 시 아래 CLASSIFY_PROMPT 폴백.
+async function getClassifyPrompt(adminClient: ReturnType<typeof createAdminClient>): Promise<string> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (adminClient as any)
+      .from('ai_prompts')
+      .select('content')
+      .eq('prompt_key', 'gpu.input-classify')
+      .eq('active', true)
+      .single()
+    const c = data?.content
+    return typeof c === 'string' && c.trim().length > 0 ? c : CLASSIFY_PROMPT
+  } catch {
+    return CLASSIFY_PROMPT
+  }
 }
 
 // 보유 GPU 모델 카탈로그(스펙 포함) — 클라우드사의 가상/인스턴스 모델명을 스펙으로 대조해
@@ -302,8 +320,9 @@ export async function POST(req: NextRequest) {
 
   // ── AI 1단계: 입력 분류 (경쟁사 vs 공급가) ──────────
   if (!imageBase64) {
+    const classifyPrompt = await getClassifyPrompt(adminClient)
     const classifyParts: Array<{ text: string }> = [
-      { text: `${CLASSIFY_PROMPT}${specContext}\n\n입력:\n${contentText}` },
+      { text: `${classifyPrompt}\n\n${SCHEMA_CONTRACT}${specContext}\n\n입력:\n${contentText}` },
     ]
     let classifyRes: Response
     try {
@@ -338,7 +357,7 @@ export async function POST(req: NextRequest) {
   const prompt = await getPrompt(adminClient)
   if (!prompt) return NextResponse.json({ error: 'AI 프롬프트가 설정되지 않았습니다' }, { status: 500 })
 
-  const promptText = `${prompt.content}${specContext}\n\n${contentText ? '입력 텍스트:\n' + contentText : '위 이미지에서 GPU 견적 정보를 추출하세요.'}`
+  const promptText = `${prompt.content}\n\n${SCHEMA_CONTRACT}${specContext}\n\n${contentText ? '입력 텍스트:\n' + contentText : '위 이미지에서 GPU 견적 정보를 추출하세요.'}`
   const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = []
   if (imageBase64) parts.push({ inlineData: { data: imageBase64, mimeType: imageMimeType } })
   parts.push({ text: promptText })

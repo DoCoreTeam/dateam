@@ -1,8 +1,10 @@
 import GpuPricingClient from './GpuPricingClient'
 import { createClient } from '@/lib/supabase/server'
+import { getBranding } from '@/lib/branding'
 
-export const metadata = {
-  title: 'GPU 관리 | AX사업본부',
+export async function generateMetadata() {
+  const { brandName } = await getBranding()
+  return { title: `GPU 관리 | ${brandName}` }
 }
 
 export interface InitialSettings {
