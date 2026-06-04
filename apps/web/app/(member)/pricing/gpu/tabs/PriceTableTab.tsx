@@ -295,9 +295,11 @@ interface PriceTableTabProps {
   onSearchConsumed?: () => void
   initialProductId?: string | null
   onProductFocusConsumed?: () => void
+  initialMargin?: number | null
+  initialUsdKrw?: number | null
 }
 
-export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearch, onSearchConsumed, initialProductId, onProductFocusConsumed }: PriceTableTabProps) {
+export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearch, onSearchConsumed, initialProductId, onProductFocusConsumed, initialMargin, initialUsdKrw }: PriceTableTabProps) {
   const { data, mutate: revalidate } = useSWR<ProductsResponse>('/api/pricing/gpu/products', fetcher, {
     refreshInterval: 60000,
   })
@@ -352,8 +354,10 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
     })
   }, [initialProductId, groupsInitialized]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const marginPct = marginInput ?? data?.margin_pct ?? 18
-  const usdKrw = data?.usd_krw ?? 1400
+  // 서버 프리페치(initialMargin/initialUsdKrw)를 폴백으로 → 하드코딩 18/1400 깜빡임 제거.
+  // 설정값 부재 시에만 최후 안전망(18/1400) 사용.
+  const marginPct = marginInput ?? data?.margin_pct ?? initialMargin ?? 18
+  const usdKrw = data?.usd_krw ?? initialUsdKrw ?? 1400
   const fxDate = data?.fx_date
 
   // 항상 전체 상품 표시 (견적확정만/전체상품 구분 제거)

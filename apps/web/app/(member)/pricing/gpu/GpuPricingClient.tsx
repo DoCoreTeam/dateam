@@ -54,14 +54,24 @@ const MAIN_TABS: { id: MainTabId; label: string; icon: React.ReactNode }[] = [
   },
 ]
 
-export default function GpuPricingClient() {
+interface InitialSettings {
+  margin_pct: number | null
+  usd_krw: number | null
+  fx_date: string | null
+}
+
+export default function GpuPricingClient({ initialSettings }: { initialSettings?: InitialSettings }) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabId>('board')
   const [showAiPanel, setShowAiPanel] = useState(false)
   const [boardSearch, setBoardSearch] = useState('')
   const [boardFocusProductId, setBoardFocusProductId] = useState<string | null>(null)
+  // 서버 프리페치 설정값을 SWR 초기값으로 주입 → 첫 페인트부터 실제값(하드코딩 깜빡임 제거)
   const { data: settings, mutate: mutateSettings } = useSWR<SettingsData>('/api/pricing/gpu/settings', fetcher, {
     refreshInterval: 300000,
+    fallbackData: initialSettings && initialSettings.margin_pct != null
+      ? { margin_pct: initialSettings.margin_pct, usd_krw: initialSettings.usd_krw, fx_date: initialSettings.fx_date }
+      : undefined,
   })
   const { data: reviewData } = useSWR<ReviewPendingData>(
     '/api/pricing/gpu/review?status=pending',
@@ -214,6 +224,8 @@ export default function GpuPricingClient() {
                 onSearchConsumed={() => setBoardSearch('')}
                 initialProductId={boardFocusProductId}
                 onProductFocusConsumed={() => setBoardFocusProductId(null)}
+                initialMargin={settings?.margin_pct ?? null}
+                initialUsdKrw={settings?.usd_krw ?? null}
               />
             </div>
             <div className={`gpu-ai-sidebar${showAiPanel ? ' gpu-ai-sidebar--open' : ''}`}>
