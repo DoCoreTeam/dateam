@@ -13,11 +13,16 @@
 //   전파로 산출된 값은 is_propagated=true (UI '추정' 배지 근거).
 
 export interface ConfirmedQuote {
+  id?: string
   product_id: string
   supplier_id: string | null
   unit_price_usd: number
   gpu_count: number
   valid_until: string | null
+  /** 'cost'=진짜 매입원가(계산 사용) | 'list'=자사·경쟁 공시 판매가(참고용, 계산 제외) */
+  price_type?: 'cost' | 'list'
+  /** 상품별 고객가격표 기준으로 채택된 견적 여부 */
+  is_selected?: boolean
   supplier?: { name: string; color: string } | null
 }
 
@@ -50,6 +55,10 @@ export interface CatalogProduct {
   // 판매가 (effective × 마진)
   sell_price_usd: number | null
   sell_price_krw: number | null
+  // 기준 공급가 선정 경로
+  basis: 'selected' | 'auto' | 'fallback' | 'list' | 'none'
+  selected_supplier: { name: string; color: string } | null
+  fallback_reason: string | null
 }
 
 export interface ModelGroupSupplier {
@@ -112,7 +121,7 @@ export async function getGpuCatalog(db: any): Promise<GpuCatalog> {
     // 확정·유효 견적 전체 (v_lowest_quotes는 구성별 최저만 → 전파 위해 원천 견적 직접 사용)
     db
       .from('supply_quotes')
-      .select('product_id, supplier_id, unit_price_usd, gpu_count, valid_until')
+      .select('id, product_id, supplier_id, unit_price_usd, gpu_count, valid_until, price_type, is_selected')
       .eq('status', 'confirmed'),
     db.from('suppliers').select('id, name, color'),
     db.from('direct_prices').select('*, gpu_products(id)').eq('is_current', true),
@@ -144,14 +153,34 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
   const todayStr = raw.today ?? new Date().toISOString().slice(0, 10)
   const isValid = (vu: string | null) => vu == null || vu >= todayStr
 
-  // 유효 확정견적만
-  const quotes: ConfirmedQuote[] = (raw.quotes ?? [])
-    .filter((q: ConfirmedQuote) => isValid(q.valid_until))
-    .map((q: ConfirmedQuote) => ({
-      ...q,
-      gpu_count: Math.max(1, Number(q.gpu_count) || 1),
-      unit_price_usd: Number(q.unit_price_usd),
-    }))
+  // 전체 확정견적 정규화 (유효성 필터 전 — 채택 만료 감지에 필요)
+  const allConfirmed: ConfirmedQuote[] = (raw.quotes ?? []).map((q: ConfirmedQuote) => ({
+    ...q,
+    gpu_count: Math.max(1, Number(q.gpu_count) || 1),
+    unit_price_usd: Number(q.unit_price_usd),
+    price_type: (q.price_type ?? 'cost') as 'cost' | 'list',
+  }))
+
+  // 공급원가 풀 = cost 견적만 (gcube 등 'list' 공시 판매가 제외 — 옵션 B)
+  const costAll = allConfirmed.filter((q) => q.price_type !== 'list')
+
+  // 상품별 채택 견적 (cost 중 is_selected) — 유효성 무관하게 잡아 만료 폴백 감지
+  const selectedByProduct = new Map<string, ConfirmedQuote>()
+  for (const q of costAll) {
+    if (q.is_selected) selectedByProduct.set(q.product_id, q)
+  }
+
+  // 자동 최저가/전파 풀 = 유효한 cost 견적만
+  const quotes: ConfirmedQuote[] = costAll.filter((q) => isValid(q.valid_until))
+
+  // 'list'(자사·경쟁 공시 판매가) — cost 견적이 없는 상품의 고객가 패스스루용
+  //  (gcube 공시가는 이미 '판매가'이므로 마진 미적용으로 그대로 사용)
+  const listLowestByProduct = new Map<string, ConfirmedQuote>()
+  for (const q of allConfirmed) {
+    if (q.price_type !== 'list' || !isValid(q.valid_until)) continue
+    const prev = listLowestByProduct.get(q.product_id)
+    if (!prev || q.unit_price_usd < prev.unit_price_usd) listLowestByProduct.set(q.product_id, q)
+  }
 
   // 상품 인덱스 (model_key 산출용)
   const productById = new Map<string, { model_name: string; tier: number }>(
@@ -234,6 +263,9 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
           is_propagated: false,
           sell_price_usd: sellKrw != null ? sellKrw / usdKrw : null,
           sell_price_krw: sellKrw,
+          basis: 'none' as const,
+          selected_supplier: null,
+          fallback_reason: null,
         }
       }
 
@@ -267,19 +299,57 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
         isPropagated = true
       }
 
-      const sellUsd = effective != null ? effective * (1 + marginPct / 100) : null
+      // 채택(is_selected) 우선 — 자동 최저가/전파보다 우선. 단 cost·유효 견적만.
+      let basis: 'selected' | 'auto' | 'fallback' | 'list' | 'none' = effective != null ? 'auto' : 'none'
+      let selectedSupplier: { name: string; color: string } | null = null
+      let fallbackReason: string | null = null
+      const sel = selectedByProduct.get(p.id)
+      if (sel) {
+        if (isValid(sel.valid_until)) {
+          // 채택 견적이 유효 → 이것이 기준
+          effective = sel.unit_price_usd
+          const selSup = sel.supplier_id ? supplierMap.get(sel.supplier_id) ?? null : null
+          effectiveSupplier = selSup ? { name: selSup.name, color: selSup.color } : null
+          selectedSupplier = effectiveSupplier
+          isPropagated = false
+          basis = 'selected'
+        } else {
+          // 채택 견적 만료 → 자동 최저가로 폴백 + 경고
+          basis = effective != null ? 'fallback' : 'none'
+          fallbackReason = '채택 견적 만료 — 자동 최저가로 복귀'
+        }
+      }
+
+      // 판매가 = effective(원가) × (1+마진)
+      let sellUsd = effective != null ? effective * (1 + marginPct / 100) : null
+
+      // cost 견적이 전혀 없는 상품 → 'list'(gcube 공시 판매가)를 고객가로 그대로 사용 (마진 미적용)
+      if (effective == null) {
+        const listQ = listLowestByProduct.get(p.id)
+        if (listQ) {
+          sellUsd = listQ.unit_price_usd // 이미 판매가 — 마진 재적용 금지(이중마진 방지)
+          basis = 'list'
+          const listSup = listQ.supplier_id ? supplierMap.get(listQ.supplier_id) ?? null : null
+          effectiveSupplier = listSup ? { name: listSup.name, color: listSup.color } : null
+        }
+      }
       return {
         ...p,
         gpu_count: count,
         own_lowest_usd: ownUsd,
         own_supplier: ownSup ? { name: ownSup.name, color: ownSup.color } : null,
         own_valid_until: own?.valid_until ?? null,
-        per_gpu_usd: best ? best.per_gpu_usd : (ownUsd != null ? perGpuOf(ownUsd, count) : null),
+        per_gpu_usd: basis === 'selected'
+          ? perGpuOf(effective as number, count)
+          : (best ? best.per_gpu_usd : (ownUsd != null ? perGpuOf(ownUsd, count) : null)),
         effective_unit_price_usd: effective,
         effective_supplier: effectiveSupplier,
         is_propagated: isPropagated,
         sell_price_usd: sellUsd,
         sell_price_krw: sellUsd != null ? Math.round(sellUsd * usdKrw) : null,
+        basis,
+        selected_supplier: selectedSupplier,
+        fallback_reason: fallbackReason,
       }
     }
   )

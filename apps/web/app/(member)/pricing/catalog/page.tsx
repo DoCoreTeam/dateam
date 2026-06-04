@@ -112,9 +112,9 @@ export default function SalePriceCatalogPage() {
     })
   }
 
-  const pricedProducts = products.filter((p) =>
-    p.lowest_unit_price_usd != null || (p.pricing_mode === 'direct' && p.sell_price_krw != null)
-  )
+  // 판매가(sell_price_krw)가 있는 모든 상품 — 원가 견적(cost), 직접입력(direct),
+  // gcube 공시가 패스스루(list) 모두 포함
+  const pricedProducts = products.filter((p) => p.sell_price_krw != null)
 
   const filtered = pricedProducts.filter((p) => {
     if (tierFilter !== 0 && p.tier !== tierFilter) return false

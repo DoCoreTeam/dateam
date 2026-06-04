@@ -42,6 +42,9 @@ interface GpuProduct {
   is_propagated?: boolean
   per_gpu_usd?: number | null
   own_lowest_usd?: number | null
+  basis?: 'selected' | 'auto' | 'fallback' | 'none'
+  selected_supplier?: Supplier | null
+  fallback_reason?: string | null
 }
 
 interface ProductsResponse {
@@ -65,6 +68,8 @@ interface Quote {
   valid_until: string | null
   source_format: string | null
   ai_confidence: number | null
+  price_type: 'cost' | 'list' | null
+  is_selected: boolean | null
   suppliers: Supplier | null
 }
 
@@ -143,7 +148,22 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
     fetcher
   )
   const { mutate } = useSWRConfig()
+  const [selecting, setSelecting] = useState<string | null>(null)
   const quotes = data?.quotes ?? []
+  const costQuotes = quotes.filter((q) => q.price_type !== 'list')
+  const listQuotes = quotes.filter((q) => q.price_type === 'list')
+  const hasSelected = costQuotes.some((q) => q.is_selected)
+
+  const toggleSelect = async (qid: string, next: boolean) => {
+    setSelecting(qid)
+    try {
+      const res = await fetch(`/api/pricing/gpu/quotes/${qid}/select`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ selected: next }),
+      })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error ?? '채택 실패'); return }
+      mutate(`/api/pricing/gpu/quotes?product_id=${productId}`); mutateGpu(mutate)
+    } finally { setSelecting(null) }
+  }
 
   if (quotes.length === 0) {
     return (
@@ -156,16 +176,19 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
   return (
     <div className="gpu-expand-body">
       <div className="gpu-expand-head">
-        <Info size={13} /> 전체 공급사 견적 (낮은 순) · 최저가는 동일 tier 내에서만 비교
+        <Info size={13} /> 공급원가 비교 (낮은 순) · 한 건을 <strong>기준</strong>으로 선택하면 그 가격이 고객 판매가 기준이 됩니다 · 미선택 시 자동 최저가
       </div>
-      {quotes.map((q, i) => {
+      {costQuotes.map((q, i) => {
         const sellKrw = q.unit_price_usd * (1 + marginPct / 100) * usdKrw
         const dday = q.valid_until ? fmtDday(q.valid_until) : null
         const isBest = i === 0
+        const isSelected = !!q.is_selected
+        const isBasis = isSelected || (!hasSelected && isBest)
         return (
-          <div key={q.id} className={`gpu-qline${isBest ? ' gpu-qline-best' : ''}`}>
+          <div key={q.id} className={`gpu-qline${isBasis ? ' gpu-qline-best' : ''}`}
+            style={isSelected ? { borderLeft: '3px solid var(--gpu-accent, #5b5ef0)', background: 'rgba(91,94,240,0.05)' } : undefined}>
             <div className="gpu-qline-sup">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 {q.suppliers ? (
                   <span className="gpu-sdot" style={{ background: q.suppliers.color }} />
                 ) : (
@@ -175,6 +198,25 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
                   {q.suppliers?.name ?? '공급사 미지정'}
                 </span>
                 {isBest && <span className="gpu-badge-best">최저가</span>}
+                {isSelected ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 700, color: '#fff', background: 'var(--gpu-accent, #5b5ef0)', borderRadius: 5, padding: '1px 7px' }}>
+                    ✓ 판매가 기준
+                  </span>
+                ) : (!hasSelected && isBest) ? (
+                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--gpu-muted)', border: '1px dashed var(--gpu-border)', borderRadius: 5, padding: '0 6px' }}>
+                    자동 기준
+                  </span>
+                ) : null}
+                {q.suppliers && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleSelect(q.id, !isSelected) }}
+                    disabled={selecting === q.id}
+                    style={{ fontSize: 10.5, fontWeight: 700, borderRadius: 5, padding: '1px 8px', cursor: 'pointer',
+                      border: isSelected ? '1px solid var(--gpu-border)' : '1px solid var(--gpu-accent, #5b5ef0)',
+                      background: isSelected ? '#fff' : 'var(--gpu-accent, #5b5ef0)', color: isSelected ? 'var(--gpu-muted)' : '#fff' }}>
+                    {selecting === q.id ? '…' : isSelected ? '기준 해제' : '기준으로 선택'}
+                  </button>
+                )}
               </div>
               {!q.suppliers && (
                 <AssignSupplier quoteId={q.id} onAssigned={() => { mutate(`/api/pricing/gpu/quotes?product_id=${productId}`); mutateGpu(mutate) }} />
@@ -219,6 +261,23 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
           </div>
         )
       })}
+      {listQuotes.length > 0 && (
+        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--gpu-border)' }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--gpu-muted)', textTransform: 'uppercase', letterSpacing: '.03em', marginBottom: 4 }}>
+            시장 참고가 (공시 판매가 · 원가 아님 · 계산 미반영)
+          </div>
+          {listQuotes.map((q) => (
+            <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 2px', fontSize: 12, color: 'var(--gpu-muted)' }}>
+              {q.suppliers && <span className="gpu-sdot" style={{ background: q.suppliers.color }} />}
+              <span style={{ fontWeight: 600 }}>{q.suppliers?.name ?? '—'}</span>
+              <span style={{ marginLeft: 'auto', fontFamily: 'monospace' }}>
+                {currencyMode === 'KRW' ? fmtKRW(Math.round(q.unit_price_usd * usdKrw)) : fmtUSD(q.unit_price_usd)}/GPU·hr
+              </span>
+              <span style={{ fontSize: 10, color: 'var(--gpu-faint)' }}>공시</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -703,9 +762,17 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                     {p.pricing_mode === 'direct' ? (
                       <span style={{ fontSize: '12px', color: 'var(--gpu-muted)' }}>gcube 직접 설정</span>
                     ) : p.lowest_supplier ? (
-                      <div className="gpu-supplier-tag">
-                        <span className="gpu-sdot" style={{ background: p.lowest_supplier.color }} />
-                        {p.lowest_supplier.name}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                        <div className="gpu-supplier-tag">
+                          <span className="gpu-sdot" style={{ background: p.lowest_supplier.color }} />
+                          {p.lowest_supplier.name}
+                        </div>
+                        {p.basis === 'selected' && (
+                          <span style={{ fontSize: 9.5, fontWeight: 700, color: '#fff', background: 'var(--gpu-accent, #5b5ef0)', borderRadius: 4, padding: '0 5px' }}>✓ 기준</span>
+                        )}
+                        {p.basis === 'fallback' && (
+                          <span title={p.fallback_reason ?? ''} style={{ fontSize: 9.5, fontWeight: 700, color: '#fff', background: 'var(--gpu-red)', borderRadius: 4, padding: '0 5px' }}>⚠️ 기준만료→자동</span>
+                        )}
                       </div>
                     ) : p.lowest_unit_price_usd != null ? (
                       <span style={{ fontSize: '12px', color: 'var(--gpu-amber)' }}>공급사 미지정</span>

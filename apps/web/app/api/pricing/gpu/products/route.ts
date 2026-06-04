@@ -48,6 +48,10 @@ export async function GET() {
       is_propagated: p.is_propagated,
       own_lowest_usd: p.own_lowest_usd,
       own_supplier: p.own_supplier,
+      // 기준 공급가 채택 상태
+      basis: p.basis,
+      selected_supplier: p.selected_supplier,
+      fallback_reason: p.fallback_reason,
       pending_count: pendingCountMap.get(p.id) ?? 0,
     }))
 

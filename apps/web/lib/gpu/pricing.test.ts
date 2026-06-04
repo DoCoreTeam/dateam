@@ -92,3 +92,71 @@ test('만료 견적은 제외 (valid_until < today)', () => {
   // High Reso 만료 → gcube 7.0084가 ×1 최저, per_gpu = min(7.0084, 6.699)=6.699 (×8 gcube)
   assert.equal(p1.effective_supplier!.name, 'gcube')
 })
+
+// ─── 054: price_type(cost/list) 분리 + 채택(is_selected) ───
+
+test('gcube가 list면 cost 풀에서 제외 — effective는 cost(High Reso)만', () => {
+  const raw = b200Raw()
+  // gcube 견적 전부 list로 마킹
+  raw.quotes = raw.quotes.map((q) => q.supplier_id === 'gc' ? { ...q, price_type: 'list' as const } : q)
+  const cat = buildCatalog(raw)
+  const byId = new Map(cat.products.map((p) => [p.id, p]))
+
+  // p1: cost는 High Reso 3.24만 남음
+  assert.equal(byId.get('p1')!.effective_unit_price_usd, 3.24)
+  assert.equal(byId.get('p1')!.effective_supplier!.name, 'High Reso')
+
+  // suppliersByModel에 gcube 없음 (list 제외)
+  const mk = modelKeyOf({ model_name: 'B200', tier: 1 })
+  const names = (cat.suppliersByModel.get(mk) ?? []).map((s) => s.name)
+  assert.ok(!names.includes('gcube'), 'gcube는 cost 비교에서 제외되어야 함')
+  assert.ok(names.includes('High Reso'))
+})
+
+test('채택(is_selected)이 자동 최저가를 override', () => {
+  const raw = b200Raw()
+  // p1에 비싼 두번째 cost 견적 추가 + 그걸 채택
+  raw.suppliers.push({ id: 'eq', name: 'Equinix', color: '#f59e0b' })
+  raw.quotes.push({ product_id: 'p1', supplier_id: 'eq', unit_price_usd: 5.0, gpu_count: 1, valid_until: null, is_selected: true })
+  // gcube list 처리(노이즈 제거)
+  raw.quotes = raw.quotes.map((q) => q.supplier_id === 'gc' ? { ...q, price_type: 'list' as const } : q)
+  const cat = buildCatalog(raw)
+  const p1 = cat.products.find((p) => p.id === 'p1')!
+
+  // 자동최저는 3.24(High Reso)지만 채택은 5.0(Equinix) → 채택 우선
+  assert.equal(p1.effective_unit_price_usd, 5.0)
+  assert.equal(p1.basis, 'selected')
+  assert.equal(p1.selected_supplier!.name, 'Equinix')
+  // 판매가 = 채택 × (1+마진)
+  assert.ok(Math.abs((p1.sell_price_usd as number) - 5.0 * 1.18) < 1e-9)
+})
+
+test('채택 견적 만료 시 자동 최저가로 폴백(basis=fallback)', () => {
+  const raw = b200Raw()
+  raw.suppliers.push({ id: 'eq', name: 'Equinix', color: '#f59e0b' })
+  // 만료된 채택 견적 (valid_until < today)
+  raw.quotes.push({ product_id: 'p1', supplier_id: 'eq', unit_price_usd: 5.0, gpu_count: 1, valid_until: '2020-01-01', is_selected: true })
+  raw.quotes = raw.quotes.map((q) => q.supplier_id === 'gc' ? { ...q, price_type: 'list' as const } : q)
+  const cat = buildCatalog(raw)
+  const p1 = cat.products.find((p) => p.id === 'p1')!
+
+  // 채택 만료 → 자동 최저가(High Reso 3.24)로 복귀
+  assert.equal(p1.effective_unit_price_usd, 3.24)
+  assert.equal(p1.basis, 'fallback')
+  assert.ok(p1.fallback_reason)
+})
+
+test('cost 없고 list만 있으면 list 공시가를 고객가로 그대로(마진 미적용)', () => {
+  const raw: CatalogRawData = {
+    products: [{ id: 'pL', model_name: 'L40S', memory: '48GB', tier: 2, pricing_mode: 'quote', gpu_count: 1, vcpu: 16, ram_gb: 128, storage_gb: 1024, series: 'L40S' }],
+    quotes: [{ product_id: 'pL', supplier_id: 'gc', unit_price_usd: 2.0, gpu_count: 1, valid_until: null, price_type: 'list' }],
+    suppliers: [{ id: 'gc', name: 'gcube', color: '#10b981' }],
+    direct: [], margin_pct: 25, usd_krw: 1400, fx_date: '2026-06-03', today: '2026-06-03',
+  }
+  const cat = buildCatalog(raw)
+  const p = cat.products[0]
+  assert.equal(p.basis, 'list')
+  assert.equal(p.effective_unit_price_usd, null)          // 원가 없음
+  assert.equal(p.sell_price_usd, 2.0)                     // 공시가 그대로(2.0 × 1.25 아님)
+  assert.equal(p.sell_price_krw, 2800)                    // 2.0 × 1400
+})
