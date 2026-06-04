@@ -42,7 +42,7 @@ interface GpuProduct {
   is_propagated?: boolean
   per_gpu_usd?: number | null
   own_lowest_usd?: number | null
-  basis?: 'selected' | 'auto' | 'fallback' | 'none'
+  basis?: 'selected' | 'auto' | 'fallback' | 'list' | 'none'
   selected_supplier?: Supplier | null
   fallback_reason?: string | null
 }
@@ -262,20 +262,26 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
         )
       })}
       {listQuotes.length > 0 && (
-        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--gpu-border)' }}>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--gpu-muted)', textTransform: 'uppercase', letterSpacing: '.03em', marginBottom: 4 }}>
-            시장 참고가 (공시 판매가 · 원가 아님 · 계산 미반영)
+        <div style={{ marginTop: 10, padding: '12px 14px', borderRadius: 10, background: 'linear-gradient(180deg, #fff7ed, #fffbeb)', border: '2px solid var(--gpu-amber, #f59e0b)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <span style={{ fontSize: 15 }}>📢</span>
+            <span style={{ fontSize: 12.5, fontWeight: 800, color: '#b45309', letterSpacing: '.01em' }}>현재 공시 판매가</span>
+            <span style={{ fontSize: 10.5, fontWeight: 600, color: '#92400e', background: '#fde68a', borderRadius: 5, padding: '1px 7px' }}>시장 참고 · 원가 아님</span>
           </div>
-          {listQuotes.map((q) => (
-            <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 2px', fontSize: 12, color: 'var(--gpu-muted)' }}>
-              {q.suppliers && <span className="gpu-sdot" style={{ background: q.suppliers.color }} />}
-              <span style={{ fontWeight: 600 }}>{q.suppliers?.name ?? '—'}</span>
-              <span style={{ marginLeft: 'auto', fontFamily: 'monospace' }}>
-                {currencyMode === 'KRW' ? fmtKRW(Math.round(q.unit_price_usd * usdKrw)) : fmtUSD(q.unit_price_usd)}/GPU·hr
-              </span>
-              <span style={{ fontSize: 10, color: 'var(--gpu-faint)' }}>공시</span>
-            </div>
-          ))}
+          {listQuotes.map((q) => {
+            const listKrw = Math.round(q.unit_price_usd * usdKrw)
+            return (
+              <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
+                {q.suppliers && <span className="gpu-sdot" style={{ background: q.suppliers.color, width: 9, height: 9 }} />}
+                <span style={{ fontWeight: 700, fontSize: 13.5, color: '#78350f' }}>{q.suppliers?.name ?? '—'}</span>
+                <span style={{ fontSize: 11, color: '#b45309' }}>공시 판매가</span>
+                <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontWeight: 800, fontSize: 16, color: '#b45309' }}>
+                  {currencyMode === 'KRW' ? fmtKRW(listKrw) : fmtUSD(q.unit_price_usd)}
+                </span>
+                <span style={{ fontSize: 10.5, color: '#92400e' }}>/GPU·hr</span>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -773,6 +779,9 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                         {p.basis === 'fallback' && (
                           <span title={p.fallback_reason ?? ''} style={{ fontSize: 9.5, fontWeight: 700, color: '#fff', background: 'var(--gpu-red)', borderRadius: 4, padding: '0 5px' }}>⚠️ 기준만료→자동</span>
                         )}
+                        {p.basis === 'list' && (
+                          <span title="매입원가 미등록 — 공시 판매가를 그대로 사용" style={{ fontSize: 9.5, fontWeight: 800, color: '#fff', background: 'var(--gpu-amber, #f59e0b)', borderRadius: 4, padding: '0 5px' }}>📢 공시가</span>
+                        )}
                       </div>
                     ) : p.lowest_unit_price_usd != null ? (
                       <span style={{ fontSize: '12px', color: 'var(--gpu-amber)' }}>공급사 미지정</span>
@@ -783,10 +792,11 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                   <td className="r">
                     {sellKrw != null ? (
                       <>
-                        <div className="gpu-price-main">
+                        <div className="gpu-price-main" style={p.basis === 'list' ? { color: '#b45309' } : undefined}>
                           {currencyMode === 'KRW'
                             ? fmtKRW(sellKrw)
                             : fmtUSD(sellKrw / usdKrw)}
+                          {p.basis === 'list' && <span style={{ fontSize: 9.5, fontWeight: 700, color: '#b45309', marginLeft: 4, verticalAlign: 'middle' }}>공시</span>}
                         </div>
                         <div className="gpu-price-sub">
                           {currencyMode === 'KRW'
