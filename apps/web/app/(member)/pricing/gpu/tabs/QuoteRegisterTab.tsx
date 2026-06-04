@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { mutate as globalMutate } from 'swr'
 import { Sparkles, Send, Paperclip, X, RotateCcw } from 'lucide-react'
 
@@ -158,7 +158,6 @@ export default function QuoteRegisterTab() {
   const [attached, setAttached] = useState<AttachedFile | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
-  const [analyzeStep, setAnalyzeStep] = useState(0)
   const [analysisResults, setAnalysisResults] = useState<ReviewItemResult[]>([])
   const [competitorResults, setCompetitorResults] = useState<CompetitorSavedItem[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -171,24 +170,16 @@ export default function QuoteRegisterTab() {
   const [successMsg, setSuccessMsg] = useState('')
   const [channel, setChannel] = useState('own')
   const [isTest, setIsTest] = useState(false)
+  // 실시간 스트리밍 상태
+  const [liveMsgs, setLiveMsgs] = useState<string[]>([])      // 실 진행 로그
+  const [streamText, setStreamText] = useState('')            // AI가 지금 쓰고 있는 실 토큰
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [supplierPreview, setSupplierPreview] = useState<any[]>([])  // 공급가 추출 미리보기(저장 X)
+  const [committing, setCommitting] = useState(false)
+  const [committed, setCommitted] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const ANALYZE_STEPS = [
-    { msg: '요청 전송 중…', sub: 'AI 서버에 데이터를 전송하고 있습니다' },
-    { msg: 'AI 분석 중…', sub: '이미지·텍스트에서 GPU 견적 정보를 인식하고 있습니다' },
-    { msg: '견적 정보 추출 중…', sub: '모델명·단가·약정·수량 정보를 구조화하고 있습니다' },
-    { msg: '신뢰도 평가 중…', sub: '추출된 각 항목의 정확도를 검증하고 있습니다' },
-    { msg: '결과 정리 중…', sub: '검토 대기 목록에 등록할 데이터를 준비하고 있습니다' },
-  ]
-
-  useEffect(() => {
-    if (!analyzing) { setAnalyzeStep(0); return }
-    const delays = [0, 2500, 5000, 8000, 11000]
-    const timers = delays.map((delay, i) =>
-      setTimeout(() => setAnalyzeStep(i), delay)
-    )
-    return () => timers.forEach(clearTimeout)
-  }, [analyzing])
+  // (실 진행은 SSE progress 이벤트로 표시 — 가짜 타이머 제거)
 
   const processFile = useCallback((file: File) => {
     const isText = file.type.startsWith('text/') || /\.(txt|csv|md|json)$/i.test(file.name)
@@ -235,55 +226,106 @@ export default function QuoteRegisterTab() {
   const reset = useCallback(() => {
     setRawText(''); setAttached(null); setAnalysisResults([])
     setCompetitorResults([]); setActiveTabIdx(0); setErrorMsg(''); setSuccessMsg('')
+    setLiveMsgs([]); setStreamText(''); setSupplierPreview([]); setCommitted(false)
+    setPreviewItems([]); setPreviewSourceUrl(null); setApplied(false)
   }, [])
 
   const handleAnalyze = useCallback(async () => {
     const text = rawText.trim() || attached?.textContent?.trim() || ''
     const hasImage = !!attached?.base64Data
     if (!text && !hasImage) { setErrorMsg('텍스트 또는 이미지를 입력해 주세요.'); return }
-
     const effectiveChannel = hasImage && !text ? 'img' : channel
 
-    setAnalyzing(true); setErrorMsg(''); setSuccessMsg(''); setAnalysisResults([]); setCompetitorResults([]); setActiveTabIdx(0)
+    setAnalyzing(true); setErrorMsg(''); setSuccessMsg('')
+    setAnalysisResults([]); setCompetitorResults([]); setActiveTabIdx(0)
     setPreviewItems([]); setPreviewSourceUrl(null); setApplied(false)
-    try {
-      const payload: Record<string, unknown> = { text, channel: effectiveChannel, is_test: isTest }
-      if (hasImage) {
-        payload.imageData = { data: attached!.base64Data, mimeType: attached!.mimeType }
-      }
-      const res = await fetch('/api/pricing/gpu/review', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      const j = await res.json()
-      if (!res.ok) { setErrorMsg(j.error ?? 'AI 분석 실패'); return }
+    setLiveMsgs([]); setStreamText(''); setSupplierPreview([]); setCommitted(false)
 
-      if (j.type === 'competitor') {
-        // 경쟁사 가격: 미리보기만 (저장 X) → 사용자가 '반영' 눌러야 등록
-        const preview = (j.preview ?? []) as Array<{ competitor_name: string; model_name: string; memory?: string; price_usd: number }>
-        setCompetitorResults(preview.map((p) => ({ competitor: p.competitor_name, model: p.model_name, memory: p.memory ?? '', price_usd: p.price_usd })))
-        setPreviewItems(j.preview ?? [])
-        setPreviewSourceUrl(j.source_url ?? null)
-        setSuccessMsg(`경쟁사 가격 ${preview.length}건 추출됨 — 확인 후 '시장비교에 반영'을 누르세요.`)
-      } else {
-        // 공급가 견적 → 검토 대기
-        const results: ReviewItemResult[] = j.items ?? (j.item ? [j.item] : [])
-        setAnalysisResults(results)
-        await globalMutate('/api/pricing/gpu/review?status=pending')
-        const count = results.length
-        setSuccessMsg(
-          count > 1
-            ? `AI 분석 완료 — ${count}개 모델이 검토 대기 탭에 추가되었습니다.`
-            : 'AI 분석이 완료되어 검토 대기 탭에 추가되었습니다.'
-        )
+    // 이미지 입력은 기존 비스트리밍 POST 사용(스트림 미지원), 텍스트는 SSE 스트리밍
+    if (hasImage && !text) {
+      try {
+        const res = await fetch('/api/pricing/gpu/review', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, channel: effectiveChannel, is_test: isTest, imageData: { data: attached!.base64Data, mimeType: attached!.mimeType } }),
+        })
+        const j = await res.json()
+        if (!res.ok) { setErrorMsg(j.error ?? 'AI 분석 실패'); return }
+        if (j.type === 'competitor') {
+          const preview = (j.preview ?? []) as Array<{ competitor_name: string; model_name: string; memory?: string; price_usd: number }>
+          setCompetitorResults(preview.map((p) => ({ competitor: p.competitor_name, model: p.model_name, memory: p.memory ?? '', price_usd: p.price_usd })))
+          setPreviewItems(j.preview ?? []); setPreviewSourceUrl(j.source_url ?? null)
+        } else {
+          setAnalysisResults(j.items ?? (j.item ? [j.item] : []))
+          await globalMutate('/api/pricing/gpu/review?status=pending')
+        }
+      } catch { setErrorMsg('서버 연결 실패') } finally { setAnalyzing(false) }
+      return
+    }
+
+    // ── 텍스트: SSE 실시간 스트리밍 ──
+    try {
+      const res = await fetch('/api/pricing/gpu/review/stream', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, channel: effectiveChannel, is_test: isTest }),
+      })
+      if (!res.ok || !res.body) { setErrorMsg('AI 분석 시작 실패'); setAnalyzing(false); return }
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        const chunks = buf.split('\n\n')
+        buf = chunks.pop() ?? ''
+        for (const chunk of chunks) {
+          const evMatch = chunk.match(/event: (.+)/)
+          const dataMatch = chunk.match(/data: (.+)/)
+          if (!evMatch || !dataMatch) continue
+          const ev = evMatch[1].trim()
+          let data: Record<string, unknown> = {}
+          try { data = JSON.parse(dataMatch[1]) } catch { continue }
+          if (ev === 'progress') {
+            setLiveMsgs((prev) => [...prev, String(data.msg ?? '')])
+          } else if (ev === 'token') {
+            setStreamText((prev) => (prev + String(data.delta ?? '')).slice(-1200))
+          } else if (ev === 'preview') {
+            const items = (data.items ?? []) as unknown[]
+            if (data.type === 'competitor') {
+              const cp = items as Array<{ competitor_name: string; model_name: string; memory?: string; price_usd: number }>
+              setCompetitorResults(cp.map((p) => ({ competitor: p.competitor_name, model: p.model_name, memory: p.memory ?? '', price_usd: p.price_usd })))
+              setPreviewItems(items); setPreviewSourceUrl((data.source_url as string) ?? null)
+            } else {
+              setSupplierPreview(items)
+            }
+          } else if (ev === 'error') {
+            setErrorMsg(String(data.msg ?? 'AI 분석 실패'))
+          }
+        }
       }
     } catch {
       setErrorMsg('서버 연결 실패')
     } finally {
-      setAnalyzing(false)
+      setAnalyzing(false); setStreamText('')
     }
   }, [rawText, attached, channel, isTest])
+
+  // 공급가 미리보기 → 검토 대기 저장(버튼)
+  const commitSupplier = useCallback(async () => {
+    if (supplierPreview.length === 0) return
+    setCommitting(true); setErrorMsg('')
+    try {
+      const res = await fetch('/api/pricing/gpu/review/commit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: supplierPreview, channel, is_test: isTest }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { setErrorMsg(j.error ?? '저장 실패'); return }
+      await globalMutate('/api/pricing/gpu/review?status=pending')
+      setCommitted(true)
+      setSuccessMsg(`공급가 ${j.count}건이 검토 대기에 추가되었습니다.`)
+    } catch { setErrorMsg('저장 실패') } finally { setCommitting(false) }
+  }, [supplierPreview, channel, isTest])
 
   // 경쟁가 미리보기를 시장비교에 실제 반영(저장)
   const applyCompetitor = useCallback(async () => {
@@ -435,28 +477,61 @@ export default function QuoteRegisterTab() {
           </div>
 
           {analyzing ? (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, padding: '32px 0' }}>
-              <Sparkles size={36} className="gpu-analyzing-icon" />
-              <div style={{ textAlign: 'center' }}>
-                <div className="gpu-analyzing-text" style={{ fontSize: 14, fontWeight: 600, color: 'var(--gpu-accent)' }} data-testid="analyze-step-msg">
-                  {ANALYZE_STEPS[analyzeStep]?.msg ?? ANALYZE_STEPS[0].msg}
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--gpu-muted)', marginTop: 4 }}>
-                  {ANALYZE_STEPS[analyzeStep]?.sub ?? ANALYZE_STEPS[0].sub}
-                </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 0', overflowY: 'auto' }} data-testid="analyze-live">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Sparkles size={18} className="gpu-analyzing-icon" />
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }}>AI가 실시간으로 분석 중…</span>
               </div>
-              <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-                {ANALYZE_STEPS.map((_, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      width: 6, height: 6, borderRadius: '50%',
-                      background: i <= analyzeStep ? 'var(--gpu-accent)' : '#e5e7eb',
-                      transition: 'background 0.4s',
-                    }}
-                  />
-                ))}
+              {/* 실 진행 로그 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }} data-testid="analyze-live-log">
+                {liveMsgs.map((m, i) => {
+                  const isLast = i === liveMsgs.length - 1
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: 12, color: isLast ? '#0f172a' : '#94a3b8' }}>
+                      <span style={{ color: isLast ? 'var(--gpu-accent)' : '#cbd5e1' }}>{isLast ? '▸' : '✓'}</span>
+                      <span>{m}</span>
+                    </div>
+                  )
+                })}
               </div>
+              {/* AI가 지금 쓰고 있는 실 토큰 */}
+              {streamText && (
+                <div style={{ marginTop: 4, padding: '8px 10px', borderRadius: 8, background: '#0f172a', border: '1px solid #1e293b', maxHeight: 160, overflowY: 'auto' }}>
+                  <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>AI 추출 스트림 (실시간)</div>
+                  <pre style={{ margin: 0, fontSize: 10.5, lineHeight: 1.5, color: '#7dd3fc', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'ui-monospace, monospace' }}>{streamText}<span style={{ opacity: 0.6 }}>▋</span></pre>
+                </div>
+              )}
+            </div>
+          ) : supplierPreview.length > 0 && !hasResults ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, overflowY: 'auto' }} data-testid="supplier-preview">
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+                <span className="gpu-badge" style={{ background: '#6366f1', color: '#fff', fontSize: 10 }}>공급사 견적</span>
+                <span className="gpu-badge" style={{ background: committed ? 'var(--gpu-green)' : 'var(--gpu-amber)', color: '#fff', fontSize: 10 }}>
+                  {committed ? '검토 대기 추가됨' : '저장 대기'}
+                </span>
+              </div>
+              {supplierPreview.map((it, i) => {
+                const ex = (it?.extracted ?? {}) as Record<string, unknown>
+                const name = `${ex.model_name ?? ''} ${ex.memory ?? ''}`.trim()
+                const priceVal = ex.unit_price_usd ?? ex.price_usd
+                const price = priceVal != null ? `$${priceVal}/hr` : '—'
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, background: '#eef2ff', border: '1px solid #c7d2fe' }}>
+                    <span style={{ fontSize: 12, color: '#374151', fontWeight: 600, flex: 1 }}>{name || '(모델 미상)'}</span>
+                    {ex.supplier ? <span style={{ fontSize: 11, color: '#6b7280' }}>{String(ex.supplier)}</span> : null}
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5' }}>{price}</span>
+                  </div>
+                )
+              })}
+              {!committed ? (
+                <button onClick={commitSupplier} disabled={committing} className="gpu-btn gpu-btn-primary" data-testid="supplier-commit-btn" style={{ marginTop: 8, justifyContent: 'center', gap: 6 }}>
+                  {committing ? '저장 중…' : `검토 대기에 추가 (${supplierPreview.length}건)`}
+                </button>
+              ) : (
+                <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 12, color: '#15803d' }}>
+                  ✓ 검토 대기 탭에 추가되었습니다. 본부장 검토 후 가격표에 반영됩니다.
+                </div>
+              )}
             </div>
           ) : hasCompetitorResults ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, overflowY: 'auto' }}>
