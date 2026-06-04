@@ -230,18 +230,19 @@ export default function SpecsTab() {
   // 부족 정보 = 칩 데이터시트(아키텍처) 미보유 모델 (VRAM만 시드된 것 포함)
   const missing = models.filter((m) => !m.spec?.architecture).length
 
-  // 일괄 생성 — SSE 실시간 진행(어떤 모델/몇 번째)
+  // 일괄 생성 — SSE 실시간 진행(어떤 모델/몇 번째). 각 모델은 즉시 DB 저장 → 중단돼도 처리분 보존.
   const bulkGenerate = async () => {
     if (!confirm(`데이터시트 부족 모델 ${missing}개를 AI로 일괄 채울까요?`)) return
     setBulkGen(true); setBulkProg({ done: 0, total: missing, current: '', log: '' })
+    let lastDone = 0; let lastTotal = missing; let completed = false
     try {
       const res = await fetch('/api/pricing/gpu/specs/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ all: true, stream: true }),
       })
       if (!res.ok || !res.body) { alert('AI 일괄 생성 시작 실패'); return }
-      const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = ''; let finished = false
-      while (!finished) {
+      const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = ''
+      while (!completed) {
         const { done, value } = await reader.read(); if (done) break
         buf += dec.decode(value, { stream: true })
         const chunks = buf.split('\n\n'); buf = chunks.pop() ?? ''
@@ -249,14 +250,20 @@ export default function SpecsTab() {
           const ev = c.match(/event: (.+)/)?.[1]?.trim(); const dm = c.match(/data: (.+)/)?.[1]
           if (!ev || !dm) continue
           let d: Record<string, unknown> = {}; try { d = JSON.parse(dm) } catch { continue }
-          if (ev === 'start') setBulkProg({ done: 0, total: Number(d.total) || missing, current: '', log: '' })
-          else if (ev === 'progress') setBulkProg((p) => ({ done: Number(d.done) || p?.done || 0, total: Number(d.total) || p?.total || missing, current: String(d.model ?? ''), log: String(d.msg ?? '') }))
-          else if (ev === 'complete') { finished = true; setBulkProg(null); refresh(); alert(`AI 생성 완료: ${d.generated}/${d.total}`) }
+          if (ev === 'start') { lastTotal = Number(d.total) || missing; setBulkProg({ done: 0, total: lastTotal, current: '', log: '' }) }
+          else if (ev === 'progress') { lastDone = Number(d.done) || lastDone; lastTotal = Number(d.total) || lastTotal; setBulkProg({ done: lastDone, total: lastTotal, current: String(d.model ?? ''), log: String(d.msg ?? '') }) }
+          else if (ev === 'complete') { completed = true; setBulkProg(null); refresh(); alert(`AI 생성 완료: ${d.generated}/${d.total}`) }
         }
       }
       reader.cancel().catch(() => {})
       refresh()
-    } catch { alert('AI 일괄 생성 실패') } finally { setBulkGen(false); setBulkProg(null) }
+      // 정상 complete 없이 끝남(중단/타임아웃) — 부분 성공 안내(처리분은 이미 저장됨)
+      if (!completed) alert(lastDone > 0 ? `생성 중단됨 — ${lastDone}/${lastTotal}개는 저장되었습니다. 남은 모델은 다시 '일괄 채우기'를 눌러 이어서 생성하세요.` : 'AI 일괄 생성 실패 (생성된 항목 없음)')
+    } catch {
+      refresh()
+      // 예외(연결 끊김 등) — 처리분은 저장됨. 부분 성공 안내.
+      alert(lastDone > 0 ? `생성 중단됨 — ${lastDone}/${lastTotal}개는 저장되었습니다. 남은 모델은 다시 '일괄 채우기'를 눌러 이어서 생성하세요.` : 'AI 일괄 생성 실패 — 네트워크를 확인하고 다시 시도하세요.')
+    } finally { setBulkGen(false); setBulkProg(null) }
   }
 
   const filtered = search.trim() ? models.filter((m) => m.model_name.toLowerCase().includes(search.toLowerCase())) : models
