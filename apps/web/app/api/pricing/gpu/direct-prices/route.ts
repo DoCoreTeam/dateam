@@ -1,5 +1,20 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { requireAdminApi } from '@/lib/auth/requireAdminApi'
+import { revalidateGpu } from '@/lib/gpu/revalidate'
+
+// DELETE /api/pricing/gpu/direct-prices?product_id= — 직접 판매가 해제(견적 기준으로 복귀)
+export async function DELETE(req: NextRequest) {
+  const auth = await requireAdminApi()
+  if (auth.error) return auth.error
+  const product_id = new URL(req.url).searchParams.get('product_id')
+  if (!product_id) return NextResponse.json({ error: 'product_id 필요' }, { status: 400 })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (createAdminClient() as any).from('direct_prices').delete().eq('product_id', product_id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  revalidateGpu()
+  return NextResponse.json({ ok: true })
+}
 
 export async function POST(request: Request) {
   try {

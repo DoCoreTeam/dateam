@@ -59,9 +59,28 @@ const HR_4320 = 24 * 180
 const HR_8760 = 24 * 365
 
 export default function SalePriceCatalogPage() {
-  const { data, isLoading } = useSWR<ProductsResponse>('/api/pricing/gpu/products', fetcher, {
+  const { data, isLoading, mutate } = useSWR<ProductsResponse>('/api/pricing/gpu/products', fetcher, {
     refreshInterval: 60000,
   })
+  // 직접 판매가 설정/해제 (CRUD) — 행 복사 UX와 충돌 없도록 stopPropagation
+  const setDirectPrice = async (e: React.MouseEvent, p: GpuProduct) => {
+    e.stopPropagation()
+    const cur = p.pricing_mode === 'direct' && p.sell_price_krw ? String(p.sell_price_krw) : ''
+    const input = window.prompt(`${p.model_name} ×${p.gpu_count ?? 1} 직접 판매가(원/시간). 비우면 해제:`, cur)
+    if (input === null) return
+    try {
+      if (input.trim() === '') {
+        const res = await fetch(`/api/pricing/gpu/direct-prices?product_id=${p.id}`, { method: 'DELETE' })
+        if (!res.ok) { alert('해제 실패'); return }
+      } else {
+        const v = Number(input.replace(/[^0-9.]/g, ''))
+        if (!v || v <= 0) { alert('유효한 금액을 입력하세요'); return }
+        const res = await fetch('/api/pricing/gpu/direct-prices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product_id: p.id, sell_price_krw: v }) })
+        if (!res.ok) { alert('설정 실패'); return }
+      }
+      mutate()
+    } catch { alert('처리 실패') }
+  }
   const [tierFilter, setTierFilter] = useState<0 | 1 | 2 | 3>(0)
   const [currencyMode, setCurrencyMode] = useState<'KRW' | 'USD'>('KRW')
   const [search, setSearch] = useState('')
@@ -342,9 +361,12 @@ export default function SalePriceCatalogPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <GpuChip model={p.model_name} memory={p.memory} />
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: '#111827' }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}>
                         {p.model_name}
-                        <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 400, marginLeft: 5 }}>×{gpuCount}GPU</span>
+                        <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 400 }}>×{gpuCount}GPU</span>
+                        {p.pricing_mode === 'direct' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-amber)', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 4, padding: '0 5px' }}>직접가</span>}
+                        <button onClick={(e) => setDirectPrice(e, p)} title="직접 판매가 설정/해제" aria-label="직접 판매가 설정"
+                          style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--gpu-faint)', fontSize: 11, padding: '0 2px' }}>✎</button>
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--gpu-muted)', marginTop: 1 }}>{formatSpec(p)}</div>
                     </div>
