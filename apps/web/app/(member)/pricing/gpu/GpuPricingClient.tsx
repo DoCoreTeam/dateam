@@ -15,10 +15,11 @@ const HistoryTab = dynamic(() => import('./tabs/HistoryTab'), { ssr: false })
 const InventoryTab = dynamic(() => import('./tabs/InventoryTab'), { ssr: false })
 const DbChatTab = dynamic(() => import('./tabs/DbChatTab'), { ssr: false })
 const MarketTab = dynamic(() => import('./tabs/MarketTab'), { ssr: false })
+const SpecsTab = dynamic(() => import('./tabs/SpecsTab'), { ssr: false })
 const SalePriceCatalogPage = dynamic(() => import('../catalog/page'), { ssr: false })
 
 type MainTabId = 'board' | 'market' | 'inventory' | 'catalog'
-type SecondaryTabId = 'review' | 'suppliers' | 'log'
+type SecondaryTabId = 'review' | 'suppliers' | 'specs' | 'log'
 type TabId = MainTabId | SecondaryTabId
 
 interface SettingsData {
@@ -86,7 +87,7 @@ export default function GpuPricingClient({ initialSettings }: { initialSettings?
   // ── 뷰 상태 영속 (URL 파라미터 + sessionStorage) ──
   // 탭 이동·다른 메뉴 갔다 와도 마지막 보던 화면(탭/검색/펼친 가격)을 복원.
   const viewRestored = useRef(false)
-  const VALID_TABS = ['board', 'market', 'inventory', 'catalog', 'review', 'suppliers', 'log']
+  const VALID_TABS = ['board', 'market', 'inventory', 'catalog', 'review', 'suppliers', 'specs', 'log']
 
   // 최초 진입: URL(우선) → sessionStorage 순으로 탭 복원
   useEffect(() => {
@@ -196,6 +197,12 @@ export default function GpuPricingClient({ initialSettings }: { initialSettings?
             label: '공급사',
             badge: 0,
             icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>,
+          },
+          {
+            id: 'specs' as SecondaryTabId,
+            label: '스펙 관리',
+            badge: 0,
+            icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6M9 13h6M9 17h3"/></svg>,
           },
           {
             id: 'log' as SecondaryTabId,
@@ -321,6 +328,7 @@ export default function GpuPricingClient({ initialSettings }: { initialSettings?
         )}
         {activeTab === 'review' && <div style={{ height: '100%', overflowY: 'auto' }}><ReviewTab /></div>}
         {activeTab === 'suppliers' && <div style={{ height: '100%', overflowY: 'auto' }}><SuppliersTab onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board') }} /></div>}
+        {activeTab === 'specs' && <div style={{ height: '100%', overflowY: 'auto' }}><div className="page-inner"><SpecsTab /></div></div>}
         {activeTab === 'log' && <div style={{ height: '100%', overflowY: 'auto' }}><HistoryTab /></div>}
       </div>
     </div>

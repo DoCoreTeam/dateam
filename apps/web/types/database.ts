@@ -361,6 +361,7 @@ export type AiFeature =
   | 'daily-ai-save'
   | 'gpu-quote-extract'
   | 'gpu-quote-reanalyze'
+  | 'gpu-spec-generate'
   | 'gpu-db-chat'
   | 'memo-embedding'
   | 'memo-cluster-label'
