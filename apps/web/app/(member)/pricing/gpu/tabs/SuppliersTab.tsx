@@ -18,6 +18,7 @@ interface SupplierStats {
   website: string | null
   description: string | null
   logo_url: string | null
+  source: string | null
   active_quotes: number
   lowest_count: number
   last_received: string | null
@@ -525,9 +526,11 @@ export default function SuppliersTab({ onGoToPriceTable }: { onGoToPriceTable?: 
               <LogoAvatar name={s.name} color={s.color} logoUrl={s.logo_url} />
               <div style={{ flex: 1 }}>
                 <div className="gpu-sup-nm">{s.name}</div>
-                <div className="gpu-sup-loc" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <div className="gpu-sup-loc" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   {s.country && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><span style={{ fontSize: 14 }}>{countryFlag(s.country)}</span>{s.country}</span>}
                   {s.website && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--gpu-accent)' }}><Globe size={11} />사이트</span>}
+                  {s.source === 'manual' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-amber)', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 4, padding: '0 5px' }}>수동입력</span>}
+                  {s.source === 'integrated' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.08)', borderRadius: 4, padding: '0 5px' }}>통합입력</span>}
                 </div>
               </div>
             </div>
