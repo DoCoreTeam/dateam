@@ -55,6 +55,42 @@ async function getPrompt(adminClient: ReturnType<typeof createAdminClient>) {
   return data as { content: string; version: string; model_hint: string } | null
 }
 
+// 기존 보유 GPU 스펙 컨텍스트 — AI가 입력의 모호한 모델명을 "기존 스펙"과 대조·추론하도록 주입 (P3)
+// 고정 스키마(gpu_products/gpu_specs)에서 파생하므로 별도 매개체 불필요.
+async function loadSpecContext(adminClient: ReturnType<typeof createAdminClient>): Promise<string> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (adminClient as any)
+      .from('gpu_products')
+      .select('model_name, memory')
+      .order('model_name', { ascending: true })
+      .limit(200)
+    const rows = (data ?? []) as Array<{ model_name: string | null; memory: string | null }>
+    if (rows.length === 0) return ''
+    // 모델명+메모리 조합을 중복 제거해 레퍼런스 목록 구성
+    const seen = new Set<string>()
+    const list: string[] = []
+    for (const r of rows) {
+      const name = (r.model_name ?? '').trim()
+      if (!name) continue
+      const label = r.memory ? `${name} ${r.memory}` : name
+      if (seen.has(label)) continue
+      seen.add(label)
+      list.push(label)
+    }
+    if (list.length === 0) return ''
+    return `\n\n【보유 GPU 모델 레퍼런스 — 입력의 모호한 모델명은 아래 기존 모델과 대조해 가장 적합한 것으로 매핑하세요】\n${list.join(' | ')}`
+  } catch {
+    return ''
+  }
+}
+
+// 입력에서 모든 URL 추출 (멀티 URL 지원 — P1/P4)
+function extractUrls(text: string): string[] {
+  const matches = text.match(/https?:\/\/[^\s]+/g)
+  return matches ? Array.from(new Set(matches)) : []
+}
+
 async function callGemini(
   apiKey: string,
   model: string,
@@ -212,20 +248,28 @@ export async function POST(req: NextRequest) {
   const config = await getGeminiConfig(adminClient)
   if (!config.apiKey) return NextResponse.json({ error: 'AI 키가 설정되지 않았습니다' }, { status: 500 })
 
-  // ── URL 감지 및 fetch ──────────────────────────────
-  const urlMatch = rawInputText.match(/https?:\/\/[^\s]+/)
-  const sourceUrl = urlMatch?.[0] ?? null
+  // ── URL 감지 및 fetch (멀티 URL 병렬 + 원문 병합) ──────
+  // P1: 모든 URL 처리 / P2: 원문(사용자 지시문)을 덮어쓰지 않고 URL 본문을 "추가" 병합
+  const urls = imageBase64 ? [] : extractUrls(rawInputText)
+  const sourceUrl = urls[0] ?? null
   let contentText = rawInputText
 
-  if (sourceUrl && !imageBase64) {
-    const fetched = await fetchUrlText(sourceUrl)
-    if (fetched) contentText = fetched
+  if (urls.length > 0) {
+    const fetchedBodies = await Promise.all(urls.map((u) => fetchUrlText(u)))
+    const merged = fetchedBodies
+      .map((body, i) => (body ? `\n\n[URL 본문 ${i + 1}: ${urls[i]}]\n${body}` : ''))
+      .join('')
+    // 원문(지시문 포함) 유지 + 가져온 URL 본문들을 뒤에 붙임. SPA 등으로 본문이 비어도 원문은 보존(PF1)
+    if (merged) contentText = `${rawInputText}${merged}`
   }
+
+  // 기존 보유 스펙 컨텍스트 — 모호한 모델명 추론용 (P3)
+  const specContext = await loadSpecContext(adminClient)
 
   // ── AI 1단계: 입력 분류 (경쟁사 vs 공급가) ──────────
   if (!imageBase64) {
     const classifyParts: Array<{ text: string }> = [
-      { text: `${CLASSIFY_PROMPT}\n\n입력:\n${contentText}` },
+      { text: `${CLASSIFY_PROMPT}${specContext}\n\n입력:\n${contentText}` },
     ]
     let classifyRes: Response
     try {
@@ -260,7 +304,7 @@ export async function POST(req: NextRequest) {
   const prompt = await getPrompt(adminClient)
   if (!prompt) return NextResponse.json({ error: 'AI 프롬프트가 설정되지 않았습니다' }, { status: 500 })
 
-  const promptText = `${prompt.content}\n\n${contentText ? '입력 텍스트:\n' + contentText : '위 이미지에서 GPU 견적 정보를 추출하세요.'}`
+  const promptText = `${prompt.content}${specContext}\n\n${contentText ? '입력 텍스트:\n' + contentText : '위 이미지에서 GPU 견적 정보를 추출하세요.'}`
   const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = []
   if (imageBase64) parts.push({ inlineData: { data: imageBase64, mimeType: imageMimeType } })
   parts.push({ text: promptText })
