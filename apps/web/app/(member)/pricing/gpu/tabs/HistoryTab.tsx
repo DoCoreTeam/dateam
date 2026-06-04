@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import useSWR from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
+import { mutateGpu } from '@/lib/gpu/swr-keys'
 
 interface AuditLog {
   id: string
@@ -107,10 +108,32 @@ function renderDetail(type: string, detail: Record<string, unknown>): string | n
 }
 
 export default function HistoryTab() {
-  const { data } = useSWR<{ logs: AuditLog[] }>('/api/pricing/gpu/audit', fetcher)
+  const { data, mutate } = useSWR<{ logs: AuditLog[] }>('/api/pricing/gpu/audit', fetcher)
+  const { mutate: globalMutate } = useSWRConfig()
   const logs = data?.logs ?? []
   const [filter, setFilter] = useState('전체')
   const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [withData, setWithData] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const toggle = (id: string) => setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
+
+  const batchDelete = async () => {
+    const ids = Array.from(selected)
+    if (ids.length === 0) return
+    if (!confirm(`로그 ${ids.length}건${withData ? ' + 연결된 견적 데이터' : ''}을 삭제할까요?`)) return
+    setDeleting(true)
+    try {
+      const res = await fetch('/api/pricing/gpu/audit', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, delete_data: withData }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { alert(j.error ?? '삭제 실패'); return }
+      alert(`삭제 완료: 로그 ${j.logs_deleted}건${j.data_deleted ? ` · 견적 ${j.data_deleted}건` : ''}`)
+      setSelected(new Set()); mutate(); mutateGpu(globalMutate)
+    } finally { setDeleting(false) }
+  }
 
   const filtered = logs.filter((log) => {
     if (filter !== '전체') {
@@ -152,6 +175,20 @@ export default function HistoryTab() {
         </div>
       </div>
 
+      {selected.size > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', marginBottom: 8, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, fontSize: 12.5 }}>
+          <strong>{selected.size}건 선택</strong>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+            <input type="checkbox" checked={withData} onChange={(e) => setWithData(e.target.checked)} />
+            연결된 견적 데이터도 삭제
+          </label>
+          <button onClick={batchDelete} disabled={deleting} className="gpu-btn" style={{ marginLeft: 'auto', color: '#fff', background: 'var(--gpu-red)', borderColor: 'var(--gpu-red)', gap: 4 }}>
+            🗑 {deleting ? '삭제 중…' : '선택 삭제'}
+          </button>
+          <button onClick={() => setSelected(new Set())} className="gpu-btn">선택 해제</button>
+        </div>
+      )}
+
       <div className="gpu-panel gpu-card-pad">
         {filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--gpu-faint)', fontSize: '13px' }}>
@@ -165,7 +202,9 @@ export default function HistoryTab() {
             const desc = log.detail ? renderDetail(log.action_type, log.detail) : null
 
             return (
-              <div key={log.id} className="gpu-log-item">
+              <div key={log.id} className="gpu-log-item" style={selected.has(log.id) ? { background: '#fef2f2' } : undefined}>
+                <input type="checkbox" checked={selected.has(log.id)} onChange={() => toggle(log.id)} aria-label="로그 선택"
+                  style={{ alignSelf: 'center', marginRight: 4, cursor: 'pointer' }} />
                 <div className="gpu-log-time">
                   <div>{ts.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</div>
                   <div>{ts.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</div>
