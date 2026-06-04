@@ -126,10 +126,16 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
         </div>
 
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* 구성별(×N GPU) 스펙 — 한 리스트의 일부. 장수에 따라 VRAM/vCPU/RAM/SSD가 다르므로 구성별로 입력 */}
-          {cfgs.map((c) => (
+          <div style={{ fontSize: 11.5, color: 'var(--gpu-muted)', background: '#f8fafc', border: '1px solid #eef0f6', borderRadius: 8, padding: '7px 10px' }}>
+            현재 등록된 <b>{row.model_name}</b> 구성 {cfgs.length}개 — 가격표·시장비교·재고·고객판매가격표와 동일한 우리 GPU 목록입니다. 장수·카드 VRAM에 따라 별도 구성으로 등록됩니다.
+          </div>
+          {/* 구성별 스펙 — 카드당 VRAM으로 식별(같은 ×N 장수라도 80GB/40GB 카드는 다른 구성) */}
+          {cfgs.map((c) => {
+            const totalVram = c.memory ? Number(String(c.memory).replace(/[^0-9]/g, '')) : null
+            const perCard = totalVram ? Math.round(totalVram / Math.max(c.gpu_count, 1)) : null
+            return (
             <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 700, fontSize: 12.5, minWidth: 60, color: 'var(--gpu-accent,#5b5ef0)' }}>×{c.gpu_count} GPU</span>
+              <span style={{ fontWeight: 700, fontSize: 12.5, minWidth: 96, color: 'var(--gpu-accent,#5b5ef0)' }} title="카드당 VRAM × 장수">{perCard ? `${perCard}GB 카드 ×${c.gpu_count}` : `×${c.gpu_count} GPU`}</span>
               {(['memory', 'vcpu', 'ram_gb', 'storage_gb'] as const).map((k) => {
                 const lbl = k === 'memory' ? 'VRAM' : k === 'vcpu' ? 'vCPU' : k === 'ram_gb' ? 'RAM(GB)' : 'SSD(GB)'
                 return editing ? (
@@ -142,7 +148,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
                 )
               })}
             </div>
-          ))}
+          )})}
 
           <div style={{ borderTop: '1px solid #f1f3f9' }} />
 
