@@ -116,16 +116,26 @@ async function fetchUrlText(url: string): Promise<string> {
 const CLASSIFY_PROMPT = `당신은 GPU 클라우드 가격 분석 AI입니다. 입력된 내용을 분석하여 분류하세요.
 
 분류 기준:
-- competitor_pricing: RunPod, Lambda Labs, AWS, CoreWeave, Vast.ai, NHN Cloud, NAVER Cloud, Azure, GCP, Runyour AI, SaladCloud 등 경쟁 클라우드 서비스의 GPU 가격 정보
+- competitor_pricing: RunPod, Lambda Labs, AWS, CoreWeave, Vast.ai, NHN Cloud, NAVER Cloud, Azure, GCP, Runyour AI, SaladCloud, CloudV 등 경쟁 클라우드 서비스의 GPU 가격 정보
 - supplier_quote: AX사업본부가 구매/공급받는 GPU 하드웨어/클라우드 자원 견적 (공급사로부터 받은 견적)
 
-【중요 — 가격 단위 변환 규칙】
+【최우선 — 사용자 지시 준수】
+입력 텍스트에 사용자의 지시문(예: "월 금액이니 시간으로 변환", "8장 세트", "원화 표기" 등)이 있으면 반드시 그 지시를 먼저 따르세요. 사용자 지시가 아래 일반 규칙보다 우선합니다.
+
+【중요 — 시간 단위 정규화 (price_usd는 반드시 "GPU 1장·1시간당 USD")】
+가격이 시간당(/hr)이 아니면 반드시 시간당으로 환산하세요:
+- 월(month/月/월/mo): ÷ 730    · 주(week): ÷ 168    · 일(day/日): ÷ 24    · 년(year/年): ÷ 8760
+  예) $138.54/월 → price_usd: 0.19, notes: "원본: $138.54/월 (÷730 시간환산)"
+- 여러 장(예: 8GPU 묶음 가격)이면 장수로 나눠 1장당으로. notes에 원본 기재.
+
+【중요 — 통화 변환 규칙】
 가격이 달러($, USD)가 아닌 다른 단위인 경우 반드시 USD로 변환하세요:
 - KRW / 원 / ₩ / P(포인트) / C(크레딧): 1 USD = 1370 KRW 기준으로 나누어 USD 환산. notes 필드에 원본 가격 기재
   예) 3,615 C/hr → price_usd: 2.64, notes: "원본: 3,615 KRW/hr (1USD=1370KRW 기준 환산)"
 - JPY / 円: 1 USD = 155 JPY 기준
 - EUR / €: 1 EUR = 1.09 USD 기준
 - 그 외 통화: 최신 환율 추정 적용, notes에 원본 기재
+- 통화·시간 변환이 모두 필요하면 둘 다 적용(통화→USD 후 시간÷). notes에 원본 그대로 기재.
 
 competitor_pricing인 경우 JSON 반환:
 {
@@ -144,7 +154,7 @@ competitor_pricing인 경우 JSON 반환:
 
 pricing_model 값: "on-demand" | "reserved-1y" | "reserved-3y" | "spot"
 memory 값: "80GB", "40GB", "24GB" 등 숫자+단위
-notes 필드: 통화 변환이 있을 때만 기재, USD 직접 가격이면 생략 가능
+notes 필드: 통화·시간·장수 변환이 있을 때 원본을 기재(예: "원본: $138.54/월"), USD 시간당 직접 가격이면 생략 가능
 
 supplier_quote이거나 GPU 가격이 아닌 경우:
 { "type": "supplier" }
