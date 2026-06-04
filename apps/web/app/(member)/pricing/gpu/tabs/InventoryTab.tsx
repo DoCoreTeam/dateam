@@ -263,6 +263,17 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
                       <span style={{ fontSize: 11, color: 'var(--gpu-faint)' }}>수량 미입력</span>
                     )}
                     {sup.supplier_id != null && <QtyInput item={item} sup={sup} onSaved={onMutate} />}
+                    {sup.supplier_id != null && sup.has_qty && (
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`${sup.name} 재고를 삭제할까요?`)) return
+                          const res = await fetch(`/api/pricing/gpu/availability?product_id=${item.id}&supplier_id=${sup.supplier_id}`, { method: 'DELETE' })
+                          if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error ?? '삭제 실패'); return }
+                          onMutate()
+                        }}
+                        title="재고 삭제" aria-label="재고 삭제"
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--gpu-faint)', fontSize: 13, padding: '0 2px' }}>🗑</button>
+                    )}
                   </span>
                 </div>
               ))}

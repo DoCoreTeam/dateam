@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { recordAvailability } from '@/lib/gpu/repository'
+import { revalidateGpu } from '@/lib/gpu/revalidate'
+
+// DELETE /api/pricing/gpu/availability?product_id=&supplier_id= — 해당 공급사 재고응답 삭제
+export async function DELETE(req: NextRequest) {
+  const auth = await requireAdminApi()
+  if (auth.error) return auth.error
+  const sp = new URL(req.url).searchParams
+  const product_id = sp.get('product_id'), supplier_id = sp.get('supplier_id')
+  if (!product_id || !supplier_id) return NextResponse.json({ error: 'product_id·supplier_id 필요' }, { status: 400 })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (createAdminClient() as any).from('availability_responses')
+    .delete().eq('product_id', product_id).eq('supplier_id', supplier_id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  revalidateGpu()
+  return NextResponse.json({ ok: true })
+}
 
 // GET /api/pricing/gpu/availability?product_id=xxx — 가용량 요약
 export async function GET(req: NextRequest) {
