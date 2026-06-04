@@ -18,10 +18,21 @@ export async function GET(
 
   const { data: supplier, error } = await db
     .from('suppliers')
-    .select('id, name, location, color, contact, country, website, description, created_at, updated_at')
+    .select('id, name, location, color, contact, country, website, description, account_id, created_at, updated_at')
     .eq('id', id)
     .single()
   if (error || !supplier) return NextResponse.json({ error: '공급사를 찾을 수 없습니다' }, { status: 404 })
+
+  // 담당자 = contacts (회사=accounts 통합). 공급사의 연결 account_id 기준.
+  let contacts: unknown[] = []
+  if (supplier.account_id) {
+    const { data: c } = await db
+      .from('contacts')
+      .select('id, name, title, department, email, phone, mobile, notes')
+      .eq('account_id', supplier.account_id)
+      .order('created_at', { ascending: true })
+    contacts = c ?? []
+  }
 
   // 이 공급사의 모든 견적 (상품 조인)
   const { data: quotes } = await db
@@ -41,6 +52,7 @@ export async function GET(
   const confirmed = (quotes ?? []).filter((q: { status: string }) => q.status === 'confirmed')
   return NextResponse.json({
     supplier,
+    contacts,
     quotes: quotes ?? [],
     availability: availability ?? [],
     stats: {

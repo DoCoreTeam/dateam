@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { Plus, X, Globe, Trash2, Save, ExternalLink, Sparkles, ChevronRight } from 'lucide-react'
+import { Plus, X, Globe, Trash2, Save, ExternalLink, Sparkles, ChevronRight, Pencil } from 'lucide-react'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { countryFlag } from '@/lib/gpu/country-flag'
 
@@ -21,11 +21,16 @@ interface SupplierStats {
   last_received: string | null
 }
 
+interface ContactRow {
+  id: string; name: string; title: string | null; department: string | null
+  email: string | null; phone: string | null; mobile: string | null; notes: string | null
+}
 interface SupplierDetail {
   supplier: {
     id: string; name: string; location: string | null; color: string; contact: string | null
-    country: string | null; website: string | null; description: string | null
+    country: string | null; website: string | null; description: string | null; account_id: string | null
   }
+  contacts: ContactRow[]
   quotes: QuoteRow[]
   availability: Array<{ id: string; status: string; resp_qty: number | null; gpu_products: { model_name: string } | null }>
   stats: { total_quotes: number; confirmed_quotes: number; models: number }
@@ -201,6 +206,9 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [editQuote, setEditQuote] = useState<QuoteRow | null>(null)
+  const [editing, setEditing] = useState(false)              // 조회-우선: 기본 조회, 수정 클릭 시 편집
+  const [newContact, setNewContact] = useState({ name: '', title: '', email: '', phone: '' })
+  const [contactSaving, setContactSaving] = useState(false)
 
   const s = data?.supplier
   const f = form ?? (s ? { name: s.name, country: s.country ?? '', website: s.website ?? '', contact: s.contact ?? '', location: s.location ?? '', description: s.description ?? '', color: s.color ?? COLORS[0] } : null)
@@ -228,6 +236,24 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
     } finally { setSaving(false) }
   }
 
+  // 담당자(contacts) — 회사=accounts 통합. 공급사 account에 담당자 추가/삭제.
+  const addContact = async () => {
+    if (!data?.supplier.account_id || !newContact.name.trim()) return
+    setContactSaving(true)
+    try {
+      const res = await fetch('/api/contacts', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_id: data.supplier.account_id, name: newContact.name.trim(), title: newContact.title || null, email: newContact.email || null, phone: newContact.phone || null }),
+      })
+      if (res.ok) { setNewContact({ name: '', title: '', email: '', phone: '' }); await mutate() }
+    } finally { setContactSaving(false) }
+  }
+  const delContact = async (cid: string) => {
+    if (!confirm('담당자를 삭제할까요?')) return
+    const res = await fetch(`/api/contacts/${cid}`, { method: 'DELETE' })
+    if (res.ok) await mutate()
+  }
+
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(720px, 100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
@@ -250,39 +276,90 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--gpu-muted)' }}>로딩 중…</div>
         ) : (
           <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* 회사정보 편집 */}
+            {/* 회사 정보 — 조회 우선, 수정 클릭 시 편집 (거래처/딜과 동일 UX) */}
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>회사 정보</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <Field label="공급사명" value={f?.name ?? ''} onChange={(v) => set('name', v)} />
-                <Field label="국가" value={f?.country ?? ''} onChange={(v) => set('country', v)} />
-                <Field label="웹사이트" value={f?.website ?? ''} onChange={(v) => set('website', v)} />
-                <Field label="연락처" value={f?.contact ?? ''} onChange={(v) => set('contact', v)} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 700 }}>회사 정보</div>
+                {!editing && (
+                  <button onClick={() => { setForm(null); setEditing(true) }} className="gpu-btn" style={{ marginLeft: 'auto', gap: 4, fontSize: 12 }}>
+                    <Pencil size={13} /> 수정
+                  </button>
+                )}
               </div>
-              <div style={{ marginTop: 10 }}>
-                <Field label="회사 소개" value={f?.description ?? ''} onChange={(v) => set('description', v)} textarea />
-              </div>
-              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--gpu-muted)' }}>색상</span>
-                {COLORS.map((c) => (
-                  <button key={c} onClick={() => set('color', c)} aria-label={`색상 ${c}`}
-                    style={{ width: 20, height: 20, borderRadius: '50%', background: c, border: (f?.color === c) ? '2px solid #0f172a' : '2px solid transparent', cursor: 'pointer' }} />
+
+              {!editing ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 18px' }}>
+                  {[['국가', s?.country], ['웹사이트', s?.website], ['연락처(레거시)', s?.contact], ['소개', s?.description]].map(([label, val]) => (
+                    <div key={label as string} style={{ fontSize: 12.5, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 600 }}>{label}</span>
+                      <span style={{ fontWeight: 600 }}>{(val as string) || '—'}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <Field label="공급사명" value={f?.name ?? ''} onChange={(v) => set('name', v)} />
+                    <Field label="국가" value={f?.country ?? ''} onChange={(v) => set('country', v)} />
+                    <Field label="웹사이트" value={f?.website ?? ''} onChange={(v) => set('website', v)} />
+                    <Field label="연락처(레거시)" value={f?.contact ?? ''} onChange={(v) => set('contact', v)} />
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <Field label="회사 소개" value={f?.description ?? ''} onChange={(v) => set('description', v)} textarea />
+                  </div>
+                  <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--gpu-muted)' }}>색상</span>
+                    {COLORS.map((c) => (
+                      <button key={c} onClick={() => set('color', c)} aria-label={`색상 ${c}`}
+                        style={{ width: 20, height: 20, borderRadius: '50%', background: c, border: (f?.color === c) ? '2px solid #0f172a' : '2px solid transparent', cursor: 'pointer' }} />
+                    ))}
+                  </div>
+                  {err && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--gpu-red)' }}>{err}</div>}
+                  <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                    <button onClick={async () => { await save(); setEditing(false) }} disabled={saving} className="gpu-btn gpu-btn-primary" style={{ gap: 5 }}>
+                      <Save size={14} /> {saving ? '저장 중…' : '저장'}
+                    </button>
+                    <button onClick={() => { setForm(null); setEditing(false) }} className="gpu-btn">취소</button>
+                    {f?.website && (
+                      <a href={f.website} target="_blank" rel="noreferrer" className="gpu-btn" style={{ gap: 5, textDecoration: 'none' }}>
+                        <ExternalLink size={14} /> 사이트
+                      </a>
+                    )}
+                    <button onClick={del} disabled={saving} className="gpu-btn" style={{ marginLeft: 'auto', color: 'var(--gpu-red)', gap: 5 }}>
+                      <Trash2 size={14} /> 삭제
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 담당자 (contacts — 딜 담당자와 동일 모델) */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>담당자 ({data.contacts?.length ?? 0})</div>
+              {(data.contacts?.length ?? 0) === 0 && !editing && (
+                <div style={{ fontSize: 12, color: 'var(--gpu-faint)', padding: '4px 0' }}>등록된 담당자가 없습니다 {data.supplier.account_id ? '— 수정에서 추가' : ''}</div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {(data.contacts ?? []).map((c) => (
+                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 7, background: '#f9fafb', border: '1px solid #eef0f6', fontSize: 12.5 }}>
+                    <span style={{ fontWeight: 700, minWidth: 90 }}>{c.name}</span>
+                    {c.title && <span style={{ color: 'var(--gpu-muted)' }}>{c.title}</span>}
+                    <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontSize: 12, color: 'var(--gpu-ink-2)' }}>{c.email ?? ''} {c.phone ?? ''}</span>
+                    {editing && <button onClick={() => delContact(c.id)} className="gpu-btn" style={{ padding: 4, color: 'var(--gpu-red)' }}><Trash2 size={13} /></button>}
+                  </div>
                 ))}
               </div>
-              {err && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--gpu-red)' }}>{err}</div>}
-              <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                <button onClick={save} disabled={saving} className="gpu-btn gpu-btn-primary" style={{ gap: 5 }}>
-                  <Save size={14} /> {saving ? '저장 중…' : '저장'}
-                </button>
-                {f?.website && (
-                  <a href={f.website} target="_blank" rel="noreferrer" className="gpu-btn" style={{ gap: 5, textDecoration: 'none' }}>
-                    <ExternalLink size={14} /> 사이트
-                  </a>
-                )}
-                <button onClick={del} disabled={saving} className="gpu-btn" style={{ marginLeft: 'auto', color: 'var(--gpu-red)', gap: 5 }}>
-                  <Trash2 size={14} /> 삭제
-                </button>
-              </div>
+              {editing && data.supplier.account_id && (
+                <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.4fr 1fr auto', gap: 6, alignItems: 'end' }}>
+                  <Field label="이름*" value={newContact.name} onChange={(v) => setNewContact((p) => ({ ...p, name: v }))} />
+                  <Field label="직책" value={newContact.title} onChange={(v) => setNewContact((p) => ({ ...p, title: v }))} />
+                  <Field label="이메일" value={newContact.email} onChange={(v) => setNewContact((p) => ({ ...p, email: v }))} />
+                  <Field label="전화" value={newContact.phone} onChange={(v) => setNewContact((p) => ({ ...p, phone: v }))} />
+                  <button onClick={addContact} disabled={contactSaving || !newContact.name.trim()} className="gpu-btn gpu-btn-primary" style={{ height: 30, gap: 4 }}>
+                    <Plus size={13} /> 추가
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* 이 공급사의 모든 견적 */}
