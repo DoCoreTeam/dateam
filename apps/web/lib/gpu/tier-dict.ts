@@ -1,36 +1,23 @@
-// GPU 모델명 → tier 자동 판정 사전
-// Tier 1: 전용 고성능 데이터센터 (보장형)
-// Tier 2: 점유형 / 워크스테이션급
-// Tier 3: 간헐 공급 / 소비자(RTX 지포스)급
-//
-// 신규 모델 자동등록 시 tier 미지정이면 이 사전으로 추론한다.
-
-const TIER1 = [
-  'h100', 'h200', 'h800', 'b100', 'b200', 'b300', 'gb200', 'gb300',
-  'a100', 'a800', 'mi300', 'mi325', 'gaudi',
-]
-const TIER2 = [
-  'l40', 'l40s', 'l4', 'a40', 'a30', 'a10', 'a16', 'v100', 't4',
-  'rtx pro 6000', 'rtx 6000 ada', 'rtx 5000 ada', 'rtx a6000', 'rtx a5000', 'rtx a5500',
-]
-// 그 외 RTX 지포스 소비자 카드(20·30·40·50 시리즈) → Tier 3 기본
+// GPU 모델명 → tier 자동 판정 (택소노미: 데이터센터=T1 / 워크스테이션=T2 / 소비자=T3)
+// Tier 1: 데이터센터·클라우드 GPU (H100·A100·B200·GH200·L40·L4·T4·V100·A10·A40 등) — 기본값
+// Tier 2: 워크스테이션 (RTX A시리즈·RTX Ada·Quadro·RTX PRO)
+// Tier 3: 소비자 지포스 (RTX 2060~5090, GTX)
+// 규칙: 데이터센터/클라우드에서 파는 것은 일단 Tier1. 통합입력에서 명시적으로 tier를 지정하면 그것을 우선(override).
+// DB의 infer_tier() 함수(059)와 동일 규칙 — drift 주의.
 
 /**
- * 모델명으로 tier 추론. AI가 제안한 tier가 있으면 그것을 우선하되,
- * 명백한 소비자 RTX가 tier1로 오는 경우만 교정.
+ * 모델명으로 tier 추론. override(사용자가 통합입력에서 명시한 tier)가 있으면 최우선.
  */
-export function inferTier(modelName: string, suggested?: number | null): 1 | 2 | 3 {
+export function inferTier(modelName: string, override?: number | null): 1 | 2 | 3 {
+  // 통합입력에서 명시적으로 지정한 tier override 최우선
+  if (override === 1 || override === 2 || override === 3) return override
+
   const s = modelName.toLowerCase().trim()
 
-  // 사전 정확 매칭 우선
-  if (TIER1.some((k) => s.includes(k))) return 1
-  if (TIER2.some((k) => s.includes(k))) return 2
-
-  // 소비자 RTX 지포스 (RTX 2060~5090 등, Ada/A 워크스테이션 제외) → T3
-  if (/\brtx\s*[2345]0\d0/.test(s)) return 3
-  if (/\b(gtx|geforce)\b/.test(s)) return 3
-
-  // 사전에 없으면 AI 제안 → 없으면 안전하게 T2(중간)
-  if (suggested === 1 || suggested === 2 || suggested === 3) return suggested
-  return 2
+  // 1) 워크스테이션 RTX/Quadro (Ada·A시리즈·PRO·Quadro) → T2 (소비자보다 먼저)
+  if (/rtx pro|rtx a[0-9]|rtx [0-9]+ ada|quadro/.test(s) || /\b(a6000|a5000|a5500|a4000|a4500|a2000)\b/.test(s)) return 2
+  // 2) 소비자 지포스 (RTX 2060~5090 비-Ada, GTX) → T3
+  if (/rtx\s*[2345]0[0-9]0/.test(s) || /\b(gtx|geforce)\b/.test(s)) return 3
+  // 3) 데이터센터/클라우드 + 미지 → T1 (기본)
+  return 1
 }

@@ -96,8 +96,10 @@ export async function POST(
   let productAutoCreated = false
   if (typeof merged.model_name === 'string' && merged.model_name) {
     const modelName = merged.model_name.trim()
-    // tier 자동판정: 시리즈 사전 우선, AI 제안 보정 (RTX 소비자가 T1로 오는 버그 교정)
-    const tier = inferTier(modelName, typeof merged.tier_suggestion === 'number' ? merged.tier_suggestion : null)
+    // tier 판정: 사용자가 명시한 tier override 최우선, 없으면 사전(데이터센터=T1/워크스테이션=T2/소비자=T3).
+    // AI의 tier_suggestion은 dict를 덮어쓰지 않음(AI 오판 방지) — 사용자 명시(merged.tier)만 override.
+    const tierOverride = typeof merged.tier === 'number' && [1, 2, 3].includes(merged.tier) ? merged.tier : null
+    const tier = inferTier(modelName, tierOverride)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any
     // memory를 먼저 정규화 — 매칭 + 생성 양쪽에서 동일하게 사용

@@ -13,6 +13,7 @@
 -- 본 파일은 재현용으로 infer_tier() 함수만 영속화(데이터 삭제는 1회성이라 미포함).
 -- 함수는 tier-dict.ts와 동일 규칙 — 향후 tier 자동교정/감사에 사용.
 
+-- 택소노미: 데이터센터=T1 / 워크스테이션=T2 / 소비자=T3 (데이터센터/클라우드 GPU는 기본 T1)
 CREATE OR REPLACE FUNCTION public.infer_tier(m text)
 RETURNS int
 LANGUAGE plpgsql
@@ -20,13 +21,10 @@ IMMUTABLE
 AS $$
 DECLARE s text := lower(trim(m));
 BEGIN
-  -- Tier 1: 데이터센터 플래그십
-  IF s ~ '(h100|h200|h800|b100|b200|b300|gb200|gb300|a100|a800|mi300|mi325|gaudi)' THEN RETURN 1; END IF;
-  -- Tier 2: 워크스테이션/추론급
-  IF s ~ '(l40s|l40|l4|a40|a30|a10|a16|v100|t4|rtx pro 6000|rtx 6000 ada|rtx 5000 ada|rtx a6000|rtx a5000|rtx a5500)' THEN RETURN 2; END IF;
-  -- Tier 3: 소비자 RTX 지포스 (20·30·40·50 시리즈), GTX
-  IF s ~ 'rtx\s*[2345]0[0-9]0' THEN RETURN 3; END IF;
-  IF s ~ '(gtx|geforce)' THEN RETURN 3; END IF;
-  -- 그 외: 안전하게 Tier 2
-  RETURN 2;
+  -- 1) 워크스테이션 RTX/Quadro (Ada·A시리즈·PRO·Quadro) → T2 (소비자보다 먼저)
+  IF s ~ '(rtx pro|rtx a[0-9]|rtx [0-9]+ ada|quadro)' OR s ~ '\y(a6000|a5000|a5500|a4000|a4500|a2000)\y' THEN RETURN 2; END IF;
+  -- 2) 소비자 지포스 (RTX 2060~5090 비-Ada, GTX) → T3
+  IF s ~ 'rtx\s*[2345]0[0-9]0' OR s ~ '\y(gtx|geforce)\y' THEN RETURN 3; END IF;
+  -- 3) 데이터센터/클라우드 + 미지 → T1 (기본)
+  RETURN 1;
 END $$;
