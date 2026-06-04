@@ -225,6 +225,7 @@ export default function SpecsTab() {
   const [bulkGen, setBulkGen] = useState(false)
   const [bulkProg, setBulkProg] = useState<{ done: number; total: number; current: string; log: string } | null>(null)
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'default', dir: 'asc' })
 
   const refresh = () => mutate('/api/pricing/gpu/specs')
   // 부족 정보 = 칩 데이터시트(아키텍처) 미보유 모델 (VRAM만 시드된 것 포함)
@@ -268,6 +269,37 @@ export default function SpecsTab() {
 
   const filtered = search.trim() ? models.filter((m) => m.model_name.toLowerCase().includes(search.toLowerCase())) : models
 
+  // 정렬 — 상태값(완성도)은 스펙없음<기존값<AI<수정됨 순서로 가중치
+  const statusRank = (m: ModelRow): number => {
+    if (!m.has_spec) return 0
+    if (m.spec?.ai_generated) return 2
+    if (m.spec?.architecture) return 3
+    return 1
+  }
+  const sorted = (() => {
+    if (sort.key === 'default') return filtered
+    const dir = sort.dir === 'asc' ? 1 : -1
+    const val = (m: ModelRow): number | string => {
+      switch (sort.key) {
+        case 'model': return m.model_name.toLowerCase()
+        case 'tier': return m.tier
+        case 'configs': return m.configs.length
+        case 'arch': return (m.spec?.architecture ?? '').toLowerCase()
+        case 'fp16': return m.spec?.fp16_tflops ?? -1
+        case 'status': return statusRank(m)
+        default: return 0
+      }
+    }
+    return [...filtered].sort((a, b) => {
+      const va = val(a), vb = val(b)
+      if (va < vb) return -1 * dir
+      if (va > vb) return 1 * dir
+      return a.model_name.localeCompare(b.model_name)
+    })
+  })()
+  const toggleSort = (key: string) => setSort((s) => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' })
+  const arrow = (key: string) => sort.key === key ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''
+
   return (
     <div>
       <div className="gpu-toolbar">
@@ -297,15 +329,24 @@ export default function SpecsTab() {
 
       <table className="table-base table-card">
         <thead>
-          <tr><th>GPU 모델</th><th>구성</th><th>VRAM · vCPU · RAM · SSD</th><th>아키텍처</th><th>FP16</th><th>상태</th></tr>
+          <tr>
+            <th onClick={() => toggleSort('model')} style={{ cursor: 'pointer', userSelect: 'none' }}>GPU 모델{arrow('model')}</th>
+            <th onClick={() => toggleSort('tier')} style={{ cursor: 'pointer', userSelect: 'none' }}>Tier{arrow('tier')}</th>
+            <th onClick={() => toggleSort('configs')} style={{ cursor: 'pointer', userSelect: 'none' }}>구성{arrow('configs')}</th>
+            <th>VRAM · vCPU · RAM · SSD</th>
+            <th onClick={() => toggleSort('arch')} style={{ cursor: 'pointer', userSelect: 'none' }}>아키텍처{arrow('arch')}</th>
+            <th onClick={() => toggleSort('fp16')} style={{ cursor: 'pointer', userSelect: 'none' }}>FP16{arrow('fp16')}</th>
+            <th onClick={() => toggleSort('status')} style={{ cursor: 'pointer', userSelect: 'none' }}>상태{arrow('status')}</th>
+          </tr>
         </thead>
         <tbody>
-          {filtered.map((m) => {
+          {sorted.map((m) => {
             const base = m.configs[0]
             const inst = base ? [base.memory ? `VRAM ${base.memory}` : null, base.vcpu ? `${base.vcpu} vCPU` : null, base.ram_gb ? `${base.ram_gb}GB RAM` : null, base.storage_gb ? `${base.storage_gb}GB SSD` : null].filter(Boolean).join(' · ') : '—'
             return (
             <tr key={m.model_name} onClick={() => setOpen(m)} style={{ cursor: 'pointer' }}>
-              <td className="card-header"><span style={{ fontWeight: 700 }}>{m.model_name}</span> <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>T{m.tier}</span></td>
+              <td className="card-header"><span style={{ fontWeight: 700 }}>{m.model_name}</span></td>
+              <td data-label="Tier"><span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>T{m.tier}</span></td>
               <td data-label="구성">{m.configs.length}개</td>
               <td data-label="표시 스펙" style={{ fontSize: 11.5 }}>{inst || '—'}</td>
               <td data-label="아키텍처">{fmt(m.spec?.architecture)}</td>
