@@ -8,7 +8,7 @@ export async function GET() {
     const db = supabase as any
     const { data: suppliers, error } = await db
       .from('suppliers')
-      .select('id, name, location, color, contact, country, website, description, created_at')
+      .select('id, name, location, color, contact, country, website, description, logo_url, created_at')
       .order('name')
 
     if (error) throw error

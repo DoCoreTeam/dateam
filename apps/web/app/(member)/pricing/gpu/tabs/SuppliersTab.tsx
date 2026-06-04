@@ -16,6 +16,7 @@ interface SupplierStats {
   country: string | null
   website: string | null
   description: string | null
+  logo_url: string | null
   active_quotes: number
   lowest_count: number
   last_received: string | null
@@ -28,7 +29,7 @@ interface ContactRow {
 interface SupplierDetail {
   supplier: {
     id: string; name: string; location: string | null; color: string; contact: string | null
-    country: string | null; website: string | null; description: string | null; account_id: string | null
+    country: string | null; website: string | null; description: string | null; logo_url: string | null; account_id: string | null
   }
   contacts: ContactRow[]
   quotes: QuoteRow[]
@@ -52,6 +53,20 @@ const STATUS_LABEL: Record<string, { t: string; c: string }> = {
   expired: { t: '만료', c: 'var(--gpu-red)' },
 }
 const fmtUSD = (v: number) => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+// 공급사 로고 — logo_url 있으면 이미지, 실패/없음 시 글자 아바타로 폴백
+function LogoAvatar({ name, color, logoUrl, size = 40 }: { name: string; color: string; logoUrl?: string | null; size?: number }) {
+  const [failed, setFailed] = useState(false)
+  if (logoUrl && !failed) {
+    return (
+      <div className="gpu-sup-logo" style={{ background: '#fff', border: '1px solid var(--gpu-border)', padding: 4, width: size, height: size, overflow: 'hidden' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={logoUrl} alt={name} width={size - 8} height={size - 8} style={{ objectFit: 'contain', width: '100%', height: '100%' }} onError={() => setFailed(true)} />
+      </div>
+    )
+  }
+  return <div className="gpu-sup-logo" style={{ background: color, width: size, height: size }}>{name.charAt(0)}</div>
+}
 
 function Field({ label, value, onChange, textarea }: { label: string; value: string; onChange: (v: string) => void; textarea?: boolean }) {
   return (
@@ -259,7 +274,8 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(720px, 100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
         {/* 헤더 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid var(--gpu-border)', position: 'sticky', top: 0, background: '#fff' }}>
-          <div className="gpu-sup-logo" style={{ background: f?.color || s?.color }}>{(s?.name ?? '?').charAt(0)}</div>
+          <LogoAvatar name={s?.name ?? '?'} color={f?.color || s?.color || COLORS[0]} logoUrl={s?.logo_url} />
+
           <strong style={{ fontSize: 16, flex: 1 }}>
             {s?.name ?? '로딩…'}
             {s?.country && <span style={{ marginLeft: 8, fontSize: 15, fontWeight: 400 }}>{countryFlag(s.country)} {s.country}</span>}
@@ -502,7 +518,7 @@ export default function SuppliersTab({ onGoToPriceTable }: { onGoToPriceTable?: 
         {filtered.map((s) => (
           <div key={s.id} className="gpu-sup-card" onClick={() => setOpenId(s.id)} style={{ cursor: 'pointer' }}>
             <div className="gpu-sup-head">
-              <div className="gpu-sup-logo" style={{ background: s.color }}>{s.name.charAt(0)}</div>
+              <LogoAvatar name={s.name} color={s.color} logoUrl={s.logo_url} />
               <div style={{ flex: 1 }}>
                 <div className="gpu-sup-nm">{s.name}</div>
                 <div className="gpu-sup-loc" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

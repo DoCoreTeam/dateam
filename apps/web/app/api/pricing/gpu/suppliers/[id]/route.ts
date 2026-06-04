@@ -18,7 +18,7 @@ export async function GET(
 
   const { data: supplier, error } = await db
     .from('suppliers')
-    .select('id, name, location, color, contact, country, website, description, account_id, created_at, updated_at')
+    .select('id, name, location, color, contact, country, website, description, logo_url, account_id, created_at, updated_at')
     .eq('id', id)
     .single()
   if (error || !supplier) return NextResponse.json({ error: '공급사를 찾을 수 없습니다' }, { status: 404 })

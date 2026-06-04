@@ -196,9 +196,13 @@ export default function SpecsTab() {
               <td data-label="FP16">{m.spec?.fp16_tflops ? `${m.spec.fp16_tflops} TF` : '—'}</td>
               <td data-label="TDP">{m.spec?.tdp_w ? `${m.spec.tdp_w}W` : '—'}</td>
               <td data-label="상태">
-                {m.has_spec
-                  ? <span style={{ fontSize: 11, fontWeight: 700, color: m.spec?.ai_generated ? 'var(--gpu-accent)' : 'var(--gpu-green)' }}>{m.spec?.ai_generated ? `AI ${m.spec.ai_confidence ?? ''}%` : '수정됨'}</span>
-                  : <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-amber)' }}>스펙 없음</span>}
+                {!m.has_spec
+                  ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-amber)' }}>스펙 없음</span>
+                  : m.spec?.ai_generated
+                    ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-accent)' }}>AI {m.spec.ai_confidence ?? ''}%</span>
+                    : m.spec?.architecture
+                      ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-green)' }}>수정됨</span>
+                      : <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-muted)' }}>기존값(VRAM)</span>}
               </td>
             </tr>
           ))}
