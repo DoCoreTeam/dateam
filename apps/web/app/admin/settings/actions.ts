@@ -71,11 +71,7 @@ export async function deleteGeminiKey(): Promise<{ ok: boolean; error?: string }
 }
 
 // ── DB 연결 설정 (PostgreSQL 연결 문자열) — Gemini 키와 동일 패턴 ──
-
-// 연결 문자열 마스킹: 비밀번호 가림 (postgresql://user:****@host...)
-export function maskDbUrl(url: string): string {
-  return url.replace(/(postgres(?:ql)?:\/\/[^:]+:)([^@]+)(@)/i, (_m, a, _pw, c) => `${a}••••••••${c}`)
-}
+// (마스킹은 클라이언트(DbSettings)·page.tsx에서 직접 수행 — 'use server' 파일은 async export만 허용)
 
 export async function saveDbUrl(formData: FormData): Promise<{ ok: boolean; error?: string }> {
   const dbUrl = (formData.get('dbUrl') as string)?.trim()
