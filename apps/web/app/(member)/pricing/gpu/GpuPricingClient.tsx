@@ -83,6 +83,48 @@ export default function GpuPricingClient({ initialSettings }: { initialSettings?
   const usdKrw = settings?.usd_krw
   const fxDate = settings?.fx_date
 
+  // ── 뷰 상태 영속 (URL 파라미터 + sessionStorage) ──
+  // 탭 이동·다른 메뉴 갔다 와도 마지막 보던 화면(탭/검색/펼친 가격)을 복원.
+  const viewRestored = useRef(false)
+  const VALID_TABS = ['board', 'market', 'inventory', 'catalog', 'review', 'suppliers', 'log']
+
+  // 최초 진입: URL(우선) → sessionStorage 순으로 탭 복원
+  useEffect(() => {
+    if (viewRestored.current) return
+    viewRestored.current = true
+    const p = new URLSearchParams(window.location.search)
+    let t = p.get('tab')
+    if (!t) { try { t = (JSON.parse(sessionStorage.getItem('gpu:view') || '{}').tab as string) || null } catch { t = null } }
+    if (t && VALID_TABS.includes(t)) setActiveTab(t as TabId)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 탭 변경 → URL·sessionStorage 반영 (navigation 없이 replaceState)
+  useEffect(() => {
+    if (!viewRestored.current) return
+    const p = new URLSearchParams(window.location.search)
+    p.set('tab', activeTab)
+    window.history.replaceState(null, '', `${window.location.pathname}?${p.toString()}`)
+    try { sessionStorage.setItem('gpu:view', JSON.stringify({ tab: activeTab, q: p.get('q') || '', expand: p.get('expand') || '' })) } catch { /* noop */ }
+  }, [activeTab])
+
+  // 가격표 탭 진입 시: URL의 검색·펼침을 재주입(복원)
+  useEffect(() => {
+    if (activeTab !== 'board') return
+    const p = new URLSearchParams(window.location.search)
+    const q = p.get('q'); const ex = p.get('expand')
+    if (q) setBoardSearch(q)
+    if (ex) setBoardFocusProductId(ex)
+  }, [activeTab])
+
+  // 가격표 내부 상태(검색·펼친 상품) 변경 → URL·sessionStorage 반영
+  const persistBoard = (patch: { q?: string; expand?: string | null }) => {
+    const p = new URLSearchParams(window.location.search)
+    if (patch.q !== undefined) { patch.q ? p.set('q', patch.q) : p.delete('q') }
+    if (patch.expand !== undefined) { patch.expand ? p.set('expand', patch.expand) : p.delete('expand') }
+    window.history.replaceState(null, '', `${window.location.pathname}?${p.toString()}`)
+    try { sessionStorage.setItem('gpu:view', JSON.stringify({ tab: activeTab, q: p.get('q') || '', expand: p.get('expand') || '' })) } catch { /* noop */ }
+  }
+
   const fxFetched = useRef(false)
   useEffect(() => {
     if (fxFetched.current) return
@@ -226,6 +268,8 @@ export default function GpuPricingClient({ initialSettings }: { initialSettings?
                 onProductFocusConsumed={() => setBoardFocusProductId(null)}
                 initialMargin={settings?.margin_pct ?? null}
                 initialUsdKrw={settings?.usd_krw ?? null}
+                onSearchChange={(q) => persistBoard({ q })}
+                onExpandChange={(id) => persistBoard({ expand: id })}
               />
             </div>
             <div className={`gpu-ai-sidebar${showAiPanel ? ' gpu-ai-sidebar--open' : ''}`}>

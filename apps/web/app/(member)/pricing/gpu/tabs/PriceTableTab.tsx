@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
@@ -297,9 +297,11 @@ interface PriceTableTabProps {
   onProductFocusConsumed?: () => void
   initialMargin?: number | null
   initialUsdKrw?: number | null
+  onSearchChange?: (q: string) => void
+  onExpandChange?: (id: string | null) => void
 }
 
-export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearch, onSearchConsumed, initialProductId, onProductFocusConsumed, initialMargin, initialUsdKrw }: PriceTableTabProps) {
+export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearch, onSearchConsumed, initialProductId, onProductFocusConsumed, initialMargin, initialUsdKrw, onSearchChange, onExpandChange }: PriceTableTabProps) {
   const { data, mutate: revalidate } = useSWR<ProductsResponse>('/api/pricing/gpu/products', fetcher, {
     refreshInterval: 60000,
   })
@@ -353,6 +355,18 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
       row?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     })
   }, [initialProductId, groupsInitialized]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 검색·펼친 상품 변경을 상위로 보고(뷰 상태 영속). 첫 마운트(빈값)는 건너뛰어 복원값을 덮어쓰지 않음.
+  const searchReported = useRef(false)
+  useEffect(() => {
+    if (!searchReported.current) { searchReported.current = true; if (!search) return }
+    onSearchChange?.(search)
+  }, [search]) // eslint-disable-line react-hooks/exhaustive-deps
+  const expandReported = useRef(false)
+  useEffect(() => {
+    if (!expandReported.current) { expandReported.current = true; if (!expandedId) return }
+    onExpandChange?.(expandedId)
+  }, [expandedId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 서버 프리페치(initialMargin/initialUsdKrw)를 폴백으로 → 하드코딩 18/1400 깜빡임 제거.
   // 설정값 부재 시에만 최후 안전망(18/1400) 사용.
