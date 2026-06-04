@@ -102,19 +102,31 @@ export async function POST(
     const db = supabase as any
     // memory를 먼저 정규화 — 매칭 + 생성 양쪽에서 동일하게 사용
     const memory = normalizeMemory(typeof merged.memory === 'string' ? merged.memory : null)
-    const tokens = modelName.split(/\s+/).filter((t: string) => t.length >= 2)
-    for (const token of tokens) {
-      // memory가 있으면 model_name+memory 조합으로 정확 매칭 → 동일 칩명 다른 용량 오매칭 방지
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let q = (db as any)
-        .from('gpu_products')
-        .select('id')
-        .ilike('model_name', `%${token}%`)
-        .eq('tier', tier)
-      if (memory) q = q.eq('memory', memory)
-      const { data: products } = await q.limit(1)
-      if (products?.[0]?.id) { productId = products[0].id; break }
+    // 모델 매칭 — generic 토큰(RTX 등) 단일 매칭 금지. 정규화 완전일치 우선 → 구별 토큰 전체 일치.
+    // (버그 교정: "RTX 6000 Ada"가 토큰 "RTX"로 "RTX A6000"에 오매칭되던 문제)
+    const GENERIC_TOK = new Set(['rtx', 'nvidia', 'gpu', 'geforce', 'quadro', 'tesla', 'sxm', 'pcie', 'ada', 'super', 'ti'])
+    const norm = (s: string) => s.toLowerCase().replace(/[\s\-_]+/g, '')
+    const distinctiveTokens = (s: string) => s.toLowerCase().replace(/[_\-]/g, ' ').split(/\s+/).filter((t) => t.length >= 2 && !GENERIC_TOK.has(t))
+    const targetNorm = norm(modelName)
+    const targetTokens = distinctiveTokens(modelName)
+    // 같은 memory 후보 전체를 받아 비교 (memory 없으면 tier로 좁힘)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let candQ = (db as any).from('gpu_products').select('id, model_name, tier')
+    if (memory) candQ = candQ.eq('memory', memory)
+    else candQ = candQ.eq('tier', tier)
+    const { data: cands } = await candQ.limit(300)
+    const candList = (cands ?? []) as Array<{ id: string; model_name: string; tier: number }>
+    // 1) 정규화 완전일치 (가장 안전)
+    let hit = candList.find((c) => norm(c.model_name) === targetNorm)
+    // 2) 입력의 구별 토큰을 후보가 "모두" 포함하고, 후보의 구별 토큰도 입력에 모두 포함(양방향) → 동등 모델만
+    if (!hit && targetTokens.length > 0) {
+      hit = candList.find((c) => {
+        const ct = distinctiveTokens(c.model_name)
+        if (ct.length === 0) return false
+        return targetTokens.every((t) => ct.includes(t)) && ct.every((t) => targetTokens.includes(t))
+      })
     }
+    if (hit?.id) productId = hit.id
 
     // 매칭 실패 → AI 추출 데이터로 신규 product 자동 생성
     if (!productId) {
