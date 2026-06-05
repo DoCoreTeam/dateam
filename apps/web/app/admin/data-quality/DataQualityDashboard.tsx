@@ -43,11 +43,35 @@ export default function DataQualityDashboard() {
     } finally { setLoadingItems(false) }
   }
 
+  // 기존 review/[id] 엔드포인트 재사용 (단일구현 정책 — 신규 merge/confirm API 만들지 않음)
+  const reviewAction = (id: string, action: 'reject' | 'confirm') =>
+    fetch(`/api/pricing/gpu/review/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, rejected_reason: action === 'reject' ? '데이터 품질 점검 — 반려' : undefined }) })
+
   const rejectItem = async (id: string) => {
     if (!confirm('이 항목을 반려할까요?')) return
-    const r = await fetch(`/api/pricing/gpu/review/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reject', rejected_reason: '데이터 품질 점검 — 반려' }) })
+    const r = await reviewAction(id, 'reject')
     if (r.ok) { setItems((p) => p.filter((it) => it.id !== id)); setMsg('반려 완료'); mutate() }
     else { const j = await r.json().catch(() => ({})); setMsg(j.error ?? '반려 실패') }
+  }
+
+  const confirmItem = async (id: string) => {
+    if (!confirm('이 항목을 확정할까요?')) return
+    const r = await reviewAction(id, 'confirm')
+    if (r.ok) { setItems((p) => p.filter((it) => it.id !== id)); setMsg('확정 완료'); mutate() }
+    else { const j = await r.json().catch(() => ({})); setMsg(j.error ?? '확정 실패') }
+  }
+
+  // 중복 정리: 그룹의 첫 건만 남기고 나머지 reject (기존 reject API 반복 — 단일구현)
+  const mergeDups = async (group: { product_hint: string; ids: string[] }) => {
+    const dupes = (group.ids ?? []).slice(1)
+    if (dupes.length === 0) return
+    if (!confirm(`"${group.product_hint}" 중복 ${dupes.length}건을 반려하고 1건만 남길까요?`)) return
+    const results = await Promise.all(dupes.map((id) => reviewAction(id, 'reject')))
+    const ok = results.filter((r) => r.ok).length
+    setMsg(`${ok}/${dupes.length}건 정리 완료`); mutate()
+    // 부분 실패 시 UI가 실제 DB 상태를 반영하도록 재조회(낙관적 제거 대신 — DC-REV M)
+    const r = await fetch(`/api/admin/data-quality/drilldown?metric=dup_suspects`)
+    setItems((await r.json()).items ?? [])
   }
 
   return (
@@ -74,7 +98,7 @@ export default function DataQualityDashboard() {
                 <strong style={{ fontSize: 14, color: '#0f172a' }}>
                   {drill === 'anomaly' ? '이상치 견적' : drill === 'low_confidence' ? '저신뢰 검토항목' : drill === 'pending' ? '검토 대기' : '중복 의심'} 상세
                 </strong>
-                <span style={{ fontSize: 12, color: '#64748b' }}>{items.length}건</span>
+                <span style={{ fontSize: 12, color: '#64748b' }}>{items.length >= 100 ? '100건+' : `${items.length}건`}</span>
                 {msg && <span style={{ marginLeft: 8, fontSize: 12, color: '#16a34a' }}>{msg}</span>}
                 <button onClick={() => setDrill(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 13 }}>닫기 ✕</button>
               </div>
@@ -90,12 +114,14 @@ export default function DataQualityDashboard() {
                       {(drill === 'low_confidence' || drill === 'pending') && <>
                         <span style={{ fontWeight: 600, flex: 1 }}>{it.product_hint || '(미상)'} <span style={{ color: '#94a3b8' }}>{it.supplier_hint || ''}</span></span>
                         {it.overall_confidence != null && <span style={{ color: it.overall_confidence < 60 ? '#d97706' : '#64748b' }}>신뢰도 {it.overall_confidence}</span>}
+                        <button onClick={() => confirmItem(it.id)} className="gpu-btn" style={{ fontSize: 11, padding: '3px 10px', color: '#16a34a', borderColor: '#bbf7d0' }}>확정</button>
                         <button onClick={() => rejectItem(it.id)} className="gpu-btn" style={{ fontSize: 11, padding: '3px 10px', color: '#dc2626', borderColor: '#fecaca' }}>반려</button>
                       </>}
                       {drill === 'dup_suspects' && <>
                         <span style={{ fontWeight: 600, flex: 1 }}>{it.product_hint}</span>
                         <span style={{ color: '#d97706' }}>{it.dup_count}건 중복</span>
                         <span style={{ color: '#94a3b8', fontSize: 11 }}>신뢰도 {it.overall_confidence ?? '—'}</span>
+                        <button onClick={() => mergeDups(it)} className="gpu-btn" style={{ fontSize: 11, padding: '3px 10px', color: 'var(--gpu-accent,#5b5ef0)', borderColor: '#c7d2fe' }}>1건만 남기기</button>
                       </>}
                     </div>
                   ))}
