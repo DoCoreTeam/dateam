@@ -35,6 +35,8 @@ export default function AiPromptsClient() {
 
 function PromptsTab() {
   const { data, mutate } = useSWR<{ prompts: Prompt[] }>('/api/admin/ai-prompts', fetcher)
+  const { data: schemaData } = useSWR<{ tables: string[] }>('/api/admin/ai-prompts?view=schema', fetcher)
+  const schemaTables = schemaData?.tables ?? []
   const [edit, setEdit] = useState<Prompt | null>(null)
   const [draft, setDraft] = useState('')
   const [msg, setMsg] = useState('')
@@ -100,10 +102,13 @@ function PromptsTab() {
             <h3 style={{ margin: '0 0 4px', fontSize: 15 }}>{edit.prompt_key} <span style={{ fontSize: 12, color: '#94a3b8' }}>{edit.version}</span></h3>
             <p style={{ fontSize: 11.5, color: '#94a3b8', margin: '0 0 10px' }}>편집·저장 시 변경 이력에 기록됩니다(왜·어떻게)</p>
             {/* AI에게 편집 지시 — 스키마 인지 상태로 현재 본문을 개선해 아래 편집창에 채움(저장은 사람이) */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
               <input value={instr} onChange={(e) => setInstr(e.target.value)} placeholder="AI에게 지시 (예: 약정·수량 추출을 강화하고 재고 resp_qty를 더 정확히)" disabled={aiBusy}
                 style={{ flex: 1, fontSize: 12, padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: 8 }} onKeyDown={(e) => { if (e.key === 'Enter') aiEdit() }} />
               <button onClick={aiEdit} disabled={aiBusy} className="gpu-btn" style={{ fontSize: 12, padding: '6px 14px', color: '#2563eb', borderColor: '#bfdbfe', fontWeight: 600, whiteSpace: 'nowrap' }}>{aiBusy ? '편집 중…' : '🤖 AI로 편집'}</button>
+            </div>
+            <div title={schemaTables.join(', ')} style={{ fontSize: 11, color: '#2563eb', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+              🗂 AI는 현재 DB 스키마 <strong>{schemaTables.length}개 테이블</strong>을 참고해 수정합니다 (마우스 올리면 목록)
             </div>
             <textarea value={draft} onChange={(e) => setDraft(e.target.value)} style={{ width: '100%', minHeight: 340, fontFamily: 'monospace', fontSize: 12, padding: 10, border: '1px solid #e5e7eb', borderRadius: 8 }} />
             <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
