@@ -127,18 +127,18 @@ export function shortHash(s: string): string {
   return h.toString(36).slice(0, 8)
 }
 
-// R2: 프롬프트 자가합성 — 미준비 입력에 맞는 추출 프롬프트를 AI가 생성 → ai_prompts에 draft(active=false) 저장.
-// active=false라 정상 플로우(active=true 필터)엔 영향 없음 → 사람 검수 후 승격. 동일 입력형태 재합성 방지(키=해시).
+// R2/축6: 프롬프트 자가합성 — 미준비 입력에 맞는 추출 프롬프트를 AI가 생성 → 거버넌스 경유 자동반영(D3).
+// eval 게이트(필수 필드 유지) 통과 시 즉시 active, 미통과 시 held. 모든 변경 감사·롤백 가능.
 export async function synthesizeExtractPrompt(
   adminClient: ReturnType<typeof createAdminClient>,
   apiKey: string, model: string, sampleInput: string, schemaDigest: string,
-): Promise<{ content: string; promptKey: string } | null> {
+): Promise<{ content: string; promptKey: string; activated: boolean } | null> {
   try {
     const meta = `당신은 데이터 추출 프롬프트를 설계하는 메타 AI입니다.
 아래 [입력 샘플]은 기존 추출 프롬프트로는 GPU 가격 정보를 뽑지 못한 변칙 형식입니다.
-[DB 스키마]에 정확히 맞춰 이 형식에서 모델명·메모리·단가(USD/GPU·시간)·약정·수량을 뽑아낼
-새로운 추출 프롬프트(한국어)를 작성하세요. 출력은 {"items":[{"extracted":{...}}]} JSON 형식을 요구해야 합니다.
-프롬프트 본문만 반환(설명·코드펜스 없이).
+[DB 스키마]에 정확히 맞춰 새로운 추출 프롬프트(한국어)를 작성하세요.
+반드시 다음 JSON 필드명을 그대로 사용해 추출하도록 지시할 것: model_name, memory, unit_price_usd, supplier, term, 그리고 재고는 quantity 객체 안에 resp_qty.
+출력은 {"items":[{"extracted":{...}}]} JSON 형식을 요구해야 합니다. 프롬프트 본문만 반환(설명·코드펜스 없이).
 
 [DB 스키마]${schemaDigest}
 
@@ -147,16 +147,13 @@ ${sampleInput.slice(0, 4000)}`
     const content = (await callGeminiOnce(apiKey, model, meta, false)).trim()
     if (!content || content.length < 40) return null
     const promptKey = `gpu.auto-synth.${shortHash(sampleInput.slice(0, 200))}`
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = adminClient as any
-    // 이미 같은 키 draft 있으면 갱신(중복 방지)
-    const { data: existing } = await db.from('ai_prompts').select('id').eq('prompt_key', promptKey).maybeSingle?.() ?? { data: null }
-    if (existing?.id) {
-      await db.from('ai_prompts').update({ content, version: 'draft' }).eq('id', existing.id)
-    } else {
-      await db.from('ai_prompts').insert({ prompt_key: promptKey, version: 'draft', active: false, content })
-    }
-    return { content, promptKey }
+    const { autoActivatePrompt } = await import('./prompt-governance')
+    const r = await autoActivatePrompt(adminClient as unknown as Record<string, unknown>, {
+      promptKey, newContent: content,
+      reason: '미준비 입력 형식 — 추출 0건으로 자가합성',
+      trigger: 'empty_extraction', modelHint: model, nowIso: new Date().toISOString(),
+    })
+    return { content, promptKey, activated: r.activated }
   } catch {
     return null
   }
