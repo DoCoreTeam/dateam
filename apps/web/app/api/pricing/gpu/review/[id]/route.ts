@@ -277,5 +277,11 @@ export async function POST(
   // L4 — 견적 확정 시 4개 메뉴 캐시 원자 무효화
   revalidateGpu()
 
-  return NextResponse.json({ ok: true })
+  // M5(DC-REV): 재고 연계 결과를 응답에 노출 — 부분커밋(가격 확정·재고 실패)을 사용자가 인지하도록.
+  const avail = routeOutcomes.find((o) => o.target === 'availability_responses')
+  const stock = avail?.status === 'written' ? { ok: true, msg: '재고도 반영됨' }
+    : avail?.status === 'error' ? { ok: false, msg: `재고 반영 실패: ${avail.reason ?? '오류'} (가격은 저장됨)` }
+    : { ok: true, msg: '재고 정보 없음(가격만 저장)' }
+
+  return NextResponse.json({ ok: true, stock })
 }

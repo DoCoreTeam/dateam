@@ -315,10 +315,14 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
+      const j = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const j = await res.json()
         alert(j.error ?? '확정 실패')
         return
+      }
+      // M5: 재고 연계 결과 — 부분커밋(가격 확정·재고 실패) 시 사용자에게 알림
+      if (j.stock && j.stock.ok === false) {
+        alert(`확정됨. 다만 ${j.stock.msg}`)
       }
       onDone()
     } finally {
