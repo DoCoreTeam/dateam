@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { logTokenUsage } from '@/lib/token-logger'
+import { loadSchemaDigest } from '@/lib/gpu/extract-helpers'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -53,6 +54,7 @@ export async function POST(
     memo: memo || null,
   }
 
+  const schema = await loadSchemaDigest(adminClient)
   const prompt = `당신은 GPU 공급 견적 정규화 전문가입니다. 아래 견적의 "원본 입력값"을 재분석하여 정확한 구조를 추출하세요.
 
 ## 단위 표준 (반드시 준수)
@@ -72,7 +74,10 @@ ${JSON.stringify(source, null, 2)}
   "per_gpu_usd": <1장당 = unit_price_usd / gpu_count>,
   "reason": "<재분석 근거 한국어 1-2문장>",
   "confidence": <0-100>
-}`
+}
+
+## DB 스키마 (정합 유지 — 실제 테이블·컬럼·enum 범위 내로)
+${schema}`
 
   let res: Response
   try {

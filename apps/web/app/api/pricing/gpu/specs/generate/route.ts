@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { logTokenUsage } from '@/lib/token-logger'
+import { loadSchemaDigest } from '@/lib/gpu/extract-helpers'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
   if (!apiKey) return NextResponse.json({ error: 'AI 키가 설정되지 않았습니다' }, { status: 500 })
 
   const list = targets.slice(0, 60) // 안전 상한
+  const schema = await loadSchemaDigest(adminClient)  // gpu_specs 등 대상 스키마 인지(1회 로드)
 
   // 한 모델 데이터시트 생성·저장
   const genOne = async (modelName: string): Promise<{ ok: boolean; error?: string; confidence?: number | null }> => {
@@ -67,7 +69,10 @@ ${modelName}
   "mig_support": <true|false|null>,
   "release_year": <정수 또는 null>,
   "confidence": <0-100, 데이터시트 확신도>
-}`
+}
+
+## DB 스키마 (저장 대상 gpu_specs 등 — 컬럼·타입 정합 유지)
+${schema}`
     let res: Response
     try {
       res = await fetch(`${GEMINI_API_BASE}/models/${model}:generateContent`, {

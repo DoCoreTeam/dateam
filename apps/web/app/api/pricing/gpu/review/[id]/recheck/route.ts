@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
+import { loadSchemaDigest } from '@/lib/gpu/extract-helpers'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -57,8 +58,12 @@ export async function POST(
   if (!promptRow) return NextResponse.json({ error: '프롬프트 없음' }, { status: 500 })
 
   const nextIteration = item.current_iteration + 1
+  const schema = await loadSchemaDigest(adminClient)
 
   const recheckPrompt = `${promptRow.content}
+
+## DB 스키마 (정합 유지 — 실제 테이블·컬럼·enum)
+${schema}
 
 ## 이전 추출 결과 (${item.current_iteration}차)
 ${JSON.stringify(item.current_extracted, null, 2)}
