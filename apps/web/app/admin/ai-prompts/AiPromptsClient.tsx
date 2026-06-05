@@ -93,7 +93,7 @@ function PromptsTab() {
                 <td data-label="버전">{p.version}</td>
                 <td data-label="출처"><span style={{ color: p.source === 'ai' ? '#2563eb' : '#64748b', fontWeight: p.source === 'ai' ? 700 : 400 }}>{p.source === 'ai' ? '🤖 AI' : '👤 사람'}</span></td>
                 <td data-label="활성"><button onClick={() => toggle(p)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: p.active ? '#16a34a' : '#94a3b8', borderColor: p.active ? '#bbf7d0' : '#e5e7eb' }}>{p.active ? '활성' : '비활성'}</button></td>
-                <td data-label="수정" className="card-hide" style={{ fontSize: 11, color: '#94a3b8' }}>{p.updated_at?.slice(0, 10)}</td>
+                <td data-label="수정" className="card-hide" style={{ fontSize: 11, color: '#94a3b8' }}>{p.updated_at?.slice(0, 16).replace('T', ' ')}{p.updated_by ? ` · ${p.updated_by}` : ''}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   <button onClick={() => toggleOpen(p.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', marginRight: 4 }}>{open.has(p.id) ? '내용 닫기' : `내용 (${p.content?.length ?? 0}자)`}</button>
                   <button onClick={() => { setEdit(p); setDraft(p.content); setInstr(''); setMsg('') }} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px' }}>편집</button>
