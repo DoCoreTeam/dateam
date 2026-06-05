@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import useSWR from 'swr'
 
 interface Metrics {
@@ -8,14 +9,15 @@ interface Metrics {
   validation_blocked: number
   dup_suspects: number
 }
+type MetricKey = 'anomaly' | 'low_confidence' | 'pending' | 'dup_suspects'
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
-function Card({ label, value, sub, tone }: { label: string; value: string | number; sub?: string; tone?: 'ok' | 'warn' | 'bad' }) {
+function Card({ label, value, sub, tone, onClick, active }: { label: string; value: string | number; sub?: string; tone?: 'ok' | 'warn' | 'bad'; onClick?: () => void; active?: boolean }) {
   const color = tone === 'bad' ? '#dc2626' : tone === 'warn' ? '#d97706' : tone === 'ok' ? '#16a34a' : '#0f172a'
   return (
-    <div style={{ padding: '16px 18px', borderRadius: 12, background: '#fff', border: '1px solid #e5e7eb', minWidth: 0 }}>
-      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>{label}</div>
+    <div onClick={onClick} style={{ padding: '16px 18px', borderRadius: 12, background: '#fff', border: `1px solid ${active ? 'var(--gpu-accent,#5b5ef0)' : '#e5e7eb'}`, minWidth: 0, cursor: onClick ? 'pointer' : 'default', boxShadow: active ? '0 0 0 2px rgba(91,94,240,.15)' : 'none' }}>
+      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>{label}{onClick && <span style={{ marginLeft: 'auto', fontSize: 10, color: '#cbd5e1' }}>클릭</span>}</div>
       <div style={{ fontSize: 26, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
       {sub && <div style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 6 }}>{sub}</div>}
     </div>
@@ -23,37 +25,97 @@ function Card({ label, value, sub, tone }: { label: string; value: string | numb
 }
 
 export default function DataQualityDashboard() {
-  const { data, isLoading } = useSWR<{ metrics: Metrics }>('/api/admin/data-quality', fetcher, { refreshInterval: 30000 })
+  const { data, isLoading, mutate } = useSWR<{ metrics: Metrics }>('/api/admin/data-quality', fetcher, { refreshInterval: 30000 })
   const m = data?.metrics
+  const [drill, setDrill] = useState<MetricKey | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [items, setItems] = useState<any[]>([])
+  const [loadingItems, setLoadingItems] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  const openDrill = async (metric: MetricKey) => {
+    if (drill === metric) { setDrill(null); return }
+    setDrill(metric); setLoadingItems(true); setItems([]); setMsg('')
+    try {
+      const r = await fetch(`/api/admin/data-quality/drilldown?metric=${metric}`)
+      const j = await r.json()
+      setItems(j.items ?? [])
+    } finally { setLoadingItems(false) }
+  }
+
+  const rejectItem = async (id: string) => {
+    if (!confirm('이 항목을 반려할까요?')) return
+    const r = await fetch(`/api/pricing/gpu/review/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reject', rejected_reason: '데이터 품질 점검 — 반려' }) })
+    if (r.ok) { setItems((p) => p.filter((it) => it.id !== id)); setMsg('반려 완료'); mutate() }
+    else { const j = await r.json().catch(() => ({})); setMsg(j.error ?? '반려 실패') }
+  }
 
   return (
     <div className="page-inner" style={{ height: '100%', overflowY: 'auto' }}>
       <div style={{ marginBottom: 4, fontSize: 12, color: '#64748b' }}>관리자 · 데이터 품질</div>
       <h2 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: '0 0 4px' }}>데이터 품질 · 신뢰도</h2>
-      <p style={{ fontSize: 12.5, color: '#64748b', margin: '0 0 18px' }}>AI 추출 파이프라인의 정합성·신뢰도 지표 (30초 자동 갱신)</p>
+      <p style={{ fontSize: 12.5, color: '#64748b', margin: '0 0 18px' }}>지표 카드를 클릭하면 상세 항목과 조치가 나타납니다 (30초 자동 갱신)</p>
 
       {isLoading || !m ? (
         <div style={{ color: '#94a3b8', fontSize: 13, padding: 40, textAlign: 'center' }}>불러오는 중…</div>
       ) : (
         <>
-          {/* 핵심 위험 지표 */}
-          <div className="responsive-grid-cols-4" style={{ marginBottom: 20 }}>
-            <Card label="검증 게이트 차단(누계)" value={m.validation_blocked} sub="enum·범위·이상치 위반으로 저장 차단" tone={m.validation_blocked > 0 ? 'warn' : 'ok'} />
-            <Card label="이상치(가격 밴드 밖)" value={m.anomaly_count} sub="확정 견적 중 tier 상식범위 벗어남" tone={m.anomaly_count > 0 ? 'bad' : 'ok'} />
-            <Card label="저신뢰 검토항목" value={m.review_items.low_confidence} sub="신뢰도 60 미만" tone={m.review_items.low_confidence > 0 ? 'warn' : 'ok'} />
-            <Card label="중복 의심(검토대기)" value={m.dup_suspects} sub="동일 모델·신뢰도 중복" tone={m.dup_suspects > 0 ? 'warn' : 'ok'} />
+          <div className="responsive-grid-cols-4" style={{ marginBottom: 16 }}>
+            <Card label="검증 게이트 차단(누계)" value={m.validation_blocked} sub="enum·범위·이상치 위반 차단" tone={m.validation_blocked > 0 ? 'warn' : 'ok'} />
+            <Card label="이상치(가격 밴드 밖)" value={m.anomaly_count} sub="확정 견적 상식범위 밖" tone={m.anomaly_count > 0 ? 'bad' : 'ok'} onClick={() => openDrill('anomaly')} active={drill === 'anomaly'} />
+            <Card label="저신뢰 검토항목" value={m.review_items.low_confidence} sub="신뢰도 60 미만" tone={m.review_items.low_confidence > 0 ? 'warn' : 'ok'} onClick={() => openDrill('low_confidence')} active={drill === 'low_confidence'} />
+            <Card label="중복 의심(검토대기)" value={m.dup_suspects} sub="동일 모델·신뢰도" tone={m.dup_suspects > 0 ? 'warn' : 'ok'} onClick={() => openDrill('dup_suspects')} active={drill === 'dup_suspects'} />
           </div>
 
-          {/* 검토 항목 상태 */}
+          {/* 드릴다운 패널 */}
+          {drill && (
+            <div style={{ marginBottom: 22, padding: '14px 16px', borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0' }} data-testid="drilldown-panel">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <strong style={{ fontSize: 14, color: '#0f172a' }}>
+                  {drill === 'anomaly' ? '이상치 견적' : drill === 'low_confidence' ? '저신뢰 검토항목' : drill === 'pending' ? '검토 대기' : '중복 의심'} 상세
+                </strong>
+                <span style={{ fontSize: 12, color: '#64748b' }}>{items.length}건</span>
+                {msg && <span style={{ marginLeft: 8, fontSize: 12, color: '#16a34a' }}>{msg}</span>}
+                <button onClick={() => setDrill(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 13 }}>닫기 ✕</button>
+              </div>
+              {loadingItems ? <div style={{ fontSize: 12.5, color: '#94a3b8' }}>불러오는 중…</div> : items.length === 0 ? <div style={{ fontSize: 12.5, color: '#94a3b8' }}>해당 항목 없음 ✓</div> : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto' }}>
+                  {items.map((it, i) => (
+                    <div key={it.id ?? i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px', borderRadius: 8, background: '#fff', border: '1px solid #eef2f7', fontSize: 12.5 }}>
+                      {drill === 'anomaly' && <>
+                        <span style={{ fontWeight: 600, flex: 1 }}>{it.model_name} <span style={{ color: '#94a3b8' }}>T{it.tier}</span></span>
+                        <span style={{ fontWeight: 700, color: '#dc2626' }}>${it.unit_price_usd}/hr</span>
+                        <span style={{ color: '#94a3b8', fontSize: 11 }}>{it.reason}</span>
+                      </>}
+                      {(drill === 'low_confidence' || drill === 'pending') && <>
+                        <span style={{ fontWeight: 600, flex: 1 }}>{it.product_hint || '(미상)'} <span style={{ color: '#94a3b8' }}>{it.supplier_hint || ''}</span></span>
+                        {it.overall_confidence != null && <span style={{ color: it.overall_confidence < 60 ? '#d97706' : '#64748b' }}>신뢰도 {it.overall_confidence}</span>}
+                        <button onClick={() => rejectItem(it.id)} className="gpu-btn" style={{ fontSize: 11, padding: '3px 10px', color: '#dc2626', borderColor: '#fecaca' }}>반려</button>
+                      </>}
+                      {drill === 'dup_suspects' && <>
+                        <span style={{ fontWeight: 600, flex: 1 }}>{it.product_hint}</span>
+                        <span style={{ color: '#d97706' }}>{it.dup_count}건 중복</span>
+                        <span style={{ color: '#94a3b8', fontSize: 11 }}>신뢰도 {it.overall_confidence ?? '—'}</span>
+                      </>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ marginTop: 10, fontSize: 11.5 }}>
+                <a href="/pricing/gpu?tab=review" style={{ color: 'var(--gpu-accent,#5b5ef0)' }}>→ 검토 대기 탭에서 전체 관리</a>
+                {drill === 'anomaly' && <a href="/pricing/gpu?tab=board" style={{ color: 'var(--gpu-accent,#5b5ef0)', marginLeft: 16 }}>→ 가격표에서 확인</a>}
+              </div>
+            </div>
+          )}
+
           <h3 style={{ fontSize: 14, fontWeight: 700, color: '#334155', margin: '8px 0 10px' }}>검토 항목 (review_items)</h3>
           <div className="responsive-grid-cols-4" style={{ marginBottom: 20 }}>
             <Card label="전체" value={m.review_items.total} />
-            <Card label="검토 대기" value={m.review_items.pending} tone={m.review_items.pending > 0 ? 'warn' : 'ok'} sub="확인 필요 적체" />
+            <Card label="검토 대기" value={m.review_items.pending} tone={m.review_items.pending > 0 ? 'warn' : 'ok'} sub="클릭→상세" onClick={() => openDrill('pending')} active={drill === 'pending'} />
             <Card label="확정" value={m.review_items.confirmed} tone="ok" />
             <Card label="반려" value={m.review_items.rejected} />
           </div>
 
-          {/* 공급 견적 신뢰도 */}
           <h3 style={{ fontSize: 14, fontWeight: 700, color: '#334155', margin: '8px 0 10px' }}>공급 견적 신뢰도 (supply_quotes)</h3>
           <div className="responsive-grid-cols-4" style={{ marginBottom: 20 }}>
             <Card label="평균 신뢰도" value={m.supply_quotes.avg_confidence != null ? `${m.supply_quotes.avg_confidence}%` : '—'} tone={(m.supply_quotes.avg_confidence ?? 0) >= 80 ? 'ok' : 'warn'} />

@@ -30,13 +30,13 @@ BEGIN
     'low', count(*) FILTER (WHERE ai_confidence IS NOT NULL AND ai_confidence < 60)
   ) INTO sq FROM supply_quotes;
 
-  -- 이상치(H4): 확정 견적 단가가 tier 상식밴드 밖 (1:0.3~80 / 2:0.1~20 / 3:0.05~10)
+  -- 이상치(H4): 확정 견적 단가가 tier 상식밴드 밖 (1:0.08~150 / 2:0.03~40 / 3:0.02~20 — 허위경보 방지로 하한 현실화)
   SELECT count(*) INTO anomaly
   FROM supply_quotes s JOIN gpu_products g ON g.id = s.product_id
   WHERE s.status='confirmed' AND s.unit_price_usd IS NOT NULL AND (
-    (g.tier=1 AND (s.unit_price_usd < 0.3 OR s.unit_price_usd > 80)) OR
-    (g.tier=2 AND (s.unit_price_usd < 0.1 OR s.unit_price_usd > 20)) OR
-    (g.tier=3 AND (s.unit_price_usd < 0.05 OR s.unit_price_usd > 10))
+    (g.tier=1 AND (s.unit_price_usd < 0.08 OR s.unit_price_usd > 150)) OR
+    (g.tier=2 AND (s.unit_price_usd < 0.03 OR s.unit_price_usd > 40)) OR
+    (g.tier=3 AND (s.unit_price_usd < 0.02 OR s.unit_price_usd > 20))
   );
 
   -- 검증 게이트 차단 누계(최근 audit detail.blocked 합)

@@ -13,8 +13,10 @@ export const ENUMS = {
 
 // 신뢰도 게이팅(H2) 임계값
 export const CONFIDENCE = { AUTO: 90, REVIEW: 60 } as const  // ≥90 자동후보 / 60~89 검토권장 / <60 저신뢰
-// 이상탐지(H4) 가격 밴드 (USD/GPU·hr) — tier별 상식 범위. 밖이면 anomaly 경고(차단 아님, 플래그)
-const PRICE_BAND: Record<number, [number, number]> = { 1: [0.3, 80], 2: [0.1, 20], 3: [0.05, 10] }
+// 이상탐지(H4) 가격 밴드 (USD/GPU·hr) — tier별 상식 범위. 밖이면 anomaly 경고(차단 아님, 플래그).
+// 한 tier 안에 저가 카드(T4·RTX-A 등)와 고가 카드가 공존하므로 하한은 넉넉히 — 명백한 이상만 잡고 허위경보 방지.
+// 060 DB 함수의 밴드와 동일 유지(SSOT 정합).
+const PRICE_BAND: Record<number, [number, number]> = { 1: [0.08, 150], 2: [0.03, 40], 3: [0.02, 20] }
 const PRICE_HARD = { min: 0, max: 1000 }   // 이 밖은 불가능 → 차단
 
 export type Severity = 'block' | 'warn'
