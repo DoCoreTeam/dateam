@@ -209,7 +209,7 @@ function SchemaTab() {
   const { data } = useSWR<{ digest: string; tables: string[] }>('/api/admin/ai-prompts?view=schema', fetcher)
   return (
     <>
-      <p style={{ fontSize: 12.5, color: '#64748b', margin: '0 0 10px' }}>AI가 추출 시 인지하는 테이블 {data?.tables?.length ?? 0}개 (코멘트 <code>ai:intake</code> 태그 자동스캔, 민감테이블 제외)</p>
+      <p style={{ fontSize: 12.5, color: '#64748b', margin: '0 0 10px' }}>AI가 추출 시 인지하는 테이블 {data?.tables?.length ?? 0}개 (public 전체 테이블 자동 포함 — 구조만, 행 데이터는 미포함)</p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
         {(data?.tables ?? []).map((t) => <span key={t} style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 999, background: '#eef2ff', color: '#4338ca', fontWeight: 600 }}>{t}</span>)}
       </div>
