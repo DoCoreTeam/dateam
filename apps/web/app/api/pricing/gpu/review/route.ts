@@ -5,6 +5,7 @@ import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import type { CompetitorPriceItem } from '@/lib/gpu/competitor-import'
 import { SCHEMA_CONTRACT } from '@/lib/gpu/schema-contract'
 import { dedupSupplier, dedupCompetitor, type CompetitorLike } from '@/lib/gpu/dedup'
+import { partitionValid, validateSupplierItem } from '@/lib/gpu/validate'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -419,8 +420,9 @@ export async function POST(req: NextRequest) {
     const name = item.extracted?.model_name
     return typeof name === 'string' && name.trim().length > 0
   }
-  // 공용 dedup(lib/gpu/dedup) — stream 경로와 동일 구현 재사용(정책: 유관 시스템 동일 처리)
-  const itemsList = dedupSupplier(rawItemsList.filter(isMeaningful))
+  // 검증 게이트(H1) + 공용 dedup — stream 경로와 동일 구현 재사용(정책: 유관 시스템 동일 처리)
+  const { passed: validItems } = partitionValid(rawItemsList.filter(isMeaningful), validateSupplierItem)
+  const itemsList = dedupSupplier(validItems)
   if (itemsList.length === 0) {
     const hadUrl = urls.length > 0
     return NextResponse.json({
