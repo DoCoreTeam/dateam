@@ -13,6 +13,9 @@ const TRIGGER_LABEL: Record<string, string> = {
   gate_blocked: '검증 게이트 다수 차단', live_degraded: '활성 후 품질 급락', manual: '관리자 수동',
 }
 
+// 버전 표시 통일 — 앞의 v/V 접두 제거
+const fmtVer = (v: string) => (v ?? '').replace(/^v/i, '')
+
 // 간단 라인 diff — 이전에만 있던 줄(삭제)·현재에만 있는 줄(추가) 표시
 function lineDiff(before: string, after: string) {
   const b = before.split('\n'), a = after.split('\n')
@@ -90,7 +93,7 @@ function PromptsTab() {
             <Fragment key={p.id}>
               <tr>
                 <td className="card-header"><span style={{ fontWeight: 600 }}>{p.prompt_key}</span></td>
-                <td data-label="버전">{p.version}</td>
+                <td data-label="버전">{fmtVer(p.version)}</td>
                 <td data-label="출처"><span style={{ color: p.source === 'ai' ? '#2563eb' : '#64748b', fontWeight: p.source === 'ai' ? 700 : 400 }}>{p.source === 'ai' ? '🤖 AI' : '👤 사람'}</span></td>
                 <td data-label="활성"><button onClick={() => toggle(p)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: p.active ? '#16a34a' : '#94a3b8', borderColor: p.active ? '#bbf7d0' : '#e5e7eb' }}>{p.active ? '활성' : '비활성'}</button></td>
                 <td data-label="수정" className="card-hide" style={{ fontSize: 11, color: '#94a3b8' }}>{p.updated_at?.slice(0, 16).replace('T', ' ')}{p.updated_by ? ` · ${p.updated_by}` : ''}</td>
@@ -113,7 +116,7 @@ function PromptsTab() {
       {edit && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 20 }} onClick={() => setEdit(null)}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: 20, width: 'min(760px, 96vw)', maxHeight: '88vh', overflowY: 'auto' }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 15 }}>{edit.prompt_key} <span style={{ fontSize: 12, color: '#94a3b8' }}>{edit.version}</span></h3>
+            <h3 style={{ margin: '0 0 4px', fontSize: 15 }}>{edit.prompt_key} <span style={{ fontSize: 12, color: '#94a3b8' }}>{fmtVer(edit.version)}</span></h3>
             <p style={{ fontSize: 11.5, color: '#94a3b8', margin: '0 0 10px' }}>편집·저장 시 변경 이력에 기록됩니다(왜·어떻게)</p>
             {/* AI에게 편집 지시 — 스키마 인지 상태로 현재 본문을 개선해 아래 편집창에 채움(저장은 사람이) */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
