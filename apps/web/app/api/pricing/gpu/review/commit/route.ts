@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
+import { dedupSupplier } from '@/lib/gpu/dedup'
 
 // 공급가 미리보기 → 검토 대기 저장(버튼 클릭 시). stream 엔드포인트가 추출한 items를 받아 review_items INSERT.
 // 분리 이유: 추출(미리보기)과 저장(사용자 확인)을 명확히 나눔 — 경쟁사 market/import와 동일 패턴.
@@ -26,10 +27,11 @@ export async function POST(req: NextRequest) {
   const isTest = body.is_test === true
   const adminClient = createAdminClient()
 
-  const valid = items.filter((it) => {
+  // 공용 dedup(lib/gpu/dedup) — 저장 직전 중복 제거(방어적). 추출 단계와 동일 키 사용 = 단일 구현 재사용.
+  const valid = dedupSupplier(items.filter((it) => {
     const n = it?.extracted?.model_name
     return typeof n === 'string' && n.trim().length > 0
-  })
+  }))
   if (valid.length === 0) return NextResponse.json({ error: '저장할 항목이 없습니다' }, { status: 422 })
 
   const batchId = crypto.randomUUID()

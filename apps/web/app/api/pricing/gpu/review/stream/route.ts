@@ -5,6 +5,7 @@ import {
   getGeminiConfig, getExtractPrompt, getClassifyPrompt, extractUrls, fetchUrlText,
   loadSpecContext, callGeminiStream, loadSchemaDigest, synthesizeExtractPrompt,
 } from '@/lib/gpu/extract-helpers'
+import { dedupSupplier, dedupCompetitor, type CompetitorLike } from '@/lib/gpu/dedup'
 
 // 통합입력 실시간 스트리밍 분석 — SSE.
 // 추출 결과는 "미리보기"만 반환(저장 X). 사용자가 버튼을 눌러야 저장(경쟁사: market/import, 공급가: review POST).
@@ -82,11 +83,12 @@ export async function POST(req: NextRequest) {
         // R3: 혼합 입력 — 경쟁사 가격을 먼저 내보내고, supplier_present면 공급가 추출까지 이어감(데이터 손실 방지)
         let competitorEmitted = false
         if (classified.type === 'competitor' && Array.isArray(classified.items) && classified.items.length > 0) {
-          send('progress', { step: 'classified', msg: `경쟁사 가격 ${classified.items.length}건 추출` })
-          send('preview', { type: 'competitor', items: classified.items, source_url: sourceUrl })
+          const compItems = dedupCompetitor(classified.items as CompetitorLike[])
+          send('progress', { step: 'classified', msg: `경쟁사 가격 ${compItems.length}건 추출${compItems.length < classified.items.length ? ` (중복 ${classified.items.length - compItems.length}건 제거)` : ''}` })
+          send('preview', { type: 'competitor', items: compItems, source_url: sourceUrl })
           competitorEmitted = true
           if (!classified.supplier_present) {
-            send('done', { type: 'competitor', count: classified.items.length })
+            send('done', { type: 'competitor', count: compItems.length })
             controller.close(); return
           }
           send('progress', { step: 'mixed', msg: '입력에 우리 공급 견적도 포함 — 공급가도 이어서 추출합니다.' })
@@ -112,10 +114,10 @@ export async function POST(req: NextRequest) {
         let parsed: { items?: Array<{ extracted?: Record<string, unknown> }>; extracted?: Record<string, unknown> } = {}
         try { parsed = JSON.parse(extractText) } catch { send('error', { msg: 'AI 응답 파싱 실패' }); controller.close(); return }
 
-        const meaningful = (arr: Array<{ extracted?: Record<string, unknown> }>) => arr.filter((it) => {
+        const meaningful = (arr: Array<{ extracted?: Record<string, unknown> }>) => dedupSupplier(arr.filter((it) => {
           const n = it?.extracted?.model_name
           return typeof n === 'string' && n.trim().length > 0
-        }).slice(0, 50)
+        })).slice(0, 50)
         let items = meaningful(Array.isArray(parsed.items) ? parsed.items : (parsed.extracted ? [{ extracted: parsed.extracted }] : []))
 
         // R2: 미준비 입력 → 프롬프트 자가합성 후 1회 재시도 (URL 없을 때만 — URL빈손은 안내가 맞음)

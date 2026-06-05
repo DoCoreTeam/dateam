@@ -4,6 +4,7 @@ import { logTokenUsage } from '@/lib/token-logger'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import type { CompetitorPriceItem } from '@/lib/gpu/competitor-import'
 import { SCHEMA_CONTRACT } from '@/lib/gpu/schema-contract'
+import { dedupSupplier, dedupCompetitor, type CompetitorLike } from '@/lib/gpu/dedup'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -344,7 +345,8 @@ export async function POST(req: NextRequest) {
 
         if (classified.type === 'competitor' && Array.isArray(classified.items) && classified.items.length > 0) {
           // ── 경쟁사 가격: 자동 저장하지 않고 "미리보기"만 반환 → 사용자가 '반영' 눌러야 저장
-          return NextResponse.json({ type: 'competitor', preview: classified.items, count: classified.items.length, source_url: sourceUrl })
+          const preview = dedupCompetitor(classified.items as CompetitorLike[])
+          return NextResponse.json({ type: 'competitor', preview, count: preview.length, source_url: sourceUrl })
         }
       } catch {
         // 분류 실패 → supplier 플로우로 폴백
@@ -417,7 +419,8 @@ export async function POST(req: NextRequest) {
     const name = item.extracted?.model_name
     return typeof name === 'string' && name.trim().length > 0
   }
-  const itemsList = rawItemsList.filter(isMeaningful)
+  // 공용 dedup(lib/gpu/dedup) — stream 경로와 동일 구현 재사용(정책: 유관 시스템 동일 처리)
+  const itemsList = dedupSupplier(rawItemsList.filter(isMeaningful))
   if (itemsList.length === 0) {
     const hadUrl = urls.length > 0
     return NextResponse.json({
