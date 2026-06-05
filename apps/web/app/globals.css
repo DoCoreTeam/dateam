@@ -923,6 +923,47 @@
   border-color: #6366f1;
   background: #f0f0ff;
 }
+/* 통합 입력 영역(텍스트+드롭+첨부+음성) */
+.intake-unified {
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.intake-unified:focus-within {
+  border-color: #6366f1;
+}
+.intake-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8125rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  color: #64748b;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+.intake-tool-btn:hover:not(:disabled) {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #4338ca;
+}
+.intake-tool-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+@media (max-width: 768px) {
+  .intake-tool-btn {
+    min-height: 44px;
+    padding: 0.5rem 0.75rem;
+  }
+}
 .dropzone-icon {
   font-size: 1.5rem;
   margin-bottom: 0.5rem;

@@ -9,8 +9,6 @@ import BulkImportProgress from './BulkImportProgress'
 
 const BULK_EXTENSIONS = new Set(['xlsx', 'xls'])
 
-type Tab = 'prompt' | 'file' | 'voice'
-
 type FileItem = {
   file: File
   status: 'pending' | 'processing' | 'done' | 'error'
@@ -47,7 +45,6 @@ const ACCEPTED_TYPES = [
 
 export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
   const router = useRouter()
-  const [tab, setTab] = useState<Tab>('prompt')
 
   const [rawInput, setRawInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -55,6 +52,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
   const [result, setResult] = useState<{ parsed: ParsedLeadData; intakeId: string } | null>(null)
   const [creating, setCreating] = useState(false)
   const [created, setCreated] = useState(false)
+  const [voiceUsed, setVoiceUsed] = useState(false)
 
   const submittingRef = useRef(false)
 
@@ -66,7 +64,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
   const [voiceSupported, setVoiceSupported] = useState(true)
   const [listening, setListening] = useState(false)
 
-  function addFiles(incoming: FileList | null) {
+  function addFiles(incoming: FileList | File[] | null) {
     if (!incoming) return
     const next: FileItem[] = []
     for (const file of Array.from(incoming)) {
@@ -74,48 +72,33 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
       if (file.size > MAX_FILE_BYTES) { setError(`${file.name}: 파일이 너무 큽니다 (최대 20MB)`); continue }
       const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
       if (BULK_EXTENSIONS.has(ext)) {
-        // XLSX/XLS → BULK_MODE 경로로 분기
+        // XLSX/XLS → 대량 업로드 흐름으로 분기(별도 화면 점유)
         setBulkFile(file); setError(''); return
       }
       next.push({ file, status: 'pending' })
     }
-    setFiles(prev => [...prev, ...next])
+    if (next.length) { setFiles(prev => [...prev, ...next]); setError('') }
+  }
+
+  // 붙여넣기로 이미지 첨부(통합 입력 — GPU 통합입력과 동일 UX)
+  function handlePaste(e: React.ClipboardEvent) {
+    const fromClipboard = Array.from(e.clipboardData.files ?? [])
+    if (fromClipboard.length) { e.preventDefault(); addFiles(fromClipboard) }
   }
 
   async function parseTextInput(source: 'prompt' | 'voice') {
-    if (submittingRef.current) return
-    if (!rawInput.trim()) { setError('내용을 입력하세요'); return }
-    submittingRef.current = true
-    setLoading(true); setError(''); setResult(null)
-    try {
-      const res = await fetch('/api/leads/parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ raw_input: rawInput, source }),
-      })
-      const data = await res.json() as { parsed?: ParsedLeadData; intake?: { id: string }; error?: string }
-      if (!res.ok) { setError(data.error ?? '오류가 발생했습니다'); return }
-      setResult({ parsed: data.parsed!, intakeId: data.intake?.id ?? '' })
-    } finally {
-      submittingRef.current = false
-      setLoading(false)
-    }
+    const res = await fetch('/api/leads/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ raw_input: rawInput, source }),
+    })
+    const data = await res.json() as { parsed?: ParsedLeadData; intake?: { id: string }; error?: string }
+    if (!res.ok) { setError(data.error ?? '오류가 발생했습니다'); return }
+    setResult({ parsed: data.parsed!, intakeId: data.intake?.id ?? '' })
   }
 
-  async function handleTextSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    await parseTextInput('prompt')
-  }
-
-  async function handleVoiceSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    await parseTextInput('voice')
-  }
-
-  async function handleFileAnalyze() {
+  async function analyzeFiles() {
     const pending = files.filter(f => f.status === 'pending')
-    if (!pending.length) { setError('분석할 파일을 선택하세요'); return }
-    setError('')
     for (const item of pending) {
       setFiles(prev => prev.map(f => f.file === item.file ? { ...f, status: 'processing' } : f))
       try {
@@ -131,15 +114,26 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
         setFiles(prev => prev.map(f => f.file === item.file ? { ...f, status: 'error', error: msg } : f))
       }
     }
-    router.refresh()
   }
 
-  async function handleCreate() {
-    if (!result || submittingRef.current) return
+  // 통합 분석 — 텍스트·파일·음성 무엇이든 한 버튼으로. 둘 다 있으면 둘 다 분석.
+  async function handleAnalyze(e?: React.FormEvent) {
+    e?.preventDefault()
+    if (submittingRef.current) return
+    const hasText = rawInput.trim().length > 0
+    const hasPendingFiles = files.some(f => f.status === 'pending')
+    if (!hasText && !hasPendingFiles) { setError('내용을 입력하거나 파일을 첨부하세요'); return }
     submittingRef.current = true
-    setCreating(true)
-    await createFromIntakes([result.intakeId])
-    setCreated(true); setCreating(false); submittingRef.current = false; router.refresh()
+    setLoading(true); setError('')
+    setResult(null)  // 이전 텍스트 분석 결과 잔존 방지(DC-REV HIGH)
+    try {
+      if (hasPendingFiles) await analyzeFiles()
+      if (hasText) await parseTextInput(voiceUsed ? 'voice' : 'prompt')
+    } finally {
+      submittingRef.current = false
+      setLoading(false)
+      router.refresh()
+    }
   }
 
   async function createFromIntakes(intakeIds: string[]) {
@@ -156,12 +150,24 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
     }
   }
 
+  async function handleCreate() {
+    if (!result || submittingRef.current) return
+    submittingRef.current = true
+    setCreating(true)
+    await createFromIntakes([result.intakeId])
+    setCreated(true); setCreating(false); submittingRef.current = false; router.refresh()
+  }
+
   async function handleFileCreate(item: FileItem) {
     if (!item.intakeId) return
     setCreating(true)
     await createFromIntakes([item.intakeId])
     setCreating(false)
     router.refresh()
+  }
+
+  function resetAll() {
+    setResult(null); setRawInput(''); setFiles([]); setCreated(false); setVoiceUsed(false); setError('')
   }
 
   function startVoiceInput() {
@@ -180,16 +186,10 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
     recognition.interimResults = false
     recognition.onstart = () => setListening(true)
     recognition.onend = () => setListening(false)
-    recognition.onerror = () => {
-      setListening(false)
-      setError('음성 인식 중 오류가 발생했습니다')
-    }
+    recognition.onerror = () => { setListening(false); setError('음성 인식 중 오류가 발생했습니다') }
     recognition.onresult = (event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => {
-      const text = Array.from(event.results)
-        .map((result) => result[0]?.transcript ?? '')
-        .join(' ')
-        .trim()
-      if (text) setRawInput((prev) => [prev, text].filter(Boolean).join('\n'))
+      const text = Array.from(event.results).map((r) => r[0]?.transcript ?? '').join(' ').trim()
+      if (text) { setRawInput((prev) => [prev, text].filter(Boolean).join('\n')); setVoiceUsed(true) }
     }
     recognition.start()
   }
@@ -198,184 +198,135 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
   const pendingTotal = files.filter(f => f.status === 'pending' || f.status === 'processing' || f.status === 'done').length
   const doneCount = files.filter(f => f.status === 'done').length
   const isFileProcessing = !!processingFile
+  const pendingCount = files.filter(f => f.status === 'pending').length
+  const hasText = rawInput.trim().length > 0
+  const canAnalyze = hasText || pendingCount > 0
+  const doneFiles = files.filter(f => f.status === 'done')
+
+  // 대량 업로드(xlsx)는 별도 화면 점유
+  if (bulkFile) {
+    return (
+      <div>
+        <BulkImportProgress
+          file={bulkFile}
+          onComplete={() => { setBulkFile(null); router.refresh() }}
+          onCancel={() => setBulkFile(null)}
+        />
+      </div>
+    )
+  }
 
   return (
     <div>
       <AXLoadingOverlay
         isLoading={loading || isFileProcessing}
         brandName={brandName}
-        label={loading ? 'AI 분석 중…' : `파일 분석 중… (${doneCount + 1} / ${pendingTotal})`}
-        sublabel={loading ? '입력 내용을 AI가 구조화하는 중' : processingFile?.file.name}
-        ariaLabel={loading ? 'AI 텍스트 분석 중' : `파일 분석 중 — ${processingFile?.file.name}`}
+        label={isFileProcessing ? `파일 분석 중… (${doneCount + 1} / ${pendingTotal})` : 'AI 분석 중…'}
+        sublabel={isFileProcessing ? processingFile?.file.name : '입력 내용을 AI가 구조화하는 중'}
+        ariaLabel={isFileProcessing ? `파일 분석 중 — ${processingFile?.file.name}` : 'AI 분석 중'}
       />
 
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-        <button className={`tab-btn${tab === 'prompt' ? ' tab-btn-active' : ''}`}
-          onClick={() => { setTab('prompt'); setError('') }}>텍스트 입력</button>
-        <button className={`tab-btn${tab === 'file' ? ' tab-btn-active' : ''}`}
-          onClick={() => { setTab('file'); setError('') }}>명함/문서</button>
-        <button className={`tab-btn${tab === 'voice' ? ' tab-btn-active' : ''}`}
-          onClick={() => { setTab('voice'); setError('') }}>음성</button>
-      </div>
-
-      {/* 텍스트 탭 */}
-      {tab === 'prompt' && !result && (
-        <form
-          onSubmit={handleTextSubmit}
-          onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.currentTarget.requestSubmit() } }}
-          style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
-        >
-          <div>
-            <label className="label">리드 정보 입력</label>
-            <textarea value={rawInput} onChange={e => setRawInput(e.target.value)} rows={6}
-              placeholder={`예시:\n삼성SDS 김철수 부장 (IT전략팀)\nkcs@samsung.com / 02-6360-0000\n클라우드 전환 프로젝트 논의 필요\n내주 화요일 킥오프 미팅 예정`}
-              style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6 }} />
-            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.375rem 0 0' }}>
-              명함 정보, 미팅 메모, 이메일 본문 등 자유롭게 붙여넣기하세요
-            </p>
-          </div>
-          {error && <p style={{ color: '#dc2626', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
-          <button type="submit" disabled={loading} className="btn-primary"
-            style={{ padding: '0.75rem 1.5rem', fontSize: '0.9375rem', minHeight: '48px', maxWidth: '200px' }}>
-            {loading ? 'AI 분석중...' : 'AI 분석'}{!loading && <span style={{ fontSize: '0.7rem', opacity: 0.65, marginLeft: '0.375rem' }}>Ctrl+↵</span>}
-          </button>
-        </form>
-      )}
-
-      {tab === 'prompt' && result && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <ParsedCard parsed={result.parsed} />
-          {created ? (
-            <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '0.75rem', padding: '1rem', textAlign: 'center' }}>
-              <p style={{ color: '#0284c7', fontWeight: 600, margin: 0 }}>거래처·담당자·영업기회가 CRM에 등록되었습니다</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <button onClick={handleCreate} disabled={creating} className="btn-primary"
-                style={{ padding: '0.625rem 1.25rem', minHeight: '44px' }}>
-                {creating ? '등록중...' : '거래처/담당자/영업기회 생성'}
-              </button>
-              <button onClick={() => { setResult(null); setRawInput('') }}
-                style={{ padding: '0.625rem 1.25rem', minHeight: '44px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.875rem', color: '#64748b' }}>
-                다시 입력
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {tab === 'voice' && !result && (
-        <form onSubmit={handleVoiceSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div>
-            <label className="label">음성 인식 결과</label>
-            <textarea value={rawInput} onChange={e => setRawInput(e.target.value)} rows={6}
-              placeholder="마이크로 말하면 여기에 텍스트가 채워집니다"
-              style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6 }} />
-            {!voiceSupported && <p style={{ color: '#dc2626', fontSize: '0.8125rem', margin: '0.375rem 0 0' }}>브라우저 음성 인식이 지원되지 않습니다</p>}
-          </div>
-          {error && <p style={{ color: '#dc2626', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <button type="button" onClick={startVoiceInput} disabled={listening} className="intake-action-btn">
-              {listening ? '듣는 중...' : '음성 입력 시작'}
-            </button>
-            <button type="submit" disabled={loading} className="btn-primary"
-              style={{ padding: '0.75rem 1.5rem', fontSize: '0.9375rem', minHeight: '48px', maxWidth: '200px' }}>
-              {loading ? 'AI 분석중...' : 'AI 분석'}
-            </button>
-          </div>
-        </form>
-      )}
-
-      {tab === 'voice' && result && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <ParsedCard parsed={result.parsed} />
-          {created ? (
-            <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '0.75rem', padding: '1rem', textAlign: 'center' }}>
-              <p style={{ color: '#0284c7', fontWeight: 600, margin: 0 }}>거래처·담당자·영업기회가 CRM에 등록되었습니다</p>
-            </div>
-          ) : (
-            <button onClick={handleCreate} disabled={creating} className="btn-primary"
-              style={{ padding: '0.625rem 1.25rem', minHeight: '44px', maxWidth: '240px' }}>
-              {creating ? '등록중...' : '거래처/담당자/영업기회 생성'}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* 파일 탭 — BULK_MODE */}
-      {tab === 'file' && bulkFile && (
-        <BulkImportProgress
-          file={bulkFile}
-          onComplete={() => { setBulkFile(null); router.refresh() }}
-          onCancel={() => setBulkFile(null)}
-        />
-      )}
-
-      {/* 파일 탭 — SINGLE_MODE */}
-      {tab === 'file' && !bulkFile && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div className={`dropzone${isDragging ? ' dropzone-active' : ''}`}
+      {/* 통합 입력 영역 — 텍스트·붙여넣기·드래그&드롭·파일첨부·음성 한 곳 */}
+      <form onSubmit={handleAnalyze}
+        onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleAnalyze() } }}
+        style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+      >
+        <div>
+          <label className="label">리드 정보 입력</label>
+          <div className={`intake-unified${isDragging ? ' dropzone-active' : ''}`}
             onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={e => { e.preventDefault(); setIsDragging(false); addFiles(e.dataTransfer.files) }}
-            onClick={() => fileInputRef.current?.click()}>
-            <div className="dropzone-icon">↑</div>
-            <p className="dropzone-title">파일을 드래그하거나 클릭하여 선택</p>
-            <p className="dropzone-hint">이미지(JPG·PNG·WEBP·HEIC·TIFF·BMP·AVIF·GIF) · PDF · DOCX · XLSX · CSV · TXT</p>
-          </div>
-
-          <input ref={fileInputRef} type="file" multiple accept={ACCEPTED_TYPES} style={{ display: 'none' }}
-            onChange={e => addFiles(e.target.files)} />
-          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
-            onChange={e => addFiles(e.target.files)} />
-
-          <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap' }}>
-            <button className="intake-action-btn" onClick={() => fileInputRef.current?.click()}>파일 선택</button>
-            <button className="intake-action-btn" onClick={() => cameraInputRef.current?.click()}>카메라로 찍기</button>
-          </div>
-
-          {files.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {files.map((item, idx) => (
-                <div key={`${item.file.name}-${item.file.size}-${idx}`} className="file-item">
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: item.status !== 'pending' ? '0.5rem' : 0 }}>
-                      <span className="file-item-name">{item.file.name}</span>
-                      {item.status === 'processing' && <span className="file-status-processing">분석중...</span>}
-                      {item.status === 'done'       && <span className="file-status-done">완료</span>}
-                      {item.status === 'error'      && <span className="file-status-error">오류</span>}
-                    </div>
-                    {item.status === 'done'  && item.parsed && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        <ParsedCard parsed={item.parsed} />
-                        {item.intakeId && (
-                          <button onClick={() => handleFileCreate(item)} disabled={creating} className="btn-primary"
-                            style={{ padding: '0.5rem 1rem', minHeight: '40px', maxWidth: '220px' }}>
-                            {creating ? '등록중...' : 'CRM 등록'}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    {item.status === 'error' && <p style={{ fontSize: '0.8125rem', color: '#dc2626', margin: 0 }}>{item.error}</p>}
-                  </div>
-                  {item.status === 'pending' && (
-                    <button className="file-remove-btn" onClick={() => setFiles(prev => prev.filter((_, i) => i !== idx))} aria-label="삭제">✕</button>
-                  )}
-                </div>
-              ))}
+            style={{ position: 'relative', border: '1px solid #e2e8f0', borderRadius: '0.5rem', background: '#fff' }}>
+            <textarea value={rawInput} onChange={e => setRawInput(e.target.value)} onPaste={handlePaste} rows={6}
+              placeholder={`텍스트를 입력·붙여넣거나, 명함·문서 파일을 끌어다 놓으세요.\n\n예시:\n삼성SDS 김철수 부장 (IT전략팀)\nkcs@samsung.com / 02-6360-0000\n클라우드 전환 프로젝트 논의 필요`}
+              style={{ width: '100%', padding: '0.75rem', paddingBottom: '2.5rem', border: 'none', borderRadius: '0.5rem', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6, background: 'transparent', outline: 'none' }} />
+            {/* 입력 도구 바 — 첨부·카메라·음성 */}
+            <div style={{ position: 'absolute', left: '0.5rem', bottom: '0.5rem', display: 'flex', gap: '0.375rem' }}>
+              <button type="button" className="intake-tool-btn" onClick={() => fileInputRef.current?.click()} title="파일 첨부" aria-label="파일 첨부">📎</button>
+              <button type="button" className="intake-tool-btn" onClick={() => cameraInputRef.current?.click()} title="카메라로 찍기" aria-label="카메라로 찍기">📷</button>
+              {voiceSupported && (
+                <button type="button" className="intake-tool-btn" onClick={startVoiceInput} disabled={listening} title="음성 입력" aria-label="음성 입력"
+                  style={listening ? { color: '#dc2626', borderColor: '#fecaca' } : undefined}>{listening ? '● 녹음중' : '🎤'}</button>
+              )}
             </div>
-          )}
+          </div>
+          <input ref={fileInputRef} type="file" multiple accept={ACCEPTED_TYPES} style={{ display: 'none' }} onChange={e => addFiles(e.target.files)} />
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={e => addFiles(e.target.files)} />
+          <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.375rem 0 0' }}>
+            명함·미팅 메모·이메일 본문을 붙여넣거나, 이미지·PDF·DOCX·CSV를 첨부, 🎤로 받아쓰기 — XLSX는 대량 업로드로 처리됩니다
+          </p>
+        </div>
 
-          {error && <p style={{ color: '#dc2626', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
+        {/* 첨부 파일 칩/상태 */}
+        {files.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {files.map((item, idx) => (
+              <div key={`${item.file.name}-${item.file.size}-${idx}`} className="file-item">
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: item.status === 'done' ? '0.5rem' : 0 }}>
+                    <span className="file-item-name">{item.file.name}</span>
+                    {item.status === 'processing' && <span className="file-status-processing">분석중...</span>}
+                    {item.status === 'done'       && <span className="file-status-done">완료</span>}
+                    {item.status === 'error'      && <span className="file-status-error">오류</span>}
+                  </div>
+                  {item.status === 'done' && item.parsed && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <ParsedCard parsed={item.parsed} />
+                      {item.intakeId && (
+                        <button type="button" onClick={() => handleFileCreate(item)} disabled={creating} className="btn-primary"
+                          style={{ padding: '0.5rem 1rem', minHeight: '40px', maxWidth: '220px' }}>
+                          {creating ? '등록중...' : 'CRM 등록'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {item.status === 'error' && <p style={{ fontSize: '0.8125rem', color: '#dc2626', margin: 0 }}>{item.error}</p>}
+                </div>
+                {item.status === 'pending' && (
+                  <button type="button" className="file-remove-btn" onClick={() => setFiles(prev => prev.filter((_, i) => i !== idx))} aria-label="삭제">✕</button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
-          {files.some(f => f.status === 'pending') && (
-            <button onClick={handleFileAnalyze} className="btn-primary"
-              style={{ padding: '0.75rem 1.5rem', fontSize: '0.9375rem', minHeight: '48px', maxWidth: '220px' }}>
-              AI 분석 ({files.filter(f => f.status === 'pending').length}개)
+        {error && <p style={{ color: '#dc2626', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
+
+        {/* 텍스트 분석 결과 */}
+        {result && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <ParsedCard parsed={result.parsed} />
+            {created ? (
+              <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '0.75rem', padding: '1rem', textAlign: 'center' }}>
+                <p style={{ color: '#0284c7', fontWeight: 600, margin: 0 }}>거래처·담당자·영업기회가 CRM에 등록되었습니다</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <button type="button" onClick={handleCreate} disabled={creating} className="btn-primary" style={{ padding: '0.625rem 1.25rem', minHeight: '44px' }}>
+                  {creating ? '등록중...' : '거래처/담당자/영업기회 생성'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 통합 분석 버튼 + 초기화 */}
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <button type="submit" disabled={loading || !canAnalyze} className="btn-primary"
+            style={{ padding: '0.75rem 1.5rem', fontSize: '0.9375rem', minHeight: '48px' }}>
+            {loading ? 'AI 분석중...' : 'AI 분석'}
+            {!loading && pendingCount > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.85, marginLeft: '0.375rem' }}>파일 {pendingCount}개{hasText ? ' + 텍스트' : ''}</span>}
+            {!loading && pendingCount === 0 && <span style={{ fontSize: '0.7rem', opacity: 0.65, marginLeft: '0.375rem' }}>Ctrl+↵</span>}
+          </button>
+          {(result || doneFiles.length > 0 || rawInput || files.length > 0) && (
+            <button type="button" onClick={resetAll}
+              style={{ padding: '0.625rem 1.25rem', minHeight: '44px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.875rem', color: '#64748b' }}>
+              초기화
             </button>
           )}
         </div>
-      )}
+      </form>
     </div>
   )
 }
