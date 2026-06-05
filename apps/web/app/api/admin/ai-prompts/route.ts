@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   }
   if (view === 'history') {
     const key = new URL(req.url).searchParams.get('prompt_key')
-    let q = db.from('ai_prompt_revisions').select('id, prompt_key, version, source, event, reason, trigger, created_by, created_at').order('created_at', { ascending: false }).limit(200)
+    let q = db.from('ai_prompt_revisions').select('id, prompt_key, version, source, event, reason, trigger, diff_summary, prev_content, content, created_by, created_at').order('created_at', { ascending: false }).limit(200)
     if (key) q = q.eq('prompt_key', key)
     const { data } = await q
     return NextResponse.json({ revisions: data ?? [] })

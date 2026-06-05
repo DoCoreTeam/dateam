@@ -35,9 +35,12 @@ export async function recordRevision(
   r: { promptKey: string; version: string; content: string; source: 'ai' | 'human'; event: PromptEvent; reason?: string; trigger?: string; createdBy?: string; prevContent?: string; nowIso: string },
 ): Promise<void> {
   // M1(DC-REV): revision 스냅샷은 거버넌스 불변식 — 실패 시 throw(append-only 보장). audit는 보조라 silent 허용.
+  // 변경 이력에 "무엇을 바꿨는지" 보이도록 diff 요약 + 이전 본문 스냅샷 동봉.
+  const diff = r.prevContent != null ? diffSummary(r.prevContent, r.content) : null
   const { error: revErr } = await db.from('ai_prompt_revisions').insert({
     prompt_key: r.promptKey, version: r.version, content: r.content,
     source: r.source, event: r.event, reason: r.reason ?? null, trigger: r.trigger ?? null,
+    diff_summary: diff, prev_content: r.prevContent ?? null,
     created_by: r.createdBy ?? 'system', created_at: r.nowIso,
   })
   if (revErr) throw new Error(`revision 기록 실패: ${revErr.message}`)

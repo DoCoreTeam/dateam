@@ -6,7 +6,21 @@ import useSWR from 'swr'
 const fetcher = (u: string) => fetch(u).then((r) => r.json())
 
 interface Prompt { id: string; prompt_key: string; version: string; active: boolean; source: string; model_hint: string | null; updated_at: string; updated_by: string | null; content: string }
-interface Revision { id: string; prompt_key: string; version: string; source: string; event: string; reason: string | null; trigger: string | null; created_by: string; created_at: string }
+interface Revision { id: string; prompt_key: string; version: string; source: string; event: string; reason: string | null; trigger: string | null; diff_summary: string | null; prev_content: string | null; content: string | null; created_by: string; created_at: string }
+
+const TRIGGER_LABEL: Record<string, string> = {
+  empty_extraction: '추출 0건(준비된 규칙으로 못 뽑음)', low_confidence: '추출 신뢰도 낮음',
+  gate_blocked: '검증 게이트 다수 차단', live_degraded: '활성 후 품질 급락', manual: '관리자 수동',
+}
+
+// 간단 라인 diff — 이전에만 있던 줄(삭제)·현재에만 있는 줄(추가) 표시
+function lineDiff(before: string, after: string) {
+  const b = before.split('\n'), a = after.split('\n')
+  const bSet = new Set(b), aSet = new Set(a)
+  const removed = b.filter((l) => !aSet.has(l))
+  const added = a.filter((l) => !bSet.has(l))
+  return { removed, added }
+}
 
 const EVENT_LABEL: Record<string, { t: string; c: string }> = {
   auto_activated: { t: 'AI 자동반영', c: '#2563eb' }, auto_rolled_back: { t: 'AI 자동롤백', c: '#d97706' },
@@ -126,7 +140,9 @@ function PromptsTab() {
 function HistoryTab() {
   const { data, mutate } = useSWR<{ revisions: Revision[] }>('/api/admin/ai-prompts?view=history', fetcher)
   const [msg, setMsg] = useState('')
+  const [open, setOpen] = useState<Set<string>>(new Set())
   const revs = data?.revisions ?? []
+  const toggle = (id: string) => setOpen((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
   const rollback = async (id: string) => {
     if (!confirm('이 버전으로 롤백할까요? (현재 활성본을 이 버전으로 되돌림)')) return
     const r = await fetch('/api/admin/ai-prompts/rollback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision_id: id }) })
@@ -140,15 +156,44 @@ function HistoryTab() {
         {revs.length === 0 && <div style={{ fontSize: 12.5, color: '#94a3b8' }}>변경 이력 없음</div>}
         {revs.map((r) => {
           const ev = EVENT_LABEL[r.event] ?? { t: r.event, c: '#64748b' }
+          const isOpen = open.has(r.id)
+          const diff = r.prev_content != null && r.content != null ? lineDiff(r.prev_content, r.content) : null
           return (
-            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, background: '#fff', border: '1px solid #eef2f7', fontSize: 12.5 }}>
-              <span style={{ fontWeight: 700, color: ev.c, minWidth: 78 }}>{ev.t}</span>
-              <span style={{ fontWeight: 600 }}>{r.prompt_key}</span>
-              <span style={{ color: '#94a3b8' }}>{r.version}</span>
-              {r.reason && <span style={{ color: '#64748b', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {r.reason}</span>}
-              {r.trigger && <span style={{ fontSize: 10.5, color: '#cbd5e1' }}>{r.trigger}</span>}
-              <span style={{ fontSize: 10.5, color: '#cbd5e1' }}>{r.created_at?.slice(0, 16).replace('T', ' ')}</span>
-              <button onClick={() => rollback(r.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: '#7c3aed', borderColor: '#ddd6fe' }}>이 버전 롤백</button>
+            <div key={r.id} style={{ borderRadius: 8, background: '#fff', border: '1px solid #eef2f7' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', fontSize: 12.5, flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 700, color: ev.c, minWidth: 78 }}>{ev.t}</span>
+                <span style={{ fontWeight: 600 }}>{r.prompt_key}</span>
+                <span style={{ color: '#94a3b8' }}>{r.version}</span>
+                {r.diff_summary && <span style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>{r.diff_summary}</span>}
+                <span style={{ fontSize: 10.5, color: '#cbd5e1', marginLeft: 'auto' }}>{r.created_at?.slice(0, 16).replace('T', ' ')}</span>
+                <button onClick={() => toggle(r.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px' }}>{isOpen ? '닫기' : '왜·무엇'}</button>
+                <button onClick={() => rollback(r.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: '#7c3aed', borderColor: '#ddd6fe' }}>이 버전 롤백</button>
+              </div>
+              {isOpen && (
+                <div style={{ borderTop: '1px solid #f1f5f9', padding: '10px 14px', background: '#f8fafc' }}>
+                  {/* 왜 바꿨나 */}
+                  <div style={{ fontSize: 12, marginBottom: 8 }}>
+                    <strong style={{ color: '#475569' }}>왜:</strong> {r.reason || '—'}
+                    {r.trigger && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 8px', borderRadius: 999, background: '#e0e7ff', color: '#4338ca' }}>{TRIGGER_LABEL[r.trigger] ?? r.trigger}</span>}
+                    <span style={{ marginLeft: 8, fontSize: 11, color: '#94a3b8' }}>by {r.source === 'ai' ? '🤖 AI' : `👤 ${r.created_by}`}</span>
+                  </div>
+                  {/* 무엇을 바꿨나 — before→after 라인 diff */}
+                  <div style={{ fontSize: 12, marginBottom: 4 }}><strong style={{ color: '#475569' }}>무엇:</strong> {r.diff_summary ?? (r.prev_content == null ? '최초 생성(이전본 없음)' : '변경 없음')}</div>
+                  {diff && (diff.removed.length > 0 || diff.added.length > 0) && (
+                    <pre style={{ margin: '4px 0 0', fontSize: 11, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: 10 }}>
+                      {diff.removed.map((l, i) => <div key={`r${i}`} style={{ background: '#fee2e2', color: '#991b1b' }}>- {l}</div>)}
+                      {diff.added.map((l, i) => <div key={`a${i}`} style={{ background: '#dcfce7', color: '#166534' }}>+ {l}</div>)}
+                    </pre>
+                  )}
+                  {/* 최종 본문 전체 보기 */}
+                  {r.content && (
+                    <details style={{ marginTop: 8 }}>
+                      <summary style={{ fontSize: 11.5, color: '#2563eb', cursor: 'pointer' }}>이 버전 전체 본문 보기</summary>
+                      <pre style={{ margin: '6px 0 0', fontSize: 11, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: 10 }}>{r.content}</pre>
+                    </details>
+                  )}
+                </div>
+              )}
             </div>
           )
         })}
