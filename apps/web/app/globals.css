@@ -974,11 +974,30 @@ label.intake-tool-btn {
   white-space: nowrap;
   border: 0;
 }
-/* loading 중 비활성 label */
+/* loading 중 비활성 */
 .intake-tool-label-disabled {
   cursor: default;
   opacity: 0.7;
   pointer-events: none;
+}
+/* 파일 버튼 — input을 버튼 위에 투명하게 올려 클릭이 input에 직접 닿게(우회 없는 네이티브 다이얼로그) */
+.intake-file-btn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  cursor: pointer;
+}
+.intake-file-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 0; /* 일부 브라우저에서 input 텍스트 영역 클릭 보장 */
+}
+.intake-file-overlay:disabled {
+  cursor: default;
 }
 @media (max-width: 768px) {
   .intake-tool-btn {
