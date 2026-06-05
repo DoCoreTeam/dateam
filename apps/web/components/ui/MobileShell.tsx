@@ -109,21 +109,27 @@ export default function MobileShell({
           alignItems: 'center',
           justifyContent: 'space-between',
         }}>
-          <Link href="/home" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logoUrl}
-                alt={brandName}
-                style={{ maxHeight: '32px', maxWidth: '160px', objectFit: 'contain' }}
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-              />
-            ) : (
-              <span style={{ color: '#fff', fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
-                {brandName}
-              </span>
-            )}
-          </Link>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.125rem', minWidth: 0 }}>
+            <Link href="/home" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoUrl}
+                  alt={brandName}
+                  style={{ maxHeight: '32px', maxWidth: '160px', objectFit: 'contain' }}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                />
+              ) : (
+                <span style={{ color: '#fff', fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+                  {brandName}
+                </span>
+              )}
+            </Link>
+            {/* 로고/브랜드 바로 아래 버전 */}
+            <span style={{ fontSize: '0.625rem', color: '#64748b', letterSpacing: '0.06em', fontWeight: 600 }}>
+              v{process.env.NEXT_PUBLIC_APP_VERSION ?? '—'}
+            </span>
+          </div>
           <button
             className="mobile-only-flex"
             onClick={closeMobile}
@@ -309,12 +315,6 @@ export default function MobileShell({
           </div>
         )}
 
-        {/* 버전 */}
-        <div style={{ padding: '0.375rem 1rem 0.625rem', textAlign: 'center' }}>
-          <span style={{ fontSize: '0.6875rem', color: '#475569', letterSpacing: '0.06em', fontWeight: 600 }}>
-            v{process.env.NEXT_PUBLIC_APP_VERSION ?? '—'}
-          </span>
-        </div>
       </aside>
 
       {/* 메인 영역 */}
