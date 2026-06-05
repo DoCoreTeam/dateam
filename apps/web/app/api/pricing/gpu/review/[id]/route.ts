@@ -5,6 +5,7 @@ import { normalizeMemory } from '@/lib/gpu/normalize'
 import { parseGpuCount, toPerGpuPrice } from '@/lib/gpu/parse-quantity'
 import { inferTier } from '@/lib/gpu/tier-dict'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
+import { routeIntakeExtras } from '@/lib/gpu/intake-routing'
 
 // POST /api/pricing/gpu/review/[id] — 확정 또는 반려
 export async function POST(
@@ -229,6 +230,20 @@ export async function POST(
 
   if (quoteError) return NextResponse.json({ error: quoteError.message }, { status: 500 })
 
+  // 축2/3: 추출된 재고(quantity) 등 부가 데이터를 올바른 테이블로 유기적 연계(단일 라우터 재사용).
+  // 부분커밋 — 재고 연계 실패가 가격 확정을 되돌리지 않음. recordAvailability가 멱등(product×supplier 1건 current).
+  let routeOutcomes: Awaited<ReturnType<typeof routeIntakeExtras>> = []
+  if (productId && supplierId) {
+    try {
+      routeOutcomes = await routeIntakeExtras(
+        { db: adminClient, adminDb: adminClient, productId, supplierId, actor: actorName, isTest: item.is_test === true },
+        merged as Record<string, unknown>,
+      )
+    } catch (e) {
+      routeOutcomes = [{ target: 'availability_responses', status: 'error', reason: e instanceof Error ? e.message : '재고 연계 예외' }]
+    }
+  }
+
   // review_item 상태 업데이트
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (supabase as any)
@@ -255,6 +270,7 @@ export async function POST(
         supplier_hint: item.supplier_hint,
         overall_confidence: item.overall_confidence,
         product_auto_created: productAutoCreated,
+        route_outcomes: routeOutcomes,
       },
     })
 
