@@ -71,20 +71,6 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
     setEnvWarn(issues.join(' · '))
   }, [])
 
-  // 파일 선택창 열기 — 공식 showPicker() 우선, 실패 시 .click() 폴백, 그래도 실패면 에러를 화면에 노출(원인 진단)
-  function openPicker(input: HTMLInputElement | null) {
-    if (!input) { setError('파일 입력 요소를 찾지 못했습니다'); return }
-    setError('')
-    try {
-      const withPicker = input as HTMLInputElement & { showPicker?: () => void }
-      if (typeof withPicker.showPicker === 'function') { withPicker.showPicker(); return }
-      input.click()
-    } catch (e) {
-      try { input.click() } catch (e2) {
-        setError(`파일 선택창을 열 수 없습니다 — ${e instanceof Error ? e.name + ': ' + e.message : String(e)} / ${e2 instanceof Error ? e2.message : String(e2)}`)
-      }
-    }
-  }
   const [voiceSupported, setVoiceSupported] = useState(true)
   const [listening, setListening] = useState(false)
 
@@ -287,12 +273,18 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
               placeholder={`텍스트를 입력·붙여넣거나, 명함·문서 파일을 끌어다 놓으세요.\n\n예시:\n삼성SDS 김철수 부장 (IT전략팀)\nkcs@samsung.com / 02-6360-0000\n클라우드 전환 프로젝트 논의 필요`}
               style={{ width: '100%', padding: '0.75rem', border: 'none', borderRadius: '0.5rem', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6, background: 'transparent', outline: 'none' }} />
           </div>
-          {/* 입력 도구 — showPicker() 공식 API + 실패 시 에러를 화면에 노출(원인 진단) */}
-          <input ref={fileInputRef} type="file" multiple accept={ACCEPTED_TYPES} style={{ display: 'none' }} onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
-          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-            <button type="button" className="intake-tool-btn" disabled={loading} onClick={() => openPicker(fileInputRef.current)} aria-label="파일 첨부">📎 파일</button>
-            <button type="button" className="intake-tool-btn" disabled={loading} onClick={() => openPicker(cameraInputRef.current)} aria-label="카메라로 찍기">📷 카메라</button>
+          {/* 입력 도구 — 브라우저 네이티브 파일 input을 그대로 노출(모든 우회 제거: 클릭=OS 파일창 직결) */}
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.5rem', alignItems: 'center' }}>
+            <span className="intake-native-file">
+              📎 파일 첨부:
+              <input ref={fileInputRef} type="file" multiple accept={ACCEPTED_TYPES} disabled={loading} aria-label="파일 첨부"
+                onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
+            </span>
+            <span className="intake-native-file">
+              📷 사진:
+              <input ref={cameraInputRef} type="file" accept="image/*" disabled={loading} aria-label="사진 첨부"
+                onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
+            </span>
             {voiceSupported && (
               <button type="button" className="intake-tool-btn" onClick={startVoiceInput} disabled={listening || loading} aria-label="음성 입력"
                 style={listening ? { color: '#dc2626', borderColor: '#fecaca' } : undefined}>{listening ? '● 녹음중…' : '🎤 음성'}</button>

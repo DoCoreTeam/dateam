@@ -1003,6 +1003,20 @@ label.intake-tool-btn {
 .intake-file-overlay:disabled {
   cursor: default;
 }
+/* 네이티브 파일 input 직접 노출 — 우회 없이 브라우저 기본 파일 버튼 사용 */
+.intake-native-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: #475569;
+  font-weight: 600;
+}
+.intake-native-file input[type='file'] {
+  font-size: 0.75rem;
+  color: #64748b;
+  max-width: 220px;
+}
 @media (max-width: 768px) {
   .intake-tool-btn {
     min-height: 44px;
