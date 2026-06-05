@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import useSWR from 'swr'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -38,7 +38,9 @@ function PromptsTab() {
   const [edit, setEdit] = useState<Prompt | null>(null)
   const [draft, setDraft] = useState('')
   const [msg, setMsg] = useState('')
+  const [open, setOpen] = useState<Set<string>>(new Set())
   const prompts = data?.prompts ?? []
+  const toggleOpen = (id: string) => setOpen((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
 
   const save = async () => {
     if (!edit) return
@@ -56,14 +58,26 @@ function PromptsTab() {
         <thead><tr><th>프롬프트 키</th><th>버전</th><th>출처</th><th>활성</th><th>수정</th><th></th></tr></thead>
         <tbody>
           {prompts.map((p) => (
-            <tr key={p.id}>
-              <td className="card-header"><span style={{ fontWeight: 600 }}>{p.prompt_key}</span></td>
-              <td data-label="버전">{p.version}</td>
-              <td data-label="출처"><span style={{ color: p.source === 'ai' ? '#2563eb' : '#64748b' }}>{p.source === 'ai' ? 'AI' : '사람'}</span></td>
-              <td data-label="활성"><button onClick={() => toggle(p)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: p.active ? '#16a34a' : '#94a3b8', borderColor: p.active ? '#bbf7d0' : '#e5e7eb' }}>{p.active ? '활성' : '비활성'}</button></td>
-              <td data-label="수정" className="card-hide" style={{ fontSize: 11, color: '#94a3b8' }}>{p.updated_at?.slice(0, 10)}</td>
-              <td><button onClick={() => { setEdit(p); setDraft(p.content) }} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px' }}>편집</button></td>
-            </tr>
+            <Fragment key={p.id}>
+              <tr>
+                <td className="card-header"><span style={{ fontWeight: 600 }}>{p.prompt_key}</span></td>
+                <td data-label="버전">{p.version}</td>
+                <td data-label="출처"><span style={{ color: p.source === 'ai' ? '#2563eb' : '#64748b', fontWeight: p.source === 'ai' ? 700 : 400 }}>{p.source === 'ai' ? '🤖 AI' : '👤 사람'}</span></td>
+                <td data-label="활성"><button onClick={() => toggle(p)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: p.active ? '#16a34a' : '#94a3b8', borderColor: p.active ? '#bbf7d0' : '#e5e7eb' }}>{p.active ? '활성' : '비활성'}</button></td>
+                <td data-label="수정" className="card-hide" style={{ fontSize: 11, color: '#94a3b8' }}>{p.updated_at?.slice(0, 10)}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  <button onClick={() => toggleOpen(p.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', marginRight: 4 }}>{open.has(p.id) ? '내용 닫기' : `내용 (${p.content?.length ?? 0}자)`}</button>
+                  <button onClick={() => { setEdit(p); setDraft(p.content) }} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px' }}>편집</button>
+                </td>
+              </tr>
+              {open.has(p.id) && (
+                <tr>
+                  <td colSpan={6} style={{ background: '#f8fafc', padding: 0 }}>
+                    <pre style={{ margin: 0, padding: 14, fontSize: 11.5, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#0f172a', maxHeight: 420, overflowY: 'auto' }}>{p.content}</pre>
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </tbody>
       </table>
