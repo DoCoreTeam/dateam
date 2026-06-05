@@ -53,22 +53,6 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
   const [creating, setCreating] = useState(false)
   const [savedMsg, setSavedMsg] = useState('')
   const [voiceUsed, setVoiceUsed] = useState(false)
-  const [dbg, setDbg] = useState<string[]>([])
-  const addDbg = (s: string) => setDbg(p => [...p.slice(-7), `${new Date().toLocaleTimeString()} ${s}`])
-  function diagFilePicker() {
-    const inp = fileInputRef.current
-    addDbg(`진단 시작 — input ${inp ? '있음' : '없음(null)'}`)
-    if (!inp) return
-    addDbg(`disabled=${inp.disabled}, isSecureContext=${typeof window !== 'undefined' ? window.isSecureContext : '?'}, iframe=${(() => { try { return window.self !== window.top } catch { return 'cross-origin' } })()}`)
-    const wp = inp as HTMLInputElement & { showPicker?: () => void }
-    if (typeof wp.showPicker === 'function') {
-      try { wp.showPicker(); addDbg('showPicker() 호출 — 에러 없음(다이얼로그 떠야 정상)') }
-      catch (e) { addDbg(`showPicker() 에러: ${e instanceof Error ? e.name + ' / ' + e.message : String(e)}`) }
-    } else {
-      addDbg('showPicker 미지원 → click() 폴백')
-      try { inp.click(); addDbg('click() 호출 — 에러 없음') } catch (e) { addDbg(`click() 에러: ${e instanceof Error ? e.message : String(e)}`) }
-    }
-  }
 
   const submittingRef = useRef(false)
 
@@ -289,20 +273,12 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
               placeholder={`텍스트를 입력·붙여넣거나, 명함·문서 파일을 끌어다 놓으세요.\n\n예시:\n삼성SDS 김철수 부장 (IT전략팀)\nkcs@samsung.com / 02-6360-0000\n클라우드 전환 프로젝트 논의 필요`}
               style={{ width: '100%', padding: '0.75rem', border: 'none', borderRadius: '0.5rem', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6, background: 'transparent', outline: 'none' }} />
           </div>
-          {/* 입력 도구 — 브라우저 네이티브 파일 input을 그대로 노출(모든 우회 제거: 클릭=OS 파일창 직결) */}
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.5rem', alignItems: 'center' }}>
-            <span className="intake-native-file">
-              📎 파일 첨부:
-              <input ref={fileInputRef} type="file" multiple accept={ACCEPTED_TYPES} disabled={loading} aria-label="파일 첨부"
-                onClick={() => addDbg('📎 input onClick 발생(네이티브 다이얼로그 떠야 함)')}
-                onChange={e => { addDbg(`📎 onChange — ${e.target.files?.length ?? 0}개 선택됨`); addFiles(e.target.files); e.target.value = '' }} />
-            </span>
-            <button type="button" className="intake-tool-btn" onClick={diagFilePicker} aria-label="진단">🔧 진단</button>
-            <span className="intake-native-file">
-              📷 사진:
-              <input ref={cameraInputRef} type="file" accept="image/*" disabled={loading} aria-label="사진 첨부"
-                onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
-            </span>
+          {/* 입력 도구 — 숨김 input + 버튼 클릭으로 열기(코드 정상, 일반 브라우저에서 동작) */}
+          <input ref={fileInputRef} type="file" multiple accept={ACCEPTED_TYPES} style={{ display: 'none' }} disabled={loading} onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
+          <input ref={cameraInputRef} type="file" accept="image/*" style={{ display: 'none' }} disabled={loading} onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+            <button type="button" className="intake-tool-btn" disabled={loading} onClick={() => fileInputRef.current?.click()} aria-label="파일 첨부">📎 파일</button>
+            <button type="button" className="intake-tool-btn" disabled={loading} onClick={() => cameraInputRef.current?.click()} aria-label="사진 첨부">📷 사진</button>
             {voiceSupported && (
               <button type="button" className="intake-tool-btn" onClick={startVoiceInput} disabled={listening || loading} aria-label="음성 입력"
                 style={listening ? { color: '#dc2626', borderColor: '#fecaca' } : undefined}>{listening ? '● 녹음중…' : '🎤 음성'}</button>
@@ -312,11 +288,6 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
             명함·미팅 메모·이메일 본문을 붙여넣거나, 이미지·PDF·DOCX·CSV를 첨부, 🎤로 받아쓰기 — XLSX는 대량 업로드로 처리됩니다
           </p>
           {envWarn && <p style={{ fontSize: '0.75rem', color: '#d97706', margin: '0.25rem 0 0', fontWeight: 600 }}>⚠️ {envWarn}</p>}
-          {dbg.length > 0 && (
-            <pre style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: '#0f172a', color: '#a7f3d0', fontSize: '0.6875rem', borderRadius: '0.375rem', whiteSpace: 'pre-wrap', maxHeight: '160px', overflowY: 'auto' }}>
-              {dbg.join('\n')}
-            </pre>
-          )}
         </div>
 
         {/* 첨부 파일 칩/상태 */}
