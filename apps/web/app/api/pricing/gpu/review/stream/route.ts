@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
           send('progress', { step: 'synthesize', msg: '준비된 규칙으로 못 뽑았습니다 — 이 형식에 맞는 추출 프롬프트를 새로 만드는 중…' })
           const synth = await synthesizeExtractPrompt(adminClient, config.apiKey, config.model, contentText, schemaDigest)
           if (synth) {
-            send('progress', { step: 'synthesized', msg: `맞춤 추출 규칙 생성(draft: ${synth.promptKey}) — 재추출 중…` })
+            send('progress', { step: 'synthesized', msg: `맞춤 추출 규칙 생성(${synth.promptKey}${synth.activated ? ', 자동 반영' : ', eval 보류'}) — 재추출 중…` })
             const retryText = await callGeminiStream(
               config.apiKey, config.model,
               [{ text: `${synth.content}\n\n${schemaDigest}${specContext}\n\n입력 텍스트:\n${contentText}` }],
@@ -134,8 +134,14 @@ export async function POST(req: NextRequest) {
             let retryParsed: { items?: Array<{ extracted?: Record<string, unknown> }>; extracted?: Record<string, unknown> } = {}
             try { retryParsed = JSON.parse(retryText) } catch { /* ignore */ }
             items = meaningful(Array.isArray(retryParsed.items) ? retryParsed.items : (retryParsed.extracted ? [{ extracted: retryParsed.extracted }] : []))
+            // #5 라이브 모니터: 자가합성 프롬프트가 자기 재시도에서도 실패하면 즉시 자동 롤백/비활성(나쁜 AI 프롬프트가 active로 안 남게)
+            if (synth.activated) {
+              const { monitorAiPromptOutcome } = await import('@/lib/gpu/prompt-governance')
+              const mon = await monitorAiPromptOutcome(adminClient as unknown as Record<string, unknown>, { promptKey: synth.promptKey, ok: items.length > 0, nowIso: new Date().toISOString() })
+              if (mon.action !== 'none') send('progress', { step: 'auto_rollback', msg: `자가합성 프롬프트 품질 미달 — 자동 ${mon.action === 'rolled_back' ? `롤백(→${mon.toVersion})` : '비활성'}` })
+            }
             if (items.length > 0) {
-              send('progress', { step: 'synth_ok', msg: `자가합성 규칙으로 ${items.length}건 추출 성공 (검수 대기 draft로 저장됨)` })
+              send('progress', { step: 'synth_ok', msg: `자가합성 규칙으로 ${items.length}건 추출 성공` })
             }
           }
         }

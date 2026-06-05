@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { evalPromptCandidate, autoActivatePrompt, rollbackPrompt, autoRollbackIfDegraded, REQUIRED_PROMPT_TOKENS } from './prompt-governance'
+import { evalPromptCandidate, autoActivatePrompt, rollbackPrompt, autoRollbackIfDegraded, monitorAiPromptOutcome, REQUIRED_PROMPT_TOKENS } from './prompt-governance'
 
 // 체이너블 mock — insert/update 기록, select.maybeSingle/리스트 반환
 function mockDb(opts: { current?: Record<string, unknown>; list?: Record<string, unknown[]> } = {}) {
@@ -81,5 +81,30 @@ describe('축6 롤백(사람·자동)', () => {
     const { db } = mockDb()
     const r = await autoRollbackIfDegraded(db, { promptKey: 'gpu.quote-extract', degraded: false, nowIso: '2026-06-05T00:00:00Z' })
     expect(r.rolledBack).toBe(false)
+  })
+})
+
+describe('축6 라이브 모니터(자동롤백 배선)', () => {
+  it('추출 성공(ok=true)이면 아무것도 안 함', async () => {
+    const { db } = mockDb()
+    const r = await monitorAiPromptOutcome(db, { promptKey: 'gpu.auto-synth.x', ok: true, nowIso: '2026-06-05T00:00:00Z' })
+    expect(r.action).toBe('none')
+  })
+
+  it('실패 + 직전본 있으면 자동 롤백', async () => {
+    const { db } = mockDb({
+      current: { ai_prompts: { content: 'bad synth', version: 'ai-x' } },
+      list: { ai_prompt_revisions: [{ version: 'ai-x', content: 'bad', event: 'auto_activated' }, { version: 'v1', content: GOOD, event: 'auto_activated' }] },
+    })
+    const r = await monitorAiPromptOutcome(db, { promptKey: 'gpu.quote-extract', ok: false, nowIso: '2026-06-05T00:00:00Z' })
+    expect(r.action).toBe('rolled_back')
+  })
+
+  it('실패 + 직전본 없으면(신규 자가합성) 비활성 + 감사', async () => {
+    const { db, log } = mockDb({ current: { ai_prompts: { content: 'bad synth', version: 'ai-new' } }, list: { ai_prompt_revisions: [] } })
+    const r = await monitorAiPromptOutcome(db, { promptKey: 'gpu.auto-synth.x', ok: false, nowIso: '2026-06-05T00:00:00Z' })
+    expect(r.action).toBe('deactivated')
+    expect(log.updates.some((u) => u.table === 'ai_prompts' && u.row.active === false)).toBe(true)
+    expect(log.inserts.some((i) => i.table === 'ai_prompt_revisions' && i.row.event === 'auto_rolled_back')).toBe(true)
   })
 })

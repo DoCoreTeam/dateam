@@ -100,6 +100,23 @@ export async function rollbackPrompt(
   return { ok: true }
 }
 
+// 라이브 모니터(#5 배선): AI 자가활성 프롬프트가 사용 직후 실패하면 즉시 자동 복구.
+// ok=true(추출 성공) → 유지. ok=false → 직전본 롤백 시도, 없으면(신규 자가합성) 비활성(나쁜 프롬프트가 active로 안 남게).
+export async function monitorAiPromptOutcome(
+  db: Db,
+  p: { promptKey: string; ok: boolean; by?: string; nowIso: string },
+): Promise<{ action: 'none' | 'rolled_back' | 'deactivated'; toVersion?: string }> {
+  if (p.ok) return { action: 'none' }
+  const rb = await autoRollbackIfDegraded(db, { promptKey: p.promptKey, degraded: true, by: p.by ?? 'auto-monitor', nowIso: p.nowIso })
+  if (rb.rolledBack) return { action: 'rolled_back', toVersion: rb.toVersion }
+  // 롤백할 직전 활성본이 없음(방금 만든 자가합성 키) → 비활성 처리 + 감사
+  const { data: cur } = await db.from('ai_prompts').select('content, version').eq('prompt_key', p.promptKey).eq('active', true).maybeSingle()
+  if (!cur) return { action: 'none' }
+  await db.from('ai_prompts').update({ active: false, updated_at: p.nowIso }).eq('prompt_key', p.promptKey).eq('active', true)
+  await recordRevision(db, { promptKey: p.promptKey, version: cur.version, content: cur.content, source: 'ai', event: 'auto_rolled_back', reason: '자가합성 프롬프트가 사용 직후 추출 실패 — 자동 비활성(라이브 모니터)', trigger: 'live_degraded', createdBy: p.by ?? 'auto-monitor', nowIso: p.nowIso })
+  return { action: 'deactivated' }
+}
+
 // 자동롤백 트리거(#5): 활성 후 라이브 품질 급락(최근 추출 0건 비율↑) 감지 시 직전 버전으로 자동 복원.
 // degraded 판정은 호출측이 신호 제공(테스트 가능). 직전 활성 스냅샷을 revisions에서 찾아 복원.
 export async function autoRollbackIfDegraded(
