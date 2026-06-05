@@ -989,12 +989,16 @@ label.intake-tool-btn {
 }
 .intake-file-overlay {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  top: 0;
+  right: 0;
+  margin: 0;
+  /* 파일 input의 "선택" 버튼은 일부 영역만 다이얼로그를 연다 → font-size를 크게 해 버튼이 전체를 덮게(Bootstrap 트릭) */
+  font-size: 100px;
+  min-width: 100%;
+  min-height: 100%;
   opacity: 0;
   cursor: pointer;
-  font-size: 0; /* 일부 브라우저에서 input 텍스트 영역 클릭 보장 */
+  direction: ltr;
 }
 .intake-file-overlay:disabled {
   cursor: default;
