@@ -39,8 +39,21 @@ function PromptsTab() {
   const [draft, setDraft] = useState('')
   const [msg, setMsg] = useState('')
   const [open, setOpen] = useState<Set<string>>(new Set())
+  const [instr, setInstr] = useState('')
+  const [aiBusy, setAiBusy] = useState(false)
   const prompts = data?.prompts ?? []
   const toggleOpen = (id: string) => setOpen((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+
+  const aiEdit = async () => {
+    if (!instr.trim()) { setMsg('지시문을 입력하세요'); return }
+    setAiBusy(true); setMsg('AI가 편집 중…')
+    try {
+      const r = await fetch('/api/admin/ai-prompts/ai-edit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: draft, instruction: instr }) })
+      const j = await r.json()
+      if (r.ok && j.revised) { setDraft(j.revised); setMsg('AI 편집 완료 — 검토 후 저장하세요') }
+      else setMsg(j.error ?? 'AI 편집 실패')
+    } catch { setMsg('AI 편집 오류') } finally { setAiBusy(false) }
+  }
 
   const save = async () => {
     if (!edit) return
@@ -67,7 +80,7 @@ function PromptsTab() {
                 <td data-label="수정" className="card-hide" style={{ fontSize: 11, color: '#94a3b8' }}>{p.updated_at?.slice(0, 10)}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   <button onClick={() => toggleOpen(p.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', marginRight: 4 }}>{open.has(p.id) ? '내용 닫기' : `내용 (${p.content?.length ?? 0}자)`}</button>
-                  <button onClick={() => { setEdit(p); setDraft(p.content) }} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px' }}>편집</button>
+                  <button onClick={() => { setEdit(p); setDraft(p.content); setInstr(''); setMsg('') }} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px' }}>편집</button>
                 </td>
               </tr>
               {open.has(p.id) && (
@@ -86,7 +99,13 @@ function PromptsTab() {
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: 20, width: 'min(760px, 96vw)', maxHeight: '88vh', overflowY: 'auto' }}>
             <h3 style={{ margin: '0 0 4px', fontSize: 15 }}>{edit.prompt_key} <span style={{ fontSize: 12, color: '#94a3b8' }}>{edit.version}</span></h3>
             <p style={{ fontSize: 11.5, color: '#94a3b8', margin: '0 0 10px' }}>편집·저장 시 변경 이력에 기록됩니다(왜·어떻게)</p>
-            <textarea value={draft} onChange={(e) => setDraft(e.target.value)} style={{ width: '100%', minHeight: 360, fontFamily: 'monospace', fontSize: 12, padding: 10, border: '1px solid #e5e7eb', borderRadius: 8 }} />
+            {/* AI에게 편집 지시 — 스키마 인지 상태로 현재 본문을 개선해 아래 편집창에 채움(저장은 사람이) */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              <input value={instr} onChange={(e) => setInstr(e.target.value)} placeholder="AI에게 지시 (예: 약정·수량 추출을 강화하고 재고 resp_qty를 더 정확히)" disabled={aiBusy}
+                style={{ flex: 1, fontSize: 12, padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: 8 }} onKeyDown={(e) => { if (e.key === 'Enter') aiEdit() }} />
+              <button onClick={aiEdit} disabled={aiBusy} className="gpu-btn" style={{ fontSize: 12, padding: '6px 14px', color: '#2563eb', borderColor: '#bfdbfe', fontWeight: 600, whiteSpace: 'nowrap' }}>{aiBusy ? '편집 중…' : '🤖 AI로 편집'}</button>
+            </div>
+            <textarea value={draft} onChange={(e) => setDraft(e.target.value)} style={{ width: '100%', minHeight: 340, fontFamily: 'monospace', fontSize: 12, padding: 10, border: '1px solid #e5e7eb', borderRadius: 8 }} />
             <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
               <button onClick={save} className="gpu-btn gpu-btn-primary">저장</button>
               <button onClick={() => setEdit(null)} className="gpu-btn">취소</button>
