@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ParsedLeadData } from '@/lib/gemini-lead'
 import AXLoadingOverlay from '@/components/ui/AXLoadingOverlay'
@@ -22,7 +22,7 @@ type SpeechRecognitionLike = {
   interimResults: boolean
   onstart: (() => void) | null
   onend: (() => void) | null
-  onerror: (() => void) | null
+  onerror: ((event?: { error?: string }) => void) | null
   onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null
   start: () => void
 }
@@ -58,7 +58,33 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
 
   const [files, setFiles] = useState<FileItem[]>([])
   const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   const [bulkFile, setBulkFile] = useState<File | null>(null)
+
+  // 환경 진단 — 파일/음성 둘 다 실패 시 공통 원인(iframe·비보안컨텍스트) 노출
+  const [envWarn, setEnvWarn] = useState('')
+  useEffect(() => {
+    const issues: string[] = []
+    try { if (window.self !== window.top) issues.push('이 페이지가 iframe 안에서 열려 있음 → 파일선택·마이크 차단됨') } catch { issues.push('iframe(교차출처) 안에서 열려 있음 → 파일선택·마이크 차단됨') }
+    if (typeof window !== 'undefined' && window.isSecureContext === false) issues.push('비보안 컨텍스트(HTTP·비localhost) → 마이크/일부 기능 차단')
+    setEnvWarn(issues.join(' · '))
+  }, [])
+
+  // 파일 선택창 열기 — 공식 showPicker() 우선, 실패 시 .click() 폴백, 그래도 실패면 에러를 화면에 노출(원인 진단)
+  function openPicker(input: HTMLInputElement | null) {
+    if (!input) { setError('파일 입력 요소를 찾지 못했습니다'); return }
+    setError('')
+    try {
+      const withPicker = input as HTMLInputElement & { showPicker?: () => void }
+      if (typeof withPicker.showPicker === 'function') { withPicker.showPicker(); return }
+      input.click()
+    } catch (e) {
+      try { input.click() } catch (e2) {
+        setError(`파일 선택창을 열 수 없습니다 — ${e instanceof Error ? e.name + ': ' + e.message : String(e)} / ${e2 instanceof Error ? e2.message : String(e2)}`)
+      }
+    }
+  }
   const [voiceSupported, setVoiceSupported] = useState(true)
   const [listening, setListening] = useState(false)
 
@@ -188,7 +214,18 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
     recognition.interimResults = false
     recognition.onstart = () => setListening(true)
     recognition.onend = () => setListening(false)
-    recognition.onerror = () => { setListening(false); setError('음성 인식 중 오류가 발생했습니다') }
+    recognition.onerror = (ev?: { error?: string }) => {
+      setListening(false)
+      const code = ev?.error ?? ''
+      const msg: Record<string, string> = {
+        'not-allowed': '마이크 권한이 차단되어 있습니다 — 주소창 자물쇠 → 마이크 허용',
+        'service-not-allowed': '브라우저/OS에서 음성 서비스가 차단됨 (HTTPS·권한 확인)',
+        'network': '음성 인식 네트워크 오류 (Chrome 음성은 인터넷 필요)',
+        'no-speech': '음성이 감지되지 않았습니다',
+        'audio-capture': '마이크를 찾을 수 없습니다',
+      }
+      setError(`음성 인식 오류${code ? ` [${code}]` : ''} — ${msg[code] ?? '알 수 없는 오류'}`)
+    }
     recognition.onresult = (event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => {
       const text = Array.from(event.results).map((r) => r[0]?.transcript ?? '').join(' ').trim()
       if (text) { setRawInput((prev) => [prev, text].filter(Boolean).join('\n')); setVoiceUsed(true) }
@@ -250,18 +287,12 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
               placeholder={`텍스트를 입력·붙여넣거나, 명함·문서 파일을 끌어다 놓으세요.\n\n예시:\n삼성SDS 김철수 부장 (IT전략팀)\nkcs@samsung.com / 02-6360-0000\n클라우드 전환 프로젝트 논의 필요`}
               style={{ width: '100%', padding: '0.75rem', border: 'none', borderRadius: '0.5rem', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6, background: 'transparent', outline: 'none' }} />
           </div>
-          {/* 입력 도구 — 파일/카메라 input을 버튼 위에 opacity:0으로 직접 올림(클릭이 실제 input에 닿음 → 우회로 없는 네이티브 오픈) */}
+          {/* 입력 도구 — showPicker() 공식 API + 실패 시 에러를 화면에 노출(원인 진단) */}
+          <input ref={fileInputRef} type="file" multiple accept={ACCEPTED_TYPES} style={{ display: 'none' }} onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-            <span className={`intake-tool-btn intake-file-btn${loading ? ' intake-tool-label-disabled' : ''}`}>
-              📎 파일
-              <input type="file" multiple accept={ACCEPTED_TYPES} disabled={loading} aria-label="파일 첨부"
-                className="intake-file-overlay" onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
-            </span>
-            <span className={`intake-tool-btn intake-file-btn${loading ? ' intake-tool-label-disabled' : ''}`}>
-              📷 카메라
-              <input type="file" accept="image/*" capture="environment" disabled={loading} aria-label="카메라로 찍기"
-                className="intake-file-overlay" onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
-            </span>
+            <button type="button" className="intake-tool-btn" disabled={loading} onClick={() => openPicker(fileInputRef.current)} aria-label="파일 첨부">📎 파일</button>
+            <button type="button" className="intake-tool-btn" disabled={loading} onClick={() => openPicker(cameraInputRef.current)} aria-label="카메라로 찍기">📷 카메라</button>
             {voiceSupported && (
               <button type="button" className="intake-tool-btn" onClick={startVoiceInput} disabled={listening || loading} aria-label="음성 입력"
                 style={listening ? { color: '#dc2626', borderColor: '#fecaca' } : undefined}>{listening ? '● 녹음중…' : '🎤 음성'}</button>
@@ -270,6 +301,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
           <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.375rem 0 0' }}>
             명함·미팅 메모·이메일 본문을 붙여넣거나, 이미지·PDF·DOCX·CSV를 첨부, 🎤로 받아쓰기 — XLSX는 대량 업로드로 처리됩니다
           </p>
+          {envWarn && <p style={{ fontSize: '0.75rem', color: '#d97706', margin: '0.25rem 0 0', fontWeight: 600 }}>⚠️ {envWarn}</p>}
         </div>
 
         {/* 첨부 파일 칩/상태 */}
