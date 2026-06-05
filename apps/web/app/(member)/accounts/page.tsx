@@ -50,7 +50,7 @@ export default function AccountsPage() {
     return `/api/accounts${qs ? `?${qs}` : ''}`
   }, [debouncedSearch, filterSegment, sort, sortDir])
 
-  const { data, size, setSize, isLoading, isValidating } = useSWRInfinite<PageData>(getKey)
+  const { data, size, setSize, isLoading, isValidating, mutate } = useSWRInfinite<PageData>(getKey)
 
   // 필터 변경 시 페이지 리셋
   useEffect(() => { setSize(1) }, [debouncedSearch, filterSegment, sort, sortDir, setSize])
@@ -239,13 +239,19 @@ export default function AccountsPage() {
 
       {/* 슬라이드 패널 */}
       <SlidePanel isOpen={!!selected} onClose={() => setSelected(null)} title={selected?.name ?? ''}>
-        {selected && <AccountDetail account={selected} onClose={() => setSelected(null)} />}
+        {selected && <AccountDetail account={selected} onClose={() => setSelected(null)} onDeleted={() => { mutate(); setSelected(null) }} />}
       </SlidePanel>
     </div>
   )
 }
 
-function AccountDetail({ account, onClose }: { account: Account; onClose: () => void }) {
+function AccountDetail({ account, onClose, onDeleted }: { account: Account; onClose: () => void; onDeleted: () => void }) {
+  async function handleDelete() {
+    if (!confirm(`거래처 "${account.name}"을(를) 삭제하시겠습니까?`)) return
+    const res = await fetch(`/api/accounts/${account.id}`, { method: 'DELETE' })
+    if (res.ok) onDeleted()
+    else alert('삭제에 실패했습니다')
+  }
   const fc = fitColor(account.fit_score)
   return (
     <div>
@@ -311,6 +317,9 @@ function AccountDetail({ account, onClose }: { account: Account; onClose: () => 
         <Link href={`/accounts/${account.id}/edit`} className="detail-btn-ghost" onClick={onClose}>
           편집
         </Link>
+        <button onClick={handleDelete} className="detail-btn-ghost" style={{ color: '#dc2626', borderColor: '#fecaca', cursor: 'pointer' }}>
+          삭제
+        </button>
       </div>
     </div>
   )

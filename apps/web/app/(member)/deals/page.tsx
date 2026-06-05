@@ -61,7 +61,7 @@ export default function DealsPage() {
     return `/api/deals${qs ? `?${qs}` : ''}`
   }, [debouncedSearch, filterStage, sort, sortDir])
 
-  const { data, size, setSize, isLoading, isValidating } = useSWRInfinite<PageData>(getKey)
+  const { data, size, setSize, isLoading, isValidating, mutate } = useSWRInfinite<PageData>(getKey)
 
   useEffect(() => { setSize(1) }, [debouncedSearch, filterStage, sort, sortDir, setSize])
 
@@ -311,14 +311,20 @@ export default function DealsPage() {
       )}
 
       <SlidePanel isOpen={!!selected} onClose={() => setSelected(null)} title={selected?.title ?? ''}>
-        {selected && <DealDetail deal={selected} onClose={() => setSelected(null)} />}
+        {selected && <DealDetail deal={selected} onClose={() => setSelected(null)} onDeleted={() => { mutate(); setSelected(null) }} />}
       </SlidePanel>
     </div>
   )
 }
 
-function DealDetail({ deal: d, onClose }: { deal: DealWithAccount; onClose: () => void }) {
+function DealDetail({ deal: d, onClose, onDeleted }: { deal: DealWithAccount; onClose: () => void; onDeleted: () => void }) {
   const st = STAGE_STYLE[d.stage] ?? STAGE_STYLE['신규']
+  async function handleDelete() {
+    if (!confirm(`영업기회 "${d.title}"을(를) 삭제하시겠습니까?`)) return
+    const res = await fetch(`/api/deals/${d.id}`, { method: 'DELETE' })
+    if (res.ok) onDeleted()
+    else alert('삭제에 실패했습니다')
+  }
   return (
     <div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBottom: '1rem' }}>
@@ -373,6 +379,9 @@ function DealDetail({ deal: d, onClose }: { deal: DealWithAccount; onClose: () =
         <Link href={`/deals/${d.id}/edit`} className="detail-btn-ghost" onClick={onClose}>
           편집
         </Link>
+        <button onClick={handleDelete} className="detail-btn-ghost" style={{ color: '#dc2626', borderColor: '#fecaca', cursor: 'pointer' }}>
+          삭제
+        </button>
       </div>
     </div>
   )

@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { Inbox } from 'lucide-react'
 import type { LeadIntake } from '@/types/database'
 import LeadIntakeForm from './LeadIntakeForm'
+import IntakeActions from './IntakeActions'
 
 function statusBadge(status: string) {
   const map: Record<string, { color: string; bg: string; label: string }> = {
@@ -88,6 +89,7 @@ export default async function LeadIntakePage({ searchParams }: PageProps) {
                 <th>상태</th>
                 <th>Fit</th>
                 <th>일시</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -129,6 +131,9 @@ export default async function LeadIntakePage({ searchParams }: PageProps) {
                       <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
                         {new Date(intake.created_at).toLocaleDateString('ko-KR')}
                       </span>
+                    </td>
+                    <td data-label="관리" className="card-actions">
+                      <IntakeActions intakeId={intake.id} notes={intake.notes} />
                     </td>
                   </tr>
                 )

@@ -38,7 +38,7 @@ export default function ContactsPage() {
     return `/api/contacts${qs ? `?${qs}` : ''}`
   }, [debouncedSearch, sort, sortDir])
 
-  const { data, size, setSize, isLoading, isValidating } = useSWRInfinite<PageData>(getKey)
+  const { data, size, setSize, isLoading, isValidating, mutate } = useSWRInfinite<PageData>(getKey)
 
   useEffect(() => { setSize(1) }, [debouncedSearch, sort, sortDir, setSize])
 
@@ -201,13 +201,19 @@ export default function ContactsPage() {
       </div>
 
       <SlidePanel isOpen={!!selected} onClose={() => setSelected(null)} title={selected?.name ?? ''}>
-        {selected && <ContactDetail contact={selected} onClose={() => setSelected(null)} />}
+        {selected && <ContactDetail contact={selected} onClose={() => setSelected(null)} onDeleted={() => { mutate(); setSelected(null) }} />}
       </SlidePanel>
     </div>
   )
 }
 
-function ContactDetail({ contact: c, onClose }: { contact: ContactWithAccount; onClose: () => void }) {
+function ContactDetail({ contact: c, onClose, onDeleted }: { contact: ContactWithAccount; onClose: () => void; onDeleted: () => void }) {
+  async function handleDelete() {
+    if (!confirm(`담당자 "${c.name}"을(를) 삭제하시겠습니까?`)) return
+    const res = await fetch(`/api/contacts/${c.id}`, { method: 'DELETE' })
+    if (res.ok) onDeleted()
+    else alert('삭제에 실패했습니다')
+  }
   return (
     <div>
       {/* 직책/부서 */}
@@ -257,6 +263,9 @@ function ContactDetail({ contact: c, onClose }: { contact: ContactWithAccount; o
         <Link href={`/contacts/${c.id}/edit`} className="detail-btn-ghost" onClick={onClose}>
           편집
         </Link>
+        <button onClick={handleDelete} className="detail-btn-ghost" style={{ color: '#dc2626', borderColor: '#fecaca', cursor: 'pointer' }}>
+          삭제
+        </button>
       </div>
     </div>
   )
