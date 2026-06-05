@@ -4,6 +4,7 @@ import { Inbox } from 'lucide-react'
 import type { LeadIntake } from '@/types/database'
 import LeadIntakeForm from './LeadIntakeForm'
 import IntakeActions from './IntakeActions'
+import { getBranding } from '@/lib/branding'
 
 function statusBadge(status: string) {
   const map: Record<string, { color: string; bg: string; label: string }> = {
@@ -42,16 +43,14 @@ export default async function LeadIntakePage({ searchParams }: PageProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const adm = adminClient as any
 
-  const [intakesRes, metaRes] = await Promise.all([
+  const [intakesRes, branding] = await Promise.all([
     adm.from('lead_intakes').select('*').eq('user_id', user.id)
       .order('created_at', { ascending: false }).limit(20) as Promise<{ data: LeadIntake[] | null }>,
-    adm.from('org_content').select('value').eq('key', 'META').single() as Promise<{ data: { value: Record<string, unknown> } | null }>,
+    getBranding(),  // 브랜드 SSOT — 사이드바와 동일 소스(옛 org_content META 대신)
   ])
 
   const list = intakesRes.data ?? []
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const meta = (metaRes.data?.value as any) ?? {}
-  const brandName: string = typeof meta.org === 'string' ? meta.org : typeof meta.title === 'string' ? meta.title : ''
+  const brandName: string = branding.brandName
 
   return (
     <div>

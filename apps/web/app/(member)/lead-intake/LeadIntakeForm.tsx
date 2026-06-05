@@ -51,7 +51,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
   const [error, setError] = useState('')
   const [result, setResult] = useState<{ parsed: ParsedLeadData; intakeId: string } | null>(null)
   const [creating, setCreating] = useState(false)
-  const [created, setCreated] = useState(false)
+  const [savedMsg, setSavedMsg] = useState('')
   const [voiceUsed, setVoiceUsed] = useState(false)
 
   const submittingRef = useRef(false)
@@ -124,7 +124,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
     const hasPendingFiles = files.some(f => f.status === 'pending')
     if (!hasText && !hasPendingFiles) { setError('내용을 입력하거나 파일을 첨부하세요'); return }
     submittingRef.current = true
-    setLoading(true); setError('')
+    setLoading(true); setError(''); setSavedMsg('')
     setResult(null)  // 이전 텍스트 분석 결과 잔존 방지(DC-REV HIGH)
     try {
       if (hasPendingFiles) await analyzeFiles()
@@ -136,9 +136,9 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
     }
   }
 
-  async function createFromIntakes(intakeIds: string[]) {
+  async function createFromIntakes(intakeIds: string[]): Promise<boolean> {
     const ids = intakeIds.filter(Boolean)
-    if (!ids.length) return
+    if (!ids.length) return false
     const res = await fetch('/api/leads/bulk-confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -147,27 +147,31 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
     if (!res.ok) {
       const data = await res.json() as { error?: string }
       setError(data.error ?? 'CRM 등록 실패')
+      return false
     }
+    return true
   }
 
   async function handleCreate() {
     if (!result || submittingRef.current) return
     submittingRef.current = true
     setCreating(true)
-    await createFromIntakes([result.intakeId])
-    setCreated(true); setCreating(false); submittingRef.current = false; router.refresh()
+    const ok = await createFromIntakes([result.intakeId])
+    setCreating(false); submittingRef.current = false
+    if (ok) { resetAll(); setSavedMsg('거래처·담당자·영업기회가 CRM에 등록되었습니다'); router.refresh() }
   }
 
   async function handleFileCreate(item: FileItem) {
-    if (!item.intakeId) return
+    if (!item.intakeId || submittingRef.current) return
+    submittingRef.current = true
     setCreating(true)
-    await createFromIntakes([item.intakeId])
-    setCreating(false)
-    router.refresh()
+    const ok = await createFromIntakes([item.intakeId])
+    setCreating(false); submittingRef.current = false
+    if (ok) { setFiles(prev => prev.filter(f => f.file !== item.file)); setSavedMsg(`${item.file.name} — CRM에 등록되었습니다`); router.refresh() }
   }
 
   function resetAll() {
-    setResult(null); setRawInput(''); setFiles([]); setCreated(false); setVoiceUsed(false); setError('')
+    setResult(null); setRawInput(''); setFiles([]); setVoiceUsed(false); setError('')
   }
 
   function startVoiceInput() {
@@ -231,28 +235,34 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
         onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleAnalyze() } }}
         style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
       >
+        {savedMsg && (
+          <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '0.75rem', padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '1rem' }}>✅</span>
+            <span style={{ color: '#0284c7', fontWeight: 600, fontSize: '0.875rem' }}>{savedMsg}</span>
+          </div>
+        )}
         <div>
           <label className="label">리드 정보 입력</label>
           <div className={`intake-unified${isDragging ? ' dropzone-active' : ''}`}
             onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={e => { e.preventDefault(); setIsDragging(false); addFiles(e.dataTransfer.files) }}
-            style={{ position: 'relative', border: '1px solid #e2e8f0', borderRadius: '0.5rem', background: '#fff' }}>
+            style={{ border: '1px solid #e2e8f0', borderRadius: '0.5rem', background: '#fff' }}>
             <textarea value={rawInput} onChange={e => setRawInput(e.target.value)} onPaste={handlePaste} rows={6}
               placeholder={`텍스트를 입력·붙여넣거나, 명함·문서 파일을 끌어다 놓으세요.\n\n예시:\n삼성SDS 김철수 부장 (IT전략팀)\nkcs@samsung.com / 02-6360-0000\n클라우드 전환 프로젝트 논의 필요`}
-              style={{ width: '100%', padding: '0.75rem', paddingBottom: '2.5rem', border: 'none', borderRadius: '0.5rem', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6, background: 'transparent', outline: 'none' }} />
-            {/* 입력 도구 바 — 첨부·카메라·음성 */}
-            <div style={{ position: 'absolute', left: '0.5rem', bottom: '0.5rem', display: 'flex', gap: '0.375rem' }}>
-              <button type="button" className="intake-tool-btn" onClick={() => fileInputRef.current?.click()} title="파일 첨부" aria-label="파일 첨부">📎</button>
-              <button type="button" className="intake-tool-btn" onClick={() => cameraInputRef.current?.click()} title="카메라로 찍기" aria-label="카메라로 찍기">📷</button>
-              {voiceSupported && (
-                <button type="button" className="intake-tool-btn" onClick={startVoiceInput} disabled={listening} title="음성 입력" aria-label="음성 입력"
-                  style={listening ? { color: '#dc2626', borderColor: '#fecaca' } : undefined}>{listening ? '● 녹음중' : '🎤'}</button>
-              )}
-            </div>
+              style={{ width: '100%', padding: '0.75rem', border: 'none', borderRadius: '0.5rem', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6, background: 'transparent', outline: 'none' }} />
           </div>
           <input ref={fileInputRef} type="file" multiple accept={ACCEPTED_TYPES} style={{ display: 'none' }} onChange={e => addFiles(e.target.files)} />
           <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={e => addFiles(e.target.files)} />
+          {/* 입력 도구 — textarea 밖 별도 행(오버랩·오버레이 간섭 제거) */}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+            <button type="button" className="intake-tool-btn" onClick={() => fileInputRef.current?.click()} disabled={loading} aria-label="파일 첨부">📎 파일</button>
+            <button type="button" className="intake-tool-btn" onClick={() => cameraInputRef.current?.click()} disabled={loading} aria-label="카메라로 찍기">📷 카메라</button>
+            {voiceSupported && (
+              <button type="button" className="intake-tool-btn" onClick={startVoiceInput} disabled={listening || loading} aria-label="음성 입력"
+                style={listening ? { color: '#dc2626', borderColor: '#fecaca' } : undefined}>{listening ? '● 녹음중…' : '🎤 음성'}</button>
+            )}
+          </div>
           <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.375rem 0 0' }}>
             명함·미팅 메모·이메일 본문을 붙여넣거나, 이미지·PDF·DOCX·CSV를 첨부, 🎤로 받아쓰기 — XLSX는 대량 업로드로 처리됩니다
           </p>
@@ -293,21 +303,15 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
 
         {error && <p style={{ color: '#dc2626', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
 
-        {/* 텍스트 분석 결과 */}
+        {/* 텍스트 분석 결과 — 저장 성공 시 resetAll로 사라지고 상단 완료 배너로 안내 */}
         {result && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <ParsedCard parsed={result.parsed} />
-            {created ? (
-              <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '0.75rem', padding: '1rem', textAlign: 'center' }}>
-                <p style={{ color: '#0284c7', fontWeight: 600, margin: 0 }}>거래처·담당자·영업기회가 CRM에 등록되었습니다</p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <button type="button" onClick={handleCreate} disabled={creating} className="btn-primary" style={{ padding: '0.625rem 1.25rem', minHeight: '44px' }}>
-                  {creating ? '등록중...' : '거래처/담당자/영업기회 생성'}
-                </button>
-              </div>
-            )}
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button type="button" onClick={handleCreate} disabled={creating} className="btn-primary" style={{ padding: '0.625rem 1.25rem', minHeight: '44px' }}>
+                {creating ? '등록중...' : '거래처/담당자/영업기회 생성'}
+              </button>
+            </div>
           </div>
         )}
 
