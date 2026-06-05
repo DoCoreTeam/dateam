@@ -58,8 +58,6 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
 
   const [files, setFiles] = useState<FileItem[]>([])
   const [isDragging, setIsDragging] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const cameraInputRef = useRef<HTMLInputElement>(null)
   const [bulkFile, setBulkFile] = useState<File | null>(null)
   const [voiceSupported, setVoiceSupported] = useState(true)
   const [listening, setListening] = useState(false)
@@ -252,12 +250,13 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
               placeholder={`텍스트를 입력·붙여넣거나, 명함·문서 파일을 끌어다 놓으세요.\n\n예시:\n삼성SDS 김철수 부장 (IT전략팀)\nkcs@samsung.com / 02-6360-0000\n클라우드 전환 프로젝트 논의 필요`}
               style={{ width: '100%', padding: '0.75rem', border: 'none', borderRadius: '0.5rem', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6, background: 'transparent', outline: 'none' }} />
           </div>
-          <input ref={fileInputRef} type="file" multiple accept={ACCEPTED_TYPES} style={{ display: 'none' }} onChange={e => addFiles(e.target.files)} />
-          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={e => addFiles(e.target.files)} />
+          {/* 파일 입력 — label 클릭이 브라우저 네이티브로 다이얼로그 오픈(JS .click() 미사용 → 환경 무관 보장) */}
+          <input id="lead-file-input" type="file" multiple accept={ACCEPTED_TYPES} className="visually-hidden" disabled={loading} onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
+          <input id="lead-camera-input" type="file" accept="image/*" capture="environment" className="visually-hidden" disabled={loading} onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
           {/* 입력 도구 — textarea 밖 별도 행(오버랩·오버레이 간섭 제거) */}
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-            <button type="button" className="intake-tool-btn" onClick={() => fileInputRef.current?.click()} disabled={loading} aria-label="파일 첨부">📎 파일</button>
-            <button type="button" className="intake-tool-btn" onClick={() => cameraInputRef.current?.click()} disabled={loading} aria-label="카메라로 찍기">📷 카메라</button>
+            <label htmlFor="lead-file-input" className={`intake-tool-btn${loading ? ' intake-tool-label-disabled' : ''}`} aria-label="파일 첨부">📎 파일</label>
+            <label htmlFor="lead-camera-input" className={`intake-tool-btn${loading ? ' intake-tool-label-disabled' : ''}`} aria-label="카메라로 찍기">📷 카메라</label>
             {voiceSupported && (
               <button type="button" className="intake-tool-btn" onClick={startVoiceInput} disabled={listening || loading} aria-label="음성 입력"
                 style={listening ? { color: '#dc2626', borderColor: '#fecaca' } : undefined}>{listening ? '● 녹음중…' : '🎤 음성'}</button>
