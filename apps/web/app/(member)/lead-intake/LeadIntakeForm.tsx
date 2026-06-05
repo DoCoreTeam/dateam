@@ -20,11 +20,13 @@ type FileItem = {
 type SpeechRecognitionLike = {
   lang: string
   interimResults: boolean
+  continuous: boolean
   onstart: (() => void) | null
   onend: (() => void) | null
   onerror: ((event?: { error?: string }) => void) | null
   onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null
   start: () => void
+  stop: () => void
 }
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024
@@ -60,6 +62,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const [bulkFile, setBulkFile] = useState<File | null>(null)
 
   // 환경 진단 — 파일/음성 둘 다 실패 시 공통 원인(iframe·비보안컨텍스트) 노출
@@ -198,25 +201,35 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
     const recognition = new SpeechCtor()
     recognition.lang = 'ko-KR'
     recognition.interimResults = false
+    recognition.continuous = true  // 짧은 침묵에 끊기지 않고 계속 듣기 — 정지는 사용자가 직접
     recognition.onstart = () => setListening(true)
-    recognition.onend = () => setListening(false)
+    recognition.onend = () => { setListening(false); recognitionRef.current = null }
     recognition.onerror = (ev?: { error?: string }) => {
-      setListening(false)
+      setListening(false); recognitionRef.current = null
       const code = ev?.error ?? ''
+      // no-speech는 연속모드에서 침묵 시 흔히 발생 — 사용자에게 오류로 띄우지 않음
+      if (code === 'no-speech' || code === 'aborted') return
       const msg: Record<string, string> = {
         'not-allowed': '마이크 권한이 차단되어 있습니다 — 주소창 자물쇠 → 마이크 허용',
         'service-not-allowed': '브라우저/OS에서 음성 서비스가 차단됨 (HTTPS·권한 확인)',
         'network': '음성 인식 네트워크 오류 (Chrome 음성은 인터넷 필요)',
-        'no-speech': '음성이 감지되지 않았습니다',
         'audio-capture': '마이크를 찾을 수 없습니다',
       }
       setError(`음성 인식 오류${code ? ` [${code}]` : ''} — ${msg[code] ?? '알 수 없는 오류'}`)
     }
     recognition.onresult = (event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => {
-      const text = Array.from(event.results).map((r) => r[0]?.transcript ?? '').join(' ').trim()
-      if (text) { setRawInput((prev) => [prev, text].filter(Boolean).join('\n')); setVoiceUsed(true) }
+      // 연속모드: results는 누적되므로 가장 마지막(새) 결과만 추가(중복 방지)
+      const results = Array.from(event.results)
+      const text = results[results.length - 1]?.[0]?.transcript?.trim() ?? ''
+      if (text) { setRawInput((prev) => [prev, text].filter(Boolean).join(' ')); setVoiceUsed(true) }
     }
+    recognitionRef.current = recognition
     recognition.start()
+  }
+
+  function stopVoiceInput() {
+    recognitionRef.current?.stop()
+    setListening(false)
   }
 
   const processingFile = files.find(f => f.status === 'processing')
@@ -280,8 +293,8 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
             <button type="button" className="intake-tool-btn" disabled={loading} onClick={() => fileInputRef.current?.click()} aria-label="파일 첨부">📎 파일</button>
             <button type="button" className="intake-tool-btn" disabled={loading} onClick={() => cameraInputRef.current?.click()} aria-label="사진 첨부">📷 사진</button>
             {voiceSupported && (
-              <button type="button" className="intake-tool-btn" onClick={startVoiceInput} disabled={listening || loading} aria-label="음성 입력"
-                style={listening ? { color: '#dc2626', borderColor: '#fecaca' } : undefined}>{listening ? '● 녹음중…' : '🎤 음성'}</button>
+              <button type="button" className="intake-tool-btn" onClick={listening ? stopVoiceInput : startVoiceInput} disabled={loading} aria-label={listening ? '음성 정지' : '음성 입력'}
+                style={listening ? { color: '#dc2626', borderColor: '#fecaca', fontWeight: 700 } : undefined}>{listening ? '⏹ 정지 (녹음중)' : '🎤 음성'}</button>
             )}
           </div>
           <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.375rem 0 0' }}>
