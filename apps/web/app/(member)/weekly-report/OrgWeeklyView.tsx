@@ -110,7 +110,7 @@ export default function OrgWeeklyView(props: Props) {
         )}
         {!atCurrent && (
           <Link href="/weekly-report?tab=org" prefetch={false}
-            style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem', borderRadius: '0.375rem', textDecoration: 'none', color: 'var(--brand)', background: '#eef2ff', border: '1px solid #c7d2fe' }}>
+            style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem', borderRadius: '0.375rem', textDecoration: 'none', color: 'var(--brand)', background: '#f3effe', border: '1px solid #ddd6fe' }}>
             이번 주
           </Link>
         )}
@@ -262,7 +262,7 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
         )}
       </div>
 
-      {msg && <div role="status" style={{ padding: '0.625rem 1.25rem', background: '#eef2ff', borderBottom: '1px solid #c7d2fe', fontSize: '0.8125rem', color: 'var(--brand-dark)' }}>{msg}</div>}
+      {msg && <div role="status" style={{ padding: '0.625rem 1.25rem', background: '#f3effe', borderBottom: '1px solid #ddd6fe', fontSize: '0.8125rem', color: 'var(--brand-dark)' }}>{msg}</div>}
 
       {busy ? (
         <div style={{ padding: '1.25rem' }}>

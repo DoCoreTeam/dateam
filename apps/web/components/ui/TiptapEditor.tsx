@@ -59,7 +59,7 @@ const BTN_ACTIVE: React.CSSProperties = {
   ...BTN,
   background: 'var(--color-border)',
   color: '#0f172a',
-  border: '1px solid #cbd5e1',
+  border: '1px solid var(--border-color)',
 }
 
 const DIVIDER = (

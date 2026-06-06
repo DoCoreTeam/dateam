@@ -240,5 +240,5 @@ function ModalFooter({ onClose, onSubmit, isPending, label }: { onClose: () => v
 
 const labelStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '0.35rem' }
 const labelTextStyle: React.CSSProperties = { fontSize: '0.8rem', fontWeight: 600, color: '#475569' }
-const inputStyle: React.CSSProperties = { padding: '0.5rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: 'var(--radius)', fontSize: '0.875rem', background: '#fff', outline: 'none' }
+const inputStyle: React.CSSProperties = { padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', background: '#fff', outline: 'none' }
 const errorStyle: React.CSSProperties = { margin: 0, color: '#ef4444', fontSize: '0.8rem' }

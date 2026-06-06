@@ -107,7 +107,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
                 padding: '0.375rem 0.625rem', fontSize: '0.8125rem',
-                background: '#eef2ff', color: 'var(--brand)', border: '1px solid #c7d2fe',
+                background: '#f3effe', color: 'var(--brand)', border: '1px solid #ddd6fe',
                 borderRadius: '0.375rem', cursor: 'pointer', fontWeight: 600, minHeight: 36,
               }}
             >
@@ -148,7 +148,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
               <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand)', marginBottom: '0.4rem', letterSpacing: '0.02em' }}>일정</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                 {events.map((ev) => (
-                  <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.625rem', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 'var(--radius)' }}>
+                  <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.625rem', background: '#f3effe', border: '1px solid #ddd6fe', borderRadius: 'var(--radius)' }}>
                     <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand-dark)', whiteSpace: 'nowrap' }}>
                       {ev.all_day ? '종일' : formatTime(ev.start_at)}{!ev.all_day && ev.end_at ? `~${formatTime(ev.end_at)}` : ''}
                     </span>
@@ -202,7 +202,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
                         {log.log_date !== date && (
                           <span style={{
                             fontSize: '0.65rem', color: 'var(--brand)',
-                            background: '#eef2ff', border: '1px solid #c7d2fe',
+                            background: '#f3effe', border: '1px solid #ddd6fe',
                             padding: '0.05rem 0.35rem', borderRadius: '0.25rem',
                           }}>
                             작성 {log.log_date}

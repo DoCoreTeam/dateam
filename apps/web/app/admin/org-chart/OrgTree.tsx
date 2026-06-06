@@ -206,7 +206,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
             position: 'absolute', top: 0, left: '50%',
             transform: 'translateX(-50%)',
             width: '2px', height: topOffset,
-            background: '#c7d2fe',
+            background: '#ddd6fe',
           }} />
           {cardEl}
         </div>
@@ -351,7 +351,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
                 />
               }
               lineWidth="2px"
-              lineColor="#c7d2fe"
+              lineColor="#ddd6fe"
               lineBorderRadius="8px"
               nodePadding="12px"
             >

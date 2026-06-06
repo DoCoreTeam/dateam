@@ -25,9 +25,9 @@ interface RhythmData {
 function getPhaseBadgeStyle(phase: string): React.CSSProperties {
   if (phase === '진행중') {
     return {
-      background: '#eef2ff',
+      background: '#f3effe',
       color: 'var(--brand-dark)',
-      border: '1px solid #c7d2fe',
+      border: '1px solid #ddd6fe',
     }
   }
   if (phase === '제안' || phase === '기획') {
@@ -298,7 +298,7 @@ export default async function OperationsPage() {
                 {member.domain && (
                   <div
                     style={{
-                      background: '#eef2ff',
+                      background: '#f3effe',
                       borderRadius: 'var(--radius)',
                       padding: '0.375rem 0.75rem',
                       fontSize: '0.8125rem',
@@ -360,7 +360,7 @@ export default async function OperationsPage() {
                             style={{
                               position: 'absolute',
                               left: 0,
-                              color: '#c7d2fe',
+                              color: '#ddd6fe',
                             }}
                           >
                             ·

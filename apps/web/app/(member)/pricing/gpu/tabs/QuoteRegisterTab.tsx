@@ -406,7 +406,7 @@ export default function QuoteRegisterTab() {
 
           {/* 텍스트 파일 첨부(단일) */}
           {attached && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 10px', borderRadius: 8, background: '#f8faff', border: '1px solid #e0e7ff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 10px', borderRadius: 8, background: '#f8faff', border: '1px solid #ede9fe' }}>
               <Paperclip size={16} style={{ color: 'var(--brand)', flexShrink: 0 }} />
               <span style={{ fontSize: 12, color: '#374151', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attached.name}</span>
               <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#9ca3af' }} onClick={() => setAttached(null)}>
@@ -419,7 +419,7 @@ export default function QuoteRegisterTab() {
           {images.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }} data-testid="image-thumbs">
               {images.map((im, i) => (
-                <div key={i} style={{ position: 'relative', width: 56, height: 56, borderRadius: 8, overflow: 'hidden', border: '1px solid #e0e7ff' }}>
+                <div key={i} style={{ position: 'relative', width: 56, height: 56, borderRadius: 8, overflow: 'hidden', border: '1px solid #ede9fe' }}>
                   {im.previewUrl && <img src={im.previewUrl} alt={im.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                   <button onClick={() => setImages((p) => p.filter((_, idx) => idx !== i))} title="제거"
                     style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', background: 'rgba(15,23,42,.7)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
@@ -583,7 +583,7 @@ export default function QuoteRegisterTab() {
                     push('원본 단위', ex.original_unit)
                     push('추천 Tier', ex.tier_suggestion)
                     return (
-                      <div key={i} style={{ borderRadius: 8, background: '#eef2ff', border: '1px solid #c7d2fe', overflow: 'hidden' }}>
+                      <div key={i} style={{ borderRadius: 8, background: '#f3effe', border: '1px solid #ddd6fe', overflow: 'hidden' }}>
                         <div onClick={() => setExpandedIdx(open ? null : i)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', cursor: 'pointer' }}>
                           <span style={{ fontSize: 11, color: '#94a3b8' }}>{open ? '▾' : '▸'}</span>
                           <span style={{ fontSize: 12, color: '#374151', fontWeight: 600, flex: 1 }}>{name || '(모델 미상)'}</span>

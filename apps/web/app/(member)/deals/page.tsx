@@ -331,7 +331,7 @@ function DealDetail({ deal: d, onClose, onDeleted }: { deal: DealWithAccount; on
         <StageBadge stage={d.stage} />
         <span className="badge" style={{ background: 'var(--color-bg)', color: '#64748b', fontSize: '0.75rem' }}>확률 {d.probability}%</span>
         {d.value && (
-          <span className="badge" style={{ background: '#eef2ff', color: 'var(--brand)', fontWeight: 700, fontSize: '0.75rem' }}>
+          <span className="badge" style={{ background: '#f3effe', color: 'var(--brand)', fontWeight: 700, fontSize: '0.75rem' }}>
             ₩{d.value.toLocaleString()}
           </span>
         )}

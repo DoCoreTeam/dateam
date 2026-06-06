@@ -104,7 +104,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
       </div>
 
       {open && (
-        <div style={{ marginTop: 8, borderRadius: 10, border: '1px solid #e0e7ff', background: '#f8faff', padding: '10px 12px' }}>
+        <div style={{ marginTop: 8, borderRadius: 10, border: '1px solid #ede9fe', background: '#f8faff', padding: '10px 12px' }}>
           {/* 추천 공급사 */}
           {suggestions.length > 0 && (
             <div style={{ marginBottom: 8 }}>
@@ -116,7 +116,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
                     onClick={() => { onSelect(s); onManualName(''); setOpen(false) }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
-                      borderRadius: 8, border: `1.5px solid ${selectedId === s.id ? s.color : '#c7d2fe'}`,
+                      borderRadius: 8, border: `1.5px solid ${selectedId === s.id ? s.color : '#ddd6fe'}`,
                       background: selectedId === s.id ? s.color + '18' : '#fff',
                       cursor: 'pointer', textAlign: 'left',
                     }}
@@ -166,7 +166,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
           </div>
 
           {/* 직접 입력 */}
-          <div style={{ borderTop: '1px solid #e0e7ff', paddingTop: 8 }}>
+          <div style={{ borderTop: '1px solid #ede9fe', paddingTop: 8 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
               <Plus size={11} /> 직접 입력 (신규 공급사)
             </div>
@@ -184,7 +184,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
                     value={manualInput}
                     onChange={(e) => { setManualInput(e.target.value); setDupWarning('') }}
                     placeholder="공급사명"
-                    style={{ flex: 1, padding: '6px 10px', borderRadius: 7, border: '1px solid #c7d2fe', fontSize: 12 }}
+                    style={{ flex: 1, padding: '6px 10px', borderRadius: 7, border: '1px solid #ddd6fe', fontSize: 12 }}
                   />
                   <button
                     onClick={handleManualConfirm}
@@ -377,7 +377,7 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
   const overallPct = item.overall_confidence ?? 0
 
   return (
-    <div className="gpu-rev-card" style={{ border: item.is_test ? '1px dashed #e0e7ff' : undefined }}>
+    <div className="gpu-rev-card" style={{ border: item.is_test ? '1px dashed #ede9fe' : undefined }}>
       {/* 헤더 */}
       <div className="gpu-rev-top" style={{ alignItems: 'flex-start' }}>
         <div className="gpu-chip" style={{ width: 42, height: 42, flexShrink: 0 }}>
@@ -496,7 +496,7 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
       )}
 
       {/* AI 재분석 섹션 */}
-      <div style={{ marginTop: 14, padding: '12px', borderRadius: 8, background: '#f8faff', border: '1px solid #e0e7ff' }}>
+      <div style={{ marginTop: 14, padding: '12px', borderRadius: 8, background: '#f8faff', border: '1px solid #ede9fe' }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--brand-dark)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
           <RotateCcw size={12} /> AI 재분석 요청
         </div>
@@ -504,7 +504,7 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
           value={feedback}
           onChange={(e) => setFeedback(e.target.value)}
           placeholder="예) 단가가 월 단위인 것 같습니다. 시간당으로 환산해 주세요."
-          style={{ width: '100%', minHeight: 60, padding: '7px 10px', borderRadius: 7, border: '1px solid #c7d2fe', fontSize: 12, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
+          style={{ width: '100%', minHeight: 60, padding: '7px 10px', borderRadius: 7, border: '1px solid #ddd6fe', fontSize: 12, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
         />
         {recheckErr && <div style={{ fontSize: 12, color: 'var(--gpu-red)', marginTop: 4 }}>{recheckErr}</div>}
         <button

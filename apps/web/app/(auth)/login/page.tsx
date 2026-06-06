@@ -18,7 +18,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #eef2ff 0%, var(--color-bg) 60%, #e0e7ff 100%)',
+        background: 'linear-gradient(135deg, #f3effe 0%, var(--color-bg) 60%, #ede9fe 100%)',
         padding: 'clamp(1rem, 5vw, 2rem)',
       }}
     >

@@ -51,8 +51,8 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
                 <button key={t} onClick={() => setNewType(t)}
                   style={{
                     flex: 1, padding: '0.5rem', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.85rem',
-                    border: newType === t ? '2px solid var(--brand-dark)' : '1px solid #cbd5e1',
-                    background: newType === t ? '#eef2ff' : '#fff',
+                    border: newType === t ? '2px solid var(--brand-dark)' : '1px solid var(--border-color)',
+                    background: newType === t ? '#f3effe' : '#fff',
                     color: newType === t ? 'var(--brand-dark)' : '#64748b', fontWeight: newType === t ? 600 : 400,
                   }}>
                   {t === 'planned' ? '예정' : '진행중'}
@@ -64,7 +64,7 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>목표일 (선택)</span>
             <input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)}
-              style={{ padding: '0.5rem 0.75rem', border: '1px solid #cbd5e1', borderRadius: 'var(--radius)', fontSize: '0.875rem' }} />
+              style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }} />
           </label>
 
           {error && <p style={{ margin: 0, color: '#ef4444', fontSize: '0.8rem' }}>{error}</p>}

@@ -69,7 +69,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             placeholder="직급명 입력"
             disabled={isPending}
             style={{
-              flex: 1, padding: '0.4rem 0.75rem', border: '1px solid #cbd5e1',
+              flex: 1, padding: '0.4rem 0.75rem', border: '1px solid var(--border-color)',
               borderRadius: 'var(--radius)', fontSize: '0.875rem', outline: 'none',
             }}
           />
@@ -121,7 +121,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             placeholder="직책명 입력"
             disabled={isPending}
             style={{
-              flex: 1, padding: '0.4rem 0.75rem', border: '1px solid #cbd5e1',
+              flex: 1, padding: '0.4rem 0.75rem', border: '1px solid var(--border-color)',
               borderRadius: 'var(--radius)', fontSize: '0.875rem', outline: 'none',
             }}
           />

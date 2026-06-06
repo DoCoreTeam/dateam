@@ -11,7 +11,7 @@ function statusBadge(status: string) {
     pending: { color: '#d97706', bg: '#fffbeb', label: '대기' },
     processing: { color: '#0284c7', bg: '#f0f9ff', label: '처리중' },
     completed: { color: '#16a34a', bg: '#f0fdf4', label: '완료' },
-    crm_registered: { color: 'var(--brand-dark)', bg: '#eef2ff', label: 'CRM 등록' },
+    crm_registered: { color: 'var(--brand-dark)', bg: '#f3effe', label: 'CRM 등록' },
     failed: { color: '#dc2626', bg: '#fef2f2', label: '실패' },
   }
   return map[status] ?? { color: '#64748b', bg: 'var(--color-bg)', label: status }

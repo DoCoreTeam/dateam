@@ -526,7 +526,7 @@ export default function WeeklyReportForm({
           style={{
             display: 'flex', alignItems: 'center', gap: '0.375rem',
             fontSize: '0.8125rem', color: 'var(--brand)', background: 'none',
-            border: '1px dashed #c7d2fe', borderRadius: 'var(--radius)',
+            border: '1px dashed #ddd6fe', borderRadius: 'var(--radius)',
             padding: '0.5rem 0.875rem', cursor: 'pointer',
           }}
         >
@@ -616,7 +616,7 @@ export default function WeeklyReportForm({
               disabled={resetPending}
               style={{
                 padding: '0.5rem 1rem', backgroundColor: '#fff', color: '#475569',
-                border: '1px solid #cbd5e1', borderRadius: 'var(--radius)', cursor: 'pointer',
+                border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer',
                 fontSize: '0.875rem',
               }}
             >
@@ -669,7 +669,7 @@ function EditorCell({
         }}
         onMouseEnter={(e) => {
           const el = e.currentTarget as HTMLDivElement
-          el.style.borderColor = '#a5b4fc'
+          el.style.borderColor = '#c4b5fd'
           el.style.backgroundColor = '#f8f9ff'
         }}
         onMouseLeave={(e) => {
@@ -691,7 +691,7 @@ function EditorCell({
         <div
           style={{
             position: 'absolute', top: '0.375rem', right: '0.375rem',
-            color: '#a5b4fc', opacity: 0.7,
+            color: '#c4b5fd', opacity: 0.7,
           }}
         >
           <Pencil size={11} />

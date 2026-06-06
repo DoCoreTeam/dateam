@@ -293,7 +293,7 @@ function SuppliersResult({ data }: { data: { data?: Supplier[] } }) {
             {s.contact && <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>✉️ {s.contact}</div>}
             <div style={{ display: 'flex', gap: 10, fontSize: 12 }}>
               {s.active_quotes != null && (
-                <span style={{ padding: '2px 8px', background: 'rgba(124,58,237,0.1)', color: '#a5b4fc', borderRadius: 100 }}>
+                <span style={{ padding: '2px 8px', background: 'rgba(124,58,237,0.1)', color: '#c4b5fd', borderRadius: 100 }}>
                   활성 견적 {s.active_quotes}건
                 </span>
               )}
@@ -511,7 +511,7 @@ export default function DemoSection() {
             onChange={e => setApiKey(e.target.value)}
             style={{ flex: 1, padding: '10px 14px', borderRadius: 8, border: '1px solid #334155', background: '#1e293b', color: 'var(--color-border)', fontSize: 14, outline: 'none', fontFamily: 'monospace' }}
           />
-          <a href="/api-keys" style={{ padding: '10px 16px', borderRadius: 8, background: 'rgba(124,58,237,0.1)', color: '#a5b4fc', fontSize: 13, fontWeight: 500, textDecoration: 'none', border: '1px solid rgba(124,58,237,0.2)', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+          <a href="/api-keys" style={{ padding: '10px 16px', borderRadius: 8, background: 'rgba(124,58,237,0.1)', color: '#c4b5fd', fontSize: 13, fontWeight: 500, textDecoration: 'none', border: '1px solid rgba(124,58,237,0.2)', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
             키 발급 →
           </a>
         </div>

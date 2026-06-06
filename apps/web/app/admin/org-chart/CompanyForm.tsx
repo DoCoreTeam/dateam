@@ -110,7 +110,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
             style={{
               flexShrink: 0, padding: '0.375rem 0.75rem', borderRadius: '0.375rem',
               background: 'transparent', color: 'var(--brand)',
-              border: '1px solid #c7d2fe', fontSize: '0.8125rem', cursor: 'pointer', fontWeight: 500,
+              border: '1px solid #ddd6fe', fontSize: '0.8125rem', cursor: 'pointer', fontWeight: 500,
             }}
           >
             수정

@@ -156,7 +156,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
                         {(flowReason || isLoading) && (
                           <div style={{
                             fontSize: '0.7rem', color: 'var(--brand)',
-                            background: '#eef2ff', border: '1px solid #c7d2fe',
+                            background: '#f3effe', border: '1px solid #ddd6fe',
                             borderRadius: '0.25rem', padding: '0.15rem 0.5rem',
                             maxWidth: '100%', wordBreak: 'keep-all',
                           }}>

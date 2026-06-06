@@ -125,7 +125,7 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
                     <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#1e1b4b' }}>{item.category}</span>
                     <span style={{
                       fontSize: '0.7rem', padding: '0.1rem 0.4rem',
-                      background: '#e0e7ff', color: '#3730a3', borderRadius: '999px', fontWeight: 600,
+                      background: '#ede9fe', color: '#3730a3', borderRadius: '999px', fontWeight: 600,
                     }}>
                       {FIELD_LABELS[item.field]}
                     </span>

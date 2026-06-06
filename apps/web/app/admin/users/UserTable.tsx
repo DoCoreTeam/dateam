@@ -91,7 +91,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
               style={{
                 padding: '0.25rem 0.75rem', fontSize: '0.8rem', borderRadius: '999px', cursor: 'pointer',
                 border: roleFilter === r ? '1px solid var(--brand)' : '2px solid var(--border-color)',
-                background: roleFilter === r ? '#eef2ff' : '#fff',
+                background: roleFilter === r ? '#f3effe' : '#fff',
                 color: roleFilter === r ? 'var(--brand-dark)' : '#64748b',
                 fontWeight: roleFilter === r ? 600 : 400,
               }}

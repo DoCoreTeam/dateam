@@ -68,7 +68,7 @@ export default async function HomePage() {
               {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
             </span>
             {showAxTiles && [
-              { href: '/kpi', label: 'KPI', icon: <BarChart2 size={12} />, color: 'var(--brand)', bg: '#eef2ff' },
+              { href: '/kpi', label: 'KPI', icon: <BarChart2 size={12} />, color: 'var(--brand)', bg: '#f3effe' },
               { href: '/routine', label: '루틴', icon: <CheckSquare size={12} />, color: '#0891b2', bg: '#ecfeff' },
               { href: '/operations', label: '본부 운영', icon: <Building2 size={12} />, color: '#059669', bg: '#ecfdf5' },
             ].map((item) => (

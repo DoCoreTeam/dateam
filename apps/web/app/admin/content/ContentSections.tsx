@@ -284,8 +284,8 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         marginLeft: '0.5rem',
         display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
         padding: '0.25rem 0.625rem',
-        background: '#eef2ff', color: 'var(--brand-dark)',
-        border: '1px solid #c7d2fe', borderRadius: '0.375rem',
+        background: '#f3effe', color: 'var(--brand-dark)',
+        border: '1px solid #ddd6fe', borderRadius: '0.375rem',
         fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
       }}
     >

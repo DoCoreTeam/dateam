@@ -27,18 +27,18 @@ export default function OnboardingRestartLink({ variant }: OnboardingRestartLink
         style={{
           display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
           padding: '0.3rem 0.75rem',
-          background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '9999px',
+          background: '#f3effe', border: '1px solid #ddd6fe', borderRadius: '9999px',
           cursor: 'pointer', color: 'var(--brand-dark)', fontSize: '0.75rem', fontWeight: 600,
           transition: 'background 120ms, border-color 120ms',
           flexShrink: 0,
         }}
         onMouseEnter={(e) => {
-          ;(e.currentTarget as HTMLButtonElement).style.background = '#e0e7ff'
-          ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#a5b4fc'
+          ;(e.currentTarget as HTMLButtonElement).style.background = '#ede9fe'
+          ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#c4b5fd'
         }}
         onMouseLeave={(e) => {
-          ;(e.currentTarget as HTMLButtonElement).style.background = '#eef2ff'
-          ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#c7d2fe'
+          ;(e.currentTarget as HTMLButtonElement).style.background = '#f3effe'
+          ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#ddd6fe'
         }}
       >
         <HelpCircle size={13} />

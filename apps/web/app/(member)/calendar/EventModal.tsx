@@ -95,7 +95,7 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
           </button>
         </div>
 
-        {msg && <div role="status" style={{ padding: '0.5rem 0.75rem', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: '0.78rem', color: 'var(--brand-dark)' }}>{msg}</div>}
+        {msg && <div role="status" style={{ padding: '0.5rem 0.75rem', background: '#f3effe', border: '1px solid #ddd6fe', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: '0.78rem', color: 'var(--brand-dark)' }}>{msg}</div>}
 
         <label style={lbl}>제목</label>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="일정 제목" style={inp} />

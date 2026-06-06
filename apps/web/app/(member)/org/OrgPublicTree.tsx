@@ -78,7 +78,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
         boxShadow: 'var(--shadow-sm)', width: `${CARD_W + 28}px`, textAlign: 'left', overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <Building2 size={14} color="#c7d2fe" style={{ flexShrink: 0 }} />
+          <Building2 size={14} color="#ddd6fe" style={{ flexShrink: 0 }} />
           <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
         </div>
         {node.subtitle && (
@@ -100,7 +100,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
         boxShadow: 'var(--shadow-sm)', width: `${CARD_W}px`, textAlign: 'left', overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <Crown size={13} color="#a5b4fc" style={{ flexShrink: 0 }} />
+          <Crown size={13} color="#c4b5fd" style={{ flexShrink: 0 }} />
           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
         </div>
         {displayPerson && (
@@ -133,7 +133,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
         boxShadow: 'var(--shadow-sm)', width: `${CARD_W}px`, textAlign: 'left', overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <Users size={13} color="#c7d2fe" style={{ flexShrink: 0 }} />
+          <Users size={13} color="#ddd6fe" style={{ flexShrink: 0 }} />
           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
           {personChildren.length > 0 && (
             <span style={{ fontSize: '0.65rem', background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: '999px', padding: '1px 6px', flexShrink: 0 }}>
@@ -313,7 +313,7 @@ export default function OrgPublicTree({
             position: 'absolute', top: 0, left: '50%',
             transform: 'translateX(-50%)',
             width: '2px', height: topOffset,
-            background: '#c7d2fe',
+            background: '#ddd6fe',
           }} />
           {card}
         </div>
@@ -399,7 +399,7 @@ export default function OrgPublicTree({
         <Tree
           label={<NodeCard node={root} />}
           lineWidth="2px"
-          lineColor="#c7d2fe"
+          lineColor="#ddd6fe"
           lineBorderRadius="8px"
           nodePadding="12px"
         >

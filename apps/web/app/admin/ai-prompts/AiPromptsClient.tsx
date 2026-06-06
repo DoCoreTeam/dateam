@@ -177,7 +177,7 @@ function HistoryTab() {
                   {/* 왜 바꿨나 */}
                   <div style={{ fontSize: 12, marginBottom: 8 }}>
                     <strong style={{ color: '#475569' }}>왜:</strong> {r.reason || '—'}
-                    {r.trigger && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 8px', borderRadius: 999, background: '#e0e7ff', color: 'var(--brand-dark)' }}>{TRIGGER_LABEL[r.trigger] ?? r.trigger}</span>}
+                    {r.trigger && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 8px', borderRadius: 999, background: '#ede9fe', color: 'var(--brand-dark)' }}>{TRIGGER_LABEL[r.trigger] ?? r.trigger}</span>}
                     <span style={{ marginLeft: 8, fontSize: 11, color: '#94a3b8' }}>by {r.source === 'ai' ? '🤖 AI' : `👤 ${r.created_by}`}</span>
                   </div>
                   {/* 무엇을 바꿨나 — before→after 라인 diff */}
@@ -211,7 +211,7 @@ function SchemaTab() {
     <>
       <p style={{ fontSize: 12.5, color: '#64748b', margin: '0 0 10px' }}>AI가 추출 시 인지하는 테이블 {data?.tables?.length ?? 0}개 (public 전체 테이블 자동 포함 — 구조만, 행 데이터는 미포함)</p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-        {(data?.tables ?? []).map((t) => <span key={t} style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 999, background: '#eef2ff', color: 'var(--brand-dark)', fontWeight: 600 }}>{t}</span>)}
+        {(data?.tables ?? []).map((t) => <span key={t} style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 999, background: '#f3effe', color: 'var(--brand-dark)', fontWeight: 600 }}>{t}</span>)}
       </div>
       <pre style={{ fontSize: 11, fontFamily: 'monospace', background: '#0f172a', color: 'var(--color-border)', padding: 14, borderRadius: 10, overflowX: 'auto', maxHeight: 460 }}>{data?.digest ?? '불러오는 중…'}</pre>
     </>

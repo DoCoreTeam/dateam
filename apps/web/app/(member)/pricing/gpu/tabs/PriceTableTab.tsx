@@ -886,13 +886,13 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                   </td>
                   <td>
                     {p._derived ? (
-                      <span className="gpu-badge" style={{ background: '#eef2ff', color: 'var(--gpu-accent)' }}>1장당×{p.gpu_count} 추정</span>
+                      <span className="gpu-badge" style={{ background: '#f3effe', color: 'var(--gpu-accent)' }}>1장당×{p.gpu_count} 추정</span>
                     ) : p.pricing_mode === 'direct' ? (
                       <span className="gpu-badge gpu-badge-amber">직접입력</span>
                     ) : p.lowest_unit_price_usd != null ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                         {p.is_propagated ? (
-                          <span className="gpu-badge" style={{ background: '#eef2ff', color: 'var(--gpu-accent)' }} title="모델 최저 1장당 단가를 이 구성에 전파한 추정가">
+                          <span className="gpu-badge" style={{ background: '#f3effe', color: 'var(--gpu-accent)' }} title="모델 최저 1장당 단가를 이 구성에 전파한 추정가">
                             1장당 전파(추정)
                           </span>
                         ) : (

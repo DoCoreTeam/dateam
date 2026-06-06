@@ -18,7 +18,7 @@ const EXAMPLE_KEY = 'ax_live_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4'
 
 function SidebarItem({ children, active, onClick }: { children: React.ReactNode; active: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 400, background: active ? 'rgba(124,58,237,0.1)' : 'transparent', color: active ? '#a5b4fc' : '#64748b', borderLeft: active ? '2px solid var(--brand)' : '2px solid transparent', marginBottom: 2, transition: 'all .15s' }}>
+    <button onClick={onClick} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 400, background: active ? 'rgba(124,58,237,0.1)' : 'transparent', color: active ? '#c4b5fd' : '#64748b', borderLeft: active ? '2px solid var(--brand)' : '2px solid transparent', marginBottom: 2, transition: 'all .15s' }}>
       {children}
     </button>
   )
@@ -54,7 +54,7 @@ function P({ children }: { children: React.ReactNode }) {
 }
 function Callout({ type = 'info', title, children }: { type?: 'info' | 'warn' | 'tip'; title: string; children: React.ReactNode }) {
   const cfg = {
-    info: { border: 'rgba(124,58,237,0.3)', bg: 'rgba(124,58,237,0.05)', color: '#a5b4fc', icon: '💡' },
+    info: { border: 'rgba(124,58,237,0.3)', bg: 'rgba(124,58,237,0.05)', color: '#c4b5fd', icon: '💡' },
     warn: { border: 'rgba(239,68,68,0.25)', bg: 'rgba(239,68,68,0.05)', color: '#f87171', icon: '⚠️' },
     tip:  { border: 'rgba(16,185,129,0.25)', bg: 'rgba(16,185,129,0.05)', color: '#34d399', icon: '✅' },
   }[type]
@@ -97,7 +97,7 @@ function PR({ name, type, required, desc }: { name: string; type: string; requir
   return (
     <tr>
       <td style={{ padding: '10px 14px', borderBottom: '1px solid #1e293b' }}>
-        <code style={{ color: '#a5b4fc', fontSize: 12 }}>{name}</code>
+        <code style={{ color: '#c4b5fd', fontSize: 12 }}>{name}</code>
         {required && <span style={{ marginLeft: 6, fontSize: 10, color: '#ef4444', fontWeight: 700, background: 'rgba(239,68,68,0.1)', padding: '1px 5px', borderRadius: 3 }}>필수</span>}
       </td>
       <td style={{ padding: '10px 14px', borderBottom: '1px solid #1e293b', color: '#64748b', fontSize: 12 }}>{type}</td>
@@ -168,7 +168,7 @@ curl -X POST ${origin}/api/public/v1/quote \\
 }`} />
 
       <H2>페이지네이션</H2>
-      <P>목록 API는 커서 기반 페이지네이션을 사용합니다. 응답의 <code style={{ color: '#a5b4fc', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>nextCursor</code> 값을 다음 요청의 <code style={{ color: '#a5b4fc', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>cursor</code> 파라미터로 전달하세요.</P>
+      <P>목록 API는 커서 기반 페이지네이션을 사용합니다. 응답의 <code style={{ color: '#c4b5fd', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>nextCursor</code> 값을 다음 요청의 <code style={{ color: '#c4b5fd', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>cursor</code> 파라미터로 전달하세요.</P>
       <CodeBlock id="pagination" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`# 첫 페이지 (기본 20건)
 curl "${origin}/api/public/v1/accounts" -H "X-API-Key: KEY"
 # → { "nextCursor": "2026-05-30T12:00:00Z__uuid", "hasMore": true }
@@ -586,7 +586,7 @@ function SettingsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string;
   return (
     <div>
       <H1>가격 설정 (Settings)</H1>
-      <P>전역 마진율과 최신 환율 정보를 조회하거나 업데이트합니다. 마진율 변경은 <code style={{ color: '#a5b4fc', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>gpu_audit_logs</code>에 기록됩니다.</P>
+      <P>전역 마진율과 최신 환율 정보를 조회하거나 업데이트합니다. 마진율 변경은 <code style={{ color: '#c4b5fd', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>gpu_audit_logs</code>에 기록됩니다.</P>
       <Callout type="warn" title="주의">
         마진율 변경은 즉시 모든 견적 계산에 반영됩니다. 변경 전 기존 견적이 있다면 재발행을 검토하세요.
       </Callout>
@@ -622,7 +622,7 @@ function PoolStockSection({ exampleKey, onCopy, copiedId }: { exampleKey: string
   return (
     <div>
       <H1>풀 재고 (Pool Stock)</H1>
-      <P>직접 공급 풀(Tier 3)의 재고 수량을 조회하거나 업데이트합니다. 수량을 변경하면 재고 현황(<code style={{ color: '#a5b4fc', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>/inventory</code>)에 즉시 반영됩니다.</P>
+      <P>직접 공급 풀(Tier 3)의 재고 수량을 조회하거나 업데이트합니다. 수량을 변경하면 재고 현황(<code style={{ color: '#c4b5fd', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>/inventory</code>)에 즉시 반영됩니다.</P>
       <Callout type="tip" title="언제 사용하나요?">
         입고 처리 자동화, WMS 연동, 재고 수량 실시간 업데이트에 사용하세요.
         <code>sell_price_krw</code>를 함께 전달하면 판매가도 동시에 업데이트됩니다.
@@ -737,7 +737,7 @@ function ContactsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string;
   return (
     <div>
       <H1>담당자 (Contacts)</H1>
-      <P>거래처 담당자를 조회하거나 등록합니다. 담당자는 반드시 거래처(<code style={{ color: '#a5b4fc', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>account_id</code>)와 연결됩니다.</P>
+      <P>거래처 담당자를 조회하거나 등록합니다. 담당자는 반드시 거래처(<code style={{ color: '#c4b5fd', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>account_id</code>)와 연결됩니다.</P>
       <Callout type="tip" title="언제 사용하나요?">
         명함 관리 시스템 연동, 거래처별 담당자 포털, 이메일 자동화 워크플로에 활용하세요.
       </Callout>
@@ -837,7 +837,7 @@ curl "${origin}/api/public/v1/deals/DEAL_ID" \\
   }'`} />
 
       <H2>스테이지 → 확률 자동 변환</H2>
-      <P>스테이지를 변경하면 <code style={{ color: '#a5b4fc', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>probability</code> 필드가 자동으로 업데이트됩니다.</P>
+      <P>스테이지를 변경하면 <code style={{ color: '#c4b5fd', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>probability</code> 필드가 자동으로 업데이트됩니다.</P>
       <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead><tr style={{ background: '#1e293b' }}>
@@ -857,7 +857,7 @@ curl "${origin}/api/public/v1/deals/DEAL_ID" \\
               ['실패', '0%', '기회 종료'],
             ].map(([s, p, m]) => (
               <tr key={s} style={{ borderTop: '1px solid #1e293b' }}>
-                <td style={{ padding: '10px 16px' }}><code style={{ color: '#a5b4fc' }}>{s}</code></td>
+                <td style={{ padding: '10px 16px' }}><code style={{ color: '#c4b5fd' }}>{s}</code></td>
                 <td style={{ padding: '10px 16px', color: '#10b981', fontWeight: 700 }}>{p}</td>
                 <td style={{ padding: '10px 16px', color: '#64748b' }}>{m}</td>
               </tr>
@@ -883,7 +883,7 @@ function ErrorsSection({ onCopy, copiedId }: { onCopy: (t: string, id: string) =
   return (
     <div>
       <H1>오류 코드</H1>
-      <P>모든 오류는 HTTP 상태 코드와 함께 아래 포맷으로 반환됩니다. <code style={{ color: '#a5b4fc', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>error</code> 필드에 사람이 읽을 수 있는 메시지가 포함됩니다.</P>
+      <P>모든 오류는 HTTP 상태 코드와 함께 아래 포맷으로 반환됩니다. <code style={{ color: '#c4b5fd', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>error</code> 필드에 사람이 읽을 수 있는 메시지가 포함됩니다.</P>
       <CodeBlock id="err-fmt" lang="json" onCopy={onCopy} copiedId={copiedId} code={`{ "success": false, "error": "Invalid API key." }`} />
 
       <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
@@ -978,7 +978,7 @@ export default function DevelopPage() {
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {showDashboardLink && (
-              <a href="/home" style={{ padding: '6px 14px', borderRadius: 8, background: 'rgba(124,58,237,0.1)', color: '#a5b4fc', fontSize: 13, fontWeight: 500, textDecoration: 'none', border: '1px solid rgba(124,58,237,0.2)' }}>
+              <a href="/home" style={{ padding: '6px 14px', borderRadius: 8, background: 'rgba(124,58,237,0.1)', color: '#c4b5fd', fontSize: 13, fontWeight: 500, textDecoration: 'none', border: '1px solid rgba(124,58,237,0.2)' }}>
                 ← 대시보드
               </a>
             )}

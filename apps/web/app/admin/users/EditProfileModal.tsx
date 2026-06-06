@@ -80,7 +80,7 @@ export default function EditProfileModal({
               onChange={e => setName(e.target.value)}
               disabled={isPending}
               style={{
-                padding: '0.5rem 0.75rem', border: '1px solid #cbd5e1',
+                padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)',
                 borderRadius: 'var(--radius)', fontSize: '0.875rem', outline: 'none',
               }}
             />
@@ -93,7 +93,7 @@ export default function EditProfileModal({
               onChange={e => setRank(e.target.value)}
               disabled={isPending}
               style={{
-                padding: '0.5rem 0.75rem', border: '1px solid #cbd5e1',
+                padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)',
                 borderRadius: 'var(--radius)', fontSize: '0.875rem', background: '#fff', outline: 'none',
               }}
             >
@@ -111,7 +111,7 @@ export default function EditProfileModal({
               onChange={e => setPosition(e.target.value)}
               disabled={isPending}
               style={{
-                padding: '0.5rem 0.75rem', border: '1px solid #cbd5e1',
+                padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)',
                 borderRadius: 'var(--radius)', fontSize: '0.875rem', background: '#fff', outline: 'none',
               }}
             >

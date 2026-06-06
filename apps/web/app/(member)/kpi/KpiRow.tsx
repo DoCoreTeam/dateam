@@ -13,7 +13,7 @@ interface WeeklyKpiTarget {
 
 const INPUT: React.CSSProperties = {
   padding: '0.25rem 0.5rem',
-  border: '1px solid #c7d2fe',
+  border: '1px solid #ddd6fe',
   borderRadius: '0.3rem',
   fontSize: '0.8125rem',
   color: '#0f172a',
@@ -184,7 +184,7 @@ export default function KpiRow({
           <button
             onClick={() => setEditing(true)}
             title="수정"
-            style={{ padding: '0.3rem 0.5rem', border: '1px solid #c7d2fe', borderRadius: '0.375rem', background: '#eef2ff', color: 'var(--brand)', cursor: 'pointer', display: 'flex' }}
+            style={{ padding: '0.3rem 0.5rem', border: '1px solid #ddd6fe', borderRadius: '0.375rem', background: '#f3effe', color: 'var(--brand)', cursor: 'pointer', display: 'flex' }}
           >
             <Pencil size={13} />
           </button>

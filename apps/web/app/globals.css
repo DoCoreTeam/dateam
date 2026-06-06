@@ -418,7 +418,7 @@
     line-height: 1.6;
   }
   .tiptap-content blockquote {
-    border-left: 3px solid #c7d2fe;
+    border-left: 3px solid #ddd6fe;
     margin: 0.5rem 0;
     padding: 0.25rem 0.75rem;
     color: #64748b;
@@ -505,7 +505,7 @@
     line-height: 1.6;
   }
   .report-rich blockquote {
-    border-left: 3px solid #c7d2fe;
+    border-left: 3px solid #ddd6fe;
     margin: 0.4rem 0;
     padding: 0.2rem 0.625rem;
     color: #64748b;
@@ -1025,8 +1025,8 @@
     color 0.15s;
 }
 .intake-tool-btn:hover:not(:disabled) {
-  background: #eef2ff;
-  border-color: #c7d2fe;
+  background: #f3effe;
+  border-color: #ddd6fe;
   color: var(--brand-dark);
 }
 .intake-tool-btn:disabled {
@@ -1961,7 +1961,7 @@ label.intake-tool-btn {
   width: 1.625rem;
   height: 1.625rem;
   border-radius: 0.4375rem;
-  border: 1.5px solid #cbd5e1;
+  border: 1.5px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2456,7 +2456,7 @@ label.intake-tool-btn {
 .ai-analyzing-spinner {
   width: 2.5rem;
   height: 2.5rem;
-  border: 3px solid #e0e7ff;
+  border: 3px solid #ede9fe;
   border-top-color: var(--brand);
   border-radius: 50%;
   animation: ai-spin 0.75s linear infinite;
@@ -2632,7 +2632,7 @@ label.intake-tool-btn {
   --gpu-green: #15a35a;
   --gpu-green-soft: #e6f7ee;
   --gpu-blue: #2563eb;
-  --gpu-blue-soft: #e8f0ff;
+  --gpu-blue-soft: #f3effe;
   --gpu-purple: #7c3aed;
   --gpu-purple-soft: #f1ebfe;
   --gpu-red: #e0405a;
@@ -3693,8 +3693,8 @@ label.intake-tool-btn {
   font-size: 0.65rem;
   line-height: 1.3;
   color: #3730a3;
-  background: #eef2ff;
-  border: 1px solid #c7d2fe;
+  background: #f3effe;
+  border: 1px solid #ddd6fe;
   border-radius: 0.25rem;
   padding: 0.05rem 0.3rem;
   margin-top: 0.1rem;
@@ -3703,7 +3703,7 @@ label.intake-tool-btn {
   white-space: nowrap;
   cursor: pointer;
 }
-.cal-event-chip:hover { background: #e0e7ff; }
+.cal-event-chip:hover { background: #ede9fe; }
 .cal-event-time { font-weight: 700; flex-shrink: 0; }
 @media (max-width: 767px) {
   .cal-event-chip { font-size: 0.6rem; padding: 0.05rem 0.2rem; }

@@ -64,7 +64,7 @@ export default function MemoListView() {
               style={{
                 padding: '0.35rem 0.85rem', borderRadius: '999px', fontSize: '0.8rem', cursor: 'pointer',
                 border: statusFilter === s ? '1px solid var(--brand-dark)' : '2px solid var(--border-color)',
-                background: statusFilter === s ? '#eef2ff' : '#fff',
+                background: statusFilter === s ? '#f3effe' : '#fff',
                 color: statusFilter === s ? 'var(--brand-dark)' : '#64748b', fontWeight: statusFilter === s ? 600 : 400,
               }}>
               {s === 'unreviewed' ? '미확인' : '전체'}

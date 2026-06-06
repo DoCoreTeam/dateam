@@ -36,9 +36,9 @@ export interface OrgNodeWithChildren extends OrgNode {
 }
 
 const TYPE_COLORS: Record<OrgNodeType, { bg: string; border: string; text: string; badge: string }> = {
-  company: { bg: 'linear-gradient(135deg,var(--brand-dark),#7c3aed)', border: 'var(--brand-dark)', text: '#fff', badge: '#c7d2fe' },
-  role:    { bg: 'linear-gradient(135deg,#1e1b4b,#312e81)', border: '#312e81', text: '#fff', badge: '#a5b4fc' },
-  department: { bg: 'linear-gradient(135deg,#3730a3,var(--brand-dark))', border: 'var(--brand-dark)', text: '#fff', badge: '#c7d2fe' },
+  company: { bg: 'linear-gradient(135deg,var(--brand-dark),#7c3aed)', border: 'var(--brand-dark)', text: '#fff', badge: '#ddd6fe' },
+  role:    { bg: 'linear-gradient(135deg,#1e1b4b,#312e81)', border: '#312e81', text: '#fff', badge: '#c4b5fd' },
+  department: { bg: 'linear-gradient(135deg,#3730a3,var(--brand-dark))', border: 'var(--brand-dark)', text: '#fff', badge: '#ddd6fe' },
   person: { bg: '#ffffff', border: 'var(--color-border)', text: '#1e293b', badge: '#ede9fe' },
 }
 
@@ -140,7 +140,7 @@ function DragDropWrapper({
           background: 'rgba(124,58,237,0.08)', pointerEvents: 'none', zIndex: 1,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <span style={{ fontSize: '0.7rem', color: 'var(--brand)', fontWeight: 700, background: '#eef2ff', padding: '2px 8px', borderRadius: '999px' }}>
+          <span style={{ fontSize: '0.7rem', color: 'var(--brand)', fontWeight: 700, background: '#f3effe', padding: '2px 8px', borderRadius: '999px' }}>
             여기로 이동
           </span>
         </div>

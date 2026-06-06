@@ -116,7 +116,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
               disabled={pending}
               style={{
                 padding: '0.5rem 1rem', backgroundColor: '#fff', color: '#475569',
-                border: '1px solid #cbd5e1', borderRadius: 'var(--radius)', cursor: 'pointer',
+                border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer',
                 fontSize: '0.875rem',
               }}
             >
@@ -221,7 +221,7 @@ export default function ReportAccordion({ groups }: ReportAccordionProps) {
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
                   fontSize: '0.8125rem', fontWeight: 500, padding: '0.375rem 0.75rem',
-                  background: '#eef2ff', color: 'var(--brand-dark)', border: 'none',
+                  background: '#f3effe', color: 'var(--brand-dark)', border: 'none',
                   borderRadius: 'var(--radius)', cursor: 'pointer', flexShrink: 0,
                 }}
               >

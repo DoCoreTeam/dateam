@@ -520,8 +520,8 @@ export default function DailyPage() {
                     style={{
                       fontSize: '0.75rem', fontWeight: 600,
                       color: graphOpen ? 'var(--brand)' : '#64748b',
-                      background: graphOpen ? '#eef2ff' : 'var(--color-bg)',
-                      border: `1px solid ${graphOpen ? '#c7d2fe' : 'var(--color-border)'}`,
+                      background: graphOpen ? '#f3effe' : 'var(--color-bg)',
+                      border: `1px solid ${graphOpen ? '#ddd6fe' : 'var(--color-border)'}`,
                       borderRadius: '0.375rem', padding: '0.25rem 0.625rem',
                       cursor: 'pointer',
                     }}
@@ -1705,8 +1705,8 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         {/* AI 태그 */}
         {item.tags?.map(tag => (
           <span key={tag} style={{
-            fontSize: '0.7rem', color: 'var(--brand)', background: '#eef2ff',
-            border: '1px solid #c7d2fe', borderRadius: '0.25rem',
+            fontSize: '0.7rem', color: 'var(--brand)', background: '#f3effe',
+            border: '1px solid #ddd6fe', borderRadius: '0.25rem',
             padding: '0.1rem 0.375rem',
           }}>
             #{tag}

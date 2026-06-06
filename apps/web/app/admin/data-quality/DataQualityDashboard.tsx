@@ -121,7 +121,7 @@ export default function DataQualityDashboard() {
                         <span style={{ fontWeight: 600, flex: 1 }}>{it.product_hint}</span>
                         <span style={{ color: '#d97706' }}>{it.dup_count}건 중복</span>
                         <span style={{ color: '#94a3b8', fontSize: 11 }}>신뢰도 {it.overall_confidence ?? '—'}</span>
-                        <button onClick={() => mergeDups(it)} className="gpu-btn" style={{ fontSize: 11, padding: '3px 10px', color: 'var(--gpu-accent,#5b5ef0)', borderColor: '#c7d2fe' }}>1건만 남기기</button>
+                        <button onClick={() => mergeDups(it)} className="gpu-btn" style={{ fontSize: 11, padding: '3px 10px', color: 'var(--gpu-accent,#5b5ef0)', borderColor: '#ddd6fe' }}>1건만 남기기</button>
                       </>}
                     </div>
                   ))}

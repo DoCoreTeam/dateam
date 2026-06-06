@@ -27,14 +27,14 @@ const FILTER_ACTION_TYPES: Record<string, string[]> = {
 }
 
 const ACTION_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  quote_registered:         { label: '견적 등록',      color: '#2563eb', bg: '#e8f0ff' },
+  quote_registered:         { label: '견적 등록',      color: '#2563eb', bg: '#f3effe' },
   quote_confirmed:          { label: '견적 확정',      color: '#15a35a', bg: '#e6f7ee' },
   lowest_changed:           { label: '최저가 변경',    color: '#5b5ef0', bg: '#eef0fe' },
   expired:                  { label: '만료',           color: '#e0405a', bg: '#fdebee' },
   direct_set:               { label: '판매가 직접설정', color: '#d97706', bg: '#fef3e2' },
   margin_changed:           { label: '마진 변경',      color: '#7c3aed', bg: '#f1ebfe' },
   rejected:                 { label: '반려',           color: '#6b7280', bg: '#f0f1f4' },
-  review_created:           { label: 'AI 분석 등록',   color: 'var(--brand-dark)', bg: '#eef2ff' },
+  review_created:           { label: 'AI 분석 등록',   color: 'var(--brand-dark)', bg: '#f3effe' },
   review_finalized:         { label: '검토 확정',      color: '#15a35a', bg: '#e6f7ee' },
   review_rejected:          { label: '검토 반려',      color: '#dc2626', bg: '#fee2e2' },
   review_recheck_completed: { label: 'AI 재분석',      color: '#0891b2', bg: '#e0f7fa' },

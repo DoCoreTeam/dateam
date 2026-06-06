@@ -91,7 +91,7 @@ export default function DynamicKeyValue({
           alignItems: 'center',
           gap: '0.375rem',
           padding: '0.375rem 0.75rem',
-          border: '1px dashed #c7d2fe',
+          border: '1px dashed #ddd6fe',
           borderRadius: '0.4rem',
           background: '#f5f3ff',
           color: 'var(--brand)',
