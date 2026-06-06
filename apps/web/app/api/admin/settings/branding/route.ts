@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
 
   const formData = await req.formData()
   const brandName = formData.get('brandName') as string | null
+  const tagline = formData.get('tagline') as string | null
   const logoFile = formData.get('logoFile') as File | null
   const deleteLogo = formData.get('deleteLogo') === 'true'
 
@@ -90,6 +91,11 @@ export async function POST(req: NextRequest) {
 
   if (brandName !== null && brandName.trim().length > 0) {
     upsertRows.push({ key: 'brand_name', value: brandName.trim().slice(0, 30), updated_by: user.id })
+  }
+
+  // 부제목은 빈 문자열도 허용(부제목 숨김) — null이 아니면 저장
+  if (tagline !== null) {
+    upsertRows.push({ key: 'brand_tagline', value: tagline.trim().slice(0, 40), updated_by: user.id })
   }
 
   if (deleteLogo || logoFile) {

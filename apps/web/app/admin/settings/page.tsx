@@ -77,7 +77,7 @@ export default async function AdminSettingsPage({
           <Palette size={15} color="#6366f1" />
           <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>브랜딩 설정</h2>
         </div>
-        <BrandingSettings initialLogoUrl={branding.logoUrl} initialBrandName={branding.brandName} />
+        <BrandingSettings initialLogoUrl={branding.logoUrl} initialBrandName={branding.brandName} initialTagline={branding.tagline} />
       </section>
 
       {/* API 설정 */}

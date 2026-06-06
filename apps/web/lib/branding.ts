@@ -1,9 +1,11 @@
 import { createAdminClient } from '@/lib/supabase/server'
 
 export const DEFAULT_BRAND_NAME = 'AX사업본부'
+export const DEFAULT_BRAND_TAGLINE = '본부 운영 플랫폼'
 
 export interface BrandingConfig {
   brandName: string
+  tagline: string
   logoUrl: string | null
 }
 
@@ -16,7 +18,7 @@ export const getBranding = async (): Promise<BrandingConfig> => {
     const { data } = await adminClient
       .from('system_settings')
       .select('key, value')
-      .in('key', ['brand_name', 'logo_path'])
+      .in('key', ['brand_name', 'brand_tagline', 'logo_path'])
 
     const settings: Record<string, string | null> = {}
     for (const row of (data ?? []) as { key: string; value: string | null }[]) {
@@ -35,9 +37,10 @@ export const getBranding = async (): Promise<BrandingConfig> => {
 
     return {
       brandName: settings.brand_name ?? DEFAULT_BRAND_NAME,
+      tagline: settings.brand_tagline ?? DEFAULT_BRAND_TAGLINE,
       logoUrl,
     }
   } catch {
-    return { brandName: DEFAULT_BRAND_NAME, logoUrl: null }
+    return { brandName: DEFAULT_BRAND_NAME, tagline: DEFAULT_BRAND_TAGLINE, logoUrl: null }
   }
 }

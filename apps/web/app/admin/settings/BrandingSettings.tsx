@@ -6,11 +6,13 @@ import { Image as ImageIcon, Trash2, Upload } from 'lucide-react'
 interface BrandingSettingsProps {
   initialLogoUrl: string | null
   initialBrandName: string
+  initialTagline: string
 }
 
-export default function BrandingSettings({ initialLogoUrl, initialBrandName }: BrandingSettingsProps) {
+export default function BrandingSettings({ initialLogoUrl, initialBrandName, initialTagline }: BrandingSettingsProps) {
   const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl)
   const [brandName, setBrandName] = useState(initialBrandName)
+  const [tagline, setTagline] = useState(initialTagline)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
@@ -31,6 +33,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName }: B
     try {
       const fd = new FormData()
       fd.append('brandName', brandName)
+      fd.append('tagline', tagline)
       if (selectedFile) fd.append('logoFile', selectedFile)
 
       const res = await fetch('/api/admin/settings/branding', { method: 'POST', body: fd })
@@ -163,6 +166,25 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName }: B
         />
         <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
           로고 이미지가 없을 때 표시됩니다 · 최대 30자
+        </p>
+      </div>
+
+      {/* 부제목 (로그인 페이지 등) */}
+      <div>
+        <label style={{ fontSize: '0.875rem', fontWeight: 500, color: '#374151', display: 'block', marginBottom: '0.5rem' }}>
+          부제목
+        </label>
+        <input
+          type="text"
+          value={tagline}
+          onChange={(e) => setTagline(e.target.value)}
+          maxLength={40}
+          placeholder="본부 운영 플랫폼"
+          className="input-field"
+          style={{ maxWidth: '300px' }}
+        />
+        <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+          로그인 화면 브랜드명 아래에 표시됩니다 · 최대 40자 · 비우면 숨김
         </p>
       </div>
 

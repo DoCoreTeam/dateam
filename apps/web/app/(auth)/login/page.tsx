@@ -50,15 +50,17 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               {branding.brandName}
             </h1>
           )}
-          <p
-            style={{
-              fontSize: '0.875rem',
-              color: '#64748b',
-              marginTop: '0.375rem',
-            }}
-          >
-            본부 운영 플랫폼
-          </p>
+          {branding.tagline && (
+            <p
+              style={{
+                fontSize: '0.875rem',
+                color: '#64748b',
+                marginTop: '0.375rem',
+              }}
+            >
+              {branding.tagline}
+            </p>
+          )}
         </div>
 
         {/* 카드 */}
