@@ -122,7 +122,7 @@
 @keyframes char-wave-dark {
   0%,
   100% {
-    color: #e2e8f0;
+    color: var(--border-color);
   }
   50% {
     color: #94a3b8;
@@ -390,7 +390,7 @@
   }
   .tiptap-content pre {
     background: #1e293b;
-    color: #e2e8f0;
+    color: var(--border-color);
     padding: 0.75rem 1rem;
     border-radius: 0.4rem;
     font-size: 0.8125rem;
@@ -411,7 +411,7 @@
   }
   .tiptap-content hr {
     border: none;
-    border-top: 1px solid #e2e8f0;
+    border-top: 2px solid var(--border-color);
     margin: 0.75rem 0;
   }
   .tiptap-content strong {
@@ -477,7 +477,7 @@
   }
   .report-rich pre {
     background: #1e293b;
-    color: #e2e8f0;
+    color: var(--border-color);
     padding: 0.625rem 0.875rem;
     border-radius: 0.4rem;
     font-size: 0.8125rem;
@@ -498,7 +498,7 @@
   }
   .report-rich hr {
     border: none;
-    border-top: 1px solid #e2e8f0;
+    border-top: 2px solid var(--border-color);
     margin: 0.5rem 0;
   }
   .report-rich strong {
@@ -562,7 +562,7 @@
     justify-content: center;
     width: 40px;
     height: 40px;
-    border-radius: 0.5rem;
+    border-radius: var(--radius);
     border: none;
     background: transparent;
     cursor: pointer;
@@ -735,8 +735,8 @@
   }
   .table-card tr {
     display: block !important;
-    border: 1px solid #e2e8f0;
-    border-radius: 0.75rem;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius);
     overflow: hidden;
     background: #fff;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -769,7 +769,7 @@
   /* 카드 헤더 행 (첫 번째 td) */
   .table-card td.card-header {
     background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0 !important;
+    border-bottom: 2px solid var(--border-color) !important;
     padding: 0.75rem 1rem !important;
   }
   .table-card td.card-header[data-label]::before {
@@ -814,8 +814,8 @@
   .report-form-table tr {
     display: flex !important;
     flex-direction: column !important;
-    border: 1px solid #e2e8f0;
-    border-radius: 0.625rem;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius);
     overflow: hidden;
     background: #fff;
   }
@@ -826,7 +826,7 @@
   }
   .report-form-table td:nth-child(1) {
     background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0 !important;
+    border-bottom: 2px solid var(--border-color) !important;
     padding: 0.5rem 0.875rem !important;
   }
   .report-form-table td:nth-child(2)::before {
@@ -925,7 +925,7 @@
 /* ─── 리드 인테이크 ────────────────────────────────────────────── */
 .tab-btn {
   padding: 0.5rem 1.25rem;
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -942,8 +942,8 @@
   color: white;
 }
 .dropzone {
-  border: 2px dashed #e2e8f0;
-  border-radius: 0.75rem;
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius);
   padding: 2rem 1.5rem;
   text-align: center;
   cursor: pointer;
@@ -973,7 +973,7 @@
   padding: 0.2rem 0.5rem;
   font-size: 0.8125rem;
   background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  border: 2px solid var(--border-color);
   border-radius: 0.375rem;
   color: #64748b;
   cursor: pointer;
@@ -1078,8 +1078,8 @@ label.intake-tool-btn {
   gap: 0.75rem;
   padding: 0.75rem;
   background: #f8fafc;
-  border-radius: 0.5rem;
-  border: 1px solid #e2e8f0;
+  border-radius: var(--radius);
+  border: 2px solid var(--border-color);
 }
 .file-item-name {
   font-size: 0.875rem;
@@ -1116,8 +1116,8 @@ label.intake-tool-btn {
   padding: 0.5rem 1rem;
   min-height: 40px;
   background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius);
   cursor: pointer;
   font-size: 0.875rem;
   color: #374151;
@@ -1126,7 +1126,7 @@ label.intake-tool-btn {
 .parsed-card {
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
-  border-radius: 0.75rem;
+  border-radius: var(--radius);
   padding: 1.25rem;
 }
 .parsed-card-title {
@@ -1224,7 +1224,7 @@ label.intake-tool-btn {
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.125rem 0.75rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 2px solid var(--border-color);
   flex-shrink: 0;
 }
 .day-panel-body {
@@ -1235,7 +1235,7 @@ label.intake-tool-btn {
 .day-panel-drag-handle {
   width: 2.5rem;
   height: 4px;
-  background: #e2e8f0;
+  background: var(--border-color);
   border-radius: 2px;
   margin: 0.625rem auto 0;
   flex-shrink: 0;
@@ -1285,8 +1285,8 @@ label.intake-tool-btn {
 }
 .calendar-month-board {
   overflow: hidden;
-  border: 1px solid #dfe5ee;
-  border-radius: 0.75rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius);
   background: #fff;
   box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
 }
@@ -1301,7 +1301,7 @@ label.intake-tool-btn {
   align-items: center;
   justify-content: center;
   border-right: 1px solid #edf1f6;
-  border-bottom: 1px solid #dfe5ee;
+  border-bottom: 2px solid var(--border-color);
   background: #fbfcfe;
   color: #64748b;
   font-size: 0.75rem;
@@ -1524,7 +1524,7 @@ label.intake-tool-btn {
   text-align: center;
   background: #f8fafc;
   padding: 0.625rem 0.5rem;
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   border: 1px solid #f1f5f9;
 }
 .daily-stats-item-label {
@@ -1576,7 +1576,7 @@ label.intake-tool-btn {
   width: fit-content;
   margin-bottom: 1.25rem;
   padding: 0.25rem;
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   background: #f1f5f9;
 }
 .daily-view-tab {
@@ -1608,8 +1608,8 @@ label.intake-tool-btn {
 .daily-compose-card {
   margin-bottom: 1.25rem;
   padding: 1rem;
-  border: 1px solid #dfe5ee;
-  border-radius: 0.75rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius);
   background: #fff;
   box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
 }
@@ -1640,7 +1640,7 @@ label.intake-tool-btn {
   min-height: 4.25rem;
   padding: 0.625rem 0.75rem;
   border: 1px solid #d8dee8;
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   outline: none;
   resize: vertical;
   color: #0f172a;
@@ -1659,7 +1659,7 @@ label.intake-tool-btn {
   min-width: 5.875rem;
   padding: 0.625rem 0.875rem;
   border: none;
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   color: #fff;
   font-size: 0.875rem;
   font-weight: 700;
@@ -1685,7 +1685,7 @@ label.intake-tool-btn {
   }
   .daily-compose-card {
     padding: 0.875rem;
-    border-radius: 0.625rem;
+    border-radius: var(--radius);
   }
   .daily-compose-row {
     flex-direction: column;
@@ -1695,7 +1695,7 @@ label.intake-tool-btn {
     width: 100%;
   }
   .calendar-month-board {
-    border-radius: 0.625rem;
+    border-radius: var(--radius);
   }
   .calendar-weekday {
     min-height: 2rem;
@@ -1876,7 +1876,7 @@ label.intake-tool-btn {
 .checkin-modal-close {
   width: 2rem;
   height: 2rem;
-  border: 1px solid #e2e8f0;
+  border: 2px solid var(--border-color);
   border-radius: 0.375rem;
   background: #f8fafc;
   color: #64748b;
@@ -1971,7 +1971,7 @@ label.intake-tool-btn {
   background: var(--brand);
   color: #fff;
   border: none;
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -1984,8 +1984,8 @@ label.intake-tool-btn {
 /* ── Bulk Import ─────────────────────────────── */
 .bulk-result-summary {
   background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius);
   padding: 1.25rem;
 }
 .bulk-result-error {
@@ -1995,7 +1995,7 @@ label.intake-tool-btn {
 .bulk-progress-bar-bg {
   width: 100%;
   height: 8px;
-  background: #e2e8f0;
+  background: var(--border-color);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -2047,7 +2047,7 @@ label.intake-tool-btn {
   align-items: center;
   justify-content: space-between;
   padding: 1.125rem 1.5rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 2px solid var(--border-color);
   position: sticky;
   top: 0;
   background: #fff;
@@ -2087,7 +2087,7 @@ label.intake-tool-btn {
   align-items: center;
   gap: 0.5rem;
   padding: 0.875rem 1.5rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 2px solid var(--border-color);
   flex-wrap: wrap;
 }
 .filter-search-wrap {
@@ -2107,8 +2107,8 @@ label.intake-tool-btn {
   width: 100%;
   height: 36px;
   padding: 0 0.75rem 0 2rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius);
   font-size: 0.875rem;
   color: #0f172a;
   background: #f8fafc;
@@ -2124,8 +2124,8 @@ label.intake-tool-btn {
 .filter-select {
   height: 36px;
   padding: 0 0.75rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius);
   font-size: 0.875rem;
   color: #374151;
   background: #f8fafc;
@@ -2140,7 +2140,7 @@ label.intake-tool-btn {
   height: 36px;
   padding: 0 0.75rem;
   border: none;
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   font-size: 0.8125rem;
   color: #64748b;
   background: none;
@@ -2226,7 +2226,7 @@ label.intake-tool-btn {
   background: var(--brand);
   color: #fff;
   border: none;
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -2244,8 +2244,8 @@ label.intake-tool-btn {
   gap: 0.375rem;
   background: none;
   color: #64748b;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius);
   font-size: 0.875rem;
   cursor: pointer;
   text-decoration: none;
@@ -2462,7 +2462,7 @@ label.intake-tool-btn {
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1.25rem;
-  border-radius: 0.625rem;
+  border-radius: var(--radius);
   font-size: 0.9rem;
   font-weight: 600;
   box-shadow: 0 4px 16px rgba(0,0,0,0.15);
@@ -2508,7 +2508,7 @@ label.intake-tool-btn {
 }
 .confirm-modal {
   background: #fff;
-  border-radius: 0.875rem;
+  border-radius: var(--radius);
   box-shadow: 0 8px 32px rgba(0,0,0,0.18);
   padding: 1.5rem 1.75rem;
   width: min(360px, 90vw);
@@ -2548,13 +2548,13 @@ label.intake-tool-btn {
   background: #f1f5f9;
   color: #475569;
   border: none;
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
 }
 .confirm-modal-btn-cancel:hover {
-  background: #e2e8f0;
+  background: var(--border-color);
 }
 .confirm-modal-btn-delete {
   flex: 1;
@@ -2562,7 +2562,7 @@ label.intake-tool-btn {
   background: #dc2626;
   color: #fff;
   border: none;
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   font-size: 0.875rem;
   font-weight: 700;
   cursor: pointer;
@@ -2846,7 +2846,7 @@ label.intake-tool-btn {
   width: 100%;
   border: 1px solid var(--gpu-border);
   background: #fff;
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 10px 14px 10px 38px;
   font-size: 13px;
   font-family: inherit;
@@ -2867,7 +2867,7 @@ label.intake-tool-btn {
 .gpu-seg {
   display: flex;
   border: 1px solid var(--gpu-border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   overflow: hidden;
   background: #fff;
 }
@@ -2891,7 +2891,7 @@ label.intake-tool-btn {
   align-items: center;
   gap: 7px;
   padding: 10px 15px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -3159,7 +3159,7 @@ label.intake-tool-btn {
   padding: 11px 14px;
   background: #fff;
   border: 1px solid var(--gpu-border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   margin-bottom: 8px;
   font-size: 12.5px;
 }
@@ -3251,7 +3251,7 @@ label.intake-tool-btn {
 .gpu-im-ic {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3311,7 +3311,7 @@ label.intake-tool-btn {
 /* dropzone */
 .gpu-dropzone {
   border: 2px dashed var(--gpu-border-strong);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 28px;
   text-align: center;
   color: var(--gpu-muted);
@@ -3387,7 +3387,7 @@ label.intake-tool-btn {
   background: var(--gpu-green-soft);
   color: var(--gpu-green);
   border: 1px solid #a7f3d0;
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 12px 16px;
   font-size: 13px;
   font-weight: 600;
@@ -3397,7 +3397,7 @@ label.intake-tool-btn {
   background: var(--gpu-red-soft);
   color: var(--gpu-red);
   border: 1px solid #fecaca;
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 12px 16px;
   font-size: 13px;
   font-weight: 600;
@@ -3586,9 +3586,9 @@ label.intake-tool-btn {
   min-height: 44px;
   padding: 0.625rem 0.875rem;
   background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  border: 2px solid var(--border-color);
   border-left: 3px solid #94a3b8;
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   cursor: pointer;
   text-align: left;
   font: inherit;
@@ -3634,7 +3634,7 @@ label.intake-tool-btn {
   flex-direction: column;
   gap: 0.5rem;
   padding-left: 1rem;
-  border-left: 2px solid #e2e8f0;
+  border-left: 2px solid var(--border-color);
   margin-left: 0.5rem;
 }
 @media (max-width: 767px) {
