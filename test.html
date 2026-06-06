@@ -72,6 +72,59 @@
       white-space: nowrap;
     }
 
+    /* ── 포스트잇 (접착 메모지) ── */
+    .sticky-note {
+      position: relative;
+      width: 168px;
+      min-height: 156px;
+      padding: 26px 18px 18px;
+      font-family: var(--font-marker);
+      font-size: 21px;
+      line-height: 1.3;
+      color: var(--text-primary);
+      background: var(--note-bg, #FEF08A);
+      /* 종이 결: 살짝 비대칭 그림자로 들뜬 모서리 표현 */
+      box-shadow:
+        0 1px 2px rgba(0,0,0,0.12),
+        2px 6px 12px -4px rgba(0,0,0,0.22);
+      transform: rotate(var(--note-rot, -2deg));
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    /* 접착부: 위쪽이 살짝 말려 그늘 — 아래로 갈수록 그림자 짙어짐 */
+    .sticky-note::after {
+      content: '';
+      position: absolute;
+      left: 8%; right: 8%; bottom: 4px; height: 14px;
+      background: rgba(0,0,0,0.18);
+      filter: blur(7px);
+      border-radius: 50%;
+      z-index: -1;
+    }
+    /* 상단 마스킹테이프 */
+    .sticky-note .tape-strip {
+      position: absolute;
+      top: -11px; left: 50%;
+      width: 74px; height: 24px;
+      transform: translateX(-50%) rotate(-3deg);
+      background: rgba(253, 224, 71, 0.72);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+      /* 테이프 양끝 톱니(찢긴) 느낌 */
+      -webkit-mask: linear-gradient(90deg, transparent 0 3px, #000 3px calc(100% - 3px), transparent calc(100% - 3px)) ,
+                    repeating-linear-gradient(0deg, #000 0 100%);
+    }
+    .sticky-note .note-pin-label {
+      display: block;
+      font-size: 14px;
+      font-family: var(--font-ui);
+      font-weight: 600;
+      color: var(--marker-red);
+      margin-bottom: 6px;
+      letter-spacing: 0.02em;
+    }
+    .sticky-note:hover { transform: rotate(0deg) scale(1.03); box-shadow: 0 3px 6px rgba(0,0,0,0.14), 4px 12px 22px -6px rgba(0,0,0,0.28); }
+
+    .sticky-wall { display: flex; flex-wrap: wrap; gap: 22px 28px; padding: 8px 6px 4px; }
+
     /* ── 사이드바 ── */
     .sidebar {
       width: 260px;
@@ -363,8 +416,28 @@
             <li class="report-item"><span>5월 25일 주</span><span class="report-badge" style="background:#FEF3C7;color:#B45309;">사업</span></li>
             <li class="report-item"><span>5월 18일 주</span><span class="report-badge" style="background:#DCFCE7;color:#15803D;">기획</span></li>
           </ul>
-          <div style="margin-top: 28px;">
-            <div class="tape-label" style="background-color:#E0F2FE; color:#0369A1; font-size:16px; transform: rotate(2deg);">메모: 다음 주 월요일 연차</div>
+        </aside>
+
+        <!-- 포스트잇 메모 보드 -->
+        <aside class="card paper-stack grid-pattern">
+          <div class="card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5z"/><polyline points="15 3 15 9 21 9"/></svg>
+            메모 보드
+          </div>
+          <div class="sticky-wall">
+            <div class="sticky-note" style="--note-bg:#FEF08A; --note-rot:-3deg;">
+              <span class="note-pin-label">일정</span>
+              다음 주 월요일 연차 🌴
+            </div>
+            <div class="sticky-note" style="--note-bg:#BAE6FD; --note-rot:2.5deg;">
+              <span class="tape-strip"></span>
+              <span class="note-pin-label" style="color:#0369A1;">아이디어</span>
+              GPU Advisor 추천 근거 카드 추가
+            </div>
+            <div class="sticky-note" style="--note-bg:#FBCFE8; --note-rot:-1.5deg;">
+              <span class="note-pin-label" style="color:#9D174D;">잊지마!</span>
+              금요일 주간보고 마감 ✍️
+            </div>
           </div>
         </aside>
       </div>
