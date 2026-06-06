@@ -386,7 +386,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
       {deleteConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: '1.5rem', width: '340px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)' }}>
-            <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 700 }}>삭제 확인</h3>
+            <h3 className="tape-title" style={{ margin: 0 }}>삭제 확인</h3>
             <p style={{ margin: '0 0 1.25rem', color: '#475569', fontSize: '0.875rem' }}>
               <strong>{deleteConfirm.name}</strong>을(를) 삭제하시겠습니까?
               {deleteConfirm.type !== 'person' && ' 하위 노드가 있으면 삭제할 수 없습니다.'}

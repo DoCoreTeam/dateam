@@ -123,7 +123,7 @@ export default function AiUsageDashboard() {
       <div className="responsive-grid-cols-2" style={{ gap: '1.5rem' }}>
         {/* 기능별 막대 차트 */}
         <div className="card" style={{ padding: '1.5rem' }}>
-          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', marginBottom: '1.25rem', marginTop: 0 }}>기능별 토큰 사용량</h2>
+          <h2 className="tape-title" style={{ margin: 0 }}>기능별 토큰 사용량</h2>
           {features.length === 0 ? (
             <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>데이터 없음</div>
           ) : (
@@ -141,7 +141,7 @@ export default function AiUsageDashboard() {
 
         {/* 일별 라인 차트 */}
         <div className="card" style={{ padding: '1.5rem' }}>
-          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', marginBottom: '1.25rem', marginTop: 0 }}>일별 사용량 추이 ({days}일)</h2>
+          <h2 className="tape-title" style={{ margin: 0 }}>일별 사용량 추이 ({days}일)</h2>
           {daily.length === 0 ? (
             <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>데이터 없음</div>
           ) : (
@@ -160,7 +160,7 @@ export default function AiUsageDashboard() {
 
       {/* 유저별 테이블 */}
       <div className="card" style={{ padding: '1.5rem' }}>
-        <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', marginBottom: '1.25rem', marginTop: 0 }}>유저별 사용량</h2>
+        <h2 className="tape-title" style={{ margin: 0 }}>유저별 사용량</h2>
         <table className="table-base table-card">
           <thead>
             <tr>
@@ -187,7 +187,7 @@ export default function AiUsageDashboard() {
 
       {/* Raw 로그 테이블 */}
       <div className="card" style={{ padding: '1.5rem' }}>
-        <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', marginBottom: '1.25rem', marginTop: 0 }}>요청 로그</h2>
+        <h2 className="tape-title" style={{ margin: 0 }}>요청 로그</h2>
         <table className="table-base table-card">
           <thead>
             <tr>

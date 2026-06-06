@@ -77,7 +77,7 @@ export default async function DealDetailPage({ params }: PageProps) {
         {/* 좌측: 기본 정보 + 단계 업데이트 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
-            <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: '0 0 1rem' }}>기본 정보</h2>
+            <h2 className="tape-title" style={{ margin: 0 }}>기본 정보</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {deal.value && (
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -114,7 +114,7 @@ export default async function DealDetailPage({ params }: PageProps) {
           {/* 다음 액션 */}
           {(deal.next_action || deal.next_action_date) && (
             <div className="card" style={{ padding: '1.25rem 1.5rem', borderLeft: '3px solid var(--brand)' }}>
-              <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--brand)', margin: '0 0 0.5rem' }}>다음 액션</h2>
+              <h2 className="tape-title" style={{ margin: 0 }}>다음 액션</h2>
               {deal.next_action && <p style={{ fontSize: '0.875rem', color: '#374151', margin: 0 }}>{deal.next_action}</p>}
               {deal.next_action_date && <p style={{ fontSize: '0.8125rem', color: '#94a3b8', margin: '0.25rem 0 0' }}>📅 {deal.next_action_date}</p>}
             </div>
@@ -127,7 +127,7 @@ export default async function DealDetailPage({ params }: PageProps) {
         {/* 우측: 활동 로그 */}
         <div className="card">
           <div style={{ padding: '1rem 1.5rem', borderBottom: '2px solid var(--border-color)' }}>
-            <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>활동 로그</h2>
+            <h2 className="tape-title" style={{ margin: 0 }}>활동 로그</h2>
           </div>
           <ActivityLogger dealId={id} />
           <div style={{ display: 'flex', flexDirection: 'column' }}>

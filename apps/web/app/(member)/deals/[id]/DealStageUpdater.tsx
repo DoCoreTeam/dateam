@@ -28,7 +28,7 @@ export default function DealStageUpdater({ dealId, currentStage }: Props) {
 
   return (
     <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
-      <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', margin: '0 0 0.875rem' }}>단계 변경</h2>
+      <h2 className="tape-title" style={{ margin: 0 }}>단계 변경</h2>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
         {STAGES.map((stage) => (
           <button

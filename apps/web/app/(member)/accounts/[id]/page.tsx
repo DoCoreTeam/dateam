@@ -86,7 +86,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
         {/* 기본 정보 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
-            <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: '0 0 1rem' }}>기본 정보</h2>
+            <h2 className="tape-title" style={{ margin: 0 }}>기본 정보</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {account.website && (
                 <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start' }}>
@@ -136,7 +136,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
             <div style={{ padding: '1rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Users size={15} color="var(--brand)" />
-                <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>담당자</h2>
+                <h2 className="tape-title" style={{ margin: 0 }}>담당자</h2>
                 <span className="badge badge-slate">{contacts.length}</span>
               </div>
               <Link href={`/contacts/new?account_id=${id}`} style={{ fontSize: '0.8125rem', color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}>+ 추가</Link>
@@ -165,7 +165,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
           <div style={{ padding: '1rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <TrendingUp size={15} color="var(--brand)" />
-              <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>영업기회</h2>
+              <h2 className="tape-title" style={{ margin: 0 }}>영업기회</h2>
               <span className="badge badge-slate">{deals.length}</span>
             </div>
             <Link href={`/deals/new?account_id=${id}`} style={{ fontSize: '0.8125rem', color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}>+ 추가</Link>

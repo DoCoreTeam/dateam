@@ -84,7 +84,7 @@ export default function ContactsPage() {
       <div className="card">
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Users size={16} color="var(--brand)" />
-          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>전체 담당자</h2>
+          <h2 className="tape-title" style={{ margin: 0 }}>전체 담당자</h2>
           <span className="badge badge-slate">{contacts.length}{hasFilters ? '명 (필터됨)' : '명'}</span>
         </div>
 

@@ -60,7 +60,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '2rem' }}>
       {/* 직급 관리 */}
       <div style={{ background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '1.25rem' }}>
-        <h3 style={{ margin: '0 0 1rem', fontSize: '0.95rem', fontWeight: 700, color: '#1e293b' }}>직급 관리</h3>
+        <h3 className="tape-title" style={{ margin: 0 }}>직급 관리</h3>
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
           <input
             value={rankInput}
@@ -112,7 +112,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
 
       {/* 직책 관리 */}
       <div style={{ background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '1.25rem' }}>
-        <h3 style={{ margin: '0 0 1rem', fontSize: '0.95rem', fontWeight: 700, color: '#1e293b' }}>직책 관리</h3>
+        <h3 className="tape-title" style={{ margin: 0 }}>직책 관리</h3>
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
           <input
             value={posInput}

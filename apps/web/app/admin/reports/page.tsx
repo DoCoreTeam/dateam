@@ -203,7 +203,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
           }}
         >
           <FileText size={16} color="var(--brand)" />
-          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>
+          <h2 className="tape-title" style={{ margin: 0 }}>
             {new Date(selectedWeek).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 주 보고서
           </h2>
           <span className="badge badge-slate">{reports?.length ?? 0}건</span>

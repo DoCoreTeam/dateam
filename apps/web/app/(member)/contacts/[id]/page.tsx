@@ -48,7 +48,7 @@ export default async function ContactDetailPage({ params }: PageProps) {
       </div>
 
       <div className="card" style={{ maxWidth: '480px', padding: '1.5rem' }}>
-        <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: '0 0 1rem' }}>연락처 정보</h2>
+        <h2 className="tape-title" style={{ margin: 0 }}>연락처 정보</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           {data.email && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -89,7 +89,7 @@ export default async function ContactDetailPage({ params }: PageProps) {
 
       {data.business_card_drive_id && (
         <div className="card" style={{ maxWidth: '480px', padding: '1.5rem', marginTop: '1rem' }}>
-          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: '0 0 1rem' }}>명함 이미지</h2>
+          <h2 className="tape-title" style={{ margin: 0 }}>명함 이미지</h2>
           <div style={{ position: 'relative', width: '100%', aspectRatio: '1.7 / 1', overflow: 'hidden', borderRadius: 'var(--radius)', border: '2px solid var(--border-color)', backgroundColor: 'var(--color-bg)' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

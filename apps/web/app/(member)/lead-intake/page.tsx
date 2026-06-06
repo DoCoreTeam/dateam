@@ -67,7 +67,7 @@ export default async function LeadIntakePage({ searchParams }: PageProps) {
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Inbox size={16} color="var(--brand)" />
-          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>새 리드 입력</h2>
+          <h2 className="tape-title" style={{ margin: 0 }}>새 리드 입력</h2>
         </div>
         <div style={{ padding: '1.5rem' }}>
           <LeadIntakeForm brandName={brandName} />
@@ -78,7 +78,7 @@ export default async function LeadIntakePage({ searchParams }: PageProps) {
       {list.length > 0 && (
         <div className="card">
           <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)' }}>
-            <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>최근 인테이크</h2>
+            <h2 className="tape-title" style={{ margin: 0 }}>최근 인테이크</h2>
           </div>
           <table className="table-base table-card">
             <thead>

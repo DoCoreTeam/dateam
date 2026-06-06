@@ -152,7 +152,7 @@ export default function DealsPage() {
             <div className="card desktop-only" style={{ marginBottom: '1.5rem' }}>
               <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <TrendingUp size={16} color="var(--brand)" />
-                <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>파이프라인</h2>
+                <h2 className="tape-title" style={{ margin: 0 }}>파이프라인</h2>
               </div>
               <div style={{ overflowX: 'auto', padding: '1.25rem' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: `repeat(${STAGES.filter(s => s !== '실패').length}, minmax(180px, 1fr))`, gap: '0.75rem', minWidth: '1200px' }}>
@@ -191,7 +191,7 @@ export default function DealsPage() {
           <div className="card">
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <TrendingUp size={16} color="var(--brand)" />
-              <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>전체 목록</h2>
+              <h2 className="tape-title" style={{ margin: 0 }}>전체 목록</h2>
               <span className="badge badge-slate">{list.length}{hasFilters ? '건 (필터됨)' : '건'}</span>
             </div>
 

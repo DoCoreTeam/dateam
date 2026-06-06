@@ -34,7 +34,7 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
       <div onClick={(e) => e.stopPropagation()}
         style={{ background: '#fff', borderRadius: 'var(--radius)', width: '380px', maxWidth: '92vw', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '2px solid var(--border-color)' }}>
-          <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <h3 className="tape-title" style={{ margin: 0 }}>
             <ArrowUpRight size={16} color="var(--brand-dark)" /> 메모를 업무로
           </h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={18} /></button>

@@ -79,7 +79,7 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
           background: 'linear-gradient(to right, #faf5ff, #fdf4ff)',
         }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#1e1b4b' }}>
+            <h2 className="tape-title" style={{ margin: 0 }}>
               ✨ AI로 다듬기 결과 확인
             </h2>
             <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: '#64748b' }}>

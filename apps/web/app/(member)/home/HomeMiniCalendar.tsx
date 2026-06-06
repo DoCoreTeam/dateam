@@ -33,7 +33,7 @@ export default function HomeMiniCalendar({ year, month, todayStr, monthSummary }
   return (
     <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>
+        <h3 className="tape-title" style={{ margin: 0 }}>
           {monthLabel}
         </h3>
         <a

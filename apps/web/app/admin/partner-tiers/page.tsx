@@ -37,7 +37,7 @@ export default async function PartnerTiersPage() {
       <div className="card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
           <Plus size={16} color="var(--brand)" />
-          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>
+          <h2 className="tape-title" style={{ margin: 0 }}>
             새 등급 추가
           </h2>
         </div>
@@ -48,7 +48,7 @@ export default async function PartnerTiersPage() {
       <div className="card">
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Tag size={16} color="var(--brand)" />
-          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>등급 목록</h2>
+          <h2 className="tape-title" style={{ margin: 0 }}>등급 목록</h2>
           <span className="badge badge-slate">{tiers?.length ?? 0}개</span>
         </div>
 

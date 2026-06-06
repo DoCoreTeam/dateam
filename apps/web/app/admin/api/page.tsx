@@ -133,7 +133,7 @@ export default async function AdminApiPage({
         <>
           <div className="card" style={{ marginBottom: '1.5rem' }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>대기 중</h2>
+              <h2 className="tape-title" style={{ margin: 0 }}>대기 중</h2>
               <span className="badge badge-slate" style={{ background: '#fef3c7', color: '#d97706' }}>{pending.length}건</span>
             </div>
             {pending.length === 0 ? (
@@ -165,7 +165,7 @@ export default async function AdminApiPage({
           {processed.length > 0 && (
             <div className="card">
               <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)' }}>
-                <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>처리 완료</h2>
+                <h2 className="tape-title" style={{ margin: 0 }}>처리 완료</h2>
               </div>
               <table className="table-base table-card">
                 <thead>
@@ -199,7 +199,7 @@ export default async function AdminApiPage({
         <>
           <div className="card" style={{ marginBottom: '1.5rem' }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>활성 키</h2>
+              <h2 className="tape-title" style={{ margin: 0 }}>활성 키</h2>
               <span className="badge" style={{ background: '#f0fdf4', color: '#16a34a' }}>{activeKeys.length}개</span>
             </div>
             {activeKeys.length === 0 ? (
@@ -231,7 +231,7 @@ export default async function AdminApiPage({
           {revokedKeys.length > 0 && (
             <div className="card">
               <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)' }}>
-                <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>폐기된 키 ({revokedKeys.length})</h2>
+                <h2 className="tape-title" style={{ margin: 0 }}>폐기된 키 ({revokedKeys.length})</h2>
               </div>
               <table className="table-base table-card">
                 <thead>

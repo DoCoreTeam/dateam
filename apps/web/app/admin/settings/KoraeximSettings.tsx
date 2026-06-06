@@ -66,7 +66,7 @@ export default function KoraeximSettings({ hasKey: initialHasKey, maskedKey: ini
     <div className="card" style={{ padding: '1.5rem', maxWidth: '640px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
         <Key size={16} color="var(--brand)" />
-        <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>한국수출입은행 API 키</h2>
+        <h2 className="tape-title" style={{ margin: 0 }}>한국수출입은행 API 키</h2>
       </div>
 
       <p style={{ fontSize: '0.8125rem', color: '#64748b', marginBottom: '1rem', margin: '0 0 1rem 0' }}>

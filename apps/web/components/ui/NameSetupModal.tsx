@@ -74,7 +74,7 @@ export default function NameSetupModal() {
           >
             👤
           </div>
-          <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.5rem' }}>
+          <h2 className="tape-title" style={{ margin: 0 }}>
             본인 확인
           </h2>
           <p style={{ color: '#64748b', fontSize: '0.875rem', margin: 0, lineHeight: 1.6 }}>

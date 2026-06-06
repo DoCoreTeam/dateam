@@ -118,14 +118,14 @@ export default async function AdminMembersPage({
           <div className="card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
               <UserPlus size={16} color="var(--brand)" />
-              <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>새 구성원 초대</h2>
+              <h2 className="tape-title" style={{ margin: 0 }}>새 구성원 초대</h2>
             </div>
             <InviteForm />
           </div>
           <div className="card">
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Users size={16} color="var(--brand)" />
-              <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>전체 구성원</h2>
+              <h2 className="tape-title" style={{ margin: 0 }}>전체 구성원</h2>
               <span className="badge badge-slate">{profiles.length}명</span>
             </div>
             <UserTable profiles={profiles} emailMap={emailMap} currentUserId={user.id} ranks={ranks} positions={positions} />

@@ -183,7 +183,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
       <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
           <Plus size={16} color="var(--brand)" />
-          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>
+          <h2 className="tape-title" style={{ margin: 0 }}>
             이번 주 실적 입력
           </h2>
           <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: '0.25rem' }}>
@@ -289,7 +289,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
       <div className="card" style={{ overflow: 'hidden' }}>
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <TrendingUp size={16} color="var(--brand)" />
-          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>
+          <h2 className="tape-title" style={{ margin: 0 }}>
             실적 히스토리
           </h2>
           <span className="badge badge-slate" style={{ marginLeft: '0.25rem' }}>

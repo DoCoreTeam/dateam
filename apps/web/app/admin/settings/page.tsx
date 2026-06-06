@@ -75,7 +75,7 @@ export default async function AdminSettingsPage({
       <section>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
           <Palette size={15} color="var(--brand)" />
-          <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>브랜딩 설정</h2>
+          <h2 className="tape-title" style={{ margin: 0 }}>브랜딩 설정</h2>
         </div>
         <BrandingSettings initialLogoUrl={branding.logoUrl} initialBrandName={branding.brandName} initialTagline={branding.tagline} />
       </section>
@@ -84,7 +84,7 @@ export default async function AdminSettingsPage({
       <section>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
           <Key size={15} color="var(--brand)" />
-          <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>AI 모델 연동</h2>
+          <h2 className="tape-title" style={{ margin: 0 }}>AI 모델 연동</h2>
         </div>
         <GeminiSettings hasKey={hasKey} maskedKey={maskedKey} savedModel={savedModel} />
       </section>
@@ -93,7 +93,7 @@ export default async function AdminSettingsPage({
       <section>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
           <Key size={15} color="var(--brand)" />
-          <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>환율 API 연동</h2>
+          <h2 className="tape-title" style={{ margin: 0 }}>환율 API 연동</h2>
         </div>
         <KoraeximSettings hasKey={hasKoraeximKey} maskedKey={maskedKoraeximKey} />
       </section>
@@ -102,7 +102,7 @@ export default async function AdminSettingsPage({
       <section>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
           <Database size={15} color="var(--brand)" />
-          <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>DB 연결</h2>
+          <h2 className="tape-title" style={{ margin: 0 }}>DB 연결</h2>
         </div>
         <DbSettings hasUrl={hasDbUrl} maskedUrl={maskedDbUrl} />
       </section>
@@ -111,7 +111,7 @@ export default async function AdminSettingsPage({
       <section>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
           <Bell size={15} color="var(--brand)" />
-          <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>AI 토큰 알림</h2>
+          <h2 className="tape-title" style={{ margin: 0 }}>AI 토큰 알림</h2>
         </div>
         <TokenAlertSettings currentThreshold={tokenAlertThreshold} />
       </section>
@@ -120,7 +120,7 @@ export default async function AdminSettingsPage({
       <section>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
           <Cloud size={15} color="var(--brand)" />
-          <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>Google Drive 연동</h2>
+          <h2 className="tape-title" style={{ margin: 0 }}>Google Drive 연동</h2>
         </div>
         <GoogleDriveSettings />
       </section>

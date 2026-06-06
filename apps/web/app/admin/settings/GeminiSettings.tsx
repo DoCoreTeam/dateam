@@ -69,7 +69,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
       {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
         <Key size={16} color="var(--brand)" />
-        <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>Gemini API 키</h2>
+        <h2 className="tape-title" style={{ margin: 0 }}>Gemini API 키</h2>
       </div>
 
       {/* 현재 상태 */}

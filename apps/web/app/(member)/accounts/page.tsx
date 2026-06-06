@@ -105,7 +105,7 @@ export default function AccountsPage() {
         {/* 헤더 */}
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Briefcase size={16} color="var(--brand)" />
-          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>전체 거래처</h2>
+          <h2 className="tape-title" style={{ margin: 0 }}>전체 거래처</h2>
           <span className="badge badge-slate">{accounts.length}{hasFilters ? '건 (필터됨)' : '개'}</span>
         </div>
 

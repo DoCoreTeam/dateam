@@ -238,7 +238,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <FileText size={16} color="var(--brand)" />
-                <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>보고서 작성</h2>
+                <h2 className="tape-title" style={{ margin: 0 }}>보고서 작성</h2>
               </div>
               <OnboardingRestartLink variant="icon" />
             </div>
@@ -258,7 +258,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
           </div>
 
           <div>
-            <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', marginBottom: '1rem', letterSpacing: '-0.01em' }}>
+            <h2 className="tape-title" style={{ margin: 0 }}>
               과거 주간보고
             </h2>
             <ReportAccordion groups={groups} />
@@ -270,7 +270,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
         <div className="card" style={{ padding: '1.5rem', width: '100%', boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
             <Users size={16} color="var(--brand)" />
-            <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>팀 전체 주간보고</h2>
+            <h2 className="tape-title" style={{ margin: 0 }}>팀 전체 주간보고</h2>
           </div>
           <TeamReportView weekOptions={weekOptions} thisWeek={thisWeek} initialReports={teamReports} />
         </div>
@@ -278,7 +278,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
         <div className="card" style={{ padding: '1.5rem', width: '100%', boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
             <GitBranch size={16} color="var(--brand)" />
-            <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>조직 현황 — 부서 취합 주간보고</h2>
+            <h2 className="tape-title" style={{ margin: 0 }}>조직 현황 — 부서 취합 주간보고</h2>
           </div>
           <OrgWeeklyView
             weekStart={orgWeekStart}
