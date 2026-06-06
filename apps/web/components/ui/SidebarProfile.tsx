@@ -58,11 +58,11 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
             bottom: 'calc(100% + 0.5rem)',
             left: 0,
             right: 0,
-            background: '#1e293b',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: '0.75rem',
+            background: 'var(--nb-white)',
+            border: 'var(--border-w) solid var(--border-color)',
+            borderRadius: 'var(--radius)',
             overflow: 'hidden',
-            boxShadow: '0 -8px 32px rgba(0,0,0,0.4)',
+            boxShadow: 'var(--shadow-md)',
             zIndex: 100,
           }}
         >
@@ -77,17 +77,17 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
                   gap: '0.625rem',
                   padding: '0.75rem 1rem',
                   fontSize: '0.8125rem',
-                  color: '#a5b4fc',
+                  color: 'var(--ink)',
                   textDecoration: 'none',
                   transition: 'background 120ms',
                 }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(99,102,241,0.12)')}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
                 <LayoutDashboard size={14} />
                 관리자 패널
               </Link>
-              <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '0 0.75rem' }} />
+              <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0 0.75rem' }} />
             </>
           )}
           <Link
@@ -99,11 +99,11 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
               gap: '0.625rem',
               padding: '0.75rem 1rem',
               fontSize: '0.8125rem',
-              color: '#cbd5e1',
+              color: 'var(--ink)',
               textDecoration: 'none',
               transition: 'background 120ms',
             }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
             <KeyRound size={14} />
@@ -118,17 +118,17 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
               gap: '0.625rem',
               padding: '0.75rem 1rem',
               fontSize: '0.8125rem',
-              color: '#cbd5e1',
+              color: 'var(--ink)',
               textDecoration: 'none',
               transition: 'background 120ms',
             }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
             <Code2 size={14} />
             API Keys
           </Link>
-          <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '0 0.75rem' }} />
+          <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0 0.75rem' }} />
           <button
             onClick={handleLogout}
             style={{
@@ -138,7 +138,7 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
               width: '100%',
               padding: '0.75rem 1rem',
               fontSize: '0.8125rem',
-              color: '#f87171',
+              color: '#dc2626',
               background: 'none',
               border: 'none',
               cursor: 'pointer',
@@ -163,13 +163,13 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
           gap: '0.625rem',
           width: '100%',
           padding: '0.5rem 0.625rem',
-          background: open ? 'rgba(255,255,255,0.07)' : 'transparent',
+          background: open ? 'rgba(0,0,0,0.06)' : 'transparent',
           border: 'none',
-          borderRadius: '0.5rem',
+          borderRadius: 'var(--radius)',
           cursor: 'pointer',
           transition: 'background 120ms',
         }}
-        onMouseEnter={e => { if (!open) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+        onMouseEnter={e => { if (!open) e.currentTarget.style.background = 'rgba(0,0,0,0.05)' }}
         onMouseLeave={e => { if (!open) e.currentTarget.style.background = 'transparent' }}
       >
         {/* 아바타 */}
@@ -178,7 +178,8 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
             width: '2rem',
             height: '2rem',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #6366f1, #818cf8)',
+            background: 'var(--brand)',
+            border: '2px solid var(--border-color)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -196,8 +197,8 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
           <div
             style={{
               fontSize: '0.8125rem',
-              fontWeight: 600,
-              color: '#e2e8f0',
+              fontWeight: 700,
+              color: 'var(--ink)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',

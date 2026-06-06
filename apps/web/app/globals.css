@@ -1,4 +1,5 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
+@import url("https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -16,17 +17,40 @@
 :root {
   color-scheme: light;
 
-  --color-bg: #f8fafc;
-  --color-surface: #ffffff;
-  --color-text: #0f172a;
-  --color-text-muted: #64748b;
-  --color-border: #e2e8f0;
-  --color-brand: #6366f1;
-  --color-brand-hover: #4f46e5;
+  /* ── Neo-brutalism Layer 1: Primitives (직접 참조 금지) ── */
+  --nb-black: #0a0a0a;
+  --nb-yellow: #fcd34d;
+  --nb-purple: #7c3aed;
+  --nb-purple-dark: #5b21b6;
+  --nb-off-white: #f8f8f6;
+  --nb-paper: #efede8;
+  --nb-white: #ffffff;
 
-  --radius-card: 1rem;
-  --shadow-card:
-    0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07);
+  /* ── Neo-brutalism Layer 2: Semantics ── */
+  --ink: var(--nb-black);
+  --border-color: var(--nb-black);
+  --shadow-color: var(--nb-black);
+  --accent: var(--nb-yellow);
+  --brand: var(--nb-purple);
+  --brand-dark: var(--nb-purple-dark);
+  --border-w: 3px;
+  --border-w-mobile: 2px;
+  --radius: 4px;
+  --shadow-sm: 3px 3px 0 0 var(--shadow-color);
+  --shadow-md: 4px 4px 0 0 var(--shadow-color);
+  --shadow-lg: 6px 6px 0 0 var(--shadow-color);
+
+  /* ── 브릿지: 기존 인디고 토큰을 NB 토큰으로 alias (컴포넌트 코드 무수정 전파) ── */
+  --color-bg: var(--nb-off-white);
+  --color-surface: var(--nb-white);
+  --color-text: var(--ink);
+  --color-text-muted: #4b4b4b;
+  --color-border: var(--border-color);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-dark);
+
+  --radius-card: var(--radius);
+  --shadow-card: var(--shadow-md);
 
   --duration-fast: 120ms;
   --duration-normal: 240ms;
@@ -47,9 +71,9 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-brand);
+    outline: 3px solid var(--brand);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: var(--radius);
   }
 }
 
@@ -166,8 +190,8 @@
   .card {
     background-color: var(--color-surface);
     border-radius: var(--radius-card);
-    box-shadow: var(--shadow-card);
-    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-md);
+    border: var(--border-w) solid var(--border-color);
   }
 
   .btn-primary {
@@ -178,22 +202,26 @@
     padding: 0.5rem 1.25rem;
     background-color: var(--color-brand);
     color: white;
-    border-radius: 0.5rem;
+    border-radius: var(--radius);
     font-size: 0.875rem;
-    font-weight: 500;
+    font-weight: 700;
     transition:
-      background-color var(--duration-fast) var(--ease-out),
-      transform var(--duration-fast) var(--ease-out);
+      transform var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out);
     cursor: pointer;
-    border: none;
+    border: var(--border-w) solid var(--border-color);
+    box-shadow: var(--shadow-sm);
   }
 
   .btn-primary:hover {
     background-color: var(--color-brand-hover);
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 0 var(--shadow-color);
   }
 
   .btn-primary:active {
-    transform: scale(0.98);
+    transform: translate(3px, 3px);
+    box-shadow: none;
   }
 
   .btn-ghost {
@@ -202,18 +230,22 @@
     justify-content: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
-    background-color: transparent;
-    color: var(--color-text-muted);
-    border-radius: 0.5rem;
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    border-radius: var(--radius);
     font-size: 0.875rem;
-    font-weight: 500;
-    transition: background-color var(--duration-fast) var(--ease-out);
+    font-weight: 600;
+    transition:
+      transform var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out);
     cursor: pointer;
-    border: none;
+    border: var(--border-w) solid var(--border-color);
+    box-shadow: var(--shadow-sm);
   }
 
   .btn-ghost:hover {
-    background-color: #f1f5f9;
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 0 var(--shadow-color);
     color: var(--color-text);
   }
 
@@ -221,20 +253,19 @@
     width: 100%;
     padding: 0.625rem 0.875rem;
     background-color: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 0.5rem;
+    border: var(--border-w) solid var(--border-color);
+    border-radius: var(--radius);
     font-size: 0.875rem;
     color: var(--color-text);
     transition:
-      border-color var(--duration-fast) var(--ease-out),
       box-shadow var(--duration-fast) var(--ease-out);
     outline: none;
     font-family: inherit;
   }
 
   .input-field:focus {
-    border-color: var(--color-brand);
-    box-shadow: 0 0 0 3px rgb(99 102 241 / 0.15);
+    border-color: var(--border-color);
+    box-shadow: var(--shadow-sm);
   }
 
   .input-field:-webkit-autofill,
@@ -260,21 +291,22 @@
     font-size: 0.875rem;
   }
 
+  /* C-1: 데이터밀집 — thead만 강조(두꺼운 보더), 셀 그림자 금지, 행 구분은 보더로 */
   .table-base th {
     text-align: left;
     padding: 0.625rem 1rem;
     font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--color-text-muted);
+    font-weight: 700;
+    color: var(--ink);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: var(--border-w) solid var(--border-color);
     white-space: nowrap;
   }
 
   .table-base td {
     padding: 0.75rem 1rem;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid #d4d4d4;
     color: var(--color-text);
     vertical-align: top;
   }
@@ -284,30 +316,31 @@
   }
 
   .table-base tbody tr:hover td {
-    background-color: #fafbff;
+    background-color: #fdf6d8;
   }
 
   .badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.2rem 0.6rem;
-    border-radius: 9999px;
+    padding: 0.15rem 0.55rem;
+    border-radius: var(--radius);
+    border: 2px solid var(--border-color);
     font-size: 0.75rem;
-    font-weight: 500;
+    font-weight: 700;
   }
 
   .badge-indigo {
-    background-color: #eef2ff;
-    color: #4338ca;
+    background-color: var(--accent);
+    color: var(--ink);
   }
 
   .badge-slate {
-    background-color: #f1f5f9;
-    color: #475569;
+    background-color: #e5e5e5;
+    color: var(--ink);
   }
 
   .badge-emerald {
-    background-color: #ecfdf5;
+    background-color: #bbf7d0;
     color: #065f46;
   }
 

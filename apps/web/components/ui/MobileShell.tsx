@@ -96,7 +96,8 @@ export default function MobileShell({
         aria-label="주 사이드바"
         style={{
           minHeight: '100vh',
-          backgroundColor: '#1e293b',
+          backgroundColor: 'var(--nb-paper)',
+          borderRight: 'var(--border-w) solid var(--border-color)',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -104,7 +105,7 @@ export default function MobileShell({
         {/* 브랜드 */}
         <div style={{
           padding: '1.25rem',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '2px solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -120,13 +121,13 @@ export default function MobileShell({
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                 />
               ) : (
-                <span style={{ color: '#fff', fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+                <span style={{ color: 'var(--ink)', fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
                   {brandName}
                 </span>
               )}
             </Link>
             {/* 로고/브랜드 바로 아래 버전 */}
-            <span style={{ fontSize: '0.625rem', color: '#64748b', letterSpacing: '0.06em', fontWeight: 600 }}>
+            <span style={{ fontSize: '0.625rem', color: '#6b6b6b', letterSpacing: '0.06em', fontWeight: 600 }}>
               v{process.env.NEXT_PUBLIC_APP_VERSION ?? '—'}
             </span>
           </div>
@@ -136,7 +137,7 @@ export default function MobileShell({
             aria-label="메뉴 닫기"
             style={{
               background: 'transparent', border: 'none',
-              color: '#94a3b8', cursor: 'pointer',
+              color: 'var(--ink)', cursor: 'pointer',
               alignItems: 'center', padding: '0.25rem',
             }}
           >
@@ -171,17 +172,17 @@ export default function MobileShell({
                       textDecoration: 'none',
                       transition: 'opacity 120ms, transform 120ms, border-color 120ms',
                       background: isActive
-                        ? 'rgba(99,102,241,0.1)'
+                        ? 'var(--accent)'
                         : isHighlight
-                        ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
-                        : isHovered ? 'rgba(255,255,255,0.07)' : 'transparent',
-                      border: isActive
-                        ? '1px solid rgba(99,102,241,0.55)'
-                        : '1px solid transparent',
-                      color: isActive ? '#c7d2fe' : isHighlight ? '#fff' : isHovered ? '#fff' : '#94a3b8',
+                        ? 'var(--brand)'
+                        : isHovered ? 'rgba(0,0,0,0.05)' : 'transparent',
+                      border: isActive || isHighlight
+                        ? '2px solid var(--border-color)'
+                        : '2px solid transparent',
+                      color: isActive ? 'var(--ink)' : isHighlight ? '#fff' : 'var(--ink)',
                       minHeight: '44px',
-                      boxShadow: isHighlight && !isActive ? '0 2px 10px rgba(99,102,241,0.4)' : 'none',
-                      opacity: isHighlight && isHovered ? 0.88 : 1,
+                      boxShadow: (isActive || isHighlight) ? 'var(--shadow-sm)' : 'none',
+                      opacity: isHighlight && isHovered ? 0.9 : 1,
                       letterSpacing: isHighlight ? '0.01em' : undefined,
                     }}
                   >
@@ -224,7 +225,7 @@ export default function MobileShell({
                     width: '100%',
                     fontSize: '0.6875rem',
                     fontWeight: 600,
-                    color: '#475569',
+                    color: '#6b6b6b',
                     letterSpacing: '0.08em',
                     textTransform: 'uppercase',
                     padding: '0.25rem 0.75rem',
@@ -235,7 +236,7 @@ export default function MobileShell({
                     borderRadius: '0.375rem',
                     transition: 'background-color 120ms',
                   }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(255,255,255,0.05)' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(0,0,0,0.05)' }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent' }}
                 >
                   {group.label}
@@ -266,9 +267,10 @@ export default function MobileShell({
                               fontWeight: isActive ? 700 : 500,
                               textDecoration: 'none',
                               transition: 'background-color 120ms, color 120ms, border-color 120ms',
-                              backgroundColor: isActive ? 'rgba(99,102,241,0.1)' : isHovered ? 'rgba(255,255,255,0.07)' : 'transparent',
-                              border: isActive ? '1px solid rgba(99,102,241,0.55)' : '1px solid transparent',
-                              color: isActive ? '#c7d2fe' : isHovered ? '#fff' : '#94a3b8',
+                              backgroundColor: isActive ? 'var(--accent)' : isHovered ? 'rgba(0,0,0,0.05)' : 'transparent',
+                              border: isActive ? '2px solid var(--border-color)' : '2px solid transparent',
+                              color: 'var(--ink)',
+                              boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
                               minHeight: '44px',
                             }}
                           >
@@ -289,17 +291,19 @@ export default function MobileShell({
 
         {/* 모바일 전용 어드민/멤버 전환 */}
         {adminHref && (
-          <div className="mobile-only" style={{ padding: '0.5rem 0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="mobile-only" style={{ padding: '0.5rem 0.75rem', borderTop: '2px solid var(--border-color)' }}>
             <Link
               href={adminHref}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 padding: '0.625rem 1rem',
-                borderRadius: '0.5rem',
-                fontSize: '0.8125rem', fontWeight: 600,
+                borderRadius: 'var(--radius)',
+                fontSize: '0.8125rem', fontWeight: 700,
                 textDecoration: 'none',
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                color: '#cbd5e1',
+                backgroundColor: 'var(--nb-white)',
+                border: '2px solid var(--border-color)',
+                boxShadow: 'var(--shadow-sm)',
+                color: 'var(--ink)',
                 minHeight: '44px',
               }}
             >
@@ -310,7 +314,7 @@ export default function MobileShell({
 
         {/* 푸터 */}
         {footer && (
-          <div style={{ padding: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ padding: '0.75rem', borderTop: '2px solid var(--border-color)' }}>
             {footer}
           </div>
         )}
@@ -323,7 +327,7 @@ export default function MobileShell({
         <header style={{
           height: '56px',
           backgroundColor: 'white',
-          borderBottom: '1px solid #e2e8f0',
+          borderBottom: 'var(--border-w) solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
