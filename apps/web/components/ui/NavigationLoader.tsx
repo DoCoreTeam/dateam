@@ -77,14 +77,14 @@ export default function NavigationLoader({ brandName, logoUrl }: NavigationLoade
             >
               <polyline
                 points="4,4 36,28 4,52"
-                stroke="#06b6d4"
+                stroke="var(--brand)"
                 strokeWidth="7"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
               <polyline
                 points="76,4 44,28 76,52"
-                stroke="#06b6d4"
+                stroke="var(--brand)"
                 strokeWidth="7"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -112,7 +112,7 @@ export default function NavigationLoader({ brandName, logoUrl }: NavigationLoade
               left: 0,
               height: '100%',
               width: '40%',
-              backgroundColor: '#06b6d4',
+              backgroundColor: 'var(--brand)',
               borderRadius: '999px',
               animation: 'progress-indeterminate 1.2s ease-in-out infinite',
             }}
