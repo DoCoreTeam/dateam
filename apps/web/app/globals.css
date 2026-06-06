@@ -2617,17 +2617,18 @@ label.intake-tool-btn {
    GPU 가격관리 모듈 (gpu-pricing)
    ============================================================ */
 :root {
-  --gpu-bg: #f6f7f9;
-  --gpu-card: #ffffff;
-  --gpu-border: #e9ebf0;
-  --gpu-border-strong: #dadde5;
-  --gpu-ink: #191c24;
+  /* GPU 모듈 NB 통합: 토큰 alias로 203개 .gpu-* 클래스 일괄 전파 (도메인 섬 → NB 정합) */
+  --gpu-bg: var(--color-bg);
+  --gpu-card: var(--nb-white);
+  --gpu-border: var(--border-color);
+  --gpu-border-strong: var(--border-color);
+  --gpu-ink: var(--ink);
   --gpu-ink-2: #4b5563;
   --gpu-muted: #8a92a3;
   --gpu-faint: #aeb5c2;
-  --gpu-accent: #5b5ef0;
-  --gpu-accent-soft: #eef0fe;
-  --gpu-accent-ink: #4244c9;
+  --gpu-accent: var(--brand);
+  --gpu-accent-soft: #f1ebfe;
+  --gpu-accent-ink: var(--brand-dark);
   --gpu-green: #15a35a;
   --gpu-green-soft: #e6f7ee;
   --gpu-blue: #2563eb;
@@ -2639,7 +2640,7 @@ label.intake-tool-btn {
   --gpu-amber: #d97706;
   --gpu-amber-soft: #fef3e2;
   --gpu-shadow: 0 1px 2px rgba(16,22,40,.04), 0 4px 16px rgba(16,22,40,.05);
-  --gpu-radius: 13px;
+  --gpu-radius: 6px; /* NB 정합 (13px→6px) */
 }
 
 .gpu-pricing-root {

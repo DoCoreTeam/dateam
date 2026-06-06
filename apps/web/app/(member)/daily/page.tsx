@@ -16,13 +16,8 @@ import { groupDailyLogs } from './grouping'
 import MemoListView from '@/components/ui/memo/MemoListView'
 import UnreviewedMemoWidget from '@/components/ui/memo/UnreviewedMemoWidget'
 
-const ENTRY_TYPES: { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[] = [
-  { value: 'done',    label: '완료',   color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-  { value: 'doing',   label: '진행중', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
-  { value: 'planned', label: '예정',   color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
-  { value: 'blocker', label: '블로커', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
-  { value: 'note',    label: '메모',   color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
-]
+import { STATUS_LIST } from '@/lib/tokens/status-colors'
+const ENTRY_TYPES = STATUS_LIST as { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[]
 const ENTRY_MAP = Object.fromEntries(ENTRY_TYPES.map((t) => [t.value, t])) as Record<DailyLogEntryType, typeof ENTRY_TYPES[number]>
 
 const WEEK_DAYS = ['일', '월', '화', '수', '목', '금', '토']

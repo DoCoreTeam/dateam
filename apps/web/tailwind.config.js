@@ -10,11 +10,13 @@ module.exports = {
         sans: ['Pretendard', 'ui-sans-serif', 'system-ui'],
       },
       colors: {
+        // CSS 토큰(:root --brand)과 단일 소스 동기화 — Tailwind 유틸과 인라인 토큰 색 일치
         brand: {
-          50: '#eef2ff',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
+          50: '#f3effe',
+          500: 'var(--brand)',
+          600: 'var(--brand-dark)',
+          700: 'var(--brand-dark)',
+          DEFAULT: 'var(--brand)',
         },
       },
     },

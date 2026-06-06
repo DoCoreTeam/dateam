@@ -6,13 +6,8 @@ import { addDailyLog } from '../daily/actions'
 import type { DailyLog, DailyLogEntryType } from '@/types/database'
 import { NotebookPen, Plus } from 'lucide-react'
 
-const ENTRY_TYPES: { value: DailyLogEntryType; label: string; color: string; bg: string }[] = [
-  { value: 'done',    label: '완료',   color: '#16a34a', bg: '#f0fdf4' },
-  { value: 'doing',   label: '진행중', color: '#2563eb', bg: '#eff6ff' },
-  { value: 'planned', label: '예정',   color: '#7c3aed', bg: '#f5f3ff' },
-  { value: 'blocker', label: '블로커', color: '#dc2626', bg: '#fef2f2' },
-  { value: 'note',    label: '메모',   color: '#d97706', bg: '#fffbeb' },
-]
+import { STATUS_LIST } from '@/lib/tokens/status-colors'
+const ENTRY_TYPES = STATUS_LIST
 
 interface Props {
   todayStr: string

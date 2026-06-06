@@ -9,36 +9,17 @@ import type { DailyLog, DailyLogEntryType } from "@/types/database";
 import { fetcher } from "@/lib/swr-config";
 import DayDetailPanel from "./DayDetailPanel";
 import RecommendPanel from "./RecommendPanel";
+import { STATUS_COLORS } from "@/lib/tokens/status-colors";
 
 interface CalEventLite {
   id: string; title: string; start_at: string; end_at: string | null; all_day: boolean; source: string;
 }
 
+// 상태 색은 SSOT(lib/tokens/status-colors)에서 — 7개 파일 복붙 제거
 const ENTRY_TYPES: Record<
   DailyLogEntryType,
   { label: string; color: string; bg: string; border: string }
-> = {
-  done: { label: "완료", color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
-  doing: {
-    label: "진행중",
-    color: "#2563eb",
-    bg: "#eff6ff",
-    border: "#bfdbfe",
-  },
-  planned: {
-    label: "예정",
-    color: "#7c3aed",
-    bg: "#f5f3ff",
-    border: "#ddd6fe",
-  },
-  blocker: {
-    label: "블로커",
-    color: "#dc2626",
-    bg: "#fef2f2",
-    border: "#fecaca",
-  },
-  note: { label: "메모", color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
-};
+> = STATUS_COLORS;
 
 const WEEK_DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -227,8 +208,9 @@ export default function CalendarPage() {
           style={{
             display: "flex",
             gap: "0.25rem",
-            background: "#f1f5f9",
-            borderRadius: "0.5rem",
+            background: "var(--nb-white)",
+            border: "2px solid var(--border-color)",
+            borderRadius: "var(--radius)",
             padding: "0.25rem",
           }}
         >
@@ -238,15 +220,15 @@ export default function CalendarPage() {
               onClick={() => setViewMode(m)}
               style={{
                 padding: "0.375rem 0.875rem",
-                borderRadius: "0.375rem",
+                borderRadius: "var(--radius)",
                 border: "none",
                 fontSize: "0.8125rem",
-                fontWeight: 600,
+                fontWeight: 700,
                 cursor: "pointer",
-                background: viewMode === m ? "#fff" : "transparent",
-                color: viewMode === m ? "#0f172a" : "#64748b",
+                background: viewMode === m ? "var(--accent)" : "transparent",
+                color: "var(--ink)",
                 boxShadow:
-                  viewMode === m ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                  viewMode === m ? "var(--shadow-sm)" : "none",
               }}
             >
               {m === "month" ? "월간" : "주간"}
