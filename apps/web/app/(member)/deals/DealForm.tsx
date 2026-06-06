@@ -85,7 +85,7 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
     router.refresh()
   }
 
-  const inputStyle = { width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontSize: '0.875rem', boxSizing: 'border-box' as const }
+  const inputStyle = { width: '100%', padding: '0.5rem 0.75rem', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', boxSizing: 'border-box' as const }
 
   return (
     <div className="card" style={{ padding: '1.5rem', maxWidth: '640px' }}>
@@ -121,7 +121,7 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
           </div>
           <div>
             <label className="label">수주 확률 (%)</label>
-            <input className="input-field" value={probabilityForStage(form.stage)} readOnly style={{ ...inputStyle, background: '#f8fafc', color: '#64748b' }} />
+            <input className="input-field" value={probabilityForStage(form.stage)} readOnly style={{ ...inputStyle, background: 'var(--color-bg)', color: '#64748b' }} />
           </div>
           <div>
             <label className="label">예상 금액 (원)</label>
@@ -205,7 +205,7 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
           <button type="submit" disabled={loading} className="btn-primary" style={{ minHeight: '44px', padding: '0.625rem 1.5rem' }}>
             {loading ? '저장중...' : deal ? '수정' : '등록'}{!loading && <span style={{ fontSize: '0.7rem', opacity: 0.65, marginLeft: '0.375rem' }}>Ctrl+↵</span>}
           </button>
-          <button type="button" onClick={() => router.back()} style={{ minHeight: '44px', padding: '0.625rem 1.25rem', background: 'none', border: '1px solid #e2e8f0', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.875rem', color: '#64748b' }}>
+          <button type="button" onClick={() => router.back()} style={{ minHeight: '44px', padding: '0.625rem 1.25rem', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: '#64748b' }}>
             취소
           </button>
         </div>

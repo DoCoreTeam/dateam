@@ -87,7 +87,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
             width: '200px',
             height: '80px',
             border: '1px dashed #d1d5db',
-            borderRadius: '0.75rem',
+            borderRadius: 'var(--radius)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -116,7 +116,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
             style={{
               display: 'flex', alignItems: 'center', gap: '0.375rem',
               padding: '0.375rem 0.75rem', fontSize: '0.8125rem', fontWeight: 500,
-              border: '1px solid #d1d5db', borderRadius: '0.5rem',
+              border: '1px solid #d1d5db', borderRadius: 'var(--radius)',
               backgroundColor: 'white', color: '#374151', cursor: 'pointer',
             }}
           >
@@ -137,7 +137,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.375rem 0.75rem', fontSize: '0.8125rem', fontWeight: 500,
-                border: '1px solid #fecaca', borderRadius: '0.5rem',
+                border: '1px solid #fecaca', borderRadius: 'var(--radius)',
                 backgroundColor: '#fef2f2', color: '#b91c1c', cursor: 'pointer',
               }}
             >

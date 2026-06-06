@@ -25,7 +25,7 @@ export default function RoleToggle({ userId, currentRole, isSelf }: RoleTogglePr
       disabled={isPending || isSelf}
       style={{
         padding: '0.25rem 0.75rem',
-        borderRadius: '0.5rem',
+        borderRadius: 'var(--radius)',
         fontSize: '0.75rem',
         fontWeight: 500,
         cursor: isSelf ? 'not-allowed' : 'pointer',

@@ -164,9 +164,9 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
   const childLogs = selectedId ? logs.filter(l => l.parent_log_id === selectedId) : []
 
   return (
-    <div style={{ border: '1px solid #e2e8f0', borderRadius: '0.75rem', background: '#fafafa', overflow: 'hidden', position: 'relative' }}>
+    <div style={{ border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', background: '#fafafa', overflow: 'hidden', position: 'relative' }}>
       <div style={{
-        padding: '0.625rem 1rem', borderBottom: '1px solid #e2e8f0',
+        padding: '0.625rem 1rem', borderBottom: '2px solid var(--border-color)',
         fontSize: '0.8125rem', fontWeight: 600, color: '#475569',
         display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
       }}>
@@ -212,7 +212,7 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
 
         {nodes.map((n) => {
           const t = ENTRY_MAP[n.type]
-          const gColor = n.originGroupId ? (groupColors[n.originGroupId] ?? '#e2e8f0') : '#e2e8f0'
+          const gColor = n.originGroupId ? (groupColors[n.originGroupId] ?? 'var(--color-border)') : 'var(--color-border)'
           const isSel = n.id === selectedId
           return (
             <g key={n.id} style={{ cursor: 'pointer' }}
@@ -239,7 +239,7 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
         <div style={{
           position: 'absolute', top: 44, right: 8,
           width: 'min(240px, calc(100% - 16px))',
-          background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.625rem',
+          background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
           boxShadow: '0 4px 16px rgba(0,0,0,0.1)', padding: '0.875rem', zIndex: 10,
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
@@ -275,7 +275,7 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
             </p>
           )}
           {parentLog && (
-            <div style={{ background: '#f8fafc', borderRadius: '0.375rem', padding: '0.375rem 0.5rem', marginBottom: '0.5rem' }}>
+            <div style={{ background: 'var(--color-bg)', borderRadius: '0.375rem', padding: '0.375rem 0.5rem', marginBottom: '0.5rem' }}>
               <p style={{ margin: '0 0 0.2rem', fontSize: '0.7rem', color: '#94a3b8' }}>↑ 상위 업무</p>
               <p style={{ margin: 0, fontSize: '0.75rem', color: '#475569', wordBreak: 'break-word' }}>
                 {parentLog.content.slice(0, 60)}{parentLog.content.length > 60 ? '…' : ''}
@@ -286,7 +286,7 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
             <div>
               <p style={{ margin: '0 0 0.25rem', fontSize: '0.7rem', color: '#94a3b8' }}>↓ 파생 업무 ({childLogs.length})</p>
               {childLogs.slice(0, 3).map(c => (
-                <p key={c.id} style={{ margin: '0 0 0.2rem', fontSize: '0.75rem', color: '#475569', paddingLeft: '0.5rem', borderLeft: '2px solid #e2e8f0', wordBreak: 'break-word' }}>
+                <p key={c.id} style={{ margin: '0 0 0.2rem', fontSize: '0.75rem', color: '#475569', paddingLeft: '0.5rem', borderLeft: '2px solid var(--color-border)', wordBreak: 'break-word' }}>
                   {c.content.slice(0, 50)}{c.content.length > 50 ? '…' : ''}
                 </p>
               ))}

@@ -14,7 +14,7 @@ type SortField = 'created_at' | 'title' | 'stage' | 'value' | 'probability'
 
 const STAGES = ['신규', '검증', '컨택', 'PoC', '제안', '협상', '수주', '실패'] as const
 const STAGE_STYLE: Record<string, { color: string; bg: string; border: string }> = {
-  '신규':  { color: '#64748b', bg: '#f8fafc',  border: '#e2e8f0' },
+  '신규':  { color: '#64748b', bg: 'var(--color-bg)',  border: 'var(--color-border)' },
   '검증':  { color: '#0891b2', bg: '#ecfeff',  border: '#a5f3fc' },
   '컨택':  { color: '#7c3aed', bg: '#f5f3ff',  border: '#ddd6fe' },
   'PoC':   { color: '#d97706', bg: '#fffbeb',  border: '#fde68a' },
@@ -112,10 +112,10 @@ export default function DealsPage() {
           <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>영업 파이프라인 관리</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <Link href="/lead-intake?target=deal" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', minHeight: '44px' }}>
+          <Link href="/lead-intake?target=deal" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px' }}>
             <Sparkles size={16} /> AI로 추가
           </Link>
-          <Link href="/deals/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', minHeight: '44px', border: '1px solid #e2e8f0', color: '#64748b', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
+          <Link href="/deals/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px', border: '2px solid var(--border-color)', color: '#64748b', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
             <Plus size={16} /> 수동 입력
           </Link>
         </div>
@@ -150,7 +150,7 @@ export default function DealsPage() {
           {/* 데스크탑: 칸반 (필터 없을 때) + 테이블 (항상 표시) */}
           {!hasFilters && (
             <div className="card desktop-only" style={{ marginBottom: '1.5rem' }}>
-              <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <TrendingUp size={16} color="var(--brand)" />
                 <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>파이프라인</h2>
               </div>
@@ -170,7 +170,7 @@ export default function DealsPage() {
                             <button
                               key={d.id}
                               onClick={() => setSelected(d)}
-                              style={{ display: 'block', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '0.625rem 0.75rem', boxShadow: '0 1px 2px rgba(0,0,0,0.04)', cursor: 'pointer', textAlign: 'left', width: '100%' }}
+                              style={{ display: 'block', background: 'white', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.625rem 0.75rem', boxShadow: '0 1px 2px rgba(0,0,0,0.04)', cursor: 'pointer', textAlign: 'left', width: '100%' }}
                             >
                               <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#0f172a', marginBottom: '0.25rem', lineHeight: 1.3 }}>{d.title}</div>
                               {d.accounts?.name && <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{d.accounts.name}</div>}
@@ -189,7 +189,7 @@ export default function DealsPage() {
 
           {/* 테이블 목록 */}
           <div className="card">
-            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <TrendingUp size={16} color="var(--brand)" />
               <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>전체 목록</h2>
               <span className="badge badge-slate">{list.length}{hasFilters ? '건 (필터됨)' : '건'}</span>
@@ -329,7 +329,7 @@ function DealDetail({ deal: d, onClose, onDeleted }: { deal: DealWithAccount; on
     <div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBottom: '1rem' }}>
         <StageBadge stage={d.stage} />
-        <span className="badge" style={{ background: '#f8fafc', color: '#64748b', fontSize: '0.75rem' }}>확률 {d.probability}%</span>
+        <span className="badge" style={{ background: 'var(--color-bg)', color: '#64748b', fontSize: '0.75rem' }}>확률 {d.probability}%</span>
         {d.value && (
           <span className="badge" style={{ background: '#eef2ff', color: 'var(--brand)', fontWeight: 700, fontSize: '0.75rem' }}>
             ₩{d.value.toLocaleString()}

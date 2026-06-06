@@ -53,7 +53,7 @@ export default function NameSetupModal() {
           width: '100%',
           maxWidth: '380px',
           background: 'white',
-          borderRadius: '1.25rem',
+          borderRadius: 'var(--radius)',
           padding: '2.5rem',
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2)',
         }}
@@ -63,7 +63,7 @@ export default function NameSetupModal() {
             style={{
               width: '3rem',
               height: '3rem',
-              borderRadius: '0.875rem',
+              borderRadius: 'var(--radius)',
               background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
               display: 'flex',
               alignItems: 'center',
@@ -87,7 +87,7 @@ export default function NameSetupModal() {
             style={{
               backgroundColor: '#fef2f2',
               border: '1px solid #fecaca',
-              borderRadius: '0.625rem',
+              borderRadius: 'var(--radius)',
               padding: '0.75rem 1rem',
               marginBottom: '1rem',
               fontSize: '0.8125rem',

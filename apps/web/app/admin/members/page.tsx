@@ -91,7 +91,7 @@ export default async function AdminMembersPage({
       </div>
 
       {/* 탭 네비게이션 */}
-      <div style={{ display: 'flex', borderBottom: '2px solid #e2e8f0', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', borderBottom: '2px solid var(--color-border)', marginBottom: '1.5rem' }}>
         {TABS.map(t => (
           <a
             key={t.key}
@@ -123,7 +123,7 @@ export default async function AdminMembersPage({
             <InviteForm />
           </div>
           <div className="card">
-            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Users size={16} color="var(--brand)" />
               <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>전체 구성원</h2>
               <span className="badge badge-slate">{profiles.length}명</span>

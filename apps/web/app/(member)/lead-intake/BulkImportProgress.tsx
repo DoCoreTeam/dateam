@@ -219,7 +219,7 @@ export default function BulkImportProgress({ file, onComplete, onCancel }: BulkI
               {`전체 CRM 등록 (${success}건)`}
             </button>
             <button onClick={onCancel}
-              style={{ padding: '0.625rem 1.25rem', minHeight: '44px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.875rem', color: '#64748b' }}>
+              style={{ padding: '0.625rem 1.25rem', minHeight: '44px', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: '#64748b' }}>
               취소
             </button>
           </div>
@@ -227,7 +227,7 @@ export default function BulkImportProgress({ file, onComplete, onCancel }: BulkI
       )}
 
       {confirmed && (
-        <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '0.75rem', padding: '1rem' }}>
+        <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 'var(--radius)', padding: '1rem' }}>
           <p style={{ color: '#0284c7', fontWeight: 600, margin: 0 }}>
             {success}건이 CRM에 등록되었습니다
           </p>

@@ -38,7 +38,7 @@ export default function AiPromptsClient() {
       <div style={{ fontSize: 12, color: '#64748b' }}>관리자 · AI</div>
       <h2 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: '0 0 4px' }}>AI 프롬프트 운영</h2>
       <p style={{ fontSize: 12.5, color: '#64748b', margin: '0 0 16px' }}>DB 프롬프트 CRUD · AI 자가갱신 이력(왜·어떻게) · 롤백 · AI가 보는 스키마</p>
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid #e5e7eb' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '2px solid var(--border-color)' }}>
         {([['prompts', '프롬프트'], ['history', '변경 이력'], ['schema', '스키마(AI 가시)']] as const).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)} style={{ padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: tab === k ? 700 : 500, color: tab === k ? 'var(--gpu-accent,#5b5ef0)' : '#64748b', borderBottom: tab === k ? '2px solid var(--gpu-accent,#5b5ef0)' : '2px solid transparent' }}>{label}</button>
         ))}
@@ -95,7 +95,7 @@ function PromptsTab() {
                 <td className="card-header"><span style={{ fontWeight: 600 }}>{p.prompt_key}</span></td>
                 <td data-label="버전">{fmtVer(p.version)}</td>
                 <td data-label="출처"><span style={{ color: p.source === 'ai' ? '#2563eb' : '#64748b', fontWeight: p.source === 'ai' ? 700 : 400 }}>{p.source === 'ai' ? '🤖 AI' : '👤 사람'}</span></td>
-                <td data-label="활성"><button onClick={() => toggle(p)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: p.active ? '#16a34a' : '#94a3b8', borderColor: p.active ? '#bbf7d0' : '#e5e7eb' }}>{p.active ? '활성' : '비활성'}</button></td>
+                <td data-label="활성"><button onClick={() => toggle(p)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: p.active ? '#16a34a' : '#94a3b8', borderColor: p.active ? '#bbf7d0' : 'var(--color-border)' }}>{p.active ? '활성' : '비활성'}</button></td>
                 <td data-label="수정" className="card-hide" style={{ fontSize: 11, color: '#94a3b8' }}>{p.updated_at?.slice(0, 16).replace('T', ' ')}{p.updated_by ? ` · ${p.updated_by}` : ''}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   <button onClick={() => toggleOpen(p.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', marginRight: 4 }}>{open.has(p.id) ? '내용 닫기' : `내용 (${p.content?.length ?? 0}자)`}</button>
@@ -104,7 +104,7 @@ function PromptsTab() {
               </tr>
               {open.has(p.id) && (
                 <tr>
-                  <td colSpan={6} style={{ background: '#f8fafc', padding: 0 }}>
+                  <td colSpan={6} style={{ background: 'var(--color-bg)', padding: 0 }}>
                     <pre style={{ margin: 0, padding: 14, fontSize: 11.5, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#0f172a', maxHeight: 420, overflowY: 'auto' }}>{p.content}</pre>
                   </td>
                 </tr>
@@ -121,13 +121,13 @@ function PromptsTab() {
             {/* AI에게 편집 지시 — 스키마 인지 상태로 현재 본문을 개선해 아래 편집창에 채움(저장은 사람이) */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
               <input value={instr} onChange={(e) => setInstr(e.target.value)} placeholder="AI에게 지시 (예: 약정·수량 추출을 강화하고 재고 resp_qty를 더 정확히)" disabled={aiBusy}
-                style={{ flex: 1, fontSize: 12, padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: 8 }} onKeyDown={(e) => { if (e.key === 'Enter') aiEdit() }} />
+                style={{ flex: 1, fontSize: 12, padding: '8px 10px', border: '2px solid var(--border-color)', borderRadius: 8 }} onKeyDown={(e) => { if (e.key === 'Enter') aiEdit() }} />
               <button onClick={aiEdit} disabled={aiBusy} className="gpu-btn" style={{ fontSize: 12, padding: '6px 14px', color: '#2563eb', borderColor: '#bfdbfe', fontWeight: 600, whiteSpace: 'nowrap' }}>{aiBusy ? '편집 중…' : '🤖 AI로 편집'}</button>
             </div>
             <div title={schemaTables.join(', ')} style={{ fontSize: 11, color: '#2563eb', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
               🗂 AI는 현재 DB 스키마 <strong>{schemaTables.length}개 테이블</strong>을 참고해 수정합니다 (마우스 올리면 목록)
             </div>
-            <textarea value={draft} onChange={(e) => setDraft(e.target.value)} style={{ width: '100%', minHeight: 340, fontFamily: 'monospace', fontSize: 12, padding: 10, border: '1px solid #e5e7eb', borderRadius: 8 }} />
+            <textarea value={draft} onChange={(e) => setDraft(e.target.value)} style={{ width: '100%', minHeight: 340, fontFamily: 'monospace', fontSize: 12, padding: 10, border: '2px solid var(--border-color)', borderRadius: 8 }} />
             <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
               <button onClick={save} className="gpu-btn gpu-btn-primary">저장</button>
               <button onClick={() => setEdit(null)} className="gpu-btn">취소</button>
@@ -173,7 +173,7 @@ function HistoryTab() {
                 <button onClick={() => rollback(r.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: '#7c3aed', borderColor: '#ddd6fe' }}>이 버전 롤백</button>
               </div>
               {isOpen && (
-                <div style={{ borderTop: '1px solid #f1f5f9', padding: '10px 14px', background: '#f8fafc' }}>
+                <div style={{ borderTop: '1px solid #f1f5f9', padding: '10px 14px', background: 'var(--color-bg)' }}>
                   {/* 왜 바꿨나 */}
                   <div style={{ fontSize: 12, marginBottom: 8 }}>
                     <strong style={{ color: '#475569' }}>왜:</strong> {r.reason || '—'}
@@ -183,7 +183,7 @@ function HistoryTab() {
                   {/* 무엇을 바꿨나 — before→after 라인 diff */}
                   <div style={{ fontSize: 12, marginBottom: 4 }}><strong style={{ color: '#475569' }}>무엇:</strong> {r.diff_summary ?? (r.prev_content == null ? '최초 생성(이전본 없음)' : '변경 없음')}</div>
                   {diff && (diff.removed.length > 0 || diff.added.length > 0) && (
-                    <pre style={{ margin: '4px 0 0', fontSize: 11, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: 10 }}>
+                    <pre style={{ margin: '4px 0 0', fontSize: 11, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto', background: '#fff', border: '2px solid var(--border-color)', borderRadius: 6, padding: 10 }}>
                       {diff.removed.map((l, i) => <div key={`r${i}`} style={{ background: '#fee2e2', color: '#991b1b' }}>- {l}</div>)}
                       {diff.added.map((l, i) => <div key={`a${i}`} style={{ background: '#dcfce7', color: '#166534' }}>+ {l}</div>)}
                     </pre>
@@ -192,7 +192,7 @@ function HistoryTab() {
                   {r.content && (
                     <details style={{ marginTop: 8 }}>
                       <summary style={{ fontSize: 11.5, color: '#2563eb', cursor: 'pointer' }}>이 버전 전체 본문 보기</summary>
-                      <pre style={{ margin: '6px 0 0', fontSize: 11, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: 10 }}>{r.content}</pre>
+                      <pre style={{ margin: '6px 0 0', fontSize: 11, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto', background: '#fff', border: '2px solid var(--border-color)', borderRadius: 6, padding: 10 }}>{r.content}</pre>
                     </details>
                   )}
                 </div>
@@ -213,7 +213,7 @@ function SchemaTab() {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
         {(data?.tables ?? []).map((t) => <span key={t} style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 999, background: '#eef2ff', color: 'var(--brand-dark)', fontWeight: 600 }}>{t}</span>)}
       </div>
-      <pre style={{ fontSize: 11, fontFamily: 'monospace', background: '#0f172a', color: '#e2e8f0', padding: 14, borderRadius: 10, overflowX: 'auto', maxHeight: 460 }}>{data?.digest ?? '불러오는 중…'}</pre>
+      <pre style={{ fontSize: 11, fontFamily: 'monospace', background: '#0f172a', color: 'var(--color-border)', padding: 14, borderRadius: 10, overflowX: 'auto', maxHeight: 460 }}>{data?.digest ?? '불러오는 중…'}</pre>
     </>
   )
 }

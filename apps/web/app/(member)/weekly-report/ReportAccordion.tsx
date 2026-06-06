@@ -51,7 +51,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
   return (
     <div
       style={{
-        borderRadius: '0.75rem',
+        borderRadius: 'var(--radius)',
         border: confirmDelete ? '1px solid #fca5a5' : '1px solid #f1f5f9',
         overflow: 'hidden',
         opacity: pending ? 0.5 : 1,
@@ -59,7 +59,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
     >
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0.75rem 1rem', backgroundColor: '#f8fafc',
+        padding: '0.75rem 1rem', backgroundColor: 'var(--color-bg)',
         borderBottom: confirmDelete ? '1px solid #fca5a5' : 'none',
       }}>
         <span className="badge badge-indigo">{report.category}</span>
@@ -105,7 +105,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
               disabled={pending}
               style={{
                 padding: '0.5rem 1rem', backgroundColor: '#dc2626', color: '#fff',
-                border: 'none', borderRadius: '0.5rem', cursor: 'pointer',
+                border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer',
                 fontSize: '0.875rem', fontWeight: 700,
               }}
             >
@@ -116,7 +116,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
               disabled={pending}
               style={{
                 padding: '0.5rem 1rem', backgroundColor: '#fff', color: '#475569',
-                border: '1px solid #cbd5e1', borderRadius: '0.5rem', cursor: 'pointer',
+                border: '1px solid #cbd5e1', borderRadius: 'var(--radius)', cursor: 'pointer',
                 fontSize: '0.875rem',
               }}
             >
@@ -197,7 +197,7 @@ export default function ReportAccordion({ groups }: ReportAccordionProps) {
             <div
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '1rem 1.25rem', borderBottom: isOpen ? '1px solid #e2e8f0' : 'none',
+                padding: '1rem 1.25rem', borderBottom: isOpen ? '2px solid var(--border-color)' : 'none',
               }}
             >
               <button
@@ -222,7 +222,7 @@ export default function ReportAccordion({ groups }: ReportAccordionProps) {
                   display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
                   fontSize: '0.8125rem', fontWeight: 500, padding: '0.375rem 0.75rem',
                   background: '#eef2ff', color: 'var(--brand-dark)', border: 'none',
-                  borderRadius: '0.5rem', cursor: 'pointer', flexShrink: 0,
+                  borderRadius: 'var(--radius)', cursor: 'pointer', flexShrink: 0,
                 }}
               >
                 <Pencil size={12} />

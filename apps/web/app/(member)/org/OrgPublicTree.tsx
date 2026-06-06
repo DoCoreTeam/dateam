@@ -73,7 +73,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
   if (node.type === 'company') {
     return (
       <div style={{
-        display: 'inline-block', padding: '0.75rem 1.25rem', borderRadius: '0.75rem',
+        display: 'inline-block', padding: '0.75rem 1.25rem', borderRadius: 'var(--radius)',
         background: 'linear-gradient(135deg,var(--brand-dark),#7c3aed)', border: '2px solid var(--brand-dark)',
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)', width: `${CARD_W + 28}px`, textAlign: 'left', overflow: 'hidden',
       }}>
@@ -95,7 +95,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
       : headName ? { name: headName, subtitle: null } : null
     return (
       <div style={{
-        display: 'inline-block', padding: '0.65rem 1rem', borderRadius: '0.75rem',
+        display: 'inline-block', padding: '0.65rem 1rem', borderRadius: 'var(--radius)',
         background: 'linear-gradient(135deg,#1e1b4b,#312e81)', border: '2px solid #312e81',
         boxShadow: '0 2px 8px rgba(0,0,0,0.08)', width: `${CARD_W}px`, textAlign: 'left', overflow: 'hidden',
       }}>
@@ -128,7 +128,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
     const personChildren = node.children.filter(ch => ch.type === 'person')
     return (
       <div style={{
-        display: 'inline-block', padding: '0.65rem 1rem', borderRadius: '0.75rem',
+        display: 'inline-block', padding: '0.65rem 1rem', borderRadius: 'var(--radius)',
         background: 'linear-gradient(135deg,#3730a3,var(--brand-dark))', border: '2px solid var(--brand-dark)',
         boxShadow: '0 2px 8px rgba(0,0,0,0.08)', width: `${CARD_W}px`, textAlign: 'left', overflow: 'hidden',
       }}>
@@ -162,8 +162,8 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
   // person
   return (
     <div style={{
-      display: 'inline-block', padding: '0.5rem 0.875rem', borderRadius: '0.75rem',
-      background: '#fff', border: '2px solid #e2e8f0',
+      display: 'inline-block', padding: '0.5rem 0.875rem', borderRadius: 'var(--radius)',
+      background: '#fff', border: '2px solid var(--color-border)',
       boxShadow: '0 2px 8px rgba(0,0,0,0.06)', width: `${CARD_W}px`, textAlign: 'left', overflow: 'hidden',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
@@ -362,8 +362,8 @@ export default function OrgPublicTree({
       style={{
         position: 'relative', overflow: 'hidden',
         height: 'clamp(400px, 70vh, 860px)',
-        border: '1px solid #e2e8f0', borderRadius: '0.75rem',
-        background: '#f8fafc',
+        border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
+        background: 'var(--color-bg)',
         cursor: isPanning.current ? 'grabbing' : 'grab',
         userSelect: 'none',
       }}
@@ -373,18 +373,18 @@ export default function OrgPublicTree({
       onMouseLeave={handlePanUp}
     >
       {/* 줌 컨트롤 */}
-      <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10, display: 'flex', gap: '0.25rem', background: 'rgba(255,255,255,0.95)', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '0.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+      <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10, display: 'flex', gap: '0.25rem', background: 'rgba(255,255,255,0.95)', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
         <button onClick={() => setZoom(z => ({ ...z, scale: Math.min(z.scale * 1.2, 3) }))} style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>+</button>
         <button onClick={() => setZoom(z => ({ ...z, scale: Math.max(z.scale / 1.2, 0.2) }))} style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>−</button>
-        <div style={{ width: 1, background: '#e2e8f0', margin: '4px 2px' }} />
+        <div style={{ width: 1, background: 'var(--color-border)', margin: '4px 2px' }} />
         <button onClick={fitToScreen} style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '0.7rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>FIT</button>
         <button onClick={() => setZoom({ scale: 1, tx: 50, ty: 30 })} style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '0.65rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>1:1</button>
       </div>
 
-      <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.85)', border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.7rem', color: '#64748b', pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.85)', border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.7rem', color: '#64748b', pointerEvents: 'none' }}>
         {Math.round(zoom.scale * 100)}%
       </div>
-      <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.8)', border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.68rem', color: '#94a3b8', pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.8)', border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.68rem', color: '#94a3b8', pointerEvents: 'none' }}>
         스크롤: 줌 · 드래그: 이동
       </div>
 

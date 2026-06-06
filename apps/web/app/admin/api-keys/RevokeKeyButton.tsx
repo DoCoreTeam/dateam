@@ -32,7 +32,7 @@ export default function RevokeKeyButton({ keyId, keyName }: { keyId: string; key
         <button onClick={revoke} disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '4px 10px', borderRadius: 6, border: 'none', background: '#fef2f2', color: '#dc2626', fontSize: 12, cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
           <AlertTriangle size={12} /> 확인
         </button>
-        <button onClick={() => setConfirm(false)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 12, cursor: 'pointer' }}>취소</button>
+        <button onClick={() => setConfirm(false)} style={{ padding: '4px 8px', borderRadius: 6, border: '2px solid var(--border-color)', background: '#fff', color: '#475569', fontSize: 12, cursor: 'pointer' }}>취소</button>
       </div>
     )
   }

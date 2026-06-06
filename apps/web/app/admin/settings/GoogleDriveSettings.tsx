@@ -61,7 +61,7 @@ export default function GoogleDriveSettings() {
           연결 상태 확인 중...
         </div>
       ) : status?.connected ? (
-        <div style={{ padding: '0.875rem 1rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '0.625rem', marginBottom: '1rem' }}>
+        <div style={{ padding: '0.875rem 1rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <CheckCircle size={14} color="#16a34a" />
@@ -86,7 +86,7 @@ export default function GoogleDriveSettings() {
                 color: '#dc2626',
                 background: 'none',
                 border: '1px solid #fecaca',
-                borderRadius: '0.5rem',
+                borderRadius: 'var(--radius)',
                 cursor: revoking ? 'not-allowed' : 'pointer',
                 minHeight: '32px',
               }}
@@ -116,7 +116,7 @@ export default function GoogleDriveSettings() {
               backgroundColor: '#2563eb',
               color: '#fff',
               border: 'none',
-              borderRadius: '0.5rem',
+              borderRadius: 'var(--radius)',
               fontSize: '0.875rem',
               fontWeight: 600,
               cursor: 'pointer',
@@ -134,7 +134,7 @@ export default function GoogleDriveSettings() {
           role="status"
           style={{
             padding: '0.625rem 0.875rem',
-            borderRadius: '0.5rem',
+            borderRadius: 'var(--radius)',
             fontSize: '0.8125rem',
             fontWeight: 500,
             display: 'flex',

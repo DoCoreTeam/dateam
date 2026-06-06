@@ -451,8 +451,8 @@ export default function DailyPage() {
                       className="daily-type-chip"
                       style={{
                         fontWeight: entryType === t.value ? 700 : 500,
-                        border: `1px solid ${entryType === t.value ? t.border : '#e2e8f0'}`,
-                        background: entryType === t.value ? t.bg : '#f8fafc',
+                        border: `1px solid ${entryType === t.value ? t.border : 'var(--color-border)'}`,
+                        background: entryType === t.value ? t.bg : 'var(--color-bg)',
                         color: entryType === t.value ? t.color : '#64748b',
                       }}
                     >
@@ -524,8 +524,8 @@ export default function DailyPage() {
                     style={{
                       fontSize: '0.75rem', fontWeight: 600,
                       color: graphOpen ? 'var(--brand)' : '#64748b',
-                      background: graphOpen ? '#eef2ff' : '#f8fafc',
-                      border: `1px solid ${graphOpen ? '#c7d2fe' : '#e2e8f0'}`,
+                      background: graphOpen ? '#eef2ff' : 'var(--color-bg)',
+                      border: `1px solid ${graphOpen ? '#c7d2fe' : 'var(--color-border)'}`,
                       borderRadius: '0.375rem', padding: '0.25rem 0.625rem',
                       cursor: 'pointer',
                     }}
@@ -545,7 +545,7 @@ export default function DailyPage() {
               ) : logs.length === 0 ? (
                 <div style={{
                   textAlign: 'center', color: '#94a3b8', padding: '3rem 0',
-                  border: '1px dashed #e2e8f0', borderRadius: '0.75rem',
+                  border: '1px dashed var(--color-border)', borderRadius: 'var(--radius)',
                 }}>
                   {isToday ? '오늘 첫 업무 로그를 작성해 보세요.' : '이 날의 업무 로그가 없습니다.'}
                 </div>
@@ -685,16 +685,16 @@ export default function DailyPage() {
 
                 return (
                   <div key={dateStr} style={{
-                    border: isTodayDate ? '1px solid #3b82f6' : '1px solid #e2e8f0',
-                    borderRadius: '0.625rem',
+                    border: isTodayDate ? '1px solid #3b82f6' : '2px solid var(--border-color)',
+                    borderRadius: 'var(--radius)',
                     background: isTodayDate ? '#f8fbff' : '#fff',
                     overflow: 'hidden',
                   }}>
                     <div style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '0.625rem 0.875rem',
-                      background: isTodayDate ? '#eff6ff' : '#f8fafc',
-                      borderBottom: dayLogs.length > 0 ? '1px solid #e2e8f0' : 'none',
+                      background: isTodayDate ? '#eff6ff' : 'var(--color-bg)',
+                      borderBottom: dayLogs.length > 0 ? '2px solid var(--border-color)' : 'none',
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <span style={{
@@ -834,7 +834,7 @@ function LogList({
             <div
               onClick={() => { if (!isEditing) setFlowLog(log) }}
               style={{
-                background: '#fff', border: '1px solid #e2e8f0',
+                background: '#fff', border: '2px solid var(--border-color)',
                 borderLeft: `3px solid ${type.color}`,
                 borderRadius: threadOpen ? '0 0.5rem 0 0' : '0 0.5rem 0.5rem 0',
                 padding: '0.75rem 1rem',
@@ -852,8 +852,8 @@ function LogList({
                         style={{
                           padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem',
                           fontWeight: editType === t.value ? 700 : 400,
-                          border: `1px solid ${editType === t.value ? t.border : '#e2e8f0'}`,
-                          background: editType === t.value ? t.bg : '#f8fafc',
+                          border: `1px solid ${editType === t.value ? t.border : 'var(--color-border)'}`,
+                          background: editType === t.value ? t.bg : 'var(--color-bg)',
                           color: editType === t.value ? t.color : '#94a3b8', cursor: 'pointer',
                         }}
                       >
@@ -874,7 +874,7 @@ function LogList({
                     rows={3}
                     autoFocus
                     style={{
-                      width: '100%', border: '1px solid #e2e8f0', borderRadius: '0.375rem',
+                      width: '100%', border: '2px solid var(--border-color)', borderRadius: '0.375rem',
                       padding: '0.5rem', fontSize: '0.9375rem', resize: 'vertical',
                       outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
                     }}
@@ -886,7 +886,7 @@ function LogList({
                       value={editTargetDate}
                       onChange={(e) => onEditTargetDateChange(e.target.value)}
                       style={{
-                        border: '1px solid #e2e8f0', borderRadius: '0.25rem',
+                        border: '2px solid var(--border-color)', borderRadius: '0.25rem',
                         padding: '0.2rem 0.4rem', fontSize: '0.8125rem',
                         color: '#0f172a', outline: 'none', cursor: 'pointer',
                       }}
@@ -931,7 +931,7 @@ function LogList({
                             onClick={(e) => e.stopPropagation()}
                             style={{
                               position: 'absolute', top: '100%', left: 0, zIndex: 50,
-                              background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.5rem',
+                              background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
                               boxShadow: '0 4px 12px rgba(0,0,0,0.1)', padding: '0.375rem',
                               display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '80px',
                               marginTop: '0.25rem',
@@ -1150,9 +1150,9 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
 
   return (
     <div style={{
-      border: '1px solid #e2e8f0', borderTop: 'none',
+      border: '2px solid var(--border-color)', borderTop: 'none',
       borderRadius: '0 0 0.5rem 0.5rem',
-      background: '#f8fafc', padding: '0.75rem 1rem',
+      background: 'var(--color-bg)', padding: '0.75rem 1rem',
     }}>
       {threadLoading ? (
         <div style={{ fontSize: '0.8rem', color: '#94a3b8', padding: '0.25rem 0' }}>로딩 중...</div>
@@ -1192,7 +1192,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
       {/* AI 분석 결과 미니 패널 */}
       {showAiResult && aiItems.length > 0 && (
         <div style={{
-          background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: '0.5rem',
+          background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: 'var(--radius)',
           padding: '0.625rem 0.75rem', marginBottom: '0.625rem',
         }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#7c3aed', marginBottom: '0.375rem' }}>
@@ -1236,7 +1236,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
               onClick={() => setShowAiResult(false)}
               style={{
                 padding: '0.375rem 0.625rem', background: 'none', color: '#64748b',
-                border: '1px solid #e2e8f0', borderRadius: '0.375rem', fontSize: '0.75rem',
+                border: '2px solid var(--border-color)', borderRadius: '0.375rem', fontSize: '0.75rem',
                 cursor: 'pointer',
               }}
             >
@@ -1264,7 +1264,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
           placeholder="관련 내용을 자유롭게 남기세요 (Ctrl+Enter)"
           rows={2}
           style={{
-            flex: 1, border: '1px solid #e2e8f0', borderRadius: '0.375rem',
+            flex: 1, border: '2px solid var(--border-color)', borderRadius: '0.375rem',
             padding: '0.5rem', fontSize: '0.875rem', resize: 'none',
             outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
             background: '#fff',
@@ -1378,7 +1378,7 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
                   disabled={isPending}
                   style={{
                     padding: '0.25rem 0.5rem', fontSize: '0.75rem',
-                    background: 'none', color: '#94a3b8', border: '1px solid #e2e8f0',
+                    background: 'none', color: '#94a3b8', border: '2px solid var(--border-color)',
                     borderRadius: '0.375rem', cursor: 'pointer',
                   }}
                 >
@@ -1453,7 +1453,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
         {/* 헤더 */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0',
+          padding: '1rem 1.25rem', borderBottom: '2px solid var(--border-color)',
           background: 'linear-gradient(135deg, #f5f3ff, #eff6ff)',
         }}>
           <div>
@@ -1489,7 +1489,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
           {hasOriginGroup && !loading && (
             <div style={{
               background: '#f0f9ff', border: '1px solid #bae6fd',
-              borderRadius: '0.5rem', padding: '0.5rem 0.875rem',
+              borderRadius: 'var(--radius)', padding: '0.5rem 0.875rem',
               marginBottom: '0.875rem',
               fontSize: '0.8125rem', color: '#0369a1',
               display: 'flex', alignItems: 'center', gap: '0.5rem',
@@ -1502,7 +1502,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
           {error && (
             <div style={{
               background: '#fef2f2', border: '1px solid #fecaca',
-              borderRadius: '0.5rem', padding: '0.75rem 1rem',
+              borderRadius: 'var(--radius)', padding: '0.75rem 1rem',
               color: '#dc2626', fontSize: '0.875rem', marginBottom: '1rem',
             }}>
               {error}
@@ -1550,7 +1550,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
 
         {/* 하단 버튼 */}
         <div style={{
-          padding: '1rem 1.25rem', borderTop: '1px solid #e2e8f0',
+          padding: '1rem 1.25rem', borderTop: '2px solid var(--border-color)',
           display: 'flex', gap: '0.625rem',
           background: '#fff',
         }}>
@@ -1559,7 +1559,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
             disabled={loading}
             style={{
               flex: 1, padding: '0.625rem', background: '#f1f5f9', color: '#475569',
-              border: '1px solid #e2e8f0', borderRadius: '0.5rem',
+              border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
               fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer',
               opacity: loading ? 0.5 : 1,
             }}
@@ -1572,7 +1572,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
             style={{
               flex: 2, padding: '0.625rem',
               background: 'linear-gradient(135deg, var(--brand), #3b82f6)',
-              color: '#fff', border: 'none', borderRadius: '0.5rem',
+              color: '#fff', border: 'none', borderRadius: 'var(--radius)',
               fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer',
               opacity: loading || isPending || editItems.length === 0 ? 0.5 : 1,
             }}
@@ -1613,7 +1613,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         value={item.title}
         onChange={(e) => onChange({ title: e.target.value })}
         style={{
-          width: '100%', border: 'none', borderBottom: '1px solid #e2e8f0',
+          width: '100%', border: 'none', borderBottom: '2px solid var(--border-color)',
           padding: '0 0 0.375rem', fontSize: '0.9375rem', fontWeight: 600,
           color: '#0f172a', outline: 'none', background: 'transparent',
           boxSizing: 'border-box', marginBottom: '0.625rem',
@@ -1641,8 +1641,8 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
           onChange={(e) => onChange({ priority: e.target.value as AiParsedItem['priority'] })}
           style={{
             padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem',
-            fontWeight: 600, border: '1px solid #e2e8f0',
-            background: '#f8fafc', color: PRIORITY_COLORS[item.priority] ?? '#64748b',
+            fontWeight: 600, border: '2px solid var(--border-color)',
+            background: 'var(--color-bg)', color: PRIORITY_COLORS[item.priority] ?? '#64748b',
             cursor: 'pointer',
           }}
         >
@@ -1658,7 +1658,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
             onChange={(e) => onChange({ targetDate: e.target.value || null, targetDateCertainty: 'exact' })}
             style={{
               padding: '0.15rem 0.375rem', borderRadius: '0.25rem', fontSize: '0.75rem',
-              border: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569',
+              border: '2px solid var(--border-color)', background: 'var(--color-bg)', color: '#475569',
               cursor: 'pointer', outline: 'none',
             }}
           />

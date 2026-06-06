@@ -63,12 +63,12 @@ export default function QuickNav() {
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '6px 12px', borderRadius: 8,
-          border: '1px solid #e2e8f0',
+          border: '2px solid var(--border-color)',
           background: open ? '#f1f5f9' : 'white',
           color: '#475569', fontSize: 13, fontWeight: 500,
           cursor: 'pointer', transition: 'all .15s',
         }}
-        onMouseEnter={e => { if (!open) e.currentTarget.style.background = '#f8fafc' }}
+        onMouseEnter={e => { if (!open) e.currentTarget.style.background = 'var(--color-bg)' }}
         onMouseLeave={e => { if (!open) e.currentTarget.style.background = 'white' }}
       >
         <LayoutGrid size={15} />
@@ -78,7 +78,7 @@ export default function QuickNav() {
       {open && (
         <div style={{
           position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-          background: 'white', border: '1px solid #e2e8f0',
+          background: 'white', border: '2px solid var(--border-color)',
           borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
           zIndex: 200, minWidth: 240, overflow: 'hidden',
           animation: 'fadeInDown .12s ease',
@@ -104,7 +104,7 @@ export default function QuickNav() {
                       padding: '8px 16px', color: '#374151', fontSize: 13,
                       textDecoration: 'none', transition: 'background .1s',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = 'var(--brand)' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg)'; e.currentTarget.style.color = 'var(--brand)' }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#374151' }}
                   >
                     <span style={{ color: 'inherit', opacity: 0.7 }}>{icon}</span>

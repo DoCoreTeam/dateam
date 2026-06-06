@@ -59,7 +59,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '2rem' }}>
       {/* 직급 관리 */}
-      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '1.25rem' }}>
+      <div style={{ background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '1.25rem' }}>
         <h3 style={{ margin: '0 0 1rem', fontSize: '0.95rem', fontWeight: 700, color: '#1e293b' }}>직급 관리</h3>
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
           <input
@@ -70,7 +70,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             disabled={isPending}
             style={{
               flex: 1, padding: '0.4rem 0.75rem', border: '1px solid #cbd5e1',
-              borderRadius: '0.5rem', fontSize: '0.875rem', outline: 'none',
+              borderRadius: 'var(--radius)', fontSize: '0.875rem', outline: 'none',
             }}
           />
           <button
@@ -79,7 +79,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             style={{
               display: 'flex', alignItems: 'center', gap: '0.25rem',
               padding: '0.4rem 0.75rem', background: 'var(--brand-dark)', color: '#fff',
-              border: 'none', borderRadius: '0.5rem', fontSize: '0.8rem',
+              border: 'none', borderRadius: 'var(--radius)', fontSize: '0.8rem',
               cursor: 'pointer', opacity: isPending || !rankInput.trim() ? 0.5 : 1,
             }}
           >
@@ -91,7 +91,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
           {ranks.sort((a, b) => a.display_order - b.display_order).map(r => (
             <li key={r.id} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '0.35rem 0.6rem', background: '#f8fafc', borderRadius: '0.4rem',
+              padding: '0.35rem 0.6rem', background: 'var(--color-bg)', borderRadius: '0.4rem',
               fontSize: '0.875rem', color: '#334155',
             }}>
               {r.name}
@@ -111,7 +111,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
       </div>
 
       {/* 직책 관리 */}
-      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '1.25rem' }}>
+      <div style={{ background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '1.25rem' }}>
         <h3 style={{ margin: '0 0 1rem', fontSize: '0.95rem', fontWeight: 700, color: '#1e293b' }}>직책 관리</h3>
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
           <input
@@ -122,7 +122,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             disabled={isPending}
             style={{
               flex: 1, padding: '0.4rem 0.75rem', border: '1px solid #cbd5e1',
-              borderRadius: '0.5rem', fontSize: '0.875rem', outline: 'none',
+              borderRadius: 'var(--radius)', fontSize: '0.875rem', outline: 'none',
             }}
           />
           <button
@@ -131,7 +131,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             style={{
               display: 'flex', alignItems: 'center', gap: '0.25rem',
               padding: '0.4rem 0.75rem', background: 'var(--brand-dark)', color: '#fff',
-              border: 'none', borderRadius: '0.5rem', fontSize: '0.8rem',
+              border: 'none', borderRadius: 'var(--radius)', fontSize: '0.8rem',
               cursor: 'pointer', opacity: isPending || !posInput.trim() ? 0.5 : 1,
             }}
           >
@@ -143,7 +143,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
           {positions.sort((a, b) => a.display_order - b.display_order).map(p => (
             <li key={p.id} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '0.35rem 0.6rem', background: '#f8fafc', borderRadius: '0.4rem',
+              padding: '0.35rem 0.6rem', background: 'var(--color-bg)', borderRadius: '0.4rem',
               fontSize: '0.875rem', color: '#334155',
             }}>
               {p.name}

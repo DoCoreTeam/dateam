@@ -21,7 +21,7 @@ interface DynamicTableProps {
 const INPUT: React.CSSProperties = {
   width: '100%',
   padding: '0.375rem 0.5rem',
-  border: '1px solid #e2e8f0',
+  border: '2px solid var(--border-color)',
   borderRadius: '0.3rem',
   fontSize: '0.8125rem',
   color: '#0f172a',
@@ -77,7 +77,7 @@ export default function DynamicTable({
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
           <thead>
-            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+            <tr style={{ background: 'var(--color-bg)', borderBottom: '2px solid var(--border-color)' }}>
               <th style={{ width: '32px', padding: '0.4rem' }} />
               {columns.map((col) => (
                 <th

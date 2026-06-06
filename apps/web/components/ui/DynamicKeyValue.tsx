@@ -12,7 +12,7 @@ interface DynamicKeyValueProps {
 const INPUT_SM: React.CSSProperties = {
   flex: 1,
   padding: '0.4rem 0.6rem',
-  border: '1px solid #e2e8f0',
+  border: '2px solid var(--border-color)',
   borderRadius: '0.3rem',
   fontSize: '0.8125rem',
   color: '#0f172a',

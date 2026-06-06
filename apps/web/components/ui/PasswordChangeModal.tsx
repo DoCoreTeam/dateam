@@ -73,7 +73,7 @@ export default function PasswordChangeModal() {
           width: '100%',
           maxWidth: '420px',
           background: 'white',
-          borderRadius: '1.25rem',
+          borderRadius: 'var(--radius)',
           padding: '2.5rem',
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2)',
         }}
@@ -83,7 +83,7 @@ export default function PasswordChangeModal() {
             style={{
               width: '3rem',
               height: '3rem',
-              borderRadius: '0.875rem',
+              borderRadius: 'var(--radius)',
               background: 'linear-gradient(135deg, var(--brand), var(--brand-dark))',
               display: 'flex',
               alignItems: 'center',
@@ -107,7 +107,7 @@ export default function PasswordChangeModal() {
             style={{
               backgroundColor: '#fef2f2',
               border: '1px solid #fecaca',
-              borderRadius: '0.625rem',
+              borderRadius: 'var(--radius)',
               padding: '0.75rem 1rem',
               marginBottom: '1rem',
               fontSize: '0.8125rem',
@@ -122,7 +122,7 @@ export default function PasswordChangeModal() {
           {existingName ? (
             <div>
               <label className="label">이름</label>
-              <div style={{ padding: '0.625rem 0.875rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.5rem', fontSize: '0.875rem', color: '#334155' }}>
+              <div style={{ padding: '0.625rem 0.875rem', background: 'var(--color-bg)', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', color: '#334155' }}>
                 {existingName}
               </div>
             </div>

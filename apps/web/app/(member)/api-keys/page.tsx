@@ -136,7 +136,7 @@ export default function ApiKeysPage() {
           </div>
           <p style={{ color: '#94a3b8', fontSize: 13, margin: '0 0 12px' }}>이 키는 언제든지 API Keys 페이지에서 다시 복사할 수 있습니다.</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#0f172a', borderRadius: 8, padding: '10px 14px', border: '1px solid #1e293b' }}>
-            <code style={{ flex: 1, fontSize: 13, color: '#e2e8f0', wordBreak: 'break-all', fontFamily: 'monospace' }}>{newKeyResult.key}</code>
+            <code style={{ flex: 1, fontSize: 13, color: 'var(--color-border)', wordBreak: 'break-all', fontFamily: 'monospace' }}>{newKeyResult.key}</code>
             <button onClick={() => copyText(newKeyResult.key, 'newkey')} style={{ flexShrink: 0, padding: '4px 10px', borderRadius: 6, border: '1px solid #334155', background: '#1e293b', color: copiedId === 'newkey' ? '#10b981' : '#94a3b8', fontSize: 12, cursor: 'pointer' }}>
               {copiedId === 'newkey' ? <Check size={14} /> : <Copy size={14} />}
             </button>
@@ -157,7 +157,7 @@ export default function ApiKeysPage() {
               value={newKeyName}
               onChange={e => setNewKeyName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && createKey()}
-              style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#e2e8f0', fontSize: 14, outline: 'none' }}
+              style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--color-border)', fontSize: 14, outline: 'none' }}
             />
             <button onClick={createKey} disabled={creating || !newKeyName.trim()} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: 'var(--brand)', color: '#fff', fontWeight: 600, fontSize: 14, cursor: creating ? 'not-allowed' : 'pointer', opacity: creating || !newKeyName.trim() ? 0.5 : 1 }}>
               {creating ? '생성 중...' : '생성'}

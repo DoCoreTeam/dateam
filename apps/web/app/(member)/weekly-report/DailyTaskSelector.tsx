@@ -140,7 +140,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
   const currentStep = GENERATE_STEPS[Math.min(generateStep, GENERATE_STEPS.length - 1)]
 
   return (
-    <div style={{ marginBottom: '1.25rem', border: '1px solid #e2e8f0', borderRadius: '0.75rem', overflow: 'hidden' }}>
+    <div style={{ marginBottom: '1.25rem', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
       {/* 헤더 */}
       <button
         id="onboarding-daily-selector"
@@ -148,7 +148,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
         onClick={() => setIsOpen((v) => !v)}
         style={{
           width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0.875rem 1rem', background: '#f8fafc', border: 'none', cursor: 'pointer',
+          padding: '0.875rem 1rem', background: 'var(--color-bg)', border: 'none', cursor: 'pointer',
           fontSize: '0.875rem', fontWeight: 600, color: '#475569',
         }}
       >
@@ -166,7 +166,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
 
       {/* 패널 */}
       {isOpen && (
-        <div style={{ padding: '1rem', borderTop: '1px solid #e2e8f0' }}>
+        <div style={{ padding: '1rem', borderTop: '2px solid var(--border-color)' }}>
           {loading && (
             <p style={{ fontSize: '0.8125rem', color: '#64748b', textAlign: 'center', padding: '1rem 0' }}>
               이번 주 업무를 불러오는 중…
@@ -174,7 +174,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
           )}
 
           {error && (
-            <div role="alert" style={{ padding: '0.625rem 0.875rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.5rem', marginBottom: '0.75rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
+            <div role="alert" style={{ padding: '0.625rem 0.875rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
               {error}
             </div>
           )}
@@ -219,7 +219,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
                             key={task.id}
                             style={{
                               display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
-                              padding: '0.5rem 0.625rem', borderRadius: '0.5rem', cursor: 'pointer',
+                              padding: '0.5rem 0.625rem', borderRadius: 'var(--radius)', cursor: 'pointer',
                               background: selectedIds.has(task.id) ? '#f5f3ff' : '#fafafa',
                               border: `1px solid ${selectedIds.has(task.id) ? '#ddd6fe' : '#f1f5f9'}`,
                               transition: 'background 120ms',
@@ -236,7 +236,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
                                 <span style={{
                                   fontSize: '0.6875rem', fontWeight: 600,
                                   color: ENTRY_TYPE_COLOR[task.entry_type] ?? '#64748b',
-                                  background: '#f8fafc', border: '1px solid #e2e8f0',
+                                  background: 'var(--color-bg)', border: '2px solid var(--border-color)',
                                   borderRadius: '0.25rem', padding: '0 0.3rem',
                                 }}>
                                   {ENTRY_TYPE_LABEL[task.entry_type] ?? task.entry_type}
@@ -266,8 +266,8 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
                   disabled={generating || selectedIds.size === 0}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-                    padding: '0.625rem 1.25rem', borderRadius: '0.5rem',
-                    background: generating || selectedIds.size === 0 ? '#e2e8f0' : 'linear-gradient(135deg, #7c3aed, var(--brand))',
+                    padding: '0.625rem 1.25rem', borderRadius: 'var(--radius)',
+                    background: generating || selectedIds.size === 0 ? 'var(--color-border)' : 'linear-gradient(135deg, #7c3aed, var(--brand))',
                     color: generating || selectedIds.size === 0 ? '#94a3b8' : '#fff',
                     border: 'none', cursor: generating || selectedIds.size === 0 ? 'not-allowed' : 'pointer',
                     fontSize: '0.875rem', fontWeight: 600,

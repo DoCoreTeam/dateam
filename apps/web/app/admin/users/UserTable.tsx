@@ -71,7 +71,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
   return (
     <>
       {/* 검색 / 필터 바 */}
-      <div style={{ padding: '0.875rem 1.25rem', borderBottom: '1px solid #e2e8f0', display: 'flex', flexWrap: 'wrap', gap: '0.625rem', alignItems: 'center' }}>
+      <div style={{ padding: '0.875rem 1.25rem', borderBottom: '2px solid var(--border-color)', display: 'flex', flexWrap: 'wrap', gap: '0.625rem', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 0 }}>
           <Search size={14} style={{ position: 'absolute', left: '0.625rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
           <input
@@ -90,7 +90,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
               onClick={() => setRoleFilter(r)}
               style={{
                 padding: '0.25rem 0.75rem', fontSize: '0.8rem', borderRadius: '999px', cursor: 'pointer',
-                border: roleFilter === r ? '1px solid var(--brand)' : '1px solid #e2e8f0',
+                border: roleFilter === r ? '1px solid var(--brand)' : '2px solid var(--border-color)',
                 background: roleFilter === r ? '#eef2ff' : '#fff',
                 color: roleFilter === r ? 'var(--brand-dark)' : '#64748b',
                 fontWeight: roleFilter === r ? 600 : 400,
@@ -198,7 +198,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
                     style={{
                       display: 'flex', alignItems: 'center', gap: '0.25rem',
                       padding: '0.3rem 0.6rem', background: '#f1f5f9', color: '#475569',
-                      border: '1px solid #e2e8f0', borderRadius: '0.4rem',
+                      border: '2px solid var(--border-color)', borderRadius: '0.4rem',
                       fontSize: '0.8rem', cursor: 'pointer',
                     }}
                   >

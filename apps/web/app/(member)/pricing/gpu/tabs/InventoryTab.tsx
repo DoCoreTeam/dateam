@@ -81,7 +81,7 @@ function HealthBar({ qty, max }: { qty: number; max: number }) {
   const color = pct >= 70 ? 'var(--gpu-green)' : pct >= 30 ? 'var(--gpu-amber)' : 'var(--gpu-red)'
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <div style={{ flex: 1, height: 6, borderRadius: 3, background: '#e5e7eb', overflow: 'hidden' }}>
+      <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'var(--color-border)', overflow: 'hidden' }}>
         <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.3s' }} />
       </div>
       <span style={{ fontSize: 12, fontWeight: 700, color, minWidth: 32 }}>{qty}</span>
@@ -248,7 +248,7 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
                 확정 견적 공급사 · 가용 수량 입력
               </div>
               {quoteSuppliers.map((sup, i) => (
-                <div key={i} style={{ padding: '8px 12px', borderRadius: 8, background: '#fff', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div key={i} style={{ padding: '8px 12px', borderRadius: 8, background: '#fff', border: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <SupplierBadge name={sup.name} color={sup.color} kind={sup.name === 'gcube' ? 'self' : 'ours'} unassigned={sup.supplier_id == null} />
                   <span style={{ fontSize: 12, color: 'var(--gpu-muted)', fontFamily: 'var(--font-mono, monospace)' }}>
                     ${sup.unit_price_usd.toFixed(2)} <span style={{ fontSize: 10 }}>(×{item.gpu_count} 구성)</span>
@@ -302,8 +302,8 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
             const freshness = FRESHNESS_CONFIG[sa.freshness] ?? FRESHNESS_CONFIG.unknown
             const sup = sa.supplier
             return (
-              <div key={i} style={{ padding: '8px 12px', borderRadius: 8, background: '#f9fafb', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span className="gpu-sdot" style={{ background: sup?.color ?? '#e5e7eb', flexShrink: 0 }} />
+              <div key={i} style={{ padding: '8px 12px', borderRadius: 8, background: '#f9fafb', border: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className="gpu-sdot" style={{ background: sup?.color ?? 'var(--color-border)', flexShrink: 0 }} />
                 <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{sup?.name ?? '알 수 없음'}</span>
                 <span style={{ fontSize: 11, color: status.color, fontWeight: 600 }}>{status.label}</span>
                 {sa.resp_qty != null && (

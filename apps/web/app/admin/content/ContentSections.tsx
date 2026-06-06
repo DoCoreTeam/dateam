@@ -15,19 +15,19 @@ type Toast = { msg: string; ok: boolean }
 
 const CARD: React.CSSProperties = {
   background: '#ffffff',
-  border: '1px solid #e2e8f0',
-  borderRadius: '0.75rem',
+  border: '2px solid var(--border-color)',
+  borderRadius: 'var(--radius)',
   overflow: 'hidden',
   marginBottom: '1.5rem',
   boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
 }
 const CARD_HEADER: React.CSSProperties = {
   padding: '1rem 1.5rem',
-  borderBottom: '1px solid #e2e8f0',
+  borderBottom: '2px solid var(--border-color)',
   display: 'flex',
   alignItems: 'center',
   gap: '0.5rem',
-  background: '#f8fafc',
+  background: 'var(--color-bg)',
 }
 const CARD_BODY: React.CSSProperties = { padding: '1.25rem 1.5rem' }
 const LABEL: React.CSSProperties = {
@@ -42,7 +42,7 @@ const LABEL: React.CSSProperties = {
 const INPUT: React.CSSProperties = {
   width: '100%',
   padding: '0.5rem 0.75rem',
-  border: '1px solid #e2e8f0',
+  border: '2px solid var(--border-color)',
   borderRadius: '0.4rem',
   fontSize: '0.875rem',
   color: '#0f172a',
@@ -328,7 +328,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
           position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 9999,
           padding: '0.75rem 1.25rem',
           background: toast.ok ? '#16a34a' : '#dc2626',
-          color: '#fff', borderRadius: '0.5rem',
+          color: '#fff', borderRadius: 'var(--radius)',
           fontSize: '0.875rem', fontWeight: 600,
           boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
           pointerEvents: 'none',
@@ -353,7 +353,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         >
           <div style={{
             background: '#fff',
-            borderRadius: '0.875rem',
+            borderRadius: 'var(--radius)',
             boxShadow: '0 16px 48px rgba(0,0,0,0.2)',
             width: '100%', maxWidth: '480px',
             padding: '1.5rem',
@@ -376,13 +376,13 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
               rows={4}
               style={{
                 width: '100%', padding: '0.625rem 0.875rem',
-                border: '1px solid #e2e8f0', borderRadius: '0.5rem',
+                border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
                 fontSize: '0.875rem', color: '#0f172a',
                 resize: 'vertical', fontFamily: 'inherit',
                 boxSizing: 'border-box', outline: 'none',
               }}
               onFocus={(e) => { e.target.style.borderColor = 'var(--brand)' }}
-              onBlur={(e) => { e.target.style.borderColor = '#e2e8f0' }}
+              onBlur={(e) => { e.target.style.borderColor = 'var(--color-border)' }}
             />
             {aiError && (
               <div style={{
@@ -399,8 +399,8 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
                 onClick={() => setAiPromptModal(null)}
                 style={{
                   padding: '0.5rem 1rem', background: 'transparent',
-                  color: '#64748b', border: '1px solid #e2e8f0',
-                  borderRadius: '0.5rem', fontSize: '0.875rem', cursor: 'pointer',
+                  color: '#64748b', border: '2px solid var(--border-color)',
+                  borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer',
                 }}
               >
                 취소
@@ -411,9 +411,9 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
                 disabled={!aiPrompt.trim()}
                 style={{
                   padding: '0.5rem 1.25rem',
-                  background: aiPrompt.trim() ? 'var(--brand)' : '#e2e8f0',
+                  background: aiPrompt.trim() ? 'var(--brand)' : 'var(--color-border)',
                   color: aiPrompt.trim() ? '#fff' : '#94a3b8',
-                  border: 'none', borderRadius: '0.5rem',
+                  border: 'none', borderRadius: 'var(--radius)',
                   fontSize: '0.875rem', fontWeight: 600,
                   cursor: aiPrompt.trim() ? 'pointer' : 'not-allowed',
                   display: 'flex', alignItems: 'center', gap: '0.375rem',

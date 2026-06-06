@@ -18,7 +18,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #eef2ff 0%, #f8fafc 60%, #e0e7ff 100%)',
+        background: 'linear-gradient(135deg, #eef2ff 0%, var(--color-bg) 60%, #e0e7ff 100%)',
         padding: 'clamp(1rem, 5vw, 2rem)',
       }}
     >
@@ -67,10 +67,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <div
           style={{
             backgroundColor: 'white',
-            borderRadius: '1.25rem',
+            borderRadius: 'var(--radius)',
             padding: '2rem',
             boxShadow: '0 4px 24px rgb(0 0 0 / 0.08), 0 1px 3px rgb(0 0 0 / 0.05)',
-            border: '1px solid #e2e8f0',
+            border: '2px solid var(--border-color)',
           }}
         >
           <h2
@@ -95,7 +95,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 padding: '0.75rem 1rem',
                 backgroundColor: '#fef2f2',
                 border: '1px solid #fecaca',
-                borderRadius: '0.625rem',
+                borderRadius: 'var(--radius)',
                 marginBottom: '1.25rem',
                 fontSize: '0.8125rem',
                 color: '#b91c1c',

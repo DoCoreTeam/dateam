@@ -173,7 +173,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
               padding: '0.5rem 1rem',
               backgroundColor: '#16a34a',
               color: '#fff',
-              borderRadius: '0.5rem',
+              borderRadius: 'var(--radius)',
               fontSize: '0.875rem',
               fontWeight: 600,
               textDecoration: 'none',
@@ -196,7 +196,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
         <div
           style={{
             padding: '1.25rem 1.5rem',
-            borderBottom: '1px solid #e2e8f0',
+            borderBottom: '2px solid var(--border-color)',
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',

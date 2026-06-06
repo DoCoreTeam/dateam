@@ -57,12 +57,12 @@ export default function EditProfileModal({
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
     }}>
       <div style={{
-        background: '#fff', borderRadius: '0.75rem', width: '360px',
+        background: '#fff', borderRadius: 'var(--radius)', width: '360px',
         boxShadow: '0 20px 40px rgba(0,0,0,0.15)', overflow: 'hidden',
       }}>
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0',
+          padding: '1rem 1.25rem', borderBottom: '2px solid var(--border-color)',
         }}>
           <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#1e293b' }}>
             사용자 정보 수정
@@ -81,7 +81,7 @@ export default function EditProfileModal({
               disabled={isPending}
               style={{
                 padding: '0.5rem 0.75rem', border: '1px solid #cbd5e1',
-                borderRadius: '0.5rem', fontSize: '0.875rem', outline: 'none',
+                borderRadius: 'var(--radius)', fontSize: '0.875rem', outline: 'none',
               }}
             />
           </label>
@@ -94,7 +94,7 @@ export default function EditProfileModal({
               disabled={isPending}
               style={{
                 padding: '0.5rem 0.75rem', border: '1px solid #cbd5e1',
-                borderRadius: '0.5rem', fontSize: '0.875rem', background: '#fff', outline: 'none',
+                borderRadius: 'var(--radius)', fontSize: '0.875rem', background: '#fff', outline: 'none',
               }}
             >
               <option value="">— 직급 없음 —</option>
@@ -112,7 +112,7 @@ export default function EditProfileModal({
               disabled={isPending}
               style={{
                 padding: '0.5rem 0.75rem', border: '1px solid #cbd5e1',
-                borderRadius: '0.5rem', fontSize: '0.875rem', background: '#fff', outline: 'none',
+                borderRadius: 'var(--radius)', fontSize: '0.875rem', background: '#fff', outline: 'none',
               }}
             >
               <option value="">— 직책 없음 —</option>
@@ -127,14 +127,14 @@ export default function EditProfileModal({
 
         <div style={{
           display: 'flex', justifyContent: 'flex-end', gap: '0.5rem',
-          padding: '0.75rem 1.25rem', borderTop: '1px solid #e2e8f0',
+          padding: '0.75rem 1.25rem', borderTop: '2px solid var(--border-color)',
         }}>
           <button
             onClick={onClose}
             disabled={isPending}
             style={{
               padding: '0.45rem 1rem', background: '#f1f5f9', color: '#475569',
-              border: 'none', borderRadius: '0.5rem', fontSize: '0.875rem', cursor: 'pointer',
+              border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer',
             }}
           >
             취소
@@ -144,7 +144,7 @@ export default function EditProfileModal({
             disabled={isPending}
             style={{
               padding: '0.45rem 1rem', background: 'var(--brand-dark)', color: '#fff',
-              border: 'none', borderRadius: '0.5rem', fontSize: '0.875rem',
+              border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem',
               cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1,
             }}
           >

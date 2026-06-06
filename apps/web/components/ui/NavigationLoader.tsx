@@ -99,7 +99,7 @@ export default function NavigationLoader({ brandName, logoUrl }: NavigationLoade
           style={{
             width: '140px',
             height: '3px',
-            backgroundColor: '#e2e8f0',
+            backgroundColor: 'var(--color-border)',
             borderRadius: '999px',
             overflow: 'hidden',
             position: 'relative',

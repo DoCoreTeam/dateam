@@ -99,7 +99,7 @@ export default function ContentDiffModal({
     >
       <div style={{
         background: '#fff',
-        borderRadius: '1rem',
+        borderRadius: 'var(--radius)',
         boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
         width: '100%',
         maxWidth: '780px',
@@ -111,7 +111,7 @@ export default function ContentDiffModal({
         {/* Header */}
         <div style={{
           padding: '1.25rem 1.5rem',
-          borderBottom: '1px solid #e2e8f0',
+          borderBottom: '2px solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -246,12 +246,12 @@ export default function ContentDiffModal({
         {/* Footer */}
         <div style={{
           padding: '1rem 1.5rem',
-          borderTop: '1px solid #e2e8f0',
+          borderTop: '2px solid var(--border-color)',
           display: 'flex',
           justifyContent: 'flex-end',
           gap: '0.75rem',
           flexShrink: 0,
-          background: '#f8fafc',
+          background: 'var(--color-bg)',
         }}>
           <button
             type="button"
@@ -261,8 +261,8 @@ export default function ContentDiffModal({
               padding: '0.5rem 1.25rem',
               background: 'transparent',
               color: '#64748b',
-              border: '1px solid #e2e8f0',
-              borderRadius: '0.5rem',
+              border: '2px solid var(--border-color)',
+              borderRadius: 'var(--radius)',
               fontSize: '0.875rem',
               fontWeight: 500,
               cursor: 'pointer',
@@ -276,10 +276,10 @@ export default function ContentDiffModal({
             disabled={loading || changedCount === 0}
             style={{
               padding: '0.5rem 1.5rem',
-              background: changedCount === 0 ? '#e2e8f0' : 'var(--brand)',
+              background: changedCount === 0 ? 'var(--color-border)' : 'var(--brand)',
               color: changedCount === 0 ? '#94a3b8' : '#fff',
               border: 'none',
-              borderRadius: '0.5rem',
+              borderRadius: 'var(--radius)',
               fontSize: '0.875rem',
               fontWeight: 600,
               cursor: changedCount === 0 ? 'not-allowed' : 'pointer',

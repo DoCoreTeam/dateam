@@ -102,7 +102,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
           { label: '블로커', value: `${totalBlockers}건`, sub: totalBlockers > 0 ? '주의 필요' : '문제 없음', color: totalBlockers > 0 ? '#dc2626' : '#16a34a' },
         ].map((c) => (
           <div key={c.label} style={{
-            background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem',
+            background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
             padding: '1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
           }}>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.25rem' }}>{c.label}</div>
@@ -115,7 +115,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
       {/* 필터 */}
       <form method="GET" style={{
         display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.5rem',
-        background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem',
+        background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
         padding: '0.875rem',
       }}>
         <input
@@ -139,7 +139,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
         </select>
         <button type="submit" style={{
           padding: '0.5rem 1rem', background: '#3b82f6', color: '#fff',
-          border: 'none', borderRadius: '0.5rem', fontWeight: 600,
+          border: 'none', borderRadius: 'var(--radius)', fontWeight: 600,
           fontSize: '0.875rem', cursor: 'pointer',
         }}>
           조회
@@ -150,7 +150,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
       {Object.keys(grouped).length === 0 ? (
         <div style={{
           textAlign: 'center', color: '#94a3b8', padding: '3rem',
-          border: '1px dashed #e2e8f0', borderRadius: '0.75rem',
+          border: '1px dashed var(--color-border)', borderRadius: 'var(--radius)',
         }}>
           {formatDate(selectedDate)}에 작성된 로그가 없습니다.
         </div>
@@ -158,13 +158,13 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {Object.entries(grouped).map(([userId, group]) => (
             <div key={userId} style={{
-              background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem',
+              background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
               overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
             }}>
               {/* 멤버 헤더 */}
               <div style={{
-                padding: '0.875rem 1rem', background: '#f8fafc',
-                borderBottom: '1px solid #e2e8f0', display: 'flex',
+                padding: '0.875rem 1rem', background: 'var(--color-bg)',
+                borderBottom: '2px solid var(--border-color)', display: 'flex',
                 alignItems: 'center', justifyContent: 'space-between',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
@@ -181,14 +181,14 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
                   {group.logs.filter((l) => l.entry_type === 'blocker').length > 0 && (
                     <span style={{
                       fontSize: '0.75rem', fontWeight: 600, color: '#dc2626',
-                      background: '#fef2f2', padding: '0.125rem 0.5rem', borderRadius: '1rem',
+                      background: '#fef2f2', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)',
                     }}>
                       🚫 블로커 {group.logs.filter((l) => l.entry_type === 'blocker').length}건
                     </span>
                   )}
                   <span style={{
                     fontSize: '0.75rem', color: '#64748b',
-                    background: '#f1f5f9', padding: '0.125rem 0.5rem', borderRadius: '1rem',
+                    background: '#f1f5f9', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)',
                   }}>
                     {group.logs.length}건
                   </span>
@@ -240,6 +240,6 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
 }
 
 const filterInputStyle: React.CSSProperties = {
-  padding: '0.5rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem',
-  fontSize: '0.875rem', color: '#0f172a', background: '#f8fafc', outline: 'none',
+  padding: '0.5rem 0.75rem', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
+  fontSize: '0.875rem', color: '#0f172a', background: 'var(--color-bg)', outline: 'none',
 }

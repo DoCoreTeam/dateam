@@ -16,7 +16,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
 function Card({ label, value, sub, tone, onClick, active }: { label: string; value: string | number; sub?: string; tone?: 'ok' | 'warn' | 'bad'; onClick?: () => void; active?: boolean }) {
   const color = tone === 'bad' ? '#dc2626' : tone === 'warn' ? '#d97706' : tone === 'ok' ? '#16a34a' : '#0f172a'
   return (
-    <div onClick={onClick} style={{ padding: '16px 18px', borderRadius: 12, background: '#fff', border: `1px solid ${active ? 'var(--gpu-accent,#5b5ef0)' : '#e5e7eb'}`, minWidth: 0, cursor: onClick ? 'pointer' : 'default', boxShadow: active ? '0 0 0 2px rgba(91,94,240,.15)' : 'none' }}>
+    <div onClick={onClick} style={{ padding: '16px 18px', borderRadius: 12, background: '#fff', border: `1px solid ${active ? 'var(--gpu-accent,#5b5ef0)' : 'var(--color-border)'}`, minWidth: 0, cursor: onClick ? 'pointer' : 'default', boxShadow: active ? '0 0 0 2px rgba(91,94,240,.15)' : 'none' }}>
       <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>{label}{onClick && <span style={{ marginLeft: 'auto', fontSize: 10, color: '#cbd5e1' }}>클릭</span>}</div>
       <div style={{ fontSize: 26, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
       {sub && <div style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 6 }}>{sub}</div>}
@@ -93,7 +93,7 @@ export default function DataQualityDashboard() {
 
           {/* 드릴다운 패널 */}
           {drill && (
-            <div style={{ marginBottom: 22, padding: '14px 16px', borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0' }} data-testid="drilldown-panel">
+            <div style={{ marginBottom: 22, padding: '14px 16px', borderRadius: 12, background: 'var(--color-bg)', border: '2px solid var(--border-color)' }} data-testid="drilldown-panel">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <strong style={{ fontSize: 14, color: '#0f172a' }}>
                   {drill === 'anomaly' ? '이상치 견적' : drill === 'low_confidence' ? '저신뢰 검토항목' : drill === 'pending' ? '검토 대기' : '중복 의심'} 상세

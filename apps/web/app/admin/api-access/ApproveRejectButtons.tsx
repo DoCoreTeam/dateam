@@ -59,7 +59,7 @@ export default function ApproveRejectButtons({ requestId }: { requestId: string 
         <div style={{ color: '#10b981', fontWeight: 600, marginBottom: 6 }}>✓ 승인 완료</div>
         <div style={{ color: '#64748b', marginBottom: 4 }}>임시 비밀번호:</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-          <code style={{ fontSize: 13, color: '#e2e8f0', background: '#1e293b', padding: '2px 8px', borderRadius: 4, flex: 1 }}>
+          <code style={{ fontSize: 13, color: 'var(--color-border)', background: '#1e293b', padding: '2px 8px', borderRadius: 4, flex: 1 }}>
             {result.tempPassword}
           </code>
           <button onClick={() => result.type === 'approved' && copyPw(result.tempPassword)} style={{ padding: '2px 8px', borderRadius: 4, border: '1px solid #334155', background: '#1e293b', color: copied ? '#10b981' : '#94a3b8', cursor: 'pointer', fontSize: 12 }}>
@@ -89,13 +89,13 @@ export default function ApproveRejectButtons({ requestId }: { requestId: string 
           placeholder="거절 사유 (선택)"
           value={rejectNote}
           onChange={e => setRejectNote(e.target.value)}
-          style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
+          style={{ padding: '6px 10px', borderRadius: 6, border: '2px solid var(--border-color)', fontSize: 13, outline: 'none' }}
         />
         <div style={{ display: 'flex', gap: 6 }}>
           <button onClick={handleReject} disabled={loading} style={{ flex: 1, padding: '6px 0', borderRadius: 6, border: 'none', background: '#ef4444', color: '#fff', fontSize: 13, cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
             {loading ? '처리중...' : '거절 확인'}
           </button>
-          <button onClick={() => setShowReject(false)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', color: '#475569', fontSize: 13, cursor: 'pointer' }}>
+          <button onClick={() => setShowReject(false)} style={{ padding: '6px 10px', borderRadius: 6, border: '2px solid var(--border-color)', background: '#fff', color: '#475569', fontSize: 13, cursor: 'pointer' }}>
             취소
           </button>
         </div>

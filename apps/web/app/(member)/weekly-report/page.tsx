@@ -203,7 +203,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
       </div>
 
       {/* 탭 */}
-      <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', borderBottom: '2px solid var(--border-color)', marginBottom: '1.5rem' }}>
         <Link href="/weekly-report?tab=mine" style={tabStyle(activeTab === 'mine')}>
           <FileText size={14} />
           내 보고
@@ -223,12 +223,12 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
       {activeTab === 'mine' ? (
         <>
           {justSaved && (
-            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '0.625rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#15803d' }}>
+            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#15803d' }}>
               주간보고가 저장되었습니다
             </div>
           )}
           {justReset && (
-            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.625rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
+            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
               보고서가 초기화되었습니다
             </div>
           )}

@@ -31,7 +31,7 @@ export default function InviteForm() {
       {result && (
         <div style={{
           padding: '0.75rem 1rem',
-          borderRadius: '0.625rem',
+          borderRadius: 'var(--radius)',
           marginBottom: '1rem',
           fontSize: '0.8125rem',
           backgroundColor: result.ok ? '#f0fdf4' : '#fef2f2',

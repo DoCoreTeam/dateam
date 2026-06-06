@@ -39,7 +39,7 @@ const TYPE_COLORS: Record<OrgNodeType, { bg: string; border: string; text: strin
   company: { bg: 'linear-gradient(135deg,var(--brand-dark),#7c3aed)', border: 'var(--brand-dark)', text: '#fff', badge: '#c7d2fe' },
   role:    { bg: 'linear-gradient(135deg,#1e1b4b,#312e81)', border: '#312e81', text: '#fff', badge: '#a5b4fc' },
   department: { bg: 'linear-gradient(135deg,#3730a3,var(--brand-dark))', border: 'var(--brand-dark)', text: '#fff', badge: '#c7d2fe' },
-  person: { bg: '#ffffff', border: '#e2e8f0', text: '#1e293b', badge: '#ede9fe' },
+  person: { bg: '#ffffff', border: 'var(--color-border)', text: '#1e293b', badge: '#ede9fe' },
 }
 
 interface Profile {
@@ -108,7 +108,7 @@ function DragDropWrapper({
       style={{
         display: 'inline-block',
         position: 'relative',
-        borderRadius: '0.75rem',
+        borderRadius: 'var(--radius)',
         background: node.type === 'person' ? '#fff' : c.bg,
         border: `2px solid ${isOver ? 'var(--brand)' : c.border}`,
         boxShadow: isOver
@@ -223,7 +223,7 @@ function InlineMember({
       marginTop: '0.35rem',
       padding: '0.25rem 0.35rem',
       borderRadius: '0.4rem',
-      background: dark ? 'rgba(255,255,255,0.08)' : '#f8fafc',
+      background: dark ? 'rgba(255,255,255,0.08)' : 'var(--color-bg)',
     }}>
       <div style={{
         width: '1.5rem', height: '1.5rem', borderRadius: '50%', flexShrink: 0,

@@ -81,7 +81,7 @@ export default function FridaySpotlightOverlay({ showGlow }: FridaySpotlightOver
             padding: '0.875rem 2rem',
             background: 'linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 60%, #7c3aed 100%)',
             color: 'white',
-            borderRadius: '0.875rem',
+            borderRadius: 'var(--radius)',
             fontWeight: 700,
             fontSize: '1rem',
             textDecoration: 'none',

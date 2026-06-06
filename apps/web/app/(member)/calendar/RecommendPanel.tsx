@@ -34,7 +34,7 @@ export default function RecommendPanel() {
   return (
     <div style={{ marginBottom: '1rem' }}>
       {!open ? (
-        <button onClick={load} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, color: '#7c3aed', background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: '0.5rem', padding: '0.45rem 0.875rem', cursor: 'pointer' }}>
+        <button onClick={load} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, color: '#7c3aed', background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 'var(--radius)', padding: '0.45rem 0.875rem', cursor: 'pointer' }}>
           <Sparkles size={15} /> AI 일정 추천 받기
         </button>
       ) : (
@@ -53,7 +53,7 @@ export default function RecommendPanel() {
           {items && items.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {items.map((rec, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.625rem 0.75rem', background: '#fff', border: '1px solid #e9d5ff', borderRadius: '0.5rem' }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.625rem 0.75rem', background: '#fff', border: '1px solid #e9d5ff', borderRadius: 'var(--radius)' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e293b' }}>
                       <span style={{ color: '#7c3aed', fontWeight: 700, marginRight: '0.4rem' }}>{rec.start_at.slice(5, 16).replace('T', ' ')}</span>

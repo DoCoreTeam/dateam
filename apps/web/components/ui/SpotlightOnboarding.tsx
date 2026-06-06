@@ -161,7 +161,7 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
             width: rect.width + PAD * 2,
             height: rect.height + PAD * 2,
             zIndex: 9999,
-            borderRadius: '0.75rem',
+            borderRadius: 'var(--radius)',
             boxShadow: '0 0 0 200vmax rgba(2, 6, 23, 0.78)',
             pointerEvents: 'none',
             outline: '2.5px solid rgba(124,58,237, 0.9)',
@@ -182,7 +182,7 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
             left: Math.max(8, Math.min(rect.left - 8, window.innerWidth - 356)),
             zIndex: 10000,
             background: '#ffffff',
-            borderRadius: '0.875rem',
+            borderRadius: 'var(--radius)',
             padding: '1rem 1.25rem',
             minWidth: '280px',
             maxWidth: '340px',
@@ -218,7 +218,7 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
                   key={i}
                   style={{
                     width: '0.5rem', height: '0.5rem', borderRadius: '50%',
-                    background: i === step ? 'var(--brand)' : '#e2e8f0',
+                    background: i === step ? 'var(--brand)' : 'var(--color-border)',
                     transition: 'background 200ms',
                     display: 'inline-block',
                   }}
@@ -231,7 +231,7 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
                 onClick={finish}
                 style={{
                   padding: '0.4rem 0.875rem', background: 'none',
-                  border: '1px solid #e2e8f0', borderRadius: '0.5rem',
+                  border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
                   fontSize: '0.8125rem', color: '#64748b', cursor: 'pointer',
                 }}
               >
@@ -242,7 +242,7 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
                 onClick={next}
                 style={{
                   padding: '0.4rem 1rem', background: 'var(--brand)',
-                  border: 'none', borderRadius: '0.5rem',
+                  border: 'none', borderRadius: 'var(--radius)',
                   fontSize: '0.8125rem', color: '#ffffff',
                   fontWeight: 600, cursor: 'pointer',
                 }}

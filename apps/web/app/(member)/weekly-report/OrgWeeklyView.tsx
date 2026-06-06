@@ -83,7 +83,7 @@ export default function OrgWeeklyView(props: Props) {
   const aggBadge = (agg: DeptStat['agg']) => {
     const m = {
       confirmed: { t: '확정', c: '#059669', b: '#ecfdf5', br: '#a7f3d0' },
-      draft: { t: '초안', c: '#64748b', b: '#f1f5f9', br: '#e2e8f0' },
+      draft: { t: '초안', c: '#64748b', b: '#f1f5f9', br: 'var(--color-border)' },
       none: { t: '미취합', c: '#d97706', b: '#fffbeb', br: '#fde68a' },
     }[agg]
     return <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: m.c, background: m.b, border: `1px solid ${m.br}`, padding: '0.1rem 0.4rem', borderRadius: '0.25rem' }}>{m.t}</span>
@@ -94,17 +94,17 @@ export default function OrgWeeklyView(props: Props) {
       {/* 주차 네비 — 이전/다음 화살표 (무한 과거 이동, 미래는 이번 주까지) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
         <Link href={`/weekly-report?tab=org&orgWeek=${prevWeek}`} prefetch={false} aria-label="이전 주"
-          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: '0.5rem', border: '1px solid #e2e8f0', background: '#fff', color: '#475569', textDecoration: 'none' }}>
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 'var(--radius)', border: '2px solid var(--border-color)', background: '#fff', color: '#475569', textDecoration: 'none' }}>
           <ChevronLeft size={16} />
         </Link>
         <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', minWidth: 96, textAlign: 'center' }}>{weekStart} 주</span>
         {atCurrent ? (
-          <span aria-label="다음 주" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: '0.5rem', border: '1px solid #f1f5f9', background: '#f8fafc', color: '#cbd5e1' }}>
+          <span aria-label="다음 주" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 'var(--radius)', border: '1px solid #f1f5f9', background: 'var(--color-bg)', color: '#cbd5e1' }}>
             <ChevronRight size={16} />
           </span>
         ) : (
           <Link href={`/weekly-report?tab=org&orgWeek=${nextWeek}`} prefetch={false} aria-label="다음 주"
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: '0.5rem', border: '1px solid #e2e8f0', background: '#fff', color: '#475569', textDecoration: 'none' }}>
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 'var(--radius)', border: '2px solid var(--border-color)', background: '#fff', color: '#475569', textDecoration: 'none' }}>
             <ChevronRight size={16} />
           </Link>
         )}
@@ -145,7 +145,7 @@ export default function OrgWeeklyView(props: Props) {
             const st = deptStats[d.id] ?? { memberCount: 0, reportedCount: 0, agg: 'none' as const }
             const canEdit = editableDeptIds.includes(d.id)
             return (
-              <button key={d.id} onClick={() => drillInto(d.id)} style={{ textAlign: 'left', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.625rem', padding: '1rem', cursor: 'pointer', minHeight: 44 }}>
+              <button key={d.id} onClick={() => drillInto(d.id)} style={{ textAlign: 'left', background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '1rem', cursor: 'pointer', minHeight: 44 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                   <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: '#0f172a' }}>{d.name}</span>
                   {canEdit ? <Pencil size={13} color="var(--brand)" /> : <Lock size={12} color="#94a3b8" />}
@@ -246,7 +246,7 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
   const activeValue = editingCell ? rows[editingCell.idx]?.authors?.[editingCell.authorIdx]?.[editingCell.field] ?? '' : ''
 
   return (
-    <div className="card" style={{ padding: 0, overflow: 'hidden', border: '1px solid #e2e8f0', borderRadius: '0.75rem' }}>
+    <div className="card" style={{ padding: 0, overflow: 'hidden', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)' }}>
       {/* 헤더 — 기존 취합과 동일 톤 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '1rem 1.25rem', background: 'linear-gradient(to right, #f8f7ff, #fdf4ff)', borderBottom: '1px solid #e9d5ff', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
@@ -275,7 +275,7 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
               <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>취합 대상 부서원 보고 {members.length}건</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                 {members.map((m, i) => (
-                  <span key={i} style={{ fontSize: '0.72rem', color: '#475569', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.15rem 0.45rem' }}>
+                  <span key={i} style={{ fontSize: '0.72rem', color: '#475569', background: '#f1f5f9', border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.15rem 0.45rem' }}>
                     {m.name}{m.rank ? ` ${m.rank}` : ''} · {m.category}
                   </span>
                 ))}
@@ -303,10 +303,10 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
           {rows.map((row, idx) => (
             <div key={`${row.category}-${idx}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
               {/* 카테고리 섹션 헤더 */}
-              <div style={{ padding: '0.625rem 1.25rem', background: '#f8fafc', fontWeight: 700, fontSize: '0.8125rem', color: 'var(--brand-dark)' }}>{row.category}</div>
+              <div style={{ padding: '0.625rem 1.25rem', background: 'var(--color-bg)', fontWeight: 700, fontSize: '0.8125rem', color: 'var(--brand-dark)' }}>{row.category}</div>
               {/* 작성자 소블록 (직급→이름 순 보존) */}
               {(row.authors ?? []).map((au, ai) => (
-                <div key={ai} style={{ padding: '0.75rem 1.25rem', borderTop: ai > 0 ? '1px dashed #e2e8f0' : 'none' }}>
+                <div key={ai} style={{ padding: '0.75rem 1.25rem', borderTop: ai > 0 ? '1px dashed var(--color-border)' : 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
                     <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a' }}>{au.name}</span>
                     {au.rank && <span style={{ fontSize: '0.66rem', color: '#7c3aed', background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: '0.25rem', padding: '0.05rem 0.35rem' }}>{au.rank}</span>}
@@ -317,7 +317,7 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
                         <div style={{ fontSize: '0.66rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.2rem' }}>{f.label}</div>
                         <RichCell html={au[f.key]} />
                         {editable && (
-                          <button onClick={() => setEditingCell({ idx, authorIdx: ai, field: f.key })} style={{ marginTop: '0.3rem', padding: '0.1rem 0.35rem', fontSize: '0.68rem', color: '#9ca3af', background: 'none', border: '1px solid #e5e7eb', borderRadius: '0.25rem', cursor: 'pointer' }}>수정</button>
+                          <button onClick={() => setEditingCell({ idx, authorIdx: ai, field: f.key })} style={{ marginTop: '0.3rem', padding: '0.1rem 0.35rem', fontSize: '0.68rem', color: '#9ca3af', background: 'none', border: '2px solid var(--border-color)', borderRadius: '0.25rem', cursor: 'pointer' }}>수정</button>
                         )}
                       </div>
                     ))}
@@ -332,11 +332,11 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
       {editable && rows.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.875rem 1.25rem', borderTop: '1px solid #f1f5f9' }}>
           {localStatus === 'confirmed' && !dirty ? (
-            <button disabled style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#059669', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '0.5rem', padding: '0.5rem 1rem', cursor: 'default' }}>✓ 확정됨</button>
+            <button disabled style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#059669', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius)', padding: '0.5rem 1rem', cursor: 'default' }}>✓ 확정됨</button>
           ) : (
-            <button onClick={() => save(true)} disabled={busy} style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff', background: '#059669', border: 'none', borderRadius: '0.5rem', padding: '0.5rem 1rem', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>{dirty && localStatus === 'confirmed' ? '재확정' : '확정'}</button>
+            <button onClick={() => save(true)} disabled={busy} style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff', background: '#059669', border: 'none', borderRadius: 'var(--radius)', padding: '0.5rem 1rem', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>{dirty && localStatus === 'confirmed' ? '재확정' : '확정'}</button>
           )}
-          <button onClick={() => save(false)} disabled={busy} style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#475569', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '0.5rem 1rem', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>임시저장</button>
+          <button onClick={() => save(false)} disabled={busy} style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#475569', background: '#f1f5f9', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem 1rem', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>임시저장</button>
           {dirty && <span style={{ alignSelf: 'center', fontSize: '0.75rem', color: '#d97706' }}>저장되지 않은 변경</span>}
         </div>
       )}

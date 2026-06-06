@@ -30,7 +30,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
 
   return (
     <div style={{
-      background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.75rem',
+      background: 'var(--color-bg)', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
       padding: '1.25rem 1.5rem', marginBottom: '1.5rem',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
@@ -51,7 +51,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
               required
               style={{
                 width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.375rem',
-                border: '1px solid #e2e8f0', fontSize: '0.875rem', boxSizing: 'border-box',
+                border: '2px solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box',
               }}
             />
           </div>
@@ -65,7 +65,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
               rows={2}
               style={{
                 width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.375rem',
-                border: '1px solid #e2e8f0', fontSize: '0.875rem', boxSizing: 'border-box', resize: 'vertical',
+                border: '2px solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box', resize: 'vertical',
               }}
             />
           </div>
@@ -90,7 +90,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
               style={{
                 padding: '0.5rem 0.75rem', borderRadius: '0.375rem',
                 background: 'transparent', color: '#64748b',
-                border: '1px solid #e2e8f0', fontSize: '0.875rem', cursor: 'pointer',
+                border: '2px solid var(--border-color)', fontSize: '0.875rem', cursor: 'pointer',
               }}
             >
               취소

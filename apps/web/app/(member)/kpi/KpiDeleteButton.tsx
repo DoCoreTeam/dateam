@@ -20,7 +20,7 @@ export default function KpiDeleteButton({ id }: { id: string }) {
       style={{
         padding: '0.375rem 0.625rem',
         border: '1px solid #fecaca',
-        borderRadius: '0.5rem',
+        borderRadius: 'var(--radius)',
         backgroundColor: '#fef2f2',
         color: '#dc2626',
         cursor: 'pointer',

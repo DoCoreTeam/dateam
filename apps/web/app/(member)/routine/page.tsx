@@ -113,7 +113,7 @@ export default async function RoutinePage() {
       {!hasName && (
         <div style={{
           padding: '1rem 1.25rem',
-          borderRadius: '0.625rem',
+          borderRadius: 'var(--radius)',
           marginBottom: '1.5rem',
           backgroundColor: '#fffbeb',
           border: '1px solid #fde68a',

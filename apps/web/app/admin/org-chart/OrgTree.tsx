@@ -264,7 +264,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
   return (
     <>
       {errorMsg && (
-        <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.5rem', color: '#dc2626', fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius)', color: '#dc2626', fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between' }}>
           {errorMsg}
           <button onClick={() => setErrorMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 700 }}>×</button>
         </div>
@@ -278,9 +278,9 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
             position: 'relative',
             overflow: 'hidden',
             height: 'clamp(400px, 65vh, 800px)',
-            border: '1px solid #e2e8f0',
-            borderRadius: '0.75rem',
-            background: '#f8fafc',
+            border: '2px solid var(--border-color)',
+            borderRadius: 'var(--radius)',
+            background: 'var(--color-bg)',
             cursor: isPanning.current ? 'grabbing' : 'grab',
             userSelect: 'none',
           }}
@@ -290,7 +290,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
           onMouseLeave={handlePanUp}
         >
           {/* Zoom controls */}
-          <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10, display: 'flex', gap: '0.25rem', background: 'rgba(255,255,255,0.95)', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '0.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+          <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10, display: 'flex', gap: '0.25rem', background: 'rgba(255,255,255,0.95)', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
             <button
               onClick={() => setZoom(z => ({ ...z, scale: Math.min(z.scale * 1.2, 3) }))}
               style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
@@ -301,7 +301,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
               style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
               title="축소"
             >−</button>
-            <div style={{ width: 1, background: '#e2e8f0', margin: '4px 2px' }} />
+            <div style={{ width: 1, background: 'var(--color-border)', margin: '4px 2px' }} />
             <button
               onClick={fitToScreen}
               style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '0.7rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}
@@ -315,12 +315,12 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
           </div>
 
           {/* Scale indicator */}
-          <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.85)', border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.7rem', color: '#64748b', pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.85)', border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.7rem', color: '#64748b', pointerEvents: 'none' }}>
             {Math.round(zoom.scale * 100)}%
           </div>
 
           {/* Help hint */}
-          <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.8)', border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.68rem', color: '#94a3b8', pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.8)', border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.68rem', color: '#94a3b8', pointerEvents: 'none' }}>
             스크롤: 줌 · 드래그: 이동
           </div>
 
@@ -362,7 +362,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
 
         <DragOverlay>
           {activeNode && (
-            <div style={{ padding: '0.5rem 1rem', background: 'var(--brand-dark)', color: '#fff', borderRadius: '0.5rem', fontSize: '0.875rem', fontWeight: 600, boxShadow: '0 8px 24px rgba(79,70,229,0.4)', opacity: 0.95, cursor: 'grabbing' }}>
+            <div style={{ padding: '0.5rem 1rem', background: 'var(--brand-dark)', color: '#fff', borderRadius: 'var(--radius)', fontSize: '0.875rem', fontWeight: 600, boxShadow: '0 8px 24px rgba(79,70,229,0.4)', opacity: 0.95, cursor: 'grabbing' }}>
               {activeNode.name}
             </div>
           )}
@@ -385,15 +385,15 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
 
       {deleteConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: '#fff', borderRadius: '0.75rem', padding: '1.5rem', width: '340px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)' }}>
+          <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: '1.5rem', width: '340px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)' }}>
             <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 700 }}>삭제 확인</h3>
             <p style={{ margin: '0 0 1.25rem', color: '#475569', fontSize: '0.875rem' }}>
               <strong>{deleteConfirm.name}</strong>을(를) 삭제하시겠습니까?
               {deleteConfirm.type !== 'person' && ' 하위 노드가 있으면 삭제할 수 없습니다.'}
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button onClick={() => setDeleteConfirm(null)} style={{ padding: '0.45rem 1rem', background: '#f1f5f9', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.875rem', color: '#475569' }}>취소</button>
-              <button onClick={confirmDelete} style={{ padding: '0.45rem 1rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.875rem' }}>삭제</button>
+              <button onClick={() => setDeleteConfirm(null)} style={{ padding: '0.45rem 1rem', background: '#f1f5f9', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: '#475569' }}>취소</button>
+              <button onClick={confirmDelete} style={{ padding: '0.45rem 1rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem' }}>삭제</button>
             </div>
           </div>
         </div>

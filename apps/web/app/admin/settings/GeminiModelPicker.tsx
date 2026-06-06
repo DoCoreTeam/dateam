@@ -58,7 +58,7 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
   }
 
   return (
-    <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1rem', marginTop: '1rem' }}>
+    <div style={{ borderTop: '2px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
           <Cpu size={14} color="var(--brand)" />
@@ -78,10 +78,10 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
             alignItems: 'center',
             gap: '0.375rem',
             padding: '0.5rem 0.875rem',
-            backgroundColor: hasKey ? '#f1f5f9' : '#e2e8f0',
+            backgroundColor: hasKey ? '#f1f5f9' : 'var(--color-border)',
             color: hasKey ? '#374151' : '#94a3b8',
-            border: '1px solid #e2e8f0',
-            borderRadius: '0.5rem',
+            border: '2px solid var(--border-color)',
+            borderRadius: 'var(--radius)',
             fontSize: '0.8125rem',
             fontWeight: 600,
             cursor: hasKey ? 'pointer' : 'not-allowed',
@@ -135,7 +135,7 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
           style={{
             marginTop: '0.625rem',
             padding: '0.625rem 0.875rem',
-            borderRadius: '0.5rem',
+            borderRadius: 'var(--radius)',
             fontSize: '0.8125rem',
             fontWeight: 500,
             display: 'flex',

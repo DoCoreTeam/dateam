@@ -72,17 +72,17 @@ export default function ContactsPage() {
           <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>거래처 담당자 연락처 관리</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <Link href="/lead-intake?target=contact" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', minHeight: '44px' }}>
+          <Link href="/lead-intake?target=contact" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px' }}>
             <Sparkles size={16} /> AI로 추가
           </Link>
-          <Link href="/contacts/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', minHeight: '44px', border: '1px solid #e2e8f0', color: '#64748b', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
+          <Link href="/contacts/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px', border: '2px solid var(--border-color)', color: '#64748b', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
             <Plus size={16} /> 수동 입력
           </Link>
         </div>
       </div>
 
       <div className="card">
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Users size={16} color="var(--brand)" />
           <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>전체 담당자</h2>
           <span className="badge badge-slate">{contacts.length}{hasFilters ? '명 (필터됨)' : '명'}</span>
@@ -219,7 +219,7 @@ function ContactDetail({ contact: c, onClose, onDeleted }: { contact: ContactWit
       {/* 직책/부서 */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBottom: '1rem' }}>
         {c.title     && <span className="badge badge-slate">{c.title}</span>}
-        {c.department && <span className="badge" style={{ background: '#f8fafc', color: '#64748b' }}>{c.department}</span>}
+        {c.department && <span className="badge" style={{ background: 'var(--color-bg)', color: '#64748b' }}>{c.department}</span>}
       </div>
 
       <div className="detail-info-list">

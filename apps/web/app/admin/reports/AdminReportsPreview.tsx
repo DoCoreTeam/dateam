@@ -245,7 +245,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
             display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
             padding: '0.5rem 1rem',
             background: loading ? '#6d6abe' : 'linear-gradient(135deg, var(--brand), var(--brand))',
-            color: '#fff', border: 'none', borderRadius: '0.5rem',
+            color: '#fff', border: 'none', borderRadius: 'var(--radius)',
             fontSize: '0.875rem', fontWeight: 600,
             cursor: loading ? 'not-allowed' : 'pointer',
             opacity: loading ? 0.85 : 1, transition: 'opacity 200ms',
@@ -286,7 +286,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
 
       {/* Preview panel */}
       {rows.length > 0 && (
-        <div className="card" style={{ marginTop: '1.5rem', overflow: 'hidden', border: '1px solid #e2e8f0', borderRadius: '0.75rem' }}>
+        <div className="card" style={{ marginTop: '1.5rem', overflow: 'hidden', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)' }}>
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', background: 'linear-gradient(to right, #f8f7ff, #fdf4ff)', borderBottom: '1px solid #e9d5ff' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
@@ -315,9 +315,9 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
           <div className="table-responsive">
             <table className="table-base table-card" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: '#f8fafc' }}>
+                <tr style={{ background: 'var(--color-bg)' }}>
                   {TH_COLS.map(({ label, width }) => (
-                    <th key={label} style={{ padding: '0.625rem 0.875rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.03em', borderBottom: '1px solid #e2e8f0', width, whiteSpace: 'nowrap' }}>
+                    <th key={label} style={{ padding: '0.625rem 0.875rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.03em', borderBottom: '2px solid var(--border-color)', width, whiteSpace: 'nowrap' }}>
                       {label}
                     </th>
                   ))}
@@ -357,7 +357,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
                           <RichCell html={row[field]} />
                           <button
                             onClick={() => setEditingCell({ rowIdx, field })}
-                            style={{ marginTop: '0.375rem', padding: '0.125rem 0.375rem', fontSize: '0.7rem', color: '#9ca3af', background: 'none', border: '1px solid #e5e7eb', borderRadius: '0.25rem', cursor: 'pointer', lineHeight: 1.4 }}
+                            style={{ marginTop: '0.375rem', padding: '0.125rem 0.375rem', fontSize: '0.7rem', color: '#9ca3af', background: 'none', border: '2px solid var(--border-color)', borderRadius: '0.25rem', cursor: 'pointer', lineHeight: 1.4 }}
                           >
                             수정
                           </button>

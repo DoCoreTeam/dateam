@@ -145,7 +145,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
         </div>
 
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ fontSize: 11.5, color: 'var(--gpu-muted)', background: '#f8fafc', border: '1px solid #eef0f6', borderRadius: 8, padding: '7px 10px' }}>
+          <div style={{ fontSize: 11.5, color: 'var(--gpu-muted)', background: 'var(--color-bg)', border: '1px solid #eef0f6', borderRadius: 8, padding: '7px 10px' }}>
             현재 등록된 <b>{row.model_name}</b> 구성 {cfgs.length}개 — 가격표·시장비교·재고·고객판매가격표와 동일한 우리 GPU 목록입니다. 장수·카드 VRAM에 따라 별도 구성으로 등록됩니다.
           </div>
           {/* 구성별 스펙 — 카드당 VRAM으로 식별(같은 ×N 장수라도 80GB/40GB 카드는 다른 구성) */}
@@ -314,13 +314,13 @@ export default function SpecsTab() {
 
       {/* 일괄 생성 실시간 진행 */}
       {bulkProg && (
-        <div style={{ margin: '0 0 12px', padding: '10px 14px', borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+        <div style={{ margin: '0 0 12px', padding: '10px 14px', borderRadius: 10, background: 'var(--color-bg)', border: '2px solid var(--border-color)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <Sparkles size={14} className="gpu-analyzing-icon" style={{ color: 'var(--gpu-accent)' }} />
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }}>AI 데이터시트 생성 중 — {bulkProg.done}/{bulkProg.total}</span>
             <span style={{ marginLeft: 'auto', fontSize: 12, color: '#64748b' }}>{bulkProg.current}</span>
           </div>
-          <div style={{ height: 6, borderRadius: 4, background: '#e2e8f0', overflow: 'hidden' }}>
+          <div style={{ height: 6, borderRadius: 4, background: 'var(--color-border)', overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${bulkProg.total ? Math.round((bulkProg.done / bulkProg.total) * 100) : 0}%`, background: 'var(--gpu-accent)', transition: 'width .3s' }} />
           </div>
           {bulkProg.log && <div style={{ fontSize: 11.5, color: '#475569', marginTop: 6 }}>{bulkProg.log}</div>}

@@ -92,13 +92,13 @@ const AXLoadingOverlay = forwardRef<HTMLDivElement, AXLoadingOverlayProps>(
               ))}
             </div>
           ) : (
-            <AXDotLoader size={10} color={isDark ? '#e2e8f0' : 'var(--brand)'} />
+            <AXDotLoader size={10} color={isDark ? 'var(--color-border)' : 'var(--brand)'} />
           )}
 
           <span
             style={{
               fontSize: '0.875rem',
-              color: isDark ? '#e2e8f0' : '#6d28d9',
+              color: isDark ? 'var(--color-border)' : '#6d28d9',
               fontWeight: 600,
             }}
           >

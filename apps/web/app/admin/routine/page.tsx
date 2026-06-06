@@ -156,7 +156,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
         <div
           style={{
             padding: '1.25rem 1.5rem',
-            borderBottom: '1px solid #e2e8f0',
+            borderBottom: '2px solid var(--border-color)',
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
@@ -219,7 +219,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
                             key={item.name}
                             className="badge"
                             style={{
-                              backgroundColor: itemRate >= 80 ? '#ecfdf5' : itemRate >= 40 ? '#fffbeb' : '#f8fafc',
+                              backgroundColor: itemRate >= 80 ? '#ecfdf5' : itemRate >= 40 ? '#fffbeb' : 'var(--color-bg)',
                               color: itemRate >= 80 ? '#065f46' : itemRate >= 40 ? '#92400e' : '#64748b',
                               fontSize: '0.6875rem',
                             }}

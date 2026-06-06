@@ -43,7 +43,7 @@ export default function EditorModal({ title, value, placeholder, onClose, onChan
       <div
         style={{
           width: '100%', maxWidth: '720px',
-          background: 'white', borderRadius: '1rem',
+          background: 'white', borderRadius: 'var(--radius)',
           boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
           display: 'flex', flexDirection: 'column',
           maxHeight: 'calc(100vh - 3rem)',
@@ -51,7 +51,7 @@ export default function EditorModal({ title, value, placeholder, onClose, onChan
         }}
       >
         {/* 헤더 */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '2px solid var(--border-color)' }}>
           <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a' }}>{title}</span>
           <button
             onClick={onClose}
@@ -72,7 +72,7 @@ export default function EditorModal({ title, value, placeholder, onClose, onChan
         </div>
 
         {/* 푸터 */}
-        <div style={{ padding: '0.875rem 1.25rem', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ padding: '0.875rem 1.25rem', borderTop: '2px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
           <button
             onClick={onClose}
             className="btn-primary"

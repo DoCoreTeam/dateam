@@ -125,8 +125,8 @@ export default async function HomePage() {
               {reports.map((r, i) => (
                 <li key={i} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '0.4rem 0.625rem', background: '#f8fafc',
-                  borderRadius: '0.5rem', border: '1px solid #f1f5f9',
+                  padding: '0.4rem 0.625rem', background: 'var(--color-bg)',
+                  borderRadius: 'var(--radius)', border: '1px solid #f1f5f9',
                 }}>
                   <span style={{ fontSize: '0.8125rem', color: '#475569' }}>
                     {new Date(r.week_start).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })} 주

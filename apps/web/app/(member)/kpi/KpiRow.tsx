@@ -155,7 +155,7 @@ export default function KpiRow({
             </button>
             <button
               onClick={() => setEditing(false)}
-              style={{ padding: '0.3rem 0.5rem', background: '#e2e8f0', color: '#475569', border: 'none', borderRadius: '0.3rem', cursor: 'pointer', display: 'flex' }}
+              style={{ padding: '0.3rem 0.5rem', background: 'var(--color-border)', color: '#475569', border: 'none', borderRadius: '0.3rem', cursor: 'pointer', display: 'flex' }}
             >
               <X size={13} />
             </button>

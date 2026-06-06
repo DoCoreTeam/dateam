@@ -74,7 +74,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
 
       {/* 현재 상태 */}
       {hasKey && maskedKey && (
-        <div style={{ padding: '0.875rem 1rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '0.625rem', marginBottom: '1rem' }}>
+        <div style={{ padding: '0.875rem 1rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <CheckCircle size={14} color="#16a34a" />
@@ -139,7 +139,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
           role="status"
           style={{
             padding: '0.625rem 0.875rem',
-            borderRadius: '0.5rem',
+            borderRadius: 'var(--radius)',
             marginBottom: '1rem',
             fontSize: '0.8125rem',
             fontWeight: 500,
@@ -157,7 +157,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
       )}
 
       {/* 헬스체크 */}
-      <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1rem', marginTop: '0.5rem' }}>
+      <div style={{ borderTop: '2px solid var(--border-color)', paddingTop: '1rem', marginTop: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
           <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>연결 테스트</span>
           <button
@@ -169,10 +169,10 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
               alignItems: 'center',
               gap: '0.375rem',
               padding: '0.5rem 0.875rem',
-              backgroundColor: hasKey ? 'var(--brand)' : '#e2e8f0',
+              backgroundColor: hasKey ? 'var(--brand)' : 'var(--color-border)',
               color: hasKey ? '#fff' : '#94a3b8',
               border: 'none',
-              borderRadius: '0.5rem',
+              borderRadius: 'var(--radius)',
               fontSize: '0.8125rem',
               fontWeight: 600,
               cursor: hasKey ? 'pointer' : 'not-allowed',
@@ -188,7 +188,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
             role="status"
             style={{
               padding: '0.75rem 1rem',
-              borderRadius: '0.625rem',
+              borderRadius: 'var(--radius)',
               fontSize: '0.8125rem',
               fontWeight: 500,
               display: 'flex',

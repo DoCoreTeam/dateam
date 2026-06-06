@@ -78,7 +78,7 @@ export default function HomeMiniCalendar({ year, month, todayStr, monthSummary }
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
                 justifyContent: 'center', gap: '2px',
                 padding: '0.25rem 0',
-                borderRadius: '0.5rem', border: 'none',
+                borderRadius: 'var(--radius)', border: 'none',
                 background: isToday ? 'var(--brand)' : 'transparent',
                 cursor: 'pointer', minHeight: 32,
               }}

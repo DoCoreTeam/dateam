@@ -33,7 +33,7 @@ function CodeBlock({ code, id, onCopy, copiedId, lang = 'bash' }: { code: string
           {copiedId === id ? '✓ 복사됨' : '복사'}
         </button>
       </div>
-      <pre style={{ margin: 0, padding: '1.25rem 1.5rem', fontSize: 13, lineHeight: 1.7, color: '#e2e8f0', overflowX: 'auto', whiteSpace: 'pre' }}>{code}</pre>
+      <pre style={{ margin: 0, padding: '1.25rem 1.5rem', fontSize: 13, lineHeight: 1.7, color: 'var(--color-border)', overflowX: 'auto', whiteSpace: 'pre' }}>{code}</pre>
     </div>
   )
 }
@@ -47,7 +47,7 @@ function H1({ children }: { children: React.ReactNode }) {
   return <h1 style={{ fontSize: 30, fontWeight: 800, color: '#f1f5f9', marginBottom: 12, letterSpacing: '-0.02em' }}>{children}</h1>
 }
 function H2({ children }: { children: React.ReactNode }) {
-  return <h2 style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 12, marginTop: 32, letterSpacing: '-0.01em' }}>{children}</h2>
+  return <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-border)', marginBottom: 12, marginTop: 32, letterSpacing: '-0.01em' }}>{children}</h2>
 }
 function P({ children }: { children: React.ReactNode }) {
   return <p style={{ color: '#94a3b8', lineHeight: 1.7, fontSize: 15, marginBottom: 16 }}>{children}</p>
@@ -70,7 +70,7 @@ function EndpointHeader({ method, path, desc }: { method: 'GET'|'POST'|'PATCH'|'
     <div style={{ border: '1px solid #1e293b', borderRadius: 10, padding: '16px 20px', marginBottom: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
         <Badge method={method} />
-        <code style={{ fontSize: 14, color: '#e2e8f0', background: '#0f172a', padding: '4px 12px', borderRadius: 6, border: '1px solid #1e293b' }}>/api/public/v1{path}</code>
+        <code style={{ fontSize: 14, color: 'var(--color-border)', background: '#0f172a', padding: '4px 12px', borderRadius: 6, border: '1px solid #1e293b' }}>/api/public/v1{path}</code>
       </div>
       <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>{desc}</p>
     </div>
@@ -79,7 +79,7 @@ function EndpointHeader({ method, path, desc }: { method: 'GET'|'POST'|'PATCH'|'
 function ParamTable({ children, title = '파라미터' }: { children: React.ReactNode; title?: string }) {
   return (
     <>
-      <div style={{ fontWeight: 600, color: '#e2e8f0', marginBottom: 8, fontSize: 14 }}>{title}</div>
+      <div style={{ fontWeight: 600, color: 'var(--color-border)', marginBottom: 8, fontSize: 14 }}>{title}</div>
       <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead><tr style={{ background: '#1e293b' }}>
@@ -127,7 +127,7 @@ function OverviewSection({ onCopy, copiedId }: { onCopy: (t: string, id: string)
         ].map(({ icon, title, desc }) => (
           <div key={title} style={{ padding: '18px 20px', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10 }}>
             <div style={{ fontSize: 22, marginBottom: 8 }}>{icon}</div>
-            <div style={{ fontWeight: 700, color: '#e2e8f0', marginBottom: 4, fontSize: 14 }}>{title}</div>
+            <div style={{ fontWeight: 700, color: 'var(--color-border)', marginBottom: 4, fontSize: 14 }}>{title}</div>
             <div style={{ color: '#64748b', fontSize: 12, lineHeight: 1.5 }}>{desc}</div>
           </div>
         ))}
@@ -188,7 +188,7 @@ curl "${origin}/api/public/v1/accounts?cursor=2026-05-30T12:00:00Z__uuid" \\
           </tr></thead>
           <tbody>
             <tr>
-              <td style={{ padding: '10px 16px', color: '#e2e8f0' }}>기본</td>
+              <td style={{ padding: '10px 16px', color: 'var(--color-border)' }}>기본</td>
               <td style={{ padding: '10px 16px', color: '#64748b' }}>분당 60회</td>
               <td style={{ padding: '10px 16px', color: '#64748b' }}>10개</td>
               <td style={{ padding: '10px 16px' }}><code style={{ color: '#94a3b8', fontSize: 12 }}>X-RateLimit-*</code></td>
@@ -211,7 +211,7 @@ function AuthSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onC
   return (
     <div>
       <H1>인증</H1>
-      <P>모든 API 요청에는 유효한 API 키가 필요합니다. <strong style={{ color: '#e2e8f0' }}>설정 → API Keys</strong>에서 키를 발급하세요. 키는 HMAC-SHA256으로 해시되어 저장되며 언제든지 재복사할 수 있습니다.</P>
+      <P>모든 API 요청에는 유효한 API 키가 필요합니다. <strong style={{ color: 'var(--color-border)' }}>설정 → API Keys</strong>에서 키를 발급하세요. 키는 HMAC-SHA256으로 해시되어 저장되며 언제든지 재복사할 수 있습니다.</P>
 
       <H2>X-API-Key 헤더 (권장)</H2>
       <CodeBlock id="auth-curl" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl ${origin}/api/public/v1/products \\
@@ -905,7 +905,7 @@ function ErrorsSection({ onCopy, copiedId }: { onCopy: (t: string, id: string) =
             ].map(({ code, color, name, cause, fix }) => (
               <tr key={code} style={{ borderTop: '1px solid #1e293b' }}>
                 <td style={{ padding: '12px 16px' }}><code style={{ color, fontWeight: 700, fontSize: 13 }}>{code}</code></td>
-                <td style={{ padding: '12px 16px', color: '#e2e8f0', fontWeight: 500 }}>{name}</td>
+                <td style={{ padding: '12px 16px', color: 'var(--color-border)', fontWeight: 500 }}>{name}</td>
                 <td style={{ padding: '12px 16px', color: '#64748b', fontSize: 12 }}>{cause}</td>
                 <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: 12 }}>{fix}</td>
               </tr>
@@ -967,7 +967,7 @@ export default function DevelopPage() {
   }
 
   return (
-    <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", background: '#0a0a0f', minHeight: '100vh', color: '#e2e8f0' }}>
+    <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", background: '#0a0a0f', minHeight: '100vh', color: 'var(--color-border)' }}>
       {/* 헤더 — 상단 nav 제거, 로고 + CTA만 */}
       <header style={{ borderBottom: '1px solid #1e293b', padding: '0 2rem', position: 'sticky', top: 0, background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(12px)', zIndex: 100 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>

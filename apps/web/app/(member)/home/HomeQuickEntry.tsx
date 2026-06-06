@@ -115,10 +115,10 @@ export default function HomeQuickEntry({ todayStr, initialLogs }: Props) {
           rows={2}
           style={{
             width: '100%', padding: '0.625rem 0.75rem',
-            border: '1px solid #e2e8f0', borderRadius: '0.5rem',
+            border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
             fontSize: '0.875rem', color: '#1e293b', resize: 'none',
             fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
-            background: '#f8fafc', lineHeight: 1.5,
+            background: 'var(--color-bg)', lineHeight: 1.5,
           }}
         />
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -126,8 +126,8 @@ export default function HomeQuickEntry({ todayStr, initialLogs }: Props) {
             value={entryType}
             onChange={(e) => setEntryType(e.target.value as DailyLogEntryType)}
             style={{
-              flex: 1, padding: '0.5rem 0.5rem', border: '1px solid #e2e8f0',
-              borderRadius: '0.5rem', fontSize: '0.8125rem', background: '#f8fafc',
+              flex: 1, padding: '0.5rem 0.5rem', border: '2px solid var(--border-color)',
+              borderRadius: 'var(--radius)', fontSize: '0.8125rem', background: 'var(--color-bg)',
               color: '#334155', cursor: 'pointer', fontFamily: 'inherit', minHeight: 36,
             }}
           >
@@ -140,7 +140,7 @@ export default function HomeQuickEntry({ todayStr, initialLogs }: Props) {
             disabled={isPending || !content.trim()}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.375rem',
-              padding: '0.5rem 1rem', border: 'none', borderRadius: '0.5rem',
+              padding: '0.5rem 1rem', border: 'none', borderRadius: 'var(--radius)',
               background: 'var(--brand)', color: '#ffffff', fontSize: '0.8125rem',
               fontWeight: 600, cursor: isPending || !content.trim() ? 'not-allowed' : 'pointer',
               opacity: isPending || !content.trim() ? 0.5 : 1, minHeight: 36, flexShrink: 0,

@@ -47,7 +47,7 @@ export default async function ChangePasswordPage({ searchParams }: PageProps) {
           width: '100%',
           maxWidth: '420px',
           background: 'white',
-          borderRadius: '1.25rem',
+          borderRadius: 'var(--radius)',
           padding: '2.5rem',
           boxShadow: '0 4px 24px rgb(0 0 0 / 0.08)',
         }}
@@ -57,7 +57,7 @@ export default async function ChangePasswordPage({ searchParams }: PageProps) {
             style={{
               width: '3rem',
               height: '3rem',
-              borderRadius: '0.875rem',
+              borderRadius: 'var(--radius)',
               background: 'linear-gradient(135deg, var(--brand), var(--brand-dark))',
               display: 'flex',
               alignItems: 'center',
@@ -81,7 +81,7 @@ export default async function ChangePasswordPage({ searchParams }: PageProps) {
             style={{
               backgroundColor: '#fef2f2',
               border: '1px solid #fecaca',
-              borderRadius: '0.625rem',
+              borderRadius: 'var(--radius)',
               padding: '0.75rem 1rem',
               marginBottom: '1rem',
               fontSize: '0.875rem',

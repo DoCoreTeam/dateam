@@ -198,7 +198,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
               padding: '0.75rem 1rem',
               backgroundColor: '#fef2f2',
               border: '1px solid #fecaca',
-              borderRadius: '0.625rem',
+              borderRadius: 'var(--radius)',
               marginBottom: '1rem',
               fontSize: '0.8125rem',
               color: '#b91c1c',
@@ -287,7 +287,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
 
       {/* ── KPI 히스토리 ───────────────────────────────────── */}
       <div className="card" style={{ overflow: 'hidden' }}>
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <TrendingUp size={16} color="var(--brand)" />
           <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>
             실적 히스토리

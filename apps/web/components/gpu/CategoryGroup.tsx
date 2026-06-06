@@ -18,7 +18,7 @@ export function TierHeader({
       style={{
         display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
         padding: '9px 12px', background: '#f1f3f9', borderRadius: 8,
-        border: '1px solid var(--gpu-border, #e5e7eb)', userSelect: 'none',
+        border: '1px solid var(--gpu-border, var(--color-border))', userSelect: 'none',
       }}
     >
       <ChevronRight size={16} style={{ transform: collapsed ? 'none' : 'rotate(90deg)', transition: 'transform .15s', color: 'var(--gpu-muted)' }} />

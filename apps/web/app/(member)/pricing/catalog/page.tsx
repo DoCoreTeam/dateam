@@ -219,7 +219,7 @@ export default function SalePriceCatalogPage() {
           }}>
             시간 계산
           </span>
-          <div style={{ width: 1, height: 16, background: customHours ? 'rgba(124,58,237,0.3)' : '#e5e7eb' }} />
+          <div style={{ width: 1, height: 16, background: customHours ? 'rgba(124,58,237,0.3)' : 'var(--color-border)' }} />
           <input
             type="number"
             min="1"

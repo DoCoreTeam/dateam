@@ -7,14 +7,14 @@ import type { Account, Contact, Deal } from '@/types/database'
 interface PageProps { params: Promise<{ id: string }> }
 
 function fitColor(score: number | null) {
-  if (score === null) return { color: '#94a3b8', background: '#f8fafc' }
+  if (score === null) return { color: '#94a3b8', background: 'var(--color-bg)' }
   if (score >= 70) return { color: '#16a34a', background: '#f0fdf4' }
   if (score >= 40) return { color: '#d97706', background: '#fffbeb' }
   return { color: '#dc2626', background: '#fef2f2' }
 }
 
 const STAGE_COLOR: Record<string, { color: string; bg: string }> = {
-  '신규': { color: '#64748b', bg: '#f8fafc' },
+  '신규': { color: '#64748b', bg: 'var(--color-bg)' },
   '검증': { color: '#0891b2', bg: '#ecfeff' },
   '컨택': { color: '#7c3aed', bg: '#f5f3ff' },
   'PoC': { color: '#d97706', bg: '#fffbeb' },
@@ -55,7 +55,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
         </Link>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.5rem', background: 'linear-gradient(135deg, var(--brand), var(--brand))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: 'var(--radius)', background: 'linear-gradient(135deg, var(--brand), var(--brand))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Briefcase size={18} color="white" />
             </div>
             <div>
@@ -63,7 +63,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
                 {account.industry && <span className="badge badge-slate">{account.industry}</span>}
                 {account.segment && <span className="badge badge-indigo">{account.segment}</span>}
-                {account.size && <span className="badge" style={{ background: '#f8fafc', color: '#64748b' }}>{account.size}</span>}
+                {account.size && <span className="badge" style={{ background: 'var(--color-bg)', color: '#64748b' }}>{account.size}</span>}
                 {account.account_type && <span className="badge" style={{ background: '#fff7ed', color: '#c2410c' }}>{account.account_type}</span>}
                 {account.gpu_demand_intensity && <span className="badge" style={{ background: '#f0fdf4', color: '#16a34a' }}>GPU {account.gpu_demand_intensity}</span>}
               </div>
@@ -75,7 +75,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
                 Fit {account.fit_score}점
               </span>
             )}
-            <Link href={`/accounts/${id}/edit`} className="btn-primary" style={{ textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.875rem', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
+            <Link href={`/accounts/${id}/edit`} className="btn-primary" style={{ textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', fontSize: '0.875rem', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
               편집
             </Link>
           </div>
@@ -133,7 +133,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
 
           {/* 담당자 */}
           <div className="card">
-            <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ padding: '1rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Users size={15} color="var(--brand)" />
                 <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>담당자</h2>
@@ -162,7 +162,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
 
         {/* 영업기회 */}
         <div className="card">
-          <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ padding: '1rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <TrendingUp size={15} color="var(--brand)" />
               <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>영업기회</h2>

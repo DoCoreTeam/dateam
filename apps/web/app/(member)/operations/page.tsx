@@ -39,9 +39,9 @@ function getPhaseBadgeStyle(phase: string): React.CSSProperties {
   }
   if (phase === '상시') {
     return {
-      background: '#f8fafc',
+      background: 'var(--color-bg)',
       color: '#64748b',
-      border: '1px solid #e2e8f0',
+      border: '2px solid var(--border-color)',
     }
   }
   if (phase === 'API') {
@@ -52,9 +52,9 @@ function getPhaseBadgeStyle(phase: string): React.CSSProperties {
     }
   }
   return {
-    background: '#f8fafc',
+    background: 'var(--color-bg)',
     color: '#64748b',
-    border: '1px solid #e2e8f0',
+    border: '2px solid var(--border-color)',
   }
 }
 
@@ -115,8 +115,8 @@ export default async function OperationsPage() {
                 key={idx}
                 style={{
                   background: '#fff',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '1rem',
+                  border: '2px solid var(--border-color)',
+                  borderRadius: 'var(--radius)',
                   padding: '1.25rem 1.5rem',
                   display: 'flex',
                   flexDirection: 'column',
@@ -263,8 +263,8 @@ export default async function OperationsPage() {
                 key={idx}
                 style={{
                   background: '#fff',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '1rem',
+                  border: '2px solid var(--border-color)',
+                  borderRadius: 'var(--radius)',
                   padding: '1.25rem 1.5rem',
                   display: 'flex',
                   flexDirection: 'column',
@@ -299,7 +299,7 @@ export default async function OperationsPage() {
                   <div
                     style={{
                       background: '#eef2ff',
-                      borderRadius: '0.5rem',
+                      borderRadius: 'var(--radius)',
                       padding: '0.375rem 0.75rem',
                       fontSize: '0.8125rem',
                       color: '#3730a3',
@@ -409,7 +409,7 @@ export default async function OperationsPage() {
                           style={{
                             position: 'absolute',
                             left: 0,
-                            color: '#e2e8f0',
+                            color: 'var(--color-border)',
                           }}
                         >
                           ·
@@ -459,9 +459,9 @@ export default async function OperationsPage() {
                         fontWeight: 600,
                         fontSize: '0.75rem',
                         color: '#64748b',
-                        background: '#f8fafc',
-                        borderBottom: '1px solid #e2e8f0',
-                        borderRight: i < rrHeaders.length - 1 ? '1px solid #e2e8f0' : 'none',
+                        background: 'var(--color-bg)',
+                        borderBottom: '2px solid var(--border-color)',
+                        borderRight: i < rrHeaders.length - 1 ? '2px solid var(--border-color)' : 'none',
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -476,7 +476,7 @@ export default async function OperationsPage() {
                     key={rowIdx}
                     style={{
                       borderBottom:
-                        rowIdx < rrMatrix.length - 1 ? '1px solid #e2e8f0' : 'none',
+                        rowIdx < rrMatrix.length - 1 ? '2px solid var(--border-color)' : 'none',
                     }}
                   >
                     {row.map((cell, colIdx) => (
@@ -489,7 +489,7 @@ export default async function OperationsPage() {
                           color: colIdx === 0 ? '#0f172a' : '#475569',
                           fontWeight: colIdx === 0 ? 600 : 400,
                           borderRight:
-                            colIdx < row.length - 1 ? '1px solid #e2e8f0' : 'none',
+                            colIdx < row.length - 1 ? '2px solid var(--border-color)' : 'none',
                           whiteSpace: 'nowrap',
                         }}
                       >

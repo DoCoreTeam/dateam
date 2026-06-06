@@ -559,7 +559,7 @@ export default function CalendarPage() {
                     style={{
                       border: isToday
                         ? "1px solid #3b82f6"
-                        : "1px solid #e2e8f0",
+                        : "2px solid var(--border-color)",
                       borderRadius: "0.625rem",
                       background: isToday ? "#f8fbff" : "#fff",
                       overflow: "hidden",
@@ -572,9 +572,9 @@ export default function CalendarPage() {
                         alignItems: "center",
                         justifyContent: "space-between",
                         padding: "0.625rem 0.875rem",
-                        background: isToday ? "#eff6ff" : "#f8fafc",
+                        background: isToday ? "#eff6ff" : "var(--color-bg)",
                         borderBottom:
-                          dayLogs.length > 0 ? "1px solid #e2e8f0" : "none",
+                          dayLogs.length > 0 ? "2px solid var(--border-color)" : "none",
                       }}
                     >
                       <div

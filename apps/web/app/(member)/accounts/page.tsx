@@ -16,7 +16,7 @@ type SortField = 'created_at' | 'name' | 'fit_score' | 'industry' | 'region' | '
 const SEGMENTS = ACCOUNT_SEGMENTS
 
 function fitColor(score: number | null) {
-  if (score === null) return { color: '#94a3b8', background: '#f8fafc' }
+  if (score === null) return { color: '#94a3b8', background: 'var(--color-bg)' }
   if (score >= 70) return { color: '#16a34a', background: '#f0fdf4' }
   if (score >= 40) return { color: '#d97706', background: '#fffbeb' }
   return { color: '#dc2626', background: '#fef2f2' }
@@ -92,10 +92,10 @@ export default function AccountsPage() {
           <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>고객사 및 잠재 거래처 관리</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <Link href="/lead-intake?target=account" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', minHeight: '44px' }}>
+          <Link href="/lead-intake?target=account" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px' }}>
             <Sparkles size={16} /> AI로 추가
           </Link>
-          <Link href="/accounts/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', minHeight: '44px', border: '1px solid #e2e8f0', color: '#64748b', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
+          <Link href="/accounts/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px', border: '2px solid var(--border-color)', color: '#64748b', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
             <Plus size={16} /> 수동 입력
           </Link>
         </div>
@@ -103,7 +103,7 @@ export default function AccountsPage() {
 
       <div className="card">
         {/* 헤더 */}
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Briefcase size={16} color="var(--brand)" />
           <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>전체 거래처</h2>
           <span className="badge badge-slate">{accounts.length}{hasFilters ? '건 (필터됨)' : '개'}</span>
@@ -259,7 +259,7 @@ function AccountDetail({ account, onClose, onDeleted }: { account: Account; onCl
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBottom: '1rem' }}>
         {account.industry && <span className="badge badge-slate">{account.industry}</span>}
         {account.segment  && <span className="badge badge-indigo">{account.segment}</span>}
-        {account.size     && <span className="badge" style={{ background: '#f8fafc', color: '#64748b' }}>{account.size}</span>}
+        {account.size     && <span className="badge" style={{ background: 'var(--color-bg)', color: '#64748b' }}>{account.size}</span>}
         {account.account_type && <span className="badge" style={{ background: '#fef3c7', color: '#92400e', fontSize: '0.75rem' }}>{account.account_type}</span>}
         {account.gpu_demand_intensity && (
           <span className={`badge ${account.gpu_demand_intensity === 'High' ? 'badge-indigo' : 'badge-slate'}`} style={{ fontSize: '0.75rem' }}>

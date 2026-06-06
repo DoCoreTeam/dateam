@@ -61,7 +61,7 @@ export default function TierForm({
             required
             style={{
               width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.375rem',
-              border: '1px solid #e2e8f0', fontSize: '0.875rem', boxSizing: 'border-box',
+              border: '2px solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box',
               outline: 'none',
             }}
           />
@@ -80,7 +80,7 @@ export default function TierForm({
             required
             style={{
               width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.375rem',
-              border: '1px solid #e2e8f0', fontSize: '0.875rem', boxSizing: 'border-box',
+              border: '2px solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box',
             }}
           />
         </div>
@@ -94,7 +94,7 @@ export default function TierForm({
             placeholder="등급 설명"
             style={{
               width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.375rem',
-              border: '1px solid #e2e8f0', fontSize: '0.875rem', boxSizing: 'border-box',
+              border: '2px solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box',
             }}
           />
         </div>
@@ -126,7 +126,7 @@ export default function TierForm({
               display: 'flex', alignItems: 'center', gap: '0.375rem',
               padding: '0.5rem 0.75rem', borderRadius: '0.375rem',
               background: 'transparent', color: '#64748b',
-              border: '1px solid #e2e8f0', fontSize: '0.875rem', cursor: 'pointer',
+              border: '2px solid var(--border-color)', fontSize: '0.875rem', cursor: 'pointer',
             }}
           >
             <X size={14} />

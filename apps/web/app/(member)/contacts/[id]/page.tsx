@@ -41,7 +41,7 @@ export default async function ContactDetailPage({ params }: PageProps) {
               {data.role && <span className="badge badge-slate" style={{ marginTop: '0.375rem' }}>{data.role}</span>}
             </div>
           </div>
-          <Link href={`/contacts/${id}/edit`} className="btn-primary" style={{ textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.875rem', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
+          <Link href={`/contacts/${id}/edit`} className="btn-primary" style={{ textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', fontSize: '0.875rem', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
             편집
           </Link>
         </div>
@@ -77,7 +77,7 @@ export default async function ContactDetailPage({ params }: PageProps) {
             </div>
           )}
           {data.notes && (
-            <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+            <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '2px solid var(--border-color)' }}>
               <p style={{ fontSize: '0.875rem', color: '#374151', margin: 0, lineHeight: 1.6 }}>{data.notes}</p>
             </div>
           )}
@@ -90,7 +90,7 @@ export default async function ContactDetailPage({ params }: PageProps) {
       {data.business_card_drive_id && (
         <div className="card" style={{ maxWidth: '480px', padding: '1.5rem', marginTop: '1rem' }}>
           <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: '0 0 1rem' }}>명함 이미지</h2>
-          <div style={{ position: 'relative', width: '100%', aspectRatio: '1.7 / 1', overflow: 'hidden', borderRadius: '0.625rem', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+          <div style={{ position: 'relative', width: '100%', aspectRatio: '1.7 / 1', overflow: 'hidden', borderRadius: 'var(--radius)', border: '2px solid var(--border-color)', backgroundColor: 'var(--color-bg)' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`/api/files/drive/${data.business_card_drive_id}`}

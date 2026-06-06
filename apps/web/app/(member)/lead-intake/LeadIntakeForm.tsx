@@ -270,7 +270,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
         style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
       >
         {savedMsg && (
-          <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '0.75rem', padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 'var(--radius)', padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span style={{ fontSize: '1rem' }}>✅</span>
             <span style={{ color: '#0284c7', fontWeight: 600, fontSize: '0.875rem' }}>{savedMsg}</span>
           </div>
@@ -281,10 +281,10 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
             onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={e => { e.preventDefault(); setIsDragging(false); addFiles(e.dataTransfer.files) }}
-            style={{ border: '1px solid #e2e8f0', borderRadius: '0.5rem', background: '#fff' }}>
+            style={{ border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', background: '#fff' }}>
             <textarea value={rawInput} onChange={e => setRawInput(e.target.value)} onPaste={handlePaste} rows={6}
               placeholder={`텍스트를 입력·붙여넣거나, 명함·문서 파일을 끌어다 놓으세요.\n\n예시:\n삼성SDS 김철수 부장 (IT전략팀)\nkcs@samsung.com / 02-6360-0000\n클라우드 전환 프로젝트 논의 필요`}
-              style={{ width: '100%', padding: '0.75rem', border: 'none', borderRadius: '0.5rem', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6, background: 'transparent', outline: 'none' }} />
+              style={{ width: '100%', padding: '0.75rem', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6, background: 'transparent', outline: 'none' }} />
           </div>
           {/* 입력 도구 — 숨김 input + 버튼 클릭으로 열기(코드 정상, 일반 브라우저에서 동작) */}
           <input ref={fileInputRef} type="file" multiple accept={ACCEPTED_TYPES} style={{ display: 'none' }} disabled={loading} onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
@@ -360,7 +360,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
           </button>
           {(result || doneFiles.length > 0 || rawInput || files.length > 0) && (
             <button type="button" onClick={resetAll}
-              style={{ padding: '0.625rem 1.25rem', minHeight: '44px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.875rem', color: '#64748b' }}>
+              style={{ padding: '0.625rem 1.25rem', minHeight: '44px', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: '#64748b' }}>
               초기화
             </button>
           )}

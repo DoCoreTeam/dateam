@@ -19,7 +19,7 @@ export default function TierRow({ id, name, discountRate, description, createdAt
   if (editing) {
     return (
       <tr>
-        <td colSpan={5} style={{ padding: '1rem 1.25rem', background: '#f8fafc' }}>
+        <td colSpan={5} style={{ padding: '1rem 1.25rem', background: 'var(--color-bg)' }}>
           <TierForm
             mode="edit"
             tierId={id}

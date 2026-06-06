@@ -133,7 +133,7 @@ function ResultPanel({ item }: { item: ReviewItemResult }) {
               display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
               borderRadius: 8,
               background: isNull ? '#f9fafb' : isLow ? '#fff7ed' : '#f9fafb',
-              border: `1px solid ${isNull ? '#f0f0f0' : isLow ? '#fed7aa' : '#e5e7eb'}`,
+              border: `1px solid ${isNull ? '#f0f0f0' : isLow ? '#fed7aa' : 'var(--color-border)'}`,
               opacity: isNull ? 0.55 : 1,
             }}
           >
@@ -375,7 +375,7 @@ export default function QuoteRegisterTab() {
           <div
             style={{
               position: 'relative', borderRadius: 10,
-              border: `1.5px ${isDragging ? 'dashed var(--gpu-accent)' : 'solid #e5e7eb'}`,
+              border: `1.5px ${isDragging ? 'dashed var(--gpu-accent)' : 'solid var(--color-border)'}`,
               background: isDragging ? 'var(--gpu-accent-soft)' : '#fff',
               transition: 'border-color 0.15s, background 0.15s',
             }}
@@ -446,7 +446,7 @@ export default function QuoteRegisterTab() {
               <select
                 value={channel}
                 onChange={(e) => setChannel(e.target.value)}
-                style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 12 }}
+                style={{ padding: '4px 8px', borderRadius: 6, border: '2px solid var(--border-color)', fontSize: 12 }}
               >
                 <option value="own">자체</option>
                 <option value="mail">메일</option>
@@ -514,7 +514,7 @@ export default function QuoteRegisterTab() {
                 <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <div style={{ fontSize: 11, color: '#64748b' }}>찾은 항목</div>
                   {streamFindings.map((f, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 6, background: '#f8fafc', border: '1px solid #e2e8f0', fontSize: 12 }}>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 6, background: 'var(--color-bg)', border: '2px solid var(--border-color)', fontSize: 12 }}>
                       <span style={{ color: 'var(--gpu-accent)' }}>✦</span>
                       <span style={{ fontWeight: 600, color: '#334155', flex: 1 }}>{f.model}</span>
                       {f.price && <span style={{ fontWeight: 700, color: 'var(--brand-dark)' }}>${f.price}/hr</span>}
@@ -628,7 +628,7 @@ export default function QuoteRegisterTab() {
               {analysisResults.length > 1 && (
                 <div
                   data-testid="multi-model-tabs"
-                  style={{ display: 'flex', gap: 4, flexWrap: 'wrap', borderBottom: '2px solid #e5e7eb', paddingBottom: 8, marginBottom: 4 }}
+                  style={{ display: 'flex', gap: 4, flexWrap: 'wrap', borderBottom: '2px solid var(--color-border)', paddingBottom: 8, marginBottom: 4 }}
                 >
                   {analysisResults.map((item, idx) => {
                     const label = getTabLabel(item)
@@ -642,9 +642,9 @@ export default function QuoteRegisterTab() {
                         style={{
                           padding: '5px 12px',
                           borderRadius: '6px 6px 0 0',
-                          border: `1.5px solid ${isActive ? 'var(--gpu-accent)' : '#e5e7eb'}`,
-                          borderBottom: isActive ? '2px solid #fff' : '1.5px solid #e5e7eb',
-                          background: isActive ? '#fff' : '#f8fafc',
+                          border: `1.5px solid ${isActive ? 'var(--gpu-accent)' : 'var(--color-border)'}`,
+                          borderBottom: isActive ? '2px solid #fff' : '1.5px solid var(--color-border)',
+                          background: isActive ? '#fff' : 'var(--color-bg)',
                           color: isActive ? 'var(--gpu-accent)' : '#6b7280',
                           fontWeight: isActive ? 700 : 500,
                           fontSize: 12,

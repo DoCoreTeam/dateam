@@ -46,7 +46,7 @@ export default function WeeklyMemoReview() {
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <button onClick={handleArchiveAll}
-              style={{ fontSize: '0.75rem', color: '#64748b', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.4rem', padding: '0.3rem 0.6rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              style={{ fontSize: '0.75rem', color: '#64748b', background: '#fff', border: '2px solid var(--border-color)', borderRadius: '0.4rem', padding: '0.3rem 0.6rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <Archive size={12} /> 전체 보관
             </button>
             <button onClick={() => setOpen((o) => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex' }}>
@@ -61,7 +61,7 @@ export default function WeeklyMemoReview() {
               const st = STALENESS_STYLE[m.staleness]
               return (
                 <li key={m.id} className={m.staleness === 'stale' ? 'memo-pulse' : ''}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.65rem', borderRadius: '0.5rem', background: '#fff', border: '1px solid #f1f5f9' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.65rem', borderRadius: 'var(--radius)', background: '#fff', border: '1px solid #f1f5f9' }}>
                   <span title={st.label} style={{ width: 8, height: 8, borderRadius: '50%', background: st.dot, flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.83rem', color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.content}</div>
@@ -85,5 +85,5 @@ export default function WeeklyMemoReview() {
 }
 
 function iconBtn(color: string): React.CSSProperties {
-  return { background: 'none', border: '1px solid #e2e8f0', borderRadius: '0.4rem', cursor: 'pointer', padding: '3px 5px', color, display: 'flex', flexShrink: 0 }
+  return { background: 'none', border: '2px solid var(--border-color)', borderRadius: '0.4rem', cursor: 'pointer', padding: '3px 5px', color, display: 'flex', flexShrink: 0 }
 }

@@ -127,8 +127,8 @@ export default function DayDetailPanel({ date, onClose }: Props) {
             <button
               onClick={onClose}
               style={{
-                width: 36, height: 36, border: '1px solid #e2e8f0',
-                borderRadius: '0.375rem', background: '#f8fafc',
+                width: 36, height: 36, border: '2px solid var(--border-color)',
+                borderRadius: '0.375rem', background: 'var(--color-bg)',
                 cursor: 'pointer', fontSize: '1.125rem', color: '#64748b',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
@@ -148,7 +148,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
               <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand)', marginBottom: '0.4rem', letterSpacing: '0.02em' }}>일정</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                 {events.map((ev) => (
-                  <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.625rem', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '0.5rem' }}>
+                  <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.625rem', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 'var(--radius)' }}>
                     <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand-dark)', whiteSpace: 'nowrap' }}>
                       {ev.all_day ? '종일' : formatTime(ev.start_at)}{!ev.all_day && ev.end_at ? `~${formatTime(ev.end_at)}` : ''}
                     </span>

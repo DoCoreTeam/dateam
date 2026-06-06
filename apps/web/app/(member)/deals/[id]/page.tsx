@@ -14,7 +14,7 @@ type DealFull = Deal & {
 }
 
 const STAGE_STYLE: Record<string, { color: string; bg: string }> = {
-  '신규': { color: '#64748b', bg: '#f8fafc' },
+  '신규': { color: '#64748b', bg: 'var(--color-bg)' },
   '검증': { color: '#0891b2', bg: '#ecfeff' },
   '컨택': { color: '#7c3aed', bg: '#f5f3ff' },
   'PoC': { color: '#d97706', bg: '#fffbeb' },
@@ -67,7 +67,7 @@ export default async function DealDetailPage({ params }: PageProps) {
               </Link>
             )}
           </div>
-          <Link href={`/deals/${id}/edit`} className="btn-primary" style={{ textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.875rem', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
+          <Link href={`/deals/${id}/edit`} className="btn-primary" style={{ textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', fontSize: '0.875rem', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
             편집
           </Link>
         </div>
@@ -105,7 +105,7 @@ export default async function DealDetailPage({ params }: PageProps) {
                 {deal.lead_type && <span className="badge badge-slate">{deal.lead_type}</span>}
                 {deal.product && <span className="badge badge-indigo">{deal.product}</span>}
                 {deal.fit_score !== null && <span className="badge" style={{ background: '#f0fdf4', color: '#16a34a' }}>Fit {deal.fit_score}</span>}
-                {deal.expected_date && <span className="badge" style={{ background: '#f8fafc', color: '#64748b' }}>예상 {deal.expected_date}</span>}
+                {deal.expected_date && <span className="badge" style={{ background: 'var(--color-bg)', color: '#64748b' }}>예상 {deal.expected_date}</span>}
                 {deal.hw_included && <span className="badge" style={{ background: '#fff7ed', color: '#c2410c' }}>HW</span>}
               </div>
             </div>
@@ -126,7 +126,7 @@ export default async function DealDetailPage({ params }: PageProps) {
 
         {/* 우측: 활동 로그 */}
         <div className="card">
-          <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e2e8f0' }}>
+          <div style={{ padding: '1rem 1.5rem', borderBottom: '2px solid var(--border-color)' }}>
             <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>활동 로그</h2>
           </div>
           <ActivityLogger dealId={id} />

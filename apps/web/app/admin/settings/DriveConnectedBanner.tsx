@@ -24,7 +24,7 @@ export default function DriveConnectedBanner() {
         padding: '0.75rem 1rem',
         backgroundColor: '#f0fdf4',
         border: '1px solid #bbf7d0',
-        borderRadius: '0.625rem',
+        borderRadius: 'var(--radius)',
         fontSize: '0.875rem',
         fontWeight: 500,
         color: '#15803d',

@@ -65,7 +65,7 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
       }}
     >
       <div style={{
-        background: '#fff', borderRadius: '1rem',
+        background: '#fff', borderRadius: 'var(--radius)',
         width: 'min(720px, calc(100vw - 2rem))',
         maxHeight: 'calc(100vh - 4rem)',
         display: 'flex', flexDirection: 'column',
@@ -74,7 +74,7 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
       }}>
         {/* Header */}
         <div style={{
-          padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0',
+          padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)',
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
           background: 'linear-gradient(to right, #faf5ff, #fdf4ff)',
         }}>
@@ -107,10 +107,10 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
                 key={idx}
                 style={{
                   marginBottom: '0.75rem',
-                  border: item.accepted ? '1px solid #ddd6fe' : '1px solid #e2e8f0',
-                  borderRadius: '0.625rem',
+                  border: item.accepted ? '1px solid #ddd6fe' : '2px solid var(--border-color)',
+                  borderRadius: 'var(--radius)',
                   overflow: 'hidden',
-                  background: item.accepted ? '#faf5ff' : '#f8fafc',
+                  background: item.accepted ? '#faf5ff' : 'var(--color-bg)',
                   transition: 'all 150ms',
                 }}
               >
@@ -118,7 +118,7 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
                 <div style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '0.5rem 0.875rem',
-                  borderBottom: '1px solid #e2e8f0',
+                  borderBottom: '2px solid var(--border-color)',
                   background: item.accepted ? '#f3eeff' : '#f1f5f9',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -135,7 +135,7 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
                     style={{
                       display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
                       padding: '0.25rem 0.625rem',
-                      background: item.accepted ? '#7c3aed' : '#e2e8f0',
+                      background: item.accepted ? '#7c3aed' : 'var(--color-border)',
                       color: item.accepted ? '#fff' : '#64748b',
                       border: 'none', borderRadius: '999px', cursor: 'pointer',
                       fontSize: '0.75rem', fontWeight: 600, transition: 'all 150ms',
@@ -147,7 +147,7 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
 
                 {/* Diff columns */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-                  <div style={{ padding: '0.75rem 0.875rem', borderRight: '1px solid #e2e8f0' }}>
+                  <div style={{ padding: '0.75rem 0.875rem', borderRight: '2px solid var(--border-color)' }}>
                     <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94a3b8', marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       원본
                     </div>
@@ -167,9 +167,9 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
 
         {/* Footer */}
         <div style={{
-          padding: '0.875rem 1.5rem', borderTop: '1px solid #e2e8f0',
+          padding: '0.875rem 1.5rem', borderTop: '2px solid var(--border-color)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem',
-          background: '#f8fafc',
+          background: 'var(--color-bg)',
         }}>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button
@@ -189,7 +189,7 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
             <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{acceptedCount}/{localItems.length} 적용</span>
             <button
               onClick={onCancel}
-              style={{ padding: '0.375rem 0.75rem', fontSize: '0.8125rem', color: '#64748b', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.375rem', cursor: 'pointer' }}
+              style={{ padding: '0.375rem 0.75rem', fontSize: '0.8125rem', color: '#64748b', background: '#fff', border: '2px solid var(--border-color)', borderRadius: '0.375rem', cursor: 'pointer' }}
             >
               취소
             </button>

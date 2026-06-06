@@ -134,7 +134,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
           {/* 전체 검색 */}
           <div style={{ marginBottom: 6 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 5 }}>등록된 공급사 검색</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, padding: '6px 10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, padding: '6px 10px', borderRadius: 8, border: '2px solid var(--border-color)', background: '#fff' }}>
               <Search size={13} style={{ color: 'var(--gpu-muted)', flexShrink: 0 }} />
               <input
                 value={query}
@@ -432,7 +432,7 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
                 padding: '8px 10px',
                 borderRadius: 8,
                 background: isLow ? (isChecked ? '#f0fdf4' : '#fff7ed') : '#f9fafb',
-                border: `1px solid ${isLow ? (isChecked ? '#bbf7d0' : '#fed7aa') : '#e5e7eb'}`,
+                border: `1px solid ${isLow ? (isChecked ? '#bbf7d0' : '#fed7aa') : 'var(--color-border)'}`,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -540,7 +540,7 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
               placeholder="반려 사유 (선택)"
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              style={{ flex: 1, padding: '6px 10px', borderRadius: 7, border: '1px solid #e5e7eb', fontSize: 12 }}
+              style={{ flex: 1, padding: '6px 10px', borderRadius: 7, border: '2px solid var(--border-color)', fontSize: 12 }}
             />
             <button className="gpu-btn gpu-btn-danger" onClick={handleReject} disabled={rejecting}>
               {rejecting ? '처리 중…' : '반려 확정'}

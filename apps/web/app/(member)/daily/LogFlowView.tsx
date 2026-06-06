@@ -117,8 +117,8 @@ export function LogFlowView({ log, allLogs, onClose }: {
           <button
             onClick={onClose}
             style={{
-              width: 36, height: 36, border: '1px solid #e2e8f0',
-              borderRadius: '0.375rem', background: '#f8fafc',
+              width: 36, height: 36, border: '2px solid var(--border-color)',
+              borderRadius: '0.375rem', background: 'var(--color-bg)',
               cursor: 'pointer', fontSize: '1.125rem', color: '#64748b',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
@@ -171,9 +171,9 @@ export function LogFlowView({ log, allLogs, onClose }: {
                     {/* 노드 카드 */}
                     <div style={{
                       marginLeft: `${n.depth * 1.25}rem`,
-                      border: `2px solid ${isHighlight ? t.color : '#e2e8f0'}`,
+                      border: `2px solid ${isHighlight ? t.color : 'var(--color-border)'}`,
                       borderLeft: `4px solid ${t.color}`,
-                      borderRadius: '0.5rem',
+                      borderRadius: 'var(--radius)',
                       padding: '0.625rem 0.875rem',
                       background: isHighlight ? t.bg : '#fff',
                     }}>

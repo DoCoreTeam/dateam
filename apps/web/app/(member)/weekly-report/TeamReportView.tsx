@@ -20,7 +20,7 @@ interface TeamReportViewProps {
   initialReports: MemberReport[]
 }
 
-const CELL_BORDER = '1px solid #e2e8f0'
+const CELL_BORDER = '2px solid var(--border-color)'
 
 export default function TeamReportView({ weekOptions, thisWeek, initialReports }: TeamReportViewProps) {
   const [selectedWeek, setSelectedWeek] = useState(thisWeek)
@@ -91,7 +91,7 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
 
       {/* 에러 */}
       {fetchError && (
-        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.625rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
+        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
           {fetchError}
         </div>
       )}
@@ -105,7 +105,7 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
         <div className="table-responsive">
           <table className="table-base table-card" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
             <thead>
-              <tr style={{ backgroundColor: '#f8fafc' }}>
+              <tr style={{ backgroundColor: 'var(--color-bg)' }}>
                 <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: '#475569', border: CELL_BORDER, width: '90px' }}>이름</th>
                 <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: '#475569', border: CELL_BORDER, width: '90px' }}>구분</th>
                 <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: '#475569', border: CELL_BORDER }}>성과</th>
@@ -128,7 +128,7 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
                       <td
                         rowSpan={grouped[name].length}
                         className="card-hide"
-                        style={{ padding: '0.75rem', border: CELL_BORDER, fontWeight: 600, color: '#334155', verticalAlign: 'middle', whiteSpace: 'nowrap', backgroundColor: '#f8fafc' }}
+                        style={{ padding: '0.75rem', border: CELL_BORDER, fontWeight: 600, color: '#334155', verticalAlign: 'middle', whiteSpace: 'nowrap', backgroundColor: 'var(--color-bg)' }}
                       >
                         {name}
                       </td>
@@ -168,7 +168,7 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ backgroundColor: '#fff', borderRadius: '1rem', padding: '1.5rem', maxWidth: '600px', width: '100%', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+            style={{ backgroundColor: '#fff', borderRadius: 'var(--radius)', padding: '1.5rem', maxWidth: '600px', width: '100%', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
               <div>

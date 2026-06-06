@@ -286,9 +286,9 @@ export default function WeeklyReportForm({
     fontSize: '0.75rem',
     fontWeight: 600,
     color: '#64748b',
-    background: '#f8fafc',
+    background: 'var(--color-bg)',
     textAlign: 'left',
-    borderBottom: '1px solid #e2e8f0',
+    borderBottom: '2px solid var(--border-color)',
     whiteSpace: 'nowrap',
   }
 
@@ -336,7 +336,7 @@ export default function WeeklyReportForm({
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '0.75rem 1rem', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe',
-          borderRadius: '0.625rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1d4ed8',
+          borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1d4ed8',
         }}>
           <span>✏️ <strong>{new Date(initialWeek).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 주</strong> 보고서 수정 중</span>
           <button
@@ -352,7 +352,7 @@ export default function WeeklyReportForm({
       {hasCarryForward && (
         <div role="status" aria-live="polite" style={{
           padding: '0.75rem 1rem', backgroundColor: '#eff6ff',
-          border: '1px solid #bfdbfe', borderRadius: '0.625rem',
+          border: '1px solid #bfdbfe', borderRadius: 'var(--radius)',
           marginBottom: '1rem', fontSize: '0.8125rem', color: '#1d4ed8',
         }}>
           전주 계획에서 성과를 이월했습니다. 실제 성과로 수정 후 저장해 주세요.
@@ -389,12 +389,12 @@ export default function WeeklyReportForm({
 
       {/* 알림 */}
       {submitError && (
-        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.625rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
+        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
           {submitError}
         </div>
       )}
       {refineError && (
-        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.625rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
+        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
           {refineError}
         </div>
       )}
@@ -404,7 +404,7 @@ export default function WeeklyReportForm({
       </datalist>
 
       {/* 테이블 */}
-      <div className="report-form-wrap" style={{ overflowX: 'auto', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+      <div className="report-form-wrap" style={{ overflowX: 'auto', borderRadius: 'var(--radius)', border: '2px solid var(--border-color)' }}>
         <table className="report-form-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: '500px' }}>
           <colgroup>
             <col style={{ width: '120px' }} />
@@ -526,7 +526,7 @@ export default function WeeklyReportForm({
           style={{
             display: 'flex', alignItems: 'center', gap: '0.375rem',
             fontSize: '0.8125rem', color: 'var(--brand)', background: 'none',
-            border: '1px dashed #c7d2fe', borderRadius: '0.5rem',
+            border: '1px dashed #c7d2fe', borderRadius: 'var(--radius)',
             padding: '0.5rem 0.875rem', cursor: 'pointer',
           }}
         >
@@ -542,7 +542,7 @@ export default function WeeklyReportForm({
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
                 fontSize: '0.8125rem', color: '#dc2626', background: '#fff1f2',
-                border: '1px solid #fecaca', borderRadius: '0.5rem',
+                border: '1px solid #fecaca', borderRadius: 'var(--radius)',
                 padding: '0.5rem 0.875rem', cursor: 'pointer',
               }}
             >
@@ -558,7 +558,7 @@ export default function WeeklyReportForm({
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
               fontSize: '0.8125rem', color: '#7c3aed', background: '#f5f3ff',
-              border: '1px solid #ddd6fe', borderRadius: '0.5rem',
+              border: '1px solid #ddd6fe', borderRadius: 'var(--radius)',
               padding: '0.5rem 0.875rem', cursor: isRefining ? 'wait' : 'pointer',
               opacity: isRefining ? 0.7 : 1,
             }}
@@ -578,7 +578,7 @@ export default function WeeklyReportForm({
       {showResetConfirm && (
         <div style={{
           marginTop: '1rem', padding: '1rem',
-          backgroundColor: '#fff1f2', border: '1px solid #fca5a5', borderRadius: '0.75rem',
+          backgroundColor: '#fff1f2', border: '1px solid #fca5a5', borderRadius: 'var(--radius)',
         }}>
           <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start', marginBottom: '0.875rem' }}>
             <AlertTriangle size={20} color="#dc2626" style={{ flexShrink: 0, marginTop: '1px' }} />
@@ -604,7 +604,7 @@ export default function WeeklyReportForm({
               disabled={resetPending}
               style={{
                 padding: '0.5rem 1.25rem', backgroundColor: '#dc2626', color: '#fff',
-                border: 'none', borderRadius: '0.5rem', cursor: 'pointer',
+                border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer',
                 fontSize: '0.875rem', fontWeight: 700,
               }}
             >
@@ -616,7 +616,7 @@ export default function WeeklyReportForm({
               disabled={resetPending}
               style={{
                 padding: '0.5rem 1rem', backgroundColor: '#fff', color: '#475569',
-                border: '1px solid #cbd5e1', borderRadius: '0.5rem', cursor: 'pointer',
+                border: '1px solid #cbd5e1', borderRadius: 'var(--radius)', cursor: 'pointer',
                 fontSize: '0.875rem',
               }}
             >
@@ -661,8 +661,8 @@ function EditorCell({
         style={{
           minHeight: '80px',
           padding: '0.5rem 0.625rem',
-          borderRadius: '0.5rem',
-          border: highlighted ? '1px solid #a78bfa' : '1px dashed #e2e8f0',
+          borderRadius: 'var(--radius)',
+          border: highlighted ? '1px solid #a78bfa' : '1px dashed var(--color-border)',
           background: highlighted ? '#faf5ff' : 'transparent',
           position: 'relative',
           transition: 'border-color 120ms, background 120ms',
@@ -674,7 +674,7 @@ function EditorCell({
         }}
         onMouseLeave={(e) => {
           const el = e.currentTarget as HTMLDivElement
-          el.style.borderColor = '#e2e8f0'
+          el.style.borderColor = 'var(--color-border)'
           el.style.backgroundColor = 'transparent'
         }}
       >
