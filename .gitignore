@@ -41,3 +41,8 @@ package-lock.json
 
 # 구버전 아카이브 파일
 docs/old/
+
+# 디자인 작업 스크린샷 아티팩트
+nb-*.jpeg
+test-*.jpeg
+.playwright-mcp/
