@@ -104,7 +104,7 @@ export default function QuickNav() {
                       padding: '8px 16px', color: '#374151', fontSize: 13,
                       textDecoration: 'none', transition: 'background .1s',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#6366f1' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = 'var(--brand)' }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#374151' }}
                   >
                     <span style={{ color: 'inherit', opacity: 0.7 }}>{icon}</span>

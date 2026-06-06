@@ -172,7 +172,7 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
               <div>
-                <span style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: 700 }}>{modal.userName}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--brand)', fontWeight: 700 }}>{modal.userName}</span>
                 <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, color: '#0f172a', margin: '0.25rem 0 0' }}>{modal.category}</h3>
               </div>
               <button onClick={() => setModal(null)} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '1.25rem', lineHeight: 1 }}>×</button>

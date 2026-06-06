@@ -204,7 +204,7 @@ export default function SalePriceCatalogPage() {
           borderRadius: 8,
           background: '#fff',
           height: 34,
-          boxShadow: customHours ? '0 0 0 3px rgba(99,102,241,0.12)' : '0 1px 2px rgba(0,0,0,0.05)',
+          boxShadow: customHours ? '0 0 0 3px rgba(124,58,237,0.12)' : '0 1px 2px rgba(0,0,0,0.05)',
           cursor: 'text',
           overflow: 'hidden',
           transition: 'border-color 0.15s, box-shadow 0.15s',
@@ -219,7 +219,7 @@ export default function SalePriceCatalogPage() {
           }}>
             시간 계산
           </span>
-          <div style={{ width: 1, height: 16, background: customHours ? 'rgba(99,102,241,0.3)' : '#e5e7eb' }} />
+          <div style={{ width: 1, height: 16, background: customHours ? 'rgba(124,58,237,0.3)' : '#e5e7eb' }} />
           <input
             type="number"
             min="1"
@@ -240,7 +240,7 @@ export default function SalePriceCatalogPage() {
               <span style={{ fontSize: 11, color: 'var(--gpu-accent)', fontWeight: 600, paddingRight: 4 }}>h</span>
               <button
                 onClick={() => setHoursInput('')}
-                style={{ border: 'none', background: 'rgba(99,102,241,0.1)', cursor: 'pointer', color: 'var(--gpu-accent)', fontSize: 11, padding: '0 8px', height: '100%', fontWeight: 700 }}
+                style={{ border: 'none', background: 'rgba(124,58,237,0.1)', cursor: 'pointer', color: 'var(--gpu-accent)', fontSize: 11, padding: '0 8px', height: '100%', fontWeight: 700 }}
               >✕</button>
             </>
           ) : (

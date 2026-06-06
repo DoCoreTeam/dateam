@@ -91,7 +91,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
       {hasOrgKpi && (
         <section aria-labelledby="org-kpi-heading" style={{ marginBottom: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-            <Target size={16} color="#6366f1" />
+            <Target size={16} color="var(--brand)" />
             <h2 id="org-kpi-heading" style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
               조직 KPI 목표
             </h2>
@@ -102,14 +102,14 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
             {weeklyTargets.length > 0 && (
               <div className="card" style={{ padding: '1.25rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.875rem' }}>
-                  <Calendar size={13} color="#6366f1" />
-                  <p style={{ ...SECTION_TITLE, margin: 0, color: '#6366f1' }}>주간 공통 KPI</p>
+                  <Calendar size={13} color="var(--brand)" />
+                  <p style={{ ...SECTION_TITLE, margin: 0, color: 'var(--brand)' }}>주간 공통 KPI</p>
                 </div>
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
                   {weeklyTargets.map((kpi, i) => (
                     <li key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.5rem' }}>
                       <span style={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.4 }}>{kpi.label}</span>
-                      <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#6366f1', flexShrink: 0 }}>{kpi.target}</span>
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--brand)', flexShrink: 0 }}>{kpi.target}</span>
                     </li>
                   ))}
                 </ul>
@@ -182,7 +182,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
       {/* ── 이번 주 실적 입력 ─────────────────────────────── */}
       <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-          <Plus size={16} color="#6366f1" />
+          <Plus size={16} color="var(--brand)" />
           <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>
             이번 주 실적 입력
           </h2>
@@ -288,7 +288,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
       {/* ── KPI 히스토리 ───────────────────────────────────── */}
       <div className="card" style={{ overflow: 'hidden' }}>
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <TrendingUp size={16} color="#6366f1" />
+          <TrendingUp size={16} color="var(--brand)" />
           <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>
             실적 히스토리
           </h2>

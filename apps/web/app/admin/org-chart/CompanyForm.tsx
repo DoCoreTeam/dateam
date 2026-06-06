@@ -34,7 +34,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
       padding: '1.25rem 1.5rem', marginBottom: '1.5rem',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-        <Building2 size={18} color="#6366f1" />
+        <Building2 size={18} color="var(--brand)" />
         <span style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b' }}>회사 정보</span>
         <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: 4 }}>조직도 최상단</span>
       </div>
@@ -77,7 +77,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.5rem 1rem', borderRadius: '0.375rem',
-                background: pending ? '#94a3b8' : '#6366f1', color: 'white',
+                background: pending ? '#94a3b8' : 'var(--brand)', color: 'white',
                 border: 'none', fontSize: '0.875rem', fontWeight: 500, cursor: pending ? 'not-allowed' : 'pointer',
               }}
             >
@@ -109,7 +109,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
             onClick={() => setEditing(true)}
             style={{
               flexShrink: 0, padding: '0.375rem 0.75rem', borderRadius: '0.375rem',
-              background: 'transparent', color: '#6366f1',
+              background: 'transparent', color: 'var(--brand)',
               border: '1px solid #c7d2fe', fontSize: '0.8125rem', cursor: 'pointer', fontWeight: 500,
             }}
           >

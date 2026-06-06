@@ -192,7 +192,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
                 <button
                   type="button"
                   onClick={toggleAll}
-                  style={{ fontSize: '0.8125rem', color: '#6366f1', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem', padding: 0 }}
+                  style={{ fontSize: '0.8125rem', color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem', padding: 0 }}
                 >
                   {selectedIds.size === tasks.length
                     ? <CheckSquare size={14} />
@@ -267,7 +267,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
                     padding: '0.625rem 1.25rem', borderRadius: '0.5rem',
-                    background: generating || selectedIds.size === 0 ? '#e2e8f0' : 'linear-gradient(135deg, #7c3aed, #6366f1)',
+                    background: generating || selectedIds.size === 0 ? '#e2e8f0' : 'linear-gradient(135deg, #7c3aed, var(--brand))',
                     color: generating || selectedIds.size === 0 ? '#94a3b8' : '#fff',
                     border: 'none', cursor: generating || selectedIds.size === 0 ? 'not-allowed' : 'pointer',
                     fontSize: '0.875rem', fontWeight: 600,

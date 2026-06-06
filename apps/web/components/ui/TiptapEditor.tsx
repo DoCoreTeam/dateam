@@ -217,7 +217,7 @@ export default function TiptapEditor({
                   style={{
                     width: '1.25rem', height: '1.25rem', borderRadius: '50%',
                     background: c.value || '#0f172a',
-                    border: currentColor === c.value ? '2px solid #6366f1' : '2px solid #e2e8f0',
+                    border: currentColor === c.value ? '2px solid var(--brand)' : '2px solid #e2e8f0',
                     cursor: 'pointer',
                   }}
                 />
@@ -338,7 +338,7 @@ export default function TiptapEditor({
                 autoFocus
                 style={{ flex: 1, fontSize: '0.8125rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.375rem 0.5rem', outline: 'none', fontFamily: 'inherit' }}
               />
-              <button type="button" onClick={handleSetLink} style={{ ...BTN, background: '#6366f1', color: '#fff', border: 'none', padding: '0.375rem 0.625rem', borderRadius: '0.375rem' }}>
+              <button type="button" onClick={handleSetLink} style={{ ...BTN, background: 'var(--brand)', color: '#fff', border: 'none', padding: '0.375rem 0.625rem', borderRadius: '0.375rem' }}>
                 확인
               </button>
               {editor.isActive('link') && (

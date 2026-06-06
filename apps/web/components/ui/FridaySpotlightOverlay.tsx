@@ -79,7 +79,7 @@ export default function FridaySpotlightOverlay({ showGlow }: FridaySpotlightOver
             alignItems: 'center',
             gap: '0.4rem',
             padding: '0.875rem 2rem',
-            background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 60%, #7c3aed 100%)',
+            background: 'linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 60%, #7c3aed 100%)',
             color: 'white',
             borderRadius: '0.875rem',
             fontWeight: 700,
@@ -87,7 +87,7 @@ export default function FridaySpotlightOverlay({ showGlow }: FridaySpotlightOver
             textDecoration: 'none',
             letterSpacing: '-0.01em',
             animation: 'bannerGlow 2.2s ease-in-out infinite',
-            boxShadow: '0 4px 20px rgba(99,102,241,0.45)',
+            boxShadow: '0 4px 20px rgba(124,58,237,0.45)',
           }}
         >
           주간보고 작성하기 →

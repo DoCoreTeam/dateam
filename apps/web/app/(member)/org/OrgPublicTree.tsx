@@ -74,7 +74,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
     return (
       <div style={{
         display: 'inline-block', padding: '0.75rem 1.25rem', borderRadius: '0.75rem',
-        background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', border: '2px solid #4f46e5',
+        background: 'linear-gradient(135deg,var(--brand-dark),#7c3aed)', border: '2px solid var(--brand-dark)',
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)', width: `${CARD_W + 28}px`, textAlign: 'left', overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -129,7 +129,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
     return (
       <div style={{
         display: 'inline-block', padding: '0.65rem 1rem', borderRadius: '0.75rem',
-        background: 'linear-gradient(135deg,#3730a3,#4338ca)', border: '2px solid #4338ca',
+        background: 'linear-gradient(135deg,#3730a3,var(--brand-dark))', border: '2px solid var(--brand-dark)',
         boxShadow: '0 2px 8px rgba(0,0,0,0.08)', width: `${CARD_W}px`, textAlign: 'left', overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -169,7 +169,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
         <div style={{
           width: '1.75rem', height: '1.75rem', borderRadius: '50%',
-          background: 'linear-gradient(135deg,#6366f1,#818cf8)',
+          background: 'linear-gradient(135deg,var(--brand),var(--brand))',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '0.7rem', fontWeight: 700, color: '#fff', flexShrink: 0,
         }}>

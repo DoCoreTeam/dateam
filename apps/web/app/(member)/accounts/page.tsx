@@ -104,7 +104,7 @@ export default function AccountsPage() {
       <div className="card">
         {/* 헤더 */}
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Briefcase size={16} color="#6366f1" />
+          <Briefcase size={16} color="var(--brand)" />
           <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>전체 거래처</h2>
           <span className="badge badge-slate">{accounts.length}{hasFilters ? '건 (필터됨)' : '개'}</span>
         </div>
@@ -133,14 +133,14 @@ export default function AccountsPage() {
 
         {isLoading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 1rem' }}>
-            <Loader2 size={24} style={{ color: '#6366f1', animation: 'spin 1s linear infinite' }} />
+            <Loader2 size={24} style={{ color: 'var(--brand)', animation: 'spin 1s linear infinite' }} />
           </div>
         ) : accounts.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1rem', color: '#94a3b8', fontSize: '0.875rem', textAlign: 'center' }}>
             <Briefcase size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
             <p style={{ margin: 0 }}>{hasFilters ? '검색 결과가 없습니다' : '등록된 거래처가 없습니다'}</p>
             {!hasFilters && (
-              <Link href="/accounts/new" style={{ marginTop: '1rem', display: 'inline-block', color: '#6366f1', fontSize: '0.875rem', fontWeight: 600 }}>
+              <Link href="/accounts/new" style={{ marginTop: '1rem', display: 'inline-block', color: 'var(--brand)', fontSize: '0.875rem', fontWeight: 600 }}>
                 AI로 첫 거래처 추가하기 →
               </Link>
             )}
@@ -277,22 +277,22 @@ function AccountDetail({ account, onClose, onDeleted }: { account: Account; onCl
       <div className="detail-info-list">
         {account.website && (
           <div className="detail-info-row">
-            <Globe size={14} color="#6366f1" style={{ flexShrink: 0, marginTop: '2px' }} />
+            <Globe size={14} color="var(--brand)" style={{ flexShrink: 0, marginTop: '2px' }} />
             <a href={account.website} target="_blank" rel="noopener noreferrer"
-              style={{ color: '#6366f1', wordBreak: 'break-all', fontSize: '0.875rem' }}>
+              style={{ color: 'var(--brand)', wordBreak: 'break-all', fontSize: '0.875rem' }}>
               {account.website}
             </a>
           </div>
         )}
         {account.phone && (
           <div className="detail-info-row">
-            <Phone size={14} color="#6366f1" style={{ flexShrink: 0 }} />
+            <Phone size={14} color="var(--brand)" style={{ flexShrink: 0 }} />
             <span>{account.phone}</span>
           </div>
         )}
         {(account.region || account.address) && (
           <div className="detail-info-row">
-            <MapPin size={14} color="#6366f1" style={{ flexShrink: 0 }} />
+            <MapPin size={14} color="var(--brand)" style={{ flexShrink: 0 }} />
             <span>{[account.region, account.address].filter(Boolean).join(' · ')}</span>
           </div>
         )}

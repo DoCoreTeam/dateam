@@ -52,7 +52,7 @@ const INPUT: React.CSSProperties = {
 const SUBMIT: React.CSSProperties = {
   marginTop: '1rem',
   padding: '0.5rem 1.25rem',
-  background: '#6366f1',
+  background: 'var(--brand)',
   color: '#fff',
   border: 'none',
   borderRadius: '0.4rem',
@@ -284,7 +284,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         marginLeft: '0.5rem',
         display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
         padding: '0.25rem 0.625rem',
-        background: '#eef2ff', color: '#4338ca',
+        background: '#eef2ff', color: 'var(--brand-dark)',
         border: '1px solid #c7d2fe', borderRadius: '0.375rem',
         fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
       }}
@@ -359,7 +359,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
             padding: '1.5rem',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-              <Sparkles size={16} color="#6366f1" />
+              <Sparkles size={16} color="var(--brand)" />
               <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a' }}>
                 AI 작성 — {aiPromptModal.sectionName}
               </span>
@@ -381,7 +381,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
                 resize: 'vertical', fontFamily: 'inherit',
                 boxSizing: 'border-box', outline: 'none',
               }}
-              onFocus={(e) => { e.target.style.borderColor = '#6366f1' }}
+              onFocus={(e) => { e.target.style.borderColor = 'var(--brand)' }}
               onBlur={(e) => { e.target.style.borderColor = '#e2e8f0' }}
             />
             {aiError && (
@@ -411,7 +411,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
                 disabled={!aiPrompt.trim()}
                 style={{
                   padding: '0.5rem 1.25rem',
-                  background: aiPrompt.trim() ? '#6366f1' : '#e2e8f0',
+                  background: aiPrompt.trim() ? 'var(--brand)' : '#e2e8f0',
                   color: aiPrompt.trim() ? '#fff' : '#94a3b8',
                   border: 'none', borderRadius: '0.5rem',
                   fontSize: '0.875rem', fontWeight: 600,

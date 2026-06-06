@@ -63,7 +63,7 @@ export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
               {items.length}
             </span>
           </div>
-          <Link href="/daily?view=memo" style={{ fontSize: '0.78rem', color: '#4f46e5', textDecoration: 'none', fontWeight: 600 }}>
+          <Link href="/daily?view=memo" style={{ fontSize: '0.78rem', color: 'var(--brand-dark)', textDecoration: 'none', fontWeight: 600 }}>
             전체 →
           </Link>
         </div>
@@ -91,7 +91,7 @@ export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
                     <Check size={13} />
                   </button>
                   <button onClick={() => setPromoteTarget(m)} title="업무로 전환"
-                    style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: '0.4rem', cursor: 'pointer', padding: '3px 5px', color: '#4f46e5', display: 'flex', flexShrink: 0 }}>
+                    style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: '0.4rem', cursor: 'pointer', padding: '3px 5px', color: 'var(--brand-dark)', display: 'flex', flexShrink: 0 }}>
                     <ArrowUpRight size={13} />
                   </button>
                 </li>

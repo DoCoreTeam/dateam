@@ -68,7 +68,7 @@ export default async function HomePage() {
               {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
             </span>
             {showAxTiles && [
-              { href: '/kpi', label: 'KPI', icon: <BarChart2 size={12} />, color: '#6366f1', bg: '#eef2ff' },
+              { href: '/kpi', label: 'KPI', icon: <BarChart2 size={12} />, color: 'var(--brand)', bg: '#eef2ff' },
               { href: '/routine', label: '루틴', icon: <CheckSquare size={12} />, color: '#0891b2', bg: '#ecfeff' },
               { href: '/operations', label: '본부 운영', icon: <Building2 size={12} />, color: '#059669', bg: '#ecfdf5' },
             ].map((item) => (
@@ -113,10 +113,10 @@ export default async function HomePage() {
           <div className="home-widget-col home-widget-weekly card" style={{ padding: '1.25rem 1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <FileText size={15} color="#6366f1" />
+                <FileText size={15} color="var(--brand)" />
                 <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>주간보고</h3>
               </div>
-              <Link href="/weekly-report" style={{ fontSize: '0.75rem', color: '#6366f1', textDecoration: 'none', fontWeight: 600 }}>
+              <Link href="/weekly-report" style={{ fontSize: '0.75rem', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600 }}>
                 {showGlow ? '이번 주 작성하기 →' : '작성하기 →'}
               </Link>
             </div>
@@ -138,7 +138,7 @@ export default async function HomePage() {
             ) : (
               <p style={{ fontSize: '0.8125rem', color: '#94a3b8', margin: 0, textAlign: 'center' }}>
                 아직 주간보고가 없습니다.{' '}
-                <Link href="/weekly-report" style={{ color: '#6366f1', fontWeight: 600 }}>작성하기</Link>
+                <Link href="/weekly-report" style={{ color: 'var(--brand)', fontWeight: 600 }}>작성하기</Link>
               </p>
             )}
           </div>

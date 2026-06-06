@@ -11,7 +11,7 @@ function statusBadge(status: string) {
     pending: { color: '#d97706', bg: '#fffbeb', label: '대기' },
     processing: { color: '#0284c7', bg: '#f0f9ff', label: '처리중' },
     completed: { color: '#16a34a', bg: '#f0fdf4', label: '완료' },
-    crm_registered: { color: '#4f46e5', bg: '#eef2ff', label: 'CRM 등록' },
+    crm_registered: { color: 'var(--brand-dark)', bg: '#eef2ff', label: 'CRM 등록' },
     failed: { color: '#dc2626', bg: '#fef2f2', label: '실패' },
   }
   return map[status] ?? { color: '#64748b', bg: '#f8fafc', label: status }
@@ -66,7 +66,7 @@ export default async function LeadIntakePage({ searchParams }: PageProps) {
       {/* 인테이크 폼 */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Inbox size={16} color="#6366f1" />
+          <Inbox size={16} color="var(--brand)" />
           <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>새 리드 입력</h2>
         </div>
         <div style={{ padding: '1.5rem' }}>

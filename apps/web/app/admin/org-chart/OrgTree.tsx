@@ -362,7 +362,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
 
         <DragOverlay>
           {activeNode && (
-            <div style={{ padding: '0.5rem 1rem', background: '#4f46e5', color: '#fff', borderRadius: '0.5rem', fontSize: '0.875rem', fontWeight: 600, boxShadow: '0 8px 24px rgba(79,70,229,0.4)', opacity: 0.95, cursor: 'grabbing' }}>
+            <div style={{ padding: '0.5rem 1rem', background: 'var(--brand-dark)', color: '#fff', borderRadius: '0.5rem', fontSize: '0.875rem', fontWeight: 600, boxShadow: '0 8px 24px rgba(79,70,229,0.4)', opacity: 0.95, cursor: 'grabbing' }}>
               {activeNode.name}
             </div>
           )}

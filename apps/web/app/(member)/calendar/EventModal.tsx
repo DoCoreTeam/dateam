@@ -95,7 +95,7 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
           </button>
         </div>
 
-        {msg && <div role="status" style={{ padding: '0.5rem 0.75rem', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '0.5rem', marginBottom: '0.75rem', fontSize: '0.78rem', color: '#4338ca' }}>{msg}</div>}
+        {msg && <div role="status" style={{ padding: '0.5rem 0.75rem', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '0.5rem', marginBottom: '0.75rem', fontSize: '0.78rem', color: 'var(--brand-dark)' }}>{msg}</div>}
 
         <label style={lbl}>제목</label>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="일정 제목" style={inp} />
@@ -139,7 +139,7 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
 
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{ fontSize: '0.8125rem', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer' }}>취소</button>
-          <button onClick={save} disabled={busy} style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff', background: '#6366f1', border: 'none', borderRadius: '0.5rem', padding: '0.5rem 1.25rem', cursor: busy ? 'wait' : 'pointer' }}>{busy ? '저장중' : '저장'}</button>
+          <button onClick={save} disabled={busy} style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff', background: 'var(--brand)', border: 'none', borderRadius: '0.5rem', padding: '0.5rem 1.25rem', cursor: busy ? 'wait' : 'pointer' }}>{busy ? '저장중' : '저장'}</button>
         </div>
       </div>
     </div>

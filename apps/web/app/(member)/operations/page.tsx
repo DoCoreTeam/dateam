@@ -26,7 +26,7 @@ function getPhaseBadgeStyle(phase: string): React.CSSProperties {
   if (phase === '진행중') {
     return {
       background: '#eef2ff',
-      color: '#4f46e5',
+      color: 'var(--brand-dark)',
       border: '1px solid #c7d2fe',
     }
   }
@@ -199,7 +199,7 @@ export default async function OperationsPage() {
                       borderRadius: '9999px',
                       background:
                         project.phase === '진행중'
-                          ? 'linear-gradient(90deg, #0ea5e9, #6366f1, #a855f7)'
+                          ? 'linear-gradient(90deg, #0ea5e9, var(--brand), #a855f7)'
                           : '#94a3b8',
                       transition: 'width 600ms cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
@@ -286,7 +286,7 @@ export default async function OperationsPage() {
                   <span
                     style={{
                       fontSize: '0.75rem',
-                      color: '#6366f1',
+                      color: 'var(--brand)',
                       fontWeight: 500,
                     }}
                   >

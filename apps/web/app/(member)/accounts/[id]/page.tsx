@@ -50,12 +50,12 @@ export default async function AccountDetailPage({ params }: PageProps) {
   return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
-        <Link href="/accounts" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: '#6366f1', fontSize: '0.875rem', fontWeight: 500, textDecoration: 'none', marginBottom: '0.75rem' }}>
+        <Link href="/accounts" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: 'var(--brand)', fontSize: '0.875rem', fontWeight: 500, textDecoration: 'none', marginBottom: '0.75rem' }}>
           <ArrowLeft size={14} /> 거래처 목록
         </Link>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.5rem', background: 'linear-gradient(135deg, #6366f1, #818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.5rem', background: 'linear-gradient(135deg, var(--brand), var(--brand))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Briefcase size={18} color="white" />
             </div>
             <div>
@@ -90,13 +90,13 @@ export default async function AccountDetailPage({ params }: PageProps) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {account.website && (
                 <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start' }}>
-                  <Globe size={15} color="#6366f1" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <a href={account.website} target="_blank" rel="noopener noreferrer" style={{ color: '#6366f1', fontSize: '0.875rem', wordBreak: 'break-all' }}>{account.website}</a>
+                  <Globe size={15} color="var(--brand)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <a href={account.website} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand)', fontSize: '0.875rem', wordBreak: 'break-all' }}>{account.website}</a>
                 </div>
               )}
               {account.phone && (
                 <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
-                  <Phone size={15} color="#6366f1" style={{ flexShrink: 0 }} />
+                  <Phone size={15} color="var(--brand)" style={{ flexShrink: 0 }} />
                   <span style={{ fontSize: '0.875rem', color: '#374151' }}>{account.phone}</span>
                 </div>
               )}
@@ -114,7 +114,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
               )}
               {account.region && (
                 <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
-                  <MapPin size={15} color="#6366f1" style={{ flexShrink: 0 }} />
+                  <MapPin size={15} color="var(--brand)" style={{ flexShrink: 0 }} />
                   <span style={{ fontSize: '0.875rem', color: '#374151' }}>{account.region} {account.address && `· ${account.address}`}</span>
                 </div>
               )}
@@ -135,11 +135,11 @@ export default async function AccountDetailPage({ params }: PageProps) {
           <div className="card">
             <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Users size={15} color="#6366f1" />
+                <Users size={15} color="var(--brand)" />
                 <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>담당자</h2>
                 <span className="badge badge-slate">{contacts.length}</span>
               </div>
-              <Link href={`/contacts/new?account_id=${id}`} style={{ fontSize: '0.8125rem', color: '#6366f1', fontWeight: 600, textDecoration: 'none' }}>+ 추가</Link>
+              <Link href={`/contacts/new?account_id=${id}`} style={{ fontSize: '0.8125rem', color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}>+ 추가</Link>
             </div>
             {contacts.length === 0 ? (
               <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>담당자가 없습니다</div>
@@ -150,9 +150,9 @@ export default async function AccountDetailPage({ params }: PageProps) {
                     <div>
                       <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.875rem' }}>{c.name}</div>
                       <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{[c.title, c.department].filter(Boolean).join(' · ')}</div>
-                      {c.email && <div style={{ fontSize: '0.75rem', color: '#6366f1', marginTop: '0.125rem' }}>{c.email}</div>}
+                      {c.email && <div style={{ fontSize: '0.75rem', color: 'var(--brand)', marginTop: '0.125rem' }}>{c.email}</div>}
                     </div>
-                    <Link href={`/contacts/${c.id}`} style={{ fontSize: '0.75rem', color: '#6366f1', textDecoration: 'none', fontWeight: 600, flexShrink: 0 }}>보기</Link>
+                    <Link href={`/contacts/${c.id}`} style={{ fontSize: '0.75rem', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600, flexShrink: 0 }}>보기</Link>
                   </div>
                 ))}
               </div>
@@ -164,11 +164,11 @@ export default async function AccountDetailPage({ params }: PageProps) {
         <div className="card">
           <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <TrendingUp size={15} color="#6366f1" />
+              <TrendingUp size={15} color="var(--brand)" />
               <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>영업기회</h2>
               <span className="badge badge-slate">{deals.length}</span>
             </div>
-            <Link href={`/deals/new?account_id=${id}`} style={{ fontSize: '0.8125rem', color: '#6366f1', fontWeight: 600, textDecoration: 'none' }}>+ 추가</Link>
+            <Link href={`/deals/new?account_id=${id}`} style={{ fontSize: '0.8125rem', color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}>+ 추가</Link>
           </div>
           {deals.length === 0 ? (
             <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>영업기회가 없습니다</div>

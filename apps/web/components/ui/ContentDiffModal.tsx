@@ -190,7 +190,7 @@ export default function ContentDiffModal({
                   </span>
 
                   {isExpandable && (
-                    <span style={{ fontSize: '0.75rem', color: '#6366f1', flexShrink: 0 }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--brand)', flexShrink: 0 }}>
                       {isExpanded ? '접기 ▲' : '상세 ▼'}
                     </span>
                   )}
@@ -276,7 +276,7 @@ export default function ContentDiffModal({
             disabled={loading || changedCount === 0}
             style={{
               padding: '0.5rem 1.5rem',
-              background: changedCount === 0 ? '#e2e8f0' : '#6366f1',
+              background: changedCount === 0 ? '#e2e8f0' : 'var(--brand)',
               color: changedCount === 0 ? '#94a3b8' : '#fff',
               border: 'none',
               borderRadius: '0.5rem',

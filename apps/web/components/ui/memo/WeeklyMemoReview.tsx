@@ -68,7 +68,7 @@ export default function WeeklyMemoReview() {
                     <div style={{ fontSize: '0.68rem', color: st.text }}>{relativeTime(m.logged_at)}</div>
                   </div>
                   <button onClick={() => handleReview(m.id)} title="확인 완료" style={iconBtn('#16a34a')}><Check size={13} /></button>
-                  <button onClick={() => setPromoteTarget(m)} title="업무로 전환" style={iconBtn('#4f46e5')}><ArrowUpRight size={13} /></button>
+                  <button onClick={() => setPromoteTarget(m)} title="업무로 전환" style={iconBtn('var(--brand-dark)')}><ArrowUpRight size={13} /></button>
                 </li>
               )
             })}

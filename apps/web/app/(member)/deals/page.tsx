@@ -129,7 +129,7 @@ export default function DealsPage() {
         </div>
         <div className="card" style={{ padding: '1rem 1.25rem', textAlign: 'center' }}>
           <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: '0 0 0.25rem', fontWeight: 500 }}>파이프라인 총액</p>
-          <p style={{ fontSize: '1.25rem', fontWeight: 700, color: '#6366f1', margin: 0 }}>
+          <p style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--brand)', margin: 0 }}>
             {totalValue > 0 ? `₩${(totalValue / 100000000).toFixed(1)}억` : '-'}
           </p>
         </div>
@@ -143,7 +143,7 @@ export default function DealsPage() {
 
       {isLoading ? (
         <div className="card" style={{ display: 'flex', justifyContent: 'center', padding: '3rem 1rem' }}>
-          <Loader2 size={24} style={{ color: '#6366f1', animation: 'spin 1s linear infinite' }} />
+          <Loader2 size={24} style={{ color: 'var(--brand)', animation: 'spin 1s linear infinite' }} />
         </div>
       ) : (
         <>
@@ -151,7 +151,7 @@ export default function DealsPage() {
           {!hasFilters && (
             <div className="card desktop-only" style={{ marginBottom: '1.5rem' }}>
               <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <TrendingUp size={16} color="#6366f1" />
+                <TrendingUp size={16} color="var(--brand)" />
                 <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>파이프라인</h2>
               </div>
               <div style={{ overflowX: 'auto', padding: '1.25rem' }}>
@@ -174,7 +174,7 @@ export default function DealsPage() {
                             >
                               <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#0f172a', marginBottom: '0.25rem', lineHeight: 1.3 }}>{d.title}</div>
                               {d.accounts?.name && <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{d.accounts.name}</div>}
-                              {d.value && <div style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: 600, marginTop: '0.25rem' }}>₩{d.value.toLocaleString()}</div>}
+                              {d.value && <div style={{ fontSize: '0.75rem', color: 'var(--brand)', fontWeight: 600, marginTop: '0.25rem' }}>₩{d.value.toLocaleString()}</div>}
                               <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.25rem' }}>확률 {d.probability}%</div>
                             </button>
                           ))}
@@ -190,7 +190,7 @@ export default function DealsPage() {
           {/* 테이블 목록 */}
           <div className="card">
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <TrendingUp size={16} color="#6366f1" />
+              <TrendingUp size={16} color="var(--brand)" />
               <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>전체 목록</h2>
               <span className="badge badge-slate">{list.length}{hasFilters ? '건 (필터됨)' : '건'}</span>
             </div>
@@ -263,7 +263,7 @@ export default function DealsPage() {
                       <td data-label="단계"><StageBadge stage={d.stage} /></td>
                       <td data-label="금액">
                         {d.value
-                          ? <span style={{ fontSize: '0.875rem', color: '#6366f1', fontWeight: 600 }}>₩{d.value.toLocaleString()}</span>
+                          ? <span style={{ fontSize: '0.875rem', color: 'var(--brand)', fontWeight: 600 }}>₩{d.value.toLocaleString()}</span>
                           : <span style={{ color: '#cbd5e1' }}>-</span>}
                       </td>
                       <td data-label="확률">
@@ -284,7 +284,7 @@ export default function DealsPage() {
                       </td>
                       <td data-label="거래처" onClick={e => e.stopPropagation()}>
                         {d.accounts?.name ? (
-                          <Link href={`/accounts/${d.account_id}`} style={{ fontSize: '0.875rem', color: '#6366f1', textDecoration: 'none' }}>
+                          <Link href={`/accounts/${d.account_id}`} style={{ fontSize: '0.875rem', color: 'var(--brand)', textDecoration: 'none' }}>
                             {d.accounts.name}
                           </Link>
                         ) : <span style={{ color: '#cbd5e1', fontSize: '0.8125rem' }}>-</span>}
@@ -331,7 +331,7 @@ function DealDetail({ deal: d, onClose, onDeleted }: { deal: DealWithAccount; on
         <StageBadge stage={d.stage} />
         <span className="badge" style={{ background: '#f8fafc', color: '#64748b', fontSize: '0.75rem' }}>확률 {d.probability}%</span>
         {d.value && (
-          <span className="badge" style={{ background: '#eef2ff', color: '#6366f1', fontWeight: 700, fontSize: '0.75rem' }}>
+          <span className="badge" style={{ background: '#eef2ff', color: 'var(--brand)', fontWeight: 700, fontSize: '0.75rem' }}>
             ₩{d.value.toLocaleString()}
           </span>
         )}
@@ -340,8 +340,8 @@ function DealDetail({ deal: d, onClose, onDeleted }: { deal: DealWithAccount; on
       <div className="detail-info-list">
         {d.accounts?.name && (
           <div className="detail-info-row">
-            <Briefcase size={14} color="#6366f1" style={{ flexShrink: 0 }} />
-            <Link href={`/accounts/${d.account_id}`} onClick={onClose} style={{ color: '#6366f1', textDecoration: 'none', fontWeight: 500 }}>
+            <Briefcase size={14} color="var(--brand)" style={{ flexShrink: 0 }} />
+            <Link href={`/accounts/${d.account_id}`} onClick={onClose} style={{ color: 'var(--brand)', textDecoration: 'none', fontWeight: 500 }}>
               {d.accounts.name}
             </Link>
           </div>

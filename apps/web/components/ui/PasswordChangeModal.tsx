@@ -84,7 +84,7 @@ export default function PasswordChangeModal() {
               width: '3rem',
               height: '3rem',
               borderRadius: '0.875rem',
-              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+              background: 'linear-gradient(135deg, var(--brand), var(--brand-dark))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

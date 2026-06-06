@@ -65,7 +65,7 @@ export default function DbSettings({ hasUrl: initialHas, maskedUrl: initialMaske
   return (
     <div className="card" style={{ padding: '1.5rem', maxWidth: '640px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-        <Database size={16} color="#6366f1" />
+        <Database size={16} color="var(--brand)" />
         <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>DB 연결 (PostgreSQL)</h2>
       </div>
 
@@ -77,7 +77,7 @@ export default function DbSettings({ hasUrl: initialHas, maskedUrl: initialMaske
               <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#15803d' }}>연결 문자열 설정됨</span>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button type="button" onClick={() => setShowInput((v) => !v)} style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem 0.5rem' }}>변경</button>
+              <button type="button" onClick={() => setShowInput((v) => !v)} style={{ fontSize: '0.75rem', color: 'var(--brand)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem 0.5rem' }}>변경</button>
               <button type="button" onClick={handleDelete} disabled={deletePending} style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                 {deletePending ? <AXDotLoader size={4} color="#dc2626" /> : <Trash2 size={12} />}삭제
               </button>
@@ -108,7 +108,7 @@ export default function DbSettings({ hasUrl: initialHas, maskedUrl: initialMaske
       <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1rem', marginTop: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
           <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>연결 테스트</span>
-          <button type="button" onClick={handleHealth} disabled={!hasUrl || healthPending} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 0.875rem', backgroundColor: hasUrl ? '#6366f1' : '#e2e8f0', color: hasUrl ? '#fff' : '#94a3b8', border: 'none', borderRadius: '0.5rem', fontSize: '0.8125rem', fontWeight: 600, cursor: hasUrl ? 'pointer' : 'not-allowed' }}>
+          <button type="button" onClick={handleHealth} disabled={!hasUrl || healthPending} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 0.875rem', backgroundColor: hasUrl ? 'var(--brand)' : '#e2e8f0', color: hasUrl ? '#fff' : '#94a3b8', border: 'none', borderRadius: '0.5rem', fontSize: '0.8125rem', fontWeight: 600, cursor: hasUrl ? 'pointer' : 'not-allowed' }}>
             {healthPending ? <AXDotLoader size={4} color="#fff" /> : <RefreshCw size={13} />}헬스체크
           </button>
         </div>

@@ -78,7 +78,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             disabled={isPending || !rankInput.trim()}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.25rem',
-              padding: '0.4rem 0.75rem', background: '#4f46e5', color: '#fff',
+              padding: '0.4rem 0.75rem', background: 'var(--brand-dark)', color: '#fff',
               border: 'none', borderRadius: '0.5rem', fontSize: '0.8rem',
               cursor: 'pointer', opacity: isPending || !rankInput.trim() ? 0.5 : 1,
             }}
@@ -130,7 +130,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             disabled={isPending || !posInput.trim()}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.25rem',
-              padding: '0.4rem 0.75rem', background: '#4f46e5', color: '#fff',
+              padding: '0.4rem 0.75rem', background: 'var(--brand-dark)', color: '#fff',
               border: 'none', borderRadius: '0.5rem', fontSize: '0.8rem',
               cursor: 'pointer', opacity: isPending || !posInput.trim() ? 0.5 : 1,
             }}

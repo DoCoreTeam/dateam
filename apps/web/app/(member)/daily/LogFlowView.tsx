@@ -155,7 +155,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
                         {/* flow_reason 배지 */}
                         {(flowReason || isLoading) && (
                           <div style={{
-                            fontSize: '0.7rem', color: '#6366f1',
+                            fontSize: '0.7rem', color: 'var(--brand)',
                             background: '#eef2ff', border: '1px solid #c7d2fe',
                             borderRadius: '0.25rem', padding: '0.15rem 0.5rem',
                             maxWidth: '100%', wordBreak: 'keep-all',

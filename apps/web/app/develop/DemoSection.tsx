@@ -88,7 +88,7 @@ function ProductsResult({ data }: { data: { data?: Product[]; meta?: { total?: n
             <div>
               <span style={{ fontWeight: 600, color: '#e2e8f0' }}>{p.model_name ?? '—'}</span>
               {p.memory && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 6px', background: '#1e293b', borderRadius: 4, color: '#64748b' }}>{p.memory}</span>}
-              {p.tier && <span style={{ marginLeft: 6, fontSize: 11, color: '#6366f1' }}>Tier {p.tier}</span>}
+              {p.tier && <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--brand)' }}>Tier {p.tier}</span>}
             </div>
             <div style={{ color: '#64748b' }}>{p.gpu_count ? `×${p.gpu_count}` : '—'}</div>
             <div style={{ color: '#10b981', fontFamily: 'monospace', fontWeight: 600 }}>
@@ -293,7 +293,7 @@ function SuppliersResult({ data }: { data: { data?: Supplier[] } }) {
             {s.contact && <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>✉️ {s.contact}</div>}
             <div style={{ display: 'flex', gap: 10, fontSize: 12 }}>
               {s.active_quotes != null && (
-                <span style={{ padding: '2px 8px', background: 'rgba(99,102,241,0.1)', color: '#a5b4fc', borderRadius: 100 }}>
+                <span style={{ padding: '2px 8px', background: 'rgba(124,58,237,0.1)', color: '#a5b4fc', borderRadius: 100 }}>
                   활성 견적 {s.active_quotes}건
                 </span>
               )}
@@ -485,12 +485,12 @@ export default function DemoSection() {
     },
   ]
 
-  const methodColors: Record<string, string> = { GET: '#10b981', POST: '#6366f1' }
+  const methodColors: Record<string, string> = { GET: '#10b981', POST: 'var(--brand)' }
 
   return (
     <div>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 13, color: '#6366f1', fontWeight: 600, marginBottom: 8 }}>🧪 인터랙티브 데모</div>
+        <div style={{ fontSize: 13, color: 'var(--brand)', fontWeight: 600, marginBottom: 8 }}>🧪 인터랙티브 데모</div>
         <h1 style={{ fontSize: 32, fontWeight: 800, color: '#f1f5f9', marginBottom: 12, letterSpacing: '-0.02em' }}>라이브 API 테스트</h1>
         <p style={{ color: '#94a3b8', lineHeight: 1.7, fontSize: 15, marginBottom: 0 }}>
           실제 API 키를 입력하고 버튼을 누르면 라이브 데이터가 아래에 구조화된 UI로 표시됩니다.
@@ -511,7 +511,7 @@ export default function DemoSection() {
             onChange={e => setApiKey(e.target.value)}
             style={{ flex: 1, padding: '10px 14px', borderRadius: 8, border: '1px solid #334155', background: '#1e293b', color: '#e2e8f0', fontSize: 14, outline: 'none', fontFamily: 'monospace' }}
           />
-          <a href="/api-keys" style={{ padding: '10px 16px', borderRadius: 8, background: 'rgba(99,102,241,0.1)', color: '#a5b4fc', fontSize: 13, fontWeight: 500, textDecoration: 'none', border: '1px solid rgba(99,102,241,0.2)', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+          <a href="/api-keys" style={{ padding: '10px 16px', borderRadius: 8, background: 'rgba(124,58,237,0.1)', color: '#a5b4fc', fontSize: 13, fontWeight: 500, textDecoration: 'none', border: '1px solid rgba(124,58,237,0.2)', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
             키 발급 →
           </a>
         </div>
@@ -530,8 +530,8 @@ export default function DemoSection() {
               onClick={() => run(label, demos.find(d => d.label === label)!.fn)}
               disabled={loading && isActive}
               style={{
-                padding: '14px 16px', borderRadius: 10, border: `1px solid ${isActive ? '#6366f1' : '#1e293b'}`,
-                background: isActive ? 'rgba(99,102,241,0.08)' : '#0f172a',
+                padding: '14px 16px', borderRadius: 10, border: `1px solid ${isActive ? 'var(--brand)' : '#1e293b'}`,
+                background: isActive ? 'rgba(124,58,237,0.08)' : '#0f172a',
                 color: '#e2e8f0', cursor: loading && isActive ? 'wait' : 'pointer',
                 textAlign: 'left', transition: 'all .15s',
               }}

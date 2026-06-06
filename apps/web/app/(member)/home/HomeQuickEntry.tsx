@@ -54,10 +54,10 @@ export default function HomeQuickEntry({ todayStr, initialLogs }: Props) {
       {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <NotebookPen size={15} color="#6366f1" />
+          <NotebookPen size={15} color="var(--brand)" />
           <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>오늘 업무</h3>
         </div>
-        <Link href={`/daily?date=${todayStr}`} style={{ fontSize: '0.75rem', color: '#6366f1', textDecoration: 'none', fontWeight: 600 }}>
+        <Link href={`/daily?date=${todayStr}`} style={{ fontSize: '0.75rem', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600 }}>
           상세 보기 →
         </Link>
       </div>
@@ -141,7 +141,7 @@ export default function HomeQuickEntry({ todayStr, initialLogs }: Props) {
             style={{
               display: 'flex', alignItems: 'center', gap: '0.375rem',
               padding: '0.5rem 1rem', border: 'none', borderRadius: '0.5rem',
-              background: '#6366f1', color: '#ffffff', fontSize: '0.8125rem',
+              background: 'var(--brand)', color: '#ffffff', fontSize: '0.8125rem',
               fontWeight: 600, cursor: isPending || !content.trim() ? 'not-allowed' : 'pointer',
               opacity: isPending || !content.trim() ? 0.5 : 1, minHeight: 36, flexShrink: 0,
             }}

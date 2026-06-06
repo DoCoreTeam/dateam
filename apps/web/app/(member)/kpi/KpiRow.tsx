@@ -149,7 +149,7 @@ export default function KpiRow({
             <button
               onClick={handleSave}
               disabled={pending}
-              style={{ padding: '0.3rem 0.5rem', background: '#6366f1', color: '#fff', border: 'none', borderRadius: '0.3rem', cursor: 'pointer', display: 'flex' }}
+              style={{ padding: '0.3rem 0.5rem', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: '0.3rem', cursor: 'pointer', display: 'flex' }}
             >
               <Check size={13} />
             </button>
@@ -184,7 +184,7 @@ export default function KpiRow({
           <button
             onClick={() => setEditing(true)}
             title="수정"
-            style={{ padding: '0.3rem 0.5rem', border: '1px solid #c7d2fe', borderRadius: '0.375rem', background: '#eef2ff', color: '#6366f1', cursor: 'pointer', display: 'flex' }}
+            style={{ padding: '0.3rem 0.5rem', border: '1px solid #c7d2fe', borderRadius: '0.375rem', background: '#eef2ff', color: 'var(--brand)', cursor: 'pointer', display: 'flex' }}
           >
             <Pencil size={13} />
           </button>

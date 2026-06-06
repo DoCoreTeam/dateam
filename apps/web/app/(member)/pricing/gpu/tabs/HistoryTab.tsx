@@ -34,7 +34,7 @@ const ACTION_CONFIG: Record<string, { label: string; color: string; bg: string }
   direct_set:               { label: '판매가 직접설정', color: '#d97706', bg: '#fef3e2' },
   margin_changed:           { label: '마진 변경',      color: '#7c3aed', bg: '#f1ebfe' },
   rejected:                 { label: '반려',           color: '#6b7280', bg: '#f0f1f4' },
-  review_created:           { label: 'AI 분석 등록',   color: '#4338ca', bg: '#eef2ff' },
+  review_created:           { label: 'AI 분석 등록',   color: 'var(--brand-dark)', bg: '#eef2ff' },
   review_finalized:         { label: '검토 확정',      color: '#15a35a', bg: '#e6f7ee' },
   review_rejected:          { label: '검토 반려',      color: '#dc2626', bg: '#fee2e2' },
   review_recheck_completed: { label: 'AI 재분석',      color: '#0891b2', bg: '#e0f7fa' },

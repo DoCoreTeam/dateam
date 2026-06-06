@@ -110,7 +110,7 @@ export default function OrgWeeklyView(props: Props) {
         )}
         {!atCurrent && (
           <Link href="/weekly-report?tab=org" prefetch={false}
-            style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem', borderRadius: '0.375rem', textDecoration: 'none', color: '#6366f1', background: '#eef2ff', border: '1px solid #c7d2fe' }}>
+            style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem', borderRadius: '0.375rem', textDecoration: 'none', color: 'var(--brand)', background: '#eef2ff', border: '1px solid #c7d2fe' }}>
             이번 주
           </Link>
         )}
@@ -120,7 +120,7 @@ export default function OrgWeeklyView(props: Props) {
         {stack.map((id, idx) => (
           <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
             {idx > 0 && <ChevronRight size={13} color="#cbd5e1" />}
-            <button onClick={() => jumpTo(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: idx === stack.length - 1 ? '#0f172a' : '#6366f1', fontWeight: idx === stack.length - 1 ? 700 : 500, padding: 0 }}>
+            <button onClick={() => jumpTo(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: idx === stack.length - 1 ? '#0f172a' : 'var(--brand)', fontWeight: idx === stack.length - 1 ? 700 : 500, padding: 0 }}>
               {nodeById.get(id)?.name ?? '조직'}
             </button>
           </span>
@@ -148,7 +148,7 @@ export default function OrgWeeklyView(props: Props) {
               <button key={d.id} onClick={() => drillInto(d.id)} style={{ textAlign: 'left', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.625rem', padding: '1rem', cursor: 'pointer', minHeight: 44 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                   <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: '#0f172a' }}>{d.name}</span>
-                  {canEdit ? <Pencil size={13} color="#6366f1" /> : <Lock size={12} color="#94a3b8" />}
+                  {canEdit ? <Pencil size={13} color="var(--brand)" /> : <Lock size={12} color="#94a3b8" />}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                   {aggBadge(st.agg)}
@@ -156,7 +156,7 @@ export default function OrgWeeklyView(props: Props) {
                     <Users size={12} /> 제출 {st.reportedCount}/{st.memberCount}
                   </span>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#6366f1', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>열기 <ChevronRight size={12} /></div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--brand)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>열기 <ChevronRight size={12} /></div>
               </button>
             )
           })}
@@ -262,7 +262,7 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
         )}
       </div>
 
-      {msg && <div role="status" style={{ padding: '0.625rem 1.25rem', background: '#eef2ff', borderBottom: '1px solid #c7d2fe', fontSize: '0.8125rem', color: '#4338ca' }}>{msg}</div>}
+      {msg && <div role="status" style={{ padding: '0.625rem 1.25rem', background: '#eef2ff', borderBottom: '1px solid #c7d2fe', fontSize: '0.8125rem', color: 'var(--brand-dark)' }}>{msg}</div>}
 
       {busy ? (
         <div style={{ padding: '1.25rem' }}>
@@ -303,7 +303,7 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
           {rows.map((row, idx) => (
             <div key={`${row.category}-${idx}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
               {/* 카테고리 섹션 헤더 */}
-              <div style={{ padding: '0.625rem 1.25rem', background: '#f8fafc', fontWeight: 700, fontSize: '0.8125rem', color: '#4338ca' }}>{row.category}</div>
+              <div style={{ padding: '0.625rem 1.25rem', background: '#f8fafc', fontWeight: 700, fontSize: '0.8125rem', color: 'var(--brand-dark)' }}>{row.category}</div>
               {/* 작성자 소블록 (직급→이름 순 보존) */}
               {(row.authors ?? []).map((au, ai) => (
                 <div key={ai} style={{ padding: '0.75rem 1.25rem', borderTop: ai > 0 ? '1px dashed #e2e8f0' : 'none' }}>

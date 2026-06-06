@@ -162,7 +162,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
             gap: '0.5rem',
           }}
         >
-          <CheckSquare size={16} color="#6366f1" />
+          <CheckSquare size={16} color="var(--brand)" />
           <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>
             팀원별 루틴 달성률
           </h2>

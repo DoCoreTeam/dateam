@@ -65,13 +65,13 @@ export default function KoraeximSettings({ hasKey: initialHasKey, maskedKey: ini
   return (
     <div className="card" style={{ padding: '1.5rem', maxWidth: '640px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-        <Key size={16} color="#6366f1" />
+        <Key size={16} color="var(--brand)" />
         <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>한국수출입은행 API 키</h2>
       </div>
 
       <p style={{ fontSize: '0.8125rem', color: '#64748b', marginBottom: '1rem', margin: '0 0 1rem 0' }}>
         GPU 환율 자동 갱신에 사용됩니다.{' '}
-        <a href="https://www.koreaexim.go.kr/site/program/financial/exchangeJSON" target="_blank" rel="noreferrer" style={{ color: '#6366f1', textDecoration: 'underline' }}>
+        <a href="https://www.koreaexim.go.kr/site/program/financial/exchangeJSON" target="_blank" rel="noreferrer" style={{ color: 'var(--brand)', textDecoration: 'underline' }}>
           키 발급 안내
         </a>
       </p>
@@ -87,7 +87,7 @@ export default function KoraeximSettings({ hasKey: initialHasKey, maskedKey: ini
               <button
                 type="button"
                 onClick={() => setShowInput((v) => !v)}
-                style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem 0.5rem' }}
+                style={{ fontSize: '0.75rem', color: 'var(--brand)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem 0.5rem' }}
               >
                 변경
               </button>
@@ -169,7 +169,7 @@ export default function KoraeximSettings({ hasKey: initialHasKey, maskedKey: ini
               alignItems: 'center',
               gap: '0.375rem',
               padding: '0.5rem 0.875rem',
-              backgroundColor: hasKey ? '#6366f1' : '#e2e8f0',
+              backgroundColor: hasKey ? 'var(--brand)' : '#e2e8f0',
               color: hasKey ? '#fff' : '#94a3b8',
               border: 'none',
               borderRadius: '0.5rem',

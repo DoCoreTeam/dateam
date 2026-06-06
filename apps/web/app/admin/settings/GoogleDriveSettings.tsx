@@ -49,7 +49,7 @@ export default function GoogleDriveSettings() {
   return (
     <div className="card" style={{ padding: '1.5rem', maxWidth: '640px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-        <Cloud size={16} color="#6366f1" />
+        <Cloud size={16} color="var(--brand)" />
         <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>
           Google Drive 연동
         </h2>

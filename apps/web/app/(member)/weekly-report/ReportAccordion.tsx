@@ -130,7 +130,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
         <div style={{ padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {report.performance && (
             <div>
-              <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6366f1', margin: '0 0 0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--brand)', margin: '0 0 0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 성과
               </p>
               <RichContent html={report.performance} />
@@ -221,7 +221,7 @@ export default function ReportAccordion({ groups }: ReportAccordionProps) {
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
                   fontSize: '0.8125rem', fontWeight: 500, padding: '0.375rem 0.75rem',
-                  background: '#eef2ff', color: '#4338ca', border: 'none',
+                  background: '#eef2ff', color: 'var(--brand-dark)', border: 'none',
                   borderRadius: '0.5rem', cursor: 'pointer', flexShrink: 0,
                 }}
               >

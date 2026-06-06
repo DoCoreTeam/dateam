@@ -244,12 +244,12 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
           style={{
             display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
             padding: '0.5rem 1rem',
-            background: loading ? '#6d6abe' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            background: loading ? '#6d6abe' : 'linear-gradient(135deg, var(--brand), var(--brand))',
             color: '#fff', border: 'none', borderRadius: '0.5rem',
             fontSize: '0.875rem', fontWeight: 600,
             cursor: loading ? 'not-allowed' : 'pointer',
             opacity: loading ? 0.85 : 1, transition: 'opacity 200ms',
-            boxShadow: '0 2px 8px rgba(99,102,241,0.35)',
+            boxShadow: '0 2px 8px rgba(124,58,237,0.35)',
             flexShrink: 0,
           }}
         >
@@ -273,7 +273,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
               <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#6d28d9', whiteSpace: 'nowrap' }}>{STEPS[Math.min(statusStep, STEPS.length - 1)].label}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <div role="progressbar" aria-busy="true" aria-label="AI 취합 진행 중" style={{ width: 80, height: 3, borderRadius: 3, background: '#ede9fe', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
-                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '40%', borderRadius: 3, background: '#8b5cf6', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
+                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '40%', borderRadius: 3, background: 'var(--brand)', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
                 </div>
                 <span style={{ fontSize: '0.6875rem', color: '#a78bfa', whiteSpace: 'nowrap' }}>{elapsed}초</span>
               </div>
@@ -337,7 +337,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
                   return rows.map((row, rowIdx) => (
                     <tr key={rowIdx} style={{ borderBottom: '1px solid #f1f5f9', verticalAlign: 'top' }}>
                       <td className="mobile-only card-header">
-                        <span style={{ fontWeight: 600, color: '#6366f1' }}>{row.orgName} {row.userName ? `(${row.userName})` : ''}</span>
+                        <span style={{ fontWeight: 600, color: 'var(--brand)' }}>{row.orgName} {row.userName ? `(${row.userName})` : ''}</span>
                       </td>
                       {spanMap.has(rowIdx) && (
                         <td
@@ -345,7 +345,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
                           className="card-hide"
                           style={{ padding: '0.75rem 0.875rem', whiteSpace: 'nowrap', verticalAlign: 'middle', borderRight: '1px solid #f1f5f9' }}
                         >
-                          <div style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: 600 }}>{row.orgName}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--brand)', fontWeight: 600 }}>{row.orgName}</div>
                           {row.userName && (
                             <div style={{ fontSize: '0.8125rem', color: '#374151', fontWeight: 500, marginTop: '0.125rem' }}>{row.userName}</div>
                           )}

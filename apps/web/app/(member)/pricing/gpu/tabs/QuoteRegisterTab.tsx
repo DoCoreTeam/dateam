@@ -407,7 +407,7 @@ export default function QuoteRegisterTab() {
           {/* 텍스트 파일 첨부(단일) */}
           {attached && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 10px', borderRadius: 8, background: '#f8faff', border: '1px solid #e0e7ff' }}>
-              <Paperclip size={16} style={{ color: '#6366f1', flexShrink: 0 }} />
+              <Paperclip size={16} style={{ color: 'var(--brand)', flexShrink: 0 }} />
               <span style={{ fontSize: 12, color: '#374151', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attached.name}</span>
               <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#9ca3af' }} onClick={() => setAttached(null)}>
                 <X size={14} />
@@ -517,7 +517,7 @@ export default function QuoteRegisterTab() {
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 6, background: '#f8fafc', border: '1px solid #e2e8f0', fontSize: 12 }}>
                       <span style={{ color: 'var(--gpu-accent)' }}>✦</span>
                       <span style={{ fontWeight: 600, color: '#334155', flex: 1 }}>{f.model}</span>
-                      {f.price && <span style={{ fontWeight: 700, color: '#4f46e5' }}>${f.price}/hr</span>}
+                      {f.price && <span style={{ fontWeight: 700, color: 'var(--brand-dark)' }}>${f.price}/hr</span>}
                     </div>
                   ))}
                 </div>
@@ -556,7 +556,7 @@ export default function QuoteRegisterTab() {
               {supplierPreview.length > 0 && (
                 <div data-testid="supplier-preview" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
-                    <span className="gpu-badge" style={{ background: '#6366f1', color: '#fff', fontSize: 10 }}>🟡 공급사 견적</span>
+                    <span className="gpu-badge" style={{ background: 'var(--brand)', color: '#fff', fontSize: 10 }}>🟡 공급사 견적</span>
                     <span className="gpu-badge" style={{ background: committed ? 'var(--gpu-green)' : 'var(--gpu-amber)', color: '#fff', fontSize: 10 }}>
                       {committed ? '검토 대기 추가됨' : '저장 대기'}
                     </span>
@@ -588,7 +588,7 @@ export default function QuoteRegisterTab() {
                           <span style={{ fontSize: 11, color: '#94a3b8' }}>{open ? '▾' : '▸'}</span>
                           <span style={{ fontSize: 12, color: '#374151', fontWeight: 600, flex: 1 }}>{name || '(모델 미상)'}</span>
                           {ex.supplier ? <span style={{ fontSize: 11, color: '#6b7280' }}>{String(ex.supplier)}</span> : null}
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5' }}>{price}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand-dark)' }}>{price}</span>
                         </div>
                         {open && (
                           <div style={{ padding: '4px 12px 10px 28px', display: 'flex', flexDirection: 'column', gap: 3, borderTop: '1px solid #ddd6fe', background: '#f5f3ff' }}>

@@ -46,7 +46,7 @@ interface QuoteRow {
   gpu_products: { id: string; model_name: string; memory: string | null; tier: number } | null
 }
 
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6', '#ec4899', '#14b8a6', '#f97316', '#84cc16']
+const COLORS = ['var(--brand)', '#10b981', '#f59e0b', '#ef4444', 'var(--brand)', '#3b82f6', '#ec4899', '#14b8a6', '#f97316', '#84cc16']
 const STATUS_LABEL: Record<string, { t: string; c: string }> = {
   confirmed: { t: '확정', c: 'var(--gpu-green)' },
   pending: { t: '대기', c: 'var(--gpu-amber)' },

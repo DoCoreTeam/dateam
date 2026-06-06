@@ -90,9 +90,9 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
               onClick={() => setRoleFilter(r)}
               style={{
                 padding: '0.25rem 0.75rem', fontSize: '0.8rem', borderRadius: '999px', cursor: 'pointer',
-                border: roleFilter === r ? '1px solid #6366f1' : '1px solid #e2e8f0',
+                border: roleFilter === r ? '1px solid var(--brand)' : '1px solid #e2e8f0',
                 background: roleFilter === r ? '#eef2ff' : '#fff',
-                color: roleFilter === r ? '#4f46e5' : '#64748b',
+                color: roleFilter === r ? 'var(--brand-dark)' : '#64748b',
                 fontWeight: roleFilter === r ? 600 : 400,
               }}
             >
@@ -151,7 +151,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
                       width: '2rem', height: '2rem', borderRadius: '50%',
                       background: profile.role === 'admin'
                         ? 'linear-gradient(135deg, #dc2626, #ef4444)'
-                        : 'linear-gradient(135deg, #6366f1, #818cf8)',
+                        : 'linear-gradient(135deg, var(--brand), var(--brand))',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: '0.75rem', fontWeight: 600, color: 'white', flexShrink: 0,
                     }}>

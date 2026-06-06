@@ -164,7 +164,7 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
             borderRadius: '0.75rem',
             boxShadow: '0 0 0 200vmax rgba(2, 6, 23, 0.78)',
             pointerEvents: 'none',
-            outline: '2.5px solid rgba(99, 102, 241, 0.9)',
+            outline: '2.5px solid rgba(124,58,237, 0.9)',
             outlineOffset: '0px',
           }}
         />
@@ -193,7 +193,7 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{
                 fontSize: '0.6875rem', fontWeight: 700, color: '#ffffff',
-                background: '#6366f1', borderRadius: '999px', padding: '0.15rem 0.5rem',
+                background: 'var(--brand)', borderRadius: '999px', padding: '0.15rem 0.5rem',
               }}>
                 {STEPS[step].stepLabel}
               </span>
@@ -218,7 +218,7 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
                   key={i}
                   style={{
                     width: '0.5rem', height: '0.5rem', borderRadius: '50%',
-                    background: i === step ? '#6366f1' : '#e2e8f0',
+                    background: i === step ? 'var(--brand)' : '#e2e8f0',
                     transition: 'background 200ms',
                     display: 'inline-block',
                   }}
@@ -241,7 +241,7 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
                 type="button"
                 onClick={next}
                 style={{
-                  padding: '0.4rem 1rem', background: '#6366f1',
+                  padding: '0.4rem 1rem', background: 'var(--brand)',
                   border: 'none', borderRadius: '0.5rem',
                   fontSize: '0.8125rem', color: '#ffffff',
                   fontWeight: 600, cursor: 'pointer',

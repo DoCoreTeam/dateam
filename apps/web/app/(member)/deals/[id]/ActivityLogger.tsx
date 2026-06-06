@@ -81,9 +81,9 @@ export default function ActivityLogger({ dealId }: Props) {
                   fontWeight: 600,
                   border: '1px solid',
                   cursor: 'pointer',
-                  background: type === t.value ? '#6366f1' : 'white',
+                  background: type === t.value ? 'var(--brand)' : 'white',
                   color: type === t.value ? 'white' : '#64748b',
-                  borderColor: type === t.value ? '#6366f1' : '#e2e8f0',
+                  borderColor: type === t.value ? 'var(--brand)' : '#e2e8f0',
                 }}
               >
                 {t.label}

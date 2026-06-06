@@ -92,7 +92,7 @@ const AXLoadingOverlay = forwardRef<HTMLDivElement, AXLoadingOverlayProps>(
               ))}
             </div>
           ) : (
-            <AXDotLoader size={10} color={isDark ? '#e2e8f0' : '#8b5cf6'} />
+            <AXDotLoader size={10} color={isDark ? '#e2e8f0' : 'var(--brand)'} />
           )}
 
           <span
@@ -142,7 +142,7 @@ const AXLoadingOverlay = forwardRef<HTMLDivElement, AXLoadingOverlayProps>(
                   height: '100%',
                   width: '40%',
                   borderRadius: 3,
-                  background: '#8b5cf6',
+                  background: 'var(--brand)',
                   animation: 'progress-indeterminate 1.4s ease-in-out infinite',
                 }}
               />

@@ -39,7 +39,7 @@ export default function IntakeActions({ intakeId, notes }: Props) {
 
   return (
     <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
-      <button onClick={handleEdit} disabled={loading} style={{ ...btn, color: '#6366f1', border: '1px solid #e0e7ff' }}>메모</button>
+      <button onClick={handleEdit} disabled={loading} style={{ ...btn, color: 'var(--brand)', border: '1px solid #e0e7ff' }}>메모</button>
       <button onClick={handleDelete} disabled={loading} style={{ ...btn, color: '#dc2626', border: '1px solid #fecaca' }}>삭제</button>
     </div>
   )

@@ -36,9 +36,9 @@ export interface OrgNodeWithChildren extends OrgNode {
 }
 
 const TYPE_COLORS: Record<OrgNodeType, { bg: string; border: string; text: string; badge: string }> = {
-  company: { bg: 'linear-gradient(135deg,#4f46e5,#7c3aed)', border: '#4f46e5', text: '#fff', badge: '#c7d2fe' },
+  company: { bg: 'linear-gradient(135deg,var(--brand-dark),#7c3aed)', border: 'var(--brand-dark)', text: '#fff', badge: '#c7d2fe' },
   role:    { bg: 'linear-gradient(135deg,#1e1b4b,#312e81)', border: '#312e81', text: '#fff', badge: '#a5b4fc' },
-  department: { bg: 'linear-gradient(135deg,#3730a3,#4338ca)', border: '#4338ca', text: '#fff', badge: '#c7d2fe' },
+  department: { bg: 'linear-gradient(135deg,#3730a3,var(--brand-dark))', border: 'var(--brand-dark)', text: '#fff', badge: '#c7d2fe' },
   person: { bg: '#ffffff', border: '#e2e8f0', text: '#1e293b', badge: '#ede9fe' },
 }
 
@@ -110,9 +110,9 @@ function DragDropWrapper({
         position: 'relative',
         borderRadius: '0.75rem',
         background: node.type === 'person' ? '#fff' : c.bg,
-        border: `2px solid ${isOver ? '#818cf8' : c.border}`,
+        border: `2px solid ${isOver ? 'var(--brand)' : c.border}`,
         boxShadow: isOver
-          ? '0 0 0 3px rgba(99,102,241,0.25), 0 4px 12px rgba(0,0,0,0.1)'
+          ? '0 0 0 3px rgba(124,58,237,0.25), 0 4px 12px rgba(0,0,0,0.1)'
           : '0 2px 8px rgba(0,0,0,0.08)',
         opacity: isBeingDragged ? 0.4 : 1,
         transition: 'box-shadow 0.15s, border-color 0.15s',
@@ -137,10 +137,10 @@ function DragDropWrapper({
       {isOver && (
         <div style={{
           position: 'absolute', inset: 0, borderRadius: '0.65rem',
-          background: 'rgba(99,102,241,0.08)', pointerEvents: 'none', zIndex: 1,
+          background: 'rgba(124,58,237,0.08)', pointerEvents: 'none', zIndex: 1,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <span style={{ fontSize: '0.7rem', color: '#6366f1', fontWeight: 700, background: '#eef2ff', padding: '2px 8px', borderRadius: '999px' }}>
+          <span style={{ fontSize: '0.7rem', color: 'var(--brand)', fontWeight: 700, background: '#eef2ff', padding: '2px 8px', borderRadius: '999px' }}>
             여기로 이동
           </span>
         </div>
@@ -227,7 +227,7 @@ function InlineMember({
     }}>
       <div style={{
         width: '1.5rem', height: '1.5rem', borderRadius: '50%', flexShrink: 0,
-        background: dark ? 'rgba(255,255,255,0.2)' : 'linear-gradient(135deg,#6366f1,#818cf8)',
+        background: dark ? 'rgba(255,255,255,0.2)' : 'linear-gradient(135deg,var(--brand),var(--brand))',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '0.65rem', fontWeight: 700, color: '#fff',
       }}>
@@ -347,7 +347,7 @@ function PersonCard(props: CardProps) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
           <div style={{
             width: '1.6rem', height: '1.6rem', borderRadius: '50%',
-            background: 'linear-gradient(135deg,#6366f1,#818cf8)',
+            background: 'linear-gradient(135deg,var(--brand),var(--brand))',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '0.68rem', fontWeight: 700, color: '#fff', flexShrink: 0,
           }}>

@@ -18,7 +18,7 @@ const EXAMPLE_KEY = 'ax_live_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4'
 
 function SidebarItem({ children, active, onClick }: { children: React.ReactNode; active: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 400, background: active ? 'rgba(99,102,241,0.1)' : 'transparent', color: active ? '#a5b4fc' : '#64748b', borderLeft: active ? '2px solid #6366f1' : '2px solid transparent', marginBottom: 2, transition: 'all .15s' }}>
+    <button onClick={onClick} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 400, background: active ? 'rgba(124,58,237,0.1)' : 'transparent', color: active ? '#a5b4fc' : '#64748b', borderLeft: active ? '2px solid var(--brand)' : '2px solid transparent', marginBottom: 2, transition: 'all .15s' }}>
       {children}
     </button>
   )
@@ -39,7 +39,7 @@ function CodeBlock({ code, id, onCopy, copiedId, lang = 'bash' }: { code: string
 }
 
 function Badge({ method }: { method: 'GET' | 'POST' | 'PATCH' | 'DELETE' }) {
-  const colors: Record<string, string> = { GET: '#10b981', POST: '#6366f1', PATCH: '#f59e0b', DELETE: '#ef4444' }
+  const colors: Record<string, string> = { GET: '#10b981', POST: 'var(--brand)', PATCH: '#f59e0b', DELETE: '#ef4444' }
   return <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 4, background: colors[method] + '22', color: colors[method], fontWeight: 700, fontSize: 12, fontFamily: 'monospace' }}>{method}</span>
 }
 
@@ -54,7 +54,7 @@ function P({ children }: { children: React.ReactNode }) {
 }
 function Callout({ type = 'info', title, children }: { type?: 'info' | 'warn' | 'tip'; title: string; children: React.ReactNode }) {
   const cfg = {
-    info: { border: 'rgba(99,102,241,0.3)', bg: 'rgba(99,102,241,0.05)', color: '#a5b4fc', icon: '💡' },
+    info: { border: 'rgba(124,58,237,0.3)', bg: 'rgba(124,58,237,0.05)', color: '#a5b4fc', icon: '💡' },
     warn: { border: 'rgba(239,68,68,0.25)', bg: 'rgba(239,68,68,0.05)', color: '#f87171', icon: '⚠️' },
     tip:  { border: 'rgba(16,185,129,0.25)', bg: 'rgba(16,185,129,0.05)', color: '#34d399', icon: '✅' },
   }[type]
@@ -112,7 +112,7 @@ function OverviewSection({ onCopy, copiedId }: { onCopy: (t: string, id: string)
   const origin = useOrigin()
   return (
     <div>
-      <div style={{ fontSize: 13, color: '#6366f1', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>AX GPU 가격 API</div>
+      <div style={{ fontSize: 13, color: 'var(--brand)', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>AX GPU 가격 API</div>
       <H1>개발자 문서</H1>
       <P>AX API는 GPU 실시간 가격 조회, 동적 견적 계산, 재고·공급사·경쟁사 데이터에 프로그래밍 방식으로 접근하게 해줍니다. 외부 시스템 연동, 견적 자동화, ERP/CRM 통합에 활용하세요.</P>
 
@@ -972,18 +972,18 @@ export default function DevelopPage() {
       <header style={{ borderBottom: '1px solid #1e293b', padding: '0 2rem', position: 'sticky', top: 0, background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(12px)', zIndex: 100 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <a href="/home" style={{ width: 30, height: 30, borderRadius: 7, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', textDecoration: 'none' }}>A</a>
+            <a href="/home" style={{ width: 30, height: 30, borderRadius: 7, background: 'linear-gradient(135deg, var(--brand), var(--brand))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', textDecoration: 'none' }}>A</a>
             <span style={{ fontWeight: 700, fontSize: 15, color: '#f1f5f9' }}>AX API</span>
-            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 100, background: '#1e293b', color: '#6366f1', fontWeight: 600 }}>v1</span>
+            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 100, background: '#1e293b', color: 'var(--brand)', fontWeight: 600 }}>v1</span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {showDashboardLink && (
-              <a href="/home" style={{ padding: '6px 14px', borderRadius: 8, background: 'rgba(99,102,241,0.1)', color: '#a5b4fc', fontSize: 13, fontWeight: 500, textDecoration: 'none', border: '1px solid rgba(99,102,241,0.2)' }}>
+              <a href="/home" style={{ padding: '6px 14px', borderRadius: 8, background: 'rgba(124,58,237,0.1)', color: '#a5b4fc', fontSize: 13, fontWeight: 500, textDecoration: 'none', border: '1px solid rgba(124,58,237,0.2)' }}>
                 ← 대시보드
               </a>
             )}
             {showApplyLink && (
-              <a href="/api-access" style={{ padding: '6px 14px', borderRadius: 8, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+              <a href="/api-access" style={{ padding: '6px 14px', borderRadius: 8, background: 'linear-gradient(135deg, var(--brand), var(--brand))', color: '#fff', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
                 API 키 신청 →
               </a>
             )}

@@ -38,13 +38,13 @@ export default function ApiAccessPage() {
       <div style={{ width: '100%', maxWidth: 480 }}>
         {/* Logo / Brand */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 56, height: 56, borderRadius: 16, background: 'linear-gradient(135deg, #6366f1, #818cf8)', marginBottom: 16 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 56, height: 56, borderRadius: 16, background: 'linear-gradient(135deg, var(--brand), var(--brand))', marginBottom: 16 }}>
             <KeyRound size={28} color="white" />
           </div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9', margin: '0 0 6px' }}>AX API 접근 신청</h1>
           <p style={{ color: '#94a3b8', fontSize: 14, margin: 0 }}>
             GPU 가격 데이터 API 접근 권한을 신청합니다.{' '}
-            <Link href="/develop" style={{ color: '#818cf8', textDecoration: 'none' }}>API 문서 →</Link>
+            <Link href="/develop" style={{ color: 'var(--brand)', textDecoration: 'none' }}>API 문서 →</Link>
           </p>
         </div>
 
@@ -57,7 +57,7 @@ export default function ApiAccessPage() {
                 신청이 접수되었습니다.<br />
                 관리자 승인 후 로그인 정보를 안내해 드립니다.
               </p>
-              <Link href="/develop" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#818cf8', fontSize: 14, textDecoration: 'none' }}>
+              <Link href="/develop" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--brand)', fontSize: 14, textDecoration: 'none' }}>
                 <ArrowLeft size={14} /> API 문서 보기
               </Link>
             </div>
@@ -124,7 +124,7 @@ export default function ApiAccessPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  style={{ marginTop: 4, padding: '11px 0', borderRadius: 10, border: 'none', background: loading ? '#4338ca' : '#6366f1', color: '#fff', fontWeight: 700, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', transition: 'background 0.15s' }}
+                  style={{ marginTop: 4, padding: '11px 0', borderRadius: 10, border: 'none', background: loading ? 'var(--brand-dark)' : 'var(--brand)', color: '#fff', fontWeight: 700, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', transition: 'background 0.15s' }}
                 >
                   {loading ? '신청 중...' : 'API 접근 신청'}
                 </button>
@@ -132,7 +132,7 @@ export default function ApiAccessPage() {
 
               <p style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: '#475569' }}>
                 이미 계정이 있으신가요?{' '}
-                <Link href="/login" style={{ color: '#818cf8', textDecoration: 'none' }}>로그인 →</Link>
+                <Link href="/login" style={{ color: 'var(--brand)', textDecoration: 'none' }}>로그인 →</Link>
               </p>
             </form>
           )}

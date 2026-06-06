@@ -83,7 +83,7 @@ export default function ContactsPage() {
 
       <div className="card">
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Users size={16} color="#6366f1" />
+          <Users size={16} color="var(--brand)" />
           <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>전체 담당자</h2>
           <span className="badge badge-slate">{contacts.length}{hasFilters ? '명 (필터됨)' : '명'}</span>
         </div>
@@ -108,7 +108,7 @@ export default function ContactsPage() {
 
         {isLoading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 1rem' }}>
-            <Loader2 size={24} style={{ color: '#6366f1', animation: 'spin 1s linear infinite' }} />
+            <Loader2 size={24} style={{ color: 'var(--brand)', animation: 'spin 1s linear infinite' }} />
           </div>
         ) : contacts.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1rem', color: '#94a3b8', fontSize: '0.875rem', textAlign: 'center' }}>
@@ -158,7 +158,7 @@ export default function ContactsPage() {
                       {c.email && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                           <Mail size={12} color="#94a3b8" />
-                          <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} style={{ fontSize: '0.8125rem', color: '#6366f1', textDecoration: 'none' }}>{c.email}</a>
+                          <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} style={{ fontSize: '0.8125rem', color: 'var(--brand)', textDecoration: 'none' }}>{c.email}</a>
                         </div>
                       )}
                       {(c.mobile ?? c.phone) && (
@@ -176,7 +176,7 @@ export default function ContactsPage() {
                   </td>
                   <td data-label="거래처" onClick={e => e.stopPropagation()}>
                     {c.accounts?.name ? (
-                      <Link href={`/accounts/${c.account_id}`} style={{ fontSize: '0.875rem', color: '#6366f1', textDecoration: 'none' }}>
+                      <Link href={`/accounts/${c.account_id}`} style={{ fontSize: '0.875rem', color: 'var(--brand)', textDecoration: 'none' }}>
                         {c.accounts.name}
                       </Link>
                     ) : <span style={{ color: '#cbd5e1', fontSize: '0.8125rem' }}>-</span>}
@@ -225,27 +225,27 @@ function ContactDetail({ contact: c, onClose, onDeleted }: { contact: ContactWit
       <div className="detail-info-list">
         {c.accounts?.name && (
           <div className="detail-info-row">
-            <Briefcase size={14} color="#6366f1" style={{ flexShrink: 0 }} />
-            <Link href={`/accounts/${c.account_id}`} onClick={onClose} style={{ color: '#6366f1', textDecoration: 'none', fontWeight: 500 }}>
+            <Briefcase size={14} color="var(--brand)" style={{ flexShrink: 0 }} />
+            <Link href={`/accounts/${c.account_id}`} onClick={onClose} style={{ color: 'var(--brand)', textDecoration: 'none', fontWeight: 500 }}>
               {c.accounts.name}
             </Link>
           </div>
         )}
         {c.email && (
           <div className="detail-info-row">
-            <Mail size={14} color="#6366f1" style={{ flexShrink: 0 }} />
-            <a href={`mailto:${c.email}`} style={{ color: '#6366f1', textDecoration: 'none' }}>{c.email}</a>
+            <Mail size={14} color="var(--brand)" style={{ flexShrink: 0 }} />
+            <a href={`mailto:${c.email}`} style={{ color: 'var(--brand)', textDecoration: 'none' }}>{c.email}</a>
           </div>
         )}
         {c.mobile && (
           <div className="detail-info-row">
-            <Phone size={14} color="#6366f1" style={{ flexShrink: 0 }} />
+            <Phone size={14} color="var(--brand)" style={{ flexShrink: 0 }} />
             <span>📱 {c.mobile}</span>
           </div>
         )}
         {c.phone && (
           <div className="detail-info-row">
-            <Phone size={14} color="#6366f1" style={{ flexShrink: 0 }} />
+            <Phone size={14} color="var(--brand)" style={{ flexShrink: 0 }} />
             <span>{c.phone}</span>
           </div>
         )}

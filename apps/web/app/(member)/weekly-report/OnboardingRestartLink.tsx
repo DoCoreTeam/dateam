@@ -28,7 +28,7 @@ export default function OnboardingRestartLink({ variant }: OnboardingRestartLink
           display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
           padding: '0.3rem 0.75rem',
           background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '9999px',
-          cursor: 'pointer', color: '#4338ca', fontSize: '0.75rem', fontWeight: 600,
+          cursor: 'pointer', color: 'var(--brand-dark)', fontSize: '0.75rem', fontWeight: 600,
           transition: 'background 120ms, border-color 120ms',
           flexShrink: 0,
         }}
@@ -55,16 +55,16 @@ export default function OnboardingRestartLink({ variant }: OnboardingRestartLink
         style={{
           display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
           background: 'none', border: 'none', cursor: 'pointer',
-          fontSize: '0.8125rem', color: '#6366f1', fontWeight: 500,
+          fontSize: '0.8125rem', color: 'var(--brand)', fontWeight: 500,
           textDecoration: 'underline', textDecorationColor: 'transparent',
           transition: 'color 120ms, text-decoration-color 120ms',
         }}
         onMouseEnter={(e) => {
-          ;(e.currentTarget as HTMLButtonElement).style.color = '#4338ca'
-          ;(e.currentTarget as HTMLButtonElement).style.textDecorationColor = '#4338ca'
+          ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--brand-dark)'
+          ;(e.currentTarget as HTMLButtonElement).style.textDecorationColor = 'var(--brand-dark)'
         }}
         onMouseLeave={(e) => {
-          ;(e.currentTarget as HTMLButtonElement).style.color = '#6366f1'
+          ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--brand)'
           ;(e.currentTarget as HTMLButtonElement).style.textDecorationColor = 'transparent'
         }}
       >

@@ -52,7 +52,7 @@ export default async function DealDetailPage({ params }: PageProps) {
   return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
-        <Link href="/deals" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: '#6366f1', fontSize: '0.875rem', fontWeight: 500, textDecoration: 'none', marginBottom: '0.75rem' }}>
+        <Link href="/deals" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: 'var(--brand)', fontSize: '0.875rem', fontWeight: 500, textDecoration: 'none', marginBottom: '0.75rem' }}>
           <ArrowLeft size={14} /> 영업기회 목록
         </Link>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
@@ -62,7 +62,7 @@ export default async function DealDetailPage({ params }: PageProps) {
               <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: '9999px', color: sc.color, background: sc.bg }}>{deal.stage}</span>
             </div>
             {deal.accounts?.name && (
-              <Link href={`/accounts/${deal.accounts.id}`} style={{ fontSize: '0.875rem', color: '#6366f1', textDecoration: 'none' }}>
+              <Link href={`/accounts/${deal.accounts.id}`} style={{ fontSize: '0.875rem', color: 'var(--brand)', textDecoration: 'none' }}>
                 {deal.accounts.name}
               </Link>
             )}
@@ -81,20 +81,20 @@ export default async function DealDetailPage({ params }: PageProps) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {deal.value && (
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <Target size={15} color="#6366f1" />
+                  <Target size={15} color="var(--brand)" />
                   <span style={{ fontSize: '0.875rem', color: '#374151' }}>₩{deal.value.toLocaleString()}</span>
                   <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>확률 {deal.probability}%</span>
                 </div>
               )}
               {deal.close_date && (
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <Calendar size={15} color="#6366f1" />
+                  <Calendar size={15} color="var(--brand)" />
                   <span style={{ fontSize: '0.875rem', color: '#374151' }}>마감: {deal.close_date}</span>
                 </div>
               )}
               {deal.contacts && (
                 <div style={{ fontSize: '0.875rem', color: '#374151' }}>
-                  담당자: <Link href={`/contacts/${deal.contacts.id}`} style={{ color: '#6366f1', textDecoration: 'none' }}>{deal.contacts.name}</Link>
+                  담당자: <Link href={`/contacts/${deal.contacts.id}`} style={{ color: 'var(--brand)', textDecoration: 'none' }}>{deal.contacts.name}</Link>
                   {deal.contacts.title && <span style={{ color: '#94a3b8' }}> ({deal.contacts.title})</span>}
                 </div>
               )}
@@ -113,8 +113,8 @@ export default async function DealDetailPage({ params }: PageProps) {
 
           {/* 다음 액션 */}
           {(deal.next_action || deal.next_action_date) && (
-            <div className="card" style={{ padding: '1.25rem 1.5rem', borderLeft: '3px solid #6366f1' }}>
-              <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#6366f1', margin: '0 0 0.5rem' }}>다음 액션</h2>
+            <div className="card" style={{ padding: '1.25rem 1.5rem', borderLeft: '3px solid var(--brand)' }}>
+              <h2 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--brand)', margin: '0 0 0.5rem' }}>다음 액션</h2>
               {deal.next_action && <p style={{ fontSize: '0.875rem', color: '#374151', margin: 0 }}>{deal.next_action}</p>}
               {deal.next_action_date && <p style={{ fontSize: '0.8125rem', color: '#94a3b8', margin: '0.25rem 0 0' }}>📅 {deal.next_action_date}</p>}
             </div>
@@ -139,13 +139,13 @@ export default async function DealDetailPage({ params }: PageProps) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '0.8125rem', color: '#374151', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{act.content}</div>
                   {act.suggested_stage && (
-                    <div style={{ fontSize: '0.75rem', color: '#6366f1', marginTop: '0.25rem' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--brand)', marginTop: '0.25rem' }}>
                       단계 제안: {act.suggested_stage}
                     </div>
                   )}
                   <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
                     {new Date(act.created_at).toLocaleString('ko-KR')}
-                    {act.ai_extracted && <span style={{ marginLeft: '0.375rem', color: '#6366f1' }}>· AI 추출</span>}
+                    {act.ai_extracted && <span style={{ marginLeft: '0.375rem', color: 'var(--brand)' }}>· AI 추출</span>}
                   </div>
                 </div>
               </div>

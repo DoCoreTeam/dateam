@@ -108,7 +108,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
           {/* 추천 공급사 */}
           {suggestions.length > 0 && (
             <div style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#4338ca', marginBottom: 5 }}>✦ 유사 공급사 추천</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--brand-dark)', marginBottom: 5 }}>✦ 유사 공급사 추천</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {suggestions.map((s) => (
                   <button
@@ -124,7 +124,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
                     <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{s.name}</span>
                     {s.location && <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>{s.location}</span>}
-                    <span style={{ fontSize: 10, color: '#6366f1', fontWeight: 700 }}>{Math.round(s.score * 100)}% 일치</span>
+                    <span style={{ fontSize: 10, color: 'var(--brand)', fontWeight: 700 }}>{Math.round(s.score * 100)}% 일치</span>
                   </button>
                 ))}
               </div>
@@ -497,7 +497,7 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
 
       {/* AI 재분석 섹션 */}
       <div style={{ marginTop: 14, padding: '12px', borderRadius: 8, background: '#f8faff', border: '1px solid #e0e7ff' }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: '#4338ca', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--brand-dark)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
           <RotateCcw size={12} /> AI 재분석 요청
         </div>
         <textarea

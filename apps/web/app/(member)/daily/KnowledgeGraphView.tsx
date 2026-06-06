@@ -11,7 +11,7 @@ const ENTRY_TYPES: { value: DailyLogEntryType; label: string; color: string; bg:
   { value: 'note',    label: '메모',   color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
 ]
 const ENTRY_MAP = Object.fromEntries(ENTRY_TYPES.map((t) => [t.value, t])) as Record<DailyLogEntryType, typeof ENTRY_TYPES[number]>
-const GROUP_PALETTE = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6']
+const GROUP_PALETTE = ['var(--brand)', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', 'var(--brand)']
 
 const W = 560
 const H = 400
@@ -172,7 +172,7 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
       }}>
         <span>🔗 당일 업무 관계도</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', color: '#64748b', fontWeight: 400 }}>
-          <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#6366f1" strokeWidth="1.5" strokeDasharray="4 3" /></svg>
+          <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="var(--brand)" strokeWidth="1.5" strokeDasharray="4 3" /></svg>
           AI 묶음
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', color: '#64748b', fontWeight: 400 }}>

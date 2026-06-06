@@ -176,7 +176,7 @@ export default function DynamicTable({
           border: '1px dashed #c7d2fe',
           borderRadius: '0.4rem',
           background: '#f5f3ff',
-          color: '#6366f1',
+          color: 'var(--brand)',
           fontSize: '0.8125rem',
           fontWeight: 500,
           cursor: 'pointer',

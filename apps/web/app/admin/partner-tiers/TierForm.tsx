@@ -111,7 +111,7 @@ export default function TierForm({
           style={{
             display: 'flex', alignItems: 'center', gap: '0.375rem',
             padding: '0.5rem 1rem', borderRadius: '0.375rem',
-            background: pending ? '#94a3b8' : '#6366f1', color: 'white',
+            background: pending ? '#94a3b8' : 'var(--brand)', color: 'white',
             border: 'none', fontSize: '0.875rem', fontWeight: 500, cursor: pending ? 'not-allowed' : 'pointer',
           }}
         >

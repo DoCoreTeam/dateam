@@ -38,7 +38,7 @@ export default function HomeMiniCalendar({ year, month, todayStr, monthSummary }
         </h3>
         <a
           href="/calendar"
-          style={{ fontSize: '0.75rem', color: '#6366f1', textDecoration: 'none', fontWeight: 600 }}
+          style={{ fontSize: '0.75rem', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600 }}
         >
           전체 보기 →
         </a>
@@ -79,7 +79,7 @@ export default function HomeMiniCalendar({ year, month, todayStr, monthSummary }
                 justifyContent: 'center', gap: '2px',
                 padding: '0.25rem 0',
                 borderRadius: '0.5rem', border: 'none',
-                background: isToday ? '#6366f1' : 'transparent',
+                background: isToday ? 'var(--brand)' : 'transparent',
                 cursor: 'pointer', minHeight: 32,
               }}
             >

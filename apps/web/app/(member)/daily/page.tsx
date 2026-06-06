@@ -480,7 +480,7 @@ export default function DailyPage() {
                     disabled={aiLoading || !content.trim()}
                     className="daily-ai-save"
                     style={{
-                      background: aiLoading ? '#94a3b8' : 'linear-gradient(135deg, #6366f1, #3b82f6)',
+                      background: aiLoading ? '#94a3b8' : 'linear-gradient(135deg, var(--brand), #3b82f6)',
                       cursor: aiLoading || !content.trim() ? 'not-allowed' : 'pointer',
                       opacity: !content.trim() ? 0.5 : 1, height: '2.5rem',
                     }}
@@ -493,7 +493,7 @@ export default function DailyPage() {
                   </button>
                 </div>
                 {content.trim() && aiHintCount > 0 && !aiPanelOpen && (
-                  <p style={{ color: '#6366f1', fontSize: '0.8rem', margin: '0.5rem 0 0', opacity: 0.8 }}>
+                  <p style={{ color: 'var(--brand)', fontSize: '0.8rem', margin: '0.5rem 0 0', opacity: 0.8 }}>
                     ✨ {aiHintCount}개 항목 감지됨
                   </p>
                 )}
@@ -523,7 +523,7 @@ export default function DailyPage() {
                     onClick={() => setGraphOpen(v => !v)}
                     style={{
                       fontSize: '0.75rem', fontWeight: 600,
-                      color: graphOpen ? '#6366f1' : '#64748b',
+                      color: graphOpen ? 'var(--brand)' : '#64748b',
                       background: graphOpen ? '#eef2ff' : '#f8fafc',
                       border: `1px solid ${graphOpen ? '#c7d2fe' : '#e2e8f0'}`,
                       borderRadius: '0.375rem', padding: '0.25rem 0.625rem',
@@ -976,7 +976,7 @@ function LogList({
                       onClick={() => setOpenThreadId(threadOpen ? null : log.id)}
                       style={{
                         ...iconBtn,
-                        color: threadOpen ? '#6366f1' : '#94a3b8',
+                        color: threadOpen ? 'var(--brand)' : '#94a3b8',
                         display: 'flex', alignItems: 'center', gap: '0.2rem',
                       }}
                       title="스레드"
@@ -1289,7 +1289,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
             onClick={handleSubmit}
             disabled={submitting || !input.trim()}
             style={{
-              padding: '0.375rem 0.75rem', background: '#6366f1', color: '#fff',
+              padding: '0.375rem 0.75rem', background: 'var(--brand)', color: '#fff',
               border: 'none', borderRadius: '0.375rem', fontSize: '0.75rem',
               fontWeight: 600, cursor: submitting || !input.trim() ? 'not-allowed' : 'pointer',
               opacity: submitting || !input.trim() ? 0.5 : 1, whiteSpace: 'nowrap',
@@ -1459,17 +1459,17 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
           <div>
             <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>✨ AI 분석 결과</div>
             {loading && editItems.length === 0 && (
-              <div style={{ fontSize: '0.75rem', color: '#6366f1', marginTop: '0.125rem' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--brand)', marginTop: '0.125rem' }}>
                 분석 중...
               </div>
             )}
             {loading && editItems.length > 0 && (
-              <div style={{ fontSize: '0.75rem', color: '#6366f1', marginTop: '0.125rem' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--brand)', marginTop: '0.125rem' }}>
                 {editItems.length}개 항목 발견 — 계속 분석 중...
               </div>
             )}
             {!loading && editItems.length > 0 && (
-              <div style={{ fontSize: '0.75rem', color: '#6366f1', marginTop: '0.125rem' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--brand)', marginTop: '0.125rem' }}>
                 {editItems.length}개 항목 감지됨 — 확인 후 저장하세요
               </div>
             )}
@@ -1516,7 +1516,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
             }}>
               <div className="ai-analyzing-spinner" />
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#4f46e5', marginBottom: '0.25rem' }}>
+                <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--brand-dark)', marginBottom: '0.25rem' }}>
                   AI가 업무를 분석하고 있습니다
                 </div>
                 <div className="ai-analyzing-dots" style={{ fontSize: '0.8125rem', color: '#94a3b8' }}>
@@ -1571,7 +1571,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
             disabled={loading || isPending || editItems.length === 0}
             style={{
               flex: 2, padding: '0.625rem',
-              background: 'linear-gradient(135deg, #6366f1, #3b82f6)',
+              background: 'linear-gradient(135deg, var(--brand), #3b82f6)',
               color: '#fff', border: 'none', borderRadius: '0.5rem',
               fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer',
               opacity: loading || isPending || editItems.length === 0 ? 0.5 : 1,
@@ -1709,7 +1709,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         {/* AI 태그 */}
         {item.tags?.map(tag => (
           <span key={tag} style={{
-            fontSize: '0.7rem', color: '#6366f1', background: '#eef2ff',
+            fontSize: '0.7rem', color: 'var(--brand)', background: '#eef2ff',
             border: '1px solid #c7d2fe', borderRadius: '0.25rem',
             padding: '0.1rem 0.375rem',
           }}>

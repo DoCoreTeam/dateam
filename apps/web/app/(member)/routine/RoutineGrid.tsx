@@ -40,7 +40,7 @@ function CheckBox({
         height: '2rem',
         borderRadius: '0.5rem',
         border: checked ? 'none' : `1.5px solid ${disabled && !isToday ? '#e2e8f0' : '#cbd5e1'}`,
-        backgroundColor: checked ? '#6366f1' : 'transparent',
+        backgroundColor: checked ? 'var(--brand)' : 'transparent',
         cursor: disabled ? 'not-allowed' : 'pointer',
         display: 'inline-flex',
         alignItems: 'center',
@@ -109,7 +109,7 @@ export default function RoutineGrid({
       <div className="card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
           <span style={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 500 }}>주간 달성률</span>
-          <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#6366f1' }}>{overallRate}%</span>
+          <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--brand)' }}>{overallRate}%</span>
         </div>
         <div style={{ height: '6px', borderRadius: '9999px', backgroundColor: '#e2e8f0', overflow: 'hidden' }}>
           <div
@@ -117,7 +117,7 @@ export default function RoutineGrid({
               height: '100%',
               width: `${overallRate}%`,
               borderRadius: '9999px',
-              background: 'linear-gradient(90deg, #6366f1, #818cf8)',
+              background: 'linear-gradient(90deg, var(--brand), var(--brand))',
               transition: 'width 300ms cubic-bezier(0.16,1,0.3,1)',
             }}
           />
@@ -205,12 +205,12 @@ export default function RoutineGrid({
                   {weekDates.map((date, i) => {
                     const isToday = date === todayStr
                     return (
-                      <th key={date} style={{ padding: '1rem 0.5rem', textAlign: 'center', fontSize: '0.8125rem', fontWeight: 600, color: isToday ? '#6366f1' : '#64748b', borderBottom: '1px solid #e2e8f0', minWidth: '60px' }}>
+                      <th key={date} style={{ padding: '1rem 0.5rem', textAlign: 'center', fontSize: '0.8125rem', fontWeight: 600, color: isToday ? 'var(--brand)' : '#64748b', borderBottom: '1px solid #e2e8f0', minWidth: '60px' }}>
                         <div>{DAY_LABELS[i]}</div>
-                        <div style={{ fontSize: '0.75rem', fontWeight: isToday ? 700 : 400, color: isToday ? '#6366f1' : '#94a3b8', marginTop: '0.125rem' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: isToday ? 700 : 400, color: isToday ? 'var(--brand)' : '#94a3b8', marginTop: '0.125rem' }}>
                           {new Date(date).getDate()}
                         </div>
-                        {isToday && <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#6366f1', margin: '0.25rem auto 0' }} />}
+                        {isToday && <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'var(--brand)', margin: '0.25rem auto 0' }} />}
                       </th>
                     )
                   })}

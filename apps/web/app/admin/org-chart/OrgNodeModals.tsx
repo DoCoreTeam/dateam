@@ -231,7 +231,7 @@ function ModalFooter({ onClose, onSubmit, isPending, label }: { onClose: () => v
   return (
     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', paddingTop: '0.25rem' }}>
       <button onClick={onClose} disabled={isPending} style={{ padding: '0.45rem 1rem', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '0.5rem', fontSize: '0.875rem', cursor: 'pointer' }}>취소</button>
-      <button onClick={onSubmit} disabled={isPending} style={{ padding: '0.45rem 1rem', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '0.5rem', fontSize: '0.875rem', cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1 }}>
+      <button onClick={onSubmit} disabled={isPending} style={{ padding: '0.45rem 1rem', background: 'var(--brand-dark)', color: '#fff', border: 'none', borderRadius: '0.5rem', fontSize: '0.875rem', cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1 }}>
         {isPending ? '처리 중...' : label}
       </button>
     </div>

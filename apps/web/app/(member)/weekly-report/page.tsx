@@ -185,8 +185,8 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     padding: '0.5rem 1rem',
     fontSize: '0.875rem',
     fontWeight: isActive ? 600 : 500,
-    color: isActive ? '#6366f1' : '#64748b',
-    borderBottom: isActive ? '2px solid #6366f1' : '2px solid transparent',
+    color: isActive ? 'var(--brand)' : '#64748b',
+    borderBottom: isActive ? '2px solid var(--brand)' : '2px solid transparent',
     cursor: 'pointer',
     textDecoration: 'none',
   })
@@ -237,7 +237,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
           <div className="card" style={{ padding: '1.5rem', marginBottom: '1.75rem', width: '100%', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <FileText size={16} color="#6366f1" />
+                <FileText size={16} color="var(--brand)" />
                 <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>보고서 작성</h2>
               </div>
               <OnboardingRestartLink variant="icon" />
@@ -269,7 +269,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
       ) : activeTab === 'team' ? (
         <div className="card" style={{ padding: '1.5rem', width: '100%', boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-            <Users size={16} color="#6366f1" />
+            <Users size={16} color="var(--brand)" />
             <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>팀 전체 주간보고</h2>
           </div>
           <TeamReportView weekOptions={weekOptions} thisWeek={thisWeek} initialReports={teamReports} />
@@ -277,7 +277,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
       ) : (
         <div className="card" style={{ padding: '1.5rem', width: '100%', boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-            <GitBranch size={16} color="#6366f1" />
+            <GitBranch size={16} color="var(--brand)" />
             <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>조직 현황 — 부서 취합 주간보고</h2>
           </div>
           <OrgWeeklyView

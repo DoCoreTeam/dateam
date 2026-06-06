@@ -90,7 +90,7 @@ export default function AiUsageDashboard() {
       <div className="responsive-grid-cols-3" style={{ gap: '1rem' }}>
         <div className="card" style={{ padding: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <Activity size={16} color="#6366f1" />
+            <Activity size={16} color="var(--brand)" />
             <span style={{ fontSize: '0.8125rem', color: '#64748b', fontWeight: 500 }}>오늘 사용량</span>
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#0f172a' }}>{fmt(summary?.today_tokens ?? 0)}</div>
@@ -98,20 +98,20 @@ export default function AiUsageDashboard() {
         </div>
         <div className="card" style={{ padding: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <TrendingUp size={16} color="#6366f1" />
+            <TrendingUp size={16} color="var(--brand)" />
             <span style={{ fontSize: '0.8125rem', color: '#64748b', fontWeight: 500 }}>이번 달 사용량</span>
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: summary?.threshold_exceeded ? '#dc2626' : '#0f172a' }}>{fmt(summary?.month_tokens ?? 0)}</div>
           <div style={{ marginTop: '0.5rem' }}>
             <div style={{ height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${Math.min(summary?.month_usage_pct ?? 0, 100)}%`, background: (summary?.month_usage_pct ?? 0) >= 100 ? '#dc2626' : '#6366f1', borderRadius: '3px', transition: 'width 0.3s' }} />
+              <div style={{ height: '100%', width: `${Math.min(summary?.month_usage_pct ?? 0, 100)}%`, background: (summary?.month_usage_pct ?? 0) >= 100 ? '#dc2626' : 'var(--brand)', borderRadius: '3px', transition: 'width 0.3s' }} />
             </div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>{summary?.month_usage_pct ?? 0}% / 임계치 {fmt(summary?.alert_threshold ?? 1000000)}</div>
           </div>
         </div>
         <div className="card" style={{ padding: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <Database size={16} color="#6366f1" />
+            <Database size={16} color="var(--brand)" />
             <span style={{ fontSize: '0.8125rem', color: '#64748b', fontWeight: 500 }}>누적 사용량</span>
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#0f172a' }}>{fmt(summary?.total_tokens ?? 0)}</div>
@@ -133,7 +133,7 @@ export default function AiUsageDashboard() {
                 <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : String(v)} />
                 <YAxis type="category" dataKey="label" width={110} tick={{ fontSize: 11, fill: '#64748b' }} />
                 <Tooltip formatter={(v: number) => [fmt(v), '토큰']} labelStyle={{ fontSize: 12 }} contentStyle={{ fontSize: 12, borderRadius: '0.5rem', border: '1px solid #e2e8f0' }} />
-                <Bar dataKey="total_tokens" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="total_tokens" fill="var(--brand)" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -151,7 +151,7 @@ export default function AiUsageDashboard() {
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={(v: string) => v.slice(5)} interval="preserveStartEnd" />
                 <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : String(v)} />
                 <Tooltip formatter={(v: number) => [fmt(v), '토큰']} labelStyle={{ fontSize: 12 }} contentStyle={{ fontSize: 12, borderRadius: '0.5rem', border: '1px solid #e2e8f0' }} />
-                <Line type="monotone" dataKey="total_tokens" stroke="#6366f1" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                <Line type="monotone" dataKey="total_tokens" stroke="var(--brand)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -209,7 +209,7 @@ export default function AiUsageDashboard() {
                 <td data-label="유저">{l.user_name}</td>
                 <td data-label="프롬프트" className="card-hide">{fmt(l.prompt_tokens)}</td>
                 <td data-label="출력" className="card-hide">{fmt(l.output_tokens)}</td>
-                <td data-label="합계" style={{ fontWeight: 600, color: '#6366f1' }}>{fmt(l.total_tokens)}</td>
+                <td data-label="합계" style={{ fontWeight: 600, color: 'var(--brand)' }}>{fmt(l.total_tokens)}</td>
               </tr>
             ))}
           </tbody>

@@ -143,7 +143,7 @@ export default function EditProfileModal({
             onClick={handleSubmit}
             disabled={isPending}
             style={{
-              padding: '0.45rem 1rem', background: '#4f46e5', color: '#fff',
+              padding: '0.45rem 1rem', background: 'var(--brand-dark)', color: '#fff',
               border: 'none', borderRadius: '0.5rem', fontSize: '0.875rem',
               cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1,
             }}

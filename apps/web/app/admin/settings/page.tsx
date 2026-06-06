@@ -74,7 +74,7 @@ export default async function AdminSettingsPage({
       {/* 브랜딩 설정 */}
       <section>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-          <Palette size={15} color="#6366f1" />
+          <Palette size={15} color="var(--brand)" />
           <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>브랜딩 설정</h2>
         </div>
         <BrandingSettings initialLogoUrl={branding.logoUrl} initialBrandName={branding.brandName} initialTagline={branding.tagline} />
@@ -83,7 +83,7 @@ export default async function AdminSettingsPage({
       {/* API 설정 */}
       <section>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-          <Key size={15} color="#6366f1" />
+          <Key size={15} color="var(--brand)" />
           <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>AI 모델 연동</h2>
         </div>
         <GeminiSettings hasKey={hasKey} maskedKey={maskedKey} savedModel={savedModel} />
@@ -92,7 +92,7 @@ export default async function AdminSettingsPage({
       {/* 한국수출입은행 환율 API */}
       <section>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-          <Key size={15} color="#6366f1" />
+          <Key size={15} color="var(--brand)" />
           <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>환율 API 연동</h2>
         </div>
         <KoraeximSettings hasKey={hasKoraeximKey} maskedKey={maskedKoraeximKey} />
@@ -101,7 +101,7 @@ export default async function AdminSettingsPage({
       {/* DB 연결 설정 */}
       <section>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-          <Database size={15} color="#6366f1" />
+          <Database size={15} color="var(--brand)" />
           <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>DB 연결</h2>
         </div>
         <DbSettings hasUrl={hasDbUrl} maskedUrl={maskedDbUrl} />
@@ -110,7 +110,7 @@ export default async function AdminSettingsPage({
       {/* AI 토큰 알림 설정 */}
       <section>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-          <Bell size={15} color="#6366f1" />
+          <Bell size={15} color="var(--brand)" />
           <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>AI 토큰 알림</h2>
         </div>
         <TokenAlertSettings currentThreshold={tokenAlertThreshold} />
@@ -119,7 +119,7 @@ export default async function AdminSettingsPage({
       {/* Google Drive 연동 */}
       <section>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-          <Cloud size={15} color="#6366f1" />
+          <Cloud size={15} color="var(--brand)" />
           <h2 style={{ fontSize: '1rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>Google Drive 연동</h2>
         </div>
         <GoogleDriveSettings />

@@ -27,7 +27,7 @@ export default function TokenAlertSettings({ currentThreshold }: Props) {
   return (
     <div className="card" style={{ padding: '1.5rem', maxWidth: '640px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-        <Bell size={16} color="#6366f1" />
+        <Bell size={16} color="var(--brand)" />
         <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>AI 토큰 알림 임계치</h2>
       </div>
       <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1.25rem', marginTop: 0 }}>

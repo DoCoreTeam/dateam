@@ -416,7 +416,7 @@ export default function WeeklyReportForm({
           <thead>
             <tr>
               <th style={TH}>구분</th>
-              <th style={{ ...TH, color: '#6366f1' }}>성과 <span style={{ color: '#94a3b8', fontWeight: 400 }}>({dateRange.perf})</span></th>
+              <th style={{ ...TH, color: 'var(--brand)' }}>성과 <span style={{ color: '#94a3b8', fontWeight: 400 }}>({dateRange.perf})</span></th>
               <th style={{ ...TH, color: '#0891b2' }}>계획 <span style={{ color: '#94a3b8', fontWeight: 400 }}>({dateRange.plan})</span></th>
               <th style={{ ...TH, color: '#dc2626' }}>이슈/협조사항</th>
               <th style={TH} />
@@ -525,7 +525,7 @@ export default function WeeklyReportForm({
           onClick={addRow}
           style={{
             display: 'flex', alignItems: 'center', gap: '0.375rem',
-            fontSize: '0.8125rem', color: '#6366f1', background: 'none',
+            fontSize: '0.8125rem', color: 'var(--brand)', background: 'none',
             border: '1px dashed #c7d2fe', borderRadius: '0.5rem',
             padding: '0.5rem 0.875rem', cursor: 'pointer',
           }}

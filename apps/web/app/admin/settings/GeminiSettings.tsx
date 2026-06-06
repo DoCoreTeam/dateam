@@ -68,7 +68,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
     <div className="card" style={{ padding: '1.5rem', maxWidth: '640px' }}>
       {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
-        <Key size={16} color="#6366f1" />
+        <Key size={16} color="var(--brand)" />
         <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>Gemini API 키</h2>
       </div>
 
@@ -84,7 +84,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
               <button
                 type="button"
                 onClick={() => setShowInput((v) => !v)}
-                style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem 0.5rem' }}
+                style={{ fontSize: '0.75rem', color: 'var(--brand)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem 0.5rem' }}
               >
                 변경
               </button>
@@ -169,7 +169,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
               alignItems: 'center',
               gap: '0.375rem',
               padding: '0.5rem 0.875rem',
-              backgroundColor: hasKey ? '#6366f1' : '#e2e8f0',
+              backgroundColor: hasKey ? 'var(--brand)' : '#e2e8f0',
               color: hasKey ? '#fff' : '#94a3b8',
               border: 'none',
               borderRadius: '0.5rem',

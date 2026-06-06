@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     }
 
     // Find or create supplier from name if supplier_id not provided
-    const COLORS = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#3b82f6','#ec4899','#14b8a6','#f97316','#84cc16']
+    const COLORS = ['#7c3aed','#10b981','#f59e0b','#ef4444','#7c3aed','#3b82f6','#ec4899','#14b8a6','#f97316','#84cc16']
     let finalSupplierId = supplier_id || null
     if (!finalSupplierId && supplier_name?.trim()) {
       const { data: existing } = await db

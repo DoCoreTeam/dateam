@@ -100,8 +100,8 @@ export default async function AdminMembersPage({
               display: 'flex', alignItems: 'center', gap: '0.4rem',
               padding: '0.625rem 1.25rem',
               fontSize: '0.875rem', fontWeight: tab === t.key ? 600 : 400,
-              color: tab === t.key ? '#4f46e5' : '#64748b',
-              borderBottom: tab === t.key ? '2px solid #4f46e5' : '2px solid transparent',
+              color: tab === t.key ? 'var(--brand-dark)' : '#64748b',
+              borderBottom: tab === t.key ? '2px solid var(--brand-dark)' : '2px solid transparent',
               marginBottom: '-2px',
               textDecoration: 'none',
               transition: 'color 0.15s',
@@ -117,14 +117,14 @@ export default async function AdminMembersPage({
         <>
           <div className="card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-              <UserPlus size={16} color="#6366f1" />
+              <UserPlus size={16} color="var(--brand)" />
               <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>새 구성원 초대</h2>
             </div>
             <InviteForm />
           </div>
           <div className="card">
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Users size={16} color="#6366f1" />
+              <Users size={16} color="var(--brand)" />
               <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>전체 구성원</h2>
               <span className="badge badge-slate">{profiles.length}명</span>
             </div>

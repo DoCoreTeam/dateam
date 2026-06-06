@@ -109,19 +109,19 @@ export default function ApiKeysPage() {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32, gap: 16, flexWrap: 'wrap' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <Key size={20} color="var(--gpu-indigo, #6366f1)" />
+            <Key size={20} color="var(--gpu-indigo, var(--brand))" />
             <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>API Keys</h1>
           </div>
           <p style={{ color: 'var(--gpu-faint, #94a3b8)', fontSize: 14, margin: 0 }}>
             Manage API keys for programmatic access to GPU pricing data.{' '}
-            <a href="/develop" target="_blank" style={{ color: 'var(--gpu-indigo, #6366f1)', textDecoration: 'none' }}>
+            <a href="/develop" target="_blank" style={{ color: 'var(--gpu-indigo, var(--brand))', textDecoration: 'none' }}>
               API 문서 보기 <ExternalLink size={12} style={{ verticalAlign: 'middle' }} />
             </a>
           </p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: 'none', background: 'var(--gpu-indigo, #6366f1)', color: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: 'none', background: 'var(--gpu-indigo, var(--brand))', color: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
         >
           <Plus size={16} /> 새 키 생성
         </button>
@@ -159,7 +159,7 @@ export default function ApiKeysPage() {
               onKeyDown={e => e.key === 'Enter' && createKey()}
               style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#e2e8f0', fontSize: 14, outline: 'none' }}
             />
-            <button onClick={createKey} disabled={creating || !newKeyName.trim()} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontWeight: 600, fontSize: 14, cursor: creating ? 'not-allowed' : 'pointer', opacity: creating || !newKeyName.trim() ? 0.5 : 1 }}>
+            <button onClick={createKey} disabled={creating || !newKeyName.trim()} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: 'var(--brand)', color: '#fff', fontWeight: 600, fontSize: 14, cursor: creating ? 'not-allowed' : 'pointer', opacity: creating || !newKeyName.trim() ? 0.5 : 1 }}>
               {creating ? '생성 중...' : '생성'}
             </button>
             <button onClick={() => { setShowCreate(false); setNewKeyName('') }} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#94a3b8', fontSize: 14, cursor: 'pointer' }}>취소</button>

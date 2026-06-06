@@ -61,7 +61,7 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
     <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1rem', marginTop: '1rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-          <Cpu size={14} color="#6366f1" />
+          <Cpu size={14} color="var(--brand)" />
           <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>모델 선택</span>
           {currentSavedModel && !modelsLoaded && (
             <span style={{ fontSize: '0.75rem', color: '#6b7280', fontFamily: 'monospace' }}>
