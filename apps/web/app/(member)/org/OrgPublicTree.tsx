@@ -75,7 +75,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
       <div style={{
         display: 'inline-block', padding: '0.75rem 1.25rem', borderRadius: 'var(--radius)',
         background: 'linear-gradient(135deg,var(--brand-dark),#7c3aed)', border: '2px solid var(--brand-dark)',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)', width: `${CARD_W + 28}px`, textAlign: 'left', overflow: 'hidden',
+        boxShadow: 'var(--shadow-sm)', width: `${CARD_W + 28}px`, textAlign: 'left', overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <Building2 size={14} color="#c7d2fe" style={{ flexShrink: 0 }} />
@@ -97,7 +97,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
       <div style={{
         display: 'inline-block', padding: '0.65rem 1rem', borderRadius: 'var(--radius)',
         background: 'linear-gradient(135deg,#1e1b4b,#312e81)', border: '2px solid #312e81',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)', width: `${CARD_W}px`, textAlign: 'left', overflow: 'hidden',
+        boxShadow: 'var(--shadow-sm)', width: `${CARD_W}px`, textAlign: 'left', overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <Crown size={13} color="#a5b4fc" style={{ flexShrink: 0 }} />
@@ -130,7 +130,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
       <div style={{
         display: 'inline-block', padding: '0.65rem 1rem', borderRadius: 'var(--radius)',
         background: 'linear-gradient(135deg,#3730a3,var(--brand-dark))', border: '2px solid var(--brand-dark)',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)', width: `${CARD_W}px`, textAlign: 'left', overflow: 'hidden',
+        boxShadow: 'var(--shadow-sm)', width: `${CARD_W}px`, textAlign: 'left', overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <Users size={13} color="#c7d2fe" style={{ flexShrink: 0 }} />
@@ -164,7 +164,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
     <div style={{
       display: 'inline-block', padding: '0.5rem 0.875rem', borderRadius: 'var(--radius)',
       background: '#fff', border: '2px solid var(--color-border)',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.06)', width: `${CARD_W}px`, textAlign: 'left', overflow: 'hidden',
+      boxShadow: 'var(--shadow-sm)', width: `${CARD_W}px`, textAlign: 'left', overflow: 'hidden',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
         <div style={{
@@ -373,7 +373,7 @@ export default function OrgPublicTree({
       onMouseLeave={handlePanUp}
     >
       {/* 줌 컨트롤 */}
-      <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10, display: 'flex', gap: '0.25rem', background: 'rgba(255,255,255,0.95)', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+      <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10, display: 'flex', gap: '0.25rem', background: 'rgba(255,255,255,0.95)', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.25rem', boxShadow: 'var(--shadow-sm)' }}>
         <button onClick={() => setZoom(z => ({ ...z, scale: Math.min(z.scale * 1.2, 3) }))} style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>+</button>
         <button onClick={() => setZoom(z => ({ ...z, scale: Math.max(z.scale / 1.2, 0.2) }))} style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>−</button>
         <div style={{ width: 1, background: 'var(--color-border)', margin: '4px 2px' }} />

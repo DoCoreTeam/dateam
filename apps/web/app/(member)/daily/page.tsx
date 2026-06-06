@@ -451,9 +451,10 @@ export default function DailyPage() {
                       className="daily-type-chip"
                       style={{
                         fontWeight: entryType === t.value ? 700 : 500,
-                        border: `1px solid ${entryType === t.value ? t.border : 'var(--color-border)'}`,
-                        background: entryType === t.value ? t.bg : 'var(--color-bg)',
-                        color: entryType === t.value ? t.color : '#64748b',
+                        border: '2px solid var(--border-color)',
+                        background: entryType === t.value ? t.bg : 'var(--nb-white)',
+                        color: entryType === t.value ? t.color : 'var(--ink)',
+                        boxShadow: entryType === t.value ? 'var(--shadow-sm)' : 'none',
                       }}
                     >
                       {t.label}
@@ -932,7 +933,7 @@ function LogList({
                             style={{
                               position: 'absolute', top: '100%', left: 0, zIndex: 50,
                               background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)', padding: '0.375rem',
+                              boxShadow: 'var(--shadow-sm)', padding: '0.375rem',
                               display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '80px',
                               marginTop: '0.25rem',
                             }}

@@ -170,7 +170,7 @@ export default function DealsPage() {
                             <button
                               key={d.id}
                               onClick={() => setSelected(d)}
-                              style={{ display: 'block', background: 'white', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.625rem 0.75rem', boxShadow: '0 1px 2px rgba(0,0,0,0.04)', cursor: 'pointer', textAlign: 'left', width: '100%' }}
+                              style={{ display: 'block', background: 'white', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.625rem 0.75rem', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', textAlign: 'left', width: '100%' }}
                             >
                               <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#0f172a', marginBottom: '0.25rem', lineHeight: 1.3 }}>{d.title}</div>
                               {d.accounts?.name && <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{d.accounts.name}</div>}

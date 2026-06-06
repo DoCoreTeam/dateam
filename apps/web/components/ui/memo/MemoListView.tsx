@@ -101,7 +101,7 @@ export default function MemoListView() {
               const st = STALENESS_STYLE[m.staleness]
               return (
                 <li key={m.id}
-                  style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', padding: '0.75rem 0.9rem', borderRadius: '0.6rem', background: '#fff', border: '2px solid var(--border-color)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', padding: '0.75rem 0.9rem', borderRadius: '0.6rem', background: '#fff', border: '2px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
                   <span title={st.label} style={{ width: 9, height: 9, borderRadius: '50%', background: st.dot, flexShrink: 0, marginTop: 4 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.88rem', color: '#1e293b', lineHeight: 1.5 }}>{m.content}</div>

@@ -103,7 +103,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
         ].map((c) => (
           <div key={c.label} style={{
             background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
-            padding: '1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            padding: '1rem', boxShadow: 'var(--shadow-sm)',
           }}>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.25rem' }}>{c.label}</div>
             <div style={{ fontSize: '1.5rem', fontWeight: 700, color: c.color }}>{c.value}</div>
@@ -159,7 +159,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
           {Object.entries(grouped).map(([userId, group]) => (
             <div key={userId} style={{
               background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
-              overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+              overflow: 'hidden', boxShadow: 'var(--shadow-sm)',
             }}>
               {/* 멤버 헤더 */}
               <div style={{

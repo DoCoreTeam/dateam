@@ -240,7 +240,7 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
           position: 'absolute', top: 44, right: 8,
           width: 'min(240px, calc(100% - 16px))',
           background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.1)', padding: '0.875rem', zIndex: 10,
+          boxShadow: 'var(--shadow-sm)', padding: '0.875rem', zIndex: 10,
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
             <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>

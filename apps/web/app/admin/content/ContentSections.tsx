@@ -19,7 +19,7 @@ const CARD: React.CSSProperties = {
   borderRadius: 'var(--radius)',
   overflow: 'hidden',
   marginBottom: '1.5rem',
-  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+  boxShadow: 'var(--shadow-sm)',
 }
 const CARD_HEADER: React.CSSProperties = {
   padding: '1rem 1.5rem',
