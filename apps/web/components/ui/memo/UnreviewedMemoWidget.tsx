@@ -58,7 +58,7 @@ export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: shown.length ? '0.75rem' : 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <StickyNote size={16} color="#d97706" />
-            <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a' }}>확인 안 한 메모</span>
+            <span className="tape-title" style={{ fontSize: '1.25rem' }}>확인 안 한 메모</span>
             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#d97706', background: '#fffbeb', borderRadius: '999px', padding: '1px 8px' }}>
               {items.length}
             </span>

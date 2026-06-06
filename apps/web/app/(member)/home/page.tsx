@@ -114,7 +114,7 @@ export default async function HomePage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <FileText size={15} color="var(--brand)" />
-                <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>주간보고</h3>
+                <h3 className="tape-title" style={{ margin: 0 }}>주간보고</h3>
               </div>
               <Link href="/weekly-report" style={{ fontSize: '0.75rem', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600 }}>
                 {showGlow ? '이번 주 작성하기 →' : '작성하기 →'}

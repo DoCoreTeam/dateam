@@ -39,6 +39,7 @@
   --shadow-sm: 3px 3px 0 0 var(--shadow-color);
   --shadow-md: 4px 4px 0 0 var(--shadow-color);
   --shadow-lg: 6px 6px 0 0 var(--shadow-color);
+  --font-tape: 'Nanum Pen Script', cursive;
 
   /* ── 브릿지: 기존 인디고 토큰을 NB 토큰으로 alias (컴포넌트 코드 무수정 전파) ── */
   --color-bg: var(--nb-off-white);
@@ -187,6 +188,42 @@
 }
 
 @layer components {
+  /* ── Neo-brutalism 테이프 라벨 (good.html 시그니처) ── */
+  /* 카드 제목용: 노란 마스킹테이프 + 회전 + 하드섀도 + 손글씨 */
+  .tape-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    background-color: var(--accent);
+    color: var(--ink);
+    border: 2px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    font-family: var(--font-tape);
+    font-size: 1.375rem;
+    line-height: 1;
+    padding: 0.25rem 0.875rem;
+    transform: rotate(-1.5deg);
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  /* 사이드바 그룹 라벨용: 작은 테이프 */
+  .tape-mini {
+    display: inline-block;
+    background-color: var(--accent);
+    color: var(--ink);
+    border: 1px solid var(--border-color);
+    box-shadow: 1px 1px 0 0 var(--shadow-color);
+    font-family: var(--font-tape);
+    font-size: 1.0625rem;
+    line-height: 1.1;
+    padding: 0.0625rem 0.5rem;
+    transform: rotate(-1.5deg);
+  }
+  /* 손글씨 로고/강조 텍스트 */
+  .font-tape {
+    font-family: var(--font-tape);
+  }
+
   .card {
     background-color: var(--color-surface);
     border-radius: var(--radius-card);

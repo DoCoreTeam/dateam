@@ -55,7 +55,7 @@ export default function HomeQuickEntry({ todayStr, initialLogs }: Props) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <NotebookPen size={15} color="var(--brand)" />
-          <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a', margin: 0 }}>오늘 업무</h3>
+          <h3 className="tape-title" style={{ margin: 0 }}>오늘 업무</h3>
         </div>
         <Link href={`/daily?date=${todayStr}`} style={{ fontSize: '0.75rem', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600 }}>
           상세 보기 →

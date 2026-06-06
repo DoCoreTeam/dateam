@@ -121,7 +121,7 @@ export default function MobileShell({
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                 />
               ) : (
-                <span style={{ color: 'var(--ink)', fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+                <span className="font-tape" style={{ color: 'var(--ink)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0', lineHeight: 1 }}>
                   {brandName}
                 </span>
               )}
@@ -223,23 +223,15 @@ export default function MobileShell({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     width: '100%',
-                    fontSize: '0.6875rem',
-                    fontWeight: 600,
-                    color: '#6b6b6b',
-                    letterSpacing: '0.08em',
-                    textTransform: 'uppercase',
-                    padding: '0.25rem 0.75rem',
-                    margin: '0 0 0.25rem',
+                    padding: '0.25rem 0.5rem',
+                    margin: '0 0 0.375rem',
                     background: 'transparent',
                     border: 'none',
                     cursor: 'pointer',
                     borderRadius: '0.375rem',
-                    transition: 'background-color 120ms',
                   }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(0,0,0,0.05)' }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent' }}
                 >
-                  {group.label}
+                  <span className="tape-mini">{group.label}</span>
                   <ChevronDown
                     size={12}
                     style={{ transition: 'transform 200ms', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}
