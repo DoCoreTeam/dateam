@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<!--
+  디자인 프리뷰 전용 — 실서비스 비반영.
+  design seti.html(Paper Workspace) 디자인시스템을 newAX 홈 대시보드에 적용한 단독 데모.
+  apps/web 실서비스 코드와 무관하며 어디서도 import/링크되지 않음.
+-->
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>홈 대시보드 · Paper Workspace 디자인 적용 (newAX 프리뷰)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Nanum+Pen+Script&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-canvas: #EAE6D9;
+      --bg-paper: #FFFFFF;
+      --text-primary: #2C2C2C;
+      --text-muted: #888888;
+      --grid-line: rgba(200, 204, 215, 0.4);
+      --tape-bg: #FDE047;
+      --marker-red: #E11D48;
+      --accent-blue: #0369A1;
+      --accent-green: #10B981;
+      --grid-size: 28px;
+      --radius-paper: 6px;
+      --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-marker: 'Nanum Pen Script', cursive;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-ui);
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ── 종이 시그니처 ── */
+    .paper-stack {
+      background-color: var(--bg-paper);
+      border-radius: var(--radius-paper);
+      border: 1px solid rgba(0,0,0,0.05);
+      box-shadow:
+        0 1px 1px rgba(0,0,0,0.02),
+        0 3px 0 -1px #fff, 0 3px 1px -1px rgba(0,0,0,0.04),
+        0 6px 0 -2px #fff, 0 6px 1px -2px rgba(0,0,0,0.04),
+        0 12px 24px -8px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    .grid-pattern {
+      background-image:
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+      background-size: var(--grid-size) var(--grid-size);
+      background-position: -1px -1px;
+    }
+    .tape-label {
+      background-color: var(--tape-bg);
+      color: var(--marker-red);
+      font-family: var(--font-marker);
+      font-size: 20px;
+      padding: 2px 12px;
+      display: inline-block;
+      transform: rotate(-1deg);
+      box-shadow: 1px 1px 3px rgba(0,0,0,0.08);
+      border-radius: 2px 255px 3px 25px / 255px 5px 225px 3px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    /* ── 사이드바 ── */
+    .sidebar {
+      width: 260px;
+      padding: 40px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 36px;
+      border-right: 1px solid rgba(0,0,0,0.05);
+      z-index: 10;
+      flex-shrink: 0;
+    }
+    .sidebar-logo h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+    .sidebar-logo p { font-family: var(--font-marker); font-size: 17px; color: var(--text-muted); margin-top: 2px; }
+    .nav-group-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 12px 8px; }
+    .nav-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px; font-size: 14px; font-weight: 500;
+      color: var(--text-muted); text-decoration: none;
+      border-radius: 6px; transition: all 0.2s;
+    }
+    .nav-item.active { background-color: rgba(0,0,0,0.05); color: var(--text-primary); }
+    .nav-item:hover { background-color: rgba(0,0,0,0.03); color: var(--text-primary); }
+
+    /* ── 메인 ── */
+    .app-main { flex: 1; padding: 40px; overflow-y: auto; }
+    .main-header {
+      display: flex; justify-content: space-between;
+      align-items: flex-start; margin-bottom: 28px; flex-wrap: wrap; gap: 16px;
+    }
+    .header-title h2 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+    .header-meta { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+    .header-date { font-size: 14px; color: var(--text-muted); }
+    .ax-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; font-size: 12px; font-weight: 600;
+      border-radius: 4px; text-decoration: none;
+      border: 1px dashed rgba(0,0,0,0.18); background: rgba(255,255,255,0.55);
+    }
+    .user-pill {
+      display: flex; align-items: center; gap: 12px;
+      padding: 6px 12px; background: white;
+      border-radius: 20px; border: 1px solid rgba(0,0,0,0.05);
+    }
+    .avatar {
+      width: 30px; height: 30px; background: var(--text-primary); color: white;
+      border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; font-size: 12px; font-weight: 600;
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 24px;
+      align-items: start;
+    }
+    .col { display: flex; flex-direction: column; gap: 24px; }
+
+    .card { padding: 24px; display: flex; flex-direction: column; }
+    .card-title { font-size: 14px; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+    .card-link { margin-left: auto; font-size: 12px; color: var(--accent-blue); text-decoration: none; font-weight: 600; }
+
+    /* 오늘 업무 체크리스트 */
+    .task-list { display: flex; flex-direction: column; gap: 14px; }
+    .task-item { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+    .task-check {
+      width: 18px; height: 18px; border-radius: 4px;
+      border: 1.5px solid rgba(0,0,0,0.25); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .task-check.done { background: var(--text-primary); border-color: var(--text-primary); }
+    .task-item.done span { color: var(--text-muted); text-decoration: line-through; }
+    .task-tag { margin-left: auto; font-family: var(--font-marker); font-size: 16px; color: var(--accent-blue); }
+
+    /* KPI 진행 바 */
+    .project-list { display: flex; flex-direction: column; gap: 20px; }
+    .project-item { display: flex; flex-direction: column; gap: 8px; }
+    .project-info { display: flex; justify-content: space-between; font-size: 13px; }
+    .progress-track { height: 8px; background: #F3F4F6; border-radius: 4px; overflow: hidden; border: 1px solid rgba(0,0,0,0.03); }
+    .progress-bar { height: 100%; background: var(--text-primary); border-radius: 4px; }
+
+    /* 빠른 입력 */
+    .quick-input-container {
+      display: flex; align-items: center; background: var(--bg-paper);
+      border: 1px solid rgba(0,0,0,0.1); border-radius: 8px;
+      padding: 8px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+    .quick-input-container input { flex: 1; border: none; padding: 8px 0; font-family: var(--font-ui); font-size: 14px; outline: none; background: transparent; }
+    .add-badge { background: var(--text-primary); color: white; font-size: 11px; padding: 3px 9px; border-radius: 4px; margin-left: 12px; cursor: pointer; }
+
+    /* 활동 피드 타임라인 */
+    .feed-list { display: flex; flex-direction: column; gap: 16px; position: relative; }
+    .feed-item { display: flex; gap: 12px; position: relative; }
+    .feed-dot { width: 8px; height: 8px; background: var(--text-muted); border-radius: 50%; margin-top: 6px; flex-shrink: 0; z-index: 2; }
+    .feed-item::before { content: ''; position: absolute; left: 3px; top: 14px; bottom: -16px; width: 1px; background: var(--grid-line); }
+    .feed-item:last-child::before { display: none; }
+    .feed-content { font-size: 13px; }
+    .feed-time { font-size: 11px; color: var(--text-muted); display: block; margin-top: 2px; }
+
+    /* 주간보고 리스트 */
+    .report-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .report-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #FAFAF7; border: 1px solid rgba(0,0,0,0.04); border-radius: 6px; font-size: 13px; }
+    .report-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: #E0F2FE; color: var(--accent-blue); }
+
+    .preview-flag {
+      position: fixed; bottom: 16px; right: 16px; z-index: 50;
+      font-family: var(--font-marker); font-size: 18px;
+      background: var(--marker-red); color: white;
+      padding: 4px 14px; border-radius: 2px 255px 3px 25px / 255px 5px 225px 3px;
+      transform: rotate(-2deg); box-shadow: 2px 2px 6px rgba(0,0,0,0.2);
+    }
+
+    /* ── 반응형 ── */
+    @media (max-width: 1023px) {
+      .dashboard-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 767px) {
+      body { flex-direction: column; }
+      .sidebar {
+        width: 100%; flex-direction: row; align-items: center;
+        gap: 16px; padding: 16px 20px; overflow-x: auto;
+        border-right: none; border-bottom: 1px solid rgba(0,0,0,0.05);
+      }
+      .sidebar-logo p, .nav-group-label { display: none; }
+      .nav-list { flex-direction: row; gap: 4px; }
+      .nav-item span { display: none; }
+      .app-main { padding: 24px 18px; }
+      .header-title h2 { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 사이드바 -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h1>데이터얼라이언스</h1>
+      <p>본부 운영 플랫폼</p>
+    </div>
+    <nav>
+      <p class="nav-group-label">업무</p>
+      <ul class="nav-list">
+        <li><a href="#" class="nav-item active">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span>홈</span></a></li>
+        <li><a href="#" class="nav-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <span>일일업무</span></a></li>
+        <li><a href="#" class="nav-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>주간보고</span></a></li>
+        <li><a href="#" class="nav-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span>캘린더</span></a></li>
+      </ul>
+      <p class="nav-group-label" style="margin-top:24px;">AX사업본부</p>
+      <ul class="nav-list">
+        <li><a href="#" class="nav-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span>KPI</span></a></li>
+        <li><a href="#" class="nav-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>루틴</span></a></li>
+        <li><a href="#" class="nav-item">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+          <span>본부 운영</span></a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- 메인 -->
+  <main class="app-main">
+    <header class="main-header">
+      <div class="header-title">
+        <h2>안녕하세요, 김도현님 👋</h2>
+        <div class="header-meta">
+          <span class="header-date">2026년 6월 6일 금요일</span>
+          <a href="#" class="ax-chip" style="color:#6366f1;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>KPI</a>
+          <a href="#" class="ax-chip" style="color:#0891b2;">✓ 루틴</a>
+          <a href="#" class="ax-chip" style="color:#059669;">🏢 본부 운영</a>
+        </div>
+      </div>
+      <div class="user-pill">
+        <div class="tape-label" style="font-size: 14px; padding: 1px 8px;">불금! 주간보고 잊지마세요</div>
+        <div class="avatar">김</div>
+      </div>
+    </header>
+
+    <div class="dashboard-grid">
+      <!-- 왼쪽 열 -->
+      <div class="col">
+        <!-- 오늘 업무 -->
+        <section class="card paper-stack grid-pattern">
+          <div class="card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            오늘 업무
+            <a href="#" class="card-link">전체 보기 →</a>
+          </div>
+          <div class="task-list">
+            <div class="task-item done">
+              <div class="task-check done"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <span>충남 AI 대전환 사업 RFP 초안 검토</span>
+              <span class="task-tag">사업</span>
+            </div>
+            <div class="task-item">
+              <div class="task-check"></div>
+              <span>지큐브 라이브 데모 sales kit 항목 정리</span>
+              <span class="task-tag">개발</span>
+            </div>
+            <div class="task-item">
+              <div class="task-check"></div>
+              <span>GPU Advisor 리뷰 피드백 반영</span>
+              <span class="task-tag" style="color:var(--marker-red);">긴급</span>
+            </div>
+            <div class="task-item">
+              <div class="task-check"></div>
+              <span>편의기능 관리형 도구 구성 요소 정의</span>
+              <span class="task-tag">기획</span>
+            </div>
+          </div>
+          <div class="quick-input-container" style="margin-top: 24px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 12px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <input type="text" placeholder="새로운 일일업무를 입력하세요..." />
+            <span class="add-badge">추가 (Enter)</span>
+          </div>
+        </section>
+
+        <!-- 이번 주 KPI 진행 -->
+        <section class="card paper-stack">
+          <div class="card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            이번 주 KPI 진행
+          </div>
+          <div class="project-list">
+            <div class="project-item">
+              <div class="project-info"><span>신규 거래처 발굴</span><span>75%</span></div>
+              <div class="progress-track"><div class="progress-bar" style="width:75%;"></div></div>
+            </div>
+            <div class="project-item">
+              <div class="project-info"><span>견적 전환율 개선</span><span>40%</span></div>
+              <div class="progress-track"><div class="progress-bar" style="width:40%; background:var(--accent-blue);"></div></div>
+            </div>
+            <div class="project-item">
+              <div class="project-info"><span>주간보고 제출률</span><span>90%</span></div>
+              <div class="progress-track"><div class="progress-bar" style="width:90%; background:var(--accent-green);"></div></div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- 오른쪽 열 -->
+      <div class="col">
+        <!-- 최근 활동 피드 -->
+        <aside class="card paper-stack">
+          <div class="card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            최근 활동 피드
+          </div>
+          <div class="feed-list">
+            <div class="feed-item">
+              <div class="feed-dot" style="background: var(--accent-green);"></div>
+              <div class="feed-content"><strong>완료:</strong> 충남 사업 데모 진행(6월 9일) 확정<span class="feed-time">2시간 전</span></div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-dot"></div>
+              <div class="feed-content"><strong>수정:</strong> 대시보드 반영 항목 리스트 업데이트<span class="feed-time">5시간 전</span></div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-dot" style="background: var(--accent-blue);"></div>
+              <div class="feed-content"><strong>댓글:</strong> 개발팀이 sales kit 피드백을 남겼습니다<span class="feed-time">어제</span></div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-dot"></div>
+              <div class="feed-content"><strong>추가:</strong> 주간보고 초안 작성 시작<span class="feed-time">2일 전</span></div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- 주간보고 -->
+        <aside class="card paper-stack">
+          <div class="card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            주간보고
+            <a href="#" class="card-link">작성하기 →</a>
+          </div>
+          <ul class="report-list">
+            <li class="report-item"><span>6월 1일 주</span><span class="report-badge">개발/기획</span></li>
+            <li class="report-item"><span>5월 25일 주</span><span class="report-badge" style="background:#FEF3C7;color:#B45309;">사업</span></li>
+            <li class="report-item"><span>5월 18일 주</span><span class="report-badge" style="background:#DCFCE7;color:#15803D;">기획</span></li>
+          </ul>
+          <div style="margin-top: 28px;">
+            <div class="tape-label" style="background-color:#E0F2FE; color:#0369A1; font-size:16px; transform: rotate(2deg);">메모: 다음 주 월요일 연차</div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+
+  <div class="preview-flag">design preview · 실서비스 비반영</div>
+</body>
+</html>
