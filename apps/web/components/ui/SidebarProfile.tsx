@@ -209,7 +209,7 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
           <div
             style={{
               fontSize: '0.6875rem',
-              color: '#64748b',
+              color: 'var(--color-text-muted)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -221,7 +221,7 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
 
         <ChevronUp
           size={14}
-          color="#64748b"
+          color="var(--color-text-muted)"
           style={{
             flexShrink: 0,
             transform: open ? 'rotate(0deg)' : 'rotate(180deg)',
