@@ -54,7 +54,6 @@ export default function MobileShell({
 }: MobileShellProps) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [hoveredHref, setHoveredHref] = useState<string | null>(null)
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   const hamburgerRef = useRef<HTMLButtonElement>(null)
   const firstNavRef = useRef<HTMLAnchorElement>(null)
@@ -172,10 +171,7 @@ export default function MobileShell({
                     icon={item.icon}
                     badge={item.badge}
                     isActive={isActive}
-                    isHovered={hoveredHref === item.href}
                     isHighlight={!!item.highlight && !isActive}
-                    onMouseEnter={() => setHoveredHref(item.href)}
-                    onMouseLeave={() => setHoveredHref(null)}
                     linkRef={idx === 0 ? firstNavRef : undefined}
                   />
                 </li>
@@ -226,9 +222,6 @@ export default function MobileShell({
                             icon={item.icon}
                             badge={item.badge}
                             isActive={isActive}
-                            isHovered={hoveredHref === item.href}
-                            onMouseEnter={() => setHoveredHref(item.href)}
-                            onMouseLeave={() => setHoveredHref(null)}
                           />
                         </li>
                       )

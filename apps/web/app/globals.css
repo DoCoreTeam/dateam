@@ -46,6 +46,8 @@
   /* 사이드바(테마별) — nb: 크림 페이퍼 + 잉크 */
   --sidebar-bg: var(--nb-paper);
   --sidebar-fg: var(--ink);
+  /* nav 항목 hover 배경 — 밝은 페이퍼엔 어두운 오버레이 (다크 테마에서 [data-theme]가 오버라이드) */
+  --nav-hover-bg: rgba(0, 0, 0, 0.05);
   /* 상단 헤더/사이드바 브랜드 공통 높이(하단선 정렬용) */
   --header-height: 56px;
 
@@ -154,6 +156,8 @@
   /* 사이드바: 다크(기존) */
   --sidebar-bg: #1e293b;
   --sidebar-fg: #e2e8f0;
+  /* 다크 사이드바 — hover는 밝은 오버레이라야 보임 */
+  --nav-hover-bg: rgba(255, 255, 255, 0.08);
   /* 브릿지/카드 — 바탕을 연회색으로 낮춰 흰 카드와 대비(흰색 과다 완화). 카드=흰색 유지 */
   --color-bg: #eef1f6;
   --surface-bg: #eef1f6;
@@ -1022,6 +1026,57 @@
   .report-form-delete-desktop {
     display: none !important;
   }
+}
+
+/* ─── 사이드바 nav 항목 (NbNavItem SSOT — data-state로 active/highlight 구분) ─── */
+.nb-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  font-size: var(--fs-base);
+  font-weight: 500;
+  text-decoration: none;
+  color: var(--sidebar-fg);
+  min-height: 44px;
+  border: var(--border-w-2) solid transparent;
+  transition: background-color 120ms, border-color 120ms, opacity 120ms;
+}
+.nb-nav-item:hover { background: var(--nav-hover-bg); }
+.nb-nav-item:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: 2px; }
+.nb-nav-item__icon { flex-shrink: 0; opacity: 0.7; display: flex; align-items: center; }
+.nb-nav-item__label { flex: 1; }
+/* active = 채움 없는 아웃라인(보더 + 좌측 brand 바) */
+.nb-nav-item[data-state="active"] {
+  font-weight: 700;
+  border-color: var(--border-color);
+  box-shadow: inset 3px 0 0 var(--brand); /* 좌측 표식 바 — 테마 무관 고정 두께 */
+  background: transparent;
+}
+.nb-nav-item[data-state="active"]:hover { background: transparent; }
+.nb-nav-item[data-state="active"] .nb-nav-item__icon { opacity: 1; }
+/* highlight = 솔리드 brand CTA */
+.nb-nav-item[data-state="highlight"] {
+  font-weight: 700;
+  background: var(--brand);
+  color: var(--nb-white);
+  box-shadow: var(--shadow-sm);
+  letter-spacing: 0.01em;
+}
+.nb-nav-item[data-state="highlight"]:hover { background: var(--brand); opacity: 0.9; }
+.nb-nav-item[data-state="highlight"] .nb-nav-item__icon { opacity: 1; }
+.nb-nav-badge {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1;
+  background-color: var(--danger);
+  color: var(--nb-white);
+  border-radius: 9999px;
+  padding: 0.2rem 0.4rem;
+  min-width: 1.1rem;
+  text-align: center;
+  flex-shrink: 0;
 }
 
 /* ─── 홈 페이지 레이아웃 ────────────────────────────────────────────
