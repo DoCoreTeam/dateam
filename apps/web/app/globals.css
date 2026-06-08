@@ -488,9 +488,10 @@
     font-weight: 700;
   }
 
+  /* soft 패턴 — 연한 brand 배경 + brand 글씨. 테마별 --accent가 진해도 대비 확보(검정 글씨 묻힘 방지) */
   .badge-indigo {
-    background-color: var(--accent);
-    color: var(--ink);
+    background-color: var(--brand-soft);
+    color: var(--brand);
   }
 
   .badge-slate {
