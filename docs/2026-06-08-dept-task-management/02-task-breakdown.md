@@ -53,7 +53,17 @@
 - T3.5 SWR mutate 낙관적 업데이트 연결
 - ✔ 완료기준: 디자인토큰(`pnpm design:check`) 통과 + 반응형(320/768/1024/1440) 무overflow
 
-## 스프린트 4 — 주간보고 연동 (Frontend+Backend)
+## 스프린트 4 — 주간보고 연동 ✅ 완료 (2026-06-08, v0.7.50)
+- DeptTaskWeeklyPanel(조직현황 read-only 부서업무 진행 스냅샷, 부서별 그룹) + /api/daily/week에 assignee dept_task 인용 포함(단방향).
+- 077 가드: personal 로그 assignee/department NULL CHECK(week API 안전성 DB확정).
+- 브라우저 확인: 본부장 조직현황에 1팀(완료1/1)·2팀(진행60%) 표시. 🟥 DC-QA/SEC PASS-WITH-NOTES.
+
+## 스프린트 5 — 자동화 테스트 ✅ 완료 (2026-06-08, v0.7.50)
+- lib/dept-task-utils.ts(SSOT 순수유틸) + dept-task-utils.test.ts(단위, node --test).
+- e2e/dept-tasks.spec.ts(트리거 무결성: 소속 허용/비소속 거부, REST+정리).
+- 결과: 단위 36/36 + E2E 2/2 PASS, tsc 0, design:check. 🟥 DC-REV 86/100.
+
+### (구) 스프린트 4 — 주간보고 연동 (Frontend+Backend)
 - T4.1 주간보고 '조직 현황'에 부서업무 자동 집계 섹션(read-only)
 - T4.2 DailyTaskSelector에 dept_task 후보 포함(수동 인용)
 - T4.3 단방향 보장(주간보고→부서업무 쓰기 차단) 확인

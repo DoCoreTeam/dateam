@@ -9,6 +9,7 @@ import TeamReportView from './TeamReportView'
 import ReportAccordion from './ReportAccordion'
 import OnboardingRestartLink from './OnboardingRestartLink'
 import OrgWeeklyView from './OrgWeeklyView'
+import DeptTaskWeeklyPanel from './DeptTaskWeeklyPanel'
 import WeeklyMemoReview from '@/components/ui/memo/WeeklyMemoReview'
 import { FileText, Users, GitBranch } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
@@ -275,6 +276,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
           <TeamReportView weekOptions={weekOptions} thisWeek={thisWeek} initialReports={teamReports} />
         </div>
       ) : (
+        <>
         <div className="card" style={{ padding: 'var(--space-6)', width: '100%', boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
             <GitBranch size={16} color="var(--brand)" />
@@ -292,6 +294,8 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
             deptBodies={orgDeptBodies}
           />
         </div>
+        <DeptTaskWeeklyPanel deptNameMap={Object.fromEntries(orgScope.nodes.map((n) => [n.id, n.name]))} />
+        </>
       )}
     </div>
   )

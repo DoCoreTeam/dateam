@@ -1,13 +1,13 @@
 {
   "name": "web",
-  "version": "0.7.49",
+  "version": "0.7.50",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --test --experimental-strip-types \"app/(member)/daily/grouping.test.ts\" \"lib/gpu/format-spec.test.ts\" \"lib/gpu/parse-quantity.test.ts\" \"lib/gpu/pricing.test.ts\" \"lib/gpu/parity.test.ts\""
+    "test": "node --test --experimental-strip-types \"app/(member)/daily/grouping.test.ts\" \"lib/gpu/format-spec.test.ts\" \"lib/gpu/parse-quantity.test.ts\" \"lib/gpu/pricing.test.ts\" \"lib/gpu/parity.test.ts\" \"lib/dept-task-utils.test.ts\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

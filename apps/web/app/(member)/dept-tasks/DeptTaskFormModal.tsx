@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import type { DailyLogPriority, DeptTaskChecklistItem } from '@/types/database'
+import type { DailyLogPriority } from '@/types/database'
 import NbButton from '@/components/ui/nb/NbButton'
+import { parseChecklistText } from '@/lib/dept-task-utils'
 import { createDeptTask, listAssigneeCandidates } from './actions'
 import type { DeptOption } from './DeptTasksClient'
 
@@ -38,8 +39,7 @@ export default function DeptTaskFormModal({ creatableDepts, onClose, onCreated }
   async function submit() {
     if (!content.trim()) { setError('업무 내용을 입력해 주세요.'); return }
     setBusy(true); setError('')
-    const checklist: DeptTaskChecklistItem[] = checklistText
-      .split('\n').map((l) => l.trim()).filter(Boolean).map((label) => ({ label, done: false }))
+    const checklist = parseChecklistText(checklistText)
     const res = await createDeptTask({
       content, departmentId, priority,
       targetDate: targetDate || null,

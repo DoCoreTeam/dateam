@@ -3,12 +3,12 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
+import { isDeptTaskStatus, normalizeProgress, sanitizeChecklist } from '@/lib/dept-task-utils'
 import type { DailyLog, DailyLogEntryType, DailyLogThread, DeptTaskChecklistItem } from '@/types/database'
 
 // 부서업무는 daily_logs(task_kind='dept_task')에 저장 — S1(075) 스키마 재사용.
 // RLS가 부서 가시성/쓰기를 1차 강제하고, assignTask·트리거(076)가 담당자 무결성을 보강한다.
-
-const DEPT_TASK_STATUSES: DailyLogEntryType[] = ['planned', 'doing', 'blocker', 'done']
+// 순수 로직(상태/진행률/체크리스트 검증)은 lib/dept-task-utils.ts(SSOT) 재사용.
 
 export interface DeptTaskInput {
   content: string
@@ -23,14 +23,6 @@ type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string }
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'
-}
-
-function sanitizeChecklist(items: DeptTaskChecklistItem[] | undefined): DeptTaskChecklistItem[] {
-  if (!Array.isArray(items)) return []
-  return items
-    .filter((it) => it && typeof it.label === 'string')
-    .slice(0, 50)
-    .map((it) => ({ label: it.label.trim().slice(0, 500), done: Boolean(it.done) }))
 }
 
 /** 담당자 지정 후보 = 해당 부서 서브트리 소속 person */
@@ -125,13 +117,14 @@ export async function updateDeptTaskProgress(
 
   const updates: Record<string, unknown> = {}
   if (patch.status) {
-    if (!DEPT_TASK_STATUSES.includes(patch.status)) return { ok: false, error: '잘못된 상태값입니다.' }
+    if (!isDeptTaskStatus(patch.status)) return { ok: false, error: '잘못된 상태값입니다.' }
     updates.entry_type = patch.status
     updates.is_resolved = patch.status === 'done'
   }
   if (typeof patch.progress === 'number') {
-    if (patch.progress < 0 || patch.progress > 100) return { ok: false, error: '진행률은 0~100입니다.' }
-    updates.progress = Math.round(patch.progress)
+    const p = normalizeProgress(patch.progress)
+    if (p === null) return { ok: false, error: '진행률은 0~100입니다.' }
+    updates.progress = p
   }
   if (patch.checklist) updates.checklist = sanitizeChecklist(patch.checklist)
   if (Object.keys(updates).length === 0) return { ok: false, error: '변경 내용이 없습니다.' }
