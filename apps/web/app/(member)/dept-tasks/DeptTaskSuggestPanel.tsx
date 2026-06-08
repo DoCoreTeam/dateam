@@ -47,14 +47,14 @@ export default function DeptTaskSuggestPanel({ creatableDepts, editableDeptIds, 
         body: JSON.stringify({ scope, departmentId, weeks }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data.error ?? 'AI 추출 실패'); return }
+      if (!res.ok) { setError(data.error ?? '탐색 실패'); return }
       const list = (data.candidates ?? []) as Candidate[]
       setCandidates(list)
       // 중복의심 아닌 것만 기본 선택
       setChecked(new Set(list.map((c, i) => (c.existing_match ? -1 : i)).filter((i) => i >= 0)))
-      if (list.length === 0) setInfo(data.message ?? '추출된 후보가 없습니다.')
+      if (list.length === 0) setInfo(data.message ?? '탐색된 후보가 없습니다.')
     } catch {
-      setError('AI 추출 중 오류가 발생했습니다.')
+      setError('탐색 중 오류가 발생했습니다.')
     } finally { setLoading(false) }
   }
 
@@ -88,7 +88,7 @@ export default function DeptTaskSuggestPanel({ creatableDepts, editableDeptIds, 
     <div className="card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-5)' }}>
       <button onClick={() => setOpen((v) => !v)} aria-expanded={open}
         style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand)', fontWeight: 600, minHeight: 44, width: '100%', justifyContent: 'flex-start' }}>
-        <Sparkles size={16} /> AI로 부서업무 후보 찾기
+        <Sparkles size={16} /> 부서업무 탐색
       </button>
 
       {open && (
@@ -112,10 +112,10 @@ export default function DeptTaskSuggestPanel({ creatableDepts, editableDeptIds, 
           </div>
           <div>
             <NbButton onClick={findCandidates} disabled={loading || !departmentId}>
-              {loading ? 'AI 분석 중…' : '✨ 후보 찾기'}
+              {loading ? '탐색 중…' : '✨ 탐색 시작'}
             </NbButton>
             <span style={{ marginLeft: 'var(--space-3)', color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>
-              일일업무·주간보고에서 추출 (부서장=부서원 전체)
+              일일업무·주간보고에서 탐색 (부서장=부서원 전체)
             </span>
           </div>
 
