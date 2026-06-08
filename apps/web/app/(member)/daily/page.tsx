@@ -1416,7 +1416,8 @@ const actionBtnSecondary: React.CSSProperties = {
 const PRIORITY_LABELS: Record<string, string> = {
   urgent: '긴급', high: '높음', normal: '보통', low: '낮음',
 }
-const PRIORITY_COLORS: Record<string, string> = {
+// 텍스트 색만 매핑(SSOT lib/tokens/status-colors의 PRIORITY_COLORS[color/bg/border]와 구분).
+const PRIORITY_TEXT_COLORS: Record<string, string> = {
   urgent: 'var(--danger)', high: 'var(--warning)', normal: 'var(--text-muted)', low: 'var(--text-faint)',
 }
 
@@ -1642,7 +1643,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
           style={{
             padding: '0.2rem 0.5rem', borderRadius: 'var(--radius)', fontSize: 'var(--fs-xs)',
             fontWeight: 600, border: 'var(--border-w-2) solid var(--border-color)',
-            background: 'var(--color-bg)', color: PRIORITY_COLORS[item.priority] ?? 'var(--text-muted)',
+            background: 'var(--color-bg)', color: PRIORITY_TEXT_COLORS[item.priority] ?? 'var(--text-muted)',
             cursor: 'pointer',
           }}
         >
