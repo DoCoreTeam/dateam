@@ -47,3 +47,4 @@ nb-*.jpeg
 test-*.jpeg
 .playwright-mcp/
 theme-*.jpeg
+*.jpeg
