@@ -5,14 +5,29 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { ChevronLeft, ChevronRight, Lock, Pencil, Users, Sparkles } from 'lucide-react'
-import { saveDeptReport } from './org-actions'
+import { saveDeptReport, aggregateDept } from './org-actions'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 
 interface SlimNode { id: string; type: string; parent_id: string | null; name: string }
 interface DeptStat { memberCount: number; reportedCount: number; agg: 'none' | 'draft' | 'confirmed' }
+// admin/reports와 동일한 flat 스키마(SSOT: mergeAndRefineByCategory)
+interface FlatRow { category: string; performance: string; plan: string; issues: string }
+// 구 스냅샷(authors[] 계층) 호환용 — flat 필드는 optional(구형은 authors만 존재)
 interface AuthorBlock { name: string; rank?: string; performance: string; plan: string; issues: string }
-interface MergedRow { category: string; authors: AuthorBlock[] }
+interface AnyRow { category: string; performance?: string; plan?: string; issues?: string; authors?: AuthorBlock[] }
+
+// 구 authors[] 형식 → flat로 정규화(데이터 보존: 작성자명 굵게 prefix). 신형은 그대로.
+function normalizeRows(body: AnyRow[]): FlatRow[] {
+  return (body ?? []).map((r) => {
+    if (Array.isArray(r.authors) && r.authors.length > 0) {
+      const join = (f: 'performance' | 'plan' | 'issues') =>
+        r.authors!.map((a) => `<p><strong>${a.name}${a.rank ? ` ${a.rank}` : ''}</strong></p>${a[f] || ''}`).join('')
+      return { category: r.category, performance: join('performance'), plan: join('plan'), issues: join('issues') }
+    }
+    return { category: r.category, performance: r.performance || '', plan: r.plan || '', issues: r.issues || '' }
+  })
+}
 
 // 기존 취합(AdminReportsPreview)과 동일한 sanitize/표시 규칙
 const ALLOWED_TAGS = /^(p|ul|ol|li|strong|em|br|span|b|i)$/i
@@ -49,7 +64,7 @@ interface Props {
   isExecutive: boolean
   scopeRootIds: string[]
   deptStats: Record<string, DeptStat>
-  deptBodies: Record<string, MergedRow[]>
+  deptBodies: Record<string, AnyRow[]>
 }
 
 export default function OrgWeeklyView(props: Props) {
@@ -135,7 +150,7 @@ export default function OrgWeeklyView(props: Props) {
           weekStart={weekStart}
           editable={editableDeptIds.includes(currentNode.id)}
           agg={(deptStats[currentNode.id]?.agg) ?? 'none'}
-          initialBody={deptBodies[currentNode.id] ?? []}
+          initialBody={normalizeRows(deptBodies[currentNode.id] ?? [])}
           aggBadge={aggBadge}
         />
       ) : (
@@ -172,59 +187,35 @@ interface DeptReportProps {
   weekStart: string
   editable: boolean
   agg: DeptStat['agg']
-  initialBody: MergedRow[]
+  initialBody: FlatRow[]
   aggBadge: (a: DeptStat['agg']) => React.ReactNode
 }
 
 function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, aggBadge }: DeptReportProps) {
   const router = useRouter()
-  const [rows, setRows] = useState<MergedRow[]>(initialBody)
+  const [rows, setRows] = useState<FlatRow[]>(initialBody)
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
-  const [members, setMembers] = useState<{ name: string; rank?: string; category: string }[]>([])
-  const [streamRows, setStreamRows] = useState<MergedRow[]>([])
   const [localStatus, setLocalStatus] = useState<DeptStat['agg']>(agg)
-  const [editingCell, setEditingCell] = useState<{ idx: number; authorIdx: number; field: 'performance' | 'plan' | 'issues' } | null>(null)
+  const [editingCell, setEditingCell] = useState<{ idx: number; field: 'performance' | 'plan' | 'issues' } | null>(null)
 
   useEffect(() => { setRows(initialBody); setDirty(false); setLocalStatus(agg) }, [initialBody, agg])
 
-  // 스트리밍 취합: 카테고리가 통합되는 대로 실시간 표시
+  // 취합: admin/reports와 동일 경로(aggregateDept → mergeAndRefineByCategory). 서버에서 draft 저장 후 flat 결과 반환.
   async function onAggregate() {
-    setBusy(true); setMsg(null); setMembers([]); setStreamRows([])
+    setBusy(true); setMsg(null)
     try {
-      const res = await fetch('/api/reports/aggregate-stream', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deptId, weekStart }),
-      })
-      if (!res.ok || !res.body) { setMsg(`취합 실패: ${await res.text().catch(() => res.status)}`); setBusy(false); return }
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      const collected: MergedRow[] = []
-      let buf = ''
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buf += decoder.decode(value, { stream: true })
-        const lines = buf.split('\n\n'); buf = lines.pop() ?? ''
-        for (const line of lines) {
-          const t = line.trim()
-          if (!t.startsWith('data:')) continue
-          try {
-            const ev = JSON.parse(t.slice(5).trim())
-            if (ev.type === 'members') setMembers(ev.members ?? [])
-            else if (ev.type === 'category' && ev.item?.category) { collected.push(ev.item); setStreamRows([...collected]) }
-            else if (ev.type === 'error') setMsg(ev.message ?? '취합 실패')
-          } catch { /* skip */ }
-        }
-      }
-      setBusy(false)
-      if (collected.length > 0) {
-        setRows(collected); setDirty(true)
-        setMsg('AI 취합 완료 — 셀별 "수정"으로 다듬고 [확정]하세요')
-      }
+      const r = await aggregateDept(deptId, weekStart)
+      if (!r.ok) { setMsg(`취합 실패: ${r.error ?? '알 수 없는 오류'}`); return }
+      setRows((r.body as FlatRow[]) ?? []); setDirty(false)
+      setLocalStatus('draft')
+      setMsg('AI 취합 완료 — 셀별 "수정"으로 다듬고 [확정]하세요')
+      router.refresh()
     } catch (e) {
-      setBusy(false); setMsg(e instanceof Error ? e.message : '취합 실패')
+      setMsg(e instanceof Error ? e.message : '취합 실패')
+    } finally {
+      setBusy(false)
     }
   }
   async function save(confirm: boolean) {
@@ -236,14 +227,12 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
     setLocalStatus(confirm ? 'confirmed' : 'draft')
     router.refresh()
   }
-  const updateCell = (idx: number, authorIdx: number, field: 'performance' | 'plan' | 'issues', html: string) => {
-    setRows((prev) => prev.map((r, i) => i === idx
-      ? { ...r, authors: r.authors.map((a, ai) => ai === authorIdx ? { ...a, [field]: html } : a) }
-      : r)); setDirty(true)
+  const updateCell = (idx: number, field: 'performance' | 'plan' | 'issues', html: string) => {
+    setRows((prev) => prev.map((r, i) => i === idx ? { ...r, [field]: html } : r)); setDirty(true)
     setLocalStatus('draft')
   }
 
-  const activeValue = editingCell ? rows[editingCell.idx]?.authors?.[editingCell.authorIdx]?.[editingCell.field] ?? '' : ''
+  const activeValue = editingCell ? rows[editingCell.idx]?.[editingCell.field] ?? '' : ''
 
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)' }}>
@@ -265,34 +254,8 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
       {msg && <div role="status" style={{ padding: '0.625rem 1.25rem', background: 'var(--brand-soft)', borderBottom: 'var(--hairline) solid var(--brand-soft-2)', fontSize: 'var(--fs-sm)', color: 'var(--brand-dark)' }}>{msg}</div>}
 
       {busy ? (
-        <div style={{ padding: 'var(--space-5)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: 'var(--fs-base)', fontWeight: 700, color: 'var(--brand)', marginBottom: '0.75rem' }}>
-            <Sparkles size={15} /> 취합 중…
-          </div>
-          {/* 취합 대상 부서원 보고 + 상태 */}
-          {members.length > 0 && (
-            <div style={{ marginBottom: '0.875rem' }}>
-              <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-faint)', marginBottom: '0.35rem' }}>취합 대상 부서원 보고 {members.length}건</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                {members.map((m, i) => (
-                  <span key={i} style={{ fontSize: '0.72rem', color: 'var(--text-muted)', background: 'var(--surface-muted)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.15rem 0.45rem' }}>
-                    {m.name}{m.rank ? ` ${m.rank}` : ''} · {m.category}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          {/* 실시간 통합 카테고리 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-            {streamRows.length === 0 ? (
-              <span style={{ fontSize: '0.8rem', color: 'var(--brand-soft-2)' }}>부서원 보고를 종합하는 중…</span>
-            ) : streamRows.map((r, i) => (
-              <div key={i} style={{ fontSize: '0.82rem', color: 'var(--text)' }}>
-                <span style={{ color: 'var(--success)', fontWeight: 700, marginRight: '0.35rem' }}>✓</span>
-                <span style={{ fontWeight: 600 }}>{r.category}</span> 카테고리 통합됨
-              </div>
-            ))}
-          </div>
+        <div style={{ padding: 'var(--space-5)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: 'var(--fs-base)', fontWeight: 700, color: 'var(--brand)' }}>
+          <Sparkles size={15} /> AI가 부서원 보고를 카테고리별로 취합·정제 중…
         </div>
       ) : rows.length === 0 ? (
         <p style={{ padding: 'var(--space-5)', color: 'var(--text-faint)', fontSize: 'var(--fs-base)', margin: 0 }}>
@@ -304,26 +267,20 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
             <div key={`${row.category}-${idx}`} style={{ borderBottom: 'var(--hairline) solid var(--surface-muted)' }}>
               {/* 카테고리 섹션 헤더 */}
               <div style={{ padding: '0.625rem 1.25rem', background: 'var(--color-bg)', fontWeight: 700, fontSize: 'var(--fs-sm)', color: 'var(--brand-dark)' }}>{row.category}</div>
-              {/* 작성자 소블록 (직급→이름 순 보존) */}
-              {(row.authors ?? []).map((au, ai) => (
-                <div key={ai} style={{ padding: 'var(--space-3) var(--space-5)', borderTop: ai > 0 ? 'var(--hairline) dashed var(--color-border)' : 'none' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
-                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text)' }}>{au.name}</span>
-                    {au.rank && <span style={{ fontSize: '0.66rem', color: 'var(--brand)', background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)', padding: '0.05rem 0.35rem' }}>{au.rank}</span>}
-                  </div>
-                  <div className="responsive-grid-cols-3" style={{ display: 'grid', gap: 'var(--space-3)' }}>
-                    {FIELDS.map((f) => (
-                      <div key={f.key}>
-                        <div style={{ fontSize: '0.66rem', fontWeight: 600, color: 'var(--text-faint)', marginBottom: '0.2rem' }}>{f.label}</div>
-                        <RichCell html={au[f.key]} />
-                        {editable && (
-                          <button onClick={() => setEditingCell({ idx, authorIdx: ai, field: f.key })} style={{ marginTop: '0.3rem', padding: '0.1rem 0.35rem', fontSize: '0.68rem', color: 'var(--text-faint)', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer' }}>수정</button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+              {/* 성과/계획/이슈 (카테고리별 통합·정제 — admin/reports와 동일 flat 구조) */}
+              <div style={{ padding: 'var(--space-3) var(--space-5)' }}>
+                <div className="responsive-grid-cols-3" style={{ display: 'grid', gap: 'var(--space-3)' }}>
+                  {FIELDS.map((f) => (
+                    <div key={f.key}>
+                      <div style={{ fontSize: '0.66rem', fontWeight: 600, color: 'var(--text-faint)', marginBottom: '0.2rem' }}>{f.label}</div>
+                      <RichCell html={row[f.key]} />
+                      {editable && (
+                        <button onClick={() => setEditingCell({ idx, field: f.key })} style={{ marginTop: '0.3rem', padding: '0.1rem 0.35rem', fontSize: '0.68rem', color: 'var(--text-faint)', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer' }}>수정</button>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
           ))}
         </div>
@@ -345,7 +302,7 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
         <EditorModal
           title={`${FIELDS.find((f) => f.key === editingCell.field)?.label} 수정`}
           value={activeValue}
-          onChange={(html: string) => updateCell(editingCell.idx, editingCell.authorIdx, editingCell.field, html)}
+          onChange={(html: string) => updateCell(editingCell.idx, editingCell.field, html)}
           onClose={() => setEditingCell(null)}
         />
       )}
