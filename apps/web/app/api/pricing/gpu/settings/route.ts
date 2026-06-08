@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { revalidateGpu } from '@/lib/gpu/revalidate'
 
 export async function GET() {
   try {
@@ -53,6 +54,9 @@ export async function PATCH(request: Request) {
       actor: user.email,
       detail: { margin_pct },
     })
+
+    // 마진 변경은 sell_price 전체에 영향 → 4탭 캐시 무효화 (stale 방지)
+    revalidateGpu()
 
     return NextResponse.json({ margin_pct: data.margin_pct })
   } catch (err) {

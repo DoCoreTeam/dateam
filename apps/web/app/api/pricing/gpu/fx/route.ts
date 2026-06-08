@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
+import { revalidateGpu } from '@/lib/gpu/revalidate'
 
 const KOREAEXIM_BASE = 'https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON'
 
@@ -65,6 +66,9 @@ export async function POST() {
       .upsert({ rate_date: usedDate, usd_krw: rate, source: 'koreaexim' })
 
     if (error) throw error
+
+    // 환율 변경은 sell_price_krw 전체에 영향 → 4탭 캐시 무효화 (stale 방지)
+    revalidateGpu()
 
     return NextResponse.json({ rate_date: usedDate, usd_krw: rate })
   } catch (err) {

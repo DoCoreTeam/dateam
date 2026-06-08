@@ -1,7 +1,7 @@
 // 표준 구성 사다리(×1/×2/×4/×8) 실제 적재 — 견적 등록 시 호출.
 // 화면 전용 파생이 아니라 실제 gpu_products 행을 생성해 4탭+스펙관리 전부 일관.
 
-const STD_CONFIGS = [1, 2, 4, 8]
+import { STANDARD_LADDER } from './config-ladder'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function ensureStandardConfigs(adminDb: any, modelName: string): Promise<void> {
@@ -19,7 +19,7 @@ export async function ensureStandardConfigs(adminDb: any, modelName: string): Pr
     const perCard = base.memory && /[0-9]/.test(String(base.memory))
       ? Number(String(base.memory).replace(/[^0-9]/g, '')) / baseCount : null
 
-    const inserts = STD_CONFIGS.filter((n) => !existing.has(n)).map((n) => {
+    const inserts = (STANDARD_LADDER as readonly number[]).filter((n) => !existing.has(n)).map((n) => {
       const ratio = n / baseCount
       return {
         model_name: base.model_name, tier: base.tier, pricing_mode: 'quote', gpu_count: n, series: base.series,

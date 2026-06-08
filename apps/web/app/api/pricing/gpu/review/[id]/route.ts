@@ -6,6 +6,8 @@ import { parseGpuCount, toPerGpuPrice } from '@/lib/gpu/parse-quantity'
 import { inferTier } from '@/lib/gpu/tier-dict'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
 import { routeIntakeExtras } from '@/lib/gpu/intake-routing'
+import { roundUpToStandard, isStandardConfig } from '@/lib/gpu/config-ladder'
+import { ensureStandardConfigs } from '@/lib/gpu/derive-configs'
 
 // POST /api/pricing/gpu/review/[id] — 확정 또는 반려
 export async function POST(
@@ -88,7 +90,10 @@ export async function POST(
   const originalUnit = typeof merged.original_unit === 'string' ? merged.original_unit : null
   const qtyHint = [merged.model_name, originalUnit, merged.min_qty, merged.term]
     .filter((v) => typeof v === 'string').join(' ')
-  const gpuCount = parseGpuCount(qtyHint, typeof merged.gpu_count === 'number' ? merged.gpu_count : 1)
+  const parsedGpuCount = parseGpuCount(qtyHint, typeof merged.gpu_count === 'number' ? merged.gpu_count : 1)
+  // 표준 사다리 정규화 — 비표준(x3 등)은 다음 표준단으로 올림. 원본은 audit_log detail에 보존.
+  const gpuCount = roundUpToStandard(parsedGpuCount)
+  // TODO: supply_quotes에 raw_gpu_count / is_nonstandard_source 컬럼 추가 시 원본 보존 가능 (DB팀 협의 필요)
   // 원본은 보존, unit_price_usd는 1장당으로 정규화 저장
   const unitPriceUsd = toPerGpuPrice(rawUnitPrice, gpuCount, originalUnit)
 
@@ -271,8 +276,21 @@ export async function POST(
         overall_confidence: item.overall_confidence,
         product_auto_created: productAutoCreated,
         route_outcomes: routeOutcomes,
+        // 비표준 수량 원본 추적 — raw_gpu_count != gpu_count 이면 올림 적용됨
+        raw_gpu_count: parsedGpuCount,
+        gpu_count_normalized: gpuCount,
+        is_nonstandard_source: !isStandardConfig(parsedGpuCount),
       },
     })
+
+  // 표준 구성 사다리 보충 — quotes/route.ts POST 패턴과 동일
+  if (productId) {
+    try {
+      const { data: prod } = await (adminClient as any)
+        .from('gpu_products').select('model_name').eq('id', productId).single()
+      if (prod?.model_name) await ensureStandardConfigs(adminClient, prod.model_name)
+    } catch { /* 비치명적 — 사다리 보충 실패가 confirm을 되돌리지 않음 */ }
+  }
 
   // L4 — 견적 확정 시 4개 메뉴 캐시 원자 무효화
   revalidateGpu()

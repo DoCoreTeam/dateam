@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { ensureSupplierAccount } from '@/lib/gpu/supplier-create'
 import { ensureStandardConfigs } from '@/lib/gpu/derive-configs'
+import { roundUpToStandard } from '@/lib/gpu/config-ladder'
 
 export async function GET(request: Request) {
   try {
@@ -72,10 +73,15 @@ export async function POST(request: Request) {
       }
     }
 
+    // gpu_count 표준 사다리 정규화 — 비표준(x3 등)은 다음 표준단으로 올림
+    const rawGpuCount = typeof body.gpu_count === 'number' ? body.gpu_count : 1
+    const normalizedGpuCount = roundUpToStandard(rawGpuCount)
+
     const { data, error } = await db
       .from('supply_quotes')
       .insert({
         product_id, supplier_id: finalSupplierId, unit_price_usd: Number(unit_price_usd),
+        gpu_count: normalizedGpuCount,
         original_currency, original_price: original_price ? Number(original_price) : null,
         original_unit, term, min_qty, valid_until: valid_until || null,
         source_format: source_format || 'text',
