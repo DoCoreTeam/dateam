@@ -154,8 +154,9 @@
   /* 사이드바: 다크(기존) */
   --sidebar-bg: #1e293b;
   --sidebar-fg: #e2e8f0;
-  /* 브릿지/카드 */
-  --color-bg: #f8fafc;
+  /* 브릿지/카드 — 바탕을 연회색으로 낮춰 흰 카드와 대비(흰색 과다 완화). 카드=흰색 유지 */
+  --color-bg: #eef1f6;
+  --surface-bg: #eef1f6;
   --color-text-muted: #64748b;
   --radius-card: 1rem;
   --shadow-card: var(--shadow-md);
