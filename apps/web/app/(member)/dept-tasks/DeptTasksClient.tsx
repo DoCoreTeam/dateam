@@ -38,6 +38,7 @@ export default function DeptTasksClient({
   const [filter, setFilter] = useState<DailyLogEntryType | 'all'>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [editing, setEditing] = useState(false)
 
   const refresh = useCallback(async () => {
     const next = await listDeptTasks()
@@ -47,6 +48,9 @@ export default function DeptTasksClient({
   const visible = filter === 'all' ? tasks : tasks.filter((t) => t.entry_type === filter)
   const selected = tasks.find((t) => t.id === selectedId) ?? null
   const canCreate = creatableDepts.length > 0
+  // 코어 필드 수정 권한: 작성자 또는 부서장
+  const selectedDeptEditable = !!selected?.department_id && editableDeptIds.includes(selected.department_id)
+  const canEditSelected = !!selected && (selected.user_id === currentUserId || selectedDeptEditable)
 
   return (
     <div className="page-inner">
@@ -119,10 +123,12 @@ export default function DeptTasksClient({
               key={selected.id}
               task={selected}
               currentUserId={currentUserId}
-              canAssign={!!selected.department_id && editableDeptIds.includes(selected.department_id)}
+              canAssign={selectedDeptEditable}
+              canEdit={canEditSelected}
               nameMap={nameMap}
               deptNameMap={deptNameMap}
               onChanged={refresh}
+              onEdit={() => setEditing(true)}
               onClose={() => setSelectedId(null)}
             />
           ) : (
@@ -137,7 +143,17 @@ export default function DeptTasksClient({
         <DeptTaskFormModal
           creatableDepts={creatableDepts}
           onClose={() => setShowCreate(false)}
-          onCreated={async () => { setShowCreate(false); await refresh() }}
+          onSaved={async () => { setShowCreate(false); await refresh() }}
+        />
+      )}
+
+      {editing && selected && (
+        <DeptTaskFormModal
+          creatableDepts={creatableDepts}
+          task={selected}
+          canEditDept={selectedDeptEditable}
+          onClose={() => setEditing(false)}
+          onSaved={async () => { setEditing(false); await refresh() }}
         />
       )}
     </div>

@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { X } from 'lucide-react'
+import { X, Pencil } from 'lucide-react'
 import type { DailyLog, DailyLogEntryType, DailyLogThread, DeptTaskChecklistItem } from '@/types/database'
 import { STATUS_COLORS } from '@/lib/tokens/status-colors'
+import { isProgressAuto } from '@/lib/dept-task-utils'
 import NbButton from '@/components/ui/nb/NbButton'
+import NbBadge from '@/components/ui/nb/NbBadge'
 import {
   updateDeptTaskProgress, assignTask, deleteDeptTask,
   getDeptTaskComments, addDeptTaskComment, listAssigneeCandidates,
@@ -14,21 +16,26 @@ interface Props {
   task: DailyLog
   currentUserId: string
   canAssign: boolean
+  canEdit: boolean
   nameMap: Record<string, string>
   deptNameMap: Record<string, string>
   onChanged: () => void
+  onEdit: () => void
   onClose: () => void
 }
 
 const STATUSES: DailyLogEntryType[] = ['planned', 'doing', 'blocker', 'done']
+const PRIORITY_LABEL: Record<string, string> = { urgent: '긴급', high: '높음', normal: '보통', low: '낮음' }
 
-export default function DeptTaskDetail({ task, canAssign, nameMap, deptNameMap, onChanged, onClose }: Props) {
+export default function DeptTaskDetail({ task, canAssign, canEdit, nameMap, deptNameMap, onChanged, onEdit, onClose }: Props) {
   const [comments, setComments] = useState<DailyLogThread[]>([])
   const [commentText, setCommentText] = useState('')
   const [progress, setProgress] = useState(task.progress)
   const [candidates, setCandidates] = useState<Array<{ userId: string; name: string }>>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  // 진행률 자동 산출 여부(done이거나 체크리스트 존재) → 수동 슬라이더 숨김
+  const progressAuto = isProgressAuto(task.checklist, task.entry_type)
 
   const loadComments = useCallback(async () => {
     setComments(await getDeptTaskComments(task.id))
@@ -72,12 +79,23 @@ export default function DeptTaskDetail({ task, canAssign, nameMap, deptNameMap, 
     <div className="card" style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
         <h2 style={{ margin: 0, fontSize: 'var(--fs-xl)' }}>{task.content}</h2>
-        <button onClick={onClose} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={18} /></button>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', flexShrink: 0 }}>
+          {canEdit && (
+            <button onClick={onEdit} aria-label="수정" disabled={busy}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand)', fontSize: 'var(--fs-base)' }}>
+              <Pencil size={16} /> 수정
+            </button>
+          )}
+          <button onClick={onClose} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={18} /></button>
+        </div>
       </div>
-      <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 'var(--fs-base)' }}>
-        {task.department_id ? deptNameMap[task.department_id] ?? '' : ''}
-        {' · 담당 '}{task.assignee_user_id ? nameMap[task.assignee_user_id] ?? '—' : '미지정'}
-        {task.target_date ? ` · 마감 ${task.target_date}` : ''}
+      <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 'var(--fs-base)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+        <NbBadge>{PRIORITY_LABEL[task.priority] ?? task.priority}</NbBadge>
+        <span>
+          {task.department_id ? deptNameMap[task.department_id] ?? '' : ''}
+          {' · 담당 '}{task.assignee_user_id ? nameMap[task.assignee_user_id] ?? '—' : '미지정'}
+          {task.target_date ? ` · 마감 ${task.target_date}` : ''}
+        </span>
       </p>
 
       <div>
@@ -93,12 +111,23 @@ export default function DeptTaskDetail({ task, canAssign, nameMap, deptNameMap, 
       </div>
 
       <div>
-        <div style={{ fontSize: 'var(--fs-base)', marginBottom: 'var(--space-2)' }}>진행률 {progress}%</div>
-        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-          <input type="range" min={0} max={100} step={5} value={progress}
-            onChange={(e) => setProgress(Number(e.target.value))} style={{ flex: 1 }} aria-label="진행률" />
-          <NbButton variant="ghost" disabled={busy || progress === task.progress} onClick={saveProgress}>저장</NbButton>
-        </div>
+        <div style={{ fontSize: 'var(--fs-base)', marginBottom: 'var(--space-2)' }}>진행률 {task.progress}%</div>
+        {progressAuto ? (
+          <>
+            <div style={{ height: 8, borderRadius: 'var(--radius)', background: 'var(--surface-bg)', overflow: 'hidden' }}>
+              <div style={{ width: `${task.progress}%`, height: '100%', background: 'var(--brand)' }} />
+            </div>
+            <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>
+              {task.entry_type === 'done' ? '완료 처리되어 100%입니다.' : '체크리스트 완료 비율로 자동 산출됩니다.'}
+            </p>
+          </>
+        ) : (
+          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+            <input type="range" min={0} max={100} step={5} value={progress}
+              onChange={(e) => setProgress(Number(e.target.value))} style={{ flex: 1 }} aria-label="진행률" />
+            <NbButton variant="ghost" disabled={busy || progress === task.progress} onClick={saveProgress}>저장</NbButton>
+          </div>
+        )}
       </div>
 
       {task.checklist.length > 0 && (

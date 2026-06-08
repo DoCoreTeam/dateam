@@ -3,8 +3,8 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
-import { isDeptTaskStatus, normalizeProgress, sanitizeChecklist } from '@/lib/dept-task-utils'
-import type { DailyLog, DailyLogEntryType, DailyLogThread, DeptTaskChecklistItem } from '@/types/database'
+import { isDeptTaskStatus, normalizeProgress, sanitizeChecklist, computeProgress } from '@/lib/dept-task-utils'
+import type { DailyLog, DailyLogEntryType, DailyLogPriority, DailyLogThread, DeptTaskChecklistItem } from '@/types/database'
 
 // 부서업무는 daily_logs(task_kind='dept_task')에 저장 — S1(075) 스키마 재사용.
 // RLS가 부서 가시성/쓰기를 1차 강제하고, assignTask·트리거(076)가 담당자 무결성을 보강한다.
@@ -106,7 +106,10 @@ export async function createDeptTask(input: DeptTaskInput): Promise<ActionResult
   }
 }
 
-/** 상태/진행률/체크리스트 갱신 — 담당자/작성자/부서장(RLS UPDATE 정책이 강제) */
+/**
+ * 상태/진행률/체크리스트 갱신 — 담당자/작성자/부서장(RLS UPDATE 정책이 강제).
+ * 진행률은 computeProgress(C 하이브리드)로 자동 산출: done→100, 체크리스트 있으면 done비율, 없으면 수동값.
+ */
 export async function updateDeptTaskProgress(
   id: string,
   patch: { status?: DailyLogEntryType; progress?: number; checklist?: DeptTaskChecklistItem[] },
@@ -115,18 +118,107 @@ export async function updateDeptTaskProgress(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: '로그인이 필요합니다.' }
 
+  if (patch.status && !isDeptTaskStatus(patch.status)) return { ok: false, error: '잘못된 상태값입니다.' }
+  if (typeof patch.progress === 'number' && normalizeProgress(patch.progress) === null) {
+    return { ok: false, error: '진행률은 0~100입니다.' }
+  }
+  if (patch.status === undefined && patch.progress === undefined && patch.checklist === undefined) {
+    return { ok: false, error: '변경 내용이 없습니다.' }
+  }
+
+  // 현재 상태/체크리스트를 읽어 진행률을 SSOT 규칙으로 재산출 (체크리스트·상태와 진행률 일관성 보장)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: cur } = await (supabase.from('daily_logs') as any)
+    .select('entry_type,checklist,progress').eq('id', id).eq('task_kind', 'dept_task').single()
+  if (!cur) return { ok: false, error: '권한이 없거나 업무를 찾을 수 없습니다.' }
+
+  const status = (patch.status ?? cur.entry_type) as DailyLogEntryType
+  const checklist = patch.checklist ? sanitizeChecklist(patch.checklist) : (cur.checklist as DeptTaskChecklistItem[])
+  const manual = typeof patch.progress === 'number' ? patch.progress : (cur.progress as number)
+
+  const updates: Record<string, unknown> = {
+    entry_type: status,
+    is_resolved: status === 'done',
+    progress: computeProgress(checklist, status, manual),
+  }
+  if (patch.checklist) updates.checklist = checklist
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from('daily_logs') as any)
+      .update(updates).eq('id', id).eq('task_kind', 'dept_task').select().single()
+    if (error) return { ok: false, error: getErrorMessage(error) }
+    if (!data) return { ok: false, error: '권한이 없거나 업무를 찾을 수 없습니다.' }
+    revalidatePath('/dept-tasks')
+    return { ok: true, data: data as DailyLog }
+  } catch (error: unknown) {
+    return { ok: false, error: getErrorMessage(error) }
+  }
+}
+
+const PRIORITIES: DailyLogPriority[] = ['urgent', 'high', 'normal', 'low']
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+export interface DeptTaskEditPatch {
+  content?: string
+  priority?: DailyLogPriority
+  targetDate?: string | null
+  departmentId?: string
+  checklist?: DeptTaskChecklistItem[]
+}
+
+/**
+ * 부서업무 코어 필드 수정 — 제목·우선순위·마감일·부서·체크리스트.
+ * 권한(D-3 권장안): 작성자 또는 부서장(editable)/admin만 코어 필드 수정 가능.
+ *   담당자-only는 상태·진행률·체크리스트(updateDeptTaskProgress)만 — 코어 수정 불가.
+ * 부서 변경은 부서장만 + 변경 시 담당자 초기화(076 부서소속 트리거 위반 방지).
+ */
+export async function updateDeptTask(id: string, patch: DeptTaskEditPatch): Promise<ActionResult<DailyLog>> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '로그인이 필요합니다.' }
+
+  // 대상 업무 확인
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: task } = await (supabase.from('daily_logs') as any)
+    .select('id,user_id,department_id,task_kind').eq('id', id).eq('task_kind', 'dept_task').single()
+  if (!task) return { ok: false, error: '부서업무를 찾을 수 없습니다.' }
+
+  // 코어 수정 권한: 작성자 또는 부서장/admin
+  const isAuthor = task.user_id === user.id
+  if (!isAuthor) {
+    const guard = await ensureEditable(user.id, task.department_id as string)
+    if (!guard.ok) return { ok: false, error: '제목·마감일 등 수정은 작성자 또는 부서장만 가능합니다.' }
+  }
+
   const updates: Record<string, unknown> = {}
-  if (patch.status) {
-    if (!isDeptTaskStatus(patch.status)) return { ok: false, error: '잘못된 상태값입니다.' }
-    updates.entry_type = patch.status
-    updates.is_resolved = patch.status === 'done'
+
+  if (patch.content !== undefined) {
+    if (!patch.content.trim()) return { ok: false, error: '업무 내용을 입력해 주세요.' }
+    updates.content = patch.content.trim()
   }
-  if (typeof patch.progress === 'number') {
-    const p = normalizeProgress(patch.progress)
-    if (p === null) return { ok: false, error: '진행률은 0~100입니다.' }
-    updates.progress = p
+  if (patch.priority !== undefined) {
+    if (!PRIORITIES.includes(patch.priority)) return { ok: false, error: '잘못된 우선순위입니다.' }
+    updates.priority = patch.priority
   }
-  if (patch.checklist) updates.checklist = sanitizeChecklist(patch.checklist)
+  if (patch.targetDate !== undefined) {
+    if (patch.targetDate !== null && !ISO_DATE.test(patch.targetDate)) return { ok: false, error: '마감일 형식이 올바르지 않습니다.' }
+    updates.target_date = patch.targetDate
+  }
+  if (patch.checklist !== undefined) updates.checklist = sanitizeChecklist(patch.checklist)
+
+  // 부서 변경: 원 부서·대상 부서 양쪽 부서장(또는 admin)만 + 담당자 초기화 (decision 2)
+  // 작성자(부서원)가 자기 권한 밖 부서로 옮기는 것을 막기 위해 원 부서 권한도 검증.
+  if (patch.departmentId !== undefined && patch.departmentId !== task.department_id) {
+    const fromGuard = await ensureEditable(user.id, task.department_id as string)
+    const toGuard = await ensureEditable(user.id, patch.departmentId)
+    if (!fromGuard.ok || !toGuard.ok) {
+      return { ok: false, error: '부서 변경은 원 부서·대상 부서 모두의 부서장(또는 admin)만 가능합니다.' }
+    }
+    updates.department_id = patch.departmentId
+    updates.assignee_user_id = null
+  }
+
   if (Object.keys(updates).length === 0) return { ok: false, error: '변경 내용이 없습니다.' }
 
   try {
