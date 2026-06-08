@@ -22,7 +22,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!(k in body)) continue
     const v = body[k]
     if (k === 'memory' || k === 'series') patch[k] = (typeof v === 'string' && v.trim()) ? v.trim() : null
-    else patch[k] = (v === '' || v === null) ? null : Number(v)
+    else {
+      if (v === '' || v === null) { patch[k] = null }
+      else {
+        const n = Number(v)
+        if (!Number.isFinite(n) || n <= 0) return NextResponse.json({ error: `${k}는 양수여야 합니다` }, { status: 400 })
+        patch[k] = n
+      }
+    }
   }
 
   // model_name 수정
@@ -65,7 +72,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const { data, error } = await db.from('gpu_products').update(patch).eq('id', id).is('deleted_at', null).select().single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[products/[id] PATCH]', error)
+    return NextResponse.json({ error: '요청 처리 실패' }, { status: 500 })
+  }
   if (!data) return NextResponse.json({ error: '상품을 찾을 수 없습니다' }, { status: 404 })
 
   await recordGpuAudit(db, {
@@ -104,7 +114,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     .eq('id', id)
     .is('deleted_at', null)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[products/[id] DELETE]', error)
+    return NextResponse.json({ error: '요청 처리 실패' }, { status: 500 })
+  }
 
   await recordGpuAudit(db, {
     actor: auth.user.email ?? auth.user.id,

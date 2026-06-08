@@ -4,11 +4,11 @@ import { useState } from 'react'
 import { useSWRConfig } from 'swr'
 import { useEscClose } from '@/lib/use-esc-close'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
+import { STANDARD_LADDER } from '@/lib/gpu/config-ladder'
 import { X, Pencil } from 'lucide-react'
 import ImpactDeleteDialog from './ImpactDeleteDialog'
 
-const GPU_COUNT_OPTIONS = [1, 2, 4, 8] as const
-type GpuCount = (typeof GPU_COUNT_OPTIONS)[number]
+type GpuCount = (typeof STANDARD_LADDER)[number]
 
 export interface QuoteForEdit {
   id: string
@@ -39,7 +39,7 @@ export default function QuoteEditModal({ quote, productId, onClose, onSaved }: Q
 
   const [unitPrice, setUnitPrice] = useState(String(quote.unit_price_usd))
   const [gpuCount, setGpuCount] = useState<GpuCount>(
-    (GPU_COUNT_OPTIONS as readonly number[]).includes(quote.gpu_count)
+    (STANDARD_LADDER as readonly number[]).includes(quote.gpu_count)
       ? (quote.gpu_count as GpuCount)
       : 1
   )
@@ -131,48 +131,26 @@ export default function QuoteEditModal({ quote, productId, onClose, onSaved }: Q
         role="dialog"
         aria-modal="true"
         aria-labelledby="quote-edit-title"
+        className="gpu-modal-backdrop"
         onClick={onClose}
-        style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(15,23,42,.52)',
-          zIndex: 9100,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: 'var(--space-5)',
-        }}
       >
         <div
+          className="gpu-modal-card gpu-modal-card--md gpu-modal-card--scroll"
           onClick={(e) => e.stopPropagation()}
-          style={{
-            background: '#fff',
-            borderRadius: 'var(--radius-lg)',
-            width: 'min(480px, 100%)',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            boxShadow: 'var(--shadow-lg)',
-          }}
         >
           {/* 헤더 */}
-          <div style={{
-            display: 'flex', alignItems: 'center',
-            padding: 'var(--space-4) var(--space-5)',
-            borderBottom: 'var(--hairline) solid var(--border-light)',
-            position: 'sticky', top: 0, background: '#fff', zIndex: 1,
-          }}>
-            <span style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 32, height: 32, borderRadius: 'var(--radius)',
-              background: 'var(--brand-soft)', color: 'var(--brand)', flexShrink: 0, marginRight: 'var(--space-3)',
-            }}>
+          <div className="gpu-modal-header">
+            <span className="gpu-modal-header-icon">
               <Pencil size={14} />
             </span>
-            <strong id="quote-edit-title" style={{ fontSize: 'var(--fs-base)', flex: 1 }}>
+            <strong id="quote-edit-title" className="gpu-modal-title">
               견적 수정{supplierLabel}
             </strong>
             <button
               type="button"
               onClick={onClose}
               aria-label="닫기"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, display: 'flex' }}
+              className="gpu-modal-close"
             >
               <X size={16} />
             </button>
@@ -182,12 +160,12 @@ export default function QuoteEditModal({ quote, productId, onClose, onSaved }: Q
           <div
             role="form"
             aria-label="견적 수정"
-            style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}
+            className="gpu-modal-body"
           >
             {/* 단가 */}
             <div>
-              <label htmlFor="qe-price" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-                공급 단가 (USD/GPU·hr) <span style={{ color: 'var(--danger)' }}>*</span>
+              <label htmlFor="qe-price" className="gpu-field-label">
+                공급 단가 (USD/GPU·hr) <span className="gpu-field-required">*</span>
               </label>
               <input
                 id="qe-price"
@@ -199,35 +177,22 @@ export default function QuoteEditModal({ quote, productId, onClose, onSaved }: Q
                 placeholder="예: 2.49"
                 required
                 autoFocus
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  height: 40, fontSize: 'var(--fs-sm)',
-                  border: '1.5px solid var(--border-color)', borderRadius: 'var(--radius)',
-                  padding: '0 var(--space-3)',
-                }}
+                className="gpu-field-input"
               />
             </div>
 
             {/* GPU 수량 */}
             <div>
-              <label style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-                GPU 수량 <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-faint)', marginLeft: 4 }}>1·2·4·8만 가능</span>
+              <label className="gpu-field-label">
+                GPU 수량 <span className="gpu-field-hint">1·2·4·8만 가능</span>
               </label>
-              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                {GPU_COUNT_OPTIONS.map((n) => (
+              <div className="gpu-count-group">
+                {STANDARD_LADDER.map((n) => (
                   <button
                     key={n}
                     type="button"
                     onClick={() => setGpuCount(n)}
-                    style={{
-                      flex: 1, height: 40,
-                      border: `var(--border-w-2) solid ${gpuCount === n ? 'var(--brand)' : 'var(--border-color)'}`,
-                      borderRadius: 'var(--radius)',
-                      background: gpuCount === n ? 'var(--brand-soft)' : '#fff',
-                      color: gpuCount === n ? 'var(--brand)' : 'var(--text-muted)',
-                      fontWeight: gpuCount === n ? 700 : 400,
-                      fontSize: 'var(--fs-sm)', cursor: 'pointer', transition: 'all 0.12s',
-                    }}
+                    className={`gpu-count-btn${gpuCount === n ? ' active' : ''}`}
                   >
                     ×{n}
                   </button>
@@ -236,97 +201,61 @@ export default function QuoteEditModal({ quote, productId, onClose, onSaved }: Q
             </div>
 
             {/* 계약 기간 + 최소 수량 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+            <div className="gpu-form-grid-2">
               <div>
-                <label htmlFor="qe-term" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-                  계약 기간
-                </label>
+                <label htmlFor="qe-term" className="gpu-field-label">계약 기간</label>
                 <input
                   id="qe-term"
                   type="text"
                   value={term}
                   onChange={(e) => setTerm(e.target.value)}
                   placeholder="예: 월·분기"
-                  style={{
-                    width: '100%', boxSizing: 'border-box',
-                    height: 40, fontSize: 'var(--fs-sm)',
-                    border: '1.5px solid var(--border-color)', borderRadius: 'var(--radius)',
-                    padding: '0 var(--space-3)',
-                  }}
+                  className="gpu-field-input"
                 />
               </div>
               <div>
-                <label htmlFor="qe-min-qty" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-                  최소 수량
-                </label>
+                <label htmlFor="qe-min-qty" className="gpu-field-label">최소 수량</label>
                 <input
                   id="qe-min-qty"
                   type="text"
                   value={minQty}
                   onChange={(e) => setMinQty(e.target.value)}
                   placeholder="예: 1개"
-                  style={{
-                    width: '100%', boxSizing: 'border-box',
-                    height: 40, fontSize: 'var(--fs-sm)',
-                    border: '1.5px solid var(--border-color)', borderRadius: 'var(--radius)',
-                    padding: '0 var(--space-3)',
-                  }}
+                  className="gpu-field-input"
                 />
               </div>
             </div>
 
             {/* 유효 기한 */}
             <div>
-              <label htmlFor="qe-valid-until" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-                유효 기한
-              </label>
+              <label htmlFor="qe-valid-until" className="gpu-field-label">유효 기한</label>
               <input
                 id="qe-valid-until"
                 type="date"
                 value={validUntil}
                 onChange={(e) => setValidUntil(e.target.value)}
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  height: 40, fontSize: 'var(--fs-sm)',
-                  border: '1.5px solid var(--border-color)', borderRadius: 'var(--radius)',
-                  padding: '0 var(--space-3)',
-                }}
+                className="gpu-field-input"
               />
             </div>
 
-            {error && (
-              <div style={{
-                fontSize: 'var(--fs-sm)', color: 'var(--danger)',
-                background: 'var(--danger-bg)', borderRadius: 'var(--radius)',
-                padding: 'var(--space-3)',
-              }}>
-                {error}
-              </div>
-            )}
+            {error && <div className="gpu-field-error">{error}</div>}
 
             {/* 액션 */}
-            <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'space-between', paddingTop: 'var(--space-2)' }}>
+            <div className="gpu-modal-actions">
               <button
                 type="button"
                 onClick={handleDeleteRequest}
                 disabled={busy}
-                style={{
-                  minHeight: 44, padding: '0 var(--space-4)',
-                  border: 'var(--border-w) solid var(--danger-border)',
-                  borderRadius: 'var(--radius)', background: '#fff',
-                  color: 'var(--danger)', fontWeight: 600, fontSize: 'var(--fs-sm)',
-                  cursor: 'pointer', transition: 'all 0.12s',
-                }}
+                className="gpu-btn-delete-outline"
               >
                 삭제
               </button>
-              <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+              <div className="gpu-modal-actions-right">
                 <button
                   type="button"
                   onClick={onClose}
                   disabled={busy}
                   className="gpu-btn"
-                  style={{ minHeight: 44 }}
                 >
                   취소
                 </button>
@@ -335,7 +264,6 @@ export default function QuoteEditModal({ quote, productId, onClose, onSaved }: Q
                   onClick={handleSave}
                   disabled={busy}
                   className="gpu-btn gpu-btn-primary"
-                  style={{ minHeight: 44, opacity: busy ? 0.7 : 1 }}
                 >
                   {busy ? '저장 중…' : '저장'}
                 </button>

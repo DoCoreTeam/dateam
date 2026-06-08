@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
+import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
 
 const KOREAEXIM_BASE = 'https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON'
@@ -20,11 +21,10 @@ async function fetchKoraeximRate(authKey: string, date: string): Promise<number 
 const MAX_FALLBACK_DAYS = 3
 
 export async function POST() {
-  try {
-    const supabase = await createClient()
-    const { data: { user }, error: authErr } = await supabase.auth.getUser()
-    if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireAdminApi()
+  if (auth.error) return auth.error
 
+  try {
     const adminForKey = createAdminClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: metaRow } = await (adminForKey as any)

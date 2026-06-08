@@ -52,57 +52,34 @@ export default function ImpactDeleteDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="impact-dialog-title"
+      className="gpu-modal-backdrop"
       onClick={onCancel}
-      style={{
-        position: 'fixed', inset: 0,
-        background: 'rgba(15,23,42,.52)',
-        zIndex: 9100,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 'var(--space-5)',
-      }}
     >
       <div
+        className="gpu-modal-card gpu-modal-card--sm"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          background: '#fff',
-          borderRadius: 'var(--radius-lg)',
-          width: 'min(440px, 100%)',
-          boxShadow: 'var(--shadow-lg)',
-          overflow: 'hidden',
-        }}
       >
         {/* 헤더 */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
-          padding: 'var(--space-4) var(--space-5)',
-          borderBottom: 'var(--hairline) solid var(--border-light)',
-        }}>
-          <span style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 34, height: 34, borderRadius: 'var(--radius)',
-            background: 'var(--danger-bg)', color: 'var(--danger)', flexShrink: 0,
-          }}>
+        <div className="gpu-modal-header">
+          <span className="gpu-modal-header-icon gpu-modal-header-icon--danger">
             <Trash2 size={16} />
           </span>
-          <strong id="impact-dialog-title" style={{ fontSize: 'var(--fs-base)', flex: 1 }}>{title}</strong>
+          <strong id="impact-dialog-title" className="gpu-modal-title">{title}</strong>
           <button
+            type="button"
             onClick={onCancel}
             aria-label="닫기"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, display: 'flex' }}
+            className="gpu-modal-close"
           >
             <X size={16} />
           </button>
         </div>
 
         {/* 본문 */}
-        <div style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+        <div className="gpu-modal-body">
           {forceMode && impactEntries.length > 0 ? (
             <>
-              <div style={{
-                display: 'flex', gap: 'var(--space-3)',
-                padding: 'var(--space-4)', borderRadius: 'var(--radius)',
-                background: 'var(--warning-bg)', border: 'var(--border-w) solid var(--warning-border)',
-              }}>
+              <div className="gpu-warning-banner">
                 <AlertTriangle size={18} style={{ color: 'var(--warning)', flexShrink: 0, marginTop: 1 }} />
                 <div style={{ fontSize: 'var(--fs-sm)' }}>
                   <strong style={{ color: 'var(--warning)', display: 'block', marginBottom: 4 }}>
@@ -138,41 +115,24 @@ export default function ImpactDeleteDialog({
             </p>
           )}
 
-          {error && (
-            <div style={{
-              fontSize: 'var(--fs-sm)', color: 'var(--danger)',
-              background: 'var(--danger-bg)', borderRadius: 'var(--radius)',
-              padding: 'var(--space-3)',
-            }}>
-              {error}
-            </div>
-          )}
+          {error && <div className="gpu-field-error">{error}</div>}
         </div>
 
         {/* 하단 액션 */}
-        <div style={{
-          display: 'flex', gap: 'var(--space-3)', justifyContent: 'flex-end',
-          padding: 'var(--space-3) var(--space-5) var(--space-5)',
-        }}>
+        <div className="gpu-modal-footer">
           <button
+            type="button"
             onClick={onCancel}
             disabled={busy}
             className="gpu-btn"
-            style={{ minHeight: 44 }}
           >
             취소
           </button>
           <button
+            type="button"
             onClick={() => onConfirm(forceMode)}
             disabled={busy}
-            className="gpu-btn"
-            style={{
-              minHeight: 44,
-              background: 'var(--danger)', color: '#fff',
-              border: 'none', fontWeight: 700,
-              opacity: busy ? 0.7 : 1,
-              cursor: busy ? 'not-allowed' : 'pointer',
-            }}
+            className="gpu-btn gpu-btn-danger-solid"
           >
             {busy ? '삭제 중…' : forceMode ? '강제 삭제' : '삭제'}
           </button>

@@ -1,20 +1,22 @@
 import { NextResponse } from 'next/server'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
+import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
+import { recordGpuAudit } from '@/lib/gpu/audit'
 
 export async function POST(
   _req: Request,
   { params }: { params: { id: string } }
 ) {
+  const auth = await requireAdminApi()
+  if (auth.error) return auth.error
+
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = supabase as any
+    const adminDb = createAdminClient() as any
+    const actor = auth.user.email ?? auth.user.id
 
-    const { data: quote, error: fetchErr } = await db
+    const { data: quote, error: fetchErr } = await adminDb
       .from('supply_quotes')
       .select('*, gpu_products(id, model_name, memory, tier)')
       .eq('id', params.id)
@@ -31,8 +33,6 @@ export async function POST(
     }
 
     const now = new Date().toISOString()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const adminDb = createAdminClient() as any
 
     // 멱등: 동일 (상품·공급사·계약기간) 기존 confirmed 견적을 superseded로 이력화
     // (부분 유니크 인덱스 위반 방지 + 공급사당 활성 1건 유지)
@@ -48,17 +48,17 @@ export async function POST(
       await supQ
     }
 
-    const { error } = await db
+    const { error } = await adminDb
       .from('supply_quotes')
-      .update({ status: 'confirmed', confirmed_by: user.email, confirmed_at: now })
+      .update({ status: 'confirmed', confirmed_by: actor, confirmed_at: now })
       .eq('id', params.id)
 
     if (error) throw error
 
-    await adminDb.from('gpu_audit_logs').insert({
-      action_type: 'quote_confirmed',
-      actor: user.email,
-      product_id: (quote.gpu_products as Record<string, unknown>)?.id as string,
+    await recordGpuAudit(adminDb, {
+      actor,
+      actionType: 'quote_confirmed',
+      productId: (quote.gpu_products as Record<string, unknown>)?.id as string ?? null,
       detail: {
         quote_id: params.id,
         unit_price_usd: quote.unit_price_usd,
@@ -70,6 +70,6 @@ export async function POST(
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('[quotes/confirm]', err)
-    return NextResponse.json({ error: 'Failed to confirm quote' }, { status: 500 })
+    return NextResponse.json({ error: '요청 처리 실패' }, { status: 500 })
   }
 }

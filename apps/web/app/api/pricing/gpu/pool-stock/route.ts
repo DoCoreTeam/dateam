@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
+import { recordGpuAudit } from '@/lib/gpu/audit'
+import { revalidateGpu } from '@/lib/gpu/revalidate'
 
 // GET /api/pricing/gpu/pool-stock?product_id=xxx
 export async function GET(req: NextRequest) {
@@ -31,7 +33,6 @@ export async function POST(req: NextRequest) {
   const auth = await requireAdminApi()
   if (auth.error) return auth.error
 
-  const supabase = await createClient()
   const user = auth.user
 
   let body: {
@@ -46,8 +47,10 @@ export async function POST(req: NextRequest) {
   }
 
   const productId = typeof body.product_id === 'string' ? body.product_id : null
-  const poolQty = typeof body.pool_qty === 'number' ? Math.max(0, Math.round(body.pool_qty)) : null
-  const sellPriceKrw = typeof body.sell_price_krw === 'number' ? body.sell_price_krw : null
+  const rawPoolQty = typeof body.pool_qty === 'number' ? body.pool_qty : null
+  const poolQty = (rawPoolQty !== null && Number.isFinite(rawPoolQty)) ? Math.max(0, Math.round(rawPoolQty)) : null
+  const rawSellPrice = typeof body.sell_price_krw === 'number' ? body.sell_price_krw : null
+  const sellPriceKrw = (rawSellPrice !== null && Number.isFinite(rawSellPrice)) ? rawSellPrice : null
   const isTest = body.is_test === true
 
   if (!productId) return NextResponse.json({ error: 'product_id 필수' }, { status: 400 })
@@ -55,17 +58,18 @@ export async function POST(req: NextRequest) {
 
   const actor = user.email ?? user.id
 
-  // 이전 current 행 비활성화
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
+  const adminClient = createAdminClient() as any
+
+  // 이전 current 행 비활성화 — service_role 전용 RLS
+  await adminClient
     .from('direct_pool_stock')
     .update({ is_current: false })
     .eq('product_id', productId)
     .eq('is_current', true)
 
-  // 새 행 삽입
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: newStock, error } = await (supabase as any)
+  // 새 행 삽입 — service_role 전용 RLS
+  const { data: newStock, error } = await adminClient
     .from('direct_pool_stock')
     .insert({
       product_id: productId,
@@ -78,20 +82,20 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[pool-stock POST]', error)
+    return NextResponse.json({ error: '요청 처리 실패' }, { status: 500 })
+  }
 
-  // 판매가도 같이 변경하는 경우 direct_prices 업데이트 (service_role 전용 RLS — adminClient 사용)
-  const adminClient = createAdminClient()
+  // 판매가도 같이 변경하는 경우 direct_prices 업데이트 (service_role 전용 RLS)
   if (sellPriceKrw !== null) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (adminClient as any)
+    await adminClient
       .from('direct_prices')
       .update({ is_current: false })
       .eq('product_id', productId)
       .eq('is_current', true)
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (adminClient as any)
+    await adminClient
       .from('direct_prices')
       .insert({
         product_id: productId,
@@ -102,20 +106,18 @@ export async function POST(req: NextRequest) {
       })
   }
 
-  // audit_log (gpu_audit_logs는 service_role 전용 — adminClient 사용)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (adminClient as any)
-    .from('gpu_audit_logs')
-    .insert({
-      actor,
-      action_type: 'pool_stock_changed',
-      product_id: productId,
-      detail: {
-        pool_qty: poolQty,
-        sell_price_krw: sellPriceKrw,
-        is_test: isTest,
-      },
-    })
+  // audit_log SSOT — recordGpuAudit 경유
+  await recordGpuAudit(adminClient, {
+    actor,
+    actionType: 'pool_stock_changed',
+    productId,
+    detail: {
+      pool_qty: poolQty,
+      sell_price_krw: sellPriceKrw,
+      is_test: isTest,
+    },
+  })
 
+  revalidateGpu()
   return NextResponse.json({ stock: newStock })
 }

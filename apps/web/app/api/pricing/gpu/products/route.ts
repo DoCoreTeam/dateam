@@ -98,9 +98,23 @@ export async function POST(req: NextRequest) {
   const pricingMode = body.pricing_mode === 'direct' ? 'direct' : 'quote'
   const series = typeof body.series === 'string' ? (body.series.trim() || null) : null
   const memory = typeof body.memory === 'string' ? (body.memory.trim() || null) : null
-  const vcpu = body.vcpu != null ? Number(body.vcpu) : null
-  const ramGb = body.ram_gb != null ? Number(body.ram_gb) : null
-  const storageGb = body.storage_gb != null ? Number(body.storage_gb) : null
+  const vcpuRaw = body.vcpu != null ? Number(body.vcpu) : null
+  if (vcpuRaw !== null && (!Number.isFinite(vcpuRaw) || vcpuRaw <= 0)) {
+    return NextResponse.json({ error: 'vcpu는 양수여야 합니다' }, { status: 400 })
+  }
+  const vcpu = vcpuRaw
+
+  const ramRaw = body.ram_gb != null ? Number(body.ram_gb) : null
+  if (ramRaw !== null && (!Number.isFinite(ramRaw) || ramRaw <= 0)) {
+    return NextResponse.json({ error: 'ram_gb는 양수여야 합니다' }, { status: 400 })
+  }
+  const ramGb = ramRaw
+
+  const storageRaw = body.storage_gb != null ? Number(body.storage_gb) : null
+  if (storageRaw !== null && (!Number.isFinite(storageRaw) || storageRaw <= 0)) {
+    return NextResponse.json({ error: 'storage_gb는 양수여야 합니다' }, { status: 400 })
+  }
+  const storageGb = storageRaw
 
   const db = createAdminClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -135,7 +149,10 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[products POST]', error)
+    return NextResponse.json({ error: '요청 처리 실패' }, { status: 500 })
+  }
 
   await recordGpuAudit(adminDb, {
     actor: auth.user.email ?? auth.user.id,

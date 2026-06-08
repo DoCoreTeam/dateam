@@ -5,6 +5,7 @@ import { assignSupplierToQuote } from '@/lib/gpu/repository'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
 import { recordGpuAudit } from '@/lib/gpu/audit'
 import { countImpact } from '@/lib/gpu/impact'
+import { roundUpToStandard } from '@/lib/gpu/config-ladder'
 
 // PATCH /api/pricing/gpu/quotes/[id]
 //  - { supplier_id | supplier_name } → 공급사 지정 (docs 01 §4)
@@ -54,12 +55,18 @@ export async function PATCH(
   const gc = num(body.gpu_count)
   if (gc !== undefined) {
     if (gc < 1) return NextResponse.json({ error: 'GPU 장수는 1 이상이어야 합니다' }, { status: 400 })
-    patch.gpu_count = Math.round(gc)
+    patch.gpu_count = roundUpToStandard(gc)
   }
   const op = num(body.original_price)
-  if (op !== undefined) patch.original_price = op
+  if (op !== undefined) {
+    if (op < 0) return NextResponse.json({ error: 'original_price는 0 이상이어야 합니다' }, { status: 400 })
+    patch.original_price = op
+  }
   const tm = num(body.term_months)
-  if (tm !== undefined) patch.term_months = Math.round(tm)
+  if (tm !== undefined) {
+    if (tm < 0) return NextResponse.json({ error: 'term_months는 0 이상이어야 합니다' }, { status: 400 })
+    patch.term_months = Math.round(tm)
+  }
   for (const k of ['term', 'min_qty', 'valid_until', 'original_unit', 'original_currency'] as const) {
     const v = strOrNull(body[k])
     if (v !== undefined) patch[k] = v
@@ -72,7 +79,10 @@ export async function PATCH(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (adminClient as any)
     .from('supply_quotes').update(patch).eq('id', id).is('deleted_at', null).select().single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[quotes/[id] PATCH]', error)
+    return NextResponse.json({ error: '요청 처리 실패' }, { status: 500 })
+  }
   if (!data) return NextResponse.json({ error: '견적을 찾을 수 없습니다' }, { status: 404 })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -118,7 +128,10 @@ export async function DELETE(
     .select('product_id')
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[quotes/[id] DELETE]', error)
+    return NextResponse.json({ error: '요청 처리 실패' }, { status: 500 })
+  }
 
   await recordGpuAudit(adminDb, {
     actor: auth.user.email ?? auth.user.id,

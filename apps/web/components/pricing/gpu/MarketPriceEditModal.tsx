@@ -90,40 +90,21 @@ export default function MarketPriceEditModal({ price, onClose, onSaved }: Market
         role="dialog"
         aria-modal="true"
         aria-labelledby="mp-edit-title"
+        className="gpu-modal-backdrop"
         onClick={onClose}
-        style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(15,23,42,.52)',
-          zIndex: 9100,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: 'var(--space-5)',
-        }}
       >
         <div
+          className="gpu-modal-card gpu-modal-card--sm"
           onClick={(e) => e.stopPropagation()}
-          style={{
-            background: '#fff',
-            borderRadius: 'var(--radius-lg)',
-            width: 'min(420px, 100%)',
-            boxShadow: 'var(--shadow-lg)',
-          }}
         >
           {/* 헤더 */}
-          <div style={{
-            display: 'flex', alignItems: 'center',
-            padding: 'var(--space-4) var(--space-5)',
-            borderBottom: 'var(--hairline) solid var(--border-light)',
-          }}>
-            <span style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 32, height: 32, borderRadius: 'var(--radius)',
-              background: 'var(--brand-soft)', color: 'var(--brand)', flexShrink: 0, marginRight: 'var(--space-3)',
-            }}>
+          <div className="gpu-modal-header">
+            <span className="gpu-modal-header-icon">
               <Pencil size={14} />
             </span>
             <div style={{ flex: 1 }}>
-              <strong id="mp-edit-title" style={{ fontSize: 'var(--fs-base)', display: 'block' }}>경쟁가 수정</strong>
-              <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
+              <strong id="mp-edit-title" className="gpu-modal-title">경쟁가 수정</strong>
+              <span className="gpu-modal-subtitle">
                 {price.competitor_name} · {PRICING_MODEL_LABEL[price.pricing_model] ?? price.pricing_model}
                 {price.sku ? ` · ${price.sku}` : ''}
               </span>
@@ -132,17 +113,17 @@ export default function MarketPriceEditModal({ price, onClose, onSaved }: Market
               type="button"
               onClick={onClose}
               aria-label="닫기"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, display: 'flex' }}
+              className="gpu-modal-close"
             >
               <X size={16} />
             </button>
           </div>
 
           {/* 바디 */}
-          <div style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <div className="gpu-modal-body">
             <div>
-              <label htmlFor="mp-price" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-                가격 (USD/GPU·hr) <span style={{ color: 'var(--danger)' }}>*</span>
+              <label htmlFor="mp-price" className="gpu-field-label">
+                가격 (USD/GPU·hr) <span className="gpu-field-required">*</span>
               </label>
               <input
                 id="mp-price"
@@ -153,66 +134,39 @@ export default function MarketPriceEditModal({ price, onClose, onSaved }: Market
                 onChange={(e) => setPriceUsd(e.target.value)}
                 placeholder="예: 2.39"
                 autoFocus
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  height: 40, fontSize: 'var(--fs-sm)',
-                  border: '1.5px solid var(--border-color)', borderRadius: 'var(--radius)',
-                  padding: '0 var(--space-3)',
-                }}
+                className="gpu-field-input"
               />
             </div>
 
             <div>
-              <label htmlFor="mp-notes" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-                메모 (선택)
-              </label>
+              <label htmlFor="mp-notes" className="gpu-field-label">메모 (선택)</label>
               <input
                 id="mp-notes"
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="예: 프로모션 가격, 할인 감지됨 등"
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  height: 40, fontSize: 'var(--fs-sm)',
-                  border: '1.5px solid var(--border-color)', borderRadius: 'var(--radius)',
-                  padding: '0 var(--space-3)',
-                }}
+                className="gpu-field-input"
               />
             </div>
 
-            {error && (
-              <div style={{
-                fontSize: 'var(--fs-sm)', color: 'var(--danger)',
-                background: 'var(--danger-bg)', borderRadius: 'var(--radius)',
-                padding: 'var(--space-3)',
-              }}>
-                {error}
-              </div>
-            )}
+            {error && <div className="gpu-field-error">{error}</div>}
 
-            <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'space-between', paddingTop: 'var(--space-2)' }}>
+            <div className="gpu-modal-actions">
               <button
                 type="button"
                 onClick={() => { setDeleteState({ phase: 'confirm' }); setDeleteError(null) }}
                 disabled={busy}
-                style={{
-                  minHeight: 44, padding: '0 var(--space-4)',
-                  border: 'var(--border-w) solid var(--danger-border)',
-                  borderRadius: 'var(--radius)', background: '#fff',
-                  color: 'var(--danger)', fontWeight: 600, fontSize: 'var(--fs-sm)',
-                  cursor: 'pointer',
-                }}
+                className="gpu-btn-delete-outline"
               >
                 삭제
               </button>
-              <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+              <div className="gpu-modal-actions-right">
                 <button
                   type="button"
                   onClick={onClose}
                   disabled={busy}
                   className="gpu-btn"
-                  style={{ minHeight: 44 }}
                 >
                   취소
                 </button>
@@ -221,7 +175,6 @@ export default function MarketPriceEditModal({ price, onClose, onSaved }: Market
                   onClick={handleSave}
                   disabled={busy}
                   className="gpu-btn gpu-btn-primary"
-                  style={{ minHeight: 44, opacity: busy ? 0.7 : 1 }}
                 >
                   {busy ? '저장 중…' : '저장'}
                 </button>

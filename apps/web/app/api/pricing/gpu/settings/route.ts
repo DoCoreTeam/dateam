@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
+import { recordGpuAudit } from '@/lib/gpu/audit'
 
 export async function GET() {
   try {
@@ -25,42 +27,42 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  try {
-    // 인증은 유저 클라이언트로 확인, 쓰기는 service_role(admin) 클라이언트로 수행
-    // (pricing_settings 쓰기 RLS가 service_role 전용 — 일반 유저 클라이언트로는 차단되어 저장이 유지되지 않음)
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireAdminApi()
+  if (auth.error) return auth.error
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = createAdminClient() as any
-
-    const body = await request.json()
-    const margin_pct = Number(body.margin_pct)
-    if (isNaN(margin_pct) || margin_pct < 0 || margin_pct > 999) {
-      return NextResponse.json({ error: 'Invalid margin_pct' }, { status: 400 })
-    }
-
-    const { data, error } = await db
-      .from('pricing_settings')
-      .upsert({ id: 1, margin_pct, updated_by: user.email, updated_at: new Date().toISOString() })
-      .select()
-      .single()
-
-    if (error) throw error
-
-    await db.from('gpu_audit_logs').insert({
-      action_type: 'margin_changed',
-      actor: user.email,
-      detail: { margin_pct },
-    })
-
-    // 마진 변경은 sell_price 전체에 영향 → 4탭 캐시 무효화 (stale 방지)
-    revalidateGpu()
-
-    return NextResponse.json({ margin_pct: data.margin_pct })
-  } catch (err) {
-    console.error('[pricing/settings PATCH]', err)
-    return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 })
+  let body: Record<string, unknown>
+  try { body = await request.json() } catch {
+    return NextResponse.json({ error: '요청 형식 오류' }, { status: 400 })
   }
+
+  const margin_pct = Number(body.margin_pct)
+  if (!Number.isFinite(margin_pct) || margin_pct < 0 || margin_pct > 999) {
+    return NextResponse.json({ error: 'margin_pct는 0~999 범위여야 합니다' }, { status: 400 })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = createAdminClient() as any
+  const actor = auth.user.email ?? auth.user.id
+
+  const { data, error } = await db
+    .from('pricing_settings')
+    .upsert({ id: 1, margin_pct, updated_by: actor, updated_at: new Date().toISOString() })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('[pricing/settings PATCH]', error)
+    return NextResponse.json({ error: '요청 처리 실패' }, { status: 500 })
+  }
+
+  await recordGpuAudit(db, {
+    actor,
+    actionType: 'margin_changed',
+    detail: { margin_pct },
+  })
+
+  // 마진 변경은 sell_price 전체에 영향 → 4탭 캐시 무효화 (stale 방지)
+  revalidateGpu()
+
+  return NextResponse.json({ margin_pct: data.margin_pct })
 }

@@ -106,55 +106,35 @@ export default function ProductEditModal({ product, onClose, onSaved }: ProductE
         role="dialog"
         aria-modal="true"
         aria-labelledby="prod-edit-title"
+        className="gpu-modal-backdrop"
         onClick={onClose}
-        style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(15,23,42,.52)',
-          zIndex: 9100,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: 'var(--space-5)',
-        }}
       >
         <div
+          className="gpu-modal-card gpu-modal-card--md"
           onClick={(e) => e.stopPropagation()}
-          style={{
-            background: '#fff',
-            borderRadius: 'var(--radius-lg)',
-            width: 'min(480px, 100%)',
-            boxShadow: 'var(--shadow-lg)',
-            overflow: 'hidden',
-          }}
         >
           {/* 헤더 */}
-          <div style={{
-            display: 'flex', alignItems: 'center',
-            padding: 'var(--space-4) var(--space-5)',
-            borderBottom: 'var(--hairline) solid var(--border-light)',
-          }}>
-            <span style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 32, height: 32, borderRadius: 'var(--radius)',
-              background: 'var(--brand-soft)', color: 'var(--brand)', flexShrink: 0, marginRight: 'var(--space-3)',
-            }}>
+          <div className="gpu-modal-header">
+            <span className="gpu-modal-header-icon">
               <Pencil size={14} />
             </span>
-            <strong id="prod-edit-title" style={{ fontSize: 'var(--fs-base)', flex: 1 }}>
+            <strong id="prod-edit-title" className="gpu-modal-title">
               상품 수정
             </strong>
             <button
               type="button"
               onClick={onClose}
               aria-label="닫기"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, display: 'flex' }}
+              className="gpu-modal-close"
             >
               <X size={16} />
             </button>
           </div>
 
-          <div style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <div className="gpu-modal-body">
             <div>
-              <label htmlFor="pe-model" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-                모델명 <span style={{ color: 'var(--danger)' }}>*</span>
+              <label htmlFor="pe-model" className="gpu-field-label">
+                모델명 <span className="gpu-field-required">*</span>
               </label>
               <input
                 id="pe-model"
@@ -162,62 +142,43 @@ export default function ProductEditModal({ product, onClose, onSaved }: ProductE
                 value={modelName}
                 onChange={(e) => setModelName(e.target.value)}
                 autoFocus
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  height: 40, fontSize: 'var(--fs-sm)',
-                  border: '1.5px solid var(--border-color)', borderRadius: 'var(--radius)',
-                  padding: '0 var(--space-3)',
-                }}
+                className="gpu-field-input"
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+            <div className="gpu-form-grid-2">
               <div>
-                <label htmlFor="pe-memory" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>VRAM</label>
+                <label htmlFor="pe-memory" className="gpu-field-label">VRAM</label>
                 <input
                   id="pe-memory"
                   type="text"
                   value={memory}
                   onChange={(e) => setMemory(e.target.value)}
                   placeholder="예: 80GB"
-                  style={{
-                    width: '100%', boxSizing: 'border-box',
-                    height: 40, fontSize: 'var(--fs-sm)',
-                    border: '1.5px solid var(--border-color)', borderRadius: 'var(--radius)',
-                    padding: '0 var(--space-3)',
-                  }}
+                  className="gpu-field-input"
                 />
               </div>
               <div>
-                <label htmlFor="pe-series" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>시리즈</label>
+                <label htmlFor="pe-series" className="gpu-field-label">시리즈</label>
                 <input
                   id="pe-series"
                   type="text"
                   value={series}
                   onChange={(e) => setSeries(e.target.value)}
                   placeholder="예: Hopper"
-                  style={{
-                    width: '100%', boxSizing: 'border-box',
-                    height: 40, fontSize: 'var(--fs-sm)',
-                    border: '1.5px solid var(--border-color)', borderRadius: 'var(--radius)',
-                    padding: '0 var(--space-3)',
-                  }}
+                  className="gpu-field-input"
                 />
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+            <div className="gpu-form-grid-2">
               <div>
-                <label htmlFor="pe-tier" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>Tier</label>
+                <label htmlFor="pe-tier" className="gpu-field-label">Tier</label>
                 <select
                   id="pe-tier"
                   value={tier}
                   onChange={(e) => setTier(Number(e.target.value) as 1 | 2 | 3)}
-                  style={{
-                    width: '100%', height: 40, fontSize: 'var(--fs-sm)',
-                    border: '1.5px solid var(--border-color)', borderRadius: 'var(--radius)',
-                    padding: '0 var(--space-3)', background: '#fff',
-                  }}
+                  className="gpu-field-input"
                 >
                   <option value={1}>Tier 1 — 전용 고성능</option>
                   <option value={2}>Tier 2 — 점유형</option>
@@ -225,16 +186,12 @@ export default function ProductEditModal({ product, onClose, onSaved }: ProductE
                 </select>
               </div>
               <div>
-                <label htmlFor="pe-pricing-mode" style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>가격 방식</label>
+                <label htmlFor="pe-pricing-mode" className="gpu-field-label">가격 방식</label>
                 <select
                   id="pe-pricing-mode"
                   value={pricingMode}
                   onChange={(e) => setPricingMode(e.target.value as 'quote' | 'direct')}
-                  style={{
-                    width: '100%', height: 40, fontSize: 'var(--fs-sm)',
-                    border: '1.5px solid var(--border-color)', borderRadius: 'var(--radius)',
-                    padding: '0 var(--space-3)', background: '#fff',
-                  }}
+                  className="gpu-field-input"
                 >
                   <option value="quote">quote — 견적 기반</option>
                   <option value="direct">direct — 직접 입력</option>
@@ -242,37 +199,23 @@ export default function ProductEditModal({ product, onClose, onSaved }: ProductE
               </div>
             </div>
 
-            {error && (
-              <div style={{
-                fontSize: 'var(--fs-sm)', color: 'var(--danger)',
-                background: 'var(--danger-bg)', borderRadius: 'var(--radius)',
-                padding: 'var(--space-3)',
-              }}>
-                {error}
-              </div>
-            )}
+            {error && <div className="gpu-field-error">{error}</div>}
 
-            <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'space-between', paddingTop: 'var(--space-2)' }}>
+            <div className="gpu-modal-actions">
               <button
                 type="button"
                 onClick={() => { setDeleteState({ phase: 'confirm' }); setDeleteError(null) }}
                 disabled={busy}
-                style={{
-                  minHeight: 44, padding: '0 var(--space-4)',
-                  border: 'var(--border-w) solid var(--danger-border)',
-                  borderRadius: 'var(--radius)', background: '#fff',
-                  color: 'var(--danger)', fontWeight: 600, fontSize: 'var(--fs-sm)', cursor: 'pointer',
-                }}
+                className="gpu-btn-delete-outline"
               >
                 삭제
               </button>
-              <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+              <div className="gpu-modal-actions-right">
                 <button
                   type="button"
                   onClick={onClose}
                   disabled={busy}
                   className="gpu-btn"
-                  style={{ minHeight: 44 }}
                 >
                   취소
                 </button>
@@ -281,7 +224,6 @@ export default function ProductEditModal({ product, onClose, onSaved }: ProductE
                   onClick={handleSave}
                   disabled={busy || !modelName.trim()}
                   className="gpu-btn gpu-btn-primary"
-                  style={{ minHeight: 44, opacity: busy ? 0.7 : 1 }}
                 >
                   {busy ? '저장 중…' : '저장'}
                 </button>

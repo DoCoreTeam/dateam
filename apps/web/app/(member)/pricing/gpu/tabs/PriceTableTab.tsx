@@ -6,6 +6,7 @@ import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { ChevronRight, Plus, Zap, Info, ArrowUpDown, ArrowUp, ArrowDown, Tag, X, Trash2, Pencil } from 'lucide-react'
 import { formatSpec, scaleSpec } from '@/lib/gpu/format-spec'
+import { STANDARD_LADDER } from '@/lib/gpu/config-ladder'
 import dynamic from 'next/dynamic'
 
 const ProductAddModal = dynamic(() => import('@/components/pricing/gpu/ProductAddModal'), { ssr: false })
@@ -530,7 +531,6 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
 
   // ── 모델 그룹핑 + 수량 변형(x1/x2/x4/x8) 자동 도출 ──
   // 같은 model_name을 그룹으로 묶고, quote 상품은 1장당 단가 기준으로 표준 구성(1/2/4/8)을 도출.
-  const STD_CONFIGS = [1, 2, 4, 8]
   type DisplayRow = GpuProduct & { _derived?: boolean }
   interface ModelGroup { model: string; tier: 1 | 2 | 3; perGpu: number | null; rows: DisplayRow[] }
 
@@ -550,7 +550,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
       const rows: DisplayRow[] = [...variants]
       // quote 상품이고 1장당 단가가 있으면 표준 구성 자동 도출(없는 것만)
       if (base && base.pricing_mode === 'quote' && perGpu != null) {
-        for (const n of STD_CONFIGS) {
+        for (const n of STANDARD_LADDER) {
           if (existingCounts.has(n)) continue
           const sc = scaleSpec(base, n)
           rows.push({

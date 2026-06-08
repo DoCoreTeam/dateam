@@ -3202,6 +3202,7 @@ label.intake-tool-btn {
   align-items: center;
   gap: 7px;
   padding: 10px 15px;
+  min-height: 44px;
   border-radius: var(--radius);
   font-size: 13px;
   font-weight: 600;
@@ -3219,6 +3220,9 @@ label.intake-tool-btn {
 .gpu-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .gpu-btn-danger { background: var(--gpu-red-soft); color: var(--gpu-red); border-color: #f7bcc6; }
 .gpu-btn-danger:hover { background: var(--gpu-red); color: #fff; }
+.gpu-btn-danger-solid { background: var(--danger); color: var(--nb-white); border: none; font-weight: 700; }
+.gpu-btn-danger-solid:hover { background: #c0182a; }
+.gpu-btn-danger-solid:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* margin bar */
 .gpu-margin-bar {
@@ -3975,4 +3979,227 @@ label.intake-tool-btn {
 .cal-event-time { font-weight: 700; flex-shrink: 0; }
 @media (max-width: 767px) {
   .cal-event-chip { font-size: 0.6rem; padding: 0.05rem 0.2rem; }
+}
+
+/* ─── GPU 모달 공용 패턴 (SSOT — ImpactDeleteDialog · ProductAddModal · ProductEditModal · QuoteEditModal · MarketPriceEditModal 공유) ─── */
+.gpu-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.52);
+  z-index: 9100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-5);
+}
+
+.gpu-modal-card {
+  background: var(--nb-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  width: min(480px, 100%);
+}
+.gpu-modal-card--sm  { width: min(440px, 100%); }
+.gpu-modal-card--md  { width: min(480px, 100%); }
+.gpu-modal-card--lg  { width: min(520px, 100%); }
+.gpu-modal-card--scroll { max-height: 90vh; overflow-y: auto; overflow-x: hidden; }
+
+.gpu-modal-header {
+  display: flex;
+  align-items: center;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: var(--hairline) solid var(--border-light);
+  position: sticky;
+  top: 0;
+  background: var(--nb-white);
+  z-index: 1;
+}
+.gpu-modal-header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  background: var(--brand-soft);
+  color: var(--brand);
+  flex-shrink: 0;
+  margin-right: var(--space-3);
+}
+.gpu-modal-header-icon--danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.gpu-modal-title {
+  font-size: var(--fs-base);
+  font-weight: 700;
+  color: var(--text);
+  flex: 1;
+}
+.gpu-modal-subtitle {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  display: block;
+  font-weight: 400;
+  margin-top: 2px;
+}
+.gpu-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: var(--radius);
+  transition: background var(--duration-fast);
+}
+.gpu-modal-close:hover { background: var(--surface-bg); }
+
+.gpu-modal-body {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.gpu-modal-footer {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  padding: var(--space-3) var(--space-5) var(--space-5);
+}
+
+/* 필드 레이블 */
+.gpu-field-label {
+  display: block;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.gpu-field-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-faint);
+  margin-left: 4px;
+}
+.gpu-field-required { color: var(--danger); }
+
+/* 폼 입력 (input / select 공용) */
+.gpu-field-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 40px;
+  min-height: 44px; /* 터치 44px */
+  font-size: var(--fs-sm);
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 0 var(--space-3);
+  background: var(--nb-white);
+  color: var(--text);
+  font-family: inherit;
+  transition: border-color var(--duration-fast);
+}
+.gpu-field-input:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+
+/* 에러 배너 */
+.gpu-field-error {
+  font-size: var(--fs-sm);
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+/* GPU 수량 토글 그룹 */
+.gpu-count-group {
+  display: flex;
+  gap: var(--space-2);
+}
+.gpu-count-btn {
+  flex: 1;
+  height: 40px;
+  min-height: 44px; /* 터치 */
+  border: var(--border-w-2) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--nb-white);
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: all 0.12s;
+  font-family: inherit;
+}
+.gpu-count-btn:hover { border-color: var(--brand); color: var(--brand); }
+.gpu-count-btn.active {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-weight: 700;
+}
+
+/* 경고 배너 (impact) */
+.gpu-warning-banner {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius);
+  background: var(--warning-bg);
+  border: var(--border-w) solid var(--warning-border);
+  font-size: var(--fs-sm);
+}
+
+/* 삭제 버튼 (아웃라인 danger) */
+.gpu-btn-delete-outline {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: var(--border-w) solid var(--danger-border);
+  border-radius: var(--radius);
+  background: var(--nb-white);
+  color: var(--danger);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: all 0.12s;
+  font-family: inherit;
+}
+.gpu-btn-delete-outline:hover { background: var(--danger-bg); }
+.gpu-btn-delete-outline:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* 2컬럼 폼 그리드 */
+.gpu-form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+.gpu-form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+.gpu-modal-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding-top: var(--space-2);
+}
+.gpu-modal-actions-end {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  padding-top: var(--space-2);
+}
+.gpu-modal-actions-right { display: flex; gap: var(--space-3); }
+
+@media (max-width: 767px) {
+  .gpu-modal-backdrop { padding: var(--space-3); }
+  .gpu-form-grid-2 { grid-template-columns: 1fr; }
+  .gpu-form-grid-3 { grid-template-columns: 1fr 1fr; }
+  .gpu-modal-card--lg { width: 100%; }
 }

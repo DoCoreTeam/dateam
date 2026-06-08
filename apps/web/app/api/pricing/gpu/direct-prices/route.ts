@@ -29,7 +29,10 @@ export async function GET(req: NextRequest) {
   if (productId) query = query.eq('product_id', productId)
 
   const { data, error, count } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[direct-prices GET]', error)
+    return NextResponse.json({ error: '요청 처리 실패' }, { status: 500 })
+  }
 
   return NextResponse.json({
     direct_prices: data ?? [],
@@ -56,7 +59,10 @@ export async function DELETE(req: NextRequest) {
     .eq('product_id', product_id)
     .is('deleted_at', null)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[direct-prices DELETE]', error)
+    return NextResponse.json({ error: '요청 처리 실패' }, { status: 500 })
+  }
 
   await recordGpuAudit(db, {
     actor: auth.user.email ?? auth.user.id,
@@ -70,55 +76,61 @@ export async function DELETE(req: NextRequest) {
 }
 
 export async function POST(request: Request) {
-  try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireAdminApi()
+  if (auth.error) return auth.error
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = supabase as any
-
-    const body = await request.json()
-    const { product_id, sell_price_krw, note } = body
-
-    if (!product_id || !sell_price_krw) {
-      return NextResponse.json({ error: 'product_id and sell_price_krw required' }, { status: 400 })
-    }
-
-    // 이전 current 행 비활성화
-    await db
-      .from('direct_prices')
-      .update({ is_current: false })
-      .eq('product_id', product_id)
-      .eq('is_current', true)
-
-    const { data, error } = await db
-      .from('direct_prices')
-      .insert({
-        product_id,
-        sell_price_krw: Number(sell_price_krw),
-        note: note || null,
-        set_by: user.email,
-        is_current: true,
-      })
-      .select()
-      .single()
-
-    if (error) throw error
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const adminDb = createAdminClient() as any
-    await recordGpuAudit(adminDb, {
-      actor: user.email ?? user.id,
-      actionType: 'direct_set',
-      productId: product_id,
-      detail: { sell_price_krw: Number(sell_price_krw), note },
-    })
-
-    revalidateGpu()
-    return NextResponse.json({ price: data })
-  } catch (err) {
-    console.error('[direct-prices POST]', err)
-    return NextResponse.json({ error: 'Failed to set direct price' }, { status: 500 })
+  let body: Record<string, unknown>
+  try { body = await request.json() } catch {
+    return NextResponse.json({ error: '요청 형식 오류' }, { status: 400 })
   }
+
+  const { product_id, sell_price_krw, note } = body as {
+    product_id?: unknown; sell_price_krw?: unknown; note?: unknown
+  }
+
+  if (!product_id || typeof product_id !== 'string') {
+    return NextResponse.json({ error: 'product_id 필수' }, { status: 400 })
+  }
+  const priceNum = Number(sell_price_krw)
+  if (!Number.isFinite(priceNum) || priceNum <= 0) {
+    return NextResponse.json({ error: 'sell_price_krw는 양수여야 합니다' }, { status: 400 })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = createAdminClient() as any
+  const actor = auth.user.email ?? auth.user.id
+
+  // 이전 current 행 비활성화
+  await db
+    .from('direct_prices')
+    .update({ is_current: false })
+    .eq('product_id', product_id)
+    .eq('is_current', true)
+
+  const { data, error } = await db
+    .from('direct_prices')
+    .insert({
+      product_id,
+      sell_price_krw: priceNum,
+      note: (typeof note === 'string' && note.trim()) ? note.trim() : null,
+      set_by: actor,
+      is_current: true,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('[direct-prices POST]', error)
+    return NextResponse.json({ error: '요청 처리 실패' }, { status: 500 })
+  }
+
+  await recordGpuAudit(db, {
+    actor,
+    actionType: 'direct_set',
+    productId: product_id,
+    detail: { sell_price_krw: priceNum, note },
+  })
+
+  revalidateGpu()
+  return NextResponse.json({ price: data })
 }
