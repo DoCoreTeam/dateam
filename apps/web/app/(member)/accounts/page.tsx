@@ -7,6 +7,7 @@ import { Briefcase, Plus, Loader2, Search, X, Globe, Phone, MapPin, ExternalLink
 import type { Account } from '@/types/database'
 import AccountActions from './AccountActions'
 import SlidePanel from '@/components/ui/SlidePanel'
+import PageHeader from '@/components/ui/PageHeader'
 import { useDebounce } from '@/hooks/useDebounce'
 import { ACCOUNT_SEGMENTS } from '@/lib/crm'
 
@@ -85,12 +86,8 @@ export default function AccountsPage() {
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: '1.75rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>거래처</h1>
-          <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>고객사 및 잠재 거래처 관리</p>
-        </div>
+    <div className="page-inner">
+      <PageHeader title="거래처" description="고객사 및 잠재 거래처 관리" actions={
         <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
           <Link href="/lead-intake?target=account" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', minHeight: '44px' }}>
             <Sparkles size={16} /> AI로 추가
@@ -99,7 +96,7 @@ export default function AccountsPage() {
             <Plus size={16} /> 수동 입력
           </Link>
         </div>
-      </div>
+      } />
 
       <div className="card">
         {/* 헤더 */}

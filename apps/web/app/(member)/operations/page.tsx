@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/server'
+import PageHeader from '@/components/ui/PageHeader'
 
 interface Project {
   name: string
@@ -88,12 +89,14 @@ export default async function OperationsPage() {
 
   return (
     <div
+      className="page-inner"
       style={{
         display: 'flex',
         flexDirection: 'column',
         gap: 'var(--space-10)',
       }}
     >
+      <PageHeader title="본부 운영" description="진행 프로젝트와 본부 현황을 관리합니다" />
       {/* 섹션 1: 진행 프로젝트 */}
       <section>
         <h2

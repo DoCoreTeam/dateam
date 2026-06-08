@@ -4,6 +4,7 @@ import { getWeekStart, toDateString } from '@/lib/utils'
 import { addDays } from 'date-fns'
 import { insertKpi } from './actions'
 import KpiRow from './KpiRow'
+import PageHeader from '@/components/ui/PageHeader'
 import { TrendingUp, Plus, Target, Calendar, Flag, AlertCircle } from 'lucide-react'
 import type { KpiEntry } from '@/types/database'
 
@@ -77,15 +78,8 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
-          KPI 관리
-        </h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
-          이번 주 실적을 기록하고 추적합니다
-        </p>
-      </div>
+    <div className="page-inner">
+      <PageHeader title="KPI 관리" description="이번 주 실적을 기록하고 추적합니다" />
 
       {/* ── 조직 KPI 목표 참고 ─────────────────────────────── */}
       {hasOrgKpi && (

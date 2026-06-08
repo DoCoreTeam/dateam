@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { Inbox } from 'lucide-react'
 import type { LeadIntake } from '@/types/database'
 import LeadIntakeForm from './LeadIntakeForm'
+import PageHeader from '@/components/ui/PageHeader'
 import IntakeActions from './IntakeActions'
 import { getBranding } from '@/lib/branding'
 
@@ -53,15 +54,8 @@ export default async function LeadIntakePage({ searchParams }: PageProps) {
   const brandName: string = branding.brandName
 
   return (
-    <div>
-      <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
-          {targetLabel(target)} 인테이크
-        </h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
-          텍스트, 명함, 음성, 파일을 입력하면 AI가 거래처·담당자·영업기회를 분석하고 생성 후보를 만듭니다
-        </p>
-      </div>
+    <div className="page-inner">
+      <PageHeader title={`${targetLabel(target)} 인테이크`} description="텍스트, 명함, 음성, 파일을 입력하면 AI가 거래처·담당자·영업기회를 분석하고 생성 후보를 만듭니다" />
 
       {/* 인테이크 폼 */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>

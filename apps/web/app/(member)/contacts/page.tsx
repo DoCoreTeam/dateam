@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Users, Plus, Mail, Phone, Loader2, Search, X, ExternalLink, Briefcase, ChevronUp, ChevronDown, ChevronsUpDown, Sparkles } from 'lucide-react'
 import type { Contact, Account } from '@/types/database'
 import SlidePanel from '@/components/ui/SlidePanel'
+import PageHeader from '@/components/ui/PageHeader'
 import { useDebounce } from '@/hooks/useDebounce'
 
 type ContactWithAccount = Contact & { accounts: Pick<Account, 'id' | 'name'> | null }
@@ -65,12 +66,8 @@ export default function ContactsPage() {
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: '1.75rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>담당자</h1>
-          <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>거래처 담당자 연락처 관리</p>
-        </div>
+    <div className="page-inner">
+      <PageHeader title="담당자" description="거래처 담당자 연락처 관리" actions={
         <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
           <Link href="/lead-intake?target=contact" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', minHeight: '44px' }}>
             <Sparkles size={16} /> AI로 추가
@@ -79,7 +76,7 @@ export default function ContactsPage() {
             <Plus size={16} /> 수동 입력
           </Link>
         </div>
-      </div>
+      } />
 
       <div className="card">
         <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>

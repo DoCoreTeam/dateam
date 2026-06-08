@@ -5,6 +5,7 @@ import { addDays } from 'date-fns'
 import RoutineGrid from './RoutineGrid'
 import type { Profile } from '@/types/database'
 import { DEFAULT_ROUTINES } from '@/lib/routine-defaults'
+import PageHeader from '@/components/ui/PageHeader'
 import type { RoutineItemParsed } from '@/lib/routine-defaults'
 
 type RoutineItemRaw = string | { name: string; freq?: 'daily' | 'weekly' }
@@ -92,23 +93,8 @@ export default async function RoutinePage() {
   })()
 
   return (
-    <div>
-      <div style={{ marginBottom: '1.75rem' }}>
-        <h1
-          style={{
-            fontSize: 'var(--fs-2xl)',
-            fontWeight: 700,
-            color: 'var(--text)',
-            letterSpacing: '-0.03em',
-            margin: 0,
-          }}
-        >
-          루틴 체크
-        </h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
-          {hasName ? `${profile.name} · ` : ''}{weekLabel} ({weekStartStr} ~ {weekDates[6]})
-        </p>
-      </div>
+    <div className="page-inner">
+      <PageHeader title="루틴 체크" description={`${hasName ? `${profile.name} · ` : ''}${weekLabel} (${weekStartStr} ~ ${weekDates[6]})`} />
 
       {!hasName && (
         <div style={{

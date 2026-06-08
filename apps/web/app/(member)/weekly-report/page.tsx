@@ -195,7 +195,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
   })
 
   return (
-    <div style={{ width: '100%' }}>
+    <div className="page-inner">
       <WorkTabBar />
       <PageHeader title="주간보고" description="주간 성과, 계획, 이슈를 기록합니다" />
 
