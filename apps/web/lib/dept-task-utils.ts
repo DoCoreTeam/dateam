@@ -53,6 +53,72 @@ export function isProgressAuto(
   return status === 'done' || (Array.isArray(checklist) && checklist.length > 0)
 }
 
+// ── 홈 노출용: 기한/요약/정렬 (순수 함수 SSOT) ──
+
+export type DueTone = 'overdue' | 'today' | 'soon' | 'future' | 'none'
+const SOON_DAYS = 3
+
+/** target_date(YYYY-MM-DD)와 오늘(YYYY-MM-DD)의 일수 차. null이면 null. (오늘 기준, 양수=미래) */
+export function dueDiffDays(targetDate: string | null | undefined, today: string): number | null {
+  if (!targetDate) return null
+  const t = Date.parse(`${targetDate}T00:00:00Z`)
+  const d = Date.parse(`${today}T00:00:00Z`)
+  if (Number.isNaN(t) || Number.isNaN(d)) return null
+  return Math.round((t - d) / 86_400_000)
+}
+
+/** 기한 상대표기 + 톤. "지남 D+2 / 오늘 / D-3 / 6.20" */
+export function formatDueLabel(targetDate: string | null | undefined, today: string): { text: string; tone: DueTone } {
+  const diff = dueDiffDays(targetDate, today)
+  if (diff === null) return { text: '기한 없음', tone: 'none' }
+  if (diff < 0) return { text: `지남 D+${-diff}`, tone: 'overdue' }
+  if (diff === 0) return { text: '오늘', tone: 'today' }
+  if (diff <= SOON_DAYS) return { text: `D-${diff}`, tone: 'soon' }
+  return { text: `D-${diff}`, tone: 'future' }
+}
+
+interface UrgencyTask {
+  entry_type: DailyLogEntryType
+  priority: 'urgent' | 'high' | 'normal' | 'low'
+  target_date: string | null
+}
+
+const PRIORITY_RANK: Record<string, number> = { urgent: 0, high: 1, normal: 2, low: 3 }
+
+/** 챙김 우선순위 정렬: ①기한경과 ②블로커 ③임박(D-3내) ④우선순위 ⑤기한 가까운 순(null 후순위) */
+export function compareDeptTaskUrgency(a: UrgencyTask, b: UrgencyTask, today: string): number {
+  const tier = (t: UrgencyTask): number => {
+    const diff = dueDiffDays(t.target_date, today)
+    if (diff !== null && diff < 0) return 0          // 기한경과
+    if (t.entry_type === 'blocker') return 1         // 블로커
+    if (diff !== null && diff <= SOON_DAYS) return 2 // 임박
+    return 3
+  }
+  const ta = tier(a), tb = tier(b)
+  if (ta !== tb) return ta - tb
+  const pa = PRIORITY_RANK[a.priority] ?? 2, pb = PRIORITY_RANK[b.priority] ?? 2
+  if (pa !== pb) return pa - pb
+  const da = dueDiffDays(a.target_date, today), db = dueDiffDays(b.target_date, today)
+  if (da === null && db === null) return 0
+  if (da === null) return 1
+  if (db === null) return -1
+  return da - db
+}
+
+export interface DeptTaskCounts { total: number; overdue: number; blocker: number; dueToday: number }
+
+/** 홈 요약 카운트 (미완료 집합 기준으로 호출) */
+export function summarizeDeptTasks(tasks: UrgencyTask[], today: string): DeptTaskCounts {
+  let overdue = 0, blocker = 0, dueToday = 0
+  for (const t of tasks) {
+    const diff = dueDiffDays(t.target_date, today)
+    if (diff !== null && diff < 0) overdue += 1
+    if (t.entry_type === 'blocker') blocker += 1
+    if (diff === 0) dueToday += 1
+  }
+  return { total: tasks.length, overdue, blocker, dueToday }
+}
+
 /** 줄단위 텍스트 → 체크리스트 항목 배열 (빈 줄 제거) */
 export function parseChecklistText(text: string): DeptTaskChecklistItem[] {
   return text

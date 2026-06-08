@@ -6,6 +6,7 @@ import { useEscClose } from '@/lib/use-esc-close'
 import type { DailyLog, DailyLogPriority } from '@/types/database'
 import NbButton from '@/components/ui/nb/NbButton'
 import { parseChecklistText } from '@/lib/dept-task-utils'
+import { PRIORITY_KEYS, PRIORITY_COLORS } from '@/lib/tokens/status-colors'
 import { createDeptTask, updateDeptTask, listAssigneeCandidates } from './actions'
 import type { DeptOption } from './DeptTasksClient'
 
@@ -19,10 +20,8 @@ interface Props {
   canEditDept?: boolean
 }
 
-const PRIORITIES: Array<{ value: DailyLogPriority; label: string }> = [
-  { value: 'urgent', label: '긴급' }, { value: 'high', label: '높음' },
-  { value: 'normal', label: '보통' }, { value: 'low', label: '낮음' },
-]
+const PRIORITIES: Array<{ value: DailyLogPriority; label: string }> =
+  PRIORITY_KEYS.map((k) => ({ value: k, label: PRIORITY_COLORS[k].label }))
 
 const checklistToText = (task?: DailyLog): string =>
   (task?.checklist ?? []).map((c) => c.label).join('\n')

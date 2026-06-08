@@ -3,7 +3,7 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
-import { isDeptTaskStatus, normalizeProgress, sanitizeChecklist, computeProgress } from '@/lib/dept-task-utils'
+import { isDeptTaskStatus, normalizeProgress, sanitizeChecklist, computeProgress, compareDeptTaskUrgency, summarizeDeptTasks, type DeptTaskCounts } from '@/lib/dept-task-utils'
 import type { DailyLog, DailyLogEntryType, DailyLogPriority, DailyLogThread, DeptTaskChecklistItem } from '@/types/database'
 
 // 부서업무는 daily_logs(task_kind='dept_task')에 저장 — S1(075) 스키마 재사용.
@@ -325,6 +325,92 @@ async function ensureEditable(userId: string, departmentId: string): Promise<Act
   const scope = await resolveOrgScope(admin, userId)
   if (scope.editableDeptIds.includes(departmentId) || scope.isExecutive) return { ok: true, data: true }
   return { ok: false, error: '담당자 지정은 부서장만 가능합니다.' }
+}
+
+// ── 홈 노출용: 개인/부서 챙김 큐 ──
+const OPEN_STATUSES: DailyLogEntryType[] = ['planned', 'doing', 'blocker']
+
+export type DeptHomeViewMode = 'mine' | 'dept'
+export interface DeptHomeResult {
+  items: DailyLog[]
+  counts: DeptTaskCounts
+  canViewDept: boolean
+  mode: DeptHomeViewMode
+  nameMap: Record<string, string>
+  deptNameMap: Record<string, string>
+}
+
+/**
+ * 홈 부서업무 챙김 큐. RLS가 가시범위 1차 강제 + 모드별 개인화 필터.
+ * - mine: 담당자=나 OR (내 소속부서 미지정)
+ * - dept: 내가 볼 수 있는 부서 전체(부서장=관할 서브트리, 부서원=소속부서)
+ * 정렬=compareDeptTaskUrgency(기한경과>블로커>임박>우선순위>기한). counts는 전체 미완료 기준.
+ */
+export async function listHomeDeptTasks(opts: { mode?: DeptHomeViewMode; today: string }): Promise<DeptHomeResult> {
+  const empty: DeptHomeResult = { items: [], counts: { total: 0, overdue: 0, blocker: 0, dueToday: 0 }, canViewDept: false, mode: 'mine', nameMap: {}, deptNameMap: {} }
+  // 입력 검증 (서버액션 신뢰경계): mode 화이트리스트, today ISO 형식
+  const requestedMode = opts.mode && (opts.mode === 'mine' || opts.mode === 'dept') ? opts.mode : undefined
+  const today = ISO_DATE.test(opts.today) ? opts.today : new Date().toISOString().slice(0, 10)
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return empty
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any
+  const scope = await resolveOrgScope(admin, user.id)
+  const myDeptIds = scope.nodes
+    .filter((n) => n.type === 'person' && n.user_id === user.id && n.parent_id)
+    .map((n) => n.parent_id as string)
+  const readable = new Set(scope.readableDeptIds)
+  const leader = scope.isExecutive || scope.editableDeptIds.length > 0
+  const canViewDept = scope.readableDeptIds.length > 0
+  const mode: DeptHomeViewMode = requestedMode ?? (leader ? 'dept' : 'mine')
+
+  // RLS 가시 미완료 부서업무 (readable 또는 담당자=나). 기한임박 누락 방지 위해 기한순 정렬 + 상한 상향.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (supabase.from('daily_logs') as any)
+    .select('*').eq('task_kind', 'dept_task').in('entry_type', OPEN_STATUSES)
+    .order('target_date', { ascending: true, nullsFirst: false }).limit(1000)
+  const all = (data ?? []) as DailyLog[]
+
+  const myDeptSet = new Set(myDeptIds)
+  const filtered = all.filter((t) => {
+    if (mode === 'mine') {
+      return t.assignee_user_id === user.id || (t.assignee_user_id === null && t.department_id !== null && myDeptSet.has(t.department_id))
+    }
+    // dept: 내가 볼 수 있는 부서에 속한 업무만
+    return t.department_id !== null && readable.has(t.department_id)
+  })
+
+  filtered.sort((a, b) => compareDeptTaskUrgency(a, b, today))
+  const counts = summarizeDeptTasks(filtered, today)
+  const items = filtered.slice(0, 100)
+
+  // 이름맵: 부서명(조직도 노드) + 담당자명(profiles)
+  const deptNameMap: Record<string, string> = Object.fromEntries(
+    scope.nodes.filter((n) => n.type === 'department').map((n) => [n.id, n.name]),
+  )
+  const assigneeIds = Array.from(new Set(items.map((t) => t.assignee_user_id).filter(Boolean) as string[]))
+  let nameMap: Record<string, string> = {}
+  if (assigneeIds.length > 0) {
+    const { data: profs } = await admin.from('profiles').select('id,name').in('id', assigneeIds)
+    nameMap = Object.fromEntries(((profs ?? []) as Array<{ id: string; name: string }>).map((p) => [p.id, p.name]))
+  }
+
+  return { items, counts, canViewDept, mode, nameMap, deptNameMap }
+}
+
+/** 사이드바 뱃지용: 내 담당 미완료 부서업무 수 */
+export async function countMyOpenDeptTasks(): Promise<number> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return 0
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { count } = await (supabase.from('daily_logs') as any)
+    .select('id', { count: 'exact', head: true })
+    .eq('task_kind', 'dept_task').eq('assignee_user_id', user.id).in('entry_type', OPEN_STATUSES)
+  return count ?? 0
 }
 
 /** AI 제안 후보 일괄 등록 — createDeptTask 재사용(루프). 부분 실패 허용, 결과 집계 반환. */

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   DEPT_TASK_STATUSES, isDeptTaskStatus, normalizeProgress,
   sanitizeChecklist, parseChecklistText, computeProgress, isProgressAuto,
+  dueDiffDays, formatDueLabel, compareDeptTaskUrgency, summarizeDeptTasks,
 } from './dept-task-utils.ts'
 
 test('DEPT_TASK_STATUSES — note 제외 4종', () => {
@@ -80,6 +81,50 @@ test('isProgressAuto — done이거나 체크리스트 존재 시 자동', () =>
   assert.equal(isProgressAuto([{ label: 'a', done: false }], 'doing'), true)
   assert.equal(isProgressAuto([], 'doing'), false)
   assert.equal(isProgressAuto(undefined, 'planned'), false)
+})
+
+test('dueDiffDays — 일수 차/널/오류', () => {
+  assert.equal(dueDiffDays('2026-06-10', '2026-06-08'), 2)
+  assert.equal(dueDiffDays('2026-06-06', '2026-06-08'), -2)
+  assert.equal(dueDiffDays('2026-06-08', '2026-06-08'), 0)
+  assert.equal(dueDiffDays(null, '2026-06-08'), null)
+  assert.equal(dueDiffDays('garbage', '2026-06-08'), null)
+})
+
+test('formatDueLabel — 톤/표기', () => {
+  assert.deepEqual(formatDueLabel('2026-06-06', '2026-06-08'), { text: '지남 D+2', tone: 'overdue' })
+  assert.deepEqual(formatDueLabel('2026-06-08', '2026-06-08'), { text: '오늘', tone: 'today' })
+  assert.deepEqual(formatDueLabel('2026-06-10', '2026-06-08'), { text: 'D-2', tone: 'soon' })
+  assert.deepEqual(formatDueLabel('2026-06-20', '2026-06-08'), { text: 'D-12', tone: 'future' })
+  assert.deepEqual(formatDueLabel(null, '2026-06-08'), { text: '기한 없음', tone: 'none' })
+})
+
+test('compareDeptTaskUrgency — 기한경과>블로커>임박>우선순위>기한순', () => {
+  const today = '2026-06-08'
+  const overdue = { entry_type: 'planned' as const, priority: 'low' as const, target_date: '2026-06-01' }
+  const blocker = { entry_type: 'blocker' as const, priority: 'low' as const, target_date: null }
+  const soon = { entry_type: 'planned' as const, priority: 'urgent' as const, target_date: '2026-06-09' }
+  const future = { entry_type: 'doing' as const, priority: 'urgent' as const, target_date: '2026-07-01' }
+  const sorted = [future, soon, blocker, overdue].sort((a, b) => compareDeptTaskUrgency(a, b, today))
+  assert.deepEqual(sorted.map((t) => t.target_date), ['2026-06-01', null, '2026-06-09', '2026-07-01'])
+})
+
+test('compareDeptTaskUrgency — 동일 티어는 우선순위→기한순', () => {
+  const today = '2026-06-08'
+  const a = { entry_type: 'planned' as const, priority: 'high' as const, target_date: '2026-06-09' }
+  const b = { entry_type: 'planned' as const, priority: 'urgent' as const, target_date: '2026-06-10' }
+  // 둘 다 임박 티어 → urgent(b)가 먼저
+  assert.ok(compareDeptTaskUrgency(a, b, today) > 0)
+})
+
+test('summarizeDeptTasks — 카운트', () => {
+  const today = '2026-06-08'
+  const tasks = [
+    { entry_type: 'planned' as const, priority: 'normal' as const, target_date: '2026-06-01' }, // overdue
+    { entry_type: 'blocker' as const, priority: 'normal' as const, target_date: '2026-06-08' }, // blocker + today
+    { entry_type: 'doing' as const, priority: 'normal' as const, target_date: null },
+  ]
+  assert.deepEqual(summarizeDeptTasks(tasks, today), { total: 3, overdue: 1, blocker: 1, dueToday: 1 })
 })
 
 test('parseChecklistText — 줄단위 파싱, 빈 줄 제거', () => {

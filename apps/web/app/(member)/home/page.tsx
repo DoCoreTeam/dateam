@@ -5,6 +5,8 @@ import { getWeekStart, toDateString } from '@/lib/utils'
 import type { WeeklyReport } from '@/types/database'
 import HomeMiniCalendar from './HomeMiniCalendar'
 import HomeQuickEntry from './HomeQuickEntry'
+import HomeDeptTaskWidget from './HomeDeptTaskWidget'
+import { listHomeDeptTasks } from '../dept-tasks/actions'
 import Link from 'next/link'
 import { FileText, BarChart2, CheckSquare, Building2 } from 'lucide-react'
 import FridaySpotlightOverlay from '@/components/ui/FridaySpotlightOverlay'
@@ -24,7 +26,7 @@ export default async function HomePage() {
   const weekStart = getWeekStart()
   const weekStartStr = toDateString(weekStart)
 
-  const [profileResult, todayLogs, monthSummary, reportsResult] = await Promise.all([
+  const [profileResult, todayLogs, monthSummary, reportsResult, deptTasks] = await Promise.all([
     adminClient.from('profiles').select('name, role').eq('id', user.id).single(),
     getCalendarDayLogs(todayStr),
     getMonthLogSummary(year, month),
@@ -34,6 +36,7 @@ export default async function HomePage() {
       .eq('user_id', user.id)
       .order('week_start', { ascending: false })
       .limit(3),
+    listHomeDeptTasks({ today: todayStr }),
   ])
 
   const profile = profileResult.data as { name: string; role: string } | null
@@ -95,6 +98,11 @@ export default async function HomePage() {
               </Link>
             ))}
           </div>
+        </div>
+
+        {/* 부서업무 와이드 섹션 — 중요도 높음, 헤더 직하 배치 */}
+        <div className="home-section-dept">
+          <HomeDeptTaskWidget initial={deptTasks} today={todayStr} />
         </div>
 
         {/* 위젯 3종 횡배치 — 오늘업무 · 확인안한메모 · 주간보고 (모바일: 세로 스택 순서 유지) */}

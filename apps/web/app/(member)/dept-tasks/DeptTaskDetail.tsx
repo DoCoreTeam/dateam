@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { X, Pencil } from 'lucide-react'
 import type { DailyLog, DailyLogEntryType, DailyLogThread, DeptTaskChecklistItem } from '@/types/database'
-import { STATUS_COLORS } from '@/lib/tokens/status-colors'
+import { STATUS_COLORS, PRIORITY_COLORS, type PriorityKey } from '@/lib/tokens/status-colors'
 import { isProgressAuto } from '@/lib/dept-task-utils'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
@@ -25,7 +25,6 @@ interface Props {
 }
 
 const STATUSES: DailyLogEntryType[] = ['planned', 'doing', 'blocker', 'done']
-const PRIORITY_LABEL: Record<string, string> = { urgent: '긴급', high: '높음', normal: '보통', low: '낮음' }
 
 export default function DeptTaskDetail({ task, canAssign, canEdit, nameMap, deptNameMap, onChanged, onEdit, onClose }: Props) {
   const [comments, setComments] = useState<DailyLogThread[]>([])
@@ -90,7 +89,7 @@ export default function DeptTaskDetail({ task, canAssign, canEdit, nameMap, dept
         </div>
       </div>
       <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 'var(--fs-base)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-        <NbBadge>{PRIORITY_LABEL[task.priority] ?? task.priority}</NbBadge>
+        <NbBadge>{PRIORITY_COLORS[task.priority as PriorityKey]?.label ?? task.priority}</NbBadge>
         <span>
           {task.department_id ? deptNameMap[task.department_id] ?? '' : ''}
           {' · 담당 '}{task.assignee_user_id ? nameMap[task.assignee_user_id] ?? '—' : '미지정'}

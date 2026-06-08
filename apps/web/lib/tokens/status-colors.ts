@@ -22,6 +22,18 @@ export const STATUS_COLORS: Record<StatusKey, StatusColor> = {
 
 export const STATUS_KEYS: StatusKey[] = ['done', 'doing', 'planned', 'blocker', 'note']
 
+// 우선순위 색상 SSOT — 이전엔 DeptTaskDetail/DeptTaskFormModal에 라벨이 파편 하드코딩됨.
+export type PriorityKey = 'urgent' | 'high' | 'normal' | 'low'
+
+export const PRIORITY_COLORS: Record<PriorityKey, StatusColor> = {
+  urgent: { label: '긴급', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+  high: { label: '높음', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+  normal: { label: '보통', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+  low: { label: '낮음', color: '#64748b', bg: '#f1f5f9', border: '#e2e8f0' },
+}
+
+export const PRIORITY_KEYS: PriorityKey[] = ['urgent', 'high', 'normal', 'low']
+
 // 배열 형태가 필요한 호출처용 (value 포함)
 export const STATUS_LIST: ({ value: StatusKey } & StatusColor)[] = STATUS_KEYS.map(
   (k) => ({ value: k, ...STATUS_COLORS[k] }),
