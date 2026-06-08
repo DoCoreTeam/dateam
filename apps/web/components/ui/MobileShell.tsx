@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Menu, X, ChevronDown } from 'lucide-react'
+import NbNavItem from './nb/NbNavItem'
 
 interface NavItem {
   href: string
@@ -163,58 +164,20 @@ export default function MobileShell({
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
             {items.map((item, idx) => {
               const isActive = isNavActive(pathname, item)
-              const isHovered = hoveredHref === item.href && !isActive
-              const isHighlight = item.highlight && !isActive
               return (
                 <li key={item.href}>
-                  <Link
+                  <NbNavItem
                     href={item.href}
-                    ref={idx === 0 ? firstNavRef : undefined}
+                    label={item.label}
+                    icon={item.icon}
+                    badge={item.badge}
+                    isActive={isActive}
+                    isHovered={hoveredHref === item.href}
+                    isHighlight={!!item.highlight && !isActive}
                     onMouseEnter={() => setHoveredHref(item.href)}
                     onMouseLeave={() => setHoveredHref(null)}
-                    aria-current={isActive ? 'page' : undefined}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.625rem',
-                      padding: 'var(--space-2) var(--space-3)',
-                      borderRadius: 'var(--radius)',
-                      fontSize: 'var(--fs-base)',
-                      fontWeight: isActive || isHighlight ? 700 : 500,
-                      textDecoration: 'none',
-                      transition: 'opacity 120ms, transform 120ms, border-color 120ms',
-                      // 통합입력(highlight)=솔리드 인디고 채운 CTA / active=채움 없는 아웃라인(보더+좌측 인디고 바)
-                      // → 현재 테마에서 --accent와 --brand가 동색이라 '채움' 표현이 겹쳤던 혼동 제거
-                      background: isHighlight
-                        ? 'var(--brand)'
-                        : isHovered ? 'rgba(0,0,0,0.05)' : 'transparent',
-                      border: isActive
-                        ? 'var(--border-w-2) solid var(--border-color)'
-                        : 'var(--border-w-2) solid transparent',
-                      color: isHighlight ? '#fff' : 'var(--sidebar-fg)',
-                      minHeight: '44px',
-                      boxShadow: isActive
-                        ? 'inset 3px 0 0 var(--brand)'
-                        : isHighlight ? 'var(--shadow-sm)' : 'none',
-                      opacity: isHighlight && isHovered ? 0.9 : 1,
-                      letterSpacing: isHighlight ? '0.01em' : undefined,
-                    }}
-                  >
-                    <span style={{ flexShrink: 0, opacity: isActive || isHighlight ? 1 : 0.7, display: 'flex', alignItems: 'center' }}>
-                      {item.icon}
-                    </span>
-                    <span style={{ flex: 1 }}>{item.label}</span>
-                    {item.badge != null && item.badge > 0 && (
-                      <span style={{
-                        fontSize: '0.6rem', fontWeight: 700, lineHeight: 1,
-                        backgroundColor: 'var(--danger)', color: '#fff',
-                        borderRadius: '999px', padding: '0.2rem 0.4rem',
-                        minWidth: '1.1rem', textAlign: 'center', flexShrink: 0,
-                      }}>
-                        {item.badge > 9 ? '9+' : item.badge}
-                      </span>
-                    )}
-                  </Link>
+                    linkRef={idx === 0 ? firstNavRef : undefined}
+                  />
                 </li>
               )
             })}
@@ -255,36 +218,18 @@ export default function MobileShell({
                   <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
                     {group.items.map((item) => {
                       const isActive = isNavActive(pathname, item)
-                      const isHovered = hoveredHref === item.href && !isActive
                       return (
                         <li key={item.href}>
-                          <Link
+                          <NbNavItem
                             href={item.href}
+                            label={item.label}
+                            icon={item.icon}
+                            badge={item.badge}
+                            isActive={isActive}
+                            isHovered={hoveredHref === item.href}
                             onMouseEnter={() => setHoveredHref(item.href)}
                             onMouseLeave={() => setHoveredHref(null)}
-                            aria-current={isActive ? 'page' : undefined}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.625rem',
-                              padding: 'var(--space-2) var(--space-3)',
-                              borderRadius: 'var(--radius)',
-                              fontSize: 'var(--fs-base)',
-                              fontWeight: isActive ? 700 : 500,
-                              textDecoration: 'none',
-                              transition: 'background-color 120ms, color 120ms, border-color 120ms',
-                              backgroundColor: isActive ? 'var(--accent)' : isHovered ? 'rgba(0,0,0,0.05)' : 'transparent',
-                              border: isActive ? 'var(--border-w-2) solid var(--border-color)' : 'var(--border-w-2) solid transparent',
-                              color: 'var(--sidebar-fg)',
-                              boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
-                              minHeight: '44px',
-                            }}
-                          >
-                            <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.7, display: 'flex', alignItems: 'center' }}>
-                              {item.icon}
-                            </span>
-                            {item.label}
-                          </Link>
+                          />
                         </li>
                       )
                     })}
