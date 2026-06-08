@@ -82,6 +82,39 @@
   --duration-fast: 120ms;
   --duration-normal: 240ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ── 간격 스케일(spacing) — 신규 화면 필수, 4px 기준 ── */
+  --space-0: 0;
+  --space-1: 0.25rem;  /* 4 */
+  --space-2: 0.5rem;   /* 8 */
+  --space-3: 0.75rem;  /* 12 */
+  --space-4: 1rem;     /* 16 */
+  --space-5: 1.25rem;  /* 20 */
+  --space-6: 1.5rem;   /* 24 */
+  --space-8: 2rem;     /* 32 */
+  --space-10: 2.5rem;  /* 40 */
+  --space-12: 3rem;    /* 48 */
+  /* ── 타이포그래피 크기 스케일(font-size) — 신규 화면 필수 ── */
+  --fs-2xs: 0.6875rem; /* 11 */
+  --fs-xs: 0.75rem;    /* 12 */
+  --fs-sm: 0.8125rem;  /* 13 */
+  --fs-base: 0.875rem; /* 14 본문 */
+  --fs-md: 0.9375rem;  /* 15 */
+  --fs-lg: 1rem;       /* 16 */
+  --fs-xl: 1.125rem;   /* 18 */
+  --fs-2xl: 1.5rem;    /* 24 제목 */
+  --fs-3xl: 1.75rem;   /* 28 */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  /* ── z-index 계층 ── */
+  --z-base: 1;
+  --z-dropdown: 40;
+  --z-sticky: 90;
+  --z-overlay: 100;
+  --z-modal: 200;
+  --z-toast: 300;
 }
 
 /* ════════════════════════════════════════════════════════════

@@ -1,0 +1,25 @@
+name: design-guard
+# 디자인 토큰 가드 + 타입체크 — PR/푸시에서 하드코딩 색/치수 재유입 차단
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 디자인 토큰 가드 (인라인 하드코딩 색/보더 차단)
+        run: node scripts/check-design-tokens.mjs
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - name: 의존성 설치
+        run: pnpm install --frozen-lockfile
+      - name: 타입체크
+        run: npx tsc --noEmit -p apps/web/tsconfig.json
