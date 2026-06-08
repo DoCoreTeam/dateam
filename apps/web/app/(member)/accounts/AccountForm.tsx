@@ -194,21 +194,21 @@ export default function AccountForm({ account }: Props) {
           </div>
           {fitScore !== null && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '1.5rem', fontWeight: 700, color: fitScore >= 70 ? '#16a34a' : fitScore >= 40 ? '#d97706' : '#dc2626' }}>
+              <span style={{ fontSize: '1.5rem', fontWeight: 700, color: fitScore >= 70 ? 'var(--success)' : fitScore >= 40 ? 'var(--warning)' : 'var(--danger)' }}>
                 {fitScore}점
               </span>
-              {fitReason && <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>{fitReason}</span>}
+              {fitReason && <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{fitReason}</span>}
             </div>
           )}
         </div>
 
-        {error && <p style={{ color: '#dc2626', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
+        {error && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
 
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           <button type="submit" disabled={loading} className="btn-primary" style={{ minHeight: '44px', padding: '0.625rem 1.5rem' }}>
             {loading ? '저장중...' : account ? '수정' : '거래처 등록'}{!loading && <span style={{ fontSize: '0.7rem', opacity: 0.65, marginLeft: '0.375rem' }}>Ctrl+↵</span>}
           </button>
-          <button type="button" onClick={() => router.back()} style={{ minHeight: '44px', padding: '0.625rem 1.25rem', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: '#64748b' }}>
+          <button type="button" onClick={() => router.back()} style={{ minHeight: '44px', padding: '0.625rem 1.25rem', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
             취소
           </button>
         </div>

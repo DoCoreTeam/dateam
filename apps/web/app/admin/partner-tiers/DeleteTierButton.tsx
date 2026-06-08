@@ -23,13 +23,13 @@ export default function DeleteTierButton({ tierId, tierName }: { tierId: string;
   if (confirming) {
     return (
       <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.75rem', color: '#dc2626' }}>삭제?</span>
+        <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>삭제?</span>
         <button
           onClick={handleDelete}
           disabled={isPending}
           style={{
             padding: '0.25rem 0.5rem', borderRadius: '0.25rem',
-            background: '#dc2626', color: 'white', border: 'none',
+            background: 'var(--danger)', color: 'white', border: 'none',
             fontSize: '0.75rem', cursor: isPending ? 'not-allowed' : 'pointer',
           }}
         >
@@ -39,13 +39,13 @@ export default function DeleteTierButton({ tierId, tierName }: { tierId: string;
           onClick={() => setConfirming(false)}
           style={{
             padding: '0.25rem 0.5rem', borderRadius: '0.25rem',
-            background: '#f1f5f9', color: '#475569', border: 'none',
+            background: 'var(--surface-muted)', color: '#475569', border: 'none',
             fontSize: '0.75rem', cursor: 'pointer',
           }}
         >
           취소
         </button>
-        {error && <span style={{ fontSize: '0.75rem', color: '#dc2626' }}>{error}</span>}
+        {error && <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>{error}</span>}
       </span>
     )
   }
@@ -56,7 +56,7 @@ export default function DeleteTierButton({ tierId, tierName }: { tierId: string;
       style={{
         display: 'flex', alignItems: 'center', gap: '0.25rem',
         padding: '0.375rem 0.625rem', borderRadius: '0.375rem',
-        background: '#fef2f2', color: '#dc2626',
+        background: 'var(--danger-bg)', color: 'var(--danger)',
         border: 'none', fontSize: '0.8125rem', cursor: 'pointer',
       }}
       title={`${tierName} 삭제`}

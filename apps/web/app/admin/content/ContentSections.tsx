@@ -34,7 +34,7 @@ const LABEL: React.CSSProperties = {
   display: 'block',
   fontSize: '0.75rem',
   fontWeight: 600,
-  color: '#64748b',
+  color: 'var(--text-muted)',
   marginBottom: '0.3rem',
   textTransform: 'uppercase',
   letterSpacing: '0.05em',
@@ -45,7 +45,7 @@ const INPUT: React.CSSProperties = {
   border: '2px solid var(--border-color)',
   borderRadius: '0.4rem',
   fontSize: '0.875rem',
-  color: '#0f172a',
+  color: 'var(--text)',
   background: '#fff',
   boxSizing: 'border-box',
 }
@@ -162,7 +162,7 @@ function SectionCard({
   return (
     <section style={CARD}>
       <div style={CARD_HEADER}>
-        <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}>{title}</span>
+        <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text)' }}>{title}</span>
         <span
           className="badge"
           style={{ marginLeft: 'auto', fontSize: '0.7rem', background: badgeColor, color: badgeText }}
@@ -284,7 +284,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         marginLeft: '0.5rem',
         display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
         padding: '0.25rem 0.625rem',
-        background: '#f3effe', color: 'var(--brand-dark)',
+        background: 'var(--brand-soft)', color: 'var(--brand-dark)',
         border: '1px solid #ddd6fe', borderRadius: '0.375rem',
         fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
       }}
@@ -327,7 +327,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         <div role="alert" aria-live="polite" style={{
           position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 9999,
           padding: '0.75rem 1.25rem',
-          background: toast.ok ? '#16a34a' : '#dc2626',
+          background: toast.ok ? 'var(--success)' : 'var(--danger)',
           color: '#fff', borderRadius: 'var(--radius)',
           fontSize: '0.875rem', fontWeight: 600,
           boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
@@ -360,11 +360,11 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
               <Sparkles size={16} color="var(--brand)" />
-              <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a' }}>
+              <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text)' }}>
                 AI 작성 — {aiPromptModal.sectionName}
               </span>
             </div>
-            <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: '0 0 0.75rem' }}>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>
               수정 요청을 자유롭게 입력하세요. AI가 현재 데이터를 기반으로 반영합니다.
             </p>
             <textarea
@@ -377,7 +377,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
               style={{
                 width: '100%', padding: '0.625rem 0.875rem',
                 border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
-                fontSize: '0.875rem', color: '#0f172a',
+                fontSize: '0.875rem', color: 'var(--text)',
                 resize: 'vertical', fontFamily: 'inherit',
                 boxSizing: 'border-box', outline: 'none',
               }}
@@ -387,7 +387,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
             {aiError && (
               <div style={{
                 marginTop: '0.5rem', padding: '0.5rem 0.75rem',
-                background: '#fef2f2', border: '1px solid #fecaca',
+                background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
                 borderRadius: '0.4rem', fontSize: '0.8125rem', color: '#b91c1c',
               }}>
                 {aiError}
@@ -399,7 +399,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
                 onClick={() => setAiPromptModal(null)}
                 style={{
                   padding: '0.5rem 1rem', background: 'transparent',
-                  color: '#64748b', border: '2px solid var(--border-color)',
+                  color: 'var(--text-muted)', border: '2px solid var(--border-color)',
                   borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer',
                 }}
               >
@@ -412,7 +412,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
                 style={{
                   padding: '0.5rem 1.25rem',
                   background: aiPrompt.trim() ? 'var(--brand)' : 'var(--color-border)',
-                  color: aiPrompt.trim() ? '#fff' : '#94a3b8',
+                  color: aiPrompt.trim() ? '#fff' : 'var(--text-faint)',
                   border: 'none', borderRadius: 'var(--radius)',
                   fontSize: '0.875rem', fontWeight: 600,
                   cursor: aiPrompt.trim() ? 'pointer' : 'not-allowed',
@@ -450,7 +450,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       )}
 
       {/* 1. META */}
-      <SectionCard title="본부 기본 정보" badge="META" badgeColor="#ede9fe" badgeText="#7c3aed">
+      <SectionCard title="본부 기본 정보" badge="META" badgeColor="var(--brand-soft-2)" badgeText="var(--brand)">
         <form onSubmit={submit(actions.updateMeta)}>
           <div style={FIELD_GRID}>
             {(
@@ -503,7 +503,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 5. okr */}
-      <SectionCard title="OKR" badge="okr" badgeColor="#fee2e2" badgeText="#dc2626"
+      <SectionCard title="OKR" badge="okr" badgeColor="#fee2e2" badgeText="var(--danger)"
         headerAction={<AiButton sectionKey="okr" sectionName="OKR" columns={OKR_COLS} currentData={okr} />}
       >
         <form onSubmit={submit(actions.updateOkr)}>
@@ -513,7 +513,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 6. principles */}
-      <SectionCard title="원칙" badge="principles" badgeColor="#f3e8ff" badgeText="#7c3aed"
+      <SectionCard title="원칙" badge="principles" badgeColor="#f3e8ff" badgeText="var(--brand)"
         headerAction={<AiButton sectionKey="principles" sectionName="원칙" columns={PRINCIPLE_COLS} currentData={principles} />}
       >
         <form onSubmit={submit(actions.updatePrinciples)}>
@@ -543,7 +543,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 9. rhythm */}
-      <SectionCard title="리듬 (Rhythm)" badge="rhythm" badgeColor="#f0fdf4" badgeText="#15803d">
+      <SectionCard title="리듬 (Rhythm)" badge="rhythm" badgeColor="var(--success-bg)" badgeText="#15803d">
         <form onSubmit={submit(actions.updateRhythm)}>
           <DynamicKeyValue name="rhythm_json" initialData={rhythm} addLabel="리듬 항목 추가" />
           <button type="submit" style={SUBMIT}>저장</button>
@@ -551,7 +551,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 10. dev_split */}
-      <SectionCard title="개발 분배" badge="dev_split" badgeColor="#ede9fe" badgeText="#7c3aed">
+      <SectionCard title="개발 분배" badge="dev_split" badgeColor="var(--brand-soft-2)" badgeText="var(--brand)">
         <form onSubmit={submit(actions.updateDevSplit)}>
           <DynamicKeyValue name="dev_split_json" initialData={devSplit} addLabel="항목 추가" />
           <button type="submit" style={SUBMIT}>저장</button>

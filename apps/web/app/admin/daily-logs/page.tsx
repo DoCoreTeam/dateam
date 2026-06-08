@@ -3,11 +3,11 @@ import { redirect } from 'next/navigation'
 import type { DailyLog, Profile } from '@/types/database'
 
 const ENTRY_TYPES = {
-  done:    { label: '완료',   icon: '✅', color: '#16a34a', bg: '#f0fdf4' },
-  doing:   { label: '진행중', icon: '🔄', color: '#2563eb', bg: '#eff6ff' },
-  planned: { label: '예정',   icon: '📋', color: '#7c3aed', bg: '#f5f3ff' },
-  blocker: { label: '블로커', icon: '🚫', color: '#dc2626', bg: '#fef2f2' },
-  note:    { label: '메모',   icon: '📌', color: '#d97706', bg: '#fffbeb' },
+  done:    { label: '완료',   icon: '✅', color: 'var(--success)', bg: 'var(--success-bg)' },
+  doing:   { label: '진행중', icon: '🔄', color: 'var(--info)', bg: 'var(--info-bg)' },
+  planned: { label: '예정',   icon: '📋', color: 'var(--brand)', bg: '#f5f3ff' },
+  blocker: { label: '블로커', icon: '🚫', color: 'var(--danger)', bg: 'var(--danger-bg)' },
+  note:    { label: '메모',   icon: '📌', color: 'var(--warning)', bg: 'var(--warning-bg)' },
 } as const
 
 function toDateStr(d: Date) {
@@ -86,10 +86,10 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
   return (
     <div className="page-inner">
       <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
           일일업무 모니터링
         </h1>
-        <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
           팀원들의 일일 업무 기록을 확인합니다.
         </p>
       </div>
@@ -98,16 +98,16 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
       <div className="responsive-grid-cols-3" style={{ marginBottom: '1.5rem', gap: '0.75rem' }}>
         {[
           { label: '참여 인원', value: `${activeMembers}명`, sub: `전체 ${members?.length ?? 0}명 중`, color: '#3b82f6' },
-          { label: '총 로그', value: `${totalLogs}건`, sub: formatDate(selectedDate), color: '#16a34a' },
-          { label: '블로커', value: `${totalBlockers}건`, sub: totalBlockers > 0 ? '주의 필요' : '문제 없음', color: totalBlockers > 0 ? '#dc2626' : '#16a34a' },
+          { label: '총 로그', value: `${totalLogs}건`, sub: formatDate(selectedDate), color: 'var(--success)' },
+          { label: '블로커', value: `${totalBlockers}건`, sub: totalBlockers > 0 ? '주의 필요' : '문제 없음', color: totalBlockers > 0 ? 'var(--danger)' : 'var(--success)' },
         ].map((c) => (
           <div key={c.label} style={{
             background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
             padding: '1rem', boxShadow: 'var(--shadow-sm)',
           }}>
-            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.25rem' }}>{c.label}</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginBottom: '0.25rem' }}>{c.label}</div>
             <div style={{ fontSize: '1.5rem', fontWeight: 700, color: c.color }}>{c.value}</div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{c.sub}</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.sub}</div>
           </div>
         ))}
       </div>
@@ -149,7 +149,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
       {/* 멤버별 로그 */}
       {Object.keys(grouped).length === 0 ? (
         <div style={{
-          textAlign: 'center', color: '#94a3b8', padding: '3rem',
+          textAlign: 'center', color: 'var(--text-faint)', padding: '3rem',
           border: '1px dashed var(--color-border)', borderRadius: 'var(--radius)',
         }}>
           {formatDate(selectedDate)}에 작성된 로그가 없습니다.
@@ -175,20 +175,20 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
                   }}>
                     {group.name[0] ?? '?'}
                   </div>
-                  <span style={{ fontWeight: 600, color: '#0f172a' }}>{group.name}</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text)' }}>{group.name}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '0.375rem' }}>
                   {group.logs.filter((l) => l.entry_type === 'blocker').length > 0 && (
                     <span style={{
-                      fontSize: '0.75rem', fontWeight: 600, color: '#dc2626',
-                      background: '#fef2f2', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)',
+                      fontSize: '0.75rem', fontWeight: 600, color: 'var(--danger)',
+                      background: 'var(--danger-bg)', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)',
                     }}>
                       🚫 블로커 {group.logs.filter((l) => l.entry_type === 'blocker').length}건
                     </span>
                   )}
                   <span style={{
-                    fontSize: '0.75rem', color: '#64748b',
-                    background: '#f1f5f9', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)',
+                    fontSize: '0.75rem', color: 'var(--text-muted)',
+                    background: 'var(--surface-muted)', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)',
                   }}>
                     {group.logs.length}건
                   </span>
@@ -204,7 +204,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
                       display: 'flex', alignItems: 'flex-start', gap: '0.625rem',
                       padding: '0.625rem 0.75rem',
                       borderLeft: `3px solid ${type.color}`,
-                      background: log.entry_type === 'blocker' ? '#fef2f2' : '#fafafa',
+                      background: log.entry_type === 'blocker' ? 'var(--danger-bg)' : '#fafafa',
                       borderRadius: '0 0.375rem 0.375rem 0',
                     }}>
                       <span style={{ fontSize: '1rem', flexShrink: 0, marginTop: '0.1rem' }}>{type.icon}</span>
@@ -216,7 +216,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
                           }}>
                             {type.label}
                           </span>
-                          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>
                             {formatTime(log.logged_at)}
                           </span>
                         </div>
@@ -241,5 +241,5 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
 
 const filterInputStyle: React.CSSProperties = {
   padding: '0.5rem 0.75rem', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
-  fontSize: '0.875rem', color: '#0f172a', background: 'var(--color-bg)', outline: 'none',
+  fontSize: '0.875rem', color: 'var(--text)', background: 'var(--color-bg)', outline: 'none',
 }

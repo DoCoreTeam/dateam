@@ -18,7 +18,7 @@ const EXAMPLE_KEY = 'ax_live_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4'
 
 function SidebarItem({ children, active, onClick }: { children: React.ReactNode; active: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 400, background: active ? 'rgba(124,58,237,0.1)' : 'transparent', color: active ? '#c4b5fd' : '#64748b', borderLeft: active ? '2px solid var(--brand)' : '2px solid transparent', marginBottom: 2, transition: 'all .15s' }}>
+    <button onClick={onClick} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 400, background: active ? 'rgba(124,58,237,0.1)' : 'transparent', color: active ? '#c4b5fd' : 'var(--text-muted)', borderLeft: active ? '2px solid var(--brand)' : '2px solid transparent', marginBottom: 2, transition: 'all .15s' }}>
       {children}
     </button>
   )
@@ -26,10 +26,10 @@ function SidebarItem({ children, active, onClick }: { children: React.ReactNode;
 
 function CodeBlock({ code, id, onCopy, copiedId, lang = 'bash' }: { code: string; id: string; onCopy: (t: string, id: string) => void; copiedId: string | null; lang?: string }) {
   return (
-    <div style={{ position: 'relative', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
+    <div style={{ position: 'relative', background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', background: '#1a2332', borderBottom: '1px solid #1e293b' }}>
         <span style={{ fontSize: 11, color: '#475569', fontFamily: 'monospace' }}>{lang}</span>
-        <button onClick={() => onCopy(code, id)} style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #334155', background: '#1e293b', color: copiedId === id ? '#34d399' : '#94a3b8', fontSize: 12, cursor: 'pointer' }}>
+        <button onClick={() => onCopy(code, id)} style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #334155', background: '#1e293b', color: copiedId === id ? '#34d399' : 'var(--text-faint)', fontSize: 12, cursor: 'pointer' }}>
           {copiedId === id ? '✓ 복사됨' : '복사'}
         </button>
       </div>
@@ -44,13 +44,13 @@ function Badge({ method }: { method: 'GET' | 'POST' | 'PATCH' | 'DELETE' }) {
 }
 
 function H1({ children }: { children: React.ReactNode }) {
-  return <h1 style={{ fontSize: 30, fontWeight: 800, color: '#f1f5f9', marginBottom: 12, letterSpacing: '-0.02em' }}>{children}</h1>
+  return <h1 style={{ fontSize: 30, fontWeight: 800, color: 'var(--surface-muted)', marginBottom: 12, letterSpacing: '-0.02em' }}>{children}</h1>
 }
 function H2({ children }: { children: React.ReactNode }) {
   return <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-border)', marginBottom: 12, marginTop: 32, letterSpacing: '-0.01em' }}>{children}</h2>
 }
 function P({ children }: { children: React.ReactNode }) {
-  return <p style={{ color: '#94a3b8', lineHeight: 1.7, fontSize: 15, marginBottom: 16 }}>{children}</p>
+  return <p style={{ color: 'var(--text-faint)', lineHeight: 1.7, fontSize: 15, marginBottom: 16 }}>{children}</p>
 }
 function Callout({ type = 'info', title, children }: { type?: 'info' | 'warn' | 'tip'; title: string; children: React.ReactNode }) {
   const cfg = {
@@ -61,7 +61,7 @@ function Callout({ type = 'info', title, children }: { type?: 'info' | 'warn' | 
   return (
     <div style={{ padding: '14px 18px', background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 10, marginBottom: 20 }}>
       <div style={{ fontWeight: 700, color: cfg.color, marginBottom: 6, fontSize: 13 }}>{cfg.icon} {title}</div>
-      <div style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.6 }}>{children}</div>
+      <div style={{ color: 'var(--text-faint)', fontSize: 13, lineHeight: 1.6 }}>{children}</div>
     </div>
   )
 }
@@ -70,9 +70,9 @@ function EndpointHeader({ method, path, desc }: { method: 'GET'|'POST'|'PATCH'|'
     <div style={{ border: '1px solid #1e293b', borderRadius: 10, padding: '16px 20px', marginBottom: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
         <Badge method={method} />
-        <code style={{ fontSize: 14, color: 'var(--color-border)', background: '#0f172a', padding: '4px 12px', borderRadius: 6, border: '1px solid #1e293b' }}>/api/public/v1{path}</code>
+        <code style={{ fontSize: 14, color: 'var(--color-border)', background: 'var(--text)', padding: '4px 12px', borderRadius: 6, border: '1px solid #1e293b' }}>/api/public/v1{path}</code>
       </div>
-      <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>{desc}</p>
+      <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>{desc}</p>
     </div>
   )
 }
@@ -80,12 +80,12 @@ function ParamTable({ children, title = '파라미터' }: { children: React.Reac
   return (
     <>
       <div style={{ fontWeight: 600, color: 'var(--color-border)', marginBottom: 8, fontSize: 14 }}>{title}</div>
-      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
+      <div style={{ background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead><tr style={{ background: '#1e293b' }}>
-            <th style={{ padding: '9px 14px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>필드</th>
-            <th style={{ padding: '9px 14px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>타입</th>
-            <th style={{ padding: '9px 14px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>설명</th>
+            <th style={{ padding: '9px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>필드</th>
+            <th style={{ padding: '9px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>타입</th>
+            <th style={{ padding: '9px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>설명</th>
           </tr></thead>
           <tbody>{children}</tbody>
         </table>
@@ -100,8 +100,8 @@ function PR({ name, type, required, desc }: { name: string; type: string; requir
         <code style={{ color: '#c4b5fd', fontSize: 12 }}>{name}</code>
         {required && <span style={{ marginLeft: 6, fontSize: 10, color: '#ef4444', fontWeight: 700, background: 'rgba(239,68,68,0.1)', padding: '1px 5px', borderRadius: 3 }}>필수</span>}
       </td>
-      <td style={{ padding: '10px 14px', borderBottom: '1px solid #1e293b', color: '#64748b', fontSize: 12 }}>{type}</td>
-      <td style={{ padding: '10px 14px', borderBottom: '1px solid #1e293b', color: '#94a3b8', fontSize: 12 }}>{desc}</td>
+      <td style={{ padding: '10px 14px', borderBottom: '1px solid #1e293b', color: 'var(--text-muted)', fontSize: 12 }}>{type}</td>
+      <td style={{ padding: '10px 14px', borderBottom: '1px solid #1e293b', color: 'var(--text-faint)', fontSize: 12 }}>{desc}</td>
     </tr>
   )
 }
@@ -125,10 +125,10 @@ function OverviewSection({ onCopy, copiedId }: { onCopy: (t: string, id: string)
           { icon: '🌐', title: 'CRM 연동', desc: '거래처·담당자·영업기회 CRUD. 스테이지별 확률 자동 계산.' },
           { icon: '💱', title: '환율 동기화', desc: 'USD/KRW 환율 이력(최근 7일). 가격 계산에 자동 반영.' },
         ].map(({ icon, title, desc }) => (
-          <div key={title} style={{ padding: '18px 20px', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10 }}>
+          <div key={title} style={{ padding: '18px 20px', background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 10 }}>
             <div style={{ fontSize: 22, marginBottom: 8 }}>{icon}</div>
             <div style={{ fontWeight: 700, color: 'var(--color-border)', marginBottom: 4, fontSize: 14 }}>{title}</div>
-            <div style={{ color: '#64748b', fontSize: 12, lineHeight: 1.5 }}>{desc}</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: 12, lineHeight: 1.5 }}>{desc}</div>
           </div>
         ))}
       </div>
@@ -178,20 +178,20 @@ curl "${origin}/api/public/v1/accounts?cursor=2026-05-30T12:00:00Z__uuid" \\
   -H "X-API-Key: KEY"`} />
 
       <H2>Rate Limiting</H2>
-      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
+      <div style={{ background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead><tr style={{ background: '#1e293b' }}>
-            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>플랜</th>
-            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>한도</th>
-            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>최대 키 수</th>
-            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>응답 헤더</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>플랜</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>한도</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>최대 키 수</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>응답 헤더</th>
           </tr></thead>
           <tbody>
             <tr>
               <td style={{ padding: '10px 16px', color: 'var(--color-border)' }}>기본</td>
-              <td style={{ padding: '10px 16px', color: '#64748b' }}>분당 60회</td>
-              <td style={{ padding: '10px 16px', color: '#64748b' }}>10개</td>
-              <td style={{ padding: '10px 16px' }}><code style={{ color: '#94a3b8', fontSize: 12 }}>X-RateLimit-*</code></td>
+              <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>분당 60회</td>
+              <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>10개</td>
+              <td style={{ padding: '10px 16px' }}><code style={{ color: 'var(--text-faint)', fontSize: 12 }}>X-RateLimit-*</code></td>
             </tr>
           </tbody>
         </table>
@@ -838,12 +838,12 @@ curl "${origin}/api/public/v1/deals/DEAL_ID" \\
 
       <H2>스테이지 → 확률 자동 변환</H2>
       <P>스테이지를 변경하면 <code style={{ color: '#c4b5fd', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>probability</code> 필드가 자동으로 업데이트됩니다.</P>
-      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
+      <div style={{ background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead><tr style={{ background: '#1e293b' }}>
-            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontSize: 12 }}>stage</th>
-            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontSize: 12 }}>probability</th>
-            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontSize: 12 }}>의미</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontSize: 12 }}>stage</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontSize: 12 }}>probability</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontSize: 12 }}>의미</th>
           </tr></thead>
           <tbody>
             {[
@@ -859,7 +859,7 @@ curl "${origin}/api/public/v1/deals/DEAL_ID" \\
               <tr key={s} style={{ borderTop: '1px solid #1e293b' }}>
                 <td style={{ padding: '10px 16px' }}><code style={{ color: '#c4b5fd' }}>{s}</code></td>
                 <td style={{ padding: '10px 16px', color: '#10b981', fontWeight: 700 }}>{p}</td>
-                <td style={{ padding: '10px 16px', color: '#64748b' }}>{m}</td>
+                <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{m}</td>
               </tr>
             ))}
           </tbody>
@@ -886,28 +886,28 @@ function ErrorsSection({ onCopy, copiedId }: { onCopy: (t: string, id: string) =
       <P>모든 오류는 HTTP 상태 코드와 함께 아래 포맷으로 반환됩니다. <code style={{ color: '#c4b5fd', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>error</code> 필드에 사람이 읽을 수 있는 메시지가 포함됩니다.</P>
       <CodeBlock id="err-fmt" lang="json" onCopy={onCopy} copiedId={copiedId} code={`{ "success": false, "error": "Invalid API key." }`} />
 
-      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
+      <div style={{ background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead><tr style={{ background: '#1e293b' }}>
-            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>코드</th>
-            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>이름</th>
-            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>원인</th>
-            <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>해결</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>코드</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>이름</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>원인</th>
+            <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>해결</th>
           </tr></thead>
           <tbody>
             {[
               { code: 400, color: '#f59e0b', name: 'Bad Request', cause: '요청 바디 형식 오류 또는 필수 필드 누락', fix: 'details 필드에서 구체적인 오류 위치 확인' },
               { code: 401, color: '#f59e0b', name: 'Unauthorized', cause: 'X-API-Key 헤더 없음 또는 잘못된 키 형식', fix: 'ax_live_ 접두사 포함 전체 키 값 확인' },
               { code: 403, color: '#f59e0b', name: 'Forbidden', cause: 'API 키가 폐기된 상태', fix: '새 키를 발급하고 코드 업데이트' },
-              { code: 404, color: '#64748b', name: 'Not Found', cause: '요청한 리소스 ID가 존재하지 않음', fix: 'ID 값이 올바른지 확인' },
+              { code: 404, color: 'var(--text-muted)', name: 'Not Found', cause: '요청한 리소스 ID가 존재하지 않음', fix: 'ID 값이 올바른지 확인' },
               { code: 429, color: '#ef4444', name: 'Too Many Requests', cause: '분당 요청 한도 초과', fix: 'Retry-After 헤더 대기 후 재시도. 지수 백오프 적용.' },
               { code: 500, color: '#ef4444', name: 'Internal Server Error', cause: '서버 내부 오류', fix: '잠시 후 재시도. 지속 시 관리자에게 문의' },
             ].map(({ code, color, name, cause, fix }) => (
               <tr key={code} style={{ borderTop: '1px solid #1e293b' }}>
                 <td style={{ padding: '12px 16px' }}><code style={{ color, fontWeight: 700, fontSize: 13 }}>{code}</code></td>
                 <td style={{ padding: '12px 16px', color: 'var(--color-border)', fontWeight: 500 }}>{name}</td>
-                <td style={{ padding: '12px 16px', color: '#64748b', fontSize: 12 }}>{cause}</td>
-                <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: 12 }}>{fix}</td>
+                <td style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: 12 }}>{cause}</td>
+                <td style={{ padding: '12px 16px', color: 'var(--text-faint)', fontSize: 12 }}>{fix}</td>
               </tr>
             ))}
           </tbody>
@@ -973,7 +973,7 @@ export default function DevelopPage() {
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <a href="/home" style={{ width: 30, height: 30, borderRadius: 7, background: 'linear-gradient(135deg, var(--brand), var(--brand))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', textDecoration: 'none' }}>A</a>
-            <span style={{ fontWeight: 700, fontSize: 15, color: '#f1f5f9' }}>AX API</span>
+            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--surface-muted)' }}>AX API</span>
             <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 100, background: '#1e293b', color: 'var(--brand)', fontWeight: 600 }}>v1</span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -987,7 +987,7 @@ export default function DevelopPage() {
                 API 키 신청 →
               </a>
             )}
-            <a href="/api-keys" style={{ padding: '6px 14px', borderRadius: 8, background: 'transparent', color: '#64748b', fontSize: 13, textDecoration: 'none', border: '1px solid #1e293b' }}>
+            <a href="/api-keys" style={{ padding: '6px 14px', borderRadius: 8, background: 'transparent', color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none', border: '1px solid #1e293b' }}>
               내 키 관리
             </a>
           </div>

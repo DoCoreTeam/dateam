@@ -7,21 +7,21 @@ import type { Account, Contact, Deal } from '@/types/database'
 interface PageProps { params: Promise<{ id: string }> }
 
 function fitColor(score: number | null) {
-  if (score === null) return { color: '#94a3b8', background: 'var(--color-bg)' }
-  if (score >= 70) return { color: '#16a34a', background: '#f0fdf4' }
-  if (score >= 40) return { color: '#d97706', background: '#fffbeb' }
-  return { color: '#dc2626', background: '#fef2f2' }
+  if (score === null) return { color: 'var(--text-faint)', background: 'var(--color-bg)' }
+  if (score >= 70) return { color: 'var(--success)', background: 'var(--success-bg)' }
+  if (score >= 40) return { color: 'var(--warning)', background: 'var(--warning-bg)' }
+  return { color: 'var(--danger)', background: 'var(--danger-bg)' }
 }
 
 const STAGE_COLOR: Record<string, { color: string; bg: string }> = {
-  '신규': { color: '#64748b', bg: 'var(--color-bg)' },
+  '신규': { color: 'var(--text-muted)', bg: 'var(--color-bg)' },
   '검증': { color: '#0891b2', bg: '#ecfeff' },
-  '컨택': { color: '#7c3aed', bg: '#f5f3ff' },
-  'PoC': { color: '#d97706', bg: '#fffbeb' },
+  '컨택': { color: 'var(--brand)', bg: '#f5f3ff' },
+  'PoC': { color: 'var(--warning)', bg: 'var(--warning-bg)' },
   '제안': { color: '#0284c7', bg: '#f0f9ff' },
   '협상': { color: '#c2410c', bg: '#fff7ed' },
-  '수주': { color: '#16a34a', bg: '#f0fdf4' },
-  '실패': { color: '#dc2626', bg: '#fef2f2' },
+  '수주': { color: 'var(--success)', bg: 'var(--success-bg)' },
+  '실패': { color: 'var(--danger)', bg: 'var(--danger-bg)' },
 }
 
 export default async function AccountDetailPage({ params }: PageProps) {
@@ -59,13 +59,13 @@ export default async function AccountDetailPage({ params }: PageProps) {
               <Briefcase size={18} color="white" />
             </div>
             <div>
-              <h1 style={{ fontSize: '1.375rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>{account.name}</h1>
+              <h1 style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>{account.name}</h1>
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
                 {account.industry && <span className="badge badge-slate">{account.industry}</span>}
                 {account.segment && <span className="badge badge-indigo">{account.segment}</span>}
-                {account.size && <span className="badge" style={{ background: 'var(--color-bg)', color: '#64748b' }}>{account.size}</span>}
+                {account.size && <span className="badge" style={{ background: 'var(--color-bg)', color: 'var(--text-muted)' }}>{account.size}</span>}
                 {account.account_type && <span className="badge" style={{ background: '#fff7ed', color: '#c2410c' }}>{account.account_type}</span>}
-                {account.gpu_demand_intensity && <span className="badge" style={{ background: '#f0fdf4', color: '#16a34a' }}>GPU {account.gpu_demand_intensity}</span>}
+                {account.gpu_demand_intensity && <span className="badge" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>GPU {account.gpu_demand_intensity}</span>}
               </div>
             </div>
           </div>
@@ -102,13 +102,13 @@ export default async function AccountDetailPage({ params }: PageProps) {
               )}
               {account.registration_number && (
                 <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', minWidth: '5rem' }}>번호</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', minWidth: '5rem' }}>번호</span>
                   <span style={{ fontSize: '0.875rem', color: '#374151' }}>{account.registration_number}</span>
                 </div>
               )}
               {account.source && (
                 <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', minWidth: '5rem' }}>출처</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', minWidth: '5rem' }}>출처</span>
                   <span style={{ fontSize: '0.875rem', color: '#374151' }}>{account.source}</span>
                 </div>
               )}
@@ -142,14 +142,14 @@ export default async function AccountDetailPage({ params }: PageProps) {
               <Link href={`/contacts/new?account_id=${id}`} style={{ fontSize: '0.8125rem', color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}>+ 추가</Link>
             </div>
             {contacts.length === 0 ? (
-              <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>담당자가 없습니다</div>
+              <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-faint)', fontSize: '0.875rem' }}>담당자가 없습니다</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {contacts.map((c) => (
-                  <div key={c.id} style={{ padding: '0.875rem 1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <div key={c.id} style={{ padding: '0.875rem 1.5rem', borderBottom: '1px solid var(--surface-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                     <div>
-                      <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.875rem' }}>{c.name}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{[c.title, c.department].filter(Boolean).join(' · ')}</div>
+                      <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.875rem' }}>{c.name}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{[c.title, c.department].filter(Boolean).join(' · ')}</div>
                       {c.email && <div style={{ fontSize: '0.75rem', color: 'var(--brand)', marginTop: '0.125rem' }}>{c.email}</div>}
                     </div>
                     <Link href={`/contacts/${c.id}`} style={{ fontSize: '0.75rem', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600, flexShrink: 0 }}>보기</Link>
@@ -171,22 +171,22 @@ export default async function AccountDetailPage({ params }: PageProps) {
             <Link href={`/deals/new?account_id=${id}`} style={{ fontSize: '0.8125rem', color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}>+ 추가</Link>
           </div>
           {deals.length === 0 ? (
-            <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>영업기회가 없습니다</div>
+            <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-faint)', fontSize: '0.875rem' }}>영업기회가 없습니다</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {deals.map((d) => {
                 const sc = STAGE_COLOR[d.stage] ?? STAGE_COLOR['신규']
                 return (
-                  <div key={d.id} style={{ padding: '0.875rem 1.5rem', borderBottom: '1px solid #f1f5f9' }}>
+                  <div key={d.id} style={{ padding: '0.875rem 1.5rem', borderBottom: '1px solid var(--surface-muted)' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
                       <div>
-                        <Link href={`/deals/${d.id}`} style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.875rem', textDecoration: 'none' }}>{d.title}</Link>
+                        <Link href={`/deals/${d.id}`} style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.875rem', textDecoration: 'none' }}>{d.title}</Link>
                         <div style={{ display: 'flex', gap: '0.375rem', marginTop: '0.25rem', alignItems: 'center' }}>
                           <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '0.1rem 0.4rem', borderRadius: '9999px', color: sc.color, background: sc.bg }}>{d.stage}</span>
-                          {d.value && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>₩{d.value.toLocaleString()}</span>}
+                          {d.value && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>₩{d.value.toLocaleString()}</span>}
                         </div>
                       </div>
-                      <span style={{ fontSize: '0.75rem', color: '#94a3b8', flexShrink: 0 }}>{d.probability}%</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', flexShrink: 0 }}>{d.probability}%</span>
                     </div>
                   </div>
                 )

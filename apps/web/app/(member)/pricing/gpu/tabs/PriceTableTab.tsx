@@ -133,7 +133,7 @@ function AssignSupplier({ quoteId, onAssigned }: { quoteId: string; onAssigned: 
         onClick={assign}
         disabled={!sel || saving}
         className="gpu-btn"
-        style={{ height: 26, padding: '0 9px', fontSize: 11.5, fontWeight: 600, background: sel ? 'var(--gpu-accent, #5b5ef0)' : '#cbd5e1', color: '#fff', borderRadius: 6 }}
+        style={{ height: 26, padding: '0 9px', fontSize: 11.5, fontWeight: 600, background: sel ? 'var(--gpu-accent, #5b5ef0)' : 'var(--border-subtle)', color: '#fff', borderRadius: 6 }}
       >
         {saving ? '지정 중…' : '지정'}
       </button>
@@ -262,11 +262,11 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
         )
       })}
       {listQuotes.length > 0 && (
-        <div style={{ marginTop: 10, padding: '12px 14px', borderRadius: 10, background: 'linear-gradient(180deg, #fff7ed, #fffbeb)', border: '2px solid var(--gpu-amber, #f59e0b)' }}>
+        <div style={{ marginTop: 10, padding: '12px 14px', borderRadius: 10, background: 'linear-gradient(180deg, #fff7ed, var(--warning-bg))', border: '2px solid var(--gpu-amber, #f59e0b)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
             <span style={{ fontSize: 15 }}>📢</span>
             <span style={{ fontSize: 12.5, fontWeight: 800, color: '#b45309', letterSpacing: '.01em' }}>현재 공시 판매가</span>
-            <span style={{ fontSize: 10.5, fontWeight: 600, color: '#92400e', background: '#fde68a', borderRadius: 5, padding: '1px 7px' }}>시장 참고 · 원가 아님</span>
+            <span style={{ fontSize: 10.5, fontWeight: 600, color: '#92400e', background: 'var(--warning-border)', borderRadius: 5, padding: '1px 7px' }}>시장 참고 · 원가 아님</span>
           </div>
           {listQuotes.map((q) => {
             const listKrw = Math.round(q.unit_price_usd * usdKrw)
@@ -777,7 +777,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <ChevronRight size={15} style={{ transform: collapsed ? 'none' : 'rotate(90deg)', transition: 'transform 0.15s', color: 'var(--gpu-muted)' }} />
                       <span className={`gpu-badge ${tierCfg.badge}`} style={{ fontSize: 10 }}>{tierCfg.label}</span>
-                      <strong style={{ fontSize: 13.5, color: '#0f172a' }}>{group.model}</strong>
+                      <strong style={{ fontSize: 13.5, color: 'var(--text)' }}>{group.model}</strong>
                       <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>
                         {group.rows.length}개 구성{group.perGpu != null ? ` · 1장당 ${currencyMode === 'KRW' ? fmtKRW(Math.round(group.perGpu * usdKrw)) : fmtUSD(group.perGpu)}/GPU·hr` : ''}
                       </span>
@@ -886,13 +886,13 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                   </td>
                   <td>
                     {p._derived ? (
-                      <span className="gpu-badge" style={{ background: '#f3effe', color: 'var(--gpu-accent)' }}>1장당×{p.gpu_count} 추정</span>
+                      <span className="gpu-badge" style={{ background: 'var(--brand-soft)', color: 'var(--gpu-accent)' }}>1장당×{p.gpu_count} 추정</span>
                     ) : p.pricing_mode === 'direct' ? (
                       <span className="gpu-badge gpu-badge-amber">직접입력</span>
                     ) : p.lowest_unit_price_usd != null ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                         {p.is_propagated ? (
-                          <span className="gpu-badge" style={{ background: '#f3effe', color: 'var(--gpu-accent)' }} title="모델 최저 1장당 단가를 이 구성에 전파한 추정가">
+                          <span className="gpu-badge" style={{ background: 'var(--brand-soft)', color: 'var(--gpu-accent)' }} title="모델 최저 1장당 단가를 이 구성에 전파한 추정가">
                             1장당 전파(추정)
                           </span>
                         ) : (
@@ -965,7 +965,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                     <td colSpan={colCount}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <ChevronRight size={16} style={{ transform: tierCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform 0.15s', color: 'var(--gpu-muted)' }} />
-                        <strong style={{ fontSize: 13.5, color: '#0f172a' }}>{tcfg.label}</strong>
+                        <strong style={{ fontSize: 13.5, color: 'var(--text)' }}>{tcfg.label}</strong>
                         <span style={{ fontSize: 11.5, color: 'var(--gpu-muted)' }}>{groups.length}개 모델</span>
                       </div>
                     </td>

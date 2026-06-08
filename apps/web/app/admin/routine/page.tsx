@@ -98,14 +98,14 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
           style={{
             fontSize: '1.5rem',
             fontWeight: 700,
-            color: '#0f172a',
+            color: 'var(--text)',
             letterSpacing: '-0.03em',
             margin: 0,
           }}
         >
           루틴 달성 현황
         </h1>
-        <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>
+        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
           팀원별 개인 루틴 달성률을 주차별로 확인합니다
         </p>
       </div>
@@ -135,12 +135,12 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
         </div>
 
         <div className="card" style={{ padding: '1.25rem 1.5rem', textAlign: 'center', minWidth: '160px' }}>
-          <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: 0, fontWeight: 500 }}>전체 달성률</p>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>전체 달성률</p>
           <p
             style={{
               fontSize: '2rem',
               fontWeight: 700,
-              color: overallRate >= 70 ? '#059669' : overallRate >= 40 ? '#d97706' : '#dc2626',
+              color: overallRate >= 70 ? '#059669' : overallRate >= 40 ? 'var(--warning)' : 'var(--danger)',
               letterSpacing: '-0.04em',
               margin: '0.25rem 0 0',
               lineHeight: 1.1,
@@ -196,14 +196,14 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
                   <td className="card-header">
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '0.5rem' }}>
                       <div>
-                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{profile.name || '-'}</div>
+                        <div style={{ fontWeight: 600, color: 'var(--text)' }}>{profile.name || '-'}</div>
                         {!template && profile.name && (
                           <div style={{ fontSize: '0.7rem', color: '#f59e0b', marginTop: '2px' }}>
                             조직도 미연결
                           </div>
                         )}
                       </div>
-                      <span style={{ fontWeight: 700, fontSize: '1.125rem', color: rate >= 70 ? '#059669' : rate >= 40 ? '#d97706' : '#dc2626', flexShrink: 0 }}>
+                      <span style={{ fontWeight: 700, fontSize: '1.125rem', color: rate >= 70 ? '#059669' : rate >= 40 ? 'var(--warning)' : 'var(--danger)', flexShrink: 0 }}>
                         {rate}%
                       </span>
                     </div>
@@ -219,8 +219,8 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
                             key={item.name}
                             className="badge"
                             style={{
-                              backgroundColor: itemRate >= 80 ? '#ecfdf5' : itemRate >= 40 ? '#fffbeb' : 'var(--color-bg)',
-                              color: itemRate >= 80 ? '#065f46' : itemRate >= 40 ? '#92400e' : '#64748b',
+                              backgroundColor: itemRate >= 80 ? '#ecfdf5' : itemRate >= 40 ? 'var(--warning-bg)' : 'var(--color-bg)',
+                              color: itemRate >= 80 ? '#065f46' : itemRate >= 40 ? '#92400e' : 'var(--text-muted)',
                               fontSize: '0.6875rem',
                             }}
                             title={item.freq === 'weekly' ? `${itemCount}/1회` : `${itemCount}/7일`}
@@ -232,7 +232,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
                     </div>
                   </td>
                   <td className="card-hide" style={{ textAlign: 'center' }}>
-                    <span style={{ fontWeight: 700, fontSize: '1rem', color: rate >= 70 ? '#059669' : rate >= 40 ? '#d97706' : '#dc2626' }}>
+                    <span style={{ fontWeight: 700, fontSize: '1rem', color: rate >= 70 ? '#059669' : rate >= 40 ? 'var(--warning)' : 'var(--danger)' }}>
                       {rate}%
                     </span>
                   </td>

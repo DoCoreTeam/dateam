@@ -168,7 +168,7 @@ function PositionBar({ ourPrice, marketMin, marketMax, marketMedian, fmt }: {
   const pct = Math.max(0, Math.min(100, ((ourPrice - marketMin) / range) * 100))
   const isLow = ourPrice < (marketMedian ?? marketMax) * 0.9
   const isHigh = ourPrice > (marketMedian ?? marketMin) * 1.1
-  const markerColor = isLow ? '#15a35a' : isHigh ? '#e0405a' : '#d97706'
+  const markerColor = isLow ? '#15a35a' : isHigh ? '#e0405a' : 'var(--warning)'
 
   return (
     <div style={{ minWidth: 140 }}>
@@ -243,7 +243,7 @@ function judgeLabel(j: string) {
 
 function judgeColor(j: string) {
   if (j === 'ok') return { bg: '#e6f7ee', color: '#15a35a' }
-  if (j === 'warn') return { bg: '#fef3e2', color: '#d97706' }
+  if (j === 'warn') return { bg: '#fef3e2', color: 'var(--warning)' }
   return { bg: '#fdebee', color: '#e0405a' }
 }
 
@@ -1296,9 +1296,9 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
         const successUrls = results.filter(r => r.prices_found > 0).length
         const failUrls = results.filter(r => !!r.error).length
         return (
-          <div style={{ background: ok ? 'var(--gpu-green-bg, #f0fdf4)' : 'var(--gpu-card-bg)', border: '1px solid', borderColor: ok ? 'var(--gpu-green, #22c55e)' : 'var(--gpu-border)', borderRadius: 8, fontSize: 13, overflow: 'hidden' }}>
+          <div style={{ background: ok ? 'var(--gpu-green-bg, var(--success-bg))' : 'var(--gpu-card-bg)', border: '1px solid', borderColor: ok ? 'var(--gpu-green, #22c55e)' : 'var(--gpu-border)', borderRadius: 8, fontSize: 13, overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px' }}>
-              <RefreshCw size={13} color={ok ? '#16a34a' : 'var(--gpu-muted)'} />
+              <RefreshCw size={13} color={ok ? 'var(--success)' : 'var(--gpu-muted)'} />
               <span style={{ flex: 1 }}>
                 {refreshResult.urls_checked === 0 ? (
                   <span style={{ color: 'var(--gpu-muted)' }}>{refreshResult.message ?? '분석할 URL이 없습니다 — 가격 등록 또는 경쟁사 URL 추가가 필요합니다'}</span>
@@ -1306,7 +1306,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                   <>
                     <b>{refreshResult.urls_checked}개 URL</b> AI 분석 ·{' '}
                     {ok
-                      ? <><b style={{ color: '#16a34a' }}>{refreshResult.prices_updated}개 가격</b> 업데이트</>
+                      ? <><b style={{ color: 'var(--success)' }}>{refreshResult.prices_updated}개 가격</b> 업데이트</>
                       : <span style={{ color: 'var(--gpu-muted)' }}>새 가격 없음</span>}
                     {results.length > 0 && (
                       <span style={{ color: 'var(--gpu-muted)', marginLeft: 6, fontSize: 12 }}>
@@ -1327,7 +1327,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                     <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: r.error ? 'var(--gpu-red, #ef4444)' : r.prices_found > 0 ? 'var(--gpu-green, #22c55e)' : 'var(--gpu-muted)' }} />
                     <span style={{ fontWeight: 600, minWidth: 0, flexShrink: 0 }}>{r.competitor}</span>
                     <span style={{ color: 'var(--gpu-faint)', fontFamily: 'monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.url}</span>
-                    <span style={{ flexShrink: 0, color: r.error ? 'var(--gpu-red, #ef4444)' : r.prices_found > 0 ? '#16a34a' : 'var(--gpu-muted)' }}>
+                    <span style={{ flexShrink: 0, color: r.error ? 'var(--gpu-red, #ef4444)' : r.prices_found > 0 ? 'var(--success)' : 'var(--gpu-muted)' }}>
                       {r.error ? r.error : `${r.prices_found}건`}
                     </span>
                   </div>
@@ -1624,7 +1624,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                   style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', cursor: 'pointer', background: '#fafbff', borderBottom: '1px solid #f1f2f6', userSelect: 'none' }}
                 >
                   <span style={{ transform: gCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform .15s', color: 'var(--gpu-muted)', display: 'inline-flex', fontSize: 11 }}>▶</span>
-                  <strong style={{ fontSize: 13, color: '#0f172a' }}>{gCfg.label}</strong>
+                  <strong style={{ fontSize: 13, color: 'var(--text)' }}>{gCfg.label}</strong>
                   <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>{new Set(g.products.map(p => p.product.model_name)).size}개 모델 · {g.products.length}개 구성</span>
                 </div>
               )

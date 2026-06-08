@@ -16,7 +16,7 @@ const INPUT: React.CSSProperties = {
   border: '1px solid #ddd6fe',
   borderRadius: '0.3rem',
   fontSize: '0.8125rem',
-  color: '#0f172a',
+  color: 'var(--text)',
   background: '#fff',
   width: '100%',
 }
@@ -138,10 +138,10 @@ export default function KpiRow({
             style={{ ...INPUT, width: '80px' }}
           />
         </td>
-        <td style={{ padding: '0.4rem 0.5rem', fontSize: '0.8125rem', color: '#64748b' }} data-label="단위">
+        <td style={{ padding: '0.4rem 0.5rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }} data-label="단위">
           {form.unit || '—'}
         </td>
-        <td colSpan={1} style={{ padding: '0.4rem 0.5rem', fontSize: '0.75rem', color: '#94a3b8' }} data-label="주차">
+        <td colSpan={1} style={{ padding: '0.4rem 0.5rem', fontSize: '0.75rem', color: 'var(--text-faint)' }} data-label="주차">
           {form.period_start} ~ {form.period_end}
         </td>
         <td style={{ padding: '0.4rem 0.5rem' }} className="card-actions">
@@ -166,17 +166,17 @@ export default function KpiRow({
   }
 
   return (
-    <tr style={{ borderBottom: '1px solid #f1f5f9', opacity: pending ? 0.5 : 1 }}>
-      <td style={{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: 500, color: '#0f172a' }} className="card-header">
+    <tr style={{ borderBottom: '1px solid var(--surface-muted)', opacity: pending ? 0.5 : 1 }}>
+      <td style={{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text)' }} className="card-header">
         {entry.metric_name}
       </td>
-      <td style={{ padding: '0.75rem', fontSize: '0.875rem', color: '#0f172a', fontVariantNumeric: 'tabular-nums' }} data-label="실적">
+      <td style={{ padding: '0.75rem', fontSize: '0.875rem', color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }} data-label="실적">
         {entry.value.toLocaleString()}
       </td>
-      <td style={{ padding: '0.75rem', fontSize: '0.875rem', color: '#64748b' }} data-label="단위">
+      <td style={{ padding: '0.75rem', fontSize: '0.875rem', color: 'var(--text-muted)' }} data-label="단위">
         {entry.unit || '—'}
       </td>
-      <td style={{ padding: '0.75rem', fontSize: '0.8125rem', color: '#64748b' }} data-label="주차">
+      <td style={{ padding: '0.75rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }} data-label="주차">
         {entry.period_start} ~ {entry.period_end}
       </td>
       <td style={{ padding: '0.75rem' }} className="card-actions">
@@ -184,14 +184,14 @@ export default function KpiRow({
           <button
             onClick={() => setEditing(true)}
             title="수정"
-            style={{ padding: '0.3rem 0.5rem', border: '1px solid #ddd6fe', borderRadius: '0.375rem', background: '#f3effe', color: 'var(--brand)', cursor: 'pointer', display: 'flex' }}
+            style={{ padding: '0.3rem 0.5rem', border: '1px solid #ddd6fe', borderRadius: '0.375rem', background: 'var(--brand-soft)', color: 'var(--brand)', cursor: 'pointer', display: 'flex' }}
           >
             <Pencil size={13} />
           </button>
           <button
             onClick={handleDelete}
             title="삭제"
-            style={{ padding: '0.3rem 0.5rem', border: '1px solid #fecaca', borderRadius: '0.375rem', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', display: 'flex' }}
+            style={{ padding: '0.3rem 0.5rem', border: '1px solid var(--danger-border)', borderRadius: '0.375rem', background: 'var(--danger-bg)', color: 'var(--danger)', cursor: 'pointer', display: 'flex' }}
           >
             <Trash2 size={13} />
           </button>

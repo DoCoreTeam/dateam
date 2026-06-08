@@ -53,6 +53,26 @@
   --radius-card: var(--radius);
   --shadow-card: var(--shadow-md);
 
+  /* ── 시맨틱 토큰 카탈로그 — 값=가장 흔한 원본색 (identity 매핑 → 무회귀) ── */
+  /* 텍스트 */
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+  /* 표면 */
+  --surface-bg: #f8fafc;
+  --surface-muted: #f1f5f9;
+  /* 보더 (light=기존 연회색, subtle=중간) — NB 잉크 보더는 --border-color 별도 */
+  --border-light: #e2e8f0;
+  --border-subtle: #cbd5e1;
+  /* 브랜드 틴트 */
+  --brand-soft: #f3effe;
+  --brand-soft-2: #ede9fe;
+  /* 시맨틱 상태 (fg/bg/border) — 각 dominant 값 */
+  --success: #16a34a; --success-bg: #f0fdf4; --success-border: #bbf7d0;
+  --danger: #dc2626; --danger-bg: #fef2f2; --danger-border: #fecaca;
+  --warning: #d97706; --warning-bg: #fffbeb; --warning-border: #fde68a;
+  --info: #2563eb; --info-bg: #eff6ff; --info-border: #bfdbfe;
+
   --duration-fast: 120ms;
   --duration-normal: 240ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -95,7 +115,7 @@
   font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: 0.18em;
-  color: #0f172a;
+  color: var(--text);
   opacity: 0.75;
 }
 
@@ -126,7 +146,7 @@
     color: var(--border-color);
   }
   50% {
-    color: #94a3b8;
+    color: var(--text-faint);
   }
 }
 
@@ -377,7 +397,7 @@
   }
 
   .badge-emerald {
-    background-color: #bbf7d0;
+    background-color: var(--success-border);
     color: #065f46;
   }
 
@@ -386,7 +406,7 @@
     font-size: 1.125rem;
     font-weight: 700;
     margin: 0.75rem 0 0.25rem;
-    color: #0f172a;
+    color: var(--text);
   }
   .tiptap-content h3 {
     font-size: 1rem;
@@ -421,7 +441,7 @@
     border-left: 3px solid #ddd6fe;
     margin: 0.5rem 0;
     padding: 0.25rem 0.75rem;
-    color: #64748b;
+    color: var(--text-muted);
     background: var(--color-bg);
     border-radius: 0 0.25rem 0.25rem 0;
   }
@@ -435,7 +455,7 @@
     margin: 0.4rem 0;
   }
   .tiptap-content code {
-    background: #f1f5f9;
+    background: var(--surface-muted);
     color: var(--brand);
     padding: 0.1em 0.3em;
     border-radius: 0.2rem;
@@ -463,7 +483,7 @@
   .tiptap-content p.is-editor-empty:first-child::before {
     content: attr(data-placeholder);
     float: left;
-    color: #94a3b8;
+    color: var(--text-faint);
     pointer-events: none;
     height: 0;
   }
@@ -473,7 +493,7 @@
     font-size: 1rem;
     font-weight: 700;
     margin: 0.5rem 0 0.2rem;
-    color: #0f172a;
+    color: var(--text);
   }
   .report-rich h3 {
     font-size: 0.9375rem;
@@ -508,7 +528,7 @@
     border-left: 3px solid #ddd6fe;
     margin: 0.4rem 0;
     padding: 0.2rem 0.625rem;
-    color: #64748b;
+    color: var(--text-muted);
     background: var(--color-bg);
     border-radius: 0 0.25rem 0.25rem 0;
   }
@@ -522,7 +542,7 @@
     margin: 0.3rem 0;
   }
   .report-rich code {
-    background: #f1f5f9;
+    background: var(--surface-muted);
     color: var(--brand);
     padding: 0.1em 0.3em;
     border-radius: 0.2rem;
@@ -608,7 +628,7 @@
   }
 
   .mobile-menu-btn:hover {
-    background-color: #f1f5f9;
+    background-color: var(--surface-muted);
   }
 
   /* 사이드바 오버레이 딤 */
@@ -783,7 +803,7 @@
     align-items: flex-start;
     gap: 0.75rem;
     padding: 0.625rem 1rem !important;
-    border-bottom: 1px solid #f1f5f9 !important;
+    border-bottom: 1px solid var(--surface-muted) !important;
     border-right: none !important;
     width: auto !important;
     vertical-align: top;
@@ -795,7 +815,7 @@
     content: attr(data-label);
     font-size: 0.6875rem;
     font-weight: 600;
-    color: #94a3b8;
+    color: var(--text-faint);
     white-space: nowrap;
     min-width: 4rem;
     flex-shrink: 0;
@@ -887,7 +907,7 @@
     display: block;
     font-size: 0.7rem;
     font-weight: 700;
-    color: #dc2626;
+    color: var(--danger);
     margin-bottom: 0.125rem;
   }
   .report-form-table td:nth-child(5) {
@@ -1017,7 +1037,7 @@
   background: var(--color-bg);
   border: 2px solid var(--border-color);
   border-radius: 0.375rem;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
   transition:
     background 0.15s,
@@ -1025,7 +1045,7 @@
     color 0.15s;
 }
 .intake-tool-btn:hover:not(:disabled) {
-  background: #f3effe;
+  background: var(--brand-soft);
   border-color: #ddd6fe;
   color: var(--brand-dark);
 }
@@ -1089,7 +1109,7 @@ label.intake-tool-btn {
 }
 .intake-native-file input[type='file'] {
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--text-muted);
   max-width: 220px;
 }
 @media (max-width: 768px) {
@@ -1101,16 +1121,16 @@ label.intake-tool-btn {
 .dropzone-icon {
   font-size: 1.5rem;
   margin-bottom: 0.5rem;
-  color: #94a3b8;
+  color: var(--text-faint);
 }
 .dropzone-title {
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 0.875rem;
   margin: 0 0 0.25rem;
   font-weight: 600;
 }
 .dropzone-hint {
-  color: #94a3b8;
+  color: var(--text-faint);
   font-size: 0.75rem;
   margin: 0;
 }
@@ -1126,7 +1146,7 @@ label.intake-tool-btn {
 .file-item-name {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #0f172a;
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1137,19 +1157,19 @@ label.intake-tool-btn {
 }
 .file-status-done {
   font-size: 0.75rem;
-  color: #16a34a;
+  color: var(--success);
   font-weight: 600;
 }
 .file-status-error {
   font-size: 0.75rem;
-  color: #dc2626;
+  color: var(--danger);
 }
 .file-remove-btn {
   flex-shrink: 0;
   background: none;
   border: none;
   cursor: pointer;
-  color: #94a3b8;
+  color: var(--text-faint);
   font-size: 1rem;
   padding: 0.125rem;
   line-height: 1;
@@ -1157,7 +1177,7 @@ label.intake-tool-btn {
 .intake-action-btn {
   padding: 0.5rem 1rem;
   min-height: 40px;
-  background: #f1f5f9;
+  background: var(--surface-muted);
   border: 2px solid var(--border-color);
   border-radius: var(--radius);
   cursor: pointer;
@@ -1166,8 +1186,8 @@ label.intake-tool-btn {
   font-weight: 500;
 }
 .parsed-card {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
   border-radius: var(--radius);
   padding: 1.25rem;
 }
@@ -1178,19 +1198,19 @@ label.intake-tool-btn {
   margin: 0 0 0.875rem;
 }
 .parsed-card-fit-high {
-  color: #16a34a;
+  color: var(--success);
 }
 .parsed-card-fit-low {
-  color: #d97706;
+  color: var(--warning);
 }
 .parsed-field-label {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: var(--text-faint);
   font-weight: 600;
 }
 .parsed-field-value-lg {
   font-size: 0.9rem;
-  color: #0f172a;
+  color: var(--text);
   font-weight: 600;
 }
 .parsed-field-value {
@@ -1309,8 +1329,8 @@ label.intake-tool-btn {
 }
 .calendar-nav-btn:hover {
   background: var(--color-bg);
-  border-color: #cbd5e1;
-  color: #0f172a;
+  border-color: var(--border-subtle);
+  color: var(--text);
 }
 .calendar-nav-btn.is-today-btn {
   width: auto;
@@ -1345,7 +1365,7 @@ label.intake-tool-btn {
   border-right: 1px solid #edf1f6;
   border-bottom: 2px solid var(--border-color);
   background: #fbfcfe;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 0.75rem;
   font-weight: 700;
 }
@@ -1353,10 +1373,10 @@ label.intake-tool-btn {
   border-right: none;
 }
 .calendar-weekday.is-sun {
-  color: #dc2626;
+  color: var(--danger);
 }
 .calendar-weekday.is-sat {
-  color: #2563eb;
+  color: var(--info);
 }
 .calendar-day-cell {
   min-height: max(4rem, min(7.75rem, calc((100dvh - 380px) / 6)));
@@ -1382,7 +1402,7 @@ label.intake-tool-btn {
 }
 .calendar-day-cell:hover {
   background: #f8fbff;
-  box-shadow: inset 0 0 0 1px #bfdbfe;
+  box-shadow: inset 0 0 0 1px var(--info-border);
 }
 .calendar-day-cell.is-empty {
   cursor: default;
@@ -1392,7 +1412,7 @@ label.intake-tool-btn {
   box-shadow: none;
 }
 .calendar-day-cell.is-today {
-  background: #eff6ff;
+  background: var(--info-bg);
   box-shadow: inset 0 0 0 1px #3b82f6;
 }
 .calendar-day-number {
@@ -1408,15 +1428,15 @@ label.intake-tool-btn {
   line-height: 1;
 }
 .calendar-day-cell.is-today .calendar-day-number {
-  background: #2563eb;
+  background: var(--info);
   color: #fff;
   font-weight: 800;
 }
 .calendar-day-number.is-sun {
-  color: #dc2626;
+  color: var(--danger);
 }
 .calendar-day-number.is-sat {
-  color: #2563eb;
+  color: var(--info);
 }
 .calendar-day-cell.is-today .calendar-day-number.is-sun,
 .calendar-day-cell.is-today .calendar-day-number.is-sat {
@@ -1432,9 +1452,9 @@ label.intake-tool-btn {
   width: fit-content;
   max-width: 100%;
   border-radius: 0.25rem;
-  background: #fef2f2;
+  background: var(--danger-bg);
   color: #b91c1c;
-  border: 1px solid #fecaca;
+  border: 1px solid var(--danger-border);
   padding: 0.125rem 0.375rem;
   font-size: 0.6875rem;
   font-weight: 800;
@@ -1453,30 +1473,30 @@ label.intake-tool-btn {
   border: 1px solid transparent;
 }
 .cal-preview-done {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
+  background: var(--success-bg);
+  border-color: var(--success-border);
 }
 .cal-preview-doing {
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  background: var(--info-bg);
+  border-color: var(--info-border);
 }
 .cal-preview-planned {
   background: #f5f3ff;
   border-color: #ddd6fe;
 }
 .cal-preview-blocker {
-  background: #fef2f2;
-  border-color: #fecaca;
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
 }
 .cal-preview-note {
-  background: #fffbeb;
-  border-color: #fde68a;
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
 }
 .cal-preview-type {
   flex-shrink: 0;
   font-size: 0.625rem;
   font-weight: 800;
-  color: #64748b;
+  color: var(--text-muted);
   letter-spacing: 0;
 }
 .cal-preview-done .cal-preview-type {
@@ -1497,7 +1517,7 @@ label.intake-tool-btn {
 .calendar-more-count {
   width: fit-content;
   max-width: 100%;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 0.6875rem;
   font-weight: 700;
   padding: 0 0.35rem;
@@ -1546,7 +1566,7 @@ label.intake-tool-btn {
 .daily-stats-progress-bg {
   width: 100%;
   height: 8px;
-  background-color: #f1f5f9;
+  background-color: var(--surface-muted);
   border-radius: 9999px;
   overflow: hidden;
   margin-bottom: 1rem;
@@ -1567,7 +1587,7 @@ label.intake-tool-btn {
   background: var(--color-bg);
   padding: 0.625rem 0.5rem;
   border-radius: var(--radius);
-  border: 1px solid #f1f5f9;
+  border: 1px solid var(--surface-muted);
 }
 .daily-stats-item-label {
   font-size: 0.6875rem;
@@ -1580,20 +1600,20 @@ label.intake-tool-btn {
   font-weight: 700;
 }
 .daily-stats-item.doing .daily-stats-item-val {
-  color: #2563eb;
+  color: var(--info);
 }
 .daily-stats-item.planned .daily-stats-item-val {
-  color: #7c3aed;
+  color: var(--brand);
 }
 .daily-stats-item.blocker .daily-stats-item-val {
-  color: #dc2626;
+  color: var(--danger);
 }
 
 /* 이월업무 카드 헤더 및 래퍼 */
 .carryover-card {
   padding: 1.25rem;
   background: #fffdf5;
-  border: 1px solid #fde68a;
+  border: 1px solid var(--warning-border);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
 }
@@ -1619,7 +1639,7 @@ label.intake-tool-btn {
   margin-bottom: 1.25rem;
   padding: 0.25rem;
   border-radius: var(--radius);
-  background: #f1f5f9;
+  background: var(--surface-muted);
 }
 .daily-view-tab {
   min-height: 2rem;
@@ -1627,7 +1647,7 @@ label.intake-tool-btn {
   border: none;
   border-radius: 0.375rem;
   background: transparent;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
@@ -1638,7 +1658,7 @@ label.intake-tool-btn {
 }
 .daily-view-tab.is-active {
   background: #fff;
-  color: #0f172a;
+  color: var(--text);
   box-shadow: var(--shadow-sm);
 }
 .daily-date-nav {
@@ -1685,7 +1705,7 @@ label.intake-tool-btn {
   border-radius: var(--radius);
   outline: none;
   resize: vertical;
-  color: #0f172a;
+  color: var(--text);
   font: inherit;
   font-size: 0.9375rem;
   line-height: 1.6;
@@ -1897,7 +1917,7 @@ label.intake-tool-btn {
   align-items: flex-start;
   justify-content: space-between;
   padding: 1.25rem 1.25rem 0.875rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--surface-muted);
   flex-shrink: 0;
 }
 .checkin-modal-label {
@@ -1911,7 +1931,7 @@ label.intake-tool-btn {
 .checkin-modal-title {
   font-size: 1rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text);
   margin: 0;
   letter-spacing: -0.02em;
 }
@@ -1921,7 +1941,7 @@ label.intake-tool-btn {
   border: 2px solid var(--border-color);
   border-radius: 0.375rem;
   background: var(--color-bg);
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 1.125rem;
   cursor: pointer;
   display: flex;
@@ -1993,12 +2013,12 @@ label.intake-tool-btn {
   align-items: center;
   justify-content: space-between;
   padding: 0.875rem 1.25rem;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--surface-muted);
   flex-shrink: 0;
 }
 .checkin-progress {
   font-size: 0.875rem;
-  color: #64748b;
+  color: var(--text-muted);
   font-weight: 500;
   margin: 0;
 }
@@ -2031,8 +2051,8 @@ label.intake-tool-btn {
   padding: 1.25rem;
 }
 .bulk-result-error {
-  background: #fef2f2;
-  border-color: #fecaca;
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
 }
 .bulk-progress-bar-bg {
   width: 100%;
@@ -2098,7 +2118,7 @@ label.intake-tool-btn {
 .slide-panel-title {
   font-size: 1rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text);
   margin: 0;
 }
 .slide-panel-close {
@@ -2110,13 +2130,13 @@ label.intake-tool-btn {
   border: none;
   background: none;
   cursor: pointer;
-  color: #64748b;
+  color: var(--text-muted);
   border-radius: 0.375rem;
   transition: background 150ms;
 }
 .slide-panel-close:hover {
-  background: #f1f5f9;
-  color: #0f172a;
+  background: var(--surface-muted);
+  color: var(--text);
 }
 .slide-panel-body {
   padding: 1.25rem 1.5rem;
@@ -2142,7 +2162,7 @@ label.intake-tool-btn {
   left: 0.625rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #94a3b8;
+  color: var(--text-faint);
   pointer-events: none;
 }
 .filter-search {
@@ -2152,7 +2172,7 @@ label.intake-tool-btn {
   border: 2px solid var(--border-color);
   border-radius: var(--radius);
   font-size: 0.875rem;
-  color: #0f172a;
+  color: var(--text);
   background: var(--color-bg);
   outline: none;
   transition:
@@ -2184,7 +2204,7 @@ label.intake-tool-btn {
   border: none;
   border-radius: var(--radius);
   font-size: 0.8125rem;
-  color: #64748b;
+  color: var(--text-muted);
   background: none;
   cursor: pointer;
   display: flex;
@@ -2193,12 +2213,12 @@ label.intake-tool-btn {
   white-space: nowrap;
 }
 .filter-clear:hover {
-  color: #dc2626;
-  background: #fef2f2;
+  color: var(--danger);
+  background: var(--danger-bg);
 }
 .filter-count {
   font-size: 0.8125rem;
-  color: #94a3b8;
+  color: var(--text-faint);
   margin-left: auto;
   white-space: nowrap;
 }
@@ -2238,7 +2258,7 @@ label.intake-tool-btn {
 }
 .detail-info-label {
   min-width: 4.5rem;
-  color: #94a3b8;
+  color: var(--text-faint);
   font-size: 0.8125rem;
   flex-shrink: 0;
   padding-top: 1px;
@@ -2246,7 +2266,7 @@ label.intake-tool-btn {
 .detail-section-title {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #64748b;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 1.25rem 0 0.75rem;
@@ -2256,7 +2276,7 @@ label.intake-tool-btn {
   gap: 0.5rem;
   margin-top: 1.5rem;
   padding-top: 1.25rem;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--surface-muted);
 }
 .detail-btn-primary {
   flex: 1;
@@ -2285,7 +2305,7 @@ label.intake-tool-btn {
   align-items: center;
   gap: 0.375rem;
   background: none;
-  color: #64748b;
+  color: var(--text-muted);
   border: 2px solid var(--border-color);
   border-radius: var(--radius);
   font-size: 0.875rem;
@@ -2297,7 +2317,7 @@ label.intake-tool-btn {
 }
 .detail-btn-ghost:hover {
   background: var(--color-bg);
-  color: #0f172a;
+  color: var(--text);
 }
 
 /* AI Result Panel */
@@ -2380,7 +2400,7 @@ label.intake-tool-btn {
   border: none;
   border-radius: 20px;
   cursor: pointer;
-  background: linear-gradient(135deg, #7c3aed 0%, var(--brand-dark) 100%);
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
   color: #fff;
   box-shadow: 0 2px 8px rgba(99, 66, 237, 0.28);
   transition: opacity 0.15s, box-shadow 0.15s, transform 0.1s;
@@ -2396,7 +2416,7 @@ label.intake-tool-btn {
   opacity: 1;
 }
 .gpu-ai-toggle--on {
-  background: linear-gradient(135deg, var(--brand-dark) 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 100%);
   box-shadow: 0 0 0 3px rgba(99, 66, 237, 0.2), 0 2px 8px rgba(99, 66, 237, 0.35);
   animation: gpu-ai-glow 2s ease-in-out infinite;
 }
@@ -2456,7 +2476,7 @@ label.intake-tool-btn {
 .ai-analyzing-spinner {
   width: 2.5rem;
   height: 2.5rem;
-  border: 3px solid #ede9fe;
+  border: 3px solid var(--brand-soft-2);
   border-top-color: var(--brand);
   border-radius: 50%;
   animation: ai-spin 0.75s linear infinite;
@@ -2559,7 +2579,7 @@ label.intake-tool-btn {
 .confirm-modal-icon {
   width: 2.5rem;
   height: 2.5rem;
-  background: #fef2f2;
+  background: var(--danger-bg);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -2570,13 +2590,13 @@ label.intake-tool-btn {
 .confirm-modal-title {
   font-size: 1rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text);
   text-align: center;
   margin-bottom: 0.375rem;
 }
 .confirm-modal-desc {
   font-size: 0.875rem;
-  color: #64748b;
+  color: var(--text-muted);
   text-align: center;
   margin-bottom: 1.25rem;
 }
@@ -2587,7 +2607,7 @@ label.intake-tool-btn {
 .confirm-modal-btn-cancel {
   flex: 1;
   padding: 0.625rem;
-  background: #f1f5f9;
+  background: var(--surface-muted);
   color: #475569;
   border: none;
   border-radius: var(--radius);
@@ -2601,7 +2621,7 @@ label.intake-tool-btn {
 .confirm-modal-btn-delete {
   flex: 1;
   padding: 0.625rem;
-  background: #dc2626;
+  background: var(--danger);
   color: #fff;
   border: none;
   border-radius: var(--radius);
@@ -3439,7 +3459,7 @@ label.intake-tool-btn {
 .gpu-error-msg {
   background: var(--gpu-red-soft);
   color: var(--gpu-red);
-  border: 1px solid #fecaca;
+  border: 1px solid var(--danger-border);
   border-radius: var(--radius);
   padding: 12px 16px;
   font-size: 13px;
@@ -3630,7 +3650,7 @@ label.intake-tool-btn {
   padding: 0.625rem 0.875rem;
   background: var(--color-bg);
   border: 2px solid var(--border-color);
-  border-left: 3px solid #94a3b8;
+  border-left: 3px solid var(--text-faint);
   border-radius: var(--radius);
   cursor: pointer;
   text-align: left;
@@ -3638,11 +3658,11 @@ label.intake-tool-btn {
   color: #1e293b;
   transition: background 0.12s;
 }
-.daily-group-header:hover { background: #f1f5f9; }
+.daily-group-header:hover { background: var(--surface-muted); }
 .daily-group-chevron {
   flex-shrink: 0;
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--text-muted);
   width: 0.875rem;
 }
 .daily-group-icon { flex-shrink: 0; font-size: 0.875rem; }
@@ -3658,7 +3678,7 @@ label.intake-tool-btn {
 .daily-group-meta {
   flex-shrink: 0;
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: var(--text-faint);
   white-space: nowrap;
 }
 .daily-group-done {
@@ -3693,7 +3713,7 @@ label.intake-tool-btn {
   font-size: 0.65rem;
   line-height: 1.3;
   color: #3730a3;
-  background: #f3effe;
+  background: var(--brand-soft);
   border: 1px solid #ddd6fe;
   border-radius: 0.25rem;
   padding: 0.05rem 0.3rem;
@@ -3703,7 +3723,7 @@ label.intake-tool-btn {
   white-space: nowrap;
   cursor: pointer;
 }
-.cal-event-chip:hover { background: #ede9fe; }
+.cal-event-chip:hover { background: var(--brand-soft-2); }
 .cal-event-time { font-weight: 700; flex-shrink: 0; }
 @media (max-width: 767px) {
   .cal-event-chip { font-size: 0.6rem; padding: 0.05rem 0.2rem; }

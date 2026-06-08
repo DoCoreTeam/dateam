@@ -45,7 +45,7 @@ export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
   if (loading) {
     return (
       <div className="card" style={{ padding: '1rem 1.25rem' }}>
-        <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>메모 불러오는 중…</div>
+        <div style={{ fontSize: '0.85rem', color: 'var(--text-faint)' }}>메모 불러오는 중…</div>
       </div>
     )
   }
@@ -57,9 +57,9 @@ export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
       <div className="card" style={{ padding: '1rem 1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: shown.length ? '0.75rem' : 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <StickyNote size={16} color="#d97706" />
+            <StickyNote size={16} color="var(--warning)" />
             <span className="tape-title" style={{ fontSize: '1.25rem' }}>확인 안 한 메모</span>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#d97706', background: '#fffbeb', borderRadius: '999px', padding: '1px 8px' }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--warning)', background: 'var(--warning-bg)', borderRadius: '999px', padding: '1px 8px' }}>
               {items.length}
             </span>
           </div>
@@ -69,7 +69,7 @@ export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
         </div>
 
         {shown.length === 0 ? (
-          <div style={{ fontSize: '0.82rem', color: '#94a3b8', padding: '0.5rem 0' }}>
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-faint)', padding: '0.5rem 0' }}>
             확인 안 한 메모가 없습니다 ✨
           </div>
         ) : (
@@ -78,7 +78,7 @@ export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
               const st = STALENESS_STYLE[m.staleness]
               return (
                 <li key={m.id} className={`memo-widget-item${m.staleness === 'stale' ? ' memo-pulse' : ''}`}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.6rem', borderRadius: 'var(--radius)', background: 'var(--color-bg)', border: '1px solid #f1f5f9' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.6rem', borderRadius: 'var(--radius)', background: 'var(--color-bg)', border: '1px solid var(--surface-muted)' }}>
                   <span title={st.label} style={{ width: 8, height: 8, borderRadius: '50%', background: st.dot, flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.82rem', color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -87,7 +87,7 @@ export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
                     <div style={{ fontSize: '0.68rem', color: st.text }}>{relativeTime(m.logged_at)}</div>
                   </div>
                   <button onClick={() => handleReview(m.id)} title="확인 완료"
-                    style={{ background: 'none', border: '2px solid var(--border-color)', borderRadius: '0.4rem', cursor: 'pointer', padding: '3px 5px', color: '#16a34a', display: 'flex', flexShrink: 0 }}>
+                    style={{ background: 'none', border: '2px solid var(--border-color)', borderRadius: '0.4rem', cursor: 'pointer', padding: '3px 5px', color: 'var(--success)', display: 'flex', flexShrink: 0 }}>
                     <Check size={13} />
                   </button>
                   <button onClick={() => setPromoteTarget(m)} title="업무로 전환"

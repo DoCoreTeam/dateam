@@ -52,7 +52,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
     <div
       style={{
         borderRadius: 'var(--radius)',
-        border: confirmDelete ? '1px solid #fca5a5' : '1px solid #f1f5f9',
+        border: confirmDelete ? '1px solid #fca5a5' : '1px solid var(--surface-muted)',
         overflow: 'hidden',
         opacity: pending ? 0.5 : 1,
       }}
@@ -70,8 +70,8 @@ function ReportCard({ report }: { report: WeeklyReport }) {
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
               fontSize: '0.75rem', padding: '0.25rem 0.625rem',
-              background: '#fff1f2', color: '#dc2626',
-              border: '1px solid #fecaca', borderRadius: '0.375rem', cursor: 'pointer',
+              background: '#fff1f2', color: 'var(--danger)',
+              border: '1px solid var(--danger-border)', borderRadius: '0.375rem', cursor: 'pointer',
             }}
           >
             <Trash2 size={12} />
@@ -83,7 +83,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
       {confirmDelete && (
         <div style={{ padding: '1rem', backgroundColor: '#fff1f2', borderTop: '1px solid #fca5a5' }}>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-            <AlertTriangle size={18} color="#dc2626" style={{ flexShrink: 0, marginTop: '1px' }} />
+            <AlertTriangle size={18} color="var(--danger)" style={{ flexShrink: 0, marginTop: '1px' }} />
             <div>
               <p style={{ fontSize: '0.875rem', fontWeight: 700, color: '#b91c1c', margin: '0 0 0.25rem' }}>
                 정말 삭제하시겠습니까?
@@ -104,7 +104,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
               onClick={handleDelete}
               disabled={pending}
               style={{
-                padding: '0.5rem 1rem', backgroundColor: '#dc2626', color: '#fff',
+                padding: '0.5rem 1rem', backgroundColor: 'var(--danger)', color: '#fff',
                 border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer',
                 fontSize: '0.875rem', fontWeight: 700,
               }}
@@ -146,7 +146,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
           )}
           {report.issues && (
             <div>
-              <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#dc2626', margin: '0 0 0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--danger)', margin: '0 0 0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 이슈/협조사항
               </p>
               <RichContent html={report.issues} />
@@ -180,7 +180,7 @@ export default function ReportAccordion({ groups }: ReportAccordionProps) {
 
   if (groups.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#94a3b8', fontSize: '0.875rem' }}>
+      <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-faint)', fontSize: '0.875rem' }}>
         작성된 주간보고가 없습니다
       </div>
     )
@@ -208,11 +208,11 @@ export default function ReportAccordion({ groups }: ReportAccordionProps) {
                   background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left',
                 }}
               >
-                <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a' }}>{weekLabel} 주</span>
+                <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text)' }}>{weekLabel} 주</span>
                 <span className="badge badge-slate">{group.reports.length}건</span>
                 <ChevronDown
                   size={16}
-                  color="#94a3b8"
+                  color="var(--text-faint)"
                   style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 200ms', marginLeft: '0.25rem' }}
                 />
               </button>
@@ -221,7 +221,7 @@ export default function ReportAccordion({ groups }: ReportAccordionProps) {
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
                   fontSize: '0.8125rem', fontWeight: 500, padding: '0.375rem 0.75rem',
-                  background: '#f3effe', color: 'var(--brand-dark)', border: 'none',
+                  background: 'var(--brand-soft)', color: 'var(--brand-dark)', border: 'none',
                   borderRadius: 'var(--radius)', cursor: 'pointer', flexShrink: 0,
                 }}
               >

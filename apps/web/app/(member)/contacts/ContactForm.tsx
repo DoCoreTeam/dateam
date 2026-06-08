@@ -181,7 +181,7 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
             }}
           >
             {cardUploading ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', color: '#94a3b8' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', color: 'var(--text-faint)' }}>
                 <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
                 <span style={{ fontSize: '0.75rem' }}>업로드 중...</span>
               </div>
@@ -204,7 +204,7 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: '0.375rem',
-                    color: '#94a3b8',
+                    color: 'var(--text-faint)',
                     position: 'absolute',
                     inset: 0,
                     justifyContent: 'center',
@@ -234,15 +234,15 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
                 </div>
               </>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.375rem', color: '#94a3b8' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.375rem', color: 'var(--text-faint)' }}>
                 <Camera size={20} />
                 <span style={{ fontSize: '0.75rem' }}>클릭하여 업로드</span>
-                <span style={{ fontSize: '0.6875rem', color: '#cbd5e1' }}>이미지, 최대 10MB</span>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--border-subtle)' }}>이미지, 최대 10MB</span>
               </div>
             )}
           </div>
           {cardUploadError && (
-            <p style={{ color: '#dc2626', fontSize: '0.8125rem', margin: '0.375rem 0 0 0' }}>{cardUploadError}</p>
+            <p style={{ color: 'var(--danger)', fontSize: '0.8125rem', margin: '0.375rem 0 0 0' }}>{cardUploadError}</p>
           )}
         </div>
 
@@ -294,12 +294,12 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
           <label className="label">메모</label>
           <textarea className="input-field" value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
         </div>
-        {error && <p style={{ color: '#dc2626', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
+        {error && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           <button type="submit" disabled={loading} className="btn-primary" style={{ minHeight: '44px', padding: '0.625rem 1.5rem' }}>
             {loading ? '저장중...' : contact ? '수정' : '담당자 등록'}{!loading && <span style={{ fontSize: '0.7rem', opacity: 0.65, marginLeft: '0.375rem' }}>Ctrl+↵</span>}
           </button>
-          <button type="button" onClick={() => router.back()} style={{ minHeight: '44px', padding: '0.625rem 1.25rem', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: '#64748b' }}>
+          <button type="button" onClick={() => router.back()} style={{ minHeight: '44px', padding: '0.625rem 1.25rem', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
             취소
           </button>
         </div>

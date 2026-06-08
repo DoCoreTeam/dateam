@@ -185,7 +185,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     padding: '0.5rem 1rem',
     fontSize: '0.875rem',
     fontWeight: isActive ? 600 : 500,
-    color: isActive ? 'var(--brand)' : '#64748b',
+    color: isActive ? 'var(--brand)' : 'var(--text-muted)',
     borderBottom: isActive ? '2px solid var(--brand)' : '2px solid transparent',
     cursor: 'pointer',
     textDecoration: 'none',
@@ -194,10 +194,10 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
   return (
     <div style={{ width: '100%' }}>
       <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
           주간보고
         </h1>
-        <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>
+        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
           주간 성과, 계획, 이슈를 기록합니다
         </p>
       </div>
@@ -223,12 +223,12 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
       {activeTab === 'mine' ? (
         <>
           {justSaved && (
-            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#15803d' }}>
+            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#15803d' }}>
               주간보고가 저장되었습니다
             </div>
           )}
           {justReset && (
-            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
+            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
               보고서가 초기화되었습니다
             </div>
           )}

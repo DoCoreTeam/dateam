@@ -8,13 +8,13 @@ import { getBranding } from '@/lib/branding'
 
 function statusBadge(status: string) {
   const map: Record<string, { color: string; bg: string; label: string }> = {
-    pending: { color: '#d97706', bg: '#fffbeb', label: '대기' },
+    pending: { color: 'var(--warning)', bg: 'var(--warning-bg)', label: '대기' },
     processing: { color: '#0284c7', bg: '#f0f9ff', label: '처리중' },
-    completed: { color: '#16a34a', bg: '#f0fdf4', label: '완료' },
-    crm_registered: { color: 'var(--brand-dark)', bg: '#f3effe', label: 'CRM 등록' },
-    failed: { color: '#dc2626', bg: '#fef2f2', label: '실패' },
+    completed: { color: 'var(--success)', bg: 'var(--success-bg)', label: '완료' },
+    crm_registered: { color: 'var(--brand-dark)', bg: 'var(--brand-soft)', label: 'CRM 등록' },
+    failed: { color: 'var(--danger)', bg: 'var(--danger-bg)', label: '실패' },
   }
-  return map[status] ?? { color: '#64748b', bg: 'var(--color-bg)', label: status }
+  return map[status] ?? { color: 'var(--text-muted)', bg: 'var(--color-bg)', label: status }
 }
 
 function sourceLabel(source: string) {
@@ -55,10 +55,10 @@ export default async function LeadIntakePage({ searchParams }: PageProps) {
   return (
     <div>
       <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
           {targetLabel(target)} 인테이크
         </h1>
-        <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>
+        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
           텍스트, 명함, 음성, 파일을 입력하면 AI가 거래처·담당자·영업기회를 분석하고 생성 후보를 만듭니다
         </p>
       </div>
@@ -106,9 +106,9 @@ export default async function LeadIntakePage({ searchParams }: PageProps) {
                     <td className="card-header">
                       <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '0.5rem' }}>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayTitle}</div>
+                          <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayTitle}</div>
                           {displaySub && (
-                            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displaySub}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginTop: '0.125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displaySub}</div>
                           )}
                         </div>
                       </div>
@@ -121,13 +121,13 @@ export default async function LeadIntakePage({ searchParams }: PageProps) {
                     </td>
                     <td data-label="Fit">
                       {intake.fit_score !== null ? (
-                        <span style={{ fontSize: '0.875rem', fontWeight: 700, color: intake.fit_score >= 70 ? '#16a34a' : intake.fit_score >= 40 ? '#d97706' : '#dc2626' }}>
+                        <span style={{ fontSize: '0.875rem', fontWeight: 700, color: intake.fit_score >= 70 ? 'var(--success)' : intake.fit_score >= 40 ? 'var(--warning)' : 'var(--danger)' }}>
                           {intake.fit_score}점
                         </span>
-                      ) : <span style={{ color: '#cbd5e1' }}>-</span>}
+                      ) : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
                     </td>
                     <td data-label="일시">
-                      <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                      <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
                         {new Date(intake.created_at).toLocaleDateString('ko-KR')}
                       </span>
                     </td>

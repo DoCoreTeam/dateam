@@ -70,7 +70,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
   const SECTION_TITLE: React.CSSProperties = {
     fontSize: '0.8125rem',
     fontWeight: 700,
-    color: '#64748b',
+    color: 'var(--text-muted)',
     letterSpacing: '0.06em',
     textTransform: 'uppercase',
     margin: '0 0 0.875rem',
@@ -79,10 +79,10 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
   return (
     <div>
       <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
           KPI 관리
         </h1>
-        <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>
+        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
           이번 주 실적을 기록하고 추적합니다
         </p>
       </div>
@@ -92,10 +92,10 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
         <section aria-labelledby="org-kpi-heading" style={{ marginBottom: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
             <Target size={16} color="var(--brand)" />
-            <h2 id="org-kpi-heading" style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+            <h2 id="org-kpi-heading" style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
               조직 KPI 목표
             </h2>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>참고용 — 관리자가 설정한 목표입니다</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>참고용 — 관리자가 설정한 목표입니다</span>
           </div>
 
           <div className="responsive-grid-cols-3" style={{ marginBottom: '1rem' }}>
@@ -153,20 +153,20 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
 
           {okrList.length > 0 && (
             <div className="card" style={{ padding: '1.25rem' }}>
-              <p style={{ ...SECTION_TITLE, color: '#7c3aed' }}>분기 OKR</p>
+              <p style={{ ...SECTION_TITLE, color: 'var(--brand)' }}>분기 OKR</p>
               <div className="responsive-grid-cols-2">
                 {okrList.map((okr, i) => (
-                  <div key={i} style={{ borderLeft: '3px solid #7c3aed', paddingLeft: '0.875rem', paddingTop: '0.25rem', paddingBottom: '0.25rem' }}>
-                    <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.25rem', lineHeight: 1.4 }}>
+                  <div key={i} style={{ borderLeft: '3px solid var(--brand)', paddingLeft: '0.875rem', paddingTop: '0.25rem', paddingBottom: '0.25rem' }}>
+                    <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text)', margin: '0 0 0.25rem', lineHeight: 1.4 }}>
                       {okr.objective}
                     </p>
-                    <p style={{ fontSize: '0.6875rem', color: '#94a3b8', margin: '0 0 0.5rem', fontWeight: 500 }}>
+                    <p style={{ fontSize: '0.6875rem', color: 'var(--text-faint)', margin: '0 0 0.5rem', fontWeight: 500 }}>
                       Lead · {okr.lead}
                     </p>
                     <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                       {okr.key_results?.map((kr, j) => (
                         <li key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.375rem' }}>
-                          <span style={{ color: '#7c3aed', flexShrink: 0, fontSize: '0.75rem' }}>KR{j + 1}</span>
+                          <span style={{ color: 'var(--brand)', flexShrink: 0, fontSize: '0.75rem' }}>KR{j + 1}</span>
                           <span style={{ fontSize: '0.75rem', color: '#475569', lineHeight: 1.45 }}>{kr}</span>
                         </li>
                       ))}
@@ -186,7 +186,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
           <h2 className="tape-title" style={{ margin: 0 }}>
             이번 주 실적 입력
           </h2>
-          <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: '0.25rem' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginLeft: '0.25rem' }}>
             {weekStart} ~ {weekEnd}
           </span>
         </div>
@@ -196,8 +196,8 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
             role="alert"
             style={{
               padding: '0.75rem 1rem',
-              backgroundColor: '#fef2f2',
-              border: '1px solid #fecaca',
+              backgroundColor: 'var(--danger-bg)',
+              border: '1px solid var(--danger-border)',
               borderRadius: 'var(--radius)',
               marginBottom: '1rem',
               fontSize: '0.8125rem',
@@ -213,7 +213,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
         )}
 
         {weeklyTargets.length === 0 && h1Kpi.length === 0 && yearKpi.length === 0 ? (
-          <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0, padding: '1rem 0' }}>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-faint)', margin: 0, padding: '1rem 0' }}>
             관리자가 KPI 항목을 설정하지 않았습니다. 관리자에게 문의하세요.
           </p>
         ) : (
@@ -317,7 +317,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
             </table>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1rem', color: '#94a3b8', textAlign: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1rem', color: 'var(--text-faint)', textAlign: 'center' }}>
             <TrendingUp size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
             <p style={{ margin: 0, fontSize: '0.875rem' }}>아직 등록된 실적이 없습니다</p>
           </div>

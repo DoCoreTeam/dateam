@@ -21,9 +21,9 @@ function parseTargetNumber(target: string): number {
 }
 
 function rateColor(rate: number) {
-  if (rate >= 100) return { color: '#16a34a', background: '#f0fdf4' }
-  if (rate >= 50) return { color: '#d97706', background: '#fffbeb' }
-  return { color: '#dc2626', background: '#fef2f2' }
+  if (rate >= 100) return { color: 'var(--success)', background: 'var(--success-bg)' }
+  if (rate >= 50) return { color: 'var(--warning)', background: 'var(--warning-bg)' }
+  return { color: 'var(--danger)', background: 'var(--danger-bg)' }
 }
 
 export default async function AdminKpiPage({ searchParams }: PageProps) {
@@ -99,10 +99,10 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
   return (
     <div>
       <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
           KPI 집계
         </h1>
-        <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>
+        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
           팀원별 KPI 실적과 달성률을 확인합니다
         </p>
       </div>
@@ -127,7 +127,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <BarChart2 size={16} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>팀원별 KPI 달성률</h2>
-          <span style={{ fontSize: '0.8125rem', color: '#94a3b8' }}>{selectedStart} ~ {selectedEnd}</span>
+          <span style={{ fontSize: '0.8125rem', color: 'var(--text-faint)' }}>{selectedStart} ~ {selectedEnd}</span>
         </div>
 
         {allMetrics.length > 0 ? (
@@ -142,7 +142,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
                       <th key={m} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {m}
                         {t && (
-                          <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 400, color: '#94a3b8', marginTop: '0.1rem' }}>
+                          <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 400, color: 'var(--text-faint)', marginTop: '0.1rem' }}>
                             목표 {t.targetStr}
                           </span>
                         )}
@@ -171,9 +171,9 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
                             {entry ? (
                               <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
                                 <span>
-                                  <strong style={{ color: '#0f172a' }}>{entry.value.toLocaleString()}</strong>
+                                  <strong style={{ color: 'var(--text)' }}>{entry.value.toLocaleString()}</strong>
                                   {entry.unit && (
-                                    <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: '0.2rem' }}>{entry.unit}</span>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginLeft: '0.2rem' }}>{entry.unit}</span>
                                   )}
                                 </span>
                                 {rate !== null && (
@@ -183,7 +183,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
                                 )}
                               </div>
                             ) : (
-                              <span style={{ color: '#cbd5e1', fontSize: '0.8125rem' }}>-</span>
+                              <span style={{ color: 'var(--border-subtle)', fontSize: '0.8125rem' }}>-</span>
                             )}
                           </td>
                         )
@@ -195,7 +195,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
             </table>
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#94a3b8', fontSize: '0.875rem' }}>
+          <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-faint)', fontSize: '0.875rem' }}>
             <BarChart2 size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
             <p style={{ margin: 0 }}>해당 기간에 입력된 KPI 데이터가 없습니다</p>
           </div>
@@ -226,11 +226,11 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
                   <td className="card-header">
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '0.5rem' }}>
                       <div>
-                        <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.875rem' }}>{entry.profiles?.name ?? '-'}</div>
-                        <div style={{ fontSize: '0.8125rem', color: '#64748b', marginTop: '0.125rem' }}>{entry.metric_name}</div>
+                        <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.875rem' }}>{entry.profiles?.name ?? '-'}</div>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>{entry.metric_name}</div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem', flexShrink: 0 }}>
-                        <strong style={{ color: '#0f172a' }}>{entry.value.toLocaleString()}{entry.unit && <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: '0.2rem' }}>{entry.unit}</span>}</strong>
+                        <strong style={{ color: 'var(--text)' }}>{entry.value.toLocaleString()}{entry.unit && <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginLeft: '0.2rem' }}>{entry.unit}</span>}</strong>
                         {rate !== null && (
                           <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: '9999px', ...rateColor(rate) }}>
                             {rate}%
@@ -242,7 +242,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
                   <td className="card-hide"><span style={{ color: '#374151' }}>{entry.metric_name}</span></td>
                   <td className="card-hide" style={{ textAlign: 'right' }}>
                     <strong>{entry.value.toLocaleString()}</strong>
-                    {entry.unit && <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: '0.25rem' }}>{entry.unit}</span>}
+                    {entry.unit && <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginLeft: '0.25rem' }}>{entry.unit}</span>}
                   </td>
                   <td className="card-hide">
                     {rate !== null ? (
@@ -250,11 +250,11 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
                         {rate}%
                       </span>
                     ) : (
-                      <span style={{ color: '#cbd5e1', fontSize: '0.8125rem' }}>-</span>
+                      <span style={{ color: 'var(--border-subtle)', fontSize: '0.8125rem' }}>-</span>
                     )}
                   </td>
                   <td data-label="기간">
-                    <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>{entry.period_start} ~ {entry.period_end}</span>
+                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>{entry.period_start} ~ {entry.period_end}</span>
                   </td>
                 </tr>
               )

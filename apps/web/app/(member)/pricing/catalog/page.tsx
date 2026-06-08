@@ -346,13 +346,13 @@ export default function SalePriceCatalogPage() {
                   title={price ? '클릭하면 가격 복사' : undefined}
                   onClick={() => handleRowClick(p)}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--gpu-hover)' }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = isCopied ? '#f0fdf4' : '' }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = isCopied ? 'var(--success-bg)' : '' }}
                 >
                   {isCopied && (
                     <div style={{
                       position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                       background: 'rgba(240,253,244,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      borderRadius: 0, fontSize: 13, fontWeight: 700, color: '#16a34a', pointerEvents: 'none', zIndex: 2,
+                      borderRadius: 0, fontSize: 13, fontWeight: 700, color: 'var(--success)', pointerEvents: 'none', zIndex: 2,
                     }}>
                       ✓ 클립보드에 복사됨
                     </div>
@@ -364,7 +364,7 @@ export default function SalePriceCatalogPage() {
                       <div style={{ fontWeight: 700, fontSize: 13, color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}>
                         {p.model_name}
                         <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 400 }}>×{gpuCount}GPU</span>
-                        {p.pricing_mode === 'direct' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-amber)', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 4, padding: '0 5px' }}>직접가</span>}
+                        {p.pricing_mode === 'direct' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-amber)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 4, padding: '0 5px' }}>직접가</span>}
                         <button onClick={(e) => setDirectPrice(e, p)} title="직접 판매가 설정/해제" aria-label="직접 판매가 설정"
                           style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--gpu-faint)', fontSize: 11, padding: '0 2px' }}>✎</button>
                       </div>

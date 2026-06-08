@@ -194,7 +194,7 @@ export default function CalendarPage() {
           style={{
             fontSize: "1.125rem",
             fontWeight: 700,
-            color: "#0f172a",
+            color: "var(--text)",
             margin: 0,
           }}
         >
@@ -298,7 +298,7 @@ export default function CalendarPage() {
             <div
               style={{
                 textAlign: "center",
-                color: "#94a3b8",
+                color: "var(--text-faint)",
                 padding: "3rem 0",
               }}
             >
@@ -389,8 +389,8 @@ export default function CalendarPage() {
                                 {ddayLabel && (
                                   <span style={{
                                     fontSize: "0.6rem", fontWeight: 700,
-                                    color: ddayLabel === "D-day" ? "#dc2626" : "#7c3aed",
-                                    background: ddayLabel === "D-day" ? "#fef2f2" : "#f5f3ff",
+                                    color: ddayLabel === "D-day" ? "var(--danger)" : "var(--brand)",
+                                    background: ddayLabel === "D-day" ? "var(--danger-bg)" : "#f5f3ff",
                                     borderRadius: "0.2rem", padding: "0 0.2rem",
                                     flexShrink: 0,
                                   }}>
@@ -426,7 +426,7 @@ export default function CalendarPage() {
               flexWrap: "wrap",
               marginTop: "1rem",
               paddingTop: "0.75rem",
-              borderTop: "1px solid #f1f5f9",
+              borderTop: "1px solid var(--surface-muted)",
             }}
           >
             {(
@@ -452,7 +452,7 @@ export default function CalendarPage() {
                     display: "inline-block",
                   }}
                 />
-                <span style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
                   {v.label}
                 </span>
               </div>
@@ -513,7 +513,7 @@ export default function CalendarPage() {
             <div
               style={{
                 textAlign: "center",
-                color: "#94a3b8",
+                color: "var(--text-faint)",
                 padding: "3rem 0",
               }}
             >
@@ -554,7 +554,7 @@ export default function CalendarPage() {
                         alignItems: "center",
                         justifyContent: "space-between",
                         padding: "0.625rem 0.875rem",
-                        background: isToday ? "#eff6ff" : "var(--color-bg)",
+                        background: isToday ? "var(--info-bg)" : "var(--color-bg)",
                         borderBottom:
                           dayLogs.length > 0 ? "2px solid var(--border-color)" : "none",
                       }}
@@ -573,10 +573,10 @@ export default function CalendarPage() {
                             color: isToday
                               ? "#3b82f6"
                               : isSun
-                                ? "#dc2626"
+                                ? "var(--danger)"
                                 : isSat
-                                  ? "#2563eb"
-                                  : "#0f172a",
+                                  ? "var(--info)"
+                                  : "var(--text)",
                           }}
                         >
                           {WEEK_DAYS[dow]} {d.getDate()}일
@@ -605,7 +605,7 @@ export default function CalendarPage() {
                       >
                         {dayLogs.length > 0 && (
                           <span
-                            style={{ fontSize: "0.75rem", color: "#94a3b8" }}
+                            style={{ fontSize: "0.75rem", color: "var(--text-faint)" }}
                           >
                             {dayLogs.length}건
                           </span>
@@ -616,7 +616,7 @@ export default function CalendarPage() {
                             fontSize: "0.75rem",
                             color: "#3b82f6",
                             background: "none",
-                            border: "1px solid #bfdbfe",
+                            border: "1px solid var(--info-border)",
                             borderRadius: "0.25rem",
                             padding: "0.125rem 0.5rem",
                             cursor: "pointer",
@@ -668,7 +668,7 @@ export default function CalendarPage() {
                               <span
                                 style={{
                                   fontSize: "0.75rem",
-                                  color: "#94a3b8",
+                                  color: "var(--text-faint)",
                                   flexShrink: 0,
                                   marginTop: "0.15rem",
                                 }}

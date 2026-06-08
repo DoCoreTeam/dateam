@@ -197,13 +197,13 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
               }}>
                 {STEPS[step].stepLabel}
               </span>
-              <strong id="onboarding-tooltip-title" style={{ fontSize: '0.9375rem', color: '#0f172a' }}>{STEPS[step].title}</strong>
+              <strong id="onboarding-tooltip-title" style={{ fontSize: '0.9375rem', color: 'var(--text)' }}>{STEPS[step].title}</strong>
             </div>
             <button
               type="button"
               onClick={finish}
               aria-label="온보딩 닫기"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '1rem', lineHeight: 1, padding: '0.125rem' }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: '1rem', lineHeight: 1, padding: '0.125rem' }}
             >
               ✕
             </button>
@@ -232,7 +232,7 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
                 style={{
                   padding: '0.4rem 0.875rem', background: 'none',
                   border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
-                  fontSize: '0.8125rem', color: '#64748b', cursor: 'pointer',
+                  fontSize: '0.8125rem', color: 'var(--text-muted)', cursor: 'pointer',
                 }}
               >
                 건너뛰기

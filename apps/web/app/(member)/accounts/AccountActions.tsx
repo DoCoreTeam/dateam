@@ -10,7 +10,7 @@ export default function AccountActions({ accountId }: Props) {
     <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
       <Link
         href={`/accounts/${accountId}`}
-        style={{ fontSize: '0.75rem', color: 'var(--brand)', fontWeight: 600, textDecoration: 'none', padding: '0.25rem 0.5rem', border: '1px solid #ede9fe', borderRadius: '0.375rem', minHeight: '32px', display: 'flex', alignItems: 'center' }}
+        style={{ fontSize: '0.75rem', color: 'var(--brand)', fontWeight: 600, textDecoration: 'none', padding: '0.25rem 0.5rem', border: '1px solid var(--brand-soft-2)', borderRadius: '0.375rem', minHeight: '32px', display: 'flex', alignItems: 'center' }}
       >
         상세
       </Link>

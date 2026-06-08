@@ -78,8 +78,8 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
             alignItems: 'center',
             gap: '0.375rem',
             padding: '0.5rem 0.875rem',
-            backgroundColor: hasKey ? '#f1f5f9' : 'var(--color-border)',
-            color: hasKey ? '#374151' : '#94a3b8',
+            backgroundColor: hasKey ? 'var(--surface-muted)' : 'var(--color-border)',
+            color: hasKey ? '#374151' : 'var(--text-faint)',
             border: '2px solid var(--border-color)',
             borderRadius: 'var(--radius)',
             fontSize: '0.8125rem',
@@ -93,13 +93,13 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
       </div>
 
       {!modelsLoaded && !modelMsg && (
-        <p style={{ fontSize: '0.8125rem', color: '#94a3b8', margin: 0 }}>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-faint)', margin: 0 }}>
           {hasKey ? '버튼을 눌러 사용 가능한 모델 목록을 불러오세요' : 'API 키를 먼저 저장해주세요'}
         </p>
       )}
 
       {modelsLoaded && models.length === 0 && (
-        <p style={{ fontSize: '0.8125rem', color: '#94a3b8', margin: 0 }}>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-faint)', margin: 0 }}>
           generateContent를 지원하는 모델이 없습니다
         </p>
       )}
@@ -141,9 +141,9 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
             display: 'flex',
             alignItems: 'center',
             gap: '0.375rem',
-            backgroundColor: modelMsg.ok ? '#f0fdf4' : '#fef2f2',
+            backgroundColor: modelMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
             color: modelMsg.ok ? '#15803d' : '#b91c1c',
-            border: `1px solid ${modelMsg.ok ? '#bbf7d0' : '#fecaca'}`,
+            border: `1px solid ${modelMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
           }}
         >
           {modelMsg.ok ? <CheckCircle size={13} /> : <XCircle size={13} />}

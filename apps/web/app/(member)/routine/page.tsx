@@ -98,14 +98,14 @@ export default async function RoutinePage() {
           style={{
             fontSize: '1.5rem',
             fontWeight: 700,
-            color: '#0f172a',
+            color: 'var(--text)',
             letterSpacing: '-0.03em',
             margin: 0,
           }}
         >
           루틴 체크
         </h1>
-        <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>
+        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
           {hasName ? `${profile.name} · ` : ''}{weekLabel} ({weekStartStr} ~ {weekDates[6]})
         </p>
       </div>
@@ -115,8 +115,8 @@ export default async function RoutinePage() {
           padding: '1rem 1.25rem',
           borderRadius: 'var(--radius)',
           marginBottom: '1.5rem',
-          backgroundColor: '#fffbeb',
-          border: '1px solid #fde68a',
+          backgroundColor: 'var(--warning-bg)',
+          border: '1px solid var(--warning-border)',
           color: '#92400e',
           fontSize: '0.875rem',
         }}>

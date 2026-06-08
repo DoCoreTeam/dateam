@@ -97,7 +97,7 @@ export default function PasswordChangeModal() {
           <h2 className="tape-title" style={{ margin: 0 }}>
             첫 로그인 설정
           </h2>
-          <p style={{ color: '#64748b', fontSize: '0.875rem', margin: 0, lineHeight: 1.6 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0, lineHeight: 1.6 }}>
             본인 이름 확인 후 새 비밀번호를 설정해 주세요.
           </p>
         </div>
@@ -105,13 +105,13 @@ export default function PasswordChangeModal() {
         {error && (
           <div
             style={{
-              backgroundColor: '#fef2f2',
-              border: '1px solid #fecaca',
+              backgroundColor: 'var(--danger-bg)',
+              border: '1px solid var(--danger-border)',
               borderRadius: 'var(--radius)',
               padding: '0.75rem 1rem',
               marginBottom: '1rem',
               fontSize: '0.8125rem',
-              color: '#dc2626',
+              color: 'var(--danger)',
             }}
           >
             {error}

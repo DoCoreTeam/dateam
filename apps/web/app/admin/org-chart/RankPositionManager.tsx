@@ -98,14 +98,14 @@ export default function RankPositionManager({ ranks, positions }: Props) {
               <button
                 onClick={() => handleDeleteRank(r.id)}
                 disabled={isPending}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '2px' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: '2px' }}
               >
                 <Trash2 size={13} />
               </button>
             </li>
           ))}
           {ranks.length === 0 && (
-            <li style={{ color: '#94a3b8', fontSize: '0.8rem', padding: '0.5rem 0' }}>등록된 직급이 없습니다</li>
+            <li style={{ color: 'var(--text-faint)', fontSize: '0.8rem', padding: '0.5rem 0' }}>등록된 직급이 없습니다</li>
           )}
         </ul>
       </div>
@@ -150,14 +150,14 @@ export default function RankPositionManager({ ranks, positions }: Props) {
               <button
                 onClick={() => handleDeletePosition(p.id)}
                 disabled={isPending}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '2px' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: '2px' }}
               >
                 <Trash2 size={13} />
               </button>
             </li>
           ))}
           {positions.length === 0 && (
-            <li style={{ color: '#94a3b8', fontSize: '0.8rem', padding: '0.5rem 0' }}>등록된 직책이 없습니다</li>
+            <li style={{ color: 'var(--text-faint)', fontSize: '0.8rem', padding: '0.5rem 0' }}>등록된 직책이 없습니다</li>
           )}
         </ul>
       </div>

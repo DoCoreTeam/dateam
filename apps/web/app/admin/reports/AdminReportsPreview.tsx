@@ -82,7 +82,7 @@ function writeCache(week: string, member: string, rows: PreviewRow[]) {
 }
 
 function RichCell({ html }: { html: string }) {
-  if (!html) return <span style={{ color: '#cbd5e1' }}>-</span>
+  if (!html) return <span style={{ color: 'var(--border-subtle)' }}>-</span>
   if (html.startsWith('<'))
     return <div className="report-rich" dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }} />
   return (
@@ -265,14 +265,14 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
                 const done = i < statusStep
                 const active = i === statusStep
                 return (
-                  <span key={i} style={{ width: done ? 8 : active ? 10 : 6, height: done ? 8 : active ? 10 : 6, borderRadius: '50%', background: done ? '#7c3aed' : active ? '#a78bfa' : '#ddd6fe', transition: 'all 300ms', flexShrink: 0 }} />
+                  <span key={i} style={{ width: done ? 8 : active ? 10 : 6, height: done ? 8 : active ? 10 : 6, borderRadius: '50%', background: done ? 'var(--brand)' : active ? '#a78bfa' : '#ddd6fe', transition: 'all 300ms', flexShrink: 0 }} />
                 )
               })}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', minWidth: 0 }}>
               <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#6d28d9', whiteSpace: 'nowrap' }}>{STEPS[Math.min(statusStep, STEPS.length - 1)].label}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div role="progressbar" aria-busy="true" aria-label="AI 취합 진행 중" style={{ width: 80, height: 3, borderRadius: 3, background: '#ede9fe', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
+                <div role="progressbar" aria-busy="true" aria-label="AI 취합 진행 중" style={{ width: 80, height: 3, borderRadius: 3, background: 'var(--brand-soft-2)', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
                   <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '40%', borderRadius: 3, background: 'var(--brand)', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
                 </div>
                 <span style={{ fontSize: '0.6875rem', color: '#a78bfa', whiteSpace: 'nowrap' }}>{elapsed}초</span>
@@ -290,9 +290,9 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', background: 'linear-gradient(to right, #f8f7ff, #fdf4ff)', borderBottom: '1px solid #e9d5ff' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
-              <Sparkles size={16} color="#7c3aed" />
+              <Sparkles size={16} color="var(--brand)" />
               <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#1e1b4b' }}>AI 주간보고 취합</span>
-              <span style={{ padding: '0.125rem 0.5rem', background: '#ede9fe', color: '#6d28d9', borderRadius: '9999px', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.04em' }}>
+              <span style={{ padding: '0.125rem 0.5rem', background: 'var(--brand-soft-2)', color: '#6d28d9', borderRadius: '9999px', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.04em' }}>
                 Gemini AI
               </span>
               {fromCache && (
@@ -305,7 +305,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
             <button
               onClick={handleDownload}
               disabled={downloading}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, cursor: downloading ? 'not-allowed' : 'pointer', opacity: downloading ? 0.7 : 1, transition: 'opacity 150ms', flexShrink: 0 }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', background: 'var(--success)', color: '#fff', border: 'none', borderRadius: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, cursor: downloading ? 'not-allowed' : 'pointer', opacity: downloading ? 0.7 : 1, transition: 'opacity 150ms', flexShrink: 0 }}
             >
               {downloading ? '다운로드 중…' : 'DOCX 다운로드'}
             </button>
@@ -317,7 +317,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
               <thead>
                 <tr style={{ background: 'var(--color-bg)' }}>
                   {TH_COLS.map(({ label, width }) => (
-                    <th key={label} style={{ padding: '0.625rem 0.875rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.03em', borderBottom: '2px solid var(--border-color)', width, whiteSpace: 'nowrap' }}>
+                    <th key={label} style={{ padding: '0.625rem 0.875rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.03em', borderBottom: '2px solid var(--border-color)', width, whiteSpace: 'nowrap' }}>
                       {label}
                     </th>
                   ))}
@@ -335,7 +335,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
                     i = j
                   }
                   return rows.map((row, rowIdx) => (
-                    <tr key={rowIdx} style={{ borderBottom: '1px solid #f1f5f9', verticalAlign: 'top' }}>
+                    <tr key={rowIdx} style={{ borderBottom: '1px solid var(--surface-muted)', verticalAlign: 'top' }}>
                       <td className="mobile-only card-header">
                         <span style={{ fontWeight: 600, color: 'var(--brand)' }}>{row.orgName} {row.userName ? `(${row.userName})` : ''}</span>
                       </td>
@@ -343,7 +343,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
                         <td
                           rowSpan={spanMap.get(rowIdx)}
                           className="card-hide"
-                          style={{ padding: '0.75rem 0.875rem', whiteSpace: 'nowrap', verticalAlign: 'middle', borderRight: '1px solid #f1f5f9' }}
+                          style={{ padding: '0.75rem 0.875rem', whiteSpace: 'nowrap', verticalAlign: 'middle', borderRight: '1px solid var(--surface-muted)' }}
                         >
                           <div style={{ fontSize: '0.75rem', color: 'var(--brand)', fontWeight: 600 }}>{row.orgName}</div>
                           {row.userName && (

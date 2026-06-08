@@ -36,7 +36,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
         <Building2 size={18} color="var(--brand)" />
         <span style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b' }}>회사 정보</span>
-        <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: 4 }}>조직도 최상단</span>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginLeft: 4 }}>조직도 최상단</span>
       </div>
 
       {editing ? (
@@ -69,7 +69,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
               }}
             />
           </div>
-          {error && <p style={{ fontSize: '0.8125rem', color: '#dc2626', margin: 0 }}>{error}</p>}
+          {error && <p style={{ fontSize: '0.8125rem', color: 'var(--danger)', margin: 0 }}>{error}</p>}
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button
               type="submit"
@@ -77,7 +77,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.5rem 1rem', borderRadius: '0.375rem',
-                background: pending ? '#94a3b8' : 'var(--brand)', color: 'white',
+                background: pending ? 'var(--text-faint)' : 'var(--brand)', color: 'white',
                 border: 'none', fontSize: '0.875rem', fontWeight: 500, cursor: pending ? 'not-allowed' : 'pointer',
               }}
             >
@@ -89,7 +89,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
               onClick={() => setEditing(false)}
               style={{
                 padding: '0.5rem 0.75rem', borderRadius: '0.375rem',
-                background: 'transparent', color: '#64748b',
+                background: 'transparent', color: 'var(--text-muted)',
                 border: '2px solid var(--border-color)', fontSize: '0.875rem', cursor: 'pointer',
               }}
             >
@@ -102,7 +102,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
           <div>
             <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#1e293b' }}>{defaultName}</div>
             {defaultDescription && (
-              <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.25rem' }}>{defaultDescription}</div>
+              <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{defaultDescription}</div>
             )}
           </div>
           <button

@@ -25,7 +25,7 @@ export default function ProjectTabs() {
               padding: '0.625rem 1.25rem',
               fontSize: '0.875rem',
               fontWeight: active ? 600 : 400,
-              color: active ? 'var(--brand-dark)' : '#64748b',
+              color: active ? 'var(--brand-dark)' : 'var(--text-muted)',
               borderBottom: active ? '2px solid var(--brand-dark)' : '2px solid transparent',
               marginBottom: '-2px',
               textDecoration: 'none',

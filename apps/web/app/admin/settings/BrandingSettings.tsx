@@ -137,8 +137,8 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.375rem 0.75rem', fontSize: '0.8125rem', fontWeight: 500,
-                border: '1px solid #fecaca', borderRadius: 'var(--radius)',
-                backgroundColor: '#fef2f2', color: '#b91c1c', cursor: 'pointer',
+                border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)',
+                backgroundColor: 'var(--danger-bg)', color: '#b91c1c', cursor: 'pointer',
               }}
             >
               <Trash2 size={13} /> 로고 삭제
@@ -200,7 +200,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
           {saving ? '저장 중...' : '저장'}
         </button>
         {message && (
-          <p style={{ fontSize: '0.8125rem', color: message.type === 'success' ? '#16a34a' : '#b91c1c' }}>
+          <p style={{ fontSize: '0.8125rem', color: message.type === 'success' ? 'var(--success)' : '#b91c1c' }}>
             {message.text}
           </p>
         )}

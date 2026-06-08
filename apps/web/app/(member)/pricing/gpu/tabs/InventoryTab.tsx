@@ -216,7 +216,7 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
       {/* 상태 요약 칩 */}
       <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
         {item.oos_supplier_count > 0 && (
-          <span className="gpu-badge" style={{ background: '#fee2e2', color: '#dc2626', fontSize: 10 }}>
+          <span className="gpu-badge" style={{ background: '#fee2e2', color: 'var(--danger)', fontSize: 10 }}>
             품절 {item.oos_supplier_count}개 공급사
           </span>
         )}
@@ -281,7 +281,7 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
           )}
 
           {item.tier === 3 && item.pool_qty != null && (
-            <div style={{ padding: '8px 12px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '8px 12px', borderRadius: 8, background: 'var(--success-bg)', border: '1px solid var(--success-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: '#15803d' }}>
                   <Package size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />

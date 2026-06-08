@@ -22,7 +22,7 @@ export function TierHeader({
       }}
     >
       <ChevronRight size={16} style={{ transform: collapsed ? 'none' : 'rotate(90deg)', transition: 'transform .15s', color: 'var(--gpu-muted)' }} />
-      <strong style={{ fontSize: 13.5, color: '#0f172a' }}>{meta.label}</strong>
+      <strong style={{ fontSize: 13.5, color: 'var(--text)' }}>{meta.label}</strong>
       <span style={{ fontSize: 11.5, color: 'var(--gpu-muted)', marginLeft: 'auto' }}>
         {modelCount}개 모델 · {itemCount}개 구성
       </span>

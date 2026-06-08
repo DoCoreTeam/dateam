@@ -34,7 +34,7 @@ export default function RecommendPanel() {
   return (
     <div style={{ marginBottom: '1rem' }}>
       {!open ? (
-        <button onClick={load} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, color: '#7c3aed', background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 'var(--radius)', padding: '0.45rem 0.875rem', cursor: 'pointer' }}>
+        <button onClick={load} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--brand)', background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 'var(--radius)', padding: '0.45rem 0.875rem', cursor: 'pointer' }}>
           <Sparkles size={15} /> AI 일정 추천 받기
         </button>
       ) : (
@@ -44,11 +44,11 @@ export default function RecommendPanel() {
               <Sparkles size={15} /> AI 추천 일정 {busy && '(분석 중…)'}
             </span>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button onClick={load} disabled={busy} style={{ fontSize: '0.75rem', color: '#7c3aed', background: 'none', border: 'none', cursor: 'pointer' }}>다시</button>
-              <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={16} /></button>
+              <button onClick={load} disabled={busy} style={{ fontSize: '0.75rem', color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer' }}>다시</button>
+              <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={16} /></button>
             </div>
           </div>
-          {msg && <p style={{ fontSize: '0.8rem', color: '#7c3aed', margin: '0 0 0.5rem' }}>{msg}</p>}
+          {msg && <p style={{ fontSize: '0.8rem', color: 'var(--brand)', margin: '0 0 0.5rem' }}>{msg}</p>}
           {busy && <p style={{ fontSize: '0.8rem', color: '#a78bfa', margin: 0 }}>일일업무·주간계획·메모를 종합하는 중…</p>}
           {items && items.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -56,12 +56,12 @@ export default function RecommendPanel() {
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.625rem 0.75rem', background: '#fff', border: '1px solid #e9d5ff', borderRadius: 'var(--radius)' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e293b' }}>
-                      <span style={{ color: '#7c3aed', fontWeight: 700, marginRight: '0.4rem' }}>{rec.start_at.slice(5, 16).replace('T', ' ')}</span>
+                      <span style={{ color: 'var(--brand)', fontWeight: 700, marginRight: '0.4rem' }}>{rec.start_at.slice(5, 16).replace('T', ' ')}</span>
                       {rec.title}
                     </div>
-                    {rec.reason && <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.15rem' }}>근거: {rec.reason}</div>}
+                    {rec.reason && <div style={{ fontSize: '0.7rem', color: 'var(--text-faint)', marginTop: '0.15rem' }}>근거: {rec.reason}</div>}
                   </div>
-                  <button onClick={() => register(rec, i)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.75rem', fontWeight: 600, color: '#fff', background: '#7c3aed', border: 'none', borderRadius: '0.375rem', padding: '0.35rem 0.625rem', cursor: 'pointer', flexShrink: 0 }}>
+                  <button onClick={() => register(rec, i)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.75rem', fontWeight: 600, color: '#fff', background: 'var(--brand)', border: 'none', borderRadius: '0.375rem', padding: '0.35rem 0.625rem', cursor: 'pointer', flexShrink: 0 }}>
                     <Plus size={13} /> 등록
                   </button>
                 </div>

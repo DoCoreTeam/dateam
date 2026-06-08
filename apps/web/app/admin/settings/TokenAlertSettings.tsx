@@ -30,7 +30,7 @@ export default function TokenAlertSettings({ currentThreshold }: Props) {
         <Bell size={16} color="var(--brand)" />
         <h2 className="tape-title" style={{ margin: 0 }}>AI 토큰 알림 임계치</h2>
       </div>
-      <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1.25rem', marginTop: 0 }}>
+      <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.25rem', marginTop: 0 }}>
         월간 AI 토큰 사용량이 이 값을 초과하면 AI 사용량 대시보드에 경고가 표시됩니다.
       </p>
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -57,7 +57,7 @@ export default function TokenAlertSettings({ currentThreshold }: Props) {
           </div>
         </div>
         {msg && (
-          <p style={{ fontSize: '0.8125rem', color: msg.ok ? '#16a34a' : '#dc2626', margin: 0 }}>
+          <p style={{ fontSize: '0.8125rem', color: msg.ok ? 'var(--success)' : 'var(--danger)', margin: 0 }}>
             {msg.text}
           </p>
         )}

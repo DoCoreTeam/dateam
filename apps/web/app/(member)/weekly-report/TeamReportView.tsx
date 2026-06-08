@@ -86,19 +86,19 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
             </option>
           ))}
         </select>
-        {loading && <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>불러오는 중...</span>}
+        {loading && <span style={{ fontSize: '0.8rem', color: 'var(--text-faint)' }}>불러오는 중...</span>}
       </div>
 
       {/* 에러 */}
       {fetchError && (
-        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
+        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
           {fetchError}
         </div>
       )}
 
       {/* 팀 보고 테이블 */}
       {!fetchError && members.length === 0 && !loading ? (
-        <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#94a3b8', fontSize: '0.875rem' }}>
+        <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-faint)', fontSize: '0.875rem' }}>
           해당 주차 작성된 보고가 없습니다
         </div>
       ) : (
@@ -137,17 +137,17 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
                     <td data-label="성과" style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top', maxWidth: '260px' }}>
                       {r.performance && r.performance !== '<p></p>' ? (
                         <div className="report-rich" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', lineHeight: 1.55 }} dangerouslySetInnerHTML={{ __html: r.performance }} />
-                      ) : <span style={{ color: '#cbd5e1' }}>—</span>}
+                      ) : <span style={{ color: 'var(--border-subtle)' }}>—</span>}
                     </td>
                     <td data-label="계획" style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top', maxWidth: '260px' }}>
                       {r.plan && r.plan !== '<p></p>' ? (
                         <div className="report-rich" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', lineHeight: 1.55 }} dangerouslySetInnerHTML={{ __html: r.plan }} />
-                      ) : <span style={{ color: '#cbd5e1' }}>—</span>}
+                      ) : <span style={{ color: 'var(--border-subtle)' }}>—</span>}
                     </td>
                     <td data-label="이슈" style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top' }}>
                       {r.issues && r.issues !== '<p></p>' ? (
                         <div className="report-rich" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.55 }} dangerouslySetInnerHTML={{ __html: r.issues }} />
-                      ) : <span style={{ color: '#cbd5e1' }}>—</span>}
+                      ) : <span style={{ color: 'var(--border-subtle)' }}>—</span>}
                     </td>
                   </tr>
                 ))
@@ -175,7 +175,7 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
                 <span style={{ fontSize: '0.75rem', color: 'var(--brand)', fontWeight: 700 }}>{modal.userName}</span>
                 <h3 className="tape-title" style={{ margin: 0 }}>{modal.category}</h3>
               </div>
-              <button onClick={() => setModal(null)} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '1.25rem', lineHeight: 1 }}>×</button>
+              <button onClick={() => setModal(null)} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: '1.25rem', lineHeight: 1 }}>×</button>
             </div>
 
             {[
@@ -184,7 +184,7 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
               { label: '이슈/협조사항', value: modal.issues },
             ].map(({ label, value }) => value && value !== '<p></p>' ? (
               <div key={label} style={{ marginBottom: '1rem' }}>
-                <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.375rem' }}>{label}</p>
+                <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.375rem' }}>{label}</p>
                 <div className="report-rich" style={{ fontSize: '0.875rem', lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: value }} />
               </div>
             ) : null)}

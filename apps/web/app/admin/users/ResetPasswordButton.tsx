@@ -30,7 +30,7 @@ export default function ResetPasswordButton({ userId, userEmail, userName }: Pro
   }
 
   if (done) {
-    return <span style={{ fontSize: '0.6875rem', color: '#16a34a', fontWeight: 600 }}>초기화 완료</span>
+    return <span style={{ fontSize: '0.6875rem', color: 'var(--success)', fontWeight: 600 }}>초기화 완료</span>
   }
 
   return (
@@ -43,9 +43,9 @@ export default function ResetPasswordButton({ userId, userEmail, userName }: Pro
           alignItems: 'center',
           gap: '0.3rem',
           fontSize: '0.75rem',
-          color: '#d97706',
-          background: '#fffbeb',
-          border: '1px solid #fde68a',
+          color: 'var(--warning)',
+          background: 'var(--warning-bg)',
+          border: '1px solid var(--warning-border)',
           borderRadius: '0.375rem',
           padding: '0.3rem 0.625rem',
           cursor: loading ? 'not-allowed' : 'pointer',
@@ -56,7 +56,7 @@ export default function ResetPasswordButton({ userId, userEmail, userName }: Pro
         <RefreshCw size={11} />
         {loading ? '처리중...' : 'PW초기화'}
       </button>
-      {error && <span style={{ fontSize: '0.6875rem', color: '#dc2626' }}>{error}</span>}
+      {error && <span style={{ fontSize: '0.6875rem', color: 'var(--danger)' }}>{error}</span>}
     </div>
   )
 }

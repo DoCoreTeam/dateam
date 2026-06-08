@@ -16,10 +16,10 @@ type SortField = 'created_at' | 'name' | 'fit_score' | 'industry' | 'region' | '
 const SEGMENTS = ACCOUNT_SEGMENTS
 
 function fitColor(score: number | null) {
-  if (score === null) return { color: '#94a3b8', background: 'var(--color-bg)' }
-  if (score >= 70) return { color: '#16a34a', background: '#f0fdf4' }
-  if (score >= 40) return { color: '#d97706', background: '#fffbeb' }
-  return { color: '#dc2626', background: '#fef2f2' }
+  if (score === null) return { color: 'var(--text-faint)', background: 'var(--color-bg)' }
+  if (score >= 70) return { color: 'var(--success)', background: 'var(--success-bg)' }
+  if (score >= 40) return { color: 'var(--warning)', background: 'var(--warning-bg)' }
+  return { color: 'var(--danger)', background: 'var(--danger-bg)' }
 }
 
 function SortIcon({ field, sort, dir }: { field: SortField; sort: SortField; dir: 'asc' | 'desc' }) {
@@ -88,14 +88,14 @@ export default function AccountsPage() {
     <div>
       <div style={{ marginBottom: '1.75rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>거래처</h1>
-          <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>고객사 및 잠재 거래처 관리</p>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>거래처</h1>
+          <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>고객사 및 잠재 거래처 관리</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <Link href="/lead-intake?target=account" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px' }}>
             <Sparkles size={16} /> AI로 추가
           </Link>
-          <Link href="/accounts/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px', border: '2px solid var(--border-color)', color: '#64748b', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
+          <Link href="/accounts/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px', border: '2px solid var(--border-color)', color: 'var(--text-muted)', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
             <Plus size={16} /> 수동 입력
           </Link>
         </div>
@@ -136,7 +136,7 @@ export default function AccountsPage() {
             <Loader2 size={24} style={{ color: 'var(--brand)', animation: 'spin 1s linear infinite' }} />
           </div>
         ) : accounts.length === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1rem', color: '#94a3b8', fontSize: '0.875rem', textAlign: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1rem', color: 'var(--text-faint)', fontSize: '0.875rem', textAlign: 'center' }}>
             <Briefcase size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
             <p style={{ margin: 0 }}>{hasFilters ? '검색 결과가 없습니다' : '등록된 거래처가 없습니다'}</p>
             {!hasFilters && (
@@ -179,11 +179,11 @@ export default function AccountsPage() {
                         <div>
                           <button
                             onClick={() => setSelected(acc)}
-                            style={{ fontWeight: 600, color: '#0f172a', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9375rem', padding: 0, textAlign: 'left' }}
+                            style={{ fontWeight: 600, color: 'var(--text)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9375rem', padding: 0, textAlign: 'left' }}
                           >
                             {acc.name}
                           </button>
-                          {acc.industry && <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.125rem' }}>{acc.industry}</div>}
+                          {acc.industry && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>{acc.industry}</div>}
                         </div>
                         {acc.fit_score !== null && (
                           <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '9999px', ...fc, flexShrink: 0 }}>
@@ -196,23 +196,23 @@ export default function AccountsPage() {
                     <td data-label="세그먼트">
                       {acc.segment
                         ? <span className="badge badge-indigo" style={{ fontSize: '0.75rem' }}>{acc.segment}</span>
-                        : <span style={{ color: '#cbd5e1' }}>-</span>}
+                        : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
                     </td>
-                    <td data-label="지역"><span style={{ color: '#64748b', fontSize: '0.8125rem' }}>{acc.region ?? '-'}</span></td>
+                    <td data-label="지역"><span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>{acc.region ?? '-'}</span></td>
                     <td data-label="GPU수요">
                       {acc.gpu_demand_intensity
                         ? <span className={`badge ${acc.gpu_demand_intensity === 'High' ? 'badge-indigo' : acc.gpu_demand_intensity === 'Medium' ? 'badge-slate' : ''}`} style={{ fontSize: '0.75rem' }}>{acc.gpu_demand_intensity}</span>
-                        : <span style={{ color: '#cbd5e1' }}>-</span>}
+                        : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
                     </td>
                     <td data-label="거래처유형">
                       {acc.account_type
                         ? <span className="badge badge-slate" style={{ fontSize: '0.75rem' }}>{acc.account_type}</span>
-                        : <span style={{ color: '#cbd5e1' }}>-</span>}
+                        : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
                     </td>
                     <td data-label="Fit" style={{ textAlign: 'center' }}>
                       {acc.fit_score !== null
                         ? <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '9999px', ...fc }}>{acc.fit_score}</span>
-                        : <span style={{ color: '#cbd5e1' }}>-</span>}
+                        : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
                     </td>
                     <td data-label="관리" onClick={e => e.stopPropagation()}>
                       <AccountActions accountId={acc.id} />
@@ -226,12 +226,12 @@ export default function AccountsPage() {
 
         <div ref={sentinelRef} style={{ height: 1 }} />
         {isValidating && !isLoading && (
-          <div style={{ textAlign: 'center', padding: '1rem', color: '#94a3b8' }}>
+          <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-faint)' }}>
             <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
           </div>
         )}
         {isCapped && (
-          <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: '#92400e', background: '#fffbeb', borderTop: '1px solid #fde68a' }}>
+          <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: '#92400e', background: 'var(--warning-bg)', borderTop: '1px solid var(--warning-border)' }}>
             결과가 500건을 초과합니다. 검색 조건을 좁혀주세요.
           </div>
         )}
@@ -259,7 +259,7 @@ function AccountDetail({ account, onClose, onDeleted }: { account: Account; onCl
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBottom: '1rem' }}>
         {account.industry && <span className="badge badge-slate">{account.industry}</span>}
         {account.segment  && <span className="badge badge-indigo">{account.segment}</span>}
-        {account.size     && <span className="badge" style={{ background: 'var(--color-bg)', color: '#64748b' }}>{account.size}</span>}
+        {account.size     && <span className="badge" style={{ background: 'var(--color-bg)', color: 'var(--text-muted)' }}>{account.size}</span>}
         {account.account_type && <span className="badge" style={{ background: '#fef3c7', color: '#92400e', fontSize: '0.75rem' }}>{account.account_type}</span>}
         {account.gpu_demand_intensity && (
           <span className={`badge ${account.gpu_demand_intensity === 'High' ? 'badge-indigo' : 'badge-slate'}`} style={{ fontSize: '0.75rem' }}>
@@ -317,7 +317,7 @@ function AccountDetail({ account, onClose, onDeleted }: { account: Account; onCl
         <Link href={`/accounts/${account.id}/edit`} className="detail-btn-ghost" onClick={onClose}>
           편집
         </Link>
-        <button onClick={handleDelete} className="detail-btn-ghost" style={{ color: '#dc2626', borderColor: '#fecaca', cursor: 'pointer' }}>
+        <button onClick={handleDelete} className="detail-btn-ghost" style={{ color: 'var(--danger)', borderColor: 'var(--danger-border)', cursor: 'pointer' }}>
           삭제
         </button>
       </div>

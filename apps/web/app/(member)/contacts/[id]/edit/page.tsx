@@ -23,7 +23,7 @@ export default async function EditContactPage({ params }: PageProps) {
   return (
     <div>
       <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>담당자 편집</h1>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>담당자 편집</h1>
       </div>
       <ContactForm contact={contact} accounts={accounts ?? []} />
     </div>

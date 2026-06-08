@@ -16,9 +16,9 @@ export interface MemoListItem {
 
 // 숙성도 색상: 당일🟢 / 2-3일🟡 / 4일+🔴
 export const STALENESS_STYLE: Record<MemoStaleness, { dot: string; label: string; text: string }> = {
-  fresh: { dot: '#22c55e', label: '오늘/어제', text: '#16a34a' },
+  fresh: { dot: '#22c55e', label: '오늘/어제', text: 'var(--success)' },
   aging: { dot: '#eab308', label: '2-3일 전', text: '#ca8a04' },
-  stale: { dot: '#ef4444', label: '4일+ 경과', text: '#dc2626' },
+  stale: { dot: '#ef4444', label: '4일+ 경과', text: 'var(--danger)' },
 }
 
 export function relativeTime(iso: string): string {

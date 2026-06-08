@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic'
 const OrgPublicTree = dynamic(() => import('./OrgPublicTree'), {
   ssr: false,
   loading: () => (
-    <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>
+    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-faint)', fontSize: '0.875rem' }}>
       조직도를 불러오는 중…
     </div>
   ),

@@ -60,15 +60,15 @@ export default async function HomePage() {
 
         {/* 헤더 */}
         <div className="home-section-header">
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
             안녕하세요, {displayName}님
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.375rem', flexWrap: 'wrap' }}>
-            <span style={{ color: '#64748b', fontSize: '0.9375rem' }}>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.9375rem' }}>
               {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
             </span>
             {showAxTiles && [
-              { href: '/kpi', label: 'KPI', icon: <BarChart2 size={12} />, color: 'var(--brand)', bg: '#f3effe' },
+              { href: '/kpi', label: 'KPI', icon: <BarChart2 size={12} />, color: 'var(--brand)', bg: 'var(--brand-soft)' },
               { href: '/routine', label: '루틴', icon: <CheckSquare size={12} />, color: '#0891b2', bg: '#ecfeff' },
               { href: '/operations', label: '본부 운영', icon: <Building2 size={12} />, color: '#059669', bg: '#ecfdf5' },
             ].map((item) => (
@@ -126,7 +126,7 @@ export default async function HomePage() {
                 <li key={i} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   padding: '0.4rem 0.625rem', background: 'var(--color-bg)',
-                  borderRadius: 'var(--radius)', border: '1px solid #f1f5f9',
+                  borderRadius: 'var(--radius)', border: '1px solid var(--surface-muted)',
                 }}>
                   <span style={{ fontSize: '0.8125rem', color: '#475569' }}>
                     {new Date(r.week_start).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })} 주
@@ -136,7 +136,7 @@ export default async function HomePage() {
               ))}
             </ul>
             ) : (
-              <p style={{ fontSize: '0.8125rem', color: '#94a3b8', margin: 0, textAlign: 'center' }}>
+              <p style={{ fontSize: '0.8125rem', color: 'var(--text-faint)', margin: 0, textAlign: 'center' }}>
                 아직 주간보고가 없습니다.{' '}
                 <Link href="/weekly-report" style={{ color: 'var(--brand)', fontWeight: 600 }}>작성하기</Link>
               </p>

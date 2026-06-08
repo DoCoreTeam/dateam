@@ -31,8 +31,8 @@ export default async function ContactDetailPage({ params }: PageProps) {
               {data.name.charAt(0)}
             </div>
             <div>
-              <h1 style={{ fontSize: '1.375rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>{data.name}</h1>
-              <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.125rem' }}>
+              <h1 style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>{data.name}</h1>
+              <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
                 {[data.title, data.department].filter(Boolean).join(' · ')}
                 {data.accounts?.name && (
                   <> · <Link href={`/accounts/${data.accounts.id}`} style={{ color: 'var(--brand)', textDecoration: 'none' }}>{data.accounts.name}</Link></>
@@ -60,14 +60,14 @@ export default async function ContactDetailPage({ params }: PageProps) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <Phone size={16} color="var(--brand)" />
               <span style={{ color: '#374151', fontSize: '0.9rem' }}>{data.phone}</span>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>직통</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>직통</span>
             </div>
           )}
           {data.mobile && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <Phone size={16} color="var(--brand)" />
               <span style={{ color: '#374151', fontSize: '0.9rem' }}>{data.mobile}</span>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>휴대폰</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>휴대폰</span>
             </div>
           )}
           {data.linkedin && (
@@ -82,7 +82,7 @@ export default async function ContactDetailPage({ params }: PageProps) {
             </div>
           )}
           {!data.email && !data.phone && !data.mobile && !data.linkedin && !data.notes && (
-            <p style={{ color: '#94a3b8', fontSize: '0.875rem', margin: 0 }}>연락처 정보가 없습니다</p>
+            <p style={{ color: 'var(--text-faint)', fontSize: '0.875rem', margin: 0 }}>연락처 정보가 없습니다</p>
           )}
         </div>
       </div>

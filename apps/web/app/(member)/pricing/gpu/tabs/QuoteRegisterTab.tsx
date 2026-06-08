@@ -44,8 +44,8 @@ const CONF_LABELS: Record<string, string> = {
 const QTY_STATUS_LABELS: Record<string, { label: string; color: string }> = {
   available_full:    { label: '재고 있음',  color: '#15803d' },
   available_partial: { label: '일부 가능',  color: '#b45309' },
-  out_of_stock:      { label: '재고 없음',  color: '#dc2626' },
-  declined:          { label: '공급 거절',  color: '#7c3aed' },
+  out_of_stock:      { label: '재고 없음',  color: 'var(--danger)' },
+  declined:          { label: '공급 거절',  color: 'var(--brand)' },
   pending:           { label: '확인 중',    color: '#6b7280' },
 }
 
@@ -406,7 +406,7 @@ export default function QuoteRegisterTab() {
 
           {/* 텍스트 파일 첨부(단일) */}
           {attached && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 10px', borderRadius: 8, background: '#f8faff', border: '1px solid #ede9fe' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 10px', borderRadius: 8, background: '#f8faff', border: '1px solid var(--brand-soft-2)' }}>
               <Paperclip size={16} style={{ color: 'var(--brand)', flexShrink: 0 }} />
               <span style={{ fontSize: 12, color: '#374151', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attached.name}</span>
               <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#9ca3af' }} onClick={() => setAttached(null)}>
@@ -419,7 +419,7 @@ export default function QuoteRegisterTab() {
           {images.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }} data-testid="image-thumbs">
               {images.map((im, i) => (
-                <div key={i} style={{ position: 'relative', width: 56, height: 56, borderRadius: 8, overflow: 'hidden', border: '1px solid #ede9fe' }}>
+                <div key={i} style={{ position: 'relative', width: 56, height: 56, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--brand-soft-2)' }}>
                   {im.previewUrl && <img src={im.previewUrl} alt={im.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                   <button onClick={() => setImages((p) => p.filter((_, idx) => idx !== i))} title="제거"
                     style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', background: 'rgba(15,23,42,.7)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
@@ -427,7 +427,7 @@ export default function QuoteRegisterTab() {
                   </button>
                 </div>
               ))}
-              <span style={{ alignSelf: 'center', fontSize: 11.5, color: '#64748b' }}>{images.length}장</span>
+              <span style={{ alignSelf: 'center', fontSize: 11.5, color: 'var(--text-muted)' }}>{images.length}장</span>
             </div>
           )}
 
@@ -502,8 +502,8 @@ export default function QuoteRegisterTab() {
                 {liveMsgs.map((m, i) => {
                   const isLast = i === liveMsgs.length - 1
                   return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: 12, color: isLast ? '#0f172a' : '#94a3b8' }}>
-                      <span style={{ color: isLast ? 'var(--gpu-accent)' : '#cbd5e1' }}>{isLast ? '▸' : '✓'}</span>
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: 12, color: isLast ? 'var(--text)' : 'var(--text-faint)' }}>
+                      <span style={{ color: isLast ? 'var(--gpu-accent)' : 'var(--border-subtle)' }}>{isLast ? '▸' : '✓'}</span>
                       <span>{m}</span>
                     </div>
                   )
@@ -512,7 +512,7 @@ export default function QuoteRegisterTab() {
               {/* AI가 찾고 있는 항목 — 자연어 파싱(raw JSON 비노출) */}
               {streamFindings.length > 0 && (
                 <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>찾은 항목</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>찾은 항목</div>
                   {streamFindings.map((f, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 6, background: 'var(--color-bg)', border: '2px solid var(--border-color)', fontSize: 12 }}>
                       <span style={{ color: 'var(--gpu-accent)' }}>✦</span>
@@ -535,7 +535,7 @@ export default function QuoteRegisterTab() {
                     </span>
                   </div>
                   {competitorResults.map((item, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, background: 'var(--success-bg)', border: '1px solid var(--success-border)' }}>
                       <span style={{ fontSize: 12, color: '#374151', fontWeight: 600, minWidth: 80 }}>{item.competitor}</span>
                       <span style={{ fontSize: 12, color: '#6b7280', flex: 1 }}>{item.model} {item.memory}</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }}>${item.price_usd}/hr</span>
@@ -546,7 +546,7 @@ export default function QuoteRegisterTab() {
                       {applying ? '반영 중…' : `시장비교에 반영 (${competitorResults.length}건)`}
                     </button>
                   ) : (
-                    <div style={{ padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 12, color: '#15803d' }}>
+                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'var(--success-bg)', border: '1px solid var(--success-border)', fontSize: 12, color: '#15803d' }}>
                       ✓ 시장 비교 탭에 반영되었습니다.
                     </div>
                   )}
@@ -583,9 +583,9 @@ export default function QuoteRegisterTab() {
                     push('원본 단위', ex.original_unit)
                     push('추천 Tier', ex.tier_suggestion)
                     return (
-                      <div key={i} style={{ borderRadius: 8, background: '#f3effe', border: '1px solid #ddd6fe', overflow: 'hidden' }}>
+                      <div key={i} style={{ borderRadius: 8, background: 'var(--brand-soft)', border: '1px solid #ddd6fe', overflow: 'hidden' }}>
                         <div onClick={() => setExpandedIdx(open ? null : i)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', cursor: 'pointer' }}>
-                          <span style={{ fontSize: 11, color: '#94a3b8' }}>{open ? '▾' : '▸'}</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{open ? '▾' : '▸'}</span>
                           <span style={{ fontSize: 12, color: '#374151', fontWeight: 600, flex: 1 }}>{name || '(모델 미상)'}</span>
                           {ex.supplier ? <span style={{ fontSize: 11, color: '#6b7280' }}>{String(ex.supplier)}</span> : null}
                           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand-dark)' }}>{price}</span>
@@ -597,7 +597,7 @@ export default function QuoteRegisterTab() {
                                 <span style={{ color: '#8b8b9e', minWidth: 64 }}>{k}</span>
                                 <span style={{ color: '#374151', fontWeight: 500 }}>{v}</span>
                               </div>
-                            )) : <span style={{ fontSize: 11.5, color: '#94a3b8' }}>추가 상세 정보 없음</span>}
+                            )) : <span style={{ fontSize: 11.5, color: 'var(--text-faint)' }}>추가 상세 정보 없음</span>}
                           </div>
                         )}
                       </div>
@@ -608,7 +608,7 @@ export default function QuoteRegisterTab() {
                       {committing ? '저장 중…' : `검토 대기에 추가 (${supplierPreview.length}건)`}
                     </button>
                   ) : (
-                    <div style={{ padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 12, color: '#15803d' }}>
+                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'var(--success-bg)', border: '1px solid var(--success-border)', fontSize: 12, color: '#15803d' }}>
                       ✓ 검토 대기 탭에 추가되었습니다. 본부장 검토 후 가격표에 반영됩니다.
                     </div>
                   )}
@@ -674,7 +674,7 @@ export default function QuoteRegisterTab() {
                 <ResultPanel item={analysisResults[activeTabIdx]} />
               )}
 
-              <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 12, color: '#15803d' }}>
+              <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'var(--success-bg)', border: '1px solid var(--success-border)', fontSize: 12, color: '#15803d' }}>
                 <Send size={12} style={{ marginRight: 5, verticalAlign: 'middle' }} />
                 {analysisResults.length > 1
                   ? `${analysisResults.length}개 항목이 검토 대기에 추가되었습니다. 본부장 검토 후 가격표에 반영됩니다.`

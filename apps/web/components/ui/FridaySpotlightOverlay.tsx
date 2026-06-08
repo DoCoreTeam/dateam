@@ -64,11 +64,11 @@ export default function FridaySpotlightOverlay({ showGlow }: FridaySpotlightOver
         <div style={{ fontSize: '3rem', lineHeight: 1, marginBottom: '1rem' }} aria-hidden>📝</div>
         <h2
           id="friday-spotlight-title"
-          style={{ fontSize: '1.375rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.625rem', letterSpacing: '-0.03em' }}
+          style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text)', margin: '0 0 0.625rem', letterSpacing: '-0.03em' }}
         >
           오늘이 금요일이에요!
         </h2>
-        <p style={{ color: '#64748b', fontSize: '0.9375rem', lineHeight: 1.65, margin: '0 0 1.75rem' }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.9375rem', lineHeight: 1.65, margin: '0 0 1.75rem' }}>
           이번 주 주간보고를 아직 작성하지 않으셨어요.<br />
           지금 바로 기록해볼까요?
         </p>
@@ -79,7 +79,7 @@ export default function FridaySpotlightOverlay({ showGlow }: FridaySpotlightOver
             alignItems: 'center',
             gap: '0.4rem',
             padding: '0.875rem 2rem',
-            background: 'linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 60%, #7c3aed 100%)',
+            background: 'linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 60%, var(--brand) 100%)',
             color: 'white',
             borderRadius: 'var(--radius)',
             fontWeight: 700,
@@ -102,7 +102,7 @@ export default function FridaySpotlightOverlay({ showGlow }: FridaySpotlightOver
             border: 'none',
             cursor: 'pointer',
             fontSize: '0.8125rem',
-            color: '#94a3b8',
+            color: 'var(--text-faint)',
             padding: '0.25rem 0.5rem',
             fontFamily: 'inherit',
           }}

@@ -14,12 +14,12 @@ type MetricKey = 'anomaly' | 'low_confidence' | 'pending' | 'dup_suspects'
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 function Card({ label, value, sub, tone, onClick, active }: { label: string; value: string | number; sub?: string; tone?: 'ok' | 'warn' | 'bad'; onClick?: () => void; active?: boolean }) {
-  const color = tone === 'bad' ? '#dc2626' : tone === 'warn' ? '#d97706' : tone === 'ok' ? '#16a34a' : '#0f172a'
+  const color = tone === 'bad' ? 'var(--danger)' : tone === 'warn' ? 'var(--warning)' : tone === 'ok' ? 'var(--success)' : 'var(--text)'
   return (
     <div onClick={onClick} style={{ padding: '16px 18px', borderRadius: 12, background: '#fff', border: `1px solid ${active ? 'var(--gpu-accent,#5b5ef0)' : 'var(--color-border)'}`, minWidth: 0, cursor: onClick ? 'pointer' : 'default', boxShadow: active ? '0 0 0 2px rgba(91,94,240,.15)' : 'none' }}>
-      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>{label}{onClick && <span style={{ marginLeft: 'auto', fontSize: 10, color: '#cbd5e1' }}>클릭</span>}</div>
+      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>{label}{onClick && <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--border-subtle)' }}>클릭</span>}</div>
       <div style={{ fontSize: 26, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 6 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 11.5, color: 'var(--text-faint)', marginTop: 6 }}>{sub}</div>}
     </div>
   )
 }
@@ -76,12 +76,12 @@ export default function DataQualityDashboard() {
 
   return (
     <div className="page-inner" style={{ height: '100%', overflowY: 'auto' }}>
-      <div style={{ marginBottom: 4, fontSize: 12, color: '#64748b' }}>관리자 · 데이터 품질</div>
-      <h2 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: '0 0 4px' }}>데이터 품질 · 신뢰도</h2>
-      <p style={{ fontSize: 12.5, color: '#64748b', margin: '0 0 18px' }}>지표 카드를 클릭하면 상세 항목과 조치가 나타납니다 (30초 자동 갱신)</p>
+      <div style={{ marginBottom: 4, fontSize: 12, color: 'var(--text-muted)' }}>관리자 · 데이터 품질</div>
+      <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', margin: '0 0 4px' }}>데이터 품질 · 신뢰도</h2>
+      <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 18px' }}>지표 카드를 클릭하면 상세 항목과 조치가 나타납니다 (30초 자동 갱신)</p>
 
       {isLoading || !m ? (
-        <div style={{ color: '#94a3b8', fontSize: 13, padding: 40, textAlign: 'center' }}>불러오는 중…</div>
+        <div style={{ color: 'var(--text-faint)', fontSize: 13, padding: 40, textAlign: 'center' }}>불러오는 중…</div>
       ) : (
         <>
           <div className="responsive-grid-cols-4" style={{ marginBottom: 16 }}>
@@ -95,32 +95,32 @@ export default function DataQualityDashboard() {
           {drill && (
             <div style={{ marginBottom: 22, padding: '14px 16px', borderRadius: 12, background: 'var(--color-bg)', border: '2px solid var(--border-color)' }} data-testid="drilldown-panel">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <strong style={{ fontSize: 14, color: '#0f172a' }}>
+                <strong style={{ fontSize: 14, color: 'var(--text)' }}>
                   {drill === 'anomaly' ? '이상치 견적' : drill === 'low_confidence' ? '저신뢰 검토항목' : drill === 'pending' ? '검토 대기' : '중복 의심'} 상세
                 </strong>
-                <span style={{ fontSize: 12, color: '#64748b' }}>{items.length >= 100 ? '100건+' : `${items.length}건`}</span>
-                {msg && <span style={{ marginLeft: 8, fontSize: 12, color: '#16a34a' }}>{msg}</span>}
-                <button onClick={() => setDrill(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 13 }}>닫기 ✕</button>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{items.length >= 100 ? '100건+' : `${items.length}건`}</span>
+                {msg && <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--success)' }}>{msg}</span>}
+                <button onClick={() => setDrill(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: 13 }}>닫기 ✕</button>
               </div>
-              {loadingItems ? <div style={{ fontSize: 12.5, color: '#94a3b8' }}>불러오는 중…</div> : items.length === 0 ? <div style={{ fontSize: 12.5, color: '#94a3b8' }}>해당 항목 없음 ✓</div> : (
+              {loadingItems ? <div style={{ fontSize: 12.5, color: 'var(--text-faint)' }}>불러오는 중…</div> : items.length === 0 ? <div style={{ fontSize: 12.5, color: 'var(--text-faint)' }}>해당 항목 없음 ✓</div> : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto' }}>
                   {items.map((it, i) => (
                     <div key={it.id ?? i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px', borderRadius: 8, background: '#fff', border: '1px solid #eef2f7', fontSize: 12.5 }}>
                       {drill === 'anomaly' && <>
-                        <span style={{ fontWeight: 600, flex: 1 }}>{it.model_name} <span style={{ color: '#94a3b8' }}>T{it.tier}</span></span>
-                        <span style={{ fontWeight: 700, color: '#dc2626' }}>${it.unit_price_usd}/hr</span>
-                        <span style={{ color: '#94a3b8', fontSize: 11 }}>{it.reason}</span>
+                        <span style={{ fontWeight: 600, flex: 1 }}>{it.model_name} <span style={{ color: 'var(--text-faint)' }}>T{it.tier}</span></span>
+                        <span style={{ fontWeight: 700, color: 'var(--danger)' }}>${it.unit_price_usd}/hr</span>
+                        <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>{it.reason}</span>
                       </>}
                       {(drill === 'low_confidence' || drill === 'pending') && <>
-                        <span style={{ fontWeight: 600, flex: 1 }}>{it.product_hint || '(미상)'} <span style={{ color: '#94a3b8' }}>{it.supplier_hint || ''}</span></span>
-                        {it.overall_confidence != null && <span style={{ color: it.overall_confidence < 60 ? '#d97706' : '#64748b' }}>신뢰도 {it.overall_confidence}</span>}
-                        <button onClick={() => confirmItem(it.id)} className="gpu-btn" style={{ fontSize: 11, padding: '3px 10px', color: '#16a34a', borderColor: '#bbf7d0' }}>확정</button>
-                        <button onClick={() => rejectItem(it.id)} className="gpu-btn" style={{ fontSize: 11, padding: '3px 10px', color: '#dc2626', borderColor: '#fecaca' }}>반려</button>
+                        <span style={{ fontWeight: 600, flex: 1 }}>{it.product_hint || '(미상)'} <span style={{ color: 'var(--text-faint)' }}>{it.supplier_hint || ''}</span></span>
+                        {it.overall_confidence != null && <span style={{ color: it.overall_confidence < 60 ? 'var(--warning)' : 'var(--text-muted)' }}>신뢰도 {it.overall_confidence}</span>}
+                        <button onClick={() => confirmItem(it.id)} className="gpu-btn" style={{ fontSize: 11, padding: '3px 10px', color: 'var(--success)', borderColor: 'var(--success-border)' }}>확정</button>
+                        <button onClick={() => rejectItem(it.id)} className="gpu-btn" style={{ fontSize: 11, padding: '3px 10px', color: 'var(--danger)', borderColor: 'var(--danger-border)' }}>반려</button>
                       </>}
                       {drill === 'dup_suspects' && <>
                         <span style={{ fontWeight: 600, flex: 1 }}>{it.product_hint}</span>
-                        <span style={{ color: '#d97706' }}>{it.dup_count}건 중복</span>
-                        <span style={{ color: '#94a3b8', fontSize: 11 }}>신뢰도 {it.overall_confidence ?? '—'}</span>
+                        <span style={{ color: 'var(--warning)' }}>{it.dup_count}건 중복</span>
+                        <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>신뢰도 {it.overall_confidence ?? '—'}</span>
                         <button onClick={() => mergeDups(it)} className="gpu-btn" style={{ fontSize: 11, padding: '3px 10px', color: 'var(--gpu-accent,#5b5ef0)', borderColor: '#ddd6fe' }}>1건만 남기기</button>
                       </>}
                     </div>

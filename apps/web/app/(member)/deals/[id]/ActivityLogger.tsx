@@ -82,7 +82,7 @@ export default function ActivityLogger({ dealId }: Props) {
                   border: '1px solid',
                   cursor: 'pointer',
                   background: type === t.value ? 'var(--brand)' : 'white',
-                  color: type === t.value ? 'white' : '#64748b',
+                  color: type === t.value ? 'white' : 'var(--text-muted)',
                   borderColor: type === t.value ? 'var(--brand)' : 'var(--color-border)',
                 }}
               >
@@ -98,7 +98,7 @@ export default function ActivityLogger({ dealId }: Props) {
             placeholder="활동 내용을 입력하세요... (Ctrl+Enter 저장)"
             style={{ width: '100%', padding: '0.625rem 0.75rem', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box' }}
           />
-          {error && <p style={{ color: '#dc2626', fontSize: '0.8125rem', margin: 0 }}>{error}</p>}
+          {error && <p style={{ color: 'var(--danger)', fontSize: '0.8125rem', margin: 0 }}>{error}</p>}
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <button type="submit" disabled={loading} className="btn-primary" style={{ fontSize: '0.8125rem', padding: '0.5rem 1rem', minHeight: '36px' }}>
               {loading ? '저장중...' : '저장'}{!loading && <span style={{ fontSize: '0.65rem', opacity: 0.65, marginLeft: '0.3rem' }}>Ctrl+↵</span>}
@@ -106,7 +106,7 @@ export default function ActivityLogger({ dealId }: Props) {
             <button type="button" onClick={handleAiParse} disabled={aiLoading} style={{ fontSize: '0.8125rem', padding: '0.5rem 0.875rem', minHeight: '36px', background: '#f0f9ff', color: '#0284c7', border: '1px solid #bae6fd', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600 }}>
               {aiLoading ? 'AI분석중...' : '🤖 AI정리'}
             </button>
-            <button type="button" onClick={() => { setOpen(false); setContent(''); setError('') }} style={{ fontSize: '0.8125rem', padding: '0.5rem 0.875rem', minHeight: '36px', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', color: '#64748b' }}>
+            <button type="button" onClick={() => { setOpen(false); setContent(''); setError('') }} style={{ fontSize: '0.8125rem', padding: '0.5rem 0.875rem', minHeight: '36px', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', color: 'var(--text-muted)' }}>
               취소
             </button>
           </div>

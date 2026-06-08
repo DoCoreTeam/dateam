@@ -256,7 +256,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
   }
 
   if (roots.length === 0) {
-    return <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>조직도 데이터가 없습니다.</div>
+    return <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-faint)' }}>조직도 데이터가 없습니다.</div>
   }
 
   const root = roots[0]
@@ -264,9 +264,9 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
   return (
     <>
       {errorMsg && (
-        <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius)', color: '#dc2626', fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', color: 'var(--danger)', fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between' }}>
           {errorMsg}
-          <button onClick={() => setErrorMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 700 }}>×</button>
+          <button onClick={() => setErrorMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', fontWeight: 700 }}>×</button>
         </div>
       )}
 
@@ -315,12 +315,12 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
           </div>
 
           {/* Scale indicator */}
-          <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.85)', border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.7rem', color: '#64748b', pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.85)', border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.7rem', color: 'var(--text-muted)', pointerEvents: 'none' }}>
             {Math.round(zoom.scale * 100)}%
           </div>
 
           {/* Help hint */}
-          <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.8)', border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.68rem', color: '#94a3b8', pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.8)', border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.68rem', color: 'var(--text-faint)', pointerEvents: 'none' }}>
             스크롤: 줌 · 드래그: 이동
           </div>
 
@@ -392,7 +392,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
               {deleteConfirm.type !== 'person' && ' 하위 노드가 있으면 삭제할 수 없습니다.'}
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button onClick={() => setDeleteConfirm(null)} style={{ padding: '0.45rem 1rem', background: '#f1f5f9', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: '#475569' }}>취소</button>
+              <button onClick={() => setDeleteConfirm(null)} style={{ padding: '0.45rem 1rem', background: 'var(--surface-muted)', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: '#475569' }}>취소</button>
               <button onClick={confirmDelete} style={{ padding: '0.45rem 1rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem' }}>삭제</button>
             </div>
           </div>

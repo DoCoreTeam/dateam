@@ -109,7 +109,7 @@ const AXLoadingOverlay = forwardRef<HTMLDivElement, AXLoadingOverlayProps>(
             <span
               style={{
                 fontSize: '0.8125rem',
-                color: isDark ? '#94a3b8' : '#7c3aed',
+                color: isDark ? 'var(--text-faint)' : 'var(--brand)',
                 maxWidth: '320px',
                 overflowWrap: 'anywhere',
                 lineHeight: 1.6,
@@ -129,7 +129,7 @@ const AXLoadingOverlay = forwardRef<HTMLDivElement, AXLoadingOverlayProps>(
                 width: 120,
                 height: 3,
                 borderRadius: 3,
-                background: '#ede9fe',
+                background: 'var(--brand-soft-2)',
                 overflow: 'hidden',
                 position: 'relative',
               }}
@@ -150,7 +150,7 @@ const AXLoadingOverlay = forwardRef<HTMLDivElement, AXLoadingOverlayProps>(
           )}
 
           {elapsed !== undefined && elapsed > 0 && (
-            <span style={{ fontSize: '0.75rem', color: isDark ? '#94a3b8' : '#a78bfa' }}>
+            <span style={{ fontSize: '0.75rem', color: isDark ? 'var(--text-faint)' : '#a78bfa' }}>
               {elapsed}초
             </span>
           )}

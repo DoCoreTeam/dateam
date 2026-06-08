@@ -27,16 +27,16 @@ const FILTER_ACTION_TYPES: Record<string, string[]> = {
 }
 
 const ACTION_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  quote_registered:         { label: '견적 등록',      color: '#2563eb', bg: '#f3effe' },
+  quote_registered:         { label: '견적 등록',      color: 'var(--info)', bg: 'var(--brand-soft)' },
   quote_confirmed:          { label: '견적 확정',      color: '#15a35a', bg: '#e6f7ee' },
   lowest_changed:           { label: '최저가 변경',    color: '#5b5ef0', bg: '#eef0fe' },
   expired:                  { label: '만료',           color: '#e0405a', bg: '#fdebee' },
-  direct_set:               { label: '판매가 직접설정', color: '#d97706', bg: '#fef3e2' },
-  margin_changed:           { label: '마진 변경',      color: '#7c3aed', bg: '#f1ebfe' },
+  direct_set:               { label: '판매가 직접설정', color: 'var(--warning)', bg: '#fef3e2' },
+  margin_changed:           { label: '마진 변경',      color: 'var(--brand)', bg: '#f1ebfe' },
   rejected:                 { label: '반려',           color: '#6b7280', bg: '#f0f1f4' },
-  review_created:           { label: 'AI 분석 등록',   color: 'var(--brand-dark)', bg: '#f3effe' },
+  review_created:           { label: 'AI 분석 등록',   color: 'var(--brand-dark)', bg: 'var(--brand-soft)' },
   review_finalized:         { label: '검토 확정',      color: '#15a35a', bg: '#e6f7ee' },
-  review_rejected:          { label: '검토 반려',      color: '#dc2626', bg: '#fee2e2' },
+  review_rejected:          { label: '검토 반려',      color: 'var(--danger)', bg: '#fee2e2' },
   review_recheck_completed: { label: 'AI 재분석',      color: '#0891b2', bg: '#e0f7fa' },
   pool_stock_changed:       { label: 'T3 재고 변경',   color: '#b45309', bg: '#fef3e2' },
   availability_registered:  { label: '가용량 등록',    color: '#0d9488', bg: '#f0fdfa' },
@@ -176,7 +176,7 @@ export default function HistoryTab() {
       </div>
 
       {selected.size > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', marginBottom: 8, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, fontSize: 12.5 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', marginBottom: 8, background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, fontSize: 12.5 }}>
           <strong>{selected.size}건 선택</strong>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
             <input type="checkbox" checked={withData} onChange={(e) => setWithData(e.target.checked)} />
@@ -202,7 +202,7 @@ export default function HistoryTab() {
             const desc = log.detail ? renderDetail(log.action_type, log.detail) : null
 
             return (
-              <div key={log.id} className="gpu-log-item" style={selected.has(log.id) ? { background: '#fef2f2' } : undefined}>
+              <div key={log.id} className="gpu-log-item" style={selected.has(log.id) ? { background: 'var(--danger-bg)' } : undefined}>
                 <input type="checkbox" checked={selected.has(log.id)} onChange={() => toggle(log.id)} aria-label="로그 선택"
                   style={{ alignSelf: 'center', marginRight: 4, cursor: 'pointer' }} />
                 <div className="gpu-log-time">

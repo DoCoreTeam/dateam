@@ -56,15 +56,15 @@ export default function GoogleDriveSettings() {
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 0', color: '#94a3b8', fontSize: '0.875rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 0', color: 'var(--text-faint)', fontSize: '0.875rem' }}>
           <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
           연결 상태 확인 중...
         </div>
       ) : status?.connected ? (
-        <div style={{ padding: '0.875rem 1rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
+        <div style={{ padding: '0.875rem 1rem', backgroundColor: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <CheckCircle size={14} color="#16a34a" />
+              <CheckCircle size={14} color="var(--success)" />
               <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#15803d' }}>연결됨</span>
               {status.email && (
                 <span style={{ fontSize: '0.8125rem', color: '#374151', fontFamily: 'monospace' }}>
@@ -83,16 +83,16 @@ export default function GoogleDriveSettings() {
                 padding: '0.375rem 0.75rem',
                 fontSize: '0.75rem',
                 fontWeight: 600,
-                color: '#dc2626',
+                color: 'var(--danger)',
                 background: 'none',
-                border: '1px solid #fecaca',
+                border: '1px solid var(--danger-border)',
                 borderRadius: 'var(--radius)',
                 cursor: revoking ? 'not-allowed' : 'pointer',
                 minHeight: '32px',
               }}
             >
               {revoking ? (
-                <AXDotLoader size={4} color="#dc2626" />
+                <AXDotLoader size={4} color="var(--danger)" />
               ) : (
                 <Unlink size={12} />
               )}
@@ -102,7 +102,7 @@ export default function GoogleDriveSettings() {
         </div>
       ) : (
         <div style={{ marginBottom: '1rem' }}>
-          <p style={{ fontSize: '0.875rem', color: '#64748b', margin: '0 0 0.875rem 0', lineHeight: 1.6 }}>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', margin: '0 0 0.875rem 0', lineHeight: 1.6 }}>
             Google Drive를 연결하면 담당자 명함 이미지를 Drive에 저장할 수 있습니다.
           </p>
           <button
@@ -113,7 +113,7 @@ export default function GoogleDriveSettings() {
               alignItems: 'center',
               gap: '0.4rem',
               padding: '0.5625rem 1.25rem',
-              backgroundColor: '#2563eb',
+              backgroundColor: 'var(--info)',
               color: '#fff',
               border: 'none',
               borderRadius: 'var(--radius)',
@@ -140,9 +140,9 @@ export default function GoogleDriveSettings() {
             display: 'flex',
             alignItems: 'center',
             gap: '0.375rem',
-            backgroundColor: msg.ok ? '#f0fdf4' : '#fef2f2',
+            backgroundColor: msg.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
             color: msg.ok ? '#15803d' : '#b91c1c',
-            border: `1px solid ${msg.ok ? '#bbf7d0' : '#fecaca'}`,
+            border: `1px solid ${msg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
           }}
         >
           {msg.ok ? <CheckCircle size={13} /> : <XCircle size={13} />}

@@ -58,7 +58,7 @@ const BTN: React.CSSProperties = {
 const BTN_ACTIVE: React.CSSProperties = {
   ...BTN,
   background: 'var(--color-border)',
-  color: '#0f172a',
+  color: 'var(--text)',
   border: '1px solid var(--border-color)',
 }
 
@@ -69,19 +69,19 @@ const DIVIDER = (
 
 const TEXT_COLORS = [
   { label: '기본', value: '' },
-  { label: '빨강', value: '#dc2626' },
+  { label: '빨강', value: 'var(--danger)' },
   { label: '주황', value: '#ea580c' },
-  { label: '초록', value: '#16a34a' },
-  { label: '파랑', value: '#2563eb' },
-  { label: '보라', value: '#7c3aed' },
-  { label: '회색', value: '#64748b' },
+  { label: '초록', value: 'var(--success)' },
+  { label: '파랑', value: 'var(--info)' },
+  { label: '보라', value: 'var(--brand)' },
+  { label: '회색', value: 'var(--text-muted)' },
 ]
 
 const HIGHLIGHT_COLORS = [
   { label: '없음', value: '' },
   { label: '노랑', value: '#fef08a' },
-  { label: '초록', value: '#bbf7d0' },
-  { label: '파랑', value: '#bfdbfe' },
+  { label: '초록', value: 'var(--success-border)' },
+  { label: '파랑', value: 'var(--info-border)' },
   { label: '분홍', value: '#fbcfe8' },
 ]
 
@@ -199,8 +199,8 @@ export default function TiptapEditor({
             style={{ ...BTN, flexDirection: 'column', gap: '1px', padding: '0.25rem 0.4rem' }}
             title="글자 색상"
           >
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: currentColor || '#0f172a', lineHeight: 1 }}>A</span>
-            <span style={{ width: '14px', height: '3px', borderRadius: '1px', background: currentColor || '#0f172a', display: 'block' }} />
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: currentColor || 'var(--text)', lineHeight: 1 }}>A</span>
+            <span style={{ width: '14px', height: '3px', borderRadius: '1px', background: currentColor || 'var(--text)', display: 'block' }} />
           </button>
           {colorOpen && (
             <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100, background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem', display: 'flex', gap: '0.375rem', boxShadow: 'var(--shadow-sm)' }}>
@@ -216,7 +216,7 @@ export default function TiptapEditor({
                   }}
                   style={{
                     width: '1.25rem', height: '1.25rem', borderRadius: '50%',
-                    background: c.value || '#0f172a',
+                    background: c.value || 'var(--text)',
                     border: currentColor === c.value ? '2px solid var(--brand)' : '2px solid var(--color-border)',
                     cursor: 'pointer',
                   }}
@@ -235,7 +235,7 @@ export default function TiptapEditor({
             title="형광펜"
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <rect x="2" y="9" width="12" height="4" rx="1" fill="#fef08a" stroke="#94a3b8" strokeWidth="1"/>
+              <rect x="2" y="9" width="12" height="4" rx="1" fill="#fef08a" stroke="var(--text-faint)" strokeWidth="1"/>
               <path d="M5 9L8 2L11 9" stroke="#475569" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
@@ -253,13 +253,13 @@ export default function TiptapEditor({
                   }}
                   style={{
                     width: '1.25rem', height: '1.25rem', borderRadius: '50%',
-                    background: c.value || '#f1f5f9',
+                    background: c.value || 'var(--surface-muted)',
                     border: '2px solid var(--color-border)',
                     cursor: 'pointer',
                     position: 'relative',
                   }}
                 >
-                  {!c.value && <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: '#94a3b8' }}>✕</span>}
+                  {!c.value && <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: 'var(--text-faint)' }}>✕</span>}
                 </button>
               ))}
             </div>
@@ -342,7 +342,7 @@ export default function TiptapEditor({
                 확인
               </button>
               {editor.isActive('link') && (
-                <button type="button" onClick={() => { editor.chain().focus().unsetLink().run(); setLinkOpen(false) }} style={{ ...BTN, background: '#f1f5f9', color: '#dc2626' }} title="링크 제거">
+                <button type="button" onClick={() => { editor.chain().focus().unsetLink().run(); setLinkOpen(false) }} style={{ ...BTN, background: 'var(--surface-muted)', color: 'var(--danger)' }} title="링크 제거">
                   ✕
                 </button>
               )}

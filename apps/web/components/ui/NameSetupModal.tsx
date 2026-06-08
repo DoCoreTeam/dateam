@@ -77,7 +77,7 @@ export default function NameSetupModal() {
           <h2 className="tape-title" style={{ margin: 0 }}>
             본인 확인
           </h2>
-          <p style={{ color: '#64748b', fontSize: '0.875rem', margin: 0, lineHeight: 1.6 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0, lineHeight: 1.6 }}>
             조직도에서 본인 이름을 선택해 주세요.
           </p>
         </div>
@@ -85,13 +85,13 @@ export default function NameSetupModal() {
         {error && (
           <div
             style={{
-              backgroundColor: '#fef2f2',
-              border: '1px solid #fecaca',
+              backgroundColor: 'var(--danger-bg)',
+              border: '1px solid var(--danger-border)',
               borderRadius: 'var(--radius)',
               padding: '0.75rem 1rem',
               marginBottom: '1rem',
               fontSize: '0.8125rem',
-              color: '#dc2626',
+              color: 'var(--danger)',
             }}
           >
             {error}

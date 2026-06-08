@@ -14,14 +14,14 @@ type DealFull = Deal & {
 }
 
 const STAGE_STYLE: Record<string, { color: string; bg: string }> = {
-  '신규': { color: '#64748b', bg: 'var(--color-bg)' },
+  '신규': { color: 'var(--text-muted)', bg: 'var(--color-bg)' },
   '검증': { color: '#0891b2', bg: '#ecfeff' },
-  '컨택': { color: '#7c3aed', bg: '#f5f3ff' },
-  'PoC': { color: '#d97706', bg: '#fffbeb' },
+  '컨택': { color: 'var(--brand)', bg: '#f5f3ff' },
+  'PoC': { color: 'var(--warning)', bg: 'var(--warning-bg)' },
   '제안': { color: '#0284c7', bg: '#f0f9ff' },
   '협상': { color: '#c2410c', bg: '#fff7ed' },
-  '수주': { color: '#16a34a', bg: '#f0fdf4' },
-  '실패': { color: '#dc2626', bg: '#fef2f2' },
+  '수주': { color: 'var(--success)', bg: 'var(--success-bg)' },
+  '실패': { color: 'var(--danger)', bg: 'var(--danger-bg)' },
 }
 
 const ACTIVITY_ICON: Record<string, string> = {
@@ -58,7 +58,7 @@ export default async function DealDetailPage({ params }: PageProps) {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.375rem' }}>
-              <h1 style={{ fontSize: '1.375rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>{deal.title}</h1>
+              <h1 style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>{deal.title}</h1>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: '9999px', color: sc.color, background: sc.bg }}>{deal.stage}</span>
             </div>
             {deal.accounts?.name && (
@@ -83,7 +83,7 @@ export default async function DealDetailPage({ params }: PageProps) {
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   <Target size={15} color="var(--brand)" />
                   <span style={{ fontSize: '0.875rem', color: '#374151' }}>₩{deal.value.toLocaleString()}</span>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>확률 {deal.probability}%</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>확률 {deal.probability}%</span>
                 </div>
               )}
               {deal.close_date && (
@@ -95,7 +95,7 @@ export default async function DealDetailPage({ params }: PageProps) {
               {deal.contacts && (
                 <div style={{ fontSize: '0.875rem', color: '#374151' }}>
                   담당자: <Link href={`/contacts/${deal.contacts.id}`} style={{ color: 'var(--brand)', textDecoration: 'none' }}>{deal.contacts.name}</Link>
-                  {deal.contacts.title && <span style={{ color: '#94a3b8' }}> ({deal.contacts.title})</span>}
+                  {deal.contacts.title && <span style={{ color: 'var(--text-faint)' }}> ({deal.contacts.title})</span>}
                 </div>
               )}
               {deal.description && (
@@ -104,8 +104,8 @@ export default async function DealDetailPage({ params }: PageProps) {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
                 {deal.lead_type && <span className="badge badge-slate">{deal.lead_type}</span>}
                 {deal.product && <span className="badge badge-indigo">{deal.product}</span>}
-                {deal.fit_score !== null && <span className="badge" style={{ background: '#f0fdf4', color: '#16a34a' }}>Fit {deal.fit_score}</span>}
-                {deal.expected_date && <span className="badge" style={{ background: 'var(--color-bg)', color: '#64748b' }}>예상 {deal.expected_date}</span>}
+                {deal.fit_score !== null && <span className="badge" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>Fit {deal.fit_score}</span>}
+                {deal.expected_date && <span className="badge" style={{ background: 'var(--color-bg)', color: 'var(--text-muted)' }}>예상 {deal.expected_date}</span>}
                 {deal.hw_included && <span className="badge" style={{ background: '#fff7ed', color: '#c2410c' }}>HW</span>}
               </div>
             </div>
@@ -116,7 +116,7 @@ export default async function DealDetailPage({ params }: PageProps) {
             <div className="card" style={{ padding: '1.25rem 1.5rem', borderLeft: '3px solid var(--brand)' }}>
               <h2 className="tape-title" style={{ margin: 0 }}>다음 액션</h2>
               {deal.next_action && <p style={{ fontSize: '0.875rem', color: '#374151', margin: 0 }}>{deal.next_action}</p>}
-              {deal.next_action_date && <p style={{ fontSize: '0.8125rem', color: '#94a3b8', margin: '0.25rem 0 0' }}>📅 {deal.next_action_date}</p>}
+              {deal.next_action_date && <p style={{ fontSize: '0.8125rem', color: 'var(--text-faint)', margin: '0.25rem 0 0' }}>📅 {deal.next_action_date}</p>}
             </div>
           )}
 
@@ -132,9 +132,9 @@ export default async function DealDetailPage({ params }: PageProps) {
           <ActivityLogger dealId={id} />
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {activities.length === 0 ? (
-              <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>활동 기록이 없습니다</div>
+              <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-faint)', fontSize: '0.875rem' }}>활동 기록이 없습니다</div>
             ) : activities.map((act) => (
-              <div key={act.id} style={{ padding: '0.875rem 1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', gap: '0.75rem' }}>
+              <div key={act.id} style={{ padding: '0.875rem 1.5rem', borderBottom: '1px solid var(--surface-muted)', display: 'flex', gap: '0.75rem' }}>
                 <span style={{ fontSize: '1.125rem', flexShrink: 0 }}>{ACTIVITY_ICON[act.type] ?? '📝'}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '0.8125rem', color: '#374151', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{act.content}</div>
@@ -143,7 +143,7 @@ export default async function DealDetailPage({ params }: PageProps) {
                       단계 제안: {act.suggested_stage}
                     </div>
                   )}
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginTop: '0.25rem' }}>
                     {new Date(act.created_at).toLocaleString('ko-KR')}
                     {act.ai_extracted && <span style={{ marginLeft: '0.375rem', color: 'var(--brand)' }}>· AI 추출</span>}
                   </div>

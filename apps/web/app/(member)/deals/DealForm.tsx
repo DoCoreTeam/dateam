@@ -121,7 +121,7 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
           </div>
           <div>
             <label className="label">수주 확률 (%)</label>
-            <input className="input-field" value={probabilityForStage(form.stage)} readOnly style={{ ...inputStyle, background: 'var(--color-bg)', color: '#64748b' }} />
+            <input className="input-field" value={probabilityForStage(form.stage)} readOnly style={{ ...inputStyle, background: 'var(--color-bg)', color: 'var(--text-muted)' }} />
           </div>
           <div>
             <label className="label">예상 금액 (원)</label>
@@ -200,12 +200,12 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
           <label className="label">태그 (쉼표 구분)</label>
           <input className="input-field" value={form.tags} onChange={(e) => set('tags', e.target.value)} style={inputStyle} />
         </div>
-        {error && <p style={{ color: '#dc2626', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
+        {error && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           <button type="submit" disabled={loading} className="btn-primary" style={{ minHeight: '44px', padding: '0.625rem 1.5rem' }}>
             {loading ? '저장중...' : deal ? '수정' : '등록'}{!loading && <span style={{ fontSize: '0.7rem', opacity: 0.65, marginLeft: '0.375rem' }}>Ctrl+↵</span>}
           </button>
-          <button type="button" onClick={() => router.back()} style={{ minHeight: '44px', padding: '0.625rem 1.25rem', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: '#64748b' }}>
+          <button type="button" onClick={() => router.back()} style={{ minHeight: '44px', padding: '0.625rem 1.25rem', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
             취소
           </button>
         </div>

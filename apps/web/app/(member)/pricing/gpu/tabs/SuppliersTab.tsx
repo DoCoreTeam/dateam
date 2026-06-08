@@ -336,7 +336,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
                     <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--gpu-muted)' }}>색상</span>
                     {COLORS.map((c) => (
                       <button key={c} onClick={() => set('color', c)} aria-label={`색상 ${c}`}
-                        style={{ width: 20, height: 20, borderRadius: '50%', background: c, border: (f?.color === c) ? '2px solid #0f172a' : '2px solid transparent', cursor: 'pointer' }} />
+                        style={{ width: 20, height: 20, borderRadius: '50%', background: c, border: (f?.color === c) ? '2px solid var(--text)' : '2px solid transparent', cursor: 'pointer' }} />
                     ))}
                   </div>
                   {err && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--gpu-red)' }}>{err}</div>}
@@ -430,7 +430,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
                 <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>가용 재고</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {data.availability.map((a) => (
-                    <div key={a.id} style={{ display: 'flex', gap: 10, padding: '6px 10px', borderRadius: 6, background: '#f0fdf4', fontSize: 12.5 }}>
+                    <div key={a.id} style={{ display: 'flex', gap: 10, padding: '6px 10px', borderRadius: 6, background: 'var(--success-bg)', fontSize: 12.5 }}>
                       <span style={{ fontWeight: 600 }}>{a.gpu_products?.model_name ?? '—'}</span>
                       <span style={{ marginLeft: 'auto', fontWeight: 700, color: 'var(--gpu-green)' }}>{a.resp_qty ?? 0} GPU</span>
                     </div>
@@ -534,7 +534,7 @@ export default function SuppliersTab({ onGoToPriceTable }: { onGoToPriceTable?: 
                 <div className="gpu-sup-loc" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   {s.country && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><span style={{ fontSize: 14 }}>{countryFlag(s.country)}</span>{s.country}</span>}
                   {s.website && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--gpu-accent)' }}><Globe size={11} />사이트</span>}
-                  {s.source === 'manual' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-amber)', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 4, padding: '0 5px' }}>수동입력</span>}
+                  {s.source === 'manual' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-amber)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 4, padding: '0 5px' }}>수동입력</span>}
                   {s.source === 'integrated' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.08)', borderRadius: 4, padding: '0 5px' }}>통합입력</span>}
                 </div>
               </div>

@@ -42,7 +42,7 @@ export default function DeleteUserButton({ userId, userName, isSelf }: DeleteUse
             disabled={pending}
             style={{
               padding: '0.25rem 0.625rem', fontSize: '0.75rem', fontWeight: 600,
-              backgroundColor: '#dc2626', color: '#fff',
+              backgroundColor: 'var(--danger)', color: '#fff',
               border: 'none', borderRadius: '0.375rem', cursor: 'pointer',
             }}
           >
@@ -53,7 +53,7 @@ export default function DeleteUserButton({ userId, userName, isSelf }: DeleteUse
             disabled={pending}
             style={{
               padding: '0.25rem 0.625rem', fontSize: '0.75rem',
-              backgroundColor: '#f1f5f9', color: '#475569',
+              backgroundColor: 'var(--surface-muted)', color: '#475569',
               border: 'none', borderRadius: '0.375rem', cursor: 'pointer',
             }}
           >
@@ -71,8 +71,8 @@ export default function DeleteUserButton({ userId, userName, isSelf }: DeleteUse
       style={{
         display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
         padding: '0.25rem 0.625rem', fontSize: '0.75rem',
-        backgroundColor: '#fff1f2', color: '#dc2626',
-        border: '1px solid #fecaca', borderRadius: '0.375rem', cursor: 'pointer',
+        backgroundColor: '#fff1f2', color: 'var(--danger)',
+        border: '1px solid var(--danger-border)', borderRadius: '0.375rem', cursor: 'pointer',
       }}
     >
       <Trash2 size={12} />

@@ -26,21 +26,21 @@ function lineDiff(before: string, after: string) {
 }
 
 const EVENT_LABEL: Record<string, { t: string; c: string }> = {
-  auto_activated: { t: 'AI 자동반영', c: '#2563eb' }, auto_rolled_back: { t: 'AI 자동롤백', c: '#d97706' },
-  rolled_back: { t: '수동 롤백', c: '#7c3aed' }, edited: { t: '수동 편집', c: '#0f172a' },
-  held: { t: 'AI 보류', c: '#dc2626' }, activated: { t: '활성화', c: '#16a34a' }, deactivated: { t: '비활성화', c: '#64748b' },
+  auto_activated: { t: 'AI 자동반영', c: 'var(--info)' }, auto_rolled_back: { t: 'AI 자동롤백', c: 'var(--warning)' },
+  rolled_back: { t: '수동 롤백', c: 'var(--brand)' }, edited: { t: '수동 편집', c: 'var(--text)' },
+  held: { t: 'AI 보류', c: 'var(--danger)' }, activated: { t: '활성화', c: 'var(--success)' }, deactivated: { t: '비활성화', c: 'var(--text-muted)' },
 }
 
 export default function AiPromptsClient() {
   const [tab, setTab] = useState<'prompts' | 'history' | 'schema'>('prompts')
   return (
     <div className="page-inner" style={{ height: '100%', overflowY: 'auto' }}>
-      <div style={{ fontSize: 12, color: '#64748b' }}>관리자 · AI</div>
-      <h2 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: '0 0 4px' }}>AI 프롬프트 운영</h2>
-      <p style={{ fontSize: 12.5, color: '#64748b', margin: '0 0 16px' }}>DB 프롬프트 CRUD · AI 자가갱신 이력(왜·어떻게) · 롤백 · AI가 보는 스키마</p>
+      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>관리자 · AI</div>
+      <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', margin: '0 0 4px' }}>AI 프롬프트 운영</h2>
+      <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 16px' }}>DB 프롬프트 CRUD · AI 자가갱신 이력(왜·어떻게) · 롤백 · AI가 보는 스키마</p>
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '2px solid var(--border-color)' }}>
         {([['prompts', '프롬프트'], ['history', '변경 이력'], ['schema', '스키마(AI 가시)']] as const).map(([k, label]) => (
-          <button key={k} onClick={() => setTab(k)} style={{ padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: tab === k ? 700 : 500, color: tab === k ? 'var(--gpu-accent,#5b5ef0)' : '#64748b', borderBottom: tab === k ? '2px solid var(--gpu-accent,#5b5ef0)' : '2px solid transparent' }}>{label}</button>
+          <button key={k} onClick={() => setTab(k)} style={{ padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: tab === k ? 700 : 500, color: tab === k ? 'var(--gpu-accent,#5b5ef0)' : 'var(--text-muted)', borderBottom: tab === k ? '2px solid var(--gpu-accent,#5b5ef0)' : '2px solid transparent' }}>{label}</button>
         ))}
       </div>
       {tab === 'prompts' && <PromptsTab />}
@@ -94,9 +94,9 @@ function PromptsTab() {
               <tr>
                 <td className="card-header"><span style={{ fontWeight: 600 }}>{p.prompt_key}</span></td>
                 <td data-label="버전">{fmtVer(p.version)}</td>
-                <td data-label="출처"><span style={{ color: p.source === 'ai' ? '#2563eb' : '#64748b', fontWeight: p.source === 'ai' ? 700 : 400 }}>{p.source === 'ai' ? '🤖 AI' : '👤 사람'}</span></td>
-                <td data-label="활성"><button onClick={() => toggle(p)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: p.active ? '#16a34a' : '#94a3b8', borderColor: p.active ? '#bbf7d0' : 'var(--color-border)' }}>{p.active ? '활성' : '비활성'}</button></td>
-                <td data-label="수정" className="card-hide" style={{ fontSize: 11, color: '#94a3b8' }}>{p.updated_at?.slice(0, 16).replace('T', ' ')}{p.updated_by ? ` · ${p.updated_by}` : ''}</td>
+                <td data-label="출처"><span style={{ color: p.source === 'ai' ? 'var(--info)' : 'var(--text-muted)', fontWeight: p.source === 'ai' ? 700 : 400 }}>{p.source === 'ai' ? '🤖 AI' : '👤 사람'}</span></td>
+                <td data-label="활성"><button onClick={() => toggle(p)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: p.active ? 'var(--success)' : 'var(--text-faint)', borderColor: p.active ? 'var(--success-border)' : 'var(--color-border)' }}>{p.active ? '활성' : '비활성'}</button></td>
+                <td data-label="수정" className="card-hide" style={{ fontSize: 11, color: 'var(--text-faint)' }}>{p.updated_at?.slice(0, 16).replace('T', ' ')}{p.updated_by ? ` · ${p.updated_by}` : ''}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   <button onClick={() => toggleOpen(p.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', marginRight: 4 }}>{open.has(p.id) ? '내용 닫기' : `내용 (${p.content?.length ?? 0}자)`}</button>
                   <button onClick={() => { setEdit(p); setDraft(p.content); setInstr(''); setMsg('') }} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px' }}>편집</button>
@@ -105,7 +105,7 @@ function PromptsTab() {
               {open.has(p.id) && (
                 <tr>
                   <td colSpan={6} style={{ background: 'var(--color-bg)', padding: 0 }}>
-                    <pre style={{ margin: 0, padding: 14, fontSize: 11.5, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#0f172a', maxHeight: 420, overflowY: 'auto' }}>{p.content}</pre>
+                    <pre style={{ margin: 0, padding: 14, fontSize: 11.5, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--text)', maxHeight: 420, overflowY: 'auto' }}>{p.content}</pre>
                   </td>
                 </tr>
               )}
@@ -116,22 +116,22 @@ function PromptsTab() {
       {edit && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 20 }} onClick={() => setEdit(null)}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: 20, width: 'min(760px, 96vw)', maxHeight: '88vh', overflowY: 'auto' }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 15 }}>{edit.prompt_key} <span style={{ fontSize: 12, color: '#94a3b8' }}>{fmtVer(edit.version)}</span></h3>
-            <p style={{ fontSize: 11.5, color: '#94a3b8', margin: '0 0 10px' }}>편집·저장 시 변경 이력에 기록됩니다(왜·어떻게)</p>
+            <h3 style={{ margin: '0 0 4px', fontSize: 15 }}>{edit.prompt_key} <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>{fmtVer(edit.version)}</span></h3>
+            <p style={{ fontSize: 11.5, color: 'var(--text-faint)', margin: '0 0 10px' }}>편집·저장 시 변경 이력에 기록됩니다(왜·어떻게)</p>
             {/* AI에게 편집 지시 — 스키마 인지 상태로 현재 본문을 개선해 아래 편집창에 채움(저장은 사람이) */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
               <input value={instr} onChange={(e) => setInstr(e.target.value)} placeholder="AI에게 지시 (예: 약정·수량 추출을 강화하고 재고 resp_qty를 더 정확히)" disabled={aiBusy}
                 style={{ flex: 1, fontSize: 12, padding: '8px 10px', border: '2px solid var(--border-color)', borderRadius: 8 }} onKeyDown={(e) => { if (e.key === 'Enter') aiEdit() }} />
-              <button onClick={aiEdit} disabled={aiBusy} className="gpu-btn" style={{ fontSize: 12, padding: '6px 14px', color: '#2563eb', borderColor: '#bfdbfe', fontWeight: 600, whiteSpace: 'nowrap' }}>{aiBusy ? '편집 중…' : '🤖 AI로 편집'}</button>
+              <button onClick={aiEdit} disabled={aiBusy} className="gpu-btn" style={{ fontSize: 12, padding: '6px 14px', color: 'var(--info)', borderColor: 'var(--info-border)', fontWeight: 600, whiteSpace: 'nowrap' }}>{aiBusy ? '편집 중…' : '🤖 AI로 편집'}</button>
             </div>
-            <div title={schemaTables.join(', ')} style={{ fontSize: 11, color: '#2563eb', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div title={schemaTables.join(', ')} style={{ fontSize: 11, color: 'var(--info)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
               🗂 AI는 현재 DB 스키마 <strong>{schemaTables.length}개 테이블</strong>을 참고해 수정합니다 (마우스 올리면 목록)
             </div>
             <textarea value={draft} onChange={(e) => setDraft(e.target.value)} style={{ width: '100%', minHeight: 340, fontFamily: 'monospace', fontSize: 12, padding: 10, border: '2px solid var(--border-color)', borderRadius: 8 }} />
             <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
               <button onClick={save} className="gpu-btn gpu-btn-primary">저장</button>
               <button onClick={() => setEdit(null)} className="gpu-btn">취소</button>
-              {msg && <span style={{ fontSize: 12, color: '#16a34a' }}>{msg}</span>}
+              {msg && <span style={{ fontSize: 12, color: 'var(--success)' }}>{msg}</span>}
             </div>
           </div>
         </div>
@@ -154,11 +154,11 @@ function HistoryTab() {
   }
   return (
     <>
-      {msg && <div style={{ fontSize: 12, color: '#16a34a', marginBottom: 8 }}>{msg}</div>}
+      {msg && <div style={{ fontSize: 12, color: 'var(--success)', marginBottom: 8 }}>{msg}</div>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {revs.length === 0 && <div style={{ fontSize: 12.5, color: '#94a3b8' }}>변경 이력 없음</div>}
+        {revs.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--text-faint)' }}>변경 이력 없음</div>}
         {revs.map((r) => {
-          const ev = EVENT_LABEL[r.event] ?? { t: r.event, c: '#64748b' }
+          const ev = EVENT_LABEL[r.event] ?? { t: r.event, c: 'var(--text-muted)' }
           const isOpen = open.has(r.id)
           const diff = r.prev_content != null && r.content != null ? lineDiff(r.prev_content, r.content) : null
           return (
@@ -166,19 +166,19 @@ function HistoryTab() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', fontSize: 12.5, flexWrap: 'wrap' }}>
                 <span style={{ fontWeight: 700, color: ev.c, minWidth: 78 }}>{ev.t}</span>
                 <span style={{ fontWeight: 600 }}>{r.prompt_key}</span>
-                <span style={{ color: '#94a3b8' }}>{r.version}</span>
-                {r.diff_summary && <span style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>{r.diff_summary}</span>}
-                <span style={{ fontSize: 10.5, color: '#cbd5e1', marginLeft: 'auto' }}>{r.created_at?.slice(0, 16).replace('T', ' ')}</span>
+                <span style={{ color: 'var(--text-faint)' }}>{r.version}</span>
+                {r.diff_summary && <span style={{ fontSize: 11, color: 'var(--success)', fontWeight: 600 }}>{r.diff_summary}</span>}
+                <span style={{ fontSize: 10.5, color: 'var(--border-subtle)', marginLeft: 'auto' }}>{r.created_at?.slice(0, 16).replace('T', ' ')}</span>
                 <button onClick={() => toggle(r.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px' }}>{isOpen ? '닫기' : '왜·무엇'}</button>
-                <button onClick={() => rollback(r.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: '#7c3aed', borderColor: '#ddd6fe' }}>이 버전 롤백</button>
+                <button onClick={() => rollback(r.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: 'var(--brand)', borderColor: '#ddd6fe' }}>이 버전 롤백</button>
               </div>
               {isOpen && (
-                <div style={{ borderTop: '1px solid #f1f5f9', padding: '10px 14px', background: 'var(--color-bg)' }}>
+                <div style={{ borderTop: '1px solid var(--surface-muted)', padding: '10px 14px', background: 'var(--color-bg)' }}>
                   {/* 왜 바꿨나 */}
                   <div style={{ fontSize: 12, marginBottom: 8 }}>
                     <strong style={{ color: '#475569' }}>왜:</strong> {r.reason || '—'}
-                    {r.trigger && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 8px', borderRadius: 999, background: '#ede9fe', color: 'var(--brand-dark)' }}>{TRIGGER_LABEL[r.trigger] ?? r.trigger}</span>}
-                    <span style={{ marginLeft: 8, fontSize: 11, color: '#94a3b8' }}>by {r.source === 'ai' ? '🤖 AI' : `👤 ${r.created_by}`}</span>
+                    {r.trigger && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 8px', borderRadius: 999, background: 'var(--brand-soft-2)', color: 'var(--brand-dark)' }}>{TRIGGER_LABEL[r.trigger] ?? r.trigger}</span>}
+                    <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-faint)' }}>by {r.source === 'ai' ? '🤖 AI' : `👤 ${r.created_by}`}</span>
                   </div>
                   {/* 무엇을 바꿨나 — before→after 라인 diff */}
                   <div style={{ fontSize: 12, marginBottom: 4 }}><strong style={{ color: '#475569' }}>무엇:</strong> {r.diff_summary ?? (r.prev_content == null ? '최초 생성(이전본 없음)' : '변경 없음')}</div>
@@ -191,7 +191,7 @@ function HistoryTab() {
                   {/* 최종 본문 전체 보기 */}
                   {r.content && (
                     <details style={{ marginTop: 8 }}>
-                      <summary style={{ fontSize: 11.5, color: '#2563eb', cursor: 'pointer' }}>이 버전 전체 본문 보기</summary>
+                      <summary style={{ fontSize: 11.5, color: 'var(--info)', cursor: 'pointer' }}>이 버전 전체 본문 보기</summary>
                       <pre style={{ margin: '6px 0 0', fontSize: 11, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto', background: '#fff', border: '2px solid var(--border-color)', borderRadius: 6, padding: 10 }}>{r.content}</pre>
                     </details>
                   )}
@@ -209,11 +209,11 @@ function SchemaTab() {
   const { data } = useSWR<{ digest: string; tables: string[] }>('/api/admin/ai-prompts?view=schema', fetcher)
   return (
     <>
-      <p style={{ fontSize: 12.5, color: '#64748b', margin: '0 0 10px' }}>AI가 추출 시 인지하는 테이블 {data?.tables?.length ?? 0}개 (public 전체 테이블 자동 포함 — 구조만, 행 데이터는 미포함)</p>
+      <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 10px' }}>AI가 추출 시 인지하는 테이블 {data?.tables?.length ?? 0}개 (public 전체 테이블 자동 포함 — 구조만, 행 데이터는 미포함)</p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-        {(data?.tables ?? []).map((t) => <span key={t} style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 999, background: '#f3effe', color: 'var(--brand-dark)', fontWeight: 600 }}>{t}</span>)}
+        {(data?.tables ?? []).map((t) => <span key={t} style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 999, background: 'var(--brand-soft)', color: 'var(--brand-dark)', fontWeight: 600 }}>{t}</span>)}
       </div>
-      <pre style={{ fontSize: 11, fontFamily: 'monospace', background: '#0f172a', color: 'var(--color-border)', padding: 14, borderRadius: 10, overflowX: 'auto', maxHeight: 460 }}>{data?.digest ?? '불러오는 중…'}</pre>
+      <pre style={{ fontSize: 11, fontFamily: 'monospace', background: 'var(--text)', color: 'var(--color-border)', padding: 14, borderRadius: 10, overflowX: 'auto', maxHeight: 460 }}>{data?.digest ?? '불러오는 중…'}</pre>
     </>
   )
 }

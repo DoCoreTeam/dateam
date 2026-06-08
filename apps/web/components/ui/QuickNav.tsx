@@ -64,7 +64,7 @@ export default function QuickNav() {
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '6px 12px', borderRadius: 8,
           border: '2px solid var(--border-color)',
-          background: open ? '#f1f5f9' : 'white',
+          background: open ? 'var(--surface-muted)' : 'white',
           color: '#475569', fontSize: 13, fontWeight: 500,
           cursor: 'pointer', transition: 'all .15s',
         }}
@@ -83,16 +83,16 @@ export default function QuickNav() {
           zIndex: 200, minWidth: 240, overflow: 'hidden',
           animation: 'fadeInDown .12s ease',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #f1f5f9' }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em', textTransform: 'uppercase' }}>모든 화면</span>
-            <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 2, borderRadius: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--surface-muted)' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>모든 화면</span>
+            <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 2, borderRadius: 4 }}>
               <X size={14} />
             </button>
           </div>
           <div style={{ padding: '8px 0' }}>
             {PAGES.map(({ group, items }) => (
               <div key={group}>
-                <div style={{ padding: '6px 16px 2px', fontSize: 11, fontWeight: 600, color: '#cbd5e1', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{group}</div>
+                <div style={{ padding: '6px 16px 2px', fontSize: 11, fontWeight: 600, color: 'var(--border-subtle)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{group}</div>
                 {items.map(({ href, label, icon, external }) => (
                   <Link
                     key={href}

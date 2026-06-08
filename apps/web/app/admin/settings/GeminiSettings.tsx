@@ -74,10 +74,10 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
 
       {/* 현재 상태 */}
       {hasKey && maskedKey && (
-        <div style={{ padding: '0.875rem 1rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
+        <div style={{ padding: '0.875rem 1rem', backgroundColor: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <CheckCircle size={14} color="#16a34a" />
+              <CheckCircle size={14} color="var(--success)" />
               <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#15803d' }}>API 키 설정됨</span>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -92,9 +92,9 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
                 type="button"
                 onClick={handleDelete}
                 disabled={deletePending}
-                style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                style={{ fontSize: '0.75rem', color: 'var(--danger)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
               >
-                {deletePending ? <AXDotLoader size={4} color="#dc2626" /> : <Trash2 size={12} />}
+                {deletePending ? <AXDotLoader size={4} color="var(--danger)" /> : <Trash2 size={12} />}
                 삭제
               </button>
             </div>
@@ -146,9 +146,9 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
             display: 'flex',
             alignItems: 'center',
             gap: '0.375rem',
-            backgroundColor: saveMsg.ok ? '#f0fdf4' : '#fef2f2',
+            backgroundColor: saveMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
             color: saveMsg.ok ? '#15803d' : '#b91c1c',
-            border: `1px solid ${saveMsg.ok ? '#bbf7d0' : '#fecaca'}`,
+            border: `1px solid ${saveMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
           }}
         >
           {saveMsg.ok ? <CheckCircle size={13} /> : <XCircle size={13} />}
@@ -170,7 +170,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
               gap: '0.375rem',
               padding: '0.5rem 0.875rem',
               backgroundColor: hasKey ? 'var(--brand)' : 'var(--color-border)',
-              color: hasKey ? '#fff' : '#94a3b8',
+              color: hasKey ? '#fff' : 'var(--text-faint)',
               border: 'none',
               borderRadius: 'var(--radius)',
               fontSize: '0.8125rem',
@@ -194,9 +194,9 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
-              backgroundColor: healthMsg.ok ? '#f0fdf4' : '#fef2f2',
+              backgroundColor: healthMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
               color: healthMsg.ok ? '#15803d' : '#b91c1c',
-              border: `1px solid ${healthMsg.ok ? '#bbf7d0' : '#fecaca'}`,
+              border: `1px solid ${healthMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
             }}
           >
             {healthMsg.ok ? <CheckCircle size={14} /> : <XCircle size={14} />}
@@ -205,7 +205,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
         )}
 
         {!healthMsg && (
-          <p style={{ fontSize: '0.8125rem', color: '#94a3b8', margin: 0 }}>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-faint)', margin: 0 }}>
             {hasKey ? 'Gemini API에 연결 가능한지 확인합니다' : 'API 키를 먼저 저장해주세요'}
           </p>
         )}

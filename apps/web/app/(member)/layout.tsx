@@ -99,9 +99,9 @@ export default async function MemberLayout({ children }: { children: React.React
         footer={<SidebarProfile name={displayName} email={userEmail} isAdmin={profile?.role === 'admin'} />}
         adminHref={profile?.role === 'admin' ? '/admin/users' : undefined}
         headerLeft={
-          <span style={{ fontSize: '0.875rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             안녕하세요,{' '}
-            <strong style={{ color: '#0f172a', fontWeight: 600 }}>{displayName}</strong>
+            <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{displayName}</strong>
             님
           </span>
         }

@@ -51,7 +51,7 @@ export default function HomeMiniCalendar({ year, month, todayStr, monthSummary }
             key={d}
             style={{
               textAlign: 'center', fontSize: '0.6875rem', fontWeight: 600,
-              color: i === 0 ? '#ef4444' : i === 6 ? '#3b82f6' : '#94a3b8',
+              color: i === 0 ? '#ef4444' : i === 6 ? '#3b82f6' : 'var(--text-faint)',
               padding: '0.2rem 0',
             }}
           >

@@ -63,10 +63,10 @@ export default async function AdminSettingsPage({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
       {driveParam === 'connected' && <DriveConnectedBanner />}
       <div>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
           시스템 설정
         </h1>
-        <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>
+        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
           브랜딩 및 외부 API를 관리합니다
         </p>
       </div>

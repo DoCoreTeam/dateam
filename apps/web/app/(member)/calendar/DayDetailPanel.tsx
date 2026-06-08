@@ -16,11 +16,11 @@ interface CalEvent {
 }
 
 const ENTRY_TYPES: Record<DailyLogEntryType, { label: string; color: string; bg: string; border: string }> = {
-  done:    { label: '완료',   color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-  doing:   { label: '진행중', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
-  planned: { label: '예정',   color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
-  blocker: { label: '블로커', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
-  note:    { label: '메모',   color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+  done:    { label: '완료',   color: 'var(--success)', bg: 'var(--success-bg)', border: 'var(--success-border)' },
+  doing:   { label: '진행중', color: 'var(--info)', bg: 'var(--info-bg)', border: 'var(--info-border)' },
+  planned: { label: '예정',   color: 'var(--brand)', bg: '#f5f3ff', border: '#ddd6fe' },
+  blocker: { label: '블로커', color: 'var(--danger)', bg: 'var(--danger-bg)', border: 'var(--danger-border)' },
+  note:    { label: '메모',   color: 'var(--warning)', bg: 'var(--warning-bg)', border: 'var(--warning-border)' },
 }
 
 const WEEK_DAYS = ['일', '월', '화', '수', '목', '금', '토']
@@ -89,7 +89,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
         {/* 헤더 */}
         <div className="day-panel-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a' }}>
+            <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text)' }}>
               {formatPanelDate(date)}
             </span>
             {isToday && (
@@ -107,7 +107,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
                 padding: '0.375rem 0.625rem', fontSize: '0.8125rem',
-                background: '#f3effe', color: 'var(--brand)', border: '1px solid #ddd6fe',
+                background: 'var(--brand-soft)', color: 'var(--brand)', border: '1px solid #ddd6fe',
                 borderRadius: '0.375rem', cursor: 'pointer', fontWeight: 600, minHeight: 36,
               }}
             >
@@ -129,7 +129,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
               style={{
                 width: 36, height: 36, border: '2px solid var(--border-color)',
                 borderRadius: '0.375rem', background: 'var(--color-bg)',
-                cursor: 'pointer', fontSize: '1.125rem', color: '#64748b',
+                cursor: 'pointer', fontSize: '1.125rem', color: 'var(--text-muted)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
               }}
@@ -148,25 +148,25 @@ export default function DayDetailPanel({ date, onClose }: Props) {
               <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand)', marginBottom: '0.4rem', letterSpacing: '0.02em' }}>일정</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                 {events.map((ev) => (
-                  <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.625rem', background: '#f3effe', border: '1px solid #ddd6fe', borderRadius: 'var(--radius)' }}>
+                  <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.625rem', background: 'var(--brand-soft)', border: '1px solid #ddd6fe', borderRadius: 'var(--radius)' }}>
                     <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand-dark)', whiteSpace: 'nowrap' }}>
                       {ev.all_day ? '종일' : formatTime(ev.start_at)}{!ev.all_day && ev.end_at ? `~${formatTime(ev.end_at)}` : ''}
                     </span>
                     <span style={{ flex: 1, fontSize: '0.85rem', color: '#1e293b', minWidth: 0 }}>{ev.title}</span>
                     {ev.rrule && <span style={{ fontSize: '0.6rem', color: 'var(--brand)' }} title="반복">↻</span>}
-                    {ev.source === 'ai' && <span style={{ fontSize: '0.6rem', color: '#7c3aed' }}>AI</span>}
-                    <button onClick={() => onDeleteEvent(ev.base_id ?? ev.id)} aria-label="삭제" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1', flexShrink: 0 }}><Trash2 size={13} /></button>
+                    {ev.source === 'ai' && <span style={{ fontSize: '0.6rem', color: 'var(--brand)' }}>AI</span>}
+                    <button onClick={() => onDeleteEvent(ev.base_id ?? ev.id)} aria-label="삭제" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--border-subtle)', flexShrink: 0 }}><Trash2 size={13} /></button>
                   </div>
                 ))}
               </div>
             </div>
           )}
           {loading ? (
-            <div style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem 0', fontSize: '0.875rem' }}>
+            <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '2rem 0', fontSize: '0.875rem' }}>
               로딩 중...
             </div>
           ) : logs.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem 0', fontSize: '0.875rem' }}>
+            <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '2rem 0', fontSize: '0.875rem' }}>
               작성된 로그가 없습니다.
             </div>
           ) : (
@@ -181,7 +181,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
                       display: 'flex', alignItems: 'flex-start', gap: '0.625rem',
                       padding: '0.625rem 0.75rem',
                       borderLeft: `3px solid ${t.color}`,
-                      background: log.entry_type === 'blocker' ? '#fef2f2' : '#fafafa',
+                      background: log.entry_type === 'blocker' ? 'var(--danger-bg)' : '#fafafa',
                       borderRadius: '0 0.375rem 0.375rem 0',
                       cursor: 'pointer',
                     }}
@@ -196,13 +196,13 @@ export default function DayDetailPanel({ date, onClose }: Props) {
                         }}>
                           {t.label}
                         </span>
-                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>
                           {formatTime(log.logged_at)}
                         </span>
                         {log.log_date !== date && (
                           <span style={{
                             fontSize: '0.65rem', color: 'var(--brand)',
-                            background: '#f3effe', border: '1px solid #ddd6fe',
+                            background: 'var(--brand-soft)', border: '1px solid #ddd6fe',
                             padding: '0.05rem 0.35rem', borderRadius: '0.25rem',
                           }}>
                             작성 {log.log_date}

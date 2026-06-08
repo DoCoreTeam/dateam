@@ -59,7 +59,7 @@ const STATUS_BADGE: Record<RowStatus, { label: string; bg: string; color: string
   added:     { label: '추가됨', bg: '#dcfce7', color: '#15803d' },
   deleted:   { label: '삭제됨', bg: '#fee2e2', color: '#b91c1c' },
   modified:  { label: '수정됨', bg: '#fef9c3', color: '#a16207' },
-  unchanged: { label: '변경없음', bg: '#f1f5f9', color: '#64748b' },
+  unchanged: { label: '변경없음', bg: 'var(--surface-muted)', color: 'var(--text-muted)' },
 }
 
 function renderValue(val: unknown): string {
@@ -118,10 +118,10 @@ export default function ContentDiffModal({
           flexShrink: 0,
         }}>
           <div>
-            <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
+            <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>
               AI 편집 결과 — {sectionName}
             </div>
-            <div style={{ fontSize: '0.8125rem', color: '#64748b', marginTop: '0.2rem' }}>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
               {changedCount === 0
                 ? '변경사항이 없습니다'
                 : `${changedCount}개 행이 변경되었습니다. 적용하시겠습니까?`}
@@ -154,8 +154,8 @@ export default function ContentDiffModal({
 
             return (
               <div key={idx} style={{
-                borderBottom: '1px solid #f1f5f9',
-                background: row.status === 'deleted' ? '#fff5f5' : row.status === 'added' ? '#f0fdf4' : row.status === 'modified' ? '#fffbeb' : '#fff',
+                borderBottom: '1px solid var(--surface-muted)',
+                background: row.status === 'deleted' ? '#fff5f5' : row.status === 'added' ? 'var(--success-bg)' : row.status === 'modified' ? 'var(--warning-bg)' : '#fff',
               }}>
                 <div
                   style={{
@@ -180,12 +180,12 @@ export default function ContentDiffModal({
                   </span>
 
                   {/* Key field value */}
-                  <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a', minWidth: '120px' }}>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text)', minWidth: '120px' }}>
                     {renderValue(displayRow[keyCol])}
                   </span>
 
                   {/* Other fields preview */}
-                  <span style={{ fontSize: '0.8125rem', color: '#64748b', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {columns.slice(1, 3).map((c) => `${c.label}: ${renderValue(displayRow[c.key])}`).join('  ·  ')}
                   </span>
 
@@ -205,14 +205,14 @@ export default function ContentDiffModal({
                     gap: '1rem',
                   }}>
                     <div>
-                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>이전</div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>이전</div>
                       {columns.map((c) => {
                         const oldVal = renderValue(row.original?.[c.key])
                         const newVal = renderValue(row.proposed?.[c.key])
                         const changed = oldVal !== newVal
                         return (
                           <div key={c.key} style={{ marginBottom: '0.25rem', fontSize: '0.8125rem' }}>
-                            <span style={{ color: '#94a3b8', marginRight: '0.375rem' }}>{c.label}:</span>
+                            <span style={{ color: 'var(--text-faint)', marginRight: '0.375rem' }}>{c.label}:</span>
                             <span style={{ color: changed ? '#b91c1c' : '#475569', textDecoration: changed ? 'line-through' : 'none' }}>
                               {oldVal}
                             </span>
@@ -221,14 +221,14 @@ export default function ContentDiffModal({
                       })}
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>이후</div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>이후</div>
                       {columns.map((c) => {
                         const oldVal = renderValue(row.original?.[c.key])
                         const newVal = renderValue(row.proposed?.[c.key])
                         const changed = oldVal !== newVal
                         return (
                           <div key={c.key} style={{ marginBottom: '0.25rem', fontSize: '0.8125rem' }}>
-                            <span style={{ color: '#94a3b8', marginRight: '0.375rem' }}>{c.label}:</span>
+                            <span style={{ color: 'var(--text-faint)', marginRight: '0.375rem' }}>{c.label}:</span>
                             <span style={{ color: changed ? '#15803d' : '#475569', fontWeight: changed ? 600 : 400 }}>
                               {newVal}
                             </span>
@@ -260,7 +260,7 @@ export default function ContentDiffModal({
             style={{
               padding: '0.5rem 1.25rem',
               background: 'transparent',
-              color: '#64748b',
+              color: 'var(--text-muted)',
               border: '2px solid var(--border-color)',
               borderRadius: 'var(--radius)',
               fontSize: '0.875rem',
@@ -277,7 +277,7 @@ export default function ContentDiffModal({
             style={{
               padding: '0.5rem 1.5rem',
               background: changedCount === 0 ? 'var(--color-border)' : 'var(--brand)',
-              color: changedCount === 0 ? '#94a3b8' : '#fff',
+              color: changedCount === 0 ? 'var(--text-faint)' : '#fff',
               border: 'none',
               borderRadius: 'var(--radius)',
               fontSize: '0.875rem',

@@ -43,7 +43,7 @@ export default function DealStageUpdater({ dealId, currentStage }: Props) {
               border: '1px solid',
               cursor: stage === currentStage ? 'default' : 'pointer',
               background: stage === currentStage ? 'var(--brand)' : 'white',
-              color: stage === currentStage ? 'white' : '#64748b',
+              color: stage === currentStage ? 'white' : 'var(--text-muted)',
               borderColor: stage === currentStage ? 'var(--brand)' : 'var(--color-border)',
               minHeight: '36px',
               opacity: loading ? 0.7 : 1,

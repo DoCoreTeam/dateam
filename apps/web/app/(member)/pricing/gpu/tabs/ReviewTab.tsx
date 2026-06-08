@@ -86,7 +86,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
             <button onClick={() => { onSelect(null); onManualName('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: selected.color, display: 'flex', padding: 0 }}><X size={11} /></button>
           </span>
         ) : manualName ? (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 12, fontWeight: 600, color: '#15803d' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, background: 'var(--success-bg)', border: '1px solid var(--success-border)', fontSize: 12, fontWeight: 600, color: '#15803d' }}>
             <Plus size={11} /> {manualName} (신규)
             <button onClick={() => { onManualName(''); setManualInput('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#15803d', display: 'flex', padding: 0 }}><X size={11} /></button>
           </span>
@@ -104,7 +104,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
       </div>
 
       {open && (
-        <div style={{ marginTop: 8, borderRadius: 10, border: '1px solid #ede9fe', background: '#f8faff', padding: '10px 12px' }}>
+        <div style={{ marginTop: 8, borderRadius: 10, border: '1px solid var(--brand-soft-2)', background: '#f8faff', padding: '10px 12px' }}>
           {/* 추천 공급사 */}
           {suggestions.length > 0 && (
             <div style={{ marginBottom: 8 }}>
@@ -166,7 +166,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
           </div>
 
           {/* 직접 입력 */}
-          <div style={{ borderTop: '1px solid #ede9fe', paddingTop: 8 }}>
+          <div style={{ borderTop: '1px solid var(--brand-soft-2)', paddingTop: 8 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
               <Plus size={11} /> 직접 입력 (신규 공급사)
             </div>
@@ -377,7 +377,7 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
   const overallPct = item.overall_confidence ?? 0
 
   return (
-    <div className="gpu-rev-card" style={{ border: item.is_test ? '1px dashed #ede9fe' : undefined }}>
+    <div className="gpu-rev-card" style={{ border: item.is_test ? '1px dashed var(--brand-soft-2)' : undefined }}>
       {/* 헤더 */}
       <div className="gpu-rev-top" style={{ alignItems: 'flex-start' }}>
         <div className="gpu-chip" style={{ width: 42, height: 42, flexShrink: 0 }}>
@@ -431,8 +431,8 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
               style={{
                 padding: '8px 10px',
                 borderRadius: 8,
-                background: isLow ? (isChecked ? '#f0fdf4' : '#fff7ed') : '#f9fafb',
-                border: `1px solid ${isLow ? (isChecked ? '#bbf7d0' : '#fed7aa') : 'var(--color-border)'}`,
+                background: isLow ? (isChecked ? 'var(--success-bg)' : '#fff7ed') : '#f9fafb',
+                border: `1px solid ${isLow ? (isChecked ? 'var(--success-border)' : '#fed7aa') : 'var(--color-border)'}`,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -490,13 +490,13 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
         전체 추출 데이터 {expanded ? '숨기기' : '보기'}
       </button>
       {expanded && (
-        <pre style={{ marginTop: 8, padding: '10px 12px', borderRadius: 8, background: '#f1f5f9', fontSize: 11, overflowX: 'auto', maxHeight: 200, color: '#374151', lineHeight: 1.6 }}>
+        <pre style={{ marginTop: 8, padding: '10px 12px', borderRadius: 8, background: 'var(--surface-muted)', fontSize: 11, overflowX: 'auto', maxHeight: 200, color: '#374151', lineHeight: 1.6 }}>
           {JSON.stringify(extracted, null, 2)}
         </pre>
       )}
 
       {/* AI 재분석 섹션 */}
-      <div style={{ marginTop: 14, padding: '12px', borderRadius: 8, background: '#f8faff', border: '1px solid #ede9fe' }}>
+      <div style={{ marginTop: 14, padding: '12px', borderRadius: 8, background: '#f8faff', border: '1px solid var(--brand-soft-2)' }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--brand-dark)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
           <RotateCcw size={12} /> AI 재분석 요청
         </div>
@@ -577,7 +577,7 @@ export default function ReviewTab() {
     <div>
       <div className="gpu-banner gpu-banner-warning">
         <div className="gpu-banner-dot">
-          <AlertTriangle size={16} color="#d97706" />
+          <AlertTriangle size={16} color="var(--warning)" />
         </div>
         <div>
           <strong>사람 검토 게이트</strong> · AI가 추출한 견적은 본부장 확정 전까지 가격표에 반영되지 않습니다.

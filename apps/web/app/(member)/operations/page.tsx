@@ -25,22 +25,22 @@ interface RhythmData {
 function getPhaseBadgeStyle(phase: string): React.CSSProperties {
   if (phase === '진행중') {
     return {
-      background: '#f3effe',
+      background: 'var(--brand-soft)',
       color: 'var(--brand-dark)',
       border: '1px solid #ddd6fe',
     }
   }
   if (phase === '제안' || phase === '기획') {
     return {
-      background: '#fffbeb',
-      color: '#d97706',
-      border: '1px solid #fde68a',
+      background: 'var(--warning-bg)',
+      color: 'var(--warning)',
+      border: '1px solid var(--warning-border)',
     }
   }
   if (phase === '상시') {
     return {
       background: 'var(--color-bg)',
-      color: '#64748b',
+      color: 'var(--text-muted)',
       border: '2px solid var(--border-color)',
     }
   }
@@ -53,7 +53,7 @@ function getPhaseBadgeStyle(phase: string): React.CSSProperties {
   }
   return {
     background: 'var(--color-bg)',
-    color: '#64748b',
+    color: 'var(--text-muted)',
     border: '2px solid var(--border-color)',
   }
 }
@@ -100,7 +100,7 @@ export default async function OperationsPage() {
           style={{
             fontSize: '1rem',
             fontWeight: 700,
-            color: '#0f172a',
+            color: 'var(--text)',
             letterSpacing: '-0.01em',
             marginBottom: '1rem',
           }}
@@ -148,7 +148,7 @@ export default async function OperationsPage() {
                       style={{
                         fontWeight: 700,
                         fontSize: '0.9375rem',
-                        color: '#0f172a',
+                        color: 'var(--text)',
                         letterSpacing: '-0.01em',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
@@ -174,7 +174,7 @@ export default async function OperationsPage() {
                     style={{
                       fontWeight: 700,
                       fontSize: '1.125rem',
-                      color: '#0f172a',
+                      color: 'var(--text)',
                       flexShrink: 0,
                       letterSpacing: '-0.02em',
                     }}
@@ -187,7 +187,7 @@ export default async function OperationsPage() {
                 <div
                   style={{
                     height: '6px',
-                    background: '#f1f5f9',
+                    background: 'var(--surface-muted)',
                     borderRadius: '9999px',
                     overflow: 'hidden',
                   }}
@@ -200,7 +200,7 @@ export default async function OperationsPage() {
                       background:
                         project.phase === '진행중'
                           ? 'linear-gradient(90deg, #0ea5e9, var(--brand), #a855f7)'
-                          : '#94a3b8',
+                          : 'var(--text-faint)',
                       transition: 'width 600ms cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
                   />
@@ -223,13 +223,13 @@ export default async function OperationsPage() {
                       key={label}
                       style={{
                         fontSize: '0.75rem',
-                        color: '#94a3b8',
+                        color: 'var(--text-faint)',
                         display: 'flex',
                         gap: '0.25rem',
                       }}
                     >
-                      <span style={{ color: '#cbd5e1' }}>{label}</span>
-                      <span style={{ color: '#64748b' }}>{value}</span>
+                      <span style={{ color: 'var(--border-subtle)' }}>{label}</span>
+                      <span style={{ color: 'var(--text-muted)' }}>{value}</span>
                     </span>
                   ))}
                 </div>
@@ -245,7 +245,7 @@ export default async function OperationsPage() {
           style={{
             fontSize: '1rem',
             fontWeight: 700,
-            color: '#0f172a',
+            color: 'var(--text)',
             letterSpacing: '-0.01em',
             marginBottom: '1rem',
           }}
@@ -277,7 +277,7 @@ export default async function OperationsPage() {
                     style={{
                       fontWeight: 700,
                       fontSize: '1.0625rem',
-                      color: '#0f172a',
+                      color: 'var(--text)',
                       letterSpacing: '-0.01em',
                     }}
                   >
@@ -298,7 +298,7 @@ export default async function OperationsPage() {
                 {member.domain && (
                   <div
                     style={{
-                      background: '#f3effe',
+                      background: 'var(--brand-soft)',
                       borderRadius: 'var(--radius)',
                       padding: '0.375rem 0.75rem',
                       fontSize: '0.8125rem',
@@ -315,7 +315,7 @@ export default async function OperationsPage() {
                   <span
                     style={{
                       fontSize: '0.75rem',
-                      color: '#94a3b8',
+                      color: 'var(--text-faint)',
                     }}
                   >
                     {member.timesplit}
@@ -329,7 +329,7 @@ export default async function OperationsPage() {
                       style={{
                         fontSize: '0.6875rem',
                         fontWeight: 600,
-                        color: '#94a3b8',
+                        color: 'var(--text-faint)',
                         textTransform: 'uppercase',
                         letterSpacing: '0.05em',
                       }}
@@ -372,7 +372,7 @@ export default async function OperationsPage() {
                         <li
                           style={{
                             fontSize: '0.75rem',
-                            color: '#94a3b8',
+                            color: 'var(--text-faint)',
                             paddingLeft: '0.875rem',
                           }}
                         >
@@ -400,7 +400,7 @@ export default async function OperationsPage() {
                         key={i}
                         style={{
                           fontSize: '0.75rem',
-                          color: '#94a3b8',
+                          color: 'var(--text-faint)',
                           paddingLeft: '0.875rem',
                           position: 'relative',
                         }}
@@ -432,7 +432,7 @@ export default async function OperationsPage() {
             style={{
               fontSize: '1rem',
               fontWeight: 700,
-              color: '#0f172a',
+              color: 'var(--text)',
               letterSpacing: '-0.01em',
               marginBottom: '1rem',
             }}
@@ -458,7 +458,7 @@ export default async function OperationsPage() {
                         textAlign: 'left',
                         fontWeight: 600,
                         fontSize: '0.75rem',
-                        color: '#64748b',
+                        color: 'var(--text-muted)',
                         background: 'var(--color-bg)',
                         borderBottom: '2px solid var(--border-color)',
                         borderRight: i < rrHeaders.length - 1 ? '2px solid var(--border-color)' : 'none',
@@ -486,7 +486,7 @@ export default async function OperationsPage() {
                         data-label={colIdx > 0 ? rrHeaders[colIdx] : undefined}
                         style={{
                           padding: '0.75rem 1rem',
-                          color: colIdx === 0 ? '#0f172a' : '#475569',
+                          color: colIdx === 0 ? 'var(--text)' : '#475569',
                           fontWeight: colIdx === 0 ? 600 : 400,
                           borderRight:
                             colIdx < row.length - 1 ? '2px solid var(--border-color)' : 'none',

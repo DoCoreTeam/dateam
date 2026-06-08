@@ -294,13 +294,13 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
             <button type="button" className="intake-tool-btn" disabled={loading} onClick={() => cameraInputRef.current?.click()} aria-label="사진 첨부">📷 사진</button>
             {voiceSupported && (
               <button type="button" className="intake-tool-btn" onClick={listening ? stopVoiceInput : startVoiceInput} disabled={loading} aria-label={listening ? '음성 정지' : '음성 입력'}
-                style={listening ? { color: '#dc2626', borderColor: '#fecaca', fontWeight: 700 } : undefined}>{listening ? '⏹ 정지 (녹음중)' : '🎤 음성'}</button>
+                style={listening ? { color: 'var(--danger)', borderColor: 'var(--danger-border)', fontWeight: 700 } : undefined}>{listening ? '⏹ 정지 (녹음중)' : '🎤 음성'}</button>
             )}
           </div>
-          <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.375rem 0 0' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-faint)', margin: '0.375rem 0 0' }}>
             명함·미팅 메모·이메일 본문을 붙여넣거나, 이미지·PDF·DOCX·CSV를 첨부, 🎤로 받아쓰기 — XLSX는 대량 업로드로 처리됩니다
           </p>
-          {envWarn && <p style={{ fontSize: '0.75rem', color: '#d97706', margin: '0.25rem 0 0', fontWeight: 600 }}>⚠️ {envWarn}</p>}
+          {envWarn && <p style={{ fontSize: '0.75rem', color: 'var(--warning)', margin: '0.25rem 0 0', fontWeight: 600 }}>⚠️ {envWarn}</p>}
         </div>
 
         {/* 첨부 파일 칩/상태 */}
@@ -326,7 +326,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
                       )}
                     </div>
                   )}
-                  {item.status === 'error' && <p style={{ fontSize: '0.8125rem', color: '#dc2626', margin: 0 }}>{item.error}</p>}
+                  {item.status === 'error' && <p style={{ fontSize: '0.8125rem', color: 'var(--danger)', margin: 0 }}>{item.error}</p>}
                 </div>
                 {item.status === 'pending' && (
                   <button type="button" className="file-remove-btn" onClick={() => setFiles(prev => prev.filter((_, i) => i !== idx))} aria-label="삭제">✕</button>
@@ -336,7 +336,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
           </div>
         )}
 
-        {error && <p style={{ color: '#dc2626', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
+        {error && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
 
         {/* 텍스트 분석 결과 — 저장 성공 시 resetAll로 사라지고 상단 완료 배너로 안내 */}
         {result && (
@@ -360,7 +360,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
           </button>
           {(result || doneFiles.length > 0 || rawInput || files.length > 0) && (
             <button type="button" onClick={resetAll}
-              style={{ padding: '0.625rem 1.25rem', minHeight: '44px', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: '#64748b' }}>
+              style={{ padding: '0.625rem 1.25rem', minHeight: '44px', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
               초기화
             </button>
           )}

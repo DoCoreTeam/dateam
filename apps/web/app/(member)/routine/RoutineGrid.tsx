@@ -39,7 +39,7 @@ function CheckBox({
         width: '2rem',
         height: '2rem',
         borderRadius: 'var(--radius)',
-        border: checked ? 'none' : `1.5px solid ${disabled && !isToday ? 'var(--color-border)' : '#cbd5e1'}`,
+        border: checked ? 'none' : `1.5px solid ${disabled && !isToday ? 'var(--color-border)' : 'var(--border-subtle)'}`,
         backgroundColor: checked ? 'var(--brand)' : 'transparent',
         cursor: disabled ? 'not-allowed' : 'pointer',
         display: 'inline-flex',
@@ -108,7 +108,7 @@ export default function RoutineGrid({
       {/* 달성률 요약 바 */}
       <div className="card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-          <span style={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 500 }}>주간 달성률</span>
+          <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 500 }}>주간 달성률</span>
           <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--brand)' }}>{overallRate}%</span>
         </div>
         <div style={{ height: '6px', borderRadius: '9999px', backgroundColor: 'var(--color-border)', overflow: 'hidden' }}>
@@ -122,7 +122,7 @@ export default function RoutineGrid({
             }}
           />
         </div>
-        <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.5rem 0 0' }}>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-faint)', margin: '0.5rem 0 0' }}>
           {completedUnits} / {totalUnits} 완료
         </p>
       </div>
@@ -131,7 +131,7 @@ export default function RoutineGrid({
       {weeklyItems.length > 0 && (
         <div className="card" style={{ overflow: 'hidden', marginBottom: '1rem' }}>
           <div style={{ padding: '0.875rem 1.25rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               주간 루틴
             </span>
             <span className="badge badge-slate" style={{ fontSize: '0.6875rem' }}>주 1회</span>
@@ -149,7 +149,7 @@ export default function RoutineGrid({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '0.75rem 1.25rem',
-                    borderBottom: idx < weeklyItems.length - 1 ? '1px solid #f1f5f9' : 'none',
+                    borderBottom: idx < weeklyItems.length - 1 ? '1px solid var(--surface-muted)' : 'none',
                     backgroundColor: isChecked ? '#fafbff' : 'transparent',
                   }}
                 >
@@ -189,7 +189,7 @@ export default function RoutineGrid({
         <div className="card" style={{ overflow: 'hidden' }}>
           {dailyItems.length > 0 && weeklyItems.length > 0 && (
             <div style={{ padding: '0.875rem 1.25rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 일간 루틴
               </span>
               <span className="badge badge-slate" style={{ fontSize: '0.6875rem' }}>매일</span>
@@ -199,15 +199,15 @@ export default function RoutineGrid({
             <table className="table-base table-card" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th style={{ padding: '1rem 1.25rem', textAlign: 'left', fontSize: '0.8125rem', fontWeight: 600, color: '#64748b', borderBottom: '2px solid var(--border-color)', width: '200px' }}>
+                  <th style={{ padding: '1rem 1.25rem', textAlign: 'left', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '2px solid var(--border-color)', width: '200px' }}>
                     루틴
                   </th>
                   {weekDates.map((date, i) => {
                     const isToday = date === todayStr
                     return (
-                      <th key={date} style={{ padding: '1rem 0.5rem', textAlign: 'center', fontSize: '0.8125rem', fontWeight: 600, color: isToday ? 'var(--brand)' : '#64748b', borderBottom: '2px solid var(--border-color)', minWidth: '60px' }}>
+                      <th key={date} style={{ padding: '1rem 0.5rem', textAlign: 'center', fontSize: '0.8125rem', fontWeight: 600, color: isToday ? 'var(--brand)' : 'var(--text-muted)', borderBottom: '2px solid var(--border-color)', minWidth: '60px' }}>
                         <div>{DAY_LABELS[i]}</div>
-                        <div style={{ fontSize: '0.75rem', fontWeight: isToday ? 700 : 400, color: isToday ? 'var(--brand)' : '#94a3b8', marginTop: '0.125rem' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: isToday ? 700 : 400, color: isToday ? 'var(--brand)' : 'var(--text-faint)', marginTop: '0.125rem' }}>
                           {new Date(date).getDate()}
                         </div>
                         {isToday && <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'var(--brand)', margin: '0.25rem auto 0' }} />}
@@ -223,7 +223,7 @@ export default function RoutineGrid({
 
                   return (
                     <tr key={item.name}>
-                      <td className="card-header" style={{ padding: '0.875rem 1.25rem', borderBottom: rIdx < dailyItems.length - 1 ? '1px solid #f1f5f9' : 'none', verticalAlign: 'middle' }}>
+                      <td className="card-header" style={{ padding: '0.875rem 1.25rem', borderBottom: rIdx < dailyItems.length - 1 ? '1px solid var(--surface-muted)' : 'none', verticalAlign: 'middle' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
                           <span style={{ fontSize: '0.875rem', color: '#374151', fontWeight: 500 }}>{item.name}</span>
                           <span className={cn('badge', rowRate === 100 ? 'badge-emerald' : 'badge-slate')} style={{ fontSize: '0.6875rem', flexShrink: 0 }}>
@@ -238,7 +238,7 @@ export default function RoutineGrid({
                         const isFuture = date > todayStr
 
                         return (
-                          <td key={date} data-label={DAY_LABELS[i]} style={{ padding: '0.875rem 0.5rem', textAlign: 'center', borderBottom: rIdx < dailyItems.length - 1 ? '1px solid #f1f5f9' : 'none', backgroundColor: isToday ? '#fafbff' : 'transparent' }}>
+                          <td key={date} data-label={DAY_LABELS[i]} style={{ padding: '0.875rem 0.5rem', textAlign: 'center', borderBottom: rIdx < dailyItems.length - 1 ? '1px solid var(--surface-muted)' : 'none', backgroundColor: isToday ? '#fafbff' : 'transparent' }}>
                             <CheckBox
                               checked={isChecked}
                               disabled={isPending || isFuture}
@@ -260,7 +260,7 @@ export default function RoutineGrid({
 
       {/* 루틴 없음 */}
       {weeklyItems.length === 0 && dailyItems.length === 0 && (
-        <div className="card" style={{ padding: '3rem 1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>
+        <div className="card" style={{ padding: '3rem 1rem', textAlign: 'center', color: 'var(--text-faint)', fontSize: '0.875rem' }}>
           등록된 루틴이 없습니다
         </div>
       )}

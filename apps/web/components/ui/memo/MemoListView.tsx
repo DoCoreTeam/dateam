@@ -64,13 +64,13 @@ export default function MemoListView() {
               style={{
                 padding: '0.35rem 0.85rem', borderRadius: '999px', fontSize: '0.8rem', cursor: 'pointer',
                 border: statusFilter === s ? '1px solid var(--brand-dark)' : '2px solid var(--border-color)',
-                background: statusFilter === s ? '#f3effe' : '#fff',
-                color: statusFilter === s ? 'var(--brand-dark)' : '#64748b', fontWeight: statusFilter === s ? 600 : 400,
+                background: statusFilter === s ? 'var(--brand-soft)' : '#fff',
+                color: statusFilter === s ? 'var(--brand-dark)' : 'var(--text-muted)', fontWeight: statusFilter === s ? 600 : 400,
               }}>
               {s === 'unreviewed' ? '미확인' : '전체'}
             </button>
           ))}
-          <span style={{ fontSize: '0.78rem', color: '#94a3b8', marginLeft: 'auto' }}>{filtered.length}건 · 최신순</span>
+          <span style={{ fontSize: '0.78rem', color: 'var(--text-faint)', marginLeft: 'auto' }}>{filtered.length}건 · 최신순</span>
         </div>
 
         {/* AI 클러스터 칩 */}
@@ -89,9 +89,9 @@ export default function MemoListView() {
 
         {/* 메모 리스트 (타임스탬프 정렬) */}
         {loading ? (
-          <div style={{ fontSize: '0.85rem', color: '#94a3b8', padding: '1rem' }}>불러오는 중…</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-faint)', padding: '1rem' }}>불러오는 중…</div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2.5rem', color: '#94a3b8' }}>
+          <div style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-faint)' }}>
             <StickyNote size={28} style={{ opacity: 0.4 }} />
             <p style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>해당하는 메모가 없습니다</p>
           </div>
@@ -108,20 +108,20 @@ export default function MemoListView() {
                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.3rem', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.7rem', color: st.text }}>{relativeTime(m.logged_at)}</span>
                       {m.memo_status === 'reviewed' && (
-                        <span style={{ fontSize: '0.65rem', color: '#16a34a', background: '#f0fdf4', borderRadius: '999px', padding: '0 6px' }}>확인됨</span>
+                        <span style={{ fontSize: '0.65rem', color: 'var(--success)', background: 'var(--success-bg)', borderRadius: '999px', padding: '0 6px' }}>확인됨</span>
                       )}
                       {m.memo_status === 'actioned' && (
-                        <span style={{ fontSize: '0.65rem', color: '#64748b', background: '#f1f5f9', borderRadius: '999px', padding: '0 6px' }}>정리됨</span>
+                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', background: 'var(--surface-muted)', borderRadius: '999px', padding: '0 6px' }}>정리됨</span>
                       )}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
                     {m.memo_status === 'new' && (
                       <button onClick={() => handleReview(m.id)} title="확인 완료"
-                        style={iconBtn('#16a34a')}><Check size={14} /></button>
+                        style={iconBtn('var(--success)')}><Check size={14} /></button>
                     )}
                     <button onClick={() => setPromoteTarget(m)} title="업무로 전환" style={iconBtn('var(--brand-dark)')}><ArrowUpRight size={14} /></button>
-                    <button onClick={() => handleArchive(m.id)} title="보관" style={iconBtn('#94a3b8')}><Archive size={14} /></button>
+                    <button onClick={() => handleArchive(m.id)} title="보관" style={iconBtn('var(--text-faint)')}><Archive size={14} /></button>
                   </div>
                 </li>
               )
@@ -143,7 +143,7 @@ function chipStyle(active: boolean): React.CSSProperties {
     padding: '0.3rem 0.75rem', borderRadius: '999px', fontSize: '0.78rem', cursor: 'pointer',
     border: active ? '1px solid var(--brand)' : '2px solid var(--border-color)',
     background: active ? '#f5f3ff' : '#fff',
-    color: active ? '#7c3aed' : '#64748b', fontWeight: active ? 600 : 400,
+    color: active ? 'var(--brand)' : 'var(--text-muted)', fontWeight: active ? 600 : 400,
   }
 }
 function iconBtn(color: string): React.CSSProperties {

@@ -5,11 +5,11 @@ import type { DailyLog, DailyLogEntryType } from '@/types/database'
 import { DdayBadge, todayLocal } from '@/lib/dday'
 
 const ENTRY_TYPES: { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[] = [
-  { value: 'done',    label: '완료',   color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-  { value: 'doing',   label: '진행중', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
-  { value: 'planned', label: '예정',   color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
-  { value: 'blocker', label: '블로커', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
-  { value: 'note',    label: '메모',   color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+  { value: 'done',    label: '완료',   color: 'var(--success)', bg: 'var(--success-bg)', border: 'var(--success-border)' },
+  { value: 'doing',   label: '진행중', color: 'var(--info)', bg: 'var(--info-bg)', border: 'var(--info-border)' },
+  { value: 'planned', label: '예정',   color: 'var(--brand)', bg: '#f5f3ff', border: '#ddd6fe' },
+  { value: 'blocker', label: '블로커', color: 'var(--danger)', bg: 'var(--danger-bg)', border: 'var(--danger-border)' },
+  { value: 'note',    label: '메모',   color: 'var(--warning)', bg: 'var(--warning-bg)', border: 'var(--warning-border)' },
 ]
 const ENTRY_MAP = Object.fromEntries(ENTRY_TYPES.map((t) => [t.value, t])) as Record<DailyLogEntryType, typeof ENTRY_TYPES[number]>
 
@@ -111,7 +111,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
         <div className="day-panel-drag-handle" />
 
         <div className="day-panel-header">
-          <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a' }}>
+          <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text)' }}>
             🌊 업무 플로우
           </span>
           <button
@@ -119,7 +119,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
             style={{
               width: 36, height: 36, border: '2px solid var(--border-color)',
               borderRadius: '0.375rem', background: 'var(--color-bg)',
-              cursor: 'pointer', fontSize: '1.125rem', color: '#64748b',
+              cursor: 'pointer', fontSize: '1.125rem', color: 'var(--text-muted)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
             aria-label="닫기"
@@ -128,7 +128,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
 
         <div className="day-panel-body">
           {flat.length <= 1 ? (
-            <div style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem 0', fontSize: '0.875rem' }}>
+            <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '2rem 0', fontSize: '0.875rem' }}>
               연결된 파생 업무가 없습니다
             </div>
           ) : (
@@ -156,7 +156,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
                         {(flowReason || isLoading) && (
                           <div style={{
                             fontSize: '0.7rem', color: 'var(--brand)',
-                            background: '#f3effe', border: '1px solid #ddd6fe',
+                            background: 'var(--brand-soft)', border: '1px solid #ddd6fe',
                             borderRadius: '0.25rem', padding: '0.15rem 0.5rem',
                             maxWidth: '100%', wordBreak: 'keep-all',
                           }}>

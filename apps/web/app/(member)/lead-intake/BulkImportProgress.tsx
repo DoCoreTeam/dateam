@@ -166,9 +166,9 @@ export default function BulkImportProgress({ file, onComplete, onCancel }: BulkI
   if (error) {
     return (
       <div className="bulk-result-summary bulk-result-error">
-        <p style={{ margin: 0, fontWeight: 600, color: '#dc2626' }}>오류 발생</p>
+        <p style={{ margin: 0, fontWeight: 600, color: 'var(--danger)' }}>오류 발생</p>
         <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: '#7f1d1d' }}>{error}</p>
-        <button onClick={onCancel} style={{ marginTop: '0.75rem', fontSize: '0.8125rem', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+        <button onClick={onCancel} style={{ marginTop: '0.75rem', fontSize: '0.8125rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
           ← 다시 시도
         </button>
       </div>
@@ -203,13 +203,13 @@ export default function BulkImportProgress({ file, onComplete, onCancel }: BulkI
             <p style={{ fontWeight: 600, fontSize: '0.9375rem', margin: '0 0 0.5rem' }}>
               대량 임포트 완료
             </p>
-            <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: 0 }}>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: 0 }}>
               {file.name} — 총 {total}건 / 소요 {formatSec(elapsed)}
             </p>
             <div style={{ display: 'flex', gap: '1rem', marginTop: '0.75rem' }}>
-              <span style={{ fontSize: '0.875rem', color: '#16a34a', fontWeight: 600 }}>성공 {success}건</span>
+              <span style={{ fontSize: '0.875rem', color: 'var(--success)', fontWeight: 600 }}>성공 {success}건</span>
               {failed > 0 && (
-                <span style={{ fontSize: '0.875rem', color: '#dc2626', fontWeight: 600 }}>실패 {failed}건</span>
+                <span style={{ fontSize: '0.875rem', color: 'var(--danger)', fontWeight: 600 }}>실패 {failed}건</span>
               )}
             </div>
           </div>
@@ -219,7 +219,7 @@ export default function BulkImportProgress({ file, onComplete, onCancel }: BulkI
               {`전체 CRM 등록 (${success}건)`}
             </button>
             <button onClick={onCancel}
-              style={{ padding: '0.625rem 1.25rem', minHeight: '44px', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: '#64748b' }}>
+              style={{ padding: '0.625rem 1.25rem', minHeight: '44px', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
               취소
             </button>
           </div>
@@ -231,7 +231,7 @@ export default function BulkImportProgress({ file, onComplete, onCancel }: BulkI
           <p style={{ color: '#0284c7', fontWeight: 600, margin: 0 }}>
             {success}건이 CRM에 등록되었습니다
           </p>
-          <button onClick={onCancel} style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+          <button onClick={onCancel} style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
             새 파일 업로드 →
           </button>
         </div>

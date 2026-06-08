@@ -101,7 +101,7 @@ export default function TierForm({
       </div>
 
       {error && (
-        <p style={{ fontSize: '0.8125rem', color: '#dc2626', margin: 0 }}>{error}</p>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--danger)', margin: 0 }}>{error}</p>
       )}
 
       <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -111,7 +111,7 @@ export default function TierForm({
           style={{
             display: 'flex', alignItems: 'center', gap: '0.375rem',
             padding: '0.5rem 1rem', borderRadius: '0.375rem',
-            background: pending ? '#94a3b8' : 'var(--brand)', color: 'white',
+            background: pending ? 'var(--text-faint)' : 'var(--brand)', color: 'white',
             border: 'none', fontSize: '0.875rem', fontWeight: 500, cursor: pending ? 'not-allowed' : 'pointer',
           }}
         >
@@ -125,7 +125,7 @@ export default function TierForm({
             style={{
               display: 'flex', alignItems: 'center', gap: '0.375rem',
               padding: '0.5rem 0.75rem', borderRadius: '0.375rem',
-              background: 'transparent', color: '#64748b',
+              background: 'transparent', color: 'var(--text-muted)',
               border: '2px solid var(--border-color)', fontSize: '0.875rem', cursor: 'pointer',
             }}
           >

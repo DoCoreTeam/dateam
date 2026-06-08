@@ -37,7 +37,7 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
           <h3 className="tape-title" style={{ margin: 0 }}>
             <ArrowUpRight size={16} color="var(--brand-dark)" /> 메모를 업무로
           </h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={18} /></button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
         </div>
         <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           <div style={{ fontSize: '0.82rem', color: '#475569', background: 'var(--color-bg)', borderRadius: 'var(--radius)', padding: '0.6rem 0.75rem', lineHeight: 1.5 }}>
@@ -52,8 +52,8 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
                   style={{
                     flex: 1, padding: '0.5rem', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.85rem',
                     border: newType === t ? '2px solid var(--brand-dark)' : '1px solid var(--border-color)',
-                    background: newType === t ? '#f3effe' : '#fff',
-                    color: newType === t ? 'var(--brand-dark)' : '#64748b', fontWeight: newType === t ? 600 : 400,
+                    background: newType === t ? 'var(--brand-soft)' : '#fff',
+                    color: newType === t ? 'var(--brand-dark)' : 'var(--text-muted)', fontWeight: newType === t ? 600 : 400,
                   }}>
                   {t === 'planned' ? '예정' : '진행중'}
                 </button>
@@ -71,7 +71,7 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', paddingTop: '0.25rem' }}>
             <button onClick={onClose} disabled={isPending}
-              style={{ padding: '0.45rem 1rem', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer' }}>취소</button>
+              style={{ padding: '0.45rem 1rem', background: 'var(--surface-muted)', color: '#475569', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer' }}>취소</button>
             <button onClick={handleSubmit} disabled={isPending}
               style={{ padding: '0.45rem 1rem', background: 'var(--brand-dark)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1 }}>
               {isPending ? '전환 중…' : '업무로 전환'}

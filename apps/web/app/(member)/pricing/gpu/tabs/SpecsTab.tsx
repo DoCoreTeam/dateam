@@ -318,7 +318,7 @@ export default function SpecsTab() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <Sparkles size={14} className="gpu-analyzing-icon" style={{ color: 'var(--gpu-accent)' }} />
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }}>AI 데이터시트 생성 중 — {bulkProg.done}/{bulkProg.total}</span>
-            <span style={{ marginLeft: 'auto', fontSize: 12, color: '#64748b' }}>{bulkProg.current}</span>
+            <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted)' }}>{bulkProg.current}</span>
           </div>
           <div style={{ height: 6, borderRadius: 4, background: 'var(--color-border)', overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${bulkProg.total ? Math.round((bulkProg.done / bulkProg.total) * 100) : 0}%`, background: 'var(--gpu-accent)', transition: 'width .3s' }} />

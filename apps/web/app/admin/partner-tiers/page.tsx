@@ -25,10 +25,10 @@ export default async function PartnerTiersPage() {
   return (
     <div>
       <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
           파트너 등급 관리
         </h1>
-        <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>
+        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
           파트너 등급과 할인율을 설정합니다
         </p>
       </div>
@@ -53,7 +53,7 @@ export default async function PartnerTiersPage() {
         </div>
 
         {(!tiers || tiers.length === 0) ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>
+          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-faint)', fontSize: '0.875rem' }}>
             등록된 등급이 없습니다. 새 등급을 추가해주세요.
           </div>
         ) : (

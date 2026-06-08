@@ -35,21 +35,21 @@ export default function WeeklyMemoReview() {
 
   return (
     <>
-      <div className="card" style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem', border: '1px solid #fde68a', background: '#fffdf5' }}>
+      <div className="card" style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem', border: '1px solid var(--warning-border)', background: '#fffdf5' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <StickyNote size={16} color="#d97706" />
-            <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a' }}>
+            <StickyNote size={16} color="var(--warning)" />
+            <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text)' }}>
               이번 주 미처리 메모 {items.length}건
             </span>
             <span style={{ fontSize: '0.78rem', color: '#a16207' }}>— 보고 전에 정리해 보세요</span>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <button onClick={handleArchiveAll}
-              style={{ fontSize: '0.75rem', color: '#64748b', background: '#fff', border: '2px solid var(--border-color)', borderRadius: '0.4rem', padding: '0.3rem 0.6rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: '#fff', border: '2px solid var(--border-color)', borderRadius: '0.4rem', padding: '0.3rem 0.6rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <Archive size={12} /> 전체 보관
             </button>
-            <button onClick={() => setOpen((o) => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex' }}>
+            <button onClick={() => setOpen((o) => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
               {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
             </button>
           </div>
@@ -61,13 +61,13 @@ export default function WeeklyMemoReview() {
               const st = STALENESS_STYLE[m.staleness]
               return (
                 <li key={m.id} className={m.staleness === 'stale' ? 'memo-pulse' : ''}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.65rem', borderRadius: 'var(--radius)', background: '#fff', border: '1px solid #f1f5f9' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.65rem', borderRadius: 'var(--radius)', background: '#fff', border: '1px solid var(--surface-muted)' }}>
                   <span title={st.label} style={{ width: 8, height: 8, borderRadius: '50%', background: st.dot, flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.83rem', color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.content}</div>
                     <div style={{ fontSize: '0.68rem', color: st.text }}>{relativeTime(m.logged_at)}</div>
                   </div>
-                  <button onClick={() => handleReview(m.id)} title="확인 완료" style={iconBtn('#16a34a')}><Check size={13} /></button>
+                  <button onClick={() => handleReview(m.id)} title="확인 완료" style={iconBtn('var(--success)')}><Check size={13} /></button>
                   <button onClick={() => setPromoteTarget(m)} title="업무로 전환" style={iconBtn('var(--brand-dark)')}><ArrowUpRight size={13} /></button>
                 </li>
               )

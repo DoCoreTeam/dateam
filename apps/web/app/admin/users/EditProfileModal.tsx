@@ -67,7 +67,7 @@ export default function EditProfileModal({
           <h3 className="tape-title" style={{ margin: 0 }}>
             사용자 정보 수정
           </h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
             <X size={18} />
           </button>
         </div>
@@ -133,7 +133,7 @@ export default function EditProfileModal({
             onClick={onClose}
             disabled={isPending}
             style={{
-              padding: '0.45rem 1rem', background: '#f1f5f9', color: '#475569',
+              padding: '0.45rem 1rem', background: 'var(--surface-muted)', color: '#475569',
               border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer',
             }}
           >

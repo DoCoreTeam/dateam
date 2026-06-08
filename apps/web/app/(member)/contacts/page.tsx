@@ -68,14 +68,14 @@ export default function ContactsPage() {
     <div>
       <div style={{ marginBottom: '1.75rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>담당자</h1>
-          <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>거래처 담당자 연락처 관리</p>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>담당자</h1>
+          <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>거래처 담당자 연락처 관리</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <Link href="/lead-intake?target=contact" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px' }}>
             <Sparkles size={16} /> AI로 추가
           </Link>
-          <Link href="/contacts/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px', border: '2px solid var(--border-color)', color: '#64748b', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
+          <Link href="/contacts/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px', border: '2px solid var(--border-color)', color: 'var(--text-muted)', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
             <Plus size={16} /> 수동 입력
           </Link>
         </div>
@@ -111,7 +111,7 @@ export default function ContactsPage() {
             <Loader2 size={24} style={{ color: 'var(--brand)', animation: 'spin 1s linear infinite' }} />
           </div>
         ) : contacts.length === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1rem', color: '#94a3b8', fontSize: '0.875rem', textAlign: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1rem', color: 'var(--text-faint)', fontSize: '0.875rem', textAlign: 'center' }}>
             <Users size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
             <p style={{ margin: 0 }}>{hasFilters ? '검색 결과가 없습니다' : '등록된 담당자가 없습니다'}</p>
           </div>
@@ -138,11 +138,11 @@ export default function ContactsPage() {
                       <div>
                         <button
                           onClick={() => setSelected(c)}
-                          style={{ fontWeight: 600, color: '#0f172a', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9375rem', padding: 0, textAlign: 'left' }}
+                          style={{ fontWeight: 600, color: 'var(--text)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9375rem', padding: 0, textAlign: 'left' }}
                         >
                           {c.name}
                         </button>
-                        {c.accounts?.name && <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.125rem' }}>{c.accounts.name}</div>}
+                        {c.accounts?.name && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>{c.accounts.name}</div>}
                       </div>
                       {c.title && <span className="badge badge-slate" style={{ fontSize: '0.7rem', flexShrink: 0 }}>{c.title}</span>}
                     </div>
@@ -150,20 +150,20 @@ export default function ContactsPage() {
                   <td data-label="직책">
                     <div>
                       {c.title && <div style={{ fontSize: '0.875rem', color: '#374151' }}>{c.title}</div>}
-                      {c.department && <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{c.department}</div>}
+                      {c.department && <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>{c.department}</div>}
                     </div>
                   </td>
                   <td data-label="연락처">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                       {c.email && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                          <Mail size={12} color="#94a3b8" />
+                          <Mail size={12} color="var(--text-faint)" />
                           <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} style={{ fontSize: '0.8125rem', color: 'var(--brand)', textDecoration: 'none' }}>{c.email}</a>
                         </div>
                       )}
                       {(c.mobile ?? c.phone) && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                          <Phone size={12} color="#94a3b8" />
+                          <Phone size={12} color="var(--text-faint)" />
                           <span style={{ fontSize: '0.8125rem', color: '#374151' }}>{c.mobile ?? c.phone}</span>
                         </div>
                       )}
@@ -172,14 +172,14 @@ export default function ContactsPage() {
                   <td data-label="역할">
                     {c.role
                       ? <span className="badge badge-slate" style={{ fontSize: '0.75rem' }}>{c.role}</span>
-                      : <span style={{ color: '#cbd5e1', fontSize: '0.8125rem' }}>-</span>}
+                      : <span style={{ color: 'var(--border-subtle)', fontSize: '0.8125rem' }}>-</span>}
                   </td>
                   <td data-label="거래처" onClick={e => e.stopPropagation()}>
                     {c.accounts?.name ? (
                       <Link href={`/accounts/${c.account_id}`} style={{ fontSize: '0.875rem', color: 'var(--brand)', textDecoration: 'none' }}>
                         {c.accounts.name}
                       </Link>
-                    ) : <span style={{ color: '#cbd5e1', fontSize: '0.8125rem' }}>-</span>}
+                    ) : <span style={{ color: 'var(--border-subtle)', fontSize: '0.8125rem' }}>-</span>}
                   </td>
                 </tr>
               ))}
@@ -189,12 +189,12 @@ export default function ContactsPage() {
 
         <div ref={sentinelRef} style={{ height: 1 }} />
         {isValidating && !isLoading && (
-          <div style={{ textAlign: 'center', padding: '1rem', color: '#94a3b8' }}>
+          <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-faint)' }}>
             <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
           </div>
         )}
         {isCapped && (
-          <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: '#92400e', background: '#fffbeb', borderTop: '1px solid #fde68a' }}>
+          <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: '#92400e', background: 'var(--warning-bg)', borderTop: '1px solid var(--warning-border)' }}>
             결과가 500건을 초과합니다. 검색 조건을 좁혀주세요.
           </div>
         )}
@@ -219,7 +219,7 @@ function ContactDetail({ contact: c, onClose, onDeleted }: { contact: ContactWit
       {/* 직책/부서 */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBottom: '1rem' }}>
         {c.title     && <span className="badge badge-slate">{c.title}</span>}
-        {c.department && <span className="badge" style={{ background: 'var(--color-bg)', color: '#64748b' }}>{c.department}</span>}
+        {c.department && <span className="badge" style={{ background: 'var(--color-bg)', color: 'var(--text-muted)' }}>{c.department}</span>}
       </div>
 
       <div className="detail-info-list">
@@ -263,7 +263,7 @@ function ContactDetail({ contact: c, onClose, onDeleted }: { contact: ContactWit
         <Link href={`/contacts/${c.id}/edit`} className="detail-btn-ghost" onClick={onClose}>
           편집
         </Link>
-        <button onClick={handleDelete} className="detail-btn-ghost" style={{ color: '#dc2626', borderColor: '#fecaca', cursor: 'pointer' }}>
+        <button onClick={handleDelete} className="detail-btn-ghost" style={{ color: 'var(--danger)', borderColor: 'var(--danger-border)', cursor: 'pointer' }}>
           삭제
         </button>
       </div>

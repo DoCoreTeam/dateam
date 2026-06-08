@@ -24,7 +24,7 @@ const INPUT: React.CSSProperties = {
   border: '2px solid var(--border-color)',
   borderRadius: '0.3rem',
   fontSize: '0.8125rem',
-  color: '#0f172a',
+  color: 'var(--text)',
   background: '#fff',
   boxSizing: 'border-box',
 }
@@ -101,12 +101,12 @@ export default function DynamicTable({
             {rows.map((row, idx) => (
               <tr
                 key={idx}
-                style={{ borderBottom: '1px solid #f1f5f9' }}
+                style={{ borderBottom: '1px solid var(--surface-muted)' }}
               >
                 <td
                   style={{
                     padding: '0.35rem',
-                    color: '#94a3b8',
+                    color: 'var(--text-faint)',
                     fontSize: '0.75rem',
                     textAlign: 'center',
                   }}
@@ -152,7 +152,7 @@ export default function DynamicTable({
                   <button
                     type="button"
                     onClick={() => removeRow(idx)}
-                    style={{ ...BTN_ICON, background: '#fef2f2', color: '#dc2626' }}
+                    style={{ ...BTN_ICON, background: 'var(--danger-bg)', color: 'var(--danger)' }}
                     title="행 삭제"
                   >
                     <Trash2 size={13} />

@@ -397,7 +397,7 @@ export default function DailyPage() {
               flex: 1, display: 'flex', alignItems: 'center',
               justifyContent: 'center', gap: '0.625rem',
             }}>
-              <span style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
+              <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>
                 {formatDate(selectedDate)}
               </span>
               {!isToday && (
@@ -476,7 +476,7 @@ export default function DailyPage() {
                     disabled={aiLoading || !content.trim()}
                     className="daily-ai-save"
                     style={{
-                      background: aiLoading ? '#94a3b8' : 'linear-gradient(135deg, var(--brand), #3b82f6)',
+                      background: aiLoading ? 'var(--text-faint)' : 'linear-gradient(135deg, var(--brand), #3b82f6)',
                       cursor: aiLoading || !content.trim() ? 'not-allowed' : 'pointer',
                       opacity: !content.trim() ? 0.5 : 1, height: '2.5rem',
                     }}
@@ -494,7 +494,7 @@ export default function DailyPage() {
                   </p>
                 )}
                 {error && (
-                  <p style={{ color: '#dc2626', fontSize: '0.8125rem', margin: '0.5rem 0 0' }}>{error}</p>
+                  <p style={{ color: 'var(--danger)', fontSize: '0.8125rem', margin: '0.5rem 0 0' }}>{error}</p>
                 )}
               </div>
 
@@ -519,8 +519,8 @@ export default function DailyPage() {
                     onClick={() => setGraphOpen(v => !v)}
                     style={{
                       fontSize: '0.75rem', fontWeight: 600,
-                      color: graphOpen ? 'var(--brand)' : '#64748b',
-                      background: graphOpen ? '#f3effe' : 'var(--color-bg)',
+                      color: graphOpen ? 'var(--brand)' : 'var(--text-muted)',
+                      background: graphOpen ? 'var(--brand-soft)' : 'var(--color-bg)',
                       border: `1px solid ${graphOpen ? '#ddd6fe' : 'var(--color-border)'}`,
                       borderRadius: '0.375rem', padding: '0.25rem 0.625rem',
                       cursor: 'pointer',
@@ -537,10 +537,10 @@ export default function DailyPage() {
 
               {/* 타임라인 */}
               {loading ? (
-                <div style={{ textAlign: 'center', color: '#94a3b8', padding: '3rem 0' }}>로딩 중...</div>
+                <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '3rem 0' }}>로딩 중...</div>
               ) : logs.length === 0 ? (
                 <div style={{
-                  textAlign: 'center', color: '#94a3b8', padding: '3rem 0',
+                  textAlign: 'center', color: 'var(--text-faint)', padding: '3rem 0',
                   border: '1px dashed var(--color-border)', borderRadius: 'var(--radius)',
                 }}>
                   {isToday ? '오늘 첫 업무 로그를 작성해 보세요.' : '이 날의 업무 로그가 없습니다.'}
@@ -583,7 +583,7 @@ export default function DailyPage() {
                     )}
                   </div>
                   {carryoverLoading ? (
-                    <div style={{ color: '#94a3b8', fontSize: '0.875rem', padding: '0.5rem 0' }}>로딩 중...</div>
+                    <div style={{ color: 'var(--text-faint)', fontSize: '0.875rem', padding: '0.5rem 0' }}>로딩 중...</div>
                   ) : (
                     <CarryoverList
                       logs={carryoverLogs}
@@ -601,14 +601,14 @@ export default function DailyPage() {
                 <div className="daily-stats-header">
                   <h3 className="daily-stats-title">업무 현황 요약</h3>
                   {logs.length > 0 && (
-                    <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 550 }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 550 }}>
                       총 {logs.length}개 로그
                     </span>
                   )}
                 </div>
                 
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
-                  <span style={{ fontSize: '0.8125rem', color: '#64748b', fontWeight: 500 }}>완료율</span>
+                  <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>완료율</span>
                   <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#10b981' }}>
                     {logs.length > 0 ? Math.round((logs.filter(l => l.entry_type === 'done').length / logs.length) * 100) : 0}%
                   </span>
@@ -670,7 +670,7 @@ export default function DailyPage() {
           </div>
 
           {weekLoading ? (
-            <div style={{ textAlign: 'center', color: '#94a3b8', padding: '3rem 0' }}>로딩 중...</div>
+            <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '3rem 0' }}>로딩 중...</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {weekDates.map((dateStr) => {
@@ -689,13 +689,13 @@ export default function DailyPage() {
                     <div style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '0.625rem 0.875rem',
-                      background: isTodayDate ? '#eff6ff' : 'var(--color-bg)',
+                      background: isTodayDate ? 'var(--info-bg)' : 'var(--color-bg)',
                       borderBottom: dayLogs.length > 0 ? '2px solid var(--border-color)' : 'none',
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <span style={{
                           fontSize: '0.875rem', fontWeight: isTodayDate ? 700 : 600,
-                          color: isTodayDate ? '#3b82f6' : dow === 0 ? '#dc2626' : dow === 6 ? '#2563eb' : '#0f172a',
+                          color: isTodayDate ? '#3b82f6' : dow === 0 ? 'var(--danger)' : dow === 6 ? 'var(--info)' : 'var(--text)',
                         }}>
                           {WEEK_DAYS[dow]} {d.getDate()}일
                         </span>
@@ -710,13 +710,13 @@ export default function DailyPage() {
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                         {dayLogs.length > 0 && (
-                          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{dayLogs.length}건</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>{dayLogs.length}건</span>
                         )}
                         <button
                           onClick={() => { setViewMode('day'); setSelectedDate(dateStr) }}
                           style={{
                             fontSize: '0.75rem', color: '#3b82f6', background: 'none',
-                            border: '1px solid #bfdbfe', borderRadius: '0.25rem',
+                            border: '1px solid var(--info-border)', borderRadius: '0.25rem',
                             padding: '0.125rem 0.5rem', cursor: 'pointer',
                           }}
                         >
@@ -747,7 +747,7 @@ export default function DailyPage() {
                               }}>
                                 {t.label}
                               </span>
-                              <span style={{ fontSize: '0.75rem', color: '#94a3b8', flexShrink: 0, marginTop: '0.15rem' }}>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', flexShrink: 0, marginTop: '0.15rem' }}>
                                 {formatTime(log.logged_at)}
                               </span>
                               <p style={{
@@ -850,7 +850,7 @@ function LogList({
                           fontWeight: editType === t.value ? 700 : 400,
                           border: `1px solid ${editType === t.value ? t.border : 'var(--color-border)'}`,
                           background: editType === t.value ? t.bg : 'var(--color-bg)',
-                          color: editType === t.value ? t.color : '#94a3b8', cursor: 'pointer',
+                          color: editType === t.value ? t.color : 'var(--text-faint)', cursor: 'pointer',
                         }}
                       >
                         {t.label}
@@ -876,7 +876,7 @@ function LogList({
                     }}
                   />
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.375rem', flexWrap: 'wrap' }}>
-                    <label style={{ fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap' }}>일정 날짜</label>
+                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>일정 날짜</label>
                     <input
                       type="date"
                       value={editTargetDate}
@@ -884,14 +884,14 @@ function LogList({
                       style={{
                         border: '2px solid var(--border-color)', borderRadius: '0.25rem',
                         padding: '0.2rem 0.4rem', fontSize: '0.8125rem',
-                        color: '#0f172a', outline: 'none', cursor: 'pointer',
+                        color: 'var(--text)', outline: 'none', cursor: 'pointer',
                       }}
                     />
                     {editTargetDate && (
                       <button
                         type="button"
                         onClick={() => onEditTargetDateChange('')}
-                        style={{ fontSize: '0.75rem', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                        style={{ fontSize: '0.75rem', color: 'var(--text-faint)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                       >
                         ✕ 제거
                       </button>
@@ -952,7 +952,7 @@ function LogList({
                           </div>
                         )}
                       </div>
-                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{formatTime(log.logged_at)}</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>{formatTime(log.logged_at)}</span>
                       {log.target_date && (
                         <DdayBadge targetDate={log.target_date} today={todayStr} />
                       )}
@@ -972,7 +972,7 @@ function LogList({
                       onClick={() => setOpenThreadId(threadOpen ? null : log.id)}
                       style={{
                         ...iconBtn,
-                        color: threadOpen ? 'var(--brand)' : '#94a3b8',
+                        color: threadOpen ? 'var(--brand)' : 'var(--text-faint)',
                         display: 'flex', alignItems: 'center', gap: '0.2rem',
                       }}
                       title="스레드"
@@ -981,11 +981,11 @@ function LogList({
                     </button>
                     <button
                       onClick={() => setFlowLog(log)}
-                      style={{ ...iconBtn, color: '#64748b' }}
+                      style={{ ...iconBtn, color: 'var(--text-muted)' }}
                       title="플로우"
                     >🌊</button>
                     <button onClick={() => onStartEdit(log)} style={iconBtn}>수정</button>
-                    <button onClick={() => onDelete(log.id)} style={{ ...iconBtn, color: '#dc2626' }}>삭제</button>
+                    <button onClick={() => onDelete(log.id)} style={{ ...iconBtn, color: 'var(--danger)' }}>삭제</button>
                   </div>
                 </div>
               )}
@@ -1151,9 +1151,9 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
       background: 'var(--color-bg)', padding: '0.75rem 1rem',
     }}>
       {threadLoading ? (
-        <div style={{ fontSize: '0.8rem', color: '#94a3b8', padding: '0.25rem 0' }}>로딩 중...</div>
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-faint)', padding: '0.25rem 0' }}>로딩 중...</div>
       ) : threads.length === 0 ? (
-        <div style={{ fontSize: '0.8rem', color: '#94a3b8', paddingBottom: '0.5rem' }}>
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-faint)', paddingBottom: '0.5rem' }}>
           아직 스레드가 없습니다. 관련 내용을 자유롭게 남겨보세요.
         </div>
       ) : (
@@ -1165,8 +1165,8 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
             }}>
               <div style={{
                 maxWidth: '80%',
-                background: t.author_type === 'user' ? '#eff6ff' : '#f0fdf4',
-                border: `1px solid ${t.author_type === 'user' ? '#bfdbfe' : '#bbf7d0'}`,
+                background: t.author_type === 'user' ? 'var(--info-bg)' : 'var(--success-bg)',
+                border: `1px solid ${t.author_type === 'user' ? 'var(--info-border)' : 'var(--success-border)'}`,
                 borderRadius: t.author_type === 'user' ? '0.75rem 0.75rem 0 0.75rem' : '0.75rem 0.75rem 0.75rem 0',
                 padding: '0.5rem 0.75rem',
               }}>
@@ -1176,7 +1176,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
                 }}>
                   {t.content}
                 </p>
-                <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '0.25rem', textAlign: 'right' }}>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-faint)', marginTop: '0.25rem', textAlign: 'right' }}>
                   {t.author_type === 'ai' ? '🤖 AI' : '나'} · {formatTime(t.created_at)}
                 </div>
               </div>
@@ -1191,7 +1191,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
           background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: 'var(--radius)',
           padding: '0.625rem 0.75rem', marginBottom: '0.625rem',
         }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#7c3aed', marginBottom: '0.375rem' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--brand)', marginBottom: '0.375rem' }}>
             ✨ AI 분석 결과 ({aiItems.length}개)
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '0.5rem' }}>
@@ -1211,7 +1211,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
             })}
           </div>
           {aiConfirmError && (
-            <div style={{ fontSize: '0.75rem', color: '#dc2626', marginBottom: '0.375rem' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--danger)', marginBottom: '0.375rem' }}>
               {aiConfirmError}
             </div>
           )}
@@ -1220,7 +1220,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
               onClick={handleAiConfirm}
               disabled={submitting}
               style={{
-                padding: '0.375rem 0.75rem', background: '#7c3aed', color: '#fff',
+                padding: '0.375rem 0.75rem', background: 'var(--brand)', color: '#fff',
                 border: 'none', borderRadius: '0.375rem', fontSize: '0.75rem',
                 fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer',
                 opacity: submitting ? 0.5 : 1, whiteSpace: 'nowrap',
@@ -1231,7 +1231,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
             <button
               onClick={() => setShowAiResult(false)}
               style={{
-                padding: '0.375rem 0.625rem', background: 'none', color: '#64748b',
+                padding: '0.375rem 0.625rem', background: 'none', color: 'var(--text-muted)',
                 border: '2px solid var(--border-color)', borderRadius: '0.375rem', fontSize: '0.75rem',
                 cursor: 'pointer',
               }}
@@ -1243,7 +1243,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
       )}
 
       {aiAnalyzeError && (
-        <div style={{ fontSize: '0.75rem', color: '#dc2626', marginBottom: '0.375rem' }}>
+        <div style={{ fontSize: '0.75rem', color: 'var(--danger)', marginBottom: '0.375rem' }}>
           {aiAnalyzeError}
         </div>
       )}
@@ -1271,7 +1271,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
             onClick={handleAiAnalyze}
             disabled={aiLoading || !input.trim()}
             style={{
-              padding: '0.375rem 0.75rem', background: '#7c3aed', color: '#fff',
+              padding: '0.375rem 0.75rem', background: 'var(--brand)', color: '#fff',
               border: 'none', borderRadius: '0.375rem', fontSize: '0.75rem',
               fontWeight: 600, cursor: aiLoading || !input.trim() ? 'not-allowed' : 'pointer',
               opacity: aiLoading || !input.trim() ? 0.5 : 1, whiteSpace: 'nowrap',
@@ -1318,8 +1318,8 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
 
         return (
           <div key={log.id} style={{
-            background: '#fffbeb',
-            border: '1px solid #fde68a',
+            background: 'var(--warning-bg)',
+            border: '1px solid var(--warning-border)',
             borderLeft: `3px solid ${type.color}`,
             borderRadius: '0 0.5rem 0.5rem 0',
             padding: '0.625rem 0.875rem',
@@ -1352,7 +1352,7 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
                   disabled={isPending}
                   style={{
                     padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 600,
-                    background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0',
+                    background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-border)',
                     borderRadius: '0.375rem', cursor: 'pointer',
                   }}
                 >
@@ -1363,7 +1363,7 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
                   disabled={isPending}
                   style={{
                     padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 600,
-                    background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe',
+                    background: 'var(--info-bg)', color: 'var(--info)', border: '1px solid var(--info-border)',
                     borderRadius: '0.375rem', cursor: 'pointer',
                   }}
                 >
@@ -1374,7 +1374,7 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
                   disabled={isPending}
                   style={{
                     padding: '0.25rem 0.5rem', fontSize: '0.75rem',
-                    background: 'none', color: '#94a3b8', border: '2px solid var(--border-color)',
+                    background: 'none', color: 'var(--text-faint)', border: '2px solid var(--border-color)',
                     borderRadius: '0.375rem', cursor: 'pointer',
                   }}
                 >
@@ -1392,7 +1392,7 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
 const iconBtn: React.CSSProperties = {
   background: 'none', border: 'none', cursor: 'pointer',
   fontSize: '0.75rem', padding: '0.25rem 0.375rem',
-  borderRadius: '0.25rem', color: '#94a3b8', lineHeight: 1,
+  borderRadius: '0.25rem', color: 'var(--text-faint)', lineHeight: 1,
 }
 
 const actionBtnPrimary: React.CSSProperties = {
@@ -1402,7 +1402,7 @@ const actionBtnPrimary: React.CSSProperties = {
 }
 
 const actionBtnSecondary: React.CSSProperties = {
-  padding: '0.375rem 0.875rem', background: '#f1f5f9', color: '#475569',
+  padding: '0.375rem 0.875rem', background: 'var(--surface-muted)', color: '#475569',
   border: 'none', borderRadius: '0.375rem', fontSize: '0.8125rem',
   fontWeight: 600, cursor: 'pointer',
 }
@@ -1413,7 +1413,7 @@ const PRIORITY_LABELS: Record<string, string> = {
   urgent: '긴급', high: '높음', normal: '보통', low: '낮음',
 }
 const PRIORITY_COLORS: Record<string, string> = {
-  urgent: '#dc2626', high: '#ea580c', normal: '#64748b', low: '#94a3b8',
+  urgent: 'var(--danger)', high: '#ea580c', normal: 'var(--text-muted)', low: 'var(--text-faint)',
 }
 
 interface AiResultPanelProps {
@@ -1450,10 +1450,10 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '1rem 1.25rem', borderBottom: '2px solid var(--border-color)',
-          background: 'linear-gradient(135deg, #f5f3ff, #eff6ff)',
+          background: 'linear-gradient(135deg, #f5f3ff, var(--info-bg))',
         }}>
           <div>
-            <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>✨ AI 분석 결과</div>
+            <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>✨ AI 분석 결과</div>
             {loading && editItems.length === 0 && (
               <div style={{ fontSize: '0.75rem', color: 'var(--brand)', marginTop: '0.125rem' }}>
                 분석 중...
@@ -1474,7 +1474,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
             onClick={onClose}
             style={{
               background: 'none', border: 'none', fontSize: '1.25rem',
-              color: '#94a3b8', cursor: 'pointer', lineHeight: 1, padding: '0.25rem',
+              color: 'var(--text-faint)', cursor: 'pointer', lineHeight: 1, padding: '0.25rem',
             }}
           >×</button>
         </div>
@@ -1497,9 +1497,9 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
 
           {error && (
             <div style={{
-              background: '#fef2f2', border: '1px solid #fecaca',
+              background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
               borderRadius: 'var(--radius)', padding: '0.75rem 1rem',
-              color: '#dc2626', fontSize: '0.875rem', marginBottom: '1rem',
+              color: 'var(--danger)', fontSize: '0.875rem', marginBottom: '1rem',
             }}>
               {error}
             </div>
@@ -1515,7 +1515,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
                 <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--brand-dark)', marginBottom: '0.25rem' }}>
                   AI가 업무를 분석하고 있습니다
                 </div>
-                <div className="ai-analyzing-dots" style={{ fontSize: '0.8125rem', color: '#94a3b8' }}>
+                <div className="ai-analyzing-dots" style={{ fontSize: '0.8125rem', color: 'var(--text-faint)' }}>
                   업무 항목을 추출 중
                 </div>
               </div>
@@ -1538,7 +1538,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
           </div>
 
           {loading && editItems.length > 0 && (
-            <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.8125rem', padding: '0.75rem 0' }}>
+            <div style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: '0.8125rem', padding: '0.75rem 0' }}>
               분석 중...
             </div>
           )}
@@ -1554,7 +1554,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
             onClick={onReanalyze}
             disabled={loading}
             style={{
-              flex: 1, padding: '0.625rem', background: '#f1f5f9', color: '#475569',
+              flex: 1, padding: '0.625rem', background: 'var(--surface-muted)', color: '#475569',
               border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
               fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer',
               opacity: loading ? 0.5 : 1,
@@ -1590,7 +1590,7 @@ const CERTAINTY_LABEL: Record<string, string> = {
   exact: 'AI 확정', inferred: 'AI 추정', none: '',
 }
 const CERTAINTY_COLOR: Record<string, string> = {
-  exact: '#7c3aed', inferred: '#d97706', none: '#94a3b8',
+  exact: 'var(--brand)', inferred: 'var(--warning)', none: 'var(--text-faint)',
 }
 
 
@@ -1611,7 +1611,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         style={{
           width: '100%', border: 'none', borderBottom: '2px solid var(--border-color)',
           padding: '0 0 0.375rem', fontSize: '0.9375rem', fontWeight: 600,
-          color: '#0f172a', outline: 'none', background: 'transparent',
+          color: 'var(--text)', outline: 'none', background: 'transparent',
           boxSizing: 'border-box', marginBottom: '0.625rem',
         }}
       />
@@ -1638,7 +1638,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
           style={{
             padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem',
             fontWeight: 600, border: '2px solid var(--border-color)',
-            background: 'var(--color-bg)', color: PRIORITY_COLORS[item.priority] ?? '#64748b',
+            background: 'var(--color-bg)', color: PRIORITY_COLORS[item.priority] ?? 'var(--text-muted)',
             cursor: 'pointer',
           }}
         >
@@ -1647,7 +1647,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
 
         {/* 타겟 날짜 (사용자 편집 가능) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-          <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>📅</span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-faint)' }}>📅</span>
           <input
             type="date"
             value={item.targetDate ?? ''}
@@ -1660,7 +1660,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
           />
           {item.targetDate && item.targetDateCertainty !== 'none' && (
             <span style={{
-              fontSize: '0.65rem', color: CERTAINTY_COLOR[item.targetDateCertainty] ?? '#94a3b8',
+              fontSize: '0.65rem', color: CERTAINTY_COLOR[item.targetDateCertainty] ?? 'var(--text-faint)',
               fontStyle: 'italic',
             }}>
               {CERTAINTY_LABEL[item.targetDateCertainty]}
@@ -1672,7 +1672,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         {/* 예약 시간 */}
         {item.scheduledTime && (
           <span style={{
-            fontSize: '0.75rem', color: '#7c3aed', background: '#f5f3ff',
+            fontSize: '0.75rem', color: 'var(--brand)', background: '#f5f3ff',
             border: '1px solid #ddd6fe', borderRadius: '0.25rem',
             padding: '0.2rem 0.5rem',
           }}>
@@ -1705,7 +1705,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         {/* AI 태그 */}
         {item.tags?.map(tag => (
           <span key={tag} style={{
-            fontSize: '0.7rem', color: 'var(--brand)', background: '#f3effe',
+            fontSize: '0.7rem', color: 'var(--brand)', background: 'var(--brand-soft)',
             border: '1px solid #ddd6fe', borderRadius: '0.25rem',
             padding: '0.1rem 0.375rem',
           }}>

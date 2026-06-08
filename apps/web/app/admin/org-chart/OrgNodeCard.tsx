@@ -9,7 +9,7 @@ function CopyBtn({ email }: { email: string }) {
     <button
       onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(email).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500) }) }}
       title="이메일 복사"
-      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', color: copied ? '#22c55e' : '#94a3b8', display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle', flexShrink: 0 }}
+      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', color: copied ? '#22c55e' : 'var(--text-faint)', display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle', flexShrink: 0 }}
     >
       {copied ? <Check size={10} /> : <Copy size={10} />}
     </button>
@@ -36,10 +36,10 @@ export interface OrgNodeWithChildren extends OrgNode {
 }
 
 const TYPE_COLORS: Record<OrgNodeType, { bg: string; border: string; text: string; badge: string }> = {
-  company: { bg: 'linear-gradient(135deg,var(--brand-dark),#7c3aed)', border: 'var(--brand-dark)', text: '#fff', badge: '#ddd6fe' },
+  company: { bg: 'linear-gradient(135deg,var(--brand-dark),var(--brand))', border: 'var(--brand-dark)', text: '#fff', badge: '#ddd6fe' },
   role:    { bg: 'linear-gradient(135deg,#1e1b4b,#312e81)', border: '#312e81', text: '#fff', badge: '#c4b5fd' },
   department: { bg: 'linear-gradient(135deg,#3730a3,var(--brand-dark))', border: 'var(--brand-dark)', text: '#fff', badge: '#ddd6fe' },
-  person: { bg: '#ffffff', border: 'var(--color-border)', text: '#1e293b', badge: '#ede9fe' },
+  person: { bg: '#ffffff', border: 'var(--color-border)', text: '#1e293b', badge: 'var(--brand-soft-2)' },
 }
 
 interface Profile {
@@ -127,7 +127,7 @@ function DragDropWrapper({
       <div
         style={{
           position: 'absolute', top: '6px', left: '6px',
-          color: node.type === 'person' ? '#94a3b8' : 'rgba(255,255,255,0.5)',
+          color: node.type === 'person' ? 'var(--text-faint)' : 'rgba(255,255,255,0.5)',
           pointerEvents: 'none',
         }}
       >
@@ -140,7 +140,7 @@ function DragDropWrapper({
           background: 'rgba(124,58,237,0.08)', pointerEvents: 'none', zIndex: 1,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <span style={{ fontSize: '0.7rem', color: 'var(--brand)', fontWeight: 700, background: '#f3effe', padding: '2px 8px', borderRadius: '999px' }}>
+          <span style={{ fontSize: '0.7rem', color: 'var(--brand)', fontWeight: 700, background: 'var(--brand-soft)', padding: '2px 8px', borderRadius: '999px' }}>
             여기로 이동
           </span>
         </div>
@@ -157,7 +157,7 @@ function ActionBar({
   const idx = siblingIds.indexOf(node.id)
   const btnStyle = {
     background: 'none', border: 'none', cursor: 'pointer', padding: '3px',
-    borderRadius: '4px', color: node.type === 'person' ? '#94a3b8' : 'rgba(255,255,255,0.7)',
+    borderRadius: '4px', color: node.type === 'person' ? 'var(--text-faint)' : 'rgba(255,255,255,0.7)',
     display: 'flex', alignItems: 'center',
   }
   const stop = (e: React.PointerEvent) => e.stopPropagation()
@@ -240,13 +240,13 @@ function InlineMember({
         </div>
         {profile?.email && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '2px', overflow: 'hidden' }}>
-            <span style={{ fontSize: '0.6rem', color: dark ? 'rgba(255,255,255,0.5)' : '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{profile.email}</span>
+            <span style={{ fontSize: '0.6rem', color: dark ? 'rgba(255,255,255,0.5)' : 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{profile.email}</span>
             <CopyBtn email={profile.email} />
           </div>
         )}
       </div>
       <button
-        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', borderRadius: '3px', display: 'flex', alignItems: 'center', color: dark ? 'rgba(255,255,255,0.6)' : '#94a3b8', flexShrink: 0 }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', borderRadius: '3px', display: 'flex', alignItems: 'center', color: dark ? 'rgba(255,255,255,0.6)' : 'var(--text-faint)', flexShrink: 0 }}
         onPointerDown={stop} onClick={() => onEdit(person)} title="수정"
       >
         <Pencil size={11} />
@@ -355,9 +355,9 @@ function PersonCard(props: CardProps) {
           </div>
           <div>
             <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e293b' }}>{displayName}</div>
-            {label && <div style={{ fontSize: '0.68rem', color: '#64748b' }}>{label}</div>}
+            {label && <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{label}</div>}
             {profile?.email && (
-              <div style={{ fontSize: '0.62rem', color: '#94a3b8', marginTop: '1px', display: 'flex', alignItems: 'center', gap: '2px' }}>
+              <div style={{ fontSize: '0.62rem', color: 'var(--text-faint)', marginTop: '1px', display: 'flex', alignItems: 'center', gap: '2px' }}>
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>{profile.email}</span>
                 <CopyBtn email={profile.email} />
               </div>

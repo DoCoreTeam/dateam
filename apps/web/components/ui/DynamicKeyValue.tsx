@@ -15,7 +15,7 @@ const INPUT_SM: React.CSSProperties = {
   border: '2px solid var(--border-color)',
   borderRadius: '0.3rem',
   fontSize: '0.8125rem',
-  color: '#0f172a',
+  color: 'var(--text)',
   background: '#fff',
   minWidth: 0,
 }
@@ -56,7 +56,7 @@ export default function DynamicKeyValue({
               placeholder="키"
               style={{ ...INPUT_SM, maxWidth: '160px', fontWeight: 600 }}
             />
-            <span style={{ color: '#94a3b8', flexShrink: 0 }}>:</span>
+            <span style={{ color: 'var(--text-faint)', flexShrink: 0 }}>:</span>
             <input
               type="text"
               value={p.v}
@@ -71,8 +71,8 @@ export default function DynamicKeyValue({
                 padding: '0.3rem',
                 border: 'none',
                 borderRadius: '0.3rem',
-                background: '#fef2f2',
-                color: '#dc2626',
+                background: 'var(--danger-bg)',
+                color: 'var(--danger)',
                 cursor: 'pointer',
                 flexShrink: 0,
                 display: 'flex',

@@ -73,7 +73,7 @@ export default function HomeQuickEntry({ todayStr, initialLogs }: Props) {
                 </span>
               )
             })}
-          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>총 {total}건</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>총 {total}건</span>
         </div>
       )}
 
@@ -146,7 +146,7 @@ export default function HomeQuickEntry({ todayStr, initialLogs }: Props) {
           </button>
         </div>
         {successMsg && (
-          <p style={{ fontSize: '0.8125rem', color: '#16a34a', margin: 0, fontWeight: 500 }}>{successMsg}</p>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--success)', margin: 0, fontWeight: 500 }}>{successMsg}</p>
         )}
       </div>
     </div>

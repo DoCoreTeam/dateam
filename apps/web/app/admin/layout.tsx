@@ -95,7 +95,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         headerLeft={
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span className="badge badge-indigo" style={{ fontSize: '0.75rem' }}>관리자</span>
-            <span style={{ fontSize: '0.875rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {displayName}
             </span>
           </div>

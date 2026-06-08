@@ -78,23 +78,23 @@ function ProductsResult({ data }: { data: { data?: Product[]; meta?: { total?: n
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <span style={{ fontWeight: 700, color: 'var(--color-border)', fontSize: 15 }}>GPU 제품 목록</span>
         <div style={{ display: 'flex', gap: 12 }}>
-          {meta?.total && <span style={{ fontSize: 12, color: '#64748b' }}>총 {meta.total}개</span>}
-          {meta?.fx_usd_krw && <span style={{ fontSize: 12, color: '#64748b' }}>환율 {meta.fx_usd_krw.toLocaleString()}원/USD</span>}
+          {meta?.total && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>총 {meta.total}개</span>}
+          {meta?.fx_usd_krw && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>환율 {meta.fx_usd_krw.toLocaleString()}원/USD</span>}
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {items.slice(0, 10).map((p, i) => (
-          <div key={p.id ?? i} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 120px 120px 70px', gap: 12, alignItems: 'center', padding: '12px 16px', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8, fontSize: 13 }}>
+          <div key={p.id ?? i} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 120px 120px 70px', gap: 12, alignItems: 'center', padding: '12px 16px', background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 8, fontSize: 13 }}>
             <div>
               <span style={{ fontWeight: 600, color: 'var(--color-border)' }}>{p.model_name ?? '—'}</span>
-              {p.memory && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 6px', background: '#1e293b', borderRadius: 4, color: '#64748b' }}>{p.memory}</span>}
+              {p.memory && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 6px', background: '#1e293b', borderRadius: 4, color: 'var(--text-muted)' }}>{p.memory}</span>}
               {p.tier && <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--brand)' }}>Tier {p.tier}</span>}
             </div>
-            <div style={{ color: '#64748b' }}>{p.gpu_count ? `×${p.gpu_count}` : '—'}</div>
+            <div style={{ color: 'var(--text-muted)' }}>{p.gpu_count ? `×${p.gpu_count}` : '—'}</div>
             <div style={{ color: '#10b981', fontFamily: 'monospace', fontWeight: 600 }}>
               {p.price_per_unit_usd != null ? `$${p.price_per_unit_usd.toLocaleString()}` : '—'}
             </div>
-            <div style={{ color: '#94a3b8', fontFamily: 'monospace', fontSize: 12 }}>
+            <div style={{ color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 12 }}>
               {p.price_per_unit_krw != null ? `₩${p.price_per_unit_krw.toLocaleString()}` : '—'}
             </div>
             <div>
@@ -125,30 +125,30 @@ function QuoteResult({ data }: { data: { data?: { items?: QuoteItem[]; summary?:
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <span style={{ fontWeight: 700, color: 'var(--color-border)', fontSize: 15 }}>견적서</span>
         {summary?.quoted_at && (
-          <span style={{ fontSize: 12, color: '#64748b' }}>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             {new Date(summary.quoted_at).toLocaleString('ko-KR')} 기준
           </span>
         )}
       </div>
 
-      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
+      <div style={{ background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: '#1e293b' }}>
-              <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>제품</th>
-              <th style={{ padding: '10px 16px', textAlign: 'right', color: '#64748b', fontWeight: 600, fontSize: 12 }}>수량</th>
-              <th style={{ padding: '10px 16px', textAlign: 'right', color: '#64748b', fontWeight: 600, fontSize: 12 }}>단가</th>
-              <th style={{ padding: '10px 16px', textAlign: 'right', color: '#64748b', fontWeight: 600, fontSize: 12 }}>마진</th>
-              <th style={{ padding: '10px 16px', textAlign: 'right', color: '#64748b', fontWeight: 600, fontSize: 12 }}>소계</th>
-              <th style={{ padding: '10px 16px', textAlign: 'center', color: '#64748b', fontWeight: 600, fontSize: 12 }}>가용</th>
+              <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>제품</th>
+              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>수량</th>
+              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>단가</th>
+              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>마진</th>
+              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>소계</th>
+              <th style={{ padding: '10px 16px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>가용</th>
             </tr>
           </thead>
           <tbody>
             {items.map((item, i) => (
               <tr key={i} style={{ borderTop: '1px solid #1e293b' }}>
                 <td style={{ padding: '12px 16px', color: 'var(--color-border)', fontWeight: 500 }}>{item.model_name ?? '—'}</td>
-                <td style={{ padding: '12px 16px', textAlign: 'right', color: '#94a3b8' }}>{item.quantity ?? 0}</td>
-                <td style={{ padding: '12px 16px', textAlign: 'right', color: '#94a3b8', fontFamily: 'monospace' }}>
+                <td style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-faint)' }}>{item.quantity ?? 0}</td>
+                <td style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-faint)', fontFamily: 'monospace' }}>
                   {isKRW && item.unit_price_krw != null ? `₩${item.unit_price_krw.toLocaleString()}` :
                    item.unit_price_usd != null ? `$${item.unit_price_usd.toLocaleString()}` : '—'}
                 </td>
@@ -172,8 +172,8 @@ function QuoteResult({ data }: { data: { data?: { items?: QuoteItem[]; summary?:
 
       {summary && (
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, padding: '16px 24px', minWidth: 260 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13, color: '#64748b' }}>
+          <div style={{ background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 10, padding: '16px 24px', minWidth: 260 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13, color: 'var(--text-muted)' }}>
               <span>환율 적용</span>
               <span style={{ fontFamily: 'monospace' }}>1 USD = ₩{summary.fx_usd_krw?.toLocaleString() ?? '—'}</span>
             </div>
@@ -199,7 +199,7 @@ function InventoryResult({ data }: { data: { data?: InventoryItem[]; meta?: { as
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <span style={{ fontWeight: 700, color: 'var(--color-border)', fontSize: 15 }}>재고 현황</span>
         {data?.meta?.as_of && (
-          <span style={{ fontSize: 12, color: '#64748b' }}>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             기준: {new Date(data.meta.as_of).toLocaleString('ko-KR')}
           </span>
         )}
@@ -208,14 +208,14 @@ function InventoryResult({ data }: { data: { data?: InventoryItem[]; meta?: { as
         {items.map((item, i) => {
           const pct = Math.round(((item.available_qty ?? 0) / maxQty) * 100)
           return (
-            <div key={item.product_id ?? i} style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8, padding: '12px 16px' }}>
+            <div key={item.product_id ?? i} style={{ background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 8, padding: '12px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div>
                   <span style={{ fontWeight: 600, color: 'var(--color-border)', fontSize: 13 }}>{item.model_name ?? '—'}</span>
-                  {item.memory && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 6px', background: '#1e293b', borderRadius: 4, color: '#64748b' }}>{item.memory}</span>}
+                  {item.memory && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 6px', background: '#1e293b', borderRadius: 4, color: 'var(--text-muted)' }}>{item.memory}</span>}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 13, fontFamily: 'monospace', color: '#94a3b8' }}>{(item.available_qty ?? 0).toLocaleString()}개</span>
+                  <span style={{ fontSize: 13, fontFamily: 'monospace', color: 'var(--text-faint)' }}>{(item.available_qty ?? 0).toLocaleString()}개</span>
                   <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 100, fontWeight: 600, background: item.in_stock ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: item.in_stock ? '#10b981' : '#ef4444' }}>
                     {item.in_stock ? '가용' : '품절'}
                   </span>
@@ -239,14 +239,14 @@ function FxResult({ data }: { data: { data?: FxRate[]; meta?: { total?: number }
       <div style={{ marginBottom: 16 }}>
         <span style={{ fontWeight: 700, color: 'var(--color-border)', fontSize: 15 }}>USD/KRW 환율 이력</span>
       </div>
-      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden' }}>
+      <div style={{ background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: '#1e293b' }}>
-              <th style={{ padding: '10px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: 12 }}>날짜</th>
-              <th style={{ padding: '10px 16px', textAlign: 'right', color: '#64748b', fontWeight: 600, fontSize: 12 }}>1 USD = KRW</th>
-              <th style={{ padding: '10px 16px', textAlign: 'right', color: '#64748b', fontWeight: 600, fontSize: 12 }}>변동</th>
-              <th style={{ padding: '10px 16px', textAlign: 'center', color: '#64748b', fontWeight: 600, fontSize: 12 }}>출처</th>
+              <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>날짜</th>
+              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>1 USD = KRW</th>
+              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>변동</th>
+              <th style={{ padding: '10px 16px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>출처</th>
             </tr>
           </thead>
           <tbody>
@@ -261,12 +261,12 @@ function FxResult({ data }: { data: { data?: FxRate[]; meta?: { total?: number }
                   </td>
                   <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'monospace', fontSize: 12 }}>
                     {diff != null ? (
-                      <span style={{ color: diff > 0 ? '#ef4444' : diff < 0 ? '#10b981' : '#64748b' }}>
+                      <span style={{ color: diff > 0 ? '#ef4444' : diff < 0 ? '#10b981' : 'var(--text-muted)' }}>
                         {diff > 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1)}
                       </span>
                     ) : <span style={{ color: '#475569' }}>—</span>}
                   </td>
-                  <td style={{ padding: '12px 16px', textAlign: 'center', color: '#64748b', fontSize: 12 }}>{r.source ?? '—'}</td>
+                  <td style={{ padding: '12px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>{r.source ?? '—'}</td>
                 </tr>
               )
             })}
@@ -283,14 +283,14 @@ function SuppliersResult({ data }: { data: { data?: Supplier[] } }) {
     <div>
       <div style={{ marginBottom: 16 }}>
         <span style={{ fontWeight: 700, color: 'var(--color-border)', fontSize: 15 }}>공급사 목록</span>
-        <span style={{ marginLeft: 10, fontSize: 12, color: '#64748b' }}>총 {items.length}개</span>
+        <span style={{ marginLeft: 10, fontSize: 12, color: 'var(--text-muted)' }}>총 {items.length}개</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
         {items.map((s, i) => (
-          <div key={s.id ?? i} style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, padding: '16px 18px' }}>
+          <div key={s.id ?? i} style={{ background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 10, padding: '16px 18px' }}>
             <div style={{ fontWeight: 700, color: 'var(--color-border)', fontSize: 14, marginBottom: 4 }}>{s.name ?? '—'}</div>
-            {s.location && <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>📍 {s.location}</div>}
-            {s.contact && <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>✉️ {s.contact}</div>}
+            {s.location && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>📍 {s.location}</div>}
+            {s.contact && <div style={{ fontSize: 12, color: 'var(--text-faint)', marginBottom: 8 }}>✉️ {s.contact}</div>}
             <div style={{ display: 'flex', gap: 10, fontSize: 12 }}>
               {s.active_quotes != null && (
                 <span style={{ padding: '2px 8px', background: 'rgba(124,58,237,0.1)', color: '#c4b5fd', borderRadius: 100 }}>
@@ -307,26 +307,26 @@ function SuppliersResult({ data }: { data: { data?: Supplier[] } }) {
 
 function GenericTableResult({ data, title }: { data: { data?: Record<string, unknown>[] }; title: string }) {
   const items = Array.isArray(data?.data) ? data.data : []
-  if (!items.length) return <div style={{ color: '#64748b', fontSize: 13 }}>데이터 없음</div>
+  if (!items.length) return <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>데이터 없음</div>
   const keys = Object.keys(items[0]).slice(0, 7)
   return (
     <div>
       <div style={{ marginBottom: 12 }}>
         <span style={{ fontWeight: 700, color: 'var(--color-border)', fontSize: 15 }}>{title}</span>
-        <span style={{ marginLeft: 10, fontSize: 12, color: '#64748b' }}>총 {(data as { total?: number }).total ?? items.length}건</span>
+        <span style={{ marginLeft: 10, fontSize: 12, color: 'var(--text-muted)' }}>총 {(data as { total?: number }).total ?? items.length}건</span>
       </div>
-      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, overflow: 'auto' }}>
+      <div style={{ background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 10, overflow: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
             <tr style={{ background: '#1e293b' }}>
-              {keys.map(k => <th key={k} style={{ padding: '8px 12px', textAlign: 'left', color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</th>)}
+              {keys.map(k => <th key={k} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</th>)}
             </tr>
           </thead>
           <tbody>
             {items.slice(0, 8).map((row, i) => (
               <tr key={i} style={{ borderTop: '1px solid #1e293b' }}>
                 {keys.map(k => (
-                  <td key={k} style={{ padding: '8px 12px', color: '#94a3b8', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td key={k} style={{ padding: '8px 12px', color: 'var(--text-faint)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {String(row[k] ?? '—')}
                   </td>
                 ))}
@@ -344,7 +344,7 @@ function renderDemoResult(activeDemo: string, parsed: Record<string, unknown>) {
     return (
       <div style={{ padding: '16px 20px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10 }}>
         <div style={{ color: '#ef4444', fontWeight: 600, marginBottom: 4 }}>오류</div>
-        <div style={{ color: '#94a3b8', fontSize: 13 }}>{String(parsed.error ?? 'Unknown error')}</div>
+        <div style={{ color: 'var(--text-faint)', fontSize: 13 }}>{String(parsed.error ?? 'Unknown error')}</div>
       </div>
     )
   }
@@ -491,16 +491,16 @@ export default function DemoSection() {
     <div>
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 13, color: 'var(--brand)', fontWeight: 600, marginBottom: 8 }}>🧪 인터랙티브 데모</div>
-        <h1 style={{ fontSize: 32, fontWeight: 800, color: '#f1f5f9', marginBottom: 12, letterSpacing: '-0.02em' }}>라이브 API 테스트</h1>
-        <p style={{ color: '#94a3b8', lineHeight: 1.7, fontSize: 15, marginBottom: 0 }}>
+        <h1 style={{ fontSize: 32, fontWeight: 800, color: 'var(--surface-muted)', marginBottom: 12, letterSpacing: '-0.02em' }}>라이브 API 테스트</h1>
+        <p style={{ color: 'var(--text-faint)', lineHeight: 1.7, fontSize: 15, marginBottom: 0 }}>
           실제 API 키를 입력하고 버튼을 누르면 라이브 데이터가 아래에 구조화된 UI로 표시됩니다.
           JSON 원문을 보려면 결과 우측 상단의 <strong style={{ color: 'var(--color-border)' }}>JSON 보기</strong>를 클릭하세요.
         </p>
       </div>
 
       {/* API Key 입력 */}
-      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, padding: '20px 24px', marginBottom: 28 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#94a3b8', marginBottom: 8 }}>
+      <div style={{ background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 12, padding: '20px 24px', marginBottom: 28 }}>
+        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-faint)', marginBottom: 8 }}>
           API Key <span style={{ color: '#ef4444' }}>*</span>
         </label>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -531,7 +531,7 @@ export default function DemoSection() {
               disabled={loading && isActive}
               style={{
                 padding: '14px 16px', borderRadius: 10, border: `1px solid ${isActive ? 'var(--brand)' : '#1e293b'}`,
-                background: isActive ? 'rgba(124,58,237,0.08)' : '#0f172a',
+                background: isActive ? 'rgba(124,58,237,0.08)' : 'var(--text)',
                 color: 'var(--color-border)', cursor: loading && isActive ? 'wait' : 'pointer',
                 textAlign: 'left', transition: 'all .15s',
               }}
@@ -540,7 +540,7 @@ export default function DemoSection() {
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{label}</div>
               <div style={{ fontSize: 11, color: '#475569', marginBottom: 8 }}>{desc}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, background: (methodColors[method] ?? '#64748b') + '22', color: methodColors[method] ?? '#64748b', fontWeight: 700, fontFamily: 'monospace' }}>{method}</span>
+                <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, background: (methodColors[method] ?? 'var(--text-muted)') + '22', color: methodColors[method] ?? 'var(--text-muted)', fontWeight: 700, fontFamily: 'monospace' }}>{method}</span>
                 <code style={{ fontSize: 10, color: '#475569' }}>{endpoint}</code>
               </div>
             </button>
@@ -550,19 +550,19 @@ export default function DemoSection() {
 
       {/* 결과 */}
       {result !== null && (
-        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, overflow: 'hidden' }}>
-          <div style={{ padding: '12px 20px', background: '#1e293b', borderBottom: '1px solid #0f172a', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 20px', background: '#1e293b', borderBottom: '1px solid var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: result.success ? '#10b981' : '#ef4444', display: 'inline-block' }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#94a3b8' }}>{activeDemo}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-faint)' }}>{activeDemo}</span>
               {result.success === true && <span style={{ fontSize: 11, color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '2px 7px', borderRadius: 100 }}>200 OK</span>}
               {!result.success && <span style={{ fontSize: 11, color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '2px 7px', borderRadius: 100 }}>오류</span>}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setShowRaw(v => !v)} style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #334155', background: showRaw ? '#334155' : '#0f172a', color: '#94a3b8', fontSize: 12, cursor: 'pointer' }}>
+              <button onClick={() => setShowRaw(v => !v)} style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #334155', background: showRaw ? '#334155' : 'var(--text)', color: 'var(--text-faint)', fontSize: 12, cursor: 'pointer' }}>
                 {showRaw ? 'UI 보기' : 'JSON 보기'}
               </button>
-              <button onClick={() => { try { navigator.clipboard.writeText(JSON.stringify(result, null, 2)) } catch {} }} style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #334155', background: '#0f172a', color: '#64748b', fontSize: 12, cursor: 'pointer' }}>
+              <button onClick={() => { try { navigator.clipboard.writeText(JSON.stringify(result, null, 2)) } catch {} }} style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #334155', background: 'var(--text)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer' }}>
                 복사
               </button>
             </div>

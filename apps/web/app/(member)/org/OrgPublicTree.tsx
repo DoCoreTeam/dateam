@@ -45,7 +45,7 @@ function CopyEmailBtn({ email }: { email: string }) {
     <button
       onClick={handleCopy}
       title="이메일 복사"
-      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', color: copied ? '#22c55e' : '#94a3b8', display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}
+      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', color: copied ? '#22c55e' : 'var(--text-faint)', display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}
     >
       {copied ? <Check size={10} /> : <Copy size={10} />}
     </button>
@@ -63,7 +63,7 @@ const CARD_W = 172
 function EmailRow({ email }: { email: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginTop: '2px', width: '100%', overflow: 'hidden' }}>
-      <span style={{ fontSize: '0.6rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{email}</span>
+      <span style={{ fontSize: '0.6rem', color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{email}</span>
       <CopyEmailBtn email={email} />
     </div>
   )
@@ -74,7 +74,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
     return (
       <div style={{
         display: 'inline-block', padding: '0.75rem 1.25rem', borderRadius: 'var(--radius)',
-        background: 'linear-gradient(135deg,var(--brand-dark),#7c3aed)', border: '2px solid var(--brand-dark)',
+        background: 'linear-gradient(135deg,var(--brand-dark),var(--brand))', border: '2px solid var(--brand-dark)',
         boxShadow: 'var(--shadow-sm)', width: `${CARD_W + 28}px`, textAlign: 'left', overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -177,7 +177,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
         </div>
         <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
           <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</div>
-          {node.subtitle && <div style={{ fontSize: '0.68rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.subtitle}</div>}
+          {node.subtitle && <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.subtitle}</div>}
           {email && <EmailRow email={email} />}
         </div>
       </div>
@@ -348,7 +348,7 @@ export default function OrgPublicTree({
 
   if (roots.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+      <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-faint)' }}>
         아직 등록된 조직도 데이터가 없습니다.
       </div>
     )
@@ -381,10 +381,10 @@ export default function OrgPublicTree({
         <button onClick={() => setZoom({ scale: 1, tx: 50, ty: 30 })} style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '0.65rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>1:1</button>
       </div>
 
-      <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.85)', border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.7rem', color: '#64748b', pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.85)', border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.7rem', color: 'var(--text-muted)', pointerEvents: 'none' }}>
         {Math.round(zoom.scale * 100)}%
       </div>
-      <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.8)', border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.68rem', color: '#94a3b8', pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.8)', border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.68rem', color: 'var(--text-faint)', pointerEvents: 'none' }}>
         스크롤: 줌 · 드래그: 이동
       </div>
 

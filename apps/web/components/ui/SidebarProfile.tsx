@@ -138,7 +138,7 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
               width: '100%',
               padding: '0.75rem 1rem',
               fontSize: '0.8125rem',
-              color: '#dc2626',
+              color: 'var(--danger)',
               background: 'none',
               border: 'none',
               cursor: 'pointer',

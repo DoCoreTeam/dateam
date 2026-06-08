@@ -217,7 +217,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
       <div style={{ background: '#fff', borderRadius: 'var(--radius)', width: '380px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '2px solid var(--border-color)' }}>
           <h3 className="tape-title" style={{ margin: 0 }}>{title}</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={18} /></button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
         </div>
         <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           {children}
@@ -230,7 +230,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 function ModalFooter({ onClose, onSubmit, isPending, label }: { onClose: () => void; onSubmit: () => void; isPending: boolean; label: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', paddingTop: '0.25rem' }}>
-      <button onClick={onClose} disabled={isPending} style={{ padding: '0.45rem 1rem', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer' }}>취소</button>
+      <button onClick={onClose} disabled={isPending} style={{ padding: '0.45rem 1rem', background: 'var(--surface-muted)', color: '#475569', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer' }}>취소</button>
       <button onClick={onSubmit} disabled={isPending} style={{ padding: '0.45rem 1rem', background: 'var(--brand-dark)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1 }}>
         {isPending ? '처리 중...' : label}
       </button>

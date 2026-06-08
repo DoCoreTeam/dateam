@@ -210,7 +210,7 @@ export default function DbChatTab() {
               maxWidth: '88%',
               padding: '10px 14px',
               borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-              background: msg.role === 'user' ? 'var(--gpu-accent, #2563eb)' : 'var(--gpu-surface2, #f3f4f6)',
+              background: msg.role === 'user' ? 'var(--gpu-accent, var(--info))' : 'var(--gpu-surface2, #f3f4f6)',
               color: msg.role === 'user' ? '#fff' : 'var(--gpu-text)',
               fontSize: 13,
               lineHeight: 1.6,

@@ -7,7 +7,7 @@ import type { Profile, WeeklyReport } from '@/types/database'
 import AdminReportsPreview from './AdminReportsPreview'
 
 function RichCell({ html }: { html: string }) {
-  if (!html) return <span style={{ color: '#cbd5e1', fontSize: '0.8125rem' }}>-</span>
+  if (!html) return <span style={{ color: 'var(--border-subtle)', fontSize: '0.8125rem' }}>-</span>
   if (html.startsWith('<')) {
     return <div className="report-rich" dangerouslySetInnerHTML={{ __html: html }} />
   }
@@ -106,14 +106,14 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
           style={{
             fontSize: '1.5rem',
             fontWeight: 700,
-            color: '#0f172a',
+            color: 'var(--text)',
             letterSpacing: '-0.03em',
             margin: 0,
           }}
         >
           전체 조직 주간보고 취합
         </h1>
-        <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>
+        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
           모든 조직(전 부서) 주간보고를 주차별로 AI 취합합니다 — 부서 단위 취합은 각 부서장이 사용자 화면(주간보고 → 조직 현황)에서 수행합니다
         </p>
       </div>
@@ -171,7 +171,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
               alignItems: 'center',
               gap: '0.375rem',
               padding: '0.5rem 1rem',
-              backgroundColor: '#16a34a',
+              backgroundColor: 'var(--success)',
               color: '#fff',
               borderRadius: 'var(--radius)',
               fontSize: '0.875rem',
@@ -225,7 +225,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
                 return (
                   <tr key={report.id}>
                     <td className="card-header">
-                      <span style={{ fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap' }}>
                         {report.profiles?.name ?? '-'}
                       </span>
                     </td>
@@ -247,7 +247,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
             </tbody>
           </table>
         ) : (
-          <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#94a3b8', fontSize: '0.875rem' }}>
+          <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-faint)', fontSize: '0.875rem' }}>
             <FileText size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
             <p style={{ margin: 0 }}>해당 주차에 작성된 주간보고가 없습니다</p>
           </div>

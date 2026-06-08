@@ -73,7 +73,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
       {/* 검색 / 필터 바 */}
       <div style={{ padding: '0.875rem 1.25rem', borderBottom: '2px solid var(--border-color)', display: 'flex', flexWrap: 'wrap', gap: '0.625rem', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 0 }}>
-          <Search size={14} style={{ position: 'absolute', left: '0.625rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+          <Search size={14} style={{ position: 'absolute', left: '0.625rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' }} />
           <input
             type="search"
             value={search}
@@ -91,8 +91,8 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
               style={{
                 padding: '0.25rem 0.75rem', fontSize: '0.8rem', borderRadius: '999px', cursor: 'pointer',
                 border: roleFilter === r ? '1px solid var(--brand)' : '2px solid var(--border-color)',
-                background: roleFilter === r ? '#f3effe' : '#fff',
-                color: roleFilter === r ? 'var(--brand-dark)' : '#64748b',
+                background: roleFilter === r ? 'var(--brand-soft)' : '#fff',
+                color: roleFilter === r ? 'var(--brand-dark)' : 'var(--text-muted)',
                 fontWeight: roleFilter === r ? 600 : 400,
               }}
             >
@@ -100,7 +100,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
             </button>
           ))}
         </div>
-        <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginLeft: 'auto' }}>{filtered.length}명</span>
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-faint)', marginLeft: 'auto' }}>{filtered.length}명</span>
       </div>
 
       <table className="table-base table-card">
@@ -137,7 +137,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
         <tbody>
           {filtered.length === 0 ? (
             <tr>
-              <td colSpan={10} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8', fontSize: '0.875rem' }}>
+              <td colSpan={10} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-faint)', fontSize: '0.875rem' }}>
                 검색 결과가 없습니다
               </td>
             </tr>
@@ -150,7 +150,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
                     <div style={{
                       width: '2rem', height: '2rem', borderRadius: '50%',
                       background: profile.role === 'admin'
-                        ? 'linear-gradient(135deg, #dc2626, #ef4444)'
+                        ? 'linear-gradient(135deg, var(--danger), #ef4444)'
                         : 'linear-gradient(135deg, var(--brand), var(--brand))',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: '0.75rem', fontWeight: 600, color: 'white', flexShrink: 0,
@@ -159,36 +159,36 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
                     </div>
                     <div>
                       <div style={{ fontWeight: 500 }}>{profile.name || '-'}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{email}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>{email}</div>
                     </div>
                   </div>
                 </td>
                 <td data-label="직급">
-                  <span style={{ fontSize: '0.875rem', color: profile.rank ? '#334155' : '#94a3b8' }}>
+                  <span style={{ fontSize: '0.875rem', color: profile.rank ? '#334155' : 'var(--text-faint)' }}>
                     {profile.rank || '—'}
                   </span>
                 </td>
                 <td data-label="직책">
-                  <span style={{ fontSize: '0.875rem', color: profile.position ? '#334155' : '#94a3b8' }}>
+                  <span style={{ fontSize: '0.875rem', color: profile.position ? '#334155' : 'var(--text-faint)' }}>
                     {profile.position || '—'}
                   </span>
                 </td>
                 <td data-label="역할">
                   <span className={`badge ${profile.role === 'admin' ? 'badge-indigo' : 'badge-slate'}`}
-                    style={profile.role === 'admin' ? { backgroundColor: '#fef2f2', color: '#dc2626' } : undefined}>
+                    style={profile.role === 'admin' ? { backgroundColor: 'var(--danger-bg)', color: 'var(--danger)' } : undefined}>
                     {profile.role}
                   </span>
                 </td>
                 <td data-label="초기PW">
                   <span style={{
                     fontSize: '0.75rem', fontWeight: 600,
-                    color: profile.must_change_password ? '#d97706' : '#16a34a',
+                    color: profile.must_change_password ? 'var(--warning)' : 'var(--success)',
                   }}>
                     {profile.must_change_password ? '대기중' : '완료'}
                   </span>
                 </td>
                 <td data-label="가입일">
-                  <span style={{ color: '#64748b', fontSize: '0.8125rem' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
                     {new Date(profile.created_at).toLocaleDateString('ko-KR')}
                   </span>
                 </td>
@@ -197,7 +197,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
                     onClick={() => setEditTarget(profile)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '0.25rem',
-                      padding: '0.3rem 0.6rem', background: '#f1f5f9', color: '#475569',
+                      padding: '0.3rem 0.6rem', background: 'var(--surface-muted)', color: '#475569',
                       border: '2px solid var(--border-color)', borderRadius: '0.4rem',
                       fontSize: '0.8rem', cursor: 'pointer',
                     }}

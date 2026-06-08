@@ -4,11 +4,11 @@ import { useState, useEffect, useRef } from 'react'
 import type { DailyLog, DailyLogEntryType } from '@/types/database'
 
 const ENTRY_TYPES: { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[] = [
-  { value: 'done',    label: '완료',   color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-  { value: 'doing',   label: '진행중', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
-  { value: 'planned', label: '예정',   color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
-  { value: 'blocker', label: '블로커', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
-  { value: 'note',    label: '메모',   color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+  { value: 'done',    label: '완료',   color: 'var(--success)', bg: 'var(--success-bg)', border: 'var(--success-border)' },
+  { value: 'doing',   label: '진행중', color: 'var(--info)', bg: 'var(--info-bg)', border: 'var(--info-border)' },
+  { value: 'planned', label: '예정',   color: 'var(--brand)', bg: '#f5f3ff', border: '#ddd6fe' },
+  { value: 'blocker', label: '블로커', color: 'var(--danger)', bg: 'var(--danger-bg)', border: 'var(--danger-border)' },
+  { value: 'note',    label: '메모',   color: 'var(--warning)', bg: 'var(--warning-bg)', border: 'var(--warning-border)' },
 ]
 const ENTRY_MAP = Object.fromEntries(ENTRY_TYPES.map((t) => [t.value, t])) as Record<DailyLogEntryType, typeof ENTRY_TYPES[number]>
 const GROUP_PALETTE = ['var(--brand)', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', 'var(--brand)']
@@ -145,7 +145,7 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
     }
   }
   groupMap.forEach((members, gid) => {
-    const color = groupColors[gid] ?? '#94a3b8'
+    const color = groupColors[gid] ?? 'var(--text-faint)'
     for (let i = 0; i < members.length - 1; i++) {
       groupEdges.push({ x1: members[i].x, y1: members[i].y, x2: members[i + 1].x, y2: members[i + 1].y, color })
     }
@@ -171,15 +171,15 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
         display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
       }}>
         <span>🔗 당일 업무 관계도</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', color: '#64748b', fontWeight: 400 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 400 }}>
           <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="var(--brand)" strokeWidth="1.5" strokeDasharray="4 3" /></svg>
           AI 묶음
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', color: '#64748b', fontWeight: 400 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 400 }}>
           <svg width="20" height="8"><line x1="0" y1="4" x2="16" y2="4" stroke="#f97316" strokeWidth="1.5" /><polygon points="16,1 20,4 16,7" fill="#f97316" /></svg>
           스레드 파생
         </span>
-        <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#94a3b8', fontWeight: 400 }}>노드 클릭 → 상세</span>
+        <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--text-faint)', fontWeight: 400 }}>노드 클릭 → 상세</span>
       </div>
 
       <svg
@@ -255,14 +255,14 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
               {selectedLog.target_date && (() => {
                 const lbl = ddayLabel(selectedLog.target_date, today)
                 return lbl ? (
-                  <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', padding: '0.1rem 0.4rem', borderRadius: '0.25rem' }}>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--danger)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', padding: '0.1rem 0.4rem', borderRadius: '0.25rem' }}>
                     {lbl}
                   </span>
                 ) : null
               })()}
             </div>
             <button onClick={() => setSelectedId(null)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '1.1rem', lineHeight: 1, padding: '0 2px' }}>
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: '1.1rem', lineHeight: 1, padding: '0 2px' }}>
               ×
             </button>
           </div>
@@ -270,13 +270,13 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
             {selectedLog.content}
           </p>
           {selectedLog.target_date && (
-            <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', color: '#64748b' }}>
+            <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               📅 예정일: {selectedLog.target_date}
             </p>
           )}
           {parentLog && (
             <div style={{ background: 'var(--color-bg)', borderRadius: '0.375rem', padding: '0.375rem 0.5rem', marginBottom: '0.5rem' }}>
-              <p style={{ margin: '0 0 0.2rem', fontSize: '0.7rem', color: '#94a3b8' }}>↑ 상위 업무</p>
+              <p style={{ margin: '0 0 0.2rem', fontSize: '0.7rem', color: 'var(--text-faint)' }}>↑ 상위 업무</p>
               <p style={{ margin: 0, fontSize: '0.75rem', color: '#475569', wordBreak: 'break-word' }}>
                 {parentLog.content.slice(0, 60)}{parentLog.content.length > 60 ? '…' : ''}
               </p>
@@ -284,14 +284,14 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
           )}
           {childLogs.length > 0 && (
             <div>
-              <p style={{ margin: '0 0 0.25rem', fontSize: '0.7rem', color: '#94a3b8' }}>↓ 파생 업무 ({childLogs.length})</p>
+              <p style={{ margin: '0 0 0.25rem', fontSize: '0.7rem', color: 'var(--text-faint)' }}>↓ 파생 업무 ({childLogs.length})</p>
               {childLogs.slice(0, 3).map(c => (
                 <p key={c.id} style={{ margin: '0 0 0.2rem', fontSize: '0.75rem', color: '#475569', paddingLeft: '0.5rem', borderLeft: '2px solid var(--color-border)', wordBreak: 'break-word' }}>
                   {c.content.slice(0, 50)}{c.content.length > 50 ? '…' : ''}
                 </p>
               ))}
               {childLogs.length > 3 && (
-                <p style={{ margin: 0, fontSize: '0.7rem', color: '#94a3b8' }}>외 {childLogs.length - 3}개...</p>
+                <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-faint)' }}>외 {childLogs.length - 3}개...</p>
               )}
             </div>
           )}

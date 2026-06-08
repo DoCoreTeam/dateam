@@ -66,7 +66,7 @@ export default function AdminUserMenu({ displayName }: AdminUserMenuProps) {
             bottom: 'calc(100% + 0.5rem)',
             left: 0,
             right: 0,
-            backgroundColor: '#0f172a',
+            backgroundColor: 'var(--text)',
             border: '1px solid rgba(255,255,255,0.1)',
             borderRadius: 'var(--radius)',
             overflow: 'hidden',
@@ -77,7 +77,7 @@ export default function AdminUserMenu({ displayName }: AdminUserMenuProps) {
           <MenuButton
             icon={<LayoutDashboard size={15} />}
             label="멤버 화면으로 전환"
-            color="#cbd5e1"
+            color="var(--border-subtle)"
             hoverBg="rgba(255,255,255,0.08)"
             onClick={handleSwitchToMember}
           />
@@ -113,22 +113,22 @@ export default function AdminUserMenu({ displayName }: AdminUserMenuProps) {
       >
         <div style={{
           width: '1.875rem', height: '1.875rem', borderRadius: '50%',
-          background: 'linear-gradient(135deg, #dc2626, #ef4444)',
+          background: 'linear-gradient(135deg, var(--danger), #ef4444)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0, fontSize: '0.75rem', fontWeight: 600, color: 'white',
         }}>
           {initial}
         </div>
         <div style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
-          <div style={{ fontSize: '0.8125rem', color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--border-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {displayName}
           </div>
-          <div style={{ fontSize: '0.6875rem', color: '#64748b' }}>관리자</div>
+          <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>관리자</div>
         </div>
         <ChevronUp
           size={14}
           style={{
-            color: '#64748b',
+            color: 'var(--text-muted)',
             flexShrink: 0,
             transition: 'transform 150ms',
             transform: open ? 'rotate(0deg)' : 'rotate(180deg)',

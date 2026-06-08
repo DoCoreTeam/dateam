@@ -14,14 +14,14 @@ type SortField = 'created_at' | 'title' | 'stage' | 'value' | 'probability'
 
 const STAGES = ['신규', '검증', '컨택', 'PoC', '제안', '협상', '수주', '실패'] as const
 const STAGE_STYLE: Record<string, { color: string; bg: string; border: string }> = {
-  '신규':  { color: '#64748b', bg: 'var(--color-bg)',  border: 'var(--color-border)' },
+  '신규':  { color: 'var(--text-muted)', bg: 'var(--color-bg)',  border: 'var(--color-border)' },
   '검증':  { color: '#0891b2', bg: '#ecfeff',  border: '#a5f3fc' },
-  '컨택':  { color: '#7c3aed', bg: '#f5f3ff',  border: '#ddd6fe' },
-  'PoC':   { color: '#d97706', bg: '#fffbeb',  border: '#fde68a' },
+  '컨택':  { color: 'var(--brand)', bg: '#f5f3ff',  border: '#ddd6fe' },
+  'PoC':   { color: 'var(--warning)', bg: 'var(--warning-bg)',  border: 'var(--warning-border)' },
   '제안':  { color: '#0284c7', bg: '#f0f9ff',  border: '#bae6fd' },
   '협상':  { color: '#c2410c', bg: '#fff7ed',  border: '#fed7aa' },
-  '수주':  { color: '#16a34a', bg: '#f0fdf4',  border: '#bbf7d0' },
-  '실패':  { color: '#dc2626', bg: '#fef2f2',  border: '#fecaca' },
+  '수주':  { color: 'var(--success)', bg: 'var(--success-bg)',  border: 'var(--success-border)' },
+  '실패':  { color: 'var(--danger)', bg: 'var(--danger-bg)',  border: 'var(--danger-border)' },
 }
 
 function SortIcon({ field, sort, dir }: { field: SortField; sort: SortField; dir: 'asc' | 'desc' }) {
@@ -108,14 +108,14 @@ export default function DealsPage() {
     <div>
       <div style={{ marginBottom: '1.75rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>영업기회</h1>
-          <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>영업 파이프라인 관리</p>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>영업기회</h1>
+          <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>영업 파이프라인 관리</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <Link href="/lead-intake?target=deal" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px' }}>
             <Sparkles size={16} /> AI로 추가
           </Link>
-          <Link href="/deals/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px', border: '2px solid var(--border-color)', color: '#64748b', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
+          <Link href="/deals/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px', border: '2px solid var(--border-color)', color: 'var(--text-muted)', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
             <Plus size={16} /> 수동 입력
           </Link>
         </div>
@@ -124,18 +124,18 @@ export default function DealsPage() {
       {/* 요약 카드 */}
       <div className="responsive-grid-cols-3" style={{ marginBottom: '1.5rem', gap: '1rem' }}>
         <div className="card" style={{ padding: '1rem 1.25rem', textAlign: 'center' }}>
-          <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: '0 0 0.25rem', fontWeight: 500 }}>전체 기회</p>
-          <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>{totalCount}</p>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: '0 0 0.25rem', fontWeight: 500 }}>전체 기회</p>
+          <p style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>{totalCount}</p>
         </div>
         <div className="card" style={{ padding: '1rem 1.25rem', textAlign: 'center' }}>
-          <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: '0 0 0.25rem', fontWeight: 500 }}>파이프라인 총액</p>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: '0 0 0.25rem', fontWeight: 500 }}>파이프라인 총액</p>
           <p style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--brand)', margin: 0 }}>
             {totalValue > 0 ? `₩${(totalValue / 100000000).toFixed(1)}억` : '-'}
           </p>
         </div>
         <div className="card" style={{ padding: '1rem 1.25rem', textAlign: 'center' }}>
-          <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: '0 0 0.25rem', fontWeight: 500 }}>수주 완료</p>
-          <p style={{ fontSize: '1.25rem', fontWeight: 700, color: '#16a34a', margin: 0 }}>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: '0 0 0.25rem', fontWeight: 500 }}>수주 완료</p>
+          <p style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--success)', margin: 0 }}>
             {wonValue > 0 ? `₩${(wonValue / 100000000).toFixed(1)}억` : '-'}
           </p>
         </div>
@@ -172,10 +172,10 @@ export default function DealsPage() {
                               onClick={() => setSelected(d)}
                               style={{ display: 'block', background: 'white', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.625rem 0.75rem', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', textAlign: 'left', width: '100%' }}
                             >
-                              <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#0f172a', marginBottom: '0.25rem', lineHeight: 1.3 }}>{d.title}</div>
-                              {d.accounts?.name && <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{d.accounts.name}</div>}
+                              <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text)', marginBottom: '0.25rem', lineHeight: 1.3 }}>{d.title}</div>
+                              {d.accounts?.name && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{d.accounts.name}</div>}
                               {d.value && <div style={{ fontSize: '0.75rem', color: 'var(--brand)', fontWeight: 600, marginTop: '0.25rem' }}>₩{d.value.toLocaleString()}</div>}
-                              <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.25rem' }}>확률 {d.probability}%</div>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-faint)', marginTop: '0.25rem' }}>확률 {d.probability}%</div>
                             </button>
                           ))}
                         </div>
@@ -218,7 +218,7 @@ export default function DealsPage() {
             </div>
 
             {list.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8', fontSize: '0.875rem' }}>
+              <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-faint)', fontSize: '0.875rem' }}>
                 {hasFilters ? '검색 결과가 없습니다' : '영업기회가 없습니다'}
               </div>
             ) : (
@@ -251,11 +251,11 @@ export default function DealsPage() {
                           <div>
                             <button
                               onClick={() => setSelected(d)}
-                              style={{ fontWeight: 600, color: '#0f172a', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9375rem', padding: 0, textAlign: 'left' }}
+                              style={{ fontWeight: 600, color: 'var(--text)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9375rem', padding: 0, textAlign: 'left' }}
                             >
                               {d.title}
                             </button>
-                            {d.accounts?.name && <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.125rem' }}>{d.accounts.name}</div>}
+                            {d.accounts?.name && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>{d.accounts.name}</div>}
                           </div>
                           <StageBadge stage={d.stage} />
                         </div>
@@ -264,7 +264,7 @@ export default function DealsPage() {
                       <td data-label="금액">
                         {d.value
                           ? <span style={{ fontSize: '0.875rem', color: 'var(--brand)', fontWeight: 600 }}>₩{d.value.toLocaleString()}</span>
-                          : <span style={{ color: '#cbd5e1' }}>-</span>}
+                          : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
                       </td>
                       <td data-label="확률">
                         <span style={{ fontSize: '0.875rem', color: '#374151' }}>{d.probability}%</span>
@@ -272,22 +272,22 @@ export default function DealsPage() {
                       <td data-label="리드유형">
                         {d.lead_type
                           ? <span className="badge badge-slate" style={{ fontSize: '0.75rem' }}>{d.lead_type}</span>
-                          : <span style={{ color: '#cbd5e1' }}>-</span>}
+                          : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
                       </td>
                       <td data-label="제품">
                         <span style={{ fontSize: '0.8125rem', color: '#374151' }}>{d.product ?? '-'}</span>
                       </td>
                       <td data-label="적합도" style={{ textAlign: 'center' }}>
                         {d.fit_score !== null
-                          ? <span style={{ fontSize: '0.75rem', fontWeight: 700, color: d.fit_score >= 70 ? '#16a34a' : d.fit_score >= 40 ? '#d97706' : '#dc2626' }}>{d.fit_score}</span>
-                          : <span style={{ color: '#cbd5e1' }}>-</span>}
+                          ? <span style={{ fontSize: '0.75rem', fontWeight: 700, color: d.fit_score >= 70 ? 'var(--success)' : d.fit_score >= 40 ? 'var(--warning)' : 'var(--danger)' }}>{d.fit_score}</span>
+                          : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
                       </td>
                       <td data-label="거래처" onClick={e => e.stopPropagation()}>
                         {d.accounts?.name ? (
                           <Link href={`/accounts/${d.account_id}`} style={{ fontSize: '0.875rem', color: 'var(--brand)', textDecoration: 'none' }}>
                             {d.accounts.name}
                           </Link>
-                        ) : <span style={{ color: '#cbd5e1', fontSize: '0.8125rem' }}>-</span>}
+                        ) : <span style={{ color: 'var(--border-subtle)', fontSize: '0.8125rem' }}>-</span>}
                       </td>
                     </tr>
                   ))}
@@ -297,12 +297,12 @@ export default function DealsPage() {
 
             <div ref={sentinelRef} style={{ height: 1 }} />
             {isValidating && !isLoading && (
-              <div style={{ textAlign: 'center', padding: '1rem', color: '#94a3b8' }}>
+              <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-faint)' }}>
                 <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
               </div>
             )}
             {isCapped && (
-              <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: '#92400e', background: '#fffbeb', borderTop: '1px solid #fde68a' }}>
+              <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: '#92400e', background: 'var(--warning-bg)', borderTop: '1px solid var(--warning-border)' }}>
                 결과가 500건을 초과합니다. 검색 조건을 좁혀주세요.
               </div>
             )}
@@ -329,9 +329,9 @@ function DealDetail({ deal: d, onClose, onDeleted }: { deal: DealWithAccount; on
     <div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBottom: '1rem' }}>
         <StageBadge stage={d.stage} />
-        <span className="badge" style={{ background: 'var(--color-bg)', color: '#64748b', fontSize: '0.75rem' }}>확률 {d.probability}%</span>
+        <span className="badge" style={{ background: 'var(--color-bg)', color: 'var(--text-muted)', fontSize: '0.75rem' }}>확률 {d.probability}%</span>
         {d.value && (
-          <span className="badge" style={{ background: '#f3effe', color: 'var(--brand)', fontWeight: 700, fontSize: '0.75rem' }}>
+          <span className="badge" style={{ background: 'var(--brand-soft)', color: 'var(--brand)', fontWeight: 700, fontSize: '0.75rem' }}>
             ₩{d.value.toLocaleString()}
           </span>
         )}
@@ -379,7 +379,7 @@ function DealDetail({ deal: d, onClose, onDeleted }: { deal: DealWithAccount; on
         <Link href={`/deals/${d.id}/edit`} className="detail-btn-ghost" onClick={onClose}>
           편집
         </Link>
-        <button onClick={handleDelete} className="detail-btn-ghost" style={{ color: '#dc2626', borderColor: '#fecaca', cursor: 'pointer' }}>
+        <button onClick={handleDelete} className="detail-btn-ghost" style={{ color: 'var(--danger)', borderColor: 'var(--danger-border)', cursor: 'pointer' }}>
           삭제
         </button>
       </div>

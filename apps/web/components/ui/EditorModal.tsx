@@ -52,10 +52,10 @@ export default function EditorModal({ title, value, placeholder, onClose, onChan
       >
         {/* 헤더 */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '2px solid var(--border-color)' }}>
-          <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0f172a' }}>{title}</span>
+          <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text)' }}>{title}</span>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0.25rem', display: 'flex', borderRadius: '0.375rem' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: '0.25rem', display: 'flex', borderRadius: '0.375rem' }}
           >
             <X size={18} />
           </button>

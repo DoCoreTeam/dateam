@@ -44,10 +44,10 @@ export default function TierRow({ id, name, discountRate, description, createdAt
         </span>
       </td>
       <td data-label="설명" className="card-hide">
-        <span style={{ color: '#64748b', fontSize: '0.8125rem' }}>{description || '-'}</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>{description || '-'}</span>
       </td>
       <td data-label="생성일" className="card-hide">
-        <span style={{ color: '#64748b', fontSize: '0.8125rem' }}>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
           {new Date(createdAt).toLocaleDateString('ko-KR')}
         </span>
       </td>
@@ -58,7 +58,7 @@ export default function TierRow({ id, name, discountRate, description, createdAt
             style={{
               display: 'flex', alignItems: 'center', gap: '0.25rem',
               padding: '0.375rem 0.625rem', borderRadius: '0.375rem',
-              background: '#f1f5f9', color: '#475569',
+              background: 'var(--surface-muted)', color: '#475569',
               border: 'none', fontSize: '0.8125rem', cursor: 'pointer',
             }}
           >

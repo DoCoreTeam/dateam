@@ -18,7 +18,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #f3effe 0%, var(--color-bg) 60%, #ede9fe 100%)',
+        background: 'linear-gradient(135deg, var(--brand-soft) 0%, var(--color-bg) 60%, var(--brand-soft-2) 100%)',
         padding: 'clamp(1rem, 5vw, 2rem)',
       }}
     >
@@ -42,7 +42,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               style={{
                 fontSize: '1.5rem',
                 fontWeight: 700,
-                color: '#0f172a',
+                color: 'var(--text)',
                 letterSpacing: '-0.02em',
                 margin: 0,
               }}
@@ -54,7 +54,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <p
               style={{
                 fontSize: '0.875rem',
-                color: '#64748b',
+                color: 'var(--text-muted)',
                 marginTop: '0.375rem',
               }}
             >
@@ -77,7 +77,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             style={{
               fontSize: '1.125rem',
               fontWeight: 600,
-              color: '#0f172a',
+              color: 'var(--text)',
               marginBottom: '1.5rem',
               letterSpacing: '-0.01em',
             }}
@@ -93,8 +93,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 alignItems: 'center',
                 gap: '0.5rem',
                 padding: '0.75rem 1rem',
-                backgroundColor: '#fef2f2',
-                border: '1px solid #fecaca',
+                backgroundColor: 'var(--danger-bg)',
+                border: '1px solid var(--danger-border)',
                 borderRadius: 'var(--radius)',
                 marginBottom: '1.25rem',
                 fontSize: '0.8125rem',
@@ -151,7 +151,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             textAlign: 'center',
             marginTop: '1.5rem',
             fontSize: '0.8125rem',
-            color: '#94a3b8',
+            color: 'var(--text-faint)',
           }}
         >
           계정이 없다면 관리자에게 문의하세요

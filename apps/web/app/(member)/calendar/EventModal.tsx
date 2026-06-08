@@ -82,7 +82,7 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
       <div style={{ width: '100%', maxWidth: 460, background: '#fff', borderRadius: 'var(--radius)', padding: '1.5rem', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
           <h3 className="tape-title" style={{ margin: 0 }}>일정 등록</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={18} /></button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={18} /></button>
         </div>
 
         {/* 자연어 */}
@@ -90,12 +90,12 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
           <input value={nl} onChange={(e) => setNl(e.target.value)} placeholder="자연어: 내일 오후 3시 A사 미팅"
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); parseNl() } }}
             style={{ flex: 1, border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem 0.625rem', fontSize: '0.8125rem', outline: 'none' }} />
-          <button onClick={parseNl} disabled={aiBusy} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8125rem', fontWeight: 600, color: '#fff', background: '#7c3aed', border: 'none', borderRadius: 'var(--radius)', padding: '0.5rem 0.75rem', cursor: aiBusy ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+          <button onClick={parseNl} disabled={aiBusy} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8125rem', fontWeight: 600, color: '#fff', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: '0.5rem 0.75rem', cursor: aiBusy ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
             <Sparkles size={14} /> {aiBusy ? '파싱중' : 'AI 파싱'}
           </button>
         </div>
 
-        {msg && <div role="status" style={{ padding: '0.5rem 0.75rem', background: '#f3effe', border: '1px solid #ddd6fe', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: '0.78rem', color: 'var(--brand-dark)' }}>{msg}</div>}
+        {msg && <div role="status" style={{ padding: '0.5rem 0.75rem', background: 'var(--brand-soft)', border: '1px solid #ddd6fe', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: '0.78rem', color: 'var(--brand-dark)' }}>{msg}</div>}
 
         <label style={lbl}>제목</label>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="일정 제목" style={inp} />
@@ -138,7 +138,7 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
         <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }} />
 
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ fontSize: '0.8125rem', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer' }}>취소</button>
+          <button onClick={onClose} style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>취소</button>
           <button onClick={save} disabled={busy} style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: '0.5rem 1.25rem', cursor: busy ? 'wait' : 'pointer' }}>{busy ? '저장중' : '저장'}</button>
         </div>
       </div>
@@ -146,5 +146,5 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
   )
 }
 
-const lbl: React.CSSProperties = { display: 'block', fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.25rem' }
+const lbl: React.CSSProperties = { display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-faint)', marginBottom: '0.25rem' }
 const inp: React.CSSProperties = { width: '100%', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem 0.625rem', fontSize: '0.8125rem', outline: 'none', boxSizing: 'border-box' }
