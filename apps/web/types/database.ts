@@ -297,8 +297,21 @@ export interface DailyLog {
   // 메모 발견·처리 시스템 (042 migration) — entry_type='note'만 사용
   memo_status: MemoStatus | null
   memo_reviewed_at: string | null
+  // 부서 업무 관리 (075 migration) — task_kind='dept_task'만 사용
+  task_kind: DailyLogTaskKind
+  assignee_user_id: string | null
+  department_id: string | null
+  progress: number
+  checklist: DeptTaskChecklistItem[]
   created_at: string
   updated_at: string
+}
+
+export type DailyLogTaskKind = 'personal' | 'dept_task'
+
+export interface DeptTaskChecklistItem {
+  label: string
+  done: boolean
 }
 
 export type MemoStatus = 'new' | 'reviewed' | 'actioned'
@@ -328,6 +341,9 @@ export interface DailyLogThread {
   ai_actions_taken: Record<string, unknown> | null
   prompt_key: string | null
   prompt_version: string | null
+  // 부서 업무 댓글 (075 migration)
+  author_user_id: string | null
+  parent_thread_id: string | null
   created_at: string
 }
 

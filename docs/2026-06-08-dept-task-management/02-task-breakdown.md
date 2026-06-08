@@ -25,12 +25,17 @@
 - T1.5 `private.hierarchy_enabled()` 게이팅을 부서업무 정책에 연결
 - ✔ 완료기준: RLS 시뮬레이션 매트릭스(부서장/부서원/타부서/임원) 통과 — 이전 v0.7.38 검증 하네스 재사용
 
-## 스프린트 2 — 서버 로직 (Backend)
-- T2.1 부서업무 CRUD 서버액션(생성, 상태/진행 갱신은 updateDailyLogStatus 확장) + **`assignTask` 전용 액션(담당자 지정/변경 — 부서장·admin만, editable 부서 검증)**
-- T2.2 댓글 CRUD(addThread/getThreads 확장 — author_user_id 포함)
-- T2.3 담당자 후보 목록 = `deptMemberUserIds(resolveOrgScope)` 재사용 API
-- T2.4 부서업무 목록 조회(상태 필터, 가시 부서 범위)
-- ✔ 완료기준: 각 액션 단위테스트 + 권한 경계 테스트 통과
+## 스프린트 2 — 서버 로직 ✅ 완료 (2026-06-08, v0.7.48)
+- `app/(member)/dept-tasks/actions.ts` + `076_dept_task_integrity.sql`(트리거) 적용.
+- T2.1 createDeptTask / updateDeptTaskProgress / deleteDeptTask + **assignTask(부서장·admin만, ensureEditable)** ✅
+- T2.2 addDeptTaskComment / getDeptTaskComments(author_user_id 포함) ✅
+- T2.3 listAssigneeCandidates(deptMemberUserIds + readable-dept IDOR 가드) ✅
+- T2.4 listDeptTasks(상태/부서 필터, RLS 가시범위) ✅
+- 무결성 트리거: 담당자=부서 서브트리 person 강제 / parent_thread 동일 log 강제 — SQL 검증 PASS.
+- 🟥 DC-REV 88/100 APPROVED-WITH-NOTES (IDOR·task_kind 게이트 즉시 수정 반영). tsc 0에러.
+- 잔여(후속): assignTask TOCTOU→트랜잭션 RPC(트리거가 final 방어 중), priority zod 검증.
+
+### (구) 스프린트 2 작업 목록 — 서버 로직 (Backend)
 
 ## 스프린트 3 — UI (Frontend)
 - T3.1 사이드바 "부서 업무" 항목 추가(MobileShell, 일일업무와 분리)
