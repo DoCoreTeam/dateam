@@ -120,6 +120,16 @@
 /* ════════════════════════════════════════════════════════════
    테마: classic (기존 인디고 soft-UI) — 토큰 값만 오버라이드.
    :root(=nb)가 기본. data-theme="classic" 시 아래로 전환.
+
+   ▶ 새 테마 추가 시 반드시 오버라이드해야 하는 "테마-가변 토큰 계약":
+     색조:   --ink, --border-color, --shadow-color, --accent, --brand, --brand-dark,
+             --brand-soft, --brand-soft-2, --color-text-muted, --color-bg
+     치수:   --border-w, --border-w-2, --hairline, --border-w-mobile, --radius, --radius-lg
+     그림자: --shadow-sm, --shadow-md, --shadow-lg, --shadow-card, --radius-card
+     사이드바:--sidebar-bg, --sidebar-fg
+     구조:   .tape-title / .tape-mini / .font-tape 중립화 룰(아래 패턴 복사)
+   ※ 테마-공통(오버라이드 불필요): 상태색(--success/--danger/--warning/--info 계열),
+     텍스트 스케일(--text/-muted/-faint 색·--fs-*·--space-*·--z-*), GPU 토큰(메인 토큰 alias라 자동 추종).
    ════════════════════════════════════════════════════════════ */
 [data-theme="classic"] {
   --ink: #0f172a;
@@ -2732,22 +2742,22 @@ label.intake-tool-btn {
   --gpu-border: var(--border-color);
   --gpu-border-strong: var(--border-color);
   --gpu-ink: var(--ink);
-  --gpu-ink-2: #4b5563;
-  --gpu-muted: #8a92a3;
-  --gpu-faint: #aeb5c2;
+  --gpu-ink-2: var(--text-muted);
+  --gpu-muted: var(--text-faint);
+  --gpu-faint: var(--text-faint);
   --gpu-accent: var(--brand);
-  --gpu-accent-soft: #f1ebfe;
+  --gpu-accent-soft: var(--brand-soft-2);
   --gpu-accent-ink: var(--brand-dark);
-  --gpu-green: #15a35a;
-  --gpu-green-soft: #e6f7ee;
-  --gpu-blue: #2563eb;
-  --gpu-blue-soft: #f3effe;
-  --gpu-purple: #7c3aed;
-  --gpu-purple-soft: #f1ebfe;
-  --gpu-red: #e0405a;
-  --gpu-red-soft: #fdebee;
-  --gpu-amber: #d97706;
-  --gpu-amber-soft: #fef3e2;
+  --gpu-green: var(--success);
+  --gpu-green-soft: var(--success-bg);
+  --gpu-blue: var(--info);
+  --gpu-blue-soft: var(--info-bg);
+  --gpu-purple: var(--brand);
+  --gpu-purple-soft: var(--brand-soft-2);
+  --gpu-red: var(--danger);
+  --gpu-red-soft: var(--danger-bg);
+  --gpu-amber: var(--warning);
+  --gpu-amber-soft: var(--warning-bg);
   --gpu-shadow: 0 1px 2px rgba(16,22,40,.04), 0 4px 16px rgba(16,22,40,.05);
   --gpu-radius: 6px; /* NB 정합 (13px→6px) */
 }
