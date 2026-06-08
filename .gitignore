@@ -46,3 +46,4 @@ docs/old/
 nb-*.jpeg
 test-*.jpeg
 .playwright-mcp/
+theme-*.jpeg
