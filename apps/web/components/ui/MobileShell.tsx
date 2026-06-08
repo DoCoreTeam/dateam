@@ -96,7 +96,7 @@ export default function MobileShell({
         aria-label="주 사이드바"
         style={{
           minHeight: '100vh',
-          backgroundColor: 'var(--nb-paper)',
+          backgroundColor: 'var(--sidebar-bg)',
           borderRight: 'var(--border-w) solid var(--border-color)',
           display: 'flex',
           flexDirection: 'column',
@@ -121,7 +121,7 @@ export default function MobileShell({
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                 />
               ) : (
-                <span className="font-tape" style={{ color: 'var(--ink)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0', lineHeight: 1 }}>
+                <span className="font-tape" style={{ color: 'var(--sidebar-fg)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0', lineHeight: 1 }}>
                   {brandName}
                 </span>
               )}
@@ -137,7 +137,7 @@ export default function MobileShell({
             aria-label="메뉴 닫기"
             style={{
               background: 'transparent', border: 'none',
-              color: 'var(--ink)', cursor: 'pointer',
+              color: 'var(--sidebar-fg)', cursor: 'pointer',
               alignItems: 'center', padding: '0.25rem',
             }}
           >
@@ -179,7 +179,7 @@ export default function MobileShell({
                       border: isActive || isHighlight
                         ? '2px solid var(--border-color)'
                         : '2px solid transparent',
-                      color: isActive ? 'var(--ink)' : isHighlight ? '#fff' : 'var(--ink)',
+                      color: isActive ? 'var(--sidebar-fg)' : isHighlight ? '#fff' : 'var(--sidebar-fg)',
                       minHeight: '44px',
                       boxShadow: (isActive || isHighlight) ? 'var(--shadow-sm)' : 'none',
                       opacity: isHighlight && isHovered ? 0.9 : 1,
@@ -261,7 +261,7 @@ export default function MobileShell({
                               transition: 'background-color 120ms, color 120ms, border-color 120ms',
                               backgroundColor: isActive ? 'var(--accent)' : isHovered ? 'rgba(0,0,0,0.05)' : 'transparent',
                               border: isActive ? '2px solid var(--border-color)' : '2px solid transparent',
-                              color: 'var(--ink)',
+                              color: 'var(--sidebar-fg)',
                               boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
                               minHeight: '44px',
                             }}
@@ -295,7 +295,7 @@ export default function MobileShell({
                 backgroundColor: 'var(--nb-white)',
                 border: '2px solid var(--border-color)',
                 boxShadow: 'var(--shadow-sm)',
-                color: 'var(--ink)',
+                color: 'var(--sidebar-fg)',
                 minHeight: '44px',
               }}
             >

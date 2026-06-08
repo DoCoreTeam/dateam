@@ -1,14 +1,16 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { Key, Palette, Bell, Cloud, Database } from 'lucide-react'
+import { Key, Palette, Bell, Cloud, Database, Paintbrush } from 'lucide-react'
 import GeminiSettings from './GeminiSettings'
 import DbSettings from './DbSettings'
 import KoraeximSettings from './KoraeximSettings'
 import BrandingSettings from './BrandingSettings'
+import ThemeSettings from './ThemeSettings'
 import TokenAlertSettings from './TokenAlertSettings'
 import GoogleDriveSettings from './GoogleDriveSettings'
 import DriveConnectedBanner from './DriveConnectedBanner'
 import { getBranding } from '@/lib/branding'
+import { getActiveTheme } from '@/lib/theme'
 
 const GEMINI_KEY = 'gemini_api_key'
 const KOREAEXIM_KEY = 'koreaexim_api_key'
@@ -32,8 +34,9 @@ export default async function AdminSettingsPage({
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [branding, adminClient] = await Promise.all([
+  const [branding, activeTheme, adminClient] = await Promise.all([
     getBranding(),
+    getActiveTheme(),
     Promise.resolve(createAdminClient()),
   ])
 
@@ -78,6 +81,15 @@ export default async function AdminSettingsPage({
           <h2 className="tape-title" style={{ margin: 0 }}>브랜딩 설정</h2>
         </div>
         <BrandingSettings initialLogoUrl={branding.logoUrl} initialBrandName={branding.brandName} initialTagline={branding.tagline} />
+      </section>
+
+      {/* 디자인 테마 */}
+      <section>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+          <Paintbrush size={15} color="var(--brand)" />
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text)', margin: 0 }}>디자인 테마</h2>
+        </div>
+        <ThemeSettings initialTheme={activeTheme} />
       </section>
 
       {/* API 설정 */}

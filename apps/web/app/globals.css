@@ -40,6 +40,9 @@
   --shadow-md: 4px 4px 0 0 var(--shadow-color);
   --shadow-lg: 6px 6px 0 0 var(--shadow-color);
   --font-tape: 'Nanum Pen Script', cursive;
+  /* 사이드바(테마별) — nb: 크림 페이퍼 + 잉크 */
+  --sidebar-bg: var(--nb-paper);
+  --sidebar-fg: var(--ink);
 
   /* ── 브릿지: 기존 인디고 토큰을 NB 토큰으로 alias (컴포넌트 코드 무수정 전파) ── */
   --color-bg: var(--nb-off-white);
@@ -77,6 +80,53 @@
   --duration-normal: 240ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* ════════════════════════════════════════════════════════════
+   테마: classic (기존 인디고 soft-UI) — 토큰 값만 오버라이드.
+   :root(=nb)가 기본. data-theme="classic" 시 아래로 전환.
+   ════════════════════════════════════════════════════════════ */
+[data-theme="classic"] {
+  --ink: #0f172a;
+  --border-color: #e2e8f0;       /* 잉크 → 연회색 */
+  --shadow-color: rgba(15, 23, 42, 0.08);
+  --accent: #6366f1;             /* 노랑 → 인디고 */
+  --brand: #6366f1;
+  --brand-dark: #4f46e5;
+  --border-w: 1px;               /* 3px → 1px */
+  --border-w-mobile: 1px;
+  --radius: 0.625rem;            /* 4px → 둥글게 */
+  --shadow-sm: 0 1px 2px rgba(15,23,42,0.06);
+  --shadow-md: 0 1px 3px rgba(15,23,42,0.08), 0 1px 2px -1px rgba(15,23,42,0.08);
+  --shadow-lg: 0 8px 24px -8px rgba(15,23,42,0.12);
+  --brand-soft: #eef2ff;
+  --brand-soft-2: #e0e7ff;
+  /* 사이드바: 다크(기존) */
+  --sidebar-bg: #1e293b;
+  --sidebar-fg: #e2e8f0;
+  /* 브릿지/카드 */
+  --color-bg: #f8fafc;
+  --color-text-muted: #64748b;
+  --radius-card: 1rem;
+  --shadow-card: var(--shadow-md);
+}
+/* classic: NB 구조요소(테이프/하드섀도) 중립화 */
+[data-theme="classic"] .tape-title {
+  background: transparent;
+  color: var(--text);
+  border: none;
+  box-shadow: none;
+  transform: none;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0;
+}
+[data-theme="classic"] .tape-mini {
+  background: transparent; color: var(--text-muted); border: none; box-shadow: none;
+  transform: none; font-family: inherit; font-size: 0.6875rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em; padding: 0;
+}
+[data-theme="classic"] .font-tape { font-family: inherit; }
 
 @layer base {
   html {
