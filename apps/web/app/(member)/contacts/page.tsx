@@ -75,14 +75,14 @@ export default function ContactsPage() {
           <Link href="/lead-intake?target=contact" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px' }}>
             <Sparkles size={16} /> AI로 추가
           </Link>
-          <Link href="/contacts/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px', border: '2px solid var(--border-color)', color: 'var(--text-muted)', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
+          <Link href="/contacts/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px', border: 'var(--border-w-2) solid var(--border-color)', color: 'var(--text-muted)', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
             <Plus size={16} /> 수동 입력
           </Link>
         </div>
       </div>
 
       <div className="card">
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Users size={16} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>전체 담당자</h2>
           <span className="badge badge-slate">{contacts.length}{hasFilters ? '명 (필터됨)' : '명'}</span>
@@ -194,7 +194,7 @@ export default function ContactsPage() {
           </div>
         )}
         {isCapped && (
-          <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: 'var(--warning)', background: 'var(--warning-bg)', borderTop: '1px solid var(--warning-border)' }}>
+          <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: 'var(--warning)', background: 'var(--warning-bg)', borderTop: 'var(--hairline) solid var(--warning-border)' }}>
             결과가 500건을 초과합니다. 검색 조건을 좁혀주세요.
           </div>
         )}

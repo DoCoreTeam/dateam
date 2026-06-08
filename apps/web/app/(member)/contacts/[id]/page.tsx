@@ -77,7 +77,7 @@ export default async function ContactDetailPage({ params }: PageProps) {
             </div>
           )}
           {data.notes && (
-            <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '2px solid var(--border-color)' }}>
+            <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: 'var(--border-w-2) solid var(--border-color)' }}>
               <p style={{ fontSize: '0.875rem', color: 'var(--text)', margin: 0, lineHeight: 1.6 }}>{data.notes}</p>
             </div>
           )}
@@ -90,7 +90,7 @@ export default async function ContactDetailPage({ params }: PageProps) {
       {data.business_card_drive_id && (
         <div className="card" style={{ maxWidth: '480px', padding: '1.5rem', marginTop: '1rem' }}>
           <h2 className="tape-title" style={{ margin: 0 }}>명함 이미지</h2>
-          <div style={{ position: 'relative', width: '100%', aspectRatio: '1.7 / 1', overflow: 'hidden', borderRadius: 'var(--radius)', border: '2px solid var(--border-color)', backgroundColor: 'var(--color-bg)' }}>
+          <div style={{ position: 'relative', width: '100%', aspectRatio: '1.7 / 1', overflow: 'hidden', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)', backgroundColor: 'var(--color-bg)' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`/api/files/drive/${data.business_card_drive_id}`}

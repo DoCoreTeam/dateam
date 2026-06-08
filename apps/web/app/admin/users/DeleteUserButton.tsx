@@ -43,7 +43,7 @@ export default function DeleteUserButton({ userId, userName, isSelf }: DeleteUse
             style={{
               padding: '0.25rem 0.625rem', fontSize: '0.75rem', fontWeight: 600,
               backgroundColor: 'var(--danger)', color: '#fff',
-              border: 'none', borderRadius: '0.375rem', cursor: 'pointer',
+              border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer',
             }}
           >
             {pending ? '삭제 중...' : '확인'}
@@ -54,7 +54,7 @@ export default function DeleteUserButton({ userId, userName, isSelf }: DeleteUse
             style={{
               padding: '0.25rem 0.625rem', fontSize: '0.75rem',
               backgroundColor: 'var(--surface-muted)', color: 'var(--text-muted)',
-              border: 'none', borderRadius: '0.375rem', cursor: 'pointer',
+              border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer',
             }}
           >
             취소
@@ -72,7 +72,7 @@ export default function DeleteUserButton({ userId, userName, isSelf }: DeleteUse
         display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
         padding: '0.25rem 0.625rem', fontSize: '0.75rem',
         backgroundColor: 'var(--danger-bg)', color: 'var(--danger)',
-        border: '1px solid var(--danger-border)', borderRadius: '0.375rem', cursor: 'pointer',
+        border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', cursor: 'pointer',
       }}
     >
       <Trash2 size={12} />

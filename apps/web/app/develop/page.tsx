@@ -18,7 +18,7 @@ const EXAMPLE_KEY = 'ax_live_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4'
 
 function SidebarItem({ children, active, onClick }: { children: React.ReactNode; active: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 400, background: active ? 'rgba(124,58,237,0.1)' : 'transparent', color: active ? 'var(--brand-soft-2)' : 'var(--text-muted)', borderLeft: active ? '2px solid var(--brand)' : '2px solid transparent', marginBottom: 2, transition: 'all .15s' }}>
+    <button onClick={onClick} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 400, background: active ? 'rgba(124,58,237,0.1)' : 'transparent', color: active ? 'var(--brand-soft-2)' : 'var(--text-muted)', borderLeft: active ? 'var(--border-w-2) solid var(--brand)' : 'var(--border-w-2) solid transparent', marginBottom: 2, transition: 'all .15s' }}>
       {children}
     </button>
   )
@@ -26,10 +26,10 @@ function SidebarItem({ children, active, onClick }: { children: React.ReactNode;
 
 function CodeBlock({ code, id, onCopy, copiedId, lang = 'bash' }: { code: string; id: string; onCopy: (t: string, id: string) => void; copiedId: string | null; lang?: string }) {
   return (
-    <div style={{ position: 'relative', background: 'var(--text)', border: '1px solid var(--text)', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', background: 'var(--text)', borderBottom: '1px solid var(--text)' }}>
+    <div style={{ position: 'relative', background: 'var(--text)', border: 'var(--hairline) solid var(--text)', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', background: 'var(--text)', borderBottom: 'var(--hairline) solid var(--text)' }}>
         <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{lang}</span>
-        <button onClick={() => onCopy(code, id)} style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid var(--text)', background: 'var(--text)', color: copiedId === id ? 'var(--success)' : 'var(--text-faint)', fontSize: 12, cursor: 'pointer' }}>
+        <button onClick={() => onCopy(code, id)} style={{ padding: '3px 10px', borderRadius: 6, border: 'var(--hairline) solid var(--text)', background: 'var(--text)', color: copiedId === id ? 'var(--success)' : 'var(--text-faint)', fontSize: 12, cursor: 'pointer' }}>
           {copiedId === id ? '✓ 복사됨' : '복사'}
         </button>
       </div>
@@ -59,7 +59,7 @@ function Callout({ type = 'info', title, children }: { type?: 'info' | 'warn' | 
     tip:  { border: 'rgba(16,185,129,0.25)', bg: 'rgba(16,185,129,0.05)', color: 'var(--success)', icon: '✅' },
   }[type]
   return (
-    <div style={{ padding: '14px 18px', background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 10, marginBottom: 20 }}>
+    <div style={{ padding: '14px 18px', background: cfg.bg, border: `var(--hairline) solid ${cfg.border}`, borderRadius: 10, marginBottom: 20 }}>
       <div style={{ fontWeight: 700, color: cfg.color, marginBottom: 6, fontSize: 13 }}>{cfg.icon} {title}</div>
       <div style={{ color: 'var(--text-faint)', fontSize: 13, lineHeight: 1.6 }}>{children}</div>
     </div>
@@ -67,10 +67,10 @@ function Callout({ type = 'info', title, children }: { type?: 'info' | 'warn' | 
 }
 function EndpointHeader({ method, path, desc }: { method: 'GET'|'POST'|'PATCH'|'DELETE'; path: string; desc: string }) {
   return (
-    <div style={{ border: '1px solid var(--text)', borderRadius: 10, padding: '16px 20px', marginBottom: 20 }}>
+    <div style={{ border: 'var(--hairline) solid var(--text)', borderRadius: 10, padding: '16px 20px', marginBottom: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
         <Badge method={method} />
-        <code style={{ fontSize: 14, color: 'var(--color-border)', background: 'var(--text)', padding: '4px 12px', borderRadius: 6, border: '1px solid var(--text)' }}>/api/public/v1{path}</code>
+        <code style={{ fontSize: 14, color: 'var(--color-border)', background: 'var(--text)', padding: '4px 12px', borderRadius: 6, border: 'var(--hairline) solid var(--text)' }}>/api/public/v1{path}</code>
       </div>
       <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>{desc}</p>
     </div>
@@ -80,7 +80,7 @@ function ParamTable({ children, title = '파라미터' }: { children: React.Reac
   return (
     <>
       <div style={{ fontWeight: 600, color: 'var(--color-border)', marginBottom: 8, fontSize: 14 }}>{title}</div>
-      <div style={{ background: 'var(--text)', border: '1px solid var(--text)', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
+      <div style={{ background: 'var(--text)', border: 'var(--hairline) solid var(--text)', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead><tr style={{ background: 'var(--text)' }}>
             <th style={{ padding: '9px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>필드</th>
@@ -96,12 +96,12 @@ function ParamTable({ children, title = '파라미터' }: { children: React.Reac
 function PR({ name, type, required, desc }: { name: string; type: string; required?: boolean; desc: string }) {
   return (
     <tr>
-      <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--text)' }}>
+      <td style={{ padding: '10px 14px', borderBottom: 'var(--hairline) solid var(--text)' }}>
         <code style={{ color: 'var(--brand-soft-2)', fontSize: 12 }}>{name}</code>
         {required && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--danger)', fontWeight: 700, background: 'rgba(239,68,68,0.1)', padding: '1px 5px', borderRadius: 3 }}>필수</span>}
       </td>
-      <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--text)', color: 'var(--text-muted)', fontSize: 12 }}>{type}</td>
-      <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--text)', color: 'var(--text-faint)', fontSize: 12 }}>{desc}</td>
+      <td style={{ padding: '10px 14px', borderBottom: 'var(--hairline) solid var(--text)', color: 'var(--text-muted)', fontSize: 12 }}>{type}</td>
+      <td style={{ padding: '10px 14px', borderBottom: 'var(--hairline) solid var(--text)', color: 'var(--text-faint)', fontSize: 12 }}>{desc}</td>
     </tr>
   )
 }
@@ -125,7 +125,7 @@ function OverviewSection({ onCopy, copiedId }: { onCopy: (t: string, id: string)
           { icon: '🌐', title: 'CRM 연동', desc: '거래처·담당자·영업기회 CRUD. 스테이지별 확률 자동 계산.' },
           { icon: '💱', title: '환율 동기화', desc: 'USD/KRW 환율 이력(최근 7일). 가격 계산에 자동 반영.' },
         ].map(({ icon, title, desc }) => (
-          <div key={title} style={{ padding: '18px 20px', background: 'var(--text)', border: '1px solid var(--text)', borderRadius: 10 }}>
+          <div key={title} style={{ padding: '18px 20px', background: 'var(--text)', border: 'var(--hairline) solid var(--text)', borderRadius: 10 }}>
             <div style={{ fontSize: 22, marginBottom: 8 }}>{icon}</div>
             <div style={{ fontWeight: 700, color: 'var(--color-border)', marginBottom: 4, fontSize: 14 }}>{title}</div>
             <div style={{ color: 'var(--text-muted)', fontSize: 12, lineHeight: 1.5 }}>{desc}</div>
@@ -178,7 +178,7 @@ curl "${origin}/api/public/v1/accounts?cursor=2026-05-30T12:00:00Z__uuid" \\
   -H "X-API-Key: KEY"`} />
 
       <H2>Rate Limiting</H2>
-      <div style={{ background: 'var(--text)', border: '1px solid var(--text)', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
+      <div style={{ background: 'var(--text)', border: 'var(--hairline) solid var(--text)', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead><tr style={{ background: 'var(--text)' }}>
             <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>플랜</th>
@@ -838,7 +838,7 @@ curl "${origin}/api/public/v1/deals/DEAL_ID" \\
 
       <H2>스테이지 → 확률 자동 변환</H2>
       <P>스테이지를 변경하면 <code style={{ color: 'var(--brand-soft-2)', background: 'var(--text)', padding: '1px 6px', borderRadius: 4 }}>probability</code> 필드가 자동으로 업데이트됩니다.</P>
-      <div style={{ background: 'var(--text)', border: '1px solid var(--text)', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
+      <div style={{ background: 'var(--text)', border: 'var(--hairline) solid var(--text)', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead><tr style={{ background: 'var(--text)' }}>
             <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontSize: 12 }}>stage</th>
@@ -856,7 +856,7 @@ curl "${origin}/api/public/v1/deals/DEAL_ID" \\
               ['수주', '100%', '계약 완료'],
               ['실패', '0%', '기회 종료'],
             ].map(([s, p, m]) => (
-              <tr key={s} style={{ borderTop: '1px solid var(--text)' }}>
+              <tr key={s} style={{ borderTop: 'var(--hairline) solid var(--text)' }}>
                 <td style={{ padding: '10px 16px' }}><code style={{ color: 'var(--brand-soft-2)' }}>{s}</code></td>
                 <td style={{ padding: '10px 16px', color: 'var(--success)', fontWeight: 700 }}>{p}</td>
                 <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{m}</td>
@@ -886,7 +886,7 @@ function ErrorsSection({ onCopy, copiedId }: { onCopy: (t: string, id: string) =
       <P>모든 오류는 HTTP 상태 코드와 함께 아래 포맷으로 반환됩니다. <code style={{ color: 'var(--brand-soft-2)', background: 'var(--text)', padding: '1px 6px', borderRadius: 4 }}>error</code> 필드에 사람이 읽을 수 있는 메시지가 포함됩니다.</P>
       <CodeBlock id="err-fmt" lang="json" onCopy={onCopy} copiedId={copiedId} code={`{ "success": false, "error": "Invalid API key." }`} />
 
-      <div style={{ background: 'var(--text)', border: '1px solid var(--text)', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
+      <div style={{ background: 'var(--text)', border: 'var(--hairline) solid var(--text)', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead><tr style={{ background: 'var(--text)' }}>
             <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>코드</th>
@@ -903,7 +903,7 @@ function ErrorsSection({ onCopy, copiedId }: { onCopy: (t: string, id: string) =
               { code: 429, color: 'var(--danger)', name: 'Too Many Requests', cause: '분당 요청 한도 초과', fix: 'Retry-After 헤더 대기 후 재시도. 지수 백오프 적용.' },
               { code: 500, color: 'var(--danger)', name: 'Internal Server Error', cause: '서버 내부 오류', fix: '잠시 후 재시도. 지속 시 관리자에게 문의' },
             ].map(({ code, color, name, cause, fix }) => (
-              <tr key={code} style={{ borderTop: '1px solid var(--text)' }}>
+              <tr key={code} style={{ borderTop: 'var(--hairline) solid var(--text)' }}>
                 <td style={{ padding: '12px 16px' }}><code style={{ color, fontWeight: 700, fontSize: 13 }}>{code}</code></td>
                 <td style={{ padding: '12px 16px', color: 'var(--color-border)', fontWeight: 500 }}>{name}</td>
                 <td style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: 12 }}>{cause}</td>
@@ -969,7 +969,7 @@ export default function DevelopPage() {
   return (
     <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", background: 'var(--text)', minHeight: '100vh', color: 'var(--color-border)' }}>
       {/* 헤더 — 상단 nav 제거, 로고 + CTA만 */}
-      <header style={{ borderBottom: '1px solid var(--text)', padding: '0 2rem', position: 'sticky', top: 0, background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(12px)', zIndex: 100 }}>
+      <header style={{ borderBottom: 'var(--hairline) solid var(--text)', padding: '0 2rem', position: 'sticky', top: 0, background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(12px)', zIndex: 100 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <a href="/home" style={{ width: 30, height: 30, borderRadius: 7, background: 'linear-gradient(135deg, var(--brand), var(--brand))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', textDecoration: 'none' }}>A</a>
@@ -978,7 +978,7 @@ export default function DevelopPage() {
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {showDashboardLink && (
-              <a href="/home" style={{ padding: '6px 14px', borderRadius: 8, background: 'rgba(124,58,237,0.1)', color: 'var(--brand-soft-2)', fontSize: 13, fontWeight: 500, textDecoration: 'none', border: '1px solid rgba(124,58,237,0.2)' }}>
+              <a href="/home" style={{ padding: '6px 14px', borderRadius: 8, background: 'rgba(124,58,237,0.1)', color: 'var(--brand-soft-2)', fontSize: 13, fontWeight: 500, textDecoration: 'none', border: 'var(--hairline) solid rgba(124,58,237,0.2)' }}>
                 ← 대시보드
               </a>
             )}
@@ -987,7 +987,7 @@ export default function DevelopPage() {
                 API 키 신청 →
               </a>
             )}
-            <a href="/api-keys" style={{ padding: '6px 14px', borderRadius: 8, background: 'transparent', color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none', border: '1px solid var(--text)' }}>
+            <a href="/api-keys" style={{ padding: '6px 14px', borderRadius: 8, background: 'transparent', color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none', border: 'var(--hairline) solid var(--text)' }}>
               내 키 관리
             </a>
           </div>

@@ -63,7 +63,7 @@ export default function QuickNav() {
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '6px 12px', borderRadius: 8,
-          border: '2px solid var(--border-color)',
+          border: 'var(--border-w-2) solid var(--border-color)',
           background: open ? 'var(--surface-muted)' : 'white',
           color: 'var(--text-muted)', fontSize: 13, fontWeight: 500,
           cursor: 'pointer', transition: 'all .15s',
@@ -78,12 +78,12 @@ export default function QuickNav() {
       {open && (
         <div style={{
           position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-          background: 'white', border: '2px solid var(--border-color)',
+          background: 'white', border: 'var(--border-w-2) solid var(--border-color)',
           borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
           zIndex: 200, minWidth: 240, overflow: 'hidden',
           animation: 'fadeInDown .12s ease',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--surface-muted)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: 'var(--hairline) solid var(--surface-muted)' }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>모든 화면</span>
             <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 2, borderRadius: 4 }}>
               <X size={14} />

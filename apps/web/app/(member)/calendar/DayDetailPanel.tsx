@@ -95,7 +95,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
             {isToday && (
               <span style={{
                 fontSize: '0.6875rem', fontWeight: 700, color: 'var(--info)',
-                background: 'var(--info-bg)', padding: '0.1rem 0.4rem', borderRadius: '0.25rem',
+                background: 'var(--info-bg)', padding: '0.1rem 0.4rem', borderRadius: 'var(--radius)',
               }}>
                 오늘
               </span>
@@ -107,8 +107,8 @@ export default function DayDetailPanel({ date, onClose }: Props) {
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
                 padding: '0.375rem 0.625rem', fontSize: '0.8125rem',
-                background: 'var(--brand-soft)', color: 'var(--brand)', border: '1px solid var(--brand-soft-2)',
-                borderRadius: '0.375rem', cursor: 'pointer', fontWeight: 600, minHeight: 36,
+                background: 'var(--brand-soft)', color: 'var(--brand)', border: 'var(--hairline) solid var(--brand-soft-2)',
+                borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600, minHeight: 36,
               }}
             >
               <CalendarPlus size={14} /> 일정
@@ -118,7 +118,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
               style={{
                 padding: '0.375rem 0.75rem', fontSize: '0.8125rem',
                 background: 'var(--info)', color: '#fff', border: 'none',
-                borderRadius: '0.375rem', cursor: 'pointer', fontWeight: 600,
+                borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600,
                 minHeight: 36,
               }}
             >
@@ -127,8 +127,8 @@ export default function DayDetailPanel({ date, onClose }: Props) {
             <button
               onClick={onClose}
               style={{
-                width: 36, height: 36, border: '2px solid var(--border-color)',
-                borderRadius: '0.375rem', background: 'var(--color-bg)',
+                width: 36, height: 36, border: 'var(--border-w-2) solid var(--border-color)',
+                borderRadius: 'var(--radius)', background: 'var(--color-bg)',
                 cursor: 'pointer', fontSize: '1.125rem', color: 'var(--text-muted)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
@@ -148,7 +148,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
               <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand)', marginBottom: '0.4rem', letterSpacing: '0.02em' }}>일정</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                 {events.map((ev) => (
-                  <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.625rem', background: 'var(--brand-soft)', border: '1px solid var(--brand-soft-2)', borderRadius: 'var(--radius)' }}>
+                  <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.625rem', background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)' }}>
                     <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand-dark)', whiteSpace: 'nowrap' }}>
                       {ev.all_day ? '종일' : formatTime(ev.start_at)}{!ev.all_day && ev.end_at ? `~${formatTime(ev.end_at)}` : ''}
                     </span>
@@ -180,7 +180,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
                     style={{
                       display: 'flex', alignItems: 'flex-start', gap: '0.625rem',
                       padding: '0.625rem 0.75rem',
-                      borderLeft: `3px solid ${t.color}`,
+                      borderLeft: `var(--border-w) solid ${t.color}`,
                       background: log.entry_type === 'blocker' ? 'var(--danger-bg)' : 'var(--surface-bg)',
                       borderRadius: '0 0.375rem 0.375rem 0',
                       cursor: 'pointer',
@@ -190,8 +190,8 @@ export default function DayDetailPanel({ date, onClose }: Props) {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.25rem' }}>
                         <span style={{
                           fontSize: '0.6875rem', fontWeight: 700, color: t.color,
-                          background: t.bg, border: `1px solid ${t.border}`,
-                          padding: '0.1rem 0.35rem', borderRadius: '0.25rem',
+                          background: t.bg, border: `var(--hairline) solid ${t.border}`,
+                          padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)',
                           flexShrink: 0,
                         }}>
                           {t.label}
@@ -202,8 +202,8 @@ export default function DayDetailPanel({ date, onClose }: Props) {
                         {log.log_date !== date && (
                           <span style={{
                             fontSize: '0.65rem', color: 'var(--brand)',
-                            background: 'var(--brand-soft)', border: '1px solid var(--brand-soft-2)',
-                            padding: '0.05rem 0.35rem', borderRadius: '0.25rem',
+                            background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)',
+                            padding: '0.05rem 0.35rem', borderRadius: 'var(--radius)',
                           }}>
                             작성 {log.log_date}
                           </span>

@@ -35,7 +35,7 @@ export default function WeeklyMemoReview() {
 
   return (
     <>
-      <div className="card" style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem', border: '1px solid var(--warning-border)', background: 'var(--surface-bg)' }}>
+      <div className="card" style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem', border: 'var(--hairline) solid var(--warning-border)', background: 'var(--surface-bg)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <StickyNote size={16} color="var(--warning)" />
@@ -46,7 +46,7 @@ export default function WeeklyMemoReview() {
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <button onClick={handleArchiveAll}
-              style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: '#fff', border: '2px solid var(--border-color)', borderRadius: '0.4rem', padding: '0.3rem 0.6rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: '0.3rem 0.6rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <Archive size={12} /> 전체 보관
             </button>
             <button onClick={() => setOpen((o) => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
@@ -61,7 +61,7 @@ export default function WeeklyMemoReview() {
               const st = STALENESS_STYLE[m.staleness]
               return (
                 <li key={m.id} className={m.staleness === 'stale' ? 'memo-pulse' : ''}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.65rem', borderRadius: 'var(--radius)', background: '#fff', border: '1px solid var(--surface-muted)' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.65rem', borderRadius: 'var(--radius)', background: '#fff', border: 'var(--hairline) solid var(--surface-muted)' }}>
                   <span title={st.label} style={{ width: 8, height: 8, borderRadius: '50%', background: st.dot, flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.83rem', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.content}</div>
@@ -85,5 +85,5 @@ export default function WeeklyMemoReview() {
 }
 
 function iconBtn(color: string): React.CSSProperties {
-  return { background: 'none', border: '2px solid var(--border-color)', borderRadius: '0.4rem', cursor: 'pointer', padding: '3px 5px', color, display: 'flex', flexShrink: 0 }
+  return { background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius-lg)', cursor: 'pointer', padding: '3px 5px', color, display: 'flex', flexShrink: 0 }
 }

@@ -124,7 +124,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
 
       {/* 팀원별 KPI 달성률 */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <BarChart2 size={16} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>팀원별 KPI 달성률</h2>
           <span style={{ fontSize: '0.8125rem', color: 'var(--text-faint)' }}>{selectedStart} ~ {selectedEnd}</span>
@@ -204,7 +204,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
 
       {/* 전체 KPI 로그 */}
       <div className="card">
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)' }}>
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
           <h2 className="tape-title" style={{ margin: 0 }}>전체 KPI 로그</h2>
         </div>
         <table className="table-base table-card">

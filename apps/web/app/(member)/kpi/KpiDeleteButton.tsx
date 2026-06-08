@@ -19,7 +19,7 @@ export default function KpiDeleteButton({ id }: { id: string }) {
       aria-label="KPI 삭제"
       style={{
         padding: '0.375rem 0.625rem',
-        border: '1px solid var(--danger-border)',
+        border: 'var(--hairline) solid var(--danger-border)',
         borderRadius: 'var(--radius)',
         backgroundColor: 'var(--danger-bg)',
         color: 'var(--danger)',

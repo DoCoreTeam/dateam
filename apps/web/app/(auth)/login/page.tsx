@@ -70,7 +70,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             borderRadius: 'var(--radius)',
             padding: '2rem',
             boxShadow: '0 4px 24px rgb(0 0 0 / 0.08), 0 1px 3px rgb(0 0 0 / 0.05)',
-            border: '2px solid var(--border-color)',
+            border: 'var(--border-w-2) solid var(--border-color)',
           }}
         >
           <h2
@@ -94,7 +94,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 gap: '0.5rem',
                 padding: '0.75rem 1rem',
                 backgroundColor: 'var(--danger-bg)',
-                border: '1px solid var(--danger-border)',
+                border: 'var(--hairline) solid var(--danger-border)',
                 borderRadius: 'var(--radius)',
                 marginBottom: '1.25rem',
                 fontSize: '0.8125rem',

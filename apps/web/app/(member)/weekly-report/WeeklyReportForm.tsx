@@ -288,7 +288,7 @@ export default function WeeklyReportForm({
     color: 'var(--text-muted)',
     background: 'var(--color-bg)',
     textAlign: 'left',
-    borderBottom: '2px solid var(--border-color)',
+    borderBottom: 'var(--border-w-2) solid var(--border-color)',
     whiteSpace: 'nowrap',
   }
 
@@ -335,7 +335,7 @@ export default function WeeklyReportForm({
       {isEditMode && (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0.75rem 1rem', backgroundColor: 'var(--info-bg)', border: '1px solid var(--info-border)',
+          padding: '0.75rem 1rem', backgroundColor: 'var(--info-bg)', border: 'var(--hairline) solid var(--info-border)',
           borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--info)',
         }}>
           <span>✏️ <strong>{new Date(initialWeek).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 주</strong> 보고서 수정 중</span>
@@ -352,7 +352,7 @@ export default function WeeklyReportForm({
       {hasCarryForward && (
         <div role="status" aria-live="polite" style={{
           padding: '0.75rem 1rem', backgroundColor: 'var(--info-bg)',
-          border: '1px solid var(--info-border)', borderRadius: 'var(--radius)',
+          border: 'var(--hairline) solid var(--info-border)', borderRadius: 'var(--radius)',
           marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--info)',
         }}>
           전주 계획에서 성과를 이월했습니다. 실제 성과로 수정 후 저장해 주세요.
@@ -389,12 +389,12 @@ export default function WeeklyReportForm({
 
       {/* 알림 */}
       {submitError && (
-        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
+        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
           {submitError}
         </div>
       )}
       {refineError && (
-        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
+        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
           {refineError}
         </div>
       )}
@@ -404,7 +404,7 @@ export default function WeeklyReportForm({
       </datalist>
 
       {/* 테이블 */}
-      <div className="report-form-wrap" style={{ overflowX: 'auto', borderRadius: 'var(--radius)', border: '2px solid var(--border-color)' }}>
+      <div className="report-form-wrap" style={{ overflowX: 'auto', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)' }}>
         <table className="report-form-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: '500px' }}>
           <colgroup>
             <col style={{ width: '120px' }} />
@@ -424,11 +424,11 @@ export default function WeeklyReportForm({
           </thead>
           <tbody>
             {rows.map((row, idx) => (
-              <tr key={idx} style={{ borderBottom: idx < rows.length - 1 ? '1px solid var(--surface-muted)' : 'none' }}>
+              <tr key={idx} style={{ borderBottom: idx < rows.length - 1 ? 'var(--hairline) solid var(--surface-muted)' : 'none' }}>
                 {/* 구분 */}
                 <td
                   id={idx === 0 ? 'onboarding-category' : undefined}
-                  style={{ padding: '0.75rem 0.875rem', verticalAlign: 'top', borderRight: '1px solid var(--surface-muted)' }}
+                  style={{ padding: '0.75rem 0.875rem', verticalAlign: 'top', borderRight: 'var(--hairline) solid var(--surface-muted)' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <input
@@ -449,7 +449,7 @@ export default function WeeklyReportForm({
                       placeholder="구분 (필수)"
                       style={{
                         flex: 1,
-                        border: invalidCategoryRows.has(idx) ? '1px solid var(--danger)' : 'none',
+                        border: invalidCategoryRows.has(idx) ? 'var(--hairline) solid var(--danger)' : 'none',
                         borderRadius: invalidCategoryRows.has(idx) ? '0.375rem' : 0,
                         outline: 'none',
                         fontSize: '0.875rem',
@@ -526,7 +526,7 @@ export default function WeeklyReportForm({
           style={{
             display: 'flex', alignItems: 'center', gap: '0.375rem',
             fontSize: '0.8125rem', color: 'var(--brand)', background: 'none',
-            border: '1px dashed var(--brand-soft-2)', borderRadius: 'var(--radius)',
+            border: 'var(--hairline) dashed var(--brand-soft-2)', borderRadius: 'var(--radius)',
             padding: '0.5rem 0.875rem', cursor: 'pointer',
           }}
         >
@@ -542,7 +542,7 @@ export default function WeeklyReportForm({
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
                 fontSize: '0.8125rem', color: 'var(--danger)', background: 'var(--danger-bg)',
-                border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)',
+                border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)',
                 padding: '0.5rem 0.875rem', cursor: 'pointer',
               }}
             >
@@ -558,7 +558,7 @@ export default function WeeklyReportForm({
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
               fontSize: '0.8125rem', color: 'var(--brand)', background: 'var(--brand-soft)',
-              border: '1px solid var(--brand-soft-2)', borderRadius: 'var(--radius)',
+              border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)',
               padding: '0.5rem 0.875rem', cursor: isRefining ? 'wait' : 'pointer',
               opacity: isRefining ? 0.7 : 1,
             }}
@@ -578,7 +578,7 @@ export default function WeeklyReportForm({
       {showResetConfirm && (
         <div style={{
           marginTop: '1rem', padding: '1rem',
-          backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)',
+          backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)',
         }}>
           <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start', marginBottom: '0.875rem' }}>
             <AlertTriangle size={20} color="var(--danger)" style={{ flexShrink: 0, marginTop: '1px' }} />
@@ -616,7 +616,7 @@ export default function WeeklyReportForm({
               disabled={resetPending}
               style={{
                 padding: '0.5rem 1rem', backgroundColor: '#fff', color: 'var(--text-muted)',
-                border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer',
+                border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer',
                 fontSize: '0.875rem',
               }}
             >
@@ -652,7 +652,7 @@ function EditorCell({
       style={{
         padding: '0.5rem',
         verticalAlign: 'top',
-        borderRight: '1px solid var(--surface-muted)',
+        borderRight: 'var(--hairline) solid var(--surface-muted)',
         cursor: 'pointer',
         minHeight: '80px',
       }}
@@ -662,7 +662,7 @@ function EditorCell({
           minHeight: '80px',
           padding: '0.5rem 0.625rem',
           borderRadius: 'var(--radius)',
-          border: highlighted ? '1px solid var(--brand-soft-2)' : '1px dashed var(--color-border)',
+          border: highlighted ? 'var(--hairline) solid var(--brand-soft-2)' : 'var(--hairline) dashed var(--color-border)',
           background: highlighted ? 'var(--brand-soft)' : 'transparent',
           position: 'relative',
           transition: 'border-color 120ms, background 120ms',

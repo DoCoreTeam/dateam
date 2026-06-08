@@ -80,7 +80,7 @@ export default async function ChangePasswordPage({ searchParams }: PageProps) {
           <div
             style={{
               backgroundColor: 'var(--danger-bg)',
-              border: '1px solid var(--danger-border)',
+              border: 'var(--hairline) solid var(--danger-border)',
               borderRadius: 'var(--radius)',
               padding: '0.75rem 1rem',
               marginBottom: '1rem',

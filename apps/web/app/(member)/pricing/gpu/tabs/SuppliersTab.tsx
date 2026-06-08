@@ -61,7 +61,7 @@ function LogoAvatar({ name, color, logoUrl, size = 40 }: { name: string; color: 
   const [failed, setFailed] = useState(false)
   if (logoUrl && !failed) {
     return (
-      <div className="gpu-sup-logo" style={{ background: '#fff', border: '1px solid var(--gpu-border)', padding: 4, width: size, height: size, overflow: 'hidden' }}>
+      <div className="gpu-sup-logo" style={{ background: '#fff', border: 'var(--hairline) solid var(--gpu-border)', padding: 4, width: size, height: size, overflow: 'hidden' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={logoUrl} alt={name} width={size - 8} height={size - 8} style={{ objectFit: 'contain', width: '100%', height: '100%' }} onError={() => setFailed(true)} />
       </div>
@@ -152,7 +152,7 @@ function QuoteEditModal({ quote, onClose, onChanged }: { quote: QuoteRow; onClos
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(560px, 100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: '1px solid var(--gpu-border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
           <strong style={{ fontSize: 15, flex: 1 }}>
             {quote.gpu_products?.model_name ?? '상품 미연결'} {quote.gpu_products?.memory ?? ''} 견적 수정
           </strong>
@@ -169,7 +169,7 @@ function QuoteEditModal({ quote, onClose, onChanged }: { quote: QuoteRow; onClos
           </div>
 
           {/* 이전 입력값(원본) — 그대로 보존 표시 */}
-          <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--surface-bg)', border: '1px solid var(--surface-bg)' }}>
+          <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--surface-bg)' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-muted)', marginBottom: 4 }}>이전 입력값 (원본 · 보존됨)</div>
             <div style={{ fontSize: 12, color: 'var(--gpu-ink-2)', fontFamily: 'monospace' }}>
               {quote.original_price != null ? `${quote.original_price} ${quote.original_currency ?? ''} ${quote.original_unit ?? ''}` : '원본 입력값 없음'}
@@ -177,7 +177,7 @@ function QuoteEditModal({ quote, onClose, onChanged }: { quote: QuoteRow; onClos
           </div>
 
           {/* AI 재분석 */}
-          <div style={{ padding: '12px', borderRadius: 8, background: 'rgba(91,94,240,0.05)', border: '1px solid var(--gpu-accent, var(--brand))' }}>
+          <div style={{ padding: '12px', borderRadius: 8, background: 'rgba(91,94,240,0.05)', border: 'var(--hairline) solid var(--gpu-accent, var(--brand))' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
               <Sparkles size={14} style={{ color: 'var(--gpu-accent)' }} />
               <strong style={{ fontSize: 12.5 }}>AI 재분석</strong>
@@ -277,7 +277,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(720px, 100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
         {/* 헤더 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid var(--gpu-border)', position: 'sticky', top: 0, background: '#fff' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: 'var(--hairline) solid var(--gpu-border)', position: 'sticky', top: 0, background: '#fff' }}>
           <LogoAvatar name={s?.name ?? '?'} color={f?.color || s?.color || COLORS[0]} logoUrl={s?.logo_url} />
 
           <strong style={{ fontSize: 16, flex: 1 }}>
@@ -336,7 +336,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
                     <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--gpu-muted)' }}>색상</span>
                     {COLORS.map((c) => (
                       <button key={c} onClick={() => set('color', c)} aria-label={`색상 ${c}`}
-                        style={{ width: 20, height: 20, borderRadius: '50%', background: c, border: (f?.color === c) ? '2px solid var(--text)' : '2px solid transparent', cursor: 'pointer' }} />
+                        style={{ width: 20, height: 20, borderRadius: '50%', background: c, border: (f?.color === c) ? 'var(--border-w-2) solid var(--text)' : 'var(--border-w-2) solid transparent', cursor: 'pointer' }} />
                     ))}
                   </div>
                   {err && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--gpu-red)' }}>{err}</div>}
@@ -366,7 +366,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {(data.contacts ?? []).map((c) => (
-                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 7, background: 'var(--surface-bg)', border: '1px solid var(--surface-bg)', fontSize: 12.5 }}>
+                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 7, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--surface-bg)', fontSize: 12.5 }}>
                     <span style={{ fontWeight: 700, minWidth: 90 }}>{c.name}</span>
                     {c.title && <span style={{ color: 'var(--gpu-muted)' }}>{c.title}</span>}
                     <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontSize: 12, color: 'var(--gpu-ink-2)' }}>{c.email ?? ''} {c.phone ?? ''}</span>
@@ -399,7 +399,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
                     const prod = q.gpu_products
                     const canLocate = !!(prod && onGoToPriceTable)
                     return (
-                      <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 7, background: 'var(--surface-bg)', border: '1px solid var(--surface-bg)', fontSize: 12.5 }}>
+                      <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 7, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--surface-bg)', fontSize: 12.5 }}>
                         <button onClick={() => setEditQuote(q)} title="클릭하면 견적 수정·삭제·AI 재분석"
                           style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, padding: 0, background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', textAlign: 'left' }}>
                           <span style={{ fontWeight: 600, minWidth: 110 }}>
@@ -414,7 +414,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
                           onClick={() => { if (canLocate && prod) { onClose(); onGoToPriceTable!(prod.model_name, prod.id) } }}
                           disabled={!canLocate}
                           title={canLocate ? '가격표에서 이 가격 위치 보기' : '상품 미연결 — 가격표 탐색 불가'}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: '3px 6px', borderRadius: 6, border: '1px solid var(--gpu-border)', background: '#fff', color: canLocate ? 'var(--gpu-accent)' : 'var(--gpu-faint)', fontSize: 11, fontWeight: 600, cursor: canLocate ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 2, padding: '3px 6px', borderRadius: 6, border: 'var(--hairline) solid var(--gpu-border)', background: '#fff', color: canLocate ? 'var(--gpu-accent)' : 'var(--gpu-faint)', fontSize: 11, fontWeight: 600, cursor: canLocate ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap', flexShrink: 0 }}>
                           가격표 <ChevronRight size={13} />
                         </button>
                       </div>
@@ -475,7 +475,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(520px, 100%)', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: '1px solid var(--gpu-border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
           <strong style={{ fontSize: 15, flex: 1 }}>공급사 추가</strong>
           <button onClick={onClose} className="gpu-btn" style={{ padding: 6 }}><X size={16} /></button>
         </div>
@@ -534,7 +534,7 @@ export default function SuppliersTab({ onGoToPriceTable }: { onGoToPriceTable?: 
                 <div className="gpu-sup-loc" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   {s.country && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><span style={{ fontSize: 14 }}>{countryFlag(s.country)}</span>{s.country}</span>}
                   {s.website && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--gpu-accent)' }}><Globe size={11} />사이트</span>}
-                  {s.source === 'manual' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-amber)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 4, padding: '0 5px' }}>수동입력</span>}
+                  {s.source === 'manual' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-amber)', background: 'var(--warning-bg)', border: 'var(--hairline) solid var(--warning-border)', borderRadius: 4, padding: '0 5px' }}>수동입력</span>}
                   {s.source === 'integrated' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.08)', borderRadius: 4, padding: '0 5px' }}>통합입력</span>}
                 </div>
               </div>

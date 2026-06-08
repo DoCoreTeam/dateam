@@ -133,7 +133,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
 
           {/* 담당자 */}
           <div className="card">
-            <div style={{ padding: '1rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ padding: '1rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Users size={15} color="var(--brand)" />
                 <h2 className="tape-title" style={{ margin: 0 }}>담당자</h2>
@@ -146,7 +146,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {contacts.map((c) => (
-                  <div key={c.id} style={{ padding: '0.875rem 1.5rem', borderBottom: '1px solid var(--surface-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <div key={c.id} style={{ padding: '0.875rem 1.5rem', borderBottom: 'var(--hairline) solid var(--surface-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                     <div>
                       <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.875rem' }}>{c.name}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{[c.title, c.department].filter(Boolean).join(' · ')}</div>
@@ -162,7 +162,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
 
         {/* 영업기회 */}
         <div className="card">
-          <div style={{ padding: '1rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ padding: '1rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <TrendingUp size={15} color="var(--brand)" />
               <h2 className="tape-title" style={{ margin: 0 }}>영업기회</h2>
@@ -177,7 +177,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
               {deals.map((d) => {
                 const sc = STAGE_COLOR[d.stage] ?? STAGE_COLOR['신규']
                 return (
-                  <div key={d.id} style={{ padding: '0.875rem 1.5rem', borderBottom: '1px solid var(--surface-muted)' }}>
+                  <div key={d.id} style={{ padding: '0.875rem 1.5rem', borderBottom: 'var(--hairline) solid var(--surface-muted)' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
                       <div>
                         <Link href={`/deals/${d.id}`} style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.875rem', textDecoration: 'none' }}>{d.title}</Link>

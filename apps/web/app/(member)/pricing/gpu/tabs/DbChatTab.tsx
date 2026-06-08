@@ -256,7 +256,7 @@ export default function DbChatTab() {
       )}
 
       {/* 입력 영역 */}
-      <div style={{ padding: '12px 16px', borderTop: '1px solid var(--gpu-border)', display: 'flex', gap: 8, alignItems: 'flex-end', flexShrink: 0 }}>
+      <div style={{ padding: '12px 16px', borderTop: 'var(--hairline) solid var(--gpu-border)', display: 'flex', gap: 8, alignItems: 'flex-end', flexShrink: 0 }}>
         <textarea
           ref={inputRef}
           data-testid="db-chat-input"
@@ -266,7 +266,7 @@ export default function DbChatTab() {
           placeholder="GPU 견적/가격/공급사에 대해 질문하세요..."
           rows={2}
           style={{
-            flex: 1, resize: 'none', border: '1px solid var(--gpu-border)', borderRadius: 8,
+            flex: 1, resize: 'none', border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 8,
             padding: '8px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none',
             background: 'var(--gpu-surface, #fff)', color: 'var(--gpu-text)',
             minWidth: 0,

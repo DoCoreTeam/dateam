@@ -13,8 +13,8 @@ interface WeeklyKpiTarget {
 
 const INPUT: React.CSSProperties = {
   padding: '0.25rem 0.5rem',
-  border: '1px solid var(--brand-soft-2)',
-  borderRadius: '0.3rem',
+  border: 'var(--hairline) solid var(--brand-soft-2)',
+  borderRadius: 'var(--radius)',
   fontSize: '0.8125rem',
   color: 'var(--text)',
   background: '#fff',
@@ -149,13 +149,13 @@ export default function KpiRow({
             <button
               onClick={handleSave}
               disabled={pending}
-              style={{ padding: '0.3rem 0.5rem', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: '0.3rem', cursor: 'pointer', display: 'flex' }}
+              style={{ padding: '0.3rem 0.5rem', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', display: 'flex' }}
             >
               <Check size={13} />
             </button>
             <button
               onClick={() => setEditing(false)}
-              style={{ padding: '0.3rem 0.5rem', background: 'var(--color-border)', color: 'var(--text-muted)', border: 'none', borderRadius: '0.3rem', cursor: 'pointer', display: 'flex' }}
+              style={{ padding: '0.3rem 0.5rem', background: 'var(--color-border)', color: 'var(--text-muted)', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', display: 'flex' }}
             >
               <X size={13} />
             </button>
@@ -166,7 +166,7 @@ export default function KpiRow({
   }
 
   return (
-    <tr style={{ borderBottom: '1px solid var(--surface-muted)', opacity: pending ? 0.5 : 1 }}>
+    <tr style={{ borderBottom: 'var(--hairline) solid var(--surface-muted)', opacity: pending ? 0.5 : 1 }}>
       <td style={{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text)' }} className="card-header">
         {entry.metric_name}
       </td>
@@ -184,14 +184,14 @@ export default function KpiRow({
           <button
             onClick={() => setEditing(true)}
             title="수정"
-            style={{ padding: '0.3rem 0.5rem', border: '1px solid var(--brand-soft-2)', borderRadius: '0.375rem', background: 'var(--brand-soft)', color: 'var(--brand)', cursor: 'pointer', display: 'flex' }}
+            style={{ padding: '0.3rem 0.5rem', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)', background: 'var(--brand-soft)', color: 'var(--brand)', cursor: 'pointer', display: 'flex' }}
           >
             <Pencil size={13} />
           </button>
           <button
             onClick={handleDelete}
             title="삭제"
-            style={{ padding: '0.3rem 0.5rem', border: '1px solid var(--danger-border)', borderRadius: '0.375rem', background: 'var(--danger-bg)', color: 'var(--danger)', cursor: 'pointer', display: 'flex' }}
+            style={{ padding: '0.3rem 0.5rem', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', background: 'var(--danger-bg)', color: 'var(--danger)', cursor: 'pointer', display: 'flex' }}
           >
             <Trash2 size={13} />
           </button>

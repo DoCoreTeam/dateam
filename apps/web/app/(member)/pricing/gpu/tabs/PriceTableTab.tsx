@@ -186,7 +186,7 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
         const isBasis = isSelected || (!hasSelected && isBest)
         return (
           <div key={q.id} className={`gpu-qline${isBasis ? ' gpu-qline-best' : ''}`}
-            style={isSelected ? { borderLeft: '3px solid var(--gpu-accent, var(--brand))', background: 'rgba(91,94,240,0.05)' } : undefined}>
+            style={isSelected ? { borderLeft: 'var(--border-w) solid var(--gpu-accent, var(--brand))', background: 'rgba(91,94,240,0.05)' } : undefined}>
             <div className="gpu-qline-sup">
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 {q.suppliers ? (
@@ -203,7 +203,7 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
                     ✓ 판매가 기준
                   </span>
                 ) : (!hasSelected && isBest) ? (
-                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--gpu-muted)', border: '1px dashed var(--gpu-border)', borderRadius: 5, padding: '0 6px' }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--gpu-muted)', border: 'var(--hairline) dashed var(--gpu-border)', borderRadius: 5, padding: '0 6px' }}>
                     자동 기준
                   </span>
                 ) : null}
@@ -212,7 +212,7 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
                     onClick={(e) => { e.stopPropagation(); toggleSelect(q.id, !isSelected) }}
                     disabled={selecting === q.id}
                     style={{ fontSize: 10.5, fontWeight: 700, borderRadius: 5, padding: '1px 8px', cursor: 'pointer',
-                      border: isSelected ? '1px solid var(--gpu-border)' : '1px solid var(--gpu-accent, var(--brand))',
+                      border: isSelected ? 'var(--hairline) solid var(--gpu-border)' : 'var(--hairline) solid var(--gpu-accent, var(--brand))',
                       background: isSelected ? '#fff' : 'var(--gpu-accent, var(--brand))', color: isSelected ? 'var(--gpu-muted)' : '#fff' }}>
                     {selecting === q.id ? '…' : isSelected ? '기준 해제' : '기준으로 선택'}
                   </button>
@@ -262,7 +262,7 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
         )
       })}
       {listQuotes.length > 0 && (
-        <div style={{ marginTop: 10, padding: '12px 14px', borderRadius: 10, background: 'linear-gradient(180deg, var(--warning-bg), var(--warning-bg))', border: '2px solid var(--gpu-amber, var(--warning))' }}>
+        <div style={{ marginTop: 10, padding: '12px 14px', borderRadius: 10, background: 'linear-gradient(180deg, var(--warning-bg), var(--warning-bg))', border: 'var(--border-w-2) solid var(--gpu-amber, var(--warning))' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
             <span style={{ fontSize: 15 }}>📢</span>
             <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--warning)', letterSpacing: '.01em' }}>현재 공시 판매가</span>
@@ -315,23 +315,23 @@ function PartnerTierManagerModal({ tiers, onClose, onChanged }: { tiers: Partner
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(480px,100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--gpu-border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
           <strong style={{ fontSize: 15, flex: 1 }}>파트너 등급 관리</strong>
           <button onClick={onClose} className="gpu-btn" style={{ padding: 6 }}><X size={16} /></button>
         </div>
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
           {tiers.length === 0 && <div style={{ fontSize: 12, color: 'var(--gpu-faint)' }}>등록된 등급이 없습니다</div>}
           {tiers.map((t) => (
-            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, padding: '6px 8px', borderRadius: 7, background: 'var(--surface-bg)', border: '1px solid var(--surface-bg)' }}>
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, padding: '6px 8px', borderRadius: 7, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--surface-bg)' }}>
               <input defaultValue={t.name} onBlur={(e) => e.target.value.trim() && e.target.value !== t.name && patch(t.id, { name: e.target.value.trim() })}
-                style={{ flex: 1, height: 28, fontSize: 12, border: '1px solid var(--gpu-border)', borderRadius: 6, padding: '0 6px' }} />
+                style={{ flex: 1, height: 28, fontSize: 12, border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 6, padding: '0 6px' }} />
               <input defaultValue={String(t.discount_rate)} onBlur={(e) => Number(e.target.value) !== t.discount_rate && patch(t.id, { discount_rate: Number(e.target.value) })} inputMode="decimal"
-                style={{ width: 56, height: 28, fontSize: 12, border: '1px solid var(--gpu-border)', borderRadius: 6, padding: '0 6px' }} />
+                style={{ width: 56, height: 28, fontSize: 12, border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 6, padding: '0 6px' }} />
               <span style={{ color: 'var(--gpu-muted)' }}>%↓</span>
               <button onClick={() => del(t.id, t.name)} className="gpu-btn" style={{ padding: 4, color: 'var(--gpu-red)' }}><Trash2 size={13} /></button>
             </div>
           ))}
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', borderTop: '1px solid var(--gpu-border)', paddingTop: 10 }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', borderTop: 'var(--hairline) solid var(--gpu-border)', paddingTop: 10 }}>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="등급명 (예: 골드)" style={{ flex: 1, height: 30, fontSize: 12.5, border: '1.5px solid var(--gpu-border)', borderRadius: 6, padding: '0 8px' }} />
             <input value={rate} onChange={(e) => setRate(e.target.value)} placeholder="15" inputMode="decimal" style={{ width: 56, height: 30, fontSize: 12.5, border: '1.5px solid var(--gpu-border)', borderRadius: 6, padding: '0 6px' }} />
             <span style={{ fontSize: 12, color: 'var(--gpu-muted)' }}>%↓</span>
@@ -661,8 +661,8 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
               value={selectedTierId ?? ''}
               onChange={(e) => setSelectedTierId(e.target.value || null)}
               style={{
-                fontSize: '12px', padding: '0.3rem 0.5rem', borderRadius: '0.375rem',
-                border: '1px solid var(--gpu-border)', background: 'var(--gpu-surface)',
+                fontSize: '12px', padding: '0.3rem 0.5rem', borderRadius: 'var(--radius)',
+                border: 'var(--hairline) solid var(--gpu-border)', background: 'var(--gpu-surface)',
                 color: selectedTierId ? 'var(--gpu-accent)' : 'var(--gpu-muted)',
                 cursor: 'pointer', outline: 'none', fontWeight: selectedTierId ? 600 : 400,
               }}

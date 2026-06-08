@@ -28,7 +28,7 @@ export default function DeleteTierButton({ tierId, tierName }: { tierId: string;
           onClick={handleDelete}
           disabled={isPending}
           style={{
-            padding: '0.25rem 0.5rem', borderRadius: '0.25rem',
+            padding: '0.25rem 0.5rem', borderRadius: 'var(--radius)',
             background: 'var(--danger)', color: 'white', border: 'none',
             fontSize: '0.75rem', cursor: isPending ? 'not-allowed' : 'pointer',
           }}
@@ -38,7 +38,7 @@ export default function DeleteTierButton({ tierId, tierName }: { tierId: string;
         <button
           onClick={() => setConfirming(false)}
           style={{
-            padding: '0.25rem 0.5rem', borderRadius: '0.25rem',
+            padding: '0.25rem 0.5rem', borderRadius: 'var(--radius)',
             background: 'var(--surface-muted)', color: 'var(--text-muted)', border: 'none',
             fontSize: '0.75rem', cursor: 'pointer',
           }}
@@ -55,7 +55,7 @@ export default function DeleteTierButton({ tierId, tierName }: { tierId: string;
       onClick={() => setConfirming(true)}
       style={{
         display: 'flex', alignItems: 'center', gap: '0.25rem',
-        padding: '0.375rem 0.625rem', borderRadius: '0.375rem',
+        padding: '0.375rem 0.625rem', borderRadius: 'var(--radius)',
         background: 'var(--danger-bg)', color: 'var(--danger)',
         border: 'none', fontSize: '0.8125rem', cursor: 'pointer',
       }}

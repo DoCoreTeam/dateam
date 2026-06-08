@@ -86,7 +86,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
           style={{
             width: '200px',
             height: '80px',
-            border: '1px dashed var(--border-subtle)',
+            border: 'var(--hairline) dashed var(--border-subtle)',
             borderRadius: 'var(--radius)',
             display: 'flex',
             alignItems: 'center',
@@ -116,7 +116,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
             style={{
               display: 'flex', alignItems: 'center', gap: '0.375rem',
               padding: '0.375rem 0.75rem', fontSize: '0.8125rem', fontWeight: 500,
-              border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius)',
+              border: 'var(--hairline) solid var(--border-subtle)', borderRadius: 'var(--radius)',
               backgroundColor: 'white', color: 'var(--text)', cursor: 'pointer',
             }}
           >
@@ -137,7 +137,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.375rem 0.75rem', fontSize: '0.8125rem', fontWeight: 500,
-                border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)',
+                border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)',
                 backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', cursor: 'pointer',
               }}
             >

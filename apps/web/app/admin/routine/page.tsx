@@ -156,7 +156,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
         <div
           style={{
             padding: '1.25rem 1.5rem',
-            borderBottom: '2px solid var(--border-color)',
+            borderBottom: 'var(--border-w-2) solid var(--border-color)',
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',

@@ -87,7 +87,7 @@ export default function AccountForm({ account }: Props) {
     router.refresh()
   }
 
-  const inputStyle = { width: '100%', padding: '0.5rem 0.75rem', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' as const }
+  const inputStyle = { width: '100%', padding: '0.5rem 0.75rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' as const }
 
   return (
     <div className="card" style={{ padding: '1.5rem', maxWidth: '640px' }}>
@@ -105,7 +105,7 @@ export default function AccountForm({ account }: Props) {
           <textarea className="input-field" value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} placeholder="거래처 설명..." style={{ ...inputStyle, resize: 'vertical' }} />
         </div>
 
-        <details style={{ border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.875rem 1rem', background: 'var(--color-bg)' }}>
+        <details style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.875rem 1rem', background: 'var(--color-bg)' }}>
           <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 700 }}>
             상세 필드 열기
           </summary>
@@ -185,7 +185,7 @@ export default function AccountForm({ account }: Props) {
         </details>
 
         {/* AI Fit Score */}
-        <div style={{ background: 'var(--color-bg)', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '1rem' }}>
+        <div style={{ background: 'var(--color-bg)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
             <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text)' }}>AI 적합도 점수</span>
             <button type="button" onClick={handleFitScore} disabled={scoring} className="btn-primary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem', minHeight: '36px' }}>
@@ -208,7 +208,7 @@ export default function AccountForm({ account }: Props) {
           <button type="submit" disabled={loading} className="btn-primary" style={{ minHeight: '44px', padding: '0.625rem 1.5rem' }}>
             {loading ? '저장중...' : account ? '수정' : '거래처 등록'}{!loading && <span style={{ fontSize: '0.7rem', opacity: 0.65, marginLeft: '0.375rem' }}>Ctrl+↵</span>}
           </button>
-          <button type="button" onClick={() => router.back()} style={{ minHeight: '44px', padding: '0.625rem 1.25rem', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+          <button type="button" onClick={() => router.back()} style={{ minHeight: '44px', padding: '0.625rem 1.25rem', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
             취소
           </button>
         </div>

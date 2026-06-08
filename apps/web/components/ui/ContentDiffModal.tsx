@@ -111,7 +111,7 @@ export default function ContentDiffModal({
         {/* Header */}
         <div style={{
           padding: '1.25rem 1.5rem',
-          borderBottom: '2px solid var(--border-color)',
+          borderBottom: 'var(--border-w-2) solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -154,7 +154,7 @@ export default function ContentDiffModal({
 
             return (
               <div key={idx} style={{
-                borderBottom: '1px solid var(--surface-muted)',
+                borderBottom: 'var(--hairline) solid var(--surface-muted)',
                 background: row.status === 'deleted' ? 'var(--danger-bg)' : row.status === 'added' ? 'var(--success-bg)' : row.status === 'modified' ? 'var(--warning-bg)' : '#fff',
               }}>
                 <div
@@ -246,7 +246,7 @@ export default function ContentDiffModal({
         {/* Footer */}
         <div style={{
           padding: '1rem 1.5rem',
-          borderTop: '2px solid var(--border-color)',
+          borderTop: 'var(--border-w-2) solid var(--border-color)',
           display: 'flex',
           justifyContent: 'flex-end',
           gap: '0.75rem',
@@ -261,7 +261,7 @@ export default function ContentDiffModal({
               padding: '0.5rem 1.25rem',
               background: 'transparent',
               color: 'var(--text-muted)',
-              border: '2px solid var(--border-color)',
+              border: 'var(--border-w-2) solid var(--border-color)',
               borderRadius: 'var(--radius)',
               fontSize: '0.875rem',
               fontWeight: 500,

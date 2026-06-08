@@ -52,7 +52,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
     <div
       style={{
         borderRadius: 'var(--radius)',
-        border: confirmDelete ? '1px solid var(--danger-border)' : '1px solid var(--surface-muted)',
+        border: confirmDelete ? 'var(--hairline) solid var(--danger-border)' : 'var(--hairline) solid var(--surface-muted)',
         overflow: 'hidden',
         opacity: pending ? 0.5 : 1,
       }}
@@ -60,7 +60,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0.75rem 1rem', backgroundColor: 'var(--color-bg)',
-        borderBottom: confirmDelete ? '1px solid var(--danger-border)' : 'none',
+        borderBottom: confirmDelete ? 'var(--hairline) solid var(--danger-border)' : 'none',
       }}>
         <span className="badge badge-indigo">{report.category}</span>
         {!confirmDelete && (
@@ -71,7 +71,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
               display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
               fontSize: '0.75rem', padding: '0.25rem 0.625rem',
               background: 'var(--danger-bg)', color: 'var(--danger)',
-              border: '1px solid var(--danger-border)', borderRadius: '0.375rem', cursor: 'pointer',
+              border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', cursor: 'pointer',
             }}
           >
             <Trash2 size={12} />
@@ -81,7 +81,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
       </div>
 
       {confirmDelete && (
-        <div style={{ padding: '1rem', backgroundColor: 'var(--danger-bg)', borderTop: '1px solid var(--danger-border)' }}>
+        <div style={{ padding: '1rem', backgroundColor: 'var(--danger-bg)', borderTop: 'var(--hairline) solid var(--danger-border)' }}>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
             <AlertTriangle size={18} color="var(--danger)" style={{ flexShrink: 0, marginTop: '1px' }} />
             <div>
@@ -116,7 +116,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
               disabled={pending}
               style={{
                 padding: '0.5rem 1rem', backgroundColor: '#fff', color: 'var(--text-muted)',
-                border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer',
+                border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer',
                 fontSize: '0.875rem',
               }}
             >
@@ -197,7 +197,7 @@ export default function ReportAccordion({ groups }: ReportAccordionProps) {
             <div
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '1rem 1.25rem', borderBottom: isOpen ? '2px solid var(--border-color)' : 'none',
+                padding: '1rem 1.25rem', borderBottom: isOpen ? 'var(--border-w-2) solid var(--border-color)' : 'none',
               }}
             >
               <button

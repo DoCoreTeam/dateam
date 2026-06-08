@@ -68,7 +68,7 @@ export default function AiUsageDashboard() {
         <select
           value={days}
           onChange={e => setDays(Number(e.target.value))}
-          style={{ padding: '0.5rem 0.75rem', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', color: 'var(--text)', background: '#fff' }}
+          style={{ padding: '0.5rem 0.75rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', color: 'var(--text)', background: '#fff' }}
         >
           <option value={7}>최근 7일</option>
           <option value={30}>최근 30일</option>
@@ -78,7 +78,7 @@ export default function AiUsageDashboard() {
 
       {/* 임계치 초과 경고 */}
       {summary?.threshold_exceeded && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.875rem 1.25rem', backgroundColor: 'var(--warning-bg)', border: '1px solid #fcd34d', borderRadius: 'var(--radius)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.875rem 1.25rem', backgroundColor: 'var(--warning-bg)', border: 'var(--hairline) solid #fcd34d', borderRadius: 'var(--radius)' }}>
           <AlertTriangle size={18} color="var(--warning)" />
           <span style={{ fontSize: '0.9rem', color: 'var(--warning)', fontWeight: 500 }}>
             이번 달 토큰 사용량이 임계치({fmt(summary.alert_threshold)}개)를 초과했습니다.
@@ -103,8 +103,8 @@ export default function AiUsageDashboard() {
           </div>
           <div style={{ fontSize: '1.75rem', fontWeight: 700, color: summary?.threshold_exceeded ? 'var(--danger)' : 'var(--text)' }}>{fmt(summary?.month_tokens ?? 0)}</div>
           <div style={{ marginTop: '0.5rem' }}>
-            <div style={{ height: '6px', background: 'var(--color-border)', borderRadius: '3px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${Math.min(summary?.month_usage_pct ?? 0, 100)}%`, background: (summary?.month_usage_pct ?? 0) >= 100 ? 'var(--danger)' : 'var(--brand)', borderRadius: '3px', transition: 'width 0.3s' }} />
+            <div style={{ height: '6px', background: 'var(--color-border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${Math.min(summary?.month_usage_pct ?? 0, 100)}%`, background: (summary?.month_usage_pct ?? 0) >= 100 ? 'var(--danger)' : 'var(--brand)', borderRadius: 'var(--radius)', transition: 'width 0.3s' }} />
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginTop: '0.25rem' }}>{summary?.month_usage_pct ?? 0}% / 임계치 {fmt(summary?.alert_threshold ?? 1000000)}</div>
           </div>
@@ -132,7 +132,7 @@ export default function AiUsageDashboard() {
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--surface-muted)" />
                 <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--text-faint)' }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : String(v)} />
                 <YAxis type="category" dataKey="label" width={110} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                <Tooltip formatter={(v: number) => [fmt(v), '토큰']} labelStyle={{ fontSize: 12 }} contentStyle={{ fontSize: 12, borderRadius: 'var(--radius)', border: '2px solid var(--border-color)' }} />
+                <Tooltip formatter={(v: number) => [fmt(v), '토큰']} labelStyle={{ fontSize: 12 }} contentStyle={{ fontSize: 12, borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)' }} />
                 <Bar dataKey="total_tokens" fill="var(--brand)" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -150,7 +150,7 @@ export default function AiUsageDashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-muted)" />
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text-faint)' }} tickFormatter={(v: string) => v.slice(5)} interval="preserveStartEnd" />
                 <YAxis tick={{ fontSize: 11, fill: 'var(--text-faint)' }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : String(v)} />
-                <Tooltip formatter={(v: number) => [fmt(v), '토큰']} labelStyle={{ fontSize: 12 }} contentStyle={{ fontSize: 12, borderRadius: 'var(--radius)', border: '2px solid var(--border-color)' }} />
+                <Tooltip formatter={(v: number) => [fmt(v), '토큰']} labelStyle={{ fontSize: 12 }} contentStyle={{ fontSize: 12, borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)' }} />
                 <Line type="monotone" dataKey="total_tokens" stroke="var(--brand)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
@@ -216,11 +216,11 @@ export default function AiUsageDashboard() {
         </table>
         {totalPages > 1 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', marginTop: '1rem' }}>
-            <button onClick={() => setLogPage(p => Math.max(1, p - 1))} disabled={logPage <= 1} style={{ padding: '0.375rem', border: '2px solid var(--border-color)', borderRadius: '0.375rem', background: '#fff', cursor: logPage <= 1 ? 'not-allowed' : 'pointer', opacity: logPage <= 1 ? 0.4 : 1 }}>
+            <button onClick={() => setLogPage(p => Math.max(1, p - 1))} disabled={logPage <= 1} style={{ padding: '0.375rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', background: '#fff', cursor: logPage <= 1 ? 'not-allowed' : 'pointer', opacity: logPage <= 1 ? 0.4 : 1 }}>
               <ChevronLeft size={16} />
             </button>
             <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{logPage} / {totalPages}</span>
-            <button onClick={() => setLogPage(p => Math.min(totalPages, p + 1))} disabled={logPage >= totalPages} style={{ padding: '0.375rem', border: '2px solid var(--border-color)', borderRadius: '0.375rem', background: '#fff', cursor: logPage >= totalPages ? 'not-allowed' : 'pointer', opacity: logPage >= totalPages ? 0.4 : 1 }}>
+            <button onClick={() => setLogPage(p => Math.min(totalPages, p + 1))} disabled={logPage >= totalPages} style={{ padding: '0.375rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', background: '#fff', cursor: logPage >= totalPages ? 'not-allowed' : 'pointer', opacity: logPage >= totalPages ? 0.4 : 1 }}>
               <ChevronRight size={16} />
             </button>
           </div>

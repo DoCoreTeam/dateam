@@ -78,7 +78,7 @@ export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
               const st = STALENESS_STYLE[m.staleness]
               return (
                 <li key={m.id} className={`memo-widget-item${m.staleness === 'stale' ? ' memo-pulse' : ''}`}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.6rem', borderRadius: 'var(--radius)', background: 'var(--color-bg)', border: '1px solid var(--surface-muted)' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.6rem', borderRadius: 'var(--radius)', background: 'var(--color-bg)', border: 'var(--hairline) solid var(--surface-muted)' }}>
                   <span title={st.label} style={{ width: 8, height: 8, borderRadius: '50%', background: st.dot, flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.82rem', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -87,11 +87,11 @@ export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
                     <div style={{ fontSize: '0.68rem', color: st.text }}>{relativeTime(m.logged_at)}</div>
                   </div>
                   <button onClick={() => handleReview(m.id)} title="확인 완료"
-                    style={{ background: 'none', border: '2px solid var(--border-color)', borderRadius: '0.4rem', cursor: 'pointer', padding: '3px 5px', color: 'var(--success)', display: 'flex', flexShrink: 0 }}>
+                    style={{ background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius-lg)', cursor: 'pointer', padding: '3px 5px', color: 'var(--success)', display: 'flex', flexShrink: 0 }}>
                     <Check size={13} />
                   </button>
                   <button onClick={() => setPromoteTarget(m)} title="업무로 전환"
-                    style={{ background: 'none', border: '2px solid var(--border-color)', borderRadius: '0.4rem', cursor: 'pointer', padding: '3px 5px', color: 'var(--brand-dark)', display: 'flex', flexShrink: 0 }}>
+                    style={{ background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius-lg)', cursor: 'pointer', padding: '3px 5px', color: 'var(--brand-dark)', display: 'flex', flexShrink: 0 }}>
                     <ArrowUpRight size={13} />
                   </button>
                 </li>

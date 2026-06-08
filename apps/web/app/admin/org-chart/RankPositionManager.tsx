@@ -59,7 +59,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '2rem' }}>
       {/* 직급 관리 */}
-      <div style={{ background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '1.25rem' }}>
+      <div style={{ background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '1.25rem' }}>
         <h3 className="tape-title" style={{ margin: 0 }}>직급 관리</h3>
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
           <input
@@ -69,7 +69,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             placeholder="직급명 입력"
             disabled={isPending}
             style={{
-              flex: 1, padding: '0.4rem 0.75rem', border: '1px solid var(--border-color)',
+              flex: 1, padding: '0.4rem 0.75rem', border: 'var(--hairline) solid var(--border-color)',
               borderRadius: 'var(--radius)', fontSize: '0.875rem', outline: 'none',
             }}
           />
@@ -91,7 +91,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
           {ranks.sort((a, b) => a.display_order - b.display_order).map(r => (
             <li key={r.id} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '0.35rem 0.6rem', background: 'var(--color-bg)', borderRadius: '0.4rem',
+              padding: '0.35rem 0.6rem', background: 'var(--color-bg)', borderRadius: 'var(--radius-lg)',
               fontSize: '0.875rem', color: 'var(--text)',
             }}>
               {r.name}
@@ -111,7 +111,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
       </div>
 
       {/* 직책 관리 */}
-      <div style={{ background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '1.25rem' }}>
+      <div style={{ background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '1.25rem' }}>
         <h3 className="tape-title" style={{ margin: 0 }}>직책 관리</h3>
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
           <input
@@ -121,7 +121,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             placeholder="직책명 입력"
             disabled={isPending}
             style={{
-              flex: 1, padding: '0.4rem 0.75rem', border: '1px solid var(--border-color)',
+              flex: 1, padding: '0.4rem 0.75rem', border: 'var(--hairline) solid var(--border-color)',
               borderRadius: 'var(--radius)', fontSize: '0.875rem', outline: 'none',
             }}
           />
@@ -143,7 +143,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
           {positions.sort((a, b) => a.display_order - b.display_order).map(p => (
             <li key={p.id} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '0.35rem 0.6rem', background: 'var(--color-bg)', borderRadius: '0.4rem',
+              padding: '0.35rem 0.6rem', background: 'var(--color-bg)', borderRadius: 'var(--radius-lg)',
               fontSize: '0.875rem', color: 'var(--text)',
             }}>
               {p.name}

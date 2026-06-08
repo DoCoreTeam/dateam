@@ -15,7 +15,7 @@ type Toast = { msg: string; ok: boolean }
 
 const CARD: React.CSSProperties = {
   background: '#ffffff',
-  border: '2px solid var(--border-color)',
+  border: 'var(--border-w-2) solid var(--border-color)',
   borderRadius: 'var(--radius)',
   overflow: 'hidden',
   marginBottom: '1.5rem',
@@ -23,7 +23,7 @@ const CARD: React.CSSProperties = {
 }
 const CARD_HEADER: React.CSSProperties = {
   padding: '1rem 1.5rem',
-  borderBottom: '2px solid var(--border-color)',
+  borderBottom: 'var(--border-w-2) solid var(--border-color)',
   display: 'flex',
   alignItems: 'center',
   gap: '0.5rem',
@@ -42,8 +42,8 @@ const LABEL: React.CSSProperties = {
 const INPUT: React.CSSProperties = {
   width: '100%',
   padding: '0.5rem 0.75rem',
-  border: '2px solid var(--border-color)',
-  borderRadius: '0.4rem',
+  border: 'var(--border-w-2) solid var(--border-color)',
+  borderRadius: 'var(--radius-lg)',
   fontSize: '0.875rem',
   color: 'var(--text)',
   background: '#fff',
@@ -55,7 +55,7 @@ const SUBMIT: React.CSSProperties = {
   background: 'var(--brand)',
   color: '#fff',
   border: 'none',
-  borderRadius: '0.4rem',
+  borderRadius: 'var(--radius-lg)',
   fontSize: '0.875rem',
   fontWeight: 600,
   cursor: 'pointer',
@@ -285,7 +285,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
         padding: '0.25rem 0.625rem',
         background: 'var(--brand-soft)', color: 'var(--brand-dark)',
-        border: '1px solid var(--brand-soft-2)', borderRadius: '0.375rem',
+        border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)',
         fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
       }}
     >
@@ -376,7 +376,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
               rows={4}
               style={{
                 width: '100%', padding: '0.625rem 0.875rem',
-                border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
+                border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
                 fontSize: '0.875rem', color: 'var(--text)',
                 resize: 'vertical', fontFamily: 'inherit',
                 boxSizing: 'border-box', outline: 'none',
@@ -387,8 +387,8 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
             {aiError && (
               <div style={{
                 marginTop: '0.5rem', padding: '0.5rem 0.75rem',
-                background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
-                borderRadius: '0.4rem', fontSize: '0.8125rem', color: 'var(--danger)',
+                background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)',
+                borderRadius: 'var(--radius-lg)', fontSize: '0.8125rem', color: 'var(--danger)',
               }}>
                 {aiError}
               </div>
@@ -399,7 +399,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
                 onClick={() => setAiPromptModal(null)}
                 style={{
                   padding: '0.5rem 1rem', background: 'transparent',
-                  color: 'var(--text-muted)', border: '2px solid var(--border-color)',
+                  color: 'var(--text-muted)', border: 'var(--border-w-2) solid var(--border-color)',
                   borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer',
                 }}
               >

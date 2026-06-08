@@ -231,7 +231,7 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
                 onClick={finish}
                 style={{
                   padding: '0.4rem 0.875rem', background: 'none',
-                  border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
+                  border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
                   fontSize: '0.8125rem', color: 'var(--text-muted)', cursor: 'pointer',
                 }}
               >

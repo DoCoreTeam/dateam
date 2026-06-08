@@ -265,8 +265,8 @@ export default function SalePriceCatalogPage() {
         {([1, 2, 3] as const).map((t) => (
           <div key={t} style={{
             display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 6,
-            background: 'var(--gpu-surface)', border: `1px solid var(--gpu-border)`,
-            borderLeft: `3px solid ${TIER_INFO[t].color}`, fontSize: 11, color: 'var(--gpu-muted)',
+            background: 'var(--gpu-surface)', border: `var(--hairline) solid var(--gpu-border)`,
+            borderLeft: `var(--border-w) solid ${TIER_INFO[t].color}`, fontSize: 11, color: 'var(--gpu-muted)',
           }}>
             <span style={{ fontWeight: 700, color: 'var(--text)' }}>Tier {t}</span>
           </div>
@@ -277,9 +277,9 @@ export default function SalePriceCatalogPage() {
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--gpu-muted)' }}>로딩 중...</div>
       ) : (
-        <div style={{ background: 'var(--gpu-surface)', borderRadius: 12, border: '1px solid var(--gpu-border)', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--gpu-surface)', borderRadius: 12, border: 'var(--hairline) solid var(--gpu-border)', overflow: 'hidden' }}>
           {/* 헤더 행 */}
-          <div style={{ display: 'grid', gridTemplateColumns: COL, gap: 8, padding: '10px 20px', background: 'var(--gpu-bg)', borderBottom: '1px solid var(--gpu-border)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: COL, gap: 8, padding: '10px 20px', background: 'var(--gpu-bg)', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
             <div style={{ ...thBase }}>GPU 모델</div>
             <div style={{ ...thBase, textAlign: 'center' }}>구분</div>
             <div style={{ ...thBase, textAlign: 'right', color: customHours ? 'var(--gpu-accent)' : 'var(--gpu-muted)' }}>
@@ -299,7 +299,7 @@ export default function SalePriceCatalogPage() {
             tierGroups.flatMap((tg) => {
               const tC = collapsedOf(tierKey(tg.tier))
               const tierHeaderEl = (
-                <div key={`t${tg.tier}`} style={{ padding: '6px 14px', borderBottom: '1px solid var(--gpu-border)' }}>
+                <div key={`t${tg.tier}`} style={{ padding: '6px 14px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
                   <TierHeader tier={tg.tier} modelCount={tg.count} itemCount={tg.itemCount} collapsed={tC} onToggle={() => toggle(tierKey(tg.tier))} />
                 </div>
               )
@@ -307,7 +307,7 @@ export default function SalePriceCatalogPage() {
               const modelEls = tg.models.flatMap((mg) => {
                 const mC = collapsedOf(modelKey(tg.tier, mg.model))
                 const modelHeaderEl = (
-                  <div key={`m${tg.tier}-${mg.model}`} style={{ padding: '4px 14px 4px 22px', borderBottom: '1px solid var(--gpu-border)' }}>
+                  <div key={`m${tg.tier}-${mg.model}`} style={{ padding: '4px 14px 4px 22px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
                     <ModelHeader tier={tg.tier} model={mg.model} itemCount={mg.items.length} collapsed={mC} onToggle={() => toggle(modelKey(tg.tier, mg.model))} />
                   </div>
                 )
@@ -342,7 +342,7 @@ export default function SalePriceCatalogPage() {
               return (
                 <div
                   key={p.id}
-                  style={{ display: 'grid', gridTemplateColumns: COL, gap: 8, padding: '12px 20px', alignItems: 'center', borderBottom: '1px solid var(--gpu-border)', transition: 'background 0.15s', cursor: price ? 'pointer' : 'default', position: 'relative' }}
+                  style={{ display: 'grid', gridTemplateColumns: COL, gap: 8, padding: '12px 20px', alignItems: 'center', borderBottom: 'var(--hairline) solid var(--gpu-border)', transition: 'background 0.15s', cursor: price ? 'pointer' : 'default', position: 'relative' }}
                   title={price ? '클릭하면 가격 복사' : undefined}
                   onClick={() => handleRowClick(p)}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--gpu-hover)' }}
@@ -364,7 +364,7 @@ export default function SalePriceCatalogPage() {
                       <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
                         {p.model_name}
                         <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 400 }}>×{gpuCount}GPU</span>
-                        {p.pricing_mode === 'direct' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-amber)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 4, padding: '0 5px' }}>직접가</span>}
+                        {p.pricing_mode === 'direct' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-amber)', background: 'var(--warning-bg)', border: 'var(--hairline) solid var(--warning-border)', borderRadius: 4, padding: '0 5px' }}>직접가</span>}
                         <button onClick={(e) => setDirectPrice(e, p)} title="직접 판매가 설정/해제" aria-label="직접 판매가 설정"
                           style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--gpu-faint)', fontSize: 11, padding: '0 2px' }}>✎</button>
                       </div>

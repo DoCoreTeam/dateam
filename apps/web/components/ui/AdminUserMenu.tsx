@@ -67,7 +67,7 @@ export default function AdminUserMenu({ displayName }: AdminUserMenuProps) {
             left: 0,
             right: 0,
             backgroundColor: 'var(--text)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            border: 'var(--hairline) solid rgba(255,255,255,0.1)',
             borderRadius: 'var(--radius)',
             overflow: 'hidden',
             boxShadow: '0 -4px 24px rgba(0,0,0,0.5)',

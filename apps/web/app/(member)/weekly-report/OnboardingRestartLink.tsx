@@ -27,7 +27,7 @@ export default function OnboardingRestartLink({ variant }: OnboardingRestartLink
         style={{
           display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
           padding: '0.3rem 0.75rem',
-          background: 'var(--brand-soft)', border: '1px solid var(--brand-soft-2)', borderRadius: '9999px',
+          background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: '9999px',
           cursor: 'pointer', color: 'var(--brand-dark)', fontSize: '0.75rem', fontWeight: 600,
           transition: 'background 120ms, border-color 120ms',
           flexShrink: 0,

@@ -117,8 +117,8 @@ export function LogFlowView({ log, allLogs, onClose }: {
           <button
             onClick={onClose}
             style={{
-              width: 36, height: 36, border: '2px solid var(--border-color)',
-              borderRadius: '0.375rem', background: 'var(--color-bg)',
+              width: 36, height: 36, border: 'var(--border-w-2) solid var(--border-color)',
+              borderRadius: 'var(--radius)', background: 'var(--color-bg)',
               cursor: 'pointer', fontSize: '1.125rem', color: 'var(--text-muted)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
@@ -156,8 +156,8 @@ export function LogFlowView({ log, allLogs, onClose }: {
                         {(flowReason || isLoading) && (
                           <div style={{
                             fontSize: '0.7rem', color: 'var(--brand)',
-                            background: 'var(--brand-soft)', border: '1px solid var(--brand-soft-2)',
-                            borderRadius: '0.25rem', padding: '0.15rem 0.5rem',
+                            background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)',
+                            borderRadius: 'var(--radius)', padding: '0.15rem 0.5rem',
                             maxWidth: '100%', wordBreak: 'keep-all',
                           }}>
                             {isLoading ? '✦ AI 분석 중...' : `✦ ${flowReason}`}
@@ -171,7 +171,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
                     {/* 노드 카드 */}
                     <div style={{
                       marginLeft: `${n.depth * 1.25}rem`,
-                      border: `2px solid ${isHighlight ? t.color : 'var(--color-border)'}`,
+                      border: `var(--border-w-2) solid ${isHighlight ? t.color : 'var(--color-border)'}`,
                       borderLeft: `4px solid ${t.color}`,
                       borderRadius: 'var(--radius)',
                       padding: '0.625rem 0.875rem',
@@ -180,15 +180,15 @@ export function LogFlowView({ log, allLogs, onClose }: {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.25rem' }}>
                         <span style={{
                           fontSize: '0.6875rem', fontWeight: 700, color: t.color,
-                          background: t.bg, border: `1px solid ${t.border}`,
-                          padding: '0.1rem 0.35rem', borderRadius: '0.25rem', flexShrink: 0,
+                          background: t.bg, border: `var(--hairline) solid ${t.border}`,
+                          padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)', flexShrink: 0,
                         }}>
                           {t.label}
                         </span>
                         {isHighlight && (
                           <span style={{
                             fontSize: '0.6rem', fontWeight: 700, color: 'var(--info)',
-                            background: 'var(--info-bg)', padding: '0.1rem 0.35rem', borderRadius: '0.25rem',
+                            background: 'var(--info-bg)', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)',
                           }}>
                             현재
                           </span>

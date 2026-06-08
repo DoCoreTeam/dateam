@@ -21,8 +21,8 @@ interface DynamicTableProps {
 const INPUT: React.CSSProperties = {
   width: '100%',
   padding: '0.375rem 0.5rem',
-  border: '2px solid var(--border-color)',
-  borderRadius: '0.3rem',
+  border: 'var(--border-w-2) solid var(--border-color)',
+  borderRadius: 'var(--radius)',
   fontSize: '0.8125rem',
   color: 'var(--text)',
   background: '#fff',
@@ -32,7 +32,7 @@ const INPUT: React.CSSProperties = {
 const BTN_ICON: React.CSSProperties = {
   padding: '0.3rem',
   border: 'none',
-  borderRadius: '0.3rem',
+  borderRadius: 'var(--radius)',
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',
@@ -77,7 +77,7 @@ export default function DynamicTable({
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
           <thead>
-            <tr style={{ background: 'var(--color-bg)', borderBottom: '2px solid var(--border-color)' }}>
+            <tr style={{ background: 'var(--color-bg)', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
               <th style={{ width: '32px', padding: '0.4rem' }} />
               {columns.map((col) => (
                 <th
@@ -101,7 +101,7 @@ export default function DynamicTable({
             {rows.map((row, idx) => (
               <tr
                 key={idx}
-                style={{ borderBottom: '1px solid var(--surface-muted)' }}
+                style={{ borderBottom: 'var(--hairline) solid var(--surface-muted)' }}
               >
                 <td
                   style={{
@@ -173,8 +173,8 @@ export default function DynamicTable({
           alignItems: 'center',
           gap: '0.375rem',
           padding: '0.375rem 0.75rem',
-          border: '1px dashed var(--brand-soft-2)',
-          borderRadius: '0.4rem',
+          border: 'var(--hairline) dashed var(--brand-soft-2)',
+          borderRadius: 'var(--radius-lg)',
           background: 'var(--brand-soft)',
           color: 'var(--brand)',
           fontSize: '0.8125rem',

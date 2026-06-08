@@ -28,7 +28,7 @@ export function SupplierBadge({ name, color, kind = 'ours', unassigned }: Suppli
         display: 'inline-flex', alignItems: 'center', gap: 5,
         fontSize: 12, fontWeight: 600,
         padding: '1px 7px', borderRadius: 6,
-        border: isOurs ? '1px solid var(--gpu-accent, var(--brand))' : '1px solid var(--gpu-border, var(--color-border))',
+        border: isOurs ? 'var(--hairline) solid var(--gpu-accent, var(--brand))' : 'var(--hairline) solid var(--gpu-border, var(--color-border))',
         background: isOurs ? 'rgba(91,94,240,0.06)' : 'var(--surface-bg)',
         color: isOurs ? 'var(--gpu-accent, var(--brand))' : 'var(--gpu-ink, var(--text))',
       }}

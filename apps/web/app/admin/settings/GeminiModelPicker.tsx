@@ -58,7 +58,7 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
   }
 
   return (
-    <div style={{ borderTop: '2px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
+    <div style={{ borderTop: 'var(--border-w-2) solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
           <Cpu size={14} color="var(--brand)" />
@@ -80,7 +80,7 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
             padding: '0.5rem 0.875rem',
             backgroundColor: hasKey ? 'var(--surface-muted)' : 'var(--color-border)',
             color: hasKey ? 'var(--text)' : 'var(--text-faint)',
-            border: '2px solid var(--border-color)',
+            border: 'var(--border-w-2) solid var(--border-color)',
             borderRadius: 'var(--radius)',
             fontSize: '0.8125rem',
             fontWeight: 600,
@@ -143,7 +143,7 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
             gap: '0.375rem',
             backgroundColor: modelMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
             color: modelMsg.ok ? 'var(--success)' : 'var(--danger)',
-            border: `1px solid ${modelMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
+            border: `var(--hairline) solid ${modelMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
           }}
         >
           {modelMsg.ok ? <CheckCircle size={13} /> : <XCircle size={13} />}

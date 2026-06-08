@@ -105,7 +105,7 @@ export default function MobileShell({
         {/* 브랜드 */}
         <div style={{
           padding: '1.25rem',
-          borderBottom: '2px solid var(--border-color)',
+          borderBottom: 'var(--border-w-2) solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -177,8 +177,8 @@ export default function MobileShell({
                         ? 'var(--brand)'
                         : isHovered ? 'rgba(0,0,0,0.05)' : 'transparent',
                       border: isActive || isHighlight
-                        ? '2px solid var(--border-color)'
-                        : '2px solid transparent',
+                        ? 'var(--border-w-2) solid var(--border-color)'
+                        : 'var(--border-w-2) solid transparent',
                       color: isActive ? 'var(--sidebar-fg)' : isHighlight ? '#fff' : 'var(--sidebar-fg)',
                       minHeight: '44px',
                       boxShadow: (isActive || isHighlight) ? 'var(--shadow-sm)' : 'none',
@@ -228,7 +228,7 @@ export default function MobileShell({
                     background: 'transparent',
                     border: 'none',
                     cursor: 'pointer',
-                    borderRadius: '0.375rem',
+                    borderRadius: 'var(--radius)',
                   }}
                 >
                   <span className="tape-mini">{group.label}</span>
@@ -260,7 +260,7 @@ export default function MobileShell({
                               textDecoration: 'none',
                               transition: 'background-color 120ms, color 120ms, border-color 120ms',
                               backgroundColor: isActive ? 'var(--accent)' : isHovered ? 'rgba(0,0,0,0.05)' : 'transparent',
-                              border: isActive ? '2px solid var(--border-color)' : '2px solid transparent',
+                              border: isActive ? 'var(--border-w-2) solid var(--border-color)' : 'var(--border-w-2) solid transparent',
                               color: 'var(--sidebar-fg)',
                               boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
                               minHeight: '44px',
@@ -283,7 +283,7 @@ export default function MobileShell({
 
         {/* 모바일 전용 어드민/멤버 전환 */}
         {adminHref && (
-          <div className="mobile-only" style={{ padding: '0.5rem 0.75rem', borderTop: '2px solid var(--border-color)' }}>
+          <div className="mobile-only" style={{ padding: '0.5rem 0.75rem', borderTop: 'var(--border-w-2) solid var(--border-color)' }}>
             <Link
               href={adminHref}
               style={{
@@ -293,7 +293,7 @@ export default function MobileShell({
                 fontSize: '0.8125rem', fontWeight: 700,
                 textDecoration: 'none',
                 backgroundColor: 'var(--nb-white)',
-                border: '2px solid var(--border-color)',
+                border: 'var(--border-w-2) solid var(--border-color)',
                 boxShadow: 'var(--shadow-sm)',
                 color: 'var(--sidebar-fg)',
                 minHeight: '44px',
@@ -306,7 +306,7 @@ export default function MobileShell({
 
         {/* 푸터 */}
         {footer && (
-          <div style={{ padding: '0.75rem', borderTop: '2px solid var(--border-color)' }}>
+          <div style={{ padding: '0.75rem', borderTop: 'var(--border-w-2) solid var(--border-color)' }}>
             {footer}
           </div>
         )}

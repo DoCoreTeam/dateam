@@ -16,7 +16,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
 function Card({ label, value, sub, tone, onClick, active }: { label: string; value: string | number; sub?: string; tone?: 'ok' | 'warn' | 'bad'; onClick?: () => void; active?: boolean }) {
   const color = tone === 'bad' ? 'var(--danger)' : tone === 'warn' ? 'var(--warning)' : tone === 'ok' ? 'var(--success)' : 'var(--text)'
   return (
-    <div onClick={onClick} style={{ padding: '16px 18px', borderRadius: 12, background: '#fff', border: `1px solid ${active ? 'var(--gpu-accent,var(--brand))' : 'var(--color-border)'}`, minWidth: 0, cursor: onClick ? 'pointer' : 'default', boxShadow: active ? '0 0 0 2px rgba(91,94,240,.15)' : 'none' }}>
+    <div onClick={onClick} style={{ padding: '16px 18px', borderRadius: 12, background: '#fff', border: `var(--hairline) solid ${active ? 'var(--gpu-accent,var(--brand))' : 'var(--color-border)'}`, minWidth: 0, cursor: onClick ? 'pointer' : 'default', boxShadow: active ? '0 0 0 2px rgba(91,94,240,.15)' : 'none' }}>
       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>{label}{onClick && <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--border-subtle)' }}>클릭</span>}</div>
       <div style={{ fontSize: 26, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
       {sub && <div style={{ fontSize: 11.5, color: 'var(--text-faint)', marginTop: 6 }}>{sub}</div>}
@@ -93,7 +93,7 @@ export default function DataQualityDashboard() {
 
           {/* 드릴다운 패널 */}
           {drill && (
-            <div style={{ marginBottom: 22, padding: '14px 16px', borderRadius: 12, background: 'var(--color-bg)', border: '2px solid var(--border-color)' }} data-testid="drilldown-panel">
+            <div style={{ marginBottom: 22, padding: '14px 16px', borderRadius: 12, background: 'var(--color-bg)', border: 'var(--border-w-2) solid var(--border-color)' }} data-testid="drilldown-panel">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <strong style={{ fontSize: 14, color: 'var(--text)' }}>
                   {drill === 'anomaly' ? '이상치 견적' : drill === 'low_confidence' ? '저신뢰 검토항목' : drill === 'pending' ? '검토 대기' : '중복 의심'} 상세
@@ -105,7 +105,7 @@ export default function DataQualityDashboard() {
               {loadingItems ? <div style={{ fontSize: 12.5, color: 'var(--text-faint)' }}>불러오는 중…</div> : items.length === 0 ? <div style={{ fontSize: 12.5, color: 'var(--text-faint)' }}>해당 항목 없음 ✓</div> : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto' }}>
                   {items.map((it, i) => (
-                    <div key={it.id ?? i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px', borderRadius: 8, background: '#fff', border: '1px solid var(--surface-bg)', fontSize: 12.5 }}>
+                    <div key={it.id ?? i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px', borderRadius: 8, background: '#fff', border: 'var(--hairline) solid var(--surface-bg)', fontSize: 12.5 }}>
                       {drill === 'anomaly' && <>
                         <span style={{ fontWeight: 600, flex: 1 }}>{it.model_name} <span style={{ color: 'var(--text-faint)' }}>T{it.tier}</span></span>
                         <span style={{ fontWeight: 700, color: 'var(--danger)' }}>${it.unit_price_usd}/hr</span>

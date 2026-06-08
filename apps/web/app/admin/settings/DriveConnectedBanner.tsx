@@ -23,7 +23,7 @@ export default function DriveConnectedBanner() {
         justifyContent: 'space-between',
         padding: '0.75rem 1rem',
         backgroundColor: 'var(--success-bg)',
-        border: '1px solid var(--success-border)',
+        border: 'var(--hairline) solid var(--success-border)',
         borderRadius: 'var(--radius)',
         fontSize: '0.875rem',
         fontWeight: 500,

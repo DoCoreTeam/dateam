@@ -18,7 +18,7 @@ export function TierHeader({
       style={{
         display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
         padding: '9px 12px', background: 'var(--surface-bg)', borderRadius: 8,
-        border: '1px solid var(--gpu-border, var(--color-border))', userSelect: 'none',
+        border: 'var(--hairline) solid var(--gpu-border, var(--color-border))', userSelect: 'none',
       }}
     >
       <ChevronRight size={16} style={{ transform: collapsed ? 'none' : 'rotate(90deg)', transition: 'transform .15s', color: 'var(--gpu-muted)' }} />
@@ -42,7 +42,7 @@ export function ModelHeader({
       style={{
         display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
         padding: '7px 12px 7px 26px', background: 'var(--surface-bg)', borderRadius: 7,
-        border: '1px solid var(--surface-bg)', userSelect: 'none',
+        border: 'var(--hairline) solid var(--surface-bg)', userSelect: 'none',
       }}
     >
       <ChevronRight size={14} style={{ transform: collapsed ? 'none' : 'rotate(90deg)', transition: 'transform .15s', color: 'var(--gpu-muted)' }} />

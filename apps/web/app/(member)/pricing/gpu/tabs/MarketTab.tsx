@@ -403,7 +403,7 @@ function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI, onDele
                     </div>
                   )
                 })}
-                <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--surface-bg)' }}>
+                <div style={{ marginTop: 6, paddingTop: 6, borderTop: 'var(--hairline) solid var(--surface-bg)' }}>
                   <FreshnessDot hoursAgo={lastH === 999 ? null : lastH} maxHours={48} />
                   {anyStale && <span style={{ fontSize: 9, color: 'var(--gpu-red)', marginLeft: 6 }}>만료</span>}
                 </div>
@@ -531,7 +531,7 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginTop: 10,
           background: isGapOk ? 'var(--success-bg)' : 'var(--warning-bg)',
-          border: `1px solid ${isGapOk ? 'var(--success-bg)' : 'var(--warning-bg)'}`, borderRadius: 9, fontSize: 12.5,
+          border: `var(--hairline) solid ${isGapOk ? 'var(--success-bg)' : 'var(--warning-bg)'}`, borderRadius: 9, fontSize: 12.5,
         }}>
           <span style={{ fontSize: 16 }}>{isGapOk ? '✓' : '⚠'}</span>
           <div style={{ flex: 1 }}>
@@ -551,7 +551,7 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
       </div>
 
       {/* 전략 변수 슬라이더 */}
-      <div style={{ background: '#fff', border: '1px solid var(--gpu-border)', borderRadius: 10, padding: '12px 14px' }}>
+      <div style={{ background: '#fff', border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 10, padding: '12px 14px' }}>
         <div style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
           ⚙ 전략 변수 — 모델별 조정
           {p.strategy.is_overridden ? (
@@ -605,7 +605,7 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
                 onClick={e => { e.stopPropagation(); setSelectedScenario(s.key) }}
                 style={{
                   padding: '12px 14px', borderRadius: 10, cursor: 'pointer', transition: '.13s',
-                  border: isSelected ? '2px solid var(--gpu-accent)' : '1.5px solid var(--gpu-border)',
+                  border: isSelected ? 'var(--border-w-2) solid var(--gpu-accent)' : '1.5px solid var(--gpu-border)',
                   background: isSelected ? 'var(--gpu-accent-bg)' : '#fff',
                   position: 'relative',
                 }}
@@ -635,7 +635,7 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
                 }}>
                   {s.supplyChangePct >= 0 ? '+' : ''}{s.supplyChangePct.toFixed(1)}% 변화 필요
                 </div>
-                <div style={{ fontSize: 9.5, color: 'var(--gpu-faint)', marginTop: 5, borderTop: '1px solid var(--surface-bg)', paddingTop: 5 }}>
+                <div style={{ fontSize: 9.5, color: 'var(--gpu-faint)', marginTop: 5, borderTop: 'var(--hairline) solid var(--surface-bg)', paddingTop: 5 }}>
                   {s.basis === 'history' && supply_history
                     ? `이력 ${supply_history.sample_count}건 기반 (${fmt(supply_history.min_usd)}~${fmt(supply_history.max_usd)})`
                     : `비율 폴백 (인하 폭 ${Math.abs(s.supplyChangePct).toFixed(0)}%)`}
@@ -648,7 +648,7 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
 
       {/* 판정 근거 박스 */}
       <div style={{
-        padding: '10px 14px', background: 'var(--surface-bg)', border: '1px solid var(--gpu-border)',
+        padding: '10px 14px', background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--gpu-border)',
         borderRadius: 9, fontSize: 11.5,
       }}>
         <strong>판정 근거</strong>{' '}
@@ -674,7 +674,7 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
       {/* 협상 카드 생성 */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
-        background: 'linear-gradient(100deg,var(--brand-soft-2),#fff)', border: '1px solid var(--brand-soft-2)', borderRadius: 10,
+        background: 'linear-gradient(100deg,var(--brand-soft-2),#fff)', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 10,
       }}>
         <span style={{ fontSize: 20 }}>📋</span>
         <div style={{ flex: 1, fontSize: 12.5 }}>
@@ -782,7 +782,7 @@ function StrategyOverviewPanel({ products, fmt }: { products: ProductGroup[]; fm
         <div style={{
           display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr 1fr 1.1fr',
           gap: 12, padding: '10px 18px',
-          background: 'var(--surface-bg)', borderBottom: '1px solid var(--gpu-border)',
+          background: 'var(--surface-bg)', borderBottom: 'var(--hairline) solid var(--gpu-border)',
           fontSize: 10.5, color: 'var(--gpu-muted)', fontWeight: 600,
           textTransform: 'uppercase', letterSpacing: '.04em',
         }}>
@@ -815,7 +815,7 @@ function StrategyOverviewPanel({ products, fmt }: { products: ProductGroup[]; fm
               <div key={pid} style={{
                 display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr 1fr 1.1fr',
                 gap: 12, padding: '12px 18px', alignItems: 'center',
-                borderBottom: '1px solid var(--surface-bg)', opacity: 0.5,
+                borderBottom: 'var(--hairline) solid var(--surface-bg)', opacity: 0.5,
               }}>
                 <div>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gpu-ink)' }}>{p.product.model_name}</span>
@@ -835,7 +835,7 @@ function StrategyOverviewPanel({ products, fmt }: { products: ProductGroup[]; fm
             <div key={pid} style={{
               display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr 1fr 1.1fr',
               gap: 12, padding: '13px 18px', alignItems: 'center',
-              borderBottom: '1px solid var(--surface-bg)', transition: '.12s',
+              borderBottom: 'var(--hairline) solid var(--surface-bg)', transition: '.12s',
             }}>
               {/* 모델 */}
               <div>
@@ -1074,12 +1074,12 @@ function MappingManagerModal({ mappings, competitors, onClose, onChanged }: {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(620px,100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--gpu-border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
           <strong style={{ fontSize: 15, flex: 1 }}>경쟁사 매핑 관리 ({mappings.length})</strong>
           <button onClick={onClose} className="gpu-btn" style={{ padding: 6 }}><X size={16} /></button>
         </div>
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px auto', gap: 6, alignItems: 'center', borderBottom: '1px solid var(--gpu-border)', paddingBottom: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px auto', gap: 6, alignItems: 'center', borderBottom: 'var(--hairline) solid var(--gpu-border)', paddingBottom: 10 }}>
             <select value={compId} onChange={(e) => setCompId(e.target.value)} style={{ height: 30, fontSize: 12, border: '1.5px solid var(--gpu-border)', borderRadius: 6 }}>
               <option value="">경쟁사…</option>{competitors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -1091,11 +1091,11 @@ function MappingManagerModal({ mappings, competitors, onClose, onChanged }: {
             </select>
             <button onClick={add} disabled={busy} className="gpu-btn gpu-btn-primary">추가</button>
           </div>
-          <input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="SKU (선택)" style={{ height: 28, fontSize: 12, border: '1px solid var(--gpu-border)', borderRadius: 6, padding: '0 8px' }} />
+          <input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="SKU (선택)" style={{ height: 28, fontSize: 12, border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 6, padding: '0 8px' }} />
           {err && <div style={{ fontSize: 12, color: 'var(--gpu-red)' }}>{err}</div>}
           <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
             {mappings.map((m) => (
-              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '6px 8px', borderRadius: 7, background: 'var(--surface-bg)', border: '1px solid var(--surface-bg)' }}>
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '6px 8px', borderRadius: 7, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--surface-bg)' }}>
                 <span style={{ fontWeight: 700, minWidth: 90 }}>{m.competitors?.name ?? '?'}</span>
                 <span style={{ flex: 1 }}>{m.gpu_products?.model_name} {m.gpu_products?.memory}</span>
                 <span style={{ fontSize: 10.5, color: 'var(--gpu-muted)' }}>{PRICING_MODEL_LABEL[m.pricing_model] ?? m.pricing_model}</span>
@@ -1296,7 +1296,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
         const successUrls = results.filter(r => r.prices_found > 0).length
         const failUrls = results.filter(r => !!r.error).length
         return (
-          <div style={{ background: ok ? 'var(--gpu-green-bg, var(--success-bg))' : 'var(--gpu-card-bg)', border: '1px solid', borderColor: ok ? 'var(--gpu-green, var(--success))' : 'var(--gpu-border)', borderRadius: 8, fontSize: 13, overflow: 'hidden' }}>
+          <div style={{ background: ok ? 'var(--gpu-green-bg, var(--success-bg))' : 'var(--gpu-card-bg)', border: 'var(--hairline) solid', borderColor: ok ? 'var(--gpu-green, var(--success))' : 'var(--gpu-border)', borderRadius: 8, fontSize: 13, overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px' }}>
               <RefreshCw size={13} color={ok ? 'var(--success)' : 'var(--gpu-muted)'} />
               <span style={{ flex: 1 }}>
@@ -1321,9 +1321,9 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
               </button>
             </div>
             {results.length > 0 && (
-              <div style={{ borderTop: '1px solid var(--gpu-border)', maxHeight: 160, overflowY: 'auto' }}>
+              <div style={{ borderTop: 'var(--hairline) solid var(--gpu-border)', maxHeight: 160, overflowY: 'auto' }}>
                 {results.map((r, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px', fontSize: 11.5, borderBottom: i < results.length - 1 ? '1px solid var(--surface-bg)' : 'none' }}>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px', fontSize: 11.5, borderBottom: i < results.length - 1 ? 'var(--hairline) solid var(--surface-bg)' : 'none' }}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: r.error ? 'var(--gpu-red, var(--danger))' : r.prices_found > 0 ? 'var(--gpu-green, var(--success))' : 'var(--gpu-muted)' }} />
                     <span style={{ fontWeight: 600, minWidth: 0, flexShrink: 0 }}>{r.competitor}</span>
                     <span style={{ color: 'var(--gpu-faint)', fontFamily: 'monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.url}</span>
@@ -1391,7 +1391,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
       {/* 그룹 + 경쟁사 필터 */}
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: 6, padding: '10px 14px',
-        background: '#fff', border: '1px solid var(--gpu-border)', borderRadius: 11, alignItems: 'center',
+        background: '#fff', border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 11, alignItems: 'center',
       }}>
         <span className="gpu-filter-label-mob" style={{ fontSize: 10.5, color: 'var(--gpu-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginRight: 2 }}>그룹:</span>
         {Object.entries(COMP_GROUPS).map(([key, group]) => (
@@ -1399,7 +1399,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
             key={key}
             onClick={() => toggleGroup(key)}
             style={{
-              padding: '4px 10px', borderRadius: 6, border: `1px solid ${activeGroups.has(key) ? 'var(--gpu-accent)' : 'var(--gpu-border)'}`,
+              padding: '4px 10px', borderRadius: 6, border: `var(--hairline) solid ${activeGroups.has(key) ? 'var(--gpu-accent)' : 'var(--gpu-border)'}`,
               background: activeGroups.has(key) ? 'var(--gpu-accent-bg)' : '#fff',
               color: activeGroups.has(key) ? 'var(--gpu-accent)' : 'var(--gpu-muted)',
               fontSize: 11.5, fontWeight: 600, cursor: 'pointer', transition: '.12s',
@@ -1416,7 +1416,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
           style={{
             padding: '4px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600,
             display: 'flex', alignItems: 'center', gap: 6, transition: '.12s',
-            border: activeComps.size > 0 ? '1px solid var(--gpu-accent)' : '1px solid var(--gpu-border)',
+            border: activeComps.size > 0 ? 'var(--hairline) solid var(--gpu-accent)' : 'var(--hairline) solid var(--gpu-border)',
             background: activeComps.size > 0 ? 'var(--gpu-accent-bg)' : '#fff',
             color: activeComps.size > 0 ? 'var(--gpu-accent)' : 'var(--gpu-muted)',
           }}
@@ -1435,7 +1435,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
         {activeComps.size > 0 && (
           <button
             onClick={() => setActiveComps(new Set())}
-            style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--gpu-border)', background: '#fff', color: 'var(--gpu-muted)', fontSize: 11, cursor: 'pointer' }}
+            style={{ padding: '3px 8px', borderRadius: 5, border: 'var(--hairline) solid var(--gpu-border)', background: '#fff', color: 'var(--gpu-muted)', fontSize: 11, cursor: 'pointer' }}
           >
             초기화
           </button>
@@ -1497,7 +1497,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                           onClick={() => toggleComp(c.id)}
                           style={{
                             padding: '5px 12px', borderRadius: 7, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', transition: '.12s',
-                            border: activeComps.has(c.id) ? `1.5px solid ${c.color}` : '1px solid var(--gpu-border)',
+                            border: activeComps.has(c.id) ? `1.5px solid ${c.color}` : 'var(--hairline) solid var(--gpu-border)',
                             background: activeComps.has(c.id) ? `${c.color}18` : 'var(--surface-bg)',
                             color: activeComps.has(c.id) ? c.color : 'var(--gpu-ink)',
                             display: 'flex', alignItems: 'center', gap: 6,
@@ -1527,7 +1527,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                           onClick={() => toggleComp(c.id)}
                           style={{
                             padding: '5px 12px', borderRadius: 7, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', transition: '.12s',
-                            border: activeComps.has(c.id) ? `1.5px solid ${c.color}` : '1px solid var(--gpu-border)',
+                            border: activeComps.has(c.id) ? `1.5px solid ${c.color}` : 'var(--hairline) solid var(--gpu-border)',
                             background: activeComps.has(c.id) ? `${c.color}18` : 'var(--surface-bg)',
                             color: activeComps.has(c.id) ? c.color : 'var(--gpu-ink)',
                             display: 'flex', alignItems: 'center', gap: 6,
@@ -1597,7 +1597,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
           <div className="gpu-market-grid" style={{
             display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1.5fr 36px',
             gap: 14, padding: '10px 18px',
-            background: 'var(--surface-bg)', borderBottom: '1px solid var(--gpu-border)',
+            background: 'var(--surface-bg)', borderBottom: 'var(--hairline) solid var(--gpu-border)',
             fontSize: 10.5, color: 'var(--gpu-muted)', fontWeight: 600,
             textTransform: 'uppercase', letterSpacing: '.04em',
           }}>
@@ -1621,7 +1621,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                 <div
                   key={`tier-${g.tier}`}
                   onClick={() => toggleTier(g.tier)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', cursor: 'pointer', background: 'var(--surface-bg)', borderBottom: '1px solid var(--surface-bg)', userSelect: 'none' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', cursor: 'pointer', background: 'var(--surface-bg)', borderBottom: 'var(--hairline) solid var(--surface-bg)', userSelect: 'none' }}
                 >
                   <span style={{ transform: gCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform .15s', color: 'var(--gpu-muted)', display: 'inline-flex', fontSize: 11 }}>▶</span>
                   <strong style={{ fontSize: 13, color: 'var(--text)' }}>{gCfg.label}</strong>
@@ -1656,7 +1656,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                       gap: 14, padding: '14px 18px', alignItems: 'center',
                       cursor: 'pointer', transition: '.12s',
                       background: isOpen ? 'var(--gpu-accent-bg)' : '#fff',
-                      borderBottom: '1px solid var(--surface-bg)',
+                      borderBottom: 'var(--hairline) solid var(--surface-bg)',
                     }}
                     onMouseEnter={e => { if (!isOpen) (e.currentTarget as HTMLElement).style.background = 'var(--surface-bg)' }}
                     onMouseLeave={e => { if (!isOpen) (e.currentTarget as HTMLElement).style.background = '#fff' }}
@@ -1722,11 +1722,11 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
 
                   {/* 펼침 영역 — 분석/전략 탭 */}
                   {isOpen && (
-                    <div style={{ background: 'var(--surface-bg)', borderBottom: '1px solid var(--surface-bg)' }}>
+                    <div style={{ background: 'var(--surface-bg)', borderBottom: 'var(--hairline) solid var(--surface-bg)' }}>
                       {/* 탭 헤더 */}
                       <div style={{
                         display: 'flex', gap: 0, padding: '0 18px',
-                        borderBottom: '1px solid var(--gpu-border)',
+                        borderBottom: 'var(--hairline) solid var(--gpu-border)',
                         background: '#fff',
                       }}>
                         <button
@@ -1735,7 +1735,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                             display: 'flex', alignItems: 'center', gap: 6,
                             padding: '10px 14px', fontSize: 12.5, fontWeight: 600,
                             border: 'none', background: 'none', cursor: 'pointer',
-                            borderBottom: currentTab === 'analyze' ? '2px solid var(--gpu-accent)' : '2px solid transparent',
+                            borderBottom: currentTab === 'analyze' ? 'var(--border-w-2) solid var(--gpu-accent)' : 'var(--border-w-2) solid transparent',
                             color: currentTab === 'analyze' ? 'var(--gpu-accent)' : 'var(--gpu-muted)',
                             transition: '.13s',
                           }}
@@ -1750,7 +1750,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                             display: 'flex', alignItems: 'center', gap: 6,
                             padding: '10px 14px', fontSize: 12.5, fontWeight: 600,
                             border: 'none', background: 'none', cursor: 'pointer',
-                            borderBottom: currentTab === 'strategy' ? '2px solid var(--gpu-accent)' : '2px solid transparent',
+                            borderBottom: currentTab === 'strategy' ? 'var(--border-w-2) solid var(--gpu-accent)' : 'var(--border-w-2) solid transparent',
                             color: currentTab === 'strategy' ? 'var(--gpu-accent)' : 'var(--gpu-muted)',
                             transition: '.13s',
                           }}
@@ -1799,7 +1799,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                   <div
                     key={`m-${mKey}`}
                     onClick={() => toggleMarketModel(mKey)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 18px 7px 30px', cursor: 'pointer', background: '#fff', borderBottom: '1px solid var(--surface-bg)', userSelect: 'none' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 18px 7px 30px', cursor: 'pointer', background: '#fff', borderBottom: 'var(--hairline) solid var(--surface-bg)', userSelect: 'none' }}
                   >
                     <span style={{ transform: mOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s', color: 'var(--gpu-muted)', display: 'inline-flex', fontSize: 10 }}>▶</span>
                     <span className={`gpu-badge ${gCfg.badge}`} style={{ fontSize: 9.5 }}>T{g.tier}</span>
@@ -1819,7 +1819,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
       {/* 하단 면책 */}
       <div style={{
         fontSize: 11.5, color: 'var(--gpu-faint)', padding: '10px 14px',
-        background: 'var(--surface-bg)', border: '1px solid var(--gpu-border)', borderRadius: 9,
+        background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 9,
         display: 'flex', alignItems: 'center', gap: 7,
       }}>
         ⓘ 수집한 경쟁사 가격은 <b style={{ color: 'var(--gpu-ink-2)' }}>내부 의사결정용</b>입니다 ·

@@ -20,7 +20,7 @@ interface TeamReportViewProps {
   initialReports: MemberReport[]
 }
 
-const CELL_BORDER = '2px solid var(--border-color)'
+const CELL_BORDER = 'var(--border-w-2) solid var(--border-color)'
 
 export default function TeamReportView({ weekOptions, thisWeek, initialReports }: TeamReportViewProps) {
   const [selectedWeek, setSelectedWeek] = useState(thisWeek)
@@ -91,7 +91,7 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
 
       {/* 에러 */}
       {fetchError && (
-        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
+        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
           {fetchError}
         </div>
       )}

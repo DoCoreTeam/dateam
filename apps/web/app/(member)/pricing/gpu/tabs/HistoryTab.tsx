@@ -176,7 +176,7 @@ export default function HistoryTab() {
       </div>
 
       {selected.size > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', marginBottom: 8, background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 8, fontSize: 12.5 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', marginBottom: 8, background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 8, fontSize: 12.5 }}>
           <strong>{selected.size}건 선택</strong>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
             <input type="checkbox" checked={withData} onChange={(e) => setWithData(e.target.checked)} />

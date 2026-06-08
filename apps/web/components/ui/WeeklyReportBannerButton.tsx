@@ -18,7 +18,7 @@ export default function WeeklyReportBannerButton({ showGlow }: WeeklyReportBanne
         fontWeight: 600,
         color: '#ffffff',
         backgroundColor: showGlow ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.18)',
-        border: `1px solid ${showGlow ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.35)'}`,
+        border: `var(--hairline) solid ${showGlow ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.35)'}`,
         borderRadius: '999px',
         padding: '0.25rem 0.875rem',
         textDecoration: 'none',

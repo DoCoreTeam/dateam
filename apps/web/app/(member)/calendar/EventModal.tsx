@@ -89,13 +89,13 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
         <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.875rem' }}>
           <input value={nl} onChange={(e) => setNl(e.target.value)} placeholder="자연어: 내일 오후 3시 A사 미팅"
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); parseNl() } }}
-            style={{ flex: 1, border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem 0.625rem', fontSize: '0.8125rem', outline: 'none' }} />
+            style={{ flex: 1, border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem 0.625rem', fontSize: '0.8125rem', outline: 'none' }} />
           <button onClick={parseNl} disabled={aiBusy} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8125rem', fontWeight: 600, color: '#fff', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: '0.5rem 0.75rem', cursor: aiBusy ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
             <Sparkles size={14} /> {aiBusy ? '파싱중' : 'AI 파싱'}
           </button>
         </div>
 
-        {msg && <div role="status" style={{ padding: '0.5rem 0.75rem', background: 'var(--brand-soft)', border: '1px solid var(--brand-soft-2)', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: '0.78rem', color: 'var(--brand-dark)' }}>{msg}</div>}
+        {msg && <div role="status" style={{ padding: '0.5rem 0.75rem', background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: '0.78rem', color: 'var(--brand-dark)' }}>{msg}</div>}
 
         <label style={lbl}>제목</label>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="일정 제목" style={inp} />
@@ -126,7 +126,7 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
             반복
             <select value={repeat} onChange={(e) => setRepeat(e.target.value as 'none' | 'daily' | 'weekly')}
-              style={{ border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.3rem 0.5rem', fontSize: '0.8125rem' }}>
+              style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.3rem 0.5rem', fontSize: '0.8125rem' }}>
               <option value="none">안 함</option>
               <option value="daily">매일</option>
               <option value="weekly">매주</option>
@@ -147,4 +147,4 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
 }
 
 const lbl: React.CSSProperties = { display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-faint)', marginBottom: '0.25rem' }
-const inp: React.CSSProperties = { width: '100%', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem 0.625rem', fontSize: '0.8125rem', outline: 'none', boxSizing: 'border-box' }
+const inp: React.CSSProperties = { width: '100%', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem 0.625rem', fontSize: '0.8125rem', outline: 'none', boxSizing: 'border-box' }

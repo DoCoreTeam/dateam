@@ -61,7 +61,7 @@ export default function GoogleDriveSettings() {
           연결 상태 확인 중...
         </div>
       ) : status?.connected ? (
-        <div style={{ padding: '0.875rem 1rem', backgroundColor: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
+        <div style={{ padding: '0.875rem 1rem', backgroundColor: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <CheckCircle size={14} color="var(--success)" />
@@ -85,7 +85,7 @@ export default function GoogleDriveSettings() {
                 fontWeight: 600,
                 color: 'var(--danger)',
                 background: 'none',
-                border: '1px solid var(--danger-border)',
+                border: 'var(--hairline) solid var(--danger-border)',
                 borderRadius: 'var(--radius)',
                 cursor: revoking ? 'not-allowed' : 'pointer',
                 minHeight: '32px',
@@ -142,7 +142,7 @@ export default function GoogleDriveSettings() {
             gap: '0.375rem',
             backgroundColor: msg.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
             color: msg.ok ? 'var(--success)' : 'var(--danger)',
-            border: `1px solid ${msg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
+            border: `var(--hairline) solid ${msg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
           }}
         >
           {msg.ok ? <CheckCircle size={13} /> : <XCircle size={13} />}

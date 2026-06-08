@@ -60,8 +60,8 @@ export default function TierForm({
             placeholder="예: VIP, Gold, 파트너A"
             required
             style={{
-              width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.375rem',
-              border: '2px solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box',
+              width: '100%', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
+              border: 'var(--border-w-2) solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box',
               outline: 'none',
             }}
           />
@@ -79,8 +79,8 @@ export default function TierForm({
             defaultValue={defaultRate}
             required
             style={{
-              width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.375rem',
-              border: '2px solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box',
+              width: '100%', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
+              border: 'var(--border-w-2) solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box',
             }}
           />
         </div>
@@ -93,8 +93,8 @@ export default function TierForm({
             defaultValue={defaultDescription}
             placeholder="등급 설명"
             style={{
-              width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.375rem',
-              border: '2px solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box',
+              width: '100%', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
+              border: 'var(--border-w-2) solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box',
             }}
           />
         </div>
@@ -110,7 +110,7 @@ export default function TierForm({
           disabled={pending}
           style={{
             display: 'flex', alignItems: 'center', gap: '0.375rem',
-            padding: '0.5rem 1rem', borderRadius: '0.375rem',
+            padding: '0.5rem 1rem', borderRadius: 'var(--radius)',
             background: pending ? 'var(--text-faint)' : 'var(--brand)', color: 'white',
             border: 'none', fontSize: '0.875rem', fontWeight: 500, cursor: pending ? 'not-allowed' : 'pointer',
           }}
@@ -124,9 +124,9 @@ export default function TierForm({
             onClick={onCancel}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.375rem',
-              padding: '0.5rem 0.75rem', borderRadius: '0.375rem',
+              padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
               background: 'transparent', color: 'var(--text-muted)',
-              border: '2px solid var(--border-color)', fontSize: '0.875rem', cursor: 'pointer',
+              border: 'var(--border-w-2) solid var(--border-color)', fontSize: '0.875rem', cursor: 'pointer',
             }}
           >
             <X size={14} />

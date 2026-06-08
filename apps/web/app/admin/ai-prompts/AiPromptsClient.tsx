@@ -38,9 +38,9 @@ export default function AiPromptsClient() {
       <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>관리자 · AI</div>
       <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', margin: '0 0 4px' }}>AI 프롬프트 운영</h2>
       <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 16px' }}>DB 프롬프트 CRUD · AI 자가갱신 이력(왜·어떻게) · 롤백 · AI가 보는 스키마</p>
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '2px solid var(--border-color)' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
         {([['prompts', '프롬프트'], ['history', '변경 이력'], ['schema', '스키마(AI 가시)']] as const).map(([k, label]) => (
-          <button key={k} onClick={() => setTab(k)} style={{ padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: tab === k ? 700 : 500, color: tab === k ? 'var(--gpu-accent,var(--brand))' : 'var(--text-muted)', borderBottom: tab === k ? '2px solid var(--gpu-accent,var(--brand))' : '2px solid transparent' }}>{label}</button>
+          <button key={k} onClick={() => setTab(k)} style={{ padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: tab === k ? 700 : 500, color: tab === k ? 'var(--gpu-accent,var(--brand))' : 'var(--text-muted)', borderBottom: tab === k ? 'var(--border-w-2) solid var(--gpu-accent,var(--brand))' : 'var(--border-w-2) solid transparent' }}>{label}</button>
         ))}
       </div>
       {tab === 'prompts' && <PromptsTab />}
@@ -121,13 +121,13 @@ function PromptsTab() {
             {/* AI에게 편집 지시 — 스키마 인지 상태로 현재 본문을 개선해 아래 편집창에 채움(저장은 사람이) */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
               <input value={instr} onChange={(e) => setInstr(e.target.value)} placeholder="AI에게 지시 (예: 약정·수량 추출을 강화하고 재고 resp_qty를 더 정확히)" disabled={aiBusy}
-                style={{ flex: 1, fontSize: 12, padding: '8px 10px', border: '2px solid var(--border-color)', borderRadius: 8 }} onKeyDown={(e) => { if (e.key === 'Enter') aiEdit() }} />
+                style={{ flex: 1, fontSize: 12, padding: '8px 10px', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 8 }} onKeyDown={(e) => { if (e.key === 'Enter') aiEdit() }} />
               <button onClick={aiEdit} disabled={aiBusy} className="gpu-btn" style={{ fontSize: 12, padding: '6px 14px', color: 'var(--info)', borderColor: 'var(--info-border)', fontWeight: 600, whiteSpace: 'nowrap' }}>{aiBusy ? '편집 중…' : '🤖 AI로 편집'}</button>
             </div>
             <div title={schemaTables.join(', ')} style={{ fontSize: 11, color: 'var(--info)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
               🗂 AI는 현재 DB 스키마 <strong>{schemaTables.length}개 테이블</strong>을 참고해 수정합니다 (마우스 올리면 목록)
             </div>
-            <textarea value={draft} onChange={(e) => setDraft(e.target.value)} style={{ width: '100%', minHeight: 340, fontFamily: 'monospace', fontSize: 12, padding: 10, border: '2px solid var(--border-color)', borderRadius: 8 }} />
+            <textarea value={draft} onChange={(e) => setDraft(e.target.value)} style={{ width: '100%', minHeight: 340, fontFamily: 'monospace', fontSize: 12, padding: 10, border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 8 }} />
             <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
               <button onClick={save} className="gpu-btn gpu-btn-primary">저장</button>
               <button onClick={() => setEdit(null)} className="gpu-btn">취소</button>
@@ -162,7 +162,7 @@ function HistoryTab() {
           const isOpen = open.has(r.id)
           const diff = r.prev_content != null && r.content != null ? lineDiff(r.prev_content, r.content) : null
           return (
-            <div key={r.id} style={{ borderRadius: 8, background: '#fff', border: '1px solid var(--surface-bg)' }}>
+            <div key={r.id} style={{ borderRadius: 8, background: '#fff', border: 'var(--hairline) solid var(--surface-bg)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', fontSize: 12.5, flexWrap: 'wrap' }}>
                 <span style={{ fontWeight: 700, color: ev.c, minWidth: 78 }}>{ev.t}</span>
                 <span style={{ fontWeight: 600 }}>{r.prompt_key}</span>
@@ -173,7 +173,7 @@ function HistoryTab() {
                 <button onClick={() => rollback(r.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: 'var(--brand)', borderColor: 'var(--brand-soft-2)' }}>이 버전 롤백</button>
               </div>
               {isOpen && (
-                <div style={{ borderTop: '1px solid var(--surface-muted)', padding: '10px 14px', background: 'var(--color-bg)' }}>
+                <div style={{ borderTop: 'var(--hairline) solid var(--surface-muted)', padding: '10px 14px', background: 'var(--color-bg)' }}>
                   {/* 왜 바꿨나 */}
                   <div style={{ fontSize: 12, marginBottom: 8 }}>
                     <strong style={{ color: 'var(--text-muted)' }}>왜:</strong> {r.reason || '—'}
@@ -183,7 +183,7 @@ function HistoryTab() {
                   {/* 무엇을 바꿨나 — before→after 라인 diff */}
                   <div style={{ fontSize: 12, marginBottom: 4 }}><strong style={{ color: 'var(--text-muted)' }}>무엇:</strong> {r.diff_summary ?? (r.prev_content == null ? '최초 생성(이전본 없음)' : '변경 없음')}</div>
                   {diff && (diff.removed.length > 0 || diff.added.length > 0) && (
-                    <pre style={{ margin: '4px 0 0', fontSize: 11, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto', background: '#fff', border: '2px solid var(--border-color)', borderRadius: 6, padding: 10 }}>
+                    <pre style={{ margin: '4px 0 0', fontSize: 11, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto', background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 6, padding: 10 }}>
                       {diff.removed.map((l, i) => <div key={`r${i}`} style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>- {l}</div>)}
                       {diff.added.map((l, i) => <div key={`a${i}`} style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>+ {l}</div>)}
                     </pre>
@@ -192,7 +192,7 @@ function HistoryTab() {
                   {r.content && (
                     <details style={{ marginTop: 8 }}>
                       <summary style={{ fontSize: 11.5, color: 'var(--info)', cursor: 'pointer' }}>이 버전 전체 본문 보기</summary>
-                      <pre style={{ margin: '6px 0 0', fontSize: 11, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto', background: '#fff', border: '2px solid var(--border-color)', borderRadius: 6, padding: 10 }}>{r.content}</pre>
+                      <pre style={{ margin: '6px 0 0', fontSize: 11, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto', background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 6, padding: 10 }}>{r.content}</pre>
                     </details>
                   )}
                 </div>

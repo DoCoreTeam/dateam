@@ -55,7 +55,7 @@ export default function FridaySpotlightOverlay({ showGlow }: FridaySpotlightOver
         textAlign: 'center',
         padding: '2.5rem 2rem',
         background: '#ffffff',
-        borderRadius: '1.5rem',
+        borderRadius: 'var(--radius-lg)',
         boxShadow: '0 32px 72px rgba(15, 23, 42, 0.45)',
         maxWidth: '380px',
         width: '100%',

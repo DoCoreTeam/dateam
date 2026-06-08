@@ -86,7 +86,7 @@ export default function OrgWeeklyView(props: Props) {
       draft: { t: '초안', c: 'var(--text-muted)', b: 'var(--surface-muted)', br: 'var(--color-border)' },
       none: { t: '미취합', c: 'var(--warning)', b: 'var(--warning-bg)', br: 'var(--warning-border)' },
     }[agg]
-    return <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: m.c, background: m.b, border: `1px solid ${m.br}`, padding: '0.1rem 0.4rem', borderRadius: '0.25rem' }}>{m.t}</span>
+    return <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: m.c, background: m.b, border: `var(--hairline) solid ${m.br}`, padding: '0.1rem 0.4rem', borderRadius: 'var(--radius)' }}>{m.t}</span>
   }
 
   return (
@@ -94,23 +94,23 @@ export default function OrgWeeklyView(props: Props) {
       {/* 주차 네비 — 이전/다음 화살표 (무한 과거 이동, 미래는 이번 주까지) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
         <Link href={`/weekly-report?tab=org&orgWeek=${prevWeek}`} prefetch={false} aria-label="이전 주"
-          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 'var(--radius)', border: '2px solid var(--border-color)', background: '#fff', color: 'var(--text-muted)', textDecoration: 'none' }}>
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)', background: '#fff', color: 'var(--text-muted)', textDecoration: 'none' }}>
           <ChevronLeft size={16} />
         </Link>
         <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text)', minWidth: 96, textAlign: 'center' }}>{weekStart} 주</span>
         {atCurrent ? (
-          <span aria-label="다음 주" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 'var(--radius)', border: '1px solid var(--surface-muted)', background: 'var(--color-bg)', color: 'var(--border-subtle)' }}>
+          <span aria-label="다음 주" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 'var(--radius)', border: 'var(--hairline) solid var(--surface-muted)', background: 'var(--color-bg)', color: 'var(--border-subtle)' }}>
             <ChevronRight size={16} />
           </span>
         ) : (
           <Link href={`/weekly-report?tab=org&orgWeek=${nextWeek}`} prefetch={false} aria-label="다음 주"
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 'var(--radius)', border: '2px solid var(--border-color)', background: '#fff', color: 'var(--text-muted)', textDecoration: 'none' }}>
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)', background: '#fff', color: 'var(--text-muted)', textDecoration: 'none' }}>
             <ChevronRight size={16} />
           </Link>
         )}
         {!atCurrent && (
           <Link href="/weekly-report?tab=org" prefetch={false}
-            style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem', borderRadius: '0.375rem', textDecoration: 'none', color: 'var(--brand)', background: 'var(--brand-soft)', border: '1px solid var(--brand-soft-2)' }}>
+            style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem', borderRadius: 'var(--radius)', textDecoration: 'none', color: 'var(--brand)', background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)' }}>
             이번 주
           </Link>
         )}
@@ -145,7 +145,7 @@ export default function OrgWeeklyView(props: Props) {
             const st = deptStats[d.id] ?? { memberCount: 0, reportedCount: 0, agg: 'none' as const }
             const canEdit = editableDeptIds.includes(d.id)
             return (
-              <button key={d.id} onClick={() => drillInto(d.id)} style={{ textAlign: 'left', background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '1rem', cursor: 'pointer', minHeight: 44 }}>
+              <button key={d.id} onClick={() => drillInto(d.id)} style={{ textAlign: 'left', background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '1rem', cursor: 'pointer', minHeight: 44 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                   <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text)' }}>{d.name}</span>
                   {canEdit ? <Pencil size={13} color="var(--brand)" /> : <Lock size={12} color="var(--text-faint)" />}
@@ -246,9 +246,9 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
   const activeValue = editingCell ? rows[editingCell.idx]?.authors?.[editingCell.authorIdx]?.[editingCell.field] ?? '' : ''
 
   return (
-    <div className="card" style={{ padding: 0, overflow: 'hidden', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)' }}>
+    <div className="card" style={{ padding: 0, overflow: 'hidden', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)' }}>
       {/* 헤더 — 기존 취합과 동일 톤 */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '1rem 1.25rem', background: 'linear-gradient(to right, var(--surface-bg), var(--brand-soft))', borderBottom: '1px solid var(--brand-soft-2)', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '1rem 1.25rem', background: 'linear-gradient(to right, var(--surface-bg), var(--brand-soft))', borderBottom: 'var(--hairline) solid var(--brand-soft-2)', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
           <Sparkles size={16} color="var(--brand)" />
           <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text)' }}>{deptName} 취합 주간보고</span>
@@ -256,13 +256,13 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
           {!editable && <span style={{ fontSize: '0.6875rem', color: 'var(--text-faint)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}><Lock size={11} /> 조회 전용</span>}
         </div>
         {editable && (
-          <button onClick={onAggregate} disabled={busy} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.7 : 1, flexShrink: 0 }}>
+          <button onClick={onAggregate} disabled={busy} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.8125rem', fontWeight: 600, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.7 : 1, flexShrink: 0 }}>
             <Sparkles size={14} /> {busy ? 'AI 취합 중…' : agg === 'none' ? 'AI 취합' : '재취합'}
           </button>
         )}
       </div>
 
-      {msg && <div role="status" style={{ padding: '0.625rem 1.25rem', background: 'var(--brand-soft)', borderBottom: '1px solid var(--brand-soft-2)', fontSize: '0.8125rem', color: 'var(--brand-dark)' }}>{msg}</div>}
+      {msg && <div role="status" style={{ padding: '0.625rem 1.25rem', background: 'var(--brand-soft)', borderBottom: 'var(--hairline) solid var(--brand-soft-2)', fontSize: '0.8125rem', color: 'var(--brand-dark)' }}>{msg}</div>}
 
       {busy ? (
         <div style={{ padding: '1.25rem' }}>
@@ -275,7 +275,7 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
               <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-faint)', marginBottom: '0.35rem' }}>취합 대상 부서원 보고 {members.length}건</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                 {members.map((m, i) => (
-                  <span key={i} style={{ fontSize: '0.72rem', color: 'var(--text-muted)', background: 'var(--surface-muted)', border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.15rem 0.45rem' }}>
+                  <span key={i} style={{ fontSize: '0.72rem', color: 'var(--text-muted)', background: 'var(--surface-muted)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.15rem 0.45rem' }}>
                     {m.name}{m.rank ? ` ${m.rank}` : ''} · {m.category}
                   </span>
                 ))}
@@ -301,15 +301,15 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
       ) : (
         <div>
           {rows.map((row, idx) => (
-            <div key={`${row.category}-${idx}`} style={{ borderBottom: '1px solid var(--surface-muted)' }}>
+            <div key={`${row.category}-${idx}`} style={{ borderBottom: 'var(--hairline) solid var(--surface-muted)' }}>
               {/* 카테고리 섹션 헤더 */}
               <div style={{ padding: '0.625rem 1.25rem', background: 'var(--color-bg)', fontWeight: 700, fontSize: '0.8125rem', color: 'var(--brand-dark)' }}>{row.category}</div>
               {/* 작성자 소블록 (직급→이름 순 보존) */}
               {(row.authors ?? []).map((au, ai) => (
-                <div key={ai} style={{ padding: '0.75rem 1.25rem', borderTop: ai > 0 ? '1px dashed var(--color-border)' : 'none' }}>
+                <div key={ai} style={{ padding: '0.75rem 1.25rem', borderTop: ai > 0 ? 'var(--hairline) dashed var(--color-border)' : 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem' }}>
                     <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text)' }}>{au.name}</span>
-                    {au.rank && <span style={{ fontSize: '0.66rem', color: 'var(--brand)', background: 'var(--brand-soft)', border: '1px solid var(--brand-soft-2)', borderRadius: '0.25rem', padding: '0.05rem 0.35rem' }}>{au.rank}</span>}
+                    {au.rank && <span style={{ fontSize: '0.66rem', color: 'var(--brand)', background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)', padding: '0.05rem 0.35rem' }}>{au.rank}</span>}
                   </div>
                   <div className="responsive-grid-cols-3" style={{ display: 'grid', gap: '0.75rem' }}>
                     {FIELDS.map((f) => (
@@ -317,7 +317,7 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
                         <div style={{ fontSize: '0.66rem', fontWeight: 600, color: 'var(--text-faint)', marginBottom: '0.2rem' }}>{f.label}</div>
                         <RichCell html={au[f.key]} />
                         {editable && (
-                          <button onClick={() => setEditingCell({ idx, authorIdx: ai, field: f.key })} style={{ marginTop: '0.3rem', padding: '0.1rem 0.35rem', fontSize: '0.68rem', color: 'var(--text-faint)', background: 'none', border: '2px solid var(--border-color)', borderRadius: '0.25rem', cursor: 'pointer' }}>수정</button>
+                          <button onClick={() => setEditingCell({ idx, authorIdx: ai, field: f.key })} style={{ marginTop: '0.3rem', padding: '0.1rem 0.35rem', fontSize: '0.68rem', color: 'var(--text-faint)', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer' }}>수정</button>
                         )}
                       </div>
                     ))}
@@ -330,13 +330,13 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
       )}
 
       {editable && rows.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.875rem 1.25rem', borderTop: '1px solid var(--surface-muted)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.875rem 1.25rem', borderTop: 'var(--hairline) solid var(--surface-muted)' }}>
           {localStatus === 'confirmed' && !dirty ? (
-            <button disabled style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--success)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius)', padding: '0.5rem 1rem', cursor: 'default' }}>✓ 확정됨</button>
+            <button disabled style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--success)', background: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', borderRadius: 'var(--radius)', padding: '0.5rem 1rem', cursor: 'default' }}>✓ 확정됨</button>
           ) : (
             <button onClick={() => save(true)} disabled={busy} style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff', background: 'var(--success)', border: 'none', borderRadius: 'var(--radius)', padding: '0.5rem 1rem', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>{dirty && localStatus === 'confirmed' ? '재확정' : '확정'}</button>
           )}
-          <button onClick={() => save(false)} disabled={busy} style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-muted)', background: 'var(--surface-muted)', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem 1rem', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>임시저장</button>
+          <button onClick={() => save(false)} disabled={busy} style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-muted)', background: 'var(--surface-muted)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem 1rem', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>임시저장</button>
           {dirty && <span style={{ alignSelf: 'center', fontSize: '0.75rem', color: 'var(--warning)' }}>저장되지 않은 변경</span>}
         </div>
       )}

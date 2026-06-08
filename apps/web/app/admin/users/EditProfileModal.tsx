@@ -62,7 +62,7 @@ export default function EditProfileModal({
       }}>
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '1rem 1.25rem', borderBottom: '2px solid var(--border-color)',
+          padding: '1rem 1.25rem', borderBottom: 'var(--border-w-2) solid var(--border-color)',
         }}>
           <h3 className="tape-title" style={{ margin: 0 }}>
             사용자 정보 수정
@@ -80,7 +80,7 @@ export default function EditProfileModal({
               onChange={e => setName(e.target.value)}
               disabled={isPending}
               style={{
-                padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)',
+                padding: '0.5rem 0.75rem', border: 'var(--hairline) solid var(--border-color)',
                 borderRadius: 'var(--radius)', fontSize: '0.875rem', outline: 'none',
               }}
             />
@@ -93,7 +93,7 @@ export default function EditProfileModal({
               onChange={e => setRank(e.target.value)}
               disabled={isPending}
               style={{
-                padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)',
+                padding: '0.5rem 0.75rem', border: 'var(--hairline) solid var(--border-color)',
                 borderRadius: 'var(--radius)', fontSize: '0.875rem', background: '#fff', outline: 'none',
               }}
             >
@@ -111,7 +111,7 @@ export default function EditProfileModal({
               onChange={e => setPosition(e.target.value)}
               disabled={isPending}
               style={{
-                padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)',
+                padding: '0.5rem 0.75rem', border: 'var(--hairline) solid var(--border-color)',
                 borderRadius: 'var(--radius)', fontSize: '0.875rem', background: '#fff', outline: 'none',
               }}
             >
@@ -127,7 +127,7 @@ export default function EditProfileModal({
 
         <div style={{
           display: 'flex', justifyContent: 'flex-end', gap: '0.5rem',
-          padding: '0.75rem 1.25rem', borderTop: '2px solid var(--border-color)',
+          padding: '0.75rem 1.25rem', borderTop: 'var(--border-w-2) solid var(--border-color)',
         }}>
           <button
             onClick={onClose}

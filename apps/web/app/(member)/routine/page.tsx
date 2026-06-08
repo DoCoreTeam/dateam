@@ -116,7 +116,7 @@ export default async function RoutinePage() {
           borderRadius: 'var(--radius)',
           marginBottom: '1.5rem',
           backgroundColor: 'var(--warning-bg)',
-          border: '1px solid var(--warning-border)',
+          border: 'var(--hairline) solid var(--warning-border)',
           color: 'var(--warning)',
           fontSize: '0.875rem',
         }}>

@@ -179,7 +179,7 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
             height: '2rem',
             borderRadius: '50%',
             background: 'var(--brand)',
-            border: '2px solid var(--border-color)',
+            border: 'var(--border-w-2) solid var(--border-color)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

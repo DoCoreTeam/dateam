@@ -30,7 +30,7 @@ export default function RoleToggle({ userId, currentRole, isSelf }: RoleTogglePr
         fontWeight: 500,
         cursor: isSelf ? 'not-allowed' : 'pointer',
         opacity: isSelf || isPending ? 0.5 : 1,
-        border: '1px solid',
+        border: 'var(--hairline) solid',
         transition: 'all 120ms',
         backgroundColor: currentRole === 'admin' ? 'var(--danger-bg)' : 'var(--brand-soft)',
         borderColor: currentRole === 'admin' ? 'var(--danger-border)' : 'var(--brand-soft-2)',

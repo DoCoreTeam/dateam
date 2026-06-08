@@ -110,7 +110,7 @@ export default function HomeQuickEntry({ todayStr, initialLogs }: Props) {
           rows={2}
           style={{
             width: '100%', padding: '0.625rem 0.75rem',
-            border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
+            border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
             fontSize: '0.875rem', color: 'var(--text)', resize: 'none',
             fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
             background: 'var(--color-bg)', lineHeight: 1.5,
@@ -121,7 +121,7 @@ export default function HomeQuickEntry({ todayStr, initialLogs }: Props) {
             value={entryType}
             onChange={(e) => setEntryType(e.target.value as DailyLogEntryType)}
             style={{
-              flex: 1, padding: '0.5rem 0.5rem', border: '2px solid var(--border-color)',
+              flex: 1, padding: '0.5rem 0.5rem', border: 'var(--border-w-2) solid var(--border-color)',
               borderRadius: 'var(--radius)', fontSize: '0.8125rem', background: 'var(--color-bg)',
               color: 'var(--text)', cursor: 'pointer', fontFamily: 'inherit', minHeight: 36,
             }}

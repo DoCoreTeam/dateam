@@ -35,7 +35,7 @@ export default function InviteForm() {
           marginBottom: '1rem',
           fontSize: '0.8125rem',
           backgroundColor: result.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
-          border: `1px solid ${result.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
+          border: `var(--hairline) solid ${result.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
           color: result.ok ? 'var(--success)' : 'var(--danger)',
         }}>
           {result.msg}

@@ -51,11 +51,11 @@ export default function EditorModal({ title, value, placeholder, onClose, onChan
         }}
       >
         {/* 헤더 */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '2px solid var(--border-color)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
           <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text)' }}>{title}</span>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: '0.25rem', display: 'flex', borderRadius: '0.375rem' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: '0.25rem', display: 'flex', borderRadius: 'var(--radius)' }}
           >
             <X size={18} />
           </button>
@@ -72,7 +72,7 @@ export default function EditorModal({ title, value, placeholder, onClose, onChan
         </div>
 
         {/* 푸터 */}
-        <div style={{ padding: '0.875rem 1.25rem', borderTop: '2px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ padding: '0.875rem 1.25rem', borderTop: 'var(--border-w-2) solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
           <button
             onClick={onClose}
             className="btn-primary"

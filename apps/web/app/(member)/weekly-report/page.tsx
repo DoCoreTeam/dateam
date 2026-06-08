@@ -186,7 +186,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     fontSize: '0.875rem',
     fontWeight: isActive ? 600 : 500,
     color: isActive ? 'var(--brand)' : 'var(--text-muted)',
-    borderBottom: isActive ? '2px solid var(--brand)' : '2px solid transparent',
+    borderBottom: isActive ? 'var(--border-w-2) solid var(--brand)' : 'var(--border-w-2) solid transparent',
     cursor: 'pointer',
     textDecoration: 'none',
   })
@@ -203,7 +203,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
       </div>
 
       {/* 탭 */}
-      <div style={{ display: 'flex', borderBottom: '2px solid var(--border-color)', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', borderBottom: 'var(--border-w-2) solid var(--border-color)', marginBottom: '1.5rem' }}>
         <Link href="/weekly-report?tab=mine" style={tabStyle(activeTab === 'mine')}>
           <FileText size={14} />
           내 보고
@@ -223,12 +223,12 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
       {activeTab === 'mine' ? (
         <>
           {justSaved && (
-            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--success)' }}>
+            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--success)' }}>
               주간보고가 저장되었습니다
             </div>
           )}
           {justReset && (
-            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
+            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
               보고서가 초기화되었습니다
             </div>
           )}

@@ -63,7 +63,7 @@ export default function MemoListView() {
             <button key={s} onClick={() => setStatusFilter(s)}
               style={{
                 padding: '0.35rem 0.85rem', borderRadius: '999px', fontSize: '0.8rem', cursor: 'pointer',
-                border: statusFilter === s ? '1px solid var(--brand-dark)' : '2px solid var(--border-color)',
+                border: statusFilter === s ? 'var(--hairline) solid var(--brand-dark)' : 'var(--border-w-2) solid var(--border-color)',
                 background: statusFilter === s ? 'var(--brand-soft)' : '#fff',
                 color: statusFilter === s ? 'var(--brand-dark)' : 'var(--text-muted)', fontWeight: statusFilter === s ? 600 : 400,
               }}>
@@ -101,7 +101,7 @@ export default function MemoListView() {
               const st = STALENESS_STYLE[m.staleness]
               return (
                 <li key={m.id}
-                  style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', padding: '0.75rem 0.9rem', borderRadius: '0.6rem', background: '#fff', border: '2px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', padding: '0.75rem 0.9rem', borderRadius: 'var(--radius-lg)', background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
                   <span title={st.label} style={{ width: 9, height: 9, borderRadius: '50%', background: st.dot, flexShrink: 0, marginTop: 4 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.88rem', color: 'var(--text)', lineHeight: 1.5 }}>{m.content}</div>
@@ -141,11 +141,11 @@ export default function MemoListView() {
 function chipStyle(active: boolean): React.CSSProperties {
   return {
     padding: '0.3rem 0.75rem', borderRadius: '999px', fontSize: '0.78rem', cursor: 'pointer',
-    border: active ? '1px solid var(--brand)' : '2px solid var(--border-color)',
+    border: active ? 'var(--hairline) solid var(--brand)' : 'var(--border-w-2) solid var(--border-color)',
     background: active ? 'var(--brand-soft)' : '#fff',
     color: active ? 'var(--brand)' : 'var(--text-muted)', fontWeight: active ? 600 : 400,
   }
 }
 function iconBtn(color: string): React.CSSProperties {
-  return { background: 'none', border: '2px solid var(--border-color)', borderRadius: '0.4rem', cursor: 'pointer', padding: '4px 6px', color, display: 'flex' }
+  return { background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius-lg)', cursor: 'pointer', padding: '4px 6px', color, display: 'flex' }
 }

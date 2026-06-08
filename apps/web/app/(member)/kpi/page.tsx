@@ -156,7 +156,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
               <p style={{ ...SECTION_TITLE, color: 'var(--brand)' }}>분기 OKR</p>
               <div className="responsive-grid-cols-2">
                 {okrList.map((okr, i) => (
-                  <div key={i} style={{ borderLeft: '3px solid var(--brand)', paddingLeft: '0.875rem', paddingTop: '0.25rem', paddingBottom: '0.25rem' }}>
+                  <div key={i} style={{ borderLeft: 'var(--border-w) solid var(--brand)', paddingLeft: '0.875rem', paddingTop: '0.25rem', paddingBottom: '0.25rem' }}>
                     <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text)', margin: '0 0 0.25rem', lineHeight: 1.4 }}>
                       {okr.objective}
                     </p>
@@ -197,7 +197,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
             style={{
               padding: '0.75rem 1rem',
               backgroundColor: 'var(--danger-bg)',
-              border: '1px solid var(--danger-border)',
+              border: 'var(--hairline) solid var(--danger-border)',
               borderRadius: 'var(--radius)',
               marginBottom: '1rem',
               fontSize: '0.8125rem',
@@ -287,7 +287,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
 
       {/* ── KPI 히스토리 ───────────────────────────────────── */}
       <div className="card" style={{ overflow: 'hidden' }}>
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <TrendingUp size={16} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>
             실적 히스토리

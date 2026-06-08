@@ -173,7 +173,7 @@ export default function GpuPricingClient({ initialSettings }: { initialSettings?
       </div>
 
       {/* 메인 탭 + 더보기 인라인 */}
-      <div className="gpu-tabs" style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--gpu-border)', paddingBottom: 0 }}>
+      <div className="gpu-tabs" style={{ display: 'flex', alignItems: 'center', borderBottom: 'var(--hairline) solid var(--gpu-border)', paddingBottom: 0 }}>
         {MAIN_TABS.map((tab) => (
           <button
             key={tab.id}
@@ -220,7 +220,7 @@ export default function GpuPricingClient({ initialSettings }: { initialSettings?
               gap: 3,
               padding: '3px 8px',
               borderRadius: 5,
-              border: '1px solid',
+              border: 'var(--hairline) solid',
               borderColor: activeTab === item.id ? 'var(--gpu-accent)' : 'var(--gpu-border)',
               background: activeTab === item.id ? 'rgba(var(--gpu-accent-rgb, 59,130,246),0.08)' : 'transparent',
               color: activeTab === item.id ? 'var(--gpu-accent)' : 'var(--gpu-muted)',
@@ -283,7 +283,7 @@ export default function GpuPricingClient({ initialSettings }: { initialSettings?
               <div className="gpu-ai-sidebar-inner">
                 <div style={{
                   padding: '8px 12px',
-                  borderBottom: '1px solid var(--gpu-border)',
+                  borderBottom: 'var(--hairline) solid var(--gpu-border)',
                   fontSize: 12,
                   fontWeight: 600,
                   color: 'var(--gpu-muted)',

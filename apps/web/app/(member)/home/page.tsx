@@ -80,13 +80,13 @@ export default async function HomePage() {
                   alignItems: 'center',
                   gap: '0.3rem',
                   padding: '0.2rem 0.6rem',
-                  borderRadius: '0.375rem',
+                  borderRadius: 'var(--radius)',
                   background: item.bg,
                   color: item.color,
                   fontSize: '0.75rem',
                   fontWeight: 600,
                   textDecoration: 'none',
-                  border: `1px solid ${item.color}33`,
+                  border: `var(--hairline) solid ${item.color}33`,
                   lineHeight: 1.4,
                 }}
               >
@@ -126,7 +126,7 @@ export default async function HomePage() {
                 <li key={i} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   padding: '0.4rem 0.625rem', background: 'var(--color-bg)',
-                  borderRadius: 'var(--radius)', border: '1px solid var(--surface-muted)',
+                  borderRadius: 'var(--radius)', border: 'var(--hairline) solid var(--surface-muted)',
                 }}>
                   <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
                     {new Date(r.week_start).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })} 주

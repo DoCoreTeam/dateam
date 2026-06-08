@@ -140,7 +140,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
   const currentStep = GENERATE_STEPS[Math.min(generateStep, GENERATE_STEPS.length - 1)]
 
   return (
-    <div style={{ marginBottom: '1.25rem', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+    <div style={{ marginBottom: '1.25rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
       {/* 헤더 */}
       <button
         id="onboarding-daily-selector"
@@ -166,7 +166,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
 
       {/* 패널 */}
       {isOpen && (
-        <div style={{ padding: '1rem', borderTop: '2px solid var(--border-color)' }}>
+        <div style={{ padding: '1rem', borderTop: 'var(--border-w-2) solid var(--border-color)' }}>
           {loading && (
             <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1rem 0' }}>
               이번 주 업무를 불러오는 중…
@@ -174,7 +174,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
           )}
 
           {error && (
-            <div role="alert" style={{ padding: '0.625rem 0.875rem', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
+            <div role="alert" style={{ padding: '0.625rem 0.875rem', background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
               {error}
             </div>
           )}
@@ -221,7 +221,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
                               display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
                               padding: '0.5rem 0.625rem', borderRadius: 'var(--radius)', cursor: 'pointer',
                               background: selectedIds.has(task.id) ? 'var(--brand-soft)' : 'var(--surface-bg)',
-                              border: `1px solid ${selectedIds.has(task.id) ? 'var(--brand-soft-2)' : 'var(--surface-muted)'}`,
+                              border: `var(--hairline) solid ${selectedIds.has(task.id) ? 'var(--brand-soft-2)' : 'var(--surface-muted)'}`,
                               transition: 'background 120ms',
                             }}
                           >
@@ -236,8 +236,8 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
                                 <span style={{
                                   fontSize: '0.6875rem', fontWeight: 600,
                                   color: ENTRY_TYPE_COLOR[task.entry_type] ?? 'var(--text-muted)',
-                                  background: 'var(--color-bg)', border: '2px solid var(--border-color)',
-                                  borderRadius: '0.25rem', padding: '0 0.3rem',
+                                  background: 'var(--color-bg)', border: 'var(--border-w-2) solid var(--border-color)',
+                                  borderRadius: 'var(--radius)', padding: '0 0.3rem',
                                 }}>
                                   {ENTRY_TYPE_LABEL[task.entry_type] ?? task.entry_type}
                                 </span>

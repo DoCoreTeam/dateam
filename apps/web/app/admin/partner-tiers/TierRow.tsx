@@ -57,7 +57,7 @@ export default function TierRow({ id, name, discountRate, description, createdAt
             onClick={() => setEditing(true)}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.25rem',
-              padding: '0.375rem 0.625rem', borderRadius: '0.375rem',
+              padding: '0.375rem 0.625rem', borderRadius: 'var(--radius)',
               background: 'var(--surface-muted)', color: 'var(--text-muted)',
               border: 'none', fontSize: '0.8125rem', cursor: 'pointer',
             }}

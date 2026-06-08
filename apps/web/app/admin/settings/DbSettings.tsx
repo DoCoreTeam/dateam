@@ -70,7 +70,7 @@ export default function DbSettings({ hasUrl: initialHas, maskedUrl: initialMaske
       </div>
 
       {hasUrl && maskedUrl && (
-        <div style={{ padding: '0.875rem 1rem', backgroundColor: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
+        <div style={{ padding: '0.875rem 1rem', backgroundColor: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <CheckCircle size={14} color="var(--success)" />
@@ -100,12 +100,12 @@ export default function DbSettings({ hasUrl: initialHas, maskedUrl: initialMaske
       )}
 
       {saveMsg && (
-        <div role="status" style={{ padding: '0.625rem 0.875rem', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.375rem', backgroundColor: saveMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)', color: saveMsg.ok ? 'var(--success)' : 'var(--danger)', border: `1px solid ${saveMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
+        <div role="status" style={{ padding: '0.625rem 0.875rem', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.375rem', backgroundColor: saveMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)', color: saveMsg.ok ? 'var(--success)' : 'var(--danger)', border: `var(--hairline) solid ${saveMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
           {saveMsg.ok ? <CheckCircle size={13} /> : <XCircle size={13} />}{saveMsg.text}
         </div>
       )}
 
-      <div style={{ borderTop: '2px solid var(--border-color)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+      <div style={{ borderTop: 'var(--border-w-2) solid var(--border-color)', paddingTop: '1rem', marginTop: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
           <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text)' }}>연결 테스트</span>
           <button type="button" onClick={handleHealth} disabled={!hasUrl || healthPending} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 0.875rem', backgroundColor: hasUrl ? 'var(--brand)' : 'var(--color-border)', color: hasUrl ? '#fff' : 'var(--text-faint)', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.8125rem', fontWeight: 600, cursor: hasUrl ? 'pointer' : 'not-allowed' }}>
@@ -113,7 +113,7 @@ export default function DbSettings({ hasUrl: initialHas, maskedUrl: initialMaske
           </button>
         </div>
         {healthMsg && (
-          <div role="status" style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius)', fontSize: '0.8125rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: healthMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)', color: healthMsg.ok ? 'var(--success)' : 'var(--danger)', border: `1px solid ${healthMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
+          <div role="status" style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius)', fontSize: '0.8125rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: healthMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)', color: healthMsg.ok ? 'var(--success)' : 'var(--danger)', border: `var(--hairline) solid ${healthMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
             {healthMsg.ok ? <CheckCircle size={14} /> : <XCircle size={14} />}{healthMsg.text}
           </div>
         )}

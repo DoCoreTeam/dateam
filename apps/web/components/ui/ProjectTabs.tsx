@@ -14,7 +14,7 @@ export default function ProjectTabs() {
   const pathname = usePathname()
 
   return (
-    <div style={{ display: 'flex', borderBottom: '2px solid var(--color-border)', marginBottom: '1.5rem', overflowX: 'auto' }}>
+    <div style={{ display: 'flex', borderBottom: 'var(--border-w-2) solid var(--color-border)', marginBottom: '1.5rem', overflowX: 'auto' }}>
       {TABS.map(t => {
         const active = pathname === t.href || pathname.startsWith(t.href + '/')
         return (
@@ -26,7 +26,7 @@ export default function ProjectTabs() {
               fontSize: '0.875rem',
               fontWeight: active ? 600 : 400,
               color: active ? 'var(--brand-dark)' : 'var(--text-muted)',
-              borderBottom: active ? '2px solid var(--brand-dark)' : '2px solid transparent',
+              borderBottom: active ? 'var(--border-w-2) solid var(--brand-dark)' : 'var(--border-w-2) solid transparent',
               marginBottom: '-2px',
               textDecoration: 'none',
               whiteSpace: 'nowrap',

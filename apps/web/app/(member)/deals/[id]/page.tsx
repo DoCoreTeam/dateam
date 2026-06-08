@@ -113,7 +113,7 @@ export default async function DealDetailPage({ params }: PageProps) {
 
           {/* 다음 액션 */}
           {(deal.next_action || deal.next_action_date) && (
-            <div className="card" style={{ padding: '1.25rem 1.5rem', borderLeft: '3px solid var(--brand)' }}>
+            <div className="card" style={{ padding: '1.25rem 1.5rem', borderLeft: 'var(--border-w) solid var(--brand)' }}>
               <h2 className="tape-title" style={{ margin: 0 }}>다음 액션</h2>
               {deal.next_action && <p style={{ fontSize: '0.875rem', color: 'var(--text)', margin: 0 }}>{deal.next_action}</p>}
               {deal.next_action_date && <p style={{ fontSize: '0.8125rem', color: 'var(--text-faint)', margin: '0.25rem 0 0' }}>📅 {deal.next_action_date}</p>}
@@ -126,7 +126,7 @@ export default async function DealDetailPage({ params }: PageProps) {
 
         {/* 우측: 활동 로그 */}
         <div className="card">
-          <div style={{ padding: '1rem 1.5rem', borderBottom: '2px solid var(--border-color)' }}>
+          <div style={{ padding: '1rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
             <h2 className="tape-title" style={{ margin: 0 }}>활동 로그</h2>
           </div>
           <ActivityLogger dealId={id} />
@@ -134,7 +134,7 @@ export default async function DealDetailPage({ params }: PageProps) {
             {activities.length === 0 ? (
               <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-faint)', fontSize: '0.875rem' }}>활동 기록이 없습니다</div>
             ) : activities.map((act) => (
-              <div key={act.id} style={{ padding: '0.875rem 1.5rem', borderBottom: '1px solid var(--surface-muted)', display: 'flex', gap: '0.75rem' }}>
+              <div key={act.id} style={{ padding: '0.875rem 1.5rem', borderBottom: 'var(--hairline) solid var(--surface-muted)', display: 'flex', gap: '0.75rem' }}>
                 <span style={{ fontSize: '1.125rem', flexShrink: 0 }}>{ACTIVITY_ICON[act.type] ?? '📝'}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '0.8125rem', color: 'var(--text)', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{act.content}</div>

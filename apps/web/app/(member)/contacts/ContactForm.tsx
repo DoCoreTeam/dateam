@@ -135,7 +135,7 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
     router.refresh()
   }
 
-  const inputStyle = { width: '100%', padding: '0.5rem 0.75rem', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', boxSizing: 'border-box' as const }
+  const inputStyle = { width: '100%', padding: '0.5rem 0.75rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', boxSizing: 'border-box' as const }
 
   const cardPreviewUrl = businessCardDriveId ? `/api/files/drive/${businessCardDriveId}` : null
 
@@ -168,7 +168,7 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
               width: '100%',
               maxWidth: '240px',
               aspectRatio: '1.7 / 1',
-              border: '2px dashed var(--color-border)',
+              border: 'var(--border-w-2) dashed var(--color-border)',
               borderRadius: 'var(--radius)',
               overflow: 'hidden',
               cursor: cardUploading ? 'not-allowed' : 'pointer',
@@ -223,7 +223,7 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
                     gap: '0.25rem',
                     padding: '0.25rem 0.5rem',
                     backgroundColor: 'rgba(0,0,0,0.55)',
-                    borderRadius: '0.375rem',
+                    borderRadius: 'var(--radius)',
                     color: '#fff',
                     fontSize: '0.6875rem',
                     fontWeight: 600,
@@ -299,7 +299,7 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
           <button type="submit" disabled={loading} className="btn-primary" style={{ minHeight: '44px', padding: '0.625rem 1.5rem' }}>
             {loading ? '저장중...' : contact ? '수정' : '담당자 등록'}{!loading && <span style={{ fontSize: '0.7rem', opacity: 0.65, marginLeft: '0.375rem' }}>Ctrl+↵</span>}
           </button>
-          <button type="button" onClick={() => router.back()} style={{ minHeight: '44px', padding: '0.625rem 1.25rem', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+          <button type="button" onClick={() => router.back()} style={{ minHeight: '44px', padding: '0.625rem 1.25rem', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
             취소
           </button>
         </div>

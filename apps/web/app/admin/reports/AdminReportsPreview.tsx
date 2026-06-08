@@ -286,9 +286,9 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
 
       {/* Preview panel */}
       {rows.length > 0 && (
-        <div className="card" style={{ marginTop: '1.5rem', overflow: 'hidden', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)' }}>
+        <div className="card" style={{ marginTop: '1.5rem', overflow: 'hidden', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)' }}>
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', background: 'linear-gradient(to right, var(--surface-bg), var(--brand-soft))', borderBottom: '1px solid var(--brand-soft-2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', background: 'linear-gradient(to right, var(--surface-bg), var(--brand-soft))', borderBottom: 'var(--hairline) solid var(--brand-soft-2)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
               <Sparkles size={16} color="var(--brand)" />
               <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text)' }}>AI 주간보고 취합</span>
@@ -305,7 +305,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
             <button
               onClick={handleDownload}
               disabled={downloading}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', background: 'var(--success)', color: '#fff', border: 'none', borderRadius: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, cursor: downloading ? 'not-allowed' : 'pointer', opacity: downloading ? 0.7 : 1, transition: 'opacity 150ms', flexShrink: 0 }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', background: 'var(--success)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.8125rem', fontWeight: 600, cursor: downloading ? 'not-allowed' : 'pointer', opacity: downloading ? 0.7 : 1, transition: 'opacity 150ms', flexShrink: 0 }}
             >
               {downloading ? '다운로드 중…' : 'DOCX 다운로드'}
             </button>
@@ -317,7 +317,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
               <thead>
                 <tr style={{ background: 'var(--color-bg)' }}>
                   {TH_COLS.map(({ label, width }) => (
-                    <th key={label} style={{ padding: '0.625rem 0.875rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.03em', borderBottom: '2px solid var(--border-color)', width, whiteSpace: 'nowrap' }}>
+                    <th key={label} style={{ padding: '0.625rem 0.875rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.03em', borderBottom: 'var(--border-w-2) solid var(--border-color)', width, whiteSpace: 'nowrap' }}>
                       {label}
                     </th>
                   ))}
@@ -335,7 +335,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
                     i = j
                   }
                   return rows.map((row, rowIdx) => (
-                    <tr key={rowIdx} style={{ borderBottom: '1px solid var(--surface-muted)', verticalAlign: 'top' }}>
+                    <tr key={rowIdx} style={{ borderBottom: 'var(--hairline) solid var(--surface-muted)', verticalAlign: 'top' }}>
                       <td className="mobile-only card-header">
                         <span style={{ fontWeight: 600, color: 'var(--brand)' }}>{row.orgName} {row.userName ? `(${row.userName})` : ''}</span>
                       </td>
@@ -343,7 +343,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
                         <td
                           rowSpan={spanMap.get(rowIdx)}
                           className="card-hide"
-                          style={{ padding: '0.75rem 0.875rem', whiteSpace: 'nowrap', verticalAlign: 'middle', borderRight: '1px solid var(--surface-muted)' }}
+                          style={{ padding: '0.75rem 0.875rem', whiteSpace: 'nowrap', verticalAlign: 'middle', borderRight: 'var(--hairline) solid var(--surface-muted)' }}
                         >
                           <div style={{ fontSize: '0.75rem', color: 'var(--brand)', fontWeight: 600 }}>{row.orgName}</div>
                           {row.userName && (
@@ -357,7 +357,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
                           <RichCell html={row[field]} />
                           <button
                             onClick={() => setEditingCell({ rowIdx, field })}
-                            style={{ marginTop: '0.375rem', padding: '0.125rem 0.375rem', fontSize: '0.7rem', color: 'var(--text-faint)', background: 'none', border: '2px solid var(--border-color)', borderRadius: '0.25rem', cursor: 'pointer', lineHeight: 1.4 }}
+                            style={{ marginTop: '0.375rem', padding: '0.125rem 0.375rem', fontSize: '0.7rem', color: 'var(--text-faint)', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', lineHeight: 1.4 }}
                           >
                             수정
                           </button>

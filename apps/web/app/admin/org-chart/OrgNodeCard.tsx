@@ -110,7 +110,7 @@ function DragDropWrapper({
         position: 'relative',
         borderRadius: 'var(--radius)',
         background: node.type === 'person' ? '#fff' : c.bg,
-        border: `2px solid ${isOver ? 'var(--brand)' : c.border}`,
+        border: `var(--border-w-2) solid ${isOver ? 'var(--brand)' : c.border}`,
         boxShadow: isOver
           ? '0 0 0 3px rgba(124,58,237,0.25), 0 4px 12px rgba(0,0,0,0.1)'
           : '0 2px 8px rgba(0,0,0,0.08)',
@@ -136,7 +136,7 @@ function DragDropWrapper({
       {/* Drop indicator */}
       {isOver && (
         <div style={{
-          position: 'absolute', inset: 0, borderRadius: '0.65rem',
+          position: 'absolute', inset: 0, borderRadius: 'var(--radius-lg)',
           background: 'rgba(124,58,237,0.08)', pointerEvents: 'none', zIndex: 1,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
@@ -157,7 +157,7 @@ function ActionBar({
   const idx = siblingIds.indexOf(node.id)
   const btnStyle = {
     background: 'none', border: 'none', cursor: 'pointer', padding: '3px',
-    borderRadius: '4px', color: node.type === 'person' ? 'var(--text-faint)' : 'rgba(255,255,255,0.7)',
+    borderRadius: 'var(--radius)', color: node.type === 'person' ? 'var(--text-faint)' : 'rgba(255,255,255,0.7)',
     display: 'flex', alignItems: 'center',
   }
   const stop = (e: React.PointerEvent) => e.stopPropagation()
@@ -222,7 +222,7 @@ function InlineMember({
       display: 'flex', alignItems: 'center', gap: '0.4rem',
       marginTop: '0.35rem',
       padding: '0.25rem 0.35rem',
-      borderRadius: '0.4rem',
+      borderRadius: 'var(--radius-lg)',
       background: dark ? 'rgba(255,255,255,0.08)' : 'var(--color-bg)',
     }}>
       <div style={{
@@ -246,13 +246,13 @@ function InlineMember({
         )}
       </div>
       <button
-        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', borderRadius: '3px', display: 'flex', alignItems: 'center', color: dark ? 'rgba(255,255,255,0.6)' : 'var(--text-faint)', flexShrink: 0 }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', color: dark ? 'rgba(255,255,255,0.6)' : 'var(--text-faint)', flexShrink: 0 }}
         onPointerDown={stop} onClick={() => onEdit(person)} title="수정"
       >
         <Pencil size={11} />
       </button>
       <button
-        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', borderRadius: '3px', display: 'flex', alignItems: 'center', color: dark ? 'rgba(255,150,150,0.8)' : 'var(--danger)', flexShrink: 0 }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', color: dark ? 'rgba(255,150,150,0.8)' : 'var(--danger)', flexShrink: 0 }}
         onPointerDown={stop} onClick={() => onDelete(person)} title="삭제"
       >
         <Trash2 size={11} />

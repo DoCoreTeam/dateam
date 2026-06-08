@@ -43,7 +43,7 @@ export default function TokenAlertSettings({ currentThreshold }: Props) {
               type="text"
               value={threshold}
               onChange={e => setThreshold(e.target.value)}
-              style={{ flex: 1, maxWidth: '220px', padding: '0.5rem 0.75rem', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius)', fontSize: '0.9rem', color: 'var(--text)' }}
+              style={{ flex: 1, maxWidth: '220px', padding: '0.5rem 0.75rem', border: 'var(--hairline) solid var(--border-subtle)', borderRadius: 'var(--radius)', fontSize: '0.9rem', color: 'var(--text)' }}
               placeholder="1,000,000"
             />
             <button

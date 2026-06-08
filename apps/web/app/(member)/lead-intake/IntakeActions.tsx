@@ -35,12 +35,12 @@ export default function IntakeActions({ intakeId, notes }: Props) {
     else { alert('삭제에 실패했습니다'); setLoading(false) }
   }
 
-  const btn = { fontSize: '0.75rem', fontWeight: 600, background: 'none', borderRadius: '0.375rem', cursor: 'pointer', padding: '0.25rem 0.5rem', minHeight: '32px' } as const
+  const btn = { fontSize: '0.75rem', fontWeight: 600, background: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', padding: '0.25rem 0.5rem', minHeight: '32px' } as const
 
   return (
     <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
-      <button onClick={handleEdit} disabled={loading} style={{ ...btn, color: 'var(--brand)', border: '1px solid var(--brand-soft-2)' }}>메모</button>
-      <button onClick={handleDelete} disabled={loading} style={{ ...btn, color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>삭제</button>
+      <button onClick={handleEdit} disabled={loading} style={{ ...btn, color: 'var(--brand)', border: 'var(--hairline) solid var(--brand-soft-2)' }}>메모</button>
+      <button onClick={handleDelete} disabled={loading} style={{ ...btn, color: 'var(--danger)', border: 'var(--hairline) solid var(--danger-border)' }}>삭제</button>
     </div>
   )
 }

@@ -34,7 +34,7 @@ function SortIcon({ field, sort, dir }: { field: SortField; sort: SortField; dir
 function StageBadge({ stage }: { stage: string }) {
   const st = STAGE_STYLE[stage] ?? STAGE_STYLE['신규']
   return (
-    <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '9999px', color: st.color, background: st.bg, border: `1px solid ${st.border}`, flexShrink: 0 }}>
+    <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '9999px', color: st.color, background: st.bg, border: `var(--hairline) solid ${st.border}`, flexShrink: 0 }}>
       {stage}
     </span>
   )
@@ -115,7 +115,7 @@ export default function DealsPage() {
           <Link href="/lead-intake?target=deal" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px' }}>
             <Sparkles size={16} /> AI로 추가
           </Link>
-          <Link href="/deals/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px', border: '2px solid var(--border-color)', color: 'var(--text-muted)', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
+          <Link href="/deals/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', minHeight: '44px', border: 'var(--border-w-2) solid var(--border-color)', color: 'var(--text-muted)', background: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>
             <Plus size={16} /> 수동 입력
           </Link>
         </div>
@@ -150,7 +150,7 @@ export default function DealsPage() {
           {/* 데스크탑: 칸반 (필터 없을 때) + 테이블 (항상 표시) */}
           {!hasFilters && (
             <div className="card desktop-only" style={{ marginBottom: '1.5rem' }}>
-              <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ padding: '1.25rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <TrendingUp size={16} color="var(--brand)" />
                 <h2 className="tape-title" style={{ margin: 0 }}>파이프라인</h2>
               </div>
@@ -161,16 +161,16 @@ export default function DealsPage() {
                     const stageDeals = byStage[stage]
                     return (
                       <div key={stage}>
-                        <div style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem 0.5rem 0 0', background: st.bg, border: `1px solid ${st.border}`, borderBottom: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem 0.5rem 0 0', background: st.bg, border: `var(--hairline) solid ${st.border}`, borderBottom: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: st.color }}>{stage}</span>
                           <span style={{ fontSize: '0.75rem', color: st.color, background: 'rgba(0,0,0,0.05)', borderRadius: '9999px', padding: '0.1rem 0.4rem' }}>{stageDeals.length}</span>
                         </div>
-                        <div style={{ border: `1px solid ${st.border}`, borderTop: 'none', borderRadius: '0 0 0.5rem 0.5rem', minHeight: '80px', display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.5rem' }}>
+                        <div style={{ border: `var(--hairline) solid ${st.border}`, borderTop: 'none', borderRadius: '0 0 0.5rem 0.5rem', minHeight: '80px', display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.5rem' }}>
                           {stageDeals.map((d) => (
                             <button
                               key={d.id}
                               onClick={() => setSelected(d)}
-                              style={{ display: 'block', background: 'white', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.625rem 0.75rem', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', textAlign: 'left', width: '100%' }}
+                              style={{ display: 'block', background: 'white', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.625rem 0.75rem', boxShadow: 'var(--shadow-sm)', cursor: 'pointer', textAlign: 'left', width: '100%' }}
                             >
                               <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text)', marginBottom: '0.25rem', lineHeight: 1.3 }}>{d.title}</div>
                               {d.accounts?.name && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{d.accounts.name}</div>}
@@ -189,7 +189,7 @@ export default function DealsPage() {
 
           {/* 테이블 목록 */}
           <div className="card">
-            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <TrendingUp size={16} color="var(--brand)" />
               <h2 className="tape-title" style={{ margin: 0 }}>전체 목록</h2>
               <span className="badge badge-slate">{list.length}{hasFilters ? '건 (필터됨)' : '건'}</span>
@@ -302,7 +302,7 @@ export default function DealsPage() {
               </div>
             )}
             {isCapped && (
-              <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: 'var(--warning)', background: 'var(--warning-bg)', borderTop: '1px solid var(--warning-border)' }}>
+              <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: 'var(--warning)', background: 'var(--warning-bg)', borderTop: 'var(--hairline) solid var(--warning-border)' }}>
                 결과가 500건을 초과합니다. 검색 조건을 좁혀주세요.
               </div>
             )}

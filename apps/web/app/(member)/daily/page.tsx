@@ -406,8 +406,8 @@ export default function DailyPage() {
                   style={{
                     fontSize: '0.75rem', fontWeight: 600,
                     color: 'var(--info)', background: 'var(--info-bg)',
-                    border: '1px solid var(--info-border)',
-                    borderRadius: '0.375rem',
+                    border: 'var(--hairline) solid var(--info-border)',
+                    borderRadius: 'var(--radius)',
                     padding: '0.125rem 0.5rem',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
@@ -420,7 +420,7 @@ export default function DailyPage() {
                 <span style={{
                   fontSize: '0.75rem', fontWeight: 700,
                   color: 'var(--info)', background: 'var(--info-bg)',
-                  padding: '0.125rem 0.375rem', borderRadius: '0.25rem',
+                  padding: '0.125rem 0.375rem', borderRadius: 'var(--radius)',
                 }}>
                   오늘
                 </span>
@@ -446,7 +446,7 @@ export default function DailyPage() {
                       className="daily-type-chip"
                       style={{
                         fontWeight: entryType === t.value ? 700 : 500,
-                        border: '2px solid var(--border-color)',
+                        border: 'var(--border-w-2) solid var(--border-color)',
                         background: entryType === t.value ? t.bg : 'var(--nb-white)',
                         color: entryType === t.value ? t.color : 'var(--ink)',
                         boxShadow: entryType === t.value ? 'var(--shadow-sm)' : 'none',
@@ -521,8 +521,8 @@ export default function DailyPage() {
                       fontSize: '0.75rem', fontWeight: 600,
                       color: graphOpen ? 'var(--brand)' : 'var(--text-muted)',
                       background: graphOpen ? 'var(--brand-soft)' : 'var(--color-bg)',
-                      border: `1px solid ${graphOpen ? 'var(--brand-soft-2)' : 'var(--color-border)'}`,
-                      borderRadius: '0.375rem', padding: '0.25rem 0.625rem',
+                      border: `var(--hairline) solid ${graphOpen ? 'var(--brand-soft-2)' : 'var(--color-border)'}`,
+                      borderRadius: 'var(--radius)', padding: '0.25rem 0.625rem',
                       cursor: 'pointer',
                     }}
                   >
@@ -541,7 +541,7 @@ export default function DailyPage() {
               ) : logs.length === 0 ? (
                 <div style={{
                   textAlign: 'center', color: 'var(--text-faint)', padding: '3rem 0',
-                  border: '1px dashed var(--color-border)', borderRadius: 'var(--radius)',
+                  border: 'var(--hairline) dashed var(--color-border)', borderRadius: 'var(--radius)',
                 }}>
                   {isToday ? '오늘 첫 업무 로그를 작성해 보세요.' : '이 날의 업무 로그가 없습니다.'}
                 </div>
@@ -660,8 +660,8 @@ export default function DailyPage() {
                 onClick={goCurrentWeek}
                 style={{
                   padding: '0.375rem 0.75rem', fontSize: '0.8125rem', fontWeight: 600,
-                  color: 'var(--info)', background: 'var(--info-bg)', border: '1px solid var(--info-border)',
-                  borderRadius: '0.375rem', cursor: 'pointer',
+                  color: 'var(--info)', background: 'var(--info-bg)', border: 'var(--hairline) solid var(--info-border)',
+                  borderRadius: 'var(--radius)', cursor: 'pointer',
                 }}
               >
                 이번 주
@@ -681,7 +681,7 @@ export default function DailyPage() {
 
                 return (
                   <div key={dateStr} style={{
-                    border: isTodayDate ? '1px solid var(--info)' : '2px solid var(--border-color)',
+                    border: isTodayDate ? 'var(--hairline) solid var(--info)' : 'var(--border-w-2) solid var(--border-color)',
                     borderRadius: 'var(--radius)',
                     background: isTodayDate ? 'var(--surface-bg)' : '#fff',
                     overflow: 'hidden',
@@ -690,7 +690,7 @@ export default function DailyPage() {
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '0.625rem 0.875rem',
                       background: isTodayDate ? 'var(--info-bg)' : 'var(--color-bg)',
-                      borderBottom: dayLogs.length > 0 ? '2px solid var(--border-color)' : 'none',
+                      borderBottom: dayLogs.length > 0 ? 'var(--border-w-2) solid var(--border-color)' : 'none',
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <span style={{
@@ -702,7 +702,7 @@ export default function DailyPage() {
                         {isTodayDate && (
                           <span style={{
                             fontSize: '0.6875rem', fontWeight: 700, color: 'var(--info)',
-                            background: 'var(--info-bg)', padding: '0.1rem 0.35rem', borderRadius: '0.25rem',
+                            background: 'var(--info-bg)', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)',
                           }}>
                             오늘
                           </span>
@@ -716,7 +716,7 @@ export default function DailyPage() {
                           onClick={() => { setViewMode('day'); setSelectedDate(dateStr) }}
                           style={{
                             fontSize: '0.75rem', color: 'var(--info)', background: 'none',
-                            border: '1px solid var(--info-border)', borderRadius: '0.25rem',
+                            border: 'var(--hairline) solid var(--info-border)', borderRadius: 'var(--radius)',
                             padding: '0.125rem 0.5rem', cursor: 'pointer',
                           }}
                         >
@@ -735,14 +735,14 @@ export default function DailyPage() {
                               onClick={() => { setViewMode('day'); setSelectedDate(dateStr) }}
                               style={{
                                 display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
-                                paddingLeft: '0.5rem', borderLeft: `2px solid ${t.color}`,
+                                paddingLeft: '0.5rem', borderLeft: `var(--border-w-2) solid ${t.color}`,
                                 cursor: 'pointer',
                               }}
                             >
                               <span style={{
                                 fontSize: '0.6875rem', fontWeight: 700, color: t.color,
-                                background: t.bg, border: `1px solid ${t.border}`,
-                                padding: '0.1rem 0.35rem', borderRadius: '0.25rem',
+                                background: t.bg, border: `var(--hairline) solid ${t.border}`,
+                                padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)',
                                 flexShrink: 0, marginTop: '0.1rem',
                               }}>
                                 {t.label}
@@ -830,8 +830,8 @@ function LogList({
             <div
               onClick={() => { if (!isEditing) setFlowLog(log) }}
               style={{
-                background: '#fff', border: '2px solid var(--border-color)',
-                borderLeft: `3px solid ${type.color}`,
+                background: '#fff', border: 'var(--border-w-2) solid var(--border-color)',
+                borderLeft: `var(--border-w) solid ${type.color}`,
                 borderRadius: threadOpen ? '0 0.5rem 0 0' : '0 0.5rem 0.5rem 0',
                 padding: '0.75rem 1rem',
                 cursor: isEditing ? 'default' : 'pointer',
@@ -846,9 +846,9 @@ function LogList({
                         type="button"
                         onClick={() => onEditTypeChange(t.value)}
                         style={{
-                          padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem',
+                          padding: '0.25rem 0.5rem', borderRadius: 'var(--radius)', fontSize: '0.75rem',
                           fontWeight: editType === t.value ? 700 : 400,
-                          border: `1px solid ${editType === t.value ? t.border : 'var(--color-border)'}`,
+                          border: `var(--hairline) solid ${editType === t.value ? t.border : 'var(--color-border)'}`,
                           background: editType === t.value ? t.bg : 'var(--color-bg)',
                           color: editType === t.value ? t.color : 'var(--text-faint)', cursor: 'pointer',
                         }}
@@ -870,7 +870,7 @@ function LogList({
                     rows={3}
                     autoFocus
                     style={{
-                      width: '100%', border: '2px solid var(--border-color)', borderRadius: '0.375rem',
+                      width: '100%', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
                       padding: '0.5rem', fontSize: '0.9375rem', resize: 'vertical',
                       outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
                     }}
@@ -882,7 +882,7 @@ function LogList({
                       value={editTargetDate}
                       onChange={(e) => onEditTargetDateChange(e.target.value)}
                       style={{
-                        border: '2px solid var(--border-color)', borderRadius: '0.25rem',
+                        border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
                         padding: '0.2rem 0.4rem', fontSize: '0.8125rem',
                         color: 'var(--text)', outline: 'none', cursor: 'pointer',
                       }}
@@ -913,8 +913,8 @@ function LogList({
                           style={{
                             display: 'inline-block', fontSize: '0.6875rem', fontWeight: 700,
                             color: type.color, background: type.bg,
-                            border: `1px solid ${type.border}`,
-                            padding: '0.1rem 0.4rem', borderRadius: '0.25rem',
+                            border: `var(--hairline) solid ${type.border}`,
+                            padding: '0.1rem 0.4rem', borderRadius: 'var(--radius)',
                             cursor: 'pointer', outline: 'none',
                           }}
                           title="클릭하여 상태 변경"
@@ -927,7 +927,7 @@ function LogList({
                             onClick={(e) => e.stopPropagation()}
                             style={{
                               position: 'absolute', top: '100%', left: 0, zIndex: 50,
-                              background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
+                              background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
                               boxShadow: 'var(--shadow-sm)', padding: '0.375rem',
                               display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '80px',
                               marginTop: '0.25rem',
@@ -941,8 +941,8 @@ function LogList({
                                 style={{
                                   fontSize: '0.6875rem', fontWeight: t.value === log.entry_type ? 700 : 400,
                                   color: t.color, background: t.value === log.entry_type ? t.bg : 'transparent',
-                                  border: `1px solid ${t.value === log.entry_type ? t.border : 'transparent'}`,
-                                  padding: '0.2rem 0.5rem', borderRadius: '0.25rem',
+                                  border: `var(--hairline) solid ${t.value === log.entry_type ? t.border : 'transparent'}`,
+                                  padding: '0.2rem 0.5rem', borderRadius: 'var(--radius)',
                                   cursor: 'pointer', textAlign: 'left', outline: 'none',
                                 }}
                               >
@@ -1146,7 +1146,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
 
   return (
     <div style={{
-      border: '2px solid var(--border-color)', borderTop: 'none',
+      border: 'var(--border-w-2) solid var(--border-color)', borderTop: 'none',
       borderRadius: '0 0 0.5rem 0.5rem',
       background: 'var(--color-bg)', padding: '0.75rem 1rem',
     }}>
@@ -1166,7 +1166,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
               <div style={{
                 maxWidth: '80%',
                 background: t.author_type === 'user' ? 'var(--info-bg)' : 'var(--success-bg)',
-                border: `1px solid ${t.author_type === 'user' ? 'var(--info-border)' : 'var(--success-border)'}`,
+                border: `var(--hairline) solid ${t.author_type === 'user' ? 'var(--info-border)' : 'var(--success-border)'}`,
                 borderRadius: t.author_type === 'user' ? '0.75rem 0.75rem 0 0.75rem' : '0.75rem 0.75rem 0.75rem 0',
                 padding: '0.5rem 0.75rem',
               }}>
@@ -1188,7 +1188,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
       {/* AI 분석 결과 미니 패널 */}
       {showAiResult && aiItems.length > 0 && (
         <div style={{
-          background: 'var(--brand-soft)', border: '1px solid var(--brand-soft-2)', borderRadius: 'var(--radius)',
+          background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)',
           padding: '0.625rem 0.75rem', marginBottom: '0.625rem',
         }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--brand)', marginBottom: '0.375rem' }}>
@@ -1201,8 +1201,8 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
                   <span style={{
                     fontSize: '0.6rem', fontWeight: 700, color: t.color,
-                    background: t.bg, border: `1px solid ${t.border}`,
-                    padding: '0.05rem 0.3rem', borderRadius: '0.2rem',
+                    background: t.bg, border: `var(--hairline) solid ${t.border}`,
+                    padding: '0.05rem 0.3rem', borderRadius: 'var(--radius)',
                   }}>{t.label}</span>
                   <span style={{ fontSize: '0.8125rem', color: 'var(--text)', flex: 1 }}>{item.title}</span>
                   {item.targetDate && <DdayBadge targetDate={item.targetDate} today={todayForBadge} />}
@@ -1221,7 +1221,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
               disabled={submitting}
               style={{
                 padding: '0.375rem 0.75rem', background: 'var(--brand)', color: '#fff',
-                border: 'none', borderRadius: '0.375rem', fontSize: '0.75rem',
+                border: 'none', borderRadius: 'var(--radius)', fontSize: '0.75rem',
                 fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer',
                 opacity: submitting ? 0.5 : 1, whiteSpace: 'nowrap',
               }}
@@ -1232,7 +1232,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
               onClick={() => setShowAiResult(false)}
               style={{
                 padding: '0.375rem 0.625rem', background: 'none', color: 'var(--text-muted)',
-                border: '2px solid var(--border-color)', borderRadius: '0.375rem', fontSize: '0.75rem',
+                border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.75rem',
                 cursor: 'pointer',
               }}
             >
@@ -1260,7 +1260,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
           placeholder="관련 내용을 자유롭게 남기세요 (Ctrl+Enter)"
           rows={2}
           style={{
-            flex: 1, border: '2px solid var(--border-color)', borderRadius: '0.375rem',
+            flex: 1, border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
             padding: '0.5rem', fontSize: '0.875rem', resize: 'none',
             outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
             background: '#fff',
@@ -1272,7 +1272,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
             disabled={aiLoading || !input.trim()}
             style={{
               padding: '0.375rem 0.75rem', background: 'var(--brand)', color: '#fff',
-              border: 'none', borderRadius: '0.375rem', fontSize: '0.75rem',
+              border: 'none', borderRadius: 'var(--radius)', fontSize: '0.75rem',
               fontWeight: 600, cursor: aiLoading || !input.trim() ? 'not-allowed' : 'pointer',
               opacity: aiLoading || !input.trim() ? 0.5 : 1, whiteSpace: 'nowrap',
               display: 'flex', alignItems: 'center', gap: '0.25rem',
@@ -1286,7 +1286,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
             disabled={submitting || !input.trim()}
             style={{
               padding: '0.375rem 0.75rem', background: 'var(--brand)', color: '#fff',
-              border: 'none', borderRadius: '0.375rem', fontSize: '0.75rem',
+              border: 'none', borderRadius: 'var(--radius)', fontSize: '0.75rem',
               fontWeight: 600, cursor: submitting || !input.trim() ? 'not-allowed' : 'pointer',
               opacity: submitting || !input.trim() ? 0.5 : 1, whiteSpace: 'nowrap',
             }}
@@ -1319,8 +1319,8 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
         return (
           <div key={log.id} style={{
             background: 'var(--warning-bg)',
-            border: '1px solid var(--warning-border)',
-            borderLeft: `3px solid ${type.color}`,
+            border: 'var(--hairline) solid var(--warning-border)',
+            borderLeft: `var(--border-w) solid ${type.color}`,
             borderRadius: '0 0.5rem 0.5rem 0',
             padding: '0.625rem 0.875rem',
             opacity: isPending ? 0.6 : 1,
@@ -1330,12 +1330,12 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
                   <span style={{
                     fontSize: '0.6875rem', fontWeight: 700, color: type.color,
-                    background: type.bg, border: `1px solid ${type.border}`,
-                    padding: '0.1rem 0.35rem', borderRadius: '0.25rem',
+                    background: type.bg, border: `var(--hairline) solid ${type.border}`,
+                    padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)',
                   }}>
                     {type.label}
                   </span>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--warning)', background: 'var(--warning-bg)', padding: '0.1rem 0.35rem', borderRadius: '0.25rem' }}>
+                  <span style={{ fontSize: '0.6875rem', color: 'var(--warning)', background: 'var(--warning-bg)', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)' }}>
                     {dateLabel} 이월
                   </span>
                 </div>
@@ -1352,8 +1352,8 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
                   disabled={isPending}
                   style={{
                     padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 600,
-                    background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-border)',
-                    borderRadius: '0.375rem', cursor: 'pointer',
+                    background: 'var(--success-bg)', color: 'var(--success)', border: 'var(--hairline) solid var(--success-border)',
+                    borderRadius: 'var(--radius)', cursor: 'pointer',
                   }}
                 >
                   완료
@@ -1363,8 +1363,8 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
                   disabled={isPending}
                   style={{
                     padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 600,
-                    background: 'var(--info-bg)', color: 'var(--info)', border: '1px solid var(--info-border)',
-                    borderRadius: '0.375rem', cursor: 'pointer',
+                    background: 'var(--info-bg)', color: 'var(--info)', border: 'var(--hairline) solid var(--info-border)',
+                    borderRadius: 'var(--radius)', cursor: 'pointer',
                   }}
                 >
                   오늘로
@@ -1374,8 +1374,8 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
                   disabled={isPending}
                   style={{
                     padding: '0.25rem 0.5rem', fontSize: '0.75rem',
-                    background: 'none', color: 'var(--text-faint)', border: '2px solid var(--border-color)',
-                    borderRadius: '0.375rem', cursor: 'pointer',
+                    background: 'none', color: 'var(--text-faint)', border: 'var(--border-w-2) solid var(--border-color)',
+                    borderRadius: 'var(--radius)', cursor: 'pointer',
                   }}
                 >
                   무시
@@ -1392,18 +1392,18 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
 const iconBtn: React.CSSProperties = {
   background: 'none', border: 'none', cursor: 'pointer',
   fontSize: '0.75rem', padding: '0.25rem 0.375rem',
-  borderRadius: '0.25rem', color: 'var(--text-faint)', lineHeight: 1,
+  borderRadius: 'var(--radius)', color: 'var(--text-faint)', lineHeight: 1,
 }
 
 const actionBtnPrimary: React.CSSProperties = {
   padding: '0.375rem 0.875rem', background: 'var(--info)', color: '#fff',
-  border: 'none', borderRadius: '0.375rem', fontSize: '0.8125rem',
+  border: 'none', borderRadius: 'var(--radius)', fontSize: '0.8125rem',
   fontWeight: 600, cursor: 'pointer',
 }
 
 const actionBtnSecondary: React.CSSProperties = {
   padding: '0.375rem 0.875rem', background: 'var(--surface-muted)', color: 'var(--text-muted)',
-  border: 'none', borderRadius: '0.375rem', fontSize: '0.8125rem',
+  border: 'none', borderRadius: 'var(--radius)', fontSize: '0.8125rem',
   fontWeight: 600, cursor: 'pointer',
 }
 
@@ -1449,7 +1449,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
         {/* 헤더 */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '1rem 1.25rem', borderBottom: '2px solid var(--border-color)',
+          padding: '1rem 1.25rem', borderBottom: 'var(--border-w-2) solid var(--border-color)',
           background: 'linear-gradient(135deg, var(--brand-soft), var(--info-bg))',
         }}>
           <div>
@@ -1484,7 +1484,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
           {/* 같은 묶음 안내 배너 */}
           {hasOriginGroup && !loading && (
             <div style={{
-              background: 'var(--info-bg)', border: '1px solid var(--info-border)',
+              background: 'var(--info-bg)', border: 'var(--hairline) solid var(--info-border)',
               borderRadius: 'var(--radius)', padding: '0.5rem 0.875rem',
               marginBottom: '0.875rem',
               fontSize: '0.8125rem', color: 'var(--info)',
@@ -1497,7 +1497,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
 
           {error && (
             <div style={{
-              background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
+              background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)',
               borderRadius: 'var(--radius)', padding: '0.75rem 1rem',
               color: 'var(--danger)', fontSize: '0.875rem', marginBottom: '1rem',
             }}>
@@ -1546,7 +1546,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
 
         {/* 하단 버튼 */}
         <div style={{
-          padding: '1rem 1.25rem', borderTop: '2px solid var(--border-color)',
+          padding: '1rem 1.25rem', borderTop: 'var(--border-w-2) solid var(--border-color)',
           display: 'flex', gap: '0.625rem',
           background: '#fff',
         }}>
@@ -1555,7 +1555,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
             disabled={loading}
             style={{
               flex: 1, padding: '0.625rem', background: 'var(--surface-muted)', color: 'var(--text-muted)',
-              border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
+              border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
               fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer',
               opacity: loading ? 0.5 : 1,
             }}
@@ -1600,8 +1600,8 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
 
   return (
     <div style={{
-      background: '#fff', border: `1px solid ${statusInfo.border}`,
-      borderLeft: `3px solid ${statusInfo.color}`,
+      background: '#fff', border: `var(--hairline) solid ${statusInfo.border}`,
+      borderLeft: `var(--border-w) solid ${statusInfo.color}`,
       borderRadius: '0 0.5rem 0.5rem 0', padding: '0.75rem 0.875rem',
     }}>
       {/* 제목 */}
@@ -1609,7 +1609,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         value={item.title}
         onChange={(e) => onChange({ title: e.target.value })}
         style={{
-          width: '100%', border: 'none', borderBottom: '2px solid var(--border-color)',
+          width: '100%', border: 'none', borderBottom: 'var(--border-w-2) solid var(--border-color)',
           padding: '0 0 0.375rem', fontSize: '0.9375rem', fontWeight: 600,
           color: 'var(--text)', outline: 'none', background: 'transparent',
           boxSizing: 'border-box', marginBottom: '0.625rem',
@@ -1623,8 +1623,8 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
           value={item.status}
           onChange={(e) => onChange({ status: e.target.value as DailyLogEntryType })}
           style={{
-            padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem',
-            fontWeight: 700, border: `1px solid ${statusInfo.border}`,
+            padding: '0.2rem 0.5rem', borderRadius: 'var(--radius)', fontSize: '0.75rem',
+            fontWeight: 700, border: `var(--hairline) solid ${statusInfo.border}`,
             background: statusInfo.bg, color: statusInfo.color, cursor: 'pointer',
           }}
         >
@@ -1636,8 +1636,8 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
           value={item.priority}
           onChange={(e) => onChange({ priority: e.target.value as AiParsedItem['priority'] })}
           style={{
-            padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem',
-            fontWeight: 600, border: '2px solid var(--border-color)',
+            padding: '0.2rem 0.5rem', borderRadius: 'var(--radius)', fontSize: '0.75rem',
+            fontWeight: 600, border: 'var(--border-w-2) solid var(--border-color)',
             background: 'var(--color-bg)', color: PRIORITY_COLORS[item.priority] ?? 'var(--text-muted)',
             cursor: 'pointer',
           }}
@@ -1653,8 +1653,8 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
             value={item.targetDate ?? ''}
             onChange={(e) => onChange({ targetDate: e.target.value || null, targetDateCertainty: 'exact' })}
             style={{
-              padding: '0.15rem 0.375rem', borderRadius: '0.25rem', fontSize: '0.75rem',
-              border: '2px solid var(--border-color)', background: 'var(--color-bg)', color: 'var(--text-muted)',
+              padding: '0.15rem 0.375rem', borderRadius: 'var(--radius)', fontSize: '0.75rem',
+              border: 'var(--border-w-2) solid var(--border-color)', background: 'var(--color-bg)', color: 'var(--text-muted)',
               cursor: 'pointer', outline: 'none',
             }}
           />
@@ -1673,7 +1673,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         {item.scheduledTime && (
           <span style={{
             fontSize: '0.75rem', color: 'var(--brand)', background: 'var(--brand-soft)',
-            border: '1px solid var(--brand-soft-2)', borderRadius: '0.25rem',
+            border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)',
             padding: '0.2rem 0.5rem',
           }}>
             ⏰ {item.scheduledTime}
@@ -1684,7 +1684,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         {item.accountName && (
           <span style={{
             fontSize: '0.75rem', color: 'var(--info)', background: 'var(--info-bg)',
-            border: '1px solid var(--info-border)', borderRadius: '0.25rem',
+            border: 'var(--hairline) solid var(--info-border)', borderRadius: 'var(--radius)',
             padding: '0.2rem 0.5rem',
           }}>
             🏢 {item.accountName}
@@ -1695,7 +1695,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         {item.contactName && (
           <span style={{
             fontSize: '0.75rem', color: 'var(--info)', background: 'var(--success-bg)',
-            border: '1px solid var(--info-bg)', borderRadius: '0.25rem',
+            border: 'var(--hairline) solid var(--info-bg)', borderRadius: 'var(--radius)',
             padding: '0.2rem 0.5rem',
           }}>
             👤 {item.contactName}
@@ -1706,7 +1706,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         {item.tags?.map(tag => (
           <span key={tag} style={{
             fontSize: '0.7rem', color: 'var(--brand)', background: 'var(--brand-soft)',
-            border: '1px solid var(--brand-soft-2)', borderRadius: '0.25rem',
+            border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)',
             padding: '0.1rem 0.375rem',
           }}>
             #{tag}

@@ -102,7 +102,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
           { label: '블로커', value: `${totalBlockers}건`, sub: totalBlockers > 0 ? '주의 필요' : '문제 없음', color: totalBlockers > 0 ? 'var(--danger)' : 'var(--success)' },
         ].map((c) => (
           <div key={c.label} style={{
-            background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
+            background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
             padding: '1rem', boxShadow: 'var(--shadow-sm)',
           }}>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginBottom: '0.25rem' }}>{c.label}</div>
@@ -115,7 +115,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
       {/* 필터 */}
       <form method="GET" style={{
         display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.5rem',
-        background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
+        background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
         padding: '0.875rem',
       }}>
         <input
@@ -150,7 +150,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
       {Object.keys(grouped).length === 0 ? (
         <div style={{
           textAlign: 'center', color: 'var(--text-faint)', padding: '3rem',
-          border: '1px dashed var(--color-border)', borderRadius: 'var(--radius)',
+          border: 'var(--hairline) dashed var(--color-border)', borderRadius: 'var(--radius)',
         }}>
           {formatDate(selectedDate)}에 작성된 로그가 없습니다.
         </div>
@@ -158,13 +158,13 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {Object.entries(grouped).map(([userId, group]) => (
             <div key={userId} style={{
-              background: '#fff', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
+              background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
               overflow: 'hidden', boxShadow: 'var(--shadow-sm)',
             }}>
               {/* 멤버 헤더 */}
               <div style={{
                 padding: '0.875rem 1rem', background: 'var(--color-bg)',
-                borderBottom: '2px solid var(--border-color)', display: 'flex',
+                borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex',
                 alignItems: 'center', justifyContent: 'space-between',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
@@ -203,7 +203,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
                     <div key={log.id} style={{
                       display: 'flex', alignItems: 'flex-start', gap: '0.625rem',
                       padding: '0.625rem 0.75rem',
-                      borderLeft: `3px solid ${type.color}`,
+                      borderLeft: `var(--border-w) solid ${type.color}`,
                       background: log.entry_type === 'blocker' ? 'var(--danger-bg)' : 'var(--surface-bg)',
                       borderRadius: '0 0.375rem 0.375rem 0',
                     }}>
@@ -212,7 +212,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.2rem' }}>
                           <span style={{
                             fontSize: '0.6875rem', fontWeight: 600, color: type.color,
-                            background: type.bg, padding: '0.1rem 0.35rem', borderRadius: '0.25rem',
+                            background: type.bg, padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)',
                           }}>
                             {type.label}
                           </span>
@@ -240,6 +240,6 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
 }
 
 const filterInputStyle: React.CSSProperties = {
-  padding: '0.5rem 0.75rem', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
+  padding: '0.5rem 0.75rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
   fontSize: '0.875rem', color: 'var(--text)', background: 'var(--color-bg)', outline: 'none',
 }

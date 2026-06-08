@@ -215,7 +215,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
       <div style={{ background: '#fff', borderRadius: 'var(--radius)', width: '380px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '2px solid var(--border-color)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
           <h3 className="tape-title" style={{ margin: 0 }}>{title}</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
         </div>
@@ -240,5 +240,5 @@ function ModalFooter({ onClose, onSubmit, isPending, label }: { onClose: () => v
 
 const labelStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '0.35rem' }
 const labelTextStyle: React.CSSProperties = { fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }
-const inputStyle: React.CSSProperties = { padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', background: '#fff', outline: 'none' }
+const inputStyle: React.CSSProperties = { padding: '0.5rem 0.75rem', border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', background: '#fff', outline: 'none' }
 const errorStyle: React.CSSProperties = { margin: 0, color: 'var(--danger)', fontSize: '0.8rem' }

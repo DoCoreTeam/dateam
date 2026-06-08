@@ -264,7 +264,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
   return (
     <>
       {errorMsg && (
-        <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', color: 'var(--danger)', fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', color: 'var(--danger)', fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between' }}>
           {errorMsg}
           <button onClick={() => setErrorMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', fontWeight: 700 }}>×</button>
         </div>
@@ -278,7 +278,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
             position: 'relative',
             overflow: 'hidden',
             height: 'clamp(400px, 65vh, 800px)',
-            border: '2px solid var(--border-color)',
+            border: 'var(--border-w-2) solid var(--border-color)',
             borderRadius: 'var(--radius)',
             background: 'var(--color-bg)',
             cursor: isPanning.current ? 'grabbing' : 'grab',
@@ -290,37 +290,37 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
           onMouseLeave={handlePanUp}
         >
           {/* Zoom controls */}
-          <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10, display: 'flex', gap: '0.25rem', background: 'rgba(255,255,255,0.95)', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.25rem', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10, display: 'flex', gap: '0.25rem', background: 'rgba(255,255,255,0.95)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.25rem', boxShadow: 'var(--shadow-sm)' }}>
             <button
               onClick={() => setZoom(z => ({ ...z, scale: Math.min(z.scale * 1.2, 3) }))}
-              style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
+              style={{ width: 32, height: 32, border: 'none', borderRadius: 'var(--radius)', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
               title="확대"
             >+</button>
             <button
               onClick={() => setZoom(z => ({ ...z, scale: Math.max(z.scale / 1.2, 0.2) }))}
-              style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
+              style={{ width: 32, height: 32, border: 'none', borderRadius: 'var(--radius)', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
               title="축소"
             >−</button>
             <div style={{ width: 1, background: 'var(--color-border)', margin: '4px 2px' }} />
             <button
               onClick={fitToScreen}
-              style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}
+              style={{ width: 32, height: 32, border: 'none', borderRadius: 'var(--radius)', background: 'transparent', cursor: 'pointer', fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}
               title="화면 맞춤"
             >FIT</button>
             <button
               onClick={() => setZoom({ scale: 1, tx: 50, ty: 30 })}
-              style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}
+              style={{ width: 32, height: 32, border: 'none', borderRadius: 'var(--radius)', background: 'transparent', cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}
               title="100% 리셋"
             >1:1</button>
           </div>
 
           {/* Scale indicator */}
-          <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.85)', border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.7rem', color: 'var(--text-muted)', pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.85)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.15rem 0.5rem', fontSize: '0.7rem', color: 'var(--text-muted)', pointerEvents: 'none' }}>
             {Math.round(zoom.scale * 100)}%
           </div>
 
           {/* Help hint */}
-          <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.8)', border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.68rem', color: 'var(--text-faint)', pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.8)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.15rem 0.5rem', fontSize: '0.68rem', color: 'var(--text-faint)', pointerEvents: 'none' }}>
             스크롤: 줌 · 드래그: 이동
           </div>
 

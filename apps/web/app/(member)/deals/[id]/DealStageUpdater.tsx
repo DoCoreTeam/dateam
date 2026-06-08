@@ -40,7 +40,7 @@ export default function DealStageUpdater({ dealId, currentStage }: Props) {
               borderRadius: '9999px',
               fontSize: '0.8125rem',
               fontWeight: 600,
-              border: '1px solid',
+              border: 'var(--hairline) solid',
               cursor: stage === currentStage ? 'default' : 'pointer',
               background: stage === currentStage ? 'var(--brand)' : 'white',
               color: stage === currentStage ? 'white' : 'var(--text-muted)',

@@ -127,7 +127,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(680px,100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: '1px solid var(--gpu-border)', position: 'sticky', top: 0, background: '#fff' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: 'var(--hairline) solid var(--gpu-border)', position: 'sticky', top: 0, background: '#fff' }}>
           <strong style={{ fontSize: 16, flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
             {row.model_name}
             {editing ? (
@@ -145,7 +145,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
         </div>
 
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ fontSize: 11.5, color: 'var(--gpu-muted)', background: 'var(--color-bg)', border: '1px solid var(--surface-bg)', borderRadius: 8, padding: '7px 10px' }}>
+          <div style={{ fontSize: 11.5, color: 'var(--gpu-muted)', background: 'var(--color-bg)', border: 'var(--hairline) solid var(--surface-bg)', borderRadius: 8, padding: '7px 10px' }}>
             현재 등록된 <b>{row.model_name}</b> 구성 {cfgs.length}개 — 가격표·시장비교·재고·고객판매가격표와 동일한 우리 GPU 목록입니다. 장수·카드 VRAM에 따라 별도 구성으로 등록됩니다.
           </div>
           {/* 구성별 스펙 — 카드당 VRAM으로 식별(같은 ×N 장수라도 80GB/40GB 카드는 다른 구성) */}
@@ -169,7 +169,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
             </div>
           )})}
 
-          <div style={{ borderTop: '1px solid var(--surface-bg)' }} />
+          <div style={{ borderTop: 'var(--hairline) solid var(--surface-bg)' }} />
 
           {/* 나머지 스펙 항목 — 같은 통합 리스트. 부족분은 AI 자동완성 */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: editing ? 10 : '8px 18px' }}>
@@ -186,7 +186,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
                 )}
               </label>
             ) : (
-              <div key={key as string} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12.5, borderBottom: '1px solid var(--surface-bg)', padding: '4px 0' }}>
+              <div key={key as string} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12.5, borderBottom: 'var(--hairline) solid var(--surface-bg)', padding: '4px 0' }}>
                 <span style={{ color: 'var(--gpu-muted)' }}>{label}</span>
                 <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>{fmt(row.spec?.[key])}</span>
               </div>
@@ -196,7 +196,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
           {err && <div style={{ fontSize: 12, color: 'var(--gpu-red)' }}>{err}</div>}
 
           {/* 통합 액션 — 한 화면, 한 수정/저장, AI 자동완성 */}
-          <div style={{ display: 'flex', gap: 8, paddingTop: 4, borderTop: '1px solid var(--gpu-border)', marginTop: 2 }}>
+          <div style={{ display: 'flex', gap: 8, paddingTop: 4, borderTop: 'var(--hairline) solid var(--gpu-border)', marginTop: 2 }}>
             {!editing ? (
               <>
                 <button onClick={() => setEditing(true)} className="gpu-btn gpu-btn-primary" style={{ gap: 5 }}><Pencil size={14} /> 수정</button>
@@ -314,7 +314,7 @@ export default function SpecsTab() {
 
       {/* 일괄 생성 실시간 진행 */}
       {bulkProg && (
-        <div style={{ margin: '0 0 12px', padding: '10px 14px', borderRadius: 10, background: 'var(--color-bg)', border: '2px solid var(--border-color)' }}>
+        <div style={{ margin: '0 0 12px', padding: '10px 14px', borderRadius: 10, background: 'var(--color-bg)', border: 'var(--border-w-2) solid var(--border-color)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <Sparkles size={14} className="gpu-analyzing-icon" style={{ color: 'var(--gpu-accent)' }} />
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }}>AI 데이터시트 생성 중 — {bulkProg.done}/{bulkProg.total}</span>

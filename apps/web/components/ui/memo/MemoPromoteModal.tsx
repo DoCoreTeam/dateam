@@ -33,7 +33,7 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
       onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()}
         style={{ background: '#fff', borderRadius: 'var(--radius)', width: '380px', maxWidth: '92vw', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '2px solid var(--border-color)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
           <h3 className="tape-title" style={{ margin: 0 }}>
             <ArrowUpRight size={16} color="var(--brand-dark)" /> 메모를 업무로
           </h3>
@@ -51,7 +51,7 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
                 <button key={t} onClick={() => setNewType(t)}
                   style={{
                     flex: 1, padding: '0.5rem', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.85rem',
-                    border: newType === t ? '2px solid var(--brand-dark)' : '1px solid var(--border-color)',
+                    border: newType === t ? 'var(--border-w-2) solid var(--brand-dark)' : 'var(--hairline) solid var(--border-color)',
                     background: newType === t ? 'var(--brand-soft)' : '#fff',
                     color: newType === t ? 'var(--brand-dark)' : 'var(--text-muted)', fontWeight: newType === t ? 600 : 400,
                   }}>
@@ -64,7 +64,7 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>목표일 (선택)</span>
             <input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)}
-              style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }} />
+              style={{ padding: '0.5rem 0.75rem', border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }} />
           </label>
 
           {error && <p style={{ margin: 0, color: 'var(--danger)', fontSize: '0.8rem' }}>{error}</p>}

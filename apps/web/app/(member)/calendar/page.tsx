@@ -209,7 +209,7 @@ export default function CalendarPage() {
             display: "flex",
             gap: "0.25rem",
             background: "var(--nb-white)",
-            border: "2px solid var(--border-color)",
+            border: "var(--border-w-2) solid var(--border-color)",
             borderRadius: "var(--radius)",
             padding: "0.25rem",
           }}
@@ -426,7 +426,7 @@ export default function CalendarPage() {
               flexWrap: "wrap",
               marginTop: "1rem",
               paddingTop: "0.75rem",
-              borderTop: "1px solid var(--surface-muted)",
+              borderTop: "var(--hairline) solid var(--surface-muted)",
             }}
           >
             {(
@@ -540,8 +540,8 @@ export default function CalendarPage() {
                     key={dateStr}
                     style={{
                       border: isToday
-                        ? "1px solid var(--info)"
-                        : "2px solid var(--border-color)",
+                        ? "var(--hairline) solid var(--info)"
+                        : "var(--border-w-2) solid var(--border-color)",
                       borderRadius: "0.625rem",
                       background: isToday ? "var(--surface-bg)" : "#fff",
                       overflow: "hidden",
@@ -556,7 +556,7 @@ export default function CalendarPage() {
                         padding: "0.625rem 0.875rem",
                         background: isToday ? "var(--info-bg)" : "var(--color-bg)",
                         borderBottom:
-                          dayLogs.length > 0 ? "2px solid var(--border-color)" : "none",
+                          dayLogs.length > 0 ? "var(--border-w-2) solid var(--border-color)" : "none",
                       }}
                     >
                       <div
@@ -616,7 +616,7 @@ export default function CalendarPage() {
                             fontSize: "0.75rem",
                             color: "var(--info)",
                             background: "none",
-                            border: "1px solid var(--info-border)",
+                            border: "var(--hairline) solid var(--info-border)",
                             borderRadius: "0.25rem",
                             padding: "0.125rem 0.5rem",
                             cursor: "pointer",
@@ -647,7 +647,7 @@ export default function CalendarPage() {
                                 alignItems: "flex-start",
                                 gap: "0.5rem",
                                 paddingLeft: "0.5rem",
-                                borderLeft: `2px solid ${t.color}`,
+                                borderLeft: `var(--border-w-2) solid ${t.color}`,
                               }}
                             >
                               <span
@@ -656,7 +656,7 @@ export default function CalendarPage() {
                                   fontWeight: 700,
                                   color: t.color,
                                   background: t.bg,
-                                  border: `1px solid ${t.border}`,
+                                  border: `var(--hairline) solid ${t.border}`,
                                   padding: "0.1rem 0.35rem",
                                   borderRadius: "0.25rem",
                                   flexShrink: 0,

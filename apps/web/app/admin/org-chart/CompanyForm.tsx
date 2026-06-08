@@ -30,7 +30,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
 
   return (
     <div style={{
-      background: 'var(--color-bg)', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
+      background: 'var(--color-bg)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
       padding: '1.25rem 1.5rem', marginBottom: '1.5rem',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
@@ -50,8 +50,8 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
               defaultValue={defaultName}
               required
               style={{
-                width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.375rem',
-                border: '2px solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box',
+                width: '100%', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
+                border: 'var(--border-w-2) solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box',
               }}
             />
           </div>
@@ -64,8 +64,8 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
               defaultValue={defaultDescription}
               rows={2}
               style={{
-                width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.375rem',
-                border: '2px solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box', resize: 'vertical',
+                width: '100%', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
+                border: 'var(--border-w-2) solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box', resize: 'vertical',
               }}
             />
           </div>
@@ -76,7 +76,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
               disabled={pending}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
-                padding: '0.5rem 1rem', borderRadius: '0.375rem',
+                padding: '0.5rem 1rem', borderRadius: 'var(--radius)',
                 background: pending ? 'var(--text-faint)' : 'var(--brand)', color: 'white',
                 border: 'none', fontSize: '0.875rem', fontWeight: 500, cursor: pending ? 'not-allowed' : 'pointer',
               }}
@@ -88,9 +88,9 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
               type="button"
               onClick={() => setEditing(false)}
               style={{
-                padding: '0.5rem 0.75rem', borderRadius: '0.375rem',
+                padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
                 background: 'transparent', color: 'var(--text-muted)',
-                border: '2px solid var(--border-color)', fontSize: '0.875rem', cursor: 'pointer',
+                border: 'var(--border-w-2) solid var(--border-color)', fontSize: '0.875rem', cursor: 'pointer',
               }}
             >
               취소
@@ -108,9 +108,9 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
           <button
             onClick={() => setEditing(true)}
             style={{
-              flexShrink: 0, padding: '0.375rem 0.75rem', borderRadius: '0.375rem',
+              flexShrink: 0, padding: '0.375rem 0.75rem', borderRadius: 'var(--radius)',
               background: 'transparent', color: 'var(--brand)',
-              border: '1px solid var(--brand-soft-2)', fontSize: '0.8125rem', cursor: 'pointer', fontWeight: 500,
+              border: 'var(--hairline) solid var(--brand-soft-2)', fontSize: '0.8125rem', cursor: 'pointer', fontWeight: 500,
             }}
           >
             수정

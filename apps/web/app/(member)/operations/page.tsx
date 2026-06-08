@@ -27,34 +27,34 @@ function getPhaseBadgeStyle(phase: string): React.CSSProperties {
     return {
       background: 'var(--brand-soft)',
       color: 'var(--brand-dark)',
-      border: '1px solid var(--brand-soft-2)',
+      border: 'var(--hairline) solid var(--brand-soft-2)',
     }
   }
   if (phase === '제안' || phase === '기획') {
     return {
       background: 'var(--warning-bg)',
       color: 'var(--warning)',
-      border: '1px solid var(--warning-border)',
+      border: 'var(--hairline) solid var(--warning-border)',
     }
   }
   if (phase === '상시') {
     return {
       background: 'var(--color-bg)',
       color: 'var(--text-muted)',
-      border: '2px solid var(--border-color)',
+      border: 'var(--border-w-2) solid var(--border-color)',
     }
   }
   if (phase === 'API') {
     return {
       background: 'var(--info-bg)',
       color: 'var(--info)',
-      border: '1px solid var(--info-border)',
+      border: 'var(--hairline) solid var(--info-border)',
     }
   }
   return {
     background: 'var(--color-bg)',
     color: 'var(--text-muted)',
-    border: '2px solid var(--border-color)',
+    border: 'var(--border-w-2) solid var(--border-color)',
   }
 }
 
@@ -115,7 +115,7 @@ export default async function OperationsPage() {
                 key={idx}
                 style={{
                   background: '#fff',
-                  border: '2px solid var(--border-color)',
+                  border: 'var(--border-w-2) solid var(--border-color)',
                   borderRadius: 'var(--radius)',
                   padding: '1.25rem 1.5rem',
                   display: 'flex',
@@ -263,7 +263,7 @@ export default async function OperationsPage() {
                 key={idx}
                 style={{
                   background: '#fff',
-                  border: '2px solid var(--border-color)',
+                  border: 'var(--border-w-2) solid var(--border-color)',
                   borderRadius: 'var(--radius)',
                   padding: '1.25rem 1.5rem',
                   display: 'flex',
@@ -460,8 +460,8 @@ export default async function OperationsPage() {
                         fontSize: '0.75rem',
                         color: 'var(--text-muted)',
                         background: 'var(--color-bg)',
-                        borderBottom: '2px solid var(--border-color)',
-                        borderRight: i < rrHeaders.length - 1 ? '2px solid var(--border-color)' : 'none',
+                        borderBottom: 'var(--border-w-2) solid var(--border-color)',
+                        borderRight: i < rrHeaders.length - 1 ? 'var(--border-w-2) solid var(--border-color)' : 'none',
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -476,7 +476,7 @@ export default async function OperationsPage() {
                     key={rowIdx}
                     style={{
                       borderBottom:
-                        rowIdx < rrMatrix.length - 1 ? '2px solid var(--border-color)' : 'none',
+                        rowIdx < rrMatrix.length - 1 ? 'var(--border-w-2) solid var(--border-color)' : 'none',
                     }}
                   >
                     {row.map((cell, colIdx) => (
@@ -489,7 +489,7 @@ export default async function OperationsPage() {
                           color: colIdx === 0 ? 'var(--text)' : 'var(--text-muted)',
                           fontWeight: colIdx === 0 ? 600 : 400,
                           borderRight:
-                            colIdx < row.length - 1 ? '2px solid var(--border-color)' : 'none',
+                            colIdx < row.length - 1 ? 'var(--border-w-2) solid var(--border-color)' : 'none',
                           whiteSpace: 'nowrap',
                         }}
                       >
