@@ -77,7 +77,7 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
                   gap: '0.625rem',
                   padding: 'var(--space-3) var(--space-4)',
                   fontSize: 'var(--fs-sm)',
-                  color: 'var(--sidebar-fg)',
+                  color: 'var(--text)',
                   textDecoration: 'none',
                   transition: 'background 120ms',
                 }}
@@ -99,7 +99,7 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
               gap: '0.625rem',
               padding: 'var(--space-3) var(--space-4)',
               fontSize: 'var(--fs-sm)',
-              color: 'var(--sidebar-fg)',
+              color: 'var(--text)',
               textDecoration: 'none',
               transition: 'background 120ms',
             }}
@@ -118,7 +118,7 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
               gap: '0.625rem',
               padding: 'var(--space-3) var(--space-4)',
               fontSize: 'var(--fs-sm)',
-              color: 'var(--sidebar-fg)',
+              color: 'var(--text)',
               textDecoration: 'none',
               transition: 'background 120ms',
             }}
