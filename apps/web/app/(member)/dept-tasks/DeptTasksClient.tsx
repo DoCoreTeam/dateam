@@ -5,9 +5,11 @@ import type { DailyLog, DailyLogEntryType } from '@/types/database'
 import { STATUS_COLORS } from '@/lib/tokens/status-colors'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
+import WorkTabBar from '@/components/ui/WorkTabBar'
 import { listDeptTasks } from './actions'
 import DeptTaskFormModal from './DeptTaskFormModal'
 import DeptTaskDetail from './DeptTaskDetail'
+import DeptTaskSuggestPanel from './DeptTaskSuggestPanel'
 
 export interface DeptOption { id: string; name: string }
 
@@ -47,6 +49,7 @@ export default function DeptTasksClient({
 
   return (
     <div className="page-inner">
+      <WorkTabBar />
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap', marginBottom: 'var(--space-5)' }}>
         <div>
           <h1 style={{ margin: 0 }}>부서 업무</h1>
@@ -56,6 +59,10 @@ export default function DeptTasksClient({
           <NbButton onClick={() => setShowCreate(true)} aria-label="새 부서 업무 등록">+ 새 업무</NbButton>
         )}
       </header>
+
+      {canCreate && (
+        <DeptTaskSuggestPanel creatableDepts={creatableDepts} editableDeptIds={editableDeptIds} onRegistered={refresh} />
+      )}
 
       <div role="tablist" aria-label="상태 필터" style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-4)' }}>
         {STATUS_FILTERS.map((f) => (

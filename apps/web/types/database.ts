@@ -381,6 +381,7 @@ export type AiFeature =
   | 'gpu-db-chat'
   | 'memo-embedding'
   | 'memo-cluster-label'
+  | 'dept-task-suggest'
 
 export interface AiTokenLog {
   id: string

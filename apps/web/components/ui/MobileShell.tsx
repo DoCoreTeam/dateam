@@ -11,6 +11,14 @@ interface NavItem {
   icon: React.ReactNode
   badge?: number
   highlight?: boolean
+  /** 추가로 active 처리할 경로들 (예: "업무"=/work가 /daily·/dept-tasks·/weekly-report에서도 강조) */
+  match?: string[]
+}
+
+// 메뉴 항목 active 판정 — href 또는 match 경로 중 하나에 매칭
+function isNavActive(pathname: string, item: NavItem): boolean {
+  const paths = [item.href, ...(item.match ?? [])]
+  return paths.some((p) => pathname === p || pathname.startsWith(p + '/'))
 }
 
 export interface NavGroup {
@@ -152,7 +160,7 @@ export default function MobileShell({
           {/* 기본 아이템 */}
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
             {items.map((item, idx) => {
-              const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+              const isActive = isNavActive(pathname, item)
               const isHovered = hoveredHref === item.href && !isActive
               const isHighlight = item.highlight && !isActive
               return (
@@ -242,7 +250,7 @@ export default function MobileShell({
                 {!isCollapsed && (
                   <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
                     {group.items.map((item) => {
-                      const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                      const isActive = isNavActive(pathname, item)
                       const isHovered = hoveredHref === item.href && !isActive
                       return (
                         <li key={item.href}>

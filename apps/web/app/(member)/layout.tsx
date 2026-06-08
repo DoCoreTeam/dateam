@@ -14,12 +14,8 @@ import { getTodayPlannedCount } from './daily/actions'
 import { cookies } from 'next/headers'
 import {
   Home,
-  FileText,
   Briefcase,
-  Users,
-  TrendingUp,
   Inbox,
-  NotebookPen,
   CalendarDays,
   DollarSign,
   Tag,
@@ -32,10 +28,8 @@ import SWRProvider from './SWRProvider'
 const NAV_ITEMS = [
   { href: '/intake', label: '통합 입력', icon: <PlusCircle size={16} />, highlight: true },
   { href: '/home', label: '홈', icon: <Home size={16} /> },
-  { href: '/daily', label: '일일업무', icon: <NotebookPen size={16} /> },
-  { href: '/dept-tasks', label: '부서 업무', icon: <Briefcase size={16} /> },
+  { href: '/work', label: '업무', icon: <Briefcase size={16} />, match: ['/daily', '/dept-tasks', '/weekly-report'] },
   { href: '/calendar', label: '캘린더', icon: <CalendarDays size={16} /> },
-  { href: '/weekly-report', label: '주간보고', icon: <FileText size={16} /> },
   { href: '/org', label: '조직도', icon: <Network size={16} /> },
 ]
 

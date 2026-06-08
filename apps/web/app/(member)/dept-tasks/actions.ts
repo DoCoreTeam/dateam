@@ -234,3 +234,20 @@ async function ensureEditable(userId: string, departmentId: string): Promise<Act
   if (scope.editableDeptIds.includes(departmentId) || scope.isExecutive) return { ok: true, data: true }
   return { ok: false, error: '담당자 지정은 부서장만 가능합니다.' }
 }
+
+/** AI 제안 후보 일괄 등록 — createDeptTask 재사용(루프). 부분 실패 허용, 결과 집계 반환. */
+export async function createDeptTasksBulk(
+  inputs: DeptTaskInput[],
+): Promise<{ ok: true; created: number; failed: number; errors: string[] } | { ok: false; error: string }> {
+  if (!Array.isArray(inputs) || inputs.length === 0) return { ok: false, error: '등록할 항목이 없습니다.' }
+  if (inputs.length > 50) return { ok: false, error: '한 번에 최대 50개까지 등록할 수 있습니다.' }
+
+  let created = 0
+  const errors: string[] = []
+  for (const input of inputs) {
+    const res = await createDeptTask(input)
+    if (res.ok) created += 1
+    else errors.push(`${input.content.slice(0, 20)}: ${res.error}`)
+  }
+  return { ok: true, created, failed: errors.length, errors }
+}

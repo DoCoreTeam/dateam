@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition, useRef, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Sparkles, MessageSquare } from 'lucide-react'
 import dynamic from 'next/dynamic'
+import WorkTabBar from '@/components/ui/WorkTabBar'
 const KnowledgeGraphView = dynamic(() => import('./KnowledgeGraphView').then(m => ({ default: m.KnowledgeGraphView })), { ssr: false })
 const LogFlowView = dynamic(() => import('./LogFlowView').then(m => ({ default: m.LogFlowView })), { ssr: false })
 import useSWR, { mutate } from 'swr'
@@ -363,6 +364,7 @@ export default function DailyPage() {
       </div>
     )}
     <div className="page-inner daily-page">
+      <WorkTabBar />
 
       {/* 뷰 탭 */}
       <div className="daily-view-tabs" aria-label="일일업무 보기 전환">
