@@ -11,6 +11,7 @@ import OnboardingRestartLink from './OnboardingRestartLink'
 import OrgWeeklyView from './OrgWeeklyView'
 import DeptTaskWeeklyPanel from './DeptTaskWeeklyPanel'
 import WorkTabBar from '@/components/ui/WorkTabBar'
+import PageHeader from '@/components/ui/PageHeader'
 import WeeklyMemoReview from '@/components/ui/memo/WeeklyMemoReview'
 import { FileText, Users, GitBranch } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
@@ -196,14 +197,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
   return (
     <div style={{ width: '100%' }}>
       <WorkTabBar />
-      <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
-          주간보고
-        </h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
-          주간 성과, 계획, 이슈를 기록합니다
-        </p>
-      </div>
+      <PageHeader title="주간보고" description="주간 성과, 계획, 이슈를 기록합니다" />
 
       {/* 탭 */}
       <div style={{ display: 'flex', borderBottom: 'var(--border-w-2) solid var(--border-color)', marginBottom: '1.5rem' }}>
