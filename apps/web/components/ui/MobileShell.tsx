@@ -102,10 +102,12 @@ export default function MobileShell({
           flexDirection: 'column',
         }}
       >
-        {/* 브랜드 */}
+        {/* 브랜드 — 상단 헤더와 하단 보더선 정렬: 동일 높이·동일 보더두께·수직중앙 */}
         <div style={{
-          padding: 'var(--space-5)',
-          borderBottom: 'var(--border-w-2) solid var(--border-color)',
+          height: 'var(--header-height)',
+          flexShrink: 0,
+          padding: '0 var(--space-5)',
+          borderBottom: 'var(--border-w) solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -317,7 +319,7 @@ export default function MobileShell({
       <div className="app-content">
         {/* 상단바 */}
         <header style={{
-          height: '56px',
+          height: 'var(--header-height)',
           backgroundColor: 'white',
           borderBottom: 'var(--border-w) solid var(--border-color)',
           display: 'flex',

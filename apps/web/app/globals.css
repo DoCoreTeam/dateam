@@ -46,6 +46,8 @@
   /* 사이드바(테마별) — nb: 크림 페이퍼 + 잉크 */
   --sidebar-bg: var(--nb-paper);
   --sidebar-fg: var(--ink);
+  /* 상단 헤더/사이드바 브랜드 공통 높이(하단선 정렬용) */
+  --header-height: 56px;
 
   /* ── 브릿지: 기존 인디고 토큰을 NB 토큰으로 alias (컴포넌트 코드 무수정 전파) ── */
   --color-bg: var(--nb-off-white);
