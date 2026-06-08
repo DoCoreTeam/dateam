@@ -37,7 +37,15 @@
 
 ### (구) 스프린트 2 작업 목록 — 서버 로직 (Backend)
 
-## 스프린트 3 — UI (Frontend)
+## 스프린트 3 — UI ✅ 완료 (2026-06-08, v0.7.49)
+- `/dept-tasks` page.tsx(서버) + DeptTasksClient/DeptTaskDetail/DeptTaskFormModal + 사이드바 "부서 업무".
+- 리스트(상태필터·table-card)·상세(상태/진행률/체크리스트/댓글)·등록모달(부서/우선순위/마감/담당자/체크리스트).
+- 브라우저 다층 E2E PASS: 본부장 두팀 열람·댓글(작성자)·상태변경 / 2팀장 교차격리·생성+담당자지정 / IDOR 가드 / 사이드바.
+- 버그수정: daily_logs는 deleted_at 없음 → 하드삭제로 정정(listDeptTasks 필터·deleteDeptTask).
+- 🟥 DC-REV 87/100 APPROVED-WITH-NOTES(alive 플래그·행 키보드접근 즉시 반영). tsc 0·design:check 통과.
+- 후속(별도 스프린트): 모달 a11y 공통 컴포넌트(ESC/focus trap), `as any`→Database 제네릭 타입, 체크리스트 낙관적 갱신.
+
+### (구) 스프린트 3 작업 목록 — UI (Frontend)
 - T3.1 사이드바 "부서 업무" 항목 추가(MobileShell, 일일업무와 분리)
 - T3.2 리스트 화면(상태 필터/담당자/마감/진행률 — table-card, NbCard 재사용)
 - T3.3 상세 화면(설명·체크리스트·상태/진행 갱신·댓글 ThreadView 확장)

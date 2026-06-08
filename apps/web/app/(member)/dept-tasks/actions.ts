@@ -66,7 +66,7 @@ export async function listDeptTasks(opts?: {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let q = (supabase.from('daily_logs') as any)
-    .select('*').eq('task_kind', 'dept_task').is('deleted_at', null)
+    .select('*').eq('task_kind', 'dept_task')
   if (opts?.departmentId) q = q.eq('department_id', opts.departmentId)
   if (opts?.status) q = q.eq('entry_type', opts.status)
   const { data } = await q.order('target_date', { ascending: true, nullsFirst: false }).limit(500)
@@ -182,9 +182,10 @@ export async function deleteDeptTask(id: string): Promise<ActionResult<{ id: str
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: '로그인이 필요합니다.' }
   try {
+    // daily_logs는 하드삭제 방식(soft-delete 컬럼 없음) — 기존 daily 패턴과 동일
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase.from('daily_logs') as any)
-      .update({ deleted_at: new Date().toISOString() }).eq('id', id).eq('task_kind', 'dept_task')
+      .delete().eq('id', id).eq('task_kind', 'dept_task')
     if (error) return { ok: false, error: getErrorMessage(error) }
     revalidatePath('/dept-tasks')
     return { ok: true, data: { id } }
