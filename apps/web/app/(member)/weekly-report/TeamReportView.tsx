@@ -72,7 +72,7 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
     <div>
       {/* 주차 선택 */}
       <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>주차</label>
+        <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text)' }}>주차</label>
         <select
           className="input-field"
           style={{ cursor: 'pointer', maxWidth: '280px' }}
@@ -91,7 +91,7 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
 
       {/* 에러 */}
       {fetchError && (
-        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
+        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
           {fetchError}
         </div>
       )}
@@ -106,11 +106,11 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
           <table className="table-base table-card" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
             <thead>
               <tr style={{ backgroundColor: 'var(--color-bg)' }}>
-                <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: '#475569', border: CELL_BORDER, width: '90px' }}>이름</th>
-                <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: '#475569', border: CELL_BORDER, width: '90px' }}>구분</th>
-                <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: '#475569', border: CELL_BORDER }}>성과</th>
-                <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: '#475569', border: CELL_BORDER }}>계획</th>
-                <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: '#475569', border: CELL_BORDER, width: '18%' }}>이슈/협조사항</th>
+                <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', border: CELL_BORDER, width: '90px' }}>이름</th>
+                <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', border: CELL_BORDER, width: '90px' }}>구분</th>
+                <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', border: CELL_BORDER }}>성과</th>
+                <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', border: CELL_BORDER }}>계획</th>
+                <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', border: CELL_BORDER, width: '18%' }}>이슈/협조사항</th>
               </tr>
             </thead>
             <tbody>
@@ -118,22 +118,22 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
                 grouped[name].map((r, rIdx) => (
                   <tr
                     key={`${r.userId}-${r.category}-${rIdx}`}
-                    style={{ cursor: 'pointer', backgroundColor: rIdx % 2 === 0 ? '#fff' : '#fafafa' }}
+                    style={{ cursor: 'pointer', backgroundColor: rIdx % 2 === 0 ? '#fff' : 'var(--surface-bg)' }}
                     onClick={() => setModal(r)}
                   >
                     <td className="mobile-only card-header">
-                      <span style={{ fontWeight: 600, color: '#334155' }}>{name}</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text)' }}>{name}</span>
                     </td>
                     {rIdx === 0 && (
                       <td
                         rowSpan={grouped[name].length}
                         className="card-hide"
-                        style={{ padding: '0.75rem', border: CELL_BORDER, fontWeight: 600, color: '#334155', verticalAlign: 'middle', whiteSpace: 'nowrap', backgroundColor: 'var(--color-bg)' }}
+                        style={{ padding: '0.75rem', border: CELL_BORDER, fontWeight: 600, color: 'var(--text)', verticalAlign: 'middle', whiteSpace: 'nowrap', backgroundColor: 'var(--color-bg)' }}
                       >
                         {name}
                       </td>
                     )}
-                    <td data-label="구분" style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top', color: '#475569', whiteSpace: 'nowrap' }}>{r.category}</td>
+                    <td data-label="구분" style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{r.category}</td>
                     <td data-label="성과" style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top', maxWidth: '260px' }}>
                       {r.performance && r.performance !== '<p></p>' ? (
                         <div className="report-rich" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', lineHeight: 1.55 }} dangerouslySetInnerHTML={{ __html: r.performance }} />

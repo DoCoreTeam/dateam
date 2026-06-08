@@ -156,7 +156,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
                   const userMetrics = latestByUser[profile.id] ?? {}
                   return (
                     <tr key={profile.id}>
-                      <td className="card-header"><span style={{ fontWeight: 500, color: '#374151' }}>{profile.name}</span></td>
+                      <td className="card-header"><span style={{ fontWeight: 500, color: 'var(--text)' }}>{profile.name}</span></td>
                       {allMetrics.map((metric) => {
                         const entry = userMetrics[metric]
                         const t = targetMap.get(metric)
@@ -239,7 +239,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
                       </div>
                     </div>
                   </td>
-                  <td className="card-hide"><span style={{ color: '#374151' }}>{entry.metric_name}</span></td>
+                  <td className="card-hide"><span style={{ color: 'var(--text)' }}>{entry.metric_name}</span></td>
                   <td className="card-hide" style={{ textAlign: 'right' }}>
                     <strong>{entry.value.toLocaleString()}</strong>
                     {entry.unit && <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginLeft: '0.25rem' }}>{entry.unit}</span>}

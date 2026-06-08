@@ -9,7 +9,7 @@ import { getBranding } from '@/lib/branding'
 function statusBadge(status: string) {
   const map: Record<string, { color: string; bg: string; label: string }> = {
     pending: { color: 'var(--warning)', bg: 'var(--warning-bg)', label: '대기' },
-    processing: { color: '#0284c7', bg: '#f0f9ff', label: '처리중' },
+    processing: { color: 'var(--info)', bg: 'var(--info-bg)', label: '처리중' },
     completed: { color: 'var(--success)', bg: 'var(--success-bg)', label: '완료' },
     crm_registered: { color: 'var(--brand-dark)', bg: 'var(--brand-soft)', label: 'CRM 등록' },
     failed: { color: 'var(--danger)', bg: 'var(--danger-bg)', label: '실패' },

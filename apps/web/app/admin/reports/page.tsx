@@ -12,7 +12,7 @@ function RichCell({ html }: { html: string }) {
     return <div className="report-rich" dangerouslySetInnerHTML={{ __html: html }} />
   }
   return (
-    <p style={{ margin: 0, fontSize: '0.8125rem', color: '#374151', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+    <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
       {html}
     </p>
   )

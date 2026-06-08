@@ -74,7 +74,7 @@ export default function EditProfileModal({
 
         <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>이름 *</span>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>이름 *</span>
             <input
               value={name}
               onChange={e => setName(e.target.value)}
@@ -87,7 +87,7 @@ export default function EditProfileModal({
           </label>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>직급</span>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>직급</span>
             <select
               value={rank}
               onChange={e => setRank(e.target.value)}
@@ -105,7 +105,7 @@ export default function EditProfileModal({
           </label>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>직책</span>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>직책</span>
             <select
               value={position}
               onChange={e => setPosition(e.target.value)}
@@ -122,7 +122,7 @@ export default function EditProfileModal({
             </select>
           </label>
 
-          {error && <p style={{ margin: 0, color: '#ef4444', fontSize: '0.8rem' }}>{error}</p>}
+          {error && <p style={{ margin: 0, color: 'var(--danger)', fontSize: '0.8rem' }}>{error}</p>}
         </div>
 
         <div style={{
@@ -133,7 +133,7 @@ export default function EditProfileModal({
             onClick={onClose}
             disabled={isPending}
             style={{
-              padding: '0.45rem 1rem', background: 'var(--surface-muted)', color: '#475569',
+              padding: '0.45rem 1rem', background: 'var(--surface-muted)', color: 'var(--text-muted)',
               border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer',
             }}
           >

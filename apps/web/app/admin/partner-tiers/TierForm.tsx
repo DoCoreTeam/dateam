@@ -51,7 +51,7 @@ export default function TierForm({
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
       <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 160px' }}>
-          <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: '#475569', marginBottom: '0.25rem' }}>
+          <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
             등급명 *
           </label>
           <input
@@ -67,7 +67,7 @@ export default function TierForm({
           />
         </div>
         <div style={{ flex: '0 1 120px' }}>
-          <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: '#475569', marginBottom: '0.25rem' }}>
+          <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
             할인율 (%) *
           </label>
           <input
@@ -85,7 +85,7 @@ export default function TierForm({
           />
         </div>
         <div style={{ flex: '2 1 200px' }}>
-          <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: '#475569', marginBottom: '0.25rem' }}>
+          <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
             설명 (선택)
           </label>
           <input

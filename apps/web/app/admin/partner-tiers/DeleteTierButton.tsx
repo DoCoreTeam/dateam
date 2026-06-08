@@ -39,7 +39,7 @@ export default function DeleteTierButton({ tierId, tierName }: { tierId: string;
           onClick={() => setConfirming(false)}
           style={{
             padding: '0.25rem 0.5rem', borderRadius: '0.25rem',
-            background: 'var(--surface-muted)', color: '#475569', border: 'none',
+            background: 'var(--surface-muted)', color: 'var(--text-muted)', border: 'none',
             fontSize: '0.75rem', cursor: 'pointer',
           }}
         >

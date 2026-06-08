@@ -103,7 +103,7 @@ export default function ActivityLogger({ dealId }: Props) {
             <button type="submit" disabled={loading} className="btn-primary" style={{ fontSize: '0.8125rem', padding: '0.5rem 1rem', minHeight: '36px' }}>
               {loading ? '저장중...' : '저장'}{!loading && <span style={{ fontSize: '0.65rem', opacity: 0.65, marginLeft: '0.3rem' }}>Ctrl+↵</span>}
             </button>
-            <button type="button" onClick={handleAiParse} disabled={aiLoading} style={{ fontSize: '0.8125rem', padding: '0.5rem 0.875rem', minHeight: '36px', background: '#f0f9ff', color: '#0284c7', border: '1px solid #bae6fd', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600 }}>
+            <button type="button" onClick={handleAiParse} disabled={aiLoading} style={{ fontSize: '0.8125rem', padding: '0.5rem 0.875rem', minHeight: '36px', background: 'var(--info-bg)', color: 'var(--info)', border: '1px solid var(--info-border)', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600 }}>
               {aiLoading ? 'AI분석중...' : '🤖 AI정리'}
             </button>
             <button type="button" onClick={() => { setOpen(false); setContent(''); setError('') }} style={{ fontSize: '0.8125rem', padding: '0.5rem 0.875rem', minHeight: '36px', background: 'none', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', color: 'var(--text-muted)' }}>

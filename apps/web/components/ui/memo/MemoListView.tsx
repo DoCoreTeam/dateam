@@ -78,7 +78,7 @@ export default function MemoListView() {
           <Sparkles size={14} color="var(--brand)" />
           <button onClick={() => setActiveCluster(null)}
             style={chipStyle(activeCluster === null)}>전체</button>
-          {clusterLoading && <span style={{ fontSize: '0.75rem', color: '#a78bfa' }}>주제 분석 중…</span>}
+          {clusterLoading && <span style={{ fontSize: '0.75rem', color: 'var(--brand-soft-2)' }}>주제 분석 중…</span>}
           {clusters.map((c) => (
             <button key={c.label} onClick={() => setActiveCluster(c.label === activeCluster ? null : c.label)}
               style={chipStyle(activeCluster === c.label)}>
@@ -104,7 +104,7 @@ export default function MemoListView() {
                   style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', padding: '0.75rem 0.9rem', borderRadius: '0.6rem', background: '#fff', border: '2px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
                   <span title={st.label} style={{ width: 9, height: 9, borderRadius: '50%', background: st.dot, flexShrink: 0, marginTop: 4 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '0.88rem', color: '#1e293b', lineHeight: 1.5 }}>{m.content}</div>
+                    <div style={{ fontSize: '0.88rem', color: 'var(--text)', lineHeight: 1.5 }}>{m.content}</div>
                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.3rem', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.7rem', color: st.text }}>{relativeTime(m.logged_at)}</span>
                       {m.memo_status === 'reviewed' && (
@@ -142,7 +142,7 @@ function chipStyle(active: boolean): React.CSSProperties {
   return {
     padding: '0.3rem 0.75rem', borderRadius: '999px', fontSize: '0.78rem', cursor: 'pointer',
     border: active ? '1px solid var(--brand)' : '2px solid var(--border-color)',
-    background: active ? '#f5f3ff' : '#fff',
+    background: active ? 'var(--brand-soft)' : '#fff',
     color: active ? 'var(--brand)' : 'var(--text-muted)', fontWeight: active ? 600 : 400,
   }
 }

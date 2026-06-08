@@ -58,7 +58,7 @@ export default function TierRow({ id, name, discountRate, description, createdAt
             style={{
               display: 'flex', alignItems: 'center', gap: '0.25rem',
               padding: '0.375rem 0.625rem', borderRadius: '0.375rem',
-              background: 'var(--surface-muted)', color: '#475569',
+              background: 'var(--surface-muted)', color: 'var(--text-muted)',
               border: 'none', fontSize: '0.8125rem', cursor: 'pointer',
             }}
           >

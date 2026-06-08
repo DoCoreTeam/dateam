@@ -51,7 +51,7 @@ export default function HomeMiniCalendar({ year, month, todayStr, monthSummary }
             key={d}
             style={{
               textAlign: 'center', fontSize: '0.6875rem', fontWeight: 600,
-              color: i === 0 ? '#ef4444' : i === 6 ? '#3b82f6' : 'var(--text-faint)',
+              color: i === 0 ? 'var(--danger)' : i === 6 ? 'var(--info)' : 'var(--text-faint)',
               padding: '0.2rem 0',
             }}
           >
@@ -86,7 +86,7 @@ export default function HomeMiniCalendar({ year, month, todayStr, monthSummary }
               <span style={{
                 fontSize: '0.8125rem',
                 fontWeight: isToday ? 700 : 400,
-                color: isToday ? '#ffffff' : dow === 0 ? '#ef4444' : dow === 6 ? '#3b82f6' : '#334155',
+                color: isToday ? '#ffffff' : dow === 0 ? 'var(--danger)' : dow === 6 ? 'var(--info)' : 'var(--text)',
               }}>
                 {day}
               </span>
@@ -94,10 +94,10 @@ export default function HomeMiniCalendar({ year, month, todayStr, monthSummary }
                 <span style={{
                   width: 4, height: 4, borderRadius: '50%', display: 'block',
                   background: summary.hasBlocker
-                    ? '#ef4444'
+                    ? 'var(--danger)'
                     : isToday
                       ? 'rgba(255,255,255,0.7)'
-                      : '#22c55e',
+                      : 'var(--success)',
                 }} />
               )}
             </button>

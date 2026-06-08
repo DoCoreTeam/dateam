@@ -15,11 +15,11 @@ type SortField = 'created_at' | 'title' | 'stage' | 'value' | 'probability'
 const STAGES = ['신규', '검증', '컨택', 'PoC', '제안', '협상', '수주', '실패'] as const
 const STAGE_STYLE: Record<string, { color: string; bg: string; border: string }> = {
   '신규':  { color: 'var(--text-muted)', bg: 'var(--color-bg)',  border: 'var(--color-border)' },
-  '검증':  { color: '#0891b2', bg: '#ecfeff',  border: '#a5f3fc' },
-  '컨택':  { color: 'var(--brand)', bg: '#f5f3ff',  border: '#ddd6fe' },
+  '검증':  { color: 'var(--info)', bg: 'var(--info-bg)',  border: 'var(--info-bg)' },
+  '컨택':  { color: 'var(--brand)', bg: 'var(--brand-soft)',  border: 'var(--brand-soft-2)' },
   'PoC':   { color: 'var(--warning)', bg: 'var(--warning-bg)',  border: 'var(--warning-border)' },
-  '제안':  { color: '#0284c7', bg: '#f0f9ff',  border: '#bae6fd' },
-  '협상':  { color: '#c2410c', bg: '#fff7ed',  border: '#fed7aa' },
+  '제안':  { color: 'var(--info)', bg: 'var(--info-bg)',  border: 'var(--info-border)' },
+  '협상':  { color: 'var(--warning)', bg: 'var(--warning-bg)',  border: 'var(--warning-border)' },
   '수주':  { color: 'var(--success)', bg: 'var(--success-bg)',  border: 'var(--success-border)' },
   '실패':  { color: 'var(--danger)', bg: 'var(--danger-bg)',  border: 'var(--danger-border)' },
 }
@@ -267,7 +267,7 @@ export default function DealsPage() {
                           : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
                       </td>
                       <td data-label="확률">
-                        <span style={{ fontSize: '0.875rem', color: '#374151' }}>{d.probability}%</span>
+                        <span style={{ fontSize: '0.875rem', color: 'var(--text)' }}>{d.probability}%</span>
                       </td>
                       <td data-label="리드유형">
                         {d.lead_type
@@ -275,7 +275,7 @@ export default function DealsPage() {
                           : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
                       </td>
                       <td data-label="제품">
-                        <span style={{ fontSize: '0.8125rem', color: '#374151' }}>{d.product ?? '-'}</span>
+                        <span style={{ fontSize: '0.8125rem', color: 'var(--text)' }}>{d.product ?? '-'}</span>
                       </td>
                       <td data-label="적합도" style={{ textAlign: 'center' }}>
                         {d.fit_score !== null
@@ -302,7 +302,7 @@ export default function DealsPage() {
               </div>
             )}
             {isCapped && (
-              <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: '#92400e', background: 'var(--warning-bg)', borderTop: '1px solid var(--warning-border)' }}>
+              <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: 'var(--warning)', background: 'var(--warning-bg)', borderTop: '1px solid var(--warning-border)' }}>
                 결과가 500건을 초과합니다. 검색 조건을 좁혀주세요.
               </div>
             )}
@@ -359,14 +359,14 @@ function DealDetail({ deal: d, onClose, onDeleted }: { deal: DealWithAccount; on
           </div>
         )}
         {d.description && (
-          <p style={{ fontSize: '0.875rem', color: '#374151', lineHeight: 1.6, margin: '0.5rem 0 0' }}>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text)', lineHeight: 1.6, margin: '0.5rem 0 0' }}>
             {d.description}
           </p>
         )}
         {d.tags?.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginTop: '0.25rem' }}>
             {d.tags.map(tag => (
-              <span key={tag} className="badge" style={{ background: '#f0f9ff', color: '#0284c7', fontSize: '0.75rem' }}>#{tag}</span>
+              <span key={tag} className="badge" style={{ background: 'var(--info-bg)', color: 'var(--info)', fontSize: '0.75rem' }}>#{tag}</span>
             ))}
           </div>
         )}

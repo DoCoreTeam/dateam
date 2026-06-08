@@ -285,7 +285,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
         padding: '0.25rem 0.625rem',
         background: 'var(--brand-soft)', color: 'var(--brand-dark)',
-        border: '1px solid #ddd6fe', borderRadius: '0.375rem',
+        border: '1px solid var(--brand-soft-2)', borderRadius: '0.375rem',
         fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
       }}
     >
@@ -388,7 +388,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
               <div style={{
                 marginTop: '0.5rem', padding: '0.5rem 0.75rem',
                 background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
-                borderRadius: '0.4rem', fontSize: '0.8125rem', color: '#b91c1c',
+                borderRadius: '0.4rem', fontSize: '0.8125rem', color: 'var(--danger)',
               }}>
                 {aiError}
               </div>
@@ -473,7 +473,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 2. projects */}
-      <SectionCard title="프로젝트" badge="projects" badgeColor="#dbeafe" badgeText="#1d4ed8"
+      <SectionCard title="프로젝트" badge="projects" badgeColor="var(--info-bg)" badgeText="var(--info)"
         headerAction={<AiButton sectionKey="projects" sectionName="프로젝트" columns={PROJECT_COLS} currentData={projects} />}
       >
         <form onSubmit={submit(actions.updateProjects)}>
@@ -483,7 +483,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 3. members */}
-      <SectionCard title="멤버" badge="members" badgeColor="#dcfce7" badgeText="#15803d"
+      <SectionCard title="멤버" badge="members" badgeColor="var(--success-bg)" badgeText="var(--success)"
         headerAction={<AiButton sectionKey="members" sectionName="멤버" columns={MEMBER_COLS} currentData={members} />}
       >
         <form onSubmit={submit(actions.updateMembers)}>
@@ -493,7 +493,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 4. missions */}
-      <SectionCard title="미션" badge="missions" badgeColor="#fef9c3" badgeText="#a16207"
+      <SectionCard title="미션" badge="missions" badgeColor="var(--warning-bg)" badgeText="var(--warning)"
         headerAction={<AiButton sectionKey="missions" sectionName="미션" columns={MISSION_COLS} currentData={missions} />}
       >
         <form onSubmit={submit(actions.updateMissions)}>
@@ -503,7 +503,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 5. okr */}
-      <SectionCard title="OKR" badge="okr" badgeColor="#fee2e2" badgeText="var(--danger)"
+      <SectionCard title="OKR" badge="okr" badgeColor="var(--danger-bg)" badgeText="var(--danger)"
         headerAction={<AiButton sectionKey="okr" sectionName="OKR" columns={OKR_COLS} currentData={okr} />}
       >
         <form onSubmit={submit(actions.updateOkr)}>
@@ -513,7 +513,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 6. principles */}
-      <SectionCard title="원칙" badge="principles" badgeColor="#f3e8ff" badgeText="var(--brand)"
+      <SectionCard title="원칙" badge="principles" badgeColor="var(--brand-soft)" badgeText="var(--brand)"
         headerAction={<AiButton sectionKey="principles" sectionName="원칙" columns={PRINCIPLE_COLS} currentData={principles} />}
       >
         <form onSubmit={submit(actions.updatePrinciples)}>
@@ -523,7 +523,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 7. kpi_targets */}
-      <SectionCard title="KPI 목표" badge="kpi_targets" badgeColor="#dbeafe" badgeText="#1d4ed8"
+      <SectionCard title="KPI 목표" badge="kpi_targets" badgeColor="var(--info-bg)" badgeText="var(--info)"
         headerAction={<AiButton sectionKey="kpi_targets" sectionName="KPI 목표" columns={KPI_TARGET_COLS} currentData={kpiTargets} />}
       >
         <form onSubmit={submit(actions.updateKpiTargets)}>
@@ -533,7 +533,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 8. routine_templates */}
-      <SectionCard title="루틴 템플릿" badge="routine_templates" badgeColor="#fef3c7" badgeText="#b45309"
+      <SectionCard title="루틴 템플릿" badge="routine_templates" badgeColor="var(--warning-bg)" badgeText="var(--warning)"
         headerAction={<AiButton sectionKey="routine_templates" sectionName="루틴 템플릿" columns={ROUTINE_COLS} currentData={routineTemplates} />}
       >
         <form onSubmit={submit(actions.updateRoutineTemplates)}>
@@ -543,7 +543,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       </SectionCard>
 
       {/* 9. rhythm */}
-      <SectionCard title="리듬 (Rhythm)" badge="rhythm" badgeColor="var(--success-bg)" badgeText="#15803d">
+      <SectionCard title="리듬 (Rhythm)" badge="rhythm" badgeColor="var(--success-bg)" badgeText="var(--success)">
         <form onSubmit={submit(actions.updateRhythm)}>
           <DynamicKeyValue name="rhythm_json" initialData={rhythm} addLabel="리듬 항목 추가" />
           <button type="submit" style={SUBMIT}>저장</button>

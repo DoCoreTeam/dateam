@@ -35,14 +35,14 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
         <Building2 size={18} color="var(--brand)" />
-        <span style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b' }}>회사 정보</span>
+        <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text)' }}>회사 정보</span>
         <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginLeft: 4 }}>조직도 최상단</span>
       </div>
 
       {editing ? (
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: '#475569', marginBottom: '0.25rem' }}>
+            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
               회사명 *
             </label>
             <input
@@ -56,7 +56,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: '#475569', marginBottom: '0.25rem' }}>
+            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
               설명 (선택)
             </label>
             <textarea
@@ -100,7 +100,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
       ) : (
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
           <div>
-            <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#1e293b' }}>{defaultName}</div>
+            <div style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text)' }}>{defaultName}</div>
             {defaultDescription && (
               <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{defaultDescription}</div>
             )}
@@ -110,7 +110,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
             style={{
               flexShrink: 0, padding: '0.375rem 0.75rem', borderRadius: '0.375rem',
               background: 'transparent', color: 'var(--brand)',
-              border: '1px solid #ddd6fe', fontSize: '0.8125rem', cursor: 'pointer', fontWeight: 500,
+              border: '1px solid var(--brand-soft-2)', fontSize: '0.8125rem', cursor: 'pointer', fontWeight: 500,
             }}
           >
             수정

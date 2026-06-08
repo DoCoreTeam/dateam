@@ -45,7 +45,7 @@ function CopyEmailBtn({ email }: { email: string }) {
     <button
       onClick={handleCopy}
       title="이메일 복사"
-      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', color: copied ? '#22c55e' : 'var(--text-faint)', display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}
+      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', color: copied ? 'var(--success)' : 'var(--text-faint)', display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}
     >
       {copied ? <Check size={10} /> : <Copy size={10} />}
     </button>
@@ -78,7 +78,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
         boxShadow: 'var(--shadow-sm)', width: `${CARD_W + 28}px`, textAlign: 'left', overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <Building2 size={14} color="#ddd6fe" style={{ flexShrink: 0 }} />
+          <Building2 size={14} color="var(--brand-soft-2)" style={{ flexShrink: 0 }} />
           <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
         </div>
         {node.subtitle && (
@@ -96,11 +96,11 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
     return (
       <div style={{
         display: 'inline-block', padding: '0.65rem 1rem', borderRadius: 'var(--radius)',
-        background: 'linear-gradient(135deg,#1e1b4b,#312e81)', border: '2px solid #312e81',
+        background: 'linear-gradient(135deg,var(--text),var(--brand-dark))', border: '2px solid var(--brand-dark)',
         boxShadow: 'var(--shadow-sm)', width: `${CARD_W}px`, textAlign: 'left', overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <Crown size={13} color="#c4b5fd" style={{ flexShrink: 0 }} />
+          <Crown size={13} color="var(--brand-soft-2)" style={{ flexShrink: 0 }} />
           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
         </div>
         {displayPerson && (
@@ -129,11 +129,11 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
     return (
       <div style={{
         display: 'inline-block', padding: '0.65rem 1rem', borderRadius: 'var(--radius)',
-        background: 'linear-gradient(135deg,#3730a3,var(--brand-dark))', border: '2px solid var(--brand-dark)',
+        background: 'linear-gradient(135deg,var(--brand-dark),var(--brand-dark))', border: '2px solid var(--brand-dark)',
         boxShadow: 'var(--shadow-sm)', width: `${CARD_W}px`, textAlign: 'left', overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <Users size={13} color="#ddd6fe" style={{ flexShrink: 0 }} />
+          <Users size={13} color="var(--brand-soft-2)" style={{ flexShrink: 0 }} />
           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
           {personChildren.length > 0 && (
             <span style={{ fontSize: '0.65rem', background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: '999px', padding: '1px 6px', flexShrink: 0 }}>
@@ -176,7 +176,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
           {node.name.charAt(0) || <User size={10} />}
         </div>
         <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
-          <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</div>
+          <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</div>
           {node.subtitle && <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.subtitle}</div>}
           {email && <EmailRow email={email} />}
         </div>
@@ -313,7 +313,7 @@ export default function OrgPublicTree({
             position: 'absolute', top: 0, left: '50%',
             transform: 'translateX(-50%)',
             width: '2px', height: topOffset,
-            background: '#ddd6fe',
+            background: 'var(--brand-soft-2)',
           }} />
           {card}
         </div>
@@ -374,11 +374,11 @@ export default function OrgPublicTree({
     >
       {/* 줌 컨트롤 */}
       <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10, display: 'flex', gap: '0.25rem', background: 'rgba(255,255,255,0.95)', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.25rem', boxShadow: 'var(--shadow-sm)' }}>
-        <button onClick={() => setZoom(z => ({ ...z, scale: Math.min(z.scale * 1.2, 3) }))} style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>+</button>
-        <button onClick={() => setZoom(z => ({ ...z, scale: Math.max(z.scale / 1.2, 0.2) }))} style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>−</button>
+        <button onClick={() => setZoom(z => ({ ...z, scale: Math.min(z.scale * 1.2, 3) }))} style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>+</button>
+        <button onClick={() => setZoom(z => ({ ...z, scale: Math.max(z.scale / 1.2, 0.2) }))} style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>−</button>
         <div style={{ width: 1, background: 'var(--color-border)', margin: '4px 2px' }} />
-        <button onClick={fitToScreen} style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '0.7rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>FIT</button>
-        <button onClick={() => setZoom({ scale: 1, tx: 50, ty: 30 })} style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '0.65rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>1:1</button>
+        <button onClick={fitToScreen} style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>FIT</button>
+        <button onClick={() => setZoom({ scale: 1, tx: 50, ty: 30 })} style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>1:1</button>
       </div>
 
       <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.85)', border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.15rem 0.5rem', fontSize: '0.7rem', color: 'var(--text-muted)', pointerEvents: 'none' }}>
@@ -399,7 +399,7 @@ export default function OrgPublicTree({
         <Tree
           label={<NodeCard node={root} />}
           lineWidth="2px"
-          lineColor="#ddd6fe"
+          lineColor="var(--brand-soft-2)"
           lineBorderRadius="8px"
           nodePadding="12px"
         >

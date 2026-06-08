@@ -15,11 +15,11 @@ function fitColor(score: number | null) {
 
 const STAGE_COLOR: Record<string, { color: string; bg: string }> = {
   '신규': { color: 'var(--text-muted)', bg: 'var(--color-bg)' },
-  '검증': { color: '#0891b2', bg: '#ecfeff' },
-  '컨택': { color: 'var(--brand)', bg: '#f5f3ff' },
+  '검증': { color: 'var(--info)', bg: 'var(--info-bg)' },
+  '컨택': { color: 'var(--brand)', bg: 'var(--brand-soft)' },
   'PoC': { color: 'var(--warning)', bg: 'var(--warning-bg)' },
-  '제안': { color: '#0284c7', bg: '#f0f9ff' },
-  '협상': { color: '#c2410c', bg: '#fff7ed' },
+  '제안': { color: 'var(--info)', bg: 'var(--info-bg)' },
+  '협상': { color: 'var(--warning)', bg: 'var(--warning-bg)' },
   '수주': { color: 'var(--success)', bg: 'var(--success-bg)' },
   '실패': { color: 'var(--danger)', bg: 'var(--danger-bg)' },
 }
@@ -64,7 +64,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
                 {account.industry && <span className="badge badge-slate">{account.industry}</span>}
                 {account.segment && <span className="badge badge-indigo">{account.segment}</span>}
                 {account.size && <span className="badge" style={{ background: 'var(--color-bg)', color: 'var(--text-muted)' }}>{account.size}</span>}
-                {account.account_type && <span className="badge" style={{ background: '#fff7ed', color: '#c2410c' }}>{account.account_type}</span>}
+                {account.account_type && <span className="badge" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>{account.account_type}</span>}
                 {account.gpu_demand_intensity && <span className="badge" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>GPU {account.gpu_demand_intensity}</span>}
               </div>
             </div>
@@ -97,34 +97,34 @@ export default async function AccountDetailPage({ params }: PageProps) {
               {account.phone && (
                 <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
                   <Phone size={15} color="var(--brand)" style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: '0.875rem', color: '#374151' }}>{account.phone}</span>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text)' }}>{account.phone}</span>
                 </div>
               )}
               {account.registration_number && (
                 <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', minWidth: '5rem' }}>번호</span>
-                  <span style={{ fontSize: '0.875rem', color: '#374151' }}>{account.registration_number}</span>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text)' }}>{account.registration_number}</span>
                 </div>
               )}
               {account.source && (
                 <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', minWidth: '5rem' }}>출처</span>
-                  <span style={{ fontSize: '0.875rem', color: '#374151' }}>{account.source}</span>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text)' }}>{account.source}</span>
                 </div>
               )}
               {account.region && (
                 <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
                   <MapPin size={15} color="var(--brand)" style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: '0.875rem', color: '#374151' }}>{account.region} {account.address && `· ${account.address}`}</span>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text)' }}>{account.region} {account.address && `· ${account.address}`}</span>
                 </div>
               )}
               {account.description && (
-                <p style={{ fontSize: '0.875rem', color: '#374151', margin: '0.5rem 0 0', lineHeight: 1.6 }}>{account.description}</p>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text)', margin: '0.5rem 0 0', lineHeight: 1.6 }}>{account.description}</p>
               )}
               {account.tags?.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginTop: '0.25rem' }}>
                   {account.tags.map((tag) => (
-                    <span key={tag} className="badge" style={{ background: '#f0f9ff', color: '#0284c7', fontSize: '0.75rem' }}>#{tag}</span>
+                    <span key={tag} className="badge" style={{ background: 'var(--info-bg)', color: 'var(--info)', fontSize: '0.75rem' }}>#{tag}</span>
                   ))}
                 </div>
               )}

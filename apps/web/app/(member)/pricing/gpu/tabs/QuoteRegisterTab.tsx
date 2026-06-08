@@ -42,11 +42,11 @@ const CONF_LABELS: Record<string, string> = {
 }
 
 const QTY_STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  available_full:    { label: '재고 있음',  color: '#15803d' },
-  available_partial: { label: '일부 가능',  color: '#b45309' },
+  available_full:    { label: '재고 있음',  color: 'var(--success)' },
+  available_partial: { label: '일부 가능',  color: 'var(--warning)' },
   out_of_stock:      { label: '재고 없음',  color: 'var(--danger)' },
   declined:          { label: '공급 거절',  color: 'var(--brand)' },
-  pending:           { label: '확인 중',    color: '#6b7280' },
+  pending:           { label: '확인 중',    color: 'var(--text-muted)' },
 }
 
 function formatExtractedValue(key: string, val: unknown): string {
@@ -89,7 +89,7 @@ function getTabLabel(item: ReviewItemResult): string {
 }
 
 function getConfColor(pct: number | null): string {
-  if (pct == null) return '#9ca3af'
+  if (pct == null) return 'var(--text-faint)'
   if (pct >= 80) return 'var(--gpu-green)'
   if (pct >= 60) return 'var(--gpu-amber)'
   return 'var(--gpu-red)'
@@ -132,13 +132,13 @@ function ResultPanel({ item }: { item: ReviewItemResult }) {
             style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
               borderRadius: 8,
-              background: isNull ? '#f9fafb' : isLow ? '#fff7ed' : '#f9fafb',
-              border: `1px solid ${isNull ? '#f0f0f0' : isLow ? '#fed7aa' : 'var(--color-border)'}`,
+              background: isNull ? 'var(--surface-bg)' : isLow ? 'var(--warning-bg)' : 'var(--surface-bg)',
+              border: `1px solid ${isNull ? 'var(--surface-bg)' : isLow ? 'var(--warning-border)' : 'var(--color-border)'}`,
               opacity: isNull ? 0.55 : 1,
             }}
           >
             <span style={{ fontSize: 12, color: 'var(--gpu-muted)', minWidth: 80 }}>{CONF_LABELS[key] ?? key}</span>
-            <span style={{ fontSize: 13, fontWeight: isNull ? 400 : 600, flex: 1, color: isNull ? '#9ca3af' : '#111827', fontStyle: isNull ? 'italic' : 'normal' }}>
+            <span style={{ fontSize: 13, fontWeight: isNull ? 400 : 600, flex: 1, color: isNull ? 'var(--text-faint)' : 'var(--text)', fontStyle: isNull ? 'italic' : 'normal' }}>
               {displayVal}
             </span>
             {typeof conf === 'number' && !isNull && (
@@ -392,24 +392,24 @@ export default function QuoteRegisterTab() {
               onChange={(e) => { setRawText(e.target.value); setSuccessMsg(''); setErrorMsg('') }}
               onPaste={handlePaste}
             />
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid #f0f0f0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderTop: '1px solid var(--surface-bg)' }}>
               <label
                 htmlFor="gpu-file-input-v2"
                 className="gpu-btn"
-                style={{ padding: '4px 8px', fontSize: 12, gap: 4, color: '#6b7280', cursor: 'pointer' }}
+                style={{ padding: '4px 8px', fontSize: 12, gap: 4, color: 'var(--text-muted)', cursor: 'pointer' }}
               >
                 <Paperclip size={13} /> 파일 첨부
               </label>
-              <span style={{ fontSize: 11, color: '#d1d5db' }}>Ctrl+V로 이미지 붙여넣기 가능</span>
+              <span style={{ fontSize: 11, color: 'var(--border-subtle)' }}>Ctrl+V로 이미지 붙여넣기 가능</span>
             </div>
           </div>
 
           {/* 텍스트 파일 첨부(단일) */}
           {attached && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 10px', borderRadius: 8, background: '#f8faff', border: '1px solid var(--brand-soft-2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 10px', borderRadius: 8, background: 'var(--surface-bg)', border: '1px solid var(--brand-soft-2)' }}>
               <Paperclip size={16} style={{ color: 'var(--brand)', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: '#374151', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attached.name}</span>
-              <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#9ca3af' }} onClick={() => setAttached(null)}>
+              <span style={{ fontSize: 12, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attached.name}</span>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: 'var(--text-faint)' }} onClick={() => setAttached(null)}>
                 <X size={14} />
               </button>
             </div>
@@ -516,7 +516,7 @@ export default function QuoteRegisterTab() {
                   {streamFindings.map((f, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 6, background: 'var(--color-bg)', border: '2px solid var(--border-color)', fontSize: 12 }}>
                       <span style={{ color: 'var(--gpu-accent)' }}>✦</span>
-                      <span style={{ fontWeight: 600, color: '#334155', flex: 1 }}>{f.model}</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text)', flex: 1 }}>{f.model}</span>
                       {f.price && <span style={{ fontWeight: 700, color: 'var(--brand-dark)' }}>${f.price}/hr</span>}
                     </div>
                   ))}
@@ -536,8 +536,8 @@ export default function QuoteRegisterTab() {
                   </div>
                   {competitorResults.map((item, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, background: 'var(--success-bg)', border: '1px solid var(--success-border)' }}>
-                      <span style={{ fontSize: 12, color: '#374151', fontWeight: 600, minWidth: 80 }}>{item.competitor}</span>
-                      <span style={{ fontSize: 12, color: '#6b7280', flex: 1 }}>{item.model} {item.memory}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600, minWidth: 80 }}>{item.competitor}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>{item.model} {item.memory}</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }}>${item.price_usd}/hr</span>
                     </div>
                   ))}
@@ -546,7 +546,7 @@ export default function QuoteRegisterTab() {
                       {applying ? '반영 중…' : `시장비교에 반영 (${competitorResults.length}건)`}
                     </button>
                   ) : (
-                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'var(--success-bg)', border: '1px solid var(--success-border)', fontSize: 12, color: '#15803d' }}>
+                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'var(--success-bg)', border: '1px solid var(--success-border)', fontSize: 12, color: 'var(--success)' }}>
                       ✓ 시장 비교 탭에 반영되었습니다.
                     </div>
                   )}
@@ -583,19 +583,19 @@ export default function QuoteRegisterTab() {
                     push('원본 단위', ex.original_unit)
                     push('추천 Tier', ex.tier_suggestion)
                     return (
-                      <div key={i} style={{ borderRadius: 8, background: 'var(--brand-soft)', border: '1px solid #ddd6fe', overflow: 'hidden' }}>
+                      <div key={i} style={{ borderRadius: 8, background: 'var(--brand-soft)', border: '1px solid var(--brand-soft-2)', overflow: 'hidden' }}>
                         <div onClick={() => setExpandedIdx(open ? null : i)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', cursor: 'pointer' }}>
                           <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{open ? '▾' : '▸'}</span>
-                          <span style={{ fontSize: 12, color: '#374151', fontWeight: 600, flex: 1 }}>{name || '(모델 미상)'}</span>
-                          {ex.supplier ? <span style={{ fontSize: 11, color: '#6b7280' }}>{String(ex.supplier)}</span> : null}
+                          <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600, flex: 1 }}>{name || '(모델 미상)'}</span>
+                          {ex.supplier ? <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{String(ex.supplier)}</span> : null}
                           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand-dark)' }}>{price}</span>
                         </div>
                         {open && (
-                          <div style={{ padding: '4px 12px 10px 28px', display: 'flex', flexDirection: 'column', gap: 3, borderTop: '1px solid #ddd6fe', background: '#f5f3ff' }}>
+                          <div style={{ padding: '4px 12px 10px 28px', display: 'flex', flexDirection: 'column', gap: 3, borderTop: '1px solid var(--brand-soft-2)', background: 'var(--brand-soft)' }}>
                             {detailRows.length > 0 ? detailRows.map(([k, v]) => (
                               <div key={k} style={{ display: 'flex', fontSize: 11.5, gap: 8 }}>
-                                <span style={{ color: '#8b8b9e', minWidth: 64 }}>{k}</span>
-                                <span style={{ color: '#374151', fontWeight: 500 }}>{v}</span>
+                                <span style={{ color: 'var(--text-muted)', minWidth: 64 }}>{k}</span>
+                                <span style={{ color: 'var(--text)', fontWeight: 500 }}>{v}</span>
                               </div>
                             )) : <span style={{ fontSize: 11.5, color: 'var(--text-faint)' }}>추가 상세 정보 없음</span>}
                           </div>
@@ -608,7 +608,7 @@ export default function QuoteRegisterTab() {
                       {committing ? '저장 중…' : `검토 대기에 추가 (${supplierPreview.length}건)`}
                     </button>
                   ) : (
-                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'var(--success-bg)', border: '1px solid var(--success-border)', fontSize: 12, color: '#15803d' }}>
+                    <div style={{ padding: '8px 10px', borderRadius: 8, background: 'var(--success-bg)', border: '1px solid var(--success-border)', fontSize: 12, color: 'var(--success)' }}>
                       ✓ 검토 대기 탭에 추가되었습니다. 본부장 검토 후 가격표에 반영됩니다.
                     </div>
                   )}
@@ -616,7 +616,7 @@ export default function QuoteRegisterTab() {
               )}
             </div>
           ) : !hasResults ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '32px 0', color: '#9ca3af' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '32px 0', color: 'var(--text-faint)' }}>
               <Sparkles size={36} style={{ opacity: 0.3 }} />
               <div style={{ textAlign: 'center', fontSize: 13, lineHeight: 1.6 }}>
                 왼쪽에 내용을 붙여넣고<br />&quot;AI 분석 시작&quot;을 누르세요
@@ -645,7 +645,7 @@ export default function QuoteRegisterTab() {
                           border: `1.5px solid ${isActive ? 'var(--gpu-accent)' : 'var(--color-border)'}`,
                           borderBottom: isActive ? '2px solid #fff' : '1.5px solid var(--color-border)',
                           background: isActive ? '#fff' : 'var(--color-bg)',
-                          color: isActive ? 'var(--gpu-accent)' : '#6b7280',
+                          color: isActive ? 'var(--gpu-accent)' : 'var(--text-muted)',
                           fontWeight: isActive ? 700 : 500,
                           fontSize: 12,
                           cursor: 'pointer',
@@ -674,7 +674,7 @@ export default function QuoteRegisterTab() {
                 <ResultPanel item={analysisResults[activeTabIdx]} />
               )}
 
-              <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'var(--success-bg)', border: '1px solid var(--success-border)', fontSize: 12, color: '#15803d' }}>
+              <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'var(--success-bg)', border: '1px solid var(--success-border)', fontSize: 12, color: 'var(--success)' }}>
                 <Send size={12} style={{ marginRight: 5, verticalAlign: 'middle' }} />
                 {analysisResults.length > 1
                   ? `${analysisResults.length}개 항목이 검토 대기에 추가되었습니다. 본부장 검토 후 가격표에 반영됩니다.`

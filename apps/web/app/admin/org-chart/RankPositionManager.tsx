@@ -86,13 +86,13 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             <Plus size={14} /> 추가
           </button>
         </div>
-        {rankError && <p style={{ margin: '0 0 0.5rem', color: '#ef4444', fontSize: '0.8rem' }}>{rankError}</p>}
+        {rankError && <p style={{ margin: '0 0 0.5rem', color: 'var(--danger)', fontSize: '0.8rem' }}>{rankError}</p>}
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
           {ranks.sort((a, b) => a.display_order - b.display_order).map(r => (
             <li key={r.id} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '0.35rem 0.6rem', background: 'var(--color-bg)', borderRadius: '0.4rem',
-              fontSize: '0.875rem', color: '#334155',
+              fontSize: '0.875rem', color: 'var(--text)',
             }}>
               {r.name}
               <button
@@ -138,13 +138,13 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             <Plus size={14} /> 추가
           </button>
         </div>
-        {posError && <p style={{ margin: '0 0 0.5rem', color: '#ef4444', fontSize: '0.8rem' }}>{posError}</p>}
+        {posError && <p style={{ margin: '0 0 0.5rem', color: 'var(--danger)', fontSize: '0.8rem' }}>{posError}</p>}
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
           {positions.sort((a, b) => a.display_order - b.display_order).map(p => (
             <li key={p.id} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '0.35rem 0.6rem', background: 'var(--color-bg)', borderRadius: '0.4rem',
-              fontSize: '0.875rem', color: '#334155',
+              fontSize: '0.875rem', color: 'var(--text)',
             }}>
               {p.name}
               <button

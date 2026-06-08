@@ -5,7 +5,7 @@ import type { DailyLog, Profile } from '@/types/database'
 const ENTRY_TYPES = {
   done:    { label: '완료',   icon: '✅', color: 'var(--success)', bg: 'var(--success-bg)' },
   doing:   { label: '진행중', icon: '🔄', color: 'var(--info)', bg: 'var(--info-bg)' },
-  planned: { label: '예정',   icon: '📋', color: 'var(--brand)', bg: '#f5f3ff' },
+  planned: { label: '예정',   icon: '📋', color: 'var(--brand)', bg: 'var(--brand-soft)' },
   blocker: { label: '블로커', icon: '🚫', color: 'var(--danger)', bg: 'var(--danger-bg)' },
   note:    { label: '메모',   icon: '📌', color: 'var(--warning)', bg: 'var(--warning-bg)' },
 } as const
@@ -97,7 +97,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
       {/* 요약 카드 */}
       <div className="responsive-grid-cols-3" style={{ marginBottom: '1.5rem', gap: '0.75rem' }}>
         {[
-          { label: '참여 인원', value: `${activeMembers}명`, sub: `전체 ${members?.length ?? 0}명 중`, color: '#3b82f6' },
+          { label: '참여 인원', value: `${activeMembers}명`, sub: `전체 ${members?.length ?? 0}명 중`, color: 'var(--info)' },
           { label: '총 로그', value: `${totalLogs}건`, sub: formatDate(selectedDate), color: 'var(--success)' },
           { label: '블로커', value: `${totalBlockers}건`, sub: totalBlockers > 0 ? '주의 필요' : '문제 없음', color: totalBlockers > 0 ? 'var(--danger)' : 'var(--success)' },
         ].map((c) => (
@@ -138,7 +138,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
           ))}
         </select>
         <button type="submit" style={{
-          padding: '0.5rem 1rem', background: '#3b82f6', color: '#fff',
+          padding: '0.5rem 1rem', background: 'var(--info)', color: '#fff',
           border: 'none', borderRadius: 'var(--radius)', fontWeight: 600,
           fontSize: '0.875rem', cursor: 'pointer',
         }}>
@@ -170,7 +170,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
                   <div style={{
                     width: '2rem', height: '2rem', borderRadius: '50%',
-                    background: '#3b82f6', color: '#fff', display: 'flex',
+                    background: 'var(--info)', color: '#fff', display: 'flex',
                     alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem', fontWeight: 700,
                   }}>
                     {group.name[0] ?? '?'}
@@ -204,7 +204,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
                       display: 'flex', alignItems: 'flex-start', gap: '0.625rem',
                       padding: '0.625rem 0.75rem',
                       borderLeft: `3px solid ${type.color}`,
-                      background: log.entry_type === 'blocker' ? 'var(--danger-bg)' : '#fafafa',
+                      background: log.entry_type === 'blocker' ? 'var(--danger-bg)' : 'var(--surface-bg)',
                       borderRadius: '0 0.375rem 0.375rem 0',
                     }}>
                       <span style={{ fontSize: '1rem', flexShrink: 0, marginTop: '0.1rem' }}>{type.icon}</span>
@@ -221,7 +221,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
                           </span>
                         </div>
                         <p style={{
-                          margin: 0, fontSize: '0.9rem', color: '#1e293b',
+                          margin: 0, fontSize: '0.9rem', color: 'var(--text)',
                           lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                         }}>
                           {log.content}

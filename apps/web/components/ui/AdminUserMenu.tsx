@@ -85,7 +85,7 @@ export default function AdminUserMenu({ displayName }: AdminUserMenuProps) {
           <MenuButton
             icon={<LogOut size={15} />}
             label="로그아웃"
-            color="#f87171"
+            color="var(--danger)"
             hoverBg="rgba(239,68,68,0.12)"
             onClick={handleLogout}
           />
@@ -113,7 +113,7 @@ export default function AdminUserMenu({ displayName }: AdminUserMenuProps) {
       >
         <div style={{
           width: '1.875rem', height: '1.875rem', borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--danger), #ef4444)',
+          background: 'linear-gradient(135deg, var(--danger), var(--danger))',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0, fontSize: '0.75rem', fontWeight: 600, color: 'white',
         }}>

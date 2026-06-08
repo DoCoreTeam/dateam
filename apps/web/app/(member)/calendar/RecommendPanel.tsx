@@ -34,13 +34,13 @@ export default function RecommendPanel() {
   return (
     <div style={{ marginBottom: '1rem' }}>
       {!open ? (
-        <button onClick={load} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--brand)', background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 'var(--radius)', padding: '0.45rem 0.875rem', cursor: 'pointer' }}>
+        <button onClick={load} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--brand)', background: 'var(--brand-soft)', border: '1px solid var(--brand-soft-2)', borderRadius: 'var(--radius)', padding: '0.45rem 0.875rem', cursor: 'pointer' }}>
           <Sparkles size={15} /> AI 일정 추천 받기
         </button>
       ) : (
-        <div className="card" style={{ padding: '1rem 1.25rem', border: '1px solid #ddd6fe', background: 'linear-gradient(to right,#faf5ff,#fdf4ff)' }}>
+        <div className="card" style={{ padding: '1rem 1.25rem', border: '1px solid var(--brand-soft-2)', background: 'linear-gradient(to right,var(--brand-soft),var(--brand-soft))' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', fontWeight: 700, color: '#6d28d9' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', fontWeight: 700, color: 'var(--brand)' }}>
               <Sparkles size={15} /> AI 추천 일정 {busy && '(분석 중…)'}
             </span>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -49,13 +49,13 @@ export default function RecommendPanel() {
             </div>
           </div>
           {msg && <p style={{ fontSize: '0.8rem', color: 'var(--brand)', margin: '0 0 0.5rem' }}>{msg}</p>}
-          {busy && <p style={{ fontSize: '0.8rem', color: '#a78bfa', margin: 0 }}>일일업무·주간계획·메모를 종합하는 중…</p>}
+          {busy && <p style={{ fontSize: '0.8rem', color: 'var(--brand-soft-2)', margin: 0 }}>일일업무·주간계획·메모를 종합하는 중…</p>}
           {items && items.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {items.map((rec, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.625rem 0.75rem', background: '#fff', border: '1px solid #e9d5ff', borderRadius: 'var(--radius)' }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.625rem 0.75rem', background: '#fff', border: '1px solid var(--brand-soft-2)', borderRadius: 'var(--radius)' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e293b' }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)' }}>
                       <span style={{ color: 'var(--brand)', fontWeight: 700, marginRight: '0.4rem' }}>{rec.start_at.slice(5, 16).replace('T', ' ')}</span>
                       {rec.title}
                     </div>

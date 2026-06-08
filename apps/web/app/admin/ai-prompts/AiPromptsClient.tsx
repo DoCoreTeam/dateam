@@ -40,7 +40,7 @@ export default function AiPromptsClient() {
       <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 16px' }}>DB 프롬프트 CRUD · AI 자가갱신 이력(왜·어떻게) · 롤백 · AI가 보는 스키마</p>
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '2px solid var(--border-color)' }}>
         {([['prompts', '프롬프트'], ['history', '변경 이력'], ['schema', '스키마(AI 가시)']] as const).map(([k, label]) => (
-          <button key={k} onClick={() => setTab(k)} style={{ padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: tab === k ? 700 : 500, color: tab === k ? 'var(--gpu-accent,#5b5ef0)' : 'var(--text-muted)', borderBottom: tab === k ? '2px solid var(--gpu-accent,#5b5ef0)' : '2px solid transparent' }}>{label}</button>
+          <button key={k} onClick={() => setTab(k)} style={{ padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: tab === k ? 700 : 500, color: tab === k ? 'var(--gpu-accent,var(--brand))' : 'var(--text-muted)', borderBottom: tab === k ? '2px solid var(--gpu-accent,var(--brand))' : '2px solid transparent' }}>{label}</button>
         ))}
       </div>
       {tab === 'prompts' && <PromptsTab />}
@@ -162,7 +162,7 @@ function HistoryTab() {
           const isOpen = open.has(r.id)
           const diff = r.prev_content != null && r.content != null ? lineDiff(r.prev_content, r.content) : null
           return (
-            <div key={r.id} style={{ borderRadius: 8, background: '#fff', border: '1px solid #eef2f7' }}>
+            <div key={r.id} style={{ borderRadius: 8, background: '#fff', border: '1px solid var(--surface-bg)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', fontSize: 12.5, flexWrap: 'wrap' }}>
                 <span style={{ fontWeight: 700, color: ev.c, minWidth: 78 }}>{ev.t}</span>
                 <span style={{ fontWeight: 600 }}>{r.prompt_key}</span>
@@ -170,22 +170,22 @@ function HistoryTab() {
                 {r.diff_summary && <span style={{ fontSize: 11, color: 'var(--success)', fontWeight: 600 }}>{r.diff_summary}</span>}
                 <span style={{ fontSize: 10.5, color: 'var(--border-subtle)', marginLeft: 'auto' }}>{r.created_at?.slice(0, 16).replace('T', ' ')}</span>
                 <button onClick={() => toggle(r.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px' }}>{isOpen ? '닫기' : '왜·무엇'}</button>
-                <button onClick={() => rollback(r.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: 'var(--brand)', borderColor: '#ddd6fe' }}>이 버전 롤백</button>
+                <button onClick={() => rollback(r.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: 'var(--brand)', borderColor: 'var(--brand-soft-2)' }}>이 버전 롤백</button>
               </div>
               {isOpen && (
                 <div style={{ borderTop: '1px solid var(--surface-muted)', padding: '10px 14px', background: 'var(--color-bg)' }}>
                   {/* 왜 바꿨나 */}
                   <div style={{ fontSize: 12, marginBottom: 8 }}>
-                    <strong style={{ color: '#475569' }}>왜:</strong> {r.reason || '—'}
+                    <strong style={{ color: 'var(--text-muted)' }}>왜:</strong> {r.reason || '—'}
                     {r.trigger && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 8px', borderRadius: 999, background: 'var(--brand-soft-2)', color: 'var(--brand-dark)' }}>{TRIGGER_LABEL[r.trigger] ?? r.trigger}</span>}
                     <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-faint)' }}>by {r.source === 'ai' ? '🤖 AI' : `👤 ${r.created_by}`}</span>
                   </div>
                   {/* 무엇을 바꿨나 — before→after 라인 diff */}
-                  <div style={{ fontSize: 12, marginBottom: 4 }}><strong style={{ color: '#475569' }}>무엇:</strong> {r.diff_summary ?? (r.prev_content == null ? '최초 생성(이전본 없음)' : '변경 없음')}</div>
+                  <div style={{ fontSize: 12, marginBottom: 4 }}><strong style={{ color: 'var(--text-muted)' }}>무엇:</strong> {r.diff_summary ?? (r.prev_content == null ? '최초 생성(이전본 없음)' : '변경 없음')}</div>
                   {diff && (diff.removed.length > 0 || diff.added.length > 0) && (
                     <pre style={{ margin: '4px 0 0', fontSize: 11, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto', background: '#fff', border: '2px solid var(--border-color)', borderRadius: 6, padding: 10 }}>
-                      {diff.removed.map((l, i) => <div key={`r${i}`} style={{ background: '#fee2e2', color: '#991b1b' }}>- {l}</div>)}
-                      {diff.added.map((l, i) => <div key={`a${i}`} style={{ background: '#dcfce7', color: '#166534' }}>+ {l}</div>)}
+                      {diff.removed.map((l, i) => <div key={`r${i}`} style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>- {l}</div>)}
+                      {diff.added.map((l, i) => <div key={`a${i}`} style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>+ {l}</div>)}
                     </pre>
                   )}
                   {/* 최종 본문 전체 보기 */}

@@ -390,7 +390,7 @@ export default function CalendarPage() {
                                   <span style={{
                                     fontSize: "0.6rem", fontWeight: 700,
                                     color: ddayLabel === "D-day" ? "var(--danger)" : "var(--brand)",
-                                    background: ddayLabel === "D-day" ? "var(--danger-bg)" : "#f5f3ff",
+                                    background: ddayLabel === "D-day" ? "var(--danger-bg)" : "var(--brand-soft)",
                                     borderRadius: "0.2rem", padding: "0 0.2rem",
                                     flexShrink: 0,
                                   }}>
@@ -483,7 +483,7 @@ export default function CalendarPage() {
             <span
               style={{
                 fontSize: "0.875rem",
-                color: "#475569",
+                color: "var(--text-muted)",
                 minWidth: "8rem",
                 textAlign: "center",
               }}
@@ -540,10 +540,10 @@ export default function CalendarPage() {
                     key={dateStr}
                     style={{
                       border: isToday
-                        ? "1px solid #3b82f6"
+                        ? "1px solid var(--info)"
                         : "2px solid var(--border-color)",
                       borderRadius: "0.625rem",
-                      background: isToday ? "#f8fbff" : "#fff",
+                      background: isToday ? "var(--surface-bg)" : "#fff",
                       overflow: "hidden",
                     }}
                   >
@@ -571,7 +571,7 @@ export default function CalendarPage() {
                             fontSize: "0.875rem",
                             fontWeight: isToday ? 700 : 600,
                             color: isToday
-                              ? "#3b82f6"
+                              ? "var(--info)"
                               : isSun
                                 ? "var(--danger)"
                                 : isSat
@@ -586,8 +586,8 @@ export default function CalendarPage() {
                             style={{
                               fontSize: "0.6875rem",
                               fontWeight: 700,
-                              color: "#3b82f6",
-                              background: "#dbeafe",
+                              color: "var(--info)",
+                              background: "var(--info-bg)",
                               padding: "0.1rem 0.35rem",
                               borderRadius: "0.25rem",
                             }}
@@ -614,7 +614,7 @@ export default function CalendarPage() {
                           onClick={() => setSelectedDate(dateStr)}
                           style={{
                             fontSize: "0.75rem",
-                            color: "#3b82f6",
+                            color: "var(--info)",
                             background: "none",
                             border: "1px solid var(--info-border)",
                             borderRadius: "0.25rem",
@@ -679,7 +679,7 @@ export default function CalendarPage() {
                                 style={{
                                   margin: 0,
                                   fontSize: "0.875rem",
-                                  color: "#1e293b",
+                                  color: "var(--text)",
                                   lineHeight: 1.55,
                                   whiteSpace: "pre-wrap",
                                   wordBreak: "break-word",

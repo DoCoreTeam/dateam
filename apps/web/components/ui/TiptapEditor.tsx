@@ -46,7 +46,7 @@ const BTN: React.CSSProperties = {
   background: 'transparent',
   cursor: 'pointer',
   fontSize: '0.8125rem',
-  color: '#475569',
+  color: 'var(--text-muted)',
   lineHeight: 1,
   display: 'inline-flex',
   alignItems: 'center',
@@ -70,7 +70,7 @@ const DIVIDER = (
 const TEXT_COLORS = [
   { label: '기본', value: '' },
   { label: '빨강', value: 'var(--danger)' },
-  { label: '주황', value: '#ea580c' },
+  { label: '주황', value: 'var(--warning)' },
   { label: '초록', value: 'var(--success)' },
   { label: '파랑', value: 'var(--info)' },
   { label: '보라', value: 'var(--brand)' },
@@ -79,7 +79,7 @@ const TEXT_COLORS = [
 
 const HIGHLIGHT_COLORS = [
   { label: '없음', value: '' },
-  { label: '노랑', value: '#fef08a' },
+  { label: '노랑', value: 'var(--warning-border)' },
   { label: '초록', value: 'var(--success-border)' },
   { label: '파랑', value: 'var(--info-border)' },
   { label: '분홍', value: '#fbcfe8' },
@@ -235,8 +235,8 @@ export default function TiptapEditor({
             title="형광펜"
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <rect x="2" y="9" width="12" height="4" rx="1" fill="#fef08a" stroke="var(--text-faint)" strokeWidth="1"/>
-              <path d="M5 9L8 2L11 9" stroke="#475569" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <rect x="2" y="9" width="12" height="4" rx="1" fill="var(--warning-border)" stroke="var(--text-faint)" strokeWidth="1"/>
+              <path d="M5 9L8 2L11 9" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
           {highlightOpen && (

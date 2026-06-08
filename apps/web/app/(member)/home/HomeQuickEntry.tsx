@@ -88,7 +88,7 @@ export default function HomeQuickEntry({ todayStr, initialLogs }: Props) {
                   {t?.label}
                 </span>
                 <span style={{
-                  fontSize: '0.8125rem', color: '#334155',
+                  fontSize: '0.8125rem', color: 'var(--text)',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
                 }}>
                   {log.content}
@@ -111,7 +111,7 @@ export default function HomeQuickEntry({ todayStr, initialLogs }: Props) {
           style={{
             width: '100%', padding: '0.625rem 0.75rem',
             border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
-            fontSize: '0.875rem', color: '#1e293b', resize: 'none',
+            fontSize: '0.875rem', color: 'var(--text)', resize: 'none',
             fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
             background: 'var(--color-bg)', lineHeight: 1.5,
           }}
@@ -123,7 +123,7 @@ export default function HomeQuickEntry({ todayStr, initialLogs }: Props) {
             style={{
               flex: 1, padding: '0.5rem 0.5rem', border: '2px solid var(--border-color)',
               borderRadius: 'var(--radius)', fontSize: '0.8125rem', background: 'var(--color-bg)',
-              color: '#334155', cursor: 'pointer', fontFamily: 'inherit', minHeight: 36,
+              color: 'var(--text)', cursor: 'pointer', fontFamily: 'inherit', minHeight: 36,
             }}
           >
             {ENTRY_TYPES.map((t) => (

@@ -108,7 +108,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
                   {weeklyTargets.map((kpi, i) => (
                     <li key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.5rem' }}>
-                      <span style={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.4 }}>{kpi.label}</span>
+                      <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>{kpi.label}</span>
                       <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--brand)', flexShrink: 0 }}>{kpi.target}</span>
                     </li>
                   ))}
@@ -119,14 +119,14 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
             {h1Kpi.length > 0 && (
               <div className="card" style={{ padding: '1.25rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.875rem' }}>
-                  <Flag size={13} color="#0891b2" />
-                  <p style={{ ...SECTION_TITLE, margin: 0, color: '#0891b2' }}>상반기 KPI (H1)</p>
+                  <Flag size={13} color="var(--info)" />
+                  <p style={{ ...SECTION_TITLE, margin: 0, color: 'var(--info)' }}>상반기 KPI (H1)</p>
                 </div>
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {h1Kpi.map((item, i) => (
                     <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.375rem' }}>
-                      <span style={{ color: '#0891b2', flexShrink: 0, marginTop: '0.1em' }}>·</span>
-                      <span style={{ fontSize: '0.8125rem', color: '#334155', lineHeight: 1.45 }}>{item}</span>
+                      <span style={{ color: 'var(--info)', flexShrink: 0, marginTop: '0.1em' }}>·</span>
+                      <span style={{ fontSize: '0.8125rem', color: 'var(--text)', lineHeight: 1.45 }}>{item}</span>
                     </li>
                   ))}
                 </ul>
@@ -136,14 +136,14 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
             {yearKpi.length > 0 && (
               <div className="card" style={{ padding: '1.25rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.875rem' }}>
-                  <TrendingUp size={13} color="#059669" />
-                  <p style={{ ...SECTION_TITLE, margin: 0, color: '#059669' }}>연간 KPI (Year)</p>
+                  <TrendingUp size={13} color="var(--success)" />
+                  <p style={{ ...SECTION_TITLE, margin: 0, color: 'var(--success)' }}>연간 KPI (Year)</p>
                 </div>
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {yearKpi.map((item, i) => (
                     <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.375rem' }}>
-                      <span style={{ color: '#059669', flexShrink: 0, marginTop: '0.1em' }}>·</span>
-                      <span style={{ fontSize: '0.8125rem', color: '#334155', lineHeight: 1.45 }}>{item}</span>
+                      <span style={{ color: 'var(--success)', flexShrink: 0, marginTop: '0.1em' }}>·</span>
+                      <span style={{ fontSize: '0.8125rem', color: 'var(--text)', lineHeight: 1.45 }}>{item}</span>
                     </li>
                   ))}
                 </ul>
@@ -167,7 +167,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
                       {okr.key_results?.map((kr, j) => (
                         <li key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.375rem' }}>
                           <span style={{ color: 'var(--brand)', flexShrink: 0, fontSize: '0.75rem' }}>KR{j + 1}</span>
-                          <span style={{ fontSize: '0.75rem', color: '#475569', lineHeight: 1.45 }}>{kr}</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>{kr}</span>
                         </li>
                       ))}
                     </ul>
@@ -201,7 +201,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
               borderRadius: 'var(--radius)',
               marginBottom: '1rem',
               fontSize: '0.8125rem',
-              color: '#b91c1c',
+              color: 'var(--danger)',
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',

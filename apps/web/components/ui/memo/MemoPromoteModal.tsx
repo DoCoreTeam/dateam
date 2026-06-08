@@ -40,12 +40,12 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
         </div>
         <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-          <div style={{ fontSize: '0.82rem', color: '#475569', background: 'var(--color-bg)', borderRadius: 'var(--radius)', padding: '0.6rem 0.75rem', lineHeight: 1.5 }}>
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', background: 'var(--color-bg)', borderRadius: 'var(--radius)', padding: '0.6rem 0.75rem', lineHeight: 1.5 }}>
             {memo.content}
           </div>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>업무 상태</span>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>업무 상태</span>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               {(['planned', 'doing'] as const).map((t) => (
                 <button key={t} onClick={() => setNewType(t)}
@@ -62,16 +62,16 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
           </label>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>목표일 (선택)</span>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>목표일 (선택)</span>
             <input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)}
               style={{ padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }} />
           </label>
 
-          {error && <p style={{ margin: 0, color: '#ef4444', fontSize: '0.8rem' }}>{error}</p>}
+          {error && <p style={{ margin: 0, color: 'var(--danger)', fontSize: '0.8rem' }}>{error}</p>}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', paddingTop: '0.25rem' }}>
             <button onClick={onClose} disabled={isPending}
-              style={{ padding: '0.45rem 1rem', background: 'var(--surface-muted)', color: '#475569', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer' }}>취소</button>
+              style={{ padding: '0.45rem 1rem', background: 'var(--surface-muted)', color: 'var(--text-muted)', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer' }}>취소</button>
             <button onClick={handleSubmit} disabled={isPending}
               style={{ padding: '0.45rem 1rem', background: 'var(--brand-dark)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1 }}>
               {isPending ? '전환 중…' : '업무로 전환'}

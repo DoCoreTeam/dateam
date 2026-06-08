@@ -30,17 +30,17 @@ interface ProductsResponse {
 }
 
 const TIER_INFO = {
-  1: { label: 'Tier 1', desc: '전용 고성능·보장형', color: '#13151c' },
-  2: { label: 'Tier 2', desc: '점유형(예약 단독)·보장형', color: '#1e40af' },
-  3: { label: 'Tier 3', desc: '간헐 공급(중단/재개)·최저가', color: '#b45309' },
+  1: { label: 'Tier 1', desc: '전용 고성능·보장형', color: 'var(--text)' },
+  2: { label: 'Tier 2', desc: '점유형(예약 단독)·보장형', color: 'var(--info)' },
+  3: { label: 'Tier 3', desc: '간헐 공급(중단/재개)·최저가', color: 'var(--warning)' },
 }
 
 const GPU_ICONS: Record<string, string> = {
-  H: '#1a1a2e', A: '#0d1b2a', B: '#1a0a2e', R: '#1a1a1a',
+  H: 'var(--text)', A: 'var(--text)', B: 'var(--text)', R: 'var(--text)',
 }
 
 function GpuChip({ model, memory }: { model: string; memory: string }) {
-  const bg = GPU_ICONS[(model ?? '')[0]?.toUpperCase() ?? ''] ?? '#1a1a1a'
+  const bg = GPU_ICONS[(model ?? '')[0]?.toUpperCase() ?? ''] ?? 'var(--text)'
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -200,7 +200,7 @@ export default function SalePriceCatalogPage() {
         {/* 시간 계산기 */}
         <label style={{
           display: 'flex', alignItems: 'center', gap: 0,
-          border: `1.5px solid ${customHours ? 'var(--gpu-accent)' : '#d1d5db'}`,
+          border: `1.5px solid ${customHours ? 'var(--gpu-accent)' : 'var(--border-subtle)'}`,
           borderRadius: 8,
           background: '#fff',
           height: 34,
@@ -212,7 +212,7 @@ export default function SalePriceCatalogPage() {
           <span style={{
             padding: '0 8px 0 10px',
             fontSize: 11, fontWeight: 700,
-            color: customHours ? 'var(--gpu-accent)' : '#6b7280',
+            color: customHours ? 'var(--gpu-accent)' : 'var(--text-muted)',
             whiteSpace: 'nowrap',
             userSelect: 'none',
             letterSpacing: '0.02em',
@@ -230,7 +230,7 @@ export default function SalePriceCatalogPage() {
             style={{
               width: 64, border: 'none', outline: 'none', background: 'transparent',
               fontSize: 13, padding: '0 6px',
-              color: customHours ? 'var(--gpu-accent)' : '#111827',
+              color: customHours ? 'var(--gpu-accent)' : 'var(--text)',
               fontWeight: customHours ? 700 : 500,
               fontFamily: 'monospace',
             }}
@@ -244,7 +244,7 @@ export default function SalePriceCatalogPage() {
               >✕</button>
             </>
           ) : (
-            <span style={{ fontSize: 11, color: '#9ca3af', paddingRight: 10 }}>h</span>
+            <span style={{ fontSize: 11, color: 'var(--text-faint)', paddingRight: 10 }}>h</span>
           )}
         </label>
         <div className="gpu-seg">
@@ -268,7 +268,7 @@ export default function SalePriceCatalogPage() {
             background: 'var(--gpu-surface)', border: `1px solid var(--gpu-border)`,
             borderLeft: `3px solid ${TIER_INFO[t].color}`, fontSize: 11, color: 'var(--gpu-muted)',
           }}>
-            <span style={{ fontWeight: 700, color: '#374151' }}>Tier {t}</span>
+            <span style={{ fontWeight: 700, color: 'var(--text)' }}>Tier {t}</span>
           </div>
         ))}
       </div>
@@ -361,7 +361,7 @@ export default function SalePriceCatalogPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <GpuChip model={p.model_name} memory={p.memory} />
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
                         {p.model_name}
                         <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 400 }}>×{gpuCount}GPU</span>
                         {p.pricing_mode === 'direct' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-amber)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 4, padding: '0 5px' }}>직접가</span>}
@@ -421,7 +421,7 @@ function PriceCell({ value, sub, green }: { value: string | null; sub: string; g
   if (!value) return <span style={{ color: 'var(--gpu-muted)', fontSize: 12 }}>—</span>
   return (
     <div style={{ textAlign: 'right' }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: green ? '#059669' : '#374151', fontFamily: 'monospace' }}>{value}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: green ? 'var(--success)' : 'var(--text)', fontFamily: 'monospace' }}>{value}</div>
       <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>{sub}</div>
     </div>
   )

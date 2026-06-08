@@ -106,7 +106,7 @@ export default function AccountForm({ account }: Props) {
         </div>
 
         <details style={{ border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.875rem 1rem', background: 'var(--color-bg)' }}>
-          <summary style={{ cursor: 'pointer', color: '#475569', fontSize: '0.875rem', fontWeight: 700 }}>
+          <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 700 }}>
             상세 필드 열기
           </summary>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
@@ -187,7 +187,7 @@ export default function AccountForm({ account }: Props) {
         {/* AI Fit Score */}
         <div style={{ background: 'var(--color-bg)', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>AI 적합도 점수</span>
+            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text)' }}>AI 적합도 점수</span>
             <button type="button" onClick={handleFitScore} disabled={scoring} className="btn-primary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem', minHeight: '36px' }}>
               {scoring ? '분석중...' : 'AI 분석'}
             </button>

@@ -13,7 +13,7 @@ interface WeeklyKpiTarget {
 
 const INPUT: React.CSSProperties = {
   padding: '0.25rem 0.5rem',
-  border: '1px solid #ddd6fe',
+  border: '1px solid var(--brand-soft-2)',
   borderRadius: '0.3rem',
   fontSize: '0.8125rem',
   color: 'var(--text)',
@@ -96,7 +96,7 @@ export default function KpiRow({
 
   if (editing) {
     return (
-      <tr style={{ background: '#f0f9ff', opacity: pending ? 0.5 : 1 }}>
+      <tr style={{ background: 'var(--info-bg)', opacity: pending ? 0.5 : 1 }}>
         <td style={{ padding: '0.4rem 0.75rem' }} className="card-header">
           {hasDropdown ? (
             <select
@@ -155,7 +155,7 @@ export default function KpiRow({
             </button>
             <button
               onClick={() => setEditing(false)}
-              style={{ padding: '0.3rem 0.5rem', background: 'var(--color-border)', color: '#475569', border: 'none', borderRadius: '0.3rem', cursor: 'pointer', display: 'flex' }}
+              style={{ padding: '0.3rem 0.5rem', background: 'var(--color-border)', color: 'var(--text-muted)', border: 'none', borderRadius: '0.3rem', cursor: 'pointer', display: 'flex' }}
             >
               <X size={13} />
             </button>
@@ -184,7 +184,7 @@ export default function KpiRow({
           <button
             onClick={() => setEditing(true)}
             title="수정"
-            style={{ padding: '0.3rem 0.5rem', border: '1px solid #ddd6fe', borderRadius: '0.375rem', background: 'var(--brand-soft)', color: 'var(--brand)', cursor: 'pointer', display: 'flex' }}
+            style={{ padding: '0.3rem 0.5rem', border: '1px solid var(--brand-soft-2)', borderRadius: '0.375rem', background: 'var(--brand-soft)', color: 'var(--brand)', cursor: 'pointer', display: 'flex' }}
           >
             <Pencil size={13} />
           </button>

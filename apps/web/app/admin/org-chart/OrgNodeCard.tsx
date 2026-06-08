@@ -9,7 +9,7 @@ function CopyBtn({ email }: { email: string }) {
     <button
       onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(email).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500) }) }}
       title="이메일 복사"
-      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', color: copied ? '#22c55e' : 'var(--text-faint)', display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle', flexShrink: 0 }}
+      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', color: copied ? 'var(--success)' : 'var(--text-faint)', display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle', flexShrink: 0 }}
     >
       {copied ? <Check size={10} /> : <Copy size={10} />}
     </button>
@@ -36,10 +36,10 @@ export interface OrgNodeWithChildren extends OrgNode {
 }
 
 const TYPE_COLORS: Record<OrgNodeType, { bg: string; border: string; text: string; badge: string }> = {
-  company: { bg: 'linear-gradient(135deg,var(--brand-dark),var(--brand))', border: 'var(--brand-dark)', text: '#fff', badge: '#ddd6fe' },
-  role:    { bg: 'linear-gradient(135deg,#1e1b4b,#312e81)', border: '#312e81', text: '#fff', badge: '#c4b5fd' },
-  department: { bg: 'linear-gradient(135deg,#3730a3,var(--brand-dark))', border: 'var(--brand-dark)', text: '#fff', badge: '#ddd6fe' },
-  person: { bg: '#ffffff', border: 'var(--color-border)', text: '#1e293b', badge: 'var(--brand-soft-2)' },
+  company: { bg: 'linear-gradient(135deg,var(--brand-dark),var(--brand))', border: 'var(--brand-dark)', text: '#fff', badge: 'var(--brand-soft-2)' },
+  role:    { bg: 'linear-gradient(135deg,var(--text),var(--brand-dark))', border: 'var(--brand-dark)', text: '#fff', badge: 'var(--brand-soft-2)' },
+  department: { bg: 'linear-gradient(135deg,var(--brand-dark),var(--brand-dark))', border: 'var(--brand-dark)', text: '#fff', badge: 'var(--brand-soft-2)' },
+  person: { bg: '#ffffff', border: 'var(--color-border)', text: 'var(--text)', badge: 'var(--brand-soft-2)' },
 }
 
 interface Profile {
@@ -181,7 +181,7 @@ function ActionBar({
       <button style={btnStyle} onPointerDown={stop} onClick={() => onEdit(node)} title="수정">
         <Pencil size={13} />
       </button>
-      <button style={{ ...btnStyle, color: node.type === 'person' ? '#ef4444' : 'rgba(255,150,150,0.9)' }} onPointerDown={stop} onClick={() => onDelete(node)} title="삭제">
+      <button style={{ ...btnStyle, color: node.type === 'person' ? 'var(--danger)' : 'rgba(255,150,150,0.9)' }} onPointerDown={stop} onClick={() => onDelete(node)} title="삭제">
         <Trash2 size={13} />
       </button>
     </div>
@@ -234,7 +234,7 @@ function InlineMember({
         {displayName.charAt(0)}
       </div>
       <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-        <div style={{ fontSize: '0.72rem', color: dark ? 'rgba(255,255,255,0.85)' : '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: '0.72rem', color: dark ? 'rgba(255,255,255,0.85)' : 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {displayName}
           {label && <span style={{ opacity: 0.65 }}> {label}</span>}
         </div>
@@ -252,7 +252,7 @@ function InlineMember({
         <Pencil size={11} />
       </button>
       <button
-        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', borderRadius: '3px', display: 'flex', alignItems: 'center', color: dark ? 'rgba(255,150,150,0.8)' : '#ef4444', flexShrink: 0 }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', borderRadius: '3px', display: 'flex', alignItems: 'center', color: dark ? 'rgba(255,150,150,0.8)' : 'var(--danger)', flexShrink: 0 }}
         onPointerDown={stop} onClick={() => onDelete(person)} title="삭제"
       >
         <Trash2 size={11} />
@@ -354,7 +354,7 @@ function PersonCard(props: CardProps) {
             {displayName.charAt(0) || <User size={11} />}
           </div>
           <div>
-            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e293b' }}>{displayName}</div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text)' }}>{displayName}</div>
             {label && <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{label}</div>}
             {profile?.email && (
               <div style={{ fontSize: '0.62rem', color: 'var(--text-faint)', marginTop: '1px', display: 'flex', alignItems: 'center', gap: '2px' }}>

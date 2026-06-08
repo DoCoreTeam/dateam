@@ -68,7 +68,7 @@ export default function AiUsageDashboard() {
         <select
           value={days}
           onChange={e => setDays(Number(e.target.value))}
-          style={{ padding: '0.5rem 0.75rem', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', color: '#374151', background: '#fff' }}
+          style={{ padding: '0.5rem 0.75rem', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', color: 'var(--text)', background: '#fff' }}
         >
           <option value={7}>최근 7일</option>
           <option value={30}>최근 30일</option>
@@ -78,9 +78,9 @@ export default function AiUsageDashboard() {
 
       {/* 임계치 초과 경고 */}
       {summary?.threshold_exceeded && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.875rem 1.25rem', backgroundColor: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 'var(--radius)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.875rem 1.25rem', backgroundColor: 'var(--warning-bg)', border: '1px solid #fcd34d', borderRadius: 'var(--radius)' }}>
           <AlertTriangle size={18} color="var(--warning)" />
-          <span style={{ fontSize: '0.9rem', color: '#92400e', fontWeight: 500 }}>
+          <span style={{ fontSize: '0.9rem', color: 'var(--warning)', fontWeight: 500 }}>
             이번 달 토큰 사용량이 임계치({fmt(summary.alert_threshold)}개)를 초과했습니다.
           </span>
         </div>

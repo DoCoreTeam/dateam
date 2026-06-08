@@ -405,8 +405,8 @@ export default function DailyPage() {
                   onClick={goToday}
                   style={{
                     fontSize: '0.75rem', fontWeight: 600,
-                    color: '#3b82f6', background: '#dbeafe',
-                    border: '1px solid #93c5fd',
+                    color: 'var(--info)', background: 'var(--info-bg)',
+                    border: '1px solid var(--info-border)',
                     borderRadius: '0.375rem',
                     padding: '0.125rem 0.5rem',
                     cursor: 'pointer',
@@ -419,7 +419,7 @@ export default function DailyPage() {
               {isToday && (
                 <span style={{
                   fontSize: '0.75rem', fontWeight: 700,
-                  color: '#3b82f6', background: '#dbeafe',
+                  color: 'var(--info)', background: 'var(--info-bg)',
                   padding: '0.125rem 0.375rem', borderRadius: '0.25rem',
                 }}>
                   오늘
@@ -476,7 +476,7 @@ export default function DailyPage() {
                     disabled={aiLoading || !content.trim()}
                     className="daily-ai-save"
                     style={{
-                      background: aiLoading ? 'var(--text-faint)' : 'linear-gradient(135deg, var(--brand), #3b82f6)',
+                      background: aiLoading ? 'var(--text-faint)' : 'linear-gradient(135deg, var(--brand), var(--info))',
                       cursor: aiLoading || !content.trim() ? 'not-allowed' : 'pointer',
                       opacity: !content.trim() ? 0.5 : 1, height: '2.5rem',
                     }}
@@ -521,7 +521,7 @@ export default function DailyPage() {
                       fontSize: '0.75rem', fontWeight: 600,
                       color: graphOpen ? 'var(--brand)' : 'var(--text-muted)',
                       background: graphOpen ? 'var(--brand-soft)' : 'var(--color-bg)',
-                      border: `1px solid ${graphOpen ? '#ddd6fe' : 'var(--color-border)'}`,
+                      border: `1px solid ${graphOpen ? 'var(--brand-soft-2)' : 'var(--color-border)'}`,
                       borderRadius: '0.375rem', padding: '0.25rem 0.625rem',
                       cursor: 'pointer',
                     }}
@@ -609,7 +609,7 @@ export default function DailyPage() {
                 
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
                   <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>완료율</span>
-                  <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#10b981' }}>
+                  <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--success)' }}>
                     {logs.length > 0 ? Math.round((logs.filter(l => l.entry_type === 'done').length / logs.length) * 100) : 0}%
                   </span>
                 </div>
@@ -660,7 +660,7 @@ export default function DailyPage() {
                 onClick={goCurrentWeek}
                 style={{
                   padding: '0.375rem 0.75rem', fontSize: '0.8125rem', fontWeight: 600,
-                  color: '#3b82f6', background: '#dbeafe', border: '1px solid #93c5fd',
+                  color: 'var(--info)', background: 'var(--info-bg)', border: '1px solid var(--info-border)',
                   borderRadius: '0.375rem', cursor: 'pointer',
                 }}
               >
@@ -681,9 +681,9 @@ export default function DailyPage() {
 
                 return (
                   <div key={dateStr} style={{
-                    border: isTodayDate ? '1px solid #3b82f6' : '2px solid var(--border-color)',
+                    border: isTodayDate ? '1px solid var(--info)' : '2px solid var(--border-color)',
                     borderRadius: 'var(--radius)',
-                    background: isTodayDate ? '#f8fbff' : '#fff',
+                    background: isTodayDate ? 'var(--surface-bg)' : '#fff',
                     overflow: 'hidden',
                   }}>
                     <div style={{
@@ -695,14 +695,14 @@ export default function DailyPage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <span style={{
                           fontSize: '0.875rem', fontWeight: isTodayDate ? 700 : 600,
-                          color: isTodayDate ? '#3b82f6' : dow === 0 ? 'var(--danger)' : dow === 6 ? 'var(--info)' : 'var(--text)',
+                          color: isTodayDate ? 'var(--info)' : dow === 0 ? 'var(--danger)' : dow === 6 ? 'var(--info)' : 'var(--text)',
                         }}>
                           {WEEK_DAYS[dow]} {d.getDate()}일
                         </span>
                         {isTodayDate && (
                           <span style={{
-                            fontSize: '0.6875rem', fontWeight: 700, color: '#3b82f6',
-                            background: '#dbeafe', padding: '0.1rem 0.35rem', borderRadius: '0.25rem',
+                            fontSize: '0.6875rem', fontWeight: 700, color: 'var(--info)',
+                            background: 'var(--info-bg)', padding: '0.1rem 0.35rem', borderRadius: '0.25rem',
                           }}>
                             오늘
                           </span>
@@ -715,7 +715,7 @@ export default function DailyPage() {
                         <button
                           onClick={() => { setViewMode('day'); setSelectedDate(dateStr) }}
                           style={{
-                            fontSize: '0.75rem', color: '#3b82f6', background: 'none',
+                            fontSize: '0.75rem', color: 'var(--info)', background: 'none',
                             border: '1px solid var(--info-border)', borderRadius: '0.25rem',
                             padding: '0.125rem 0.5rem', cursor: 'pointer',
                           }}
@@ -751,7 +751,7 @@ export default function DailyPage() {
                                 {formatTime(log.logged_at)}
                               </span>
                               <p style={{
-                                margin: 0, fontSize: '0.875rem', color: '#1e293b',
+                                margin: 0, fontSize: '0.875rem', color: 'var(--text)',
                                 lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word', flex: 1,
                               }}>
                                 {log.content}
@@ -958,7 +958,7 @@ function LogList({
                       )}
                     </div>
                     <p style={{
-                      margin: 0, fontSize: '0.9375rem', color: '#1e293b',
+                      margin: 0, fontSize: '0.9375rem', color: 'var(--text)',
                       lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                     }}>
                       {log.content}
@@ -1171,7 +1171,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
                 padding: '0.5rem 0.75rem',
               }}>
                 <p style={{
-                  margin: 0, fontSize: '0.875rem', color: '#1e293b',
+                  margin: 0, fontSize: '0.875rem', color: 'var(--text)',
                   lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                 }}>
                   {t.content}
@@ -1188,7 +1188,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
       {/* AI 분석 결과 미니 패널 */}
       {showAiResult && aiItems.length > 0 && (
         <div style={{
-          background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: 'var(--radius)',
+          background: 'var(--brand-soft)', border: '1px solid var(--brand-soft-2)', borderRadius: 'var(--radius)',
           padding: '0.625rem 0.75rem', marginBottom: '0.625rem',
         }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--brand)', marginBottom: '0.375rem' }}>
@@ -1204,7 +1204,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
                     background: t.bg, border: `1px solid ${t.border}`,
                     padding: '0.05rem 0.3rem', borderRadius: '0.2rem',
                   }}>{t.label}</span>
-                  <span style={{ fontSize: '0.8125rem', color: '#1e293b', flex: 1 }}>{item.title}</span>
+                  <span style={{ fontSize: '0.8125rem', color: 'var(--text)', flex: 1 }}>{item.title}</span>
                   {item.targetDate && <DdayBadge targetDate={item.targetDate} today={todayForBadge} />}
                 </div>
               )
@@ -1335,12 +1335,12 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
                   }}>
                     {type.label}
                   </span>
-                  <span style={{ fontSize: '0.6875rem', color: '#92400e', background: '#fef3c7', padding: '0.1rem 0.35rem', borderRadius: '0.25rem' }}>
+                  <span style={{ fontSize: '0.6875rem', color: 'var(--warning)', background: 'var(--warning-bg)', padding: '0.1rem 0.35rem', borderRadius: '0.25rem' }}>
                     {dateLabel} 이월
                   </span>
                 </div>
                 <p style={{
-                  margin: 0, fontSize: '0.875rem', color: '#1e293b',
+                  margin: 0, fontSize: '0.875rem', color: 'var(--text)',
                   lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                 }}>
                   {log.content}
@@ -1396,13 +1396,13 @@ const iconBtn: React.CSSProperties = {
 }
 
 const actionBtnPrimary: React.CSSProperties = {
-  padding: '0.375rem 0.875rem', background: '#3b82f6', color: '#fff',
+  padding: '0.375rem 0.875rem', background: 'var(--info)', color: '#fff',
   border: 'none', borderRadius: '0.375rem', fontSize: '0.8125rem',
   fontWeight: 600, cursor: 'pointer',
 }
 
 const actionBtnSecondary: React.CSSProperties = {
-  padding: '0.375rem 0.875rem', background: 'var(--surface-muted)', color: '#475569',
+  padding: '0.375rem 0.875rem', background: 'var(--surface-muted)', color: 'var(--text-muted)',
   border: 'none', borderRadius: '0.375rem', fontSize: '0.8125rem',
   fontWeight: 600, cursor: 'pointer',
 }
@@ -1413,7 +1413,7 @@ const PRIORITY_LABELS: Record<string, string> = {
   urgent: '긴급', high: '높음', normal: '보통', low: '낮음',
 }
 const PRIORITY_COLORS: Record<string, string> = {
-  urgent: 'var(--danger)', high: '#ea580c', normal: 'var(--text-muted)', low: 'var(--text-faint)',
+  urgent: 'var(--danger)', high: 'var(--warning)', normal: 'var(--text-muted)', low: 'var(--text-faint)',
 }
 
 interface AiResultPanelProps {
@@ -1450,7 +1450,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '1rem 1.25rem', borderBottom: '2px solid var(--border-color)',
-          background: 'linear-gradient(135deg, #f5f3ff, var(--info-bg))',
+          background: 'linear-gradient(135deg, var(--brand-soft), var(--info-bg))',
         }}>
           <div>
             <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>✨ AI 분석 결과</div>
@@ -1484,10 +1484,10 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
           {/* 같은 묶음 안내 배너 */}
           {hasOriginGroup && !loading && (
             <div style={{
-              background: '#f0f9ff', border: '1px solid #bae6fd',
+              background: 'var(--info-bg)', border: '1px solid var(--info-border)',
               borderRadius: 'var(--radius)', padding: '0.5rem 0.875rem',
               marginBottom: '0.875rem',
-              fontSize: '0.8125rem', color: '#0369a1',
+              fontSize: '0.8125rem', color: 'var(--info)',
               display: 'flex', alignItems: 'center', gap: '0.5rem',
             }}>
               <span>🔗</span>
@@ -1554,7 +1554,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
             onClick={onReanalyze}
             disabled={loading}
             style={{
-              flex: 1, padding: '0.625rem', background: 'var(--surface-muted)', color: '#475569',
+              flex: 1, padding: '0.625rem', background: 'var(--surface-muted)', color: 'var(--text-muted)',
               border: '2px solid var(--border-color)', borderRadius: 'var(--radius)',
               fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer',
               opacity: loading ? 0.5 : 1,
@@ -1567,7 +1567,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
             disabled={loading || isPending || editItems.length === 0}
             style={{
               flex: 2, padding: '0.625rem',
-              background: 'linear-gradient(135deg, var(--brand), #3b82f6)',
+              background: 'linear-gradient(135deg, var(--brand), var(--info))',
               color: '#fff', border: 'none', borderRadius: 'var(--radius)',
               fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer',
               opacity: loading || isPending || editItems.length === 0 ? 0.5 : 1,
@@ -1654,7 +1654,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
             onChange={(e) => onChange({ targetDate: e.target.value || null, targetDateCertainty: 'exact' })}
             style={{
               padding: '0.15rem 0.375rem', borderRadius: '0.25rem', fontSize: '0.75rem',
-              border: '2px solid var(--border-color)', background: 'var(--color-bg)', color: '#475569',
+              border: '2px solid var(--border-color)', background: 'var(--color-bg)', color: 'var(--text-muted)',
               cursor: 'pointer', outline: 'none',
             }}
           />
@@ -1672,8 +1672,8 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         {/* 예약 시간 */}
         {item.scheduledTime && (
           <span style={{
-            fontSize: '0.75rem', color: 'var(--brand)', background: '#f5f3ff',
-            border: '1px solid #ddd6fe', borderRadius: '0.25rem',
+            fontSize: '0.75rem', color: 'var(--brand)', background: 'var(--brand-soft)',
+            border: '1px solid var(--brand-soft-2)', borderRadius: '0.25rem',
             padding: '0.2rem 0.5rem',
           }}>
             ⏰ {item.scheduledTime}
@@ -1683,8 +1683,8 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         {/* 거래처 */}
         {item.accountName && (
           <span style={{
-            fontSize: '0.75rem', color: '#0369a1', background: '#f0f9ff',
-            border: '1px solid #bae6fd', borderRadius: '0.25rem',
+            fontSize: '0.75rem', color: 'var(--info)', background: 'var(--info-bg)',
+            border: '1px solid var(--info-border)', borderRadius: '0.25rem',
             padding: '0.2rem 0.5rem',
           }}>
             🏢 {item.accountName}
@@ -1694,8 +1694,8 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         {/* 담당자 */}
         {item.contactName && (
           <span style={{
-            fontSize: '0.75rem', color: '#0f766e', background: '#f0fdfa',
-            border: '1px solid #99f6e4', borderRadius: '0.25rem',
+            fontSize: '0.75rem', color: 'var(--info)', background: 'var(--success-bg)',
+            border: '1px solid var(--info-bg)', borderRadius: '0.25rem',
             padding: '0.2rem 0.5rem',
           }}>
             👤 {item.contactName}
@@ -1706,7 +1706,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         {item.tags?.map(tag => (
           <span key={tag} style={{
             fontSize: '0.7rem', color: 'var(--brand)', background: 'var(--brand-soft)',
-            border: '1px solid #ddd6fe', borderRadius: '0.25rem',
+            border: '1px solid var(--brand-soft-2)', borderRadius: '0.25rem',
             padding: '0.1rem 0.375rem',
           }}>
             #{tag}

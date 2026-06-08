@@ -235,7 +235,7 @@ export default function GpuPricingClient({ initialSettings }: { initialSettings?
             {item.label}
             {item.badge > 0 && (
               <span style={{
-                background: '#ef4444',
+                background: 'var(--danger)',
                 color: '#fff',
                 borderRadius: 9,
                 fontSize: 9,

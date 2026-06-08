@@ -28,12 +28,12 @@ export function SupplierBadge({ name, color, kind = 'ours', unassigned }: Suppli
         display: 'inline-flex', alignItems: 'center', gap: 5,
         fontSize: 12, fontWeight: 600,
         padding: '1px 7px', borderRadius: 6,
-        border: isOurs ? '1px solid var(--gpu-accent, #5b5ef0)' : '1px solid var(--gpu-border, var(--color-border))',
-        background: isOurs ? 'rgba(91,94,240,0.06)' : '#f9fafb',
-        color: isOurs ? 'var(--gpu-accent, #5b5ef0)' : 'var(--gpu-ink, #374151)',
+        border: isOurs ? '1px solid var(--gpu-accent, var(--brand))' : '1px solid var(--gpu-border, var(--color-border))',
+        background: isOurs ? 'rgba(91,94,240,0.06)' : 'var(--surface-bg)',
+        color: isOurs ? 'var(--gpu-accent, var(--brand))' : 'var(--gpu-ink, var(--text))',
       }}
     >
-      <span className="gpu-sdot" style={{ background: color ?? '#9ca3af', flexShrink: 0 }} />
+      <span className="gpu-sdot" style={{ background: color ?? 'var(--text-faint)', flexShrink: 0 }} />
       {name}
       {kind === 'self' && <span style={{ fontSize: 9, opacity: 0.7 }}>자사</span>}
       {kind === 'ours' && <span style={{ fontSize: 9, opacity: 0.7 }}>공급사</span>}

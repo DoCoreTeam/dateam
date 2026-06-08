@@ -98,7 +98,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 borderRadius: 'var(--radius)',
                 marginBottom: '1.25rem',
                 fontSize: '0.8125rem',
-                color: '#b91c1c',
+                color: 'var(--danger)',
               }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

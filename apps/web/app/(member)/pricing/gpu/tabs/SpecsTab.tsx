@@ -119,7 +119,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
   }
 
   const aiBtn = (
-    <button onClick={aiFill} disabled={gen} className="gpu-btn" style={{ gap: 5, marginLeft: 'auto', borderColor: 'var(--gpu-accent,#5b5ef0)', color: 'var(--gpu-accent,#5b5ef0)' }}>
+    <button onClick={aiFill} disabled={gen} className="gpu-btn" style={{ gap: 5, marginLeft: 'auto', borderColor: 'var(--gpu-accent,var(--brand))', color: 'var(--gpu-accent,var(--brand))' }}>
       <Sparkles size={14} /> {gen ? 'AI 자동완성 중…' : 'AI 자동완성 (부족정보)'}
     </button>
   )
@@ -145,7 +145,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
         </div>
 
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ fontSize: 11.5, color: 'var(--gpu-muted)', background: 'var(--color-bg)', border: '1px solid #eef0f6', borderRadius: 8, padding: '7px 10px' }}>
+          <div style={{ fontSize: 11.5, color: 'var(--gpu-muted)', background: 'var(--color-bg)', border: '1px solid var(--surface-bg)', borderRadius: 8, padding: '7px 10px' }}>
             현재 등록된 <b>{row.model_name}</b> 구성 {cfgs.length}개 — 가격표·시장비교·재고·고객판매가격표와 동일한 우리 GPU 목록입니다. 장수·카드 VRAM에 따라 별도 구성으로 등록됩니다.
           </div>
           {/* 구성별 스펙 — 카드당 VRAM으로 식별(같은 ×N 장수라도 80GB/40GB 카드는 다른 구성) */}
@@ -154,7 +154,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
             const perCard = totalVram ? Math.round(totalVram / Math.max(c.gpu_count, 1)) : null
             return (
             <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 700, fontSize: 12.5, minWidth: 96, color: 'var(--gpu-accent,#5b5ef0)' }} title="카드당 VRAM × 장수">{perCard ? `${perCard}GB 카드 ×${c.gpu_count}` : `×${c.gpu_count} GPU`}</span>
+              <span style={{ fontWeight: 700, fontSize: 12.5, minWidth: 96, color: 'var(--gpu-accent,var(--brand))' }} title="카드당 VRAM × 장수">{perCard ? `${perCard}GB 카드 ×${c.gpu_count}` : `×${c.gpu_count} GPU`}</span>
               {(['memory', 'vcpu', 'ram_gb', 'storage_gb'] as const).map((k) => {
                 const lbl = k === 'memory' ? 'VRAM' : k === 'vcpu' ? 'vCPU' : k === 'ram_gb' ? 'RAM(GB)' : 'SSD(GB)'
                 return editing ? (
@@ -169,7 +169,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
             </div>
           )})}
 
-          <div style={{ borderTop: '1px solid #f1f3f9' }} />
+          <div style={{ borderTop: '1px solid var(--surface-bg)' }} />
 
           {/* 나머지 스펙 항목 — 같은 통합 리스트. 부족분은 AI 자동완성 */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: editing ? 10 : '8px 18px' }}>
@@ -186,7 +186,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
                 )}
               </label>
             ) : (
-              <div key={key as string} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12.5, borderBottom: '1px solid #f1f3f9', padding: '4px 0' }}>
+              <div key={key as string} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12.5, borderBottom: '1px solid var(--surface-bg)', padding: '4px 0' }}>
                 <span style={{ color: 'var(--gpu-muted)' }}>{label}</span>
                 <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>{fmt(row.spec?.[key])}</span>
               </div>
@@ -323,7 +323,7 @@ export default function SpecsTab() {
           <div style={{ height: 6, borderRadius: 4, background: 'var(--color-border)', overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${bulkProg.total ? Math.round((bulkProg.done / bulkProg.total) * 100) : 0}%`, background: 'var(--gpu-accent)', transition: 'width .3s' }} />
           </div>
-          {bulkProg.log && <div style={{ fontSize: 11.5, color: '#475569', marginTop: 6 }}>{bulkProg.log}</div>}
+          {bulkProg.log && <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 6 }}>{bulkProg.log}</div>}
         </div>
       )}
 

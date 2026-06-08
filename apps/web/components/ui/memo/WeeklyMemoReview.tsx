@@ -35,14 +35,14 @@ export default function WeeklyMemoReview() {
 
   return (
     <>
-      <div className="card" style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem', border: '1px solid var(--warning-border)', background: '#fffdf5' }}>
+      <div className="card" style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem', border: '1px solid var(--warning-border)', background: 'var(--surface-bg)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <StickyNote size={16} color="var(--warning)" />
             <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text)' }}>
               이번 주 미처리 메모 {items.length}건
             </span>
-            <span style={{ fontSize: '0.78rem', color: '#a16207' }}>— 보고 전에 정리해 보세요</span>
+            <span style={{ fontSize: '0.78rem', color: 'var(--warning)' }}>— 보고 전에 정리해 보세요</span>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <button onClick={handleArchiveAll}
@@ -64,7 +64,7 @@ export default function WeeklyMemoReview() {
                   style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.65rem', borderRadius: 'var(--radius)', background: '#fff', border: '1px solid var(--surface-muted)' }}>
                   <span title={st.label} style={{ width: 8, height: 8, borderRadius: '50%', background: st.dot, flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '0.83rem', color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.content}</div>
+                    <div style={{ fontSize: '0.83rem', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.content}</div>
                     <div style={{ fontSize: '0.68rem', color: st.text }}>{relativeTime(m.logged_at)}</div>
                   </div>
                   <button onClick={() => handleReview(m.id)} title="확인 완료" style={iconBtn('var(--success)')}><Check size={13} /></button>

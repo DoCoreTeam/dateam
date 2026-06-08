@@ -27,7 +27,7 @@ function getPhaseBadgeStyle(phase: string): React.CSSProperties {
     return {
       background: 'var(--brand-soft)',
       color: 'var(--brand-dark)',
-      border: '1px solid #ddd6fe',
+      border: '1px solid var(--brand-soft-2)',
     }
   }
   if (phase === '제안' || phase === '기획') {
@@ -46,9 +46,9 @@ function getPhaseBadgeStyle(phase: string): React.CSSProperties {
   }
   if (phase === 'API') {
     return {
-      background: '#f0f9ff',
-      color: '#0284c7',
-      border: '1px solid #bae6fd',
+      background: 'var(--info-bg)',
+      color: 'var(--info)',
+      border: '1px solid var(--info-border)',
     }
   }
   return {
@@ -199,7 +199,7 @@ export default async function OperationsPage() {
                       borderRadius: '9999px',
                       background:
                         project.phase === '진행중'
-                          ? 'linear-gradient(90deg, #0ea5e9, var(--brand), #a855f7)'
+                          ? 'linear-gradient(90deg, var(--info), var(--brand), var(--brand))'
                           : 'var(--text-faint)',
                       transition: 'width 600ms cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
@@ -302,7 +302,7 @@ export default async function OperationsPage() {
                       borderRadius: 'var(--radius)',
                       padding: '0.375rem 0.75rem',
                       fontSize: '0.8125rem',
-                      color: '#3730a3',
+                      color: 'var(--brand-dark)',
                       fontWeight: 500,
                     }}
                   >
@@ -351,7 +351,7 @@ export default async function OperationsPage() {
                           key={i}
                           style={{
                             fontSize: '0.8125rem',
-                            color: '#475569',
+                            color: 'var(--text-muted)',
                             paddingLeft: '0.875rem',
                             position: 'relative',
                           }}
@@ -360,7 +360,7 @@ export default async function OperationsPage() {
                             style={{
                               position: 'absolute',
                               left: 0,
-                              color: '#ddd6fe',
+                              color: 'var(--brand-soft-2)',
                             }}
                           >
                             ·
@@ -486,7 +486,7 @@ export default async function OperationsPage() {
                         data-label={colIdx > 0 ? rrHeaders[colIdx] : undefined}
                         style={{
                           padding: '0.75rem 1rem',
-                          color: colIdx === 0 ? 'var(--text)' : '#475569',
+                          color: colIdx === 0 ? 'var(--text)' : 'var(--text-muted)',
                           fontWeight: colIdx === 0 ? 600 : 400,
                           borderRight:
                             colIdx < row.length - 1 ? '2px solid var(--border-color)' : 'none',

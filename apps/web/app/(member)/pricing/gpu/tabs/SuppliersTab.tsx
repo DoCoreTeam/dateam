@@ -46,7 +46,7 @@ interface QuoteRow {
   gpu_products: { id: string; model_name: string; memory: string | null; tier: number } | null
 }
 
-const COLORS = ['var(--brand)', '#10b981', '#f59e0b', '#ef4444', 'var(--brand)', '#3b82f6', '#ec4899', '#14b8a6', '#f97316', '#84cc16']
+const COLORS = ['var(--brand)', 'var(--success)', 'var(--warning)', 'var(--danger)', 'var(--brand)', 'var(--info)', '#ec4899', 'var(--info)', 'var(--warning)', 'var(--success)']
 const STATUS_LABEL: Record<string, { t: string; c: string }> = {
   confirmed: { t: '확정', c: 'var(--gpu-green)' },
   pending: { t: '대기', c: 'var(--gpu-amber)' },
@@ -169,7 +169,7 @@ function QuoteEditModal({ quote, onClose, onChanged }: { quote: QuoteRow; onClos
           </div>
 
           {/* 이전 입력값(원본) — 그대로 보존 표시 */}
-          <div style={{ padding: '10px 12px', borderRadius: 8, background: '#f9fafb', border: '1px solid #eef0f6' }}>
+          <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--surface-bg)', border: '1px solid var(--surface-bg)' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-muted)', marginBottom: 4 }}>이전 입력값 (원본 · 보존됨)</div>
             <div style={{ fontSize: 12, color: 'var(--gpu-ink-2)', fontFamily: 'monospace' }}>
               {quote.original_price != null ? `${quote.original_price} ${quote.original_currency ?? ''} ${quote.original_unit ?? ''}` : '원본 입력값 없음'}
@@ -177,7 +177,7 @@ function QuoteEditModal({ quote, onClose, onChanged }: { quote: QuoteRow; onClos
           </div>
 
           {/* AI 재분석 */}
-          <div style={{ padding: '12px', borderRadius: 8, background: 'rgba(91,94,240,0.05)', border: '1px solid var(--gpu-accent, #5b5ef0)' }}>
+          <div style={{ padding: '12px', borderRadius: 8, background: 'rgba(91,94,240,0.05)', border: '1px solid var(--gpu-accent, var(--brand))' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
               <Sparkles size={14} style={{ color: 'var(--gpu-accent)' }} />
               <strong style={{ fontSize: 12.5 }}>AI 재분석</strong>
@@ -366,7 +366,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {(data.contacts ?? []).map((c) => (
-                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 7, background: '#f9fafb', border: '1px solid #eef0f6', fontSize: 12.5 }}>
+                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 7, background: 'var(--surface-bg)', border: '1px solid var(--surface-bg)', fontSize: 12.5 }}>
                     <span style={{ fontWeight: 700, minWidth: 90 }}>{c.name}</span>
                     {c.title && <span style={{ color: 'var(--gpu-muted)' }}>{c.title}</span>}
                     <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontSize: 12, color: 'var(--gpu-ink-2)' }}>{c.email ?? ''} {c.phone ?? ''}</span>
@@ -399,7 +399,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
                     const prod = q.gpu_products
                     const canLocate = !!(prod && onGoToPriceTable)
                     return (
-                      <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 7, background: '#f9fafb', border: '1px solid #eef0f6', fontSize: 12.5 }}>
+                      <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 7, background: 'var(--surface-bg)', border: '1px solid var(--surface-bg)', fontSize: 12.5 }}>
                         <button onClick={() => setEditQuote(q)} title="클릭하면 견적 수정·삭제·AI 재분석"
                           style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, padding: 0, background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', textAlign: 'left' }}>
                           <span style={{ fontWeight: 600, minWidth: 110 }}>

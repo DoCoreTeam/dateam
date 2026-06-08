@@ -28,19 +28,19 @@ const FILTER_ACTION_TYPES: Record<string, string[]> = {
 
 const ACTION_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   quote_registered:         { label: '견적 등록',      color: 'var(--info)', bg: 'var(--brand-soft)' },
-  quote_confirmed:          { label: '견적 확정',      color: '#15a35a', bg: '#e6f7ee' },
-  lowest_changed:           { label: '최저가 변경',    color: '#5b5ef0', bg: '#eef0fe' },
-  expired:                  { label: '만료',           color: '#e0405a', bg: '#fdebee' },
-  direct_set:               { label: '판매가 직접설정', color: 'var(--warning)', bg: '#fef3e2' },
-  margin_changed:           { label: '마진 변경',      color: 'var(--brand)', bg: '#f1ebfe' },
-  rejected:                 { label: '반려',           color: '#6b7280', bg: '#f0f1f4' },
+  quote_confirmed:          { label: '견적 확정',      color: 'var(--success)', bg: 'var(--success-bg)' },
+  lowest_changed:           { label: '최저가 변경',    color: 'var(--brand)', bg: 'var(--brand-soft-2)' },
+  expired:                  { label: '만료',           color: 'var(--danger)', bg: 'var(--danger-bg)' },
+  direct_set:               { label: '판매가 직접설정', color: 'var(--warning)', bg: 'var(--warning-bg)' },
+  margin_changed:           { label: '마진 변경',      color: 'var(--brand)', bg: 'var(--brand-soft-2)' },
+  rejected:                 { label: '반려',           color: 'var(--text-muted)', bg: 'var(--surface-bg)' },
   review_created:           { label: 'AI 분석 등록',   color: 'var(--brand-dark)', bg: 'var(--brand-soft)' },
-  review_finalized:         { label: '검토 확정',      color: '#15a35a', bg: '#e6f7ee' },
-  review_rejected:          { label: '검토 반려',      color: 'var(--danger)', bg: '#fee2e2' },
-  review_recheck_completed: { label: 'AI 재분석',      color: '#0891b2', bg: '#e0f7fa' },
-  pool_stock_changed:       { label: 'T3 재고 변경',   color: '#b45309', bg: '#fef3e2' },
-  availability_registered:  { label: '가용량 등록',    color: '#0d9488', bg: '#f0fdfa' },
-  inquiry_sent:             { label: '문의 발송',      color: '#0ea5e9', bg: '#f0f9ff' },
+  review_finalized:         { label: '검토 확정',      color: 'var(--success)', bg: 'var(--success-bg)' },
+  review_rejected:          { label: '검토 반려',      color: 'var(--danger)', bg: 'var(--danger-bg)' },
+  review_recheck_completed: { label: 'AI 재분석',      color: 'var(--info)', bg: 'var(--info-bg)' },
+  pool_stock_changed:       { label: 'T3 재고 변경',   color: 'var(--warning)', bg: 'var(--warning-bg)' },
+  availability_registered:  { label: '가용량 등록',    color: 'var(--info)', bg: 'var(--success-bg)' },
+  inquiry_sent:             { label: '문의 발송',      color: 'var(--info)', bg: 'var(--info-bg)' },
 }
 
 const AVAILABILITY_STATUS: Record<string, string> = {
@@ -196,7 +196,7 @@ export default function HistoryTab() {
           </div>
         ) : (
           filtered.map((log) => {
-            const cfg = ACTION_CONFIG[log.action_type] ?? { label: log.action_type, color: '#6b7280', bg: '#f0f1f4' }
+            const cfg = ACTION_CONFIG[log.action_type] ?? { label: log.action_type, color: 'var(--text-muted)', bg: 'var(--surface-bg)' }
             const product = log.gpu_products
             const ts = new Date(log.ts)
             const desc = log.detail ? renderDetail(log.action_type, log.detail) : null

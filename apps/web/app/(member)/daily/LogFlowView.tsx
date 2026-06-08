@@ -7,7 +7,7 @@ import { DdayBadge, todayLocal } from '@/lib/dday'
 const ENTRY_TYPES: { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[] = [
   { value: 'done',    label: '완료',   color: 'var(--success)', bg: 'var(--success-bg)', border: 'var(--success-border)' },
   { value: 'doing',   label: '진행중', color: 'var(--info)', bg: 'var(--info-bg)', border: 'var(--info-border)' },
-  { value: 'planned', label: '예정',   color: 'var(--brand)', bg: '#f5f3ff', border: '#ddd6fe' },
+  { value: 'planned', label: '예정',   color: 'var(--brand)', bg: 'var(--brand-soft)', border: 'var(--brand-soft-2)' },
   { value: 'blocker', label: '블로커', color: 'var(--danger)', bg: 'var(--danger-bg)', border: 'var(--danger-border)' },
   { value: 'note',    label: '메모',   color: 'var(--warning)', bg: 'var(--warning-bg)', border: 'var(--warning-border)' },
 ]
@@ -156,7 +156,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
                         {(flowReason || isLoading) && (
                           <div style={{
                             fontSize: '0.7rem', color: 'var(--brand)',
-                            background: 'var(--brand-soft)', border: '1px solid #ddd6fe',
+                            background: 'var(--brand-soft)', border: '1px solid var(--brand-soft-2)',
                             borderRadius: '0.25rem', padding: '0.15rem 0.5rem',
                             maxWidth: '100%', wordBreak: 'keep-all',
                           }}>
@@ -164,7 +164,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
                           </div>
                         )}
                         {/* 화살표 */}
-                        <span style={{ color: '#f97316', fontSize: '1rem', lineHeight: 1 }}>↓</span>
+                        <span style={{ color: 'var(--warning)', fontSize: '1rem', lineHeight: 1 }}>↓</span>
                       </div>
                     )}
 
@@ -187,8 +187,8 @@ export function LogFlowView({ log, allLogs, onClose }: {
                         </span>
                         {isHighlight && (
                           <span style={{
-                            fontSize: '0.6rem', fontWeight: 700, color: '#3b82f6',
-                            background: '#dbeafe', padding: '0.1rem 0.35rem', borderRadius: '0.25rem',
+                            fontSize: '0.6rem', fontWeight: 700, color: 'var(--info)',
+                            background: 'var(--info-bg)', padding: '0.1rem 0.35rem', borderRadius: '0.25rem',
                           }}>
                             현재
                           </span>
@@ -202,7 +202,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
                         )}
                       </div>
                       <p style={{
-                        margin: 0, fontSize: '0.875rem', color: '#1e293b',
+                        margin: 0, fontSize: '0.875rem', color: 'var(--text)',
                         lineHeight: 1.5, wordBreak: 'break-word',
                       }}>
                         {n.log.content}

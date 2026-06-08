@@ -33,7 +33,7 @@ export default function RoleToggle({ userId, currentRole, isSelf }: RoleTogglePr
         border: '1px solid',
         transition: 'all 120ms',
         backgroundColor: currentRole === 'admin' ? 'var(--danger-bg)' : 'var(--brand-soft)',
-        borderColor: currentRole === 'admin' ? 'var(--danger-border)' : '#ddd6fe',
+        borderColor: currentRole === 'admin' ? 'var(--danger-border)' : 'var(--brand-soft-2)',
         color: currentRole === 'admin' ? 'var(--danger)' : 'var(--brand-dark)',
       }}
       title={isSelf ? '본인 역할은 변경할 수 없습니다' : undefined}

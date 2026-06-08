@@ -95,7 +95,7 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
           </button>
         </div>
 
-        {msg && <div role="status" style={{ padding: '0.5rem 0.75rem', background: 'var(--brand-soft)', border: '1px solid #ddd6fe', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: '0.78rem', color: 'var(--brand-dark)' }}>{msg}</div>}
+        {msg && <div role="status" style={{ padding: '0.5rem 0.75rem', background: 'var(--brand-soft)', border: '1px solid var(--brand-soft-2)', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: '0.78rem', color: 'var(--brand-dark)' }}>{msg}</div>}
 
         <label style={lbl}>제목</label>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="일정 제목" style={inp} />
@@ -120,10 +120,10 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: '#475569', cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} /> 종일
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: '#475569' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
             반복
             <select value={repeat} onChange={(e) => setRepeat(e.target.value as 'none' | 'daily' | 'weekly')}
               style={{ border: '2px solid var(--border-color)', borderRadius: '0.375rem', padding: '0.3rem 0.5rem', fontSize: '0.8125rem' }}>

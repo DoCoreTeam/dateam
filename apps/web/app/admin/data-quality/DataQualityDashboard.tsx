@@ -16,7 +16,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
 function Card({ label, value, sub, tone, onClick, active }: { label: string; value: string | number; sub?: string; tone?: 'ok' | 'warn' | 'bad'; onClick?: () => void; active?: boolean }) {
   const color = tone === 'bad' ? 'var(--danger)' : tone === 'warn' ? 'var(--warning)' : tone === 'ok' ? 'var(--success)' : 'var(--text)'
   return (
-    <div onClick={onClick} style={{ padding: '16px 18px', borderRadius: 12, background: '#fff', border: `1px solid ${active ? 'var(--gpu-accent,#5b5ef0)' : 'var(--color-border)'}`, minWidth: 0, cursor: onClick ? 'pointer' : 'default', boxShadow: active ? '0 0 0 2px rgba(91,94,240,.15)' : 'none' }}>
+    <div onClick={onClick} style={{ padding: '16px 18px', borderRadius: 12, background: '#fff', border: `1px solid ${active ? 'var(--gpu-accent,var(--brand))' : 'var(--color-border)'}`, minWidth: 0, cursor: onClick ? 'pointer' : 'default', boxShadow: active ? '0 0 0 2px rgba(91,94,240,.15)' : 'none' }}>
       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>{label}{onClick && <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--border-subtle)' }}>클릭</span>}</div>
       <div style={{ fontSize: 26, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
       {sub && <div style={{ fontSize: 11.5, color: 'var(--text-faint)', marginTop: 6 }}>{sub}</div>}
@@ -105,7 +105,7 @@ export default function DataQualityDashboard() {
               {loadingItems ? <div style={{ fontSize: 12.5, color: 'var(--text-faint)' }}>불러오는 중…</div> : items.length === 0 ? <div style={{ fontSize: 12.5, color: 'var(--text-faint)' }}>해당 항목 없음 ✓</div> : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto' }}>
                   {items.map((it, i) => (
-                    <div key={it.id ?? i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px', borderRadius: 8, background: '#fff', border: '1px solid #eef2f7', fontSize: 12.5 }}>
+                    <div key={it.id ?? i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px', borderRadius: 8, background: '#fff', border: '1px solid var(--surface-bg)', fontSize: 12.5 }}>
                       {drill === 'anomaly' && <>
                         <span style={{ fontWeight: 600, flex: 1 }}>{it.model_name} <span style={{ color: 'var(--text-faint)' }}>T{it.tier}</span></span>
                         <span style={{ fontWeight: 700, color: 'var(--danger)' }}>${it.unit_price_usd}/hr</span>
@@ -121,20 +121,20 @@ export default function DataQualityDashboard() {
                         <span style={{ fontWeight: 600, flex: 1 }}>{it.product_hint}</span>
                         <span style={{ color: 'var(--warning)' }}>{it.dup_count}건 중복</span>
                         <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>신뢰도 {it.overall_confidence ?? '—'}</span>
-                        <button onClick={() => mergeDups(it)} className="gpu-btn" style={{ fontSize: 11, padding: '3px 10px', color: 'var(--gpu-accent,#5b5ef0)', borderColor: '#ddd6fe' }}>1건만 남기기</button>
+                        <button onClick={() => mergeDups(it)} className="gpu-btn" style={{ fontSize: 11, padding: '3px 10px', color: 'var(--gpu-accent,var(--brand))', borderColor: 'var(--brand-soft-2)' }}>1건만 남기기</button>
                       </>}
                     </div>
                   ))}
                 </div>
               )}
               <div style={{ marginTop: 10, fontSize: 11.5 }}>
-                <a href="/pricing/gpu?tab=review" style={{ color: 'var(--gpu-accent,#5b5ef0)' }}>→ 검토 대기 탭에서 전체 관리</a>
-                {drill === 'anomaly' && <a href="/pricing/gpu?tab=board" style={{ color: 'var(--gpu-accent,#5b5ef0)', marginLeft: 16 }}>→ 가격표에서 확인</a>}
+                <a href="/pricing/gpu?tab=review" style={{ color: 'var(--gpu-accent,var(--brand))' }}>→ 검토 대기 탭에서 전체 관리</a>
+                {drill === 'anomaly' && <a href="/pricing/gpu?tab=board" style={{ color: 'var(--gpu-accent,var(--brand))', marginLeft: 16 }}>→ 가격표에서 확인</a>}
               </div>
             </div>
           )}
 
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#334155', margin: '8px 0 10px' }}>검토 항목 (review_items)</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', margin: '8px 0 10px' }}>검토 항목 (review_items)</h3>
           <div className="responsive-grid-cols-4" style={{ marginBottom: 20 }}>
             <Card label="전체" value={m.review_items.total} />
             <Card label="검토 대기" value={m.review_items.pending} tone={m.review_items.pending > 0 ? 'warn' : 'ok'} sub="클릭→상세" onClick={() => openDrill('pending')} active={drill === 'pending'} />
@@ -142,7 +142,7 @@ export default function DataQualityDashboard() {
             <Card label="반려" value={m.review_items.rejected} />
           </div>
 
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#334155', margin: '8px 0 10px' }}>공급 견적 신뢰도 (supply_quotes)</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', margin: '8px 0 10px' }}>공급 견적 신뢰도 (supply_quotes)</h3>
           <div className="responsive-grid-cols-4" style={{ marginBottom: 20 }}>
             <Card label="평균 신뢰도" value={m.supply_quotes.avg_confidence != null ? `${m.supply_quotes.avg_confidence}%` : '—'} tone={(m.supply_quotes.avg_confidence ?? 0) >= 80 ? 'ok' : 'warn'} />
             <Card label="高 (≥90)" value={m.supply_quotes.high} tone="ok" sub="자동 신뢰 후보" />

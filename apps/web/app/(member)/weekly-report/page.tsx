@@ -223,12 +223,12 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
       {activeTab === 'mine' ? (
         <>
           {justSaved && (
-            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#15803d' }}>
+            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--success)' }}>
               주간보고가 저장되었습니다
             </div>
           )}
           {justReset && (
-            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
+            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
               보고서가 초기화되었습니다
             </div>
           )}

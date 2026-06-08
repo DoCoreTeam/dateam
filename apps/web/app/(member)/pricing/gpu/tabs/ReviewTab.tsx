@@ -86,12 +86,12 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
             <button onClick={() => { onSelect(null); onManualName('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: selected.color, display: 'flex', padding: 0 }}><X size={11} /></button>
           </span>
         ) : manualName ? (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, background: 'var(--success-bg)', border: '1px solid var(--success-border)', fontSize: 12, fontWeight: 600, color: '#15803d' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, background: 'var(--success-bg)', border: '1px solid var(--success-border)', fontSize: 12, fontWeight: 600, color: 'var(--success)' }}>
             <Plus size={11} /> {manualName} (신규)
-            <button onClick={() => { onManualName(''); setManualInput('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#15803d', display: 'flex', padding: 0 }}><X size={11} /></button>
+            <button onClick={() => { onManualName(''); setManualInput('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--success)', display: 'flex', padding: 0 }}><X size={11} /></button>
           </span>
         ) : (
-          <span style={{ fontSize: 12, color: confidenceLow ? '#b45309' : 'var(--gpu-faint)' }}>
+          <span style={{ fontSize: 12, color: confidenceLow ? 'var(--warning)' : 'var(--gpu-faint)' }}>
             {confidenceLow ? '⚠️ 공급사 확인 필요' : '공급사 미선택 (AI 추출값 사용)'}
           </span>
         )}
@@ -104,7 +104,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
       </div>
 
       {open && (
-        <div style={{ marginTop: 8, borderRadius: 10, border: '1px solid var(--brand-soft-2)', background: '#f8faff', padding: '10px 12px' }}>
+        <div style={{ marginTop: 8, borderRadius: 10, border: '1px solid var(--brand-soft-2)', background: 'var(--surface-bg)', padding: '10px 12px' }}>
           {/* 추천 공급사 */}
           {suggestions.length > 0 && (
             <div style={{ marginBottom: 8 }}>
@@ -116,13 +116,13 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
                     onClick={() => { onSelect(s); onManualName(''); setOpen(false) }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
-                      borderRadius: 8, border: `1.5px solid ${selectedId === s.id ? s.color : '#ddd6fe'}`,
+                      borderRadius: 8, border: `1.5px solid ${selectedId === s.id ? s.color : 'var(--brand-soft-2)'}`,
                       background: selectedId === s.id ? s.color + '18' : '#fff',
                       cursor: 'pointer', textAlign: 'left',
                     }}
                   >
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{s.name}</span>
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{s.name}</span>
                     {s.location && <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>{s.location}</span>}
                     <span style={{ fontSize: 10, color: 'var(--brand)', fontWeight: 700 }}>{Math.round(s.score * 100)}% 일치</span>
                   </button>
@@ -133,7 +133,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
 
           {/* 전체 검색 */}
           <div style={{ marginBottom: 6 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 5 }}>등록된 공급사 검색</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)', marginBottom: 5 }}>등록된 공급사 검색</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, padding: '6px 10px', borderRadius: 8, border: '2px solid var(--border-color)', background: '#fff' }}>
               <Search size={13} style={{ color: 'var(--gpu-muted)', flexShrink: 0 }} />
               <input
@@ -158,7 +158,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
                   }}
                 >
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
-                  <span style={{ flex: 1, fontSize: 12, color: '#1e293b' }}>{s.name}</span>
+                  <span style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}>{s.name}</span>
                   {s.location && <span style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>{s.location}</span>}
                 </button>
               ))}
@@ -167,13 +167,13 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
 
           {/* 직접 입력 */}
           <div style={{ borderTop: '1px solid var(--brand-soft-2)', paddingTop: 8 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
               <Plus size={11} /> 직접 입력 (신규 공급사)
             </div>
             {!manualMode ? (
               <button
                 onClick={() => { setManualMode(true); setManualInput(extractedName) }}
-                style={{ fontSize: 11, color: 'var(--gpu-muted)', background: 'none', border: '1px dashed #d1d5db', borderRadius: 7, padding: '5px 12px', cursor: 'pointer' }}
+                style={{ fontSize: 11, color: 'var(--gpu-muted)', background: 'none', border: '1px dashed var(--border-subtle)', borderRadius: 7, padding: '5px 12px', cursor: 'pointer' }}
               >
                 &quot;{extractedName}&quot; 이름으로 직접 등록
               </button>
@@ -184,7 +184,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
                     value={manualInput}
                     onChange={(e) => { setManualInput(e.target.value); setDupWarning('') }}
                     placeholder="공급사명"
-                    style={{ flex: 1, padding: '6px 10px', borderRadius: 7, border: '1px solid #ddd6fe', fontSize: 12 }}
+                    style={{ flex: 1, padding: '6px 10px', borderRadius: 7, border: '1px solid var(--brand-soft-2)', fontSize: 12 }}
                   />
                   <button
                     onClick={handleManualConfirm}
@@ -197,7 +197,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
                   <button onClick={() => { setManualMode(false); setDupWarning('') }} className="gpu-btn" style={{ fontSize: 11, padding: '0 10px' }}>취소</button>
                 </div>
                 {dupWarning && (
-                  <div style={{ marginTop: 6, fontSize: 11, color: '#92400e', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 6, padding: '5px 9px' }}>
+                  <div style={{ marginTop: 6, fontSize: 11, color: 'var(--warning)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 6, padding: '5px 9px' }}>
                     {dupWarning}
                     {allSuppliers.filter((s) => supplierScore(manualInput, s.name) > 0.8).map((s) => (
                       <button
@@ -431,8 +431,8 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
               style={{
                 padding: '8px 10px',
                 borderRadius: 8,
-                background: isLow ? (isChecked ? 'var(--success-bg)' : '#fff7ed') : '#f9fafb',
-                border: `1px solid ${isLow ? (isChecked ? 'var(--success-border)' : '#fed7aa') : 'var(--color-border)'}`,
+                background: isLow ? (isChecked ? 'var(--success-bg)' : 'var(--warning-bg)') : 'var(--surface-bg)',
+                border: `1px solid ${isLow ? (isChecked ? 'var(--success-border)' : 'var(--warning-border)') : 'var(--color-border)'}`,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -447,7 +447,7 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
                   <CheckCircle2 size={15} style={{ color: 'var(--gpu-green)', flexShrink: 0 }} />
                 )}
                 <span style={{ minWidth: 72, fontSize: 12, color: 'var(--gpu-muted)' }}>{CONF_LABELS[f] ?? f}</span>
-                <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#111827' }}>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
                   {isSupplier
                     ? (() => {
                         const display = selectedSupplier?.name ?? (manualSupplierName || null) ?? (val != null ? String(val) : null)
@@ -476,7 +476,7 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
 
       {/* 낮은 신뢰도 안내 */}
       {lowConfFields.length > 0 && !allLowChecked && (
-        <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8, background: '#fff7ed', border: '1px solid #fed7aa', fontSize: 12, color: '#92400e' }}>
+        <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8, background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', fontSize: 12, color: 'var(--warning)' }}>
           ⚠️ 신뢰도 90% 미만 항목이 있습니다. 각 항목을 직접 확인하고 체크해야 확정할 수 있습니다.
         </div>
       )}
@@ -490,13 +490,13 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
         전체 추출 데이터 {expanded ? '숨기기' : '보기'}
       </button>
       {expanded && (
-        <pre style={{ marginTop: 8, padding: '10px 12px', borderRadius: 8, background: 'var(--surface-muted)', fontSize: 11, overflowX: 'auto', maxHeight: 200, color: '#374151', lineHeight: 1.6 }}>
+        <pre style={{ marginTop: 8, padding: '10px 12px', borderRadius: 8, background: 'var(--surface-muted)', fontSize: 11, overflowX: 'auto', maxHeight: 200, color: 'var(--text)', lineHeight: 1.6 }}>
           {JSON.stringify(extracted, null, 2)}
         </pre>
       )}
 
       {/* AI 재분석 섹션 */}
-      <div style={{ marginTop: 14, padding: '12px', borderRadius: 8, background: '#f8faff', border: '1px solid var(--brand-soft-2)' }}>
+      <div style={{ marginTop: 14, padding: '12px', borderRadius: 8, background: 'var(--surface-bg)', border: '1px solid var(--brand-soft-2)' }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--brand-dark)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
           <RotateCcw size={12} /> AI 재분석 요청
         </div>
@@ -504,7 +504,7 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
           value={feedback}
           onChange={(e) => setFeedback(e.target.value)}
           placeholder="예) 단가가 월 단위인 것 같습니다. 시간당으로 환산해 주세요."
-          style={{ width: '100%', minHeight: 60, padding: '7px 10px', borderRadius: 7, border: '1px solid #ddd6fe', fontSize: 12, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
+          style={{ width: '100%', minHeight: 60, padding: '7px 10px', borderRadius: 7, border: '1px solid var(--brand-soft-2)', fontSize: 12, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
         />
         {recheckErr && <div style={{ fontSize: 12, color: 'var(--gpu-red)', marginTop: 4 }}>{recheckErr}</div>}
         <button

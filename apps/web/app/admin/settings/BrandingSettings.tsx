@@ -81,17 +81,17 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* 로고 미리보기 */}
       <div>
-        <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#374151', marginBottom: '0.75rem' }}>로고 이미지</p>
+        <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text)', marginBottom: '0.75rem' }}>로고 이미지</p>
         <div
           style={{
             width: '200px',
             height: '80px',
-            border: '1px dashed #d1d5db',
+            border: '1px dashed var(--border-subtle)',
             borderRadius: 'var(--radius)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: '#f9fafb',
+            backgroundColor: 'var(--surface-bg)',
             overflow: 'hidden',
           }}
         >
@@ -104,7 +104,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
               onError={() => { setLogoUrl(null); setPreviewUrl(null) }}
             />
           ) : (
-            <div style={{ textAlign: 'center', color: '#9ca3af' }}>
+            <div style={{ textAlign: 'center', color: 'var(--text-faint)' }}>
               <ImageIcon size={24} />
               <p style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>로고</p>
             </div>
@@ -116,8 +116,8 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
             style={{
               display: 'flex', alignItems: 'center', gap: '0.375rem',
               padding: '0.375rem 0.75rem', fontSize: '0.8125rem', fontWeight: 500,
-              border: '1px solid #d1d5db', borderRadius: 'var(--radius)',
-              backgroundColor: 'white', color: '#374151', cursor: 'pointer',
+              border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius)',
+              backgroundColor: 'white', color: 'var(--text)', cursor: 'pointer',
             }}
           >
             <Upload size={13} /> 파일 선택
@@ -138,21 +138,21 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.375rem 0.75rem', fontSize: '0.8125rem', fontWeight: 500,
                 border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)',
-                backgroundColor: 'var(--danger-bg)', color: '#b91c1c', cursor: 'pointer',
+                backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', cursor: 'pointer',
               }}
             >
               <Trash2 size={13} /> 로고 삭제
             </button>
           )}
         </div>
-        <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.375rem' }}>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.375rem' }}>
           PNG / JPG / SVG / WebP · 최대 2MB · 권장: 가로 400px 이상
         </p>
       </div>
 
       {/* 브랜드명 */}
       <div>
-        <label style={{ fontSize: '0.875rem', fontWeight: 500, color: '#374151', display: 'block', marginBottom: '0.5rem' }}>
+        <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text)', display: 'block', marginBottom: '0.5rem' }}>
           시스템 이름 (브랜드명)
         </label>
         <input
@@ -164,14 +164,14 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
           className="input-field"
           style={{ maxWidth: '300px' }}
         />
-        <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
           로고 이미지가 없을 때 표시됩니다 · 최대 30자
         </p>
       </div>
 
       {/* 부제목 (로그인 페이지 등) */}
       <div>
-        <label style={{ fontSize: '0.875rem', fontWeight: 500, color: '#374151', display: 'block', marginBottom: '0.5rem' }}>
+        <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text)', display: 'block', marginBottom: '0.5rem' }}>
           부제목
         </label>
         <input
@@ -183,7 +183,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
           className="input-field"
           style={{ maxWidth: '300px' }}
         />
-        <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
           로그인 화면 브랜드명 아래에 표시됩니다 · 최대 40자 · 비우면 숨김
         </p>
       </div>
@@ -200,7 +200,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
           {saving ? '저장 중...' : '저장'}
         </button>
         {message && (
-          <p style={{ fontSize: '0.8125rem', color: message.type === 'success' ? 'var(--success)' : '#b91c1c' }}>
+          <p style={{ fontSize: '0.8125rem', color: message.type === 'success' ? 'var(--success)' : 'var(--danger)' }}>
             {message.text}
           </p>
         )}

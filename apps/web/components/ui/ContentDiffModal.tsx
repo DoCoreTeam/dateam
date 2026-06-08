@@ -56,9 +56,9 @@ function diffRows(
 }
 
 const STATUS_BADGE: Record<RowStatus, { label: string; bg: string; color: string }> = {
-  added:     { label: '추가됨', bg: '#dcfce7', color: '#15803d' },
-  deleted:   { label: '삭제됨', bg: '#fee2e2', color: '#b91c1c' },
-  modified:  { label: '수정됨', bg: '#fef9c3', color: '#a16207' },
+  added:     { label: '추가됨', bg: 'var(--success-bg)', color: 'var(--success)' },
+  deleted:   { label: '삭제됨', bg: 'var(--danger-bg)', color: 'var(--danger)' },
+  modified:  { label: '수정됨', bg: 'var(--warning-bg)', color: 'var(--warning)' },
   unchanged: { label: '변경없음', bg: 'var(--surface-muted)', color: 'var(--text-muted)' },
 }
 
@@ -155,7 +155,7 @@ export default function ContentDiffModal({
             return (
               <div key={idx} style={{
                 borderBottom: '1px solid var(--surface-muted)',
-                background: row.status === 'deleted' ? '#fff5f5' : row.status === 'added' ? 'var(--success-bg)' : row.status === 'modified' ? 'var(--warning-bg)' : '#fff',
+                background: row.status === 'deleted' ? 'var(--danger-bg)' : row.status === 'added' ? 'var(--success-bg)' : row.status === 'modified' ? 'var(--warning-bg)' : '#fff',
               }}>
                 <div
                   style={{
@@ -213,7 +213,7 @@ export default function ContentDiffModal({
                         return (
                           <div key={c.key} style={{ marginBottom: '0.25rem', fontSize: '0.8125rem' }}>
                             <span style={{ color: 'var(--text-faint)', marginRight: '0.375rem' }}>{c.label}:</span>
-                            <span style={{ color: changed ? '#b91c1c' : '#475569', textDecoration: changed ? 'line-through' : 'none' }}>
+                            <span style={{ color: changed ? 'var(--danger)' : 'var(--text-muted)', textDecoration: changed ? 'line-through' : 'none' }}>
                               {oldVal}
                             </span>
                           </div>
@@ -229,7 +229,7 @@ export default function ContentDiffModal({
                         return (
                           <div key={c.key} style={{ marginBottom: '0.25rem', fontSize: '0.8125rem' }}>
                             <span style={{ color: 'var(--text-faint)', marginRight: '0.375rem' }}>{c.label}:</span>
-                            <span style={{ color: changed ? '#15803d' : '#475569', fontWeight: changed ? 600 : 400 }}>
+                            <span style={{ color: changed ? 'var(--success)' : 'var(--text-muted)', fontWeight: changed ? 600 : 400 }}>
                               {newVal}
                             </span>
                           </div>

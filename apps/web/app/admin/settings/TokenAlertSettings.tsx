@@ -35,7 +35,7 @@ export default function TokenAlertSettings({ currentThreshold }: Props) {
       </p>
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div>
-          <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#374151', display: 'block', marginBottom: '0.375rem' }}>
+          <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text)', display: 'block', marginBottom: '0.375rem' }}>
             월간 임계치 (tokens)
           </label>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
@@ -43,7 +43,7 @@ export default function TokenAlertSettings({ currentThreshold }: Props) {
               type="text"
               value={threshold}
               onChange={e => setThreshold(e.target.value)}
-              style={{ flex: 1, maxWidth: '220px', padding: '0.5rem 0.75rem', border: '1px solid #d1d5db', borderRadius: 'var(--radius)', fontSize: '0.9rem', color: '#374151' }}
+              style={{ flex: 1, maxWidth: '220px', padding: '0.5rem 0.75rem', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius)', fontSize: '0.9rem', color: 'var(--text)' }}
               placeholder="1,000,000"
             />
             <button

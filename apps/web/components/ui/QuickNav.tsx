@@ -65,7 +65,7 @@ export default function QuickNav() {
           padding: '6px 12px', borderRadius: 8,
           border: '2px solid var(--border-color)',
           background: open ? 'var(--surface-muted)' : 'white',
-          color: '#475569', fontSize: 13, fontWeight: 500,
+          color: 'var(--text-muted)', fontSize: 13, fontWeight: 500,
           cursor: 'pointer', transition: 'all .15s',
         }}
         onMouseEnter={e => { if (!open) e.currentTarget.style.background = 'var(--color-bg)' }}
@@ -101,11 +101,11 @@ export default function QuickNav() {
                     onClick={() => setOpen(false)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '8px 16px', color: '#374151', fontSize: 13,
+                      padding: '8px 16px', color: 'var(--text)', fontSize: 13,
                       textDecoration: 'none', transition: 'background .1s',
                     }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg)'; e.currentTarget.style.color = 'var(--brand)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#374151' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text)' }}
                   >
                     <span style={{ color: 'inherit', opacity: 0.7 }}>{icon}</span>
                     <span style={{ flex: 1 }}>{label}</span>

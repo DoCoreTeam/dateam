@@ -53,20 +53,20 @@ export default async function ContactDetailPage({ params }: PageProps) {
           {data.email && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <Mail size={16} color="var(--brand)" />
-              <a href={`mailto:${data.email}`} style={{ color: '#374151', textDecoration: 'none', fontSize: '0.9rem' }}>{data.email}</a>
+              <a href={`mailto:${data.email}`} style={{ color: 'var(--text)', textDecoration: 'none', fontSize: '0.9rem' }}>{data.email}</a>
             </div>
           )}
           {data.phone && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <Phone size={16} color="var(--brand)" />
-              <span style={{ color: '#374151', fontSize: '0.9rem' }}>{data.phone}</span>
+              <span style={{ color: 'var(--text)', fontSize: '0.9rem' }}>{data.phone}</span>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>직통</span>
             </div>
           )}
           {data.mobile && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <Phone size={16} color="var(--brand)" />
-              <span style={{ color: '#374151', fontSize: '0.9rem' }}>{data.mobile}</span>
+              <span style={{ color: 'var(--text)', fontSize: '0.9rem' }}>{data.mobile}</span>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>휴대폰</span>
             </div>
           )}
@@ -78,7 +78,7 @@ export default async function ContactDetailPage({ params }: PageProps) {
           )}
           {data.notes && (
             <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '2px solid var(--border-color)' }}>
-              <p style={{ fontSize: '0.875rem', color: '#374151', margin: 0, lineHeight: 1.6 }}>{data.notes}</p>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text)', margin: 0, lineHeight: 1.6 }}>{data.notes}</p>
             </div>
           )}
           {!data.email && !data.phone && !data.mobile && !data.linkedin && !data.notes && (

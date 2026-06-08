@@ -122,7 +122,7 @@ export default function PasswordChangeModal() {
           {existingName ? (
             <div>
               <label className="label">이름</label>
-              <div style={{ padding: '0.625rem 0.875rem', background: 'var(--color-bg)', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', color: '#334155' }}>
+              <div style={{ padding: '0.625rem 0.875rem', background: 'var(--color-bg)', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', color: 'var(--text)' }}>
                 {existingName}
               </div>
             </div>

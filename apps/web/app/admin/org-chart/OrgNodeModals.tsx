@@ -230,7 +230,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 function ModalFooter({ onClose, onSubmit, isPending, label }: { onClose: () => void; onSubmit: () => void; isPending: boolean; label: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', paddingTop: '0.25rem' }}>
-      <button onClick={onClose} disabled={isPending} style={{ padding: '0.45rem 1rem', background: 'var(--surface-muted)', color: '#475569', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer' }}>취소</button>
+      <button onClick={onClose} disabled={isPending} style={{ padding: '0.45rem 1rem', background: 'var(--surface-muted)', color: 'var(--text-muted)', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer' }}>취소</button>
       <button onClick={onSubmit} disabled={isPending} style={{ padding: '0.45rem 1rem', background: 'var(--brand-dark)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1 }}>
         {isPending ? '처리 중...' : label}
       </button>
@@ -239,6 +239,6 @@ function ModalFooter({ onClose, onSubmit, isPending, label }: { onClose: () => v
 }
 
 const labelStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '0.35rem' }
-const labelTextStyle: React.CSSProperties = { fontSize: '0.8rem', fontWeight: 600, color: '#475569' }
+const labelTextStyle: React.CSSProperties = { fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }
 const inputStyle: React.CSSProperties = { padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', background: '#fff', outline: 'none' }
-const errorStyle: React.CSSProperties = { margin: 0, color: '#ef4444', fontSize: '0.8rem' }
+const errorStyle: React.CSSProperties = { margin: 0, color: 'var(--danger)', fontSize: '0.8rem' }

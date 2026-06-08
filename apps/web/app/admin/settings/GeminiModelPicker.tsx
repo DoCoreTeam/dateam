@@ -62,9 +62,9 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
           <Cpu size={14} color="var(--brand)" />
-          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>모델 선택</span>
+          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text)' }}>모델 선택</span>
           {currentSavedModel && !modelsLoaded && (
-            <span style={{ fontSize: '0.75rem', color: '#6b7280', fontFamily: 'monospace' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
               (현재: {currentSavedModel})
             </span>
           )}
@@ -79,7 +79,7 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
             gap: '0.375rem',
             padding: '0.5rem 0.875rem',
             backgroundColor: hasKey ? 'var(--surface-muted)' : 'var(--color-border)',
-            color: hasKey ? '#374151' : 'var(--text-faint)',
+            color: hasKey ? 'var(--text)' : 'var(--text-faint)',
             border: '2px solid var(--border-color)',
             borderRadius: 'var(--radius)',
             fontSize: '0.8125rem',
@@ -142,7 +142,7 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
             alignItems: 'center',
             gap: '0.375rem',
             backgroundColor: modelMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
-            color: modelMsg.ok ? '#15803d' : '#b91c1c',
+            color: modelMsg.ok ? 'var(--success)' : 'var(--danger)',
             border: `1px solid ${modelMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
           }}
         >

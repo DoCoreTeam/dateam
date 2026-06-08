@@ -27,7 +27,7 @@ function RichContent({ html }: { html: string }) {
     )
   }
   return (
-    <p style={{ fontSize: '0.875rem', color: '#374151', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+    <p style={{ fontSize: '0.875rem', color: 'var(--text)', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
       {html}
     </p>
   )
@@ -52,7 +52,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
     <div
       style={{
         borderRadius: 'var(--radius)',
-        border: confirmDelete ? '1px solid #fca5a5' : '1px solid var(--surface-muted)',
+        border: confirmDelete ? '1px solid var(--danger-border)' : '1px solid var(--surface-muted)',
         overflow: 'hidden',
         opacity: pending ? 0.5 : 1,
       }}
@@ -60,7 +60,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0.75rem 1rem', backgroundColor: 'var(--color-bg)',
-        borderBottom: confirmDelete ? '1px solid #fca5a5' : 'none',
+        borderBottom: confirmDelete ? '1px solid var(--danger-border)' : 'none',
       }}>
         <span className="badge badge-indigo">{report.category}</span>
         {!confirmDelete && (
@@ -70,7 +70,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
               fontSize: '0.75rem', padding: '0.25rem 0.625rem',
-              background: '#fff1f2', color: 'var(--danger)',
+              background: 'var(--danger-bg)', color: 'var(--danger)',
               border: '1px solid var(--danger-border)', borderRadius: '0.375rem', cursor: 'pointer',
             }}
           >
@@ -81,21 +81,21 @@ function ReportCard({ report }: { report: WeeklyReport }) {
       </div>
 
       {confirmDelete && (
-        <div style={{ padding: '1rem', backgroundColor: '#fff1f2', borderTop: '1px solid #fca5a5' }}>
+        <div style={{ padding: '1rem', backgroundColor: 'var(--danger-bg)', borderTop: '1px solid var(--danger-border)' }}>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
             <AlertTriangle size={18} color="var(--danger)" style={{ flexShrink: 0, marginTop: '1px' }} />
             <div>
-              <p style={{ fontSize: '0.875rem', fontWeight: 700, color: '#b91c1c', margin: '0 0 0.25rem' }}>
+              <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--danger)', margin: '0 0 0.25rem' }}>
                 정말 삭제하시겠습니까?
               </p>
-              <p style={{ fontSize: '0.8125rem', color: '#7f1d1d', margin: 0, lineHeight: 1.5 }}>
+              <p style={{ fontSize: '0.8125rem', color: 'var(--danger)', margin: 0, lineHeight: 1.5 }}>
                 <strong>&quot;{report.category}&quot;</strong> 항목의 성과·계획·이슈 데이터가 모두 영구 삭제됩니다.
                 이 작업은 <strong>되돌릴 수 없습니다.</strong>
               </p>
             </div>
           </div>
           {deleteError && (
-            <p style={{ fontSize: '0.8125rem', color: '#b91c1c', margin: '0 0 0.5rem', fontWeight: 600 }}>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--danger)', margin: '0 0 0.5rem', fontWeight: 600 }}>
               오류: {deleteError}
             </p>
           )}
@@ -115,7 +115,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
               onClick={() => { setConfirmDelete(false); setDeleteError(null) }}
               disabled={pending}
               style={{
-                padding: '0.5rem 1rem', backgroundColor: '#fff', color: '#475569',
+                padding: '0.5rem 1rem', backgroundColor: '#fff', color: 'var(--text-muted)',
                 border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer',
                 fontSize: '0.875rem',
               }}
@@ -138,7 +138,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
           )}
           {report.plan && (
             <div>
-              <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#0891b2', margin: '0 0 0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--info)', margin: '0 0 0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 계획
               </p>
               <RichContent html={report.plan} />

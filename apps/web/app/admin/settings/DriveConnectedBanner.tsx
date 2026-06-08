@@ -27,7 +27,7 @@ export default function DriveConnectedBanner() {
         borderRadius: 'var(--radius)',
         fontSize: '0.875rem',
         fontWeight: 500,
-        color: '#15803d',
+        color: 'var(--success)',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

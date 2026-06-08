@@ -270,9 +270,9 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
         style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
       >
         {savedMsg && (
-          <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 'var(--radius)', padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ background: 'var(--info-bg)', border: '1px solid var(--info-border)', borderRadius: 'var(--radius)', padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span style={{ fontSize: '1rem' }}>✅</span>
-            <span style={{ color: '#0284c7', fontWeight: 600, fontSize: '0.875rem' }}>{savedMsg}</span>
+            <span style={{ color: 'var(--info)', fontWeight: 600, fontSize: '0.875rem' }}>{savedMsg}</span>
           </div>
         )}
         <div>

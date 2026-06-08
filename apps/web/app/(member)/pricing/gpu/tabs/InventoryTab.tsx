@@ -130,7 +130,7 @@ function QtyInput({ item, sup, onSaved }: { item: InventoryItem; sup: QuoteSuppl
         onClick={save}
         disabled={saving}
         className="gpu-btn"
-        style={{ height: 28, padding: '0 10px', fontSize: 12, fontWeight: 600, background: 'var(--gpu-accent, #5b5ef0)', color: '#fff', borderRadius: 6 }}
+        style={{ height: 28, padding: '0 10px', fontSize: 12, fontWeight: 600, background: 'var(--gpu-accent, var(--brand))', color: '#fff', borderRadius: 6 }}
       >
         {saving ? '저장…' : sup.has_qty ? '수정' : '입력'}
       </button>
@@ -159,7 +159,7 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>
+            <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>
               {item.model_name} {item.memory}
             </span>
             <span className={`gpu-badge ${TIER_BADGES[item.tier]}`} style={{ fontSize: 10 }}>
@@ -216,12 +216,12 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
       {/* 상태 요약 칩 */}
       <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
         {item.oos_supplier_count > 0 && (
-          <span className="gpu-badge" style={{ background: '#fee2e2', color: 'var(--danger)', fontSize: 10 }}>
+          <span className="gpu-badge" style={{ background: 'var(--danger-bg)', color: 'var(--danger)', fontSize: 10 }}>
             품절 {item.oos_supplier_count}개 공급사
           </span>
         )}
         {item.stale_count > 0 && (
-          <span className="gpu-badge" style={{ background: '#f3f4f6', color: 'var(--gpu-muted)', fontSize: 10 }}>
+          <span className="gpu-badge" style={{ background: 'var(--surface-muted)', color: 'var(--gpu-muted)', fontSize: 10 }}>
             만료 {item.stale_count}개
           </span>
         )}
@@ -231,7 +231,7 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
           </span>
         )}
         {item.supplier_availability.length === 0 && item.pool_qty == null && item.has_active_quote && (
-          <span className="gpu-badge" style={{ background: '#ecfdf5', color: '#059669', fontSize: 10 }}>견적 보유 · 공급 가능</span>
+          <span className="gpu-badge" style={{ background: 'var(--success-bg)', color: 'var(--success)', fontSize: 10 }}>견적 보유 · 공급 가능</span>
         )}
         {item.supplier_availability.length === 0 && item.pool_qty == null && !item.has_active_quote && (
           <span className="gpu-badge gpu-badge-gray" style={{ fontSize: 10 }}>가용량 정보 없음</span>
@@ -283,7 +283,7 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
           {item.tier === 3 && item.pool_qty != null && (
             <div style={{ padding: '8px 12px', borderRadius: 8, background: 'var(--success-bg)', border: '1px solid var(--success-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#15803d' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--success)' }}>
                   <Package size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
                   풀 재고 (직접 관리)
                 </div>
@@ -291,7 +291,7 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
                   <div style={{ fontSize: 11, color: 'var(--gpu-muted)', marginTop: 2 }}>{item.pool_note}</div>
                 )}
               </div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: item.pool_qty > 0 ? '#15803d' : 'var(--gpu-red)', fontFamily: 'var(--font-mono, monospace)' }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: item.pool_qty > 0 ? 'var(--success)' : 'var(--gpu-red)', fontFamily: 'var(--font-mono, monospace)' }}>
                 {item.pool_qty.toLocaleString()} GPU
               </div>
             </div>
@@ -302,7 +302,7 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
             const freshness = FRESHNESS_CONFIG[sa.freshness] ?? FRESHNESS_CONFIG.unknown
             const sup = sa.supplier
             return (
-              <div key={i} style={{ padding: '8px 12px', borderRadius: 8, background: '#f9fafb', border: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div key={i} style={{ padding: '8px 12px', borderRadius: 8, background: 'var(--surface-bg)', border: '2px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span className="gpu-sdot" style={{ background: sup?.color ?? 'var(--color-border)', flexShrink: 0 }} />
                 <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{sup?.name ?? '알 수 없음'}</span>
                 <span style={{ fontSize: 11, color: status.color, fontWeight: 600 }}>{status.label}</span>

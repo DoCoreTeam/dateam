@@ -18,7 +18,7 @@ const EXAMPLE_KEY = 'ax_live_a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4'
 
 function SidebarItem({ children, active, onClick }: { children: React.ReactNode; active: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 400, background: active ? 'rgba(124,58,237,0.1)' : 'transparent', color: active ? '#c4b5fd' : 'var(--text-muted)', borderLeft: active ? '2px solid var(--brand)' : '2px solid transparent', marginBottom: 2, transition: 'all .15s' }}>
+    <button onClick={onClick} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 400, background: active ? 'rgba(124,58,237,0.1)' : 'transparent', color: active ? 'var(--brand-soft-2)' : 'var(--text-muted)', borderLeft: active ? '2px solid var(--brand)' : '2px solid transparent', marginBottom: 2, transition: 'all .15s' }}>
       {children}
     </button>
   )
@@ -26,10 +26,10 @@ function SidebarItem({ children, active, onClick }: { children: React.ReactNode;
 
 function CodeBlock({ code, id, onCopy, copiedId, lang = 'bash' }: { code: string; id: string; onCopy: (t: string, id: string) => void; copiedId: string | null; lang?: string }) {
   return (
-    <div style={{ position: 'relative', background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', background: '#1a2332', borderBottom: '1px solid #1e293b' }}>
-        <span style={{ fontSize: 11, color: '#475569', fontFamily: 'monospace' }}>{lang}</span>
-        <button onClick={() => onCopy(code, id)} style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #334155', background: '#1e293b', color: copiedId === id ? '#34d399' : 'var(--text-faint)', fontSize: 12, cursor: 'pointer' }}>
+    <div style={{ position: 'relative', background: 'var(--text)', border: '1px solid var(--text)', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', background: 'var(--text)', borderBottom: '1px solid var(--text)' }}>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{lang}</span>
+        <button onClick={() => onCopy(code, id)} style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid var(--text)', background: 'var(--text)', color: copiedId === id ? 'var(--success)' : 'var(--text-faint)', fontSize: 12, cursor: 'pointer' }}>
           {copiedId === id ? '✓ 복사됨' : '복사'}
         </button>
       </div>
@@ -39,7 +39,7 @@ function CodeBlock({ code, id, onCopy, copiedId, lang = 'bash' }: { code: string
 }
 
 function Badge({ method }: { method: 'GET' | 'POST' | 'PATCH' | 'DELETE' }) {
-  const colors: Record<string, string> = { GET: '#10b981', POST: 'var(--brand)', PATCH: '#f59e0b', DELETE: '#ef4444' }
+  const colors: Record<string, string> = { GET: 'var(--success)', POST: 'var(--brand)', PATCH: 'var(--warning)', DELETE: 'var(--danger)' }
   return <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 4, background: colors[method] + '22', color: colors[method], fontWeight: 700, fontSize: 12, fontFamily: 'monospace' }}>{method}</span>
 }
 
@@ -54,9 +54,9 @@ function P({ children }: { children: React.ReactNode }) {
 }
 function Callout({ type = 'info', title, children }: { type?: 'info' | 'warn' | 'tip'; title: string; children: React.ReactNode }) {
   const cfg = {
-    info: { border: 'rgba(124,58,237,0.3)', bg: 'rgba(124,58,237,0.05)', color: '#c4b5fd', icon: '💡' },
-    warn: { border: 'rgba(239,68,68,0.25)', bg: 'rgba(239,68,68,0.05)', color: '#f87171', icon: '⚠️' },
-    tip:  { border: 'rgba(16,185,129,0.25)', bg: 'rgba(16,185,129,0.05)', color: '#34d399', icon: '✅' },
+    info: { border: 'rgba(124,58,237,0.3)', bg: 'rgba(124,58,237,0.05)', color: 'var(--brand-soft-2)', icon: '💡' },
+    warn: { border: 'rgba(239,68,68,0.25)', bg: 'rgba(239,68,68,0.05)', color: 'var(--danger)', icon: '⚠️' },
+    tip:  { border: 'rgba(16,185,129,0.25)', bg: 'rgba(16,185,129,0.05)', color: 'var(--success)', icon: '✅' },
   }[type]
   return (
     <div style={{ padding: '14px 18px', background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 10, marginBottom: 20 }}>
@@ -67,10 +67,10 @@ function Callout({ type = 'info', title, children }: { type?: 'info' | 'warn' | 
 }
 function EndpointHeader({ method, path, desc }: { method: 'GET'|'POST'|'PATCH'|'DELETE'; path: string; desc: string }) {
   return (
-    <div style={{ border: '1px solid #1e293b', borderRadius: 10, padding: '16px 20px', marginBottom: 20 }}>
+    <div style={{ border: '1px solid var(--text)', borderRadius: 10, padding: '16px 20px', marginBottom: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
         <Badge method={method} />
-        <code style={{ fontSize: 14, color: 'var(--color-border)', background: 'var(--text)', padding: '4px 12px', borderRadius: 6, border: '1px solid #1e293b' }}>/api/public/v1{path}</code>
+        <code style={{ fontSize: 14, color: 'var(--color-border)', background: 'var(--text)', padding: '4px 12px', borderRadius: 6, border: '1px solid var(--text)' }}>/api/public/v1{path}</code>
       </div>
       <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>{desc}</p>
     </div>
@@ -80,9 +80,9 @@ function ParamTable({ children, title = '파라미터' }: { children: React.Reac
   return (
     <>
       <div style={{ fontWeight: 600, color: 'var(--color-border)', marginBottom: 8, fontSize: 14 }}>{title}</div>
-      <div style={{ background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
+      <div style={{ background: 'var(--text)', border: '1px solid var(--text)', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead><tr style={{ background: '#1e293b' }}>
+          <thead><tr style={{ background: 'var(--text)' }}>
             <th style={{ padding: '9px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>필드</th>
             <th style={{ padding: '9px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>타입</th>
             <th style={{ padding: '9px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>설명</th>
@@ -96,12 +96,12 @@ function ParamTable({ children, title = '파라미터' }: { children: React.Reac
 function PR({ name, type, required, desc }: { name: string; type: string; required?: boolean; desc: string }) {
   return (
     <tr>
-      <td style={{ padding: '10px 14px', borderBottom: '1px solid #1e293b' }}>
-        <code style={{ color: '#c4b5fd', fontSize: 12 }}>{name}</code>
-        {required && <span style={{ marginLeft: 6, fontSize: 10, color: '#ef4444', fontWeight: 700, background: 'rgba(239,68,68,0.1)', padding: '1px 5px', borderRadius: 3 }}>필수</span>}
+      <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--text)' }}>
+        <code style={{ color: 'var(--brand-soft-2)', fontSize: 12 }}>{name}</code>
+        {required && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--danger)', fontWeight: 700, background: 'rgba(239,68,68,0.1)', padding: '1px 5px', borderRadius: 3 }}>필수</span>}
       </td>
-      <td style={{ padding: '10px 14px', borderBottom: '1px solid #1e293b', color: 'var(--text-muted)', fontSize: 12 }}>{type}</td>
-      <td style={{ padding: '10px 14px', borderBottom: '1px solid #1e293b', color: 'var(--text-faint)', fontSize: 12 }}>{desc}</td>
+      <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--text)', color: 'var(--text-muted)', fontSize: 12 }}>{type}</td>
+      <td style={{ padding: '10px 14px', borderBottom: '1px solid var(--text)', color: 'var(--text-faint)', fontSize: 12 }}>{desc}</td>
     </tr>
   )
 }
@@ -125,7 +125,7 @@ function OverviewSection({ onCopy, copiedId }: { onCopy: (t: string, id: string)
           { icon: '🌐', title: 'CRM 연동', desc: '거래처·담당자·영업기회 CRUD. 스테이지별 확률 자동 계산.' },
           { icon: '💱', title: '환율 동기화', desc: 'USD/KRW 환율 이력(최근 7일). 가격 계산에 자동 반영.' },
         ].map(({ icon, title, desc }) => (
-          <div key={title} style={{ padding: '18px 20px', background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 10 }}>
+          <div key={title} style={{ padding: '18px 20px', background: 'var(--text)', border: '1px solid var(--text)', borderRadius: 10 }}>
             <div style={{ fontSize: 22, marginBottom: 8 }}>{icon}</div>
             <div style={{ fontWeight: 700, color: 'var(--color-border)', marginBottom: 4, fontSize: 14 }}>{title}</div>
             <div style={{ color: 'var(--text-muted)', fontSize: 12, lineHeight: 1.5 }}>{desc}</div>
@@ -168,7 +168,7 @@ curl -X POST ${origin}/api/public/v1/quote \\
 }`} />
 
       <H2>페이지네이션</H2>
-      <P>목록 API는 커서 기반 페이지네이션을 사용합니다. 응답의 <code style={{ color: '#c4b5fd', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>nextCursor</code> 값을 다음 요청의 <code style={{ color: '#c4b5fd', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>cursor</code> 파라미터로 전달하세요.</P>
+      <P>목록 API는 커서 기반 페이지네이션을 사용합니다. 응답의 <code style={{ color: 'var(--brand-soft-2)', background: 'var(--text)', padding: '1px 6px', borderRadius: 4 }}>nextCursor</code> 값을 다음 요청의 <code style={{ color: 'var(--brand-soft-2)', background: 'var(--text)', padding: '1px 6px', borderRadius: 4 }}>cursor</code> 파라미터로 전달하세요.</P>
       <CodeBlock id="pagination" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`# 첫 페이지 (기본 20건)
 curl "${origin}/api/public/v1/accounts" -H "X-API-Key: KEY"
 # → { "nextCursor": "2026-05-30T12:00:00Z__uuid", "hasMore": true }
@@ -178,9 +178,9 @@ curl "${origin}/api/public/v1/accounts?cursor=2026-05-30T12:00:00Z__uuid" \\
   -H "X-API-Key: KEY"`} />
 
       <H2>Rate Limiting</H2>
-      <div style={{ background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
+      <div style={{ background: 'var(--text)', border: '1px solid var(--text)', borderRadius: 10, overflow: 'hidden', marginBottom: 20 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead><tr style={{ background: '#1e293b' }}>
+          <thead><tr style={{ background: 'var(--text)' }}>
             <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>플랜</th>
             <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>한도</th>
             <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>최대 키 수</th>
@@ -586,7 +586,7 @@ function SettingsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string;
   return (
     <div>
       <H1>가격 설정 (Settings)</H1>
-      <P>전역 마진율과 최신 환율 정보를 조회하거나 업데이트합니다. 마진율 변경은 <code style={{ color: '#c4b5fd', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>gpu_audit_logs</code>에 기록됩니다.</P>
+      <P>전역 마진율과 최신 환율 정보를 조회하거나 업데이트합니다. 마진율 변경은 <code style={{ color: 'var(--brand-soft-2)', background: 'var(--text)', padding: '1px 6px', borderRadius: 4 }}>gpu_audit_logs</code>에 기록됩니다.</P>
       <Callout type="warn" title="주의">
         마진율 변경은 즉시 모든 견적 계산에 반영됩니다. 변경 전 기존 견적이 있다면 재발행을 검토하세요.
       </Callout>
@@ -622,7 +622,7 @@ function PoolStockSection({ exampleKey, onCopy, copiedId }: { exampleKey: string
   return (
     <div>
       <H1>풀 재고 (Pool Stock)</H1>
-      <P>직접 공급 풀(Tier 3)의 재고 수량을 조회하거나 업데이트합니다. 수량을 변경하면 재고 현황(<code style={{ color: '#c4b5fd', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>/inventory</code>)에 즉시 반영됩니다.</P>
+      <P>직접 공급 풀(Tier 3)의 재고 수량을 조회하거나 업데이트합니다. 수량을 변경하면 재고 현황(<code style={{ color: 'var(--brand-soft-2)', background: 'var(--text)', padding: '1px 6px', borderRadius: 4 }}>/inventory</code>)에 즉시 반영됩니다.</P>
       <Callout type="tip" title="언제 사용하나요?">
         입고 처리 자동화, WMS 연동, 재고 수량 실시간 업데이트에 사용하세요.
         <code>sell_price_krw</code>를 함께 전달하면 판매가도 동시에 업데이트됩니다.
@@ -737,7 +737,7 @@ function ContactsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string;
   return (
     <div>
       <H1>담당자 (Contacts)</H1>
-      <P>거래처 담당자를 조회하거나 등록합니다. 담당자는 반드시 거래처(<code style={{ color: '#c4b5fd', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>account_id</code>)와 연결됩니다.</P>
+      <P>거래처 담당자를 조회하거나 등록합니다. 담당자는 반드시 거래처(<code style={{ color: 'var(--brand-soft-2)', background: 'var(--text)', padding: '1px 6px', borderRadius: 4 }}>account_id</code>)와 연결됩니다.</P>
       <Callout type="tip" title="언제 사용하나요?">
         명함 관리 시스템 연동, 거래처별 담당자 포털, 이메일 자동화 워크플로에 활용하세요.
       </Callout>
@@ -837,10 +837,10 @@ curl "${origin}/api/public/v1/deals/DEAL_ID" \\
   }'`} />
 
       <H2>스테이지 → 확률 자동 변환</H2>
-      <P>스테이지를 변경하면 <code style={{ color: '#c4b5fd', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>probability</code> 필드가 자동으로 업데이트됩니다.</P>
-      <div style={{ background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
+      <P>스테이지를 변경하면 <code style={{ color: 'var(--brand-soft-2)', background: 'var(--text)', padding: '1px 6px', borderRadius: 4 }}>probability</code> 필드가 자동으로 업데이트됩니다.</P>
+      <div style={{ background: 'var(--text)', border: '1px solid var(--text)', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead><tr style={{ background: '#1e293b' }}>
+          <thead><tr style={{ background: 'var(--text)' }}>
             <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontSize: 12 }}>stage</th>
             <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontSize: 12 }}>probability</th>
             <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontSize: 12 }}>의미</th>
@@ -856,9 +856,9 @@ curl "${origin}/api/public/v1/deals/DEAL_ID" \\
               ['수주', '100%', '계약 완료'],
               ['실패', '0%', '기회 종료'],
             ].map(([s, p, m]) => (
-              <tr key={s} style={{ borderTop: '1px solid #1e293b' }}>
-                <td style={{ padding: '10px 16px' }}><code style={{ color: '#c4b5fd' }}>{s}</code></td>
-                <td style={{ padding: '10px 16px', color: '#10b981', fontWeight: 700 }}>{p}</td>
+              <tr key={s} style={{ borderTop: '1px solid var(--text)' }}>
+                <td style={{ padding: '10px 16px' }}><code style={{ color: 'var(--brand-soft-2)' }}>{s}</code></td>
+                <td style={{ padding: '10px 16px', color: 'var(--success)', fontWeight: 700 }}>{p}</td>
                 <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{m}</td>
               </tr>
             ))}
@@ -883,12 +883,12 @@ function ErrorsSection({ onCopy, copiedId }: { onCopy: (t: string, id: string) =
   return (
     <div>
       <H1>오류 코드</H1>
-      <P>모든 오류는 HTTP 상태 코드와 함께 아래 포맷으로 반환됩니다. <code style={{ color: '#c4b5fd', background: '#1e293b', padding: '1px 6px', borderRadius: 4 }}>error</code> 필드에 사람이 읽을 수 있는 메시지가 포함됩니다.</P>
+      <P>모든 오류는 HTTP 상태 코드와 함께 아래 포맷으로 반환됩니다. <code style={{ color: 'var(--brand-soft-2)', background: 'var(--text)', padding: '1px 6px', borderRadius: 4 }}>error</code> 필드에 사람이 읽을 수 있는 메시지가 포함됩니다.</P>
       <CodeBlock id="err-fmt" lang="json" onCopy={onCopy} copiedId={copiedId} code={`{ "success": false, "error": "Invalid API key." }`} />
 
-      <div style={{ background: 'var(--text)', border: '1px solid #1e293b', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
+      <div style={{ background: 'var(--text)', border: '1px solid var(--text)', borderRadius: 10, overflow: 'hidden', marginBottom: 24 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead><tr style={{ background: '#1e293b' }}>
+          <thead><tr style={{ background: 'var(--text)' }}>
             <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>코드</th>
             <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>이름</th>
             <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>원인</th>
@@ -896,14 +896,14 @@ function ErrorsSection({ onCopy, copiedId }: { onCopy: (t: string, id: string) =
           </tr></thead>
           <tbody>
             {[
-              { code: 400, color: '#f59e0b', name: 'Bad Request', cause: '요청 바디 형식 오류 또는 필수 필드 누락', fix: 'details 필드에서 구체적인 오류 위치 확인' },
-              { code: 401, color: '#f59e0b', name: 'Unauthorized', cause: 'X-API-Key 헤더 없음 또는 잘못된 키 형식', fix: 'ax_live_ 접두사 포함 전체 키 값 확인' },
-              { code: 403, color: '#f59e0b', name: 'Forbidden', cause: 'API 키가 폐기된 상태', fix: '새 키를 발급하고 코드 업데이트' },
+              { code: 400, color: 'var(--warning)', name: 'Bad Request', cause: '요청 바디 형식 오류 또는 필수 필드 누락', fix: 'details 필드에서 구체적인 오류 위치 확인' },
+              { code: 401, color: 'var(--warning)', name: 'Unauthorized', cause: 'X-API-Key 헤더 없음 또는 잘못된 키 형식', fix: 'ax_live_ 접두사 포함 전체 키 값 확인' },
+              { code: 403, color: 'var(--warning)', name: 'Forbidden', cause: 'API 키가 폐기된 상태', fix: '새 키를 발급하고 코드 업데이트' },
               { code: 404, color: 'var(--text-muted)', name: 'Not Found', cause: '요청한 리소스 ID가 존재하지 않음', fix: 'ID 값이 올바른지 확인' },
-              { code: 429, color: '#ef4444', name: 'Too Many Requests', cause: '분당 요청 한도 초과', fix: 'Retry-After 헤더 대기 후 재시도. 지수 백오프 적용.' },
-              { code: 500, color: '#ef4444', name: 'Internal Server Error', cause: '서버 내부 오류', fix: '잠시 후 재시도. 지속 시 관리자에게 문의' },
+              { code: 429, color: 'var(--danger)', name: 'Too Many Requests', cause: '분당 요청 한도 초과', fix: 'Retry-After 헤더 대기 후 재시도. 지수 백오프 적용.' },
+              { code: 500, color: 'var(--danger)', name: 'Internal Server Error', cause: '서버 내부 오류', fix: '잠시 후 재시도. 지속 시 관리자에게 문의' },
             ].map(({ code, color, name, cause, fix }) => (
-              <tr key={code} style={{ borderTop: '1px solid #1e293b' }}>
+              <tr key={code} style={{ borderTop: '1px solid var(--text)' }}>
                 <td style={{ padding: '12px 16px' }}><code style={{ color, fontWeight: 700, fontSize: 13 }}>{code}</code></td>
                 <td style={{ padding: '12px 16px', color: 'var(--color-border)', fontWeight: 500 }}>{name}</td>
                 <td style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: 12 }}>{cause}</td>
@@ -967,18 +967,18 @@ export default function DevelopPage() {
   }
 
   return (
-    <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", background: '#0a0a0f', minHeight: '100vh', color: 'var(--color-border)' }}>
+    <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", background: 'var(--text)', minHeight: '100vh', color: 'var(--color-border)' }}>
       {/* 헤더 — 상단 nav 제거, 로고 + CTA만 */}
-      <header style={{ borderBottom: '1px solid #1e293b', padding: '0 2rem', position: 'sticky', top: 0, background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(12px)', zIndex: 100 }}>
+      <header style={{ borderBottom: '1px solid var(--text)', padding: '0 2rem', position: 'sticky', top: 0, background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(12px)', zIndex: 100 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <a href="/home" style={{ width: 30, height: 30, borderRadius: 7, background: 'linear-gradient(135deg, var(--brand), var(--brand))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', textDecoration: 'none' }}>A</a>
             <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--surface-muted)' }}>AX API</span>
-            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 100, background: '#1e293b', color: 'var(--brand)', fontWeight: 600 }}>v1</span>
+            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 100, background: 'var(--text)', color: 'var(--brand)', fontWeight: 600 }}>v1</span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {showDashboardLink && (
-              <a href="/home" style={{ padding: '6px 14px', borderRadius: 8, background: 'rgba(124,58,237,0.1)', color: '#c4b5fd', fontSize: 13, fontWeight: 500, textDecoration: 'none', border: '1px solid rgba(124,58,237,0.2)' }}>
+              <a href="/home" style={{ padding: '6px 14px', borderRadius: 8, background: 'rgba(124,58,237,0.1)', color: 'var(--brand-soft-2)', fontSize: 13, fontWeight: 500, textDecoration: 'none', border: '1px solid rgba(124,58,237,0.2)' }}>
                 ← 대시보드
               </a>
             )}
@@ -987,7 +987,7 @@ export default function DevelopPage() {
                 API 키 신청 →
               </a>
             )}
-            <a href="/api-keys" style={{ padding: '6px 14px', borderRadius: 8, background: 'transparent', color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none', border: '1px solid #1e293b' }}>
+            <a href="/api-keys" style={{ padding: '6px 14px', borderRadius: 8, background: 'transparent', color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none', border: '1px solid var(--text)' }}>
               내 키 관리
             </a>
           </div>
@@ -1006,7 +1006,7 @@ export default function DevelopPage() {
               { label: '참조', items: [{ id: 'errors' as Section, l: '오류 코드' }] },
             ].map(({ label, items }) => (
               <div key={label} style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6, padding: '0 12px' }}>{label}</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6, padding: '0 12px' }}>{label}</div>
                 {items.map(({ id, l }) => (
                   <SidebarItem key={id} active={activeSection === id} onClick={() => setActiveSection(id)}>{l}</SidebarItem>
                 ))}

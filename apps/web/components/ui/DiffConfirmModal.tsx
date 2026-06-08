@@ -36,7 +36,7 @@ function RichPreview({ html }: { html: string }) {
       />
     )
   }
-  return <p style={{ margin: 0, fontSize: '0.8rem', color: '#374151', lineHeight: 1.5 }}>{html}</p>
+  return <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text)', lineHeight: 1.5 }}>{html}</p>
 }
 
 export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffConfirmModalProps) {
@@ -76,7 +76,7 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
         <div style={{
           padding: '1.25rem 1.5rem', borderBottom: '2px solid var(--border-color)',
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-          background: 'linear-gradient(to right, #faf5ff, #fdf4ff)',
+          background: 'linear-gradient(to right, var(--brand-soft), var(--brand-soft))',
         }}>
           <div>
             <h2 className="tape-title" style={{ margin: 0 }}>
@@ -107,10 +107,10 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
                 key={idx}
                 style={{
                   marginBottom: '0.75rem',
-                  border: item.accepted ? '1px solid #ddd6fe' : '2px solid var(--border-color)',
+                  border: item.accepted ? '1px solid var(--brand-soft-2)' : '2px solid var(--border-color)',
                   borderRadius: 'var(--radius)',
                   overflow: 'hidden',
-                  background: item.accepted ? '#faf5ff' : 'var(--color-bg)',
+                  background: item.accepted ? 'var(--brand-soft)' : 'var(--color-bg)',
                   transition: 'all 150ms',
                 }}
               >
@@ -119,13 +119,13 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '0.5rem 0.875rem',
                   borderBottom: '2px solid var(--border-color)',
-                  background: item.accepted ? '#f3eeff' : 'var(--surface-muted)',
+                  background: item.accepted ? 'var(--brand-soft)' : 'var(--surface-muted)',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#1e1b4b' }}>{item.category}</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text)' }}>{item.category}</span>
                     <span style={{
                       fontSize: '0.7rem', padding: '0.1rem 0.4rem',
-                      background: 'var(--brand-soft-2)', color: '#3730a3', borderRadius: '999px', fontWeight: 600,
+                      background: 'var(--brand-soft-2)', color: 'var(--brand-dark)', borderRadius: '999px', fontWeight: 600,
                     }}>
                       {FIELD_LABELS[item.field]}
                     </span>
@@ -153,7 +153,7 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
                     </div>
                     <RichPreview html={item.original} />
                   </div>
-                  <div style={{ padding: '0.75rem 0.875rem', background: item.accepted ? '#f5f3ff' : 'transparent' }}>
+                  <div style={{ padding: '0.75rem 0.875rem', background: item.accepted ? 'var(--brand-soft)' : 'transparent' }}>
                     <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: item.accepted ? 'var(--brand)' : 'var(--text-faint)', marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       다듬어진 내용
                     </div>

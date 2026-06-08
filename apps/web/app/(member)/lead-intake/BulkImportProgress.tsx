@@ -167,7 +167,7 @@ export default function BulkImportProgress({ file, onComplete, onCancel }: BulkI
     return (
       <div className="bulk-result-summary bulk-result-error">
         <p style={{ margin: 0, fontWeight: 600, color: 'var(--danger)' }}>오류 발생</p>
-        <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: '#7f1d1d' }}>{error}</p>
+        <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: 'var(--danger)' }}>{error}</p>
         <button onClick={onCancel} style={{ marginTop: '0.75rem', fontSize: '0.8125rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
           ← 다시 시도
         </button>
@@ -227,8 +227,8 @@ export default function BulkImportProgress({ file, onComplete, onCancel }: BulkI
       )}
 
       {confirmed && (
-        <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 'var(--radius)', padding: '1rem' }}>
-          <p style={{ color: '#0284c7', fontWeight: 600, margin: 0 }}>
+        <div style={{ background: 'var(--info-bg)', border: '1px solid var(--info-border)', borderRadius: 'var(--radius)', padding: '1rem' }}>
+          <p style={{ color: 'var(--info)', fontWeight: 600, margin: 0 }}>
             {success}건이 CRM에 등록되었습니다
           </p>
           <button onClick={onCancel} style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>

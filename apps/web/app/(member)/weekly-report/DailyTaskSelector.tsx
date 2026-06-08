@@ -25,8 +25,8 @@ const ENTRY_TYPE_LABEL: Record<string, string> = {
 }
 
 const ENTRY_TYPE_COLOR: Record<string, string> = {
-  done: '#15803d',
-  doing: '#0891b2',
+  done: 'var(--success)',
+  doing: 'var(--info)',
   planned: 'var(--brand)',
   blocker: 'var(--danger)',
   note: 'var(--text-muted)',
@@ -149,7 +149,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
         style={{
           width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '0.875rem 1rem', background: 'var(--color-bg)', border: 'none', cursor: 'pointer',
-          fontSize: '0.875rem', fontWeight: 600, color: '#475569',
+          fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-muted)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -174,7 +174,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
           )}
 
           {error && (
-            <div role="alert" style={{ padding: '0.625rem 0.875rem', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
+            <div role="alert" style={{ padding: '0.625rem 0.875rem', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
               {error}
             </div>
           )}
@@ -220,8 +220,8 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
                             style={{
                               display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
                               padding: '0.5rem 0.625rem', borderRadius: 'var(--radius)', cursor: 'pointer',
-                              background: selectedIds.has(task.id) ? '#f5f3ff' : '#fafafa',
-                              border: `1px solid ${selectedIds.has(task.id) ? '#ddd6fe' : 'var(--surface-muted)'}`,
+                              background: selectedIds.has(task.id) ? 'var(--brand-soft)' : 'var(--surface-bg)',
+                              border: `1px solid ${selectedIds.has(task.id) ? 'var(--brand-soft-2)' : 'var(--surface-muted)'}`,
                               transition: 'background 120ms',
                             }}
                           >

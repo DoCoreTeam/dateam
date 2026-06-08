@@ -74,9 +74,9 @@ interface Quote {
 }
 
 const TIER_CONFIG = {
-  1: { label: 'Tier 1', name: '전용 고성능', badge: 'gpu-badge-t1', chipColor: '#13151c' },
-  2: { label: 'Tier 2', name: '점유형',     badge: 'gpu-badge-t2', chipColor: '#1e40af' },
-  3: { label: 'Tier 3', name: '간헐 공급',   badge: 'gpu-badge-t3', chipColor: '#b45309' },
+  1: { label: 'Tier 1', name: '전용 고성능', badge: 'gpu-badge-t1', chipColor: 'var(--text)' },
+  2: { label: 'Tier 2', name: '점유형',     badge: 'gpu-badge-t2', chipColor: 'var(--info)' },
+  3: { label: 'Tier 3', name: '간헐 공급',   badge: 'gpu-badge-t3', chipColor: 'var(--warning)' },
 }
 
 const fmtUSD = (v: number) => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -133,7 +133,7 @@ function AssignSupplier({ quoteId, onAssigned }: { quoteId: string; onAssigned: 
         onClick={assign}
         disabled={!sel || saving}
         className="gpu-btn"
-        style={{ height: 26, padding: '0 9px', fontSize: 11.5, fontWeight: 600, background: sel ? 'var(--gpu-accent, #5b5ef0)' : 'var(--border-subtle)', color: '#fff', borderRadius: 6 }}
+        style={{ height: 26, padding: '0 9px', fontSize: 11.5, fontWeight: 600, background: sel ? 'var(--gpu-accent, var(--brand))' : 'var(--border-subtle)', color: '#fff', borderRadius: 6 }}
       >
         {saving ? '지정 중…' : '지정'}
       </button>
@@ -186,7 +186,7 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
         const isBasis = isSelected || (!hasSelected && isBest)
         return (
           <div key={q.id} className={`gpu-qline${isBasis ? ' gpu-qline-best' : ''}`}
-            style={isSelected ? { borderLeft: '3px solid var(--gpu-accent, #5b5ef0)', background: 'rgba(91,94,240,0.05)' } : undefined}>
+            style={isSelected ? { borderLeft: '3px solid var(--gpu-accent, var(--brand))', background: 'rgba(91,94,240,0.05)' } : undefined}>
             <div className="gpu-qline-sup">
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 {q.suppliers ? (
@@ -199,7 +199,7 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
                 </span>
                 {isBest && <span className="gpu-badge-best">최저가</span>}
                 {isSelected ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 700, color: '#fff', background: 'var(--gpu-accent, #5b5ef0)', borderRadius: 5, padding: '1px 7px' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 700, color: '#fff', background: 'var(--gpu-accent, var(--brand))', borderRadius: 5, padding: '1px 7px' }}>
                     ✓ 판매가 기준
                   </span>
                 ) : (!hasSelected && isBest) ? (
@@ -212,8 +212,8 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
                     onClick={(e) => { e.stopPropagation(); toggleSelect(q.id, !isSelected) }}
                     disabled={selecting === q.id}
                     style={{ fontSize: 10.5, fontWeight: 700, borderRadius: 5, padding: '1px 8px', cursor: 'pointer',
-                      border: isSelected ? '1px solid var(--gpu-border)' : '1px solid var(--gpu-accent, #5b5ef0)',
-                      background: isSelected ? '#fff' : 'var(--gpu-accent, #5b5ef0)', color: isSelected ? 'var(--gpu-muted)' : '#fff' }}>
+                      border: isSelected ? '1px solid var(--gpu-border)' : '1px solid var(--gpu-accent, var(--brand))',
+                      background: isSelected ? '#fff' : 'var(--gpu-accent, var(--brand))', color: isSelected ? 'var(--gpu-muted)' : '#fff' }}>
                     {selecting === q.id ? '…' : isSelected ? '기준 해제' : '기준으로 선택'}
                   </button>
                 )}
@@ -262,23 +262,23 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
         )
       })}
       {listQuotes.length > 0 && (
-        <div style={{ marginTop: 10, padding: '12px 14px', borderRadius: 10, background: 'linear-gradient(180deg, #fff7ed, var(--warning-bg))', border: '2px solid var(--gpu-amber, #f59e0b)' }}>
+        <div style={{ marginTop: 10, padding: '12px 14px', borderRadius: 10, background: 'linear-gradient(180deg, var(--warning-bg), var(--warning-bg))', border: '2px solid var(--gpu-amber, var(--warning))' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
             <span style={{ fontSize: 15 }}>📢</span>
-            <span style={{ fontSize: 12.5, fontWeight: 800, color: '#b45309', letterSpacing: '.01em' }}>현재 공시 판매가</span>
-            <span style={{ fontSize: 10.5, fontWeight: 600, color: '#92400e', background: 'var(--warning-border)', borderRadius: 5, padding: '1px 7px' }}>시장 참고 · 원가 아님</span>
+            <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--warning)', letterSpacing: '.01em' }}>현재 공시 판매가</span>
+            <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--warning)', background: 'var(--warning-border)', borderRadius: 5, padding: '1px 7px' }}>시장 참고 · 원가 아님</span>
           </div>
           {listQuotes.map((q) => {
             const listKrw = Math.round(q.unit_price_usd * usdKrw)
             return (
               <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
                 {q.suppliers && <span className="gpu-sdot" style={{ background: q.suppliers.color, width: 9, height: 9 }} />}
-                <span style={{ fontWeight: 700, fontSize: 13.5, color: '#78350f' }}>{q.suppliers?.name ?? '—'}</span>
-                <span style={{ fontSize: 11, color: '#b45309' }}>공시 판매가</span>
-                <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontWeight: 800, fontSize: 16, color: '#b45309' }}>
+                <span style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--warning)' }}>{q.suppliers?.name ?? '—'}</span>
+                <span style={{ fontSize: 11, color: 'var(--warning)' }}>공시 판매가</span>
+                <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontWeight: 800, fontSize: 16, color: 'var(--warning)' }}>
                   {currencyMode === 'KRW' ? fmtKRW(listKrw) : fmtUSD(q.unit_price_usd)}
                 </span>
-                <span style={{ fontSize: 10.5, color: '#92400e' }}>/GPU·hr</span>
+                <span style={{ fontSize: 10.5, color: 'var(--warning)' }}>/GPU·hr</span>
               </div>
             )
           })}
@@ -322,7 +322,7 @@ function PartnerTierManagerModal({ tiers, onClose, onChanged }: { tiers: Partner
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
           {tiers.length === 0 && <div style={{ fontSize: 12, color: 'var(--gpu-faint)' }}>등록된 등급이 없습니다</div>}
           {tiers.map((t) => (
-            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, padding: '6px 8px', borderRadius: 7, background: '#f9fafb', border: '1px solid #eef0f6' }}>
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, padding: '6px 8px', borderRadius: 7, background: 'var(--surface-bg)', border: '1px solid var(--surface-bg)' }}>
               <input defaultValue={t.name} onBlur={(e) => e.target.value.trim() && e.target.value !== t.name && patch(t.id, { name: e.target.value.trim() })}
                 style={{ flex: 1, height: 28, fontSize: 12, border: '1px solid var(--gpu-border)', borderRadius: 6, padding: '0 6px' }} />
               <input defaultValue={String(t.discount_rate)} onBlur={(e) => Number(e.target.value) !== t.discount_rate && patch(t.id, { discount_rate: Number(e.target.value) })} inputMode="decimal"
@@ -571,7 +571,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
       {!bannerDismissed && stats.pending > 0 && (
         <div className="gpu-banner">
           <div className="gpu-banner-dot">
-            <Zap size={16} color="#5b5ef0" />
+            <Zap size={16} color="var(--brand)" />
           </div>
           <div>
             <strong>검토 대기</strong> · AI 추출 견적 <strong>{stats.pending}건</strong>이 검토를 기다리고 있습니다 — 검토 대기 탭에서 확인 후 확정하면 가격표에 반영됩니다
@@ -684,7 +684,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
       <div className="gpu-margin-bar">
         <div className="gpu-mb-left">
           <div className="gpu-mb-icon">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5b5ef0" strokeWidth="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" strokeWidth="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
           </div>
           <div>
             <strong>gcube 판매 마진</strong>
@@ -772,7 +772,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
               const tierCfg = TIER_CONFIG[group.tier]
               const collapsed = collapsedModels.has(group.model)
               const groupHeader = (
-                <tr key={`grp-${group.model}`} className="gpu-group-header" onClick={() => toggleModel(group.model)} style={{ cursor: 'pointer', background: '#fafbff' }}>
+                <tr key={`grp-${group.model}`} className="gpu-group-header" onClick={() => toggleModel(group.model)} style={{ cursor: 'pointer', background: 'var(--surface-bg)' }}>
                   <td colSpan={colCount}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <ChevronRight size={15} style={{ transform: collapsed ? 'none' : 'rotate(90deg)', transition: 'transform 0.15s', color: 'var(--gpu-muted)' }} />
@@ -850,13 +850,13 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                           {p.lowest_supplier.name}
                         </div>
                         {p.basis === 'selected' && (
-                          <span style={{ fontSize: 9.5, fontWeight: 700, color: '#fff', background: 'var(--gpu-accent, #5b5ef0)', borderRadius: 4, padding: '0 5px' }}>✓ 기준</span>
+                          <span style={{ fontSize: 9.5, fontWeight: 700, color: '#fff', background: 'var(--gpu-accent, var(--brand))', borderRadius: 4, padding: '0 5px' }}>✓ 기준</span>
                         )}
                         {p.basis === 'fallback' && (
                           <span title={p.fallback_reason ?? ''} style={{ fontSize: 9.5, fontWeight: 700, color: '#fff', background: 'var(--gpu-red)', borderRadius: 4, padding: '0 5px' }}>⚠️ 기준만료→자동</span>
                         )}
                         {p.basis === 'list' && (
-                          <span title="매입원가 미등록 — 공시 판매가를 그대로 사용" style={{ fontSize: 9.5, fontWeight: 800, color: '#fff', background: 'var(--gpu-amber, #f59e0b)', borderRadius: 4, padding: '0 5px' }}>📢 공시가</span>
+                          <span title="매입원가 미등록 — 공시 판매가를 그대로 사용" style={{ fontSize: 9.5, fontWeight: 800, color: '#fff', background: 'var(--gpu-amber, var(--warning))', borderRadius: 4, padding: '0 5px' }}>📢 공시가</span>
                         )}
                       </div>
                     ) : p.lowest_unit_price_usd != null ? (
@@ -868,11 +868,11 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                   <td className="r">
                     {sellKrw != null ? (
                       <>
-                        <div className="gpu-price-main" style={p.basis === 'list' ? { color: '#b45309' } : undefined}>
+                        <div className="gpu-price-main" style={p.basis === 'list' ? { color: 'var(--warning)' } : undefined}>
                           {currencyMode === 'KRW'
                             ? fmtKRW(sellKrw)
                             : fmtUSD(sellKrw / usdKrw)}
-                          {p.basis === 'list' && <span style={{ fontSize: 9.5, fontWeight: 700, color: '#b45309', marginLeft: 4, verticalAlign: 'middle' }}>공시</span>}
+                          {p.basis === 'list' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--warning)', marginLeft: 4, verticalAlign: 'middle' }}>공시</span>}
                         </div>
                         <div className="gpu-price-sub">
                           {currencyMode === 'KRW'
@@ -961,7 +961,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                 const tcfg = TIER_CONFIG[tier as 1 | 2 | 3]
                 const groups = byTier.get(tier)!
                 const tierHeader = (
-                  <tr key={`tier-${tier}`} className="gpu-group-header" onClick={() => toggleTier(tier)} style={{ cursor: 'pointer', background: '#f1f3f9' }}>
+                  <tr key={`tier-${tier}`} className="gpu-group-header" onClick={() => toggleTier(tier)} style={{ cursor: 'pointer', background: 'var(--surface-bg)' }}>
                     <td colSpan={colCount}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <ChevronRight size={16} style={{ transform: tierCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform 0.15s', color: 'var(--gpu-muted)' }} />

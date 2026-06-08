@@ -150,7 +150,7 @@ export default function RoutineGrid({
                     justifyContent: 'space-between',
                     padding: '0.75rem 1.25rem',
                     borderBottom: idx < weeklyItems.length - 1 ? '1px solid var(--surface-muted)' : 'none',
-                    backgroundColor: isChecked ? '#fafbff' : 'transparent',
+                    backgroundColor: isChecked ? 'var(--surface-bg)' : 'transparent',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -163,7 +163,7 @@ export default function RoutineGrid({
                     <span
                       style={{
                         fontSize: '0.875rem',
-                        color: isChecked ? '#374151' : '#374151',
+                        color: isChecked ? 'var(--text)' : 'var(--text)',
                         fontWeight: 500,
                         textDecoration: isChecked ? 'none' : 'none',
                       }}
@@ -225,7 +225,7 @@ export default function RoutineGrid({
                     <tr key={item.name}>
                       <td className="card-header" style={{ padding: '0.875rem 1.25rem', borderBottom: rIdx < dailyItems.length - 1 ? '1px solid var(--surface-muted)' : 'none', verticalAlign: 'middle' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
-                          <span style={{ fontSize: '0.875rem', color: '#374151', fontWeight: 500 }}>{item.name}</span>
+                          <span style={{ fontSize: '0.875rem', color: 'var(--text)', fontWeight: 500 }}>{item.name}</span>
                           <span className={cn('badge', rowRate === 100 ? 'badge-emerald' : 'badge-slate')} style={{ fontSize: '0.6875rem', flexShrink: 0 }}>
                             {rowRate}%
                           </span>
@@ -238,7 +238,7 @@ export default function RoutineGrid({
                         const isFuture = date > todayStr
 
                         return (
-                          <td key={date} data-label={DAY_LABELS[i]} style={{ padding: '0.875rem 0.5rem', textAlign: 'center', borderBottom: rIdx < dailyItems.length - 1 ? '1px solid var(--surface-muted)' : 'none', backgroundColor: isToday ? '#fafbff' : 'transparent' }}>
+                          <td key={date} data-label={DAY_LABELS[i]} style={{ padding: '0.875rem 0.5rem', textAlign: 'center', borderBottom: rIdx < dailyItems.length - 1 ? '1px solid var(--surface-muted)' : 'none', backgroundColor: isToday ? 'var(--surface-bg)' : 'transparent' }}>
                             <CheckBox
                               checked={isChecked}
                               disabled={isPending || isFuture}

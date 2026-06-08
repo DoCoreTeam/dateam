@@ -17,7 +17,7 @@ export function TierHeader({
       onClick={onToggle}
       style={{
         display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-        padding: '9px 12px', background: '#f1f3f9', borderRadius: 8,
+        padding: '9px 12px', background: 'var(--surface-bg)', borderRadius: 8,
         border: '1px solid var(--gpu-border, var(--color-border))', userSelect: 'none',
       }}
     >
@@ -41,13 +41,13 @@ export function ModelHeader({
       onClick={onToggle}
       style={{
         display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-        padding: '7px 12px 7px 26px', background: '#fafbff', borderRadius: 7,
-        border: '1px solid #eef0f6', userSelect: 'none',
+        padding: '7px 12px 7px 26px', background: 'var(--surface-bg)', borderRadius: 7,
+        border: '1px solid var(--surface-bg)', userSelect: 'none',
       }}
     >
       <ChevronRight size={14} style={{ transform: collapsed ? 'none' : 'rotate(90deg)', transition: 'transform .15s', color: 'var(--gpu-muted)' }} />
       <span className={`gpu-badge ${tierMeta.badge}`} style={{ fontSize: 9.5 }}>T{tier}</span>
-      <strong style={{ fontSize: 13, color: '#111827' }}>{model}</strong>
+      <strong style={{ fontSize: 13, color: 'var(--text)' }}>{model}</strong>
       <span style={{ fontSize: 11, color: 'var(--gpu-muted)', marginLeft: 'auto' }}>
         {itemCount}개 구성{meta ? ` · ${meta}` : ''}
       </span>

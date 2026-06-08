@@ -81,7 +81,7 @@ export default function KoraeximSettings({ hasKey: initialHasKey, maskedKey: ini
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <CheckCircle size={14} color="var(--success)" />
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#15803d' }}>API 키 설정됨</span>
+              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--success)' }}>API 키 설정됨</span>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
@@ -102,7 +102,7 @@ export default function KoraeximSettings({ hasKey: initialHasKey, maskedKey: ini
               </button>
             </div>
           </div>
-          <code style={{ fontSize: '0.8125rem', color: '#374151', marginTop: '0.375rem', display: 'block', fontFamily: 'monospace' }}>
+          <code style={{ fontSize: '0.8125rem', color: 'var(--text)', marginTop: '0.375rem', display: 'block', fontFamily: 'monospace' }}>
             {maskedKey}
           </code>
         </div>
@@ -148,7 +148,7 @@ export default function KoraeximSettings({ hasKey: initialHasKey, maskedKey: ini
             alignItems: 'center',
             gap: '0.375rem',
             backgroundColor: saveMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
-            color: saveMsg.ok ? '#15803d' : '#b91c1c',
+            color: saveMsg.ok ? 'var(--success)' : 'var(--danger)',
             border: `1px solid ${saveMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
           }}
         >
@@ -159,7 +159,7 @@ export default function KoraeximSettings({ hasKey: initialHasKey, maskedKey: ini
 
       <div style={{ borderTop: '2px solid var(--border-color)', paddingTop: '1rem', marginTop: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>연결 테스트</span>
+          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text)' }}>연결 테스트</span>
           <button
             type="button"
             onClick={handleHealth}
@@ -195,7 +195,7 @@ export default function KoraeximSettings({ hasKey: initialHasKey, maskedKey: ini
               alignItems: 'center',
               gap: '0.5rem',
               backgroundColor: healthMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
-              color: healthMsg.ok ? '#15803d' : '#b91c1c',
+              color: healthMsg.ok ? 'var(--success)' : 'var(--danger)',
               border: `1px solid ${healthMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
             }}
           >

@@ -65,9 +65,9 @@ export default function GoogleDriveSettings() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <CheckCircle size={14} color="var(--success)" />
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#15803d' }}>연결됨</span>
+              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--success)' }}>연결됨</span>
               {status.email && (
-                <span style={{ fontSize: '0.8125rem', color: '#374151', fontFamily: 'monospace' }}>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--text)', fontFamily: 'monospace' }}>
                   {status.email}
                 </span>
               )}
@@ -141,7 +141,7 @@ export default function GoogleDriveSettings() {
             alignItems: 'center',
             gap: '0.375rem',
             backgroundColor: msg.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
-            color: msg.ok ? '#15803d' : '#b91c1c',
+            color: msg.ok ? 'var(--success)' : 'var(--danger)',
             border: `1px solid ${msg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
           }}
         >

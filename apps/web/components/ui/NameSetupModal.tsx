@@ -64,7 +64,7 @@ export default function NameSetupModal() {
               width: '3rem',
               height: '3rem',
               borderRadius: 'var(--radius)',
-              background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
+              background: 'linear-gradient(135deg, var(--info), var(--info))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

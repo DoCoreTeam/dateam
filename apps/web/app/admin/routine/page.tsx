@@ -140,7 +140,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
             style={{
               fontSize: '2rem',
               fontWeight: 700,
-              color: overallRate >= 70 ? '#059669' : overallRate >= 40 ? 'var(--warning)' : 'var(--danger)',
+              color: overallRate >= 70 ? 'var(--success)' : overallRate >= 40 ? 'var(--warning)' : 'var(--danger)',
               letterSpacing: '-0.04em',
               margin: '0.25rem 0 0',
               lineHeight: 1.1,
@@ -198,12 +198,12 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
                       <div>
                         <div style={{ fontWeight: 600, color: 'var(--text)' }}>{profile.name || '-'}</div>
                         {!template && profile.name && (
-                          <div style={{ fontSize: '0.7rem', color: '#f59e0b', marginTop: '2px' }}>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--warning)', marginTop: '2px' }}>
                             조직도 미연결
                           </div>
                         )}
                       </div>
-                      <span style={{ fontWeight: 700, fontSize: '1.125rem', color: rate >= 70 ? '#059669' : rate >= 40 ? 'var(--warning)' : 'var(--danger)', flexShrink: 0 }}>
+                      <span style={{ fontWeight: 700, fontSize: '1.125rem', color: rate >= 70 ? 'var(--success)' : rate >= 40 ? 'var(--warning)' : 'var(--danger)', flexShrink: 0 }}>
                         {rate}%
                       </span>
                     </div>
@@ -219,8 +219,8 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
                             key={item.name}
                             className="badge"
                             style={{
-                              backgroundColor: itemRate >= 80 ? '#ecfdf5' : itemRate >= 40 ? 'var(--warning-bg)' : 'var(--color-bg)',
-                              color: itemRate >= 80 ? '#065f46' : itemRate >= 40 ? '#92400e' : 'var(--text-muted)',
+                              backgroundColor: itemRate >= 80 ? 'var(--success-bg)' : itemRate >= 40 ? 'var(--warning-bg)' : 'var(--color-bg)',
+                              color: itemRate >= 80 ? 'var(--success)' : itemRate >= 40 ? 'var(--warning)' : 'var(--text-muted)',
                               fontSize: '0.6875rem',
                             }}
                             title={item.freq === 'weekly' ? `${itemCount}/1회` : `${itemCount}/7일`}
@@ -232,7 +232,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
                     </div>
                   </td>
                   <td className="card-hide" style={{ textAlign: 'center' }}>
-                    <span style={{ fontWeight: 700, fontSize: '1rem', color: rate >= 70 ? '#059669' : rate >= 40 ? 'var(--warning)' : 'var(--danger)' }}>
+                    <span style={{ fontWeight: 700, fontSize: '1rem', color: rate >= 70 ? 'var(--success)' : rate >= 40 ? 'var(--warning)' : 'var(--danger)' }}>
                       {rate}%
                     </span>
                   </td>

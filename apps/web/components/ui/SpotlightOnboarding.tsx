@@ -208,7 +208,7 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
               ✕
             </button>
           </div>
-          <p style={{ fontSize: '0.875rem', color: '#475569', margin: '0 0 1rem', lineHeight: 1.6 }}>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', margin: '0 0 1rem', lineHeight: 1.6 }}>
             {STEPS[step].description}
           </p>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

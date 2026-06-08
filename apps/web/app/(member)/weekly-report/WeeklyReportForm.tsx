@@ -336,7 +336,7 @@ export default function WeeklyReportForm({
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '0.75rem 1rem', backgroundColor: 'var(--info-bg)', border: '1px solid var(--info-border)',
-          borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#1d4ed8',
+          borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--info)',
         }}>
           <span>✏️ <strong>{new Date(initialWeek).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 주</strong> 보고서 수정 중</span>
           <button
@@ -353,7 +353,7 @@ export default function WeeklyReportForm({
         <div role="status" aria-live="polite" style={{
           padding: '0.75rem 1rem', backgroundColor: 'var(--info-bg)',
           border: '1px solid var(--info-border)', borderRadius: 'var(--radius)',
-          marginBottom: '1rem', fontSize: '0.8125rem', color: '#1d4ed8',
+          marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--info)',
         }}>
           전주 계획에서 성과를 이월했습니다. 실제 성과로 수정 후 저장해 주세요.
         </div>
@@ -389,12 +389,12 @@ export default function WeeklyReportForm({
 
       {/* 알림 */}
       {submitError && (
-        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
+        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
           {submitError}
         </div>
       )}
       {refineError && (
-        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: '#b91c1c' }}>
+        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
           {refineError}
         </div>
       )}
@@ -417,7 +417,7 @@ export default function WeeklyReportForm({
             <tr>
               <th style={TH}>구분</th>
               <th style={{ ...TH, color: 'var(--brand)' }}>성과 <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}>({dateRange.perf})</span></th>
-              <th style={{ ...TH, color: '#0891b2' }}>계획 <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}>({dateRange.plan})</span></th>
+              <th style={{ ...TH, color: 'var(--info)' }}>계획 <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}>({dateRange.plan})</span></th>
               <th style={{ ...TH, color: 'var(--danger)' }}>이슈/협조사항</th>
               <th style={TH} />
             </tr>
@@ -449,7 +449,7 @@ export default function WeeklyReportForm({
                       placeholder="구분 (필수)"
                       style={{
                         flex: 1,
-                        border: invalidCategoryRows.has(idx) ? '1px solid #ef4444' : 'none',
+                        border: invalidCategoryRows.has(idx) ? '1px solid var(--danger)' : 'none',
                         borderRadius: invalidCategoryRows.has(idx) ? '0.375rem' : 0,
                         outline: 'none',
                         fontSize: '0.875rem',
@@ -526,7 +526,7 @@ export default function WeeklyReportForm({
           style={{
             display: 'flex', alignItems: 'center', gap: '0.375rem',
             fontSize: '0.8125rem', color: 'var(--brand)', background: 'none',
-            border: '1px dashed #ddd6fe', borderRadius: 'var(--radius)',
+            border: '1px dashed var(--brand-soft-2)', borderRadius: 'var(--radius)',
             padding: '0.5rem 0.875rem', cursor: 'pointer',
           }}
         >
@@ -541,7 +541,7 @@ export default function WeeklyReportForm({
               disabled={pending || resetPending || isRefining}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
-                fontSize: '0.8125rem', color: 'var(--danger)', background: '#fff1f2',
+                fontSize: '0.8125rem', color: 'var(--danger)', background: 'var(--danger-bg)',
                 border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)',
                 padding: '0.5rem 0.875rem', cursor: 'pointer',
               }}
@@ -557,8 +557,8 @@ export default function WeeklyReportForm({
             title="AI가 작성한 내용을 정비합니다 (빈 항목에는 내용을 생성하지 않습니다)"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
-              fontSize: '0.8125rem', color: 'var(--brand)', background: '#f5f3ff',
-              border: '1px solid #ddd6fe', borderRadius: 'var(--radius)',
+              fontSize: '0.8125rem', color: 'var(--brand)', background: 'var(--brand-soft)',
+              border: '1px solid var(--brand-soft-2)', borderRadius: 'var(--radius)',
               padding: '0.5rem 0.875rem', cursor: isRefining ? 'wait' : 'pointer',
               opacity: isRefining ? 0.7 : 1,
             }}
@@ -578,22 +578,22 @@ export default function WeeklyReportForm({
       {showResetConfirm && (
         <div style={{
           marginTop: '1rem', padding: '1rem',
-          backgroundColor: '#fff1f2', border: '1px solid #fca5a5', borderRadius: 'var(--radius)',
+          backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius)',
         }}>
           <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start', marginBottom: '0.875rem' }}>
             <AlertTriangle size={20} color="var(--danger)" style={{ flexShrink: 0, marginTop: '1px' }} />
             <div>
-              <p style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#b91c1c', margin: '0 0 0.375rem' }}>
+              <p style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--danger)', margin: '0 0 0.375rem' }}>
                 정말 초기화하시겠습니까?
               </p>
-              <p style={{ fontSize: '0.8125rem', color: '#7f1d1d', margin: 0, lineHeight: 1.6 }}>
+              <p style={{ fontSize: '0.8125rem', color: 'var(--danger)', margin: 0, lineHeight: 1.6 }}>
                 <strong>{new Date(initialWeek).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 주</strong>에 저장된
                 보고서 전체가 삭제되며 <strong>복구가 어렵습니다.</strong>
               </p>
             </div>
           </div>
           {resetError && (
-            <p style={{ fontSize: '0.8125rem', color: '#b91c1c', margin: '0 0 0.625rem', fontWeight: 600 }}>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--danger)', margin: '0 0 0.625rem', fontWeight: 600 }}>
               오류: {resetError}
             </p>
           )}
@@ -615,7 +615,7 @@ export default function WeeklyReportForm({
               onClick={() => { setShowResetConfirm(false); setResetError('') }}
               disabled={resetPending}
               style={{
-                padding: '0.5rem 1rem', backgroundColor: '#fff', color: '#475569',
+                padding: '0.5rem 1rem', backgroundColor: '#fff', color: 'var(--text-muted)',
                 border: '1px solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer',
                 fontSize: '0.875rem',
               }}
@@ -662,15 +662,15 @@ function EditorCell({
           minHeight: '80px',
           padding: '0.5rem 0.625rem',
           borderRadius: 'var(--radius)',
-          border: highlighted ? '1px solid #a78bfa' : '1px dashed var(--color-border)',
-          background: highlighted ? '#faf5ff' : 'transparent',
+          border: highlighted ? '1px solid var(--brand-soft-2)' : '1px dashed var(--color-border)',
+          background: highlighted ? 'var(--brand-soft)' : 'transparent',
           position: 'relative',
           transition: 'border-color 120ms, background 120ms',
         }}
         onMouseEnter={(e) => {
           const el = e.currentTarget as HTMLDivElement
-          el.style.borderColor = '#c4b5fd'
-          el.style.backgroundColor = '#f8f9ff'
+          el.style.borderColor = 'var(--brand-soft-2)'
+          el.style.backgroundColor = 'var(--surface-bg)'
         }}
         onMouseLeave={(e) => {
           const el = e.currentTarget as HTMLDivElement
@@ -691,7 +691,7 @@ function EditorCell({
         <div
           style={{
             position: 'absolute', top: '0.375rem', right: '0.375rem',
-            color: '#c4b5fd', opacity: 0.7,
+            color: 'var(--brand-soft-2)', opacity: 0.7,
           }}
         >
           <Pencil size={11} />

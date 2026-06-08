@@ -127,7 +127,7 @@ export default function MobileShell({
               )}
             </Link>
             {/* 로고/브랜드 바로 아래 버전 */}
-            <span style={{ fontSize: '0.625rem', color: '#6b6b6b', letterSpacing: '0.06em', fontWeight: 600 }}>
+            <span style={{ fontSize: '0.625rem', color: 'var(--text-muted)', letterSpacing: '0.06em', fontWeight: 600 }}>
               v{process.env.NEXT_PUBLIC_APP_VERSION ?? '—'}
             </span>
           </div>
@@ -193,7 +193,7 @@ export default function MobileShell({
                     {item.badge != null && item.badge > 0 && (
                       <span style={{
                         fontSize: '0.6rem', fontWeight: 700, lineHeight: 1,
-                        backgroundColor: '#ef4444', color: '#fff',
+                        backgroundColor: 'var(--danger)', color: '#fff',
                         borderRadius: '999px', padding: '0.2rem 0.4rem',
                         minWidth: '1.1rem', textAlign: 'center', flexShrink: 0,
                       }}>

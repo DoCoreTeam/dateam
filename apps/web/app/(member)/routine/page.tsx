@@ -117,7 +117,7 @@ export default async function RoutinePage() {
           marginBottom: '1.5rem',
           backgroundColor: 'var(--warning-bg)',
           border: '1px solid var(--warning-border)',
-          color: '#92400e',
+          color: 'var(--warning)',
           fontSize: '0.875rem',
         }}>
           프로필 이름이 조직도와 연결되지 않았습니다. 이름을 설정하면 개인 루틴이 표시됩니다.

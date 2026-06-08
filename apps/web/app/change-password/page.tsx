@@ -39,7 +39,7 @@ export default async function ChangePasswordPage({ searchParams }: PageProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #f0f4ff 0%, #fafafa 100%)',
+        background: 'linear-gradient(135deg, var(--brand-soft) 0%, var(--surface-bg) 100%)',
       }}
     >
       <div

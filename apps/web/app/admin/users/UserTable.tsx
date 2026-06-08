@@ -150,7 +150,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
                     <div style={{
                       width: '2rem', height: '2rem', borderRadius: '50%',
                       background: profile.role === 'admin'
-                        ? 'linear-gradient(135deg, var(--danger), #ef4444)'
+                        ? 'linear-gradient(135deg, var(--danger), var(--danger))'
                         : 'linear-gradient(135deg, var(--brand), var(--brand))',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: '0.75rem', fontWeight: 600, color: 'white', flexShrink: 0,
@@ -164,12 +164,12 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
                   </div>
                 </td>
                 <td data-label="직급">
-                  <span style={{ fontSize: '0.875rem', color: profile.rank ? '#334155' : 'var(--text-faint)' }}>
+                  <span style={{ fontSize: '0.875rem', color: profile.rank ? 'var(--text)' : 'var(--text-faint)' }}>
                     {profile.rank || '—'}
                   </span>
                 </td>
                 <td data-label="직책">
-                  <span style={{ fontSize: '0.875rem', color: profile.position ? '#334155' : 'var(--text-faint)' }}>
+                  <span style={{ fontSize: '0.875rem', color: profile.position ? 'var(--text)' : 'var(--text-faint)' }}>
                     {profile.position || '—'}
                   </span>
                 </td>
@@ -197,7 +197,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
                     onClick={() => setEditTarget(profile)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '0.25rem',
-                      padding: '0.3rem 0.6rem', background: 'var(--surface-muted)', color: '#475569',
+                      padding: '0.3rem 0.6rem', background: 'var(--surface-muted)', color: 'var(--text-muted)',
                       border: '2px solid var(--border-color)', borderRadius: '0.4rem',
                       fontSize: '0.8rem', cursor: 'pointer',
                     }}

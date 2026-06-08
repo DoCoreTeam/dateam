@@ -6,12 +6,12 @@ import type { DailyLog, DailyLogEntryType } from '@/types/database'
 const ENTRY_TYPES: { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[] = [
   { value: 'done',    label: '완료',   color: 'var(--success)', bg: 'var(--success-bg)', border: 'var(--success-border)' },
   { value: 'doing',   label: '진행중', color: 'var(--info)', bg: 'var(--info-bg)', border: 'var(--info-border)' },
-  { value: 'planned', label: '예정',   color: 'var(--brand)', bg: '#f5f3ff', border: '#ddd6fe' },
+  { value: 'planned', label: '예정',   color: 'var(--brand)', bg: 'var(--brand-soft)', border: 'var(--brand-soft-2)' },
   { value: 'blocker', label: '블로커', color: 'var(--danger)', bg: 'var(--danger-bg)', border: 'var(--danger-border)' },
   { value: 'note',    label: '메모',   color: 'var(--warning)', bg: 'var(--warning-bg)', border: 'var(--warning-border)' },
 ]
 const ENTRY_MAP = Object.fromEntries(ENTRY_TYPES.map((t) => [t.value, t])) as Record<DailyLogEntryType, typeof ENTRY_TYPES[number]>
-const GROUP_PALETTE = ['var(--brand)', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', 'var(--brand)']
+const GROUP_PALETTE = ['var(--brand)', 'var(--info)', 'var(--success)', 'var(--warning)', '#ec4899', 'var(--brand)']
 
 const W = 560
 const H = 400
@@ -164,10 +164,10 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
   const childLogs = selectedId ? logs.filter(l => l.parent_log_id === selectedId) : []
 
   return (
-    <div style={{ border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', background: '#fafafa', overflow: 'hidden', position: 'relative' }}>
+    <div style={{ border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', background: 'var(--surface-bg)', overflow: 'hidden', position: 'relative' }}>
       <div style={{
         padding: '0.625rem 1rem', borderBottom: '2px solid var(--border-color)',
-        fontSize: '0.8125rem', fontWeight: 600, color: '#475569',
+        fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)',
         display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
       }}>
         <span>🔗 당일 업무 관계도</span>
@@ -176,7 +176,7 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
           AI 묶음
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-          <svg width="20" height="8"><line x1="0" y1="4" x2="16" y2="4" stroke="#f97316" strokeWidth="1.5" /><polygon points="16,1 20,4 16,7" fill="#f97316" /></svg>
+          <svg width="20" height="8"><line x1="0" y1="4" x2="16" y2="4" stroke="var(--warning)" strokeWidth="1.5" /><polygon points="16,1 20,4 16,7" fill="var(--warning)" /></svg>
           스레드 파생
         </span>
         <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--text-faint)', fontWeight: 400 }}>노드 클릭 → 상세</span>
@@ -189,7 +189,7 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
       >
         <defs>
           <marker id="arrowOrange" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-            <polygon points="0,0 6,3 0,6" fill="#f97316" />
+            <polygon points="0,0 6,3 0,6" fill="var(--warning)" />
           </marker>
         </defs>
 
@@ -206,7 +206,7 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
             <line key={`p${i}`}
               x1={e.x1 + ux * R} y1={e.y1 + uy * R}
               x2={e.x2 - ux * (R + 6)} y2={e.y2 - uy * (R + 6)}
-              stroke="#f97316" strokeWidth={2} strokeOpacity={0.8} markerEnd="url(#arrowOrange)" />
+              stroke="var(--warning)" strokeWidth={2} strokeOpacity={0.8} markerEnd="url(#arrowOrange)" />
           )
         })}
 
@@ -227,7 +227,7 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
                 {t.label.slice(0, 2)}
               </text>
               <text x={n.x} y={n.y + R + 12} textAnchor="middle"
-                fontSize="9" fill="#475569" style={{ pointerEvents: 'none' }}>
+                fontSize="9" fill="var(--text-muted)" style={{ pointerEvents: 'none' }}>
                 {n.label}
               </text>
             </g>
@@ -266,7 +266,7 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
               ×
             </button>
           </div>
-          <p style={{ margin: '0 0 0.5rem', fontSize: '0.8125rem', color: '#1e293b', lineHeight: 1.55, wordBreak: 'break-word' }}>
+          <p style={{ margin: '0 0 0.5rem', fontSize: '0.8125rem', color: 'var(--text)', lineHeight: 1.55, wordBreak: 'break-word' }}>
             {selectedLog.content}
           </p>
           {selectedLog.target_date && (
@@ -277,7 +277,7 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
           {parentLog && (
             <div style={{ background: 'var(--color-bg)', borderRadius: '0.375rem', padding: '0.375rem 0.5rem', marginBottom: '0.5rem' }}>
               <p style={{ margin: '0 0 0.2rem', fontSize: '0.7rem', color: 'var(--text-faint)' }}>↑ 상위 업무</p>
-              <p style={{ margin: 0, fontSize: '0.75rem', color: '#475569', wordBreak: 'break-word' }}>
+              <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)', wordBreak: 'break-word' }}>
                 {parentLog.content.slice(0, 60)}{parentLog.content.length > 60 ? '…' : ''}
               </p>
             </div>
@@ -286,7 +286,7 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
             <div>
               <p style={{ margin: '0 0 0.25rem', fontSize: '0.7rem', color: 'var(--text-faint)' }}>↓ 파생 업무 ({childLogs.length})</p>
               {childLogs.slice(0, 3).map(c => (
-                <p key={c.id} style={{ margin: '0 0 0.2rem', fontSize: '0.75rem', color: '#475569', paddingLeft: '0.5rem', borderLeft: '2px solid var(--color-border)', wordBreak: 'break-word' }}>
+                <p key={c.id} style={{ margin: '0 0 0.2rem', fontSize: '0.75rem', color: 'var(--text-muted)', paddingLeft: '0.5rem', borderLeft: '2px solid var(--color-border)', wordBreak: 'break-word' }}>
                   {c.content.slice(0, 50)}{c.content.length > 50 ? '…' : ''}
                 </p>
               ))}

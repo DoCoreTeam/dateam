@@ -69,8 +69,8 @@ export default async function HomePage() {
             </span>
             {showAxTiles && [
               { href: '/kpi', label: 'KPI', icon: <BarChart2 size={12} />, color: 'var(--brand)', bg: 'var(--brand-soft)' },
-              { href: '/routine', label: '루틴', icon: <CheckSquare size={12} />, color: '#0891b2', bg: '#ecfeff' },
-              { href: '/operations', label: '본부 운영', icon: <Building2 size={12} />, color: '#059669', bg: '#ecfdf5' },
+              { href: '/routine', label: '루틴', icon: <CheckSquare size={12} />, color: 'var(--info)', bg: 'var(--info-bg)' },
+              { href: '/operations', label: '본부 운영', icon: <Building2 size={12} />, color: 'var(--success)', bg: 'var(--success-bg)' },
             ].map((item) => (
               <Link
                 key={item.href}
@@ -128,7 +128,7 @@ export default async function HomePage() {
                   padding: '0.4rem 0.625rem', background: 'var(--color-bg)',
                   borderRadius: 'var(--radius)', border: '1px solid var(--surface-muted)',
                 }}>
-                  <span style={{ fontSize: '0.8125rem', color: '#475569' }}>
+                  <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
                     {new Date(r.week_start).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })} 주
                   </span>
                   <span className="badge badge-indigo">{r.category}</span>

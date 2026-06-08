@@ -149,7 +149,7 @@ export default function ContactsPage() {
                   </td>
                   <td data-label="직책">
                     <div>
-                      {c.title && <div style={{ fontSize: '0.875rem', color: '#374151' }}>{c.title}</div>}
+                      {c.title && <div style={{ fontSize: '0.875rem', color: 'var(--text)' }}>{c.title}</div>}
                       {c.department && <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>{c.department}</div>}
                     </div>
                   </td>
@@ -164,7 +164,7 @@ export default function ContactsPage() {
                       {(c.mobile ?? c.phone) && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                           <Phone size={12} color="var(--text-faint)" />
-                          <span style={{ fontSize: '0.8125rem', color: '#374151' }}>{c.mobile ?? c.phone}</span>
+                          <span style={{ fontSize: '0.8125rem', color: 'var(--text)' }}>{c.mobile ?? c.phone}</span>
                         </div>
                       )}
                     </div>
@@ -194,7 +194,7 @@ export default function ContactsPage() {
           </div>
         )}
         {isCapped && (
-          <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: '#92400e', background: 'var(--warning-bg)', borderTop: '1px solid var(--warning-border)' }}>
+          <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: 'var(--warning)', background: 'var(--warning-bg)', borderTop: '1px solid var(--warning-border)' }}>
             결과가 500건을 초과합니다. 검색 조건을 좁혀주세요.
           </div>
         )}
@@ -250,7 +250,7 @@ function ContactDetail({ contact: c, onClose, onDeleted }: { contact: ContactWit
           </div>
         )}
         {c.notes && (
-          <p style={{ fontSize: '0.875rem', color: '#374151', lineHeight: 1.6, margin: '0.5rem 0 0' }}>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text)', lineHeight: 1.6, margin: '0.5rem 0 0' }}>
             {c.notes}
           </p>
         )}

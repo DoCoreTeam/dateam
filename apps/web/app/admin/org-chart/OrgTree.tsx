@@ -206,7 +206,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
             position: 'absolute', top: 0, left: '50%',
             transform: 'translateX(-50%)',
             width: '2px', height: topOffset,
-            background: '#ddd6fe',
+            background: 'var(--brand-soft-2)',
           }} />
           {cardEl}
         </div>
@@ -293,23 +293,23 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
           <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10, display: 'flex', gap: '0.25rem', background: 'rgba(255,255,255,0.95)', border: '2px solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.25rem', boxShadow: 'var(--shadow-sm)' }}>
             <button
               onClick={() => setZoom(z => ({ ...z, scale: Math.min(z.scale * 1.2, 3) }))}
-              style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
+              style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
               title="확대"
             >+</button>
             <button
               onClick={() => setZoom(z => ({ ...z, scale: Math.max(z.scale / 1.2, 0.2) }))}
-              style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
+              style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
               title="축소"
             >−</button>
             <div style={{ width: 1, background: 'var(--color-border)', margin: '4px 2px' }} />
             <button
               onClick={fitToScreen}
-              style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '0.7rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}
+              style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}
               title="화면 맞춤"
             >FIT</button>
             <button
               onClick={() => setZoom({ scale: 1, tx: 50, ty: 30 })}
-              style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '0.65rem', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}
+              style={{ width: 32, height: 32, border: 'none', borderRadius: '0.375rem', background: 'transparent', cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}
               title="100% 리셋"
             >1:1</button>
           </div>
@@ -351,7 +351,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
                 />
               }
               lineWidth="2px"
-              lineColor="#ddd6fe"
+              lineColor="var(--brand-soft-2)"
               lineBorderRadius="8px"
               nodePadding="12px"
             >
@@ -387,13 +387,13 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: '1.5rem', width: '340px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)' }}>
             <h3 className="tape-title" style={{ margin: 0 }}>삭제 확인</h3>
-            <p style={{ margin: '0 0 1.25rem', color: '#475569', fontSize: '0.875rem' }}>
+            <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
               <strong>{deleteConfirm.name}</strong>을(를) 삭제하시겠습니까?
               {deleteConfirm.type !== 'person' && ' 하위 노드가 있으면 삭제할 수 없습니다.'}
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button onClick={() => setDeleteConfirm(null)} style={{ padding: '0.45rem 1rem', background: 'var(--surface-muted)', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: '#475569' }}>취소</button>
-              <button onClick={confirmDelete} style={{ padding: '0.45rem 1rem', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem' }}>삭제</button>
+              <button onClick={() => setDeleteConfirm(null)} style={{ padding: '0.45rem 1rem', background: 'var(--surface-muted)', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-muted)' }}>취소</button>
+              <button onClick={confirmDelete} style={{ padding: '0.45rem 1rem', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem' }}>삭제</button>
             </div>
           </div>
         </div>

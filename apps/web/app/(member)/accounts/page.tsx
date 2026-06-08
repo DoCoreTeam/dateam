@@ -192,7 +192,7 @@ export default function AccountsPage() {
                         )}
                       </div>
                     </td>
-                    <td data-label="업종"><span style={{ color: '#374151' }}>{acc.industry ?? '-'}</span></td>
+                    <td data-label="업종"><span style={{ color: 'var(--text)' }}>{acc.industry ?? '-'}</span></td>
                     <td data-label="세그먼트">
                       {acc.segment
                         ? <span className="badge badge-indigo" style={{ fontSize: '0.75rem' }}>{acc.segment}</span>
@@ -231,7 +231,7 @@ export default function AccountsPage() {
           </div>
         )}
         {isCapped && (
-          <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: '#92400e', background: 'var(--warning-bg)', borderTop: '1px solid var(--warning-border)' }}>
+          <div style={{ textAlign: 'center', padding: '0.75rem 1rem', fontSize: '0.8125rem', color: 'var(--warning)', background: 'var(--warning-bg)', borderTop: '1px solid var(--warning-border)' }}>
             결과가 500건을 초과합니다. 검색 조건을 좁혀주세요.
           </div>
         )}
@@ -260,7 +260,7 @@ function AccountDetail({ account, onClose, onDeleted }: { account: Account; onCl
         {account.industry && <span className="badge badge-slate">{account.industry}</span>}
         {account.segment  && <span className="badge badge-indigo">{account.segment}</span>}
         {account.size     && <span className="badge" style={{ background: 'var(--color-bg)', color: 'var(--text-muted)' }}>{account.size}</span>}
-        {account.account_type && <span className="badge" style={{ background: '#fef3c7', color: '#92400e', fontSize: '0.75rem' }}>{account.account_type}</span>}
+        {account.account_type && <span className="badge" style={{ background: 'var(--warning-bg)', color: 'var(--warning)', fontSize: '0.75rem' }}>{account.account_type}</span>}
         {account.gpu_demand_intensity && (
           <span className={`badge ${account.gpu_demand_intensity === 'High' ? 'badge-indigo' : 'badge-slate'}`} style={{ fontSize: '0.75rem' }}>
             GPU {account.gpu_demand_intensity}
@@ -297,14 +297,14 @@ function AccountDetail({ account, onClose, onDeleted }: { account: Account; onCl
           </div>
         )}
         {account.description && (
-          <p style={{ fontSize: '0.875rem', color: '#374151', lineHeight: 1.6, margin: '0.25rem 0 0' }}>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text)', lineHeight: 1.6, margin: '0.25rem 0 0' }}>
             {account.description}
           </p>
         )}
         {account.tags?.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginTop: '0.25rem' }}>
             {account.tags.map(tag => (
-              <span key={tag} className="badge" style={{ background: '#f0f9ff', color: '#0284c7', fontSize: '0.75rem' }}>#{tag}</span>
+              <span key={tag} className="badge" style={{ background: 'var(--info-bg)', color: 'var(--info)', fontSize: '0.75rem' }}>#{tag}</span>
             ))}
           </div>
         )}
