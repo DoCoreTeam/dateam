@@ -320,7 +320,7 @@ export default function MobileShell({
         {/* 상단바 */}
         <header style={{
           height: 'var(--header-height)',
-          backgroundColor: 'white',
+          backgroundColor: 'var(--color-bg)',
           borderBottom: 'var(--border-w) solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
