@@ -6,6 +6,7 @@ import { Sparkles, RefreshCw } from 'lucide-react'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 import AXDotLoader from '@/components/ui/AXDotLoader'
+import RichText from '@/components/ui/RichText'
 import AXLoadingOverlay from '@/components/ui/AXLoadingOverlay'
 
 interface AdminReportsPreviewProps {
@@ -42,15 +43,6 @@ const TH_COLS = [
   { label: '이슈/협조사항' },
 ]
 
-const ALLOWED_TAGS = /^(p|ul|ol|li|strong|em|br|span|b|i)$/i
-function sanitizeHtml(html: string): string {
-  return html.replace(/<([a-z][a-z0-9]*)[^>]*>/gi, (match, tag: string) =>
-    ALLOWED_TAGS.test(tag) ? `<${tag.toLowerCase()}>` : ''
-  ).replace(/<\/([a-z][a-z0-9]*)[^>]*>/gi, (match, tag: string) =>
-    ALLOWED_TAGS.test(tag) ? `</${tag.toLowerCase()}>` : ''
-  )
-}
-
 const CACHE_V = 5
 const CACHE_TTL = 24 * 60 * 60 * 1000
 
@@ -82,14 +74,7 @@ function writeCache(week: string, member: string, rows: PreviewRow[]) {
 }
 
 function RichCell({ html }: { html: string }) {
-  if (!html) return <span style={{ color: 'var(--border-subtle)' }}>-</span>
-  if (html.startsWith('<'))
-    return <div className="report-rich" dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }} />
-  return (
-    <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text)', lineHeight: 1.6 }}>
-      {html}
-    </p>
-  )
+  return <RichText html={html} style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.6 }} />
 }
 
 const STEPS = [

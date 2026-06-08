@@ -742,7 +742,7 @@
     z-index: 40;
   }
 
-  /* 페이지 내부 패딩 */
+  /* 페이지 내부 패딩 — 전 페이지 공통 컨테이너(full-width 반응형, 폭 제한 없음) */
   .page-inner {
     padding: 2rem;
   }
@@ -1635,12 +1635,6 @@ label.intake-tool-btn {
   font-weight: 650;
 }
 
-/* 일일업무 */
-.daily-page {
-  max-width: 1200px;
-  width: 100%;
-  margin: 0 auto;
-}
 /* 일일업무 통계 카드 */
 .daily-stats-card {
   padding: 1.25rem;
@@ -1841,9 +1835,6 @@ label.intake-tool-btn {
 }
 
 @media (max-width: 767px) {
-  .daily-page {
-    max-width: none;
-  }
   .daily-view-tabs {
     margin-bottom: 1rem;
   }

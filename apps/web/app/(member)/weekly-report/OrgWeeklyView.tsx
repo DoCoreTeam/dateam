@@ -6,6 +6,7 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { ChevronLeft, ChevronRight, Lock, Pencil, Users, Sparkles } from 'lucide-react'
 import { saveDeptReport, aggregateDept } from './org-actions'
+import RichText from '@/components/ui/RichText'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 
@@ -29,18 +30,6 @@ function normalizeRows(body: AnyRow[]): FlatRow[] {
   })
 }
 
-// 기존 취합(AdminReportsPreview)과 동일한 sanitize/표시 규칙
-const ALLOWED_TAGS = /^(p|ul|ol|li|strong|em|br|span|b|i)$/i
-function sanitizeHtml(html: string): string {
-  return html
-    .replace(/<([a-z][a-z0-9]*)[^>]*>/gi, (_m, tag: string) => (ALLOWED_TAGS.test(tag) ? `<${tag.toLowerCase()}>` : ''))
-    .replace(/<\/([a-z][a-z0-9]*)[^>]*>/gi, (_m, tag: string) => (ALLOWED_TAGS.test(tag) ? `</${tag.toLowerCase()}>` : ''))
-}
-function RichCell({ html }: { html: string }) {
-  if (!html || html === '<p></p>') return <span style={{ color: 'var(--border-subtle)' }}>-</span>
-  if (html.startsWith('<')) return <div className="report-rich" dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }} />
-  return <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text)', lineHeight: 1.6 }}>{html}</p>
-}
 
 const FIELDS = [
   { key: 'performance' as const, label: '성과' },
@@ -273,7 +262,7 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
                   {FIELDS.map((f) => (
                     <div key={f.key}>
                       <div style={{ fontSize: '0.66rem', fontWeight: 600, color: 'var(--text-faint)', marginBottom: '0.2rem' }}>{f.label}</div>
-                      <RichCell html={row[f.key]} />
+                      <RichText html={row[f.key]} />
                       {editable && (
                         <button onClick={() => setEditingCell({ idx, field: f.key })} style={{ marginTop: '0.3rem', padding: '0.1rem 0.35rem', fontSize: '0.68rem', color: 'var(--text-faint)', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer' }}>수정</button>
                       )}

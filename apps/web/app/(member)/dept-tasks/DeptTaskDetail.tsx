@@ -71,17 +71,17 @@ export default function DeptTaskDetail({ task, canAssign, nameMap, deptNameMap, 
   return (
     <div className="card" style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
-        <h2 style={{ margin: 0, fontSize: 'var(--text-lg, 1.125rem)' }}>{task.content}</h2>
+        <h2 style={{ margin: 0, fontSize: 'var(--fs-xl)' }}>{task.content}</h2>
         <button onClick={onClose} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={18} /></button>
       </div>
-      <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 'var(--text-sm, 0.875rem)' }}>
+      <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 'var(--fs-base)' }}>
         {task.department_id ? deptNameMap[task.department_id] ?? '' : ''}
         {' · 담당 '}{task.assignee_user_id ? nameMap[task.assignee_user_id] ?? '—' : '미지정'}
         {task.target_date ? ` · 마감 ${task.target_date}` : ''}
       </p>
 
       <div>
-        <div style={{ fontSize: 'var(--text-sm, 0.875rem)', marginBottom: 'var(--space-2)' }}>상태</div>
+        <div style={{ fontSize: 'var(--fs-base)', marginBottom: 'var(--space-2)' }}>상태</div>
         <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
           {STATUSES.map((s) => (
             <button key={s} disabled={busy} onClick={() => setStatus(s)}
@@ -93,7 +93,7 @@ export default function DeptTaskDetail({ task, canAssign, nameMap, deptNameMap, 
       </div>
 
       <div>
-        <div style={{ fontSize: 'var(--text-sm, 0.875rem)', marginBottom: 'var(--space-2)' }}>진행률 {progress}%</div>
+        <div style={{ fontSize: 'var(--fs-base)', marginBottom: 'var(--space-2)' }}>진행률 {progress}%</div>
         <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
           <input type="range" min={0} max={100} step={5} value={progress}
             onChange={(e) => setProgress(Number(e.target.value))} style={{ flex: 1 }} aria-label="진행률" />
@@ -103,7 +103,7 @@ export default function DeptTaskDetail({ task, canAssign, nameMap, deptNameMap, 
 
       {task.checklist.length > 0 && (
         <div>
-          <div style={{ fontSize: 'var(--text-sm, 0.875rem)', marginBottom: 'var(--space-2)' }}>체크리스트</div>
+          <div style={{ fontSize: 'var(--fs-base)', marginBottom: 'var(--space-2)' }}>체크리스트</div>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
             {task.checklist.map((c, i) => (
               <li key={i}>
@@ -128,17 +128,17 @@ export default function DeptTaskDetail({ task, canAssign, nameMap, deptNameMap, 
       )}
 
       <div>
-        <div style={{ fontSize: 'var(--text-sm, 0.875rem)', marginBottom: 'var(--space-2)' }}>진행 댓글 ({comments.length})</div>
+        <div style={{ fontSize: 'var(--fs-base)', marginBottom: 'var(--space-2)' }}>진행 댓글 ({comments.length})</div>
         <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           {comments.map((c) => (
             <li key={c.id} style={{ padding: 'var(--space-2) var(--space-3)', background: 'var(--surface-bg)', borderRadius: 'var(--radius)' }}>
-              <div style={{ fontSize: 'var(--text-xs, 0.75rem)', color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
                 {c.author_user_id ? nameMap[c.author_user_id] ?? '사용자' : (c.author_type === 'ai' ? 'AI' : '사용자')}
               </div>
               <div>{c.content}</div>
             </li>
           ))}
-          {comments.length === 0 && <li style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm, 0.875rem)' }}>아직 댓글이 없습니다.</li>}
+          {comments.length === 0 && <li style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-base)' }}>아직 댓글이 없습니다.</li>}
         </ul>
         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
           <input className="input-field" value={commentText} onChange={(e) => setCommentText(e.target.value)}

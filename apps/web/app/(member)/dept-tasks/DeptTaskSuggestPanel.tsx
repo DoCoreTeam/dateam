@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Sparkles, AlertTriangle } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import { createDeptTasksBulk } from './actions'
+import { htmlToPlain } from '@/lib/html-to-plain'
 import type { DeptOption } from './DeptTasksClient'
 
 interface Candidate {
@@ -137,8 +138,8 @@ export default function DeptTaskSuggestPanel({ creatableDepts, editableDeptIds, 
                         )}
                         <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)' }}>신뢰도 {Math.round(c.confidence * 100)}%</span>
                       </div>
-                      <div title={c.source_quote ?? ''} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        근거({c.source_log_date}): {c.source_quote}
+                      <div title={htmlToPlain(c.source_quote)} style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        근거({c.source_log_date}): {htmlToPlain(c.source_quote)}
                       </div>
                     </div>
                   </li>

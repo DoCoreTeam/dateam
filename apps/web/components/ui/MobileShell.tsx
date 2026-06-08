@@ -15,6 +15,8 @@ interface NavItem {
   match?: string[]
 }
 
+// 와이드 페이지(표/그리드 多) — 콘텐츠 폭 클램프(1200) 예외. 그 외 전 페이지는 1200 통일.
+
 // 메뉴 항목 active 판정 — href 또는 match 경로 중 하나에 매칭
 function isNavActive(pathname: string, item: NavItem): boolean {
   const paths = [item.href, ...(item.match ?? [])]
@@ -362,7 +364,7 @@ export default function MobileShell({
           )}
         </header>
 
-        {/* 콘텐츠 */}
+        {/* 콘텐츠 — page-inner가 전 페이지 공통 컨테이너(full-width 반응형, 폭 제한 없음) */}
         <main className="page-inner" style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-bg)' }}>
           {children}
         </main>

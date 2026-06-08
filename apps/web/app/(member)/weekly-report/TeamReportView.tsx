@@ -2,6 +2,7 @@
 import { useEscClose } from '@/lib/use-esc-close'
 
 import { useState } from 'react'
+import RichText from '@/components/ui/RichText'
 
 interface MemberReport {
   userId: string
@@ -136,17 +137,17 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
                     <td data-label="구분" style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{r.category}</td>
                     <td data-label="성과" style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top', maxWidth: '260px' }}>
                       {r.performance && r.performance !== '<p></p>' ? (
-                        <div className="report-rich" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', lineHeight: 1.55 }} dangerouslySetInnerHTML={{ __html: r.performance }} />
+                        <RichText html={r.performance} style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', lineHeight: 1.55 }} />
                       ) : <span style={{ color: 'var(--border-subtle)' }}>—</span>}
                     </td>
                     <td data-label="계획" style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top', maxWidth: '260px' }}>
                       {r.plan && r.plan !== '<p></p>' ? (
-                        <div className="report-rich" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', lineHeight: 1.55 }} dangerouslySetInnerHTML={{ __html: r.plan }} />
+                        <RichText html={r.plan} style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', lineHeight: 1.55 }} />
                       ) : <span style={{ color: 'var(--border-subtle)' }}>—</span>}
                     </td>
                     <td data-label="이슈" style={{ padding: '0.625rem 0.75rem', border: CELL_BORDER, verticalAlign: 'top' }}>
                       {r.issues && r.issues !== '<p></p>' ? (
-                        <div className="report-rich" style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.55 }} dangerouslySetInnerHTML={{ __html: r.issues }} />
+                        <RichText html={r.issues} style={{ overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.55 }} />
                       ) : <span style={{ color: 'var(--border-subtle)' }}>—</span>}
                     </td>
                   </tr>
@@ -185,7 +186,7 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
             ].map(({ label, value }) => value && value !== '<p></p>' ? (
               <div key={label} style={{ marginBottom: '1rem' }}>
                 <p style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.375rem' }}>{label}</p>
-                <div className="report-rich" style={{ fontSize: 'var(--fs-base)', lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: value }} />
+                <RichText html={value} style={{ fontSize: 'var(--fs-base)', lineHeight: 1.7 }} />
               </div>
             ) : null)}
           </div>

@@ -2,6 +2,7 @@
 import { useEscClose } from '@/lib/use-esc-close'
 
 import { useState } from 'react'
+import RichText from '@/components/ui/RichText'
 
 export interface DiffItem {
   category: string
@@ -24,19 +25,7 @@ interface DiffConfirmModalProps {
 }
 
 function RichPreview({ html }: { html: string }) {
-  const empty = !html || html === '<p></p>' || html === '<p><br></p>' || html.trim() === ''
-  if (empty) return <span style={{ color: 'var(--border-subtle)', fontSize: '0.8rem' }}>비어있음</span>
-  if (html.startsWith('<')) {
-    return (
-      <div
-        className="report-rich"
-        style={{ fontSize: '0.8rem', pointerEvents: 'none', userSelect: 'none' }}
-        // HTML from Tiptap (user-authored) or Gemini refine (same user session)
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
-    )
-  }
-  return <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text)', lineHeight: 1.5 }}>{html}</p>
+  return <RichText html={html} placeholder="비어있음" style={{ fontSize: '0.8rem', pointerEvents: 'none', userSelect: 'none', lineHeight: 1.5 }} />
 }
 
 export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffConfirmModalProps) {

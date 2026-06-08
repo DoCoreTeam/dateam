@@ -364,7 +364,7 @@ export default function DailyPage() {
         </div>
       </div>
     )}
-    <div className="page-inner daily-page">
+    <div className="page-inner">
       <WorkTabBar />
       <PageHeader title="일일업무" description="오늘의 업무를 기록하고 관리합니다" />
 

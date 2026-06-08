@@ -8,6 +8,7 @@ import { upsertWeeklyReport, deleteAllWeeklyReports } from './actions'
 import AXLoadingOverlay from '@/components/ui/AXLoadingOverlay'
 import DiffConfirmModal, { type DiffItem } from '@/components/ui/DiffConfirmModal'
 import DailyTaskSelector from './DailyTaskSelector'
+import RichText from '@/components/ui/RichText'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 const SpotlightOnboarding = dynamic(() => import('@/components/ui/SpotlightOnboarding'), { ssr: false })
@@ -643,8 +644,6 @@ function EditorCell({
   highlighted?: boolean
   onClick: () => void
 }) {
-  const hasContent = !!value && value !== '<p></p>'
-
   return (
     <td
       id={id}
@@ -678,16 +677,7 @@ function EditorCell({
           el.style.backgroundColor = 'transparent'
         }}
       >
-        {hasContent ? (
-          <div
-            className="report-rich"
-            style={{ pointerEvents: 'none', userSelect: 'none' }}
-            // HTML from Tiptap editor controlled by authenticated user
-            dangerouslySetInnerHTML={{ __html: value }}
-          />
-        ) : (
-          <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--border-subtle)' }}>{placeholder}</span>
-        )}
+        <RichText html={value} placeholder={placeholder} style={{ pointerEvents: 'none', userSelect: 'none' }} />
         <div
           style={{
             position: 'absolute', top: '0.375rem', right: '0.375rem',

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
 import { suggestDeptTasks } from '@/lib/gemini-suggest-tasks'
+import { htmlToPlain } from '@/lib/html-to-plain'
 
 // AI 부서업무 후보 추출: 일일업무+주간보고(org-scope 범위) → 후보 배열 반환.
 // 수동 트리거 전용. 권한: scope='dept'는 부서장(editable/executive)만. 비용: 기간 캡(최대 4주)+상태필터.
@@ -74,7 +75,8 @@ export async function POST(req: NextRequest) {
   const logInput = ((logs ?? []) as { content: string; log_date: string; user_id: string }[])
     .map((r) => ({ content: r.content, log_date: r.log_date, author: nameMap[r.user_id] }))
   const weeklyInput = ((weekly ?? []) as { category: string; performance: string; plan: string; user_id: string }[])
-    .map((r) => ({ category: r.category, performance: r.performance, plan: r.plan, author: nameMap[r.user_id] }))
+    // 주간보고는 Tiptap HTML 저장 → AI 입력 전 plain 변환(HTML 태그가 source_quote로 새는 것 방지)
+    .map((r) => ({ category: r.category, performance: htmlToPlain(r.performance), plan: htmlToPlain(r.plan), author: nameMap[r.user_id] }))
 
   if (logInput.length === 0 && weeklyInput.length === 0) {
     return NextResponse.json({ candidates: [], message: '해당 기간 데이터가 없습니다' })

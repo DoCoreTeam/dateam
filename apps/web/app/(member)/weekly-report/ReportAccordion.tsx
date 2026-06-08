@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ChevronDown, Trash2, Pencil, AlertTriangle } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
 import { deleteWeeklyReport } from './actions'
+import RichText from '@/components/ui/RichText'
 
 interface WeekGroup {
   weekStart: string
@@ -16,21 +17,7 @@ interface ReportAccordionProps {
 }
 
 function RichContent({ html }: { html: string }) {
-  const isHtml = html.startsWith('<')
-  if (isHtml) {
-    return (
-      <div
-        className="report-rich"
-        // HTML comes from Tiptap editor controlled by the authenticated user themselves
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
-    )
-  }
-  return (
-    <p style={{ fontSize: 'var(--fs-base)', color: 'var(--text)', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-      {html}
-    </p>
-  )
+  return <RichText html={html} style={{ fontSize: 'var(--fs-base)', lineHeight: 1.6 }} />
 }
 
 function ReportCard({ report }: { report: WeeklyReport }) {

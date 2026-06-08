@@ -5,17 +5,10 @@ import { subWeeks } from 'date-fns'
 import { FileText, Download } from 'lucide-react'
 import type { Profile, WeeklyReport } from '@/types/database'
 import AdminReportsPreview from './AdminReportsPreview'
+import RichText from '@/components/ui/RichText'
 
 function RichCell({ html }: { html: string }) {
-  if (!html) return <span style={{ color: 'var(--border-subtle)', fontSize: 'var(--fs-sm)' }}>-</span>
-  if (html.startsWith('<')) {
-    return <div className="report-rich" dangerouslySetInnerHTML={{ __html: html }} />
-  }
-  return (
-    <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-      {html}
-    </p>
-  )
+  return <RichText html={html} style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.6 }} />
 }
 
 interface PageProps {
