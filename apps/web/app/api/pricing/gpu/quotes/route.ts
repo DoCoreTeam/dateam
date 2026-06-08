@@ -18,6 +18,7 @@ export async function GET(request: Request) {
       .select('*, suppliers(name, color, location)')
       .eq('product_id', productId)
       .eq('status', 'confirmed')
+      .is('deleted_at', null)
       .order('unit_price_usd', { ascending: true })
 
     if (error) throw error

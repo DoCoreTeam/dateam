@@ -3,6 +3,8 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { assignSupplierToQuote } from '@/lib/gpu/repository'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
+import { recordGpuAudit } from '@/lib/gpu/audit'
+import { countImpact } from '@/lib/gpu/impact'
 
 // PATCH /api/pricing/gpu/quotes/[id]
 //  - { supplier_id | supplier_name } → 공급사 지정 (docs 01 §4)
@@ -32,8 +34,9 @@ export async function PATCH(
     })
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (adminClient as any).from('gpu_audit_logs').insert({
-      actor, action_type: 'quote_supplier_assigned', detail: { quote_id: id, supplier_id: result.supplier_id },
+    await recordGpuAudit(adminClient as any, {
+      actor, actionType: 'quote_supplier_assigned',
+      detail: { quote_id: id, supplier_id: result.supplier_id },
     })
     return NextResponse.json({ ok: true, supplier_id: result.supplier_id })
   }
@@ -66,15 +69,16 @@ export async function PATCH(
     return NextResponse.json({ error: '수정할 내용이 없습니다' }, { status: 400 })
   }
 
-  // supply_quotes UPDATE는 service_role/auth 모두 가능하나 트리거 우회 일관 위해 adminClient
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (adminClient as any)
-    .from('supply_quotes').update(patch).eq('id', id).select().single()
+    .from('supply_quotes').update(patch).eq('id', id).is('deleted_at', null).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!data) return NextResponse.json({ error: '견적을 찾을 수 없습니다' }, { status: 404 })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (adminClient as any).from('gpu_audit_logs').insert({
-    actor, action_type: 'quote_edited', product_id: data?.product_id ?? null,
+  await recordGpuAudit(adminClient as any, {
+    actor, actionType: 'quote_edited',
+    productId: data?.product_id ?? null,
     detail: { quote_id: id, patch },
   })
 
@@ -82,7 +86,7 @@ export async function PATCH(
   return NextResponse.json({ ok: true, quote: data })
 }
 
-// DELETE /api/pricing/gpu/quotes/[id] — 견적 삭제
+// DELETE /api/pricing/gpu/quotes/[id] — 견적 소프트삭제
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -90,15 +94,37 @@ export async function DELETE(
   const auth = await requireAdminApi()
   if (auth.error) return auth.error
   const { id } = await params
+  const force = new URL(req.url).searchParams.get('force') === 'true'
 
   const adminClient = createAdminClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (adminClient as any).from('supply_quotes').delete().eq('id', id)
+  const adminDb = adminClient as any
+
+  const impact = await countImpact(adminDb, 'supply_quote', id)
+  // is_selected=1 → 채택 견적 삭제 경고 (force 없으면 차단)
+  if ((impact.detail['is_selected'] ?? 0) > 0 && !force) {
+    return NextResponse.json({
+      error: '채택된 견적입니다. ?force=true를 사용하면 강제 삭제됩니다.',
+      impact: impact.detail,
+    }, { status: 409 })
+  }
+
+  // 소프트삭제: deleted_at 설정
+  const { data, error } = await adminDb
+    .from('supply_quotes')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
+    .is('deleted_at', null)
+    .select('product_id')
+    .single()
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (adminClient as any).from('gpu_audit_logs').insert({
-    actor: auth.user.email ?? auth.user.id, action_type: 'quote_deleted', detail: { quote_id: id },
+  await recordGpuAudit(adminDb, {
+    actor: auth.user.email ?? auth.user.id,
+    actionType: 'quote_deleted',
+    productId: data?.product_id ?? null,
+    detail: { quote_id: id, force },
   })
 
   revalidateGpu()

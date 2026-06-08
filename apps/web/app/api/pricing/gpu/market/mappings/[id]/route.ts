@@ -27,7 +27,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createAdminClient() as any
-  await db.from('market_prices').delete().eq('mapping_id', id)   // 자식 시세 먼저
+  // 자식 시세 소프트삭제 (market_prices는 deleted_at 컬럼 있음)
+  await db.from('market_prices').update({ deleted_at: new Date().toISOString() }).eq('mapping_id', id).is('deleted_at', null)
+  // 매핑 삭제 (competitor_product_mapping은 deleted_at 미적용 — 하드 delete 유지)
   const { error } = await db.from('competitor_product_mapping').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })

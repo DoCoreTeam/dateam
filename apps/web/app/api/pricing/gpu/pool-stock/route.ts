@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
     .from('direct_pool_stock')
     .select('id, product_id, pool_qty, note, set_by, set_at, is_current')
     .eq('is_current', true)
+    .is('deleted_at', null)
     .order('set_at', { ascending: false })
 
   if (productId) query = query.eq('product_id', productId)

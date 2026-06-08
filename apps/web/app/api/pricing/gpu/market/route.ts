@@ -32,6 +32,7 @@ export async function GET() {
     const { data: allProducts, error: prodErr } = await db
       .from('gpu_products')
       .select('id, model_name, memory, tier, pricing_mode, gpu_count, vcpu, ram_gb, storage_gb')
+      .is('deleted_at', null)
       .order('tier')
       .order('model_name')
 
@@ -56,6 +57,7 @@ export async function GET() {
           .from('market_prices')
           .select('id, mapping_id, price_usd, recorded_at, confidence, notes, source_url')
           .in('mapping_id', mappingIds)
+          .is('deleted_at', null)
           .order('recorded_at', { ascending: false })
       : { data: [], error: null }
 

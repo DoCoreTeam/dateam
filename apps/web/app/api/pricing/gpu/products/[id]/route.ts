@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
+import { recordGpuAudit } from '@/lib/gpu/audit'
+import { countImpact } from '@/lib/gpu/impact'
 
-// PATCH /api/pricing/gpu/products/[id] — 구성(gpu_products)의 인스턴스 스펙 수정
+// PATCH /api/pricing/gpu/products/[id] — 구성(gpu_products)의 인스턴스 스펙 + 기본 필드 수정
 //  가격표·시장비교·재고·고객판매가격표 4탭이 공통으로 표시하는 스펙(VRAM/vCPU/RAM/SSD)의 단일 편집 지점.
 const SPEC_FIELDS = ['memory', 'vcpu', 'ram_gb', 'storage_gb', 'series'] as const
 
@@ -20,15 +22,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!(k in body)) continue
     const v = body[k]
     if (k === 'memory' || k === 'series') patch[k] = (typeof v === 'string' && v.trim()) ? v.trim() : null
-    else patch[k] = (v === '' || v === null) ? null : Number(v)   // vcpu/ram_gb/storage_gb (storage_gb nullable)
+    else patch[k] = (v === '' || v === null) ? null : Number(v)
   }
-  // tier 수동 변경 (1/2/3) — 데이터센터=T1/워크스테이션=T2/소비자=T3 자동분류를 사용자가 override
+
+  // model_name 수정
+  if ('model_name' in body) {
+    const v = typeof body.model_name === 'string' ? body.model_name.trim() : ''
+    if (!v) return NextResponse.json({ error: 'model_name은 비울 수 없습니다' }, { status: 400 })
+    patch.model_name = v
+  }
+  // pricing_mode 수정 (quote / direct)
+  if ('pricing_mode' in body) {
+    if (body.pricing_mode !== 'quote' && body.pricing_mode !== 'direct') {
+      return NextResponse.json({ error: 'pricing_mode는 quote 또는 direct만 가능합니다' }, { status: 400 })
+    }
+    patch.pricing_mode = body.pricing_mode
+  }
+  // tier 수동 변경 (1/2/3)
   if ('tier' in body) {
     const t = Number(body.tier)
     if (![1, 2, 3].includes(t)) return NextResponse.json({ error: 'tier는 1·2·3만 가능합니다' }, { status: 400 })
     patch.tier = t
   }
-  // 필수: vcpu/ram_gb는 null 불가
+  // 필수 필드 null 방지
   if ('vcpu' in patch && patch.vcpu == null) return NextResponse.json({ error: 'vCPU는 비울 수 없습니다' }, { status: 400 })
   if ('ram_gb' in patch && patch.ram_gb == null) return NextResponse.json({ error: 'RAM은 비울 수 없습니다' }, { status: 400 })
   if (Object.keys(patch).length === 0) return NextResponse.json({ error: '변경할 필드가 없습니다' }, { status: 400 })
@@ -36,39 +52,67 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createAdminClient() as any
 
-  // tier 변경 시 중복 충돌 가드 — 동일 model+memory+gpu_count+vcpu가 목표 tier에 이미 있으면 차단(정합성)
+  // tier 변경 시 중복 충돌 가드
   if ('tier' in patch) {
     const { data: cur } = await db.from('gpu_products').select('model_name, memory, gpu_count, vcpu').eq('id', id).single()
     if (cur) {
       const { data: clash } = await db.from('gpu_products').select('id')
         .eq('model_name', cur.model_name).eq('memory', cur.memory)
         .eq('gpu_count', cur.gpu_count).eq('vcpu', cur.vcpu).eq('tier', patch.tier)
-        .neq('id', id).limit(1)
+        .neq('id', id).is('deleted_at', null).limit(1)
       if (clash && clash.length > 0) return NextResponse.json({ error: '같은 구성이 해당 Tier에 이미 존재합니다' }, { status: 409 })
     }
   }
 
-  const { data, error } = await db.from('gpu_products').update(patch).eq('id', id).select().single()
+  const { data, error } = await db.from('gpu_products').update(patch).eq('id', id).is('deleted_at', null).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!data) return NextResponse.json({ error: '상품을 찾을 수 없습니다' }, { status: 404 })
+
+  await recordGpuAudit(db, {
+    actor: auth.user.email ?? auth.user.id,
+    actionType: 'product_updated',
+    productId: id,
+    detail: { patch },
+  })
 
   revalidateGpu()
   return NextResponse.json({ product: data })
 }
 
-// DELETE /api/pricing/gpu/products/[id] — 구성 삭제 (확정 견적 연결 시 차단 — 정합성)
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+// DELETE /api/pricing/gpu/products/[id] — 구성 소프트삭제
+//  참조 건수가 있으면 차단 (?force=true 로 우회 가능 — 참조 있어도 삭제)
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdminApi()
   if (auth.error) return auth.error
   const { id } = await params
+  const force = new URL(req.url).searchParams.get('force') === 'true'
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createAdminClient() as any
 
-  const { count } = await db.from('supply_quotes').select('id', { count: 'exact', head: true }).eq('product_id', id)
-  if ((count ?? 0) > 0) {
-    return NextResponse.json({ error: `견적 ${count}건이 연결되어 삭제할 수 없습니다. 견적을 먼저 정리하세요.` }, { status: 409 })
+  const impact = await countImpact(db, 'gpu_product', id)
+  if (impact.total > 0 && !force) {
+    return NextResponse.json({
+      error: `연결된 데이터 ${impact.total}건이 있습니다. ?force=true를 사용하면 강제 삭제됩니다.`,
+      impact: impact.detail,
+    }, { status: 409 })
   }
-  const { error } = await db.from('gpu_products').delete().eq('id', id)
+
+  const { error } = await db
+    .from('gpu_products')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
+    .is('deleted_at', null)
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await recordGpuAudit(db, {
+    actor: auth.user.email ?? auth.user.id,
+    actionType: 'product_deleted',
+    productId: id,
+    detail: { force, impact: impact.detail },
+  })
+
   revalidateGpu()
   return NextResponse.json({ ok: true })
 }

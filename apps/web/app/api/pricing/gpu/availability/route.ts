@@ -3,8 +3,9 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { recordAvailability } from '@/lib/gpu/repository'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
+import { recordGpuAudit } from '@/lib/gpu/audit'
 
-// DELETE /api/pricing/gpu/availability?product_id=&supplier_id= — 해당 공급사 재고응답 삭제
+// DELETE /api/pricing/gpu/availability?product_id=&supplier_id= — 해당 공급사 재고응답 소프트삭제
 export async function DELETE(req: NextRequest) {
   const auth = await requireAdminApi()
   if (auth.error) return auth.error
@@ -12,9 +13,22 @@ export async function DELETE(req: NextRequest) {
   const product_id = sp.get('product_id'), supplier_id = sp.get('supplier_id')
   if (!product_id || !supplier_id) return NextResponse.json({ error: 'product_id·supplier_id 필요' }, { status: 400 })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (createAdminClient() as any).from('availability_responses')
-    .delete().eq('product_id', product_id).eq('supplier_id', supplier_id)
+  const db = createAdminClient() as any
+  const { error } = await db
+    .from('availability_responses')
+    .update({ deleted_at: new Date().toISOString(), is_current: false })
+    .eq('product_id', product_id)
+    .eq('supplier_id', supplier_id)
+    .is('deleted_at', null)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await recordGpuAudit(db, {
+    actor: auth.user.email ?? auth.user.id,
+    actionType: 'availability_deleted',
+    productId: product_id,
+    detail: { supplier_id, by: 'product_supplier' },
+  })
+
   revalidateGpu()
   return NextResponse.json({ ok: true })
 }

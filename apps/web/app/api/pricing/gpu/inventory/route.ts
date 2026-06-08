@@ -18,6 +18,7 @@ export async function GET() {
   const { data: products, error: pErr } = await (supabase as any)
     .from('gpu_products')
     .select('id, model_name, memory, tier, gpu_count, vcpu, ram_gb, storage_gb, pricing_mode')
+    .is('deleted_at', null)
     .order('tier')
     .order('model_name')
 
@@ -41,6 +42,7 @@ export async function GET() {
     .from('direct_pool_stock')
     .select('product_id, pool_qty, set_at, note')
     .eq('is_current', true)
+    .is('deleted_at', null)
 
   // 공급사 정보
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

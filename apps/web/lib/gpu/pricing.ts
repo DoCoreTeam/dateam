@@ -117,14 +117,16 @@ export interface CatalogRawData {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getGpuCatalog(db: any): Promise<GpuCatalog> {
   const [productsRes, quotesRes, suppliersRes, directRes, settingsRes, fxRes] = await Promise.all([
-    db.from('gpu_products').select('*').order('tier').order('model_name'),
+    db.from('gpu_products').select('*').is('deleted_at', null).order('tier').order('model_name'),
     // 확정·유효 견적 전체 (v_lowest_quotes는 구성별 최저만 → 전파 위해 원천 견적 직접 사용)
+    // deleted_at IS NULL: 소프트삭제된 견적은 카탈로그 계산에서 제외
     db
       .from('supply_quotes')
       .select('id, product_id, supplier_id, unit_price_usd, gpu_count, valid_until, price_type, is_selected')
-      .eq('status', 'confirmed'),
+      .eq('status', 'confirmed')
+      .is('deleted_at', null),
     db.from('suppliers').select('id, name, color'),
-    db.from('direct_prices').select('*, gpu_products(id)').eq('is_current', true),
+    db.from('direct_prices').select('*, gpu_products(id)').eq('is_current', true).is('deleted_at', null),
     db.from('pricing_settings').select('margin_pct').eq('id', 1).single(),
     db.from('fx_rates').select('usd_krw, rate_date').order('rate_date', { ascending: false }).limit(1).single(),
   ])
