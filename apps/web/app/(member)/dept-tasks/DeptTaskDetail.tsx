@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { X } from 'lucide-react'
 import type { DailyLog, DailyLogEntryType, DailyLogThread, DeptTaskChecklistItem } from '@/types/database'
 import { STATUS_COLORS } from '@/lib/tokens/status-colors'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -71,7 +72,7 @@ export default function DeptTaskDetail({ task, canAssign, nameMap, deptNameMap, 
     <div className="card" style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
         <h2 style={{ margin: 0, fontSize: 'var(--text-lg, 1.125rem)' }}>{task.content}</h2>
-        <button onClick={onClose} aria-label="닫기" className="btn-ghost" style={{ minHeight: 44 }}>✕</button>
+        <button onClick={onClose} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={18} /></button>
       </div>
       <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 'var(--text-sm, 0.875rem)' }}>
         {task.department_id ? deptNameMap[task.department_id] ?? '' : ''}
@@ -117,13 +118,13 @@ export default function DeptTaskDetail({ task, canAssign, nameMap, deptNameMap, 
       )}
 
       {canAssign && (
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-          <span style={{ fontSize: 'var(--text-sm, 0.875rem)' }}>담당자 지정 (부서장)</span>
-          <select value={task.assignee_user_id ?? ''} disabled={busy} onChange={(e) => assign(e.target.value)} style={{ minHeight: 44 }}>
+        <div>
+          <label className="label">담당자 지정 (부서장)</label>
+          <select className="input-field" value={task.assignee_user_id ?? ''} disabled={busy} onChange={(e) => assign(e.target.value)} style={{ minHeight: 44 }}>
             <option value="">미지정</option>
             {candidates.map((c) => <option key={c.userId} value={c.userId}>{c.name}</option>)}
           </select>
-        </label>
+        </div>
       )}
 
       <div>
@@ -140,7 +141,7 @@ export default function DeptTaskDetail({ task, canAssign, nameMap, deptNameMap, 
           {comments.length === 0 && <li style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm, 0.875rem)' }}>아직 댓글이 없습니다.</li>}
         </ul>
         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-          <input value={commentText} onChange={(e) => setCommentText(e.target.value)}
+          <input className="input-field" value={commentText} onChange={(e) => setCommentText(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComment() } }}
             placeholder="진행상황 댓글 입력" style={{ flex: 1, minHeight: 44 }} aria-label="댓글 입력" />
           <NbButton onClick={submitComment} disabled={busy || !commentText.trim()}>등록</NbButton>
