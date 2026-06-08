@@ -183,17 +183,19 @@ export default function MobileShell({
                       fontWeight: isActive || isHighlight ? 700 : 500,
                       textDecoration: 'none',
                       transition: 'opacity 120ms, transform 120ms, border-color 120ms',
-                      background: isActive
-                        ? 'var(--accent)'
-                        : isHighlight
+                      // 통합입력(highlight)=솔리드 인디고 채운 CTA / active=채움 없는 아웃라인(보더+좌측 인디고 바)
+                      // → 현재 테마에서 --accent와 --brand가 동색이라 '채움' 표현이 겹쳤던 혼동 제거
+                      background: isHighlight
                         ? 'var(--brand)'
                         : isHovered ? 'rgba(0,0,0,0.05)' : 'transparent',
-                      border: isActive || isHighlight
+                      border: isActive
                         ? 'var(--border-w-2) solid var(--border-color)'
                         : 'var(--border-w-2) solid transparent',
-                      color: isActive ? 'var(--sidebar-fg)' : isHighlight ? '#fff' : 'var(--sidebar-fg)',
+                      color: isHighlight ? '#fff' : 'var(--sidebar-fg)',
                       minHeight: '44px',
-                      boxShadow: (isActive || isHighlight) ? 'var(--shadow-sm)' : 'none',
+                      boxShadow: isActive
+                        ? 'inset 3px 0 0 var(--brand)'
+                        : isHighlight ? 'var(--shadow-sm)' : 'none',
                       opacity: isHighlight && isHovered ? 0.9 : 1,
                       letterSpacing: isHighlight ? '0.01em' : undefined,
                     }}
