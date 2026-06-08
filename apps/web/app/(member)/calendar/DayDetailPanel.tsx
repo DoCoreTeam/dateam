@@ -88,25 +88,25 @@ export default function DayDetailPanel({ date, onClose }: Props) {
 
         {/* 헤더 */}
         <div className="day-panel-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <span style={{ fontSize: 'var(--fs-md)', fontWeight: 700, color: 'var(--text)' }}>
               {formatPanelDate(date)}
             </span>
             {isToday && (
               <span style={{
-                fontSize: '0.6875rem', fontWeight: 700, color: 'var(--info)',
+                fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--info)',
                 background: 'var(--info-bg)', padding: '0.1rem 0.4rem', borderRadius: 'var(--radius)',
               }}>
                 오늘
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <button
               onClick={() => setShowModal(true)}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                padding: '0.375rem 0.625rem', fontSize: '0.8125rem',
+                padding: '0.375rem 0.625rem', fontSize: 'var(--fs-sm)',
                 background: 'var(--brand-soft)', color: 'var(--brand)', border: 'var(--hairline) solid var(--brand-soft-2)',
                 borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600, minHeight: 36,
               }}
@@ -116,7 +116,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
             <button
               onClick={() => router.push(`/daily?date=${date}`)}
               style={{
-                padding: '0.375rem 0.75rem', fontSize: '0.8125rem',
+                padding: '0.375rem 0.75rem', fontSize: 'var(--fs-sm)',
                 background: 'var(--info)', color: '#fff', border: 'none',
                 borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600,
                 minHeight: 36,
@@ -129,7 +129,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
               style={{
                 width: 36, height: 36, border: 'var(--border-w-2) solid var(--border-color)',
                 borderRadius: 'var(--radius)', background: 'var(--color-bg)',
-                cursor: 'pointer', fontSize: '1.125rem', color: 'var(--text-muted)',
+                cursor: 'pointer', fontSize: 'var(--fs-xl)', color: 'var(--text-muted)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
               }}
@@ -148,7 +148,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
               <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand)', marginBottom: '0.4rem', letterSpacing: '0.02em' }}>일정</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                 {events.map((ev) => (
-                  <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.625rem', background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)' }}>
+                  <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '0.5rem 0.625rem', background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)' }}>
                     <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand-dark)', whiteSpace: 'nowrap' }}>
                       {ev.all_day ? '종일' : formatTime(ev.start_at)}{!ev.all_day && ev.end_at ? `~${formatTime(ev.end_at)}` : ''}
                     </span>
@@ -162,15 +162,15 @@ export default function DayDetailPanel({ date, onClose }: Props) {
             </div>
           )}
           {loading ? (
-            <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '2rem 0', fontSize: '0.875rem' }}>
+            <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-8) var(--space-0)', fontSize: 'var(--fs-base)' }}>
               로딩 중...
             </div>
           ) : logs.length === 0 ? (
-            <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '2rem 0', fontSize: '0.875rem' }}>
+            <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-8) var(--space-0)', fontSize: 'var(--fs-base)' }}>
               작성된 로그가 없습니다.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
               {logs.map((log) => {
                 const t = ENTRY_TYPES[log.entry_type]
                 return (
@@ -189,14 +189,14 @@ export default function DayDetailPanel({ date, onClose }: Props) {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.25rem' }}>
                         <span style={{
-                          fontSize: '0.6875rem', fontWeight: 700, color: t.color,
+                          fontSize: 'var(--fs-2xs)', fontWeight: 700, color: t.color,
                           background: t.bg, border: `var(--hairline) solid ${t.border}`,
                           padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)',
                           flexShrink: 0,
                         }}>
                           {t.label}
                         </span>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>
+                        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>
                           {formatTime(log.logged_at)}
                         </span>
                         {log.log_date !== date && (
@@ -210,7 +210,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
                         )}
                       </div>
                       <p style={{
-                        margin: 0, fontSize: '0.875rem', color: 'var(--text)',
+                        margin: 0, fontSize: 'var(--fs-base)', color: 'var(--text)',
                         lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                       }}>
                         {log.content}

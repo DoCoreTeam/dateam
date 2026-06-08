@@ -167,8 +167,8 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
     <div style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', background: 'var(--surface-bg)', overflow: 'hidden', position: 'relative' }}>
       <div style={{
         padding: '0.625rem 1rem', borderBottom: 'var(--border-w-2) solid var(--border-color)',
-        fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-muted)',
-        display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
+        fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text-muted)',
+        display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap',
       }}>
         <span>🔗 당일 업무 관계도</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 400 }}>
@@ -247,7 +247,7 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
               {(() => {
                 const t = ENTRY_MAP[selectedLog.entry_type]
                 return (
-                  <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: t.color, background: t.bg, border: `var(--hairline) solid ${t.border}`, padding: '0.1rem 0.4rem', borderRadius: 'var(--radius)' }}>
+                  <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: t.color, background: t.bg, border: `var(--hairline) solid ${t.border}`, padding: '0.1rem 0.4rem', borderRadius: 'var(--radius)' }}>
                     {t.label}
                   </span>
                 )
@@ -255,7 +255,7 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
               {selectedLog.target_date && (() => {
                 const lbl = ddayLabel(selectedLog.target_date, today)
                 return lbl ? (
-                  <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--danger)', background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', padding: '0.1rem 0.4rem', borderRadius: 'var(--radius)' }}>
+                  <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--danger)', background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', padding: '0.1rem 0.4rem', borderRadius: 'var(--radius)' }}>
                     {lbl}
                   </span>
                 ) : null
@@ -266,18 +266,18 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
               ×
             </button>
           </div>
-          <p style={{ margin: '0 0 0.5rem', fontSize: '0.8125rem', color: 'var(--text)', lineHeight: 1.55, wordBreak: 'break-word' }}>
+          <p style={{ margin: '0 0 0.5rem', fontSize: 'var(--fs-sm)', color: 'var(--text)', lineHeight: 1.55, wordBreak: 'break-word' }}>
             {selectedLog.content}
           </p>
           {selectedLog.target_date && (
-            <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            <p style={{ margin: '0 0 0.5rem', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
               📅 예정일: {selectedLog.target_date}
             </p>
           )}
           {parentLog && (
             <div style={{ background: 'var(--color-bg)', borderRadius: 'var(--radius)', padding: '0.375rem 0.5rem', marginBottom: '0.5rem' }}>
               <p style={{ margin: '0 0 0.2rem', fontSize: '0.7rem', color: 'var(--text-faint)' }}>↑ 상위 업무</p>
-              <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)', wordBreak: 'break-word' }}>
+              <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', wordBreak: 'break-word' }}>
                 {parentLog.content.slice(0, 60)}{parentLog.content.length > 60 ? '…' : ''}
               </p>
             </div>
@@ -286,7 +286,7 @@ export function KnowledgeGraphView({ logs }: { logs: DailyLog[] }) {
             <div>
               <p style={{ margin: '0 0 0.25rem', fontSize: '0.7rem', color: 'var(--text-faint)' }}>↓ 파생 업무 ({childLogs.length})</p>
               {childLogs.slice(0, 3).map(c => (
-                <p key={c.id} style={{ margin: '0 0 0.2rem', fontSize: '0.75rem', color: 'var(--text-muted)', paddingLeft: '0.5rem', borderLeft: 'var(--border-w-2) solid var(--color-border)', wordBreak: 'break-word' }}>
+                <p key={c.id} style={{ margin: '0 0 0.2rem', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', paddingLeft: 'var(--space-2)', borderLeft: 'var(--border-w-2) solid var(--color-border)', wordBreak: 'break-word' }}>
                   {c.content.slice(0, 50)}{c.content.length > 50 ? '…' : ''}
                 </p>
               ))}

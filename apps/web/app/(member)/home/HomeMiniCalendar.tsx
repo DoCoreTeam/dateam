@@ -31,14 +31,14 @@ export default function HomeMiniCalendar({ year, month, todayStr, monthSummary }
   })
 
   return (
-    <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
+    <div className="card" style={{ padding: 'var(--space-5) var(--space-6)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <h3 className="tape-title" style={{ margin: 0 }}>
           {monthLabel}
         </h3>
         <a
           href="/calendar"
-          style={{ fontSize: '0.75rem', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600 }}
+          style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600 }}
         >
           전체 보기 →
         </a>
@@ -50,7 +50,7 @@ export default function HomeMiniCalendar({ year, month, todayStr, monthSummary }
           <div
             key={d}
             style={{
-              textAlign: 'center', fontSize: '0.6875rem', fontWeight: 600,
+              textAlign: 'center', fontSize: 'var(--fs-2xs)', fontWeight: 600,
               color: i === 0 ? 'var(--danger)' : i === 6 ? 'var(--info)' : 'var(--text-faint)',
               padding: '0.2rem 0',
             }}
@@ -77,14 +77,14 @@ export default function HomeMiniCalendar({ year, month, todayStr, monthSummary }
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
                 justifyContent: 'center', gap: '2px',
-                padding: '0.25rem 0',
+                padding: 'var(--space-1) var(--space-0)',
                 borderRadius: 'var(--radius)', border: 'none',
                 background: isToday ? 'var(--brand)' : 'transparent',
                 cursor: 'pointer', minHeight: 32,
               }}
             >
               <span style={{
-                fontSize: '0.8125rem',
+                fontSize: 'var(--fs-sm)',
                 fontWeight: isToday ? 700 : 400,
                 color: isToday ? '#ffffff' : dow === 0 ? 'var(--danger)' : dow === 6 ? 'var(--info)' : 'var(--text)',
               }}>

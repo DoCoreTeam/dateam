@@ -61,14 +61,14 @@ export default function ActivityLogger({ dealId }: Props) {
   }
 
   return (
-    <div style={{ padding: '1rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
+    <div style={{ padding: 'var(--space-4) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
       {!open ? (
-        <button onClick={() => setOpen(true)} className="btn-primary" style={{ fontSize: '0.8125rem', padding: '0.5rem 1rem', minHeight: '36px' }}>
+        <button onClick={() => setOpen(true)} className="btn-primary" style={{ fontSize: 'var(--fs-sm)', padding: 'var(--space-2) var(--space-4)', minHeight: '36px' }}>
           + 활동 기록
         </button>
       ) : (
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
             {TYPES.map((t) => (
               <button
                 key={t.value}
@@ -77,7 +77,7 @@ export default function ActivityLogger({ dealId }: Props) {
                 style={{
                   padding: '0.375rem 0.75rem',
                   borderRadius: '9999px',
-                  fontSize: '0.8125rem',
+                  fontSize: 'var(--fs-sm)',
                   fontWeight: 600,
                   border: 'var(--hairline) solid',
                   cursor: 'pointer',
@@ -96,17 +96,17 @@ export default function ActivityLogger({ dealId }: Props) {
             onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.currentTarget.form?.requestSubmit() } }}
             rows={3}
             placeholder="활동 내용을 입력하세요... (Ctrl+Enter 저장)"
-            style={{ width: '100%', padding: '0.625rem 0.75rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '0.625rem 0.75rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', resize: 'vertical', boxSizing: 'border-box' }}
           />
-          {error && <p style={{ color: 'var(--danger)', fontSize: '0.8125rem', margin: 0 }}>{error}</p>}
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button type="submit" disabled={loading} className="btn-primary" style={{ fontSize: '0.8125rem', padding: '0.5rem 1rem', minHeight: '36px' }}>
+          {error && <p style={{ color: 'var(--danger)', fontSize: 'var(--fs-sm)', margin: 0 }}>{error}</p>}
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+            <button type="submit" disabled={loading} className="btn-primary" style={{ fontSize: 'var(--fs-sm)', padding: 'var(--space-2) var(--space-4)', minHeight: '36px' }}>
               {loading ? '저장중...' : '저장'}{!loading && <span style={{ fontSize: '0.65rem', opacity: 0.65, marginLeft: '0.3rem' }}>Ctrl+↵</span>}
             </button>
-            <button type="button" onClick={handleAiParse} disabled={aiLoading} style={{ fontSize: '0.8125rem', padding: '0.5rem 0.875rem', minHeight: '36px', background: 'var(--info-bg)', color: 'var(--info)', border: 'var(--hairline) solid var(--info-border)', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600 }}>
+            <button type="button" onClick={handleAiParse} disabled={aiLoading} style={{ fontSize: 'var(--fs-sm)', padding: '0.5rem 0.875rem', minHeight: '36px', background: 'var(--info-bg)', color: 'var(--info)', border: 'var(--hairline) solid var(--info-border)', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600 }}>
               {aiLoading ? 'AI분석중...' : '🤖 AI정리'}
             </button>
-            <button type="button" onClick={() => { setOpen(false); setContent(''); setError('') }} style={{ fontSize: '0.8125rem', padding: '0.5rem 0.875rem', minHeight: '36px', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', color: 'var(--text-muted)' }}>
+            <button type="button" onClick={() => { setOpen(false); setContent(''); setError('') }} style={{ fontSize: 'var(--fs-sm)', padding: '0.5rem 0.875rem', minHeight: '36px', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', color: 'var(--text-muted)' }}>
               취소
             </button>
           </div>

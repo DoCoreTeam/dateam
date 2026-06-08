@@ -193,12 +193,12 @@ function CompanyCard(props: CardProps) {
   const c = TYPE_COLORS.company
   return (
     <DragDropWrapper node={node} activeId={props.activeId}>
-      <div style={{ padding: '0.75rem 1rem 0.75rem 1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div style={{ padding: 'var(--space-3) var(--space-4) var(--space-3) var(--space-6)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <Building2 size={16} color={c.badge} />
           <span style={{ fontSize: '0.95rem', fontWeight: 800, color: c.text }}>{node.name}</span>
         </div>
-        {node.subtitle && <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)' }}>{node.subtitle}</p>}
+        {node.subtitle && <p style={{ margin: '0.25rem 0 0', fontSize: 'var(--fs-xs)', color: 'rgba(255,255,255,0.7)' }}>{node.subtitle}</p>}
         <ActionBar {...props} />
       </div>
     </DragDropWrapper>
@@ -271,7 +271,7 @@ function RoleCard(props: CardProps) {
   return (
     <DragDropWrapper node={node} activeId={props.activeId}>
       <div style={{ padding: pad }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <Crown size={scale > 0 ? 12 : 14} color={c.badge} />
           <span style={{ fontSize, fontWeight: 700, color: c.text }}>{node.name}</span>
         </div>
@@ -310,7 +310,7 @@ function DeptCard(props: CardProps) {
   return (
     <DragDropWrapper node={node} activeId={props.activeId}>
       <div style={{ padding: pad }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <Users size={iconSize} color={c.badge} />
           <span style={{ fontSize, fontWeight: 700, color: c.text, flex: 1 }}>{node.name}</span>
         </div>

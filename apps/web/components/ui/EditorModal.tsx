@@ -37,7 +37,7 @@ export default function EditorModal({ title, value, placeholder, onClose, onChan
         position: 'fixed', inset: 0, zIndex: 9999,
         backgroundColor: 'rgba(15, 23, 42, 0.5)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '1.5rem',
+        padding: 'var(--space-6)',
       }}
     >
       <div
@@ -51,18 +51,18 @@ export default function EditorModal({ title, value, placeholder, onClose, onChan
         }}
       >
         {/* 헤더 */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
-          <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text)' }}>{title}</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-4) var(--space-5)', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
+          <span style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text)' }}>{title}</span>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: '0.25rem', display: 'flex', borderRadius: 'var(--radius)' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 'var(--space-1)', display: 'flex', borderRadius: 'var(--radius)' }}
           >
             <X size={18} />
           </button>
         </div>
 
         {/* 에디터 영역 */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.25rem' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-4) var(--space-5)' }}>
           <TiptapEditor
             value={value}
             onChange={onChange}

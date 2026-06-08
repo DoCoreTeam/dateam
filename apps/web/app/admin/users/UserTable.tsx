@@ -80,7 +80,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
             onChange={e => setSearch(e.target.value)}
             placeholder="이름 · 이메일 · 직급 검색"
             className="input-field"
-            style={{ paddingLeft: '2rem', fontSize: '0.8125rem', height: '2rem' }}
+            style={{ paddingLeft: 'var(--space-8)', fontSize: 'var(--fs-sm)', height: '2rem' }}
           />
         </div>
         <div style={{ display: 'flex', gap: '0.375rem' }}>
@@ -89,7 +89,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
               key={r}
               onClick={() => setRoleFilter(r)}
               style={{
-                padding: '0.25rem 0.75rem', fontSize: '0.8rem', borderRadius: '999px', cursor: 'pointer',
+                padding: 'var(--space-1) var(--space-3)', fontSize: '0.8rem', borderRadius: '999px', cursor: 'pointer',
                 border: roleFilter === r ? 'var(--hairline) solid var(--brand)' : 'var(--border-w-2) solid var(--border-color)',
                 background: roleFilter === r ? 'var(--brand-soft)' : '#fff',
                 color: roleFilter === r ? 'var(--brand-dark)' : 'var(--text-muted)',
@@ -107,24 +107,24 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
         <thead>
           <tr>
             <th onClick={() => toggleSort('name')} style={thStyle}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
                 이름 <SortIcon col="name" sortKey={sortKey} sortDir={sortDir} />
               </span>
             </th>
             <th onClick={() => toggleSort('rank')} style={thStyle}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
                 직급 <SortIcon col="rank" sortKey={sortKey} sortDir={sortDir} />
               </span>
             </th>
             <th>직책</th>
             <th onClick={() => toggleSort('role')} style={thStyle}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
                 역할 <SortIcon col="role" sortKey={sortKey} sortDir={sortDir} />
               </span>
             </th>
             <th>초기PW변경</th>
             <th onClick={() => toggleSort('created_at')} style={thStyle}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
                 가입일 <SortIcon col="created_at" sortKey={sortKey} sortDir={sortDir} />
               </span>
             </th>
@@ -137,7 +137,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
         <tbody>
           {filtered.length === 0 ? (
             <tr>
-              <td colSpan={10} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-faint)', fontSize: '0.875rem' }}>
+              <td colSpan={10} style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>
                 검색 결과가 없습니다
               </td>
             </tr>
@@ -153,23 +153,23 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
                         ? 'linear-gradient(135deg, var(--danger), var(--danger))'
                         : 'linear-gradient(135deg, var(--brand), var(--brand))',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '0.75rem', fontWeight: 600, color: 'white', flexShrink: 0,
+                      fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'white', flexShrink: 0,
                     }}>
                       {profile.name?.charAt(0)?.toUpperCase() ?? '?'}
                     </div>
                     <div>
                       <div style={{ fontWeight: 500 }}>{profile.name || '-'}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>{email}</div>
+                      <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>{email}</div>
                     </div>
                   </div>
                 </td>
                 <td data-label="직급">
-                  <span style={{ fontSize: '0.875rem', color: profile.rank ? 'var(--text)' : 'var(--text-faint)' }}>
+                  <span style={{ fontSize: 'var(--fs-base)', color: profile.rank ? 'var(--text)' : 'var(--text-faint)' }}>
                     {profile.rank || '—'}
                   </span>
                 </td>
                 <td data-label="직책">
-                  <span style={{ fontSize: '0.875rem', color: profile.position ? 'var(--text)' : 'var(--text-faint)' }}>
+                  <span style={{ fontSize: 'var(--fs-base)', color: profile.position ? 'var(--text)' : 'var(--text-faint)' }}>
                     {profile.position || '—'}
                   </span>
                 </td>
@@ -181,14 +181,14 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
                 </td>
                 <td data-label="초기PW">
                   <span style={{
-                    fontSize: '0.75rem', fontWeight: 600,
+                    fontSize: 'var(--fs-xs)', fontWeight: 600,
                     color: profile.must_change_password ? 'var(--warning)' : 'var(--success)',
                   }}>
                     {profile.must_change_password ? '대기중' : '완료'}
                   </span>
                 </td>
                 <td data-label="가입일">
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>
                     {new Date(profile.created_at).toLocaleDateString('ko-KR')}
                   </span>
                 </td>
@@ -196,7 +196,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
                   <button
                     onClick={() => setEditTarget(profile)}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: '0.25rem',
+                      display: 'flex', alignItems: 'center', gap: 'var(--space-1)',
                       padding: '0.3rem 0.6rem', background: 'var(--surface-muted)', color: 'var(--text-muted)',
                       border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius-lg)',
                       fontSize: '0.8rem', cursor: 'pointer',

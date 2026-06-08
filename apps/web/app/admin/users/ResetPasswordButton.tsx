@@ -30,11 +30,11 @@ export default function ResetPasswordButton({ userId, userEmail, userName }: Pro
   }
 
   if (done) {
-    return <span style={{ fontSize: '0.6875rem', color: 'var(--success)', fontWeight: 600 }}>초기화 완료</span>
+    return <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--success)', fontWeight: 600 }}>초기화 완료</span>
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
       <button
         onClick={handleReset}
         disabled={loading}
@@ -42,7 +42,7 @@ export default function ResetPasswordButton({ userId, userEmail, userName }: Pro
           display: 'flex',
           alignItems: 'center',
           gap: '0.3rem',
-          fontSize: '0.75rem',
+          fontSize: 'var(--fs-xs)',
           color: 'var(--warning)',
           background: 'var(--warning-bg)',
           border: 'var(--hairline) solid var(--warning-border)',
@@ -56,7 +56,7 @@ export default function ResetPasswordButton({ userId, userEmail, userName }: Pro
         <RefreshCw size={11} />
         {loading ? '처리중...' : 'PW초기화'}
       </button>
-      {error && <span style={{ fontSize: '0.6875rem', color: 'var(--danger)' }}>{error}</span>}
+      {error && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--danger)' }}>{error}</span>}
     </div>
   )
 }

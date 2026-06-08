@@ -85,14 +85,14 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
     router.refresh()
   }
 
-  const inputStyle = { width: '100%', padding: '0.5rem 0.75rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', boxSizing: 'border-box' as const }
+  const inputStyle = { width: '100%', padding: 'var(--space-2) var(--space-3)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', boxSizing: 'border-box' as const }
 
   return (
-    <div className="card" style={{ padding: '1.5rem', maxWidth: '640px' }}>
+    <div className="card" style={{ padding: 'var(--space-6)', maxWidth: '640px' }}>
       <form
         onSubmit={handleSubmit}
         onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.currentTarget.requestSubmit() } }}
-        style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+        style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}
       >
         <div>
           <label className="label">제목 *</label>
@@ -112,7 +112,7 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
             {filteredContacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
-        <div className="responsive-grid-cols-2" style={{ gap: '0.75rem' }}>
+        <div className="responsive-grid-cols-2" style={{ gap: 'var(--space-3)' }}>
           <div>
             <label className="label">단계</label>
             <select className="input-field" value={form.stage} onChange={(e) => set('stage', e.target.value)} style={inputStyle}>
@@ -171,7 +171,7 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
           <label className="label">설명</label>
           <textarea className="input-field" value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
         </div>
-        <div className="responsive-grid-cols-2" style={{ gap: '0.75rem' }}>
+        <div className="responsive-grid-cols-2" style={{ gap: 'var(--space-3)' }}>
           <div>
             <label className="label">다음 액션</label>
             <input className="input-field" value={form.next_action} onChange={(e) => set('next_action', e.target.value)} placeholder="이메일 발송, 미팅 조율..." style={inputStyle} />
@@ -200,12 +200,12 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
           <label className="label">태그 (쉼표 구분)</label>
           <input className="input-field" value={form.tags} onChange={(e) => set('tags', e.target.value)} style={inputStyle} />
         </div>
-        {error && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        {error && <p style={{ color: 'var(--danger)', fontSize: 'var(--fs-base)', margin: 0 }}>{error}</p>}
+        <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
           <button type="submit" disabled={loading} className="btn-primary" style={{ minHeight: '44px', padding: '0.625rem 1.5rem' }}>
             {loading ? '저장중...' : deal ? '수정' : '등록'}{!loading && <span style={{ fontSize: '0.7rem', opacity: 0.65, marginLeft: '0.375rem' }}>Ctrl+↵</span>}
           </button>
-          <button type="button" onClick={() => router.back()} style={{ minHeight: '44px', padding: '0.625rem 1.25rem', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+          <button type="button" onClick={() => router.back()} style={{ minHeight: '44px', padding: '0.625rem 1.25rem', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 'var(--fs-base)', color: 'var(--text-muted)' }}>
             취소
           </button>
         </div>

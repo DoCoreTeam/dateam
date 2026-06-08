@@ -55,7 +55,7 @@ export default async function LeadIntakePage({ searchParams }: PageProps) {
   return (
     <div>
       <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
+        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
           {targetLabel(target)} 인테이크
         </h1>
         <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
@@ -65,11 +65,11 @@ export default async function LeadIntakePage({ searchParams }: PageProps) {
 
       {/* 인테이크 폼 */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <Inbox size={16} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>새 리드 입력</h2>
         </div>
-        <div style={{ padding: '1.5rem' }}>
+        <div style={{ padding: 'var(--space-6)' }}>
           <LeadIntakeForm brandName={brandName} />
         </div>
       </div>
@@ -77,7 +77,7 @@ export default async function LeadIntakePage({ searchParams }: PageProps) {
       {/* 인테이크 히스토리 */}
       {list.length > 0 && (
         <div className="card">
-          <div style={{ padding: '1.25rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
+          <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
             <h2 className="tape-title" style={{ margin: 0 }}>최근 인테이크</h2>
           </div>
           <table className="table-base table-card">
@@ -104,30 +104,30 @@ export default async function LeadIntakePage({ searchParams }: PageProps) {
                 return (
                   <tr key={intake.id}>
                     <td className="card-header">
-                      <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: 'var(--space-2)' }}>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayTitle}</div>
+                          <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 'var(--fs-base)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayTitle}</div>
                           {displaySub && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginTop: '0.125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displaySub}</div>
+                            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', marginTop: '0.125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displaySub}</div>
                           )}
                         </div>
                       </div>
                     </td>
                     <td data-label="출처">
-                      <span className="badge badge-slate" style={{ fontSize: '0.75rem' }}>{sourceLabel(intake.source)}</span>
+                      <span className="badge badge-slate" style={{ fontSize: 'var(--fs-xs)' }}>{sourceLabel(intake.source)}</span>
                     </td>
                     <td data-label="상태">
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '9999px', color: sb.color, background: sb.bg }}>{sb.label}</span>
+                      <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '9999px', color: sb.color, background: sb.bg }}>{sb.label}</span>
                     </td>
                     <td data-label="Fit">
                       {intake.fit_score !== null ? (
-                        <span style={{ fontSize: '0.875rem', fontWeight: 700, color: intake.fit_score >= 70 ? 'var(--success)' : intake.fit_score >= 40 ? 'var(--warning)' : 'var(--danger)' }}>
+                        <span style={{ fontSize: 'var(--fs-base)', fontWeight: 700, color: intake.fit_score >= 70 ? 'var(--success)' : intake.fit_score >= 40 ? 'var(--warning)' : 'var(--danger)' }}>
                           {intake.fit_score}점
                         </span>
                       ) : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
                     </td>
                     <td data-label="일시">
-                      <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                      <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
                         {new Date(intake.created_at).toLocaleDateString('ko-KR')}
                       </span>
                     </td>

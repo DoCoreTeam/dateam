@@ -74,7 +74,7 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
       }}>
         {/* Header */}
         <div style={{
-          padding: '1.25rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)',
+          padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)',
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
           background: 'linear-gradient(to right, var(--brand-soft), var(--brand-soft))',
         }}>
@@ -82,7 +82,7 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
             <h2 className="tape-title" style={{ margin: 0 }}>
               ✨ AI로 다듬기 결과 확인
             </h2>
-            <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+            <p style={{ margin: '0.25rem 0 0', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
               변경된 {localItems.length}개 항목을 확인하고 적용할 내용을 선택하세요
             </p>
           </div>
@@ -96,9 +96,9 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
         </div>
 
         {/* Body */}
-        <div style={{ overflowY: 'auto', flex: 1, padding: '1rem 1.5rem' }}>
+        <div style={{ overflowY: 'auto', flex: 1, padding: 'var(--space-4) var(--space-6)' }}>
           {localItems.length === 0 ? (
-            <p style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '2rem 0', fontSize: '0.875rem' }}>
+            <p style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-8) var(--space-0)', fontSize: 'var(--fs-base)' }}>
               변경된 항목이 없습니다
             </p>
           ) : (
@@ -121,8 +121,8 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
                   borderBottom: 'var(--border-w-2) solid var(--border-color)',
                   background: item.accepted ? 'var(--brand-soft)' : 'var(--surface-muted)',
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text)' }}>{item.category}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                    <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text)' }}>{item.category}</span>
                     <span style={{
                       fontSize: '0.7rem', padding: '0.1rem 0.4rem',
                       background: 'var(--brand-soft-2)', color: 'var(--brand-dark)', borderRadius: '999px', fontWeight: 600,
@@ -138,7 +138,7 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
                       background: item.accepted ? 'var(--brand)' : 'var(--color-border)',
                       color: item.accepted ? '#fff' : 'var(--text-muted)',
                       border: 'none', borderRadius: '999px', cursor: 'pointer',
-                      fontSize: '0.75rem', fontWeight: 600, transition: 'all 150ms',
+                      fontSize: 'var(--fs-xs)', fontWeight: 600, transition: 'all 150ms',
                     }}
                   >
                     {item.accepted ? '✓ 적용' : '○ 유지'}
@@ -148,13 +148,13 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
                 {/* Diff columns */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
                   <div style={{ padding: '0.75rem 0.875rem', borderRight: 'var(--border-w-2) solid var(--border-color)' }}>
-                    <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--text-faint)', marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <div style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--text-faint)', marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       원본
                     </div>
                     <RichPreview html={item.original} />
                   </div>
                   <div style={{ padding: '0.75rem 0.875rem', background: item.accepted ? 'var(--brand-soft)' : 'transparent' }}>
-                    <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: item.accepted ? 'var(--brand)' : 'var(--text-faint)', marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <div style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: item.accepted ? 'var(--brand)' : 'var(--text-faint)', marginBottom: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       다듬어진 내용
                     </div>
                     <RichPreview html={item.refined} />
@@ -168,35 +168,35 @@ export default function DiffConfirmModal({ items, onConfirm, onCancel }: DiffCon
         {/* Footer */}
         <div style={{
           padding: '0.875rem 1.5rem', borderTop: 'var(--border-w-2) solid var(--border-color)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)',
           background: 'var(--color-bg)',
         }}>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             <button
               onClick={acceptAll}
-              style={{ padding: '0.375rem 0.75rem', fontSize: '0.8125rem', color: 'var(--brand)', background: 'var(--brand-soft-2)', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600 }}
+              style={{ padding: '0.375rem 0.75rem', fontSize: 'var(--fs-sm)', color: 'var(--brand)', background: 'var(--brand-soft-2)', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600 }}
             >
               전체 수락
             </button>
             <button
               onClick={rejectAll}
-              style={{ padding: '0.375rem 0.75rem', fontSize: '0.8125rem', color: 'var(--text-muted)', background: 'var(--surface-muted)', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600 }}
+              style={{ padding: '0.375rem 0.75rem', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', background: 'var(--surface-muted)', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600 }}
             >
               전체 거절
             </button>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>{acceptedCount}/{localItems.length} 적용</span>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>{acceptedCount}/{localItems.length} 적용</span>
             <button
               onClick={onCancel}
-              style={{ padding: '0.375rem 0.75rem', fontSize: '0.8125rem', color: 'var(--text-muted)', background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer' }}
+              style={{ padding: '0.375rem 0.75rem', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer' }}
             >
               취소
             </button>
             <button
               onClick={() => onConfirm(localItems)}
               style={{
-                padding: '0.375rem 1rem', fontSize: '0.8125rem', fontWeight: 600,
+                padding: '0.375rem 1rem', fontSize: 'var(--fs-sm)', fontWeight: 600,
                 color: '#fff',
                 background: acceptedCount > 0 ? 'var(--brand)' : 'var(--border-subtle)',
                 border: 'none', borderRadius: 'var(--radius)',

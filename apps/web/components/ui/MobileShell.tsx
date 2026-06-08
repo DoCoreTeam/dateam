@@ -104,7 +104,7 @@ export default function MobileShell({
       >
         {/* 브랜드 */}
         <div style={{
-          padding: '1.25rem',
+          padding: 'var(--space-5)',
           borderBottom: 'var(--border-w-2) solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
@@ -121,7 +121,7 @@ export default function MobileShell({
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                 />
               ) : (
-                <span className="font-tape" style={{ color: 'var(--sidebar-fg)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0', lineHeight: 1 }}>
+                <span className="font-tape" style={{ color: 'var(--sidebar-fg)', fontSize: 'var(--fs-2xl)', fontWeight: 700, letterSpacing: '0', lineHeight: 1 }}>
                   {brandName}
                 </span>
               )}
@@ -138,7 +138,7 @@ export default function MobileShell({
             style={{
               background: 'transparent', border: 'none',
               color: 'var(--sidebar-fg)', cursor: 'pointer',
-              alignItems: 'center', padding: '0.25rem',
+              alignItems: 'center', padding: 'var(--space-1)',
             }}
           >
             <X size={20} />
@@ -146,7 +146,7 @@ export default function MobileShell({
         </div>
 
         {/* 네비게이션 */}
-        <nav style={{ flex: 1, padding: '0.75rem', overflowY: 'auto' }} aria-label="주 메뉴">
+        <nav style={{ flex: 1, padding: 'var(--space-3)', overflowY: 'auto' }} aria-label="주 메뉴">
           {/* 기본 아이템 */}
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
             {items.map((item, idx) => {
@@ -165,9 +165,9 @@ export default function MobileShell({
                       display: 'flex',
                       alignItems: 'center',
                       gap: '0.625rem',
-                      padding: '0.5rem 0.75rem',
+                      padding: 'var(--space-2) var(--space-3)',
                       borderRadius: 'var(--radius)',
-                      fontSize: '0.875rem',
+                      fontSize: 'var(--fs-base)',
                       fontWeight: isActive || isHighlight ? 700 : 500,
                       textDecoration: 'none',
                       transition: 'opacity 120ms, transform 120ms, border-color 120ms',
@@ -223,7 +223,7 @@ export default function MobileShell({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     width: '100%',
-                    padding: '0.25rem 0.5rem',
+                    padding: 'var(--space-1) var(--space-2)',
                     margin: '0 0 0.375rem',
                     background: 'transparent',
                     border: 'none',
@@ -253,9 +253,9 @@ export default function MobileShell({
                               display: 'flex',
                               alignItems: 'center',
                               gap: '0.625rem',
-                              padding: '0.5rem 0.75rem',
+                              padding: 'var(--space-2) var(--space-3)',
                               borderRadius: 'var(--radius)',
-                              fontSize: '0.875rem',
+                              fontSize: 'var(--fs-base)',
                               fontWeight: isActive ? 700 : 500,
                               textDecoration: 'none',
                               transition: 'background-color 120ms, color 120ms, border-color 120ms',
@@ -283,14 +283,14 @@ export default function MobileShell({
 
         {/* 모바일 전용 어드민/멤버 전환 */}
         {adminHref && (
-          <div className="mobile-only" style={{ padding: '0.5rem 0.75rem', borderTop: 'var(--border-w-2) solid var(--border-color)' }}>
+          <div className="mobile-only" style={{ padding: 'var(--space-2) var(--space-3)', borderTop: 'var(--border-w-2) solid var(--border-color)' }}>
             <Link
               href={adminHref}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 padding: '0.625rem 1rem',
                 borderRadius: 'var(--radius)',
-                fontSize: '0.8125rem', fontWeight: 700,
+                fontSize: 'var(--fs-sm)', fontWeight: 700,
                 textDecoration: 'none',
                 backgroundColor: 'var(--nb-white)',
                 border: 'var(--border-w-2) solid var(--border-color)',
@@ -306,7 +306,7 @@ export default function MobileShell({
 
         {/* 푸터 */}
         {footer && (
-          <div style={{ padding: '0.75rem', borderTop: 'var(--border-w-2) solid var(--border-color)' }}>
+          <div style={{ padding: 'var(--space-3)', borderTop: 'var(--border-w-2) solid var(--border-color)' }}>
             {footer}
           </div>
         )}
@@ -323,9 +323,9 @@ export default function MobileShell({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 1.5rem',
+          padding: 'var(--space-0) var(--space-6)',
           flexShrink: 0,
-          gap: '0.75rem',
+          gap: 'var(--space-3)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', minWidth: 0 }}>
             {/* 모바일 햄버거 */}
@@ -346,7 +346,7 @@ export default function MobileShell({
             )}
           </div>
           {headerRight && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexShrink: 0 }}>
               {headerRight}
             </div>
           )}

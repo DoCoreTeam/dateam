@@ -75,8 +75,8 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.625rem',
-                  padding: '0.75rem 1rem',
-                  fontSize: '0.8125rem',
+                  padding: 'var(--space-3) var(--space-4)',
+                  fontSize: 'var(--fs-sm)',
                   color: 'var(--sidebar-fg)',
                   textDecoration: 'none',
                   transition: 'background 120ms',
@@ -97,8 +97,8 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
               display: 'flex',
               alignItems: 'center',
               gap: '0.625rem',
-              padding: '0.75rem 1rem',
-              fontSize: '0.8125rem',
+              padding: 'var(--space-3) var(--space-4)',
+              fontSize: 'var(--fs-sm)',
               color: 'var(--sidebar-fg)',
               textDecoration: 'none',
               transition: 'background 120ms',
@@ -116,8 +116,8 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
               display: 'flex',
               alignItems: 'center',
               gap: '0.625rem',
-              padding: '0.75rem 1rem',
-              fontSize: '0.8125rem',
+              padding: 'var(--space-3) var(--space-4)',
+              fontSize: 'var(--fs-sm)',
               color: 'var(--sidebar-fg)',
               textDecoration: 'none',
               transition: 'background 120ms',
@@ -136,8 +136,8 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
               alignItems: 'center',
               gap: '0.625rem',
               width: '100%',
-              padding: '0.75rem 1rem',
-              fontSize: '0.8125rem',
+              padding: 'var(--space-3) var(--space-4)',
+              fontSize: 'var(--fs-sm)',
               color: 'var(--danger)',
               background: 'none',
               border: 'none',
@@ -184,7 +184,7 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
-            fontSize: '0.8125rem',
+            fontSize: 'var(--fs-sm)',
             fontWeight: 700,
             color: 'white',
           }}
@@ -196,7 +196,7 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
         <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
           <div
             style={{
-              fontSize: '0.8125rem',
+              fontSize: 'var(--fs-sm)',
               fontWeight: 700,
               color: 'var(--sidebar-fg)',
               overflow: 'hidden',
@@ -208,7 +208,7 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
           </div>
           <div
             style={{
-              fontSize: '0.6875rem',
+              fontSize: 'var(--fs-2xs)',
               color: 'var(--color-text-muted)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',

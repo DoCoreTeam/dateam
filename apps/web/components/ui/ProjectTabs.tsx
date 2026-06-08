@@ -23,7 +23,7 @@ export default function ProjectTabs() {
             href={t.href}
             style={{
               padding: '0.625rem 1.25rem',
-              fontSize: '0.875rem',
+              fontSize: 'var(--fs-base)',
               fontWeight: active ? 600 : 400,
               color: active ? 'var(--brand-dark)' : 'var(--text-muted)',
               borderBottom: active ? 'var(--border-w-2) solid var(--brand-dark)' : 'var(--border-w-2) solid transparent',

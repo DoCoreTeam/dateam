@@ -45,7 +45,7 @@ const BTN: React.CSSProperties = {
   borderRadius: 'var(--radius)',
   background: 'transparent',
   cursor: 'pointer',
-  fontSize: '0.8125rem',
+  fontSize: 'var(--fs-sm)',
   color: 'var(--text-muted)',
   lineHeight: 1,
   display: 'inline-flex',
@@ -199,11 +199,11 @@ export default function TiptapEditor({
             style={{ ...BTN, flexDirection: 'column', gap: '1px', padding: '0.25rem 0.4rem' }}
             title="글자 색상"
           >
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: currentColor || 'var(--text)', lineHeight: 1 }}>A</span>
+            <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: currentColor || 'var(--text)', lineHeight: 1 }}>A</span>
             <span style={{ width: '14px', height: '3px', borderRadius: '1px', background: currentColor || 'var(--text)', display: 'block' }} />
           </button>
           {colorOpen && (
-            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100, background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem', display: 'flex', gap: '0.375rem', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100, background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-2)', display: 'flex', gap: '0.375rem', boxShadow: 'var(--shadow-sm)' }}>
               {TEXT_COLORS.map((c) => (
                 <button
                   key={c.value}
@@ -240,7 +240,7 @@ export default function TiptapEditor({
             </svg>
           </button>
           {highlightOpen && (
-            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100, background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem', display: 'flex', gap: '0.375rem', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100, background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-2)', display: 'flex', gap: '0.375rem', boxShadow: 'var(--shadow-sm)' }}>
               {HIGHLIGHT_COLORS.map((c) => (
                 <button
                   key={c.value}
@@ -270,13 +270,13 @@ export default function TiptapEditor({
 
         {/* 제목 */}
         <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} style={editor.isActive('heading', { level: 1 }) ? BTN_ACTIVE : BTN} title="제목 1">
-          <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>H1</span>
+          <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 700 }}>H1</span>
         </button>
         <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} style={editor.isActive('heading', { level: 2 }) ? BTN_ACTIVE : BTN} title="제목 2">
-          <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>H2</span>
+          <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 700 }}>H2</span>
         </button>
         <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} style={editor.isActive('heading', { level: 3 }) ? BTN_ACTIVE : BTN} title="제목 3">
-          <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>H3</span>
+          <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 700 }}>H3</span>
         </button>
 
         {DIVIDER}
@@ -328,7 +328,7 @@ export default function TiptapEditor({
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M6.5 9.5a3.5 3.5 0 0 0 5 0l2-2a3.5 3.5 0 0 0-5-5L7 4"/><path d="M9.5 6.5a3.5 3.5 0 0 0-5 0l-2 2a3.5 3.5 0 0 0 5 5l1.5-1.5"/></svg>
           </button>
           {linkOpen && (
-            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100, background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem', display: 'flex', gap: '0.375rem', boxShadow: 'var(--shadow-sm)', minWidth: '240px' }}>
+            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100, background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-2)', display: 'flex', gap: '0.375rem', boxShadow: 'var(--shadow-sm)', minWidth: '240px' }}>
               <input
                 type="text"
                 value={linkUrl}
@@ -336,7 +336,7 @@ export default function TiptapEditor({
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSetLink() } }}
                 placeholder="URL 입력 (Enter)"
                 autoFocus
-                style={{ flex: 1, fontSize: '0.8125rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.375rem 0.5rem', outline: 'none', fontFamily: 'inherit' }}
+                style={{ flex: 1, fontSize: 'var(--fs-sm)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.375rem 0.5rem', outline: 'none', fontFamily: 'inherit' }}
               />
               <button type="button" onClick={handleSetLink} style={{ ...BTN, background: 'var(--brand)', color: '#fff', border: 'none', padding: '0.375rem 0.625rem', borderRadius: 'var(--radius)' }}>
                 확인

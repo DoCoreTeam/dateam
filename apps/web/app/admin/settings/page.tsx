@@ -63,10 +63,10 @@ export default async function AdminSettingsPage({
   const maskedDbUrl = storedDbUrl ? storedDbUrl.replace(/(postgres(?:ql)?:\/\/[^:]+:)([^@]+)(@)/i, (_m, a, _pw, c) => `${a}••••••••${c}`) : null
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
       {driveParam === 'connected' && <DriveConnectedBanner />}
       <div>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
+        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
           시스템 설정
         </h1>
         <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
@@ -76,7 +76,7 @@ export default async function AdminSettingsPage({
 
       {/* 브랜딩 설정 */}
       <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
           <Palette size={15} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>브랜딩 설정</h2>
         </div>
@@ -85,16 +85,16 @@ export default async function AdminSettingsPage({
 
       {/* 디자인 테마 */}
       <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
           <Paintbrush size={15} color="var(--brand)" />
-          <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text)', margin: 0 }}>디자인 테마</h2>
+          <h2 style={{ fontSize: 'var(--fs-lg)', fontWeight: 600, color: 'var(--text)', margin: 0 }}>디자인 테마</h2>
         </div>
         <ThemeSettings initialTheme={activeTheme} />
       </section>
 
       {/* API 설정 */}
       <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
           <Key size={15} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>AI 모델 연동</h2>
         </div>
@@ -103,7 +103,7 @@ export default async function AdminSettingsPage({
 
       {/* 한국수출입은행 환율 API */}
       <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
           <Key size={15} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>환율 API 연동</h2>
         </div>
@@ -112,7 +112,7 @@ export default async function AdminSettingsPage({
 
       {/* DB 연결 설정 */}
       <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
           <Database size={15} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>DB 연결</h2>
         </div>
@@ -121,7 +121,7 @@ export default async function AdminSettingsPage({
 
       {/* AI 토큰 알림 설정 */}
       <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
           <Bell size={15} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>AI 토큰 알림</h2>
         </div>
@@ -130,7 +130,7 @@ export default async function AdminSettingsPage({
 
       {/* Google Drive 연동 */}
       <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
           <Cloud size={15} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>Google Drive 연동</h2>
         </div>

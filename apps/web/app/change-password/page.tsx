@@ -48,7 +48,7 @@ export default async function ChangePasswordPage({ searchParams }: PageProps) {
           maxWidth: '420px',
           background: 'white',
           borderRadius: 'var(--radius)',
-          padding: '2.5rem',
+          padding: 'var(--space-10)',
           boxShadow: '0 4px 24px rgb(0 0 0 / 0.08)',
         }}
       >
@@ -71,7 +71,7 @@ export default async function ChangePasswordPage({ searchParams }: PageProps) {
           <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
             비밀번호 변경
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.5rem', lineHeight: 1.6 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-base)', marginTop: '0.5rem', lineHeight: 1.6 }}>
             새 비밀번호를 설정해 주세요.
           </p>
         </div>
@@ -82,9 +82,9 @@ export default async function ChangePasswordPage({ searchParams }: PageProps) {
               backgroundColor: 'var(--danger-bg)',
               border: 'var(--hairline) solid var(--danger-border)',
               borderRadius: 'var(--radius)',
-              padding: '0.75rem 1rem',
+              padding: 'var(--space-3) var(--space-4)',
               marginBottom: '1rem',
-              fontSize: '0.875rem',
+              fontSize: 'var(--fs-base)',
               color: 'var(--danger)',
             }}
           >
@@ -92,7 +92,7 @@ export default async function ChangePasswordPage({ searchParams }: PageProps) {
           </div>
         )}
 
-        <form action={changePassword} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <form action={changePassword} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           {needsName && (
             <div>
               <label htmlFor="name" className="label">
@@ -123,7 +123,7 @@ export default async function ChangePasswordPage({ searchParams }: PageProps) {
                   style={{ width: '100%', boxSizing: 'border-box' }}
                 />
               )}
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginTop: '0.375rem' }}>
+              <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', marginTop: '0.375rem' }}>
                 조직도에 등록된 이름과 일치해야 합니다
               </p>
             </div>

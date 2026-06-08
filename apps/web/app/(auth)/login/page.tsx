@@ -40,7 +40,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           ) : (
             <h1
               style={{
-                fontSize: '1.5rem',
+                fontSize: 'var(--fs-2xl)',
                 fontWeight: 700,
                 color: 'var(--text)',
                 letterSpacing: '-0.02em',
@@ -53,7 +53,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           {branding.tagline && (
             <p
               style={{
-                fontSize: '0.875rem',
+                fontSize: 'var(--fs-base)',
                 color: 'var(--text-muted)',
                 marginTop: '0.375rem',
               }}
@@ -68,14 +68,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           style={{
             backgroundColor: 'white',
             borderRadius: 'var(--radius)',
-            padding: '2rem',
+            padding: 'var(--space-8)',
             boxShadow: '0 4px 24px rgb(0 0 0 / 0.08), 0 1px 3px rgb(0 0 0 / 0.05)',
             border: 'var(--border-w-2) solid var(--border-color)',
           }}
         >
           <h2
             style={{
-              fontSize: '1.125rem',
+              fontSize: 'var(--fs-xl)',
               fontWeight: 600,
               color: 'var(--text)',
               marginBottom: '1.5rem',
@@ -91,13 +91,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.75rem 1rem',
+                gap: 'var(--space-2)',
+                padding: 'var(--space-3) var(--space-4)',
                 backgroundColor: 'var(--danger-bg)',
                 border: 'var(--hairline) solid var(--danger-border)',
                 borderRadius: 'var(--radius)',
                 marginBottom: '1.25rem',
-                fontSize: '0.8125rem',
+                fontSize: 'var(--fs-sm)',
                 color: 'var(--danger)',
               }}
             >
@@ -110,7 +110,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </div>
           )}
 
-          <form action={signIn} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <form action={signIn} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
             <div>
               <label htmlFor="email" className="label">이메일</label>
               <input
@@ -139,7 +139,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <button
               type="submit"
               className="btn-primary"
-              style={{ marginTop: '0.5rem', width: '100%', padding: '0.75rem' }}
+              style={{ marginTop: '0.5rem', width: '100%', padding: 'var(--space-3)' }}
             >
               로그인
             </button>
@@ -150,7 +150,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           style={{
             textAlign: 'center',
             marginTop: '1.5rem',
-            fontSize: '0.8125rem',
+            fontSize: 'var(--fs-sm)',
             color: 'var(--text-faint)',
           }}
         >

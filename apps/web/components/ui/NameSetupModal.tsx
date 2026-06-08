@@ -45,7 +45,7 @@ export default function NameSetupModal() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '1rem',
+        padding: 'var(--space-4)',
       }}
     >
       <div
@@ -54,7 +54,7 @@ export default function NameSetupModal() {
           maxWidth: '380px',
           background: 'white',
           borderRadius: 'var(--radius)',
-          padding: '2.5rem',
+          padding: 'var(--space-10)',
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2)',
         }}
       >
@@ -77,7 +77,7 @@ export default function NameSetupModal() {
           <h2 className="tape-title" style={{ margin: 0 }}>
             본인 확인
           </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0, lineHeight: 1.6 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-base)', margin: 0, lineHeight: 1.6 }}>
             조직도에서 본인 이름을 선택해 주세요.
           </p>
         </div>
@@ -88,9 +88,9 @@ export default function NameSetupModal() {
               backgroundColor: 'var(--danger-bg)',
               border: 'var(--hairline) solid var(--danger-border)',
               borderRadius: 'var(--radius)',
-              padding: '0.75rem 1rem',
+              padding: 'var(--space-3) var(--space-4)',
               marginBottom: '1rem',
-              fontSize: '0.8125rem',
+              fontSize: 'var(--fs-sm)',
               color: 'var(--danger)',
             }}
           >
@@ -98,7 +98,7 @@ export default function NameSetupModal() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <div>
             <label htmlFor="name-select" className="label">본인 이름</label>
             <select

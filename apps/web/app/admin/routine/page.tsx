@@ -96,7 +96,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
       <div style={{ marginBottom: '1.75rem' }}>
         <h1
           style={{
-            fontSize: '1.5rem',
+            fontSize: 'var(--fs-2xl)',
             fontWeight: 700,
             color: 'var(--text)',
             letterSpacing: '-0.03em',
@@ -112,8 +112,8 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
 
       {/* 필터 + 전체 달성률 */}
       <div className="responsive-grid-2" style={{ marginBottom: '1.5rem', alignItems: 'stretch' }}>
-        <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
-          <form style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div className="card" style={{ padding: 'var(--space-5) var(--space-6)' }}>
+          <form style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div>
               <label htmlFor="week" className="label">주차 선택</label>
               <select
@@ -134,8 +134,8 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
           </form>
         </div>
 
-        <div className="card" style={{ padding: '1.25rem 1.5rem', textAlign: 'center', minWidth: '160px' }}>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>전체 달성률</p>
+        <div className="card" style={{ padding: 'var(--space-5) var(--space-6)', textAlign: 'center', minWidth: '160px' }}>
+          <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>전체 달성률</p>
           <p
             style={{
               fontSize: '2rem',
@@ -155,11 +155,11 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
       <div className="card">
         <div
           style={{
-            padding: '1.25rem 1.5rem',
+            padding: 'var(--space-5) var(--space-6)',
             borderBottom: 'var(--border-w-2) solid var(--border-color)',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem',
+            gap: 'var(--space-2)',
           }}
         >
           <CheckSquare size={16} color="var(--brand)" />
@@ -194,7 +194,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
               return (
                 <tr key={profile.id}>
                   <td className="card-header">
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 'var(--space-2)' }}>
                       <div>
                         <div style={{ fontWeight: 600, color: 'var(--text)' }}>{profile.name || '-'}</div>
                         {!template && profile.name && (
@@ -203,7 +203,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
                           </div>
                         )}
                       </div>
-                      <span style={{ fontWeight: 700, fontSize: '1.125rem', color: rate >= 70 ? 'var(--success)' : rate >= 40 ? 'var(--warning)' : 'var(--danger)', flexShrink: 0 }}>
+                      <span style={{ fontWeight: 700, fontSize: 'var(--fs-xl)', color: rate >= 70 ? 'var(--success)' : rate >= 40 ? 'var(--warning)' : 'var(--danger)', flexShrink: 0 }}>
                         {rate}%
                       </span>
                     </div>
@@ -221,7 +221,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
                             style={{
                               backgroundColor: itemRate >= 80 ? 'var(--success-bg)' : itemRate >= 40 ? 'var(--warning-bg)' : 'var(--color-bg)',
                               color: itemRate >= 80 ? 'var(--success)' : itemRate >= 40 ? 'var(--warning)' : 'var(--text-muted)',
-                              fontSize: '0.6875rem',
+                              fontSize: 'var(--fs-2xs)',
                             }}
                             title={item.freq === 'weekly' ? `${itemCount}/1회` : `${itemCount}/7일`}
                           >
@@ -232,7 +232,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
                     </div>
                   </td>
                   <td className="card-hide" style={{ textAlign: 'center' }}>
-                    <span style={{ fontWeight: 700, fontSize: '1rem', color: rate >= 70 ? 'var(--success)' : rate >= 40 ? 'var(--warning)' : 'var(--danger)' }}>
+                    <span style={{ fontWeight: 700, fontSize: 'var(--fs-lg)', color: rate >= 70 ? 'var(--success)' : rate >= 40 ? 'var(--warning)' : 'var(--danger)' }}>
                       {rate}%
                     </span>
                   </td>

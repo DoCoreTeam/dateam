@@ -20,7 +20,7 @@ export default async function NewContactPage({ searchParams }: PageProps) {
   return (
     <div>
       <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
+        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
           {mode === 'manual' ? '담당자 수동 입력' : 'AI로 담당자 추가'}
         </h1>
       </div>
@@ -28,11 +28,11 @@ export default async function NewContactPage({ searchParams }: PageProps) {
         <ContactForm accounts={accounts ?? []} defaultAccountId={account_id} />
       ) : (
         <>
-          <div className="card" style={{ padding: '1.5rem', maxWidth: '760px' }}>
+          <div className="card" style={{ padding: 'var(--space-6)', maxWidth: '760px' }}>
             <LeadIntakeForm />
           </div>
           <div style={{ marginTop: '1rem' }}>
-            <Link href="/contacts/new?mode=manual" style={{ color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none' }}>
+            <Link href="/contacts/new?mode=manual" style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-base)', fontWeight: 600, textDecoration: 'none' }}>
               수동 입력으로 전환
             </Link>
           </div>

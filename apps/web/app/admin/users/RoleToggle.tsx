@@ -24,9 +24,9 @@ export default function RoleToggle({ userId, currentRole, isSelf }: RoleTogglePr
       onClick={handleToggle}
       disabled={isPending || isSelf}
       style={{
-        padding: '0.25rem 0.75rem',
+        padding: 'var(--space-1) var(--space-3)',
         borderRadius: 'var(--radius)',
-        fontSize: '0.75rem',
+        fontSize: 'var(--fs-xs)',
         fontWeight: 500,
         cursor: isSelf ? 'not-allowed' : 'pointer',
         opacity: isSelf || isPending ? 0.5 : 1,

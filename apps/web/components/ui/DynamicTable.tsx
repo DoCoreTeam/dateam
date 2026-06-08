@@ -23,7 +23,7 @@ const INPUT: React.CSSProperties = {
   padding: '0.375rem 0.5rem',
   border: 'var(--border-w-2) solid var(--border-color)',
   borderRadius: 'var(--radius)',
-  fontSize: '0.8125rem',
+  fontSize: 'var(--fs-sm)',
   color: 'var(--text)',
   background: '#fff',
   boxSizing: 'border-box',
@@ -75,7 +75,7 @@ export default function DynamicTable({
       <input type="hidden" name={name} value={JSON.stringify(rows)} />
 
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
           <thead>
             <tr style={{ background: 'var(--color-bg)', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
               <th style={{ width: '32px', padding: '0.4rem' }} />
@@ -107,7 +107,7 @@ export default function DynamicTable({
                   style={{
                     padding: '0.35rem',
                     color: 'var(--text-faint)',
-                    fontSize: '0.75rem',
+                    fontSize: 'var(--fs-xs)',
                     textAlign: 'center',
                   }}
                 >
@@ -177,7 +177,7 @@ export default function DynamicTable({
           borderRadius: 'var(--radius-lg)',
           background: 'var(--brand-soft)',
           color: 'var(--brand)',
-          fontSize: '0.8125rem',
+          fontSize: 'var(--fs-sm)',
           fontWeight: 500,
           cursor: 'pointer',
         }}

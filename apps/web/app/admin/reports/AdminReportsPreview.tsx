@@ -86,7 +86,7 @@ function RichCell({ html }: { html: string }) {
   if (html.startsWith('<'))
     return <div className="report-rich" dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }} />
   return (
-    <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text)', lineHeight: 1.6 }}>
+    <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text)', lineHeight: 1.6 }}>
       {html}
     </p>
   )
@@ -237,16 +237,16 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
       />
 
       {/* Trigger button + inline status */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
         <button
           onClick={handlePreview}
           disabled={loading}
           style={{
-            display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-            padding: '0.5rem 1rem',
+            display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)',
+            padding: 'var(--space-2) var(--space-4)',
             background: loading ? 'var(--brand-dark)' : 'linear-gradient(135deg, var(--brand), var(--brand))',
             color: '#fff', border: 'none', borderRadius: 'var(--radius)',
-            fontSize: '0.875rem', fontWeight: 600,
+            fontSize: 'var(--fs-base)', fontWeight: 600,
             cursor: loading ? 'not-allowed' : 'pointer',
             opacity: loading ? 0.85 : 1, transition: 'opacity 200ms',
             boxShadow: '0 2px 8px rgba(124,58,237,0.35)',
@@ -259,7 +259,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
 
         {/* Inline loading status — aria-hidden: overlay가 동일 정보를 발화함 */}
         {loading && (
-          <div aria-hidden="true" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+          <div aria-hidden="true" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', minWidth: 0 }}>
             <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', flexShrink: 0 }}>
               {STEPS.map((_, i) => {
                 const done = i < statusStep
@@ -270,33 +270,33 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
               })}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', minWidth: 0 }}>
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--brand)', whiteSpace: 'nowrap' }}>{STEPS[Math.min(statusStep, STEPS.length - 1)].label}</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand)', whiteSpace: 'nowrap' }}>{STEPS[Math.min(statusStep, STEPS.length - 1)].label}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                 <div role="progressbar" aria-busy="true" aria-label="AI 취합 진행 중" style={{ width: 80, height: 3, borderRadius: 3, background: 'var(--brand-soft-2)', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
                   <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '40%', borderRadius: 3, background: 'var(--brand)', animation: 'progress-indeterminate 1.4s ease-in-out infinite' }} />
                 </div>
-                <span style={{ fontSize: '0.6875rem', color: 'var(--brand-soft-2)', whiteSpace: 'nowrap' }}>{elapsed}초</span>
+                <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--brand-soft-2)', whiteSpace: 'nowrap' }}>{elapsed}초</span>
               </div>
             </div>
           </div>
         )}
 
-        {error && <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--danger)' }}>{error}</p>}
+        {error && <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>{error}</p>}
       </div>
 
       {/* Preview panel */}
       {rows.length > 0 && (
         <div className="card" style={{ marginTop: '1.5rem', overflow: 'hidden', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)' }}>
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', background: 'linear-gradient(to right, var(--surface-bg), var(--brand-soft))', borderBottom: 'var(--hairline) solid var(--brand-soft-2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-4) var(--space-5)', background: 'linear-gradient(to right, var(--surface-bg), var(--brand-soft))', borderBottom: 'var(--hairline) solid var(--brand-soft-2)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
               <Sparkles size={16} color="var(--brand)" />
-              <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text)' }}>AI 주간보고 취합</span>
-              <span style={{ padding: '0.125rem 0.5rem', background: 'var(--brand-soft-2)', color: 'var(--brand)', borderRadius: '9999px', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.04em' }}>
+              <span style={{ fontSize: 'var(--fs-md)', fontWeight: 700, color: 'var(--text)' }}>AI 주간보고 취합</span>
+              <span style={{ padding: '0.125rem 0.5rem', background: 'var(--brand-soft-2)', color: 'var(--brand)', borderRadius: '9999px', fontSize: 'var(--fs-2xs)', fontWeight: 700, letterSpacing: '0.04em' }}>
                 Gemini AI
               </span>
               {fromCache && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.125rem 0.5rem', background: 'var(--warning-bg)', color: 'var(--warning)', borderRadius: '9999px', fontSize: '0.6875rem', fontWeight: 600 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.125rem 0.5rem', background: 'var(--warning-bg)', color: 'var(--warning)', borderRadius: '9999px', fontSize: 'var(--fs-2xs)', fontWeight: 600 }}>
                   <RefreshCw size={10} />
                   세션 캐시 — 최신 데이터로 다시 생성하려면 버튼을 누르세요
                 </span>
@@ -305,7 +305,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
             <button
               onClick={handleDownload}
               disabled={downloading}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', background: 'var(--success)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.8125rem', fontWeight: 600, cursor: downloading ? 'not-allowed' : 'pointer', opacity: downloading ? 0.7 : 1, transition: 'opacity 150ms', flexShrink: 0 }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', background: 'var(--success)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: downloading ? 'not-allowed' : 'pointer', opacity: downloading ? 0.7 : 1, transition: 'opacity 150ms', flexShrink: 0 }}
             >
               {downloading ? '다운로드 중…' : 'DOCX 다운로드'}
             </button>
@@ -317,7 +317,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
               <thead>
                 <tr style={{ background: 'var(--color-bg)' }}>
                   {TH_COLS.map(({ label, width }) => (
-                    <th key={label} style={{ padding: '0.625rem 0.875rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.03em', borderBottom: 'var(--border-w-2) solid var(--border-color)', width, whiteSpace: 'nowrap' }}>
+                    <th key={label} style={{ padding: '0.625rem 0.875rem', textAlign: 'left', fontSize: 'var(--fs-xs)', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.03em', borderBottom: 'var(--border-w-2) solid var(--border-color)', width, whiteSpace: 'nowrap' }}>
                       {label}
                     </th>
                   ))}
@@ -345,13 +345,13 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
                           className="card-hide"
                           style={{ padding: '0.75rem 0.875rem', whiteSpace: 'nowrap', verticalAlign: 'middle', borderRight: 'var(--hairline) solid var(--surface-muted)' }}
                         >
-                          <div style={{ fontSize: '0.75rem', color: 'var(--brand)', fontWeight: 600 }}>{row.orgName}</div>
+                          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', fontWeight: 600 }}>{row.orgName}</div>
                           {row.userName && (
-                            <div style={{ fontSize: '0.8125rem', color: 'var(--text)', fontWeight: 500, marginTop: '0.125rem' }}>{row.userName}</div>
+                            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontWeight: 500, marginTop: '0.125rem' }}>{row.userName}</div>
                           )}
                         </td>
                       )}
-                      <td data-label="구분" style={{ padding: '0.75rem 0.875rem', fontSize: '0.8125rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{row.category}</td>
+                      <td data-label="구분" style={{ padding: '0.75rem 0.875rem', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{row.category}</td>
                       {EDITABLE_FIELDS.map(field => (
                         <td key={field} data-label={FIELD_LABELS[field]} style={{ padding: '0.75rem 0.875rem', verticalAlign: 'top' }}>
                           <RichCell html={row[field]} />

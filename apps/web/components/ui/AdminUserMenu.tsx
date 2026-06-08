@@ -102,7 +102,7 @@ export default function AdminUserMenu({ displayName }: AdminUserMenuProps) {
           display: 'flex',
           alignItems: 'center',
           gap: '0.625rem',
-          padding: '0.5rem',
+          padding: 'var(--space-2)',
           background: open ? 'rgba(255,255,255,0.07)' : 'transparent',
           border: 'none',
           borderRadius: 'var(--radius)',
@@ -115,15 +115,15 @@ export default function AdminUserMenu({ displayName }: AdminUserMenuProps) {
           width: '1.875rem', height: '1.875rem', borderRadius: '50%',
           background: 'linear-gradient(135deg, var(--danger), var(--danger))',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0, fontSize: '0.75rem', fontWeight: 600, color: 'white',
+          flexShrink: 0, fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'white',
         }}>
           {initial}
         </div>
         <div style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
-          <div style={{ fontSize: '0.8125rem', color: 'var(--border-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--border-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {displayName}
           </div>
-          <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>관리자</div>
+          <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>관리자</div>
         </div>
         <ChevronUp
           size={14}
@@ -165,7 +165,7 @@ function MenuButton({
         background: hovered ? hoverBg : 'transparent',
         border: 'none',
         color,
-        fontSize: '0.8125rem',
+        fontSize: 'var(--fs-sm)',
         fontWeight: 500,
         cursor: 'pointer',
         textAlign: 'left',

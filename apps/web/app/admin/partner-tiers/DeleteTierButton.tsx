@@ -22,15 +22,15 @@ export default function DeleteTierButton({ tierId, tierName }: { tierId: string;
 
   if (confirming) {
     return (
-      <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>삭제?</span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--danger)' }}>삭제?</span>
         <button
           onClick={handleDelete}
           disabled={isPending}
           style={{
-            padding: '0.25rem 0.5rem', borderRadius: 'var(--radius)',
+            padding: 'var(--space-1) var(--space-2)', borderRadius: 'var(--radius)',
             background: 'var(--danger)', color: 'white', border: 'none',
-            fontSize: '0.75rem', cursor: isPending ? 'not-allowed' : 'pointer',
+            fontSize: 'var(--fs-xs)', cursor: isPending ? 'not-allowed' : 'pointer',
           }}
         >
           {isPending ? '...' : '확인'}
@@ -38,14 +38,14 @@ export default function DeleteTierButton({ tierId, tierName }: { tierId: string;
         <button
           onClick={() => setConfirming(false)}
           style={{
-            padding: '0.25rem 0.5rem', borderRadius: 'var(--radius)',
+            padding: 'var(--space-1) var(--space-2)', borderRadius: 'var(--radius)',
             background: 'var(--surface-muted)', color: 'var(--text-muted)', border: 'none',
-            fontSize: '0.75rem', cursor: 'pointer',
+            fontSize: 'var(--fs-xs)', cursor: 'pointer',
           }}
         >
           취소
         </button>
-        {error && <span style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>{error}</span>}
+        {error && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--danger)' }}>{error}</span>}
       </span>
     )
   }
@@ -54,10 +54,10 @@ export default function DeleteTierButton({ tierId, tierName }: { tierId: string;
     <button
       onClick={() => setConfirming(true)}
       style={{
-        display: 'flex', alignItems: 'center', gap: '0.25rem',
+        display: 'flex', alignItems: 'center', gap: 'var(--space-1)',
         padding: '0.375rem 0.625rem', borderRadius: 'var(--radius)',
         background: 'var(--danger-bg)', color: 'var(--danger)',
-        border: 'none', fontSize: '0.8125rem', cursor: 'pointer',
+        border: 'none', fontSize: 'var(--fs-sm)', cursor: 'pointer',
       }}
       title={`${tierName} 삭제`}
     >

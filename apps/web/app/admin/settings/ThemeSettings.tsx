@@ -32,8 +32,8 @@ export default function ThemeSettings({ initialTheme }: { initialTheme: ThemeId 
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)' }}>
         {THEMES.map((t) => {
           const selected = theme === t.id
           return (
@@ -44,7 +44,7 @@ export default function ThemeSettings({ initialTheme }: { initialTheme: ThemeId 
               data-theme={t.id}
               style={{
                 textAlign: 'left',
-                padding: '1rem',
+                padding: 'var(--space-4)',
                 borderRadius: 'var(--radius)',
                 border: `var(--border-w) solid ${selected ? 'var(--brand)' : 'var(--border-color)'}`,
                 background: 'var(--surface, #fff)',
@@ -58,20 +58,20 @@ export default function ThemeSettings({ initialTheme }: { initialTheme: ThemeId 
                 <span style={{ width: 28, height: 28, borderRadius: 'var(--radius)', background: 'var(--accent)', border: 'var(--border-w) solid var(--border-color)' }} />
                 <span style={{ width: 28, height: 28, borderRadius: 'var(--radius)', background: 'var(--surface-bg)', border: 'var(--border-w) solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }} />
               </div>
-              <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '0.9375rem' }}>
+              <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 'var(--fs-md)' }}>
                 {t.label}{selected ? ' ✓' : ''}
               </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{t.desc}</div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{t.desc}</div>
             </button>
           )
         })}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <button type="button" onClick={handleSave} disabled={saving} className="btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+        <button type="button" onClick={handleSave} disabled={saving} className="btn-primary" style={{ padding: 'var(--space-2) var(--space-5)', fontSize: 'var(--fs-base)' }}>
           {saving ? '저장 중...' : '테마 적용'}
         </button>
         {message && (
-          <p style={{ fontSize: '0.8125rem', color: message.type === 'success' ? 'var(--success)' : 'var(--danger)' }}>{message.text}</p>
+          <p style={{ fontSize: 'var(--fs-sm)', color: message.type === 'success' ? 'var(--success)' : 'var(--danger)' }}>{message.text}</p>
         )}
       </div>
     </div>

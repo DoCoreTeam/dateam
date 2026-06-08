@@ -56,9 +56,9 @@ export default function MemoListView() {
 
   return (
     <>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         {/* 상태 필터 */}
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
           {(['unreviewed', 'all'] as const).map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)}
               style={{
@@ -78,7 +78,7 @@ export default function MemoListView() {
           <Sparkles size={14} color="var(--brand)" />
           <button onClick={() => setActiveCluster(null)}
             style={chipStyle(activeCluster === null)}>전체</button>
-          {clusterLoading && <span style={{ fontSize: '0.75rem', color: 'var(--brand-soft-2)' }}>주제 분석 중…</span>}
+          {clusterLoading && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand-soft-2)' }}>주제 분석 중…</span>}
           {clusters.map((c) => (
             <button key={c.label} onClick={() => setActiveCluster(c.label === activeCluster ? null : c.label)}
               style={chipStyle(activeCluster === c.label)}>
@@ -89,9 +89,9 @@ export default function MemoListView() {
 
         {/* 메모 리스트 (타임스탬프 정렬) */}
         {loading ? (
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-faint)', padding: '1rem' }}>불러오는 중…</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-faint)', padding: 'var(--space-4)' }}>불러오는 중…</div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-faint)' }}>
+          <div style={{ textAlign: 'center', padding: 'var(--space-10)', color: 'var(--text-faint)' }}>
             <StickyNote size={28} style={{ opacity: 0.4 }} />
             <p style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>해당하는 메모가 없습니다</p>
           </div>
@@ -105,7 +105,7 @@ export default function MemoListView() {
                   <span title={st.label} style={{ width: 9, height: 9, borderRadius: '50%', background: st.dot, flexShrink: 0, marginTop: 4 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.88rem', color: 'var(--text)', lineHeight: 1.5 }}>{m.content}</div>
-                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.3rem', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '0.3rem', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.7rem', color: st.text }}>{relativeTime(m.logged_at)}</span>
                       {m.memo_status === 'reviewed' && (
                         <span style={{ fontSize: '0.65rem', color: 'var(--success)', background: 'var(--success-bg)', borderRadius: '999px', padding: '0 6px' }}>확인됨</span>

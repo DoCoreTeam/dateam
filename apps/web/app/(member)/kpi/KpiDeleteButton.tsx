@@ -26,8 +26,8 @@ export default function KpiDeleteButton({ id }: { id: string }) {
         cursor: 'pointer',
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '0.25rem',
-        fontSize: '0.75rem',
+        gap: 'var(--space-1)',
+        fontSize: 'var(--fs-xs)',
         opacity: isPending ? 0.5 : 1,
         transition: 'opacity 120ms',
       }}

@@ -256,7 +256,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
   }
 
   if (roots.length === 0) {
-    return <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-faint)' }}>조직도 데이터가 없습니다.</div>
+    return <div style={{ textAlign: 'center', padding: 'var(--space-12)', color: 'var(--text-faint)' }}>조직도 데이터가 없습니다.</div>
   }
 
   const root = roots[0]
@@ -264,7 +264,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
   return (
     <>
       {errorMsg && (
-        <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', color: 'var(--danger)', fontSize: '0.875rem', display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ marginBottom: '1rem', padding: 'var(--space-3) var(--space-4)', background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', color: 'var(--danger)', fontSize: 'var(--fs-base)', display: 'flex', justifyContent: 'space-between' }}>
           {errorMsg}
           <button onClick={() => setErrorMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', fontWeight: 700 }}>×</button>
         </div>
@@ -290,7 +290,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
           onMouseLeave={handlePanUp}
         >
           {/* Zoom controls */}
-          <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10, display: 'flex', gap: '0.25rem', background: 'rgba(255,255,255,0.95)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.25rem', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10, display: 'flex', gap: 'var(--space-1)', background: 'rgba(255,255,255,0.95)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-1)', boxShadow: 'var(--shadow-sm)' }}>
             <button
               onClick={() => setZoom(z => ({ ...z, scale: Math.min(z.scale * 1.2, 3) }))}
               style={{ width: 32, height: 32, border: 'none', borderRadius: 'var(--radius)', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
@@ -362,7 +362,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
 
         <DragOverlay>
           {activeNode && (
-            <div style={{ padding: '0.5rem 1rem', background: 'var(--brand-dark)', color: '#fff', borderRadius: 'var(--radius)', fontSize: '0.875rem', fontWeight: 600, boxShadow: '0 8px 24px rgba(79,70,229,0.4)', opacity: 0.95, cursor: 'grabbing' }}>
+            <div style={{ padding: 'var(--space-2) var(--space-4)', background: 'var(--brand-dark)', color: '#fff', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', fontWeight: 600, boxShadow: '0 8px 24px rgba(79,70,229,0.4)', opacity: 0.95, cursor: 'grabbing' }}>
               {activeNode.name}
             </div>
           )}
@@ -385,15 +385,15 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
 
       {deleteConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: '1.5rem', width: '340px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)' }}>
+          <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: 'var(--space-6)', width: '340px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)' }}>
             <h3 className="tape-title" style={{ margin: 0 }}>삭제 확인</h3>
-            <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+            <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: 'var(--fs-base)' }}>
               <strong>{deleteConfirm.name}</strong>을(를) 삭제하시겠습니까?
               {deleteConfirm.type !== 'person' && ' 하위 노드가 있으면 삭제할 수 없습니다.'}
             </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button onClick={() => setDeleteConfirm(null)} style={{ padding: '0.45rem 1rem', background: 'var(--surface-muted)', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-muted)' }}>취소</button>
-              <button onClick={confirmDelete} style={{ padding: '0.45rem 1rem', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem' }}>삭제</button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
+              <button onClick={() => setDeleteConfirm(null)} style={{ padding: '0.45rem 1rem', background: 'var(--surface-muted)', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 'var(--fs-base)', color: 'var(--text-muted)' }}>취소</button>
+              <button onClick={confirmDelete} style={{ padding: '0.45rem 1rem', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 'var(--fs-base)' }}>삭제</button>
             </div>
           </div>
         </div>

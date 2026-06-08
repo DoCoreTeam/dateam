@@ -89,13 +89,13 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
           일일업무 모니터링
         </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-base)', marginTop: '0.25rem' }}>
           팀원들의 일일 업무 기록을 확인합니다.
         </p>
       </div>
 
       {/* 요약 카드 */}
-      <div className="responsive-grid-cols-3" style={{ marginBottom: '1.5rem', gap: '0.75rem' }}>
+      <div className="responsive-grid-cols-3" style={{ marginBottom: '1.5rem', gap: 'var(--space-3)' }}>
         {[
           { label: '참여 인원', value: `${activeMembers}명`, sub: `전체 ${members?.length ?? 0}명 중`, color: 'var(--info)' },
           { label: '총 로그', value: `${totalLogs}건`, sub: formatDate(selectedDate), color: 'var(--success)' },
@@ -103,18 +103,18 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
         ].map((c) => (
           <div key={c.label} style={{
             background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
-            padding: '1rem', boxShadow: 'var(--shadow-sm)',
+            padding: 'var(--space-4)', boxShadow: 'var(--shadow-sm)',
           }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginBottom: '0.25rem' }}>{c.label}</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: c.color }}>{c.value}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.sub}</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', marginBottom: '0.25rem' }}>{c.label}</div>
+            <div style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: c.color }}>{c.value}</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>{c.sub}</div>
           </div>
         ))}
       </div>
 
       {/* 필터 */}
       <form method="GET" style={{
-        display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.5rem',
+        display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: '1.5rem',
         background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
         padding: '0.875rem',
       }}>
@@ -138,9 +138,9 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
           ))}
         </select>
         <button type="submit" style={{
-          padding: '0.5rem 1rem', background: 'var(--info)', color: '#fff',
+          padding: 'var(--space-2) var(--space-4)', background: 'var(--info)', color: '#fff',
           border: 'none', borderRadius: 'var(--radius)', fontWeight: 600,
-          fontSize: '0.875rem', cursor: 'pointer',
+          fontSize: 'var(--fs-base)', cursor: 'pointer',
         }}>
           조회
         </button>
@@ -149,13 +149,13 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
       {/* 멤버별 로그 */}
       {Object.keys(grouped).length === 0 ? (
         <div style={{
-          textAlign: 'center', color: 'var(--text-faint)', padding: '3rem',
+          textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-12)',
           border: 'var(--hairline) dashed var(--color-border)', borderRadius: 'var(--radius)',
         }}>
           {formatDate(selectedDate)}에 작성된 로그가 없습니다.
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           {Object.entries(grouped).map(([userId, group]) => (
             <div key={userId} style={{
               background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
@@ -171,7 +171,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
                   <div style={{
                     width: '2rem', height: '2rem', borderRadius: '50%',
                     background: 'var(--info)', color: '#fff', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem', fontWeight: 700,
+                    alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-base)', fontWeight: 700,
                   }}>
                     {group.name[0] ?? '?'}
                   </div>
@@ -180,14 +180,14 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
                 <div style={{ display: 'flex', gap: '0.375rem' }}>
                   {group.logs.filter((l) => l.entry_type === 'blocker').length > 0 && (
                     <span style={{
-                      fontSize: '0.75rem', fontWeight: 600, color: 'var(--danger)',
+                      fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--danger)',
                       background: 'var(--danger-bg)', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)',
                     }}>
                       🚫 블로커 {group.logs.filter((l) => l.entry_type === 'blocker').length}건
                     </span>
                   )}
                   <span style={{
-                    fontSize: '0.75rem', color: 'var(--text-muted)',
+                    fontSize: 'var(--fs-xs)', color: 'var(--text-muted)',
                     background: 'var(--surface-muted)', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)',
                   }}>
                     {group.logs.length}건
@@ -196,7 +196,7 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
               </div>
 
               {/* 로그 목록 */}
-              <div style={{ padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div style={{ padding: 'var(--space-3) var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                 {group.logs.map((log) => {
                   const type = ENTRY_TYPES[log.entry_type as keyof typeof ENTRY_TYPES] ?? ENTRY_TYPES.note
                   return (
@@ -207,16 +207,16 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
                       background: log.entry_type === 'blocker' ? 'var(--danger-bg)' : 'var(--surface-bg)',
                       borderRadius: '0 0.375rem 0.375rem 0',
                     }}>
-                      <span style={{ fontSize: '1rem', flexShrink: 0, marginTop: '0.1rem' }}>{type.icon}</span>
+                      <span style={{ fontSize: 'var(--fs-lg)', flexShrink: 0, marginTop: '0.1rem' }}>{type.icon}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.2rem' }}>
                           <span style={{
-                            fontSize: '0.6875rem', fontWeight: 600, color: type.color,
+                            fontSize: 'var(--fs-2xs)', fontWeight: 600, color: type.color,
                             background: type.bg, padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)',
                           }}>
                             {type.label}
                           </span>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>
+                          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>
                             {formatTime(log.logged_at)}
                           </span>
                         </div>
@@ -240,6 +240,6 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
 }
 
 const filterInputStyle: React.CSSProperties = {
-  padding: '0.5rem 0.75rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
-  fontSize: '0.875rem', color: 'var(--text)', background: 'var(--color-bg)', outline: 'none',
+  padding: 'var(--space-2) var(--space-3)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
+  fontSize: 'var(--fs-base)', color: 'var(--text)', background: 'var(--color-bg)', outline: 'none',
 }

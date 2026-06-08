@@ -7,12 +7,12 @@ import type { Profile, WeeklyReport } from '@/types/database'
 import AdminReportsPreview from './AdminReportsPreview'
 
 function RichCell({ html }: { html: string }) {
-  if (!html) return <span style={{ color: 'var(--border-subtle)', fontSize: '0.8125rem' }}>-</span>
+  if (!html) return <span style={{ color: 'var(--border-subtle)', fontSize: 'var(--fs-sm)' }}>-</span>
   if (html.startsWith('<')) {
     return <div className="report-rich" dangerouslySetInnerHTML={{ __html: html }} />
   }
   return (
-    <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+    <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
       {html}
     </p>
   )
@@ -104,7 +104,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
       <div style={{ marginBottom: '1.75rem' }}>
         <h1
           style={{
-            fontSize: '1.5rem',
+            fontSize: 'var(--fs-2xl)',
             fontWeight: 700,
             color: 'var(--text)',
             letterSpacing: '-0.03em',
@@ -119,8 +119,8 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
       </div>
 
       {/* 필터 */}
-      <div className="card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
-        <form style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+      <div className="card" style={{ padding: 'var(--space-5) var(--space-6)', marginBottom: '1.5rem' }}>
+        <form style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div>
             <label htmlFor="week" className="label">주차</label>
             <select
@@ -170,11 +170,11 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.375rem',
-              padding: '0.5rem 1rem',
+              padding: 'var(--space-2) var(--space-4)',
               backgroundColor: 'var(--success)',
               color: '#fff',
               borderRadius: 'var(--radius)',
-              fontSize: '0.875rem',
+              fontSize: 'var(--fs-base)',
               fontWeight: 600,
               textDecoration: 'none',
               cursor: 'pointer',
@@ -195,11 +195,11 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
       <div className="card">
         <div
           style={{
-            padding: '1.25rem 1.5rem',
+            padding: 'var(--space-5) var(--space-6)',
             borderBottom: 'var(--border-w-2) solid var(--border-color)',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem',
+            gap: 'var(--space-2)',
           }}
         >
           <FileText size={16} color="var(--brand)" />
@@ -247,7 +247,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
             </tbody>
           </table>
         ) : (
-          <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-faint)', fontSize: '0.875rem' }}>
+          <div style={{ textAlign: 'center', padding: 'var(--space-12) var(--space-4)', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>
             <FileText size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
             <p style={{ margin: 0 }}>해당 주차에 작성된 주간보고가 없습니다</p>
           </div>

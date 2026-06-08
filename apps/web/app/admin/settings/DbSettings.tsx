@@ -63,8 +63,8 @@ export default function DbSettings({ hasUrl: initialHas, maskedUrl: initialMaske
   }
 
   return (
-    <div className="card" style={{ padding: '1.5rem', maxWidth: '640px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+    <div className="card" style={{ padding: 'var(--space-6)', maxWidth: '640px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
         <Database size={16} color="var(--brand)" />
         <h2 className="tape-title" style={{ margin: 0 }}>DB 연결 (PostgreSQL)</h2>
       </div>
@@ -72,25 +72,25 @@ export default function DbSettings({ hasUrl: initialHas, maskedUrl: initialMaske
       {hasUrl && maskedUrl && (
         <div style={{ padding: '0.875rem 1rem', backgroundColor: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <CheckCircle size={14} color="var(--success)" />
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--success)' }}>연결 문자열 설정됨</span>
+              <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--success)' }}>연결 문자열 설정됨</span>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button type="button" onClick={() => setShowInput((v) => !v)} style={{ fontSize: '0.75rem', color: 'var(--brand)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem 0.5rem' }}>변경</button>
-              <button type="button" onClick={handleDelete} disabled={deletePending} style={{ fontSize: '0.75rem', color: 'var(--danger)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <button type="button" onClick={() => setShowInput((v) => !v)} style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 'var(--space-1) var(--space-2)' }}>변경</button>
+              <button type="button" onClick={handleDelete} disabled={deletePending} style={{ fontSize: 'var(--fs-xs)', color: 'var(--danger)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 'var(--space-1) var(--space-2)', display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
                 {deletePending ? <AXDotLoader size={4} color="var(--danger)" /> : <Trash2 size={12} />}삭제
               </button>
             </div>
           </div>
-          <code style={{ fontSize: '0.75rem', color: 'var(--text)', marginTop: '0.375rem', display: 'block', fontFamily: 'monospace', wordBreak: 'break-all' }}>{maskedUrl}</code>
+          <code style={{ fontSize: 'var(--fs-xs)', color: 'var(--text)', marginTop: '0.375rem', display: 'block', fontFamily: 'monospace', wordBreak: 'break-all' }}>{maskedUrl}</code>
         </div>
       )}
 
       {showInput && (
         <form action={handleSave} style={{ marginBottom: '1rem' }}>
           <label className="label">연결 문자열 입력</label>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.375rem' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '0.375rem' }}>
             <input name="dbUrl" type="password" value={inputUrl} onChange={(e) => setInputUrl(e.target.value)} placeholder="postgresql://user:password@host:5432/db" className="input-field" style={{ flex: 1, fontFamily: 'monospace' }} autoComplete="off" />
             <button type="submit" disabled={savePending || !inputUrl.trim()} className="btn-primary" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
               {savePending ? <AXDotLoader size={4} color="#fff" /> : null}저장
@@ -100,25 +100,25 @@ export default function DbSettings({ hasUrl: initialHas, maskedUrl: initialMaske
       )}
 
       {saveMsg && (
-        <div role="status" style={{ padding: '0.625rem 0.875rem', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.375rem', backgroundColor: saveMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)', color: saveMsg.ok ? 'var(--success)' : 'var(--danger)', border: `var(--hairline) solid ${saveMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
+        <div role="status" style={{ padding: '0.625rem 0.875rem', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: 'var(--fs-sm)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.375rem', backgroundColor: saveMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)', color: saveMsg.ok ? 'var(--success)' : 'var(--danger)', border: `var(--hairline) solid ${saveMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
           {saveMsg.ok ? <CheckCircle size={13} /> : <XCircle size={13} />}{saveMsg.text}
         </div>
       )}
 
-      <div style={{ borderTop: 'var(--border-w-2) solid var(--border-color)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+      <div style={{ borderTop: 'var(--border-w-2) solid var(--border-color)', paddingTop: 'var(--space-4)', marginTop: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text)' }}>연결 테스트</span>
-          <button type="button" onClick={handleHealth} disabled={!hasUrl || healthPending} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 0.875rem', backgroundColor: hasUrl ? 'var(--brand)' : 'var(--color-border)', color: hasUrl ? '#fff' : 'var(--text-faint)', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.8125rem', fontWeight: 600, cursor: hasUrl ? 'pointer' : 'not-allowed' }}>
+          <span style={{ fontSize: 'var(--fs-base)', fontWeight: 600, color: 'var(--text)' }}>연결 테스트</span>
+          <button type="button" onClick={handleHealth} disabled={!hasUrl || healthPending} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 0.875rem', backgroundColor: hasUrl ? 'var(--brand)' : 'var(--color-border)', color: hasUrl ? '#fff' : 'var(--text-faint)', border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: hasUrl ? 'pointer' : 'not-allowed' }}>
             {healthPending ? <AXDotLoader size={4} color="#fff" /> : <RefreshCw size={13} />}헬스체크
           </button>
         </div>
         {healthMsg && (
-          <div role="status" style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius)', fontSize: '0.8125rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: healthMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)', color: healthMsg.ok ? 'var(--success)' : 'var(--danger)', border: `var(--hairline) solid ${healthMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
+          <div role="status" style={{ padding: 'var(--space-3) var(--space-4)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 'var(--space-2)', backgroundColor: healthMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)', color: healthMsg.ok ? 'var(--success)' : 'var(--danger)', border: `var(--hairline) solid ${healthMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
             {healthMsg.ok ? <CheckCircle size={14} /> : <XCircle size={14} />}{healthMsg.text}
           </div>
         )}
         {!healthMsg && (
-          <p style={{ fontSize: '0.8125rem', color: 'var(--text-faint)', margin: 0 }}>{hasUrl ? '저장된 연결 문자열로 실제 접속을 테스트합니다 (SELECT version)' : 'DB 연결 문자열을 먼저 저장해주세요'}</p>
+          <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', margin: 0 }}>{hasUrl ? '저장된 연결 문자열로 실제 접속을 테스트합니다 (SELECT version)' : 'DB 연결 문자열을 먼저 저장해주세요'}</p>
         )}
       </div>
     </div>

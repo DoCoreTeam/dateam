@@ -68,7 +68,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
   const hasOrgKpi = weeklyTargets.length > 0 || h1Kpi.length > 0 || yearKpi.length > 0 || okrList.length > 0
 
   const SECTION_TITLE: React.CSSProperties = {
-    fontSize: '0.8125rem',
+    fontSize: 'var(--fs-sm)',
     fontWeight: 700,
     color: 'var(--text-muted)',
     letterSpacing: '0.06em',
@@ -79,7 +79,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
   return (
     <div>
       <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
+        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
           KPI 관리
         </h1>
         <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
@@ -90,26 +90,26 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
       {/* ── 조직 KPI 목표 참고 ─────────────────────────────── */}
       {hasOrgKpi && (
         <section aria-labelledby="org-kpi-heading" style={{ marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1rem' }}>
             <Target size={16} color="var(--brand)" />
-            <h2 id="org-kpi-heading" style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
+            <h2 id="org-kpi-heading" style={{ fontSize: 'var(--fs-lg)', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
               조직 KPI 목표
             </h2>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>참고용 — 관리자가 설정한 목표입니다</span>
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>참고용 — 관리자가 설정한 목표입니다</span>
           </div>
 
           <div className="responsive-grid-cols-3" style={{ marginBottom: '1rem' }}>
             {weeklyTargets.length > 0 && (
-              <div className="card" style={{ padding: '1.25rem' }}>
+              <div className="card" style={{ padding: 'var(--space-5)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.875rem' }}>
                   <Calendar size={13} color="var(--brand)" />
                   <p style={{ ...SECTION_TITLE, margin: 0, color: 'var(--brand)' }}>주간 공통 KPI</p>
                 </div>
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
                   {weeklyTargets.map((kpi, i) => (
-                    <li key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.5rem' }}>
-                      <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>{kpi.label}</span>
-                      <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--brand)', flexShrink: 0 }}>{kpi.target}</span>
+                    <li key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 'var(--space-2)' }}>
+                      <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', lineHeight: 1.4 }}>{kpi.label}</span>
+                      <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--brand)', flexShrink: 0 }}>{kpi.target}</span>
                     </li>
                   ))}
                 </ul>
@@ -117,16 +117,16 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
             )}
 
             {h1Kpi.length > 0 && (
-              <div className="card" style={{ padding: '1.25rem' }}>
+              <div className="card" style={{ padding: 'var(--space-5)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.875rem' }}>
                   <Flag size={13} color="var(--info)" />
                   <p style={{ ...SECTION_TITLE, margin: 0, color: 'var(--info)' }}>상반기 KPI (H1)</p>
                 </div>
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                   {h1Kpi.map((item, i) => (
                     <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.375rem' }}>
                       <span style={{ color: 'var(--info)', flexShrink: 0, marginTop: '0.1em' }}>·</span>
-                      <span style={{ fontSize: '0.8125rem', color: 'var(--text)', lineHeight: 1.45 }}>{item}</span>
+                      <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', lineHeight: 1.45 }}>{item}</span>
                     </li>
                   ))}
                 </ul>
@@ -134,16 +134,16 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
             )}
 
             {yearKpi.length > 0 && (
-              <div className="card" style={{ padding: '1.25rem' }}>
+              <div className="card" style={{ padding: 'var(--space-5)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.875rem' }}>
                   <TrendingUp size={13} color="var(--success)" />
                   <p style={{ ...SECTION_TITLE, margin: 0, color: 'var(--success)' }}>연간 KPI (Year)</p>
                 </div>
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                   {yearKpi.map((item, i) => (
                     <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.375rem' }}>
                       <span style={{ color: 'var(--success)', flexShrink: 0, marginTop: '0.1em' }}>·</span>
-                      <span style={{ fontSize: '0.8125rem', color: 'var(--text)', lineHeight: 1.45 }}>{item}</span>
+                      <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', lineHeight: 1.45 }}>{item}</span>
                     </li>
                   ))}
                 </ul>
@@ -152,22 +152,22 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
           </div>
 
           {okrList.length > 0 && (
-            <div className="card" style={{ padding: '1.25rem' }}>
+            <div className="card" style={{ padding: 'var(--space-5)' }}>
               <p style={{ ...SECTION_TITLE, color: 'var(--brand)' }}>분기 OKR</p>
               <div className="responsive-grid-cols-2">
                 {okrList.map((okr, i) => (
-                  <div key={i} style={{ borderLeft: 'var(--border-w) solid var(--brand)', paddingLeft: '0.875rem', paddingTop: '0.25rem', paddingBottom: '0.25rem' }}>
-                    <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text)', margin: '0 0 0.25rem', lineHeight: 1.4 }}>
+                  <div key={i} style={{ borderLeft: 'var(--border-w) solid var(--brand)', paddingLeft: '0.875rem', paddingTop: 'var(--space-1)', paddingBottom: 'var(--space-1)' }}>
+                    <p style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text)', margin: '0 0 0.25rem', lineHeight: 1.4 }}>
                       {okr.objective}
                     </p>
-                    <p style={{ fontSize: '0.6875rem', color: 'var(--text-faint)', margin: '0 0 0.5rem', fontWeight: 500 }}>
+                    <p style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)', margin: '0 0 0.5rem', fontWeight: 500 }}>
                       Lead · {okr.lead}
                     </p>
-                    <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
                       {okr.key_results?.map((kr, j) => (
                         <li key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.375rem' }}>
-                          <span style={{ color: 'var(--brand)', flexShrink: 0, fontSize: '0.75rem' }}>KR{j + 1}</span>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>{kr}</span>
+                          <span style={{ color: 'var(--brand)', flexShrink: 0, fontSize: 'var(--fs-xs)' }}>KR{j + 1}</span>
+                          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', lineHeight: 1.45 }}>{kr}</span>
                         </li>
                       ))}
                     </ul>
@@ -180,13 +180,13 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
       )}
 
       {/* ── 이번 주 실적 입력 ─────────────────────────────── */}
-      <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+      <div className="card" style={{ padding: 'var(--space-6)', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
           <Plus size={16} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>
             이번 주 실적 입력
           </h2>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginLeft: '0.25rem' }}>
+          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', marginLeft: '0.25rem' }}>
             {weekStart} ~ {weekEnd}
           </span>
         </div>
@@ -195,16 +195,16 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
           <div
             role="alert"
             style={{
-              padding: '0.75rem 1rem',
+              padding: 'var(--space-3) var(--space-4)',
               backgroundColor: 'var(--danger-bg)',
               border: 'var(--hairline) solid var(--danger-border)',
               borderRadius: 'var(--radius)',
               marginBottom: '1rem',
-              fontSize: '0.8125rem',
+              fontSize: 'var(--fs-sm)',
               color: 'var(--danger)',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem',
+              gap: 'var(--space-2)',
             }}
           >
             <AlertCircle size={14} />
@@ -213,7 +213,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
         )}
 
         {weeklyTargets.length === 0 && h1Kpi.length === 0 && yearKpi.length === 0 ? (
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-faint)', margin: 0, padding: '1rem 0' }}>
+          <p style={{ fontSize: 'var(--fs-base)', color: 'var(--text-faint)', margin: 0, padding: 'var(--space-4) var(--space-0)' }}>
             관리자가 KPI 항목을 설정하지 않았습니다. 관리자에게 문의하세요.
           </p>
         ) : (
@@ -287,7 +287,7 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
 
       {/* ── KPI 히스토리 ───────────────────────────────────── */}
       <div className="card" style={{ overflow: 'hidden' }}>
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <TrendingUp size={16} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>
             실적 히스토리
@@ -317,9 +317,9 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
             </table>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1rem', color: 'var(--text-faint)', textAlign: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'var(--space-12) var(--space-4)', color: 'var(--text-faint)', textAlign: 'center' }}>
             <TrendingUp size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
-            <p style={{ margin: 0, fontSize: '0.875rem' }}>아직 등록된 실적이 없습니다</p>
+            <p style={{ margin: 0, fontSize: 'var(--fs-base)' }}>아직 등록된 실적이 없습니다</p>
           </div>
         )}
       </div>

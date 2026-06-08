@@ -96,7 +96,7 @@ export default async function RoutinePage() {
       <div style={{ marginBottom: '1.75rem' }}>
         <h1
           style={{
-            fontSize: '1.5rem',
+            fontSize: 'var(--fs-2xl)',
             fontWeight: 700,
             color: 'var(--text)',
             letterSpacing: '-0.03em',
@@ -112,13 +112,13 @@ export default async function RoutinePage() {
 
       {!hasName && (
         <div style={{
-          padding: '1rem 1.25rem',
+          padding: 'var(--space-4) var(--space-5)',
           borderRadius: 'var(--radius)',
           marginBottom: '1.5rem',
           backgroundColor: 'var(--warning-bg)',
           border: 'var(--hairline) solid var(--warning-border)',
           color: 'var(--warning)',
-          fontSize: '0.875rem',
+          fontSize: 'var(--fs-base)',
         }}>
           프로필 이름이 조직도와 연결되지 않았습니다. 이름을 설정하면 개인 루틴이 표시됩니다.
         </div>

@@ -35,7 +35,7 @@ export default function IntakeActions({ intakeId, notes }: Props) {
     else { alert('삭제에 실패했습니다'); setLoading(false) }
   }
 
-  const btn = { fontSize: '0.75rem', fontWeight: 600, background: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', padding: '0.25rem 0.5rem', minHeight: '32px' } as const
+  const btn = { fontSize: 'var(--fs-xs)', fontWeight: 600, background: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', padding: 'var(--space-1) var(--space-2)', minHeight: '32px' } as const
 
   return (
     <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>

@@ -54,21 +54,21 @@ export default function AiUsageDashboard() {
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
-  if (loading && !summary) return <div style={{ padding: '2rem', color: 'var(--text-muted)' }}>불러오는 중...</div>
+  if (loading && !summary) return <div style={{ padding: 'var(--space-8)', color: 'var(--text-muted)' }}>불러오는 중...</div>
 
   const totalPages = Math.ceil(logTotal / 20)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>AI 사용량</h1>
+          <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>AI 사용량</h1>
           <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>Gemini 토큰 사용 현황을 모니터링합니다</p>
         </div>
         <select
           value={days}
           onChange={e => setDays(Number(e.target.value))}
-          style={{ padding: '0.5rem 0.75rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', color: 'var(--text)', background: '#fff' }}
+          style={{ padding: 'var(--space-2) var(--space-3)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', color: 'var(--text)', background: '#fff' }}
         >
           <option value={7}>최근 7일</option>
           <option value={30}>최근 30일</option>
@@ -78,7 +78,7 @@ export default function AiUsageDashboard() {
 
       {/* 임계치 초과 경고 */}
       {summary?.threshold_exceeded && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.875rem 1.25rem', backgroundColor: 'var(--warning-bg)', border: 'var(--hairline) solid #fcd34d', borderRadius: 'var(--radius)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', padding: '0.875rem 1.25rem', backgroundColor: 'var(--warning-bg)', border: 'var(--hairline) solid #fcd34d', borderRadius: 'var(--radius)' }}>
           <AlertTriangle size={18} color="var(--warning)" />
           <span style={{ fontSize: '0.9rem', color: 'var(--warning)', fontWeight: 500 }}>
             이번 달 토큰 사용량이 임계치({fmt(summary.alert_threshold)}개)를 초과했습니다.
@@ -87,45 +87,45 @@ export default function AiUsageDashboard() {
       )}
 
       {/* SummaryCards */}
-      <div className="responsive-grid-cols-3" style={{ gap: '1rem' }}>
-        <div className="card" style={{ padding: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+      <div className="responsive-grid-cols-3" style={{ gap: 'var(--space-4)' }}>
+        <div className="card" style={{ padding: 'var(--space-6)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '0.75rem' }}>
             <Activity size={16} color="var(--brand)" />
-            <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>오늘 사용량</span>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', fontWeight: 500 }}>오늘 사용량</span>
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text)' }}>{fmt(summary?.today_tokens ?? 0)}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginTop: '0.25rem' }}>tokens</div>
+          <div style={{ fontSize: 'var(--fs-3xl)', fontWeight: 700, color: 'var(--text)' }}>{fmt(summary?.today_tokens ?? 0)}</div>
+          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', marginTop: '0.25rem' }}>tokens</div>
         </div>
-        <div className="card" style={{ padding: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+        <div className="card" style={{ padding: 'var(--space-6)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '0.75rem' }}>
             <TrendingUp size={16} color="var(--brand)" />
-            <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>이번 달 사용량</span>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', fontWeight: 500 }}>이번 달 사용량</span>
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: summary?.threshold_exceeded ? 'var(--danger)' : 'var(--text)' }}>{fmt(summary?.month_tokens ?? 0)}</div>
+          <div style={{ fontSize: 'var(--fs-3xl)', fontWeight: 700, color: summary?.threshold_exceeded ? 'var(--danger)' : 'var(--text)' }}>{fmt(summary?.month_tokens ?? 0)}</div>
           <div style={{ marginTop: '0.5rem' }}>
             <div style={{ height: '6px', background: 'var(--color-border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${Math.min(summary?.month_usage_pct ?? 0, 100)}%`, background: (summary?.month_usage_pct ?? 0) >= 100 ? 'var(--danger)' : 'var(--brand)', borderRadius: 'var(--radius)', transition: 'width 0.3s' }} />
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginTop: '0.25rem' }}>{summary?.month_usage_pct ?? 0}% / 임계치 {fmt(summary?.alert_threshold ?? 1000000)}</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', marginTop: '0.25rem' }}>{summary?.month_usage_pct ?? 0}% / 임계치 {fmt(summary?.alert_threshold ?? 1000000)}</div>
           </div>
         </div>
-        <div className="card" style={{ padding: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+        <div className="card" style={{ padding: 'var(--space-6)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '0.75rem' }}>
             <Database size={16} color="var(--brand)" />
-            <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>누적 사용량</span>
+            <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', fontWeight: 500 }}>누적 사용량</span>
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text)' }}>{fmt(summary?.total_tokens ?? 0)}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginTop: '0.25rem' }}>전체 누적 tokens</div>
+          <div style={{ fontSize: 'var(--fs-3xl)', fontWeight: 700, color: 'var(--text)' }}>{fmt(summary?.total_tokens ?? 0)}</div>
+          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', marginTop: '0.25rem' }}>전체 누적 tokens</div>
         </div>
       </div>
 
       {/* Charts Row */}
-      <div className="responsive-grid-cols-2" style={{ gap: '1.5rem' }}>
+      <div className="responsive-grid-cols-2" style={{ gap: 'var(--space-6)' }}>
         {/* 기능별 막대 차트 */}
-        <div className="card" style={{ padding: '1.5rem' }}>
+        <div className="card" style={{ padding: 'var(--space-6)' }}>
           <h2 className="tape-title" style={{ margin: 0 }}>기능별 토큰 사용량</h2>
           {features.length === 0 ? (
-            <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: '0.875rem' }}>데이터 없음</div>
+            <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>데이터 없음</div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={features} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
@@ -140,10 +140,10 @@ export default function AiUsageDashboard() {
         </div>
 
         {/* 일별 라인 차트 */}
-        <div className="card" style={{ padding: '1.5rem' }}>
+        <div className="card" style={{ padding: 'var(--space-6)' }}>
           <h2 className="tape-title" style={{ margin: 0 }}>일별 사용량 추이 ({days}일)</h2>
           {daily.length === 0 ? (
-            <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: '0.875rem' }}>데이터 없음</div>
+            <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>데이터 없음</div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={daily} margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
@@ -159,7 +159,7 @@ export default function AiUsageDashboard() {
       </div>
 
       {/* 유저별 테이블 */}
-      <div className="card" style={{ padding: '1.5rem' }}>
+      <div className="card" style={{ padding: 'var(--space-6)' }}>
         <h2 className="tape-title" style={{ margin: 0 }}>유저별 사용량</h2>
         <table className="table-base table-card">
           <thead>
@@ -172,7 +172,7 @@ export default function AiUsageDashboard() {
           </thead>
           <tbody>
             {users.length === 0 ? (
-              <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '2rem' }}>데이터 없음</td></tr>
+              <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-8)' }}>데이터 없음</td></tr>
             ) : users.map((u) => (
               <tr key={u.user_id}>
                 <td className="card-header"><span style={{ fontWeight: 600 }}>{u.name}</span></td>
@@ -186,7 +186,7 @@ export default function AiUsageDashboard() {
       </div>
 
       {/* Raw 로그 테이블 */}
-      <div className="card" style={{ padding: '1.5rem' }}>
+      <div className="card" style={{ padding: 'var(--space-6)' }}>
         <h2 className="tape-title" style={{ margin: 0 }}>요청 로그</h2>
         <table className="table-base table-card">
           <thead>
@@ -201,10 +201,10 @@ export default function AiUsageDashboard() {
           </thead>
           <tbody>
             {logs.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '2rem' }}>데이터 없음</td></tr>
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-8)' }}>데이터 없음</td></tr>
             ) : logs.map((l) => (
               <tr key={l.id}>
-                <td className="card-header"><span style={{ fontSize: '0.8125rem' }}>{new Date(l.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></td>
+                <td className="card-header"><span style={{ fontSize: 'var(--fs-sm)' }}>{new Date(l.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></td>
                 <td data-label="기능">{l.feature_label}</td>
                 <td data-label="유저">{l.user_name}</td>
                 <td data-label="프롬프트" className="card-hide">{fmt(l.prompt_tokens)}</td>
@@ -215,11 +215,11 @@ export default function AiUsageDashboard() {
           </tbody>
         </table>
         {totalPages > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', marginTop: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-3)', marginTop: '1rem' }}>
             <button onClick={() => setLogPage(p => Math.max(1, p - 1))} disabled={logPage <= 1} style={{ padding: '0.375rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', background: '#fff', cursor: logPage <= 1 ? 'not-allowed' : 'pointer', opacity: logPage <= 1 ? 0.4 : 1 }}>
               <ChevronLeft size={16} />
             </button>
-            <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{logPage} / {totalPages}</span>
+            <span style={{ fontSize: 'var(--fs-base)', color: 'var(--text-muted)' }}>{logPage} / {totalPages}</span>
             <button onClick={() => setLogPage(p => Math.min(totalPages, p + 1))} disabled={logPage >= totalPages} style={{ padding: '0.375rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', background: '#fff', cursor: logPage >= totalPages ? 'not-allowed' : 'pointer', opacity: logPage >= totalPages ? 0.4 : 1 }}>
               <ChevronRight size={16} />
             </button>

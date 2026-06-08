@@ -58,13 +58,13 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
   }
 
   return (
-    <div style={{ borderTop: 'var(--border-w-2) solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
+    <div style={{ borderTop: 'var(--border-w-2) solid var(--border-color)', paddingTop: 'var(--space-4)', marginTop: '1rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
           <Cpu size={14} color="var(--brand)" />
-          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text)' }}>모델 선택</span>
+          <span style={{ fontSize: 'var(--fs-base)', fontWeight: 600, color: 'var(--text)' }}>모델 선택</span>
           {currentSavedModel && !modelsLoaded && (
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
               (현재: {currentSavedModel})
             </span>
           )}
@@ -82,7 +82,7 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
             color: hasKey ? 'var(--text)' : 'var(--text-faint)',
             border: 'var(--border-w-2) solid var(--border-color)',
             borderRadius: 'var(--radius)',
-            fontSize: '0.8125rem',
+            fontSize: 'var(--fs-sm)',
             fontWeight: 600,
             cursor: hasKey ? 'pointer' : 'not-allowed',
           }}
@@ -93,24 +93,24 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
       </div>
 
       {!modelsLoaded && !modelMsg && (
-        <p style={{ fontSize: '0.8125rem', color: 'var(--text-faint)', margin: 0 }}>
+        <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', margin: 0 }}>
           {hasKey ? '버튼을 눌러 사용 가능한 모델 목록을 불러오세요' : 'API 키를 먼저 저장해주세요'}
         </p>
       )}
 
       {modelsLoaded && models.length === 0 && (
-        <p style={{ fontSize: '0.8125rem', color: 'var(--text-faint)', margin: 0 }}>
+        <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', margin: 0 }}>
           generateContent를 지원하는 모델이 없습니다
         </p>
       )}
 
       {modelsLoaded && models.length > 0 && (
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
           <select
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
             className="input-field"
-            style={{ flex: 1, fontFamily: 'monospace', fontSize: '0.8125rem' }}
+            style={{ flex: 1, fontFamily: 'monospace', fontSize: 'var(--fs-sm)' }}
           >
             {models.map((m) => (
               <option key={m} value={m}>{m}</option>
@@ -136,7 +136,7 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
             marginTop: '0.625rem',
             padding: '0.625rem 0.875rem',
             borderRadius: 'var(--radius)',
-            fontSize: '0.8125rem',
+            fontSize: 'var(--fs-sm)',
             fontWeight: 500,
             display: 'flex',
             alignItems: 'center',

@@ -19,7 +19,7 @@ export default function TierRow({ id, name, discountRate, description, createdAt
   if (editing) {
     return (
       <tr>
-        <td colSpan={5} style={{ padding: '1rem 1.25rem', background: 'var(--color-bg)' }}>
+        <td colSpan={5} style={{ padding: 'var(--space-4) var(--space-5)', background: 'var(--color-bg)' }}>
           <TierForm
             mode="edit"
             tierId={id}
@@ -44,10 +44,10 @@ export default function TierRow({ id, name, discountRate, description, createdAt
         </span>
       </td>
       <td data-label="설명" className="card-hide">
-        <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>{description || '-'}</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>{description || '-'}</span>
       </td>
       <td data-label="생성일" className="card-hide">
-        <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
+        <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>
           {new Date(createdAt).toLocaleDateString('ko-KR')}
         </span>
       </td>
@@ -56,10 +56,10 @@ export default function TierRow({ id, name, discountRate, description, createdAt
           <button
             onClick={() => setEditing(true)}
             style={{
-              display: 'flex', alignItems: 'center', gap: '0.25rem',
+              display: 'flex', alignItems: 'center', gap: 'var(--space-1)',
               padding: '0.375rem 0.625rem', borderRadius: 'var(--radius)',
               background: 'var(--surface-muted)', color: 'var(--text-muted)',
-              border: 'none', fontSize: '0.8125rem', cursor: 'pointer',
+              border: 'none', fontSize: 'var(--fs-sm)', cursor: 'pointer',
             }}
           >
             <Pencil size={13} /> 수정

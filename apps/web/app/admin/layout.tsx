@@ -93,9 +93,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         brandName={branding.brandName}
         footer={<AdminUserMenu displayName={displayName} />}
         headerLeft={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span className="badge badge-indigo" style={{ fontSize: '0.75rem' }}>관리자</span>
-            <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <span className="badge badge-indigo" style={{ fontSize: 'var(--fs-xs)' }}>관리자</span>
+            <span style={{ fontSize: 'var(--fs-base)', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {displayName}
             </span>
           </div>

@@ -149,14 +149,14 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
         style={{
           width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '0.875rem 1rem', background: 'var(--color-bg)', border: 'none', cursor: 'pointer',
-          fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-muted)',
+          fontSize: 'var(--fs-base)', fontWeight: 600, color: 'var(--text-muted)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <Sparkles size={14} color="var(--brand)" />
           <span>일일업무에서 주간보고 생성</span>
           {tasks.length > 0 && (
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', fontWeight: 400 }}>
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', fontWeight: 400 }}>
               ({selectedIds.size}/{tasks.length}개 선택)
             </span>
           )}
@@ -166,21 +166,21 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
 
       {/* 패널 */}
       {isOpen && (
-        <div style={{ padding: '1rem', borderTop: 'var(--border-w-2) solid var(--border-color)' }}>
+        <div style={{ padding: 'var(--space-4)', borderTop: 'var(--border-w-2) solid var(--border-color)' }}>
           {loading && (
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1rem 0' }}>
+            <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--space-4) var(--space-0)' }}>
               이번 주 업무를 불러오는 중…
             </p>
           )}
 
           {error && (
-            <div role="alert" style={{ padding: '0.625rem 0.875rem', background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
+            <div role="alert" style={{ padding: '0.625rem 0.875rem', background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
               {error}
             </div>
           )}
 
           {!loading && tasks.length === 0 && !error && (
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-faint)', textAlign: 'center', padding: '1rem 0' }}>
+            <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', textAlign: 'center', padding: 'var(--space-4) var(--space-0)' }}>
               이번 주 등록된 일일업무가 없습니다
             </p>
           )}
@@ -192,33 +192,33 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
                 <button
                   type="button"
                   onClick={toggleAll}
-                  style={{ fontSize: '0.8125rem', color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem', padding: 0 }}
+                  style={{ fontSize: 'var(--fs-sm)', color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem', padding: 0 }}
                 >
                   {selectedIds.size === tasks.length
                     ? <CheckSquare size={14} />
                     : <Square size={14} />}
                   {selectedIds.size === tasks.length ? '전체 해제' : '전체 선택'}
                 </button>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>
+                <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>
                   {Object.keys(byDate).length}일치 업무
                 </span>
               </div>
 
               {/* 날짜별 업무 목록 */}
-              <div style={{ maxHeight: '320px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ maxHeight: '320px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                 {Object.entries(byDate)
                   .sort(([a], [b]) => a.localeCompare(b))
                   .map(([date, logs]) => (
                     <div key={date}>
-                      <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.375rem' }}>
+                      <p style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.375rem' }}>
                         {new Date(date + 'T12:00:00').toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
                       </p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
                         {logs.map((task) => (
                           <label
                             key={task.id}
                             style={{
-                              display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                              display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)',
                               padding: '0.5rem 0.625rem', borderRadius: 'var(--radius)', cursor: 'pointer',
                               background: selectedIds.has(task.id) ? 'var(--brand-soft)' : 'var(--surface-bg)',
                               border: `var(--hairline) solid ${selectedIds.has(task.id) ? 'var(--brand-soft-2)' : 'var(--surface-muted)'}`,
@@ -234,7 +234,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
                             <div style={{ minWidth: 0 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.125rem' }}>
                                 <span style={{
-                                  fontSize: '0.6875rem', fontWeight: 600,
+                                  fontSize: 'var(--fs-2xs)', fontWeight: 600,
                                   color: ENTRY_TYPE_COLOR[task.entry_type] ?? 'var(--text-muted)',
                                   background: 'var(--color-bg)', border: 'var(--border-w-2) solid var(--border-color)',
                                   borderRadius: 'var(--radius)', padding: '0 0.3rem',
@@ -242,7 +242,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
                                   {ENTRY_TYPE_LABEL[task.entry_type] ?? task.entry_type}
                                 </span>
                               </div>
-                              <p style={{ fontSize: '0.8125rem', color: 'var(--text)', margin: 0, lineHeight: 1.5 }}>
+                              <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', margin: 0, lineHeight: 1.5 }}>
                                 {task.content}
                               </p>
                             </div>
@@ -256,7 +256,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
               {/* 생성 버튼 */}
               <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
                 {generating && (
-                  <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginRight: '0.75rem', alignSelf: 'center' }}>
+                  <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', marginRight: '0.75rem', alignSelf: 'center' }}>
                     {currentStep.label}
                   </span>
                 )}
@@ -265,12 +265,12 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
                   onClick={handleGenerate}
                   disabled={generating || selectedIds.size === 0}
                   style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                    display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)',
                     padding: '0.625rem 1.25rem', borderRadius: 'var(--radius)',
                     background: generating || selectedIds.size === 0 ? 'var(--color-border)' : 'linear-gradient(135deg, var(--brand), var(--brand))',
                     color: generating || selectedIds.size === 0 ? 'var(--text-faint)' : '#fff',
                     border: 'none', cursor: generating || selectedIds.size === 0 ? 'not-allowed' : 'pointer',
-                    fontSize: '0.875rem', fontWeight: 600,
+                    fontSize: 'var(--fs-base)', fontWeight: 600,
                     transition: 'opacity 120ms',
                   }}
                 >

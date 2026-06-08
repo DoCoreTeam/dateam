@@ -22,17 +22,17 @@ const CARD: React.CSSProperties = {
   boxShadow: 'var(--shadow-sm)',
 }
 const CARD_HEADER: React.CSSProperties = {
-  padding: '1rem 1.5rem',
+  padding: 'var(--space-4) var(--space-6)',
   borderBottom: 'var(--border-w-2) solid var(--border-color)',
   display: 'flex',
   alignItems: 'center',
-  gap: '0.5rem',
+  gap: 'var(--space-2)',
   background: 'var(--color-bg)',
 }
-const CARD_BODY: React.CSSProperties = { padding: '1.25rem 1.5rem' }
+const CARD_BODY: React.CSSProperties = { padding: 'var(--space-5) var(--space-6)' }
 const LABEL: React.CSSProperties = {
   display: 'block',
-  fontSize: '0.75rem',
+  fontSize: 'var(--fs-xs)',
   fontWeight: 600,
   color: 'var(--text-muted)',
   marginBottom: '0.3rem',
@@ -41,29 +41,29 @@ const LABEL: React.CSSProperties = {
 }
 const INPUT: React.CSSProperties = {
   width: '100%',
-  padding: '0.5rem 0.75rem',
+  padding: 'var(--space-2) var(--space-3)',
   border: 'var(--border-w-2) solid var(--border-color)',
   borderRadius: 'var(--radius-lg)',
-  fontSize: '0.875rem',
+  fontSize: 'var(--fs-base)',
   color: 'var(--text)',
   background: '#fff',
   boxSizing: 'border-box',
 }
 const SUBMIT: React.CSSProperties = {
   marginTop: '1rem',
-  padding: '0.5rem 1.25rem',
+  padding: 'var(--space-2) var(--space-5)',
   background: 'var(--brand)',
   color: '#fff',
   border: 'none',
   borderRadius: 'var(--radius-lg)',
-  fontSize: '0.875rem',
+  fontSize: 'var(--fs-base)',
   fontWeight: 600,
   cursor: 'pointer',
 }
 const FIELD_GRID: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-  gap: '1rem',
+  gap: 'var(--space-4)',
 }
 
 // ─── 컬럼 정의 ───────────────────────────────────────────────────────────
@@ -162,7 +162,7 @@ function SectionCard({
   return (
     <section style={CARD}>
       <div style={CARD_HEADER}>
-        <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text)' }}>{title}</span>
+        <span style={{ fontSize: 'var(--fs-base)', fontWeight: 600, color: 'var(--text)' }}>{title}</span>
         <span
           className="badge"
           style={{ marginLeft: 'auto', fontSize: '0.7rem', background: badgeColor, color: badgeText }}
@@ -286,7 +286,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
         padding: '0.25rem 0.625rem',
         background: 'var(--brand-soft)', color: 'var(--brand-dark)',
         border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)',
-        fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
+        fontSize: 'var(--fs-xs)', fontWeight: 600, cursor: 'pointer',
       }}
     >
       <Sparkles size={11} />
@@ -326,10 +326,10 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       {toast && (
         <div role="alert" aria-live="polite" style={{
           position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 9999,
-          padding: '0.75rem 1.25rem',
+          padding: 'var(--space-3) var(--space-5)',
           background: toast.ok ? 'var(--success)' : 'var(--danger)',
           color: '#fff', borderRadius: 'var(--radius)',
-          fontSize: '0.875rem', fontWeight: 600,
+          fontSize: 'var(--fs-base)', fontWeight: 600,
           boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
           pointerEvents: 'none',
         }}>
@@ -347,7 +347,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
             background: 'rgba(15,23,42,0.45)',
             backdropFilter: 'blur(4px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '1rem',
+            padding: 'var(--space-4)',
           }}
           onClick={(e) => { if (e.target === e.currentTarget) setAiPromptModal(null) }}
         >
@@ -356,15 +356,15 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
             borderRadius: 'var(--radius)',
             boxShadow: '0 16px 48px rgba(0,0,0,0.2)',
             width: '100%', maxWidth: '480px',
-            padding: '1.5rem',
+            padding: 'var(--space-6)',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1rem' }}>
               <Sparkles size={16} color="var(--brand)" />
-              <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text)' }}>
+              <span style={{ fontSize: 'var(--fs-md)', fontWeight: 700, color: 'var(--text)' }}>
                 AI 작성 — {aiPromptModal.sectionName}
               </span>
             </div>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>
+            <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>
               수정 요청을 자유롭게 입력하세요. AI가 현재 데이터를 기반으로 반영합니다.
             </p>
             <textarea
@@ -377,7 +377,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
               style={{
                 width: '100%', padding: '0.625rem 0.875rem',
                 border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
-                fontSize: '0.875rem', color: 'var(--text)',
+                fontSize: 'var(--fs-base)', color: 'var(--text)',
                 resize: 'vertical', fontFamily: 'inherit',
                 boxSizing: 'border-box', outline: 'none',
               }}
@@ -386,21 +386,21 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
             />
             {aiError && (
               <div style={{
-                marginTop: '0.5rem', padding: '0.5rem 0.75rem',
+                marginTop: '0.5rem', padding: 'var(--space-2) var(--space-3)',
                 background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)',
-                borderRadius: 'var(--radius-lg)', fontSize: '0.8125rem', color: 'var(--danger)',
+                borderRadius: 'var(--radius-lg)', fontSize: 'var(--fs-sm)', color: 'var(--danger)',
               }}>
                 {aiError}
               </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', marginTop: '1rem' }}>
               <button
                 type="button"
                 onClick={() => setAiPromptModal(null)}
                 style={{
-                  padding: '0.5rem 1rem', background: 'transparent',
+                  padding: 'var(--space-2) var(--space-4)', background: 'transparent',
                   color: 'var(--text-muted)', border: 'var(--border-w-2) solid var(--border-color)',
-                  borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer',
+                  borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', cursor: 'pointer',
                 }}
               >
                 취소
@@ -410,11 +410,11 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
                 onClick={handleAiRun}
                 disabled={!aiPrompt.trim()}
                 style={{
-                  padding: '0.5rem 1.25rem',
+                  padding: 'var(--space-2) var(--space-5)',
                   background: aiPrompt.trim() ? 'var(--brand)' : 'var(--color-border)',
                   color: aiPrompt.trim() ? '#fff' : 'var(--text-faint)',
                   border: 'none', borderRadius: 'var(--radius)',
-                  fontSize: '0.875rem', fontWeight: 600,
+                  fontSize: 'var(--fs-base)', fontWeight: 600,
                   cursor: aiPrompt.trim() ? 'pointer' : 'not-allowed',
                   display: 'flex', alignItems: 'center', gap: '0.375rem',
                 }}

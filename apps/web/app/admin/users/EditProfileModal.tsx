@@ -62,7 +62,7 @@ export default function EditProfileModal({
       }}>
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '1rem 1.25rem', borderBottom: 'var(--border-w-2) solid var(--border-color)',
+          padding: 'var(--space-4) var(--space-5)', borderBottom: 'var(--border-w-2) solid var(--border-color)',
         }}>
           <h3 className="tape-title" style={{ margin: 0 }}>
             사용자 정보 수정
@@ -72,7 +72,7 @@ export default function EditProfileModal({
           </button>
         </div>
 
-        <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>이름 *</span>
             <input
@@ -80,8 +80,8 @@ export default function EditProfileModal({
               onChange={e => setName(e.target.value)}
               disabled={isPending}
               style={{
-                padding: '0.5rem 0.75rem', border: 'var(--hairline) solid var(--border-color)',
-                borderRadius: 'var(--radius)', fontSize: '0.875rem', outline: 'none',
+                padding: 'var(--space-2) var(--space-3)', border: 'var(--hairline) solid var(--border-color)',
+                borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', outline: 'none',
               }}
             />
           </label>
@@ -93,8 +93,8 @@ export default function EditProfileModal({
               onChange={e => setRank(e.target.value)}
               disabled={isPending}
               style={{
-                padding: '0.5rem 0.75rem', border: 'var(--hairline) solid var(--border-color)',
-                borderRadius: 'var(--radius)', fontSize: '0.875rem', background: '#fff', outline: 'none',
+                padding: 'var(--space-2) var(--space-3)', border: 'var(--hairline) solid var(--border-color)',
+                borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', background: '#fff', outline: 'none',
               }}
             >
               <option value="">— 직급 없음 —</option>
@@ -111,8 +111,8 @@ export default function EditProfileModal({
               onChange={e => setPosition(e.target.value)}
               disabled={isPending}
               style={{
-                padding: '0.5rem 0.75rem', border: 'var(--hairline) solid var(--border-color)',
-                borderRadius: 'var(--radius)', fontSize: '0.875rem', background: '#fff', outline: 'none',
+                padding: 'var(--space-2) var(--space-3)', border: 'var(--hairline) solid var(--border-color)',
+                borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', background: '#fff', outline: 'none',
               }}
             >
               <option value="">— 직책 없음 —</option>
@@ -126,15 +126,15 @@ export default function EditProfileModal({
         </div>
 
         <div style={{
-          display: 'flex', justifyContent: 'flex-end', gap: '0.5rem',
-          padding: '0.75rem 1.25rem', borderTop: 'var(--border-w-2) solid var(--border-color)',
+          display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)',
+          padding: 'var(--space-3) var(--space-5)', borderTop: 'var(--border-w-2) solid var(--border-color)',
         }}>
           <button
             onClick={onClose}
             disabled={isPending}
             style={{
               padding: '0.45rem 1rem', background: 'var(--surface-muted)', color: 'var(--text-muted)',
-              border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', cursor: 'pointer',
+              border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', cursor: 'pointer',
             }}
           >
             취소
@@ -144,7 +144,7 @@ export default function EditProfileModal({
             disabled={isPending}
             style={{
               padding: '0.45rem 1rem', background: 'var(--brand-dark)', color: '#fff',
-              border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem',
+              border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)',
               cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1,
             }}
           >

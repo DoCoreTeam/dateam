@@ -30,10 +30,10 @@ export default function InviteForm() {
     <form onSubmit={handleSubmit}>
       {result && (
         <div style={{
-          padding: '0.75rem 1rem',
+          padding: 'var(--space-3) var(--space-4)',
           borderRadius: 'var(--radius)',
           marginBottom: '1rem',
-          fontSize: '0.8125rem',
+          fontSize: 'var(--fs-sm)',
           backgroundColor: result.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
           border: `var(--hairline) solid ${result.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
           color: result.ok ? 'var(--success)' : 'var(--danger)',
@@ -41,7 +41,7 @@ export default function InviteForm() {
           {result.msg}
         </div>
       )}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-end' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', alignItems: 'flex-end' }}>
         <div style={{ flex: '1 1 180px', minWidth: 0 }}>
           <label className="label">이메일</label>
           <input name="email" type="email" required placeholder="team@example.com" className="input-field" />
@@ -55,7 +55,7 @@ export default function InviteForm() {
           {pending ? '생성 중...' : '계정 생성'}
         </button>
       </div>
-      <p style={{ marginTop: '0.625rem', fontSize: '0.75rem', color: 'var(--text-faint)' }}>
+      <p style={{ marginTop: '0.625rem', fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>
         계정 생성 후 구성원은 비밀번호 빈칸으로 첫 로그인하여 새 비밀번호를 설정합니다.
       </p>
     </form>

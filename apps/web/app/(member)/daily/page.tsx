@@ -397,14 +397,14 @@ export default function DailyPage() {
               flex: 1, display: 'flex', alignItems: 'center',
               justifyContent: 'center', gap: '0.625rem',
             }}>
-              <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>
+              <span style={{ fontSize: 'var(--fs-lg)', fontWeight: 700, color: 'var(--text)' }}>
                 {formatDate(selectedDate)}
               </span>
               {!isToday && (
                 <button
                   onClick={goToday}
                   style={{
-                    fontSize: '0.75rem', fontWeight: 600,
+                    fontSize: 'var(--fs-xs)', fontWeight: 600,
                     color: 'var(--info)', background: 'var(--info-bg)',
                     border: 'var(--hairline) solid var(--info-border)',
                     borderRadius: 'var(--radius)',
@@ -418,7 +418,7 @@ export default function DailyPage() {
               )}
               {isToday && (
                 <span style={{
-                  fontSize: '0.75rem', fontWeight: 700,
+                  fontSize: 'var(--fs-xs)', fontWeight: 700,
                   color: 'var(--info)', background: 'var(--info-bg)',
                   padding: '0.125rem 0.375rem', borderRadius: 'var(--radius)',
                 }}>
@@ -434,7 +434,7 @@ export default function DailyPage() {
 
           <div className="responsive-grid-2">
             {/* 좌측 메인 영역: 입력 폼 및 업무 타임라인 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', minWidth: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}>
               {/* 입력 폼 */}
               <div className="daily-compose-card">
                 <div className="daily-type-row">
@@ -494,7 +494,7 @@ export default function DailyPage() {
                   </p>
                 )}
                 {error && (
-                  <p style={{ color: 'var(--danger)', fontSize: '0.8125rem', margin: '0.5rem 0 0' }}>{error}</p>
+                  <p style={{ color: 'var(--danger)', fontSize: 'var(--fs-sm)', margin: '0.5rem 0 0' }}>{error}</p>
                 )}
               </div>
 
@@ -518,7 +518,7 @@ export default function DailyPage() {
                   <button
                     onClick={() => setGraphOpen(v => !v)}
                     style={{
-                      fontSize: '0.75rem', fontWeight: 600,
+                      fontSize: 'var(--fs-xs)', fontWeight: 600,
                       color: graphOpen ? 'var(--brand)' : 'var(--text-muted)',
                       background: graphOpen ? 'var(--brand-soft)' : 'var(--color-bg)',
                       border: `var(--hairline) solid ${graphOpen ? 'var(--brand-soft-2)' : 'var(--color-border)'}`,
@@ -537,10 +537,10 @@ export default function DailyPage() {
 
               {/* 타임라인 */}
               {loading ? (
-                <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '3rem 0' }}>로딩 중...</div>
+                <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-12) var(--space-0)' }}>로딩 중...</div>
               ) : logs.length === 0 ? (
                 <div style={{
-                  textAlign: 'center', color: 'var(--text-faint)', padding: '3rem 0',
+                  textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-12) var(--space-0)',
                   border: 'var(--hairline) dashed var(--color-border)', borderRadius: 'var(--radius)',
                 }}>
                   {isToday ? '오늘 첫 업무 로그를 작성해 보세요.' : '이 날의 업무 로그가 없습니다.'}
@@ -568,7 +568,7 @@ export default function DailyPage() {
             </div>
 
             {/* 우측 사이드 영역: 이월 업무 및 오늘의 현황 통계 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
               {/* 확인 안 한 메모 위젯 */}
               <UnreviewedMemoWidget variant="full" />
               {/* 이월된 미완료 항목 (오늘만 표시) */}
@@ -583,7 +583,7 @@ export default function DailyPage() {
                     )}
                   </div>
                   {carryoverLoading ? (
-                    <div style={{ color: 'var(--text-faint)', fontSize: '0.875rem', padding: '0.5rem 0' }}>로딩 중...</div>
+                    <div style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-base)', padding: 'var(--space-2) var(--space-0)' }}>로딩 중...</div>
                   ) : (
                     <CarryoverList
                       logs={carryoverLogs}
@@ -601,14 +601,14 @@ export default function DailyPage() {
                 <div className="daily-stats-header">
                   <h3 className="daily-stats-title">업무 현황 요약</h3>
                   {logs.length > 0 && (
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 550 }}>
+                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', fontWeight: 550 }}>
                       총 {logs.length}개 로그
                     </span>
                   )}
                 </div>
                 
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
-                  <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>완료율</span>
+                  <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', fontWeight: 500 }}>완료율</span>
                   <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--success)' }}>
                     {logs.length > 0 ? Math.round((logs.filter(l => l.entry_type === 'done').length / logs.length) * 100) : 0}%
                   </span>
@@ -645,7 +645,7 @@ export default function DailyPage() {
       {viewMode === 'week' && (
         <>
           {/* 주 네비게이션 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1rem', flexWrap: 'wrap' }}>
             <button onClick={prevWeek} className="calendar-nav-btn" aria-label="이전 주">
               <ChevronLeft size={16} strokeWidth={2.4} />
             </button>
@@ -659,7 +659,7 @@ export default function DailyPage() {
               <button
                 onClick={goCurrentWeek}
                 style={{
-                  padding: '0.375rem 0.75rem', fontSize: '0.8125rem', fontWeight: 600,
+                  padding: '0.375rem 0.75rem', fontSize: 'var(--fs-sm)', fontWeight: 600,
                   color: 'var(--info)', background: 'var(--info-bg)', border: 'var(--hairline) solid var(--info-border)',
                   borderRadius: 'var(--radius)', cursor: 'pointer',
                 }}
@@ -670,9 +670,9 @@ export default function DailyPage() {
           </div>
 
           {weekLoading ? (
-            <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '3rem 0' }}>로딩 중...</div>
+            <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-12) var(--space-0)' }}>로딩 중...</div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
               {weekDates.map((dateStr) => {
                 const d = new Date(dateStr + 'T00:00:00')
                 const dayLogs = weekLogsMap.get(dateStr) ?? []
@@ -692,16 +692,16 @@ export default function DailyPage() {
                       background: isTodayDate ? 'var(--info-bg)' : 'var(--color-bg)',
                       borderBottom: dayLogs.length > 0 ? 'var(--border-w-2) solid var(--border-color)' : 'none',
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                         <span style={{
-                          fontSize: '0.875rem', fontWeight: isTodayDate ? 700 : 600,
+                          fontSize: 'var(--fs-base)', fontWeight: isTodayDate ? 700 : 600,
                           color: isTodayDate ? 'var(--info)' : dow === 0 ? 'var(--danger)' : dow === 6 ? 'var(--info)' : 'var(--text)',
                         }}>
                           {WEEK_DAYS[dow]} {d.getDate()}일
                         </span>
                         {isTodayDate && (
                           <span style={{
-                            fontSize: '0.6875rem', fontWeight: 700, color: 'var(--info)',
+                            fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--info)',
                             background: 'var(--info-bg)', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)',
                           }}>
                             오늘
@@ -710,12 +710,12 @@ export default function DailyPage() {
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                         {dayLogs.length > 0 && (
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>{dayLogs.length}건</span>
+                          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>{dayLogs.length}건</span>
                         )}
                         <button
                           onClick={() => { setViewMode('day'); setSelectedDate(dateStr) }}
                           style={{
-                            fontSize: '0.75rem', color: 'var(--info)', background: 'none',
+                            fontSize: 'var(--fs-xs)', color: 'var(--info)', background: 'none',
                             border: 'var(--hairline) solid var(--info-border)', borderRadius: 'var(--radius)',
                             padding: '0.125rem 0.5rem', cursor: 'pointer',
                           }}
@@ -734,24 +734,24 @@ export default function DailyPage() {
                               key={log.id}
                               onClick={() => { setViewMode('day'); setSelectedDate(dateStr) }}
                               style={{
-                                display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
-                                paddingLeft: '0.5rem', borderLeft: `var(--border-w-2) solid ${t.color}`,
+                                display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)',
+                                paddingLeft: 'var(--space-2)', borderLeft: `var(--border-w-2) solid ${t.color}`,
                                 cursor: 'pointer',
                               }}
                             >
                               <span style={{
-                                fontSize: '0.6875rem', fontWeight: 700, color: t.color,
+                                fontSize: 'var(--fs-2xs)', fontWeight: 700, color: t.color,
                                 background: t.bg, border: `var(--hairline) solid ${t.border}`,
                                 padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)',
                                 flexShrink: 0, marginTop: '0.1rem',
                               }}>
                                 {t.label}
                               </span>
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', flexShrink: 0, marginTop: '0.15rem' }}>
+                              <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', flexShrink: 0, marginTop: '0.15rem' }}>
                                 {formatTime(log.logged_at)}
                               </span>
                               <p style={{
-                                margin: 0, fontSize: '0.875rem', color: 'var(--text)',
+                                margin: 0, fontSize: 'var(--fs-base)', color: 'var(--text)',
                                 lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word', flex: 1,
                               }}>
                                 {log.content}
@@ -833,7 +833,7 @@ function LogList({
                 background: '#fff', border: 'var(--border-w-2) solid var(--border-color)',
                 borderLeft: `var(--border-w) solid ${type.color}`,
                 borderRadius: threadOpen ? '0 0.5rem 0 0' : '0 0.5rem 0.5rem 0',
-                padding: '0.75rem 1rem',
+                padding: 'var(--space-3) var(--space-4)',
                 cursor: isEditing ? 'default' : 'pointer',
               }}
             >
@@ -846,7 +846,7 @@ function LogList({
                         type="button"
                         onClick={() => onEditTypeChange(t.value)}
                         style={{
-                          padding: '0.25rem 0.5rem', borderRadius: 'var(--radius)', fontSize: '0.75rem',
+                          padding: 'var(--space-1) var(--space-2)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-xs)',
                           fontWeight: editType === t.value ? 700 : 400,
                           border: `var(--hairline) solid ${editType === t.value ? t.border : 'var(--color-border)'}`,
                           background: editType === t.value ? t.bg : 'var(--color-bg)',
@@ -871,19 +871,19 @@ function LogList({
                     autoFocus
                     style={{
                       width: '100%', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
-                      padding: '0.5rem', fontSize: '0.9375rem', resize: 'vertical',
+                      padding: 'var(--space-2)', fontSize: 'var(--fs-md)', resize: 'vertical',
                       outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
                     }}
                   />
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.375rem', flexWrap: 'wrap' }}>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>일정 날짜</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: '0.375rem', flexWrap: 'wrap' }}>
+                    <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>일정 날짜</label>
                     <input
                       type="date"
                       value={editTargetDate}
                       onChange={(e) => onEditTargetDateChange(e.target.value)}
                       style={{
                         border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
-                        padding: '0.2rem 0.4rem', fontSize: '0.8125rem',
+                        padding: '0.2rem 0.4rem', fontSize: 'var(--fs-sm)',
                         color: 'var(--text)', outline: 'none', cursor: 'pointer',
                       }}
                     />
@@ -891,27 +891,27 @@ function LogList({
                       <button
                         type="button"
                         onClick={() => onEditTargetDateChange('')}
-                        style={{ fontSize: '0.75rem', color: 'var(--text-faint)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                        style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                       >
                         ✕ 제거
                       </button>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '0.5rem' }}>
                     <button onClick={() => onUpdate(log.id)} disabled={isPending} style={actionBtnPrimary}>저장 <span style={{ fontSize: '0.65rem', opacity: 0.7 }}>Ctrl+↵</span></button>
                     <button onClick={onCancelEdit} style={actionBtnSecondary}>취소</button>
                   </div>
                 </div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '0.375rem', flexWrap: 'wrap' }}>
                       <div style={{ position: 'relative', display: 'inline-block' }}>
                         <button
                           data-testid={`status-badge-${log.id}`}
                           onClick={(e) => { e.stopPropagation(); setStatusPopoverId(statusPopoverId === log.id ? null : log.id) }}
                           style={{
-                            display: 'inline-block', fontSize: '0.6875rem', fontWeight: 700,
+                            display: 'inline-block', fontSize: 'var(--fs-2xs)', fontWeight: 700,
                             color: type.color, background: type.bg,
                             border: `var(--hairline) solid ${type.border}`,
                             padding: '0.1rem 0.4rem', borderRadius: 'var(--radius)',
@@ -929,7 +929,7 @@ function LogList({
                               position: 'absolute', top: '100%', left: 0, zIndex: 50,
                               background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
                               boxShadow: 'var(--shadow-sm)', padding: '0.375rem',
-                              display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '80px',
+                              display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', minWidth: '80px',
                               marginTop: '0.25rem',
                             }}
                           >
@@ -939,7 +939,7 @@ function LogList({
                                 data-testid={`status-option-${t.value}`}
                                 onClick={() => { onStatusChange(log.id, t.value); setStatusPopoverId(null) }}
                                 style={{
-                                  fontSize: '0.6875rem', fontWeight: t.value === log.entry_type ? 700 : 400,
+                                  fontSize: 'var(--fs-2xs)', fontWeight: t.value === log.entry_type ? 700 : 400,
                                   color: t.color, background: t.value === log.entry_type ? t.bg : 'transparent',
                                   border: `var(--hairline) solid ${t.value === log.entry_type ? t.border : 'transparent'}`,
                                   padding: '0.2rem 0.5rem', borderRadius: 'var(--radius)',
@@ -952,13 +952,13 @@ function LogList({
                           </div>
                         )}
                       </div>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>{formatTime(log.logged_at)}</span>
+                      <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>{formatTime(log.logged_at)}</span>
                       {log.target_date && (
                         <DdayBadge targetDate={log.target_date} today={todayStr} />
                       )}
                     </div>
                     <p style={{
-                      margin: 0, fontSize: '0.9375rem', color: 'var(--text)',
+                      margin: 0, fontSize: 'var(--fs-md)', color: 'var(--text)',
                       lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                     }}>
                       {log.content}
@@ -966,7 +966,7 @@ function LogList({
                   </div>
                   <div
                     onClick={(e) => e.stopPropagation()}
-                    style={{ display: 'flex', gap: '0.25rem', flexShrink: 0, alignItems: 'center' }}
+                    style={{ display: 'flex', gap: 'var(--space-1)', flexShrink: 0, alignItems: 'center' }}
                   >
                     <button
                       onClick={() => setOpenThreadId(threadOpen ? null : log.id)}
@@ -997,7 +997,7 @@ function LogList({
 
   return (
     <>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
       {groups.map((group) => {
         if (!group.isBatch) return renderCard(group.logs[0])
         // 묶음 안의 카드를 편집/스레드 작성 중이면 접기 방지 (입력 손실 방지)
@@ -1148,19 +1148,19 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
     <div style={{
       border: 'var(--border-w-2) solid var(--border-color)', borderTop: 'none',
       borderRadius: '0 0 0.5rem 0.5rem',
-      background: 'var(--color-bg)', padding: '0.75rem 1rem',
+      background: 'var(--color-bg)', padding: 'var(--space-3) var(--space-4)',
     }}>
       {threadLoading ? (
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-faint)', padding: '0.25rem 0' }}>로딩 중...</div>
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-faint)', padding: 'var(--space-1) var(--space-0)' }}>로딩 중...</div>
       ) : threads.length === 0 ? (
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-faint)', paddingBottom: '0.5rem' }}>
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-faint)', paddingBottom: 'var(--space-2)' }}>
           아직 스레드가 없습니다. 관련 내용을 자유롭게 남겨보세요.
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginBottom: '0.75rem' }}>
           {threads.map((t) => (
             <div key={t.id} style={{
-              display: 'flex', gap: '0.5rem',
+              display: 'flex', gap: 'var(--space-2)',
               justifyContent: t.author_type === 'user' ? 'flex-end' : 'flex-start',
             }}>
               <div style={{
@@ -1168,10 +1168,10 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
                 background: t.author_type === 'user' ? 'var(--info-bg)' : 'var(--success-bg)',
                 border: `var(--hairline) solid ${t.author_type === 'user' ? 'var(--info-border)' : 'var(--success-border)'}`,
                 borderRadius: t.author_type === 'user' ? '0.75rem 0.75rem 0 0.75rem' : '0.75rem 0.75rem 0.75rem 0',
-                padding: '0.5rem 0.75rem',
+                padding: 'var(--space-2) var(--space-3)',
               }}>
                 <p style={{
-                  margin: 0, fontSize: '0.875rem', color: 'var(--text)',
+                  margin: 0, fontSize: 'var(--fs-base)', color: 'var(--text)',
                   lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                 }}>
                   {t.content}
@@ -1191,10 +1191,10 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
           background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)',
           padding: '0.625rem 0.75rem', marginBottom: '0.625rem',
         }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--brand)', marginBottom: '0.375rem' }}>
+          <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, color: 'var(--brand)', marginBottom: '0.375rem' }}>
             ✨ AI 분석 결과 ({aiItems.length}개)
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '0.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: '0.5rem' }}>
             {aiItems.map((item, i) => {
               const t = ENTRY_MAP[item.status as DailyLogEntryType] ?? ENTRY_MAP['note']
               return (
@@ -1204,14 +1204,14 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
                     background: t.bg, border: `var(--hairline) solid ${t.border}`,
                     padding: '0.05rem 0.3rem', borderRadius: 'var(--radius)',
                   }}>{t.label}</span>
-                  <span style={{ fontSize: '0.8125rem', color: 'var(--text)', flex: 1 }}>{item.title}</span>
+                  <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', flex: 1 }}>{item.title}</span>
                   {item.targetDate && <DdayBadge targetDate={item.targetDate} today={todayForBadge} />}
                 </div>
               )
             })}
           </div>
           {aiConfirmError && (
-            <div style={{ fontSize: '0.75rem', color: 'var(--danger)', marginBottom: '0.375rem' }}>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--danger)', marginBottom: '0.375rem' }}>
               {aiConfirmError}
             </div>
           )}
@@ -1221,7 +1221,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
               disabled={submitting}
               style={{
                 padding: '0.375rem 0.75rem', background: 'var(--brand)', color: '#fff',
-                border: 'none', borderRadius: 'var(--radius)', fontSize: '0.75rem',
+                border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-xs)',
                 fontWeight: 600, cursor: submitting ? 'not-allowed' : 'pointer',
                 opacity: submitting ? 0.5 : 1, whiteSpace: 'nowrap',
               }}
@@ -1232,7 +1232,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
               onClick={() => setShowAiResult(false)}
               style={{
                 padding: '0.375rem 0.625rem', background: 'none', color: 'var(--text-muted)',
-                border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.75rem',
+                border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-xs)',
                 cursor: 'pointer',
               }}
             >
@@ -1243,11 +1243,11 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
       )}
 
       {aiAnalyzeError && (
-        <div style={{ fontSize: '0.75rem', color: 'var(--danger)', marginBottom: '0.375rem' }}>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--danger)', marginBottom: '0.375rem' }}>
           {aiAnalyzeError}
         </div>
       )}
-      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end' }}>
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -1261,7 +1261,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
           rows={2}
           style={{
             flex: 1, border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
-            padding: '0.5rem', fontSize: '0.875rem', resize: 'none',
+            padding: 'var(--space-2)', fontSize: 'var(--fs-base)', resize: 'none',
             outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
             background: '#fff',
           }}
@@ -1272,10 +1272,10 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
             disabled={aiLoading || !input.trim()}
             style={{
               padding: '0.375rem 0.75rem', background: 'var(--brand)', color: '#fff',
-              border: 'none', borderRadius: 'var(--radius)', fontSize: '0.75rem',
+              border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-xs)',
               fontWeight: 600, cursor: aiLoading || !input.trim() ? 'not-allowed' : 'pointer',
               opacity: aiLoading || !input.trim() ? 0.5 : 1, whiteSpace: 'nowrap',
-              display: 'flex', alignItems: 'center', gap: '0.25rem',
+              display: 'flex', alignItems: 'center', gap: 'var(--space-1)',
             }}
           >
             <Sparkles size={12} strokeWidth={2.4} />
@@ -1286,7 +1286,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
             disabled={submitting || !input.trim()}
             style={{
               padding: '0.375rem 0.75rem', background: 'var(--brand)', color: '#fff',
-              border: 'none', borderRadius: 'var(--radius)', fontSize: '0.75rem',
+              border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-xs)',
               fontWeight: 600, cursor: submitting || !input.trim() ? 'not-allowed' : 'pointer',
               opacity: submitting || !input.trim() ? 0.5 : 1, whiteSpace: 'nowrap',
             }}
@@ -1329,29 +1329,29 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
               <div style={{ flex: 1, minWidth: '10rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
                   <span style={{
-                    fontSize: '0.6875rem', fontWeight: 700, color: type.color,
+                    fontSize: 'var(--fs-2xs)', fontWeight: 700, color: type.color,
                     background: type.bg, border: `var(--hairline) solid ${type.border}`,
                     padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)',
                   }}>
                     {type.label}
                   </span>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--warning)', background: 'var(--warning-bg)', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)' }}>
+                  <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--warning)', background: 'var(--warning-bg)', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)' }}>
                     {dateLabel} 이월
                   </span>
                 </div>
                 <p style={{
-                  margin: 0, fontSize: '0.875rem', color: 'var(--text)',
+                  margin: 0, fontSize: 'var(--fs-base)', color: 'var(--text)',
                   lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                 }}>
                   {log.content}
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 'var(--space-1)', flexShrink: 0, alignItems: 'center', flexWrap: 'wrap' }}>
                 <button
                   onClick={() => onResolve(log.id)}
                   disabled={isPending}
                   style={{
-                    padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 600,
+                    padding: 'var(--space-1) var(--space-2)', fontSize: 'var(--fs-xs)', fontWeight: 600,
                     background: 'var(--success-bg)', color: 'var(--success)', border: 'var(--hairline) solid var(--success-border)',
                     borderRadius: 'var(--radius)', cursor: 'pointer',
                   }}
@@ -1362,7 +1362,7 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
                   onClick={() => onMoveToToday(log.id)}
                   disabled={isPending}
                   style={{
-                    padding: '0.25rem 0.5rem', fontSize: '0.75rem', fontWeight: 600,
+                    padding: 'var(--space-1) var(--space-2)', fontSize: 'var(--fs-xs)', fontWeight: 600,
                     background: 'var(--info-bg)', color: 'var(--info)', border: 'var(--hairline) solid var(--info-border)',
                     borderRadius: 'var(--radius)', cursor: 'pointer',
                   }}
@@ -1373,7 +1373,7 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
                   onClick={() => onIgnore(log.id)}
                   disabled={isPending}
                   style={{
-                    padding: '0.25rem 0.5rem', fontSize: '0.75rem',
+                    padding: 'var(--space-1) var(--space-2)', fontSize: 'var(--fs-xs)',
                     background: 'none', color: 'var(--text-faint)', border: 'var(--border-w-2) solid var(--border-color)',
                     borderRadius: 'var(--radius)', cursor: 'pointer',
                   }}
@@ -1391,19 +1391,19 @@ function CarryoverList({ logs, isPending, onResolve, onMoveToToday, onIgnore }: 
 
 const iconBtn: React.CSSProperties = {
   background: 'none', border: 'none', cursor: 'pointer',
-  fontSize: '0.75rem', padding: '0.25rem 0.375rem',
+  fontSize: 'var(--fs-xs)', padding: '0.25rem 0.375rem',
   borderRadius: 'var(--radius)', color: 'var(--text-faint)', lineHeight: 1,
 }
 
 const actionBtnPrimary: React.CSSProperties = {
   padding: '0.375rem 0.875rem', background: 'var(--info)', color: '#fff',
-  border: 'none', borderRadius: 'var(--radius)', fontSize: '0.8125rem',
+  border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)',
   fontWeight: 600, cursor: 'pointer',
 }
 
 const actionBtnSecondary: React.CSSProperties = {
   padding: '0.375rem 0.875rem', background: 'var(--surface-muted)', color: 'var(--text-muted)',
-  border: 'none', borderRadius: 'var(--radius)', fontSize: '0.8125rem',
+  border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)',
   fontWeight: 600, cursor: 'pointer',
 }
 
@@ -1449,23 +1449,23 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
         {/* 헤더 */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '1rem 1.25rem', borderBottom: 'var(--border-w-2) solid var(--border-color)',
+          padding: 'var(--space-4) var(--space-5)', borderBottom: 'var(--border-w-2) solid var(--border-color)',
           background: 'linear-gradient(135deg, var(--brand-soft), var(--info-bg))',
         }}>
           <div>
-            <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>✨ AI 분석 결과</div>
+            <div style={{ fontSize: 'var(--fs-lg)', fontWeight: 700, color: 'var(--text)' }}>✨ AI 분석 결과</div>
             {loading && editItems.length === 0 && (
-              <div style={{ fontSize: '0.75rem', color: 'var(--brand)', marginTop: '0.125rem' }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', marginTop: '0.125rem' }}>
                 분석 중...
               </div>
             )}
             {loading && editItems.length > 0 && (
-              <div style={{ fontSize: '0.75rem', color: 'var(--brand)', marginTop: '0.125rem' }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', marginTop: '0.125rem' }}>
                 {editItems.length}개 항목 발견 — 계속 분석 중...
               </div>
             )}
             {!loading && editItems.length > 0 && (
-              <div style={{ fontSize: '0.75rem', color: 'var(--brand)', marginTop: '0.125rem' }}>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', marginTop: '0.125rem' }}>
                 {editItems.length}개 항목 감지됨 — 확인 후 저장하세요
               </div>
             )}
@@ -1474,21 +1474,21 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
             onClick={onClose}
             style={{
               background: 'none', border: 'none', fontSize: '1.25rem',
-              color: 'var(--text-faint)', cursor: 'pointer', lineHeight: 1, padding: '0.25rem',
+              color: 'var(--text-faint)', cursor: 'pointer', lineHeight: 1, padding: 'var(--space-1)',
             }}
           >×</button>
         </div>
 
         {/* 컨텐츠 */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.25rem' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-4) var(--space-5)' }}>
           {/* 같은 묶음 안내 배너 */}
           {hasOriginGroup && !loading && (
             <div style={{
               background: 'var(--info-bg)', border: 'var(--hairline) solid var(--info-border)',
               borderRadius: 'var(--radius)', padding: '0.5rem 0.875rem',
               marginBottom: '0.875rem',
-              fontSize: '0.8125rem', color: 'var(--info)',
-              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              fontSize: 'var(--fs-sm)', color: 'var(--info)',
+              display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
             }}>
               <span>🔗</span>
               <span>같은 입력에서 분리된 <strong>{editItems.length}개</strong> 항목 묶음입니다 — 개별 확인 후 함께 저장됩니다</span>
@@ -1498,8 +1498,8 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
           {error && (
             <div style={{
               background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)',
-              borderRadius: 'var(--radius)', padding: '0.75rem 1rem',
-              color: 'var(--danger)', fontSize: '0.875rem', marginBottom: '1rem',
+              borderRadius: 'var(--radius)', padding: 'var(--space-3) var(--space-4)',
+              color: 'var(--danger)', fontSize: 'var(--fs-base)', marginBottom: '1rem',
             }}>
               {error}
             </div>
@@ -1508,21 +1508,21 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
           {loading && editItems.length === 0 && (
             <div style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center',
-              justifyContent: 'center', gap: '1rem', padding: '2.5rem 1rem',
+              justifyContent: 'center', gap: 'var(--space-4)', padding: 'var(--space-10) var(--space-4)',
             }}>
               <div className="ai-analyzing-spinner" />
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--brand-dark)', marginBottom: '0.25rem' }}>
+                <div style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--brand-dark)', marginBottom: '0.25rem' }}>
                   AI가 업무를 분석하고 있습니다
                 </div>
-                <div className="ai-analyzing-dots" style={{ fontSize: '0.8125rem', color: 'var(--text-faint)' }}>
+                <div className="ai-analyzing-dots" style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)' }}>
                   업무 항목을 추출 중
                 </div>
               </div>
             </div>
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             {editItems.map((item, idx) => (
               <div
                 key={idx}
@@ -1538,7 +1538,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
           </div>
 
           {loading && editItems.length > 0 && (
-            <div style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: '0.8125rem', padding: '0.75rem 0' }}>
+            <div style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-sm)', padding: 'var(--space-3) var(--space-0)' }}>
               분석 중...
             </div>
           )}
@@ -1546,7 +1546,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
 
         {/* 하단 버튼 */}
         <div style={{
-          padding: '1rem 1.25rem', borderTop: 'var(--border-w-2) solid var(--border-color)',
+          padding: 'var(--space-4) var(--space-5)', borderTop: 'var(--border-w-2) solid var(--border-color)',
           display: 'flex', gap: '0.625rem',
           background: '#fff',
         }}>
@@ -1556,7 +1556,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
             style={{
               flex: 1, padding: '0.625rem', background: 'var(--surface-muted)', color: 'var(--text-muted)',
               border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
-              fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer',
+              fontSize: 'var(--fs-base)', fontWeight: 600, cursor: 'pointer',
               opacity: loading ? 0.5 : 1,
             }}
           >
@@ -1569,7 +1569,7 @@ function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose,
               flex: 2, padding: '0.625rem',
               background: 'linear-gradient(135deg, var(--brand), var(--info))',
               color: '#fff', border: 'none', borderRadius: 'var(--radius)',
-              fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer',
+              fontSize: 'var(--fs-base)', fontWeight: 700, cursor: 'pointer',
               opacity: loading || isPending || editItems.length === 0 ? 0.5 : 1,
             }}
           >
@@ -1610,7 +1610,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         onChange={(e) => onChange({ title: e.target.value })}
         style={{
           width: '100%', border: 'none', borderBottom: 'var(--border-w-2) solid var(--border-color)',
-          padding: '0 0 0.375rem', fontSize: '0.9375rem', fontWeight: 600,
+          padding: '0 0 0.375rem', fontSize: 'var(--fs-md)', fontWeight: 600,
           color: 'var(--text)', outline: 'none', background: 'transparent',
           boxSizing: 'border-box', marginBottom: '0.625rem',
         }}
@@ -1623,7 +1623,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
           value={item.status}
           onChange={(e) => onChange({ status: e.target.value as DailyLogEntryType })}
           style={{
-            padding: '0.2rem 0.5rem', borderRadius: 'var(--radius)', fontSize: '0.75rem',
+            padding: '0.2rem 0.5rem', borderRadius: 'var(--radius)', fontSize: 'var(--fs-xs)',
             fontWeight: 700, border: `var(--hairline) solid ${statusInfo.border}`,
             background: statusInfo.bg, color: statusInfo.color, cursor: 'pointer',
           }}
@@ -1636,7 +1636,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
           value={item.priority}
           onChange={(e) => onChange({ priority: e.target.value as AiParsedItem['priority'] })}
           style={{
-            padding: '0.2rem 0.5rem', borderRadius: 'var(--radius)', fontSize: '0.75rem',
+            padding: '0.2rem 0.5rem', borderRadius: 'var(--radius)', fontSize: 'var(--fs-xs)',
             fontWeight: 600, border: 'var(--border-w-2) solid var(--border-color)',
             background: 'var(--color-bg)', color: PRIORITY_COLORS[item.priority] ?? 'var(--text-muted)',
             cursor: 'pointer',
@@ -1646,14 +1646,14 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         </select>
 
         {/* 타겟 날짜 (사용자 편집 가능) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
           <span style={{ fontSize: '0.7rem', color: 'var(--text-faint)' }}>📅</span>
           <input
             type="date"
             value={item.targetDate ?? ''}
             onChange={(e) => onChange({ targetDate: e.target.value || null, targetDateCertainty: 'exact' })}
             style={{
-              padding: '0.15rem 0.375rem', borderRadius: 'var(--radius)', fontSize: '0.75rem',
+              padding: '0.15rem 0.375rem', borderRadius: 'var(--radius)', fontSize: 'var(--fs-xs)',
               border: 'var(--border-w-2) solid var(--border-color)', background: 'var(--color-bg)', color: 'var(--text-muted)',
               cursor: 'pointer', outline: 'none',
             }}
@@ -1672,7 +1672,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         {/* 예약 시간 */}
         {item.scheduledTime && (
           <span style={{
-            fontSize: '0.75rem', color: 'var(--brand)', background: 'var(--brand-soft)',
+            fontSize: 'var(--fs-xs)', color: 'var(--brand)', background: 'var(--brand-soft)',
             border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)',
             padding: '0.2rem 0.5rem',
           }}>
@@ -1683,7 +1683,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         {/* 거래처 */}
         {item.accountName && (
           <span style={{
-            fontSize: '0.75rem', color: 'var(--info)', background: 'var(--info-bg)',
+            fontSize: 'var(--fs-xs)', color: 'var(--info)', background: 'var(--info-bg)',
             border: 'var(--hairline) solid var(--info-border)', borderRadius: 'var(--radius)',
             padding: '0.2rem 0.5rem',
           }}>
@@ -1694,7 +1694,7 @@ function AiItemCard({ item, onChange }: AiItemCardProps) {
         {/* 담당자 */}
         {item.contactName && (
           <span style={{
-            fontSize: '0.75rem', color: 'var(--info)', background: 'var(--success-bg)',
+            fontSize: 'var(--fs-xs)', color: 'var(--info)', background: 'var(--success-bg)',
             border: 'var(--hairline) solid var(--info-bg)', borderRadius: 'var(--radius)',
             padding: '0.2rem 0.5rem',
           }}>

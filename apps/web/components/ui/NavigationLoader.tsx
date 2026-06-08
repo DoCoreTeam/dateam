@@ -55,7 +55,7 @@ export default function NavigationLoader({ brandName, logoUrl }: NavigationLoade
         background: 'rgba(248, 247, 255, 0.55)',
       }}
     >
-      <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem' }}>
+      <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-5)' }}>
         {logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

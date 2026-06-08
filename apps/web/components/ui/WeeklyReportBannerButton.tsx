@@ -14,7 +14,7 @@ export default function WeeklyReportBannerButton({ showGlow }: WeeklyReportBanne
         display: 'inline-flex',
         alignItems: 'center',
         gap: '0.3rem',
-        fontSize: '0.6875rem',
+        fontSize: 'var(--fs-2xs)',
         fontWeight: 600,
         color: '#ffffff',
         backgroundColor: showGlow ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.18)',

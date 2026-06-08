@@ -31,18 +31,18 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
   return (
     <div style={{
       background: 'var(--color-bg)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
-      padding: '1.25rem 1.5rem', marginBottom: '1.5rem',
+      padding: 'var(--space-5) var(--space-6)', marginBottom: '1.5rem',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '0.75rem' }}>
         <Building2 size={18} color="var(--brand)" />
-        <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text)' }}>회사 정보</span>
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginLeft: 4 }}>조직도 최상단</span>
+        <span style={{ fontWeight: 700, fontSize: 'var(--fs-lg)', color: 'var(--text)' }}>회사 정보</span>
+        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', marginLeft: 4 }}>조직도 최상단</span>
       </div>
 
       {editing ? (
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+            <label style={{ display: 'block', fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
               회사명 *
             </label>
             <input
@@ -50,13 +50,13 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
               defaultValue={defaultName}
               required
               style={{
-                width: '100%', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
-                border: 'var(--border-w-2) solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box',
+                width: '100%', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius)',
+                border: 'var(--border-w-2) solid var(--border-color)', fontSize: 'var(--fs-base)', boxSizing: 'border-box',
               }}
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+            <label style={{ display: 'block', fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
               설명 (선택)
             </label>
             <textarea
@@ -64,21 +64,21 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
               defaultValue={defaultDescription}
               rows={2}
               style={{
-                width: '100%', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
-                border: 'var(--border-w-2) solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box', resize: 'vertical',
+                width: '100%', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius)',
+                border: 'var(--border-w-2) solid var(--border-color)', fontSize: 'var(--fs-base)', boxSizing: 'border-box', resize: 'vertical',
               }}
             />
           </div>
-          {error && <p style={{ fontSize: '0.8125rem', color: 'var(--danger)', margin: 0 }}>{error}</p>}
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {error && <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--danger)', margin: 0 }}>{error}</p>}
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             <button
               type="submit"
               disabled={pending}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
-                padding: '0.5rem 1rem', borderRadius: 'var(--radius)',
+                padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)',
                 background: pending ? 'var(--text-faint)' : 'var(--brand)', color: 'white',
-                border: 'none', fontSize: '0.875rem', fontWeight: 500, cursor: pending ? 'not-allowed' : 'pointer',
+                border: 'none', fontSize: 'var(--fs-base)', fontWeight: 500, cursor: pending ? 'not-allowed' : 'pointer',
               }}
             >
               <Save size={14} />
@@ -88,9 +88,9 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
               type="button"
               onClick={() => setEditing(false)}
               style={{
-                padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
+                padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius)',
                 background: 'transparent', color: 'var(--text-muted)',
-                border: 'var(--border-w-2) solid var(--border-color)', fontSize: '0.875rem', cursor: 'pointer',
+                border: 'var(--border-w-2) solid var(--border-color)', fontSize: 'var(--fs-base)', cursor: 'pointer',
               }}
             >
               취소
@@ -98,11 +98,11 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
           </div>
         </form>
       ) : (
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)' }}>
           <div>
-            <div style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text)' }}>{defaultName}</div>
+            <div style={{ fontSize: 'var(--fs-xl)', fontWeight: 700, color: 'var(--text)' }}>{defaultName}</div>
             {defaultDescription && (
-              <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{defaultDescription}</div>
+              <div style={{ fontSize: 'var(--fs-base)', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{defaultDescription}</div>
             )}
           </div>
           <button
@@ -110,7 +110,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
             style={{
               flexShrink: 0, padding: '0.375rem 0.75rem', borderRadius: 'var(--radius)',
               background: 'transparent', color: 'var(--brand)',
-              border: 'var(--hairline) solid var(--brand-soft-2)', fontSize: '0.8125rem', cursor: 'pointer', fontWeight: 500,
+              border: 'var(--hairline) solid var(--brand-soft-2)', fontSize: 'var(--fs-sm)', cursor: 'pointer', fontWeight: 500,
             }}
           >
             수정

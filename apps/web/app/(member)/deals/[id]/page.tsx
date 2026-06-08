@@ -52,54 +52,54 @@ export default async function DealDetailPage({ params }: PageProps) {
   return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
-        <Link href="/deals" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: 'var(--brand)', fontSize: '0.875rem', fontWeight: 500, textDecoration: 'none', marginBottom: '0.75rem' }}>
+        <Link href="/deals" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: 'var(--brand)', fontSize: 'var(--fs-base)', fontWeight: 500, textDecoration: 'none', marginBottom: '0.75rem' }}>
           <ArrowLeft size={14} /> 영업기회 목록
         </Link>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.375rem' }}>
               <h1 style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>{deal.title}</h1>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: '9999px', color: sc.color, background: sc.bg }}>{deal.stage}</span>
+              <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: '9999px', color: sc.color, background: sc.bg }}>{deal.stage}</span>
             </div>
             {deal.accounts?.name && (
-              <Link href={`/accounts/${deal.accounts.id}`} style={{ fontSize: '0.875rem', color: 'var(--brand)', textDecoration: 'none' }}>
+              <Link href={`/accounts/${deal.accounts.id}`} style={{ fontSize: 'var(--fs-base)', color: 'var(--brand)', textDecoration: 'none' }}>
                 {deal.accounts.name}
               </Link>
             )}
           </div>
-          <Link href={`/deals/${id}/edit`} className="btn-primary" style={{ textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', fontSize: '0.875rem', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
+          <Link href={`/deals/${id}/edit`} className="btn-primary" style={{ textDecoration: 'none', padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
             편집
           </Link>
         </div>
       </div>
 
-      <div className="responsive-grid-2" style={{ gap: '1.25rem', alignItems: 'flex-start' }}>
+      <div className="responsive-grid-2" style={{ gap: 'var(--space-5)', alignItems: 'flex-start' }}>
         {/* 좌측: 기본 정보 + 단계 업데이트 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+          <div className="card" style={{ padding: 'var(--space-5) var(--space-6)' }}>
             <h2 className="tape-title" style={{ margin: 0 }}>기본 정보</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
               {deal.value && (
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
                   <Target size={15} color="var(--brand)" />
-                  <span style={{ fontSize: '0.875rem', color: 'var(--text)' }}>₩{deal.value.toLocaleString()}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>확률 {deal.probability}%</span>
+                  <span style={{ fontSize: 'var(--fs-base)', color: 'var(--text)' }}>₩{deal.value.toLocaleString()}</span>
+                  <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>확률 {deal.probability}%</span>
                 </div>
               )}
               {deal.close_date && (
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
                   <Calendar size={15} color="var(--brand)" />
-                  <span style={{ fontSize: '0.875rem', color: 'var(--text)' }}>마감: {deal.close_date}</span>
+                  <span style={{ fontSize: 'var(--fs-base)', color: 'var(--text)' }}>마감: {deal.close_date}</span>
                 </div>
               )}
               {deal.contacts && (
-                <div style={{ fontSize: '0.875rem', color: 'var(--text)' }}>
+                <div style={{ fontSize: 'var(--fs-base)', color: 'var(--text)' }}>
                   담당자: <Link href={`/contacts/${deal.contacts.id}`} style={{ color: 'var(--brand)', textDecoration: 'none' }}>{deal.contacts.name}</Link>
                   {deal.contacts.title && <span style={{ color: 'var(--text-faint)' }}> ({deal.contacts.title})</span>}
                 </div>
               )}
               {deal.description && (
-                <p style={{ fontSize: '0.875rem', color: 'var(--text)', margin: '0.25rem 0 0', lineHeight: 1.6 }}>{deal.description}</p>
+                <p style={{ fontSize: 'var(--fs-base)', color: 'var(--text)', margin: '0.25rem 0 0', lineHeight: 1.6 }}>{deal.description}</p>
               )}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
                 {deal.lead_type && <span className="badge badge-slate">{deal.lead_type}</span>}
@@ -113,10 +113,10 @@ export default async function DealDetailPage({ params }: PageProps) {
 
           {/* 다음 액션 */}
           {(deal.next_action || deal.next_action_date) && (
-            <div className="card" style={{ padding: '1.25rem 1.5rem', borderLeft: 'var(--border-w) solid var(--brand)' }}>
+            <div className="card" style={{ padding: 'var(--space-5) var(--space-6)', borderLeft: 'var(--border-w) solid var(--brand)' }}>
               <h2 className="tape-title" style={{ margin: 0 }}>다음 액션</h2>
-              {deal.next_action && <p style={{ fontSize: '0.875rem', color: 'var(--text)', margin: 0 }}>{deal.next_action}</p>}
-              {deal.next_action_date && <p style={{ fontSize: '0.8125rem', color: 'var(--text-faint)', margin: '0.25rem 0 0' }}>📅 {deal.next_action_date}</p>}
+              {deal.next_action && <p style={{ fontSize: 'var(--fs-base)', color: 'var(--text)', margin: 0 }}>{deal.next_action}</p>}
+              {deal.next_action_date && <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', margin: '0.25rem 0 0' }}>📅 {deal.next_action_date}</p>}
             </div>
           )}
 
@@ -126,24 +126,24 @@ export default async function DealDetailPage({ params }: PageProps) {
 
         {/* 우측: 활동 로그 */}
         <div className="card">
-          <div style={{ padding: '1rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
+          <div style={{ padding: 'var(--space-4) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
             <h2 className="tape-title" style={{ margin: 0 }}>활동 로그</h2>
           </div>
           <ActivityLogger dealId={id} />
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {activities.length === 0 ? (
-              <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-faint)', fontSize: '0.875rem' }}>활동 기록이 없습니다</div>
+              <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>활동 기록이 없습니다</div>
             ) : activities.map((act) => (
-              <div key={act.id} style={{ padding: '0.875rem 1.5rem', borderBottom: 'var(--hairline) solid var(--surface-muted)', display: 'flex', gap: '0.75rem' }}>
-                <span style={{ fontSize: '1.125rem', flexShrink: 0 }}>{ACTIVITY_ICON[act.type] ?? '📝'}</span>
+              <div key={act.id} style={{ padding: '0.875rem 1.5rem', borderBottom: 'var(--hairline) solid var(--surface-muted)', display: 'flex', gap: 'var(--space-3)' }}>
+                <span style={{ fontSize: 'var(--fs-xl)', flexShrink: 0 }}>{ACTIVITY_ICON[act.type] ?? '📝'}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--text)', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{act.content}</div>
+                  <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{act.content}</div>
                   {act.suggested_stage && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--brand)', marginTop: '0.25rem' }}>
+                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', marginTop: '0.25rem' }}>
                       단계 제안: {act.suggested_stage}
                     </div>
                   )}
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginTop: '0.25rem' }}>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', marginTop: '0.25rem' }}>
                     {new Date(act.created_at).toLocaleString('ko-KR')}
                     {act.ai_extracted && <span style={{ marginLeft: '0.375rem', color: 'var(--brand)' }}>· AI 추출</span>}
                   </div>

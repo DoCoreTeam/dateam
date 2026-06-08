@@ -57,11 +57,11 @@ export default function RankPositionManager({ ranks, positions }: Props) {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '2rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-6)', marginTop: '2rem' }}>
       {/* 직급 관리 */}
-      <div style={{ background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '1.25rem' }}>
+      <div style={{ background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-5)' }}>
         <h3 className="tape-title" style={{ margin: 0 }}>직급 관리</h3>
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: '0.5rem' }}>
           <input
             value={rankInput}
             onChange={e => setRankInput(e.target.value)}
@@ -70,14 +70,14 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             disabled={isPending}
             style={{
               flex: 1, padding: '0.4rem 0.75rem', border: 'var(--hairline) solid var(--border-color)',
-              borderRadius: 'var(--radius)', fontSize: '0.875rem', outline: 'none',
+              borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', outline: 'none',
             }}
           />
           <button
             onClick={handleAddRank}
             disabled={isPending || !rankInput.trim()}
             style={{
-              display: 'flex', alignItems: 'center', gap: '0.25rem',
+              display: 'flex', alignItems: 'center', gap: 'var(--space-1)',
               padding: '0.4rem 0.75rem', background: 'var(--brand-dark)', color: '#fff',
               border: 'none', borderRadius: 'var(--radius)', fontSize: '0.8rem',
               cursor: 'pointer', opacity: isPending || !rankInput.trim() ? 0.5 : 1,
@@ -92,7 +92,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             <li key={r.id} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '0.35rem 0.6rem', background: 'var(--color-bg)', borderRadius: 'var(--radius-lg)',
-              fontSize: '0.875rem', color: 'var(--text)',
+              fontSize: 'var(--fs-base)', color: 'var(--text)',
             }}>
               {r.name}
               <button
@@ -105,15 +105,15 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             </li>
           ))}
           {ranks.length === 0 && (
-            <li style={{ color: 'var(--text-faint)', fontSize: '0.8rem', padding: '0.5rem 0' }}>등록된 직급이 없습니다</li>
+            <li style={{ color: 'var(--text-faint)', fontSize: '0.8rem', padding: 'var(--space-2) var(--space-0)' }}>등록된 직급이 없습니다</li>
           )}
         </ul>
       </div>
 
       {/* 직책 관리 */}
-      <div style={{ background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '1.25rem' }}>
+      <div style={{ background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-5)' }}>
         <h3 className="tape-title" style={{ margin: 0 }}>직책 관리</h3>
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: '0.5rem' }}>
           <input
             value={posInput}
             onChange={e => setPosInput(e.target.value)}
@@ -122,14 +122,14 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             disabled={isPending}
             style={{
               flex: 1, padding: '0.4rem 0.75rem', border: 'var(--hairline) solid var(--border-color)',
-              borderRadius: 'var(--radius)', fontSize: '0.875rem', outline: 'none',
+              borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', outline: 'none',
             }}
           />
           <button
             onClick={handleAddPosition}
             disabled={isPending || !posInput.trim()}
             style={{
-              display: 'flex', alignItems: 'center', gap: '0.25rem',
+              display: 'flex', alignItems: 'center', gap: 'var(--space-1)',
               padding: '0.4rem 0.75rem', background: 'var(--brand-dark)', color: '#fff',
               border: 'none', borderRadius: 'var(--radius)', fontSize: '0.8rem',
               cursor: 'pointer', opacity: isPending || !posInput.trim() ? 0.5 : 1,
@@ -144,7 +144,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             <li key={p.id} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '0.35rem 0.6rem', background: 'var(--color-bg)', borderRadius: 'var(--radius-lg)',
-              fontSize: '0.875rem', color: 'var(--text)',
+              fontSize: 'var(--fs-base)', color: 'var(--text)',
             }}>
               {p.name}
               <button
@@ -157,7 +157,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
             </li>
           ))}
           {positions.length === 0 && (
-            <li style={{ color: 'var(--text-faint)', fontSize: '0.8rem', padding: '0.5rem 0' }}>등록된 직책이 없습니다</li>
+            <li style={{ color: 'var(--text-faint)', fontSize: '0.8rem', padding: 'var(--space-2) var(--space-0)' }}>등록된 직책이 없습니다</li>
           )}
         </ul>
       </div>

@@ -3,7 +3,7 @@ import type { ParsedLeadData } from '@/lib/gemini-lead'
 export default function ParsedCard({ parsed }: { parsed: ParsedLeadData }) {
   return (
     <div className="parsed-card">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.875rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '0.875rem' }}>
         <span className="parsed-card-title">AI 분석 완료</span>
         {parsed.fit_score !== undefined && (
           <span className={`parsed-card-title ${parsed.fit_score >= 70 ? 'parsed-card-fit-high' : 'parsed-card-fit-low'}`}
@@ -12,7 +12,7 @@ export default function ParsedCard({ parsed }: { parsed: ParsedLeadData }) {
           </span>
         )}
       </div>
-      <div className="responsive-grid-cols-2" style={{ gap: '0.75rem' }}>
+      <div className="responsive-grid-cols-2" style={{ gap: 'var(--space-3)' }}>
         {parsed.company_name && (
           <div>
             <span className="parsed-field-label">회사명</span>

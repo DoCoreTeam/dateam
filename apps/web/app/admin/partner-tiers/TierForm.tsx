@@ -48,10 +48,10 @@ export default function TierForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 160px' }}>
-          <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+          <label style={{ display: 'block', fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
             등급명 *
           </label>
           <input
@@ -60,14 +60,14 @@ export default function TierForm({
             placeholder="예: VIP, Gold, 파트너A"
             required
             style={{
-              width: '100%', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
-              border: 'var(--border-w-2) solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box',
+              width: '100%', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius)',
+              border: 'var(--border-w-2) solid var(--border-color)', fontSize: 'var(--fs-base)', boxSizing: 'border-box',
               outline: 'none',
             }}
           />
         </div>
         <div style={{ flex: '0 1 120px' }}>
-          <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+          <label style={{ display: 'block', fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
             할인율 (%) *
           </label>
           <input
@@ -79,13 +79,13 @@ export default function TierForm({
             defaultValue={defaultRate}
             required
             style={{
-              width: '100%', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
-              border: 'var(--border-w-2) solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box',
+              width: '100%', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius)',
+              border: 'var(--border-w-2) solid var(--border-color)', fontSize: 'var(--fs-base)', boxSizing: 'border-box',
             }}
           />
         </div>
         <div style={{ flex: '2 1 200px' }}>
-          <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+          <label style={{ display: 'block', fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
             설명 (선택)
           </label>
           <input
@@ -93,26 +93,26 @@ export default function TierForm({
             defaultValue={defaultDescription}
             placeholder="등급 설명"
             style={{
-              width: '100%', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
-              border: 'var(--border-w-2) solid var(--border-color)', fontSize: '0.875rem', boxSizing: 'border-box',
+              width: '100%', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius)',
+              border: 'var(--border-w-2) solid var(--border-color)', fontSize: 'var(--fs-base)', boxSizing: 'border-box',
             }}
           />
         </div>
       </div>
 
       {error && (
-        <p style={{ fontSize: '0.8125rem', color: 'var(--danger)', margin: 0 }}>{error}</p>
+        <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--danger)', margin: 0 }}>{error}</p>
       )}
 
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
         <button
           type="submit"
           disabled={pending}
           style={{
             display: 'flex', alignItems: 'center', gap: '0.375rem',
-            padding: '0.5rem 1rem', borderRadius: 'var(--radius)',
+            padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)',
             background: pending ? 'var(--text-faint)' : 'var(--brand)', color: 'white',
-            border: 'none', fontSize: '0.875rem', fontWeight: 500, cursor: pending ? 'not-allowed' : 'pointer',
+            border: 'none', fontSize: 'var(--fs-base)', fontWeight: 500, cursor: pending ? 'not-allowed' : 'pointer',
           }}
         >
           <Save size={14} />
@@ -124,9 +124,9 @@ export default function TierForm({
             onClick={onCancel}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.375rem',
-              padding: '0.5rem 0.75rem', borderRadius: 'var(--radius)',
+              padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius)',
               background: 'transparent', color: 'var(--text-muted)',
-              border: 'var(--border-w-2) solid var(--border-color)', fontSize: '0.875rem', cursor: 'pointer',
+              border: 'var(--border-w-2) solid var(--border-color)', fontSize: 'var(--fs-base)', cursor: 'pointer',
             }}
           >
             <X size={14} />

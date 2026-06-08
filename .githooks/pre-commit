@@ -1,0 +1,7 @@
+#!/bin/sh
+# 디자인 토큰 가드 — 커밋 전 인라인 하드코딩 색/치수 재유입 차단.
+# 활성화: git config core.hooksPath .githooks
+node scripts/check-design-tokens.mjs || {
+  echo "→ 디자인 토큰 위반으로 커밋 차단. var(--token) 사용 또는 가드 ALLOW 검토."
+  exit 1
+}

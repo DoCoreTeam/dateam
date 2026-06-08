@@ -21,16 +21,16 @@ export default function DriveConnectedBanner() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0.75rem 1rem',
+        padding: 'var(--space-3) var(--space-4)',
         backgroundColor: 'var(--success-bg)',
         border: 'var(--hairline) solid var(--success-border)',
         borderRadius: 'var(--radius)',
-        fontSize: '0.875rem',
+        fontSize: 'var(--fs-base)',
         fontWeight: 500,
         color: 'var(--success)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
         <CheckCircle size={15} />
         Google Drive 연결이 완료되었습니다
       </div>

@@ -18,7 +18,7 @@ export default function LogoutButton() {
     <button
       onClick={handleLogout}
       className="btn-ghost"
-      style={{ fontSize: '0.8125rem', gap: '0.375rem' }}
+      style={{ fontSize: 'var(--fs-sm)', gap: '0.375rem' }}
       title="로그아웃"
     >
       <LogOut size={15} />

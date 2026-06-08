@@ -44,7 +44,7 @@ export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
 
   if (loading) {
     return (
-      <div className="card" style={{ padding: '1rem 1.25rem' }}>
+      <div className="card" style={{ padding: 'var(--space-4) var(--space-5)' }}>
         <div style={{ fontSize: '0.85rem', color: 'var(--text-faint)' }}>메모 불러오는 중…</div>
       </div>
     )
@@ -54,7 +54,7 @@ export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
 
   return (
     <>
-      <div className="card" style={{ padding: '1rem 1.25rem' }}>
+      <div className="card" style={{ padding: 'var(--space-4) var(--space-5)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: shown.length ? '0.75rem' : 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <StickyNote size={16} color="var(--warning)" />
@@ -69,16 +69,16 @@ export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
         </div>
 
         {shown.length === 0 ? (
-          <div style={{ fontSize: '0.82rem', color: 'var(--text-faint)', padding: '0.5rem 0' }}>
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-faint)', padding: 'var(--space-2) var(--space-0)' }}>
             확인 안 한 메모가 없습니다 ✨
           </div>
         ) : (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
             {shown.map((m) => {
               const st = STALENESS_STYLE[m.staleness]
               return (
                 <li key={m.id} className={`memo-widget-item${m.staleness === 'stale' ? ' memo-pulse' : ''}`}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.6rem', borderRadius: 'var(--radius)', background: 'var(--color-bg)', border: 'var(--hairline) solid var(--surface-muted)' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '0.5rem 0.6rem', borderRadius: 'var(--radius)', background: 'var(--color-bg)', border: 'var(--hairline) solid var(--surface-muted)' }}>
                   <span title={st.label} style={{ width: 8, height: 8, borderRadius: '50%', background: st.dot, flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.82rem', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

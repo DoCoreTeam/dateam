@@ -91,14 +91,14 @@ export default async function OperationsPage() {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: '2.5rem',
+        gap: 'var(--space-10)',
       }}
     >
       {/* 섹션 1: 진행 프로젝트 */}
       <section>
         <h2
           style={{
-            fontSize: '1rem',
+            fontSize: 'var(--fs-lg)',
             fontWeight: 700,
             color: 'var(--text)',
             letterSpacing: '-0.01em',
@@ -117,10 +117,10 @@ export default async function OperationsPage() {
                   background: '#fff',
                   border: 'var(--border-w-2) solid var(--border-color)',
                   borderRadius: 'var(--radius)',
-                  padding: '1.25rem 1.5rem',
+                  padding: 'var(--space-5) var(--space-6)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.75rem',
+                  gap: 'var(--space-3)',
                   opacity: isDim ? 0.6 : 1,
                   transition: 'box-shadow 200ms ease',
                 }}
@@ -131,14 +131,14 @@ export default async function OperationsPage() {
                     display: 'flex',
                     alignItems: 'flex-start',
                     justifyContent: 'space-between',
-                    gap: '0.75rem',
+                    gap: 'var(--space-3)',
                   }}
                 >
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.5rem',
+                      gap: 'var(--space-2)',
                       flexWrap: 'wrap',
                       flex: 1,
                       minWidth: 0,
@@ -147,7 +147,7 @@ export default async function OperationsPage() {
                     <span
                       style={{
                         fontWeight: 700,
-                        fontSize: '0.9375rem',
+                        fontSize: 'var(--fs-md)',
                         color: 'var(--text)',
                         letterSpacing: '-0.01em',
                         whiteSpace: 'nowrap',
@@ -159,7 +159,7 @@ export default async function OperationsPage() {
                     </span>
                     <span
                       style={{
-                        fontSize: '0.6875rem',
+                        fontSize: 'var(--fs-2xs)',
                         fontWeight: 600,
                         padding: '0.15rem 0.5rem',
                         borderRadius: '9999px',
@@ -173,7 +173,7 @@ export default async function OperationsPage() {
                   <span
                     style={{
                       fontWeight: 700,
-                      fontSize: '1.125rem',
+                      fontSize: 'var(--fs-xl)',
                       color: 'var(--text)',
                       flexShrink: 0,
                       letterSpacing: '-0.02em',
@@ -210,7 +210,7 @@ export default async function OperationsPage() {
                 <div
                   style={{
                     display: 'flex',
-                    gap: '1rem',
+                    gap: 'var(--space-4)',
                     flexWrap: 'wrap',
                   }}
                 >
@@ -222,10 +222,10 @@ export default async function OperationsPage() {
                     <span
                       key={label}
                       style={{
-                        fontSize: '0.75rem',
+                        fontSize: 'var(--fs-xs)',
                         color: 'var(--text-faint)',
                         display: 'flex',
-                        gap: '0.25rem',
+                        gap: 'var(--space-1)',
                       }}
                     >
                       <span style={{ color: 'var(--border-subtle)' }}>{label}</span>
@@ -243,7 +243,7 @@ export default async function OperationsPage() {
       <section>
         <h2
           style={{
-            fontSize: '1rem',
+            fontSize: 'var(--fs-lg)',
             fontWeight: 700,
             color: 'var(--text)',
             letterSpacing: '-0.01em',
@@ -265,10 +265,10 @@ export default async function OperationsPage() {
                   background: '#fff',
                   border: 'var(--border-w-2) solid var(--border-color)',
                   borderRadius: 'var(--radius)',
-                  padding: '1.25rem 1.5rem',
+                  padding: 'var(--space-5) var(--space-6)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.75rem',
+                  gap: 'var(--space-3)',
                 }}
               >
                 {/* 이름 + role */}
@@ -285,7 +285,7 @@ export default async function OperationsPage() {
                   </span>
                   <span
                     style={{
-                      fontSize: '0.75rem',
+                      fontSize: 'var(--fs-xs)',
                       color: 'var(--brand)',
                       fontWeight: 500,
                     }}
@@ -301,7 +301,7 @@ export default async function OperationsPage() {
                       background: 'var(--brand-soft)',
                       borderRadius: 'var(--radius)',
                       padding: '0.375rem 0.75rem',
-                      fontSize: '0.8125rem',
+                      fontSize: 'var(--fs-sm)',
                       color: 'var(--brand-dark)',
                       fontWeight: 500,
                     }}
@@ -314,7 +314,7 @@ export default async function OperationsPage() {
                 {member.timesplit && (
                   <span
                     style={{
-                      fontSize: '0.75rem',
+                      fontSize: 'var(--fs-xs)',
                       color: 'var(--text-faint)',
                     }}
                   >
@@ -324,10 +324,10 @@ export default async function OperationsPage() {
 
                 {/* PM 담당 목록 */}
                 {visiblePMs.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
                     <span
                       style={{
-                        fontSize: '0.6875rem',
+                        fontSize: 'var(--fs-2xs)',
                         fontWeight: 600,
                         color: 'var(--text-faint)',
                         textTransform: 'uppercase',
@@ -350,7 +350,7 @@ export default async function OperationsPage() {
                         <li
                           key={i}
                           style={{
-                            fontSize: '0.8125rem',
+                            fontSize: 'var(--fs-sm)',
                             color: 'var(--text-muted)',
                             paddingLeft: '0.875rem',
                             position: 'relative',
@@ -371,7 +371,7 @@ export default async function OperationsPage() {
                       {extraPMCount > 0 && (
                         <li
                           style={{
-                            fontSize: '0.75rem',
+                            fontSize: 'var(--fs-xs)',
                             color: 'var(--text-faint)',
                             paddingLeft: '0.875rem',
                           }}
@@ -399,7 +399,7 @@ export default async function OperationsPage() {
                       <li
                         key={i}
                         style={{
-                          fontSize: '0.75rem',
+                          fontSize: 'var(--fs-xs)',
                           color: 'var(--text-faint)',
                           paddingLeft: '0.875rem',
                           position: 'relative',
@@ -430,7 +430,7 @@ export default async function OperationsPage() {
         <section>
           <h2
             style={{
-              fontSize: '1rem',
+              fontSize: 'var(--fs-lg)',
               fontWeight: 700,
               color: 'var(--text)',
               letterSpacing: '-0.01em',
@@ -445,7 +445,7 @@ export default async function OperationsPage() {
               style={{
                 width: '100%',
                 borderCollapse: 'collapse',
-                fontSize: '0.875rem',
+                fontSize: 'var(--fs-base)',
               }}
             >
               <thead>
@@ -454,10 +454,10 @@ export default async function OperationsPage() {
                     <th
                       key={i}
                       style={{
-                        padding: '0.75rem 1rem',
+                        padding: 'var(--space-3) var(--space-4)',
                         textAlign: 'left',
                         fontWeight: 600,
-                        fontSize: '0.75rem',
+                        fontSize: 'var(--fs-xs)',
                         color: 'var(--text-muted)',
                         background: 'var(--color-bg)',
                         borderBottom: 'var(--border-w-2) solid var(--border-color)',
@@ -485,7 +485,7 @@ export default async function OperationsPage() {
                         className={colIdx === 0 ? 'card-header' : undefined}
                         data-label={colIdx > 0 ? rrHeaders[colIdx] : undefined}
                         style={{
-                          padding: '0.75rem 1rem',
+                          padding: 'var(--space-3) var(--space-4)',
                           color: colIdx === 0 ? 'var(--text)' : 'var(--text-muted)',
                           fontWeight: colIdx === 0 ? 600 : 400,
                           borderRight:

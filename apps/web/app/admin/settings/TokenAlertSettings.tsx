@@ -25,25 +25,25 @@ export default function TokenAlertSettings({ currentThreshold }: Props) {
   }
 
   return (
-    <div className="card" style={{ padding: '1.5rem', maxWidth: '640px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+    <div className="card" style={{ padding: 'var(--space-6)', maxWidth: '640px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
         <Bell size={16} color="var(--brand)" />
         <h2 className="tape-title" style={{ margin: 0 }}>AI 토큰 알림 임계치</h2>
       </div>
-      <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.25rem', marginTop: 0 }}>
+      <p style={{ fontSize: 'var(--fs-base)', color: 'var(--text-muted)', marginBottom: '1.25rem', marginTop: 0 }}>
         월간 AI 토큰 사용량이 이 값을 초과하면 AI 사용량 대시보드에 경고가 표시됩니다.
       </p>
-      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         <div>
-          <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text)', display: 'block', marginBottom: '0.375rem' }}>
+          <label style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text)', display: 'block', marginBottom: '0.375rem' }}>
             월간 임계치 (tokens)
           </label>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
             <input
               type="text"
               value={threshold}
               onChange={e => setThreshold(e.target.value)}
-              style={{ flex: 1, maxWidth: '220px', padding: '0.5rem 0.75rem', border: 'var(--hairline) solid var(--border-subtle)', borderRadius: 'var(--radius)', fontSize: '0.9rem', color: 'var(--text)' }}
+              style={{ flex: 1, maxWidth: '220px', padding: 'var(--space-2) var(--space-3)', border: 'var(--hairline) solid var(--border-subtle)', borderRadius: 'var(--radius)', fontSize: '0.9rem', color: 'var(--text)' }}
               placeholder="1,000,000"
             />
             <button
@@ -57,7 +57,7 @@ export default function TokenAlertSettings({ currentThreshold }: Props) {
           </div>
         </div>
         {msg && (
-          <p style={{ fontSize: '0.8125rem', color: msg.ok ? 'var(--success)' : 'var(--danger)', margin: 0 }}>
+          <p style={{ fontSize: 'var(--fs-sm)', color: msg.ok ? 'var(--success)' : 'var(--danger)', margin: 0 }}>
             {msg.text}
           </p>
         )}

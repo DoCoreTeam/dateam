@@ -65,7 +65,7 @@ export default function PasswordChangeModal() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '1rem',
+        padding: 'var(--space-4)',
       }}
     >
       <div
@@ -74,7 +74,7 @@ export default function PasswordChangeModal() {
           maxWidth: '420px',
           background: 'white',
           borderRadius: 'var(--radius)',
-          padding: '2.5rem',
+          padding: 'var(--space-10)',
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2)',
         }}
       >
@@ -97,7 +97,7 @@ export default function PasswordChangeModal() {
           <h2 className="tape-title" style={{ margin: 0 }}>
             첫 로그인 설정
           </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0, lineHeight: 1.6 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-base)', margin: 0, lineHeight: 1.6 }}>
             본인 이름 확인 후 새 비밀번호를 설정해 주세요.
           </p>
         </div>
@@ -108,9 +108,9 @@ export default function PasswordChangeModal() {
               backgroundColor: 'var(--danger-bg)',
               border: 'var(--hairline) solid var(--danger-border)',
               borderRadius: 'var(--radius)',
-              padding: '0.75rem 1rem',
+              padding: 'var(--space-3) var(--space-4)',
               marginBottom: '1rem',
-              fontSize: '0.8125rem',
+              fontSize: 'var(--fs-sm)',
               color: 'var(--danger)',
             }}
           >
@@ -118,11 +118,11 @@ export default function PasswordChangeModal() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           {existingName ? (
             <div>
               <label className="label">이름</label>
-              <div style={{ padding: '0.625rem 0.875rem', background: 'var(--color-bg)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: '0.875rem', color: 'var(--text)' }}>
+              <div style={{ padding: '0.625rem 0.875rem', background: 'var(--color-bg)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', color: 'var(--text)' }}>
                 {existingName}
               </div>
             </div>

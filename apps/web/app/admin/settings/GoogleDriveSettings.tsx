@@ -47,8 +47,8 @@ export default function GoogleDriveSettings() {
   }
 
   return (
-    <div className="card" style={{ padding: '1.5rem', maxWidth: '640px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+    <div className="card" style={{ padding: 'var(--space-6)', maxWidth: '640px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
         <Cloud size={16} color="var(--brand)" />
         <h2 className="tape-title" style={{ margin: 0 }}>
           Google Drive 연동
@@ -56,18 +56,18 @@ export default function GoogleDriveSettings() {
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 0', color: 'var(--text-faint)', fontSize: '0.875rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-3) var(--space-0)', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>
           <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
           연결 상태 확인 중...
         </div>
       ) : status?.connected ? (
         <div style={{ padding: '0.875rem 1rem', backgroundColor: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <CheckCircle size={14} color="var(--success)" />
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--success)' }}>연결됨</span>
+              <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--success)' }}>연결됨</span>
               {status.email && (
-                <span style={{ fontSize: '0.8125rem', color: 'var(--text)', fontFamily: 'monospace' }}>
+                <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', fontFamily: 'monospace' }}>
                   {status.email}
                 </span>
               )}
@@ -81,7 +81,7 @@ export default function GoogleDriveSettings() {
                 alignItems: 'center',
                 gap: '0.3rem',
                 padding: '0.375rem 0.75rem',
-                fontSize: '0.75rem',
+                fontSize: 'var(--fs-xs)',
                 fontWeight: 600,
                 color: 'var(--danger)',
                 background: 'none',
@@ -102,7 +102,7 @@ export default function GoogleDriveSettings() {
         </div>
       ) : (
         <div style={{ marginBottom: '1rem' }}>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', margin: '0 0 0.875rem 0', lineHeight: 1.6 }}>
+          <p style={{ fontSize: 'var(--fs-base)', color: 'var(--text-muted)', margin: '0 0 0.875rem 0', lineHeight: 1.6 }}>
             Google Drive를 연결하면 담당자 명함 이미지를 Drive에 저장할 수 있습니다.
           </p>
           <button
@@ -117,7 +117,7 @@ export default function GoogleDriveSettings() {
               color: '#fff',
               border: 'none',
               borderRadius: 'var(--radius)',
-              fontSize: '0.875rem',
+              fontSize: 'var(--fs-base)',
               fontWeight: 600,
               cursor: 'pointer',
               minHeight: '44px',
@@ -135,7 +135,7 @@ export default function GoogleDriveSettings() {
           style={{
             padding: '0.625rem 0.875rem',
             borderRadius: 'var(--radius)',
-            fontSize: '0.8125rem',
+            fontSize: 'var(--fs-sm)',
             fontWeight: 500,
             display: 'flex',
             alignItems: 'center',

@@ -71,8 +71,8 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
   return (
     <div>
       {/* 주차 선택 */}
-      <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text)' }}>주차</label>
+      <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+        <label style={{ fontSize: 'var(--fs-base)', fontWeight: 600, color: 'var(--text)' }}>주차</label>
         <select
           className="input-field"
           style={{ cursor: 'pointer', maxWidth: '280px' }}
@@ -91,19 +91,19 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
 
       {/* 에러 */}
       {fetchError && (
-        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
+        <div role="alert" style={{ padding: 'var(--space-3) var(--space-4)', backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
           {fetchError}
         </div>
       )}
 
       {/* 팀 보고 테이블 */}
       {!fetchError && members.length === 0 && !loading ? (
-        <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-faint)', fontSize: '0.875rem' }}>
+        <div style={{ textAlign: 'center', padding: 'var(--space-12) var(--space-4)', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>
           해당 주차 작성된 보고가 없습니다
         </div>
       ) : (
         <div className="table-responsive">
-          <table className="table-base table-card" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+          <table className="table-base table-card" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
             <thead>
               <tr style={{ backgroundColor: 'var(--color-bg)' }}>
                 <th style={{ padding: '0.625rem 0.75rem', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', border: CELL_BORDER, width: '90px' }}>이름</th>
@@ -128,7 +128,7 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
                       <td
                         rowSpan={grouped[name].length}
                         className="card-hide"
-                        style={{ padding: '0.75rem', border: CELL_BORDER, fontWeight: 600, color: 'var(--text)', verticalAlign: 'middle', whiteSpace: 'nowrap', backgroundColor: 'var(--color-bg)' }}
+                        style={{ padding: 'var(--space-3)', border: CELL_BORDER, fontWeight: 600, color: 'var(--text)', verticalAlign: 'middle', whiteSpace: 'nowrap', backgroundColor: 'var(--color-bg)' }}
                       >
                         {name}
                       </td>
@@ -164,15 +164,15 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
           aria-modal="true"
           aria-label="보고 상세"
           onClick={() => setModal(null)}
-          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 'var(--space-4)' }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ backgroundColor: '#fff', borderRadius: 'var(--radius)', padding: '1.5rem', maxWidth: '600px', width: '100%', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+            style={{ backgroundColor: '#fff', borderRadius: 'var(--radius)', padding: 'var(--space-6)', maxWidth: '600px', width: '100%', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
               <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--brand)', fontWeight: 700 }}>{modal.userName}</span>
+                <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', fontWeight: 700 }}>{modal.userName}</span>
                 <h3 className="tape-title" style={{ margin: 0 }}>{modal.category}</h3>
               </div>
               <button onClick={() => setModal(null)} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: '1.25rem', lineHeight: 1 }}>×</button>
@@ -184,8 +184,8 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
               { label: '이슈/협조사항', value: modal.issues },
             ].map(({ label, value }) => value && value !== '<p></p>' ? (
               <div key={label} style={{ marginBottom: '1rem' }}>
-                <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.375rem' }}>{label}</p>
-                <div className="report-rich" style={{ fontSize: '0.875rem', lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: value }} />
+                <p style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.375rem' }}>{label}</p>
+                <div className="report-rich" style={{ fontSize: 'var(--fs-base)', lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: value }} />
               </div>
             ) : null)}
           </div>

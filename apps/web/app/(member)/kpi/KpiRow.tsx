@@ -12,10 +12,10 @@ interface WeeklyKpiTarget {
 }
 
 const INPUT: React.CSSProperties = {
-  padding: '0.25rem 0.5rem',
+  padding: 'var(--space-1) var(--space-2)',
   border: 'var(--hairline) solid var(--brand-soft-2)',
   borderRadius: 'var(--radius)',
-  fontSize: '0.8125rem',
+  fontSize: 'var(--fs-sm)',
   color: 'var(--text)',
   background: '#fff',
   width: '100%',
@@ -138,14 +138,14 @@ export default function KpiRow({
             style={{ ...INPUT, width: '80px' }}
           />
         </td>
-        <td style={{ padding: '0.4rem 0.5rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }} data-label="단위">
+        <td style={{ padding: '0.4rem 0.5rem', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }} data-label="단위">
           {form.unit || '—'}
         </td>
-        <td colSpan={1} style={{ padding: '0.4rem 0.5rem', fontSize: '0.75rem', color: 'var(--text-faint)' }} data-label="주차">
+        <td colSpan={1} style={{ padding: '0.4rem 0.5rem', fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }} data-label="주차">
           {form.period_start} ~ {form.period_end}
         </td>
         <td style={{ padding: '0.4rem 0.5rem' }} className="card-actions">
-          <div style={{ display: 'flex', gap: '0.25rem' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-1)' }}>
             <button
               onClick={handleSave}
               disabled={pending}
@@ -167,19 +167,19 @@ export default function KpiRow({
 
   return (
     <tr style={{ borderBottom: 'var(--hairline) solid var(--surface-muted)', opacity: pending ? 0.5 : 1 }}>
-      <td style={{ padding: '0.75rem', fontSize: '0.875rem', fontWeight: 500, color: 'var(--text)' }} className="card-header">
+      <td style={{ padding: 'var(--space-3)', fontSize: 'var(--fs-base)', fontWeight: 500, color: 'var(--text)' }} className="card-header">
         {entry.metric_name}
       </td>
-      <td style={{ padding: '0.75rem', fontSize: '0.875rem', color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }} data-label="실적">
+      <td style={{ padding: 'var(--space-3)', fontSize: 'var(--fs-base)', color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }} data-label="실적">
         {entry.value.toLocaleString()}
       </td>
-      <td style={{ padding: '0.75rem', fontSize: '0.875rem', color: 'var(--text-muted)' }} data-label="단위">
+      <td style={{ padding: 'var(--space-3)', fontSize: 'var(--fs-base)', color: 'var(--text-muted)' }} data-label="단위">
         {entry.unit || '—'}
       </td>
-      <td style={{ padding: '0.75rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }} data-label="주차">
+      <td style={{ padding: 'var(--space-3)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }} data-label="주차">
         {entry.period_start} ~ {entry.period_end}
       </td>
-      <td style={{ padding: '0.75rem' }} className="card-actions">
+      <td style={{ padding: 'var(--space-3)' }} className="card-actions">
         <div style={{ display: 'flex', gap: '0.375rem' }}>
           <button
             onClick={() => setEditing(true)}

@@ -167,8 +167,8 @@ export default function BulkImportProgress({ file, onComplete, onCancel }: BulkI
     return (
       <div className="bulk-result-summary bulk-result-error">
         <p style={{ margin: 0, fontWeight: 600, color: 'var(--danger)' }}>오류 발생</p>
-        <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: 'var(--danger)' }}>{error}</p>
-        <button onClick={onCancel} style={{ marginTop: '0.75rem', fontSize: '0.8125rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+        <p style={{ margin: '0.25rem 0 0', fontSize: 'var(--fs-base)', color: 'var(--danger)' }}>{error}</p>
+        <button onClick={onCancel} style={{ marginTop: '0.75rem', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
           ← 다시 시도
         </button>
       </div>
@@ -198,28 +198,28 @@ export default function BulkImportProgress({ file, onComplete, onCancel }: BulkI
 
       {/* 완료 후: 결과 + CRM 등록 액션 */}
       {done && !confirmed && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <div className="bulk-result-summary">
-            <p style={{ fontWeight: 600, fontSize: '0.9375rem', margin: '0 0 0.5rem' }}>
+            <p style={{ fontWeight: 600, fontSize: 'var(--fs-md)', margin: '0 0 0.5rem' }}>
               대량 임포트 완료
             </p>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: 0 }}>
+            <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', margin: 0 }}>
               {file.name} — 총 {total}건 / 소요 {formatSec(elapsed)}
             </p>
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.75rem' }}>
-              <span style={{ fontSize: '0.875rem', color: 'var(--success)', fontWeight: 600 }}>성공 {success}건</span>
+            <div style={{ display: 'flex', gap: 'var(--space-4)', marginTop: '0.75rem' }}>
+              <span style={{ fontSize: 'var(--fs-base)', color: 'var(--success)', fontWeight: 600 }}>성공 {success}건</span>
               {failed > 0 && (
-                <span style={{ fontSize: '0.875rem', color: 'var(--danger)', fontWeight: 600 }}>실패 {failed}건</span>
+                <span style={{ fontSize: 'var(--fs-base)', color: 'var(--danger)', fontWeight: 600 }}>실패 {failed}건</span>
               )}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
             <button onClick={handleConfirmAll} disabled={confirming} className="btn-primary"
               style={{ padding: '0.625rem 1.25rem', minHeight: '44px' }}>
               {`전체 CRM 등록 (${success}건)`}
             </button>
             <button onClick={onCancel}
-              style={{ padding: '0.625rem 1.25rem', minHeight: '44px', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+              style={{ padding: '0.625rem 1.25rem', minHeight: '44px', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 'var(--fs-base)', color: 'var(--text-muted)' }}>
               취소
             </button>
           </div>
@@ -227,11 +227,11 @@ export default function BulkImportProgress({ file, onComplete, onCancel }: BulkI
       )}
 
       {confirmed && (
-        <div style={{ background: 'var(--info-bg)', border: 'var(--hairline) solid var(--info-border)', borderRadius: 'var(--radius)', padding: '1rem' }}>
+        <div style={{ background: 'var(--info-bg)', border: 'var(--hairline) solid var(--info-border)', borderRadius: 'var(--radius)', padding: 'var(--space-4)' }}>
           <p style={{ color: 'var(--info)', fontWeight: 600, margin: 0 }}>
             {success}건이 CRM에 등록되었습니다
           </p>
-          <button onClick={onCancel} style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+          <button onClick={onCancel} style={{ marginTop: '0.5rem', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
             새 파일 업로드 →
           </button>
         </div>

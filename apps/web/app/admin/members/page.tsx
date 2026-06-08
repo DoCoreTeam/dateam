@@ -82,7 +82,7 @@ export default async function AdminMembersPage({
   return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
+        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
           구성원 관리
         </h1>
         <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
@@ -99,7 +99,7 @@ export default async function AdminMembersPage({
             style={{
               display: 'flex', alignItems: 'center', gap: '0.4rem',
               padding: '0.625rem 1.25rem',
-              fontSize: '0.875rem', fontWeight: tab === t.key ? 600 : 400,
+              fontSize: 'var(--fs-base)', fontWeight: tab === t.key ? 600 : 400,
               color: tab === t.key ? 'var(--brand-dark)' : 'var(--text-muted)',
               borderBottom: tab === t.key ? 'var(--border-w-2) solid var(--brand-dark)' : 'var(--border-w-2) solid transparent',
               marginBottom: '-2px',
@@ -115,15 +115,15 @@ export default async function AdminMembersPage({
       {/* 사용자 관리 탭 */}
       {tab === 'users' && (
         <>
-          <div className="card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+          <div className="card" style={{ padding: 'var(--space-5) var(--space-6)', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1rem' }}>
               <UserPlus size={16} color="var(--brand)" />
               <h2 className="tape-title" style={{ margin: 0 }}>새 구성원 초대</h2>
             </div>
             <InviteForm />
           </div>
           <div className="card">
-            <div style={{ padding: '1.25rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <Users size={16} color="var(--brand)" />
               <h2 className="tape-title" style={{ margin: 0 }}>전체 구성원</h2>
               <span className="badge badge-slate">{profiles.length}명</span>

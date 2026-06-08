@@ -111,7 +111,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
         <div className="day-panel-drag-handle" />
 
         <div className="day-panel-header">
-          <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text)' }}>
+          <span style={{ fontSize: 'var(--fs-md)', fontWeight: 700, color: 'var(--text)' }}>
             🌊 업무 플로우
           </span>
           <button
@@ -119,7 +119,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
             style={{
               width: 36, height: 36, border: 'var(--border-w-2) solid var(--border-color)',
               borderRadius: 'var(--radius)', background: 'var(--color-bg)',
-              cursor: 'pointer', fontSize: '1.125rem', color: 'var(--text-muted)',
+              cursor: 'pointer', fontSize: 'var(--fs-xl)', color: 'var(--text-muted)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
             aria-label="닫기"
@@ -128,7 +128,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
 
         <div className="day-panel-body">
           {flat.length <= 1 ? (
-            <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '2rem 0', fontSize: '0.875rem' }}>
+            <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-8) var(--space-0)', fontSize: 'var(--fs-base)' }}>
               연결된 파생 업무가 없습니다
             </div>
           ) : (
@@ -150,7 +150,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
                         flexDirection: 'column',
                         alignItems: 'flex-start',
                         gap: '0.125rem',
-                        padding: '0.25rem 0',
+                        padding: 'var(--space-1) var(--space-0)',
                       }}>
                         {/* flow_reason 배지 */}
                         {(flowReason || isLoading) && (
@@ -164,7 +164,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
                           </div>
                         )}
                         {/* 화살표 */}
-                        <span style={{ color: 'var(--warning)', fontSize: '1rem', lineHeight: 1 }}>↓</span>
+                        <span style={{ color: 'var(--warning)', fontSize: 'var(--fs-lg)', lineHeight: 1 }}>↓</span>
                       </div>
                     )}
 
@@ -179,7 +179,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.25rem' }}>
                         <span style={{
-                          fontSize: '0.6875rem', fontWeight: 700, color: t.color,
+                          fontSize: 'var(--fs-2xs)', fontWeight: 700, color: t.color,
                           background: t.bg, border: `var(--hairline) solid ${t.border}`,
                           padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)', flexShrink: 0,
                         }}>
@@ -202,7 +202,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
                         )}
                       </div>
                       <p style={{
-                        margin: 0, fontSize: '0.875rem', color: 'var(--text)',
+                        margin: 0, fontSize: 'var(--fs-base)', color: 'var(--text)',
                         lineHeight: 1.5, wordBreak: 'break-word',
                       }}>
                         {n.log.content}

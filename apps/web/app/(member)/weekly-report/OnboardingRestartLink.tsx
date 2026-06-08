@@ -28,7 +28,7 @@ export default function OnboardingRestartLink({ variant }: OnboardingRestartLink
           display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
           padding: '0.3rem 0.75rem',
           background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: '9999px',
-          cursor: 'pointer', color: 'var(--brand-dark)', fontSize: '0.75rem', fontWeight: 600,
+          cursor: 'pointer', color: 'var(--brand-dark)', fontSize: 'var(--fs-xs)', fontWeight: 600,
           transition: 'background 120ms, border-color 120ms',
           flexShrink: 0,
         }}
@@ -55,7 +55,7 @@ export default function OnboardingRestartLink({ variant }: OnboardingRestartLink
         style={{
           display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
           background: 'none', border: 'none', cursor: 'pointer',
-          fontSize: '0.8125rem', color: 'var(--brand)', fontWeight: 500,
+          fontSize: 'var(--fs-sm)', color: 'var(--brand)', fontWeight: 500,
           textDecoration: 'underline', textDecorationColor: 'transparent',
           transition: 'color 120ms, text-decoration-color 120ms',
         }}

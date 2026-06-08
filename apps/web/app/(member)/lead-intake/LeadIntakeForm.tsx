@@ -267,12 +267,12 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
       {/* 통합 입력 영역 — 텍스트·붙여넣기·드래그&드롭·파일첨부·음성 한 곳 */}
       <form onSubmit={handleAnalyze}
         onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleAnalyze() } }}
-        style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+        style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}
       >
         {savedMsg && (
-          <div style={{ background: 'var(--info-bg)', border: 'var(--hairline) solid var(--info-border)', borderRadius: 'var(--radius)', padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '1rem' }}>✅</span>
-            <span style={{ color: 'var(--info)', fontWeight: 600, fontSize: '0.875rem' }}>{savedMsg}</span>
+          <div style={{ background: 'var(--info-bg)', border: 'var(--hairline) solid var(--info-border)', borderRadius: 'var(--radius)', padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <span style={{ fontSize: 'var(--fs-lg)' }}>✅</span>
+            <span style={{ color: 'var(--info)', fontWeight: 600, fontSize: 'var(--fs-base)' }}>{savedMsg}</span>
           </div>
         )}
         <div>
@@ -284,12 +284,12 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
             style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', background: '#fff' }}>
             <textarea value={rawInput} onChange={e => setRawInput(e.target.value)} onPaste={handlePaste} rows={6}
               placeholder={`텍스트를 입력·붙여넣거나, 명함·문서 파일을 끌어다 놓으세요.\n\n예시:\n삼성SDS 김철수 부장 (IT전략팀)\nkcs@samsung.com / 02-6360-0000\n클라우드 전환 프로젝트 논의 필요`}
-              style={{ width: '100%', padding: '0.75rem', border: 'none', borderRadius: 'var(--radius)', fontSize: '0.875rem', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6, background: 'transparent', outline: 'none' }} />
+              style={{ width: '100%', padding: 'var(--space-3)', border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6, background: 'transparent', outline: 'none' }} />
           </div>
           {/* 입력 도구 — 숨김 input + 버튼 클릭으로 열기(코드 정상, 일반 브라우저에서 동작) */}
           <input ref={fileInputRef} type="file" multiple accept={ACCEPTED_TYPES} style={{ display: 'none' }} disabled={loading} onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
           <input ref={cameraInputRef} type="file" accept="image/*" style={{ display: 'none' }} disabled={loading} onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginTop: '0.5rem' }}>
             <button type="button" className="intake-tool-btn" disabled={loading} onClick={() => fileInputRef.current?.click()} aria-label="파일 첨부">📎 파일</button>
             <button type="button" className="intake-tool-btn" disabled={loading} onClick={() => cameraInputRef.current?.click()} aria-label="사진 첨부">📷 사진</button>
             {voiceSupported && (
@@ -297,36 +297,36 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
                 style={listening ? { color: 'var(--danger)', borderColor: 'var(--danger-border)', fontWeight: 700 } : undefined}>{listening ? '⏹ 정지 (녹음중)' : '🎤 음성'}</button>
             )}
           </div>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-faint)', margin: '0.375rem 0 0' }}>
+          <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', margin: '0.375rem 0 0' }}>
             명함·미팅 메모·이메일 본문을 붙여넣거나, 이미지·PDF·DOCX·CSV를 첨부, 🎤로 받아쓰기 — XLSX는 대량 업로드로 처리됩니다
           </p>
-          {envWarn && <p style={{ fontSize: '0.75rem', color: 'var(--warning)', margin: '0.25rem 0 0', fontWeight: 600 }}>⚠️ {envWarn}</p>}
+          {envWarn && <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--warning)', margin: '0.25rem 0 0', fontWeight: 600 }}>⚠️ {envWarn}</p>}
         </div>
 
         {/* 첨부 파일 칩/상태 */}
         {files.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
             {files.map((item, idx) => (
               <div key={`${item.file.name}-${item.file.size}-${idx}`} className="file-item">
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: item.status === 'done' ? '0.5rem' : 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: item.status === 'done' ? '0.5rem' : 0 }}>
                     <span className="file-item-name">{item.file.name}</span>
                     {item.status === 'processing' && <span className="file-status-processing">분석중...</span>}
                     {item.status === 'done'       && <span className="file-status-done">완료</span>}
                     {item.status === 'error'      && <span className="file-status-error">오류</span>}
                   </div>
                   {item.status === 'done' && item.parsed && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                       <ParsedCard parsed={item.parsed} />
                       {item.intakeId && (
                         <button type="button" onClick={() => handleFileCreate(item)} disabled={creating} className="btn-primary"
-                          style={{ padding: '0.5rem 1rem', minHeight: '40px', maxWidth: '220px' }}>
+                          style={{ padding: 'var(--space-2) var(--space-4)', minHeight: '40px', maxWidth: '220px' }}>
                           {creating ? '등록중...' : 'CRM 등록'}
                         </button>
                       )}
                     </div>
                   )}
-                  {item.status === 'error' && <p style={{ fontSize: '0.8125rem', color: 'var(--danger)', margin: 0 }}>{item.error}</p>}
+                  {item.status === 'error' && <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--danger)', margin: 0 }}>{item.error}</p>}
                 </div>
                 {item.status === 'pending' && (
                   <button type="button" className="file-remove-btn" onClick={() => setFiles(prev => prev.filter((_, i) => i !== idx))} aria-label="삭제">✕</button>
@@ -336,13 +336,13 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
           </div>
         )}
 
-        {error && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
+        {error && <p style={{ color: 'var(--danger)', fontSize: 'var(--fs-base)', margin: 0 }}>{error}</p>}
 
         {/* 텍스트 분석 결과 — 저장 성공 시 resetAll로 사라지고 상단 완료 배너로 안내 */}
         {result && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
             <ParsedCard parsed={result.parsed} />
-            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
               <button type="button" onClick={handleCreate} disabled={creating} className="btn-primary" style={{ padding: '0.625rem 1.25rem', minHeight: '44px' }}>
                 {creating ? '등록중...' : '거래처/담당자/영업기회 생성'}
               </button>
@@ -351,16 +351,16 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
         )}
 
         {/* 통합 분석 버튼 + 초기화 */}
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'center' }}>
           <button type="submit" disabled={loading || !canAnalyze} className="btn-primary"
-            style={{ padding: '0.75rem 1.5rem', fontSize: '0.9375rem', minHeight: '48px' }}>
+            style={{ padding: 'var(--space-3) var(--space-6)', fontSize: 'var(--fs-md)', minHeight: '48px' }}>
             {loading ? 'AI 분석중...' : 'AI 분석'}
-            {!loading && pendingCount > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.85, marginLeft: '0.375rem' }}>파일 {pendingCount}개{hasText ? ' + 텍스트' : ''}</span>}
+            {!loading && pendingCount > 0 && <span style={{ fontSize: 'var(--fs-xs)', opacity: 0.85, marginLeft: '0.375rem' }}>파일 {pendingCount}개{hasText ? ' + 텍스트' : ''}</span>}
             {!loading && pendingCount === 0 && <span style={{ fontSize: '0.7rem', opacity: 0.65, marginLeft: '0.375rem' }}>Ctrl+↵</span>}
           </button>
           {(result || doneFiles.length > 0 || rawInput || files.length > 0) && (
             <button type="button" onClick={resetAll}
-              style={{ padding: '0.625rem 1.25rem', minHeight: '44px', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+              style={{ padding: '0.625rem 1.25rem', minHeight: '44px', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 'var(--fs-base)', color: 'var(--text-muted)' }}>
               초기화
             </button>
           )}

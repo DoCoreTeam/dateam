@@ -35,18 +35,18 @@ export default function WeeklyMemoReview() {
 
   return (
     <>
-      <div className="card" style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem', border: 'var(--hairline) solid var(--warning-border)', background: 'var(--surface-bg)' }}>
+      <div className="card" style={{ padding: 'var(--space-4) var(--space-5)', marginBottom: '1.5rem', border: 'var(--hairline) solid var(--warning-border)', background: 'var(--surface-bg)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <StickyNote size={16} color="var(--warning)" />
             <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text)' }}>
               이번 주 미처리 메모 {items.length}건
             </span>
             <span style={{ fontSize: '0.78rem', color: 'var(--warning)' }}>— 보고 전에 정리해 보세요</span>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
             <button onClick={handleArchiveAll}
-              style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: '0.3rem 0.6rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: '0.3rem 0.6rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
               <Archive size={12} /> 전체 보관
             </button>
             <button onClick={() => setOpen((o) => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
@@ -56,12 +56,12 @@ export default function WeeklyMemoReview() {
         </div>
 
         {open && (
-          <ul style={{ listStyle: 'none', margin: '0.75rem 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <ul style={{ listStyle: 'none', margin: '0.75rem 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
             {items.map((m) => {
               const st = STALENESS_STYLE[m.staleness]
               return (
                 <li key={m.id} className={m.staleness === 'stale' ? 'memo-pulse' : ''}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.65rem', borderRadius: 'var(--radius)', background: '#fff', border: 'var(--hairline) solid var(--surface-muted)' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '0.5rem 0.65rem', borderRadius: 'var(--radius)', background: '#fff', border: 'var(--hairline) solid var(--surface-muted)' }}>
                   <span title={st.label} style={{ width: 8, height: 8, borderRadius: '50%', background: st.dot, flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.83rem', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.content}</div>

@@ -94,7 +94,7 @@ export default function ContentDiffModal({
         background: 'rgba(15,23,42,0.55)',
         backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '1rem',
+        padding: 'var(--space-4)',
       }}
     >
       <div style={{
@@ -110,7 +110,7 @@ export default function ContentDiffModal({
       }}>
         {/* Header */}
         <div style={{
-          padding: '1.25rem 1.5rem',
+          padding: 'var(--space-5) var(--space-6)',
           borderBottom: 'var(--border-w-2) solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
@@ -118,16 +118,16 @@ export default function ContentDiffModal({
           flexShrink: 0,
         }}>
           <div>
-            <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>
+            <div style={{ fontSize: 'var(--fs-lg)', fontWeight: 700, color: 'var(--text)' }}>
               AI 편집 결과 — {sectionName}
             </div>
-            <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
               {changedCount === 0
                 ? '변경사항이 없습니다'
                 : `${changedCount}개 행이 변경되었습니다. 적용하시겠습니까?`}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             {Object.entries(STATUS_BADGE)
               .filter(([k]) => rows.some((r) => r.status === k))
               .map(([k, s]) => (
@@ -135,7 +135,7 @@ export default function ContentDiffModal({
                   display: 'inline-flex', alignItems: 'center',
                   padding: '0.2rem 0.6rem',
                   borderRadius: '9999px',
-                  fontSize: '0.75rem', fontWeight: 600,
+                  fontSize: 'var(--fs-xs)', fontWeight: 600,
                   background: s.bg, color: s.color,
                 }}>
                   {s.label} {rows.filter((r) => r.status === k).length}
@@ -159,10 +159,10 @@ export default function ContentDiffModal({
               }}>
                 <div
                   style={{
-                    padding: '0.75rem 1.5rem',
+                    padding: 'var(--space-3) var(--space-6)',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.75rem',
+                    gap: 'var(--space-3)',
                     cursor: isExpandable ? 'pointer' : 'default',
                   }}
                   onClick={() => isExpandable && setExpandedIdx(isExpanded ? null : idx)}
@@ -180,17 +180,17 @@ export default function ContentDiffModal({
                   </span>
 
                   {/* Key field value */}
-                  <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text)', minWidth: '120px' }}>
+                  <span style={{ fontSize: 'var(--fs-base)', fontWeight: 600, color: 'var(--text)', minWidth: '120px' }}>
                     {renderValue(displayRow[keyCol])}
                   </span>
 
                   {/* Other fields preview */}
-                  <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {columns.slice(1, 3).map((c) => `${c.label}: ${renderValue(displayRow[c.key])}`).join('  ·  ')}
                   </span>
 
                   {isExpandable && (
-                    <span style={{ fontSize: '0.75rem', color: 'var(--brand)', flexShrink: 0 }}>
+                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', flexShrink: 0 }}>
                       {isExpanded ? '접기 ▲' : '상세 ▼'}
                     </span>
                   )}
@@ -199,10 +199,10 @@ export default function ContentDiffModal({
                 {/* Expanded diff for modified rows */}
                 {isExpanded && row.status === 'modified' && (
                   <div style={{
-                    padding: '0 1.5rem 1rem',
+                    padding: 'var(--space-0) var(--space-6) var(--space-4)',
                     display: 'grid',
                     gridTemplateColumns: '1fr 1fr',
-                    gap: '1rem',
+                    gap: 'var(--space-4)',
                   }}>
                     <div>
                       <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>이전</div>
@@ -211,7 +211,7 @@ export default function ContentDiffModal({
                         const newVal = renderValue(row.proposed?.[c.key])
                         const changed = oldVal !== newVal
                         return (
-                          <div key={c.key} style={{ marginBottom: '0.25rem', fontSize: '0.8125rem' }}>
+                          <div key={c.key} style={{ marginBottom: '0.25rem', fontSize: 'var(--fs-sm)' }}>
                             <span style={{ color: 'var(--text-faint)', marginRight: '0.375rem' }}>{c.label}:</span>
                             <span style={{ color: changed ? 'var(--danger)' : 'var(--text-muted)', textDecoration: changed ? 'line-through' : 'none' }}>
                               {oldVal}
@@ -227,7 +227,7 @@ export default function ContentDiffModal({
                         const newVal = renderValue(row.proposed?.[c.key])
                         const changed = oldVal !== newVal
                         return (
-                          <div key={c.key} style={{ marginBottom: '0.25rem', fontSize: '0.8125rem' }}>
+                          <div key={c.key} style={{ marginBottom: '0.25rem', fontSize: 'var(--fs-sm)' }}>
                             <span style={{ color: 'var(--text-faint)', marginRight: '0.375rem' }}>{c.label}:</span>
                             <span style={{ color: changed ? 'var(--success)' : 'var(--text-muted)', fontWeight: changed ? 600 : 400 }}>
                               {newVal}
@@ -245,11 +245,11 @@ export default function ContentDiffModal({
 
         {/* Footer */}
         <div style={{
-          padding: '1rem 1.5rem',
+          padding: 'var(--space-4) var(--space-6)',
           borderTop: 'var(--border-w-2) solid var(--border-color)',
           display: 'flex',
           justifyContent: 'flex-end',
-          gap: '0.75rem',
+          gap: 'var(--space-3)',
           flexShrink: 0,
           background: 'var(--color-bg)',
         }}>
@@ -258,12 +258,12 @@ export default function ContentDiffModal({
             onClick={onCancel}
             disabled={loading}
             style={{
-              padding: '0.5rem 1.25rem',
+              padding: 'var(--space-2) var(--space-5)',
               background: 'transparent',
               color: 'var(--text-muted)',
               border: 'var(--border-w-2) solid var(--border-color)',
               borderRadius: 'var(--radius)',
-              fontSize: '0.875rem',
+              fontSize: 'var(--fs-base)',
               fontWeight: 500,
               cursor: 'pointer',
             }}
@@ -275,12 +275,12 @@ export default function ContentDiffModal({
             onClick={onConfirm}
             disabled={loading || changedCount === 0}
             style={{
-              padding: '0.5rem 1.5rem',
+              padding: 'var(--space-2) var(--space-6)',
               background: changedCount === 0 ? 'var(--color-border)' : 'var(--brand)',
               color: changedCount === 0 ? 'var(--text-faint)' : '#fff',
               border: 'none',
               borderRadius: 'var(--radius)',
-              fontSize: '0.875rem',
+              fontSize: 'var(--fs-base)',
               fontWeight: 600,
               cursor: changedCount === 0 ? 'not-allowed' : 'pointer',
             }}

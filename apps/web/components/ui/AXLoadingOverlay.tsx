@@ -64,8 +64,8 @@ const AXLoadingOverlay = forwardRef<HTMLDivElement, AXLoadingOverlayProps>(
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '1.25rem',
-            padding: '0 1.5rem',
+            gap: 'var(--space-5)',
+            padding: 'var(--space-0) var(--space-6)',
           }}
         >
           {brandName ? (
@@ -97,7 +97,7 @@ const AXLoadingOverlay = forwardRef<HTMLDivElement, AXLoadingOverlayProps>(
 
           <span
             style={{
-              fontSize: '0.875rem',
+              fontSize: 'var(--fs-base)',
               color: isDark ? 'var(--color-border)' : 'var(--brand)',
               fontWeight: 600,
             }}
@@ -108,7 +108,7 @@ const AXLoadingOverlay = forwardRef<HTMLDivElement, AXLoadingOverlayProps>(
           {sublabel && (
             <span
               style={{
-                fontSize: '0.8125rem',
+                fontSize: 'var(--fs-sm)',
                 color: isDark ? 'var(--text-faint)' : 'var(--brand)',
                 maxWidth: '320px',
                 overflowWrap: 'anywhere',
@@ -150,7 +150,7 @@ const AXLoadingOverlay = forwardRef<HTMLDivElement, AXLoadingOverlayProps>(
           )}
 
           {elapsed !== undefined && elapsed > 0 && (
-            <span style={{ fontSize: '0.75rem', color: isDark ? 'var(--text-faint)' : 'var(--brand-soft-2)' }}>
+            <span style={{ fontSize: 'var(--fs-xs)', color: isDark ? 'var(--text-faint)' : 'var(--brand-soft-2)' }}>
               {elapsed}초
             </span>
           )}

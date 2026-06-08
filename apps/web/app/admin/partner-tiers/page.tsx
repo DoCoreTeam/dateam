@@ -25,7 +25,7 @@ export default async function PartnerTiersPage() {
   return (
     <div>
       <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
+        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
           파트너 등급 관리
         </h1>
         <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
@@ -34,8 +34,8 @@ export default async function PartnerTiersPage() {
       </div>
 
       {/* 새 등급 추가 */}
-      <div className="card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+      <div className="card" style={{ padding: 'var(--space-5) var(--space-6)', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1rem' }}>
           <Plus size={16} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>
             새 등급 추가
@@ -46,14 +46,14 @@ export default async function PartnerTiersPage() {
 
       {/* 등급 목록 */}
       <div className="card">
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <Tag size={16} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>등급 목록</h2>
           <span className="badge badge-slate">{tiers?.length ?? 0}개</span>
         </div>
 
         {(!tiers || tiers.length === 0) ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-faint)', fontSize: '0.875rem' }}>
+          <div style={{ padding: 'var(--space-12)', textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>
             등록된 등급이 없습니다. 새 등급을 추가해주세요.
           </div>
         ) : (

@@ -10,9 +10,9 @@ interface NbCardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
 
 export default function NbCard({ title, headerRight, children, className, style, ...rest }: NbCardProps) {
   return (
-    <div className={`card${className ? ' ' + className : ''}`} style={{ padding: '1.25rem 1.5rem', ...style }} {...rest}>
+    <div className={`card${className ? ' ' + className : ''}`} style={{ padding: 'var(--space-5) var(--space-6)', ...style }} {...rest}>
       {(title || headerRight) && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', gap: 'var(--space-3)' }}>
           {title ? <span className="tape-title">{title}</span> : <span />}
           {headerRight}
         </div>

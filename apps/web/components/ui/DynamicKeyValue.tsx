@@ -14,7 +14,7 @@ const INPUT_SM: React.CSSProperties = {
   padding: '0.4rem 0.6rem',
   border: 'var(--border-w-2) solid var(--border-color)',
   borderRadius: 'var(--radius)',
-  fontSize: '0.8125rem',
+  fontSize: 'var(--fs-sm)',
   color: 'var(--text)',
   background: '#fff',
   minWidth: 0,
@@ -48,7 +48,7 @@ export default function DynamicKeyValue({
       <input type="hidden" name={name} value={JSON.stringify(value)} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '0.625rem' }}>
         {pairs.map((p, idx) => (
-          <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div key={idx} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
             <input
               type="text"
               value={p.k}
@@ -95,7 +95,7 @@ export default function DynamicKeyValue({
           borderRadius: 'var(--radius-lg)',
           background: 'var(--brand-soft)',
           color: 'var(--brand)',
-          fontSize: '0.8125rem',
+          fontSize: 'var(--fs-sm)',
           fontWeight: 500,
           cursor: 'pointer',
         }}

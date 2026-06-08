@@ -50,17 +50,17 @@ export default async function AccountDetailPage({ params }: PageProps) {
   return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
-        <Link href="/accounts" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: 'var(--brand)', fontSize: '0.875rem', fontWeight: 500, textDecoration: 'none', marginBottom: '0.75rem' }}>
+        <Link href="/accounts" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: 'var(--brand)', fontSize: 'var(--fs-base)', fontWeight: 500, textDecoration: 'none', marginBottom: '0.75rem' }}>
           <ArrowLeft size={14} /> 거래처 목록
         </Link>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
             <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: 'var(--radius)', background: 'linear-gradient(135deg, var(--brand), var(--brand))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Briefcase size={18} color="white" />
             </div>
             <div>
               <h1 style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>{account.name}</h1>
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '0.25rem', flexWrap: 'wrap' }}>
                 {account.industry && <span className="badge badge-slate">{account.industry}</span>}
                 {account.segment && <span className="badge badge-indigo">{account.segment}</span>}
                 {account.size && <span className="badge" style={{ background: 'var(--color-bg)', color: 'var(--text-muted)' }}>{account.size}</span>}
@@ -69,62 +69,62 @@ export default async function AccountDetailPage({ params }: PageProps) {
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
             {account.fit_score !== null && (
-              <span style={{ fontSize: '0.875rem', fontWeight: 700, padding: '0.375rem 0.875rem', borderRadius: '9999px', ...fc }}>
+              <span style={{ fontSize: 'var(--fs-base)', fontWeight: 700, padding: '0.375rem 0.875rem', borderRadius: '9999px', ...fc }}>
                 Fit {account.fit_score}점
               </span>
             )}
-            <Link href={`/accounts/${id}/edit`} className="btn-primary" style={{ textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', fontSize: '0.875rem', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
+            <Link href={`/accounts/${id}/edit`} className="btn-primary" style={{ textDecoration: 'none', padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
               편집
             </Link>
           </div>
         </div>
       </div>
 
-      <div className="responsive-grid-2" style={{ gap: '1.25rem', alignItems: 'flex-start' }}>
+      <div className="responsive-grid-2" style={{ gap: 'var(--space-5)', alignItems: 'flex-start' }}>
         {/* 기본 정보 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div className="card" style={{ padding: '1.25rem 1.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+          <div className="card" style={{ padding: 'var(--space-5) var(--space-6)' }}>
             <h2 className="tape-title" style={{ margin: 0 }}>기본 정보</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
               {account.website && (
                 <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start' }}>
                   <Globe size={15} color="var(--brand)" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <a href={account.website} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand)', fontSize: '0.875rem', wordBreak: 'break-all' }}>{account.website}</a>
+                  <a href={account.website} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brand)', fontSize: 'var(--fs-base)', wordBreak: 'break-all' }}>{account.website}</a>
                 </div>
               )}
               {account.phone && (
                 <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
                   <Phone size={15} color="var(--brand)" style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: '0.875rem', color: 'var(--text)' }}>{account.phone}</span>
+                  <span style={{ fontSize: 'var(--fs-base)', color: 'var(--text)' }}>{account.phone}</span>
                 </div>
               )}
               {account.registration_number && (
                 <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', minWidth: '5rem' }}>번호</span>
-                  <span style={{ fontSize: '0.875rem', color: 'var(--text)' }}>{account.registration_number}</span>
+                  <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', minWidth: '5rem' }}>번호</span>
+                  <span style={{ fontSize: 'var(--fs-base)', color: 'var(--text)' }}>{account.registration_number}</span>
                 </div>
               )}
               {account.source && (
                 <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', minWidth: '5rem' }}>출처</span>
-                  <span style={{ fontSize: '0.875rem', color: 'var(--text)' }}>{account.source}</span>
+                  <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', minWidth: '5rem' }}>출처</span>
+                  <span style={{ fontSize: 'var(--fs-base)', color: 'var(--text)' }}>{account.source}</span>
                 </div>
               )}
               {account.region && (
                 <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
                   <MapPin size={15} color="var(--brand)" style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: '0.875rem', color: 'var(--text)' }}>{account.region} {account.address && `· ${account.address}`}</span>
+                  <span style={{ fontSize: 'var(--fs-base)', color: 'var(--text)' }}>{account.region} {account.address && `· ${account.address}`}</span>
                 </div>
               )}
               {account.description && (
-                <p style={{ fontSize: '0.875rem', color: 'var(--text)', margin: '0.5rem 0 0', lineHeight: 1.6 }}>{account.description}</p>
+                <p style={{ fontSize: 'var(--fs-base)', color: 'var(--text)', margin: '0.5rem 0 0', lineHeight: 1.6 }}>{account.description}</p>
               )}
               {account.tags?.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginTop: '0.25rem' }}>
                   {account.tags.map((tag) => (
-                    <span key={tag} className="badge" style={{ background: 'var(--info-bg)', color: 'var(--info)', fontSize: '0.75rem' }}>#{tag}</span>
+                    <span key={tag} className="badge" style={{ background: 'var(--info-bg)', color: 'var(--info)', fontSize: 'var(--fs-xs)' }}>#{tag}</span>
                   ))}
                 </div>
               )}
@@ -133,26 +133,26 @@ export default async function AccountDetailPage({ params }: PageProps) {
 
           {/* 담당자 */}
           <div className="card">
-            <div style={{ padding: '1rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ padding: 'var(--space-4) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                 <Users size={15} color="var(--brand)" />
                 <h2 className="tape-title" style={{ margin: 0 }}>담당자</h2>
                 <span className="badge badge-slate">{contacts.length}</span>
               </div>
-              <Link href={`/contacts/new?account_id=${id}`} style={{ fontSize: '0.8125rem', color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}>+ 추가</Link>
+              <Link href={`/contacts/new?account_id=${id}`} style={{ fontSize: 'var(--fs-sm)', color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}>+ 추가</Link>
             </div>
             {contacts.length === 0 ? (
-              <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-faint)', fontSize: '0.875rem' }}>담당자가 없습니다</div>
+              <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>담당자가 없습니다</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {contacts.map((c) => (
-                  <div key={c.id} style={{ padding: '0.875rem 1.5rem', borderBottom: 'var(--hairline) solid var(--surface-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <div key={c.id} style={{ padding: '0.875rem 1.5rem', borderBottom: 'var(--hairline) solid var(--surface-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
                     <div>
-                      <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.875rem' }}>{c.name}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{[c.title, c.department].filter(Boolean).join(' · ')}</div>
-                      {c.email && <div style={{ fontSize: '0.75rem', color: 'var(--brand)', marginTop: '0.125rem' }}>{c.email}</div>}
+                      <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 'var(--fs-base)' }}>{c.name}</div>
+                      <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>{[c.title, c.department].filter(Boolean).join(' · ')}</div>
+                      {c.email && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', marginTop: '0.125rem' }}>{c.email}</div>}
                     </div>
-                    <Link href={`/contacts/${c.id}`} style={{ fontSize: '0.75rem', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600, flexShrink: 0 }}>보기</Link>
+                    <Link href={`/contacts/${c.id}`} style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600, flexShrink: 0 }}>보기</Link>
                   </div>
                 ))}
               </div>
@@ -162,31 +162,31 @@ export default async function AccountDetailPage({ params }: PageProps) {
 
         {/* 영업기회 */}
         <div className="card">
-          <div style={{ padding: '1rem 1.5rem', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ padding: 'var(--space-4) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <TrendingUp size={15} color="var(--brand)" />
               <h2 className="tape-title" style={{ margin: 0 }}>영업기회</h2>
               <span className="badge badge-slate">{deals.length}</span>
             </div>
-            <Link href={`/deals/new?account_id=${id}`} style={{ fontSize: '0.8125rem', color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}>+ 추가</Link>
+            <Link href={`/deals/new?account_id=${id}`} style={{ fontSize: 'var(--fs-sm)', color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}>+ 추가</Link>
           </div>
           {deals.length === 0 ? (
-            <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-faint)', fontSize: '0.875rem' }}>영업기회가 없습니다</div>
+            <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>영업기회가 없습니다</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {deals.map((d) => {
                 const sc = STAGE_COLOR[d.stage] ?? STAGE_COLOR['신규']
                 return (
                   <div key={d.id} style={{ padding: '0.875rem 1.5rem', borderBottom: 'var(--hairline) solid var(--surface-muted)' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
                       <div>
-                        <Link href={`/deals/${d.id}`} style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.875rem', textDecoration: 'none' }}>{d.title}</Link>
+                        <Link href={`/deals/${d.id}`} style={{ fontWeight: 600, color: 'var(--text)', fontSize: 'var(--fs-base)', textDecoration: 'none' }}>{d.title}</Link>
                         <div style={{ display: 'flex', gap: '0.375rem', marginTop: '0.25rem', alignItems: 'center' }}>
                           <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '0.1rem 0.4rem', borderRadius: '9999px', color: sc.color, background: sc.bg }}>{d.stage}</span>
-                          {d.value && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>₩{d.value.toLocaleString()}</span>}
+                          {d.value && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>₩{d.value.toLocaleString()}</span>}
                         </div>
                       </div>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)', flexShrink: 0 }}>{d.probability}%</span>
+                      <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', flexShrink: 0 }}>{d.probability}%</span>
                     </div>
                   </div>
                 )

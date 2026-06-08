@@ -33,7 +33,7 @@ function CodeBlock({ code, id, onCopy, copiedId, lang = 'bash' }: { code: string
           {copiedId === id ? '✓ 복사됨' : '복사'}
         </button>
       </div>
-      <pre style={{ margin: 0, padding: '1.25rem 1.5rem', fontSize: 13, lineHeight: 1.7, color: 'var(--color-border)', overflowX: 'auto', whiteSpace: 'pre' }}>{code}</pre>
+      <pre style={{ margin: 0, padding: 'var(--space-5) var(--space-6)', fontSize: 13, lineHeight: 1.7, color: 'var(--color-border)', overflowX: 'auto', whiteSpace: 'pre' }}>{code}</pre>
     </div>
   )
 }
@@ -969,7 +969,7 @@ export default function DevelopPage() {
   return (
     <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", background: 'var(--text)', minHeight: '100vh', color: 'var(--color-border)' }}>
       {/* 헤더 — 상단 nav 제거, 로고 + CTA만 */}
-      <header style={{ borderBottom: 'var(--hairline) solid var(--text)', padding: '0 2rem', position: 'sticky', top: 0, background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(12px)', zIndex: 100 }}>
+      <header style={{ borderBottom: 'var(--hairline) solid var(--text)', padding: 'var(--space-0) var(--space-8)', position: 'sticky', top: 0, background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(12px)', zIndex: 100 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <a href="/home" style={{ width: 30, height: 30, borderRadius: 7, background: 'linear-gradient(135deg, var(--brand), var(--brand))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', textDecoration: 'none' }}>A</a>
@@ -994,7 +994,7 @@ export default function DevelopPage() {
         </div>
       </header>
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '2.5rem 2rem', display: 'grid', gridTemplateColumns: '220px 1fr', gap: '3rem' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: 'var(--space-10) var(--space-8)', display: 'grid', gridTemplateColumns: '220px 1fr', gap: 'var(--space-12)' }}>
         {/* 사이드바 */}
         <aside>
           <nav style={{ position: 'sticky', top: 76 }}>

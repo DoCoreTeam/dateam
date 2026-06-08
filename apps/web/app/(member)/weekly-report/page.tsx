@@ -182,8 +182,8 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     display: 'flex',
     alignItems: 'center',
     gap: '0.375rem',
-    padding: '0.5rem 1rem',
-    fontSize: '0.875rem',
+    padding: 'var(--space-2) var(--space-4)',
+    fontSize: 'var(--fs-base)',
     fontWeight: isActive ? 600 : 500,
     color: isActive ? 'var(--brand)' : 'var(--text-muted)',
     borderBottom: isActive ? 'var(--border-w-2) solid var(--brand)' : 'var(--border-w-2) solid transparent',
@@ -194,7 +194,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
   return (
     <div style={{ width: '100%' }}>
       <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
+        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
           주간보고
         </h1>
         <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
@@ -223,20 +223,20 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
       {activeTab === 'mine' ? (
         <>
           {justSaved && (
-            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--success)' }}>
+            <div role="status" style={{ padding: 'var(--space-3) var(--space-4)', backgroundColor: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: 'var(--fs-sm)', color: 'var(--success)' }}>
               주간보고가 저장되었습니다
             </div>
           )}
           {justReset && (
-            <div role="status" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
+            <div role="status" style={{ padding: 'var(--space-3) var(--space-4)', backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
               보고서가 초기화되었습니다
             </div>
           )}
           {/* 미처리 메모 리뷰 nudge */}
           <WeeklyMemoReview />
-          <div className="card" style={{ padding: '1.5rem', marginBottom: '1.75rem', width: '100%', boxSizing: 'border-box' }}>
+          <div className="card" style={{ padding: 'var(--space-6)', marginBottom: '1.75rem', width: '100%', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                 <FileText size={16} color="var(--brand)" />
                 <h2 className="tape-title" style={{ margin: 0 }}>보고서 작성</h2>
               </div>
@@ -267,16 +267,16 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
           <OnboardingRestartLink variant="text" />
         </>
       ) : activeTab === 'team' ? (
-        <div className="card" style={{ padding: '1.5rem', width: '100%', boxSizing: 'border-box' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+        <div className="card" style={{ padding: 'var(--space-6)', width: '100%', boxSizing: 'border-box' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
             <Users size={16} color="var(--brand)" />
             <h2 className="tape-title" style={{ margin: 0 }}>팀 전체 주간보고</h2>
           </div>
           <TeamReportView weekOptions={weekOptions} thisWeek={thisWeek} initialReports={teamReports} />
         </div>
       ) : (
-        <div className="card" style={{ padding: '1.5rem', width: '100%', boxSizing: 'border-box' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+        <div className="card" style={{ padding: 'var(--space-6)', width: '100%', boxSizing: 'border-box' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
             <GitBranch size={16} color="var(--brand)" />
             <h2 className="tape-title" style={{ margin: 0 }}>조직 현황 — 부서 취합 주간보고</h2>
           </div>

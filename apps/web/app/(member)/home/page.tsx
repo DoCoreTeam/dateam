@@ -60,11 +60,11 @@ export default async function HomePage() {
 
         {/* 헤더 */}
         <div className="home-section-header">
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
+          <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
             안녕하세요, {displayName}님
           </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.375rem', flexWrap: 'wrap' }}>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.9375rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginTop: '0.375rem', flexWrap: 'wrap' }}>
+            <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-md)' }}>
               {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
             </span>
             {showAxTiles && [
@@ -83,7 +83,7 @@ export default async function HomePage() {
                   borderRadius: 'var(--radius)',
                   background: item.bg,
                   color: item.color,
-                  fontSize: '0.75rem',
+                  fontSize: 'var(--fs-xs)',
                   fontWeight: 600,
                   textDecoration: 'none',
                   border: `var(--hairline) solid ${item.color}33`,
@@ -110,13 +110,13 @@ export default async function HomePage() {
           </div>
 
           {/* 주간보고 */}
-          <div className="home-widget-col home-widget-weekly card" style={{ padding: '1.25rem 1.5rem' }}>
+          <div className="home-widget-col home-widget-weekly card" style={{ padding: 'var(--space-5) var(--space-6)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                 <FileText size={15} color="var(--brand)" />
                 <h3 className="tape-title" style={{ margin: 0 }}>주간보고</h3>
               </div>
-              <Link href="/weekly-report" style={{ fontSize: '0.75rem', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600 }}>
+              <Link href="/weekly-report" style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600 }}>
                 {showGlow ? '이번 주 작성하기 →' : '작성하기 →'}
               </Link>
             </div>
@@ -128,7 +128,7 @@ export default async function HomePage() {
                   padding: '0.4rem 0.625rem', background: 'var(--color-bg)',
                   borderRadius: 'var(--radius)', border: 'var(--hairline) solid var(--surface-muted)',
                 }}>
-                  <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+                  <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
                     {new Date(r.week_start).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })} 주
                   </span>
                   <span className="badge badge-indigo">{r.category}</span>
@@ -136,7 +136,7 @@ export default async function HomePage() {
               ))}
             </ul>
             ) : (
-              <p style={{ fontSize: '0.8125rem', color: 'var(--text-faint)', margin: 0, textAlign: 'center' }}>
+              <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', margin: 0, textAlign: 'center' }}>
                 아직 주간보고가 없습니다.{' '}
                 <Link href="/weekly-report" style={{ color: 'var(--brand)', fontWeight: 600 }}>작성하기</Link>
               </p>

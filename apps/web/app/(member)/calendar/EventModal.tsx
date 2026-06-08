@@ -78,8 +78,8 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
 
   return (
     <div onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div style={{ width: '100%', maxWidth: 460, background: '#fff', borderRadius: 'var(--radius)', padding: '1.5rem', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }}>
+      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-4)' }}>
+      <div style={{ width: '100%', maxWidth: 460, background: '#fff', borderRadius: 'var(--radius)', padding: 'var(--space-6)', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
           <h3 className="tape-title" style={{ margin: 0 }}>일정 등록</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={18} /></button>
@@ -89,18 +89,18 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
         <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.875rem' }}>
           <input value={nl} onChange={(e) => setNl(e.target.value)} placeholder="자연어: 내일 오후 3시 A사 미팅"
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); parseNl() } }}
-            style={{ flex: 1, border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem 0.625rem', fontSize: '0.8125rem', outline: 'none' }} />
-          <button onClick={parseNl} disabled={aiBusy} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8125rem', fontWeight: 600, color: '#fff', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: '0.5rem 0.75rem', cursor: aiBusy ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+            style={{ flex: 1, border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem 0.625rem', fontSize: 'var(--fs-sm)', outline: 'none' }} />
+          <button onClick={parseNl} disabled={aiBusy} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: 'var(--fs-sm)', fontWeight: 600, color: '#fff', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-3)', cursor: aiBusy ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
             <Sparkles size={14} /> {aiBusy ? '파싱중' : 'AI 파싱'}
           </button>
         </div>
 
-        {msg && <div role="status" style={{ padding: '0.5rem 0.75rem', background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: '0.78rem', color: 'var(--brand-dark)' }}>{msg}</div>}
+        {msg && <div role="status" style={{ padding: 'var(--space-2) var(--space-3)', background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: '0.78rem', color: 'var(--brand-dark)' }}>{msg}</div>}
 
         <label style={lbl}>제목</label>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="일정 제목" style={inp} />
 
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '0.75rem', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 130 }}>
             <label style={lbl}>날짜</label>
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={inp} />
@@ -119,14 +119,14 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--text-muted)', cursor: 'pointer' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} /> 종일
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
             반복
             <select value={repeat} onChange={(e) => setRepeat(e.target.value as 'none' | 'daily' | 'weekly')}
-              style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.3rem 0.5rem', fontSize: '0.8125rem' }}>
+              style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.3rem 0.5rem', fontSize: 'var(--fs-sm)' }}>
               <option value="none">안 함</option>
               <option value="daily">매일</option>
               <option value="weekly">매주</option>
@@ -137,9 +137,9 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
         <label style={{ ...lbl, marginTop: '0.75rem' }}>설명 (선택)</label>
         <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }} />
 
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>취소</button>
-          <button onClick={save} disabled={busy} style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fff', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: '0.5rem 1.25rem', cursor: busy ? 'wait' : 'pointer' }}>{busy ? '저장중' : '저장'}</button>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>취소</button>
+          <button onClick={save} disabled={busy} style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: '#fff', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-5)', cursor: busy ? 'wait' : 'pointer' }}>{busy ? '저장중' : '저장'}</button>
         </div>
       </div>
     </div>
@@ -147,4 +147,4 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
 }
 
 const lbl: React.CSSProperties = { display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-faint)', marginBottom: '0.25rem' }
-const inp: React.CSSProperties = { width: '100%', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem 0.625rem', fontSize: '0.8125rem', outline: 'none', boxSizing: 'border-box' }
+const inp: React.CSSProperties = { width: '100%', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem 0.625rem', fontSize: 'var(--fs-sm)', outline: 'none', boxSizing: 'border-box' }

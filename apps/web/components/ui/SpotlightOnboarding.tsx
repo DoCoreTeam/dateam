@@ -183,32 +183,32 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
             zIndex: 10000,
             background: '#ffffff',
             borderRadius: 'var(--radius)',
-            padding: '1rem 1.25rem',
+            padding: 'var(--space-4) var(--space-5)',
             minWidth: '280px',
             maxWidth: '340px',
             boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <span style={{
-                fontSize: '0.6875rem', fontWeight: 700, color: '#ffffff',
+                fontSize: 'var(--fs-2xs)', fontWeight: 700, color: '#ffffff',
                 background: 'var(--brand)', borderRadius: '999px', padding: '0.15rem 0.5rem',
               }}>
                 {STEPS[step].stepLabel}
               </span>
-              <strong id="onboarding-tooltip-title" style={{ fontSize: '0.9375rem', color: 'var(--text)' }}>{STEPS[step].title}</strong>
+              <strong id="onboarding-tooltip-title" style={{ fontSize: 'var(--fs-md)', color: 'var(--text)' }}>{STEPS[step].title}</strong>
             </div>
             <button
               type="button"
               onClick={finish}
               aria-label="온보딩 닫기"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: '1rem', lineHeight: 1, padding: '0.125rem' }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: 'var(--fs-lg)', lineHeight: 1, padding: '0.125rem' }}
             >
               ✕
             </button>
           </div>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', margin: '0 0 1rem', lineHeight: 1.6 }}>
+          <p style={{ fontSize: 'var(--fs-base)', color: 'var(--text-muted)', margin: '0 0 1rem', lineHeight: 1.6 }}>
             {STEPS[step].description}
           </p>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -225,14 +225,14 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
                 />
               ))}
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
               <button
                 type="button"
                 onClick={finish}
                 style={{
                   padding: '0.4rem 0.875rem', background: 'none',
                   border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
-                  fontSize: '0.8125rem', color: 'var(--text-muted)', cursor: 'pointer',
+                  fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', cursor: 'pointer',
                 }}
               >
                 건너뛰기
@@ -243,7 +243,7 @@ export default function SpotlightOnboarding({ autoStart = false }: SpotlightOnbo
                 style={{
                   padding: '0.4rem 1rem', background: 'var(--brand)',
                   border: 'none', borderRadius: 'var(--radius)',
-                  fontSize: '0.8125rem', color: '#ffffff',
+                  fontSize: 'var(--fs-sm)', color: '#ffffff',
                   fontWeight: 600, cursor: 'pointer',
                 }}
               >

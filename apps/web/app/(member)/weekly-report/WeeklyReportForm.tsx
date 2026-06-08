@@ -283,7 +283,7 @@ export default function WeeklyReportForm({
 
   const TH: React.CSSProperties = {
     padding: '0.625rem 0.875rem',
-    fontSize: '0.75rem',
+    fontSize: 'var(--fs-xs)',
     fontWeight: 600,
     color: 'var(--text-muted)',
     background: 'var(--color-bg)',
@@ -335,14 +335,14 @@ export default function WeeklyReportForm({
       {isEditMode && (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0.75rem 1rem', backgroundColor: 'var(--info-bg)', border: 'var(--hairline) solid var(--info-border)',
-          borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--info)',
+          padding: 'var(--space-3) var(--space-4)', backgroundColor: 'var(--info-bg)', border: 'var(--hairline) solid var(--info-border)',
+          borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: 'var(--fs-sm)', color: 'var(--info)',
         }}>
           <span>✏️ <strong>{new Date(initialWeek).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 주</strong> 보고서 수정 중</span>
           <button
             type="button"
             onClick={() => router.push('/weekly-report?tab=mine')}
-            style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '0.125rem 0.375rem' }}
+            style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '0.125rem 0.375rem' }}
           >
             취소
           </button>
@@ -351,9 +351,9 @@ export default function WeeklyReportForm({
       {/* carry-forward 안내 */}
       {hasCarryForward && (
         <div role="status" aria-live="polite" style={{
-          padding: '0.75rem 1rem', backgroundColor: 'var(--info-bg)',
+          padding: 'var(--space-3) var(--space-4)', backgroundColor: 'var(--info-bg)',
           border: 'var(--hairline) solid var(--info-border)', borderRadius: 'var(--radius)',
-          marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--info)',
+          marginBottom: '1rem', fontSize: 'var(--fs-sm)', color: 'var(--info)',
         }}>
           전주 계획에서 성과를 이월했습니다. 실제 성과로 수정 후 저장해 주세요.
         </div>
@@ -389,12 +389,12 @@ export default function WeeklyReportForm({
 
       {/* 알림 */}
       {submitError && (
-        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
+        <div role="alert" style={{ padding: 'var(--space-3) var(--space-4)', backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
           {submitError}
         </div>
       )}
       {refineError && (
-        <div role="alert" style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--danger)' }}>
+        <div role="alert" style={{ padding: 'var(--space-3) var(--space-4)', backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
           {refineError}
         </div>
       )}
@@ -430,7 +430,7 @@ export default function WeeklyReportForm({
                   id={idx === 0 ? 'onboarding-category' : undefined}
                   style={{ padding: '0.75rem 0.875rem', verticalAlign: 'top', borderRight: 'var(--hairline) solid var(--surface-muted)' }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                     <input
                       type="text"
                       list="category-list"
@@ -452,7 +452,7 @@ export default function WeeklyReportForm({
                         border: invalidCategoryRows.has(idx) ? 'var(--hairline) solid var(--danger)' : 'none',
                         borderRadius: invalidCategoryRows.has(idx) ? '0.375rem' : 0,
                         outline: 'none',
-                        fontSize: '0.875rem',
+                        fontSize: 'var(--fs-base)',
                         fontWeight: 600,
                         color: 'var(--text)',
                         background: invalidCategoryRows.has(idx) ? 'var(--danger-bg)' : 'transparent',
@@ -468,7 +468,7 @@ export default function WeeklyReportForm({
                         onClick={() => removeRow(idx)}
                         title="행 삭제"
                         className="report-form-delete-mobile"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '0.25rem', alignItems: 'center', flexShrink: 0 }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: 'var(--space-1)', alignItems: 'center', flexShrink: 0 }}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -500,13 +500,13 @@ export default function WeeklyReportForm({
                   onClick={() => setModalTarget({ rowIdx: idx, field: 'issues' })}
                 />
                 {/* 삭제 */}
-                <td style={{ padding: '0.5rem', verticalAlign: 'top', textAlign: 'center' }}>
+                <td style={{ padding: 'var(--space-2)', verticalAlign: 'top', textAlign: 'center' }}>
                   {rows.length > 1 && (
                     <button
                       type="button"
                       onClick={() => removeRow(idx)}
                       title="행 삭제"
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '0.25rem', display: 'inline-flex' }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: 'var(--space-1)', display: 'inline-flex' }}
                     >
                       <Trash2 size={14} />
                     </button>
@@ -519,13 +519,13 @@ export default function WeeklyReportForm({
       </div>
 
       {/* 행 추가 + 초기화 + 저장 */}
-      <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+      <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
         <button
           type="button"
           onClick={addRow}
           style={{
             display: 'flex', alignItems: 'center', gap: '0.375rem',
-            fontSize: '0.8125rem', color: 'var(--brand)', background: 'none',
+            fontSize: 'var(--fs-sm)', color: 'var(--brand)', background: 'none',
             border: 'var(--hairline) dashed var(--brand-soft-2)', borderRadius: 'var(--radius)',
             padding: '0.5rem 0.875rem', cursor: 'pointer',
           }}
@@ -533,7 +533,7 @@ export default function WeeklyReportForm({
           <Plus size={14} />
           행 추가
         </button>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
           {hasExistingData && !showResetConfirm && (
             <button
               type="button"
@@ -541,7 +541,7 @@ export default function WeeklyReportForm({
               disabled={pending || resetPending || isRefining}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
-                fontSize: '0.8125rem', color: 'var(--danger)', background: 'var(--danger-bg)',
+                fontSize: 'var(--fs-sm)', color: 'var(--danger)', background: 'var(--danger-bg)',
                 border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)',
                 padding: '0.5rem 0.875rem', cursor: 'pointer',
               }}
@@ -557,7 +557,7 @@ export default function WeeklyReportForm({
             title="AI가 작성한 내용을 정비합니다 (빈 항목에는 내용을 생성하지 않습니다)"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
-              fontSize: '0.8125rem', color: 'var(--brand)', background: 'var(--brand-soft)',
+              fontSize: 'var(--fs-sm)', color: 'var(--brand)', background: 'var(--brand-soft)',
               border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)',
               padding: '0.5rem 0.875rem', cursor: isRefining ? 'wait' : 'pointer',
               opacity: isRefining ? 0.7 : 1,
@@ -577,35 +577,35 @@ export default function WeeklyReportForm({
       {/* 초기화 강성 경고 */}
       {showResetConfirm && (
         <div style={{
-          marginTop: '1rem', padding: '1rem',
+          marginTop: '1rem', padding: 'var(--space-4)',
           backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)',
         }}>
           <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start', marginBottom: '0.875rem' }}>
             <AlertTriangle size={20} color="var(--danger)" style={{ flexShrink: 0, marginTop: '1px' }} />
             <div>
-              <p style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--danger)', margin: '0 0 0.375rem' }}>
+              <p style={{ fontSize: 'var(--fs-md)', fontWeight: 700, color: 'var(--danger)', margin: '0 0 0.375rem' }}>
                 정말 초기화하시겠습니까?
               </p>
-              <p style={{ fontSize: '0.8125rem', color: 'var(--danger)', margin: 0, lineHeight: 1.6 }}>
+              <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--danger)', margin: 0, lineHeight: 1.6 }}>
                 <strong>{new Date(initialWeek).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 주</strong>에 저장된
                 보고서 전체가 삭제되며 <strong>복구가 어렵습니다.</strong>
               </p>
             </div>
           </div>
           {resetError && (
-            <p style={{ fontSize: '0.8125rem', color: 'var(--danger)', margin: '0 0 0.625rem', fontWeight: 600 }}>
+            <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--danger)', margin: '0 0 0.625rem', fontWeight: 600 }}>
               오류: {resetError}
             </p>
           )}
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             <button
               type="button"
               onClick={handleReset}
               disabled={resetPending}
               style={{
-                padding: '0.5rem 1.25rem', backgroundColor: 'var(--danger)', color: '#fff',
+                padding: 'var(--space-2) var(--space-5)', backgroundColor: 'var(--danger)', color: '#fff',
                 border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer',
-                fontSize: '0.875rem', fontWeight: 700,
+                fontSize: 'var(--fs-base)', fontWeight: 700,
               }}
             >
               {resetPending ? '삭제 중...' : '삭제 확정'}
@@ -615,9 +615,9 @@ export default function WeeklyReportForm({
               onClick={() => { setShowResetConfirm(false); setResetError('') }}
               disabled={resetPending}
               style={{
-                padding: '0.5rem 1rem', backgroundColor: '#fff', color: 'var(--text-muted)',
+                padding: 'var(--space-2) var(--space-4)', backgroundColor: '#fff', color: 'var(--text-muted)',
                 border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer',
-                fontSize: '0.875rem',
+                fontSize: 'var(--fs-base)',
               }}
             >
               취소
@@ -650,7 +650,7 @@ function EditorCell({
       id={id}
       onClick={onClick}
       style={{
-        padding: '0.5rem',
+        padding: 'var(--space-2)',
         verticalAlign: 'top',
         borderRight: 'var(--hairline) solid var(--surface-muted)',
         cursor: 'pointer',
@@ -686,7 +686,7 @@ function EditorCell({
             dangerouslySetInnerHTML={{ __html: value }}
           />
         ) : (
-          <span style={{ fontSize: '0.8125rem', color: 'var(--border-subtle)' }}>{placeholder}</span>
+          <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--border-subtle)' }}>{placeholder}</span>
         )}
         <div
           style={{

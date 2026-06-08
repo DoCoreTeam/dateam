@@ -73,7 +73,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
   if (node.type === 'company') {
     return (
       <div style={{
-        display: 'inline-block', padding: '0.75rem 1.25rem', borderRadius: 'var(--radius)',
+        display: 'inline-block', padding: 'var(--space-3) var(--space-5)', borderRadius: 'var(--radius)',
         background: 'linear-gradient(135deg,var(--brand-dark),var(--brand))', border: 'var(--border-w-2) solid var(--brand-dark)',
         boxShadow: 'var(--shadow-sm)', width: `${CARD_W + 28}px`, textAlign: 'left', overflow: 'hidden',
       }}>
@@ -348,7 +348,7 @@ export default function OrgPublicTree({
 
   if (roots.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-faint)' }}>
+      <div style={{ textAlign: 'center', padding: 'var(--space-12)', color: 'var(--text-faint)' }}>
         아직 등록된 조직도 데이터가 없습니다.
       </div>
     )
@@ -373,7 +373,7 @@ export default function OrgPublicTree({
       onMouseLeave={handlePanUp}
     >
       {/* 줌 컨트롤 */}
-      <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10, display: 'flex', gap: '0.25rem', background: 'rgba(255,255,255,0.95)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.25rem', boxShadow: 'var(--shadow-sm)' }}>
+      <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10, display: 'flex', gap: 'var(--space-1)', background: 'rgba(255,255,255,0.95)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-1)', boxShadow: 'var(--shadow-sm)' }}>
         <button onClick={() => setZoom(z => ({ ...z, scale: Math.min(z.scale * 1.2, 3) }))} style={{ width: 32, height: 32, border: 'none', borderRadius: 'var(--radius)', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>+</button>
         <button onClick={() => setZoom(z => ({ ...z, scale: Math.max(z.scale / 1.2, 0.2) }))} style={{ width: 32, height: 32, border: 'none', borderRadius: 'var(--radius)', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>−</button>
         <div style={{ width: 1, background: 'var(--color-border)', margin: '4px 2px' }} />
