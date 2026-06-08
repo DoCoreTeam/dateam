@@ -139,6 +139,103 @@ function QtyInput({ item, sup, onSaved }: { item: InventoryItem; sup: QuoteSuppl
   )
 }
 
+function PoolQtyEditor({ item, onSaved }: { item: InventoryItem; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false)
+  const [qty, setQty] = useState(String(item.pool_qty ?? 0))
+  const [note, setNote] = useState(item.pool_note ?? '')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const save = async () => {
+    const n = parseInt(qty, 10)
+    if (isNaN(n) || n < 0) { setErr('0 이상의 수량'); return }
+    setSaving(true); setErr(null)
+    try {
+      const res = await fetch('/api/pricing/gpu/pool-stock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: item.id, pool_qty: n, note: note.trim() || null }),
+      })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error ?? '저장 실패'); return }
+      setEditing(false)
+      onSaved()
+    } finally { setSaving(false) }
+  }
+
+  if (!editing) {
+    return (
+      <div style={{ padding: '8px 12px', borderRadius: 8, background: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--success)' }}>
+            <Package size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+            풀 재고 (직접 관리)
+          </div>
+          {item.pool_note && (
+            <div style={{ fontSize: 11, color: 'var(--gpu-muted)', marginTop: 2 }}>{item.pool_note}</div>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: (item.pool_qty ?? 0) > 0 ? 'var(--success)' : 'var(--gpu-red)', fontFamily: 'var(--font-mono, monospace)' }}>
+            {(item.pool_qty ?? 0).toLocaleString()} GPU
+          </div>
+          <button
+            onClick={() => { setQty(String(item.pool_qty ?? 0)); setNote(item.pool_note ?? ''); setEditing(true) }}
+            aria-label="풀 재고 수정"
+            style={{ border: 'var(--hairline) solid var(--border-light)', borderRadius: 6, background: '#fff', padding: '4px 8px', cursor: 'pointer', fontSize: 11, color: 'var(--text-muted)' }}
+          >
+            수정
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--success-bg)', border: '1.5px solid var(--success)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--success)' }}>
+        <Package size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+        풀 재고 수정
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input
+          type="number"
+          min={0}
+          value={qty}
+          onChange={(e) => setQty(e.target.value)}
+          aria-label="풀 재고 수량"
+          style={{ width: 80, height: 32, borderRadius: 6, border: '1.5px solid var(--border-color)', padding: '0 8px', fontSize: 13, textAlign: 'right' }}
+        />
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>GPU</span>
+        <input
+          type="text"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="메모 (선택)"
+          aria-label="메모"
+          style={{ flex: 1, minWidth: 120, height: 32, borderRadius: 6, border: '1.5px solid var(--border-color)', padding: '0 8px', fontSize: 12 }}
+        />
+        <button
+          onClick={save}
+          disabled={saving}
+          className="gpu-btn"
+          style={{ height: 32, padding: '0 12px', fontSize: 12, fontWeight: 600, background: 'var(--gpu-accent, var(--brand))', color: '#fff', borderRadius: 6, minWidth: 44 }}
+        >
+          {saving ? '저장…' : '저장'}
+        </button>
+        <button
+          onClick={() => { setEditing(false); setErr(null) }}
+          disabled={saving}
+          className="gpu-btn"
+          style={{ height: 32, padding: '0 10px', fontSize: 12 }}
+        >
+          취소
+        </button>
+      </div>
+      {err && <span style={{ fontSize: 10.5, color: 'var(--gpu-red)' }}>{err}</span>}
+    </div>
+  )
+}
+
 function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () => void }) {
   const [expanded, setExpanded] = useState(false)
   const maxQty = item.supplier_availability.reduce((a, s) => Math.max(a, s.resp_qty ?? 0), item.fresh_available_qty || 10)
@@ -281,20 +378,7 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
           )}
 
           {item.tier === 3 && item.pool_qty != null && (
-            <div style={{ padding: '8px 12px', borderRadius: 8, background: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--success)' }}>
-                  <Package size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                  풀 재고 (직접 관리)
-                </div>
-                {item.pool_note && (
-                  <div style={{ fontSize: 11, color: 'var(--gpu-muted)', marginTop: 2 }}>{item.pool_note}</div>
-                )}
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: item.pool_qty > 0 ? 'var(--success)' : 'var(--gpu-red)', fontFamily: 'var(--font-mono, monospace)' }}>
-                {item.pool_qty.toLocaleString()} GPU
-              </div>
-            </div>
+            <PoolQtyEditor item={item} onSaved={onMutate} />
           )}
 
           {item.supplier_availability.map((sa, i) => {

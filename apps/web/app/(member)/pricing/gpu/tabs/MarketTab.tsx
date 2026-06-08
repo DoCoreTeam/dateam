@@ -4,9 +4,13 @@ import { useEscClose } from '@/lib/use-esc-close'
 import { useState } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { RefreshCw, TrendingUp, AlertTriangle, Plus, X, BarChart2, Target, FileText, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { RefreshCw, TrendingUp, AlertTriangle, Plus, X, BarChart2, Target, FileText, ArrowUpDown, ArrowUp, ArrowDown, Pencil } from 'lucide-react'
 import { formatSpec } from '@/lib/gpu/format-spec'
 import { SupplierBadge } from '@/components/gpu/SupplierBadge'
+import dynamic from 'next/dynamic'
+import type { MarketPriceForEdit } from '@/components/pricing/gpu/MarketPriceEditModal'
+
+const MarketPriceEditModal = dynamic(() => import('@/components/pricing/gpu/MarketPriceEditModal'), { ssr: false })
 
 type StratSortKey = 'model' | 'supply' | 'market' | 'target' | 'required' | 'gap'
 
@@ -248,13 +252,14 @@ function judgeColor(j: string) {
 }
 
 // 분석 탭 컨텐츠
-function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI, onDeletePrice }: {
+function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI, onDeletePrice, onEditPrice }: {
   p: ProductGroup
   activeGroups: Set<string>
   fmt: (v: number) => string
   onGoToPriceTable?: (modelName: string, productId: string) => void
   onOpenAI?: (modelName: string, productId: string) => void
   onDeletePrice?: (priceId: string) => void
+  onEditPrice?: (price: MarketPriceForEdit) => void
 }) {
   // 최신 가격(나이 무관) 기준 — 신선도로 버리지 않음
   const pricedComps = p.competitors.filter(c => c.price_usd != null)
@@ -396,9 +401,30 @@ function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI, onDele
                           {vsTxt}
                         </span>
                       )}
-                      {x.price_id && onDeletePrice && (
-                        <button onClick={() => onDeletePrice(x.price_id as string)} title="이 경쟁가 삭제"
-                          style={{ marginLeft: 'auto', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--gpu-faint)', fontSize: 12, lineHeight: 1, padding: '0 2px' }}>🗑</button>
+                      {x.price_id && (
+                        <div style={{ marginLeft: 'auto', display: 'flex', gap: 2 }}>
+                          {onEditPrice && (
+                            <button
+                              onClick={() => onEditPrice({
+                                price_id: x.price_id as string,
+                                price_usd: x.price_usd ?? 0,
+                                competitor_name: c.name,
+                                sku: x.competitor_sku,
+                                pricing_model: x.pricing_model,
+                                notes: x.notes,
+                              })}
+                              title="이 경쟁가 수정"
+                              aria-label="경쟁가 수정"
+                              style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--gpu-muted)', fontSize: 11, lineHeight: 1, padding: '0 2px', display: 'flex', alignItems: 'center' }}
+                            >
+                              <Pencil size={10} />
+                            </button>
+                          )}
+                          {onDeletePrice && (
+                            <button onClick={() => onDeletePrice(x.price_id as string)} title="이 경쟁가 삭제"
+                              style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--gpu-faint)', fontSize: 12, lineHeight: 1, padding: '0 2px' }}>🗑</button>
+                          )}
+                        </div>
                       )}
                     </div>
                   )
@@ -1116,6 +1142,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
   const { data, isLoading, mutate } = useSWR<MarketData>('/api/pricing/gpu/market', fetcher, {
     refreshInterval: 0,
   })
+  const [editingMarketPrice, setEditingMarketPrice] = useState<MarketPriceForEdit | null>(null)
   const deleteMarketPrice = async (priceId: string) => {
     if (!confirm('이 경쟁가를 삭제할까요?')) return
     const res = await fetch(`/api/pricing/gpu/market/prices?id=${priceId}`, { method: 'DELETE' })
@@ -1231,6 +1258,13 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
           mappings={mappings}
           onClose={() => setShowRegister(false)}
           onSaved={() => mutate()}
+        />
+      )}
+      {editingMarketPrice && (
+        <MarketPriceEditModal
+          price={editingMarketPrice}
+          onClose={() => setEditingMarketPrice(null)}
+          onSaved={() => { setEditingMarketPrice(null); mutate() }}
         />
       )}
       {showMappingMgr && (
@@ -1773,7 +1807,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                       {/* 탭 패널 */}
                       <div style={{ padding: '14px 18px 18px' }}>
                         {currentTab === 'analyze' && (
-                          <AnalyzePanel p={p} activeGroups={activeGroups} onGoToPriceTable={(name, id) => onGoToPriceTable?.(name, id)} onOpenAI={(name, id) => onOpenAI?.(name, id)} fmt={fmt} onDeletePrice={deleteMarketPrice} />
+                          <AnalyzePanel p={p} activeGroups={activeGroups} onGoToPriceTable={(name, id) => onGoToPriceTable?.(name, id)} onOpenAI={(name, id) => onOpenAI?.(name, id)} fmt={fmt} onDeletePrice={deleteMarketPrice} onEditPrice={setEditingMarketPrice} />
                         )}
                         {currentTab === 'strategy' && (
                           <StrategyPanel p={p} fmt={fmt} />

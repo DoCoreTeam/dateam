@@ -4,8 +4,13 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
-import { ChevronRight, Plus, Zap, Info, ArrowUpDown, ArrowUp, ArrowDown, Tag, X, Trash2 } from 'lucide-react'
+import { ChevronRight, Plus, Zap, Info, ArrowUpDown, ArrowUp, ArrowDown, Tag, X, Trash2, Pencil } from 'lucide-react'
 import { formatSpec, scaleSpec } from '@/lib/gpu/format-spec'
+import dynamic from 'next/dynamic'
+
+const ProductAddModal = dynamic(() => import('@/components/pricing/gpu/ProductAddModal'), { ssr: false })
+const ProductEditModal = dynamic(() => import('@/components/pricing/gpu/ProductEditModal'), { ssr: false })
+const QuoteEditModal = dynamic(() => import('@/components/pricing/gpu/QuoteEditModal'), { ssr: false })
 
 type SortKey = 'model' | 'supply' | 'sell'
 type SortDir = 'asc' | 'desc'
@@ -32,6 +37,7 @@ interface GpuProduct {
   vcpu?: number
   ram_gb?: number
   storage_gb?: number
+  series?: string | null
   pricing_mode: 'quote' | 'direct'
   lowest_unit_price_usd: number | null
   lowest_supplier: Supplier | null
@@ -63,6 +69,7 @@ interface PartnerTier {
 interface Quote {
   id: string
   unit_price_usd: number
+  gpu_count: number
   term: string | null
   min_qty: string | null
   valid_until: string | null
@@ -149,6 +156,7 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
   )
   const { mutate } = useSWRConfig()
   const [selecting, setSelecting] = useState<string | null>(null)
+  const [editingQuote, setEditingQuote] = useState<Quote | null>(null)
   const quotes = data?.quotes ?? []
   const costQuotes = quotes.filter((q) => q.price_type !== 'list')
   const listQuotes = quotes.filter((q) => q.price_type === 'list')
@@ -217,6 +225,13 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
                     {selecting === q.id ? '…' : isSelected ? '기준 해제' : '기준으로 선택'}
                   </button>
                 )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setEditingQuote(q) }}
+                  title="견적 수정"
+                  aria-label="견적 수정"
+                  style={{ fontSize: 10, border: 'var(--hairline) solid var(--border-light)', borderRadius: 5, padding: '1px 6px', cursor: 'pointer', background: '#fff', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  <Pencil size={10} /> 수정
+                </button>
               </div>
               {!q.suppliers && (
                 <AssignSupplier quoteId={q.id} onAssigned={() => { mutate(`/api/pricing/gpu/quotes?product_id=${productId}`); mutateGpu(mutate) }} />
@@ -261,6 +276,14 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
           </div>
         )
       })}
+      {editingQuote && (
+        <QuoteEditModal
+          quote={{ ...editingQuote, supplier_name: editingQuote.suppliers?.name ?? null }}
+          productId={productId}
+          onClose={() => setEditingQuote(null)}
+          onSaved={() => { mutate(`/api/pricing/gpu/quotes?product_id=${productId}`); mutateGpu(mutate) }}
+        />
+      )}
       {listQuotes.length > 0 && (
         <div style={{ marginTop: 10, padding: '12px 14px', borderRadius: 10, background: 'linear-gradient(180deg, var(--warning-bg), var(--warning-bg))', border: 'var(--border-w-2) solid var(--gpu-amber, var(--warning))' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -376,6 +399,8 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
   const [bannerDismissed, setBannerDismissed] = useState(false)
   const [currencyMode, setCurrencyMode] = useState<'KRW' | 'USD'>('KRW')
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; dir: SortDir } | null>(null)
+  const [showAddProduct, setShowAddProduct] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<(GpuProduct & { _derived?: boolean }) | null>(null)
 
   useEffect(() => {
     if (initialSearch) {
@@ -675,6 +700,9 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
           )}
           <button onClick={() => setShowTierMgr(true)} className="gpu-btn" style={{ fontSize: 11, padding: '0.3rem 0.5rem' }} title="파트너 등급 관리">등급 관리</button>
         </div>
+        <button className="gpu-btn" onClick={() => setShowAddProduct(true)} title="GPU 상품 직접 등록">
+          <Plus size={15} /> 상품 추가
+        </button>
         <button className="gpu-btn gpu-btn-primary" onClick={onGoToIntake}>
           <Plus size={15} /> 견적 등록
         </button>
@@ -771,6 +799,8 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
               const renderGroup = (group: (typeof modelGroups)[number]) => {
               const tierCfg = TIER_CONFIG[group.tier]
               const collapsed = collapsedModels.has(group.model)
+              // 해당 모델의 첫 번째 실제(non-derived) 상품 — 편집 진입점
+              const representativeProduct = group.rows.find((r) => !r._derived) ?? null
               const groupHeader = (
                 <tr key={`grp-${group.model}`} className="gpu-group-header" onClick={() => toggleModel(group.model)} style={{ cursor: 'pointer', background: 'var(--surface-bg)' }}>
                   <td colSpan={colCount}>
@@ -781,6 +811,16 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                       <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>
                         {group.rows.length}개 구성{group.perGpu != null ? ` · 1장당 ${currencyMode === 'KRW' ? fmtKRW(Math.round(group.perGpu * usdKrw)) : fmtUSD(group.perGpu)}/GPU·hr` : ''}
                       </span>
+                      {representativeProduct && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditingProduct(representativeProduct) }}
+                          title="상품 수정"
+                          aria-label="상품 수정"
+                          style={{ marginLeft: 'auto', border: 'var(--hairline) solid var(--border-light)', borderRadius: 5, padding: '2px 8px', cursor: 'pointer', background: '#fff', color: 'var(--text-muted)', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3 }}
+                        >
+                          <Pencil size={10} /> 상품 수정
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -983,6 +1023,23 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
       </div>
       </div>{/* end 스크롤 영역 */}
       {showTierMgr && <PartnerTierManagerModal tiers={partnerTiers} onClose={() => setShowTierMgr(false)} onChanged={() => mutatePartner()} />}
+      {showAddProduct && (
+        <ProductAddModal onClose={() => setShowAddProduct(false)} onAdded={() => revalidate()} />
+      )}
+      {editingProduct && !editingProduct._derived && (
+        <ProductEditModal
+          product={{
+            id: editingProduct.id,
+            model_name: editingProduct.model_name,
+            memory: editingProduct.memory,
+            tier: editingProduct.tier,
+            series: editingProduct.series ?? null,
+            pricing_mode: editingProduct.pricing_mode,
+          }}
+          onClose={() => setEditingProduct(null)}
+          onSaved={() => revalidate()}
+        />
+      )}
     </div>
   )
 }
