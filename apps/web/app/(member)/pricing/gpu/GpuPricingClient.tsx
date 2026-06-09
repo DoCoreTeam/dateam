@@ -317,7 +317,10 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
         {activeTab === 'cockpit' && (
           <div style={{ height: '100%', overflowY: 'auto' }}>
             <div className="page-inner">
-              <PriceCockpitTab isAdmin={isAdmin} />
+              <PriceCockpitTab
+                isAdmin={isAdmin}
+                onGoToTab={(tab) => setActiveTab(tab as TabId)}
+              />
             </div>
           </div>
         )}

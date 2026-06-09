@@ -4516,3 +4516,342 @@ label.intake-tool-btn {
   .cockpit-strategic-cell { justify-content: flex-start; flex-wrap: wrap; }
   .cockpit-inline-input { width: 100px; }
 }
+
+/* ── 콕핏 v2 신규 클래스 (토큰 전용 — 인라인 style 금지) ── */
+
+/* 툴바 */
+.cockpit-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-2) 0 var(--space-3);
+}
+
+/* th 정렬 가능 */
+.cockpit-th-sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.cockpit-th-sortable:hover { color: var(--text); }
+
+.cockpit-th-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.cockpit-sort-idle {
+  opacity: 0.32;
+  flex-shrink: 0;
+}
+.cockpit-sort-active {
+  color: var(--gpu-accent);
+  flex-shrink: 0;
+}
+
+/* 셀 클릭 펼침 */
+.cockpit-cell-clickable {
+  cursor: pointer;
+}
+.cockpit-cell-clickable:hover td,
+.cockpit-cell-clickable:hover {
+  background: var(--gpu-bg);
+}
+.cockpit-cell-no-expand { cursor: default; }
+
+.cockpit-cell-inner {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  min-height: 44px;
+}
+
+.cockpit-cell-chevron {
+  color: var(--text-faint);
+  flex-shrink: 0;
+  transition: transform 0.18s var(--ease-out, ease-out), color 0.15s;
+}
+.cockpit-cell-chevron--open {
+  transform: rotate(180deg);
+  color: var(--brand);
+}
+
+/* 우리 판매가 셀 */
+.cockpit-cell-strategic {
+  text-align: right;
+}
+.cockpit-strategic-meta {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-1);
+}
+
+/* 우리 판매가 이력 토글 버튼 */
+.cockpit-history-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: var(--hairline) solid var(--gpu-border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.cockpit-history-toggle:hover {
+  color: var(--brand);
+  background: var(--brand-soft);
+  border-color: var(--brand);
+}
+.cockpit-history-toggle--open {
+  color: var(--brand);
+  background: var(--brand-soft);
+  border-color: var(--brand);
+}
+.cockpit-history-toggle--open svg {
+  transform: rotate(180deg);
+  transition: transform 0.18s;
+}
+
+/* gcube 셀 */
+.cockpit-gcube-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  min-height: 44px;
+}
+
+/* gcube 가격 — 우리 판매가(brand색)와 구분: teal/info 계열 */
+.cockpit-price--gcube {
+  font-size: var(--fs-price);
+  font-weight: var(--font-weight-bold);
+  font-family: 'ui-monospace', 'SFMono-Regular', monospace;
+  color: var(--info);
+  line-height: 1.2;
+}
+
+/* 판매가 후보 셀 */
+.cockpit-candidate-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  min-height: 44px;
+  justify-content: center;
+}
+.cockpit-margin-hint {
+  color: var(--text-faint);
+}
+
+/* 이 값으로 지정 버튼 */
+.cockpit-promote-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-xs);
+  font-weight: var(--font-weight-semibold);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius);
+  border: var(--hairline) solid var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  min-height: 28px;
+  white-space: nowrap;
+}
+.cockpit-promote-btn:hover {
+  background: var(--brand);
+  color: #fff;
+}
+.cockpit-promote-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 범위 표시 */
+.cockpit-range-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.cockpit-range-sep {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+/* 섹션 드로어 */
+.cockpit-section-drawer {
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-bg);
+  border-bottom: var(--hairline) solid var(--gpu-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.cockpit-drawer-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.cockpit-drawer-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text);
+}
+.cockpit-drawer-desc {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+.cockpit-drawer-empty {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  margin: 0;
+}
+
+/* 범위 행 */
+.cockpit-drawer-range-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.cockpit-drawer-range-label {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  min-width: 60px;
+}
+.cockpit-drawer-meta {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+/* 공급사 목록 */
+.cockpit-supplier-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.cockpit-supplier-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--fs-sm);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  border: var(--hairline) solid var(--gpu-border);
+  background: var(--color-bg);
+}
+.cockpit-supplier-name {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text);
+  flex: 1;
+}
+.cockpit-basis-tag {
+  font-size: var(--fs-2xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--brand);
+  background: var(--brand-soft);
+  border-radius: var(--radius);
+  padding: 1px var(--space-2);
+}
+
+/* 경쟁사 목록 */
+.cockpit-competitor-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.cockpit-competitor-item {
+  border-radius: var(--radius);
+  border: var(--hairline) solid var(--gpu-border);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.cockpit-competitor-item--active {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+.cockpit-competitor-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  min-height: 44px;
+}
+.cockpit-competitor-btn:hover {
+  background: var(--gpu-bg);
+}
+.cockpit-competitor-name {
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text);
+  flex: 1;
+}
+
+/* 이동 버튼 */
+.cockpit-drawer-nav-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding-top: var(--space-1);
+  border-top: var(--hairline) solid var(--gpu-border);
+}
+.cockpit-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-xs);
+  font-weight: var(--font-weight-semibold);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius);
+  border: var(--hairline) solid var(--gpu-border);
+  background: var(--color-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  min-height: 32px;
+  white-space: nowrap;
+}
+.cockpit-nav-btn:hover {
+  color: var(--brand);
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+/* 반응형 v2 */
+@media (max-width: 767px) {
+  .cockpit-toolbar { gap: var(--space-2); }
+  .cockpit-section-drawer { padding: var(--space-3); }
+  .cockpit-drawer-header { flex-direction: column; gap: var(--space-1); }
+  .cockpit-cell-inner { min-height: 44px; }
+  .cockpit-promote-btn { min-height: 44px; padding: var(--space-2) var(--space-3); }
+  .cockpit-nav-btn { min-height: 44px; }
+  .cockpit-competitor-btn { min-height: 44px; }
+}

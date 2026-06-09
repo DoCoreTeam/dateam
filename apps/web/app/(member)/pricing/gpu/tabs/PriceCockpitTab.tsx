@@ -1,373 +1,453 @@
 'use client'
 
-import React, { useState, useRef, useCallback } from 'react'
+// tabs/PriceCockpitTab.tsx — 가격 콕핏 전면 재설계 v2
+//
+// F1: 컬럼 재구성 (쉬운 라벨 — 막무가내 용어 0)
+// F2: 검색(debounce) + 필터(Tier/미설정) + 정렬(헤더 클릭) + URL 동기화
+// F3: 셀 클릭 즉시 펼침 + 관장 화면 이동
+// F4: 디자인 토큰 전용 — 인라인 style 0, table-card 반응형
+
+import React, { useState, useCallback, useEffect, useRef } from 'react'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import useSWR, { useSWRConfig } from 'swr'
-import { Pencil, ChevronRight, X, Check } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { fetcher } from '@/lib/swr-config'
-import { fmtKRW } from '@/lib/gpu/format-price'
-import { marginSignal, deviationSignal } from '@/lib/gpu/price-signal'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
+import { fmtKRW } from '@/lib/gpu/format-price'
+
+import type {
+  CockpitProduct,
+  CockpitResponse,
+  ExpandSection,
+  SortConfig,
+  SortKey,
+} from '@/components/pricing/gpu/cockpit/types'
+import { StrategicCell } from '@/components/pricing/gpu/cockpit/StrategicCell'
+import { GcubeSiteCell } from '@/components/pricing/gpu/cockpit/GcubeSiteCell'
+import { CandidateCell } from '@/components/pricing/gpu/cockpit/CandidateCell'
+import { SortIcon } from '@/components/pricing/gpu/cockpit/SortIcon'
+import { MarginBadge } from '@/components/pricing/gpu/cockpit/MarginBadge'
 import {
-  PRICE_SIGNAL_CLASS,
-  DEVIATION_SIGNAL_CLASS,
-  type PriceSignalKey,
-  type DeviationSignalKey,
-} from '@/lib/tokens/status-colors'
+  CostDrawer,
+  CompetitorDrawer,
+  GcubeDrawer,
+  StrategicHistoryDrawer,
+} from '@/components/pricing/gpu/cockpit/DrawerSections'
 
-// ── 타입 ─────────────────────────────────────────────────────────────────────
+// ── 상수 ──────────────────────────────────────────────────────────
 
-interface StrategicHistoryEntry {
-  ts: string
-  actor: string
-  before: number | null
-  after: number | null
-  reason: string | null
+const DEBOUNCE_MS = 280
+
+type TierFilter = 0 | 1 | 2 | 3
+type SpecialFilter = 'all' | 'unset'
+
+// ── 훅: 검색 디바운스 ─────────────────────────────────────────────
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState<T>(value)
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(id)
+  }, [value, delay])
+  return debounced
 }
 
-interface CockpitProduct {
-  id: string
-  model_name: string
-  memory: string
-  tier: 1 | 2 | 3
-  gpu_count: number
-  series: string | null
-  pricing_mode: string
-  cost_krw: number | null
-  auto_margin_krw: number | null
-  strategic_price_krw: number | null
-  strategic_krw: number | null
-  is_strategic_set: boolean
-  effective_margin_pct: number | null
-  market_median_krw: number | null
-  market_min_krw: number | null
-  market_max_krw: number | null
-  market_deviation_pct: number | null
-  basis: string | null
-  is_propagated: boolean
-  effective_supplier: string | null
-  /** gcube 공시가(KRW). null=미등록 */
-  list_price_krw: number | null
-  /** 전략가 변경 이력 (최근 5건) */
-  strategic_history: StrategicHistoryEntry[]
+// ── URL 상태 동기화 훅 ────────────────────────────────────────────
+
+function useCockpitUrl() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const params = useSearchParams()
+
+  const getParam = (key: string) => params.get(key) ?? ''
+
+  const setParam = useCallback(
+    (updates: Record<string, string | null>) => {
+      const next = new URLSearchParams(params.toString())
+      for (const [k, v] of Object.entries(updates)) {
+        if (v == null || v === '') {
+          next.delete(k)
+        } else {
+          next.set(k, v)
+        }
+      }
+      router.replace(`${pathname}?${next.toString()}`, { scroll: false })
+    },
+    [params, router, pathname],
+  )
+
+  return { getParam, setParam }
 }
 
-interface CockpitResponse {
-  products: CockpitProduct[]
-  usd_krw: number
-  fx_date: string | null
-  margin_pct: number
-}
+// ── 행 컴포넌트 ───────────────────────────────────────────────────
 
-// ── 시그널 뱃지 ──────────────────────────────────────────────────────────────
-
-function MarginBadge({ pct }: { pct: number | null }) {
-  if (pct == null) return <span className="cockpit-price-sub">—</span>
-  const sig = marginSignal(pct) as PriceSignalKey
-  const cls = PRICE_SIGNAL_CLASS[sig]
-  const label = pct.toFixed(1) + '%'
-  return <span className={`cockpit-signal ${cls}`}>{label}</span>
-}
-
-function DeviationBadge({ pct }: { pct: number | null }) {
-  if (pct == null) return <span className="cockpit-price-sub">—</span>
-  const sig = deviationSignal(pct) as DeviationSignalKey
-  const cls = DEVIATION_SIGNAL_CLASS[sig]
-  const label = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%'
-  return <span className={`cockpit-signal ${cls}`}>{label}</span>
-}
-
-// ── 인라인 편집 셀 ────────────────────────────────────────────────────────────
-
-interface StrategicCellProps {
+interface CockpitRowProps {
   product: CockpitProduct
   isAdmin: boolean
+  expandSection: ExpandSection
+  activeCompetitor: string
+  onExpand: (section: ExpandSection) => void
+  onSelectCompetitor: (name: string) => void
   onSaved: () => void
+  onGoToTab: (tab: string) => void
 }
 
-function StrategicCell({ product, isAdmin, onSaved }: StrategicCellProps) {
-  const [editing, setEditing] = useState(false)
-  const [inputVal, setInputVal] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+function CockpitRow({
+  product: p,
+  isAdmin,
+  expandSection,
+  activeCompetitor,
+  onExpand,
+  onSelectCompetitor,
+  onSaved,
+  onGoToTab,
+}: CockpitRowProps) {
+  // 폴백: 새 BE 필드 없을 때 기존 BE 필드 사용
+  const costMin = p.cost_min_krw ?? p.cost_krw ?? null
+  const costMax = p.cost_max_krw ?? p.cost_krw ?? null
+  const competitorMin = p.competitor_min_krw ?? p.market_min_krw ?? null
+  const competitorMax = p.competitor_max_krw ?? p.market_max_krw ?? null
+  const hasCompetitors = (p.competitors?.length ?? 0) > 0
 
-  const startEdit = useCallback(() => {
-    setInputVal(product.strategic_price_krw != null ? String(product.strategic_price_krw) : '')
-    setSaveError(null)
-    setEditing(true)
-    setTimeout(() => inputRef.current?.focus(), 0)
-  }, [product.strategic_price_krw])
-
-  const cancel = useCallback(() => {
-    setEditing(false)
-    setInputVal('')
-    setSaveError(null)
-  }, [])
-
-  const save = useCallback(async () => {
-    if (saving) return
-    const trimmed = inputVal.trim()
-    // 음수 차단: 숫자(0-9)만 허용 → 음수·소수 입력 자체를 막음
-    const digitsOnly = trimmed.replace(/[^0-9]/g, '')
-    const priceKrw = trimmed === '' ? null : Number(digitsOnly)
-    if (trimmed !== '' && (!priceKrw || priceKrw <= 0)) {
-      setSaveError('0보다 큰 금액을 입력하세요')
-      return
-    }
-
-    setSaving(true)
-    setSaveError(null)
-    try {
-      const res = await fetch('/api/pricing/gpu/strategic-price', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product_id: product.id, strategic_price_krw: priceKrw }),
-      })
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}))
-        throw new Error((j as { error?: string }).error ?? '저장 실패')
-      }
-      setEditing(false)
-      setSaveError(null)
-      onSaved()
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : '저장 실패')
-    } finally {
-      setSaving(false)
-    }
-  }, [inputVal, product.id, saving, onSaved])
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') save()
-      if (e.key === 'Escape') cancel()
-    },
-    [save, cancel],
-  )
-
-  if (!isAdmin) {
-    // 비admin: 읽기 전용 표시
-    return (
-      <div className="cockpit-strategic-cell">
-        {product.is_strategic_set ? (
-          <span className="cockpit-price--strategic">{fmtKRW(product.strategic_price_krw)}</span>
-        ) : (
-          <span className="cockpit-price--auto">{fmtKRW(product.auto_margin_krw)}</span>
-        )}
-      </div>
-    )
-  }
-
-  if (editing) {
-    return (
-      <div className="cockpit-strategic-cell">
-        <input
-          ref={inputRef}
-          type="text"
-          inputMode="numeric"
-          className="cockpit-inline-input"
-          value={inputVal}
-          onChange={(e) => setInputVal(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="금액(원)"
-          aria-label="전략가 입력"
-        />
-        <div className="cockpit-inline-actions">
-          <button
-            className="cockpit-edit-btn"
-            onClick={save}
-            disabled={saving}
-            aria-label="저장"
-            title="저장 (Enter)"
-          >
-            {saving ? <span className="cockpit-saving-dot">…</span> : <Check size={12} />}
-          </button>
-          <button
-            className="cockpit-edit-btn"
-            onClick={cancel}
-            aria-label="취소"
-            title="취소 (Esc)"
-          >
-            <X size={12} />
-          </button>
-        </div>
-        {saveError && (
-          <span className="cockpit-error-hint" role="alert" aria-live="polite">
-            {saveError}
-          </span>
-        )}
-      </div>
-    )
+  const patchedProduct: CockpitProduct = {
+    ...p,
+    cost_min_krw: costMin,
+    cost_max_krw: costMax,
+    competitor_min_krw: competitorMin,
+    competitor_max_krw: competitorMax,
+    competitors: p.competitors ?? [],
+    cost_suppliers: p.cost_suppliers ?? [],
+    strategic_history: p.strategic_history ?? [],
   }
 
   return (
-    <div className="cockpit-strategic-cell">
-      {product.is_strategic_set ? (
-        <span className="cockpit-price--strategic">{fmtKRW(product.strategic_price_krw)}</span>
-      ) : (
-        <span className="cockpit-price--auto" title="전략가 미설정 — 자동마진가 적용 중">
-          {fmtKRW(product.auto_margin_krw)}
-        </span>
-      )}
-      <button
-        className="cockpit-edit-btn"
-        onClick={startEdit}
-        aria-label="전략가 편집"
-        title={product.is_strategic_set ? '전략가 수정 / 해제' : '전략가 지정'}
-      >
-        <Pencil size={12} />
-      </button>
-    </div>
-  )
-}
-
-// ── 행 드로어 ────────────────────────────────────────────────────────────────
-
-function DrawerRow({ product }: { product: CockpitProduct }) {
-  return (
-    <tr className="cockpit-drawer">
-      <td colSpan={7} className="cockpit-drawer-td">
-        <div className="cockpit-drawer-inner">
-          {product.cost_krw != null && (
-            <div className="cockpit-drawer-group">
-              <span className="cockpit-drawer-label">공급원가</span>
-              <span className="cockpit-drawer-value">{fmtKRW(product.cost_krw)}</span>
-            </div>
-          )}
-          {product.market_min_krw != null && (
-            <div className="cockpit-drawer-group">
-              <span className="cockpit-drawer-label">시장 최저</span>
-              <span className="cockpit-drawer-value">{fmtKRW(product.market_min_krw)}</span>
-            </div>
-          )}
-          {product.market_median_krw != null && (
-            <div className="cockpit-drawer-group">
-              <span className="cockpit-drawer-label">시장 중앙</span>
-              <span className="cockpit-drawer-value">{fmtKRW(product.market_median_krw)}</span>
-            </div>
-          )}
-          {product.market_max_krw != null && (
-            <div className="cockpit-drawer-group">
-              <span className="cockpit-drawer-label">시장 최고</span>
-              <span className="cockpit-drawer-value">{fmtKRW(product.market_max_krw)}</span>
-            </div>
-          )}
-          {product.list_price_krw != null && (
-            <div className="cockpit-drawer-group">
-              <span className="cockpit-drawer-label">공시가</span>
-              <span className="cockpit-drawer-value">{fmtKRW(product.list_price_krw)}</span>
-            </div>
-          )}
-          {product.effective_supplier && (
-            <div className="cockpit-drawer-group">
-              <span className="cockpit-drawer-label">실효 공급사</span>
-              <span className="cockpit-drawer-value">{product.effective_supplier}</span>
-            </div>
-          )}
-          {product.basis && (
-            <div className="cockpit-drawer-group">
-              <span className="cockpit-drawer-label">기준가 선정</span>
-              <span className="cockpit-drawer-value">{product.basis}</span>
-            </div>
-          )}
-          {product.effective_margin_pct != null && (
-            <div className="cockpit-drawer-group">
-              <span className="cockpit-drawer-label">실효마진</span>
-              <span className="cockpit-drawer-value">{product.effective_margin_pct.toFixed(1)}%</span>
-            </div>
-          )}
-          {product.market_deviation_pct != null && (
-            <div className="cockpit-drawer-group">
-              <span className="cockpit-drawer-label">시장 편차</span>
-              <span className="cockpit-drawer-value">
-                {(product.market_deviation_pct >= 0 ? '+' : '') +
-                  product.market_deviation_pct.toFixed(1)}%
+    <React.Fragment>
+      {/* ── 메인 행 ── */}
+      <tr className="cockpit-row" aria-expanded={expandSection !== null}>
+        {/* 모델·구성 */}
+        <td className="card-header cockpit-th-left" data-label="모델·구성">
+          <div className="cockpit-model-row">
+            <div className="cockpit-model-cell">
+              <span className="cockpit-model-name">{p.model_name}</span>
+              <span className="cockpit-model-sub">
+                {p.memory} · ×{p.gpu_count}GPU · Tier {p.tier}
               </span>
             </div>
-          )}
-          {product.strategic_history.length > 0 && (
-            <div className="cockpit-drawer-group cockpit-drawer-group--history">
-              <span className="cockpit-drawer-label">전략가 이력</span>
-              <ul className="cockpit-history-list">
-                {product.strategic_history.map((h, i) => (
-                  <li key={i} className="cockpit-history-item">
-                    <span className="cockpit-history-ts">
-                      {new Date(h.ts).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    <span className="cockpit-history-actor">{h.actor}</span>
-                    <span className="cockpit-history-change">
-                      {h.before != null ? fmtKRW(h.before) : '미설정'} →{' '}
-                      {h.after != null ? fmtKRW(h.after) : '해제'}
-                    </span>
-                    {h.reason && (
-                      <span className="cockpit-history-reason">{h.reason}</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
+          </div>
+        </td>
+
+        {/* gcube 사이트 가격 — 클릭 펼침 */}
+        <td
+          data-label="gcube 사이트 가격"
+          className="cockpit-cell-clickable"
+          onClick={() => onExpand(expandSection === 'gcube' ? null : 'gcube')}
+        >
+          <div className="cockpit-cell-inner">
+            <GcubeSiteCell
+              product={patchedProduct}
+              isAdmin={isAdmin}
+              onSaved={onSaved}
+            />
+            <ChevronDown
+              size={12}
+              className={`cockpit-cell-chevron${expandSection === 'gcube' ? ' cockpit-cell-chevron--open' : ''}`}
+              aria-hidden
+            />
+          </div>
+        </td>
+
+        {/* 원가 (최저~최고) — 클릭 펼침 */}
+        <td
+          data-label="원가 (최저~최고)"
+          className="cockpit-cell-clickable"
+          onClick={() => onExpand(expandSection === 'cost' ? null : 'cost')}
+        >
+          <div className="cockpit-cell-inner">
+            <div className="cockpit-range-cell">
+              {costMin != null ? (
+                <>
+                  <span className="cockpit-price">{fmtKRW(costMin)}</span>
+                  {costMax != null && costMax !== costMin && (
+                    <>
+                      <span className="cockpit-range-sep">~</span>
+                      <span className="cockpit-price">{fmtKRW(costMax)}</span>
+                    </>
+                  )}
+                </>
+              ) : (
+                <span className="cockpit-price-sub">—</span>
+              )}
+            </div>
+            <ChevronDown
+              size={12}
+              className={`cockpit-cell-chevron${expandSection === 'cost' ? ' cockpit-cell-chevron--open' : ''}`}
+              aria-hidden
+            />
+          </div>
+        </td>
+
+        {/* 판매가 후보 — 클릭 = 이 값으로 지정 */}
+        <td
+          data-label="판매가 후보"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <CandidateCell
+            product={patchedProduct}
+            isAdmin={isAdmin}
+            onPromoted={onSaved}
+          />
+        </td>
+
+        {/* 경쟁사 가격 (최저~최고) — 클릭 펼침 */}
+        <td
+          data-label="경쟁사 가격 (최저~최고)"
+          className={`cockpit-cell-clickable${hasCompetitors ? '' : ' cockpit-cell-no-expand'}`}
+          onClick={() => {
+            if (!hasCompetitors && competitorMin == null) return
+            onExpand(expandSection === 'competitor' ? null : 'competitor')
+          }}
+        >
+          <div className="cockpit-cell-inner">
+            <div className="cockpit-range-cell">
+              {competitorMin != null ? (
+                <>
+                  <span className="cockpit-price">{fmtKRW(competitorMin)}</span>
+                  {competitorMax != null && competitorMax !== competitorMin && (
+                    <>
+                      <span className="cockpit-range-sep">~</span>
+                      <span className="cockpit-price">{fmtKRW(competitorMax)}</span>
+                    </>
+                  )}
+                </>
+              ) : (
+                <span className="cockpit-price-sub">—</span>
+              )}
+            </div>
+            {(hasCompetitors || competitorMin != null) && (
+              <ChevronDown
+                size={12}
+                className={`cockpit-cell-chevron${expandSection === 'competitor' ? ' cockpit-cell-chevron--open' : ''}`}
+                aria-hidden
+              />
+            )}
+          </div>
+        </td>
+
+        {/* 우리 판매가 — 클릭 = 이력 펼침 / 연필 = 편집 */}
+        <td
+          data-label="우리 판매가"
+          className="cockpit-cell-strategic"
+        >
+          <div className="cockpit-cell-inner">
+            <StrategicCell
+              product={patchedProduct}
+              isAdmin={isAdmin}
+              onSaved={onSaved}
+            />
+            <button
+              className={`cockpit-history-toggle${expandSection === 'strategic' ? ' cockpit-history-toggle--open' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                onExpand(expandSection === 'strategic' ? null : 'strategic')
+              }}
+              aria-label="우리 판매가 변경 이력 보기"
+              title="변경 이력"
+            >
+              <ChevronDown size={12} aria-hidden />
+            </button>
+          </div>
+          {p.effective_margin_pct != null && (
+            <div className="cockpit-strategic-meta">
+              <MarginBadge
+                pct={p.effective_margin_pct}
+                label="시장에서 우리 위치를 정하는 가격 기준 마진"
+              />
             </div>
           )}
-        </div>
-      </td>
-    </tr>
+        </td>
+      </tr>
+
+      {/* ── 펼침 드로어 ── */}
+      {expandSection !== null && (
+        <tr className="cockpit-drawer">
+          <td colSpan={6} className="cockpit-drawer-td">
+            {expandSection === 'cost' && (
+              <CostDrawer
+                product={patchedProduct}
+                onGoToTab={onGoToTab}
+              />
+            )}
+            {expandSection === 'competitor' && (
+              <CompetitorDrawer
+                product={patchedProduct}
+                onGoToTab={onGoToTab}
+                activeCompetitor={activeCompetitor}
+                onSelectCompetitor={onSelectCompetitor}
+              />
+            )}
+            {expandSection === 'gcube' && (
+              <GcubeDrawer
+                product={patchedProduct}
+                onGoToTab={onGoToTab}
+              />
+            )}
+            {expandSection === 'strategic' && (
+              <StrategicHistoryDrawer product={patchedProduct} />
+            )}
+          </td>
+        </tr>
+      )}
+    </React.Fragment>
   )
 }
 
-// ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
+// ── 메인 컴포넌트 ─────────────────────────────────────────────────
 
 interface PriceCockpitTabProps {
   isAdmin?: boolean
+  /** GpuPricingClient에서 탭 전환 콜백 주입 */
+  onGoToTab?: (tab: string) => void
 }
 
-export default function PriceCockpitTab({ isAdmin = false }: PriceCockpitTabProps) {
+export default function PriceCockpitTab({
+  isAdmin = false,
+  onGoToTab,
+}: PriceCockpitTabProps) {
   const { data, isLoading, error, mutate } = useSWR<CockpitResponse>(
     '/api/pricing/gpu/cockpit',
     fetcher,
     { refreshInterval: 60000 },
   )
   const { mutate: globalMutate } = useSWRConfig()
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const { getParam, setParam } = useCockpitUrl()
 
-  const toggleExpand = useCallback((id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
+  // ── 필터·정렬·검색 상태 (URL 연동) ──────────────────────────
+  const [search, setSearch] = useState(() => getParam('cq'))
+  const [tierFilter, setTierFilter] = useState<TierFilter>(() => {
+    const t = Number(getParam('ct'))
+    return ([0, 1, 2, 3].includes(t) ? t : 0) as TierFilter
+  })
+  const [specialFilter, setSpecialFilter] = useState<SpecialFilter>(
+    () => (getParam('csf') === 'unset' ? 'unset' : 'all'),
+  )
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null)
+
+  // URL → state 동기화 (마운트 이후 변경만)
+  const mountedRef = useRef(false)
+  useEffect(() => {
+    if (!mountedRef.current) { mountedRef.current = true; return }
+    setParam({
+      cq: search || null,
+      ct: tierFilter !== 0 ? String(tierFilter) : null,
+      csf: specialFilter !== 'all' ? specialFilter : null,
     })
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, tierFilter, specialFilter])
+
+  const debouncedSearch = useDebounce(search, DEBOUNCE_MS)
+
+  // ── 펼침 상태 (행별 섹션) ────────────────────────────────────
+  interface ExpandState { productId: string; section: ExpandSection }
+  const [expanded, setExpanded] = useState<ExpandState | null>(null)
+  const [activeCompetitor, setActiveCompetitor] = useState('')
+
+  const handleExpand = useCallback(
+    (productId: string, section: ExpandSection) => {
+      setExpanded((prev) =>
+        prev?.productId === productId && prev.section === section
+          ? null
+          : section === null
+          ? null
+          : { productId, section },
+      )
+    },
+    [],
+  )
 
   const handleSaved = useCallback(() => {
     mutate()
     mutateGpu(globalMutate)
   }, [mutate, globalMutate])
 
+  const goToTab = useCallback(
+    (tab: string) => {
+      if (onGoToTab) {
+        onGoToTab(tab)
+      } else {
+        setParam({ tab })
+      }
+    },
+    [onGoToTab, setParam],
+  )
+
+  // ── 정렬 핸들러 ────────────────────────────────────────────
+  const handleSort = useCallback((key: SortKey) => {
+    setSortConfig((prev) =>
+      prev?.key === key
+        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: 'asc' },
+    )
+  }, [])
+
   const products = data?.products ?? []
 
-  // ── 로딩 ──
+  // ── 필터링 ────────────────────────────────────────────────
+  const filtered = products.filter((p) => {
+    if (tierFilter !== 0 && p.tier !== tierFilter) return false
+    if (specialFilter === 'unset' && p.is_strategic_set) return false
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase()
+      return (
+        p.model_name.toLowerCase().includes(q) ||
+        (p.memory ?? '').toLowerCase().includes(q)
+      )
+    }
+    return true
+  })
+
+  // ── 정렬 ─────────────────────────────────────────────────
+  const sorted = sortConfig
+    ? [...filtered].sort((a, b) => {
+        const d = sortConfig.dir === 'asc' ? 1 : -1
+        const pickVal = (p: CockpitProduct): number => {
+          switch (sortConfig.key) {
+            case 'model': return 0 // 문자열 정렬은 아래 별도
+            case 'gcube': return (p.gcube_site_price_krw ?? (d > 0 ? Infinity : -Infinity))
+            case 'cost': return (p.cost_min_krw ?? p.cost_krw ?? (d > 0 ? Infinity : -Infinity))
+            case 'candidate': return (p.candidate_price_krw ?? (d > 0 ? Infinity : -Infinity))
+            case 'competitor': return (p.competitor_min_krw ?? p.market_min_krw ?? (d > 0 ? Infinity : -Infinity))
+            case 'strategic': return (p.strategic_krw ?? (d > 0 ? Infinity : -Infinity))
+            default: return 0
+          }
+        }
+        if (sortConfig.key === 'model') {
+          return a.model_name.localeCompare(b.model_name, 'ko') * d
+        }
+        return (pickVal(a) - pickVal(b)) * d
+      })
+    : filtered
+
+  // ── 로딩 ───────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="price-cockpit-wrap">
-        <div className="gpu-empty-hint">로딩 중…</div>
+        <div className="gpu-empty-hint" role="status">로딩 중…</div>
       </div>
     )
   }
 
-  // ── 에러 ──
+  // ── 에러 ───────────────────────────────────────────────────
   if (error) {
     return (
       <div className="price-cockpit-wrap">
-        <div className="gpu-empty-hint cockpit-error-hint">
+        <div className="gpu-empty-hint cockpit-error-hint" role="alert">
           데이터를 불러오지 못했습니다. 새로고침해 주세요.
         </div>
       </div>
     )
   }
 
-  // ── 빈 상태 ──
+  // ── 빈 상태 ────────────────────────────────────────────────
   if (products.length === 0) {
     return (
       <div className="price-cockpit-wrap">
@@ -376,95 +456,202 @@ export default function PriceCockpitTab({ isAdmin = false }: PriceCockpitTabProp
     )
   }
 
+  const tierCounts = {
+    t1: products.filter((p) => p.tier === 1).length,
+    t2: products.filter((p) => p.tier === 2).length,
+    t3: products.filter((p) => p.tier === 3).length,
+    unset: products.filter((p) => !p.is_strategic_set).length,
+  }
+
   return (
-    <div className="price-cockpit-wrap">
-      <div className="gpu-panel">
-        <table className="gpu-table table-base table-card price-cockpit-table">
-          <thead>
-            <tr>
-              <th className="cockpit-th-left">모델·구성</th>
-              <th>원가</th>
-              <th>자동마진가</th>
-              <th>🎯 전략가</th>
-              <th>시장중앙</th>
-              <th>실효마진%</th>
-              <th>시장편차%</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map((p) => {
-              const expanded = expandedIds.has(p.id)
-              return (
-                <React.Fragment key={p.id}>
-                  <tr
-                    className="cockpit-row"
-                    onClick={() => toggleExpand(p.id)}
-                    aria-expanded={expanded}
-                  >
-                    {/* 모델·구성 */}
-                    <td className="card-header" data-label="모델·구성">
-                      <div className="cockpit-model-row">
-                        <button
-                          className={`cockpit-expand-btn${expanded ? ' cockpit-expand-btn--open' : ''}`}
-                          onClick={(e) => { e.stopPropagation(); toggleExpand(p.id) }}
-                          aria-label={expanded ? '접기' : '상세 보기'}
-                        >
-                          <ChevronRight size={14} />
-                        </button>
-                        <div className="cockpit-model-cell">
-                          <span className="cockpit-model-name">{p.model_name}</span>
-                          <span className="cockpit-model-sub">
-                            {p.memory} · ×{p.gpu_count}GPU · Tier {p.tier}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
+    <section className="price-cockpit-wrap" aria-label="가격 결정 콕핏">
+      {/* ── 툴바 ── */}
+      <div className="cockpit-toolbar">
+        {/* 검색 */}
+        <div className="gpu-search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.3-4.3"/>
+          </svg>
+          <input
+            placeholder="모델명 검색 (H100, A100 ...)"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="모델명 검색"
+          />
+        </div>
 
-                    {/* 원가 */}
-                    <td data-label="원가" onClick={(e) => e.stopPropagation()}>
-                      <div className="cockpit-price--auto">{fmtKRW(p.cost_krw)}</div>
-                    </td>
+        {/* Tier 필터 */}
+        <div className="gpu-seg" role="group" aria-label="Tier 필터">
+          {([0, 1, 2, 3] as TierFilter[]).map((t) => (
+            <button
+              key={t}
+              className={tierFilter === t ? 'on' : ''}
+              onClick={() => setTierFilter(t)}
+              aria-pressed={tierFilter === t}
+            >
+              {t === 0
+                ? `전체 ${products.length}`
+                : `T${t} · ${[tierCounts.t1, tierCounts.t2, tierCounts.t3][t - 1]}`}
+            </button>
+          ))}
+        </div>
 
-                    {/* 자동마진가 */}
-                    <td data-label="자동마진가" onClick={(e) => e.stopPropagation()}>
-                      <div className="cockpit-price--auto">{fmtKRW(p.auto_margin_krw)}</div>
-                    </td>
-
-                    {/* 🎯 전략가 — 인라인 편집 */}
-                    <td
-                      data-label="전략가"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <StrategicCell
-                        product={p}
-                        isAdmin={isAdmin}
-                        onSaved={handleSaved}
-                      />
-                    </td>
-
-                    {/* 시장중앙 */}
-                    <td data-label="시장중앙">
-                      <div className="cockpit-price">{fmtKRW(p.market_median_krw)}</div>
-                    </td>
-
-                    {/* 실효마진% */}
-                    <td data-label="실효마진%">
-                      <MarginBadge pct={p.effective_margin_pct} />
-                    </td>
-
-                    {/* 시장편차% */}
-                    <td data-label="시장편차%">
-                      <DeviationBadge pct={p.market_deviation_pct} />
-                    </td>
-                  </tr>
-
-                  {expanded && <DrawerRow product={p} />}
-                </React.Fragment>
-              )
-            })}
-          </tbody>
-        </table>
+        {/* 특수 필터 */}
+        <div className="gpu-seg" role="group" aria-label="설정 상태 필터">
+          <button
+            className={specialFilter === 'all' ? 'on' : ''}
+            onClick={() => setSpecialFilter('all')}
+            aria-pressed={specialFilter === 'all'}
+          >
+            전체
+          </button>
+          <button
+            className={specialFilter === 'unset' ? 'on' : ''}
+            onClick={() => setSpecialFilter('unset')}
+            aria-pressed={specialFilter === 'unset'}
+            title="우리 판매가 미설정 항목만 보기"
+          >
+            미설정 {tierCounts.unset > 0 ? `· ${tierCounts.unset}` : ''}
+          </button>
+        </div>
       </div>
-    </div>
+
+      {/* ── 빈 필터 결과 ── */}
+      {sorted.length === 0 && (
+        <div className="gpu-empty-hint">검색·필터 결과가 없습니다.</div>
+      )}
+
+      {/* ── 테이블 ── */}
+      {sorted.length > 0 && (
+        <div className="gpu-panel">
+          <table className="gpu-table table-base table-card price-cockpit-table">
+            <thead>
+              <tr>
+                {/* 모델·구성 */}
+                <th
+                  className="cockpit-th-left cockpit-th-sortable"
+                  onClick={() => handleSort('model')}
+                  aria-sort={
+                    sortConfig?.key === 'model'
+                      ? sortConfig.dir === 'asc' ? 'ascending' : 'descending'
+                      : 'none'
+                  }
+                >
+                  <span className="cockpit-th-inner">
+                    모델·구성
+                    <SortIcon col="model" sortConfig={sortConfig} />
+                  </span>
+                </th>
+
+                {/* gcube 사이트 가격 */}
+                <th
+                  className="cockpit-th-sortable"
+                  onClick={() => handleSort('gcube')}
+                  aria-sort={
+                    sortConfig?.key === 'gcube'
+                      ? sortConfig.dir === 'asc' ? 'ascending' : 'descending'
+                      : 'none'
+                  }
+                  title="gcube.co.kr에 현재 게시된 판매 가격"
+                >
+                  <span className="cockpit-th-inner">
+                    gcube 사이트 가격
+                    <SortIcon col="gcube" sortConfig={sortConfig} />
+                  </span>
+                </th>
+
+                {/* 원가 */}
+                <th
+                  className="cockpit-th-sortable"
+                  onClick={() => handleSort('cost')}
+                  aria-sort={
+                    sortConfig?.key === 'cost'
+                      ? sortConfig.dir === 'asc' ? 'ascending' : 'descending'
+                      : 'none'
+                  }
+                  title="공급사 매입 원가 범위 (최저~최고)"
+                >
+                  <span className="cockpit-th-inner">
+                    원가 (최저~최고)
+                    <SortIcon col="cost" sortConfig={sortConfig} />
+                  </span>
+                </th>
+
+                {/* 판매가 후보 */}
+                <th
+                  className="cockpit-th-sortable"
+                  onClick={() => handleSort('candidate')}
+                  aria-sort={
+                    sortConfig?.key === 'candidate'
+                      ? sortConfig.dir === 'asc' ? 'ascending' : 'descending'
+                      : 'none'
+                  }
+                  title="원가 + 마진율로 자동 계산된 판매가 후보"
+                >
+                  <span className="cockpit-th-inner">
+                    판매가 후보
+                    <SortIcon col="candidate" sortConfig={sortConfig} />
+                  </span>
+                </th>
+
+                {/* 경쟁사 가격 */}
+                <th
+                  className="cockpit-th-sortable"
+                  onClick={() => handleSort('competitor')}
+                  aria-sort={
+                    sortConfig?.key === 'competitor'
+                      ? sortConfig.dir === 'asc' ? 'ascending' : 'descending'
+                      : 'none'
+                  }
+                  title="시장 경쟁사 가격 범위 (최저~최고)"
+                >
+                  <span className="cockpit-th-inner">
+                    경쟁사 가격 (최저~최고)
+                    <SortIcon col="competitor" sortConfig={sortConfig} />
+                  </span>
+                </th>
+
+                {/* 우리 판매가 */}
+                <th
+                  className="cockpit-th-sortable"
+                  onClick={() => handleSort('strategic')}
+                  aria-sort={
+                    sortConfig?.key === 'strategic'
+                      ? sortConfig.dir === 'asc' ? 'ascending' : 'descending'
+                      : 'none'
+                  }
+                  title="시장에서 우리 위치를 정하는 포지셔닝 가격"
+                >
+                  <span className="cockpit-th-inner">
+                    우리 판매가
+                    <SortIcon col="strategic" sortConfig={sortConfig} />
+                  </span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((p) => {
+                const currentSection =
+                  expanded?.productId === p.id ? expanded.section : null
+                return (
+                  <CockpitRow
+                    key={p.id}
+                    product={p}
+                    isAdmin={isAdmin}
+                    expandSection={currentSection}
+                    activeCompetitor={activeCompetitor}
+                    onExpand={(section) => handleExpand(p.id, section)}
+                    onSelectCompetitor={setActiveCompetitor}
+                    onSaved={handleSaved}
+                    onGoToTab={goToTab}
+                  />
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   )
 }
