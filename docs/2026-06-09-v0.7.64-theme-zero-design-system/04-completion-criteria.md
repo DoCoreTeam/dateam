@@ -1,0 +1,11 @@
+# 04 완료 기준
+- [ ] fg/bg 토큰 짝 정의(양 테마) + status-colors 토큰화
+- [ ] NbModal/NbTable/NbField 신설 + 단위테스트
+- [ ] 가드 확장(rgba/raw-input/미정의토큰) + CI 연동
+- [ ] 모달 25 → NbModal 전환
+- [ ] 표 28 → NbTable 전환
+- [ ] 입력 68 → NbField/input-field 전환
+- [ ] rgba 44 → 토큰 전환
+- [ ] 두 테마(nb/classic) Playwright 검증 통과
+- [ ] tsc 0 / 확장 design:check 0 / 테스트 통과
+- [ ] DC-QA/SEC/REV 통과 + GATE 1-5
