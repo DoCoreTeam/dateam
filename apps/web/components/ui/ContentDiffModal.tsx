@@ -91,16 +91,16 @@ export default function ContentDiffModal({
       aria-label={`${sectionName} AI 편집 확인`}
       style={{
         position: 'fixed', inset: 0, zIndex: 9000,
-        background: 'rgba(15,23,42,0.55)',
+        background: 'var(--modal-backdrop)',
         backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 'var(--space-4)',
       }}
     >
       <div style={{
-        background: '#fff',
+        background: 'var(--color-surface)',
         borderRadius: 'var(--radius)',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+        boxShadow: 'var(--shadow-modal)',
         width: '100%',
         maxWidth: '780px',
         maxHeight: '85vh',
@@ -155,7 +155,7 @@ export default function ContentDiffModal({
             return (
               <div key={idx} style={{
                 borderBottom: 'var(--hairline) solid var(--surface-muted)',
-                background: row.status === 'deleted' ? 'var(--danger-bg)' : row.status === 'added' ? 'var(--success-bg)' : row.status === 'modified' ? 'var(--warning-bg)' : '#fff',
+                background: row.status === 'deleted' ? 'var(--danger-bg)' : row.status === 'added' ? 'var(--success-bg)' : row.status === 'modified' ? 'var(--warning-bg)' : 'var(--color-surface)',
               }}>
                 <div
                   style={{
@@ -277,7 +277,7 @@ export default function ContentDiffModal({
             style={{
               padding: 'var(--space-2) var(--space-6)',
               background: changedCount === 0 ? 'var(--color-border)' : 'var(--brand)',
-              color: changedCount === 0 ? 'var(--text-faint)' : '#fff',
+              color: changedCount === 0 ? 'var(--text-faint)' : 'var(--color-surface)',
               border: 'none',
               borderRadius: 'var(--radius)',
               fontSize: 'var(--fs-base)',

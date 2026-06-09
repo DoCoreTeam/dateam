@@ -78,8 +78,8 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
 
   return (
     <div onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-4)' }}>
-      <div style={{ width: '100%', maxWidth: 460, background: '#fff', borderRadius: 'var(--radius)', padding: 'var(--space-6)', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }}>
+      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--modal-backdrop)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-4)' }}>
+      <div style={{ width: '100%', maxWidth: 460, background: 'var(--color-surface)', borderRadius: 'var(--radius)', padding: 'var(--space-6)', boxShadow: 'var(--shadow-modal)', maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
           <h3 className="tape-title" style={{ margin: 0 }}>일정 등록</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={18} /></button>
@@ -90,7 +90,7 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
           <input value={nl} onChange={(e) => setNl(e.target.value)} placeholder="자연어: 내일 오후 3시 A사 미팅"
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); parseNl() } }}
             style={{ flex: 1, border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem 0.625rem', fontSize: 'var(--fs-sm)', outline: 'none' }} />
-          <button onClick={parseNl} disabled={aiBusy} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: 'var(--fs-sm)', fontWeight: 600, color: '#fff', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-3)', cursor: aiBusy ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+          <button onClick={parseNl} disabled={aiBusy} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand-fg)', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-3)', cursor: aiBusy ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
             <Sparkles size={14} /> {aiBusy ? '파싱중' : 'AI 파싱'}
           </button>
         </div>
@@ -139,7 +139,7 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
 
         <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>취소</button>
-          <button onClick={save} disabled={busy} style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: '#fff', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-5)', cursor: busy ? 'wait' : 'pointer' }}>{busy ? '저장중' : '저장'}</button>
+          <button onClick={save} disabled={busy} style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand-fg)', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-5)', cursor: busy ? 'wait' : 'pointer' }}>{busy ? '저장중' : '저장'}</button>
         </div>
       </div>
     </div>

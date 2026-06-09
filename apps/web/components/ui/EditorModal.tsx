@@ -35,7 +35,7 @@ export default function EditorModal({ title, value, placeholder, onClose, onChan
       onClick={handleBackdrop}
       style={{
         position: 'fixed', inset: 0, zIndex: 9999,
-        backgroundColor: 'rgba(15, 23, 42, 0.5)',
+        backgroundColor: 'var(--modal-backdrop)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 'var(--space-6)',
       }}
@@ -44,7 +44,7 @@ export default function EditorModal({ title, value, placeholder, onClose, onChan
         style={{
           width: '100%', maxWidth: '720px',
           background: 'white', borderRadius: 'var(--radius)',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
+          boxShadow: 'var(--shadow-modal)',
           display: 'flex', flexDirection: 'column',
           maxHeight: 'calc(100vh - 3rem)',
           overflow: 'hidden',
