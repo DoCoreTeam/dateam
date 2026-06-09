@@ -1,40 +1,79 @@
 #!/usr/bin/env node
-// 디자인 토큰 가드 — 인라인 style에 하드코딩된 색/치수가 재유입되는지 검사.
-// 사용: node scripts/check-design-tokens.mjs  (CI/pre-commit에 연결 권장)
-// 실패(잔여 발견) 시 exit 1. 예외: api/(데이터팔레트), 의도 보존 색(핑크 등) ALLOW.
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+// 디자인 토큰 가드 — 인라인 style 하드코딩 색/치수 + rgba/raw-input/미정의토큰 재유입 검사.
+// 사용: node scripts/check-design-tokens.mjs  (CI/pre-commit 연결). 잔여 발견 시 exit 1.
+// 정책(DECISION-20260609-guard-ratchet): hex는 즉시 하드페일. rgba/raw-input/미정의토큰은
+//   baseline ratchet — 기존 위반(.design-guard-baseline.json)은 추적만, baseline에 없는 신규만 차단.
+//   baseline 재생성: node scripts/check-design-tokens.mjs --update-baseline
+import { readFileSync, readdirSync, statSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ALLOW_HEX = new Set([
   '#fcd34d', '#ffffff', '#0a0a0a', '#f8f8f6', '#efede8',
-  // 의도적 이질 액센트(테마 비대상) — 진단 13건
   '#ec4899', '#fbcfe8',
 ])
 const roots = ['apps/web/app', 'apps/web/components']
-function walk(d, a){for(const e of readdirSync(d)){const p=join(d,e);const s=statSync(p);if(s.isDirectory()){if(p.includes('/api')||e==='node_modules'||e==='.next')continue;walk(p,a)}else if(/\.(tsx)$/.test(e))a.push(p)}}
+const BASELINE_PATH = 'scripts/.design-guard-baseline.json'
+const UPDATE = process.argv.includes('--update-baseline')
+
+function walk(d, a) {
+  for (const e of readdirSync(d)) {
+    const p = join(d, e); const s = statSync(p)
+    if (s.isDirectory()) { if (p.includes('/api') || e === 'node_modules' || e === '.next') continue; walk(p, a) }
+    else if (/\.(tsx)$/.test(e)) a.push(p)
+  }
+}
 
 const files = []
 for (const r of roots) walk(r, files)
-const violations = []
-// style={{ ... }} 블록 내부만 검사(대략): 'prop: ' 라인에서 hex/치수 리터럴
+
+const hardHex = []          // 즉시 차단
+const ratchet = []          // baseline 대조 대상 {key, desc}
+
 const hexRe = /#[0-9a-fA-F]{6}\b/g
+const rgbaRe = /\brgba?\(/g
+// 미정의 토큰: 크기성인데 --text-* (정의 안 됨, --fs-* 써야 함). --text/--text-muted/--text-faint는 정의됨.
+const badTokenRe = /var\(--text-(xs|sm|md|lg|xl|2xl|3xl)\b/g
+// raw 입력: input-field 클래스 없는 <input|select|textarea (type=hidden 제외)
+const rawInputRe = /<(input|select|textarea)\b(?![^>]*\binput-field\b)(?![^>]*type=["']hidden["'])/g
+
 for (const f of files) {
-  const lines = readFileSync(f, 'utf8').split('\n')
+  const text = readFileSync(f, 'utf8')
+  const lines = text.split('\n')
   lines.forEach((line, i) => {
-    // 색
     for (const m of line.matchAll(hexRe)) {
-      if (!ALLOW_HEX.has(m[0].toLowerCase())) violations.push(`${f}:${i + 1}  hex ${m[0]}`)
+      if (!ALLOW_HEX.has(m[0].toLowerCase())) hardHex.push(`${f}:${i + 1}  hex ${m[0]}`)
     }
-    // 보더: 너비+색이 모두 하드코딩(#hex)인 경우만 = 진짜 분산. 삼각형(transparent)·동적(${})·토큰색은 허용.
-    if (/\b[0-9.]+px solid #[0-9a-fA-F]{3,6}\b/.test(line)) {
-      violations.push(`${f}:${i + 1}  border literal(width+color)`)
-    }
+    if (/\b[0-9.]+px solid #[0-9a-fA-F]{3,6}\b/.test(line)) hardHex.push(`${f}:${i + 1}  border literal(width+color)`)
+    for (const m of line.matchAll(rgbaRe)) ratchet.push({ key: `${f}::rgba`, desc: `${f}:${i + 1}  rgba 인라인색` })
+    for (const m of line.matchAll(badTokenRe)) ratchet.push({ key: `${f}::badtoken::${m[0]}`, desc: `${f}:${i + 1}  미정의 토큰 ${m[0]})` })
+    for (const m of line.matchAll(rawInputRe)) ratchet.push({ key: `${f}::rawinput::${m[1]}`, desc: `${f}:${i + 1}  raw <${m[1]}> (input-field 누락)` })
   })
 }
-if (violations.length) {
-  console.error(`❌ 디자인 토큰 가드 실패 — 하드코딩 ${violations.length}건 (토큰 var(--*) 사용 권장):`)
-  for (const v of violations.slice(0, 40)) console.error('  ' + v)
-  if (violations.length > 40) console.error(`  …외 ${violations.length - 40}건`)
-  process.exit(1)
+
+// 파일별 rgba는 key를 file::rgba 로 묶음(라인 이동에 견고). 신규 파일/카테고리만 차단.
+const currentKeys = [...new Set(ratchet.map((r) => r.key))]
+
+if (UPDATE) {
+  writeFileSync(BASELINE_PATH, JSON.stringify(currentKeys.sort(), null, 2) + '\n')
+  console.log(`✅ baseline 갱신 — ${currentKeys.length}개 키 기록 (${BASELINE_PATH})`)
+  process.exit(0)
 }
-console.log('✅ 디자인 토큰 가드 통과 — 인라인 하드코딩 색/치수 없음')
+
+const baseline = existsSync(BASELINE_PATH) ? new Set(JSON.parse(readFileSync(BASELINE_PATH, 'utf8'))) : new Set()
+const newRatchet = ratchet.filter((r) => !baseline.has(r.key))
+
+let failed = false
+if (hardHex.length) {
+  failed = true
+  console.error(`❌ [hex] 하드코딩 색/치수 ${hardHex.length}건:`)
+  for (const v of hardHex.slice(0, 40)) console.error('  ' + v)
+}
+if (newRatchet.length) {
+  failed = true
+  console.error(`❌ [ratchet] baseline에 없는 신규 위반 ${newRatchet.length}건 (토큰/공용컴포넌트 사용):`)
+  for (const v of newRatchet.slice(0, 40)) console.error('  ' + v.desc)
+}
+if (failed) process.exit(1)
+
+const tracked = ratchet.length
+console.log(`✅ 디자인 토큰 가드 통과 — hex 0, 신규 ratchet 위반 0 (baseline 추적 ${tracked}건 = 마이그레이션 잔여)`)
