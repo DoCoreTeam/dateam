@@ -18,7 +18,6 @@
   "apps/web/app/(member)/deals/page.tsx::rawinput::select",
   "apps/web/app/(member)/deals/page.tsx::rgba",
   "apps/web/app/(member)/dept-tasks/DeptTaskDetail.tsx::rawinput::input",
-  "apps/web/app/(member)/dept-tasks/DeptTaskFormModal.tsx::rgba",
   "apps/web/app/(member)/dept-tasks/DeptTaskSuggestPanel.tsx::rawinput::input",
   "apps/web/app/(member)/home/HomeMiniCalendar.tsx::rgba",
   "apps/web/app/(member)/home/HomeQuickEntry.tsx::rawinput::select",

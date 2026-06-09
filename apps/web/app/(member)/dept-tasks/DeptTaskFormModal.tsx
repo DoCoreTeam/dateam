@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X } from 'lucide-react'
-import { useEscClose } from '@/lib/use-esc-close'
 import type { DailyLog, DailyLogPriority } from '@/types/database'
 import NbButton from '@/components/ui/nb/NbButton'
+import NbModal from '@/components/ui/nb/NbModal'
 import { parseChecklistText } from '@/lib/dept-task-utils'
 import { PRIORITY_KEYS, PRIORITY_COLORS } from '@/lib/tokens/status-colors'
 import { createDeptTask, updateDeptTask, listAssigneeCandidates } from './actions'
@@ -27,7 +26,6 @@ const checklistToText = (task?: DailyLog): string =>
   (task?.checklist ?? []).map((c) => c.label).join('\n')
 
 export default function DeptTaskFormModal({ creatableDepts, onClose, onSaved, task, canEditDept }: Props) {
-  useEscClose(onClose)
   const isEdit = !!task
   const [content, setContent] = useState(task?.content ?? '')
   const [departmentId, setDepartmentId] = useState(task?.department_id ?? creatableDepts[0]?.id ?? '')
@@ -73,20 +71,18 @@ export default function DeptTaskFormModal({ creatableDepts, onClose, onSaved, ta
   const deptDisabled = isEdit && !canEditDept
 
   return (
-    <div
-      role="dialog" aria-modal="true" aria-label={isEdit ? '부서 업무 수정' : '부서 업무 등록'}
-      onClick={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-4)' }}
+    <NbModal
+      title={isEdit ? '부서 업무 수정' : '새 부서 업무'}
+      ariaLabel={isEdit ? '부서 업무 수정' : '부서 업무 등록'}
+      onClose={onClose}
+      footer={
+        <>
+          <NbButton variant="ghost" onClick={onClose} disabled={busy}>취소</NbButton>
+          <NbButton onClick={submit} disabled={busy || !departmentId}>{busy ? '저장 중…' : (isEdit ? '저장' : '등록')}</NbButton>
+        </>
+      }
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{ width: '100%', maxWidth: 560, background: 'var(--color-surface)', borderRadius: 'var(--radius)', padding: 'var(--space-6)', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
-          <h3 className="tape-title" style={{ margin: 0 }}>{isEdit ? '부서 업무 수정' : '새 부서 업무'}</h3>
-          <button onClick={onClose} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={18} /></button>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <div>
             <label className="label">업무 내용 *</label>
             <textarea className="input-field" value={content} onChange={(e) => setContent(e.target.value)} rows={3} placeholder="부서 업무 제목/설명" />
@@ -130,12 +126,7 @@ export default function DeptTaskFormModal({ creatableDepts, onClose, onSaved, ta
             {isEdit && <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>진행률은 체크리스트 완료 비율로 자동 산출됩니다.</p>}
           </div>
           {error && <p role="alert" style={{ color: 'var(--danger)', margin: 0 }}>{error}</p>}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
-            <NbButton variant="ghost" onClick={onClose} disabled={busy}>취소</NbButton>
-            <NbButton onClick={submit} disabled={busy || !departmentId}>{busy ? '저장 중…' : (isEdit ? '저장' : '등록')}</NbButton>
-          </div>
         </div>
-      </div>
-    </div>
+    </NbModal>
   )
 }
