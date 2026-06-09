@@ -38,3 +38,29 @@ export const PRIORITY_KEYS: PriorityKey[] = ['urgent', 'high', 'normal', 'low']
 export const STATUS_LIST: ({ value: StatusKey } & StatusColor)[] = STATUS_KEYS.map(
   (k) => ({ value: k, ...STATUS_COLORS[k] }),
 )
+
+// ── 가격 시그널 색 SSOT ──
+// marginSignal / deviationSignal 결과값에 매핑되는 CSS 클래스명.
+// 색 값은 globals.css var(--danger/--warning/--success/--info) 토큰을 사용 — 하드코딩 금지.
+export type PriceSignalKey = 'danger' | 'warn' | 'ok' | 'over'
+export type DeviationSignalKey = 'expensive' | 'ok' | 'cheap'
+
+/**
+ * marginSignal() 결과 → cockpit-signal CSS 클래스 suffix
+ * 예: PRICE_SIGNAL_CLASS['danger'] → 'cockpit-signal--danger'
+ */
+export const PRICE_SIGNAL_CLASS: Record<PriceSignalKey, string> = {
+  danger: 'cockpit-signal--danger',
+  warn:   'cockpit-signal--warn',
+  ok:     'cockpit-signal--ok',
+  over:   'cockpit-signal--over',
+}
+
+/**
+ * deviationSignal() 결과 → cockpit-signal CSS 클래스 suffix
+ */
+export const DEVIATION_SIGNAL_CLASS: Record<DeviationSignalKey, string> = {
+  expensive: 'cockpit-signal--expensive',
+  ok:        'cockpit-signal--ok',
+  cheap:     'cockpit-signal--cheap',
+}

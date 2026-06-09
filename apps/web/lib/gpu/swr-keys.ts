@@ -16,6 +16,7 @@ export const GPU_SWR_PREFIXES = [
   '/api/pricing/gpu/suppliers',
   '/api/pricing/gpu/settings',
   '/api/pricing/gpu/fx',
+  '/api/pricing/gpu/cockpit',
 ] as const
 
 /**

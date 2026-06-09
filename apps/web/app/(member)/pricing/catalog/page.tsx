@@ -7,6 +7,7 @@ import { formatSpec } from '@/lib/gpu/format-spec'
 import { buildTierModelGroups, tierKey, modelKey } from '@/lib/gpu/group'
 import { TierHeader, ModelHeader } from '@/components/gpu/CategoryGroup'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
+import { fmtKRW as fmtKRWSSOT } from '@/lib/gpu/format-price'
 
 interface GpuProduct {
   id: string
@@ -21,6 +22,10 @@ interface GpuProduct {
   lowest_unit_price_usd: number | null
   sell_price_krw: number | null
   sell_price_usd: number | null
+  // 전략가 (콕핏 통합)
+  strategic_price_krw?: number | null
+  strategic_krw?: number | null
+  is_strategic_set?: boolean
 }
 
 interface ProductsResponse {
@@ -93,6 +98,10 @@ export default function SalePriceCatalogPage() {
   const customHours = parseInt(hoursInput) > 0 ? parseInt(hoursInput) : null
 
   const getSellPrice = (p: GpuProduct) => {
+    // 콕핏 전략가가 설정되어 있으면 우선 사용 (strategic_krw = strategic_price_krw ?? auto_margin_krw)
+    if (p.strategic_krw != null) {
+      return { krw: p.strategic_krw, usd: p.strategic_krw / usdKrw }
+    }
     if (p.pricing_mode === 'direct') {
       if (!p.sell_price_krw) return null
       return { krw: p.sell_price_krw, usd: p.sell_price_krw / usdKrw }
@@ -108,10 +117,10 @@ export default function SalePriceCatalogPage() {
     const lines = [
       `[GPU 판매가격표]`,
       `${p.model_name} ${p.memory} (Tier ${p.tier})`,
-      `시간당: ${fmtKrw(price.krw)} / ${fmtUsd(price.usd, 2)}`,
-      `월 (720h): ${fmtKrw(price.krw * HR_720)}`,
-      `6개월 (4,320h): ${fmtKrw(price.krw * HR_4320)}`,
-      `연간 (8,760h): ${fmtKrw(price.krw * HR_8760)}`,
+      `시간당: ${fmtKRWSSOT(price.krw)} / ${fmtUsd(price.usd, 2)}`,
+      `월 (720h): ${fmtKRWSSOT(price.krw * HR_720)}`,
+      `6개월 (4,320h): ${fmtKRWSSOT(price.krw * HR_4320)}`,
+      `연간 (8,760h): ${fmtKRWSSOT(price.krw * HR_8760)}`,
     ]
     const text = lines.join('\n')
     setCopiedId(p.id)
@@ -131,9 +140,12 @@ export default function SalePriceCatalogPage() {
     })
   }
 
-  // 판매가(sell_price_krw)가 있는 모든 상품 — 원가 견적(cost), 직접입력(direct),
-  // gcube 공시가 패스스루(list) 모두 포함
-  const pricedProducts = products.filter((p) => p.sell_price_krw != null)
+  // 표시 가능한 가격이 있는 모든 상품:
+  // strategic_krw(전략가 포함) 또는 sell_price_krw(자동마진가/직접가) 중 하나라도 있으면 포함.
+  // 전략가만 설정된(자동마진가 없는) 상품도 목록에 올라오도록 getSellPrice와 동일한 우선순위 기준 사용.
+  const pricedProducts = products.filter(
+    (p) => (p.strategic_krw ?? p.sell_price_krw) != null,
+  )
 
   const filtered = pricedProducts.filter((p) => {
     if (tierFilter !== 0 && p.tier !== tierFilter) return false
@@ -151,7 +163,8 @@ export default function SalePriceCatalogPage() {
   const searching = search.trim().length > 0
   const collapsedOf = (key: string) => (searching ? false : isCollapsed(key))
 
-  const fmtKrw = (v: number) => `₩${Math.round(v).toLocaleString('ko-KR')}`
+  // fmtKrw → SSOT fmtKRWSSOT (동일 출력)
+  // fmtUsd: dec 파라미터 있는 로컬 버전 유지 (dec=0 케이스가 SSOT와 다름)
   const fmtUsd = (v: number, dec = 0) => `$${v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec })}`
   const fmtHours = (h: number) => h >= 10000 ? `${(h / 10000).toFixed(1)}만h` : h >= 1000 ? `${(h / 1000).toFixed(1)}천h` : `${h}h`
 
@@ -335,7 +348,7 @@ export default function SalePriceCatalogPage() {
               const calcUsd = (h: number) => price ? price.usd * h : null
 
               const fmt = (h: number, dec = 0) => currencyMode === 'KRW'
-                ? (calcKrw(h) != null ? fmtKrw(calcKrw(h)!) : null)
+                ? (calcKrw(h) != null ? fmtKRWSSOT(calcKrw(h)!) : null)
                 : (calcUsd(h) != null ? fmtUsd(calcUsd(h)!, dec) : null)
 
               const isCopied = copiedId === p.id
@@ -388,16 +401,16 @@ export default function SalePriceCatalogPage() {
                             {fmt(customHours, 0)}
                           </div>
                           <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>
-                            {currencyMode === 'KRW' ? fmtUsd(price.usd * customHours, 0) : fmtKrw(price.krw * customHours)}
+                            {currencyMode === 'KRW' ? fmtUsd(price.usd * customHours, 0) : fmtKRWSSOT(price.krw * customHours)}
                           </div>
                         </>
                       ) : (
                         <>
                           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gpu-accent)', fontFamily: 'monospace' }}>
-                            {currencyMode === 'KRW' ? fmtKrw(price.krw) : fmtUsd(price.usd, 2)}
+                            {currencyMode === 'KRW' ? fmtKRWSSOT(price.krw) : fmtUsd(price.usd, 2)}
                           </div>
                           <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>
-                            {currencyMode === 'KRW' ? fmtUsd(price.usd, 2) + '/hr' : fmtKrw(price.krw) + '/hr'}
+                            {currencyMode === 'KRW' ? fmtUsd(price.usd, 2) + '/hr' : fmtKRWSSOT(price.krw) + '/hr'}
                           </div>
                         </>
                       )

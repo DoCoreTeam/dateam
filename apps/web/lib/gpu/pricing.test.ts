@@ -160,3 +160,74 @@ test('cost 없고 list만 있으면 list 공시가를 고객가로 그대로(마
   assert.equal(p.sell_price_usd, 2.0)                     // 공시가 그대로(2.0 × 1.25 아님)
   assert.equal(p.sell_price_krw, 2800)                    // 2.0 × 1400
 })
+
+// ─── P1-2: strategic_price_krw 파생 필드 ───
+
+test('strategic 설정 시 strategic_krw = strategic_price_krw, is_strategic_set = true', () => {
+  const raw = b200Raw()
+  // p1에 strategic_price_krw 설정
+  raw.products[0] = { ...raw.products[0], strategic_price_krw: 6000000 }
+  const cat = buildCatalog(raw)
+  const p1 = cat.products.find((p) => p.id === 'p1')!
+  assert.equal(p1.strategic_price_krw, 6000000)
+  assert.equal(p1.strategic_krw, 6000000)
+  assert.equal(p1.is_strategic_set, true)
+})
+
+test('strategic 미설정 시 strategic_krw = sell_price_krw (자동마진가 fallback)', () => {
+  const raw = b200Raw()
+  // strategic_price_krw 없음
+  const cat = buildCatalog(raw)
+  const p1 = cat.products.find((p) => p.id === 'p1')!
+  assert.equal(p1.strategic_price_krw, null)
+  assert.equal(p1.is_strategic_set, false)
+  assert.equal(p1.strategic_krw, p1.sell_price_krw)
+})
+
+test('effective_margin_pct 계산 — (strategic_krw - cost_krw) / cost_krw × 100', () => {
+  const raw = b200Raw()
+  // p1: effective = 3.24 USD, usdKrw=1400 → cost_krw = 3.24 × 1400 = 4536
+  // strategic_price_krw = 5000000 원 → margin = (5000000 - 4536) / 4536 × 100 ≈ 110228%
+  // 실제 검증: 마진이 계산되는 구조만 확인
+  raw.products[0] = { ...raw.products[0], strategic_price_krw: 5000 }
+  const cat = buildCatalog(raw)
+  const p1 = cat.products.find((p) => p.id === 'p1')!
+  // cost_krw = 3.24 × 1400 = 4536
+  // strategic_krw = 5000
+  // expected_margin = (5000 - 4536) / 4536 × 100 ≈ 10.23%
+  const expected = ((5000 - 4536) / 4536) * 100
+  assert.ok(p1.effective_margin_pct != null)
+  assert.ok(Math.abs(p1.effective_margin_pct! - expected) < 0.01, `got ${p1.effective_margin_pct}, expected ~${expected}`)
+})
+
+test('effective_margin_pct fallback — strategic 미설정 시 sell_price_krw 기반으로 계산', () => {
+  const raw = b200Raw()
+  const cat = buildCatalog(raw)
+  const p1 = cat.products.find((p) => p.id === 'p1')!
+  // sell_price_krw = round(3.24 × 1.18 × 1400) = round(5348.16) = 5348
+  // cost_krw = 3.24 × 1400 = 4536
+  // expected_margin = (5348 - 4536) / 4536 × 100 ≈ 17.9% (≈ 18% 마진과 일치)
+  assert.ok(p1.effective_margin_pct != null)
+  assert.ok(Math.abs(p1.effective_margin_pct! - 18) < 1, `expected ~18, got ${p1.effective_margin_pct}`)
+})
+
+test('market_deviation_pct, market_median_krw — buildCatalog에서 null 초기화', () => {
+  const cat = buildCatalog(b200Raw())
+  for (const p of cat.products) {
+    assert.equal(p.market_deviation_pct, null)
+    assert.equal(p.market_median_krw, null)
+  }
+})
+
+test('strategic_price_krw 컬럼 없는 환경(undefined) — 기존 sell_price_krw 불변', () => {
+  const raw = b200Raw()
+  // strategic_price_krw 필드 자체가 undefined인 경우 (컬럼 미존재 환경)
+  // b200Raw()의 products에는 strategic_price_krw 없음 → undefined → null 처리 확인
+  const cat = buildCatalog(raw)
+  const p1 = cat.products.find((p) => p.id === 'p1')!
+  // 기존 동작 불변 확인
+  assert.equal(p1.effective_unit_price_usd, 3.24)
+  assert.equal(p1.sell_price_krw, Math.round(3.24 * 1.18 * 1400))
+  assert.equal(p1.is_strategic_set, false)
+  assert.equal(p1.strategic_price_krw, null)
+})

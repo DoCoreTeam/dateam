@@ -59,6 +59,10 @@ export async function GET() {
       selected_supplier: p.selected_supplier,
       fallback_reason: p.fallback_reason,
       pending_count: pendingCountMap.get(p.id) ?? 0,
+      // 전략가 (콕핏 통합 — catalog에서 strategic_krw 우선 표시용)
+      strategic_price_krw: p.strategic_price_krw,
+      strategic_krw: p.strategic_krw,
+      is_strategic_set: p.is_strategic_set,
     }))
 
     return NextResponse.json({

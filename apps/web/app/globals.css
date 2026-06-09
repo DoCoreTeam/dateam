@@ -112,6 +112,9 @@
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
+  /* ── 가독성 토큰 — 금액 표시 전용 (콕핏·가격표) ── */
+  --fs-price: clamp(1.125rem, 1rem + 0.3vw, 1.25rem); /* ≥18px */
+  --fs-price-sub: 0.75rem;                              /* 12px 보조 */
   /* ── z-index 계층 ── */
   --z-base: 1;
   --z-dropdown: 40;
@@ -4202,4 +4205,314 @@ label.intake-tool-btn {
   .gpu-form-grid-2 { grid-template-columns: 1fr; }
   .gpu-form-grid-3 { grid-template-columns: 1fr 1fr; }
   .gpu-modal-card--lg { width: 100%; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   가격 콕핏 공용 클래스 (SSOT — PriceCockpitTab 전용)
+   인라인 style 금지. 모든 시각 처리는 이 클래스 사용.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 콕핏 래퍼 */
+.price-cockpit-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+}
+
+/* 콕핏 테이블 */
+.price-cockpit-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.price-cockpit-table th {
+  font-size: var(--fs-2xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: var(--space-2) var(--space-3);
+  text-align: right;
+  border-bottom: var(--hairline) solid var(--gpu-border);
+  white-space: nowrap;
+}
+.price-cockpit-table th:first-child { text-align: left; }
+.price-cockpit-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--hairline) solid var(--gpu-border);
+  vertical-align: middle;
+  text-align: right;
+}
+.price-cockpit-table td:first-child { text-align: left; }
+.price-cockpit-table tbody tr:hover { background: var(--gpu-bg); }
+
+/* 금액 셀 — 콕핏 메인 금액 (--fs-price 토큰 사용 필수) */
+.cockpit-price {
+  font-size: var(--fs-price);
+  font-weight: var(--font-weight-bold);
+  font-family: 'ui-monospace', 'SFMono-Regular', monospace;
+  color: var(--text);
+  line-height: 1.2;
+}
+.cockpit-price--auto {
+  font-size: var(--fs-price);
+  font-weight: var(--font-weight-normal);
+  font-family: 'ui-monospace', 'SFMono-Regular', monospace;
+  color: var(--text-faint);
+  line-height: 1.2;
+}
+.cockpit-price--strategic {
+  font-size: var(--fs-price);
+  font-weight: var(--font-weight-bold);
+  font-family: 'ui-monospace', 'SFMono-Regular', monospace;
+  color: var(--brand);
+  line-height: 1.2;
+}
+.cockpit-price-sub {
+  font-size: var(--fs-price-sub);
+  color: var(--text-faint);
+  font-family: 'ui-monospace', 'SFMono-Regular', monospace;
+  margin-top: 1px;
+}
+
+/* 모델 셀 */
+.cockpit-model-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.cockpit-model-name {
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text);
+}
+.cockpit-model-sub {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+/* 전략가 편집 셀 */
+.cockpit-strategic-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  min-height: 44px; /* 터치 최소 영역 */
+}
+/* 에러 힌트는 셀 전체 너비로 새 줄에 표시 */
+.cockpit-strategic-cell .cockpit-error-hint {
+  flex-basis: 100%;
+  text-align: right;
+  margin-top: 0;
+}
+.cockpit-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius);
+  border: var(--hairline) solid var(--gpu-border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.cockpit-edit-btn:hover {
+  color: var(--brand);
+  background: var(--brand-soft);
+  border-color: var(--brand);
+}
+.cockpit-edit-btn:focus-visible {
+  outline: var(--border-w) solid var(--brand);
+  outline-offset: 2px;
+}
+.cockpit-edit-btn:active { opacity: 0.7; }
+
+/* 인라인 편집 입력 */
+.cockpit-inline-input {
+  width: 120px;
+  font-size: var(--fs-sm);
+  font-family: 'ui-monospace', 'SFMono-Regular', monospace;
+  font-weight: var(--font-weight-medium);
+  color: var(--text);
+  background: var(--surface-bg);
+  border: var(--hairline) solid var(--brand);
+  border-radius: var(--radius);
+  padding: var(--space-1) var(--space-2);
+  text-align: right;
+  outline: none;
+}
+.cockpit-inline-input:focus {
+  box-shadow: 0 0 0 2px var(--brand-soft);
+}
+
+/* 저장/취소 버튼 세트 */
+.cockpit-inline-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* 시그널 뱃지 — marginSignal 3색 */
+.cockpit-signal {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-2xs);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius);
+  padding: 2px var(--space-2);
+  white-space: nowrap;
+}
+.cockpit-signal--danger {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+.cockpit-signal--warn {
+  color: var(--warning);
+  background: var(--warning-bg);
+}
+.cockpit-signal--ok {
+  color: var(--success);
+  background: var(--success-bg);
+}
+.cockpit-signal--over {
+  color: var(--info);
+  background: var(--info-bg);
+}
+/* 시장 편차 시그널 */
+.cockpit-signal--expensive {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+.cockpit-signal--cheap {
+  color: var(--success);
+  background: var(--success-bg);
+}
+
+/* 행 펼침 드로어 */
+.cockpit-drawer {
+  border-top: none;
+}
+.cockpit-drawer-inner {
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-bg);
+  border-bottom: var(--hairline) solid var(--gpu-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+.cockpit-drawer-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 140px;
+}
+.cockpit-drawer-label {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: var(--font-weight-semibold);
+}
+.cockpit-drawer-value {
+  font-size: var(--fs-sm);
+  font-family: 'ui-monospace', 'SFMono-Regular', monospace;
+  font-weight: var(--font-weight-medium);
+  color: var(--text);
+}
+
+/* 펼침 토글 버튼 */
+.cockpit-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: color 0.15s, transform 0.2s;
+  padding: 0;
+}
+.cockpit-expand-btn--open { transform: rotate(90deg); }
+.cockpit-expand-btn:hover { color: var(--text); }
+
+/* 행 클릭 가능 상태 */
+.cockpit-row { cursor: pointer; }
+.cockpit-row:hover td { background: var(--gpu-bg); }
+
+/* 모델 셀 내부 레이아웃 */
+.cockpit-model-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* 드로어 td — 내부 padding 제거 */
+.cockpit-drawer-td { padding: 0; }
+
+/* th left 정렬 */
+.cockpit-th-left { text-align: left; }
+
+/* 저장중 점 */
+.cockpit-saving-dot { font-size: var(--fs-2xs); }
+
+/* 에러 힌트 */
+.cockpit-error-hint {
+  color: var(--danger);
+  font-size: var(--fs-xs);
+  margin-top: var(--space-1);
+}
+
+/* 전략가 이력 목록 */
+.cockpit-drawer-group--history {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  width: 100%;
+}
+.cockpit-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.cockpit-history-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+.cockpit-history-ts {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cockpit-history-actor {
+  font-weight: 600;
+  color: var(--text);
+}
+.cockpit-history-change {
+  font-family: monospace;
+  color: var(--text);
+}
+.cockpit-history-reason {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* 반응형 — 모바일 card 패턴 */
+@media (max-width: 767px) {
+  .price-cockpit-wrap { padding: var(--space-3) 0; }
+  .cockpit-strategic-cell { justify-content: flex-start; flex-wrap: wrap; }
+  .cockpit-inline-input { width: 100px; }
 }

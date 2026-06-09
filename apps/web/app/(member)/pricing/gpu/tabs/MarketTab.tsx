@@ -7,6 +7,7 @@ import { fetcher } from '@/lib/swr-config'
 import { RefreshCw, TrendingUp, AlertTriangle, Plus, X, BarChart2, Target, FileText, ArrowUpDown, ArrowUp, ArrowDown, Pencil } from 'lucide-react'
 import { formatSpec } from '@/lib/gpu/format-spec'
 import { SupplierBadge } from '@/components/gpu/SupplierBadge'
+import { fmtKRW, fmtUSD } from '@/lib/gpu/format-price'
 import dynamic from 'next/dynamic'
 import type { MarketPriceForEdit } from '@/components/pricing/gpu/MarketPriceEditModal'
 
@@ -120,8 +121,8 @@ interface RefreshResult {
 function makeFmt(mode: CurrencyMode, usdKrw: number) {
   return (usd: number) =>
     mode === 'KRW'
-      ? `₩${Math.round(usd * usdKrw).toLocaleString('ko-KR')}`
-      : `$${usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      ? fmtKRW(Math.round(usd * usdKrw))
+      : fmtUSD(usd)
 }
 
 const PRICING_MODEL_LABEL: Record<string, string> = {

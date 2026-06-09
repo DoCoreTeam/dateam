@@ -7,6 +7,7 @@ import { Plus, X, Globe, Trash2, Save, ExternalLink, Sparkles, ChevronRight, Pen
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { countryFlag } from '@/lib/gpu/country-flag'
 import { useEscClose } from '@/lib/use-esc-close'
+import { fmtUSD } from '@/lib/gpu/format-price'
 
 interface SupplierStats {
   id: string
@@ -54,7 +55,7 @@ const STATUS_LABEL: Record<string, { t: string; c: string }> = {
   rejected: { t: '반려', c: 'var(--gpu-faint)' },
   expired: { t: '만료', c: 'var(--gpu-red)' },
 }
-const fmtUSD = (v: number) => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+// fmtUSD → SSOT import (lib/gpu/format-price)
 
 // 공급사 로고 — logo_url 있으면 이미지, 실패/없음 시 글자 아바타로 폴백
 function LogoAvatar({ name, color, logoUrl, size = 40 }: { name: string; color: string; logoUrl?: string | null; size?: number }) {

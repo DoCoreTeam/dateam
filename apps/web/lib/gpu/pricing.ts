@@ -55,6 +55,23 @@ export interface CatalogProduct {
   // 판매가 (effective × 마진)
   sell_price_usd: number | null
   sell_price_krw: number | null
+  // ── 콕핏 파생 필드 ─────────────────────────────────────────────────────────
+  /** DB 원본 전략가(KRW). null = 미설정. */
+  strategic_price_krw: number | null
+  /** 실제 사용할 전략가: strategic_price_krw ?? sell_price_krw (자동마진가 fallback) */
+  strategic_krw: number | null
+  /** strategic_price_krw가 명시적으로 설정되어 있으면 true */
+  is_strategic_set: boolean
+  /** (strategic_krw - cost_krw) / cost_krw × 100. cost_krw = effective_unit_price_usd × fx. */
+  effective_margin_pct: number | null
+  /**
+   * 시장 중앙값 대비 편차%. 콕핏 API/컴포넌트에서 market route 병합 후 채워진다.
+   * buildCatalog 내에서는 시장 데이터를 알 수 없으므로 null로 초기화.
+   */
+  market_deviation_pct: number | null
+  /** 시장 중앙값(USD). 콕핏 API/컴포넌트에서 병합. */
+  market_median_krw: number | null
+  // ────────────────────────────────────────────────────────────────────────────
   // 기준 공급가 선정 경로
   basis: 'selected' | 'auto' | 'fallback' | 'list' | 'none'
   selected_supplier: { name: string; color: string } | null
@@ -99,6 +116,8 @@ export interface CatalogRawData {
     id: string; model_name: string; memory: string | null; tier: 1 | 2 | 3
     pricing_mode: 'quote' | 'direct'; gpu_count: number; vcpu: number | null
     ram_gb: number | null; storage_gb: number | null; series: string | null
+    /** 마이그레이션 080에서 신설. 컬럼 미존재 환경 대비 옵셔널. */
+    strategic_price_krw?: number | null
   }>
   quotes: ConfirmedQuote[]
   suppliers: SupplierLite[]
@@ -117,7 +136,9 @@ export interface CatalogRawData {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getGpuCatalog(db: any): Promise<GpuCatalog> {
   const [productsRes, quotesRes, suppliersRes, directRes, settingsRes, fxRes] = await Promise.all([
-    db.from('gpu_products').select('*').is('deleted_at', null).order('tier').order('model_name'),
+    db.from('gpu_products')
+      .select('id, model_name, memory, tier, pricing_mode, gpu_count, vcpu, ram_gb, storage_gb, series, strategic_price_krw')
+      .is('deleted_at', null).order('tier').order('model_name'),
     // 확정·유효 견적 전체 (v_lowest_quotes는 구성별 최저만 → 전파 위해 원천 견적 직접 사용)
     // deleted_at IS NULL: 소프트삭제된 견적은 카탈로그 계산에서 제외
     db
@@ -261,6 +282,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
       id: string; model_name: string; memory: string | null; tier: 1 | 2 | 3
       pricing_mode: 'quote' | 'direct'; gpu_count: number; vcpu: number | null
       ram_gb: number | null; storage_gb: number | null; series: string | null
+      strategic_price_krw?: number | null
     }) => {
       const mk = modelKeyOf(p)
       const count = Math.max(1, Number(p.gpu_count) || 1)
@@ -268,6 +290,9 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
       if (p.pricing_mode === 'direct') {
         const direct = directMap.get(p.id)
         const sellKrw = direct ? direct.sell_price_krw : null
+        const rawStrategicKrw = p.strategic_price_krw != null ? Number(p.strategic_price_krw) : null
+        const strategicKrw = rawStrategicKrw ?? sellKrw
+        // direct 상품은 effective_unit_price_usd=null → effective_margin_pct 산출 불가
         return {
           ...p,
           gpu_count: count,
@@ -276,6 +301,12 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
           is_propagated: false,
           sell_price_usd: sellKrw != null ? sellKrw / usdKrw : null,
           sell_price_krw: sellKrw,
+          strategic_price_krw: rawStrategicKrw,
+          strategic_krw: strategicKrw,
+          is_strategic_set: rawStrategicKrw != null,
+          effective_margin_pct: null,
+          market_deviation_pct: null,
+          market_median_krw: null,
           basis: 'none' as const,
           selected_supplier: null,
           fallback_reason: null,
@@ -350,6 +381,20 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
           if (perCard != null) { sellUsd = Math.round(perCard * count * PER_GPU_DP) / PER_GPU_DP; basis = 'list' }
         }
       }
+      const sellKrw = sellUsd != null ? Math.round(sellUsd * usdKrw) : null
+      const rawStrategicKrw = p.strategic_price_krw != null ? Number(p.strategic_price_krw) : null
+      const strategicKrw = rawStrategicKrw ?? sellKrw
+
+      // effective_margin_pct = (strategic_krw - cost_krw) / cost_krw × 100
+      // cost_krw = effective_unit_price_usd × usd_krw
+      let effectiveMarginPct: number | null = null
+      if (effective != null && strategicKrw != null) {
+        const costKrw = effective * usdKrw
+        if (costKrw > 0) {
+          effectiveMarginPct = ((strategicKrw - costKrw) / costKrw) * 100
+        }
+      }
+
       return {
         ...p,
         gpu_count: count,
@@ -363,7 +408,13 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
         effective_supplier: effectiveSupplier,
         is_propagated: isPropagated,
         sell_price_usd: sellUsd,
-        sell_price_krw: sellUsd != null ? Math.round(sellUsd * usdKrw) : null,
+        sell_price_krw: sellKrw,
+        strategic_price_krw: rawStrategicKrw,
+        strategic_krw: strategicKrw,
+        is_strategic_set: rawStrategicKrw != null,
+        effective_margin_pct: effectiveMarginPct,
+        market_deviation_pct: null,
+        market_median_krw: null,
         basis,
         selected_supplier: selectedSupplier,
         fallback_reason: fallbackReason,

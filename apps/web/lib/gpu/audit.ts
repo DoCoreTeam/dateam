@@ -33,6 +33,7 @@ export type GpuActionType =
   | 'product_deleted'
   | 'market_price_updated'
   | 'market_price_deleted'
+  | 'strategic_price_set'
 
 export interface RecordGpuAuditParams {
   actor: string
@@ -58,7 +59,8 @@ export async function recordGpuAudit(db: any, params: RecordGpuAuditParams): Pro
       detail: params.detail ?? {},
       evidence_ref: params.evidenceRef ?? null,
     })
-  } catch {
+  } catch (err) {
     // 감사 로그 실패는 비치명적 — 주 작업 흐름을 중단하지 않음
+    console.error('[gpu/audit] recordGpuAudit failed', err)
   }
 }

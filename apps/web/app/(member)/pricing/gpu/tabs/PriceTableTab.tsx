@@ -7,6 +7,7 @@ import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { ChevronRight, Plus, Zap, Info, ArrowUpDown, ArrowUp, ArrowDown, Tag, X, Trash2, Pencil } from 'lucide-react'
 import { formatSpec, scaleSpec } from '@/lib/gpu/format-spec'
 import { STANDARD_LADDER } from '@/lib/gpu/config-ladder'
+import { fmtKRW, fmtUSD } from '@/lib/gpu/format-price'
 import dynamic from 'next/dynamic'
 
 const ProductAddModal = dynamic(() => import('@/components/pricing/gpu/ProductAddModal'), { ssr: false })
@@ -87,8 +88,6 @@ const TIER_CONFIG = {
   3: { label: 'Tier 3', name: '간헐 공급',   badge: 'gpu-badge-t3', chipColor: 'var(--warning)' },
 }
 
-const fmtUSD = (v: number) => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const fmtKRW = (v: number) => '₩' + Math.round(v).toLocaleString('ko-KR')
 const fmtDday = (dateStr: string) => {
   const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000)
   if (diff < 0) return { label: '만료', color: 'var(--gpu-red)' }
@@ -185,7 +184,7 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
   return (
     <div className="gpu-expand-body">
       <div className="gpu-expand-head">
-        <Info size={13} /> 공급원가 비교 (낮은 순) · 한 건을 <strong>기준</strong>으로 선택하면 그 가격이 고객 판매가 기준이 됩니다 · 미선택 시 자동 최저가
+        <Info size={13} /> 공급원가 비교 (낮은 순)
       </div>
       {costQuotes.map((q, i) => {
         const sellKrw = q.unit_price_usd * (1 + marginPct / 100) * usdKrw
@@ -716,7 +715,6 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
           </div>
           <div>
             <strong>gcube 판매 마진</strong>
-            <div className="gpu-mb-eq">최저 공급원가 × (1 + 마진) = 판매가</div>
           </div>
         </div>
         <div className="gpu-mb-ctrl">
@@ -742,13 +740,6 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
           </div>
           {marginSaving && <span style={{ fontSize: '11px', color: 'var(--gpu-muted)' }}>저장 중…</span>}
         </div>
-      </div>
-
-      {/* Tier 안내 (설명 제거 — Tier 등급만) */}
-      <div className="gpu-tier-legend">
-        <span className="gpu-tier-legend-note">
-          <Info size={13} /> 최저가는 동일 모델·tier 안에서만 비교
-        </span>
       </div>
 
       </div>{/* end 고정 헤더 */}
@@ -1017,9 +1008,6 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
             })()}
           </tbody>
         </table>
-      </div>
-      <div className="gpu-empty-hint">
-        행을 클릭하면 해당 모델의 <strong>전체 공급사 견적</strong>이 펼쳐지며, 각 견적의 근거자료를 바로 확인할 수 있습니다
       </div>
       </div>{/* end 스크롤 영역 */}
       {showTierMgr && <PartnerTierManagerModal tiers={partnerTiers} onClose={() => setShowTierMgr(false)} onChanged={() => mutatePartner()} />}

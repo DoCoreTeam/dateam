@@ -9,6 +9,7 @@ import { Download, Plus } from 'lucide-react'
 import Link from 'next/link'
 
 const PriceTableTab = dynamic(() => import('./tabs/PriceTableTab'), { ssr: false })
+const PriceCockpitTab = dynamic(() => import('./tabs/PriceCockpitTab'), { ssr: false })
 const ReviewTab = dynamic(() => import('./tabs/ReviewTab'), { ssr: false })
 const SuppliersTab = dynamic(() => import('./tabs/SuppliersTab'), { ssr: false })
 const HistoryTab = dynamic(() => import('./tabs/HistoryTab'), { ssr: false })
@@ -18,7 +19,7 @@ const MarketTab = dynamic(() => import('./tabs/MarketTab'), { ssr: false })
 const SpecsTab = dynamic(() => import('./tabs/SpecsTab'), { ssr: false })
 const SalePriceCatalogPage = dynamic(() => import('../catalog/page'), { ssr: false })
 
-type MainTabId = 'board' | 'market' | 'inventory' | 'catalog'
+type MainTabId = 'board' | 'cockpit' | 'market' | 'inventory' | 'catalog'
 type SecondaryTabId = 'review' | 'suppliers' | 'specs' | 'log'
 type TabId = MainTabId | SecondaryTabId
 
@@ -37,6 +38,11 @@ const MAIN_TABS: { id: MainTabId; label: string; icon: React.ReactNode }[] = [
     id: 'board',
     label: '가격표',
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="8"/><rect x="12" y="6" width="3" height="12"/><rect x="17" y="13" width="3" height="5"/></svg>,
+  },
+  {
+    id: 'cockpit',
+    label: '가격 결정',
+    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>,
   },
   {
     id: 'market',
@@ -61,7 +67,7 @@ interface InitialSettings {
   fx_date: string | null
 }
 
-export default function GpuPricingClient({ initialSettings }: { initialSettings?: InitialSettings }) {
+export default function GpuPricingClient({ initialSettings, isAdmin = false }: { initialSettings?: InitialSettings; isAdmin?: boolean }) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabId>('board')
   const [showAiPanel, setShowAiPanel] = useState(false)
@@ -87,7 +93,7 @@ export default function GpuPricingClient({ initialSettings }: { initialSettings?
   // ── 뷰 상태 영속 (URL 파라미터 + sessionStorage) ──
   // 탭 이동·다른 메뉴 갔다 와도 마지막 보던 화면(탭/검색/펼친 가격)을 복원.
   const viewRestored = useRef(false)
-  const VALID_TABS = ['board', 'market', 'inventory', 'catalog', 'review', 'suppliers', 'specs', 'log']
+  const VALID_TABS = ['board', 'cockpit', 'market', 'inventory', 'catalog', 'review', 'suppliers', 'specs', 'log']
 
   // 최초 진입: URL(우선) → sessionStorage 순으로 탭 복원
   useEffect(() => {
@@ -138,7 +144,7 @@ export default function GpuPricingClient({ initialSettings }: { initialSettings?
   }, [fxDate, mutateSettings])
 
   const isMainTab = (tab: TabId): tab is MainTabId =>
-    ['board', 'market', 'inventory', 'catalog'].includes(tab)
+    ['board', 'cockpit', 'market', 'inventory', 'catalog'].includes(tab)
 
   return (
     <div className="page-inner gpu-pricing-root">
@@ -305,6 +311,13 @@ export default function GpuPricingClient({ initialSettings }: { initialSettings?
                   <DbChatTab />
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+        {activeTab === 'cockpit' && (
+          <div style={{ height: '100%', overflowY: 'auto' }}>
+            <div className="page-inner">
+              <PriceCockpitTab isAdmin={isAdmin} />
             </div>
           </div>
         )}

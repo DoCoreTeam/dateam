@@ -1,0 +1,411 @@
+<html lang="en" vid="0"><head vid="1">
+    <meta charset="UTF-8" vid="2">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" vid="3">
+    <title vid="4">Monochrome Infrastructure Dashboard</title>
+    <script src="https://cdn.tailwindcss.com/3.4.17" vid="5"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" vid="6">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" vid="7">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet" vid="8">
+    <script vid="9">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        system: {
+                            black: '#111111',
+                            dark: '#1A1A1A',
+                            border: '#E5E5E5',
+                            light: '#F8F8F8',
+                            accent: '#FF3333',
+                            ok: '#00CC66'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style vid="10">
+        body {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #E5E5E5;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #111111;
+        }
+        ::selection {
+            background: #111111;
+            color: #FFFFFF;
+        }
+    </style>
+</head>
+<body class="bg-white text-system-black h-screen w-full flex overflow-hidden font-sans" vid="11">
+
+    
+    <aside class="w-[280px] bg-system-black text-white flex flex-col h-full shrink-0 relative z-20" vid="12">
+        
+        <div class="p-8 border-b border-[#222]" vid="13">
+            <div class="text-[10px] tracking-[0.25em] text-gray-500 mb-2 uppercase" vid="14">Core_System</div>
+            <div class="font-mono text-sm tracking-tight text-gray-200" vid="15">DATA_ALLIANCE</div>
+            <div class="font-mono text-[10px] text-gray-500 mt-1" vid="16">v0.7.24 // BUILD_ACTIVE</div>
+        </div>
+
+        
+        <nav class="flex-1 py-8 overflow-y-auto" vid="17">
+            
+            <div class="mb-10" vid="18">
+                <div class="px-8 text-[10px] tracking-[0.2em] text-gray-500 mb-4 uppercase" vid="19">Workspace</div>
+                <ul class="space-y-1 font-mono text-xs" vid="20">
+                    <li vid="21">
+                        <a href="#" class="flex items-center px-8 py-2.5 bg-white text-system-black group" vid="22">
+                            <span class="mr-4 group-hover:translate-x-1 transition-transform" vid="23">-&gt;</span>
+                            <span class="tracking-tight" vid="24">Home_Dashboard</span>
+                        </a>
+                    </li>
+                    <li vid="25">
+                        <a href="#" class="flex items-center px-8 py-2.5 text-gray-400 hover:text-white group transition-colors" vid="26">
+                            <span class="mr-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" vid="27">-&gt;</span>
+                            <span class="tracking-tight" vid="28">Daily_Tasks</span>
+                        </a>
+                    </li>
+                    <li vid="29">
+                        <a href="#" class="flex items-center px-8 py-2.5 text-gray-400 hover:text-white group transition-colors" vid="30">
+                            <span class="mr-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" vid="31">-&gt;</span>
+                            <span class="tracking-tight" vid="32">Timeline</span>
+                        </a>
+                    </li>
+                    <li vid="33">
+                        <a href="#" class="flex items-center px-8 py-2.5 text-gray-400 hover:text-white group transition-colors" vid="34">
+                            <span class="mr-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" vid="35">-&gt;</span>
+                            <span class="tracking-tight" vid="36">Weekly_Reports</span>
+                        </a>
+                    </li>
+                    <li vid="37">
+                        <a href="#" class="flex items-center px-8 py-2.5 text-gray-400 hover:text-white group transition-colors" vid="38">
+                            <span class="mr-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" vid="39">-&gt;</span>
+                            <span class="tracking-tight" vid="40">Org_Structure</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            
+            <div class="mb-10" vid="41">
+                <div class="px-8 text-[10px] tracking-[0.2em] text-gray-500 mb-4 uppercase" vid="42">Infrastructure</div>
+                <ul class="space-y-1 font-mono text-xs" vid="43">
+                    <li vid="44">
+                        <a href="#" class="flex items-center px-8 py-2.5 text-gray-400 hover:text-white group transition-colors" vid="45">
+                            <span class="mr-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" vid="46">-&gt;</span>
+                            <span class="tracking-tight" vid="47">Project_Mgmt</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            
+            <div vid="48">
+                <div class="px-8 text-[10px] tracking-[0.2em] text-gray-500 mb-4 uppercase" vid="49">Resources</div>
+                <ul class="space-y-1 font-mono text-xs" vid="50">
+                    <li vid="51">
+                        <a href="#" class="flex items-center px-8 py-2.5 text-gray-400 hover:text-white group transition-colors" vid="52">
+                            <span class="mr-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" vid="53">-&gt;</span>
+                            <span class="tracking-tight" vid="54">GPU_Cluster</span>
+                        </a>
+                    </li>
+                    <li vid="55">
+                        <a href="#" class="flex items-center px-8 py-2.5 text-gray-400 hover:text-white group transition-colors" vid="56">
+                            <span class="mr-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" vid="57">-&gt;</span>
+                            <span class="tracking-tight" vid="58">Billing_Models</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        
+        <div class="p-8 border-t border-[#222] bg-system-dark" vid="59">
+            <div class="flex items-center gap-4" vid="60">
+                <div class="w-10 h-10 bg-white text-system-black flex items-center justify-center font-mono text-lg shrink-0" vid="61">
+                    K
+                </div>
+                <div class="overflow-hidden" vid="62">
+                    <div class="text-sm font-medium text-white truncate" vid="63">Kim Dohyun</div>
+                    <div class="text-[10px] tracking-widest text-gray-500 font-mono mt-0.5 truncate" vid="64">SYS_ADMIN@DATA-AL.COM</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    
+    <main class="flex-1 bg-white overflow-y-auto relative z-10" vid="65">
+        <div class="max-w-[1440px] mx-auto px-12 py-16 lg:px-20 lg:py-24" vid="66">
+
+            
+            <header class="mb-20 flex flex-col lg:flex-row lg:items-end justify-between gap-8 border-b border-system-border pb-12" vid="67">
+                <div class="max-w-2xl" vid="68">
+                    <div class="font-mono text-[10px] text-gray-400 tracking-[0.2em] mb-4 uppercase" vid="69">Session Active</div>
+                    <h1 class="text-5xl lg:text-6xl font-light tracking-tight text-system-black leading-tight mb-6 uppercase" vid="70">
+                        Greetings, <br vid="71">Dohyun.
+                    </h1>
+                    <p class="text-gray-500 text-sm leading-relaxed max-w-md" vid="72">
+                        Monitoring system operations, generative workflows, and resource allocation. Check active tasks and critical memos below.
+                    </p>
+                </div>
+                
+                
+                <div class="flex flex-wrap gap-3 font-mono text-xs" vid="73">
+                    <button class="px-5 py-2.5 border border-system-black text-system-black hover:bg-system-black hover:text-white transition-colors uppercase tracking-wider" vid="74">
+                        KPI_Data
+                    </button>
+                    <button class="px-5 py-2.5 border border-system-black text-system-black hover:bg-system-black hover:text-white transition-colors uppercase tracking-wider" vid="75">
+                        Routines
+                    </button>
+                    <button class="px-5 py-2.5 border border-system-black text-system-black hover:bg-system-black hover:text-white transition-colors uppercase tracking-wider bg-gray-50" vid="76">
+                        HQ_Ops
+                    </button>
+                </div>
+            </header>
+
+            
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-20" vid="77">
+
+                
+                <div class="lg:col-span-4 bg-system-light flex flex-col relative group h-[480px]" vid="78">
+                    <div class="p-8 flex-1 flex flex-col" vid="79">
+                        <div class="flex justify-between items-start mb-10" vid="80">
+                            <span class="text-[10px] tracking-[0.2em] text-gray-500 uppercase" vid="81">Workflow</span>
+                            <span class="font-mono text-gray-400 group-hover:text-system-black transition-colors" vid="82">↗</span>
+                        </div>
+                        <h2 class="text-2xl font-light mb-8" vid="83">Active Tasks</h2>
+
+                        
+                        <div class="mb-6" vid="84">
+                            <div class="flex gap-4 font-mono text-[10px] mb-4 text-gray-500" vid="85">
+                                <span class="text-system-black border-b border-system-black pb-1" vid="86">1 IN_PROGRESS</span>
+                                <span class="hover:text-system-black cursor-pointer pb-1" vid="87">11 PENDING</span>
+                                <span class="ml-auto" vid="88">TOTAL: 12</span>
+                            </div>
+                            <div class="relative mt-2" vid="89">
+                                <span class="absolute left-0 top-3 font-mono text-gray-400" vid="90">&gt;</span>
+                                <input type="text" placeholder="Enter task (Cmd+Enter)" class="w-full bg-transparent border-b border-gray-300 py-3 pl-6 text-sm focus:outline-none focus:border-system-black font-mono placeholder:text-gray-400 transition-colors rounded-none" vid="91">
+                            </div>
+                        </div>
+
+                        
+                        <ul class="space-y-5 flex-1 overflow-y-auto pr-2 mt-4" vid="92">
+                            <li class="flex gap-4 text-sm items-start" vid="93">
+                                <span class="font-mono text-[10px] px-1.5 py-0.5 bg-system-black text-white mt-0.5 shrink-0" vid="94">ACTV</span>
+                                <div class="leading-snug text-system-black" vid="95">GPU Pricing Sync (Spheron base)</div>
+                            </li>
+                            <li class="flex gap-4 text-sm items-start" vid="96">
+                                <span class="font-mono text-[10px] px-1.5 py-0.5 border border-system-black text-system-black mt-0.5 shrink-0" vid="97">PEND</span>
+                                <div class="leading-snug text-gray-600" vid="98">Exec board summary formatting</div>
+                            </li>
+                            <li class="flex gap-4 text-sm items-start" vid="99">
+                                <span class="font-mono text-[10px] px-1.5 py-0.5 border border-system-black text-system-black mt-0.5 shrink-0" vid="100">PEND</span>
+                                <div class="leading-snug text-gray-600" vid="101">Chungnam client solution definition</div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                
+                <div class="lg:col-span-4 bg-system-black text-white flex flex-col relative group h-[480px]" vid="102">
+                    <div class="p-8 flex-1 flex flex-col" vid="103">
+                        <div class="flex justify-between items-start mb-10" vid="104">
+                            <span class="text-[10px] tracking-[0.2em] text-gray-400 uppercase" vid="105">System_Alerts</span>
+                            <span class="font-mono text-gray-500 group-hover:text-white transition-colors" vid="106">↗</span>
+                        </div>
+                        
+                        <div vid="107">
+                            <h2 class="text-2xl font-light mb-2" vid="108">Unread Memos</h2>
+                            <p class="text-gray-400 text-xs mb-10 font-mono" vid="109">3 CRITICAL ITEMS PENDING</p>
+                        </div>
+
+                        
+                        <ul class="space-y-6 flex-1 overflow-y-auto" vid="110">
+                            <li class="relative pl-5 border-l border-[#333] hover:border-white transition-colors group/item cursor-pointer" vid="111">
+                                <div class="absolute -left-[3px] top-1.5 w-1.5 h-1.5 bg-system-accent rounded-none" vid="112"></div>
+                                <p class="text-sm text-gray-200 mb-2 leading-snug group-hover/item:text-white transition-colors" vid="113">Identify idle resources, if feasible process by Sept.</p>
+                                <div class="flex justify-between items-center" vid="114">
+                                    <span class="font-mono text-[10px] text-gray-500" vid="115">T-MINUS 6 DAYS</span>
+                                    <span class="font-mono text-[10px] text-gray-600 opacity-0 group-hover/item:opacity-100 transition-opacity" vid="116">[ACK]</span>
+                                </div>
+                            </li>
+                            <li class="relative pl-5 border-l border-[#333] hover:border-white transition-colors group/item cursor-pointer" vid="117">
+                                <div class="absolute -left-[3px] top-1.5 w-1.5 h-1.5 bg-system-accent rounded-none" vid="118"></div>
+                                <p class="text-sm text-gray-200 mb-2 leading-snug group-hover/item:text-white transition-colors" vid="119">Review cloud transition proposal for Biz selection.</p>
+                                <div class="flex justify-between items-center" vid="120">
+                                    <span class="font-mono text-[10px] text-gray-500" vid="121">T-MINUS 6 DAYS</span>
+                                    <span class="font-mono text-[10px] text-gray-600 opacity-0 group-hover/item:opacity-100 transition-opacity" vid="122">[ACK]</span>
+                                </div>
+                            </li>
+                            <li class="relative pl-5 border-l border-[#333] hover:border-white transition-colors group/item cursor-pointer" vid="123">
+                                <div class="absolute -left-[3px] top-1.5 w-1.5 h-1.5 bg-system-accent rounded-none" vid="124"></div>
+                                <p class="text-sm text-gray-200 mb-2 leading-snug group-hover/item:text-white transition-colors" vid="125">Check Pohang tech role and TP status.</p>
+                                <div class="flex justify-between items-center" vid="126">
+                                    <span class="font-mono text-[10px] text-gray-500" vid="127">T-MINUS 6 DAYS</span>
+                                    <span class="font-mono text-[10px] text-gray-600 opacity-0 group-hover/item:opacity-100 transition-opacity" vid="128">[ACK]</span>
+                                </div>
+                            </li>
+                        </ul>
+
+                        
+                        <div class="mt-6 pt-6 border-t border-[#333]" vid="129">
+                            <div class="font-mono text-[10px] text-gray-500 flex items-center" vid="130">
+                                <span class="mr-2 text-white" vid="131">&gt;</span> tail -n 3 /var/log/memos
+                                <span class="w-1.5 h-3 bg-white animate-pulse ml-1 inline-block align-middle" vid="132"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div class="lg:col-span-4 border border-system-border flex flex-col relative group h-[480px] bg-white" vid="133">
+                    <div class="p-8 flex-1 flex flex-col" vid="134">
+                        <div class="flex justify-between items-start mb-10" vid="135">
+                            <span class="text-[10px] tracking-[0.2em] text-gray-500 uppercase" vid="136">Analytics</span>
+                            <span class="font-mono text-gray-400 group-hover:text-system-black transition-colors" vid="137">↗</span>
+                        </div>
+                        <h2 class="text-2xl font-light mb-8" vid="138">Weekly Reports</h2>
+
+                        
+                        <ul class="flex-1 flex flex-col border-t border-system-border" vid="139">
+                            <li class="py-4 border-b border-system-border flex justify-between items-center group/row cursor-pointer" vid="140">
+                                <span class="font-mono text-xs text-system-black" vid="141">Wk_01_Jun</span>
+                                <span class="text-[10px] text-gray-500 uppercase tracking-widest group-hover/row:text-system-black transition-colors" vid="142">Service Plan</span>
+                            </li>
+                            <li class="py-4 border-b border-system-border flex justify-between items-center group/row cursor-pointer" vid="143">
+                                <span class="font-mono text-xs text-system-black" vid="144">Wk_01_Jun</span>
+                                <span class="text-[10px] text-gray-500 uppercase tracking-widest group-hover/row:text-system-black transition-colors" vid="145">Biz Mgmt</span>
+                            </li>
+                            <li class="py-4 border-b border-system-border flex justify-between items-center group/row cursor-pointer" vid="146">
+                                <span class="font-mono text-xs text-system-black" vid="147">Wk_01_Jun</span>
+                                <span class="text-[10px] text-gray-500 uppercase tracking-widest group-hover/row:text-system-black transition-colors" vid="148">Ext Collab</span>
+                            </li>
+                        </ul>
+
+                        
+                        <div class="mt-auto pt-8 flex justify-between items-end" vid="149">
+                            <div class="text-6xl font-light tracking-tighter leading-none" vid="150">03<span class="text-3xl text-gray-300 ml-1" vid="151">+</span></div>
+                            <div class="text-[10px] text-gray-400 max-w-[120px] text-right uppercase tracking-widest leading-relaxed" vid="152">
+                                Compiled docs this cycle.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            
+            <section class="border-t border-system-black pt-12 pb-20" vid="153">
+                <div class="flex justify-between items-end mb-12" vid="154">
+                    <div vid="155">
+                        <div class="font-mono text-[10px] text-gray-500 tracking-[0.2em] mb-2 uppercase" vid="156">Schedule</div>
+                        <h2 class="text-3xl font-light" vid="157">Timeline // 2026.06</h2>
+                    </div>
+                    <button class="font-mono text-[10px] text-system-black hover:bg-system-black hover:text-white border border-system-black px-4 py-2 transition-colors uppercase tracking-widest" vid="158">
+                        View_All ↗
+                    </button>
+                </div>
+
+                
+                <div class="w-full" vid="159">
+                    
+                    <div class="grid grid-cols-7 border-b-2 border-system-black pb-4 mb-8 font-mono text-xs tracking-[0.2em] text-center uppercase" vid="160">
+                        <div class="text-system-accent" vid="161">Sun</div>
+                        <div class="text-system-black" vid="162">Mon</div>
+                        <div class="text-system-black" vid="163">Tue</div>
+                        <div class="text-system-black" vid="164">Wed</div>
+                        <div class="text-system-black" vid="165">Thu</div>
+                        <div class="text-system-black" vid="166">Fri</div>
+                        <div class="text-blue-600" vid="167">Sat</div>
+                    </div>
+
+                    
+                    <div class="grid grid-cols-7 gap-y-12 text-center font-mono text-sm" vid="168">
+                        
+                        <div class="text-system-accent opacity-30" vid="169">31</div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="170">
+                            1
+                            <div class="absolute top-8 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-system-ok rounded-none" vid="171"></div>
+                        </div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="172">
+                            2
+                            <div class="absolute top-8 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-system-ok rounded-none" vid="173"></div>
+                        </div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="174">3</div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="175">
+                            4
+                            <div class="absolute top-8 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-system-ok rounded-none" vid="176"></div>
+                        </div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="177">
+                            5
+                            <div class="absolute top-8 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-system-ok rounded-none" vid="178"></div>
+                        </div>
+                        <div class="text-blue-600 hover:font-bold transition-all cursor-pointer" vid="179">6</div>
+
+                        
+                        <div class="text-system-accent hover:font-bold transition-all cursor-pointer" vid="180">7</div>
+                        
+                        <div class="relative flex justify-center items-center group cursor-pointer" vid="181">
+                            <div class="absolute w-12 h-12 bg-system-black text-white flex items-center justify-center z-10 transition-transform group-hover:scale-110" vid="182">
+                                8
+                            </div>
+                            <div class="absolute top-10 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-white rounded-none z-20" vid="183"></div>
+                        </div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="184">9</div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="185">10</div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="186">11</div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="187">12</div>
+                        <div class="text-blue-600 hover:font-bold transition-all cursor-pointer" vid="188">13</div>
+
+                        
+                        <div class="text-system-accent hover:font-bold transition-all cursor-pointer" vid="189">14</div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="190">15</div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="191">16</div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="192">17</div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="193">18</div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="194">19</div>
+                        <div class="text-blue-600 hover:font-bold transition-all cursor-pointer" vid="195">20</div>
+
+                        
+                        <div class="text-system-accent hover:font-bold transition-all cursor-pointer" vid="196">21</div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="197">22</div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="198">23</div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="199">24</div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="200">25</div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="201">26</div>
+                        <div class="text-blue-600 hover:font-bold transition-all cursor-pointer" vid="202">27</div>
+                        
+                        
+                        <div class="text-system-accent hover:font-bold transition-all cursor-pointer" vid="203">28</div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="204">29</div>
+                        <div class="relative group cursor-pointer hover:font-bold transition-all" vid="205">30</div>
+                        <div class="opacity-30" vid="206">1</div>
+                        <div class="opacity-30" vid="207">2</div>
+                        <div class="opacity-30" vid="208">3</div>
+                        <div class="text-blue-600 opacity-30" vid="209">4</div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+
+</body></html>
