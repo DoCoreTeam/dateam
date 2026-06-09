@@ -108,10 +108,10 @@ export async function GET() {
       productIds.length > 0
         ? await db
             .from('gpu_audit_logs')
-            .select('product_id, created_at, actor, detail')
+            .select('product_id, ts, actor, detail')
             .eq('action_type', 'strategic_price_set')
             .in('product_id', productIds)
-            .order('created_at', { ascending: false })
+            .order('ts', { ascending: false })
             // 전체 product × LIMIT 보다 크게 가져와 메모리에서 분배 (N+1 방지)
             .limit(productIds.length * STRATEGIC_HISTORY_LIMIT)
         : { data: [], error: null }
@@ -123,7 +123,7 @@ export async function GET() {
     for (const log of auditLogs ?? []) {
       const row = log as {
         product_id: string
-        created_at: string
+        ts: string
         actor: string
         detail: Record<string, unknown> | null
       }
@@ -134,7 +134,7 @@ export async function GET() {
       const after = detail.after as Record<string, unknown> | null
       const before = detail.before as Record<string, unknown> | null
       list.push({
-        ts: row.created_at,
+        ts: row.ts,
         actor: row.actor,
         before:
           before?.strategic_price_krw != null

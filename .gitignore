@@ -48,3 +48,4 @@ test-*.jpeg
 .playwright-mcp/
 theme-*.jpeg
 *.jpeg
+/cockpit-edit.yml
