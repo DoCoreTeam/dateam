@@ -7,7 +7,7 @@
 // F3: 셀 클릭 즉시 펼침 + 관장 화면 이동
 // F4: 디자인 토큰 전용 — 인라인 style 0, table-card 반응형
 
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import useSWR, { useSWRConfig } from 'swr'
 import { ChevronDown } from 'lucide-react'
@@ -22,6 +22,7 @@ import type {
   SortConfig,
   SortKey,
 } from '@/components/pricing/gpu/cockpit/types'
+import type { GcubeCheckItem } from '@/app/api/pricing/gpu/gcube-check/route'
 import { StrategicCell } from '@/components/pricing/gpu/cockpit/StrategicCell'
 import { GcubeSiteCell } from '@/components/pricing/gpu/cockpit/GcubeSiteCell'
 import { CandidateCell } from '@/components/pricing/gpu/cockpit/CandidateCell'
@@ -90,6 +91,8 @@ interface CockpitRowProps {
   onSelectCompetitor: (name: string) => void
   onSaved: () => void
   onGoToTab: (tab: string) => void
+  /** gcube-check API에서 병합된 이 product의 반영 상태 */
+  syncItem?: GcubeCheckItem
 }
 
 function CockpitRow({
@@ -101,6 +104,7 @@ function CockpitRow({
   onSelectCompetitor,
   onSaved,
   onGoToTab,
+  syncItem,
 }: CockpitRowProps) {
   // 폴백: 새 BE 필드 없을 때 기존 BE 필드 사용
   const costMin = p.cost_min_krw ?? p.cost_krw ?? null
@@ -147,6 +151,7 @@ function CockpitRow({
               product={patchedProduct}
               isAdmin={isAdmin}
               onSaved={onSaved}
+              syncItem={syncItem}
             />
             <ChevronDown
               size={12}
@@ -289,6 +294,7 @@ function CockpitRow({
               <GcubeDrawer
                 product={patchedProduct}
                 onGoToTab={onGoToTab}
+                syncItem={syncItem}
               />
             )}
             {expandSection === 'strategic' && (
@@ -318,6 +324,20 @@ export default function PriceCockpitTab({
     fetcher,
     { refreshInterval: 60000 },
   )
+  // gcube 반영 상태 — 에러여도 UI 차단 않음 (안전 폴백: undefined)
+  const { data: gcubeCheckData } = useSWR<{ items: GcubeCheckItem[] }>(
+    '/api/pricing/gpu/gcube-check',
+    fetcher,
+    { refreshInterval: 300_000 }, // 5분마다 갱신 (비교적 정적 데이터)
+  )
+  const gcubeSyncMap = useMemo<Map<string, GcubeCheckItem>>(() => {
+    const m = new Map<string, GcubeCheckItem>()
+    for (const item of gcubeCheckData?.items ?? []) {
+      m.set(item.product_id, item)
+    }
+    return m
+  }, [gcubeCheckData])
+
   const { mutate: globalMutate } = useSWRConfig()
   const { getParam, setParam } = useCockpitUrl()
 
@@ -645,6 +665,7 @@ export default function PriceCockpitTab({
                     onSelectCompetitor={setActiveCompetitor}
                     onSaved={handleSaved}
                     onGoToTab={goToTab}
+                    syncItem={gcubeSyncMap.get(p.id)}
                   />
                 )
               })}

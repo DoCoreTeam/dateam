@@ -4,11 +4,13 @@
 // 셀 클릭 즉시 펼침 드로어 섹션 4종:
 //   - CostDrawer: 원가 공급사별 상세
 //   - CompetitorDrawer: 경쟁사별 가격 비교
-//   - GcubeDrawer: gcube 사이트 가격 출처/갱신일
+//   - GcubeDrawer: gcube 사이트 가격 출처/갱신일 + gcube 반영 상태 비교
 //   - StrategicHistoryDrawer: 우리 판매가 변경이력
 
 import { fmtKRW } from '@/lib/gpu/format-price'
 import type { CockpitProduct } from './types'
+import type { GcubeCheckItem } from '@/app/api/pricing/gpu/gcube-check/route'
+import { GcubeSyncBadge } from './GcubeSyncBadge'
 
 // ── 공통: 탭 이동 콜백 prop ──────────────────────────────────────
 
@@ -178,10 +180,13 @@ export function CompetitorDrawer({
 
 interface GcubeDrawerProps extends NavProps {
   product: CockpitProduct
+  /** gcube-check API에서 병합된 반영 상태 아이템 */
+  syncItem?: GcubeCheckItem
 }
 
-export function GcubeDrawer({ product, onGoToTab }: GcubeDrawerProps) {
+export function GcubeDrawer({ product, onGoToTab, syncItem }: GcubeDrawerProps) {
   const { gcube_site_price_krw, gcube_site_updated_at } = product
+  const hasMismatch = syncItem?.status === 'mismatch'
 
   return (
     <div className="cockpit-section-drawer">
@@ -190,6 +195,7 @@ export function GcubeDrawer({ product, onGoToTab }: GcubeDrawerProps) {
         <span className="cockpit-drawer-desc">
           gcube.co.kr에 현재 표시 중인 판매 가격
         </span>
+        <GcubeSyncBadge item={syncItem} showDetail />
       </div>
 
       {gcube_site_price_krw == null ? (
@@ -198,6 +204,44 @@ export function GcubeDrawer({ product, onGoToTab }: GcubeDrawerProps) {
         <div className="cockpit-drawer-range-row">
           <span className="cockpit-drawer-range-label">사이트 가격</span>
           <span className="cockpit-price cockpit-price--gcube">{fmtKRW(gcube_site_price_krw)}</span>
+        </div>
+      )}
+
+      {/* gcube.ai 반영 비교 — 데이터 있는 경우만 */}
+      {syncItem && (syncItem.gcube_low_krw != null || syncItem.gcube_high_krw != null) && (
+        <div className="cockpit-gcube-sync-compare">
+          <div className="cockpit-drawer-range-row">
+            <span className="cockpit-drawer-range-label">gcube 범위</span>
+            <span className="cockpit-price">
+              {syncItem.gcube_low_krw != null ? fmtKRW(syncItem.gcube_low_krw) : '—'}
+              {syncItem.gcube_high_krw != null && syncItem.gcube_high_krw !== syncItem.gcube_low_krw && (
+                <> ~ {fmtKRW(syncItem.gcube_high_krw)}</>
+              )}
+            </span>
+          </div>
+          {syncItem.our_price_krw != null && (
+            <div className="cockpit-drawer-range-row">
+              <span className="cockpit-drawer-range-label">우리 판매가</span>
+              <span className="cockpit-price">{fmtKRW(syncItem.our_price_krw)}</span>
+            </div>
+          )}
+          {hasMismatch && (
+            <p className="cockpit-gcube-sync-notice">
+              우리 판매가가 gcube 범위와 맞지 않습니다 — 가격표에서 반영을 확인하세요.
+            </p>
+          )}
+          {syncItem.checked_at && (
+            <div className="cockpit-drawer-meta">
+              마지막 확인:{' '}
+              {new Date(syncItem.checked_at).toLocaleString('ko-KR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </div>
+          )}
         </div>
       )}
 

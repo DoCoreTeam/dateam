@@ -1,0 +1,49 @@
+name: gcube-price-check
+# gcube.ai 가격표 매일 자동 파싱 → Supabase gcube_price_checks 기록
+# GitHub Actions Secrets 등록 필요: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+
+on:
+  schedule:
+    # 매일 00:00 KST (= 전날 15:00 UTC)
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+    # 수동 실행: GitHub 저장소 > Actions > gcube-price-check > Run workflow
+
+# 동시 실행 방지(이전 실행이 10분 넘게 돌면 중복 차단)
+concurrency:
+  group: gcube-price-check
+  cancel-in-progress: false
+
+jobs:
+  price-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm 9.15.9
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: 의존성 설치 (전체 workspace)
+        run: pnpm install --frozen-lockfile
+
+      - name: Playwright Chromium 브라우저 설치
+        # @playwright/test가 apps/web에 설치되므로 해당 경로 바이너리 사용
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: gcube 가격 체크 실행
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        # 스크립트가 apps/web/scripts에 있어 apps/web/node_modules(@playwright/test·supabase-js)를 ESM 자연 해석
+        run: node scripts/gcube-price-check.mjs

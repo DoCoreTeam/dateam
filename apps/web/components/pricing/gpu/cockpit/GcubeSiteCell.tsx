@@ -1,21 +1,25 @@
 'use client'
 
 // components/pricing/gpu/cockpit/GcubeSiteCell.tsx
-// gcube 사이트 게시 가격 인라인 편집 셀
+// gcube 사이트 게시 가격 인라인 편집 셀 + gcube 반영 상태 뱃지
 // quotes PATCH (gcube_site_quote_id 기준)
 
 import { useState, useRef, useCallback } from 'react'
 import { Pencil, Check, X } from 'lucide-react'
 import { fmtKRW } from '@/lib/gpu/format-price'
 import type { CockpitProduct } from './types'
+import type { GcubeCheckItem } from '@/app/api/pricing/gpu/gcube-check/route'
+import { GcubeSyncBadge } from './GcubeSyncBadge'
 
 interface GcubeSiteCellProps {
   product: CockpitProduct
   isAdmin: boolean
   onSaved: () => void
+  /** gcube-check API에서 병합된 이 product의 반영 상태 */
+  syncItem?: GcubeCheckItem
 }
 
-export function GcubeSiteCell({ product, isAdmin, onSaved }: GcubeSiteCellProps) {
+export function GcubeSiteCell({ product, isAdmin, onSaved, syncItem }: GcubeSiteCellProps) {
   const [editing, setEditing] = useState(false)
   const [inputVal, setInputVal] = useState('')
   const [saving, setSaving] = useState(false)
@@ -88,6 +92,7 @@ export function GcubeSiteCell({ product, isAdmin, onSaved }: GcubeSiteCellProps)
         ) : (
           <span className="cockpit-price-sub">미등록</span>
         )}
+        <GcubeSyncBadge item={syncItem} />
       </div>
     )
   }
@@ -151,6 +156,7 @@ export function GcubeSiteCell({ product, isAdmin, onSaved }: GcubeSiteCellProps)
           <Pencil size={12} />
         </button>
       )}
+      <GcubeSyncBadge item={syncItem} />
     </div>
   )
 }

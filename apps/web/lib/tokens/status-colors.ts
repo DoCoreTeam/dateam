@@ -39,6 +39,31 @@ export const STATUS_LIST: ({ value: StatusKey } & StatusColor)[] = STATUS_KEYS.m
   (k) => ({ value: k, ...STATUS_COLORS[k] }),
 )
 
+// ── gcube 반영 상태 색 SSOT ──
+// gcube-check API status 값에 매핑.
+// 색 값은 globals.css var(--success/--warning/--text-faint/--danger) 토큰 사용 — 하드코딩 금지.
+export type GcubeSyncStatusKey = 'match' | 'mismatch' | 'not_found' | 'our_unset' | 'unknown'
+
+export interface GcubeSyncColor {
+  label: string
+  icon: string
+  cssClass: string // .cockpit-gcube-sync--{key}
+}
+
+/**
+ * gcube-check status → 뱃지 표시 정보 SSOT
+ * CSS 색은 globals.css .cockpit-gcube-sync--* 클래스로 관리 (토큰 var 사용)
+ */
+export const GCUBE_SYNC: Record<GcubeSyncStatusKey, GcubeSyncColor> = {
+  match:     { label: '반영됨',   icon: '✓', cssClass: 'cockpit-gcube-sync--match' },
+  mismatch:  { label: '불일치',   icon: '!', cssClass: 'cockpit-gcube-sync--mismatch' },
+  not_found: { label: 'gcube없음', icon: '?', cssClass: 'cockpit-gcube-sync--not-found' },
+  our_unset: { label: '미설정',   icon: '—', cssClass: 'cockpit-gcube-sync--unset' },
+  unknown:   { label: '미확인',   icon: '?', cssClass: 'cockpit-gcube-sync--unknown' },
+}
+
+export const GCUBE_SYNC_KEYS: GcubeSyncStatusKey[] = ['match', 'mismatch', 'not_found', 'our_unset', 'unknown']
+
 // ── 가격 시그널 색 SSOT ──
 // marginSignal / deviationSignal 결과값에 매핑되는 CSS 클래스명.
 // 색 값은 globals.css var(--danger/--warning/--success/--info) 토큰을 사용 — 하드코딩 금지.

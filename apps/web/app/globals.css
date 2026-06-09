@@ -4862,6 +4862,89 @@ label.intake-tool-btn {
   background: var(--brand-soft);
 }
 
+/* ── gcube 반영 상태 뱃지 ─────────────────────────────────────────── */
+
+/* GcubeSiteCell 내 flex-column 래퍼 — 가격 + 뱃지 세로 배치 */
+.cockpit-gcube-cell {
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.cockpit-gcube-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-2xs);
+  font-weight: var(--font-weight-semibold);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius);
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: default;
+  transition: opacity 0.15s;
+}
+.cockpit-gcube-sync-icon {
+  font-size: 0.65rem;
+  line-height: 1;
+  font-style: normal;
+}
+.cockpit-gcube-sync-label {
+  line-height: 1;
+}
+.cockpit-gcube-sync-ts {
+  font-size: var(--fs-2xs);
+  color: inherit;
+  opacity: 0.75;
+  margin-left: var(--space-1);
+}
+
+/* 상태별 색 — globals.css 토큰 사용, 하드코딩 금지 */
+.cockpit-gcube-sync--match {
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid var(--success-border);
+}
+.cockpit-gcube-sync--mismatch {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid var(--warning-border);
+}
+.cockpit-gcube-sync--not-found {
+  background: var(--surface-bg);
+  color: var(--text-faint);
+  border: 1px solid var(--border-light);
+}
+.cockpit-gcube-sync--unset {
+  background: var(--surface-bg);
+  color: var(--text-faint);
+  border: 1px solid var(--border-light);
+}
+.cockpit-gcube-sync--unknown {
+  background: var(--surface-bg);
+  color: var(--text-faint);
+  border: 1px solid var(--border-light);
+}
+
+/* 드로어 내 비교 구간 */
+.cockpit-gcube-sync-compare {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--gpu-bg);
+  border-radius: var(--radius);
+  border: var(--hairline) solid var(--gpu-border);
+}
+.cockpit-gcube-sync-notice {
+  font-size: var(--fs-xs);
+  color: var(--warning);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  margin: 0;
+}
+
 /* 반응형 v2 */
 @media (max-width: 767px) {
   .cockpit-toolbar { gap: var(--space-2); }
