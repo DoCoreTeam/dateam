@@ -53,12 +53,12 @@ export default function EditProfileModal({
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+      position: 'fixed', inset: 0, background: 'var(--modal-backdrop)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
     }}>
       <div style={{
-        background: '#fff', borderRadius: 'var(--radius)', width: '360px',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.15)', overflow: 'hidden',
+        background: 'var(--color-surface)', borderRadius: 'var(--radius)', width: '360px',
+        boxShadow: 'var(--shadow-modal)', overflow: 'hidden',
       }}>
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -94,7 +94,7 @@ export default function EditProfileModal({
               disabled={isPending}
               style={{
                 padding: 'var(--space-2) var(--space-3)', border: 'var(--hairline) solid var(--border-color)',
-                borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', background: '#fff', outline: 'none',
+                borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', background: 'var(--color-surface)', outline: 'none',
               }}
             >
               <option value="">— 직급 없음 —</option>
@@ -112,7 +112,7 @@ export default function EditProfileModal({
               disabled={isPending}
               style={{
                 padding: 'var(--space-2) var(--space-3)', border: 'var(--hairline) solid var(--border-color)',
-                borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', background: '#fff', outline: 'none',
+                borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', background: 'var(--color-surface)', outline: 'none',
               }}
             >
               <option value="">— 직책 없음 —</option>
@@ -143,7 +143,7 @@ export default function EditProfileModal({
             onClick={handleSubmit}
             disabled={isPending}
             style={{
-              padding: '0.45rem 1rem', background: 'var(--brand-dark)', color: '#fff',
+              padding: '0.45rem 1rem', background: 'var(--brand-dark)', color: 'var(--brand-fg)',
               border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)',
               cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1,
             }}

@@ -36,8 +36,9 @@
   /* 전경(글씨) 짝 — accent/brand 배경 위 가독 글씨색. 테마가 배경을 뒤집어도 짝으로 자동 대응 */
   --accent-fg: var(--ink);      /* 노랑 위 → 잉크 */
   --brand-fg: var(--nb-white);  /* 퍼플 위 → 흰색 */
-  /* 모달 backdrop 표준값 (§2-2) */
+  /* 모달 backdrop + 광원형 그림자 표준값 (§2-2) */
   --modal-backdrop: rgba(15, 23, 42, 0.5);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.2);
   --border-w: 3px;
   --border-w-2: 2px;
   --hairline: 1px;

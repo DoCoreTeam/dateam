@@ -44,7 +44,7 @@ export default function NbModal({
         style={{
           width: '100%', maxWidth, background: 'var(--color-surface)',
           borderRadius: 'var(--radius)', padding: 'var(--space-6)',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+          boxShadow: 'var(--shadow-modal)',
           maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box',
         }}
       >

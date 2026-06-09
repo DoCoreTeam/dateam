@@ -29,10 +29,10 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--modal-backdrop)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}
       onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()}
-        style={{ background: '#fff', borderRadius: 'var(--radius)', width: '380px', maxWidth: '92vw', boxShadow: '0 20px 40px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
+        style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius)', width: '380px', maxWidth: '92vw', boxShadow: 'var(--shadow-modal)', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-4) var(--space-5)', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
           <h3 className="tape-title" style={{ margin: 0 }}>
             <ArrowUpRight size={16} color="var(--brand-dark)" /> 메모를 업무로
@@ -52,7 +52,7 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
                   style={{
                     flex: 1, padding: 'var(--space-2)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.85rem',
                     border: newType === t ? 'var(--border-w-2) solid var(--brand-dark)' : 'var(--hairline) solid var(--border-color)',
-                    background: newType === t ? 'var(--brand-soft)' : '#fff',
+                    background: newType === t ? 'var(--brand-soft)' : 'var(--color-surface)',
                     color: newType === t ? 'var(--brand-dark)' : 'var(--text-muted)', fontWeight: newType === t ? 600 : 400,
                   }}>
                   {t === 'planned' ? '예정' : '진행중'}
@@ -73,7 +73,7 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
             <button onClick={onClose} disabled={isPending}
               style={{ padding: '0.45rem 1rem', background: 'var(--surface-muted)', color: 'var(--text-muted)', border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', cursor: 'pointer' }}>취소</button>
             <button onClick={handleSubmit} disabled={isPending}
-              style={{ padding: '0.45rem 1rem', background: 'var(--brand-dark)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1 }}>
+              style={{ padding: '0.45rem 1rem', background: 'var(--brand-dark)', color: 'var(--brand-fg)', border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1 }}>
               {isPending ? '전환 중…' : '업무로 전환'}
             </button>
           </div>

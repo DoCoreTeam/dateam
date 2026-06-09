@@ -90,7 +90,6 @@
   "apps/web/app/admin/settings/TokenAlertSettings.tsx::rawinput::input",
   "apps/web/app/admin/users/EditProfileModal.tsx::rawinput::input",
   "apps/web/app/admin/users/EditProfileModal.tsx::rawinput::select",
-  "apps/web/app/admin/users/EditProfileModal.tsx::rgba",
   "apps/web/app/admin/users/UserTable.tsx::rawinput::input",
   "apps/web/app/change-password/page.tsx::rawinput::input",
   "apps/web/app/change-password/page.tsx::rawinput::select",
@@ -127,7 +126,5 @@
   "apps/web/components/ui/SpotlightOnboarding.tsx::rgba",
   "apps/web/components/ui/TiptapEditor.tsx::rawinput::input",
   "apps/web/components/ui/WeeklyReportBannerButton.tsx::rgba",
-  "apps/web/components/ui/memo/MemoPromoteModal.tsx::rawinput::input",
-  "apps/web/components/ui/memo/MemoPromoteModal.tsx::rgba",
-  "apps/web/components/ui/nb/NbModal.tsx::rgba"
+  "apps/web/components/ui/memo/MemoPromoteModal.tsx::rawinput::input"
 ]
