@@ -447,7 +447,7 @@ export default function InventoryTab() {
   const tier3WithPool = inventory.filter((p) => p.tier === 3 && p.pool_qty != null && p.pool_qty > 0).length
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
       {/* ── 고정 헤더 ── */}
       <div style={{ flexShrink: 0 }}>
       {/* 요약 통계 */}

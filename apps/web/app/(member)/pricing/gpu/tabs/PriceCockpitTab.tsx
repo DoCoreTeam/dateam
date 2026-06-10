@@ -14,6 +14,7 @@ import { ChevronDown } from 'lucide-react'
 import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { fmtKRW } from '@/lib/gpu/format-price'
+import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
 
 import type {
   CockpitProduct,
@@ -132,9 +133,9 @@ function CockpitRow({
         <td className="card-header cockpit-th-left" data-label="모델·구성">
           <div className="cockpit-model-row">
             <div className="cockpit-model-cell">
-              <span className="cockpit-model-name">{p.model_name}</span>
+              <GpuModelName modelName={p.model_name} gpuCount={p.gpu_count} />
               <span className="cockpit-model-sub">
-                {p.memory} · ×{p.gpu_count}GPU · Tier {p.tier}
+                {p.memory} · Tier {p.tier}
               </span>
             </div>
           </div>
@@ -490,7 +491,8 @@ export default function PriceCockpitTab({
 
   return (
     <section className="price-cockpit-wrap" aria-label="가격 결정 콕핏">
-      {/* ── 툴바 ── */}
+      {/* ── 고정 툴바 영역 ── */}
+      <div className="price-cockpit-toolbar-area">
       <div className="cockpit-toolbar">
         {/* 검색 */}
         <div className="gpu-search">
@@ -541,6 +543,10 @@ export default function PriceCockpitTab({
           </button>
         </div>
       </div>
+      </div>{/* end 고정 툴바 영역 */}
+
+      {/* ── 스크롤 영역 (테이블만) ── */}
+      <div className="price-cockpit-scroll">
 
       {/* ── 빈 필터 결과 ── */}
       {sorted.length === 0 && (
@@ -549,7 +555,7 @@ export default function PriceCockpitTab({
 
       {/* ── 테이블 ── */}
       {sorted.length > 0 && (
-        <div className="gpu-panel">
+        <div className="price-cockpit-table-wrap">
           <table className="gpu-table table-base table-card price-cockpit-table">
             <thead>
               <tr>
@@ -678,6 +684,8 @@ export default function PriceCockpitTab({
           </table>
         </div>
       )}
+
+      </div>{/* end 스크롤 영역 */}
     </section>
   )
 }

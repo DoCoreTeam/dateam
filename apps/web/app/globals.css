@@ -2931,24 +2931,51 @@ label.intake-tool-btn {
   --gpu-radius: 6px; /* NB 정합 (13px→6px) */
 }
 
+/* GPU fullpane 호스트 모드 —
+ * GpuPricingClient mount 시 <main class="page-inner">에 이 클래스를 JS로 부착.
+ * GPU 페이지에서만 <main>의 스크롤·패딩을 억제하고 GPU root가 자체 높이를 점유.
+ * unmount 시 제거되므로 다른 페이지 회귀 없음. */
+.gpu-fullpane-main {
+  overflow: hidden !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
 .gpu-pricing-root {
   font-family: 'Pretendard', -apple-system, sans-serif;
   color: var(--gpu-ink);
-  height: 100%;
+  /* gpu-fullpane-main 내에서 부모 100% 점유 + 자체 내부 스크롤 체인 완성 */
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  /* gpu-fullpane-main이 padding:0으로 리셋하므로 root에서 직접 패딩 부여 */
+  padding: 1rem 2rem 0;
 }
 
 .gpu-tab-content {
   flex: 1;
-  overflow: hidden;
   min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
-
-/* topbar */
-.gpu-pricing-root.page-inner {
-  padding-top: 1rem;
-  padding-bottom: 0;
+/* gpu-tab-content 바로 자식 패널 — flex 높이 체인 연결.
+ * display:flex + flex-direction:column으로 자식에게도 height 체인 전달 가능 */
+.gpu-tab-panel {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+/* 탭 패널 내부 스크롤이 필요한 경우(cockpit·catalog·review 등) */
+.gpu-tab-panel--scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .gpu-topbar {
@@ -3372,6 +3399,10 @@ label.intake-tool-btn {
   background: var(--surface-bg);
   border-bottom: var(--hairline) solid var(--gpu-border);
   white-space: nowrap;
+  /* sticky thead — 스크롤 컨테이너 안에서 고정 */
+  position: sticky;
+  top: 0;
+  z-index: var(--z-base);
 }
 .gpu-table thead th.r { text-align: right; }
 .gpu-table tbody td {
@@ -3409,6 +3440,28 @@ label.intake-tool-btn {
 .gpu-chip span { font-size: 7px; opacity: 0.65; font-weight: 500; }
 .gpu-model-nm { font-weight: 600; font-size: 13.5px; }
 .gpu-model-meta { font-size: 11.5px; color: var(--gpu-muted); margin-top: 2px; display: flex; align-items: center; gap: 5px; }
+
+/* ── GPU 모델명 + ×N 구성 강조 (SSOT — 4탭 공용) ───────────────
+   .gpu-model-config: 모델명 옆 ×N GPU 구성 강조 배지.
+   인라인 style에 fontSize/fontWeight/color 하드코딩 금지 — 이 클래스로 통일.
+   ──────────────────────────────────────────────────────────── */
+.gpu-model-nm-wrap {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  flex-wrap: nowrap;
+}
+.gpu-model-config {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--brand);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: -0.01em;
+}
+.gpu-model-config--derived {
+  color: var(--gpu-accent);
+  opacity: 0.85;
+}
 
 /* price */
 .gpu-price-main {
@@ -4373,12 +4426,47 @@ label.intake-tool-btn {
    인라인 style 금지. 모든 시각 처리는 이 클래스 사용.
    ═══════════════════════════════════════════════════════════════ */
 
-/* 콕핏 래퍼 */
+/* 콕핏 래퍼 — 스크롤 컨테이너(고정 툴바 + 스크롤 테이블) */
 .price-cockpit-wrap {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-4) 0;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 콕핏 고정 툴바 영역 */
+.price-cockpit-toolbar-area {
+  flex-shrink: 0;
+  padding: var(--space-4) 0 0;
+}
+
+/* 콕핏 스크롤 영역 — 테이블만 스크롤 */
+.price-cockpit-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: var(--space-4);
+}
+
+/* 콕핏 테이블 래퍼 — gpu-panel과 달리 overflow:hidden 없음 (sticky thead 보장) */
+.price-cockpit-table-wrap {
+  background: var(--gpu-card);
+  border: var(--hairline) solid var(--gpu-border);
+  border-radius: var(--gpu-radius);
+}
+
+/* board(가격표) 테이블 래퍼 — 위와 동일 원칙 */
+.gpu-board-table-wrap {
+  background: var(--gpu-card);
+  border: var(--hairline) solid var(--gpu-border);
+  border-radius: var(--gpu-radius);
+  box-shadow: var(--gpu-shadow);
+}
+/* board 래퍼 안 thead th 배경: wrap 배경과 동일하게 */
+.gpu-board-table-wrap thead th {
+  background: var(--gpu-card);
 }
 
 /* 콕핏 테이블 */
@@ -4396,6 +4484,11 @@ label.intake-tool-btn {
   text-align: right;
   border-bottom: var(--hairline) solid var(--gpu-border);
   white-space: nowrap;
+  /* sticky thead — price-cockpit-scroll이 스크롤 컨테이너이므로 여기서 고정됨 */
+  position: sticky;
+  top: 0;
+  z-index: var(--z-base);
+  background: var(--gpu-card);
 }
 .price-cockpit-table th:first-child { text-align: left; }
 .price-cockpit-table td {

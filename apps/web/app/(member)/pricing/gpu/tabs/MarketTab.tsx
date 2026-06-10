@@ -10,6 +10,7 @@ import { SupplierBadge } from '@/components/gpu/SupplierBadge'
 import { fmtKRW, fmtUSD } from '@/lib/gpu/format-price'
 import dynamic from 'next/dynamic'
 import type { MarketPriceForEdit } from '@/components/pricing/gpu/MarketPriceEditModal'
+import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
 
 const MarketPriceEditModal = dynamic(() => import('@/components/pricing/gpu/MarketPriceEditModal'), { ssr: false })
 
@@ -1253,7 +1254,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
       {showRegister && mappings.length > 0 && (
         <PriceRegisterModal
           mappings={mappings}
@@ -1703,9 +1704,15 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                       </div>
                       <div>
                         <div className="gpu-model-nm">
-                          {p.product.model_name}
-                          {p.product.memory && !p.product.model_name.replace(/\s+/g, '').toLowerCase().includes(p.product.memory.toLowerCase()) && (
-                            <span style={{ fontSize: '11px', color: 'var(--gpu-muted)', fontWeight: 400, marginLeft: 5 }}>{p.product.memory}</span>
+                          {p.product.gpu_count != null && p.product.gpu_count > 0 ? (
+                            <GpuModelName modelName={p.product.model_name} gpuCount={p.product.gpu_count} />
+                          ) : (
+                            <>
+                              {p.product.model_name}
+                              {p.product.memory && !p.product.model_name.replace(/\s+/g, '').toLowerCase().includes(p.product.memory.toLowerCase()) && (
+                                <span style={{ fontSize: '11px', color: 'var(--gpu-muted)', fontWeight: 400, marginLeft: 5 }}>{p.product.memory}</span>
+                              )}
+                            </>
                           )}
                         </div>
                         <div className="gpu-model-meta">

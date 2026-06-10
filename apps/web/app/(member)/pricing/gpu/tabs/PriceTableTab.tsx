@@ -9,6 +9,7 @@ import { formatSpec, scaleSpec } from '@/lib/gpu/format-spec'
 import { STANDARD_LADDER } from '@/lib/gpu/config-ladder'
 import { fmtKRW, fmtUSD } from '@/lib/gpu/format-price'
 import dynamic from 'next/dynamic'
+import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
 
 const ProductAddModal = dynamic(() => import('@/components/pricing/gpu/ProductAddModal'), { ssr: false })
 const ProductEditModal = dynamic(() => import('@/components/pricing/gpu/ProductEditModal'), { ssr: false })
@@ -700,7 +701,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
       {/* ── 고정 헤더 영역 ── */}
       <div style={{ flexShrink: 0 }}>
       {/* 최저가 갱신 배너 */}
@@ -858,8 +859,8 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
 
       {/* ── 스크롤 영역 (리스트만) ── */}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-      {/* 가격표 */}
-      <div className="gpu-panel">
+      {/* 가격표 — gpu-board-table-wrap: gpu-panel 스타일이되 overflow:hidden 없음(sticky thead 보장) */}
+      <div className="gpu-board-table-wrap">
         <table className="gpu-table">
           <thead>
             <tr>
@@ -953,8 +954,9 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                         <span>{p.memory}</span>
                       </div>
                       <div>
-                        <div className="gpu-model-nm">{p.model_name} <span style={{ fontSize: '11px', color: 'var(--gpu-muted)', fontWeight: 400 }}>×{p.gpu_count}GPU</span>
-                          {p._derived && <span style={{ fontSize: '10px', color: 'var(--gpu-accent)', marginLeft: 4, fontWeight: 600 }}>추정</span>}
+                        <div className="gpu-model-nm">
+                          <GpuModelName modelName={p.model_name} gpuCount={p.gpu_count} isDerived={p._derived} />
+                          {p._derived && <span style={{ fontSize: '10px', color: 'var(--gpu-accent)', marginLeft: 6, fontWeight: 600 }}>추정</span>}
                         </div>
                         <div className="gpu-model-meta">
                           <span className={`gpu-badge ${tier.badge}`} style={{ fontSize: '10px' }}>{tier.label}</span>

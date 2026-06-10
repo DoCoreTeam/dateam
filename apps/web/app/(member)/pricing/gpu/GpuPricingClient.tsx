@@ -132,6 +132,16 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
     try { sessionStorage.setItem('gpu:view', JSON.stringify({ tab: activeTab, q: p.get('q') || '', expand: p.get('expand') || '' })) } catch { /* noop */ }
   }
 
+  // GPU fullpane 모드: mount 시 <main class="page-inner">에 gpu-fullpane-main 부착.
+  // 이 클래스가 main의 overflow/padding을 억제해 GPU root가 자체 높이 체인을 점유.
+  // unmount 시 제거 → 다른 페이지 회귀 없음.
+  useEffect(() => {
+    const main = document.querySelector('main.page-inner')
+    if (!main) return
+    main.classList.add('gpu-fullpane-main')
+    return () => { main.classList.remove('gpu-fullpane-main') }
+  }, [])
+
   const fxFetched = useRef(false)
   useEffect(() => {
     if (fxFetched.current) return
@@ -147,7 +157,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
     ['board', 'cockpit', 'market', 'inventory', 'catalog'].includes(tab)
 
   return (
-    <div className="page-inner gpu-pricing-root">
+    <div className="gpu-pricing-root">
       {/* 상단 헤더 */}
       <div className="gpu-topbar">
         <div>
@@ -267,10 +277,11 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
         )}
       </div>
 
-      {/* 탭 컨텐츠 */}
+      {/* 탭 컨텐츠 — gpu-tab-content: flex:1 min-height:0 overflow:hidden display:flex flex-direction:column
+           자식은 gpu-tab-panel(overflow:hidden) 또는 gpu-tab-panel--scroll(overflowY:auto) 사용 */}
       <div className="gpu-tab-content">
         {activeTab === 'board' && (
-          <div style={{ display: 'flex', gap: 0, height: '100%', minHeight: 0, overflow: 'hidden' }}>
+          <div className="gpu-tab-panel" style={{ display: 'flex', gap: 0 }}>
             <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
               <PriceTableTab
                 onGoToIntake={() => router.push('/intake')}
@@ -315,17 +326,15 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           </div>
         )}
         {activeTab === 'cockpit' && (
-          <div style={{ height: '100%', overflowY: 'auto' }}>
-            <div className="page-inner">
-              <PriceCockpitTab
-                isAdmin={isAdmin}
-                onGoToTab={(tab) => setActiveTab(tab as TabId)}
-              />
-            </div>
+          <div className="gpu-tab-panel">
+            <PriceCockpitTab
+              isAdmin={isAdmin}
+              onGoToTab={(tab) => setActiveTab(tab as TabId)}
+            />
           </div>
         )}
         {activeTab === 'market' && (
-          <div style={{ height: '100%', overflow: 'hidden' }}>
+          <div className="gpu-tab-panel">
             <MarketTab
               onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board') }}
               onOpenAI={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board'); setShowAiPanel(true) }}
@@ -333,19 +342,19 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           </div>
         )}
         {activeTab === 'inventory' && (
-          <div style={{ height: '100%', overflow: 'hidden' }}>
+          <div className="gpu-tab-panel">
             <InventoryTab />
           </div>
         )}
         {activeTab === 'catalog' && (
-          <div style={{ overflow: 'auto', height: '100%' }}>
+          <div className="gpu-tab-panel--scroll">
             <SalePriceCatalogPage />
           </div>
         )}
-        {activeTab === 'review' && <div style={{ height: '100%', overflowY: 'auto' }}><ReviewTab /></div>}
-        {activeTab === 'suppliers' && <div style={{ height: '100%', overflowY: 'auto' }}><SuppliersTab onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board') }} /></div>}
-        {activeTab === 'specs' && <div style={{ height: '100%', overflowY: 'auto' }}><div className="page-inner"><SpecsTab /></div></div>}
-        {activeTab === 'log' && <div style={{ height: '100%', overflowY: 'auto' }}><HistoryTab /></div>}
+        {activeTab === 'review' && <div className="gpu-tab-panel--scroll"><ReviewTab /></div>}
+        {activeTab === 'suppliers' && <div className="gpu-tab-panel--scroll"><SuppliersTab onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board') }} /></div>}
+        {activeTab === 'specs' && <div className="gpu-tab-panel--scroll"><div className="page-inner"><SpecsTab /></div></div>}
+        {activeTab === 'log' && <div className="gpu-tab-panel--scroll"><HistoryTab /></div>}
       </div>
     </div>
   )

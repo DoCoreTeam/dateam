@@ -8,6 +8,7 @@ import { buildTierModelGroups, tierKey, modelKey } from '@/lib/gpu/group'
 import { TierHeader, ModelHeader } from '@/components/gpu/CategoryGroup'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 import { fmtKRW as fmtKRWSSOT } from '@/lib/gpu/format-price'
+import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
 
 interface GpuProduct {
   id: string
@@ -375,8 +376,7 @@ export default function SalePriceCatalogPage() {
                     <GpuChip model={p.model_name} memory={p.memory} />
                     <div>
                       <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {p.model_name}
-                        <span style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 400 }}>×{gpuCount}GPU</span>
+                        <GpuModelName modelName={p.model_name} gpuCount={gpuCount} />
                         {p.pricing_mode === 'direct' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-amber)', background: 'var(--warning-bg)', border: 'var(--hairline) solid var(--warning-border)', borderRadius: 4, padding: '0 5px' }}>직접가</span>}
                         <button onClick={(e) => setDirectPrice(e, p)} title="직접 판매가 설정/해제" aria-label="직접 판매가 설정"
                           style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--gpu-faint)', fontSize: 11, padding: '0 2px' }}>✎</button>
