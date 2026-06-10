@@ -23,8 +23,9 @@ interface CostSupplierEntry {
   supplier_name: string
   unit_price_krw: number
   gpu_count: number
-  quote_id: string
+  quote_id: string | null
   basis: string
+  is_propagated: boolean
 }
 
 /** 경쟁사 가격 상세 (펼침/전환용) */
@@ -145,6 +146,7 @@ export async function GET() {
         gpu_count: gpuCount,
         quote_id: row.id,
         basis,
+        is_propagated: false,
       })
       costSuppliersMap.set(row.product_id, list)
     }
@@ -280,11 +282,34 @@ export async function GET() {
         ? Math.round(gcubeSite.unit_price_usd * usdKrw)
         : null
 
-      // 원가 min/max
+      // 원가 min/max — 실제 견적 먼저
       const costMinUsd = costMinUsdMap.get(p.id) ?? null
       const costMaxUsd = costMaxUsdMap.get(p.id) ?? null
-      const costMinKrw = costMinUsd != null ? Math.round(costMinUsd * usdKrw) : null
-      const costMaxKrw = costMaxUsd != null ? Math.round(costMaxUsd * usdKrw) : null
+      let costMinKrw = costMinUsd != null ? Math.round(costMinUsd * usdKrw) : null
+      let costMaxKrw = costMaxUsd != null ? Math.round(costMaxUsd * usdKrw) : null
+      let costIsPropagated = false
+
+      // 실제 견적 없고 buildCatalog가 전파로 채운 effective가 있으면 전파원가로 보정
+      if (costMinKrw == null && p.effective_unit_price_usd != null && p.is_propagated) {
+        const propagatedKrw = Math.round(p.effective_unit_price_usd * usdKrw)
+        costMinKrw = propagatedKrw
+        costMaxKrw = propagatedKrw
+        costIsPropagated = true
+      }
+
+      // cost_suppliers가 비어있고 전파원가 있으면 전파 1건 제공
+      let costSuppliers = costSuppliersMap.get(p.id) ?? []
+      if (costSuppliers.length === 0 && costIsPropagated && p.effective_unit_price_usd != null) {
+        const supplierName = p.effective_supplier?.name ?? '공급사 미지정'
+        costSuppliers = [{
+          supplier_name: supplierName,
+          unit_price_krw: Math.round(p.effective_unit_price_usd * usdKrw),
+          gpu_count: p.gpu_count,
+          quote_id: null,
+          basis: 'propagated',
+          is_propagated: true,
+        }]
+      }
 
       // 판매가 후보 = cost_min × (1 + margin_pct/100)
       const candidatePriceKrw = costMinKrw != null
@@ -322,7 +347,8 @@ export async function GET() {
         // 공급사 원가
         cost_min_krw: costMinKrw,
         cost_max_krw: costMaxKrw,
-        cost_suppliers: costSuppliersMap.get(p.id) ?? [],
+        cost_is_propagated: costIsPropagated,
+        cost_suppliers: costSuppliers,
 
         // 판매가 후보
         candidate_price_krw: candidatePriceKrw,

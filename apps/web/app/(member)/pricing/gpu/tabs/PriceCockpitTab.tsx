@@ -178,6 +178,11 @@ function CockpitRow({
                       <span className="cockpit-price">{fmtKRW(costMax)}</span>
                     </>
                   )}
+                  {(p.cost_is_propagated ?? p.is_propagated) && (
+                    <span className="cockpit-estimate-badge" title="실제 견적 없음 — 상위 구성에서 전파된 추정 원가">
+                      추정
+                    </span>
+                  )}
                 </>
               ) : (
                 <span className="cockpit-price-sub">—</span>

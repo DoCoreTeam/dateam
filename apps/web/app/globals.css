@@ -3499,7 +3499,151 @@ label.intake-tool-btn {
   font-size: 12.5px;
 }
 .gpu-qline-best { border-color: #bfe3cf; background: linear-gradient(90deg, var(--success-bg), #fff); }
-.gpu-qline-sup { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+/* 채택 기준 선택된 qline — accent 강조 */
+.gpu-qline--selected { border-left: var(--border-w) solid var(--gpu-accent, var(--brand)); background: color-mix(in oklch, var(--gpu-accent, var(--brand)) 5%, #fff); }
+.gpu-qline-sup { display: flex; align-items: center; gap: 8px; font-weight: 600; flex-wrap: wrap; }
+
+/* expand head accent variant */
+.gpu-expand-head--accent { color: var(--gpu-accent); }
+
+/* expand 설명 텍스트 */
+.gpu-expand-desc { padding: var(--space-2) var(--space-4); font-size: var(--fs-sm); color: var(--gpu-muted); }
+
+/* 공급사 이름 (기본/accent) */
+.gpu-sup-name { font-weight: var(--font-weight-semibold); }
+.gpu-sup-name--accent { font-weight: var(--font-weight-semibold); color: var(--gpu-accent); }
+.gpu-sup-name--unassigned { font-weight: var(--font-weight-semibold); color: var(--gpu-amber); }
+
+/* 인라인 배지 — 전파 추정 (accent) */
+.gpu-badge-propagated {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-2xs);
+  font-weight: var(--font-weight-bold);
+  color: #fff;
+  background: var(--gpu-accent, var(--brand));
+  border-radius: var(--radius);
+  padding: 1px var(--space-2);
+  line-height: 1.5;
+}
+
+/* 인라인 배지 — 선택된 기준 (accent) */
+.gpu-badge-selected {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-2xs);
+  font-weight: var(--font-weight-bold);
+  color: #fff;
+  background: var(--gpu-accent, var(--brand));
+  border-radius: var(--radius);
+  padding: 1px var(--space-2);
+  line-height: 1.5;
+}
+
+/* 인라인 배지 — 자동 기준 (dashed outline) */
+.gpu-badge-auto-basis {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-2xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--gpu-muted);
+  border: var(--hairline) dashed var(--gpu-border);
+  border-radius: var(--radius);
+  padding: 0 var(--space-2);
+  line-height: 1.5;
+}
+
+/* 기준 선택 버튼 (토글형) */
+.gpu-btn-select {
+  font-size: var(--fs-2xs);
+  font-weight: var(--font-weight-bold);
+  border-radius: var(--radius);
+  padding: 1px var(--space-2);
+  cursor: pointer;
+  border: var(--hairline) solid var(--gpu-accent, var(--brand));
+  background: var(--gpu-accent, var(--brand));
+  color: #fff;
+  line-height: 1.5;
+}
+.gpu-btn-select--active {
+  border-color: var(--gpu-border);
+  background: #fff;
+  color: var(--gpu-muted);
+}
+
+/* 수정 버튼 */
+.gpu-btn-edit {
+  font-size: var(--fs-xs);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 1px var(--space-2);
+  cursor: pointer;
+  background: #fff;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* 가격 메인 셀 — accent 색상 */
+.gpu-price-main--accent { font-size: 13.5px; font-weight: var(--font-weight-bold); color: var(--gpu-accent); }
+.gpu-price-main { font-size: 13.5px; font-weight: var(--font-weight-bold); }
+
+/* 단위 텍스트 (/GPU·hr) */
+.gpu-price-unit { font-size: var(--fs-xs); color: var(--gpu-muted); font-weight: var(--font-weight-normal); }
+
+/* 셀 muted / faint 텍스트 */
+.gpu-cell-muted { font-size: var(--fs-xs); color: var(--gpu-muted); }
+.gpu-cell-faint { font-size: var(--fs-xs); color: var(--gpu-faint); }
+
+/* 유효기간 D-day */
+.gpu-dday { font-size: 10.5px; font-weight: var(--font-weight-bold); }
+
+/* 공시 판매가 박스 */
+.gpu-list-price-box {
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--warning-bg);
+  border: var(--border-w-2) solid var(--gpu-amber, var(--warning));
+}
+.gpu-list-price-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.gpu-list-price-title {
+  font-size: 12.5px;
+  font-weight: var(--font-weight-extrabold);
+  color: var(--warning);
+  letter-spacing: 0.01em;
+}
+.gpu-list-price-badge {
+  font-size: var(--fs-2xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--warning);
+  background: var(--warning-border);
+  border-radius: var(--radius);
+  padding: 1px var(--space-2);
+}
+.gpu-list-price-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+.gpu-list-price-name { font-weight: var(--font-weight-bold); font-size: 13.5px; color: var(--warning); }
+.gpu-list-price-label { font-size: var(--fs-xs); color: var(--warning); }
+.gpu-list-price-val {
+  margin-left: auto;
+  font-family: monospace;
+  font-weight: var(--font-weight-extrabold);
+  font-size: 16px;
+  color: var(--warning);
+}
+.gpu-list-price-unit { font-size: var(--fs-2xs); color: var(--warning); }
 
 /* confidence bar */
 .gpu-conf { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--gpu-muted); }
@@ -4788,6 +4932,93 @@ label.intake-tool-btn {
   background: var(--brand-soft);
   border-radius: var(--radius);
   padding: 1px var(--space-2);
+}
+
+/* 원가 "추정" 배지 — 전파 추정 원가 표시 (warning 계열) */
+.cockpit-estimate-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-2xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--warning);
+  background: var(--warning-bg);
+  border: var(--hairline) solid var(--warning-border);
+  border-radius: var(--radius);
+  padding: 0 var(--space-2);
+  line-height: 1.6;
+  vertical-align: middle;
+  margin-left: var(--space-1);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* 전파 추정 공급사 항목 — warning 테두리로 구분 */
+.cockpit-supplier-item--propagated {
+  border-color: var(--warning-border);
+  background: var(--warning-bg);
+}
+
+/* 전파 추정 태그 (공급사 펼침 내) */
+.cockpit-propagated-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-2xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--warning);
+  background: var(--warning-bg);
+  border: var(--hairline) solid var(--warning-border);
+  border-radius: var(--radius);
+  padding: 0 var(--space-2);
+  line-height: 1.6;
+}
+
+/* 전파 근거 섹션 (PriceTableTab 파생 행 펼침용) */
+.cockpit-propagated-basis {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--warning-bg);
+  border: var(--hairline) solid var(--warning-border);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.cockpit-propagated-basis-title {
+  font-size: var(--fs-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--warning);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.cockpit-propagated-basis-formula {
+  font-size: var(--fs-sm);
+  font-family: var(--font-mono, monospace);
+  color: var(--text);
+  font-weight: var(--font-weight-semibold);
+}
+.cockpit-propagated-basis-note {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+/* 기준선택 안내 (가격표 펼침 내) */
+.cockpit-basis-hint {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  margin-left: var(--space-2);
+  font-weight: var(--font-weight-normal);
+}
+
+/* 전파 추정 안내 메모 (DrawerSections 등) */
+.cockpit-propagated-note {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--brand-soft);
+  border-radius: var(--radius);
 }
 
 /* 경쟁사 목록 */

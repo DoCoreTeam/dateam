@@ -53,6 +53,8 @@ interface GpuProduct {
   basis?: 'selected' | 'auto' | 'fallback' | 'list' | 'none'
   selected_supplier?: Supplier | null
   fallback_reason?: string | null
+  /** products API의 effective_supplier — 전파 근거 공급사명 표시용 */
+  effective_supplier?: Supplier | string | null
 }
 
 interface ProductsResponse {
@@ -95,11 +97,69 @@ const fmtDday = (dateStr: string) => {
   return { label: `D-${diff}`, color: 'var(--gpu-green)' }
 }
 
+// ── 파생(_derived) 추정 행 펼침 — 전파 근거 섹션 ──────────────────
+
+interface DerivedPropagatedSectionProps {
+  p: GpuProduct & { _derived?: boolean }
+  usdKrw: number
+  currencyMode: 'KRW' | 'USD'
+}
+
+function DerivedPropagatedSection({ p, usdKrw, currencyMode }: DerivedPropagatedSectionProps) {
+  const perGpuUsd = p.per_gpu_usd ?? (
+    p.lowest_unit_price_usd != null
+      ? p.lowest_unit_price_usd / Math.max(p.gpu_count, 1)
+      : null
+  )
+  const effectiveName = p.effective_supplier
+    ? (typeof p.effective_supplier === 'string' ? p.effective_supplier : (p.effective_supplier as { name?: string }).name ?? '공급사 미지정')
+    : p.lowest_supplier?.name ?? '공급사 미지정'
+  const totalUsd = perGpuUsd != null ? perGpuUsd * p.gpu_count : null
+  const totalKrw = totalUsd != null ? Math.round(totalUsd * usdKrw) : null
+
+  return (
+    <div className="gpu-expand-body cockpit-propagated-basis">
+      <div className="cockpit-propagated-basis-title">
+        <Info size={13} />
+        1장당 전파(추정) 근거
+      </div>
+      {perGpuUsd != null ? (
+        <>
+          <div className="cockpit-propagated-basis-formula">
+            {effectiveName} {currencyMode === 'KRW' ? fmtKRW(Math.round(perGpuUsd * usdKrw)) : fmtUSD(perGpuUsd)}/GPU
+            {' '}×{' '}
+            {p.gpu_count}GPU
+            {' '}={' '}
+            {totalKrw != null
+              ? (currencyMode === 'KRW' ? fmtKRW(totalKrw) : fmtUSD(totalUsd!))
+              : '—'}
+            {' '}(추정)
+          </div>
+          <div className="cockpit-propagated-basis-note">
+            이 구성에 직접 등록된 견적이 없습니다. 동일 모델 최저 1GPU 단가를 수량만큼 환산한 추정값입니다.
+            실제 공급가는 견적 등록 탭에서 확인하세요.
+          </div>
+        </>
+      ) : (
+        <div className="cockpit-propagated-basis-note">
+          이 구성에 직접 등록된 견적이 없습니다. 견적 등록 탭에서 공급 견적을 등록해 주세요.
+        </div>
+      )}
+    </div>
+  )
+}
+
 interface ExpandedRowProps {
   productId: string
   usdKrw: number
   marginPct: number
   currencyMode: 'KRW' | 'USD'
+  /** 전파(추정) 원가 정보 — 실제 견적 없을 때 폴백 표시용 */
+  propagated?: {
+    per_gpu_usd: number
+    gpu_count: number
+    effective_supplier: { name: string; color: string } | null
+  } | null
 }
 
 interface SupplierOpt { id: string; name: string; color: string }
@@ -149,7 +209,7 @@ function AssignSupplier({ quoteId, onAssigned }: { quoteId: string; onAssigned: 
   )
 }
 
-function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRowProps) {
+function ExpandedRow({ productId, usdKrw, marginPct, currencyMode, propagated }: ExpandedRowProps) {
   const { data } = useSWR<{ quotes: Quote[] }>(
     `/api/pricing/gpu/quotes?product_id=${productId}`,
     fetcher
@@ -174,6 +234,54 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
   }
 
   if (quotes.length === 0) {
+    // 실제 견적은 없지만 buildCatalog 전파원가가 있으면 추정 근거 표시
+    if (propagated) {
+      const estimatedUsd = propagated.per_gpu_usd * propagated.gpu_count
+      const estimatedKrw = Math.round(estimatedUsd * usdKrw)
+      const sellKrw = Math.round(estimatedUsd * (1 + marginPct / 100) * usdKrw)
+      return (
+        <div className="gpu-expand-body">
+          <div className="gpu-expand-head gpu-expand-head--accent">
+            <Info size={13} /> 전파 추정 원가 — 실제 견적 없음
+          </div>
+          <div className="gpu-expand-desc">
+            이 구성(×{propagated.gpu_count}GPU)에 직접 등록된 견적이 없습니다.
+            동일 모델의 1장당 최저 단가({currencyMode === 'KRW' ? fmtKRW(Math.round(propagated.per_gpu_usd * usdKrw)) : fmtUSD(propagated.per_gpu_usd)}/GPU·hr)를
+            {propagated.gpu_count}배로 환산한 <strong>추정값</strong>입니다.
+          </div>
+          <div className="gpu-qline gpu-qline-best gpu-qline--selected">
+            <div className="gpu-qline-sup">
+              {propagated.effective_supplier ? (
+                <span className="gpu-sdot" style={{ background: propagated.effective_supplier.color }} />
+              ) : (
+                <span className="gpu-sdot" style={{ background: 'var(--gpu-accent)' }} />
+              )}
+              <span className="gpu-sup-name--accent">
+                {propagated.effective_supplier?.name ?? '공급사 미지정'}
+              </span>
+              <span className="gpu-badge-propagated">
+                추정 (전파)
+              </span>
+            </div>
+            <div>
+              <div className="gpu-mono gpu-price-main--accent">
+                {currencyMode === 'KRW' ? fmtKRW(estimatedKrw) : fmtUSD(estimatedUsd)}
+                <span className="gpu-price-unit">/GPU·hr</span>
+              </div>
+              <div className="gpu-price-sub">
+                {currencyMode === 'KRW'
+                  ? <>{fmtUSD(estimatedUsd)} · 추정 판매 {fmtKRW(sellKrw)}/hr</>
+                  : <>추정 판매 {fmtUSD(sellKrw / usdKrw)}/hr · {fmtKRW(sellKrw)}</>}
+              </div>
+            </div>
+            <div className="gpu-cell-faint">—</div>
+            <div className="gpu-cell-faint">—</div>
+            <div></div>
+            <div></div>
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="gpu-expand-empty">
         확정된 견적이 없습니다 — 견적 등록 탭에서 공급 견적을 등록해 주세요.
@@ -193,43 +301,47 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
         const isSelected = !!q.is_selected
         const isBasis = isSelected || (!hasSelected && isBest)
         return (
-          <div key={q.id} className={`gpu-qline${isBasis ? ' gpu-qline-best' : ''}`}
-            style={isSelected ? { borderLeft: 'var(--border-w) solid var(--gpu-accent, var(--brand))', background: 'rgba(91,94,240,0.05)' } : undefined}>
+          <div key={q.id} className={`gpu-qline${isBasis ? ' gpu-qline-best' : ''}${isSelected ? ' gpu-qline--selected' : ''}`}>
             <div className="gpu-qline-sup">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <div>
                 {q.suppliers ? (
                   <span className="gpu-sdot" style={{ background: q.suppliers.color }} />
                 ) : (
                   <span className="gpu-sdot" style={{ background: 'var(--gpu-amber)' }} />
                 )}
-                <span style={{ fontWeight: 600, color: q.suppliers ? undefined : 'var(--gpu-amber)' }}>
+                <span className={q.suppliers ? 'gpu-sup-name' : 'gpu-sup-name--unassigned'}>
                   {q.suppliers?.name ?? '공급사 미지정'}
                 </span>
                 {isBest && <span className="gpu-badge-best">최저가</span>}
                 {isSelected ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 700, color: '#fff', background: 'var(--gpu-accent, var(--brand))', borderRadius: 5, padding: '1px 7px' }}>
+                  <span className="gpu-badge-selected">
                     ✓ 판매가 기준
                   </span>
                 ) : (!hasSelected && isBest) ? (
-                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--gpu-muted)', border: 'var(--hairline) dashed var(--gpu-border)', borderRadius: 5, padding: '0 6px' }}>
+                  <span className="gpu-badge-auto-basis">
                     자동 기준
                   </span>
                 ) : null}
                 {q.suppliers && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); toggleSelect(q.id, !isSelected) }}
-                    disabled={selecting === q.id}
-                    style={{ fontSize: 10.5, fontWeight: 700, borderRadius: 5, padding: '1px 8px', cursor: 'pointer',
-                      border: isSelected ? 'var(--hairline) solid var(--gpu-border)' : 'var(--hairline) solid var(--gpu-accent, var(--brand))',
-                      background: isSelected ? '#fff' : 'var(--gpu-accent, var(--brand))', color: isSelected ? 'var(--gpu-muted)' : '#fff' }}>
-                    {selecting === q.id ? '…' : isSelected ? '기준 해제' : '기준으로 선택'}
-                  </button>
+                  <>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleSelect(q.id, !isSelected) }}
+                      disabled={selecting === q.id}
+                      className={`gpu-btn-select${isSelected ? ' gpu-btn-select--active' : ''}`}>
+                      {selecting === q.id ? '…' : isSelected ? '기준 해제' : '기준으로 선택'}
+                    </button>
+                    {!isSelected && (
+                      <span className="cockpit-basis-hint">
+                        기준선택 = 판매가 계산 기준 원가. 최종 판매가는 &lsquo;가격 결정&rsquo; 탭에서 지정.
+                      </span>
+                    )}
+                  </>
                 )}
                 <button
                   onClick={(e) => { e.stopPropagation(); setEditingQuote(q) }}
                   title="견적 수정"
                   aria-label="견적 수정"
-                  style={{ fontSize: 10, border: 'var(--hairline) solid var(--border-light)', borderRadius: 5, padding: '1px 6px', cursor: 'pointer', background: '#fff', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  className="gpu-btn-edit">
                   <Pencil size={10} /> 수정
                 </button>
               </div>
@@ -238,29 +350,29 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
               )}
             </div>
             <div>
-              <div className="gpu-mono" style={{ fontSize: '13.5px', fontWeight: 700 }}>
+              <div className="gpu-mono gpu-price-main">
                 {currencyMode === 'KRW' ? fmtKRW(Math.round(q.unit_price_usd * usdKrw)) : fmtUSD(q.unit_price_usd)}
-                <span style={{ fontSize: '10px', color: 'var(--gpu-muted)', fontWeight: 400 }}>/GPU·hr</span>
+                <span className="gpu-price-unit">/GPU·hr</span>
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--gpu-muted)', marginTop: 2 }}>
+              <div className="gpu-price-sub">
                 {currencyMode === 'KRW'
                   ? <>{fmtUSD(q.unit_price_usd)} · 판매 {fmtKRW(sellKrw)}/hr</>
                   : <>판매 {fmtUSD(sellKrw / usdKrw)}/hr · {fmtKRW(sellKrw)}</>}
               </div>
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--gpu-muted)' }}>{q.term ?? '—'}</div>
-            <div style={{ fontSize: '11px', color: 'var(--gpu-muted)' }}>{q.min_qty ?? '—'}</div>
+            <div className="gpu-cell-muted">{q.term ?? '—'}</div>
+            <div className="gpu-cell-muted">{q.min_qty ?? '—'}</div>
             <div>
               {dday && (
-                <span className="gpu-mono" style={{ fontSize: '10.5px', fontWeight: 700, color: dday.color }}>
+                <span className="gpu-mono gpu-dday" style={{ color: dday.color }}>
                   {dday.label}
                 </span>
               )}
               {q.valid_until && (
-                <div style={{ fontSize: '10px', color: 'var(--gpu-faint)' }}>{q.valid_until}</div>
+                <div className="gpu-cell-faint">{q.valid_until}</div>
               )}
             </div>
-            <div style={{ fontSize: '10px', color: 'var(--gpu-faint)' }}>
+            <div className="gpu-cell-faint">
               {q.ai_confidence != null && (
                 <div className="gpu-conf">
                   <div className="gpu-conf-bar">
@@ -285,23 +397,23 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode }: ExpandedRow
         />
       )}
       {listQuotes.length > 0 && (
-        <div style={{ marginTop: 10, padding: '12px 14px', borderRadius: 10, background: 'linear-gradient(180deg, var(--warning-bg), var(--warning-bg))', border: 'var(--border-w-2) solid var(--gpu-amber, var(--warning))' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-            <span style={{ fontSize: 15 }}>📢</span>
-            <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--warning)', letterSpacing: '.01em' }}>현재 공시 판매가</span>
-            <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--warning)', background: 'var(--warning-border)', borderRadius: 5, padding: '1px 7px' }}>시장 참고 · 원가 아님</span>
+        <div className="gpu-list-price-box">
+          <div className="gpu-list-price-header">
+            <span>📢</span>
+            <span className="gpu-list-price-title">현재 공시 판매가</span>
+            <span className="gpu-list-price-badge">시장 참고 · 원가 아님</span>
           </div>
           {listQuotes.map((q) => {
             const listKrw = Math.round(q.unit_price_usd * usdKrw)
             return (
-              <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
+              <div key={q.id} className="gpu-list-price-row">
                 {q.suppliers && <span className="gpu-sdot" style={{ background: q.suppliers.color, width: 9, height: 9 }} />}
-                <span style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--warning)' }}>{q.suppliers?.name ?? '—'}</span>
-                <span style={{ fontSize: 11, color: 'var(--warning)' }}>공시 판매가</span>
-                <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontWeight: 800, fontSize: 16, color: 'var(--warning)' }}>
+                <span className="gpu-list-price-name">{q.suppliers?.name ?? '—'}</span>
+                <span className="gpu-list-price-label">공시 판매가</span>
+                <span className="gpu-list-price-val">
                   {currencyMode === 'KRW' ? fmtKRW(listKrw) : fmtUSD(q.unit_price_usd)}
                 </span>
-                <span style={{ fontSize: 10.5, color: 'var(--warning)' }}>/GPU·hr</span>
+                <span className="gpu-list-price-unit">/GPU·hr</span>
               </div>
             )
           })}
@@ -831,7 +943,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                   key={p.id}
                   id={`gpu-row-${p.id}`}
                   className={`gpu-row-main${isExpanded ? ' open' : ''}`}
-                  onClick={() => !p._derived && setExpandedId(isExpanded ? null : p.id)}
+                  onClick={() => setExpandedId(isExpanded ? null : p.id)}
                   style={p._derived ? { opacity: 0.92 } : undefined}
                 >
                   <td>
@@ -960,25 +1072,44 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                     </td>
                   )}
                   <td>
-                    {!p._derived && (
-                      <ChevronRight
-                        size={18}
-                        className={`gpu-chev${isExpanded ? ' open' : ''}`}
-                      />
-                    )}
+                    <ChevronRight
+                      size={18}
+                      className={`gpu-chev${isExpanded ? ' open' : ''}`}
+                    />
                   </td>
                 </tr>,
-                (isExpanded && !p._derived) && (
+                isExpanded && (
                   <tr key={`${p.id}-expand`} className="gpu-detail-row">
                     <td colSpan={colCount} style={{ padding: 0 }}>
-                      {p.pricing_mode === 'direct' ? (
+                      {p._derived ? (
+                        /* _derived(추정) 행: 전파 근거 섹션 */
+                        <DerivedPropagatedSection
+                          p={p}
+                          usdKrw={usdKrw}
+                          currencyMode={currencyMode}
+                        />
+                      ) : p.pricing_mode === 'direct' ? (
                         <div className="gpu-expand-body gpu-expand-direct">
                           <Info size={13} />
                           <span>Tier 3 — 공급 견적 없음. 판매가는 직접 입력 방식으로 관리됩니다.</span>
                           {sellKrw && <strong className="gpu-mono">{fmtKRW(sellKrw)}/hr (현재가)</strong>}
                         </div>
                       ) : (
-                        <ExpandedRow productId={p.id} usdKrw={usdKrw} marginPct={marginPct} currencyMode={currencyMode} />
+                        <ExpandedRow
+                          productId={p.id}
+                          usdKrw={usdKrw}
+                          marginPct={marginPct}
+                          currencyMode={currencyMode}
+                          propagated={
+                            p.is_propagated && p.per_gpu_usd != null
+                              ? {
+                                  per_gpu_usd: p.per_gpu_usd,
+                                  gpu_count: p.gpu_count,
+                                  effective_supplier: p.lowest_supplier ?? null,
+                                }
+                              : null
+                          }
+                        />
                       )}
                     </td>
                   </tr>

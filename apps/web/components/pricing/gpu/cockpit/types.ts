@@ -15,6 +15,8 @@ export interface CostSupplier {
   gpu_count: number
   quote_id: string | null
   basis: string | null
+  /** true = 실제 견적 없음, 상위 구성에서 전파 추정된 원가 */
+  is_propagated?: boolean
 }
 
 export interface Competitor {
@@ -67,8 +69,13 @@ export interface CockpitProduct {
   market_max_krw?: number | null
   market_deviation_pct?: number | null
   basis?: string | null
+  /** 행 수준 원가가 전파 추정값인지 (실제 견적 없음, 상위 구성에서 전파) */
   is_propagated?: boolean
+  /** Phase3 BE 명시 필드 — is_propagated와 동일 역할 */
+  cost_is_propagated?: boolean
   effective_supplier?: string | null
+  /** 전파 근거: 1GPU당 USD 단가 */
+  per_gpu_usd?: number | null
   list_price_krw?: number | null
   pricing_mode?: string
 }

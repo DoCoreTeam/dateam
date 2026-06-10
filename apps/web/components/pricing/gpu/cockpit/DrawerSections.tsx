@@ -29,6 +29,8 @@ interface CostDrawerProps extends NavProps {
 export function CostDrawer({ product, onGoToTab }: CostDrawerProps) {
   const { cost_min_krw, cost_max_krw, cost_suppliers } = product
   const hasCostData = cost_suppliers && cost_suppliers.length > 0
+  // 행 수준 전파 여부 — cost_is_propagated(신규 BE 필드) 우선, 없으면 is_propagated 폴백
+  const isPropagated = product.cost_is_propagated ?? (product.is_propagated && !hasCostData) ?? false
 
   return (
     <div className="cockpit-section-drawer">
@@ -36,8 +38,17 @@ export function CostDrawer({ product, onGoToTab }: CostDrawerProps) {
         <strong className="cockpit-drawer-title">원가 상세</strong>
         <span className="cockpit-drawer-desc">
           공급사별 매입 단가 — 실제 비용 기준 범위
+          {isPropagated && (
+            <span className="cockpit-basis-tag">추정</span>
+          )}
         </span>
       </div>
+
+      {isPropagated && (
+        <p className="cockpit-propagated-note">
+          이 구성에 직접 등록된 견적이 없습니다. 동일 모델의 1장당 최저 단가를 구성 수로 환산한 <strong>추정 원가</strong>입니다.
+        </p>
+      )}
 
       {!hasCostData && (cost_min_krw == null) && (
         <p className="cockpit-drawer-empty">원가 데이터가 없습니다</p>
@@ -45,7 +56,7 @@ export function CostDrawer({ product, onGoToTab }: CostDrawerProps) {
 
       {(cost_min_krw != null || cost_max_krw != null) && (
         <div className="cockpit-drawer-range-row">
-          <span className="cockpit-drawer-range-label">범위</span>
+          <span className="cockpit-drawer-range-label">{isPropagated ? '추정 범위' : '범위'}</span>
           <span className="cockpit-price">
             {fmtKRW(cost_min_krw)}
             {cost_max_krw != null && cost_max_krw !== cost_min_krw && (
@@ -58,15 +69,25 @@ export function CostDrawer({ product, onGoToTab }: CostDrawerProps) {
       {hasCostData && (
         <ul className="cockpit-supplier-list">
           {cost_suppliers.map((s, i) => (
-            <li key={i} className="cockpit-supplier-item">
+            <li
+              key={i}
+              className={`cockpit-supplier-item${s.is_propagated ? ' cockpit-supplier-item--propagated' : ''}`}
+            >
               <span className="cockpit-supplier-name">{s.supplier_name}</span>
               <span className="cockpit-price">{fmtKRW(s.unit_price_krw)}</span>
               {s.gpu_count > 1 && (
                 <span className="cockpit-price-sub">×{s.gpu_count}GPU</span>
               )}
-              {s.basis && (
+              {s.is_propagated ? (
+                <span
+                  className="cockpit-propagated-tag"
+                  title="실제 견적 없음 — 상위 구성 1GPU 단가×수량 추정"
+                >
+                  전파 추정
+                </span>
+              ) : s.basis ? (
                 <span className="cockpit-basis-tag">{s.basis}</span>
-              )}
+              ) : null}
             </li>
           ))}
         </ul>
