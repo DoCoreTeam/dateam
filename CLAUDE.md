@@ -1,3 +1,69 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+pnpm workspace monorepo. Root scripts proxy into `apps/web` (`pnpm --filter web`).
+
+```bash
+# Dev / build (run from repo root)
+pnpm dev                # next dev on :3000
+pnpm build              # next build
+pnpm start              # next start
+
+# Lint / typecheck (run from apps/web)
+cd apps/web && pnpm lint            # next lint (eslint)
+cd apps/web && pnpm exec tsc --noEmit   # typecheck (no dedicated script)
+
+# Tests — node:test runner, no jest/vitest (run from apps/web)
+cd apps/web && pnpm test            # runs the explicit test file list in apps/web/package.json
+# single test file:
+cd apps/web && node --test --experimental-strip-types "lib/gpu/pricing.test.ts"
+
+# E2E — Playwright (config at repo root: playwright.config.ts, tests in apps/web/e2e)
+pnpm exec playwright test
+
+# Design token guard (required before commit/PR; also enforced by .githooks/pre-commit + CI)
+pnpm design:check       # = scripts/check-design-tokens.mjs
+
+# DB migrations — raw psql, applied + tracked atomically (NOT supabase CLI)
+PGPASSWORD='...' ./scripts/migrate.sh <NNN_name.sql>
+PGPASSWORD='...' ./scripts/migrate.sh --status
+
+# Ralph autonomous loop (Codex-driven)
+pnpm ralph:once         # one iteration   |   pnpm ralph:status
+```
+
+Note: `pnpm test` only runs a hand-maintained file list (see `apps/web/package.json` `test` script). Adding a `*.test.ts` does not auto-include it — append it to that list. `tsconfig.json` excludes `**/*.test.ts` from the build.
+
+## Architecture
+
+Single Next.js 14 App Router app under `apps/web` (the only workspace package). Supabase (Postgres + Auth) is the backend; there is no separate API server.
+
+**Version is injected, not hardcoded.** `apps/web/next.config.js` reads the **root** `package.json` `version` at build time → `NEXT_PUBLIC_APP_VERSION` → shown in `MobileShell.tsx`. Root `package.json` is the single version source; bump root + `apps/web/package.json` together (see version checklist below).
+
+**Auth & route protection** flow through `apps/web/middleware.ts` (runs on every non-static request):
+- Unauthenticated → redirect `/login`. `/api/public/*`, `/develop`, `/api-access` are open.
+- Role is read from `profiles.role`. Three roles: `admin`, `member`, and `api_user` (external API consumers, locked to `/api-keys` + `/change-password`).
+- Server-side admin gating: `lib/auth/requireAdmin.ts` (pages) and `requireAdminApi.ts` (API routes). Don't gate admin access in the client alone.
+
+**Route groups** (`apps/web/app`): `(auth)` login, `(member)` the main app (home, daily, weekly-report, dept-tasks, calendar, org, contacts, deals, pricing, kpi, work…), `admin/*` admin console, `api/*` route handlers, plus public `develop`/`api-access` for the external API program. URL state (filters, tab, sort, pagination) is the convention for shareable views.
+
+**Supabase clients** — always go through `lib/supabase/`: `client.ts` (browser) and `server.ts` (server components / route handlers, cookie-aware via `@supabase/ssr`). RLS is mandatory on every table.
+
+**SSOT / shared-logic rule is load-bearing here.** Domain logic lives in `lib/` and is imported, never copy-pasted (see "재사용·단일구현 정책" below). The largest domain is GPU pricing in `lib/gpu/` — dedup (`dedup.ts`), tier judgment (`tier-dict.ts`), memory normalization (`normalize.ts`), config ladders, pricing/parity math, and a golden-set eval. These are the canonical implementations; new pricing routes/screens call them. The pricing "cockpit" is `/pricing/gpu?tab=cockpit`.
+
+**AI integration** is Gemini-based, isolated in `lib/gemini-*.ts` (daily→weekly summarization, lead extraction, business-card OCR, content edit, task suggestion, embeddings). All token usage is logged via `lib/token-logger.ts`. AI result UX follows two fixed patterns — extract/suggest = candidate checklist the user confirms (never auto-commit); generate = preview/edit/save (see §5-3 below).
+
+**Rich text:** plain text is the default for user content (`daily_logs.content`); HTML rich text (Tiptap) is limited to weekly reports. Any HTML crossing into AI input or another screen must go through `lib/html-to-plain.ts`; HTML rendering must go through the shared `RichText` component (never raw `dangerouslySetInnerHTML`).
+
+**DB migrations:** sequential numbered SQL in `supabase/migrations/` (`NNN_name.sql`, currently up to 082+). Applied via `scripts/migrate.sh` against the pooler with atomic tracking in `supabase_migrations.schema_migrations` — **not** the Supabase CLI. Never blindly overwrite state flags (e.g. `must_change_password`) in a migration over existing rows.
+
+**Path alias:** `@/*` → `apps/web/*`.
+
+---
+
 # newAX 프로젝트 코딩 정책
 
 ## 반응형 디자인 정책 (필수)
@@ -196,7 +262,7 @@ git commit -m "claude v0.4.6: 거래처 목록 검색 필터 추가"  # 위치 �
 - TypeScript
 
 ## 버전
-v0.7.73
+v0.7.74
 
 ## 버전 업데이트 체크리스트 (필수 — 누락 시 UI 버전 불일치 발생)
 

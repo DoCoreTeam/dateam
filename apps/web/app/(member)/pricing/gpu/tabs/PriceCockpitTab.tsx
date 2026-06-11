@@ -10,11 +10,13 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import useSWR, { useSWRConfig } from 'swr'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { fmtKRW } from '@/lib/gpu/format-price'
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
+import { buildTierModelGroups, tierKey, modelKey, TIER_META } from '@/lib/gpu/group'
+import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 
 import type {
   CockpitProduct,
@@ -417,6 +419,16 @@ export default function PriceCockpitTab({
 
   const products = data?.products ?? []
 
+  // ── Tier→모델 그룹 접기 (4개 메뉴 공용 UX) ──────────────
+  const allGroupKeys = useMemo(
+    () => products.flatMap((p) => [tierKey(p.tier), modelKey(p.tier, p.model_name)]),
+    [products],
+  )
+  const keepOpenTier1 = useMemo(() => [tierKey(1)], [])
+  const { isCollapsed: isGroupCollapsed, toggle: toggleGroup } = useCollapsibleGroups(
+    allGroupKeys, true, keepOpenTier1,
+  )
+
   // ── 필터링 ────────────────────────────────────────────────
   const filtered = products.filter((p) => {
     if (tierFilter !== 0 && p.tier !== tierFilter) return false
@@ -662,24 +674,116 @@ export default function PriceCockpitTab({
               </tr>
             </thead>
             <tbody>
-              {sorted.map((p) => {
-                const currentSection =
-                  expanded?.productId === p.id ? expanded.section : null
-                return (
-                  <CockpitRow
-                    key={p.id}
-                    product={p}
-                    isAdmin={isAdmin}
-                    expandSection={currentSection}
-                    activeCompetitor={activeCompetitor}
-                    onExpand={(section) => handleExpand(p.id, section)}
-                    onSelectCompetitor={setActiveCompetitor}
-                    onSaved={handleSaved}
-                    onGoToTab={goToTab}
-                    syncItem={gcubeSyncMap.get(p.id)}
-                  />
-                )
-              })}
+              {(() => {
+                // 정렬 활성 시: flat 목록 표시 (그룹 무의미)
+                // 정렬 비활성 시: Tier→모델 2단계 그룹
+                if (sortConfig) {
+                  return sorted.map((p) => {
+                    const currentSection =
+                      expanded?.productId === p.id ? expanded.section : null
+                    return (
+                      <CockpitRow
+                        key={p.id}
+                        product={p}
+                        isAdmin={isAdmin}
+                        expandSection={currentSection}
+                        activeCompetitor={activeCompetitor}
+                        onExpand={(section) => handleExpand(p.id, section)}
+                        onSelectCompetitor={setActiveCompetitor}
+                        onSaved={handleSaved}
+                        onGoToTab={goToTab}
+                        syncItem={gcubeSyncMap.get(p.id)}
+                      />
+                    )
+                  })
+                }
+
+                // 그룹 모드 — buildTierModelGroups 사용
+                const tierGroups = buildTierModelGroups(sorted)
+                return tierGroups.flatMap((tg) => {
+                  const tKey = tierKey(tg.tier)
+                  const tMeta = TIER_META[tg.tier] ?? { label: `Tier ${tg.tier}`, name: '', badge: 'gpu-badge-t2' }
+                  const tCollapsed = isGroupCollapsed(tKey)
+                  const tierRow = (
+                    <tr
+                      key={`tier-${tg.tier}`}
+                      className="gpu-group-header"
+                      onClick={() => toggleGroup(tKey)}
+                      style={{ cursor: 'pointer', background: 'var(--surface-bg)' }}
+                    >
+                      <td colSpan={6}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <ChevronRight
+                            size={16}
+                            style={{
+                              transform: tCollapsed ? 'none' : 'rotate(90deg)',
+                              transition: 'transform 0.15s',
+                              color: 'var(--gpu-muted)',
+                            }}
+                          />
+                          <strong style={{ fontSize: 13.5, color: 'var(--text)' }}>{tMeta.label}</strong>
+                          <span style={{ fontSize: 11.5, color: 'var(--gpu-muted)', marginLeft: 'auto' }}>
+                            {tg.count}개 모델 · {tg.itemCount}개 구성
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                  if (tCollapsed) return [tierRow]
+
+                  const modelRows = tg.models.flatMap((mg) => {
+                    const mKey = modelKey(tg.tier, mg.model)
+                    const mCollapsed = isGroupCollapsed(mKey)
+                    const modelRow = (
+                      <tr
+                        key={`model-${mKey}`}
+                        className="gpu-group-header"
+                        onClick={() => toggleGroup(mKey)}
+                        style={{ cursor: 'pointer', background: 'var(--surface-bg)' }}
+                      >
+                        <td colSpan={6}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 14 }}>
+                            <ChevronRight
+                              size={14}
+                              style={{
+                                transform: mCollapsed ? 'none' : 'rotate(90deg)',
+                                transition: 'transform 0.15s',
+                                color: 'var(--gpu-muted)',
+                              }}
+                            />
+                            <span className={`gpu-badge ${tMeta.badge}`} style={{ fontSize: 9.5 }}>T{tg.tier}</span>
+                            <strong style={{ fontSize: 13, color: 'var(--text)' }}>{mg.model}</strong>
+                            <span style={{ fontSize: 11, color: 'var(--gpu-muted)', marginLeft: 'auto' }}>
+                              {mg.items.length}개 구성
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                    if (mCollapsed) return [modelRow]
+                    const productRows = mg.items.map((p) => {
+                      const currentSection =
+                        expanded?.productId === p.id ? expanded.section : null
+                      return (
+                        <CockpitRow
+                          key={p.id}
+                          product={p}
+                          isAdmin={isAdmin}
+                          expandSection={currentSection}
+                          activeCompetitor={activeCompetitor}
+                          onExpand={(section) => handleExpand(p.id, section)}
+                          onSelectCompetitor={setActiveCompetitor}
+                          onSaved={handleSaved}
+                          onGoToTab={goToTab}
+                          syncItem={gcubeSyncMap.get(p.id)}
+                        />
+                      )
+                    })
+                    return [modelRow, ...productRows]
+                  })
+                  return [tierRow, ...modelRows]
+                })
+              })()}
             </tbody>
           </table>
         </div>

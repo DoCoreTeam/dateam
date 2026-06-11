@@ -1,27 +1,23 @@
 'use client'
 import { useEscClose } from '@/lib/use-esc-close'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { RefreshCw, TrendingUp, AlertTriangle, Plus, X, BarChart2, Target, FileText, ArrowUpDown, ArrowUp, ArrowDown, Pencil } from 'lucide-react'
+import { RefreshCw, TrendingUp, AlertTriangle, Plus, X, BarChart2, Target, FileText, Pencil } from 'lucide-react'
 import { formatSpec } from '@/lib/gpu/format-spec'
 import { SupplierBadge } from '@/components/gpu/SupplierBadge'
 import { fmtKRW, fmtUSD } from '@/lib/gpu/format-price'
 import dynamic from 'next/dynamic'
 import type { MarketPriceForEdit } from '@/components/pricing/gpu/MarketPriceEditModal'
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
+import { SortIcon } from '@/components/pricing/gpu/SortIcon'
+import { buildTierModelGroups, tierKey, modelKey, TIER_META } from '@/lib/gpu/group'
+import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 
 const MarketPriceEditModal = dynamic(() => import('@/components/pricing/gpu/MarketPriceEditModal'), { ssr: false })
 
 type StratSortKey = 'model' | 'supply' | 'market' | 'target' | 'required' | 'gap'
-
-function StratSortIcon({ col, sortKey, sortDir }: { col: StratSortKey; sortKey: StratSortKey; sortDir: 'asc' | 'desc' }) {
-  if (sortKey !== col) return <ArrowUpDown size={11} style={{ opacity: 0.35, flexShrink: 0 }} />
-  return sortDir === 'asc'
-    ? <ArrowUp size={11} style={{ color: 'var(--gpu-accent)', flexShrink: 0 }} />
-    : <ArrowDown size={11} style={{ color: 'var(--gpu-accent)', flexShrink: 0 }} />
-}
 
 interface Competitor {
   id: string
@@ -831,7 +827,7 @@ function StrategyOverviewPanel({ products, fmt }: { products: ProductGroup[]; fm
                 color: sortKey === key ? 'var(--gpu-accent)' : undefined,
               }}
             >
-              {label} <StratSortIcon col={key} sortKey={sortKey} sortDir={sortDir} />
+              {label} <SortIcon col={key} sortConfig={{ key: sortKey, dir: sortDir }} />
             </div>
           ))}
         </div>
@@ -1163,20 +1159,9 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
   const [showCompModal, setShowCompModal] = useState(false)
   const [viewMode, setViewMode] = useState<'table' | 'strategy'>('table')
   const [positionFilter, setPositionFilter] = useState<null | 'low' | 'mid' | 'high'>(null)
-  // Tier 카테고리 그룹 접힘 — Tier 1 기본 펼침, Tier 2·3 접힘(4개 메뉴 동일 UX)
-  const [collapsedTiers, setCollapsedTiers] = useState<Set<number>>(new Set([2, 3]))
-  const toggleTier = (t: number) => setCollapsedTiers(prev => {
-    const next = new Set(prev)
-    if (next.has(t)) next.delete(t); else next.add(t)
-    return next
-  })
-  // 모델 하위그룹 접힘 — 기본 접힘(열린 모델만 Set에 보관). 4개 메뉴 동일 Tier→모델 구조.
-  const [openModels, setOpenModels] = useState<Set<string>>(new Set())
-  const toggleMarketModel = (key: string) => setOpenModels(prev => {
-    const next = new Set(prev)
-    if (next.has(key)) next.delete(key); else next.add(key)
-    return next
-  })
+  // 검색 + Tier 필터 (다른 탭과 동일)
+  const [search, setSearch] = useState('')
+  const [tierFilter, setTierFilter] = useState(0)
 
   const usdKrw = data?.usd_krw ?? 1400
   const fmt = makeFmt(currencyMode, usdKrw)
@@ -1187,6 +1172,16 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
   const products = data?.products ?? []
   const competitors = data?.competitors ?? []
   const mappings = mappingsData?.mappings ?? []
+
+  // 공용 Tier→모델 그룹 접기 (4개 메뉴 동일 UX)
+  const allGroupKeys = useMemo(
+    () => products.flatMap((p) => [tierKey(p.product.tier), modelKey(p.product.tier, p.product.model_name)]),
+    [products],
+  )
+  const keepOpenTier1 = useMemo(() => [tierKey(1)], [])
+  const { isCollapsed: isGroupCollapsed, toggle: toggleTierModel } = useCollapsibleGroups(
+    allGroupKeys, true, keepOpenTier1,
+  )
 
   const toggleComp = (id: string) => {
     setActiveComps(prev => {
@@ -1232,18 +1227,24 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
   }
 
   const filteredProducts = products
-    .filter(p => positionFilter == null || getProductPosition(p) === positionFilter)
+    .filter(p => {
+      if (positionFilter != null && getProductPosition(p) !== positionFilter) return false
+      if (tierFilter !== 0 && p.product.tier !== tierFilter) return false
+      if (search) {
+        const q = search.toLowerCase()
+        return (
+          p.product.model_name.toLowerCase().includes(q) ||
+          (p.product.memory ?? '').toLowerCase().includes(q)
+        )
+      }
+      return true
+    })
     .map(p => ({
       ...p,
       competitors: activeComps.size === 0
         ? p.competitors
         : p.competitors.filter(c => activeComps.has(c.competitor.id)),
     }))
-
-  // Tier(1/2/3) 카테고리로 그룹핑 — 가격표와 동일 구조
-  const tierGroups: { tier: number; products: typeof filteredProducts }[] = [1, 2, 3]
-    .map(t => ({ tier: t, products: filteredProducts.filter(p => p.product.tier === t) }))
-    .filter(g => g.products.length > 0)
 
   if (isLoading) {
     return (
@@ -1423,6 +1424,36 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
           </div>
         </div>
       )}
+
+      {/* 검색 + Tier 필터 (다른 탭과 동일 위치/스타일) */}
+      <div className="gpu-toolbar">
+        <div className="gpu-search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.3-4.3"/>
+          </svg>
+          <input
+            placeholder="모델명 검색 (H100, A100 ...)"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="모델명 검색"
+          />
+        </div>
+        <div className="gpu-seg" role="group" aria-label="Tier 필터">
+          {([0, 1, 2, 3] as const).map((t) => (
+            <button
+              key={t}
+              className={tierFilter === t ? 'on' : ''}
+              onClick={() => setTierFilter(t)}
+              aria-pressed={tierFilter === t}
+            >
+              {t === 0
+                ? `전체 ${products.length}`
+                : `T${t} · ${products.filter(p => p.product.tier === t).length}`}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* 그룹 + 경쟁사 필터 */}
       <div style={{
@@ -1650,22 +1681,19 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
               <div style={{ fontSize: 13 }}>시장 데이터가 없습니다</div>
             </div>
           ) : (
-            tierGroups.flatMap(g => {
-              const gCfg = TIER_CONFIG[g.tier] ?? { label: `T${g.tier}`, name: '', badge: '', chipColor: '#666' }
-              const gCollapsed = collapsedTiers.has(g.tier)
-              const header = (
-                <div
-                  key={`tier-${g.tier}`}
-                  onClick={() => toggleTier(g.tier)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', cursor: 'pointer', background: 'var(--surface-bg)', borderBottom: 'var(--hairline) solid var(--surface-bg)', userSelect: 'none' }}
-                >
-                  <span style={{ transform: gCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform .15s', color: 'var(--gpu-muted)', display: 'inline-flex', fontSize: 11 }}>▶</span>
-                  <strong style={{ fontSize: 13, color: 'var(--text)' }}>{gCfg.label}</strong>
-                  <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>{new Set(g.products.map(p => p.product.model_name)).size}개 모델 · {g.products.length}개 구성</span>
-                </div>
-              )
-              if (gCollapsed) return [header]
-              const renderProductRow = (p: (typeof g.products)[number]) => {
+            (() => {
+              // 공용 buildTierModelGroups로 Tier→모델 2단계 그룹화
+              // TierModelItemLike 형태로 최소 래핑 — id 필드 포함해 prodById 조회 가능
+              type FlatItem = { id: string; model_name: string; tier: 1 | 2 | 3; gpu_count: number }
+              const flatItems: FlatItem[] = filteredProducts.map(p => ({
+                id: p.product.id,
+                model_name: p.product.model_name,
+                tier: p.product.tier as 1 | 2 | 3,
+                gpu_count: p.product.gpu_count ?? 1,
+              }))
+              const tierGroups = buildTierModelGroups(flatItems)
+
+              const renderProductRow = (p: (typeof filteredProducts)[number]) => {
               const pid = p.product.id
               const isOpen = expandedId === pid
               const tier = p.product.tier
@@ -1704,16 +1732,10 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                       </div>
                       <div>
                         <div className="gpu-model-nm">
-                          {p.product.gpu_count != null && p.product.gpu_count > 0 ? (
-                            <GpuModelName modelName={p.product.model_name} gpuCount={p.product.gpu_count} />
-                          ) : (
-                            <>
-                              {p.product.model_name}
-                              {p.product.memory && !p.product.model_name.replace(/\s+/g, '').toLowerCase().includes(p.product.memory.toLowerCase()) && (
-                                <span style={{ fontSize: '11px', color: 'var(--gpu-muted)', fontWeight: 400, marginLeft: 5 }}>{p.product.memory}</span>
-                              )}
-                            </>
-                          )}
+                          <GpuModelName
+                            modelName={p.product.model_name}
+                            gpuCount={p.product.gpu_count}
+                          />
                         </div>
                         <div className="gpu-model-meta">
                           <span className={`gpu-badge ${tierCfg.badge}`} style={{ fontSize: '10px' }}>{tierCfg.label}</span>
@@ -1826,34 +1848,50 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI }: {
                 </div>
               )
               }
-              // Tier 안에서 모델로 한 번 더 그룹 (B200의 ×1/×2/×4/×8을 한 모델로 묶음)
-              const byModel = new Map<string, typeof g.products>()
-              for (const p of g.products) {
-                const m = p.product.model_name
-                if (!byModel.has(m)) byModel.set(m, [])
-                byModel.get(m)!.push(p)
-              }
-              const modelEls = Array.from(byModel.keys()).sort((a, b) => a.localeCompare(b, 'ko')).flatMap(model => {
-                const prods = byModel.get(model)!
-                const mKey = `${g.tier}:${model}`
-                const mOpen = openModels.has(mKey)
-                const modelHeader = (
+
+              // prodById: product.id → filteredProducts entry (for render lookup)
+              const prodById = new Map(filteredProducts.map(p => [p.product.id, p]))
+
+              return tierGroups.flatMap(tg => {
+                const tKey = tierKey(tg.tier)
+                const tMeta = TIER_META[tg.tier] ?? { label: `Tier ${tg.tier}`, badge: '' }
+                const tCfg = TIER_CONFIG[tg.tier] ?? { label: `T${tg.tier}`, name: '', badge: '', chipColor: '#666' }
+                const tCollapsed = isGroupCollapsed(tKey)
+                const header = (
                   <div
-                    key={`m-${mKey}`}
-                    onClick={() => toggleMarketModel(mKey)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 18px 7px 30px', cursor: 'pointer', background: '#fff', borderBottom: 'var(--hairline) solid var(--surface-bg)', userSelect: 'none' }}
+                    key={`tier-${tg.tier}`}
+                    onClick={() => toggleTierModel(tKey)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', cursor: 'pointer', background: 'var(--surface-bg)', borderBottom: 'var(--hairline) solid var(--surface-bg)', userSelect: 'none' }}
                   >
-                    <span style={{ transform: mOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s', color: 'var(--gpu-muted)', display: 'inline-flex', fontSize: 10 }}>▶</span>
-                    <span className={`gpu-badge ${gCfg.badge}`} style={{ fontSize: 9.5 }}>T{g.tier}</span>
-                    <strong style={{ fontSize: 12.5, color: 'var(--text)' }}>{model}</strong>
-                    <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>{prods.length}개 구성</span>
+                    <span style={{ transform: tCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform .15s', color: 'var(--gpu-muted)', display: 'inline-flex', fontSize: 11 }}>▶</span>
+                    <strong style={{ fontSize: 13, color: 'var(--text)' }}>{tCfg.label}</strong>
+                    <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>{tg.count}개 모델 · {tg.itemCount}개 구성</span>
                   </div>
                 )
-                if (!mOpen) return [modelHeader]
-                return [modelHeader, ...prods.map(renderProductRow)]
+                if (tCollapsed) return [header]
+
+                const modelEls = tg.models.flatMap(mg => {
+                  const mKey = modelKey(tg.tier, mg.model)
+                  const mCollapsed = isGroupCollapsed(mKey)
+                  const modelHeader = (
+                    <div
+                      key={`m-${mKey}`}
+                      onClick={() => toggleTierModel(mKey)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 18px 7px 30px', cursor: 'pointer', background: '#fff', borderBottom: 'var(--hairline) solid var(--surface-bg)', userSelect: 'none' }}
+                    >
+                      <span style={{ transform: mCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform .15s', color: 'var(--gpu-muted)', display: 'inline-flex', fontSize: 10 }}>▶</span>
+                      <span className={`gpu-badge ${tMeta.badge}`} style={{ fontSize: 9.5 }}>T{tg.tier}</span>
+                      <strong style={{ fontSize: 12.5, color: 'var(--text)' }}>{mg.model}</strong>
+                      <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>{mg.items.length}개 구성</span>
+                    </div>
+                  )
+                  if (mCollapsed) return [modelHeader]
+                  const prods = mg.items.map(it => prodById.get(it.id)).filter(Boolean) as typeof filteredProducts
+                  return [modelHeader, ...prods.map(renderProductRow)]
+                })
+                return [header, ...modelEls]
               })
-              return [header, ...modelEls]
-            })
+            })()
           )}
         </div>
       </div>

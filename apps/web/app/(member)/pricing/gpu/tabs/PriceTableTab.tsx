@@ -1,15 +1,18 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
-import { ChevronRight, Plus, Zap, Info, ArrowUpDown, ArrowUp, ArrowDown, Tag, X, Trash2, Pencil } from 'lucide-react'
+import { ChevronRight, Plus, Zap, Info, Tag, X, Trash2, Pencil } from 'lucide-react'
 import { formatSpec, scaleSpec } from '@/lib/gpu/format-spec'
 import { STANDARD_LADDER } from '@/lib/gpu/config-ladder'
 import { fmtKRW, fmtUSD } from '@/lib/gpu/format-price'
 import dynamic from 'next/dynamic'
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
+import { SortIcon } from '@/components/pricing/gpu/SortIcon'
+import { buildTierModelGroups, tierKey, modelKey } from '@/lib/gpu/group'
+import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 
 const ProductAddModal = dynamic(() => import('@/components/pricing/gpu/ProductAddModal'), { ssr: false })
 const ProductEditModal = dynamic(() => import('@/components/pricing/gpu/ProductEditModal'), { ssr: false })
@@ -17,13 +20,6 @@ const QuoteEditModal = dynamic(() => import('@/components/pricing/gpu/QuoteEditM
 
 type SortKey = 'model' | 'supply' | 'sell'
 type SortDir = 'asc' | 'desc'
-
-function SortIcon({ col, sortConfig }: { col: SortKey; sortConfig: { key: SortKey; dir: SortDir } | null }) {
-  if (sortConfig?.key !== col) return <ArrowUpDown size={11} style={{ opacity: 0.35, flexShrink: 0 }} />
-  return sortConfig.dir === 'asc'
-    ? <ArrowUp size={11} style={{ color: 'var(--gpu-accent)', flexShrink: 0 }} />
-    : <ArrowDown size={11} style={{ color: 'var(--gpu-accent)', flexShrink: 0 }} />
-}
 
 interface Supplier {
   name: string
@@ -504,9 +500,6 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
   const [tierFilter, setTierFilter] = useState(0)
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [collapsedModels, setCollapsedModels] = useState<Set<string>>(new Set())
-  const [collapsedTiers, setCollapsedTiers] = useState<Set<number>>(new Set())
-  const [groupsInitialized, setGroupsInitialized] = useState(false)
   const [marginInput, setMarginInput] = useState<number | null>(null)
   const [marginSaving, setMarginSaving] = useState(false)
   const [bannerDismissed, setBannerDismissed] = useState(false)
@@ -524,32 +517,35 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
 
   const products = data?.products ?? []
 
-  // 모델 그룹 기본 접힘 — 최초 로드 시 전체 모델을 접힘 상태로 초기화
-  useEffect(() => {
-    if (groupsInitialized || products.length === 0) return
-    setCollapsedModels(new Set(products.map((p) => p.model_name)))
-    // Tier 1은 기본 펼침(모델은 접힘 유지), Tier 2·3만 접힘
-    setCollapsedTiers(new Set(products.map((p) => p.tier).filter((t) => t !== 1)))
-    setGroupsInitialized(true)
-  }, [products, groupsInitialized])
+  // 공용 그룹 접기 — 모든 Tier·모델 키 수집, Tier 1 기본 펼침
+  const allGroupKeys = useMemo(
+    () => products.flatMap((p) => [tierKey(p.tier), modelKey(p.tier, p.model_name)]),
+    [products],
+  )
+  const keepOpen = useMemo(() => [tierKey(1)], [])
+  const { isCollapsed, toggle } = useCollapsibleGroups(allGroupKeys, true, keepOpen)
 
-  // 외부(시장비교·공급사)에서 특정 상품으로 탐색 진입 시: 그룹 초기화(전체 접힘) 이후에 실행되어야
+  // 외부(시장비교·공급사)에서 특정 상품으로 탐색 진입 시:
   // 해당 Tier·모델 그룹을 펼치고 견적까지 열어 위치를 보여준다.
+  const focusHandled = useRef(false)
   useEffect(() => {
-    if (!initialProductId || !groupsInitialized) return
+    if (!initialProductId || focusHandled.current || allGroupKeys.length === 0) return
     const prod = products.find((p) => p.id === initialProductId)
     if (prod) {
-      setCollapsedTiers((prev) => { const n = new Set(prev); n.delete(prod.tier); return n })
-      setCollapsedModels((prev) => { const n = new Set(prev); n.delete(prod.model_name); return n })
+      // 해당 Tier 키·모델 키가 접혀 있으면 펼침
+      const tKey = tierKey(prod.tier)
+      const mKey = modelKey(prod.tier, prod.model_name)
+      if (isCollapsed(tKey)) toggle(tKey)
+      if (isCollapsed(mKey)) toggle(mKey)
     }
     setExpandedId(initialProductId)
     onProductFocusConsumed?.()
-    // scroll the row into view after render
+    focusHandled.current = true
     requestAnimationFrame(() => {
       const row = document.getElementById(`gpu-row-${initialProductId}`)
       row?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     })
-  }, [initialProductId, groupsInitialized]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initialProductId, allGroupKeys.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 검색·펼친 상품 변경을 상위로 보고(뷰 상태 영속). 첫 마운트(빈값)는 건너뛰어 복원값을 덮어쓰지 않음.
   const searchReported = useRef(false)
@@ -684,20 +680,13 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
     return groups
   })()
 
-  function toggleModel(model: string) {
-    setCollapsedModels((prev) => {
-      const next = new Set(prev)
-      if (next.has(model)) next.delete(model); else next.add(model)
-      return next
-    })
+  // 공용 useCollapsibleGroups.toggle 위임
+  function toggleModel(model: string, tier: number) {
+    toggle(modelKey(tier, model))
   }
 
   function toggleTier(tier: number) {
-    setCollapsedTiers((prev) => {
-      const next = new Set(prev)
-      if (next.has(tier)) next.delete(tier); else next.add(tier)
-      return next
-    })
+    toggle(tierKey(tier))
   }
 
   return (
@@ -895,18 +884,187 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
           </thead>
           <tbody>
             {(() => {
-              const byTier = new Map<number, typeof modelGroups>()
-              for (const g of modelGroups) {
-                if (!byTier.has(g.tier)) byTier.set(g.tier, [])
-                byTier.get(g.tier)!.push(g)
+              // sortConfig 활성 시: flat 정렬 렌더 (그룹화 없음 — 정렬 순서 유지)
+              // sortConfig null 시: Tier → 모델 2단계 그룹 렌더
+              if (sortConfig !== null) {
+                // flat 렌더: modelGroups 전체 rows를 sorted 순서대로 펼침
+                // sorted는 이미 computeSellKrw/공급가 기준으로 정렬된 GpuProduct 배열
+                return sorted.flatMap((p) => {
+                  const tier = TIER_CONFIG[p.tier]
+                  const isExpanded = expandedId === p.id
+                  const sellKrw = computeSellKrw(p)
+                  const partnerKrw = computePartnerKrw(sellKrw)
+                  const dday = p.lowest_valid_until ? fmtDday(p.lowest_valid_until) : null
+                  const firstLetter = p.model_name.charAt(0)
+                  return [
+                    <tr
+                      key={p.id}
+                      id={`gpu-row-${p.id}`}
+                      className={`gpu-row-main${isExpanded ? ' open' : ''}`}
+                      onClick={() => setExpandedId(isExpanded ? null : p.id)}
+                    >
+                      <td>
+                        <div className="gpu-model-cell">
+                          <div className="gpu-chip" style={{ background: tier.chipColor }}>
+                            {firstLetter}
+                            <span>{p.memory}</span>
+                          </div>
+                          <div>
+                            <div className="gpu-model-nm">
+                              <GpuModelName modelName={p.model_name} gpuCount={p.gpu_count} />
+                            </div>
+                            <div className="gpu-model-meta">
+                              <span className={`gpu-badge ${tier.badge}`} style={{ fontSize: '10px' }}>{tier.label}</span>
+                            </div>
+                            <div style={{ fontSize: '10.5px', color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p)}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        {p.pricing_mode === 'direct' ? (
+                          <div style={{ fontSize: '12px', color: 'var(--gpu-muted)' }}>견적 없음</div>
+                        ) : p.lowest_unit_price_usd != null ? (
+                          <>
+                            <div className="gpu-price-main">
+                              {currencyMode === 'KRW'
+                                ? fmtKRW(Math.round(p.lowest_unit_price_usd * usdKrw))
+                                : fmtUSD(p.lowest_unit_price_usd)}
+                            </div>
+                            <div className="gpu-price-sub">
+                              {currencyMode === 'KRW'
+                                ? <>{fmtUSD(p.lowest_unit_price_usd)} · /GPU·hr</>
+                                : <>/GPU·hr · {fmtKRW(Math.round(p.lowest_unit_price_usd * usdKrw))}</>}
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ fontSize: '12px', color: 'var(--gpu-faint)' }}>견적 대기</div>
+                        )}
+                      </td>
+                      <td>
+                        {p.pricing_mode === 'direct' ? (
+                          <span style={{ fontSize: '12px', color: 'var(--gpu-muted)' }}>gcube 직접 설정</span>
+                        ) : p.lowest_supplier ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                            <div className="gpu-supplier-tag">
+                              <span className="gpu-sdot" style={{ background: p.lowest_supplier.color }} />
+                              {p.lowest_supplier.name}
+                            </div>
+                            {p.basis === 'selected' && (
+                              <span style={{ fontSize: 9.5, fontWeight: 700, color: '#fff', background: 'var(--gpu-accent, var(--brand))', borderRadius: 4, padding: '0 5px' }}>✓ 기준</span>
+                            )}
+                            {p.basis === 'fallback' && (
+                              <span title={p.fallback_reason ?? ''} style={{ fontSize: 9.5, fontWeight: 700, color: '#fff', background: 'var(--gpu-red)', borderRadius: 4, padding: '0 5px' }}>⚠️ 기준만료→자동</span>
+                            )}
+                            {p.basis === 'list' && (
+                              <span title="매입원가 미등록 — 공시 판매가를 그대로 사용" style={{ fontSize: 9.5, fontWeight: 800, color: '#fff', background: 'var(--gpu-amber, var(--warning))', borderRadius: 4, padding: '0 5px' }}>📢 공시가</span>
+                            )}
+                          </div>
+                        ) : p.lowest_unit_price_usd != null ? (
+                          <span style={{ fontSize: '12px', color: 'var(--gpu-amber)' }}>공급사 미지정</span>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: 'var(--gpu-faint)' }}>—</span>
+                        )}
+                      </td>
+                      <td className="r">
+                        {sellKrw != null ? (
+                          <>
+                            <div className="gpu-price-main" style={p.basis === 'list' ? { color: 'var(--warning)' } : undefined}>
+                              {currencyMode === 'KRW'
+                                ? fmtKRW(sellKrw)
+                                : fmtUSD(sellKrw / usdKrw)}
+                              {p.basis === 'list' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--warning)', marginLeft: 4, verticalAlign: 'middle' }}>공시</span>}
+                            </div>
+                            <div className="gpu-price-sub">
+                              {currencyMode === 'KRW'
+                                ? <>{fmtUSD(sellKrw / usdKrw)} · /hr</>
+                                : <>/hr · {fmtKRW(sellKrw)}</>}
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ fontSize: '12px', color: 'var(--gpu-faint)' }}>—</div>
+                        )}
+                      </td>
+                      <td>
+                        {dday && (
+                          <span className="gpu-mono" style={{ fontSize: '10px', color: dday.color }}>{dday.label}</span>
+                        )}
+                      </td>
+                      {selectedTier && (
+                        <td className="r">
+                          {partnerKrw != null ? (
+                            <>
+                              <div className="gpu-price-main" style={{ color: 'var(--gpu-accent)' }}>
+                                {currencyMode === 'KRW'
+                                  ? fmtKRW(partnerKrw)
+                                  : fmtUSD(partnerKrw / usdKrw)}
+                              </div>
+                              <div className="gpu-price-sub">
+                                {currencyMode === 'KRW'
+                                  ? <>{fmtUSD(partnerKrw / usdKrw)} · /hr</>
+                                  : <>/hr · {fmtKRW(partnerKrw)}</>}
+                              </div>
+                            </>
+                          ) : (
+                            <span style={{ fontSize: '12px', color: 'var(--gpu-faint)' }}>—</span>
+                          )}
+                        </td>
+                      )}
+                      <td>
+                        <ChevronRight
+                          size={18}
+                          className={`gpu-chev${isExpanded ? ' open' : ''}`}
+                        />
+                      </td>
+                    </tr>,
+                    isExpanded && (
+                      <tr key={`${p.id}-expand`} className="gpu-detail-row">
+                        <td colSpan={colCount} style={{ padding: 0 }}>
+                          {p.pricing_mode === 'direct' ? (
+                            <div className="gpu-expand-body gpu-expand-direct">
+                              <Info size={13} />
+                              <span>Tier 3 — 공급 견적 없음. 판매가는 직접 입력 방식으로 관리됩니다.</span>
+                              {sellKrw && <strong className="gpu-mono">{fmtKRW(sellKrw)}/hr (현재가)</strong>}
+                            </div>
+                          ) : (
+                            <ExpandedRow
+                              productId={p.id}
+                              usdKrw={usdKrw}
+                              marginPct={marginPct}
+                              currencyMode={currencyMode}
+                              propagated={
+                                p.is_propagated && p.per_gpu_usd != null
+                                  ? {
+                                      per_gpu_usd: p.per_gpu_usd,
+                                      gpu_count: p.gpu_count,
+                                      effective_supplier: p.lowest_supplier ?? null,
+                                    }
+                                  : null
+                              }
+                            />
+                          )}
+                        </td>
+                      </tr>
+                    ),
+                  ]
+                })
               }
+
+              // sortConfig === null: Tier → 모델 2단계 그룹 렌더
+              const tierGroupsBuilt = buildTierModelGroups(
+                sorted
+              )
+              // modelGroups는 파생 행 포함한 원본 Map을 유지해야 하므로
+              // 모델명별로 빠른 조회가 되도록 Map으로 변환
+              const modelGroupByKey = new Map(modelGroups.map((g) => [g.model, g]))
+
               const renderGroup = (group: (typeof modelGroups)[number]) => {
               const tierCfg = TIER_CONFIG[group.tier]
-              const collapsed = collapsedModels.has(group.model)
+              const mKey = modelKey(group.tier, group.model)
+              const collapsed = isCollapsed(mKey)
               // 해당 모델의 첫 번째 실제(non-derived) 상품 — 편집 진입점
               const representativeProduct = group.rows.find((r) => !r._derived) ?? null
               const groupHeader = (
-                <tr key={`grp-${group.model}`} className="gpu-group-header" onClick={() => toggleModel(group.model)} style={{ cursor: 'pointer', background: 'var(--surface-bg)' }}>
+                <tr key={`grp-${group.model}`} className="gpu-group-header" onClick={() => toggleModel(group.model, group.tier)} style={{ cursor: 'pointer', background: 'var(--surface-bg)' }}>
                   <td colSpan={colCount}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <ChevronRight size={15} style={{ transform: collapsed ? 'none' : 'rotate(90deg)', transition: 'transform 0.15s', color: 'var(--gpu-muted)' }} />
@@ -1120,22 +1278,24 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
               })
               return [groupHeader, ...memberRows]
               }
-              return Array.from(byTier.keys()).sort((a, b) => a - b).flatMap((tier) => {
-                const tierCollapsed = collapsedTiers.has(tier)
-                const tcfg = TIER_CONFIG[tier as 1 | 2 | 3]
-                const groups = byTier.get(tier)!
+              return tierGroupsBuilt.flatMap((tg) => {
+                const tKey = tierKey(tg.tier)
+                const tierCollapsed = isCollapsed(tKey)
+                const tcfg = TIER_CONFIG[tg.tier as 1 | 2 | 3]
                 const tierHeader = (
-                  <tr key={`tier-${tier}`} className="gpu-group-header" onClick={() => toggleTier(tier)} style={{ cursor: 'pointer', background: 'var(--surface-bg)' }}>
+                  <tr key={`tier-${tg.tier}`} className="gpu-group-header" onClick={() => toggleTier(tg.tier)} style={{ cursor: 'pointer', background: 'var(--surface-bg)' }}>
                     <td colSpan={colCount}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <ChevronRight size={16} style={{ transform: tierCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform 0.15s', color: 'var(--gpu-muted)' }} />
                         <strong style={{ fontSize: 13.5, color: 'var(--text)' }}>{tcfg.label}</strong>
-                        <span style={{ fontSize: 11.5, color: 'var(--gpu-muted)' }}>{groups.length}개 모델</span>
+                        <span style={{ fontSize: 11.5, color: 'var(--gpu-muted)' }}>{tg.count}개 모델</span>
                       </div>
                     </td>
                   </tr>
                 )
                 if (tierCollapsed) return [tierHeader]
+                // modelGroupByKey로 파생 행 포함 원본 그룹 조회
+                const groups = tg.models.map((mg) => modelGroupByKey.get(mg.model)).filter(Boolean) as typeof modelGroups
                 return [tierHeader, ...groups.flatMap(renderGroup)]
               })
             })()}

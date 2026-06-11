@@ -10,6 +10,7 @@ import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { buildTierModelGroups, tierKey, modelKey } from '@/lib/gpu/group'
 import { TierHeader, ModelHeader } from '@/components/gpu/CategoryGroup'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
+import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
 
 interface SupplierAvail {
   supplier_id: string | null
@@ -257,8 +258,9 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>
-              {item.model_name} {item.memory}
+              <GpuModelName modelName={item.model_name} gpuCount={item.gpu_count} />
             </span>
+            <span style={{ fontSize: 12, color: 'var(--gpu-muted)' }}>{item.memory}</span>
             <span className={`gpu-badge ${TIER_BADGES[item.tier]}`} style={{ fontSize: 10 }}>
               {TIER_LABELS[item.tier]}
             </span>
