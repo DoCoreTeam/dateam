@@ -275,18 +275,6 @@ export default function SalePriceCatalogPage() {
       </div>
 
       {/* Tier 설명 */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        {([1, 2, 3] as const).map((t) => (
-          <div key={t} style={{
-            display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 6,
-            background: 'var(--gpu-surface)', border: `var(--hairline) solid var(--gpu-border)`,
-            borderLeft: `var(--border-w) solid ${TIER_INFO[t].color}`, fontSize: 11, color: 'var(--gpu-muted)',
-          }}>
-            <span style={{ fontWeight: 700, color: 'var(--text)' }}>Tier {t}</span>
-          </div>
-        ))}
-      </div>
-
       {/* 가격표 */}
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--gpu-muted)' }}>로딩 중...</div>
