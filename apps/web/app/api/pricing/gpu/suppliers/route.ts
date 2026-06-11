@@ -71,6 +71,20 @@ export async function GET() {
       if (sid) marketLinkSet.add(sid)
     }
 
+    // 경쟁사 겸업: competitors.supplier_id 가 이 공급사를 가리키면 "경쟁사 겸업"
+    const compLinkRes = await (supplierIds.length > 0
+      ? db
+          .from('competitors')
+          .select('name, supplier_id')
+          .in('supplier_id', supplierIds)
+      : Promise.resolve({ data: [] }))
+    const compNameMap = new Map<string, string>()
+    for (const c of compLinkRes.data ?? []) {
+      const row = c as Record<string, unknown>
+      const sid = row.supplier_id as string
+      if (sid && !compNameMap.has(sid)) compNameMap.set(sid, row.name as string)
+    }
+
     const lastMap = new Map<string, string>()
     for (const q of lastRes.data ?? []) {
       const row = q as Record<string, unknown>
@@ -86,6 +100,8 @@ export async function GET() {
       lowest_count: lowestMap.get(s.id as string) ?? 0,
       last_received: lastMap.get(s.id as string) ?? null,
       has_market_link: marketLinkSet.has(s.id as string),
+      is_competitor: compNameMap.has(s.id as string),
+      linked_competitor_name: compNameMap.get(s.id as string) ?? null,
     }))
 
     return NextResponse.json({ suppliers: result })

@@ -5156,6 +5156,44 @@ label.intake-tool-btn {
   flex-shrink: 0;
 }
 
+/* 경쟁사 겸업 뱃지 — 경쟁사이자 공급사 (강조: brand 계열) */
+.gpu-dual-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-2xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--brand);
+  background: var(--brand-soft);
+  border: var(--hairline) solid var(--brand);
+  border-radius: var(--radius);
+  padding: 1px var(--space-2);
+  line-height: 1.5;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* "공급사로 지정" 1클릭 버튼 (시장비교 경쟁사 카드) */
+.gpu-promote-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-2xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--brand);
+  background: var(--brand-soft);
+  border: var(--hairline) solid var(--brand);
+  border-radius: var(--radius);
+  padding: 2px var(--space-2);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.gpu-promote-btn:hover:not(:disabled) {
+  background: var(--brand);
+  color: var(--surface-bg);
+}
+.gpu-promote-btn:disabled { opacity: 0.5; cursor: default; }
+
 /* 전파 추정 공급사 항목 — warning 테두리로 구분 */
 .cockpit-supplier-item--propagated {
   border-color: var(--warning-border);

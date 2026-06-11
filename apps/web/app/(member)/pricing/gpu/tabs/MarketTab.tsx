@@ -5,7 +5,7 @@ import { useState, useMemo } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
-import { RefreshCw, TrendingUp, AlertTriangle, Plus, X, BarChart2, Target, FileText, Pencil, Link2, Link2Off, DownloadCloud } from 'lucide-react'
+import { RefreshCw, TrendingUp, AlertTriangle, Plus, X, BarChart2, Target, FileText, Pencil, Link2, Link2Off, DownloadCloud, PackagePlus } from 'lucide-react'
 import { formatSpec } from '@/lib/gpu/format-spec'
 import { SupplierBadge } from '@/components/gpu/SupplierBadge'
 import { fmtKRW, fmtUSD } from '@/lib/gpu/format-price'
@@ -1210,6 +1210,20 @@ function SupplierLinkControl({
     } finally { setBusy(false) }
   }
 
+  // 경쟁사를 "우리 공급사"로 1클릭 지정 (suppliers 자동생성+연결)
+  const promote = async () => {
+    setBusy(true); setErr(null)
+    try {
+      const res = await fetch(`/api/pricing/gpu/market/competitors/${competitorId}/promote-supplier`, {
+        method: 'POST',
+      })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error ?? '공급사 지정 실패'); return }
+      onChanged()
+    } catch {
+      setErr('공급사 지정 실패')
+    } finally { setBusy(false) }
+  }
+
   if (linkedName) {
     return (
       <div className="gpu-link-row">
@@ -1230,18 +1244,26 @@ function SupplierLinkControl({
 
   return (
     <div className="gpu-link-row">
-      <label className="gpu-link-row-label">
-        <Link2 size={11} aria-hidden />
-        <span>공급사 연결</span>
-      </label>
+      {/* 1클릭 지정 — 이 경쟁사를 우리 공급사로(suppliers 자동생성+연결) */}
+      <button
+        type="button"
+        onClick={promote}
+        disabled={busy}
+        className="gpu-btn gpu-promote-btn"
+        title="이 경쟁사를 우리 공급사로 지정합니다 (자동 등록)"
+      >
+        <PackagePlus size={12} aria-hidden /> 공급사로 지정
+      </button>
+      {/* 고급: 이미 등록된 다른 공급사에 연결 */}
       <select
         defaultValue=""
         disabled={busy || suppliers.length === 0}
         onChange={(e) => { const v = e.target.value; if (v) patch(v) }}
-        aria-label="공급사 선택"
+        aria-label="기존 공급사에 연결"
         className="gpu-link-select"
+        title="기존 공급사에 연결"
       >
-        <option value="">{suppliers.length === 0 ? '공급사 없음' : '공급사 선택…'}</option>
+        <option value="">{suppliers.length === 0 ? '기존 공급사 없음' : '기존 공급사 연결…'}</option>
         {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
       </select>
       {err && <span className="gpu-link-err">{err}</span>}

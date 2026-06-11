@@ -25,6 +25,9 @@ interface SupplierStats {
   last_received: string | null
   /** 경쟁사 시장가 인입(market_link) 원가 견적 보유 — Phase3 연계 배지 */
   has_market_link?: boolean
+  /** 경쟁사 겸업 — competitors.supplier_id 가 이 공급사를 가리킴(시장비교에서 공급사로 지정) */
+  is_competitor?: boolean
+  linked_competitor_name?: string | null
 }
 
 interface ContactRow {
@@ -539,9 +542,14 @@ export default function SuppliersTab({ onGoToPriceTable }: { onGoToPriceTable?: 
                   {s.website && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--gpu-accent)' }}><Globe size={11} />사이트</span>}
                   {s.source === 'manual' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-amber)', background: 'var(--warning-bg)', border: 'var(--hairline) solid var(--warning-border)', borderRadius: 4, padding: '0 5px' }}>수동입력</span>}
                   {s.source === 'integrated' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.08)', borderRadius: 4, padding: '0 5px' }}>통합입력</span>}
+                  {s.is_competitor && (
+                    <span className="gpu-dual-badge" title={`시장비교 경쟁사 "${s.linked_competitor_name ?? s.name}"를 공급사로 지정 — 경쟁사 겸 공급사`}>
+                      <Link2 size={10} aria-hidden /> 경쟁사 겸업
+                    </span>
+                  )}
                   {s.has_market_link && (
                     <span className="gpu-link-badge" title="경쟁사 공시가 기반 원가가 연계되어 있습니다">
-                      <Link2 size={10} aria-hidden /> 경쟁사 연계
+                      <Link2 size={10} aria-hidden /> 연계원가
                     </span>
                   )}
                 </div>
