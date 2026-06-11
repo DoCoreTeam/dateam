@@ -219,6 +219,31 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode, propagated }:
   const listQuotes = quotes.filter((q) => q.price_type === 'list')
   const hasSelected = costQuotes.some((q) => q.is_selected)
 
+  // 공시 판매가(gcube 등) 박스 — cost 견적 유무와 무관하게 항상 표시 (공통)
+  const listBox = listQuotes.length > 0 ? (
+    <div className="gpu-list-price-box">
+      <div className="gpu-list-price-header">
+        <span>📢</span>
+        <span className="gpu-list-price-title">현재 공시 판매가</span>
+        <span className="gpu-list-price-badge">시장 참고 · 원가 아님</span>
+      </div>
+      {listQuotes.map((q) => {
+        const listKrw = Math.round(q.unit_price_usd * usdKrw)
+        return (
+          <div key={q.id} className="gpu-list-price-row">
+            {q.suppliers && <span className="gpu-sdot" style={{ background: q.suppliers.color, width: 9, height: 9 }} />}
+            <span className="gpu-list-price-name">{q.suppliers?.name ?? '—'}</span>
+            <span className="gpu-list-price-label">공시 판매가</span>
+            <span className="gpu-list-price-val">
+              {currencyMode === 'KRW' ? fmtKRW(listKrw) : fmtUSD(q.unit_price_usd)}
+            </span>
+            <span className="gpu-list-price-unit">/GPU·hr</span>
+          </div>
+        )
+      })}
+    </div>
+  ) : null
+
   const toggleSelect = async (qid: string, next: boolean) => {
     setSelecting(qid)
     try {
@@ -230,8 +255,10 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode, propagated }:
     } finally { setSelecting(null) }
   }
 
-  if (quotes.length === 0) {
-    // 실제 견적은 없지만 buildCatalog 전파원가가 있으면 추정 근거 표시
+  // 직접 등록된 공급원가(cost) 견적이 없을 때 — 전파(추정) 근거 + 공시가 표시.
+  // (gcube 공시 list 견적만 있는 ×2/×4 파생 구성도 ×1처럼 공급사 내용이 나와야 함)
+  if (costQuotes.length === 0) {
+    // buildCatalog 전파원가가 있으면 추정 근거(전파 기준 공급사) 표시
     if (propagated) {
       const estimatedUsd = propagated.per_gpu_usd * propagated.gpu_count
       const estimatedKrw = Math.round(estimatedUsd * usdKrw)
@@ -239,12 +266,12 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode, propagated }:
       return (
         <div className="gpu-expand-body">
           <div className="gpu-expand-head gpu-expand-head--accent">
-            <Info size={13} /> 전파 추정 원가 — 실제 견적 없음
+            <Info size={13} /> 전파 추정 원가 — 1장당 견적 환산
           </div>
           <div className="gpu-expand-desc">
             이 구성(×{propagated.gpu_count}GPU)에 직접 등록된 견적이 없습니다.
             동일 모델의 1장당 최저 단가({currencyMode === 'KRW' ? fmtKRW(Math.round(propagated.per_gpu_usd * usdKrw)) : fmtUSD(propagated.per_gpu_usd)}/GPU·hr)를
-            {propagated.gpu_count}배로 환산한 <strong>추정값</strong>입니다.
+            {propagated.gpu_count}배로 환산한 <strong>추정값</strong>이며, 아래 공급사가 그 기준입니다.
           </div>
           <div className="gpu-qline gpu-qline-best gpu-qline--selected">
             <div className="gpu-qline-sup">
@@ -276,12 +303,16 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode, propagated }:
             <div></div>
             <div></div>
           </div>
+          {listBox}
         </div>
       )
     }
     return (
-      <div className="gpu-expand-empty">
-        확정된 견적이 없습니다 — 견적 등록 탭에서 공급 견적을 등록해 주세요.
+      <div className="gpu-expand-body">
+        <div className="gpu-expand-empty">
+          확정된 견적이 없습니다 — 견적 등록 탭에서 공급 견적을 등록해 주세요.
+        </div>
+        {listBox}
       </div>
     )
   }
@@ -393,29 +424,7 @@ function ExpandedRow({ productId, usdKrw, marginPct, currencyMode, propagated }:
           onSaved={() => { mutate(`/api/pricing/gpu/quotes?product_id=${productId}`); mutateGpu(mutate) }}
         />
       )}
-      {listQuotes.length > 0 && (
-        <div className="gpu-list-price-box">
-          <div className="gpu-list-price-header">
-            <span>📢</span>
-            <span className="gpu-list-price-title">현재 공시 판매가</span>
-            <span className="gpu-list-price-badge">시장 참고 · 원가 아님</span>
-          </div>
-          {listQuotes.map((q) => {
-            const listKrw = Math.round(q.unit_price_usd * usdKrw)
-            return (
-              <div key={q.id} className="gpu-list-price-row">
-                {q.suppliers && <span className="gpu-sdot" style={{ background: q.suppliers.color, width: 9, height: 9 }} />}
-                <span className="gpu-list-price-name">{q.suppliers?.name ?? '—'}</span>
-                <span className="gpu-list-price-label">공시 판매가</span>
-                <span className="gpu-list-price-val">
-                  {currencyMode === 'KRW' ? fmtKRW(listKrw) : fmtUSD(q.unit_price_usd)}
-                </span>
-                <span className="gpu-list-price-unit">/GPU·hr</span>
-              </div>
-            )
-          })}
-        </div>
-      )}
+      {listBox}
     </div>
   )
 }
