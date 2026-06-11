@@ -49,11 +49,32 @@ export async function GET(
     .eq('supplier_id', id)
     .eq('is_current', true)
 
+  // 공급사+모델별 Tier override (라벨 전용) — 견적의 표시 tier에 덮어씀
+  const { data: tierOverrides } = await db
+    .from('supplier_model_tier')
+    .select('model_name, tier')
+    .eq('supplier_id', id)
+  const overrideMap = new Map<string, number>()
+  for (const t of tierOverrides ?? []) {
+    const row = t as { model_name: string; tier: number }
+    overrideMap.set(row.model_name, row.tier)
+  }
+  // 각 견적에 effective_tier(override ?? 모델 기본 tier)와 override 여부 부여
+  const quotesWithTier = (quotes ?? []).map((q: Record<string, unknown>) => {
+    const prod = q.gpu_products as { model_name?: string; tier?: number } | null
+    const ov = prod?.model_name ? overrideMap.get(prod.model_name) : undefined
+    return {
+      ...q,
+      tier_override: ov ?? null,
+      effective_tier: ov ?? prod?.tier ?? null,
+    }
+  })
+
   const confirmed = (quotes ?? []).filter((q: { status: string }) => q.status === 'confirmed')
   return NextResponse.json({
     supplier,
     contacts,
-    quotes: quotes ?? [],
+    quotes: quotesWithTier,
     availability: availability ?? [],
     stats: {
       total_quotes: (quotes ?? []).length,

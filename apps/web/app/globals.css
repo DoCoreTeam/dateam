@@ -5173,6 +5173,41 @@ label.intake-tool-btn {
   flex-shrink: 0;
 }
 
+/* 공급사+모델 Tier 뱃지 (공급사 상세 견적행) — override 시 brand 강조 */
+.gpu-tier-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-2xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-muted);
+  background: var(--surface-bg);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 1px var(--space-2);
+  line-height: 1.5;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.gpu-tier-badge--override {
+  color: var(--brand);
+  background: var(--brand-soft);
+  border-color: var(--brand);
+}
+
+/* 공급사 Tier 지정 셀렉트 (공급사 상세 견적행, admin) — input-field 기반 compact override */
+.gpu-tier-select {
+  width: auto;
+  font-size: var(--fs-2xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-muted);
+  background: var(--surface-bg);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 2px var(--space-1);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
 /* "공급사로 지정" 1클릭 버튼 (시장비교 경쟁사 카드) */
 .gpu-promote-btn {
   display: inline-flex;

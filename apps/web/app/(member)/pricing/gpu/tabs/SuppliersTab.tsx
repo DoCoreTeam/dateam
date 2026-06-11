@@ -50,6 +50,10 @@ interface QuoteRow {
   term: string | null; term_months: number | null; min_qty: string | null; valid_until: string | null
   original_price: number | null; original_currency: string | null; original_unit: string | null
   gpu_products: { id: string; model_name: string; memory: string | null; tier: number } | null
+  /** 공급사+모델별 Tier override (라벨 전용). null이면 모델 기본 tier 사용 */
+  tier_override?: number | null
+  /** override ?? gpu_products.tier — 표시용 유효 tier */
+  effective_tier?: number | null
 }
 
 const COLORS = ['var(--brand)', 'var(--success)', 'var(--warning)', 'var(--danger)', 'var(--brand)', 'var(--info)', '#ec4899', 'var(--info)', 'var(--warning)', 'var(--success)']
@@ -251,6 +255,20 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
     } finally { setSaving(false) }
   }
 
+  // 공급사+모델별 Tier override 설정/해제 (라벨 전용)
+  const [tierBusy, setTierBusy] = useState<string | null>(null)
+  const setModelTier = async (modelName: string, tier: number | null) => {
+    setTierBusy(modelName); setErr(null)
+    try {
+      const res = await fetch(`/api/pricing/gpu/suppliers/${id}/model-tier`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model_name: modelName, tier }),
+      })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error ?? 'Tier 설정 실패'); return }
+      await mutate(); onChanged()
+    } finally { setTierBusy(null) }
+  }
+
   const del = async () => {
     if (!confirm(`'${s?.name}' 공급사를 삭제할까요?`)) return
     setSaving(true); setErr(null)
@@ -412,10 +430,33 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
                             {prod?.model_name ?? '상품 미연결'}
                             {prod?.memory && <span style={{ color: 'var(--gpu-muted)', fontWeight: 400 }}> {prod.memory}</span>}
                           </span>
+                          {q.effective_tier != null && (
+                            <span
+                              className={q.tier_override != null ? 'gpu-tier-badge gpu-tier-badge--override' : 'gpu-tier-badge'}
+                              title={q.tier_override != null ? '공급사 지정 Tier (모델 기본값 덮어씀)' : '모델 기본 Tier'}
+                            >
+                              T{q.effective_tier}{q.tier_override != null ? '*' : ''}
+                            </span>
+                          )}
                           <span style={{ color: 'var(--gpu-muted)' }}>×{q.gpu_count}GPU</span>
                           <span style={{ fontFamily: 'monospace', fontWeight: 700, marginLeft: 'auto' }}>{fmtUSD(q.unit_price_usd)}</span>
                           <span style={{ fontSize: 11, fontWeight: 600, color: st.c, minWidth: 36, textAlign: 'right' }}>{st.t}</span>
                         </button>
+                        {prod?.model_name && (
+                          <select className="input-field gpu-tier-select"
+                            value={q.tier_override ?? ''}
+                            disabled={tierBusy === prod.model_name}
+                            onChange={(e) => setModelTier(prod.model_name, e.target.value === '' ? null : Number(e.target.value))}
+                            aria-label={`${prod.model_name} 공급사 Tier 지정`}
+                            title="이 공급사의 해당 모델 Tier 지정 (분류·표시 전용, 가격 불변)"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <option value="">자동(T{prod.tier})</option>
+                            <option value="1">T1 지정</option>
+                            <option value="2">T2 지정</option>
+                            <option value="3">T3 지정</option>
+                          </select>
+                        )}
                         <button
                           onClick={() => { if (canLocate && prod) { onClose(); onGoToPriceTable!(prod.model_name, prod.id) } }}
                           disabled={!canLocate}
