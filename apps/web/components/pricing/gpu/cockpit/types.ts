@@ -23,6 +23,8 @@ export interface Competitor {
   company_name: string
   price_krw: number
   recorded_at: string
+  /** 이 경쟁사가 공급사로 연결되어 있으면 공급사명, 아니면 null/undefined (연계 배지) */
+  linked_supplier_name?: string | null
 }
 
 export interface CockpitProduct {
@@ -42,6 +44,8 @@ export interface CockpitProduct {
   cost_min_krw: number | null
   cost_max_krw: number | null
   cost_suppliers: CostSupplier[]
+  /** 원가 출처 — 'market_link'(경쟁사 공시가 인입) | 'quote'(실견적). Phase3 */
+  cost_source?: 'market_link' | 'quote'
 
   // 판매가 후보
   candidate_price_krw: number | null

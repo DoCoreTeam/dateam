@@ -3,7 +3,7 @@
 // 모든 GPU 쓰기 라우트는 이 함수를 통해 gpu_audit_logs에 기록한다.
 // 직접 INSERT를 분산하지 않고 단일 진입점을 유지하여 action_type 오탈자 방지.
 //
-// action_type 허용값은 migrations/079_gpu_audit_action_types.sql CHECK 제약과 동기.
+// action_type 허용값은 migrations/079·081·083 의 gpu_audit_logs CHECK 제약과 동기.
 
 export type GpuActionType =
   | 'quote_registered'
@@ -34,6 +34,8 @@ export type GpuActionType =
   | 'market_price_updated'
   | 'market_price_deleted'
   | 'strategic_price_set'
+  | 'gcube_price_collected'
+  | 'market_cost_ingested'
 
 export interface RecordGpuAuditParams {
   actor: string

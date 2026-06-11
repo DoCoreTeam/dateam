@@ -41,12 +41,21 @@ export function CostDrawer({ product, onGoToTab }: CostDrawerProps) {
           {isPropagated && (
             <span className="cockpit-basis-tag">추정</span>
           )}
+          {product.cost_source === 'market_link' && (
+            <span className="cockpit-link-badge">연계 원가</span>
+          )}
         </span>
       </div>
 
       {isPropagated && (
         <p className="cockpit-propagated-note">
           이 구성에 직접 등록된 견적이 없습니다. 동일 모델의 1장당 최저 단가를 구성 수로 환산한 <strong>추정 원가</strong>입니다.
+        </p>
+      )}
+
+      {product.cost_source === 'market_link' && (
+        <p className="cockpit-propagated-note">
+          이 원가는 <strong>경쟁사 공시가 기반</strong>으로 인입된 값입니다. 실제 매입 견적이 아니므로 협상·계약 시 참고용으로만 활용하세요.
         </p>
       )}
 
@@ -170,6 +179,11 @@ export function CompetitorDrawer({
                   aria-pressed={isActive}
                 >
                   <span className="cockpit-competitor-name">{c.company_name}</span>
+                  {c.linked_supplier_name && (
+                    <span className="cockpit-link-badge">
+                      공급사 연결: {c.linked_supplier_name}
+                    </span>
+                  )}
                   <span className="cockpit-price">{fmtKRW(c.price_krw)}</span>
                   <span className="cockpit-price-sub">
                     {new Date(c.recorded_at).toLocaleDateString('ko-KR', {

@@ -161,6 +161,29 @@ test('cost 없고 list만 있으면 list 공시가를 고객가로 그대로(마
   assert.equal(p.sell_price_krw, 2800)                    // 2.0 × 1400
 })
 
+// ─── P2-2: 경쟁사 시장가 인입(market_link) cost가 자동으로 effective→+마진 sell에 반영 ───
+
+test('인입 cost(market_link)는 일반 cost와 동일하게 effective→×(1+마진) sell로 자동 반영', () => {
+  const raw = b200Raw()
+  // 경쟁사 시장가 인입 견적: p1에 기존 최저(High Reso 3.24)보다 낮은 2.5 cost가 들어왔다고 가정.
+  // ingest-cost 라우트가 INSERT하는 행 형태: price_type='cost', valid_until=null.
+  raw.quotes = [
+    ...raw.quotes,
+    { product_id: 'p1', supplier_id: 'comp-sup', unit_price_usd: 2.5, gpu_count: 1, valid_until: null, price_type: 'cost' },
+  ]
+  raw.suppliers = [...raw.suppliers, { id: 'comp-sup', name: '경쟁사연계공급사', color: '#ef4444' }]
+  const cat = buildCatalog(raw)
+  const byId = new Map(cat.products.map((p) => [p.id, p]))
+  const p1 = byId.get('p1')!
+  // 인입가 2.5가 자기 구성 최저 → effective=2.5
+  assert.equal(p1.effective_unit_price_usd, 2.5)
+  // sell = 2.5 × (1+0.18)
+  assert.ok(Math.abs((p1.sell_price_usd as number) - 2.5 * 1.18) < 1e-9)
+  // 모델 최저 1장당(2.5)이 파생 구성에도 전파됨 → p8 effective = 2.5 × 8
+  const p8 = byId.get('p8')!
+  assert.ok(Math.abs((p8.effective_unit_price_usd as number) - 2.5 * 8) < 1e-9)
+})
+
 // ─── P1-2: strategic_price_krw 파생 필드 ───
 
 test('strategic 설정 시 strategic_krw = strategic_price_krw, is_strategic_set = true', () => {

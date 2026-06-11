@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { Plus, X, Globe, Trash2, Save, ExternalLink, Sparkles, ChevronRight, Pencil } from 'lucide-react'
+import { Plus, X, Globe, Trash2, Save, ExternalLink, Sparkles, ChevronRight, Pencil, Link2 } from 'lucide-react'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { countryFlag } from '@/lib/gpu/country-flag'
 import { useEscClose } from '@/lib/use-esc-close'
@@ -23,6 +23,8 @@ interface SupplierStats {
   active_quotes: number
   lowest_count: number
   last_received: string | null
+  /** 경쟁사 시장가 인입(market_link) 원가 견적 보유 — Phase3 연계 배지 */
+  has_market_link?: boolean
 }
 
 interface ContactRow {
@@ -537,6 +539,11 @@ export default function SuppliersTab({ onGoToPriceTable }: { onGoToPriceTable?: 
                   {s.website && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--gpu-accent)' }}><Globe size={11} />사이트</span>}
                   {s.source === 'manual' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-amber)', background: 'var(--warning-bg)', border: 'var(--hairline) solid var(--warning-border)', borderRadius: 4, padding: '0 5px' }}>수동입력</span>}
                   {s.source === 'integrated' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.08)', borderRadius: 4, padding: '0 5px' }}>통합입력</span>}
+                  {s.has_market_link && (
+                    <span className="gpu-link-badge" title="경쟁사 공시가 기반 원가가 연계되어 있습니다">
+                      <Link2 size={10} aria-hidden /> 경쟁사 연계
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

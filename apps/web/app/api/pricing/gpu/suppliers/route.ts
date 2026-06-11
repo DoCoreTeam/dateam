@@ -54,6 +54,23 @@ export async function GET() {
           .order('received_at', { ascending: false })
       : Promise.resolve({ data: [] }))
 
+    // 경쟁사 시장가 인입(market_link) 원가 견적이 있는 공급사 — 연계 배지
+    const marketLinkRes = await (supplierIds.length > 0
+      ? db
+          .from('supply_quotes')
+          .select('supplier_id')
+          .in('supplier_id', supplierIds)
+          .eq('status', 'confirmed')
+          .eq('price_type', 'cost')
+          .eq('source_format', 'market_link')
+          .is('deleted_at', null)
+      : Promise.resolve({ data: [] }))
+    const marketLinkSet = new Set<string>()
+    for (const q of marketLinkRes.data ?? []) {
+      const sid = (q as Record<string, unknown>).supplier_id as string
+      if (sid) marketLinkSet.add(sid)
+    }
+
     const lastMap = new Map<string, string>()
     for (const q of lastRes.data ?? []) {
       const row = q as Record<string, unknown>
@@ -68,6 +85,7 @@ export async function GET() {
       active_quotes: activeMap.get(s.id as string) ?? 0,
       lowest_count: lowestMap.get(s.id as string) ?? 0,
       last_received: lastMap.get(s.id as string) ?? null,
+      has_market_link: marketLinkSet.has(s.id as string),
     }))
 
     return NextResponse.json({ suppliers: result })

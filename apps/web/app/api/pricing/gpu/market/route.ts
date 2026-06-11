@@ -19,7 +19,7 @@ export async function GET() {
       .single()
     const usdKrw: number = fxData?.usd_krw ?? 1400
 
-    // 경쟁사 목록
+    // 경쟁사 목록 (supplier_id 포함 — 내부 admin 화면이므로 연계 노출 허용)
     const { data: competitors, error: compErr } = await db
       .from('competitors')
       .select('*')
@@ -27,6 +27,36 @@ export async function GET() {
       .order('name')
 
     if (compErr) throw compErr
+
+    // 경쟁사 → 연결 공급사명 맵 (배지 표시용)
+    const linkedSupplierIds = Array.from(
+      new Set(
+        (competitors ?? [])
+          .map((c: Record<string, unknown>) => c.supplier_id as string | null)
+          .filter((sid: string | null): sid is string => !!sid),
+      ),
+    )
+    const linkedSupplierNameMap = new Map<string, string>()
+    if (linkedSupplierIds.length > 0) {
+      const { data: linkedSuppliers } = await db
+        .from('suppliers')
+        .select('id, name')
+        .in('id', linkedSupplierIds)
+      for (const s of linkedSuppliers ?? []) {
+        const row = s as Record<string, unknown>
+        linkedSupplierNameMap.set(row.id as string, row.name as string)
+      }
+    }
+    // competitor_id → 연결 공급사명
+    const competitorLinkedSupplier = new Map<string, string | null>()
+    for (const c of competitors ?? []) {
+      const row = c as Record<string, unknown>
+      const sid = row.supplier_id as string | null
+      competitorLinkedSupplier.set(
+        row.id as string,
+        sid ? (linkedSupplierNameMap.get(sid) ?? null) : null,
+      )
+    }
 
     // 전체 GPU 상품 카탈로그 (가격표와 동일한 기준)
     const { data: allProducts, error: prodErr } = await db
@@ -82,6 +112,18 @@ export async function GET() {
       mappingsByProduct.get(pid)!.push(m)
     }
 
+    // 원가 출처 — market_link(경쟁사 시장가 인입) cost 견적이 있는 상품 집합 (배지용)
+    const { data: marketLinkQuotes } = await db
+      .from('supply_quotes')
+      .select('product_id')
+      .eq('status', 'confirmed')
+      .eq('price_type', 'cost')
+      .eq('source_format', 'market_link')
+      .is('deleted_at', null)
+    const marketLinkProductIds = new Set<string>(
+      (marketLinkQuotes ?? []).map((q: Record<string, unknown>) => q.product_id as string),
+    )
+
     // 우리 가격 — L2 SSOT(getGpuCatalog) 경유: 1장당 전파 effective + 모델별 공급사 목록
     const catalog = await getGpuCatalog(db)
     const catalogByProduct = new Map(catalog.products.map((p) => [p.id, p]))
@@ -126,10 +168,16 @@ export async function GET() {
           : null
         const isFresh = hoursAgo !== null && hoursAgo <= MARKET_FRESH_HOURS
 
+        const competitorId = (m.competitor_id ?? (m.competitors as Record<string, unknown> | null)?.id) as string | undefined
+        const linkedSupplierName = competitorId
+          ? (competitorLinkedSupplier.get(competitorId) ?? null)
+          : null
+
         return {
           mapping_id: m.id,
           price_id: priceData?.id ?? null,
           competitor: m.competitors,
+          linked_supplier_name: linkedSupplierName,
           competitor_sku: m.competitor_sku,
           pricing_model: m.pricing_model,
           region: m.region,
@@ -205,12 +253,16 @@ export async function GET() {
           : latestPrices[mid]
       }
 
+      // 원가 출처: 이 상품의 confirmed cost 견적이 경쟁사 시장가 인입(market_link)이면 'market_link', 아니면 'quote'
+      const cost_source: 'market_link' | 'quote' = marketLinkProductIds.has(pid) ? 'market_link' : 'quote'
+
       return {
         product: prod,
         competitors: enrichedCompetitors,
         our_suppliers: ourSuppliers,
         our_price_usd: ourSalePrice,
         current_supply_usd: supplyMin ?? null,
+        cost_source,
         market_min,
         market_max,
         market_median,

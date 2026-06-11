@@ -24,9 +24,11 @@ export async function GET(request: NextRequest) {
       .single()
     const usdKrw: number = fxData?.usd_krw ?? 1400
 
+    // 보안: supplier_id(경쟁사↔공급사 연계 — 소싱 기밀)는 공개 응답에서 제외.
+    // select('*') 금지 — 명시 컬럼만 노출.
     const { data: competitors, error: compErr } = await admin
       .from('competitors')
-      .select('*')
+      .select('id, name, short_name, color, type, is_active')
       .eq('is_active', true)
       .order('name')
     if (compErr) throw compErr

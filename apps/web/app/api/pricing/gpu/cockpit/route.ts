@@ -33,6 +33,8 @@ interface CompetitorEntry {
   company_name: string
   price_krw: number
   recorded_at: string | null
+  /** 이 경쟁사가 공급사로 연결되어 있으면 공급사명, 아니면 null (연계 배지) */
+  linked_supplier_name: string | null
 }
 
 const STRATEGIC_HISTORY_LIMIT = 5
@@ -68,13 +70,23 @@ export async function GET() {
     //    status=confirmed, deleted_at IS NULL, suppliers 조인 (공급사명)
     const { data: allQuotes, error: quotesErr } = await db
       .from('supply_quotes')
-      .select('id, product_id, price_type, unit_price_usd, gpu_count, is_selected, suppliers(name)')
+      .select('id, product_id, price_type, unit_price_usd, gpu_count, is_selected, source_format, suppliers(name)')
       .eq('status', 'confirmed')
       .is('deleted_at', null)
       .in('product_id', productIds)
       .order('unit_price_usd', { ascending: true })
 
     if (quotesErr) throw quotesErr
+
+    // 원가 출처: 상품에 인입된 cost(price_type='cost') + market_link 견적이 있으면 'market_link'
+    //   price_type !== 'list'는 'direct' 등도 포함될 수 있어 부정확 → 정확히 인입 cost만 '연계 원가'로 판정
+    const marketLinkCostProducts = new Set<string>()
+    for (const q of allQuotes ?? []) {
+      const row = q as { product_id: string; price_type: string; source_format?: string }
+      if (row.price_type === 'cost' && row.source_format === 'market_link') {
+        marketLinkCostProducts.add(row.product_id)
+      }
+    }
 
     // 상품별 list 견적(gcube 사이트 가격) 최저 + 해당 quote_id + updated_at
     //  → updated_at 필요: 별도 쿼리로 id 기반 단건 조회 대신 상위 단가 기준 id를 기억하고
@@ -154,11 +166,31 @@ export async function GET() {
     // 3. 경쟁사 가격 — competitor_product_mapping + market_prices 일괄 조회 (N+1 방지)
     const { data: mappings, error: mapErr } = await db
       .from('competitor_product_mapping')
-      .select('id, gpu_product_id, competitors!competitor_id(name)')
+      .select('id, gpu_product_id, competitors!competitor_id(name, supplier_id)')
       .eq('is_active', true)
       .in('gpu_product_id', productIds)
 
     if (mapErr) throw mapErr
+
+    // 연결 공급사 ID → 공급사명 (경쟁사 배지 표시용)
+    const linkedSupplierIds = Array.from(
+      new Set(
+        (mappings ?? [])
+          .map((m: { competitors?: { supplier_id?: string | null } | null }) => m.competitors?.supplier_id ?? null)
+          .filter((sid: string | null): sid is string => !!sid),
+      ),
+    )
+    const linkedSupplierNameMap = new Map<string, string>()
+    if (linkedSupplierIds.length > 0) {
+      const { data: linkedSuppliers } = await db
+        .from('suppliers')
+        .select('id, name')
+        .in('id', linkedSupplierIds)
+      for (const s of linkedSuppliers ?? []) {
+        const row = s as { id: string; name: string }
+        linkedSupplierNameMap.set(row.id, row.name)
+      }
+    }
 
     const mappingIds: string[] = (mappings ?? []).map(
       (m: { id: string }) => m.id,
@@ -185,17 +217,19 @@ export async function GET() {
       }
     }
 
-    // mapping_id → { gpu_product_id, company_name }
-    const mappingMeta = new Map<string, { gpu_product_id: string; company_name: string }>()
+    // mapping_id → { gpu_product_id, company_name, linked_supplier_name }
+    const mappingMeta = new Map<string, { gpu_product_id: string; company_name: string; linked_supplier_name: string | null }>()
     for (const m of mappings ?? []) {
       const row = m as {
         id: string
         gpu_product_id: string
-        competitors: { name: string } | null
+        competitors: { name: string; supplier_id?: string | null } | null
       }
+      const supId = row.competitors?.supplier_id ?? null
       mappingMeta.set(row.id, {
         gpu_product_id: row.gpu_product_id,
         company_name: row.competitors?.name ?? '경쟁사 미지정',
+        linked_supplier_name: supId ? (linkedSupplierNameMap.get(supId) ?? null) : null,
       })
     }
 
@@ -223,6 +257,7 @@ export async function GET() {
         company_name: meta.company_name,
         price_krw: krw,
         recorded_at: priceData.recorded_at,
+        linked_supplier_name: meta.linked_supplier_name,
       })
       competitorsByProduct.set(pid, list)
     })
@@ -348,6 +383,7 @@ export async function GET() {
         cost_min_krw: costMinKrw,
         cost_max_krw: costMaxKrw,
         cost_is_propagated: costIsPropagated,
+        cost_source: (marketLinkCostProducts.has(p.id) ? 'market_link' : 'quote') as 'market_link' | 'quote',
         cost_suppliers: costSuppliers,
 
         // 판매가 후보

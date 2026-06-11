@@ -186,6 +186,11 @@ function CockpitRow({
                       추정
                     </span>
                   )}
+                  {p.cost_source === 'market_link' && (
+                    <span className="cockpit-link-badge" title="경쟁사 공시가 기반 원가 (실제 매입 견적 아님)">
+                      연계 원가
+                    </span>
+                  )}
                 </>
               ) : (
                 <span className="cockpit-price-sub">—</span>

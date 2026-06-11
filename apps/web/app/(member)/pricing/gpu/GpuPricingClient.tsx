@@ -336,6 +336,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
         {activeTab === 'market' && (
           <div className="gpu-tab-panel">
             <MarketTab
+              isAdmin={isAdmin}
               onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board') }}
               onOpenAI={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board'); setShowAiPanel(true) }}
             />
