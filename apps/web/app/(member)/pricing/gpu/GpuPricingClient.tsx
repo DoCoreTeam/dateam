@@ -281,8 +281,8 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
            자식은 gpu-tab-panel(overflow:hidden) 또는 gpu-tab-panel--scroll(overflowY:auto) 사용 */}
       <div className="gpu-tab-content">
         {activeTab === 'board' && (
-          <div className="gpu-tab-panel" style={{ display: 'flex', gap: 0 }}>
-            <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <div className="gpu-tab-panel" style={{ display: 'flex', flexDirection: 'row', gap: 0, minHeight: 0 }}>
+            <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <PriceTableTab
                 onGoToIntake={() => router.push('/intake')}
                 onGoToReview={() => setActiveTab('review')}
