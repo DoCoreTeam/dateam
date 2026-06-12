@@ -13,7 +13,7 @@ export async function GET() {
 
     const { data: competitors, error } = await db
       .from('competitors')
-      .select('id, name, short_name, type, region, color, website_url, pricing_url, is_active, supplier_id, created_at')
+      .select('id, name, short_name, type, region, country, color, website_url, pricing_url, is_active, supplier_id, created_at')
       .is('deleted_at', null)
       .order('name')
     if (error) throw error
@@ -94,6 +94,7 @@ export async function POST(request: Request) {
       short_name: str(body.short_name) ?? name.slice(0, 12),
       type,
       region: str(body.region) ?? 'global',
+      country: str(body.country),
       color: str(body.color) ?? COLORS[Math.floor(name.length % COLORS.length)],
       website_url: str(body.website_url),
       pricing_url: str(body.pricing_url),

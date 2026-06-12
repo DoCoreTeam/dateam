@@ -19,7 +19,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
   const str = (v: unknown) => (typeof v === 'string' ? (v.trim() || null) : undefined)
-  for (const k of ['name', 'short_name', 'region', 'color', 'website_url', 'pricing_url'] as const) {
+  for (const k of ['name', 'short_name', 'region', 'country', 'color', 'website_url', 'pricing_url'] as const) {
     const v = str(body[k])
     if (v !== undefined) patch[k] = v
   }

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { Plus, X, Globe, Trash2, Save, ExternalLink, Sparkles, ChevronRight, Pencil, Link2 } from 'lucide-react'
+import { GPU_TERMS as T } from '@/lib/gpu/terms'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { countryFlag } from '@/lib/gpu/country-flag'
 import { useEscClose } from '@/lib/use-esc-close'
@@ -549,6 +550,8 @@ export default function SuppliersTab({ onGoToPriceTable }: { onGoToPriceTable?: 
   const [search, setSearch] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [busy, setBusy] = useState(false)
 
   const refresh = () => { mutate('/api/pricing/gpu/suppliers'); mutateGpu(mutate) }
 
@@ -559,73 +562,90 @@ export default function SuppliersTab({ onGoToPriceTable }: { onGoToPriceTable?: 
         (s.location ?? '').toLowerCase().includes(search.toLowerCase()))
     : suppliers
 
+  const allSelected = filtered.length > 0 && filtered.every((s) => selected.has(s.id))
+  const toggleAll = () => setSelected(() => allSelected ? new Set() : new Set(filtered.map((s) => s.id)))
+  const toggleOne = (id: string) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+
+  const bulkDelete = async () => {
+    const ids = Array.from(selected)
+    if (ids.length === 0) return
+    if (!confirm(`선택한 공급사 ${ids.length}곳을 삭제할까요? (확정 견적이 연결된 공급사는 자동 제외)`)) return
+    setBusy(true)
+    try {
+      const res = await fetch('/api/pricing/gpu/suppliers/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', ids }) })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { alert(j.error ?? '삭제 실패'); return }
+      if (j.blocked?.length > 0) alert(`${j.deleted}곳 삭제됨. 확정 견적 연결로 ${j.blocked.length}곳은 제외되었습니다.`)
+      setSelected(new Set()); refresh()
+    } finally { setBusy(false) }
+  }
+
   return (
     <div>
       <div className="gpu-toolbar">
         <div className="gpu-search">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
-          <input placeholder="공급사·국가 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input className="input-field" placeholder={`${T.supplier}·국가 ${T.search}`} value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <button className="gpu-btn gpu-btn-primary" onClick={() => setShowCreate(true)}>
-          <Plus size={15} /> 공급사 추가
+          <Plus size={15} /> {T.supplier} {T.create}
         </button>
       </div>
 
-      <div className="gpu-sup-grid">
-        {filtered.map((s) => (
-          <div key={s.id} className="gpu-sup-card" onClick={() => setOpenId(s.id)} style={{ cursor: 'pointer' }}>
-            <div className="gpu-sup-head">
-              <LogoAvatar name={s.name} color={s.color} logoUrl={s.logo_url} />
-              <div style={{ flex: 1 }}>
-                <div className="gpu-sup-nm">{s.name}</div>
-                <div className="gpu-sup-loc" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                  {s.country && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><span style={{ fontSize: 14 }}>{countryFlag(s.country)}</span>{s.country}</span>}
-                  {s.website && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--gpu-accent)' }}><Globe size={11} />사이트</span>}
-                  {s.source === 'manual' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-amber)', background: 'var(--warning-bg)', border: 'var(--hairline) solid var(--warning-border)', borderRadius: 4, padding: '0 5px' }}>수동입력</span>}
-                  {s.source === 'integrated' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.08)', borderRadius: 4, padding: '0 5px' }}>통합입력</span>}
-                  {s.is_competitor && (
-                    <span className="gpu-dual-badge" title={`시장비교 경쟁사 "${s.linked_competitor_name ?? s.name}"를 공급사로 지정 — 경쟁사 겸 공급사`}>
-                      <Link2 size={10} aria-hidden /> 경쟁사 겸업
-                    </span>
-                  )}
-                  {s.has_market_link && (
-                    <span className="gpu-link-badge" title="경쟁사 공시가 기반 원가가 연계되어 있습니다">
-                      <Link2 size={10} aria-hidden /> 연계원가
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
+      {selected.size > 0 && (
+        <div className="gpu-bulkbar">
+          <span className="gpu-bulkbar-count">{selected.size}{T.selected}</span>
+          <button className="gpu-btn gpu-bulkbar-btn gpu-bulkbar-btn--danger" disabled={busy} onClick={bulkDelete}><Trash2 size={14} /> {T.bulkDelete}</button>
+          <button className="gpu-btn gpu-bulkbar-clear" onClick={() => setSelected(new Set())}>{T.cancel}</button>
+        </div>
+      )}
 
-            {s.description && (
-              <div style={{ fontSize: 11.5, color: 'var(--gpu-muted)', margin: '2px 0 8px', lineHeight: 1.45, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                {s.description}
-              </div>
-            )}
-
-            <div className="gpu-sup-stats">
-              <div className="gpu-sup-s"><div className="gpu-sup-s-n gpu-mono">{s.active_quotes}</div><div className="gpu-sup-s-l">활성 견적</div></div>
-              <div className="gpu-sup-s"><div className="gpu-sup-s-n gpu-mono">{s.lowest_count}</div><div className="gpu-sup-s-l">최저가 보유</div></div>
-              <div className="gpu-sup-s">
-                <div className="gpu-sup-s-n gpu-mono" style={{ fontSize: 13 }}>
-                  {s.last_received ? new Date(s.last_received).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '—'}
-                </div>
-                <div className="gpu-sup-s-l">최근 수신</div>
-              </div>
-            </div>
-
-            <div className="gpu-sup-foot">
-              <span style={{ fontSize: 11.5, color: 'var(--gpu-accent)', fontWeight: 600 }}>클릭하면 상세 · 수정</span>
-            </div>
-          </div>
-        ))}
-
-        {filtered.length === 0 && (
-          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 24px', color: 'var(--gpu-faint)', fontSize: '13px' }}>
-            {suppliers.length === 0 ? '등록된 공급사가 없습니다' : '검색 결과가 없습니다'}
-          </div>
-        )}
-      </div>
+      {filtered.length === 0 ? (
+        <div className="gpu-expand-empty">{suppliers.length === 0 ? '등록된 공급사가 없습니다' : '검색 결과가 없습니다'}</div>
+      ) : (
+        <table className="table-base table-card gpu-mgmt-table">
+          <thead>
+            <tr>
+              <th style={{ width: 40 }}><input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="전체 선택" /></th>
+              <th>공급사</th>
+              <th>국가</th>
+              <th className="r">활성 견적</th>
+              <th className="r">최저가 보유</th>
+              <th className="r">최근 수신</th>
+              <th>상태</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((s) => (
+              <tr key={s.id} className={selected.has(s.id) ? 'gpu-comp-row--sel' : ''} onClick={() => setOpenId(s.id)} style={{ cursor: 'pointer' }}>
+                <td data-label="선택" onClick={(e) => e.stopPropagation()}>
+                  <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggleOne(s.id)} aria-label={`${s.name} 선택`} />
+                </td>
+                <td className="card-header">
+                  <span className="gpu-comp-name">
+                    <LogoAvatar name={s.name} color={s.color} logoUrl={s.logo_url} size={22} />
+                    {s.country && <span title={s.country}>{countryFlag(s.country)}</span>}
+                    {s.name}
+                    {s.website && <a href={s.website} target="_blank" rel="noreferrer" className="gpu-comp-link" onClick={(e) => e.stopPropagation()}><Globe size={11} /></a>}
+                  </span>
+                </td>
+                <td data-label="국가">{s.country ?? '—'}</td>
+                <td data-label="활성 견적" className="r gpu-mono">{s.active_quotes}</td>
+                <td data-label="최저가 보유" className="r gpu-mono">{s.lowest_count}</td>
+                <td data-label="최근 수신" className="r gpu-mono">{s.last_received ? new Date(s.last_received).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '—'}</td>
+                <td data-label="상태">
+                  <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {s.source === 'manual' && <span className="gpu-comp-plain">수동입력</span>}
+                    {s.source === 'integrated' && <span className="gpu-comp-plain">통합입력</span>}
+                    {s.is_competitor && <span className="gpu-dual-badge" title={`경쟁사 "${s.linked_competitor_name ?? s.name}" 겸업`}><Link2 size={10} /> 경쟁사 겸업</span>}
+                    {s.has_market_link && <span className="gpu-link-badge" title="경쟁사 공시가 기반 연계원가"><Link2 size={10} /> 연계원가</span>}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       {openId && <SupplierDetailModal id={openId} onClose={() => setOpenId(null)} onChanged={refresh} onGoToPriceTable={onGoToPriceTable} />}
       {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreated={refresh} />}

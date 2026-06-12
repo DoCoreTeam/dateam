@@ -19,6 +19,7 @@ export async function POST(request: Request) {
   const action = body.action
   const ids = Array.isArray(body.ids) ? (body.ids as unknown[]).filter((x): x is string => typeof x === 'string' && UUID_RE.test(x)) : []
   if (ids.length === 0) return NextResponse.json({ error: '선택된 항목이 없습니다' }, { status: 400 })
+  if (ids.length > 200) return NextResponse.json({ error: '한 번에 최대 200곳까지 처리할 수 있습니다' }, { status: 400 })
   if (action !== 'delete' && action !== 'promote') return NextResponse.json({ error: 'action은 delete 또는 promote' }, { status: 400 })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

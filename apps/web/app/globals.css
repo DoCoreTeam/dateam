@@ -3966,18 +3966,7 @@ label.intake-tool-btn {
 .gpu-rev-sp { margin-left: auto; font-size: 11.5px; color: var(--gpu-muted); }
 
 /* supplier grid */
-.gpu-sup-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-@media (max-width: 767px) { .gpu-sup-grid { grid-template-columns: 1fr; } }
-.gpu-sup-card {
-  background: #fff;
-  border: var(--hairline) solid var(--gpu-border);
-  border-radius: var(--gpu-radius);
-  padding: 20px;
-  box-shadow: var(--gpu-shadow);
-  transition: 0.15s;
-}
-.gpu-sup-card:hover { box-shadow: 0 12px 40px rgba(16,22,40,.14); transform: translateY(-2px); }
-.gpu-sup-head { display: flex; align-items: center; gap: 13px; margin-bottom: 16px; }
+/* .gpu-sup-logo — LogoAvatar(공급사 표·상세모달 로고)에서 계속 사용. 카드그리드 잔여 클래스는 표 전환(v0.7.84)으로 제거됨. */
 .gpu-sup-logo {
   width: 46px;
   height: 46px;
@@ -3990,12 +3979,6 @@ label.intake-tool-btn {
   font-size: 17px;
   flex-shrink: 0;
 }
-.gpu-sup-nm { font-weight: 700; font-size: 15px; }
-.gpu-sup-loc { font-size: 12px; color: var(--gpu-muted); margin-top: 2px; display: flex; align-items: center; gap: 5px; }
-.gpu-sup-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 14px 0; border-top: var(--hairline) solid var(--gpu-border); }
-.gpu-sup-s-n { font-size: 18px; font-weight: 700; font-family: 'JetBrains Mono', ui-monospace, monospace; }
-.gpu-sup-s-l { font-size: 10.5px; color: var(--gpu-muted); margin-top: 2px; }
-.gpu-sup-foot { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--gpu-muted); padding-top: 13px; border-top: var(--hairline) solid var(--gpu-border); }
 
 /* audit log */
 .gpu-log-item { display: flex; gap: 14px; padding: 15px 0; border-bottom: var(--hairline) solid var(--surface-bg); }
@@ -5240,7 +5223,7 @@ label.intake-tool-btn {
 .gpu-bulkbar-clear { font-size: var(--fs-xs); color: var(--text-muted); margin-left: auto; }
 
 /* 경쟁사 관리 표 */
-.gpu-comp-table { width: 100%; }
+.gpu-comp-table, .gpu-mgmt-table { width: 100%; }
 .gpu-comp-row--sel > td { background: var(--brand-soft); }
 .gpu-comp-name { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: var(--font-weight-semibold); }
 .gpu-comp-short { font-size: var(--fs-2xs); color: var(--text-muted); font-weight: 400; }

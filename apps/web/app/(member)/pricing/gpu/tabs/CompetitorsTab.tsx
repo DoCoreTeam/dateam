@@ -6,6 +6,7 @@ import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { useEscClose } from '@/lib/use-esc-close'
 import { GPU_TERMS as T } from '@/lib/gpu/terms'
+import { countryFlag } from '@/lib/gpu/country-flag'
 import { Plus, X, Search, Trash2, PackagePlus, Pencil, Link2, Globe } from 'lucide-react'
 
 interface CompetitorRow {
@@ -14,6 +15,7 @@ interface CompetitorRow {
   short_name: string | null
   type: string
   region: string | null
+  country: string | null
   color: string
   website_url: string | null
   pricing_url: string | null
@@ -117,7 +119,7 @@ export default function CompetitorsTab() {
       ) : filtered.length === 0 ? (
         <div className="gpu-expand-empty">{search.trim() ? T.noSearchResult : T.emptyList}</div>
       ) : (
-        <table className="table-base table-card gpu-comp-table">
+        <table className="table-base table-card gpu-mgmt-table">
           <thead>
             <tr>
               <th style={{ width: 40 }}>
@@ -140,6 +142,7 @@ export default function CompetitorsTab() {
                 <td className="card-header">
                   <span className="gpu-comp-name">
                     <span className="gpu-sdot" style={{ background: c.color }} />
+                    {c.country && <span title={c.country}>{countryFlag(c.country)}</span>}
                     {c.name}
                     {c.short_name && c.short_name !== c.name && <span className="gpu-comp-short">{c.short_name}</span>}
                     {c.website_url && <a href={c.website_url} target="_blank" rel="noreferrer" className="gpu-comp-link" onClick={(e) => e.stopPropagation()}><Globe size={11} /></a>}
@@ -192,7 +195,7 @@ function CompetitorModal({ row, onClose, onSaved }: { row?: CompetitorRow; onClo
   const isEdit = !!row
   const [f, setF] = useState({
     name: row?.name ?? '', short_name: row?.short_name ?? '', type: row?.type ?? 'specialist',
-    region: row?.region ?? '', website_url: row?.website_url ?? '', pricing_url: row?.pricing_url ?? '',
+    region: row?.region ?? '', country: row?.country ?? '', website_url: row?.website_url ?? '', pricing_url: row?.pricing_url ?? '',
   })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -225,7 +228,12 @@ function CompetitorModal({ row, onClose, onSaved }: { row?: CompetitorRow; onClo
                 {Object.entries(TYPE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </label>
-            <label className="gpu-field"><span className="label">지역</span><input className="input-field" value={f.region} onChange={(e) => set('region', e.target.value)} placeholder="global / KR …" /></label>
+            <label className="gpu-field"><span className="label">지역(분류)</span>
+              <select className="input-field" value={f.region} onChange={(e) => set('region', e.target.value)}>
+                <option value="global">global</option><option value="korea">korea</option><option value="domestic">domestic</option>
+              </select>
+            </label>
+            <label className="gpu-field"><span className="label">국가코드 {f.country && countryFlag(f.country)}</span><input className="input-field" value={f.country} onChange={(e) => set('country', e.target.value.toUpperCase())} placeholder="KR / US / JP" maxLength={2} /></label>
             <label className="gpu-field"><span className="label">웹사이트</span><input className="input-field" value={f.website_url} onChange={(e) => set('website_url', e.target.value)} /></label>
             <label className="gpu-field"><span className="label">가격 페이지 URL</span><input className="input-field" value={f.pricing_url} onChange={(e) => set('pricing_url', e.target.value)} placeholder="재수집 출처" /></label>
           </div>
