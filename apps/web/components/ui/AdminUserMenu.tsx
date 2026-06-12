@@ -120,15 +120,15 @@ export default function AdminUserMenu({ displayName }: AdminUserMenuProps) {
           {initial}
         </div>
         <div style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
-          <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--border-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--sidebar-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {displayName}
           </div>
-          <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>관리자</div>
+          <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--sidebar-fg)', opacity: 0.65 }}>관리자</div>
         </div>
         <ChevronUp
           size={14}
           style={{
-            color: 'var(--text-muted)',
+            color: 'var(--sidebar-fg)', opacity: 0.65,
             flexShrink: 0,
             transition: 'transform 150ms',
             transform: open ? 'rotate(0deg)' : 'rotate(180deg)',
