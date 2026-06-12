@@ -2082,11 +2082,67 @@ label.intake-tool-btn {
 .intake-fab:active {
   transform: scale(0.96);
 }
+.intake-fab { border: none; }
+
+/* 빠른 추가 speed-dial 래퍼 — 버튼+메뉴를 우하단 고정 컨테이너로 묶음 */
+.quickadd-fab-wrap {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: var(--z-sticky, 90);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+/* 래퍼 안에서는 버튼이 고정 해제(래퍼가 위치 담당) */
+.quickadd-fab-wrap .intake-fab { position: static; bottom: auto; right: auto; }
+
+.quickadd-menu {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+.quickadd-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;   /* 터치 영역 최소 44px */
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-bg);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: 9999px;
+  box-shadow: var(--shadow-md);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.quickadd-item:hover { background: var(--surface-bg-hover, var(--surface-bg)); transform: translateX(-2px); }
+.quickadd-item--primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--surface-bg);
+}
+.quickadd-item-label { line-height: 1.4; }
+.quickadd-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  flex-shrink: 0;
+}
+.quickadd-item--primary .quickadd-item-icon { background: var(--surface-bg); color: var(--brand); }
 
 /* ── 루틴 체크인 FAB ──────────────────────────── */
 .routine-fab {
   position: fixed;
-  bottom: 1.5rem;
+  bottom: 5.75rem;   /* 빠른추가 FAB(quickadd) 위로 스택 — 우하단 동시 노출 시 겹침 방지 */
   right: 1.5rem;
   z-index: 90;
   width: 3.25rem;

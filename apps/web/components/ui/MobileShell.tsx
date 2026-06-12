@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Menu, X, ChevronDown } from 'lucide-react'
 import NbNavItem from './nb/NbNavItem'
+import QuickAddFab from './QuickAddFab'
 
 interface NavItem {
   href: string
@@ -310,17 +311,8 @@ export default function MobileShell({
         </main>
       </div>
 
-      {/* 통합 입력 FAB — 모바일 전용 */}
-      <Link
-        href="/intake"
-        className="intake-fab mobile-only-flex"
-        aria-label="통합 입력"
-        style={{ textDecoration: 'none' }}
-      >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-          <path d="M12 5v14M5 12h14"/>
-        </svg>
-      </Link>
+      {/* 빠른 추가 FAB — 하이브리드 speed-dial(맥락 강조 + 멀티). 모바일 전용 */}
+      <QuickAddFab />
     </div>
   )
 }
