@@ -7,6 +7,7 @@ import { fetcher } from '@/lib/swr-config'
 import dynamic from 'next/dynamic'
 import { Download, Plus } from 'lucide-react'
 import Link from 'next/link'
+import { isGpuFlagOn } from '@/lib/gpu/feature-flags'
 
 const PriceTableTab = dynamic(() => import('./tabs/PriceTableTab'), { ssr: false })
 const PriceCockpitTab = dynamic(() => import('./tabs/PriceCockpitTab'), { ssr: false })
@@ -19,6 +20,8 @@ const DbChatTab = dynamic(() => import('./tabs/DbChatTab'), { ssr: false })
 const MarketTab = dynamic(() => import('./tabs/MarketTab'), { ssr: false })
 const SpecsTab = dynamic(() => import('./tabs/SpecsTab'), { ssr: false })
 const SalePriceCatalogPage = dynamic(() => import('../catalog/page'), { ssr: false })
+// 통합 표(리팩토링) — feature flag 'unified' ON 시 가격표 영역 대체. 기본 OFF(병존·무중단)
+const UnifiedTableConnected = dynamic(() => import('@/components/pricing/gpu/unified/UnifiedTableConnected'), { ssr: false })
 
 type MainTabId = 'board' | 'cockpit' | 'market' | 'inventory' | 'catalog'
 type SecondaryTabId = 'review' | 'suppliers' | 'competitors' | 'specs' | 'log'
@@ -72,6 +75,9 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabId>('board')
   const [showAiPanel, setShowAiPanel] = useState(false)
+  // 통합 표 flag — 클라이언트에서만 평가(localStorage 오버라이드). 하이드레이션 불일치 방지 위해 mount 후 설정.
+  const [unifiedOn, setUnifiedOn] = useState(false)
+  useEffect(() => { setUnifiedOn(isGpuFlagOn('unified')) }, [])
   const [boardSearch, setBoardSearch] = useState('')
   const [boardFocusProductId, setBoardFocusProductId] = useState<string | null>(null)
   // 서버 프리페치 설정값을 SWR 초기값으로 주입 → 첫 페인트부터 실제값(하드코딩 깜빡임 제거)
@@ -154,6 +160,13 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
       .catch(() => {})
   }, [fxDate, mutateSettings])
 
+  // P4-3 가드: 비-admin이 URL/복원으로 마스터 관리(admin 전용) 탭에 진입하면 기본 탭으로 복귀.
+  useEffect(() => {
+    if (!isAdmin && (['suppliers', 'competitors', 'specs'] as TabId[]).includes(activeTab)) {
+      setActiveTab('board')
+    }
+  }, [isAdmin, activeTab])
+
   const isMainTab = (tab: TabId): tab is MainTabId =>
     ['board', 'cockpit', 'market', 'inventory', 'catalog'].includes(tab)
 
@@ -233,7 +246,10 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
             badge: 0,
             icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>,
           },
-        ].map((item) => (
+        ]
+          // P4-3 메뉴 분리(RBAC): 마스터 관리 탭은 admin 전용. member는 통합 표 상세 패널에서 마스터를 읽음.
+          .filter((item) => isAdmin || !(['suppliers', 'competitors', 'specs'] as SecondaryTabId[]).includes(item.id))
+          .map((item) => (
           <button
             key={item.id}
             onClick={() => setActiveTab(item.id)}
@@ -287,7 +303,12 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
       {/* 탭 컨텐츠 — gpu-tab-content: flex:1 min-height:0 overflow:hidden display:flex flex-direction:column
            자식은 gpu-tab-panel(overflow:hidden) 또는 gpu-tab-panel--scroll(overflowY:auto) 사용 */}
       <div className="gpu-tab-content">
-        {activeTab === 'board' && (
+        {activeTab === 'board' && unifiedOn && (
+          <div className="gpu-tab-panel">
+            <UnifiedTableConnected />
+          </div>
+        )}
+        {activeTab === 'board' && !unifiedOn && (
           <div className="gpu-tab-panel" style={{ display: 'flex', flexDirection: 'row', gap: 0, minHeight: 0 }}>
             <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <PriceTableTab

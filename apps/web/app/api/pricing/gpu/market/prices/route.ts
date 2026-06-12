@@ -1,8 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
 import { recordGpuAudit } from '@/lib/gpu/audit'
+
+// GET /api/pricing/gpu/market/prices?mapping_id=<id>[&limit=N] — 시세 이력(시계열)
+//   통합 표 상세 패널 "시장 비교 > 시세 이력"용. 읽기 전용(member 읽기 허용·RLS).
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const mappingId = searchParams.get('mapping_id')
+    if (!mappingId) return NextResponse.json({ error: 'mapping_id 필수' }, { status: 400 })
+
+    const limitRaw = Number(searchParams.get('limit') ?? '100')
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 1), 500) : 100
+
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any
+    const { data, error } = await db
+      .from('market_prices')
+      .select('id, mapping_id, price_usd, source_url, source_type, notes, recorded_at')
+      .eq('mapping_id', mappingId)
+      .is('deleted_at', null)
+      .order('recorded_at', { ascending: false })
+      .limit(limit)
+
+    if (error) throw error
+    return NextResponse.json({ prices: data ?? [] })
+  } catch (err) {
+    console.error('[market/prices GET]', err)
+    return NextResponse.json({ error: 'Failed to fetch market price history' }, { status: 500 })
+  }
+}
 
 // DELETE /api/pricing/gpu/market/prices?id=<priceId> — 경쟁가 소프트삭제
 export async function DELETE(req: NextRequest) {

@@ -1,0 +1,287 @@
+'use client'
+
+// 통합 표 — 우측 고정 상세 패널 (마스터·디테일). 인라인 드로어 금지(목록 맥락 유지).
+// 탭: 공급원가(전체 견적) / 시장 비교 / 변동 이력 / 스펙.
+//   - 공급원가·변동 이력은 product_id로 P5 읽기 API 연결(전체 견적·감사 필터).
+//   - 시세 이력(시계열)은 mapping_id 의존 → 시장 비교 탭은 요약 + 안내(후속 P2b).
+// 데이터·계산은 기존 SSOT/라우트 재사용. 본 컴포넌트는 fetch+표현만.
+
+import { useState } from 'react'
+import useSWR from 'swr'
+import dynamic from 'next/dynamic'
+import { fetcher } from '@/lib/swr-config'
+import { GPU_TERMS } from '@/lib/gpu/terms'
+import { fmtKRW, fmtUSD } from '@/lib/gpu/format-price'
+import { expiryState } from '@/lib/gpu/expiry'
+import type { UnifiedRow } from '@/lib/gpu/unified-row'
+import type { QuoteForEdit } from '@/components/pricing/gpu/QuoteEditModal'
+
+const QuoteEditModal = dynamic(() => import('@/components/pricing/gpu/QuoteEditModal'), { ssr: false })
+
+type DetailTab = 'cost' | 'market' | 'history' | 'specs'
+
+const TABS: { id: DetailTab; label: string }[] = [
+  { id: 'cost', label: GPU_TERMS.supplyCost },
+  { id: 'market', label: '시장 비교' },
+  { id: 'history', label: '변동 이력' },
+  { id: 'specs', label: '스펙' },
+]
+
+interface QuoteRow {
+  id: string
+  unit_price_usd: number | null
+  gpu_count: number | null
+  min_qty: string | null
+  term: string | null
+  status: string | null
+  valid_until: string | null
+  suppliers?: { name?: string | null } | null
+}
+interface AuditRow {
+  ts: string
+  actor: string | null
+  action_type: string
+}
+interface MarketPriceRow {
+  id: string
+  price_usd: number | null
+  recorded_at: string | null
+}
+
+interface DetailPanelProps {
+  row: UnifiedRow | null
+}
+
+export default function DetailPanel({ row }: DetailPanelProps) {
+  const [tab, setTab] = useState<DetailTab>('cost')
+  const [editing, setEditing] = useState<QuoteForEdit | null>(null)
+
+  // 공급원가: 전체 견적(확정·검토 대기·만료·반려) — P5-1
+  const { data: quoteData, isLoading: quoteLoading, mutate: mutateQuotes } = useSWR<{ quotes: QuoteRow[] }>(
+    row && tab === 'cost' ? `/api/pricing/gpu/quotes?product_id=${row.id}&status=*` : null,
+    fetcher,
+  )
+  // 변동 이력: product 필터 — P5-4
+  const { data: auditData, isLoading: auditLoading } = useSWR<{ logs: AuditRow[] }>(
+    row && tab === 'history' ? `/api/pricing/gpu/audit?product_id=${row.id}&limit=50` : null,
+    fetcher,
+  )
+  // 시세 이력(시계열): mapping_id 있을 때만 — P5-2
+  const { data: priceHistData, isLoading: priceHistLoading } = useSWR<{ prices: MarketPriceRow[] }>(
+    row && tab === 'market' && row.market_mapping_id
+      ? `/api/pricing/gpu/market/prices?mapping_id=${row.market_mapping_id}&limit=30`
+      : null,
+    fetcher,
+  )
+
+  if (!row) {
+    return (
+      <div className="gpu-udetail gpu-udetail--empty">
+        <p className="gpu-udetail-empty-msg">왼쪽 목록에서 항목을 선택하세요.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="gpu-udetail">
+      <div className="gpu-udetail-head">
+        <div className="gpu-udetail-title">
+          {row.model_name}
+          {row.tier != null && <span className="gpu-badge gpu-badge-muted">Tier {row.tier}</span>}
+        </div>
+        <div className="gpu-udetail-sub">
+          {row.memory ?? '—'} · {GPU_TERMS.sellPrice} <strong>{fmtKRW(row.sell_price_krw)}</strong>
+          {' · '}
+          {GPU_TERMS.margin} {row.margin_pct == null ? '측정불가' : `${row.margin_pct.toFixed(0)}%`}
+        </div>
+      </div>
+
+      <div className="gpu-udetail-tabs" role="tablist">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={tab === t.id}
+            className={`gpu-udetail-tab${tab === t.id ? ' gpu-udetail-tab--on' : ''}`}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="gpu-udetail-body">
+        {tab === 'cost' && (
+          <>
+            <div className="gpu-udetail-kv">
+              <span className="gpu-udetail-kv-k">{GPU_TERMS.lowestSupplyCost}</span>
+              <span className="gpu-udetail-kv-v">{fmtKRW(row.supply_cost_krw)}</span>
+            </div>
+            <div className="gpu-udetail-kv">
+              <span className="gpu-udetail-kv-k">출처</span>
+              <span className="gpu-udetail-kv-v">{row.cost_source === 'market_link' ? GPU_TERMS.followPrice : GPU_TERMS.realQuote}</span>
+            </div>
+            {quoteLoading && <p className="gpu-udetail-pending">불러오는 중…</p>}
+            {!quoteLoading && (
+              <table className="gpu-udetail-tbl">
+                <thead>
+                  <tr><th>{GPU_TERMS.supplier}</th><th>단가</th><th>약정</th><th>상태</th><th>만료</th><th></th></tr>
+                </thead>
+                <tbody>
+                  {(quoteData?.quotes ?? []).map((q) => {
+                    const exp = expiryInfo(q.valid_until)
+                    return (
+                      <tr key={q.id}>
+                        <td>{q.suppliers?.name ?? '—'}</td>
+                        <td className="gpu-mono">{fmtUSD(q.unit_price_usd)}</td>
+                        <td>{q.term ?? '—'}</td>
+                        <td>{statusLabel(q.status)}</td>
+                        <td>
+                          {q.valid_until ?? '—'}
+                          {exp && <span className={`gpu-badge ${exp.tone === 'danger' ? 'gpu-badge-danger' : 'gpu-badge-warn'}`}>{exp.label}</span>}
+                        </td>
+                        <td>
+                          {q.unit_price_usd != null && (
+                            <button
+                              type="button"
+                              className="gpu-udetail-rowbtn"
+                              onClick={() => setEditing({
+                                id: q.id,
+                                unit_price_usd: q.unit_price_usd as number,
+                                gpu_count: q.gpu_count ?? 1,
+                                term: q.term,
+                                min_qty: q.min_qty,
+                                valid_until: q.valid_until,
+                                supplier_name: q.suppliers?.name ?? null,
+                              })}
+                            >
+                              {GPU_TERMS.edit}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  {(quoteData?.quotes?.length ?? 0) === 0 && (
+                    <tr><td colSpan={6} className="gpu-udetail-tbl-empty">{GPU_TERMS.emptyList}</td></tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+          </>
+        )}
+
+        {tab === 'market' && (
+          <>
+            <div className="gpu-udetail-kv">
+              <span className="gpu-udetail-kv-k">중앙값</span>
+              <span className="gpu-udetail-kv-v">{fmtKRW(row.market_median_krw)}</span>
+            </div>
+            <div className="gpu-udetail-kv">
+              <span className="gpu-udetail-kv-k">최저~최고</span>
+              <span className="gpu-udetail-kv-v">{fmtKRW(row.market_min_krw)} ~ {fmtKRW(row.market_max_krw)}</span>
+            </div>
+            <div className="gpu-udetail-kv">
+              <span className="gpu-udetail-kv-k">표본</span>
+              <span className="gpu-udetail-kv-v">{row.sample_count != null ? `${row.sample_count}곳` : '—'}</span>
+            </div>
+            {!row.market_mapping_id && (
+              <p className="gpu-udetail-pending">연결된 경쟁사 매핑이 없어 시세 이력이 없습니다.</p>
+            )}
+            {row.market_mapping_id && priceHistLoading && <p className="gpu-udetail-pending">불러오는 중…</p>}
+            {row.market_mapping_id && !priceHistLoading && (
+              <table className="gpu-udetail-tbl">
+                <thead><tr><th>수집일</th><th>{GPU_TERMS.marketPrice}</th></tr></thead>
+                <tbody>
+                  {(priceHistData?.prices ?? []).map((p) => (
+                    <tr key={p.id}>
+                      <td className="gpu-mono">{formatTs(p.recorded_at ?? '')}</td>
+                      <td className="gpu-mono">{fmtUSD(p.price_usd)}</td>
+                    </tr>
+                  ))}
+                  {(priceHistData?.prices?.length ?? 0) === 0 && (
+                    <tr><td colSpan={2} className="gpu-udetail-tbl-empty">{GPU_TERMS.emptyList}</td></tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+          </>
+        )}
+
+        {tab === 'history' && (
+          <>
+            {auditLoading && <p className="gpu-udetail-pending">불러오는 중…</p>}
+            {!auditLoading && (
+              <table className="gpu-udetail-tbl">
+                <thead><tr><th>일시</th><th>작업</th><th>작업자</th></tr></thead>
+                <tbody>
+                  {(auditData?.logs ?? []).map((a, i) => (
+                    <tr key={`${a.ts}-${i}`}>
+                      <td className="gpu-mono">{formatTs(a.ts)}</td>
+                      <td>{a.action_type}</td>
+                      <td>{a.actor ?? '—'}</td>
+                    </tr>
+                  ))}
+                  {(auditData?.logs?.length ?? 0) === 0 && (
+                    <tr><td colSpan={3} className="gpu-udetail-tbl-empty">{GPU_TERMS.emptyList}</td></tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+          </>
+        )}
+
+        {tab === 'specs' && (
+          <>
+            <div className="gpu-udetail-kv">
+              <span className="gpu-udetail-kv-k">{GPU_TERMS.model}</span>
+              <span className="gpu-udetail-kv-v">{row.model_name}</span>
+            </div>
+            <div className="gpu-udetail-kv">
+              <span className="gpu-udetail-kv-k">메모리</span>
+              <span className="gpu-udetail-kv-v">{row.memory ?? '—'}</span>
+            </div>
+            <p className="gpu-udetail-pending">상세 스펙(vCPU·RAM·스토리지)은 스펙 관리 연동 후 표시됩니다.</p>
+          </>
+        )}
+      </div>
+
+      {editing && row && (
+        <QuoteEditModal
+          quote={editing}
+          productId={row.id}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); mutateQuotes() }}
+        />
+      )}
+    </div>
+  )
+}
+
+function statusLabel(status: string | null): string {
+  switch (status) {
+    case 'confirmed': return GPU_TERMS.statusConfirmed
+    case 'pending': return GPU_TERMS.statusPending
+    case 'expired': return GPU_TERMS.statusExpired
+    case 'rejected': return GPU_TERMS.statusRejected
+    case 'superseded': return GPU_TERMS.statusSuperseded
+    default: return status ?? '—'
+  }
+}
+
+// 만료 신호: 유효기간이 7일 이내면 D-N 경고, 지났으면 만료(danger). 그 외 null(배지 없음).
+// 계산은 expiry.ts SSOT(결정적·테스트됨)에 위임, 라벨/색조만 매핑.
+function expiryInfo(validUntil: string | null): { label: string; tone: 'warn' | 'danger' } | null {
+  const s = expiryState(validUntil, Date.now())
+  if (s.kind === 'expired') return { label: GPU_TERMS.statusExpired, tone: 'danger' }
+  if (s.kind === 'soon') return { label: `D-${s.days}`, tone: 'warn' }
+  return null
+}
+
+function formatTs(ts: string): string {
+  // YYYY-MM-DD HH:mm (로컬). 파싱 실패 시 원문.
+  const d = new Date(ts)
+  if (Number.isNaN(d.getTime())) return ts
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}

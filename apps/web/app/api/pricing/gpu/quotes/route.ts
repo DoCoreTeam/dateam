@@ -12,15 +12,33 @@ export async function GET(request: Request) {
     const productId = searchParams.get('product_id')
     if (!productId) return NextResponse.json({ error: 'product_id required' }, { status: 400 })
 
+    // status 파라미터(가산적, 하위호환):
+    //   미지정 → 'confirmed'만(기존 동작 유지)
+    //   '*'|'all' → 전체 견적(확정·검토 대기·만료·반려·대체됨) — 통합 표 상세 패널 "전체 견적"용
+    //   특정 값 → 화이트리스트 검증 후 해당 상태만
+    const STATUS_WHITELIST = ['confirmed', 'pending', 'expired', 'rejected', 'superseded']
+    const statusParam = searchParams.get('status')
+    const allStatuses = statusParam === '*' || statusParam === 'all'
+    const status = !statusParam ? 'confirmed' : statusParam
+
     const supabase = await createClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any
-    const { data, error } = await db
+    let query = db
       .from('supply_quotes')
       .select('*, suppliers(name, color, location)')
       .eq('product_id', productId)
-      .eq('status', 'confirmed')
       .is('deleted_at', null)
+
+    if (!allStatuses) {
+      if (!STATUS_WHITELIST.includes(status)) {
+        return NextResponse.json({ error: 'invalid status' }, { status: 400 })
+      }
+      query = query.eq('status', status)
+    }
+
+    const { data, error } = await query
+      .order('status', { ascending: true })
       .order('unit_price_usd', { ascending: true })
 
     if (error) throw error

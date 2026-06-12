@@ -196,6 +196,14 @@ export async function GET() {
       (m: { id: string }) => m.id,
     )
 
+    // product → mapping_id[] (통합 표 상세 패널의 시세 이력 시계열 스레딩용)
+    const mappingIdsByProduct = new Map<string, string[]>()
+    for (const m of (mappings ?? []) as { id: string; gpu_product_id: string }[]) {
+      const arr = mappingIdsByProduct.get(m.gpu_product_id) ?? []
+      arr.push(m.id)
+      mappingIdsByProduct.set(m.gpu_product_id, arr)
+    }
+
     const { data: rawPrices, error: priceErr } =
       mappingIds.length > 0
         ? await db
@@ -394,6 +402,7 @@ export async function GET() {
         competitor_min_krw: competitorMinKrw,
         competitor_max_krw: competitorMaxKrw,
         competitors: competitorsByProduct.get(p.id) ?? [],
+        competitor_mapping_ids: mappingIdsByProduct.get(p.id) ?? [],
 
         // 전략가 (기존 유지)
         strategic_price_krw: p.strategic_price_krw,

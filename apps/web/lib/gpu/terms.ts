@@ -34,6 +34,11 @@ export const GPU_TERMS = {
   dualRole: '경쟁사 겸업',       // 경쟁사이자 공급사
   linked: '공급사 연결',
 
+  // 재고 상태(가용량)
+  stockFull: '전량 가용',
+  stockPartial: '일부 가용',
+  stockOut: '품절',
+
   // 동작(CRUD·액션) — B2B 표준 동사
   create: '등록',
   edit: '수정',

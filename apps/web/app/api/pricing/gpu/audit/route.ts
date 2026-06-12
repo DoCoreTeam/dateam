@@ -3,16 +3,33 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
 
-export async function GET() {
+// GET /api/pricing/gpu/audit[?product_id=&actor=&from=&to=&limit=]
+//   필터 미지정 시 기존 동작(전체 최신 300건). 통합 표 상세 패널 "변동 이력"용.
+export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url)
+    const productId = searchParams.get('product_id')
+    const actor = searchParams.get('actor')
+    const from = searchParams.get('from') // ISO 또는 YYYY-MM-DD
+    const to = searchParams.get('to')
+    const limitRaw = Number(searchParams.get('limit') ?? '300')
+    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.trunc(limitRaw), 1), 1000) : 300
+
     const supabase = await createClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any
-    const { data, error } = await db
+    let query = db
       .from('gpu_audit_logs')
       .select('*, gpu_products(model_name, memory, tier)')
+
+    if (productId) query = query.eq('product_id', productId)
+    if (actor) query = query.eq('actor', actor)
+    if (from) query = query.gte('ts', from)
+    if (to) query = query.lte('ts', to)
+
+    const { data, error } = await query
       .order('ts', { ascending: false })
-      .limit(300)
+      .limit(limit)
 
     if (error) throw error
 
@@ -50,7 +67,10 @@ export async function DELETE(req: NextRequest) {
   }
 
   const { error } = await db.from('gpu_audit_logs').delete().in('id', ids)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[pricing/audit DELETE]', error)
+    return NextResponse.json({ error: '변동 이력 삭제에 실패했습니다.' }, { status: 500 })
+  }
   revalidateGpu()
   return NextResponse.json({ ok: true, logs_deleted: ids.length, data_deleted: dataDeleted })
 }
