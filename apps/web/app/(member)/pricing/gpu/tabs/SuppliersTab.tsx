@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { Plus, X, Globe, Trash2, Save, ExternalLink, Sparkles, ChevronRight, Pencil, Link2 } from 'lucide-react'
@@ -81,15 +81,15 @@ function LogoAvatar({ name, color, logoUrl, size = 40 }: { name: string; color: 
   return <div className="gpu-sup-logo" style={{ background: color, width: size, height: size }}>{name.charAt(0)}</div>
 }
 
-function Field({ label, value, onChange, textarea }: { label: string; value: string; onChange: (v: string) => void; textarea?: boolean }) {
+function Field({ label, value, onChange, textarea, onBlur }: { label: string; value: string; onChange: (v: string) => void; textarea?: boolean; onBlur?: () => void }) {
   return (
     <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--gpu-muted)' }}>{label}</span>
       {textarea ? (
-        <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={2}
+        <textarea value={value} onChange={(e) => onChange(e.target.value)} onBlur={onBlur} rows={2}
           style={{ fontSize: 12.5, padding: '6px 8px', borderRadius: 6, border: '1.5px solid var(--gpu-border)', resize: 'vertical' }} />
       ) : (
-        <input value={value} onChange={(e) => onChange(e.target.value)}
+        <input value={value} onChange={(e) => onChange(e.target.value)} onBlur={onBlur}
           style={{ height: 30, fontSize: 12.5, padding: '0 8px', borderRadius: 6, border: '1.5px solid var(--gpu-border)' }} />
       )}
     </label>
@@ -505,8 +505,30 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   const [f, setF] = useState({ name: '', country: '', website: '', contact: '', description: '', color: COLORS[0] })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
-  const set = (k: string, v: string) => setF({ ...f, [k]: v })
+  const [aiBusy, setAiBusy] = useState(false)
+  const aiAuto = useRef(false)   // onBlur 자동 제안 모달당 1회(토큰 절약)
+  const set = (k: string, v: string) => setF((p) => ({ ...p, [k]: v }))
   useEscClose(onClose)
+
+  // AI 회사정보 자동채움(제안) — 빈 필드만, 저장은 사용자가. §5-3
+  const aiFill = async () => {
+    if (!f.name.trim() || aiBusy) return
+    setAiBusy(true); setErr(null)
+    try {
+      const res = await fetch('/api/pricing/gpu/company-enrich', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: f.name.trim(), website: f.website || null, kind: 'supplier' }),
+      })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error ?? 'AI 조회 실패'); return }
+      const { result } = await res.json()
+      setF((p) => ({
+        ...p,
+        country: p.country || (result.country ?? ''),
+        website: p.website || (result.website ?? ''),
+        description: p.description || (result.description ?? ''),
+      }))
+    } catch { setErr('AI 조회 실패') } finally { setAiBusy(false) }
+  }
 
   const create = async () => {
     if (!f.name.trim()) { setErr('공급사명을 입력하세요'); return }
@@ -524,12 +546,15 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(520px, 100%)', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
-          <strong style={{ fontSize: 15, flex: 1 }}>공급사 추가</strong>
+          <strong style={{ fontSize: 15, flex: 1 }}>{T.supplier} {T.create}</strong>
+          <button onClick={aiFill} disabled={aiBusy || !f.name.trim()} className="gpu-btn gpu-promote-btn" title="회사명으로 AI가 정보를 채웁니다(빈 칸만, 편집 가능)">
+            <Sparkles size={12} /> {aiBusy ? 'AI 조회중…' : 'AI로 채우기'}
+          </button>
           <button onClick={onClose} className="gpu-btn" style={{ padding: 6 }}><X size={16} /></button>
         </div>
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <Field label="공급사명 *" value={f.name} onChange={(v) => set('name', v)} />
+            <Field label="공급사명 *" value={f.name} onChange={(v) => set('name', v)} onBlur={() => { if (!aiAuto.current && f.name.trim() && !f.country && !f.description) { aiAuto.current = true; aiFill() } }} />
             <Field label="국가" value={f.country} onChange={(v) => set('country', v)} />
             <Field label="웹사이트" value={f.website} onChange={(v) => set('website', v)} />
             <Field label="연락처" value={f.contact} onChange={(v) => set('contact', v)} />

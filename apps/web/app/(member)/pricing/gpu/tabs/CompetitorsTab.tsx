@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { useEscClose } from '@/lib/use-esc-close'
 import { GPU_TERMS as T } from '@/lib/gpu/terms'
 import { countryFlag } from '@/lib/gpu/country-flag'
-import { Plus, X, Search, Trash2, PackagePlus, Pencil, Link2, Globe } from 'lucide-react'
+import { Plus, X, Search, Trash2, PackagePlus, Pencil, Link2, Globe, Sparkles } from 'lucide-react'
 
 interface CompetitorRow {
   id: string
@@ -135,8 +135,8 @@ export default function CompetitorsTab() {
           </thead>
           <tbody>
             {filtered.map((c) => (
-              <tr key={c.id} className={selected.has(c.id) ? 'gpu-comp-row--sel' : ''}>
-                <td data-label={T.selectAll}>
+              <tr key={c.id} className={selected.has(c.id) ? 'gpu-comp-row--sel' : ''} onClick={() => setEditRow(c)} style={{ cursor: 'pointer' }}>
+                <td data-label={T.selectAll} onClick={(e) => e.stopPropagation()}>
                   <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleOne(c.id)} aria-label={`${c.name} ${T.selected}`} />
                 </td>
                 <td className="card-header">
@@ -160,7 +160,7 @@ export default function CompetitorsTab() {
                     <span className="gpu-comp-plain">{T.competitor}</span>
                   )}
                 </td>
-                <td data-label="관리" className="r card-actions">
+                <td data-label="관리" className="r card-actions" onClick={(e) => e.stopPropagation()}>
                   {!c.is_supplier && (
                     <button className="gpu-btn gpu-promote-btn" disabled={busy} title={T.assignSupplier}
                       onClick={async () => {
@@ -199,7 +199,30 @@ function CompetitorModal({ row, onClose, onSaved }: { row?: CompetitorRow; onClo
   })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [aiBusy, setAiBusy] = useState(false)
+  const aiAuto = useRef(false)   // onBlur 자동 제안은 모달당 1회만(토큰 절약)
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }))
+
+  // AI 회사정보 자동채움(제안) — 빈 필드만 채움(사용자 입력 보존), 저장은 사용자가. §5-3
+  const aiFill = async () => {
+    if (!f.name.trim() || aiBusy) return
+    setAiBusy(true); setErr(null)
+    try {
+      const res = await fetch('/api/pricing/gpu/company-enrich', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: f.name.trim(), website: f.website_url || null, kind: 'competitor' }),
+      })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error ?? 'AI 조회 실패'); return }
+      const { result } = await res.json()
+      setF((p) => ({
+        ...p,
+        country: p.country || (result.country ?? ''),
+        type: p.type && p.type !== 'specialist' ? p.type : (result.type && TYPE_LABEL[result.type] ? result.type : p.type),
+        website_url: p.website_url || (result.website ?? ''),
+        pricing_url: p.pricing_url || (result.pricing_url ?? ''),
+      }))
+    } catch { setErr('AI 조회 실패') } finally { setAiBusy(false) }
+  }
 
   const save = async () => {
     if (!f.name.trim()) { setErr('경쟁사명은 필수입니다'); return }
@@ -217,11 +240,14 @@ function CompetitorModal({ row, onClose, onSaved }: { row?: CompetitorRow; onClo
       <div className="gpu-modal-card gpu-modal-card--sm" onClick={(e) => e.stopPropagation()}>
         <div className="gpu-modal-header">
           <strong className="tape-title">{T.competitor} {isEdit ? T.edit : T.create}</strong>
+          <button type="button" onClick={aiFill} disabled={aiBusy || !f.name.trim()} className="gpu-btn gpu-promote-btn" style={{ marginLeft: 'auto' }} title="회사명으로 AI가 정보를 채웁니다(빈 칸만, 편집 가능)">
+            <Sparkles size={12} /> {aiBusy ? 'AI 조회중…' : 'AI로 채우기'}
+          </button>
           <button type="button" onClick={onClose} className="gpu-modal-close" aria-label={T.cancel}><X size={16} /></button>
         </div>
         <div className="gpu-modal-body">
           <div className="responsive-grid-cols-2">
-            <label className="gpu-field"><span className="label">경쟁사명 *</span><input className="input-field" value={f.name} onChange={(e) => set('name', e.target.value)} /></label>
+            <label className="gpu-field"><span className="label">경쟁사명 *</span><input className="input-field" value={f.name} onChange={(e) => set('name', e.target.value)} onBlur={() => { if (!isEdit && !aiAuto.current && f.name.trim() && !f.country && !f.website_url) { aiAuto.current = true; aiFill() } }} /></label>
             <label className="gpu-field"><span className="label">약칭</span><input className="input-field" value={f.short_name} onChange={(e) => set('short_name', e.target.value)} /></label>
             <label className="gpu-field"><span className="label">유형</span>
               <select className="input-field" value={f.type} onChange={(e) => set('type', e.target.value)}>
@@ -233,7 +259,7 @@ function CompetitorModal({ row, onClose, onSaved }: { row?: CompetitorRow; onClo
                 <option value="global">global</option><option value="korea">korea</option><option value="domestic">domestic</option>
               </select>
             </label>
-            <label className="gpu-field"><span className="label">국가코드 {f.country && countryFlag(f.country)}</span><input className="input-field" value={f.country} onChange={(e) => set('country', e.target.value.toUpperCase())} placeholder="KR / US / JP" maxLength={2} /></label>
+            <label className="gpu-field"><span className="label">국가코드 {f.country && countryFlag(f.country)}</span><input className="input-field" value={f.country} onChange={(e) => set('country', e.target.value.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 2))} placeholder="KR / US / JP" maxLength={2} /></label>
             <label className="gpu-field"><span className="label">웹사이트</span><input className="input-field" value={f.website_url} onChange={(e) => set('website_url', e.target.value)} /></label>
             <label className="gpu-field"><span className="label">가격 페이지 URL</span><input className="input-field" value={f.pricing_url} onChange={(e) => set('pricing_url', e.target.value)} placeholder="재수집 출처" /></label>
           </div>

@@ -379,6 +379,7 @@ export type AiFeature =
   | 'gpu-quote-reanalyze'
   | 'gpu-spec-generate'
   | 'gpu-db-chat'
+  | 'gpu-company-enrich'
   | 'memo-embedding'
   | 'memo-cluster-label'
   | 'dept-task-suggest'
