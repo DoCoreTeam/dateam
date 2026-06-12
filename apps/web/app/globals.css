@@ -5631,13 +5631,10 @@ label.intake-tool-btn {
 .gpu-mmi-result { margin-top: var(--space-2); }
 
 /* 통합 입력 §05 — 지원 형식 배지 행 (정적 표시, 고르는 선택지 아님) */
-.gpu-intake-formats { border: var(--hairline) dashed var(--gpu-border); border-radius: var(--radius); padding: var(--space-3); background: var(--surface-bg); margin-bottom: var(--space-3); }
-.gpu-intake-formats-title { font-size: var(--fs-sm); font-weight: 700; color: var(--text); display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
-.gpu-intake-formats-hint { font-size: var(--fs-xs); color: var(--gpu-muted); margin-top: var(--space-1); }
-.gpu-intake-formats-note { font-size: var(--fs-xs); color: var(--brand); margin-top: var(--space-2); font-family: var(--font-mono, monospace); }
-.gpu-intake-formats-list { display: flex; gap: var(--space-2); margin-top: var(--space-2); flex-wrap: wrap; }
-.gpu-format-badge { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--fs-xs); font-weight: 600; padding: var(--space-1) var(--space-2); border-radius: var(--radius); background: var(--success-bg); color: var(--success); border: var(--hairline) solid var(--success-border); }
-.gpu-format-badge--soon { background: var(--surface-bg); color: var(--gpu-muted); border-color: var(--gpu-border); }
+.gpu-intake-formats { margin-bottom: var(--space-3); }
+.gpu-intake-formats-list { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+.gpu-intake-formats-label { font-size: var(--fs-xs); font-weight: 600; color: var(--gpu-muted); margin-right: var(--space-1); }
+.gpu-format-badge { display: inline-flex; align-items: center; font-size: var(--fs-xs); font-weight: 500; padding: var(--space-1) var(--space-2); border-radius: var(--radius); background: var(--surface-bg); color: var(--text-muted); border: var(--hairline) solid var(--gpu-border); }
 
 /* 통합 입력 §05 — 신뢰도 자동 게이트 3구간 요약 + 통합 표 */
 .gpu-gate { display: flex; flex-direction: column; gap: var(--space-3); }

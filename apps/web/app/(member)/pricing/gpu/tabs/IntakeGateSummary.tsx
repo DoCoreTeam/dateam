@@ -49,24 +49,21 @@ export default function IntakeGateSummary({ rows }: IntakeGateSummaryProps) {
       <div className="gpu-gate-cards">
         <div className="gpu-gate-card gpu-gate-card--auto">
           <div className="gpu-gate-card-label">
-            자동 확정 후보 <span className="gpu-gate-badge gpu-gate-badge--auto">≥90%</span>
+            자동 확정 <span className="gpu-gate-badge gpu-gate-badge--auto">≥90%</span>
           </div>
           <div className="gpu-gate-card-num">{partition.auto.length}건</div>
-          <div className="gpu-gate-card-sub">사람은 안 봐도 됨 (사후 감사 &lsquo;auto&rsquo;)</div>
         </div>
         <div className="gpu-gate-card gpu-gate-card--review">
           <div className="gpu-gate-card-label">
-            검토 필요 <span className="gpu-gate-badge gpu-gate-badge--review">70~90%</span>
+            검토 <span className="gpu-gate-badge gpu-gate-badge--review">70–90%</span>
           </div>
           <div className="gpu-gate-card-num">{partition.review.length}건</div>
-          <div className="gpu-gate-card-sub">이 구간만 사람이 확인</div>
         </div>
         <div className="gpu-gate-card gpu-gate-card--block">
           <div className="gpu-gate-card-label">
-            차단 <span className="gpu-gate-badge gpu-gate-badge--block">&lt;70%</span>
+            보류 <span className="gpu-gate-badge gpu-gate-badge--block">&lt;70%</span>
           </div>
           <div className="gpu-gate-card-num">{partition.block.length}건</div>
-          <div className="gpu-gate-card-sub">모델 미상 등 — 보류</div>
         </div>
       </div>
 

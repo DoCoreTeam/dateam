@@ -44,7 +44,7 @@ export default function MultimodalIntake({ onRows }: MultimodalIntakeProps) {
   return (
     <div className="gpu-mmi">
       <label className="gpu-mmi-label" htmlFor="gpu-mmi-textarea">
-        CSV / 표 붙여넣기 <span className="gpu-mmi-hint">엑셀·시트에서 복사한 표를 그대로 붙여넣으세요(헤더 포함)</span>
+        CSV·표 붙여넣기 <span className="gpu-mmi-hint">헤더 포함</span>
       </label>
       <textarea className="input-field gpu-mmi-textarea" id="gpu-mmi-textarea"
         value={text}

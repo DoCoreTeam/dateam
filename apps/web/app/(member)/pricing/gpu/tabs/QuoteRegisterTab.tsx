@@ -203,6 +203,8 @@ export default function QuoteRegisterTab() {
   const processFile = useCallback((file: File) => {
     const isText = file.type.startsWith('text/') || /\.(txt|csv|md|json)$/i.test(file.name)
     const isImage = file.type.startsWith('image/')
+    // PDF는 Gemini가 인라인 처리(gemini-lead GEMINI_VISION_MIME_TYPES) — 이미지와 동일 경로(images 페이로드)로 전송.
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
 
     if (isText) {
       const reader = new FileReader()
@@ -212,14 +214,14 @@ export default function QuoteRegisterTab() {
         setAttached({ name: file.name, mimeType: file.type, textContent: content })
       }
       reader.readAsText(file)
-    } else if (isImage) {
+    } else if (isImage || isPdf) {
       const reader = new FileReader()
       reader.onload = (e) => {
         const dataUrl = e.target?.result as string
         const base64 = dataUrl.split(',')[1] ?? ''
-        const url = URL.createObjectURL(file)
-        // 다중 이미지 — 누적 추가
-        setImages((p) => [...p, { name: file.name, mimeType: file.type, previewUrl: url, base64Data: base64 }])
+        // 이미지만 미리보기 썸네일(PDF는 파일 칩으로 표시)
+        const previewUrl = isImage ? URL.createObjectURL(file) : undefined
+        setImages((p) => [...p, { name: file.name, mimeType: isPdf ? 'application/pdf' : file.type, previewUrl, base64Data: base64 }])
       }
       reader.readAsDataURL(file)
     } else {
@@ -431,29 +433,18 @@ export default function QuoteRegisterTab() {
             가격·견적 정보 붙여넣기
           </div>
           <div className="gpu-card-desc">
-            경쟁사 가격 · 공급사 견적 · 가격 페이지 내용 — 무엇이든 붙여넣으면 AI가 종류를 자동 판별합니다.
-            <br />🟢 경쟁사 가격 → 시장 비교에 반영 / 🟡 공급사 견적 → 검토 대기 후 가격표 반영.
-            클라우드사 가상 인스턴스명은 보유 스펙과 대조해 표준 모델로 매핑합니다.
+            붙여넣으면 공급가·경쟁가를 자동 분류합니다. 공급가는 검토 대기, 경쟁가는 시장 비교에 반영됩니다.
           </div>
 
-          {/* §05 멀티모달 지원 형식 — 정적 표시(고르는 선택지 아님) */}
+          {/* §05 멀티모달 — 지원 형식 자동 인식(정적 표시) */}
           <div className="gpu-intake-formats" data-testid="intake-formats">
-            <div className="gpu-intake-formats-title">
-              📎 견적 통째로 — 무엇을 넣든 자동 인식
-              <span className="gpu-badge gpu-badge-t2">멀티모달</span>
-            </div>
-            <div className="gpu-intake-formats-hint">
-              URL 자동수집(본문 크롤) · 이미지 10장 · Ctrl+V · CSV/표 붙여넣기 · Gemini 스트리밍 추출
-            </div>
-            <div className="gpu-intake-formats-note">
-              ↳ 아래는 지원 형식 표시(자동 인식) — 고르는 선택지가 아닙니다
-            </div>
             <div className="gpu-intake-formats-list">
-              <span className="gpu-format-badge">✓ 📝 텍스트/메일</span>
-              <span className="gpu-format-badge">✓ 🖼 이미지×10</span>
-              <span className="gpu-format-badge">✓ 🔗 URL 자동수집</span>
-              <span className="gpu-format-badge">✓ 📊 CSV/표 붙여넣기</span>
-              <span className="gpu-format-badge gpu-format-badge--soon">📄 PDF (준비중)</span>
+              <span className="gpu-intake-formats-label">지원 형식</span>
+              <span className="gpu-format-badge">텍스트·메일</span>
+              <span className="gpu-format-badge">이미지</span>
+              <span className="gpu-format-badge">PDF</span>
+              <span className="gpu-format-badge">URL</span>
+              <span className="gpu-format-badge">CSV·표</span>
             </div>
           </div>
 
@@ -472,7 +463,7 @@ export default function QuoteRegisterTab() {
               ref={textareaRef}
               className="gpu-intake-textarea"
               style={{ minHeight: 180, border: 'none', borderRadius: 10, background: 'transparent', resize: 'vertical' }}
-              placeholder={"메일·메신저·가격표 내용을 그대로 붙여넣으세요. AI가 경쟁사/공급가를 자동 분류합니다.\n\n예1) 공급가 — [GMI Cloud] H100 SXM 80GB: $2.10/GPU·hr (8장 이상)\n약정: 3개월 | 가용: 32장 즉시\n\n예2) 경쟁사 — NHN Cloud 인스턴스 80GB HBM3 SXM, 시간당 5,500원\n(가상 인스턴스명도 스펙으로 표준 모델 매핑)"}
+              placeholder={"견적·가격 정보를 붙여넣으세요. 텍스트·이미지·PDF·URL·CSV 모두 지원합니다.\n\n예) [GMI Cloud] H100 SXM 80GB $2.10/GPU·hr, 약정 3개월, 32장 즉시"}
               value={rawText}
               onChange={(e) => { setRawText(e.target.value); setSuccessMsg(''); setErrorMsg('') }}
               onPaste={handlePaste}
@@ -504,8 +495,10 @@ export default function QuoteRegisterTab() {
           {images.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }} data-testid="image-thumbs">
               {images.map((im, i) => (
-                <div key={i} style={{ position: 'relative', width: 56, height: 56, borderRadius: 8, overflow: 'hidden', border: 'var(--hairline) solid var(--brand-soft-2)' }}>
-                  {im.previewUrl && <img src={im.previewUrl} alt={im.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                <div key={i} title={im.name} style={{ position: 'relative', width: 56, height: 56, borderRadius: 8, overflow: 'hidden', border: 'var(--hairline) solid var(--brand-soft-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-bg)' }}>
+                  {im.previewUrl
+                    ? <img src={im.previewUrl} alt={im.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>PDF</span>}
                   <button onClick={() => setImages((p) => p.filter((_, idx) => idx !== i))} title="제거"
                     style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', background: 'rgba(15,23,42,.7)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
                     <X size={11} />
@@ -520,7 +513,7 @@ export default function QuoteRegisterTab() {
             id="gpu-file-input-v2"
             type="file"
             multiple
-            accept=".txt,.csv,.md,.json,.png,.jpg,.jpeg,.webp"
+            accept=".txt,.csv,.md,.json,.png,.jpg,.jpeg,.webp,.pdf"
             style={{ display: 'none' }}
             onChange={(e) => { if (e.target.files?.length) processFiles(e.target.files); e.target.value = '' }}
           />
@@ -707,10 +700,10 @@ export default function QuoteRegisterTab() {
                   {!committed ? (
                     <>
                       <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
-                        확정 대상 {confirmCount}건 — 공급원가 {supplierPreview.length}건 검토 대기로, 시장가 {competitorResults.length}건 반영.
+                        공급가 {supplierPreview.length}건 검토 대기 · 시장가 {competitorResults.length}건 반영
                       </div>
                       <button onClick={commitSupplier} disabled={committing} className="gpu-btn gpu-btn-primary" data-testid="supplier-commit-btn" style={{ marginTop: 4, justifyContent: 'center', gap: 6 }}>
-                        {committing ? '저장 중…' : `변경분 요약 후 확정 (${supplierPreview.length}) →`}
+                        {committing ? '저장 중…' : `확정 (${supplierPreview.length})`}
                       </button>
                     </>
                   ) : (
