@@ -9,6 +9,13 @@ import { fmtKRW } from './format-price'
 import { deviationSignal } from './price-signal'
 import type { ViewColumn } from './unified-views'
 
+/** 시장 비교 — 경쟁사별 한 줄(회사명+가격+수집일). cockpit competitors[]에서 어댑터가 채움. */
+export interface UnifiedCompetitor {
+  company_name: string
+  price_krw: number
+  recorded_at: string | null
+}
+
 export interface UnifiedRow {
   id: string
   model_name: string
@@ -27,6 +34,8 @@ export interface UnifiedRow {
   market_dev_pct: number | null
   sample_count: number | null
   market_mapping_id: string | null
+  competitors: UnifiedCompetitor[] // 경쟁사 횡단 비교(회사명+시장가) — 시장 비교 탭 다행 표
+  market_mapping_ids: string[] // 연결된 경쟁사 매핑 전체(매핑 관리·시장가 수정용)
   // 재고
   supplier_name: string | null
   available_qty: number | null

@@ -11,7 +11,12 @@ import { mergeInventory } from '@/lib/gpu/inventory-to-unified'
 import type { CockpitApiResponse } from '@/lib/gpu/cockpit-to-unified'
 import type { InventoryApiResponse } from '@/lib/gpu/inventory-to-unified'
 
-export default function UnifiedTableConnected() {
+interface UnifiedTableConnectedProps {
+  onRegisterQuote?: () => void
+  onManageMapping?: () => void
+}
+
+export default function UnifiedTableConnected({ onRegisterQuote, onManageMapping }: UnifiedTableConnectedProps) {
   const { data, error, isLoading } = useSWR<CockpitApiResponse>('/api/pricing/gpu/cockpit', fetcher, {
     refreshInterval: 60000,
   })
@@ -20,5 +25,13 @@ export default function UnifiedTableConnected() {
     refreshInterval: 120000,
   })
   const rows = mergeInventory(cockpitToUnified(data), invData)
-  return <UnifiedTable rows={rows} loading={isLoading} error={error ? '불러오기에 실패했습니다.' : null} />
+  return (
+    <UnifiedTable
+      rows={rows}
+      loading={isLoading}
+      error={error ? '불러오기에 실패했습니다.' : null}
+      onRegisterQuote={onRegisterQuote}
+      onManageMapping={onManageMapping}
+    />
+  )
 }

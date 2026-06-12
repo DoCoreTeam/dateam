@@ -17,8 +17,10 @@ import { auditActionLabel } from '@/lib/gpu/audit-labels'
 import { tierName } from '@/lib/gpu/unified-row'
 import type { UnifiedRow } from '@/lib/gpu/unified-row'
 import type { QuoteForEdit } from '@/components/pricing/gpu/QuoteEditModal'
+import type { MarketPriceForEdit } from '@/components/pricing/gpu/MarketPriceEditModal'
 
 const QuoteEditModal = dynamic(() => import('@/components/pricing/gpu/QuoteEditModal'), { ssr: false })
+const MarketPriceEditModal = dynamic(() => import('@/components/pricing/gpu/MarketPriceEditModal'), { ssr: false })
 
 type DetailTab = 'cost' | 'market' | 'history' | 'specs'
 
@@ -52,11 +54,35 @@ interface MarketPriceRow {
 
 interface DetailPanelProps {
   row: UnifiedRow | null
+  /** 실견적 등록 — 기존 통합 입력 플로우로 이동(부모가 탭 전환). */
+  onRegisterQuote?: () => void
+  /** 매핑 관리 — 기존 경쟁사 매핑 관리 화면으로 이동(부모가 탭 전환). */
+  onManageMapping?: () => void
 }
 
-export default function DetailPanel({ row }: DetailPanelProps) {
+export default function DetailPanel({ row, onRegisterQuote, onManageMapping }: DetailPanelProps) {
   const [tab, setTab] = useState<DetailTab>('cost')
   const [editing, setEditing] = useState<QuoteForEdit | null>(null)
+  const [marketEdit, setMarketEdit] = useState<MarketPriceForEdit | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState<string | null>(null)
+
+  // 가격 동기화 — 기존 sync-cost 라우트 재사용(저장 출처 재수집→공급원가 반영). 전역 1버튼.
+  async function runSync() {
+    setSyncing(true); setSyncMsg(null)
+    try {
+      const res = await fetch('/api/pricing/gpu/market/sync-cost', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { setSyncMsg(j.error ?? '동기화 실패'); return }
+      setSyncMsg(`동기화 완료 — 검토 대기 ${j.created ?? 0}건 생성`)
+    } catch {
+      setSyncMsg('동기화 중 오류가 발생했습니다.')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   // 공급원가: 전체 견적(확정·검토 대기·만료·반려) — P5-1
   const { data: quoteData, isLoading: quoteLoading, mutate: mutateQuotes } = useSWR<{ quotes: QuoteRow[] }>(
@@ -69,12 +95,14 @@ export default function DetailPanel({ row }: DetailPanelProps) {
     fetcher,
   )
   // 시세 이력(시계열): mapping_id 있을 때만 — P5-2
-  const { data: priceHistData, isLoading: priceHistLoading } = useSWR<{ prices: MarketPriceRow[] }>(
+  const { data: priceHistData, mutate: mutatePriceHist } = useSWR<{ prices: MarketPriceRow[] }>(
     row && tab === 'market' && row.market_mapping_id
       ? `/api/pricing/gpu/market/prices?mapping_id=${row.market_mapping_id}&limit=30`
       : null,
     fetcher,
   )
+  // 시장가 수정 대상 = 첫 매핑의 최신 시세 행(시장가 수정 모달은 price_usd·notes만 편집).
+  const latestMarketPrice = priceHistData?.prices?.[0] ?? null
 
   if (!row) {
     return (
@@ -173,11 +201,13 @@ export default function DetailPanel({ row }: DetailPanelProps) {
                 </tbody>
               </table>
             )}
-            <div className="gpu-udetail-acts">
-              <button type="button" className="gpu-udetail-rowbtn">실견적 {GPU_TERMS.create}</button>
-              <button type="button" className="gpu-udetail-rowbtn">견적 {GPU_TERMS.edit}</button>
-              <button type="button" className="gpu-udetail-rowbtn gpu-udetail-rowbtn--danger">견적 {GPU_TERMS.remove}</button>
-            </div>
+            {/* 견적 수정·삭제는 각 견적 행의 '수정' 버튼(QuoteEditModal에 삭제 포함)에서 처리.
+                여기서는 신규 실견적 등록만 — 기존 통합 입력 플로우로 연결(부모 콜백). */}
+            {onRegisterQuote && (
+              <div className="gpu-udetail-acts">
+                <button type="button" className="gpu-udetail-rowbtn" onClick={onRegisterQuote}>실견적 {GPU_TERMS.create}</button>
+              </div>
+            )}
           </>
         )}
 
@@ -195,31 +225,54 @@ export default function DetailPanel({ row }: DetailPanelProps) {
               <span className="gpu-udetail-kv-k">표본</span>
               <span className="gpu-udetail-kv-v">{row.sample_count != null ? `${row.sample_count}곳` : '—'}</span>
             </div>
-            {!row.market_mapping_id && (
-              <p className="gpu-udetail-pending">연결된 경쟁사 매핑이 없어 시세 이력이 없습니다.</p>
-            )}
-            {row.market_mapping_id && priceHistLoading && <p className="gpu-udetail-pending">불러오는 중…</p>}
-            {row.market_mapping_id && !priceHistLoading && (
-              <table className="gpu-udetail-tbl">
-                <thead><tr><th>수집일</th><th>{GPU_TERMS.marketPrice}</th></tr></thead>
-                <tbody>
-                  {(priceHistData?.prices ?? []).map((p) => (
-                    <tr key={p.id}>
-                      <td className="gpu-mono">{formatTs(p.recorded_at ?? '')}</td>
-                      <td className="gpu-mono">{fmtUSD(p.price_usd)}</td>
-                    </tr>
-                  ))}
-                  {(priceHistData?.prices?.length ?? 0) === 0 && (
-                    <tr><td colSpan={2} className="gpu-udetail-tbl-empty">{GPU_TERMS.emptyList}</td></tr>
-                  )}
-                </tbody>
-              </table>
-            )}
+            {/* 경쟁사 횡단 비교(회사명+시장가+수집일) — 기획서 시장 비교 표. cockpit competitors[] 재사용. */}
+            <table className="gpu-udetail-tbl">
+              <thead><tr><th>{GPU_TERMS.competitor}</th><th>{GPU_TERMS.marketPrice}</th><th>수집일</th></tr></thead>
+              <tbody>
+                {row.competitors.map((c, i) => (
+                  <tr key={`${c.company_name}-${i}`}>
+                    <td>{c.company_name}</td>
+                    <td className="gpu-mono">{fmtKRW(c.price_krw)}</td>
+                    <td className="gpu-mono">{c.recorded_at ? formatTs(c.recorded_at) : '—'}</td>
+                  </tr>
+                ))}
+                {row.competitors.length === 0 && (
+                  <tr><td colSpan={3} className="gpu-udetail-tbl-empty">연결된 경쟁사가 없습니다. 매핑 관리에서 연결하세요.</td></tr>
+                )}
+              </tbody>
+            </table>
             <div className="gpu-udetail-acts">
-              <button type="button" className="gpu-udetail-rowbtn">매핑 관리</button>
-              <button type="button" className="gpu-udetail-rowbtn">{GPU_TERMS.marketPrice} {GPU_TERMS.edit}</button>
-              <button type="button" className="gpu-udetail-rowbtn">{GPU_TERMS.sync}</button>
+              {onManageMapping && (
+                <button type="button" className="gpu-udetail-rowbtn" onClick={onManageMapping}>매핑 관리</button>
+              )}
+              <button
+                type="button"
+                className="gpu-udetail-rowbtn"
+                disabled={!latestMarketPrice}
+                onClick={() => {
+                  if (!latestMarketPrice) return
+                  setMarketEdit({
+                    price_id: latestMarketPrice.id,
+                    price_usd: latestMarketPrice.price_usd ?? 0,
+                    competitor_name: row.competitors[0]?.company_name ?? GPU_TERMS.competitor,
+                    sku: '',
+                    pricing_model: 'on_demand',
+                    notes: null,
+                  })
+                }}
+              >
+                {GPU_TERMS.marketPrice} {GPU_TERMS.edit}
+              </button>
+              <button
+                type="button"
+                className="gpu-udetail-rowbtn"
+                disabled={syncing}
+                onClick={runSync}
+              >
+                {syncing ? '동기화 중…' : GPU_TERMS.sync}
+              </button>
             </div>
+            {syncMsg && <p className="gpu-udetail-pending">{syncMsg}</p>}
           </>
         )}
 
@@ -267,6 +320,14 @@ export default function DetailPanel({ row }: DetailPanelProps) {
           productId={row.id}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); mutateQuotes() }}
+        />
+      )}
+
+      {marketEdit && (
+        <MarketPriceEditModal
+          price={marketEdit}
+          onClose={() => setMarketEdit(null)}
+          onSaved={() => { setMarketEdit(null); mutatePriceHist() }}
         />
       )}
     </div>

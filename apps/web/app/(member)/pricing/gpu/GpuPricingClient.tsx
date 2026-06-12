@@ -306,7 +306,10 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
       <div className="gpu-tab-content">
         {activeTab === 'board' && unifiedOn && (
           <div className="gpu-tab-panel">
-            <UnifiedTableConnected />
+            <UnifiedTableConnected
+              onRegisterQuote={() => router.push('/intake')}
+              onManageMapping={() => setActiveTab('market')}
+            />
           </div>
         )}
         {activeTab === 'board' && !unifiedOn && (

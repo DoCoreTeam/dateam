@@ -396,6 +396,8 @@ export async function GET() {
 
         // 판매가 후보
         candidate_price_krw: candidatePriceKrw,
+        // buildCatalog 최종 판매가(공시가 폴백 포함) — 견적 없는 구성도 공시가로 채워짐(가격표 SSOT)
+        sell_price_krw: p.sell_price_krw,
         margin_pct: catalog.margin_pct,
 
         // 경쟁사 가격

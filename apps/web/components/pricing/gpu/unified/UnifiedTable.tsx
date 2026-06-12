@@ -16,9 +16,11 @@ interface UnifiedTableProps {
   rows: UnifiedRow[]
   loading?: boolean
   error?: string | null
+  onRegisterQuote?: () => void
+  onManageMapping?: () => void
 }
 
-export default function UnifiedTable({ rows, loading = false, error = null }: UnifiedTableProps) {
+export default function UnifiedTable({ rows, loading = false, error = null, onRegisterQuote, onManageMapping }: UnifiedTableProps) {
   // 하이드레이션 안전: 서버/첫 렌더는 DEFAULT_VIEW, mount 후 저장된 보기로 복원(localStorage 불일치 방지).
   const [view, setView] = useState<GpuViewId>(DEFAULT_VIEW)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -131,7 +133,7 @@ export default function UnifiedTable({ rows, loading = false, error = null }: Un
               ← 목록
             </button>
           )}
-          <DetailPanel row={selectedRow} />
+          <DetailPanel row={selectedRow} onRegisterQuote={onRegisterQuote} onManageMapping={onManageMapping} />
         </div>
       </div>
     </div>
