@@ -5,7 +5,7 @@
 
 import { calcMedian } from './market-median'
 import { GPU_TERMS } from './terms'
-import { pickSellPrice, pickMargin } from './unified-price-pick'
+import { pickSellPrice, pickMargin, marketDevPct } from './unified-price-pick'
 import type { UnifiedRow } from './unified-row'
 
 interface CockpitCompetitor {
@@ -47,7 +47,8 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
     const supplierName = p.cost_suppliers?.[0]?.supplier_name ?? null
     // 판매가·마진 선택은 자기완결 SSOT(unified-price-pick)에 위임 — 단위 테스트로 분기 고정
     const sellPrice = pickSellPrice(p)
-    const margin = pickMargin(p)
+    // 판매가가 없으면(견적 없는 제품) 마진은 무의미 → null(측정불가). 전역 마진을 빈 행에 띄우지 않음.
+    const margin = sellPrice == null ? null : pickMargin(p)
 
     return {
       id: p.id,
@@ -62,7 +63,7 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
       market_min_krw: p.competitor_min_krw,
       market_median_krw: marketMedian,
       market_max_krw: p.competitor_max_krw,
-      market_dev_pct: null, // cockpit이 deviation을 의도적으로 제외 — 시장 비교는 min/중앙/최고로
+      market_dev_pct: marketDevPct(sellPrice, marketMedian), // 판매가 vs 시장 중앙값 편차%(SSOT 함수)
       sample_count: p.competitors.length,
       market_mapping_id: p.competitor_mapping_ids?.[0] ?? null,
       // 재고·고객가 축: cockpit 미포함(후속 어댑터에서 병합)

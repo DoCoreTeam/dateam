@@ -39,6 +39,11 @@ export const GPU_TERMS = {
   stockPartial: '일부 가용',
   stockOut: '품절',
 
+  // Tier 명칭(기획서 표기)
+  tier1: '전용 고성능',
+  tier2: '점유형',
+  tier3: '간헐 공급',
+
   // 동작(CRUD·액션) — B2B 표준 동사
   create: '등록',
   edit: '수정',

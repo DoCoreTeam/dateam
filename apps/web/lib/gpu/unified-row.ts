@@ -41,11 +41,14 @@ export interface UnifiedRow {
 }
 
 export type CellTone = 'default' | 'sell' | 'ok' | 'warn' | 'danger' | 'muted'
+export type CellKind = 'text' | 'model' | 'sell' | 'badge'
 
 export interface ResolvedCell {
   text: string
   tone: CellTone
   mono: boolean
+  /** 렌더 형태: 기획서 질감(Tier·상태·출처·편차·재고는 배지 pill, 모델은 2줄, 판매가는 강조) */
+  kind: CellKind
 }
 
 const T = GPU_TERMS
@@ -72,56 +75,56 @@ function devTone(v: number | null): CellTone {
   }
 }
 
-/** 컬럼 1칸 값 해석(포맷·라벨·색조). 계산 없음. */
+/** 컬럼 1칸 값 해석(포맷·라벨·색조·렌더형태). 계산 없음. 기획서 질감(배지/모노/강조) 반영. */
 export function resolveCell(row: UnifiedRow, col: ViewColumn): ResolvedCell {
   const mono = !!col.mono
   switch (col.key) {
     case 'model':
-      return { text: row.model_name, tone: 'default', mono: false }
+      return { text: row.model_name, tone: 'default', mono: false, kind: 'model' }
     case 'tier':
-      return { text: row.tier != null ? `Tier ${row.tier}` : '—', tone: 'muted', mono: false }
+      return { text: tierName(row.tier), tone: tierTone(row.tier), mono: false, kind: 'badge' }
     case 'supplyCost':
-      return { text: fmtKRW(row.supply_cost_krw), tone: 'default', mono }
+      return { text: fmtKRW(row.supply_cost_krw), tone: 'default', mono, kind: 'text' }
     case 'autoPrice':
-      return { text: fmtKRW(row.auto_price_krw), tone: 'muted', mono }
+      return { text: fmtKRW(row.auto_price_krw), tone: 'muted', mono, kind: 'text' }
     case 'sellPrice':
-      return { text: fmtKRW(row.sell_price_krw), tone: 'sell', mono }
+      return { text: fmtKRW(row.sell_price_krw), tone: 'sell', mono, kind: 'sell' }
     case 'margin':
       return {
         text: row.margin_pct == null ? '측정불가' : pct(row.margin_pct),
-        tone: row.margin_pct == null ? 'danger' : 'default',
-        mono,
+        tone: row.margin_pct == null ? 'danger' : (row.margin_pct >= 20 ? 'ok' : 'warn'),
+        mono, kind: 'badge',
       }
     case 'marketMin':
-      return { text: fmtKRW(row.market_min_krw), tone: 'default', mono }
+      return { text: fmtKRW(row.market_min_krw), tone: 'default', mono, kind: 'text' }
     case 'marketMedian':
-      return { text: fmtKRW(row.market_median_krw), tone: 'default', mono }
+      return { text: fmtKRW(row.market_median_krw), tone: 'default', mono, kind: 'text' }
     case 'marketMax':
-      return { text: fmtKRW(row.market_max_krw), tone: 'default', mono }
+      return { text: fmtKRW(row.market_max_krw), tone: 'default', mono, kind: 'text' }
     case 'marketDev':
-      return { text: pct(row.market_dev_pct), tone: devTone(row.market_dev_pct), mono }
+      return { text: pct(row.market_dev_pct), tone: devTone(row.market_dev_pct), mono, kind: 'badge' }
     case 'sampleCount':
-      return { text: row.sample_count != null ? `${row.sample_count}곳` : '—', tone: 'muted', mono: false }
+      return { text: row.sample_count != null ? `${row.sample_count}곳` : '—', tone: 'muted', mono: false, kind: 'text' }
     case 'source':
-      return { text: sourceLabel(row.cost_source), tone: 'muted', mono: false }
+      return { text: sourceLabel(row.cost_source), tone: sourceTone(row.cost_source), mono: false, kind: 'badge' }
     case 'status':
-      return { text: row.status ?? '—', tone: statusTone(row.status), mono: false }
+      return { text: row.status ?? '—', tone: statusTone(row.status), mono: false, kind: row.status ? 'badge' : 'text' }
     case 'supplier':
-      return { text: row.supplier_name ?? '—', tone: 'default', mono: false }
+      return { text: row.supplier_name ?? '—', tone: 'default', mono: false, kind: 'text' }
     case 'availableQty':
-      return { text: row.available_qty != null ? `${row.available_qty}장` : '—', tone: 'default', mono }
+      return { text: row.available_qty != null ? `${row.available_qty}장` : '—', tone: 'default', mono, kind: 'text' }
     case 'stockStatus':
-      return { text: row.stock_status ?? '—', tone: stockTone(row.stock_status), mono: false }
+      return { text: row.stock_status ?? '—', tone: stockTone(row.stock_status), mono: false, kind: row.stock_status ? 'badge' : 'text' }
     case 'validUntil':
-      return { text: row.valid_until ?? '—', tone: 'muted', mono }
+      return { text: row.valid_until ?? '—', tone: 'muted', mono, kind: 'text' }
     case 'partnerTier':
-      return { text: row.partner_tier ?? '—', tone: 'default', mono: false }
+      return { text: row.partner_tier ?? '—', tone: 'default', mono: false, kind: 'text' }
     case 'discountRate':
-      return { text: row.discount_rate != null ? `-${(row.discount_rate * 100).toFixed(0)}%` : '—', tone: 'ok', mono }
+      return { text: row.discount_rate != null ? `-${(row.discount_rate * 100).toFixed(0)}%` : '—', tone: 'ok', mono, kind: 'badge' }
     case 'customerPrice':
-      return { text: fmtKRW(row.customer_price_krw), tone: 'sell', mono }
+      return { text: fmtKRW(row.customer_price_krw), tone: 'sell', mono, kind: 'sell' }
     default:
-      return { text: '—', tone: 'muted', mono }
+      return { text: '—', tone: 'muted', mono, kind: 'text' }
   }
 }
 
@@ -130,6 +133,27 @@ function statusTone(status: string | null): CellTone {
   if (status === T.statusPending) return 'warn'
   if (status === T.statusExpired || status === T.statusRejected) return 'danger'
   return 'muted'
+}
+
+/** Tier 번호 → 명칭(기획서 표기). 전용 고성능/점유형/간헐 공급. */
+export function tierName(tier: number | null): string {
+  if (tier === 1) return T.tier1
+  if (tier === 2) return T.tier2
+  if (tier === 3) return T.tier3
+  return '—'
+}
+
+function tierTone(tier: number | null): CellTone {
+  if (tier === 1) return 'ok'
+  if (tier === 2) return 'warn'
+  if (tier === 3) return 'muted'
+  return 'muted'
+}
+
+function sourceTone(source: string | null): CellTone {
+  if (source === 'market_link') return 'warn' // 추종가
+  if (source === 'direct') return 'muted'
+  return 'default' // 실견적
 }
 
 function stockTone(label: string | null): CellTone {

@@ -28,3 +28,9 @@ export interface MarginInput {
 export function pickMargin(p: MarginInput): number | null {
   return p.is_strategic_set ? p.effective_margin_pct : p.margin_pct
 }
+
+/** 시장대비 편차%: (우리 판매가 − 시장 중앙값) / 중앙값 × 100. 둘 중 없으면 null(표시 '—'). 반올림 정수. */
+export function marketDevPct(sellKrw: number | null, marketMedianKrw: number | null): number | null {
+  if (sellKrw == null || marketMedianKrw == null || marketMedianKrw === 0) return null
+  return Math.round(((sellKrw - marketMedianKrw) / marketMedianKrw) * 100)
+}

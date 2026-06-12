@@ -13,6 +13,8 @@ import { fetcher } from '@/lib/swr-config'
 import { GPU_TERMS } from '@/lib/gpu/terms'
 import { fmtKRW, fmtUSD } from '@/lib/gpu/format-price'
 import { expiryState } from '@/lib/gpu/expiry'
+import { auditActionLabel } from '@/lib/gpu/audit-labels'
+import { tierName } from '@/lib/gpu/unified-row'
 import type { UnifiedRow } from '@/lib/gpu/unified-row'
 import type { QuoteForEdit } from '@/components/pricing/gpu/QuoteEditModal'
 
@@ -87,12 +89,15 @@ export default function DetailPanel({ row }: DetailPanelProps) {
       <div className="gpu-udetail-head">
         <div className="gpu-udetail-title">
           {row.model_name}
-          {row.tier != null && <span className="gpu-badge gpu-badge-muted">Tier {row.tier}</span>}
+          {row.tier != null && <span className="gpu-ubadge gpu-ubadge--muted">{tierName(row.tier)}</span>}
+          <span className={`gpu-ubadge gpu-ubadge--${row.cost_source === 'market_link' ? 'warn' : 'default'}`}>
+            {row.cost_source === 'market_link' ? GPU_TERMS.followPrice : row.cost_source === 'direct' ? '직접설정' : GPU_TERMS.realQuote}
+          </span>
         </div>
         <div className="gpu-udetail-sub">
           {row.memory ?? '—'} · {GPU_TERMS.sellPrice} <strong>{fmtKRW(row.sell_price_krw)}</strong>
           {' · '}
-          {GPU_TERMS.margin} {row.margin_pct == null ? '측정불가' : `${row.margin_pct.toFixed(0)}%`}
+          {GPU_TERMS.margin} {row.margin_pct == null ? '측정불가' : `+${row.margin_pct.toFixed(0)}%`}
         </div>
       </div>
 
@@ -168,6 +173,11 @@ export default function DetailPanel({ row }: DetailPanelProps) {
                 </tbody>
               </table>
             )}
+            <div className="gpu-udetail-acts">
+              <button type="button" className="gpu-udetail-rowbtn">실견적 {GPU_TERMS.create}</button>
+              <button type="button" className="gpu-udetail-rowbtn">견적 {GPU_TERMS.edit}</button>
+              <button type="button" className="gpu-udetail-rowbtn gpu-udetail-rowbtn--danger">견적 {GPU_TERMS.remove}</button>
+            </div>
           </>
         )}
 
@@ -205,6 +215,11 @@ export default function DetailPanel({ row }: DetailPanelProps) {
                 </tbody>
               </table>
             )}
+            <div className="gpu-udetail-acts">
+              <button type="button" className="gpu-udetail-rowbtn">매핑 관리</button>
+              <button type="button" className="gpu-udetail-rowbtn">{GPU_TERMS.marketPrice} {GPU_TERMS.edit}</button>
+              <button type="button" className="gpu-udetail-rowbtn">{GPU_TERMS.sync}</button>
+            </div>
           </>
         )}
 
@@ -213,12 +228,12 @@ export default function DetailPanel({ row }: DetailPanelProps) {
             {auditLoading && <p className="gpu-udetail-pending">불러오는 중…</p>}
             {!auditLoading && (
               <table className="gpu-udetail-tbl">
-                <thead><tr><th>일시</th><th>작업</th><th>작업자</th></tr></thead>
+                <thead><tr><th>일자</th><th>동작</th><th>작업자</th></tr></thead>
                 <tbody>
                   {(auditData?.logs ?? []).map((a, i) => (
                     <tr key={`${a.ts}-${i}`}>
                       <td className="gpu-mono">{formatTs(a.ts)}</td>
-                      <td>{a.action_type}</td>
+                      <td>{auditActionLabel(a.action_type)}</td>
                       <td>{a.actor ?? '—'}</td>
                     </tr>
                   ))}

@@ -5548,6 +5548,9 @@ label.intake-tool-btn {
 /* ===== GPU 통합 표 (마스터·디테일 + 보기 전환) ===== */
 .gpu-unified { display: flex; flex-direction: column; min-height: 0; flex: 1; }
 .gpu-unified-toolbar { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) 0; flex-wrap: wrap; }
+.gpu-unified-search { flex: 1; min-width: 200px; display: flex; align-items: center; gap: var(--space-2); background: var(--surface-bg); border: var(--hairline) solid var(--gpu-border); border-radius: var(--radius); padding: 0 var(--space-3); color: var(--gpu-muted); }
+.gpu-unified-search-input { flex: 1; border: 0 !important; background: transparent !important; padding: var(--space-2) 0 !important; font-size: var(--fs-sm); color: var(--text); min-height: 38px; box-shadow: none !important; }
+.gpu-unified-search-input:focus { outline: none; box-shadow: none !important; }
 
 /* 보기 전환 세그먼트 */
 .gpu-uview-seg { display: inline-flex; border: var(--hairline) solid var(--gpu-border); border-radius: var(--radius); overflow: hidden; flex-wrap: wrap; }
@@ -5575,6 +5578,18 @@ label.intake-tool-btn {
 .gpu-unified-tone--warn { color: var(--warning); }
 .gpu-unified-tone--danger { color: var(--danger); }
 .gpu-unified-tone--muted { color: var(--gpu-muted); }
+.gpu-unified-tone--sell, .gpu-unified-cell .gpu-mono { font-variant-numeric: tabular-nums; }
+/* 배지 pill — 기획서 질감(Tier·상태·출처·편차·재고·마진) */
+.gpu-ubadge { display: inline-block; font-size: var(--fs-2xs); font-family: var(--font-mono, monospace); padding: 1px 7px; border-radius: 999px; border: var(--hairline) solid var(--gpu-border); white-space: nowrap; line-height: 1.5; }
+.gpu-ubadge--ok { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
+.gpu-ubadge--warn { background: var(--warning-bg); color: var(--warning); border-color: var(--warning-border); }
+.gpu-ubadge--danger { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
+.gpu-ubadge--muted { background: var(--surface-bg); color: var(--gpu-muted); }
+.gpu-ubadge--default { background: var(--info-bg); color: var(--info); border-color: var(--info-border); }
+.gpu-ubadge--sell { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
+/* 선택 행 강조(기획서: 좌측 액센트 + 배경) */
+.gpu-unified-row--sel { box-shadow: inset 3px 0 0 var(--gpu-accent); }
+.gpu-unified-row--item .gpu-unified-tone--sell { font-weight: 750; }
 .gpu-unified-state { padding: var(--space-5); text-align: center; color: var(--gpu-muted); font-size: var(--fs-sm); }
 .gpu-unified-state--error { color: var(--danger); }
 
@@ -5604,6 +5619,8 @@ label.intake-tool-btn {
 .gpu-udetail-tbl-empty { text-align: center; color: var(--gpu-muted); padding: var(--space-3); }
 .gpu-udetail-rowbtn { font: inherit; font-size: var(--fs-xs); color: var(--gpu-accent); background: transparent; border: var(--hairline) solid var(--gpu-border); border-radius: var(--radius); padding: var(--space-1) var(--space-2); cursor: pointer; min-height: 28px; }
 .gpu-udetail-rowbtn:hover { border-color: var(--gpu-accent); }
+.gpu-udetail-rowbtn--danger:hover { border-color: var(--danger); color: var(--danger); }
+.gpu-udetail-acts { display: flex; gap: var(--space-2); margin-top: var(--space-3); flex-wrap: wrap; }
 
 /* 멀티모달 입력 — CSV/표 붙여넣기 */
 .gpu-mmi { display: flex; flex-direction: column; gap: var(--space-2); }

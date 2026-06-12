@@ -38,22 +38,17 @@ export interface ViewPreset {
 
 const T = GPU_TERMS
 
-// 모델/구성 식별 컬럼 — 모든 보기 공통 선두 컬럼
-const COL_MODEL: ViewColumn = { key: 'model', label: T.model, align: 'left' }
-
 export const VIEW_PRESETS: Record<GpuViewId, ViewPreset> = {
+  // 좌측 목록은 컴팩트(기획서: GPU·TIER·판매가·시장대비 4컬럼). 나머지 축은 우측 상세 패널에서.
   sell: {
     id: 'sell',
     label: '가격표',
-    hint: `${T.supplyCost} 기준 ${T.sellPrice}·${T.margin}·${T.marketPrice} 대비`,
+    hint: `${T.supplyCost} 기준 ${T.sellPrice}·${T.marketPrice} 대비`,
     columns: [
-      COL_MODEL,
-      { key: 'tier', label: 'Tier', align: 'center' },
+      { key: 'model', label: 'GPU', align: 'left' },
+      { key: 'tier', label: 'TIER', align: 'left' },
       { key: 'sellPrice', label: T.sellPrice, align: 'right', mono: true },
-      { key: 'margin', label: T.margin, align: 'right', mono: true, hideMobile: true },
-      { key: 'marketDev', label: `${T.marketPrice} 대비`, align: 'right', mono: true },
-      { key: 'source', label: '출처', align: 'center', hideMobile: true },
-      { key: 'status', label: '상태', align: 'center' },
+      { key: 'marketDev', label: '시장대비', align: 'right', mono: true },
     ],
   },
   cockpit: {
@@ -61,49 +56,42 @@ export const VIEW_PRESETS: Record<GpuViewId, ViewPreset> = {
     label: '가격 결정',
     hint: `${T.supplyCost} → ${T.sellPrice} 결정(${T.margin})`,
     columns: [
-      COL_MODEL,
+      { key: 'model', label: 'GPU', align: 'left' },
       { key: 'supplyCost', label: T.supplyCost, align: 'right', mono: true },
-      { key: 'autoPrice', label: '자동 마진가', align: 'right', mono: true, hideMobile: true },
       { key: 'sellPrice', label: T.sellPrice, align: 'right', mono: true },
-      { key: 'marketMedian', label: `${T.marketPrice} 중앙`, align: 'right', mono: true, hideMobile: true },
-      { key: 'margin', label: T.margin, align: 'right', mono: true },
+      { key: 'margin', label: T.margin, align: 'right' },
     ],
   },
   market: {
     id: 'market',
     label: '시장 비교',
-    hint: `${T.sellPrice} vs ${T.competitor} 최저/중앙/최고 편차`,
+    hint: `${T.sellPrice} vs ${T.competitor} 중앙·편차`,
     columns: [
-      COL_MODEL,
+      { key: 'model', label: 'GPU', align: 'left' },
       { key: 'sellPrice', label: T.sellPrice, align: 'right', mono: true },
-      { key: 'marketMin', label: '경쟁 최저', align: 'right', mono: true, hideMobile: true },
-      { key: 'marketMedian', label: '중앙값', align: 'right', mono: true },
-      { key: 'marketMax', label: '최고', align: 'right', mono: true, hideMobile: true },
-      { key: 'marketDev', label: '편차', align: 'right', mono: true },
-      { key: 'sampleCount', label: '표본', align: 'center', hideMobile: true },
+      { key: 'marketMedian', label: '시장 중앙', align: 'right', mono: true },
+      { key: 'marketDev', label: '편차', align: 'right' },
     ],
   },
   inventory: {
     id: 'inventory',
-    label: '재고수량',
+    label: '재고',
     hint: `${T.supplier}별 가용 수량·재고 상태`,
     columns: [
-      COL_MODEL,
+      { key: 'model', label: 'GPU', align: 'left' },
       { key: 'supplier', label: T.supplier, align: 'left' },
       { key: 'availableQty', label: '가용 수량', align: 'right', mono: true },
-      { key: 'stockStatus', label: '재고 상태', align: 'center' },
-      { key: 'validUntil', label: T.statusExpired, align: 'center', mono: true, hideMobile: true },
+      { key: 'stockStatus', label: '재고', align: 'left' },
     ],
   },
   catalog: {
     id: 'catalog',
-    label: '고객 판매가격표',
+    label: '고객가',
     hint: `${T.sellPrice} → 파트너 등급 할인 → 고객가`,
     columns: [
-      COL_MODEL,
+      { key: 'model', label: 'GPU', align: 'left' },
       { key: 'sellPrice', label: T.sellPrice, align: 'right', mono: true },
-      { key: 'partnerTier', label: '파트너 등급', align: 'left', hideMobile: true },
-      { key: 'discountRate', label: '할인율', align: 'right', mono: true },
+      { key: 'discountRate', label: '할인율', align: 'right' },
       { key: 'customerPrice', label: '고객가', align: 'right', mono: true },
     ],
   },

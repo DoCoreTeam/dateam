@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { pickSellPrice, pickMargin } from './unified-price-pick.ts'
+import { pickSellPrice, pickMargin, marketDevPct } from './unified-price-pick.ts'
 
 test('전략가 set → strategic_krw 우선', () => {
   assert.equal(pickSellPrice({ is_strategic_set: true, strategic_krw: 4820000, strategic_price_krw: 4800000, candidate_price_krw: 4710000 }), 4820000)
@@ -29,4 +29,13 @@ test('마진: 전략가 set → 실효마진(null 가능)', () => {
 
 test('마진: 전략가 미set → 설정 마진', () => {
   assert.equal(pickMargin({ is_strategic_set: false, effective_margin_pct: 99, margin_pct: 30 }), 30)
+})
+
+test('시장대비 편차%: 우리 저렴(음수)/비쌈(양수)/없음(null)', () => {
+  assert.equal(marketDevPct(90, 100), -10)   // 우리가 10% 저렴
+  assert.equal(marketDevPct(110, 100), 10)   // 우리가 10% 비쌈
+  assert.equal(marketDevPct(100, 100), 0)
+  assert.equal(marketDevPct(null, 100), null)
+  assert.equal(marketDevPct(100, null), null)
+  assert.equal(marketDevPct(100, 0), null)
 })

@@ -204,7 +204,8 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
 
       {/* 메인 탭 + 더보기 인라인 */}
       <div className="gpu-tabs" style={{ display: 'flex', alignItems: 'center', borderBottom: 'var(--hairline) solid var(--gpu-border)', paddingBottom: 0 }}>
-        {MAIN_TABS.map((tab) => (
+        {/* 통합 표 ON: 메인 5탭(가격표·가격결정·시장·재고·고객가)은 통합 표의 보기 세그먼트가 대체 → 'board'만 남겨 이중 탭 제거 */}
+        {(unifiedOn ? MAIN_TABS.filter((t) => t.id === 'board') : MAIN_TABS).map((tab) => (
           <button
             key={tab.id}
             className={`gpu-tab${activeTab === tab.id ? ' active' : ''}`}
