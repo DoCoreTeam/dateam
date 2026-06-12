@@ -79,11 +79,6 @@ interface ProductGroup {
   supply_history: SupplyHistory | null
 }
 
-// 공급사 연결 드롭다운용 최소 목록 (suppliers API)
-interface SupplierOption {
-  id: string
-  name: string
-}
 
 interface OurSupplier {
   supplier_id: string | null
@@ -270,7 +265,7 @@ function judgeColor(j: string) {
 }
 
 // 분석 탭 컨텐츠
-function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI, onDeletePrice, onEditPrice, isAdmin, supplierOptions, onLinkChanged, onIngest }: {
+function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI, onDeletePrice, onEditPrice, isAdmin, onLinkChanged, onIngest }: {
   p: ProductGroup
   activeGroups: Set<string>
   fmt: (v: number) => string
@@ -279,7 +274,6 @@ function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI, onDele
   onDeletePrice?: (priceId: string) => void
   onEditPrice?: (price: MarketPriceForEdit) => void
   isAdmin?: boolean
-  supplierOptions?: SupplierOption[]
   onLinkChanged?: () => void
   onIngest?: (args: { marketPriceId: string; priceUsd: number; linkedSupplierName: string }) => void
 }) {
@@ -402,12 +396,11 @@ function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI, onDele
                     {c.type} · {c.region}
                   </span>
                 </div>
-                {isAdmin && supplierOptions && (
+                {isAdmin && (
                   <div style={{ marginBottom: 8 }}>
                     <SupplierLinkControl
                       competitorId={c.id}
                       linkedName={linkedName}
-                      suppliers={supplierOptions}
                       onChanged={() => onLinkChanged?.()}
                     />
                   </div>
@@ -1182,14 +1175,14 @@ function MappingManagerModal({ mappings, competitors, onClose, onChanged }: {
   )
 }
 
-// 경쟁사 ↔ 공급사 연결 컨트롤 (admin) — 드롭다운 선택 시 PATCH competitors/[id]
-//   연결됨이면 공급사명 + 해제 버튼, 미연결이면 셀렉트로 연결.
+// 경쟁사 → 공급사 등록 컨트롤 (admin)
+//   미연결: "공급사로 지정" 1클릭(promote — 정보·시장가 견적 자동 등록).
+//   연결됨: 공급사명 + 해제 버튼(PATCH supplier_id=null).
 function SupplierLinkControl({
-  competitorId, linkedName, suppliers, onChanged,
+  competitorId, linkedName, onChanged,
 }: {
   competitorId: string
   linkedName: string | null
-  suppliers: SupplierOption[]
   onChanged: () => void
 }) {
   const [busy, setBusy] = useState(false)
@@ -1244,28 +1237,16 @@ function SupplierLinkControl({
 
   return (
     <div className="gpu-link-row">
-      {/* 1클릭 지정 — 이 경쟁사를 우리 공급사로(suppliers 자동생성+연결) */}
+      {/* 1클릭 지정 — 이 경쟁사를 우리 공급사로 등록(정보·견적 자동 인입) */}
       <button
         type="button"
         onClick={promote}
         disabled={busy}
         className="gpu-btn gpu-promote-btn"
-        title="이 경쟁사를 우리 공급사로 지정합니다 (자동 등록)"
+        title="이 경쟁사를 우리 공급사로 등록합니다 — 회사 정보와 현재 시장가가 원가 견적으로 자동 등록됩니다"
       >
-        <PackagePlus size={12} aria-hidden /> 공급사로 지정
+        <PackagePlus size={12} aria-hidden /> {busy ? '등록 중…' : '공급사로 지정'}
       </button>
-      {/* 고급: 이미 등록된 다른 공급사에 연결 */}
-      <select
-        defaultValue=""
-        disabled={busy || suppliers.length === 0}
-        onChange={(e) => { const v = e.target.value; if (v) patch(v) }}
-        aria-label="기존 공급사에 연결"
-        className="gpu-link-select"
-        title="기존 공급사에 연결"
-      >
-        <option value="">{suppliers.length === 0 ? '기존 공급사 없음' : '기존 공급사 연결…'}</option>
-        {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-      </select>
       {err && <span className="gpu-link-err">{err}</span>}
     </div>
   )
@@ -1413,15 +1394,6 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false 
   const fmt = makeFmt(currencyMode, usdKrw)
 
   const { data: mappingsData, mutate: mutateMappings } = useSWR<{ mappings: Mapping[] }>('/api/pricing/gpu/market/mappings', fetcher)
-  // 공급사 연결 드롭다운용 목록 (admin만 실제 노출)
-  const { data: suppliersData } = useSWR<{ suppliers: SupplierOption[] }>(
-    isAdmin ? '/api/pricing/gpu/suppliers' : null,
-    fetcher,
-  )
-  const supplierOptions: SupplierOption[] = useMemo(
-    () => (suppliersData?.suppliers ?? []).map((s) => ({ id: s.id, name: s.name })),
-    [suppliersData],
-  )
 
   const summary = data?.summary
   const products = data?.products ?? []
@@ -2112,7 +2084,6 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false 
                             onDeletePrice={deleteMarketPrice}
                             onEditPrice={setEditingMarketPrice}
                             isAdmin={isAdmin}
-                            supplierOptions={supplierOptions}
                             onLinkChanged={() => { mutate(); mutateGpu(globalMutate) }}
                             onIngest={({ marketPriceId, priceUsd, linkedSupplierName }) =>
                               setIngestTarget({ marketPriceId, priceUsd, linkedSupplierName, marginPct: productMargin(p) })
