@@ -40,6 +40,34 @@ test('perGpuOf — 구성 총액 ÷ 장수', () => {
   assert.equal(perGpuOf(3.24, 1), 3.24)
 })
 
+test('실견적 우선 — 같은 product+supplier에 실견적 있으면 추종가(market_link) 제외', () => {
+  const raw: CatalogRawData = {
+    products: [{ id: 'p1', model_name: 'H100', memory: '80GB', tier: 1, pricing_mode: 'quote', gpu_count: 1, vcpu: 26, ram_gb: 220, storage_gb: 1024, series: 'H100' }],
+    quotes: [
+      // 같은 공급사 A: 실견적 5.0 + 추종가(market_link) 3.0(더 쌈) → 추종가 제외되어 5.0이 effective
+      { product_id: 'p1', supplier_id: 'A', unit_price_usd: 5.0, gpu_count: 1, valid_until: null, source_format: 'pdf' },
+      { product_id: 'p1', supplier_id: 'A', unit_price_usd: 3.0, gpu_count: 1, valid_until: null, source_format: 'market_link' },
+    ],
+    suppliers: [{ id: 'A', name: 'A사', color: '#000' }],
+    direct: [], margin_pct: 20, usd_krw: 1400, fx_date: '2026-06-12', today: '2026-06-12',
+  }
+  const cat = buildCatalog(raw)
+  const p = cat.products.find((x) => x.id === 'p1')!
+  assert.equal(p.effective_unit_price_usd, 5.0, '실견적 5.0이 추종가 3.0보다 우선')
+})
+
+test('추종가 단독 — 실견적 없으면 추종가(market_link) 사용', () => {
+  const raw: CatalogRawData = {
+    products: [{ id: 'p1', model_name: 'H100', memory: '80GB', tier: 1, pricing_mode: 'quote', gpu_count: 1, vcpu: 26, ram_gb: 220, storage_gb: 1024, series: 'H100' }],
+    quotes: [{ product_id: 'p1', supplier_id: 'A', unit_price_usd: 3.0, gpu_count: 1, valid_until: null, source_format: 'market_link' }],
+    suppliers: [{ id: 'A', name: 'A사', color: '#000' }],
+    direct: [], margin_pct: 20, usd_krw: 1400, fx_date: '2026-06-12', today: '2026-06-12',
+  }
+  const cat = buildCatalog(raw)
+  const p = cat.products.find((x) => x.id === 'p1')!
+  assert.equal(p.effective_unit_price_usd, 3.0, '실견적 없으면 추종가 사용')
+})
+
 test('1장당 전파 — 최저 per_gpu(High Reso 3.24)가 모든 구성에 전파', () => {
   const cat = buildCatalog(b200Raw())
   const byId = new Map(cat.products.map((p) => [p.id, p]))

@@ -23,6 +23,9 @@ export interface ConfirmedQuote {
   price_type?: 'cost' | 'list'
   /** 상품별 고객가격표 기준으로 채택된 견적 여부 */
   is_selected?: boolean
+  /** 견적 출처. 'market_link'=경쟁사 시장가 추종(추종가), 그 외(mail/pdf/own…)=실제 공급사 견적(실견적).
+   *  실견적 우선 규칙에 사용 — 같은 product+supplier에 유효 실견적 있으면 추종가는 제외. */
+  source_format?: string | null
   supplier?: { name: string; color: string } | null
 }
 
@@ -143,7 +146,7 @@ export async function getGpuCatalog(db: any): Promise<GpuCatalog> {
     // deleted_at IS NULL: 소프트삭제된 견적은 카탈로그 계산에서 제외
     db
       .from('supply_quotes')
-      .select('id, product_id, supplier_id, unit_price_usd, gpu_count, valid_until, price_type, is_selected')
+      .select('id, product_id, supplier_id, unit_price_usd, gpu_count, valid_until, price_type, is_selected, source_format')
       .eq('status', 'confirmed')
       .is('deleted_at', null),
     db.from('suppliers').select('id, name, color'),
@@ -185,7 +188,19 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
   }))
 
   // 공급원가 풀 = cost 견적만 (gcube 등 'list' 공시 판매가 제외 — 옵션 B)
-  const costAll = allConfirmed.filter((q) => q.price_type !== 'list')
+  const costAllRaw = allConfirmed.filter((q) => q.price_type !== 'list')
+
+  // 실견적 우선: 같은 product+supplier에 유효한 실견적(source_format != 'market_link')이 있으면
+  //   그 쌍의 추종가(market_link, 경쟁사 시장가 유래)는 공급원가 풀에서 제외.
+  //   (source_format 미지정 견적은 실견적으로 간주 — 후방호환)
+  const pairKey = (q: ConfirmedQuote) => `${q.product_id}::${q.supplier_id ?? ''}`
+  const realQuotePairs = new Set<string>()
+  for (const q of costAllRaw) {
+    if (q.source_format !== 'market_link' && isValid(q.valid_until)) realQuotePairs.add(pairKey(q))
+  }
+  const costAll = costAllRaw.filter(
+    (q) => !(q.source_format === 'market_link' && realQuotePairs.has(pairKey(q)))
+  )
 
   // 상품별 채택 견적 (cost 중 is_selected) — 유효성 무관하게 잡아 만료 폴백 감지
   const selectedByProduct = new Map<string, ConfirmedQuote>()
