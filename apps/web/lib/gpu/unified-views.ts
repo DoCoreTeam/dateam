@@ -65,12 +65,13 @@ export const VIEW_PRESETS: Record<GpuViewId, ViewPreset> = {
   market: {
     id: 'market',
     label: '시장 비교',
-    hint: `${T.sellPrice} vs ${T.competitor} 중앙·편차`,
+    hint: `${T.sellPrice} vs ${T.competitor} 최저·중앙·최고`,
     columns: [
       { key: 'model', label: 'GPU', align: 'left' },
       { key: 'sellPrice', label: T.sellPrice, align: 'right', mono: true },
-      { key: 'marketMedian', label: '시장 중앙', align: 'right', mono: true },
-      { key: 'marketDev', label: '편차', align: 'right' },
+      { key: 'marketMin', label: '최저', align: 'right', mono: true },
+      { key: 'marketMedian', label: '중앙', align: 'right', mono: true },
+      { key: 'marketMax', label: '최고', align: 'right', mono: true },
     ],
   },
   inventory: {

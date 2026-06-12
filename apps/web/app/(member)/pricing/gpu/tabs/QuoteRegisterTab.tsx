@@ -3,6 +3,10 @@
 import { useState, useRef, useCallback } from 'react'
 import { mutate as globalMutate } from 'swr'
 import { Sparkles, Send, Paperclip, X, RotateCcw } from 'lucide-react'
+import IntakeGateSummary, { type GateRow } from './IntakeGateSummary'
+import MultimodalIntake from '@/components/pricing/gpu/unified/MultimodalIntake'
+import type { CsvFieldKey } from '@/lib/gpu/csv-intake'
+import { REVIEW_CHANNELS } from '@/lib/gpu/review-channels'
 
 interface CompetitorSavedItem {
   competitor: string
@@ -179,6 +183,7 @@ export default function QuoteRegisterTab() {
   const [committing, setCommitting] = useState(false)
   const [committed, setCommitted] = useState(false)
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null)  // 공급가 미리보기 상세 펼침
+  const [csvSaving, setCsvSaving] = useState(false)                    // CSV/표 → 검토 대기 저장 중
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // 스트림 raw JSON → 자연어 파싱 (내부 필드명 노출 안 함). 누적 버퍼에서 모델·가격을 뽑아 친화적으로 표시.
@@ -246,6 +251,7 @@ export default function QuoteRegisterTab() {
     setCompetitorResults([]); setActiveTabIdx(0); setErrorMsg(''); setSuccessMsg('')
     setLiveMsgs([]); setStreamText(''); setSupplierPreview([]); setCommitted(false)
     setPreviewItems([]); setPreviewSourceUrl(null); setApplied(false); setExpandedIdx(null)
+    setCsvSaving(false)
   }, [])
 
   const handleAnalyze = useCallback(async () => {
@@ -346,8 +352,66 @@ export default function QuoteRegisterTab() {
     } finally { setApplying(false) }
   }, [previewItems, previewSourceUrl])
 
+  // CSV/표 붙여넣기 행 → 기존 검토 대기 저장 경로(commit) 재사용. CSV는 AI 신뢰도 없음 → 전량 사람 검토(자동확정 안 함).
+  const handleCsvRows = useCallback(async (rows: Partial<Record<CsvFieldKey, string>>[]) => {
+    if (rows.length === 0) return
+    setCsvSaving(true); setErrorMsg(''); setSuccessMsg('')
+    try {
+      const items = rows.map((r) => ({
+        extracted: {
+          model_name: r.model_name ?? null,
+          memory: r.memory ?? null,
+          supplier: r.supplier ?? null,
+          unit_price_usd: r.unit_price_usd != null ? Number(r.unit_price_usd) : null,
+          term: r.term ?? null,
+          min_qty: r.min_qty ?? null,
+          valid_until: r.valid_until ?? null,
+        },
+      }))
+      // 채널은 SSOT(REVIEW_CHANNELS)만 사용 — DB CHECK 위반 방지. CSV는 수기 붙여넣기이므로 자체('own').
+      const res = await fetch('/api/pricing/gpu/review/commit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items, channel: REVIEW_CHANNELS.OWN, is_test: isTest }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { setErrorMsg(j.error ?? 'CSV 저장 실패'); return }
+      await globalMutate('/api/pricing/gpu/review?status=pending')
+      setSuccessMsg(`CSV ${j.count}건이 검토 대기에 추가되었습니다.`)
+    } catch { setErrorMsg('CSV 저장 실패') } finally { setCsvSaving(false) }
+  }, [isTest])
+
   const hasResults = analysisResults.length > 0
   const hasCompetitorResults = competitorResults.length > 0
+
+  // §05 통합 표 행: 공급원가(미리보기) + 시장가(경쟁사) 합산. 신뢰도 게이트는 공급원가만 대상.
+  const gateRows: GateRow[] = [
+    ...supplierPreview.map((it): GateRow => {
+      const ex = ((it as { extracted?: Record<string, unknown> })?.extracted ?? {}) as Record<string, unknown>
+      // 신뢰도는 서버 산출 overall_confidence를 우선 사용(ResultPanel과 동일 값) — 없을 때만 필드 평균 폴백.
+      const serverOverall = (it as { overall_confidence?: number | null })?.overall_confidence
+      const conf = (it as { confidence?: Record<string, number | null> })?.confidence ?? {}
+      const confVals = Object.values(conf).filter((v): v is number => typeof v === 'number')
+      const overall = typeof serverOverall === 'number'
+        ? serverOverall
+        : (confVals.length > 0 ? Math.round(confVals.reduce((a, b) => a + b, 0) / confVals.length) : null)
+      const priceRaw = ex.unit_price_usd ?? ex.price_usd
+      return {
+        kind: 'supply',
+        model: `${ex.model_name ?? ''} ${ex.memory ?? ''}`.trim(),
+        party: typeof ex.supplier === 'string' ? ex.supplier : '',
+        priceUsd: typeof priceRaw === 'number' ? priceRaw : (priceRaw != null ? Number(priceRaw) : null),
+        confidence: overall,
+      }
+    }),
+    ...competitorResults.map((c): GateRow => ({
+      kind: 'market',
+      model: `${c.model}${c.memory ? ' ' + c.memory : ''}`.trim(),
+      party: c.competitor,
+      priceUsd: typeof c.price_usd === 'number' ? c.price_usd : Number(c.price_usd),
+      confidence: null,
+    })),
+  ]
+  const confirmCount = supplierPreview.length + competitorResults.length
 
   return (
     <div>
@@ -370,6 +434,27 @@ export default function QuoteRegisterTab() {
             경쟁사 가격 · 공급사 견적 · 가격 페이지 내용 — 무엇이든 붙여넣으면 AI가 종류를 자동 판별합니다.
             <br />🟢 경쟁사 가격 → 시장 비교에 반영 / 🟡 공급사 견적 → 검토 대기 후 가격표 반영.
             클라우드사 가상 인스턴스명은 보유 스펙과 대조해 표준 모델로 매핑합니다.
+          </div>
+
+          {/* §05 멀티모달 지원 형식 — 정적 표시(고르는 선택지 아님) */}
+          <div className="gpu-intake-formats" data-testid="intake-formats">
+            <div className="gpu-intake-formats-title">
+              📎 견적 통째로 — 무엇을 넣든 자동 인식
+              <span className="gpu-badge gpu-badge-t2">멀티모달</span>
+            </div>
+            <div className="gpu-intake-formats-hint">
+              URL 자동수집(본문 크롤) · 이미지 10장 · Ctrl+V · CSV/표 붙여넣기 · Gemini 스트리밍 추출
+            </div>
+            <div className="gpu-intake-formats-note">
+              ↳ 아래는 지원 형식 표시(자동 인식) — 고르는 선택지가 아닙니다
+            </div>
+            <div className="gpu-intake-formats-list">
+              <span className="gpu-format-badge">✓ 📝 텍스트/메일</span>
+              <span className="gpu-format-badge">✓ 🖼 이미지×10</span>
+              <span className="gpu-format-badge">✓ 🔗 URL 자동수집</span>
+              <span className="gpu-format-badge">✓ 📊 CSV/표 붙여넣기</span>
+              <span className="gpu-format-badge gpu-format-badge--soon">📄 PDF (준비중)</span>
+            </div>
           </div>
 
           <div
@@ -477,6 +562,14 @@ export default function QuoteRegisterTab() {
               </button>
             )}
           </div>
+
+          {/* §05 CSV/표 붙여넣기 경로 — csv-intake 파서(헤더 매핑·수식 인젝션 무력화) → 기존 검토 대기 저장 재사용 */}
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: 'var(--hairline) solid var(--color-border)' }}>
+            <MultimodalIntake onRows={handleCsvRows} />
+            {csvSaving && (
+              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>CSV 저장 중…</div>
+            )}
+          </div>
         </div>
 
         {/* 오른쪽: AI 분석 결과 */}
@@ -525,6 +618,14 @@ export default function QuoteRegisterTab() {
             </div>
           ) : (supplierPreview.length > 0 || hasCompetitorResults) && !hasResults ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8, overflowY: 'auto' }}>
+              {/* §05 신뢰도 자동 게이트 3구간 요약 + 통합 표 */}
+              <div>
+                <h3 className="gpu-card-title" style={{ marginBottom: 8 }}>
+                  추출 결과 — 신뢰도 자동 게이트
+                  <span className="gpu-badge gpu-badge-t2" style={{ marginLeft: 8 }}>검토 피로 제거</span>
+                </h3>
+                <IntakeGateSummary rows={gateRows} />
+              </div>
               {/* 경쟁사 가격 (혼합 시 위) */}
               {hasCompetitorResults && (
                 <div data-testid="competitor-preview" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -604,9 +705,14 @@ export default function QuoteRegisterTab() {
                     )
                   })}
                   {!committed ? (
-                    <button onClick={commitSupplier} disabled={committing} className="gpu-btn gpu-btn-primary" data-testid="supplier-commit-btn" style={{ marginTop: 4, justifyContent: 'center', gap: 6 }}>
-                      {committing ? '저장 중…' : `검토 대기에 추가 (${supplierPreview.length}건)`}
-                    </button>
+                    <>
+                      <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
+                        확정 대상 {confirmCount}건 — 공급원가 {supplierPreview.length}건 검토 대기로, 시장가 {competitorResults.length}건 반영.
+                      </div>
+                      <button onClick={commitSupplier} disabled={committing} className="gpu-btn gpu-btn-primary" data-testid="supplier-commit-btn" style={{ marginTop: 4, justifyContent: 'center', gap: 6 }}>
+                        {committing ? '저장 중…' : `변경분 요약 후 확정 (${supplierPreview.length}) →`}
+                      </button>
+                    </>
                   ) : (
                     <div style={{ padding: '8px 10px', borderRadius: 8, background: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', fontSize: 12, color: 'var(--success)' }}>
                       ✓ 검토 대기 탭에 추가되었습니다. 본부장 검토 후 가격표에 반영됩니다.
