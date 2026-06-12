@@ -12,6 +12,7 @@ const PriceTableTab = dynamic(() => import('./tabs/PriceTableTab'), { ssr: false
 const PriceCockpitTab = dynamic(() => import('./tabs/PriceCockpitTab'), { ssr: false })
 const ReviewTab = dynamic(() => import('./tabs/ReviewTab'), { ssr: false })
 const SuppliersTab = dynamic(() => import('./tabs/SuppliersTab'), { ssr: false })
+const CompetitorsTab = dynamic(() => import('./tabs/CompetitorsTab'), { ssr: false })
 const HistoryTab = dynamic(() => import('./tabs/HistoryTab'), { ssr: false })
 const InventoryTab = dynamic(() => import('./tabs/InventoryTab'), { ssr: false })
 const DbChatTab = dynamic(() => import('./tabs/DbChatTab'), { ssr: false })
@@ -20,7 +21,7 @@ const SpecsTab = dynamic(() => import('./tabs/SpecsTab'), { ssr: false })
 const SalePriceCatalogPage = dynamic(() => import('../catalog/page'), { ssr: false })
 
 type MainTabId = 'board' | 'cockpit' | 'market' | 'inventory' | 'catalog'
-type SecondaryTabId = 'review' | 'suppliers' | 'specs' | 'log'
+type SecondaryTabId = 'review' | 'suppliers' | 'competitors' | 'specs' | 'log'
 type TabId = MainTabId | SecondaryTabId
 
 interface SettingsData {
@@ -93,7 +94,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
   // ── 뷰 상태 영속 (URL 파라미터 + sessionStorage) ──
   // 탭 이동·다른 메뉴 갔다 와도 마지막 보던 화면(탭/검색/펼친 가격)을 복원.
   const viewRestored = useRef(false)
-  const VALID_TABS = ['board', 'cockpit', 'market', 'inventory', 'catalog', 'review', 'suppliers', 'specs', 'log']
+  const VALID_TABS = ['board', 'cockpit', 'market', 'inventory', 'catalog', 'review', 'suppliers', 'competitors', 'specs', 'log']
 
   // 최초 진입: URL(우선) → sessionStorage 순으로 탭 복원
   useEffect(() => {
@@ -213,6 +214,12 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
             label: '공급사',
             badge: 0,
             icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>,
+          },
+          {
+            id: 'competitors' as SecondaryTabId,
+            label: '경쟁사',
+            badge: 0,
+            icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="7" r="3"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2M15 15h2a4 4 0 014 4v2"/></svg>,
           },
           {
             id: 'specs' as SecondaryTabId,
@@ -354,6 +361,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
         )}
         {activeTab === 'review' && <div className="gpu-tab-panel--scroll"><ReviewTab /></div>}
         {activeTab === 'suppliers' && <div className="gpu-tab-panel--scroll"><SuppliersTab onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board') }} /></div>}
+        {activeTab === 'competitors' && <div className="gpu-tab-panel--scroll"><div className="page-inner"><CompetitorsTab /></div></div>}
         {activeTab === 'specs' && <div className="gpu-tab-panel--scroll"><div className="page-inner"><SpecsTab /></div></div>}
         {activeTab === 'log' && <div className="gpu-tab-panel--scroll"><HistoryTab /></div>}
       </div>
