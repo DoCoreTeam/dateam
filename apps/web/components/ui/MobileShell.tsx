@@ -248,7 +248,7 @@ export default function MobileShell({
                 backgroundColor: 'var(--nb-white)',
                 border: 'var(--border-w-2) solid var(--border-color)',
                 boxShadow: 'var(--shadow-sm)',
-                color: 'var(--sidebar-fg)',
+                color: 'var(--text)',
                 minHeight: '44px',
               }}
             >

@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPU 관리 리팩토링 기획서 · v0.7.86 (팩트·냉정 개정)</title>
+<style>
+  :root{
+    --bg:#0c1018; --panel:#151b27; --panel-2:#1b2330; --line:#27303f; --line-2:#39455a;
+    --ink:#e8edf5; --muted:#9aa7bd; --faint:#6b7892;
+    --brand:#5b8cff; --brand-ink:#bcd0ff;
+    --sell:#34d399; --sell-bg:#0e2a22; --sell-line:#1d5e49;
+    --cost:#fbbf24; --cost-bg:#2a230d; --cost-line:#6b531a;
+    --comp:#c084fc; --comp-bg:#241634; --comp-line:#5a3a85;
+    --danger:#f87171; --warn:#fbbf24; --ok:#34d399;
+    --radius:14px; --shadow:0 18px 50px rgba(0,0,0,.45);
+    --mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Pretendard','Segoe UI',Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:radial-gradient(1200px 700px at 80% -5%,#16203a 0%,var(--bg) 55%);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+
+  header.top{position:sticky;top:0;z-index:50;background:rgba(12,16,24,.85);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+  .top-in{display:flex;align-items:center;gap:14px;height:58px}
+  .logo{font-weight:800;letter-spacing:-.02em;font-size:15px;display:flex;align-items:center;gap:9px;white-space:nowrap}
+  .logo .dot{width:10px;height:10px;border-radius:3px;background:linear-gradient(135deg,var(--brand),var(--comp));box-shadow:0 0 14px var(--brand)}
+  .ver{font-family:var(--mono);font-size:10.5px;color:var(--faint);border:1px solid var(--line);border-radius:999px;padding:3px 9px}
+  nav.tabs{margin-left:auto;display:flex;gap:1px;flex-wrap:wrap;justify-content:flex-end}
+  nav.tabs button{font:inherit;font-size:12px;color:var(--muted);background:transparent;border:0;padding:7px 10px;border-radius:8px;cursor:pointer;transition:.15s}
+  nav.tabs button:hover{color:var(--ink);background:var(--panel)}
+  nav.tabs button.on{color:#fff;background:linear-gradient(135deg,rgba(91,140,255,.25),rgba(192,132,252,.18));border:1px solid var(--line-2)}
+
+  .hero{padding:58px 0 26px}
+  .kick{font-family:var(--mono);font-size:12px;letter-spacing:.18em;color:var(--brand-ink);text-transform:uppercase;margin-bottom:16px}
+  h1.title{font-size:clamp(28px,5vw,50px);line-height:1.08;letter-spacing:-.035em;font-weight:850;margin-bottom:16px}
+  h1.title .g{background:linear-gradient(120deg,var(--sell),var(--brand) 55%,var(--comp));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{font-size:17px;color:var(--muted);max-width:730px}
+  .hero-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:32px}
+  .hs{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .hs .n{font-size:25px;font-weight:820;letter-spacing:-.03em}
+  .hs .l{font-size:11.5px;color:var(--faint);margin-top:3px}
+  .hs.from .n{color:var(--danger)} .hs.to .n{color:var(--sell)} .hs.fact .n{color:var(--brand)}
+
+  section.page{display:none;padding:28px 0 80px;animation:fade .35s ease}
+  section.page.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .sechead{display:flex;align-items:baseline;gap:14px;margin:8px 0 22px;padding-bottom:13px;border-bottom:1px solid var(--line)}
+  .sechead .ix{font-family:var(--mono);font-size:13px;color:var(--brand);border:1px solid var(--line-2);border-radius:8px;padding:4px 10px}
+  .sechead h2{font-size:23px;letter-spacing:-.03em;font-weight:800}
+  .sechead p{margin-left:auto;color:var(--faint);font-size:12.5px;max-width:400px;text-align:right}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  h3.h{font-size:15.5px;font-weight:750;letter-spacing:-.01em;margin-bottom:11px;display:flex;align-items:center;gap:8px}
+  .tag{font-family:var(--mono);font-size:10.5px;padding:2px 7px;border-radius:6px;border:1px solid var(--line-2);color:var(--muted);white-space:nowrap}
+  .tag.sell{color:var(--sell);border-color:var(--sell-line);background:var(--sell-bg)}
+  .tag.cost{color:var(--cost);border-color:var(--cost-line);background:var(--cost-bg)}
+  .tag.comp{color:var(--comp);border-color:var(--comp-line);background:var(--comp-bg)}
+  .tag.ai{color:var(--brand-ink);border-color:#2c4a8a;background:#10203f}
+  .tag.new{color:#fff;border-color:transparent;background:linear-gradient(135deg,var(--brand),var(--comp))}
+  .tag.gap{color:#fff;border-color:transparent;background:linear-gradient(135deg,#e0556f,#b3344f)}
+  p.note{color:var(--muted);font-size:14px}
+  ul.clean{list-style:none;display:flex;flex-direction:column;gap:8px;margin-top:6px}
+  ul.clean li{padding-left:20px;position:relative;font-size:13.5px;color:var(--muted)}
+  ul.clean li::before{content:'';position:absolute;left:2px;top:8px;width:7px;height:7px;border-radius:2px;background:var(--brand)}
+  ul.clean li b{color:var(--ink);font-weight:650}
+  code{font-family:var(--mono);font-size:.84em;background:var(--panel-2);border:1px solid var(--line);padding:1.5px 6px;border-radius:5px;color:var(--brand-ink)}
+  .src{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+
+  .scatter{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:6px}
+  .col-h{font-size:11.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--faint);font-family:var(--mono);margin-bottom:10px;text-align:center}
+  .chip{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12px;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+  .chip .i{font-family:var(--mono);font-size:10px;color:var(--faint);min-width:16px}
+  .chip.v{border-left:3px solid var(--brand)} .chip.in{border-left:3px solid var(--cost)} .chip.ss{border-left:3px solid var(--comp)}
+  .painwrap{margin-top:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .pain{background:linear-gradient(180deg,#1f1418,#171019);border:1px solid #3a2230;border-radius:11px;padding:14px}
+  .pain h4{color:var(--danger);font-size:13px;margin-bottom:6px;display:flex;gap:7px;align-items:center}
+  .pain p{font-size:12px;color:var(--muted)}
+  .pain.good{background:linear-gradient(180deg,#0e2018,#0d1a14);border-color:#1d4a38}
+  .pain.good h4{color:var(--ok)}
+
+  .flow{display:flex;align-items:stretch;gap:0;margin-top:8px;flex-wrap:wrap}
+  .node{flex:1;min-width:140px;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+  .node .t{font-size:13px;font-weight:700;margin-bottom:4px}
+  .node .d{font-size:11px;color:var(--faint)}
+  .arrow{display:flex;align-items:center;justify-content:center;color:var(--line-2);font-size:20px;padding:0 5px}
+  .node.src{border-color:#2c4a8a;background:#101b33}
+  .node.ssot{border-color:var(--comp-line);background:var(--comp-bg)}
+  .node.view{border-color:var(--sell-line);background:var(--sell-bg)}
+
+  .mock{border:1px solid var(--line-2);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);background:var(--panel)}
+  .mock-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--panel-2);border-bottom:1px solid var(--line)}
+  .mock-bar .dots{display:flex;gap:6px} .mock-bar .dots i{width:11px;height:11px;border-radius:50%;display:block}
+  .mock-bar .dots i:nth-child(1){background:#ff5f57}.mock-bar .dots i:nth-child(2){background:#febc2e}.mock-bar .dots i:nth-child(3){background:#28c840}
+  .mock-bar .url{font-family:var(--mono);font-size:11px;color:var(--faint);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:4px 11px;margin-left:6px}
+  .mock-body{padding:16px}
+
+  .utbar{display:flex;align-items:center;gap:9px;margin-bottom:12px;flex-wrap:wrap}
+  .utbar .srch{flex:1;min-width:160px;display:flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:8px 12px;color:var(--faint);font-size:13px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;flex-wrap:wrap}
+  .seg button{font:inherit;font-size:11.5px;background:transparent;color:var(--muted);border:0;padding:7px 11px;cursor:pointer;border-right:1px solid var(--line)}
+  .seg button:last-child{border-right:0}
+  .seg button.on{background:var(--brand);color:#fff}
+  .pill{font-size:11px;padding:5px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);background:var(--panel-2);cursor:pointer}
+  .anglehint{font-size:11.5px;color:var(--faint);margin:0 0 10px;padding:7px 11px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px}
+  .anglehint b{color:var(--brand-ink)}
+  .utable{width:100%;border-collapse:collapse;font-size:12.5px}
+  .utable th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:600;padding:8px 9px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .utable td{padding:9px;border-bottom:1px solid var(--line);vertical-align:middle}
+  .utable tr.row{cursor:pointer;transition:.12s}
+  .utable tr.row:hover{background:var(--panel-2)}
+  .gpu{font-weight:700;white-space:nowrap} .gpu small{display:block;font-weight:500;color:var(--faint);font-size:10.5px}
+  .sell-v{color:var(--sell);font-weight:750}
+  .num{font-family:var(--mono);white-space:nowrap}
+  .badge{font-size:10px;padding:2px 6px;border-radius:6px;font-family:var(--mono);white-space:nowrap}
+  .b-ok{background:var(--sell-bg);color:var(--sell);border:1px solid var(--sell-line)}
+  .b-warn{background:var(--cost-bg);color:var(--cost);border:1px solid var(--cost-line)}
+  .b-dng{background:#2a1416;color:var(--danger);border:1px solid #5e1d22}
+  .b-mut{background:var(--panel-2);color:var(--faint);border:1px solid var(--line)}
+  .raw-btn{font:inherit;font-size:10.5px;font-family:var(--mono);color:var(--brand-ink);background:#10203f;border:1px solid #2c4a8a;border-radius:6px;padding:3px 8px;cursor:pointer;white-space:nowrap}
+  .raw-btn:hover{background:#16294d}
+  tr.rawrow td{background:var(--bg);padding:0;border-bottom:1px solid var(--line)}
+  .raw-in{padding:15px 16px;display:none;grid-template-columns:1fr 1fr 1fr;gap:13px}
+  tr.rawrow.show .raw-in{display:grid}
+  .dpanel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .dpanel .ph{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin-bottom:9px;display:flex;align-items:center;gap:7px;justify-content:space-between}
+  .rawtbl{width:100%;border-collapse:collapse;font-size:11px}
+  .rawtbl th{text-align:left;color:var(--faint);font-weight:600;padding:4px 5px;border-bottom:1px solid var(--line);font-size:9.5px;text-transform:uppercase}
+  .rawtbl td{padding:5px;border-bottom:1px dashed var(--line);font-family:var(--mono);color:var(--ink)}
+  .rawtbl tr:last-child td{border-bottom:0}
+  .apigap{margin-top:9px;font-size:10.5px;color:var(--danger);background:#2a1416;border:1px solid #5e1d22;border-radius:7px;padding:6px 9px;font-family:var(--mono)}
+  .apiok{margin-top:9px;font-size:10.5px;color:var(--ok);background:var(--sell-bg);border:1px solid var(--sell-line);border-radius:7px;padding:6px 9px;font-family:var(--mono)}
+
+  .matrix{width:100%;border-collapse:collapse;font-size:12.5px}
+  .matrix th{font-size:10.5px;text-transform:uppercase;color:var(--faint);padding:9px 8px;border-bottom:1px solid var(--line);text-align:center;letter-spacing:.04em}
+  .matrix th:first-child,.matrix th:last-child{text-align:left}
+  .matrix td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:center}
+  .matrix td:first-child,.matrix td:last-child{text-align:left}
+  .matrix td:first-child{font-weight:650} .matrix td:last-child{font-size:11px;color:var(--muted)}
+  .matrix td small{display:block;color:var(--faint);font-weight:400;font-size:10.5px}
+  .yes{color:var(--ok);font-weight:700} .no{color:var(--danger);font-weight:700} .ltd{color:var(--cost);font-weight:700}
+  .matrix tr:hover{background:var(--panel-2)}
+
+  .vacard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px;border-left:3px solid var(--brand)}
+  .vacard h4{font-size:14px;font-weight:750;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+  .vacard .axis{font-size:11.5px;color:var(--muted);margin-top:7px}
+  .vacard .axis b{color:var(--ink)}
+
+  .rule{display:flex;gap:13px;padding:13px 0;border-bottom:1px solid var(--line)}
+  .rule:last-child{border:0}
+  .rnum{font-family:var(--mono);font-size:12px;color:var(--brand);border:1px solid var(--line-2);border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .rule .rt{font-size:14px;font-weight:700;margin-bottom:3px}
+  .rule .rd{font-size:12.5px;color:var(--muted)}
+  .weak{display:flex;gap:13px;padding:13px 0;border-bottom:1px solid var(--line)}
+  .weak:last-child{border:0}
+  .wmark{flex-shrink:0;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;background:#2a1416;color:var(--danger);border:1px solid #5e1d22}
+  .weak .wt{font-size:13.5px;font-weight:700;color:var(--danger);margin-bottom:2px}
+  .weak .wd{font-size:12.5px;color:var(--muted)} .weak .wfix{font-size:12px;color:var(--ok);margin-top:3px}
+
+  .road{position:relative;padding-left:28px;margin-top:8px}
+  .road::before{content:'';position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:linear-gradient(var(--brand),var(--comp))}
+  .step{position:relative;padding:0 0 24px 18px}
+  .step::before{content:'';position:absolute;left:-24px;top:3px;width:13px;height:13px;border-radius:50%;background:var(--bg);border:3px solid var(--brand);box-shadow:0 0 0 4px var(--bg)}
+  .step .sh{font-size:14.5px;font-weight:750;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .step .ph{font-family:var(--mono);font-size:10.5px;color:var(--faint);border:1px solid var(--line);border-radius:6px;padding:2px 8px}
+  .step .sd{font-size:12.5px;color:var(--muted);margin-top:5px}
+  .step .files{font-family:var(--mono);font-size:10.5px;color:var(--brand-ink);margin-top:6px;display:flex;flex-wrap:wrap;gap:5px}
+  .step .files span{background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:2px 7px}
+  .safe{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--ok);background:var(--sell-bg);border:1px solid var(--sell-line);border-radius:6px;padding:2px 8px;margin-top:6px}
+
+  .factbar{background:linear-gradient(90deg,#10203f,#1b1334);border:1px solid var(--line-2);border-radius:10px;padding:11px 15px;font-size:12.5px;color:var(--brand-ink);margin-bottom:18px;display:flex;align-items:center;gap:10px}
+  .factbar.warn{background:linear-gradient(90deg,#2a1416,#2a230d);border-color:#5e1d22;color:#fca5a5}
+  .factbar b{color:#fff}
+  footer{border-top:1px solid var(--line);padding:28px 0;color:var(--faint);font-size:12px;text-align:center}
+  .legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:13px}
+  .legend span{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted)}
+  .legend i{width:11px;height:11px;border-radius:3px;display:block}
+  @media(max-width:900px){
+    .hero-stats{grid-template-columns:repeat(2,1fr)} .grid2{grid-template-columns:1fr}
+    .scatter,.painwrap,.grid3{grid-template-columns:1fr} .sechead p{display:none}
+    .raw-in{grid-template-columns:1fr!important} nav.tabs{display:none}
+    .flow{flex-direction:column}.arrow{transform:rotate(90deg);justify-content:center}
+    .mock-body{overflow-x:auto}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-in">
+    <div class="logo"><span class="dot"></span> GPU 리팩토링 <span class="ver">v0.7.86 · 냉정개정</span></div>
+    <nav class="tabs" id="nav">
+      <button data-p="overview" class="on">개요</button>
+      <button data-p="asis">현황</button>
+      <button data-p="flow">사용자 흐름</button>
+      <button data-p="input">통합 입력</button>
+      <button data-p="table">통합 테이블·7각도</button>
+      <button data-p="backdata">백데이터</button>
+      <button data-p="crud">CRUD·제약</button>
+      <button data-p="gov">스키마·AI</button>
+      <button data-p="integ">정합성</button>
+      <button data-p="road">로드맵</button>
+    </nav>
+  </div>
+</header>
+
+<!-- OVERVIEW -->
+<section class="page on" id="overview">
+  <div class="wrap">
+    <div class="hero">
+      <div class="kick">Refactoring Blueprint · 냉정·팩트 개정 · 구현 아님</div>
+      <h1 class="title">집계는 보인다.<br><span class="g">원천은 아직 안 보인다.</span></h1>
+      <p class="lead">냉정하게 다시 봤다. 7각도 비교·다각도 CRUD는 실재한다. 그러나 <b>백데이터(원천 레코드) 전수 조회는 대부분 미구현</b>이고,
+      제한 CRUD 4종은 <b>이유와 구현 영향이 명확</b>해야 한다. 이 개정본은 7각도를 실제 컬럼으로 보여주고,
+      백데이터 갭과 필요한 신규 API를 숨기지 않는다.</p>
+
+      <div class="hero-stats">
+        <div class="hs to"><div class="n">7</div><div class="l">각도 = 실제 컬럼 전환</div></div>
+        <div class="hs fact"><div class="n">8</div><div class="l">완전 CRUD 엔티티</div></div>
+        <div class="hs from"><div class="n">4</div><div class="l">제한 CRUD (이유 명시)</div></div>
+        <div class="hs from"><div class="n">5</div><div class="l">백데이터 드릴다운 갭</div></div>
+        <div class="hs fact"><div class="n">+4</div><div class="l">필요 신규 read API</div></div>
+      </div>
+    </div>
+
+    <div class="factbar warn">⚠️ <b>냉정한 정정</b> — 이전 개정에서 <code>market_prices</code>를 "생성 불가"로 적은 건 <b>오류</b>다. 실측 결과 POST·PATCH·DELETE 모두 있는 <b>완전 CRUD</b>(<span class="src">market/prices/route.ts:89-138</span>). 진짜 제한은 4종(gpu_specs·review_items·pricing_settings·ai_prompts)이며 각각 이유가 분명하다.</div>
+
+    <div class="grid3">
+      <div class="card"><h3 class="h"><span class="tag sell">7각도</span> 실제로 바뀐다</h3>
+        <p class="note">검색 옆 세그먼트를 누르면 <b>컬럼이 실제로 교체</b>된다 — 판매가·콕핏·시장·재고·카탈로그·이력·스펙. "통합 테이블" 탭에서 직접 눌러보라.</p></div>
+      <div class="card"><h3 class="h"><span class="tag gap">백데이터</span> 갭을 드러낸다</h3>
+        <p class="note">행마다 <b>⤓원천</b> 버튼 → 모든 견적·시장가 시계열·감사를 펼침. 단 현재 <b>미구현 구간은 빨간 "신규 API 필요"</b> 배지로 정직하게 표기.</p></div>
+      <div class="card"><h3 class="h"><span class="tag cost">제약</span> 영향이 명확</h3>
+        <p class="note">제한 4종의 <b>정확한 라우트 동작·막힌 것·이유·구현 영향</b>을 표로. 구현 착수 전 무엇을 건드려야 하는지 알 수 있다.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- AS-IS -->
+<section class="page" id="asis">
+  <div class="wrap">
+    <div class="sechead"><span class="ix">01</span><h2>현황 — 흩어짐 + 숨은 깊이 + 빈 구멍</h2>
+      <p>보기 10탭 · 입력 6경로 · 12엔티티 · 84 API · 백데이터 갭 5.</p></div>
+    <div class="card">
+      <div class="legend">
+        <span><i style="background:var(--brand)"></i> 보기(10)</span>
+        <span><i style="background:var(--cost)"></i> 입력(6)</span>
+        <span><i style="background:var(--comp)"></i> 실재 고도기능</span>
+      </div>
+      <div class="scatter">
+        <div><div class="col-h">보기 탭</div>
+          <div class="chip v"><span class="i">01</span> 가격표</div><div class="chip v"><span class="i">02</span> 콕핏</div>
+          <div class="chip v"><span class="i">03</span> 시장비교</div><div class="chip v"><span class="i">04</span> 재고</div>
+          <div class="chip v"><span class="i">05</span> 카탈로그</div><div class="chip v"><span class="i">06</span> 검토대기</div>
+          <div class="chip v"><span class="i">07</span> 공급사</div><div class="chip v"><span class="i">08</span> 경쟁사</div>
+          <div class="chip v"><span class="i">09</span> 스펙</div><div class="chip v"><span class="i">10</span> 이력</div>
+        </div>
+        <div><div class="col-h">입력 경로</div>
+          <div class="chip in"><span class="i">A</span> 통합입력(스트리밍)</div><div class="chip in"><span class="i">B</span> 공급가 수동등록</div>
+          <div class="chip in"><span class="i">C</span> 공급가 수정</div><div class="chip in"><span class="i">D</span> 직판가 인라인</div>
+          <div class="chip in"><span class="i">E</span> 경쟁사 시장가</div><div class="chip in"><span class="i">F</span> 마스터 + admin</div>
+        </div>
+        <div><div class="col-h">실재 고도기능</div>
+          <div class="chip ss"><span class="i">🔗</span> URL 자동수집·병렬크롤 <span class="src">extract-helpers:37,42</span></div>
+          <div class="chip ss"><span class="i">🖼</span> 멀티이미지(10)·Ctrl+V</div>
+          <div class="chip ss"><span class="i">📡</span> SSE 실시간 스트리밍</div>
+          <div class="chip ss"><span class="i">🧠</span> 입력 자동분류</div>
+          <div class="chip ss"><span class="i">♻</span> 프롬프트 자가합성·롤백</div>
+          <div class="chip ss"><span class="i">🤖</span> gcube 가격 자동수집</div>
+        </div>
+      </div>
+      <div class="painwrap">
+        <div class="pain"><h4>⚠ 보기 파편화</h4><p>판매가·원가·경쟁가·재고가 5탭에 흩어져 한 건 판단에 탭 이동 반복.</p></div>
+        <div class="pain"><h4>⚠ 백데이터 구멍</h4><p>화면은 집계(최저가·최신가)만. 나머지 견적·시장가 이력·추출 이력은 <b>조회 라우트 자체가 없다.</b></p></div>
+        <div class="pain good"><h4>✓ 백엔드는 깊다</h4><p>URL수집·스트리밍·자동분류는 이미 구현. 문제는 표면 + 일부 read API 부재.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- USER FLOW -->
+<section class="page" id="flow">
+  <div class="wrap">
+    <div class="sechead"><span class="ix">02</span><h2>사용자 흐름 — 끝에서 끝까지</h2>
+      <p>실제 코드 흐름(스트리밍→미리보기→확정).</p></div>
+    <div class="card">
+      <h3 class="h"><span class="tag cost">등록</span> 입력 → 추출 → 확정 → 반영</h3>
+      <div class="flow">
+        <div class="node src"><div class="t">1·2 입력+URL수집</div><div class="d">텍스트·이미지(10)·URL 자동크롤(15K자)</div></div>
+        <div class="arrow">→</div>
+        <div class="node"><div class="t">3·4 분류+스트리밍</div><div class="d">경쟁/공급 분리 · SSE 다중행 추출(≤50)</div></div>
+        <div class="arrow">→</div>
+        <div class="node ssot"><div class="t">5·6 미리보기+검증</div><div class="d">행 그리드 편집 · 밴드/중복/신뢰도</div></div>
+        <div class="arrow">→</div>
+        <div class="node view"><div class="t">7·8 확정+반영</div><div class="d">commit/검토대기 → intake-routing 분배 → 테이블</div></div>
+      </div>
+      <p class="note" style="margin-top:14px"><b>자동 저장 없음</b> — 미리보기/검토대기로 사람이 게이트(§5-3). 한 입력에 제품·원가·경쟁가 전부, 분류 후 각 테이블 자동 분배.</p>
+    </div>
+    <div class="grid2" style="margin-top:14px">
+      <div class="card"><h3 class="h"><span class="tag sell">조회</span> 테이블 → 각도 → 원천</h3>
+        <ul class="clean">
+          <li><b>R1</b> 통합테이블 진입(판매가 각도)</li>
+          <li><b>R2</b> 7각도 세그먼트 전환 → 컬럼 교체</li>
+          <li><b>R3</b> 행 <b>⤓원천</b> → 모든 견적·시장가 이력·감사 펼침</li>
+          <li><b>R4</b> 같은 줄에서 수정·삭제·직판·매핑</li>
+        </ul>
+      </div>
+      <div class="card"><h3 class="h">흐름이 보장하는 것</h3>
+        <ul class="clean">
+          <li><b>탭 이동 없음</b> — 조회는 한 테이블 각도 전환</li>
+          <li><b>집계+원천</b> — 요약을 보다가 원천 행으로 드릴다운</li>
+          <li><b>뭘 눌러도 CRUD</b> — 행·드로어·각도마다 액션</li>
+          <li><b>갭 정직</b> — 원천 조회 미구현 구간은 화면이 명시</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- UNIFIED INPUT -->
+<section class="page" id="input">
+  <div class="wrap">
+    <div class="sechead"><span class="ix">03</span><h2>통합 입력 — 멀티·URL·스트리밍</h2>
+      <p>실재 기능 전부 + 다중행 미리보기.</p></div>
+    <div class="mock">
+      <div class="mock-bar"><div class="dots"><i></i><i></i><i></i></div><div class="url">/pricing/gpu/intake</div></div>
+      <div class="mock-body">
+        <div style="border:1.5px dashed var(--line-2);border-radius:12px;padding:16px;background:linear-gradient(180deg,#101b33,#0d1424);margin-bottom:14px">
+          <div style="font-size:13.5px;font-weight:700;color:var(--brand-ink)">📎 견적 통째로 — 텍스트·메일·PDF·이미지·URL</div>
+          <div style="font-size:11.5px;color:var(--faint);margin-top:4px">URL 자동감지→병렬 크롤(15K자) · 이미지 10장 · Ctrl+V · 드래그 · Gemini 스트리밍</div>
+          <div style="display:flex;gap:7px;margin-top:11px;flex-wrap:wrap">
+            <span class="tag">📝 텍스트/메일</span><span class="tag">📄 PDF</span><span class="tag cost">🖼 이미지×10</span>
+            <span class="tag ai">🔗 URL 자동수집</span><span class="tag">📋 Ctrl+V</span><span class="tag" style="opacity:.5">📊 CSV <span style="color:var(--cost)">향후</span></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:10px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 11px">
+            <span>🔗</span><span style="font-family:var(--mono);font-size:11.5px;color:var(--brand-ink);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">https://competitor.example.com/pricing → 본문 14,820자 수집됨</span><span class="badge b-ok">크롤 완료</span>
+          </div>
+        </div>
+        <div style="background:#0a0e16;border:1px solid var(--line);border-radius:9px;padding:11px 13px;font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.8">
+          <span style="display:block;color:var(--brand-ink)">▸ AI 분석 시작 (gemini-2.0-flash) · SSE 스트리밍</span>
+          <span style="display:block">▸ 분류 중… <span class="badge b-warn">공급가</span> <span class="badge" style="background:var(--comp-bg);color:var(--comp);border:1px solid var(--comp-line)">경쟁가</span> 혼합 감지</span>
+          <span style="display:block;color:var(--cost)">▸ 추출 중: H100… 80GB… $2.35…</span>
+          <span style="display:block;color:var(--ok)">✓ 공급가 3행 · 경쟁가 2행 → 미리보기 대기</span>
+        </div>
+        <h3 class="h" style="margin-top:16px">다중 행 미리보기 — 편집 후 확정 <span class="tag new">자동저장 안함</span></h3>
+        <table class="utable">
+          <thead><tr><th>분류</th><th>모델</th><th>메모리</th><th>공급/경쟁</th><th>단가</th><th>약정/모델</th><th>검증</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge b-warn">공급가</span></td><td class="gpu">H100 80GB</td><td>80GB</td><td>RunPod</td><td class="num">$2.35</td><td>월/8장</td><td><span class="badge b-ok">92% 자동</span></td></tr>
+            <tr><td><span class="badge b-warn">공급가</span></td><td class="gpu">A100 80GB</td><td>80GB</td><td>Lambda</td><td class="num">$1.89</td><td>월/4장</td><td><span class="badge b-warn">74% 검토</span></td></tr>
+            <tr><td><span class="badge" style="background:var(--comp-bg);color:var(--comp);border:1px solid var(--comp-line)">경쟁가</span></td><td class="gpu">H100 80GB</td><td>80GB</td><td>CoreWeave</td><td class="num">$2.69</td><td>on-demand</td><td><span class="badge b-ok">정상</span></td></tr>
+            <tr><td><span class="badge" style="background:var(--comp-bg);color:var(--comp);border:1px solid var(--comp-line)">경쟁가</span></td><td class="gpu" style="color:var(--cost)">(모델 미상)</td><td>?</td><td>AWS</td><td class="num">$3.10</td><td>on-demand</td><td><span class="badge b-dng">차단·모델</span></td></tr>
+          </tbody>
+        </table>
+        <div style="display:flex;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);flex-wrap:wrap;align-items:center">
+          <button style="font:inherit;font-size:13px;font-weight:650;border-radius:9px;padding:10px 17px;cursor:pointer;border:0;background:linear-gradient(135deg,var(--brand),#3f6fe0);color:#fff">검증 통과분 확정 (3) →</button>
+          <button style="font:inherit;font-size:13px;border-radius:9px;padding:10px 17px;cursor:pointer;border:1px solid var(--line-2);background:var(--panel-2);color:var(--ink)">검토대기로 (1)</button>
+          <span style="margin-left:auto;font-size:11.5px;color:var(--faint)"><code>intake-routing</code> 원자 분배: 공급가→quotes · 경쟁가→market_prices · 제품→products</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- UNIFIED TABLE · 7 ANGLES (dynamic) -->
+<section class="page" id="table">
+  <div class="wrap">
+    <div class="sechead"><span class="ix">04</span><h2>통합 테이블 — 7각도 실제 전환</h2>
+      <p>세그먼트 클릭 → 컬럼이 진짜 바뀐다. 행 ⤓원천 → 백데이터.</p></div>
+    <div class="mock">
+      <div class="mock-bar"><div class="dots"><i></i><i></i><i></i></div><div class="url">/pricing/gpu · 통합 테이블</div></div>
+      <div class="mock-body">
+        <div class="utbar">
+          <div class="srch">🔍 모델·메모리·공급사·경쟁사 검색…</div>
+          <div class="seg" id="angleSeg">
+            <button data-a="sell" class="on">판매가</button><button data-a="cockpit">콕핏</button><button data-a="market">시장</button><button data-a="inventory">재고</button><button data-a="catalog">카탈로그</button><button data-a="history">이력</button><button data-a="specs">스펙</button>
+          </div>
+        </div>
+        <p class="anglehint" id="angleHint"></p>
+        <table class="utable">
+          <thead id="uhead"></thead>
+          <tbody id="ubody"></tbody>
+        </table>
+        <p class="note" style="margin-top:12px;font-size:12px">💡 <b>세그먼트를 눌러 7각도를 직접 전환</b>해보라(컬럼 교체). 행의 <b>⤓원천</b> 버튼 → 백데이터(모든 견적·시장가 이력·감사) 펼침 — 미구현 구간은 빨간 배지로 표기.</p>
+      </div>
+    </div>
+    <div class="grid3" style="margin-top:14px">
+      <div class="card"><h3 class="h">각도 = 컬럼 프리셋</h3><p class="note">행 정체성(GPU/구성)은 고정, 컬럼만 교체 → 각도를 바꿔도 "같은 줄"을 본다. 비교가 끊기지 않는다.</p></div>
+      <div class="card"><h3 class="h">⤓원천 = 드릴다운</h3><p class="note">집계 뒤의 원천 행(견적 전수·시장가 시계열·감사)을 같은 줄에서 펼침. 화면이 "다 보여줄 수 있는지"를 정직하게 표기.</p></div>
+      <div class="card"><h3 class="h">행마다 CRUD</h3><p class="note">어느 각도든 행에서 수정·삭제·직판·매핑 액션. 무엇을 눌러도 편집 경로가 있다.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- BACK DATA -->
+<section class="page" id="backdata">
+  <div class="wrap">
+    <div class="sechead"><span class="ix">05</span><h2>백데이터 — 다 볼 수 있나? (냉정)</h2>
+      <p>집계 뒤 원천 레코드의 실제 조회 가능성.</p></div>
+    <div class="factbar warn">⚠️ <b>냉정한 답: 지금은 "다" 못 본다.</b> 화면은 집계(최저가·최신가)만 보여주고, 원천 전수·시계열·이력은 <b>조회 라우트가 대부분 없다.</b> 통합테이블 드릴다운을 제대로 하려면 <b>신규 read API 4개</b>가 필요하다.</div>
+    <div class="card">
+      <table class="matrix">
+        <thead><tr><th>원천 데이터</th><th>지금 보이나?</th><th>현재 라우트</th><th>갭 / 필요 신규 API</th></tr></thead>
+        <tbody>
+          <tr><td>product의 <b>모든 공급견적</b><small>확정·대기·만료·반려</small></td><td class="ltd">부분</td><td class="src">quotes?product_id (confirmed만)</td><td>pending/expired/rejected 안 보임 → <code class="src">quotes?product_id&status=*</code> 신규</td></tr>
+          <tr><td>mapping의 <b>시장가 시계열</b><small>과거 시세 히스토리</small></td><td class="no">불가</td><td class="src">market (최신값만)</td><td>recorded_at 시계열 조회 없음 → <code class="src">market/prices?mapping_id</code> 신규</td></tr>
+          <tr><td>review_item의 <b>추출 이력</b><small>iteration·evidence</small></td><td class="no">불가</td><td class="src">없음(append만)</td><td>review_iterations GET 없음 → <code class="src">review/[id]/iterations</code> 신규</td></tr>
+          <tr><td><b>감사 로그</b><small>변경/삭제 추적</small></td><td class="ltd">부분</td><td class="src">audit (전체·300상한)</td><td>product/actor/기간 필터 없음 → <code class="src">audit?filter</code> 신규</td></tr>
+          <tr><td>competitor ↔ <b>시장가 역추적</b></td><td class="ltd">단방향</td><td class="src">market (경쟁사→가격)</td><td>가격→경쟁사 역추적 없음(우선순위 낮음)</td></tr>
+        </tbody>
+      </table>
+      <p class="note" style="margin-top:12px;font-size:12px"><span class="yes">●</span> 가능 · <span class="ltd">부분</span> 일부만 · <span class="no">불가</span> 라우트 없음. <b>핵심</b>: 통합테이블 ⤓원천 드릴다운은 위 4개 API를 먼저 만들어야 "다 보인다"가 진짜가 된다. 목업의 ⤓원천 드로어가 이 갭을 그대로 표시한다.</p>
+    </div>
+    <div class="grid2" style="margin-top:14px">
+      <div class="card"><h3 class="h">왜 지금 안 보이나 (이유)</h3>
+        <ul class="clean">
+          <li>화면이 <b>의사결정용 집계</b>(최저가/최신가) 위주로 설계됨 — 원천 전수는 검토대기·감사 탭에서 부분적으로만.</li>
+          <li>append-only 테이블(review_iterations·revisions)은 <b>쓰기만</b> 있고 읽기 API가 안 붙음.</li>
+          <li>시계열(market_prices)은 <b>최신 1행만</b> 맵에 담아 비교에 사용 → 과거값은 DB엔 있으나 노출 경로 없음.</li>
+        </ul>
+      </div>
+      <div class="card"><h3 class="h">구현 영향 (명확)</h3>
+        <ul class="clean">
+          <li>드릴다운은 <b>프론트만으로 불가</b> — read API 4개 신규(로드맵 P5).</li>
+          <li>모두 <b>읽기 전용·RLS read</b>라 위험 낮음(쓰기 변경 없음).</li>
+          <li>DB 변경 없음(기존 테이블 조회) → <b>마이그레이션 불필요</b>, 라우트만 추가.</li>
+          <li>통합테이블 ⤓원천 UI는 API 준비 전까지 <b>"신규 API 필요" 배지</b>로 단계 노출.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CRUD + CONSTRAINTS -->
+<section class="page" id="crud">
+  <div class="wrap">
+    <div class="sechead"><span class="ix">06</span><h2>CRUD 매트릭스 + 제약 영향 (정정)</h2>
+      <p>완전 8 · 제한 4. market_prices는 완전 CRUD(정정).</p></div>
+    <div class="card">
+      <table class="matrix">
+        <thead><tr><th>엔티티</th><th>C</th><th>R</th><th>U</th><th>D</th><th>제약 / 근거</th></tr></thead>
+        <tbody>
+          <tr><td>gpu_products</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td>완전 · soft delete</td></tr>
+          <tr><td>supply_quotes</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td>완전 · <b>일괄편집 없음</b></td></tr>
+          <tr><td>direct_prices</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td>완전 · is_current 1개</td></tr>
+          <tr><td>competitors</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td>완전 · soft+bulk</td></tr>
+          <tr><td>competitor_product_mapping</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td>완전 · 자식 시세 연쇄삭제</td></tr>
+          <tr><td>suppliers</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td>완전 · 확정견적 시 삭제차단+bulk</td></tr>
+          <tr><td>partner_tiers</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td>완전</td></tr>
+          <tr style="background:#10203f55"><td><b>market_prices</b> ✦정정</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td class="yes">●</td><td><b>완전 CRUD</b>(POST 있음) <span class="src">prices/route:89-138</span></td></tr>
+          <tr><td>gpu_specs <small>제한①</small></td><td class="no">✕</td><td class="yes">●</td><td class="ltd">◐</td><td class="yes">●</td><td>POST없음·UPSERT(model_name UNIQUE)·물리삭제</td></tr>
+          <tr><td>review_items <small>제한②</small></td><td class="yes">●</td><td class="ltd">◐</td><td class="no">✕</td><td class="no">✕</td><td>상태전이만(confirm/reject)·<b>DELETE 없음</b></td></tr>
+          <tr><td>pricing_settings <small>제한③</small></td><td class="no">✕</td><td class="yes">●</td><td class="ltd">◐</td><td class="no">✕</td><td><b>싱글톤 id=1</b>·전역마진 1개·UPSERT</td></tr>
+          <tr><td>ai_prompts <small>제한④</small></td><td class="no">✕</td><td class="yes">●</td><td class="ltd">◐</td><td class="no">✕</td><td>직접생성X·비활성화/롤백만·revision append</td></tr>
+        </tbody>
+      </table>
+      <p class="note" style="margin-top:10px;font-size:12px"><span class="yes">●</span> 완전 · <span class="ltd">◐</span> 제한(UPSERT/상태전이) · <span class="no">✕</span> 의도적 미제공.</p>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3 class="h">제한 4종 — 정확한 동작·이유·구현 영향 (냉정)</h3>
+      <table class="matrix">
+        <thead><tr><th>엔티티</th><th>막힌 것</th><th>이유 (코드/설계)</th><th>구현 영향 — 풀려면 무엇을</th></tr></thead>
+        <tbody>
+          <tr><td><b>gpu_specs</b></td><td>독립 생성(POST)</td><td><code class="src">model_name UNIQUE</code> · 모델은 gpu_products에서 먼저 생성 후 spec upsert <span class="src">055:4-6</span></td><td>신규 모델 스펙 추가 시 product 선행 생성 필요 · 또는 POST 라우트 신규 · /specs/generate(AI) 활용</td></tr>
+          <tr><td><b>review_items</b></td><td>물리 DELETE</td><td>검토는 <b>상태 전이</b>로만 종결(pending→confirmed/rejected/superseded) <span class="src">029:12</span> · is_test 정리 라우트 없음</td><td>"삭제"는 상태 초기화 or <code>is_archived</code> 추가 필요 · is_test 행은 WHERE 필터로만 숨김 · 정리 라우트 신규</td></tr>
+          <tr><td><b>pricing_settings</b></td><td>tier/상품별 마진</td><td><code class="src">CHECK(id=1)</code> 싱글톤 · 전역 margin_pct 1개를 모든 상품 일률 적용 <span class="src">024:116·market:130</span></td><td>tier별/상품별 마진은 <b>새 테이블 필수</b>(pricing_overrides 등) · 현 구조는 전역 1개만</td></tr>
+          <tr><td><b>ai_prompts</b></td><td>직접 생성·삭제</td><td>편집은 PATCH+revision append, 삭제 대신 active=false, 롤백만 <span class="src">066 · rollback/route:7-25</span></td><td>새 프롬프트 키 추가는 직접 INSERT(+revision) 또는 admin 생성 라우트 신규 · 삭제는 정책상 불가(이력보존)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card" style="margin-top:14px"><h3 class="h">"뭘 눌러도 CRUD" 보장 맵</h3>
+      <div class="grid3">
+        <ul class="clean"><li><b>행</b> → 수정·삭제·직판설정</li><li><b>원가 드로어</b> → 견적 추가/수정/삭제·실견적 등록</li></ul>
+        <ul class="clean"><li><b>경쟁 드로어</b> → 매핑 관리·시장가 CRUD·동기화</li><li><b>정합성 드로어</b> → 스펙 편집·이력·검토대기</li></ul>
+        <ul class="clean"><li><b>상단</b> → 신규 등록(통합입력)·일괄</li><li><b>제한 엔티티</b> → 가드 문구로 "동기화로만"·"상태전이만" 명시</li></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GOVERNANCE -->
+<section class="page" id="gov">
+  <div class="wrap">
+    <div class="sechead"><span class="ix">07</span><h2>스키마 · AI 프롬프트 거버넌스</h2>
+      <p>반동적(B): 핵심 고정 + digest가 AI 필드만 동적.</p></div>
+    <div class="card">
+      <div class="flow">
+        <div class="node src"><div class="t">admin</div><div class="d">프롬프트 편집·스키마 조회<br><code>/admin/ai-prompts?view=schema</code></div></div>
+        <div class="arrow">→</div>
+        <div class="node ssot"><div class="t">DB (SSOT)</div><div class="d"><code>ai_prompts</code>+<code>ai_prompt_revisions</code><br>append-only·자동활성/롤백</div></div>
+        <div class="arrow">→</div>
+        <div class="node view"><div class="t">런타임 추출</div><div class="d"><code>get_schema_digest()</code>+자가합성<br>quote-extract·input-classify·company-enrich</div></div>
+      </div>
+    </div>
+    <div class="grid2" style="margin-top:14px">
+      <div class="card"><h3 class="h">실재 프롬프트 (3+자가합성)</h3>
+        <ul class="clean">
+          <li><b>gpu.quote-extract</b> — 공급가 추출 <span class="src">extract-helpers:19</span></li>
+          <li><b>gpu.input-classify</b> — 경쟁/공급 분류 <span class="src">extract-helpers:27</span></li>
+          <li><b>gpu.company-enrich</b> — 회사정보·URL 제안</li>
+          <li><b>gpu.auto-synth.{hash}</b> — 미준비 형식 자가합성·자동롤백</li>
+        </ul>
+      </div>
+      <div class="card"><h3 class="h">왜 반동적(B)</h3>
+        <ul class="clean">
+          <li>핵심 컬럼(가격·tier·메모리)은 계산 SSOT 의존 → 동적화 시 정합성 붕괴.</li>
+          <li><code>get_schema_digest()</code>가 런타임 스키마를 AI에 주입 중(이미 반동적).</li>
+          <li>통합입력 동적부 = AI 추출 필드+검증 규칙만. admin 프롬프트 변경이 따라감.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INTEGRITY -->
+<section class="page" id="integ">
+  <div class="wrap">
+    <div class="sechead"><span class="ix">08</span><h2>정합성 — 강점 + 약점(B+) 정직</h2>
+      <p>숨기지 않는다.</p></div>
+    <div class="card">
+      <h3 class="h" style="color:var(--ok)">강점 — 불변 규칙(실재 SSOT)</h3>
+      <div class="rule"><div class="rnum">R1</div><div><div class="rt">표현/계산 분리</div><div class="rd"><code>pricing.ts</code>·<code>market-median.ts</code>·<code>price-signal.ts</code> 결과 렌더만.</div></div></div>
+      <div class="rule"><div class="rnum">R2</div><div><div class="rt">라우팅 SSOT</div><div class="rd"><code>intake-routing.ts</code>가 제품/원가/재고/경쟁가 분배. 폼이 대상 안 정함.</div></div></div>
+      <div class="rule"><div class="rnum">R3</div><div><div class="rt">검증·중복·tier 게이트</div><div class="rd"><code>validate.ts</code>(밴드 T1 0.08~150)·<code>dedup.ts</code>·<code>tier-dict.ts</code>·<code>config-ladder.ts</code>.</div></div></div>
+      <div class="rule"><div class="rnum">R4</div><div><div class="rt">실견적 우선 + cost/list 분리</div><div class="rd"><code>buildCatalog</code>: 실견적 있으면 추종가 제외. cost만 원가.</div></div></div>
+      <div class="rule"><div class="rnum">R5</div><div><div class="rt">1장당 전파</div><div class="rd">bestPerGpu×count로 구성 간 정합성.</div></div></div>
+      <div class="rule"><div class="rnum">R6</div><div><div class="rt">추출 단일진입+자동분류</div><div class="rd">통합입력에서만. 프롬프트 DB에서 읽음. input-classify 분리.</div></div></div>
+      <div class="rule"><div class="rnum">R7</div><div><div class="rt">감사·RLS</div><div class="rd">모든 쓰기 <code>recordGpuAudit</code>. suppliers 쓰기 service_role/admin.</div></div></div>
+    </div>
+    <div class="card" style="margin-top:14px;border-color:#5e1d22">
+      <h3 class="h" style="color:var(--danger)">약점 — 현재 B+ (정직)</h3>
+      <div class="weak"><div class="wmark">!</div><div><div class="wt">direct 상품 원가 없음 → 마진 null</div><div class="wd">pricing_mode='direct'는 quotes 미사용 → margin 계산 불가 <span class="src">pricing.ts:305-328</span></div><div class="wfix">개선: 행 "원가 견적 연결" + 마진 측정불가 신호.</div></div></div>
+      <div class="weak"><div class="wmark">!</div><div><div class="wt">supply_quotes 일괄 편집 없음</div><div class="wd">개별 [id] PATCH만. 대량 원가 갱신 불가.</div><div class="wfix">개선: 통합테이블 다중선택 일괄 만료연장/약정변경.</div></div></div>
+      <div class="weak"><div class="wmark">!</div><div><div class="wt">백데이터 조회 API 부재(5)</div><div class="wd">견적 전수·시장가 시계열·추출이력·감사필터 라우트 없음.</div><div class="wfix">개선: read API 4개(로드맵 P5) → 진정한 드릴다운.</div></div></div>
+      <div class="weak"><div class="wmark">!</div><div><div class="wt">만료 경고·파트너할인 미반영</div><div class="wd">채택 견적 만료 UI 경고 없음 · 파트너할인 catalog 일부 미적용.</div><div class="wfix">개선: 만료 D-7 신호 · 할인 전/후 병기.</div></div></div>
+    </div>
+    <div class="card" style="margin-top:14px;border-color:var(--sell-line)">
+      <h3 class="h" style="color:var(--sell)">통합이 정합성을 올리는 이유 (B+→A)</h3>
+      <p class="note" style="color:var(--ink);font-size:14px">진입점이 줄면 어긋날 표면이 준다. 약점(마진null·만료·할인·백데이터 갭)을 <b>행 안 신호+⤓원천</b>으로 가시화하면 영업이 즉시 인지·교정 → 데이터가 더 정확해진다. 단 백데이터 갭은 <b>read API 신규</b>가 전제다(정직).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<section class="page" id="road">
+  <div class="wrap">
+    <div class="sechead"><span class="ix">09</span><h2>마이그레이션 로드맵</h2>
+      <p>프론트 재배치 → 백데이터 read API → 약점 보강.</p></div>
+    <div class="card">
+      <div class="road">
+        <div class="step"><div class="sh"><span class="ph">P1</span> 통합 테이블 + 7각도 컬럼 전환</div>
+          <div class="sd">7뷰 데이터를 한 테이블로, 각도=컬럼 프리셋. 기존 SWR 키 재사용.</div>
+          <div class="files"><span>PriceTableTab.tsx</span><span>group.ts</span><span>swr-keys.ts</span></div>
+          <div class="safe">✓ 백엔드 0 · 회귀 낮음</div></div>
+        <div class="step"><div class="sh"><span class="ph">P2</span> 행 ⤓원천 드로어 + 인라인 CRUD</div>
+          <div class="sd">검토대기/시장/재고/스펙/이력을 드로어로 흡수. <b>지금 가능한 원천만</b> 표시, 미구현은 배지.</div>
+          <div class="files"><span>drawer</span><span>quotes·mappings API 재사용</span></div>
+          <div class="safe">✓ 기존 API만</div></div>
+        <div class="step"><div class="sh"><span class="ph">P3</span> 통합 입력 — 멀티/URL/스트리밍/미리보기</div>
+          <div class="sd">이미 있는 코드 재배치. 일괄편집·CSV는 후보.</div>
+          <div class="files"><span>QuoteRegisterTab.tsx</span><span>review/stream·commit</span><span>intake-routing</span></div>
+          <div class="safe">✓ SSOT 재사용</div></div>
+        <div class="step"><div class="sh"><span class="ph">P4</span> 메뉴 재배치 — 영업/관리 분리</div>
+          <div class="sd">마스터·거버넌스를 admin으로. 영업=통합테이블+통합입력.</div>
+          <div class="files"><span>GpuPricingClient.tsx</span><span>admin/*</span></div>
+          <div class="safe">✓ 라우트 이동(권한 유지)</div></div>
+        <div class="step"><div class="sh"><span class="ph">P5</span> 백데이터 read API 4 + 약점 보강 (B+→A)</div>
+          <div class="sd"><b>신규(읽기전용)</b>: quotes?status=* · market/prices?mapping_id(시계열) · review/[id]/iterations · audit?filter. + direct 원가연결·일괄편집·만료신호·파트너할인 병기.</div>
+          <div class="files"><span>api/pricing/gpu/quotes·market·review·audit (read)</span><span>buildCatalog 확장</span></div>
+          <div class="safe">✓ 읽기전용·DB변경 없음·RLS read</div></div>
+      </div>
+    </div>
+    <div class="grid2" style="margin-top:14px">
+      <div class="card"><h3 class="h">원칙</h3><ul class="clean">
+        <li><b>P1~P4 프론트 재배치</b> — DB 무변경, 즉시 롤백.</li>
+        <li><b>P5 read API 4개</b> — 백데이터 드릴다운 완성(쓰기 변경 0·마이그레이션 불필요).</li>
+        <li>각 단계 <b>독립 배포</b>. 한 번에 안 바꾼다.</li>
+      </ul></div>
+      <div class="card"><h3 class="h">완료 기준</h3><ul class="clean">
+        <li>7각도가 <b>실제 컬럼 전환</b>으로 동작</li>
+        <li>⤓원천이 <b>견적 전수·시계열·감사</b>를 보여줌(P5 후)</li>
+        <li>제한 4종 가드 문구 노출 · 약점 신호 가시화</li>
+        <li>골든세트 무회귀 · <code>pnpm test</code> · <code>design:check</code> 통과</li>
+      </ul></div>
+    </div>
+    <div class="card" style="margin-top:14px;border-color:var(--line-2);background:linear-gradient(180deg,#16203a,var(--panel))">
+      <h3 class="h">⚠ 이 문서는 기획서입니다</h3>
+      <p class="note">코드 변경 0줄. 실측 팩트(파일:라인) 근거 청사진. 후속 구현은 <code>/ceo</code> 별도 지시.</p>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap">GPU 리팩토링 기획서 · v0.7.86 냉정개정 · newAX · 2026-06-12 — 7각도 실전환 · 백데이터 갭 정직 · 제약 영향 명확</div></footer>
+
+<script>
+  // nav
+  const nav=document.getElementById('nav');
+  nav.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+    [...nav.children].forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('section.page').forEach(s=>s.classList.toggle('on',s.id===b.dataset.p));
+    window.scrollTo({top:0,behavior:'smooth'});});
+
+  // ===== 7-angle dynamic table =====
+  const ANGLES={
+    sell:{hint:'<b>판매가 각도</b> — 영업 기본. 우리 판매가·마진·시장대비·출처·상태.',
+      cols:['GPU / 구성','Tier','판매가','마진','시장대비','출처','상태'],
+      rows:[
+        ['<span class="gpu">H100 80GB<small>1x·14vCPU·234GB</small></span>','<span class="badge b-ok">T1</span>','<span class="sell-v num">₩4,820,000</span>','<span class="badge b-ok">+38%</span>','<span class="badge b-ok">▼12%</span>','<span class="tag cost">실견적</span>','<span class="badge b-ok">확정</span>'],
+        ['<span class="gpu">A100 80GB<small>1x·12vCPU·117GB</small></span>','<span class="badge b-ok">T1</span>','<span class="sell-v num">₩3,240,000</span>','<span class="badge b-warn">+19%</span>','<span class="badge b-warn">≈시장</span>','<span class="tag comp">추종가</span>','<span class="badge b-warn">검토대기</span>'],
+        ['<span class="gpu">RTX 4090 24GB<small>1x·8vCPU·63GB</small></span>','<span class="badge b-dng">T3</span>','<span class="sell-v num">₩1,180,000</span>','<span class="badge b-dng">직판·?</span>','<span class="badge b-dng">▲6%</span>','<span class="tag">직판</span>','<span class="badge b-ok">확정</span>']]},
+    cockpit:{hint:'<b>콕핏 각도</b> — 가격결정. 원가 vs 자동마진가 vs 전략가 vs 경쟁중앙 + 마진%.',
+      cols:['GPU','원가(cost)','자동마진가','전략가','경쟁중앙','마진%'],
+      rows:[
+        ['<span class="gpu">H100 80GB</span>','<span class="num">₩3,490,000</span>','<span class="num">₩4,710,000</span>','<span class="num sell-v">₩4,820,000</span>','<span class="num">$2.69</span>','<span class="badge b-ok">+38%</span>'],
+        ['<span class="gpu">A100 80GB</span>','<span class="num">₩2,720,000</span>','<span class="num">₩3,670,000</span>','<span class="num sell-v">₩3,240,000</span>','<span class="num">$2.05</span>','<span class="badge b-warn">+19%</span>'],
+        ['<span class="gpu">RTX 4090 24GB</span>','<span class="num" style="color:var(--danger)">없음(direct)</span>','<span class="num">—</span>','<span class="num sell-v">₩1,180,000</span>','<span class="num">₩1.11M</span>','<span class="badge b-dng">측정불가</span>']]},
+    market:{hint:'<b>시장 각도</b> — 경쟁사 갭. 우리판매가 vs 경쟁 최저/중앙/최고 + 편차%.',
+      cols:['GPU','우리 판매가','경쟁 최저','중앙값','최고','편차%','표본'],
+      rows:[
+        ['<span class="gpu">H100 80GB</span>','<span class="num sell-v">$2.35</span>','<span class="num">$2.40</span>','<span class="num">$2.69</span>','<span class="num">$3.10</span>','<span class="badge b-ok">▼12%</span>','4사'],
+        ['<span class="gpu">A100 80GB</span>','<span class="num sell-v">$1.89</span>','<span class="num">$1.80</span>','<span class="num">$2.05</span>','<span class="num">$2.40</span>','<span class="badge b-warn">≈0%</span>','3사'],
+        ['<span class="gpu">RTX 4090 24GB</span>','<span class="num sell-v">₩1.18M</span>','<span class="num">₩1.05M</span>','<span class="num">₩1.11M</span>','<span class="num">₩1.20M</span>','<span class="badge b-dng">▲6%</span>','2사']]},
+    inventory:{hint:'<b>재고 각도</b> — 가용량. 공급사별 보유 수량·상태·만료.',
+      cols:['GPU','공급사','가용 수량','재고 상태','만료','풀재고'],
+      rows:[
+        ['<span class="gpu">H100 80GB</span>','RunPod','<span class="num">48장</span>','<span class="badge b-ok">full</span>','07-31','<span class="num">120</span>'],
+        ['<span class="gpu">A100 80GB</span>','Lambda','<span class="num">12장</span>','<span class="badge b-warn">partial</span>','06-30','<span class="num">40</span>'],
+        ['<span class="gpu">RTX 4090 24GB</span>','—','<span class="num">0</span>','<span class="badge b-dng">out</span>','—','<span class="num">0</span>']]},
+    catalog:{hint:'<b>카탈로그 각도</b> — 고객가. 직판/판매가 → 파트너 Tier 할인 → 고객가.',
+      cols:['GPU','기준 판매가','파트너 Tier','할인율','고객가','적용'],
+      rows:[
+        ['<span class="gpu">H100 80GB</span>','<span class="num">₩4,820,000</span>','Gold','<span class="badge b-ok">-12%</span>','<span class="num sell-v">₩4,241,600</span>','<span class="badge b-warn">일부미반영</span>'],
+        ['<span class="gpu">A100 80GB</span>','<span class="num">₩3,240,000</span>','Silver','<span class="badge b-ok">-8%</span>','<span class="num sell-v">₩2,980,800</span>','<span class="badge b-warn">일부미반영</span>'],
+        ['<span class="gpu">RTX 4090 24GB</span>','<span class="num">₩1,180,000</span>','Standard','<span class="badge b-mut">0%</span>','<span class="num sell-v">₩1,180,000</span>','<span class="badge b-ok">적용</span>']]},
+    history:{hint:'<b>이력 각도</b> — 감사. 모든 변경(시각·작업자·동작·상세). gpu_audit_logs.',
+      cols:['시각','작업자','동작','대상','상세'],
+      rows:[
+        ['<span class="num">06-12 14:20</span>','admin','<span class="badge b-ok">quote_confirmed</span>','H100 80GB','$2.35 RunPod 확정'],
+        ['<span class="num">06-12 11:05</span>','system','<span class="badge b-mut">market_sync</span>','A100 80GB','추종가 검토대기 생성'],
+        ['<span class="num">06-11 17:40</span>','admin','<span class="badge b-warn">direct_set</span>','RTX 4090','직판가 ₩1.18M 설정']]},
+    specs:{hint:'<b>스펙 각도</b> — 데이터시트. 모델별 vCPU·RAM·저장소·시리즈. AI 자동생성.',
+      cols:['GPU','vCPU','RAM(GB)','저장소(GB)','시리즈','출처'],
+      rows:[
+        ['<span class="gpu">H100 80GB</span>','<span class="num">14</span>','<span class="num">234</span>','<span class="num">1,024</span>','Hopper','<span class="badge b-ok">AI생성</span>'],
+        ['<span class="gpu">A100 80GB</span>','<span class="num">12</span>','<span class="num">117</span>','<span class="num">512</span>','Ampere','<span class="badge b-ok">AI생성</span>'],
+        ['<span class="gpu">RTX 4090 24GB</span>','<span class="num">8</span>','<span class="num">63</span>','<span class="num">937</span>','Ada','<span class="badge b-warn">수정됨</span>']]}
+  };
+  // raw drilldown per GPU index (honest gaps)
+  const RAW=[
+    {quotes:[['RunPod','$2.35','월·8장','confirmed','07-31'],['Vast','$2.55','월·4장','pending','—'],['Genesis','$2.80','월·2장','expired','06-01']],
+     market:[['CoreWeave','$2.69','06-12'],['AWS','$3.10','06-10'],['Azure','$2.85','06-05']],
+     audit:[['06-12','confirm','$2.35']],qGap:false,mGap:true},
+    {quotes:[['Lambda','$1.89','월·4장','confirmed(추종)','—']],
+     market:[['Oracle','$2.05','06-12'],['GCP','$2.20','06-08']],
+     audit:[['06-12','market_sync','검토대기']],qGap:true,mGap:true},
+    {quotes:[['(direct 직판 — 공급견적 없음)','','','','']],
+     market:[['marketplace','₩1.11M','06-11']],
+     audit:[['06-11','direct_set','₩1.18M']],qGap:false,mGap:true}
+  ];
+  const head=document.getElementById('uhead'),tb=document.getElementById('ubody'),hint=document.getElementById('angleHint');
+  function render(a){
+    const A=ANGLES[a];hint.innerHTML=A.hint;
+    head.innerHTML='<tr><th style="width:18px"></th>'+A.cols.map(c=>'<th>'+c+'</th>').join('')+'<th style="width:120px">원천·액션</th></tr>';
+    tb.innerHTML=A.rows.map((r,i)=>{
+      const cells=r.map(c=>'<td>'+c+'</td>').join('');
+      return '<tr class="row" data-i="'+i+'"><td><span style="color:var(--faint)">▸</span></td>'+cells+
+        '<td><button class="raw-btn" data-raw="'+i+'">⤓ 원천</button> <span class="raw-btn" style="background:var(--panel-2);border-color:var(--line);color:var(--muted)">✎</span></td></tr>'+
+        rawRow(i,A.cols.length+2);}).join('');
+  }
+  function rawRow(i,span){
+    const d=RAW[i];
+    const q='<table class="rawtbl"><tr><th>공급사</th><th>단가</th><th>약정</th><th>상태</th><th>만료</th></tr>'+
+      d.quotes.map(x=>'<tr>'+x.map(y=>'<td>'+(y||'—')+'</td>').join('')+'</tr>').join('')+'</table>'+
+      (d.qGap?'<div class="apigap">⚠ 현재 confirmed만 노출 — pending/expired 보려면 신규 API 필요</div>':'<div class="apiok">✓ 전수 조회(가정) · status=* API 후</div>');
+    const m='<table class="rawtbl"><tr><th>경쟁사</th><th>시장가</th><th>수집일</th></tr>'+
+      d.market.map(x=>'<tr>'+x.map(y=>'<td>'+y+'</td>').join('')+'</tr>').join('')+'</table>'+
+      (d.mGap?'<div class="apigap">⚠ 시계열 히스토리 조회 API 없음 — market/prices?mapping_id 신규 필요</div>':'');
+    const au='<table class="rawtbl"><tr><th>일자</th><th>동작</th><th>상세</th></tr>'+
+      d.audit.map(x=>'<tr>'+x.map(y=>'<td>'+y+'</td>').join('')+'</tr>').join('')+'</table>'+
+      '<div class="apigap">⚠ 추출이력(iterations)·감사필터 API 없음 — review/[id]/iterations · audit?filter 신규</div>';
+    return '<tr class="rawrow" data-r="'+i+'"><td colspan="'+span+'"><div class="raw-in">'+
+      '<div class="dpanel"><div class="ph"><span><span class="tag cost">원천</span> 모든 공급견적</span></div>'+q+'</div>'+
+      '<div class="dpanel"><div class="ph"><span><span class="tag comp">원천</span> 시장가 시계열</span></div>'+m+'</div>'+
+      '<div class="dpanel"><div class="ph"><span><span class="tag ai">원천</span> 감사·이력</span></div>'+au+'</div>'+
+      '</div></td></tr>';
+  }
+  const seg=document.getElementById('angleSeg');
+  seg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+    [...seg.children].forEach(x=>x.classList.toggle('on',x===b));render(b.dataset.a);});
+  tb.addEventListener('click',e=>{
+    const rb=e.target.closest('.raw-btn[data-raw]');
+    if(rb){e.stopPropagation();const i=rb.dataset.raw;const rr=tb.querySelector('tr.rawrow[data-r="'+i+'"]');rr.classList.toggle('show');return;}
+    const row=e.target.closest('tr.row');if(!row)return;
+    const rr=tb.querySelector('tr.rawrow[data-r="'+row.dataset.i+'"]');rr.classList.toggle('show');});
+  render('sell');
+</script>
+</body>
+</html>
