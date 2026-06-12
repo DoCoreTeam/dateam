@@ -225,6 +225,8 @@ export async function POST(
       min_qty: typeof merged.min_qty === 'string' ? merged.min_qty : null,
       valid_until: typeof merged.valid_until === 'string' ? merged.valid_until : null,
       source_format: item.channel ?? 'own',
+      // 시장가 동기화(market_link) 유래면 출처 시장가 id 기록 — 086 부분 unique 가드로 중복 cost 차단
+      source_market_price_id: typeof merged.source_market_price_id === 'string' ? merged.source_market_price_id : null,
       ai_confidence: item.overall_confidence,
       status: 'confirmed',
       received_at: item.created_at,

@@ -5,6 +5,7 @@ import { useState, useMemo } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
+import { GPU_TERMS } from '@/lib/gpu/terms'
 import { RefreshCw, TrendingUp, AlertTriangle, Plus, X, BarChart2, Target, FileText, Pencil, Link2, Link2Off, DownloadCloud, PackagePlus } from 'lucide-react'
 import { formatSpec } from '@/lib/gpu/format-spec'
 import { SupplierBadge } from '@/components/gpu/SupplierBadge'
@@ -265,7 +266,7 @@ function judgeColor(j: string) {
 }
 
 // 분석 탭 컨텐츠
-function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI, onDeletePrice, onEditPrice, isAdmin, onLinkChanged, onIngest }: {
+function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI, onDeletePrice, onEditPrice, isAdmin, onLinkChanged }: {
   p: ProductGroup
   activeGroups: Set<string>
   fmt: (v: number) => string
@@ -275,7 +276,6 @@ function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI, onDele
   onEditPrice?: (price: MarketPriceForEdit) => void
   isAdmin?: boolean
   onLinkChanged?: () => void
-  onIngest?: (args: { marketPriceId: string; priceUsd: number; linkedSupplierName: string }) => void
 }) {
   // 최신 가격(나이 무관) 기준 — 신선도로 버리지 않음
   const pricedComps = p.competitors.filter(c => c.price_usd != null)
@@ -429,17 +429,6 @@ function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI, onDele
                         <span style={{ fontSize: 10, fontWeight: 700, color: vsCls, fontFamily: 'monospace' }}>
                           {vsTxt}
                         </span>
-                      )}
-                      {isAdmin && linkedName && x.price_id && x.price_usd != null && onIngest && (
-                        <button
-                          onClick={() => onIngest({ marketPriceId: x.price_id as string, priceUsd: x.price_usd as number, linkedSupplierName: linkedName })}
-                          title="이 시장가를 원가로 인입 (확인 후)"
-                          aria-label="시장가를 원가로 인입"
-                          className="gpu-link-badge"
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <DownloadCloud size={11} aria-hidden /> 원가 인입
-                        </button>
                       )}
                       {x.price_id && (
                         <div style={{ marginLeft: 'auto', display: 'flex', gap: 2 }}>
@@ -1252,109 +1241,6 @@ function SupplierLinkControl({
   )
 }
 
-// 시장가 → 원가 인입 확인 다이얼로그 (승인형, 자동 인입 금지)
-//   시장가·연결 공급사·예상 판매가 미리보기 + 경고 → 확인 시 POST ingest-cost.
-function IngestCostDialog({
-  marketPriceId, priceUsd, linkedSupplierName, marginPct, fmt, onClose, onDone,
-}: {
-  marketPriceId: string
-  priceUsd: number
-  linkedSupplierName: string
-  marginPct: number
-  fmt: (v: number) => string
-  onClose: () => void
-  onDone: () => void
-}) {
-  useEscClose(onClose)
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
-  const expectedSell = priceUsd * (1 + marginPct / 100)
-
-  const confirm = async () => {
-    setBusy(true); setErr(null)
-    try {
-      const res = await fetch('/api/pricing/gpu/market/ingest-cost', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ market_price_id: marketPriceId }),
-      })
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}))
-        if (res.status === 409) {
-          setErr(j.error ?? '이미 인입된 시장가입니다. 새 시장가 수집 후 다시 시도하세요.')
-        } else if (res.status === 400) {
-          setErr(j.error ?? '공급사 연결이 필요합니다.')
-        } else {
-          setErr(j.error ?? '원가 인입 실패')
-        }
-        return
-      }
-      onDone()
-    } catch {
-      setErr('원가 인입 실패')
-    } finally { setBusy(false) }
-  }
-
-  return (
-    <div
-      onClick={onClose}
-      className="gpu-modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="ingest-cost-title"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="gpu-modal-card gpu-modal-card--sm"
-      >
-        <div className="gpu-modal-header">
-          <span className="gpu-modal-header-icon">
-            <DownloadCloud size={14} aria-hidden />
-          </span>
-          <strong id="ingest-cost-title" className="gpu-modal-title">시장가를 원가로 인입</strong>
-          <button type="button" onClick={onClose} className="gpu-modal-close" aria-label="닫기"><X size={16} /></button>
-        </div>
-
-        <div className="gpu-modal-body">
-          <div className="gpu-ingest-preview-grid">
-            <div className="gpu-ingest-preview-box">
-              <div className="gpu-ingest-preview-label">경쟁사 시장가 (원가)</div>
-              <div className="gpu-ingest-preview-val">{fmt(priceUsd)}</div>
-            </div>
-            <div className="gpu-ingest-preview-box gpu-ingest-preview-box--info">
-              <div className="gpu-ingest-preview-label">예상 판매가 (마진 {marginPct}%)</div>
-              <div className="gpu-ingest-preview-val gpu-ingest-preview-val--info">{fmt(expectedSell)}</div>
-            </div>
-          </div>
-
-          <div className="gpu-ingest-link-note">
-            연결 공급사 <span className="gpu-link-badge"><Link2 size={11} aria-hidden />{linkedSupplierName}</span> 의 원가로 등록됩니다.
-          </div>
-
-          <div className="gpu-warning-banner">
-            <AlertTriangle size={15} aria-hidden />
-            <span>경쟁사 공시가 기반 원가입니다. 실제 매입 견적이 아니며, 인입 시점 가격으로 고정(스냅샷)됩니다.</span>
-          </div>
-
-          {err && <div className="gpu-field-error">{err}</div>}
-
-          <div className="gpu-modal-actions-end">
-            <button type="button" onClick={onClose} className="gpu-btn" disabled={busy}>취소</button>
-            <button
-              type="button"
-              onClick={confirm}
-              disabled={busy}
-              className="gpu-btn gpu-btn-primary"
-            >
-              <DownloadCloud size={14} aria-hidden />
-              {busy ? '인입 중…' : '원가로 인입'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false }: {
   onGoToPriceTable?: (modelName: string, productId: string) => void
@@ -1386,8 +1272,9 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false 
   // 검색 + Tier 필터 (다른 탭과 동일)
   const [search, setSearch] = useState('')
   const [tierFilter, setTierFilter] = useState(0)
-  // 원가 인입 다이얼로그 (admin) — 시장가→원가 승인형
-  const [ingestTarget, setIngestTarget] = useState<{ marketPriceId: string; priceUsd: number; linkedSupplierName: string; marginPct: number } | null>(null)
+  // 경쟁사 가격 동기화 — 연결 경쟁사 시장가를 공급원가로 동기화(변경분만 검토 대기)
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<string | null>(null)
 
   const { mutate: globalMutate } = useSWRConfig()
   const usdKrw = data?.usd_krw ?? 1400
@@ -1505,17 +1392,6 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false 
           onChanged={() => { mutateMappings(); mutate() }}
         />
       )}
-      {ingestTarget && (
-        <IngestCostDialog
-          marketPriceId={ingestTarget.marketPriceId}
-          priceUsd={ingestTarget.priceUsd}
-          linkedSupplierName={ingestTarget.linkedSupplierName}
-          marginPct={ingestTarget.marginPct}
-          fmt={fmt}
-          onClose={() => setIngestTarget(null)}
-          onDone={() => { setIngestTarget(null); mutate(); mutateGpu(globalMutate) }}
-        />
-      )}
 
       {/* ── 고정 헤더 ── */}
       <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1561,8 +1437,34 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false 
             <RefreshCw size={12} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }} />
             <span className="gpu-btn-text-mob">새로고침</span>
           </button>
+          {isAdmin && (
+            <button
+              className="gpu-btn gpu-promote-btn"
+              title={GPU_TERMS.syncDesc}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}
+              disabled={syncing}
+              onClick={async () => {
+                setSyncing(true); setSyncResult(null)
+                try {
+                  const res = await fetch('/api/pricing/gpu/market/sync-cost', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+                  const j = await res.json().catch(() => ({}))
+                  if (!res.ok) { setSyncResult(j.error ?? '동기화 실패'); return }
+                  setSyncResult(j.created > 0
+                    ? `${j.created}건 검토 대기 등록됨 (변경분) · ${j.skipped}건 변동 없음`
+                    : (j.message ?? `변경된 시장가가 없습니다 · ${j.skipped ?? 0}건 확인`))
+                  mutate(); mutateGpu(globalMutate)
+                } catch { setSyncResult('동기화 실패') } finally { setSyncing(false) }
+              }}
+            >
+              <DownloadCloud size={12} style={{ animation: syncing ? 'spin 0.8s linear infinite' : 'none' }} />
+              <span className="gpu-btn-text-mob">{syncing ? '동기화 중…' : GPU_TERMS.sync}</span>
+            </button>
+          )}
         </div>
       </div>
+      {syncResult && (
+        <div className="gpu-sync-result">{syncResult}</div>
+      )}
 
       {/* AI 새로고침 결과 */}
       {refreshResult && (() => {
@@ -2085,9 +1987,6 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false 
                             onEditPrice={setEditingMarketPrice}
                             isAdmin={isAdmin}
                             onLinkChanged={() => { mutate(); mutateGpu(globalMutate) }}
-                            onIngest={({ marketPriceId, priceUsd, linkedSupplierName }) =>
-                              setIngestTarget({ marketPriceId, priceUsd, linkedSupplierName, marginPct: productMargin(p) })
-                            }
                           />
                         )}
                         {currentTab === 'strategy' && (

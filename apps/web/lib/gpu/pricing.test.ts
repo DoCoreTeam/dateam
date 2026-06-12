@@ -194,7 +194,7 @@ test('cost 없고 list만 있으면 list 공시가를 고객가로 그대로(마
 test('인입 cost(market_link)는 일반 cost와 동일하게 effective→×(1+마진) sell로 자동 반영', () => {
   const raw = b200Raw()
   // 경쟁사 시장가 인입 견적: p1에 기존 최저(High Reso 3.24)보다 낮은 2.5 cost가 들어왔다고 가정.
-  // ingest-cost 라우트가 INSERT하는 행 형태: price_type='cost', valid_until=null.
+  // 동기화/검토 commit 경로가 INSERT하는 cost 견적 형태: price_type='cost', valid_until=null.
   raw.quotes = [
     ...raw.quotes,
     { product_id: 'p1', supplier_id: 'comp-sup', unit_price_usd: 2.5, gpu_count: 1, valid_until: null, price_type: 'cost' },

@@ -5210,6 +5210,18 @@ label.intake-tool-btn {
   cursor: pointer;
 }
 
+/* 경쟁사 가격 동기화 결과 안내 (시장비교 툴바 하단) */
+.gpu-sync-result {
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--brand);
+  background: var(--brand-soft);
+  border: var(--hairline) solid var(--brand);
+  border-radius: var(--radius);
+}
+
 /* 경쟁사 관리 탭 — 다중선택 액션바 */
 .gpu-bulkbar {
   display: flex;
