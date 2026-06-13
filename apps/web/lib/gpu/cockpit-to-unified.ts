@@ -23,6 +23,8 @@ export interface CockpitApiRow {
   cost_source: 'market_link' | 'quote'
   candidate_price_krw: number | null
   sell_price_krw: number | null // buildCatalog 최종 판매가(공시가 폴백 포함)
+  basis?: string | null // auto/selected/propagated/list/none
+  gcube_site_price_krw?: number | null // gcube 공시가
   margin_pct: number
   competitor_min_krw: number | null
   competitor_max_krw: number | null
@@ -66,6 +68,8 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
       sell_price_krw: sellPrice,
       margin_pct: margin,
       cost_source: p.cost_source,
+      basis: p.basis ?? null,
+      list_price_krw: p.gcube_site_price_krw ?? null,
       market_min_krw: p.competitor_min_krw,
       market_median_krw: marketMedian,
       market_max_krw: p.competitor_max_krw,

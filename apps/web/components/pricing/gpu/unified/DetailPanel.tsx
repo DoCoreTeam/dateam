@@ -40,7 +40,7 @@ interface QuoteRow {
   term: string | null
   status: string | null
   valid_until: string | null
-  suppliers?: { name?: string | null } | null
+  suppliers?: { name?: string | null; color?: string | null; logo_url?: string | null } | null
 }
 interface AuditRow {
   ts: string
@@ -153,11 +153,12 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
           <>
             <div className="gpu-udetail-kv">
               <span className="gpu-udetail-kv-k">{GPU_TERMS.lowestSupplyCost}</span>
-              <span className="gpu-udetail-kv-v">{mKrw(row.supply_cost_krw)}</span>
+              {/* 판매가가 있으면 공급원가 기준도 항상 표시: 실견적/전파 cost가 없으면 공시가(list)로 폴백 — 정합성 */}
+              <span className="gpu-udetail-kv-v">{mKrw(costBasisKrw(row))}</span>
             </div>
             <div className="gpu-udetail-kv">
               <span className="gpu-udetail-kv-k">출처</span>
-              <span className="gpu-udetail-kv-v">{row.cost_source === 'market_link' ? GPU_TERMS.followPrice : GPU_TERMS.realQuote}</span>
+              <span className="gpu-udetail-kv-v">{basisSourceLabel(row)}</span>
             </div>
             {quoteLoading && <p className="gpu-udetail-pending">불러오는 중…</p>}
             {!quoteLoading && (
@@ -170,7 +171,7 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                     const exp = expiryInfo(q.valid_until)
                     return (
                       <tr key={q.id}>
-                        <td>{q.suppliers?.name ?? '—'}</td>
+                        <td><SupplierCell name={q.suppliers?.name ?? null} color={q.suppliers?.color ?? null} logoUrl={q.suppliers?.logo_url ?? null} /></td>
                         <td className="gpu-mono">{mUsd(q.unit_price_usd)}</td>
                         <td>{q.term ?? '—'}</td>
                         <td>{statusLabel(q.status)}</td>
@@ -201,7 +202,11 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                     )
                   })}
                   {(quoteData?.quotes?.length ?? 0) === 0 && (
-                    <tr><td colSpan={6} className="gpu-udetail-tbl-empty">{GPU_TERMS.emptyList}</td></tr>
+                    <tr><td colSpan={6} className="gpu-udetail-tbl-empty">
+                      {row.sell_price_krw != null
+                        ? `직접 견적 없음 — ${basisSourceLabel(row)} 기준으로 판매가 산정됨`
+                        : GPU_TERMS.emptyList}
+                    </td></tr>
                   )}
                 </tbody>
               </table>
@@ -336,6 +341,39 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
         />
       )}
     </div>
+  )
+}
+
+/** 공급원가 기준값: 실견적/전파 cost 우선. 없고 판매가가 있으면(공시가 기반) 공시가 = 판매가 그 자체를 기준으로 표시.
+ *  → "판매가가 있는데 공급원가가 비어 보이는" 정합성 깨짐 방지. (공시가는 원가·마진 분해가 없어 판매가=기준) */
+function costBasisKrw(row: UnifiedRow): number | null {
+  if (row.supply_cost_krw != null) return row.supply_cost_krw
+  if (row.sell_price_krw != null) return row.list_price_krw ?? row.sell_price_krw
+  return null
+}
+
+/** 공급원가 출처 라벨: 추종가/전파 추정/공시가/실견적. */
+function basisSourceLabel(row: UnifiedRow): string {
+  if (row.cost_source === 'market_link') return GPU_TERMS.followPrice
+  switch (row.basis) {
+    case 'propagated': return '전파 추정'
+    case 'list': return '공시가(gcube)'
+    case 'none': return row.sell_price_krw != null ? '공시가(gcube)' : '—'
+    default: return GPU_TERMS.realQuote
+  }
+}
+
+/** 공급사 셀 — 로고(logo_url) + 이름. 로고 없거나 로드 실패 시 색 글자 아바타 폴백. */
+function SupplierCell({ name, color, logoUrl }: { name: string | null; color: string | null; logoUrl: string | null }) {
+  const [failed, setFailed] = useState(false)
+  const label = name ?? '—'
+  return (
+    <span className="gpu-udetail-sup">
+      {logoUrl && !failed
+        ? <img className="gpu-udetail-sup-logo" src={logoUrl} alt={label} onError={() => setFailed(true)} />
+        : <span className="gpu-udetail-sup-logo gpu-udetail-sup-logo--ph" style={{ background: color ?? 'var(--gpu-border)' }}>{label.charAt(0)}</span>}
+      <span>{label}</span>
+    </span>
   )
 }
 

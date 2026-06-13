@@ -34,6 +34,8 @@ export interface UnifiedRow {
   sell_price_krw: number | null
   margin_pct: number | null
   cost_source: string | null // 'market_link' → 추종가, 그 외 → 실견적/직판
+  basis: string | null // 공급원가 기준: auto(실견적)/selected/propagated(전파)/list(공시가)/none
+  list_price_krw: number | null // gcube 공시가(list 기준일 때 공급원가 맥락 표시용)
   // 시장
   market_min_krw: number | null
   market_median_krw: number | null
@@ -113,11 +115,13 @@ export function resolveCell(row: UnifiedRow, col: ViewColumn, currency: Currency
         mono, kind: 'badge',
       }
     case 'marketMin':
-      return { text: money(row.market_min_krw), tone: 'default', mono, kind: 'text' }
+      // 최저가 = 초록(경쟁력 신호), 값 없으면 muted
+      return { text: money(row.market_min_krw), tone: row.market_min_krw != null ? 'ok' : 'muted', mono, kind: 'text' }
     case 'marketMedian':
       return { text: money(row.market_median_krw), tone: 'default', mono, kind: 'text' }
     case 'marketMax':
-      return { text: money(row.market_max_krw), tone: 'default', mono, kind: 'text' }
+      // 최고가 = 빨강(고가 신호), 값 없으면 muted
+      return { text: money(row.market_max_krw), tone: row.market_max_krw != null ? 'danger' : 'muted', mono, kind: 'text' }
     case 'marketDev':
       return { text: pct(row.market_dev_pct), tone: devTone(row.market_dev_pct), mono, kind: 'badge' }
     case 'sampleCount':

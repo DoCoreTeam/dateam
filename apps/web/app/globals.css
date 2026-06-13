@@ -5569,6 +5569,11 @@ label.intake-tool-btn {
 .gpu-unified-row--sel { background: var(--info-bg); border-left: var(--border-w-2) solid var(--gpu-accent); padding-left: calc(var(--space-3) - var(--border-w-2)); }
 .gpu-unified-cell { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .gpu-unified-cell--left { text-align: left; }
+.gpu-unified-cell--sortable { background: none; border: none; padding: 0; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.gpu-unified-cell--sortable.gpu-unified-cell--right { justify-content: flex-end; }
+.gpu-unified-cell--sortable:hover { color: var(--text); }
+.gpu-unified-cell--sortable.is-sorted { color: var(--brand); font-weight: 700; }
+.gpu-unified-sortcue { font-size: var(--fs-2xs); }
 .gpu-unified-cell--right { text-align: right; }
 .gpu-unified-cell--center { text-align: center; }
 .gpu-unified-model { font-weight: 700; }
@@ -5613,6 +5618,9 @@ label.intake-tool-btn {
 .gpu-badge-warn { background: var(--warning-bg); color: var(--warning); border: var(--hairline) solid var(--warning-border); margin-left: var(--space-1); }
 .gpu-badge-danger { background: var(--danger-bg); color: var(--danger); border: var(--hairline) solid var(--danger-border); margin-left: var(--space-1); }
 .gpu-udetail-body { display: flex; flex-direction: column; gap: var(--space-1); }
+.gpu-udetail-sup { display: inline-flex; align-items: center; gap: var(--space-2); }
+.gpu-udetail-sup-logo { width: 20px; height: 20px; border-radius: var(--radius); object-fit: contain; background: #fff; border: var(--hairline) solid var(--gpu-border); flex-shrink: 0; }
+.gpu-udetail-sup-logo--ph { display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: var(--fs-2xs); font-weight: 700; }
 .gpu-udetail-tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); margin-top: var(--space-2); }
 .gpu-udetail-tbl th { text-align: left; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--gpu-muted); font-weight: 600; padding: var(--space-1) var(--space-2); border-bottom: var(--hairline) solid var(--gpu-border); }
 .gpu-udetail-tbl td { padding: var(--space-2); border-bottom: var(--hairline) dashed var(--gpu-border); color: var(--text); }

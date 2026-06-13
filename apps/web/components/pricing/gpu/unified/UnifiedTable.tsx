@@ -30,21 +30,66 @@ function memGB(memory: string | null): number {
   return m ? parseFloat(m[1]) : Number.POSITIVE_INFINITY
 }
 
+/** 컬럼 키 → 정렬 원시값. 빈값(null/'')은 정렬 방향과 무관하게 항상 맨 뒤(아래)로 보낸다. */
+function sortValue(row: UnifiedRow, key: string): number | string | null {
+  switch (key) {
+    case 'model': return row.model_name
+    case 'tier': return row.tier
+    case 'supplyCost': return row.supply_cost_krw
+    case 'autoPrice': return row.auto_price_krw
+    case 'sellPrice': return row.sell_price_krw
+    case 'margin': return row.margin_pct
+    case 'marketMin': return row.market_min_krw
+    case 'marketMedian': return row.market_median_krw
+    case 'marketMax': return row.market_max_krw
+    case 'marketDev': return row.market_dev_pct
+    case 'sampleCount': return row.sample_count
+    case 'supplier': return row.supplier_name
+    case 'availableQty': return row.available_qty
+    case 'stockStatus': return row.stock_status
+    case 'discountRate': return row.discount_rate
+    case 'customerPrice': return row.customer_price_krw
+    default: return null
+  }
+}
+
 export default function UnifiedTable({ rows, loading = false, error = null, usdKrw = 1, onRegisterQuote, onManageMapping }: UnifiedTableProps) {
   // 하이드레이션 안전: 서버/첫 렌더는 DEFAULT_VIEW, mount 후 저장된 보기로 복원(localStorage 불일치 방지).
   const [view, setView] = useState<GpuViewId>(DEFAULT_VIEW)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [currencyMode, setCurrencyMode] = useState<CurrencyMode>('KRW')
+  // 정렬: null이면 기본(모델·용량). 컬럼 헤더 클릭 시 해당 컬럼 asc→desc→해제 순환.
+  const [sortConfig, setSortConfig] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(null)
   useEffect(() => { setView(restoreSavedView()) }, [])
 
   const currency: CurrencyCtx = { mode: currencyMode, usdKrw }
   const preset = getViewPreset(view)
-  // 정렬: 모델명(숫자 인식, A10<A100) → 같은 모델은 용량(GB) 오름차순. 목록 뒤죽박죽 방지.
-  const sortedRows = [...rows].sort((a, b) => {
+  const toggleSort = (key: string) => {
+    setSortConfig((prev) =>
+      prev?.key !== key ? { key, dir: 'asc' } : prev.dir === 'asc' ? { key, dir: 'desc' } : null,
+    )
+  }
+  // 기본 정렬: 모델명(숫자 인식, A10<A100) → 같은 모델은 용량(GB) 오름차순. 목록 뒤죽박죽 방지.
+  const defaultCmp = (a: UnifiedRow, b: UnifiedRow) => {
     const m = a.model_name.localeCompare(b.model_name, 'en', { numeric: true, sensitivity: 'base' })
-    if (m !== 0) return m
-    return memGB(a.memory) - memGB(b.memory)
+    return m !== 0 ? m : memGB(a.memory) - memGB(b.memory)
+  }
+  const sortedRows = [...rows].sort((a, b) => {
+    if (!sortConfig) return defaultCmp(a, b)
+    const av = sortValue(a, sortConfig.key)
+    const bv = sortValue(b, sortConfig.key)
+    const aEmpty = av == null || av === ''
+    const bEmpty = bv == null || bv === ''
+    // 빈값은 방향 무관 항상 아래로
+    if (aEmpty && bEmpty) return defaultCmp(a, b)
+    if (aEmpty) return 1
+    if (bEmpty) return -1
+    let c: number
+    if (typeof av === 'number' && typeof bv === 'number') c = av - bv
+    else c = String(av).localeCompare(String(bv), 'en', { numeric: true })
+    if (c === 0) c = defaultCmp(a, b)
+    return sortConfig.dir === 'asc' ? c : -c
   })
   const q = query.trim().toLowerCase()
   const visibleRows = q
@@ -77,15 +122,23 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
         {/* 좌: 목록 (마스터) */}
         <div className="gpu-unified-list" role="table" aria-label={`통합 표 — ${preset.label}`}>
           <div className="gpu-unified-row gpu-unified-row--head" role="row">
-            {preset.columns.map((col) => (
-              <span
-                key={col.key}
-                role="columnheader"
-                className={`gpu-unified-cell gpu-unified-cell--${col.align}${col.hideMobile ? ' gpu-unified-cell--hide-mobile' : ''}`}
-              >
-                {col.label}
-              </span>
-            ))}
+            {preset.columns.map((col) => {
+              const active = sortConfig?.key === col.key
+              return (
+                <button
+                  key={col.key}
+                  type="button"
+                  role="columnheader"
+                  className={`gpu-unified-cell gpu-unified-cell--${col.align}${col.hideMobile ? ' gpu-unified-cell--hide-mobile' : ''} gpu-unified-cell--sortable${active ? ' is-sorted' : ''}`}
+                  onClick={() => toggleSort(col.key)}
+                  aria-sort={active ? (sortConfig!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  title={`${col.label} 정렬`}
+                >
+                  {col.label}
+                  <span className="gpu-unified-sortcue">{active ? (sortConfig!.dir === 'asc' ? '↑' : '↓') : ''}</span>
+                </button>
+              )
+            })}
           </div>
 
           {loading && <div className="gpu-unified-state">불러오는 중…</div>}

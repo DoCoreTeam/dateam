@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     const db = supabase as any
     let query = db
       .from('supply_quotes')
-      .select('*, suppliers(name, color, location)')
+      .select('*, suppliers(name, color, location, logo_url)')
       .eq('product_id', productId)
       .is('deleted_at', null)
 
