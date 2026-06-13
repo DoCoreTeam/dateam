@@ -152,11 +152,9 @@ function statusTone(status: string | null): CellTone {
   return 'muted'
 }
 
-/** Tier 번호 → 명칭(기획서 표기). 전용 고성능/점유형/간헐 공급. */
+/** Tier 번호 → 라벨. 통합 표는 Tier 1/2/3 숫자 표기. */
 export function tierName(tier: number | null): string {
-  if (tier === 1) return T.tier1
-  if (tier === 2) return T.tier2
-  if (tier === 3) return T.tier3
+  if (tier === 1 || tier === 2 || tier === 3) return `Tier ${tier}`
   return '—'
 }
 

@@ -23,6 +23,13 @@ interface UnifiedTableProps {
   onManageMapping?: () => void
 }
 
+/** 메모리 문자열("160GB")에서 GB 숫자 추출. 없으면 맨 뒤로(Infinity). */
+function memGB(memory: string | null): number {
+  if (!memory) return Number.POSITIVE_INFINITY
+  const m = memory.match(/(\d+(?:\.\d+)?)/)
+  return m ? parseFloat(m[1]) : Number.POSITIVE_INFINITY
+}
+
 export default function UnifiedTable({ rows, loading = false, error = null, usdKrw = 1, onRegisterQuote, onManageMapping }: UnifiedTableProps) {
   // 하이드레이션 안전: 서버/첫 렌더는 DEFAULT_VIEW, mount 후 저장된 보기로 복원(localStorage 불일치 방지).
   const [view, setView] = useState<GpuViewId>(DEFAULT_VIEW)
@@ -33,13 +40,19 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
 
   const currency: CurrencyCtx = { mode: currencyMode, usdKrw }
   const preset = getViewPreset(view)
+  // 정렬: 모델명(숫자 인식, A10<A100) → 같은 모델은 용량(GB) 오름차순. 목록 뒤죽박죽 방지.
+  const sortedRows = [...rows].sort((a, b) => {
+    const m = a.model_name.localeCompare(b.model_name, 'en', { numeric: true, sensitivity: 'base' })
+    if (m !== 0) return m
+    return memGB(a.memory) - memGB(b.memory)
+  })
   const q = query.trim().toLowerCase()
   const visibleRows = q
-    ? rows.filter((r) =>
+    ? sortedRows.filter((r) =>
         r.model_name.toLowerCase().includes(q) ||
         (r.memory ?? '').toLowerCase().includes(q) ||
         (r.supplier_name ?? '').toLowerCase().includes(q))
-    : rows
+    : sortedRows
   const selectedRow = rows.find((r) => r.id === selectedId) ?? null
 
   return (
