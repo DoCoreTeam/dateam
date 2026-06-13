@@ -5,9 +5,16 @@
 //   - resolveCell 은 계산하지 않는다. fmtKRW/fmtUSD 포맷 + GPU_TERMS 라벨만(R1).
 
 import { GPU_TERMS } from './terms'
-import { fmtKRW } from './format-price'
+import { fmtMoneyFromKrw } from './format-price'
+import type { CurrencyMode } from './format-price'
 import { deviationSignal } from './price-signal'
 import type { ViewColumn } from './unified-views'
+
+export interface CurrencyCtx {
+  mode: CurrencyMode
+  usdKrw: number
+}
+const DEFAULT_CURRENCY: CurrencyCtx = { mode: 'KRW', usdKrw: 1 }
 
 /** 시장 비교 — 경쟁사별 한 줄(회사명+가격+수집일). cockpit competitors[]에서 어댑터가 채움. */
 export interface UnifiedCompetitor {
@@ -85,19 +92,20 @@ function devTone(v: number | null): CellTone {
 }
 
 /** 컬럼 1칸 값 해석(포맷·라벨·색조·렌더형태). 계산 없음. 기획서 질감(배지/모노/강조) 반영. */
-export function resolveCell(row: UnifiedRow, col: ViewColumn): ResolvedCell {
+export function resolveCell(row: UnifiedRow, col: ViewColumn, currency: CurrencyCtx = DEFAULT_CURRENCY): ResolvedCell {
   const mono = !!col.mono
+  const money = (krw: number | null) => fmtMoneyFromKrw(krw, currency.mode, currency.usdKrw)
   switch (col.key) {
     case 'model':
       return { text: row.model_name, tone: 'default', mono: false, kind: 'model' }
     case 'tier':
       return { text: tierName(row.tier), tone: tierTone(row.tier), mono: false, kind: 'badge' }
     case 'supplyCost':
-      return { text: fmtKRW(row.supply_cost_krw), tone: 'default', mono, kind: 'text' }
+      return { text: money(row.supply_cost_krw), tone: 'default', mono, kind: 'text' }
     case 'autoPrice':
-      return { text: fmtKRW(row.auto_price_krw), tone: 'muted', mono, kind: 'text' }
+      return { text: money(row.auto_price_krw), tone: 'muted', mono, kind: 'text' }
     case 'sellPrice':
-      return { text: fmtKRW(row.sell_price_krw), tone: 'sell', mono, kind: 'sell' }
+      return { text: money(row.sell_price_krw), tone: 'sell', mono, kind: 'sell' }
     case 'margin':
       return {
         text: row.margin_pct == null ? '측정불가' : pct(row.margin_pct),
@@ -105,11 +113,11 @@ export function resolveCell(row: UnifiedRow, col: ViewColumn): ResolvedCell {
         mono, kind: 'badge',
       }
     case 'marketMin':
-      return { text: fmtKRW(row.market_min_krw), tone: 'default', mono, kind: 'text' }
+      return { text: money(row.market_min_krw), tone: 'default', mono, kind: 'text' }
     case 'marketMedian':
-      return { text: fmtKRW(row.market_median_krw), tone: 'default', mono, kind: 'text' }
+      return { text: money(row.market_median_krw), tone: 'default', mono, kind: 'text' }
     case 'marketMax':
-      return { text: fmtKRW(row.market_max_krw), tone: 'default', mono, kind: 'text' }
+      return { text: money(row.market_max_krw), tone: 'default', mono, kind: 'text' }
     case 'marketDev':
       return { text: pct(row.market_dev_pct), tone: devTone(row.market_dev_pct), mono, kind: 'badge' }
     case 'sampleCount':
@@ -131,7 +139,7 @@ export function resolveCell(row: UnifiedRow, col: ViewColumn): ResolvedCell {
     case 'discountRate':
       return { text: row.discount_rate != null ? `-${(row.discount_rate * 100).toFixed(0)}%` : '—', tone: 'ok', mono, kind: 'badge' }
     case 'customerPrice':
-      return { text: fmtKRW(row.customer_price_krw), tone: 'sell', mono, kind: 'sell' }
+      return { text: money(row.customer_price_krw), tone: 'sell', mono, kind: 'sell' }
     default:
       return { text: '—', tone: 'muted', mono, kind: 'text' }
   }

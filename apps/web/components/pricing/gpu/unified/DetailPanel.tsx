@@ -11,7 +11,8 @@ import useSWR from 'swr'
 import dynamic from 'next/dynamic'
 import { fetcher } from '@/lib/swr-config'
 import { GPU_TERMS } from '@/lib/gpu/terms'
-import { fmtKRW, fmtUSD } from '@/lib/gpu/format-price'
+import { fmtMoneyFromKrw, fmtMoneyFromUsd } from '@/lib/gpu/format-price'
+import type { CurrencyCtx } from '@/lib/gpu/unified-row'
 import { expiryState } from '@/lib/gpu/expiry'
 import { auditActionLabel } from '@/lib/gpu/audit-labels'
 import { tierName } from '@/lib/gpu/unified-row'
@@ -54,13 +55,17 @@ interface MarketPriceRow {
 
 interface DetailPanelProps {
   row: UnifiedRow | null
+  /** 표시 통화 — 좌측 목록과 동일 모드를 따른다(₩/$ 일관). */
+  currency?: CurrencyCtx
   /** 실견적 등록 — 기존 통합 입력 플로우로 이동(부모가 탭 전환). */
   onRegisterQuote?: () => void
   /** 매핑 관리 — 기존 경쟁사 매핑 관리 화면으로 이동(부모가 탭 전환). */
   onManageMapping?: () => void
 }
 
-export default function DetailPanel({ row, onRegisterQuote, onManageMapping }: DetailPanelProps) {
+export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }, onRegisterQuote, onManageMapping }: DetailPanelProps) {
+  const mKrw = (krw: number | null) => fmtMoneyFromKrw(krw, currency.mode, currency.usdKrw)
+  const mUsd = (usd: number | null) => fmtMoneyFromUsd(usd, currency.mode, currency.usdKrw)
   const [tab, setTab] = useState<DetailTab>('cost')
   const [editing, setEditing] = useState<QuoteForEdit | null>(null)
   const [marketEdit, setMarketEdit] = useState<MarketPriceForEdit | null>(null)
@@ -123,7 +128,7 @@ export default function DetailPanel({ row, onRegisterQuote, onManageMapping }: D
           </span>
         </div>
         <div className="gpu-udetail-sub">
-          {row.memory ?? '—'} · {GPU_TERMS.sellPrice} <strong>{fmtKRW(row.sell_price_krw)}</strong>
+          {row.memory ?? '—'} · {GPU_TERMS.sellPrice} <strong>{mKrw(row.sell_price_krw)}</strong>
           {' · '}
           {GPU_TERMS.margin} {row.margin_pct == null ? '측정불가' : `+${row.margin_pct.toFixed(0)}%`}
         </div>
@@ -148,7 +153,7 @@ export default function DetailPanel({ row, onRegisterQuote, onManageMapping }: D
           <>
             <div className="gpu-udetail-kv">
               <span className="gpu-udetail-kv-k">{GPU_TERMS.lowestSupplyCost}</span>
-              <span className="gpu-udetail-kv-v">{fmtKRW(row.supply_cost_krw)}</span>
+              <span className="gpu-udetail-kv-v">{mKrw(row.supply_cost_krw)}</span>
             </div>
             <div className="gpu-udetail-kv">
               <span className="gpu-udetail-kv-k">출처</span>
@@ -166,7 +171,7 @@ export default function DetailPanel({ row, onRegisterQuote, onManageMapping }: D
                     return (
                       <tr key={q.id}>
                         <td>{q.suppliers?.name ?? '—'}</td>
-                        <td className="gpu-mono">{fmtUSD(q.unit_price_usd)}</td>
+                        <td className="gpu-mono">{mUsd(q.unit_price_usd)}</td>
                         <td>{q.term ?? '—'}</td>
                         <td>{statusLabel(q.status)}</td>
                         <td>
@@ -215,11 +220,11 @@ export default function DetailPanel({ row, onRegisterQuote, onManageMapping }: D
           <>
             <div className="gpu-udetail-kv">
               <span className="gpu-udetail-kv-k">중앙값</span>
-              <span className="gpu-udetail-kv-v">{fmtKRW(row.market_median_krw)}</span>
+              <span className="gpu-udetail-kv-v">{mKrw(row.market_median_krw)}</span>
             </div>
             <div className="gpu-udetail-kv">
               <span className="gpu-udetail-kv-k">최저~최고</span>
-              <span className="gpu-udetail-kv-v">{fmtKRW(row.market_min_krw)} ~ {fmtKRW(row.market_max_krw)}</span>
+              <span className="gpu-udetail-kv-v">{mKrw(row.market_min_krw)} ~ {mKrw(row.market_max_krw)}</span>
             </div>
             <div className="gpu-udetail-kv">
               <span className="gpu-udetail-kv-k">표본</span>
@@ -232,7 +237,7 @@ export default function DetailPanel({ row, onRegisterQuote, onManageMapping }: D
                 {row.competitors.map((c, i) => (
                   <tr key={`${c.company_name}-${i}`}>
                     <td>{c.company_name}</td>
-                    <td className="gpu-mono">{fmtKRW(c.price_krw)}</td>
+                    <td className="gpu-mono">{mKrw(c.price_krw)}</td>
                     <td className="gpu-mono">{c.recorded_at ? formatTs(c.recorded_at) : '—'}</td>
                   </tr>
                 ))}

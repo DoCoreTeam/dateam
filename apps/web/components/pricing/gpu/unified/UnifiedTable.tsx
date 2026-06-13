@@ -10,23 +10,28 @@ import DetailPanel from './DetailPanel'
 import { getViewPreset, DEFAULT_VIEW } from '@/lib/gpu/unified-views'
 import type { GpuViewId } from '@/lib/gpu/unified-views'
 import { resolveCell } from '@/lib/gpu/unified-row'
-import type { UnifiedRow } from '@/lib/gpu/unified-row'
+import type { UnifiedRow, CurrencyCtx } from '@/lib/gpu/unified-row'
+import type { CurrencyMode } from '@/lib/gpu/format-price'
 
 interface UnifiedTableProps {
   rows: UnifiedRow[]
   loading?: boolean
   error?: string | null
+  /** 표시 통화 환산 환율(1 USD = ? KRW). cockpit usd_krw. */
+  usdKrw?: number
   onRegisterQuote?: () => void
   onManageMapping?: () => void
 }
 
-export default function UnifiedTable({ rows, loading = false, error = null, onRegisterQuote, onManageMapping }: UnifiedTableProps) {
+export default function UnifiedTable({ rows, loading = false, error = null, usdKrw = 1, onRegisterQuote, onManageMapping }: UnifiedTableProps) {
   // 하이드레이션 안전: 서버/첫 렌더는 DEFAULT_VIEW, mount 후 저장된 보기로 복원(localStorage 불일치 방지).
   const [view, setView] = useState<GpuViewId>(DEFAULT_VIEW)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [currencyMode, setCurrencyMode] = useState<CurrencyMode>('KRW')
   useEffect(() => { setView(restoreSavedView()) }, [])
 
+  const currency: CurrencyCtx = { mode: currencyMode, usdKrw }
   const preset = getViewPreset(view)
   const q = query.trim().toLowerCase()
   const visibleRows = q
@@ -48,6 +53,11 @@ export default function UnifiedTable({ rows, loading = false, error = null, onRe
           />
         </div>
         <ViewSwitcher value={view} onChange={setView} />
+        {/* 통화 토글 — 기존 가격표와 동일(원/달러). 모든 금액이 이 모드를 따른다. */}
+        <div className="gpu-seg gpu-unified-cur" role="group" aria-label="표시 통화">
+          <button type="button" className={currencyMode === 'KRW' ? 'on' : ''} onClick={() => setCurrencyMode('KRW')} title="원화 기준">₩ 원</button>
+          <button type="button" className={currencyMode === 'USD' ? 'on' : ''} onClick={() => setCurrencyMode('USD')} title="달러 기준">$ 달러</button>
+        </div>
       </div>
 
       <div className="gpu-unified-split">
@@ -84,7 +94,7 @@ export default function UnifiedTable({ rows, loading = false, error = null, onRe
                   onClick={() => setSelectedId(row.id)}
                 >
                   {preset.columns.map((col) => {
-                    const cell = resolveCell(row, col)
+                    const cell = resolveCell(row, col, currency)
                     const base = `gpu-unified-cell gpu-unified-cell--${col.align}${col.hideMobile ? ' gpu-unified-cell--hide-mobile' : ''}`
                     if (cell.kind === 'model') {
                       return (
@@ -133,7 +143,7 @@ export default function UnifiedTable({ rows, loading = false, error = null, onRe
               ← 목록
             </button>
           )}
-          <DetailPanel row={selectedRow} onRegisterQuote={onRegisterQuote} onManageMapping={onManageMapping} />
+          <DetailPanel row={selectedRow} currency={currency} onRegisterQuote={onRegisterQuote} onManageMapping={onManageMapping} />
         </div>
       </div>
     </div>

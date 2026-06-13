@@ -30,6 +30,7 @@ export default function UnifiedTableConnected({ onRegisterQuote, onManageMapping
       rows={rows}
       loading={isLoading}
       error={error ? '불러오기에 실패했습니다.' : null}
+      usdKrw={data?.usd_krw ?? 1}
       onRegisterQuote={onRegisterQuote}
       onManageMapping={onManageMapping}
     />
