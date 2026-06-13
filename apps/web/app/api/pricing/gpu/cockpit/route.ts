@@ -35,6 +35,19 @@ interface CompetitorEntry {
   recorded_at: string | null
   /** 이 경쟁사가 공급사로 연결되어 있으면 공급사명, 아니면 null (연계 배지) */
   linked_supplier_name: string | null
+  /** 경쟁사 로고 — website 도메인 favicon(별도 컬럼 없이 파생). 없으면 null. */
+  logo_url: string | null
+}
+
+/** website_url → Google favicon URL(공급사 로고와 동일 방식). 도메인 없으면 null. */
+function faviconFromUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  try {
+    const host = new URL(url.startsWith('http') ? url : `https://${url}`).hostname
+    return host ? `https://www.google.com/s2/favicons?sz=128&domain=${host}` : null
+  } catch {
+    return null
+  }
 }
 
 const STRATEGIC_HISTORY_LIMIT = 5
@@ -166,7 +179,7 @@ export async function GET() {
     // 3. 경쟁사 가격 — competitor_product_mapping + market_prices 일괄 조회 (N+1 방지)
     const { data: mappings, error: mapErr } = await db
       .from('competitor_product_mapping')
-      .select('id, gpu_product_id, competitors!competitor_id(name, supplier_id)')
+      .select('id, gpu_product_id, competitors!competitor_id(name, supplier_id, website_url)')
       .eq('is_active', true)
       .in('gpu_product_id', productIds)
 
@@ -226,18 +239,19 @@ export async function GET() {
     }
 
     // mapping_id → { gpu_product_id, company_name, linked_supplier_name }
-    const mappingMeta = new Map<string, { gpu_product_id: string; company_name: string; linked_supplier_name: string | null }>()
+    const mappingMeta = new Map<string, { gpu_product_id: string; company_name: string; linked_supplier_name: string | null; logo_url: string | null }>()
     for (const m of mappings ?? []) {
       const row = m as {
         id: string
         gpu_product_id: string
-        competitors: { name: string; supplier_id?: string | null } | null
+        competitors: { name: string; supplier_id?: string | null; website_url?: string | null } | null
       }
       const supId = row.competitors?.supplier_id ?? null
       mappingMeta.set(row.id, {
         gpu_product_id: row.gpu_product_id,
         company_name: row.competitors?.name ?? '경쟁사 미지정',
         linked_supplier_name: supId ? (linkedSupplierNameMap.get(supId) ?? null) : null,
+        logo_url: faviconFromUrl(row.competitors?.website_url),
       })
     }
 
@@ -266,6 +280,7 @@ export async function GET() {
         price_krw: krw,
         recorded_at: priceData.recorded_at,
         linked_supplier_name: meta.linked_supplier_name,
+        logo_url: meta.logo_url,
       })
       competitorsByProduct.set(pid, list)
     })

@@ -40,6 +40,7 @@ interface QuoteRow {
   term: string | null
   status: string | null
   valid_until: string | null
+  price_type: string | null // 'list'(공시가)는 공급원가 견적표에서 제외
   suppliers?: { name?: string | null; color?: string | null; logo_url?: string | null } | null
 }
 interface AuditRow {
@@ -108,6 +109,8 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
   )
   // 시장가 수정 대상 = 첫 매핑의 최신 시세 행(시장가 수정 모달은 price_usd·notes만 편집).
   const latestMarketPrice = priceHistData?.prices?.[0] ?? null
+  // 공급원가 견적 = 실제 매입원가만(list=공시 판매가 제외).
+  const costQuotes = (quoteData?.quotes ?? []).filter((q) => q.price_type !== 'list')
 
   if (!row) {
     return (
@@ -167,7 +170,8 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                   <tr><th>{GPU_TERMS.supplier}</th><th>단가</th><th>약정</th><th>상태</th><th>만료</th><th></th></tr>
                 </thead>
                 <tbody>
-                  {(quoteData?.quotes ?? []).map((q) => {
+                  {/* 공급원가 견적표 = 실제 매입원가만. price_type='list'(우리 공시 판매가, 예: gcube)는 원가 아님 → 제외 */}
+                  {costQuotes.map((q) => {
                     const exp = expiryInfo(q.valid_until)
                     return (
                       <tr key={q.id}>
@@ -201,10 +205,10 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                       </tr>
                     )
                   })}
-                  {(quoteData?.quotes?.length ?? 0) === 0 && (
+                  {costQuotes.length === 0 && (
                     <tr><td colSpan={6} className="gpu-udetail-tbl-empty">
                       {row.sell_price_krw != null
-                        ? `직접 견적 없음 — ${basisSourceLabel(row)} 기준으로 판매가 산정됨`
+                        ? `직접 매입 견적 없음 — ${basisSourceLabel(row)}${row.cost_supplier_name ? ` (${row.cost_supplier_name})` : ''} 기준으로 판매가 산정됨`
                         : GPU_TERMS.emptyList}
                     </td></tr>
                   )}
@@ -241,7 +245,7 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
               <tbody>
                 {row.competitors.map((c, i) => (
                   <tr key={`${c.company_name}-${i}`}>
-                    <td>{c.company_name}</td>
+                    <td><SupplierCell name={c.company_name} color={null} logoUrl={c.logo_url} /></td>
                     <td className="gpu-mono">{mKrw(c.price_krw)}</td>
                     <td className="gpu-mono">{c.recorded_at ? formatTs(c.recorded_at) : '—'}</td>
                   </tr>
@@ -344,21 +348,22 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
   )
 }
 
-/** 공급원가 기준값: 실견적/전파 cost 우선. 없고 판매가가 있으면(공시가 기반) 공시가 = 판매가 그 자체를 기준으로 표시.
- *  → "판매가가 있는데 공급원가가 비어 보이는" 정합성 깨짐 방지. (공시가는 원가·마진 분해가 없어 판매가=기준) */
+/** 공급원가 기준값 = buildCatalog 실효 공급원가(실견적 또는 per-GPU 전파). 공시가(list)는 원가가 아니므로 폴백 금지.
+ *  판매가가 있는데 cost가 없으면(공시가 기반 구성) 공시가=판매가 자체를 기준으로 표시. */
 function costBasisKrw(row: UnifiedRow): number | null {
   if (row.supply_cost_krw != null) return row.supply_cost_krw
   if (row.sell_price_krw != null) return row.list_price_krw ?? row.sell_price_krw
   return null
 }
 
-/** 공급원가 출처 라벨: 추종가/전파 추정/공시가/실견적. */
+/** 공급원가 출처 라벨: 추종가/전파 추정/공시가/실견적. is_propagated면 전파 우선. */
 function basisSourceLabel(row: UnifiedRow): string {
   if (row.cost_source === 'market_link') return GPU_TERMS.followPrice
+  if (row.is_propagated) return '전파 추정'
   switch (row.basis) {
     case 'propagated': return '전파 추정'
-    case 'list': return '공시가(gcube)'
-    case 'none': return row.sell_price_krw != null ? '공시가(gcube)' : '—'
+    case 'list': return '공시가'
+    case 'none': return row.sell_price_krw != null && row.supply_cost_krw == null ? '공시가' : GPU_TERMS.realQuote
     default: return GPU_TERMS.realQuote
   }
 }

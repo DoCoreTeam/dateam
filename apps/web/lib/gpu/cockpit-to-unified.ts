@@ -12,6 +12,7 @@ interface CockpitCompetitor {
   company_name: string
   price_krw: number
   recorded_at: string | null
+  logo_url?: string | null
 }
 
 export interface CockpitApiRow {
@@ -24,6 +25,8 @@ export interface CockpitApiRow {
   candidate_price_krw: number | null
   sell_price_krw: number | null // buildCatalog 최종 판매가(공시가 폴백 포함)
   basis?: string | null // auto/selected/propagated/list/none
+  is_propagated?: boolean
+  effective_supplier?: string | null // 공급원가 기준 공급사명(전파 원본/실견적)
   gcube_site_price_krw?: number | null // gcube 공시가
   margin_pct: number
   competitor_min_krw: number | null
@@ -69,6 +72,9 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
       margin_pct: margin,
       cost_source: p.cost_source,
       basis: p.basis ?? null,
+      is_propagated: p.is_propagated ?? false,
+      // 전파인데 원본 공급사 미상이면 현재 공급사로 폴백하지 않음(자기참조 라벨 방지, DC-REV MED-2)
+      cost_supplier_name: p.effective_supplier ?? (p.is_propagated ? null : supplierName),
       list_price_krw: p.gcube_site_price_krw ?? null,
       market_min_krw: p.competitor_min_krw,
       market_median_krw: marketMedian,
@@ -81,6 +87,7 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
         company_name: c.company_name,
         price_krw: c.price_krw,
         recorded_at: c.recorded_at,
+        logo_url: c.logo_url ?? null,
       })),
       // 재고·고객가 축: cockpit 미포함(후속 어댑터에서 병합)
       supplier_name: supplierName,

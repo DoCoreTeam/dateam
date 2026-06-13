@@ -21,6 +21,7 @@ export interface UnifiedCompetitor {
   company_name: string
   price_krw: number
   recorded_at: string | null
+  logo_url: string | null
 }
 
 export interface UnifiedRow {
@@ -35,6 +36,8 @@ export interface UnifiedRow {
   margin_pct: number | null
   cost_source: string | null // 'market_link' → 추종가, 그 외 → 실견적/직판
   basis: string | null // 공급원가 기준: auto(실견적)/selected/propagated(전파)/list(공시가)/none
+  is_propagated: boolean // 공급원가가 다른 구성 per-GPU 견적을 전파한 값인지(전파 추정 표기)
+  cost_supplier_name: string | null // 공급원가 기준이 된 공급사명(전파 원본/실견적)
   list_price_krw: number | null // gcube 공시가(list 기준일 때 공급원가 맥락 표시용)
   // 시장
   market_min_krw: number | null
