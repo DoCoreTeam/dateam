@@ -114,5 +114,6 @@ export async function POST(req: NextRequest) {
 
   revalidateGpu()
 
-  return NextResponse.json({ ok: true, marked, reflected_at: nowIso, results })
+  const failed = results.filter((r) => !r.ok).length
+  return NextResponse.json({ ok: true, marked, failed, reflected_at: nowIso, results })
 }

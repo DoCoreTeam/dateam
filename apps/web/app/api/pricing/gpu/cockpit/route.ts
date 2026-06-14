@@ -303,14 +303,19 @@ export async function GET() {
 
     // 4-1. gcube 홈페이지 반영 완료 추적 — gpu_products 일괄 조회 (N+1 방지, pricing.ts 불변 R1)
     //   pricing.ts(getGpuCatalog)는 계산식 불변 대상이라 별도 read로 반영 컬럼만 병합한다.
-    //   내성: 마이그레이션(091) 미적용 환경에서 컬럼 부재 시에도 페이지가 죽지 않도록 throw 대신 빈 맵 폴백.
+    //   내성: 마이그(091) 미적용 = 컬럼 부재(42703)일 때만 빈 맵 폴백. 그 외 에러(RLS·네트워크 등)는 throw해 숨기지 않음.
     const { data: reflectedRows, error: reflectedErr } = await db
       .from('gpu_products')
       .select('id, gcube_reflected_at, gcube_reflected_by, gcube_reflected_price_krw')
       .in('id', productIds)
+      .is('deleted_at', null)
 
     if (reflectedErr) {
-      console.warn('[cockpit] gcube_reflected 컬럼 조회 실패(마이그 091 미적용 가능) — 반영상태 생략:', reflectedErr.message)
+      if (reflectedErr.code === '42703') {
+        console.warn('[cockpit] gcube_reflected 컬럼 부재(마이그 091 미적용) — 반영상태 생략')
+      } else {
+        throw reflectedErr
+      }
     }
 
     const reflectedMap = new Map<string, {

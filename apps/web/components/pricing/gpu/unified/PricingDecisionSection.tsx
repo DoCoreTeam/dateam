@@ -209,6 +209,7 @@ export default function PricingDecisionSection({ row, currency }: PricingDecisio
             <span className="gpu-ubadge gpu-ubadge--ok gpu-udetail-strat-tag">
               반영 완료 · {formatDate(row.reflected_at)}
               {row.reflected_by ? ` (${row.reflected_by})` : ''}
+              {row.reflected_price_krw != null ? ` · ${mKrw(row.reflected_price_krw)} 스냅샷` : ''}
             </span>
           ) : (
             <span className="gpu-ubadge gpu-ubadge--muted gpu-udetail-strat-tag">미반영</span>

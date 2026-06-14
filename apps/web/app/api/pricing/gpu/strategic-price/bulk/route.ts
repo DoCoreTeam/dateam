@@ -32,7 +32,8 @@ function parseItems(raw: unknown): { items: BulkItem[]; invalid: boolean } {
     const obj = r as Record<string, unknown>
     const pid = typeof obj.product_id === 'string' ? obj.product_id.trim() : ''
     const n = Number(obj.strategic_price_krw)
-    if (!pid || !Number.isFinite(n) || n <= 0) return { items: [], invalid: true }
+    // 상한 1,000억 KRW — 단건 PATCH와 동일 검증(변조 차단)
+    if (!pid || !Number.isFinite(n) || n <= 0 || n > 100_000_000_000) return { items: [], invalid: true }
     if (seen.has(pid)) continue // 중복 product_id는 첫 건만
     seen.add(pid)
     items.push({ product_id: pid, strategic_price_krw: Math.round(n) })
@@ -149,5 +150,6 @@ export async function POST(req: NextRequest) {
 
   revalidateGpu()
 
-  return NextResponse.json({ ok: true, updated, results })
+  const failed = results.filter((r) => !r.ok).length
+  return NextResponse.json({ ok: true, updated, failed, results })
 }

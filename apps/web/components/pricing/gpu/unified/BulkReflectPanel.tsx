@@ -109,12 +109,13 @@ export default function BulkReflectPanel({ rows, currency, onClose }: BulkReflec
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items }),
       })
-      const j = (await res.json().catch(() => ({}))) as { error?: string; updated?: number }
+      const j = (await res.json().catch(() => ({}))) as { error?: string; updated?: number; failed?: number }
       if (!res.ok) {
         showMsg('err', j.error ?? '전략가 일괄 확정에 실패했습니다. 권한을 확인하세요.')
         return
       }
-      showMsg('ok', `${j.updated ?? items.length}건 전략가를 추천가로 확정했습니다.`)
+      const failTxt = j.failed ? ` (실패 ${j.failed}건)` : ''
+      showMsg(j.failed ? 'err' : 'ok', `${j.updated ?? items.length}건 전략가를 추천가로 확정했습니다.${failTxt}`)
       setSelected(new Set())
       await Promise.all([mutate(COCKPIT_KEY), mutate(GCUBE_KEY)])
     } catch {
@@ -140,12 +141,13 @@ export default function BulkReflectPanel({ rows, currency, onClose }: BulkReflec
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ product_ids: productIds }),
       })
-      const j = (await res.json().catch(() => ({}))) as { error?: string; marked?: number }
+      const j = (await res.json().catch(() => ({}))) as { error?: string; marked?: number; failed?: number }
       if (!res.ok) {
         showMsg('err', j.error ?? '반영 완료 마킹에 실패했습니다. 권한을 확인하세요.')
         return
       }
-      showMsg('ok', `${j.marked ?? productIds.length}건 홈페이지 반영 완료로 마킹했습니다.`)
+      const failTxt = j.failed ? ` (실패 ${j.failed}건)` : ''
+      showMsg(j.failed ? 'err' : 'ok', `${j.marked ?? productIds.length}건 홈페이지 반영 완료로 마킹했습니다.${failTxt}`)
       setSelected(new Set())
       await Promise.all([mutate(COCKPIT_KEY), mutate(GCUBE_KEY)])
     } catch {

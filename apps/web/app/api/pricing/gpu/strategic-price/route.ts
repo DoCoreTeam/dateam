@@ -38,9 +38,11 @@ export async function PATCH(req: NextRequest) {
     strategicPriceKrw = null
   } else {
     const n = Number(rawPrice)
-    if (!Number.isFinite(n) || n <= 0) {
+    // 상한 1,000억 KRW — 비현실적 큰 값(변조/오작동) 차단(SSOT: STRATEGIC_PRICE_MAX)
+    const STRATEGIC_PRICE_MAX = 100_000_000_000
+    if (!Number.isFinite(n) || n <= 0 || n > STRATEGIC_PRICE_MAX) {
       return NextResponse.json(
-        { error: 'strategic_price_krw는 양수여야 합니다 (null이면 해제)' },
+        { error: 'strategic_price_krw는 1~1,000억 KRW 사이여야 합니다 (null이면 해제)' },
         { status: 400 },
       )
     }
