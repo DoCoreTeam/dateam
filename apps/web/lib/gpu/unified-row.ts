@@ -29,6 +29,12 @@ export interface UnifiedRow {
   model_name: string
   memory: string | null
   tier: number | null
+  // 스펙(스펙 관리와 동일 데이터)
+  gpu_count: number | null
+  series: string | null
+  vcpu: number | null
+  ram_gb: number | null
+  storage_gb: number | null
   // 가격
   supply_cost_krw: number | null
   auto_price_krw: number | null

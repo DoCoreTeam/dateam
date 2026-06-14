@@ -20,6 +20,11 @@ export interface CockpitApiRow {
   model_name: string
   memory: string | null
   tier: number | null
+  gpu_count?: number | null
+  series?: string | null
+  vcpu?: number | null
+  ram_gb?: number | null
+  storage_gb?: number | null
   cost_min_krw: number | null
   cost_source: 'market_link' | 'quote'
   candidate_price_krw: number | null
@@ -67,6 +72,11 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
       model_name: p.model_name,
       memory: p.memory,
       tier: p.tier,
+      gpu_count: p.gpu_count ?? null,
+      series: p.series ?? null,
+      vcpu: p.vcpu ?? null,
+      ram_gb: p.ram_gb ?? null,
+      storage_gb: p.storage_gb ?? null,
       supply_cost_krw: p.cost_min_krw,
       auto_price_krw: p.candidate_price_krw,
       sell_price_krw: sellPrice,

@@ -333,15 +333,35 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
 
         {tab === 'specs' && (
           <>
+            {/* 스펙 관리(SpecsTab)와 동일 데이터(buildCatalog) — 별도 구현 아님, 같은 제품 스펙 표시 */}
             <div className="gpu-udetail-kv">
               <span className="gpu-udetail-kv-k">{GPU_TERMS.model}</span>
-              <span className="gpu-udetail-kv-v">{row.model_name}</span>
+              <span className="gpu-udetail-kv-v">{row.model_name}{row.series ? ` · ${row.series}` : ''}</span>
             </div>
             <div className="gpu-udetail-kv">
               <span className="gpu-udetail-kv-k">메모리</span>
               <span className="gpu-udetail-kv-v">{row.memory ?? '—'}</span>
             </div>
-            <p className="gpu-udetail-pending">상세 스펙(vCPU·RAM·스토리지)은 스펙 관리 연동 후 표시됩니다.</p>
+            <div className="gpu-udetail-kv">
+              <span className="gpu-udetail-kv-k">GPU 수</span>
+              <span className="gpu-udetail-kv-v">{row.gpu_count != null ? `${row.gpu_count}장` : '—'}</span>
+            </div>
+            <div className="gpu-udetail-kv">
+              <span className="gpu-udetail-kv-k">vCPU</span>
+              <span className="gpu-udetail-kv-v">{row.vcpu != null ? `${row.vcpu} vCPU` : '—'}</span>
+            </div>
+            <div className="gpu-udetail-kv">
+              <span className="gpu-udetail-kv-k">RAM</span>
+              <span className="gpu-udetail-kv-v">{row.ram_gb != null ? `${row.ram_gb} GB` : '—'}</span>
+            </div>
+            <div className="gpu-udetail-kv">
+              <span className="gpu-udetail-kv-k">스토리지</span>
+              <span className="gpu-udetail-kv-v">{row.storage_gb != null ? `${row.storage_gb} GB` : '—'}</span>
+            </div>
+            <div className="gpu-udetail-kv">
+              <span className="gpu-udetail-kv-k">TIER</span>
+              <span className="gpu-udetail-kv-v">{tierName(row.tier)}</span>
+            </div>
           </>
         )}
       </div>

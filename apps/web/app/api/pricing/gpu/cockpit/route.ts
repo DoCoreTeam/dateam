@@ -389,13 +389,16 @@ export async function GET() {
         strategicHistoryMap.get(p.id) ?? []
 
       return {
-        // 식별
+        // 식별 + 스펙(스펙 관리와 동일 데이터 — 상세 스펙 탭 표시용)
         id: p.id,
         model_name: p.model_name,
         memory: p.memory,
         tier: p.tier,
         gpu_count: p.gpu_count,
         series: p.series,
+        vcpu: p.vcpu ?? null,
+        ram_gb: p.ram_gb ?? null,
+        storage_gb: p.storage_gb ?? null,
 
         // gcube 사이트 가격 (list 견적 기반)
         gcube_site_price_krw: gcubeSitePriceKrw,
