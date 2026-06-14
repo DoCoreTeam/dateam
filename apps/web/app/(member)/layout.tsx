@@ -27,7 +27,6 @@ import type { Profile } from '@/types/database'
 import SWRProvider from './SWRProvider'
 
 const NAV_ITEMS = [
-  { href: '/intake', label: '통합 입력', icon: <PlusCircle size={16} />, highlight: true },
   { href: '/home', label: '홈', icon: <Home size={16} /> },
   { href: '/work', label: '업무', icon: <Briefcase size={16} />, match: ['/daily', '/dept-tasks', '/weekly-report'] },
   { href: '/calendar', label: '캘린더', icon: <CalendarDays size={16} /> },
@@ -44,6 +43,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: '가격정책',
     items: [
+      { href: '/intake', label: '통합 입력', icon: <PlusCircle size={16} /> },
       { href: '/pricing/gpu', label: 'GPU 관리', icon: <DollarSign size={16} /> },
       { href: '/pricing/catalog', label: '판매가격표', icon: <Tag size={16} /> },
     ],

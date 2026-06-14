@@ -6,9 +6,9 @@ import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import dynamic from 'next/dynamic'
 import { Download, Plus } from 'lucide-react'
-import Link from 'next/link'
 import { isGpuFlagOn } from '@/lib/gpu/feature-flags'
 
+const QuoteRegisterTab = dynamic(() => import('./tabs/QuoteRegisterTab'), { ssr: false })
 const PriceTableTab = dynamic(() => import('./tabs/PriceTableTab'), { ssr: false })
 const PriceCockpitTab = dynamic(() => import('./tabs/PriceCockpitTab'), { ssr: false })
 const ReviewTab = dynamic(() => import('./tabs/ReviewTab'), { ssr: false })
@@ -23,7 +23,7 @@ const SalePriceCatalogPage = dynamic(() => import('../catalog/page'), { ssr: fal
 // 통합 표(리팩토링) — feature flag 'unified' ON 시 가격표 영역 대체. 기본 OFF(병존·무중단)
 const UnifiedTableConnected = dynamic(() => import('@/components/pricing/gpu/unified/UnifiedTableConnected'), { ssr: false })
 
-type MainTabId = 'board' | 'cockpit' | 'market' | 'inventory' | 'catalog'
+type MainTabId = 'intake' | 'board' | 'cockpit' | 'market' | 'inventory' | 'catalog'
 type SecondaryTabId = 'review' | 'suppliers' | 'competitors' | 'specs' | 'log'
 type TabId = MainTabId | SecondaryTabId
 
@@ -38,6 +38,11 @@ interface ReviewPendingData {
 }
 
 const MAIN_TABS: { id: MainTabId; label: string; icon: React.ReactNode }[] = [
+  {
+    id: 'intake',
+    label: '통합 입력',
+    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>,
+  },
   {
     id: 'board',
     label: '가격표',
@@ -100,7 +105,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
   // ── 뷰 상태 영속 (URL 파라미터 + sessionStorage) ──
   // 탭 이동·다른 메뉴 갔다 와도 마지막 보던 화면(탭/검색/펼친 가격)을 복원.
   const viewRestored = useRef(false)
-  const VALID_TABS = ['board', 'cockpit', 'market', 'inventory', 'catalog', 'review', 'suppliers', 'competitors', 'specs', 'log']
+  const VALID_TABS = ['intake', 'board', 'cockpit', 'market', 'inventory', 'catalog', 'review', 'suppliers', 'competitors', 'specs', 'log']
 
   // 최초 진입: URL(우선) → sessionStorage 순으로 탭 복원
   useEffect(() => {
@@ -168,7 +173,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
   }, [isAdmin, activeTab])
 
   const isMainTab = (tab: TabId): tab is MainTabId =>
-    ['board', 'cockpit', 'market', 'inventory', 'catalog'].includes(tab)
+    ['intake', 'board', 'cockpit', 'market', 'inventory', 'catalog'].includes(tab)
 
   return (
     <div className="gpu-pricing-root">
@@ -191,21 +196,21 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           <button className="gpu-btn">
             <Download size={15} /> Export
           </button>
-          <Link
-            href="/intake"
+          <button
             className="gpu-btn gpu-btn-primary"
             title="공급가·경쟁사 통합 입력"
-            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+            onClick={() => setActiveTab('intake')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
           >
             <Plus size={15} /> 통합 입력
-          </Link>
+          </button>
         </div>
       </div>
 
       {/* 메인 탭 + 더보기 인라인 */}
       <div className="gpu-tabs" style={{ display: 'flex', alignItems: 'center', borderBottom: 'var(--hairline) solid var(--gpu-border)', paddingBottom: 0 }}>
-        {/* 통합 표 ON: 메인 5탭(가격표·가격결정·시장·재고·고객가)은 통합 표의 보기 세그먼트가 대체 → 'board'만 남겨 이중 탭 제거 */}
-        {(unifiedOn ? MAIN_TABS.filter((t) => t.id === 'board') : MAIN_TABS).map((tab) => (
+        {/* 통합 표 ON: 메인 5탭(가격표·가격결정·시장·재고·고객가)은 통합 표의 보기 세그먼트가 대체 → 'intake'·'board'만 유지 */}
+        {(unifiedOn ? MAIN_TABS.filter((t) => t.id === 'intake' || t.id === 'board') : MAIN_TABS).map((tab) => (
           <button
             key={tab.id}
             className={`gpu-tab${activeTab === tab.id ? ' active' : ''}`}
@@ -304,6 +309,11 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
       {/* 탭 컨텐츠 — gpu-tab-content: flex:1 min-height:0 overflow:hidden display:flex flex-direction:column
            자식은 gpu-tab-panel(overflow:hidden) 또는 gpu-tab-panel--scroll(overflowY:auto) 사용 */}
       <div className="gpu-tab-content">
+        {activeTab === 'intake' && (
+          <div className="gpu-tab-panel gpu-tab-panel--scroll">
+            <QuoteRegisterTab />
+          </div>
+        )}
         {activeTab === 'board' && unifiedOn && (
           <div className="gpu-tab-panel">
             <UnifiedTableConnected
