@@ -20,7 +20,6 @@ import {
   CalendarDays,
   DollarSign,
   Tag,
-  PlusCircle,
   Network,
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
@@ -43,7 +42,6 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: '가격정책',
     items: [
-      { href: '/pricing/gpu?tab=intake', label: '통합 입력', icon: <PlusCircle size={16} /> },
       { href: '/pricing/gpu', label: 'GPU 관리', icon: <DollarSign size={16} /> },
       { href: '/pricing/catalog', label: '판매가격표', icon: <Tag size={16} /> },
     ],
@@ -97,6 +95,7 @@ export default async function MemberLayout({ children }: { children: React.React
         brandName={branding.brandName}
         footer={<SidebarProfile name={displayName} email={userEmail} isAdmin={profile?.role === 'admin'} />}
         adminHref={profile?.role === 'admin' ? '/admin/users' : undefined}
+        isAdmin={profile?.role === 'admin'}
         headerLeft={
           <span style={{ fontSize: 'var(--fs-base)', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             안녕하세요,{' '}

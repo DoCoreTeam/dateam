@@ -9,17 +9,14 @@ import { fabActionsForPath } from '@/lib/fab-actions'
 // 우하단 빠른 추가 FAB — 하이브리드 speed-dial.
 //   닫힘: + 버튼. 열림: 현재 페이지 우선(강조) + 전역 빠른 추가 + 가격·견적 입력.
 //   미지정 페이지도 동일 목록(통합입력 기본 강조). a11y: aria-expanded·ESC·바깥 클릭 닫힘.
-export default function QuickAddFab() {
+export default function QuickAddFab({ isAdmin = true }: { isAdmin?: boolean }) {
   const pathname = usePathname() || ''
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
-  const { actions, primaryKey } = fabActionsForPath(pathname)
+  const { actions, primaryKey } = fabActionsForPath(pathname, isAdmin)
 
   // 페이지 이동 시 닫힘
   useEffect(() => { setOpen(false) }, [pathname])
-
-  // admin 콘솔 등에선 노출 안 함(회원 빠른추가 전용)
-  if (pathname.startsWith('/admin')) return null
 
   // ESC · 바깥 클릭 닫힘
   useEffect(() => {
@@ -31,8 +28,11 @@ export default function QuickAddFab() {
     return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('mousedown', onClick) }
   }, [open])
 
+  // admin 콘솔 등에선 노출 안 함(회원 빠른추가 전용). 모든 hook 호출 뒤에 early-return(hooks 규칙).
+  if (pathname.startsWith('/admin')) return null
+
   return (
-    <div ref={ref} className="quickadd-fab-wrap mobile-only-flex">
+    <div ref={ref} className="quickadd-fab-wrap">
       {open && (
         <div className="quickadd-menu" role="group" aria-label="빠른 추가">
           {actions.map((a) => {

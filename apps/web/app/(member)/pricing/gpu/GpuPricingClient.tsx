@@ -78,6 +78,8 @@ interface InitialSettings {
 
 export default function GpuPricingClient({ initialSettings, isAdmin = false }: { initialSettings?: InitialSettings; isAdmin?: boolean }) {
   const searchParams = useSearchParams()
+  // FAB '등록' 액션(?create=1&tab=X) → 해당 탭의 생성 모달 자동 오픈. 어느 탭에 신호를 줄지 보관.
+  const [autoCreateTab, setAutoCreateTab] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabId>('board')
   const [showAiPanel, setShowAiPanel] = useState(false)
   // 통합 표 flag — 클라이언트에서만 평가(localStorage 오버라이드). 하이드레이션 불일치 방지 위해 mount 후 설정.
@@ -123,6 +125,17 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
     const t = searchParams.get('tab')
     if (t && VALID_TABS.includes(t) && t !== activeTab) setActiveTab(t as TabId)
   }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // FAB '등록' 액션: ?create=1 이 들어오면 해당 ?tab= 의 생성 모달을 1회 오픈하도록 신호 저장 후 즉시 URL에서 제거.
+  // (제거하므로 새로고침/탭 재전환 시 재오픈 안 함. 매 FAB 클릭마다 create=1 가 새로 와서 재발화.)
+  useEffect(() => {
+    if (searchParams.get('create') !== '1') return
+    const t = searchParams.get('tab')
+    setAutoCreateTab(t)
+    const p = new URLSearchParams(window.location.search)
+    p.delete('create')
+    window.history.replaceState(null, '', `${window.location.pathname}?${p.toString()}`)
+  }, [searchParams])
 
   // 탭 변경 → URL·sessionStorage 반영 (navigation 없이 replaceState)
   useEffect(() => {
@@ -386,6 +399,8 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           <div className="gpu-tab-panel">
             <MarketTab
               isAdmin={isAdmin}
+              autoCreate={autoCreateTab === 'market'}
+              onAutoCreateConsumed={() => setAutoCreateTab(null)}
               onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board') }}
               onOpenAI={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board'); setShowAiPanel(true) }}
             />
@@ -402,8 +417,8 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           </div>
         )}
         {activeTab === 'review' && <div className="gpu-tab-panel--scroll"><ReviewTab /></div>}
-        {activeTab === 'suppliers' && <div className="gpu-tab-panel--scroll"><SuppliersTab onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board') }} /></div>}
-        {activeTab === 'competitors' && <div className="gpu-tab-panel--scroll"><div className="page-inner"><CompetitorsTab /></div></div>}
+        {activeTab === 'suppliers' && <div className="gpu-tab-panel--scroll"><SuppliersTab autoCreate={autoCreateTab === 'suppliers'} onAutoCreateConsumed={() => setAutoCreateTab(null)} onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board') }} /></div>}
+        {activeTab === 'competitors' && <div className="gpu-tab-panel--scroll"><div className="page-inner"><CompetitorsTab autoCreate={autoCreateTab === 'competitors'} onAutoCreateConsumed={() => setAutoCreateTab(null)} /></div></div>}
         {activeTab === 'specs' && <div className="gpu-tab-panel--scroll"><div className="page-inner"><SpecsTab /></div></div>}
         {activeTab === 'log' && <div className="gpu-tab-panel--scroll"><HistoryTab /></div>}
       </div>

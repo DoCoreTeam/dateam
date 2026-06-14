@@ -2084,8 +2084,9 @@ label.intake-tool-btn {
 }
 .intake-fab { border: none; }
 
-/* 빠른 추가 speed-dial 래퍼 — 버튼+메뉴를 우하단 고정 컨테이너로 묶음 */
+/* 빠른 추가 speed-dial 래퍼 — 버튼+메뉴를 우하단 고정 컨테이너로 묶음. 데스크탑·모바일 모두 노출 */
 .quickadd-fab-wrap {
+  display: flex;
   position: fixed;
   bottom: 1.5rem;
   right: 1.5rem;

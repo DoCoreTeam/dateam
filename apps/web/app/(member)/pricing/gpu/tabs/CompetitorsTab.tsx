@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
@@ -31,7 +31,7 @@ const TYPE_LABEL: Record<string, string> = {
   hyperscaler: '하이퍼스케일러', specialist: '전용 서비스', marketplace: '마켓플레이스', domestic: '국내',
 }
 
-export default function CompetitorsTab() {
+export default function CompetitorsTab({ autoCreate = false, onAutoCreateConsumed }: { autoCreate?: boolean; onAutoCreateConsumed?: () => void }) {
   const { data, error } = useSWR<{ competitors: CompetitorRow[] }>('/api/pricing/gpu/competitors', fetcher)
   const { mutate } = useSWRConfig()
   const list = data?.competitors ?? []
@@ -39,6 +39,8 @@ export default function CompetitorsTab() {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [showCreate, setShowCreate] = useState(false)
+  // FAB '경쟁사 등록' → 진입 시 생성 모달 자동 오픈(1회) 후 신호 소비
+  useEffect(() => { if (autoCreate) { setShowCreate(true); onAutoCreateConsumed?.() } }, [autoCreate]) // eslint-disable-line react-hooks/exhaustive-deps
   const [editRow, setEditRow] = useState<CompetitorRow | null>(null)
   const [busy, setBusy] = useState(false)
 

@@ -40,6 +40,7 @@ interface MobileShellProps {
   headerRight?: React.ReactNode
   children: React.ReactNode
   adminHref?: string
+  isAdmin?: boolean
 }
 
 export default function MobileShell({
@@ -52,6 +53,7 @@ export default function MobileShell({
   headerRight,
   children,
   adminHref,
+  isAdmin = false,
 }: MobileShellProps) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -311,8 +313,8 @@ export default function MobileShell({
         </main>
       </div>
 
-      {/* 빠른 추가 FAB — 하이브리드 speed-dial(맥락 강조 + 멀티). 모바일 전용 */}
-      <QuickAddFab />
+      {/* 빠른 추가 FAB — 하이브리드 speed-dial(맥락 강조 + 멀티). 데스크탑·모바일 */}
+      <QuickAddFab isAdmin={isAdmin} />
     </div>
   )
 }

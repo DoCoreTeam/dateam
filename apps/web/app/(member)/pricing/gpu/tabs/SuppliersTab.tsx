@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { Plus, X, Globe, Trash2, Save, ExternalLink, Sparkles, ChevronRight, Pencil, Link2 } from 'lucide-react'
@@ -568,13 +568,15 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   )
 }
 
-export default function SuppliersTab({ onGoToPriceTable }: { onGoToPriceTable?: (modelName: string, productId: string) => void }) {
+export default function SuppliersTab({ onGoToPriceTable, autoCreate = false, onAutoCreateConsumed }: { onGoToPriceTable?: (modelName: string, productId: string) => void; autoCreate?: boolean; onAutoCreateConsumed?: () => void }) {
   const { data } = useSWR<{ suppliers: SupplierStats[] }>('/api/pricing/gpu/suppliers', fetcher)
   const { mutate } = useSWRConfig()
   const suppliers = data?.suppliers ?? []
   const [search, setSearch] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  // FAB '공급사 등록' → 진입 시 생성 모달 자동 오픈(1회) 후 신호 소비
+  useEffect(() => { if (autoCreate) { setShowCreate(true); onAutoCreateConsumed?.() } }, [autoCreate]) // eslint-disable-line react-hooks/exhaustive-deps
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
 

@@ -1,7 +1,7 @@
 'use client'
 import { useEscClose } from '@/lib/use-esc-close'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
@@ -1242,10 +1242,12 @@ function SupplierLinkControl({
 }
 
 
-export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false }: {
+export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false, autoCreate = false, onAutoCreateConsumed }: {
   onGoToPriceTable?: (modelName: string, productId: string) => void
   onOpenAI?: (modelName: string, productId: string) => void
   isAdmin?: boolean
+  autoCreate?: boolean
+  onAutoCreateConsumed?: () => void
 }) {
   const { data, isLoading, mutate } = useSWR<MarketData>('/api/pricing/gpu/market', fetcher, {
     refreshInterval: 0,
@@ -1267,6 +1269,8 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false 
   const [showRegister, setShowRegister] = useState(false)
   const [showMappingMgr, setShowMappingMgr] = useState(false)
   const [showCompModal, setShowCompModal] = useState(false)
+  // FAB '시장가·매핑 등록' → 진입 시 가격 등록 모달 자동 오픈(1회) 후 신호 소비
+  useEffect(() => { if (autoCreate) { setShowRegister(true); onAutoCreateConsumed?.() } }, [autoCreate]) // eslint-disable-line react-hooks/exhaustive-deps
   const [viewMode, setViewMode] = useState<'table' | 'strategy'>('table')
   const [positionFilter, setPositionFilter] = useState<null | 'low' | 'mid' | 'high'>(null)
   // 검색 + Tier 필터 (다른 탭과 동일)
