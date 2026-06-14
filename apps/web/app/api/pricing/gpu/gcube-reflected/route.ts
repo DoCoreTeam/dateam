@@ -54,10 +54,11 @@ export async function POST(req: NextRequest) {
   const actor = auth.user.email ?? auth.user.id
   const nowIso = new Date().toISOString()
 
-  // 대상 상품의 현재 전략가/자동가(sell_price_krw) 일괄 조회 — 반영 당시 스냅샷 산출(N+1 방지)
+  // 대상 상품의 현재 전략가 일괄 조회 — 반영 당시 스냅샷(전략가=우리 판매가의 진실). N+1 방지.
+  //  sell_price_krw는 gpu_products 컬럼이 아니라 buildCatalog 계산값이므로 select 금지(컬럼 부재 에러).
   const { data: products, error: fetchErr } = await db
     .from('gpu_products')
-    .select('id, strategic_price_krw, sell_price_krw')
+    .select('id, strategic_price_krw')
     .in('id', productIds)
     .is('deleted_at', null)
 
@@ -69,9 +70,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '대상 상품을 찾을 수 없습니다' }, { status: 404 })
   }
 
-  // 스냅샷 가격: strategic_price_krw 우선, 없으면 sell_price_krw(자동가). 둘 다 없으면 null.
-  const snapshot = (p: { strategic_price_krw: number | null; sell_price_krw: number | null }): number | null => {
-    const raw = p.strategic_price_krw ?? p.sell_price_krw
+  // 스냅샷 가격: strategic_price_krw(전략가). 미설정이면 null(반영 마킹은 되되 스냅샷 없음).
+  const snapshot = (p: { strategic_price_krw: number | null }): number | null => {
+    const raw = p.strategic_price_krw
     if (raw == null) return null
     const n = Number(raw)
     return Number.isFinite(n) ? Math.round(n) : null
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
   const results: { id: string; ok: boolean; price_krw: number | null }[] = []
   let marked = 0
 
-  for (const p of products as { id: string; strategic_price_krw: number | null; sell_price_krw: number | null }[]) {
+  for (const p of products as { id: string; strategic_price_krw: number | null }[]) {
     const priceKrw = snapshot(p)
     const { error: updErr } = await db
       .from('gpu_products')
