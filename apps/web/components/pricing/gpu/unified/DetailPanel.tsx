@@ -22,11 +22,13 @@ import type { MarketPriceForEdit } from '@/components/pricing/gpu/MarketPriceEdi
 
 const QuoteEditModal = dynamic(() => import('@/components/pricing/gpu/QuoteEditModal'), { ssr: false })
 const MarketPriceEditModal = dynamic(() => import('@/components/pricing/gpu/MarketPriceEditModal'), { ssr: false })
+const PricingDecisionSection = dynamic(() => import('./PricingDecisionSection'), { ssr: false })
 
-type DetailTab = 'cost' | 'market' | 'history' | 'specs'
+type DetailTab = 'cost' | 'pricing' | 'market' | 'history' | 'specs'
 
 const TABS: { id: DetailTab; label: string }[] = [
   { id: 'cost', label: GPU_TERMS.supplyCost },
+  { id: 'pricing', label: '가격 결정' },
   { id: 'market', label: '시장 비교' },
   { id: 'history', label: '변동 이력' },
   { id: 'specs', label: '스펙' },
@@ -243,6 +245,8 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
           </>
         )}
 
+        {tab === 'pricing' && <PricingDecisionSection row={row} currency={currency} />}
+
         {tab === 'market' && (
           <>
             <div className="gpu-udetail-kv">
@@ -395,7 +399,7 @@ function costBasisKrw(row: UnifiedRow): number | null {
 }
 
 /** 공급원가 출처 라벨: 추종가/전파 추정/공시가/실견적. is_propagated면 전파 우선. */
-function basisSourceLabel(row: UnifiedRow): string {
+export function basisSourceLabel(row: UnifiedRow): string {
   if (row.cost_source === 'market_link') return GPU_TERMS.followPrice
   if (row.is_propagated) return '전파 추정'
   switch (row.basis) {

@@ -81,6 +81,8 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
       auto_price_krw: p.candidate_price_krw,
       sell_price_krw: sellPrice,
       margin_pct: margin,
+      strategic_price_krw: p.strategic_price_krw,
+      is_strategic_set: p.is_strategic_set,
       cost_source: p.cost_source,
       basis: p.basis ?? null,
       is_propagated: p.is_propagated ?? false,

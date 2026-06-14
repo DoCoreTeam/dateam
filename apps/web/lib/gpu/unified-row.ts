@@ -40,6 +40,9 @@ export interface UnifiedRow {
   auto_price_krw: number | null
   sell_price_krw: number | null
   margin_pct: number | null
+  // 전략가(우리 판매가의 진실값) — 가격 결정 탭. cockpit strategic_price_krw / is_strategic_set.
+  strategic_price_krw: number | null
+  is_strategic_set: boolean
   cost_source: string | null // 'market_link' → 추종가, 그 외 → 실견적/직판
   basis: string | null // 공급원가 기준: auto(실견적)/selected/propagated(전파)/list(공시가)/none
   is_propagated: boolean // 공급원가가 다른 구성 per-GPU 견적을 전파한 값인지(전파 추정 표기)
