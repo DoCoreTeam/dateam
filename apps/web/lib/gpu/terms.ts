@@ -21,6 +21,7 @@ export const GPU_TERMS = {
   margin: '마진',
   marketPrice: '시장가',         // 경쟁사 시장 가격
   listPrice: '공시가',           // 경쟁사 공시 판매가(원가 아님)
+  gcubeListPrice: 'gcube 홈페이지 금액',  // basis='list' — 매입원가 없이 gcube.ai 게시가를 그대로 쓰는 판매가
   followPrice: '추종가',         // 경쟁사 시장가를 추종해 형성한 공급원가
   realQuote: '실견적',           // 실제 공급사에서 받은 견적(추종가보다 우선)
   lowestSupplyCost: '최저 공급원가',

@@ -222,7 +222,7 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                   {costQuotes.length === 0 && row.supply_cost_krw == null && (
                     <tr><td colSpan={6} className="gpu-udetail-tbl-empty">
                       {row.sell_price_krw != null
-                        ? `공시가 기준 — 직접 매입 견적 없음`
+                        ? `${GPU_TERMS.gcubeListPrice} — 직접 매입 견적 없음`
                         : GPU_TERMS.emptyList}
                     </td></tr>
                   )}
@@ -404,8 +404,8 @@ export function basisSourceLabel(row: UnifiedRow): string {
   if (row.is_propagated) return '전파 추정'
   switch (row.basis) {
     case 'propagated': return '전파 추정'
-    case 'list': return '공시가'
-    case 'none': return row.sell_price_krw != null && row.supply_cost_krw == null ? '공시가' : GPU_TERMS.realQuote
+    case 'list': return GPU_TERMS.gcubeListPrice
+    case 'none': return row.sell_price_krw != null && row.supply_cost_krw == null ? GPU_TERMS.gcubeListPrice : GPU_TERMS.realQuote
     default: return GPU_TERMS.realQuote
   }
 }
