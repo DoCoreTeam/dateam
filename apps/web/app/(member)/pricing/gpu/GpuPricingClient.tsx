@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import dynamic from 'next/dynamic'
@@ -77,7 +77,7 @@ interface InitialSettings {
 }
 
 export default function GpuPricingClient({ initialSettings, isAdmin = false }: { initialSettings?: InitialSettings; isAdmin?: boolean }) {
-  const router = useRouter()
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<TabId>('board')
   const [showAiPanel, setShowAiPanel] = useState(false)
   // 통합 표 flag — 클라이언트에서만 평가(localStorage 오버라이드). 하이드레이션 불일치 방지 위해 mount 후 설정.
@@ -116,6 +116,13 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
     if (!t) { try { t = (JSON.parse(sessionStorage.getItem('gpu:view') || '{}').tab as string) || null } catch { t = null } }
     if (t && VALID_TABS.includes(t)) setActiveTab(t as TabId)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 사이드바 메뉴 등으로 URL ?tab= 가 바뀌면(이미 이 페이지에 있어도) 해당 탭으로 전환.
+  // 탭 클릭은 replaceState라 searchParams를 안 건드림 → 루프 없음. Link 네비게이션만 반응.
+  useEffect(() => {
+    const t = searchParams.get('tab')
+    if (t && VALID_TABS.includes(t) && t !== activeTab) setActiveTab(t as TabId)
+  }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 탭 변경 → URL·sessionStorage 반영 (navigation 없이 replaceState)
   useEffect(() => {
@@ -317,7 +324,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
         {activeTab === 'board' && unifiedOn && (
           <div className="gpu-tab-panel">
             <UnifiedTableConnected
-              onRegisterQuote={() => router.push('/intake')}
+              onRegisterQuote={() => setActiveTab('intake')}
               onManageMapping={() => setActiveTab('market')}
             />
           </div>
@@ -326,7 +333,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           <div className="gpu-tab-panel" style={{ display: 'flex', flexDirection: 'row', gap: 0, minHeight: 0 }}>
             <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <PriceTableTab
-                onGoToIntake={() => router.push('/intake')}
+                onGoToIntake={() => setActiveTab('intake')}
                 onGoToReview={() => setActiveTab('review')}
                 initialSearch={boardSearch}
                 onSearchConsumed={() => setBoardSearch('')}

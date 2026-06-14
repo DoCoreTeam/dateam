@@ -43,7 +43,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: '가격정책',
     items: [
-      { href: '/intake', label: '통합 입력', icon: <PlusCircle size={16} /> },
+      { href: '/pricing/gpu?tab=intake', label: '통합 입력', icon: <PlusCircle size={16} /> },
       { href: '/pricing/gpu', label: 'GPU 관리', icon: <DollarSign size={16} /> },
       { href: '/pricing/catalog', label: '판매가격표', icon: <Tag size={16} /> },
     ],

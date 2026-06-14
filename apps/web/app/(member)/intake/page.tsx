@@ -1,18 +1,7 @@
-import dynamic from 'next/dynamic'
+import { redirect } from 'next/navigation'
 
-const QuoteRegisterTab = dynamic(
-  () => import('../pricing/gpu/tabs/QuoteRegisterTab'),
-  { ssr: false }
-)
-
+// 통합 입력은 GPU 관리 화면의 'intake' 탭과 단일 뷰로 통일됨.
+// 독립 페이지·북마크·딥링크 모두 탭 뷰로 수렴(두 갈래 제거).
 export default function IntakePage() {
-  return (
-    <div className="page-inner" style={{ height: '100%', overflowY: 'auto' }}>
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>통합 입력</div>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', margin: 0 }}>통합 입력</h2>
-      </div>
-      <QuoteRegisterTab />
-    </div>
-  )
+  redirect('/pricing/gpu?tab=intake')
 }
