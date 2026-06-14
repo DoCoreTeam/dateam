@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 
 // GET /api/pricing/gpu/review/[id]/iterations — 검토 대기 항목의 추출 이력(시간순)
 //   통합 표 상세 패널 "검토/추출 이력"용. 읽기 전용(member 읽기 허용·RLS·인증 가드).
@@ -8,6 +9,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
     const { id } = await params
     if (!id) return NextResponse.json({ error: 'id 필수' }, { status: 400 })
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { normalizeMemory } from '@/lib/gpu/normalize'
+import { safeFetchText } from '@/lib/security/safe-fetch'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -48,18 +49,17 @@ supplier_quote이거나 GPU 가격이 아닌 경우:
 JSON만 반환. 설명 없이.`
 
 async function fetchUrlText(url: string): Promise<string> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 15000)
   try {
-    const res = await fetch(url, {
-      signal: controller.signal,
+    // SSRF 방어: safe-fetch SSOT (스킴·사설망·리다이렉트·크기 검증)
+    const res = await safeFetchText(url, {
+      timeoutMs: 15000,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
         'Accept': 'text/html,application/xhtml+xml',
       },
     })
     if (!res.ok) return ''
-    const html = await res.text()
+    const html = res.text
     return html
       .replace(/<script[\s\S]*?<\/script>/gi, '')
       .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -72,8 +72,6 @@ async function fetchUrlText(url: string): Promise<string> {
       .slice(0, 15000)
   } catch {
     return ''
-  } finally {
-    clearTimeout(timer)
   }
 }
 

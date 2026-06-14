@@ -8,6 +8,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getGpuCatalog } from '@/lib/gpu/pricing'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 
 /** strategic_history 항목 (Drawer 변경이력용) */
 interface StrategicHistoryEntry {
@@ -54,6 +55,8 @@ const STRATEGIC_HISTORY_LIMIT = 5
 
 export async function GET() {
   try {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
     const supabase = await createClient()
 
     // SEC-M1: 인증 가드 — anon 차단

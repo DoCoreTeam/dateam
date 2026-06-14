@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 
 const KOREAEXIM_BASE = 'https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON'
 
@@ -79,6 +80,8 @@ export async function POST() {
 
 export async function GET() {
   try {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('fx_rates')

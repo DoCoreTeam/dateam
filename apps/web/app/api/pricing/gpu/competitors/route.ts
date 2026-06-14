@@ -3,10 +3,13 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
 import { recordGpuAudit } from '@/lib/gpu/audit'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 
 // GET /api/pricing/gpu/competitors — 경쟁사 목록 + 통계(매핑수·시장가수·연결 공급사)
 export async function GET() {
   try {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
     const supabase = await createClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any

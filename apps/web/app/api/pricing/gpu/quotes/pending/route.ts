@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 
 export async function GET() {
   try {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
     const supabase = await createClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)

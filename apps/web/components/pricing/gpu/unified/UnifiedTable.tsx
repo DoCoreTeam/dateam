@@ -222,7 +222,7 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
               ← 목록
             </button>
           )}
-          <DetailPanel row={selectedRow} currency={currency} onRegisterQuote={onRegisterQuote} onManageMapping={onManageMapping} />
+          <DetailPanel key={selectedRow?.id ?? 'empty'} row={selectedRow} currency={currency} onRegisterQuote={onRegisterQuote} onManageMapping={onManageMapping} />
         </div>
       </div>
 

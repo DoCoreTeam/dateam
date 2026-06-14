@@ -16,6 +16,7 @@
 
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 
 export interface GcubeCheckItem {
   product_id: string
@@ -29,6 +30,8 @@ export interface GcubeCheckItem {
 }
 
 export async function GET(): Promise<NextResponse> {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
   const supabase = await createClient()
 
   // 인증 가드 — anon 차단

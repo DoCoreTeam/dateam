@@ -5,9 +5,12 @@ import { ensureSupplierAccount } from '@/lib/gpu/supplier-create'
 import { ensureStandardConfigs } from '@/lib/gpu/derive-configs'
 import { roundUpToStandard } from '@/lib/gpu/config-ladder'
 import { recordGpuAudit } from '@/lib/gpu/audit'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 
 export async function GET(request: Request) {
   try {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
     const { searchParams } = new URL(request.url)
     const productId = searchParams.get('product_id')
     if (!productId) return NextResponse.json({ error: 'product_id required' }, { status: 400 })

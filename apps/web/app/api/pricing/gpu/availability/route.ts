@@ -4,6 +4,7 @@ import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { recordAvailability } from '@/lib/gpu/repository'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
 import { recordGpuAudit } from '@/lib/gpu/audit'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 
 // DELETE /api/pricing/gpu/availability?product_id=&supplier_id= — 해당 공급사 재고응답 소프트삭제
 export async function DELETE(req: NextRequest) {
@@ -35,6 +36,8 @@ export async function DELETE(req: NextRequest) {
 
 // GET /api/pricing/gpu/availability?product_id=xxx — 가용량 요약
 export async function GET(req: NextRequest) {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 })

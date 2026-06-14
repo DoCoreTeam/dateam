@@ -2,9 +2,12 @@ import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { logoFromWebsite, ensureSupplierAccount } from '@/lib/gpu/supplier-create'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 
 export async function GET() {
   try {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
     const supabase = await createClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any
@@ -121,10 +124,9 @@ export async function POST(request: Request) {
   const auth = await requireAdminApi()
   if (auth.error) return auth.error
   try {
-    const supabase = await createClient()
-
+    // 092 RLS: suppliers 쓰기는 service_role 전용 → admin client로 INSERT (user-client는 거부됨)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = supabase as any
+    const db = createAdminClient() as any
     const body = await request.json()
     const { name, location, contact, country, website, description, color: colorIn } = body
     if (!name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 })

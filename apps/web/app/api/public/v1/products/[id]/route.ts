@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticatePublicApi, corsHeaders, optionsResponse } from '@/lib/publicApiAuth'
 import { createAdminClient } from '@/lib/supabase/server'
+import { getGpuCatalog } from '@/lib/gpu/pricing'
 
 export async function OPTIONS() {
   return optionsResponse()
@@ -18,51 +19,43 @@ export async function GET(
     const admin = createAdminClient() as any
     const { id } = params
 
-    const [productRes, lowestRes, directRes, settingsRes, fxRes] = await Promise.all([
-      admin.from('gpu_products').select('id, model_name, tier, memory, gpu_count, vcpu, ram_gb, storage_gb, series, pricing_mode').eq('id', id).single(),
-      admin.from('v_lowest_quotes').select('product_id, unit_price_usd, valid_until, suppliers(name, color)').eq('product_id', id).single(),
-      admin.from('direct_prices').select('sell_price_krw').eq('is_current', true).eq('product_id', id).single(),
-      admin.from('pricing_settings').select('margin_pct').eq('id', 1).single(),
+    // SSOT: 내부와 동일한 buildCatalog 결과에서 해당 제품을 찾는다(자체계산 폐기).
+    const [catalog, fxRes] = await Promise.all([
+      getGpuCatalog(admin),
       admin.from('fx_rates').select('usd_krw, rate_date').order('rate_date', { ascending: false }).limit(1).single(),
     ])
+    const p = catalog.products.find((x) => x.id === id)
 
-    if (!productRes.data) {
+    if (!p) {
       return NextResponse.json(
         { success: false, error: 'Product not found' },
         { status: 404, headers: corsHeaders() }
       )
     }
 
-    const p = productRes.data
-    const marginPct = settingsRes.data?.margin_pct ?? 18
-    const usdKrw = fxRes.data?.usd_krw ?? 1400
+    const usdKrw = catalog.usd_krw
+    const priceKrw = p.strategic_krw
+    const priceUsd = priceKrw != null ? Math.round((priceKrw / usdKrw) * 100) / 100 : null
 
-    let pricing: Record<string, unknown>
-    if (p.pricing_mode === 'quote') {
-      const lowest = lowestRes.data
-      const costUsd = lowest?.unit_price_usd ? Number(lowest.unit_price_usd) : null
-      const priceUsd = costUsd ? Math.round(costUsd * (1 + marginPct / 100) * 100) / 100 : null
-      pricing = {
-        pricing_mode: 'dynamic',
-        cost_usd: costUsd,
-        price_per_unit_usd: priceUsd,
-        price_per_unit_krw: priceUsd ? Math.round(priceUsd * usdKrw) : null,
-        margin_pct: marginPct,
-        supplier: lowest?.suppliers ?? null,
-        valid_until: lowest?.valid_until ?? null,
-      }
-    } else {
-      const direct = directRes.data
-      const priceKrw = direct?.sell_price_krw ? Number(direct.sell_price_krw) : null
-      pricing = {
-        pricing_mode: 'fixed',
-        price_per_unit_usd: priceKrw ? Math.round((priceKrw / usdKrw) * 100) / 100 : null,
-        price_per_unit_krw: priceKrw,
-        margin_pct: null,
-        supplier: null,
-        valid_until: null,
-      }
-    }
+    const pricing: Record<string, unknown> =
+      p.pricing_mode === 'direct'
+        ? {
+            pricing_mode: 'fixed',
+            price_per_unit_usd: priceUsd,
+            price_per_unit_krw: priceKrw,
+            margin_pct: null,
+            supplier: null,
+            valid_until: null,
+          }
+        : {
+            pricing_mode: 'dynamic',
+            cost_usd: p.effective_unit_price_usd,
+            price_per_unit_usd: priceUsd,
+            price_per_unit_krw: priceKrw,
+            margin_pct: catalog.margin_pct,
+            supplier: p.effective_supplier ?? p.own_supplier ?? null,
+            valid_until: p.own_valid_until ?? null,
+          }
 
     return NextResponse.json(
       {
@@ -77,7 +70,7 @@ export async function GET(
           ram_gb: p.ram_gb,
           storage_gb: p.storage_gb,
           series: p.series,
-          available: (pricing.price_per_unit_usd as number | null) != null,
+          available: priceKrw != null,
           fx_usd_krw: usdKrw,
           fx_rate_date: fxRes.data?.rate_date,
           ...pricing,

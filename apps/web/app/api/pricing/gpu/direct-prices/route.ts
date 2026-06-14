@@ -3,11 +3,14 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
 import { recordGpuAudit } from '@/lib/gpu/audit'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 
 // GET /api/pricing/gpu/direct-prices — 직접 판매가 목록 조회 (C3)
 //   ?product_id=xxx  특정 상품만 / 없으면 전체
 //   ?page=1&limit=50
 export async function GET(req: NextRequest) {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 })

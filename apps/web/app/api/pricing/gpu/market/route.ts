@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getGpuCatalog, modelKeyOf } from '@/lib/gpu/pricing'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 
 const MARKET_FRESH_HOURS = 48
 
 export async function GET() {
   try {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
     const supabase = await createClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any

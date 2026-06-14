@@ -6,6 +6,8 @@ import type { CompetitorPriceItem } from '@/lib/gpu/competitor-import'
 import { SCHEMA_CONTRACT } from '@/lib/gpu/schema-contract'
 import { dedupSupplier, dedupCompetitor, type CompetitorLike } from '@/lib/gpu/dedup'
 import { partitionValid, validateSupplierItem } from '@/lib/gpu/validate'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
+import { safeFetchText } from '@/lib/security/safe-fetch'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -165,18 +167,16 @@ async function callGemini(
 
 // URL에서 텍스트 추출 (HTML 파싱)
 async function fetchUrlText(url: string): Promise<string> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 12000)
   try {
-    const res = await fetch(url, {
-      signal: controller.signal,
+    // SSRF 방어: 스킴·사설망·리다이렉트·크기 검증을 safe-fetch SSOT 가 담당 (lib/security/safe-fetch.ts)
+    const res = await safeFetchText(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
         'Accept': 'text/html,application/xhtml+xml',
       },
     })
     if (!res.ok) return ''
-    const html = await res.text()
+    const html = res.text
     // 간단한 HTML 태그 제거
     return html
       .replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -191,7 +191,7 @@ async function fetchUrlText(url: string): Promise<string> {
   } catch {
     return ''
   } finally {
-    clearTimeout(timer)
+    /* safe-fetch 가 타임아웃 처리 */
   }
 }
 
@@ -246,6 +246,8 @@ JSON만 반환. 설명 없이.`
 
 // GET /api/pricing/gpu/review — 검토 대기 목록
 export async function GET(req: NextRequest) {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 })
@@ -461,8 +463,9 @@ export async function POST(req: NextRequest) {
     }
   })
 
+  // 092 RLS: review_items 쓰기는 service_role 전용 → adminClient (user-client는 거부됨)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: insertedItems, error: insertError } = await (supabase as any)
+  const { data: insertedItems, error: insertError } = await (adminClient as any)
     .from('review_items')
     .insert(insertRows)
     .select()
@@ -471,8 +474,9 @@ export async function POST(req: NextRequest) {
 
   const insertedArr = (insertedItems ?? []) as ReviewItem[]
 
+  // 092 RLS: review_iterations 쓰기는 service_role 전용 → adminClient
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: iterError } = await (supabase as any)
+  const { error: iterError } = await (adminClient as any)
     .from('review_iterations')
     .insert(
       insertedArr.map((dbItem, idx) => ({

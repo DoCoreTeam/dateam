@@ -54,8 +54,9 @@ export async function POST(
   const adminClient = createAdminClient()
 
   if (action === 'reject') {
+    // 092 RLS: review_items 쓰기는 service_role 전용 → adminClient 사용 (user-client는 거부됨)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any)
+    await (adminClient as any)
       .from('review_items')
       .update({
         status: 'rejected',
@@ -251,9 +252,9 @@ export async function POST(
     }
   }
 
-  // review_item 상태 업데이트
+  // review_item 상태 업데이트 (092 RLS: service_role 전용 → adminClient)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
+  await (adminClient as any)
     .from('review_items')
     .update({
       status: 'confirmed',

@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 
 // GET /api/pricing/gpu/audit[?product_id=&actor=&from=&to=&limit=]
 //   필터 미지정 시 기존 동작(전체 최신 300건). 통합 표 상세 패널 "변동 이력"용.
 export async function GET(req: NextRequest) {
   try {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
     const { searchParams } = new URL(req.url)
     const productId = searchParams.get('product_id')
     const actor = searchParams.get('actor')

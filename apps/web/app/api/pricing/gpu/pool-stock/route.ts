@@ -3,9 +3,12 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { recordGpuAudit } from '@/lib/gpu/audit'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 
 // GET /api/pricing/gpu/pool-stock?product_id=xxx
 export async function GET(req: NextRequest) {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 })

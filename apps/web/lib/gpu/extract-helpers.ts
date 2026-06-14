@@ -2,6 +2,7 @@
 // 기존 review/route.ts의 인라인 헬퍼와 동일 로직(무수정 보존을 위해 별도 추출).
 import type { createAdminClient } from '@/lib/supabase/server'
 import { SCHEMA_CONTRACT } from '@/lib/gpu/schema-contract'
+import { safeFetchText } from '@/lib/security/safe-fetch'
 
 export const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -40,22 +41,19 @@ export function extractUrls(text: string): string[] {
 }
 
 export async function fetchUrlText(url: string): Promise<string> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 12000)
   try {
-    const res = await fetch(url, {
-      signal: controller.signal,
+    // SSRF 방어: safe-fetch SSOT 경유 (스킴·사설망·리다이렉트·크기 검증) — review/stream 경로 포함
+    const res = await safeFetchText(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', 'Accept': 'text/html,application/xhtml+xml' },
     })
     if (!res.ok) return ''
-    const html = await res.text()
-    return html
+    return res.text
       .replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '')
       .replace(/<nav[\s\S]*?<\/nav>/gi, '').replace(/<footer[\s\S]*?<\/footer>/gi, '')
       .replace(/<[^>]+>/g, ' ')
       .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
       .replace(/\s+/g, ' ').trim().slice(0, 15000)
-  } catch { return '' } finally { clearTimeout(timer) }
+  } catch { return '' }
 }
 
 // 보유 모델 카탈로그(스펙) — 가상 인스턴스명→표준모델 매핑 컨텍스트 (review/route.ts와 동일 로직)

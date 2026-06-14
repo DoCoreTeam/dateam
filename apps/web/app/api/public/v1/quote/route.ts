@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticatePublicApi, corsHeaders, optionsResponse } from '@/lib/publicApiAuth'
 import { createAdminClient } from '@/lib/supabase/server'
+import { getGpuCatalog } from '@/lib/gpu/pricing'
 import { z } from 'zod'
 
 const quoteSchema = z.object({
@@ -36,52 +37,39 @@ export async function POST(request: NextRequest) {
     const admin = createAdminClient() as any
     const { items, currency } = parsed.data
 
-    const [settingsRes, fxRes, lowestRes, directRes] = await Promise.all([
-      admin.from('pricing_settings').select('margin_pct').eq('id', 1).single(),
+    // SSOT: 내부와 동일한 buildCatalog 결과를 사용. 기본가 = 전략가(우리 판매가).
+    //   custom_margin_pct가 오면 그 파트너 한정으로 공급원가×(1+마진) 재계산(명시 오버라이드 보존).
+    const [catalog, fxRes] = await Promise.all([
+      getGpuCatalog(admin),
       admin.from('fx_rates').select('usd_krw, rate_date').order('rate_date', { ascending: false }).limit(1).single(),
-      admin.from('v_lowest_quotes').select('product_id, unit_price_usd, valid_until'),
-      admin.from('direct_prices').select('product_id, sell_price_krw').eq('is_current', true),
     ])
 
-    const defaultMargin = settingsRes.data?.margin_pct ?? 18
-    const usdKrw = Number(fxRes.data?.usd_krw ?? 1400)
+    const defaultMargin = catalog.margin_pct
+    const usdKrw = catalog.usd_krw
 
-    const lowestMap = new Map(
-      (lowestRes.data ?? []).map((q: Record<string, unknown>) => [q.product_id as string, q])
-    )
-    const directMap = new Map(
-      (directRes.data ?? []).map((p: Record<string, unknown>) => [p.product_id as string, p])
-    )
-
-    const productIds = items.map((i) => i.product_id)
-    const { data: products } = await admin
-      .from('gpu_products')
-      .select('id, model_name, tier, memory, gpu_count, pricing_mode')
-      .in('id', productIds)
-
-    const productMap = new Map(
-      (products ?? []).map((p: Record<string, unknown>) => [p.id as string, p])
-    )
+    const productMap = new Map(catalog.products.map((p) => [p.id, p]))
 
     let subtotalUsd = 0
     const lineItems = items.map((item) => {
-      const product = productMap.get(item.product_id) as Record<string, unknown> | undefined
+      const product = productMap.get(item.product_id)
       if (!product) return { ...item, error: 'Product not found' }
 
+      const hasCustom = item.custom_margin_pct != null
       const margin = item.custom_margin_pct ?? defaultMargin
 
       let unitPriceUsd: number | null = null
-      if (product.pricing_mode === 'quote') {
-        const lowest = lowestMap.get(item.product_id) as Record<string, unknown> | undefined
-        const costUsd = lowest?.unit_price_usd ? Number(lowest.unit_price_usd) : null
-        unitPriceUsd = costUsd ? Math.round(costUsd * (1 + margin / 100) * 100) / 100 : null
+      let unitPriceKrw: number | null = null
+      if (hasCustom && product.effective_unit_price_usd != null) {
+        // 파트너 지정 마진 — 공급원가 기준 재계산
+        unitPriceUsd = Math.round(product.effective_unit_price_usd * (1 + margin / 100) * 100) / 100
+        unitPriceKrw = Math.round(unitPriceUsd * usdKrw)
       } else {
-        const direct = directMap.get(item.product_id) as Record<string, unknown> | undefined
-        const krw = direct?.sell_price_krw ? Number(direct.sell_price_krw) : null
-        unitPriceUsd = krw ? Math.round((krw / usdKrw) * 100) / 100 : null
+        // 기본 = 우리 판매가(전략가). 내부 화면과 동일.
+        unitPriceKrw = product.strategic_krw
+        unitPriceUsd = unitPriceKrw != null ? Math.round((unitPriceKrw / usdKrw) * 100) / 100 : null
       }
 
-      const totalUsd = unitPriceUsd ? Math.round(unitPriceUsd * item.quantity * 100) / 100 : null
+      const totalUsd = unitPriceUsd != null ? Math.round(unitPriceUsd * item.quantity * 100) / 100 : null
       if (totalUsd) subtotalUsd += totalUsd
 
       return {
@@ -92,9 +80,9 @@ export async function POST(request: NextRequest) {
         gpu_count: product.gpu_count,
         quantity: item.quantity,
         unit_price_usd: unitPriceUsd,
-        unit_price_krw: unitPriceUsd ? Math.round(unitPriceUsd * usdKrw) : null,
+        unit_price_krw: unitPriceKrw,
         total_usd: totalUsd,
-        total_krw: totalUsd ? Math.round(totalUsd * usdKrw) : null,
+        total_krw: totalUsd != null ? Math.round(totalUsd * usdKrw) : null,
         margin_pct: margin,
         available: unitPriceUsd != null,
       }

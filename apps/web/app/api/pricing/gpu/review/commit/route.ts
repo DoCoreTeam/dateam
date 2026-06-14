@@ -59,8 +59,9 @@ export async function POST(req: NextRequest) {
     }
   })
 
+  // 092 RLS: review_items 쓰기는 service_role 전용 → adminClient (user-client는 거부됨)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: inserted, error } = await (supabase as any).from('review_items').insert(insertRows).select()
+  const { data: inserted, error } = await (adminClient as any).from('review_items').insert(insertRows).select()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   const arr = (inserted ?? []) as Array<{ id: string }>
 

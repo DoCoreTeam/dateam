@@ -3,11 +3,14 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
 import { recordGpuAudit } from '@/lib/gpu/audit'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 
 // GET /api/pricing/gpu/market/prices?mapping_id=<id>[&limit=N] — 시세 이력(시계열)
 //   통합 표 상세 패널 "시장 비교 > 시세 이력"용. 읽기 전용(member 읽기 허용·RLS).
 export async function GET(req: NextRequest) {
   try {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
     const { searchParams } = new URL(req.url)
     const mappingId = searchParams.get('mapping_id')
     if (!mappingId) return NextResponse.json({ error: 'mapping_id 필수' }, { status: 400 })

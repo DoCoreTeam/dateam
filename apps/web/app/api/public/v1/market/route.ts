@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticatePublicApi, corsHeaders, optionsResponse } from '@/lib/publicApiAuth'
 import { createAdminClient } from '@/lib/supabase/server'
+import { getGpuCatalog, type CatalogProduct } from '@/lib/gpu/pricing'
 
 const MARKET_FRESH_HOURS = 48
 
@@ -16,13 +17,10 @@ export async function GET(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any
 
-    const { data: fxData } = await admin
-      .from('fx_rates')
-      .select('usd_krw')
-      .order('rate_date', { ascending: false })
-      .limit(1)
-      .single()
-    const usdKrw: number = fxData?.usd_krw ?? 1400
+    // SSOT: 우리 판매가/공급원가는 buildCatalog 에서 가져온다(v_lowest_quotes 자체계산 폐기).
+    const catalog = await getGpuCatalog(admin)
+    const usdKrw: number = catalog.usd_krw
+    const catalogMap = new Map<string, CatalogProduct>(catalog.products.map((p) => [p.id, p]))
 
     // 보안: supplier_id(경쟁사↔공급사 연계 — 소싱 기밀)는 공개 응답에서 제외.
     // select('*') 금지 — 명시 컬럼만 노출.
@@ -75,20 +73,6 @@ export async function GET(request: NextRequest) {
       mappingsByProduct.get(pid)!.push(m)
     }
 
-    const { data: ourPrices } = await admin
-      .from('v_lowest_quotes')
-      .select('product_id, unit_price_usd, supplier_id')
-
-    const ourPriceMap = new Map<string, Record<string, unknown>>()
-    for (const p of ourPrices ?? []) {
-      const row = p as Record<string, unknown>
-      const pid = row.product_id as string
-      if (!ourPriceMap.has(pid)) ourPriceMap.set(pid, row)
-    }
-
-    const { data: settings } = await admin.from('pricing_settings').select('margin_pct').eq('id', 1).single()
-    const globalMargin = (settings?.margin_pct as number) ?? 18
-
     const { data: stratConfigs } = await admin.from('pricing_strategy_config').select('*')
     const globalStrat = (stratConfigs ?? []).find((s: Record<string, unknown>) => s.scope === 'global') ?? {
       edge_pct_normal: 3, edge_pct_aggressive: 10, margin_pct: 18, concede_margin_pct: 12,
@@ -132,9 +116,12 @@ export async function GET(request: NextRequest) {
         }
       })
 
-      const ourData = ourPriceMap.get(pid)
-      const supplyMin = ourData?.unit_price_usd as number | undefined
-      const ourSalePrice = supplyMin != null ? supplyMin * (1 + globalMargin / 100) : null
+      // SSOT: 공급원가 = effective_unit_price_usd, 우리 판매가 = 전략가(우리 판매가, 내부와 동일)
+      const cat = catalogMap.get(pid)
+      const supplyMin = cat?.effective_unit_price_usd ?? undefined
+      const ourSalePrice = cat?.strategic_krw != null
+        ? cat.strategic_krw / usdKrw
+        : (cat?.sell_price_usd ?? null)
 
       const modelStrat = stratMap.get(pid)
       const strategy = {
