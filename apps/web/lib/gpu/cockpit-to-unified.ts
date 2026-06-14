@@ -27,6 +27,7 @@ export interface CockpitApiRow {
   basis?: string | null // auto/selected/propagated/list/none
   is_propagated?: boolean
   effective_supplier?: string | null // 공급원가 기준 공급사명(전파 원본/실견적)
+  cost_unit_usd?: number | null // 공급원가 per-GPU 단가(USD)
   gcube_site_price_krw?: number | null // gcube 공시가
   margin_pct: number
   competitor_min_krw: number | null
@@ -75,6 +76,7 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
       is_propagated: p.is_propagated ?? false,
       // 전파인데 원본 공급사 미상이면 현재 공급사로 폴백하지 않음(자기참조 라벨 방지, DC-REV MED-2)
       cost_supplier_name: p.effective_supplier ?? (p.is_propagated ? null : supplierName),
+      cost_unit_usd: p.cost_unit_usd ?? null,
       list_price_krw: p.gcube_site_price_krw ?? null,
       market_min_krw: p.competitor_min_krw,
       market_median_krw: marketMedian,

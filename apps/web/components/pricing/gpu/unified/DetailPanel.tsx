@@ -72,6 +72,7 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
   const [marketEdit, setMarketEdit] = useState<MarketPriceForEdit | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
+  const [costEditNote, setCostEditNote] = useState(false)
 
   // 가격 동기화 — 기존 sync-cost 라우트 재사용(저장 출처 재수집→공급원가 반영). 전역 1버튼.
   async function runSync() {
@@ -205,15 +206,32 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                       </tr>
                     )
                   })}
-                  {costQuotes.length === 0 && (
+                  {/* 전파 추정: 직접 견적은 없지만 다른 구성 견적에서 전파된 공급원가 → 실견적 행과 동일 형태로 표시(원가 비롯됨) */}
+                  {costQuotes.length === 0 && row.supply_cost_krw != null && (
+                    <tr>
+                      <td><SupplierCell name={row.cost_supplier_name} color={null} logoUrl={null} /></td>
+                      <td className="gpu-mono">{mUsd(row.cost_unit_usd)}</td>
+                      <td>전파</td>
+                      <td><span className="gpu-badge gpu-badge-gray">전파 추정</span></td>
+                      <td>—</td>
+                      <td><button type="button" className="gpu-udetail-rowbtn" onClick={() => setCostEditNote(true)}>{GPU_TERMS.edit}</button></td>
+                    </tr>
+                  )}
+                  {costQuotes.length === 0 && row.supply_cost_krw == null && (
                     <tr><td colSpan={6} className="gpu-udetail-tbl-empty">
                       {row.sell_price_krw != null
-                        ? `직접 매입 견적 없음 — ${basisSourceLabel(row)}${row.cost_supplier_name ? ` (${row.cost_supplier_name})` : ''} 기준으로 판매가 산정됨`
+                        ? `공시가 기준 — 직접 매입 견적 없음`
                         : GPU_TERMS.emptyList}
                     </td></tr>
                   )}
                 </tbody>
               </table>
+            )}
+            {costEditNote && costQuotes.length === 0 && row.supply_cost_krw != null && (
+              <p className="gpu-udetail-pending">
+                이 단가는 {row.cost_supplier_name ?? '원'} 견적에서 전파된 추정값입니다 — 직접 수정 불가.
+                원 견적(해당 모델 1장 구성)을 수정하면 모든 파생 구성에 자동 반영됩니다.
+              </p>
             )}
             {/* 견적 수정·삭제는 각 견적 행의 '수정' 버튼(QuoteEditModal에 삭제 포함)에서 처리.
                 여기서는 신규 실견적 등록만 — 기존 통합 입력 플로우로 연결(부모 콜백). */}

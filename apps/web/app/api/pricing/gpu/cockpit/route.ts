@@ -405,6 +405,8 @@ export async function GET() {
         // 공급사 원가
         cost_min_krw: costMinKrw,
         cost_max_krw: costMaxKrw,
+        // 공급원가 per-GPU 단가(USD) — 전파/실견적 공통. 견적표에 '전파 추정' 행으로 표시.
+        cost_unit_usd: p.effective_unit_price_usd ?? null,
         cost_is_propagated: costIsPropagated,
         cost_source: (marketLinkCostProducts.has(p.id) ? 'market_link' : 'quote') as 'market_link' | 'quote',
         cost_suppliers: costSuppliers,
