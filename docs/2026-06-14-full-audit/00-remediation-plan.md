@@ -88,3 +88,28 @@
 헛점 0 = 위 P0~P3 **전량**. 단번에 다 하면 회귀 위험이 크므로 **P0(보안+정합성 핵심)부터 한 단계씩**, 각 단계 후 🟥 DC-SEC/DC-REV + 골든셋 + 브라우저 검증. /ceo-ralph로 P0부터 자율 보수 권장.
 
 > 본 문서는 **감사·기획만**. 구현은 단계 승인 후 진행.
+
+---
+
+## [실 DB 검증 — 마지막 확인] RLS 노출은 추측이 아니라 사실 (live pg_policies)
+
+`pg_policies` 직접 조회 결과(운영 DB, 마이그 089까지 적용분):
+
+| 테이블 | SELECT 정책 | 추가 위험 |
+|--------|-------------|-----------|
+| supply_quotes | `USING(true) TO public(anon포함)` | **+ `UPDATE USING(true) TO authenticated`** = 로그인 누구나 **원가 수정 가능** |
+| suppliers | `USING(true) TO public` + `INSERT TO authenticated` | anon 읽기 + 인증 INSERT |
+| gpu_products | `USING(true) TO public` | anon이 전략가·반영가 읽기 |
+| direct_prices | `USING(true) TO public` | anon이 우리 판매가 읽기 |
+| pricing_settings | `USING(true) TO public` | anon이 마진 정책 읽기 |
+| gpu_audit_logs | `USING(true) TO public` (쓰기는 service_role) | anon이 감사 이력 읽기 |
+| review_items | `ALL TO authenticated` | api_user·member 검토큐 직접 RW |
+| competitors·market_prices | `SELECT TO authenticated` | member 읽기 |
+
+**확정 사실**: anon 키(브라우저 번들 공개)로 Supabase REST(`/rest/v1/...`)를 직접 치면 **전 공급사 원가·우리 판매가·마진·감사가 다 읽힘**(Next.js 미들웨어는 REST를 못 막음). 게다가 **로그인 사용자는 supply_quotes 원가를 직접 수정** 가능. → 보고서 0-1보다 **한 단계 더 심각**(read 노출 + write 변조).
+
+## 재정리 — 이건 "단계 분할 릴리즈"가 아니라 **한 작업**
+P0~P3는 따로 내보내는 게 아니라 **한 번의 보수 작업 안의 적용 순서**(RLS→public SSOT→검증/감사→CRUD/일괄/역연산→성능). 한 방에 다 구현하되, RLS·DetailPanel key·public SSOT를 먼저 손대야 나머지가 헛되지 않음. 분량은 1 스프린트(ralph 1 루프)로 충분.
+
+## 감사 완전성
+커버 축: 보안(RLS 실DB검증·엔드포인트·SSRF·인젝션·검증) · 정합성/SSOT · CRUD/권한/감사/소프트삭제/역연산/일괄 · 엣지/에러/실패/테스트사각 · 마이그정합. → **데이터 정합성·보안 축은 빠짐없이 감사됨.** 미감사 잔여는 접근성/i18n/반응형 등 UI 위생(데이터 무결성과 무관) 뿐.
