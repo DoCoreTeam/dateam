@@ -39,6 +39,8 @@ export default function PricingDecisionSection({ row, currency }: PricingDecisio
   const [reasonInput, setReasonInput] = useState('')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+  const [reflecting, setReflecting] = useState(false)
+  const [reflectMsg, setReflectMsg] = useState<string | null>(null)
 
   // gcube 파싱가 — 이 탭에서만 fetch(상세 패널이 가격 결정 탭일 때 마운트됨).
   const { data: gcubeData } = useSWR<{ items: GcubeCheckItem[] }>(
@@ -95,6 +97,28 @@ export default function PricingDecisionSection({ row, currency }: PricingDecisio
   async function promoteAuto() {
     if (row.auto_price_krw == null) return
     await patchStrategic(row.auto_price_krw, '추천가 반영')
+  }
+
+  async function markReflected() {
+    setReflecting(true)
+    setReflectMsg(null)
+    try {
+      const res = await fetch('/api/pricing/gpu/gcube-reflected', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_ids: [row.id] }),
+      })
+      const j = (await res.json().catch(() => ({}))) as { error?: string }
+      if (!res.ok) {
+        setReflectMsg(j.error ?? '반영 완료 마킹에 실패했습니다. 권한을 확인하세요.')
+        return
+      }
+      await mutate(COCKPIT_KEY)
+    } catch {
+      setReflectMsg('반영 완료 마킹 중 오류가 발생했습니다.')
+    } finally {
+      setReflecting(false)
+    }
   }
 
   const strategicLabel = row.is_strategic_set ? '설정됨' : '자동(추천가)'
@@ -176,6 +200,27 @@ export default function PricingDecisionSection({ row, currency }: PricingDecisio
           <span className="gpu-udetail-basis">수집일 {formatDate(gcubeItem.checked_at)} · 출처 gcube.ai</span>
         )}
       </div>
+
+      {/* 홈페이지 반영 완료 추적 (P2) */}
+      <div className="gpu-udetail-kv gpu-udetail-pricing-gcube">
+        <span className="gpu-udetail-kv-k">홈페이지 반영</span>
+        <span className="gpu-udetail-kv-v">
+          {row.reflected_at ? (
+            <span className="gpu-ubadge gpu-ubadge--ok gpu-udetail-strat-tag">
+              반영 완료 · {formatDate(row.reflected_at)}
+              {row.reflected_by ? ` (${row.reflected_by})` : ''}
+            </span>
+          ) : (
+            <span className="gpu-ubadge gpu-ubadge--muted gpu-udetail-strat-tag">미반영</span>
+          )}
+        </span>
+      </div>
+      <div className="gpu-udetail-acts">
+        <button type="button" className="gpu-udetail-rowbtn" disabled={reflecting} onClick={markReflected}>
+          {reflecting ? '처리 중…' : '홈페이지 반영 완료'}
+        </button>
+      </div>
+      {reflectMsg && <p className="gpu-udetail-pending">{reflectMsg}</p>}
 
       {msg && <p className="gpu-udetail-pending">{msg}</p>}
     </div>

@@ -301,6 +301,38 @@ export async function GET() {
 
     if (auditErr) throw auditErr
 
+    // 4-1. gcube 홈페이지 반영 완료 추적 — gpu_products 일괄 조회 (N+1 방지, pricing.ts 불변 R1)
+    //   pricing.ts(getGpuCatalog)는 계산식 불변 대상이라 별도 read로 반영 컬럼만 병합한다.
+    //   내성: 마이그레이션(091) 미적용 환경에서 컬럼 부재 시에도 페이지가 죽지 않도록 throw 대신 빈 맵 폴백.
+    const { data: reflectedRows, error: reflectedErr } = await db
+      .from('gpu_products')
+      .select('id, gcube_reflected_at, gcube_reflected_by, gcube_reflected_price_krw')
+      .in('id', productIds)
+
+    if (reflectedErr) {
+      console.warn('[cockpit] gcube_reflected 컬럼 조회 실패(마이그 091 미적용 가능) — 반영상태 생략:', reflectedErr.message)
+    }
+
+    const reflectedMap = new Map<string, {
+      reflected_at: string | null
+      reflected_by: string | null
+      reflected_price_krw: number | null
+    }>()
+    for (const r of reflectedRows ?? []) {
+      const row = r as {
+        id: string
+        gcube_reflected_at: string | null
+        gcube_reflected_by: string | null
+        gcube_reflected_price_krw: number | null
+      }
+      reflectedMap.set(row.id, {
+        reflected_at: row.gcube_reflected_at,
+        reflected_by: row.gcube_reflected_by,
+        reflected_price_krw:
+          row.gcube_reflected_price_krw != null ? Number(row.gcube_reflected_price_krw) : null,
+      })
+    }
+
     const strategicHistoryMap = new Map<string, StrategicHistoryEntry[]>()
     for (const log of auditLogs ?? []) {
       const row = log as {
@@ -388,6 +420,9 @@ export async function GET() {
       const strategicHistory: StrategicHistoryEntry[] =
         strategicHistoryMap.get(p.id) ?? []
 
+      // gcube 홈페이지 반영 완료 추적
+      const reflected = reflectedMap.get(p.id) ?? null
+
       return {
         // 식별 + 스펙(스펙 관리와 동일 데이터 — 상세 스펙 탭 표시용)
         id: p.id,
@@ -432,6 +467,11 @@ export async function GET() {
         is_strategic_set: p.is_strategic_set,
         effective_margin_pct: p.effective_margin_pct,
         strategic_history: strategicHistory,
+
+        // gcube 홈페이지 반영 완료 추적 (091)
+        gcube_reflected_at: reflected?.reflected_at ?? null,
+        gcube_reflected_by: reflected?.reflected_by ?? null,
+        gcube_reflected_price_krw: reflected?.reflected_price_krw ?? null,
 
         // 기준 공급가 선정 상태
         basis: p.basis,

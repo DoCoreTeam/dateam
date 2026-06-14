@@ -43,6 +43,10 @@ export interface UnifiedRow {
   // 전략가(우리 판매가의 진실값) — 가격 결정 탭. cockpit strategic_price_krw / is_strategic_set.
   strategic_price_krw: number | null
   is_strategic_set: boolean
+  // gcube 홈페이지 반영 완료 추적(P2). NULL이면 미반영. cockpit gcube_reflected_*에서 어댑터가 채움.
+  reflected_at: string | null
+  reflected_by: string | null
+  reflected_price_krw: number | null
   cost_source: string | null // 'market_link' → 추종가, 그 외 → 실견적/직판
   basis: string | null // 공급원가 기준: auto(실견적)/selected/propagated(전파)/list(공시가)/none
   is_propagated: boolean // 공급원가가 다른 구성 per-GPU 견적을 전파한 값인지(전파 추정 표기)

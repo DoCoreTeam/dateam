@@ -36,6 +36,7 @@ export type GpuActionType =
   | 'strategic_price_set'
   | 'gcube_price_collected'
   | 'market_cost_ingested'
+  | 'gcube_reflected'
 
 export interface RecordGpuAuditParams {
   actor: string

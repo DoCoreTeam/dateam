@@ -44,6 +44,9 @@ export interface CockpitApiRow {
   is_strategic_set: boolean
   effective_margin_pct: number | null
   cost_suppliers?: { supplier_name: string }[]
+  gcube_reflected_at?: string | null
+  gcube_reflected_by?: string | null
+  gcube_reflected_price_krw?: number | null
 }
 
 export interface CockpitApiResponse {
@@ -83,6 +86,9 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
       margin_pct: margin,
       strategic_price_krw: p.strategic_price_krw,
       is_strategic_set: p.is_strategic_set,
+      reflected_at: p.gcube_reflected_at ?? null,
+      reflected_by: p.gcube_reflected_by ?? null,
+      reflected_price_krw: p.gcube_reflected_price_krw ?? null,
       cost_source: p.cost_source,
       basis: p.basis ?? null,
       is_propagated: p.is_propagated ?? false,
