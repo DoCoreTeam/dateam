@@ -103,3 +103,29 @@ C1 마이그에 포함: `review_items`·`review_iterations`·`pool_stock`·`avai
 - 계산식(pricing.ts/buildCatalog) 불변(R1) — public은 그 결과를 "쓰기만". 디자인 토큰/공용컴포넌트. 커밋만(push 금지). 마이그는 dev 적용(관리자 설정 DB 연결정보 사용).
 
 > 본 문서는 **기획·보고만**. 실제 구현은 별도 지시(예: /ceo-ralph 본 문서 전량) 시.
+
+---
+
+## [검증] "이렇게 구축하면 문제 없나" — 실제 코드 대조 (구현 전 회귀 점검)
+
+각 라우트가 **어느 Supabase 클라이언트로 데이터를 읽는지** 전수 확인. RLS 조이기는 **user-scoped(`createClient`, 쿠키) 읽기에만 영향**, `createAdminClient`(service_role)는 RLS를 우회하므로 무영향.
+
+### ✅ 안전 확정 (안 깨짐)
+- **public/v1 전 라우트 = `createAdminClient`(service_role).** → **RLS 강화가 외부 API를 깨지 않는다.** (products·[id]·quote·market·suppliers·settings·inventory·fx 모두 admin client 확인). 외부 노출 차단은 RLS가 아니라 각 라우트의 **API키 인증**이 담당 → RLS 강화의 목적(=anon 브라우저키로 REST 직타 차단)은 anon 정책 제거만으로 달성, 외부 정식 호출은 무영향.
+- **RLS 재귀 위험 없음.** `is_member()/is_admin()`는 `036/009/037`이 이미 쓰는 `EXISTS(SELECT 1 FROM profiles ...)` 패턴(타 테이블 정책의 profiles 서브쿼리는 안전). 003의 재귀는 profiles **자기 정책**의 PostgREST JOIN 한정 → 해당 없음. SECURITY DEFINER로 더 안전.
+- **DetailPanel key·public SSOT 교체**: `getGpuCatalog(db)`가 임의 client를 인자로 받음(시그니처 확인) → public에서 admin client 그대로 주입 가능. 회귀 위험 낮음(응답 필드 매핑만 정확히).
+
+### ⚠️ 조건부 함정 — RLS "레벨"을 잘못 잡으면 내부 화면이 조용히 빈다 (가장 중요)
+실측: **내부 GET 라우트는 민감 테이블을 user-scoped 클라이언트로 읽는다.**
+- `cockpit`(createClient→`getGpuCatalog(db)`·`supply_quotes`·`market_prices`·`gpu_audit_logs`), `products GET`(`supply_quotes`), `suppliers GET`(`supply_quotes`), `quotes GET`(`supply_quotes`), `inventory`·`market`·`quotes/pending` — **전부 쿠키 클라이언트로 읽음 = RLS 적용 대상.**
+- 지금 동작하는 이유 = RLS가 `USING(true)`(개방)라서. **여기서 RLS를 `is_admin()`(관리자 전용)으로 조이면 → member 로그인 사용자가 이 화면을 열면 RLS가 행을 걸러 빈 데이터**(403이 아니라 "데이터 없음"으로 오인 = UX 함정).
+
+**→ 결론(반드시 반영):**
+1. **읽기 RLS는 `is_admin()`이 아니라 `is_member()`(admin+member, anon·api_user 제외)로 한다.** 그래야 미들웨어 인증 통과한 직원이 내부 화면을 정상 조회. **관리자 전용 강제는 RLS가 아니라 라우트의 `requireAdminApi`(C2)에서** 건다. (RLS=데이터 차단막 / 게이트=화면 권한 — 역할 분리)
+2. **절대 `TO authenticated USING(true)`로 열지 말 것.** **api_user도 `authenticated`** 라서 그렇게 열면 외부 API 사용자에게 원가가 노출(현 노출과 동급). 반드시 `is_member()` 술어로.
+3. **RLS 마이그(C1)와 인증 게이트(C2)는 반드시 같은 배치에서.** RLS만 먼저 조이고 게이트를 늦추면 그 사이 내부 화면이 빈다. 한 작업(1 ralph 루프)으로 묶는 본 기획의 전제와 일치 → **분할 배포 금지**.
+
+### 최종 판정
+- 기획대로 하되 **위 1·2·3을 지키면 회귀 없음.** 외부 API(service_role)는 무영향, 내부 화면은 `is_member` 레벨로 정상.
+- 잘못 가는 길(=`is_admin` RLS 또는 bare `authenticated`)은 실제 코드상 **확정적으로** 내부 화면 블랭크 또는 api_user 노출을 부른다 → 본 절이 그 함정을 미리 닫음.
+- 미검증 잔여: 외부 API가 **이미** `unit_price_usd`(공급 단가)를 노출 중(C7 교체와 무관한 선재 노출) — 외부 원가 노출 정책 여부는 별도 결정 사항(HIGH, 본 CRITICAL 배치 밖).
