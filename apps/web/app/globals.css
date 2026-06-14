@@ -5639,6 +5639,31 @@ label.intake-tool-btn {
 .gpu-udetail-pricing-gcube { margin-top: var(--space-3); }
 .gpu-udetail-pricing-sync { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; padding-top: var(--space-2); }
 
+/* 일괄 반영(P3) — 툴바 진입 버튼 + 모달 리스트 */
+.gpu-unified-bulk-btn { display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; min-height: 38px; }
+.gpu-modal-card--bulk { width: min(880px, 100%); }
+.gpu-bulk-msg { font-size: var(--fs-sm); border-radius: var(--radius); padding: var(--space-2) var(--space-3); margin: 0; }
+.gpu-bulk-msg--ok { color: var(--success); background: var(--success-bg); border: var(--hairline) solid var(--success-border); }
+.gpu-bulk-msg--err { color: var(--danger); background: var(--danger-bg); border: var(--hairline) solid var(--danger-border); }
+.gpu-bulk-empty { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-6) var(--space-4); text-align: center; color: var(--success); }
+.gpu-bulk-empty p { color: var(--gpu-muted); font-size: var(--fs-sm); margin: 0; }
+.gpu-bulk-tablewrap { overflow-x: auto; }
+.gpu-bulk-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.gpu-bulk-table th { text-align: left; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--gpu-muted); font-weight: 600; padding: var(--space-2); border-bottom: var(--hairline) solid var(--gpu-border); white-space: nowrap; position: sticky; top: 0; background: var(--nb-white); }
+.gpu-bulk-table td { padding: var(--space-2); border-bottom: var(--hairline) dashed var(--gpu-border); color: var(--text); vertical-align: middle; }
+.gpu-bulk-table tbody tr { cursor: pointer; transition: background 0.12s; }
+.gpu-bulk-table tbody tr:hover { background: var(--surface-bg); }
+.gpu-bulk-tr--sel { background: var(--info-bg); }
+.gpu-bulk-th-check { width: 36px; text-align: center; }
+.gpu-bulk-th-check input { width: 18px; height: 18px; cursor: pointer; accent-color: var(--gpu-accent); }
+.gpu-bulk-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gpu-bulk-model { font-weight: 700; }
+.gpu-bulk-mem { display: block; color: var(--gpu-muted); font-size: var(--fs-xs); font-weight: 500; }
+.gpu-bulk-footer { flex-wrap: wrap; }
+@media (max-width: 767px) {
+  .gpu-modal-card--bulk { width: 100%; }
+}
+
 /* 멀티모달 입력 — CSV/표 붙여넣기 */
 .gpu-mmi { display: flex; flex-direction: column; gap: var(--space-2); }
 .gpu-mmi-label { font-size: var(--fs-sm); font-weight: 600; color: var(--text); display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }

@@ -5,8 +5,10 @@
 // 데이터 어댑터(cockpit/market/... → UnifiedRow[])는 P1-3에서 연결. 본 컴포넌트는 표현만.
 
 import { useEffect, useState } from 'react'
+import { Globe } from 'lucide-react'
 import ViewSwitcher, { restoreSavedView } from './ViewSwitcher'
 import DetailPanel from './DetailPanel'
+import BulkReflectPanel from './BulkReflectPanel'
 import { getViewPreset, DEFAULT_VIEW } from '@/lib/gpu/unified-views'
 import type { GpuViewId } from '@/lib/gpu/unified-views'
 import { resolveCell } from '@/lib/gpu/unified-row'
@@ -59,6 +61,7 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [currencyMode, setCurrencyMode] = useState<CurrencyMode>('KRW')
+  const [bulkOpen, setBulkOpen] = useState(false)
   // 정렬: null이면 기본(모델·용량). 컬럼 헤더 클릭 시 해당 컬럼 asc→desc→해제 순환.
   const [sortConfig, setSortConfig] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(null)
   useEffect(() => { setView(restoreSavedView()) }, [])
@@ -116,6 +119,16 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
           <button type="button" className={currencyMode === 'KRW' ? 'on' : ''} onClick={() => setCurrencyMode('KRW')} title="원화 기준">₩ 원</button>
           <button type="button" className={currencyMode === 'USD' ? 'on' : ''} onClick={() => setCurrencyMode('USD')} title="달러 기준">$ 달러</button>
         </div>
+        {/* 일괄 반영(P3) — 미반영 제품 모아 전략가 일괄 확정/반영완료. 관리자만 실제 처리됨. */}
+        <button
+          type="button"
+          className="gpu-btn gpu-unified-bulk-btn"
+          onClick={() => setBulkOpen(true)}
+          title="미반영 제품 일괄 반영"
+        >
+          <Globe size={14} aria-hidden />
+          일괄 반영
+        </button>
       </div>
 
       <div className="gpu-unified-split">
@@ -212,6 +225,10 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
           <DetailPanel row={selectedRow} currency={currency} onRegisterQuote={onRegisterQuote} onManageMapping={onManageMapping} />
         </div>
       </div>
+
+      {bulkOpen && (
+        <BulkReflectPanel rows={rows} currency={currency} onClose={() => setBulkOpen(false)} />
+      )}
     </div>
   )
 }
