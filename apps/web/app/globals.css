@@ -123,6 +123,12 @@
   /* ── 가독성 토큰 — 금액 표시 전용 (콕핏·가격표) ── */
   --fs-price: clamp(1.125rem, 1rem + 0.3vw, 1.25rem); /* ≥18px */
   --fs-price-sub: 0.75rem;                              /* 12px 보조 */
+  /* ── 테마-가변 타이포 토큰 (한글-안전: uppercase=라틴만, tabular-nums=숫자만) ── */
+  --num-variant: normal;        /* font-variant-numeric — mono에서 tabular(등폭 숫자) */
+  --label-transform: none;      /* 라벨 text-transform — mono에서 uppercase(한글 무효) */
+  --label-tracking: 0;          /* 라벨 letter-spacing */
+  --heading-tracking: normal;   /* 제목 letter-spacing */
+  --brand-logo-size: var(--fs-2xl); /* 사이드바 로고 크기 — neo는 손글씨라 큼(24), 산세리프 테마는 축소 */
   /* ── z-index 계층 ── */
   --z-base: 1;
   --z-dropdown: 40;
@@ -177,6 +183,8 @@
   --color-text-muted: #64748b;
   --radius-card: 1rem;
   --shadow-card: var(--shadow-md);
+  /* 산세리프 테마 — 손글씨 로고 크기(24)는 과함 → 축소 */
+  --brand-logo-size: var(--fs-xl);
 }
 /* classic: NB 구조요소(테이프/하드섀도) 중립화 */
 [data-theme="classic"] .tape-title {
@@ -233,6 +241,7 @@
   --brand-soft-2: #ede9fe;
   --radius-card: var(--radius);
   --shadow-card: var(--shadow-md);
+  /* --brand-logo-size: 미선언 → :root fs-2xl 상속(손글씨 로고라 큼, 의도) */
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -267,6 +276,12 @@
   --brand-soft-2: #e8e8e8;
   --radius-card: 0;
   --shadow-card: none;
+  /* 스위스/모노 타이포 정체성 (한글-안전) */
+  --num-variant: tabular-nums;  /* 숫자 등폭 정렬 */
+  --label-transform: uppercase; /* 라틴 라벨 대문자(한글 무효) */
+  --label-tracking: 0.08em;     /* 라벨 와이드 트래킹 */
+  --heading-tracking: -0.01em;  /* 제목 약간 타이트 */
+  --brand-logo-size: var(--fs-xl); /* 산세리프 로고 축소 */
 }
 /* mono: NB 구조요소(테이프/하드섀도) 중립화 — 직각·플랫 스위스 톤 */
 [data-theme="mono"] .tape-title {
@@ -284,7 +299,7 @@
 [data-theme="mono"] .tape-mini {
   background: transparent; color: var(--text-muted); border: none; box-shadow: none;
   transform: none; font-family: inherit; font-size: 0.6875rem; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.08em; padding: 0;
+  text-transform: var(--label-transform); letter-spacing: var(--label-tracking); padding: 0;
 }
 [data-theme="mono"] .font-tape { font-family: inherit; }
 
@@ -295,6 +310,13 @@
     -webkit-font-smoothing: antialiased;
     background-color: var(--color-bg);
     color: var(--color-text);
+    /* 테마-가변 숫자 표기(한글-안전: 숫자에만 영향) — mono=tabular 등폭 */
+    font-variant-numeric: var(--num-variant, normal);
+  }
+
+  /* 테마-가변 제목 자간(인라인 letter-spacing 지정 시 인라인이 우선 — override) */
+  h1, h2, h3 {
+    letter-spacing: var(--heading-tracking, normal);
   }
 
   * {

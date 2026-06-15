@@ -136,7 +136,7 @@ export default function MobileShell({
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                 />
               ) : (
-                <span className="font-tape" style={{ color: 'var(--sidebar-fg)', fontSize: 'var(--fs-2xl)', fontWeight: 700, letterSpacing: '0', lineHeight: 1 }}>
+                <span className="font-tape" style={{ color: 'var(--sidebar-fg)', fontSize: 'var(--brand-logo-size)', fontWeight: 700, letterSpacing: '0', lineHeight: 1 }}>
                   {brandName}
                 </span>
               )}
