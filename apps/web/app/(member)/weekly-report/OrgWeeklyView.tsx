@@ -187,19 +187,28 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [localStatus, setLocalStatus] = useState<DeptStat['agg']>(agg)
+  const [confirmReagg, setConfirmReagg] = useState(false)
   const [editingCell, setEditingCell] = useState<{ idx: number; field: 'performance' | 'plan' | 'issues' } | null>(null)
 
   useEffect(() => { setRows(initialBody); setDirty(false); setLocalStatus(agg) }, [initialBody, agg])
 
-  // 취합: admin/reports와 동일 경로(aggregateDept → mergeAndRefineByCategory). 서버에서 draft 저장 후 flat 결과 반환.
-  async function onAggregate() {
+  // 확정본 재취합 가드: confirmed 상태면 확인 후 진행(AI 병합으로 편집이 바뀔 수 있음 고지).
+  function onAggregate() {
+    if (localStatus === 'confirmed') { setConfirmReagg(true); return }
+    void runAggregate()
+  }
+
+  // 취합: admin/reports와 동일 경로(aggregateDept → mergeAndRefineByCategory). 서버가 기존 편집·status 보존 병합.
+  async function runAggregate() {
+    setConfirmReagg(false)
     setBusy(true); setMsg(null)
     try {
       const r = await aggregateDept(deptId, weekStart)
       if (!r.ok) { setMsg(`취합 실패: ${r.error ?? '알 수 없는 오류'}`); return }
       setRows((r.body as FlatRow[]) ?? []); setDirty(false)
-      setLocalStatus('draft')
-      setMsg('AI 취합 완료 — 셀별 "수정"으로 다듬고 [확정]하세요')
+      // 서버가 보존한 status를 그대로 반영(확정본은 confirmed 유지)
+      setLocalStatus((r.status as DeptStat['agg']) ?? 'draft')
+      setMsg('AI 취합 완료 — 기존 편집·확정은 보존되며 새 내용이 병합됩니다. 셀별 "수정"으로 다듬으세요')
       router.refresh()
     } catch (e) {
       setMsg(e instanceof Error ? e.message : '취합 실패')
@@ -294,6 +303,28 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
           onChange={(html: string) => updateCell(editingCell.idx, editingCell.field, html)}
           onClose={() => setEditingCell(null)}
         />
+      )}
+
+      {/* 확정본 재취합 가드 — confirmed 상태에서 재취합 시 편집 변경 가능성 고지 */}
+      {confirmReagg && (
+        <div
+          onClick={() => setConfirmReagg(false)}
+          style={{ position: 'fixed', inset: 0, background: 'var(--modal-backdrop)', zIndex: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-4)' }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--surface-bg)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-modal)', padding: 'var(--space-6)', maxWidth: 420, width: '100%' }}
+          >
+            <div className="tape-title" style={{ fontSize: 'var(--fs-lg)', fontWeight: 700, marginBottom: 'var(--space-3)' }}>확정본 재취합</div>
+            <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', lineHeight: 1.6, margin: '0 0 var(--space-5)' }}>
+              이 주간보고는 <strong style={{ color: 'var(--success)' }}>확정</strong> 상태입니다. 재취합하면 기존 편집·확정은 보존되지만, AI 병합 과정에서 일부 표현이 바뀔 수 있습니다. 계속할까요?
+            </p>
+            <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmReagg(false)} style={{ padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', border: 'var(--border-w) solid var(--border-color)', background: 'var(--surface-bg)', color: 'var(--text)', fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: 'pointer' }}>취소</button>
+              <button onClick={() => void runAggregate()} style={{ padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', border: 'none', background: 'var(--brand)', color: '#fff', fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: 'pointer' }}>재취합</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

@@ -4,13 +4,7 @@ import { createHash } from 'node:crypto'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { mergeAndRefineByCategory, type MergedCategoryReport } from '@/lib/gemini-refine'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
-
-/** week_start(월요일 date 문자열) → 7일 전 월요일 문자열 */
-function prevWeekStart(weekStart: string): string {
-  const d = new Date(`${weekStart}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() - 7)
-  return d.toISOString().slice(0, 10)
-}
+import { prevWeekStart } from '@/lib/week'
 
 /** dept body(jsonb) → MergedCategoryReport[] 안전 정규화 */
 function normalizeBody(raw: unknown): MergedCategoryReport[] {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
+import { recordDailyOutcome, maybeSelfTuneDaily } from '@/lib/daily-prompt-governance'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 const PROMPT_KEY = 'daily.analyze-work'
@@ -83,6 +84,18 @@ export async function POST(req: NextRequest) {
   const accountList = (accounts ?? []) as { id: string; name: string }[]
   const contactList = (contacts ?? []) as { id: string; name: string }[]
 
+  // 그날 이미 등록된 항목(제목·분류) — 중복·오분류 방지 맥락으로 프롬프트에 주입
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existingToday } = await (supabase.from('daily_logs') as any)
+    .select('content, entry_type')
+    .eq('user_id', user.id)
+    .eq('log_date', date)
+    .limit(100)
+  const existingList = (existingToday ?? []) as { content: string; entry_type: string }[]
+  const existingTodayText = existingList.length > 0
+    ? existingList.map((r) => `- [${r.entry_type ?? 'note'}] ${(r.content ?? '').slice(0, 80)}`).join('\n')
+    : '없음 (오늘 첫 입력)'
+
   const tomorrow = new Date(date + 'T00:00:00')
   tomorrow.setDate(tomorrow.getDate() + 1)
   const tomorrowStr = tomorrow.toISOString().split('T')[0]
@@ -97,6 +110,7 @@ export async function POST(req: NextRequest) {
   const originGroupId: string | null = originGroup?.id ?? null
 
   const systemPrompt = promptResult.content
+    .replace('{EXISTING_TODAY}', existingTodayText)
     .replace('{TODAY}', date)
     .replace('{TODAY}', date)
     .replace('{TOMORROW}', tomorrowStr)
@@ -125,6 +139,8 @@ export async function POST(req: NextRequest) {
 
   const encoder = new TextEncoder()
   let fullText = ''
+  // D-2 품질신호용: 추출 항목(status·confidence) 누적
+  const collectedItems: { status?: string; confidence?: number }[] = []
   let promptTokens = 0
   let outputTokens = 0
   let totalTokens = 0
@@ -170,6 +186,7 @@ export async function POST(req: NextRequest) {
               if (!trimmed) continue
               try {
                 const item = JSON.parse(trimmed) as ParsedWorkItem
+                collectedItems.push({ status: item.status, confidence: item.confidence })
 
                 if (item.accountName) {
                   const match = accountList.find(a => a.name === item.accountName)
@@ -208,6 +225,7 @@ export async function POST(req: NextRequest) {
       if (fullText.trim()) {
         try {
           const item = JSON.parse(fullText.trim()) as ParsedWorkItem
+          collectedItems.push({ status: item.status, confidence: item.confidence })
           if (item.accountName) {
             const match = accountList.find(a => a.name === item.accountName)
             item.accountId = match?.id ?? null
@@ -244,6 +262,16 @@ export async function POST(req: NextRequest) {
 
       controller.enqueue(encoder.encode('data: [DONE]\n\n'))
       controller.close()
+
+      // D-2/D-8 자가학습: 사용 직후 결정적 품질신호 적재 + 누적 degraded 시 자가조정(롤백/합성).
+      //   응답 스트림은 이미 닫혔으므로 사용자 지연 없음. 실패는 비치명.
+      try {
+        const nowIso = new Date().toISOString()
+        await recordDailyOutcome(adminClient, { version: promptResult.version, input: text, items: collectedItems, userId: user.id, nowIso })
+        await maybeSelfTuneDaily(adminClient, { apiKey, model, sampleInput: text, nowIso })
+      } catch (e) {
+        console.warn('[analyze-work] 자가학습 신호 처리 실패', e)
+      }
     },
   })
 

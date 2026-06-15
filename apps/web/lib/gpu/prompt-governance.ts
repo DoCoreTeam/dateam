@@ -8,9 +8,26 @@ type Db = any
 // 빠뜨리면 자동활성 금지 → 재고 증발 같은 회귀를 자동반영 단계에서 차단.
 export const REQUIRED_PROMPT_TOKENS = ['model_name', 'unit_price_usd', 'supplier', 'quantity', 'resp_qty', 'term']
 
+// D-1: eval 도메인 일반화 — prompt_key 접두어별 필수 토큰 spec. GPU 외 도메인(일일 등)도 거버넌스 사정권에 들어옴.
+//   미등록 prompt_key는 빈 spec(통과) — 자가합성 대상 키만 등록.
+export const PROMPT_EVAL_SPECS: Record<string, string[]> = {
+  'gpu.': REQUIRED_PROMPT_TOKENS,
+  // 일일 업무 추출 — 출력 구조 필수 필드(분류/제목/신뢰도)를 유지해야 자동활성 허용
+  'daily.': ['title', 'status', 'confidence'],
+}
+
+/** prompt_key → 해당 도메인 필수 토큰. 가장 긴 접두어 우선. 미매칭 시 빈 배열. */
+export function evalSpecForKey(promptKey: string): string[] {
+  const match = Object.keys(PROMPT_EVAL_SPECS)
+    .filter((p) => promptKey.startsWith(p))
+    .sort((a, b) => b.length - a.length)[0]
+  return match ? PROMPT_EVAL_SPECS[match] : []
+}
+
 export interface PromptEval { ok: boolean; missing: string[] }
-export function evalPromptCandidate(content: string): PromptEval {
-  const missing = REQUIRED_PROMPT_TOKENS.filter((t) => !content.includes(t))
+/** 후보 프롬프트 eval. spec 미지정 시 GPU 기본 토큰(후방호환). */
+export function evalPromptCandidate(content: string, spec: string[] = REQUIRED_PROMPT_TOKENS): PromptEval {
+  const missing = spec.filter((t) => !content.includes(t))
   return { ok: missing.length === 0, missing }
 }
 
@@ -60,7 +77,8 @@ export async function autoActivatePrompt(
   db: Db,
   p: { promptKey: string; newContent: string; reason: string; trigger: string; modelHint?: string | null; nowIso: string },
 ): Promise<{ activated: boolean; missing?: string[] }> {
-  const ev = evalPromptCandidate(p.newContent)
+  // D-1: prompt_key 도메인에 맞는 필수토큰 spec으로 eval (GPU/일일 등 일반화)
+  const ev = evalPromptCandidate(p.newContent, evalSpecForKey(p.promptKey))
   const version = `ai-${shortId(p.newContent)}`
 
   // 직전 active content(diff·롤백 근거)
