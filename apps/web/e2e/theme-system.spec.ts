@@ -30,10 +30,10 @@ test('개인 테마: 사용자 메뉴 → 테마변경 서브메뉴 → mono 선
   // 좌하단 프로필 메뉴 열기
   await page.getByTestId('sidebar-profile-trigger').first().click()
 
-  // 테마변경 → 오른쪽 서브메뉴
+  // 테마변경 → 호버만으로 오른쪽 서브메뉴가 열려야 함(클릭 없이)
   const themeChangeBtn = page.locator('button:has-text("테마변경")')
   await expect(themeChangeBtn).toBeVisible({ timeout: 10_000 })
-  await themeChangeBtn.click()
+  await themeChangeBtn.hover()
   const monoItem = page.getByRole('menuitemradio', { name: /Monochrome/ })
   await expect(monoItem).toBeVisible({ timeout: 10_000 })
 
@@ -51,8 +51,9 @@ test('개인 테마: 사용자 메뉴 → 테마변경 서브메뉴 → mono 선
     { timeout: 10_000 },
   ).toBe('mono')
 
-  // 정리 — 원래 테마로 복구
-  if (original && original !== 'mono') {
-    await page.request.post('/api/user/theme', { data: { theme: original } })
-  }
+  // 정리 — 개인 테마를 null(리셋=전역 디폴트 추종)로 되돌림.
+  // ⚠️ 실계정 오염 방지: original 값으로 되돌리면 theme_preference가 '값'으로 남아
+  //    어드민의 전역 테마 변경이 본인 화면에 안 보이는 혼란을 유발(테스트 격리).
+  await page.request.post('/api/user/theme', { data: { theme: null } })
+  void original
 })

@@ -183,13 +183,17 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
             개발자센터
           </Link>
           <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0 0.75rem' }} />
-          {/* 테마변경 — 오른쪽 서브메뉴로 개인 테마 선택 */}
-          <div style={{ position: 'relative' }}>
+          {/* 테마변경 — 오른쪽 서브메뉴로 개인 테마 선택 (호버/클릭 모두 열림) */}
+          <div
+            style={{ position: 'relative' }}
+            onMouseEnter={() => setThemeOpen(true)}
+            onMouseLeave={() => setThemeOpen(false)}
+          >
             <button
               type="button"
               aria-haspopup="menu"
               aria-expanded={themeOpen}
-              onClick={() => setThemeOpen(v => !v)}
+              onClick={() => setThemeOpen(true)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -216,7 +220,7 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
                 role="menu"
                 style={{
                   position: 'absolute',
-                  left: 'calc(100% + 0.375rem)',
+                  left: '100%', // 간격 없이 인접 — 호버 이동 시 mouseleave 누락 방지
                   bottom: 0,
                   minWidth: 210,
                   background: 'var(--nb-white)',
