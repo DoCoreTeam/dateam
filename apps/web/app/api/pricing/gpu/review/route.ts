@@ -261,7 +261,7 @@ export async function GET(req: NextRequest) {
     .select('*')
     .eq('status', status)
     .order('created_at', { ascending: false })
-    .limit(50)
+    .limit(200)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

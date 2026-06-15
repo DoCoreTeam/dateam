@@ -266,7 +266,7 @@ function ConfidenceBar({ value, label }: { value: number | null; label: string }
   )
 }
 
-function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: () => void; allSuppliers: Supplier[] }) {
+function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect }: { item: ReviewItem; onDone: () => void; allSuppliers: Supplier[]; selected: boolean; onToggleSelect: () => void }) {
   const [expanded, setExpanded] = useState(false)
   const [checking, setChecking] = useState<Set<string>>(new Set())
   const [confirming, setConfirming] = useState(false)
@@ -379,9 +379,16 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
   const overallPct = item.overall_confidence ?? 0
 
   return (
-    <div className="gpu-rev-card" style={{ border: item.is_test ? 'var(--hairline) dashed var(--brand-soft-2)' : undefined }}>
+    <div className="gpu-rev-card" style={{ border: selected ? 'var(--border-w-2) solid var(--gpu-accent)' : item.is_test ? 'var(--hairline) dashed var(--brand-soft-2)' : undefined }}>
       {/* 헤더 */}
       <div className="gpu-rev-top" style={{ alignItems: 'flex-start' }}>
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onToggleSelect}
+          aria-label="선택"
+          style={{ width: 17, height: 17, marginTop: 13, marginRight: 2, accentColor: 'var(--gpu-accent)', flexShrink: 0, cursor: 'pointer' }}
+        />
         <div className="gpu-chip" style={{ width: 42, height: 42, flexShrink: 0 }}>
           {(item.product_hint ?? 'G').charAt(0)}
           <span style={{ fontSize: 9 }}>GPU</span>
@@ -583,16 +590,69 @@ export default function ReviewTab() {
     '/api/pricing/gpu/suppliers',
     fetcher
   )
-  const items = data?.items ?? []
+  const items = useMemo(() => data?.items ?? [], [data])
   const allSuppliers = (suppliersData?.suppliers ?? []).map((s) => ({
     id: s.id, name: s.name, color: s.color, location: s.location,
   }))
+
+  // 공급사/경쟁사 필터 + 선택(일괄 삭제)
+  const [targetFilter, setTargetFilter] = useState<'all' | 'supplier' | 'competitor'>('all')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [deleting, setDeleting] = useState(false)
+
+  const filtered = useMemo(() => items.filter((it) => {
+    if (targetFilter === 'all') return true
+    const t = it.target === 'competitor' ? 'competitor' : 'supplier'  // 미지정(레거시)=supplier
+    return t === targetFilter
+  }), [items, targetFilter])
+
+  const counts = useMemo(() => ({
+    all: items.length,
+    competitor: items.filter((it) => it.target === 'competitor').length,
+    supplier: items.filter((it) => it.target !== 'competitor').length,
+  }), [items])
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }, [])
+  const allVisibleSelected = filtered.length > 0 && filtered.every((it) => selected.has(it.id))
+  const toggleSelectAll = useCallback(() => {
+    setSelected((prev) => {
+      const n = new Set(prev)
+      if (filtered.every((it) => n.has(it.id))) filtered.forEach((it) => n.delete(it.id))
+      else filtered.forEach((it) => n.add(it.id))
+      return n
+    })
+  }, [filtered])
 
   const handleDone = useCallback(async () => {
     await revalidate()
     await globalMutate('/api/pricing/gpu/products')
     await globalMutate('/api/pricing/gpu/review?status=pending')
   }, [revalidate])
+
+  const handleBulkDelete = useCallback(async () => {
+    const ids = Array.from(selected)
+    if (ids.length === 0) return
+    if (!confirm(`선택한 ${ids.length}건을 검토 대기에서 영구 삭제합니다. 되돌릴 수 없습니다. 계속할까요?`)) return
+    setDeleting(true)
+    try {
+      const res = await fetch('/api/pricing/gpu/review/bulk', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, action: 'delete' }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { alert(j.error ?? '일괄 삭제 실패'); return }
+      setSelected(new Set())
+      await revalidate()
+    } finally {
+      setDeleting(false)
+    }
+  }, [selected, revalidate])
+
+  const FILTERS: Array<['all' | 'supplier' | 'competitor', string, number]> = [
+    ['all', '전체', counts.all], ['supplier', '공급사', counts.supplier], ['competitor', '경쟁사', counts.competitor],
+  ]
 
   return (
     <div>
@@ -606,13 +666,57 @@ export default function ReviewTab() {
         </div>
       </div>
 
-      {items.length === 0 ? (
+      {/* 필터 + 일괄 작업 바 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {FILTERS.map(([key, label, n]) => (
+            <button
+              key={key}
+              onClick={() => setTargetFilter(key)}
+              className="gpu-btn"
+              style={{
+                fontSize: 12, padding: '5px 12px',
+                background: targetFilter === key ? 'var(--gpu-accent)' : 'var(--surface-bg)',
+                color: targetFilter === key ? '#fff' : 'var(--text-muted)',
+                borderColor: targetFilter === key ? 'var(--gpu-accent)' : 'var(--color-border)',
+              }}
+            >
+              {label} {n}
+            </button>
+          ))}
+        </div>
+        {filtered.length > 0 && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', marginLeft: 4 }}>
+            <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} style={{ width: 15, height: 15, accentColor: 'var(--gpu-accent)' }} />
+            전체 선택
+          </label>
+        )}
+        <div style={{ flex: 1 }} />
+        {selected.size > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>선택 {selected.size}건</span>
+            <button onClick={() => setSelected(new Set())} className="gpu-btn" style={{ fontSize: 12 }}>선택 해제</button>
+            <button onClick={handleBulkDelete} disabled={deleting} className="gpu-btn gpu-btn-danger" data-testid="bulk-delete-btn" style={{ fontSize: 12, gap: 5 }}>
+              <X size={13} /> {deleting ? '삭제 중…' : '일괄 삭제'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--gpu-faint)', fontSize: '13px' }}>
           검토 대기 항목이 없습니다
         </div>
       ) : (
-        items.map((item) => (
-          <ReviewCard key={item.id} item={item} onDone={handleDone} allSuppliers={allSuppliers} />
+        filtered.map((item) => (
+          <ReviewCard
+            key={item.id}
+            item={item}
+            onDone={handleDone}
+            allSuppliers={allSuppliers}
+            selected={selected.has(item.id)}
+            onToggleSelect={() => toggleSelect(item.id)}
+          />
         ))
       )}
     </div>
