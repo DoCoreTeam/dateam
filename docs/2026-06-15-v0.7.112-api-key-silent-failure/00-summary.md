@@ -1,4 +1,17 @@
-# FAST PATH Summary — API 키 발급 silent failure 수정
+# FAST PATH Summary — API 키 발급 버그 수정
+
+## 후속(v0.7.113) — 진짜 원인 발견·수정
+1차(v0.7.112)는 에러 표시만 추가했고 키가 안 만들어지는 현상은 그대로였음. 실제 재현 결과:
+- **백엔드는 100% 정상**: throwaway 인증 유저로 라우트 서버 로직 전체 재현 — `getUser(token)` ok → admin insert+select ok. (REST insert도 HTTP 201)
+- **진짜 원인 = 프론트 하드코딩(라이트테마 깨짐)**:
+  1. 입력칸 글자색이 `var(--color-border)`(=보더/hairline 색) → 라이트테마 흰 배경에서 **타이핑한 이름이 거의 안 보임**
+  2. 이름이 비면 "생성" 버튼이 `disabled` → 클릭해도 **무반응·무피드백** ("안나온다"의 정체)
+- 수정: 입력칸 `className="input-field"`(테마 정상·글자 보임), 버튼 항상 클릭 가능(생성 중에만 비활성), 빈 이름이면 인라인 안내 + 입력칸 포커스. 모든 실패 경로 인라인 에러로 표시.
+- 검증: tsc 0 · design:check 클린 · 🟥 DC-REV.
+
+---
+
+# (1차) API 키 발급 silent failure 수정
 
 ## 작업
 `/api-keys` 화면에서 키 발급/폐기가 "안 되는데 아무 안내도 없는" silent failure를 가시화. 비-JSON 응답·세션 리다이렉트·네트워크 오류를 잡아 명확한 메시지(세션 만료→재로그인) 노출.

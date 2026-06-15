@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Plus, Trash2, Copy, Check, ExternalLink, Key, AlertTriangle } from 'lucide-react'
 
 interface ApiKey {
@@ -28,7 +28,9 @@ export default function ApiKeysPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [newKeyName, setNewKeyName] = useState('')
+  const [createError, setCreateError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const nameInputRef = useRef<HTMLInputElement>(null)
   const [newKeyResult, setNewKeyResult] = useState<NewKeyResult | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [revokeConfirm, setRevokeConfirm] = useState<string | null>(null)
@@ -64,8 +66,14 @@ export default function ApiKeysPage() {
   }
 
   async function createKey() {
-    if (!newKeyName.trim()) return
+    if (!newKeyName.trim()) {
+      // 빈 이름 클릭 시 죽은 버튼처럼 무반응하지 말고 즉시 안내 + 포커스
+      setCreateError('키 이름을 입력해주세요.')
+      nameInputRef.current?.focus()
+      return
+    }
     setCreating(true)
+    setCreateError(null)
     try {
       const res = await fetch('/api/user/api-keys', {
         method: 'POST',
@@ -73,7 +81,7 @@ export default function ApiKeysPage() {
         body: JSON.stringify({ name: newKeyName.trim() }),
       })
       if (isAuthRedirect(res)) {
-        alert('세션이 만료되었습니다. 다시 로그인한 뒤 시도해주세요.')
+        setCreateError('세션이 만료되었습니다. 다시 로그인한 뒤 시도해주세요.')
         return
       }
       const data = await res.json().catch(() => null)
@@ -83,10 +91,10 @@ export default function ApiKeysPage() {
         setNewKeyName('')
         fetchKeys()
       } else {
-        alert(data?.error ?? `키 생성에 실패했습니다 (HTTP ${res.status}).`)
+        setCreateError(data?.error ?? `키 생성에 실패했습니다 (HTTP ${res.status}).`)
       }
     } catch {
-      alert('네트워크 오류로 키 생성에 실패했습니다. 잠시 후 다시 시도해주세요.')
+      setCreateError('네트워크 오류로 키 생성에 실패했습니다. 잠시 후 다시 시도해주세요.')
     } finally {
       setCreating(false)
     }
@@ -168,7 +176,7 @@ export default function ApiKeysPage() {
           </div>
           <p style={{ color: '#94a3b8', fontSize: 13, margin: '0 0 12px' }}>이 키는 언제든지 API Keys 페이지에서 다시 복사할 수 있습니다.</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#0f172a', borderRadius: 8, padding: '10px 14px', border: '1px solid #1e293b' }}>
-            <code style={{ flex: 1, fontSize: 13, color: 'var(--color-border)', wordBreak: 'break-all', fontFamily: 'monospace' }}>{newKeyResult.key}</code>
+            <code style={{ flex: 1, fontSize: 13, color: '#e2e8f0', wordBreak: 'break-all', fontFamily: 'monospace' }}>{newKeyResult.key}</code>
             <button onClick={() => copyText(newKeyResult.key, 'newkey')} style={{ flexShrink: 0, padding: '4px 10px', borderRadius: 6, border: '1px solid #334155', background: '#1e293b', color: copiedId === 'newkey' ? '#10b981' : '#94a3b8', fontSize: 12, cursor: 'pointer' }}>
               {copiedId === 'newkey' ? <Check size={14} /> : <Copy size={14} />}
             </button>
@@ -183,19 +191,26 @@ export default function ApiKeysPage() {
           <div style={{ fontWeight: 600, marginBottom: 12, fontSize: 15 }}>새 API Key 생성</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
+              ref={nameInputRef}
               autoFocus
               type="text"
+              className="input-field"
               placeholder="e.g., Production Integration"
               value={newKeyName}
-              onChange={e => setNewKeyName(e.target.value)}
+              onChange={e => { setNewKeyName(e.target.value); if (createError) setCreateError(null) }}
               onKeyDown={e => e.key === 'Enter' && createKey()}
-              style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--color-border)', fontSize: 14, outline: 'none' }}
+              style={{ flex: 1 }}
             />
-            <button onClick={createKey} disabled={creating || !newKeyName.trim()} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: 'var(--brand)', color: '#fff', fontWeight: 600, fontSize: 14, cursor: creating ? 'not-allowed' : 'pointer', opacity: creating || !newKeyName.trim() ? 0.5 : 1 }}>
+            <button onClick={createKey} disabled={creating} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: 'var(--brand)', color: '#fff', fontWeight: 600, fontSize: 14, cursor: creating ? 'not-allowed' : 'pointer', opacity: creating ? 0.5 : 1 }}>
               {creating ? '생성 중...' : '생성'}
             </button>
-            <button onClick={() => { setShowCreate(false); setNewKeyName('') }} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#94a3b8', fontSize: 14, cursor: 'pointer' }}>취소</button>
+            <button onClick={() => { setShowCreate(false); setNewKeyName(''); setCreateError(null) }} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#94a3b8', fontSize: 14, cursor: 'pointer' }}>취소</button>
           </div>
+          {createError && (
+            <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, color: 'var(--danger)', fontSize: 13 }}>
+              <AlertTriangle size={14} /> {createError}
+            </div>
+          )}
         </div>
       )}
 
