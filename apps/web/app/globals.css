@@ -5713,13 +5713,28 @@ label.intake-tool-btn {
 .gpu-unified-state--error { color: var(--danger); }
 
 /* 모델별 그룹 헤더(접기/펼치기) — 모델 단일 레벨 그룹핑(티어 그룹핑 제거) */
-.gpu-unified-group-head { display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left; padding: var(--space-2) var(--space-3); background: var(--surface-bg); color: var(--text); border: 0; border-top: var(--hairline) solid var(--gpu-border); border-bottom: var(--hairline) solid var(--gpu-border); cursor: pointer; font-size: var(--fs-sm); font-weight: 700; }
+.gpu-unified-group-head { display: flex; align-items: baseline; gap: var(--space-2); width: 100%; text-align: left; padding: var(--space-3); background: var(--surface-bg); color: var(--text); border: 0; border-top: var(--hairline) solid var(--gpu-border); border-bottom: var(--border-w) solid var(--gpu-border); cursor: pointer; }
 .gpu-unified-group-head:hover { background: var(--info-bg); }
 .gpu-unified-group:first-child .gpu-unified-group-head { border-top: 0; }
-.gpu-unified-group-chevron { color: var(--gpu-muted); font-size: var(--fs-xs); width: 0.9em; flex-shrink: 0; }
-.gpu-unified-group-name { font-weight: 700; }
+.gpu-unified-group-chevron { color: var(--gpu-muted); font-size: var(--fs-sm); width: 0.9em; flex-shrink: 0; align-self: center; }
+.gpu-unified-group-name { font-weight: 800; font-size: var(--fs-lg); letter-spacing: -0.01em; color: var(--text); }
 .gpu-unified-group-count { color: var(--gpu-muted); font-weight: 500; font-size: var(--fs-xs); }
 .gpu-unified-collapse-btn { display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; min-height: 38px; }
+
+/* gcube 판매 마진(%) 설정 컨트롤 — 통합 표 툴바 */
+.gpu-margin-ctrl { display: inline-flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; }
+.gpu-margin-ctrl-lbl { font-size: var(--fs-xs); color: var(--gpu-muted); font-weight: 600; }
+.gpu-margin-preset { font-size: var(--fs-xs); padding: var(--space-1) var(--space-2); border: var(--hairline) solid var(--gpu-border); border-radius: var(--radius); background: var(--surface-bg); color: var(--text); cursor: pointer; min-height: 28px; }
+.gpu-margin-preset:hover { border-color: var(--gpu-accent); color: var(--gpu-accent); }
+.gpu-margin-preset.on { background: var(--gpu-accent-soft); color: var(--gpu-accent-ink); border-color: var(--gpu-accent); font-weight: 700; }
+.gpu-margin-stepper { display: inline-flex; align-items: center; gap: var(--space-1); }
+.gpu-margin-stepper button { width: 1.6em; min-height: 28px; border: var(--hairline) solid var(--gpu-border); border-radius: var(--radius); background: var(--surface-bg); color: var(--text); cursor: pointer; font-size: var(--fs-sm); line-height: 1; }
+.gpu-margin-stepper button:hover { border-color: var(--gpu-accent); color: var(--gpu-accent); }
+.gpu-margin-input { width: 3.4em !important; min-height: 28px !important; text-align: center; padding: var(--space-1) !important; font-size: var(--fs-sm) !important; }
+.gpu-margin-pct { font-size: var(--fs-xs); color: var(--gpu-muted); }
+.gpu-margin-saving { font-size: var(--fs-2xs); color: var(--gpu-muted); }
+.gpu-margin-saving--err { color: var(--danger); }
+.gpu-margin-ctrl--ro strong { font-size: var(--fs-sm); color: var(--text); }
 
 /* 우(상세) */
 .gpu-unified-detail { overflow: auto; min-height: 0; background: var(--surface-bg); }

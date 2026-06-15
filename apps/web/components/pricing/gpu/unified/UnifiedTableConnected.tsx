@@ -12,12 +12,18 @@ import type { CockpitApiResponse } from '@/lib/gpu/cockpit-to-unified'
 import type { InventoryApiResponse } from '@/lib/gpu/inventory-to-unified'
 
 interface UnifiedTableConnectedProps {
+  /** gcube 판매 마진(%) — 전역 설정값. 표 툴바의 마진 컨트롤에 표시. */
+  marginPct?: number
+  /** 관리자만 마진 편집 가능. */
+  isAdmin?: boolean
+  /** 마진 저장 후 settings SWR revalidate(상위 GpuPricingClient). */
+  onMarginSaved?: () => void
   onRegisterQuote?: () => void
   onManageMapping?: () => void
 }
 
-export default function UnifiedTableConnected({ onRegisterQuote, onManageMapping }: UnifiedTableConnectedProps) {
-  const { data, error, isLoading } = useSWR<CockpitApiResponse>('/api/pricing/gpu/cockpit', fetcher, {
+export default function UnifiedTableConnected({ marginPct, isAdmin, onMarginSaved, onRegisterQuote, onManageMapping }: UnifiedTableConnectedProps) {
+  const { data, error, isLoading, mutate } = useSWR<CockpitApiResponse>('/api/pricing/gpu/cockpit', fetcher, {
     refreshInterval: 60000,
   })
   // 재고 축 병합(재고 보기) — 보조 fetch. 실패해도 가격 보기는 정상.
@@ -31,6 +37,10 @@ export default function UnifiedTableConnected({ onRegisterQuote, onManageMapping
       loading={isLoading}
       error={error ? '불러오기에 실패했습니다.' : null}
       usdKrw={data?.usd_krw ?? 1}
+      marginPct={marginPct}
+      isAdmin={isAdmin}
+      // 마진 저장 → cockpit 재조회(자동가 재계산) + 상위 settings revalidate(표시값 갱신)
+      onMarginSaved={() => { mutate(); onMarginSaved?.() }}
       onRegisterQuote={onRegisterQuote}
       onManageMapping={onManageMapping}
     />

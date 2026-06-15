@@ -9,6 +9,7 @@ import { Globe, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
 import ViewSwitcher, { restoreSavedView } from './ViewSwitcher'
 import DetailPanel from './DetailPanel'
 import BulkReflectPanel from './BulkReflectPanel'
+import MarginControl from '../MarginControl'
 import { getViewPreset, DEFAULT_VIEW } from '@/lib/gpu/unified-views'
 import type { GpuViewId } from '@/lib/gpu/unified-views'
 import { resolveCell } from '@/lib/gpu/unified-row'
@@ -21,6 +22,12 @@ interface UnifiedTableProps {
   error?: string | null
   /** 표시 통화 환산 환율(1 USD = ? KRW). cockpit usd_krw. */
   usdKrw?: number
+  /** gcube 판매 마진(%) — 전역 설정값. 통합 표 auto_price 산정에 사용됨. */
+  marginPct?: number
+  /** 관리자만 마진 편집 가능. */
+  isAdmin?: boolean
+  /** 마진 저장 성공 후 — 가격 데이터 revalidate. */
+  onMarginSaved?: () => void
   onRegisterQuote?: () => void
   onManageMapping?: () => void
 }
@@ -55,7 +62,7 @@ function sortValue(row: UnifiedRow, key: string): number | string | null {
   }
 }
 
-export default function UnifiedTable({ rows, loading = false, error = null, usdKrw = 1, onRegisterQuote, onManageMapping }: UnifiedTableProps) {
+export default function UnifiedTable({ rows, loading = false, error = null, usdKrw = 1, marginPct, isAdmin = false, onMarginSaved, onRegisterQuote, onManageMapping }: UnifiedTableProps) {
   // 하이드레이션 안전: 서버/첫 렌더는 DEFAULT_VIEW, mount 후 저장된 보기로 복원(localStorage 불일치 방지).
   const [view, setView] = useState<GpuViewId>(DEFAULT_VIEW)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -188,6 +195,10 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
           <button type="button" className={currencyMode === 'KRW' ? 'on' : ''} onClick={() => setCurrencyMode('KRW')} title="원화 기준">₩ 원</button>
           <button type="button" className={currencyMode === 'USD' ? 'on' : ''} onClick={() => setCurrencyMode('USD')} title="달러 기준">$ 달러</button>
         </div>
+        {/* gcube 판매 마진(%) 설정 — 전역 설정. auto_price 산정에 사용. 관리자만 편집. */}
+        {marginPct != null && (
+          <MarginControl marginPct={marginPct} isAdmin={isAdmin} onSaved={onMarginSaved} />
+        )}
         {/* 모델 그룹 전체 접기/펼치기 */}
         <button
           type="button"

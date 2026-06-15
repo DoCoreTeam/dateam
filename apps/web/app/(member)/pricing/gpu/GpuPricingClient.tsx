@@ -337,6 +337,9 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
         {activeTab === 'board' && unifiedOn && (
           <div className="gpu-tab-panel">
             <UnifiedTableConnected
+              marginPct={settings?.margin_pct ?? undefined}
+              isAdmin={isAdmin}
+              onMarginSaved={() => mutateSettings()}
               onRegisterQuote={() => setActiveTab('intake')}
               onManageMapping={() => setActiveTab('market')}
             />
