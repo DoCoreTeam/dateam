@@ -108,13 +108,13 @@ function PR({ name, type, required, desc }: { name: string; type: string; requir
 
 // ─── 섹션: 개요 ──────────────────────────────────────────────────────────────
 
-function OverviewSection({ onCopy, copiedId }: { onCopy: (t: string, id: string) => void; copiedId: string | null }) {
+function OverviewSection({ onCopy, copiedId, brandName }: { onCopy: (t: string, id: string) => void; copiedId: string | null; brandName: string }) {
   const origin = useOrigin()
   return (
     <div>
-      <div style={{ fontSize: 13, color: 'var(--brand)', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>AX GPU 가격 API</div>
+      <div style={{ fontSize: 13, color: 'var(--brand)', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{brandName ? `${brandName} GPU 가격 API` : 'GPU 가격 API'}</div>
       <H1>개발자 문서</H1>
-      <P>AX API는 GPU 실시간 가격 조회, 동적 견적 계산, 재고·공급사·경쟁사 데이터에 프로그래밍 방식으로 접근하게 해줍니다. 외부 시스템 연동, 견적 자동화, ERP/CRM 통합에 활용하세요.</P>
+      <P>{brandName ? `${brandName} API` : 'API'}는 GPU 실시간 가격 조회, 동적 견적 계산, 재고·공급사·경쟁사 데이터에 프로그래밍 방식으로 접근하게 해줍니다. 외부 시스템 연동, 견적 자동화, ERP/CRM 통합에 활용하세요.</P>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 36 }}>
         {[
@@ -945,6 +945,7 @@ export default function DevelopPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showDashboardLink, setShowDashboardLink] = useState(false)
   const [showApplyLink, setShowApplyLink] = useState(false)
+  const [brandName, setBrandName] = useState('')
 
   useEffect(() => {
     const sb = createClient()
@@ -954,6 +955,12 @@ export default function DevelopPage() {
       const role = (data as { role?: string } | null)?.role
       if (role === 'admin' || role === 'member') setShowDashboardLink(true)
     })
+    // 어드민에 설정된 서비스명(SSOT: system_settings.brand_name, public_read) 로드
+    sb.from('system_settings').select('value').eq('key', 'brand_name').maybeSingle()
+      .then(({ data }) => {
+        const v = (data as { value?: string | null } | null)?.value
+        if (v) setBrandName(v)
+      })
   }, [])
 
   function copy(text: string, id: string) {
@@ -972,8 +979,9 @@ export default function DevelopPage() {
       <header style={{ borderBottom: 'var(--hairline) solid var(--text)', padding: 'var(--space-0) var(--space-8)', position: 'sticky', top: 0, background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(12px)', zIndex: 100 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <a href="/home" style={{ width: 30, height: 30, borderRadius: 7, background: 'linear-gradient(135deg, var(--brand), var(--brand))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', textDecoration: 'none' }}>A</a>
-            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--surface-muted)' }}>개발자센터</span>
+            <a href="/home" style={{ fontWeight: 700, fontSize: 15, color: 'var(--surface-muted)', textDecoration: 'none' }}>
+              {brandName ? `${brandName} 개발자센터` : '개발자센터'}
+            </a>
             <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 100, background: 'var(--text)', color: 'var(--brand)', fontWeight: 600 }}>v1</span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -1017,7 +1025,7 @@ export default function DevelopPage() {
 
         {/* 메인 콘텐츠 */}
         <main style={{ minWidth: 0 }}>
-          {activeSection === 'overview'   && <OverviewSection onCopy={copy} copiedId={copiedId} />}
+          {activeSection === 'overview'   && <OverviewSection onCopy={copy} copiedId={copiedId} brandName={brandName} />}
           {activeSection === 'auth'       && <AuthSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
           {activeSection === 'products'   && <ProductsSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
           {activeSection === 'quote'      && <QuoteSection exampleKey={EXAMPLE_KEY} onCopy={copy} copiedId={copiedId} />}
