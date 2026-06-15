@@ -56,8 +56,8 @@
   --sidebar-divider: var(--border-color);
   /* nav 항목 hover 배경 — 밝은 페이퍼엔 어두운 오버레이 (다크 테마에서 [data-theme]가 오버라이드) */
   --nav-hover-bg: rgba(0, 0, 0, 0.05);
-  /* 상단 헤더/사이드바 브랜드 공통 높이(하단선 정렬용) */
-  --header-height: 56px;
+  /* 상단 헤더/사이드바 브랜드 공통 높이(하단선 정렬용). 로고/계정 수직 여백 확보 위해 상향. */
+  --header-height: 64px;
 
   /* ── 브릿지: 기존 인디고 토큰을 NB 토큰으로 alias (컴포넌트 코드 무수정 전파) ── */
   --color-bg: var(--nb-off-white);

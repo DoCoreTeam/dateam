@@ -259,9 +259,9 @@ export default function MobileShell({
           </div>
         )}
 
-        {/* 푸터 */}
+        {/* 푸터 — 사용자 계정. 상·하 여백 확보(바닥에 딱 붙지 않도록) + 수직 중앙 정렬. */}
         {footer && (
-          <div style={{ padding: 'var(--space-3)', borderTop: 'var(--border-w-2) solid var(--sidebar-divider)' }}>
+          <div style={{ padding: 'var(--space-4)', borderTop: 'var(--border-w-2) solid var(--sidebar-divider)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             {footer}
           </div>
         )}
