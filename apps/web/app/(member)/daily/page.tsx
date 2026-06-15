@@ -1004,7 +1004,11 @@ function LogList({
     <>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
       {groups.map((group) => {
-        if (!group.isBatch) return renderCard(group.logs[0])
+        const head = group.logs[0]
+        // AI저장 입력(원본 보존 대상)은 분해가 1건이어도 원본+드로어 카드로 표시.
+        // 순수 수동 단건(origin_group/original_input 없음)만 기존 단일 카드 폴백.
+        const isAiGroup = !!head?.origin_group_id || head?.ai_processed === true || !!head?.original_input
+        if (!group.isBatch && !isAiGroup) return renderCard(head)
         // 묶음 안의 카드를 편집/스레드 작성 중이면 접기 방지 (입력 손실 방지)
         const hasActiveChild = group.logs.some((l) => l.id === editingId || l.id === openThreadId)
         const isOpen = expandedGroups.has(group.key) || hasActiveChild
