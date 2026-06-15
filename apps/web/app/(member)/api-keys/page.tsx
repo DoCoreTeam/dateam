@@ -25,6 +25,7 @@ interface NewKeyResult {
 export default function ApiKeysPage() {
   const [keys, setKeys] = useState<ApiKey[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [newKeyName, setNewKeyName] = useState('')
   const [showCreate, setShowCreate] = useState(false)
@@ -36,14 +37,31 @@ export default function ApiKeysPage() {
     setLoading(true)
     try {
       const res = await fetch('/api/user/api-keys')
-      const data = await res.json()
-      if (data.success) setKeys(data.data)
+      if (res.redirected || res.status === 401 || res.url.includes('/login')) {
+        setLoadError('세션이 만료되었습니다. 다시 로그인한 뒤 새로고침해주세요.')
+        return
+      }
+      const data = await res.json().catch(() => null)
+      if (data?.success) {
+        setKeys(data.data)
+        setLoadError(null)
+      } else {
+        setLoadError('목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.')
+      }
+    } catch {
+      setLoadError('네트워크 오류로 목록을 불러오지 못했습니다.')
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => { fetchKeys() }, [fetchKeys])
+
+  // 세션 만료 시 미들웨어가 /login(HTML)로 리다이렉트하므로 res.json()이 조용히 throw됨.
+  // 비-JSON/리다이렉트 응답을 감지해 명확히 안내한다(silent failure 방지).
+  function isAuthRedirect(res: Response): boolean {
+    return res.redirected || res.status === 401 || res.url.includes('/login')
+  }
 
   async function createKey() {
     if (!newKeyName.trim()) return
@@ -54,28 +72,42 @@ export default function ApiKeysPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newKeyName.trim() }),
       })
-      const data = await res.json()
-      if (data.success) {
+      if (isAuthRedirect(res)) {
+        alert('세션이 만료되었습니다. 다시 로그인한 뒤 시도해주세요.')
+        return
+      }
+      const data = await res.json().catch(() => null)
+      if (data?.success) {
         setNewKeyResult(data.data)
         setShowCreate(false)
         setNewKeyName('')
         fetchKeys()
       } else {
-        alert(data.error ?? 'Failed to create key')
+        alert(data?.error ?? `키 생성에 실패했습니다 (HTTP ${res.status}).`)
       }
+    } catch {
+      alert('네트워크 오류로 키 생성에 실패했습니다. 잠시 후 다시 시도해주세요.')
     } finally {
       setCreating(false)
     }
   }
 
   async function revokeKey(id: string) {
-    const res = await fetch(`/api/user/api-keys/${id}`, { method: 'DELETE' })
-    const data = await res.json()
-    if (data.success) {
-      setRevokeConfirm(null)
-      fetchKeys()
-    } else {
-      alert(data.error ?? 'Failed to revoke key')
+    try {
+      const res = await fetch(`/api/user/api-keys/${id}`, { method: 'DELETE' })
+      if (isAuthRedirect(res)) {
+        alert('세션이 만료되었습니다. 다시 로그인한 뒤 시도해주세요.')
+        return
+      }
+      const data = await res.json().catch(() => null)
+      if (data?.success) {
+        setRevokeConfirm(null)
+        fetchKeys()
+      } else {
+        alert(data?.error ?? `키 폐기에 실패했습니다 (HTTP ${res.status}).`)
+      }
+    } catch {
+      alert('네트워크 오류로 키 폐기에 실패했습니다. 잠시 후 다시 시도해주세요.')
     }
   }
 
@@ -164,6 +196,13 @@ export default function ApiKeysPage() {
             </button>
             <button onClick={() => { setShowCreate(false); setNewKeyName('') }} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#94a3b8', fontSize: 14, cursor: 'pointer' }}>취소</button>
           </div>
+        </div>
+      )}
+
+      {/* Load error */}
+      {loadError && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#ef4444', fontSize: 14 }}>
+          <AlertTriangle size={16} /> {loadError}
         </div>
       )}
 
