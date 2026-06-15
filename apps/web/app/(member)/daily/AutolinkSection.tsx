@@ -30,7 +30,8 @@ export default function AutolinkSection({ logId }: { logId: string }) {
     setRelations(res.relations ?? [])
     setEntities(res.entities ?? [])
     setLoading(false)
-    return (res.relations?.length ?? 0) + (res.entities?.length ?? 0)
+    // ran=true면 빈 결과여도 재실행 안 함(이미 1회 분석 — DC-REV 비용)
+    return res.ran ? 1 : (res.relations?.length ?? 0) + (res.entities?.length ?? 0)
   }, [logId])
 
   const run = useCallback(async () => {

@@ -27,10 +27,12 @@ export async function GET(req: NextRequest) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
-  const [relRes, entRes] = await Promise.all([
+  const [relRes, entRes, logRes] = await Promise.all([
     db.from('daily_log_relations').select('id, to_log_id, relation_type, confidence, reason, weak, created_by').eq('from_log_id', logId),
     db.from('work_entity_links').select('id, kind, entity_id, confidence, reason, weak, created_by').eq('log_id', logId),
+    db.from('daily_logs').select('autolink_run_at').eq('id', logId).maybeSingle(),
   ])
+  const ran = !!logRes?.data?.autolink_run_at
   const rels = (relRes.data ?? []) as Array<{ to_log_id: string }>
   const ents = (entRes.data ?? []) as Array<{ kind: string; entity_id: string }>
 
@@ -52,6 +54,7 @@ export async function GET(req: NextRequest) {
   for (const r of (consN.data ?? [])) nameMap.set('contact:' + r.id, r.name)
 
   return NextResponse.json({
+    ran,
     relations: (relRes.data ?? []).map((r: Record<string, unknown>) => ({ ...r, label: nameMap.get('log:' + r.to_log_id) ?? '(업무)' })),
     entities: (entRes.data ?? []).map((e: Record<string, unknown>) => ({ ...e, label: nameMap.get(`${e.kind}:${e.entity_id}`) ?? '(삭제됨)' })),
   })
@@ -108,8 +111,8 @@ export async function POST(req: NextRequest) {
     await db.from('autolink_feedback').insert({
       log_id: logId || null, target_kind, target_id, action: 'unlink', created_by: user.id,
     }).then(undefined, () => {})
-    // L1: 해제(오답) 누적 → 임계 자동 보정(자가보정 루프)
-    await recomputeThresholds(db).catch(() => {})
+    // L1: 해제(오답) 누적 → 임계 자동 보정(자가보정 루프). 비동기 best-effort(응답 비차단).
+    void recomputeThresholds(db).catch(() => {})
     return NextResponse.json({ ok: true })
   }
 
