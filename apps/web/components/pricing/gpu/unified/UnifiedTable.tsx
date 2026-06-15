@@ -5,7 +5,7 @@
 // 데이터 어댑터(cockpit/market/... → UnifiedRow[])는 P1-3에서 연결. 본 컴포넌트는 표현만.
 
 import { useEffect, useState } from 'react'
-import { Globe } from 'lucide-react'
+import { Globe, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
 import ViewSwitcher, { restoreSavedView } from './ViewSwitcher'
 import DetailPanel from './DetailPanel'
 import BulkReflectPanel from './BulkReflectPanel'
@@ -64,6 +64,15 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
   const [bulkOpen, setBulkOpen] = useState(false)
   // 정렬: null이면 기본(모델·용량). 컬럼 헤더 클릭 시 해당 컬럼 asc→desc→해제 순환.
   const [sortConfig, setSortConfig] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(null)
+  // 모델별 그룹 접힘 상태 — model_name 집합. 기본 전개(빈 셋). 티어 그룹핑은 제거(모델 단일 레벨).
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
+  const toggleGroup = (model: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(model)) next.delete(model)
+      else next.add(model)
+      return next
+    })
   useEffect(() => { setView(restoreSavedView()) }, [])
 
   const currency: CurrencyCtx = { mode: currencyMode, usdKrw }
@@ -103,6 +112,66 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
     : sortedRows
   const selectedRow = rows.find((r) => r.id === selectedId) ?? null
 
+  // 모델별 그룹핑 — visibleRows는 이미 정렬·검색 반영. Map 삽입순서로 등장 순서 보존.
+  const groupMap = new Map<string, UnifiedRow[]>()
+  for (const r of visibleRows) {
+    const arr = groupMap.get(r.model_name)
+    if (arr) arr.push(r)
+    else groupMap.set(r.model_name, [r])
+  }
+  const groups = Array.from(groupMap, ([model, groupRows]) => ({ model, rows: groupRows }))
+  const allCollapsed = groups.length > 0 && groups.every((g) => collapsed.has(g.model))
+  const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(groups.map((g) => g.model)))
+
+  // 멤버 행 1줄 렌더(그룹 안). 모델명은 그룹 헤더에 있으므로 행에선 구성(용량·공급사)을 보여준다.
+  const renderRow = (row: UnifiedRow) => {
+    const selected = row.id === selectedId
+    return (
+      <button
+        key={row.id}
+        type="button"
+        role="row"
+        aria-selected={selected}
+        className={`gpu-unified-row gpu-unified-row--item${selected ? ' gpu-unified-row--sel' : ''}`}
+        onClick={() => setSelectedId(row.id)}
+      >
+        {preset.columns.map((col) => {
+          const cell = resolveCell(row, col, currency)
+          const base = `gpu-unified-cell gpu-unified-cell--${col.align}${col.hideMobile ? ' gpu-unified-cell--hide-mobile' : ''}`
+          if (cell.kind === 'model') {
+            return (
+              <span key={col.key} role="cell" className={base}>
+                <span className="gpu-unified-model">
+                  {row.memory ?? cell.text}
+                  {row.supplier_name && <small>{row.supplier_name}</small>}
+                </span>
+              </span>
+            )
+          }
+          if (cell.kind === 'badge') {
+            return (
+              <span key={col.key} role="cell" className={base}>
+                {cell.text === '—'
+                  ? <span className="gpu-unified-tone--muted">—</span>
+                  : <span className={`gpu-ubadge gpu-ubadge--${cell.tone}`}>{cell.text}</span>}
+              </span>
+            )
+          }
+          // text / sell
+          return (
+            <span
+              key={col.key}
+              role="cell"
+              className={`${base} gpu-unified-tone--${cell.tone}${cell.mono ? ' gpu-mono' : ''}`}
+            >
+              {cell.text}
+            </span>
+          )
+        })}
+      </button>
+    )
+  }
+
   return (
     <div className="gpu-unified">
       <div className="gpu-unified-toolbar">
@@ -119,6 +188,16 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
           <button type="button" className={currencyMode === 'KRW' ? 'on' : ''} onClick={() => setCurrencyMode('KRW')} title="원화 기준">₩ 원</button>
           <button type="button" className={currencyMode === 'USD' ? 'on' : ''} onClick={() => setCurrencyMode('USD')} title="달러 기준">$ 달러</button>
         </div>
+        {/* 모델 그룹 전체 접기/펼치기 */}
+        <button
+          type="button"
+          className="gpu-btn gpu-unified-collapse-btn"
+          onClick={toggleAll}
+          title={allCollapsed ? '모든 모델 펼치기' : '모든 모델 접기'}
+        >
+          {allCollapsed ? <ChevronsUpDown size={14} aria-hidden /> : <ChevronsDownUp size={14} aria-hidden />}
+          {allCollapsed ? '전체 펼치기' : '전체 접기'}
+        </button>
         {/* 일괄 반영(P3) — 미반영 제품 모아 전략가 일괄 확정/반영완료. 관리자만 실제 처리됨. */}
         <button
           type="button"
@@ -161,51 +240,22 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
           )}
 
           {!loading && !error &&
-            visibleRows.map((row) => {
-              const selected = row.id === selectedId
+            groups.map((group) => {
+              const isCollapsed = collapsed.has(group.model)
               return (
-                <button
-                  key={row.id}
-                  type="button"
-                  role="row"
-                  aria-selected={selected}
-                  className={`gpu-unified-row gpu-unified-row--item${selected ? ' gpu-unified-row--sel' : ''}`}
-                  onClick={() => setSelectedId(row.id)}
-                >
-                  {preset.columns.map((col) => {
-                    const cell = resolveCell(row, col, currency)
-                    const base = `gpu-unified-cell gpu-unified-cell--${col.align}${col.hideMobile ? ' gpu-unified-cell--hide-mobile' : ''}`
-                    if (cell.kind === 'model') {
-                      return (
-                        <span key={col.key} role="cell" className={base}>
-                          <span className="gpu-unified-model">
-                            {cell.text}
-                            {row.memory && <small>{row.memory}</small>}
-                          </span>
-                        </span>
-                      )
-                    }
-                    if (cell.kind === 'badge') {
-                      return (
-                        <span key={col.key} role="cell" className={base}>
-                          {cell.text === '—'
-                            ? <span className="gpu-unified-tone--muted">—</span>
-                            : <span className={`gpu-ubadge gpu-ubadge--${cell.tone}`}>{cell.text}</span>}
-                        </span>
-                      )
-                    }
-                    // text / sell
-                    return (
-                      <span
-                        key={col.key}
-                        role="cell"
-                        className={`${base} gpu-unified-tone--${cell.tone}${cell.mono ? ' gpu-mono' : ''}`}
-                      >
-                        {cell.text}
-                      </span>
-                    )
-                  })}
-                </button>
+                <div key={group.model} role="rowgroup" className="gpu-unified-group">
+                  <button
+                    type="button"
+                    className="gpu-unified-group-head"
+                    onClick={() => toggleGroup(group.model)}
+                    aria-expanded={!isCollapsed}
+                  >
+                    <span className="gpu-unified-group-chevron" aria-hidden>{isCollapsed ? '▸' : '▾'}</span>
+                    <span className="gpu-unified-group-name">{group.model}</span>
+                    <span className="gpu-unified-group-count">{group.rows.length}개 구성</span>
+                  </button>
+                  {!isCollapsed && group.rows.map(renderRow)}
+                </div>
               )
             })}
         </div>
