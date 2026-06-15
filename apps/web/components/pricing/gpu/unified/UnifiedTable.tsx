@@ -4,7 +4,7 @@
 // 보기 전환 = 컬럼 프리셋 교체(VIEW_PRESETS SSOT). 행 선택 시 우측 상세(목록 맥락 유지).
 // 데이터 어댑터(cockpit/market/... → UnifiedRow[])는 P1-3에서 연결. 본 컴포넌트는 표현만.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Globe, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
 import ViewSwitcher, { restoreSavedView } from './ViewSwitcher'
 import DetailPanel from './DetailPanel'
@@ -71,8 +71,14 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
   const [bulkOpen, setBulkOpen] = useState(false)
   // 정렬: null이면 기본(모델·용량). 컬럼 헤더 클릭 시 해당 컬럼 asc→desc→해제 순환.
   const [sortConfig, setSortConfig] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(null)
-  // 모델별 그룹 접힘 상태 — model_name 집합. 기본 전개(빈 셋). 티어 그룹핑은 제거(모델 단일 레벨).
+  // 모델별 그룹 접힘 상태 — model_name 집합. 기본 전체 접힘(첫 데이터 로드 시 1회 초기화).
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
+  const collapseInited = useRef(false)
+  useEffect(() => {
+    if (collapseInited.current || rows.length === 0) return
+    collapseInited.current = true
+    setCollapsed(new Set(rows.map((r) => r.model_name)))
+  }, [rows])
   const toggleGroup = (model: string) =>
     setCollapsed((prev) => {
       const next = new Set(prev)

@@ -20,14 +20,15 @@ test.describe('GPU 통합 표 (flag: unified)', () => {
     const unified = page.locator('.gpu-unified')
     await expect(unified).toBeVisible({ timeout: 15000 })
 
-    // 모델별 그룹 헤더가 하나라도 있으면 접기/펼치기 동작 검증
+    // 모델별 그룹 헤더가 하나라도 있으면 접기/펼치기 동작 검증.
+    // 기본값=전체 접힘(v0.7.127) → 첫 상태 aria-expanded=false, 클릭 시 토글.
     const firstGroup = page.locator('.gpu-unified-group-head').first()
     if (await firstGroup.count() > 0) {
-      await expect(firstGroup).toHaveAttribute('aria-expanded', 'true')
-      await firstGroup.click()
       await expect(firstGroup).toHaveAttribute('aria-expanded', 'false')
       await firstGroup.click()
       await expect(firstGroup).toHaveAttribute('aria-expanded', 'true')
+      await firstGroup.click()
+      await expect(firstGroup).toHaveAttribute('aria-expanded', 'false')
     }
 
     // 보기 전환 세그먼트 존재

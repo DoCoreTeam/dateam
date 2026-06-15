@@ -52,6 +52,8 @@
   /* 사이드바(테마별) — nb: 크림 페이퍼 + 잉크 */
   --sidebar-bg: var(--nb-paper);
   --sidebar-fg: var(--ink);
+  /* 사이드바 브랜드↓/푸터↑ 구분선 — nb는 굵은 잉크선(브루탈리즘 시그니처), 다른 테마는 제거(transparent) */
+  --sidebar-divider: var(--border-color);
   /* nav 항목 hover 배경 — 밝은 페이퍼엔 어두운 오버레이 (다크 테마에서 [data-theme]가 오버라이드) */
   --nav-hover-bg: rgba(0, 0, 0, 0.05);
   /* 상단 헤더/사이드바 브랜드 공통 높이(하단선 정렬용) */
@@ -175,6 +177,7 @@
   /* 사이드바: 다크(기존) */
   --sidebar-bg: #1e293b;
   --sidebar-fg: #e2e8f0;
+  --sidebar-divider: transparent; /* 브랜드/푸터 구분선 제거(다크 위 밝은선이 이질적) */
   /* 다크 사이드바 — hover는 밝은 오버레이라야 보임 */
   --nav-hover-bg: rgba(255, 255, 255, 0.08);
   /* 브릿지/카드 — 바탕을 연회색으로 낮춰 흰 카드와 대비(흰색 과다 완화). 카드=흰색 유지 */
@@ -233,6 +236,7 @@
   --shadow-lg: 6px 6px 0 0 var(--shadow-color);
   --sidebar-bg: var(--nb-paper);
   --sidebar-fg: var(--ink);
+  --sidebar-divider: var(--border-color); /* 굵은 잉크선 — 브루탈리즘 시그니처 유지 */
   --nav-hover-bg: rgba(0, 0, 0, 0.05);
   --color-bg: var(--nb-off-white);
   --surface-bg: #f8fafc;
@@ -268,6 +272,7 @@
   --shadow-lg: none;
   --sidebar-bg: #111111;         /* 다크 사이드바 */
   --sidebar-fg: #ffffff;
+  --sidebar-divider: transparent; /* 브랜드/푸터 구분선 제거(스위스 미니멀) */
   --nav-hover-bg: rgba(255, 255, 255, 0.1);
   --color-bg: #ffffff;
   --surface-bg: #f8f8f8;
@@ -3467,53 +3472,7 @@ label.intake-tool-btn {
 }
 .gpu-mb-eq { font-size: 11.5px; color: var(--gpu-muted); font-family: 'JetBrains Mono', ui-monospace, monospace; margin-top: 2px; }
 .gpu-mb-ctrl { display: flex; align-items: center; gap: 7px; margin-left: auto; flex-wrap: wrap; }
-.gpu-mb-preset {
-  padding: 6px 11px;
-  border-radius: var(--radius-lg);
-  border: var(--hairline) solid var(--gpu-border);
-  background: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  color: var(--gpu-ink-2);
-  cursor: pointer;
-  transition: 0.12s;
-}
-.gpu-mb-preset:hover { border-color: var(--gpu-accent); color: var(--gpu-accent); }
-.gpu-mb-preset.on { background: var(--gpu-accent); color: #fff; border-color: var(--gpu-accent); }
-.gpu-mb-input {
-  display: flex;
-  align-items: center;
-  border: var(--hairline) solid var(--gpu-border-strong);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  background: #fff;
-  margin-left: 4px;
-}
-.gpu-mb-input button {
-  width: 30px;
-  height: 34px;
-  border: none;
-  background: var(--surface-bg);
-  font-size: 16px;
-  cursor: pointer;
-  color: var(--gpu-ink-2);
-  font-weight: 600;
-}
-.gpu-mb-input button:hover { background: var(--gpu-accent-soft); color: var(--gpu-accent); }
-.gpu-mb-input input {
-  width: 48px;
-  border: none;
-  text-align: center;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-weight: 700;
-  font-size: 14px;
-  color: var(--gpu-accent-ink);
-  background: none;
-}
-.gpu-mb-input input:focus { outline: none; }
-.gpu-mb-input input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
-.gpu-mb-pct { padding-right: 10px; font-family: 'JetBrains Mono', ui-monospace, monospace; color: var(--gpu-muted); font-size: 13px; }
+/* 구 마진바 컨트롤(.gpu-mb-preset/.gpu-mb-input/.gpu-mb-pct)은 공용 MarginControl(.gpu-margin-*)로 대체되어 제거됨(v0.7.127). */
 .gpu-mb-note {
   flex-basis: 100%;
   font-size: 11px;

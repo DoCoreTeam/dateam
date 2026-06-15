@@ -357,6 +357,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
                 onProductFocusConsumed={() => setBoardFocusProductId(null)}
                 initialMargin={settings?.margin_pct ?? null}
                 initialUsdKrw={settings?.usd_krw ?? null}
+                isAdmin={isAdmin}
                 onSearchChange={(q) => persistBoard({ q })}
                 onExpandChange={(id) => persistBoard({ expand: id })}
               />

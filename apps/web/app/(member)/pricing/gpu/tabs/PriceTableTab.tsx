@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
@@ -14,6 +14,7 @@ import { SortIcon } from '@/components/pricing/gpu/SortIcon'
 import { buildTierModelGroups, tierKey, modelKey } from '@/lib/gpu/group'
 import { GPU_TERMS } from '@/lib/gpu/terms'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
+import MarginControl from '@/components/pricing/gpu/MarginControl'
 
 const ProductAddModal = dynamic(() => import('@/components/pricing/gpu/ProductAddModal'), { ssr: false })
 const ProductEditModal = dynamic(() => import('@/components/pricing/gpu/ProductEditModal'), { ssr: false })
@@ -495,11 +496,12 @@ interface PriceTableTabProps {
   onProductFocusConsumed?: () => void
   initialMargin?: number | null
   initialUsdKrw?: number | null
+  isAdmin?: boolean
   onSearchChange?: (q: string) => void
   onExpandChange?: (id: string | null) => void
 }
 
-export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearch, onSearchConsumed, initialProductId, onProductFocusConsumed, initialMargin, initialUsdKrw, onSearchChange, onExpandChange }: PriceTableTabProps) {
+export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearch, onSearchConsumed, initialProductId, onProductFocusConsumed, initialMargin, initialUsdKrw, isAdmin = false, onSearchChange, onExpandChange }: PriceTableTabProps) {
   const { data, mutate: revalidate } = useSWR<ProductsResponse>('/api/pricing/gpu/products', fetcher, {
     refreshInterval: 60000,
   })
@@ -510,8 +512,6 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
   const [tierFilter, setTierFilter] = useState(0)
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [marginInput, setMarginInput] = useState<number | null>(null)
-  const [marginSaving, setMarginSaving] = useState(false)
   const [bannerDismissed, setBannerDismissed] = useState(false)
   const [currencyMode, setCurrencyMode] = useState<'KRW' | 'USD'>('KRW')
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; dir: SortDir } | null>(null)
@@ -571,7 +571,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
 
   // 서버 프리페치(initialMargin/initialUsdKrw)를 폴백으로 → 하드코딩 18/1400 깜빡임 제거.
   // 설정값 부재 시에만 최후 안전망(18/1400) 사용.
-  const marginPct = marginInput ?? data?.margin_pct ?? initialMargin ?? 18
+  const marginPct = data?.margin_pct ?? initialMargin ?? 18
   const usdKrw = data?.usd_krw ?? initialUsdKrw ?? 1400
   const fxDate = data?.fx_date
 
@@ -592,23 +592,6 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
     t3: products.filter((p) => p.tier === 3).length,
     pending: products.reduce((a, p) => a + p.pending_count, 0),
   }
-
-  const handleMarginSave = useCallback(async (val: number) => {
-    setMarginSaving(true)
-    try {
-      const res = await fetch('/api/pricing/gpu/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ margin_pct: val }),
-      })
-      if (res.ok) {
-        setMarginInput(null)
-        await revalidate()
-      }
-    } finally {
-      setMarginSaving(false)
-    }
-  }, [revalidate])
 
   const computeSellKrw = (p: GpuProduct) => {
     if (p.pricing_mode === 'direct') return p.sell_price_krw
@@ -819,7 +802,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
         </button>
       </div>
 
-      {/* 마진 바 */}
+      {/* 마진 바 — 공용 MarginControl(SSOT). 브랜딩 라벨은 바 좌측 유지, 컨트롤은 공용 컴포넌트로 단일화. */}
       <div className="gpu-margin-bar">
         <div className="gpu-mb-left">
           <div className="gpu-mb-icon">
@@ -830,27 +813,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
           </div>
         </div>
         <div className="gpu-mb-ctrl">
-          {[15, 18, 20, 25].map((preset) => (
-            <button
-              key={preset}
-              className={`gpu-mb-preset${marginPct === preset ? ' on' : ''}`}
-              onClick={() => { setMarginInput(preset); handleMarginSave(preset) }}
-            >
-              {preset}%
-            </button>
-          ))}
-          <div className="gpu-mb-input">
-            <button onClick={() => { const v = Math.max(0, marginPct - 1); setMarginInput(v); handleMarginSave(v) }}>−</button>
-            <input
-              type="number"
-              value={marginPct}
-              onChange={(e) => setMarginInput(Number(e.target.value))}
-              onBlur={() => handleMarginSave(marginPct)}
-            />
-            <span className="gpu-mb-pct">%</span>
-            <button onClick={() => { const v = marginPct + 1; setMarginInput(v); handleMarginSave(v) }}>+</button>
-          </div>
-          {marginSaving && <span style={{ fontSize: '11px', color: 'var(--gpu-muted)' }}>저장 중…</span>}
+          <MarginControl marginPct={marginPct} isAdmin={isAdmin} onSaved={() => revalidate()} showLabel={false} />
         </div>
       </div>
 

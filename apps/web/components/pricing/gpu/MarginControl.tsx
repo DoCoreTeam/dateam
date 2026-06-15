@@ -16,9 +16,11 @@ interface MarginControlProps {
   isAdmin: boolean
   /** 저장 성공 후 콜백 — 가격 데이터 revalidate 용도. */
   onSaved?: () => void
+  /** 내부 "마진" 라벨 표시 여부. 외부에 별도 라벨이 있으면 false(중복 방지). 기본 true. */
+  showLabel?: boolean
 }
 
-export default function MarginControl({ marginPct, isAdmin, onSaved }: MarginControlProps) {
+export default function MarginControl({ marginPct, isAdmin, onSaved, showLabel = true }: MarginControlProps) {
   // 낙관적 표시값: 저장 중 입력값을 유지하다 성공 시 서버값으로 복귀.
   const [override, setOverride] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
@@ -57,7 +59,7 @@ export default function MarginControl({ marginPct, isAdmin, onSaved }: MarginCon
   if (!isAdmin) {
     return (
       <div className="gpu-margin-ctrl gpu-margin-ctrl--ro" title="gcube 판매 마진 (관리자만 변경)">
-        <span className="gpu-margin-ctrl-lbl">마진</span>
+        {showLabel && <span className="gpu-margin-ctrl-lbl">마진</span>}
         <strong className="gpu-mono">{value}%</strong>
       </div>
     )
@@ -65,7 +67,7 @@ export default function MarginControl({ marginPct, isAdmin, onSaved }: MarginCon
 
   return (
     <div className="gpu-margin-ctrl" role="group" aria-label="gcube 판매 마진 설정">
-      <span className="gpu-margin-ctrl-lbl">마진</span>
+      {showLabel && <span className="gpu-margin-ctrl-lbl">마진</span>}
       {PRESETS.map((p) => (
         <button
           key={p}
