@@ -221,6 +221,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
 
 interface ReviewItem {
   id: string
+  target?: string | null
   product_hint: string | null
   supplier_hint: string | null
   channel: string | null
@@ -280,9 +281,10 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
 
   const extracted = item.current_extracted ?? {}
   const confidence = item.current_confidence ?? {}
+  const isCompetitor = item.target === 'competitor'   // 경쟁사 카탈로그 항목 — 공급사 UI 비적용
 
-  // 신뢰도 90% 미만 항목 — 필수 체크
-  const lowConfFields = CONF_FIELDS.filter((f) => {
+  // 신뢰도 90% 미만 항목 — 필수 체크 (경쟁사 항목은 공급사 필드 신뢰도가 없어 자동 확정 가능)
+  const lowConfFields = isCompetitor ? [] : CONF_FIELDS.filter((f) => {
     const v = confidence[f]
     return v != null && v < 90
   })
@@ -415,7 +417,23 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
         </div>
       </div>
 
-      {/* 추출 항목별 신뢰도 */}
+      {/* 경쟁사 카탈로그 항목 — 업체/모델/가격 컴팩트 표시 */}
+      {isCompetitor && (
+        <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="competitor-review-fields">
+          <span className="gpu-badge gpu-badge-t2" style={{ alignSelf: 'flex-start', fontSize: 10 }}>경쟁사 카탈로그</span>
+          {([['업체', 'competitor_name'], ['모델', 'model_name'], ['메모리', 'memory'], ['가격(USD/hr)', 'price_usd'], ['요금제', 'pricing_model']] as Array<[string, string]>).map(([label, key]) => (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--color-border)' }}>
+              <span style={{ minWidth: 96, fontSize: 12, color: 'var(--gpu-muted)' }}>{label}</span>
+              <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+                {extracted[key] != null && String(extracted[key]).trim() !== '' ? String(extracted[key]) : <span style={{ color: 'var(--gpu-faint)', fontWeight: 400 }}>—</span>}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 추출 항목별 신뢰도 (공급사 항목) */}
+      {!isCompetitor && (
       <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {CONF_FIELDS.map((f) => {
           const val = extracted[f]
@@ -473,6 +491,7 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
           )
         })}
       </div>
+      )}
 
       {/* 낮은 신뢰도 안내 */}
       {lowConfFields.length > 0 && !allLowChecked && (
@@ -495,7 +514,8 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
         </pre>
       )}
 
-      {/* AI 재분석 섹션 */}
+      {/* AI 재분석 섹션 (공급사 항목 전용 — 경쟁사 카탈로그는 미적용) */}
+      {!isCompetitor && (
       <div style={{ marginTop: 14, padding: '12px', borderRadius: 8, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--brand-soft-2)' }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--brand-dark)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
           <RotateCcw size={12} /> AI 재분석 요청
@@ -516,6 +536,7 @@ function ReviewCard({ item, onDone, allSuppliers }: { item: ReviewItem; onDone: 
           {rechecking ? '재분석 중…' : 'AI 재분석'}
         </button>
       </div>
+      )}
 
       {/* 액션 버튼 */}
       <div className="gpu-rev-actions" style={{ marginTop: 14 }}>

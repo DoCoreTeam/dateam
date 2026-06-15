@@ -1,4 +1,5 @@
 import { normalizeMemory } from '@/lib/gpu/normalize'
+import { inferTier } from '@/lib/gpu/tier-dict'
 
 export interface CompetitorPriceItem {
   competitor_name: string
@@ -41,7 +42,7 @@ export async function saveCompetitorPrices(
       gpuProductId = existingGpu.id
     } else {
       const { data: newGpu, error: gpuErr } = await db.from('gpu_products')
-        .insert({ model_name: item.model_name.trim(), memory, tier: 1, pricing_mode: 'quote', gpu_count: 1, vcpu: 12, ram_gb: 16, storage_gb: 512 }).select('id').single()
+        .insert({ model_name: item.model_name.trim(), memory, tier: inferTier(item.model_name.trim()), pricing_mode: 'quote', gpu_count: 1, vcpu: 12, ram_gb: 16, storage_gb: 512 }).select('id').single()
       if (gpuErr || !newGpu) { console.error('[competitor] GPU 모델 생성 실패:', gpuErr?.message); continue }
       gpuProductId = newGpu.id
     }

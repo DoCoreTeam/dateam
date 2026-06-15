@@ -8,6 +8,7 @@ import { revalidateGpu } from '@/lib/gpu/revalidate'
 import { routeIntakeExtras } from '@/lib/gpu/intake-routing'
 import { roundUpToStandard, isStandardConfig } from '@/lib/gpu/config-ladder'
 import { ensureStandardConfigs } from '@/lib/gpu/derive-configs'
+import { saveCompetitorPrices, type CompetitorPriceItem } from '@/lib/gpu/competitor-import'
 
 // POST /api/pricing/gpu/review/[id] — 확정 또는 반려
 export async function POST(
@@ -76,6 +77,38 @@ export async function POST(
       })
 
     return NextResponse.json({ ok: true })
+  }
+
+  // confirm(경쟁사 카탈로그) — target='competitor'면 competitors+market_prices로 반영(saveCompetitorPrices 재사용).
+  // 공급가(supplier) 경로는 무수정 보존 — 아래로 분기.
+  if (item.target === 'competitor') {
+    const ex = (item.current_extracted ?? {}) as Record<string, unknown>
+    const override = (body.override_extracted ?? {}) as Record<string, unknown>
+    const merged = { ...ex, ...override }
+    const compItem: CompetitorPriceItem = {
+      competitor_name: typeof merged.competitor_name === 'string' ? merged.competitor_name : (item.supplier_hint ?? ''),
+      model_name: typeof merged.model_name === 'string' ? merged.model_name : '',
+      memory: typeof merged.memory === 'string' ? merged.memory : undefined,
+      price_usd: typeof merged.price_usd === 'number' ? merged.price_usd : Number(merged.price_usd),
+      pricing_model: typeof merged.pricing_model === 'string' ? merged.pricing_model : 'on_demand',
+    }
+    if (!compItem.competitor_name || !compItem.model_name || !Number.isFinite(compItem.price_usd) || compItem.price_usd <= 0) {
+      return NextResponse.json({ error: '경쟁사·모델·가격을 특정할 수 없어 확정할 수 없습니다.' }, { status: 422 })
+    }
+    const saved = await saveCompetitorPrices(adminClient, [compItem], null)
+    if (saved.length === 0) return NextResponse.json({ error: '경쟁사 시장가 반영에 실패했습니다.' }, { status: 500 })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (adminClient as any).from('review_items').update({
+      status: 'confirmed', confirmed_by: actorName, confirmed_at: now,
+      confirmed_items: Array.isArray(body.confirmed_items) ? body.confirmed_items : [],
+    }).eq('id', id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (adminClient as any).from('gpu_audit_logs').insert({
+      actor: actorName, action_type: 'review_finalized',
+      detail: { review_item_id: id, target: 'competitor', saved, is_test: item.is_test === true },
+    }).then(undefined, () => {})
+    revalidateGpu()
+    return NextResponse.json({ ok: true, stock: { ok: true, msg: '경쟁사 시장가 반영됨' } })
   }
 
   // confirm — supply_quotes에 적재

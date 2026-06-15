@@ -5,6 +5,7 @@ import { mutate as globalMutate } from 'swr'
 import { Sparkles, Send, Paperclip, X, RotateCcw } from 'lucide-react'
 import IntakeGateSummary, { type GateRow } from './IntakeGateSummary'
 import MultimodalIntake from '@/components/pricing/gpu/unified/MultimodalIntake'
+import CatalogUploadSection from '@/components/pricing/gpu/CatalogUploadSection'
 import type { CsvFieldKey } from '@/lib/gpu/csv-intake'
 import { REVIEW_CHANNELS } from '@/lib/gpu/review-channels'
 
@@ -563,6 +564,9 @@ export default function QuoteRegisterTab() {
               <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>CSV 저장 중…</div>
             )}
           </div>
+
+          {/* 카탈로그 파일 일괄 흡수 — 임의 구조 xlsx/csv를 AI가 헤더 매핑 → 전행 변환 → 검토 대기 적재 */}
+          <CatalogUploadSection isTest={isTest} />
         </div>
 
         {/* 오른쪽: AI 분석 결과 */}
