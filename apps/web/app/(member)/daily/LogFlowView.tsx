@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import type { DailyLog, DailyLogEntryType } from '@/types/database'
 import { DdayBadge, todayLocal } from '@/lib/dday'
+import AutolinkSection from './AutolinkSection'
 
 const ENTRY_TYPES: { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[] = [
   { value: 'done',    label: '완료',   color: 'var(--success)', bg: 'var(--success-bg)', border: 'var(--success-border)' },
@@ -127,6 +128,10 @@ export function LogFlowView({ log, allLogs, onClose }: {
         </div>
 
         <div className="day-panel-body">
+          {/* AI 자동 연관 연결 — 완전 자동(무개입)·가역·투명 */}
+          <AutolinkSection logId={log.id} />
+
+          <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text)', margin: 'var(--space-2) 0' }}>↳ 파생 트리</div>
           {flat.length <= 1 ? (
             <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-8) var(--space-0)', fontSize: 'var(--fs-base)' }}>
               연결된 파생 업무가 없습니다
