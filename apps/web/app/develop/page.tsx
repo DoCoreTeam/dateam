@@ -973,7 +973,7 @@ export default function DevelopPage() {
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <a href="/home" style={{ width: 30, height: 30, borderRadius: 7, background: 'linear-gradient(135deg, var(--brand), var(--brand))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', textDecoration: 'none' }}>A</a>
-            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--surface-muted)' }}>AX API</span>
+            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--surface-muted)' }}>개발자센터</span>
             <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 100, background: 'var(--text)', color: 'var(--brand)', fontWeight: 600 }}>v1</span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

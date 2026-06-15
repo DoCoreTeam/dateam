@@ -34,7 +34,7 @@ const PAGES = [
     group: '개발자',
     items: [
       { href: '/api-keys', label: 'API Keys', icon: <Key size={14} /> },
-      { href: '/develop', label: '개발자 문서', icon: <Code2 size={14} />, external: true },
+      { href: '/develop', label: '개발자센터', icon: <Code2 size={14} />, external: true },
     ],
   },
 ]
