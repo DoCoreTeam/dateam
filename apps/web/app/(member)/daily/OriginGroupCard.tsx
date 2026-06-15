@@ -1,6 +1,8 @@
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, useMemo, type ReactNode } from 'react'
 import type { DailyLog } from '@/types/database'
 import type { LogGroup } from './grouping'
+import { findDuplicateCandidates } from '@/lib/daily/duplicate'
+import { DuplicateSection } from './DuplicateSection'
 
 interface OriginGroupCardProps {
   /** 그룹화된 입력 묶음 (origin_group_id 기준) */
@@ -13,6 +15,8 @@ interface OriginGroupCardProps {
   renderCard: (log: DailyLog) => ReactNode
   /** logged_at → 시각 문자열 변환 (page.tsx의 formatTime) */
   formatTime: (iso: string) => string
+  /** 중복 비교 풀 — 같은 날 전체 로그(자기/동일그룹은 함수가 제외) */
+  pool?: DailyLog[]
 }
 
 /**
@@ -26,13 +30,26 @@ interface OriginGroupCardProps {
  *  2) 요약 칩 — 분해 N · 메모 N · 완료 N/N
  *  3) 펼침 드로어(기본 접힘) — 분해 항목(renderCard) + 놓친 메모 환기 섹션
  */
-export function OriginGroupCard({ group, isOpen, onToggle, renderCard, formatTime }: OriginGroupCardProps) {
+export function OriginGroupCard({ group, isOpen, onToggle, renderCard, formatTime, pool }: OriginGroupCardProps) {
   // 원본 텍스트: 그룹 첫 항목의 original_input (없으면 라벨 폴백)
   const originalText = group.logs[0]?.original_input?.trim() || group.label
   const noteCount = group.logs.filter((l) => l.entry_type === 'note').length
   // 놓친 메모: note + memo_status='new' (미확인)
   const missedMemos = group.logs.filter((l) => l.entry_type === 'note' && l.memo_status === 'new')
   const subsId = `daily-group-subs-${group.key}`
+
+  // 중복 후보 수(요약 칩용) — 그룹 항목 × 풀, 동일 쌍 1회만 카운트
+  const comparePool = pool ?? []
+  const dupCount = useMemo(() => {
+    if (comparePool.length === 0) return 0
+    const seen = new Set<string>()
+    for (const source of group.logs) {
+      for (const { log: target } of findDuplicateCandidates(source, comparePool)) {
+        seen.add([source.id, target.id].sort().join('::'))
+      }
+    }
+    return seen.size
+  }, [group.logs, comparePool])
 
   return (
     <div className="origin-group">
@@ -60,12 +77,21 @@ export function OriginGroupCard({ group, isOpen, onToggle, renderCard, formatTim
                 미확인 메모 {missedMemos.length}
               </span>
             )}
+            {dupCount > 0 && (
+              <span className="origin-group-chip origin-group-chip-dup">
+                중복 {dupCount}
+              </span>
+            )}
           </span>
         </span>
       </button>
 
       {isOpen && (
         <div id={subsId} className="origin-group-subs">
+          {comparePool.length > 0 && (
+            <DuplicateSection groupLogs={group.logs} pool={comparePool} />
+          )}
+
           {group.logs.map((log) => <Fragment key={log.id}>{renderCard(log)}</Fragment>)}
 
           {missedMemos.length > 0 && (

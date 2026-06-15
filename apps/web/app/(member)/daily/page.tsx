@@ -1016,6 +1016,7 @@ function LogList({
             onToggle={() => toggleGroup(group.key)}
             renderCard={renderCard}
             formatTime={formatTime}
+            pool={logs}
           />
         )
       })}

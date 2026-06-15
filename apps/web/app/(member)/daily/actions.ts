@@ -586,6 +586,21 @@ export async function addRelation(
   return { ok: true }
 }
 
+/**
+ * 중복 의심 항목을 "병합 요청"으로 연결한다 (P1).
+ *
+ * 비파괴: 원본/항목을 삭제·수정하지 않는다. daily_log_relations 에 관계 1건만
+ * 추가한다(relation_type='related' — 022 스키마 enum에 'duplicate'가 없으므로
+ * 가장 가까운 'related' 사용, created_by='user'). 중복 INSERT 는 addRelation 의
+ * upsert(ignoreDuplicates)가 가드한다. RLS는 from_log 의 user_id 기준.
+ */
+export async function linkDuplicate(
+  sourceId: string,
+  targetId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  return addRelation(sourceId, targetId, 'related', 'user')
+}
+
 // ─── 같은 묶음(origin_group) 업무 조회 ──────────────────────
 
 export async function getOriginGroupLogs(originGroupId: string): Promise<DailyLog[]> {

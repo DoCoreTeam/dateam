@@ -4299,6 +4299,11 @@ label.intake-tool-btn {
   background: var(--warning-bg);
   border-color: var(--warning-border);
 }
+.origin-group-chip-dup {
+  color: var(--info);
+  background: var(--info-bg);
+  border-color: var(--info-border);
+}
 .origin-group-subs {
   display: flex;
   flex-direction: column;
@@ -4335,6 +4340,102 @@ label.intake-tool-btn {
 }
 @media (max-width: 767px) {
   .origin-group-subs { padding-left: var(--space-3); margin-left: var(--space-1); }
+}
+
+/* P1: 중복 의심 섹션 */
+.dup-section {
+  background: var(--info-bg);
+  border: var(--hairline) solid var(--info-border);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+}
+.dup-section-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--info);
+}
+.dup-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.dup-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.dup-item-text {
+  font-size: var(--fs-sm);
+  color: var(--text);
+  line-height: 1.5;
+  word-break: break-word;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.dup-item-score {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--info);
+  background: var(--color-bg);
+  border: var(--hairline) solid var(--info-border);
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius);
+  white-space: nowrap;
+}
+.dup-item-actions {
+  display: inline-flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+.dup-btn {
+  min-height: 32px;
+  padding: 0.2rem 0.7rem;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  border-radius: var(--radius);
+  border: var(--hairline) solid var(--border-color);
+  background: var(--color-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--duration-fast, 150ms) ease, color var(--duration-fast, 150ms) ease, transform var(--duration-fast, 150ms) ease;
+}
+.dup-btn:hover { background: var(--surface-muted); color: var(--text); }
+.dup-btn:active { transform: translateY(1px); }
+.dup-btn:focus-visible {
+  outline: var(--border-w-2) solid var(--brand);
+  outline-offset: 2px;
+}
+.dup-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.dup-btn-merge {
+  color: var(--info);
+  border-color: var(--info-border);
+}
+.dup-btn-merge:hover { background: var(--info-bg); color: var(--info); }
+/* 모바일 터치영역 44px 보장(데스크탑은 dense 32px 유지) */
+@media (max-width: 767px) { .dup-btn { min-height: 44px; } }
+.dup-item-merged {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--success);
+  background: var(--success-bg);
+  border: var(--hairline) solid var(--success-border);
+  padding: 0.2rem 0.7rem;
+  border-radius: var(--radius);
+  white-space: nowrap;
+}
+.dup-item-error {
+  flex-basis: 100%;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--danger);
 }
 
 /* 캘린더 일정(calendar_events) 칩 */
