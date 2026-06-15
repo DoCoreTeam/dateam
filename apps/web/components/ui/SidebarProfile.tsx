@@ -4,30 +4,65 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen } from 'lucide-react'
+import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen, Palette, Check, ChevronRight } from 'lucide-react'
+import { THEMES, type ThemeId } from '@/lib/themes'
 
 interface SidebarProfileProps {
   name: string
   email: string
   isAdmin?: boolean
+  currentTheme?: ThemeId
 }
 
-export default function SidebarProfile({ name, email, isAdmin = false }: SidebarProfileProps) {
+export default function SidebarProfile({ name, email, isAdmin = false, currentTheme }: SidebarProfileProps) {
   const [open, setOpen] = useState(false)
+  const [themeOpen, setThemeOpen] = useState(false)
+  const [activeTheme, setActiveTheme] = useState<ThemeId | undefined>(currentTheme)
+  const [applying, setApplying] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const router = useRouter()
+
+  // 외부 prop이 바뀌면 동기화(서버 재검증 후)
+  useEffect(() => { setActiveTheme(currentTheme) }, [currentTheme])
+
+  const handleSelectTheme = async (id: ThemeId) => {
+    if (applying) return
+    const prev = activeTheme
+    setApplying(true)
+    // 낙관적 즉시 반영
+    setActiveTheme(id)
+    if (typeof document !== 'undefined') document.documentElement.setAttribute('data-theme', id)
+    try {
+      const res = await fetch('/api/user/theme', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme: id }),
+      })
+      const json = await res.json().catch(() => ({})) as { success?: boolean; error?: string }
+      if (!res.ok || !json.success) throw new Error(json.error ?? '저장 실패')
+      router.refresh() // SSR 재주입(영속 검증)
+    } catch {
+      // 롤백
+      setActiveTheme(prev)
+      if (typeof document !== 'undefined' && prev) document.documentElement.setAttribute('data-theme', prev)
+    } finally {
+      setApplying(false)
+    }
+  }
 
   useEffect(() => {
     if (!open) return
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false)
+        setThemeOpen(false)
       }
     }
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setOpen(false)
+        setThemeOpen(false)
         triggerRef.current?.focus()
       }
     }
@@ -148,6 +183,93 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
             개발자센터
           </Link>
           <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0 0.75rem' }} />
+          {/* 테마변경 — 오른쪽 서브메뉴로 개인 테마 선택 */}
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={themeOpen}
+              onClick={() => setThemeOpen(v => !v)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.625rem',
+                width: '100%',
+                padding: 'var(--space-3) var(--space-4)',
+                fontSize: 'var(--fs-sm)',
+                color: 'var(--text)',
+                background: themeOpen ? 'rgba(0,0,0,0.05)' : 'none',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'background 120ms',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
+              onMouseLeave={e => { if (!themeOpen) e.currentTarget.style.background = 'transparent' }}
+            >
+              <Palette size={14} />
+              테마변경
+              <ChevronRight size={14} style={{ marginLeft: 'auto', color: 'var(--color-text-muted)' }} />
+            </button>
+
+            {themeOpen && (
+              <div
+                role="menu"
+                style={{
+                  position: 'absolute',
+                  left: 'calc(100% + 0.375rem)',
+                  bottom: 0,
+                  minWidth: 210,
+                  background: 'var(--nb-white)',
+                  border: 'var(--border-w) solid var(--border-color)',
+                  borderRadius: 'var(--radius)',
+                  overflow: 'hidden',
+                  boxShadow: 'var(--shadow-md)',
+                  zIndex: 110,
+                }}
+              >
+                {THEMES.map(t => {
+                  const selected = activeTheme === t.id
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={selected}
+                      disabled={applying}
+                      data-theme={t.id}
+                      onClick={() => handleSelectTheme(t.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        width: '100%',
+                        padding: 'var(--space-3) var(--space-4)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: applying ? 'wait' : 'pointer',
+                        textAlign: 'left',
+                        transition: 'background 120ms',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      {/* 테마 정체성 미니 스와치 (data-theme 스코프 → 해당 테마 토큰) */}
+                      <span style={{ display: 'flex', gap: '3px', flexShrink: 0 }}>
+                        <span style={{ width: 14, height: 14, borderRadius: 'var(--radius)', background: 'var(--brand)', border: 'var(--hairline) solid var(--border-color)' }} />
+                        <span style={{ width: 14, height: 14, borderRadius: 'var(--radius)', background: 'var(--accent)', border: 'var(--hairline) solid var(--border-color)' }} />
+                        <span style={{ width: 14, height: 14, borderRadius: 'var(--radius)', background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--border-color)' }} />
+                      </span>
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text)' }}>
+                        {t.label}
+                      </span>
+                      {selected && <Check size={14} style={{ flexShrink: 0, color: 'var(--brand)' }} />}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+          <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0 0.75rem' }} />
           <button
             onClick={handleLogout}
             style={{
@@ -175,6 +297,7 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
       {/* 프로필 버튼 */}
       <button
         ref={triggerRef}
+        data-testid="sidebar-profile-trigger"
         onClick={() => setOpen(!open)}
         style={{
           display: 'flex',

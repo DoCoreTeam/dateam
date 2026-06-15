@@ -197,6 +197,97 @@
 }
 [data-theme="classic"] .font-tape { font-family: inherit; }
 
+/* ════════════════════════════════════════════════════════════
+   테마: nb (Neo-brutalism) — :root 기본값의 명시 미러.
+   ▶ 왜 필요한가: :root 만으로는 조상에 [data-theme="classic"] 가 걸린
+     컨텍스트(예: 어드민 테마 선택 카드의 미니 프리뷰 data-theme="nb")에서
+     nb 토큰이 복원되지 않아 classic 으로 보이는 버그가 난다.
+     → nb 도 명시 셀렉터로 토큰을 재선언해 조상과 무관하게 자기 테마로 렌더.
+   값은 :root 와 동일(테마-가변 토큰 계약 전체). 회귀 없음.
+   ════════════════════════════════════════════════════════════ */
+[data-theme="nb"] {
+  --ink: var(--nb-black);
+  --border-color: var(--nb-black);
+  --shadow-color: var(--nb-black);
+  --accent: var(--nb-yellow);
+  --brand: var(--nb-purple);
+  --brand-dark: var(--nb-purple-dark);
+  --accent-fg: var(--ink);
+  --brand-fg: var(--nb-white);
+  --border-w: 3px;
+  --border-w-2: 2px;
+  --hairline: 1px;
+  --border-w-mobile: 2px;
+  --radius: 4px;
+  --radius-lg: 8px;
+  --shadow-sm: 3px 3px 0 0 var(--shadow-color);
+  --shadow-md: 4px 4px 0 0 var(--shadow-color);
+  --shadow-lg: 6px 6px 0 0 var(--shadow-color);
+  --sidebar-bg: var(--nb-paper);
+  --sidebar-fg: var(--ink);
+  --nav-hover-bg: rgba(0, 0, 0, 0.05);
+  --color-bg: var(--nb-off-white);
+  --surface-bg: #f8fafc;
+  --color-text-muted: #4b4b4b;
+  --brand-soft: #f3effe;
+  --brand-soft-2: #ede9fe;
+  --radius-card: var(--radius);
+  --shadow-card: var(--shadow-md);
+}
+
+/* ════════════════════════════════════════════════════════════
+   테마: mono (Monochrome / Swiss) — 흑백·직각·hairline·플랫·레드 액센트.
+   3rd design.html 정체성을 토큰 계약 범위에서 재현(글꼴은 한국어 UI 위해 Pretendard 유지).
+   ════════════════════════════════════════════════════════════ */
+[data-theme="mono"] {
+  --ink: #111111;
+  --border-color: #111111;       /* hairline 두께로 사용 */
+  --shadow-color: transparent;   /* 플랫 */
+  --accent: #ff3333;             /* 레드 */
+  --brand: #111111;              /* 블랙 = 브랜드 */
+  --brand-dark: #000000;
+  --accent-fg: #ffffff;          /* 레드 위 → 흰색 */
+  --brand-fg: #ffffff;           /* 블랙 위 → 흰색 */
+  --border-w: 1px;               /* hairline */
+  --border-w-2: 1px;
+  --hairline: 1px;
+  --border-w-mobile: 1px;
+  --radius: 0;                   /* 직각 */
+  --radius-lg: 0;
+  --shadow-sm: none;             /* 플랫 */
+  --shadow-md: none;
+  --shadow-lg: none;
+  --sidebar-bg: #111111;         /* 다크 사이드바 */
+  --sidebar-fg: #ffffff;
+  --nav-hover-bg: rgba(255, 255, 255, 0.1);
+  --color-bg: #ffffff;
+  --surface-bg: #f8f8f8;
+  --color-text-muted: #666666;
+  --brand-soft: #f3f3f3;
+  --brand-soft-2: #e8e8e8;
+  --radius-card: 0;
+  --shadow-card: none;
+}
+/* mono: NB 구조요소(테이프/하드섀도) 중립화 — 직각·플랫 스위스 톤 */
+[data-theme="mono"] .tape-title {
+  background: transparent;
+  color: var(--text);
+  border: none;
+  box-shadow: none;
+  transform: none;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  padding: 0;
+}
+[data-theme="mono"] .tape-mini {
+  background: transparent; color: var(--text-muted); border: none; box-shadow: none;
+  transform: none; font-family: inherit; font-size: 0.6875rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em; padding: 0;
+}
+[data-theme="mono"] .font-tape { font-family: inherit; }
+
 @layer base {
   html {
     font-family:

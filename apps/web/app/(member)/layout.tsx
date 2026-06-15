@@ -6,6 +6,7 @@ import SidebarProfile from '@/components/ui/SidebarProfile'
 import QuickNav from '@/components/ui/QuickNav'
 import NavigationLoader from '@/components/ui/NavigationLoader'
 import { getBranding } from '@/lib/branding'
+import { getActiveTheme, resolveTheme } from '@/lib/theme'
 import PasswordChangeModal from '@/components/ui/PasswordChangeModal'
 import NameSetupModal from '@/components/ui/NameSetupModal'
 import RoutineCheckinGate from '@/components/ui/RoutineCheckinGate'
@@ -60,18 +61,20 @@ export default async function MemberLayout({ children }: { children: React.React
   const calendarSeenDate = cookieStore.get('calendar_seen_date')?.value
   const shouldCountCalendar = calendarSeenDate !== todayStr
 
-  const [branding, profileResult, routineStatus, calendarCount, deptTaskCount] = await Promise.all([
+  const [branding, profileResult, routineStatus, calendarCount, deptTaskCount, globalTheme] = await Promise.all([
     getBranding(),
     adminClient
       .from('profiles')
-      .select('name, role, must_change_password')
+      .select('name, role, must_change_password, theme_preference')
       .eq('id', user.id)
-      .single() as unknown as Promise<{ data: Pick<Profile, 'name' | 'role' | 'must_change_password'> | null; error: unknown }>,
+      .single() as unknown as Promise<{ data: Pick<Profile, 'name' | 'role' | 'must_change_password' | 'theme_preference'> | null; error: unknown }>,
     getRoutineWeeklyStatus(),
     shouldCountCalendar ? getTodayPlannedCount() : Promise.resolve(0),
     countMyOpenDeptTasks(),
+    getActiveTheme(),
   ])
   const profile = profileResult.data
+  const currentTheme = resolveTheme(profile?.theme_preference, globalTheme)
   const routineBadge = routineStatus?.pendingCount ?? 0
   const calendarBadge = calendarCount
   const workBadge = deptTaskCount
@@ -93,7 +96,7 @@ export default async function MemberLayout({ children }: { children: React.React
         groups={profile?.role === 'admin' ? NAV_GROUPS : NAV_GROUPS.filter(g => g.label === '가격정책')}
         logoUrl={branding.logoUrl}
         brandName={branding.brandName}
-        footer={<SidebarProfile name={displayName} email={userEmail} isAdmin={profile?.role === 'admin'} />}
+        footer={<SidebarProfile name={displayName} email={userEmail} isAdmin={profile?.role === 'admin'} currentTheme={currentTheme} />}
         adminHref={profile?.role === 'admin' ? '/admin/users' : undefined}
         isAdmin={profile?.role === 'admin'}
         headerLeft={

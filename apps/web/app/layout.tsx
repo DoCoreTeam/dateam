@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { getBranding } from '@/lib/branding'
-import { getActiveTheme } from '@/lib/theme'
+import { getEffectiveTheme } from '@/lib/theme'
 
 // 브라우저 탭 타이틀 = 시스템 설정(brand_name). 하드코딩 제거.
 export async function generateMetadata(): Promise<Metadata> {
@@ -17,8 +17,8 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // 전역 테마를 SSR 시 주입 → 첫 페인트부터 정확(FOUC 없음)
-  const theme = await getActiveTheme()
+  // 개인 선택 테마 우선(없으면 전역 디폴트)을 SSR 시 주입 → 첫 페인트부터 정확(FOUC 없음)
+  const theme = await getEffectiveTheme()
   return (
     <html lang="ko" data-theme={theme}>
       <body>{children}</body>

@@ -108,6 +108,8 @@ export interface Profile {
   position: string | null
   role: 'admin' | 'member'
   must_change_password: boolean
+  /** 개인 선택 디자인 테마 id. NULL = 전역 디폴트 추종. 값 검증은 isThemeId(앱 계층). */
+  theme_preference: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null
