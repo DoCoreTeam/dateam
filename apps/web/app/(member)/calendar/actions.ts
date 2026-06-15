@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { recordFeedbackSignal } from '@/lib/daily/feedback-signals'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -214,6 +215,13 @@ export async function unlinkDailyCalendar(logId: string): Promise<Result> {
       .eq('link_kind', 'daily')
       .eq('link_id', logId)
     if (error) return { ok: false, error: `삭제 실패: ${error.message}` }
+
+    // 피드백 신호: 일정 자동등록 취소 = schedule_reject (best-effort)
+    await recordFeedbackSignal(supabase, {
+      userId: user.id,
+      logId,
+      signalType: 'schedule_reject',
+    })
     return { ok: true }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : '삭제 실패' }

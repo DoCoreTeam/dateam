@@ -3,6 +3,7 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { embedText, toVectorLiteral } from '@/lib/gemini-embedding'
+import { recordFeedbackSignal, diffDailyLog } from '@/lib/daily/feedback-signals'
 import type {
   DailyLog, DailyLogEntryType, DailyLogPriority,
   DailyLogRelation, DailyLogRelationType,
@@ -231,6 +232,19 @@ export async function updateDailyLog(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: '로그인이 필요합니다.' }
 
+  // 피드백 신호: 변경 전 상태 조회 (best-effort — 실패해도 수정 진행)
+  let beforeRow: { ai_processed?: boolean; content?: string | null; entry_type?: DailyLogEntryType; target_date?: string | null; origin_group_id?: string | null; ai_confidence?: number | null; original_input?: string | null } | null = null
+  try {
+    const { data } = await (supabase.from('daily_logs') as any)
+      .select('ai_processed, content, entry_type, target_date, origin_group_id, ai_confidence, original_input')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    beforeRow = data ?? null
+  } catch (e) {
+    console.error('[updateDailyLog] feedback pre-fetch failed', e)
+  }
+
   const updatePayload: Record<string, unknown> = {
     content: content.trim(),
     entry_type: entryType,
@@ -253,6 +267,27 @@ export async function updateDailyLog(
 
   if (error) return { ok: false, error: (error as Error).message }
 
+  // AI 파생 항목 수정 = correct_* 신호. target_date 는 호출에 포함된 경우만 비교.
+  if (beforeRow?.ai_processed) {
+    const diffs = diffDailyLog(
+      { content: beforeRow.content, entry_type: beforeRow.entry_type, target_date: beforeRow.target_date },
+      { content: content.trim(), entry_type: entryType, ...(targetDate !== undefined ? { target_date: targetDate || null } : {}) },
+    )
+    for (const d of diffs) {
+      await recordFeedbackSignal(supabase, {
+        userId: user.id,
+        logId: id,
+        originGroupId: beforeRow.origin_group_id ?? null,
+        signalType: d.signal_type,
+        field: d.field,
+        before: d.before,
+        after: d.after,
+        originalInput: beforeRow.original_input ?? null,
+        aiConfidence: beforeRow.ai_confidence ?? null,
+      })
+    }
+  }
+
   if (entryType === 'note') {
     await embedMemoRow(id, user.id, content.trim())
   }
@@ -269,6 +304,19 @@ export async function updateDailyLogStatus(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: '로그인이 필요합니다.' }
 
+  // 피드백 신호: 변경 전 타입 조회 (best-effort)
+  let beforeRow: { ai_processed?: boolean; entry_type?: DailyLogEntryType; origin_group_id?: string | null; ai_confidence?: number | null; original_input?: string | null } | null = null
+  try {
+    const { data } = await (supabase.from('daily_logs') as any)
+      .select('ai_processed, entry_type, origin_group_id, ai_confidence, original_input')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    beforeRow = data ?? null
+  } catch (e) {
+    console.error('[updateDailyLogStatus] feedback pre-fetch failed', e)
+  }
+
   const { error } = await (supabase.from('daily_logs') as any)
     .update({
       entry_type: entryType,
@@ -281,6 +329,21 @@ export async function updateDailyLogStatus(
 
   if (error) return { ok: false, error: (error as Error).message }
 
+  // AI 파생 항목 타입 변경 = correct_type 신호
+  if (beforeRow?.ai_processed && (beforeRow.entry_type ?? null) !== entryType) {
+    await recordFeedbackSignal(supabase, {
+      userId: user.id,
+      logId: id,
+      originGroupId: beforeRow.origin_group_id ?? null,
+      signalType: 'correct_type',
+      field: 'entry_type',
+      before: beforeRow.entry_type ?? null,
+      after: entryType,
+      originalInput: beforeRow.original_input ?? null,
+      aiConfidence: beforeRow.ai_confidence ?? null,
+    })
+  }
+
   revalidateDailyCalendarViews()
   return { ok: true }
 }
@@ -290,12 +353,40 @@ export async function deleteDailyLog(id: string): Promise<{ ok: true } | { ok: f
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: '로그인이 필요합니다.' }
 
+  // 피드백 신호: 삭제 전 AI 파생 여부 + 맥락 조회 (best-effort — 실패해도 삭제 진행)
+  let aiContext: { ai_processed?: boolean; content?: string | null; original_input?: string | null; origin_group_id?: string | null; ai_confidence?: number | null } | null = null
+  try {
+    const { data } = await (supabase.from('daily_logs') as any)
+      .select('ai_processed, content, original_input, origin_group_id, ai_confidence')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    aiContext = data ?? null
+  } catch (e) {
+    console.error('[deleteDailyLog] feedback pre-fetch failed', e)
+  }
+
   const { error } = await (supabase.from('daily_logs') as any)
     .delete()
     .eq('id', id)
     .eq('user_id', user.id)
 
   if (error) return { ok: false, error: (error as Error).message }
+
+  // AI 파생 항목 삭제 = reject 신호 (수동 항목은 신호 안 냄).
+  // logId=null: 행이 이미 삭제돼 FK 참조 불가(23503 방지). 맥락은 content(거부된 항목)+원본+그룹으로 보존.
+  if (aiContext?.ai_processed) {
+    await recordFeedbackSignal(supabase, {
+      userId: user.id,
+      logId: null,
+      originGroupId: aiContext.origin_group_id ?? null,
+      signalType: 'reject',
+      field: 'content',
+      before: aiContext.content ?? null,
+      originalInput: aiContext.original_input ?? null,
+      aiConfidence: aiContext.ai_confidence ?? null,
+    })
+  }
 
   // cascade: 이 업무에 연결된 캘린더 일정(link_kind='daily')도 삭제 (best effort — 실패 무해)
   try {
