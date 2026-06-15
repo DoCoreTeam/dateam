@@ -2,8 +2,31 @@
 
 import { createHash } from 'node:crypto'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { mergeAndRefineByCategory } from '@/lib/gemini-refine'
+import { mergeAndRefineByCategory, type MergedCategoryReport } from '@/lib/gemini-refine'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
+
+/** week_start(월요일 date 문자열) → 7일 전 월요일 문자열 */
+function prevWeekStart(weekStart: string): string {
+  const d = new Date(`${weekStart}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() - 7)
+  return d.toISOString().slice(0, 10)
+}
+
+/** dept body(jsonb) → MergedCategoryReport[] 안전 정규화 */
+function normalizeBody(raw: unknown): MergedCategoryReport[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((it) => {
+      const r = (typeof it === 'object' && it !== null ? it : {}) as Record<string, unknown>
+      return {
+        category: typeof r.category === 'string' ? r.category : '',
+        performance: typeof r.performance === 'string' ? r.performance : '',
+        plan: typeof r.plan === 'string' ? r.plan : '',
+        issues: typeof r.issues === 'string' ? r.issues : '',
+      }
+    })
+    .filter((r) => r.category !== '')
+}
 
 interface ActionResult {
   ok: boolean
@@ -68,6 +91,23 @@ export async function aggregateDept(deptId: string, weekStart: string): Promise<
     const model = (meta.gemini_model as string | undefined) ?? 'gemini-2.0-flash'
     if (!apiKey) return { ok: false, error: 'Gemini API 키가 설정되지 않았습니다' }
 
+    // 보수: 지난주 취합본(구분·계획 기준)과 현재 편집본을 읽어 병합·보존 컨텍스트로 주입한다.
+    //  ① 지난주 구분 → 통일 기준  ② 지난주 계획 → 성과 이행  ③ 기존 편집본 → 주제 병합·보존
+    const [prevRes, curRes] = await Promise.all([
+      admin.from('dept_weekly_reports').select('body')
+        .eq('department_id', deptId).eq('week_start', prevWeekStart(weekStart)).maybeSingle(),
+      admin.from('dept_weekly_reports').select('body, status')
+        .eq('department_id', deptId).eq('week_start', weekStart).maybeSingle(),
+    ])
+    const prevBody = normalizeBody(prevRes.data?.body)
+    const existingBody = normalizeBody(curRes.data?.body)
+    const existingStatus = (curRes.data?.status as 'draft' | 'confirmed' | undefined) ?? null
+
+    const prevCategories = Array.from(new Set(prevBody.map((r) => r.category).filter(Boolean)))
+    const prevPlans = prevBody
+      .filter((r) => r.plan && r.plan.trim() !== '' && r.plan.trim() !== '-')
+      .map((r) => ({ category: r.category, plan: r.plan }))
+
     const merged = await mergeAndRefineByCategory(
       rows.map((r) => ({
         userName: r.profiles?.name ?? '익명',
@@ -79,7 +119,15 @@ export async function aggregateDept(deptId: string, weekStart: string): Promise<
       apiKey,
       model,
       user.id,
+      {
+        prevCategories: prevCategories.length > 0 ? prevCategories : undefined,
+        prevPlans: prevPlans.length > 0 ? prevPlans : undefined,
+        existingBody: existingBody.length > 0 ? existingBody : undefined,
+      },
     )
+
+    // 기존 status 보존: 이미 confirmed면 유지(임의 draft 리셋 금지). 신규면 draft.
+    const nextStatus: 'draft' | 'confirmed' = existingStatus ?? 'draft'
 
     const hash = bodyHash(rows)
     const { error } = await admin.from('dept_weekly_reports').upsert(
@@ -88,13 +136,13 @@ export async function aggregateDept(deptId: string, weekStart: string): Promise<
         week_start: weekStart,
         body: merged,
         source_hash: hash,
-        status: 'draft',
+        status: nextStatus,
         edited_by: user.id,
       },
       { onConflict: 'department_id,week_start' },
     )
     if (error) return { ok: false, error: `저장 실패: ${error.message}` }
-    return { ok: true, body: merged, status: 'draft' }
+    return { ok: true, body: merged, status: nextStatus }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : '취합 실패' }
   }

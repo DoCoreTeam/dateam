@@ -22,14 +22,21 @@ export async function generateWeeklyFromDailyTasks(
   styleGuide: string,
   apiKey: string,
   model: string,
-  userId?: string | null
+  userId?: string | null,
+  prevWeekCategories?: string[]
 ): Promise<WeeklyRowOutput[]> {
   if (tasks.length === 0) return []
 
   const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
 
-  const systemPrompt = `${styleGuide}
+  // 지난주 구분(섹션) 목록 — 구분이 매주 달라지지 않도록 가능하면 지난주 명칭 재사용(있을 때만)
+  const prevCatBlock =
+    prevWeekCategories && prevWeekCategories.length > 0
+      ? `\n\n## [지난주 구분 목록] (구분 일관성 기준)\n${JSON.stringify(prevWeekCategories)}\n- 같은 의미의 업무는 위 지난주 구분 명칭을 그대로 재사용하라. 지난주에 없던 새 업무만 새 구분을 만들어라.`
+      : ''
 
+  const systemPrompt = `${styleGuide}
+${prevCatBlock}
 ---
 위 스타일 가이드에 따라 아래 일일업무 목록을 주간보고 형식으로 변환하라.
 일일업무 데이터는 JSON 배열로 제공된다.

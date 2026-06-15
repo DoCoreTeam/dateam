@@ -45,7 +45,8 @@ export async function POST(req: NextRequest) {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: metaRow } = await (createAdminClient() as any)
+  const admin = createAdminClient() as any
+  const { data: metaRow } = await admin
     .from('org_content')
     .select('value')
     .eq('key', 'META')
@@ -59,10 +60,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'AI 키가 설정되지 않았습니다 (관리자에게 문의)' }, { status: 500 })
   }
 
+  // 지난주(가장 최근 저장 주차) 구분 — 생성 시 구분이 매주 달라지지 않도록 기준으로 주입
+  let prevWeekCategories: string[] = []
+  try {
+    const { data: recent } = await admin
+      .from('weekly_reports')
+      .select('week_start, category')
+      .eq('user_id', user.id)
+      .is('deleted_at', null)
+      .order('week_start', { ascending: false })
+      .limit(50)
+    const list = (recent ?? []) as { week_start: string; category: string }[]
+    if (list.length > 0) {
+      const latestWeek = list[0].week_start
+      prevWeekCategories = Array.from(
+        new Set(list.filter((r) => r.week_start === latestWeek).map((r) => r.category).filter(Boolean)),
+      )
+    }
+  } catch (e) {
+    // 지난주 없음/조회 실패 — 구분 일관성 기준만 못 쓸 뿐 생성은 진행. 디버깅 위해 경고만.
+    console.warn('[generate-from-tasks] prevWeekCategories 조회 실패', e)
+  }
+
   const styleGuide = loadStyleGuide()
 
   try {
-    const rows = await generateWeeklyFromDailyTasks(tasks, styleGuide, apiKey, model, user.id)
+    const rows = await generateWeeklyFromDailyTasks(tasks, styleGuide, apiKey, model, user.id, prevWeekCategories)
     return NextResponse.json({ rows })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'AI 생성 중 오류가 발생했습니다'

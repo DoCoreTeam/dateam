@@ -1,5 +1,14 @@
 import { logTokenUsage } from '@/lib/token-logger'
 import type { AiFeature } from '@/types/database'
+import {
+  buildMergeContextBlocks,
+  type MergeContext,
+  type MergedCategoryReport,
+} from '@/lib/weekly-merge-context'
+
+// 후방호환: 기존 import 경로(@/lib/gemini-refine) 유지를 위해 재노출
+export { buildMergeContextBlocks }
+export type { MergeContext, MergedCategoryReport }
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -16,12 +25,6 @@ function parseGeminiJson(text: string): unknown {
   }
 }
 
-export interface MergedCategoryReport {
-  category: string
-  performance: string
-  plan: string
-  issues: string
-}
 
 export const MERGE_BY_CATEGORY_PROMPT = `당신은 기업 주간보고서 편집 전문가입니다. 여러 팀원의 주간보고를 팀 전체 하나의 통합 보고서로 작성합니다.
 
@@ -110,9 +113,13 @@ export async function mergeAndRefineByCategory(
   reports: ReportForRefine[],
   apiKey: string,
   model: string,
-  userId?: string | null
+  userId?: string | null,
+  ctx?: MergeContext,
 ): Promise<MergedCategoryReport[]> {
-  if (reports.length === 0) return []
+  // 이번주 새 입력이 없으면 병합할 게 없음 — 기존 편집본이 있으면 그대로 보존(Gemini 빈 입력 호출 회피), 없으면 빈 결과.
+  if (reports.length === 0) {
+    return ctx?.existingBody && ctx.existingBody.length > 0 ? ctx.existingBody : []
+  }
 
   const url = `${GEMINI_API_BASE}/models/${model}:generateContent`
 
@@ -120,11 +127,14 @@ export async function mergeAndRefineByCategory(
     userName, category, performance, plan, issues,
   }))
 
+  // 지난주 구분/계획·기존 편집본 컨텍스트를 프롬프트에 첨부(있을 때만)
+  const contextBlocks = buildMergeContextBlocks(ctx)
+
   const body = {
     contents: [
       {
         role: 'user',
-        parts: [{ text: `${MERGE_BY_CATEGORY_PROMPT}\n\n입력 데이터:\n${JSON.stringify(input, null, 2)}` }],
+        parts: [{ text: `${MERGE_BY_CATEGORY_PROMPT}${contextBlocks}\n\n입력 데이터(이번주 부서원 보고):\n${JSON.stringify(input, null, 2)}` }],
       },
     ],
     generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
