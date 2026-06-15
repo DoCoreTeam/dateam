@@ -297,6 +297,17 @@ export async function deleteDailyLog(id: string): Promise<{ ok: true } | { ok: f
 
   if (error) return { ok: false, error: (error as Error).message }
 
+  // cascade: 이 업무에 연결된 캘린더 일정(link_kind='daily')도 삭제 (best effort — 실패 무해)
+  try {
+    await (supabase.from('calendar_events') as any)
+      .delete()
+      .eq('user_id', user.id)
+      .eq('link_kind', 'daily')
+      .eq('link_id', id)
+  } catch (e) {
+    console.error('[deleteDailyLog] calendar cascade failed', e)
+  }
+
   revalidateDailyCalendarViews()
   return { ok: true }
 }

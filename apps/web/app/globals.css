@@ -4536,6 +4536,13 @@ label.intake-tool-btn {
   outline-offset: 2px;
 }
 .sched-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.sched-btn-cancel {
+  background: var(--color-bg);
+  color: var(--danger);
+  border: var(--hairline) solid var(--danger-border);
+}
+.sched-btn-cancel:hover { background: var(--danger-bg); }
+.sched-btn-cancel:focus-visible { outline-color: var(--danger); }
 @media (max-width: 767px) {
   .sched-btn { min-height: 44px; }
   .sched-item-label { min-height: 44px; }

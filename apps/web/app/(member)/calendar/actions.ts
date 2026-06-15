@@ -198,6 +198,28 @@ export async function createDailyScheduleEvent(input: {
   }
 }
 
+/**
+ * 특정 daily_log 에 연결된 캘린더 일정(link_kind='daily')을 모두 삭제한다.
+ * ScheduleSection의 [취소] 및 deleteDailyLog cascade 에서 재사용. 본인(user_id) 행만 삭제.
+ */
+export async function unlinkDailyCalendar(logId: string): Promise<Result> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ok: false, error: '인증이 필요합니다' }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.from('calendar_events') as any)
+      .delete()
+      .eq('user_id', user.id)
+      .eq('link_kind', 'daily')
+      .eq('link_id', logId)
+    if (error) return { ok: false, error: `삭제 실패: ${error.message}` }
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : '삭제 실패' }
+  }
+}
+
 export async function deleteCalendarEvent(id: string): Promise<Result> {
   try {
     const supabase = await createClient()

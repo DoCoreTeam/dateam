@@ -12,6 +12,8 @@ import useSWR, { mutate } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread, updateDailyLogStatus } from './actions'
 import type { AiParsedItem } from './actions'
+import { createDailyScheduleEvent } from '../calendar/actions'
+import { selectScheduleCandidates } from '@/lib/daily/schedule-candidates'
 import type { DailyLog, DailyLogEntryType, DailyLogThread } from '@/types/database'
 import { DdayBadge, todayLocal } from '@/lib/dday'
 import { groupDailyLogs } from './grouping'
@@ -123,10 +125,8 @@ export default function DailyPage() {
     setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000)
   }
 
-  // AI 저장 상태
+  // AI 저장 상태 (확인 패널 없이 분석→즉시 자동 저장)
   const [aiHintCount, setAiHintCount] = useState(0)
-  const [aiPanelOpen, setAiPanelOpen] = useState(false)
-  const [aiItems, setAiItems] = useState<AiParsedItem[]>([])
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState('')
 
@@ -149,12 +149,24 @@ export default function DailyPage() {
     return () => clearTimeout(timer)
   }, [content])
 
+  // 저장 직후 1회만: target_date/scheduled_at 보유 항목을 자동으로 캘린더에 등록.
+  // 결정론 후보 선정(selectScheduleCandidates)을 재사용하며 createDailyScheduleEvent의
+  // 중복 가드가 이중 INSERT를 막는다. 저장 응답(savedLogs) 1회에 대해서만 호출 — 루프 없음.
+  const autoRegisterSchedules = async (savedLogs: DailyLog[]) => {
+    const candidates = selectScheduleCandidates(savedLogs)
+    for (const c of candidates) {
+      try {
+        await createDailyScheduleEvent({ title: c.title, start_at: c.startAt, link_id: c.logId })
+      } catch { /* best effort — 캘린더 등록 실패가 업무 저장을 막지 않음 */ }
+    }
+  }
+
   const handleAiSave = async () => {
     if (!content.trim() || aiLoading) return
     setAiError('')
-    setAiItems([])
-    setAiPanelOpen(true)
     setAiLoading(true)
+    const originalInput = content
+    const collected: AiParsedItem[] = []
 
     try {
       const res = await fetch('/api/ai/analyze-work', {
@@ -188,32 +200,36 @@ export default function DailyPage() {
           if (data === '[DONE]') break
           try {
             const item = JSON.parse(data) as AiParsedItem
-            item.originalInput = content
-            setAiItems(prev => [...prev, item])
+            item.originalInput = originalInput
+            collected.push(item)
           } catch { /* skip */ }
         }
       }
     } catch {
       setAiError('네트워크 오류가 발생했습니다')
-    } finally {
       setAiLoading(false)
+      return
     }
-  }
 
-  const handleAiConfirm = async (items: AiParsedItem[]) => {
-    if (items.length === 0) return
-    startTransition(async () => {
-      const result = await addMultipleDailyLogs(items, selectedDate)
-      if (result.ok) {
-        setContent('')
-        setAiHintCount(0)
-        setAiPanelOpen(false)
-        setAiItems([])
-        await mutate(`/api/daily/logs?date=${selectedDate}`)
-      } else {
-        setAiError(result.error)
-      }
-    })
+    if (collected.length === 0) {
+      setAiError('분석된 업무 항목이 없습니다. 내용을 더 구체적으로 입력해 주세요.')
+      setAiLoading(false)
+      return
+    }
+
+    // 분석 완료 → 즉시 자동 저장 (확인 단계 없음)
+    const result = await addMultipleDailyLogs(collected, selectedDate)
+    if (result.ok) {
+      setContent('')
+      setAiHintCount(0)
+      await mutate(`/api/daily/logs?date=${selectedDate}`)
+      // 저장된 항목 중 일정성 항목 자동 캘린더 등록 (저장 직후 1회)
+      await autoRegisterSchedules(result.data)
+      await mutate(isDailyCalendarCacheKey)
+    } else {
+      setAiError(result.error)
+    }
+    setAiLoading(false)
   }
 
   const handleResolve = async (id: string) => {
@@ -488,34 +504,28 @@ export default function DailyPage() {
                   >
                     <span className="daily-ai-save-label">
                       {!aiLoading && <Sparkles size={14} strokeWidth={2.4} />}
-                      {aiLoading ? '분석중' : 'AI 저장'}
+                      {aiLoading ? '분석 중…' : '저장'}
                     </span>
                     {!aiLoading && <span style={{ fontSize: '0.6rem', opacity: 0.75 }}>Ctrl+↵</span>}
                   </button>
                 </div>
-                {content.trim() && aiHintCount > 0 && !aiPanelOpen && (
+                {aiLoading && (
+                  <p style={{ color: 'var(--brand)', fontSize: '0.8rem', margin: '0.5rem 0 0', opacity: 0.85 }}>
+                    ✨ AI가 업무를 분석·저장 중입니다…
+                  </p>
+                )}
+                {!aiLoading && content.trim() && aiHintCount > 0 && (
                   <p style={{ color: 'var(--brand)', fontSize: '0.8rem', margin: '0.5rem 0 0', opacity: 0.8 }}>
                     ✨ {aiHintCount}개 항목 감지됨
                   </p>
+                )}
+                {aiError && (
+                  <p style={{ color: 'var(--danger)', fontSize: 'var(--fs-sm)', margin: '0.5rem 0 0' }}>{aiError}</p>
                 )}
                 {error && (
                   <p style={{ color: 'var(--danger)', fontSize: 'var(--fs-sm)', margin: '0.5rem 0 0' }}>{error}</p>
                 )}
               </div>
-
-              {/* AI 결과 패널 */}
-              {aiPanelOpen && (
-                <AiResultPanel
-                  items={aiItems}
-                  loading={aiLoading}
-                  error={aiError}
-                  originalText={content}
-                  onReanalyze={handleAiSave}
-                  onConfirm={handleAiConfirm}
-                  onClose={() => { setAiPanelOpen(false); setAiItems([]) }}
-                  isPending={isPending}
-                />
-              )}
 
               {/* 타임라인 헤더 + 관계도 버튼 */}
               {logs.length > 0 && (
@@ -1400,317 +1410,6 @@ const actionBtnSecondary: React.CSSProperties = {
   padding: '0.375rem 0.875rem', background: 'var(--surface-muted)', color: 'var(--text-muted)',
   border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)',
   fontWeight: 600, cursor: 'pointer',
-}
-
-/* ─── AI 결과 패널 ─── */
-
-const PRIORITY_LABELS: Record<string, string> = {
-  urgent: '긴급', high: '높음', normal: '보통', low: '낮음',
-}
-// 텍스트 색만 매핑(SSOT lib/tokens/status-colors의 PRIORITY_COLORS[color/bg/border]와 구분).
-const PRIORITY_TEXT_COLORS: Record<string, string> = {
-  urgent: 'var(--danger)', high: 'var(--warning)', normal: 'var(--text-muted)', low: 'var(--text-faint)',
-}
-
-interface AiResultPanelProps {
-  items: AiParsedItem[]
-  loading: boolean
-  error: string
-  originalText: string
-  onReanalyze: () => void
-  onConfirm: (items: AiParsedItem[]) => void
-  onClose: () => void
-  isPending: boolean
-}
-
-function AiResultPanel({ items, loading, error, onReanalyze, onConfirm, onClose, isPending }: AiResultPanelProps) {
-  const [editItems, setEditItems] = useState<AiParsedItem[]>(items)
-
-  // items 스트리밍으로 추가될 때마다 동기화
-  useEffect(() => {
-    setEditItems(items)
-  }, [items])
-
-  // 같은 originGroupId를 공유하는 항목들이 있으면 묶음 배너 표시
-  const hasOriginGroup = editItems.length > 1 && editItems.some(i => i.originGroupId != null)
-
-  const updateItem = (idx: number, patch: Partial<AiParsedItem>) => {
-    setEditItems(prev => prev.map((item, i) => i === idx ? { ...item, ...patch } : item))
-  }
-
-  return (
-    <>
-      <div className="ai-panel-overlay" onClick={onClose} />
-      <div className="ai-panel">
-        {/* 헤더 */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: 'var(--space-4) var(--space-5)', borderBottom: 'var(--border-w-2) solid var(--border-color)',
-          background: 'linear-gradient(135deg, var(--brand-soft), var(--info-bg))',
-        }}>
-          <div>
-            <div style={{ fontSize: 'var(--fs-lg)', fontWeight: 700, color: 'var(--text)' }}>✨ AI 분석 결과</div>
-            {loading && editItems.length === 0 && (
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', marginTop: '0.125rem' }}>
-                분석 중...
-              </div>
-            )}
-            {loading && editItems.length > 0 && (
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', marginTop: '0.125rem' }}>
-                {editItems.length}개 항목 발견 — 계속 분석 중...
-              </div>
-            )}
-            {!loading && editItems.length > 0 && (
-              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', marginTop: '0.125rem' }}>
-                {editItems.length}개 항목 감지됨 — 확인 후 저장하세요
-              </div>
-            )}
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none', border: 'none', fontSize: '1.25rem',
-              color: 'var(--text-faint)', cursor: 'pointer', lineHeight: 1, padding: 'var(--space-1)',
-            }}
-          >×</button>
-        </div>
-
-        {/* 컨텐츠 */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-4) var(--space-5)' }}>
-          {/* 같은 묶음 안내 배너 */}
-          {hasOriginGroup && !loading && (
-            <div style={{
-              background: 'var(--info-bg)', border: 'var(--hairline) solid var(--info-border)',
-              borderRadius: 'var(--radius)', padding: '0.5rem 0.875rem',
-              marginBottom: '0.875rem',
-              fontSize: 'var(--fs-sm)', color: 'var(--info)',
-              display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
-            }}>
-              <span>🔗</span>
-              <span>같은 입력에서 분리된 <strong>{editItems.length}개</strong> 항목 묶음입니다 — 개별 확인 후 함께 저장됩니다</span>
-            </div>
-          )}
-
-          {error && (
-            <div style={{
-              background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)',
-              borderRadius: 'var(--radius)', padding: 'var(--space-3) var(--space-4)',
-              color: 'var(--danger)', fontSize: 'var(--fs-base)', marginBottom: '1rem',
-            }}>
-              {error}
-            </div>
-          )}
-
-          {loading && editItems.length === 0 && (
-            <div style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              justifyContent: 'center', gap: 'var(--space-4)', padding: 'var(--space-10) var(--space-4)',
-            }}>
-              <div className="ai-analyzing-spinner" />
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--brand-dark)', marginBottom: '0.25rem' }}>
-                  AI가 업무를 분석하고 있습니다
-                </div>
-                <div className="ai-analyzing-dots" style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)' }}>
-                  업무 항목을 추출 중
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            {editItems.map((item, idx) => (
-              <div
-                key={idx}
-                className="ai-item-card"
-                style={{ animationDelay: `${idx * 0.08}s` }}
-              >
-                <AiItemCard
-                  item={item}
-                  onChange={(patch) => updateItem(idx, patch)}
-                />
-              </div>
-            ))}
-          </div>
-
-          {loading && editItems.length > 0 && (
-            <div style={{ textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-sm)', padding: 'var(--space-3) var(--space-0)' }}>
-              분석 중...
-            </div>
-          )}
-        </div>
-
-        {/* 하단 버튼 */}
-        <div style={{
-          padding: 'var(--space-4) var(--space-5)', borderTop: 'var(--border-w-2) solid var(--border-color)',
-          display: 'flex', gap: '0.625rem',
-          background: '#fff',
-        }}>
-          <button
-            onClick={onReanalyze}
-            disabled={loading}
-            style={{
-              flex: 1, padding: '0.625rem', background: 'var(--surface-muted)', color: 'var(--text-muted)',
-              border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
-              fontSize: 'var(--fs-base)', fontWeight: 600, cursor: 'pointer',
-              opacity: loading ? 0.5 : 1,
-            }}
-          >
-            다시 분석
-          </button>
-          <button
-            onClick={() => onConfirm(editItems)}
-            disabled={loading || isPending || editItems.length === 0}
-            style={{
-              flex: 2, padding: '0.625rem',
-              background: 'linear-gradient(135deg, var(--brand), var(--info))',
-              color: '#fff', border: 'none', borderRadius: 'var(--radius)',
-              fontSize: 'var(--fs-base)', fontWeight: 700, cursor: 'pointer',
-              opacity: loading || isPending || editItems.length === 0 ? 0.5 : 1,
-            }}
-          >
-            {isPending ? '저장 중...' : `확정 저장 (${editItems.length}개)`}
-          </button>
-        </div>
-      </div>
-    </>
-  )
-}
-
-interface AiItemCardProps {
-  item: AiParsedItem
-  onChange: (patch: Partial<AiParsedItem>) => void
-}
-
-const CERTAINTY_LABEL: Record<string, string> = {
-  exact: 'AI 확정', inferred: 'AI 추정', none: '',
-}
-const CERTAINTY_COLOR: Record<string, string> = {
-  exact: 'var(--brand)', inferred: 'var(--warning)', none: 'var(--text-faint)',
-}
-
-
-function AiItemCard({ item, onChange }: AiItemCardProps) {
-  const statusInfo = ENTRY_MAP[item.status] ?? ENTRY_MAP['note']
-  const today = toDateStr(new Date())
-
-  return (
-    <div style={{
-      background: '#fff', border: `var(--hairline) solid ${statusInfo.border}`,
-      borderLeft: `var(--border-w) solid ${statusInfo.color}`,
-      borderRadius: '0 0.5rem 0.5rem 0', padding: '0.75rem 0.875rem',
-    }}>
-      {/* 제목 */}
-      <input
-        value={item.title}
-        onChange={(e) => onChange({ title: e.target.value })}
-        style={{
-          width: '100%', border: 'none', borderBottom: 'var(--border-w-2) solid var(--border-color)',
-          padding: '0 0 0.375rem', fontSize: 'var(--fs-md)', fontWeight: 600,
-          color: 'var(--text)', outline: 'none', background: 'transparent',
-          boxSizing: 'border-box', marginBottom: '0.625rem',
-        }}
-      />
-
-      {/* 메타 배지 행 */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', alignItems: 'center' }}>
-        {/* 상태 */}
-        <select
-          value={item.status}
-          onChange={(e) => onChange({ status: e.target.value as DailyLogEntryType })}
-          style={{
-            padding: '0.2rem 0.5rem', borderRadius: 'var(--radius)', fontSize: 'var(--fs-xs)',
-            fontWeight: 700, border: `var(--hairline) solid ${statusInfo.border}`,
-            background: statusInfo.bg, color: statusInfo.color, cursor: 'pointer',
-          }}
-        >
-          {ENTRY_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-        </select>
-
-        {/* 우선순위 */}
-        <select
-          value={item.priority}
-          onChange={(e) => onChange({ priority: e.target.value as AiParsedItem['priority'] })}
-          style={{
-            padding: '0.2rem 0.5rem', borderRadius: 'var(--radius)', fontSize: 'var(--fs-xs)',
-            fontWeight: 600, border: 'var(--border-w-2) solid var(--border-color)',
-            background: 'var(--color-bg)', color: PRIORITY_TEXT_COLORS[item.priority] ?? 'var(--text-muted)',
-            cursor: 'pointer',
-          }}
-        >
-          {Object.entries(PRIORITY_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
-
-        {/* 타겟 날짜 (사용자 편집 가능) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-faint)' }}>📅</span>
-          <input
-            type="date"
-            value={item.targetDate ?? ''}
-            onChange={(e) => onChange({ targetDate: e.target.value || null, targetDateCertainty: 'exact' })}
-            style={{
-              padding: '0.15rem 0.375rem', borderRadius: 'var(--radius)', fontSize: 'var(--fs-xs)',
-              border: 'var(--border-w-2) solid var(--border-color)', background: 'var(--color-bg)', color: 'var(--text-muted)',
-              cursor: 'pointer', outline: 'none',
-            }}
-          />
-          {item.targetDate && item.targetDateCertainty !== 'none' && (
-            <span style={{
-              fontSize: '0.65rem', color: CERTAINTY_COLOR[item.targetDateCertainty] ?? 'var(--text-faint)',
-              fontStyle: 'italic',
-            }}>
-              {CERTAINTY_LABEL[item.targetDateCertainty]}
-            </span>
-          )}
-          {item.targetDate && <DdayBadge targetDate={item.targetDate} today={today} />}
-        </div>
-
-        {/* 예약 시간 */}
-        {item.scheduledTime && (
-          <span style={{
-            fontSize: 'var(--fs-xs)', color: 'var(--brand)', background: 'var(--brand-soft)',
-            border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)',
-            padding: '0.2rem 0.5rem',
-          }}>
-            ⏰ {item.scheduledTime}
-          </span>
-        )}
-
-        {/* 거래처 */}
-        {item.accountName && (
-          <span style={{
-            fontSize: 'var(--fs-xs)', color: 'var(--info)', background: 'var(--info-bg)',
-            border: 'var(--hairline) solid var(--info-border)', borderRadius: 'var(--radius)',
-            padding: '0.2rem 0.5rem',
-          }}>
-            🏢 {item.accountName}
-          </span>
-        )}
-
-        {/* 담당자 */}
-        {item.contactName && (
-          <span style={{
-            fontSize: 'var(--fs-xs)', color: 'var(--info)', background: 'var(--success-bg)',
-            border: 'var(--hairline) solid var(--info-bg)', borderRadius: 'var(--radius)',
-            padding: '0.2rem 0.5rem',
-          }}>
-            👤 {item.contactName}
-          </span>
-        )}
-
-        {/* AI 태그 */}
-        {item.tags?.map(tag => (
-          <span key={tag} style={{
-            fontSize: '0.7rem', color: 'var(--brand)', background: 'var(--brand-soft)',
-            border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)',
-            padding: '0.1rem 0.375rem',
-          }}>
-            #{tag}
-          </span>
-        ))}
-      </div>
-    </div>
-  )
 }
 
 /* ─── 삭제 확인 모달 ─── */
