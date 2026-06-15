@@ -24,6 +24,8 @@ import UnreviewedMemoWidget from '@/components/ui/memo/UnreviewedMemoWidget'
 import { STATUS_LIST } from '@/lib/tokens/status-colors'
 const ENTRY_TYPES = STATUS_LIST as { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[]
 const ENTRY_MAP = Object.fromEntries(ENTRY_TYPES.map((t) => [t.value, t])) as Record<DailyLogEntryType, typeof ENTRY_TYPES[number]>
+// 일일업무에서는 '블로커' 제외(부서업무 전용 개념 — 일일엔 혼란). 배지맵(ENTRY_MAP)엔 유지: 레거시 blocker 행 렌더용.
+const EDIT_TYPES = ENTRY_TYPES.filter((t) => t.value !== 'blocker')
 
 const WEEK_DAYS = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -107,7 +109,6 @@ export default function DailyPage() {
 
   // 입력 상태
   const [content, setContent] = useState('')
-  const [entryType, setEntryType] = useState<DailyLogEntryType>('done')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [editType, setEditType] = useState<DailyLogEntryType>('done')
@@ -458,25 +459,6 @@ export default function DailyPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}>
               {/* 입력 폼 */}
               <div className="daily-compose-card">
-                <div className="daily-type-row">
-                  {ENTRY_TYPES.map((t) => (
-                    <button
-                      key={t.value}
-                      type="button"
-                      onClick={() => setEntryType(t.value)}
-                      className="daily-type-chip"
-                      style={{
-                        fontWeight: entryType === t.value ? 700 : 500,
-                        border: 'var(--border-w-2) solid var(--border-color)',
-                        background: entryType === t.value ? t.bg : 'var(--nb-white)',
-                        color: entryType === t.value ? t.color : 'var(--ink)',
-                        boxShadow: entryType === t.value ? 'var(--shadow-sm)' : 'none',
-                      }}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
                 <div className="daily-compose-row">
                   <textarea
                     value={content}
@@ -644,10 +626,6 @@ export default function DailyPage() {
                   <div className="daily-stats-item planned">
                     <div className="daily-stats-item-label">예정</div>
                     <div className="daily-stats-item-val">{logs.filter(l => l.entry_type === 'planned').length}</div>
-                  </div>
-                  <div className="daily-stats-item blocker">
-                    <div className="daily-stats-item-label">블로커</div>
-                    <div className="daily-stats-item-val">{logs.filter(l => l.entry_type === 'blocker').length}</div>
                   </div>
                 </div>
               </div>
@@ -855,7 +833,7 @@ function LogList({
               {isEditing ? (
                 <div>
                   <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '0.625rem' }}>
-                    {ENTRY_TYPES.map((t) => (
+                    {EDIT_TYPES.map((t) => (
                       <button
                         key={t.value}
                         type="button"
@@ -948,7 +926,7 @@ function LogList({
                               marginTop: '0.25rem',
                             }}
                           >
-                            {ENTRY_TYPES.map((t) => (
+                            {EDIT_TYPES.map((t) => (
                               <button
                                 key={t.value}
                                 data-testid={`status-option-${t.value}`}

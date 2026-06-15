@@ -437,7 +437,8 @@ export async function addMultipleDailyLogs(
       user_id: user.id,
       log_date: logDate,
       content: item.title,
-      entry_type: item.status,
+      // 일일업무는 '블로커' 미사용(부서업무 전용) → AI가 blocker로 분류해도 doing으로 흡수
+      entry_type: item.status === 'blocker' ? 'doing' : item.status,
       priority: item.priority,
       scheduled_at: scheduledAt,
       ai_processed: true,
