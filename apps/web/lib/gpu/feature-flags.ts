@@ -1,10 +1,10 @@
-// GPU 가격관리 리팩토링 — feature flag (병존·무중단·즉시 롤백)
+// GPU 가격관리 리팩토링 — feature flag (즉시 롤백 가능)
 //
-// 통합 표/통합 입력 신규 UX를 기존 탭과 병존시키기 위한 플래그.
-// 기본 OFF — 환경변수로 켜고, 개발 중에는 localStorage로 개별 오버라이드.
-//   - 빌드/배포 기본값: NEXT_PUBLIC_GPU_UNIFIED ('1'|'true' 면 ON)
+// 통합 표/통합 입력 신규 UX 플래그. 리팩토링 완료에 따라 'unified' 기본값 ON.
+//   - 기본값(미설정 시): DEFAULT_ON 참조 — unified=true(통합뷰가 기본 화면)
+//   - 환경변수 강제: NEXT_PUBLIC_GPU_UNIFIED ('1'|'true' → 강제 ON, '0'|'false' → 강제 OFF)
 //   - 클라이언트 오버라이드(개발/파일럿): localStorage['gpu:flag:unified'] = 'on'|'off'
-// flag OFF → 기존 10탭 그대로(롤백 무비용).
+// 롤백: 환경변수에 '0' 지정하거나 localStorage 'off' → 기존 10탭으로 복귀(무비용).
 
 export type GpuFlagKey = 'unified'
 
@@ -12,17 +12,26 @@ const ENV_MAP: Record<GpuFlagKey, string | undefined> = {
   unified: process.env.NEXT_PUBLIC_GPU_UNIFIED,
 }
 
+// 환경변수·오버라이드가 모두 없을 때의 기본값(SSOT). 리팩토링 완료 → 통합뷰가 기본.
+const DEFAULT_ON: Record<GpuFlagKey, boolean> = {
+  unified: true,
+}
+
 const STORAGE_PREFIX = 'gpu:flag:'
 
-function envOn(value: string | undefined): boolean {
-  return value === '1' || value === 'true'
+// 환경변수 기준 base 값: 명시 ON/OFF면 그 값, 미설정이면 DEFAULT_ON.
+function resolveBase(key: GpuFlagKey): boolean {
+  const raw = ENV_MAP[key]
+  if (raw === '1' || raw === 'true') return true
+  if (raw === '0' || raw === 'false') return false
+  return DEFAULT_ON[key]
 }
 
 /**
  * 플래그 ON 여부. 서버/클라이언트 공통 — 클라이언트에서는 localStorage 오버라이드가 환경변수보다 우선.
  */
 export function isGpuFlagOn(key: GpuFlagKey): boolean {
-  const base = envOn(ENV_MAP[key])
+  const base = resolveBase(key)
   if (typeof window === 'undefined') return base
   try {
     const override = window.localStorage.getItem(`${STORAGE_PREFIX}${key}`)
