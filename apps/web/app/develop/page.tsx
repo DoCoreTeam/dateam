@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import DemoSection from './DemoSection'
+import CodeTabs from './CodeTabs'
+import type { RequestSpec } from '@/lib/api-docs/snippets'
 
 type Section = 'overview' | 'auth' | 'products' | 'quote' | 'inventory' | 'fx' | 'suppliers' | 'market' | 'settings' | 'pool-stock' | 'accounts' | 'contacts' | 'deals' | 'demo' | 'errors'
 
@@ -137,16 +139,9 @@ function OverviewSection({ onCopy, copiedId, brandName }: { onCopy: (t: string, 
       <CodeBlock id="baseurl" code={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} />
 
       <H2>빠른 시작 (30초)</H2>
-      <P>API 키를 발급받고 첫 요청을 보내는 전체 흐름입니다.</P>
-      <CodeBlock id="quickstart" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`# 1. GPU 제품 목록 조회
-curl ${origin}/api/public/v1/products \\
-  -H "X-API-Key: ax_live_여기에_키_입력"
-
-# 2. H100 4장 견적 계산 (product_id는 1번 응답에서 확인)
-curl -X POST ${origin}/api/public/v1/quote \\
-  -H "X-API-Key: ax_live_여기에_키_입력" \\
-  -H "Content-Type: application/json" \\
-  -d '{"items": [{"product_id": "PRODUCT_UUID", "quantity": 4}], "currency": "KRW"}'`} />
+      <P>발급받은 키를 <code style={{ color: 'var(--brand-soft-2)', background: 'var(--text)', padding: '1px 6px', borderRadius: 4 }}>AX_API_KEY</code> 환경변수에 넣고, 아래에서 사용하는 언어 탭을 골라 그대로 복사하면 첫 요청이 완성됩니다.</P>
+      <CodeTabs id="quickstart" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/products' }} onCopy={onCopy} copiedId={copiedId} />
+      <P>다음 단계 — 위 응답의 <code style={{ color: 'var(--brand-soft-2)', background: 'var(--text)', padding: '1px 6px', borderRadius: 4 }}>id</code>로 견적을 계산하려면 <strong style={{ color: 'var(--surface-muted)' }}>견적 계산</strong> 섹션의 예시를 참고하세요.</P>
 
       <H2>응답 공통 포맷</H2>
       <P>모든 응답은 아래 구조를 따릅니다. 에러 시에도 동일한 포맷으로 반환됩니다.</P>
@@ -213,38 +208,14 @@ function AuthSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onC
       <H1>인증</H1>
       <P>모든 API 요청에는 유효한 API 키가 필요합니다. <strong style={{ color: 'var(--color-border)' }}>설정 → API Keys</strong>에서 키를 발급하세요. 키는 HMAC-SHA256으로 해시되어 저장되며 언제든지 재복사할 수 있습니다.</P>
 
-      <H2>X-API-Key 헤더 (권장)</H2>
-      <CodeBlock id="auth-curl" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl ${origin}/api/public/v1/products \\
-  -H "X-API-Key: ${exampleKey}"`} />
+      <H2>X-API-Key 헤더 (권장) — 언어별 예시</H2>
+      <P>키를 <code style={{ color: 'var(--brand-soft-2)', background: 'var(--text)', padding: '1px 6px', borderRadius: 4 }}>AX_API_KEY</code> 환경변수에 넣고, 사용하는 언어 탭을 선택해 복사하세요. (모든 엔드포인트가 동일한 인증 방식을 씁니다.)</P>
+      <CodeTabs id="auth" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/products' }} onCopy={onCopy} copiedId={copiedId} />
 
       <H2>Authorization Bearer (대안)</H2>
+      <P>헤더 이름 대신 <code style={{ color: 'var(--brand-soft-2)', background: 'var(--text)', padding: '1px 6px', borderRadius: 4 }}>Authorization: Bearer &lt;키&gt;</code> 형식도 동일하게 동작합니다.</P>
       <CodeBlock id="auth-bearer" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl ${origin}/api/public/v1/products \\
-  -H "Authorization: Bearer ${exampleKey}"`} />
-
-      <H2>JavaScript / TypeScript</H2>
-      <CodeBlock id="auth-js" lang="typescript" onCopy={onCopy} copiedId={copiedId} code={`const AX_API_KEY = process.env.AX_API_KEY   // 환경변수에서 로드
-
-const response = await fetch('${origin}/api/public/v1/products', {
-  headers: {
-    'X-API-Key': AX_API_KEY,
-    'Content-Type': 'application/json',
-  },
-})
-
-if (!response.ok) {
-  const err = await response.json()
-  throw new Error(err.error)        // { success: false, error: "..." }
-}
-
-const { data, meta } = await response.json()`} />
-
-      <H2>Python</H2>
-      <CodeBlock id="auth-py" lang="python" onCopy={onCopy} copiedId={copiedId} code={`import os, requests
-
-headers = {'X-API-Key': os.environ['AX_API_KEY']}
-res = requests.get('${origin}/api/public/v1/products', headers=headers)
-res.raise_for_status()
-data = res.json()['data']`} />
+  -H "Authorization: Bearer $AX_API_KEY"`} />
 
       <H2>인증 오류 응답</H2>
       <CodeBlock id="auth-err" lang="json" onCopy={onCopy} copiedId={copiedId} code={`// 401 — 키 없음 또는 잘못된 형식
@@ -280,8 +251,7 @@ function ProductsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string;
       </Callout>
 
       <EndpointHeader method="GET" path="/products" desc="모든 GPU 제품의 현재 가격, 공급사 정보, 가용 여부를 반환합니다." />
-      <CodeBlock id="products-curl" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl ${origin}/api/public/v1/products \\
-  -H "X-API-Key: ${exampleKey}"`} />
+      <CodeTabs id="products" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/products' }} onCopy={onCopy} copiedId={copiedId} />
 
       <ParamTable title="응답 필드 (data[])">
         <PR name="id" type="uuid" desc="제품 고유 ID. 견적·재고 API에서 product_id로 사용." />
@@ -318,8 +288,7 @@ function ProductsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string;
 }`} />
 
       <EndpointHeader method="GET" path="/products/{id}" desc="단일 GPU 제품의 상세 정보를 반환합니다." />
-      <CodeBlock id="product-single" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl ${origin}/api/public/v1/products/b3f2a1c4-... \\
-  -H "X-API-Key: ${exampleKey}"`} />
+      <CodeTabs id="product-single" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/products/b3f2a1c4-...' }} onCopy={onCopy} copiedId={copiedId} />
     </div>
   )
 }
@@ -347,16 +316,10 @@ function QuoteSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; on
         <PR name="currency" type="'USD' | 'KRW'" desc="출력 통화. 기본값: USD. KRW 선택 시 당일 환율 자동 적용." />
       </ParamTable>
 
-      <CodeBlock id="quote-curl" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl -X POST ${origin}/api/public/v1/quote \\
-  -H "X-API-Key: ${exampleKey}" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "items": [
-      { "product_id": "b3f2a1c4-...", "quantity": 4 },
-      { "product_id": "a2e1b3d5-...", "quantity": 8, "custom_margin_pct": 20 }
-    ],
-    "currency": "KRW"
-  }'`} />
+      <CodeTabs id="quote" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{
+        method: 'POST', path: '/quote',
+        body: { items: [{ product_id: 'b3f2a1c4-...', quantity: 4 }, { product_id: 'a2e1b3d5-...', quantity: 8, custom_margin_pct: 20 }], currency: 'KRW' },
+      }} />
 
       <ParamTable title="응답 필드 (data.items[])">
         <PR name="model_name" type="string" desc="GPU 모델명" />
@@ -417,8 +380,7 @@ function InventorySection({ exampleKey, onCopy, copiedId }: { exampleKey: string
       </Callout>
 
       <EndpointHeader method="GET" path="/inventory" desc="모든 GPU 제품의 현재 재고 수량과 가용 여부를 반환합니다." />
-      <CodeBlock id="inv-curl" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl ${origin}/api/public/v1/inventory \\
-  -H "X-API-Key: ${exampleKey}"`} />
+      <CodeTabs id="inventory" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/inventory' }} onCopy={onCopy} copiedId={copiedId} />
 
       <ParamTable title="응답 필드 (data[])">
         <PR name="product_id" type="uuid" desc="제품 ID" />
@@ -463,8 +425,7 @@ function FxSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; onCop
       </Callout>
 
       <EndpointHeader method="GET" path="/fx" desc="최근 7일간의 USD/KRW 환율 이력을 반환합니다." />
-      <CodeBlock id="fx-get" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl ${origin}/api/public/v1/fx \\
-  -H "X-API-Key: ${exampleKey}"`} />
+      <CodeTabs id="fx" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/fx' }} onCopy={onCopy} copiedId={copiedId} />
 
       <ParamTable title="응답 필드 (data[])">
         <PR name="rate_date" type="YYYY-MM-DD" desc="환율 적용일" />
@@ -497,8 +458,7 @@ function SuppliersSection({ exampleKey, onCopy, copiedId }: { exampleKey: string
       </Callout>
 
       <EndpointHeader method="GET" path="/suppliers" desc="등록된 모든 공급사와 통계를 반환합니다." />
-      <CodeBlock id="sup-get" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl ${origin}/api/public/v1/suppliers \\
-  -H "X-API-Key: ${exampleKey}"`} />
+      <CodeTabs id="sup-get" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/suppliers' }} onCopy={onCopy} copiedId={copiedId} />
 
       <ParamTable title="응답 필드 (data[])">
         <PR name="id" type="uuid" desc="공급사 고유 ID" />
@@ -516,10 +476,7 @@ function SuppliersSection({ exampleKey, onCopy, copiedId }: { exampleKey: string
         <PR name="location" type="string" desc="위치 (선택)" />
         <PR name="contact" type="string" desc="연락처 (선택)" />
       </ParamTable>
-      <CodeBlock id="sup-post" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl -X POST ${origin}/api/public/v1/suppliers \\
-  -H "X-API-Key: ${exampleKey}" \\
-  -H "Content-Type: application/json" \\
-  -d '{ "name": "ABC Corp", "location": "서울", "contact": "supply@abc.com" }'`} />
+      <CodeTabs id="sup-post" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'POST', path: '/suppliers', body: { name: 'ABC Corp', location: '서울', contact: 'supply@abc.com' } }} />
     </div>
   )
 }
@@ -538,8 +495,7 @@ function MarketSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; o
       </Callout>
 
       <EndpointHeader method="GET" path="/market" desc="전체 제품에 대한 시장 비교 데이터를 반환합니다." />
-      <CodeBlock id="mkt-get" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl ${origin}/api/public/v1/market \\
-  -H "X-API-Key: ${exampleKey}"`} />
+      <CodeTabs id="market" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/market' }} onCopy={onCopy} copiedId={copiedId} />
 
       <ParamTable title="응답 필드 (data.products[])">
         <PR name="product" type="object" desc="GPU 제품 기본 정보 (id, model_name, memory, tier)" />
@@ -592,8 +548,7 @@ function SettingsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string;
       </Callout>
 
       <EndpointHeader method="GET" path="/settings" desc="현재 전역 마진율과 환율 정보를 반환합니다." />
-      <CodeBlock id="set-get" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl ${origin}/api/public/v1/settings \\
-  -H "X-API-Key: ${exampleKey}"`} />
+      <CodeTabs id="set-get" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/settings' }} onCopy={onCopy} copiedId={copiedId} />
 
       <ParamTable title="응답 필드 (data)">
         <PR name="margin_pct" type="number" desc="현재 전역 마진율 (%)" />
@@ -607,10 +562,7 @@ function SettingsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string;
       <ParamTable title="요청 바디">
         <PR name="margin_pct" type="number" required desc="새 마진율 (0~999 사이의 숫자)" />
       </ParamTable>
-      <CodeBlock id="set-patch" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl -X PATCH ${origin}/api/public/v1/settings \\
-  -H "X-API-Key: ${exampleKey}" \\
-  -H "Content-Type: application/json" \\
-  -d '{ "margin_pct": 20 }'`} />
+      <CodeTabs id="set-patch" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'PATCH', path: '/settings', body: { margin_pct: 20 } }} />
     </div>
   )
 }
@@ -628,14 +580,8 @@ function PoolStockSection({ exampleKey, onCopy, copiedId }: { exampleKey: string
         <code>sell_price_krw</code>를 함께 전달하면 판매가도 동시에 업데이트됩니다.
       </Callout>
 
-      <EndpointHeader method="GET" path="/pool-stock" desc="현재 풀 재고(Tier 3) 목록을 반환합니다." />
-      <CodeBlock id="ps-get" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`# 전체 조회
-curl ${origin}/api/public/v1/pool-stock \\
-  -H "X-API-Key: ${exampleKey}"
-
-# 특정 제품만 조회
-curl "${origin}/api/public/v1/pool-stock?product_id=b3f2a1c4-..." \\
-  -H "X-API-Key: ${exampleKey}"`} />
+      <EndpointHeader method="GET" path="/pool-stock" desc="현재 풀 재고(Tier 3) 목록을 반환합니다. 쿼리 product_id로 특정 제품만 조회할 수 있습니다." />
+      <CodeTabs id="ps-get" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/pool-stock', query: { product_id: 'b3f2a1c4-...' } }} onCopy={onCopy} copiedId={copiedId} />
 
       <ParamTable title="쿼리 파라미터">
         <PR name="product_id" type="uuid" desc="특정 제품 필터 (선택)" />
@@ -648,15 +594,7 @@ curl "${origin}/api/public/v1/pool-stock?product_id=b3f2a1c4-..." \\
         <PR name="sell_price_krw" type="number" desc="판매가 KRW (선택. 입력 시 direct_prices도 동시 업데이트)" />
         <PR name="note" type="string" desc="메모 (선택. 예: '5월 입고분')" />
       </ParamTable>
-      <CodeBlock id="ps-post" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl -X POST ${origin}/api/public/v1/pool-stock \\
-  -H "X-API-Key: ${exampleKey}" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "product_id": "b3f2a1c4-...",
-    "pool_qty": 10,
-    "sell_price_krw": 5000000,
-    "note": "5월 입고분"
-  }'`} />
+      <CodeTabs id="ps-post" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'POST', path: '/pool-stock', body: { product_id: 'b3f2a1c4-...', pool_qty: 10, sell_price_krw: 5000000, note: '5월 입고분' } }} />
     </div>
   )
 }
@@ -683,17 +621,7 @@ function AccountsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string;
         <PR name="sort" type="string" desc="정렬 기준: created_at, name, fit_score, industry, region" />
         <PR name="dir" type="asc | desc" desc="정렬 방향 (기본: desc)" />
       </ParamTable>
-      <CodeBlock id="acc-get" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`# 목록 조회
-curl "${origin}/api/public/v1/accounts?segment=T1&sort=name&dir=asc" \\
-  -H "X-API-Key: ${exampleKey}"
-
-# 검색
-curl "${origin}/api/public/v1/accounts?search=삼성" \\
-  -H "X-API-Key: ${exampleKey}"
-
-# 단건 조회
-curl "${origin}/api/public/v1/accounts/ACCOUNT_ID" \\
-  -H "X-API-Key: ${exampleKey}"`} />
+      <CodeTabs id="acc-get" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/accounts', query: { segment: 'T1', sort: 'name', dir: 'asc' } }} onCopy={onCopy} copiedId={copiedId} />
 
       <EndpointHeader method="POST" path="/accounts" desc="신규 거래처를 생성합니다." />
       <ParamTable title="요청 바디">
@@ -704,28 +632,12 @@ curl "${origin}/api/public/v1/accounts/ACCOUNT_ID" \\
         <PR name="description" type="string" desc="설명" />
         <PR name="fit_score" type="0~100" desc="적합도 점수" />
       </ParamTable>
-      <CodeBlock id="acc-post" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl -X POST ${origin}/api/public/v1/accounts \\
-  -H "X-API-Key: ${exampleKey}" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "name": "주식회사 테스트",
-    "industry": "AI/ML",
-    "segment": "T2",
-    "region": "서울",
-    "fit_score": 75
-  }'`} />
+      <CodeTabs id="acc-post" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'POST', path: '/accounts', body: { name: '주식회사 테스트', industry: 'AI/ML', segment: 'T2', region: '서울', fit_score: 75 } }} />
 
       <EndpointHeader method="PATCH" path="/accounts/{id}" desc="거래처 정보를 부분 수정합니다." />
+      <CodeTabs id="acc-patch" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'PATCH', path: '/accounts/ACCOUNT_ID', body: { fit_score: 90, description: '핵심 고객' } }} />
       <EndpointHeader method="DELETE" path="/accounts/{id}" desc="거래처를 삭제합니다." />
-      <CodeBlock id="acc-patch" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`# 수정
-curl -X PATCH ${origin}/api/public/v1/accounts/ACCOUNT_ID \\
-  -H "X-API-Key: ${exampleKey}" \\
-  -H "Content-Type: application/json" \\
-  -d '{ "fit_score": 90, "description": "핵심 고객" }'
-
-# 삭제
-curl -X DELETE ${origin}/api/public/v1/accounts/ACCOUNT_ID \\
-  -H "X-API-Key: ${exampleKey}"`} />
+      <CodeTabs id="acc-delete" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'DELETE', path: '/accounts/ACCOUNT_ID' }} onCopy={onCopy} copiedId={copiedId} />
     </div>
   )
 }
@@ -748,17 +660,7 @@ function ContactsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string;
         <PR name="search" type="string" desc="담당자명 검색" />
         <PR name="account_id" type="uuid" desc="특정 거래처의 담당자만 조회" />
       </ParamTable>
-      <CodeBlock id="con-get" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`# 목록 조회
-curl "${origin}/api/public/v1/contacts?search=김" \\
-  -H "X-API-Key: ${exampleKey}"
-
-# 특정 거래처 담당자
-curl "${origin}/api/public/v1/contacts?account_id=ACCOUNT_ID" \\
-  -H "X-API-Key: ${exampleKey}"
-
-# 단건 조회
-curl "${origin}/api/public/v1/contacts/CONTACT_ID" \\
-  -H "X-API-Key: ${exampleKey}"`} />
+      <CodeTabs id="con-get" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/contacts', query: { search: '김' } }} onCopy={onCopy} copiedId={copiedId} />
 
       <EndpointHeader method="POST" path="/contacts" desc="신규 담당자를 생성합니다." />
       <ParamTable title="요청 바디">
@@ -769,18 +671,12 @@ curl "${origin}/api/public/v1/contacts/CONTACT_ID" \\
         <PR name="title" type="string" desc="직함 (예: CTO, 구매팀장)" />
         <PR name="department" type="string" desc="부서" />
       </ParamTable>
-      <CodeBlock id="con-post" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl -X POST ${origin}/api/public/v1/contacts \\
-  -H "X-API-Key: ${exampleKey}" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "name": "홍길동",
-    "account_id": "ACCOUNT_ID",
-    "email": "hong@example.com",
-    "title": "CTO"
-  }'`} />
+      <CodeTabs id="con-post" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'POST', path: '/contacts', body: { name: '홍길동', account_id: 'ACCOUNT_ID', email: 'hong@example.com', title: 'CTO' } }} />
 
       <EndpointHeader method="PATCH" path="/contacts/{id}" desc="담당자 정보를 수정합니다." />
+      <CodeTabs id="con-patch" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'PATCH', path: '/contacts/CONTACT_ID', body: { title: '구매팀장', phone: '010-1234-5678' } }} />
       <EndpointHeader method="DELETE" path="/contacts/{id}" desc="담당자를 삭제합니다." />
+      <CodeTabs id="con-delete" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'DELETE', path: '/contacts/CONTACT_ID' }} onCopy={onCopy} copiedId={copiedId} />
     </div>
   )
 }
@@ -805,13 +701,7 @@ function DealsSection({ exampleKey, onCopy, copiedId }: { exampleKey: string; on
         <PR name="sort" type="string" desc="정렬: created_at, title, stage, value, probability" />
         <PR name="dir" type="asc | desc" desc="정렬 방향" />
       </ParamTable>
-      <CodeBlock id="dea-get" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`# 제안 단계 기회 조회
-curl "${origin}/api/public/v1/deals?stage=제안" \\
-  -H "X-API-Key: ${exampleKey}"
-
-# 단건 조회
-curl "${origin}/api/public/v1/deals/DEAL_ID" \\
-  -H "X-API-Key: ${exampleKey}"`} />
+      <CodeTabs id="dea-get" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'GET', path: '/deals', query: { stage: '제안' } }} onCopy={onCopy} copiedId={copiedId} />
 
       <EndpointHeader method="POST" path="/deals" desc="신규 영업기회를 생성합니다." />
       <ParamTable title="요청 바디">
@@ -824,17 +714,7 @@ curl "${origin}/api/public/v1/deals/DEAL_ID" \\
         <PR name="product" type="string" desc="관련 GPU 제품명" />
         <PR name="lead_type" type="string" desc="리드 유형 (Inbound, Outbound 등)" />
       </ParamTable>
-      <CodeBlock id="dea-post" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`curl -X POST ${origin}/api/public/v1/deals \\
-  -H "X-API-Key: ${exampleKey}" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "title": "H100 서버 임대 계약",
-    "account_id": "ACCOUNT_ID",
-    "value": 50000000,
-    "stage": "컨택",
-    "product": "H100 SXM5",
-    "close_date": "2026-07-31"
-  }'`} />
+      <CodeTabs id="dea-post" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'POST', path: '/deals', body: { title: 'H100 서버 임대 계약', account_id: 'ACCOUNT_ID', value: 50000000, stage: '컨택', product: 'H100 SXM5', close_date: '2026-07-31' } }} />
 
       <H2>스테이지 → 확률 자동 변환</H2>
       <P>스테이지를 변경하면 <code style={{ color: 'var(--brand-soft-2)', background: 'var(--text)', padding: '1px 6px', borderRadius: 4 }}>probability</code> 필드가 자동으로 업데이트됩니다.</P>
@@ -866,13 +746,10 @@ curl "${origin}/api/public/v1/deals/DEAL_ID" \\
         </table>
       </div>
 
-      <EndpointHeader method="PATCH" path="/deals/{id}" desc="영업기회를 수정합니다." />
+      <EndpointHeader method="PATCH" path="/deals/{id}" desc="영업기회를 수정합니다. 스테이지 변경 시 probability 자동 재계산." />
+      <CodeTabs id="dea-patch" baseUrl={`${origin}/api/public/v1`} onCopy={onCopy} copiedId={copiedId} spec={{ method: 'PATCH', path: '/deals/DEAL_ID', body: { stage: '제안', value: 80000000 } }} />
       <EndpointHeader method="DELETE" path="/deals/{id}" desc="영업기회를 삭제합니다." />
-      <CodeBlock id="dea-patch" lang="bash" onCopy={onCopy} copiedId={copiedId} code={`# 스테이지 업데이트 (probability 자동 재계산)
-curl -X PATCH ${origin}/api/public/v1/deals/DEAL_ID \\
-  -H "X-API-Key: ${exampleKey}" \\
-  -H "Content-Type: application/json" \\
-  -d '{ "stage": "제안", "value": 80000000 }'`} />
+      <CodeTabs id="dea-delete" baseUrl={`${origin}/api/public/v1`} spec={{ method: 'DELETE', path: '/deals/DEAL_ID' }} onCopy={onCopy} copiedId={copiedId} />
     </div>
   )
 }
