@@ -15,6 +15,7 @@ import type { AiParsedItem } from './actions'
 import type { DailyLog, DailyLogEntryType, DailyLogThread } from '@/types/database'
 import { DdayBadge, todayLocal } from '@/lib/dday'
 import { groupDailyLogs } from './grouping'
+import { OriginGroupCard } from './OriginGroupCard'
 import MemoListView from '@/components/ui/memo/MemoListView'
 import UnreviewedMemoWidget from '@/components/ui/memo/UnreviewedMemoWidget'
 
@@ -1007,30 +1008,15 @@ function LogList({
         // 묶음 안의 카드를 편집/스레드 작성 중이면 접기 방지 (입력 손실 방지)
         const hasActiveChild = group.logs.some((l) => l.id === editingId || l.id === openThreadId)
         const isOpen = expandedGroups.has(group.key) || hasActiveChild
-        const subsId = `daily-group-subs-${group.key}`
         return (
-          <div key={group.key} className="daily-group">
-            <button
-              type="button"
-              className="daily-group-header"
-              aria-expanded={isOpen}
-              aria-controls={subsId}
-              onClick={() => toggleGroup(group.key)}
-            >
-              <span className="daily-group-chevron" aria-hidden>{isOpen ? '▾' : '▸'}</span>
-              <span className="daily-group-icon" aria-hidden>📥</span>
-              <span className="daily-group-label">{group.label}</span>
-              <span className="daily-group-meta">{formatTime(group.loggedAt)} · {group.count}건</span>
-              {group.doneCount > 0 && (
-                <span className="daily-group-done">완료 {group.doneCount}/{group.count}</span>
-              )}
-            </button>
-            {isOpen && (
-              <div id={subsId} className="daily-group-subs">
-                {group.logs.map(renderCard)}
-              </div>
-            )}
-          </div>
+          <OriginGroupCard
+            key={group.key}
+            group={group}
+            isOpen={isOpen}
+            onToggle={() => toggleGroup(group.key)}
+            renderCard={renderCard}
+            formatTime={formatTime}
+          />
         )
       })}
     </div>
