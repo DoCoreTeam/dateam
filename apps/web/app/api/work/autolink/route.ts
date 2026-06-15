@@ -71,34 +71,42 @@ export async function POST(req: NextRequest) {
     const logId = typeof body.logId === 'string' ? body.logId : ''
     if (!logId) return NextResponse.json({ error: 'logId 필요' }, { status: 400 })
     if (!(await ownsLog(supabase, logId, user.id))) return NextResponse.json({ error: '권한 없음' }, { status: 403 })
-    const result = await runAutolink(logId, user.email ?? user.id)
+    const result = await runAutolink(logId, user.id, user.id)
     return NextResponse.json(result, { status: result.ok ? 200 : 500 })
   }
 
   if (action === 'unlink') {
     const kind = typeof body.kind === 'string' ? body.kind : ''
-    const logId = typeof body.logId === 'string' ? body.logId : ''
-    if (logId && !(await ownsLog(supabase, logId, user.id))) return NextResponse.json({ error: '권한 없음' }, { status: 403 })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = adminClient as any
     let target_kind = kind, target_id: string | null = null
+    let ownerLogId = ''
     if (kind === 'log') {
-      const toLogId = typeof body.toLogId === 'string' ? body.toLogId : ''
+      // 업무↔업무 연결: from_log_id(소유 로그) 권한 검증 필수
       const linkId = typeof body.linkId === 'string' ? body.linkId : ''
-      const q = linkId ? db.from('daily_log_relations').delete().eq('id', linkId)
-        : db.from('daily_log_relations').delete().eq('from_log_id', logId).eq('to_log_id', toLogId)
-      await q
-      target_id = toLogId || null
+      const toLogId = typeof body.toLogId === 'string' ? body.toLogId : ''
+      let row: { id: string; from_log_id: string; to_log_id: string } | null = null
+      if (linkId) { const { data } = await db.from('daily_log_relations').select('id, from_log_id, to_log_id').eq('id', linkId).single(); row = data }
+      else { const { data } = await db.from('daily_log_relations').select('id, from_log_id, to_log_id').eq('from_log_id', typeof body.logId === 'string' ? body.logId : '').eq('to_log_id', toLogId).limit(1).maybeSingle(); row = data }
+      if (!row) return NextResponse.json({ error: '연결을 찾을 수 없습니다' }, { status: 404 })
+      ownerLogId = row.from_log_id
+      if (!(await ownsLog(supabase, ownerLogId, user.id))) return NextResponse.json({ error: '권한 없음' }, { status: 403 })
+      await db.from('daily_log_relations').delete().eq('id', row.id)
+      target_id = row.to_log_id
     } else {
       const linkId = typeof body.linkId === 'string' ? body.linkId : ''
       if (!linkId) return NextResponse.json({ error: 'linkId 필요' }, { status: 400 })
-      const { data: row } = await db.from('work_entity_links').select('entity_id, kind').eq('id', linkId).single()
-      target_kind = row?.kind ?? kind; target_id = row?.entity_id ?? null
+      const { data: row } = await db.from('work_entity_links').select('log_id, entity_id, kind').eq('id', linkId).single()
+      if (!row) return NextResponse.json({ error: '연결을 찾을 수 없습니다' }, { status: 404 })
+      ownerLogId = row.log_id
+      if (!(await ownsLog(supabase, ownerLogId, user.id))) return NextResponse.json({ error: '권한 없음' }, { status: 403 })
+      target_kind = row.kind ?? kind; target_id = row.entity_id ?? null
       await db.from('work_entity_links').delete().eq('id', linkId)
     }
+    const logId = ownerLogId
     // 학습신호: 해제 = 오답 → 임계 보정/정정 메모리에 사용
     await db.from('autolink_feedback').insert({
-      log_id: logId || null, target_kind, target_id, action: 'unlink', created_by: user.email ?? user.id,
+      log_id: logId || null, target_kind, target_id, action: 'unlink', created_by: user.id,
     }).then(undefined, () => {})
     // L1: 해제(오답) 누적 → 임계 자동 보정(자가보정 루프)
     await recomputeThresholds(db).catch(() => {})
