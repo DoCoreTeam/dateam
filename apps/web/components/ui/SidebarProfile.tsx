@@ -12,9 +12,10 @@ interface SidebarProfileProps {
   email: string
   isAdmin?: boolean
   currentTheme?: ThemeId
+  defaultTheme?: ThemeId
 }
 
-export default function SidebarProfile({ name, email, isAdmin = false, currentTheme }: SidebarProfileProps) {
+export default function SidebarProfile({ name, email, isAdmin = false, currentTheme, defaultTheme }: SidebarProfileProps) {
   const [open, setOpen] = useState(false)
   const [themeOpen, setThemeOpen] = useState(false)
   const [activeTheme, setActiveTheme] = useState<ThemeId | undefined>(currentTheme)
@@ -96,7 +97,7 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
             background: 'var(--nb-white)',
             border: 'var(--border-w) solid var(--border-color)',
             borderRadius: 'var(--radius)',
-            overflow: 'hidden',
+            overflow: 'visible', // 오른쪽 테마 서브메뉴 플라이아웃이 잘리지 않도록(hidden이면 clip됨)
             boxShadow: 'var(--shadow-md)',
             zIndex: 100,
           }}
@@ -265,6 +266,9 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
                       </span>
                       <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text)' }}>
                         {t.label}
+                        {t.id === defaultTheme && (
+                          <span style={{ marginLeft: '0.375rem', fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--color-text-muted)' }}>(디폴트)</span>
+                        )}
                       </span>
                       {selected && <Check size={14} style={{ flexShrink: 0, color: 'var(--brand)' }} />}
                     </button>

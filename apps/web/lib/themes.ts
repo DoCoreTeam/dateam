@@ -1,7 +1,7 @@
 // 디자인 테마 레지스트리 (단일 소스). 새 테마 = 이 배열 1줄 + globals.css [data-theme="id"] 블록 추가.
 export const THEMES = [
   { id: 'nb', label: 'Neo-brutalism', desc: '하드 잉크 보더·오프셋 그림자·노랑/퍼플·테이프 라벨' },
-  { id: 'classic', label: '기존 (인디고)', desc: '부드러운 카드·연회색 보더·둥근 모서리·인디고' },
+  { id: 'classic', label: 'Indigo', desc: '부드러운 카드·연회색 보더·둥근 모서리·인디고' },
   { id: 'mono', label: 'Monochrome', desc: '흑백·직각·hairline 보더·플랫·레드 액센트·다크 사이드바' },
 ] as const
 

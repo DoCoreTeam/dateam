@@ -59,7 +59,11 @@ export default function ThemeSettings({ initialTheme }: { initialTheme: ThemeId 
                 <span style={{ width: 28, height: 28, borderRadius: 'var(--radius)', background: 'var(--surface-bg)', border: 'var(--border-w) solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }} />
               </div>
               <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 'var(--fs-md)' }}>
-                {t.label}{selected ? ' ✓' : ''}
+                {t.label}
+                {t.id === initialTheme && (
+                  <span style={{ marginLeft: '0.375rem', fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--brand)' }}>(디폴트)</span>
+                )}
+                {selected ? ' ✓' : ''}
               </div>
               <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{t.desc}</div>
             </button>

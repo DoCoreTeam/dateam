@@ -96,7 +96,7 @@ export default async function MemberLayout({ children }: { children: React.React
         groups={profile?.role === 'admin' ? NAV_GROUPS : NAV_GROUPS.filter(g => g.label === '가격정책')}
         logoUrl={branding.logoUrl}
         brandName={branding.brandName}
-        footer={<SidebarProfile name={displayName} email={userEmail} isAdmin={profile?.role === 'admin'} currentTheme={currentTheme} />}
+        footer={<SidebarProfile name={displayName} email={userEmail} isAdmin={profile?.role === 'admin'} currentTheme={currentTheme} defaultTheme={globalTheme} />}
         adminHref={profile?.role === 'admin' ? '/admin/users' : undefined}
         isAdmin={profile?.role === 'admin'}
         headerLeft={
