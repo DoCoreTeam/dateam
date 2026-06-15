@@ -120,7 +120,7 @@ export default function MobileShell({
           height: 'var(--header-height)',
           flexShrink: 0,
           padding: '0 var(--space-5)',
-          borderBottom: 'var(--border-w) solid var(--border-color)',
+          borderBottom: 'var(--border-w) solid var(--sidebar-divider)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -238,7 +238,7 @@ export default function MobileShell({
 
         {/* 모바일 전용 어드민/멤버 전환 */}
         {adminHref && (
-          <div className="mobile-only" style={{ padding: 'var(--space-2) var(--space-3)', borderTop: 'var(--border-w-2) solid var(--border-color)' }}>
+          <div className="mobile-only" style={{ padding: 'var(--space-2) var(--space-3)', borderTop: 'var(--border-w-2) solid var(--sidebar-divider)' }}>
             <Link
               href={adminHref}
               style={{
@@ -261,7 +261,7 @@ export default function MobileShell({
 
         {/* 푸터 */}
         {footer && (
-          <div style={{ padding: 'var(--space-3)', borderTop: 'var(--border-w-2) solid var(--border-color)' }}>
+          <div style={{ padding: 'var(--space-3)', borderTop: 'var(--border-w-2) solid var(--sidebar-divider)' }}>
             {footer}
           </div>
         )}
