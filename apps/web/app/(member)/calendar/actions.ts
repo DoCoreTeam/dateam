@@ -138,6 +138,66 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<Re
   }
 }
 
+/**
+ * 주어진 daily_log id 들 중 이미 캘린더(link_kind='daily')에 연결된 id 집합을 반환.
+ * (P2 일정 후보 중복 숨김용 — 읽기 전용)
+ */
+export async function getLinkedDailyLogIds(logIds: string[]): Promise<string[]> {
+  try {
+    if (logIds.length === 0) return []
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase.from('calendar_events') as any)
+      .select('link_id')
+      .eq('user_id', user.id)
+      .eq('link_kind', 'daily')
+      .in('link_id', logIds)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((r: any) => r.link_id).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * 일일업무 일정 후보 1건을 캘린더에 추가 (P2 확정 액션 — 사용자 명시 호출 전용).
+ * 동일 link_id(link_kind='daily')가 이미 있으면 재INSERT 하지 않고 알린다(중복 가드).
+ */
+export async function createDailyScheduleEvent(input: {
+  title: string
+  start_at: string
+  link_id: string
+}): Promise<Result & { duplicate?: boolean }> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ok: false, error: '인증이 필요합니다' }
+
+    // 중복 가드: 동일 link_id 가 이미 연결돼 있으면 스킵
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existing } = await (supabase.from('calendar_events') as any)
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('link_kind', 'daily')
+      .eq('link_id', input.link_id)
+      .limit(1)
+      .maybeSingle()
+    if (existing) return { ok: true, id: existing.id, duplicate: true }
+
+    return await createCalendarEvent({
+      title: input.title,
+      start_at: input.start_at,
+      link_kind: 'daily',
+      link_id: input.link_id,
+      source: 'rule',
+    })
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : '저장 실패' }
+  }
+}
+
 export async function deleteCalendarEvent(id: string): Promise<Result> {
   try {
     const supabase = await createClient()
