@@ -59,6 +59,15 @@ export async function updateCompany(
     .eq('id', 1)
 
   if (error) return { error: (error as DbError).message }
+
+  // 조직도 트리 최상단(company 루트) 노드도 동기화 — 이중 소스 분기 방지
+  // org_company.name → 노드 name, org_company.description → 노드 subtitle
+  await ctx.db
+    .from('org_nodes')
+    .update({ name, subtitle: description, updated_at: new Date().toISOString() })
+    .eq('type', 'company')
+    .is('parent_id', null)
+
   revalidateOrgPaths()
   return { error: null }
 }
@@ -142,6 +151,21 @@ export async function updateNode(
     .eq('id', id)
 
   if (error) return { error: (error as DbError).message }
+
+  // 편집한 노드가 회사 루트면 '회사 정보'(org_company)도 역동기화 — 이중 소스 분기 방지
+  const { data: node } = await ctx.db
+    .from('org_nodes')
+    .select('type, parent_id')
+    .eq('id', id)
+    .single()
+  if (node && (node as { type: string; parent_id: string | null }).type === 'company'
+      && (node as { parent_id: string | null }).parent_id === null) {
+    await ctx.db
+      .from('org_company')
+      .update({ name, description: update.subtitle, updated_at: new Date().toISOString() })
+      .eq('id', 1)
+  }
+
   revalidateOrgPaths()
   return { error: null }
 }
