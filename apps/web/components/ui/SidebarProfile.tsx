@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2 } from 'lucide-react'
+import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen } from 'lucide-react'
 
 interface SidebarProfileProps {
   name: string
@@ -127,6 +127,25 @@ export default function SidebarProfile({ name, email, isAdmin = false }: Sidebar
           >
             <Code2 size={14} />
             API Keys
+          </Link>
+          <Link
+            href="/develop"
+            onClick={() => setOpen(false)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.625rem',
+              padding: 'var(--space-3) var(--space-4)',
+              fontSize: 'var(--fs-sm)',
+              color: 'var(--text)',
+              textDecoration: 'none',
+              transition: 'background 120ms',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            <BookOpen size={14} />
+            개발자센터
           </Link>
           <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0 0.75rem' }} />
           <button
