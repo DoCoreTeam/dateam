@@ -189,13 +189,15 @@ export default function ApiKeysPage() {
       {showCreate && (
         <div style={{ background: 'var(--gpu-card, #1e293b)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 20, marginBottom: 24 }}>
           <div style={{ fontWeight: 600, marginBottom: 12, fontSize: 15 }}>새 API Key 생성</div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <label htmlFor="apiKeyName" className="label">API 키 이름</label>
+          <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
             <input
+              id="apiKeyName"
               ref={nameInputRef}
               autoFocus
               type="text"
               className="input-field"
-              placeholder="e.g., Production Integration"
+              placeholder="API 키 이름을 입력하세요 (예: 운영 서버 연동)"
               value={newKeyName}
               onChange={e => { setNewKeyName(e.target.value); if (createError) setCreateError(null) }}
               onKeyDown={e => e.key === 'Enter' && createKey()}
