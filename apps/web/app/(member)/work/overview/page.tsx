@@ -9,12 +9,14 @@ import PageHeader from '@/components/ui/PageHeader'
 type Axis = 'account' | 'deal'
 interface Group { id: string; name: string; count: number; statusCounts: Record<string, number>; recent: { id: string; content: string; entry_type: string }[] }
 interface Resp { by: Axis; groups: Group[]; ungrouped: number }
+interface Dash { total: number; distribution: { id: string; name: string; count: number }[]; trend: { weekStart: string; count: number }[]; rollup: Record<string, number> }
 
 const AXIS: { key: Axis; label: string }[] = [{ key: 'account', label: '고객별' }, { key: 'deal', label: '딜별' }]
 
 export default function WorkOverviewPage() {
   const [axis, setAxis] = useState<Axis>('account')
   const { data, isLoading } = useSWR<Resp>(`/api/work/groups?by=${axis}`, fetcher)
+  const { data: dash } = useSWR<Dash>('/api/work/dashboard', fetcher)
   const groups = data?.groups ?? []
   const ungrouped = data?.ungrouped ?? 0
 
@@ -22,6 +24,48 @@ export default function WorkOverviewPage() {
     <div className="page-inner">
       <WorkTabBar />
       <PageHeader title="업무 현황" description="내가 어느 고객·딜에 얼마나 관여하고 있는지 한눈에 봅니다" />
+
+      {/* 워크로드 대시보드 — 관여분포·활동추세·상태 롤업(건수/비중) */}
+      {dash && (
+        <div data-testid="work-dashboard" className="responsive-grid-cols-3" style={{ display: 'grid', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
+          {/* 관여 분포 */}
+          <div style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-3)', background: 'var(--color-bg)' }}>
+            <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text)', marginBottom: 'var(--space-2)' }}>관여 분포 (고객)</div>
+            {dash.distribution.length === 0 ? <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>연결된 업무 없음</span> : dash.distribution.map((d) => {
+              const max = Math.max(...dash.distribution.map((x) => x.count), 1)
+              return (
+                <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 3 }}>
+                  <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', minWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</span>
+                  <div style={{ flex: 1, height: 10, background: 'var(--surface-bg)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+                    <div style={{ width: `${(d.count / max) * 100}%`, height: '100%', background: 'var(--brand)' }} />
+                  </div>
+                  <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--text)', minWidth: 18, textAlign: 'right' }}>{d.count}</span>
+                </div>
+              )
+            })}
+          </div>
+          {/* 활동 추세 */}
+          <div style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-3)', background: 'var(--color-bg)' }}>
+            <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text)', marginBottom: 'var(--space-2)' }}>활동 추세 (최근 8주)</div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 60 }}>
+              {dash.trend.map((t) => {
+                const max = Math.max(...dash.trend.map((x) => x.count), 1)
+                return <div key={t.weekStart} title={`${t.weekStart}: ${t.count}`} style={{ flex: 1, height: `${Math.max((t.count / max) * 100, 4)}%`, background: 'var(--brand)', borderRadius: '2px 2px 0 0', opacity: t.count ? 1 : 0.25 }} />
+              })}
+            </div>
+          </div>
+          {/* 상태 롤업 */}
+          <div style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-3)', background: 'var(--color-bg)' }}>
+            <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text)', marginBottom: 'var(--space-2)' }}>상태 ({dash.total}건)</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
+              <div>완료 <b style={{ color: 'var(--text)' }}>{dash.rollup.done ?? 0}</b></div>
+              <div>진행 <b style={{ color: 'var(--text)' }}>{dash.rollup.doing ?? 0}</b></div>
+              <div>예정 <b style={{ color: 'var(--text)' }}>{dash.rollup.planned ?? 0}</b></div>
+              <div>블로커 <b style={{ color: 'var(--danger)' }}>{dash.rollup.blocker ?? 0}</b></div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 'var(--space-1)', marginBottom: 'var(--space-4)' }}>
         {AXIS.map((a) => (

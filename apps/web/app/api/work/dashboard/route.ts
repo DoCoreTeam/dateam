@@ -1,0 +1,37 @@
+import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
+import { groupLogsByEntity, engagementDistribution } from '@/lib/work/group-logs'
+import { weeklyTrend, statusRollup } from '@/lib/work/dashboard-core'
+import type { DailyLogEntryType } from '@/types/database'
+
+// GET /api/work/dashboard — 워크로드 대시보드: 관여분포(고객 Top5)·활동추세(주별 8주)·상태 롤업. 건수/비중 기반.
+export async function GET() {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = (await createClient()) as any
+  const { data } = await db.from('daily_logs')
+    .select('id, content, entry_type, log_date, linked_account_id')
+    .eq('user_id', auth.user.id).eq('task_kind', 'personal')
+    .order('log_date', { ascending: false }).limit(2000)
+  const rows = (data ?? []) as Array<{ id: string; content: string; entry_type: DailyLogEntryType; log_date: string; linked_account_id: string | null }>
+
+  // 관여 분포(고객)
+  const { groups } = groupLogsByEntity(rows.map((r) => ({ id: r.id, content: r.content, entry_type: r.entry_type, entityId: r.linked_account_id ?? null })))
+  const distRaw = engagementDistribution(groups, 5)
+  const ids = distRaw.filter((d) => d.id !== '__etc__').map((d) => d.id)
+  const nameMap = new Map<string, string>()
+  if (ids.length > 0) {
+    const { data: accs } = await db.from('accounts').select('id, name').in('id', ids)
+    for (const a of (accs ?? []) as Array<{ id: string; name: string }>) nameMap.set(a.id, a.name)
+  }
+  const distribution = distRaw.map((d) => ({ id: d.id, name: d.id === '__etc__' ? '기타' : (nameMap.get(d.id) ?? '(삭제됨)'), count: d.count }))
+
+  // 활동 추세(주별) + 상태 롤업
+  const today = new Date().toISOString().slice(0, 10)
+  const trend = weeklyTrend(rows.map((r) => r.log_date).filter(Boolean), today, 8)
+  const rollup = statusRollup(rows.map((r) => r.entry_type))
+
+  return NextResponse.json({ total: rows.length, distribution, trend, rollup })
+}
