@@ -57,6 +57,7 @@ export function OriginGroupCard({ group, isOpen, onToggle, renderCard, formatTim
       <button
         type="button"
         className="origin-group-header"
+        data-testid="origin-group-toggle"
         aria-expanded={isOpen}
         aria-controls={subsId}
         onClick={onToggle}

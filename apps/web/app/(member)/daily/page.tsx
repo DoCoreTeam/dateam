@@ -8,6 +8,7 @@ import WorkTabBar from '@/components/ui/WorkTabBar'
 import PageHeader from '@/components/ui/PageHeader'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
+import PromoteToDeptButton from './PromoteToDeptButton'
 const KnowledgeGraphView = dynamic(() => import('./KnowledgeGraphView').then(m => ({ default: m.KnowledgeGraphView })), { ssr: false })
 const LogFlowView = dynamic(() => import('./LogFlowView').then(m => ({ default: m.LogFlowView })), { ssr: false })
 import useSWR, { mutate } from 'swr'
@@ -1040,6 +1041,7 @@ function LogList({
                       style={{ ...iconBtn, color: 'var(--text-muted)' }}
                       title="플로우"
                     >🌊</button>
+                    <PromoteToDeptButton logId={log.id} />
                     <button onClick={() => onStartEdit(log)} style={iconBtn}>수정</button>
                     <button onClick={() => onDelete(log.id)} style={{ ...iconBtn, color: 'var(--danger)' }}>삭제</button>
                   </div>
