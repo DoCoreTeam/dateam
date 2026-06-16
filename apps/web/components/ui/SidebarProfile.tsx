@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen, Palette, Check, ChevronRight } from 'lucide-react'
 import { THEMES, type ThemeId } from '@/lib/themes'
+import { clearPersistedSwrCache } from '@/lib/swr-persist'
 
 interface SidebarProfileProps {
   name: string
@@ -78,6 +79,7 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
   const handleLogout = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
+    clearPersistedSwrCache() // 공유 PC 데이터 잔류 차단
     router.push('/login')
     router.refresh()
   }

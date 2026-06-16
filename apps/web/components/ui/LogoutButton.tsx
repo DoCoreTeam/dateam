@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { LogOut } from 'lucide-react'
+import { clearPersistedSwrCache } from '@/lib/swr-persist'
 
 export default function LogoutButton() {
   const router = useRouter()
@@ -10,6 +11,7 @@ export default function LogoutButton() {
   async function handleLogout() {
     const supabase = createClient()
     await supabase.auth.signOut()
+    clearPersistedSwrCache() // 공유 PC 데이터 잔류 차단
     router.push('/login')
     router.refresh()
   }

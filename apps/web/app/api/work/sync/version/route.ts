@@ -1,0 +1,62 @@
+import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
+
+export const dynamic = 'force-dynamic'
+
+/**
+ * GET /api/work/sync/version — 경량 변경 감지 토큰.
+ *
+ * 클라가 캐시한 이후 바뀐 리소스가 있는지 1회로 확인하기 위한 엔드포인트.
+ * 리소스별 버전 토큰 = "<max(updated_at)>|<count>" — 행 갱신(updated_at 상승)과
+ * 삭제(count 감소) 모두 토큰을 바꾸므로, 토큰 동일 = 변화 없음으로 판단 가능하다.
+ *
+ * 비용: 본인 범위(user_id) 한정 집계만 — (user_id, ...) 인덱스 활용, 풀스캔 없음.
+ * 조직 스코프(부서업무 전체 가시범위)는 비용·RLS 복잡도가 커서 이번엔 제외한다.
+ * (FE가 dept 변경 감지가 필요하면 별도 무거운 경로로 확장)
+ */
+
+type VersionRow = { count: number | null }
+
+async function tokenFor(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  table: string,
+  userId: string,
+): Promise<string> {
+  // count: 본인 범위 행 수(삭제 반영). max updated_at: 최신 갱신 시각.
+  const countPromise = (supabase.from(table) as any)
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+  const maxPromise = (supabase.from(table) as any)
+    .select('updated_at')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const [{ count }, { data: maxRow }] = (await Promise.all([countPromise, maxPromise])) as [
+    VersionRow,
+    { data: { updated_at: string } | null },
+  ]
+  return `${maxRow?.updated_at ?? '0'}|${count ?? 0}`
+}
+
+export async function GET(): Promise<NextResponse> {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
+
+  const supabase = await createClient()
+  const userId = auth.user.id
+
+  const [daily, calendar, weekly, projects] = await Promise.all([
+    tokenFor(supabase, 'daily_logs', userId),
+    tokenFor(supabase, 'calendar_events', userId),
+    tokenFor(supabase, 'weekly_reports', userId),
+    tokenFor(supabase, 'projects', userId),
+  ])
+
+  return NextResponse.json(
+    { versions: { daily, calendar, weekly, projects }, ts: new Date().toISOString() },
+    { headers: { 'Cache-Control': 'no-store' } },
+  )
+}

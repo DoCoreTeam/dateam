@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { LogOut, LayoutDashboard, ChevronUp } from 'lucide-react'
+import { clearPersistedSwrCache } from '@/lib/swr-persist'
 
 interface AdminUserMenuProps {
   displayName: string
@@ -40,6 +41,7 @@ export default function AdminUserMenu({ displayName }: AdminUserMenuProps) {
     try {
       const supabase = createClient()
       await supabase.auth.signOut()
+      clearPersistedSwrCache() // 공유 PC 데이터 잔류 차단
       router.push('/login')
       router.refresh()
     } catch {
