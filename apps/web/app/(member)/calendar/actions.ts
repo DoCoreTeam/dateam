@@ -139,11 +139,17 @@ export async function createCalendarEvent(input: CalendarEventInput): Promise<Re
   }
 }
 
+/** 캘린더에 연결된 일일업무 1건의 요약 (인라인 배지 표시용) */
+export interface LinkedDailyCalEntry {
+  logId: string
+  startAt: string | null
+}
+
 /**
- * 주어진 daily_log id 들 중 이미 캘린더(link_kind='daily')에 연결된 id 집합을 반환.
- * (P2 일정 후보 중복 숨김용 — 읽기 전용)
+ * 주어진 daily_log id 들 중 이미 캘린더(link_kind='daily')에 연결된 항목을 반환.
+ * (일일 타임라인 카드 인라인 "📅 등록됨" 배지용 — 읽기 전용. start_at 동반 반환해 날짜 표기 가능)
  */
-export async function getLinkedDailyLogIds(logIds: string[]): Promise<string[]> {
+export async function getLinkedDailyLogIds(logIds: string[]): Promise<LinkedDailyCalEntry[]> {
   try {
     if (logIds.length === 0) return []
     const supabase = await createClient()
@@ -151,12 +157,15 @@ export async function getLinkedDailyLogIds(logIds: string[]): Promise<string[]> 
     if (!user) return []
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (supabase.from('calendar_events') as any)
-      .select('link_id')
+      .select('link_id, start_at')
       .eq('user_id', user.id)
       .eq('link_kind', 'daily')
       .in('link_id', logIds)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data ?? []).map((r: any) => r.link_id).filter(Boolean)
+    return (data ?? [])
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((r: any) => r.link_id)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((r: any) => ({ logId: r.link_id as string, startAt: (r.start_at as string) ?? null }))
   } catch {
     return []
   }

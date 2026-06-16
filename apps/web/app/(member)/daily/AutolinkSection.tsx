@@ -16,6 +16,38 @@ interface LinkRow {
   entity_id?: string
   to_log_id?: string
   to_log_date?: string | null
+  to_logged_at?: string | null
+}
+
+// 현재 패널 대상(앵커) 업무의 기준 시각. 연결 업무의 전/후 판정에 사용.
+interface Anchor {
+  logDate: string | null
+  loggedAt: string | null
+}
+
+// 연결 업무 작성 시각 표기: 타임스탬프 있으면 "M/D HH:mm", 없으면 날짜만 "M/D". 둘 다 없으면 null.
+function formatLinkTime(loggedAt?: string | null, logDate?: string | null): string | null {
+  const src = loggedAt ?? logDate
+  if (!src) return null
+  const d = new Date(src)
+  if (Number.isNaN(d.getTime())) return null
+  const md = `${d.getMonth() + 1}/${d.getDate()}`
+  if (!loggedAt) return md
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${md} ${hh}:${mm}`
+}
+
+// 앵커 대비 연결 업무의 전/후. 타임스탬프 우선, 없으면 날짜 폴백. 비교 불가면 null(뱃지 생략).
+function relativePosition(row: LinkRow, anchor: Anchor | null): 'before' | 'after' | null {
+  if (!anchor) return null
+  const a = anchor.loggedAt ?? anchor.logDate
+  const b = row.to_logged_at ?? row.to_log_date
+  if (!a || !b) return null
+  const ta = new Date(a).getTime()
+  const tb = new Date(b).getTime()
+  if (Number.isNaN(ta) || Number.isNaN(tb) || ta === tb) return null
+  return tb < ta ? 'before' : 'after'
 }
 
 const KIND_LABEL: Record<string, string> = { account: '거래처', deal: '딜', contact: '연락처' }
@@ -35,6 +67,7 @@ export default function AutolinkSection({ logId }: { logId: string }) {
   const router = useRouter()
   const [relations, setRelations] = useState<LinkRow[]>([])
   const [entities, setEntities] = useState<LinkRow[]>([])
+  const [anchor, setAnchor] = useState<Anchor | null>(null)
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
   const ranRef = useRef(false)
@@ -43,6 +76,7 @@ export default function AutolinkSection({ logId }: { logId: string }) {
     const res = await fetch(`/api/work/autolink?logId=${logId}`).then((r) => r.json()).catch(() => ({}))
     setRelations(res.relations ?? [])
     setEntities(res.entities ?? [])
+    setAnchor(res.anchor ? { logDate: res.anchor.logDate ?? null, loggedAt: res.anchor.loggedAt ?? null } : null)
     setLoading(false)
     // ran=true면 빈 결과여도 재실행 안 함(이미 1회 분석 — DC-REV 비용)
     return res.ran ? 1 : (res.relations?.length ?? 0) + (res.entities?.length ?? 0)
@@ -96,6 +130,7 @@ export default function AutolinkSection({ logId }: { logId: string }) {
           const href = resolveHref(r)
           return (
             <LinkCard key={r.id} prefix="업무" label={r.label} confidence={r.confidence} reason={r.reason} weak={r.weak}
+              timeLabel={formatLinkTime(r.to_logged_at, r.to_log_date)} position={relativePosition(r, anchor)}
               onUnlink={() => unlink(r, 'log')} onOpen={href ? () => router.push(href) : undefined} />
           )
         })}
@@ -111,8 +146,9 @@ export default function AutolinkSection({ logId }: { logId: string }) {
   )
 }
 
-function LinkCard({ prefix, label, confidence, reason, weak, onUnlink, onOpen }: {
+function LinkCard({ prefix, label, confidence, reason, weak, timeLabel, position, onUnlink, onOpen }: {
   prefix: string; label: string; confidence: number | null; reason: string | null; weak: boolean
+  timeLabel?: string | null; position?: 'before' | 'after' | null
   onUnlink: () => void; onOpen?: () => void
 }) {
   const pct = confidence != null ? Math.round(confidence * 100) : null
@@ -138,10 +174,23 @@ function LinkCard({ prefix, label, confidence, reason, weak, onUnlink, onOpen }:
         <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--brand)', flexShrink: 0 }}>{prefix}</span>
         <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: weak ? 'var(--text-muted)' : 'var(--brand)' }}>{weak ? '추천' : '확정'}</span>
         {pct != null && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>{pct}%</span>}
+        {position && (
+          <span style={{
+            fontSize: 'var(--fs-2xs)', fontWeight: 700, padding: '1px 6px', borderRadius: 'var(--radius)',
+            color: position === 'after' ? 'var(--info)' : 'var(--text-muted)',
+            background: position === 'after' ? 'var(--info-bg)' : 'var(--surface-bg)',
+            border: `var(--hairline) solid ${position === 'after' ? 'var(--info-border)' : 'var(--border-color)'}`,
+          }}>{position === 'after' ? '이후' : '이전'}</span>
+        )}
         <button onClick={(e) => { e.stopPropagation(); onUnlink() }} title="연결 해제" aria-label="연결 해제"
           style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: 'var(--fs-sm)', lineHeight: 1, padding: 0 }}>×</button>
       </div>
       <div style={{ fontSize: 'var(--fs-base)', color: 'var(--text)', marginTop: 2, wordBreak: 'break-word' }}>{label}</div>
+      {timeLabel && (
+        <div style={{ marginTop: 2 }}>
+          <span className="daily-log-time">🕑 {timeLabel}</span>
+        </div>
+      )}
       {reason && <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>✦ {reason}</div>}
     </div>
   )

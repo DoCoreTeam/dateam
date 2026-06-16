@@ -30,9 +30,10 @@ export async function GET(req: NextRequest) {
   const [relRes, entRes, logRes] = await Promise.all([
     db.from('daily_log_relations').select('id, to_log_id, relation_type, confidence, reason, weak, created_by').eq('from_log_id', logId),
     db.from('work_entity_links').select('id, kind, entity_id, confidence, reason, weak, created_by').eq('log_id', logId),
-    db.from('daily_logs').select('autolink_run_at').eq('id', logId).maybeSingle(),
+    db.from('daily_logs').select('autolink_run_at, log_date, logged_at').eq('id', logId).maybeSingle(),
   ])
   const ran = !!logRes?.data?.autolink_run_at
+  const anchor = { logDate: logRes?.data?.log_date ?? null, loggedAt: logRes?.data?.logged_at ?? null }
   const rels = (relRes.data ?? []) as Array<{ to_log_id: string }>
   const ents = (entRes.data ?? []) as Array<{ kind: string; entity_id: string }>
 
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
   const conIds = ents.filter((e) => e.kind === 'contact').map((e) => e.entity_id)
   const projIds = ents.filter((e) => e.kind === 'project').map((e) => e.entity_id)
   const [logsN, accsN, dealsN, consN, projsN] = await Promise.all([
-    logIds.length ? db.from('daily_logs').select('id, content, log_date').in('id', logIds) : { data: [] },
+    logIds.length ? db.from('daily_logs').select('id, content, log_date, logged_at').in('id', logIds) : { data: [] },
     accIds.length ? db.from('accounts').select('id, name').in('id', accIds) : { data: [] },
     dealIds.length ? db.from('deals').select('id, title').in('id', dealIds) : { data: [] },
     conIds.length ? db.from('contacts').select('id, name').in('id', conIds) : { data: [] },
@@ -52,7 +53,8 @@ export async function GET(req: NextRequest) {
   ])
   const nameMap = new Map<string, string>()
   const logDateMap = new Map<string, string>()
-  for (const r of (logsN.data ?? [])) { nameMap.set('log:' + r.id, String(r.content ?? '').slice(0, 80)); if (r.log_date) logDateMap.set(r.id, String(r.log_date)) }
+  const loggedAtMap = new Map<string, string>()
+  for (const r of (logsN.data ?? [])) { nameMap.set('log:' + r.id, String(r.content ?? '').slice(0, 80)); if (r.log_date) logDateMap.set(r.id, String(r.log_date)); if (r.logged_at) loggedAtMap.set(r.id, String(r.logged_at)) }
   for (const r of (accsN.data ?? [])) nameMap.set('account:' + r.id, r.name)
   for (const r of (dealsN.data ?? [])) nameMap.set('deal:' + r.id, r.title)
   for (const r of (consN.data ?? [])) nameMap.set('contact:' + r.id, r.name)
@@ -60,7 +62,8 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     ran,
-    relations: (relRes.data ?? []).map((r: Record<string, unknown>) => ({ ...r, label: nameMap.get('log:' + r.to_log_id) ?? '(업무)', to_log_date: logDateMap.get(String(r.to_log_id)) ?? null })),
+    anchor,
+    relations: (relRes.data ?? []).map((r: Record<string, unknown>) => ({ ...r, label: nameMap.get('log:' + r.to_log_id) ?? '(업무)', to_log_date: logDateMap.get(String(r.to_log_id)) ?? null, to_logged_at: loggedAtMap.get(String(r.to_log_id)) ?? null })),
     entities: (entRes.data ?? []).map((e: Record<string, unknown>) => ({ ...e, label: nameMap.get(`${e.kind}:${e.entity_id}`) ?? '(삭제됨)' })),
   })
 }

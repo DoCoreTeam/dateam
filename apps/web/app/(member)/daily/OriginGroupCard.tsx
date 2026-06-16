@@ -3,7 +3,6 @@ import type { DailyLog } from '@/types/database'
 import type { LogGroup } from './grouping'
 import { findDuplicateCandidates } from '@/lib/daily/duplicate'
 import { DuplicateSection } from './DuplicateSection'
-import { ScheduleSection } from './ScheduleSection'
 
 interface OriginGroupCardProps {
   /** 그룹화된 입력 묶음 (origin_group_id 기준) */
@@ -166,8 +165,6 @@ export function OriginGroupCard({ group, isOpen, onToggle, renderCard, formatTim
           {comparePool.length > 0 && (
             <DuplicateSection groupLogs={group.logs} pool={comparePool} />
           )}
-
-          <ScheduleSection groupLogs={group.logs} />
 
           {group.logs.map((log) => <Fragment key={log.id}>{renderCard(log)}</Fragment>)}
 

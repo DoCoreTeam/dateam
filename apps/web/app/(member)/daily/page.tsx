@@ -15,7 +15,7 @@ import useSWR, { mutate } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, moveAllCarryoverToToday, unignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread, updateDailyLogStatus, deleteLogGroup, updateOriginInput, getPromotedMap } from './actions'
 import type { AiParsedItem } from './actions'
-import { createDailyScheduleEvent } from '../calendar/actions'
+import { createDailyScheduleEvent, getLinkedDailyLogIds, unlinkDailyCalendar } from '../calendar/actions'
 import { selectScheduleCandidates } from '@/lib/daily/schedule-candidates'
 import type { DailyLog, DailyLogEntryType, DailyLogThread } from '@/types/database'
 import { DdayBadge, todayLocal } from '@/lib/dday'
@@ -53,6 +53,20 @@ function formatDate(dateStr: string) {
 function formatTime(isoStr: string) {
   const d = new Date(isoStr)
   return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+}
+
+// 캘린더 등록 배지용 날짜 표기. start_at 있으면 "6/17 14:00", 없으면 빈 문자열(→ "📅 등록됨").
+function formatCalLabel(startAt: string | null): string {
+  if (!startAt) return ''
+  const d = new Date(startAt)
+  if (Number.isNaN(d.getTime())) return ''
+  const mo = d.getMonth() + 1
+  const da = d.getDate()
+  const hasTime = d.getHours() !== 0 || d.getMinutes() !== 0
+  if (!hasTime) return `${mo}/${da}`
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${mo}/${da} ${hh}:${mm}`
 }
 
 function getMondayOfWeek(date: Date) {
@@ -120,6 +134,39 @@ export default function DailyPage() {
       .catch(() => { /* best effort — 뱃지 미표시가 일일 화면을 막지 않음 */ })
     return () => { alive = false }
   }, [logIdsKey])
+
+  // 일일 로그 → 캘린더 등록 역링크 맵 (promotedMap과 동일 패턴). logId → start_at(있으면 날짜 표기).
+  // 기존 ScheduleSection 별도 블록을 대체해 각 카드 인라인 "📅 등록됨 + 취소"로 통합한다.
+  const [linkedCalMap, setLinkedCalMap] = useState<Record<string, { startAt: string | null }>>({})
+  useEffect(() => {
+    if (!logIdsKey) { setLinkedCalMap({}); return }
+    let alive = true
+    getLinkedDailyLogIds(logIdsKey.split(','))
+      .then((entries) => {
+        if (!alive) return
+        const next: Record<string, { startAt: string | null }> = {}
+        for (const e of entries) next[e.logId] = { startAt: e.startAt }
+        setLinkedCalMap(next)
+      })
+      .catch(() => { /* best effort — 뱃지 미표시가 일일 화면을 막지 않음 */ })
+    return () => { alive = false }
+  }, [logIdsKey])
+
+  // 카드 인라인 [취소] — calendar_events 연결 삭제 + 캐시/맵 동기화
+  const handleCancelCalendar = async (logId: string) => {
+    const res = await unlinkDailyCalendar(logId)
+    if (!res.ok) {
+      showToast(res.error || '캘린더 등록 취소에 실패했습니다', 'error')
+      return
+    }
+    setLinkedCalMap((prev) => {
+      const next = { ...prev }
+      delete next[logId]
+      return next
+    })
+    await mutate(isDailyCalendarCacheKey)
+    showToast('캘린더 등록을 취소했습니다')
+  }
 
   // SWR 훅 — 이월 로그 (오늘만)
   const carryoverKey = (viewMode === 'day' && selectedDate === today)
@@ -646,6 +693,8 @@ export default function DailyPage() {
                 <LogList
                   logs={logs}
                   promotedMap={promotedMap}
+                  linkedCalMap={linkedCalMap}
+                  onCancelCalendar={handleCancelCalendar}
                   isToday={isToday}
                   selectedDate={selectedDate}
                   editingId={editingId}
@@ -884,6 +933,8 @@ export default function DailyPage() {
 interface LogListProps {
   logs: DailyLog[]
   promotedMap: Record<string, { deptTaskId: string; deptName: string }>
+  linkedCalMap: Record<string, { startAt: string | null }>
+  onCancelCalendar: (logId: string) => void
   isToday: boolean
   selectedDate: string
   editingId: string | null
@@ -904,7 +955,7 @@ interface LogListProps {
 }
 
 function LogList({
-  logs, promotedMap, isToday, selectedDate, editingId, editContent, editType, editTargetDate, isPending,
+  logs, promotedMap, linkedCalMap, onCancelCalendar, isToday, selectedDate, editingId, editContent, editType, editTargetDate, isPending,
   onStartEdit, onCancelEdit, onUpdate, onDelete, onStatusChange, onEditContentChange, onEditTypeChange, onEditTargetDateChange,
   onDeleteGroup, onEditOrigin,
 }: LogListProps) {
@@ -936,6 +987,7 @@ function LogList({
     const isEditing = editingId === log.id
     const threadOpen = openThreadId === log.id
     const linked = promotedMap[log.id]   // 부서업무 연결됨(데이터 기반 영속 뱃지)
+    const linkedCal = linkedCalMap[log.id]   // 캘린더 등록됨(데이터 기반 영속 뱃지 + 인라인 취소)
 
     return (
           <div key={log.id}>
@@ -1084,6 +1136,34 @@ function LogList({
                         >
                           ↗ 부서업무 연결됨
                         </a>
+                      )}
+                      {linkedCal && (
+                        <span
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                            fontSize: 'var(--fs-2xs)', fontWeight: 700,
+                            color: 'var(--success)', background: 'var(--success-bg)',
+                            border: 'var(--hairline) solid var(--success-border)',
+                            padding: '0.1rem 0.4rem', borderRadius: 'var(--radius)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {`📅 ${[formatCalLabel(linkedCal.startAt), '등록됨'].filter(Boolean).join(' ')}`}
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onCancelCalendar(log.id) }}
+                            title="캘린더 등록 취소"
+                            style={{
+                              fontSize: 'var(--fs-2xs)', fontWeight: 600,
+                              color: 'var(--text-muted)', background: 'none',
+                              border: 'none', cursor: 'pointer', padding: 0,
+                              textDecoration: 'underline',
+                            }}
+                          >
+                            취소
+                          </button>
+                        </span>
                       )}
                     </div>
                     <p style={{
