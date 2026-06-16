@@ -6275,3 +6275,8 @@ label.intake-tool-btn {
   .gpu-unified-detail--open { display: block; }
   .gpu-unified-detail-back { display: inline-flex; align-items: center; gap: var(--space-1); margin: var(--space-2); font: inherit; font-size: var(--fs-sm); color: var(--gpu-accent); background: transparent; border: var(--hairline) solid var(--gpu-border); border-radius: var(--radius); padding: var(--space-2) var(--space-3); cursor: pointer; min-height: 44px; }
 }
+
+/* AI 자동 연결 카드 — 클릭 가능(연결 대상으로 이동) 상태 */
+.autolink-card-open { transition: box-shadow var(--duration-fast, 150ms) ease, transform var(--duration-fast, 150ms) ease; }
+.autolink-card-open:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.autolink-card-open:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: 2px; }

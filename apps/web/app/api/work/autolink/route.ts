@@ -42,20 +42,21 @@ export async function GET(req: NextRequest) {
   const dealIds = ents.filter((e) => e.kind === 'deal').map((e) => e.entity_id)
   const conIds = ents.filter((e) => e.kind === 'contact').map((e) => e.entity_id)
   const [logsN, accsN, dealsN, consN] = await Promise.all([
-    logIds.length ? db.from('daily_logs').select('id, content').in('id', logIds) : { data: [] },
+    logIds.length ? db.from('daily_logs').select('id, content, log_date').in('id', logIds) : { data: [] },
     accIds.length ? db.from('accounts').select('id, name').in('id', accIds) : { data: [] },
     dealIds.length ? db.from('deals').select('id, title').in('id', dealIds) : { data: [] },
     conIds.length ? db.from('contacts').select('id, name').in('id', conIds) : { data: [] },
   ])
   const nameMap = new Map<string, string>()
-  for (const r of (logsN.data ?? [])) nameMap.set('log:' + r.id, String(r.content ?? '').slice(0, 80))
+  const logDateMap = new Map<string, string>()
+  for (const r of (logsN.data ?? [])) { nameMap.set('log:' + r.id, String(r.content ?? '').slice(0, 80)); if (r.log_date) logDateMap.set(r.id, String(r.log_date)) }
   for (const r of (accsN.data ?? [])) nameMap.set('account:' + r.id, r.name)
   for (const r of (dealsN.data ?? [])) nameMap.set('deal:' + r.id, r.title)
   for (const r of (consN.data ?? [])) nameMap.set('contact:' + r.id, r.name)
 
   return NextResponse.json({
     ran,
-    relations: (relRes.data ?? []).map((r: Record<string, unknown>) => ({ ...r, label: nameMap.get('log:' + r.to_log_id) ?? '(업무)' })),
+    relations: (relRes.data ?? []).map((r: Record<string, unknown>) => ({ ...r, label: nameMap.get('log:' + r.to_log_id) ?? '(업무)', to_log_date: logDateMap.get(String(r.to_log_id)) ?? null })),
     entities: (entRes.data ?? []).map((e: Record<string, unknown>) => ({ ...e, label: nameMap.get(`${e.kind}:${e.entity_id}`) ?? '(삭제됨)' })),
   })
 }

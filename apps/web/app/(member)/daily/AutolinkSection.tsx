@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 
 // 업무 자동 연관 연결 표시 — 완전 자동(패널 열릴 때 연결 없으면 자동 실행) + 가역(해제=학습신호) + 투명(근거·신뢰도).
 interface LinkRow {
@@ -14,11 +15,24 @@ interface LinkRow {
   kind?: string
   entity_id?: string
   to_log_id?: string
+  to_log_date?: string | null
 }
 
 const KIND_LABEL: Record<string, string> = { account: '거래처', deal: '딜', contact: '연락처' }
+// 엔티티 종류 → 상세 라우트(실재하는 page.tsx만). 없는 종류는 매핑 제외 → 비클릭.
+const ENTITY_ROUTE: Record<string, string> = { account: '/accounts', deal: '/deals', contact: '/contacts' }
+
+// 연결 종류에 따른 이동 목적지 계산. 이동 불가면 null(=비클릭).
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+function resolveHref(row: LinkRow): string | null {
+  if (row.to_log_id) return row.to_log_date && ISO_DATE.test(row.to_log_date) ? `/daily?date=${row.to_log_date}` : null
+  const base = row.kind ? ENTITY_ROUTE[row.kind] : undefined
+  return base && row.entity_id ? `${base}/${row.entity_id}` : null
+}
 
 export default function AutolinkSection({ logId }: { logId: string }) {
+  const router = useRouter()
   const [relations, setRelations] = useState<LinkRow[]>([])
   const [entities, setEntities] = useState<LinkRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -78,33 +92,53 @@ export default function AutolinkSection({ logId }: { logId: string }) {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-        {relations.map((r) => (
-          <LinkCard key={r.id} prefix="업무" label={r.label} confidence={r.confidence} reason={r.reason} weak={r.weak}
-            onUnlink={() => unlink(r, 'log')} />
-        ))}
-        {entities.map((e) => (
-          <LinkCard key={e.id} prefix={KIND_LABEL[e.kind ?? ''] ?? '연결'} label={e.label} confidence={e.confidence} reason={e.reason} weak={e.weak}
-            onUnlink={() => unlink(e, (e.kind as 'account' | 'deal' | 'contact'))} />
-        ))}
+        {relations.map((r) => {
+          const href = resolveHref(r)
+          return (
+            <LinkCard key={r.id} prefix="업무" label={r.label} confidence={r.confidence} reason={r.reason} weak={r.weak}
+              onUnlink={() => unlink(r, 'log')} onOpen={href ? () => router.push(href) : undefined} />
+          )
+        })}
+        {entities.map((e) => {
+          const href = resolveHref(e)
+          return (
+            <LinkCard key={e.id} prefix={KIND_LABEL[e.kind ?? ''] ?? '연결'} label={e.label} confidence={e.confidence} reason={e.reason} weak={e.weak}
+              onUnlink={() => unlink(e, (e.kind as 'account' | 'deal' | 'contact'))} onOpen={href ? () => router.push(href) : undefined} />
+          )
+        })}
       </div>
     </div>
   )
 }
 
-function LinkCard({ prefix, label, confidence, reason, weak, onUnlink }: {
-  prefix: string; label: string; confidence: number | null; reason: string | null; weak: boolean; onUnlink: () => void
+function LinkCard({ prefix, label, confidence, reason, weak, onUnlink, onOpen }: {
+  prefix: string; label: string; confidence: number | null; reason: string | null; weak: boolean
+  onUnlink: () => void; onOpen?: () => void
 }) {
   const pct = confidence != null ? Math.round(confidence * 100) : null
+  const clickable = !!onOpen
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!onOpen) return
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() }
+  }
   return (
-    <div style={{
-      border: `var(--hairline) ${weak ? 'dashed' : 'solid'} ${weak ? 'var(--brand-soft-2)' : 'var(--brand)'}`,
-      borderRadius: 'var(--radius)', padding: '0.5rem 0.625rem', background: weak ? 'var(--surface-bg)' : 'var(--brand-soft)',
-    }}>
+    <div
+      onClick={onOpen}
+      onKeyDown={clickable ? handleKeyDown : undefined}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      aria-label={clickable ? `${prefix} ${label} 열기` : undefined}
+      className={clickable ? 'autolink-card-open' : undefined}
+      style={{
+        border: `var(--hairline) ${weak ? 'dashed' : 'solid'} ${weak ? 'var(--brand-soft-2)' : 'var(--brand)'}`,
+        borderRadius: 'var(--radius)', padding: '0.5rem 0.625rem', background: weak ? 'var(--surface-bg)' : 'var(--brand-soft)',
+        cursor: clickable ? 'pointer' : 'default',
+      }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--brand)', flexShrink: 0 }}>{prefix}</span>
         <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: weak ? 'var(--text-muted)' : 'var(--brand)' }}>{weak ? '추천' : '확정'}</span>
         {pct != null && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>{pct}%</span>}
-        <button onClick={onUnlink} title="연결 해제" aria-label="연결 해제"
+        <button onClick={(e) => { e.stopPropagation(); onUnlink() }} title="연결 해제" aria-label="연결 해제"
           style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: 'var(--fs-sm)', lineHeight: 1, padding: 0 }}>×</button>
       </div>
       <div style={{ fontSize: 'var(--fs-base)', color: 'var(--text)', marginTop: 2, wordBreak: 'break-word' }}>{label}</div>

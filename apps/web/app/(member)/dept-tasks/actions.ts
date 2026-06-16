@@ -127,14 +127,14 @@ export async function promoteDailyToDeptTask(
   const { data: src } = await (supabase.from('daily_logs') as any)
     .select('id, user_id, content, task_kind, target_date, priority').eq('id', sourceLogId).single()
   if (!src) return { ok: false, error: '원본 업무를 찾을 수 없습니다.' }
-  if (src.user_id !== user.id) return { ok: false, error: '본인 업무만 승격할 수 있습니다.' }
-  if (src.task_kind !== 'personal') return { ok: false, error: '개인 일일업무만 부서업무로 승격할 수 있습니다.' }
+  if (src.user_id !== user.id) return { ok: false, error: '본인 업무만 등록할 수 있습니다.' }
+  if (src.task_kind !== 'personal') return { ok: false, error: '개인 일일업무만 부서업무로 등록할 수 있습니다.' }
 
   // 멱등: 이미 이 원본으로 승격된 부서업무가 있으면 차단
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: dup } = await (supabase.from('daily_logs') as any)
     .select('id').eq('promoted_from_log_id', sourceLogId).eq('task_kind', 'dept_task').limit(1)
-  if (dup && dup.length > 0) return { ok: false, error: '이미 부서업무로 승격된 항목입니다.' }
+  if (dup && dup.length > 0) return { ok: false, error: '이미 부서업무로 등록된 항목입니다.' }
 
   const assignee = input.assigneeUserId ?? null
   if (assignee && assignee !== user.id) {

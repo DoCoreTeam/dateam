@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-test('일일 행 승격 UI — 그룹 펼침→승격 클릭→승격됨', async ({ page }) => {
+test('일일 행 부서업무 등록 UI — 그룹 펼침→등록 클릭→등록됨', async ({ page }) => {
   test.setTimeout(90_000)
   await page.goto('/daily'); await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 })
   // 로그 있는 날로 이동(오늘 비어있을 수 있음) — 그룹 토글이 보일 때까지
@@ -9,7 +9,7 @@ test('일일 행 승격 UI — 그룹 펼침→승격 클릭→승격됨', async
     if (await toggle.count() > 0) break
     await page.getByRole('button', { name: '이전 날' }).click()
   }
-  // 그룹 펼치기 → 내부 행의 승격 버튼 노출
+  // 그룹 펼치기 → 내부 행의 부서업무 등록 버튼 노출
   if (await toggle.count() > 0) await toggle.click()
   await page.waitForTimeout(800)
   const btn = page.locator('[data-testid^="promote-btn-"]').first()
@@ -17,5 +17,5 @@ test('일일 행 승격 UI — 그룹 펼침→승격 클릭→승격됨', async
   await btn.click()
   await page.waitForTimeout(1200)
   await page.locator('[data-testid^="promote-confirm-"]').first().click()
-  await expect(page.locator('text=↗ 승격됨').first()).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator('text=↗ 부서업무 등록됨').first()).toBeVisible({ timeout: 15_000 })
 })
