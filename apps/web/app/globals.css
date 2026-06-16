@@ -885,9 +885,20 @@
     z-index: 40;
   }
 
-  /* 페이지 내부 패딩 — 전 페이지 공통 컨테이너(full-width 반응형, 폭 제한 없음) */
+  /* 페이지 내부 패딩 — 전 페이지 공통 컨테이너(full-width 반응형, 폭 제한 없음).
+   * 상단은 GPU 관리(.gpu-pricing-root 1rem)와 동일한 타이트 밀도로 전 (member) 페이지 통일.
+   * 좌/우/하단은 기존 2rem 유지(폭/정렬 불변 — 상단 여백만 압축). */
   .page-inner {
-    padding: 2rem;
+    padding: 1rem 2rem 2rem;
+  }
+
+  /* 일부 페이지는 root에 page-inner를 한 번 더 중첩(main.page-inner > div.page-inner)해
+   * 상단 패딩이 이중(16+16=32px)으로 쌓인다 → 중첩된 직계 자식의 상단 패딩만 0으로 상쇄.
+   * GPU 탭 패널 내부의 깊은 page-inner(자손)는 직계가 아니므로 영향 없음(상단 패딩 유지).
+   * 일일(.daily-shell)도 중첩 page-inner이므로 동일 상쇄 — fullpane 일간뷰의 상단 패딩은
+   * 아래 .daily-fullpane-main .daily-shell 규칙이 !important로 다시 부여한다. */
+  main.page-inner > .page-inner {
+    padding-top: 0;
   }
 
   /* 반응형 그리드 */
@@ -1370,7 +1381,7 @@
   }
 
   .page-inner {
-    padding: 1.5rem;
+    padding: 1rem 1.5rem 1.5rem;
   }
 }
 
@@ -2355,7 +2366,9 @@ label.intake-tool-btn {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: var(--space-4) var(--space-8) 0;
+  /* 중첩 page-inner 상쇄(main.page-inner > .page-inner: padding-top 0)를 이기고
+   * 일간뷰 상단 밀도를 GPU(.gpu-pricing-root 1rem)와 동일하게 재부여. */
+  padding: var(--space-4) var(--space-8) 0 !important;
 }
 
 /* 상단 밀도 개선 — WorkTabBar~콘텐츠 사이 공백과 헤더/탭/날짜네비 여백 축소.
@@ -2402,8 +2415,9 @@ label.intake-tool-btn {
     /* 모바일은 자연 흐름 — main 패딩을 모바일 page-inner(1rem)로 복원(가로 과패딩 방지). */
     padding: 1rem !important;
   }
-  /* 모바일: 데스크탑의 2rem 가로 패딩 override를 해제(이중 패딩/가로넘침 방지). 상단만 약간 압축. */
-  .daily-fullpane-main .daily-shell { min-height: 0; padding: 0; }
+  /* 모바일: 데스크탑의 2rem 가로 패딩 override를 해제(이중 패딩/가로넘침 방지). 상단만 약간 압축.
+   * 데스크탑 daily-shell 패딩이 !important이므로 모바일도 !important로 0 재정의. */
+  .daily-fullpane-main .daily-shell { min-height: 0; padding: 0 !important; }
   .daily-day-grid .daily-day-main,
   .daily-day-grid .daily-day-side { overflow: visible; }
   .daily-timeline-scroll { overflow: visible; }
@@ -2415,29 +2429,15 @@ label.intake-tool-btn {
  * fullpane(overflow/height 체인)은 도입하지 않고 "상단 여백"만 GPU급으로 압축한다.
  *
  * 적용 규칙:
- *  - .page-compact          → 페이지 루트(.page-inner를 대체/병행). main(.page-inner 2rem) 위 이중패딩을
- *                             제거하고 GPU root(1rem 2rem 0)와 동일한 상단 밀도로 맞춘다.
  *  - .page-tabbar-wrap      → WorkTabBar 래퍼. nav 자체 marginBottom(--space-5)을 음수마진으로 상쇄해 압축.
  *  - .page-header--compact  → PageHeader(className/descClassName)에 부착. 제목 fs-xl·여백 축소(daily와 동일 밀도).
- * 셋 다 토큰만 사용 — 페이지별 매직값 금지(다른 페이지도 그대로 재사용). */
-.page-compact {
-  /* main(.page-inner)이 상단에 2rem(32px)을 이미 주는데, fullpane(JS로 main padding 0)을 도입하지 않고도
-   * GPU/일일 수준(상단 ~1rem)으로 끌어올리려면 main의 2rem을 음수마진으로 상쇄한 뒤 1rem만 재부여한다.
-   * 가로 패딩은 main(2rem)을 그대로 살린다(좌우 정렬 불변). 다른 페이지는 .page-compact 미부착이라 무영향. */
-  margin-top: calc(-1 * var(--space-8));
-  padding-top: var(--space-4);
-}
+ * 둘 다 토큰만 사용 — 페이지별 매직값 금지(다른 페이지도 그대로 재사용).
+ * 상단 여백 압축은 이제 .page-inner(상단 1rem) 전역 SSOT가 담당하므로 별도 .page-compact는 불필요(제거됨). */
 .page-tabbar-wrap { margin-bottom: calc(var(--space-2) - var(--space-5)); }
 .page-header--compact { margin-bottom: var(--space-2) !important; }
 .page-header--compact h1 { font-size: var(--fs-xl) !important; }
 .page-header--compact .page-header-desc,
 .page-header-desc--compact { font-size: var(--fs-sm) !important; margin-top: var(--space-1) !important; }
-
-@media (max-width: 767px) {
-  /* 모바일: main page-inner가 1rem(--space-4)이므로 음수마진도 1rem으로 맞추고 상단만 0.5rem 재부여.
-   * 가로 패딩은 main(1rem) 유지. */
-  .page-compact { margin-top: calc(-1 * var(--space-4)); padding-top: var(--space-2); }
-}
 
 @media (max-width: 767px) {
   .daily-view-tabs {

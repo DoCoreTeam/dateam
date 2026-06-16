@@ -172,7 +172,7 @@ export default function CalendarPage() {
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1;
 
   return (
-    <div className="page-compact">
+    <div>
       {selectedDate && (
         <DayDetailPanel
           date={selectedDate}

@@ -68,7 +68,7 @@ export default function ProjectsPage() {
   const [deleting, setDeleting] = useState<Project | null>(null)
 
   return (
-    <div className="page-compact">
+    <div>
       <div className="page-tabbar-wrap">
         <WorkTabBar />
       </div>

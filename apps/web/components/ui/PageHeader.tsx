@@ -17,7 +17,7 @@ export default function PageHeader({ title, description, actions, className, des
       className={className}
       style={{
         display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-        gap: 'var(--space-3)', flexWrap: 'wrap', marginBottom: '1.75rem',
+        gap: 'var(--space-3)', flexWrap: 'wrap', marginBottom: 'var(--space-5)',
       }}
     >
       <div>
