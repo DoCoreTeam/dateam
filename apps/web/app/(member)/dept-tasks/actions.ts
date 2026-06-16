@@ -65,6 +65,76 @@ export async function listDeptTasks(opts?: {
   return (data ?? []) as DailyLog[]
 }
 
+/**
+ * 부서업무 상세/목록용: 원본 일일 인용 + 작성자/담당자 이름.
+ * dept_task 가시성은 RLS가 1차 강제. promoted_from_log_id → 원본 일일 content 인용(서비스롤로
+ * 출처 한 줄만 노출), 작성자(user_id)·담당자(assignee_user_id) 이름은 profiles로 resolve(nameMap SSOT).
+ * 입력 tasks는 이미 RLS 통과한 가시 행만 들어온다는 전제(listDeptTasks 결과). 추가 노출 없음.
+ */
+export interface DeptTaskOrigin {
+  originContent: string | null   // 원본 일일 인용(없으면 null)
+}
+export interface DeptTaskActorsResult {
+  origins: Record<string, DeptTaskOrigin>   // deptTaskId → 원본 인용
+  nameMap: Record<string, string>           // userId → 이름 (작성자·담당자)
+}
+
+export async function getDeptTaskActors(
+  tasks: Array<Pick<DailyLog, 'id' | 'user_id' | 'assignee_user_id' | 'promoted_from_log_id'>>,
+): Promise<DeptTaskActorsResult> {
+  const empty: DeptTaskActorsResult = { origins: {}, nameMap: {} }
+  if (!Array.isArray(tasks) || tasks.length === 0) return empty
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return empty
+
+  // IDOR 방어: 클라이언트가 준 user_id/promoted_from_log_id를 신뢰하지 않는다.
+  // 입력 id로 RLS(authenticated) 재조회 → 통과한 가시 행의 값만 사용.
+  const ids = Array.from(new Set(
+    tasks.slice(0, 500).map((t) => t.id).filter((v): v is string => typeof v === 'string' && !!v),
+  ))
+  if (ids.length === 0) return empty
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: vis } = await (supabase.from('daily_logs') as any)
+    .select('id,user_id,assignee_user_id,promoted_from_log_id')
+    .eq('task_kind', 'dept_task').in('id', ids).limit(500)
+  const rows = (vis ?? []) as Array<Pick<DailyLog, 'id' | 'user_id' | 'assignee_user_id' | 'promoted_from_log_id'>>
+  if (rows.length === 0) return empty
+
+  // 작성자 + 담당자 이름 resolve — 재조회로 확정된 가시 task의 관계자만 (nameMap SSOT)
+  const userIds = Array.from(new Set(
+    rows.flatMap((t) => [t.user_id, t.assignee_user_id]).filter(Boolean) as string[],
+  ))
+  let nameMap: Record<string, string> = {}
+  if (userIds.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: profs } = await (supabase.from('profiles') as any)
+      .select('id,name').in('id', userIds).is('deleted_at', null)
+    nameMap = Object.fromEntries(((profs ?? []) as Array<{ id: string; name: string }>).map((p) => [p.id, p.name]))
+  }
+
+  // 원본 일일 인용 — 재조회 행의 promoted_from_log_id만, RLS(authenticated)로 content 조회.
+  // 본인 가시 범위 밖 원본이면 RLS가 막아 content 미노출.
+  const origins: Record<string, DeptTaskOrigin> = {}
+  const srcIds = Array.from(new Set(rows.map((t) => t.promoted_from_log_id).filter(Boolean) as string[]))
+  if (srcIds.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: srcs } = await (supabase.from('daily_logs') as any)
+      .select('id,content').in('id', srcIds).limit(500)
+    const contentById = Object.fromEntries(
+      ((srcs ?? []) as Array<{ id: string; content: string }>).map((s) => [s.id, s.content]),
+    )
+    for (const t of rows) {
+      if (t.promoted_from_log_id) {
+        origins[t.id] = { originContent: contentById[t.promoted_from_log_id] ?? null }
+      }
+    }
+  }
+
+  return { origins, nameMap }
+}
+
 /** 부서업무 생성 — 부서원도 가능(RLS: readable dept). 담당자 타인 지정은 부서장만(아래 검증). */
 export async function createDeptTask(input: DeptTaskInput): Promise<ActionResult<DailyLog>> {
   if (!input.content?.trim()) return { ok: false, error: '업무 내용을 입력해 주세요.' }

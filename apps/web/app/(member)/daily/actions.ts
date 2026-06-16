@@ -2,6 +2,7 @@
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { resolveOrgScope } from '@/lib/org-scope'
 import { embedText, toVectorLiteral } from '@/lib/gemini-embedding'
 import { recordFeedbackSignal, diffDailyLog } from '@/lib/daily/feedback-signals'
 import type {
@@ -981,4 +982,60 @@ export async function updateOriginInput(
 
   revalidateDailyCalendarViews()
   return { ok: true }
+}
+
+/**
+ * 일일 personal 로그 → 부서업무 승격 여부 역링크 맵.
+ * dept_task(promoted_from_log_id IN logIds) 를 조회해 { [logId]: { deptTaskId, deptName } }.
+ * 본인 소유 personal 로그만 대상(일일 화면=본인 로그). dept_task 가시성은 RLS가 1차 강제,
+ * 부서명은 org-scope(SSOT)로 resolve. 연결 없는 로그는 맵에서 생략.
+ */
+export async function getPromotedMap(
+  logIds: string[],
+): Promise<Record<string, { deptTaskId: string; deptName: string }>> {
+  if (!Array.isArray(logIds) || logIds.length === 0) return {}
+  const ids = Array.from(new Set(logIds.filter((v) => typeof v === 'string' && v))).slice(0, 500)
+  if (ids.length === 0) return {}
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return {}
+
+  // 방어적 소유 검증: 입력 logIds 중 본인 소유 personal 로그만 대상으로 좁힘 (타인 로그 역링크 노출 차단)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: own } = await (supabase.from('daily_logs') as any)
+    .select('id')
+    .in('id', ids)
+    .eq('user_id', user.id)
+    .eq('task_kind', 'personal')
+    .limit(500)
+  const ownIds = ((own ?? []) as Array<{ id: string }>).map((r) => r.id)
+  if (ownIds.length === 0) return {}
+
+  // RLS 가시 dept_task 중 내 소유 personal 로그를 가리키는 것만
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (supabase.from('daily_logs') as any)
+    .select('id, promoted_from_log_id, department_id')
+    .eq('task_kind', 'dept_task')
+    .in('promoted_from_log_id', ownIds)
+    .limit(500)
+  const rows = (data ?? []) as Array<{ id: string; promoted_from_log_id: string | null; department_id: string | null }>
+  if (rows.length === 0) return {}
+
+  // 부서명 resolve (org-scope SSOT 재사용)
+  const admin = createAdminClient()
+  const scope = await resolveOrgScope(admin, user.id)
+  const deptNameMap: Record<string, string> = Object.fromEntries(
+    scope.nodes.filter((n) => n.type === 'department').map((n) => [n.id, n.name]),
+  )
+
+  const map: Record<string, { deptTaskId: string; deptName: string }> = {}
+  for (const r of rows) {
+    if (!r.promoted_from_log_id) continue
+    map[r.promoted_from_log_id] = {
+      deptTaskId: r.id,
+      deptName: (r.department_id && deptNameMap[r.department_id]) || '부서업무',
+    }
+  }
+  return map
 }

@@ -19,6 +19,7 @@ interface Props {
   canEdit: boolean
   nameMap: Record<string, string>
   deptNameMap: Record<string, string>
+  originContent: string | null
   onChanged: () => void
   onEdit: () => void
   onClose: () => void
@@ -26,7 +27,8 @@ interface Props {
 
 const STATUSES: DailyLogEntryType[] = ['planned', 'doing', 'blocker', 'done']
 
-export default function DeptTaskDetail({ task, canAssign, canEdit, nameMap, deptNameMap, onChanged, onEdit, onClose }: Props) {
+export default function DeptTaskDetail({ task, canAssign, canEdit, nameMap, deptNameMap, originContent, onChanged, onEdit, onClose }: Props) {
+  const [originOpen, setOriginOpen] = useState(false)
   const [comments, setComments] = useState<DailyLogThread[]>([])
   const [commentText, setCommentText] = useState('')
   const [progress, setProgress] = useState(task.progress)
@@ -92,10 +94,32 @@ export default function DeptTaskDetail({ task, canAssign, canEdit, nameMap, dept
         <NbBadge>{PRIORITY_COLORS[task.priority as PriorityKey]?.label ?? task.priority}</NbBadge>
         <span>
           {task.department_id ? deptNameMap[task.department_id] ?? '' : ''}
+          {' · 작성 '}{task.user_id ? nameMap[task.user_id] ?? '—' : '—'}
           {' · 담당 '}{task.assignee_user_id ? nameMap[task.assignee_user_id] ?? '—' : '미지정'}
           {task.target_date ? ` · 마감 ${task.target_date}` : ''}
         </span>
       </p>
+
+      {originContent && (
+        <div style={{ borderLeft: 'var(--border-w) solid var(--info-border)', paddingLeft: 'var(--space-3)' }}>
+          <button
+            type="button"
+            onClick={() => setOriginOpen((v) => !v)}
+            aria-expanded={originOpen}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 'var(--fs-xs)', fontWeight: 700, color: 'var(--info)' }}
+          >
+            ↗ 원본 일일업무 {originOpen ? '접기' : '보기'}
+          </button>
+          {originOpen && (
+            <p style={{
+              margin: 'var(--space-2) 0 0', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)',
+              lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            }}>
+              {originContent}
+            </p>
+          )}
+        </div>
+      )}
 
       <div>
         <div style={{ fontSize: 'var(--fs-base)', marginBottom: 'var(--space-2)' }}>상태</div>

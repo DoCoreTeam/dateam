@@ -305,6 +305,8 @@ export interface DailyLog {
   department_id: string | null
   progress: number
   checklist: DeptTaskChecklistItem[]
+  // 일일→부서 승격 참조 (104 migration) — dept_task 행이 원본 personal 일일 id를 가리킴
+  promoted_from_log_id: string | null
   created_at: string
   updated_at: string
 }

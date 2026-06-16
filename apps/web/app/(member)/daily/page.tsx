@@ -13,7 +13,7 @@ const KnowledgeGraphView = dynamic(() => import('./KnowledgeGraphView').then(m =
 const LogFlowView = dynamic(() => import('./LogFlowView').then(m => ({ default: m.LogFlowView })), { ssr: false })
 import useSWR, { mutate } from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, moveAllCarryoverToToday, unignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread, updateDailyLogStatus, deleteLogGroup, updateOriginInput } from './actions'
+import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, moveAllCarryoverToToday, unignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread, updateDailyLogStatus, deleteLogGroup, updateOriginInput, getPromotedMap } from './actions'
 import type { AiParsedItem } from './actions'
 import { createDailyScheduleEvent } from '../calendar/actions'
 import { selectScheduleCandidates } from '@/lib/daily/schedule-candidates'
@@ -108,6 +108,18 @@ export default function DailyPage() {
   // SWR 훅 — 일간 로그
   const dailyKey = viewMode === 'day' ? `/api/daily/logs?date=${selectedDate}` : null
   const { data: logs = [], isLoading: loading } = useSWR<DailyLog[]>(dailyKey, fetcher)
+
+  // 일일 로그 → 부서업무 승격 역링크 맵 (연결된 로그만 키 존재). 데이터 기반이라 새로고침해도 유지.
+  const [promotedMap, setPromotedMap] = useState<Record<string, { deptTaskId: string; deptName: string }>>({})
+  const logIdsKey = viewMode === 'day' ? logs.map((l) => l.id).join(',') : ''
+  useEffect(() => {
+    if (!logIdsKey) { setPromotedMap({}); return }
+    let alive = true
+    getPromotedMap(logIdsKey.split(','))
+      .then((m) => { if (alive) setPromotedMap(m) })
+      .catch(() => { /* best effort — 뱃지 미표시가 일일 화면을 막지 않음 */ })
+    return () => { alive = false }
+  }, [logIdsKey])
 
   // SWR 훅 — 이월 로그 (오늘만)
   const carryoverKey = (viewMode === 'day' && selectedDate === today)
@@ -633,6 +645,7 @@ export default function DailyPage() {
               ) : (
                 <LogList
                   logs={logs}
+                  promotedMap={promotedMap}
                   isToday={isToday}
                   selectedDate={selectedDate}
                   editingId={editingId}
@@ -870,6 +883,7 @@ export default function DailyPage() {
 /* 로그 목록 컴포넌트 */
 interface LogListProps {
   logs: DailyLog[]
+  promotedMap: Record<string, { deptTaskId: string; deptName: string }>
   isToday: boolean
   selectedDate: string
   editingId: string | null
@@ -890,7 +904,7 @@ interface LogListProps {
 }
 
 function LogList({
-  logs, isToday, selectedDate, editingId, editContent, editType, editTargetDate, isPending,
+  logs, promotedMap, isToday, selectedDate, editingId, editContent, editType, editTargetDate, isPending,
   onStartEdit, onCancelEdit, onUpdate, onDelete, onStatusChange, onEditContentChange, onEditTypeChange, onEditTargetDateChange,
   onDeleteGroup, onEditOrigin,
 }: LogListProps) {
@@ -921,6 +935,7 @@ function LogList({
     const type = ENTRY_MAP[log.entry_type]
     const isEditing = editingId === log.id
     const threadOpen = openThreadId === log.id
+    const linked = promotedMap[log.id]   // 부서업무 연결됨(데이터 기반 영속 뱃지)
 
     return (
           <div key={log.id}>
@@ -1053,6 +1068,23 @@ function LogList({
                       {log.target_date && (
                         <DdayBadge targetDate={log.target_date} today={todayStr} />
                       )}
+                      {linked && (
+                        <a
+                          href={`/dept-tasks?task=${linked.deptTaskId}`}
+                          onClick={(e) => e.stopPropagation()}
+                          title={`${linked.deptName} 부서업무로 연결됨 — 클릭하여 이동`}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '0.15rem',
+                            fontSize: 'var(--fs-2xs)', fontWeight: 700,
+                            color: 'var(--info)', background: 'var(--info-bg)',
+                            border: 'var(--hairline) solid var(--info-border)',
+                            padding: '0.1rem 0.4rem', borderRadius: 'var(--radius)',
+                            textDecoration: 'none', whiteSpace: 'nowrap',
+                          }}
+                        >
+                          ↗ 부서업무 연결됨
+                        </a>
+                      )}
                     </div>
                     <p style={{
                       margin: 0, fontSize: 'var(--fs-md)', color: 'var(--text)',
@@ -1081,7 +1113,7 @@ function LogList({
                       style={{ ...iconBtn, color: 'var(--text-muted)' }}
                       title="플로우"
                     >🌊</button>
-                    <PromoteToDeptButton logId={log.id} />
+                    {!linked && <PromoteToDeptButton logId={log.id} />}
                     <button onClick={() => onStartEdit(log)} style={iconBtn}>수정</button>
                     <button onClick={() => onDelete(log.id)} style={{ ...iconBtn, color: 'var(--danger)' }}>삭제</button>
                   </div>

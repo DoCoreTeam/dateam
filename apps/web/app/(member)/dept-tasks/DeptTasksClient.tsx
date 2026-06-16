@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import type { DailyLog, DailyLogEntryType } from '@/types/database'
+import type { DeptTaskOrigin } from './actions'
 import { STATUS_COLORS } from '@/lib/tokens/status-colors'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
@@ -21,6 +23,7 @@ interface Props {
   currentUserId: string
   nameMap: Record<string, string>
   deptNameMap: Record<string, string>
+  origins: Record<string, DeptTaskOrigin>
 }
 
 const STATUS_FILTERS: Array<{ value: DailyLogEntryType | 'all'; label: string }> = [
@@ -32,13 +35,20 @@ const STATUS_FILTERS: Array<{ value: DailyLogEntryType | 'all'; label: string }>
 ]
 
 export default function DeptTasksClient({
-  initialTasks, creatableDepts, editableDeptIds, currentUserId, nameMap, deptNameMap,
+  initialTasks, creatableDepts, editableDeptIds, currentUserId, nameMap, deptNameMap, origins,
 }: Props) {
+  const searchParams = useSearchParams()
   const [tasks, setTasks] = useState<DailyLog[]>(initialTasks)
   const [filter, setFilter] = useState<DailyLogEntryType | 'all'>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [editing, setEditing] = useState(false)
+
+  // 일일업무 "부서업무 연결됨" 뱃지 → /dept-tasks?task=ID 진입 시 해당 업무 자동 선택
+  const taskParam = searchParams.get('task')
+  useEffect(() => {
+    if (taskParam && tasks.some((t) => t.id === taskParam)) setSelectedId(taskParam)
+  }, [taskParam, tasks])
 
   const refresh = useCallback(async () => {
     const next = await listDeptTasks()
@@ -127,6 +137,7 @@ export default function DeptTasksClient({
               canEdit={canEditSelected}
               nameMap={nameMap}
               deptNameMap={deptNameMap}
+              originContent={origins[selected.id]?.originContent ?? null}
               onChanged={refresh}
               onEdit={() => setEditing(true)}
               onClose={() => setSelectedId(null)}
