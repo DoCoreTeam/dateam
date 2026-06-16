@@ -9,6 +9,8 @@ import AXLoadingOverlay from '@/components/ui/AXLoadingOverlay'
 import DiffConfirmModal, { type DiffItem } from '@/components/ui/DiffConfirmModal'
 import DailyTaskSelector from './DailyTaskSelector'
 import RichText from '@/components/ui/RichText'
+import { useDraftPersist } from '@/lib/forms/useDraftPersist'
+import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 const SpotlightOnboarding = dynamic(() => import('@/components/ui/SpotlightOnboarding'), { ssr: false })
@@ -75,6 +77,12 @@ export default function WeeklyReportForm({
   const router = useRouter()
   const [selectedWeek, setSelectedWeek] = useState(initialWeek)
   const [rows, setRows] = useState<Row[]>(prefillRows.length > 0 ? prefillRows : [{ ...EMPTY_ROW }])
+  // 임시저장(주차별, 새로고침 유지) — 비침습 persist(상태는 그대로, undo는 Tiptap 자체)
+  const weeklyDraft = useDraftPersist<Row[]>({
+    formId: 'weekly-report', recordId: selectedWeek,
+    value: rows, initial: prefillRows.length > 0 ? prefillRows : [{ ...EMPTY_ROW }],
+    onRestore: (v) => setRows(v),
+  })
   const [pending, setPending] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [showResetConfirm, setShowResetConfirm] = useState(false)
@@ -271,6 +279,7 @@ export default function WeeklyReportForm({
     const result = await upsertWeeklyReport(formData)
 
     if (result.ok) {
+      weeklyDraft.clear()
       const dest = selectedWeek !== thisWeek
         ? `/weekly-report?tab=mine&editWeek=${selectedWeek}&saved=1`
         : '/weekly-report?tab=mine&saved=1'
@@ -332,6 +341,7 @@ export default function WeeklyReportForm({
       onSubmit={handleSubmit}
       onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.currentTarget.requestSubmit() } }}
     >
+      <DraftRestoreBanner show={weeklyDraft.hasDraft} onRestore={weeklyDraft.restore} onDiscard={weeklyDraft.discard} />
       {/* 수정 모드 배너 */}
       {isEditMode && (
         <div style={{
