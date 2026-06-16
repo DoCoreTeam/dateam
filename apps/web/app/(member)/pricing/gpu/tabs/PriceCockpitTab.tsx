@@ -15,6 +15,7 @@ import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { fmtKRW } from '@/lib/gpu/format-price'
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
+import { formatCardMemory } from '@/lib/gpu/card-memory'
 import { buildTierModelGroups, tierKey, modelKey, TIER_META } from '@/lib/gpu/group'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 
@@ -137,7 +138,7 @@ function CockpitRow({
             <div className="cockpit-model-cell">
               <GpuModelName modelName={p.model_name} gpuCount={p.gpu_count} />
               <span className="cockpit-model-sub">
-                {p.memory} · Tier {p.tier}
+                {formatCardMemory(p.memory, p.gpu_count)} · Tier {p.tier}
               </span>
             </div>
           </div>

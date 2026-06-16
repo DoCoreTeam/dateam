@@ -9,6 +9,7 @@ import { TierHeader, ModelHeader } from '@/components/gpu/CategoryGroup'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 import { fmtKRW as fmtKRWSSOT } from '@/lib/gpu/format-price'
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
+import { perCardMemory } from '@/lib/gpu/card-memory'
 
 interface GpuProduct {
   id: string
@@ -45,8 +46,10 @@ const GPU_ICONS: Record<string, string> = {
   H: 'var(--text)', A: 'var(--text)', B: 'var(--text)', R: 'var(--text)',
 }
 
-function GpuChip({ model, memory }: { model: string; memory: string }) {
+function GpuChip({ model, memory, gpuCount }: { model: string; memory: string; gpuCount?: number }) {
   const bg = GPU_ICONS[(model ?? '')[0]?.toUpperCase() ?? ''] ?? 'var(--text)'
+  // 칩엔 카드당 용량만(×N 장수는 인접 모델명에 표시됨).
+  const perCard = perCardMemory(memory, gpuCount)
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -54,7 +57,7 @@ function GpuChip({ model, memory }: { model: string; memory: string }) {
       color: '#fff', fontSize: 11, fontWeight: 700, flexShrink: 0,
       fontFamily: 'monospace', lineHeight: 1,
     }}>
-      <span style={{ fontSize: 9 }}>{(memory ?? '').replace('GB', '')}</span>
+      <span style={{ fontSize: 9 }}>{perCard.replace('GB', '')}</span>
       <span style={{ fontSize: 7, opacity: 0.7 }}>GB</span>
     </span>
   )
@@ -361,7 +364,7 @@ export default function SalePriceCatalogPage() {
                   )}
                   {/* 모델 */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <GpuChip model={p.model_name} memory={p.memory} />
+                    <GpuChip model={p.model_name} memory={p.memory} gpuCount={gpuCount} />
                     <div>
                       <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <GpuModelName modelName={p.model_name} gpuCount={gpuCount} />

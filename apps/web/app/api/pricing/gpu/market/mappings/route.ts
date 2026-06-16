@@ -37,7 +37,7 @@ export async function GET() {
       .select(`
         id, competitor_id, gpu_product_id, competitor_sku, pricing_model,
         competitors!competitor_id(id, name),
-        gpu_products!gpu_product_id(id, model_name, memory)
+        gpu_products!gpu_product_id(id, model_name, memory, gpu_count)
       `)
       .eq('is_active', true)
       .order('competitor_id')
