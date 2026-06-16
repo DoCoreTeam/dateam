@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEscClose } from '@/lib/use-esc-close'
 import { X, Check, ArrowUpRight } from 'lucide-react'
 import { STALENESS_STYLE, relativeTime, type MemoListItem } from './memoUtils'
@@ -94,6 +95,16 @@ export default function MemoAllModal({ items, onReview, onPromote, onClose }: Pr
             })}
           </ul>
         )}
+
+        <div style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-3)', borderTop: 'var(--hairline) solid var(--surface-muted)', display: 'flex', justifyContent: 'flex-end' }}>
+          <Link
+            href="/daily?view=memo"
+            onClick={onClose}
+            style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--brand-dark)', textDecoration: 'none' }}
+          >
+            메모 탭에서 전체 관리 →
+          </Link>
+        </div>
       </div>
     </div>
   )
