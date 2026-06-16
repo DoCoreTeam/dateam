@@ -6635,6 +6635,32 @@ label.intake-tool-btn {
   .skel { animation: none; }
 }
 
+/* 캘린더 — 그리드 즉시 렌더, 일정 데이터 비동기 채움 placeholder.
+   그림(요일헤더+날짜셀+주간프레임)은 항상 즉시 그리고, 데이터 도착 전엔
+   은은한 shimmer dot/인라인 표시로 "불러오는 중"임을 알린다. */
+.calendar-loading-inline {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  font-size: var(--fs-xs); color: var(--text-faint); font-weight: 600;
+}
+.calendar-loading-inline::before {
+  content: ""; width: 10px; height: 10px; border-radius: 50%;
+  background: linear-gradient(90deg, var(--surface-muted) 25%, var(--brand-soft) 37%, var(--surface-muted) 63%);
+  background-size: 400% 100%;
+  animation: work-search-shimmer 1.2s ease infinite;
+}
+.calendar-cell-skel {
+  height: 8px; width: 70%; border-radius: var(--radius);
+  background: linear-gradient(90deg, var(--surface-muted) 25%, var(--surface-bg) 37%, var(--surface-muted) 63%);
+  background-size: 400% 100%;
+  animation: work-search-shimmer 1.4s ease infinite;
+  opacity: 0.6;
+}
+.calendar-cell-skel.is-narrow { width: 45%; }
+@media (prefers-reduced-motion: reduce) {
+  .calendar-loading-inline::before,
+  .calendar-cell-skel { animation: none; }
+}
+
 /* 통합 검색 결과 페이지 — 본문 입력창(헤더 입력과 분리, 모바일에도 항상 표시) */
 .work-search-input-wrap {
   display: flex; align-items: center; gap: var(--space-2);

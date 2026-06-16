@@ -172,6 +172,10 @@ export default function CalendarPage() {
   const isCurrentWeek = weekDates.includes(todayStr);
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1;
 
+  // 첫 진입(데이터 없음)에만 placeholder 노출. keepPreviousData라 이동 시엔 이전 데이터 유지.
+  const monthFirstLoad = monthLoading && monthSummary.length === 0;
+  const weekFirstLoad = weekLoading && weekLogs.length === 0;
+
   return (
     <div>
       {selectedDate && (
@@ -293,24 +297,23 @@ export default function CalendarPage() {
             )}
           </div>
 
-          {/* 요일 헤더 */}
-          {/* 날짜 그리드 */}
-          {monthLoading ? (
+          {/* 일정 비동기 로딩 표시 — 그리드는 항상 즉시 렌더, 데이터만 나중에 채움 */}
+          {monthFirstLoad && (
             <div
-              style={{
-                textAlign: "center",
-                color: "var(--text-faint)",
-                padding: "3rem 0",
-              }}
+              className="calendar-loading-inline"
+              role="status"
+              aria-live="polite"
+              style={{ marginBottom: "0.5rem" }}
             >
-              로딩 중...
+              일정 불러오는 중
             </div>
-          ) : (
-            <section
-              className="calendar-month-board"
-              aria-label={`${formatMonth(year, month)} 월간 캘린더`}
-            >
-              <div className="calendar-weekday-row">
+          )}
+          {/* 요일 헤더 + 날짜 그리드 — 데이터 없이 즉시 렌더 */}
+          <section
+            className="calendar-month-board"
+            aria-label={`${formatMonth(year, month)} 월간 캘린더`}
+          >
+            <div className="calendar-weekday-row">
                 {WEEK_DAYS.map((d, i) => (
                   <div
                     key={d}
@@ -412,12 +415,18 @@ export default function CalendarPage() {
                           )}
                         </div>
                       )}
+                      {/* 첫 로딩 중 셀 placeholder — 날짜는 보이고 일정 영역만 shimmer */}
+                      {monthFirstLoad && !summary && (
+                        <div className="calendar-event-stack" aria-hidden="true">
+                          <span className="calendar-cell-skel" />
+                          <span className="calendar-cell-skel is-narrow" />
+                        </div>
+                      )}
                     </button>
                   );
                 })}
               </div>
             </section>
-          )}
 
           {/* 범례 */}
           <div
@@ -510,25 +519,25 @@ export default function CalendarPage() {
             )}
           </div>
 
-          {weekLoading ? (
+          {/* 일정 비동기 로딩 표시 — 주간 프레임/날짜는 항상 즉시 렌더 */}
+          {weekFirstLoad && (
             <div
-              style={{
-                textAlign: "center",
-                color: "var(--text-faint)",
-                padding: "3rem 0",
-              }}
+              className="calendar-loading-inline"
+              role="status"
+              aria-live="polite"
+              style={{ marginBottom: "0.5rem" }}
             >
-              로딩 중...
+              일정 불러오는 중
             </div>
-          ) : (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.5rem",
-              }}
-            >
-              {weekDates.map((dateStr) => {
+          )}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.5rem",
+            }}
+          >
+            {weekDates.map((dateStr) => {
                 const d = new Date(dateStr + "T00:00:00");
                 const dayLogs = weekLogsMap.get(dateStr) ?? [];
                 const isToday = dateStr === todayStr;
@@ -697,8 +706,7 @@ export default function CalendarPage() {
                   </div>
                 );
               })}
-            </div>
-          )}
+          </div>
         </>
       )}
     </div>
