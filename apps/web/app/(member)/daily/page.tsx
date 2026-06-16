@@ -96,6 +96,14 @@ export default function DailyPage() {
     }
   }, [dateParam])
 
+  // URL view 파라미터 변경 감지 → viewMode 동기화 (메모 위젯 "전체 →" 클릭 등)
+  // 이미 /daily에 있을 때 ?view=memo로의 클라이언트 내비게이션은 마운트 1회 초기화로는
+  // 반영되지 않으므로, 파라미터 변화에 반응해 뷰를 전환한다.
+  const viewParam = searchParams.get('view')
+  useEffect(() => {
+    if (viewParam === 'memo') setViewMode('memo')
+  }, [viewParam])
+
   // SWR 훅 — 일간 로그
   const dailyKey = viewMode === 'day' ? `/api/daily/logs?date=${selectedDate}` : null
   const { data: logs = [], isLoading: loading } = useSWR<DailyLog[]>(dailyKey, fetcher)
