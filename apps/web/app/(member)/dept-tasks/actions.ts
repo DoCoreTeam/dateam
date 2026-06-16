@@ -107,6 +107,68 @@ export async function createDeptTask(input: DeptTaskInput): Promise<ActionResult
 }
 
 /**
+ * 일일업무 → 부서업무 승격(참조). 원본 일일 행은 그대로 두고, dept_task를 새로 만들어
+ * promoted_from_log_id 로 원본을 가리킨다(복제 아님 — 출처 추적·역참조 가능).
+ * 본인 소유의 personal 로그만 승격 가능. 동일 원본 재승격은 차단(멱등).
+ */
+export async function promoteDailyToDeptTask(
+  sourceLogId: string,
+  input: { departmentId: string; assigneeUserId?: string | null; targetDate?: string | null; priority?: DailyLogPriority },
+): Promise<ActionResult<DailyLog>> {
+  if (!sourceLogId) return { ok: false, error: '원본 업무가 없습니다.' }
+  if (!input.departmentId) return { ok: false, error: '부서를 선택해 주세요.' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '로그인이 필요합니다.' }
+
+  // 원본 검증: 본인 소유 + personal 만
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: src } = await (supabase.from('daily_logs') as any)
+    .select('id, user_id, content, task_kind, target_date, priority').eq('id', sourceLogId).single()
+  if (!src) return { ok: false, error: '원본 업무를 찾을 수 없습니다.' }
+  if (src.user_id !== user.id) return { ok: false, error: '본인 업무만 승격할 수 있습니다.' }
+  if (src.task_kind !== 'personal') return { ok: false, error: '개인 일일업무만 부서업무로 승격할 수 있습니다.' }
+
+  // 멱등: 이미 이 원본으로 승격된 부서업무가 있으면 차단
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: dup } = await (supabase.from('daily_logs') as any)
+    .select('id').eq('promoted_from_log_id', sourceLogId).eq('task_kind', 'dept_task').limit(1)
+  if (dup && dup.length > 0) return { ok: false, error: '이미 부서업무로 승격된 항목입니다.' }
+
+  const assignee = input.assigneeUserId ?? null
+  if (assignee && assignee !== user.id) {
+    const guard = await ensureEditable(user.id, input.departmentId)
+    if (!guard.ok) return guard
+  }
+
+  try {
+    const { data, error } = await (supabase.from('daily_logs') as never as {
+      insert: (v: unknown) => { select: () => { single: () => Promise<{ data: DailyLog | null; error: unknown }> } }
+    })
+      .insert({
+        user_id: user.id,
+        log_date: new Date().toISOString().slice(0, 10),
+        content: String(src.content ?? '').trim(),
+        entry_type: 'planned' as DailyLogEntryType,
+        task_kind: 'dept_task',
+        department_id: input.departmentId,
+        assignee_user_id: assignee,
+        priority: input.priority ?? src.priority ?? 'normal',
+        target_date: input.targetDate ?? src.target_date ?? null,
+        promoted_from_log_id: sourceLogId,   // 참조(복제 아님)
+      })
+      .select().single()
+    if (error) return { ok: false, error: getErrorMessage(error) }
+    revalidatePath('/dept-tasks')
+    revalidatePath('/daily')
+    return { ok: true, data: data as DailyLog }
+  } catch (error: unknown) {
+    return { ok: false, error: getErrorMessage(error) }
+  }
+}
+
+/**
  * 상태/진행률/체크리스트 갱신 — 담당자/작성자/부서장(RLS UPDATE 정책이 강제).
  * 진행률은 computeProgress(C 하이브리드)로 자동 산출: done→100, 체크리스트 있으면 done비율, 없으면 수동값.
  */
