@@ -48,15 +48,21 @@ export async function GET(): Promise<NextResponse> {
   const supabase = await createClient()
   const userId = auth.user.id
 
-  const [daily, calendar, weekly, projects] = await Promise.all([
+  const [daily, calendar, weekly, projects, accounts, deals, contacts] = await Promise.all([
     tokenFor(supabase, 'daily_logs', userId),
     tokenFor(supabase, 'calendar_events', userId),
     tokenFor(supabase, 'weekly_reports', userId),
     tokenFor(supabase, 'projects', userId),
+    tokenFor(supabase, 'accounts', userId),
+    tokenFor(supabase, 'deals', userId),
+    tokenFor(supabase, 'contacts', userId),
   ])
 
   return NextResponse.json(
-    { versions: { daily, calendar, weekly, projects }, ts: new Date().toISOString() },
+    {
+      versions: { daily, calendar, weekly, projects, accounts, deals, contacts },
+      ts: new Date().toISOString(),
+    },
     { headers: { 'Cache-Control': 'no-store' } },
   )
 }

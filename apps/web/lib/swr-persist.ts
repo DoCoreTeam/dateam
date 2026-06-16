@@ -13,6 +13,9 @@ import type { Cache, State } from 'swr'
 import { createClient } from '@/lib/supabase/client'
 
 const KEY_PREFIX = 'swr-cache:'
+// SyncRevalidator의 변경감지 토큰 prefix. 캐시 데이터는 아니지만 userId 스코프 잔류물이므로
+// 로그아웃·계정전환 클리어 경로에 함께 포함한다(공유 PC 잔류 차단, SSOT).
+export const SWR_VER_KEY_PREFIX = 'swr-ver:'
 const TTL_MS = 24 * 60 * 60 * 1000 // 24h
 const MAX_BYTES = 2 * 1024 * 1024 // 2MB 직렬화 용량 가드 (localStorage ~5MB 한도 여유)
 const PERSIST_DEBOUNCE_MS = 1000
@@ -51,14 +54,14 @@ function storageKey(userId: string): string {
   return `${KEY_PREFIX}${userId}`
 }
 
-// swr-cache:* 키 전부 제거 (타 userId 잔류 포함). 로그아웃·불일치 시 사용.
+// swr-cache:*·swr-ver:* 키 전부 제거 (타 userId 잔류 포함). 로그아웃·불일치 시 사용.
 function removeAllSwrCacheKeys(): void {
   if (!isBrowser()) return
   try {
     const toRemove: string[] = []
     for (let i = 0; i < window.localStorage.length; i++) {
       const k = window.localStorage.key(i)
-      if (k && k.startsWith(KEY_PREFIX)) toRemove.push(k)
+      if (k && (k.startsWith(KEY_PREFIX) || k.startsWith(SWR_VER_KEY_PREFIX))) toRemove.push(k)
     }
     toRemove.forEach((k) => window.localStorage.removeItem(k))
   } catch {
@@ -78,10 +81,14 @@ function purgeOtherUserCacheKeys(uid: string): void {
   if (!isBrowser()) return
   try {
     const keep = storageKey(uid)
+    const keepVer = `${SWR_VER_KEY_PREFIX}${uid}`
     const toRemove: string[] = []
     for (let i = 0; i < window.localStorage.length; i++) {
       const k = window.localStorage.key(i)
-      if (k && k.startsWith(KEY_PREFIX) && k !== keep) toRemove.push(k)
+      if (!k) continue
+      const isCacheKey = k.startsWith(KEY_PREFIX) && k !== keep
+      const isVerKey = k.startsWith(SWR_VER_KEY_PREFIX) && k !== keepVer
+      if (isCacheKey || isVerKey) toRemove.push(k)
     }
     toRemove.forEach((k) => window.localStorage.removeItem(k))
   } catch {
