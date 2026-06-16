@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { useFormCore } from '@/lib/forms/useFormCore'
+import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 
 const TYPES = [
   { value: 'call', label: '통화' },
@@ -15,7 +17,10 @@ interface Props { dealId: string }
 export default function ActivityLogger({ dealId }: Props) {
   const router = useRouter()
   const [type, setType] = useState<string>('note')
-  const [content, setContent] = useState('')
+  const formRef = useRef<HTMLFormElement>(null)
+  const draft = useFormCore<string>({ formId: 'deal-activity', recordId: dealId, initial: '', scopeRef: formRef })
+  const content = draft.value
+  const setContent = draft.set
   const [loading, setLoading] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [open, setOpen] = useState(false)
@@ -33,6 +38,7 @@ export default function ActivityLogger({ dealId }: Props) {
     })
     if (res.ok) {
       setContent('')
+      draft.clear()
       setOpen(false)
       router.refresh()
     } else {
@@ -67,7 +73,8 @@ export default function ActivityLogger({ dealId }: Props) {
           + 활동 기록
         </button>
       ) : (
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        <form ref={formRef} onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <DraftRestoreBanner show={draft.hasDraft} onRestore={draft.restore} onDiscard={draft.discard} />
           <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
             {TYPES.map((t) => (
               <button
@@ -106,7 +113,7 @@ export default function ActivityLogger({ dealId }: Props) {
             <button type="button" onClick={handleAiParse} disabled={aiLoading} style={{ fontSize: 'var(--fs-sm)', padding: '0.5rem 0.875rem', minHeight: '36px', background: 'var(--info-bg)', color: 'var(--info)', border: 'var(--hairline) solid var(--info-border)', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600 }}>
               {aiLoading ? 'AI분석중...' : '🤖 AI정리'}
             </button>
-            <button type="button" onClick={() => { setOpen(false); setContent(''); setError('') }} style={{ fontSize: 'var(--fs-sm)', padding: '0.5rem 0.875rem', minHeight: '36px', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', color: 'var(--text-muted)' }}>
+            <button type="button" onClick={() => { setOpen(false); setContent(''); draft.clear(); setError('') }} style={{ fontSize: 'var(--fs-sm)', padding: '0.5rem 0.875rem', minHeight: '36px', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', color: 'var(--text-muted)' }}>
               취소
             </button>
           </div>

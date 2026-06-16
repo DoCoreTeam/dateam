@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { DailyLog, DailyLogPriority } from '@/types/database'
+import { useFormCore } from '@/lib/forms/useFormCore'
+import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbModal from '@/components/ui/nb/NbModal'
 import { parseChecklistText } from '@/lib/dept-task-utils'
@@ -27,7 +29,10 @@ const checklistToText = (task?: DailyLog): string =>
 
 export default function DeptTaskFormModal({ creatableDepts, onClose, onSaved, task, canEditDept }: Props) {
   const isEdit = !!task
-  const [content, setContent] = useState(task?.content ?? '')
+  const contentRef = useRef<HTMLDivElement>(null)
+  const draft = useFormCore<string>({ formId: 'dept-task', recordId: task?.id ?? 'new', initial: task?.content ?? '', scopeRef: contentRef })
+  const content = draft.value
+  const setContent = draft.set
   const [departmentId, setDepartmentId] = useState(task?.department_id ?? creatableDepts[0]?.id ?? '')
   const [priority, setPriority] = useState<DailyLogPriority>(task?.priority ?? 'normal')
   const [targetDate, setTargetDate] = useState(task?.target_date ?? '')
@@ -64,6 +69,7 @@ export default function DeptTaskFormModal({ creatableDepts, onClose, onSaved, ta
         })
     setBusy(false)
     if (!res.ok) { setError(res.error); return }
+    draft.clear()
     onSaved()
   }
 
@@ -85,7 +91,10 @@ export default function DeptTaskFormModal({ creatableDepts, onClose, onSaved, ta
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <div>
             <label className="label">업무 내용 *</label>
-            <textarea className="input-field" value={content} onChange={(e) => setContent(e.target.value)} rows={3} placeholder="부서 업무 제목/설명" />
+            <div ref={contentRef}>
+              <DraftRestoreBanner show={draft.hasDraft} onRestore={draft.restore} onDiscard={draft.discard} />
+              <textarea className="input-field" value={content} onChange={(e) => setContent(e.target.value)} rows={3} placeholder="부서 업무 제목/설명" />
+            </div>
           </div>
           <div>
             <label className="label">부서 *{deptDisabled ? ' (부서장만 변경 가능)' : ''}</label>
