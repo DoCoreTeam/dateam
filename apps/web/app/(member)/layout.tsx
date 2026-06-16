@@ -4,6 +4,7 @@ import MobileShell from '@/components/ui/MobileShell'
 import type { NavGroup } from '@/components/ui/MobileShell'
 import SidebarProfile from '@/components/ui/SidebarProfile'
 import QuickNav from '@/components/ui/QuickNav'
+import GlobalSearchBox from '@/components/ui/GlobalSearchBox'
 import NavigationLoader from '@/components/ui/NavigationLoader'
 import { getBranding } from '@/lib/branding'
 import { getActiveTheme, resolveTheme } from '@/lib/theme'
@@ -106,7 +107,7 @@ export default async function MemberLayout({ children }: { children: React.React
             님
           </span>
         }
-        headerRight={<QuickNav />}
+        headerRight={<><GlobalSearchBox /><QuickNav /></>}
       >
         <SWRProvider>{children}</SWRProvider>
       </MobileShell>
