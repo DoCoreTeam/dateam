@@ -918,3 +918,67 @@ export async function promoteMemoToTask(
   revalidatePath('/home')
   return { ok: true, taskId: task.id as string }
 }
+
+// ─── AI 분해 묶음(origin_group) 헤더 CRUD ────────────────────
+// AI가 1개 입력을 N개 daily_log로 분해한 묶음. 묶음 키 = origin_group_id.
+// 별도 parent 레코드 없이 headLogId(대표 로그)로 묶음을 식별한다.
+
+// 묶음 전체(또는 origin_group_id 없으면 단건) 삭제. 본인 소유만(eq user_id).
+export async function deleteLogGroup(
+  headLogId: string
+): Promise<{ ok: true; deleted: number } | { ok: false; error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '로그인이 필요합니다.' }
+
+  const { data: head } = await (supabase.from('daily_logs') as any)
+    .select('id, origin_group_id')
+    .eq('id', headLogId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (!head) return { ok: false, error: '업무를 찾을 수 없습니다.' }
+
+  const del = (supabase.from('daily_logs') as any).delete()
+  const query = head.origin_group_id
+    ? del.eq('origin_group_id', head.origin_group_id).eq('user_id', user.id)
+    : del.eq('id', headLogId).eq('user_id', user.id)
+
+  const { data, error } = await query.select('id')
+  if (error) return { ok: false, error: (error as Error).message }
+
+  revalidateDailyCalendarViews()
+  return { ok: true, deleted: (data as { id: string }[] | null)?.length ?? 0 }
+}
+
+// 묶음 원본 입력 텍스트(original_input) 수정 — 표시용 텍스트만 갱신한다.
+// 주의: AI 재분해/자식 content는 건드리지 않는다. 묶음 일관성 위해 묶음 전체 행을 갱신.
+export async function updateOriginInput(
+  headLogId: string,
+  text: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!text.trim()) return { ok: false, error: '내용을 입력하세요.' }
+  if (text.length > 10000) return { ok: false, error: '입력이 너무 깁니다.' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '로그인이 필요합니다.' }
+
+  const { data: head } = await (supabase.from('daily_logs') as any)
+    .select('id, origin_group_id')
+    .eq('id', headLogId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (!head) return { ok: false, error: '업무를 찾을 수 없습니다.' }
+
+  const upd = (supabase.from('daily_logs') as any)
+    .update({ original_input: text.trim(), updated_at: new Date().toISOString() })
+  const query = head.origin_group_id
+    ? upd.eq('origin_group_id', head.origin_group_id).eq('user_id', user.id)
+    : upd.eq('id', headLogId).eq('user_id', user.id)
+
+  const { error } = await query
+  if (error) return { ok: false, error: (error as Error).message }
+
+  revalidateDailyCalendarViews()
+  return { ok: true }
+}

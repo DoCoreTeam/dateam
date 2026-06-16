@@ -4432,6 +4432,8 @@ label.intake-tool-btn {
   flex-direction: column;
   gap: var(--space-2);
 }
+/* 헤더 = "내가 입력한 원본" 또렷한 표면. 회색 워시아웃 제거:
+   카드 표면(--color-surface) + 강화된 brand 좌측 액센트 + 아주 옅은 brand 틴트 그라데이션. */
 .origin-group-header {
   display: flex;
   align-items: flex-start;
@@ -4439,20 +4441,80 @@ label.intake-tool-btn {
   width: 100%;
   min-height: 44px;
   padding: var(--space-3) var(--space-4);
-  background: var(--surface-bg);
+  background: var(--color-surface);
   border: var(--border-w-2) solid var(--border-color);
-  border-left: var(--border-w) solid var(--brand);
+  border-left: var(--border-w-2) solid var(--brand);
   border-radius: var(--radius);
-  cursor: pointer;
-  text-align: left;
-  font: inherit;
+  box-shadow: var(--shadow-sm);
   color: var(--text);
-  transition: background 0.12s;
+  transition: box-shadow 0.12s, background 0.12s;
 }
-.origin-group-header:hover { background: var(--surface-muted); }
-.origin-group-header:focus-visible {
+/* 클릭으로 토글되는 본문 영역(텍스트/칩) — 헤더 자체는 더 이상 button이 아니므로 여기 cursor 부여 */
+.origin-group-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+.origin-group-header:hover { box-shadow: var(--shadow-md); }
+.origin-group-toggle:focus-visible {
   outline: var(--border-w-2) solid var(--brand);
   outline-offset: 2px;
+  border-radius: var(--radius);
+}
+/* 헤더 우측 CRUD 액션 */
+.origin-group-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+.origin-group-action {
+  min-height: 28px;
+  padding: 0.2rem 0.5rem;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--color-bg);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.origin-group-action:hover {
+  background: var(--brand-soft);
+  color: var(--brand);
+  border-color: var(--brand-soft-2);
+}
+.origin-group-action-danger { color: var(--danger); }
+.origin-group-action-danger:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: var(--danger-border);
+}
+.origin-group-action:focus-visible {
+  outline: var(--border-w-2) solid var(--brand);
+  outline-offset: 2px;
+}
+/* 원본 인라인 편집 */
+.origin-group-edit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+.origin-group-edit-actions {
+  display: flex;
+  gap: var(--space-2);
 }
 .origin-group-chevron {
   flex-shrink: 0;
@@ -4485,6 +4547,15 @@ label.intake-tool-btn {
 .origin-group-time {
   font-size: var(--fs-xs);
   color: var(--text-faint);
+}
+/* 파생(분해 자식) 항목 타임스탬프 — 드로어에서 묻히지 않도록 또렷하게.
+   단건 카드와 동일 클래스 공유(일관성). */
+.daily-log-time {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .origin-group-chip {
   font-size: var(--fs-2xs);

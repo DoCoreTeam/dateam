@@ -1,4 +1,4 @@
-import { Fragment, useMemo, type ReactNode } from 'react'
+import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import type { DailyLog } from '@/types/database'
 import type { LogGroup } from './grouping'
 import { findDuplicateCandidates } from '@/lib/daily/duplicate'
@@ -18,6 +18,12 @@ interface OriginGroupCardProps {
   formatTime: (iso: string) => string
   /** 중복 비교 풀 — 같은 날 전체 로그(자기/동일그룹은 함수가 제외) */
   pool?: DailyLog[]
+  /** 묶음 전체 삭제 (헤더 [삭제]) */
+  onDeleteGroup: (headLogId: string, count: number) => void
+  /** 원본 입력 텍스트 수정 (헤더 [수정]) */
+  onEditOrigin: (headLogId: string, text: string) => Promise<boolean>
+  /** 저장 진행 중 비활성화 플래그 */
+  isPending?: boolean
 }
 
 /**
@@ -31,9 +37,22 @@ interface OriginGroupCardProps {
  *  2) 요약 칩 — 분해 N · 메모 N · 완료 N/N
  *  3) 펼침 드로어(기본 접힘) — 분해 항목(renderCard) + 놓친 메모 환기 섹션
  */
-export function OriginGroupCard({ group, isOpen, onToggle, renderCard, formatTime, pool }: OriginGroupCardProps) {
+export function OriginGroupCard({ group, isOpen, onToggle, renderCard, formatTime, pool, onDeleteGroup, onEditOrigin, isPending }: OriginGroupCardProps) {
   // 원본 텍스트: 그룹 첫 항목의 original_input (없으면 라벨 폴백)
-  const originalText = group.logs[0]?.original_input?.trim() || group.label
+  const headLog = group.logs[0]
+  const originalText = headLog?.original_input?.trim() || group.label
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(originalText)
+  const [saving, setSaving] = useState(false)
+
+  const startEdit = () => { setDraft(originalText); setEditing(true) }
+  const saveEdit = async () => {
+    if (!headLog || !draft.trim() || saving) return
+    setSaving(true)
+    const ok = await onEditOrigin(headLog.id, draft.trim())
+    setSaving(false)
+    if (ok) setEditing(false)
+  }
   const noteCount = group.logs.filter((l) => l.entry_type === 'note').length
   // 놓친 메모: note + memo_status='new' (미확인)
   const missedMemos = group.logs.filter((l) => l.entry_type === 'note' && l.memo_status === 'new')
@@ -54,39 +73,93 @@ export function OriginGroupCard({ group, isOpen, onToggle, renderCard, formatTim
 
   return (
     <div className="origin-group">
-      <button
-        type="button"
-        className="origin-group-header"
-        data-testid="origin-group-toggle"
-        aria-expanded={isOpen}
-        aria-controls={subsId}
-        onClick={onToggle}
-      >
-        <span className="origin-group-chevron" aria-hidden>{isOpen ? '▾' : '▸'}</span>
-        <span className="origin-group-body">
-          <span className="origin-group-text">{originalText}</span>
-          <span className="origin-group-chips">
-            <span className="origin-group-time">{formatTime(group.loggedAt)}</span>
-            <span className="origin-group-chip">분해 {group.count}</span>
-            {noteCount > 0 && <span className="origin-group-chip">메모 {noteCount}</span>}
-            {group.doneCount > 0 && (
-              <span className="origin-group-chip origin-group-chip-done">
-                완료 {group.doneCount}/{group.count}
+      <div className="origin-group-header">
+        {editing ? (
+          <div className="origin-group-edit">
+            <label className="label" htmlFor={`${subsId}-edit`}>원본 입력 수정</label>
+            <textarea className="input-field"
+              id={`${subsId}-edit`}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); saveEdit() }
+                if (e.key === 'Escape') setEditing(false)
+              }}
+              rows={3}
+              autoFocus
+            />
+            <div className="origin-group-edit-actions">
+              <button
+                type="button"
+                className="origin-group-action"
+                onClick={saveEdit}
+                disabled={saving || !draft.trim()}
+              >
+                {saving ? '저장 중…' : '저장'}
+              </button>
+              <button type="button" className="origin-group-action" onClick={() => setEditing(false)}>
+                취소
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="origin-group-toggle"
+              data-testid="origin-group-toggle"
+              aria-expanded={isOpen}
+              aria-controls={subsId}
+              onClick={onToggle}
+            >
+              <span className="origin-group-chevron" aria-hidden>{isOpen ? '▾' : '▸'}</span>
+              <span className="origin-group-body">
+                <span className="origin-group-text">{originalText}</span>
+                <span className="origin-group-chips">
+                  <span className="origin-group-time">{formatTime(group.loggedAt)}</span>
+                  <span className="origin-group-chip">분해 {group.count}</span>
+                  {noteCount > 0 && <span className="origin-group-chip">메모 {noteCount}</span>}
+                  {group.doneCount > 0 && (
+                    <span className="origin-group-chip origin-group-chip-done">
+                      완료 {group.doneCount}/{group.count}
+                    </span>
+                  )}
+                  {missedMemos.length > 0 && (
+                    <span className="origin-group-chip origin-group-chip-alert">
+                      미확인 메모 {missedMemos.length}
+                    </span>
+                  )}
+                  {dupCount > 0 && (
+                    <span className="origin-group-chip origin-group-chip-dup">
+                      중복 {dupCount}
+                    </span>
+                  )}
+                </span>
               </span>
-            )}
-            {missedMemos.length > 0 && (
-              <span className="origin-group-chip origin-group-chip-alert">
-                미확인 메모 {missedMemos.length}
-              </span>
-            )}
-            {dupCount > 0 && (
-              <span className="origin-group-chip origin-group-chip-dup">
-                중복 {dupCount}
-              </span>
-            )}
-          </span>
-        </span>
-      </button>
+            </button>
+            <div className="origin-group-actions">
+              <button
+                type="button"
+                className="origin-group-action"
+                data-testid="origin-group-edit"
+                onClick={(e) => { e.stopPropagation(); startEdit() }}
+                disabled={isPending}
+              >
+                수정
+              </button>
+              <button
+                type="button"
+                className="origin-group-action origin-group-action-danger"
+                data-testid="origin-group-delete"
+                onClick={(e) => { e.stopPropagation(); headLog && onDeleteGroup(headLog.id, group.count) }}
+                disabled={isPending}
+              >
+                삭제
+              </button>
+            </div>
+          </>
+        )}
+      </div>
 
       {isOpen && (
         <div id={subsId} className="origin-group-subs">

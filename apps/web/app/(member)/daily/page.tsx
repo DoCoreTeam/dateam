@@ -13,7 +13,7 @@ const KnowledgeGraphView = dynamic(() => import('./KnowledgeGraphView').then(m =
 const LogFlowView = dynamic(() => import('./LogFlowView').then(m => ({ default: m.LogFlowView })), { ssr: false })
 import useSWR, { mutate } from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, moveAllCarryoverToToday, unignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread, updateDailyLogStatus } from './actions'
+import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, moveAllCarryoverToToday, unignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread, updateDailyLogStatus, deleteLogGroup, updateOriginInput } from './actions'
 import type { AiParsedItem } from './actions'
 import { createDailyScheduleEvent } from '../calendar/actions'
 import { selectScheduleCandidates } from '@/lib/daily/schedule-candidates'
@@ -359,6 +359,41 @@ export default function DailyPage() {
     })
   }
 
+  // 묶음(원본+분해 전체) 삭제 — confirm 후 deleteLogGroup. 단건이면 1건만.
+  const handleDeleteGroup = (headLogId: string, count: number) => {
+    const msg = count > 1
+      ? `원본 입력과 분해 항목 ${count}개가 함께 삭제됩니다. 계속할까요?`
+      : '이 업무를 삭제할까요? 삭제하면 되돌릴 수 없습니다.'
+    if (!window.confirm(msg)) return
+    startTransition(async () => {
+      const result = await deleteLogGroup(headLogId)
+      if (result.ok) {
+        showToast(`${result.deleted}건이 삭제되었습니다`)
+      } else {
+        showToast(result.error || '삭제에 실패했습니다', 'error')
+      }
+      await Promise.all([
+        mutate(`/api/daily/logs?date=${selectedDate}`),
+        mutate(`/api/daily/carryover?today=${today}`),
+      ])
+    })
+  }
+
+  // 원본 입력 텍스트 수정 — 성공 여부 반환(인라인 편집 종료 제어용)
+  const handleEditOrigin = async (headLogId: string, text: string): Promise<boolean> => {
+    const result = await updateOriginInput(headLogId, text)
+    if (!result.ok) {
+      showToast(result.error || '수정에 실패했습니다', 'error')
+      return false
+    }
+    await Promise.all([
+      mutate(`/api/daily/logs?date=${selectedDate}`),
+      mutate(`/api/daily/carryover?today=${today}`),
+    ])
+    showToast('원본 입력이 수정되었습니다')
+    return true
+  }
+
   const prevDay = () => {
     const d = new Date(selectedDate + 'T00:00:00')
     d.setDate(d.getDate() - 1)
@@ -613,6 +648,8 @@ export default function DailyPage() {
                   onEditTypeChange={setEditType}
                   editTargetDate={editTargetDate}
                   onEditTargetDateChange={setEditTargetDate}
+                  onDeleteGroup={handleDeleteGroup}
+                  onEditOrigin={handleEditOrigin}
                 />
               )}
             </div>
@@ -848,11 +885,14 @@ interface LogListProps {
   onEditContentChange: (v: string) => void
   onEditTypeChange: (v: DailyLogEntryType) => void
   onEditTargetDateChange: (v: string) => void
+  onDeleteGroup: (headLogId: string, count: number) => void
+  onEditOrigin: (headLogId: string, text: string) => Promise<boolean>
 }
 
 function LogList({
   logs, isToday, selectedDate, editingId, editContent, editType, editTargetDate, isPending,
   onStartEdit, onCancelEdit, onUpdate, onDelete, onStatusChange, onEditContentChange, onEditTypeChange, onEditTargetDateChange,
+  onDeleteGroup, onEditOrigin,
 }: LogListProps) {
   const [openThreadId, setOpenThreadId] = useState<string | null>(null)
   const [flowLog, setFlowLog] = useState<DailyLog | null>(null)
@@ -887,7 +927,7 @@ function LogList({
             <div
               onClick={() => { if (!isEditing) setFlowLog(log) }}
               style={{
-                background: '#fff', border: 'var(--border-w-2) solid var(--border-color)',
+                background: 'var(--color-surface)', border: 'var(--border-w-2) solid var(--border-color)',
                 borderLeft: `var(--border-w) solid ${type.color}`,
                 borderRadius: threadOpen ? '0 0.5rem 0 0' : '0 0.5rem 0.5rem 0',
                 padding: 'var(--space-3) var(--space-4)',
@@ -984,7 +1024,7 @@ function LogList({
                             onClick={(e) => e.stopPropagation()}
                             style={{
                               position: 'absolute', top: '100%', left: 0, zIndex: 50,
-                              background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
+                              background: 'var(--color-surface)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
                               boxShadow: 'var(--shadow-sm)', padding: '0.375rem',
                               display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', minWidth: '80px',
                               marginTop: '0.25rem',
@@ -1009,7 +1049,7 @@ function LogList({
                           </div>
                         )}
                       </div>
-                      <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>{formatTime(log.logged_at)}</span>
+                      <span className="daily-log-time">{formatTime(log.logged_at)}</span>
                       {log.target_date && (
                         <DdayBadge targetDate={log.target_date} today={todayStr} />
                       )}
@@ -1074,6 +1114,9 @@ function LogList({
             renderCard={renderCard}
             formatTime={formatTime}
             pool={logs}
+            onDeleteGroup={onDeleteGroup}
+            onEditOrigin={onEditOrigin}
+            isPending={isPending}
           />
         )
       })}
