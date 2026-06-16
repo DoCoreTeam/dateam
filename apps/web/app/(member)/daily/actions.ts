@@ -42,6 +42,27 @@ async function embedMemoRow(logId: string, userId: string, content: string): Pro
   }
 }
 
+// autolink 사전계산 큐 적재 (best-effort — 실패해도 업무 저장 응답은 비차단).
+// note(메모)는 autolink 대상이 아니므로 호출처에서 제외하고 넘긴다.
+// RLS상 insert 정책은 service_role 전용 → createAdminClient로 upsert.
+async function enqueueAutolinkJobs(jobs: Array<{ logId: string; requesterId: string }>): Promise<void> {
+  if (jobs.length === 0) return
+  try {
+    const adm = createAdminClient()
+    const rows = jobs.map((j) => ({
+      log_id: j.logId,
+      requester_id: j.requesterId,
+      status: 'pending' as const,
+      attempts: 0,
+      last_error: null,
+    }))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (adm as any).from('autolink_jobs').upsert(rows, { onConflict: 'log_id' })
+  } catch (e) {
+    console.error('[enqueueAutolinkJobs] failed', e)
+  }
+}
+
 function revalidateDailyCalendarViews() {
   revalidatePath('/daily')
   revalidatePath('/calendar')
@@ -215,6 +236,11 @@ export async function addDailyLog(
   // 메모면 임베딩 생성 (best effort — 실패해도 메모는 저장됨)
   if (isNote && data?.id) {
     await embedMemoRow(data.id as string, user.id, content.trim())
+  }
+
+  // 비note 업무는 autolink 사전계산 큐에 적재 (best-effort, 응답 비차단)
+  if (!isNote && data?.id) {
+    await enqueueAutolinkJobs([{ logId: data.id as string, requesterId: user.id }])
   }
 
   revalidateDailyCalendarViews()
@@ -616,6 +642,13 @@ export async function addMultipleDailyLogs(
   for (const note of noteLogs) {
     await embedMemoRow(note.id, user.id, note.content)
   }
+
+  // 비note 업무 일괄 autolink 큐 적재 (best-effort, 응답 비차단)
+  await enqueueAutolinkJobs(
+    savedLogs
+      .filter((l) => l.entry_type !== 'note' && l.id)
+      .map((l) => ({ logId: l.id, requesterId: user.id }))
+  )
 
   revalidateDailyCalendarViews()
   return { ok: true, data: savedLogs }
