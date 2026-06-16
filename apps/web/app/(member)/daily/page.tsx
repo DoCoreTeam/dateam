@@ -6,6 +6,8 @@ import { ChevronLeft, ChevronRight, Sparkles, MessageSquare } from 'lucide-react
 import dynamic from 'next/dynamic'
 import WorkTabBar from '@/components/ui/WorkTabBar'
 import PageHeader from '@/components/ui/PageHeader'
+import { useFormCore } from '@/lib/forms/useFormCore'
+import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 const KnowledgeGraphView = dynamic(() => import('./KnowledgeGraphView').then(m => ({ default: m.KnowledgeGraphView })), { ssr: false })
 const LogFlowView = dynamic(() => import('./LogFlowView').then(m => ({ default: m.LogFlowView })), { ssr: false })
 import useSWR, { mutate } from 'swr'
@@ -107,8 +109,11 @@ export default function DailyPage() {
   const weekKey = viewMode === 'week' ? `/api/daily/week?start=${weekStart}&personal=1` : null
   const { data: weekLogs = [], isLoading: weekLoading } = useSWR<DailyLog[]>(weekKey, fetcher)
 
-  // 입력 상태
-  const [content, setContent] = useState('')
+  // 입력 상태 — 임시저장(새로고침 유지)+Undo(Ctrl+Z) 공용 코어
+  const newTaskRef = useRef<HTMLDivElement>(null)
+  const draft = useFormCore<string>({ formId: 'daily-new', initial: '', scopeRef: newTaskRef })
+  const content = draft.value
+  const setContent = draft.set
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [editType, setEditType] = useState<DailyLogEntryType>('done')
@@ -222,6 +227,7 @@ export default function DailyPage() {
     const result = await addMultipleDailyLogs(collected, selectedDate)
     if (result.ok) {
       setContent('')
+      draft.clear()   // 저장 성공 → 임시저장본 삭제(유령 복원 방지)
       setAiHintCount(0)
       await mutate(`/api/daily/logs?date=${selectedDate}`)
       // 저장된 항목 중 일정성 항목 자동 캘린더 등록 (저장 직후 1회)
@@ -458,7 +464,8 @@ export default function DailyPage() {
             {/* 좌측 메인 영역: 입력 폼 및 업무 타임라인 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}>
               {/* 입력 폼 */}
-              <div className="daily-compose-card">
+              <div className="daily-compose-card" ref={newTaskRef}>
+                <DraftRestoreBanner show={draft.hasDraft} onRestore={draft.restore} onDiscard={draft.discard} />
                 <div className="daily-compose-row">
                   <textarea
                     value={content}
