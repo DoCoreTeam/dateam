@@ -18,10 +18,15 @@ export async function GET(req: NextRequest) {
   endDate.setDate(endDate.getDate() + 6)
   const end = endDate.toISOString().slice(0, 10)
 
-  // 본인 작성 + 본인이 담당자인 부서업무(assignee)를 주간보고 인용 후보에 포함 (RLS가 가시성 보증)
-  const { data, error } = await (supabase.from('daily_logs') as any)
-    .select('*')
-    .or(`user_id.eq.${user.id},assignee_user_id.eq.${user.id}`)
+  // personal=1: 일일 주간뷰 — 개인 업무만(부서업무 역류 제거). 미지정: 주간보고/캘린더 — 담당 부서업무 인용 포함(기존 동작 보존)
+  const personalOnly = req.nextUrl.searchParams.get('personal') === '1'
+  let q = (supabase.from('daily_logs') as any).select('*')
+  if (personalOnly) {
+    q = q.eq('user_id', user.id).eq('task_kind', 'personal')
+  } else {
+    q = q.or(`user_id.eq.${user.id},assignee_user_id.eq.${user.id}`)
+  }
+  const { data, error } = await q
     .or(`and(log_date.gte.${start},log_date.lte.${end}),and(target_date.gte.${start},target_date.lte.${end})`)
     .order('log_date', { ascending: true })
     .order('logged_at', { ascending: true })

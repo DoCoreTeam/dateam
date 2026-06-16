@@ -104,7 +104,7 @@ export default function DailyPage() {
   const { data: carryoverLogs = [], isLoading: carryoverLoading } = useSWR<DailyLog[]>(carryoverKey, fetcher)
 
   // SWR 훅 — 주간 로그
-  const weekKey = viewMode === 'week' ? `/api/daily/week?start=${weekStart}` : null
+  const weekKey = viewMode === 'week' ? `/api/daily/week?start=${weekStart}&personal=1` : null
   const { data: weekLogs = [], isLoading: weekLoading } = useSWR<DailyLog[]>(weekKey, fetcher)
 
   // 입력 상태

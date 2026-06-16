@@ -157,6 +157,7 @@ export async function getDailyLogs(date: string): Promise<DailyLog[]> {
   const { data } = await (supabase.from('daily_logs') as any)
     .select('*')
     .eq('user_id', user.id)
+    .eq('task_kind', 'personal')   // 일일=개인 업무만 (부서업무 역류 제거)
     .eq('log_date', date)
     .order('logged_at', { ascending: true })
     .limit(DAY_LIMIT)
