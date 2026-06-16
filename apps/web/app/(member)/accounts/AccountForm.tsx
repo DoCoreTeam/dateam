@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Account } from '@/types/database'
 import { ACCOUNT_SEGMENTS, ACCOUNT_TYPES, GPU_DEMAND_LEVELS } from '@/lib/crm'
+import { useFormCore } from '@/lib/forms/useFormCore'
+import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 
 interface Props {
   account?: Account
@@ -13,7 +15,8 @@ export default function AccountForm({ account }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [scoring, setScoring] = useState(false)
-  const [form, setForm] = useState({
+  const formRef = useRef<HTMLFormElement>(null)
+  const initialForm = {
     name: account?.name ?? '',
     industry: account?.industry ?? '',
     segment: account?.segment ?? '',
@@ -28,13 +31,16 @@ export default function AccountForm({ account }: Props) {
     registration_number: account?.registration_number ?? '',
     source: account?.source ?? '',
     tags: account?.tags?.join(', ') ?? '',
-  })
+  }
+  const fc = useFormCore<typeof initialForm>({ formId: 'account', recordId: account?.id ?? 'new', initial: initialForm, scopeRef: formRef })
+  const form = fc.value
+  const setForm = (next: typeof initialForm) => fc.set(next)
   const [fitScore, setFitScore] = useState<number | null>(account?.fit_score ?? null)
   const [fitReason, setFitReason] = useState(account?.fit_reason ?? '')
   const [error, setError] = useState('')
 
   function set(field: string, value: string) {
-    setForm((prev) => ({ ...prev, [field]: value }))
+    setForm({ ...form, [field]: value })
   }
 
   async function handleFitScore() {
@@ -83,6 +89,7 @@ export default function AccountForm({ account }: Props) {
     const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     const data = await res.json() as { id?: string; error?: string }
     if (!res.ok) { setError(data.error ?? '저장 실패'); setLoading(false); return }
+    fc.clear()
     router.push(`/accounts/${data.id ?? account?.id}`)
     router.refresh()
   }
@@ -91,7 +98,9 @@ export default function AccountForm({ account }: Props) {
 
   return (
     <div className="card" style={{ padding: 'var(--space-6)', maxWidth: '640px' }}>
+      <DraftRestoreBanner show={fc.hasDraft} onRestore={fc.restore} onDiscard={fc.discard} />
       <form
+        ref={formRef}
         onSubmit={handleSubmit}
         onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.currentTarget.requestSubmit() } }}
         style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}

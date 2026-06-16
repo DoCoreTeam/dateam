@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Deal, Account, Contact } from '@/types/database'
 import { DEAL_NATURES, LEAD_TYPES, PRODUCTS, probabilityForStage } from '@/lib/crm'
+import { useFormCore } from '@/lib/forms/useFormCore'
+import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 
 const STAGES = ['신규', '검증', '컨택', 'PoC', '제안', '협상', '수주', '실패'] as const
 
@@ -18,7 +20,8 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [form, setForm] = useState({
+  const formRef = useRef<HTMLFormElement>(null)
+  const initialForm = {
     title: deal?.title ?? '',
     account_id: deal?.account_id ?? defaultAccountId ?? '',
     contact_id: deal?.contact_id ?? '',
@@ -38,10 +41,13 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
     procurement_status: deal?.procurement_status ?? '',
     source: deal?.source ?? '',
     tags: deal?.tags?.join(', ') ?? '',
-  })
+  }
+  const fc = useFormCore<typeof initialForm>({ formId: 'deal', recordId: deal?.id ?? 'new', initial: initialForm, scopeRef: formRef })
+  const form = fc.value
+  const setForm = (next: typeof initialForm) => fc.set(next)
 
   function set(field: string, value: string) {
-    setForm((prev) => ({ ...prev, [field]: value }))
+    setForm({ ...form, [field]: value })
   }
 
   const filteredContacts = form.account_id
@@ -81,6 +87,7 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
     const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     const data = await res.json() as { id?: string; error?: string }
     if (!res.ok) { setError(data.error ?? '저장 실패'); setLoading(false); return }
+    fc.clear()
     router.push(`/deals/${data.id ?? deal?.id}`)
     router.refresh()
   }
@@ -89,7 +96,9 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
 
   return (
     <div className="card" style={{ padding: 'var(--space-6)', maxWidth: '640px' }}>
+      <DraftRestoreBanner show={fc.hasDraft} onRestore={fc.restore} onDiscard={fc.discard} />
       <form
+        ref={formRef}
         onSubmit={handleSubmit}
         onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.currentTarget.requestSubmit() } }}
         style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Camera, Loader2, ImageOff, RefreshCw } from 'lucide-react'
 import type { Contact, Account } from '@/types/database'
 import { CONTACT_ROLES } from '@/lib/crm'
+import { useFormCore } from '@/lib/forms/useFormCore'
+import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 
 interface Props {
   contact?: Contact
@@ -18,7 +20,8 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [form, setForm] = useState({
+  const formRef = useRef<HTMLFormElement>(null)
+  const initialForm = {
     name: contact?.name ?? '',
     account_id: contact?.account_id ?? defaultAccountId ?? '',
     title: contact?.title ?? '',
@@ -29,7 +32,11 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
     linkedin: contact?.linkedin ?? '',
     role: contact?.role ?? '',
     notes: contact?.notes ?? '',
-  })
+  }
+  // 임시저장(새로고침 유지)+Undo 공용 코어
+  const fc = useFormCore<typeof initialForm>({ formId: 'contact', recordId: contact?.id ?? 'new', initial: initialForm, scopeRef: formRef })
+  const form = fc.value
+  const setForm = (next: typeof initialForm) => fc.set(next)
 
   const [businessCardDriveId, setBusinessCardDriveId] = useState<string | null>(
     contact?.business_card_drive_id ?? null
@@ -103,7 +110,7 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
   }
 
   function set(field: string, value: string) {
-    setForm((prev) => ({ ...prev, [field]: value }))
+    setForm({ ...form, [field]: value })
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -131,6 +138,7 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
     const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     const data = await res.json() as { id?: string; error?: string }
     if (!res.ok) { setError(data.error ?? '저장 실패'); setLoading(false); return }
+    fc.clear()   // 저장 성공 → 임시저장본 삭제
     router.push(`/contacts/${data.id ?? contact?.id}`)
     router.refresh()
   }
@@ -141,7 +149,9 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
 
   return (
     <div className="card" style={{ padding: 'var(--space-6)', maxWidth: '640px' }}>
+      <DraftRestoreBanner show={fc.hasDraft} onRestore={fc.restore} onDiscard={fc.discard} />
       <form
+        ref={formRef}
         onSubmit={handleSubmit}
         onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.currentTarget.requestSubmit() } }}
         style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}
