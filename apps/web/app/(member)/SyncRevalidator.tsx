@@ -114,6 +114,17 @@ export default function SyncRevalidator() {
       const changed = Object.keys(next).filter((r) => next[r] !== prev[r])
       if (changed.length === 0) return // 변화 없음 → 네트워크 0
 
+      // 매핑 안 된 리소스가 바뀌면 매칭 키가 없어 silent skip → stale 위험.
+      // BE가 versions에 리소스를 추가했는데 FE 매처를 안 넣은 경우. dev 경고 + 전체 재검증 fail-safe.
+      const unmapped = changed.filter((r) => !RESOURCE_KEY_MATCHERS[r])
+      if (unmapped.length > 0) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[SyncRevalidator] 매핑 없는 변경 리소스 → 전체 재검증:', unmapped)
+        }
+        await mutate(() => true)
+        return
+      }
+
       await mutate((key) => changed.some((r) => matchResource(r, key)), undefined, {
         revalidate: true,
       })

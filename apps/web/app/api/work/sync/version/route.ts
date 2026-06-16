@@ -23,6 +23,9 @@ async function tokenFor(
   table: string,
   userId: string,
 ): Promise<string> {
+  // 방어: userId 누락 시 즉시 실패. accounts/deals/contacts는 "팀 read" RLS라
+  // user_id 필터가 빠지면 타인 활동 시각/건수가 토큰에 섞여 정보 노출 → 회귀 차단.
+  if (!userId) throw new Error('tokenFor: userId required')
   // count: 본인 범위 행 수(삭제 반영). max updated_at: 최신 갱신 시각.
   const countPromise = (supabase.from(table) as any)
     .select('*', { count: 'exact', head: true })
