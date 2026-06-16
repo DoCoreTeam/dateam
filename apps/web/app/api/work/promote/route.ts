@@ -11,11 +11,14 @@ export async function POST(req: NextRequest) {
   try { body = await req.json() } catch { return NextResponse.json({ error: '요청 형식 오류' }, { status: 400 }) }
   const sourceLogId = typeof body.sourceLogId === 'string' ? body.sourceLogId : ''
   const departmentId = typeof body.departmentId === 'string' ? body.departmentId : ''
+  const PRIORITIES = ['urgent', 'high', 'normal', 'low'] as const
+  const priority = typeof body.priority === 'string' && (PRIORITIES as readonly string[]).includes(body.priority)
+    ? (body.priority as typeof PRIORITIES[number]) : undefined  // 화이트리스트 검증(임의 문자열 차단)
   const result = await promoteDailyToDeptTask(sourceLogId, {
     departmentId,
     assigneeUserId: typeof body.assigneeUserId === 'string' ? body.assigneeUserId : null,
     targetDate: typeof body.targetDate === 'string' ? body.targetDate : null,
-    priority: typeof body.priority === 'string' ? (body.priority as 'urgent' | 'high' | 'normal' | 'low') : undefined,
+    priority,
   })
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 })
   return NextResponse.json({ ok: true, id: result.data.id })

@@ -36,7 +36,7 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
   // 임시저장(새로고침 유지)+Undo 공용 코어
   const fc = useFormCore<typeof initialForm>({ formId: 'contact', recordId: contact?.id ?? 'new', initial: initialForm, scopeRef: formRef })
   const form = fc.value
-  const setForm = (next: typeof initialForm) => fc.set(next)
+  const setForm = fc.set
 
   const [businessCardDriveId, setBusinessCardDriveId] = useState<string | null>(
     contact?.business_card_drive_id ?? null
@@ -110,7 +110,7 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
   }
 
   function set(field: string, value: string) {
-    setForm({ ...form, [field]: value })
+    setForm((prev) => ({ ...prev, [field]: value }))
   }
 
   async function handleSubmit(e: React.FormEvent) {

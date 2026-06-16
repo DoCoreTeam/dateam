@@ -29,7 +29,7 @@ export async function GET() {
   const distribution = distRaw.map((d) => ({ id: d.id, name: d.id === '__etc__' ? '기타' : (nameMap.get(d.id) ?? '(삭제됨)'), count: d.count }))
 
   // 활동 추세(주별) + 상태 롤업
-  const today = new Date().toISOString().slice(0, 10)
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' })  // KST 기준 오늘(주차 경계 정합)
   const trend = weeklyTrend(rows.map((r) => r.log_date).filter(Boolean), today, 8)
   const rollup = statusRollup(rows.map((r) => r.entry_type))
 

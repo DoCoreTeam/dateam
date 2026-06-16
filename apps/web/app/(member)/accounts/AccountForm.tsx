@@ -34,13 +34,13 @@ export default function AccountForm({ account }: Props) {
   }
   const fc = useFormCore<typeof initialForm>({ formId: 'account', recordId: account?.id ?? 'new', initial: initialForm, scopeRef: formRef })
   const form = fc.value
-  const setForm = (next: typeof initialForm) => fc.set(next)
+  const setForm = fc.set
   const [fitScore, setFitScore] = useState<number | null>(account?.fit_score ?? null)
   const [fitReason, setFitReason] = useState(account?.fit_reason ?? '')
   const [error, setError] = useState('')
 
   function set(field: string, value: string) {
-    setForm({ ...form, [field]: value })
+    setForm((prev) => ({ ...prev, [field]: value }))
   }
 
   async function handleFitScore() {

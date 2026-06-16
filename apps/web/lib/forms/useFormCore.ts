@@ -4,6 +4,7 @@
 // 모든 입력면이 import. SSOT. 민감정보 제외. SSR 안전(마운트 후 복원).
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { draftKey, serializeDraft, parseDraft, draftDiffers, DEFAULT_TTL_MS } from './draft-core'
+import { useDraftUserId } from './use-draft-user'
 import { initHistory, pushHistory, undo as undoH, redo as redoH, canUndo as cu, canRedo as cr, resetHistory, type History } from './history-core'
 
 interface Opts<T> {
@@ -22,7 +23,7 @@ interface Opts<T> {
 
 export interface FormCore<T> {
   value: T
-  set: (next: T) => void
+  set: (next: T | ((prev: T) => T)) => void
   undo: () => void
   redo: () => void
   canUndo: boolean
@@ -34,8 +35,13 @@ export interface FormCore<T> {
 }
 
 export function useFormCore<T>(opts: Opts<T>): FormCore<T> {
-  const { formId, recordId = 'new', userId = '', initial, enabled = true, exclude = [], ttlMs = DEFAULT_TTL_MS, debounceMs = 500, maxHistory = 100, scopeRef } = opts
-  const key = draftKey(userId, formId, recordId)
+  const { formId, recordId = 'new', userId, initial, enabled = true, exclude = [], ttlMs = DEFAULT_TTL_MS, debounceMs = 500, maxHistory = 100, scopeRef } = opts
+  // userId 미지정 시 세션에서 자동 해석(공용PC PII 노출 방지). 확정 전엔 비활성(anon 키 쓰기 금지).
+  const autoUid = useDraftUserId()
+  const effUserId = userId ?? autoUid ?? ''
+  const ready = userId !== undefined ? true : autoUid !== null
+  const enabledEff = enabled && ready
+  const key = draftKey(effUserId, formId, recordId)
   const [hist, setHist] = useState<History<T>>(() => initHistory(initial))
   const [hasDraft, setHasDraft] = useState(false)
   const pendingDraft = useRef<T | null>(null)
@@ -43,7 +49,7 @@ export function useFormCore<T>(opts: Opts<T>): FormCore<T> {
 
   // 마운트 후 draft 복원 검사(SSR 안전 — 클라에서만 localStorage 접근)
   useEffect(() => {
-    if (!enabled || typeof window === 'undefined') return
+    if (!enabledEff || typeof window === 'undefined') return
     const env = parseDraft<T>(window.localStorage.getItem(key), ttlMs, Date.now())
     if (env && draftDiffers(env.value, initial, exclude)) {
       pendingDraft.current = env.value
@@ -52,13 +58,13 @@ export function useFormCore<T>(opts: Opts<T>): FormCore<T> {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
 
-  const set = useCallback((next: T) => {
-    setHist((h) => pushHistory(h, next, maxHistory))
+  const set = useCallback((next: T | ((prev: T) => T)) => {
+    setHist((h) => pushHistory(h, typeof next === 'function' ? (next as (p: T) => T)(h.present) : next, maxHistory))
   }, [maxHistory])
 
   // value 변경 → 디바운스 localStorage 저장
   useEffect(() => {
-    if (!enabled || typeof window === 'undefined') return
+    if (!enabledEff || typeof window === 'undefined') return
     if (timer.current) clearTimeout(timer.current)
     timer.current = setTimeout(() => {
       try { window.localStorage.setItem(key, serializeDraft(hist.present, Date.now(), exclude)) } catch { /* quota 등 무시 */ }
@@ -69,7 +75,7 @@ export function useFormCore<T>(opts: Opts<T>): FormCore<T> {
 
   // 탭 닫힘/새로고침 직전 flush(디바운스 미반영분 보존)
   useEffect(() => {
-    if (!enabled || typeof window === 'undefined') return
+    if (!enabledEff || typeof window === 'undefined') return
     const onUnload = () => { try { window.localStorage.setItem(key, serializeDraft(hist.present, Date.now(), exclude)) } catch { /* */ } }
     window.addEventListener('beforeunload', onUnload)
     return () => window.removeEventListener('beforeunload', onUnload)
@@ -93,7 +99,7 @@ export function useFormCore<T>(opts: Opts<T>): FormCore<T> {
 
   // 단축키 — scopeRef 내부 포커스 시에만. IME 조합 중·contenteditable(Tiptap) 제외.
   useEffect(() => {
-    if (!enabled || !scopeRef) return
+    if (!enabledEff || !scopeRef) return
     const onKey = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey
       if (!mod) return

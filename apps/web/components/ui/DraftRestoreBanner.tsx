@@ -18,7 +18,7 @@ export default function DraftRestoreBanner({ show, onRestore, onDiscard }: {
           padding: '2px 10px', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--brand)',
           background: 'var(--brand)', color: '#fff', fontSize: 'var(--fs-xs)', fontWeight: 700, cursor: 'pointer',
         }}>복원</button>
-        <button onClick={onDiscard} style={{
+        <button onClick={onDiscard} data-testid="draft-discard-btn" style={{
           padding: '2px 10px', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)',
           background: 'var(--surface-bg)', color: 'var(--text-muted)', fontSize: 'var(--fs-xs)', cursor: 'pointer',
         }}>버리기</button>

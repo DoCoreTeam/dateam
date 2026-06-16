@@ -44,10 +44,10 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
   }
   const fc = useFormCore<typeof initialForm>({ formId: 'deal', recordId: deal?.id ?? 'new', initial: initialForm, scopeRef: formRef })
   const form = fc.value
-  const setForm = (next: typeof initialForm) => fc.set(next)
+  const setForm = fc.set
 
   function set(field: string, value: string) {
-    setForm({ ...form, [field]: value })
+    setForm((prev) => ({ ...prev, [field]: value }))
   }
 
   const filteredContacts = form.account_id
