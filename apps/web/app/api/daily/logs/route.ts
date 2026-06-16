@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await (supabase.from('daily_logs') as any)
     .select('*')
     .eq('user_id', user.id)
+    .eq('task_kind', 'personal')   // 일일 화면=개인 업무만. 부서업무(dept_task) 역류 제거
     .or(`log_date.eq.${date},target_date.eq.${date}`)
     .order('logged_at', { ascending: true })
     .limit(DAY_LIMIT)

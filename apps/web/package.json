@@ -1,13 +1,13 @@
 {
   "name": "web",
-  "version": "0.7.144",
+  "version": "0.7.146",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --test --experimental-strip-types \"app/(member)/daily/grouping.test.ts\" \"lib/daily/duplicate.test.ts\" \"lib/daily/schedule-candidates.test.ts\" \"lib/daily/feedback-signals.test.ts\" \"lib/gpu/config-ladder.test.ts\" \"lib/gpu/format-spec.test.ts\" \"lib/gpu/parse-quantity.test.ts\" \"lib/gpu/pricing.test.ts\" \"lib/gpu/parity.test.ts\" \"lib/dept-task-utils.test.ts\" \"lib/gpu/csv-intake.test.ts\" \"lib/gpu/confidence-gate.test.ts\" \"lib/gpu/unified-price-pick.test.ts\" \"lib/gpu/stock-status.test.ts\" \"lib/gpu/expiry.test.ts\" \"lib/gemini-refine.test.ts\" \"lib/week.test.ts\" \"lib/daily-quality.test.ts\" \"lib/prompt-eval-spec.test.ts\" \"lib/gpu/catalog-map.test.ts\" \"lib/theme.test.ts\""
+    "test": "node --test --experimental-strip-types \"app/(member)/daily/grouping.test.ts\" \"lib/daily/duplicate.test.ts\" \"lib/daily/schedule-candidates.test.ts\" \"lib/daily/feedback-signals.test.ts\" \"lib/gpu/config-ladder.test.ts\" \"lib/gpu/format-spec.test.ts\" \"lib/gpu/parse-quantity.test.ts\" \"lib/gpu/pricing.test.ts\" \"lib/gpu/parity.test.ts\" \"lib/dept-task-utils.test.ts\" \"lib/gpu/csv-intake.test.ts\" \"lib/gpu/confidence-gate.test.ts\" \"lib/gpu/unified-price-pick.test.ts\" \"lib/gpu/stock-status.test.ts\" \"lib/gpu/expiry.test.ts\" \"lib/gemini-refine.test.ts\" \"lib/week.test.ts\" \"lib/daily-quality.test.ts\" \"lib/prompt-eval-spec.test.ts\" \"lib/gpu/catalog-map.test.ts\" \"lib/theme.test.ts\" \"lib/work/autolink.test.ts\" \"lib/forms/forms-core.test.ts\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

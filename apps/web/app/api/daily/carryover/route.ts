@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await (supabase.from('daily_logs') as any)
     .select('*')
     .eq('user_id', user.id)
+    .eq('task_kind', 'personal')   // 이월도 개인 업무만 (부서업무 역류 제거)
     .eq('is_resolved', false)
     .in('entry_type', ['planned', 'doing', 'blocker'])
     .gte('log_date', from)
