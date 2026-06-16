@@ -20,6 +20,7 @@ import { fmtMoneyFromKrw } from '@/lib/gpu/format-price'
 import { GcubeSyncBadge } from '@/components/pricing/gpu/cockpit/GcubeSyncBadge'
 import type { GcubeCheckItem } from '@/app/api/pricing/gpu/gcube-check/route'
 import type { CurrencyCtx, UnifiedRow } from '@/lib/gpu/unified-row'
+import { formatCardMemory } from '@/lib/gpu/card-memory'
 
 const COCKPIT_KEY = '/api/pricing/gpu/cockpit'
 const GCUBE_KEY = '/api/pricing/gpu/gcube-check'
@@ -240,7 +241,7 @@ export default function BulkReflectPanel({ rows, currency, onClose }: BulkReflec
                         </td>
                         <td>
                           <span className="gpu-bulk-model">{row.model_name}</span>
-                          {row.memory && <small className="gpu-bulk-mem">{row.memory}</small>}
+                          {row.memory && <small className="gpu-bulk-mem">{formatCardMemory(row.memory, row.gpu_count)}</small>}
                         </td>
                         <td className="gpu-bulk-num gpu-mono">{mKrw(row.strategic_price_krw)}</td>
                         <td className="gpu-bulk-num gpu-mono">{mKrw(row.auto_price_krw)}</td>
