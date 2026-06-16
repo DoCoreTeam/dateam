@@ -7,8 +7,8 @@ import type { DeptTaskOrigin } from './actions'
 import { STATUS_COLORS } from '@/lib/tokens/status-colors'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
-import WorkTabBar from '@/components/ui/WorkTabBar'
-import PageHeader from '@/components/ui/PageHeader'
+import WorkPageShell from '@/components/ui/WorkPageShell'
+import WorkSubTabs from '@/components/ui/WorkSubTabs'
 import { listDeptTasks } from './actions'
 import DeptTaskFormModal from './DeptTaskFormModal'
 import DeptTaskDetail from './DeptTaskDetail'
@@ -63,32 +63,22 @@ export default function DeptTasksClient({
   const canEditSelected = !!selected && (selected.user_id === currentUserId || selectedDeptEditable)
 
   return (
-    <div className="page-inner">
-      <WorkTabBar />
-      <PageHeader
-        title="부서 업무"
-        description="부서 단위 업무를 등록하고 담당자·진행을 관리합니다"
-        actions={canCreate ? <NbButton onClick={() => setShowCreate(true)} aria-label="새 부서 업무 등록">+ 새 업무</NbButton> : undefined}
-      />
-
+    <WorkPageShell
+      title="부서 업무"
+      description="부서 단위 업무를 등록하고 담당자·진행을 관리합니다"
+      actions={canCreate ? <NbButton onClick={() => setShowCreate(true)} aria-label="새 부서 업무 등록">+ 새 업무</NbButton> : undefined}
+      subTabs={
+        <WorkSubTabs
+          items={STATUS_FILTERS.map((f) => ({ key: f.value, label: f.label }))}
+          activeKey={filter}
+          onSelect={(k) => setFilter(k as DailyLogEntryType | 'all')}
+          ariaLabel="상태 필터"
+        />
+      }
+    >
       {canCreate && (
         <DeptTaskSuggestPanel creatableDepts={creatableDepts} editableDeptIds={editableDeptIds} onRegistered={refresh} />
       )}
-
-      <div role="tablist" aria-label="상태 필터" style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-4)' }}>
-        {STATUS_FILTERS.map((f) => (
-          <button
-            key={f.value}
-            role="tab"
-            aria-selected={filter === f.value}
-            onClick={() => setFilter(f.value)}
-            className={filter === f.value ? 'btn-primary' : 'btn-ghost'}
-            style={{ minHeight: 44 }}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
 
       <div className="responsive-grid-2">
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -167,6 +157,6 @@ export default function DeptTasksClient({
           onSaved={async () => { setEditing(false); await refresh() }}
         />
       )}
-    </div>
+    </WorkPageShell>
   )
 }

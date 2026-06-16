@@ -1,5 +1,3 @@
-import type React from 'react'
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getWeekStart, toDateString } from '@/lib/utils'
@@ -10,8 +8,8 @@ import ReportAccordion from './ReportAccordion'
 import OnboardingRestartLink from './OnboardingRestartLink'
 import OrgWeeklyView from './OrgWeeklyView'
 import DeptTaskWeeklyPanel from './DeptTaskWeeklyPanel'
-import WorkTabBar from '@/components/ui/WorkTabBar'
-import PageHeader from '@/components/ui/PageHeader'
+import WorkPageShell from '@/components/ui/WorkPageShell'
+import WorkSubTabs from '@/components/ui/WorkSubTabs'
 import WeeklyMemoReview from '@/components/ui/memo/WeeklyMemoReview'
 import { FileText, Users, GitBranch } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
@@ -181,42 +179,20 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     }
   }
 
-  const tabStyle = (isActive: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.375rem',
-    padding: 'var(--space-2) var(--space-4)',
-    fontSize: 'var(--fs-base)',
-    fontWeight: isActive ? 600 : 500,
-    color: isActive ? 'var(--brand)' : 'var(--text-muted)',
-    borderBottom: isActive ? 'var(--border-w-2) solid var(--brand)' : 'var(--border-w-2) solid transparent',
-    cursor: 'pointer',
-    textDecoration: 'none',
-  })
+  // 서버 컴포넌트 → 클라이언트(WorkSubTabs) 경계로 함수(아이콘 컴포넌트)를 넘길 수 없으므로
+  // 텍스트 라벨만 전달(다른 3개 화면도 아이콘 없음 — 4페이지 서브탭 질감 통일).
+  const subTabItems = [
+    { key: 'mine', label: '내 보고', href: '/weekly-report?tab=mine' },
+    { key: 'team', label: '팀 전체', href: '/weekly-report?tab=team' },
+    ...(showOrgTab ? [{ key: 'org', label: '조직 현황', href: '/weekly-report?tab=org' }] : []),
+  ]
 
   return (
-    <div className="page-inner">
-      <WorkTabBar />
-      <PageHeader title="주간보고" description="주간 성과, 계획, 이슈를 기록합니다" />
-
-      {/* 탭 */}
-      <div style={{ display: 'flex', borderBottom: 'var(--border-w-2) solid var(--border-color)', marginBottom: '1.5rem' }}>
-        <Link href="/weekly-report?tab=mine" style={tabStyle(activeTab === 'mine')}>
-          <FileText size={14} />
-          내 보고
-        </Link>
-        <Link href="/weekly-report?tab=team" style={tabStyle(activeTab === 'team')}>
-          <Users size={14} />
-          팀 전체
-        </Link>
-        {showOrgTab && (
-          <Link href="/weekly-report?tab=org" style={tabStyle(activeTab === 'org')}>
-            <GitBranch size={14} />
-            조직 현황
-          </Link>
-        )}
-      </div>
-
+    <WorkPageShell
+      title="주간보고"
+      description="주간 성과, 계획, 이슈를 기록합니다"
+      subTabs={<WorkSubTabs items={subTabItems} activeKey={activeTab} ariaLabel="주간보고 탭 전환" />}
+    >
       {activeTab === 'mine' ? (
         <>
           {justSaved && (
@@ -293,6 +269,6 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
         <DeptTaskWeeklyPanel deptNameMap={Object.fromEntries(orgScope.nodes.map((n) => [n.id, n.name]))} />
         </>
       )}
-    </div>
+    </WorkPageShell>
   )
 }

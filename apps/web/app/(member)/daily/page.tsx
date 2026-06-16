@@ -4,8 +4,8 @@ import { useState, useEffect, useTransition, useRef, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Sparkles, MessageSquare } from 'lucide-react'
 import dynamic from 'next/dynamic'
-import WorkTabBar from '@/components/ui/WorkTabBar'
-import PageHeader from '@/components/ui/PageHeader'
+import WorkPageShell from '@/components/ui/WorkPageShell'
+import WorkSubTabs from '@/components/ui/WorkSubTabs'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import PromoteToDeptButton from './PromoteToDeptButton'
@@ -539,30 +539,23 @@ export default function DailyPage() {
         onUndoIgnore={handleUndoIgnore}
       />
     )}
-    <div className="page-inner daily-shell">
-      <div className="daily-tabbar-wrap">
-        <WorkTabBar />
-      </div>
-      <PageHeader
-        title="일일업무"
-        description="오늘의 업무를 기록하고 관리합니다"
-        className="daily-page-header"
-        descClassName="daily-page-desc"
-      />
-
-      {/* 뷰 탭 */}
-      <div className="daily-view-tabs daily-view-tabs--tight" aria-label="일일업무 보기 전환">
-        {(['day', 'week', 'memo'] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => setViewMode(m)}
-            className={`daily-view-tab ${viewMode === m ? 'is-active' : ''}`}
-          >
-            {m === 'day' ? '일간' : m === 'week' ? '주간' : '메모'}
-          </button>
-        ))}
-      </div>
-
+    <WorkPageShell
+      title="일일업무"
+      description="오늘의 업무를 기록하고 관리합니다"
+      rootClassName="daily-shell"
+      subTabs={
+        <WorkSubTabs
+          items={[
+            { key: 'day', label: '일간' },
+            { key: 'week', label: '주간' },
+            { key: 'memo', label: '메모' },
+          ]}
+          activeKey={viewMode}
+          onSelect={(k) => setViewMode(k as 'day' | 'week' | 'memo')}
+          ariaLabel="일일업무 보기 전환"
+        />
+      }
+    >
       {/* ===== 메모 뷰 ===== */}
       {viewMode === 'memo' && (
         <div style={{ marginTop: '1rem' }}>
@@ -945,7 +938,7 @@ export default function DailyPage() {
           )}
         </>
       )}
-    </div>
+    </WorkPageShell>
     </>
   )
 }

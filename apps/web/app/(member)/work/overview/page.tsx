@@ -5,8 +5,8 @@ import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import WorkTabBar from '@/components/ui/WorkTabBar'
-import PageHeader from '@/components/ui/PageHeader'
+import WorkPageShell from '@/components/ui/WorkPageShell'
+import WorkSubTabs from '@/components/ui/WorkSubTabs'
 
 type Axis = 'account' | 'deal' | 'project'
 interface Group { id: string; name: string; count: number; statusCounts: Record<string, number>; recent: { id: string; content: string; entry_type: string }[] }
@@ -36,9 +36,26 @@ export default function WorkOverviewPage() {
   const ungrouped = data?.ungrouped ?? 0
 
   return (
-    <div className="page-inner">
-      <WorkTabBar />
-      <PageHeader title="업무 현황" description="내가 어느 고객·딜에 얼마나 관여하고 있는지 한눈에 봅니다" />
+    <WorkPageShell
+      title="업무 현황"
+      description="내가 어느 고객·딜에 얼마나 관여하고 있는지 한눈에 봅니다"
+      subTabs={
+        <WorkSubTabs
+          items={AXIS.map((a) => ({ key: a.key, label: a.label, testId: `axis-${a.key}` }))}
+          activeKey={axis}
+          onSelect={(k) => setAxis(k as Axis)}
+          ariaLabel="현황 축 전환"
+        />
+      }
+    >
+      {axis === 'project' && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-3)' }}>
+          <Link href="/work/projects" data-testid="manage-projects-link"
+            style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand)', textDecoration: 'none', padding: '6px 12px', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--brand)' }}>
+            프로젝트 관리 →
+          </Link>
+        </div>
+      )}
 
       {/* 워크로드 대시보드 — 관여분포·활동추세·상태 롤업(건수/비중) */}
       {dash && (
@@ -82,26 +99,6 @@ export default function WorkOverviewPage() {
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 'var(--space-1)' }}>
-          {AXIS.map((a) => (
-            <button key={a.key} onClick={() => setAxis(a.key)} data-testid={`axis-${a.key}`}
-              style={{
-                fontSize: 'var(--fs-sm)', padding: '6px 14px', borderRadius: 'var(--radius)', cursor: 'pointer',
-                background: axis === a.key ? 'var(--brand)' : 'var(--surface-bg)',
-                color: axis === a.key ? 'var(--brand-fg)' : 'var(--text-muted)',
-                border: `var(--border-w-2) solid ${axis === a.key ? 'var(--brand)' : 'var(--border-color)'}`,
-              }}>{a.label}</button>
-          ))}
-        </div>
-        {axis === 'project' && (
-          <Link href="/work/projects" data-testid="manage-projects-link"
-            style={{ marginLeft: 'auto', fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand)', textDecoration: 'none', padding: '6px 12px', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--brand)' }}>
-            프로젝트 관리 →
-          </Link>
-        )}
-      </div>
-
       {isLoading ? (
         <div style={{ color: 'var(--text-faint)', padding: 'var(--space-6)', textAlign: 'center' }}>불러오는 중…</div>
       ) : (
@@ -139,6 +136,6 @@ export default function WorkOverviewPage() {
           🔗 아직 {AXIS_NOUN[axis]}에 연결 안 된 업무 <b style={{ color: 'var(--text)' }}>{ungrouped}건</b> — 업무 플로우에서 AI가 연관을 제안합니다.
         </div>
       )}
-    </div>
+    </WorkPageShell>
   )
 }

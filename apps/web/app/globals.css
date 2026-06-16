@@ -2239,35 +2239,60 @@ label.intake-tool-btn {
   }
 }
 
-.daily-view-tabs {
+/* ===== 업무 영역 공용 스캐폴드 (WorkPageShell / WorkSubTabs) — SSOT =====
+ * 일일/부서/주간/현황 4화면이 동일한 "탭바 → 제목 → 서브탭 → 콘텐츠" 골격·여백을 공유한다.
+ * 토큰만 사용. 페이지별 인라인 헤더/서브탭 자작 금지(여기 한 벌로 통일). */
+/* WorkTabBar는 standalone(work/work-projects)에서도 쓰여 nav 자체 marginBottom(--space-5)을 가진다.
+ * 쉘 안에서는 그 인라인 마진이 flex(daily)/block(타 화면) 환경에 따라 다르게 작동(마진 상쇄 차이)해
+ * 일일만 8px 더 내려가는 어긋남을 유발 → 쉘 내부에서만 nav 마진을 0으로 무력화하고 간격은 래퍼가 전담.
+ * 결과: 4페이지 탭바→제목 간격이 flex/block 무관하게 동일. */
+.work-page-shell .work-tabbar-wrap > nav { margin-bottom: 0 !important; }
+.work-tabbar-wrap { margin-bottom: var(--space-5); }
+.work-page-header { margin-bottom: var(--space-3) !important; }
+.work-subtabs-row { margin-bottom: var(--space-5); }
+
+/* 서브탭 — WorkTabBar(언더라인 섹션 네비) 아래의 pill 세그먼트. 4페이지 동일 적용. */
+.work-subtabs {
   display: flex;
-  gap: 0.25rem;
+  flex-wrap: wrap;
+  gap: var(--space-1);
   width: fit-content;
-  margin-bottom: 1.25rem;
+  max-width: 100%;
   padding: 0.25rem;
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: var(--surface-muted);
 }
-.daily-view-tab {
-  min-height: 2rem;
-  padding: 0.375rem 1rem;
+.work-subtab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2.75rem;
+  padding: 0.4rem 1rem;
   border: none;
   border-radius: var(--radius);
   background: transparent;
   color: var(--text-muted);
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
   cursor: pointer;
   transition:
     background-color 120ms ease,
     color 120ms ease,
     box-shadow 120ms ease;
 }
-.daily-view-tab.is-active {
+.work-subtab:hover { color: var(--text); }
+.work-subtab:focus-visible {
+  outline: var(--border-w-2) solid var(--brand);
+  outline-offset: 2px;
+}
+.work-subtab.is-active {
   background: #fff;
   color: var(--text);
   box-shadow: var(--shadow-sm);
 }
+
 .daily-date-nav {
   display: flex;
   align-items: center;
@@ -2350,36 +2375,28 @@ label.intake-tool-btn {
  * 일간 뷰일 때만 <main class="page-inner">에 daily-fullpane-main을 JS 부착 →
  * main의 자체 스크롤/패딩을 억제하고 daily-shell이 높이 체인을 점유한다. */
 .daily-fullpane-main {
+  /* main의 표준 page-inner 패딩(1rem 2rem 2rem)을 그대로 유지 → 다른 3개 업무화면과
+   * 상단 골격(탭바·제목·서브탭) 위치/여백이 픽셀 단위로 동일하게 정렬된다.
+   * 스크롤 격리만을 위해 overflow/flex만 부여(패딩 제로화 금지 — 정렬 어긋남 원인). */
   overflow: hidden !important;
-  /* GPU(.gpu-fullpane-main)와 동일하게 main 자체 패딩을 제거 → 상단 이중 패딩(2rem+2rem) 해소.
-   * 패딩은 아래 .daily-shell에서 GPU와 같은 1rem 2rem 0으로 재부여(SSOT는 그대로 토큰 사용). */
-  padding: 0 !important;
   display: flex !important;
   flex-direction: column !important;
 }
-/* 일간 뷰: shell이 main 높이를 100% 점유하고 내부에서 스크롤 체인을 나눈다.
- * 주간/메모 뷰에서는 daily-fullpane-main이 부착되지 않으므로 이 규칙도 무해(자식이 자연 높이).
- * 패딩: GPU .gpu-pricing-root(1rem 2rem 0)와 동일한 상단 밀도. .daily-shell도 .page-inner(2rem)이므로
- * 여기서 명시 재정의해 GPU 수준으로 위로 바짝 붙인다. */
+/* 일간 뷰: shell이 main 잔여 높이를 점유하고 내부에서 스크롤 체인을 나눈다.
+ * 패딩은 중첩 page-inner 표준(상단 0, 좌우/하단 2rem)을 그대로 사용 → 타 화면과 동일 정렬.
+ * 주간/메모 뷰에서는 daily-fullpane-main이 부착되지 않으므로 이 규칙도 무해(자식이 자연 높이). */
 .daily-fullpane-main .daily-shell {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  /* 중첩 page-inner 상쇄(main.page-inner > .page-inner: padding-top 0)를 이기고
-   * 일간뷰 상단 밀도를 GPU(.gpu-pricing-root 1rem)와 동일하게 재부여. */
-  padding: var(--space-4) var(--space-8) 0 !important;
+  /* fullpane(일간)에서는 shell 하단 패딩(중첩 page-inner 표준 2rem=32px)을 0으로 복원 →
+   * 타임라인 자체 스크롤 영역이 32px 줄거나 마지막 항목이 잘리는 회귀 방지(v0.7.163 동작).
+   * 주간/메모 뷰엔 daily-fullpane-main이 미부착이라 미적용 — 다른 페이지/뷰 영향 없음. */
+  padding-bottom: 0;
 }
 
-/* 상단 밀도 개선 — WorkTabBar~콘텐츠 사이 공백과 헤더/탭/날짜네비 여백 축소.
- * WorkTabBar는 공유 컴포넌트(미접촉)이므로 래퍼에 음수 마진으로 nav 자체 marginBottom(--space-5)을 상쇄.
- * GPU 상단(crumb+19px title+8px / tabs+22px) 밀도에 맞춰 헤더·탭 사이를 더 타이트하게. */
-.daily-tabbar-wrap { margin-bottom: calc(var(--space-2) - var(--space-5)); }
-.daily-page-header { margin-bottom: var(--space-2) !important; }
-/* GPU page-title(19px)에 준해 일간 fullpane에서만 제목을 축소(다른 뷰/페이지 PageHeader 불변). */
-.daily-fullpane-main .daily-page-header h1 { font-size: var(--fs-xl) !important; }
-.daily-page-desc { font-size: var(--fs-sm) !important; margin-top: var(--space-1) !important; }
-.daily-view-tabs.daily-view-tabs--tight { margin-bottom: var(--space-2); }
+/* 상단 밀도 — 날짜네비 여백 축소(나머지 상단 골격은 WorkPageShell/.work-* SSOT가 담당). */
 .daily-date-nav--tight { margin-bottom: var(--space-3); }
 
 /* 일간 뷰 본문: 남은 높이를 모두 차지하고 좌/우 컬럼이 각자 스크롤 */
@@ -2411,13 +2428,11 @@ label.intake-tool-btn {
 /* 모바일: 높이 고정 스크롤 분할을 해제(자연 흐름) — 가로스크롤/잘림 방지 */
 @media (max-width: 767px) {
   .daily-fullpane-main {
+    /* 모바일은 자연 흐름(스크롤 격리 해제) — main의 표준 모바일 page-inner 패딩을 그대로 사용해
+     * 타 업무화면과 동일 정렬 유지(패딩 강제 변경 금지). */
     overflow: auto !important;
-    /* 모바일은 자연 흐름 — main 패딩을 모바일 page-inner(1rem)로 복원(가로 과패딩 방지). */
-    padding: 1rem !important;
   }
-  /* 모바일: 데스크탑의 2rem 가로 패딩 override를 해제(이중 패딩/가로넘침 방지). 상단만 약간 압축.
-   * 데스크탑 daily-shell 패딩이 !important이므로 모바일도 !important로 0 재정의. */
-  .daily-fullpane-main .daily-shell { min-height: 0; padding: 0 !important; }
+  .daily-fullpane-main .daily-shell { min-height: 0; }
   .daily-day-grid .daily-day-main,
   .daily-day-grid .daily-day-side { overflow: visible; }
   .daily-timeline-scroll { overflow: visible; }
@@ -2440,9 +2455,6 @@ label.intake-tool-btn {
 .page-header-desc--compact { font-size: var(--fs-sm) !important; margin-top: var(--space-1) !important; }
 
 @media (max-width: 767px) {
-  .daily-view-tabs {
-    margin-bottom: 1rem;
-  }
   .daily-compose-card {
     padding: 0.875rem;
     border-radius: var(--radius);
