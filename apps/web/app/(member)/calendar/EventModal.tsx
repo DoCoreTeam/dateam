@@ -1,9 +1,11 @@
 'use client'
 import { useEscClose } from '@/lib/use-esc-close'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Sparkles, X } from 'lucide-react'
 import { createCalendarEvent } from './actions'
+import { useFormCore } from '@/lib/forms/useFormCore'
+import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 
 interface Props {
   date: string // YYYY-MM-DD 기본 날짜
@@ -13,7 +15,10 @@ interface Props {
 
 export default function EventModal({ date, onClose, onSaved }: Props) {
   useEscClose(onClose)
-  const [nl, setNl] = useState('')
+  const nlRef = useRef<HTMLDivElement>(null)
+  const nlDraft = useFormCore<string>({ formId: 'calendar-event', recordId: date, initial: '', scopeRef: nlRef })
+  const nl = nlDraft.value
+  const setNl = nlDraft.set
   const [aiBusy, setAiBusy] = useState(false)
   const [title, setTitle] = useState('')
   const [startDate, setStartDate] = useState(date)
@@ -73,6 +78,7 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
     const r = await createCalendarEvent({ title: title.trim(), start_at, end_at, all_day: allDay, description: desc || null, rrule })
     setBusy(false)
     if (!r.ok) { setMsg(r.error ?? '저장 실패'); return }
+    nlDraft.clear()
     onSaved()
   }
 
@@ -86,6 +92,7 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
         </div>
 
         {/* 자연어 */}
+        <div ref={nlRef}><DraftRestoreBanner show={nlDraft.hasDraft} onRestore={nlDraft.restore} onDiscard={nlDraft.discard} /></div>
         <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.875rem' }}>
           <input value={nl} onChange={(e) => setNl(e.target.value)} placeholder="자연어: 내일 오후 3시 A사 미팅"
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); parseNl() } }}
