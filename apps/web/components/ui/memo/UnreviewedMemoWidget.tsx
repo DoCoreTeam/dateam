@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
-import Link from 'next/link'
 import { StickyNote, Check, ArrowUpRight } from 'lucide-react'
 import { STALENESS_STYLE, relativeTime, type MemoListItem } from './memoUtils'
 import { setMemoStatus } from '@/app/(member)/daily/actions'
 import MemoPromoteModal from './MemoPromoteModal'
+import MemoAllModal from './MemoAllModal'
 
 interface Props {
   // compact: 홈 위젯(작게), full: 일일업무(조금 더)
@@ -16,6 +16,7 @@ export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
   const [items, setItems] = useState<MemoListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [promoteTarget, setPromoteTarget] = useState<MemoListItem | null>(null)
+  const [showAll, setShowAll] = useState(false)
   const [, startTransition] = useTransition()
 
   const limit = variant === 'compact' ? 3 : 6
@@ -63,9 +64,13 @@ export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
               {items.length}
             </span>
           </div>
-          <Link href="/daily?view=memo" style={{ fontSize: '0.78rem', color: 'var(--brand-dark)', textDecoration: 'none', fontWeight: 600 }}>
+          <button
+            type="button"
+            onClick={() => setShowAll(true)}
+            style={{ fontSize: '0.78rem', color: 'var(--brand-dark)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0 }}
+          >
             전체 →
-          </Link>
+          </button>
         </div>
 
         {shown.length === 0 ? (
@@ -100,6 +105,15 @@ export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
           </ul>
         )}
       </div>
+
+      {showAll && (
+        <MemoAllModal
+          items={items}
+          onReview={handleReview}
+          onPromote={(m) => { setShowAll(false); setPromoteTarget(m) }}
+          onClose={() => setShowAll(false)}
+        />
+      )}
 
       {promoteTarget && (
         <MemoPromoteModal
