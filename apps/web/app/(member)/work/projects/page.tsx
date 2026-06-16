@@ -68,11 +68,15 @@ export default function ProjectsPage() {
   const [deleting, setDeleting] = useState<Project | null>(null)
 
   return (
-    <div className="page-inner">
-      <WorkTabBar />
+    <div className="page-compact">
+      <div className="page-tabbar-wrap">
+        <WorkTabBar />
+      </div>
       <PageHeader
         title="프로젝트"
         description="업무를 묶는 프로젝트를 관리합니다. 프로젝트별 업무 현황은 '업무 현황 → 프로젝트별'에서 확인하세요."
+        className="page-header--compact"
+        descClassName="page-header-desc--compact"
         actions={
           <button onClick={() => setEditing({ mode: 'create' })} data-testid="new-project"
             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand-fg)', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-4)', cursor: 'pointer' }}>

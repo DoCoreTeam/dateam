@@ -172,29 +172,29 @@ export default function CalendarPage() {
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1;
 
   return (
-    <div>
+    <div className="page-compact">
       {selectedDate && (
         <DayDetailPanel
           date={selectedDate}
           onClose={() => setSelectedDate(null)}
         />
       )}
-      {/* 헤더 */}
+      {/* 헤더 — 공용 compact 밀도(GPU/일일과 동일). h1은 .page-header--compact가 fs-xl로 통일. */}
       <div
+        className="page-header--compact"
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: "1.25rem",
           flexWrap: "wrap",
           gap: "0.75rem",
         }}
       >
         <h1
           style={{
-            fontSize: "1.125rem",
             fontWeight: 700,
             color: "var(--text)",
+            letterSpacing: "-0.03em",
             margin: 0,
           }}
         >

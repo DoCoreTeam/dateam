@@ -2340,24 +2340,33 @@ label.intake-tool-btn {
  * main의 자체 스크롤/패딩을 억제하고 daily-shell이 높이 체인을 점유한다. */
 .daily-fullpane-main {
   overflow: hidden !important;
+  /* GPU(.gpu-fullpane-main)와 동일하게 main 자체 패딩을 제거 → 상단 이중 패딩(2rem+2rem) 해소.
+   * 패딩은 아래 .daily-shell에서 GPU와 같은 1rem 2rem 0으로 재부여(SSOT는 그대로 토큰 사용). */
+  padding: 0 !important;
   display: flex !important;
   flex-direction: column !important;
 }
 /* 일간 뷰: shell이 main 높이를 100% 점유하고 내부에서 스크롤 체인을 나눈다.
- * 주간/메모 뷰에서는 daily-fullpane-main이 부착되지 않으므로 이 규칙도 무해(자식이 자연 높이). */
+ * 주간/메모 뷰에서는 daily-fullpane-main이 부착되지 않으므로 이 규칙도 무해(자식이 자연 높이).
+ * 패딩: GPU .gpu-pricing-root(1rem 2rem 0)와 동일한 상단 밀도. .daily-shell도 .page-inner(2rem)이므로
+ * 여기서 명시 재정의해 GPU 수준으로 위로 바짝 붙인다. */
 .daily-fullpane-main .daily-shell {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  padding: var(--space-4) var(--space-8) 0;
 }
 
 /* 상단 밀도 개선 — WorkTabBar~콘텐츠 사이 공백과 헤더/탭/날짜네비 여백 축소.
- * WorkTabBar는 공유 컴포넌트(미접촉)이므로 래퍼에 음수 마진으로 nav 자체 marginBottom(--space-5)을 상쇄. */
-.daily-tabbar-wrap { margin-bottom: calc(var(--space-3) - var(--space-5)); }
-.daily-page-header { margin-bottom: var(--space-3) !important; }
+ * WorkTabBar는 공유 컴포넌트(미접촉)이므로 래퍼에 음수 마진으로 nav 자체 marginBottom(--space-5)을 상쇄.
+ * GPU 상단(crumb+19px title+8px / tabs+22px) 밀도에 맞춰 헤더·탭 사이를 더 타이트하게. */
+.daily-tabbar-wrap { margin-bottom: calc(var(--space-2) - var(--space-5)); }
+.daily-page-header { margin-bottom: var(--space-2) !important; }
+/* GPU page-title(19px)에 준해 일간 fullpane에서만 제목을 축소(다른 뷰/페이지 PageHeader 불변). */
+.daily-fullpane-main .daily-page-header h1 { font-size: var(--fs-xl) !important; }
 .daily-page-desc { font-size: var(--fs-sm) !important; margin-top: var(--space-1) !important; }
-.daily-view-tabs.daily-view-tabs--tight { margin-bottom: var(--space-3); }
+.daily-view-tabs.daily-view-tabs--tight { margin-bottom: var(--space-2); }
 .daily-date-nav--tight { margin-bottom: var(--space-3); }
 
 /* 일간 뷰 본문: 남은 높이를 모두 차지하고 좌/우 컬럼이 각자 스크롤 */
@@ -2390,11 +2399,44 @@ label.intake-tool-btn {
 @media (max-width: 767px) {
   .daily-fullpane-main {
     overflow: auto !important;
+    /* 모바일은 자연 흐름 — main 패딩을 모바일 page-inner(1rem)로 복원(가로 과패딩 방지). */
+    padding: 1rem !important;
   }
-  .daily-fullpane-main .daily-shell { min-height: 0; }
+  /* 모바일: 데스크탑의 2rem 가로 패딩 override를 해제(이중 패딩/가로넘침 방지). 상단만 약간 압축. */
+  .daily-fullpane-main .daily-shell { min-height: 0; padding: 0; }
   .daily-day-grid .daily-day-main,
   .daily-day-grid .daily-day-side { overflow: visible; }
   .daily-timeline-scroll { overflow: visible; }
+}
+
+/* ===== 공용 상단 밀도 압축 패턴 (SSOT — fullpane 불필요한 자연흐름 페이지용) =====
+ * GPU 콕핏/일일업무가 fullpane으로 얻은 "상단 타이트" 밀도를, 스크롤 격리가 필요 없는
+ * 일반 페이지(캘린더·프로젝트관리 등)에도 동일하게 부여하기 위한 재사용 클래스.
+ * fullpane(overflow/height 체인)은 도입하지 않고 "상단 여백"만 GPU급으로 압축한다.
+ *
+ * 적용 규칙:
+ *  - .page-compact          → 페이지 루트(.page-inner를 대체/병행). main(.page-inner 2rem) 위 이중패딩을
+ *                             제거하고 GPU root(1rem 2rem 0)와 동일한 상단 밀도로 맞춘다.
+ *  - .page-tabbar-wrap      → WorkTabBar 래퍼. nav 자체 marginBottom(--space-5)을 음수마진으로 상쇄해 압축.
+ *  - .page-header--compact  → PageHeader(className/descClassName)에 부착. 제목 fs-xl·여백 축소(daily와 동일 밀도).
+ * 셋 다 토큰만 사용 — 페이지별 매직값 금지(다른 페이지도 그대로 재사용). */
+.page-compact {
+  /* main(.page-inner)이 상단에 2rem(32px)을 이미 주는데, fullpane(JS로 main padding 0)을 도입하지 않고도
+   * GPU/일일 수준(상단 ~1rem)으로 끌어올리려면 main의 2rem을 음수마진으로 상쇄한 뒤 1rem만 재부여한다.
+   * 가로 패딩은 main(2rem)을 그대로 살린다(좌우 정렬 불변). 다른 페이지는 .page-compact 미부착이라 무영향. */
+  margin-top: calc(-1 * var(--space-8));
+  padding-top: var(--space-4);
+}
+.page-tabbar-wrap { margin-bottom: calc(var(--space-2) - var(--space-5)); }
+.page-header--compact { margin-bottom: var(--space-2) !important; }
+.page-header--compact h1 { font-size: var(--fs-xl) !important; }
+.page-header--compact .page-header-desc,
+.page-header-desc--compact { font-size: var(--fs-sm) !important; margin-top: var(--space-1) !important; }
+
+@media (max-width: 767px) {
+  /* 모바일: main page-inner가 1rem(--space-4)이므로 음수마진도 1rem으로 맞추고 상단만 0.5rem 재부여.
+   * 가로 패딩은 main(1rem) 유지. */
+  .page-compact { margin-top: calc(-1 * var(--space-4)); padding-top: var(--space-2); }
 }
 
 @media (max-width: 767px) {
