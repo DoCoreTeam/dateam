@@ -10,9 +10,12 @@ import MemoAllModal from './MemoAllModal'
 interface Props {
   // compact: 홈 위젯(작게), full: 일일업무(조금 더)
   variant?: 'compact' | 'full'
+  // 메모 탭으로 전환하는 콜백. 일일 페이지처럼 같은 화면에 메모 탭이 있으면 전달한다.
+  // 전달되면 모달의 "메모 탭으로" 액션이 라우팅 없이 즉시 탭을 전환한다.
+  onGoToMemoTab?: () => void
 }
 
-export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
+export default function UnreviewedMemoWidget({ variant = 'compact', onGoToMemoTab }: Props) {
   const [items, setItems] = useState<MemoListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [promoteTarget, setPromoteTarget] = useState<MemoListItem | null>(null)
@@ -112,6 +115,7 @@ export default function UnreviewedMemoWidget({ variant = 'compact' }: Props) {
           onReview={handleReview}
           onPromote={(m) => { setShowAll(false); setPromoteTarget(m) }}
           onClose={() => setShowAll(false)}
+          onGoToMemoTab={onGoToMemoTab}
         />
       )}
 

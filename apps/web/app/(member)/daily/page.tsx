@@ -619,7 +619,7 @@ export default function DailyPage() {
             {/* 우측 사이드 영역: 이월 업무 및 오늘의 현황 통계 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
               {/* 확인 안 한 메모 위젯 */}
-              <UnreviewedMemoWidget variant="full" />
+              <UnreviewedMemoWidget variant="full" onGoToMemoTab={() => setViewMode('memo')} />
               {/* 이월된 미완료 항목 (오늘만 표시) */}
               {isToday && (carryoverLoading || carryoverLogs.length > 0) && (
                 <div className="carryover-card">

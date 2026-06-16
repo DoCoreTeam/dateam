@@ -10,11 +10,14 @@ interface Props {
   onReview: (id: string) => void
   onPromote: (memo: MemoListItem) => void
   onClose: () => void
+  // 같은 화면에 메모 탭이 있으면 전달 — 라우팅 없이 즉시 탭 전환(일일 페이지).
+  // 없으면(홈 등) /daily?view=memo로 이동하는 링크로 폴백.
+  onGoToMemoTab?: () => void
 }
 
 // "확인 안 한 메모" 전체보기 모달 — 위젯이 이미 로드한 미확인 메모 전체를 스크롤 목록으로 표시.
 // 라우팅/뷰 전환에 의존하지 않으므로 홈·일일 어디서든 동일하게 동작한다.
-export default function MemoAllModal({ items, onReview, onPromote, onClose }: Props) {
+export default function MemoAllModal({ items, onReview, onPromote, onClose, onGoToMemoTab }: Props) {
   useEscClose(onClose)
 
   return (
@@ -97,13 +100,23 @@ export default function MemoAllModal({ items, onReview, onPromote, onClose }: Pr
         )}
 
         <div style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-3)', borderTop: 'var(--hairline) solid var(--surface-muted)', display: 'flex', justifyContent: 'flex-end' }}>
-          <Link
-            href="/daily?view=memo"
-            onClick={onClose}
-            style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--brand-dark)', textDecoration: 'none' }}
-          >
-            메모 탭에서 전체 관리 →
-          </Link>
+          {onGoToMemoTab ? (
+            <button
+              type="button"
+              onClick={() => { onGoToMemoTab(); onClose() }}
+              style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--brand-dark)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            >
+              메모 탭에서 전체 관리 →
+            </button>
+          ) : (
+            <Link
+              href="/daily?view=memo"
+              onClick={onClose}
+              style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--brand-dark)', textDecoration: 'none' }}
+            >
+              메모 탭에서 전체 관리 →
+            </Link>
+          )}
         </div>
       </div>
     </div>
