@@ -16,7 +16,7 @@ import type { CurrencyCtx } from '@/lib/gpu/unified-row'
 import { expiryState } from '@/lib/gpu/expiry'
 import { auditActionLabel } from '@/lib/gpu/audit-labels'
 import { tierName } from '@/lib/gpu/unified-row'
-import { formatCardMemory, perCardMemory } from '@/lib/gpu/card-memory'
+import { formatCardMemory, perCardMemory, memoryTitle } from '@/lib/gpu/card-memory'
 import type { UnifiedRow } from '@/lib/gpu/unified-row'
 import type { QuoteForEdit } from '@/components/pricing/gpu/QuoteEditModal'
 import type { MarketPriceForEdit } from '@/components/pricing/gpu/MarketPriceEditModal'
@@ -135,7 +135,7 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
           </span>
         </div>
         <div className="gpu-udetail-sub">
-          {row.memory ? formatCardMemory(row.memory, row.gpu_count) : '—'} · {GPU_TERMS.sellPrice} <strong>{mKrw(row.sell_price_krw)}</strong>
+          <span title={memoryTitle(row.memory, row.gpu_count) || undefined}>{row.memory ? formatCardMemory(row.memory, row.gpu_count) : '—'}</span> · {GPU_TERMS.sellPrice} <strong>{mKrw(row.sell_price_krw)}</strong>
           {' · '}
           {GPU_TERMS.margin} {row.margin_pct == null ? '측정불가' : `+${row.margin_pct.toFixed(0)}%`}
         </div>
@@ -345,7 +345,7 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
             </div>
             <div className="gpu-udetail-kv">
               <span className="gpu-udetail-kv-k">메모리</span>
-              <span className="gpu-udetail-kv-v">{row.memory ? perCardMemory(row.memory, row.gpu_count) : '—'}</span>
+              <span className="gpu-udetail-kv-v" title={memoryTitle(row.memory, row.gpu_count) || undefined}>{row.memory ? perCardMemory(row.memory, row.gpu_count) : '—'}</span>
             </div>
             <div className="gpu-udetail-kv">
               <span className="gpu-udetail-kv-k">GPU 수</span>

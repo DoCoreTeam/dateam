@@ -8,7 +8,7 @@ import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { GPU_TERMS } from '@/lib/gpu/terms'
 import { RefreshCw, TrendingUp, AlertTriangle, Plus, X, BarChart2, Target, FileText, Pencil, Link2, Link2Off, DownloadCloud, PackagePlus } from 'lucide-react'
 import { formatSpec } from '@/lib/gpu/format-spec'
-import { formatCardMemory, perCardMemory } from '@/lib/gpu/card-memory'
+import { formatCardMemory, perCardMemory, memoryTitle } from '@/lib/gpu/card-memory'
 import { SupplierBadge } from '@/components/gpu/SupplierBadge'
 import { fmtKRW, fmtUSD } from '@/lib/gpu/format-price'
 import dynamic from 'next/dynamic'
@@ -875,7 +875,7 @@ function StrategyOverviewPanel({ products, fmt }: { products: ProductGroup[]; fm
               }}>
                 <div>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gpu-ink)' }}>{p.product.model_name}</span>
-                  <span style={{ fontSize: 11, color: 'var(--gpu-muted)', marginLeft: 6 }}>{formatCardMemory(p.product.memory, p.product.gpu_count)}</span>
+                  <span style={{ fontSize: 11, color: 'var(--gpu-muted)', marginLeft: 6 }} title={memoryTitle(p.product.memory, p.product.gpu_count) || undefined}>{formatCardMemory(p.product.memory, p.product.gpu_count)}</span>
                   <div style={{ fontSize: 10.5, color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p.product)}</div>
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--gpu-faint)', gridColumn: '2 / 7' }}>데이터 부족 — 공급가 또는 시장가 필요</div>
@@ -1153,7 +1153,7 @@ function MappingManagerModal({ mappings, competitors, onClose, onChanged }: {
             {mappings.map((m) => (
               <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '6px 8px', borderRadius: 7, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--surface-bg)' }}>
                 <span style={{ fontWeight: 700, minWidth: 90 }}>{m.competitors?.name ?? '?'}</span>
-                <span style={{ flex: 1 }}>{m.gpu_products?.model_name} {formatCardMemory(m.gpu_products?.memory, m.gpu_products?.gpu_count)}</span>
+                <span style={{ flex: 1 }} title={memoryTitle(m.gpu_products?.memory, m.gpu_products?.gpu_count) || undefined}>{m.gpu_products?.model_name} {formatCardMemory(m.gpu_products?.memory, m.gpu_products?.gpu_count)}</span>
                 <span style={{ fontSize: 10.5, color: 'var(--gpu-muted)' }}>{PRICING_MODEL_LABEL[m.pricing_model] ?? m.pricing_model}</span>
                 <button onClick={() => del(m.id)} className="gpu-btn" style={{ padding: 4, color: 'var(--gpu-red)' }}>🗑</button>
               </div>
@@ -1873,7 +1873,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
                     <div className="gpu-model-cell">
                       <div className="gpu-chip" style={{ background: tierCfg.chipColor }}>
                         {p.product.model_name.charAt(0)}
-                        <span>{perCardMemory(p.product.memory, p.product.gpu_count)}</span>
+                        <span title={memoryTitle(p.product.memory, p.product.gpu_count) || undefined}>{perCardMemory(p.product.memory, p.product.gpu_count)}</span>
                       </div>
                       <div>
                         <div className="gpu-model-nm">

@@ -13,7 +13,7 @@ import MarginControl from '../MarginControl'
 import { getViewPreset, DEFAULT_VIEW } from '@/lib/gpu/unified-views'
 import type { GpuViewId } from '@/lib/gpu/unified-views'
 import { resolveCell } from '@/lib/gpu/unified-row'
-import { formatCardMemory } from '@/lib/gpu/card-memory'
+import { formatCardMemory, memoryTitle } from '@/lib/gpu/card-memory'
 import type { UnifiedRow, CurrencyCtx } from '@/lib/gpu/unified-row'
 import type { CurrencyMode } from '@/lib/gpu/format-price'
 
@@ -156,7 +156,9 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
             return (
               <span key={col.key} role="cell" className={base}>
                 <span className="gpu-unified-model">
-                  {row.memory ? formatCardMemory(row.memory, row.gpu_count) : cell.text}
+                  <span title={memoryTitle(row.memory, row.gpu_count) || undefined}>
+                    {row.memory ? formatCardMemory(row.memory, row.gpu_count) : cell.text}
+                  </span>
                   {row.supplier_name && <small>{row.supplier_name}</small>}
                 </span>
               </span>

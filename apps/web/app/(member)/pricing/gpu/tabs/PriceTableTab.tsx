@@ -6,7 +6,7 @@ import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { ChevronRight, Plus, Zap, Info, Tag, X, Trash2, Pencil } from 'lucide-react'
 import { formatSpec, scaleSpec } from '@/lib/gpu/format-spec'
-import { perCardMemory } from '@/lib/gpu/card-memory'
+import { perCardMemory, memoryTitle } from '@/lib/gpu/card-memory'
 import { STANDARD_LADDER } from '@/lib/gpu/config-ladder'
 import { fmtKRW, fmtUSD } from '@/lib/gpu/format-price'
 import dynamic from 'next/dynamic'
@@ -881,7 +881,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                         <div className="gpu-model-cell">
                           <div className="gpu-chip" style={{ background: tier.chipColor }}>
                             {firstLetter}
-                            <span>{perCardMemory(p.memory, p.gpu_count)}</span>
+                            <span title={memoryTitle(p.memory, p.gpu_count) || undefined}>{perCardMemory(p.memory, p.gpu_count)}</span>
                           </div>
                           <div>
                             <div className="gpu-model-nm">
@@ -1083,7 +1083,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                     <div className="gpu-model-cell">
                       <div className="gpu-chip" style={{ background: tier.chipColor }}>
                         {firstLetter}
-                        <span>{perCardMemory(p.memory, p.gpu_count)}</span>
+                        <span title={memoryTitle(p.memory, p.gpu_count) || undefined}>{perCardMemory(p.memory, p.gpu_count)}</span>
                       </div>
                       <div>
                         <div className="gpu-model-nm">

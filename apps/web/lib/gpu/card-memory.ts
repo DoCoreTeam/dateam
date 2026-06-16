@@ -44,3 +44,22 @@ export function perCardMemory(
   if (!Number.isInteger(perCard)) return raw
   return `${perCard}GB`
 }
+
+/**
+ * 마우스 오버(title) 툴팁용 — 총 용량을 친절히 보여준다.
+ * - 장수 > 1: "총 80GB (40GB × 2)" 형태.
+ * - 장수 ≤ 1 / 파싱 불가 / 비정수: 빈 문자열(툴팁 불필요 — 표시값이 이미 총합).
+ */
+export function memoryTitle(
+  memory: string | null | undefined,
+  gpuCount: number | null | undefined,
+): string {
+  const raw = (memory ?? '').trim()
+  if (!raw) return ''
+  const total = parseFloat(raw.replace(/[^0-9.]/g, ''))
+  const count = gpuCount ?? 1
+  if (!Number.isFinite(total) || count <= 1) return ''
+  const perCard = total / count
+  if (!Number.isInteger(perCard)) return ''
+  return `총 ${raw} (${perCard}GB × ${count})`
+}

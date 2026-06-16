@@ -5,6 +5,7 @@ import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { Sparkles, X, Save, Pencil } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
+import { memoryTitle } from '@/lib/gpu/card-memory'
 
 interface Spec {
   model_name: string
@@ -154,7 +155,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
             const perCard = totalVram ? Math.round(totalVram / Math.max(c.gpu_count, 1)) : null
             return (
             <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 700, fontSize: 12.5, minWidth: 96, color: 'var(--gpu-accent,var(--brand))' }} title="카드당 VRAM × 장수">{perCard ? `${perCard}GB 카드 ×${c.gpu_count}` : `×${c.gpu_count} GPU`}</span>
+              <span style={{ fontWeight: 700, fontSize: 12.5, minWidth: 96, color: 'var(--gpu-accent,var(--brand))' }} title={memoryTitle(c.memory, c.gpu_count) || '카드당 VRAM × 장수'}>{perCard ? `${perCard}GB 카드 ×${c.gpu_count}` : `×${c.gpu_count} GPU`}</span>
               {(['memory', 'vcpu', 'ram_gb', 'storage_gb'] as const).map((k) => {
                 const lbl = k === 'memory' ? 'VRAM' : k === 'vcpu' ? 'vCPU' : k === 'ram_gb' ? 'RAM(GB)' : 'SSD(GB)'
                 return editing ? (

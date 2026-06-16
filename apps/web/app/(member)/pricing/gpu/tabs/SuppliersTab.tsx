@@ -9,6 +9,7 @@ import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { countryFlag } from '@/lib/gpu/country-flag'
 import { useEscClose } from '@/lib/use-esc-close'
 import { fmtUSD } from '@/lib/gpu/format-price'
+import { memoryTitle } from '@/lib/gpu/card-memory'
 
 interface SupplierStats {
   id: string
@@ -439,7 +440,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
                               T{q.effective_tier}{q.tier_override != null ? '*' : ''}
                             </span>
                           )}
-                          <span style={{ color: 'var(--gpu-muted)' }}>×{q.gpu_count}GPU</span>
+                          <span style={{ color: 'var(--gpu-muted)' }} title={memoryTitle(prod?.memory, q.gpu_count) || undefined}>×{q.gpu_count}GPU</span>
                           <span style={{ fontFamily: 'monospace', fontWeight: 700, marginLeft: 'auto' }}>{fmtUSD(q.unit_price_usd)}</span>
                           <span style={{ fontSize: 11, fontWeight: 600, color: st.c, minWidth: 36, textAlign: 'right' }}>{st.t}</span>
                         </button>

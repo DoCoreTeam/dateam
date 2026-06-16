@@ -9,7 +9,7 @@ import { TierHeader, ModelHeader } from '@/components/gpu/CategoryGroup'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 import { fmtKRW as fmtKRWSSOT } from '@/lib/gpu/format-price'
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
-import { perCardMemory } from '@/lib/gpu/card-memory'
+import { perCardMemory, memoryTitle } from '@/lib/gpu/card-memory'
 
 interface GpuProduct {
   id: string
@@ -51,7 +51,7 @@ function GpuChip({ model, memory, gpuCount }: { model: string; memory: string; g
   // 칩엔 카드당 용량만(×N 장수는 인접 모델명에 표시됨).
   const perCard = perCardMemory(memory, gpuCount)
   return (
-    <span style={{
+    <span title={memoryTitle(memory, gpuCount) || undefined} style={{
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       width: 36, height: 36, borderRadius: 8, background: bg,
       color: '#fff', fontSize: 11, fontWeight: 700, flexShrink: 0,
