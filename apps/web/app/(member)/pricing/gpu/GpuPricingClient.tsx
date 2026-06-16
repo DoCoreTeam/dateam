@@ -138,11 +138,16 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
   }, [searchParams])
 
   // 탭 변경 → URL·sessionStorage 반영 (navigation 없이 replaceState)
+  // Next 14.1+는 replaceState를 router에 동기화 → useSearchParams() 재생성됨.
+  // URL의 tab이 이미 activeTab과 같으면 replaceState를 호출하지 않아(중복쓰기 차단)
+  // searchParams 재발화→activeTab effect 재발화의 무한 루프를 끊는다. sessionStorage는 항상 갱신.
   useEffect(() => {
     if (!viewRestored.current) return
     const p = new URLSearchParams(window.location.search)
-    p.set('tab', activeTab)
-    window.history.replaceState(null, '', `${window.location.pathname}?${p.toString()}`)
+    if (p.get('tab') !== activeTab) {
+      p.set('tab', activeTab)
+      window.history.replaceState(null, '', `${window.location.pathname}?${p.toString()}`)
+    }
     try { sessionStorage.setItem('gpu:view', JSON.stringify({ tab: activeTab, q: p.get('q') || '', expand: p.get('expand') || '' })) } catch { /* noop */ }
   }, [activeTab])
 

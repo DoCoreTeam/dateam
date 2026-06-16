@@ -2334,6 +2334,69 @@ label.intake-tool-btn {
   gap: 0.25rem;
 }
 
+/* ===== 일일업무 상단 압축 + 입력 고정/타임라인 스크롤 (fullpane) =====
+ * GPU 콕핏의 fullpane 패턴을 차용하되 daily 전용 클래스로 격리(회귀 방지).
+ * 일간 뷰일 때만 <main class="page-inner">에 daily-fullpane-main을 JS 부착 →
+ * main의 자체 스크롤/패딩을 억제하고 daily-shell이 높이 체인을 점유한다. */
+.daily-fullpane-main {
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+/* 일간 뷰: shell이 main 높이를 100% 점유하고 내부에서 스크롤 체인을 나눈다.
+ * 주간/메모 뷰에서는 daily-fullpane-main이 부착되지 않으므로 이 규칙도 무해(자식이 자연 높이). */
+.daily-fullpane-main .daily-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 상단 밀도 개선 — WorkTabBar~콘텐츠 사이 공백과 헤더/탭/날짜네비 여백 축소.
+ * WorkTabBar는 공유 컴포넌트(미접촉)이므로 래퍼에 음수 마진으로 nav 자체 marginBottom(--space-5)을 상쇄. */
+.daily-tabbar-wrap { margin-bottom: calc(var(--space-3) - var(--space-5)); }
+.daily-page-header { margin-bottom: var(--space-3) !important; }
+.daily-page-desc { font-size: var(--fs-sm) !important; margin-top: var(--space-1) !important; }
+.daily-view-tabs.daily-view-tabs--tight { margin-bottom: var(--space-3); }
+.daily-date-nav--tight { margin-bottom: var(--space-3); }
+
+/* 일간 뷰 본문: 남은 높이를 모두 차지하고 좌/우 컬럼이 각자 스크롤 */
+.daily-day-grid {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch; /* responsive-grid-2의 align-items:start 무력화 → 컬럼이 높이 채움 */
+}
+.daily-day-grid .daily-day-main {
+  min-height: 0;
+  overflow: hidden;
+}
+.daily-day-grid .daily-day-side {
+  min-height: 0;
+  overflow-y: auto;
+}
+/* 입력 폼은 고정(컬럼 상단), 타임라인 영역만 자체 스크롤.
+ * 부모 flex gap(--space-5)이 간격을 담당하므로 카드 자체 margin-bottom 제거(이중 간격 방지). */
+.daily-compose-fixed { flex-shrink: 0; margin-bottom: 0; }
+.daily-timeline-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* 모바일: 높이 고정 스크롤 분할을 해제(자연 흐름) — 가로스크롤/잘림 방지 */
+@media (max-width: 767px) {
+  .daily-fullpane-main {
+    overflow: auto !important;
+  }
+  .daily-fullpane-main .daily-shell { min-height: 0; }
+  .daily-day-grid .daily-day-main,
+  .daily-day-grid .daily-day-side { overflow: visible; }
+  .daily-timeline-scroll { overflow: visible; }
+}
+
 @media (max-width: 767px) {
   .daily-view-tabs {
     margin-bottom: 1rem;

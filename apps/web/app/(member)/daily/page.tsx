@@ -152,6 +152,17 @@ export default function DailyPage() {
     return () => { alive = false }
   }, [logIdsKey])
 
+  // 일간 뷰 fullpane: <main class="page-inner">에 daily-fullpane-main 부착 →
+  // main의 자체 스크롤/패딩을 억제하고 daily-shell이 높이 체인을 점유(입력 고정 + 타임라인만 스크롤).
+  // 주간/메모 뷰에서는 부착 해제 → 기존 자연 흐름(회귀 없음). GPU 콕핏 패턴 차용, daily 전용 클래스로 격리.
+  useEffect(() => {
+    if (viewMode !== 'day') return
+    const main = document.querySelector('main.page-inner')
+    if (!main) return
+    main.classList.add('daily-fullpane-main')
+    return () => { main.classList.remove('daily-fullpane-main') }
+  }, [viewMode])
+
   // 카드 인라인 [취소] — calendar_events 연결 삭제 + 캐시/맵 동기화
   const handleCancelCalendar = async (logId: string) => {
     const res = await unlinkDailyCalendar(logId)
@@ -528,12 +539,19 @@ export default function DailyPage() {
         onUndoIgnore={handleUndoIgnore}
       />
     )}
-    <div className="page-inner">
-      <WorkTabBar />
-      <PageHeader title="일일업무" description="오늘의 업무를 기록하고 관리합니다" />
+    <div className="page-inner daily-shell">
+      <div className="daily-tabbar-wrap">
+        <WorkTabBar />
+      </div>
+      <PageHeader
+        title="일일업무"
+        description="오늘의 업무를 기록하고 관리합니다"
+        className="daily-page-header"
+        descClassName="daily-page-desc"
+      />
 
       {/* 뷰 탭 */}
-      <div className="daily-view-tabs" aria-label="일일업무 보기 전환">
+      <div className="daily-view-tabs daily-view-tabs--tight" aria-label="일일업무 보기 전환">
         {(['day', 'week', 'memo'] as const).map((m) => (
           <button
             key={m}
@@ -556,7 +574,7 @@ export default function DailyPage() {
       {viewMode === 'day' && (
         <>
           {/* 날짜 네비게이션 */}
-          <div className="daily-date-nav">
+          <div className="daily-date-nav daily-date-nav--tight">
             <button onClick={prevDay} className="calendar-nav-btn" aria-label="이전 날">
               <ChevronLeft size={16} strokeWidth={2.4} />
             </button>
@@ -600,11 +618,11 @@ export default function DailyPage() {
             </button>
           </div>
 
-          <div className="responsive-grid-2">
-            {/* 좌측 메인 영역: 입력 폼 및 업무 타임라인 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}>
-              {/* 입력 폼 */}
-              <div className="daily-compose-card" ref={newTaskRef}>
+          <div className="responsive-grid-2 daily-day-grid">
+            {/* 좌측 메인 영역: 입력 폼(고정) + 업무 타임라인(자체 스크롤) */}
+            <div className="daily-day-main" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}>
+              {/* 입력 폼 — 컬럼 상단 고정 */}
+              <div className="daily-compose-card daily-compose-fixed" ref={newTaskRef}>
                 <DraftRestoreBanner show={draft.hasDraft} onRestore={draft.restore} onDiscard={draft.discard} />
                 <div className="daily-compose-row">
                   <textarea
@@ -656,6 +674,8 @@ export default function DailyPage() {
                 )}
               </div>
 
+              {/* 타임라인 영역 — 이 컨테이너만 자체 스크롤(입력 폼은 위에 고정) */}
+              <div className="daily-timeline-scroll">
               {/* 타임라인 헤더 + 관계도 버튼 */}
               {logs.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
@@ -714,10 +734,11 @@ export default function DailyPage() {
                   onEditOrigin={handleEditOrigin}
                 />
               )}
+              </div>
             </div>
 
-            {/* 우측 사이드 영역: 이월 업무 및 오늘의 현황 통계 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+            {/* 우측 사이드 영역: 이월 업무 및 오늘의 현황 통계 (자체 스크롤) */}
+            <div className="daily-day-side" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
               {/* 확인 안 한 메모 위젯 */}
               <UnreviewedMemoWidget variant="full" onGoToMemoTab={() => setViewMode('memo')} />
               {/* 이월된 미완료 항목 (오늘만 표시) */}

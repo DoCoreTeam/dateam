@@ -6,11 +6,15 @@ interface PageHeaderProps {
   title: string
   description?: string
   actions?: ReactNode
+  // 페이지별 여백 압축 등 추가 클래스(예: daily 상단 밀도 개선). 기본 동작은 불변.
+  className?: string
+  descClassName?: string
 }
 
-export default function PageHeader({ title, description, actions }: PageHeaderProps) {
+export default function PageHeader({ title, description, actions, className, descClassName }: PageHeaderProps) {
   return (
     <header
+      className={className}
       style={{
         display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
         gap: 'var(--space-3)', flexWrap: 'wrap', marginBottom: '1.75rem',
@@ -21,7 +25,7 @@ export default function PageHeader({ title, description, actions }: PageHeaderPr
           {title}
         </h1>
         {description && (
-          <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>{description}</p>
+          <p className={descClassName} style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>{description}</p>
         )}
       </div>
       {actions && <div style={{ flexShrink: 0 }}>{actions}</div>}
