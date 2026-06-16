@@ -10,7 +10,7 @@ const KnowledgeGraphView = dynamic(() => import('./KnowledgeGraphView').then(m =
 const LogFlowView = dynamic(() => import('./LogFlowView').then(m => ({ default: m.LogFlowView })), { ssr: false })
 import useSWR, { mutate } from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread, updateDailyLogStatus } from './actions'
+import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, moveAllCarryoverToToday, unignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread, updateDailyLogStatus } from './actions'
 import type { AiParsedItem } from './actions'
 import { createDailyScheduleEvent } from '../calendar/actions'
 import { selectScheduleCandidates } from '@/lib/daily/schedule-candidates'
@@ -18,6 +18,7 @@ import type { DailyLog, DailyLogEntryType, DailyLogThread } from '@/types/databa
 import { DdayBadge, todayLocal } from '@/lib/dday'
 import { groupDailyLogs } from './grouping'
 import { OriginGroupCard } from './OriginGroupCard'
+import CarryoverTriageModal from './CarryoverTriageModal'
 import MemoListView from '@/components/ui/memo/MemoListView'
 import UnreviewedMemoWidget from '@/components/ui/memo/UnreviewedMemoWidget'
 
@@ -133,6 +134,9 @@ export default function DailyPage() {
 
   // 지식그래프 상태
   const [graphOpen, setGraphOpen] = useState(false)
+
+  // 이월 정리 집중모드 상태
+  const [triageOpen, setTriageOpen] = useState(false)
 
   const isToday = selectedDate === today
 
@@ -260,6 +264,27 @@ export default function DailyPage() {
     })
   }
 
+  // startTransition으로 감싸지 않음 — 모달이 onMoveAll의 Promise 완료까지 await 가능해야 하고,
+  // 실패 시 throw로 모달이 큐를 비우지 않도록 한다.
+  const handleMoveAll = async (ids: string[]) => {
+    const result = await moveAllCarryoverToToday(ids, today)
+    if (!result.ok) {
+      showToast(result.error || '오늘로 이동에 실패했습니다', 'error')
+      throw new Error(result.error || '오늘로 이동 실패')
+    }
+    await Promise.all([
+      mutate(`/api/daily/logs?date=${today}`),
+      mutate(`/api/daily/carryover?today=${today}`),
+    ])
+    showToast(`${result.count}건을 오늘로 이동했습니다`, 'success')
+  }
+
+  const handleUndoIgnore = async (id: string) => {
+    await unignoreCarryoverLog(id)
+    await mutate(`/api/daily/carryover?today=${today}`)
+    showToast('되돌렸습니다', 'success')
+  }
+
   const handleUpdate = async (id: string) => {
     if (!editContent.trim()) return
     startTransition(async () => {
@@ -381,6 +406,18 @@ export default function DailyPage() {
           {toast.type === 'success' ? '✓' : '✕'} {toast.message}
         </div>
       </div>
+    )}
+    {triageOpen && isToday && (
+      <CarryoverTriageModal
+        logs={carryoverLogs}
+        today={today}
+        onClose={() => setTriageOpen(false)}
+        onResolve={handleResolve}
+        onMoveToToday={handleMoveToToday}
+        onIgnore={handleIgnore}
+        onMoveAll={handleMoveAll}
+        onUndoIgnore={handleUndoIgnore}
+      />
     )}
     <div className="page-inner">
       <WorkTabBar />
@@ -582,13 +619,24 @@ export default function DailyPage() {
                   {carryoverLoading ? (
                     <div style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-base)', padding: 'var(--space-2) var(--space-0)' }}>로딩 중...</div>
                   ) : (
-                    <CarryoverList
-                      logs={carryoverLogs}
-                      isPending={isPending}
-                      onResolve={handleResolve}
-                      onMoveToToday={handleMoveToToday}
-                      onIgnore={handleIgnore}
-                    />
+                    <>
+                      <CarryoverList
+                        logs={carryoverLogs.slice(0, 5)}
+                        isPending={isPending}
+                        onResolve={handleResolve}
+                        onMoveToToday={handleMoveToToday}
+                        onIgnore={handleIgnore}
+                      />
+                      {carryoverLogs.length > 5 && (
+                        <button
+                          type="button"
+                          className="carryover-triage-open"
+                          onClick={() => setTriageOpen(true)}
+                        >
+                          이월 {carryoverLogs.length}건 정리하기
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               )}

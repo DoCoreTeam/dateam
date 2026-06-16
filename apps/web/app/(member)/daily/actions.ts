@@ -498,6 +498,43 @@ export async function ignoreCarryoverLog(id: string): Promise<{ ok: true } | { o
   return { ok: true }
 }
 
+// 이월 항목 일괄 오늘로 이동 (log_date→오늘, 본인 소유만)
+export async function moveAllCarryoverToToday(ids: string[], today: string): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  if (ids.length === 0) return { ok: true, count: 0 }
+  if (ids.length > 100) return { ok: false, error: '한 번에 최대 100건까지 이동할 수 있습니다.' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '로그인이 필요합니다.' }
+
+  const { error } = await (supabase.from('daily_logs') as any)
+    .update({ log_date: today, logged_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .in('id', ids)
+    .eq('user_id', user.id)
+
+  if (error) return { ok: false, error: (error as Error).message }
+
+  revalidateDailyCalendarViews()
+  return { ok: true, count: ids.length }
+}
+
+// 이월 항목 무시 되돌리기 (is_resolved→false, entry_type 유지)
+export async function unignoreCarryoverLog(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '로그인이 필요합니다.' }
+
+  const { error } = await (supabase.from('daily_logs') as any)
+    .update({ is_resolved: false, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) return { ok: false, error: (error as Error).message }
+
+  revalidateDailyCalendarViews()
+  return { ok: true }
+}
+
 export async function addMultipleDailyLogs(
   items: AiParsedItem[],
   logDate: string,

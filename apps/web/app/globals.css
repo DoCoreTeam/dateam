@@ -2021,6 +2021,213 @@ label.intake-tool-btn {
   align-items: center;
   gap: 0.5rem;
 }
+
+/* 이월 정리 위젯 버튼 (5건 초과 시 집중모드 진입) */
+.carryover-triage-open {
+  margin-top: 0.75rem;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--warning);
+  background: var(--warning-bg);
+  border: var(--hairline) solid var(--warning-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: filter var(--duration-fast, 150ms) ease, transform var(--duration-fast, 150ms) ease;
+}
+.carryover-triage-open:hover { filter: brightness(0.97); }
+.carryover-triage-open:active { transform: translateY(1px); }
+
+/* ── 이월 정리 집중모드(Triage) ── */
+.triage-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: var(--modal-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+.triage-sheet {
+  width: 100%;
+  max-width: 520px;
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-modal);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: var(--space-6);
+  animation: triage-rise var(--duration-normal, 300ms) cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes triage-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.triage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.triage-moveall {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--info);
+  background: var(--info-bg);
+  border: var(--hairline) solid var(--info-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter var(--duration-fast, 150ms) ease;
+}
+.triage-moveall:hover { filter: brightness(0.96); }
+.triage-moveall:disabled { opacity: 0.5; cursor: not-allowed; }
+.triage-progress-wrap {
+  margin-bottom: var(--space-4);
+}
+.triage-progress-label {
+  display: block;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+}
+.triage-progress {
+  width: 100%;
+  height: 8px;
+  background: var(--surface-muted);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.triage-progress-bar {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--brand), var(--info));
+  transition: width var(--duration-normal, 300ms) cubic-bezier(0.16, 1, 0.3, 1);
+}
+.triage-card {
+  background: var(--warning-bg);
+  border: var(--hairline) solid var(--warning-border);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: var(--space-5);
+  margin-bottom: var(--space-4);
+}
+.triage-card-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+.triage-badge {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius);
+}
+.triage-date {
+  font-size: var(--fs-2xs);
+  color: var(--warning);
+}
+.triage-content {
+  margin: 0;
+  font-size: var(--fs-lg);
+  color: var(--text);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.triage-undo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  background: var(--surface-muted);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.triage-undo-btn {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--info);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.triage-undo-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.triage-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+}
+.triage-btn {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: filter var(--duration-fast, 150ms) ease, transform var(--duration-fast, 150ms) ease;
+}
+.triage-btn:hover { filter: brightness(0.96); }
+.triage-btn:active { transform: translateY(1px); }
+.triage-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.triage-btn-success {
+  color: var(--success);
+  background: var(--success-bg);
+  border: var(--hairline) solid var(--success-border);
+}
+.triage-btn-info {
+  color: var(--info);
+  background: var(--info-bg);
+  border: var(--hairline) solid var(--info-border);
+}
+.triage-btn-mute {
+  color: var(--text-faint);
+  background: var(--color-bg);
+  border: var(--border-w-2) solid var(--color-border);
+}
+.triage-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+}
+.triage-empty-emoji {
+  font-size: var(--fs-3xl);
+}
+.triage-empty-text {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--text);
+}
+
+@media (max-width: 767px) {
+  .triage-overlay { align-items: flex-end; padding: 0; }
+  .triage-sheet {
+    max-width: 100%;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    max-height: 85vh;
+    animation: triage-slide-up var(--duration-normal, 300ms) cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes triage-slide-up {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
 .daily-view-tabs {
   display: flex;
   gap: 0.25rem;
