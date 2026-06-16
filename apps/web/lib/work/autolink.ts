@@ -1,7 +1,7 @@
 // 업무 자동 연관 연결 — 순수 로직(밴드 판정·임계값·가드). Date/random 미사용 → 단위테스트 대상.
 // 오케스트레이션(임베딩·RPC·LLM)은 API 라우트에서, 의사결정 규칙만 여기 SSOT로 둔다.
 
-export type LinkKind = 'log' | 'account' | 'deal' | 'contact'
+export type LinkKind = 'log' | 'account' | 'deal' | 'contact' | 'project'
 export type Band = 'high' | 'mid' | 'low'
 
 export interface KindThreshold { tau_auto: number; tau_suggest: number; sample: number }
@@ -12,6 +12,8 @@ export const DEFAULT_THRESHOLDS: Thresholds = {
   account: { tau_auto: 0.88, tau_suggest: 0.66, sample: 0 },
   deal:    { tau_auto: 0.88, tau_suggest: 0.66, sample: 0 },
   contact: { tau_auto: 0.88, tau_suggest: 0.66, sample: 0 },
+  // 프로젝트는 자동확정 금지(설계 옵션B: AI는 제안만) — tau_auto를 1.01로 둬 high 밴드 진입 불가 → 항상 mid(추천)/low.
+  project: { tau_auto: 1.01, tau_suggest: 0.62, sample: 0 },
 }
 
 /** 비대칭 임계: 피해 큰 엔티티(거래처/딜/연락처)는 높게, 업무↔업무는 낮게. */

@@ -8,6 +8,24 @@ test('bandOf: 업무는 낮은 임계, 거래처는 높은 임계(비대칭)', (
   assert.equal(bandOf(0.5, 'log'), 'low')
 })
 
+test('bandOf: 프로젝트는 자동확정 금지(high 진입 불가) — 항상 mid/low', () => {
+  // project tau_auto 1.01 → 어떤 신뢰도도 high 불가. tau_suggest 0.62.
+  assert.equal(bandOf(0.95, 'project'), 'mid')   // 0.95 < 1.01 → high 아님, ≥0.62 → mid(추천)
+  assert.equal(bandOf(1.0, 'project'), 'mid')    // 최상 신뢰도라도 high 불가
+  assert.equal(bandOf(0.62, 'project'), 'mid')   // 경계: tau_suggest 정확히 충족
+  assert.equal(bandOf(0.5, 'project'), 'low')    // 0.5 < 0.62 → low(버림)
+})
+
+test('decideLinks: 프로젝트는 high로 확정되지 않음(제안만)', () => {
+  const cands: JudgedCandidate[] = [
+    { id: 'pj1', kind: 'project', confidence: 0.95, related: true, relation: 'related', reason: 'x', nameSim: 0.9 },
+  ]
+  const out = decideLinks(cands)
+  assert.equal(out.length, 1)
+  assert.equal(out[0].band, 'mid')   // 이름 겹침 충족해도 tau_auto 1.01이라 high 불가
+  assert.equal(out[0].weak, true)    // 추천(점선)
+})
+
 test('entityHighAllowed: 이름 겹침 가드', () => {
   assert.equal(entityHighAllowed(0.4), true)
   assert.equal(entityHighAllowed(0.1), false)

@@ -60,18 +60,21 @@ export async function runAutolink(logId: string, actor: string, requesterId: str
 
   const th = await loadThresholds(db)
 
-  // 1) 리콜 (pgvector top-K) — 업무 + 엔티티
-  const [logsR, accR, dealR, conR] = await Promise.all([
+  // 1) 리콜 (pgvector top-K) — 업무 + 엔티티(거래처/딜/연락처/프로젝트)
+  //    match_projects는 requester_id로 본인 소유만(IDOR 방지, 거래처/딜/연락처와 동형 + 소유자 스코프).
+  const [logsR, accR, dealR, conR, projR] = await Promise.all([
     db.rpc('match_daily_logs', { query_embedding: vecLiteral, exclude_id: logId, requester_id: requesterId, match_count: 20, min_sim: th.log.tau_suggest - 0.05 }),
     db.rpc('match_accounts', { query_embedding: vecLiteral, match_count: 10, min_sim: th.account.tau_suggest - 0.05 }),
     db.rpc('match_deals', { query_embedding: vecLiteral, match_count: 10, min_sim: th.deal.tau_suggest - 0.05 }),
     db.rpc('match_contacts', { query_embedding: vecLiteral, match_count: 10, min_sim: th.contact.tau_suggest - 0.05 }),
+    db.rpc('match_projects', { query_embedding: vecLiteral, requester_id: requesterId, match_count: 10, min_sim: th.project.tau_suggest - 0.05 }),
   ])
   const cand: Array<{ candidate_id: string; kind: LinkKind; text: string; sim: number; name?: string }> = []
   for (const r of (logsR.data ?? [])) cand.push({ candidate_id: r.id, kind: 'log', text: String(r.content ?? '').slice(0, 200), sim: r.similarity })
   for (const r of (accR.data ?? [])) cand.push({ candidate_id: r.id, kind: 'account', text: String(r.name ?? ''), sim: r.similarity, name: r.name })
   for (const r of (dealR.data ?? [])) cand.push({ candidate_id: r.id, kind: 'deal', text: String(r.title ?? ''), sim: r.similarity, name: r.title })
   for (const r of (conR.data ?? [])) cand.push({ candidate_id: r.id, kind: 'contact', text: String(r.name ?? ''), sim: r.similarity, name: r.name })
+  for (const r of (projR.data ?? [])) cand.push({ candidate_id: r.id, kind: 'project', text: String(r.name ?? ''), sim: r.similarity, name: r.name })
 
   // 1-b) 엔티티 추출 + 이름 매칭 (임베딩이 약한 짧은 고유명사 보완). rawName→candidate 기록(L2 별칭 학습용).
   const rawNameById = new Map<string, string>()
@@ -86,14 +89,19 @@ export async function runAutolink(logId: string, actor: string, requesterId: str
         const seen = new Set(cand.map((c) => c.candidate_id))
         const esc = (s: string) => s.replace(/[%_,]/g, ' ').trim()  // ilike 와일드카드 무력화
         // 추출된 이름별로 좁혀서 조회(전수 로딩 금지 — DC-REV 성능). 인덱스 활용.
-        const tables: Array<{ kind: LinkKind; table: string; col: string }> = [
+        // projects는 본인 소유만(user_id 스코프) — RLS는 admin client에서 우회되므로 명시 필터 필수(IDOR 방지).
+        const tables: Array<{ kind: LinkKind; table: string; col: string; ownerCol?: string }> = [
           { kind: 'account', table: 'accounts', col: 'name' },
           { kind: 'deal', table: 'deals', col: 'title' },
           { kind: 'contact', table: 'contacts', col: 'name' },
+          { kind: 'project', table: 'projects', col: 'name', ownerCol: 'user_id' },
         ]
         for (const nm of names) {
-          const matches = await Promise.all(tables.map((t) =>
-            db.from(t.table).select(`id, ${t.col}`).ilike(t.col, `%${esc(nm)}%`).limit(5)))
+          const matches = await Promise.all(tables.map((t) => {
+            let q = db.from(t.table).select(`id, ${t.col}`).ilike(t.col, `%${esc(nm)}%`)
+            if (t.ownerCol) q = q.eq(t.ownerCol, requesterId).is('deleted_at', null)
+            return q.limit(5)
+          }))
           tables.forEach((t, i) => {
             for (const row of (matches[i].data ?? [])) {
               const rowNm = String(row[t.col] ?? '')

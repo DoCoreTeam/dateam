@@ -1,20 +1,35 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
+import { useSearchParams, useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import WorkTabBar from '@/components/ui/WorkTabBar'
 import PageHeader from '@/components/ui/PageHeader'
 
-type Axis = 'account' | 'deal'
+type Axis = 'account' | 'deal' | 'project'
 interface Group { id: string; name: string; count: number; statusCounts: Record<string, number>; recent: { id: string; content: string; entry_type: string }[] }
 interface Resp { by: Axis; groups: Group[]; ungrouped: number }
 interface Dash { total: number; distribution: { id: string; name: string; count: number }[]; trend: { weekStart: string; count: number }[]; rollup: Record<string, number> }
 
-const AXIS: { key: Axis; label: string }[] = [{ key: 'account', label: '고객별' }, { key: 'deal', label: '딜별' }]
+const AXIS: { key: Axis; label: string }[] = [{ key: 'account', label: '고객별' }, { key: 'deal', label: '딜별' }, { key: 'project', label: '프로젝트별' }]
+const AXIS_NOUN: Record<Axis, string> = { account: '고객', deal: '딜', project: '프로젝트' }
+
+function isAxis(v: string | null): v is Axis {
+  return v === 'account' || v === 'deal' || v === 'project'
+}
 
 export default function WorkOverviewPage() {
-  const [axis, setAxis] = useState<Axis>('account')
+  const params = useSearchParams()
+  const router = useRouter()
+  const urlAxis = params.get('axis')
+  const axis: Axis = isAxis(urlAxis) ? urlAxis : 'account'
+  const setAxis = (next: Axis) => {
+    const sp = new URLSearchParams(Array.from(params.entries()))
+    sp.set('axis', next)
+    router.replace(`?${sp.toString()}`, { scroll: false })
+  }
   const { data, isLoading } = useSWR<Resp>(`/api/work/groups?by=${axis}`, fetcher)
   const { data: dash } = useSWR<Dash>('/api/work/dashboard', fetcher)
   const groups = data?.groups ?? []
@@ -67,16 +82,24 @@ export default function WorkOverviewPage() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 'var(--space-1)', marginBottom: 'var(--space-4)' }}>
-        {AXIS.map((a) => (
-          <button key={a.key} onClick={() => setAxis(a.key)} data-testid={`axis-${a.key}`}
-            style={{
-              fontSize: 'var(--fs-sm)', padding: '6px 14px', borderRadius: 'var(--radius)', cursor: 'pointer',
-              background: axis === a.key ? 'var(--brand)' : 'var(--surface-bg)',
-              color: axis === a.key ? '#fff' : 'var(--text-muted)',
-              border: `var(--border-w-2) solid ${axis === a.key ? 'var(--brand)' : 'var(--border-color)'}`,
-            }}>{a.label}</button>
-        ))}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-1)' }}>
+          {AXIS.map((a) => (
+            <button key={a.key} onClick={() => setAxis(a.key)} data-testid={`axis-${a.key}`}
+              style={{
+                fontSize: 'var(--fs-sm)', padding: '6px 14px', borderRadius: 'var(--radius)', cursor: 'pointer',
+                background: axis === a.key ? 'var(--brand)' : 'var(--surface-bg)',
+                color: axis === a.key ? 'var(--brand-fg)' : 'var(--text-muted)',
+                border: `var(--border-w-2) solid ${axis === a.key ? 'var(--brand)' : 'var(--border-color)'}`,
+              }}>{a.label}</button>
+          ))}
+        </div>
+        {axis === 'project' && (
+          <Link href="/work/projects" data-testid="manage-projects-link"
+            style={{ marginLeft: 'auto', fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand)', textDecoration: 'none', padding: '6px 12px', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--brand)' }}>
+            프로젝트 관리 →
+          </Link>
+        )}
       </div>
 
       {isLoading ? (
@@ -107,13 +130,13 @@ export default function WorkOverviewPage() {
 
       {!isLoading && groups.length === 0 && (
         <div style={{ color: 'var(--text-faint)', padding: 'var(--space-6)', textAlign: 'center', fontSize: 'var(--fs-sm)' }}>
-          아직 {axis === 'account' ? '고객' : '딜'}에 연결된 업무가 없습니다.
+          아직 {AXIS_NOUN[axis]}에 연결된 업무가 없습니다.
         </div>
       )}
 
       {!isLoading && ungrouped > 0 && (
         <div data-testid="ungrouped" style={{ marginTop: 'var(--space-4)', padding: 'var(--space-3)', borderRadius: 'var(--radius)', background: 'var(--surface-bg)', border: 'var(--hairline) dashed var(--border-color)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-          🔗 아직 {axis === 'account' ? '고객' : '딜'}에 연결 안 된 업무 <b style={{ color: 'var(--text)' }}>{ungrouped}건</b> — 업무 플로우에서 AI가 연관을 제안합니다.
+          🔗 아직 {AXIS_NOUN[axis]}에 연결 안 된 업무 <b style={{ color: 'var(--text)' }}>{ungrouped}건</b> — 업무 플로우에서 AI가 연관을 제안합니다.
         </div>
       )}
     </div>

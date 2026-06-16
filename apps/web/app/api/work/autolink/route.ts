@@ -41,11 +41,14 @@ export async function GET(req: NextRequest) {
   const accIds = ents.filter((e) => e.kind === 'account').map((e) => e.entity_id)
   const dealIds = ents.filter((e) => e.kind === 'deal').map((e) => e.entity_id)
   const conIds = ents.filter((e) => e.kind === 'contact').map((e) => e.entity_id)
-  const [logsN, accsN, dealsN, consN] = await Promise.all([
+  const projIds = ents.filter((e) => e.kind === 'project').map((e) => e.entity_id)
+  const [logsN, accsN, dealsN, consN, projsN] = await Promise.all([
     logIds.length ? db.from('daily_logs').select('id, content, log_date').in('id', logIds) : { data: [] },
     accIds.length ? db.from('accounts').select('id, name').in('id', accIds) : { data: [] },
     dealIds.length ? db.from('deals').select('id, title').in('id', dealIds) : { data: [] },
     conIds.length ? db.from('contacts').select('id, name').in('id', conIds) : { data: [] },
+    // 프로젝트는 사용자 소유 — RLS(owner)로 본인 것만 resolve됨(supabase=쿠키 인증 클라이언트). 소프트삭제 제외.
+    projIds.length ? db.from('projects').select('id, name').in('id', projIds).is('deleted_at', null) : { data: [] },
   ])
   const nameMap = new Map<string, string>()
   const logDateMap = new Map<string, string>()
@@ -53,6 +56,7 @@ export async function GET(req: NextRequest) {
   for (const r of (accsN.data ?? [])) nameMap.set('account:' + r.id, r.name)
   for (const r of (dealsN.data ?? [])) nameMap.set('deal:' + r.id, r.title)
   for (const r of (consN.data ?? [])) nameMap.set('contact:' + r.id, r.name)
+  for (const r of (projsN.data ?? [])) nameMap.set('project:' + r.id, r.name)
 
   return NextResponse.json({
     ran,
