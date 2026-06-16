@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import useSWRInfinite from 'swr/infinite'
-import { Plus, Pencil, Trash2, FolderOpen, AlertTriangle, X, Users } from 'lucide-react'
+import { Plus, Pencil, Trash2, FolderOpen, AlertTriangle, X } from 'lucide-react'
 import WorkPageShell from '@/components/ui/WorkPageShell'
 import { fetcher } from '@/lib/swr-config'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -155,7 +155,7 @@ export default function ProjectsPage() {
   )
 }
 
-// 프로젝트 카드 — 이름 + 기간 + 상태뱃지 + 예산 + 멤버 수. 멤버는 GET 단건 비용 회피 위해 수만 표시(목록 응답엔 없음).
+// 프로젝트 카드 — 이름 + 기간 + 상태뱃지 + 예산.
 function ProjectCard({ project: p, onEdit, onDelete }: { project: Project; onEdit: () => void; onDelete: () => void }) {
   const period = periodLabel(p)
   const budget = budgetLabel(p.budget, p.currency)
@@ -176,9 +176,6 @@ function ProjectCard({ project: p, onEdit, onDelete }: { project: Project; onEdi
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>
-          <Users size={13} /> 인원 관리
-        </span>
         <button onClick={onEdit} aria-label={`${p.name} 수정`}
           style={{ marginLeft: 'auto', display: 'inline-flex', padding: 'var(--space-2)', borderRadius: 'var(--radius)', background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer' }}>
           <Pencil size={15} />

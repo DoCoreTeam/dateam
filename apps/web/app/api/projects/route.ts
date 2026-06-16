@@ -5,7 +5,7 @@ import { parseProjectMeta, PROJECT_SELECT, PROJECT_SORT_ALLOW } from '@/lib/work
 
 // 경량 projects 엔티티 CRUD (본인 소유). 그룹핑 ③ 프로젝트 축의 그룹 키 원천.
 // 패턴: accounts/contacts 라우트와 동형 — createClient(RLS) + user_id 소유, items/nextCursor 엔벨로프.
-// mig111: year/quarter/half/month/start_date/end_date/budget/currency/status 메타 + project_members.
+// mig111: year/quarter/half/month/start_date/end_date/budget/currency/status 메타.
 
 const LIMIT = 20
 const NAME_MAX = 200

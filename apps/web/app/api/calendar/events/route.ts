@@ -18,10 +18,13 @@ export async function GET(req: NextRequest) {
   const toMs = new Date(`${end}T23:59:59Z`).getTime()
 
   // 단발: 범위 내 시작 / 반복: 시작이 범위 끝 이전이면 후보 (전개는 아래)
+  // 하한(start)을 추가해 과거 전체 스캔 방지 — 단, 반복(rrule)은 시작이 범위 이전이어도
+  // 범위 내 occurrence를 만들 수 있어 하한에서 제외(rrule is not null로 보존).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase.from('calendar_events') as any)
     .select('id, title, description, start_at, end_at, all_day, source, link_kind, link_id, status, user_id, rrule')
     .lte('start_at', `${end}T23:59:59`)
+    .or(`start_at.gte.${start}T00:00:00,rrule.not.is.null`)
     .order('start_at', { ascending: true })
     .limit(1000)
 

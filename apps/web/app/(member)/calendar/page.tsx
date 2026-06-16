@@ -89,14 +89,14 @@ export default function CalendarPage() {
     ? `/api/calendar/month?year=${year}&month=${month}`
     : null;
   const { data: monthSummary = [], isLoading: monthLoading } =
-    useSWR<DayLogSummary[]>(monthKey, fetcher);
+    useSWR<DayLogSummary[]>(monthKey, fetcher, { keepPreviousData: true });
 
   // SWR: 주간 로그
   const weekKey = viewMode === "week"
     ? `/api/daily/week?start=${weekStart}`
     : null;
   const { data: weekLogs = [], isLoading: weekLoading } =
-    useSWR<DailyLog[]>(weekKey, fetcher);
+    useSWR<DailyLog[]>(weekKey, fetcher, { keepPreviousData: true });
 
   // SWR: 일정(calendar_events) — 보이는 범위
   const evRange = viewMode === "month"
@@ -111,6 +111,7 @@ export default function CalendarPage() {
   const { data: calEvents = [] } = useSWR<CalEventLite[]>(
     `/api/calendar/events?start=${evRange.start}&end=${evRange.end}`,
     fetcher,
+    { keepPreviousData: true },
   );
   const eventsByDate = new Map<string, CalEventLite[]>();
   for (const ev of calEvents) {

@@ -1,15 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { X } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import {
   PROJECT_STATUS_OPTIONS, CURRENCY_OPTIONS, type ProjectMeta,
 } from '@/lib/work/project-display'
-import ProjectMemberPicker, { type SelectedMember } from './ProjectMemberPicker'
 
-// 프로젝트 생성/수정 공용 모달. 이름 + 날짜체계 + 기간 + 예산/통화 + 상태 + 투입인원.
-// mode='create'→POST /api/projects, 'edit'→PATCH + 멤버 diff(add/delete). 모달 표준(§2-2) 준수.
+// 프로젝트 생성/수정 공용 모달. 이름 + 날짜체계 + 기간 + 예산/통화 + 상태.
+// mode='create'→POST /api/projects, 'edit'→PATCH. 모달 표준(§2-2) 준수.
 interface Props {
   mode: 'create' | 'edit'
   projectId?: string
@@ -71,42 +70,11 @@ function toPayload(f: FormState): Record<string, unknown> {
 export default function ProjectFormModal({ mode, projectId, initial, onClose, onSaved }: Props) {
   useEscClose(onClose)
   const [form, setForm] = useState<FormState>(() => toForm(initial))
-  const [members, setMembers] = useState<SelectedMember[]>([])
-  const [initialMemberIds, setInitialMemberIds] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }))
-
-  // 편집 모드: 기존 멤버 로드(GET 단건). 생성 모드는 빈 상태.
-  useEffect(() => {
-    if (mode !== 'edit' || !projectId) return
-    let alive = true
-    fetch(`/api/projects/${projectId}`).then((r) => (r.ok ? r.json() : null)).then((data) => {
-      if (!alive || !data?.members) return
-      const ms: SelectedMember[] = data.members.map((m: { user_id: string; name: string; role: string | null }) =>
-        ({ userId: m.user_id, name: m.name, role: m.role }))
-      setMembers(ms)
-      setInitialMemberIds(new Set(ms.map((m) => m.userId)))
-    })
-    return () => { alive = false }
-  }, [mode, projectId])
-
-  // 멤버 동기화 — 현재 선택 전체를 upsert(POST 멱등: role 갱신 포함) + 제거된 멤버만 DELETE.
-  async function syncMembers(id: string) {
-    const currentIds = new Set(members.map((m) => m.userId))
-    const toRemove = Array.from(initialMemberIds).filter((uid) => !currentIds.has(uid))
-    await Promise.all([
-      ...members.map((m) =>
-        fetch(`/api/projects/${id}/members`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: m.userId, role: m.role }),
-        })),
-      ...toRemove.map((uid) =>
-        fetch(`/api/projects/${id}/members/${uid}`, { method: 'DELETE' })),
-    ])
-  }
 
   async function save() {
     const trimmed = form.name.trim()
@@ -124,9 +92,6 @@ export default function ProjectFormModal({ mode, projectId, initial, onClose, on
         const j = await res.json().catch(() => null)
         setErr(j?.error ?? '저장에 실패했습니다'); setBusy(false); return
       }
-      const saved = await res.json().catch(() => null)
-      const id = mode === 'create' ? saved?.id : projectId
-      if (id) await syncMembers(id)
       onSaved()
     } catch {
       setErr('서버 연결에 실패했습니다'); setBusy(false)
@@ -214,8 +179,6 @@ export default function ProjectFormModal({ mode, projectId, initial, onClose, on
               {PROJECT_STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </div>
-
-          <ProjectMemberPicker selected={members} onChange={setMembers} />
         </div>
 
         <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '1.25rem', justifyContent: 'flex-end' }}>

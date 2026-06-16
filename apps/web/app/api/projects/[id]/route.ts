@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { parseProjectMeta, PROJECT_SELECT } from '@/lib/work/project-fields'
-import { getOrgScopeUserIds } from '@/lib/work/project-members-scope'
 
 interface Ctx { params: Promise<{ id: string }> }
 
 const NAME_MAX = 200
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-// GET: 단건 + 멤버 목록(이름 resolve) / PATCH: 이름·메타 수정 / DELETE: soft delete.
+// GET: 단건(프로젝트 메타) / PATCH: 이름·메타 수정 / DELETE: soft delete.
 // 모두 본인 소유(eq user_id) — RLS 위 앱 레이어 2중 방어.
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
@@ -33,30 +32,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   }
   if (!project) return NextResponse.json({ error: '프로젝트를 찾을 수 없습니다' }, { status: 404 })
 
-  // 멤버 목록 + 이름 resolve(profiles.name).
-  const { data: members } = await db
-    .from('project_members')
-    .select('id, user_id, role, created_at')
-    .eq('project_id', id)
-    .order('created_at', { ascending: true })
-  const rows = (members ?? []) as Array<{ id: string; user_id: string; role: string | null; created_at: string }>
-  const nameMap = new Map<string, string>()
-  if (rows.length > 0) {
-    // 이름은 호출자의 org-scope 가시 범위로 제한 — 외조직 profile 무차별 수확 차단.
-    const admin = createAdminClient()
-    const visible = await getOrgScopeUserIds(admin, user.id)
-    const lookupIds = rows.map((r) => r.user_id).filter((uid) => visible.has(uid))
-    if (lookupIds.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: profs } = await (admin as any).from('profiles').select('id, name').in('id', lookupIds)
-      for (const p of (profs ?? []) as Array<{ id: string; name: string }>) nameMap.set(p.id, p.name)
-    }
-  }
-
-  return NextResponse.json({
-    ...project,
-    members: rows.map((m) => ({ ...m, name: nameMap.get(m.user_id) ?? '(이름없음)' })),
-  })
+  return NextResponse.json(project)
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
