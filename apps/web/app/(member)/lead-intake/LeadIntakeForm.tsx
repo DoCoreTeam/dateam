@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ParsedLeadData } from '@/lib/gemini-lead'
 import AXLoadingOverlay from '@/components/ui/AXLoadingOverlay'
+import { useFormCore } from '@/lib/forms/useFormCore'
+import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import ParsedCard from './ParsedCard'
 import BulkImportProgress from './BulkImportProgress'
 
@@ -48,7 +50,10 @@ const ACCEPTED_TYPES = [
 export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
   const router = useRouter()
 
-  const [rawInput, setRawInput] = useState('')
+  const leadScopeRef = useRef<HTMLDivElement>(null)
+  const draft = useFormCore<string>({ formId: 'lead-intake', initial: '', scopeRef: leadScopeRef })
+  const rawInput = draft.value
+  const setRawInput = draft.set
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<{ parsed: ParsedLeadData; intakeId: string } | null>(null)
@@ -184,7 +189,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
   }
 
   function resetAll() {
-    setResult(null); setRawInput(''); setFiles([]); setVoiceUsed(false); setError('')
+    setResult(null); setRawInput(''); draft.clear(); setFiles([]); setVoiceUsed(false); setError('')
   }
 
   function startVoiceInput() {
@@ -221,7 +226,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
       // 연속모드: results는 누적되므로 가장 마지막(새) 결과만 추가(중복 방지)
       const results = Array.from(event.results)
       const text = results[results.length - 1]?.[0]?.transcript?.trim() ?? ''
-      if (text) { setRawInput((prev) => [prev, text].filter(Boolean).join(' ')); setVoiceUsed(true) }
+      if (text) { setRawInput([rawInput, text].filter(Boolean).join(' ')); setVoiceUsed(true) }
     }
     recognitionRef.current = recognition
     recognition.start()
@@ -281,7 +286,9 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
             onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={e => { e.preventDefault(); setIsDragging(false); addFiles(e.dataTransfer.files) }}
+            ref={leadScopeRef}
             style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', background: '#fff' }}>
+            <DraftRestoreBanner show={draft.hasDraft} onRestore={draft.restore} onDiscard={draft.discard} />
             <textarea value={rawInput} onChange={e => setRawInput(e.target.value)} onPaste={handlePaste} rows={6}
               placeholder={`텍스트를 입력·붙여넣거나, 명함·문서 파일을 끌어다 놓으세요.\n\n예시:\n삼성SDS 김철수 부장 (IT전략팀)\nkcs@samsung.com / 02-6360-0000\n클라우드 전환 프로젝트 논의 필요`}
               style={{ width: '100%', padding: 'var(--space-3)', border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6, background: 'transparent', outline: 'none' }} />

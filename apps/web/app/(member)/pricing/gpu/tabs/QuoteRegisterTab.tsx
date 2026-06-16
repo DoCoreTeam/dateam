@@ -6,6 +6,8 @@ import { Sparkles, Send, Paperclip, X, RotateCcw } from 'lucide-react'
 import IntakeGateSummary, { type GateRow } from './IntakeGateSummary'
 import MultimodalIntake from '@/components/pricing/gpu/unified/MultimodalIntake'
 import CatalogUploadSection from '@/components/pricing/gpu/CatalogUploadSection'
+import { useFormCore } from '@/lib/forms/useFormCore'
+import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import type { CsvFieldKey } from '@/lib/gpu/csv-intake'
 import { REVIEW_CHANNELS } from '@/lib/gpu/review-channels'
 
@@ -159,7 +161,10 @@ function ResultPanel({ item }: { item: ReviewItemResult }) {
 }
 
 export default function QuoteRegisterTab() {
-  const [rawText, setRawText] = useState('')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const rawTextDraft = useFormCore<string>({ formId: 'gpu-intake', initial: '', scopeRef: textareaRef })
+  const rawText = rawTextDraft.value
+  const setRawText = rawTextDraft.set
   const [attached, setAttached] = useState<AttachedFile | null>(null)   // 텍스트 파일(단일)
   const [images, setImages] = useState<AttachedFile[]>([])              // 이미지(다중)
   const [isDragging, setIsDragging] = useState(false)
@@ -185,7 +190,6 @@ export default function QuoteRegisterTab() {
   const [committed, setCommitted] = useState(false)
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null)  // 공급가 미리보기 상세 펼침
   const [csvSaving, setCsvSaving] = useState(false)                    // CSV/표 → 검토 대기 저장 중
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // 스트림 raw JSON → 자연어 파싱 (내부 필드명 노출 안 함). 누적 버퍼에서 모델·가격을 뽑아 친화적으로 표시.
   const streamFindings: Array<{ model: string; price?: string }> = (() => {
@@ -250,7 +254,7 @@ export default function QuoteRegisterTab() {
   }, [processFiles])
 
   const reset = useCallback(() => {
-    setRawText(''); setAttached(null); setImages([]); setAnalysisResults([])
+    setRawText(''); rawTextDraft.clear(); setAttached(null); setImages([]); setAnalysisResults([])
     setCompetitorResults([]); setActiveTabIdx(0); setErrorMsg(''); setSuccessMsg('')
     setLiveMsgs([]); setStreamText(''); setSupplierPreview([]); setCommitted(false)
     setPreviewItems([]); setPreviewSourceUrl(null); setApplied(false); setExpandedIdx(null)
@@ -460,6 +464,7 @@ export default function QuoteRegisterTab() {
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
           >
+            <DraftRestoreBanner show={rawTextDraft.hasDraft} onRestore={rawTextDraft.restore} onDiscard={rawTextDraft.discard} />
             <textarea
               ref={textareaRef}
               className="gpu-intake-textarea"
