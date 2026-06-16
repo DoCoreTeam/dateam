@@ -13,7 +13,11 @@ export default async function DeptTasksPage() {
   if (!user) redirect('/login')
 
   const admin = createAdminClient()
-  const scope = await resolveOrgScope(admin, user.id)
+  // scope와 tasks는 서로 독립(listDeptTasks는 자체 auth+RLS로 조회) → 병렬화로 워터폴 단축(결과 동일).
+  const [scope, tasks] = await Promise.all([
+    resolveOrgScope(admin, user.id),
+    listDeptTasks(),
+  ])
   const deptNodes = scope.nodes.filter((n) => n.type === 'department')
   const deptNameMap: Record<string, string> = Object.fromEntries(deptNodes.map((n) => [n.id, n.name]))
 
@@ -22,8 +26,6 @@ export default async function DeptTasksPage() {
     .filter((n) => scope.isExecutive || scope.readableDeptIds.includes(n.id))
     .map((n) => ({ id: n.id, name: n.name }))
   const editableDeptIds = scope.isExecutive ? deptNodes.map((n) => n.id) : scope.editableDeptIds
-
-  const tasks = await listDeptTasks()
 
   // 작성자/담당자 이름 맵 + 원본 일일 인용 (SSOT — getDeptTaskActors 재사용)
   const { origins, nameMap } = await getDeptTaskActors(

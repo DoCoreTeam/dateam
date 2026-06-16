@@ -2,16 +2,17 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { NotebookPen, Briefcase, FileText, BarChart3 } from 'lucide-react'
+import { NotebookPen, Briefcase, FileText, BarChart3, FolderKanban } from 'lucide-react'
 import type { CSSProperties } from 'react'
 
-// 업무 허브 공유 탭바 — 일일업무/부서업무/주간보고/현황을 단일 "업무" 메뉴의 탭으로 묶는다.
+// 업무 허브 공유 탭바 — 일일업무/부서업무/주간보고/현황/프로젝트를 단일 "업무" 메뉴의 탭으로 묶는다.
 // 기존 라우트를 그대로 사용(최소변경). active는 pathname 기준.
 const TABS = [
   { href: '/daily', label: '일일업무', icon: NotebookPen },
   { href: '/dept-tasks', label: '부서 업무', icon: Briefcase },
   { href: '/weekly-report', label: '주간보고', icon: FileText },
   { href: '/work/overview', label: '현황', icon: BarChart3 },
+  { href: '/work/projects', label: '프로젝트', icon: FolderKanban },
 ]
 
 function tabStyle(isActive: boolean): CSSProperties {

@@ -1,29 +1,36 @@
-// 프로젝트 관리 — 목록(검색·커서 페이지네이션 '더 보기') + 생성/수정/삭제(soft).
-// 그룹핑 ③ 프로젝트 축의 그룹 키 원천. 검색어는 URL(?search=) 동기화로 공유·뒤로가기 가능.
-// 상태 3종(로딩/빈/에러) + 모달 표준(§2-2). API: /api/projects(GET·POST), /api/projects/[id](PATCH·DELETE).
+// 프로젝트 관리 — 업무 허브 5번째 탭. WorkPageShell 골격(탭바→헤더→콘텐츠).
+// 목록(검색·정렬·커서 '더 보기') + 생성/수정/삭제(soft) + AI 예상 프로젝트 제안(§5-3 추출형).
+// 카드: 이름·기간·상태뱃지·예산·멤버. 검색어/정렬은 URL 동기화(공유·뒤로가기). 상태 3종(로딩/빈/에러).
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import useSWRInfinite from 'swr/infinite'
-import { Plus, Pencil, Trash2, FolderOpen, AlertTriangle, X } from 'lucide-react'
-import WorkTabBar from '@/components/ui/WorkTabBar'
-import PageHeader from '@/components/ui/PageHeader'
+import { Plus, Pencil, Trash2, FolderOpen, AlertTriangle, X, Users } from 'lucide-react'
+import WorkPageShell from '@/components/ui/WorkPageShell'
 import { fetcher } from '@/lib/swr-config'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useEscClose } from '@/lib/use-esc-close'
+import { periodLabel, budgetLabel, statusBadge, type ProjectMeta } from '@/lib/work/project-display'
 import ProjectFormModal from './ProjectFormModal'
+import ProjectAiSuggest from './ProjectAiSuggest'
 
-interface Project { id: string; name: string; created_at: string; updated_at: string }
+interface Project extends ProjectMeta {
+  id: string
+  name: string
+  created_at: string
+  updated_at: string
+}
 interface Page { items: Project[]; nextCursor: string | null; hasMore: boolean }
 
 type Editing = { mode: 'create' } | { mode: 'edit'; project: Project } | null
 
-// 정렬 옵션(SSOT). value = `${sort}.${dir}` — 셀렉트·URL·SWR 키가 공유. 기본 = 최신순.
+// 정렬 옵션(SSOT). value = `${sort}.${dir}`. 기본 = 최신순.
 const SORT_OPTIONS = [
   { value: 'created_at.desc', label: '최신순', sort: 'created_at', dir: 'desc' },
   { value: 'name.asc', label: '이름순', sort: 'name', dir: 'asc' },
-  { value: 'updated_at.desc', label: '수정순', sort: 'updated_at', dir: 'desc' },
+  { value: 'start_date.desc', label: '시작일순', sort: 'start_date', dir: 'desc' },
+  { value: 'year.desc', label: '연도순', sort: 'year', dir: 'desc' },
 ] as const
 const DEFAULT_SORT = SORT_OPTIONS[0].value
 
@@ -35,7 +42,7 @@ export default function ProjectsPage() {
   const initialSort = `${params.get('sort') ?? 'created_at'}.${params.get('dir') ?? 'desc'}`
   const [sort, setSort] = useState(SORT_OPTIONS.some((o) => o.value === initialSort) ? initialSort : DEFAULT_SORT)
 
-  // 검색어·정렬 → URL 동기화(공유·뒤로가기). 기본값이면 파라미터 제거.
+  // 검색어·정렬 → URL 동기화. 기본값이면 파라미터 제거.
   useEffect(() => {
     const sp = new URLSearchParams(Array.from(params.entries()))
     if (debounced) sp.set('search', debounced); else sp.delete('search')
@@ -68,29 +75,24 @@ export default function ProjectsPage() {
   const [deleting, setDeleting] = useState<Project | null>(null)
 
   return (
-    <div>
-      <div className="page-tabbar-wrap">
-        <WorkTabBar />
-      </div>
-      <PageHeader
-        title="프로젝트"
-        description="업무를 묶는 프로젝트를 관리합니다. 프로젝트별 업무 현황은 '업무 현황 → 프로젝트별'에서 확인하세요."
-        className="page-header--compact"
-        descClassName="page-header-desc--compact"
-        actions={
-          <button onClick={() => setEditing({ mode: 'create' })} data-testid="new-project"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand-fg)', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-4)', cursor: 'pointer' }}>
-            <Plus size={16} /> 프로젝트 추가
-          </button>
-        }
-      />
+    <WorkPageShell
+      title="프로젝트"
+      description="업무를 묶는 프로젝트를 관리합니다. 프로젝트별 업무 현황은 '현황 → 프로젝트별'에서 확인하세요."
+      actions={
+        <button onClick={() => setEditing({ mode: 'create' })} data-testid="new-project"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand-fg)', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-4)', minHeight: 44, cursor: 'pointer' }}>
+          <Plus size={16} /> 프로젝트 추가
+        </button>
+      }
+    >
+      <ProjectAiSuggest onConfirmed={() => mutate()} />
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
         <input className="input-field" value={search} onChange={(e) => setSearch(e.target.value)}
           placeholder="프로젝트 이름 검색" aria-label="프로젝트 검색"
-          style={{ flex: '1 1 240px', minWidth: 0, maxWidth: 360 }} />
+          style={{ flex: '1 1 240px', minWidth: 0, maxWidth: 360, minHeight: 44 }} />
         <select className="input-field" value={sort} onChange={(e) => setSort(e.target.value)}
-          aria-label="정렬 기준" style={{ flex: '0 0 auto', width: 'auto' }}>
+          aria-label="정렬 기준" style={{ flex: '0 0 auto', width: 'auto', minHeight: 44 }}>
           {SORT_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
@@ -118,21 +120,11 @@ export default function ProjectsPage() {
           )}
         </div>
       ) : (
-        <ul data-testid="project-list" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+        <ul data-testid="project-list" className="responsive-grid-cols-2" style={{ listStyle: 'none', margin: 0, padding: 0, gap: 'var(--space-3)' }}>
           {projects.map((p) => (
-            <li key={p.id}
-              style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', padding: 'var(--space-3) var(--space-4)', borderRadius: 'var(--radius-lg)', border: 'var(--border-w-2) solid var(--border-color)', background: 'var(--color-bg)' }}>
-              <FolderOpen size={18} style={{ color: 'var(--brand)', flexShrink: 0 }} />
-              <span style={{ flex: 1, fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text)', wordBreak: 'break-word' }}>{p.name}</span>
-              <button onClick={() => setEditing({ mode: 'edit', project: p })} aria-label={`${p.name} 수정`}
-                style={{ display: 'inline-flex', padding: 'var(--space-2)', borderRadius: 'var(--radius)', background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                <Pencil size={15} />
-              </button>
-              <button onClick={() => setDeleting(p)} aria-label={`${p.name} 삭제`}
-                style={{ display: 'inline-flex', padding: 'var(--space-2)', borderRadius: 'var(--radius)', background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', color: 'var(--danger)', cursor: 'pointer' }}>
-                <Trash2 size={15} />
-              </button>
-            </li>
+            <ProjectCard key={p.id} project={p}
+              onEdit={() => setEditing({ mode: 'edit', project: p })}
+              onDelete={() => setDeleting(p)} />
           ))}
         </ul>
       )}
@@ -149,8 +141,8 @@ export default function ProjectsPage() {
       {editing && (
         <ProjectFormModal
           mode={editing.mode}
-          initialName={editing.mode === 'edit' ? editing.project.name : ''}
           projectId={editing.mode === 'edit' ? editing.project.id : undefined}
+          initial={editing.mode === 'edit' ? editing.project : undefined}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); mutate() }}
         />
@@ -159,7 +151,44 @@ export default function ProjectsPage() {
       {deleting && (
         <DeleteConfirm project={deleting} onClose={() => setDeleting(null)} onDone={() => { setDeleting(null); mutate() }} />
       )}
-    </div>
+    </WorkPageShell>
+  )
+}
+
+// 프로젝트 카드 — 이름 + 기간 + 상태뱃지 + 예산 + 멤버 수. 멤버는 GET 단건 비용 회피 위해 수만 표시(목록 응답엔 없음).
+function ProjectCard({ project: p, onEdit, onDelete }: { project: Project; onEdit: () => void; onDelete: () => void }) {
+  const period = periodLabel(p)
+  const budget = budgetLabel(p.budget, p.currency)
+  const badge = statusBadge(p.status)
+  return (
+    <li style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)', border: 'var(--border-w-2) solid var(--border-color)', background: 'var(--color-surface)', boxShadow: 'var(--shadow-sm)' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)' }}>
+        <FolderOpen size={18} style={{ color: 'var(--brand)', flexShrink: 0, marginTop: 2 }} />
+        <span style={{ flex: 1, fontSize: 'var(--fs-md)', fontWeight: 700, color: 'var(--text)', wordBreak: 'break-word', lineHeight: 1.3 }}>{p.name}</span>
+        <span style={{ flexShrink: 0, fontSize: 'var(--fs-2xs)', fontWeight: 700, color: badge.color, background: badge.bg, border: `var(--hairline) solid ${badge.border}`, borderRadius: '9999px', padding: '2px 10px' }}>{badge.label}</span>
+      </div>
+
+      {(period || budget) && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1) var(--space-3)', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
+          {period && <span>{period}</span>}
+          {budget && <span style={{ fontWeight: 600, color: 'var(--text)' }}>{budget}</span>}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>
+          <Users size={13} /> 인원 관리
+        </span>
+        <button onClick={onEdit} aria-label={`${p.name} 수정`}
+          style={{ marginLeft: 'auto', display: 'inline-flex', padding: 'var(--space-2)', borderRadius: 'var(--radius)', background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <Pencil size={15} />
+        </button>
+        <button onClick={onDelete} aria-label={`${p.name} 삭제`}
+          style={{ display: 'inline-flex', padding: 'var(--space-2)', borderRadius: 'var(--radius)', background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', color: 'var(--danger)', cursor: 'pointer' }}>
+          <Trash2 size={15} />
+        </button>
+      </div>
+    </li>
   )
 }
 

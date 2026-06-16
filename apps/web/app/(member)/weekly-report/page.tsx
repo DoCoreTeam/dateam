@@ -51,30 +51,40 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
   const showOrgTab = hasOrgScope(orgScope)
   const activeTab = tab === 'team' ? 'team' : tab === 'org' && showOrgTab ? 'org' : 'mine'
 
-  let orgName = ''
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: metaRow } = await (createAdminClient() as any).from('org_content').select('value').eq('key', 'META').single()
-    const meta = (metaRow?.value as Record<string, unknown>) ?? {}
-    orgName = typeof meta.org === 'string' ? meta.org : typeof meta.title === 'string' ? meta.title : ''
-  } catch (err) {
-    console.warn('[weekly-report] org_content lookup failed; orgName will be empty', err)
-  }
-
   const weekOptions = Array.from({ length: 8 }, (_, i) => {
     const d = getWeekStart(subWeeks(new Date(), i))
     return toDateString(d)
   })
   const thisWeek = weekOptions[0]
 
-  // 내 보고 히스토리
-  const { data: reports } = await supabase
-    .from('weekly_reports')
-    .select('*')
-    .eq('user_id', user.id)
-    .is('deleted_at', null)
-    .order('week_start', { ascending: false })
-    .order('category', { ascending: true }) as unknown as { data: WeeklyReport[] | null; error: unknown }
+  // 스코프 확정 후 서로 독립인 3개 쿼리(조직명·내보고·팀보고)를 병렬화 — 워터폴 단축(결과 동일).
+  const [orgMetaRes, reportsRes, teamRawRes] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (createAdminClient() as any)
+      .from('org_content').select('value').eq('key', 'META').single()
+      .then((r: { data: { value?: Record<string, unknown> } | null }) => r)
+      .catch((err: unknown) => {
+        console.warn('[weekly-report] org_content lookup failed; orgName will be empty', err)
+        return { data: null }
+      }),
+    supabase
+      .from('weekly_reports')
+      .select('*')
+      .eq('user_id', user.id)
+      .is('deleted_at', null)
+      .order('week_start', { ascending: false })
+      .order('category', { ascending: true }) as unknown as Promise<{ data: WeeklyReport[] | null }>,
+    supabase
+      .from('weekly_reports')
+      .select('user_id, category, performance, plan, issues, week_start, profiles(name, role)')
+      .eq('week_start', thisWeek)
+      .is('deleted_at', null)
+      .order('category', { ascending: true }) as unknown as Promise<{ data: TeamRow[] | null }>,
+  ])
+
+  const meta = (orgMetaRes?.data?.value as Record<string, unknown>) ?? {}
+  const orgName = typeof meta.org === 'string' ? meta.org : typeof meta.title === 'string' ? meta.title : ''
+  const reports = reportsRes.data
 
   // 수정 모드: editWeek가 유효한 주차면 그 주 데이터로 프리필
   const initialWeek = (editWeek && weekOptions.includes(editWeek)) ? editWeek : thisWeek
@@ -122,12 +132,8 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     .map(([weekStart, reps]) => ({ weekStart, reports: reps }))
 
   // 팀 전체 보고 (이번 주 초기값) — 002 migration 적용 후 member도 조회 가능
-  const { data: teamRaw } = await supabase
-    .from('weekly_reports')
-    .select('user_id, category, performance, plan, issues, week_start, profiles(name, role)')
-    .eq('week_start', thisWeek)
-    .is('deleted_at', null)
-    .order('category', { ascending: true }) as unknown as { data: TeamRow[] | null; error: unknown }
+  // 위 Promise.all에서 병렬 조회됨(teamRawRes). 결과 동일.
+  const teamRaw = teamRawRes.data
 
   const teamReports = (teamRaw ?? [])
     .map((r) => ({
