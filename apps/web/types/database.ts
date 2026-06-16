@@ -387,6 +387,7 @@ export type AiFeature =
   | 'memo-embedding'
   | 'memo-cluster-label'
   | 'dept-task-suggest'
+  | 'project-suggest'
 
 export interface AiTokenLog {
   id: string
