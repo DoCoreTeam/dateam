@@ -67,4 +67,49 @@ PGPASSWORD='<비번>' /opt/homebrew/bin/psql -h aws-1-ap-northeast-2.pooler.supa
 - 병렬 세션 동시 커밋 이력 있었음 → 재개 시 `git log`로 현재 버전 확인 후 +1.
 
 ---
-**재개 한 줄 요약**: `docs/2026-06-15-daily-ai-feedback-loop/03-phasing-risks.md`의 결정 4개 답 → **Slice 2(집계)부터** 착수.
+
+## 8. ▶ 같이 재개: 업무 AI 완전 자동 연관 연결 — 후속 권장 (별개 기능, v0.7.140~142 구현 완료)
+
+> 이 기능은 **이미 구현·운영 적용됨** (커밋 v0.7.140 본체 / v0.7.141 보안 / v0.7.142 성능).
+> 업무 저장/플로우 열람 시 AI가 무개입으로 과거 업무·거래처·딜·연락처와 연관을 자동 연결(가역·근거·신뢰도).
+> 기획: `docs/2026-06-15-work-ai-autolink-plan/` (00~05, 05=지속학습).
+> **아래는 "데이터가 쌓인 뒤(2주 후경)" 해야 할 후속** — feedback-loop 재개와 함께 처리 권장.
+
+### 후속 A — 거래처/딜 자동연결 정확도 입증 후 HIGH 자동확정 활성 ★
+- 현재 거래처/딜/연락처 자동연결은 **데이터가 적어(딜1·연락처1) 거의 안 뜸**. 경로는 구현·작동(콜드스타트).
+- 데이터 쌓이면: golden-set(라벨 50~100쌍) → **Precision@HIGH ≥ 0.92 입증** → `lib/work/autolink.ts`의 entity 가드(`entityHighAllowed`)를 신뢰. 미입증이면 MID(추천)로 유지.
+- 손댈 곳: `autolink_config.thresholds`(DB, 종류별 τ) · `lib/work/autolink.ts`(decideLinks/entityHighAllowed).
+
+### 후속 B — 양방향 뷰 (거래처/딜 상세 → "관련 업무")
+- 현재는 업무→데이터 단방향(업무 플로우 패널)만. 거래처/딜 상세화면에서 `work_entity_links` 역조회로 "이 거래처 관련 업무" 노출.
+- 손댈 곳: accounts/deals 상세 컴포넌트 + `work_entity_links` GET(entity_id 기준).
+
+### 후속 C — 성능 스케일 대비 (데이터 증가 시)
+- 엔티티 후보는 현재 추출이름별 `ilike` 좁힘조회(소규모 OK). 수천건+면 **pg_trgm `similarity()` RPC**(`match_entity_by_name`)로 교체.
+- `recomputeThresholds`(임계 자가보정)는 현재 unlink마다 비동기 호출. 트래픽 늘면 **디바운스/크론**으로.
+- 임베딩 백필은 `apps/web/scripts/backfill-autolink-embeddings.mjs`(일회성). 신규 거래처/딜/연락처 생성 시 **임베딩 큐잉 훅** 추가 검토(현재 백필 안 하면 autolink가 신규 엔티티 미인지).
+
+### 후속 D — 학습 강화 (feedback-loop와 공유 가능)
+- L2 별칭(`autolink_alias`)을 judge뿐 아니라 **extract 프롬프트에도 주입**(현재 judge만 — 정확도 여지).
+- autolink_feedback(해제=오답) ↔ ai_feedback_signals 와 **학습 신호 통합** 검토(둘 다 "AI 결과 정정" 신호).
+
+### 손댈 파일 (autolink 앵커)
+| 목적 | 파일 |
+|---|---|
+| 순수 규칙(밴드/임계/가드) | `apps/web/lib/work/autolink.ts` (+`.test.ts`) |
+| 파이프라인(리콜→판정→삽입) | `apps/web/lib/work/autolink-run.ts` |
+| 학습(L1 임계·L2 별칭/fewshot) | `apps/web/lib/work/autolink-learn.ts` |
+| API(run/unlink/GET) | `apps/web/app/api/work/autolink/route.ts` |
+| UI(자동표시·해제) | `apps/web/app/(member)/daily/AutolinkSection.tsx` |
+| DB | `supabase/migrations/101~103` (임베딩·관계메타·work_entity_links·feedback/alias/config·RPC·보안·실행마커) |
+
+### 데이터 쌓였는지 확인 (autolink 재개 직전)
+```bash
+PGPASSWORD='<비번>' /opt/homebrew/bin/psql -h aws-1-ap-northeast-2.pooler.supabase.com -p 6543 \
+  -U postgres.tsnlplkslfcwtchzdaai -d postgres \
+  -c "select target_kind, action, count(*) from autolink_feedback group by 1,2 order by 1,2;"
+# 거래처/딜/연락처 entity 연결이 충분히(예: 종류당 ≥30 auto_created) 쌓였으면 후속 A(정확도 입증) 착수.
+```
+
+---
+**재개 한 줄 요약**: (1) `docs/2026-06-15-daily-ai-feedback-loop/03-phasing-risks.md` 결정 4개 답 → **Slice 2(집계)부터**. (2) autolink는 **후속 A(거래처/딜 정확도 입증→HIGH 자동확정)** 부터 — 둘 다 "AI 정정 신호가 쌓인 뒤" 작업이라 같이 재개.
