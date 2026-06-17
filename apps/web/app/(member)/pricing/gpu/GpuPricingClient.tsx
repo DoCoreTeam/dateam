@@ -6,7 +6,7 @@ import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import dynamic from 'next/dynamic'
 import { Download, Plus } from 'lucide-react'
-import { isGpuFlagOn } from '@/lib/gpu/feature-flags'
+import { isGpuFlagOn, gpuFlagBase } from '@/lib/gpu/feature-flags'
 
 const QuoteRegisterTab = dynamic(() => import('./tabs/QuoteRegisterTab'), { ssr: false })
 const PriceTableTab = dynamic(() => import('./tabs/PriceTableTab'), { ssr: false })
@@ -26,6 +26,8 @@ const UnifiedTableConnected = dynamic(() => import('@/components/pricing/gpu/uni
 type MainTabId = 'intake' | 'board' | 'cockpit' | 'market' | 'inventory' | 'catalog'
 type SecondaryTabId = 'review' | 'suppliers' | 'competitors' | 'specs' | 'log'
 type TabId = MainTabId | SecondaryTabId
+
+const VALID_TABS: string[] = ['intake', 'board', 'cockpit', 'market', 'inventory', 'catalog', 'review', 'suppliers', 'competitors', 'specs', 'log']
 
 interface SettingsData {
   usd_krw: number | null
@@ -80,10 +82,12 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
   const searchParams = useSearchParams()
   // FAB '등록' 액션(?create=1&tab=X) → 해당 탭의 생성 모달 자동 오픈. 어느 탭에 신호를 줄지 보관.
   const [autoCreateTab, setAutoCreateTab] = useState<string | null>(null)
+  // activeTab은 'board'로 시작하고 마운트 후 URL/세션에서 복원(아래 effect).
+  // (window 기반 lazy-init은 SSR='board'와 불일치 → 하이드레이션 실패하므로 금지.)
   const [activeTab, setActiveTab] = useState<TabId>('board')
   const [showAiPanel, setShowAiPanel] = useState(false)
-  // 통합 표 flag — 클라이언트에서만 평가(localStorage 오버라이드). 하이드레이션 불일치 방지 위해 mount 후 설정.
-  const [unifiedOn, setUnifiedOn] = useState(false)
+  // 통합 표 flag — base값(SSR=클라 동일)으로 시작해 '구뷰→신뷰' 깜빡임 제거. localStorage 오버라이드는 마운트 후 반영.
+  const [unifiedOn, setUnifiedOn] = useState<boolean>(() => gpuFlagBase('unified'))
   useEffect(() => { setUnifiedOn(isGpuFlagOn('unified')) }, [])
   const [boardSearch, setBoardSearch] = useState('')
   const [boardFocusProductId, setBoardFocusProductId] = useState<string | null>(null)
@@ -107,9 +111,8 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
   // ── 뷰 상태 영속 (URL 파라미터 + sessionStorage) ──
   // 탭 이동·다른 메뉴 갔다 와도 마지막 보던 화면(탭/검색/펼친 가격)을 복원.
   const viewRestored = useRef(false)
-  const VALID_TABS = ['intake', 'board', 'cockpit', 'market', 'inventory', 'catalog', 'review', 'suppliers', 'competitors', 'specs', 'log']
 
-  // 최초 진입: URL(우선) → sessionStorage 순으로 탭 복원
+  // 최초 진입: URL(우선) → sessionStorage 순으로 탭 복원 (initialTab으로 이미 반영됐으나, 세션 복원 보강)
   useEffect(() => {
     if (viewRestored.current) return
     viewRestored.current = true

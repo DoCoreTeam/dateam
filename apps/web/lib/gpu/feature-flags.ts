@@ -28,6 +28,15 @@ function resolveBase(key: GpuFlagKey): boolean {
 }
 
 /**
+ * localStorage 무관 base 값(서버·클라이언트 동일). useState 초기값으로 사용해
+ * 첫 페인트부터 올바른 뷰를 그려 '구뷰→신뷰' 깜빡임을 없앤다(하이드레이션 안전).
+ * localStorage 오버라이드는 마운트 후 isGpuFlagOn으로 반영.
+ */
+export function gpuFlagBase(key: GpuFlagKey): boolean {
+  return resolveBase(key)
+}
+
+/**
  * 플래그 ON 여부. 서버/클라이언트 공통 — 클라이언트에서는 localStorage 오버라이드가 환경변수보다 우선.
  */
 export function isGpuFlagOn(key: GpuFlagKey): boolean {
