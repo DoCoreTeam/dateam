@@ -1,7 +1,7 @@
 'use client'
 
-import { useActionState, useEffect, useRef } from 'react'
-import { useFormStatus } from 'react-dom'
+import { useEffect, useRef } from 'react'
+import { useFormStatus, useFormState } from 'react-dom'
 import { signIn, type SignInState } from './actions'
 import AXLoadingOverlay from '@/components/ui/AXLoadingOverlay'
 
@@ -44,7 +44,8 @@ interface LoginFormProps {
 // 로그인 폼 — 에러를 useActionState 상태로 받는다(URL ?error= 미사용).
 // 새로고침하면 상태가 초기화되어 에러가 재출현하지 않음(1회성). 실패 시 이메일 prefill + 비번칸 포커스.
 export default function LoginForm({ brandName }: LoginFormProps) {
-  const [state, formAction] = useActionState(signIn, INITIAL)
+  // React 18: useFormState(react-dom). React 19의 useActionState와 동일 시그니처.
+  const [state, formAction] = useFormState(signIn, INITIAL)
   const passwordRef = useRef<HTMLInputElement>(null)
 
   // 로그인 실패(에러) 시 → 비밀번호 입력칸으로 커서 이동해 바로 재입력
