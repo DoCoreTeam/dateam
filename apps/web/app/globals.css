@@ -6736,8 +6736,39 @@ label.intake-tool-btn {
 /* driver overlay/popover z-index — 토큰 기준 정렬(toast 위) */
 .driver-active .driver-overlay,
 .driver-popover { z-index: var(--z-onboarding); }
+
+/* 강조 요소 = 외곽선(라인)만이 아니라 '색변경' 형태로(사용자 요청).
+   driver가 강조 대상 DOM에 .driver-active-element 부여 → 브랜드 링 + 연한 브랜드 배경. */
+.driver-active-element {
+  border-radius: var(--radius) !important;
+  outline: var(--border-w-2) solid var(--brand) !important;
+  outline-offset: 2px !important;
+  background-color: var(--brand-soft) !important;
+  box-shadow: var(--shadow-md) !important;
+  transition: background-color var(--duration-fast, 150ms) ease !important;
+}
+
+/* 크고 명확한 "온보딩 건너뛰기" 버튼 — footer 좌측에 분리 배치(작은 X 보완) */
+.driver-popover.ax-onboard .driver-popover-footer .ax-onboard-skip {
+  margin-right: auto;          /* 다음/이전 버튼을 우측으로 밀어 분리 */
+  font-size: var(--fs-base);
+  font-weight: 700;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius);
+  color: var(--text);
+  background: var(--surface-bg);
+  border: var(--border-w-2) solid var(--text);
+  cursor: pointer;
+  text-shadow: none;
+}
+.driver-popover.ax-onboard .driver-popover-footer .ax-onboard-skip:hover {
+  background: var(--text);
+  color: var(--color-bg);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .driver-popover.ax-onboard { transition: none; }
+  .driver-active-element { transition: none !important; }
 }
 
 /* 온보딩 재진입 버튼 — pill / text 변형 (인라인 style 제거, 토큰 경유) */

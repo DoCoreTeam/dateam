@@ -94,11 +94,22 @@ const MAIN_SEQUENCE: OnboardingSequence = {
       align: 'center',
     },
     {
+      key: 'gpu-cockpit',
+      route: '/pricing/gpu',
+      routeQuery: 'tab=cockpit',
+      element: '.gpu-pricing-root',
+      title: 'GPU 가격을 한 화면에서 확인해요',
+      description:
+        '시장가 대비 우리 판매가와 가격 시그널을 콕핏에서 비교합니다. 행을 펼치면 상세 근거도 볼 수 있어요.',
+      side: 'over',
+      align: 'center',
+    },
+    {
       key: 'done',
-      route: '/org',
+      route: '/pricing/gpu',
       title: '준비 완료 🎉',
       description:
-        '기본 둘러보기를 마쳤어요. AI 분석이나 GPU 가격 같은 기능이 궁금하면 메뉴에서 "온보딩 다시 하기"로 언제든 더 둘러볼 수 있습니다.',
+        '핵심 화면을 모두 둘러봤어요. 더 궁금한 기능은 사이드바의 "온보딩 다시 하기"로 언제든 다시 볼 수 있습니다.',
       side: 'over',
       align: 'center',
     },

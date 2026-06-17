@@ -167,12 +167,28 @@ export function useTour(): UseTourReturn {
         overlayClickBehavior: () => {
           /* no-op */
         },
-        showProgress: false,
+        showProgress: true,
+        progressText: '{{current}} / {{total}}',
         popoverClass: 'ax-onboard',
         overlayColor: 'rgb(2, 6, 23)',
         overlayOpacity: 0.72,
         stagePadding: 8,
         stageRadius: 8,
+        // 팝오버에 크고 명확한 "온보딩 건너뛰기" 버튼 주입(작은 X만으론 부족 — 사용자 요청)
+        onPopoverRender: (popover) => {
+          const footer = popover.footer
+          if (!footer) return
+          const skip = document.createElement('button')
+          skip.type = 'button'
+          skip.className = 'ax-onboard-skip'
+          skip.textContent = '온보딩 건너뛰기'
+          skip.addEventListener('click', () => {
+            const seq = seqRef.current
+            if (seq) handleClose(seq)
+          })
+          // footer 맨 앞(좌측)에 배치 → 다음/이전 버튼과 분리되어 눈에 띔
+          footer.insertBefore(skip, footer.firstChild)
+        },
       })
 
       driverRef.current = obj
