@@ -151,24 +151,28 @@ export function orgPathFromScope(scope: OrgScope, userId: string): string[] {
   return names.length ? names : root ? [root.name] : []
 }
 
+// (제거됨) isInDivisionByName — isAdmin 우회/상위 조상 관할 누수로 '소속 전용' 게이트에 부적합.
+//   → isMemberOfDivisionByName(아래)로 대체. admin·상위 관할 없이 '서브트리 소속/내부 head'만 판정.
+
 /**
- * 사용자가 특정 부서(이름)에 소속/관할인지 판정 — 서버 전용.
- * true 조건: 본인 person 노드가 그 부서 서브트리 안 · 그 부서(또는 상위)의 head · admin.
+ * 부서 '내부' 소속 판정 — 그 부서(및 하위) 서브트리 안의 소속 person이거나, 서브트리 노드의 head(본부장·팀장).
+ * 상위(전사 등 조상) 관할자·admin은 제외(false) — 즉 '위에서 관할'은 소속으로 치지 않는다.
+ * (예: AX사업본부 배지 — AX 소속·AX본부장은 노출, 전사 대표이사·타조직은 비노출.)
+ * 본부장처럼 person 노드 없이 head_user_id로만 연결된 경우도 포함하기 위해 dept.id를 서브트리에 포함한다.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function isInDivisionByName(admin: any, userId: string, deptName: string, isAdmin = false): Promise<boolean> {
-  if (isAdmin) return true
+export async function isMemberOfDivisionByName(admin: any, userId: string, deptName: string): Promise<boolean> {
   const { data: nodes = [] } = await admin
     .from('org_nodes')
-    .select('id,type,parent_id,head_user_id,user_id,name') as { data: OrgNode[] }
+    .select('id,type,user_id,head_user_id,name') as { data: OrgNode[] }
   const { data: closure = [] } = await admin
     .from('org_node_closure')
     .select('ancestor_id,descendant_id') as { data: { ancestor_id: string; descendant_id: string }[] }
   const dept = nodes.find((n) => n.type === 'department' && n.name === deptName)
   if (!dept) return false
   const subtree = new Set(closure.filter((c) => c.ancestor_id === dept.id).map((c) => c.descendant_id))
-  const myPersonInSubtree = nodes.some((n) => n.type === 'person' && n.user_id === userId && subtree.has(n.id))
-  const deptAndAncestors = new Set(closure.filter((c) => c.descendant_id === dept.id).map((c) => c.ancestor_id))
-  const iManageDeptOrAbove = nodes.some((n) => n.head_user_id === userId && deptAndAncestors.has(n.id))
-  return myPersonInSubtree || iManageDeptOrAbove
+  subtree.add(dept.id) // closure에 self-row 없을 경우 대비(본부장=dept head 포함 보장)
+  const memberPerson = nodes.some((n) => n.type === 'person' && n.user_id === userId && subtree.has(n.id))
+  const headInSubtree = nodes.some((n) => subtree.has(n.id) && n.head_user_id === userId) // 본부장·하위 팀장
+  return memberPerson || headInSubtree
 }

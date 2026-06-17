@@ -11,7 +11,7 @@ import Link from 'next/link'
 import { FileText, BarChart2, CheckSquare, Building2 } from 'lucide-react'
 import FridaySpotlightOverlay from '@/components/ui/FridaySpotlightOverlay'
 import UnreviewedMemoWidget from '@/components/ui/memo/UnreviewedMemoWidget'
-import { isInDivisionByName } from '@/lib/org-scope'
+import { isMemberOfDivisionByName } from '@/lib/org-scope'
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -27,7 +27,7 @@ export default async function HomePage() {
   const weekStartStr = toDateString(weekStart)
 
   const [profileResult, todayLogs, monthSummary, reportsResult, deptTasks] = await Promise.all([
-    adminClient.from('profiles').select('name, role').eq('id', user.id).single(),
+    adminClient.from('profiles').select('name, role, position').eq('id', user.id).single(),
     getCalendarDayLogs(todayStr),
     getMonthLogSummary(year, month),
     supabase
@@ -39,11 +39,13 @@ export default async function HomePage() {
     listHomeDeptTasks({ today: todayStr }),
   ])
 
-  const profile = profileResult.data as { name: string; role: string } | null
+  const profile = profileResult.data as { name: string; role: string; position: string | null } | null
   const reports = reportsResult.data as Pick<WeeklyReport, 'week_start' | 'category' | 'created_at'>[] | null
 
-  // KPI·루틴·본부운영 타일은 AX사업본부 소속(또는 관할/admin)에게만 노출
-  const showAxTiles = await isInDivisionByName(adminClient, user.id, 'AX사업본부', profile?.role === 'admin')
+  // KPI·루틴·본부운영 타일은 AX사업본부 '소속 person'에게만 노출(admin·관할 무관).
+  // 대표이사는 완전 예외 — AX 소속/관할이어도 숨김.
+  const isCeo = profile?.position === '대표이사'
+  const showAxTiles = !isCeo && await isMemberOfDivisionByName(adminClient, user.id, 'AX사업본부')
 
   const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
   const isFriday = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', weekday: 'short' }).format(new Date()) === 'Fri'
