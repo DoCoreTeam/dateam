@@ -56,6 +56,10 @@
   --sidebar-divider: var(--border-color);
   /* nav 항목 hover 배경 — 밝은 페이퍼엔 어두운 오버레이 (다크 테마에서 [data-theme]가 오버라이드) */
   --nav-hover-bg: rgba(0, 0, 0, 0.05);
+  /* 선택(active) 메뉴 색채움 — 기본은 brand. brand가 sidebar-bg와 같은 톤인 테마(mono 등)는
+     아래서 오버라이드해 사이드바와 대비되게 한다. */
+  --nav-active-bg: var(--brand);
+  --nav-active-fg: var(--brand-fg);
   /* 상단 헤더/사이드바 브랜드 공통 높이(하단선 정렬용). 로고/계정 수직 여백 확보 위해 상향. */
   --header-height: 64px;
 
@@ -275,6 +279,9 @@
   --sidebar-fg: #ffffff;
   --sidebar-divider: transparent; /* 브랜드/푸터 구분선 제거(스위스 미니멀) */
   --nav-hover-bg: rgba(255, 255, 255, 0.1);
+  /* mono: brand(블랙)=sidebar-bg(블랙)이라 색채움이 묻힘 → 사이드바 반전(흰 배경/검은 글씨)으로 대비 */
+  --nav-active-bg: var(--sidebar-fg);
+  --nav-active-fg: var(--sidebar-bg);
   --color-bg: #ffffff;
   --surface-bg: #f8f8f8;
   --color-text-muted: #666666;
@@ -1176,15 +1183,15 @@
 .nb-nav-item:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: 2px; }
 .nb-nav-item__icon { flex-shrink: 0; opacity: 0.7; display: flex; align-items: center; }
 .nb-nav-item__label { flex: 1; }
-/* active = brand 색채움(테두리/좌측바 아님). --brand/--brand-fg는 전 테마 정의되어 자동 대응. */
+/* active = 색채움(테두리/좌측바 아님). --nav-active-bg는 전 테마에서 사이드바와 대비되게 정의됨. */
 .nb-nav-item[data-state="active"] {
   font-weight: 700;
-  background: var(--brand);
-  color: var(--brand-fg);
-  border-color: var(--brand);
+  background: var(--nav-active-bg);
+  color: var(--nav-active-fg);
+  border-color: var(--nav-active-bg);
   box-shadow: var(--shadow-sm);
 }
-.nb-nav-item[data-state="active"]:hover { background: var(--brand); opacity: 0.92; }
+.nb-nav-item[data-state="active"]:hover { background: var(--nav-active-bg); opacity: 0.92; }
 .nb-nav-item[data-state="active"] .nb-nav-item__icon { opacity: 1; }
 /* highlight = 솔리드 brand CTA */
 .nb-nav-item[data-state="highlight"] {
