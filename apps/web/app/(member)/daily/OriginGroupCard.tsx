@@ -116,7 +116,7 @@ export function OriginGroupCard({ group, isOpen, onToggle, renderCard, formatTim
                 <span className="origin-group-text">{originalText}</span>
                 <span className="origin-group-chips">
                   <span className="origin-group-time">{formatTime(group.loggedAt)}</span>
-                  <span className="origin-group-chip">분해 {group.count}</span>
+                  <span className="origin-group-chip" title={`한 번에 입력한 내용을 AI가 ${group.count}개의 세부 업무로 자동 분리했습니다. 펼치면 항목별로 확인·수정할 수 있어요.`}>분해 {group.count}</span>
                   {noteCount > 0 && <span className="origin-group-chip">메모 {noteCount}</span>}
                   {group.doneCount > 0 && (
                     <span className="origin-group-chip origin-group-chip-done">

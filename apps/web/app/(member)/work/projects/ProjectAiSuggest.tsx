@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Sparkles, AlertTriangle, Check } from 'lucide-react'
+import InfoHint from '@/components/ui/InfoHint'
 
 // AI 예상 프로젝트 제안 (§5-3 추출형) — 후보를 "제목+근거+업무수+체크박스" 리스트로 제시.
 // 사용자가 선택 → 확정(confirm)으로만 생성(자동 생성 금지). 날짜·예산은 생성 후 수정으로 채운다.
@@ -67,11 +68,19 @@ export default function ProjectAiSuggest({ onConfirmed }: Props) {
   return (
     <section aria-labelledby="ai-suggest-heading"
       style={{ marginBottom: 'var(--space-4)', borderRadius: 'var(--radius-lg)', border: 'var(--hairline) solid var(--border-light)', background: 'var(--surface-bg)', overflow: 'hidden' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-3) var(--space-4)' }}>
-        <Sparkles size={16} style={{ color: 'var(--brand)', flexShrink: 0 }} aria-hidden />
-        <h2 id="ai-suggest-heading" style={{ margin: 0, fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text)' }}>AI 예상 프로젝트</h2>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)', padding: 'var(--space-3) var(--space-4)' }}>
+        <Sparkles size={16} style={{ color: 'var(--brand)', flexShrink: 0, marginTop: 2 }} aria-hidden />
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+            <h2 id="ai-suggest-heading" style={{ margin: 0, fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text)' }}>AI 예상 프로젝트</h2>
+            <InfoHint text="최근 12주 일일업무와 주간보고를 AI가 분석해, 서로 연관된 업무들을 하나의 프로젝트 후보로 묶어 제안합니다. 후보 중 원하는 것만 골라 프로젝트로 생성하세요." />
+          </span>
+          <span style={{ display: 'block', marginTop: 2, fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+            흩어진 업무를 분석해 관련된 것끼리 프로젝트 후보로 묶어 드립니다.
+          </span>
+        </span>
         <button onClick={open ? () => setOpen(false) : load} data-testid="ai-suggest-toggle"
-          style={{ marginLeft: 'auto', fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand)', background: 'none', border: 'var(--border-w-2) solid var(--brand)', borderRadius: 'var(--radius)', padding: 'var(--space-1) var(--space-4)', minHeight: 36, cursor: 'pointer' }}>
+          style={{ marginLeft: 'auto', flexShrink: 0, fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand)', background: 'none', border: 'var(--border-w-2) solid var(--brand)', borderRadius: 'var(--radius)', padding: 'var(--space-1) var(--space-4)', minHeight: 36, cursor: 'pointer' }}>
           {open ? '닫기' : '제안 받기'}
         </button>
       </div>
@@ -85,11 +94,12 @@ export default function ProjectAiSuggest({ onConfirmed }: Props) {
           )}
 
           {loading ? (
-            <p style={{ margin: 0, padding: 'var(--space-4)', textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>분석하는 중…</p>
+            <p style={{ margin: 0, padding: 'var(--space-4)', textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>업무를 분석해 묶는 중…</p>
           ) : suggestions && suggestions.length === 0 ? (
-            <p style={{ margin: 0, padding: 'var(--space-4)', textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>
-              아직 묶을 만한 업무 흐름이 없습니다. 업무가 쌓이면 다시 제안해 드릴게요.
-            </p>
+            <div style={{ margin: 0, padding: 'var(--space-4)', textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-sm)', lineHeight: 1.5 }}>
+              <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-muted)' }}>묶을 만한 업무 흐름을 찾지 못했어요.</p>
+              <p style={{ margin: '4px 0 0' }}>관련된 업무가 2건 이상 쌓이면 자동으로 묶어 제안합니다. 일일업무를 더 기록한 뒤 다시 시도해 보세요.</p>
+            </div>
           ) : suggestions && suggestions.length > 0 ? (
             <>
               <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>

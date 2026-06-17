@@ -11,7 +11,7 @@ import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import PromoteToDeptButton from './PromoteToDeptButton'
 const KnowledgeGraphView = dynamic(() => import('./KnowledgeGraphView').then(m => ({ default: m.KnowledgeGraphView })), { ssr: false })
 const LogFlowView = dynamic(() => import('./LogFlowView').then(m => ({ default: m.LogFlowView })), { ssr: false })
-import useSWR, { mutate } from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, moveAllCarryoverToToday, unignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread, updateDailyLogStatus, deleteLogGroup, updateOriginInput, getPromotedMap } from './actions'
 import type { AiParsedItem } from './actions'
@@ -78,6 +78,10 @@ function getMondayOfWeek(date: Date) {
 }
 
 export default function DailyPage() {
+  // Context-aware mutate — SWRProvider가 주입한 영속 캐시(createPersistentProvider) 인스턴스를
+  // 정확히 타겟한다. swr의 모듈 레벨 전역 mutate는 글로벌 기본 캐시만 무효화해 Context 캐시를
+  // 건드리지 못하므로(저장 후 목록 미반영 회귀의 원인), 반드시 useSWRConfig().mutate를 사용한다.
+  const { mutate } = useSWRConfig()
   const searchParams = useSearchParams()
   const today = toDateStr(new Date())
   const initialDate = searchParams.get('date') ?? today
@@ -1254,6 +1258,8 @@ function LogList({
 
 /* 스레드 뷰 컴포넌트 */
 function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: string }) {
+  // Context-aware mutate (영속 캐시 인스턴스 타겟) — 전역 mutate 사용 금지. 상세: DailyPage 주석 참고.
+  const { mutate } = useSWRConfig()
   const [threads, setThreads] = useState<DailyLogThread[]>([])
   const [threadLoading, setThreadLoading] = useState(true)
   const [input, setInput] = useState('')
