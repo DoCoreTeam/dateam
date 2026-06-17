@@ -6740,12 +6740,12 @@ label.intake-tool-btn {
 /* 강조 요소 = 외곽선(라인)만이 아니라 '색변경' 형태로(사용자 요청).
    driver가 강조 대상 DOM에 .driver-active-element 부여 → 브랜드 링 + 연한 브랜드 배경. */
 .driver-active-element {
+  /* 요소 본래 배경/글씨는 건드리지 않음(사이드바 등 다크 배경 글씨 가림 방지).
+     딤 처리로 밝게 뜬 요소 위에 '브랜드 테두리 링'만 둘러 강조한다. */
   border-radius: var(--radius) !important;
-  outline: var(--border-w-2) solid var(--brand) !important;
+  outline: var(--border-w) solid var(--brand) !important;
   outline-offset: 2px !important;
-  background-color: var(--brand-soft) !important;
   box-shadow: var(--shadow-md) !important;
-  transition: background-color var(--duration-fast, 150ms) ease !important;
 }
 
 /* 크고 명확한 "온보딩 건너뛰기" 버튼 — footer 좌측에 분리 배치(작은 X 보완) */
