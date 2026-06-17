@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import BrandLoaderMark from './BrandLoaderMark'
 
 interface NavigationLoaderProps {
   brandName: string
@@ -56,43 +57,7 @@ export default function NavigationLoader({ brandName, logoUrl }: NavigationLoade
       }}
     >
       <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-5)' }}>
-        {logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            aria-hidden
-            src={logoUrl}
-            alt={brandName}
-            style={{ maxHeight: '56px', maxWidth: '200px', objectFit: 'contain' }}
-          />
-        ) : (
-          <div aria-hidden className="da-loader-logo">
-            {/* DATA ALLIANCE 로고: 두 개의 쉐브론이 X자를 형성 */}
-            <svg
-              viewBox="0 0 80 56"
-              width="80"
-              height="56"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="da-loader-mark"
-            >
-              <polyline
-                points="4,4 36,28 4,52"
-                stroke="var(--brand)"
-                strokeWidth="7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <polyline
-                points="76,4 44,28 76,52"
-                stroke="var(--brand)"
-                strokeWidth="7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <div className="da-loader-text">DATA ALLIANCE</div>
-          </div>
-        )}
+        <BrandLoaderMark brandName={brandName} logoUrl={logoUrl} />
 
         <div
           aria-hidden

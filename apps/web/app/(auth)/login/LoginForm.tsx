@@ -23,13 +23,14 @@ function SubmitButton() {
   )
 }
 
-// 제출 중 전체화면 로딩 오버레이 — 회사 로고(브랜드명) 웨이브 + 진행바 (SSOT 재사용)
-function PendingOverlay({ brandName }: { brandName: string }) {
+// 제출 중 전체화면 로딩 오버레이 — 공용 로고 스피너(SSOT). 로고 있으면 이미지, 없으면 X마크.
+function PendingOverlay({ brandName, logoUrl }: { brandName: string; logoUrl?: string | null }) {
   const { pending } = useFormStatus()
   return (
     <AXLoadingOverlay
       isLoading={pending}
       brandName={brandName}
+      logoUrl={logoUrl}
       label="로그인 중…"
       ariaLabel="로그인 처리 중"
     />
@@ -39,11 +40,13 @@ function PendingOverlay({ brandName }: { brandName: string }) {
 interface LoginFormProps {
   /** 로딩 오버레이에 표시할 회사 브랜드명 */
   brandName: string
+  /** 등록된 브랜드 로고 이미지 (없으면 X마크) */
+  logoUrl?: string | null
 }
 
 // 로그인 폼 — 에러를 useActionState 상태로 받는다(URL ?error= 미사용).
 // 새로고침하면 상태가 초기화되어 에러가 재출현하지 않음(1회성). 실패 시 이메일 prefill + 비번칸 포커스.
-export default function LoginForm({ brandName }: LoginFormProps) {
+export default function LoginForm({ brandName, logoUrl }: LoginFormProps) {
   // React 18: useFormState(react-dom). React 19의 useActionState와 동일 시그니처.
   const [state, formAction] = useFormState(signIn, INITIAL)
   const passwordRef = useRef<HTMLInputElement>(null)
@@ -108,7 +111,7 @@ export default function LoginForm({ brandName }: LoginFormProps) {
         </div>
 
         <SubmitButton />
-        <PendingOverlay brandName={brandName} />
+        <PendingOverlay brandName={brandName} logoUrl={logoUrl} />
       </form>
     </>
   )

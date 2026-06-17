@@ -367,26 +367,6 @@
   }
 }
 
-@keyframes char-wave {
-  0%,
-  100% {
-    color: var(--text);
-  }
-  50% {
-    color: var(--border-subtle);
-  }
-}
-
-@keyframes char-wave-dark {
-  0%,
-  100% {
-    color: var(--border-color);
-  }
-  50% {
-    color: var(--text-faint);
-  }
-}
-
 @keyframes ax-dot-pulse {
   0%,
   80%,
@@ -410,7 +390,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *[style*="char-wave"],
   *[style*="ax-dot-pulse"],
   *[style*="progress-indeterminate"],
   .gpu-analyzing-icon,

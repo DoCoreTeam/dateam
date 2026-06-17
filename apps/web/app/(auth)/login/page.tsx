@@ -78,7 +78,7 @@ export default async function LoginPage() {
             로그인
           </h2>
 
-          <LoginForm brandName={branding.brandName} />
+          <LoginForm brandName={branding.brandName} logoUrl={branding.logoUrl} />
         </div>
 
         <p
