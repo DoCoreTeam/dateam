@@ -94,13 +94,13 @@ const MAIN_SEQUENCE: OnboardingSequence = {
       align: 'center',
     },
     {
-      key: 'gpu-cockpit',
+      key: 'gpu-prices',
       route: '/pricing/gpu',
-      routeQuery: 'tab=cockpit',
+      routeQuery: 'tab=board',
       element: '.gpu-pricing-root',
-      title: 'GPU 가격을 한 화면에서 확인해요',
+      title: 'GPU 가격표를 확인해요',
       description:
-        '시장가 대비 우리 판매가와 가격 시그널을 콕핏에서 비교합니다. 행을 펼치면 상세 근거도 볼 수 있어요.',
+        'GPU별 우리 판매가를 가격표에서 한눈에 봅니다. 행을 펼치면 시장가 대비·상세 근거도 확인할 수 있어요.',
       side: 'over',
       align: 'center',
     },
@@ -137,16 +137,16 @@ const AI_SEQUENCE: OnboardingSequence = {
 /** P2 — GPU 가격 확인 선택형 시퀀스. */
 const GPU_SEQUENCE: OnboardingSequence = {
   key: 'gpu',
-  entryRoute: '/pricing/gpu?tab=cockpit',
+  entryRoute: '/pricing/gpu?tab=board',
   steps: [
     {
-      key: 'gpu-cockpit',
+      key: 'gpu-prices',
       route: '/pricing/gpu',
-      routeQuery: 'tab=cockpit',
+      routeQuery: 'tab=board',
       element: '.gpu-pricing-root',
-      title: 'GPU 가격을 한 화면에서',
+      title: 'GPU 가격표를 확인해요',
       description:
-        '시장가 대비 우리 판매가와 시그널을 콕핏에서 비교합니다. 행을 펼치면 상세 근거를 볼 수 있어요.',
+        'GPU별 우리 판매가를 가격표에서 한눈에 봅니다. 행을 펼치면 시장가 대비·상세 근거도 확인할 수 있어요.',
       side: 'over',
       align: 'center',
     },
