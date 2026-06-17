@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { getOAuth2Client, saveTokens } from '@/lib/google-drive'
-import { google } from 'googleapis'
+import { google, type Auth } from 'googleapis'
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url)
@@ -90,7 +90,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   let accountEmail = ''
 
   try {
-    const oauth2 = google.oauth2({ version: 'v2', auth })
+    // google-auth-library 중복 설치로 OAuth2Client 타입 동일성이 깨져,
+    // googleapis가 번들한 자체 타입으로 캐스팅한다(런타임 동작 동일).
+    const oauth2 = google.oauth2({
+      version: 'v2',
+      auth: auth as unknown as Auth.OAuth2Client,
+    })
     const { data: userInfo } = await oauth2.userinfo.get()
     accountEmail = userInfo.email ?? ''
   } catch {
