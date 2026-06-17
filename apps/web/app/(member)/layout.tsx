@@ -7,6 +7,7 @@ import QuickNav from '@/components/ui/QuickNav'
 import GlobalSearchBox from '@/components/ui/GlobalSearchBox'
 import NavigationLoader from '@/components/ui/NavigationLoader'
 import { getBranding } from '@/lib/branding'
+import { resolveOrgScope, orgPathFromScope } from '@/lib/org-scope'
 import { getActiveTheme, resolveTheme } from '@/lib/theme'
 import PasswordChangeModal from '@/components/ui/PasswordChangeModal'
 import NameSetupModal from '@/components/ui/NameSetupModal'
@@ -62,7 +63,7 @@ export default async function MemberLayout({ children }: { children: React.React
   const calendarSeenDate = cookieStore.get('calendar_seen_date')?.value
   const shouldCountCalendar = calendarSeenDate !== todayStr
 
-  const [branding, profileResult, routineStatus, calendarCount, deptTaskCount, globalTheme] = await Promise.all([
+  const [branding, profileResult, routineStatus, calendarCount, deptTaskCount, globalTheme, orgScope] = await Promise.all([
     getBranding(),
     adminClient
       .from('profiles')
@@ -73,8 +74,10 @@ export default async function MemberLayout({ children }: { children: React.React
     shouldCountCalendar ? getTodayPlannedCount() : Promise.resolve(0),
     countMyOpenDeptTasks(),
     getActiveTheme(),
+    resolveOrgScope(adminClient, user.id),
   ])
   const profile = profileResult.data
+  const orgPath = orgPathFromScope(orgScope, user.id)
   const currentTheme = resolveTheme(profile?.theme_preference, globalTheme)
   const routineBadge = routineStatus?.pendingCount ?? 0
   const calendarBadge = calendarCount
@@ -101,11 +104,22 @@ export default async function MemberLayout({ children }: { children: React.React
         adminHref={profile?.role === 'admin' ? '/admin/users' : undefined}
         isAdmin={profile?.role === 'admin'}
         headerLeft={
-          <span style={{ fontSize: 'var(--fs-base)', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            안녕하세요,{' '}
-            <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{displayName}</strong>
-            님
-          </span>
+          orgPath.length > 0 ? (
+            <nav aria-label="소속 조직" style={{ fontSize: 'var(--fs-base)', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {orgPath.map((name, i) => (
+                <span key={`${name}-${i}`}>
+                  {i > 0 && <span aria-hidden style={{ margin: '0 var(--space-1)', color: 'var(--text-faint)' }}>›</span>}
+                  <span style={{ color: i === orgPath.length - 1 ? 'var(--text)' : 'var(--text-muted)', fontWeight: i === orgPath.length - 1 ? 600 : 400 }}>{name}</span>
+                </span>
+              ))}
+            </nav>
+          ) : (
+            <span style={{ fontSize: 'var(--fs-base)', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              안녕하세요,{' '}
+              <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{displayName}</strong>
+              님
+            </span>
+          )
         }
         headerRight={<><GlobalSearchBox /><QuickNav /></>}
       >

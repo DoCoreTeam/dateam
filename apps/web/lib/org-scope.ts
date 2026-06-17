@@ -121,6 +121,37 @@ export function hasOrgScope(scope: OrgScope): boolean {
 }
 
 /**
+ * 로그인 사용자의 조직도 소속 경로(회사 → 본부 → 팀 …) 이름 배열 — 표시용 SSOT.
+ * - 일반 멤버: 본인 person 노드의 조상 체인을 root→근접 순으로(person·role 제외, 즉 회사/부서만).
+ *   조직도에 팀이 추가되면 그 깊이만큼 자동 확장된다(본부로 고정하지 않음).
+ * - 전사(C레벨): 회사(root) 1개만.
+ * - 미소속/노드 없음: 빈 배열 → 호출측이 폴백(인사말) 처리.
+ */
+export function orgPathFromScope(scope: OrgScope, userId: string): string[] {
+  const { nodes, closure, isExecutive } = scope
+  const root = nodes.find((n) => n.parent_id === null) ?? null
+  if (isExecutive) return root ? [root.name] : []
+
+  // anchor = 본인 person 노드(우선), 없으면 본인이 head인 노드(부서장 등)
+  const anchor =
+    nodes.find((n) => n.type === 'person' && n.user_id === userId) ??
+    nodes.find((n) => n.head_user_id === userId) ??
+    null
+  if (!anchor) return root ? [root.name] : []
+
+  const byId = new Map(nodes.map((n) => [n.id, n] as const))
+  // 조상 행: descendant_id = anchor. depth 큰 것(루트)부터 정렬 → root→near 순.
+  const names = closure
+    .filter((c) => c.descendant_id === anchor.id)
+    .sort((a, b) => b.depth - a.depth)
+    .map((c) => byId.get(c.ancestor_id))
+    .filter((n): n is OrgNode => !!n && n.type !== 'person' && n.type !== 'role')
+    .map((n) => n.name)
+
+  return names.length ? names : root ? [root.name] : []
+}
+
+/**
  * 사용자가 특정 부서(이름)에 소속/관할인지 판정 — 서버 전용.
  * true 조건: 본인 person 노드가 그 부서 서브트리 안 · 그 부서(또는 상위)의 head · admin.
  */
