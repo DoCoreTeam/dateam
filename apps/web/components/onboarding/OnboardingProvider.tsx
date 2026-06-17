@@ -82,7 +82,6 @@ export default function OnboardingProvider({
 
   // 최초 자동시작 — URL 트리거가 없을 때만
   useEffect(() => {
-    if (startedRef.current) return
     if (onboardParam) return
     if (!shouldAutoStart) return
     // 화면-로컬 게이팅(weekly 등): localStorage로 1회성 판단(main DB 상태와 독립)
@@ -92,9 +91,12 @@ export default function OnboardingProvider({
       return // main: 로컬 캐시로 깜빡임 방지(이미 끝낸 경우)
     }
 
-    startedRef.current = true
     const resume = localGateKey ? null : resumeStepKey ?? getLocalCache().step
+    // startedRef는 타이머 콜백 안에서 검사/설정 — React18 StrictMode 이중마운트 시
+    // cleanup이 타이머를 지운 뒤 재마운트에서도 정상 재예약되도록(early-return으로 영구 미시작 방지).
     const timer = setTimeout(() => {
+      if (startedRef.current) return
+      startedRef.current = true
       void start(autoSequence, resume, localGateKey)
     }, 600)
     return () => clearTimeout(timer)

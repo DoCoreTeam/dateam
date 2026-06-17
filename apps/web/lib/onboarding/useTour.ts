@@ -180,6 +180,8 @@ export function useTour(): UseTourReturn {
       routeStepsRef.current = routeSteps
       setOnboardingActive(true)
       if (!gateKey) void recordStep(targetStep.key)
+      // 비동기 렌더 타겟: 강조 직전 요소가 DOM에 나타날 때까지 대기(라우트 전환 직후 레이스 방지)
+      if (targetStep.element) await waitForSelector(targetStep.element, 3000)
       obj.drive(localStart >= 0 ? localStart : 0)
     },
     [pathname, router, destroy, toDriveSteps],
@@ -231,6 +233,22 @@ export function useTour(): UseTourReturn {
  */
 function resolveElement(selector: string): Element | undefined {
   return document.querySelector(selector) ?? undefined
+}
+
+/** 타겟 요소가 DOM에 나타날 때까지 폴링(최대 timeoutMs). 미등장 시에도 resolve(중앙 폴백). */
+function waitForSelector(selector: string, timeoutMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    if (document.querySelector(selector)) return resolve()
+    const startedAt = performance.now()
+    const tick = () => {
+      if (document.querySelector(selector) || performance.now() - startedAt >= timeoutMs) {
+        resolve()
+        return
+      }
+      requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  })
 }
 
 /** 스텝 라우트 URL 구성: routeQuery(예: tab=cockpit) 보존 + onboard 재개 파라미터. */
