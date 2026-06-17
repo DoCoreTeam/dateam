@@ -89,6 +89,24 @@ export async function resetUserPassword(
   return { ok: true }
 }
 
+/** 온보딩 초기화 — 해당 구성원의 온보딩 상태(완료/스킵/진행)를 비워 다음 로그인 시 재노출. */
+export async function resetUserOnboarding(
+  userId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ctx = await requireAdmin()
+  if (!ctx) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const adminClient = createAdminClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (adminClient.from('profiles') as any)
+    .update({ onboarding_completed_at: null, onboarding_skipped_at: null, onboarding_step: null })
+    .eq('id', userId)
+  if (error) return { ok: false, error: error.message }
+
+  revalidatePath('/admin/members')
+  return { ok: true }
+}
+
 export async function inviteUser(formData: FormData): Promise<{ success?: boolean; error?: string }> {
   const email = (formData.get('email') as string)?.trim()
   const name = (formData.get('name') as string)?.trim()

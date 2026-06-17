@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { Pencil, ChevronUp, ChevronDown, ChevronsUpDown, Search } from 'lucide-react'
 import RoleToggle from './RoleToggle'
 import ResetPasswordButton from './ResetPasswordButton'
+import ResetOnboardingButton from './ResetOnboardingButton'
 import DeleteUserButton from './DeleteUserButton'
 import EditProfileModal from './EditProfileModal'
 import type { Profile } from '@/types/database'
@@ -131,6 +132,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
             <th style={{ width: '80px' }}>수정</th>
             <th style={{ width: '120px' }}>역할 변경</th>
             <th style={{ width: '110px' }}>PW초기화</th>
+            <th style={{ width: '130px' }}>온보딩</th>
             <th style={{ width: '100px' }}>삭제</th>
           </tr>
         </thead>
@@ -214,6 +216,21 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
                     userEmail={email}
                     userName={profile.name ?? '-'}
                   />
+                </td>
+                <td data-label="온보딩">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', alignItems: 'flex-start' }}>
+                    <span style={{
+                      fontSize: 'var(--fs-2xs)', fontWeight: 600,
+                      color: profile.onboarding_completed_at
+                        ? 'var(--success)'
+                        : profile.onboarding_skipped_at
+                          ? 'var(--text-muted)'
+                          : 'var(--warning)',
+                    }}>
+                      {profile.onboarding_completed_at ? '완료' : profile.onboarding_skipped_at ? '건너뜀' : '미완료'}
+                    </span>
+                    <ResetOnboardingButton userId={profile.id} userName={profile.name ?? '-'} />
+                  </div>
                 </td>
                 <td data-label="삭제">
                   <DeleteUserButton userId={profile.id} userName={profile.name ?? profile.id} isSelf={profile.id === currentUserId} />

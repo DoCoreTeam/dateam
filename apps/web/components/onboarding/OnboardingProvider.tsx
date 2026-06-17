@@ -84,12 +84,10 @@ export default function OnboardingProvider({
   useEffect(() => {
     if (onboardParam) return
     if (!shouldAutoStart) return
-    // 화면-로컬 게이팅(weekly 등): localStorage로 1회성 판단(main DB 상태와 독립)
-    if (localGateKey) {
-      if (localGateDone(localGateKey)) return
-    } else if (getLocalCache().done) {
-      return // main: 로컬 캐시로 깜빡임 방지(이미 끝낸 경우)
-    }
+    // 화면-로컬 게이팅(weekly 등)만 localStorage로 1회성 판단.
+    // main 시퀀스는 DB(shouldAutoStart)가 유일 진실 — localStorage로 막지 않는다.
+    // (관리자가 온보딩을 초기화하면 브라우저 캐시와 무관하게 즉시 재노출되어야 하므로.)
+    if (localGateKey && localGateDone(localGateKey)) return
 
     const resume = localGateKey ? null : resumeStepKey ?? getLocalCache().step
     // startedRef는 타이머 콜백 안에서 검사/설정 — React18 StrictMode 이중마운트 시
