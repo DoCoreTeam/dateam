@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import useSWR, { mutate as globalMutate } from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import type { DailyLog, DailyLogEntryType } from '@/types/database'
 import EventModal from './EventModal'
@@ -42,6 +42,8 @@ interface Props {
 }
 
 export default function DayDetailPanel({ date, onClose }: Props) {
+  // Context-aware mutate — 전역 mutate는 SWRProvider 영속캐시를 못 건드림(저장 후 미반영 회귀 방지)
+  const { mutate } = useSWRConfig()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const { data: logs = [], isLoading: loading } = useSWR<DailyLog[]>(
@@ -57,7 +59,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
   // 페이지 월/주 범위 일정 SWR까지 모두 재검증
   const revalidateAllEvents = () => {
     mutateEvents()
-    globalMutate((key) => typeof key === 'string' && key.startsWith('/api/calendar/events'))
+    mutate((key) => typeof key === 'string' && key.startsWith('/api/calendar/events'))
   }
 
   async function onDeleteEvent(id: string) {

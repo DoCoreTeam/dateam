@@ -1,11 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { mutate as globalMutate } from 'swr'
+import { useSWRConfig } from 'swr'
 import { Sparkles, Plus, X } from 'lucide-react'
 import { getCalendarRecommendations, createCalendarEvent, type Recommendation } from './actions'
 
 export default function RecommendPanel() {
+  // Context-aware mutate — 전역 mutate는 SWRProvider 영속캐시를 못 건드림(저장 후 미반영 회귀 방지)
+  const { mutate } = useSWRConfig()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [items, setItems] = useState<Recommendation[] | null>(null)
@@ -26,7 +28,7 @@ export default function RecommendPanel() {
       link_kind: rec.link_kind ?? null, link_id: rec.link_id ?? null,
     })
     if (res.ok) {
-      globalMutate((key) => typeof key === 'string' && key.startsWith('/api/calendar/events'))
+      mutate((key) => typeof key === 'string' && key.startsWith('/api/calendar/events'))
       setItems((prev) => (prev ? prev.filter((_, i) => i !== idx) : prev))
     }
   }

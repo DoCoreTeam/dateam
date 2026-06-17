@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import useSWR, { mutate as globalMutate } from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { AlertTriangle, CheckCircle2, RotateCcw, ChevronDown, ChevronUp, Search, Plus, Building2, X } from 'lucide-react'
 
@@ -582,6 +582,8 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect }: { 
 }
 
 export default function ReviewTab() {
+  // Context-aware mutate — 전역 mutate는 SWRProvider 영속캐시를 못 건드림(저장 후 미반영 회귀 방지)
+  const { mutate } = useSWRConfig()
   const { data, mutate: revalidate } = useSWR<{ items: ReviewItem[] }>(
     '/api/pricing/gpu/review?status=pending',
     fetcher
@@ -627,8 +629,8 @@ export default function ReviewTab() {
 
   const handleDone = useCallback(async () => {
     await revalidate()
-    await globalMutate('/api/pricing/gpu/products')
-    await globalMutate('/api/pricing/gpu/review?status=pending')
+    await mutate('/api/pricing/gpu/products')
+    await mutate('/api/pricing/gpu/review?status=pending')
   }, [revalidate])
 
   const handleBulkDelete = useCallback(async () => {

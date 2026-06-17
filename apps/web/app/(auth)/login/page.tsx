@@ -1,15 +1,8 @@
-import { signIn } from './actions'
+import LoginForm from './LoginForm'
 import { getBranding } from '@/lib/branding'
 
-interface LoginPageProps {
-  searchParams: Promise<{ error?: string }>
-}
-
-export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const [{ error }, branding] = await Promise.all([
-    searchParams,
-    getBranding(),
-  ])
+export default async function LoginPage() {
+  const branding = await getBranding()
 
   return (
     <main
@@ -85,65 +78,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             로그인
           </h2>
 
-          {error && (
-            <div
-              role="alert"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--space-2)',
-                padding: 'var(--space-3) var(--space-4)',
-                backgroundColor: 'var(--danger-bg)',
-                border: 'var(--hairline) solid var(--danger-border)',
-                borderRadius: 'var(--radius)',
-                marginBottom: '1.25rem',
-                fontSize: 'var(--fs-sm)',
-                color: 'var(--danger)',
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              {decodeURIComponent(error)}
-            </div>
-          )}
-
-          <form action={signIn} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-            <div>
-              <label htmlFor="email" className="label">이메일</label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                autoComplete="email"
-                placeholder="team@example.com"
-                className="input-field"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="label">비밀번호</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                placeholder="비밀번호 (초기화된 경우 빈칸으로 로그인)"
-                className="input-field"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="btn-primary"
-              style={{ marginTop: '0.5rem', width: '100%', padding: 'var(--space-3)' }}
-            >
-              로그인
-            </button>
-          </form>
+          <LoginForm brandName={branding.brandName} />
         </div>
 
         <p

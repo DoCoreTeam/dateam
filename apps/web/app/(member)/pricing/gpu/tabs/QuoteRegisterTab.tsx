@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { mutate as globalMutate } from 'swr'
+import { useSWRConfig } from 'swr'
 import { Sparkles, Send, Paperclip, X, RotateCcw } from 'lucide-react'
 import IntakeGateSummary, { type GateRow } from './IntakeGateSummary'
 import MultimodalIntake from '@/components/pricing/gpu/unified/MultimodalIntake'
@@ -161,6 +161,8 @@ function ResultPanel({ item }: { item: ReviewItemResult }) {
 }
 
 export default function QuoteRegisterTab() {
+  // Context-aware mutate — 전역 mutate는 SWRProvider 영속캐시를 못 건드림(저장 후 미반영 회귀 방지)
+  const { mutate } = useSWRConfig()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const rawTextDraft = useFormCore<string>({ formId: 'gpu-intake', initial: '', scopeRef: textareaRef })
   const rawText = rawTextDraft.value
@@ -334,7 +336,7 @@ export default function QuoteRegisterTab() {
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) { setErrorMsg(j.error ?? '저장 실패'); return }
-      await globalMutate('/api/pricing/gpu/review?status=pending')
+      await mutate('/api/pricing/gpu/review?status=pending')
       setCommitted(true)
       setSuccessMsg(`공급가 ${j.count}건이 검토 대기에 추가되었습니다.`)
     } catch { setErrorMsg('저장 실패') } finally { setCommitting(false) }
@@ -351,7 +353,7 @@ export default function QuoteRegisterTab() {
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) { setErrorMsg(j.error ?? '반영 실패'); return }
-      await globalMutate('/api/pricing/gpu/market')
+      await mutate('/api/pricing/gpu/market')
       setApplied(true)
       setSuccessMsg(`경쟁사 가격 ${j.count}건이 시장 비교에 반영되었습니다.`)
     } catch {
@@ -382,7 +384,7 @@ export default function QuoteRegisterTab() {
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) { setErrorMsg(j.error ?? 'CSV 저장 실패'); return }
-      await globalMutate('/api/pricing/gpu/review?status=pending')
+      await mutate('/api/pricing/gpu/review?status=pending')
       setSuccessMsg(`CSV ${j.count}건이 검토 대기에 추가되었습니다.`)
     } catch { setErrorMsg('CSV 저장 실패') } finally { setCsvSaving(false) }
   }, [isTest])
