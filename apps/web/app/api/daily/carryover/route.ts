@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
     .select('*')
     .eq('user_id', user.id)
     .eq('task_kind', 'personal')   // 이월도 개인 업무만 (부서업무 역류 제거)
+    .eq('is_onboarding', false)    // 온보딩 실습 행 제외(이월 제안 오염 방지)
     .eq('is_resolved', false)
     .in('entry_type', ['planned', 'doing', 'blocker'])
     .gte('log_date', from)

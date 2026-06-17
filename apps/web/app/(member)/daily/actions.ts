@@ -566,7 +566,8 @@ export async function unignoreCarryoverLog(id: string): Promise<{ ok: true } | {
 export async function addMultipleDailyLogs(
   items: AiParsedItem[],
   logDate: string,
-  parentLogId?: string
+  parentLogId?: string,
+  isOnboarding = false
 ): Promise<{ ok: true; data: DailyLog[] } | { ok: false; error: string }> {
   if (items.length === 0) return { ok: false, error: '저장할 항목이 없습니다.' }
   if (items.length > 100) return { ok: false, error: '한 번에 최대 100개까지 저장할 수 있습니다.' }
@@ -608,6 +609,8 @@ export async function addMultipleDailyLogs(
       origin_group_id: originGroupId,
       source_type: parentLogId ? 'thread_derived' as const : 'ai_split' as const,
       parent_log_id: parentLogId ?? null,
+      // 온보딩 실습 등록 격리(집계/AI/롤업 제외 — 마이그113/114 + T-2 필터 의존)
+      is_onboarding: isOnboarding,
       // 메모는 신규 상태로 (042) — 임베딩은 저장 후 별도 처리
       ...(item.status === 'note' ? { memo_status: 'new' as MemoStatus } : {}),
     }

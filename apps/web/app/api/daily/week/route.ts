@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
   // personal=1: 일일 주간뷰 — 개인 업무만(부서업무 역류 제거). 미지정: 주간보고/캘린더 — 담당 부서업무 인용 포함(기존 동작 보존)
   const personalOnly = req.nextUrl.searchParams.get('personal') === '1'
-  let q = (supabase.from('daily_logs') as any).select('*')
+  let q = (supabase.from('daily_logs') as any).select('*').eq('is_onboarding', false)
   if (personalOnly) {
     q = q.eq('user_id', user.id).eq('task_kind', 'personal')
   } else {

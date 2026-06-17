@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useRef, useCallback, useEffect } from 'react'
+import { useState, useTransition, useRef, useCallback, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Trash2, Save, Pencil, AlertTriangle, RotateCcw, Sparkles } from 'lucide-react'
 import dynamic from 'next/dynamic'
@@ -13,7 +13,10 @@ import { useDraftPersist } from '@/lib/forms/useDraftPersist'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
-const SpotlightOnboarding = dynamic(() => import('@/components/ui/SpotlightOnboarding'), { ssr: false })
+const OnboardingProvider = dynamic(() => import('@/components/onboarding/OnboardingProvider'), { ssr: false })
+
+/** 주간보고 작성 가이드 1회 노출 게이트(기존 SpotlightOnboarding localStorage 키 흡수). */
+const WEEKLY_GUIDE_GATE = 'weekly_report_onboarding_done'
 
 const REFINE_STEPS = [
   { label: '내용 분석 중…',    detail: '입력 내용과 전주 데이터 비교 중' },
@@ -306,7 +309,13 @@ export default function WeeklyReportForm({
 
   return (
     <>
-    <SpotlightOnboarding autoStart={isFirstTimeUser} />
+    <Suspense fallback={null}>
+      <OnboardingProvider
+        shouldAutoStart={isFirstTimeUser}
+        autoSequence="weekly"
+        localGateKey={WEEKLY_GUIDE_GATE}
+      />
+    </Suspense>
 
     <AXLoadingOverlay
       isLoading={isRefining}

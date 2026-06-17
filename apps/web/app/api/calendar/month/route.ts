@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await (supabase.from('daily_logs') as any)
     .select('log_date, entry_type, content, target_date')
     .eq('user_id', user.id)
+    .eq('is_onboarding', false)   // 온보딩 실습 행 제외(캘린더 오염 방지)
     .or(`and(log_date.gte.${from},log_date.lte.${to}),and(target_date.gte.${from},target_date.lte.${to})`)
     .order('log_date', { ascending: true })
     .order('logged_at', { ascending: true })

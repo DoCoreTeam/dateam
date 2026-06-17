@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '인증 필요' }, { status: 401 })
 
+  // 온보딩(is_onboarding) 비격리 의도 — 본인 메모 목록은 실습 행도 노출(DECISION #2). 필터 추가 금지.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let q = (supabase.from('daily_logs') as any)
     .select('id, content, logged_at, log_date, memo_status, memo_reviewed_at, linked_account_id, linked_contact_id, entry_type')

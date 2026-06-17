@@ -161,7 +161,7 @@ export default function MobileShell({
         </div>
 
         {/* 네비게이션 */}
-        <nav style={{ flex: 1, padding: 'var(--space-3)', overflowY: 'auto' }} aria-label="주 메뉴">
+        <nav id="onboarding-sidebar-nav" style={{ flex: 1, padding: 'var(--space-3)', overflowY: 'auto' }} aria-label="주 메뉴">
           {/* 기본 아이템 */}
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
             {items.map((item, idx) => {

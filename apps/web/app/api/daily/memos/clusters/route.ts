@@ -42,6 +42,7 @@ export async function GET() {
     .select('id, content, logged_at, embedding')
     .eq('user_id', user.id)
     .eq('entry_type', 'note')
+    .eq('is_onboarding', false)  // onboarding: 임베딩 클러스터링(AI) 입력 — 실습 행 제외
     .in('memo_status', ['new', 'reviewed'])
     .order('logged_at', { ascending: false })
     .limit(200)

@@ -138,6 +138,7 @@
   --z-overlay: 100;
   --z-modal: 200;
   --z-toast: 300;
+  --z-onboarding: 1100;  /* 온보딩 투어(driver.js) — toast 위. overlay/popover 정렬 기준 */
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -6664,3 +6665,107 @@ label.intake-tool-btn {
 /* input-field 동시 적용 시 래퍼가 보더/포커스 담당 — 입력은 리셋 */
 .work-search-input-wrap .work-search-input:focus { box-shadow: none; }
 .work-search-input-wrap .work-search-input::placeholder { color: var(--text-faint); }
+
+/* ──────────────────────────────────────────────────────────
+   온보딩 투어 (driver.js) — .ax-onboard 팝오버 테마 (토큰 경유, 다크/라이트 자동)
+   driver.js 기본 흰 카드/파란 버튼을 디자인 시스템 토큰으로 재정의.
+   ────────────────────────────────────────────────────────── */
+.driver-popover.ax-onboard {
+  background: var(--color-bg);
+  color: var(--text);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-5);
+  max-width: 340px;
+}
+.driver-popover.ax-onboard .driver-popover-title {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin-bottom: var(--space-2);
+}
+.driver-popover.ax-onboard .driver-popover-description {
+  font-size: var(--fs-base);
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+.driver-popover.ax-onboard .driver-popover-footer {
+  margin-top: var(--space-4);
+  gap: var(--space-2);
+}
+.driver-popover.ax-onboard .driver-popover-footer button {
+  text-shadow: none;
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  padding: var(--space-2) var(--space-3);
+  transition: background var(--duration-fast, 150ms) ease, border-color var(--duration-fast, 150ms) ease;
+}
+/* Next/Done = 브랜드 버튼 */
+.driver-popover.ax-onboard .driver-popover-next-btn {
+  background: var(--brand);
+  color: #fff;
+  border: var(--hairline) solid var(--brand);
+}
+.driver-popover.ax-onboard .driver-popover-next-btn:hover {
+  background: var(--brand-dark);
+  border-color: var(--brand-dark);
+}
+/* Close(X) = 외곽선 보조 버튼 */
+.driver-popover.ax-onboard .driver-popover-close-btn {
+  color: var(--text-muted);
+  background: transparent;
+  border: var(--border-w-2) solid var(--border-color);
+}
+.driver-popover.ax-onboard .driver-popover-close-btn:hover {
+  color: var(--text);
+  border-color: var(--brand);
+}
+.driver-popover.ax-onboard .driver-popover-prev-btn {
+  background: transparent;
+  color: var(--text-muted);
+  border: var(--border-w-2) solid var(--border-color);
+}
+/* 화살표 — 팝오버 배경색과 일치 */
+.driver-popover.ax-onboard .driver-popover-arrow-side-left.driver-popover-arrow { border-left-color: var(--color-bg); }
+.driver-popover.ax-onboard .driver-popover-arrow-side-right.driver-popover-arrow { border-right-color: var(--color-bg); }
+.driver-popover.ax-onboard .driver-popover-arrow-side-top.driver-popover-arrow { border-top-color: var(--color-bg); }
+.driver-popover.ax-onboard .driver-popover-arrow-side-bottom.driver-popover-arrow { border-bottom-color: var(--color-bg); }
+/* driver overlay/popover z-index — 토큰 기준 정렬(toast 위) */
+.driver-active .driver-overlay,
+.driver-popover { z-index: var(--z-onboarding); }
+@media (prefers-reduced-motion: reduce) {
+  .driver-popover.ax-onboard { transition: none; }
+}
+
+/* 온보딩 재진입 버튼 — pill / text 변형 (인라인 style 제거, 토큰 경유) */
+.onboarding-restart-pill {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  min-height: 44px;
+  background: var(--brand-soft);
+  border: var(--hairline) solid var(--brand-soft-2);
+  border-radius: 9999px;
+  cursor: pointer;
+  color: var(--brand-dark);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: background var(--duration-fast, 150ms) ease, border-color var(--duration-fast, 150ms) ease;
+}
+.onboarding-restart-pill:hover { background: var(--brand-soft-2); border-color: var(--brand); }
+.onboarding-restart-pill:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: 2px; }
+
+.onboarding-restart-textwrap { margin-top: var(--space-8, 2rem); text-align: center; }
+.onboarding-restart-text {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  min-height: 44px;
+  background: none; border: none; cursor: pointer;
+  font-size: var(--fs-sm); color: var(--brand); font-weight: 500;
+  text-decoration: underline; text-decoration-color: transparent;
+  transition: color var(--duration-fast, 150ms) ease, text-decoration-color var(--duration-fast, 150ms) ease;
+}
+.onboarding-restart-text:hover { color: var(--brand-dark); text-decoration-color: var(--brand-dark); }
+.onboarding-restart-text:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: 2px; }

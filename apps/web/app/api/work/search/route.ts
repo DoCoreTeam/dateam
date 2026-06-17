@@ -114,6 +114,7 @@ export async function GET(req: NextRequest) {
         .select('id,content,log_date,created_at')
         .eq('user_id', userId)
         .eq('task_kind', 'personal')
+        .eq('is_onboarding', false)   // 온보딩 실습 행 제외(검색 결과 오염 방지)
         .ilike('content', pattern)
       // lte(=커서 포함)로 동일-date 행도 DB에서 가져온 뒤, app-side afterCursor가 id로 보정 제거.
       if (cursor) qb = qb.lte('log_date', cursor.date)

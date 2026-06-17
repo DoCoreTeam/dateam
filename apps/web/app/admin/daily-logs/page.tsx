@@ -58,9 +58,12 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
 
   // 로그 쿼리
   const ADMIN_LOG_LIMIT = 2000
+  // onboarding: 관리자 전체 롤업(교차사용자 모니터링) — 실습 행 제외.
+  //   특정 사용자 상세도 연습 행은 노이즈이므로 동일 적용(요약카드 카운트 정합).
   let query = (supabase.from('daily_logs') as any)
     .select('*, profiles!inner(name)')
     .eq('log_date', selectedDate)
+    .eq('is_onboarding', false)
     .order('user_id')
     .order('logged_at', { ascending: true })
     .limit(ADMIN_LOG_LIMIT)

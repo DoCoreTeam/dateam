@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
     .select('content, log_date, user_id')
     .in('user_id', userIds)
     .eq('task_kind', 'personal')
+    .eq('is_onboarding', false)  // onboarding: AI 부서업무 후보 입력(교차사용자 집계) — 실습 행 제외
     .in('entry_type', ['doing', 'planned', 'blocker'])
     .gte('log_date', startStr)
     .limit(400)

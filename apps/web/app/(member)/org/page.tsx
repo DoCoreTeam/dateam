@@ -48,7 +48,7 @@ export default async function OrgPage() {
   }[]
 
   return (
-    <div className="page-inner">
+    <div className="page-inner" id="onboarding-org-tree">
       <OrgPublicTree nodes={nodes} emailMap={emailMap} profileMap={profileMap} />
     </div>
   )

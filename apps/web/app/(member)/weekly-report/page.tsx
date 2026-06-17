@@ -5,7 +5,7 @@ import { subWeeks } from 'date-fns'
 import WeeklyReportForm from './WeeklyReportForm'
 import TeamReportView from './TeamReportView'
 import ReportAccordion from './ReportAccordion'
-import OnboardingRestartLink from './OnboardingRestartLink'
+import OnboardingRestartLink from '@/components/onboarding/OnboardingRestartLink'
 import OrgWeeklyView from './OrgWeeklyView'
 import DeptTaskWeeklyPanel from './DeptTaskWeeklyPanel'
 import WorkPageShell from '@/components/ui/WorkPageShell'
@@ -219,7 +219,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
                 <FileText size={16} color="var(--brand)" />
                 <h2 className="tape-title" style={{ margin: 0 }}>보고서 작성</h2>
               </div>
-              <OnboardingRestartLink variant="icon" />
+              <OnboardingRestartLink variant="icon" seq="weekly" gateKey="weekly_report_onboarding_done" label="작성 가이드" />
             </div>
             <WeeklyReportForm
               key={`${initialWeek}-${justReset ? 'reset' : 'normal'}`}
@@ -243,7 +243,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
             <ReportAccordion groups={groups} />
           </div>
 
-          <OnboardingRestartLink variant="text" />
+          <OnboardingRestartLink variant="text" seq="weekly" gateKey="weekly_report_onboarding_done" label="처음이신가요? 작성 가이드 보기" />
         </>
       ) : activeTab === 'team' ? (
         <div className="card" style={{ padding: 'var(--space-6)', width: '100%', boxSizing: 'border-box' }}>

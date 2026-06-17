@@ -14,6 +14,7 @@ export async function GET() {
   const { data } = await db.from('daily_logs')
     .select('id, content, entry_type, log_date, linked_account_id')
     .eq('user_id', auth.user.id).eq('task_kind', 'personal')
+    .eq('is_onboarding', false)  // onboarding: 워크로드 대시보드 집계 — 실습 행 제외
     .order('log_date', { ascending: false }).limit(2000)
   const rows = (data ?? []) as Array<{ id: string; content: string; entry_type: DailyLogEntryType; log_date: string; linked_account_id: string | null }>
 

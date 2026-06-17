@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
   const { data: logs } = await db.from('daily_logs')
     .select('id, content, entry_type, linked_account_id')
     .eq('user_id', user.id).eq('task_kind', 'personal')
+    .eq('is_onboarding', false)  // onboarding: 엔티티 기준 집계(관여분포) — 실습 행 제외
     .order('logged_at', { ascending: false }).limit(1000)
   const rows = (logs ?? []) as Array<{ id: string; content: string; entry_type: string; linked_account_id: string | null }>
 

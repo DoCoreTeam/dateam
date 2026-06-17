@@ -110,6 +110,12 @@ export interface Profile {
   must_change_password: boolean
   /** 개인 선택 디자인 테마 id. NULL = 전역 디폴트 추종. 값 검증은 isThemeId(앱 계층). */
   theme_preference: string | null
+  /** 온보딩 완료 시각. NULL = 미완료(자동시작 대상). 마이그레이션 113(BE). */
+  onboarding_completed_at: string | null
+  /** 마지막 도달 온보딩 스텝 key(재개용). 마이그레이션 113(BE). */
+  onboarding_step: string | null
+  /** 온보딩 스킵 시각. 완료와 구분. 마이그레이션 113(BE). */
+  onboarding_skipped_at: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null

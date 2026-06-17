@@ -36,6 +36,7 @@ export async function GET() {
   const { data: logs } = await db.from('daily_logs')
     .select('id, content, log_date')
     .eq('user_id', user.id).eq('task_kind', 'personal')
+    .eq('is_onboarding', false)  // onboarding: AI 프로젝트 군집화 입력 — 실습 행 제외
     .gte('log_date', startStr)
     .order('log_date', { ascending: false }).limit(RECENT_LIMIT)
   const logRows = ((logs ?? []) as Array<{ id: string; content: string; log_date: string }>)

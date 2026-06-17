@@ -15,6 +15,7 @@ import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, moveAllCarryoverToToday, unignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread, updateDailyLogStatus, deleteLogGroup, updateOriginInput, getPromotedMap } from './actions'
 import type { AiParsedItem } from './actions'
+import { isOnboardingActive } from '@/lib/onboarding/onboarding-state'
 import { createDailyScheduleEvent, getLinkedDailyLogIds, unlinkDailyCalendar } from '../calendar/actions'
 import { selectScheduleCandidates } from '@/lib/daily/schedule-candidates'
 import type { DailyLog, DailyLogEntryType, DailyLogThread } from '@/types/database'
@@ -311,12 +312,18 @@ export default function DailyPage() {
     }
 
     // 분석 완료 → 즉시 자동 저장 (확인 단계 없음)
-    const result = await addMultipleDailyLogs(collected, selectedDate)
+    // 온보딩 투어 진행 중이면 실습 행으로 격리(is_onboarding=true) — 집계/AI/롤업 제외(마이그113/114 + T-2)
+    const onboardingActive = isOnboardingActive()
+    const result = await addMultipleDailyLogs(collected, selectedDate, undefined, onboardingActive)
     if (result.ok) {
       setContent('')
       draft.clear()   // 저장 성공 → 임시저장본 삭제(유령 복원 방지)
       setAiHintCount(0)
       await mutate(`/api/daily/logs?date=${selectedDate}`)
+      // 온보딩 실습 게이팅 — 투어 진행 중일 때만 1스텝 전진(불필요 이벤트 방지)
+      if (onboardingActive) {
+        window.dispatchEvent(new CustomEvent('ax-onboarding-advance', { detail: { event: 'daily-saved' } }))
+      }
       // 저장된 항목 중 일정성 항목 자동 캘린더 등록 (저장 직후 1회)
       await autoRegisterSchedules(result.data)
       await mutate(isDailyCalendarCacheKey)
@@ -619,7 +626,7 @@ export default function DailyPage() {
             {/* 좌측 메인 영역: 입력 폼(고정) + 업무 타임라인(자체 스크롤) */}
             <div className="daily-day-main" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)', minWidth: 0 }}>
               {/* 입력 폼 — 컬럼 상단 고정 */}
-              <div className="daily-compose-card daily-compose-fixed" ref={newTaskRef}>
+              <div className="daily-compose-card daily-compose-fixed" ref={newTaskRef} id="onboarding-daily-input">
                 <DraftRestoreBanner show={draft.hasDraft} onRestore={draft.restore} onDiscard={draft.discard} />
                 <div className="daily-compose-row">
                   <textarea
@@ -1351,7 +1358,8 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
       return
     }
     if (threadResult.ok) {
-      const saveResult = await addMultipleDailyLogs(aiItems, selectedDate, logId)
+      // 온보딩 중이면 thread-derived 저장도 동일하게 격리(보수적 일관성)
+      const saveResult = await addMultipleDailyLogs(aiItems, selectedDate, logId, isOnboardingActive())
       if (!saveResult.ok) {
         setAiConfirmError(`업무 등록 실패: ${saveResult.error}`)
         setSubmitting(false)

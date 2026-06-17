@@ -14,6 +14,8 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '인증 필요' }, { status: 401 })
 
+  // 온보딩(is_onboarding) 비격리 의도 — 본인 당일 목록은 등록 직후 "내가 등록함" 체감을 위해
+  // 실습 행도 노출한다(DECISION #2). 파생/집계(주간·이월·캘린더·검색)에서만 격리. 필터 추가 금지.
   const { data, error } = await (supabase.from('daily_logs') as any)
     .select('*')
     .eq('user_id', user.id)

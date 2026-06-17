@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
     .select('content, entry_type')
     .eq('user_id', user.id)
     .eq('log_date', date)
+    .eq('is_onboarding', false)  // onboarding: AI 프롬프트 입력(중복맥락) — 실습 행 제외
     .limit(100)
   const existingList = (existingToday ?? []) as { content: string; entry_type: string }[]
   const existingTodayText = existingList.length > 0
