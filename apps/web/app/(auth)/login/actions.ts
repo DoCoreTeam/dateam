@@ -30,9 +30,11 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
   const { error } = await supabase.auth.signInWithPassword({ email, password: tryPassword })
 
   if (error) {
+    // 빈 비밀번호로 시도(센티넬) 실패 = 비밀번호가 설정된 계정이거나 이메일 오류.
+    // 다음 행동(비밀번호 입력)을 앞세워 안내. 비밀번호를 넣고도 실패하면 자격증명 오류로 안내.
     const msg = password
       ? '이메일 또는 비밀번호가 올바르지 않습니다'
-      : '이메일 또는 비밀번호가 올바르지 않습니다. 비밀번호를 입력해주세요'
+      : '비밀번호가 필요한 계정입니다. 비밀번호를 입력해 주세요'
     // 실패 시 이메일을 되돌려 prefill — 사용자는 비밀번호만 다시 입력
     return { error: msg, email }
   }
