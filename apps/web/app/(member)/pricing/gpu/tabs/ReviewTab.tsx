@@ -586,7 +586,10 @@ export default function ReviewTab() {
   const { mutate } = useSWRConfig()
   const { data, mutate: revalidate } = useSWR<{ items: ReviewItem[] }>(
     '/api/pricing/gpu/review?status=pending',
-    fetcher
+    fetcher,
+    // 전역 revalidateIfStale:false(영속캐시) 때문에 통합입력 등록 후 검토대기 진입 시
+    // stale 목록이 떠 새로고침해야 보이던 회귀 → 이 핵심 목록만 마운트 시 항상 신선 재검증.
+    { revalidateOnMount: true, revalidateIfStale: true }
   )
   const { data: suppliersData } = useSWR<{ suppliers: Supplier[] }>(
     '/api/pricing/gpu/suppliers',
