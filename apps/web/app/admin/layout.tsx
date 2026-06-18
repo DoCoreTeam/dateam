@@ -17,6 +17,7 @@ import {
   Bot,
   Building2,
   ShieldCheck,
+  History,
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import { getBranding } from '@/lib/branding'
@@ -44,6 +45,7 @@ const ADMIN_NAV_GROUPS: NavGroup[] = [
       { href: '/admin/ai-prompts', label: 'AI 프롬프트', icon: <Bot size={16} /> },
       { href: '/admin/data-quality', label: '데이터 품질', icon: <ShieldCheck size={16} /> },
       { href: '/admin/settings', label: '시스템 설정', icon: <SlidersHorizontal size={16} /> },
+      { href: '/admin/changelog', label: '업데이트 내역', icon: <History size={16} /> },
     ],
   },
   {

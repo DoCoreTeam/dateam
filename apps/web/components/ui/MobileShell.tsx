@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Menu, X, ChevronDown } from 'lucide-react'
 import NbNavItem from './nb/NbNavItem'
 import QuickAddFab from './QuickAddFab'
+import ChangelogModal from './ChangelogModal'
 
 interface NavItem {
   href: string
@@ -58,6 +59,8 @@ export default function MobileShell({
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+  const [changelogOpen, setChangelogOpen] = useState(false)
+  const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? ''
   const hamburgerRef = useRef<HTMLButtonElement>(null)
   const firstNavRef = useRef<HTMLAnchorElement>(null)
 
@@ -141,10 +144,17 @@ export default function MobileShell({
                 </span>
               )}
             </Link>
-            {/* 로고/브랜드 바로 아래 버전 */}
-            <span style={{ fontSize: '0.625rem', color: 'var(--text-muted)', letterSpacing: '0.06em', fontWeight: 600 }}>
-              v{process.env.NEXT_PUBLIC_APP_VERSION ?? '—'}
-            </span>
+            {/* 로고/브랜드 바로 아래 버전 — 클릭 시 업데이트 내역 모달 */}
+            <button
+              type="button"
+              onClick={() => setChangelogOpen(true)}
+              aria-label="업데이트 내역 보기"
+              title="업데이트 내역"
+              className="app-version-btn"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', fontSize: '0.625rem', color: 'var(--text-muted)', letterSpacing: '0.06em', fontWeight: 600, textAlign: 'left' }}
+            >
+              v{appVersion || '—'}
+            </button>
           </div>
           <button
             className="mobile-only-flex"
@@ -315,6 +325,7 @@ export default function MobileShell({
 
       {/* 빠른 추가 FAB — 하이브리드 speed-dial(맥락 강조 + 멀티). 데스크탑·모바일 */}
       <QuickAddFab isAdmin={isAdmin} />
+      {changelogOpen && <ChangelogModal currentVersion={appVersion} onClose={() => setChangelogOpen(false)} />}
     </div>
   )
 }
