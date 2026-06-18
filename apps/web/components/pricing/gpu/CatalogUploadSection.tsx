@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { Sparkles, Paperclip } from 'lucide-react'
 
 // 카탈로그 파일(xlsx/csv) 일괄 흡수 — 임의 구조를 AI가 헤더 매핑 → 전행 변환 → 검토 대기 적재.
@@ -20,52 +20,86 @@ const MAP_FIELDS: Array<[string, string]> = [
   ['가격', 'price_usd'], ['요금제', 'pricing_model'],
 ]
 
-export default function CatalogUploadSection({ isTest }: { isTest: boolean }) {
+// controlled 모드: file prop이 주어지면 단일 드롭존이 넘긴 파일을 자동 흡수(버튼 숨김).
+// uncontrolled(기본): 자체 파일선택 버튼 유지(다른 화면 재사용 대비).
+interface CatalogUploadSectionProps {
+  isTest: boolean
+  file?: File | null
+  onConsumed?: () => void
+}
+
+export default function CatalogUploadSection({ isTest, file, onConsumed }: CatalogUploadSectionProps) {
+  const controlled = file !== undefined
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [result, setResult] = useState<CatalogResult | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const mountedRef = useRef(true)
+  const abortRef = useRef<AbortController | null>(null)
 
-  const handleUpload = useCallback(async (file: File) => {
+  // 언마운트 시 진행 중 업로드 취소 + setState 차단(초기화로 즉시 언마운트되는 controlled 모드 대비).
+  useEffect(() => () => { mountedRef.current = false; abortRef.current?.abort() }, [])
+
+  const handleUpload = useCallback(async (f: File) => {
+    abortRef.current?.abort()
+    const ac = new AbortController()
+    abortRef.current = ac
     setBusy(true); setErr(''); setResult(null)
     try {
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', f)
       fd.append('is_test', String(isTest))
-      const res = await fetch('/api/pricing/gpu/market/catalog', { method: 'POST', body: fd })
+      const res = await fetch('/api/pricing/gpu/market/catalog', { method: 'POST', body: fd, signal: ac.signal })
       const j = await res.json().catch(() => ({}))
+      if (!mountedRef.current) return
       if (!res.ok) { setErr(j.error ?? '카탈로그 흡수 실패'); return }
       setResult(j as CatalogResult)
     } catch (e) {
+      if (!mountedRef.current || (e instanceof DOMException && e.name === 'AbortError')) return
       setErr(e instanceof Error ? e.message : '카탈로그 흡수 실패')
     } finally {
-      setBusy(false)
+      if (mountedRef.current) setBusy(false)
     }
   }, [isTest])
+
+  // controlled: 부모가 넘긴 file이 바뀌면 자동 흡수.
+  useEffect(() => {
+    if (file) { handleUpload(file); onConsumed?.() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file])
 
   const mapping = result?.mapping as Record<string, unknown> | null
 
   return (
-    <div style={{ marginTop: 16, paddingTop: 16, borderTop: 'var(--hairline) solid var(--color-border)' }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Sparkles size={14} style={{ color: 'var(--gpu-accent)' }} /> 카탈로그 파일 일괄 흡수 (xlsx/csv)
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-        컬럼명이 제각각인 경쟁사 카탈로그 파일을 올리면 AI가 우리 스키마에 매핑하고 전체 행을 검토 대기로 적재합니다.
-      </div>
-      <input className="input-field" ref={inputRef} type="file" accept=".xlsx,.xls,.csv"
-        style={{ display: 'none' }}
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = '' }}
-      />
-      <button
-        className="gpu-btn"
-        data-testid="catalog-upload-btn"
-        style={{ marginTop: 8, gap: 6 }}
-        onClick={() => inputRef.current?.click()}
-        disabled={busy}
-      >
-        <Paperclip size={13} /> {busy ? 'AI 매핑·변환 중…' : '카탈로그 파일 선택'}
-      </button>
+    <div style={controlled ? { marginTop: 8 } : { marginTop: 16, paddingTop: 16, borderTop: 'var(--hairline) solid var(--color-border)' }}>
+      {!controlled && (
+        <>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Sparkles size={14} style={{ color: 'var(--gpu-accent)' }} /> 카탈로그 파일 일괄 흡수 (xlsx/csv)
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+            컬럼명이 제각각인 경쟁사 카탈로그 파일을 올리면 AI가 우리 스키마에 매핑하고 전체 행을 검토 대기로 적재합니다.
+          </div>
+          <input className="input-field" ref={inputRef} type="file" accept=".xlsx,.xls,.csv"
+            style={{ display: 'none' }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = '' }}
+          />
+          <button
+            className="gpu-btn"
+            data-testid="catalog-upload-btn"
+            style={{ marginTop: 8, gap: 6 }}
+            onClick={() => inputRef.current?.click()}
+            disabled={busy}
+          >
+            <Paperclip size={13} /> {busy ? 'AI 매핑·변환 중…' : '카탈로그 파일 선택'}
+          </button>
+        </>
+      )}
+      {controlled && busy && (
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }} data-testid="catalog-busy">
+          <Sparkles size={13} style={{ color: 'var(--gpu-accent)' }} /> 엑셀/표 파일 AI 매핑·변환 중…
+        </div>
+      )}
       {err && (
         <div style={{ marginTop: 8, fontSize: 12, color: 'var(--gpu-red)' }} data-testid="catalog-error">{err}</div>
       )}

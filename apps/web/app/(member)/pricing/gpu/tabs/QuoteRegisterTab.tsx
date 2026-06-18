@@ -1,15 +1,14 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useSWRConfig } from 'swr'
 import { Sparkles, Send, Paperclip, X, RotateCcw } from 'lucide-react'
 import IntakeGateSummary, { type GateRow } from './IntakeGateSummary'
-import MultimodalIntake from '@/components/pricing/gpu/unified/MultimodalIntake'
 import CatalogUploadSection from '@/components/pricing/gpu/CatalogUploadSection'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
-import type { CsvFieldKey } from '@/lib/gpu/csv-intake'
-import { REVIEW_CHANNELS } from '@/lib/gpu/review-channels'
+import { classifyFile, ACCEPT_ALL, formatMB } from '@/lib/gpu/intake-files'
+import { downscaleImage } from '@/lib/gpu/image-downscale'
 
 interface CompetitorSavedItem {
   competitor: string
@@ -83,9 +82,15 @@ const IMPACT_CONFIG: Record<string, { label: string; color: string }> = {
 interface AttachedFile {
   name: string
   mimeType: string
-  previewUrl?: string
   textContent?: string
-  base64Data?: string
+}
+
+// 단일 드롭존 → stream(이미지/PDF) 경로 첨부. 원본 File을 보관해 multipart로 전송(base64 인플레 회피).
+interface StreamFile {
+  file: File
+  name: string
+  kind: 'image' | 'pdf'
+  previewUrl?: string
 }
 
 function getTabLabel(item: ReviewItemResult): string {
@@ -168,7 +173,12 @@ export default function QuoteRegisterTab() {
   const rawText = rawTextDraft.value
   const setRawText = rawTextDraft.set
   const [attached, setAttached] = useState<AttachedFile | null>(null)   // 텍스트 파일(단일)
-  const [images, setImages] = useState<AttachedFile[]>([])              // 이미지(다중)
+  const [streamFiles, setStreamFiles] = useState<StreamFile[]>([])      // 이미지/PDF(다중) — multipart 전송
+  const [catalogFile, setCatalogFile] = useState<File | null>(null)     // xlsx/csv 파일 → catalog 자동 흡수
+  // 언마운트 시 미해제 objectURL 정리(누수 방어) — ref로 최신 streamFiles 추적.
+  const streamFilesRef = useRef<StreamFile[]>([])
+  streamFilesRef.current = streamFiles
+  useEffect(() => () => { streamFilesRef.current.forEach((s) => s.previewUrl && URL.revokeObjectURL(s.previewUrl)) }, [])
   const [isDragging, setIsDragging] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [analysisResults, setAnalysisResults] = useState<ReviewItemResult[]>([])
@@ -191,7 +201,6 @@ export default function QuoteRegisterTab() {
   const [committing, setCommitting] = useState(false)
   const [committed, setCommitted] = useState(false)
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null)  // 공급가 미리보기 상세 펼침
-  const [csvSaving, setCsvSaving] = useState(false)                    // CSV/표 → 검토 대기 저장 중
 
   // 스트림 raw JSON → 자연어 파싱 (내부 필드명 노출 안 함). 누적 버퍼에서 모델·가격을 뽑아 친화적으로 표시.
   const streamFindings: Array<{ model: string; price?: string }> = (() => {
@@ -207,13 +216,23 @@ export default function QuoteRegisterTab() {
 
   // (실 진행은 SSE progress 이벤트로 표시 — 가짜 타이머 제거)
 
-  const processFile = useCallback((file: File) => {
-    const isText = file.type.startsWith('text/') || /\.(txt|csv|md|json)$/i.test(file.name)
-    const isImage = file.type.startsWith('image/')
-    // PDF는 Gemini가 인라인 처리(gemini-lead GEMINI_VISION_MIME_TYPES) — 이미지와 동일 경로(images 페이로드)로 전송.
-    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
-
-    if (isText) {
+  // 단일 드롭존 — 파일 종류 자동 분기(classifyFile SSOT). 무음 실패 금지: 상한초과·미지원은 안내.
+  const processFile = useCallback(async (file: File) => {
+    const d = classifyFile(file)
+    if (d.tooLarge) {
+      setErrorMsg(`${file.name}: 파일이 너무 큽니다(최대 ${formatMB(d.maxBytes)}). 더 작은 파일로 나눠 올려주세요.`)
+      return
+    }
+    if (d.route === 'catalog') {
+      // xlsx/csv 파일 → catalog 자동 흡수(controlled CatalogUploadSection이 처리)
+      setCatalogFile(file)
+      return
+    }
+    if (d.route === 'text') {
+      if (d.kind === 'unknown') {
+        setErrorMsg(`${file.name}: 지원하지 않는 형식입니다. 텍스트·이미지·PDF·엑셀·CSV를 올려 주세요.`)
+        return
+      }
       const reader = new FileReader()
       reader.onload = (e) => {
         const content = e.target?.result as string
@@ -221,24 +240,17 @@ export default function QuoteRegisterTab() {
         setAttached({ name: file.name, mimeType: file.type, textContent: content })
       }
       reader.readAsText(file)
-    } else if (isImage || isPdf) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const dataUrl = e.target?.result as string
-        const base64 = dataUrl.split(',')[1] ?? ''
-        // 이미지만 미리보기 썸네일(PDF는 파일 칩으로 표시)
-        const previewUrl = isImage ? URL.createObjectURL(file) : undefined
-        setImages((p) => [...p, { name: file.name, mimeType: isPdf ? 'application/pdf' : file.type, previewUrl, base64Data: base64 }])
-      }
-      reader.readAsDataURL(file)
-    } else {
-      setAttached({ name: file.name, mimeType: file.type })
+      return
     }
+    // stream 경로(이미지/PDF) — 원본 File 보관(multipart). 이미지 大용량은 클라이언트 다운스케일.
+    const finalFile = d.kind === 'image' && d.shouldDownscale ? await downscaleImage(file) : file
+    const previewUrl = d.kind === 'image' ? URL.createObjectURL(finalFile) : undefined
+    setStreamFiles((p) => [...p, { file: finalFile, name: file.name, kind: d.kind === 'pdf' ? 'pdf' : 'image', previewUrl }])
   }, [])
 
-  // 여러 파일 한 번에 처리
+  // 여러 파일 한 번에 처리(혼합 가능 — 각자 자동 분기)
   const processFiles = useCallback((files: FileList | File[]) => {
-    for (const f of Array.from(files)) processFile(f)
+    for (const f of Array.from(files)) void processFile(f)
   }, [processFile])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -256,33 +268,31 @@ export default function QuoteRegisterTab() {
   }, [processFiles])
 
   const reset = useCallback(() => {
-    setRawText(''); rawTextDraft.clear(); setAttached(null); setImages([]); setAnalysisResults([])
+    setRawText(''); rawTextDraft.clear(); setAttached(null)
+    setStreamFiles((p) => { p.forEach((s) => s.previewUrl && URL.revokeObjectURL(s.previewUrl)); return [] })
+    setCatalogFile(null); setAnalysisResults([])
     setCompetitorResults([]); setActiveTabIdx(0); setErrorMsg(''); setSuccessMsg('')
     setLiveMsgs([]); setStreamText(''); setSupplierPreview([]); setCommitted(false)
     setPreviewItems([]); setPreviewSourceUrl(null); setApplied(false); setExpandedIdx(null)
-    setCsvSaving(false)
   }, [])
 
   const handleAnalyze = useCallback(async () => {
     const text = rawText.trim() || attached?.textContent?.trim() || ''
-    const imgPayload = images.filter((im) => im.base64Data).map((im) => ({ data: im.base64Data as string, mimeType: im.mimeType }))
-    const hasImage = imgPayload.length > 0
-    if (!text && !hasImage) { setErrorMsg('텍스트 또는 이미지를 입력해 주세요.'); return }
-    const effectiveChannel = hasImage && !text ? 'img' : channel
+    const hasFiles = streamFiles.length > 0
+    if (!text && !hasFiles) { setErrorMsg('텍스트 또는 파일을 입력해 주세요.'); return }
 
     setAnalyzing(true); setErrorMsg(''); setSuccessMsg('')
     setAnalysisResults([]); setCompetitorResults([]); setActiveTabIdx(0)
     setPreviewItems([]); setPreviewSourceUrl(null); setApplied(false)
     setLiveMsgs([]); setStreamText(''); setSupplierPreview([]); setCommitted(false)
 
-    // ── 텍스트·이미지 모두 SSE 실시간 스트리밍 ──
+    // ── multipart 전송(이미지/PDF raw 바이너리 — base64 인플레 없음) → SSE 실시간 스트리밍 ──
     try {
-      const payload: Record<string, unknown> = { text, channel: effectiveChannel, is_test: isTest }
-      if (hasImage) payload.images = imgPayload
-      const res = await fetch('/api/pricing/gpu/review/stream', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
+      const fd = new FormData()
+      fd.append('text', text)
+      for (const sf of streamFiles) fd.append('files', sf.file, sf.name)
+      // Content-Type 헤더 미지정 — 브라우저가 multipart boundary 자동 설정
+      const res = await fetch('/api/pricing/gpu/review/stream', { method: 'POST', body: fd })
       if (!res.ok || !res.body) { setErrorMsg('AI 분석 시작 실패'); setAnalyzing(false); return }
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
@@ -323,7 +333,7 @@ export default function QuoteRegisterTab() {
     } finally {
       setAnalyzing(false); setStreamText('')
     }
-  }, [rawText, attached, images, channel, isTest])
+  }, [rawText, attached, streamFiles])
 
   // 공급가 미리보기 → 검토 대기 저장(버튼)
   const commitSupplier = useCallback(async () => {
@@ -360,34 +370,6 @@ export default function QuoteRegisterTab() {
       setErrorMsg('반영 실패')
     } finally { setApplying(false) }
   }, [previewItems, previewSourceUrl])
-
-  // CSV/표 붙여넣기 행 → 기존 검토 대기 저장 경로(commit) 재사용. CSV는 AI 신뢰도 없음 → 전량 사람 검토(자동확정 안 함).
-  const handleCsvRows = useCallback(async (rows: Partial<Record<CsvFieldKey, string>>[]) => {
-    if (rows.length === 0) return
-    setCsvSaving(true); setErrorMsg(''); setSuccessMsg('')
-    try {
-      const items = rows.map((r) => ({
-        extracted: {
-          model_name: r.model_name ?? null,
-          memory: r.memory ?? null,
-          supplier: r.supplier ?? null,
-          unit_price_usd: r.unit_price_usd != null ? Number(r.unit_price_usd) : null,
-          term: r.term ?? null,
-          min_qty: r.min_qty ?? null,
-          valid_until: r.valid_until ?? null,
-        },
-      }))
-      // 채널은 SSOT(REVIEW_CHANNELS)만 사용 — DB CHECK 위반 방지. CSV는 수기 붙여넣기이므로 자체('own').
-      const res = await fetch('/api/pricing/gpu/review/commit', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items, channel: REVIEW_CHANNELS.OWN, is_test: isTest }),
-      })
-      const j = await res.json().catch(() => ({}))
-      if (!res.ok) { setErrorMsg(j.error ?? 'CSV 저장 실패'); return }
-      await mutate('/api/pricing/gpu/review?status=pending')
-      setSuccessMsg(`CSV ${j.count}건이 검토 대기에 추가되었습니다.`)
-    } catch { setErrorMsg('CSV 저장 실패') } finally { setCsvSaving(false) }
-  }, [isTest])
 
   const hasResults = analysisResults.length > 0
   const hasCompetitorResults = competitorResults.length > 0
@@ -443,15 +425,16 @@ export default function QuoteRegisterTab() {
             붙여넣으면 공급가·경쟁가를 자동 분류합니다. 공급가는 검토 대기, 경쟁가는 시장 비교에 반영됩니다.
           </div>
 
-          {/* §05 멀티모달 — 지원 형식 자동 인식(정적 표시) */}
+          {/* 지원 형식 — 정보성 표시(클릭 대상 아님). 끌어다 놓으면 종류별 자동 분류. */}
           <div className="gpu-intake-formats" data-testid="intake-formats">
             <div className="gpu-intake-formats-list">
-              <span className="gpu-intake-formats-label">지원 형식</span>
-              <span className="gpu-format-badge">텍스트·메일</span>
-              <span className="gpu-format-badge">이미지</span>
-              <span className="gpu-format-badge">PDF</span>
-              <span className="gpu-format-badge">URL</span>
-              <span className="gpu-format-badge">CSV·표</span>
+              <span className="gpu-intake-formats-label">자동 인식</span>
+              <span className="gpu-format-badge gpu-format-badge-static">텍스트·메일</span>
+              <span className="gpu-format-badge gpu-format-badge-static">이미지</span>
+              <span className="gpu-format-badge gpu-format-badge-static">PDF</span>
+              <span className="gpu-format-badge gpu-format-badge-static">엑셀</span>
+              <span className="gpu-format-badge gpu-format-badge-static">URL</span>
+              <span className="gpu-format-badge gpu-format-badge-static">CSV·표</span>
             </div>
           </div>
 
@@ -471,7 +454,7 @@ export default function QuoteRegisterTab() {
               ref={textareaRef}
               className="gpu-intake-textarea"
               style={{ minHeight: 180, border: 'none', borderRadius: 10, background: 'transparent', resize: 'vertical' }}
-              placeholder={"견적·가격 정보를 붙여넣으세요. 텍스트·이미지·PDF·URL·CSV 모두 지원합니다.\n\n예) [GMI Cloud] H100 SXM 80GB $2.10/GPU·hr, 약정 3개월, 32장 즉시"}
+              placeholder={"견적·가격 정보를 여기 붙여넣거나, 파일(이미지·PDF·엑셀·CSV)을 끌어다 놓으세요.\n종류는 자동으로 인식·분류됩니다.\n\n예) [GMI Cloud] H100 SXM 80GB $2.10/GPU·hr, 약정 3개월, 32장 즉시"}
               value={rawText}
               onChange={(e) => { setRawText(e.target.value); setSuccessMsg(''); setErrorMsg('') }}
               onPaste={handlePaste}
@@ -484,7 +467,7 @@ export default function QuoteRegisterTab() {
               >
                 <Paperclip size={13} /> 파일 첨부
               </label>
-              <span style={{ fontSize: 11, color: 'var(--border-subtle)' }}>Ctrl+V로 이미지 붙여넣기 가능</span>
+              <span style={{ fontSize: 11, color: 'var(--border-subtle)' }}>이미지·PDF·엑셀·CSV · Ctrl+V 붙여넣기</span>
             </div>
           </div>
 
@@ -499,29 +482,34 @@ export default function QuoteRegisterTab() {
             </div>
           )}
 
-          {/* 이미지 첨부(다중) — 썸네일 그리드 */}
-          {images.length > 0 && (
+          {/* 이미지/PDF 첨부(다중) — 썸네일 그리드. multipart로 전송. */}
+          {streamFiles.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }} data-testid="image-thumbs">
-              {images.map((im, i) => (
+              {streamFiles.map((im, i) => (
                 <div key={i} title={im.name} style={{ position: 'relative', width: 56, height: 56, borderRadius: 8, overflow: 'hidden', border: 'var(--hairline) solid var(--brand-soft-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-bg)' }}>
                   {im.previewUrl
                     ? <img src={im.previewUrl} alt={im.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>PDF</span>}
-                  <button onClick={() => setImages((p) => p.filter((_, idx) => idx !== i))} title="제거"
+                  <button onClick={() => setStreamFiles((p) => { const t = p[i]; if (t?.previewUrl) URL.revokeObjectURL(t.previewUrl); return p.filter((_, idx) => idx !== i) })} title="제거"
                     style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', background: 'rgba(15,23,42,.7)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
                     <X size={11} />
                   </button>
                 </div>
               ))}
-              <span style={{ alignSelf: 'center', fontSize: 11.5, color: 'var(--text-muted)' }}>{images.length}장</span>
+              <span style={{ alignSelf: 'center', fontSize: 11.5, color: 'var(--text-muted)' }}>{streamFiles.length}개</span>
             </div>
+          )}
+
+          {/* 엑셀/CSV 파일 → 자동 catalog 흡수(controlled). 단일 드롭존이 넘긴 파일을 그 자리에서 처리(결과는 초기화 전까지 유지). */}
+          {catalogFile !== null && (
+            <CatalogUploadSection isTest={isTest} file={catalogFile} />
           )}
 
           <input
             id="gpu-file-input-v2"
             type="file"
             multiple
-            accept=".txt,.csv,.md,.json,.png,.jpg,.jpeg,.webp,.pdf"
+            accept={ACCEPT_ALL}
             style={{ display: 'none' }}
             onChange={(e) => { if (e.target.files?.length) processFiles(e.target.files); e.target.value = '' }}
           />
@@ -552,28 +540,18 @@ export default function QuoteRegisterTab() {
               className="gpu-btn gpu-btn-primary"
               style={{ flex: 1, justifyContent: 'center' }}
               onClick={handleAnalyze}
-              disabled={analyzing || (!rawText.trim() && !attached && images.length === 0)}
+              disabled={analyzing || (!rawText.trim() && !attached && streamFiles.length === 0)}
             >
               <Sparkles size={14} />
               {analyzing ? 'AI 분석 중…' : 'AI 분석 시작'}
             </button>
-            {(rawText || attached || images.length > 0 || hasResults) && (
+            {(rawText || attached || streamFiles.length > 0 || catalogFile || hasResults) && (
               <button className="gpu-btn" onClick={reset}>
                 <RotateCcw size={13} /> 초기화
               </button>
             )}
           </div>
 
-          {/* §05 CSV/표 붙여넣기 경로 — csv-intake 파서(헤더 매핑·수식 인젝션 무력화) → 기존 검토 대기 저장 재사용 */}
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: 'var(--hairline) solid var(--color-border)' }}>
-            <MultimodalIntake onRows={handleCsvRows} />
-            {csvSaving && (
-              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>CSV 저장 중…</div>
-            )}
-          </div>
-
-          {/* 카탈로그 파일 일괄 흡수 — 임의 구조 xlsx/csv를 AI가 헤더 매핑 → 전행 변환 → 검토 대기 적재 */}
-          <CatalogUploadSection isTest={isTest} />
         </div>
 
         {/* 오른쪽: AI 분석 결과 */}

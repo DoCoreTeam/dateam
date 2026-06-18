@@ -3,13 +3,17 @@
 // 보안: 모든 셀 값 문자열은 sanitizeCell(수식 인젝션 무력화, SSOT) 적용.
 import * as XLSX from 'xlsx'
 import { sanitizeCell } from './csv-intake'
+import { detectHeaderRow, assembleFromAoa } from './catalog-headers'
 
 // 런어웨이 방지 상한 — 한 파일에서 처리할 최대 행 수.
 export const MAX_CATALOG_ROWS = 1000
 const SAMPLE_SIZE = 8
-// zip-bomb/자원고갈 방어 — 시트 수·셀 수 사전 상한(sheet_to_json 폭주 차단).
+// zip-bomb/자원고갈 방어 — 시트 수 상한.
 const MAX_SHEETS = 10
-const MAX_CELLS = 200_000
+// 엑셀 phantom used-range(실데이터는 작은데 선언범위가 100만행 등) 대응 — 거부하지 않고 읽는 범위를 클램프.
+// 사용자 정책: 파일 크기 제약 두지 않음. 대신 "실제로 읽는" 셀 수만 제한해 자원고갈만 방어.
+const MAX_ROWS_READ = MAX_CATALOG_ROWS + 50   // 헤더+여유 포함 읽기 상한
+const MAX_COLS_READ = 256                       // 정형 카탈로그 컬럼 상한(엑셀 기본 폭 수준)
 
 export interface CatalogParseResult {
   headers: string[]
@@ -22,11 +26,6 @@ export interface CatalogParseResult {
   truncated: boolean
 }
 
-/** 셀 값 정규화: 문자열이면 수식 인젝션 무력화, 그 외(숫자·불리언)는 원형 보존. */
-function safeCell(v: unknown): unknown {
-  return typeof v === 'string' ? sanitizeCell(v) : v
-}
-
 /**
  * xlsx/csv 버퍼 → 첫 시트의 헤더·행·샘플.
  * 단일 헤더행 정형표 가정(MVP). 빈 헤더 컬럼은 제외.
@@ -37,28 +36,22 @@ export function parseCatalogBuffer(buf: ArrayBuffer): CatalogParseResult {
   const sheetName = wb.SheetNames[0]
   if (!sheetName) return { headers: [], rows: [], sample: [], totalRows: 0, truncated: false }
   const ws = wb.Sheets[sheetName]
-  // 셀 폭주(zip-bomb) 사전 차단 — sheet_to_json 호출 전 범위로 셀 수 추정.
+  // phantom used-range 대응 — 거부하지 않고 실제 읽을 범위를 클램프(자원고갈만 방어).
+  // 엑셀이 빈 행/서식으로 !ref를 100만행까지 부풀려도, 우리가 처리하는 건 앞쪽 데이터뿐이므로 그만큼만 읽는다.
   const ref = ws['!ref']
   if (ref) {
     const range = XLSX.utils.decode_range(ref)
-    const cells = (range.e.r - range.s.r + 1) * (range.e.c - range.s.c + 1)
-    if (cells > MAX_CELLS) throw new Error(`표가 너무 큽니다(셀 ${cells.toLocaleString()} > ${MAX_CELLS.toLocaleString()})`)
+    range.e.r = Math.min(range.e.r, range.s.r + MAX_ROWS_READ)
+    range.e.c = Math.min(range.e.c, range.s.c + MAX_COLS_READ)
+    ws['!ref'] = XLSX.utils.encode_range(range)
   }
 
-  // defval:null → 빈 셀도 키 유지(컬럼 정렬 안정). raw 유지(숫자/불리언 타입 보존).
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: null })
-  const totalRows = raw.length
-  const limited = raw.slice(0, MAX_CATALOG_ROWS)
+  // 헤더행 자동탐지(SSOT: catalog-headers) — 실무 엑셀은 상단에 제목/환율/빈 행이 흔하다(1행=헤더 가정 금지).
+  const aoa = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null, blankrows: false })
+  if (aoa.length === 0) return { headers: [], rows: [], sample: [], totalRows: 0, truncated: false }
 
-  const headerSet = new Set<string>()
-  for (const r of limited) for (const k of Object.keys(r)) if (k.trim()) headerSet.add(k)
-  const headers = Array.from(headerSet)
-
-  const rows = limited.map((r) => {
-    const o: Record<string, unknown> = {}
-    for (const h of headers) o[h] = safeCell(r[h])
-    return o
-  })
+  const headerIdx = detectHeaderRow(aoa)
+  const { headers, rows, totalRows } = assembleFromAoa(aoa, headerIdx, sanitizeCell, MAX_CATALOG_ROWS)
 
   return {
     headers,

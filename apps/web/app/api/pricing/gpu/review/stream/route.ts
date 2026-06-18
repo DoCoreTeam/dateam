@@ -6,6 +6,7 @@ import {
   loadSpecContext, callGeminiStream, loadSchemaDigest, synthesizeExtractPrompt,
 } from '@/lib/gpu/extract-helpers'
 import { dedupSupplier, dedupCompetitor, type CompetitorLike } from '@/lib/gpu/dedup'
+import { INTAKE_LIMITS } from '@/lib/gpu/intake-files'
 
 // 통합입력 실시간 스트리밍 분석 — SSE.
 // 추출 결과는 "미리보기"만 반환(저장 X). 사용자가 버튼을 눌러야 저장(경쟁사: market/import, 공급가: review POST).
@@ -13,23 +14,66 @@ import { dedupSupplier, dedupCompetitor, type CompetitorLike } from '@/lib/gpu/d
 
 const CLASSIFY_FALLBACK = `당신은 GPU 클라우드 가격 분석 AI입니다. 입력을 competitor(경쟁 클라우드 가격) 또는 supplier(공급사 견적)로 분류하세요. competitor면 {"type":"competitor","items":[{"competitor_name","model_name","memory","price_usd","pricing_model","notes"}]}, 아니면 {"type":"supplier"}. JSON만 반환.`
 
+// 입력 텍스트 길이 상한 — 거대 텍스트로 인한 메모리/정규식 부하 방어(ReDoS·DoS).
+const MAX_INPUT_TEXT = 200_000
+
+// 매직바이트 검증 — file.type(브라우저 주장값) 스푸핑 방어. 실제 시그니처가 비전 형식일 때만 Gemini로 전송.
+function sniffVisionMime(bytes: Uint8Array, declaredMime: string): string | null {
+  const b = bytes
+  if (b.length >= 4 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png'
+  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg'
+  if (b.length >= 4 && b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) return 'image/gif'
+  if (b.length >= 12 && b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
+      b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return 'image/webp'
+  if (b.length >= 4 && b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46) return 'application/pdf'
+  void declaredMime
+  return null // 시그니처 불일치 → 비전 콘텐츠 아님(스푸핑 의심) → 전송 안 함
+}
+
 export async function POST(req: NextRequest) {
   const auth = await requireAdminApi()
   if (auth.error) return auth.error
   const supabase = await createClient()
   void supabase
 
-  let body: { text?: unknown; channel?: unknown; imageData?: unknown; images?: unknown }
-  try { body = await req.json() } catch { return new Response('bad request', { status: 400 }) }
-  const rawInputText = typeof body.text === 'string' ? body.text.trim() : ''
-  // 다중 이미지(images[]) 우선, 없으면 단일 imageData(하위호환)
-  const rawImages: Array<{ data?: unknown; mimeType?: unknown }> = Array.isArray(body.images)
-    ? body.images as Array<{ data?: unknown; mimeType?: unknown }>
-    : (body.imageData && typeof body.imageData === 'object' ? [body.imageData as { data?: unknown; mimeType?: unknown }] : [])
-  const imageParts = rawImages
-    .filter((im) => typeof im?.data === 'string' && (im.data as string).length > 0)
-    .slice(0, 10)
-    .map((im) => ({ inlineData: { data: im.data as string, mimeType: typeof im.mimeType === 'string' ? im.mimeType : 'image/jpeg' } }))
+  // 전송 형식 분기: multipart/form-data(신규 — base64 인플레 없음) 우선, 아니면 JSON(base64, 하위호환).
+  // 이미지/PDF를 raw 바이너리로 받아 서버에서 base64 변환 → 클라이언트 JSON 본문 +33% 인플레로 인한 4.5MB 초과 실패 해소.
+  const contentType = req.headers.get('content-type') ?? ''
+  let rawInputText = ''
+  let imageParts: Array<{ inlineData: { data: string; mimeType: string } }> = []
+
+  if (contentType.includes('multipart/form-data')) {
+    let form: FormData
+    try { form = await req.formData() } catch { return new Response('bad request', { status: 400 }) }
+    rawInputText = (typeof form.get('text') === 'string' ? (form.get('text') as string).trim() : '').slice(0, MAX_INPUT_TEXT)
+    const files = form.getAll('files').filter((f): f is File => f instanceof File)
+    const parts: Array<{ inlineData: { data: string; mimeType: string } }> = []
+    for (const file of files.slice(0, 10)) {
+      // 서버측 크기 가드 — 메모리 폭주 방어(클라이언트 상수에 의존하지 않고 서버에서 강제).
+      if (file.size > INTAKE_LIMITS.MAX_STREAM_FILE) {
+        return new Response(`파일이 너무 큽니다(최대 ${INTAKE_LIMITS.MAX_STREAM_FILE / 1024 / 1024}MB): ${file.name}`, { status: 413 })
+      }
+      const buf = new Uint8Array(await file.arrayBuffer())
+      // 매직바이트 검증 — file.type 스푸핑 방어. 실제 이미지/PDF 시그니처일 때만 전송.
+      const verifiedMime = sniffVisionMime(buf, file.type)
+      if (!verifiedMime) continue
+      const data = Buffer.from(buf).toString('base64')
+      if (data.length > 0) parts.push({ inlineData: { data, mimeType: verifiedMime } })
+    }
+    imageParts = parts
+  } else {
+    let body: { text?: unknown; images?: unknown; imageData?: unknown }
+    try { body = await req.json() } catch { return new Response('bad request', { status: 400 }) }
+    rawInputText = (typeof body.text === 'string' ? body.text.trim() : '').slice(0, MAX_INPUT_TEXT)
+    // 다중 이미지(images[]) 우선, 없으면 단일 imageData(하위호환)
+    const rawImages: Array<{ data?: unknown; mimeType?: unknown }> = Array.isArray(body.images)
+      ? body.images as Array<{ data?: unknown; mimeType?: unknown }>
+      : (body.imageData && typeof body.imageData === 'object' ? [body.imageData as { data?: unknown; mimeType?: unknown }] : [])
+    imageParts = rawImages
+      .filter((im) => typeof im?.data === 'string' && (im.data as string).length > 0)
+      .slice(0, 10)
+      .map((im) => ({ inlineData: { data: im.data as string, mimeType: typeof im.mimeType === 'string' ? im.mimeType : 'image/jpeg' } }))
+  }
   const hasImages = imageParts.length > 0
   if (!rawInputText && !hasImages) return new Response('분석할 텍스트 또는 이미지가 없습니다', { status: 400 })
 
@@ -163,7 +207,9 @@ export async function POST(req: NextRequest) {
         send('done', { type: competitorEmitted ? 'mixed' : 'supplier', count: items.length })
         controller.close()
       } catch (e) {
-        send('error', { msg: e instanceof Error ? e.message : 'AI 분석 실패' })
+        // 상세는 서버 로그만, 클라이언트엔 일반화 메시지(내부 경로·키 노출 방지).
+        console.error('[gpu/review/stream] error:', e)
+        send('error', { msg: 'AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.' })
         controller.close()
       }
     },
