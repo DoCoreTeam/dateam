@@ -34,11 +34,11 @@ async function gotoIntake(page: import('@playwright/test').Page) {
   await page.waitForTimeout(800)
   await dismissOnboarding(page)
   await expect(page.getByTestId('intake-formats')).toBeVisible({ timeout: 20_000 })
-  // is_test 태깅 — 실데이터 오염 방지
-  const testChk = page.getByText('테스트 데이터로 태깅').locator('xpath=preceding-sibling::input[@type="checkbox"]')
-  if (await testChk.count() > 0 && !(await testChk.first().isChecked())) {
-    await testChk.first().check().catch(() => {})
-  }
+  // is_test 태깅 — 실데이터 오염 방지(체크박스는 label 안 input). 체크 보장 후 확인.
+  const testChk = page.locator('label:has-text("테스트 데이터로 태깅") input[type="checkbox"]')
+  await expect(testChk).toBeVisible({ timeout: 10_000 })
+  if (!(await testChk.isChecked())) await testChk.check()
+  await expect(testChk).toBeChecked()  // 미체크 시 운영 오염 → 즉시 실패
 }
 
 test('단일 드롭존 — 텍스트 분석 multipart 200', async ({ page }) => {
