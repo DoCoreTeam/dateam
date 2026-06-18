@@ -90,7 +90,7 @@ export interface CalendarEventInput {
   end_at?: string | null
   all_day?: boolean
   description?: string | null
-  link_kind?: 'daily' | 'weekly' | 'memo' | null
+  link_kind?: 'daily' | 'weekly' | 'memo' | 'meeting' | null
   link_id?: string | null
   source?: 'user' | 'ai' | 'rule'
   rrule?: string | null

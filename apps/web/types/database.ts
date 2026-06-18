@@ -394,6 +394,8 @@ export type AiFeature =
   | 'memo-cluster-label'
   | 'dept-task-suggest'
   | 'project-suggest'
+  | 'meeting_summarize'
+  | 'meeting_extract'
 
 export interface AiTokenLog {
   id: string

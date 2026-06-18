@@ -41,7 +41,8 @@ const rgbaRe = /\brgba?\(/g
 // 미정의 토큰: 크기성인데 --text-* (정의 안 됨, --fs-* 써야 함). --text/--text-muted/--text-faint는 정의됨.
 const badTokenRe = /var\(--text-(xs|sm|md|lg|xl|2xl|3xl)\b/g
 // raw 입력: input-field 클래스 없는 <input|select|textarea (type=hidden/checkbox/radio 제외 — 토글류는 필드 스타일 비대상)
-const rawInputRe = /<(input|select|textarea)\b(?![^>]*\binput-field\b)(?![^>]*type=["'](?:hidden|checkbox|radio)["'])/g
+// input-field 외에 filter-bar 전용 스타일 클래스(filter-search/filter-select)도 정식 필드 디자인으로 인정.
+const rawInputRe = /<(input|select|textarea)\b(?![^>]*\b(?:input-field|filter-search|filter-select)\b)(?![^>]*type=["'](?:hidden|checkbox|radio)["'])/g
 
 for (const f of files) {
   const text = readFileSync(f, 'utf8')

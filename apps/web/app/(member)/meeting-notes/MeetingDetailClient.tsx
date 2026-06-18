@@ -1,0 +1,116 @@
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+import { ArrowLeft, Pencil, CalendarClock, Users } from 'lucide-react'
+import PageHeader from '@/components/ui/PageHeader'
+import RichText from '@/components/ui/RichText'
+import NbButton from '@/components/ui/nb/NbButton'
+import MeetingEditor from './MeetingEditor'
+import MeetingAiPanel from './MeetingAiPanel'
+
+export interface MeetingNoteRecord {
+  id: string
+  title: string
+  meeting_at: string | null
+  status: string
+  attendees: string | null
+  tags: string[] | null
+  body: string | null // HTML
+  body_plain: string | null
+  summary: string | null
+  decisions: string | null
+  created_at: string
+}
+
+const STATUS_META: Record<string, { label: string; status: 'done' | 'doing' | 'planned' }> = {
+  draft: { label: '작성중', status: 'planned' },
+  final: { label: '확정', status: 'done' },
+  archived: { label: '보관', status: 'doing' },
+}
+
+function formatMeetingAt(value: string | null): string {
+  if (!value) return '일시 미지정'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return '일시 미지정'
+  return d.toLocaleString('ko-KR', {
+    year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+}
+
+export default function MeetingDetailClient({ note }: { note: MeetingNoteRecord }) {
+  const [editing, setEditing] = useState(false)
+
+  if (editing) {
+    return (
+      <div>
+        <PageHeader title="회의노트 편집" description="내용을 수정한 뒤 변경을 저장하세요" />
+        <MeetingEditor
+          mode="edit"
+          initial={{
+            id: note.id,
+            title: note.title,
+            meeting_at: note.meeting_at,
+            attendees: note.attendees ?? '',
+            tags: note.tags ?? [],
+            body: note.body ?? '',
+          }}
+        />
+      </div>
+    )
+  }
+
+  const meta = STATUS_META[note.status] ?? { label: note.status, status: 'planned' as const }
+
+  return (
+    <div>
+      <PageHeader
+        title={note.title || '(제목 없음)'}
+        actions={
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+            <Link href="/meeting-notes" className="btn-ghost" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', textDecoration: 'none', padding: 'var(--space-2) var(--space-4)', minHeight: 44 }}>
+              <ArrowLeft size={15} /> 목록
+            </Link>
+            <NbButton onClick={() => setEditing(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <Pencil size={15} /> 편집
+            </NbButton>
+          </div>
+        }
+      />
+
+      {/* 메타 */}
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
+        <span className="badge" data-status={meta.status}>{meta.label}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
+          <CalendarClock size={14} color="var(--text-faint)" /> {formatMeetingAt(note.meeting_at)}
+        </span>
+        {note.attendees && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
+            <Users size={14} color="var(--text-faint)" /> {note.attendees}
+          </span>
+        )}
+        {note.tags && note.tags.length > 0 && (
+          <span style={{ display: 'inline-flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
+            {note.tags.map((t) => <span key={t} className="badge badge-slate" style={{ fontSize: 'var(--fs-2xs)' }}>#{t}</span>)}
+          </span>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+        {/* 본문 */}
+        <section className="card" style={{ padding: 'var(--space-5) var(--space-6)' }} aria-labelledby="mn-body-h">
+          <h2 id="mn-body-h" className="tape-title" style={{ marginTop: 0, marginBottom: 'var(--space-3)' }}>회의 본문</h2>
+          <RichText html={note.body} placeholder="본문이 비어 있습니다." />
+        </section>
+
+        {/* AI 정제·추출 패널 */}
+        <MeetingAiPanel
+          meetingNoteId={note.id}
+          bodyPlain={note.body_plain ?? ''}
+          initialSummary={note.summary ?? ''}
+          initialDecisions={note.decisions ?? ''}
+        />
+      </div>
+    </div>
+  )
+}
