@@ -1,5 +1,17 @@
 [
   {
+    "version": "0.7.197",
+    "released_at": "2026-06-18",
+    "title": "버전 클릭 업데이트 내역(체인지로그) + 어드민 관리 — DB app_releases·git 자동수집·게시토글 (Playwright 3/3 검증)",
+    "changes": [
+      {
+        "text": "버전 클릭 업데이트 내역(체인지로그) + 어드민 관리 — DB app_releases·git 자동수집·게시토글 (Playwright 3/3 검증)",
+        "type": "feature"
+      }
+    ],
+    "type": "feature"
+  },
+  {
     "version": "0.7.196",
     "released_at": "2026-06-18",
     "title": "통합입력→검토대기 즉시반영 — ReviewTab pending 목록 revalidateOnMount (전역 영속캐시로 새로고침해야 보이던 회귀 픽스)",

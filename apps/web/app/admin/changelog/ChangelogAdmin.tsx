@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Plus, Pencil, Trash2, DownloadCloud, X, Eye, EyeOff } from 'lucide-react'
+import { Plus, Pencil, Trash2, DownloadCloud, X, Eye, EyeOff, Sparkles } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import type { ChangeType, ChangeItem } from '@/lib/changelog/types'
 
@@ -184,6 +184,28 @@ function EditModal({ row, onClose, onSaved, onError }: { row: Partial<Row>; onCl
   const [changesText, setChangesText] = useState((row.changes ?? []).map((c) => c.text).join('\n'))
   const [isPublished, setIsPublished] = useState(row.is_published ?? false)
   const [saving, setSaving] = useState(false)
+  const [refining, setRefining] = useState(false)
+
+  // AI 정제 — 현재 원문(변경사항 줄 + 제목)을 기능 단위 사용자 친화 콘텐츠로 다듬어 미리보기로 채움(저장 X).
+  const runRefine = async () => {
+    const rawLines = [title, ...changesText.split('\n')].map((l) => l.trim()).filter(Boolean)
+    if (rawLines.length === 0) { onError('정제할 원문이 없습니다(변경사항을 먼저 입력하거나 가져오기 하세요)'); return }
+    setRefining(true)
+    try {
+      const res = await fetch('/api/admin/changelog/refine', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ version: version.trim(), rawLines }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { onError(j.error ?? 'AI 정제 실패'); return }
+      const r = j.refined as { title?: string; changes?: { text: string; type: ChangeType }[] }
+      if (r.title) setTitle(r.title)
+      if (r.changes?.length) {
+        setChangesText(r.changes.map((c) => c.text).join('\n'))
+        setType(r.changes[0].type)
+      }
+    } catch { onError('AI 정제 실패') } finally { setRefining(false) }
+  }
 
   const save = async () => {
     if (!version.trim()) { onError('버전은 필수입니다'); return }
@@ -216,8 +238,15 @@ function EditModal({ row, onClose, onSaved, onError }: { row: Partial<Row>; onCl
               {TYPE_OPTS.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
             </select>
           </div>
-          <div><label className="label">변경사항 (한 줄에 하나)</label>
-            <textarea className="input-field" rows={5} value={changesText} onChange={(e) => setChangesText(e.target.value)} placeholder={'단일 드롭존 통합\nmultipart 전송으로 업로드 실패 해소'} />
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+              <label className="label" style={{ margin: 0 }}>변경사항 (한 줄에 하나)</label>
+              <button type="button" className="gpu-btn" onClick={runRefine} disabled={refining} title="커밋 원문을 기능 단위 사용자 친화 문구로 다듬습니다(게시된 내역 톤 참고)" style={{ gap: 4, color: 'var(--brand)' }}>
+                <Sparkles size={13} /> {refining ? 'AI 정제 중…' : 'AI 정제'}
+              </button>
+            </div>
+            <textarea className="input-field" rows={5} value={changesText} onChange={(e) => setChangesText(e.target.value)} placeholder={'단일 드롭존 통합\nmultipart 전송으로 업로드 실패 해소'} style={{ marginTop: 'var(--space-1)' }} />
+            <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)', marginTop: 'var(--space-1)' }}>AI 정제는 미리보기입니다 — 결과를 검토·수정 후 저장하세요.</div>
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--fs-sm)', cursor: 'pointer' }}>
             <input type="checkbox" checked={isPublished} onChange={(e) => setIsPublished(e.target.checked)} style={{ accentColor: 'var(--brand)' }} /> 게시(사용자에게 노출)
