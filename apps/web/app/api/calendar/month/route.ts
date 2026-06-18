@@ -7,7 +7,14 @@ interface DayLogSummary {
   total: number
   hasBlocker: boolean
   counts: Record<DailyLogEntryType, number>
-  preview: { entry_type: DailyLogEntryType; content: string; target_date: string | null }[]
+  preview: {
+    id: string
+    entry_type: DailyLogEntryType
+    content: string
+    target_date: string | null
+    scheduled_at: string | null
+    logged_at: string | null
+  }[]
 }
 
 const MONTH_LIMIT = 2000
@@ -31,7 +38,7 @@ export async function GET(req: NextRequest) {
   const to = `${year}-${String(month).padStart(2, '0')}-${lastDay}`
 
   const { data, error } = await (supabase.from('daily_logs') as any)
-    .select('log_date, entry_type, content, target_date')
+    .select('id, log_date, entry_type, content, target_date, scheduled_at, logged_at')
     .eq('user_id', user.id)
     .eq('is_onboarding', false)   // 온보딩 실습 행 제외(캘린더 오염 방지)
     .or(`and(log_date.gte.${from},log_date.lte.${to}),and(target_date.gte.${from},target_date.lte.${to})`)
@@ -45,7 +52,15 @@ export async function GET(req: NextRequest) {
   }
   if (data?.length === MONTH_LIMIT) console.warn('[api/calendar/month] limit reached')
 
-  type RowType = { log_date: string; entry_type: DailyLogEntryType; content: string; target_date: string | null }
+  type RowType = {
+    id: string
+    log_date: string
+    entry_type: DailyLogEntryType
+    content: string
+    target_date: string | null
+    scheduled_at: string | null
+    logged_at: string | null
+  }
 
   const map = new Map<string, DayLogSummary>()
 
@@ -63,7 +78,14 @@ export async function GET(req: NextRequest) {
     s.total++
     s.counts[row.entry_type]++
     if (row.entry_type === 'blocker') s.hasBlocker = true
-    if (s.preview.length < 2) s.preview.push({ entry_type: row.entry_type, content: row.content, target_date: row.target_date ?? null })
+    if (s.preview.length < 2) s.preview.push({
+      id: row.id,
+      entry_type: row.entry_type,
+      content: row.content,
+      target_date: row.target_date ?? null,
+      scheduled_at: row.scheduled_at ?? null,
+      logged_at: row.logged_at ?? null,
+    })
   }
 
   for (const row of (data ?? []) as RowType[]) {

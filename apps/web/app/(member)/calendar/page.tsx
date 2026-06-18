@@ -3,16 +3,18 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarClock, CheckSquare, StickyNote } from "lucide-react";
 import type { DayLogSummary } from "../daily/actions";
 import type { DailyLog, DailyLogEntryType } from "@/types/database";
 import { fetcher } from "@/lib/swr-config";
+import { formatKstTime } from "@/lib/calendar/format-time";
 import DayDetailPanel from "./DayDetailPanel";
 import RecommendPanel from "./RecommendPanel";
 import { STATUS_COLORS } from "@/lib/tokens/status-colors";
 
 interface CalEventLite {
   id: string; title: string; start_at: string; end_at: string | null; all_day: boolean; source: string;
+  link_kind?: string | null; link_id?: string | null;
 }
 
 // 상태 색은 SSOT(lib/tokens/status-colors)에서 — 7개 파일 복붙 제거
@@ -43,11 +45,6 @@ function getSunday(weekStart: Date) {
 
 function formatMonth(year: number, month: number) {
   return `${year}년 ${month}월`;
-}
-
-function formatTime(isoStr: string) {
-  const d = new Date(isoStr);
-  return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 }
 
 function calDdayLabel(scheduledDate: string, todayStr: string): string | null {
@@ -336,6 +333,18 @@ export default function CalendarPage() {
                   }
                   const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                   const summary = summaryMap.get(dateStr);
+                  const dayEvents = eventsByDate.get(dateStr);
+                  // A안: 같은 날 업무 자동생성 일정(link_kind='daily')의 link_id → 미리보기에서 억제
+                  const linkedTaskIds = new Set<string>(
+                    (dayEvents ?? [])
+                      .filter((ev) => ev.link_kind === "daily" && ev.link_id)
+                      .map((ev) => ev.link_id as string),
+                  );
+                  // 셀 합계 = 전체 업무/메모 건수 − 미리보기 노출(억제분 제외 2건 한도)
+                  const visiblePreviewCount = summary
+                    ? summary.preview.filter((p) => !linkedTaskIds.has(p.id)).length
+                    : 0;
+                  const moreCount = summary ? summary.total - visiblePreviewCount : 0;
                   const isToday = dateStr === todayStr;
                   const dayOfWeek = (firstDay + day - 1) % 7;
                   const isSun = dayOfWeek === 0;
@@ -353,16 +362,22 @@ export default function CalendarPage() {
                       >
                         {day}
                       </span>
-                      {/* 일정(calendar_events) 칩 */}
-                      {eventsByDate.get(dateStr)?.map((ev) => (
+                      {/* 일정(calendar_events) 칩 — KST 시각(SSOT) + 일정 아이콘 + 업무연동 배지 */}
+                      {dayEvents?.map((ev) => (
                         <div
                           key={ev.id}
                           className="cal-event-chip"
                           title={ev.title}
                           onClick={(e) => { e.stopPropagation(); setSelectedDate(dateStr); }}
                         >
-                          <span className="cal-event-time">{ev.all_day ? "종일" : ev.start_at.slice(11, 16)}</span>
+                          <span className="cal-type-icon cal-type-icon--event" aria-hidden="true">
+                            <CalendarClock size={11} strokeWidth={2.4} />
+                          </span>
+                          <span className="cal-event-time">{ev.all_day ? "종일" : formatKstTime(ev.start_at)}</span>
                           {ev.title}
+                          {ev.link_kind === "daily" && (
+                            <span className="cal-link-badge" title="업무에서 자동 등록된 일정">업무</span>
+                          )}
                         </div>
                       ))}
                       {summary && (
@@ -373,44 +388,54 @@ export default function CalendarPage() {
                               블로커
                             </span>
                           )}
-                          {/* 미리보기 텍스트 */}
-                          {summary.preview.map((p, pi) => {
-                            const t = ENTRY_TYPES[p.entry_type];
-                            const ddayLabel = p.target_date ? calDdayLabel(p.target_date, todayStr) : null;
-                            return (
-                              <div
-                                key={pi}
-                                className={`cal-preview-item cal-preview-${p.entry_type}`}
-                                title={`${t.label}: ${p.content}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  router.push(`/daily?date=${dateStr}`);
-                                }}
-                              >
-                                <span className="cal-preview-type">
-                                  {t.label}
-                                </span>
-                                {ddayLabel && (
-                                  <span style={{
-                                    fontSize: "0.6rem", fontWeight: 700,
-                                    color: ddayLabel === "D-day" ? "var(--danger)" : "var(--brand)",
-                                    background: ddayLabel === "D-day" ? "var(--danger-bg)" : "var(--brand-soft)",
-                                    borderRadius: "0.2rem", padding: "0 0.2rem",
-                                    flexShrink: 0,
-                                  }}>
-                                    {ddayLabel}
+                          {/* 미리보기 — A안: 같은 업무가 일정 칩으로 이미 대표 표시되면 숨김 */}
+                          {summary.preview
+                            .filter((p) => !linkedTaskIds.has(p.id))
+                            .map((p) => {
+                              const t = ENTRY_TYPES[p.entry_type];
+                              const isNote = p.entry_type === "note";
+                              const TypeIcon = isNote ? StickyNote : CheckSquare;
+                              const ddayLabel = p.target_date ? calDdayLabel(p.target_date, todayStr) : null;
+                              return (
+                                <div
+                                  key={p.id}
+                                  className={`cal-preview-item cal-preview-${p.entry_type}`}
+                                  title={`${t.label}: ${p.content}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    router.push(`/daily?date=${dateStr}`);
+                                  }}
+                                >
+                                  <span
+                                    className={`cal-type-icon ${isNote ? "cal-type-icon--note" : "cal-type-icon--task"}`}
+                                    aria-hidden="true"
+                                  >
+                                    <TypeIcon size={11} strokeWidth={2.4} />
                                   </span>
-                                )}
-                                <span className="cal-preview-text">
-                                  {p.content}
-                                </span>
-                              </div>
-                            );
-                          })}
-                          {/* 총 건수 (2건 초과 시에만 표시) */}
-                          {summary.total > 2 && (
+                                  <span className="cal-preview-type">
+                                    {t.label}
+                                  </span>
+                                  {ddayLabel && (
+                                    <span style={{
+                                      fontSize: "0.6rem", fontWeight: 700,
+                                      color: ddayLabel === "D-day" ? "var(--danger)" : "var(--brand)",
+                                      background: ddayLabel === "D-day" ? "var(--danger-bg)" : "var(--brand-soft)",
+                                      borderRadius: "0.2rem", padding: "0 0.2rem",
+                                      flexShrink: 0,
+                                    }}>
+                                      {ddayLabel}
+                                    </span>
+                                  )}
+                                  <span className="cal-preview-text">
+                                    {p.content}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          {/* 남은 건수 — 억제분(linkedHiddenCount)도 합산해 셀 합계 일관 */}
+                          {moreCount > 0 && (
                             <span className="calendar-more-count">
-                              +{summary.total - 2}건 더
+                              +{moreCount}건 더
                             </span>
                           )}
                         </div>
@@ -439,6 +464,13 @@ export default function CalendarPage() {
               borderTop: "var(--hairline) solid var(--surface-muted)",
             }}
           >
+            {/* 일정(calendar_events) — entry_type 색과 별개 축 */}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+              <span className="cal-type-icon cal-type-icon--event" aria-hidden="true">
+                <CalendarClock size={12} strokeWidth={2.4} />
+              </span>
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>일정</span>
+            </div>
             {(
               Object.entries(ENTRY_TYPES) as [
                 DailyLogEntryType,
@@ -683,7 +715,7 @@ export default function CalendarPage() {
                                   marginTop: "0.15rem",
                                 }}
                               >
-                                {formatTime(log.logged_at)}
+                                {formatKstTime(log.logged_at)}
                               </span>
                               <p
                                 style={{

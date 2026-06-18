@@ -94,7 +94,14 @@ export interface DayLogSummary {
   total: number
   hasBlocker: boolean
   counts: Record<DailyLogEntryType, number>
-  preview: { entry_type: DailyLogEntryType; content: string; target_date: string | null }[]
+  preview: {
+    id: string
+    entry_type: DailyLogEntryType
+    content: string
+    target_date: string | null
+    scheduled_at: string | null
+    logged_at: string | null
+  }[]
 }
 
 export async function getMonthLogSummary(year: number, month: number): Promise<DayLogSummary[]> {
@@ -108,7 +115,7 @@ export async function getMonthLogSummary(year: number, month: number): Promise<D
 
   const MONTH_LIMIT = 2000
   const { data } = await (supabase.from('daily_logs') as any)
-    .select('log_date, entry_type, content, target_date')
+    .select('id, log_date, entry_type, content, target_date, scheduled_at, logged_at')
     .eq('user_id', user.id)
     .gte('log_date', from)
     .lte('log_date', to)
@@ -121,7 +128,15 @@ export async function getMonthLogSummary(year: number, month: number): Promise<D
   }
 
   const map = new Map<string, DayLogSummary>()
-  for (const row of (data ?? []) as { log_date: string; entry_type: DailyLogEntryType; content: string; target_date: string | null }[]) {
+  for (const row of (data ?? []) as {
+    id: string
+    log_date: string
+    entry_type: DailyLogEntryType
+    content: string
+    target_date: string | null
+    scheduled_at: string | null
+    logged_at: string | null
+  }[]) {
     if (!map.has(row.log_date)) {
       map.set(row.log_date, {
         date: row.log_date,
@@ -136,7 +151,14 @@ export async function getMonthLogSummary(year: number, month: number): Promise<D
     s.counts[row.entry_type]++
     if (row.entry_type === 'blocker') s.hasBlocker = true
     if (s.preview.length < 2) {
-      s.preview.push({ entry_type: row.entry_type, content: row.content, target_date: row.target_date ?? null })
+      s.preview.push({
+        id: row.id,
+        entry_type: row.entry_type,
+        content: row.content,
+        target_date: row.target_date ?? null,
+        scheduled_at: row.scheduled_at ?? null,
+        logged_at: row.logged_at ?? null,
+      })
     }
   }
 

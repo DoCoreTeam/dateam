@@ -4955,6 +4955,67 @@ label.intake-tool-btn {
   .cal-event-chip { font-size: 0.6rem; padding: 0.05rem 0.2rem; }
 }
 
+/* ─── 캘린더 타입 구분 (일정/업무/메모) — 색과 무관한 1차 시각 축 ─── */
+/* 셀: 항목 앞 타입 아이콘. lucide 아이콘을 감싸 색·크기 통일 */
+.cal-type-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 0.85rem;
+  height: 0.85rem;
+}
+.cal-type-icon--event { color: var(--brand); }
+.cal-type-icon--task { color: var(--text-muted); }
+.cal-type-icon--note { color: var(--warning); }
+/* 일정 칩 안의 "업무 연동" 배지 */
+.cal-link-badge {
+  flex-shrink: 0;
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: var(--brand-dark);
+  background: var(--brand-soft-2);
+  border-radius: var(--radius);
+  padding: 0 0.2rem;
+  letter-spacing: 0;
+}
+
+/* 패널: 타입별 섹션 헤더(아이콘 + 라벨) */
+.day-panel-section {
+  margin-bottom: var(--space-4);
+}
+.day-panel-section + .day-panel-section {
+  padding-top: var(--space-3);
+  border-top: var(--hairline) solid var(--surface-muted);
+}
+.day-panel-section-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.day-panel-section-head--event { color: var(--brand); }
+.day-panel-section-head--task { color: var(--text-muted); }
+.day-panel-section-head--note { color: var(--warning); }
+.day-panel-section-count {
+  font-weight: 700;
+  color: var(--text-faint);
+}
+/* 패널 항목 시각 라벨(마감/예정/작성) */
+.day-panel-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.day-panel-time--due { color: var(--brand); }
+.day-panel-time--made { color: var(--text-faint); font-weight: 600; }
+
 /* ─── GPU 모달 공용 패턴 (SSOT — ImpactDeleteDialog · ProductAddModal · ProductEditModal · QuoteEditModal · MarketPriceEditModal 공유) ─── */
 .gpu-modal-backdrop {
   position: fixed;

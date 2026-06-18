@@ -8,7 +8,8 @@ import { fetcher } from '@/lib/swr-config'
 import type { DailyLog, DailyLogEntryType } from '@/types/database'
 import EventModal from './EventModal'
 import { deleteCalendarEvent } from './actions'
-import { CalendarPlus, Trash2 } from 'lucide-react'
+import { formatKstTime, formatMonthDay } from '@/lib/calendar/format-time'
+import { CalendarPlus, Trash2, CalendarClock, CheckSquare, StickyNote } from 'lucide-react'
 
 interface CalEvent {
   id: string; base_id?: string; title: string; start_at: string; end_at: string | null; all_day: boolean
@@ -29,11 +30,6 @@ function formatPanelDate(dateStr: string) {
   const d = new Date(dateStr + 'T00:00:00')
   const dow = WEEK_DAYS[d.getDay()]
   return `${d.getMonth() + 1}월 ${d.getDate()}일 (${dow})`
-}
-
-function formatTime(isoStr: string) {
-  const d = new Date(isoStr)
-  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
 }
 
 interface Props {
@@ -78,6 +74,69 @@ export default function DayDetailPanel({ date, onClose }: Props) {
 
   const today = new Date().toISOString().slice(0, 10)
   const isToday = date === today
+
+  // 업무/메모 분리 — 타입을 1차 축으로 섹션 구분 (note=메모, 그 외=업무)
+  const taskLogs = logs.filter((l) => l.entry_type !== 'note')
+  const noteLogs = logs.filter((l) => l.entry_type === 'note')
+
+  // 시간 의미 라벨 SSOT — 업무=마감/예정 우선·작성 보조, 메모=작성
+  const renderLogRow = (log: DailyLog) => {
+    const t = ENTRY_TYPES[log.entry_type]
+    const isNote = log.entry_type === 'note'
+    // 업무: 마감(target_date) > 예정(scheduled_at) 우선. 둘 다 없으면 작성만.
+    const dueLabel = !isNote && log.target_date
+      ? `마감 ${formatMonthDay(log.target_date)}`
+      : !isNote && log.scheduled_at
+        ? `예정 ${formatKstTime(log.scheduled_at)}`
+        : null
+    const madeLabel = `작성 ${formatKstTime(log.logged_at)}`
+    return (
+      <div
+        key={log.id}
+        onClick={() => router.push(`/daily?date=${date}`)}
+        style={{
+          display: 'flex', alignItems: 'flex-start', gap: '0.625rem',
+          padding: '0.625rem 0.75rem',
+          borderLeft: `var(--border-w) solid ${t.color}`,
+          background: log.entry_type === 'blocker' ? 'var(--danger-bg)' : 'var(--surface-bg)',
+          borderRadius: '0 0.375rem 0.375rem 0',
+          cursor: 'pointer',
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
+            <span style={{
+              fontSize: 'var(--fs-2xs)', fontWeight: 700, color: t.color,
+              background: t.bg, border: `var(--hairline) solid ${t.border}`,
+              padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)',
+              flexShrink: 0,
+            }}>
+              {t.label}
+            </span>
+            {dueLabel && (
+              <span className="day-panel-time day-panel-time--due">{dueLabel}</span>
+            )}
+            <span className="day-panel-time day-panel-time--made">{madeLabel}</span>
+            {log.log_date !== date && (
+              <span style={{
+                fontSize: '0.65rem', color: 'var(--brand)',
+                background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)',
+                padding: '0.05rem 0.35rem', borderRadius: 'var(--radius)',
+              }}>
+                작성일 {log.log_date}
+              </span>
+            )}
+          </div>
+          <p style={{
+            margin: 0, fontSize: 'var(--fs-base)', color: 'var(--text)',
+            lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+          }}>
+            {log.content}
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   if (!mounted) return null
 
@@ -144,24 +203,31 @@ export default function DayDetailPanel({ date, onClose }: Props) {
 
         {/* 본문 */}
         <div className="day-panel-body">
-          {/* 일정 (calendar_events) */}
+          {/* 일정 (calendar_events) — 시작시각 기준 */}
           {events.length > 0 && (
-            <div style={{ marginBottom: '1rem' }}>
-              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand)', marginBottom: '0.4rem', letterSpacing: '0.02em' }}>일정</div>
+            <section className="day-panel-section">
+              <div className="day-panel-section-head day-panel-section-head--event">
+                <CalendarClock size={13} strokeWidth={2.4} aria-hidden="true" />
+                <span>일정</span>
+                <span className="day-panel-section-count">{events.length}</span>
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                 {events.map((ev) => (
                   <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '0.5rem 0.625rem', background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)' }}>
                     <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand-dark)', whiteSpace: 'nowrap' }}>
-                      {ev.all_day ? '종일' : formatTime(ev.start_at)}{!ev.all_day && ev.end_at ? `~${formatTime(ev.end_at)}` : ''}
+                      {ev.all_day ? '종일' : formatKstTime(ev.start_at)}{!ev.all_day && ev.end_at ? `~${formatKstTime(ev.end_at)}` : ''}
                     </span>
                     <span style={{ flex: 1, fontSize: '0.85rem', color: 'var(--text)', minWidth: 0 }}>{ev.title}</span>
+                    {ev.link_kind === 'daily' && (
+                      <span className="cal-link-badge" title="업무에서 자동 등록된 일정">업무 연동</span>
+                    )}
                     {ev.rrule && <span style={{ fontSize: '0.6rem', color: 'var(--brand)' }} title="반복">↻</span>}
                     {ev.source === 'ai' && <span style={{ fontSize: '0.6rem', color: 'var(--brand)' }}>AI</span>}
                     <button onClick={() => onDeleteEvent(ev.base_id ?? ev.id)} aria-label="삭제" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--border-subtle)', flexShrink: 0 }}><Trash2 size={13} /></button>
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
           )}
           {loading ? (
             <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-8) var(--space-0)', fontSize: 'var(--fs-base)' }}>
@@ -172,56 +238,32 @@ export default function DayDetailPanel({ date, onClose }: Props) {
               작성된 로그가 없습니다.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              {logs.map((log) => {
-                const t = ENTRY_TYPES[log.entry_type]
-                return (
-                  <div
-                    key={log.id}
-                    onClick={() => router.push(`/daily?date=${date}`)}
-                    style={{
-                      display: 'flex', alignItems: 'flex-start', gap: '0.625rem',
-                      padding: '0.625rem 0.75rem',
-                      borderLeft: `var(--border-w) solid ${t.color}`,
-                      background: log.entry_type === 'blocker' ? 'var(--danger-bg)' : 'var(--surface-bg)',
-                      borderRadius: '0 0.375rem 0.375rem 0',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.25rem' }}>
-                        <span style={{
-                          fontSize: 'var(--fs-2xs)', fontWeight: 700, color: t.color,
-                          background: t.bg, border: `var(--hairline) solid ${t.border}`,
-                          padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)',
-                          flexShrink: 0,
-                        }}>
-                          {t.label}
-                        </span>
-                        <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>
-                          {formatTime(log.logged_at)}
-                        </span>
-                        {log.log_date !== date && (
-                          <span style={{
-                            fontSize: '0.65rem', color: 'var(--brand)',
-                            background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)',
-                            padding: '0.05rem 0.35rem', borderRadius: 'var(--radius)',
-                          }}>
-                            작성 {log.log_date}
-                          </span>
-                        )}
-                      </div>
-                      <p style={{
-                        margin: 0, fontSize: 'var(--fs-base)', color: 'var(--text)',
-                        lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                      }}>
-                        {log.content}
-                      </p>
-                    </div>
+            <>
+              {taskLogs.length > 0 && (
+                <section className="day-panel-section">
+                  <div className="day-panel-section-head day-panel-section-head--task">
+                    <CheckSquare size={13} strokeWidth={2.4} aria-hidden="true" />
+                    <span>업무</span>
+                    <span className="day-panel-section-count">{taskLogs.length}</span>
                   </div>
-                )
-              })}
-            </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                    {taskLogs.map((log) => renderLogRow(log))}
+                  </div>
+                </section>
+              )}
+              {noteLogs.length > 0 && (
+                <section className="day-panel-section">
+                  <div className="day-panel-section-head day-panel-section-head--note">
+                    <StickyNote size={13} strokeWidth={2.4} aria-hidden="true" />
+                    <span>메모</span>
+                    <span className="day-panel-section-count">{noteLogs.length}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                    {noteLogs.map((log) => renderLogRow(log))}
+                  </div>
+                </section>
+              )}
+            </>
           )}
         </div>
       </div>
