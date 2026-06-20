@@ -78,17 +78,28 @@ export default function ChangelogAdmin() {
     if (meta.total > 0 && page > tp) setParam({ page: String(tp) })
   }, [meta, page, setParam])
 
-  const importGit = useCallback(async () => {
-    setBusy(true); setMsg(''); setError('')
+  // import은 멱등(ignoreDuplicates) — 자동/수동 모두 기존 편집·게시를 덮지 않고 신규만 초안 추가.
+  // silent: 페이지 진입 자동 최신화(신규 0건이면 조용히 넘어감). 수동 버튼은 busy/메시지 표시.
+  const runImport = useCallback(async (silent: boolean) => {
+    if (!silent) { setBusy(true); setMsg(''); setError('') }
     try {
       // 소스는 서버 번들(source.generated.json) — body 불필요(공개노출 없음).
       const res = await fetch('/api/admin/changelog/import', { method: 'POST' })
       const j = await res.json().catch(() => ({}))
-      if (!res.ok) { setError(j.error ?? '가져오기 실패'); return }
-      setMsg(`가져오기 완료 — 신규 ${j.inserted}건(초안) 추가, 기존 버전은 유지됩니다.`)
-      load()
-    } catch { setError('가져오기 실패') } finally { setBusy(false) }
+      if (!res.ok) { if (!silent) setError(j.error ?? '최신화 실패'); return }
+      const inserted = j.inserted ?? 0
+      if (!silent || inserted > 0) setMsg(`최신화 완료 — 신규 ${inserted}건(초안) 추가, 기존 버전은 유지됩니다.`)
+      if (!silent || inserted > 0) load()
+    } catch { if (!silent) setError('최신화 실패') } finally { if (!silent) setBusy(false) }
   }, [load])
+
+  // 페이지 진입 시 1회 자동 최신화(StrictMode 이중 마운트 가드).
+  const autoSynced = useRef(false)
+  useEffect(() => {
+    if (autoSynced.current) return
+    autoSynced.current = true
+    runImport(true)
+  }, [runImport])
 
   const togglePublish = useCallback(async (r: Row) => {
     const res = await fetch(`/api/admin/changelog/${r.id}`, {
@@ -130,7 +141,7 @@ export default function ChangelogAdmin() {
           <option value="version:asc">버전 오름차순</option>
         </select>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--space-2)' }}>
-          <button className="gpu-btn" onClick={importGit} disabled={busy}><DownloadCloud size={14} /> {busy ? '가져오는 중…' : 'git에서 가져오기'}</button>
+          <button className="gpu-btn" onClick={() => runImport(false)} disabled={busy}><DownloadCloud size={14} /> {busy ? '최신화 중…' : '지금 최신화'}</button>
           <button className="gpu-btn gpu-btn-primary" onClick={() => openEdit({ type: 'feature', changes: [], is_published: false })}><Plus size={14} /> 추가</button>
         </div>
       </div>

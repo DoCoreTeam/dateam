@@ -14,7 +14,7 @@ export default async function AdminChangelogPage() {
           </h1>
         </div>
         <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: 'var(--fs-sm)' }}>
-          버전별 변경사항을 관리합니다. 게시(노출)된 항목만 사용자에게 보입니다. &quot;git에서 가져오기&quot;로 커밋을 초안으로 자동 수집할 수 있습니다.
+          버전별 변경사항을 관리합니다. 게시(노출)된 항목만 사용자에게 보입니다. 페이지 진입 시 최신 커밋을 초안으로 자동 수집하며, 기존 편집·게시는 보존됩니다(&quot;지금 최신화&quot;로 즉시 새로고침).
         </p>
       </div>
       <ChangelogAdmin />
