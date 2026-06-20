@@ -38,6 +38,8 @@ const RESOURCE_KEY_MATCHERS: Record<string, (key: string) => boolean> = {
   accounts: (k) => k.startsWith('/api/accounts'),
   deals: (k) => k.startsWith('/api/deals'),
   contacts: (k) => k.startsWith('/api/contacts'),
+  // GPU pricing(가격표/콕핏/공급사/검토/판매가격표 등) — 모든 /api/pricing 키. 토큰=gpu_audit_logs(org-wide).
+  pricing: (k) => k.startsWith('/api/pricing'),
 }
 
 function matchResource(resource: string, key: unknown): boolean {

@@ -44,6 +44,30 @@ async function tokenFor(
   return `${maxRow?.updated_at ?? '0'}|${count ?? 0}`
 }
 
+// org 공유 + member-readable 리소스용 토큰 — user_id 스코프 없이 전체 변경 신호.
+//   GPU pricing은 조직 공유 데이터(모든 admin이 동일 가격을 봄)라 user-scope가 부적합.
+//   supply_quotes엔 updated_at이 없으나 모든 가격 변경(지정/견적/전략가/마진)이 gpu_audit_logs(ts)에
+//   append되므로 이 한 테이블의 count|max(ts)가 전 pricing 변경을 잡는 신뢰 신호다.
+//   gpu_audit_logs는 member_read RLS라 멤버도 토큰 조회 가능(가격 화면은 admin 전용이나 토큰은 무해).
+async function tokenForGlobal(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  // 화이트리스트 — 동적 인자 유입 시 컴파일 차단(DC-SEC 권고, 주입 표면 사전 봉쇄).
+  table: 'gpu_audit_logs',
+  tsCol: 'ts',
+): Promise<string> {
+  const countPromise = (supabase.from(table) as any).select('*', { count: 'exact', head: true })
+  const maxPromise = (supabase.from(table) as any)
+    .select(tsCol)
+    .order(tsCol, { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const [{ count }, { data: maxRow }] = (await Promise.all([countPromise, maxPromise])) as [
+    VersionRow,
+    { data: Record<string, string> | null },
+  ]
+  return `${maxRow?.[tsCol] ?? '0'}|${count ?? 0}`
+}
+
 export async function GET(): Promise<NextResponse> {
   const auth = await requireMemberApi()
   if (auth.error) return auth.error
@@ -51,7 +75,7 @@ export async function GET(): Promise<NextResponse> {
   const supabase = await createClient()
   const userId = auth.user.id
 
-  const [daily, calendar, weekly, projects, accounts, deals, contacts] = await Promise.all([
+  const [daily, calendar, weekly, projects, accounts, deals, contacts, pricing] = await Promise.all([
     tokenFor(supabase, 'daily_logs', userId),
     tokenFor(supabase, 'calendar_events', userId),
     tokenFor(supabase, 'weekly_reports', userId),
@@ -59,11 +83,13 @@ export async function GET(): Promise<NextResponse> {
     tokenFor(supabase, 'accounts', userId),
     tokenFor(supabase, 'deals', userId),
     tokenFor(supabase, 'contacts', userId),
+    // GPU pricing 변경 감지(org-wide) — 모든 가격 변경이 audit-log되므로 단일 토큰으로 충분.
+    tokenForGlobal(supabase, 'gpu_audit_logs', 'ts'),
   ])
 
   return NextResponse.json(
     {
-      versions: { daily, calendar, weekly, projects, accounts, deals, contacts },
+      versions: { daily, calendar, weekly, projects, accounts, deals, contacts, pricing },
       ts: new Date().toISOString(),
     },
     { headers: { 'Cache-Control': 'no-store' } },
