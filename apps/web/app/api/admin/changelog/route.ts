@@ -28,7 +28,10 @@ export async function GET(req: NextRequest) {
   if (q) query = query.or(`version.ilike.%${q}%,title.ilike.%${q}%`)
   if (type && TYPES.has(type as ChangeType)) query = query.eq('type', type)
   if (published === 'true' || published === 'false') query = query.eq('is_published', published === 'true')
-  query = query.order(sort, { ascending, nullsFirst: false }).range(from, from + limit - 1)
+  query = query.order(sort, { ascending, nullsFirst: false })
+  // 날짜 동률 시 버전 내림차순 보조정렬(공개 /api/changelog와 동일 SSOT) — 같은 날짜 행이 삽입순으로 섞이지 않게.
+  if (sort !== 'version') query = query.order('version', { ascending: false })
+  query = query.range(from, from + limit - 1)
 
   const { data, error, count } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
