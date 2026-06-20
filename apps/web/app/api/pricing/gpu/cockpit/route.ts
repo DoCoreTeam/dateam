@@ -409,9 +409,17 @@ export async function GET() {
         }]
       }
 
-      // 판매가 후보 = cost_min × (1 + margin_pct/100)
-      const candidatePriceKrw = costMinKrw != null
-        ? Math.round(costMinKrw * (1 + catalog.margin_pct / 100))
+      // 기준 공급원가(cost_basis) = buildCatalog 실효 원가(지정 채택·유효성·전파·폴백 SSOT 반영).
+      //   cost_min/max(절대 범위)는 공급사 단가 범위 표시 전용으로 그대로 유지한다.
+      //   가격결정(공급원가 표시·판매가 추천)은 반드시 cost_basis를 쓴다.
+      //   (사고: v0.7.217 — '공급가 지정'해도 가격결정이 만료된 최저가 기준으로 계산되던 결함)
+      const costBasisKrw = p.effective_unit_price_usd != null
+        ? Math.round(p.effective_unit_price_usd * usdKrw)
+        : costMinKrw
+
+      // 판매가 후보 = 기준 공급원가 × (1 + margin_pct/100)
+      const candidatePriceKrw = costBasisKrw != null
+        ? Math.round(costBasisKrw * (1 + catalog.margin_pct / 100))
         : null
 
       // 경쟁사 min/max
@@ -448,9 +456,11 @@ export async function GET() {
         gcube_site_quote_id: gcubeSite?.quote_id ?? null,
         gcube_site_updated_at: gcubeSite?.updated_at ?? null,
 
-        // 공급사 원가
+        // 공급사 원가 — cost_min/max는 절대 단가 범위(표시 전용).
         cost_min_krw: costMinKrw,
         cost_max_krw: costMaxKrw,
+        // 기준 공급원가 — 가격결정(공급원가 표시·판매가 추천)의 SSOT 기준값(지정/실효).
+        cost_basis_krw: costBasisKrw,
         // 공급원가 per-GPU 단가(USD) — 전파/실견적 공통. 견적표에 '전파 추정' 행으로 표시.
         cost_unit_usd: p.effective_unit_price_usd ?? null,
         cost_is_propagated: costIsPropagated,

@@ -26,6 +26,7 @@ export interface CockpitApiRow {
   ram_gb?: number | null
   storage_gb?: number | null
   cost_min_krw: number | null
+  cost_basis_krw?: number | null // 기준 공급원가(지정/실효) — 가격결정 SSOT. 없으면 cost_min 폴백.
   cost_source: 'market_link' | 'quote'
   candidate_price_krw: number | null
   sell_price_krw: number | null // buildCatalog 최종 판매가(공시가 폴백 포함)
@@ -80,7 +81,7 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
       vcpu: p.vcpu ?? null,
       ram_gb: p.ram_gb ?? null,
       storage_gb: p.storage_gb ?? null,
-      supply_cost_krw: p.cost_min_krw,
+      supply_cost_krw: p.cost_basis_krw ?? p.cost_min_krw, // 가격결정 기준 = 실효 공급원가(지정 반영), 없으면 절대최저 폴백
       auto_price_krw: p.candidate_price_krw,
       sell_price_krw: sellPrice,
       margin_pct: margin,

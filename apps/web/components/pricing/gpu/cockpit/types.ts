@@ -40,9 +40,11 @@ export interface CockpitProduct {
   gcube_site_quote_id: string | null
   gcube_site_updated_at: string | null
 
-  // 원가 범위
+  // 원가 범위 — cost_min/max는 절대 단가 범위(표시 전용)
   cost_min_krw: number | null
   cost_max_krw: number | null
+  /** 기준 공급원가 — 가격결정(공급원가·판매가 추천)의 SSOT 기준값(지정/실효). 절대최저 아님. */
+  cost_basis_krw?: number | null
   cost_suppliers: CostSupplier[]
   /** 원가 출처 — 'market_link'(경쟁사 공시가 인입) | 'quote'(실견적). Phase3 */
   cost_source?: 'market_link' | 'quote'
