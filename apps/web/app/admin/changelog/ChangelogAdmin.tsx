@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Plus, Pencil, Trash2, DownloadCloud, X, Eye, EyeOff, Sparkles } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
@@ -41,6 +41,16 @@ export default function ChangelogAdmin() {
   const [msg, setMsg] = useState('')
   const [editing, setEditing] = useState<Partial<Row> | null>(null)
   const [searchInput, setSearchInput] = useState(q)
+
+  // "AI 정제"로 열렸을 때 모달 마운트 시 1회 자동 정제. 가드 ref를 부모(언마운트 없음)에 두어
+  // StrictMode 이중 마운트에서도 정확히 1회만 fire(자식 ref는 remount 시 리셋되어 중복 가능).
+  const autoRefineClaim = useRef(false)
+  const claimAutoRefine = useCallback(() => {
+    if (autoRefineClaim.current) { autoRefineClaim.current = false; return true }
+    return false
+  }, [])
+  const openEdit = useCallback((r: Partial<Row>, refine = false) => { autoRefineClaim.current = refine; setEditing(r) }, [])
+  const closeEdit = useCallback(() => { autoRefineClaim.current = false; setEditing(null) }, [])
 
   const setParam = useCallback((patch: Record<string, string | null>) => {
     const p = new URLSearchParams(sp.toString())
@@ -121,7 +131,7 @@ export default function ChangelogAdmin() {
         </select>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--space-2)' }}>
           <button className="gpu-btn" onClick={importGit} disabled={busy}><DownloadCloud size={14} /> {busy ? '가져오는 중…' : 'git에서 가져오기'}</button>
-          <button className="gpu-btn gpu-btn-primary" onClick={() => setEditing({ type: 'feature', changes: [], is_published: false })}><Plus size={14} /> 추가</button>
+          <button className="gpu-btn gpu-btn-primary" onClick={() => openEdit({ type: 'feature', changes: [], is_published: false })}><Plus size={14} /> 추가</button>
         </div>
       </div>
 
@@ -151,7 +161,8 @@ export default function ChangelogAdmin() {
                   </button>
                 </td>
                 <td data-label="작업" className="card-actions">
-                  <button className="gpu-btn" onClick={() => setEditing(r)} title="수정"><Pencil size={14} /></button>
+                  <button className="gpu-btn" onClick={() => openEdit(r, true)} title="AI 정제 — 커밋 원문을 사용자 친화 문구로 다듬어 미리보기" style={{ gap: 4, color: 'var(--brand)' }}><Sparkles size={14} /> AI 정제</button>
+                  <button className="gpu-btn" onClick={() => openEdit(r)} title="수정"><Pencil size={14} /></button>
                   <button className="gpu-btn" onClick={() => remove(r)} title="삭제" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
                 </td>
               </tr>
@@ -169,12 +180,12 @@ export default function ChangelogAdmin() {
         </div>
       )}
 
-      {editing && <EditModal row={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} onError={setError} />}
+      {editing && <EditModal row={editing} claimAutoRefine={claimAutoRefine} onClose={closeEdit} onSaved={() => { closeEdit(); load() }} onError={setError} />}
     </div>
   )
 }
 
-function EditModal({ row, onClose, onSaved, onError }: { row: Partial<Row>; onClose: () => void; onSaved: () => void; onError: (m: string) => void }) {
+function EditModal({ row, claimAutoRefine, onClose, onSaved, onError }: { row: Partial<Row>; claimAutoRefine?: () => boolean; onClose: () => void; onSaved: () => void; onError: (m: string) => void }) {
   useEscClose(onClose)
   const isNew = !row.id
   const [version, setVersion] = useState(row.version ?? '')
@@ -206,6 +217,13 @@ function EditModal({ row, onClose, onSaved, onError }: { row: Partial<Row>; onCl
       }
     } catch { onError('AI 정제 실패') } finally { setRefining(false) }
   }
+
+  // 리스트의 "AI 정제" 버튼으로 열렸으면 모달 마운트 시 1회 자동 정제(원클릭 UX).
+  // 가드는 부모 ref(claimAutoRefine)가 보장 — StrictMode 이중 마운트에도 1회만 fire.
+  useEffect(() => {
+    if (claimAutoRefine?.()) runRefine()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const save = async () => {
     if (!version.trim()) { onError('버전은 필수입니다'); return }
