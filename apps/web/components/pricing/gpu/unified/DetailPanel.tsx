@@ -98,19 +98,17 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
     }
   }
 
-  // 가격 상세는 정확도 우선 + sync 토큰 미커버 → 영속캐시 stale 방지 위해 마운트 재검증 강제(revalidateIfStale).
+  // 가격 상세 마운트 재검증(stale 방지)은 GpuPricingClient의 nested SWRConfig(revalidateIfStale:true)가 일괄 적용.
   // (사고: 지정 변경이 타클라이언트/리로드에서 견적표 배지에 반영 안 되던 결함)
   // 공급원가: 전체 견적(확정·검토 대기·만료·반려) — P5-1
   const { data: quoteData, isLoading: quoteLoading, mutate: mutateQuotes } = useSWR<{ quotes: QuoteRow[] }>(
     row && tab === 'cost' ? `/api/pricing/gpu/quotes?product_id=${row.id}&status=*` : null,
     fetcher,
-    { revalidateIfStale: true },
   )
   // 변동 이력: product 필터 — P5-4
   const { data: auditData, isLoading: auditLoading } = useSWR<{ logs: AuditRow[] }>(
     row && tab === 'history' ? `/api/pricing/gpu/audit?product_id=${row.id}&limit=50` : null,
     fetcher,
-    { revalidateIfStale: true },
   )
   // 시세 이력(시계열): mapping_id 있을 때만 — P5-2
   const { data: priceHistData, mutate: mutatePriceHist } = useSWR<{ prices: MarketPriceRow[] }>(
@@ -118,7 +116,6 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
       ? `/api/pricing/gpu/market/prices?mapping_id=${row.market_mapping_id}&limit=30`
       : null,
     fetcher,
-    { revalidateIfStale: true },
   )
   // 시장가 수정 대상 = 첫 매핑의 최신 시세 행(시장가 수정 모달은 price_usd·notes만 편집).
   const latestMarketPrice = priceHistData?.prices?.[0] ?? null
