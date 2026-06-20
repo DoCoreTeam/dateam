@@ -14,6 +14,8 @@ import WeeklyMemoReview from '@/components/ui/memo/WeeklyMemoReview'
 import { FileText, Users, GitBranch } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
 import { resolveOrgScope, deptMemberUserIds, hasOrgScope } from '@/lib/org-scope'
+import { computeDeptTimeliness } from '@/lib/weekly-report/timeliness-server'
+import type { MemberTimeliness } from '@/lib/weekly-report/timeliness'
 
 interface AuthorBlock { name: string; rank?: string; performance: string; plan: string; issues: string }
 interface MergedRow { category: string; authors: AuthorBlock[] }
@@ -155,6 +157,8 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
   const orgWeekStart = isValidMonday(orgWeek) ? (orgWeek as string) : thisWeek
   let orgDeptStats: Record<string, { memberCount: number; reportedCount: number; agg: 'none' | 'draft' | 'confirmed' }> = {}
   let orgDeptBodies: Record<string, MergedRow[]> = {}
+  let orgDeptTimeliness: Record<string, MemberTimeliness[]> = {}
+  let isAdmin = false
   if (activeTab === 'org' && showOrgTab) {
     const readable = orgScope.readableDeptIds
     // 이번 주차 보고 제출자 집합
@@ -183,6 +187,11 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
       }
       if (snap) orgDeptBodies[deptId] = snap.body ?? []
     }
+    // 멤버별 작성 적시성(작성시각 로그 + 취합시각 → 지연 판정) + admin 증빙 export 게이트
+    orgDeptTimeliness = await computeDeptTimeliness(adminForScope, orgScope, readable, orgWeekStart)
+    const { data: meRole } = await adminForScope
+      .from('profiles').select('role').eq('id', user.id).single() as { data: { role: string } | null }
+    isAdmin = meRole?.role === 'admin'
   }
 
   // 서버 컴포넌트 → 클라이언트(WorkSubTabs) 경계로 함수(아이콘 컴포넌트)를 넘길 수 없으므로
@@ -270,6 +279,8 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
             scopeRootIds={orgScope.scopeRootIds}
             deptStats={orgDeptStats}
             deptBodies={orgDeptBodies}
+            deptTimeliness={orgDeptTimeliness}
+            isAdmin={isAdmin}
           />
         </div>
         <DeptTaskWeeklyPanel deptNameMap={Object.fromEntries(orgScope.nodes.map((n) => [n.id, n.name]))} />

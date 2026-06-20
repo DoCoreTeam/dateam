@@ -4,9 +4,13 @@ import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { ChevronLeft, ChevronRight, Lock, Pencil, Users, Sparkles } from 'lucide-react'
-import { saveDeptReport, aggregateDept } from './org-actions'
+import { ChevronLeft, ChevronRight, Lock, Pencil, Users, Sparkles, Clock } from 'lucide-react'
+import { saveDeptReport, aggregateDept, exportTimelinessCsv } from './org-actions'
 import RichText from '@/components/ui/RichText'
+import TimelinessPanel from './TimelinessPanel'
+import { TIMELINESS_COLORS } from '@/lib/tokens/status-colors'
+import type { MemberTimeliness } from '@/lib/weekly-report/timeliness'
+import { useEscClose } from '@/lib/use-esc-close'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 
@@ -54,14 +58,37 @@ interface Props {
   scopeRootIds: string[]
   deptStats: Record<string, DeptStat>
   deptBodies: Record<string, AnyRow[]>
+  deptTimeliness?: Record<string, MemberTimeliness[]>
+  isAdmin?: boolean
 }
 
 export default function OrgWeeklyView(props: Props) {
   const { weekStart, thisWeek, nodes, editableDeptIds, deptStats, deptBodies } = props
+  const deptTimeliness = props.deptTimeliness ?? {}
+  const isAdmin = props.isAdmin ?? false
   const prevWeek = shiftWeek(weekStart, -1)
   const nextWeek = shiftWeek(weekStart, 1)
   const atCurrent = weekStart >= thisWeek
   const [stack, setStack] = useState<string[]>(() => props.scopeRootIds.slice(0, 1))
+  const [exporting, setExporting] = useState(false)
+
+  // admin 증빙 내보내기: 서버에서 전 부서 적시성 CSV 생성 → 브라우저 다운로드.
+  async function onExportCsv() {
+    setExporting(true)
+    try {
+      const r = await exportTimelinessCsv(weekStart)
+      if (!r.ok) { alert(r.error); return }
+      const blob = new Blob([r.csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `weekly-timeliness-${weekStart}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes])
   const nearestChildDepts = useMemo(() => (rootId: string): SlimNode[] => {
@@ -118,6 +145,12 @@ export default function OrgWeeklyView(props: Props) {
             이번 주
           </Link>
         )}
+        {isAdmin && (
+          <button onClick={onExportCsv} disabled={exporting}
+            style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: 'var(--fs-xs)', fontWeight: 600, padding: '0.3rem 0.7rem', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)', background: '#fff', color: 'var(--text-muted)', cursor: exporting ? 'wait' : 'pointer' }}>
+            <Clock size={13} /> {exporting ? '내보내는 중…' : '적시성 CSV'}
+          </button>
+        )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', flexWrap: 'wrap', marginBottom: '1rem', fontSize: 'var(--fs-sm)' }}>
@@ -132,16 +165,19 @@ export default function OrgWeeklyView(props: Props) {
       </div>
 
       {isLeafDept && currentNode ? (
-        <DeptReport
-          key={`${currentNode.id}-${weekStart}`}
-          deptId={currentNode.id}
-          deptName={currentNode.name}
-          weekStart={weekStart}
-          editable={editableDeptIds.includes(currentNode.id)}
-          agg={(deptStats[currentNode.id]?.agg) ?? 'none'}
-          initialBody={normalizeRows(deptBodies[currentNode.id] ?? [])}
-          aggBadge={aggBadge}
-        />
+        <>
+          <TimelinessPanel members={deptTimeliness[currentNode.id] ?? []} />
+          <DeptReport
+            key={`${currentNode.id}-${weekStart}`}
+            deptId={currentNode.id}
+            deptName={currentNode.name}
+            weekStart={weekStart}
+            editable={editableDeptIds.includes(currentNode.id)}
+            agg={(deptStats[currentNode.id]?.agg) ?? 'none'}
+            initialBody={normalizeRows(deptBodies[currentNode.id] ?? [])}
+            aggBadge={aggBadge}
+          />
+        </>
       ) : (
         <div className="responsive-grid-cols-3" style={{ display: 'grid', gap: 'var(--space-3)' }}>
           {childDepts.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>하위 부서가 없습니다.</p>}
@@ -160,6 +196,18 @@ export default function OrgWeeklyView(props: Props) {
                     <Users size={12} /> 제출 {st.reportedCount}/{st.memberCount}
                   </span>
                 </div>
+                {(() => {
+                  const tl = deptTimeliness[d.id] ?? []
+                  const late = tl.filter((m) => m.status === 'late' || m.status === 'final_late').length
+                  const missing = tl.filter((m) => m.status === 'missing').length
+                  if (late === 0 && missing === 0) return null
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                      {late > 0 && <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: TIMELINESS_COLORS.late.color, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}><Clock size={11} /> 지연 {late}</span>}
+                      {missing > 0 && <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: TIMELINESS_COLORS.missing.color }}>미제출 {missing}</span>}
+                    </div>
+                  )
+                })()}
                 <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>열기 <ChevronRight size={12} /></div>
               </button>
             )
@@ -191,6 +239,7 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
   const [editingCell, setEditingCell] = useState<{ idx: number; field: 'performance' | 'plan' | 'issues' } | null>(null)
 
   useEffect(() => { setRows(initialBody); setDirty(false); setLocalStatus(agg) }, [initialBody, agg])
+  useEscClose(() => setConfirmReagg(false), confirmReagg)
 
   // 확정본 재취합 가드: confirmed 상태면 확인 후 진행(AI 병합으로 편집이 바뀔 수 있음 고지).
   function onAggregate() {
@@ -307,13 +356,13 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
 
       {/* 확정본 재취합 가드 — confirmed 상태에서 재취합 시 편집 변경 가능성 고지 */}
       {confirmReagg && (
-        <div
-          onClick={() => setConfirmReagg(false)}
-          style={{ position: 'fixed', inset: 0, background: 'var(--modal-backdrop)', zIndex: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-4)' }}
-        >
+        <div onClick={() => setConfirmReagg(false)} className="modal-backdrop">
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ background: 'var(--surface-bg)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-modal)', padding: 'var(--space-6)', maxWidth: 420, width: '100%' }}
+            role="dialog"
+            aria-label="확정본 재취합"
+            className="modal-card"
+            style={{ padding: 'var(--space-6)', maxWidth: 420, width: '100%' }}
           >
             <div className="tape-title" style={{ fontSize: 'var(--fs-lg)', fontWeight: 700, marginBottom: 'var(--space-3)' }}>확정본 재취합</div>
             <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', lineHeight: 1.6, margin: '0 0 var(--space-5)' }}>

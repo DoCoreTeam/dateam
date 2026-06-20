@@ -13,6 +13,7 @@ import { resolveOrgScope, orgPathFromScope } from '@/lib/org-scope'
 import { getActiveTheme, resolveTheme } from '@/lib/theme'
 import PasswordChangeModal from '@/components/ui/PasswordChangeModal'
 import NameSetupModal from '@/components/ui/NameSetupModal'
+import WeeklyReminderModal from '@/components/ui/WeeklyReminderModal'
 import RoutineCheckinGate from '@/components/ui/RoutineCheckinGate'
 import { getRoutineWeeklyStatus } from './routine/actions'
 import { getTodayPlannedCount } from './daily/actions'
@@ -81,6 +82,20 @@ export default async function MemberLayout({ children }: { children: React.React
     resolveOrgScope(adminClient, user.id),
   ])
   const profile = profileResult.data
+
+  // 이번 주(ISO 월요일) 주간보고 미작성 여부 → 작성 안내 모달 게이트
+  const weekAnchor = new Date(`${todayStr}T00:00:00Z`)
+  const dow = weekAnchor.getUTCDay()
+  weekAnchor.setUTCDate(weekAnchor.getUTCDate() + (dow === 0 ? -6 : 1 - dow))
+  const thisMonday = weekAnchor.toISOString().slice(0, 10)
+  const { count: myWeekCount } = await adminClient
+    .from('weekly_reports')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('week_start', thisMonday)
+    .is('deleted_at', null)
+  const weeklyReportPending = (myWeekCount ?? 0) === 0
+
   const orgPath = orgPathFromScope(orgScope, user.id)
   const currentTheme = resolveTheme(profile?.theme_preference, globalTheme)
   const routineBadge = routineStatus?.pendingCount ?? 0
@@ -138,6 +153,9 @@ export default async function MemberLayout({ children }: { children: React.React
       </MobileShell>
       {profile?.must_change_password && <PasswordChangeModal />}
       {!profile?.must_change_password && !profile?.name && <NameSetupModal />}
+      {!profile?.must_change_password && profile?.name && weeklyReportPending && (
+        <WeeklyReminderModal weekStart={thisMonday} />
+      )}
       {shouldStartOnboarding && (
         <Suspense fallback={null}>
           <OnboardingProvider shouldAutoStart resumeStepKey={profile?.onboarding_step ?? null} />

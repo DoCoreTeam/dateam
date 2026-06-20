@@ -39,6 +39,20 @@ export const STATUS_LIST: ({ value: StatusKey } & StatusColor)[] = STATUS_KEYS.m
   (k) => ({ value: k, ...STATUS_COLORS[k] }),
 )
 
+// 주간보고 지연 상태 색상 SSOT — 판정 로직은 lib/weekly-report/timeliness.ts.
+// 컴포넌트(OrgWeeklyView 등)는 이 맵을 import — 화면마다 색맵 복붙 금지.
+export type TimelinessKey = 'on_time' | 'late' | 'final_late' | 'missing' | 'in_progress'
+
+export const TIMELINESS_COLORS: Record<TimelinessKey, StatusColor> = {
+  on_time: { label: '정시', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
+  late: { label: '지연', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
+  final_late: { label: '최종지연', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+  missing: { label: '미제출', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+  in_progress: { label: '진행중', color: '#64748b', bg: '#f1f5f9', border: '#e2e8f0' },
+}
+
+export const TIMELINESS_KEYS: TimelinessKey[] = ['on_time', 'late', 'final_late', 'missing', 'in_progress']
+
 // ── gcube 반영 상태 색 SSOT ──
 // gcube-check API status 값에 매핑.
 // 색 값은 globals.css var(--success/--warning/--text-faint/--danger) 토큰 사용 — 하드코딩 금지.

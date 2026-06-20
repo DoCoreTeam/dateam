@@ -104,6 +104,14 @@ export async function deleteAllWeeklyReports(
     return { ok: false, error: '삭제 중 오류가 발생했습니다' }
   }
 
+  // 활동 로그(불변 증빙): 전체 삭제 = 'delete' 기록 → 적시성 판정이 "현재 미작성"으로 정확히 반영
+  // (replace_weekly_report RPC를 안 거치는 직접 삭제 경로라 여기서 별도 로깅 필요)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: logErr } = await (supabase.from('weekly_report_activity') as any).insert({
+    user_id: user.id, week_start: weekStart, action: 'delete', actor_id: user.id,
+  })
+  if (logErr) console.error('[deleteAllWeeklyReports] activity log 실패', logErr)
+
   revalidatePath('/weekly-report')
   return { ok: true }
 }
@@ -132,6 +140,18 @@ export async function deleteWeeklyReport(
     console.error('[deleteWeeklyReport]', error)
     return { ok: false, error: '삭제 중 오류가 발생했습니다' }
   }
+
+  // 활동 로그: 한 행만 삭제 → 남은 행이 있으면 'edit'(내용 변경), 전부 사라지면 'delete'.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { count } = await (supabase.from('weekly_reports') as any)
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id).eq('week_start', weekStart).is('deleted_at', null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: logErr } = await (supabase.from('weekly_report_activity') as any).insert({
+    user_id: user.id, week_start: weekStart,
+    action: (count ?? 0) === 0 ? 'delete' : 'edit', actor_id: user.id,
+  })
+  if (logErr) console.error('[deleteWeeklyReport] activity log 실패', logErr)
 
   revalidatePath('/weekly-report')
   return { ok: true }

@@ -5,6 +5,9 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { mergeAndRefineByCategory, type MergedCategoryReport } from '@/lib/gemini-refine'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
 import { prevWeekStart } from '@/lib/week'
+import { computeDeptTimeliness } from '@/lib/weekly-report/timeliness-server'
+import { formatKst, formatDelay } from '@/lib/weekly-report/timeliness'
+import { TIMELINESS_COLORS } from '@/lib/tokens/status-colors'
 
 /** dept body(jsonb) → MergedCategoryReport[] 안전 정규화 */
 function normalizeBody(raw: unknown): MergedCategoryReport[] {
@@ -159,13 +162,64 @@ export async function saveDeptReport(
     }
 
     const status = confirm ? 'confirmed' : 'draft'
+    // 취합 확정 시 confirmed_at(취합 기준선, 최신값)·confirmed_by 기록.
+    // draft 저장 시엔 두 필드를 upsert에 넣지 않음 → 기존 확정 시각 보존(임의 리셋 금지).
+    const row: Record<string, unknown> = {
+      department_id: deptId, week_start: weekStart, body, status, edited_by: user.id,
+    }
+    if (confirm) {
+      row.confirmed_at = new Date().toISOString()
+      row.confirmed_by = user.id
+    }
     const { error } = await admin.from('dept_weekly_reports').upsert(
-      { department_id: deptId, week_start: weekStart, body, status, edited_by: user.id },
+      row,
       { onConflict: 'department_id,week_start' },
     )
     if (error) return { ok: false, error: `저장 실패: ${error.message}` }
     return { ok: true, body, status }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : '저장 실패' }
+  }
+}
+
+/** 평가 증빙: 전 부서 주간보고 적시성 CSV. admin 전용. */
+export async function exportTimelinessCsv(
+  weekStart: string,
+): Promise<{ ok: true; csv: string } | { ok: false; error: string }> {
+  try {
+    const { user, admin } = await authedAdmin()
+    if (!user) return { ok: false, error: '인증이 필요합니다' }
+
+    const { data: prof } = await admin.from('profiles').select('role').eq('id', user.id).single()
+    if (prof?.role !== 'admin') return { ok: false, error: '관리자만 내보낼 수 있습니다' }
+
+    // 입력 검증: weekStart = 월요일(YYYY-MM-DD)만 허용
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart) || new Date(`${weekStart}T00:00:00Z`).getUTCDay() !== 1) {
+      return { ok: false, error: '잘못된 주차입니다' }
+    }
+
+    const scope = await resolveOrgScope(admin, user.id)
+    const deptIds = scope.nodes.filter((n) => n.type === 'department').map((n) => n.id)
+    const tl = await computeDeptTimeliness(admin, scope, deptIds, weekStart)
+    const deptName = new Map(scope.nodes.map((n) => [n.id, n.name]))
+
+    // CSV 수식 인젝션 차단: =,+,-,@,TAB,CR 로 시작하는 셀에 ' prefix (OWASP) + 따옴표 이스케이프
+    const esc = (s: string) => {
+      let v = String(s)
+      if (/^[=+\-@\t\r]/.test(v)) v = `'${v}`
+      return `"${v.replace(/"/g, '""')}"`
+    }
+    const lines = [['부서', '이름', '상태', '지연', '최초작성', '최종작성', '취합시각'].map(esc).join(',')]
+    for (const [deptId, members] of Object.entries(tl)) {
+      for (const m of members) {
+        lines.push([
+          deptName.get(deptId) ?? deptId, m.name, TIMELINESS_COLORS[m.status].label,
+          formatDelay(m.delayMinutes), formatKst(m.firstAt), formatKst(m.lastAt), formatKst(m.confirmedAt),
+        ].map(esc).join(','))
+      }
+    }
+    return { ok: true, csv: '﻿' + lines.join('\n') } // BOM → Excel 한글 깨짐 방지
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : '내보내기 실패' }
   }
 }
