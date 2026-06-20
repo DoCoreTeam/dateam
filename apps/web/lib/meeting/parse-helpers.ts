@@ -121,11 +121,14 @@ export function sanitizeSearchQuery(q: string): string {
 
 // ---- toStartAt: date+time → ISO 문자열 (날짜 없으면 null) ----
 // actions.ts applyExtractedItems의 인라인 로직을 SSOT로 분리.
+// 시각이 유효하면 그 시각을, 모르면 기본 09:00을 사용한다.
+// 항상 KST(+09:00)로 앵커링해 타임존 드리프트를 막는다.
 export function toStartAt(
   date: string | null | undefined,
   time: string | null | undefined
 ): string | null {
   if (!date || !DATE_RE.test(date)) return null
-  const hhmm = time && TIME_RE.test(time) ? time : '09:00'
-  return `${date}T${hhmm}:00`
+  const hasTime = !!time && TIME_RE.test(time)
+  const hhmm = hasTime ? (time as string) : '09:00'
+  return `${date}T${hhmm}:00+09:00`
 }

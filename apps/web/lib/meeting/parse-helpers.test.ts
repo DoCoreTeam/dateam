@@ -386,15 +386,20 @@ describe('sanitizeSearchQuery', () => {
 // ============================================================
 describe('toStartAt', () => {
   test('날짜+시각 모두 있음 → ISO 문자열', () => {
-    assert.equal(toStartAt('2026-06-18', '14:30'), '2026-06-18T14:30:00')
+    assert.equal(toStartAt('2026-06-18', '14:30'), '2026-06-18T14:30:00+09:00')
+  })
+
+  test('KST 오프셋 명시 → UTC 환산 정확(14:00 KST = 05:00 UTC)', () => {
+    const iso = toStartAt('2026-06-25', '14:00')
+    assert.equal(new Date(iso!).toISOString(), '2026-06-25T05:00:00.000Z')
   })
 
   test('날짜만 있고 시각 없음 → 기본 09:00 사용', () => {
-    assert.equal(toStartAt('2026-06-18', null), '2026-06-18T09:00:00')
+    assert.equal(toStartAt('2026-06-18', null), '2026-06-18T09:00:00+09:00')
   })
 
   test('날짜만 있고 시각 undefined → 기본 09:00 사용', () => {
-    assert.equal(toStartAt('2026-06-18', undefined), '2026-06-18T09:00:00')
+    assert.equal(toStartAt('2026-06-18', undefined), '2026-06-18T09:00:00+09:00')
   })
 
   test('날짜 형식 잘못됨(YYYY/MM/DD) → null', () => {
@@ -410,10 +415,10 @@ describe('toStartAt', () => {
   })
 
   test('시각 형식 잘못됨(9:00) → 기본 09:00 폴백', () => {
-    assert.equal(toStartAt('2026-06-18', '9:00'), '2026-06-18T09:00:00')
+    assert.equal(toStartAt('2026-06-18', '9:00'), '2026-06-18T09:00:00+09:00')
   })
 
   test('시각 빈 문자열 → 기본 09:00 폴백', () => {
-    assert.equal(toStartAt('2026-06-18', ''), '2026-06-18T09:00:00')
+    assert.equal(toStartAt('2026-06-18', ''), '2026-06-18T09:00:00+09:00')
   })
 })
