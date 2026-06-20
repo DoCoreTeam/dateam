@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   const today = new Date().toISOString().slice(0, 10)
 
   try {
-    const { tasks, events, highlights } = await extractMeetingItems({
+    const { tasks, events, highlights, attendees } = await extractMeetingItems({
       userId: user.id,
       bodyPlain,
       apiKey,
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       today,
     })
     return NextResponse.json(
-      { success: true, data: { tasks, events, highlights } },
+      { success: true, data: { tasks, events, highlights, attendees } },
       { headers: { 'Cache-Control': 'no-store' } }
     )
   } catch (e) {

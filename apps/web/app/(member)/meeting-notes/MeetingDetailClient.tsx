@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Pencil, CalendarClock, Users } from 'lucide-react'
+import { ArrowLeft, Pencil, CalendarClock } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import RichText from '@/components/ui/RichText'
 import NbButton from '@/components/ui/nb/NbButton'
 import MeetingEditor from './MeetingEditor'
 import MeetingAiPanel from './MeetingAiPanel'
+import AttendeesPanel from './AttendeesPanel'
 
 export interface MeetingNoteRecord {
   id: string
@@ -15,6 +16,8 @@ export interface MeetingNoteRecord {
   meeting_at: string | null
   status: string
   attendees: string | null
+  attendee_user_ids: string[] | null
+  department_id: string | null
   tags: string[] | null
   body: string | null // HTML
   body_plain: string | null
@@ -38,7 +41,13 @@ function formatMeetingAt(value: string | null): string {
   })
 }
 
-export default function MeetingDetailClient({ note }: { note: MeetingNoteRecord }) {
+// 콤마 문자열(getMeetingNote 반환) → 이름 배열
+function splitAttendees(raw: string | null): string[] {
+  if (!raw) return []
+  return raw.split(',').map((s) => s.trim()).filter(Boolean)
+}
+
+export default function MeetingDetailClient({ note, people }: { note: MeetingNoteRecord; people: { id: string; name: string }[] }) {
   const [editing, setEditing] = useState(false)
 
   if (editing) {
@@ -51,7 +60,7 @@ export default function MeetingDetailClient({ note }: { note: MeetingNoteRecord 
             id: note.id,
             title: note.title,
             meeting_at: note.meeting_at,
-            attendees: note.attendees ?? '',
+            department_id: note.department_id,
             tags: note.tags ?? [],
             body: note.body ?? '',
           }}
@@ -84,11 +93,6 @@ export default function MeetingDetailClient({ note }: { note: MeetingNoteRecord 
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
           <CalendarClock size={14} color="var(--text-faint)" /> {formatMeetingAt(note.meeting_at)}
         </span>
-        {note.attendees && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-            <Users size={14} color="var(--text-faint)" /> {note.attendees}
-          </span>
-        )}
         {note.tags && note.tags.length > 0 && (
           <span style={{ display: 'inline-flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
             {note.tags.map((t) => <span key={t} className="badge badge-slate" style={{ fontSize: 'var(--fs-2xs)' }}>#{t}</span>)}
@@ -103,12 +107,23 @@ export default function MeetingDetailClient({ note }: { note: MeetingNoteRecord 
           <RichText html={note.body} placeholder="본문이 비어 있습니다." />
         </section>
 
+        {/* 참석자 관리(내부=조직원/외부=텍스트) */}
+        <AttendeesPanel
+          noteId={note.id}
+          initialAttendees={splitAttendees(note.attendees)}
+          initialUserIds={note.attendee_user_ids ?? []}
+          people={people}
+        />
+
         {/* AI 정제·추출 패널 */}
         <MeetingAiPanel
           meetingNoteId={note.id}
           bodyPlain={note.body_plain ?? ''}
           initialSummary={note.summary ?? ''}
           initialDecisions={note.decisions ?? ''}
+          people={people}
+          currentAttendees={splitAttendees(note.attendees)}
+          currentUserIds={note.attendee_user_ids ?? []}
         />
       </div>
     </div>

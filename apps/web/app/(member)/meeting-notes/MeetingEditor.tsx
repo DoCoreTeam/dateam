@@ -1,17 +1,17 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Save, ArrowLeft, Trash2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import TiptapEditor from '@/components/ui/TiptapEditor'
-import { createMeetingNote, updateMeetingNote, deleteMeetingNote } from './actions'
+import { createMeetingNote, updateMeetingNote, deleteMeetingNote, getMeetingDepartments } from './actions'
 
 export interface MeetingNoteDraft {
   id?: string
   title: string
   meeting_at: string | null
-  attendees: string
+  department_id: string | null
   tags: string[]
   body: string // HTML
 }
@@ -49,15 +49,21 @@ export default function MeetingEditor({ initial, mode }: Props) {
   const [meetingAtLocal, setMeetingAtLocal] = useState(
     initial.meeting_at ? isoToLocalInput(initial.meeting_at) : mode === 'create' ? nowLocalInput() : ''
   )
-  const [attendees, setAttendees] = useState(initial.attendees)
+  const [departmentId, setDepartmentId] = useState(initial.department_id ?? '')
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([])
   const [body, setBody] = useState(initial.body)
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
   const [deleting, startDelete] = useTransition()
 
-  function splitCsv(raw: string): string[] {
-    return raw.split(',').map((t) => t.trim()).filter(Boolean)
-  }
+  // 부서 선택지 — 클라이언트 마운트 시 1회 로드(목록이 비어도 '부서 없음'은 항상 선택 가능)
+  useEffect(() => {
+    let alive = true
+    getMeetingDepartments()
+      .then((rows) => { if (alive) setDepartments(rows) })
+      .catch(() => { /* best effort — 부서 로드 실패가 작성 흐름을 막지 않음 */ })
+    return () => { alive = false }
+  }, [])
 
   function save() {
     if (!title.trim()) {
@@ -65,11 +71,10 @@ export default function MeetingEditor({ initial, mode }: Props) {
       return
     }
     setError('')
-    const attendeeList = splitCsv(attendees)
     const input = {
       title: title.trim(),
       meeting_at: localInputToIso(meetingAtLocal),
-      attendees: attendeeList.length > 0 ? attendeeList : null,
+      department_id: departmentId || null,
       body_html: body,
     }
     startTransition(async () => {
@@ -134,13 +139,17 @@ export default function MeetingEditor({ initial, mode }: Props) {
             />
           </div>
           <div>
-            <label className="label" htmlFor="mn-attendees">참석자</label>
-            <input id="mn-attendees" className="input-field"
-              value={attendees}
-              onChange={(e) => setAttendees(e.target.value)}
-              placeholder="쉼표로 구분 (예: 김도현, 이수민)"
+            <label className="label" htmlFor="mn-dept">부서</label>
+            <select id="mn-dept" className="input-field"
+              value={departmentId}
+              onChange={(e) => setDepartmentId(e.target.value)}
               style={{ minHeight: 44 }}
-            />
+            >
+              <option value="">부서 없음</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
           </div>
         </div>
 

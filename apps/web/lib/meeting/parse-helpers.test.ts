@@ -8,6 +8,7 @@ import {
   mapTasks,
   mapEvents,
   mapHighlights,
+  mapAttendees,
   sanitizeSearchQuery,
   toStartAt,
   DATE_RE,
@@ -309,6 +310,45 @@ describe('mapHighlights', () => {
   test('source_quote 공백만 있음 → null 처리되어 제외', () => {
     const raw = [{ title: '성과', confidence: 0.9, source_quote: '   ' }]
     assert.equal(mapHighlights(raw).length, 0)
+  })
+})
+
+// ============================================================
+// mapAttendees — name 기준, mapTasks와 동일 필터
+// ============================================================
+describe('mapAttendees', () => {
+  test('정상 후보 통과', () => {
+    const raw = [{ name: '홍길동', confidence: 0.9, source_quote: '홍길동 과장이 보고' }]
+    const result = mapAttendees(raw)
+    assert.equal(result.length, 1)
+    assert.equal(result[0].name, '홍길동')
+    assert.equal(result[0].confidence, 0.9)
+    assert.equal(result[0].source_quote, '홍길동 과장이 보고')
+  })
+
+  test('source_quote null → 제외', () => {
+    const raw = [{ name: '김철수', confidence: 0.95, source_quote: null }]
+    assert.equal(mapAttendees(raw).length, 0)
+  })
+
+  test('confidence < 0.7 → 제외', () => {
+    const raw = [{ name: '이영희', confidence: 0.69, source_quote: '근거' }]
+    assert.equal(mapAttendees(raw).length, 0)
+  })
+
+  test('name 빈 문자열 → 제외', () => {
+    const raw = [{ name: '', confidence: 0.9, source_quote: '근거' }]
+    assert.equal(mapAttendees(raw).length, 0)
+  })
+
+  test('name 앞뒤 공백 trim', () => {
+    const raw = [{ name: '  홍길동  ', confidence: 0.9, source_quote: '근거' }]
+    assert.equal(mapAttendees(raw)[0].name, '홍길동')
+  })
+
+  test('non-array → 빈 배열', () => {
+    assert.deepEqual(mapAttendees(null), [])
+    assert.deepEqual(mapAttendees(undefined), [])
   })
 })
 

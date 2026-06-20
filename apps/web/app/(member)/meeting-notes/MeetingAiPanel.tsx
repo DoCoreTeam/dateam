@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Sparkles, CheckSquare, CalendarPlus, Star } from 'lucide-react'
+import { Sparkles, CheckSquare, CalendarPlus, Star, Users } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
-import { saveMeetingSummary, applyExtractedItems } from './actions'
+import { saveMeetingSummary, applyExtractedItems, updateMeetingNote } from './actions'
+import { matchAttendees } from '@/lib/meeting/match-attendees'
 
 interface TaskCandidate {
   title: string
@@ -23,11 +24,17 @@ interface HighlightCandidate {
   confidence: number
   source_quote: string
 }
+interface AttendeeCandidate {
+  name: string
+  confidence: number
+  source_quote: string
+}
 
 interface ExtractResult {
   tasks: TaskCandidate[]
   events: EventCandidate[]
   highlights: HighlightCandidate[]
+  attendees: AttendeeCandidate[]
 }
 
 interface Props {
@@ -35,6 +42,10 @@ interface Props {
   bodyPlain: string
   initialSummary: string
   initialDecisions: string
+  people: { id: string; name: string }[]
+  // 현재 저장된 참석자(합집합 반영용) — AI 선택분을 기존 참석자에 더한다.
+  currentAttendees: string[]
+  currentUserIds: string[]
 }
 
 type ApiEnvelope<T> = { success: boolean; data?: T; error?: string }
@@ -42,8 +53,11 @@ type ApiEnvelope<T> = { success: boolean; data?: T; error?: string }
 // 후보 키: 종류 + 인덱스로 선택 상태 식별
 const taskKey = (i: number) => `task-${i}`
 const eventKey = (i: number) => `event-${i}`
+const attendeeKey = (i: number) => `attendee-${i}`
 
-export default function MeetingAiPanel({ meetingNoteId, bodyPlain, initialSummary, initialDecisions }: Props) {
+export default function MeetingAiPanel({
+  meetingNoteId, bodyPlain, initialSummary, initialDecisions, people, currentAttendees, currentUserIds,
+}: Props) {
   const router = useRouter()
 
   const [summary, setSummary] = useState(initialSummary)
@@ -87,6 +101,7 @@ export default function MeetingAiPanel({ meetingNoteId, bodyPlain, initialSummar
         const next = new Set<string>()
         ext.data.tasks.forEach((_, i) => next.add(taskKey(i)))
         ext.data.events.forEach((_, i) => next.add(eventKey(i)))
+        ext.data.attendees?.forEach((_, i) => next.add(attendeeKey(i)))
         setChecked(next)
       } else {
         setResult(null); setChecked(new Set())
@@ -112,9 +127,12 @@ export default function MeetingAiPanel({ meetingNoteId, bodyPlain, initialSummar
     })
   }
 
-  const checkedApplyCount =
+  const checkedTaskEventCount =
     (result?.tasks.filter((_, i) => checked.has(taskKey(i))).length ?? 0) +
     (result?.events.filter((_, i) => checked.has(eventKey(i))).length ?? 0)
+  const checkedAttendeeCount =
+    result?.attendees?.filter((_, i) => checked.has(attendeeKey(i))).length ?? 0
+  const checkedApplyCount = checkedTaskEventCount + checkedAttendeeCount
 
   // 2단계: 요약 저장 + 선택 후보 반영을 한 번에 확정
   async function confirmAll() {
@@ -125,7 +143,7 @@ export default function MeetingAiPanel({ meetingNoteId, bodyPlain, initialSummar
       if (!saveRes.ok) { setErr(saveRes.error); return }
 
       let applyMsg = ''
-      if (result && checkedApplyCount > 0) {
+      if (result && checkedTaskEventCount > 0) {
         const tasks = result.tasks.filter((_, i) => checked.has(taskKey(i)))
         const events = result.events.filter((_, i) => checked.has(eventKey(i)))
         const applyRes = await applyExtractedItems(meetingNoteId, {
@@ -134,9 +152,28 @@ export default function MeetingAiPanel({ meetingNoteId, bodyPlain, initialSummar
         })
         if (!applyRes.ok) { setErr(`요약은 저장됐지만 반영에 실패했습니다: ${applyRes.error}`); router.refresh(); return }
         const evNote = applyRes.eventsCreated < events.length ? ` (일정 ${events.length - applyRes.eventsCreated}건은 날짜가 없어 제외)` : ''
-        applyMsg = ` · 업무 ${applyRes.tasksCreated}건 · 일정 ${applyRes.eventsCreated}건 반영${evNote}`
-        setResult(null); setChecked(new Set())
+        applyMsg += ` · 업무 ${applyRes.tasksCreated}건 · 일정 ${applyRes.eventsCreated}건 반영${evNote}`
       }
+
+      // 선택된 참석자 후보를 기존 참석자에 합집합 반영(자동확정 금지 — 사용자 선택분만)
+      if (result && checkedAttendeeCount > 0) {
+        const picked = result.attendees.filter((_, i) => checked.has(attendeeKey(i)))
+        const { matched, unmatched } = matchAttendees(picked.map((a) => a.name), people)
+
+        // 기존 user_ids + 신규 매칭 id 합집합
+        const mergedIds = Array.from(new Set([...currentUserIds, ...matched.map((m) => m.id)]))
+        // 기존 참석자 이름 + 신규(조직원 name + 외부 텍스트) 합집합
+        const mergedNames = Array.from(new Set([...currentAttendees, ...matched.map((m) => m.name), ...unmatched]))
+
+        const attRes = await updateMeetingNote(meetingNoteId, {
+          attendees: mergedNames.length > 0 ? mergedNames : null,
+          attendee_user_ids: mergedIds.length > 0 ? mergedIds : null,
+        })
+        if (!attRes.ok) { setErr(`요약은 저장됐지만 참석자 반영에 실패했습니다: ${attRes.error}`); router.refresh(); return }
+        applyMsg += ` · 참석자 ${picked.length}명 반영(조직원 ${matched.length} · 외부 ${unmatched.length})`
+      }
+
+      if (checkedApplyCount > 0) { setResult(null); setChecked(new Set()) }
       setInfo(`요약·결정사항을 저장했습니다.${applyMsg}`)
       router.refresh()
     } catch {
@@ -200,8 +237,29 @@ export default function MeetingAiPanel({ meetingNoteId, bodyPlain, initialSummar
       </div>
 
       {/* 추출 후보(선택형) */}
-      {result && (result.tasks.length > 0 || result.events.length > 0 || result.highlights.length > 0) && (
+      {result && (result.tasks.length > 0 || result.events.length > 0 || result.highlights.length > 0 || (result.attendees?.length ?? 0) > 0) && (
         <>
+          {result.attendees && result.attendees.length > 0 && (
+            <CandidateGroup icon={<Users size={14} color="var(--brand)" />} label="참석자 후보 → 참석자">
+              {result.attendees.map((c, i) => {
+                // 단건 매칭으로 내부(조직원)/외부 구분 배지
+                const isMember = matchAttendees([c.name], people).matched.length > 0
+                return (
+                  <CandidateRow
+                    key={attendeeKey(i)}
+                    selectable
+                    checked={checked.has(attendeeKey(i))}
+                    onToggle={() => toggle(attendeeKey(i))}
+                    title={c.name}
+                    confidence={c.confidence}
+                    quote={c.source_quote}
+                    hint={isMember ? '조직원' : '외부'}
+                  />
+                )
+              })}
+            </CandidateGroup>
+          )}
+
           {result.tasks.length > 0 && (
             <CandidateGroup icon={<CheckSquare size={14} color="var(--brand)" />} label="업무 후보 → 일일업무">
               {result.tasks.map((c, i) => (

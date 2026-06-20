@@ -45,6 +45,12 @@ export interface HighlightCandidate {
   source_quote: string | null
 }
 
+export interface AttendeeCandidate {
+  name: string
+  confidence: number
+  source_quote: string | null
+}
+
 // ---- 필터 기준: title 비어있음 / source_quote null / confidence < 0.7 제외 ----
 export function mapTasks(raw: unknown): TaskCandidate[] {
   if (!Array.isArray(raw)) return []
@@ -90,6 +96,21 @@ export function mapHighlights(raw: unknown): HighlightCandidate[] {
       }
     })
     .filter((c) => c.title !== '' && c.source_quote !== null && c.confidence >= 0.7)
+}
+
+// 참석자 후보: mapTasks와 동일 필터(name 공백 제외, source_quote null 제외, confidence<0.7 제외).
+export function mapAttendees(raw: unknown): AttendeeCandidate[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((item) => {
+      const r = asRecord(item)
+      return {
+        name: typeof r.name === 'string' ? r.name.trim() : '',
+        confidence: numConfidence(r.confidence),
+        source_quote: strOrNull(r.source_quote),
+      }
+    })
+    .filter((c) => c.name !== '' && c.source_quote !== null && c.confidence >= 0.7)
 }
 
 // ---- 검색어 sanitize (ilike % 이스케이프) ----

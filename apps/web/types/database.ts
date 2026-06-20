@@ -313,6 +313,8 @@ export interface DailyLog {
   checklist: DeptTaskChecklistItem[]
   // 일일→부서 승격 참조 (104 migration) — dept_task 행이 원본 personal 일일 id를 가리킴
   promoted_from_log_id: string | null
+  // 회의노트 파생 업무 역참조 (117 migration) — 회의에서 생성된 일일업무가 원본 회의노트 id를 가리킴
+  meeting_note_id: string | null
   created_at: string
   updated_at: string
 }

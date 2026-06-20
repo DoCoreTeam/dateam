@@ -13,7 +13,7 @@ import { CalendarPlus, Trash2, CalendarClock, CheckSquare, StickyNote } from 'lu
 
 interface CalEvent {
   id: string; base_id?: string; title: string; start_at: string; end_at: string | null; all_day: boolean
-  source: string; link_kind: string | null; status: string; user_id: string; rrule?: string | null
+  source: string; link_kind: string | null; link_id?: string | null; status: string; user_id: string; rrule?: string | null
 }
 
 const ENTRY_TYPES: Record<DailyLogEntryType, { label: string; color: string; bg: string; border: string }> = {
@@ -217,9 +217,22 @@ export default function DayDetailPanel({ date, onClose }: Props) {
                     <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--brand-dark)', whiteSpace: 'nowrap' }}>
                       {ev.all_day ? '종일' : formatKstTime(ev.start_at)}{!ev.all_day && ev.end_at ? `~${formatKstTime(ev.end_at)}` : ''}
                     </span>
-                    <span style={{ flex: 1, fontSize: '0.85rem', color: 'var(--text)', minWidth: 0 }}>{ev.title}</span>
+                    {ev.link_kind === 'meeting' && ev.link_id ? (
+                      <span
+                        onClick={() => router.push(`/daily?meeting=${ev.link_id}`)}
+                        title="회의에서 생성된 업무 보기"
+                        style={{ flex: 1, fontSize: '0.85rem', color: 'var(--text)', minWidth: 0, cursor: 'pointer' }}
+                      >
+                        {ev.title}
+                      </span>
+                    ) : (
+                      <span style={{ flex: 1, fontSize: '0.85rem', color: 'var(--text)', minWidth: 0 }}>{ev.title}</span>
+                    )}
                     {ev.link_kind === 'daily' && (
                       <span className="cal-link-badge" title="업무에서 자동 등록된 일정">업무 연동</span>
+                    )}
+                    {ev.link_kind === 'meeting' && (
+                      <span className="cal-link-badge" title="회의노트에서 생성된 일정">회의</span>
                     )}
                     {ev.rrule && <span style={{ fontSize: '0.6rem', color: 'var(--brand)' }} title="반복">↻</span>}
                     {ev.source === 'ai' && <span style={{ fontSize: '0.6rem', color: 'var(--brand)' }}>AI</span>}

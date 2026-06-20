@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/server'
 import { htmlToPlain } from '@/lib/html-to-plain'
 import { createCalendarEvent } from '@/app/(member)/calendar/actions'
 import { sanitizeSearchQuery, toStartAt } from '@/lib/meeting/parse-helpers'
+import type { DailyLog } from '@/types/database'
 
 // 본문 HTML 상한(DoS·row bloat 방지). 일반 회의록은 충분히 수용.
 const BODY_HTML_MAX = 200_000
@@ -25,6 +26,8 @@ const createSchema = z.object({
   title: z.string().trim().min(1, '제목을 입력해 주세요.').max(300, '제목이 너무 깁니다.'),
   meeting_at: z.string().trim().min(1).nullish(),
   attendees: z.array(z.string().trim().min(1)).max(200).nullish(),
+  attendee_user_ids: z.array(z.string().uuid()).max(200).nullish(),
+  department_id: z.string().uuid().nullish(),
   body_html: z.string().max(BODY_HTML_MAX, '본문이 너무 깁니다.').nullish(),
   tags: z.array(z.string().trim().min(1)).max(100).nullish(),
   status: statusSchema.optional(),
@@ -34,6 +37,8 @@ const updateSchema = z.object({
   title: z.string().trim().min(1).max(300).optional(),
   meeting_at: z.string().trim().min(1).nullable().optional(),
   attendees: z.array(z.string().trim().min(1)).max(200).nullable().optional(),
+  attendee_user_ids: z.array(z.string().uuid()).max(200).nullable().optional(),
+  department_id: z.string().uuid().nullable().optional(),
   body_html: z.string().max(BODY_HTML_MAX, '본문이 너무 깁니다.').nullable().optional(),
   tags: z.array(z.string().trim().min(1)).max(100).nullable().optional(),
   status: statusSchema.optional(),
@@ -97,6 +102,8 @@ export async function createMeetingNote(
         title: v.title,
         meeting_at: v.meeting_at ?? null,
         attendees: v.attendees ?? null,
+        attendee_user_ids: v.attendee_user_ids ?? null,
+        department_id: v.department_id ?? null,
         body_html: bodyHtml,
         body_plain: htmlToPlain(bodyHtml),
         tags: v.tags ?? null,
@@ -106,8 +113,18 @@ export async function createMeetingNote(
       .single()
 
     if (error) return { ok: false, error: `저장 실패: ${error.message}` }
+    const newId = data.id as string
+
+    // 캘린더 멱등 자동기록(best-effort — 실패해도 노트 저장은 성공)
+    try {
+      await syncMeetingCalendar(newId)
+      revalidatePath('/calendar')
+    } catch (e) {
+      console.error('[createMeetingNote] calendar sync', e)
+    }
+
     revalidatePath(MEETING_NOTES_PATH)
-    return { ok: true, id: data.id as string }
+    return { ok: true, id: newId }
   } catch (e) {
     console.error('[createMeetingNote]', e)
     return { ok: false, error: e instanceof Error ? e.message : '저장 실패' }
@@ -140,21 +157,33 @@ export async function updateMeetingNote(
     if (v.title !== undefined) payload.title = v.title
     if (v.meeting_at !== undefined) payload.meeting_at = v.meeting_at
     if (v.attendees !== undefined) payload.attendees = v.attendees
+    if (v.attendee_user_ids !== undefined) payload.attendee_user_ids = v.attendee_user_ids
+    if (v.department_id !== undefined) payload.department_id = v.department_id
     if (v.tags !== undefined) payload.tags = v.tags
     if (v.status !== undefined) payload.status = v.status
     if (v.body_html !== undefined) {
       payload.body_html = v.body_html
       payload.body_plain = htmlToPlain(v.body_html)
     }
-    if (Object.keys(payload).length === 0) return { ok: true }
 
-    const { error } = await (supabase.from('meeting_notes') as any)
-      .update(payload)
-      .eq('id', idCheck.data)
-      .eq('user_id', user.id)
-      .is('deleted_at', null)
+    if (Object.keys(payload).length > 0) {
+      const { error } = await (supabase.from('meeting_notes') as any)
+        .update(payload)
+        .eq('id', idCheck.data)
+        .eq('user_id', user.id)
+        .is('deleted_at', null)
 
-    if (error) return { ok: false, error: `수정 실패: ${error.message}` }
+      if (error) return { ok: false, error: `수정 실패: ${error.message}` }
+    }
+
+    // 캘린더 멱등 동기화(title/meeting_at 변경 가능성 — payload 비어도 멱등 안전)
+    try {
+      await syncMeetingCalendar(idCheck.data)
+      revalidatePath('/calendar')
+    } catch (e) {
+      console.error('[updateMeetingNote] calendar sync', e)
+    }
+
     revalidatePath(MEETING_NOTES_PATH)
     return { ok: true }
   } catch (e) {
@@ -184,6 +213,27 @@ export async function deleteMeetingNote(id: string): Promise<ActionResult<Record
       .is('deleted_at', null)
 
     if (error) return { ok: false, error: `삭제 실패: ${error.message}` }
+
+    // 연결 정리(best-effort, 본인 행만):
+    //  (a) 캘린더 일정 — 앵커(source='user')·AI파생(source='ai') 모두 link_kind='meeting' 이므로 전부 삭제(고아 0)
+    //  (b) 파생 daily_logs.meeting_note_id — NULL로 비움. FK는 ON DELETE SET NULL이라 소프트삭제(UPDATE)엔
+    //      발동 안 됨 → 직접 비워야 "↗ 회의노트" 칩이 죽은 링크로 남지 않는다.
+    try {
+      await (supabase.from('calendar_events') as any)
+        .delete()
+        .eq('user_id', user.id)
+        .eq('link_kind', 'meeting')
+        .eq('link_id', idCheck.data)
+      await (supabase.from('daily_logs') as any)
+        .update({ meeting_note_id: null })
+        .eq('user_id', user.id)
+        .eq('meeting_note_id', idCheck.data)
+      revalidatePath('/calendar')
+      revalidatePath('/daily')
+    } catch (e) {
+      console.error('[deleteMeetingNote] relation cleanup', e)
+    }
+
     revalidatePath(MEETING_NOTES_PATH)
     return { ok: true }
   } catch (e) {
@@ -414,6 +464,8 @@ export interface MeetingNoteDetail {
   meeting_at: string | null
   status: string
   attendees: string | null
+  attendee_user_ids: string[] | null
+  department_id: string | null
   tags: string[] | null
   body: string | null
   body_plain: string | null
@@ -433,7 +485,7 @@ export async function getMeetingNote(id: string): Promise<MeetingNoteDetail | nu
   if (!user) return null
 
   const { data, error } = await (supabase.from('meeting_notes') as any)
-    .select('id, title, meeting_at, status, attendees, tags, body_html, body_plain, summary, decisions, created_at')
+    .select('id, title, meeting_at, status, attendees, attendee_user_ids, department_id, tags, body_html, body_plain, summary, decisions, created_at')
     .eq('id', idCheck.data)
     .is('deleted_at', null)
     .maybeSingle()
@@ -455,6 +507,8 @@ export async function getMeetingNote(id: string): Promise<MeetingNoteDetail | nu
     meeting_at: data.meeting_at,
     status: data.status,
     attendees,
+    attendee_user_ids: Array.isArray(data.attendee_user_ids) ? (data.attendee_user_ids as string[]) : null,
+    department_id: data.department_id ?? null,
     tags: data.tags ?? null,
     body: data.body_html ?? null,
     body_plain: data.body_plain ?? null,
@@ -462,4 +516,148 @@ export async function getMeetingNote(id: string): Promise<MeetingNoteDetail | nu
     decisions: data.decisions ?? null,
     created_at: data.created_at,
   }
+}
+
+// ============================================================
+// 회의노트 → 캘린더 멱등 자동기록 (SSOT — create/update가 호출)
+//  - 본인 노트 조회 → 소프트삭제면 연결 일정 삭제 → 아니면 1건 upsert(중복 절대 금지).
+//  - best-effort: 호출처가 try/catch로 감싸 노트 저장을 막지 않음.
+// ============================================================
+export async function syncMeetingCalendar(meetingNoteId: string): Promise<void> {
+  const idCheck = uuidSchema.safeParse(meetingNoteId)
+  if (!idCheck.success) return
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: note } = await (supabase.from('meeting_notes') as any)
+    .select('title, meeting_at, created_at, deleted_at')
+    .eq('id', idCheck.data)
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (!note) return
+
+  // 소프트삭제 시 연결 일정 정리(고아 일정 방지)
+  if (note.deleted_at) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from('calendar_events') as any)
+      .delete()
+      .eq('user_id', user.id)
+      .eq('link_kind', 'meeting')
+      .eq('link_id', idCheck.data)
+    return
+  }
+
+  const startAt = (note.meeting_at as string | null) ?? (note.created_at as string)
+  const title = (note.title as string) ?? '회의'
+
+  // 앵커 일정 1건 조회(멱등 — 있으면 update, 없으면 insert).
+  // source='user'로 한정 — applyExtractedItems가 만드는 AI 파생 일정(source='ai', 동일 link_kind/link_id)과
+  // 키 충돌을 막는다. 앵커(회의=일정)는 항상 source='user' 단 1건만 유지된다.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existing } = await (supabase.from('calendar_events') as any)
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('link_kind', 'meeting')
+    .eq('link_id', idCheck.data)
+    .eq('source', 'user')
+    .limit(1)
+    .maybeSingle()
+
+  if (existing) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from('calendar_events') as any)
+      .update({ title, start_at: startAt })
+      .eq('id', existing.id)
+      .eq('user_id', user.id)
+  } else {
+    await createCalendarEvent({
+      title,
+      start_at: startAt,
+      link_kind: 'meeting',
+      link_id: idCheck.data,
+      source: 'user',
+    })
+  }
+}
+
+// ============================================================
+// 조직원 목록 (참석자 매칭/추가 드롭다운용) — profiles id,name 활성행, api_user 제외.
+// ============================================================
+export async function listOrgPeople(): Promise<{ id: string; name: string }[]> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return []
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.from('profiles') as any)
+    .select('id, name')
+    .is('deleted_at', null)
+    .neq('role', 'api_user')
+    .order('name', { ascending: true })
+
+  if (error) {
+    console.error('[listOrgPeople]', error)
+    return []
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((r: any) => ({ id: r.id as string, name: (r.name as string) ?? '' }))
+}
+
+// ============================================================
+// 회의노트 파생 일일업무 목록 (캘린더→업무 컨텍스트 모드용) — 본인 행만, 최신순.
+// ============================================================
+export async function getMeetingDerivedLogs(meetingNoteId: string): Promise<DailyLog[]> {
+  const idCheck = uuidSchema.safeParse(meetingNoteId)
+  if (!idCheck.success) return []
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return []
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.from('daily_logs') as any)
+    .select('*')
+    .eq('meeting_note_id', idCheck.data)
+    .eq('user_id', user.id)
+    .order('logged_at', { ascending: false })
+
+  if (error) {
+    console.error('[getMeetingDerivedLogs]', error)
+    return []
+  }
+  return (data ?? []) as DailyLog[]
+}
+
+// ============================================================
+// 부서 목록 (부서 선택 드롭다운용) — org_nodes type='department', 표시순.
+// ============================================================
+export async function getMeetingDepartments(): Promise<{ id: string; name: string }[]> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return []
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.from('org_nodes') as any)
+    .select('id, name')
+    .eq('type', 'department')
+    .order('display_order', { ascending: true })
+    .order('name', { ascending: true })
+
+  if (error) {
+    console.error('[getMeetingDepartments]', error)
+    return []
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((r: any) => ({ id: r.id as string, name: (r.name as string) ?? '' }))
 }

@@ -11,6 +11,7 @@ import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import PromoteToDeptButton from './PromoteToDeptButton'
 const KnowledgeGraphView = dynamic(() => import('./KnowledgeGraphView').then(m => ({ default: m.KnowledgeGraphView })), { ssr: false })
 const LogFlowView = dynamic(() => import('./LogFlowView').then(m => ({ default: m.LogFlowView })), { ssr: false })
+const MeetingContextView = dynamic(() => import('./MeetingContextView'), { ssr: false })
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, moveAllCarryoverToToday, unignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread, updateDailyLogStatus, deleteLogGroup, updateOriginInput, getPromotedMap } from './actions'
@@ -86,6 +87,8 @@ export default function DailyPage() {
   const searchParams = useSearchParams()
   const today = toDateStr(new Date())
   const initialDate = searchParams.get('date') ?? today
+  // 회의 컨텍스트 모드(/daily?meeting=<id>) — 날짜 타임라인과 독립된 contained 섹션.
+  const meetingParam = searchParams.get('meeting')
 
   const initialView = searchParams.get('view') === 'memo' ? 'memo' : 'day'
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'memo'>(initialView)
@@ -521,6 +524,15 @@ export default function DailyPage() {
   for (const log of weekLogs) {
     if (!weekLogsMap.has(log.log_date)) weekLogsMap.set(log.log_date, [])
     weekLogsMap.get(log.log_date)!.push(log)
+  }
+
+  // 회의 컨텍스트 모드 — 일반 일간/주간/메모 뷰와 독립된 contained 화면(회귀 0).
+  if (meetingParam) {
+    return (
+      <WorkPageShell title="일일업무" description="회의에서 생성된 업무를 확인합니다">
+        <MeetingContextView meetingId={meetingParam} />
+      </WorkPageShell>
+    )
   }
 
   return (
@@ -1189,6 +1201,23 @@ function LogList({
                             취소
                           </button>
                         </span>
+                      )}
+                      {log.meeting_note_id && (
+                        <a
+                          href={`/meeting-notes/${log.meeting_note_id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          title="이 업무가 생성된 회의노트로 이동"
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '0.15rem',
+                            fontSize: 'var(--fs-2xs)', fontWeight: 700,
+                            color: 'var(--brand)', background: 'var(--brand-soft)',
+                            border: 'var(--hairline) solid var(--brand-soft-2)',
+                            padding: '0.1rem 0.4rem', borderRadius: 'var(--radius)',
+                            textDecoration: 'none', whiteSpace: 'nowrap',
+                          }}
+                        >
+                          ↗ 회의노트
+                        </a>
                       )}
                     </div>
                     <p style={{
