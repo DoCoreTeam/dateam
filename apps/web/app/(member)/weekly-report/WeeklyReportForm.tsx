@@ -11,6 +11,7 @@ import DailyTaskSelector from './DailyTaskSelector'
 import RichText from '@/components/ui/RichText'
 import { useDraftPersist } from '@/lib/forms/useDraftPersist'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
+import { mergeWeeklyRows } from '@/lib/weekly-report/merge-rows'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 const OnboardingProvider = dynamic(() => import('@/components/onboarding/OnboardingProvider'), { ssr: false })
@@ -399,11 +400,11 @@ export default function WeeklyReportForm({
         </select>
       </div>
 
-      {/* 일일업무에서 주간보고 생성 */}
+      {/* 일일업무에서 주간보고 생성 — 기존 내용(이월·저장·수동) 보존하며 카테고리 단위 병합 */}
       <DailyTaskSelector
         weekStart={selectedWeek}
         onGenerate={(generatedRows) => {
-          setRows(generatedRows.length > 0 ? generatedRows : [{ ...EMPTY_ROW }])
+          setRows((prev) => mergeWeeklyRows(prev, generatedRows))
         }}
       />
 
