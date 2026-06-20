@@ -45,10 +45,14 @@ export interface HighlightCandidate {
   source_quote: string | null
 }
 
+export type AttendeeAffiliation = 'internal' | 'external' | 'unknown'
+
 export interface AttendeeCandidate {
   name: string
   confidence: number
   source_quote: string | null
+  // AI가 판단한 소속. 'external'이면 동명이인 조직원과 자동매칭하지 않는다(이름충돌 오매칭 방지).
+  affiliation: AttendeeAffiliation
 }
 
 // ---- 필터 기준: title 비어있음 / source_quote null / confidence < 0.7 제외 ----
@@ -104,10 +108,12 @@ export function mapAttendees(raw: unknown): AttendeeCandidate[] {
   return raw
     .map((item) => {
       const r = asRecord(item)
+      const aff = r.affiliation
       return {
         name: typeof r.name === 'string' ? r.name.trim() : '',
         confidence: numConfidence(r.confidence),
         source_quote: strOrNull(r.source_quote),
+        affiliation: (aff === 'internal' || aff === 'external' ? aff : 'unknown') as AttendeeAffiliation,
       }
     })
     .filter((c) => c.name !== '' && c.source_quote !== null && c.confidence >= 0.7)

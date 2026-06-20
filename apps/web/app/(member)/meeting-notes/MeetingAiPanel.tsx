@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Sparkles, CheckSquare, CalendarPlus, Star, Users } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import { saveMeetingSummary, applyExtractedItems, updateMeetingNote } from './actions'
-import { matchAttendees } from '@/lib/meeting/match-attendees'
+import { matchAttendees, normalizeName } from '@/lib/meeting/match-attendees'
 
 interface TaskCandidate {
   title: string
@@ -28,6 +28,7 @@ interface AttendeeCandidate {
   name: string
   confidence: number
   source_quote: string
+  affiliation: 'internal' | 'external' | 'unknown'
 }
 
 interface ExtractResult {
@@ -72,6 +73,10 @@ export default function MeetingAiPanel({
   const [info, setInfo] = useState('')
 
   const hasBody = bodyPlain.trim().length > 0
+
+  // 조직원 이름(정규화) 집합 — 후보 배지 판정용 O(1) 조회. 후보마다 matchAttendees를 호출하지 않는다.
+  // 정규화는 matchAttendees와 동일 SSOT(normalizeName)를 재사용.
+  const peopleNameSet = useMemo(() => new Set(people.map((p) => normalizeName(p.name))), [people])
 
   // 1단계: 요약·결정사항 + 후보를 한 번에 분석(병렬 호출)
   async function runAnalyze() {
@@ -158,19 +163,22 @@ export default function MeetingAiPanel({
       // 선택된 참석자 후보를 기존 참석자에 합집합 반영(자동확정 금지 — 사용자 선택분만)
       if (result && checkedAttendeeCount > 0) {
         const picked = result.attendees.filter((_, i) => checked.has(attendeeKey(i)))
-        const { matched, unmatched } = matchAttendees(picked.map((a) => a.name), people)
+        // AI가 외부로 판단한 참석자는 동명이인 조직원과 자동매칭하지 않고 외부 텍스트로 저장(이름충돌 오매칭 방지)
+        const externalForced = picked.filter((a) => a.affiliation === 'external').map((a) => a.name)
+        const matchable = picked.filter((a) => a.affiliation !== 'external').map((a) => a.name)
+        const { matched, unmatched } = matchAttendees(matchable, people)
 
         // 기존 user_ids + 신규 매칭 id 합집합
         const mergedIds = Array.from(new Set([...currentUserIds, ...matched.map((m) => m.id)]))
-        // 기존 참석자 이름 + 신규(조직원 name + 외부 텍스트) 합집합
-        const mergedNames = Array.from(new Set([...currentAttendees, ...matched.map((m) => m.name), ...unmatched]))
+        // 기존 참석자 이름 + 신규(조직원 name + 외부 텍스트 + 외부확정) 합집합
+        const mergedNames = Array.from(new Set([...currentAttendees, ...matched.map((m) => m.name), ...unmatched, ...externalForced]))
 
         const attRes = await updateMeetingNote(meetingNoteId, {
           attendees: mergedNames.length > 0 ? mergedNames : null,
           attendee_user_ids: mergedIds.length > 0 ? mergedIds : null,
         })
         if (!attRes.ok) { setErr(`요약은 저장됐지만 참석자 반영에 실패했습니다: ${attRes.error}`); router.refresh(); return }
-        applyMsg += ` · 참석자 ${picked.length}명 반영(조직원 ${matched.length} · 외부 ${unmatched.length})`
+        applyMsg += ` · 참석자 ${picked.length}명 반영(조직원 ${matched.length} · 외부 ${unmatched.length + externalForced.length})`
       }
 
       if (checkedApplyCount > 0) { setResult(null); setChecked(new Set()) }
@@ -242,8 +250,8 @@ export default function MeetingAiPanel({
           {result.attendees && result.attendees.length > 0 && (
             <CandidateGroup icon={<Users size={14} color="var(--brand)" />} label="참석자 후보 → 참석자">
               {result.attendees.map((c, i) => {
-                // 단건 매칭으로 내부(조직원)/외부 구분 배지
-                const isMember = matchAttendees([c.name], people).matched.length > 0
+                // 내부(조직원)/외부 구분 배지. AI가 외부로 판단하면 동명이인이라도 외부로 표기.
+                const isMember = c.affiliation !== 'external' && peopleNameSet.has(normalizeName(c.name))
                 return (
                   <CandidateRow
                     key={attendeeKey(i)}

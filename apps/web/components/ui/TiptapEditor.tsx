@@ -101,7 +101,9 @@ export default function TiptapEditor({
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      // StarterKit v3는 Link·Underline을 내장 → 아래 커스텀 설정과 중복 등록되어 경고 발생.
+      // 내장본을 끄고 커스텀(openOnClick:false 등)만 사용한다.
+      StarterKit.configure({ link: false, underline: false }),
       Underline,
       Placeholder.configure({ placeholder }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),

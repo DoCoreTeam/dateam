@@ -350,6 +350,36 @@ describe('mapAttendees', () => {
     assert.deepEqual(mapAttendees(null), [])
     assert.deepEqual(mapAttendees(undefined), [])
   })
+
+  test('affiliation internal/external 그대로 매핑', () => {
+    const raw = [
+      { name: '김도현', confidence: 0.9, source_quote: '근거', affiliation: 'internal' },
+      { name: '정준홍', confidence: 0.9, source_quote: '외부 협력사 정준홍', affiliation: 'external' },
+    ]
+    const result = mapAttendees(raw)
+    assert.equal(result[0].affiliation, 'internal')
+    assert.equal(result[1].affiliation, 'external')
+  })
+
+  test('affiliation 누락/이상값 → unknown 폴백', () => {
+    const raw = [
+      { name: '홍길동', confidence: 0.9, source_quote: '근거' },
+      { name: '이순신', confidence: 0.9, source_quote: '근거', affiliation: 'partner' },
+    ]
+    const result = mapAttendees(raw)
+    assert.equal(result[0].affiliation, 'unknown')
+    assert.equal(result[1].affiliation, 'unknown')
+  })
+
+  test('affiliation 비문자열(null/숫자) → unknown 폴백', () => {
+    const raw = [
+      { name: '강감찬', confidence: 0.9, source_quote: '근거', affiliation: null },
+      { name: '을지문덕', confidence: 0.9, source_quote: '근거', affiliation: 123 },
+    ]
+    const result = mapAttendees(raw)
+    assert.equal(result[0].affiliation, 'unknown')
+    assert.equal(result[1].affiliation, 'unknown')
+  })
 })
 
 // ============================================================

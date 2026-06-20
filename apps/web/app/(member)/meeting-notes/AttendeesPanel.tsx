@@ -5,12 +5,11 @@
 //  - 초기화: attendee_user_ids → people에서 name 복원(조직원 칩), 나머지 attendees → matchAttendees로 외부인 분류.
 //  - 저장: updateMeetingNote({ attendees: [조직원 name + 외부 텍스트], attendee_user_ids: [조직원 id] }) → router.refresh.
 //  - SSOT: 이름→조직원 매칭은 lib/meeting/match-attendees(matchAttendees) 재사용.
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Users, Plus, X } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import { updateMeetingNote } from './actions'
-import { matchAttendees } from '@/lib/meeting/match-attendees'
 
 interface Props {
   noteId: string
@@ -40,17 +39,38 @@ export default function AttendeesPanel({ noteId, initialAttendees, initialUserId
       const name = peopleById.get(id)
       if (name) { members.push({ id, name }); memberNames.add(name) }
     }
-    // user_ids로 복원되지 않은 이름들만 매칭 시도(이미 조직원으로 잡힌 이름은 제외)
-    const leftover = initialAttendees.filter((n) => !memberNames.has(n))
-    const { matched, unmatched } = matchAttendees(leftover, people)
-    for (const m of matched) {
-      if (!members.some((x) => x.id === m.id)) members.push(m)
-    }
-    return { members, externals: unmatched }
-  }, [initialAttendees, initialUserIds, people, peopleById])
+    // attendee_user_ids가 내부(조직원)의 SSOT. 그 외 attendees 이름은 모두 외부로 본다.
+    // 이름이 조직원과 겹쳐도 user_id가 없으면 외부 — 동명이인 외부인이 내부로 되돌려지는 오분류를 막는다.
+    const externals = initialAttendees.filter((n) => !memberNames.has(n))
+    return { members, externals }
+  }, [initialAttendees, initialUserIds, peopleById])
 
   const [members, setMembers] = useState<MemberChip[]>(initialState.members)
   const [externals, setExternals] = useState<string[]>(initialState.externals)
+  // 로컬 미저장 편집 여부. 편집이 있으면 서버 재동기화로 사용자 변경을 덮지 않는다.
+  const [dirty, setDirty] = useState(false)
+
+  // 서버 데이터가 바뀌면(예: AI 패널에서 참석자 반영 → router.refresh) 로컬 칩을 재동기화.
+  // 단, 미저장 로컬 편집(dirty)이 있으면 사용자 변경 보호를 위해 건너뛴다.
+  const serverSig = useMemo(
+    () => JSON.stringify({ a: initialAttendees, u: initialUserIds }),
+    [initialAttendees, initialUserIds]
+  )
+  useEffect(() => {
+    if (dirty) return
+    setMembers(initialState.members)
+    setExternals(initialState.externals)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverSig])
+
+  // 미저장 편집 중 탭 닫기/새로고침/이탈 시 경고(브라우저 기본 확인창).
+  useEffect(() => {
+    if (!dirty) return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [dirty])
+
   const [selectId, setSelectId] = useState('')
   const [externalInput, setExternalInput] = useState('')
   const [error, setError] = useState('')
@@ -68,6 +88,7 @@ export default function AttendeesPanel({ noteId, initialAttendees, initialUserId
     const p = people.find((x) => x.id === selectId)
     if (p && !members.some((m) => m.id === p.id)) {
       setMembers((prev) => [...prev, { id: p.id, name: p.name }])
+      setDirty(true)
     }
     setSelectId('')
     setInfo('')
@@ -79,16 +100,19 @@ export default function AttendeesPanel({ noteId, initialAttendees, initialUserId
     // 외부 텍스트 중복 방지 + 이미 조직원 칩에 있는 이름이면 흡수(같은 이름이 내부+외부로 이중 저장되지 않게)
     if (externals.includes(name) || members.some((m) => m.name === name)) { setExternalInput(''); return }
     setExternals((prev) => [...prev, name])
+    setDirty(true)
     setExternalInput('')
     setInfo('')
   }
 
   function removeMember(id: string) {
     setMembers((prev) => prev.filter((m) => m.id !== id))
+    setDirty(true)
   }
 
   function removeExternal(name: string) {
     setExternals((prev) => prev.filter((n) => n !== name))
+    setDirty(true)
   }
 
   function save() {
@@ -102,6 +126,7 @@ export default function AttendeesPanel({ noteId, initialAttendees, initialUserId
           attendee_user_ids: attendeeUserIds.length > 0 ? attendeeUserIds : null,
         })
         if (!res.ok) { setError(res.error); return }
+        setDirty(false) // 저장 완료 → 이후 router.refresh의 재동기화 허용(동일값이라 무해)
         setInfo('참석자를 저장했습니다.')
         router.refresh()
       } catch {
