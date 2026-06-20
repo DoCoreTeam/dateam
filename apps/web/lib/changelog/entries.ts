@@ -186,3 +186,12 @@ export function cmpVersion(v1: string, v2: string): number {
 export const LATEST_CHANGELOG_VERSION = CHANGELOG.length
   ? [...CHANGELOG].sort((a, b) => cmpVersion(b.version, a.version))[0].version
   : ''
+
+// 마지막으로 본 업데이트 내역 버전 localStorage 키(SSOT) — 자동 안내 모달 노출/억제 판정.
+// 다른 모달(주간보고 작성안내 등)이 changelog 모달과 동시 노출 충돌을 피하려 이 키를 참조.
+export const CHANGELOG_SEEN_KEY = 'changelog_seen_version'
+
+/** changelog 자동 안내 모달이 떠야 하는 상태인지(미확인 신버전 존재). seen은 localStorage 값. */
+export function isChangelogPending(seen: string | null): boolean {
+  return !!LATEST_CHANGELOG_VERSION && (!seen || cmpVersion(LATEST_CHANGELOG_VERSION, seen) > 0)
+}

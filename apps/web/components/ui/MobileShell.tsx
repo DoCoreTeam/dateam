@@ -7,9 +7,8 @@ import { Menu, X, ChevronDown } from 'lucide-react'
 import NbNavItem from './nb/NbNavItem'
 import QuickAddFab from './QuickAddFab'
 import ChangelogModal from './ChangelogModal'
-import { cmpVersion, LATEST_CHANGELOG_VERSION } from '@/lib/changelog/entries'
+import { LATEST_CHANGELOG_VERSION, CHANGELOG_SEEN_KEY, isChangelogPending } from '@/lib/changelog/entries'
 
-const CHANGELOG_SEEN_KEY = 'changelog_seen_version'
 
 interface NavItem {
   href: string
@@ -69,16 +68,14 @@ export default function MobileShell({
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? ''
 
   // 미확인 신규 업데이트 존재 여부(N 배지·자동 안내 기준).
-  const hasNewChangelog =
-    seenVersion !== undefined && !!LATEST_CHANGELOG_VERSION &&
-    (seenVersion === null || cmpVersion(LATEST_CHANGELOG_VERSION, seenVersion) > 0)
+  const hasNewChangelog = seenVersion !== undefined && isChangelogPending(seenVersion)
 
   // 첫 접속 시 1회: 마지막 확인 이후 신규 업데이트가 있으면 '새 소식' 모달 자동 안내.
   useEffect(() => {
     let seen: string | null = null
     try { seen = localStorage.getItem(CHANGELOG_SEEN_KEY) } catch { /* SSR/프라이빗 모드 무시 */ }
     setSeenVersion(seen)
-    if (LATEST_CHANGELOG_VERSION && (!seen || cmpVersion(LATEST_CHANGELOG_VERSION, seen) > 0)) {
+    if (isChangelogPending(seen)) {
       setChangelogNewOnly(true)
       setChangelogOpen(true)
     }

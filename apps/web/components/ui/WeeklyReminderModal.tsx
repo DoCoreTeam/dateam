@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { X, FileText } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
+import { CHANGELOG_SEEN_KEY, isChangelogPending } from '@/lib/changelog/entries'
 
 interface Props {
   /** 이번 주 week_start(월요일) — localStorage 억제 키로도 사용 */
@@ -17,6 +18,9 @@ export default function WeeklyReminderModal({ weekStart }: Props) {
 
   useEffect(() => {
     try {
+      // 첫 접속 업데이트 안내(ChangelogModal)와 동시 노출 충돌 방지 — changelog가 뜰 차례면 양보.
+      // (changelog는 닫으면 seen 기록 → 다음 이동 때 이 모달이 정상 노출)
+      if (isChangelogPending(localStorage.getItem(CHANGELOG_SEEN_KEY))) return
       if (!localStorage.getItem(`weekly_reminder_seen_${weekStart}`)) setOpen(true)
     } catch {
       setOpen(true)
