@@ -173,3 +173,16 @@ export const CHANGELOG: ChangelogNote[] = [
     ],
   },
 ]
+
+// 'a.b.c' 버전 비교 — 양수면 v1>v2. 정렬·신규판정·현재버전 판정의 단일 비교 함수(SSOT).
+export function cmpVersion(v1: string, v2: string): number {
+  const a = v1.split('.').map((n) => parseInt(n, 10) || 0)
+  const b = v2.split('.').map((n) => parseInt(n, 10) || 0)
+  for (let i = 0; i < 3; i++) { const d = (a[i] ?? 0) - (b[i] ?? 0); if (d !== 0) return d }
+  return 0
+}
+
+// 큐레이션 항목 중 가장 최신 버전(신규 배지·자동 안내 기준).
+export const LATEST_CHANGELOG_VERSION = CHANGELOG.length
+  ? [...CHANGELOG].sort((a, b) => cmpVersion(b.version, a.version))[0].version
+  : ''

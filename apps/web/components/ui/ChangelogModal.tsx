@@ -3,7 +3,7 @@
 import { X, Sparkles } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import type { ChangeType } from '@/lib/changelog/types'
-import { CHANGELOG } from '@/lib/changelog/entries'
+import { CHANGELOG, cmpVersion } from '@/lib/changelog/entries'
 
 const TYPE_LABEL: Record<ChangeType, { label: string; bg: string }> = {
   feature: { label: '새 기능', bg: 'var(--success)' },
@@ -14,27 +14,27 @@ const TYPE_LABEL: Record<ChangeType, { label: string; bg: string }> = {
 interface Props {
   currentVersion: string
   onClose: () => void
-}
-
-// 'a.b.c' 버전 비교 — 양수면 v1>v2. 표시 정렬·현재버전 판정의 SSOT(수동 정렬 실수 무력화).
-function cmpVer(v1: string, v2: string): number {
-  const a = v1.split('.').map((n) => parseInt(n, 10) || 0)
-  const b = v2.split('.').map((n) => parseInt(n, 10) || 0)
-  for (let i = 0; i < 3; i++) { const d = (a[i] ?? 0) - (b[i] ?? 0); if (d !== 0) return d }
-  return 0
+  /** true면 '새 소식' 모드 — seenVersion 이후의 미확인 업데이트만 함께 표시. false/미지정이면 전체 리스트. */
+  newOnly?: boolean
+  /** 마지막으로 확인한 버전(newOnly 필터 기준). null이면 전부 신규로 간주. */
+  seenVersion?: string | null
 }
 
 // 버전 클릭 → 사용자향 업데이트 내역 모달. 큐레이션 파일(lib/changelog/entries.ts)을 직접 렌더(배포=게시).
-export default function ChangelogModal({ currentVersion, onClose }: Props) {
+export default function ChangelogModal({ currentVersion, onClose, newOnly = false, seenVersion = null }: Props) {
   useEscClose(onClose)
 
   // 항상 버전 내림차순으로 표시(파일 작성 순서와 무관하게 일관).
-  const notes = [...CHANGELOG].sort((x, y) => cmpVer(y.version, x.version))
+  const sorted = [...CHANGELOG].sort((x, y) => cmpVersion(y.version, x.version))
+  // 새 소식 모드: 마지막 확인 이후의 미확인 항목만 함께 묶어 표시(여러 버전 놓쳤으면 전부).
+  const notes = newOnly
+    ? sorted.filter((n) => !seenVersion || cmpVersion(n.version, seenVersion) > 0)
+    : sorted
   // '현재' 배지: 정확히 일치하는 항목, 없으면 현재 앱버전 이하의 최신 항목(앱버전에 안내 항목이 없을 때 폴백).
   const currentIdx = (() => {
     const exact = notes.findIndex((n) => n.version === currentVersion)
     if (exact >= 0) return exact
-    return notes.findIndex((n) => cmpVer(n.version, currentVersion) <= 0)
+    return notes.findIndex((n) => cmpVersion(n.version, currentVersion) <= 0)
   })()
 
   return (
@@ -50,7 +50,7 @@ export default function ChangelogModal({ currentVersion, onClose }: Props) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-4) var(--space-5)', borderBottom: 'var(--hairline) solid var(--border-color)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <Sparkles size={18} style={{ color: 'var(--brand)' }} />
-            <span className="tape-title" style={{ fontSize: 'var(--fs-lg)' }}>업데이트 내역</span>
+            <span className="tape-title" style={{ fontSize: 'var(--fs-lg)' }}>{newOnly ? '새로운 소식이 있어요' : '업데이트 내역'}</span>
           </div>
           <button onClick={onClose} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 'var(--space-1)' }}>
             <X size={18} />
@@ -60,7 +60,7 @@ export default function ChangelogModal({ currentVersion, onClose }: Props) {
         {/* 본문 */}
         <div style={{ overflowY: 'auto', padding: 'var(--space-4) var(--space-5)' }}>
           {notes.length === 0 ? (
-            <div style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-sm)', padding: 'var(--space-6) 0', textAlign: 'center' }}>아직 안내해 드릴 업데이트가 없어요.</div>
+            <div style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-sm)', padding: 'var(--space-6) 0', textAlign: 'center' }}>새로운 소식이 없어요. 최신 상태예요!</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
               {notes.map((note, idx) => {

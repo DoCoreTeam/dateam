@@ -7,6 +7,9 @@ import { Menu, X, ChevronDown } from 'lucide-react'
 import NbNavItem from './nb/NbNavItem'
 import QuickAddFab from './QuickAddFab'
 import ChangelogModal from './ChangelogModal'
+import { cmpVersion, LATEST_CHANGELOG_VERSION } from '@/lib/changelog/entries'
+
+const CHANGELOG_SEEN_KEY = 'changelog_seen_version'
 
 interface NavItem {
   href: string
@@ -60,7 +63,37 @@ export default function MobileShell({
   const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   const [changelogOpen, setChangelogOpen] = useState(false)
+  const [changelogNewOnly, setChangelogNewOnly] = useState(false)
+  // 마지막으로 확인한 업데이트 버전. undefined=localStorage 미독(하이드레이션 전), null=처음.
+  const [seenVersion, setSeenVersion] = useState<string | null | undefined>(undefined)
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? ''
+
+  // 미확인 신규 업데이트 존재 여부(N 배지·자동 안내 기준).
+  const hasNewChangelog =
+    seenVersion !== undefined && !!LATEST_CHANGELOG_VERSION &&
+    (seenVersion === null || cmpVersion(LATEST_CHANGELOG_VERSION, seenVersion) > 0)
+
+  // 첫 접속 시 1회: 마지막 확인 이후 신규 업데이트가 있으면 '새 소식' 모달 자동 안내.
+  useEffect(() => {
+    let seen: string | null = null
+    try { seen = localStorage.getItem(CHANGELOG_SEEN_KEY) } catch { /* SSR/프라이빗 모드 무시 */ }
+    setSeenVersion(seen)
+    if (LATEST_CHANGELOG_VERSION && (!seen || cmpVersion(LATEST_CHANGELOG_VERSION, seen) > 0)) {
+      setChangelogNewOnly(true)
+      setChangelogOpen(true)
+    }
+  }, [])
+
+  // 모달 닫기 = 최신 버전을 '확인함'으로 기록 → N 배지 제거 + 재안내 안 함.
+  const closeChangelog = useCallback(() => {
+    setChangelogOpen(false)
+    if (LATEST_CHANGELOG_VERSION) {
+      try { localStorage.setItem(CHANGELOG_SEEN_KEY, LATEST_CHANGELOG_VERSION) } catch { /* 무시 */ }
+      setSeenVersion(LATEST_CHANGELOG_VERSION)
+    }
+  }, [])
+
+  const openChangelogFull = useCallback(() => { setChangelogNewOnly(false); setChangelogOpen(true) }, [])
   const hamburgerRef = useRef<HTMLButtonElement>(null)
   const firstNavRef = useRef<HTMLAnchorElement>(null)
 
@@ -147,13 +180,21 @@ export default function MobileShell({
             {/* 로고/브랜드 바로 아래 버전 — 클릭 시 업데이트 내역 모달 */}
             <button
               type="button"
-              onClick={() => setChangelogOpen(true)}
-              aria-label="업데이트 내역 보기"
+              onClick={openChangelogFull}
+              aria-label={hasNewChangelog ? '새 업데이트 내역 보기' : '업데이트 내역 보기'}
               title="업데이트 내역"
               className="app-version-btn"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', fontSize: '0.625rem', color: 'var(--text-muted)', letterSpacing: '0.06em', fontWeight: 600, textAlign: 'left' }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', fontSize: '0.625rem', color: 'var(--text-muted)', letterSpacing: '0.06em', fontWeight: 600, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '4px' }}
             >
               v{appVersion || '—'}
+              {hasNewChangelog && (
+                <span
+                  aria-label="새 업데이트"
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '16px', height: '16px', padding: '0 4px', borderRadius: '9999px', background: 'var(--danger)', color: '#fff', fontSize: 'var(--fs-2xs)', fontWeight: 700, lineHeight: 1, letterSpacing: 0 }}
+                >
+                  N
+                </span>
+              )}
             </button>
           </div>
           <button
@@ -325,7 +366,14 @@ export default function MobileShell({
 
       {/* 빠른 추가 FAB — 하이브리드 speed-dial(맥락 강조 + 멀티). 데스크탑·모바일 */}
       <QuickAddFab isAdmin={isAdmin} />
-      {changelogOpen && <ChangelogModal currentVersion={appVersion} onClose={() => setChangelogOpen(false)} />}
+      {changelogOpen && (
+        <ChangelogModal
+          currentVersion={appVersion}
+          newOnly={changelogNewOnly}
+          seenVersion={seenVersion ?? null}
+          onClose={closeChangelog}
+        />
+      )}
     </div>
   )
 }
