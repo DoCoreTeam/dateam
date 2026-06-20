@@ -7,9 +7,10 @@
 // 데이터·계산은 기존 SSOT/라우트 재사용. 본 컴포넌트는 fetch+표현만.
 
 import { useState } from 'react'
-import useSWR from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 import dynamic from 'next/dynamic'
 import { fetcher } from '@/lib/swr-config'
+import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { GPU_TERMS } from '@/lib/gpu/terms'
 import { fmtMoneyFromKrw, fmtMoneyFromUsd } from '@/lib/gpu/format-price'
 import type { CurrencyCtx } from '@/lib/gpu/unified-row'
@@ -44,6 +45,7 @@ interface QuoteRow {
   status: string | null
   valid_until: string | null
   price_type: string | null // 'list'(공시가)는 공급원가 견적표에서 제외
+  is_selected?: boolean | null // 사용자가 판매가 기준으로 지정한 공급가(자동 최저가 override)
   suppliers?: { name?: string | null; color?: string | null; logo_url?: string | null } | null
 }
 interface AuditRow {
@@ -76,6 +78,8 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
   const [costEditNote, setCostEditNote] = useState(false)
+  const [designating, setDesignating] = useState<string | null>(null)
+  const { mutate: globalMutate } = useSWRConfig()
 
   // 가격 동기화 — 기존 sync-cost 라우트 재사용(저장 출처 재수집→공급원가 반영). 전역 1버튼.
   async function runSync() {
@@ -115,6 +119,30 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
   const latestMarketPrice = priceHistData?.prices?.[0] ?? null
   // 공급원가 견적 = 실제 매입원가만(list=공시 판매가 제외).
   const costQuotes = (quoteData?.quotes ?? []).filter((q) => q.price_type !== 'list')
+
+  // 공급가 지정/해제 — 기존 select 라우트 재사용(is_selected). 지정 시 자동 최저가를 override해 판매가 기준이 됨.
+  // 성공 후 견적표 + GPU 전역 캐시(cockpit 포함) 동시 무효화 → 판매가/기준이 즉시 갱신.
+  async function toggleDesignate(qid: string, next: boolean) {
+    setDesignating(qid)
+    try {
+      const res = await fetch(`/api/pricing/gpu/quotes/${qid}/select`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ selected: next }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        alert(j.error ?? '공급가 지정에 실패했습니다.')
+        return
+      }
+      mutateQuotes()
+      mutateGpu(globalMutate)
+    } catch {
+      alert('공급가 지정 중 오류가 발생했습니다.')
+    } finally {
+      setDesignating(null)
+    }
+  }
 
   if (!row) {
     return (
@@ -178,8 +206,11 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                   {costQuotes.map((q) => {
                     const exp = expiryInfo(q.valid_until)
                     return (
-                      <tr key={q.id}>
-                        <td><SupplierCell name={q.suppliers?.name ?? null} color={q.suppliers?.color ?? null} logoUrl={q.suppliers?.logo_url ?? null} /></td>
+                      <tr key={q.id} className={q.is_selected ? 'gpu-qline--selected' : undefined}>
+                        <td>
+                          <SupplierCell name={q.suppliers?.name ?? null} color={q.suppliers?.color ?? null} logoUrl={q.suppliers?.logo_url ?? null} />
+                          {q.is_selected && <span className="gpu-badge-selected">✓ {GPU_TERMS.designatedCost}</span>}
+                        </td>
                         <td className="gpu-mono">{mUsd(q.unit_price_usd)}</td>
                         <td>{q.term ?? '—'}</td>
                         <td>{statusLabel(q.status)}</td>
@@ -187,7 +218,18 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                           {q.valid_until ?? '—'}
                           {exp && <span className={`gpu-badge ${exp.tone === 'danger' ? 'gpu-badge-danger' : 'gpu-badge-warn'}`}>{exp.label}</span>}
                         </td>
-                        <td>
+                        <td className="gpu-udetail-rowacts">
+                          {/* 공급가 지정 = 이 견적을 판매가 기준 공급가로 직접 지정(자동 최저가 override). 공급사·단가 있는 견적만. */}
+                          {q.unit_price_usd != null && q.suppliers && (
+                            <button
+                              type="button"
+                              className={`gpu-btn-select${q.is_selected ? ' gpu-btn-select--active' : ''}`}
+                              disabled={designating === q.id}
+                              onClick={() => toggleDesignate(q.id, !q.is_selected)}
+                            >
+                              {designating === q.id ? '…' : q.is_selected ? GPU_TERMS.undesignateCost : GPU_TERMS.designateCost}
+                            </button>
+                          )}
                           {q.unit_price_usd != null && (
                             <button
                               type="button"
@@ -401,6 +443,8 @@ function costBasisKrw(row: UnifiedRow): number | null {
 
 /** 공급원가 출처 라벨: 추종가/전파 추정/공시가/실견적. is_propagated면 전파 우선. */
 export function basisSourceLabel(row: UnifiedRow): string {
+  // 지정 공급가(사용자가 명시 채택)는 추종가/전파보다 최우선.
+  if (row.basis === 'selected') return GPU_TERMS.designatedCost
   if (row.cost_source === 'market_link') return GPU_TERMS.followPrice
   if (row.is_propagated) return '전파 추정'
   switch (row.basis) {

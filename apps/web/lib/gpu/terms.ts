@@ -25,6 +25,9 @@ export const GPU_TERMS = {
   followPrice: '추종가',         // 경쟁사 시장가를 추종해 형성한 공급원가
   realQuote: '실견적',           // 실제 공급사에서 받은 견적(추종가보다 우선)
   lowestSupplyCost: '최저 공급원가',
+  designatedCost: '지정 공급가',   // basis='selected' — 사용자가 판매가 기준으로 직접 지정한 공급가(자동 최저가 override)
+  designateCost: '공급가 지정',    // 지정 버튼 라벨
+  undesignateCost: '지정 해제',    // 지정 해제 버튼 라벨
 
   // 상태
   statusPending: '검토 대기',

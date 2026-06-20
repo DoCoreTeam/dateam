@@ -6809,6 +6809,7 @@ label.intake-tool-btn {
 .gpu-udetail-rowbtn { font: inherit; font-size: var(--fs-xs); color: var(--gpu-accent); background: transparent; border: var(--hairline) solid var(--gpu-border); border-radius: var(--radius); padding: var(--space-1) var(--space-2); cursor: pointer; min-height: 28px; }
 .gpu-udetail-rowbtn:hover { border-color: var(--gpu-accent); }
 .gpu-udetail-rowbtn--danger:hover { border-color: var(--danger); color: var(--danger); }
+.gpu-udetail-rowacts { display: flex; gap: var(--space-2); align-items: center; justify-content: flex-end; flex-wrap: wrap; }
 .gpu-udetail-acts { display: flex; gap: var(--space-2); margin-top: var(--space-3); flex-wrap: wrap; }
 
 /* 가격 결정 탭 — 추천가/전략가/파싱가 카드 */
