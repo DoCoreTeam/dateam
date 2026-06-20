@@ -6,6 +6,7 @@
 import { calcMedian } from './market-median'
 import { GPU_TERMS } from './terms'
 import { pickSellPrice, pickMargin, marketDevPct } from './unified-price-pick'
+import { pickSupplyCostKrw, pickListSupplierName, pickCostSupplierName } from './unified-cost-pick'
 import type { UnifiedRow } from './unified-row'
 
 interface CockpitCompetitor {
@@ -81,7 +82,7 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
       vcpu: p.vcpu ?? null,
       ram_gb: p.ram_gb ?? null,
       storage_gb: p.storage_gb ?? null,
-      supply_cost_krw: p.cost_basis_krw ?? p.cost_min_krw, // 가격결정 기준 = 실효 공급원가(지정 반영), 없으면 절대최저 폴백
+      supply_cost_krw: pickSupplyCostKrw(p.cost_basis_krw, p.cost_min_krw), // 가격결정 기준 = 실효 공급원가(지정 반영), 없으면 절대최저 폴백
       auto_price_krw: p.candidate_price_krw,
       sell_price_krw: sellPrice,
       margin_pct: margin,
@@ -94,7 +95,7 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
       basis: p.basis ?? null,
       is_propagated: p.is_propagated ?? false,
       // 전파인데 원본 공급사 미상이면 현재 공급사로 폴백하지 않음(자기참조 라벨 방지, DC-REV MED-2)
-      cost_supplier_name: p.effective_supplier ?? (p.is_propagated ? null : supplierName),
+      cost_supplier_name: pickCostSupplierName(p.effective_supplier, p.is_propagated ?? false, supplierName),
       cost_unit_usd: p.cost_unit_usd ?? null,
       list_price_krw: p.gcube_site_price_krw ?? null,
       market_min_krw: p.competitor_min_krw,
@@ -112,7 +113,7 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
       })),
       // 재고·고객가 축: cockpit 미포함(후속 어댑터에서 병합)
       // 리스트 라벨/검색/정렬용 공급사 = 가격 기준 공급사(지정/실효). 최저가 공급사가 아님(지정 반영).
-      supplier_name: p.effective_supplier ?? supplierName,
+      supplier_name: pickListSupplierName(p.effective_supplier, supplierName),
       available_qty: null,
       stock_status: null,
       valid_until: null,
