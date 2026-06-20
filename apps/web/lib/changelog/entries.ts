@@ -1,0 +1,175 @@
+// 사용자향 업데이트 내역 SSOT — "사용자에게 보내는 친절한 편지".
+// git 커밋(개발자 일지)과 완전 분리된, 진짜 사용자를 위한 변경 안내.
+// ChangelogModal이 이 파일을 직접 import해 렌더한다(배포 = 게시. DB·런타임 동기화 없음).
+//
+// ┌─ 작성 규율 (커밋할 때 사용자 체감 변경이 있으면 이 파일 맨 위에 1블록 추가) ─┐
+// │ 포함 ✅  새 사용자 기능 · 사용자가 겪던 버그 수정 · 눈에 보이는 개선(속도·UI·편의)   │
+// │ 제외 ❌  어드민 전용 · 백엔드/DB/인프라 · 리팩터/테스트/CI · 버전범프 · 내부검증문구  │
+// │ 톤      귀엽고 친절한 비즈니스 언어. "~했어요/~돼요". 개발 용어·내부 표현 금지.     │
+// │ 판정    "로그인한 일반 사용자가 화면에서 직접 체감하나?" 예=포함(친절어), 아니오=제외 │
+// └──────────────────────────────────────────────────────────────────┘
+
+import type { ChangeType } from './types'
+
+export interface ChangelogNoteItem {
+  /** 배지: 새 기능(feature) / 해결(fix) / 개선(improve) */
+  kind: ChangeType
+  /** 귀여운 아이콘 */
+  emoji: string
+  /** 친절한 한 줄 */
+  headline: string
+  /** 1~2문장 비즈니스 친화 설명(무엇이 되고 왜 좋은지) */
+  detail: string
+}
+
+export interface ChangelogNote {
+  version: string        // '0.7.205'
+  date: string           // 'YYYY-MM-DD'
+  title: string          // 이 업데이트를 한 줄로
+  items: ChangelogNoteItem[]
+}
+
+// 최신이 위로 — 사용자 체감 기능만 큐레이션.
+export const CHANGELOG: ChangelogNote[] = [
+  {
+    version: '0.7.205',
+    date: '2026-06-20',
+    title: '회의노트가 더 똑똑해졌어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🔗',
+        headline: '회의 참석자를 자동으로 알아봐요',
+        detail: '회의록에 적은 참석자를 조직원과 자동으로 연결하고, 외부 참석자도 함께 깔끔하게 정리해드려요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '📅',
+        headline: '회의 → 일정 → 업무가 하나로 이어져요',
+        detail: '회의에서 정한 일정과 할 일이 캘린더와 업무에 자동으로 연결돼, 따로 옮겨 적지 않아도 돼요.',
+      },
+    ],
+  },
+  {
+    version: '0.7.199',
+    date: '2026-06-18',
+    title: '회의노트가 생겼어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📝',
+        headline: '회의 내용을 적으면 AI가 정리해드려요',
+        detail: '회의록을 작성하면 핵심을 깔끔하게 다듬고, 할 일과 일정까지 자동으로 뽑아드려요. 회의록 따로·정리 따로 하지 않아도 돼요.',
+      },
+    ],
+  },
+  {
+    version: '0.7.195',
+    date: '2026-06-18',
+    title: 'GPU 견적이 훨씬 쉬워졌어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📥',
+        headline: '이미지·PDF·엑셀을 한 곳에 끌어다 놓기',
+        detail: '견적 자료를 형식에 상관없이 한 번에 올리면 AI가 알아서 읽어들여 정리해드려요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🔢',
+        headline: '가격표에 카드 장수를 함께 표시',
+        detail: "메모리를 '40GB × 2'처럼 카드당 용량과 장수로 명확하게 보여드려, 한눈에 구성을 파악할 수 있어요.",
+      },
+    ],
+  },
+  {
+    version: '0.7.185',
+    date: '2026-06-17',
+    title: '처음 오셨나요? 함께 둘러봐요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🎯',
+        headline: '직접 따라 하며 익히는 첫 사용 안내',
+        detail: '핵심 기능을 화면에서 콕 짚어주고, 업무 등록·GPU 확인을 직접 해보며 자연스럽게 익힐 수 있어요.',
+      },
+    ],
+  },
+  {
+    version: '0.7.169',
+    date: '2026-06-17',
+    title: '캘린더가 더 빠르고 편해졌어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '⚡',
+        headline: '달력이 먼저 바로 떠요',
+        detail: '데이터를 기다리지 않고 달력 화면이 즉시 나타나고, 일정은 준비되는 대로 채워져요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '📅',
+        headline: '업무 카드에서 바로 캘린더 등록',
+        detail: '각 업무에서 한 번의 클릭으로 일정에 등록하고, 필요하면 바로 취소할 수 있어요.',
+      },
+    ],
+  },
+  {
+    version: '0.7.167',
+    date: '2026-06-17',
+    title: '프로젝트를 더 체계적으로',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📁',
+        headline: '프로젝트 일정·기간·예산 관리',
+        detail: '프로젝트마다 기간과 예산을 기록하고 진행 상태를 한눈에 관리할 수 있어요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '✨',
+        headline: 'AI가 예상 프로젝트를 제안해요',
+        detail: '그동안의 업무를 똑똑하게 묶어 새 프로젝트 후보를 제안해드리고, 확인만 하면 바로 등록돼요.',
+      },
+    ],
+  },
+  {
+    version: '0.7.159',
+    date: '2026-06-16',
+    title: '한 번에 모아서 찾기',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🔎',
+        headline: '업무·부서·주간보고 통합 검색',
+        detail: '상단 검색창 한 곳에서 일일업무, 부서업무, 주간보고를 한 번에 찾아볼 수 있어요.',
+      },
+    ],
+  },
+  {
+    version: '0.7.154',
+    date: '2026-06-16',
+    title: '쓰던 글이 사라지지 않아요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '💾',
+        headline: '자동 임시저장 + 되돌리기',
+        detail: '작성 중 실수로 새로고침해도 내용이 그대로 남아있고, 지워버려도 Ctrl+Z로 손쉽게 되돌릴 수 있어요.',
+      },
+    ],
+  },
+  {
+    version: '0.7.149',
+    date: '2026-06-16',
+    title: '내 업무를 한눈에',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📊',
+        headline: '활동 현황 대시보드',
+        detail: '고객별 관여도, 주별 활동 추세, 진행 상태를 보기 좋은 그래프로 한눈에 보여드려요.',
+      },
+    ],
+  },
+]
