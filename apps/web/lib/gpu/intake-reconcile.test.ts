@@ -35,9 +35,16 @@ test('미지 통화 → issue (밴드룰 아님, 형식불변)', () => {
   assert.ok(it.issues.includes('unknown_currency'))
 })
 
-test('음수/0 가격 → issue', () => {
-  const it = reconcileRecord({ ...base, price_raw: 0 }, ctx)
-  assert.ok(it.issues.includes('nonpositive_price'))
+test('음수/0 가격 → issue (숫자·문자열 둘 다)', () => {
+  assert.ok(reconcileRecord({ ...base, price_raw: 0 }, ctx).issues.includes('nonpositive_price'))
+  assert.ok(reconcileRecord({ ...base, price_raw: -7000000 }, ctx).issues.includes('nonpositive_price'))
+  assert.ok(reconcileRecord({ ...base, price_raw: '-7000000' }, ctx).issues.includes('nonpositive_price'))
+})
+
+test('EUR(등록됐으나 fx 미지원) → fx_error issue + unit_price 0 → needs_human 경로', () => {
+  const it = reconcileRecord({ ...base, currency_token: 'EUR', blockCurrency: null }, ctx)
+  assert.ok(it.issues.some((i) => i.startsWith('fx_error')))
+  assert.equal(it.unit_price_usd, 0)
 })
 
 test('미분류 타깃 → competitor 폴백 + issue', () => {

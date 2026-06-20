@@ -52,4 +52,11 @@ test('잘못된 입력은 throw(조용한 오답 금지)', () => {
   assert.throws(() => toUsdPerGpuHour({ amount: 0, currency: 'USD', period: 'hour', gpuCount: 1, krwPerUsd: 1500 }))
   assert.throws(() => toUsdPerGpuHour({ amount: 10, currency: 'USD', period: 'hour', gpuCount: 0, krwPerUsd: 1500 }))
   assert.throws(() => toUsdPerGpuHour({ amount: 10, currency: 'BTC', period: 'hour', gpuCount: 1, krwPerUsd: 1500 }))
+  // EUR/JPY는 토큰 등록됐으나 fx 미지원 → throw(reconcile이 fx_error로 needs_human 라우팅)
+  assert.throws(() => toUsdPerGpuHour({ amount: 10, currency: 'EUR', period: 'hour', gpuCount: 1, krwPerUsd: 1500 }))
+})
+
+test('GPU 장수 경계: x0→null(폴백1), 3자리 x128→null', () => {
+  assert.equal(resolveGpuCount('x0'), 0) // 0은 reconcile에서 <=0 → null 폴백
+  assert.equal(resolveGpuCount('x128'), null) // \d{1,2} → 3자리 미매치
 })
