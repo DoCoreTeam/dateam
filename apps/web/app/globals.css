@@ -1927,6 +1927,386 @@ label.intake-tool-btn {
   font-weight: 650;
 }
 
+/* ── 일일업무 모니터링(캘린더형) ── */
+.monitor-header {
+  margin-bottom: var(--space-6);
+}
+.monitor-title {
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  margin: 0;
+}
+.monitor-subtitle {
+  color: var(--text-muted);
+  font-size: var(--fs-base);
+  margin-top: var(--space-1);
+}
+
+.monitor-calendar {
+  margin-bottom: var(--space-6);
+}
+.monitor-cal-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+.monitor-cal-period {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  min-width: 7rem;
+  text-align: center;
+}
+.monitor-cal-legend {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.monitor-month-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.monitor-stat b {
+  color: var(--text);
+  font-weight: 700;
+}
+.monitor-stat.is-danger b {
+  color: var(--danger);
+}
+
+.monitor-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+  min-height: 2.5rem;
+}
+.monitor-export-btn:hover {
+  background: var(--surface-muted);
+}
+
+.monitor-kpi-hint {
+  flex-basis: 100%;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.monitor-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-4);
+}
+
+.monitor-day-cell {
+  position: relative;
+  min-height: max(4.5rem, min(8rem, calc((100dvh - 420px) / 6)));
+  border: none;
+  border-right: var(--hairline) solid var(--border-light);
+  border-bottom: var(--hairline) solid var(--border-light);
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  overflow: hidden;
+  text-align: left;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+.monitor-day-cell:nth-child(7n) {
+  border-right: none;
+}
+.monitor-day-cell:hover {
+  box-shadow: inset 0 0 0 1px var(--info-border);
+}
+.monitor-day-cell.is-out {
+  background: var(--color-bg);
+  opacity: 0.5;
+}
+.monitor-day-cell.is-weekend .monitor-day-num {
+  font-weight: 700;
+}
+.monitor-day-cell.is-today {
+  box-shadow: inset 0 0 0 2px var(--info);
+}
+.monitor-day-cell.is-selected {
+  box-shadow: inset 0 0 0 2px var(--brand);
+  background: var(--brand-soft);
+}
+.monitor-day-fill {
+  position: absolute;
+  inset: 0;
+  /* 작성 활동(참여) 농도 — 많이 쓸수록 은은한 초록. 빨강 경보는 블로커(▲)에만. */
+  background: var(--success);
+  pointer-events: none;
+}
+.monitor-day-num {
+  position: relative;
+  z-index: 1;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1;
+}
+.monitor-day-num.is-sun {
+  color: var(--danger);
+}
+.monitor-day-num.is-sat {
+  color: var(--info);
+}
+.monitor-day-badge {
+  position: relative;
+  z-index: 1;
+  width: fit-content;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--success);
+  background: var(--success-bg);
+  border: var(--hairline) solid var(--success-border);
+  border-radius: var(--radius);
+  padding: 0.1rem 0.4rem;
+  line-height: 1.25;
+}
+.monitor-day-blocker {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 1;
+  color: var(--danger);
+  display: inline-flex;
+}
+
+.monitor-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.monitor-kpi {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: #fff;
+  border: var(--border-w-2) solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--fs-base);
+  color: var(--text-muted);
+}
+.monitor-kpi-date {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  margin-right: var(--space-2);
+}
+.monitor-kpi-item b {
+  color: var(--text);
+  font-weight: 700;
+}
+.monitor-kpi-item.is-danger b {
+  color: var(--danger);
+}
+.monitor-kpi-sep {
+  color: var(--text-faint);
+}
+
+.monitor-filters {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: #fff;
+  border: var(--border-w-2) solid var(--border-color);
+  border-radius: var(--radius);
+}
+.monitor-search {
+  position: relative;
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+.monitor-search-icon {
+  position: absolute;
+  left: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-faint);
+  pointer-events: none;
+}
+.monitor-search-input {
+  padding-left: var(--space-8);
+}
+.monitor-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.monitor-field .label {
+  font-size: var(--fs-2xs);
+  margin: 0;
+}
+.monitor-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  min-height: 44px;
+  cursor: pointer;
+}
+.monitor-search-btn {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: var(--fs-base);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+.monitor-search-btn:hover {
+  background: var(--brand-dark);
+}
+
+.monitor-th-sort {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.monitor-th-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.monitor-time {
+  font-weight: 600;
+  color: var(--text);
+}
+.monitor-edited {
+  margin-left: var(--space-2);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--warning);
+  background: var(--warning-bg);
+  border-radius: var(--radius);
+  padding: 0.1rem 0.4rem;
+}
+.monitor-muted {
+  color: var(--text-faint);
+}
+.monitor-content {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.monitor-empty {
+  text-align: center;
+  color: var(--text-faint);
+  padding: var(--space-12);
+  border: var(--hairline) dashed var(--border-color);
+  border-radius: var(--radius);
+  font-size: var(--fs-base);
+}
+
+.monitor-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+.monitor-pager-btn {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0 var(--space-2);
+  border: var(--border-w-2) solid var(--border-color);
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+.monitor-pager-btn:hover:not(:disabled) {
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+}
+.monitor-pager-btn.is-active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+.monitor-pager-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.monitor-missing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-bg);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+}
+.monitor-missing-ok {
+  color: var(--success);
+  font-weight: 600;
+}
+.monitor-missing-label {
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.monitor-missing-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.monitor-missing-chip {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  background: var(--surface-muted);
+  border-radius: var(--radius);
+  padding: 0.1rem 0.45rem;
+}
+
 /* 일일업무 통계 카드 */
 .daily-stats-card {
   padding: 1.25rem;

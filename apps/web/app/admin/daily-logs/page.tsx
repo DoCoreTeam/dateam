@@ -1,248 +1,111 @@
-import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import type { DailyLog, Profile } from '@/types/database'
+import { createAdminClient } from '@/lib/supabase/server'
+import { requireAdmin } from '@/lib/auth/requireAdmin'
+import {
+  type EntryType,
+  type TaskKind,
+  isValidDate,
+  normalizeMonth,
+  normalizeSort,
+  todayKst,
+  summarizeMonth,
+  DEFAULT_PAGE_SIZE,
+} from '@/lib/admin/daily-monitoring'
+import {
+  fetchActiveMembers,
+  fetchDepartments,
+  fetchMonthAggregate,
+  fetchDayDetail,
+  type DayLogFilters,
+} from '@/lib/admin/daily-monitoring-queries'
+import MonitoringCalendar from './MonitoringCalendar'
+import DayDetailPanel from './DayDetailPanel'
 
-const ENTRY_TYPES = {
-  done:    { label: '완료',   icon: '✅', color: 'var(--success)', bg: 'var(--success-bg)' },
-  doing:   { label: '진행중', icon: '🔄', color: 'var(--info)', bg: 'var(--info-bg)' },
-  planned: { label: '예정',   icon: '📋', color: 'var(--brand)', bg: 'var(--brand-soft)' },
-  blocker: { label: '블로커', icon: '🚫', color: 'var(--danger)', bg: 'var(--danger-bg)' },
-  note:    { label: '메모',   icon: '📌', color: 'var(--warning)', bg: 'var(--warning-bg)' },
-} as const
-
-function toDateStr(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr + 'T00:00:00')
-  const days = ['일', '월', '화', '수', '목', '금', '토']
-  return `${d.getMonth() + 1}/${d.getDate()} (${days[d.getDay()]})`
-}
-
-function formatTime(isoStr: string) {
-  const d = new Date(isoStr)
-  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
-}
+const ENTRY_TYPE_VALUES: EntryType[] = ['done', 'doing', 'planned', 'blocker', 'note']
+const TASK_KIND_VALUES: TaskKind[] = ['personal', 'dept_task']
 
 interface PageProps {
-  searchParams: Promise<{ date?: string; user?: string; type?: string }>
+  searchParams: Promise<Record<string, string | undefined>>
+}
+
+function parsePage(raw: string | undefined): number {
+  const n = Number(raw)
+  return Number.isInteger(n) && n >= 0 ? n : 0
 }
 
 export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  // 권한 게이트 — 공용 SSOT(redirect 처리). 이후 service-role 클라이언트로 조회.
+  await requireAdmin()
+  const admin = createAdminClient()
 
-  const adminClient = createAdminClient()
-  const { data: profile } = await adminClient
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single() as unknown as { data: Pick<Profile, 'role'> | null; error: unknown }
-
-  if (!profile || profile.role !== 'admin') redirect('/dashboard')
-
+  // searchParams 정규화(화이트리스트)
   const params = await searchParams
-  const today = toDateStr(new Date())
-  const selectedDate = params.date ?? today
-  const selectedUser = params.user ?? ''
-  const selectedType = params.type ?? ''
+  const date = isValidDate(params.date) ? params.date : todayKst()
+  const month = normalizeMonth(params.month ?? date.slice(0, 7))
+  const { sort, dir } = normalizeSort(params.sort, params.dir)
+  const page = parsePage(params.page)
 
-  // 멤버 목록 (관리자 포함 전체)
-  const { data: members } = await adminClient
-    .from('profiles')
-    .select('id, name')
-    .is('deleted_at', null)
-    .order('name') as unknown as { data: Pick<Profile, 'id' | 'name'>[] | null; error: unknown }
+  const entryType: EntryType | '' = ENTRY_TYPE_VALUES.includes(params.type as EntryType)
+    ? (params.type as EntryType)
+    : ''
+  const taskKind: TaskKind | '' = TASK_KIND_VALUES.includes(params.kind as TaskKind)
+    ? (params.kind as TaskKind)
+    : ''
+  const q = (params.q ?? '').trim()
+  const departmentId = (params.dept ?? '').trim()
+  const blockerOnly = params.blocker === '1'
 
-  // 로그 쿼리
-  const ADMIN_LOG_LIMIT = 2000
-  // onboarding: 관리자 전체 롤업(교차사용자 모니터링) — 실습 행 제외.
-  //   특정 사용자 상세도 연습 행은 노이즈이므로 동일 적용(요약카드 카운트 정합).
-  let query = (supabase.from('daily_logs') as any)
-    .select('*, profiles!inner(name)')
-    .eq('log_date', selectedDate)
-    .eq('is_onboarding', false)
-    .order('user_id')
-    .order('logged_at', { ascending: true })
-    .limit(ADMIN_LOG_LIMIT)
+  const filters: DayLogFilters = { q, departmentId, entryType, taskKind, blockerOnly }
 
-  if (selectedUser) query = query.eq('user_id', selectedUser)
-  if (selectedType) query = query.eq('entry_type', selectedType)
+  // 데이터 페치 — 활성멤버 → 부서 → 월집계 → 선택일 상세
+  const [activeMembers, departments] = await Promise.all([
+    fetchActiveMembers(admin),
+    fetchDepartments(admin),
+  ])
+  const deptNameById: Record<string, string> = Object.fromEntries(
+    departments.map((d) => [d.id, d.name]),
+  )
 
-  const { data: logs } = await query as { data: (DailyLog & { profiles: { name: string } })[] | null }
+  const [monthAggregate, dayDetail] = await Promise.all([
+    fetchMonthAggregate(admin, month, activeMembers.length),
+    fetchDayDetail(admin, date, filters, sort, dir, page, DEFAULT_PAGE_SIZE, activeMembers, deptNameById),
+  ])
 
-  // 멤버별 그룹핑
-  const grouped: Record<string, { name: string; logs: (DailyLog & { profiles: { name: string } })[] }> = {}
-  for (const log of (logs ?? []) as (DailyLog & { profiles: { name: string } })[]) {
-    if (!grouped[log.user_id]) {
-      grouped[log.user_id] = { name: log.profiles.name, logs: [] }
-    }
-    grouped[log.user_id].logs.push(log)
-  }
-
-  const totalBlockers = (logs ?? []).filter((l) => l.entry_type === 'blocker').length
-  const totalLogs = logs?.length ?? 0
-  const activeMembers = Object.keys(grouped).length
+  // 필터 외 파라미터 보존용 현재 검색 상태(캘린더·패널 URL 빌드)
+  const baseParams: Record<string, string> = {}
+  if (q) baseParams.q = q
+  if (departmentId) baseParams.dept = departmentId
+  if (entryType) baseParams.type = entryType
+  if (taskKind) baseParams.kind = taskKind
+  if (blockerOnly) baseParams.blocker = '1'
+  if (sort !== 'logged_at') baseParams.sort = sort
+  if (dir !== 'desc') baseParams.dir = dir
 
   return (
     <div className="page-inner">
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
-          일일업무 모니터링
-        </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-base)', marginTop: '0.25rem' }}>
-          팀원들의 일일 업무 기록을 확인합니다.
-        </p>
-      </div>
-
-      {/* 요약 카드 */}
-      <div className="responsive-grid-cols-3" style={{ marginBottom: '1.5rem', gap: 'var(--space-3)' }}>
-        {[
-          { label: '참여 인원', value: `${activeMembers}명`, sub: `전체 ${members?.length ?? 0}명 중`, color: 'var(--info)' },
-          { label: '총 로그', value: `${totalLogs}건`, sub: formatDate(selectedDate), color: 'var(--success)' },
-          { label: '블로커', value: `${totalBlockers}건`, sub: totalBlockers > 0 ? '주의 필요' : '문제 없음', color: totalBlockers > 0 ? 'var(--danger)' : 'var(--success)' },
-        ].map((c) => (
-          <div key={c.label} style={{
-            background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
-            padding: 'var(--space-4)', boxShadow: 'var(--shadow-sm)',
-          }}>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', marginBottom: '0.25rem' }}>{c.label}</div>
-            <div style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: c.color }}>{c.value}</div>
-            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>{c.sub}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* 필터 */}
-      <form method="GET" style={{
-        display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: '1.5rem',
-        background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
-        padding: '0.875rem',
-      }}>
-        <input
-          type="date"
-          name="date"
-          defaultValue={selectedDate}
-          max={today}
-          style={filterInputStyle}
-        />
-        <select name="user" defaultValue={selectedUser} style={filterInputStyle}>
-          <option value="">전체 멤버</option>
-          {(members ?? []).map((m: Pick<Profile, 'id' | 'name'>) => (
-            <option key={m.id} value={m.id}>{m.name}</option>
-          ))}
-        </select>
-        <select name="type" defaultValue={selectedType} style={filterInputStyle}>
-          <option value="">전체 타입</option>
-          {Object.entries(ENTRY_TYPES).map(([k, v]) => (
-            <option key={k} value={k}>{v.icon} {v.label}</option>
-          ))}
-        </select>
-        <button type="submit" style={{
-          padding: 'var(--space-2) var(--space-4)', background: 'var(--info)', color: '#fff',
-          border: 'none', borderRadius: 'var(--radius)', fontWeight: 600,
-          fontSize: 'var(--fs-base)', cursor: 'pointer',
-        }}>
-          조회
-        </button>
-      </form>
-
-      {/* 멤버별 로그 */}
-      {Object.keys(grouped).length === 0 ? (
-        <div style={{
-          textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-12)',
-          border: 'var(--hairline) dashed var(--color-border)', borderRadius: 'var(--radius)',
-        }}>
-          {formatDate(selectedDate)}에 작성된 로그가 없습니다.
+      <header className="monitor-header">
+        <div>
+          <h1 className="monitor-title">일일업무 모니터링</h1>
+          <p className="monitor-subtitle">달력에서 작성 현황을 보고, 날짜를 눌러 상세를 확인합니다.</p>
         </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          {Object.entries(grouped).map(([userId, group]) => (
-            <div key={userId} style={{
-              background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
-              overflow: 'hidden', boxShadow: 'var(--shadow-sm)',
-            }}>
-              {/* 멤버 헤더 */}
-              <div style={{
-                padding: '0.875rem 1rem', background: 'var(--color-bg)',
-                borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex',
-                alignItems: 'center', justifyContent: 'space-between',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                  <div style={{
-                    width: '2rem', height: '2rem', borderRadius: '50%',
-                    background: 'var(--info)', color: '#fff', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-base)', fontWeight: 700,
-                  }}>
-                    {group.name[0] ?? '?'}
-                  </div>
-                  <span style={{ fontWeight: 600, color: 'var(--text)' }}>{group.name}</span>
-                </div>
-                <div style={{ display: 'flex', gap: '0.375rem' }}>
-                  {group.logs.filter((l) => l.entry_type === 'blocker').length > 0 && (
-                    <span style={{
-                      fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--danger)',
-                      background: 'var(--danger-bg)', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)',
-                    }}>
-                      🚫 블로커 {group.logs.filter((l) => l.entry_type === 'blocker').length}건
-                    </span>
-                  )}
-                  <span style={{
-                    fontSize: 'var(--fs-xs)', color: 'var(--text-muted)',
-                    background: 'var(--surface-muted)', padding: '0.125rem 0.5rem', borderRadius: 'var(--radius)',
-                  }}>
-                    {group.logs.length}건
-                  </span>
-                </div>
-              </div>
+      </header>
 
-              {/* 로그 목록 */}
-              <div style={{ padding: 'var(--space-3) var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                {group.logs.map((log) => {
-                  const type = ENTRY_TYPES[log.entry_type as keyof typeof ENTRY_TYPES] ?? ENTRY_TYPES.note
-                  return (
-                    <div key={log.id} style={{
-                      display: 'flex', alignItems: 'flex-start', gap: '0.625rem',
-                      padding: '0.625rem 0.75rem',
-                      borderLeft: `var(--border-w) solid ${type.color}`,
-                      background: log.entry_type === 'blocker' ? 'var(--danger-bg)' : 'var(--surface-bg)',
-                      borderRadius: '0 0.375rem 0.375rem 0',
-                    }}>
-                      <span style={{ fontSize: 'var(--fs-lg)', flexShrink: 0, marginTop: '0.1rem' }}>{type.icon}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.2rem' }}>
-                          <span style={{
-                            fontSize: 'var(--fs-2xs)', fontWeight: 600, color: type.color,
-                            background: type.bg, padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)',
-                          }}>
-                            {type.label}
-                          </span>
-                          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>
-                            {formatTime(log.logged_at)}
-                          </span>
-                        </div>
-                        <p style={{
-                          margin: 0, fontSize: '0.9rem', color: 'var(--text)',
-                          lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                        }}>
-                          {log.content}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <MonitoringCalendar
+        month={month}
+        byDate={monthAggregate.byDate}
+        totalActiveMembers={monthAggregate.totalActiveMembers}
+        summary={summarizeMonth(monthAggregate.byDate)}
+        selectedDate={date}
+        baseParams={baseParams}
+      />
+
+      <DayDetailPanel
+        detail={dayDetail}
+        departments={departments}
+        month={month}
+        sort={sort}
+        dir={dir}
+        filters={filters}
+      />
     </div>
   )
-}
-
-const filterInputStyle: React.CSSProperties = {
-  padding: 'var(--space-2) var(--space-3)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
-  fontSize: 'var(--fs-base)', color: 'var(--text)', background: 'var(--color-bg)', outline: 'none',
 }
