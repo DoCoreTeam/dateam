@@ -36,12 +36,20 @@ function localInputToIso(value: string): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString()
 }
 
+// 작성 순간(현재 일시)을 datetime-local 기본값으로.
+function nowLocalInput(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 export default function MeetingEditor({ initial, mode }: Props) {
   const router = useRouter()
   const [title, setTitle] = useState(initial.title)
-  const [meetingAtLocal, setMeetingAtLocal] = useState(isoToLocalInput(initial.meeting_at))
+  const [meetingAtLocal, setMeetingAtLocal] = useState(
+    initial.meeting_at ? isoToLocalInput(initial.meeting_at) : mode === 'create' ? nowLocalInput() : ''
+  )
   const [attendees, setAttendees] = useState(initial.attendees)
-  const [tagsInput, setTagsInput] = useState(initial.tags.join(', '))
   const [body, setBody] = useState(initial.body)
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
@@ -62,7 +70,6 @@ export default function MeetingEditor({ initial, mode }: Props) {
       title: title.trim(),
       meeting_at: localInputToIso(meetingAtLocal),
       attendees: attendeeList.length > 0 ? attendeeList : null,
-      tags: splitCsv(tagsInput),
       body_html: body,
     }
     startTransition(async () => {
@@ -135,16 +142,6 @@ export default function MeetingEditor({ initial, mode }: Props) {
               style={{ minHeight: 44 }}
             />
           </div>
-        </div>
-
-        <div>
-          <label className="label" htmlFor="mn-tags">태그</label>
-          <input id="mn-tags" className="input-field"
-            value={tagsInput}
-            onChange={(e) => setTagsInput(e.target.value)}
-            placeholder="쉼표로 구분 (예: 가격정책, GPU)"
-            style={{ minHeight: 44 }}
-          />
         </div>
 
         <div>
