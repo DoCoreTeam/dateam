@@ -79,6 +79,14 @@ export async function POST(
     return NextResponse.json({ ok: true })
   }
 
+  // own_target(우리 목표/판매가) — 경쟁사·공급가로 오기록 금지(F7). 전용 반영 경로는 후속.
+  // 여기서 막지 않으면 아래 supplier 경로로 흘러 우리 가격이 공급가로 잘못 저장됨(무음 오기록).
+  if (item.target === 'own_target') {
+    return NextResponse.json({
+      error: '우리 목표/판매가(own_target) 항목입니다. 경쟁사·공급가로 확정할 수 없습니다. 전략가 반영 경로는 별도 제공 예정입니다.',
+    }, { status: 422 })
+  }
+
   // confirm(경쟁사 카탈로그) — target='competitor'면 competitors+market_prices로 반영(saveCompetitorPrices 재사용).
   // 공급가(supplier) 경로는 무수정 보존 — 아래로 분기.
   if (item.target === 'competitor') {
