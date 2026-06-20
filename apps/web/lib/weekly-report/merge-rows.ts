@@ -47,16 +47,41 @@ function dedupKey(itemHtml: string): string {
 }
 
 /**
+ * 최상위 <li>의 내부 HTML만 추출한다(중첩 <li>는 부모 항목 안에 보존).
+ * 깊이 추적으로 비탐욕 정규식의 중첩 리스트 평탄화 문제를 피한다.
+ */
+function extractTopLevelLis(html: string): string[] {
+  const items: string[] = []
+  const re = /<\/?li\b[^>]*>/gi
+  let depth = 0
+  let start = -1
+  let m: RegExpExecArray | null
+  while ((m = re.exec(html)) !== null) {
+    const isClose = m[0][1] === '/'
+    if (isClose) {
+      depth--
+      if (depth < 0) depth = 0 // 깨진 HTML(짝 없는 </li>) 방어 — 이후 항목 유실 방지
+      if (depth === 0 && start >= 0) {
+        items.push(html.slice(start, m.index).trim())
+        start = -1
+      }
+    } else {
+      if (depth === 0) start = m.index + m[0].length
+      depth++
+    }
+  }
+  return items.filter((s) => stripTags(s) !== '')
+}
+
+/**
  * 셀 HTML을 항목(<li> 내부 HTML) 배열로 분해한다.
- * - <li>가 있으면 각 <li> 내부 HTML을 항목으로.
+ * - <li>가 있으면 최상위 <li> 내부 HTML을 항목으로(중첩 리스트 보존).
  * - <li>가 없으면 <p>/<br> 기준으로 블록을 나눠 항목으로(수동 입력 보존).
  */
 export function extractItems(html: string): string[] {
   if (isEmptyCell(html)) return []
 
-  const liMatches = Array.from(html.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi))
-    .map((m) => m[1].trim())
-    .filter((s) => stripTags(s) !== '')
+  const liMatches = extractTopLevelLis(html)
   if (liMatches.length > 0) return liMatches
 
   // <li>가 없는 경우(예: 수동 <p> 단락) — 블록 단위로 분해

@@ -22,6 +22,28 @@ test('extractItems: <li> 없는 <p>/<br>는 블록으로 분해', () => {
   assert.deepEqual(extractItems('<p>한줄<br>두줄</p>'), ['한줄', '두줄'])
 })
 
+test('extractItems: 중첩 <ul>은 최상위 <li>만 항목으로(자식 평탄화 안 함)', () => {
+  // 외부 li 2개. 첫 li 안에 중첩 ul/li 포함 — 중첩은 부모 항목 내부에 보존되어야 함
+  const html = '<ul><li>상위A<ul><li>하위A1</li><li>하위A2</li></ul></li><li>상위B</li></ul>'
+  const items = extractItems(html)
+  assert.equal(items.length, 2)
+  assert.equal(items[1], '상위B')
+  assert.ok(items[0].startsWith('상위A'))
+  assert.ok(items[0].includes('하위A1') && items[0].includes('하위A2')) // 중첩 보존
+})
+
+test('extractItems: 깨진 HTML(짝 없는 </li>)에서도 이후 항목 유실 없음', () => {
+  assert.deepEqual(extractItems('<li>A</li></li><li>B</li>'), ['A', 'B'])
+})
+
+test('mergeCell: 중첩 리스트 항목도 평탄화 없이 합쳐짐', () => {
+  const existing = '<ul><li>상위A<ul><li>하위A1</li></ul></li></ul>'
+  const incoming = '<ul><li>상위B</li></ul>'
+  const merged = mergeCell(existing, incoming)
+  // 최상위 li는 2개(상위A 묶음, 상위B), 하위A1은 상위A 안에 유지
+  assert.equal(merged, '<ul><li>상위A<ul><li>하위A1</li></ul></li><li>상위B</li></ul>')
+})
+
 test('mergeCell: 한쪽이 비면 다른쪽 원본 유지', () => {
   assert.equal(mergeCell('<ul><li>A</li></ul>', ''), '<ul><li>A</li></ul>')
   assert.equal(mergeCell('', '<ul><li>B</li></ul>'), '<ul><li>B</li></ul>')
