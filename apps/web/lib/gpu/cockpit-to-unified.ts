@@ -111,7 +111,8 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
         logo_url: c.logo_url ?? null,
       })),
       // 재고·고객가 축: cockpit 미포함(후속 어댑터에서 병합)
-      supplier_name: supplierName,
+      // 리스트 라벨/검색/정렬용 공급사 = 가격 기준 공급사(지정/실효). 최저가 공급사가 아님(지정 반영).
+      supplier_name: p.effective_supplier ?? supplierName,
       available_qty: null,
       stock_status: null,
       valid_until: null,

@@ -23,12 +23,15 @@ interface UnifiedTableConnectedProps {
 }
 
 export default function UnifiedTableConnected({ marginPct, isAdmin, onMarginSaved, onRegisterQuote, onManageMapping }: UnifiedTableConnectedProps) {
+  // 가격 데이터는 정확도 우선 + sync 토큰 미커버 리소스 → 영속캐시 stale 방지 위해 마운트 재검증 강제.
   const { data, error, isLoading, mutate } = useSWR<CockpitApiResponse>('/api/pricing/gpu/cockpit', fetcher, {
     refreshInterval: 60000,
+    revalidateIfStale: true,
   })
   // 재고 축 병합(재고 보기) — 보조 fetch. 실패해도 가격 보기는 정상.
   const { data: invData } = useSWR<InventoryApiResponse>('/api/pricing/gpu/inventory', fetcher, {
     refreshInterval: 120000,
+    revalidateIfStale: true,
   })
   const rows = mergeInventory(cockpitToUnified(data), invData)
   return (
