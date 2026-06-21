@@ -3,7 +3,6 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { getGpuCatalog } from '@/lib/gpu/pricing'
 import { roundUpToStandard } from '@/lib/gpu/config-ladder'
-import { ensureStandardConfigs } from '@/lib/gpu/derive-configs'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
 import { recordGpuAudit } from '@/lib/gpu/audit'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
@@ -168,8 +167,7 @@ export async function POST(req: NextRequest) {
     detail: { model_name: modelName, gpu_count: gpuCount, tier, pricing_mode: pricingMode },
   })
 
-  // 표준 사다리 누락 구성 자동 보충
-  try { await ensureStandardConfigs(adminDb, modelName) } catch { /* 비치명적 */ }
+  // (v0.7.240) 유령 ×N 사다리 자동생성 폐지 — 중복·전파 오가격 방지. 파생 구성은 표시계층에서 파생.
 
   revalidateGpu()
   return NextResponse.json({ product: data }, { status: 201 })

@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { ensureSupplierAccount } from '@/lib/gpu/supplier-create'
-import { ensureStandardConfigs } from '@/lib/gpu/derive-configs'
 import { roundUpToStandard } from '@/lib/gpu/config-ladder'
 import { recordGpuAudit } from '@/lib/gpu/audit'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
@@ -148,11 +147,7 @@ export async function POST(request: Request) {
     evidenceRef: (typeof evidence_drive_file_id === 'string' ? evidence_drive_file_id : null) ?? data.id,
   })
 
-  // 표준 구성 사다리(×1/×2/×4/×8) 실제 적재 — 이 모델의 견적이 들어왔으니 누락 구성 보충
-  try {
-    const { data: prod } = await adminDb.from('gpu_products').select('model_name').eq('id', product_id).single()
-    if (prod?.model_name) await ensureStandardConfigs(adminDb, prod.model_name)
-  } catch { /* 비치명적 */ }
+  // (v0.7.240) 유령 ×N 사다리 자동생성 폐지 — 중복·전파 오가격 방지. 파생 구성은 표시계층에서 파생.
 
   return NextResponse.json({ quote: data })
 }

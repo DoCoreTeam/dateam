@@ -8,10 +8,10 @@ import { parseGpuCount, toPerGpuPrice } from '@/lib/gpu/parse-quantity'
 import { resolveConfirmUnitPrice } from '@/lib/gpu/price-breakdown'
 import { parseBilling } from '@/lib/gpu/billing'
 import { inferTier } from '@/lib/gpu/tier-dict'
+import { canonicalizeModel, normModelKey } from '@/lib/gpu/canonical-model'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
 import { routeIntakeExtras } from '@/lib/gpu/intake-routing'
 import { roundUpToStandard, isStandardConfig } from '@/lib/gpu/config-ladder'
-import { ensureStandardConfigs } from '@/lib/gpu/derive-configs'
 import { saveCompetitorPrices, type CompetitorPriceItem } from '@/lib/gpu/competitor-import'
 import { saveOwnTargetAsStrategicPrice } from '@/lib/gpu/own-target-import'
 import { recordGpuAudit } from '@/lib/gpu/audit'
@@ -150,32 +150,23 @@ export async function confirmReviewItem(
   })
   const unitPriceUsd = confirmPrice.value
 
-  // product_id 찾기 — 토큰 매칭 후 없으면 자동 생성
+  // product_id 찾기 — 캐노니컬 하드 dedup. "모델 유니크 + 세부데이터(memory)로 구분".
+  // 보수적: 캐노니컬 키 정확일치만(+memory). fuzzy 토큰매칭 제거(오병합 0). 같은 (캐노니컬,memory)면 기존행 재사용→견적 최신화.
   let productId: string | null = null
   let productAutoCreated = false
   if (typeof merged.model_name === 'string' && merged.model_name) {
-    const modelName = merged.model_name.trim()
+    const canon = canonicalizeModel(merged.model_name)
+    const modelName = canon.canonical          // 캐노니컬명으로 저장(유니크)
+    const targetKey = canon.key                // 매칭용 정규화 키(케이스·alias 흡수)
     const tierOverride = typeof merged.tier === 'number' && [1, 2, 3].includes(merged.tier) ? merged.tier : null
     const tier = inferTier(modelName, tierOverride)
     const memory = normalizeMemory(typeof merged.memory === 'string' ? merged.memory : null)
-    const GENERIC_TOK = new Set(['rtx', 'nvidia', 'gpu', 'geforce', 'quadro', 'tesla', 'sxm', 'pcie', 'ada', 'super', 'ti'])
-    const norm = (s: string) => s.toLowerCase().replace(/[\s\-_]+/g, '')
-    const distinctiveTokens = (s: string) => s.toLowerCase().replace(/[_\-]/g, ' ').split(/\s+/).filter((t) => t.length >= 2 && !GENERIC_TOK.has(t))
-    const targetNorm = norm(modelName)
-    const targetTokens = distinctiveTokens(modelName)
-    let candQ = db.from('gpu_products').select('id, model_name, tier')
+    let candQ = db.from('gpu_products').select('id, model_name')
     if (memory) candQ = candQ.eq('memory', memory)
     else candQ = candQ.eq('tier', tier)
     const { data: cands } = await candQ.limit(300)
-    const candList = (cands ?? []) as Array<{ id: string; model_name: string; tier: number }>
-    let hit = candList.find((c) => norm(c.model_name) === targetNorm)
-    if (!hit && targetTokens.length > 0) {
-      hit = candList.find((c) => {
-        const ct = distinctiveTokens(c.model_name)
-        if (ct.length === 0) return false
-        return targetTokens.every((t) => ct.includes(t)) && ct.every((t) => targetTokens.includes(t))
-      })
-    }
+    const candList = (cands ?? []) as Array<{ id: string; model_name: string }>
+    const hit = candList.find((c) => normModelKey(c.model_name) === targetKey)
     if (hit?.id) productId = hit.id
     if (!productId) {
       const series = modelName.split(/\s+/)[0]
@@ -282,12 +273,8 @@ export async function confirmReviewItem(
     },
   })
 
-  if (productId) {
-    try {
-      const { data: prod } = await admin.from('gpu_products').select('model_name').eq('id', productId).single()
-      if (prod?.model_name) await ensureStandardConfigs(adminClient, prod.model_name)
-    } catch { /* 비치명적 */ }
-  }
+  // 유령 ×N 사다리 자동생성 중단(v0.7.240) — 견적 없는 파생 구성행이 중복·전파 오가격(+355%)의 원인이었음.
+  // 파생 구성은 표시계층(pricing.ts 1장당 전파)에서 파생. DB엔 실제 견적 있는 구성만 존치(중복 0).
 
   revalidateGpu()
 
