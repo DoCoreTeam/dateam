@@ -44,7 +44,7 @@ export async function POST(
     let clearProductIds: string[] = [quote.product_id]
     if (scope === 'model') {
       const { data: self } = await db
-        .from('gpu_products').select('model_name, tier').eq('id', quote.product_id).single()
+        .from('gpu_products').select('model_name, tier').eq('id', quote.product_id).is('deleted_at', null).single()
       if (self) {
         const { data: sibs } = await db
           .from('gpu_products').select('id')
