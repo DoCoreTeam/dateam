@@ -33,6 +33,9 @@ export async function POST(
     rejected_reason?: unknown
     override_extracted?: unknown
     supplier_id?: unknown
+    // 일괄 확정 경로 추적 — confirmed_items(사람이 직접 확인한 필드)와 구분해 감사 정직성 유지
+    bulk?: unknown
+    auto_accepted_low_conf?: unknown
   }
   try { body = await req.json() } catch {
     return NextResponse.json({ error: '요청 형식 오류' }, { status: 400 })
@@ -42,6 +45,11 @@ export async function POST(
   if (!['confirm', 'reject'].includes(action)) {
     return NextResponse.json({ error: 'action은 confirm 또는 reject' }, { status: 400 })
   }
+  // 일괄 확정 추적 — 사람검토 게이트 없이 일괄 동의로 들어온 건/자동수용 저신뢰 필드(감사 정직성)
+  const isBulk = body.bulk === true
+  const autoAcceptedLowConf = Array.isArray(body.auto_accepted_low_conf)
+    ? (body.auto_accepted_low_conf as unknown[]).filter((v): v is string => typeof v === 'string')
+    : []
 
   // 현재 review_item 조회
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -372,6 +380,9 @@ export async function POST(
         unit_price_recomputed: confirmPrice.recomputed,
         unit_price_recompute_reason: confirmPrice.reason,
         ai_unit_price_usd: rawUnitPrice,
+        // 일괄 확정 추적 — 단건(사람 직접확인)과 구분. 자동수용된 저신뢰 필드 기록(데이터 오염 추적용).
+        via: isBulk ? 'bulk' : 'single',
+        auto_accepted_low_conf: isBulk ? autoAcceptedLowConf : [],
         supplier_hint: item.supplier_hint,
         overall_confidence: item.overall_confidence,
         product_auto_created: productAutoCreated,
