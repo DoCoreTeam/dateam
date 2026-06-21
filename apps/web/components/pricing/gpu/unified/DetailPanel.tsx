@@ -265,8 +265,8 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                         {row.basis === 'selected' && <span className="gpu-badge-selected">✓ {GPU_TERMS.designatedCost}</span>}
                       </td>
                       <td className="gpu-mono">{mUsd(row.cost_unit_usd)}</td>
-                      <td>전파</td>
-                      <td><span className={`gpu-badge ${row.basis === 'selected' ? 'gpu-badge-selected' : 'gpu-badge-gray'}`}>{row.basis === 'selected' ? '지정 기준 전파' : '전파 추정'}</span></td>
+                      <td>{row.propagation_source_term ?? '—'}</td>
+                      <td><span className="gpu-badge gpu-badge-gray">시스템 계산</span></td>
                       <td>—</td>
                       <td className="gpu-udetail-rowacts">
                         {/* 전파 모태(원본 견적)를 대상으로 지정 — '어느 구성이 진짜 견적인지' 찾을 필요 없음 */}
@@ -298,7 +298,7 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
             )}
             {costEditNote && costQuotes.length === 0 && row.supply_cost_krw != null && (
               <p className="gpu-udetail-pending">
-                이 단가는 {row.cost_supplier_name ?? '원'} 견적에서 전파된 추정값입니다 — 직접 수정 불가.
+                이 단가는 {row.cost_supplier_name ?? '원'} 견적에서 전파된 시스템 계산값입니다 — 직접 수정 불가.
                 원 견적(해당 모델 1장 구성)을 수정하면 모든 파생 구성에 자동 반영됩니다.
               </p>
             )}

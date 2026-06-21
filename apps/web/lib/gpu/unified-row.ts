@@ -52,6 +52,7 @@ export interface UnifiedRow {
   is_propagated: boolean // 공급원가가 다른 구성 per-GPU 견적을 전파한 값인지(전파 추정 표기)
   cost_supplier_name: string | null // 공급원가 기준이 된 공급사명(전파 원본/실견적)
   propagation_source_quote_id: string | null // 전파/상속 모태 견적 id — 파생 구성 [공급가 지정] 대상
+  propagation_source_term: string | null // 전파 구성 약정 = 모태 견적 약정(다른 구성에서 받은 동일 약정)
   cost_unit_usd: number | null // 공급원가 per-GPU 단가(USD) — 전파 행 표시용
   list_price_krw: number | null // gcube 공시가(list 기준일 때 공급원가 맥락 표시용)
   // 시장

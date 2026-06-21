@@ -25,6 +25,8 @@ export interface ConfirmedQuote {
   is_selected?: boolean
   /** 지정 적용 범위: 'config'=이 구성만 | 'model'=모델 전체(파생구성이 전파로 상속). is_selected=true일 때만 의미. */
   selection_scope?: 'config' | 'model' | null
+  /** 약정 기간 라벨(예: '1개월 이상'). 전파 구성은 모태 견적의 약정을 그대로 상속 표시. */
+  term?: string | null
   /** 견적 출처. 'market_link'=경쟁사 시장가 추종(추종가), 그 외(mail/pdf/own…)=실제 공급사 견적(실견적).
    *  실견적 우선 규칙에 사용 — 같은 product+supplier에 유효 실견적 있으면 추종가는 제외. */
   source_format?: string | null
@@ -83,6 +85,8 @@ export interface CatalogProduct {
   fallback_reason: string | null
   /** 전파/상속의 모태(원본) 견적 id — 파생 구성에서 [공급가 지정] 시 이 견적을 대상으로 삼는다(모태 찾기 불요). */
   propagation_source_quote_id: string | null
+  /** 전파 구성의 약정 = 모태 견적의 약정(다른 구성에서 받은 동일 약정). 비전파면 null. */
+  propagation_source_term: string | null
 }
 
 export interface ModelGroupSupplier {
@@ -150,7 +154,7 @@ export async function getGpuCatalog(db: any): Promise<GpuCatalog> {
     // deleted_at IS NULL: 소프트삭제된 견적은 카탈로그 계산에서 제외
     db
       .from('supply_quotes')
-      .select('id, product_id, supplier_id, unit_price_usd, gpu_count, valid_until, price_type, is_selected, selection_scope, source_format')
+      .select('id, product_id, supplier_id, unit_price_usd, gpu_count, valid_until, price_type, is_selected, selection_scope, source_format, term')
       .eq('status', 'confirmed')
       .is('deleted_at', null),
     db.from('suppliers').select('id, name, color'),
@@ -248,7 +252,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
   // 구성(product)별 자기 최저견적
   const ownLowestByProduct = new Map<string, ConfirmedQuote>()
   // 모델별 최저 1장당 + 공급사별 최저
-  const bestPerGpuByModel = new Map<string, { per_gpu_usd: number; supplier: { name: string; color: string } | null; quote_id: string | null }>()
+  const bestPerGpuByModel = new Map<string, { per_gpu_usd: number; supplier: { name: string; color: string } | null; quote_id: string | null; term: string | null }>()
   const suppliersByModel = new Map<string, Map<string, ModelGroupSupplier>>()
 
   for (const q of quotes) {
@@ -268,7 +272,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
     // 모델 최저 1장당
     const prevBest = bestPerGpuByModel.get(mk)
     if (!prevBest || perGpu < prevBest.per_gpu_usd) {
-      bestPerGpuByModel.set(mk, { per_gpu_usd: perGpu, supplier: supLite, quote_id: q.id ?? null })
+      bestPerGpuByModel.set(mk, { per_gpu_usd: perGpu, supplier: supLite, quote_id: q.id ?? null, term: q.term ?? null })
     }
 
     // 모델×공급사별 최저 1장당
@@ -294,7 +298,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
   // 모델범위 지정(selection_scope='model') — 한 견적을 지정하면 모델의 모든 파생 구성이
   //   그 견적의 per-GPU×장수를 '지정공급가(전파)'로 상속한다(사용자 "4개 전부 지정").
   //   자체 지정(scope='config')이 없는 구성에만 상속(자체 지정 우선).
-  const modelSelected = new Map<string, { per_gpu_usd: number; supplier: { name: string; color: string } | null; quote_id: string; owner_product_id: string }>()
+  const modelSelected = new Map<string, { per_gpu_usd: number; supplier: { name: string; color: string } | null; quote_id: string; owner_product_id: string; term: string | null }>()
   for (const q of quotes) {
     if (!q.is_selected || q.selection_scope !== 'model' || !q.id) continue
     const meta = productById.get(q.product_id); if (!meta) continue
@@ -306,6 +310,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
       supplier: sup ? { name: sup.name, color: sup.color } : null,
       quote_id: q.id,
       owner_product_id: q.product_id,
+      term: q.term ?? null,
     })
   }
 
@@ -350,6 +355,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
           selected_supplier: null,
           fallback_reason: null,
           propagation_source_quote_id: null,
+          propagation_source_term: null,
         }
       }
 
@@ -390,6 +396,8 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
       // 전파/상속 모태 견적 id: 전파값이면 그 per-GPU의 원본 견적(자동최저든 모델지정이든)을 가리켜
       //   파생 구성에서 [공급가 지정] 시 모태를 바로 대상 삼게 한다(모태 찾기 불요).
       let propagationSourceQuoteId: string | null = isPropagated ? (best?.quote_id ?? null) : null
+      // 전파 구성의 약정 = 모태 견적의 약정을 그대로 상속(다른 구성에서 받은 동일 약정).
+      let propagationSourceTerm: string | null = isPropagated ? (best?.term ?? null) : null
       const sel = selectedByProduct.get(p.id)
       const mSel = modelSelected.get(mk)
       if (sel) {
@@ -402,6 +410,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
           isPropagated = false
           basis = 'selected'
           propagationSourceQuoteId = null
+          propagationSourceTerm = null
         } else {
           // 채택 견적 만료 → 자동 최저가로 폴백 + 경고
           basis = effective != null ? 'fallback' : 'none'
@@ -415,6 +424,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
         isPropagated = true
         basis = 'selected'
         propagationSourceQuoteId = mSel.quote_id
+        propagationSourceTerm = mSel.term
       }
 
       // 판매가 = effective(원가) × (1+마진)
@@ -472,6 +482,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
         selected_supplier: selectedSupplier,
         fallback_reason: fallbackReason,
         propagation_source_quote_id: propagationSourceQuoteId,
+        propagation_source_term: propagationSourceTerm,
       }
     }
   )

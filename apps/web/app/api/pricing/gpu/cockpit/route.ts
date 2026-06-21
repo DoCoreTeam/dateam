@@ -497,6 +497,8 @@ export async function GET() {
         effective_supplier: effectiveSupplierName,
         // 전파/상속 모태 견적 id — 파생 구성 [공급가 지정] 시 이 견적을 대상 삼음
         propagation_source_quote_id: p.propagation_source_quote_id ?? null,
+        // 전파 구성 약정 = 모태 견적 약정 상속
+        propagation_source_term: p.propagation_source_term ?? null,
       }
     })
 
