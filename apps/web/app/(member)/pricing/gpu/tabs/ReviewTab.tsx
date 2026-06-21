@@ -5,6 +5,7 @@ import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { AlertTriangle, CheckCircle2, RotateCcw, ChevronDown, ChevronUp, Search, Plus, Building2, X } from 'lucide-react'
 import { PriceBreakdownPanel, BillingPanel, RecheckResultPanel, EvidenceLink, type RecheckResult } from '@/components/pricing/gpu/review/ReviewPanels'
+import NbModal from '@/components/ui/nb/NbModal'
 
 interface Supplier {
   id: string
@@ -642,9 +643,9 @@ export default function ReviewTab() {
   // 공급사/경쟁사 필터 + 선택(일괄 삭제)
   const [targetFilter, setTargetFilter] = useState<'all' | 'supplier' | 'competitor'>('all')
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [deleting, setDeleting] = useState(false)
-  const [bulkConfirming, setBulkConfirming] = useState(false)
-  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null)
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [bulkModal, setBulkModal] = useState<null | { type: 'confirm' | 'delete'; targets: ReviewItem[]; lowConf: ReviewItem[] }>(null)
+  const [bulkResult, setBulkResult] = useState<null | { title: string; lines: string[]; failed: Array<{ hint: string; error: string }> }>(null)
 
   const filtered = useMemo(() => items.filter((it) => {
     if (targetFilter === 'all') return true
@@ -677,91 +678,87 @@ export default function ReviewTab() {
     await mutate('/api/pricing/gpu/review?status=pending')
   }, [revalidate])
 
-  const handleBulkDelete = useCallback(async () => {
-    const ids = Array.from(selected)
-    if (ids.length === 0) return
-    if (!confirm(`선택한 ${ids.length}건을 검토 대기에서 영구 삭제합니다. 되돌릴 수 없습니다. 계속할까요?`)) return
-    setDeleting(true)
-    try {
-      const res = await fetch('/api/pricing/gpu/review/bulk', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids, action: 'delete' }),
-      })
-      const j = await res.json().catch(() => ({}))
-      if (!res.ok) { alert(j.error ?? '일괄 삭제 실패'); return }
-      setSelected(new Set())
-      await revalidate()
-    } catch {
-      alert('일괄 삭제 실패 — 서버에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.')
-    } finally {
-      setDeleting(false)
-    }
-  }, [selected, revalidate])
-
-  // 선택 항목 일괄 확정 — 수십 건을 한 번의 동의로 가격표 반영.
-  // 신뢰도 90% 미만(직접 확인 권장) 항목도 포함하되, 다이얼로그에서 1회 명시 동의를 받는다(사람 검토 게이트의 일괄 대체).
-  // 기존 단건 confirm 엔드포인트 재사용(서버·pricing 무변경). 공급사/모델 미특정 등 서버 거부 항목은 실패로 집계·안내.
+  // 저신뢰(90% 미만) 필드 — 일괄 확정 시 자동수용 대상(감사 기록용)
   const lowConfFieldsOf = useCallback((it: ReviewItem): string[] => {
     if (it.target === 'competitor') return []
     const conf = it.current_confidence ?? {}
     return CONF_FIELDS.filter((f) => conf[f] != null && (conf[f] as number) < 90)
   }, [])
 
-  // TODO(SSOT): 다건 시 서버 트랜잭션이 더 견고. /api/pricing/gpu/review/bulk 에 action:'confirm' 확장 후 1회 호출로 전환 검토.
-  const handleBulkConfirm = useCallback(async () => {
+  // 일괄 확정/삭제 — 표준 모달(NbModal)로 동의받고 서버 bulk 라우트 1회 호출.
+  const openBulkConfirm = useCallback(() => {
     const targets = filtered.filter((it) => selected.has(it.id))
     if (targets.length === 0) return
-    const lowConfItems = targets.filter((it) => lowConfFieldsOf(it).length > 0)
-    const lowConfNames = lowConfItems.map((it) => it.product_hint ?? it.id)
-    const msg = lowConfItems.length > 0
-      ? `선택한 ${targets.length}건을 가격표에 일괄 확정합니다.\n\n` +
-        `아래 ${lowConfItems.length}건은 신뢰도 90% 미만(직접 확인 권장)이지만 일괄 확정에 포함됩니다:\n` +
-        `${lowConfNames.slice(0, 6).map((n) => `· ${n}`).join('\n')}${lowConfNames.length > 6 ? `\n…외 ${lowConfNames.length - 6}건` : ''}\n\n` +
-        `계속할까요?`
-      : `선택한 ${targets.length}건을 가격표에 일괄 확정합니다. 계속할까요?`
-    if (!confirm(msg)) return
+    setBulkModal({ type: 'confirm', targets, lowConf: targets.filter((it) => lowConfFieldsOf(it).length > 0) })
+  }, [filtered, selected, lowConfFieldsOf])
 
-    setBulkConfirming(true)
-    setBulkProgress({ done: 0, total: targets.length })
-    const succeededIds: string[] = []
-    const failed: string[] = []
+  const openBulkDelete = useCallback(() => {
+    const targets = filtered.filter((it) => selected.has(it.id))
+    if (targets.length === 0) return
+    setBulkModal({ type: 'delete', targets, lowConf: [] })
+  }, [filtered, selected])
+
+  const runBulkConfirm = useCallback(async () => {
+    if (!bulkModal) return
+    const targets = bulkModal.targets
+    const ids = targets.map((it) => it.id)
+    // 항목별 자동수용 저신뢰 필드(감사 정직성) — confirmed_items는 비우고 bulk로만 기록
+    const autoAccepted: Record<string, string[]> = {}
+    targets.forEach((it) => { autoAccepted[it.id] = lowConfFieldsOf(it) })
+    setBulkBusy(true)
     try {
-      for (let i = 0; i < targets.length; i++) {
-        const it = targets[i]
-        try {
-          const res = await fetch(`/api/pricing/gpu/review/${it.id}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            // confirmed_items=[] (사람이 직접 확인한 필드 없음 — 거짓 기록 금지). 일괄 동의는 bulk 플래그로 정직하게 기록.
-            body: JSON.stringify({ action: 'confirm', confirmed_items: [], bulk: true, auto_accepted_low_conf: lowConfFieldsOf(it) }),
-          })
-          if (res.ok) {
-            succeededIds.push(it.id)
-          } else {
-            const j = await res.json().catch(() => ({}))
-            failed.push(`· ${it.product_hint ?? it.id}: ${j.error ?? `확정 실패 (${res.status})`}`)
-          }
-        } catch {
-          failed.push(`· ${it.product_hint ?? it.id}: 네트워크 오류`)
-        }
-        setBulkProgress({ done: i + 1, total: targets.length })
-      }
-      // 성공한 항목만 선택 해제 — 실패 항목은 선택에 남겨 사용자가 바로 개별 처리 가능
-      setSelected((prev) => {
-        const n = new Set(prev)
-        succeededIds.forEach((id) => n.delete(id))
-        return n
+      const res = await fetch('/api/pricing/gpu/review/bulk', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, action: 'confirm', auto_accepted_low_conf: autoAccepted }),
       })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setBulkModal(null)
+        setBulkResult({ title: '일괄 확정 실패', lines: [j.error ?? '서버 오류로 확정하지 못했습니다.'], failed: [] })
+        return
+      }
+      const failedArr = (Array.isArray(j.failed) ? j.failed : []) as Array<{ id: string; hint: string | null; error: string }>
+      const failedIds = new Set(failedArr.map((f) => f.id))
+      // 실패 항목만 선택 유지 — 사용자가 바로 개별 처리
+      setSelected((prev) => { const n = new Set<string>(); prev.forEach((id) => { if (failedIds.has(id)) n.add(id) }); return n })
       await revalidate()
       await mutate('/api/pricing/gpu/products')
-      const summary = `일괄 확정 완료 — ${succeededIds.length}건 가격표 반영`
-        + (failed.length ? `\n\n${failed.length}건은 확정하지 못했습니다(공급사·모델 미특정 등 — 선택에 남겨두었으니 개별 확인하세요):\n${failed.slice(0, 10).join('\n')}${failed.length > 10 ? `\n…외 ${failed.length - 10}건` : ''}` : '')
-      alert(summary)
+      setBulkModal(null)
+      setBulkResult({
+        title: '일괄 확정 완료',
+        lines: [`${j.confirmed ?? 0}건을 가격표에 반영했습니다.`,
+          ...(failedArr.length ? [`${failedArr.length}건은 확정하지 못했습니다 — 선택에 남겨두었으니 개별 확인하세요.`] : [])],
+        failed: failedArr.map((f) => ({ hint: f.hint ?? f.id, error: f.error })),
+      })
+    } catch {
+      setBulkModal(null)
+      setBulkResult({ title: '일괄 확정 실패', lines: ['서버에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.'], failed: [] })
     } finally {
-      setBulkConfirming(false)
-      setBulkProgress(null)
+      setBulkBusy(false)
     }
-  }, [filtered, selected, revalidate, mutate, lowConfFieldsOf])
+  }, [bulkModal, lowConfFieldsOf, revalidate, mutate])
+
+  const runBulkDelete = useCallback(async () => {
+    if (!bulkModal) return
+    const ids = bulkModal.targets.map((it) => it.id)
+    setBulkBusy(true)
+    try {
+      const res = await fetch('/api/pricing/gpu/review/bulk', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, action: 'delete' }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { setBulkModal(null); setBulkResult({ title: '일괄 삭제 실패', lines: [j.error ?? '서버 오류'], failed: [] }); return }
+      setSelected(new Set())
+      await revalidate()
+      setBulkModal(null)
+      setBulkResult({ title: '일괄 삭제 완료', lines: [`${j.deleted ?? ids.length}건을 검토 대기에서 삭제했습니다.`], failed: [] })
+    } catch {
+      setBulkModal(null); setBulkResult({ title: '일괄 삭제 실패', lines: ['서버에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.'], failed: [] })
+    } finally {
+      setBulkBusy(false)
+    }
+  }, [bulkModal, revalidate])
 
   const FILTERS: Array<['all' | 'supplier' | 'competitor', string, number]> = [
     ['all', '전체', counts.all], ['supplier', '공급사', counts.supplier], ['competitor', '경쟁사', counts.competitor],
@@ -808,12 +805,12 @@ export default function ReviewTab() {
         {selected.size > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>선택 {selected.size}건</span>
-            <button onClick={() => setSelected(new Set())} className="gpu-btn" style={{ fontSize: 12 }} disabled={bulkConfirming || deleting}>선택 해제</button>
-            <button onClick={handleBulkConfirm} disabled={bulkConfirming || deleting} className="gpu-btn gpu-btn-primary" data-testid="bulk-confirm-btn" style={{ fontSize: 12, gap: 5 }}>
-              <CheckCircle2 size={13} /> {bulkConfirming ? `확정 중… ${bulkProgress ? `${bulkProgress.done}/${bulkProgress.total}` : ''}` : '일괄 확정'}
+            <button onClick={() => setSelected(new Set())} className="gpu-btn" style={{ fontSize: 12 }} disabled={bulkBusy}>선택 해제</button>
+            <button onClick={openBulkConfirm} disabled={bulkBusy} className="gpu-btn gpu-btn-primary" data-testid="bulk-confirm-btn" style={{ fontSize: 12, gap: 5 }}>
+              <CheckCircle2 size={13} /> 일괄 확정
             </button>
-            <button onClick={handleBulkDelete} disabled={deleting || bulkConfirming} className="gpu-btn gpu-btn-danger" data-testid="bulk-delete-btn" style={{ fontSize: 12, gap: 5 }}>
-              <X size={13} /> {deleting ? '삭제 중…' : '일괄 삭제'}
+            <button onClick={openBulkDelete} disabled={bulkBusy} className="gpu-btn gpu-btn-danger" data-testid="bulk-delete-btn" style={{ fontSize: 12, gap: 5 }}>
+              <X size={13} /> 일괄 삭제
             </button>
           </div>
         )}
@@ -835,6 +832,75 @@ export default function ReviewTab() {
             krwPerUsd={krwPerUsd}
           />
         ))
+      )}
+
+      {/* 일괄 확정/삭제 동의 모달 (표준 NbModal) */}
+      {bulkModal && (
+        <NbModal
+          title={bulkModal.type === 'confirm' ? '일괄 확정' : '일괄 삭제'}
+          onClose={() => { if (!bulkBusy) setBulkModal(null) }}
+          disableClose={bulkBusy}
+          maxWidth={520}
+          footer={
+            <>
+              <button className="gpu-btn" onClick={() => setBulkModal(null)} disabled={bulkBusy} style={{ fontSize: 13 }}>취소</button>
+              {bulkModal.type === 'confirm' ? (
+                <button className="gpu-btn gpu-btn-primary" onClick={runBulkConfirm} disabled={bulkBusy} data-testid="bulk-confirm-go" style={{ fontSize: 13, gap: 5 }}>
+                  <CheckCircle2 size={14} /> {bulkBusy ? '확정 중…' : `${bulkModal.targets.length}건 확정`}
+                </button>
+              ) : (
+                <button className="gpu-btn gpu-btn-danger" onClick={runBulkDelete} disabled={bulkBusy} data-testid="bulk-delete-go" style={{ fontSize: 13, gap: 5 }}>
+                  <X size={14} /> {bulkBusy ? '삭제 중…' : `${bulkModal.targets.length}건 삭제`}
+                </button>
+              )}
+            </>
+          }
+        >
+          {bulkModal.type === 'confirm' ? (
+            <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7 }}>
+              선택한 <strong>{bulkModal.targets.length}건</strong>을 가격표에 일괄 확정합니다.
+              {bulkModal.lowConf.length > 0 && (
+                <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 'var(--radius)', background: 'var(--warning-bg)', border: 'var(--hairline) solid var(--warning-border)' }}>
+                  <div style={{ fontWeight: 700, color: 'var(--warning)', marginBottom: 6 }}>
+                    아래 {bulkModal.lowConf.length}건은 신뢰도 90% 미만(직접 확인 권장)이지만 일괄 확정에 포함됩니다:
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--text-muted)' }}>
+                    {bulkModal.lowConf.slice(0, 8).map((it) => <li key={it.id}>{it.product_hint ?? it.id}</li>)}
+                    {bulkModal.lowConf.length > 8 && <li>…외 {bulkModal.lowConf.length - 8}건</li>}
+                  </ul>
+                </div>
+              )}
+              <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)' }}>
+                공급사·모델을 특정할 수 없는 항목은 확정되지 않고 선택에 남습니다.
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7 }}>
+              선택한 <strong>{bulkModal.targets.length}건</strong>을 검토 대기에서 영구 삭제합니다.<br />
+              <span style={{ color: 'var(--danger)' }}>되돌릴 수 없습니다.</span> 가격표·시세에는 영향이 없습니다.
+            </div>
+          )}
+        </NbModal>
+      )}
+
+      {/* 일괄 처리 결과 모달 */}
+      {bulkResult && (
+        <NbModal title={bulkResult.title} onClose={() => setBulkResult(null)} maxWidth={520}
+          footer={<button className="gpu-btn gpu-btn-primary" onClick={() => setBulkResult(null)} style={{ fontSize: 13 }}>확인</button>}>
+          <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7 }}>
+            {bulkResult.lines.map((l, i) => <div key={i}>{l}</div>)}
+            {bulkResult.failed.length > 0 && (
+              <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 'var(--radius)', background: 'var(--surface-muted)', border: 'var(--hairline) solid var(--color-border)', maxHeight: 220, overflowY: 'auto' }}>
+                {bulkResult.failed.map((f, i) => (
+                  <div key={i} style={{ fontSize: 12, marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600 }}>{f.hint}</span>
+                    <span style={{ color: 'var(--gpu-muted)' }}> — {f.error}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </NbModal>
       )}
     </div>
   )
