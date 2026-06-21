@@ -14,7 +14,6 @@ import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { GPU_TERMS } from '@/lib/gpu/terms'
 import { fmtMoneyFromKrw, fmtMoneyFromUsd } from '@/lib/gpu/format-price'
 import type { CurrencyCtx } from '@/lib/gpu/unified-row'
-import { expiryState } from '@/lib/gpu/expiry'
 import { auditActionLabel } from '@/lib/gpu/audit-labels'
 import { tierName } from '@/lib/gpu/unified-row'
 import { formatCardMemory, perCardMemory, memoryTitle } from '@/lib/gpu/card-memory'
@@ -206,7 +205,6 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                 <tbody>
                   {/* 공급원가 견적표 = 실제 매입원가만. price_type='list'(우리 공시 판매가, 예: gcube)는 원가 아님 → 제외 */}
                   {costQuotes.map((q) => {
-                    const exp = expiryInfo(q.valid_until)
                     return (
                       <tr key={q.id} className={q.is_selected ? 'gpu-qline--selected' : undefined}>
                         <td>
@@ -218,7 +216,6 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                         <td>{statusLabel(q.status)}</td>
                         <td>
                           {q.valid_until ?? '—'}
-                          {exp && <span className={`gpu-badge ${exp.tone === 'danger' ? 'gpu-badge-danger' : 'gpu-badge-warn'}`}>{exp.label}</span>}
                         </td>
                         <td className="gpu-udetail-rowacts">
                           {/* 공급가 지정 = 이 견적을 판매가 기준 공급가로 직접 지정(자동 최저가 override). 공급사·단가 있는 견적만. */}
@@ -480,15 +477,6 @@ function statusLabel(status: string | null): string {
     case 'superseded': return GPU_TERMS.statusSuperseded
     default: return status ?? '—'
   }
-}
-
-// 만료 신호: 유효기간이 7일 이내면 D-N 경고, 지났으면 만료(danger). 그 외 null(배지 없음).
-// 계산은 expiry.ts SSOT(결정적·테스트됨)에 위임, 라벨/색조만 매핑.
-function expiryInfo(validUntil: string | null): { label: string; tone: 'warn' | 'danger' } | null {
-  const s = expiryState(validUntil, Date.now())
-  if (s.kind === 'expired') return { label: GPU_TERMS.statusExpired, tone: 'danger' }
-  if (s.kind === 'soon') return { label: `D-${s.days}`, tone: 'warn' }
-  return null
 }
 
 function formatTs(ts: string): string {

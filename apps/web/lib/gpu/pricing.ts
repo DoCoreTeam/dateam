@@ -176,8 +176,10 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
     (raw.suppliers ?? []).map((s: SupplierLite) => [s.id, s])
   )
 
-  const todayStr = raw.today ?? new Date().toISOString().slice(0, 10)
-  const isValid = (vu: string | null) => vu == null || vu >= todayStr
+  // 만료 비활성(v0.7.226): 공급가는 영속 원가기준 — valid_until 경과해도 폐기/폴백하지 않는다.
+  //   (사용자 정책: "공급가는 매번 받는 게 아니다 — 만료라는 건 없다")
+  //   만료 개념 재도입 시 아래 한 줄을 `const isValid = (vu) => vu == null || vu >= (raw.today ?? new Date().toISOString().slice(0,10))`로 되돌리면 전 게이팅 복원.
+  const isValid = (_vu: string | null) => true
 
   // 전체 확정견적 정규화 (유효성 필터 전 — 채택 만료 감지에 필요)
   const allConfirmed: ConfirmedQuote[] = (raw.quotes ?? []).map((q: ConfirmedQuote) => ({

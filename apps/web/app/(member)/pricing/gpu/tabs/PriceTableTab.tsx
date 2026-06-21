@@ -90,12 +90,9 @@ const TIER_CONFIG = {
   3: { label: 'Tier 3', name: '간헐 공급',   badge: 'gpu-badge-t3', chipColor: 'var(--warning)' },
 }
 
-const fmtDday = (dateStr: string) => {
-  const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000)
-  if (diff < 0) return { label: '만료', color: 'var(--gpu-red)' }
-  if (diff <= 7) return { label: `D-${diff}`, color: 'var(--gpu-amber)' }
-  return { label: `D-${diff}`, color: 'var(--gpu-green)' }
-}
+// 만료 비활성(v0.7.226): 공급가는 영속 원가기준 — D-day/만료 라벨 표시 안 함.
+//   (이 뷰는 unified flag OFF 롤백 경로. 활성 경로(UnifiedTable/DetailPanel)와 정책 일치 유지)
+const fmtDday = (_dateStr: string): { label: string; color: string } | null => null
 
 // ── 파생(_derived) 추정 행 펼침 — 전파 근거 섹션 ──────────────────
 

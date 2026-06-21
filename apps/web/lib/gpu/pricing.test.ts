@@ -110,15 +110,17 @@ test('모델별 우리 공급사 목록 — per_gpu 오름차순', () => {
   assert.equal(sups[1].name, 'gcube')
 })
 
-test('만료 견적은 제외 (valid_until < today)', () => {
+test('만료 비활성(v0.7.226): valid_until 경과 견적도 포함 — 공급가는 영속 원가기준', () => {
   const raw = b200Raw()
+  // High Reso 견적을 과거 만료일로 설정해도 cost 풀에 그대로 남아야 함
   raw.quotes = raw.quotes.map((q) =>
     q.supplier_id === 'hr' ? { ...q, valid_until: '2026-06-01' } : q
   )
   const cat = buildCatalog(raw)
   const p1 = cat.products.find((p) => p.id === 'p1')!
-  // High Reso 만료 → gcube 7.0084가 ×1 최저, per_gpu = min(7.0084, 6.699)=6.699 (×8 gcube)
-  assert.equal(p1.effective_supplier!.name, 'gcube')
+  // 만료 무시 → High Reso 3.24(최저) 유지. (만료 폐기 시였다면 gcube로 폴백됐을 것)
+  assert.equal(p1.effective_supplier!.name, 'High Reso')
+  assert.equal(p1.effective_unit_price_usd, 3.24)
 })
 
 // ─── 054: price_type(cost/list) 분리 + 채택(is_selected) ───
@@ -159,19 +161,20 @@ test('채택(is_selected)이 자동 최저가를 override', () => {
   assert.ok(Math.abs((p1.sell_price_usd as number) - 5.0 * 1.18) < 1e-9)
 })
 
-test('채택 견적 만료 시 자동 최저가로 폴백(basis=fallback)', () => {
+test('만료 비활성(v0.7.226): 채택(is_selected) 견적은 만료돼도 영속 유지 — 폴백 없음', () => {
   const raw = b200Raw()
   raw.suppliers.push({ id: 'eq', name: 'Equinix', color: '#f59e0b' })
-  // 만료된 채택 견적 (valid_until < today)
+  // 과거 만료일의 채택 견적 (실사고: Equinix Metal valid_until 경과)
   raw.quotes.push({ product_id: 'p1', supplier_id: 'eq', unit_price_usd: 5.0, gpu_count: 1, valid_until: '2020-01-01', is_selected: true })
   raw.quotes = raw.quotes.map((q) => q.supplier_id === 'gc' ? { ...q, price_type: 'list' as const } : q)
   const cat = buildCatalog(raw)
   const p1 = cat.products.find((p) => p.id === 'p1')!
 
-  // 채택 만료 → 자동 최저가(High Reso 3.24)로 복귀
-  assert.equal(p1.effective_unit_price_usd, 3.24)
-  assert.equal(p1.basis, 'fallback')
-  assert.ok(p1.fallback_reason)
+  // 만료 무시 → 채택 단가(Equinix 5.0) 그대로 기준, 추종가/자동 폴백 없음
+  assert.equal(p1.effective_unit_price_usd, 5.0)
+  assert.equal(p1.basis, 'selected')
+  assert.equal(p1.selected_supplier!.name, 'Equinix')
+  assert.equal(p1.fallback_reason, null)
 })
 
 test('cost 없고 list만 있으면 list 공시가를 고객가로 그대로(마진 미적용)', () => {
