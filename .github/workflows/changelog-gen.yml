@@ -1,0 +1,70 @@
+name: changelog-gen
+# 버전이 올라간 채로 main에 푸시되면, 비동기로 git log를 읽어 Gemini가
+# 사용자향 업데이트 내역을 작성 → apps/web/lib/changelog/entries.ts에 자동 커밋백.
+# 개발 흐름과 분리(로컬 작업 속도 무관). DB 불필요(정적 파일=배포 시 게시).
+#
+# 키 소스: 앱과 동일하게 DB org_content(META).gemini_api_key 를 서비스롤로 조회.
+# → gcube-price-check와 동일한 기존 Secrets 재사용(새 시크릿 불필요):
+#     NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+# (폴백, 선택) GEMINI_API_KEY / GEMINI_MODEL
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    # 수동 백필: Actions > changelog-gen > Run workflow
+
+# 봇 커밋백([skip changelog])이 다시 트리거하는 무한루프 방지.
+concurrency:
+  group: changelog-gen
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    # 봇 자신의 커밋백은 건너뜀(루프 가드).
+    if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip changelog]') }}
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout (전체 히스토리 — 버전 커밋 파싱에 필요)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm 9.15.9
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: 의존성 설치 (@supabase/supabase-js 필요)
+        run: pnpm install --frozen-lockfile
+
+      - name: 사용자향 업데이트 내역 생성
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
+        run: node apps/web/scripts/changelog-gen.mjs
+
+      - name: 변경 시 자동 커밋백
+        run: |
+          if [[ -n "$(git status --porcelain apps/web/lib/changelog/entries.ts)" ]]; then
+            VER=$(node -e "console.log(require('./package.json').version)")
+            git config user.name "changelog-bot"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add apps/web/lib/changelog/entries.ts
+            git commit -m "v${VER}: 사용자향 업데이트 내역 자동 게시 [skip changelog] claude"
+            git push
+            echo "✅ entries.ts 업데이트 게시됨 (v${VER})"
+          else
+            echo "변경 없음 — 게시 생략."
+          fi
