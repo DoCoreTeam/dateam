@@ -15,6 +15,7 @@ import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { GPU_TERMS } from '@/lib/gpu/terms'
 import { fmtMoneyFromKrw, fmtMoneyFromUsd } from '@/lib/gpu/format-price'
 import { useEscClose } from '@/lib/use-esc-close'
+import { resolveCancelFallback } from '@/lib/gpu/cancel-fallback'
 import type { CurrencyCtx } from '@/lib/gpu/unified-row'
 import { auditActionLabel } from '@/lib/gpu/audit-labels'
 import { tierName } from '@/lib/gpu/unified-row'
@@ -153,15 +154,12 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
     }
   }
 
-  // 지정 취소 요청 — 취소 후 귀결을 미리 판정해 확인/경고 모달을 띄운다((b)안: 무단 공급사 자동선택 금지).
-  //   다른 실견적 있음 → 'auto'(공급사 명시 후 확인) | 없고 gcube 있음 → 'list'(gcube로 복귀) | 둘 다 없음 → 'none'(경고)
+  // 지정 취소 요청 — 취소 후 귀결을 SSOT(resolveCancelFallback)로 판정해 확인/경고 모달을 띄운다((b)안).
+  //   auto=다른 확정견적 자동 적용(공급사 명시) | list=gcube 복귀 | none=기준 없음(경고). 백엔드 cost_basis 후보와 정합.
   function requestCancel(qid: string, supplierName: string | null) {
-    // 백엔드 자동선택(cost_basis) 후보 = 확정(confirmed) 견적만. costQuotes는 status별→단가 정렬이므로
-    //   confirmed로 거르면 그 안에서 단가 오름차순 → [0]이 실제 백엔드 자동 적용 후보(만료/반려 거짓표시 방지, DC-REV HIGH-1).
-    const others = (costQuotes ?? []).filter((c) => c.id !== qid && c.status === 'confirmed')
     const hasGcube = row?.list_price_krw != null || (quoteData?.quotes ?? []).some((c) => c.price_type === 'list')
-    const post: 'list' | 'auto' | 'none' = others.length > 0 ? 'auto' : (hasGcube ? 'list' : 'none')
-    setCancelTarget({ qid, supplierName: supplierName ?? '이 공급가', post, autoSupplier: others[0]?.suppliers?.name ?? null })
+    const { post, autoSupplier } = resolveCancelFallback(quoteData?.quotes ?? [], qid, hasGcube)
+    setCancelTarget({ qid, supplierName: supplierName ?? '이 공급가', post, autoSupplier })
   }
 
   if (!row) {
