@@ -9,6 +9,8 @@ import { routeIntakeExtras } from '@/lib/gpu/intake-routing'
 import { roundUpToStandard, isStandardConfig } from '@/lib/gpu/config-ladder'
 import { ensureStandardConfigs } from '@/lib/gpu/derive-configs'
 import { saveCompetitorPrices, type CompetitorPriceItem } from '@/lib/gpu/competitor-import'
+import { saveOwnTargetAsStrategicPrice } from '@/lib/gpu/own-target-import'
+import { recordGpuAudit } from '@/lib/gpu/audit'
 
 // POST /api/pricing/gpu/review/[id] — 확정 또는 반려
 export async function POST(
@@ -79,12 +81,34 @@ export async function POST(
     return NextResponse.json({ ok: true })
   }
 
-  // own_target(우리 목표/판매가) — 경쟁사·공급가로 오기록 금지(F7). 전용 반영 경로는 후속.
-  // 여기서 막지 않으면 아래 supplier 경로로 흘러 우리 가격이 공급가로 잘못 저장됨(무음 오기록).
+  // own_target(우리 목표/판매가) — 전략가(gpu_products.strategic_price_krw)로 반영(SSOT 모듈).
+  // on_demand만 반영(요금제 컬럼 없음). 경쟁사·공급가로 오기록 금지(F7).
   if (item.target === 'own_target') {
-    return NextResponse.json({
-      error: '우리 목표/판매가(own_target) 항목입니다. 경쟁사·공급가로 확정할 수 없습니다. 전략가 반영 경로는 별도 제공 예정입니다.',
-    }, { status: 422 })
+    const ex = (item.current_extracted ?? {}) as Record<string, unknown>
+    const override = (body.override_extracted ?? {}) as Record<string, unknown>
+    const merged = { ...ex, ...override }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: fx } = await (adminClient as any)
+      .from('fx_rates').select('usd_krw').order('rate_date', { ascending: false }).limit(1).single()
+    const fxN = typeof fx?.usd_krw === 'number' ? fx.usd_krw : 0
+    const krwPerUsd = fxN >= 800 && fxN <= 3000 ? fxN : 1500
+    const result = await saveOwnTargetAsStrategicPrice(
+      adminClient, merged, actorName, krwPerUsd,
+      (detail, productId) => recordGpuAudit(adminClient, { actor: actorName, actionType: 'strategic_price_set', productId, detail }),
+      revalidateGpu,
+    )
+    if (!result.ok) return NextResponse.json({ error: result.reason ?? '전략가 반영 실패' }, { status: 422 })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (adminClient as any).from('review_items').update({
+      status: 'confirmed', confirmed_by: actorName, confirmed_at: now,
+      confirmed_items: Array.isArray(body.confirmed_items) ? body.confirmed_items : [],
+    }).eq('id', id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (adminClient as any).from('gpu_audit_logs').insert({
+      actor: actorName, action_type: 'review_finalized',
+      detail: { review_item_id: id, target: 'own_target', product_id: result.product_id, strategic_price_krw: result.strategic_price_krw, is_test: item.is_test === true },
+    }).then(undefined, () => {})
+    return NextResponse.json({ ok: true, strategic: { product_id: result.product_id, strategic_price_krw: result.strategic_price_krw, msg: '전략가 반영됨' } })
   }
 
   // confirm(경쟁사 카탈로그) — target='competitor'면 competitors+market_prices로 반영(saveCompetitorPrices 재사용).

@@ -58,9 +58,23 @@ async function runUsaiCatalog(
     return NextResponse.json({ error: 'USAI 프롬프트 미설정(migration 122)' }, { status: 500 })
   }
 
+  // 일시적 AI 오류(429/5xx)는 최대 2회 재시도(지수 백오프). 영구 오류는 즉시 전파.
   const callAI: CallAI = async (promptKey, ctx) => {
     const base = promptKey === 'gpu.intake-discover' ? discoverPrompt : extractPrompt
-    return callGeminiOnce(config.apiKey, config.model, `${base}\n\n${ctx}`, true)
+    const prompt = `${base}\n\n${ctx}`
+    let lastErr: unknown
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await callGeminiOnce(config.apiKey, config.model, prompt, true)
+      } catch (e) {
+        lastErr = e
+        const msg = e instanceof Error ? e.message : ''
+        const transient = /\b(429|500|502|503|504)\b/.test(msg)
+        if (!transient || attempt === 2) throw e
+        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)))
+      }
+    }
+    throw lastErr
   }
 
   let result

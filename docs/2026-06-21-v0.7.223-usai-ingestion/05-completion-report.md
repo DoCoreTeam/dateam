@@ -21,8 +21,13 @@ F1 다중블록 / F2 명부분리 / F3 단위오선택(6.48) / F4 통화혼재 /
 - H1: extractArray 프로토타입오염 키 거부 + 배열 1000 상한
 - REV: intake-verify term 표기차 정규화(자기일관성 누락 차단), USAI 경로 dedup(동일 정규화값 접기, 불일치는 유지), krwPerUsd 합리범위(800~3000) sanity
 
+## own_target → 전략가(strategic price) 반영 — 구현 완료 (사용자 승인 후 추가)
+- confirm 시 own_target(on_demand)을 `gpu_products.strategic_price_krw`에 반영. SSOT `lib/gpu/own-target-import.ts`(matchProductId 순수매칭 + USD×fx KRW환산 + on_demand 전용 + audit + revalidate). 매칭 제품 없으면 graceful 422, reserved는 컬럼 부재로 스킵(무음 금지).
+- AI 일시오류(429/5xx) catalog route에 3회 지수백오프 재시도 추가(REV/QA 견고성 권고).
+- **포괄 UI E2E 통과(2.1m)**: ①타겟 재흡수 count57(dedup)·T4 0.7977 own_target(이전과 동일) ②own_target V100 confirm→strategic_price_krw=1389 반영(0.9117USD×1523) ③gcube 다른파일→target=supplier 분류·needs_human34(A6000 지역가 불일치). **실 전략가 변경은 스냅샷 원복**(운영 오염 0: strategic set 2→2, is_test 0).
+
 ## 후속 과제 (이번 범위 밖 — 무음 누락 방지 위해 명시)
-1. **own_target 최종 기록 경로**: 현재 confirm에서 own_target은 차단(경쟁사 오기록 방지)만. strategic price 테이블 반영은 사용자 승인 후 별도 루프. (DECISION-own-target-destination)
+1. **요금제별 전략가**: 현재 strategic_price_krw는 product당 단일(on_demand만). reserved 약정별 전략가는 컬럼 신설 필요 시 별도.
 2. 비KRW/USD 통화(EUR/JPY/CNY) fx 환산표 — 현재 미지원 시 needs_human. 통화등록+fx를 단일 SSOT로 통합 권고(REV).
 3. AI 호출 실패 vs 빈 결과 구분 메시지 세분화, 블록 추출 병렬화(perf) (REV).
 4. 유럽식 숫자표기(1.234,56) 파싱, 날짜셀(cellDates) 처리 (REV).
