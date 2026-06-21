@@ -331,6 +331,8 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
         alert(`확정됨. 다만 ${j.stock.msg}`)
       }
       onDone()
+    } catch {
+      alert('확정 실패 — 서버에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.')
     } finally {
       setConfirming(false)
     }
@@ -345,11 +347,13 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
         body: JSON.stringify({ action: 'reject', rejected_reason: rejectReason || null }),
       })
       if (!res.ok) {
-        const j = await res.json()
+        const j = await res.json().catch(() => ({}))
         alert(j.error ?? '반려 실패')
         return
       }
       onDone()
+    } catch {
+      alert('반려 실패 — 서버에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.')
     } finally {
       setRejecting(false)
     }
@@ -380,6 +384,8 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
       })
       setFeedback('')
       onDone()
+    } catch {
+      setRecheckErr('네트워크 오류 — 서버에 연결할 수 없습니다. 잠시 후 다시 시도하세요.')
     } finally {
       setRechecking(false)
     }
@@ -683,6 +689,8 @@ export default function ReviewTab() {
       if (!res.ok) { alert(j.error ?? '일괄 삭제 실패'); return }
       setSelected(new Set())
       await revalidate()
+    } catch {
+      alert('일괄 삭제 실패 — 서버에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.')
     } finally {
       setDeleting(false)
     }
