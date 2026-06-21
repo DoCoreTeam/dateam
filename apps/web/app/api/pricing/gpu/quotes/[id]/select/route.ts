@@ -76,16 +76,23 @@ export async function POST(
     .eq('id', id)
   if (setErr) return NextResponse.json({ error: setErr.message }, { status: 500 })
 
-  // 전략가(판매가) 추종 — 공급가 바뀐 영향 product의 추천가(원가×마진=sell_price_krw)로 갱신.
-  //   (사용자 정책 A: 공급가 변경 시 판매가는 항상 추천가를 따른다. 역마진 방지. 추천가 없음(none)이면 유지.)
-  //   지정 자체 성공을 막지 않도록 추종 실패는 무시.
+  // 전략가(판매가) 추종 — 공급가 채택/해제로 바뀐 영향 product의 추천가(원가×마진)로 갱신.
+  //   (사용자 정책 A: 공급가 변경 시 판매가는 추천가를 따른다. 역마진 방지.)
+  //   ★ 원가기반 basis(selected/auto)에서만 추종. list(gcube 공시가)·none은 제외 —
+  //     외부 공시가를 우리 전략가 SSOT로 흡수하지 않기 위함(DC-REV H1).
+  //   지정 자체 성공을 막지 않도록 추종 실패는 격리(부분 실패 건수만 기록).
+  let followUpdated = 0
   try {
     const catalog = await getGpuCatalog(db)
     const affected = new Set(affectedProductIds)
-    for (const p of catalog.products) {
-      if (!affected.has(p.id) || p.sell_price_krw == null) continue
-      await db.from('gpu_products').update({ strategic_price_krw: p.sell_price_krw }).eq('id', p.id)
-    }
+    const targets = catalog.products.filter(
+      (p) => affected.has(p.id) && (p.basis === 'selected' || p.basis === 'auto') && p.sell_price_krw != null
+    )
+    const results = await Promise.allSettled(
+      targets.map((p) => db.from('gpu_products').update({ strategic_price_krw: p.sell_price_krw }).eq('id', p.id))
+    )
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    followUpdated = results.filter((r) => r.status === 'fulfilled' && !(r.value as any)?.error).length
   } catch (e) {
     console.error('[pricing/select] 전략가 추종 실패', e)
   }
@@ -93,9 +100,9 @@ export async function POST(
   await db.from('gpu_audit_logs').insert({
     actor,
     action_type: selected ? 'quote_selected' : 'quote_deselected',
-    detail: { quote_id: id, product_id: quote.product_id, supplier_id: quote.supplier_id, scope: effScope },
+    detail: { quote_id: id, product_id: quote.product_id, supplier_id: quote.supplier_id, scope: effScope, strategic_followed: followUpdated },
   })
 
   revalidateGpu()
-  return NextResponse.json({ ok: true, selected, scope })
+  return NextResponse.json({ ok: true, selected, scope, strategic_followed: followUpdated })
 }
