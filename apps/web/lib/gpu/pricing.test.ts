@@ -177,6 +177,50 @@ test('만료 비활성(v0.7.226): 채택(is_selected) 견적은 만료돼도 영
   assert.equal(p1.fallback_reason, null)
 })
 
+// ─── 125/v0.7.228: 공급가 지정 범위(selection_scope) ───
+
+test('모델범위 지정(scope=model): 파생 구성이 모태 per-GPU×장수를 지정 상속(basis=selected, 모태 id)', () => {
+  const raw = b200Raw()
+  // ×2 gcube 견적을 모델범위로 지정 (per_gpu = 13.8299/2 = 6.915)
+  raw.quotes = raw.quotes.map((q) =>
+    q.product_id === 'p2' && q.supplier_id === 'gc'
+      ? { ...q, id: 'qmodel', is_selected: true, selection_scope: 'model' as const }
+      : q
+  )
+  const cat = buildCatalog(raw)
+  const by = new Map(cat.products.map((p) => [p.id, p]))
+  const perGpu = perGpuOf(13.8299, 2) // 6.915
+
+  // 모태(p2): 자체 지정 → 그 단가가 기준, 전파 아님
+  assert.equal(by.get('p2')!.basis, 'selected')
+  assert.equal(by.get('p2')!.effective_unit_price_usd, 13.8299)
+  assert.equal(by.get('p2')!.is_propagated, false)
+
+  // 파생(p1/p4/p8): 자체 지정 없음 → 모태 per-GPU×장수 상속, 모태 id 노출
+  for (const [id, count] of [['p1', 1], ['p4', 4], ['p8', 8]] as const) {
+    const p = by.get(id)!
+    assert.equal(p.basis, 'selected', `${id} basis`)
+    assert.equal(p.is_propagated, true, `${id} propagated`)
+    assert.equal(p.propagation_source_quote_id, 'qmodel', `${id} source`)
+    assert.ok(Math.abs((p.effective_unit_price_usd as number) - perGpu * count) < 1e-3, `${id} effective`)
+  }
+})
+
+test('구성범위 지정(scope=config)은 그 구성만 — 파생 미상속', () => {
+  const raw = b200Raw()
+  raw.quotes = raw.quotes.map((q) =>
+    q.product_id === 'p1' && q.supplier_id === 'hr'
+      ? { ...q, id: 'qcfg', is_selected: true, selection_scope: 'config' as const }
+      : q
+  )
+  const cat = buildCatalog(raw)
+  const by = new Map(cat.products.map((p) => [p.id, p]))
+  assert.equal(by.get('p1')!.basis, 'selected')
+  // 파생은 상속 안 됨(자동 최저가 전파 = basis 'auto')
+  assert.equal(by.get('p2')!.basis, 'auto')
+  assert.equal(by.get('p4')!.basis, 'auto')
+})
+
 test('cost 없고 list만 있으면 list 공시가를 고객가로 그대로(마진 미적용)', () => {
   const raw: CatalogRawData = {
     products: [{ id: 'pL', model_name: 'L40S', memory: '48GB', tier: 2, pricing_mode: 'quote', gpu_count: 1, vcpu: 16, ram_gb: 128, storage_gb: 1024, series: 'L40S' }],

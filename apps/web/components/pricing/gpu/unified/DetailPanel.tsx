@@ -7,12 +7,14 @@
 // 데이터·계산은 기존 SSOT/라우트 재사용. 본 컴포넌트는 fetch+표현만.
 
 import { useState } from 'react'
+import { X } from 'lucide-react'
 import useSWR, { useSWRConfig } from 'swr'
 import dynamic from 'next/dynamic'
 import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { GPU_TERMS } from '@/lib/gpu/terms'
 import { fmtMoneyFromKrw, fmtMoneyFromUsd } from '@/lib/gpu/format-price'
+import { useEscClose } from '@/lib/use-esc-close'
 import type { CurrencyCtx } from '@/lib/gpu/unified-row'
 import { auditActionLabel } from '@/lib/gpu/audit-labels'
 import { tierName } from '@/lib/gpu/unified-row'
@@ -78,6 +80,9 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
   const [costEditNote, setCostEditNote] = useState(false)
   const [designating, setDesignating] = useState<string | null>(null)
+  // 공급가 지정 범위 선택 모달 대상 (지정할 견적 + 표시 라벨). null=닫힘.
+  const [designateTarget, setDesignateTarget] = useState<{ qid: string; label: string } | null>(null)
+  useEscClose(() => setDesignateTarget(null), !!designateTarget) // 모달 표준 §2-2(a): ESC 닫기
   const { mutate: globalMutate } = useSWRConfig()
 
   // 가격 동기화 — 기존 sync-cost 라우트 재사용(저장 출처 재수집→공급원가 반영). 전역 1버튼.
@@ -123,13 +128,13 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
 
   // 공급가 지정/해제 — 기존 select 라우트 재사용(is_selected). 지정 시 자동 최저가를 override해 판매가 기준이 됨.
   // 성공 후 견적표 + GPU 전역 캐시(cockpit 포함) 동시 무효화 → 판매가/기준이 즉시 갱신.
-  async function toggleDesignate(qid: string, next: boolean) {
+  async function toggleDesignate(qid: string, next: boolean, scope: 'config' | 'model' = 'config') {
     setDesignating(qid)
     try {
       const res = await fetch(`/api/pricing/gpu/quotes/${qid}/select`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selected: next }),
+        body: JSON.stringify({ selected: next, scope }),
       })
       if (!res.ok) {
         const j = await res.json().catch(() => ({}))
@@ -224,7 +229,9 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                               type="button"
                               className={`gpu-btn-select${q.is_selected ? ' gpu-btn-select--active' : ''}`}
                               disabled={designating === q.id}
-                              onClick={() => toggleDesignate(q.id, !q.is_selected)}
+                              onClick={() => q.is_selected
+                                ? toggleDesignate(q.id, false)
+                                : setDesignateTarget({ qid: q.id, label: q.suppliers?.name ?? '이 공급가' })}
                             >
                               {designating === q.id ? '…' : q.is_selected ? GPU_TERMS.undesignateCost : GPU_TERMS.designateCost}
                             </button>
@@ -252,13 +259,31 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                   })}
                   {/* 전파 추정: 직접 견적은 없지만 다른 구성 견적에서 전파된 공급원가 → 실견적 행과 동일 형태로 표시(원가 비롯됨) */}
                   {costQuotes.length === 0 && row.supply_cost_krw != null && (
-                    <tr>
-                      <td><SupplierCell name={row.cost_supplier_name} color={null} logoUrl={null} /></td>
+                    <tr className={row.basis === 'selected' ? 'gpu-qline--selected' : undefined}>
+                      <td>
+                        <SupplierCell name={row.cost_supplier_name} color={null} logoUrl={null} />
+                        {row.basis === 'selected' && <span className="gpu-badge-selected">✓ {GPU_TERMS.designatedCost}</span>}
+                      </td>
                       <td className="gpu-mono">{mUsd(row.cost_unit_usd)}</td>
                       <td>전파</td>
-                      <td><span className="gpu-badge gpu-badge-gray">전파 추정</span></td>
+                      <td><span className={`gpu-badge ${row.basis === 'selected' ? 'gpu-badge-selected' : 'gpu-badge-gray'}`}>{row.basis === 'selected' ? '지정 기준 전파' : '전파 추정'}</span></td>
                       <td>—</td>
-                      <td><button type="button" className="gpu-udetail-rowbtn" onClick={() => setCostEditNote(true)}>{GPU_TERMS.edit}</button></td>
+                      <td className="gpu-udetail-rowacts">
+                        {/* 전파 모태(원본 견적)를 대상으로 지정 — '어느 구성이 진짜 견적인지' 찾을 필요 없음 */}
+                        {row.propagation_source_quote_id && (
+                          <button
+                            type="button"
+                            className={`gpu-btn-select${row.basis === 'selected' ? ' gpu-btn-select--active' : ''}`}
+                            disabled={designating === row.propagation_source_quote_id}
+                            onClick={() => row.basis === 'selected'
+                              ? toggleDesignate(row.propagation_source_quote_id as string, false)
+                              : setDesignateTarget({ qid: row.propagation_source_quote_id as string, label: row.cost_supplier_name ?? '이 공급가' })}
+                          >
+                            {designating === row.propagation_source_quote_id ? '…' : row.basis === 'selected' ? GPU_TERMS.undesignateCost : GPU_TERMS.designateCost}
+                          </button>
+                        )}
+                        <button type="button" className="gpu-udetail-rowbtn" onClick={() => setCostEditNote(true)}>{GPU_TERMS.edit}</button>
+                      </td>
                     </tr>
                   )}
                   {costQuotes.length === 0 && row.supply_cost_krw == null && (
@@ -427,6 +452,41 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
           onClose={() => setMarketEdit(null)}
           onSaved={() => { setMarketEdit(null); mutatePriceHist() }}
         />
+      )}
+
+      {designateTarget && (
+        <div className="gpu-modal-backdrop" role="dialog" aria-modal="true" aria-label="공급가 지정 범위" onClick={() => setDesignateTarget(null)}>
+          <div className="gpu-modal-card gpu-modal-card--sm" onClick={(e) => e.stopPropagation()}>
+            <div className="gpu-modal-header">
+              <strong className="gpu-modal-title">공급가 지정 범위</strong>
+              <button type="button" className="gpu-modal-close" aria-label="닫기" onClick={() => setDesignateTarget(null)}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className="gpu-modal-body">
+              <p className="gpu-udetail-basis">
+                <strong>{designateTarget.label}</strong> 공급가를 어떻게 지정할까요? — 이 모델의 4개 구성(×1·×2·×4·×8)은 이 견적의 1장당 단가에서 전파됩니다.
+              </p>
+            </div>
+            <div className="gpu-modal-footer">
+              <button
+                type="button"
+                className="gpu-btn-primary gpu-udetail-rowbtn"
+                onClick={() => { const t = designateTarget; setDesignateTarget(null); toggleDesignate(t.qid, true, 'model') }}
+              >
+                이 모델 4개 구성 전부 지정
+              </button>
+              <button
+                type="button"
+                className="gpu-udetail-rowbtn"
+                onClick={() => { const t = designateTarget; setDesignateTarget(null); toggleDesignate(t.qid, true, 'config') }}
+              >
+                이 구성만 지정
+              </button>
+              <button type="button" className="gpu-udetail-rowbtn" onClick={() => setDesignateTarget(null)}>취소</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

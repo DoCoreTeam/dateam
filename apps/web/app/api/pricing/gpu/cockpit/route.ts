@@ -495,6 +495,8 @@ export async function GET() {
         basis: p.basis,
         is_propagated: p.is_propagated,
         effective_supplier: effectiveSupplierName,
+        // 전파/상속 모태 견적 id — 파생 구성 [공급가 지정] 시 이 견적을 대상 삼음
+        propagation_source_quote_id: p.propagation_source_quote_id ?? null,
       }
     })
 
