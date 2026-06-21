@@ -83,6 +83,9 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
   // 공급가 지정 범위 선택 모달 대상 (지정할 견적 + 표시 라벨). null=닫힘.
   const [designateTarget, setDesignateTarget] = useState<{ qid: string; label: string } | null>(null)
   useEscClose(() => setDesignateTarget(null), !!designateTarget) // 모달 표준 §2-2(a): ESC 닫기
+  // 지정 취소 확인 모달 대상. post = 취소 후 귀결(list=gcube / auto=다른 실견적 자동 / none=없음).
+  const [cancelTarget, setCancelTarget] = useState<{ qid: string; supplierName: string; post: 'list' | 'auto' | 'none'; autoSupplier: string | null } | null>(null)
+  useEscClose(() => setCancelTarget(null), !!cancelTarget)
   const { mutate: globalMutate } = useSWRConfig()
 
   // 가격 동기화 — 기존 sync-cost 라우트 재사용(저장 출처 재수집→공급원가 반영). 전역 1버튼.
@@ -150,6 +153,17 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
     }
   }
 
+  // 지정 취소 요청 — 취소 후 귀결을 미리 판정해 확인/경고 모달을 띄운다((b)안: 무단 공급사 자동선택 금지).
+  //   다른 실견적 있음 → 'auto'(공급사 명시 후 확인) | 없고 gcube 있음 → 'list'(gcube로 복귀) | 둘 다 없음 → 'none'(경고)
+  function requestCancel(qid: string, supplierName: string | null) {
+    // 백엔드 자동선택(cost_basis) 후보 = 확정(confirmed) 견적만. costQuotes는 status별→단가 정렬이므로
+    //   confirmed로 거르면 그 안에서 단가 오름차순 → [0]이 실제 백엔드 자동 적용 후보(만료/반려 거짓표시 방지, DC-REV HIGH-1).
+    const others = (costQuotes ?? []).filter((c) => c.id !== qid && c.status === 'confirmed')
+    const hasGcube = row?.list_price_krw != null || (quoteData?.quotes ?? []).some((c) => c.price_type === 'list')
+    const post: 'list' | 'auto' | 'none' = others.length > 0 ? 'auto' : (hasGcube ? 'list' : 'none')
+    setCancelTarget({ qid, supplierName: supplierName ?? '이 공급가', post, autoSupplier: others[0]?.suppliers?.name ?? null })
+  }
+
   if (!row) {
     return (
       <div className="gpu-udetail gpu-udetail--empty">
@@ -213,8 +227,10 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                     return (
                       <tr key={q.id} className={q.is_selected ? 'gpu-qline--selected' : undefined}>
                         <td>
-                          <SupplierCell name={q.suppliers?.name ?? null} color={q.suppliers?.color ?? null} logoUrl={q.suppliers?.logo_url ?? null} />
-                          {q.is_selected && <span className="gpu-badge-selected">✓ {GPU_TERMS.designatedCost}</span>}
+                          <div className="gpu-sup-cell">
+                            <SupplierCell name={q.suppliers?.name ?? null} color={q.suppliers?.color ?? null} logoUrl={q.suppliers?.logo_url ?? null} />
+                            {q.is_selected && <span className="gpu-badge-selected">{GPU_TERMS.designatedCost}</span>}
+                          </div>
                         </td>
                         <td className="gpu-mono">{mUsd(q.unit_price_usd)}</td>
                         <td>{q.term ?? '—'}</td>
@@ -230,7 +246,7 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                               className={`gpu-btn-select${q.is_selected ? ' gpu-btn-select--active' : ''}`}
                               disabled={designating === q.id}
                               onClick={() => q.is_selected
-                                ? toggleDesignate(q.id, false)
+                                ? requestCancel(q.id, q.suppliers?.name ?? null)
                                 : setDesignateTarget({ qid: q.id, label: q.suppliers?.name ?? '이 공급가' })}
                             >
                               {designating === q.id ? '…' : q.is_selected ? GPU_TERMS.undesignateCost : GPU_TERMS.designateCost}
@@ -261,8 +277,10 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                   {costQuotes.length === 0 && row.supply_cost_krw != null && (
                     <tr className={row.basis === 'selected' ? 'gpu-qline--selected' : undefined}>
                       <td>
-                        <SupplierCell name={row.cost_supplier_name} color={null} logoUrl={null} />
-                        {row.basis === 'selected' && <span className="gpu-badge-selected">✓ {GPU_TERMS.designatedCost}</span>}
+                        <div className="gpu-sup-cell">
+                          <SupplierCell name={row.cost_supplier_name} color={null} logoUrl={null} />
+                          {row.basis === 'selected' && <span className="gpu-badge-selected">{GPU_TERMS.designatedCost}</span>}
+                        </div>
                       </td>
                       <td className="gpu-mono">{mUsd(row.cost_unit_usd)}</td>
                       <td>{row.propagation_source_term ?? '—'}</td>
@@ -276,7 +294,7 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                             className={`gpu-btn-select${row.basis === 'selected' ? ' gpu-btn-select--active' : ''}`}
                             disabled={designating === row.propagation_source_quote_id}
                             onClick={() => row.basis === 'selected'
-                              ? toggleDesignate(row.propagation_source_quote_id as string, false)
+                              ? requestCancel(row.propagation_source_quote_id as string, row.cost_supplier_name)
                               : setDesignateTarget({ qid: row.propagation_source_quote_id as string, label: row.cost_supplier_name ?? '이 공급가' })}
                           >
                             {designating === row.propagation_source_quote_id ? '…' : row.basis === 'selected' ? GPU_TERMS.undesignateCost : GPU_TERMS.designateCost}
@@ -483,7 +501,37 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
               >
                 이 구성만 지정
               </button>
-              <button type="button" className="gpu-udetail-rowbtn" onClick={() => setDesignateTarget(null)}>취소</button>
+              <button type="button" className="gpu-udetail-rowbtn" onClick={() => setDesignateTarget(null)}>닫기</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {cancelTarget && (
+        <div className="gpu-modal-backdrop" role="dialog" aria-modal="true" aria-label="지정 취소" onClick={() => setCancelTarget(null)}>
+          <div className="gpu-modal-card gpu-modal-card--sm" onClick={(e) => e.stopPropagation()}>
+            <div className="gpu-modal-header">
+              <strong className="gpu-modal-title">{GPU_TERMS.undesignateCost}</strong>
+              <button type="button" className="gpu-modal-close" aria-label="닫기" onClick={() => setCancelTarget(null)}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className="gpu-modal-body">
+              <p className="gpu-udetail-basis">
+                {cancelTarget.post === 'list' && <><strong>{cancelTarget.supplierName}</strong> 선택을 취소하면 gcube 공시가 기준으로 돌아갑니다.</>}
+                {cancelTarget.post === 'auto' && <>선택을 취소하면 다른 실견적 <strong>{cancelTarget.autoSupplier ?? '최저가'}</strong>가 자동 적용됩니다. 무단 변경을 원치 않으면 닫고 다른 공급가를 직접 선택하세요.</>}
+                {cancelTarget.post === 'none' && <><strong>지정된 공급가가 없어집니다.</strong> gcube 공시가도 없으니, 닫고 다른 공급가를 선택하세요.</>}
+              </p>
+            </div>
+            <div className="gpu-modal-footer">
+              <button
+                type="button"
+                className={cancelTarget.post === 'none' ? 'gpu-btn-danger gpu-udetail-rowbtn' : 'gpu-btn-primary gpu-udetail-rowbtn'}
+                onClick={() => { const t = cancelTarget; setCancelTarget(null); toggleDesignate(t.qid, false) }}
+              >
+                {cancelTarget.post === 'list' ? 'gcube로 전환' : cancelTarget.post === 'auto' ? '자동 적용 후 취소' : '그래도 취소'}
+              </button>
+              <button type="button" className="gpu-udetail-rowbtn" onClick={() => setCancelTarget(null)}>닫기</button>
             </div>
           </div>
         </div>
@@ -523,7 +571,7 @@ function SupplierCell({ name, color, logoUrl }: { name: string | null; color: st
       {logoUrl && !failed
         ? <img className="gpu-udetail-sup-logo" src={logoUrl} alt={label} onError={() => setFailed(true)} />
         : <span className="gpu-udetail-sup-logo gpu-udetail-sup-logo--ph" style={{ background: color ?? 'var(--gpu-border)' }}>{label.charAt(0)}</span>}
-      <span>{label}</span>
+      <span className="gpu-udetail-sup-name">{label}</span>
     </span>
   )
 }

@@ -6799,9 +6799,14 @@ label.intake-tool-btn {
 .gpu-badge-warn { background: var(--warning-bg); color: var(--warning); border: var(--hairline) solid var(--warning-border); margin-left: var(--space-1); }
 .gpu-badge-danger { background: var(--danger-bg); color: var(--danger); border: var(--hairline) solid var(--danger-border); margin-left: var(--space-1); }
 .gpu-udetail-body { display: flex; flex-direction: column; gap: var(--space-1); }
-.gpu-udetail-sup { display: inline-flex; align-items: center; gap: var(--space-2); }
+.gpu-udetail-sup { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .gpu-udetail-sup-logo { width: 20px; height: 20px; border-radius: var(--radius); object-fit: contain; background: #fff; border: var(--hairline) solid var(--gpu-border); flex-shrink: 0; }
 .gpu-udetail-sup-logo--ph { display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: var(--fs-2xs); font-weight: 700; }
+.gpu-udetail-sup-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* 공급사 셀 + '선택됨' 칩 컨테이너 — 칩이 회사명을 침범하지 않게 flex로 분리(이름 ellipsis, 칩 nowrap) */
+.gpu-sup-cell { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.gpu-sup-cell .gpu-udetail-sup { flex: 1 1 auto; min-width: 0; }
+.gpu-sup-cell .gpu-badge-selected { flex-shrink: 0; white-space: nowrap; }
 .gpu-udetail-tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); margin-top: var(--space-2); }
 .gpu-udetail-tbl th { text-align: left; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--gpu-muted); font-weight: 600; padding: var(--space-1) var(--space-2); border-bottom: var(--hairline) solid var(--gpu-border); }
 .gpu-udetail-tbl td { padding: var(--space-2); border-bottom: var(--hairline) dashed var(--gpu-border); color: var(--text); }
