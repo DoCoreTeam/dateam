@@ -765,8 +765,9 @@ export default function ReviewTab() {
   ]
 
   return (
-    <div>
-      <div className="gpu-banner gpu-banner-warning">
+    // flex 칼럼 — 배너·필터/액션바는 고정, 리스트만 내부 스크롤(스크롤 시 일괄 작업바·탭 항상 보이게)
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
+      <div className="gpu-banner gpu-banner-warning" style={{ flexShrink: 0 }}>
         <div className="gpu-banner-dot">
           <AlertTriangle size={16} color="var(--warning)" />
         </div>
@@ -776,8 +777,8 @@ export default function ReviewTab() {
         </div>
       </div>
 
-      {/* 필터 + 일괄 작업 바 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+      {/* 필터 + 일괄 작업 바 (고정) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 14, flexShrink: 0 }}>
         <div style={{ display: 'flex', gap: 4 }}>
           {FILTERS.map(([key, label, n]) => (
             <button
@@ -816,23 +817,26 @@ export default function ReviewTab() {
         )}
       </div>
 
-      {filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--gpu-faint)', fontSize: '13px' }}>
-          검토 대기 항목이 없습니다
-        </div>
-      ) : (
-        filtered.map((item) => (
-          <ReviewCard
-            key={item.id}
-            item={item}
-            onDone={handleDone}
-            allSuppliers={allSuppliers}
-            selected={selected.has(item.id)}
-            onToggleSelect={() => toggleSelect(item.id)}
-            krwPerUsd={krwPerUsd}
-          />
-        ))
-      )}
+      {/* 항목 리스트 — 이 영역만 스크롤 */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 2 }} data-testid="review-list-scroll">
+        {filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--gpu-faint)', fontSize: '13px' }}>
+            검토 대기 항목이 없습니다
+          </div>
+        ) : (
+          filtered.map((item) => (
+            <ReviewCard
+              key={item.id}
+              item={item}
+              onDone={handleDone}
+              allSuppliers={allSuppliers}
+              selected={selected.has(item.id)}
+              onToggleSelect={() => toggleSelect(item.id)}
+              krwPerUsd={krwPerUsd}
+            />
+          ))
+        )}
+      </div>
 
       {/* 일괄 확정/삭제 동의 모달 (표준 NbModal) */}
       {bulkModal && (
