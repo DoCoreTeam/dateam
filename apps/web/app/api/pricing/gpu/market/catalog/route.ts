@@ -7,6 +7,7 @@ import { dedupCompetitor } from '@/lib/gpu/dedup'
 import { partitionValid, validateCompetitorItem } from '@/lib/gpu/validate'
 import { getGeminiConfig, loadSchemaDigest, loadSpecContext, callGeminiOnce } from '@/lib/gpu/extract-helpers'
 import { orchestrateUsai, type CallAI } from '@/lib/gpu/usai-orchestrate'
+import { storeGpuEvidence } from '@/lib/gpu/evidence-store'
 
 // POST /api/pricing/gpu/market/catalog — 카탈로그 파일(xlsx/csv) AI 자동 흡수.
 //  multipart/form-data: file(File), is_test('true'|'false')
@@ -48,6 +49,7 @@ async function runUsaiCatalog(
   config: { apiKey: string; model: string },
   isTest: boolean,
   actor: string,
+  evidenceFileId: string | null,
 ): Promise<NextResponse> {
   const [discoverPrompt, extractPrompt, krwPerUsd] = await Promise.all([
     getPromptContent(adminClient, 'gpu.intake-discover'),
@@ -111,6 +113,7 @@ async function runUsaiCatalog(
     overall_confidence: Math.round((it.confidence || 0) * 100),
     product_hint: it.model_name,
     supplier_hint: null,
+    evidence_drive_file_id: evidenceFileId,
     is_test: isTest,
   }))
 
@@ -158,9 +161,14 @@ export async function POST(req: NextRequest) {
   const config = await getGeminiConfig(adminClient)
   if (!config.apiKey) return NextResponse.json({ error: 'AI 키 미설정' }, { status: 500 })
 
+  // 원본데이터 보관 — Drive 연결 시 원본을 보관하고 file id를 검토 항목에 연결(역추적).
+  // 미연결/실패여도 추출은 계속(부분 degrade). 운영 오염 방지 위해 is_test 무관 보관(검토단계 산출물).
+  const evidence = await storeGpuEvidence({ buffer: Buffer.from(buf), filename: file.name, mimeType: file.type })
+  const evidenceFileId = evidence.fileId
+
   // USAI 흡수 경로(flag ON 시) — 비정형 다중블록을 AI 주도로. 기본 OFF면 레거시 평면표 경로.
   if (process.env.GPU_USAI_INGEST === '1') {
-    return runUsaiCatalog(buf, adminClient, config, isTest, user.email ?? user.id)
+    return runUsaiCatalog(buf, adminClient, config, isTest, user.email ?? user.id, evidenceFileId)
   }
 
   // 1) 파싱 — 첫 시트 헤더·행·샘플 (레거시 경로)
@@ -216,6 +224,7 @@ export async function POST(req: NextRequest) {
     overall_confidence: mapping._confidence,
     product_hint: `${it.model_name}${it.memory ? ' ' + it.memory : ''}`.trim(),
     supplier_hint: it.competitor_name,
+    evidence_drive_file_id: evidenceFileId,
     is_test: isTest,
   }))
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

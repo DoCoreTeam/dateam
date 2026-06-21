@@ -3,6 +3,8 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { normalizeMemory } from '@/lib/gpu/normalize'
 import { parseGpuCount, toPerGpuPrice } from '@/lib/gpu/parse-quantity'
+import { resolveConfirmUnitPrice } from '@/lib/gpu/price-breakdown'
+import { parseBilling } from '@/lib/gpu/billing'
 import { inferTier } from '@/lib/gpu/tier-dict'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
 import { routeIntakeExtras } from '@/lib/gpu/intake-routing'
@@ -161,7 +163,26 @@ export async function POST(
   const gpuCount = roundUpToStandard(parsedGpuCount)
   // TODO: supply_quotes에 raw_gpu_count / is_nonstandard_source 컬럼 추가 시 원본 보존 가능 (DB팀 협의 필요)
   // 원본은 보존, unit_price_usd는 1장당으로 정규화 저장
-  const unitPriceUsd = toPerGpuPrice(rawUnitPrice, gpuCount, originalUnit)
+  const fallbackPerGpu = toPerGpuPrice(rawUnitPrice, gpuCount, originalUnit)
+  // 환산 정합성 교정 — 원본가·통화·기간이 있으면 주입 매매기준율로 SSOT 재계산(AI 하드코딩 환율 버그 교정).
+  // fx_rates 최신 매매기준율 주입(없으면 폴백 1500). 비KRW/USD·환산불요 케이스는 fallback 유지(회귀 0).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: confFx } = await (adminClient as any)
+    .from('fx_rates').select('usd_krw').order('rate_date', { ascending: false }).limit(1).single()
+  const confFxN = typeof confFx?.usd_krw === 'number' ? confFx.usd_krw : 0
+  const confirmKrwPerUsd = confFxN >= 800 && confFxN <= 3000 ? confFxN : 0
+  // 과금구조(설치비+월과금) 파싱 — 손실 없이 보존(SSOT)
+  const billing = parseBilling(merged)
+  const confirmPrice = resolveConfirmUnitPrice({
+    aiUnitPriceUsd: rawUnitPrice,
+    originalPrice: typeof merged.original_price === 'number' ? merged.original_price : null,
+    originalCurrency: typeof merged.original_currency === 'string' ? merged.original_currency : null,
+    originalUnit,
+    gpuCount,
+    krwPerUsd: confirmKrwPerUsd,
+    fallbackPerGpu,
+  })
+  const unitPriceUsd = confirmPrice.value
 
   // product_id 찾기 — 토큰 매칭 후 없으면 AI 추출 데이터로 자동 생성
   let productId: string | null = null
@@ -286,11 +307,18 @@ export async function POST(
       original_currency: typeof merged.original_currency === 'string' ? merged.original_currency : null,
       original_price: typeof merged.original_price === 'number' ? merged.original_price : null,
       original_unit: originalUnit,
+      // 과금구조 — 설치비/월단가/billing_model 보존(소실 방지)
+      setup_fee_krw: billing.setupFeeKrw,
+      monthly_price_krw: billing.monthlyPriceKrw,
+      billing_model: billing.billingModel,
       term: typeof merged.term === 'string' ? merged.term : null,
       term_months: termMonths,
       min_qty: typeof merged.min_qty === 'string' ? merged.min_qty : null,
       valid_until: typeof merged.valid_until === 'string' ? merged.valid_until : null,
       source_format: item.channel ?? 'own',
+      // 원본데이터 역추적 — 업로드 원본 Drive file id 전파(있으면). 레거시 source_input_id 폴백.
+      evidence_drive_file_id: typeof item.evidence_drive_file_id === 'string' ? item.evidence_drive_file_id
+        : (typeof item.source_input_id === 'string' ? item.source_input_id : null),
       // 시장가 동기화(market_link) 유래면 출처 시장가 id 기록 — 086 부분 unique 가드로 중복 cost 차단
       source_market_price_id: typeof merged.source_market_price_id === 'string' ? merged.source_market_price_id : null,
       ai_confidence: item.overall_confidence,
@@ -340,6 +368,10 @@ export async function POST(
       detail: {
         review_item_id: id,
         unit_price_usd: unitPriceUsd,
+        // 환산 정합성 교정 추적 — AI 값에서 SSOT 재계산으로 바뀌었는지 기록
+        unit_price_recomputed: confirmPrice.recomputed,
+        unit_price_recompute_reason: confirmPrice.reason,
+        ai_unit_price_usd: rawUnitPrice,
         supplier_hint: item.supplier_hint,
         overall_confidence: item.overall_confidence,
         product_auto_created: productAutoCreated,

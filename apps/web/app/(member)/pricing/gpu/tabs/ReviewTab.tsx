@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { AlertTriangle, CheckCircle2, RotateCcw, ChevronDown, ChevronUp, Search, Plus, Building2, X } from 'lucide-react'
+import { PriceBreakdownPanel, BillingPanel, RecheckResultPanel, EvidenceLink, type RecheckResult } from '@/components/pricing/gpu/review/ReviewPanels'
 
 interface Supplier {
   id: string
@@ -233,6 +234,7 @@ interface ReviewItem {
   overall_confidence: number | null
   created_at: string
   is_test: boolean
+  evidence_drive_file_id?: string | null
 }
 
 const IMPACT_CONFIG: Record<string, { label: string; color: string }> = {
@@ -266,8 +268,10 @@ function ConfidenceBar({ value, label }: { value: number | null; label: string }
   )
 }
 
-function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect }: { item: ReviewItem; onDone: () => void; allSuppliers: Supplier[]; selected: boolean; onToggleSelect: () => void }) {
+function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwPerUsd }: { item: ReviewItem; onDone: () => void; allSuppliers: Supplier[]; selected: boolean; onToggleSelect: () => void; krwPerUsd: number | null }) {
   const [expanded, setExpanded] = useState(false)
+  const [showBreakdown, setShowBreakdown] = useState(false)
+  const [recheckResult, setRecheckResult] = useState<RecheckResult | null>(null)
   const [checking, setChecking] = useState<Set<string>>(new Set())
   const [confirming, setConfirming] = useState(false)
   const [rejecting, setRejecting] = useState(false)
@@ -363,17 +367,23 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect }: { 
           original_text: extracted.original_text ?? '',
         }),
       })
+      const j = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const j = await res.json()
         setRecheckErr(j.error ?? 'AI 재분석 실패')
         return
       }
+      // 재분석 결과 보존 — "무엇이/왜 바뀌었는지" 리포트로 표시(이전엔 응답을 버려 결과가 안 보였음)
+      setRecheckResult({
+        summary: typeof j.change_summary === 'string' ? j.change_summary : '',
+        diff: Array.isArray(j.diff) ? (j.diff as RecheckResult['diff']) : [],
+        iteration: typeof j.iteration === 'number' ? j.iteration : item.current_iteration + 1,
+      })
       setFeedback('')
       onDone()
     } finally {
       setRechecking(false)
     }
-  }, [item.id, feedback, extracted.original_text, onDone])
+  }, [item.id, feedback, extracted.original_text, onDone, item.current_iteration])
 
   const impact = IMPACT_CONFIG[item.impact_level ?? 'steady'] ?? IMPACT_CONFIG.steady
   const overallPct = item.overall_confidence ?? 0
@@ -500,6 +510,17 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect }: { 
       </div>
       )}
 
+      {/* 단가 산출 근거 + 과금구조(설치비/월단가) — 컴포넌트 분리(globals.css .gpu-rev-* SSOT) */}
+      {!isCompetitor && (
+        <PriceBreakdownPanel
+          extracted={extracted}
+          krwPerUsd={krwPerUsd}
+          open={showBreakdown}
+          onToggle={() => setShowBreakdown((v) => !v)}
+        />
+      )}
+      {!isCompetitor && <BillingPanel extracted={extracted} />}
+
       {/* 낮은 신뢰도 안내 */}
       {lowConfFields.length > 0 && !allLowChecked && (
         <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8, background: 'var(--warning-bg)', border: 'var(--hairline) solid var(--warning-border)', fontSize: 12, color: 'var(--warning)' }}>
@@ -507,14 +528,17 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect }: { 
         </div>
       )}
 
-      {/* 원본 추출 데이터 토글 */}
-      <button
-        style={{ marginTop: 12, fontSize: 12, color: 'var(--gpu-muted)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}
-        onClick={() => setExpanded((v) => !v)}
-      >
-        {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-        전체 추출 데이터 {expanded ? '숨기기' : '보기'}
-      </button>
+      {/* 원본 데이터 토글 + Drive 원본 링크(역추적) */}
+      <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        <button
+          style={{ fontSize: 12, color: 'var(--gpu-muted)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          전체 추출 데이터 {expanded ? '숨기기' : '보기'}
+        </button>
+        {item.evidence_drive_file_id && <EvidenceLink fileId={item.evidence_drive_file_id} />}
+      </div>
       {expanded && (
         <pre style={{ marginTop: 8, padding: '10px 12px', borderRadius: 8, background: 'var(--surface-muted)', fontSize: 11, overflowX: 'auto', maxHeight: 200, color: 'var(--text)', lineHeight: 1.6 }}>
           {JSON.stringify(extracted, null, 2)}
@@ -542,6 +566,9 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect }: { 
         >
           {rechecking ? '재분석 중…' : 'AI 재분석'}
         </button>
+
+        {/* 재분석 결과 리포트 — 변경 전/후 diff + AI 근거 (이전엔 결과가 안 보였음) */}
+        {recheckResult && <RecheckResultPanel result={recheckResult} />}
       </div>
       )}
 
@@ -595,6 +622,12 @@ export default function ReviewTab() {
     '/api/pricing/gpu/suppliers',
     fetcher
   )
+  // 매매기준율 — 단가 산출 근거 표시용(SSOT 환율). settings 엔드포인트 재사용.
+  const { data: settingsData } = useSWR<{ usd_krw: number | null }>(
+    '/api/pricing/gpu/settings',
+    fetcher
+  )
+  const krwPerUsd = typeof settingsData?.usd_krw === 'number' ? settingsData.usd_krw : null
   const items = useMemo(() => data?.items ?? [], [data])
   const allSuppliers = (suppliersData?.suppliers ?? []).map((s) => ({
     id: s.id, name: s.name, color: s.color, location: s.location,
@@ -721,6 +754,7 @@ export default function ReviewTab() {
             allSuppliers={allSuppliers}
             selected={selected.has(item.id)}
             onToggleSelect={() => toggleSelect(item.id)}
+            krwPerUsd={krwPerUsd}
           />
         ))
       )}

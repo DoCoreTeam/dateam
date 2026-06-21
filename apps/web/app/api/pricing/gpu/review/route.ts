@@ -4,6 +4,7 @@ import { logTokenUsage } from '@/lib/token-logger'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import type { CompetitorPriceItem } from '@/lib/gpu/competitor-import'
 import { SCHEMA_CONTRACT } from '@/lib/gpu/schema-contract'
+import { BILLING_EXTRACT_HINT } from '@/lib/gpu/billing'
 import { dedupSupplier, dedupCompetitor, type CompetitorLike } from '@/lib/gpu/dedup'
 import { partitionValid, validateSupplierItem } from '@/lib/gpu/validate'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
@@ -298,7 +299,9 @@ export async function POST(req: NextRequest) {
 
   const channel = typeof body.channel === 'string' ? body.channel : 'own'
   const isTest = body.is_test === true
-  const driveFileId = typeof body.evidence_drive_file_id === 'string' ? body.evidence_drive_file_id : null
+  // Drive file id 형식 검증 — 임의 문자열 주입 차단(추후 evidence 스트리밍 IDOR 악용 방지)
+  const rawDriveId = typeof body.evidence_drive_file_id === 'string' ? body.evidence_drive_file_id : ''
+  const driveFileId = /^[A-Za-z0-9_-]{1,128}$/.test(rawDriveId) ? rawDriveId : null
 
   const adminClient = createAdminClient()
   const config = await getGeminiConfig(adminClient)
@@ -362,7 +365,7 @@ export async function POST(req: NextRequest) {
   const prompt = await getPrompt(adminClient)
   if (!prompt) return NextResponse.json({ error: 'AI 프롬프트가 설정되지 않았습니다' }, { status: 500 })
 
-  const promptText = `${prompt.content}\n\n${SCHEMA_CONTRACT}${specContext}\n\n${contentText ? '입력 텍스트:\n' + contentText : '위 이미지에서 GPU 견적 정보를 추출하세요.'}`
+  const promptText = `${prompt.content}\n\n${SCHEMA_CONTRACT}${BILLING_EXTRACT_HINT}${specContext}\n\n${contentText ? '입력 텍스트:\n' + contentText : '위 이미지에서 GPU 견적 정보를 추출하세요.'}`
   const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = []
   if (imageBase64) parts.push({ inlineData: { data: imageBase64, mimeType: imageMimeType } })
   parts.push({ text: promptText })
@@ -459,6 +462,7 @@ export async function POST(req: NextRequest) {
       current_extracted: item.extracted ?? null,
       current_confidence: item.confidence ?? null,
       overall_confidence: overallConf,
+      evidence_drive_file_id: driveFileId,
       is_test: isTest,
     }
   })

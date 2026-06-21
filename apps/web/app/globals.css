@@ -7263,3 +7263,27 @@ label.intake-tool-btn {
 }
 .onboarding-restart-text:hover { color: var(--brand-dark); text-decoration-color: var(--brand-dark); }
 .onboarding-restart-text:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: 2px; }
+
+/* ── GPU 검토대기 패널 (산출근거 / 과금구조 / 재분석결과) — 토큰 SSOT, 인라인 금지 ── */
+.gpu-rev-panel { margin-top: 10px; padding: 10px 12px; border-radius: var(--radius); }
+.gpu-rev-panel--breakdown { background: var(--surface-muted); border: var(--hairline) solid var(--color-border); }
+.gpu-rev-panel--billing { background: var(--info-bg); border: var(--hairline) solid var(--info-border); }
+.gpu-rev-panel--recheck { background: var(--success-bg); border: var(--hairline) solid var(--success-border); }
+.gpu-rev-panel-title { font-size: var(--fs-sm); font-weight: 700; display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+.gpu-rev-panel-title--billing { color: var(--info); }
+.gpu-rev-panel-title--recheck { color: var(--success); }
+.gpu-rev-toggle { font-size: var(--fs-sm); color: var(--gpu-accent); background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 0; }
+.gpu-rev-rows { display: flex; flex-direction: column; gap: 5px; }
+.gpu-rev-row { display: flex; align-items: baseline; gap: 8px; font-size: var(--fs-sm); flex-wrap: wrap; }
+.gpu-rev-row-k { min-width: 88px; color: var(--gpu-muted); font-size: var(--fs-sm); }
+.gpu-rev-row-detail { color: var(--gpu-faint); font-size: var(--fs-2xs); }
+.gpu-rev-row-v { flex: 1; text-align: right; font-weight: 700; color: var(--text); font-family: var(--font-mono, monospace); }
+/* 금액(설치비·월단가·정합단가) — §3-1 금액 폰트 ≥18px */
+.gpu-rev-amount { font-weight: 700; color: var(--text); font-family: var(--font-mono, monospace); font-size: var(--fs-price); }
+.gpu-rev-diff-row { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); flex-wrap: wrap; }
+.gpu-rev-diff-before { color: var(--gpu-faint); text-decoration: line-through; }
+.gpu-rev-diff-after { font-weight: 700; color: var(--success); font-family: var(--font-mono, monospace); }
+.gpu-rev-summary { font-size: var(--fs-sm); color: var(--text); line-height: 1.6; margin-bottom: 8px; }
+.gpu-rev-warn { margin-top: 4px; font-size: var(--fs-2xs); color: var(--warning); }
+.gpu-rev-evidence { font-size: var(--fs-sm); color: var(--gpu-accent); display: inline-flex; align-items: center; gap: 4px; text-decoration: none; }
+.gpu-rev-evidence:hover { text-decoration: underline; }
