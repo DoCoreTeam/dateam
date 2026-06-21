@@ -1,8 +1,8 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- DATA ALLIANCE 브랜드 마크 — 두 쉐브론이 가운데(32,32)에서 만나 X자 형성. 마크 둘레 여백 확보. 파비콘 SSOT. -->
+  <!-- DATA ALLIANCE 브랜드 마크 — 두 쉐브론을 좌우로 벌려 가운데 간격을 둔 "> <" 형태. 중심 32 기준 좌우 대칭(가운데 8px gap). 파비콘 SSOT. -->
   <rect width="64" height="64" rx="14" fill="#7c3aed"/>
   <g stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
-    <polyline points="22,21 32,32 22,43"/>
-    <polyline points="42,21 32,32 42,43"/>
+    <polyline points="18,21 28,32 18,43"/>
+    <polyline points="46,21 36,32 46,43"/>
   </g>
 </svg>
