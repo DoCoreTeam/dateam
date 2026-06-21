@@ -123,6 +123,14 @@ export default function PricingDecisionSection({ row, currency }: PricingDecisio
 
   const strategicLabel = row.is_strategic_set ? '설정됨' : '자동(추천가)'
 
+  // 추천 근거 줄 마진 = (추천가 − 공급원가)/공급원가. row.margin_pct(전략가 설정 시 실효마진)와 다름:
+  //   이 줄은 "공급원가 × (1+마진) = 추천가"를 설명하므로 추천가와 정합하는 마진을 표시해야 한다.
+  //   (전략가 실효마진은 패널 상단 요약·전략가 옆에 별도 표시됨)
+  const recoMarginPct =
+    row.auto_price_krw != null && row.supply_cost_krw != null && row.supply_cost_krw > 0
+      ? ((row.auto_price_krw - row.supply_cost_krw) / row.supply_cost_krw) * 100
+      : null
+
   return (
     <div className="gpu-udetail-pricing">
       {/* 추천 판매가 + 근거 한 줄 */}
@@ -132,7 +140,7 @@ export default function PricingDecisionSection({ row, currency }: PricingDecisio
       </div>
       <p className="gpu-udetail-basis">
         {GPU_TERMS.supplyCost} {mKrw(row.supply_cost_krw)} · {GPU_TERMS.margin}{' '}
-        {row.margin_pct == null ? '측정불가' : `+${row.margin_pct.toFixed(0)}%`} · 출처 {basisSourceLabel(row)}
+        {recoMarginPct == null ? '측정불가' : `+${recoMarginPct.toFixed(0)}%`} · 출처 {basisSourceLabel(row)}
       </p>
 
       {/* 전략가(우리 판매가) */}
