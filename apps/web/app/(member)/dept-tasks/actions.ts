@@ -37,12 +37,20 @@ export async function listAssigneeCandidates(
   const scope = await resolveOrgScope(admin, user.id)
   // IDOR 방어: 내가 볼 수 있는 부서의 후보만 노출
   if (!scope.isExecutive && !scope.readableDeptIds.includes(departmentId)) return []
-  const memberIds = deptMemberUserIds(scope, departmentId)
-  if (memberIds.length === 0) return []
+  // 부서장 본인도 후보에 포함 — head_user_id는 person 노드가 아니라 deptMemberUserIds(person만)에서 누락된다.
+  // 서브트리 부서 노드들의 head_user_id를 합집합으로 추가(취합 SSOT deptMemberUserIds는 미변경).
+  const subtree = new Set(
+    scope.closure.filter((c) => c.ancestor_id === departmentId).map((c) => c.descendant_id),
+  )
+  const headIds = scope.nodes
+    .filter((n) => n.head_user_id && subtree.has(n.id))
+    .map((n) => n.head_user_id as string)
+  const candidateIds = Array.from(new Set([...deptMemberUserIds(scope, departmentId), ...headIds]))
+  if (candidateIds.length === 0) return []
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (admin as any)
-    .from('profiles').select('id,name').in('id', memberIds).is('deleted_at', null)
+    .from('profiles').select('id,name').in('id', candidateIds).is('deleted_at', null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return ((data ?? []) as Array<{ id: string; name: string }>).map((p) => ({ userId: p.id, name: p.name }))
 }
