@@ -4,8 +4,8 @@ import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { ChevronLeft, ChevronRight, Lock, Pencil, Users, Sparkles, Clock } from 'lucide-react'
-import { saveDeptReport, aggregateDept, exportTimelinessCsv } from './org-actions'
+import { ChevronLeft, ChevronRight, Lock, Pencil, Users, Sparkles, Clock, FileDown } from 'lucide-react'
+import { saveDeptReport, aggregateDept, exportTimelinessCsv, exportDeptDocx } from './org-actions'
 import RichText from '@/components/ui/RichText'
 import TimelinessPanel from './TimelinessPanel'
 import { TIMELINESS_COLORS } from '@/lib/tokens/status-colors'
@@ -237,6 +237,7 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
   const [localStatus, setLocalStatus] = useState<DeptStat['agg']>(agg)
   const [confirmReagg, setConfirmReagg] = useState(false)
   const [editingCell, setEditingCell] = useState<{ idx: number; field: 'performance' | 'plan' | 'issues' } | null>(null)
+  const [exportingDocx, setExportingDocx] = useState(false)
 
   useEffect(() => { setRows(initialBody); setDirty(false); setLocalStatus(agg) }, [initialBody, agg])
   useEscClose(() => setConfirmReagg(false), confirmReagg)
@@ -274,6 +275,29 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
     setLocalStatus(confirm ? 'confirmed' : 'draft')
     router.refresh()
   }
+  // Word(.docx) 내보내기 — 어드민과 동일 SSOT(buildDocx). 화면 취합본 그대로(WYSIWYG) 부서명 주입.
+  async function onExportDocx() {
+    setExportingDocx(true); setMsg(null)
+    try {
+      const r = await exportDeptDocx(deptId, weekStart, rows)
+      if (!r.ok) { setMsg(r.error); return }
+      const bin = atob(r.base64)
+      const bytes = new Uint8Array(bin.length)
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+      const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = r.filename
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : '내보내기 실패')
+    } finally {
+      setExportingDocx(false)
+    }
+  }
+
   const updateCell = (idx: number, field: 'performance' | 'plan' | 'issues', html: string) => {
     setRows((prev) => prev.map((r, i) => i === idx ? { ...r, [field]: html } : r)); setDirty(true)
     setLocalStatus('draft')
@@ -291,11 +315,19 @@ function DeptReport({ deptId, deptName, weekStart, editable, agg, initialBody, a
           {aggBadge(localStatus)}
           {!editable && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}><Lock size={11} /> 조회 전용</span>}
         </div>
-        {editable && (
-          <button onClick={onAggregate} disabled={busy} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.7 : 1, flexShrink: 0 }}>
-            <Sparkles size={14} /> {busy ? 'AI 취합 중…' : agg === 'none' ? 'AI 취합' : '재취합'}
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexShrink: 0 }}>
+          {rows.length > 0 && (
+            <button onClick={onExportDocx} disabled={exportingDocx} title="Word(.docx) 내보내기"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', background: '#fff', color: 'var(--text-muted)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: exportingDocx ? 'wait' : 'pointer', opacity: exportingDocx ? 0.7 : 1 }}>
+              <FileDown size={14} /> {exportingDocx ? '내보내는 중…' : 'Word 내보내기'}
+            </button>
+          )}
+          {editable && (
+            <button onClick={onAggregate} disabled={busy} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.7 : 1 }}>
+              <Sparkles size={14} /> {busy ? 'AI 취합 중…' : agg === 'none' ? 'AI 취합' : '재취합'}
+            </button>
+          )}
+        </div>
       </div>
 
       {msg && <div role="status" style={{ padding: '0.625rem 1.25rem', background: 'var(--brand-soft)', borderBottom: 'var(--hairline) solid var(--brand-soft-2)', fontSize: 'var(--fs-sm)', color: 'var(--brand-dark)' }}>{msg}</div>}

@@ -1,8 +1,10 @@
 'use server'
 
 import { createHash } from 'node:crypto'
+import { Packer } from 'docx'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { mergeAndRefineByCategory, type MergedCategoryReport } from '@/lib/gemini-refine'
+import { buildDocx, type ReportRow } from '@/lib/docx-builder'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
 import { prevWeekStart } from '@/lib/week'
 import { computeDeptTimeliness } from '@/lib/weekly-report/timeliness-server'
@@ -219,6 +221,67 @@ export async function exportTimelinessCsv(
       }
     }
     return { ok: true, csv: '﻿' + lines.join('\n') } // BOM → Excel 한글 깨짐 방지
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : '내보내기 실패' }
+  }
+}
+
+/** 화면 취합본 행 (성과/계획/이슈는 HTML) — buildDocx 입력 정규화용 */
+interface DeptDocxRow {
+  category: string
+  performance: string
+  plan: string
+  issues: string
+}
+
+/**
+ * 부서 취합 주간보고 → Word(.docx) 내보내기. 어드민과 동일 SSOT(buildDocx).
+ * 부서(팀) 보고서로 생성: userName=''(rowSpan 헤더에 부서명만), orgName=부서명.
+ * 권한: 읽기 가능 부서(readableDeptIds)만. base64로 반환 → 클라이언트가 다운로드.
+ */
+export async function exportDeptDocx(
+  deptId: string,
+  weekStart: string,
+  rows: DeptDocxRow[],
+): Promise<{ ok: true; base64: string; filename: string } | { ok: false; error: string }> {
+  try {
+    const { user, admin } = await authedAdmin()
+    if (!user) return { ok: false, error: '인증이 필요합니다' }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) return { ok: false, error: '잘못된 주차입니다' }
+
+    const scope = await resolveOrgScope(admin, user.id)
+    if (!scope.readableDeptIds.includes(deptId)) {
+      return { ok: false, error: '이 부서를 조회할 권한이 없습니다' }
+    }
+
+    const deptName = scope.nodes.find((n) => n.id === deptId)?.name
+    if (!deptName) return { ok: false, error: '부서를 찾을 수 없습니다' }
+
+    // 클라이언트 입력 방어적 정규화 → 부서(팀) 보고서 ReportRow[]
+    // 상한은 어드민 export-preview Zod 불변식과 동일(행 500·필드 20000자) — 서비스롤 액션 DoS 방어.
+    const cap = (s: unknown) => (typeof s === 'string' ? s.slice(0, 20000) : '')
+    const reportRows: ReportRow[] = (Array.isArray(rows) ? rows : [])
+      .map((r) => ({
+        userName: '', // 팀 보고서 → orgName 셀 rowSpan 헤더에 부서명만 표기
+        orgName: deptName,
+        category: typeof r?.category === 'string' ? r.category.slice(0, 100) : '',
+        performance: cap(r?.performance),
+        plan: cap(r?.plan),
+        issues: cap(r?.issues),
+        weekStart,
+      }))
+      .filter((r) => r.category !== '')
+
+    if (reportRows.length === 0) return { ok: false, error: '내보낼 취합본이 없습니다' }
+    if (reportRows.length > 500) return { ok: false, error: '행 수가 너무 많습니다' }
+
+    const { doc, filename } = buildDocx(reportRows)
+    const buffer = await Packer.toBuffer(doc)
+    // 파일명에 부서명 주입(어드민 구조 동일·부서 식별만 추가)
+    const deptFilename = filename.replace(/^Weekly_DA_/, `Weekly_DA_${deptName.replace(/[\\/:*?"<>|]/g, '_')}_`)
+
+    return { ok: true, base64: Buffer.from(buffer).toString('base64'), filename: deptFilename }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : '내보내기 실패' }
   }
