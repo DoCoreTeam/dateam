@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import type { DailyLog } from '@/types/database'
-import type { LogGroup } from './grouping'
+import { splitOriginGroup, type LogGroup } from './grouping'
 import { findDuplicateCandidates } from '@/lib/daily/duplicate'
 import { DuplicateSection } from './DuplicateSection'
 
@@ -23,6 +23,8 @@ interface OriginGroupCardProps {
   onEditOrigin: (headLogId: string, text: string) => Promise<boolean>
   /** 저장 진행 중 비활성화 플래그 */
   isPending?: boolean
+  /** 이 그룹의 AI 분해가 백그라운드로 진행 중인지 — 분석중 칩/드로어 표시 */
+  isAnalyzing?: boolean
 }
 
 /**
@@ -36,10 +38,13 @@ interface OriginGroupCardProps {
  *  2) 요약 칩 — 분해 N · 메모 N · 완료 N/N
  *  3) 펼침 드로어(기본 접힘) — 분해 항목(renderCard) + 놓친 메모 환기 섹션
  */
-export function OriginGroupCard({ group, isOpen, onToggle, renderCard, formatTime, pool, onDeleteGroup, onEditOrigin, isPending }: OriginGroupCardProps) {
-  // 원본 텍스트: 그룹 첫 항목의 original_input (없으면 라벨 폴백)
-  const headLog = group.logs[0]
-  const originalText = headLog?.original_input?.trim() || group.label
+export function OriginGroupCard({ group, isOpen, onToggle, renderCard, formatTime, pool, onDeleteGroup, onEditOrigin, isPending, isAnalyzing = false }: OriginGroupCardProps) {
+  // 표시 분리(SSOT, grouping.splitOriginGroup): rawHead=원문 헤더 전용, childLogs=분해 자식 카드.
+  const { childLogs, headLog } = splitOriginGroup(group.logs)
+  const decomposedCount = childLogs.length
+  const doneCount = childLogs.filter((l) => l.entry_type === 'done').length
+  // 원본 텍스트: raw 헤드의 original_input(없으면 content/라벨 폴백)
+  const originalText = headLog?.original_input?.trim() || headLog?.content?.trim() || group.label
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(originalText)
   const [saving, setSaving] = useState(false)
@@ -52,23 +57,23 @@ export function OriginGroupCard({ group, isOpen, onToggle, renderCard, formatTim
     setSaving(false)
     if (ok) setEditing(false)
   }
-  const noteCount = group.logs.filter((l) => l.entry_type === 'note').length
+  const noteCount = childLogs.filter((l) => l.entry_type === 'note').length
   // 놓친 메모: note + memo_status='new' (미확인)
-  const missedMemos = group.logs.filter((l) => l.entry_type === 'note' && l.memo_status === 'new')
+  const missedMemos = childLogs.filter((l) => l.entry_type === 'note' && l.memo_status === 'new')
   const subsId = `daily-group-subs-${group.key}`
 
-  // 중복 후보 수(요약 칩용) — 그룹 항목 × 풀, 동일 쌍 1회만 카운트
+  // 중복 후보 수(요약 칩용) — 분해항목 × 풀, 동일 쌍 1회만 카운트
   const comparePool = pool ?? []
   const dupCount = useMemo(() => {
     if (comparePool.length === 0) return 0
     const seen = new Set<string>()
-    for (const source of group.logs) {
+    for (const source of childLogs) {
       for (const { log: target } of findDuplicateCandidates(source, comparePool)) {
         seen.add([source.id, target.id].sort().join('::'))
       }
     }
     return seen.size
-  }, [group.logs, comparePool])
+  }, [childLogs, comparePool])
 
   return (
     <div className="origin-group">
@@ -116,11 +121,17 @@ export function OriginGroupCard({ group, isOpen, onToggle, renderCard, formatTim
                 <span className="origin-group-text">{originalText}</span>
                 <span className="origin-group-chips">
                   <span className="origin-group-time">{formatTime(group.loggedAt)}</span>
-                  <span className="origin-group-chip" title={`한 번에 입력한 내용을 AI가 ${group.count}개의 세부 업무로 자동 분리했습니다. 펼치면 항목별로 확인·수정할 수 있어요.`}>분해 {group.count}</span>
+                  {isAnalyzing ? (
+                    <span className="origin-group-chip" title="저장한 원문을 AI가 백그라운드로 세부 업무로 분류하고 있습니다.">✨ 분석 중…</span>
+                  ) : decomposedCount > 0 ? (
+                    <span className="origin-group-chip" title={`한 번에 입력한 내용을 AI가 ${decomposedCount}개의 세부 업무로 자동 분리했습니다. 펼치면 항목별로 확인·수정할 수 있어요.`}>분해 {decomposedCount}</span>
+                  ) : (
+                    <span className="origin-group-chip" title="AI가 분리한 세부 업무가 없습니다. 원문은 그대로 보존됩니다.">분석 결과 없음</span>
+                  )}
                   {noteCount > 0 && <span className="origin-group-chip">메모 {noteCount}</span>}
-                  {group.doneCount > 0 && (
+                  {doneCount > 0 && (
                     <span className="origin-group-chip origin-group-chip-done">
-                      완료 {group.doneCount}/{group.count}
+                      완료 {doneCount}/{decomposedCount}
                     </span>
                   )}
                   {missedMemos.length > 0 && (
@@ -162,11 +173,17 @@ export function OriginGroupCard({ group, isOpen, onToggle, renderCard, formatTim
 
       {isOpen && (
         <div id={subsId} className="origin-group-subs">
-          {comparePool.length > 0 && (
-            <DuplicateSection groupLogs={group.logs} pool={comparePool} />
+          {comparePool.length > 0 && childLogs.length > 0 && (
+            <DuplicateSection groupLogs={childLogs} pool={comparePool} />
           )}
 
-          {group.logs.map((log) => <Fragment key={log.id}>{renderCard(log)}</Fragment>)}
+          {childLogs.length > 0 ? (
+            childLogs.map((log) => <Fragment key={log.id}>{renderCard(log)}</Fragment>)
+          ) : isAnalyzing ? (
+            <p className="origin-group-pending">✨ AI가 세부 업무로 분류하는 중입니다…</p>
+          ) : (
+            <p className="origin-group-pending">AI가 분리한 세부 업무가 없습니다. 원문은 그대로 보존됩니다.</p>
+          )}
 
           {missedMemos.length > 0 && (
             <section className="origin-memo-alert" aria-label="놓친 메모">

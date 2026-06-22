@@ -14,14 +14,14 @@ const LogFlowView = dynamic(() => import('./LogFlowView').then(m => ({ default: 
 const MeetingContextView = dynamic(() => import('./MeetingContextView'), { ssr: false })
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, moveAllCarryoverToToday, unignoreCarryoverLog, addMultipleDailyLogs, getThreads, addThread, updateDailyLogStatus, deleteLogGroup, updateOriginInput, getPromotedMap } from './actions'
+import { updateDailyLog, deleteDailyLog, resolveCarryoverLog, moveCarryoverToToday, ignoreCarryoverLog, moveAllCarryoverToToday, unignoreCarryoverLog, addMultipleDailyLogs, addRawDailyLog, getThreads, addThread, updateDailyLogStatus, deleteLogGroup, updateOriginInput, getPromotedMap } from './actions'
 import type { AiParsedItem } from './actions'
 import { isOnboardingActive } from '@/lib/onboarding/onboarding-state'
 import { createDailyScheduleEvent, getLinkedDailyLogIds, unlinkDailyCalendar } from '../calendar/actions'
 import { selectScheduleCandidates } from '@/lib/daily/schedule-candidates'
 import type { DailyLog, DailyLogEntryType, DailyLogThread } from '@/types/database'
 import { DdayBadge, todayLocal } from '@/lib/dday'
-import { groupDailyLogs } from './grouping'
+import { groupDailyLogs, excludeRawHeads } from './grouping'
 import { OriginGroupCard } from './OriginGroupCard'
 import CarryoverTriageModal from './CarryoverTriageModal'
 import MemoListView from '@/components/ui/memo/MemoListView'
@@ -130,6 +130,8 @@ export default function DailyPage() {
   // SWR 훅 — 일간 로그
   const dailyKey = viewMode === 'day' ? `/api/daily/logs?date=${selectedDate}` : null
   const { data: logs = [], isLoading: loading } = useSWR<DailyLog[]>(dailyKey, fetcher)
+  // 통계/완료율 집계는 원문 raw 헤드(헤더 전용 행) 제외 — 분해 자식만 카운트(분모 오염 방지)
+  const countableLogs = excludeRawHeads(logs)
 
   // 일일 로그 → 부서업무 승격 역링크 맵 (연결된 로그만 키 존재). 데이터 기반이라 새로고침해도 유지.
   const [promotedMap, setPromotedMap] = useState<Record<string, { deptTaskId: string; deptName: string }>>({})
@@ -219,10 +221,13 @@ export default function DailyPage() {
     setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000)
   }
 
-  // AI 저장 상태 (확인 패널 없이 분석→즉시 자동 저장)
+  // 즉시저장 + 백그라운드 AI분해 상태
   const [aiHintCount, setAiHintCount] = useState(0)
-  const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState('')
+  // 백그라운드 AI 분해가 진행 중인 origin_group_id 집합 — OriginGroupCard '분석 중' 칩 제어
+  const [analyzingGroupIds, setAnalyzingGroupIds] = useState<Set<string>>(new Set())
+  // 즉시저장 재진입 방지(원문 INSERT가 끝나기 전 중복 클릭 차단). UI 응답은 낙관적 업데이트라 즉시.
+  const savingRef = useRef(false)
 
   // 지식그래프 상태
   const [graphOpen, setGraphOpen] = useState(false)
@@ -258,82 +263,107 @@ export default function DailyPage() {
     }
   }
 
-  const handleAiSave = async () => {
-    if (!content.trim() || aiLoading) return
-    setAiError('')
-    setAiLoading(true)
-    const originalInput = content
-    const collected: AiParsedItem[] = []
+  // 낙관적 원문 raw 행(임시) — 서버 INSERT 응답 전 즉시 표시용. revalidate 시 실 행으로 교체된다.
+  // OriginGroupCard 헤더는 ai_processed=false 행의 original_input만 읽으므로 표시에 필요한 필드만 채우면 됨.
+  const buildTempRaw = (tempId: string, originGroupId: string, text: string, nowIso: string, isOnboarding: boolean): DailyLog => ({
+    id: tempId, user_id: '', log_date: selectedDate, logged_at: nowIso, content: text,
+    entry_type: 'doing', is_resolved: false, priority: 'normal', scheduled_at: null,
+    ai_processed: false, ai_confidence: null, original_input: text,
+    linked_account_id: null, linked_contact_id: null, target_date: null, target_date_set_by: null,
+    origin_group_id: originGroupId, parent_log_id: null, source_type: 'manual', flow_reason: null,
+    memo_status: null, memo_reviewed_at: null, task_kind: 'personal', assignee_user_id: null,
+    department_id: null, progress: 0, checklist: [], promoted_from_log_id: null, meeting_note_id: null,
+    is_onboarding: isOnboarding, created_at: nowIso, updated_at: nowIso,
+  } as DailyLog)
 
+  // 백그라운드 AI 분해: 원문 저장 후 별도로 호출됨(저장 UI는 await하지 않음).
+  // 같은 originGroupId로 분해항목을 추가 → 원문 헤더 아래 자식으로 등장. 실패해도 원문은 보존됨.
+  const runBackgroundAnalyze = async (text: string, originGroupId: string, onboardingActive: boolean) => {
+    const collected: AiParsedItem[] = []
     try {
       const res = await fetch('/api/ai/analyze-work', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: content, date: selectedDate }),
+        body: JSON.stringify({ text, date: selectedDate }),
       })
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({ error: 'AI 분석 실패' }))
-        setAiError((errJson as { error?: string }).error ?? 'AI 분석 실패')
-        setAiLoading(false)
-        return
-      }
-
-      const reader = res.body?.getReader()
-      if (!reader) { setAiError('스트림 오류'); setAiLoading(false); return }
-
-      const decoder = new TextDecoder()
-      let buf = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buf += decoder.decode(value, { stream: true })
-        const lines = buf.split('\n')
-        buf = lines.pop() ?? ''
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          const data = line.slice(6).trim()
-          if (data === '[DONE]') break
-          try {
-            const item = JSON.parse(data) as AiParsedItem
-            item.originalInput = originalInput
-            collected.push(item)
-          } catch { /* skip */ }
+      const reader = res.ok ? res.body?.getReader() : null
+      if (reader) {
+        const decoder = new TextDecoder()
+        let buf = ''
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buf += decoder.decode(value, { stream: true })
+          const lines = buf.split('\n')
+          buf = lines.pop() ?? ''
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue
+            const data = line.slice(6).trim()
+            if (data === '[DONE]') break
+            try {
+              const item = JSON.parse(data) as AiParsedItem
+              item.originalInput = text
+              item.originGroupId = originGroupId   // 원문 raw 행과 같은 그룹으로 묶음
+              collected.push(item)
+            } catch { /* skip */ }
+          }
         }
       }
-    } catch {
-      setAiError('네트워크 오류가 발생했습니다')
-      setAiLoading(false)
-      return
-    }
+    } catch { /* 백그라운드 실패 — 원문은 이미 저장됨(보존) */ }
 
-    if (collected.length === 0) {
-      setAiError('분석된 업무 항목이 없습니다. 내용을 더 구체적으로 입력해 주세요.')
-      setAiLoading(false)
-      return
-    }
-
-    // 분석 완료 → 즉시 자동 저장 (확인 단계 없음)
-    // 온보딩 투어 진행 중이면 실습 행으로 격리(is_onboarding=true) — 집계/AI/롤업 제외(마이그113/114 + T-2)
-    const onboardingActive = isOnboardingActive()
-    const result = await addMultipleDailyLogs(collected, selectedDate, undefined, onboardingActive)
-    if (result.ok) {
-      setContent('')
-      draft.clear()   // 저장 성공 → 임시저장본 삭제(유령 복원 방지)
-      setAiHintCount(0)
-      await mutate(`/api/daily/logs?date=${selectedDate}`)
-      // 온보딩 실습 게이팅 — 투어 진행 중일 때만 1스텝 전진(불필요 이벤트 방지)
-      if (onboardingActive) {
-        window.dispatchEvent(new CustomEvent('ax-onboarding-advance', { detail: { event: 'daily-saved' } }))
+    if (collected.length > 0) {
+      const result = await addMultipleDailyLogs(collected, selectedDate, undefined, onboardingActive)
+      if (result.ok) {
+        await mutate(`/api/daily/logs?date=${selectedDate}`)
+        await autoRegisterSchedules(result.data)
+        await mutate(isDailyCalendarCacheKey)
       }
-      // 저장된 항목 중 일정성 항목 자동 캘린더 등록 (저장 직후 1회)
-      await autoRegisterSchedules(result.data)
-      await mutate(isDailyCalendarCacheKey)
-    } else {
-      setAiError(result.error)
     }
-    setAiLoading(false)
+    // 분석 종료(성공/0건/실패 공통) → 분석중 표시 해제. 0건이면 원문만 남고 '분석 결과 없음' 안내가 뜬다.
+    setAnalyzingGroupIds((prev) => { const next = new Set(prev); next.delete(originGroupId); return next })
+  }
+
+  // 즉시저장: 원문 1건을 낙관적으로 즉시 표시·저장하고, AI 분해는 백그라운드로 돌린다.
+  const handleSave = async () => {
+    const text = content.trim()
+    if (!text || savingRef.current) return
+    savingRef.current = true
+    setAiError('')
+
+    const originGroupId = crypto.randomUUID()
+    const tempId = `temp:${originGroupId}`
+    const nowIso = new Date().toISOString()
+    const onboardingActive = isOnboardingActive()
+    const key = `/api/daily/logs?date=${selectedDate}`
+
+    // 1) 낙관적: 입력칸 즉시 비움 + 원문 행 즉시 표시 (UI 응답 ≈ 즉시, < 300ms)
+    setContent('')
+    draft.clear()
+    setAiHintCount(0)
+    setAnalyzingGroupIds((prev) => new Set(prev).add(originGroupId))
+    await mutate(key, (prev: DailyLog[] | undefined) => [...(prev ?? []), buildTempRaw(tempId, originGroupId, text, nowIso, onboardingActive)], { revalidate: false })
+
+    // 온보딩 실습 게이팅 — 투어 진행 중일 때만 1스텝 전진
+    if (onboardingActive) {
+      window.dispatchEvent(new CustomEvent('ax-onboarding-advance', { detail: { event: 'daily-saved' } }))
+    }
+
+    // 2) 서버: 원문 raw 행 저장 → revalidate(임시행을 실 행으로 교체)
+    const raw = await addRawDailyLog(text, selectedDate, originGroupId, onboardingActive)
+    if (!raw.ok) {
+      // 저장 실패 → 낙관적 행 제거 + 입력 복원 + 분석중 해제
+      await mutate(key, (prev: DailyLog[] | undefined) => (prev ?? []).filter((l) => l.id !== tempId), { revalidate: false })
+      setContent(text)
+      setAnalyzingGroupIds((prev) => { const next = new Set(prev); next.delete(originGroupId); return next })
+      setAiError(raw.error)
+      savingRef.current = false
+      return
+    }
+    await mutate(key)
+    savingRef.current = false
+
+    // 3) 백그라운드 AI 분해(저장 UI는 대기하지 않음)
+    void runBackgroundAnalyze(text, originGroupId, onboardingActive)
   }
 
   const handleResolve = async (id: string) => {
@@ -521,7 +551,8 @@ export default function DailyPage() {
   const isCurrentWeek = weekDates.includes(today)
 
   const weekLogsMap = new Map<string, DailyLog[]>()
-  for (const log of weekLogs) {
+  // 주간뷰는 그룹핑 없이 평면 렌더 — 원문 raw 헤드(헤더 전용)는 제외해 카운트·카드 중복 방지
+  for (const log of excludeRawHeads(weekLogs)) {
     if (!weekLogsMap.has(log.log_date)) weekLogsMap.set(log.log_date, [])
     weekLogsMap.get(log.log_date)!.push(log)
   }
@@ -647,37 +678,33 @@ export default function DailyPage() {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                         e.preventDefault()
-                        handleAiSave()
+                        handleSave()
                       }
                     }}
-                    placeholder="업무 내용 자유롭게 입력 — AI가 분류해드립니다 (Ctrl+Enter)"
+                    placeholder="업무 내용 자유롭게 입력 — 저장하면 AI가 백그라운드로 분류합니다 (Ctrl+Enter)"
                     rows={2}
+                    maxLength={10000}
                     className="daily-compose-textarea"
                   />
                   <button
                     type="button"
-                    onClick={handleAiSave}
-                    disabled={aiLoading || !content.trim()}
+                    onClick={handleSave}
+                    disabled={!content.trim()}
                     className="daily-ai-save"
                     style={{
-                      background: aiLoading ? 'var(--text-faint)' : 'linear-gradient(135deg, var(--brand), var(--info))',
-                      cursor: aiLoading || !content.trim() ? 'not-allowed' : 'pointer',
+                      background: 'linear-gradient(135deg, var(--brand), var(--info))',
+                      cursor: !content.trim() ? 'not-allowed' : 'pointer',
                       opacity: !content.trim() ? 0.5 : 1, height: '2.5rem',
                     }}
                   >
                     <span className="daily-ai-save-label">
-                      {!aiLoading && <Sparkles size={14} strokeWidth={2.4} />}
-                      {aiLoading ? '분석 중…' : '저장'}
+                      <Sparkles size={14} strokeWidth={2.4} />
+                      저장
                     </span>
-                    {!aiLoading && <span style={{ fontSize: '0.6rem', opacity: 0.75 }}>Ctrl+↵</span>}
+                    <span style={{ fontSize: '0.6rem', opacity: 0.75 }}>Ctrl+↵</span>
                   </button>
                 </div>
-                {aiLoading && (
-                  <p style={{ color: 'var(--brand)', fontSize: '0.8rem', margin: '0.5rem 0 0', opacity: 0.85 }}>
-                    ✨ AI가 업무를 분석·저장 중입니다…
-                  </p>
-                )}
-                {!aiLoading && content.trim() && aiHintCount > 0 && (
+                {content.trim() && aiHintCount > 0 && (
                   <p style={{ color: 'var(--brand)', fontSize: '0.8rem', margin: '0.5rem 0 0', opacity: 0.8 }}>
                     ✨ {aiHintCount}개 항목 감지됨
                   </p>
@@ -748,6 +775,7 @@ export default function DailyPage() {
                   onEditTargetDateChange={setEditTargetDate}
                   onDeleteGroup={handleDeleteGroup}
                   onEditOrigin={handleEditOrigin}
+                  analyzingGroupIds={analyzingGroupIds}
                 />
               )}
               </div>
@@ -797,35 +825,35 @@ export default function DailyPage() {
               <div className="daily-stats-card">
                 <div className="daily-stats-header">
                   <h3 className="daily-stats-title">업무 현황 요약</h3>
-                  {logs.length > 0 && (
+                  {countableLogs.length > 0 && (
                     <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', fontWeight: 550 }}>
-                      총 {logs.length}개 로그
+                      총 {countableLogs.length}개 로그
                     </span>
                   )}
                 </div>
-                
+
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
                   <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', fontWeight: 500 }}>완료율</span>
                   <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--success)' }}>
-                    {logs.length > 0 ? Math.round((logs.filter(l => l.entry_type === 'done').length / logs.length) * 100) : 0}%
+                    {countableLogs.length > 0 ? Math.round((countableLogs.filter(l => l.entry_type === 'done').length / countableLogs.length) * 100) : 0}%
                   </span>
                 </div>
-                
+
                 <div className="daily-stats-progress-bg">
-                  <div 
-                    className="daily-stats-progress-bar" 
-                    style={{ width: `${logs.length > 0 ? Math.round((logs.filter(l => l.entry_type === 'done').length / logs.length) * 100) : 0}%` }} 
+                  <div
+                    className="daily-stats-progress-bar"
+                    style={{ width: `${countableLogs.length > 0 ? Math.round((countableLogs.filter(l => l.entry_type === 'done').length / countableLogs.length) * 100) : 0}%` }}
                   />
                 </div>
-                
+
                 <div className="daily-stats-grid">
                   <div className="daily-stats-item doing">
                     <div className="daily-stats-item-label">진행중</div>
-                    <div className="daily-stats-item-val">{logs.filter(l => l.entry_type === 'doing').length}</div>
+                    <div className="daily-stats-item-val">{countableLogs.filter(l => l.entry_type === 'doing').length}</div>
                   </div>
                   <div className="daily-stats-item planned">
                     <div className="daily-stats-item-label">예정</div>
-                    <div className="daily-stats-item-val">{logs.filter(l => l.entry_type === 'planned').length}</div>
+                    <div className="daily-stats-item-val">{countableLogs.filter(l => l.entry_type === 'planned').length}</div>
                   </div>
                 </div>
               </div>
@@ -989,12 +1017,14 @@ interface LogListProps {
   onEditTargetDateChange: (v: string) => void
   onDeleteGroup: (headLogId: string, count: number) => void
   onEditOrigin: (headLogId: string, text: string) => Promise<boolean>
+  /** 백그라운드 AI 분해 진행 중인 origin_group_id 집합 */
+  analyzingGroupIds: Set<string>
 }
 
 function LogList({
   logs, promotedMap, linkedCalMap, onCancelCalendar, isToday, selectedDate, editingId, editContent, editType, editTargetDate, isPending,
   onStartEdit, onCancelEdit, onUpdate, onDelete, onStatusChange, onEditContentChange, onEditTypeChange, onEditTargetDateChange,
-  onDeleteGroup, onEditOrigin,
+  onDeleteGroup, onEditOrigin, analyzingGroupIds,
 }: LogListProps) {
   const [openThreadId, setOpenThreadId] = useState<string | null>(null)
   const [flowLog, setFlowLog] = useState<DailyLog | null>(null)
@@ -1283,6 +1313,7 @@ function LogList({
             onDeleteGroup={onDeleteGroup}
             onEditOrigin={onEditOrigin}
             isPending={isPending}
+            isAnalyzing={analyzingGroupIds.has(head?.origin_group_id ?? '')}
           />
         )
       })}

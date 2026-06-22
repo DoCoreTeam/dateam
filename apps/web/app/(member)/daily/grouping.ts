@@ -21,6 +21,29 @@ export interface LogGroup {
   doneCount: number
 }
 
+/**
+ * 한 origin 그룹을 표시용으로 분리한다 (표시 로직 SSOT).
+ * - rawHead: 즉시저장 원문 행(ai_processed=false & source_type='manual') — 헤더 전용
+ * - childLogs: 화면 카드로 보일 분해 자식
+ * - headLog: 헤더/수정·삭제 기준 행(rawHead 우선, 없으면 첫 항목)
+ * 구(舊) 데이터(원문 행 없이 ai_split만 있는 그룹)는 rawHead=null → 전체를 자식으로 표시(기존 동작 호환).
+ */
+export interface OriginGroupView {
+  rawHead: DailyLog | null
+  childLogs: DailyLog[]
+  headLog: DailyLog
+}
+
+// raw 헤드 판별/제외는 lib/daily/raw-head.ts(SSOT). 기존 import 경로 호환을 위해 재export.
+export { isRawHead, excludeRawHeads, EXCLUDE_RAW_HEAD_OR } from '../../../lib/daily/raw-head.ts'
+
+export function splitOriginGroup(logs: DailyLog[]): OriginGroupView {
+  const rawHead = logs.find((l) => l.ai_processed === false && l.source_type === 'manual') ?? null
+  const headLog = rawHead ?? logs[0]
+  const childLogs = rawHead ? logs.filter((l) => l.id !== rawHead.id) : logs
+  return { rawHead, childLogs, headLog }
+}
+
 const LABEL_MAX = 30
 
 /** 여러 줄/공백을 한 줄로 정리하고 길면 말줄임표를 붙인다. */

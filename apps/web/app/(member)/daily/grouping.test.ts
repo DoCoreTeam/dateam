@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { DailyLog } from '@/types/database'
-import { groupDailyLogs, truncateLabel } from './grouping.ts'
+import { groupDailyLogs, truncateLabel, splitOriginGroup } from './grouping.ts'
 
 /** 테스트용 최소 DailyLog 팩토리 */
 function log(partial: Partial<DailyLog>): DailyLog {
@@ -100,4 +100,38 @@ test('truncateLabel: 긴 텍스트는 말줄임, 줄바꿈은 한 줄로 정리'
   const out = truncateLabel(long)
   assert.equal(out.length, 31) // 30 + …
   assert.ok(out.endsWith('…'))
+})
+
+// ── splitOriginGroup: 원문 raw 헤드 / 분해 자식 분리 (즉시저장+백그라운드 AI) ──
+
+test('splitOriginGroup: raw 헤드(manual·미처리)는 헤더 전용, ai_split만 자식', () => {
+  const logs = [
+    log({ id: 'raw', origin_group_id: 'g1', ai_processed: false, source_type: 'manual', content: '원문 전체' }),
+    log({ id: 's1', origin_group_id: 'g1', ai_processed: true, source_type: 'ai_split', content: '분해1' }),
+    log({ id: 's2', origin_group_id: 'g1', ai_processed: true, source_type: 'ai_split', content: '분해2' }),
+  ]
+  const { rawHead, childLogs, headLog } = splitOriginGroup(logs)
+  assert.equal(rawHead?.id, 'raw')
+  assert.equal(headLog.id, 'raw')
+  assert.deepEqual(childLogs.map((l) => l.id), ['s1', 's2'])
+})
+
+test('splitOriginGroup: 분해 전(raw 헤드만)이면 자식 0 — 원문 보존', () => {
+  const logs = [
+    log({ id: 'raw', origin_group_id: 'g1', ai_processed: false, source_type: 'manual', content: '원문' }),
+  ]
+  const { rawHead, childLogs } = splitOriginGroup(logs)
+  assert.equal(rawHead?.id, 'raw')
+  assert.equal(childLogs.length, 0)
+})
+
+test('splitOriginGroup: 구 데이터(원문 행 없는 ai_split 그룹)는 전체를 자식으로(호환)', () => {
+  const logs = [
+    log({ id: 'a', origin_group_id: 'g1', ai_processed: true, source_type: 'ai_split' }),
+    log({ id: 'b', origin_group_id: 'g1', ai_processed: true, source_type: 'ai_split' }),
+  ]
+  const { rawHead, childLogs, headLog } = splitOriginGroup(logs)
+  assert.equal(rawHead, null)
+  assert.equal(headLog.id, 'a')
+  assert.deepEqual(childLogs.map((l) => l.id), ['a', 'b'])
 })

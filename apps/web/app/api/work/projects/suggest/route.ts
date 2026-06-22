@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
+import { EXCLUDE_RAW_HEAD_OR } from '@/lib/daily/raw-head'
 import { htmlToPlain } from '@/lib/html-to-plain'
 import { suggestProjects, type ProjectLogInput, type ProjectWeeklyInput } from '@/lib/gemini-suggest-projects'
 
@@ -37,6 +38,7 @@ export async function GET() {
     .select('id, content, log_date')
     .eq('user_id', user.id).eq('task_kind', 'personal')
     .eq('is_onboarding', false)  // onboarding: AI 프로젝트 군집화 입력 — 실습 행 제외
+    .or(EXCLUDE_RAW_HEAD_OR)     // 원문 raw 헤드(헤더 전용) 제외 — AI 군집 입력 원문 중복 방지
     .gte('log_date', startStr)
     .order('log_date', { ascending: false }).limit(RECENT_LIMIT)
   const logRows = ((logs ?? []) as Array<{ id: string; content: string; log_date: string }>)

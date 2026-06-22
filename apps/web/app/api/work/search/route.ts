@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { htmlToPlain } from '@/lib/html-to-plain'
+import { EXCLUDE_RAW_HEAD_OR } from '@/lib/daily/raw-head'
 import type { DailyLog, WeeklyReport } from '@/types/database'
 
 // 통합 검색 (설계 01-architecture ④). GET /api/work/search?q=&types=&limit=&cursor=
@@ -115,6 +116,7 @@ export async function GET(req: NextRequest) {
         .eq('user_id', userId)
         .eq('task_kind', 'personal')
         .eq('is_onboarding', false)   // 온보딩 실습 행 제외(검색 결과 오염 방지)
+        .or(EXCLUDE_RAW_HEAD_OR)      // 원문 raw 헤드(헤더 전용) 제외 — 원문·분해 중복 검색결과 방지
         .ilike('content', pattern)
       // lte(=커서 포함)로 동일-date 행도 DB에서 가져온 뒤, app-side afterCursor가 id로 보정 제거.
       if (cursor) qb = qb.lte('log_date', cursor.date)

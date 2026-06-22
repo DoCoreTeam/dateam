@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { groupLogsByEntity, type GroupLogInput } from '@/lib/work/group-logs'
+import { EXCLUDE_RAW_HEAD_OR } from '@/lib/daily/raw-head'
 
 // GET /api/work/groups?by=account|deal|project — 내 일일업무를 고객/딜/프로젝트 기준으로 그룹핑(건수·상태·미리보기) + 미링크.
 //  account: daily_logs.linked_account_id 기준. deal/project: work_entity_links(kind=deal|project) 기준(동형 패턴).
@@ -29,6 +30,7 @@ export async function GET(req: NextRequest) {
     .select('id, content, entry_type, linked_account_id')
     .eq('user_id', user.id).eq('task_kind', 'personal')
     .eq('is_onboarding', false)  // onboarding: 엔티티 기준 집계(관여분포) — 실습 행 제외
+    .or(EXCLUDE_RAW_HEAD_OR)     // 원문 raw 헤드(헤더 전용) 제외 — 엔티티 집계 오염 방지
     .order('logged_at', { ascending: false }).limit(1000)
   const rows = (logs ?? []) as Array<{ id: string; content: string; entry_type: string; linked_account_id: string | null }>
 

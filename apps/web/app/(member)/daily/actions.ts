@@ -115,7 +115,7 @@ export async function getMonthLogSummary(year: number, month: number): Promise<D
 
   const MONTH_LIMIT = 2000
   const { data } = await (supabase.from('daily_logs') as any)
-    .select('id, log_date, entry_type, content, target_date, scheduled_at, logged_at')
+    .select('id, log_date, entry_type, content, target_date, scheduled_at, logged_at, ai_processed, source_type, origin_group_id')
     .eq('user_id', user.id)
     .gte('log_date', from)
     .lte('log_date', to)
@@ -136,7 +136,12 @@ export async function getMonthLogSummary(year: number, month: number): Promise<D
     target_date: string | null
     scheduled_at: string | null
     logged_at: string | null
+    ai_processed: boolean
+    source_type: string | null
+    origin_group_id: string | null
   }[]) {
+    // 원문 raw 헤드(헤더 전용 행)는 캘린더 카운트/프리뷰에서 제외
+    if (row.ai_processed === false && row.source_type === 'manual' && row.origin_group_id != null) continue
     if (!map.has(row.log_date)) {
       map.set(row.log_date, {
         date: row.log_date,
@@ -264,6 +269,66 @@ export async function addDailyLog(
   // 비note 업무는 autolink 사전계산 큐에 적재 (best-effort, 응답 비차단)
   if (!isNote && data?.id) {
     await enqueueAutolinkJobs([{ logId: data.id as string, requesterId: user.id }])
+  }
+
+  revalidateDailyCalendarViews()
+  return { ok: true, data: data as DailyLog }
+}
+
+/**
+ * 원문 raw 헤드 1행 즉시 저장 (즉시저장 → 백그라운드 AI분해 흐름의 1단계).
+ *
+ * AI 분석 전에 사용자가 입력한 원문을 그대로 1건 INSERT한다. 이 행이 OriginGroupCard의
+ * 헤더(원문)가 되며, 이후 같은 origin_group_id로 AI 분해 자식(addMultipleDailyLogs)이 붙는다.
+ * - ai_processed=false, source_type='manual' → 표시 단계에서 자식 카드와 구분(헤더 전용).
+ * - original_input=원문 → 헤더 텍스트 소스(편집/보존 대상).
+ * AI가 실패/0건이어도 이 행은 남으므로 원문이 보존된다.
+ */
+export async function addRawDailyLog(
+  text: string,
+  logDate: string,
+  originGroupId: string,
+  isOnboarding = false
+): Promise<{ ok: true; data: DailyLog } | { ok: false; error: string }> {
+  const trimmed = text.trim()
+  if (!trimmed) return { ok: false, error: '내용을 입력해 주세요.' }
+  // 입력 상한 — updateOriginInput과 동일 가드(즉시저장 경로 일관성). DoS/토큰비용 방어.
+  if (trimmed.length > 10000) return { ok: false, error: '입력이 너무 깁니다.' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '로그인이 필요합니다.' }
+
+  // origin_group_id는 daily_log_origin_groups(id) FK(022) — 먼저 그룹 행을 만들어야 한다.
+  // 클라이언트 생성 UUID를 명시 삽입해 raw 헤드·AI 분해 자식이 같은 그룹을 공유하게 한다.
+  const { error: groupError } = await (supabase.from('daily_log_origin_groups') as any)
+    .insert({ id: originGroupId, user_id: user.id, original_input: trimmed })
+  if (groupError) {
+    // 원문 에러(예: PK 중복) 노출 시 그룹 존재 추정 oracle → generic 마스킹 + 서버 로그.
+    console.error('[addRawDailyLog] origin group insert failed', groupError)
+    return { ok: false, error: '저장 중 오류가 발생했습니다.' }
+  }
+
+  const { data, error } = await (supabase.from('daily_logs') as any)
+    .insert({
+      user_id: user.id,
+      log_date: logDate,
+      content: trimmed,
+      entry_type: 'doing',
+      ai_processed: false,
+      original_input: trimmed,
+      origin_group_id: originGroupId,
+      source_type: 'manual' as const,
+      is_onboarding: isOnboarding,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    // 그룹은 만들어졌는데 로그 INSERT 실패 → orphan 그룹 best-effort 정리(트랜잭션 미지원 보완).
+    await (supabase.from('daily_log_origin_groups') as any).delete().eq('id', originGroupId).eq('user_id', user.id)
+    console.error('[addRawDailyLog] daily_logs insert failed', error)
+    return { ok: false, error: '저장 중 오류가 발생했습니다.' }
   }
 
   revalidateDailyCalendarViews()

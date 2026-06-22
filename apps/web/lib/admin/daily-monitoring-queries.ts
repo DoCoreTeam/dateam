@@ -12,6 +12,7 @@
  * - 모든 페치는 error를 throw → "0건"이 진짜 0인지 실패인지 모호함 제거.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { EXCLUDE_RAW_HEAD_OR } from '@/lib/daily/raw-head'
 import {
   type ActiveMember,
   type DayDetail,
@@ -80,6 +81,7 @@ export async function fetchMonthAggregate(
     .gte('log_date', start)
     .lte('log_date', end)
     .eq('is_onboarding', false)
+    .or(EXCLUDE_RAW_HEAD_OR)   // 원문 raw 헤드(헤더 전용) 제외 — 월 집계 오염 방지
     .limit(HARD_FETCH_CAP)
   if (error) throw new Error(`fetchMonthAggregate: ${error.message}`)
   const rows = (data as { user_id: string; log_date: string; entry_type: EntryType }[] | null) ?? []
@@ -97,7 +99,7 @@ export interface DayLogFilters {
 
 /** 구조 필터(q 제외)를 daily_logs 쿼리에 적용 — KPI·리스트 공통 기반 */
 function applyStructuralFilters(qb: any, date: string, filters: DayLogFilters) {
-  let q = qb.eq('log_date', date).eq('is_onboarding', false)
+  let q = qb.eq('log_date', date).eq('is_onboarding', false).or(EXCLUDE_RAW_HEAD_OR)
   if (filters.departmentId) q = q.eq('department_id', filters.departmentId)
   if (filters.taskKind) q = q.eq('task_kind', filters.taskKind)
   // blockerOnly가 켜지면 entry_type='blocker'로 강제(둘 동시 AND로 0행 되는 충돌 방지)
@@ -213,6 +215,7 @@ export async function fetchLogsForExport(
     .gte('log_date', from)
     .lte('log_date', to)
     .eq('is_onboarding', false)
+    .or(EXCLUDE_RAW_HEAD_OR)   // 원문 raw 헤드(헤더 전용) 제외 — CSV 내보내기 오염 방지
     .order('log_date', { ascending: true })
     .order('logged_at', { ascending: true })
     .limit(HARD_FETCH_CAP)

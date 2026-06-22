@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
+import { EXCLUDE_RAW_HEAD_OR } from '@/lib/daily/raw-head'
 import { suggestDeptTasks } from '@/lib/gemini-suggest-tasks'
 import { htmlToPlain } from '@/lib/html-to-plain'
 
@@ -44,6 +45,7 @@ export async function POST(req: NextRequest) {
     .in('user_id', userIds)
     .eq('task_kind', 'personal')
     .eq('is_onboarding', false)  // onboarding: AI 부서업무 후보 입력(교차사용자 집계) — 실습 행 제외
+    .or(EXCLUDE_RAW_HEAD_OR)     // 원문 raw 헤드(헤더 전용) 제외 — AI 입력 원문 중복 방지
     .in('entry_type', ['doing', 'planned', 'blocker'])
     .gte('log_date', startStr)
     .limit(400)

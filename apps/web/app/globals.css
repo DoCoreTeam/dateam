@@ -5075,6 +5075,15 @@ label.intake-tool-btn {
   border-left: var(--border-w-2) solid var(--border-color);
   margin-left: var(--space-2);
 }
+.origin-group-pending {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  background: var(--surface-bg);
+  border: var(--hairline) dashed var(--border-color);
+  border-radius: var(--radius);
+}
 .origin-memo-alert {
   background: var(--warning-bg);
   border: var(--hairline) solid var(--warning-border);

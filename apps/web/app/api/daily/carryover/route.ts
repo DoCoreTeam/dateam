@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import type { DailyLog } from '@/types/database'
+import { EXCLUDE_RAW_HEAD_OR } from '@/lib/daily/raw-head'
 
 const CARRYOVER_LIMIT = 100
 
@@ -24,6 +25,7 @@ export async function GET(req: NextRequest) {
     .eq('task_kind', 'personal')   // 이월도 개인 업무만 (부서업무 역류 제거)
     .eq('is_onboarding', false)    // 온보딩 실습 행 제외(이월 제안 오염 방지)
     .eq('is_resolved', false)
+    .or(EXCLUDE_RAW_HEAD_OR)       // 원문 raw 헤드(헤더 전용) 제외 — 이월 제안 오염 방지
     .in('entry_type', ['planned', 'doing', 'blocker'])
     .gte('log_date', from)
     .lt('log_date', today)
