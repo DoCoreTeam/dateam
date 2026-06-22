@@ -1,5 +1,7 @@
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import QueryToast from '@/components/ui/QueryToast'
 import { getWeekStart, toDateString } from '@/lib/utils'
 import { subWeeks } from 'date-fns'
 import WeeklyReportForm from './WeeklyReportForm'
@@ -42,8 +44,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
 
   if (!user) redirect('/login')
 
-  const { tab, editWeek, saved, reset, orgWeek } = await searchParams
-  const justSaved = saved === '1'
+  const { tab, editWeek, reset, orgWeek } = await searchParams
   const justReset = reset === '1'
 
   // 조직 권한 스코프 (조직 현황 탭 노출/데이터)
@@ -210,16 +211,10 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     >
       {activeTab === 'mine' ? (
         <>
-          {justSaved && (
-            <div role="status" style={{ padding: 'var(--space-3) var(--space-4)', backgroundColor: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: 'var(--fs-sm)', color: 'var(--success)' }}>
-              주간보고가 저장되었습니다
-            </div>
-          )}
-          {justReset && (
-            <div role="status" style={{ padding: 'var(--space-3) var(--space-4)', backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
-              보고서가 초기화되었습니다
-            </div>
-          )}
+          <Suspense fallback={null}>
+            <QueryToast param="saved" message="주간보고가 저장되었습니다" variant="success" />
+            <QueryToast param="reset" message="보고서가 초기화되었습니다" variant="danger" />
+          </Suspense>
           {/* 미처리 메모 리뷰 nudge */}
           <WeeklyMemoReview />
           <div className="card" style={{ padding: 'var(--space-6)', marginBottom: '1.75rem', width: '100%', boxSizing: 'border-box' }}>

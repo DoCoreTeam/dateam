@@ -208,7 +208,7 @@ export default function WeeklyReportForm({
         const dest = initialWeek !== thisWeek
           ? `/weekly-report?tab=mine&editWeek=${initialWeek}&reset=1`
           : '/weekly-report?tab=mine&reset=1'
-        router.push(dest)
+        router.push(dest, { scroll: false })
       } else {
         setResetError(result.error)
       }
@@ -287,7 +287,7 @@ export default function WeeklyReportForm({
       const dest = selectedWeek !== thisWeek
         ? `/weekly-report?tab=mine&editWeek=${selectedWeek}&saved=1`
         : '/weekly-report?tab=mine&saved=1'
-      router.push(dest)
+      router.push(dest, { scroll: false })
     } else {
       setSubmitError(result.error)
     }
