@@ -182,6 +182,9 @@ export default function QuoteRegisterTab() {
       // Content-Type 헤더 미지정 — 브라우저가 multipart boundary 자동 설정
       const res = await fetch('/api/pricing/gpu/review/stream', { method: 'POST', body: fd })
       if (!res.ok || !res.body) { setErrorMsg('AI 분석 시작 실패'); setAnalyzing(false); return }
+      // AI 분석을 실행했으면 임시저장(복원 draft)은 제거 — 새로고침 시 복원 배너가 다시 뜨지 않게.
+      //  (분석을 안 누르면 draft 유지되어 복원됨. clear는 persist만 지우고 textarea 값은 그대로 둠.)
+      rawTextDraft.clear()
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buf = ''
@@ -236,7 +239,7 @@ export default function QuoteRegisterTab() {
     } finally {
       setAnalyzing(false); setStreamText('')
     }
-  }, [rawText, attached, streamFiles])
+  }, [rawText, attached, streamFiles, rawTextDraft])
 
   // 공급가 미리보기 → 검토 대기 저장(버튼). 가격미상 행은 자동 반영 금지 — 확정에서 제외.
   const commitSupplier = useCallback(async () => {
