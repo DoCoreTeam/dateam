@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Sparkles, CheckSquare, CalendarPlus, Star, Users } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
@@ -47,6 +47,8 @@ interface Props {
   // 현재 저장된 참석자(합집합 반영용) — AI 선택분을 기존 참석자에 더한다.
   currentAttendees: string[]
   currentUserIds: string[]
+  // 저장 직후 자동분석(C안) — 마운트 시 1회 자동 실행 + 요약·결정사항 자동저장.
+  autoAnalyze?: boolean
 }
 
 type ApiEnvelope<T> = { success: boolean; data?: T; error?: string }
@@ -57,7 +59,7 @@ const eventKey = (i: number) => `event-${i}`
 const attendeeKey = (i: number) => `attendee-${i}`
 
 export default function MeetingAiPanel({
-  meetingNoteId, bodyPlain, initialSummary, initialDecisions, people, currentAttendees, currentUserIds,
+  meetingNoteId, bodyPlain, initialSummary, initialDecisions, people, currentAttendees, currentUserIds, autoAnalyze,
 }: Props) {
   const router = useRouter()
 
@@ -79,7 +81,9 @@ export default function MeetingAiPanel({
   const peopleNameSet = useMemo(() => new Set(people.map((p) => normalizeName(p.name))), [people])
 
   // 1단계: 요약·결정사항 + 후보를 한 번에 분석(병렬 호출)
-  async function runAnalyze() {
+  //  autoPersist=true(저장 직후 자동분석): 요약·결정사항을 즉시 저장해 "정제본 기본표시"가 성립하게 함.
+  //  추출 후보(할일/일정/참석자)는 자동저장하지 않고 체크리스트로 사용자 확정(§5-3 추출형 표준 유지).
+  async function runAnalyze(autoPersist = false) {
     if (!hasBody || analyzeBusy) return
     setAnalyzeBusy(true); setErr(''); setInfo('')
     try {
@@ -96,9 +100,13 @@ export default function MeetingAiPanel({
       const sum = (await sumRes.json()) as ApiEnvelope<{ summary: string; decisions: string }>
       const ext = (await extRes.json()) as ApiEnvelope<ExtractResult>
 
+      let nextSummary = ''
+      let nextDecisions = ''
       if (sum.success && sum.data) {
-        setSummary(sum.data.summary ?? '')
-        setDecisions(sum.data.decisions ?? '')
+        nextSummary = sum.data.summary ?? ''
+        nextDecisions = sum.data.decisions ?? ''
+        setSummary(nextSummary)
+        setDecisions(nextDecisions)
       }
 
       if (ext.success && ext.data) {
@@ -114,6 +122,14 @@ export default function MeetingAiPanel({
 
       if (!sum.success && !ext.success) {
         setErr(sum.error ?? ext.error ?? 'AI 분석에 실패했습니다.')
+        return
+      }
+
+      // 자동분석 경로: 정제본(요약·결정사항)을 즉시 저장 → 상세 본문이 정제본을 기본 표시.
+      if (autoPersist && sum.success && (nextSummary.trim() || nextDecisions.trim())) {
+        await saveMeetingSummary(meetingNoteId, { summary: nextSummary.trim(), decisions: nextDecisions.trim() })
+        setInfo('저장 후 AI가 본문을 정제하고 업무·일정 후보를 찾았습니다 — 후보를 검토·확정하세요.')
+        router.refresh()
       } else {
         setInfo('AI가 요약·결정사항과 후보를 채웠습니다 — 검토·수정 후 저장·반영하세요.')
       }
@@ -123,6 +139,19 @@ export default function MeetingAiPanel({
       setAnalyzeBusy(false)
     }
   }
+
+  // 저장 직후 자동분석(C안) — autoAnalyze일 때 마운트 1회만 실행(useRef 가드).
+  // 실행 후 ?analyze=1을 URL에서 제거(history.replaceState — 재마운트·새로고침 시 재분석 방지).
+  const autoRan = useRef(false)
+  useEffect(() => {
+    if (!autoAnalyze || autoRan.current || !hasBody) return
+    autoRan.current = true
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `/meeting-notes/${meetingNoteId}`)
+    }
+    void runAnalyze(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAnalyze, hasBody, meetingNoteId])
 
   function toggle(key: string) {
     setChecked((prev) => {
@@ -212,10 +241,11 @@ export default function MeetingAiPanel({
 
       {hasBody && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-          <NbButton onClick={runAnalyze} disabled={analyzeBusy} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <Sparkles size={15} /> {analyzeBusy ? '분석 중…' : 'AI 분석'}
+          {/* 저장 직후 자동 분석(C안) — 수동 트리거는 재분석용 ghost 버튼으로만 제공 */}
+          <NbButton variant="ghost" onClick={() => runAnalyze(false)} disabled={analyzeBusy} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <Sparkles size={15} /> {analyzeBusy ? '분석 중…' : '다시 분석'}
           </NbButton>
-          <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>요약·결정사항과 업무·일정 후보를 한 번에 찾습니다</span>
+          <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>저장 시 자동으로 분석됩니다 · 업무·일정 후보를 검토·확정하세요</span>
         </div>
       )}
 

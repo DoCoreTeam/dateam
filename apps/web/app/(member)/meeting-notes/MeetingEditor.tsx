@@ -79,14 +79,19 @@ export default function MeetingEditor({ initial, mode }: Props) {
     }
     startTransition(async () => {
       try {
+        // 저장 직후 상세에서 AI 분석 자동 실행(C안) — ?analyze=1로 1회 트리거.
+        // 비용통제: 본문이 "실제로 바뀐 경우"에만 분석. 신규는 본문 있으면, 수정은 본문 변경 시에만.
+        // (제목/일시만 바꾼 저장에 동일 본문을 재분석하지 않는다 — 토큰 낭비 방지)
+        const bodyChanged = mode === 'create' ? body.trim().length > 0 : body !== initial.body
+        const analyzeQs = bodyChanged ? '?analyze=1' : ''
         if (mode === 'create') {
           const res = await createMeetingNote(input)
           if (!res.ok) { setError(res.error); return }
-          router.push(`/meeting-notes/${res.id}`)
+          router.push(`/meeting-notes/${res.id}${analyzeQs}`)
         } else if (initial.id) {
           const res = await updateMeetingNote(initial.id, input)
           if (!res.ok) { setError(res.error); return }
-          router.push(`/meeting-notes/${initial.id}`)
+          router.push(`/meeting-notes/${initial.id}${analyzeQs}`)
           router.refresh()
         }
       } catch {

@@ -120,7 +120,15 @@ export default async function MeetingNotesPage({ searchParams }: { searchParams:
             )}
           </div>
         ) : (
-          <table className="table-base table-card">
+          <table className="table-base table-card" style={{ tableLayout: 'fixed' }}>
+            {/* 컬럼폭 고정: 요약 컬럼이 폭을 독식해 제목·일시·상태가 줄바꿈되던 회귀 방지.
+                전역 .table-base(table-layout:auto)는 다른 테이블에 영향 가므로 이 테이블에만 fixed 적용. */}
+            <colgroup>
+              <col style={{ width: '30%' }} />
+              <col style={{ width: '200px' }} />
+              <col style={{ width: '88px' }} />
+              <col />
+            </colgroup>
             <thead>
               <tr>
                 <th>제목</th>
@@ -149,8 +157,8 @@ export default async function MeetingNotesPage({ searchParams }: { searchParams:
                       </div>
                     </td>
                     <td data-label="회의일시">
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: 'var(--fs-sm)', color: m.meeting_at ? 'var(--text)' : 'var(--text-faint)' }}>
-                        <CalendarClock size={13} color="var(--text-faint)" /> {formatMeetingAt(m.meeting_at)}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: 'var(--fs-sm)', color: m.meeting_at ? 'var(--text)' : 'var(--text-faint)', whiteSpace: 'nowrap' }}>
+                        <CalendarClock size={13} color="var(--text-faint)" style={{ flexShrink: 0 }} /> {formatMeetingAt(m.meeting_at)}
                       </span>
                     </td>
                     <td data-label="상태">
