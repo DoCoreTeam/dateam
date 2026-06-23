@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Pencil, CalendarClock } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
-import RichText from '@/components/ui/RichText'
 import NbButton from '@/components/ui/nb/NbButton'
 import MeetingEditor from './MeetingEditor'
 import MeetingAiPanel from './MeetingAiPanel'
@@ -104,11 +103,17 @@ export default function MeetingDetailClient({ note, people }: { note: MeetingNot
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-        {/* 본문 — AI 정제본(기본) / 원본 탭. 정제본 없으면 원본 폴백. */}
-        <BodySection
+        {/* 본문 카드(일원화): [정제본|원본] 탭 + AI 분석 버튼 + 추출 후보를 한 카드에 통합 */}
+        <MeetingAiPanel
+          meetingNoteId={note.id}
           body={note.body}
-          summary={note.summary}
-          decisions={note.decisions}
+          bodyPlain={note.body_plain ?? ''}
+          initialSummary={note.summary ?? ''}
+          initialDecisions={note.decisions ?? ''}
+          people={people}
+          currentAttendees={splitAttendees(note.attendees)}
+          currentUserIds={note.attendee_user_ids ?? []}
+          autoAnalyze={autoAnalyze}
         />
 
         {/* 참석자 관리(내부=조직원/외부=텍스트) */}
@@ -118,93 +123,7 @@ export default function MeetingDetailClient({ note, people }: { note: MeetingNot
           initialUserIds={note.attendee_user_ids ?? []}
           people={people}
         />
-
-        {/* AI 정제·추출 패널 */}
-        <MeetingAiPanel
-          meetingNoteId={note.id}
-          bodyPlain={note.body_plain ?? ''}
-          initialSummary={note.summary ?? ''}
-          initialDecisions={note.decisions ?? ''}
-          people={people}
-          currentAttendees={splitAttendees(note.attendees)}
-          currentUserIds={note.attendee_user_ids ?? []}
-          autoAnalyze={autoAnalyze}
-        />
       </div>
     </div>
-  )
-}
-
-// 본문 표시: [정제본 | 원본] 탭. 정제본(summary)이 있으면 기본 정제본, 없으면 원본 폴백.
-// 정제본 = AI 요약(summary) + 결정사항(decisions), plain text. 원본 = body_html(RichText).
-function BodySection({ body, summary, decisions }: { body: string | null; summary: string | null; decisions: string | null }) {
-  const hasRefined = Boolean(summary?.trim() || decisions?.trim())
-  const [tab, setTab] = useState<'refined' | 'original'>(hasRefined ? 'refined' : 'original')
-  // 저장 직후 자동분석 → router.refresh()는 컴포넌트를 리마운트하지 않으므로(초기 useState 미적용),
-  // 정제본이 처음 생기는 순간 기본 탭을 정제본으로 전환한다("정제본 기본표시" 요구). 이후 사용자가
-  // 원본을 고르면 hasRefined가 그대로라 이 effect는 재발화하지 않아 사용자 선택이 유지된다.
-  useEffect(() => {
-    if (hasRefined) setTab('refined')
-  }, [hasRefined])
-  const active = !hasRefined ? 'original' : tab
-
-  return (
-    <section className="card" style={{ padding: 'var(--space-5) var(--space-6)' }} aria-labelledby="mn-body-h">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
-        <h2 id="mn-body-h" className="tape-title" style={{ margin: 0 }}>회의 본문</h2>
-        {hasRefined && (
-          <div role="tablist" aria-label="본문 보기 전환" style={{ display: 'inline-flex', gap: 'var(--space-1)', padding: 'var(--space-1)', background: 'var(--surface-bg)', borderRadius: 'var(--radius)' }}>
-            <BodyTab label="AI 정제본" selected={active === 'refined'} onClick={() => setTab('refined')} />
-            <BodyTab label="원본" selected={active === 'original'} onClick={() => setTab('original')} />
-          </div>
-        )}
-      </div>
-
-      {active === 'refined' ? (
-        <div role="tabpanel">
-          {summary?.trim() && (
-            <div style={{ marginBottom: decisions?.trim() ? 'var(--space-4)' : 0 }}>
-              <h3 style={{ margin: '0 0 var(--space-2)', fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.02em' }}>요약</h3>
-              <p style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--text)', fontSize: 'var(--fs-base)', lineHeight: 1.7 }}>{summary}</p>
-            </div>
-          )}
-          {decisions?.trim() && (
-            <div>
-              <h3 style={{ margin: '0 0 var(--space-2)', fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.02em' }}>결정사항</h3>
-              <p style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--text)', fontSize: 'var(--fs-base)', lineHeight: 1.7 }}>{decisions}</p>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div role="tabpanel">
-          <RichText html={body} placeholder="본문이 비어 있습니다." />
-        </div>
-      )}
-    </section>
-  )
-}
-
-function BodyTab({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={selected}
-      onClick={onClick}
-      style={{
-        padding: 'var(--space-1) var(--space-3)',
-        minHeight: 36,
-        border: 'none',
-        borderRadius: 'var(--radius)',
-        cursor: 'pointer',
-        fontSize: 'var(--fs-sm)',
-        fontWeight: selected ? 700 : 500,
-        background: selected ? 'var(--surface-card)' : 'transparent',
-        color: selected ? 'var(--text)' : 'var(--text-muted)',
-        boxShadow: selected ? 'var(--shadow-sm)' : 'none',
-      }}
-    >
-      {label}
-    </button>
   )
 }

@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Sparkles, CheckSquare, CalendarPlus, Star, Users } from 'lucide-react'
+import { Sparkles, CheckSquare, CalendarPlus, Star, Users, FileText } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
+import RichText from '@/components/ui/RichText'
 import { saveMeetingSummary, applyExtractedItems, updateMeetingNote } from './actions'
 import { matchAttendees, normalizeName } from '@/lib/meeting/match-attendees'
 
@@ -40,6 +41,7 @@ interface ExtractResult {
 
 interface Props {
   meetingNoteId: string
+  body: string | null // 원본 HTML — 원본 탭 RichText 렌더용
   bodyPlain: string
   initialSummary: string
   initialDecisions: string
@@ -59,13 +61,16 @@ const eventKey = (i: number) => `event-${i}`
 const attendeeKey = (i: number) => `attendee-${i}`
 
 export default function MeetingAiPanel({
-  meetingNoteId, bodyPlain, initialSummary, initialDecisions, people, currentAttendees, currentUserIds, autoAnalyze,
+  meetingNoteId, body, bodyPlain, initialSummary, initialDecisions, people, currentAttendees, currentUserIds, autoAnalyze,
 }: Props) {
   const router = useRouter()
 
   const [summary, setSummary] = useState(initialSummary)
   const [decisions, setDecisions] = useState(initialDecisions)
   const [result, setResult] = useState<ExtractResult | null>(null)
+  // 본문 탭: 정제본(요약·결정사항 편집면) / 원본(RichText). 정제본이 있으면 기본 정제본.
+  const hasRefined = Boolean(summary.trim() || decisions.trim())
+  const [tab, setTab] = useState<'refined' | 'original'>(hasRefined ? 'refined' : 'original')
   // 추출 후보 중 사용자가 체크한 항목 — task/event만 반영 대상(highlight는 표시 전용)
   const [checked, setChecked] = useState<Set<string>>(new Set())
 
@@ -107,6 +112,8 @@ export default function MeetingAiPanel({
         nextDecisions = sum.data.decisions ?? ''
         setSummary(nextSummary)
         setDecisions(nextDecisions)
+        // 정제 결과가 생기면 정제본 탭으로 전환(정제본 기본표시).
+        if (nextSummary.trim() || nextDecisions.trim()) setTab('refined')
       }
 
       if (ext.success && ext.data) {
@@ -227,10 +234,24 @@ export default function MeetingAiPanel({
       : '저장'
 
   return (
-    <section className="card" style={{ padding: 'var(--space-5) var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }} aria-labelledby="mn-ai-h">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-        <Sparkles size={16} color="var(--brand)" />
-        <h2 id="mn-ai-h" className="tape-title" style={{ margin: 0 }}>AI 분석</h2>
+    <section className="card" style={{ padding: 'var(--space-5) var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }} aria-labelledby="mn-body-h">
+      {/* 헤더: 제목 + [정제본|원본] 탭 + AI 분석 버튼 (별도 패널 없이 본문 카드에 일원화) */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <FileText size={16} color="var(--brand)" />
+          <h2 id="mn-body-h" className="tape-title" style={{ margin: 0 }}>회의 본문</h2>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+          <div role="tablist" aria-label="본문 보기 전환" style={{ display: 'inline-flex', gap: 'var(--space-1)', padding: 'var(--space-1)', background: 'var(--surface-bg)', borderRadius: 'var(--radius)' }}>
+            <BodyTab label="AI 정제본" selected={tab === 'refined'} onClick={() => setTab('refined')} />
+            <BodyTab label="원본" selected={tab === 'original'} onClick={() => setTab('original')} />
+          </div>
+          {hasBody && (
+            <NbButton onClick={() => runAnalyze(false)} disabled={analyzeBusy} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <Sparkles size={15} /> {analyzeBusy ? '분석 중…' : 'AI 분석'}
+            </NbButton>
+          )}
+        </div>
       </div>
 
       {!hasBody && (
@@ -239,44 +260,45 @@ export default function MeetingAiPanel({
         </p>
       )}
 
-      {hasBody && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-          {/* 저장 직후 자동 분석(C안) — 수동 트리거는 재분석용 ghost 버튼으로만 제공 */}
-          <NbButton variant="ghost" onClick={() => runAnalyze(false)} disabled={analyzeBusy} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <Sparkles size={15} /> {analyzeBusy ? '분석 중…' : '다시 분석'}
-          </NbButton>
-          <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>저장 시 자동으로 분석됩니다 · 업무·일정 후보를 검토·확정하세요</span>
+      {/* 탭 본문: 정제본=요약·결정사항 편집면(SSOT) / 원본=RichText */}
+      {tab === 'refined' ? (
+        <div role="tabpanel" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <div>
+            <label className="label" htmlFor="mn-summary">요약</label>
+            <textarea id="mn-summary" className="input-field"
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              rows={4}
+              placeholder="AI 분석을 실행하거나 직접 입력하세요"
+              style={{ resize: 'vertical', fontFamily: 'inherit' }}
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="mn-decisions">결정사항</label>
+            <textarea id="mn-decisions" className="input-field"
+              value={decisions}
+              onChange={(e) => setDecisions(e.target.value)}
+              rows={3}
+              placeholder="회의에서 결정된 사항"
+              style={{ resize: 'vertical', fontFamily: 'inherit' }}
+            />
+          </div>
+        </div>
+      ) : (
+        <div role="tabpanel">
+          <RichText html={body} placeholder="본문이 비어 있습니다." />
         </div>
       )}
 
       {err && <p role="alert" style={{ margin: 0, color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>{err}</p>}
       {info && <p role="status" style={{ margin: 0, color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>{info}</p>}
 
-      {/* 요약·결정사항(편집 가능) */}
-      <div>
-        <label className="label" htmlFor="mn-summary">요약</label>
-        <textarea id="mn-summary" className="input-field"
-          value={summary}
-          onChange={(e) => setSummary(e.target.value)}
-          rows={4}
-          placeholder="AI 분석을 실행하거나 직접 입력하세요"
-          style={{ resize: 'vertical', fontFamily: 'inherit' }}
-        />
-      </div>
-      <div>
-        <label className="label" htmlFor="mn-decisions">결정사항</label>
-        <textarea id="mn-decisions" className="input-field"
-          value={decisions}
-          onChange={(e) => setDecisions(e.target.value)}
-          rows={3}
-          placeholder="회의에서 결정된 사항"
-          style={{ resize: 'vertical', fontFamily: 'inherit' }}
-        />
-      </div>
-
-      {/* 추출 후보(선택형) */}
+      {/* 추출 후보(선택형) — 본문 카드 하단 통합. 분석 후에만 노출. */}
       {result && (result.tasks.length > 0 || result.events.length > 0 || result.highlights.length > 0 || (result.attendees?.length ?? 0) > 0) && (
-        <>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', paddingTop: 'var(--space-4)', borderTop: 'var(--hairline) solid var(--border-light)' }}>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', margin: 0, fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.02em' }}>
+            <Sparkles size={14} color="var(--brand)" /> AI 추출 — 검토 후 반영
+          </h3>
           {result.attendees && result.attendees.length > 0 && (
             <CandidateGroup icon={<Users size={14} color="var(--brand)" />} label="참석자 후보 → 참석자">
               {result.attendees.map((c, i) => {
@@ -344,16 +366,44 @@ export default function MeetingAiPanel({
               ))}
             </CandidateGroup>
           )}
-        </>
+        </div>
       )}
 
-      {/* 단일 확정: 요약 저장 + 선택 후보 반영 */}
-      <div>
-        <NbButton onClick={confirmAll} disabled={confirmBusy || !hasBody} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-          <CheckSquare size={15} /> {confirmLabel}
-        </NbButton>
-      </div>
+      {/* 단일 확정: 요약·결정사항 저장 + 선택 후보 반영 (저장 버튼 일원화) */}
+      {hasBody && (
+        <div>
+          <NbButton onClick={confirmAll} disabled={confirmBusy} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <CheckSquare size={15} /> {confirmLabel}
+          </NbButton>
+        </div>
+      )}
     </section>
+  )
+}
+
+// 본문 카드 헤더 탭(정제본/원본).
+function BodyTab({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={selected}
+      onClick={onClick}
+      style={{
+        padding: 'var(--space-1) var(--space-3)',
+        minHeight: 36,
+        border: 'none',
+        borderRadius: 'var(--radius)',
+        cursor: 'pointer',
+        fontSize: 'var(--fs-sm)',
+        fontWeight: selected ? 700 : 500,
+        background: selected ? 'var(--surface-card)' : 'transparent',
+        color: selected ? 'var(--text)' : 'var(--text-muted)',
+        boxShadow: selected ? 'var(--shadow-sm)' : 'none',
+      }}
+    >
+      {label}
+    </button>
   )
 }
 
