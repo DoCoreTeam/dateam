@@ -13,6 +13,10 @@ import { reconcile, type ReconcileResult, type ReconcileExtractedLike } from '@/
 import { transcriptionToCompetitorItems } from '@/lib/gpu/transcription-to-items'
 import { validateCompetitorItem } from '@/lib/gpu/validate'
 
+// 헤드리스 렌더(@sparticuz/chromium)·전사·AI 호출에 시간 필요 → Node 런타임 + maxDuration 확대(Vercel 콜드스타트 여유).
+export const runtime = 'nodejs'
+export const maxDuration = 60
+
 // 통합입력 실시간 스트리밍 분석 — SSE.
 // 추출 결과는 "미리보기"만 반환(저장 X). 사용자가 버튼을 눌러야 저장(경쟁사: market/import, 공급가: review POST).
 // 기존 review/route.ts(POST)는 무수정 보존 — 회귀 0.

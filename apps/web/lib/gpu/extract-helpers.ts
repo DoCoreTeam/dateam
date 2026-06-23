@@ -3,6 +3,7 @@
 import type { createAdminClient } from '@/lib/supabase/server'
 import { SCHEMA_CONTRACT } from '@/lib/gpu/schema-contract'
 import { safeFetchText } from '@/lib/security/safe-fetch'
+import { renderUrlHtml } from '@/lib/security/headless-fetch'
 import { htmlToStructuredText } from '@/lib/gpu/html-table-extract'
 
 export const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
@@ -47,15 +48,29 @@ export function extractUrls(text: string): string[] {
 
 // URL 본문을 표 구조 보존 텍스트로 가져온다.
 // 반환: { text, truncated } — truncated는 URL_BODY_MAX 초과로 잘렸는지(호출부가 사용자에게 고지).
+// 일반 fetch가 빈손(JS 렌더 사이트의 빈 껍데기)인지 판단하는 임계 — 이 미만이면 헤드리스 렌더 폴백.
+const URL_EMPTY_THRESHOLD = 300
+
 export async function fetchUrlText(url: string): Promise<{ text: string; truncated: boolean }> {
   try {
     // SSRF 방어: safe-fetch SSOT 경유 (스킴·사설망·리다이렉트·크기 검증) — review/stream 경로 포함
     const res = await safeFetchText(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', 'Accept': 'text/html,application/xhtml+xml' },
     })
-    if (!res.ok) return { text: '', truncated: false }
     // R2: 태그 전체 제거(word-soup) 대신 <table> 행·열 보존 SSOT 파서 사용
-    const structured = htmlToStructuredText(res.text)
+    let structured = res.ok ? htmlToStructuredText(res.text) : ''
+
+    // 하이브리드: 일반 fetch가 빈손/tiny면(=JS 렌더 사이트, 예 nebius) 헤드리스 Chromium으로 렌더 후 재파싱.
+    // 렌더 실패/차단 시 renderUrlHtml은 '' 반환 → 기존 빈손 동작 유지(우아한 폴백, 회귀0).
+    if (structured.trim().length < URL_EMPTY_THRESHOLD) {
+      const rendered = await renderUrlHtml(url)
+      if (rendered) {
+        const renderedStructured = htmlToStructuredText(rendered)
+        if (renderedStructured.trim().length > structured.trim().length) structured = renderedStructured
+      }
+    }
+
+    if (!structured) return { text: '', truncated: false }
     const truncated = structured.length > URL_BODY_MAX
     return { text: truncated ? structured.slice(0, URL_BODY_MAX) : structured, truncated }
   } catch { return { text: '', truncated: false } }
