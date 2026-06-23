@@ -59,6 +59,12 @@ export default function QuoteRegisterTab() {
   useEffect(() => () => { streamFilesRef.current.forEach((s) => s.previewUrl && URL.revokeObjectURL(s.previewUrl)) }, [])
   const [isDragging, setIsDragging] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
+  // OS 감지(단축키 힌트 ⌘ vs Ctrl) — 클라이언트 마운트 후 설정해 hydration 불일치 방지.
+  const [isMac, setIsMac] = useState(false)
+  useEffect(() => {
+    const p = `${navigator.platform} ${navigator.userAgent}`
+    setIsMac(/Mac|iPhone|iPad|iPod/i.test(p))
+  }, [])
   const [analysisResults, setAnalysisResults] = useState<ReviewItemResult[]>([])
   const [competitorResults, setCompetitorResults] = useState<CompetitorSavedItem[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -407,6 +413,13 @@ export default function QuoteRegisterTab() {
               value={rawText}
               onChange={(e) => { setRawText(e.target.value); setSuccessMsg(''); setErrorMsg('') }}
               onPaste={handlePaste}
+              onKeyDown={(e) => {
+                // ⌘+Enter(맥) / Ctrl+Enter(윈도우)로 즉시 분석. metaKey=⌘, ctrlKey=Ctrl 둘 다 허용.
+                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                  e.preventDefault()
+                  if (!analyzing && (rawText.trim() || attached || streamFiles.length > 0)) void handleAnalyze()
+                }
+              }}
             />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderTop: 'var(--hairline) solid var(--surface-bg)' }}>
               <label
@@ -416,7 +429,7 @@ export default function QuoteRegisterTab() {
               >
                 <Paperclip size={13} /> 파일 첨부
               </label>
-              <span style={{ fontSize: 11, color: 'var(--border-subtle)' }}>이미지·PDF·엑셀·CSV · Ctrl+V 붙여넣기</span>
+              <span style={{ fontSize: 11, color: 'var(--border-subtle)' }}>이미지·PDF·엑셀·CSV · {isMac ? '⌘' : 'Ctrl'}+Enter 분석</span>
             </div>
           </div>
 
