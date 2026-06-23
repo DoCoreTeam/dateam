@@ -329,3 +329,44 @@ test('strategic_price_krw 컬럼 없는 환경(undefined) — 기존 sell_price_
   assert.equal(p1.is_strategic_set, false)
   assert.equal(p1.strategic_price_krw, null)
 })
+
+// 메모리 변형 전파 격리 (v0.7.255 사고: RTX Pro 6000 48GB 가격이 96GB로 전파돼 동일가).
+//  장당 메모리(memory÷gpu_count)가 다르면 '다른 카드' → 자동 per-GPU 전파 금지.
+//  장당 메모리가 같으면(장수만 다름) 전파 유지.
+test('전파 격리 — 장당 메모리 다른 구성엔 전파 안 됨(48GB→96GB 금지)', () => {
+  const raw = {
+    usdKrw: 1536, marginPct: 20,
+    products: [
+      { id: 'm48', model_name: 'RTX Pro 6000', memory: '48GB', tier: 2, pricing_mode: 'quote', gpu_count: 1, vcpu: 24, ram_gb: 218, storage_gb: 1024, series: 'RTX' },
+      { id: 'm96', model_name: 'RTX Pro 6000', memory: '96GB', tier: 2, pricing_mode: 'quote', gpu_count: 1, vcpu: 24, ram_gb: 218, storage_gb: 1024, series: null },
+    ],
+    quotes: [
+      { product_id: 'm48', supplier_id: 'ak', unit_price_usd: 2.5, gpu_count: 1, valid_until: null },
+    ],
+    suppliers: [{ id: 'ak', name: 'Akamai', color: '#3b82f6' }],
+  } as unknown as Parameters<typeof buildCatalog>[0]
+  const byId = new Map(buildCatalog(raw).products.map((p) => [p.id, p]))
+  // 48GB: 자기 견적 유지
+  assert.equal(byId.get('m48')!.effective_unit_price_usd, 2.5)
+  // 96GB: 자기 견적 없음 + 장당 메모리 다름 → 전파 차단 → effective null(공급원가 미정)
+  assert.equal(byId.get('m96')!.effective_unit_price_usd, null)
+  assert.equal(byId.get('m96')!.sell_price_krw, null)
+})
+
+test('전파 유지 — 장당 메모리 같고 장수만 다르면 전파됨(×1→×2)', () => {
+  const raw = {
+    usdKrw: 1536, marginPct: 20,
+    products: [
+      { id: 'g1', model_name: 'B200', memory: '180GB', tier: 1, pricing_mode: 'quote', gpu_count: 1, vcpu: 28, ram_gb: 220, storage_gb: 2048, series: 'B200' },
+      { id: 'g2', model_name: 'B200', memory: '360GB', tier: 1, pricing_mode: 'quote', gpu_count: 2, vcpu: 56, ram_gb: 440, storage_gb: 4096, series: 'B200' },
+    ],
+    quotes: [
+      { product_id: 'g1', supplier_id: 'hr', unit_price_usd: 3.0, gpu_count: 1, valid_until: null },
+    ],
+    suppliers: [{ id: 'hr', name: 'High Reso', color: '#3b82f6' }],
+  } as unknown as Parameters<typeof buildCatalog>[0]
+  const byId = new Map(buildCatalog(raw).products.map((p) => [p.id, p]))
+  // g2(×2, 장당 180=g1과 동일): 자기 견적 없어도 전파 = 3.0 × 2 = 6.0
+  assert.equal(byId.get('g2')!.effective_unit_price_usd, 6.0)
+  assert.equal(byId.get('g2')!.is_propagated, true)
+})

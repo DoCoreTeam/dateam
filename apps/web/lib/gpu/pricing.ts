@@ -116,6 +116,19 @@ export function modelKeyOf(p: { model_name: string; tier: number }): string {
   return `${p.tier}|${p.model_name}`
 }
 
+/**
+ * 자동 per-GPU 전파 키 — modelKey + **장당 메모리**(memory ÷ gpu_count).
+ * memory 컬럼은 '총 메모리'라 장수에 비례(×1 180GB, ×2 360GB)하므로, 장당으로 환산해야
+ * "같은 카드의 장수 변형"(장당 동일 → 전파 O)과 "다른 메모리 카드"(장당 48 vs 96 → 전파 X)를 구분한다.
+ * → 48GB 가격으로 96GB를 매기던 사고 방지. (모델범위 '지정'(selection_scope='model')은 사용자 명시라 별도·그대로.)
+ */
+export function propKeyOf(p: { model_name: string; tier: number; memory: string | null; gpu_count: number }): string {
+  const totalGb = parseFloat((p.memory ?? '').replace(/[^0-9.]/g, '')) || 0
+  const count = Math.max(1, Number(p.gpu_count) || 1)
+  const perCardGb = totalGb > 0 ? Math.round((totalGb / count) * 10) / 10 : 0
+  return `${modelKeyOf(p)}|${perCardGb}`
+}
+
 /** per_gpu 환산 — 구성 총액 ÷ 장수 */
 export function perGpuOf(unitPriceUsd: number, gpuCount: number): number {
   const n = Math.max(1, gpuCount)
@@ -230,11 +243,11 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
     if (!prev || q.unit_price_usd < prev.unit_price_usd) listLowestByProduct.set(q.product_id, q)
   }
 
-  // 상품 인덱스 (model_key 산출용)
-  const productById = new Map<string, { model_name: string; tier: number }>(
-    (raw.products ?? []).map((p: { id: string; model_name: string; tier: number }) => [
+  // 상품 인덱스 (model_key 산출용) — memory·gpu_count 포함(자동 전파를 '장당 메모리' 단위로 격리하기 위함).
+  const productById = new Map<string, { model_name: string; tier: number; memory: string | null; gpu_count: number }>(
+    (raw.products ?? []).map((p: { id: string; model_name: string; tier: number; memory: string | null; gpu_count: number }) => [
       p.id,
-      { model_name: p.model_name, tier: p.tier },
+      { model_name: p.model_name, tier: p.tier, memory: p.memory ?? null, gpu_count: p.gpu_count },
     ])
   )
 
@@ -269,10 +282,11 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
     const sup = q.supplier_id ? supplierMap.get(q.supplier_id) ?? null : null
     const supLite = sup ? { name: sup.name, color: sup.color } : null
 
-    // 모델 최저 1장당
-    const prevBest = bestPerGpuByModel.get(mk)
+    // 모델 최저 1장당 (자동 전파) — 메모리 단위 키. 메모리 다른 구성엔 전파 안 됨.
+    const pk = propKeyOf(meta)
+    const prevBest = bestPerGpuByModel.get(pk)
     if (!prevBest || perGpu < prevBest.per_gpu_usd) {
-      bestPerGpuByModel.set(mk, { per_gpu_usd: perGpu, supplier: supLite, quote_id: q.id ?? null, term: q.term ?? null })
+      bestPerGpuByModel.set(pk, { per_gpu_usd: perGpu, supplier: supLite, quote_id: q.id ?? null, term: q.term ?? null })
     }
 
     // 모델×공급사별 최저 1장당
@@ -363,7 +377,8 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
       const ownUsd = own ? own.unit_price_usd : null
       const ownSup = own?.supplier_id ? supplierMap.get(own.supplier_id) ?? null : null
 
-      const best = bestPerGpuByModel.get(mk) ?? null
+      // 자동 전파는 같은 메모리 구성 안에서만 — 메모리 다른 구성은 best=null → 전파 없음(공급원가 미정).
+      const best = bestPerGpuByModel.get(propKeyOf(p)) ?? null
       const propagatedUsd = best ? Math.round(best.per_gpu_usd * count * PER_GPU_DP) / PER_GPU_DP : null
 
       // effective = min(자기 구성 견적, 전파 = bestPerGpu × count)
