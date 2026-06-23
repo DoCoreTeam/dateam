@@ -211,13 +211,19 @@ export async function deleteMeetingNote(id: string): Promise<ActionResult<Record
     } = await supabase.auth.getUser()
     if (!user) return { ok: false, error: '인증이 필요합니다.' }
 
-    const { error } = await (supabase.from('meeting_notes') as any)
+    // .select('id')로 실제 영향 행을 받아 0행이면 조용한 실패를 차단.
+    // (admin이라도 RLS UPDATE는 본인 행만 — 남의 노트 삭제 시도는 0행 → 명시 에러)
+    const { data: deletedRows, error } = await (supabase.from('meeting_notes') as any)
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', idCheck.data)
       .eq('user_id', user.id)
       .is('deleted_at', null)
+      .select('id')
 
     if (error) return { ok: false, error: `삭제 실패: ${error.message}` }
+    if (!deletedRows || deletedRows.length === 0) {
+      return { ok: false, error: '삭제할 수 없습니다. 본인이 작성한 회의노트만 삭제할 수 있습니다.' }
+    }
 
     // 연결 정리(best-effort, 본인 행만):
     //  (a) 캘린더 일정 — 앵커(source='user')·AI파생(source='ai') 모두 link_kind='meeting' 이므로 전부 삭제(고아 0)
@@ -396,6 +402,8 @@ export interface MeetingNoteListItem {
   created_at: string
   department_id: string | null
   tags: string[] | null
+  attendees: string[] | null
+  attendee_user_ids: string[] | null
 }
 
 export interface ListMeetingNotesResult {
@@ -426,8 +434,12 @@ export async function listMeetingNotes(params: {
   } = await supabase.auth.getUser()
   if (!user) return empty
 
+  // 개인 회의노트 목록 — 본인 작성분만(admin이라도 본인 것만 보여 "내가 쓴 건 내가 관리").
+  //  RLS SELECT는 admin에게 전체를 허용하지만, 이 화면은 개인 목록이므로 앱에서 user_id를 명시 한정한다.
+  //  (admin 전사 모니터링이 필요하면 별도 화면 — 이 목록의 책임 아님)
   let query = (supabase.from('meeting_notes') as any)
-    .select('id, title, meeting_at, status, summary, body_plain, created_at, department_id, tags', { count: 'exact' })
+    .select('id, title, meeting_at, status, summary, body_plain, created_at, department_id, tags, attendees, attendee_user_ids', { count: 'exact' })
+    .eq('user_id', user.id)
     .is('deleted_at', null)
 
   if (filter !== 'all' && ['draft', 'final', 'archived'].includes(filter)) {
