@@ -272,20 +272,23 @@ export default function QuoteRegisterTab() {
     try {
       const res = await fetch('/api/pricing/gpu/market/import', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: importable, source_url: previewSourceUrl }),
+        body: JSON.stringify({ items: importable, source_url: previewSourceUrl, is_test: isTest }),
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) { setErrorMsg(j.error ?? '반영 실패'); return }
-      await mutate('/api/pricing/gpu/market')
+      // member 제출은 검토대기 staging(staged:true), admin은 라이브 반영. 메시지·갱신 분기.
+      if (j.staged) { await mutate('/api/pricing/gpu/review?status=pending') } else { await mutate('/api/pricing/gpu/market') }
       setApplied(true)
       setSuccessMsg(
-        `경쟁사 가격 ${j.count}건이 시장 비교에 반영되었습니다.` +
+        (j.staged
+          ? `경쟁사 가격 ${j.count}건을 검토 대기에 제출했습니다 — 관리자 확정 후 시장 비교에 반영됩니다.`
+          : `경쟁사 가격 ${j.count}건이 시장 비교에 반영되었습니다.`) +
         (skipped > 0 ? ` 가격미상 ${skipped}건은 제외 — 직접 확인이 필요합니다.` : '')
       )
     } catch {
       setErrorMsg('반영 실패')
     } finally { setApplying(false) }
-  }, [previewItems, previewSourceUrl])
+  }, [previewItems, previewSourceUrl, isTest, mutate])
 
   // 인라인 정정 — 공급가 → 경쟁사 이동. 이동 항목은 경쟁사 import 경로(market/import)를 타도록
   // competitorResults(표시)와 previewItems(전송 원본) 양쪽에 동기 추가하고 supplierPreview에서 제거.
