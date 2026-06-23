@@ -1,5 +1,6 @@
 import { normalizeMemory } from '@/lib/gpu/normalize'
 import { inferTier } from '@/lib/gpu/tier-dict'
+import { canonicalizeModel, normModelKey } from '@/lib/gpu/canonical-model'
 
 export interface CompetitorPriceItem {
   competitor_name: string
@@ -37,12 +38,19 @@ export async function saveCompetitorPrices(
 
     let gpuProductId: string
     const memory = normalizeMemory(item.memory ?? '')
-    const { data: existingGpu } = await db.from('gpu_products').select('id').ilike('model_name', item.model_name.trim()).eq('memory', memory).single()
-    if (existingGpu?.id) {
-      gpuProductId = existingGpu.id
+    // 캐노니컬 SSOT 경유(confirm-review-item와 동일) — ilike 정확매칭이 만들던 변형명 중복(A6000/RTX A6000 등) 차단.
+    //   캐노니컬 키로 같은 memory 후보 중 매칭 → 없을 때만 캐노니컬명으로 생성.
+    const canon = canonicalizeModel(item.model_name)
+    const modelName = canon.canonical || item.model_name.trim()
+    let candQ = db.from('gpu_products').select('id, model_name').is('deleted_at', null)
+    candQ = memory ? candQ.eq('memory', memory) : candQ.is('memory', null)
+    const { data: cands } = await candQ.limit(300)
+    const hit = ((cands ?? []) as Array<{ id: string; model_name: string }>).find((c) => normModelKey(c.model_name) === canon.key)
+    if (hit?.id) {
+      gpuProductId = hit.id
     } else {
       const { data: newGpu, error: gpuErr } = await db.from('gpu_products')
-        .insert({ model_name: item.model_name.trim(), memory, tier: inferTier(item.model_name.trim()), pricing_mode: 'quote', gpu_count: 1, vcpu: 12, ram_gb: 16, storage_gb: 512 }).select('id').single()
+        .insert({ model_name: modelName, memory, tier: inferTier(modelName), pricing_mode: 'quote', gpu_count: 1, vcpu: 12, ram_gb: 16, storage_gb: 512 }).select('id').single()
       if (gpuErr || !newGpu) { console.error('[competitor] GPU 모델 생성 실패:', gpuErr?.message); continue }
       gpuProductId = newGpu.id
     }

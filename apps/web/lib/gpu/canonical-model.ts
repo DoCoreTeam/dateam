@@ -13,6 +13,8 @@ const ALIAS_TO_CANONICAL: Record<string, string> = {
   // Ampere RTX A6000 — "A6000"과 "RTX A6000"은 동일 GPU. ("RTX 6000 Ada"는 Ada라서 별개 → 미포함)
   a6000: 'RTX A6000',
   rtxa6000: 'RTX A6000',
+  // Volta V100 — "V100"과 "Tesla V100"은 동일 GPU(데이터 보유 쪽 'V100'으로 통일).
+  teslav100: 'V100',
 }
 
 const MAX_MODEL_LEN = 100
