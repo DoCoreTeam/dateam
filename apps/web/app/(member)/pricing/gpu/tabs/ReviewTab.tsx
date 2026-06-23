@@ -269,7 +269,7 @@ function ConfidenceBar({ value, label }: { value: number | null; label: string }
   )
 }
 
-function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwPerUsd }: { item: ReviewItem; onDone: () => void; allSuppliers: Supplier[]; selected: boolean; onToggleSelect: () => void; krwPerUsd: number | null }) {
+function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwPerUsd, isAdmin }: { item: ReviewItem; onDone: () => void; allSuppliers: Supplier[]; selected: boolean; onToggleSelect: () => void; krwPerUsd: number | null; isAdmin: boolean }) {
   const [expanded, setExpanded] = useState(false)
   const [showBreakdown, setShowBreakdown] = useState(false)
   const [recheckResult, setRecheckResult] = useState<RecheckResult | null>(null)
@@ -528,8 +528,8 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
       )}
       {!isCompetitor && <BillingPanel extracted={extracted} />}
 
-      {/* 낮은 신뢰도 안내 */}
-      {lowConfFields.length > 0 && !allLowChecked && (
+      {/* 낮은 신뢰도 안내 (확정 관련 — admin만) */}
+      {isAdmin && lowConfFields.length > 0 && !allLowChecked && (
         <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8, background: 'var(--warning-bg)', border: 'var(--hairline) solid var(--warning-border)', fontSize: 12, color: 'var(--warning)' }}>
           ⚠️ 신뢰도 90% 미만 항목이 있습니다. 각 항목을 직접 확인하고 체크해야 확정할 수 있습니다.
         </div>
@@ -552,8 +552,8 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
         </pre>
       )}
 
-      {/* AI 재분석 섹션 (공급사 항목 전용 — 경쟁사 카탈로그는 미적용) */}
-      {!isCompetitor && (
+      {/* AI 재분석 섹션 (공급사 항목 전용 — 경쟁사 카탈로그는 미적용). 액션이므로 admin만. */}
+      {isAdmin && !isCompetitor && (
       <div style={{ marginTop: 14, padding: '12px', borderRadius: 8, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--brand-soft-2)' }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--brand-dark)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
           <RotateCcw size={12} /> AI 재분석 요청
@@ -579,7 +579,8 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
       </div>
       )}
 
-      {/* 액션 버튼 */}
+      {/* 액션 버튼 (확정·반려) — admin 전용. member는 조회+선택(삭제)만. */}
+      {isAdmin && (
       <div className="gpu-rev-actions" style={{ marginTop: 14 }}>
         <button
           className="gpu-btn gpu-btn-primary"
@@ -611,11 +612,12 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }
 
-export default function ReviewTab() {
+export default function ReviewTab({ isAdmin = false }: { isAdmin?: boolean }) {
   // Context-aware mutate — 전역 mutate는 SWRProvider 영속캐시를 못 건드림(저장 후 미반영 회귀 방지)
   const { mutate } = useSWRConfig()
   const { data, mutate: revalidate } = useSWR<{ items: ReviewItem[] }>(
@@ -772,8 +774,9 @@ export default function ReviewTab() {
           <AlertTriangle size={16} color="var(--warning)" />
         </div>
         <div>
-          <strong>사람 검토 게이트</strong> · AI가 추출한 견적은 본부장 확정 전까지 가격표에 반영되지 않습니다.
-          신뢰도 90% 미만 항목은 직접 확인 체크 후에만 확정 버튼이 활성화됩니다.
+          {isAdmin
+            ? <>제출된 견적은 확정 전까지 가격표에 반영되지 않습니다. 신뢰도 90% 미만 항목은 직접 확인 체크 후 확정할 수 있습니다.</>
+            : <>관리자가 승인하면 확정 반영됩니다.</>}
         </div>
       </div>
 
@@ -807,9 +810,11 @@ export default function ReviewTab() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>선택 {selected.size}건</span>
             <button onClick={() => setSelected(new Set())} className="gpu-btn" style={{ fontSize: 12 }} disabled={bulkBusy}>선택 해제</button>
+            {isAdmin && (
             <button onClick={openBulkConfirm} disabled={bulkBusy} className="gpu-btn gpu-btn-primary" data-testid="bulk-confirm-btn" style={{ fontSize: 12, gap: 5 }}>
               <CheckCircle2 size={13} /> 일괄 확정
             </button>
+            )}
             <button onClick={openBulkDelete} disabled={bulkBusy} className="gpu-btn gpu-btn-danger" data-testid="bulk-delete-btn" style={{ fontSize: 12, gap: 5 }}>
               <X size={13} /> 일괄 삭제
             </button>
@@ -833,6 +838,7 @@ export default function ReviewTab() {
               selected={selected.has(item.id)}
               onToggleSelect={() => toggleSelect(item.id)}
               krwPerUsd={krwPerUsd}
+              isAdmin={isAdmin}
             />
           ))
         )}

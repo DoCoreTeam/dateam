@@ -432,7 +432,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
             <SalePriceCatalogPage />
           </div>
         )}
-        {activeTab === 'review' && <div className="gpu-tab-panel"><ReviewTab /></div>}
+        {activeTab === 'review' && <div className="gpu-tab-panel"><ReviewTab isAdmin={isAdmin} /></div>}
         {activeTab === 'suppliers' && <div className="gpu-tab-panel--scroll"><SuppliersTab autoCreate={autoCreateTab === 'suppliers'} onAutoCreateConsumed={() => setAutoCreateTab(null)} onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board') }} /></div>}
         {activeTab === 'competitors' && <div className="gpu-tab-panel--scroll"><div className="page-inner"><CompetitorsTab autoCreate={autoCreateTab === 'competitors'} onAutoCreateConsumed={() => setAutoCreateTab(null)} /></div></div>}
         {activeTab === 'specs' && <div className="gpu-tab-panel--scroll"><div className="page-inner"><SpecsTab /></div></div>}

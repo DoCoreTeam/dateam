@@ -5,9 +5,9 @@ import { confirmReviewItem } from '@/lib/gpu/confirm-review-item'
 
 // POST /api/pricing/gpu/review/bulk — 검토대기 항목 일괄 처리.
 //  body: { ids: string[], action: 'delete' | 'confirm', auto_accepted_low_conf?: Record<id, string[]> }
+//  권한: 라이브 반영(confirm=가격표 확정)·검토대기 일괄 삭제 모두 admin 전용(확정/마스터 경계 SSOT).
 //  delete  = review_items 영구 삭제(가격DB 무영향, pending 정리용).
-//  confirm = 선택 항목을 가격표에 일괄 확정(공용 confirmReviewItem SSOT). 사람검토 게이트는 클라 1회 동의로 대체.
-//            confirmed_items=[] (사람 직접확인 없음) + via:'bulk' 감사 기록. 항목별 성공/실패 집계 반환.
+//  confirm = 선택 항목을 가격표에 일괄 확정(공용 confirmReviewItem SSOT).
 const MAX_BULK = 500
 
 export async function POST(req: NextRequest) {

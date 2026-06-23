@@ -30,19 +30,16 @@ const MEMBER_SUBMIT_ROUTES = [
   'market/import/route.ts',   // 경쟁사 반영: member=검토대기 staging / admin=라이브(내부 role 분기)
 ]
 
-// 확정/라이브반영(라우트 게이트가 admin) 경로
-const ADMIN_CONFIRM_ROUTES = [
-  'review/bulk/route.ts',     // 검토 일괄 처리
-]
-
 test('통합입력 제출 경로는 member 허용(requireMemberApi)', () => {
   for (const r of MEMBER_SUBMIT_ROUTES) {
     assert.equal(gateOf(r), 'member', `${r} 는 requireMemberApi 여야 함(제출=임직원 허용)`)
   }
 })
 
-test('확정/라이브반영 경로는 admin 유지(requireAdminApi)', () => {
-  assert.equal(gateOf('review/bulk/route.ts'), 'admin', 'review/bulk(검토 일괄)은 admin 유지')
+// review/bulk: 일괄 삭제(검토대기 정리)·일괄 확정(가격표 라이브 반영) 모두 admin 전용.
+// 확정/마스터 경계 SSOT — member는 통합입력 제출만 하고, 검토대기 항목 일괄 처리는 admin이 수행한다.
+test('review/bulk는 admin 전용(일괄 삭제·확정 모두 확정/마스터 경계)', () => {
+  assert.equal(gateOf('review/bulk/route.ts'), 'admin', 'review/bulk는 admin 전용(requireAdminApi)')
 })
 
 // market/import는 member 게이트지만, 라이브 반영(saveCompetitorPrices)은 내부 role 분기로 admin만 도달해야 한다.
@@ -58,5 +55,3 @@ test('마스터데이터 CRUD는 admin 유지(requireAdminApi)', () => {
   assert.equal(gateOf('competitors/[id]/route.ts'), 'admin', '경쟁사 단건 CRUD는 admin 유지')
   assert.equal(gateOf('suppliers/bulk/route.ts'), 'admin', '공급사 일괄은 admin 유지')
 })
-
-void ADMIN_CONFIRM_ROUTES
