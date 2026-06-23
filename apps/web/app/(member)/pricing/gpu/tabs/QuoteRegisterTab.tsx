@@ -13,69 +13,20 @@ import {
   SupplierPreviewRow,
   supplierRowToCompetitor,
   competitorRowToSupplier,
+  isPriceUnknown,
+  ResultPanel,
+  getTabLabel,
+  getConfColor,
   type CompetitorSavedItem,
+  type ReviewItemResult,
 } from './QuoteRegisterPreview'
 
-interface ReviewItemResult {
-  id: string
-  product_hint: string | null
-  supplier_hint: string | null
-  channel: string | null
-  impact_level: string | null
-  overall_confidence: number | null
-  current_extracted: Record<string, unknown> | null
-  current_confidence: Record<string, number | null> | null
-  is_test: boolean
-}
-
-const CONF_LABELS: Record<string, string> = {
-  model_name: '모델명',
-  memory: '메모리',
-  supplier: '공급사',
-  unit_price_usd: '단가 (USD)',
-  original_price: '원본 금액',
-  original_currency: '원본 통화',
-  original_unit: '원본 단위',
-  term: '약정 원문',
-  term_months: '약정 (개월)',
-  min_qty: '최소 수량',
-  valid_until: '유효기간',
-  tier_suggestion: 'Tier 추천',
-  tier_reason: 'Tier 근거',
-  has_quantity_info: '재고 정보',
-  quantity: '재고 현황',
-}
-
-const QTY_STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  available_full:    { label: '재고 있음',  color: 'var(--success)' },
-  available_partial: { label: '일부 가능',  color: 'var(--warning)' },
-  out_of_stock:      { label: '재고 없음',  color: 'var(--danger)' },
-  declined:          { label: '공급 거절',  color: 'var(--brand)' },
-  pending:           { label: '확인 중',    color: 'var(--text-muted)' },
-}
-
-function formatExtractedValue(key: string, val: unknown): string {
-  if (val === null || val === undefined) return '—'
-  if (typeof val === 'boolean') return val ? '있음' : '없음'
-  if (key === 'quantity' && typeof val === 'object' && val !== null) {
-    const q = val as Record<string, unknown>
-    const statusKey = typeof q.status === 'string' ? q.status : ''
-    const statusLabel = QTY_STATUS_LABELS[statusKey]?.label ?? statusKey
-    const qty = q.resp_qty !== null && q.resp_qty !== undefined ? ` · ${q.resp_qty}개` : ''
-    return `${statusLabel}${qty}`
-  }
-  if (typeof val === 'object') {
-    const raw = JSON.stringify(val)
-    return raw.length > 80 ? raw.slice(0, 80) + '…' : raw
-  }
-  return String(val)
-}
-
-const IMPACT_CONFIG: Record<string, { label: string; color: string }> = {
-  new_model: { label: '신규 모델', color: 'var(--gpu-accent)' },
-  big_swing: { label: '급격한 변동', color: 'var(--gpu-red)' },
-  price_low_change: { label: '소폭 변동', color: 'var(--gpu-amber)' },
-  steady: { label: '안정적', color: 'var(--gpu-green)' },
+// 행수 대조 결과(백엔드 done 페이로드). 추출<원본이면 누락 경고 표시.
+interface Reconciliation {
+  source_rows: number
+  extracted: number
+  missing: number
+  missing_labels: string[]
 }
 
 interface AttachedFile {
@@ -90,78 +41,6 @@ interface StreamFile {
   name: string
   kind: 'image' | 'pdf'
   previewUrl?: string
-}
-
-function getTabLabel(item: ReviewItemResult): string {
-  const extracted = item.current_extracted ?? {}
-  const model = typeof extracted.model_name === 'string' ? extracted.model_name : ''
-  const mem = typeof extracted.memory === 'string' ? extracted.memory : ''
-  return model ? `${model}${mem ? ' ' + mem : ''}` : item.product_hint ?? '모델'
-}
-
-function getConfColor(pct: number | null): string {
-  if (pct == null) return 'var(--text-faint)'
-  if (pct >= 80) return 'var(--gpu-green)'
-  if (pct >= 60) return 'var(--gpu-amber)'
-  return 'var(--gpu-red)'
-}
-
-function ResultPanel({ item }: { item: ReviewItemResult }) {
-  const extracted = item.current_extracted ?? {}
-  const confidence = item.current_confidence ?? {}
-  const overallPct = item.overall_confidence ?? 0
-  const impact = IMPACT_CONFIG[item.impact_level ?? 'steady'] ?? IMPACT_CONFIG.steady
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {/* 임팩트 배지 */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
-        <span className="gpu-badge" style={{ background: impact.color, color: '#fff', fontSize: 10 }}>
-          {impact.label}
-        </span>
-        {item.product_hint && (
-          <span className="gpu-badge gpu-badge-gray">{item.product_hint}</span>
-        )}
-        {item.supplier_hint
-          ? <span className="gpu-badge gpu-badge-gray">{item.supplier_hint}</span>
-          : <span className="gpu-badge" style={{ background: 'var(--gpu-amber)', color: '#fff', fontSize: 10 }}>⚠ 공급사 미확인</span>
-        }
-        <span className="gpu-badge" style={{ background: getConfColor(overallPct), color: '#fff', fontSize: 10 }}>
-          신뢰도 {overallPct}%
-        </span>
-      </div>
-
-      {/* 필드별 */}
-      {Object.entries(extracted).map(([key, val]) => {
-        const conf = confidence[key]
-        const isNull = val === null || val === undefined
-        const displayVal = formatExtractedValue(key, val)
-        const isLow = typeof conf === 'number' && conf < 90
-        return (
-          <div
-            key={key}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
-              borderRadius: 8,
-              background: isNull ? 'var(--surface-bg)' : isLow ? 'var(--warning-bg)' : 'var(--surface-bg)',
-              border: `var(--hairline) solid ${isNull ? 'var(--surface-bg)' : isLow ? 'var(--warning-border)' : 'var(--color-border)'}`,
-              opacity: isNull ? 0.55 : 1,
-            }}
-          >
-            <span style={{ fontSize: 12, color: 'var(--gpu-muted)', minWidth: 80 }}>{CONF_LABELS[key] ?? key}</span>
-            <span style={{ fontSize: 13, fontWeight: isNull ? 400 : 600, flex: 1, color: isNull ? 'var(--text-faint)' : 'var(--text)', fontStyle: isNull ? 'italic' : 'normal' }}>
-              {displayVal}
-            </span>
-            {typeof conf === 'number' && !isNull && (
-              <span style={{ fontSize: 11, fontWeight: 700, color: isLow ? 'var(--gpu-amber)' : 'var(--gpu-green)' }}>
-                {conf}%
-              </span>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
 }
 
 export default function QuoteRegisterTab() {
@@ -201,6 +80,7 @@ export default function QuoteRegisterTab() {
   const [committed, setCommitted] = useState(false)
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null)  // 공급가 미리보기 상세 펼침
   const [truncated, setTruncated] = useState(false)  // 상한 도달로 일부 항목이 잘림(백엔드 고지)
+  const [reconciliation, setReconciliation] = useState<Reconciliation | null>(null)  // 원본 행수 대조(누락 감지)
 
   // 스트림 raw JSON → 자연어 파싱 (내부 필드명 노출 안 함). 누적 버퍼에서 모델·가격을 뽑아 친화적으로 표시.
   const streamFindings: Array<{ model: string; price?: string }> = (() => {
@@ -274,7 +154,7 @@ export default function QuoteRegisterTab() {
     setCompetitorResults([]); setActiveTabIdx(0); setErrorMsg(''); setSuccessMsg('')
     setLiveMsgs([]); setStreamText(''); setSupplierPreview([]); setCommitted(false)
     setPreviewItems([]); setPreviewSourceUrl(null); setApplied(false); setExpandedIdx(null)
-    setTruncated(false)
+    setTruncated(false); setReconciliation(null)
   }, [])
 
   const handleAnalyze = useCallback(async () => {
@@ -286,6 +166,7 @@ export default function QuoteRegisterTab() {
     setAnalysisResults([]); setCompetitorResults([]); setActiveTabIdx(0)
     setPreviewItems([]); setPreviewSourceUrl(null); setApplied(false)
     setLiveMsgs([]); setStreamText(''); setSupplierPreview([]); setCommitted(false); setTruncated(false)
+    setReconciliation(null)
 
     // ── multipart 전송(이미지/PDF raw 바이너리 — base64 인플레 없음) → SSE 실시간 스트리밍 ──
     try {
@@ -326,6 +207,19 @@ export default function QuoteRegisterTab() {
             } else {
               setSupplierPreview(items)
             }
+          } else if (ev === 'done') {
+            // 행수 대조 결과 — 방어적으로 형태 검증 후 누락(missing>0)일 때만 보관.
+            const rc = data.reconciliation as Partial<Reconciliation> | null | undefined
+            if (rc && typeof rc.missing === 'number' && rc.missing > 0) {
+              setReconciliation({
+                source_rows: Number(rc.source_rows ?? 0),
+                extracted: Number(rc.extracted ?? 0),
+                missing: rc.missing,
+                missing_labels: Array.isArray(rc.missing_labels)
+                  ? rc.missing_labels.map((l) => String(l))
+                  : [],
+              })
+            }
           } else if (ev === 'error') {
             setErrorMsg(String(data.msg ?? 'AI 분석 실패'))
           }
@@ -338,37 +232,56 @@ export default function QuoteRegisterTab() {
     }
   }, [rawText, attached, streamFiles])
 
-  // 공급가 미리보기 → 검토 대기 저장(버튼)
+  // 공급가 미리보기 → 검토 대기 저장(버튼). 가격미상 행은 자동 반영 금지 — 확정에서 제외.
   const commitSupplier = useCallback(async () => {
     if (supplierPreview.length === 0) return
+    const committable = supplierPreview.filter((it) => !isPriceUnknown(it))
+    const skipped = supplierPreview.length - committable.length
+    if (committable.length === 0) {
+      setErrorMsg('가격미상 항목만 있어 자동 반영할 수 없습니다 — 가격을 직접 입력해 주세요.')
+      return
+    }
     setCommitting(true); setErrorMsg('')
     try {
       const res = await fetch('/api/pricing/gpu/review/commit', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: supplierPreview, channel, is_test: isTest }),
+        body: JSON.stringify({ items: committable, channel, is_test: isTest }),
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) { setErrorMsg(j.error ?? '저장 실패'); return }
       await mutate('/api/pricing/gpu/review?status=pending')
       setCommitted(true)
-      setSuccessMsg(`공급가 ${j.count}건이 검토 대기에 추가되었습니다.`)
+      setSuccessMsg(
+        `공급가 ${j.count}건이 검토 대기에 추가되었습니다.` +
+        (skipped > 0 ? ` 가격미상 ${skipped}건은 제외 — 직접 확인이 필요합니다.` : '')
+      )
     } catch { setErrorMsg('저장 실패') } finally { setCommitting(false) }
   }, [supplierPreview, channel, isTest])
 
   // 경쟁가 미리보기를 시장비교에 실제 반영(저장)
   const applyCompetitor = useCallback(async () => {
     if (previewItems.length === 0) return
+    // 가격미상 경쟁가 행은 자동 시장반영 금지 — 제외하고 전송.
+    const importable = previewItems.filter((it) => !isPriceUnknown(it))
+    const skipped = previewItems.length - importable.length
+    if (importable.length === 0) {
+      setErrorMsg('가격미상 항목만 있어 시장에 반영할 수 없습니다 — 가격을 직접 확인해 주세요.')
+      return
+    }
     setApplying(true); setErrorMsg('')
     try {
       const res = await fetch('/api/pricing/gpu/market/import', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: previewItems, source_url: previewSourceUrl }),
+        body: JSON.stringify({ items: importable, source_url: previewSourceUrl }),
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) { setErrorMsg(j.error ?? '반영 실패'); return }
       await mutate('/api/pricing/gpu/market')
       setApplied(true)
-      setSuccessMsg(`경쟁사 가격 ${j.count}건이 시장 비교에 반영되었습니다.`)
+      setSuccessMsg(
+        `경쟁사 가격 ${j.count}건이 시장 비교에 반영되었습니다.` +
+        (skipped > 0 ? ` 가격미상 ${skipped}건은 제외 — 직접 확인이 필요합니다.` : '')
+      )
     } catch {
       setErrorMsg('반영 실패')
     } finally { setApplying(false) }
@@ -433,6 +346,9 @@ export default function QuoteRegisterTab() {
     })),
   ]
   const confirmCount = supplierPreview.length + competitorResults.length
+  // 가격미상 공급가 — 자동 확정 대상에서 제외(사람 확인 필요)
+  const supplierUnknownCount = supplierPreview.filter((it) => isPriceUnknown(it)).length
+  const supplierCommittable = supplierPreview.length - supplierUnknownCount
 
   return (
     <div>
@@ -630,6 +546,17 @@ export default function QuoteRegisterTab() {
             </div>
           ) : (supplierPreview.length > 0 || hasCompetitorResults) && !hasResults ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8, overflowY: 'auto' }}>
+              {/* 누락 대조 경고 — done.reconciliation.missing>0 일 때만 노출 */}
+              {reconciliation && reconciliation.missing > 0 && (
+                <div className="gpu-banner gpu-banner-warning" style={{ marginBottom: 0 }} data-testid="reconciliation-banner" role="alert">
+                  <span className="gpu-banner-dot" aria-hidden>⚠</span>
+                  <span>
+                    원본 {reconciliation.source_rows}행 중 {reconciliation.extracted}행만 추출 — {reconciliation.missing}행 누락 의심
+                    {reconciliation.missing_labels.length > 0 && <>: {reconciliation.missing_labels.join(' · ')}</>}.
+                    {' '}원본을 나눠 다시 시도하거나 직접 추가하세요.
+                  </span>
+                </div>
+              )}
               {/* 잘림 고지 배너 — 백엔드가 상한 도달을 알릴 때만 노출(없으면 미표시) */}
               {truncated && (
                 <div className="gpu-banner gpu-banner-warning" style={{ marginBottom: 0 }} data-testid="truncation-banner" role="alert">
@@ -654,11 +581,15 @@ export default function QuoteRegisterTab() {
                       {applied ? '반영 완료' : '반영 대기'}
                     </span>
                   </div>
-                  {competitorResults.map((item, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, background: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)' }}>
+                  {competitorResults.map((item, i) => {
+                    const unknown = isPriceUnknown({ price_usd: item.price_usd })
+                    return (
+                    <div key={i} data-testid={`competitor-row-${i}`} data-price-unknown={unknown ? 'true' : undefined} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', minHeight: 44, borderRadius: 8, background: unknown ? 'var(--warning-bg)' : 'var(--success-bg)', border: `var(--hairline) solid ${unknown ? 'var(--warning-border)' : 'var(--success-border)'}` }}>
                       <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600, minWidth: 80 }}>{item.competitor}</span>
                       <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>{item.model} {item.memory}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }}>${item.price_usd}/hr</span>
+                      {unknown
+                        ? <span className="gpu-badge gpu-badge-warn" title="가격 정보 없음 — 시장반영 제외, 사용자 확인 필요">가격미상</span>
+                        : <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }}>${item.price_usd}/hr</span>}
                       {!applied && (
                         <button
                           onClick={() => moveToSupplier(i)}
@@ -668,7 +599,8 @@ export default function QuoteRegisterTab() {
                         >→ 공급가</button>
                       )}
                     </div>
-                  ))}
+                    )
+                  })}
                   {!applied ? (
                     <button onClick={applyCompetitor} disabled={applying} className="gpu-btn gpu-btn-primary" style={{ marginTop: 4, justifyContent: 'center', gap: 6 }}>
                       {applying ? '반영 중…' : `시장비교에 반영 (${competitorResults.length}건)`}
@@ -705,8 +637,14 @@ export default function QuoteRegisterTab() {
                       <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
                         공급가 {supplierPreview.length}건 검토 대기 · 시장가 {competitorResults.length}건 반영
                       </div>
-                      <button onClick={commitSupplier} disabled={committing} className="gpu-btn gpu-btn-primary" data-testid="supplier-commit-btn" style={{ marginTop: 4, justifyContent: 'center', gap: 6 }}>
-                        {committing ? '저장 중…' : `확정 (${supplierPreview.length})`}
+                      {supplierUnknownCount > 0 && (
+                        <div style={{ display: 'flex', gap: 6, fontSize: 11.5, color: 'var(--gpu-amber)', fontWeight: 600 }} data-testid="supplier-unknown-note" role="alert">
+                          <span aria-hidden>⚠</span>
+                          <span>가격미상 {supplierUnknownCount}건은 자동 반영에서 제외됩니다 — 직접 확인이 필요합니다.</span>
+                        </div>
+                      )}
+                      <button onClick={commitSupplier} disabled={committing || supplierCommittable === 0} className="gpu-btn gpu-btn-primary" data-testid="supplier-commit-btn" style={{ marginTop: 4, justifyContent: 'center', gap: 6 }}>
+                        {committing ? '저장 중…' : `확정 (${supplierCommittable})`}
                       </button>
                     </>
                   ) : (

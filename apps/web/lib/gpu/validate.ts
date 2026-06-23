@@ -25,7 +25,12 @@ export interface ValidationResult {
   ok: boolean              // block 이슈 0
   issues: Issue[]
   confidenceGate: 'auto' | 'review' | 'low' | 'none'  // H2
+  priceUnknown?: boolean   // 보존: 가격 없음(block 아님, needs_review 플래그)
 }
+
+// 보존 옵션 — 가격 없는 행("Contact us" 등)을 버리지 않고 price_unknown 플래그로 통과(needs_review).
+// 기본은 종전 동작(가격 없음=block) 유지 — 기존 호출처·테스트 호환.
+export interface ValidateOptions { preserveNoPrice?: boolean }
 
 function num(v: unknown): number | null {
   const n = typeof v === 'number' ? v : (typeof v === 'string' ? parseFloat(v) : NaN)
@@ -62,13 +67,27 @@ export function validateSupplierItem(item: { extracted?: Record<string, unknown>
 }
 
 // 경쟁사 가격 항목 검증 — { competitor_name, model_name, memory, price_usd, pricing_model }
-export function validateCompetitorItem(it: { competitor_name?: unknown; model_name?: unknown; price_usd?: unknown; pricing_model?: unknown }): ValidationResult {
+// 보존(opts.preserveNoPrice): 가격 없는 행을 block→price_unknown 플래그(warn)로 완화해 passed에 포함.
+//   "가격 없음"만 완화 — 가격이 있으면 범위(>0) 검증은 그대로 유지. 모델명 필수도 유지.
+export function validateCompetitorItem(
+  it: { competitor_name?: unknown; model_name?: unknown; price_usd?: unknown; pricing_model?: unknown },
+  opts?: ValidateOptions,
+): ValidationResult {
   const issues: Issue[] = []
+  let priceUnknown = false
   if (!(typeof it.competitor_name === 'string' && it.competitor_name.trim())) issues.push({ field: 'competitor_name', severity: 'block', msg: '경쟁사명 없음' })
   if (!(typeof it.model_name === 'string' && it.model_name.trim())) issues.push({ field: 'model_name', severity: 'block', msg: '모델명 없음' })
   const price = num(it.price_usd)
-  if (price === null) issues.push({ field: 'price_usd', severity: 'block', msg: '가격 없음/숫자 아님' })
-  else if (price <= PRICE_HARD.min || price > PRICE_HARD.max) issues.push({ field: 'price_usd', severity: 'block', msg: `가격 ${price} 불가능 범위` })
+  if (price === null) {
+    if (opts?.preserveNoPrice) {
+      priceUnknown = true
+      issues.push({ field: 'price_usd', severity: 'warn', msg: '가격 미상(Contact us 등) — 확인 후 반영' })
+    } else {
+      issues.push({ field: 'price_usd', severity: 'block', msg: '가격 없음/숫자 아님' })
+    }
+  } else if (price <= PRICE_HARD.min || price > PRICE_HARD.max) {
+    issues.push({ field: 'price_usd', severity: 'block', msg: `가격 ${price} 불가능 범위` })
+  }
   // pricing_model enum (있으면; 표기 정규화 후)
   if (it.pricing_model != null) {
     const pm = String(it.pricing_model).toLowerCase().replace(/-/g, '_')
@@ -76,7 +95,7 @@ export function validateCompetitorItem(it: { competitor_name?: unknown; model_na
       issues.push({ field: 'pricing_model', severity: 'block', msg: `pricing_model '${it.pricing_model}' — 허용 ${ENUMS.pricing_model.join('|')} 외` })
     }
   }
-  return { ok: issues.every((i) => i.severity !== 'block'), issues, confidenceGate: 'none' }
+  return { ok: issues.every((i) => i.severity !== 'block'), issues, confidenceGate: 'none', priceUnknown }
 }
 
 // H2 신뢰도 게이팅 — confidence 평균으로 라우팅

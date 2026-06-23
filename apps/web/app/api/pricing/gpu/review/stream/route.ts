@@ -8,6 +8,9 @@ import {
 import { dedupSupplier, dedupCompetitor, type CompetitorLike } from '@/lib/gpu/dedup'
 import { INTAKE_LIMITS } from '@/lib/gpu/intake-files'
 import { resolveClassification } from '@/lib/gpu/provider-registry'
+import { buildTranscriptionPrompt, parseTranscription, type TranscriptionResult } from '@/lib/gpu/transcription'
+import { reconcile, type ReconcileResult, type ReconcileExtractedLike } from '@/lib/gpu/reconcile'
+import { validateCompetitorItem } from '@/lib/gpu/validate'
 
 // 통합입력 실시간 스트리밍 분석 — SSE.
 // 추출 결과는 "미리보기"만 반환(저장 X). 사용자가 버튼을 눌러야 저장(경쟁사: market/import, 공급가: review POST).
@@ -32,6 +35,28 @@ function sniffVisionMime(bytes: Uint8Array, declaredMime: string): string | null
   if (b.length >= 4 && b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46) return 'application/pdf'
   void declaredMime
   return null // 시그니처 불일치 → 비전 콘텐츠 아님(스푸핑 의심) → 전송 안 함
+}
+
+// 전사 호출 — 입력(이미지/텍스트)을 본 그대로 전사(매핑/스키마 미주입). source_row_count 확보.
+// 비용 가드: 텍스트도 이미지도 없으면 스킵(빈 결과). 실패 시 빈 결과 폴백(대조는 source_rows=0으로 무해).
+async function runTranscription(
+  apiKey: string, model: string,
+  imageParts: Array<{ inlineData: { data: string; mimeType: string } }>,
+  contentText: string,
+  onDelta: (delta: string) => void,
+): Promise<TranscriptionResult> {
+  const hasImages = imageParts.length > 0
+  if (!hasImages && contentText.trim().length === 0) return { rows: [], source_row_count: 0 }
+  const prompt = buildTranscriptionPrompt()
+  const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = []
+  if (hasImages) parts.push(...imageParts)
+  parts.push({ text: `${prompt}\n\n${contentText ? '입력 텍스트:\n' + contentText : '위 이미지의 모든 가격표 행을 전사하세요.'}` })
+  try {
+    const text = await callGeminiStream(apiKey, model, parts, onDelta)
+    return parseTranscription(text)
+  } catch {
+    return { rows: [], source_row_count: 0 }
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -118,6 +143,29 @@ export async function POST(req: NextRequest) {
           loadSpecContext(adminClient),
         ])
 
+        // 2.5) 전사 우선 — 추출 전, 입력의 모든 가격표 행을 본 그대로 전사(매핑/스키마 미주입).
+        //   source_row_count로 최종 추출건수와 대조(누락 가시화). 카탈로그 편향 제거가 핵심.
+        send('progress', { step: 'transcribe', msg: '입력의 모든 가격표 행을 본 그대로 옮기는 중…' })
+        const transcription = await runTranscription(
+          config.apiKey, config.model, imageParts, contentText,
+          (delta) => send('token', { phase: 'transcribe', delta }),
+        )
+        const sourceRowCount = transcription.source_row_count
+        const sourceLabels = transcription.rows.map((r) => r.raw_label).filter((l) => l.length > 0)
+        if (sourceRowCount > 0) send('progress', { step: 'transcribed', msg: `원본 가격표 ${sourceRowCount}행 확인 — 누락 없이 추출합니다.` })
+
+        // 행수 대조 + done payload용 reconciliation 산출. missing>0이면 경고 progress 발신.
+        // 전사를 못한 경우(source_rows=0)엔 대조 비활성(reconciliation=null) — 거짓 경고 방지.
+        const buildReconciliation = (extractedItems: ReconcileExtractedLike[]): ReconcileResult | null => {
+          if (sourceRowCount <= 0) return null
+          const r = reconcile(sourceRowCount, extractedItems, sourceLabels)
+          if (r.missing > 0) {
+            const labelHint = r.missing_labels.length > 0 ? ` (${r.missing_labels.slice(0, 8).join(', ')})` : ''
+            send('progress', { step: 'reconcile', msg: `원문 ${r.source_rows}행 중 ${r.extracted}행 추출 — ${r.missing}행 누락 의심${labelHint}` })
+          }
+          return r
+        }
+
         // 3) 분류 (경쟁사 vs 공급가) — 스트리밍.
         //    C3: 이미지/PDF도 분류 수행(스킵 제거). 텍스트와 동일하게 AI 분류 + provider 화이트리스트/사용자 의도 override 적용.
         let classified: { type?: string; items?: unknown[]; supplier_present?: boolean } = {}
@@ -176,12 +224,19 @@ export async function POST(req: NextRequest) {
         // R3: 혼합 입력 — 경쟁사 가격을 먼저 내보내고, supplier_present면 공급가 추출까지 이어감(데이터 손실 방지)
         let competitorEmitted = false
         if (classified.type === 'competitor' && Array.isArray(classified.items) && classified.items.length > 0) {
-          const compItems = dedupCompetitor(classified.items as CompetitorLike[])
-          send('progress', { step: 'classified', msg: `경쟁사 가격 ${compItems.length}건 추출${compItems.length < classified.items.length ? ` (중복 ${classified.items.length - compItems.length}건 제거)` : ''}` })
+          const compDeduped = dedupCompetitor(classified.items as CompetitorLike[])
+          // 보존: 가격없는 행(Contact us 등)도 버리지 않음. 원문 모델명 source_model_name 보존, price_unknown 플래그.
+          const compItems = compDeduped.map((it) => {
+            const v = validateCompetitorItem(it, { preserveNoPrice: true })
+            const original = typeof it.model_name === 'string' ? it.model_name.trim() : ''
+            return { ...it, source_model_name: original || undefined, price_unknown: v.priceUnknown === true }
+          })
+          send('progress', { step: 'classified', msg: `경쟁사 가격 ${compItems.length}건 추출${compItems.length < (classified.items as unknown[]).length ? ` (중복 ${(classified.items as unknown[]).length - compItems.length}건 제거)` : ''}` })
           send('preview', { type: 'competitor', items: compItems, source_url: sourceUrl })
           competitorEmitted = true
           if (!classified.supplier_present) {
-            send('done', { type: 'competitor', count: compItems.length })
+            const reconciliation = buildReconciliation(compItems)
+            send('done', { type: 'competitor', count: compItems.length, truncated: false, reconciliation })
             controller.close(); return
           }
           send('progress', { step: 'mixed', msg: '입력에 우리 공급 견적도 포함 — 공급가도 이어서 추출합니다.' })
@@ -247,7 +302,7 @@ export async function POST(req: NextRequest) {
         if (items.length === 0) {
           if (competitorEmitted) {
             // 혼합인데 공급가 추출이 비면 경쟁사만으로 정상 종료
-            send('done', { type: 'competitor', count: 0 })
+            send('done', { type: 'competitor', count: 0, truncated: false, reconciliation: null })
             controller.close(); return
           }
           send('error', { msg: urls.length > 0
@@ -263,9 +318,21 @@ export async function POST(req: NextRequest) {
             ? `추출 결과가 많아 상위 ${EXTRACT_MAX_ITEMS}건만 표시합니다(일부 잘림).`
             : 'URL 본문 일부가 잘려 누락이 있을 수 있습니다.' })
         }
+        // 보존: 원문(as-extracted) 모델명을 source_model_name으로 보존(카탈로그 매핑이 원문을 덮어쓰지 않게).
+        const previewItems = items.map((it) => {
+          const original = typeof it?.extracted?.model_name === 'string' ? (it.extracted.model_name as string).trim() : ''
+          return original ? { ...it, source_model_name: original } : it
+        })
         send('progress', { step: 'extracted', msg: `공급사 견적 ${items.length}건 추출 완료 — 미리보기 생성` })
-        send('preview', { type: 'supplier', items })
-        send('done', { type: competitorEmitted ? 'mixed' : 'supplier', count: items.length, truncated })
+        send('preview', { type: 'supplier', items: previewItems })
+        // 행수 대조: 순수 공급가 입력에서만(혼합은 경쟁사/공급가가 한 표에 섞여 대조가 모호 → 생략).
+        const supplierRecon = competitorEmitted
+          ? null
+          : buildReconciliation(items.map((it) => ({
+              source_model_name: typeof it?.extracted?.model_name === 'string' ? (it.extracted.model_name as string) : null,
+              model_name: typeof it?.extracted?.model_name === 'string' ? (it.extracted.model_name as string) : null,
+            })))
+        send('done', { type: competitorEmitted ? 'mixed' : 'supplier', count: items.length, truncated, reconciliation: supplierRecon })
         controller.close()
       } catch (e) {
         // 상세는 서버 로그만, 클라이언트엔 일반화 메시지(내부 경로·키 노출 방지).
