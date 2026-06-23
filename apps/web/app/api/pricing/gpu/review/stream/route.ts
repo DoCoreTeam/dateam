@@ -7,6 +7,7 @@ import {
 } from '@/lib/gpu/extract-helpers'
 import { dedupSupplier, dedupCompetitor, type CompetitorLike } from '@/lib/gpu/dedup'
 import { INTAKE_LIMITS } from '@/lib/gpu/intake-files'
+import { resolveClassification } from '@/lib/gpu/provider-registry'
 
 // 통합입력 실시간 스트리밍 분석 — SSE.
 // 추출 결과는 "미리보기"만 반환(저장 X). 사용자가 버튼을 눌러야 저장(경쟁사: market/import, 공급가: review POST).
@@ -16,6 +17,9 @@ const CLASSIFY_FALLBACK = `당신은 GPU 클라우드 가격 분석 AI입니다.
 
 // 입력 텍스트 길이 상한 — 거대 텍스트로 인한 메모리/정규식 부하 방어(ReDoS·DoS).
 const MAX_INPUT_TEXT = 200_000
+
+// 추출 결과 건수 상한 — 데이터 손실용(구 50건)이 아니라 페이로드 폭주 방어용. 정상 가격표를 잘리지 않게 대폭 상향.
+const EXTRACT_MAX_ITEMS = 500
 
 // 매직바이트 검증 — file.type(브라우저 주장값) 스푸핑 방어. 실제 시그니처가 비전 형식일 때만 Gemini로 전송.
 function sniffVisionMime(bytes: Uint8Array, declaredMime: string): string | null {
@@ -93,13 +97,16 @@ export async function POST(req: NextRequest) {
         // 1) URL 감지·fetch (멀티 + 병합)
         const urls = extractUrls(rawInputText)
         let contentText = rawInputText
+        let urlTruncated = false
         const sourceUrl = urls[0] ?? null
         if (urls.length > 0) {
           send('progress', { step: 'url', msg: `URL ${urls.length}개 감지 — 페이지 내용을 가져오는 중…` })
           const bodies = await Promise.all(urls.map((u) => fetchUrlText(u)))
-          const merged = bodies.map((b, i) => (b ? `\n\n[URL 본문 ${i + 1}: ${urls[i]}]\n${b}` : '')).join('')
+          urlTruncated = bodies.some((b) => b.truncated)
+          const merged = bodies.map((b, i) => (b.text ? `\n\n[URL 본문 ${i + 1}: ${urls[i]}]\n${b.text}` : '')).join('')
           if (merged) contentText = `${rawInputText}${merged}`
           send('progress', { step: 'url_done', msg: merged ? 'URL 본문을 수집했습니다.' : 'URL에서 가격 정보를 찾지 못해 입력 텍스트로 진행합니다.' })
+          if (urlTruncated) send('progress', { step: 'truncated', msg: 'URL 본문이 매우 길어 일부가 잘렸습니다. 누락이 의심되면 페이지 내용을 직접 붙여넣어 주세요.' })
         }
 
         // 2) DB 스키마 자가인지 + 보유 스펙 카탈로그 로드
@@ -109,19 +116,59 @@ export async function POST(req: NextRequest) {
           loadSpecContext(adminClient),
         ])
 
-        // 3) 분류 (경쟁사 vs 공급가) — 스트리밍 (이미지는 분류 건너뛰고 바로 추출)
+        // 3) 분류 (경쟁사 vs 공급가) — 스트리밍.
+        //    C3: 이미지/PDF도 분류 수행(스킵 제거). 텍스트와 동일하게 AI 분류 + provider 화이트리스트/사용자 의도 override 적용.
         let classified: { type?: string; items?: unknown[]; supplier_present?: boolean } = {}
-        if (!hasImages) {
-          send('progress', { step: 'classify', msg: '경쟁사 가격인지 공급사 견적인지 판별하는 중…' })
-          const classifyPrompt = await getClassifyPrompt(adminClient, CLASSIFY_FALLBACK)
-          const classifyText = await callGeminiStream(
-            config.apiKey, config.model,
-            [{ text: `${classifyPrompt}\n\n${schemaDigest}${specContext}\n\n입력:\n${contentText}` }],
+        send('progress', { step: 'classify', msg: '경쟁사 가격인지 공급사 견적인지 판별하는 중…' })
+        const classifyPrompt = await getClassifyPrompt(adminClient, CLASSIFY_FALLBACK)
+        const classifyParts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = []
+        if (hasImages) classifyParts.push(...imageParts)
+        classifyParts.push({ text: `${classifyPrompt}\n\n${schemaDigest}${specContext}\n\n${contentText ? '입력:\n' + contentText : '위 이미지에서 분류하세요.'}` })
+        const classifyText = await callGeminiStream(
+          config.apiKey, config.model, classifyParts,
+          (delta) => send('token', { phase: 'classify', delta }),
+        )
+        try { classified = JSON.parse(classifyText) } catch { /* fallthrough */ }
+        if (hasImages) send('progress', { step: 'ocr', msg: '이미지에서 견적 정보를 읽는 중…' })
+
+        // C1/C4: provider 화이트리스트 + 사용자 의도(경쟁사/공급가)로 결정적 보정.
+        //    AI가 supplier로 분류해도 입력에 경쟁 클라우드가 명확하거나 "경쟁사" 의도가 있으면 competitor로 승격.
+        //    rawInputText 기준(이미지 동반 텍스트 포함) — 화이트리스트/의도는 텍스트 신호로만 판정(과교정 방지).
+        const decision = resolveClassification({
+          text: rawInputText,
+          aiType: classified.type,
+          aiSupplierPresent: classified.supplier_present,
+        })
+        if (decision.decision === 'competitor') {
+          classified = { ...classified, type: 'competitor', supplier_present: decision.supplierPresent }
+          if (decision.reason === 'whitelist' || decision.reason === 'intent') {
+            send('progress', { step: 'classify_override', msg: `경쟁 클라우드로 판정(${decision.reason === 'intent' ? '사용자 지정' : '제공사 인식'}).` })
+          }
+        } else if (decision.reason === 'intent') {
+          classified = { ...classified, type: 'supplier', supplier_present: false }
+        }
+
+        // C1/C3/C4: 화이트리스트/의도로 competitor 승격됐는데 AI가 경쟁사 items를 안 준 경우(예: AI는 supplier로 봤거나 이미지),
+        //    경쟁사 스키마로 1회 재추출(이미지 포함)해 시장가로 라우팅(공급가 오적재 방지).
+        if (
+          classified.type === 'competitor' &&
+          (!Array.isArray(classified.items) || classified.items.length === 0) &&
+          (decision.reason === 'whitelist' || decision.reason === 'intent')
+        ) {
+          send('progress', { step: 'reclassify', msg: '경쟁 클라우드 가격으로 다시 추출하는 중…' })
+          const recParts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = []
+          if (hasImages) recParts.push(...imageParts)
+          recParts.push({ text: `${classifyPrompt}\n\n반드시 type을 competitor로 하고 items에 모델·가격을 추출하세요.\n\n${schemaDigest}${specContext}\n\n${contentText ? '입력:\n' + contentText : '위 이미지에서 추출하세요.'}` })
+          const recText = await callGeminiStream(
+            config.apiKey, config.model, recParts,
             (delta) => send('token', { phase: 'classify', delta }),
           )
-          try { classified = JSON.parse(classifyText) } catch { /* fallthrough */ }
-        } else {
-          send('progress', { step: 'ocr', msg: '이미지에서 견적 정보를 읽는 중…' })
+          try {
+            const rec = JSON.parse(recText) as { items?: unknown[] }
+            if (Array.isArray(rec.items) && rec.items.length > 0) {
+              classified = { ...classified, items: rec.items }
+            }
+          } catch { /* 재추출 실패 — 아래 supplier 폴백 흐름으로 */ }
         }
 
         // R3: 혼합 입력 — 경쟁사 가격을 먼저 내보내고, supplier_present면 공급가 추출까지 이어감(데이터 손실 방지)
@@ -158,10 +205,15 @@ export async function POST(req: NextRequest) {
         let parsed: { items?: Array<{ extracted?: Record<string, unknown> }>; extracted?: Record<string, unknown> } = {}
         try { parsed = JSON.parse(extractText) } catch { send('error', { msg: 'AI 응답 파싱 실패' }); controller.close(); return }
 
-        const meaningful = (arr: Array<{ extracted?: Record<string, unknown> }>) => dedupSupplier(arr.filter((it) => {
-          const n = it?.extracted?.model_name
-          return typeof n === 'string' && n.trim().length > 0
-        })).slice(0, 50)
+        let itemsCapped = false
+        const meaningful = (arr: Array<{ extracted?: Record<string, unknown> }>) => {
+          const deduped = dedupSupplier(arr.filter((it) => {
+            const n = it?.extracted?.model_name
+            return typeof n === 'string' && n.trim().length > 0
+          }))
+          if (deduped.length > EXTRACT_MAX_ITEMS) itemsCapped = true
+          return deduped.slice(0, EXTRACT_MAX_ITEMS)
+        }
         let items = meaningful(Array.isArray(parsed.items) ? parsed.items : (parsed.extracted ? [{ extracted: parsed.extracted }] : []))
 
         // R2: 미준비 입력 → 프롬프트 자가합성 후 1회 재시도 (URL 없을 때만 — URL빈손은 안내가 맞음)
@@ -202,9 +254,16 @@ export async function POST(req: NextRequest) {
           controller.close(); return
         }
 
+        // P1-4: silent truncation 제거 — 결과 컷(500건) 또는 URL 본문 잘림 발생 시 사용자 고지.
+        const truncated = itemsCapped || urlTruncated
+        if (truncated) {
+          send('progress', { step: 'truncated', msg: itemsCapped
+            ? `추출 결과가 많아 상위 ${EXTRACT_MAX_ITEMS}건만 표시합니다(일부 잘림).`
+            : 'URL 본문 일부가 잘려 누락이 있을 수 있습니다.' })
+        }
         send('progress', { step: 'extracted', msg: `공급사 견적 ${items.length}건 추출 완료 — 미리보기 생성` })
         send('preview', { type: 'supplier', items })
-        send('done', { type: competitorEmitted ? 'mixed' : 'supplier', count: items.length })
+        send('done', { type: competitorEmitted ? 'mixed' : 'supplier', count: items.length, truncated })
         controller.close()
       } catch (e) {
         // 상세는 서버 로그만, 클라이언트엔 일반화 메시지(내부 경로·키 노출 방지).

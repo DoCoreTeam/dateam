@@ -4129,6 +4129,18 @@ label.intake-tool-btn {
   white-space: nowrap;
 }
 .gpu-btn:hover { border-color: var(--gpu-border-strong); background: var(--surface-bg); }
+/* 미리보기 행 내 인라인 정정(공급가↔경쟁사 이동) 버튼 — 컴팩트하되 터치 44px 유지 */
+.gpu-row-move-btn {
+  padding: 4px 9px;
+  min-height: 44px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--gpu-accent);
+  border-color: var(--gpu-accent-soft);
+  background: var(--gpu-accent-soft);
+  flex-shrink: 0;
+}
+.gpu-row-move-btn:hover { background: var(--gpu-accent); color: var(--nb-white); border-color: var(--gpu-accent); }
 .gpu-btn-primary { background: var(--gpu-accent); color: #fff; border-color: var(--gpu-accent); }
 .gpu-btn-primary:hover { background: var(--brand-dark); box-shadow: 0 6px 18px #5b5ef044; }
 .gpu-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }

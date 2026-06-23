@@ -3,8 +3,13 @@
 import type { createAdminClient } from '@/lib/supabase/server'
 import { SCHEMA_CONTRACT } from '@/lib/gpu/schema-contract'
 import { safeFetchText } from '@/lib/security/safe-fetch'
+import { htmlToStructuredText } from '@/lib/gpu/html-table-extract'
 
 export const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
+
+// URL 본문 길이 상한 — 데이터 손실용(15K)이 아니라 보안/효율용 상한.
+// 보안 상한(2MB)은 safe-fetch에서 유지. 여기선 AI 입력에 들어갈 구조화 텍스트 상한.
+export const URL_BODY_MAX = 200_000
 
 export async function getGeminiConfig(adminClient: ReturnType<typeof createAdminClient>) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -40,20 +45,20 @@ export function extractUrls(text: string): string[] {
   return matches ? Array.from(new Set(matches)) : []
 }
 
-export async function fetchUrlText(url: string): Promise<string> {
+// URL 본문을 표 구조 보존 텍스트로 가져온다.
+// 반환: { text, truncated } — truncated는 URL_BODY_MAX 초과로 잘렸는지(호출부가 사용자에게 고지).
+export async function fetchUrlText(url: string): Promise<{ text: string; truncated: boolean }> {
   try {
     // SSRF 방어: safe-fetch SSOT 경유 (스킴·사설망·리다이렉트·크기 검증) — review/stream 경로 포함
     const res = await safeFetchText(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', 'Accept': 'text/html,application/xhtml+xml' },
     })
-    if (!res.ok) return ''
-    return res.text
-      .replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '')
-      .replace(/<nav[\s\S]*?<\/nav>/gi, '').replace(/<footer[\s\S]*?<\/footer>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
-      .replace(/\s+/g, ' ').trim().slice(0, 15000)
-  } catch { return '' }
+    if (!res.ok) return { text: '', truncated: false }
+    // R2: 태그 전체 제거(word-soup) 대신 <table> 행·열 보존 SSOT 파서 사용
+    const structured = htmlToStructuredText(res.text)
+    const truncated = structured.length > URL_BODY_MAX
+    return { text: truncated ? structured.slice(0, URL_BODY_MAX) : structured, truncated }
+  } catch { return { text: '', truncated: false } }
 }
 
 // 보유 모델 카탈로그(스펙) — 가상 인스턴스명→표준모델 매핑 컨텍스트 (review/route.ts와 동일 로직)

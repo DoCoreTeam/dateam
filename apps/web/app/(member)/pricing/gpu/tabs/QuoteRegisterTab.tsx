@@ -9,13 +9,12 @@ import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import { classifyFile, ACCEPT_ALL, formatMB } from '@/lib/gpu/intake-files'
 import { downscaleImage } from '@/lib/gpu/image-downscale'
-
-interface CompetitorSavedItem {
-  competitor: string
-  model: string
-  memory: string
-  price_usd: number
-}
+import {
+  SupplierPreviewRow,
+  supplierRowToCompetitor,
+  competitorRowToSupplier,
+  type CompetitorSavedItem,
+} from './QuoteRegisterPreview'
 
 interface ReviewItemResult {
   id: string
@@ -201,6 +200,7 @@ export default function QuoteRegisterTab() {
   const [committing, setCommitting] = useState(false)
   const [committed, setCommitted] = useState(false)
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null)  // 공급가 미리보기 상세 펼침
+  const [truncated, setTruncated] = useState(false)  // 상한 도달로 일부 항목이 잘림(백엔드 고지)
 
   // 스트림 raw JSON → 자연어 파싱 (내부 필드명 노출 안 함). 누적 버퍼에서 모델·가격을 뽑아 친화적으로 표시.
   const streamFindings: Array<{ model: string; price?: string }> = (() => {
@@ -274,6 +274,7 @@ export default function QuoteRegisterTab() {
     setCompetitorResults([]); setActiveTabIdx(0); setErrorMsg(''); setSuccessMsg('')
     setLiveMsgs([]); setStreamText(''); setSupplierPreview([]); setCommitted(false)
     setPreviewItems([]); setPreviewSourceUrl(null); setApplied(false); setExpandedIdx(null)
+    setTruncated(false)
   }, [])
 
   const handleAnalyze = useCallback(async () => {
@@ -284,7 +285,7 @@ export default function QuoteRegisterTab() {
     setAnalyzing(true); setErrorMsg(''); setSuccessMsg('')
     setAnalysisResults([]); setCompetitorResults([]); setActiveTabIdx(0)
     setPreviewItems([]); setPreviewSourceUrl(null); setApplied(false)
-    setLiveMsgs([]); setStreamText(''); setSupplierPreview([]); setCommitted(false)
+    setLiveMsgs([]); setStreamText(''); setSupplierPreview([]); setCommitted(false); setTruncated(false)
 
     // ── multipart 전송(이미지/PDF raw 바이너리 — base64 인플레 없음) → SSE 실시간 스트리밍 ──
     try {
@@ -310,6 +311,8 @@ export default function QuoteRegisterTab() {
           const ev = evMatch[1].trim()
           let data: Record<string, unknown> = {}
           try { data = JSON.parse(dataMatch[1]) } catch { continue }
+          // 잘림 고지(silent truncation 제거) — 백엔드가 어느 이벤트로 줄지 불확실하므로 옵셔널 방어
+          if (data.truncated === true || data.step === 'truncated') setTruncated(true)
           if (ev === 'progress') {
             setLiveMsgs((prev) => [...prev, String(data.msg ?? '')])
           } else if (ev === 'token') {
@@ -370,6 +373,33 @@ export default function QuoteRegisterTab() {
       setErrorMsg('반영 실패')
     } finally { setApplying(false) }
   }, [previewItems, previewSourceUrl])
+
+  // 인라인 정정 — 공급가 → 경쟁사 이동. 이동 항목은 경쟁사 import 경로(market/import)를 타도록
+  // competitorResults(표시)와 previewItems(전송 원본) 양쪽에 동기 추가하고 supplierPreview에서 제거.
+  const moveToCompetitor = useCallback((idx: number) => {
+    setSupplierPreview((sp) => {
+      const it = sp[idx]
+      if (!it) return sp
+      const { display, raw } = supplierRowToCompetitor(it)
+      setCompetitorResults((cr) => [...cr, display])
+      setPreviewItems((pi) => [...pi, raw])
+      setApplied(false)
+      return sp.filter((_, i) => i !== idx)
+    })
+  }, [])
+
+  // 인라인 정정 — 경쟁사 → 공급가 이동. 이동 항목은 공급가 commit 경로(review/commit)를 타도록
+  // supplierPreview(전송 형태 {extracted})에 추가하고 competitorResults·previewItems에서 제거.
+  const moveToSupplier = useCallback((idx: number) => {
+    setCompetitorResults((cr) => {
+      const c = cr[idx]
+      if (!c) return cr
+      setSupplierPreview((sp) => [...sp, competitorRowToSupplier(c)])
+      setPreviewItems((pi) => pi.filter((_, i) => i !== idx))
+      setCommitted(false)
+      return cr.filter((_, i) => i !== idx)
+    })
+  }, [])
 
   const hasResults = analysisResults.length > 0
   const hasCompetitorResults = competitorResults.length > 0
@@ -600,6 +630,13 @@ export default function QuoteRegisterTab() {
             </div>
           ) : (supplierPreview.length > 0 || hasCompetitorResults) && !hasResults ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8, overflowY: 'auto' }}>
+              {/* 잘림 고지 배너 — 백엔드가 상한 도달을 알릴 때만 노출(없으면 미표시) */}
+              {truncated && (
+                <div className="gpu-banner gpu-banner-warning" style={{ marginBottom: 0 }} data-testid="truncation-banner" role="alert">
+                  <span className="gpu-banner-dot" aria-hidden>⚠</span>
+                  <span>일부 항목이 상한으로 잘렸습니다 — 입력을 나눠서 다시 시도하세요.</span>
+                </div>
+              )}
               {/* §05 신뢰도 자동 게이트 3구간 요약 + 통합 표 */}
               <div>
                 <h3 className="gpu-card-title" style={{ marginBottom: 8 }}>
@@ -622,6 +659,14 @@ export default function QuoteRegisterTab() {
                       <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600, minWidth: 80 }}>{item.competitor}</span>
                       <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>{item.model} {item.memory}</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }}>${item.price_usd}/hr</span>
+                      {!applied && (
+                        <button
+                          onClick={() => moveToSupplier(i)}
+                          className="gpu-btn gpu-row-move-btn"
+                          data-testid={`move-to-supplier-${i}`}
+                          title="이 항목을 공급가(검토 대기)로 옮깁니다"
+                        >→ 공급가</button>
+                      )}
                     </div>
                   ))}
                   {!applied ? (
@@ -644,48 +689,17 @@ export default function QuoteRegisterTab() {
                       {committed ? '검토 대기 추가됨' : '저장 대기'}
                     </span>
                   </div>
-                  {supplierPreview.map((it, i) => {
-                    const ex = (it?.extracted ?? {}) as Record<string, unknown>
-                    const name = `${ex.model_name ?? ''} ${ex.memory ?? ''}`.trim()
-                    const priceVal = ex.unit_price_usd ?? ex.price_usd
-                    const price = priceVal != null ? `$${priceVal}/hr` : '—'
-                    const open = expandedIdx === i
-                    const detailRows: Array<[string, string]> = []
-                    // 객체/배열은 스킵(내부 구조 노출·[object Object] 방지) — 원시값만 자연어로
-                    const push = (label: string, v: unknown) => {
-                      if (v === null || v === undefined) return
-                      if (typeof v === 'object') return
-                      const s = String(v).trim()
-                      if (s !== '') detailRows.push([label, s])
-                    }
-                    const qty = typeof ex.min_qty === 'object' ? null : ex.min_qty
-                    push('약정', ex.term ?? (ex.term_months ? `${ex.term_months}개월` : null))
-                    push('최소 수량', qty)
-                    push('유효기간', ex.valid_until)
-                    push('원본 금액', ex.original_price != null && typeof ex.original_price !== 'object' ? `${ex.original_price} ${ex.original_currency ?? ''}`.trim() : null)
-                    push('원본 단위', ex.original_unit)
-                    push('추천 Tier', ex.tier_suggestion)
-                    return (
-                      <div key={i} style={{ borderRadius: 8, background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)', overflow: 'hidden' }}>
-                        <div onClick={() => setExpandedIdx(open ? null : i)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', cursor: 'pointer' }}>
-                          <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{open ? '▾' : '▸'}</span>
-                          <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600, flex: 1 }}>{name || '(모델 미상)'}</span>
-                          {ex.supplier ? <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{String(ex.supplier)}</span> : null}
-                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--brand-dark)' }}>{price}</span>
-                        </div>
-                        {open && (
-                          <div style={{ padding: '4px 12px 10px 28px', display: 'flex', flexDirection: 'column', gap: 3, borderTop: 'var(--hairline) solid var(--brand-soft-2)', background: 'var(--brand-soft)' }}>
-                            {detailRows.length > 0 ? detailRows.map(([k, v]) => (
-                              <div key={k} style={{ display: 'flex', fontSize: 11.5, gap: 8 }}>
-                                <span style={{ color: 'var(--text-muted)', minWidth: 64 }}>{k}</span>
-                                <span style={{ color: 'var(--text)', fontWeight: 500 }}>{v}</span>
-                              </div>
-                            )) : <span style={{ fontSize: 11.5, color: 'var(--text-faint)' }}>추가 상세 정보 없음</span>}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
+                  {supplierPreview.map((it, i) => (
+                    <SupplierPreviewRow
+                      key={i}
+                      it={it}
+                      idx={i}
+                      open={expandedIdx === i}
+                      committed={committed}
+                      onToggle={(idx) => setExpandedIdx(expandedIdx === idx ? null : idx)}
+                      onMoveToCompetitor={moveToCompetitor}
+                    />
+                  ))}
                   {!committed ? (
                     <>
                       <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
