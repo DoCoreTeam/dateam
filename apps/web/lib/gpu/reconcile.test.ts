@@ -79,3 +79,31 @@ test('reconcile — 라벨 중복 제거', () => {
   assert.equal(r.missing, 3)
   assert.deepEqual(r.missing_labels, ['A', 'B'])
 })
+
+test('reconcile byDistinctModel — 2가격/모델 전개로 부풀려진 행수를 모델 기준으로 교정', () => {
+  // 전사 9모델인데 추출이 7모델을 각각 2가격(preemptible/on-demand) 2행으로 = 14행.
+  // 행수 기준이면 14>9 → missing 0(누락 못 잡음). 모델 기준이면 distinct 7 → missing 2.
+  const labels = ['B300', 'B200', 'H200', 'H100', 'RTXPRO', 'L40S', 'A6000', 'GB300', 'GB200']
+  const extractedModels = ['B300', 'B200', 'H200', 'H100', 'RTXPRO', 'L40S', 'A6000']
+  const extracted = extractedModels.flatMap((m) => [
+    { source_model_name: m }, { source_model_name: m }, // 같은 모델 2행
+  ])
+  // 행수 기준(기본): 14행 → missing 0 (무력화 — 이게 버그)
+  const rowBased = reconcile(9, extracted, labels)
+  assert.equal(rowBased.extracted, 14)
+  assert.equal(rowBased.missing, 0)
+  // 모델 기준: distinct 7 → missing 2(GB300/GB200 잡힘)
+  const modelBased = reconcile(9, extracted, labels, { byDistinctModel: true })
+  assert.equal(modelBased.extracted, 7)
+  assert.equal(modelBased.missing, 2)
+  assert.ok(modelBased.missing_labels.includes('GB300'))
+  assert.ok(modelBased.missing_labels.includes('GB200'))
+})
+
+test('reconcile byDistinctModel — 누락 없음(9모델 9행이면 missing 0)', () => {
+  const labels = ['B300', 'B200', 'H200', 'H100', 'RTXPRO', 'L40S', 'A6000', 'GB300', 'GB200']
+  const extracted = labels.map((m) => ({ source_model_name: m }))
+  const r = reconcile(9, extracted, labels, { byDistinctModel: true })
+  assert.equal(r.extracted, 9)
+  assert.equal(r.missing, 0)
+})

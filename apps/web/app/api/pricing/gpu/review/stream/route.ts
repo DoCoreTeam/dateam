@@ -7,9 +7,10 @@ import {
 } from '@/lib/gpu/extract-helpers'
 import { dedupSupplier, dedupCompetitor, type CompetitorLike } from '@/lib/gpu/dedup'
 import { INTAKE_LIMITS } from '@/lib/gpu/intake-files'
-import { resolveClassification } from '@/lib/gpu/provider-registry'
+import { resolveClassification, detectCompetitorProviders } from '@/lib/gpu/provider-registry'
 import { buildTranscriptionPrompt, parseTranscription, type TranscriptionResult } from '@/lib/gpu/transcription'
 import { reconcile, type ReconcileResult, type ReconcileExtractedLike } from '@/lib/gpu/reconcile'
+import { transcriptionToCompetitorItems } from '@/lib/gpu/transcription-to-items'
 import { validateCompetitorItem } from '@/lib/gpu/validate'
 
 // 통합입력 실시간 스트리밍 분석 — SSE.
@@ -156,9 +157,9 @@ export async function POST(req: NextRequest) {
 
         // 행수 대조 + done payload용 reconciliation 산출. missing>0이면 경고 progress 발신.
         // 전사를 못한 경우(source_rows=0)엔 대조 비활성(reconciliation=null) — 거짓 경고 방지.
-        const buildReconciliation = (extractedItems: ReconcileExtractedLike[]): ReconcileResult | null => {
+        const buildReconciliation = (extractedItems: ReconcileExtractedLike[], byDistinctModel = false): ReconcileResult | null => {
           if (sourceRowCount <= 0) return null
-          const r = reconcile(sourceRowCount, extractedItems, sourceLabels)
+          const r = reconcile(sourceRowCount, extractedItems, sourceLabels, { byDistinctModel })
           if (r.missing > 0) {
             const labelHint = r.missing_labels.length > 0 ? ` (${r.missing_labels.slice(0, 8).join(', ')})` : ''
             send('progress', { step: 'reconcile', msg: `원문 ${r.source_rows}행 중 ${r.extracted}행 추출 — ${r.missing}행 누락 의심${labelHint}` })
@@ -223,23 +224,51 @@ export async function POST(req: NextRequest) {
 
         // R3: 혼합 입력 — 경쟁사 가격을 먼저 내보내고, supplier_present면 공급가 추출까지 이어감(데이터 손실 방지)
         let competitorEmitted = false
-        if (classified.type === 'competitor' && Array.isArray(classified.items) && classified.items.length > 0) {
-          const compDeduped = dedupCompetitor(classified.items as CompetitorLike[])
-          // 보존: 가격없는 행(Contact us 등)도 버리지 않음. 원문 모델명 source_model_name 보존, price_unknown 플래그.
-          const compItems = compDeduped.map((it) => {
-            const v = validateCompetitorItem(it, { preserveNoPrice: true })
-            const original = typeof it.model_name === 'string' ? it.model_name.trim() : ''
-            return { ...it, source_model_name: original || undefined, price_unknown: v.priceUnknown === true }
-          })
-          send('progress', { step: 'classified', msg: `경쟁사 가격 ${compItems.length}건 추출${compItems.length < (classified.items as unknown[]).length ? ` (중복 ${(classified.items as unknown[]).length - compItems.length}건 제거)` : ''}` })
-          send('preview', { type: 'competitor', items: compItems, source_url: sourceUrl })
-          competitorEmitted = true
-          if (!classified.supplier_present) {
-            const reconciliation = buildReconciliation(compItems)
-            send('done', { type: 'competitor', count: compItems.length, truncated: false, reconciliation })
-            controller.close(); return
+        if (classified.type === 'competitor') {
+          // 표시 아이템 출처 분리(근본수정): classify.items는 specContext(카탈로그 표준 매핑) 주입으로
+          //   원문 모델명을 우리 카탈로그명으로 둔갑시킨다(HGX B300→H100, 가격없는 행 드롭, 2가격 2행).
+          //   → 전사(verbatim) rows가 있으면 그것을 경쟁사 아이템 출처로 사용(원문·전 행·가격미상 보존).
+          //   전사 실패(rows=0)일 때만 기존 classify.items 폴백(회귀 0).
+          const useTranscription = transcription.rows.length > 0
+          let compItems: Array<Record<string, unknown>> = []
+          let rawCount = 0
+
+          if (useTranscription) {
+            // provider 추론 — 입력 텍스트의 화이트리스트 경쟁사명(Nebius 등). 첫 매칭 1개.
+            const detected = detectCompetitorProviders(contentText)
+            const provider = detected[0] ?? ''
+            const cands = transcriptionToCompetitorItems(transcription.rows, { provider })
+            // 동일 경쟁사·모델 중복만 제거(원문 보존 — 가격미상도 유지). 전사 1행=모델 1건이라 통상 no-op.
+            const deduped = dedupCompetitor(cands as CompetitorLike[])
+            rawCount = cands.length
+            compItems = deduped.map((it) => {
+              const v = validateCompetitorItem(it, { preserveNoPrice: true })
+              return { ...it, price_unknown: v.priceUnknown === true }
+            })
+            send('progress', { step: 'classified', msg: `경쟁사 가격 ${compItems.length}건 — 원문 모델명 그대로(전사 기반)${compItems.length < rawCount ? ` (중복 ${rawCount - compItems.length}건 제거)` : ''}` })
+          } else if (Array.isArray(classified.items) && classified.items.length > 0) {
+            // 폴백: 전사 실패 시 기존 classify.items(카탈로그 매핑) 경로 유지(회귀 0).
+            const compDeduped = dedupCompetitor(classified.items as CompetitorLike[])
+            rawCount = (classified.items as unknown[]).length
+            compItems = compDeduped.map((it) => {
+              const v = validateCompetitorItem(it, { preserveNoPrice: true })
+              const original = typeof it.model_name === 'string' ? it.model_name.trim() : ''
+              return { ...it, source_model_name: original || undefined, price_unknown: v.priceUnknown === true }
+            })
+            send('progress', { step: 'classified', msg: `경쟁사 가격 ${compItems.length}건 추출${compItems.length < rawCount ? ` (중복 ${rawCount - compItems.length}건 제거)` : ''}` })
           }
-          send('progress', { step: 'mixed', msg: '입력에 우리 공급 견적도 포함 — 공급가도 이어서 추출합니다.' })
+
+          if (compItems.length > 0) {
+            send('preview', { type: 'competitor', items: compItems, source_url: sourceUrl })
+            competitorEmitted = true
+            if (!classified.supplier_present) {
+              // 누락 감지는 distinct 모델 기준(2가격/모델 전개로 무력화되지 않게).
+              const reconciliation = buildReconciliation(compItems as ReconcileExtractedLike[], true)
+              send('done', { type: 'competitor', count: compItems.length, truncated: false, reconciliation })
+              controller.close(); return
+            }
+            send('progress', { step: 'mixed', msg: '입력에 우리 공급 견적도 포함 — 공급가도 이어서 추출합니다.' })
+          }
         }
 
         // 4) 공급가 추출 — 스트리밍(실시간 토큰)

@@ -1,4 +1,28 @@
-# 검증 결과 — 전사 우선 + 행수 대조 + 보존 (v0.7.247)
+# 검증 결과
+
+## v0.7.249 — 경쟁사 추출 전사기반 전환 (실제 화면 교정 — 둔갑·누락 박멸)
+v0.7.247의 미해결분(화면 표시 아이템이 카탈로그매핑 classify.items에서 나와 B300→H100 둔갑·GB300/GB200 드롭) 근본 교정.
+- **근본수정**: 표시 경쟁사 아이템 출처를 `classify.items` → **전사(verbatim) rows 기반 `transcriptionToCompetitorItems`** 로 전환(전사 성공 시). 카탈로그 매핑 완전 제거. 전사 실패 시만 폴백(회귀0).
+- **reconcile**: 행수 → **distinct 모델 기준**(2가격/모델 전개로 누락 못잡던 것 교정).
+
+**실경로 검증(화면에 가는 바로 그 변환, 실 Gemini, 2회 연속 PASS)**:
+```
+전사 9행 → 경쟁사 아이템 9건
+- NVIDIA HGX B300  | 7.85  (원문 — H100 둔갑 0)
+- NVIDIA HGX B200  | 7.15  (원문)
+- NVIDIA GB300 NVL72 | 가격미상 (보존)
+- NVIDIA GB200 NVL72 | 가격미상 (보존)
+- H200/H100/RTX PRO 6000/L40S | 정상
+판정: 8/8 원문표기 · B300/B200 보존 · H100 표기 1건(둔갑0) · GB300/GB200 price_unknown · 모델당 1행
+```
+> 지난 실수(단독 전사만 테스트) 교정: 이번엔 화면을 채우는 실제 변환함수 출력으로 검증. (참고: 전사는 Vision이라 잘린/저해상 이미지면 일부 누락 가능 — 깨끗한 전체 표는 9/9 일관)
+
+- 단위 559/559 · tsc 0 · design:check ✅ · **next build 통과** · 🟥 DC-REV APPROVED(~93)
+- 후속(LOW·비차단): parsePriceToken 비현실 대가 상한 가드
+
+---
+
+# (이전) 검증 결과 — 전사 우선 + 행수 대조 + 보존 (v0.7.247)
 
 ## 실 AI 파이프라인 검증 (결정적 — 실제 transcription.ts + 실 Gemini Vision)
 `scripts/pipeline-test-nebius.ts` — 캡처한 Nebius GPU표(9행) 이미지를 실제 `buildTranscriptionPrompt()` + 실 Gemini로 전사 → `parseTranscription()`.
