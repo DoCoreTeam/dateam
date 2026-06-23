@@ -8,7 +8,7 @@ import { parseGpuCount, toPerGpuPrice } from '@/lib/gpu/parse-quantity'
 import { resolveConfirmUnitPrice } from '@/lib/gpu/price-breakdown'
 import { parseBilling } from '@/lib/gpu/billing'
 import { inferTier } from '@/lib/gpu/tier-dict'
-import { canonicalizeModel, normModelKey } from '@/lib/gpu/canonical-model'
+import { canonicalizeModel, coreModelKey } from '@/lib/gpu/canonical-model'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
 import { routeIntakeExtras } from '@/lib/gpu/intake-routing'
 import { roundUpToStandard, isStandardConfig } from '@/lib/gpu/config-ladder'
@@ -157,7 +157,7 @@ export async function confirmReviewItem(
   if (typeof merged.model_name === 'string' && merged.model_name) {
     const canon = canonicalizeModel(merged.model_name)
     const modelName = canon.canonical          // 캐노니컬명으로 저장(유니크)
-    const targetKey = canon.key                // 매칭용 정규화 키(케이스·alias 흡수)
+    const targetKey = canon.key                // 매칭용 코어 키(벤더/HGX/with CPU·케이스·alias 흡수 — verbose↔단축 매칭)
     const tierOverride = typeof merged.tier === 'number' && [1, 2, 3].includes(merged.tier) ? merged.tier : null
     const tier = inferTier(modelName, tierOverride)
     const memory = normalizeMemory(typeof merged.memory === 'string' ? merged.memory : null)
@@ -166,7 +166,7 @@ export async function confirmReviewItem(
     else candQ = candQ.eq('tier', tier)
     const { data: cands } = await candQ.limit(300)
     const candList = (cands ?? []) as Array<{ id: string; model_name: string }>
-    const hit = candList.find((c) => normModelKey(c.model_name) === targetKey)
+    const hit = candList.find((c) => coreModelKey(c.model_name) === targetKey)
     if (hit?.id) productId = hit.id
     if (!productId) {
       const series = modelName.split(/\s+/)[0]

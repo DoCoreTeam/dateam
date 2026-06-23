@@ -1,6 +1,6 @@
 import { normalizeMemory } from '@/lib/gpu/normalize'
 import { inferTier } from '@/lib/gpu/tier-dict'
-import { canonicalizeModel, normModelKey } from '@/lib/gpu/canonical-model'
+import { canonicalizeModel, coreModelKey } from '@/lib/gpu/canonical-model'
 
 export interface CompetitorPriceItem {
   competitor_name: string
@@ -45,7 +45,7 @@ export async function saveCompetitorPrices(
     let candQ = db.from('gpu_products').select('id, model_name').is('deleted_at', null)
     candQ = memory ? candQ.eq('memory', memory) : candQ.is('memory', null)
     const { data: cands } = await candQ.limit(300)
-    const hit = ((cands ?? []) as Array<{ id: string; model_name: string }>).find((c) => normModelKey(c.model_name) === canon.key)
+    const hit = ((cands ?? []) as Array<{ id: string; model_name: string }>).find((c) => coreModelKey(c.model_name) === canon.key)
     if (hit?.id) {
       gpuProductId = hit.id
     } else {
