@@ -3,12 +3,10 @@
 // 클라이언트는 라우트가 생성해 주입. NextResponse 대신 구조화 결과를 반환한다.
 
 import type { createClient, createAdminClient } from '@/lib/supabase/server'
-import { normalizeMemory } from '@/lib/gpu/normalize'
 import { parseGpuCount, toPerGpuPrice } from '@/lib/gpu/parse-quantity'
 import { resolveConfirmUnitPrice } from '@/lib/gpu/price-breakdown'
 import { parseBilling } from '@/lib/gpu/billing'
-import { inferTier } from '@/lib/gpu/tier-dict'
-import { canonicalizeModel, coreModelKey } from '@/lib/gpu/canonical-model'
+import { resolveProductId, heldReasonMessage } from '@/lib/gpu/resolve-product'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
 import { routeIntakeExtras } from '@/lib/gpu/intake-routing'
 import { roundUpToStandard, isStandardConfig } from '@/lib/gpu/config-ladder'
@@ -110,8 +108,13 @@ export async function confirmReviewItem(
     if (!compItem.competitor_name || !compItem.model_name || !Number.isFinite(compItem.price_usd) || compItem.price_usd <= 0) {
       return { ok: false, status: 422, error: '경쟁사·모델·가격을 특정할 수 없어 확정할 수 없습니다.' }
     }
-    const saved = await saveCompetitorPrices(adminClient, [compItem], null)
-    if (saved.length === 0) return { ok: false, status: 500, error: '경쟁사 시장가 반영에 실패했습니다.' }
+    const { saved, held } = await saveCompetitorPrices(adminClient, [compItem])
+    if (saved.length === 0) {
+      // 깡통 자동생성 금지 — 매칭 실패는 사유와 함께 보류(확정 차단)
+      const reason = held[0]?.reason
+      const msg = reason ? heldReasonMessage(reason, compItem.model_name, 1) : '경쟁사 시장가 반영에 실패했습니다.'
+      return { ok: false, status: 422, error: msg }
+    }
     await admin.from('review_items').update({
       status: 'confirmed', confirmed_by: actorName, confirmed_at: now, confirmed_items: confirmedItems,
     }).eq('id', id)
@@ -150,32 +153,20 @@ export async function confirmReviewItem(
   })
   const unitPriceUsd = confirmPrice.value
 
-  // product_id 찾기 — 캐노니컬 하드 dedup. "모델 유니크 + 세부데이터(memory)로 구분".
-  // 보수적: 캐노니컬 키 정확일치만(+memory). fuzzy 토큰매칭 제거(오병합 0). 같은 (캐노니컬,memory)면 기존행 재사용→견적 최신화.
+  // product_id 찾기 — resolveProductId SSOT(읽기 전용). 매칭은 캐노니컬 모델명+장수, memory는 변형 구분용.
+  //   매칭 실패 시 깡통 자동생성 금지 → 보류(사유 반환). 신규 모델은 스펙관리에서 등록(SSOT 단일 통제).
+  const productAutoCreated = false
   let productId: string | null = null
-  let productAutoCreated = false
   if (typeof merged.model_name === 'string' && merged.model_name) {
-    const canon = canonicalizeModel(merged.model_name)
-    const modelName = canon.canonical          // 캐노니컬명으로 저장(유니크)
-    const targetKey = canon.key                // 매칭용 코어 키(벤더/HGX/with CPU·케이스·alias 흡수 — verbose↔단축 매칭)
-    const tierOverride = typeof merged.tier === 'number' && [1, 2, 3].includes(merged.tier) ? merged.tier : null
-    const tier = inferTier(modelName, tierOverride)
-    const memory = normalizeMemory(typeof merged.memory === 'string' ? merged.memory : null)
-    let candQ = db.from('gpu_products').select('id, model_name')
-    if (memory) candQ = candQ.eq('memory', memory)
-    else candQ = candQ.eq('tier', tier)
-    const { data: cands } = await candQ.limit(300)
-    const candList = (cands ?? []) as Array<{ id: string; model_name: string }>
-    const hit = candList.find((c) => coreModelKey(c.model_name) === targetKey)
-    if (hit?.id) productId = hit.id
-    if (!productId) {
-      const series = modelName.split(/\s+/)[0]
-      const { data: newProduct } = await admin
-        .from('gpu_products')
-        .insert({ model_name: modelName, memory, tier, series, pricing_mode: 'quote' })
-        .select('id').single()
-      if (newProduct?.id) { productId = newProduct.id; productAutoCreated = true }
+    const resolved = await resolveProductId(db, {
+      modelName: merged.model_name,
+      gpuCount,
+      memory: typeof merged.memory === 'string' ? merged.memory : null,
+    })
+    if ('held' in resolved) {
+      return { ok: false, status: 422, error: heldReasonMessage(resolved.reason, merged.model_name, gpuCount) }
     }
+    productId = resolved.productId
   }
 
   // supplier_id 찾기 — 사용자 선택 우선, 없으면 이름으로 find-or-create

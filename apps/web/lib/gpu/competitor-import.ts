@@ -1,6 +1,5 @@
 import { normalizeMemory } from '@/lib/gpu/normalize'
-import { inferTier } from '@/lib/gpu/tier-dict'
-import { canonicalizeModel, coreModelKey } from '@/lib/gpu/canonical-model'
+import { resolveProductId, type ResolveHeldReason } from '@/lib/gpu/resolve-product'
 
 export interface CompetitorPriceItem {
   competitor_name: string
@@ -11,14 +10,30 @@ export interface CompetitorPriceItem {
   notes?: string
 }
 
-// 경쟁사 가격 DB 저장 (find-or-create 경쟁사·모델·매핑 후 시세 insert). service_role(adminClient) 필요.
+export interface SaveCompetitorResult {
+  saved: { competitor: string; model: string; memory: string; price_usd: number }[]
+  /** 매칭 실패로 깡통 생성 대신 보류된 항목(사람 처리 필요) */
+  held: { model: string; reason: ResolveHeldReason }[]
+}
+
+export interface SaveCompetitorOptions {
+  /** market_prices.source_url + 매핑 competitor_url 갱신용(웹 새로고침 경로) */
+  sourceUrl?: string | null
+  confidence?: number
+}
+
+// 경쟁사 가격 DB 저장. 모델은 resolveProductId SSOT로 기존 변형에만 결합 — 매칭 실패 시 깡통 자동생성 금지(보류).
+//   service_role(adminClient) 필요. (재사용·단일구현: confirm·refresh 양 경로가 이 함수만 호출)
 export async function saveCompetitorPrices(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   db: any,
   items: CompetitorPriceItem[],
-  sourceUrl: string | null,
-): Promise<{ competitor: string; model: string; memory: string; price_usd: number }[]> {
-  const saved: { competitor: string; model: string; memory: string; price_usd: number }[] = []
+  opts: SaveCompetitorOptions = {},
+): Promise<SaveCompetitorResult> {
+  const sourceUrl = opts.sourceUrl ?? null
+  const confidence = typeof opts.confidence === 'number' ? opts.confidence : 85
+  const saved: SaveCompetitorResult['saved'] = []
+  const held: SaveCompetitorResult['held'] = []
   const now = new Date().toISOString()
 
   for (const item of items) {
@@ -36,24 +51,11 @@ export async function saveCompetitorPrices(
       competitorId = newComp.id
     }
 
-    let gpuProductId: string
+    // 모델 변형 매칭 — resolveProductId SSOT(읽기 전용). 경쟁사 on-demand=1장. 매칭 실패 시 깡통 생성 대신 보류.
     const memory = normalizeMemory(item.memory ?? '')
-    // 캐노니컬 SSOT 경유(confirm-review-item와 동일) — ilike 정확매칭이 만들던 변형명 중복(A6000/RTX A6000 등) 차단.
-    //   캐노니컬 키로 같은 memory 후보 중 매칭 → 없을 때만 캐노니컬명으로 생성.
-    const canon = canonicalizeModel(item.model_name)
-    const modelName = canon.canonical || item.model_name.trim()
-    let candQ = db.from('gpu_products').select('id, model_name').is('deleted_at', null)
-    candQ = memory ? candQ.eq('memory', memory) : candQ.is('memory', null)
-    const { data: cands } = await candQ.limit(300)
-    const hit = ((cands ?? []) as Array<{ id: string; model_name: string }>).find((c) => coreModelKey(c.model_name) === canon.key)
-    if (hit?.id) {
-      gpuProductId = hit.id
-    } else {
-      const { data: newGpu, error: gpuErr } = await db.from('gpu_products')
-        .insert({ model_name: modelName, memory, tier: inferTier(modelName), pricing_mode: 'quote', gpu_count: 1, vcpu: 12, ram_gb: 16, storage_gb: 512 }).select('id').single()
-      if (gpuErr || !newGpu) { console.error('[competitor] GPU 모델 생성 실패:', gpuErr?.message); continue }
-      gpuProductId = newGpu.id
-    }
+    const resolved = await resolveProductId(db, { modelName: item.model_name, gpuCount: 1, memory: item.memory ?? null })
+    if ('held' in resolved) { held.push({ model: item.model_name, reason: resolved.reason }); continue }
+    const gpuProductId: string = resolved.productId
 
     let mappingId: string
     const pricingModel = (item.pricing_model ?? 'on_demand').replace(/-/g, '_')
@@ -61,10 +63,11 @@ export async function saveCompetitorPrices(
       .eq('competitor_id', competitorId).eq('gpu_product_id', gpuProductId).eq('pricing_model', pricingModel).single()
     if (existingMap?.id) {
       mappingId = existingMap.id
+      if (sourceUrl) await db.from('competitor_product_mapping').update({ competitor_url: sourceUrl }).eq('id', mappingId)
     } else {
-      const sku = `${item.model_name} ${memory} (${pricingModel})`.trim()
+      const sku = `${item.model_name} ${memory ?? ''} (${pricingModel})`.trim()
       const { data: newMap, error: mapErr } = await db.from('competitor_product_mapping')
-        .insert({ competitor_id: competitorId, gpu_product_id: gpuProductId, competitor_sku: sku, pricing_model: pricingModel, is_active: true }).select('id').single()
+        .insert({ competitor_id: competitorId, gpu_product_id: gpuProductId, competitor_sku: sku, pricing_model: pricingModel, is_active: true, ...(sourceUrl ? { competitor_url: sourceUrl } : {}) }).select('id').single()
       if (mapErr || !newMap) { console.error('[competitor] 매핑 생성 실패:', mapErr?.message); continue }
       mappingId = newMap.id
     }
@@ -72,9 +75,9 @@ export async function saveCompetitorPrices(
     await db.from('market_prices').insert({
       mapping_id: mappingId, price_usd: item.price_usd, source_url: sourceUrl,
       source_type: sourceUrl ? 'webpage' : 'manual', recorded_at: now, observed_at: now,
-      confidence: 85, is_stale: false, ...(item.notes ? { notes: item.notes } : {}),
+      confidence, is_stale: false, ...(item.notes ? { notes: item.notes } : {}),
     })
     saved.push({ competitor: item.competitor_name, model: item.model_name, memory: memory ?? '', price_usd: item.price_usd })
   }
-  return saved
+  return { saved, held }
 }
