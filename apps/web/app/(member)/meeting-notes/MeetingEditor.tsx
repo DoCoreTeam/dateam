@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Save, ArrowLeft, Trash2 } from 'lucide-react'
+import { Save, ArrowLeft, Trash2, X } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import TiptapEditor from '@/components/ui/TiptapEditor'
-import { createMeetingNote, updateMeetingNote, deleteMeetingNote, getMeetingDepartments } from './actions'
+import AttendeesEditor, { type MemberChip } from './AttendeesEditor'
+import { createMeetingNote, updateMeetingNote, deleteMeetingNote, getMeetingDepartments, listOrgPeople } from './actions'
 
 export interface MeetingNoteDraft {
   id?: string
@@ -14,14 +15,19 @@ export interface MeetingNoteDraft {
   department_id: string | null
   tags: string[]
   body: string // HTML
+  summary?: string
+  decisions?: string
+  attendees?: string[] // 이름(조직원 + 외부)
+  attendeeUserIds?: string[] // 조직원 id
 }
 
 interface Props {
   initial: MeetingNoteDraft
   mode: 'create' | 'edit'
+  // 편집 종료 콜백(조회 화면이 편집모드를 끄도록) — 저장 성공/취소 시 호출. create 모드는 미사용.
+  onExit?: () => void
 }
 
-// datetime-local 값(YYYY-MM-DDTHH:mm) ↔ ISO 상호 변환.
 function isoToLocalInput(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
@@ -36,14 +42,13 @@ function localInputToIso(value: string): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString()
 }
 
-// 작성 순간(현재 일시)을 datetime-local 기본값으로.
 function nowLocalInput(): string {
   const d = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-export default function MeetingEditor({ initial, mode }: Props) {
+export default function MeetingEditor({ initial, mode, onExit }: Props) {
   const router = useRouter()
   const [title, setTitle] = useState(initial.title)
   const [meetingAtLocal, setMeetingAtLocal] = useState(
@@ -51,48 +56,79 @@ export default function MeetingEditor({ initial, mode }: Props) {
   )
   const [departmentId, setDepartmentId] = useState(initial.department_id ?? '')
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([])
+  const [people, setPeople] = useState<{ id: string; name: string }[]>([])
   const [body, setBody] = useState(initial.body)
+  const [summary, setSummary] = useState(initial.summary ?? '')
+  const [decisions, setDecisions] = useState(initial.decisions ?? '')
+  const [tags, setTags] = useState<string[]>(initial.tags ?? [])
+  const [tagInput, setTagInput] = useState('')
+  const [members, setMembers] = useState<MemberChip[]>([])
+  const [externals, setExternals] = useState<string[]>([])
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
   const [deleting, startDelete] = useTransition()
 
-  // 부서 선택지 — 클라이언트 마운트 시 1회 로드(목록이 비어도 '부서 없음'은 항상 선택 가능)
+  // 부서 + 조직원 선택지 로드. 조직원 로드 후 초기 참석자 칩(조직원/외부) 분류.
+  const initAttendees = useMemo(() => initial.attendees ?? [], [initial.attendees])
+  const initUserIds = useMemo(() => initial.attendeeUserIds ?? [], [initial.attendeeUserIds])
   useEffect(() => {
     let alive = true
-    getMeetingDepartments()
-      .then((rows) => { if (alive) setDepartments(rows) })
-      .catch(() => { /* best effort — 부서 로드 실패가 작성 흐름을 막지 않음 */ })
+    getMeetingDepartments().then((rows) => { if (alive) setDepartments(rows) }).catch(() => {})
+    listOrgPeople().then((rows) => {
+      if (!alive) return
+      setPeople(rows)
+      // user_ids=조직원 SSOT. 그 외 attendees 이름은 외부로 분류.
+      const byId = new Map(rows.map((p) => [p.id, p.name] as const))
+      const mem: MemberChip[] = []
+      const memNames = new Set<string>()
+      for (const id of initUserIds) {
+        const name = byId.get(id)
+        if (name) { mem.push({ id, name }); memNames.add(name) }
+      }
+      setMembers(mem)
+      setExternals(initAttendees.filter((n) => !memNames.has(n)))
+    }).catch(() => {})
     return () => { alive = false }
-  }, [])
+  }, [initAttendees, initUserIds])
+
+  function addTag() {
+    const t = tagInput.trim().replace(/^#/, '')
+    if (!t || tags.includes(t)) { setTagInput(''); return }
+    setTags((prev) => [...prev, t])
+    setTagInput('')
+  }
 
   function save() {
-    if (!title.trim()) {
-      setError('제목을 입력해 주세요.')
-      return
-    }
+    if (!title.trim()) { setError('제목을 입력해 주세요.'); return }
     setError('')
-    const input = {
+    const attendeeNames = [...members.map((m) => m.name), ...externals]
+    const attendeeUserIds = members.map((m) => m.id)
+    const base = {
       title: title.trim(),
       meeting_at: localInputToIso(meetingAtLocal),
       department_id: departmentId || null,
       body_html: body,
+      tags: tags.length > 0 ? tags : null,
+      attendees: attendeeNames.length > 0 ? attendeeNames : null,
+      attendee_user_ids: attendeeUserIds.length > 0 ? attendeeUserIds : null,
     }
     startTransition(async () => {
       try {
-        // 저장 직후 상세에서 AI 분석 자동 실행(C안) — ?analyze=1로 1회 트리거.
-        // 비용통제: 본문이 "실제로 바뀐 경우"에만 분석. 신규는 본문 있으면, 수정은 본문 변경 시에만.
-        // (제목/일시만 바꾼 저장에 동일 본문을 재분석하지 않는다 — 토큰 낭비 방지)
+        // 본문이 실제 바뀐 경우에만 저장 후 자동 AI 분석(?analyze=1) — 토큰 낭비 방지.
         const bodyChanged = mode === 'create' ? body.trim().length > 0 : body !== initial.body
         const analyzeQs = bodyChanged ? '?analyze=1' : ''
         if (mode === 'create') {
-          const res = await createMeetingNote(input)
+          const res = await createMeetingNote(base)
           if (!res.ok) { setError(res.error); return }
           router.push(`/meeting-notes/${res.id}${analyzeQs}`)
         } else if (initial.id) {
-          const res = await updateMeetingNote(initial.id, input)
+          // 편집은 요약·결정사항까지 한 번에 저장(에디터가 모든 필드의 단일 수정면).
+          const res = await updateMeetingNote(initial.id, { ...base, summary: summary.trim() || null, decisions: decisions.trim() || null })
           if (!res.ok) { setError(res.error); return }
+          // 본문 변경 시에만 ?analyze=1로 자동 재분석. 저장 후 편집모드 종료 → 조회 화면 복귀.
           router.push(`/meeting-notes/${initial.id}${analyzeQs}`)
           router.refresh()
+          onExit?.()
         }
       } catch {
         setError('저장에 실패했습니다. 잠시 후 다시 시도해 주세요.')
@@ -126,34 +162,21 @@ export default function MeetingEditor({ initial, mode }: Props) {
       <div className="card" style={{ padding: 'var(--space-5) var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         <div>
           <label className="label" htmlFor="mn-title">제목</label>
-          <input id="mn-title" className="input-field"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="예: 2분기 GPU 가격 전략 회의"
-            style={{ minHeight: 44 }}
-          />
+          <input id="mn-title" className="input-field" value={title} onChange={(e) => setTitle(e.target.value)}
+            placeholder="예: 2분기 GPU 가격 전략 회의" style={{ minHeight: 44 }} />
         </div>
 
         <div className="responsive-grid-cols-2" style={{ gap: 'var(--space-4)' }}>
           <div>
             <label className="label" htmlFor="mn-at">회의일시</label>
-            <input id="mn-at" type="datetime-local" className="input-field"
-              value={meetingAtLocal}
-              onChange={(e) => setMeetingAtLocal(e.target.value)}
-              style={{ minHeight: 44 }}
-            />
+            <input id="mn-at" type="datetime-local" className="input-field" value={meetingAtLocal}
+              onChange={(e) => setMeetingAtLocal(e.target.value)} style={{ minHeight: 44 }} />
           </div>
           <div>
             <label className="label" htmlFor="mn-dept">부서</label>
-            <select id="mn-dept" className="input-field"
-              value={departmentId}
-              onChange={(e) => setDepartmentId(e.target.value)}
-              style={{ minHeight: 44 }}
-            >
+            <select id="mn-dept" className="input-field" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} style={{ minHeight: 44 }}>
               <option value="">부서 없음</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
+              {departments.map((d) => (<option key={d.id} value={d.id}>{d.name}</option>))}
             </select>
           </div>
         </div>
@@ -162,10 +185,56 @@ export default function MeetingEditor({ initial, mode }: Props) {
           <label className="label">본문</label>
           <TiptapEditor value={body} onChange={setBody} placeholder="회의 내용을 입력하세요" minHeight={280} />
         </div>
+
+        {/* 요약·결정사항 — 편집 화면에서만(작성 시엔 AI가 채움). 에디터가 모든 필드의 단일 수정면. */}
+        {mode === 'edit' && (
+          <>
+            <div>
+              <label className="label" htmlFor="mn-summary">요약</label>
+              <textarea id="mn-summary" className="input-field" value={summary} onChange={(e) => setSummary(e.target.value)}
+                rows={4} placeholder="AI 분석 결과 또는 직접 입력" style={{ resize: 'vertical', fontFamily: 'inherit' }} />
+            </div>
+            <div>
+              <label className="label" htmlFor="mn-decisions">결정사항</label>
+              <textarea id="mn-decisions" className="input-field" value={decisions} onChange={(e) => setDecisions(e.target.value)}
+                rows={3} placeholder="회의에서 결정된 사항" style={{ resize: 'vertical', fontFamily: 'inherit' }} />
+            </div>
+          </>
+        )}
+
+        {/* 참석자 — 에디터 내장(저장 시 함께 저장) */}
+        <AttendeesEditor people={people} members={members} externals={externals}
+          onChange={({ members: m, externals: e }) => { setMembers(m); setExternals(e) }} />
+
+        {/* 태그 */}
+        <div>
+          <label className="label" htmlFor="mn-tag">태그</label>
+          {tags.length > 0 && (
+            <ul style={{ listStyle: 'none', margin: '0 0 var(--space-2)', padding: 0, display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+              {tags.map((t) => (
+                <li key={t}>
+                  <span className="badge badge-slate" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                    #{t}
+                    <button type="button" onClick={() => setTags((prev) => prev.filter((x) => x !== t))} aria-label={`${t} 제거`}
+                      style={{ display: 'inline-flex', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, lineHeight: 1 }}>
+                      <X size={12} />
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <input id="mn-tag" className="input-field" value={tagInput} onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
+              placeholder="태그 입력 후 Enter" style={{ minHeight: 44, flex: 1, minWidth: 0 }} />
+            <NbButton variant="ghost" onClick={addTag} disabled={!tagInput.trim()} style={{ flexShrink: 0 }}>추가</NbButton>
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-        <NbButton variant="ghost" onClick={() => router.back()} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+        <NbButton variant="ghost" onClick={() => { if (onExit) onExit(); else router.back() }} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <ArrowLeft size={15} /> 취소
         </NbButton>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>

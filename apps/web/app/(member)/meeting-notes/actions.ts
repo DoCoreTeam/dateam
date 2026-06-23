@@ -42,6 +42,9 @@ const updateSchema = z.object({
   body_html: z.string().max(BODY_HTML_MAX, '본문이 너무 깁니다.').nullable().optional(),
   tags: z.array(z.string().trim().min(1)).max(100).nullable().optional(),
   status: statusSchema.optional(),
+  // 에디터(편집화면)에서 요약·결정사항을 직접 수정 저장 — AI 생성분과 동일 컬럼(SSOT).
+  summary: z.string().max(20000).nullable().optional(),
+  decisions: z.string().max(20000).nullable().optional(),
 })
 
 const summarySchema = z.object({
@@ -161,6 +164,8 @@ export async function updateMeetingNote(
     if (v.department_id !== undefined) payload.department_id = v.department_id
     if (v.tags !== undefined) payload.tags = v.tags
     if (v.status !== undefined) payload.status = v.status
+    if (v.summary !== undefined) payload.summary = v.summary
+    if (v.decisions !== undefined) payload.decisions = v.decisions
     if (v.body_html !== undefined) {
       payload.body_html = v.body_html
       payload.body_plain = htmlToPlain(v.body_html)
