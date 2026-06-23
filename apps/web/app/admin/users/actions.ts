@@ -47,6 +47,17 @@ export async function deleteUser(userId: string): Promise<{ success?: boolean; e
 
   if (profileError) return { error: profileError.message }
 
+  // 조직도 정리 — 소프트삭제는 org_nodes의 FK CASCADE(user_id)·SET NULL(head_user_id)를 발동시키지 않으므로 수동 처리.
+  //   (안 하면 삭제된 사람의 person 노드가 조직도에 고아로 남음. person 노드는 리프라 자식 RESTRICT 없음.)
+  //   1) 그 user의 person 노드 제거(closure는 ON DELETE CASCADE로 동반 정리)
+  //   2) 그 user가 부서장(head_user_id)인 노드의 참조 해제
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: nodeDelErr } = await (adminClient.from('org_nodes') as any).delete().eq('type', 'person').eq('user_id', userId)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: headErr } = await (adminClient.from('org_nodes') as any).update({ head_user_id: null }).eq('head_user_id', userId)
+  // 정리 실패는 본체(소프트삭제) 롤백 불가 — 관측만 남김(고아 노드 남을 수 있으니 추적). auth ban 패턴과 동일.
+  if (nodeDelErr || headErr) console.warn('[deleteUser] org_nodes cleanup failed:', nodeDelErr?.message ?? headErr?.message)
+
   // Supabase Auth 사용자 비활성화
   const { error: authError } = await adminClient.auth.admin.updateUserById(userId, {
     ban_duration: BAN_DURATION_PERMANENT,
@@ -58,6 +69,9 @@ export async function deleteUser(userId: string): Promise<{ success?: boolean; e
   }
 
   revalidatePath('/admin/users')
+  revalidatePath('/admin/members')
+  revalidatePath('/admin/org-chart')
+  revalidatePath('/org')
   return { success: true }
 }
 
