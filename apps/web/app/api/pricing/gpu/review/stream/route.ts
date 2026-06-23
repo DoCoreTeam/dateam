@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { requireAdminApi } from '@/lib/auth/requireAdminApi'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import {
   getGeminiConfig, getExtractPrompt, getClassifyPrompt, extractUrls, fetchUrlText,
   loadSpecContext, callGeminiStream, loadSchemaDigest, synthesizeExtractPrompt,
@@ -35,7 +35,9 @@ function sniffVisionMime(bytes: Uint8Array, declaredMime: string): string | null
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAdminApi()
+  // 통합입력 제출(추출/미리보기) — 내부 임직원(admin+member) 허용. DB 쓰기 없음(미리보기만).
+  // 확정/시장반영(market/import·review 승인)은 admin 유지 — 제출↔확정 권한 분리.
+  const auth = await requireMemberApi()
   if (auth.error) return auth.error
   const supabase = await createClient()
   void supabase

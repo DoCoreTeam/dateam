@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
-import { requireAdminApi } from '@/lib/auth/requireAdminApi'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { parseCatalogBuffer } from '@/lib/gpu/catalog-parse'
 import { validateMapping, applyMapping } from '@/lib/gpu/catalog-map'
 import { dedupCompetitor } from '@/lib/gpu/dedup'
@@ -144,7 +144,9 @@ async function runUsaiCatalog(
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAdminApi()
+  // 통합입력 제출(엑셀/CSV 흡수) — 내부 임직원(admin+member) 허용. review_items(검토대기 staging)에만 적재.
+  // 라이브 반영/확정(market/import·review 승인)은 admin 유지 — 제출↔확정 권한 분리.
+  const auth = await requireMemberApi()
   if (auth.error) return auth.error
   const user = auth.user
 
