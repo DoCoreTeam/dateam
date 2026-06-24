@@ -7,7 +7,7 @@ import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { useEscClose } from '@/lib/use-esc-close'
 import { GPU_TERMS as T } from '@/lib/gpu/terms'
 import { countryFlag } from '@/lib/gpu/country-flag'
-import { Plus, X, Search, Trash2, PackagePlus, Pencil, Link2, Globe, Sparkles } from 'lucide-react'
+import { Plus, X, Search, Trash2, PackagePlus, Pencil, Link2, Globe, Sparkles, GitMerge } from 'lucide-react'
 
 interface CompetitorRow {
   id: string
@@ -21,10 +21,17 @@ interface CompetitorRow {
   pricing_url: string | null
   is_active: boolean
   supplier_id: string | null
+  aliases: string[] | null
   mapping_count: number
   market_price_count: number
   is_supplier: boolean
   linked_supplier_name: string | null
+}
+
+interface MergeSuggestion {
+  key: string
+  reason: 'domain' | 'name'
+  competitor_ids: string[]
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -32,12 +39,15 @@ const TYPE_LABEL: Record<string, string> = {
 }
 
 export default function CompetitorsTab({ autoCreate = false, onAutoCreateConsumed }: { autoCreate?: boolean; onAutoCreateConsumed?: () => void }) {
-  const { data, error } = useSWR<{ competitors: CompetitorRow[] }>('/api/pricing/gpu/competitors', fetcher)
+  const { data, error } = useSWR<{ competitors: CompetitorRow[]; merge_suggestions?: MergeSuggestion[] }>('/api/pricing/gpu/competitors', fetcher)
   const { mutate } = useSWRConfig()
   const list = data?.competitors ?? []
+  const byId = useMemo(() => new Map(list.map((c) => [c.id, c])), [list])
+  const suggestions = data?.merge_suggestions ?? []
 
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [mergeTargets, setMergeTargets] = useState<CompetitorRow[] | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   // FAB '경쟁사 등록' → 진입 시 생성 모달 자동 오픈(1회) 후 신호 소비
   useEffect(() => { if (autoCreate) { setShowCreate(true); onAutoCreateConsumed?.() } }, [autoCreate]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -102,10 +112,43 @@ export default function CompetitorsTab({ autoCreate = false, onAutoCreateConsume
         </button>
       </div>
 
+      {/* 병합 제안 — 도메인/이름이 같은 회사 클러스터(과병합 방지: 토큰 겹침만으론 제안 안 함) */}
+      {suggestions.length > 0 && (
+        <div className="gpu-merge-suggest">
+          <span className="gpu-merge-suggest-icon"><GitMerge size={15} /></span>
+          <div className="gpu-merge-suggest-body">
+            <strong>같은 회사로 보이는 중복 {suggestions.length}건</strong>
+            {suggestions.map((s) => {
+              const members = s.competitor_ids.map((id) => byId.get(id)).filter(Boolean) as CompetitorRow[]
+              if (members.length < 2) return null
+              return (
+                <div key={s.key} className="gpu-merge-suggest-row">
+                  <span className="gpu-merge-suggest-names">
+                    {members.map((m) => m.name).join(' · ')}
+                    <span className="gpu-merge-suggest-reason">{s.reason === 'domain' ? '같은 도메인' : '같은 이름'}</span>
+                  </span>
+                  <button className="gpu-btn gpu-btn-primary gpu-merge-suggest-btn" onClick={() => setMergeTargets(members)}>
+                    <GitMerge size={13} /> 검토·병합
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 다중선택 액션바 */}
       {selected.size > 0 && (
         <div className="gpu-bulkbar">
           <span className="gpu-bulkbar-count">{selected.size}{T.selected}</span>
+          {selected.size >= 2 && (
+            <button className="gpu-btn gpu-bulkbar-btn" disabled={busy} onClick={() => {
+              const members = Array.from(selected).map((id) => byId.get(id)).filter(Boolean) as CompetitorRow[]
+              if (members.length >= 2) setMergeTargets(members)
+            }}>
+              <GitMerge size={14} /> 선택 병합
+            </button>
+          )}
           <button className="gpu-btn gpu-bulkbar-btn" disabled={busy} onClick={() => bulk('promote')}>
             <PackagePlus size={14} /> {T.bulkAssignSupplier}
           </button>
@@ -147,6 +190,7 @@ export default function CompetitorsTab({ autoCreate = false, onAutoCreateConsume
                     {c.country && <span title={c.country}>{countryFlag(c.country)}</span>}
                     {c.name}
                     {c.short_name && c.short_name !== c.name && <span className="gpu-comp-short">{c.short_name}</span>}
+                    {c.aliases && c.aliases.length > 0 && <span className="gpu-comp-alias" title={`병합된 표기: ${c.aliases.join(', ')}`}>+{c.aliases.length} 별칭</span>}
                     {c.website_url && <a href={c.website_url} target="_blank" rel="noreferrer" className="gpu-comp-link" onClick={(e) => e.stopPropagation()}><Globe size={11} /></a>}
                   </span>
                 </td>
@@ -187,6 +231,70 @@ export default function CompetitorsTab({ autoCreate = false, onAutoCreateConsume
 
       {showCreate && <CompetitorModal onClose={() => setShowCreate(false)} onSaved={() => { setShowCreate(false); refresh() }} />}
       {editRow && <CompetitorModal row={editRow} onClose={() => setEditRow(null)} onSaved={() => { setEditRow(null); refresh() }} />}
+      {mergeTargets && <MergeModal members={mergeTargets} onClose={() => setMergeTargets(null)} onMerged={() => { setMergeTargets(null); setSelected(new Set()); refresh() }} />}
+    </div>
+  )
+}
+
+// 경쟁사 병합 모달 — 대표(캐노니컬) 선택 후 나머지를 흡수. 별칭 보존·매핑 이관은 서버(merge route).
+function MergeModal({ members, onClose, onMerged }: { members: CompetitorRow[]; onClose: () => void; onMerged: () => void }) {
+  useEscClose(onClose)
+  // 기본 대표 = 데이터 많은 회사(시장가→매핑→이름 길이)
+  const defaultCanonical = useMemo(() => {
+    return [...members].sort((a, b) =>
+      (b.market_price_count - a.market_price_count) ||
+      (b.mapping_count - a.mapping_count) ||
+      (b.name.length - a.name.length),
+    )[0]?.id ?? members[0].id
+  }, [members])
+  const [canonicalId, setCanonicalId] = useState(defaultCanonical)
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const merge = async () => {
+    setSaving(true); setErr(null)
+    try {
+      const absorb_ids = members.map((m) => m.id).filter((id) => id !== canonicalId)
+      const res = await fetch('/api/pricing/gpu/competitors/merge', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ canonical_id: canonicalId, absorb_ids }),
+      })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setErr(j.error ?? '병합 실패'); return }
+      onMerged()
+    } catch { setErr('병합 중 오류가 발생했습니다') } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="gpu-modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="gpu-modal-card gpu-modal-card--sm" onClick={(e) => e.stopPropagation()}>
+        <div className="gpu-modal-header">
+          <strong className="tape-title">경쟁사 병합</strong>
+          <button type="button" onClick={onClose} className="gpu-modal-close" aria-label={T.cancel}><X size={16} /></button>
+        </div>
+        <div className="gpu-modal-body">
+          <p className="gpu-merge-hint">대표로 남길 회사를 고르세요. 나머지는 흡수되고 모델 매핑·시장가는 대표로 이관됩니다. 흡수된 표기는 별칭으로 보존됩니다.</p>
+          <div className="gpu-merge-pick">
+            {members.map((m) => (
+              <label key={m.id} className={`gpu-merge-opt${canonicalId === m.id ? ' gpu-merge-opt--on' : ''}`}>
+                <input type="radio" name="canonical" checked={canonicalId === m.id} onChange={() => setCanonicalId(m.id)} />
+                <span className="gpu-merge-opt-name">
+                  <span className="gpu-sdot" style={{ background: m.color }} />
+                  {m.name}
+                  {m.website_url && <span className="gpu-merge-opt-dom">{m.website_url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}</span>}
+                </span>
+                <span className="gpu-merge-opt-stat">매핑 {m.mapping_count} · 시세 {m.market_price_count}</span>
+              </label>
+            ))}
+          </div>
+          {err && <div className="gpu-link-err">{err}</div>}
+          <div className="gpu-merge-actions">
+            <button className="gpu-btn" onClick={onClose} disabled={saving}>{T.cancel}</button>
+            <button className="gpu-btn gpu-btn-primary" onClick={merge} disabled={saving}>
+              <GitMerge size={14} /> {saving ? '병합 중…' : `${members.length}개 → 1개로 병합`}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

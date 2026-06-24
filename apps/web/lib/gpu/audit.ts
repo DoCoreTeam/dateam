@@ -33,6 +33,7 @@ export type GpuActionType =
   | 'product_deleted'
   | 'market_price_updated'
   | 'market_price_deleted'
+  | 'competitor_merged'
   | 'strategic_price_set'
   | 'gcube_price_collected'
   | 'market_cost_ingested'

@@ -1,5 +1,6 @@
 import { normalizeMemory } from '@/lib/gpu/normalize'
 import { resolveProductId, type ResolveHeldReason } from '@/lib/gpu/resolve-product'
+import { resolveCompetitorId, type CompetitorIdentity } from '@/lib/gpu/resolve-competitor'
 
 export interface CompetitorPriceItem {
   competitor_name: string
@@ -36,19 +37,37 @@ export async function saveCompetitorPrices(
   const held: SaveCompetitorResult['held'] = []
   const now = new Date().toISOString()
 
+  // 경쟁사 식별 SSOT — 기존 회사 1회 로드 후 도메인/별칭으로 해소(재발 중복 차단).
+  //   매칭 실패 시에만 신규 생성하고 인메모리 목록에 추가 → 같은 배치 내 표기 변형도 한 회사로 흡수.
+  const { data: allComps } = await db.from('competitors')
+    .select('id, name, short_name, website_url, aliases').is('deleted_at', null)
+  const existing: CompetitorIdentity[] = (allComps ?? []).map((c: Record<string, unknown>) => ({
+    id: c.id as string,
+    name: c.name as string,
+    short_name: (c.short_name as string | null) ?? null,
+    website_url: (c.website_url as string | null) ?? null,
+    aliases: (c.aliases as string[] | null) ?? null,
+  }))
+
   for (const item of items) {
     if (!item.competitor_name || !item.model_name || !item.price_usd) continue
 
     let competitorId: string
-    const { data: existingComp } = await db.from('competitors').select('id').ilike('name', item.competitor_name.trim()).single()
-    if (existingComp?.id) {
-      competitorId = existingComp.id
+    const resolvedCompId = resolveCompetitorId(
+      { name: item.competitor_name.trim(), website_url: sourceUrl },
+      existing,
+    )
+    if (resolvedCompId) {
+      competitorId = resolvedCompId
     } else {
       const compName = item.competitor_name.trim()
       const { data: newComp, error: compErr } = await db.from('competitors')
-        .insert({ name: compName, short_name: compName.slice(0, 20), type: 'specialist' }).select('id').single()
+        .insert({ name: compName, short_name: compName.slice(0, 20), type: 'specialist', ...(sourceUrl ? { website_url: sourceUrl } : {}) })
+        .select('id').single()
       if (compErr || !newComp) { console.error('[competitor] 경쟁사 생성 실패:', compErr?.message); continue }
       competitorId = newComp.id
+      // 같은 배치 후속 항목이 이 회사로 해소되도록 인메모리 목록에 추가
+      existing.push({ id: competitorId, name: compName, short_name: compName.slice(0, 20), website_url: sourceUrl, aliases: [] })
     }
 
     // 모델 변형 매칭 — resolveProductId SSOT(읽기 전용). 경쟁사 on-demand=1장. 매칭 실패 시 깡통 생성 대신 보류.

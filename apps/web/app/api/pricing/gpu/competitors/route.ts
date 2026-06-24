@@ -4,6 +4,7 @@ import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
 import { recordGpuAudit } from '@/lib/gpu/audit'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
+import { findMergeSuggestions, type CompetitorIdentity } from '@/lib/gpu/resolve-competitor'
 
 // GET /api/pricing/gpu/competitors — 경쟁사 목록 + 통계(매핑수·시장가수·연결 공급사)
 export async function GET() {
@@ -16,7 +17,7 @@ export async function GET() {
 
     const { data: competitors, error } = await db
       .from('competitors')
-      .select('id, name, short_name, type, region, country, color, website_url, pricing_url, is_active, supplier_id, created_at')
+      .select('id, name, short_name, type, region, country, color, website_url, pricing_url, is_active, supplier_id, aliases, created_at')
       .is('deleted_at', null)
       .order('name')
     if (error) throw error
@@ -65,7 +66,17 @@ export async function GET() {
       linked_supplier_name: c.supplier_id ? (supNameById.get(c.supplier_id as string) ?? null) : null,
     }))
 
-    return NextResponse.json({ competitors: result })
+    // 병합 제안 — 도메인/정규화 이름이 같은 회사 클러스터(2개+). 과병합 방지: 토큰 겹침만으론 안 묶음.
+    const identities: CompetitorIdentity[] = (competitors ?? []).map((c: Record<string, unknown>) => ({
+      id: c.id as string,
+      name: c.name as string,
+      short_name: (c.short_name as string | null) ?? null,
+      website_url: (c.website_url as string | null) ?? null,
+      aliases: (c.aliases as string[] | null) ?? null,
+    }))
+    const mergeSuggestions = findMergeSuggestions(identities)
+
+    return NextResponse.json({ competitors: result, merge_suggestions: mergeSuggestions })
   } catch (err) {
     console.error('[gpu/competitors GET]', err)
     return NextResponse.json({ error: '경쟁사 목록을 불러오지 못했습니다' }, { status: 500 })

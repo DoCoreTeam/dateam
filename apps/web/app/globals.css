@@ -6463,6 +6463,40 @@ label.intake-tool-btn {
 .gpu-comp-short { font-size: var(--fs-2xs); color: var(--text-muted); font-weight: 400; }
 .gpu-comp-link { color: var(--brand); display: inline-flex; }
 .gpu-comp-plain { font-size: var(--fs-2xs); color: var(--text-muted); }
+.gpu-comp-alias {
+  font-size: var(--fs-2xs); color: var(--brand); font-weight: 500;
+  background: var(--info-bg); border-radius: var(--radius); padding: 0 var(--space-1);
+}
+
+/* 경쟁사 병합 제안 배너 */
+.gpu-merge-suggest {
+  display: flex; gap: var(--space-3); align-items: flex-start;
+  background: var(--info-bg); border: var(--border-w) solid var(--info-border);
+  border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3);
+}
+.gpu-merge-suggest-icon { color: var(--info); display: inline-flex; padding-top: var(--space-1); }
+.gpu-merge-suggest-body { display: flex; flex-direction: column; gap: var(--space-2); flex: 1; min-width: 0; }
+.gpu-merge-suggest-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap;
+}
+.gpu-merge-suggest-names { display: inline-flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; color: var(--text); font-size: var(--fs-sm); }
+.gpu-merge-suggest-reason { font-size: var(--fs-2xs); color: var(--text-muted); background: var(--surface-bg); border-radius: var(--radius); padding: 0 var(--space-1); }
+.gpu-merge-suggest-btn { white-space: nowrap; }
+
+/* 경쟁사 병합 모달 — 대표 선택 */
+.gpu-merge-hint { font-size: var(--fs-sm); color: var(--text-muted); margin: 0 0 var(--space-3); }
+.gpu-merge-pick { display: flex; flex-direction: column; gap: var(--space-2); }
+.gpu-merge-opt {
+  display: flex; align-items: center; gap: var(--space-3);
+  border: var(--border-w) solid var(--border-color); border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3); cursor: pointer;
+}
+.gpu-merge-opt--on { border-color: var(--brand); background: var(--info-bg); }
+.gpu-merge-opt-name { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: var(--font-weight-semibold); flex: 1; min-width: 0; }
+.gpu-merge-opt-dom { font-size: var(--fs-2xs); color: var(--text-muted); font-weight: 400; }
+.gpu-merge-opt-stat { font-size: var(--fs-2xs); color: var(--text-muted); white-space: nowrap; }
+.gpu-merge-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); }
+
 .gpu-icon-btn { padding: var(--space-1) var(--space-2); }
 .gpu-icon-btn--danger { color: var(--danger); }
 .gpu-field { display: flex; flex-direction: column; gap: var(--space-1); }
