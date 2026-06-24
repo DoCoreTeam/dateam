@@ -276,7 +276,7 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
                     <tr className={row.basis === 'selected' ? 'gpu-qline--selected' : undefined}>
                       <td>
                         <div className="gpu-sup-cell">
-                          <SupplierCell name={row.cost_supplier_name} color={null} logoUrl={null} />
+                          <SupplierCell name={row.cost_supplier_name} color={row.cost_supplier_color} logoUrl={row.cost_supplier_logo_url} />
                           {row.basis === 'selected' && <span className="gpu-badge-selected">{GPU_TERMS.designatedCost}</span>}
                         </div>
                       </td>

@@ -51,6 +51,8 @@ export interface UnifiedRow {
   basis: string | null // 공급원가 기준: auto(실견적)/selected/propagated(전파)/list(공시가)/none
   is_propagated: boolean // 공급원가가 다른 구성 per-GPU 견적을 전파한 값인지(전파 추정 표기)
   cost_supplier_name: string | null // 공급원가 기준이 된 공급사명(전파 원본/실견적)
+  cost_supplier_logo_url: string | null // 위 공급사 로고(전파 추정 행도 실견적과 동일 파비콘)
+  cost_supplier_color: string | null // 위 공급사 색(로고 없을 때 아바타 폴백색)
   propagation_source_quote_id: string | null // 전파/상속 모태 견적 id — 파생 구성 [공급가 지정] 대상
   propagation_source_term: string | null // 전파 구성 약정 = 모태 견적 약정(다른 구성에서 받은 동일 약정)
   cost_unit_usd: number | null // 공급원가 per-GPU 단가(USD) — 전파 행 표시용

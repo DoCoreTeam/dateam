@@ -34,6 +34,8 @@ export interface CockpitApiRow {
   basis?: string | null // auto/selected/propagated/list/none
   is_propagated?: boolean
   effective_supplier?: string | null // 공급원가 기준 공급사명(전파 원본/실견적)
+  effective_supplier_color?: string | null // 위 공급사 색(전파 추정 행 아바타 폴백색)
+  effective_supplier_logo_url?: string | null // 위 공급사 로고(전파 추정 행도 실견적과 동일 파비콘)
   propagation_source_quote_id?: string | null // 전파/상속 모태 견적 id
   propagation_source_term?: string | null // 전파 구성 약정(모태 견적 약정)
   cost_unit_usd?: number | null // 공급원가 per-GPU 단가(USD)
@@ -66,6 +68,7 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
     const compPrices = p.competitors.map((c) => c.price_krw)
     const marketMedian = calcMedian(compPrices)
     const supplierName = p.cost_suppliers?.[0]?.supplier_name ?? null
+    const costSupplierName = pickCostSupplierName(p.effective_supplier, p.is_propagated ?? false, supplierName)
     // 판매가·마진 선택은 자기완결 SSOT(unified-price-pick)에 위임 — 단위 테스트로 분기 고정.
     // 전략가/견적 후보가 없으면 buildCatalog 최종 판매가(공시가 폴백)로 채움 — 가격표 SSOT와 동일(빈 행 방지).
     const pricedSell = pickSellPrice(p)
@@ -97,7 +100,11 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
       basis: p.basis ?? null,
       is_propagated: p.is_propagated ?? false,
       // 전파인데 원본 공급사 미상이면 현재 공급사로 폴백하지 않음(자기참조 라벨 방지, DC-REV MED-2)
-      cost_supplier_name: pickCostSupplierName(p.effective_supplier, p.is_propagated ?? false, supplierName),
+      cost_supplier_name: costSupplierName,
+      // 로고/색은 cost_supplier_name이 실효 공급사로 해소될 때만 동행(실견적과 동일 파비콘).
+      //   최저가 폴백명은 로고를 안 들고 오므로 null(실견적 행은 별도 견적 로고로 표시됨).
+      cost_supplier_logo_url: costSupplierName != null && costSupplierName === p.effective_supplier ? (p.effective_supplier_logo_url ?? null) : null,
+      cost_supplier_color: costSupplierName != null && costSupplierName === p.effective_supplier ? (p.effective_supplier_color ?? null) : null,
       propagation_source_quote_id: p.propagation_source_quote_id ?? null,
       propagation_source_term: p.propagation_source_term ?? null,
       cost_unit_usd: p.cost_unit_usd ?? null,

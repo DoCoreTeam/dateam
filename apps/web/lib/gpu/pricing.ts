@@ -37,6 +37,7 @@ export interface SupplierLite {
   id: string
   name: string
   color: string
+  logo_url?: string | null
 }
 
 export interface CatalogProduct {
@@ -57,7 +58,7 @@ export interface CatalogProduct {
   // 모델 그룹 1장당 전파 결과
   per_gpu_usd: number | null
   effective_unit_price_usd: number | null
-  effective_supplier: { name: string; color: string } | null
+  effective_supplier: { name: string; color: string; logo_url: string | null } | null
   is_propagated: boolean
   // 판매가 (effective × 마진)
   sell_price_usd: number | null
@@ -102,7 +103,7 @@ export interface GpuCatalog {
   products: CatalogProduct[]
   // 모델 단위 1장당 전파 정보 (model_key -> ...)
   modelKey: (p: { model_name: string; tier: number }) => string
-  bestPerGpuByModel: Map<string, { per_gpu_usd: number; supplier: { name: string; color: string } | null }>
+  bestPerGpuByModel: Map<string, { per_gpu_usd: number; supplier: { name: string; color: string; logo_url: string | null } | null }>
   // 모델별 우리 공급사 목록 (시장비교 our_suppliers 용)
   suppliersByModel: Map<string, ModelGroupSupplier[]>
   margin_pct: number
@@ -170,7 +171,7 @@ export async function getGpuCatalog(db: any): Promise<GpuCatalog> {
       .select('id, product_id, supplier_id, unit_price_usd, gpu_count, valid_until, price_type, is_selected, selection_scope, source_format, term')
       .eq('status', 'confirmed')
       .is('deleted_at', null),
-    db.from('suppliers').select('id, name, color'),
+    db.from('suppliers').select('id, name, color, logo_url'),
     db.from('direct_prices').select('*, gpu_products(id)').eq('is_current', true).is('deleted_at', null),
     db.from('pricing_settings').select('margin_pct').eq('id', 1).single(),
     db.from('fx_rates').select('usd_krw, rate_date').order('rate_date', { ascending: false }).limit(1).single(),
@@ -265,7 +266,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
   // 구성(product)별 자기 최저견적
   const ownLowestByProduct = new Map<string, ConfirmedQuote>()
   // 모델별 최저 1장당 + 공급사별 최저
-  const bestPerGpuByModel = new Map<string, { per_gpu_usd: number; supplier: { name: string; color: string } | null; quote_id: string | null; term: string | null }>()
+  const bestPerGpuByModel = new Map<string, { per_gpu_usd: number; supplier: { name: string; color: string; logo_url: string | null } | null; quote_id: string | null; term: string | null }>()
   const suppliersByModel = new Map<string, Map<string, ModelGroupSupplier>>()
 
   for (const q of quotes) {
@@ -280,7 +281,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
     const mk = modelKeyOf(meta)
     const perGpu = perGpuOf(q.unit_price_usd, q.gpu_count)
     const sup = q.supplier_id ? supplierMap.get(q.supplier_id) ?? null : null
-    const supLite = sup ? { name: sup.name, color: sup.color } : null
+    const supLite = sup ? { name: sup.name, color: sup.color, logo_url: sup.logo_url ?? null } : null
 
     // 모델 최저 1장당 (자동 전파) — 메모리 단위 키. 메모리 다른 구성엔 전파 안 됨.
     const pk = propKeyOf(meta)
@@ -312,7 +313,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
   // 모델범위 지정(selection_scope='model') — 한 견적을 지정하면 모델의 모든 파생 구성이
   //   그 견적의 per-GPU×장수를 '지정공급가(전파)'로 상속한다(사용자 "4개 전부 지정").
   //   자체 지정(scope='config')이 없는 구성에만 상속(자체 지정 우선).
-  const modelSelected = new Map<string, { per_gpu_usd: number; supplier: { name: string; color: string } | null; quote_id: string; owner_product_id: string; term: string | null }>()
+  const modelSelected = new Map<string, { per_gpu_usd: number; supplier: { name: string; color: string; logo_url: string | null } | null; quote_id: string; owner_product_id: string; term: string | null }>()
   for (const q of quotes) {
     if (!q.is_selected || q.selection_scope !== 'model' || !q.id) continue
     const meta = productById.get(q.product_id); if (!meta) continue
@@ -321,7 +322,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
     const sup = q.supplier_id ? supplierMap.get(q.supplier_id) ?? null : null
     modelSelected.set(mk, {
       per_gpu_usd: perGpuOf(q.unit_price_usd, q.gpu_count),
-      supplier: sup ? { name: sup.name, color: sup.color } : null,
+      supplier: sup ? { name: sup.name, color: sup.color, logo_url: sup.logo_url ?? null } : null,
       quote_id: q.id,
       owner_product_id: q.product_id,
       term: q.term ?? null,
@@ -383,7 +384,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
 
       // effective = min(자기 구성 견적, 전파 = bestPerGpu × count)
       let effective: number | null = null
-      let effectiveSupplier: { name: string; color: string } | null = null
+      let effectiveSupplier: { name: string; color: string; logo_url: string | null } | null = null
       let isPropagated = false
       if (ownUsd != null && propagatedUsd != null) {
         if (propagatedUsd < ownUsd) {
@@ -392,12 +393,12 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
           isPropagated = true
         } else {
           effective = ownUsd
-          effectiveSupplier = ownSup ? { name: ownSup.name, color: ownSup.color } : null
+          effectiveSupplier = ownSup ? { name: ownSup.name, color: ownSup.color, logo_url: ownSup.logo_url ?? null } : null
           isPropagated = false
         }
       } else if (ownUsd != null) {
         effective = ownUsd
-        effectiveSupplier = ownSup ? { name: ownSup.name, color: ownSup.color } : null
+        effectiveSupplier = ownSup ? { name: ownSup.name, color: ownSup.color, logo_url: ownSup.logo_url ?? null } : null
       } else if (propagatedUsd != null) {
         effective = propagatedUsd
         effectiveSupplier = best!.supplier
@@ -420,7 +421,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
           // 채택 견적이 유효 → 이것이 기준
           effective = sel.unit_price_usd
           const selSup = sel.supplier_id ? supplierMap.get(sel.supplier_id) ?? null : null
-          effectiveSupplier = selSup ? { name: selSup.name, color: selSup.color } : null
+          effectiveSupplier = selSup ? { name: selSup.name, color: selSup.color, logo_url: selSup.logo_url ?? null } : null
           selectedSupplier = effectiveSupplier
           isPropagated = false
           basis = 'selected'
@@ -452,7 +453,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
           sellUsd = listQ.unit_price_usd // 이미 판매가 — 마진 재적용 금지(이중마진 방지)
           basis = 'list'
           const listSup = listQ.supplier_id ? supplierMap.get(listQ.supplier_id) ?? null : null
-          effectiveSupplier = listSup ? { name: listSup.name, color: listSup.color } : null
+          effectiveSupplier = listSup ? { name: listSup.name, color: listSup.color, logo_url: listSup.logo_url ?? null } : null
         } else {
           // 자기 구성에 공시가 없음 → 모델 공시가 1장당 × 장수로 전파(파생 구성 ×2/×4/×8 고객가)
           const perCard = listPerCardByModel.get(mk)
