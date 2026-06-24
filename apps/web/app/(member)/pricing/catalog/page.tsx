@@ -4,8 +4,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { formatSpec } from '@/lib/gpu/format-spec'
-import { buildTierModelGroups, tierKey, modelKey } from '@/lib/gpu/group'
-import { TierHeader, ModelHeader } from '@/components/gpu/CategoryGroup'
+import { ChevronRight } from 'lucide-react'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 import { fmtKRW as fmtKRWSSOT } from '@/lib/gpu/format-price'
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
@@ -36,10 +35,15 @@ interface ProductsResponse {
   usd_krw: number
 }
 
-const TIER_INFO = {
-  1: { label: 'Tier 1', desc: '전용 고성능·보장형', color: 'var(--text)' },
-  2: { label: 'Tier 2', desc: '점유형(예약 단독)·보장형', color: 'var(--info)' },
-  3: { label: 'Tier 3', desc: '간헐 공급(중단/재개)·최저가', color: 'var(--warning)' },
+// 모델 단위 그룹 (Tier 그룹 제거 — 모델명 기준, 첫 등장 순서 유지)
+function buildModelGroups(items: GpuProduct[]): { model: string; items: GpuProduct[] }[] {
+  const order: string[] = []
+  const map = new Map<string, GpuProduct[]>()
+  for (const p of items) {
+    if (!map.has(p.model_name)) { map.set(p.model_name, []); order.push(p.model_name) }
+    map.get(p.model_name)!.push(p)
+  }
+  return order.map((model) => ({ model, items: map.get(model)! }))
 }
 
 const GPU_ICONS: Record<string, string> = {
@@ -90,7 +94,6 @@ export default function SalePriceCatalogPage() {
       mutate()
     } catch { alert('처리 실패') }
   }
-  const [tierFilter, setTierFilter] = useState<0 | 1 | 2 | 3>(0)
   const [currencyMode, setCurrencyMode] = useState<'KRW' | 'USD'>('KRW')
   const [search, setSearch] = useState('')
   const [hoursInput, setHoursInput] = useState('')
@@ -120,7 +123,7 @@ export default function SalePriceCatalogPage() {
     if (!price) return
     const lines = [
       `[GPU 판매가격표]`,
-      `${p.model_name} ${p.memory} (Tier ${p.tier})`,
+      `${p.model_name} ${p.memory}`,
       `시간당: ${fmtKRWSSOT(price.krw)} / ${fmtUsd(price.usd, 2)}`,
       `월 (720h): ${fmtKRWSSOT(price.krw * HR_720)}`,
       `6개월 (4,320h): ${fmtKRWSSOT(price.krw * HR_4320)}`,
@@ -152,7 +155,6 @@ export default function SalePriceCatalogPage() {
   )
 
   const filtered = pricedProducts.filter((p) => {
-    if (tierFilter !== 0 && p.tier !== tierFilter) return false
     if (search) {
       const q = search.toLowerCase()
       return (p.model_name ?? '').toLowerCase().includes(q) || (p.memory ?? '').toLowerCase().includes(q)
@@ -160,10 +162,11 @@ export default function SalePriceCatalogPage() {
     return true
   })
 
-  // Tier→모델 2단계 그룹 (4개 메뉴 공용 구조)
-  const tierGroups = buildTierModelGroups(filtered)
-  const allKeys = pricedProducts.flatMap((p) => [tierKey(p.tier), modelKey(p.tier, p.model_name)])
-  const { isCollapsed, toggle } = useCollapsibleGroups(allKeys, true, [tierKey(1)])
+  // 모델 단위 그룹만 (Tier 제거). 기본 전부 펼침(defaultCollapsed=false).
+  const mKey = (model: string) => `model:${model}`
+  const modelGroups = buildModelGroups(filtered)
+  const allKeys = pricedProducts.map((p) => mKey(p.model_name))
+  const { isCollapsed, toggle } = useCollapsibleGroups(allKeys, false)
   const searching = search.trim().length > 0
   const collapsedOf = (key: string) => (searching ? false : isCollapsed(key))
 
@@ -173,9 +176,7 @@ export default function SalePriceCatalogPage() {
   const fmtHours = (h: number) => h >= 10000 ? `${(h / 10000).toFixed(1)}만h` : h >= 1000 ? `${(h / 1000).toFixed(1)}천h` : `${h}h`
 
   // 커스텀 시간이 있으면 6개월 대신 커스텀 컬럼 표시
-  const COL = customHours
-    ? '1fr 60px 108px 118px 118px 118px'
-    : '1fr 60px 108px 118px 118px 118px'
+  const COL = '1fr 108px 118px 118px 118px'
 
   const thBase: React.CSSProperties = {
     fontSize: 11, fontWeight: 600, color: 'var(--gpu-muted)',
@@ -264,20 +265,12 @@ export default function SalePriceCatalogPage() {
             <span style={{ fontSize: 11, color: 'var(--text-faint)', paddingRight: 10 }}>h</span>
           )}
         </label>
-        <div className="gpu-seg">
-          {([0, 1, 2, 3] as const).map((t) => (
-            <button key={t} className={tierFilter === t ? 'on' : ''} onClick={() => setTierFilter(t)}>
-              {t === 0 ? '전체' : `Tier ${t}`}
-            </button>
-          ))}
-        </div>
         <div className="gpu-seg" style={{ marginLeft: 'auto' }}>
           <button className={currencyMode === 'KRW' ? 'on' : ''} onClick={() => setCurrencyMode('KRW')}>₩ 원</button>
           <button className={currencyMode === 'USD' ? 'on' : ''} onClick={() => setCurrencyMode('USD')}>$ 달러</button>
         </div>
       </div>
 
-      {/* Tier 설명 */}
       {/* 가격표 */}
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--gpu-muted)' }}>로딩 중...</div>
@@ -286,7 +279,6 @@ export default function SalePriceCatalogPage() {
           {/* 헤더 행 */}
           <div style={{ display: 'grid', gridTemplateColumns: COL, gap: 8, padding: '10px 20px', background: 'var(--gpu-bg)', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
             <div style={{ ...thBase }}>GPU 모델</div>
-            <div style={{ ...thBase, textAlign: 'center' }}>구분</div>
             <div style={{ ...thBase, textAlign: 'right', color: customHours ? 'var(--gpu-accent)' : 'var(--gpu-muted)' }}>
               {customHours ? <>/ {customHours.toLocaleString()}<span style={{ fontWeight: 400, opacity: 0.8 }}>시간</span></> : '/ 1시간'}
             </div>
@@ -301,25 +293,23 @@ export default function SalePriceCatalogPage() {
               {search ? `"${search}"에 해당하는 모델이 없습니다` : '등록된 가격이 없습니다'}
             </div>
           ) : (
-            tierGroups.flatMap((tg) => {
-              const tC = collapsedOf(tierKey(tg.tier))
-              const tierHeaderEl = (
-                <div key={`t${tg.tier}`} style={{ padding: '6px 14px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
-                  <TierHeader tier={tg.tier} modelCount={tg.count} itemCount={tg.itemCount} collapsed={tC} onToggle={() => toggle(tierKey(tg.tier))} />
+            modelGroups.flatMap((mg) => {
+              const key = mKey(mg.model)
+              const mC = collapsedOf(key)
+              const modelHeaderEl = (
+                <div key={`m-${mg.model}`} style={{ padding: '6px 14px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
+                  <div
+                    onClick={() => toggle(key)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '7px 12px', background: 'var(--surface-bg)', borderRadius: 7, userSelect: 'none' }}
+                  >
+                    <ChevronRight size={14} style={{ transform: mC ? 'none' : 'rotate(90deg)', transition: 'transform .15s', color: 'var(--gpu-muted)' }} />
+                    <strong style={{ fontSize: 13, color: 'var(--text)' }}>{mg.model}</strong>
+                    <span style={{ fontSize: 11, color: 'var(--gpu-muted)', marginLeft: 'auto' }}>{mg.items.length}개 구성</span>
+                  </div>
                 </div>
               )
-              if (tC) return [tierHeaderEl]
-              const modelEls = tg.models.flatMap((mg) => {
-                const mC = collapsedOf(modelKey(tg.tier, mg.model))
-                const modelHeaderEl = (
-                  <div key={`m${tg.tier}-${mg.model}`} style={{ padding: '4px 14px 4px 22px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
-                    <ModelHeader tier={tg.tier} model={mg.model} itemCount={mg.items.length} collapsed={mC} onToggle={() => toggle(modelKey(tg.tier, mg.model))} />
-                  </div>
-                )
-                if (mC) return [modelHeaderEl]
-                return [modelHeaderEl, ...mg.items.map((p) => renderRow(p))]
-              })
-              return [tierHeaderEl, ...modelEls]
+              if (mC) return [modelHeaderEl]
+              return [modelHeaderEl, ...mg.items.map((p) => renderRow(p))]
             })
           )}
         </div>
@@ -333,7 +323,6 @@ export default function SalePriceCatalogPage() {
 
   function renderRow(p: GpuProduct) {
               const price = getSellPrice(p)
-              const tierConf = TIER_INFO[p.tier]
               const gpuCount = p.gpu_count ?? 1
 
               const calcKrw = (h: number) => price ? Math.round(price.krw * h) : null
@@ -374,13 +363,6 @@ export default function SalePriceCatalogPage() {
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--gpu-muted)', marginTop: 1 }}>{formatSpec(p)}</div>
                     </div>
-                  </div>
-
-                  {/* Tier */}
-                  <div style={{ textAlign: 'center' }}>
-                    <span className="gpu-badge" style={{ background: tierConf.color, color: '#fff', fontSize: 10, padding: '2px 7px' }}>
-                      {tierConf.label}
-                    </span>
                   </div>
 
                   {/* /1시간 or /N시간 */}
