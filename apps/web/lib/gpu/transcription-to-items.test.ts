@@ -119,3 +119,37 @@ test('Nebius 전체 표 — 9모델 전부, H100 둔갑 0, GB300/GB200 price_unk
 test('비배열 입력 방어', () => {
   assert.deepEqual(transcriptionToCompetitorItems(undefined as unknown as TranscriptionRow[]), [])
 })
+
+// ── 통화 원본보존(W2) ──
+test('KRW 입력 — 원본 통화·금액 보존 + krwPerUsd로 USD 환산', () => {
+  const rows = [{ raw_label: 'H100', price_text: '₩2,400/hr' }] as unknown as TranscriptionRow[]
+  const items = transcriptionToCompetitorItems(rows, { provider: 'X', krwPerUsd: 1200 })
+  assert.equal(items[0].original_currency, 'KRW')
+  assert.equal(items[0].original_price, 2400)
+  assert.equal(items[0].price_usd, 2) // 2400 / 1200
+  assert.equal(items[0].price_unknown, false)
+})
+
+test('USD 입력 — original_currency=USD, price_usd=원본', () => {
+  const rows = [{ raw_label: 'H100', price_text: '$1.82/hr' }] as unknown as TranscriptionRow[]
+  const items = transcriptionToCompetitorItems(rows, { provider: 'X', krwPerUsd: 1300 })
+  assert.equal(items[0].original_currency, 'USD')
+  assert.equal(items[0].original_price, 1.82)
+  assert.equal(items[0].price_usd, 1.82)
+})
+
+test('KRW인데 krwPerUsd 미주입 — 원본은 보존하되 price_usd=null(가격미상)', () => {
+  const rows = [{ raw_label: 'H100', price_text: '₩2,400/hr' }] as unknown as TranscriptionRow[]
+  const items = transcriptionToCompetitorItems(rows)
+  assert.equal(items[0].original_currency, 'KRW')
+  assert.equal(items[0].original_price, 2400)
+  assert.equal(items[0].price_usd, null)
+  assert.equal(items[0].price_unknown, true)
+})
+
+test('통화 미감지(순수 숫자) — original_currency=null(USD 가정 폴백), price_usd=숫자', () => {
+  const rows = [{ raw_label: 'H100', price_text: '2.5' }] as unknown as TranscriptionRow[]
+  const items = transcriptionToCompetitorItems(rows, { provider: 'X', krwPerUsd: 1300 })
+  assert.equal(items[0].original_currency, null)
+  assert.equal(items[0].price_usd, 2.5)
+})

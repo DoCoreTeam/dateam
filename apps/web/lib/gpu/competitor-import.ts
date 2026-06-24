@@ -6,9 +6,14 @@ export interface CompetitorPriceItem {
   competitor_name: string
   model_name: string
   memory?: string
-  price_usd: number
+  /** USD 정규화 가격(GPU 1장·1시간당). 통화 미상/환산불가면 null(저장 시 스킵). */
+  price_usd: number | null
   pricing_model?: string
   notes?: string
+  /** 원본 통화(ISO, 'KRW'|'USD'). 보존용 — price_usd는 fx 실환율 USD 정규화값. 미상이면 생략(기존행=USD 가정). */
+  original_currency?: string | null
+  /** 원본 통화 기준 금액(GPU 1장·1시간당). 보존용. */
+  original_price?: number | null
 }
 
 export interface SaveCompetitorResult {
@@ -95,6 +100,9 @@ export async function saveCompetitorPrices(
       mapping_id: mappingId, price_usd: item.price_usd, source_url: sourceUrl,
       source_type: sourceUrl ? 'webpage' : 'manual', recorded_at: now, observed_at: now,
       confidence, is_stale: false, ...(item.notes ? { notes: item.notes } : {}),
+      // 원본 통화·금액 보존(W4) — 표시 시 fx 실환율로 양통화 병기. 미상이면 생략(기존행=USD 가정).
+      ...(item.original_currency ? { original_currency: item.original_currency } : {}),
+      ...(typeof item.original_price === 'number' ? { original_price: item.original_price } : {}),
     })
     saved.push({ competitor: item.competitor_name, model: item.model_name, memory: memory ?? '', price_usd: item.price_usd })
   }

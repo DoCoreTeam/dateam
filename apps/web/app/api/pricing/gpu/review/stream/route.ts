@@ -241,7 +241,11 @@ export async function POST(req: NextRequest) {
             // provider 추론 — 입력 텍스트의 화이트리스트 경쟁사명(Nebius 등). 첫 매칭 1개.
             const detected = detectCompetitorProviders(contentText)
             const provider = detected[0] ?? ''
-            const cands = transcriptionToCompetitorItems(transcription.rows, { provider })
+            // 원본 통화 보존(W3) — KRW 입력의 USD 환산에 fx_rates 실환율 주입(하드코딩 금지). 폴백 1400.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: fxRow } = await (adminClient.from('fx_rates') as any).select('usd_krw').order('rate_date', { ascending: false }).limit(1).maybeSingle()
+            const krwPerUsd = typeof fxRow?.usd_krw === 'number' && fxRow.usd_krw > 0 ? fxRow.usd_krw : 1400
+            const cands = transcriptionToCompetitorItems(transcription.rows, { provider, krwPerUsd })
             // 동일 경쟁사·모델 중복만 제거(원문 보존 — 가격미상도 유지). 전사 1행=모델 1건이라 통상 no-op.
             const deduped = dedupCompetitor(cands as CompetitorLike[])
             rawCount = cands.length

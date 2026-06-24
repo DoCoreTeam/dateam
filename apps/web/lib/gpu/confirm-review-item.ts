@@ -105,7 +105,7 @@ export async function confirmReviewItem(
       price_usd: typeof merged.price_usd === 'number' ? merged.price_usd : Number(merged.price_usd),
       pricing_model: typeof merged.pricing_model === 'string' ? merged.pricing_model : 'on_demand',
     }
-    if (!compItem.competitor_name || !compItem.model_name || !Number.isFinite(compItem.price_usd) || compItem.price_usd <= 0) {
+    if (!compItem.competitor_name || !compItem.model_name || compItem.price_usd == null || !Number.isFinite(compItem.price_usd) || compItem.price_usd <= 0) {
       return { ok: false, status: 422, error: '경쟁사·모델·가격을 특정할 수 없어 확정할 수 없습니다.' }
     }
     const { saved, held } = await saveCompetitorPrices(adminClient, [compItem])
