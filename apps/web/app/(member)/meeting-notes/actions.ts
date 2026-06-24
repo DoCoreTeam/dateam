@@ -6,7 +6,8 @@
 // 입력 검증: zod로 서버 재검증. 일괄반영은 부분실패 안전(개별 try, 집계 반환).
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { resolveOrgScope } from '@/lib/org-scope'
 import { htmlToPlain } from '@/lib/html-to-plain'
 import { createCalendarEvent } from '@/app/(member)/calendar/actions'
 import { sanitizeSearchQuery, toStartAt } from '@/lib/meeting/parse-helpers'
@@ -677,4 +678,35 @@ export async function getMeetingDepartments(): Promise<{ id: string; name: strin
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data ?? []).map((r: any) => ({ id: r.id as string, name: (r.name as string) ?? '' }))
+}
+
+// ============================================================
+// 내 기본 부서 — 새 회의노트 작성 시 부서 기본값(작성자 본인 소속 부서).
+//   본인 person 노드의 '가장 가까운 department 조상'(closure depth 최소)을 반환.
+//   person 노드 없는 부서장은 본인이 head인 부서(editableDeptIds)로 폴백. 미소속이면 null.
+// ============================================================
+export async function getMyDefaultDepartmentId(): Promise<string | null> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any
+    const scope = await resolveOrgScope(admin, user.id)
+    const myPerson = scope.nodes.find((n) => n.type === 'person' && n.user_id === user.id)
+    if (myPerson) {
+      const nearestDept = scope.closure
+        .filter((c) => c.descendant_id === myPerson.id)
+        .map((c) => ({ node: scope.nodes.find((n) => n.id === c.ancestor_id), depth: c.depth }))
+        .filter((x) => x.node && x.node.type === 'department')
+        .sort((a, b) => a.depth - b.depth)[0]
+      if (nearestDept?.node) return nearestDept.node.id
+      if (myPerson.parent_id) return myPerson.parent_id
+    }
+    // person 노드 없는 부서장 등 — 본인이 head인 부서로 폴백
+    return scope.editableDeptIds[0] ?? null
+  } catch (e) {
+    console.error('[getMyDefaultDepartmentId]', e)
+    return null
+  }
 }

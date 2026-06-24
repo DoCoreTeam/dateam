@@ -6,7 +6,7 @@ import { Save, ArrowLeft, Trash2, X } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import TiptapEditor from '@/components/ui/TiptapEditor'
 import AttendeesEditor, { type MemberChip } from './AttendeesEditor'
-import { createMeetingNote, updateMeetingNote, deleteMeetingNote, getMeetingDepartments, listOrgPeople } from './actions'
+import { createMeetingNote, updateMeetingNote, deleteMeetingNote, getMeetingDepartments, getMyDefaultDepartmentId, listOrgPeople } from './actions'
 
 export interface MeetingNoteDraft {
   id?: string
@@ -73,7 +73,18 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
   const initUserIds = useMemo(() => initial.attendeeUserIds ?? [], [initial.attendeeUserIds])
   useEffect(() => {
     let alive = true
-    getMeetingDepartments().then((rows) => { if (alive) setDepartments(rows) }).catch(() => {})
+    getMeetingDepartments().then((rows) => {
+      if (!alive) return
+      setDepartments(rows)
+      // 새 회의노트: 부서 미지정이면 작성자 본인 부서를 기본값으로(목록에 존재할 때만).
+      if (mode === 'create' && !initial.department_id) {
+        getMyDefaultDepartmentId().then((deptId) => {
+          if (alive && deptId && rows.some((r) => r.id === deptId)) {
+            setDepartmentId((prev) => prev || deptId)
+          }
+        }).catch(() => {})
+      }
+    }).catch(() => {})
     listOrgPeople().then((rows) => {
       if (!alive) return
       setPeople(rows)
@@ -89,7 +100,7 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
       setExternals(initAttendees.filter((n) => !memNames.has(n)))
     }).catch(() => {})
     return () => { alive = false }
-  }, [initAttendees, initUserIds])
+  }, [initAttendees, initUserIds, mode, initial.department_id])
 
   function addTag() {
     const t = tagInput.trim().replace(/^#/, '')
