@@ -6,6 +6,24 @@ export interface CompetitorSavedItem {
   model: string
   memory: string
   price_usd: number
+  /** 원본 통화(ISO, 'KRW'|'USD'). 입력 통화 그대로 — 표시 기본값은 이 통화. 미상이면 USD 가정. */
+  original_currency?: string | null
+  /** 원본 통화 기준 금액(GPU 1장·1시간당). 표시 기본값. */
+  original_price?: number | null
+}
+
+// 가격 표시 SSOT — 원본 통화 기준으로 보여준다(원으로 들어오면 ₩, 달러면 $).
+//   USD 환산 표시는 리스트의 "통화 보기" 토글이 담당(여기선 입력 통화 그대로).
+export function fmtOriginalPrice(it: { original_currency?: string | null; original_price?: number | null; price_usd: number }): string {
+  const cur = it.original_currency
+  if (cur === 'KRW' && typeof it.original_price === 'number') {
+    return `₩${Math.round(it.original_price).toLocaleString('ko-KR')}/hr`
+  }
+  if (cur === 'USD' && typeof it.original_price === 'number') {
+    return `$${it.original_price}/hr`
+  }
+  // 통화 미상(기존행 등) → USD 가정 폴백
+  return `$${it.price_usd}/hr`
 }
 
 export type CompetitorPreviewRaw = { competitor_name: string; model_name: string; memory: string; price_usd: number }

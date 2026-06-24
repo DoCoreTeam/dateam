@@ -14,6 +14,7 @@ import {
   supplierRowToCompetitor,
   competitorRowToSupplier,
   isPriceUnknown,
+  fmtOriginalPrice,
   ResultPanel,
   getTabLabel,
   getConfColor,
@@ -210,8 +211,8 @@ export default function QuoteRegisterTab() {
           } else if (ev === 'preview') {
             const items = (data.items ?? []) as unknown[]
             if (data.type === 'competitor') {
-              const cp = items as Array<{ competitor_name: string; model_name: string; memory?: string; price_usd: number }>
-              setCompetitorResults(cp.map((p) => ({ competitor: p.competitor_name, model: p.model_name, memory: p.memory ?? '', price_usd: p.price_usd })))
+              const cp = items as Array<{ competitor_name: string; model_name: string; memory?: string; price_usd: number; original_currency?: string | null; original_price?: number | null }>
+              setCompetitorResults(cp.map((p) => ({ competitor: p.competitor_name, model: p.model_name, memory: p.memory ?? '', price_usd: p.price_usd, original_currency: p.original_currency ?? null, original_price: p.original_price ?? null })))
               setPreviewItems(items); setPreviewSourceUrl((data.source_url as string) ?? null)
             } else {
               setSupplierPreview(items)
@@ -608,7 +609,7 @@ export default function QuoteRegisterTab() {
                       <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>{item.model} {item.memory}</span>
                       {unknown
                         ? <span className="gpu-badge gpu-badge-warn" title="가격 정보 없음 — 시장반영 제외, 사용자 확인 필요">가격미상</span>
-                        : <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }}>${item.price_usd}/hr</span>}
+                        : <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }} title={item.original_currency && item.original_currency !== 'USD' ? `USD 환산 $${item.price_usd}/hr` : undefined}>{fmtOriginalPrice(item)}</span>}
                       {!applied && (
                         <button
                           onClick={() => moveToSupplier(i)}
