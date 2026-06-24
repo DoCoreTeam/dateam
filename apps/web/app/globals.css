@@ -6497,6 +6497,44 @@ label.intake-tool-btn {
 .gpu-merge-opt-stat { font-size: var(--fs-2xs); color: var(--text-muted); white-space: nowrap; }
 .gpu-merge-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); }
 
+/* 공용 조직원 선택 모달(OrgPeoplePicker) */
+.oap-head { display: flex; align-items: center; justify-content: space-between; padding: var(--space-5) var(--space-5) var(--space-3); }
+.oap-close { background: none; border: none; cursor: pointer; color: var(--text-muted); display: inline-flex; padding: var(--space-1); }
+.oap-close:hover { color: var(--text); }
+.oap-search { display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-5) var(--space-3); color: var(--text-faint); }
+.oap-search .input-field { flex: 1; }
+.oap-body { flex: 1; overflow-y: auto; padding: 0 var(--space-3) var(--space-2); min-height: 200px; }
+.oap-list, .oap-tree { display: flex; flex-direction: column; gap: 2px; }
+.oap-empty { color: var(--text-faint); font-size: var(--fs-sm); text-align: center; padding: var(--space-6) 0; margin: 0; }
+.oap-branch-head {
+  display: flex; align-items: center; gap: var(--space-1); padding: var(--space-2) var(--space-2);
+  font-size: var(--fs-sm); font-weight: var(--font-weight-semibold); color: var(--text-muted);
+}
+.oap-branch-icon { color: var(--text-faint); flex-shrink: 0; }
+.oap-person {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%;
+  padding: var(--space-2) var(--space-3); border: none; background: none; cursor: pointer;
+  border-radius: var(--radius); font-size: var(--fs-base); color: var(--text); text-align: left;
+}
+.oap-person--off:hover { background: var(--surface-bg); }
+.oap-person--on { background: var(--info-bg); color: var(--brand); font-weight: var(--font-weight-semibold); }
+.oap-person--disabled { color: var(--text-faint); cursor: not-allowed; }
+.oap-check {
+  width: 18px; height: 18px; flex-shrink: 0; border-radius: var(--radius);
+  border: var(--border-w) solid var(--border-color); display: inline-flex; align-items: center; justify-content: center;
+  color: var(--color-surface);
+}
+.oap-check--on { background: var(--brand); border-color: var(--brand); }
+.oap-check--disabled { background: var(--text-faint); border-color: var(--text-faint); }
+.oap-person-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oap-person-added { font-size: var(--fs-2xs); color: var(--text-faint); flex-shrink: 0; }
+.oap-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-3) var(--space-5); border-top: var(--hairline) solid var(--border-light);
+}
+.oap-foot-count { font-size: var(--fs-sm); color: var(--text-muted); }
+.oap-foot-actions { display: flex; gap: var(--space-2); }
+
 .gpu-icon-btn { padding: var(--space-1) var(--space-2); }
 .gpu-icon-btn--danger { color: var(--danger); }
 .gpu-field { display: flex; flex-direction: column; gap: var(--space-1); }

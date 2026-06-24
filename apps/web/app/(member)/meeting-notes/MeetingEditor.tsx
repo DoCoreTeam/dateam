@@ -6,7 +6,8 @@ import { Save, ArrowLeft, Trash2, X } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import TiptapEditor from '@/components/ui/TiptapEditor'
 import AttendeesEditor, { type MemberChip } from './AttendeesEditor'
-import { createMeetingNote, updateMeetingNote, deleteMeetingNote, getMeetingDepartments, getMyDefaultDepartmentId, listOrgPeople } from './actions'
+import { createMeetingNote, updateMeetingNote, deleteMeetingNote, getMeetingDepartments, getMyDefaultDepartmentId, listOrgPeople, getOrgTreeForPicker } from './actions'
+import type { OrgPickerNode } from '@/components/ui/OrgPeoplePicker'
 
 export interface MeetingNoteDraft {
   id?: string
@@ -57,6 +58,7 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
   const [departmentId, setDepartmentId] = useState(initial.department_id ?? '')
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([])
   const [people, setPeople] = useState<{ id: string; name: string }[]>([])
+  const [orgTree, setOrgTree] = useState<OrgPickerNode[]>([])
   const [body, setBody] = useState(initial.body)
   const [summary, setSummary] = useState(initial.summary ?? '')
   const [decisions, setDecisions] = useState(initial.decisions ?? '')
@@ -88,6 +90,7 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
     listOrgPeople().then((rows) => {
       if (!alive) return
       setPeople(rows)
+      getOrgTreeForPicker().then((t) => { if (alive) setOrgTree(t) }).catch(() => {})
       // user_ids=조직원 SSOT. 그 외 attendees 이름은 외부로 분류.
       const byId = new Map(rows.map((p) => [p.id, p.name] as const))
       const mem: MemberChip[] = []
@@ -214,7 +217,7 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
         )}
 
         {/* 참석자 — 에디터 내장(저장 시 함께 저장) */}
-        <AttendeesEditor people={people} members={members} externals={externals}
+        <AttendeesEditor people={people} tree={orgTree} members={members} externals={externals}
           onChange={({ members: m, externals: e }) => { setMembers(m); setExternals(e) }} />
 
         {/* 태그 */}

@@ -3,9 +3,10 @@
 // 참석자 편집(컨트롤드) — 에디터(작성/편집) 화면 내장용.
 //  - 자체 저장/라우터 없음. 부모(MeetingEditor)가 폼 저장 시 members/externals를 함께 저장.
 //  - 내부=조직원 칩(indigo) / 외부=텍스트 칩(slate). 모델은 AttendeesPanel과 동일.
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Users, Plus, X } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
+import OrgPeoplePicker, { type OrgPickerNode, type PickerPerson } from '@/components/ui/OrgPeoplePicker'
 
 export interface MemberChip {
   id: string
@@ -14,28 +15,20 @@ export interface MemberChip {
 
 interface Props {
   people: { id: string; name: string }[]
+  tree: OrgPickerNode[]
   members: MemberChip[]
   externals: string[]
   onChange: (next: { members: MemberChip[]; externals: string[] }) => void
 }
 
-export default function AttendeesEditor({ people, members, externals, onChange }: Props) {
-  const [selectId, setSelectId] = useState('')
+export default function AttendeesEditor({ people, tree, members, externals, onChange }: Props) {
   const [externalInput, setExternalInput] = useState('')
+  const [pickerOpen, setPickerOpen] = useState(false)
 
-  // 아직 추가되지 않은 조직원만 드롭다운에 노출
-  const availablePeople = useMemo(
-    () => people.filter((p) => !members.some((m) => m.id === p.id)),
-    [people, members]
-  )
-
-  function addMember() {
-    if (!selectId) return
-    const p = people.find((x) => x.id === selectId)
-    if (p && !members.some((m) => m.id === p.id)) {
-      onChange({ members: [...members, { id: p.id, name: p.name }], externals })
-    }
-    setSelectId('')
+  function addMembers(added: PickerPerson[]) {
+    const have = new Set(members.map((m) => m.id))
+    const fresh = added.filter((p) => !have.has(p.id)).map((p) => ({ id: p.id, name: p.name }))
+    if (fresh.length > 0) onChange({ members: [...members, ...fresh], externals })
   }
 
   function addExternal() {
@@ -96,22 +89,10 @@ export default function AttendeesEditor({ people, members, externals, onChange }
 
       <div className="responsive-grid-cols-2" style={{ gap: 'var(--space-4)', alignItems: 'end' }}>
         <div>
-          <label className="label" htmlFor="mn-att-member">조직원 추가</label>
-          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-            <select id="mn-att-member" className="input-field"
-              value={selectId}
-              onChange={(e) => setSelectId(e.target.value)}
-              style={{ minHeight: 44, flex: 1, minWidth: 0 }}
-            >
-              <option value="">조직원 선택…</option>
-              {availablePeople.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-            <NbButton variant="ghost" onClick={addMember} disabled={!selectId} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
-              <Plus size={15} /> 추가
-            </NbButton>
-          </div>
+          <label className="label">조직원 추가</label>
+          <NbButton variant="ghost" onClick={() => setPickerOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', width: '100%', justifyContent: 'center', minHeight: 44 }}>
+            <Users size={15} /> 조직도에서 선택
+          </NbButton>
         </div>
         <div>
           <label className="label" htmlFor="mn-att-external">외부 참석자</label>
@@ -129,6 +110,16 @@ export default function AttendeesEditor({ people, members, externals, onChange }
           </div>
         </div>
       </div>
+
+      {pickerOpen && (
+        <OrgPeoplePicker
+          people={people}
+          tree={tree}
+          existingIds={members.map((m) => m.id)}
+          onConfirm={addMembers}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </div>
   )
 }

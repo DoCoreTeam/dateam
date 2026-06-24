@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { resolveOrgScope } from '@/lib/org-scope'
+import type { OrgPickerNode } from '@/lib/org/picker-types'
 import { htmlToPlain } from '@/lib/html-to-plain'
 import { createCalendarEvent } from '@/app/(member)/calendar/actions'
 import { sanitizeSearchQuery, toStartAt } from '@/lib/meeting/parse-helpers'
@@ -678,6 +679,34 @@ export async function getMeetingDepartments(): Promise<{ id: string; name: strin
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data ?? []).map((r: any) => ({ id: r.id as string, name: (r.name as string) ?? '' }))
+}
+
+// ============================================================
+// 조직도 트리 (참석자 피커용) — org_nodes 계층. createClient=RLS 멤버 읽기(조직도는 멤버 공개).
+//   person 리프의 user_id로 선택(= profiles.id = 참석자 member id). 공석(user_id 없음)은 선택 불가.
+// ============================================================
+export async function getOrgTreeForPicker(): Promise<OrgPickerNode[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.from('org_nodes') as any)
+    .select('id, type, parent_id, name, user_id, display_order')
+    .order('display_order', { ascending: true })
+    .order('name', { ascending: true })
+  if (error) {
+    console.error('[getOrgTreeForPicker]', error)
+    return []
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((r: any) => ({
+    id: r.id as string,
+    type: r.type as OrgPickerNode['type'],
+    parent_id: (r.parent_id as string | null) ?? null,
+    name: (r.name as string) ?? '',
+    user_id: (r.user_id as string | null) ?? null,
+    display_order: (r.display_order as number | null) ?? null,
+  }))
 }
 
 // ============================================================
