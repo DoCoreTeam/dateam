@@ -691,7 +691,7 @@ export async function getOrgTreeForPicker(): Promise<OrgPickerNode[]> {
   if (!user) return []
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase.from('org_nodes') as any)
-    .select('id, type, parent_id, name, user_id, display_order')
+    .select('id, type, parent_id, name, user_id, head_user_id, display_order')
     .order('display_order', { ascending: true })
     .order('name', { ascending: true })
   if (error) {
@@ -705,6 +705,7 @@ export async function getOrgTreeForPicker(): Promise<OrgPickerNode[]> {
     parent_id: (r.parent_id as string | null) ?? null,
     name: (r.name as string) ?? '',
     user_id: (r.user_id as string | null) ?? null,
+    head_user_id: (r.head_user_id as string | null) ?? null,
     display_order: (r.display_order as number | null) ?? null,
   }))
 }

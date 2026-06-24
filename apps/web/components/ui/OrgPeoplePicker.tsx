@@ -75,7 +75,7 @@ export default function OrgPeoplePicker({ people, tree, existingIds, onConfirm, 
     return picked.has(id) ? 'on' : 'off'
   }
 
-  function PersonRow({ id, label, depth = 0 }: { id: string | null; label: string; depth?: number }) {
+  function PersonRow({ id, label, hint, depth = 0 }: { id: string | null; label: string; hint?: string; depth?: number }) {
     const state = rowState(id)
     return (
       <button
@@ -88,37 +88,42 @@ export default function OrgPeoplePicker({ people, tree, existingIds, onConfirm, 
       >
         <span className={`oap-check oap-check--${state}`}>{(state === 'on' || state === 'disabled') && <Check size={12} />}</span>
         <span className="oap-person-name">{label}</span>
+        {hint && <span className="oap-person-hint" title="부서·역할의 장">{hint}</span>}
         {state === 'disabled' && id && <span className="oap-person-added">추가됨</span>}
       </button>
     )
   }
 
-  // 선택 가능한 person 후손이 하나라도 있는 노드인지(깊은 검사) — 빈 브랜치 가지치기용
-  function hasSelectable(node: OrgPickerNode): boolean {
-    if (node.type === 'person') return !!node.user_id
-    return (childrenByParent.get(node.id) ?? []).some(hasSelectable)
-  }
-
-  // 트리 재귀 렌더
-  function renderNode(node: OrgPickerNode, depth: number): React.ReactNode {
+  // 트리 재귀 렌더. seen=이미 트리에 표시한 user_id(장이 구성원으로도 있으면 한 번만).
+  //   가지치기는 정적 검사 대신 '자식 실제 렌더 결과가 비었는지'로 판단 → dedup과 항상 일관.
+  function renderNode(node: OrgPickerNode, depth: number, seen: Set<string>): React.ReactNode {
     if (node.type === 'person') {
-      if (!node.user_id) return null // 공석 — 선택 불가
+      if (!node.user_id || seen.has(node.user_id)) return null // 공석/중복 — 선택 불가
+      seen.add(node.user_id)
       return <PersonRow key={node.id} id={node.user_id} label={personLabel(node)} depth={depth} />
     }
-    const kids = childrenByParent.get(node.id) ?? []
-    // 선택 가능한 후손이 없는 브랜치는 헤더째 생략(공석/빈 부서·역할)
-    if (!kids.some(hasSelectable)) return null
+    const headId = node.head_user_id
+    const showHead = !!headId && nameById.has(headId) && !seen.has(headId)
+    if (showHead) seen.add(headId) // 장을 먼저 점유 → 구성원 중복 방지
+    const childEls = (childrenByParent.get(node.id) ?? [])
+      .map((k) => renderNode(k, depth + 1, seen))
+      .filter(Boolean)
+    if (!showHead && childEls.length === 0) return null // 실제로 표시할 사람이 없는 브랜치 생략
     return (
       <div key={node.id} className="oap-branch">
         <div className="oap-branch-head" style={{ paddingLeft: `calc(var(--space-2) + ${depth} * var(--space-4))` }}>
           <ChevronRight size={13} className="oap-branch-icon" /> {node.name}
         </div>
-        {kids.map((k) => renderNode(k, depth + 1))}
+        {showHead && (
+          <PersonRow key={`head-${node.id}`} id={headId} label={nameById.get(headId as string) as string} hint="장" depth={depth + 1} />
+        )}
+        {childEls}
       </div>
     )
   }
 
   const roots = childrenByParent.get(null) ?? []
+  const seen = new Set<string>()
 
   return (
     <div
@@ -157,7 +162,7 @@ export default function OrgPeoplePicker({ people, tree, existingIds, onConfirm, 
           ) : roots.length === 0 ? (
             <p className="oap-empty">조직도가 비어 있습니다. 검색으로 선택하세요.</p>
           ) : (
-            <div className="oap-tree">{roots.map((n) => renderNode(n, 0))}</div>
+            <div className="oap-tree">{roots.map((n) => renderNode(n, 0, seen))}</div>
           )}
         </div>
 

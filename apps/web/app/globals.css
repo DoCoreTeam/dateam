@@ -6526,8 +6526,12 @@ label.intake-tool-btn {
 }
 .oap-check--on { background: var(--brand); border-color: var(--brand); }
 .oap-check--disabled { background: var(--text-faint); border-color: var(--text-faint); }
-.oap-person-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.oap-person-added { font-size: var(--fs-2xs); color: var(--text-faint); flex-shrink: 0; }
+.oap-person-name { flex: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oap-person-hint {
+  font-size: var(--fs-2xs); color: var(--brand); font-weight: 600;
+  background: var(--info-bg); border-radius: var(--radius); padding: 0 var(--space-1); flex-shrink: 0;
+}
+.oap-person-added { font-size: var(--fs-2xs); color: var(--text-faint); flex-shrink: 0; margin-left: auto; }
 .oap-foot {
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
   padding: var(--space-3) var(--space-5); border-top: var(--hairline) solid var(--border-light);

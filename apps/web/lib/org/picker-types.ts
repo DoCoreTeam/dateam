@@ -6,7 +6,8 @@ export interface OrgPickerNode {
   type: 'company' | 'role' | 'department' | 'person'
   parent_id: string | null
   name: string
-  user_id: string | null
+  user_id: string | null // person 노드의 구성원
+  head_user_id: string | null // 부서/역할의 장(부서장·본부장·대표이사·CTO 등) — 트리에서도 선택 가능해야 함
   display_order: number | null
 }
 
