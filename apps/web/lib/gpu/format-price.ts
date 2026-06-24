@@ -45,3 +45,27 @@ export function fmtMoneyFromUsd(usd: number | null | undefined, mode: CurrencyMo
   if (mode === 'KRW') return fmtKRW(usd * usdKrw)
   return fmtUSD(usd)
 }
+
+/**
+ * 행별 "원본 통화 기준" 표시 SSOT — 입력받은 그대로가 진실.
+ *   뷰 통화(mode)와 행의 원본 통화가 같으면 원본 금액을 그대로, 다르면 fx로 환산해 보여준다.
+ *   (원으로 들어온 행은 원 보기에선 원 그대로, 달러 보기에선 환산 / 달러 행은 그 반대)
+ *   originalCurrency가 없으면(기존행) USD 가정. originalPrice 없으면 priceUsd로 폴백.
+ */
+export function fmtMoneyFromOriginal(
+  originalCurrency: string | null | undefined,
+  originalPrice: number | null | undefined,
+  priceUsd: number | null | undefined,
+  mode: CurrencyMode,
+  usdKrw: number,
+): string {
+  if (originalCurrency === 'KRW') {
+    // 원본 KRW 금액 우선. 없으면 priceUsd를 KRW로 되돌려 사용.
+    const krw = typeof originalPrice === 'number' ? originalPrice
+      : (typeof priceUsd === 'number' && usdKrw > 0 ? priceUsd * usdKrw : null)
+    return fmtMoneyFromKrw(krw, mode, usdKrw)
+  }
+  // USD 또는 미상(USD 가정): 원본 USD 금액 우선, 없으면 priceUsd.
+  const usd = typeof originalPrice === 'number' && originalCurrency === 'USD' ? originalPrice : priceUsd
+  return fmtMoneyFromUsd(usd, mode, usdKrw)
+}

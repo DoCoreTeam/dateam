@@ -88,7 +88,7 @@ export async function GET() {
     const { data: latestPrices, error: priceErr } = mappingIds.length > 0
       ? await db
           .from('market_prices')
-          .select('id, mapping_id, price_usd, recorded_at, confidence, notes, source_url')
+          .select('id, mapping_id, price_usd, original_currency, original_price, recorded_at, confidence, notes, source_url')
           .in('mapping_id', mappingIds)
           .is('deleted_at', null)
           .order('recorded_at', { ascending: false })
@@ -185,6 +185,9 @@ export async function GET() {
           pricing_model: m.pricing_model,
           region: m.region,
           price_usd: priceData?.price_usd ?? null,
+          // 원본 통화 보존(표시 SSOT) — 행별 원본 통화/금액. 표시는 fmtMoneyFromOriginal이 뷰통화로 환산.
+          original_currency: (priceData as Record<string, unknown> | null)?.original_currency ?? null,
+          original_price: (priceData as Record<string, unknown> | null)?.original_price ?? null,
           recorded_at: recordedAt ?? null,
           hours_ago: hoursAgo !== null ? Math.round(hoursAgo) : null,
           is_fresh: isFresh,

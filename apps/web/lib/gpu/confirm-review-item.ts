@@ -104,6 +104,9 @@ export async function confirmReviewItem(
       memory: typeof merged.memory === 'string' ? merged.memory : undefined,
       price_usd: typeof merged.price_usd === 'number' ? merged.price_usd : Number(merged.price_usd),
       pricing_model: typeof merged.pricing_model === 'string' ? merged.pricing_model : 'on_demand',
+      // 원본 통화 보존(표시 SSOT) — staging→market_prices로 원본 통화/금액 전달.
+      original_currency: typeof merged.original_currency === 'string' ? merged.original_currency : null,
+      original_price: typeof merged.original_price === 'number' ? merged.original_price : null,
     }
     if (!compItem.competitor_name || !compItem.model_name || compItem.price_usd == null || !Number.isFinite(compItem.price_usd) || compItem.price_usd <= 0) {
       return { ok: false, status: 422, error: '경쟁사·모델·가격을 특정할 수 없어 확정할 수 없습니다.' }

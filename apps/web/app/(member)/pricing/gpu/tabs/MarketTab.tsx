@@ -10,7 +10,7 @@ import { RefreshCw, TrendingUp, AlertTriangle, Plus, X, BarChart2, Target, FileT
 import { formatSpec } from '@/lib/gpu/format-spec'
 import { formatCardMemory, perCardMemory, memoryTitle } from '@/lib/gpu/card-memory'
 import { SupplierBadge } from '@/components/gpu/SupplierBadge'
-import { fmtKRW, fmtUSD } from '@/lib/gpu/format-price'
+import { fmtKRW, fmtUSD, fmtMoneyFromOriginal } from '@/lib/gpu/format-price'
 import dynamic from 'next/dynamic'
 import type { MarketPriceForEdit } from '@/components/pricing/gpu/MarketPriceEditModal'
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
@@ -42,6 +42,10 @@ interface MarketEntry {
   pricing_model: string
   region: string | null
   price_usd: number | null
+  /** 원본 통화(ISO, 'KRW'|'USD'). 표시 기준 — 뷰통화와 같으면 원본 그대로, 다르면 환산. null=USD 가정(기존행). */
+  original_currency: string | null
+  /** 원본 통화 기준 금액(GPU 1장·1시간당). */
+  original_price: number | null
   hours_ago: number | null
   is_fresh: boolean
   confidence: number | null
@@ -267,10 +271,11 @@ function judgeColor(j: string) {
 }
 
 // 분석 탭 컨텐츠
-function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI, onDeletePrice, onEditPrice, isAdmin, onLinkChanged }: {
+function AnalyzePanel({ p, activeGroups, fmt, fmtOrig, onGoToPriceTable, onOpenAI, onDeletePrice, onEditPrice, isAdmin, onLinkChanged }: {
   p: ProductGroup
   activeGroups: Set<string>
   fmt: (v: number) => string
+  fmtOrig: (e: { original_currency: string | null; original_price: number | null; price_usd: number | null }) => string
   onGoToPriceTable?: (modelName: string, productId: string) => void
   onOpenAI?: (modelName: string, productId: string) => void
   onDeletePrice?: (priceId: string) => void
@@ -424,7 +429,7 @@ function AnalyzePanel({ p, activeGroups, fmt, onGoToPriceTable, onOpenAI, onDele
                         {PRICING_MODEL_LABEL[x.pricing_model] ?? x.pricing_model}
                       </span>
                       <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12.5 }}>
-                        {x.price_usd != null ? fmt(x.price_usd) : '—'}
+                        {x.price_usd != null ? fmtOrig(x) : '—'}
                       </span>
                       {vsTxt && (
                         <span style={{ fontSize: 10, fontWeight: 700, color: vsCls, fontFamily: 'monospace' }}>
@@ -1284,6 +1289,9 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
   const { mutate: globalMutate } = useSWRConfig()
   const usdKrw = data?.usd_krw ?? 1400
   const fmt = makeFmt(currencyMode, usdKrw)
+  // 경쟁사 가격 행별 표시 — 원본 통화 기준(뷰통화와 같으면 원본 그대로, 다르면 환산). 원본이 진실(SSOT).
+  const fmtOrig = (e: { original_currency: string | null; original_price: number | null; price_usd: number | null }) =>
+    fmtMoneyFromOriginal(e.original_currency, e.original_price, e.price_usd, currencyMode, usdKrw)
 
   const { data: mappingsData, mutate: mutateMappings } = useSWR<{ mappings: Mapping[] }>('/api/pricing/gpu/market/mappings', fetcher)
 
@@ -1988,6 +1996,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
                             onGoToPriceTable={(name, id) => onGoToPriceTable?.(name, id)}
                             onOpenAI={(name, id) => onOpenAI?.(name, id)}
                             fmt={fmt}
+                            fmtOrig={fmtOrig}
                             onDeletePrice={deleteMarketPrice}
                             onEditPrice={setEditingMarketPrice}
                             isAdmin={isAdmin}
