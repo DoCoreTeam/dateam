@@ -34,6 +34,8 @@ export interface ReviewItemRow {
 export interface ConfirmOptions {
   overrideExtracted?: Record<string, unknown>
   supplierId?: string | null
+  /** 해소 모달에서 사용자가 직접 매핑한 기존 카탈로그 모델 id — resolveProductId 대신 직접 채택(깡통 생성 0) */
+  productId?: string | null
   confirmedItems?: unknown[]
   /** 일괄 확정 경로 — 사람 직접확인 없이 일괄 동의로 들어온 건(감사 정직성) */
   bulk?: boolean
@@ -44,6 +46,8 @@ export interface ConfirmResult {
   ok: boolean
   status: number
   error?: string
+  /** 'model_unresolved' = 모델 미해소(카탈로그 없음/변형 모호) → 해소 모달로 안내 */
+  code?: string
   stock?: { ok: boolean; msg: string }
   strategic?: { product_id: string | null; strategic_price_krw: number | null; msg: string }
   productId?: string | null
@@ -160,14 +164,25 @@ export async function confirmReviewItem(
   //   매칭 실패 시 깡통 자동생성 금지 → 보류(사유 반환). 신규 모델은 스펙관리에서 등록(SSOT 단일 통제).
   const productAutoCreated = false
   let productId: string | null = null
-  if (typeof merged.model_name === 'string' && merged.model_name) {
+  if (typeof opts.productId === 'string' && opts.productId) {
+    // 해소 모달에서 사용자가 기존 카탈로그 모델로 직접 매핑 — 유효성 + 장수 일치 확인(읽기). 깡통 자동생성 없음.
+    const { data: prod } = await db.from('gpu_products').select('id, gpu_count').eq('id', opts.productId).is('deleted_at', null).maybeSingle()
+    if (!prod?.id) {
+      return { ok: false, status: 422, error: '선택한 카탈로그 모델을 찾을 수 없습니다. 목록을 새로고침한 뒤 다시 시도하세요.', code: 'model_unresolved' }
+    }
+    // 장수 정합성 — 선택 모델(×N)과 견적 장수(×M)가 다르면 불일치 레코드 방지(DC-REV HIGH)
+    if (typeof prod.gpu_count === 'number' && prod.gpu_count !== gpuCount) {
+      return { ok: false, status: 422, error: `선택한 모델은 ${prod.gpu_count}장 구성인데 이 견적은 ${gpuCount}장입니다. 장수가 같은 구성을 선택하세요.`, code: 'model_unresolved' }
+    }
+    productId = prod.id as string
+  } else if (typeof merged.model_name === 'string' && merged.model_name) {
     const resolved = await resolveProductId(db, {
       modelName: merged.model_name,
       gpuCount,
       memory: typeof merged.memory === 'string' ? merged.memory : null,
     })
     if ('held' in resolved) {
-      return { ok: false, status: 422, error: heldReasonMessage(resolved.reason, merged.model_name, gpuCount) }
+      return { ok: false, status: 422, error: heldReasonMessage(resolved.reason, merged.model_name, gpuCount), code: 'model_unresolved' }
     }
     productId = resolved.productId
   }

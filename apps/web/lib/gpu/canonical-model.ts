@@ -11,10 +11,43 @@ export function normModelKey(s: string | null | undefined): string {
 //  ⚠️ 폼팩터(SXM·PCIe·NVL)는 카탈로그가 구분하는 별개 모델이라 절대 제거하지 않는다(H100 SXM≠H100 PCIe).
 const CPU_HOST = /\s+with\s+(amd|intel)\s+cpu\b/gi   // "L40S with AMD CPU" → "L40S"
 const VENDOR_BOARD = /\b(nvidia|hgx)\b/gi            // "NVIDIA HGX B200" → "B200" (HGX=보드패밀리, 벤더수식)
+// GPU 클라우드 공급사/플랫폼명이 모델명 앞에 붙는 오염("Nebius H100 SXM 80GB") 방어 — leading만 제거.
+//  이 토큰들은 NVIDIA 모델명에 절대 등장하지 않아 오제거 0. 입구 정규화(stripSupplierPrefix)가 1차, 이건 매칭 방어선.
+const PROVIDER_PREFIX = /^\s*(nebius|lambda(?:\s+labs)?|runpod|coreweave|paperspace|vast(?:\.?\s*ai)?|datacrunch|fluidstack|hyperstack|crusoe|jarvislabs|scaleway|ovh(?:cloud)?|genesis\s+cloud|gcube|nscale)\s+/gi
+// 메모리 용량 토큰(80GB·192 GB·1.5TB)은 모델 식별 키가 아닌 '변형 축'(resolveProductId의 memory 파라미터로 별도 구분).
+//  모델명에 섞여 들어온 메모리는 매칭 키에서 제거 → "H100 SXM 80GB"가 카탈로그 "H100 SXM"과 매칭. (폼팩터는 보존)
+const MEMORY_TOKEN = /\b\d+(?:\.\d+)?\s*(gb|tb)\b/gi
 
-/** 잡음 토큰 제거 후 읽기 좋은 모델명 — 폼팩터(SXM/PCIe/NVL)·세대·메모리는 보존. */
+/** 잡음 토큰 제거 후 읽기 좋은 모델명 — 폼팩터(SXM/PCIe/NVL)·세대는 보존, 공급사·벤더·메모리는 제거. */
 function stripModelNoise(s: string): string {
-  return s.replace(CPU_HOST, '').replace(VENDOR_BOARD, '').replace(/\s+/g, ' ').trim()
+  return s
+    .replace(PROVIDER_PREFIX, '')
+    .replace(CPU_HOST, '')
+    .replace(VENDOR_BOARD, '')
+    .replace(MEMORY_TOKEN, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** 모델명 앞 공급사명 제거(intake 오염 차단). supplier가 leading 토큰일 때만 제거 — 결정론·안전(오제거 방지).
+ *  업체명은 별도 필드로 보존되므로 모델명에서 떼는 게 SSOT. 예: ('Nebius H100 SXM 80GB','Nebius')→'H100 SXM 80GB'. */
+export function stripSupplierPrefix(modelName: string | null | undefined, supplier: string | null | undefined): string {
+  const m = (modelName ?? '').trim()
+  const s = (supplier ?? '').trim()
+  if (!m || !s) return m
+  const esc = s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const stripped = m.replace(new RegExp(`^\\s*${esc}\\s+`, 'i'), '').trim()
+  return stripped || m // 공급사명만 있던 비정상 입력은 원본 유지
+}
+
+/** intake 정규화 SSOT — extracted.model_name에서 공급사명 prefix 제거(in-place). 모든 입구(batch·stream commit·recheck)가 호출.
+ *  supplier > competitor_name 순으로 leading 일치 시 제거. 재발방지: 단일 경로만 고치면 다른 입구로 재유입되므로 공용화. */
+export function normalizeExtractedModel(ex: Record<string, unknown> | null | undefined): void {
+  if (!ex || typeof ex.model_name !== 'string') return
+  const sup = (typeof ex.supplier === 'string' && ex.supplier)
+    || (typeof ex.competitor_name === 'string' && ex.competitor_name) || ''
+  const cleaned = stripSupplierPrefix(ex.model_name, sup)
+  if (cleaned !== ex.model_name) ex.model_name = cleaned
 }
 
 /** 핵심 모델 매칭 키 — 잡음 제거 후 정규화. "NVIDIA HGX B200"="B200"="b200". 폼팩터는 유지. */

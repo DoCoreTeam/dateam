@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { dedupSupplier } from '@/lib/gpu/dedup'
 import { partitionValid, validateSupplierItem } from '@/lib/gpu/validate'
+import { normalizeExtractedModel } from '@/lib/gpu/canonical-model'
 
 // 공급가 미리보기 → 검토 대기 저장(버튼 클릭 시). stream 엔드포인트가 추출한 items를 받아 review_items INSERT.
 // 분리 이유: 추출(미리보기)과 저장(사용자 확인)을 명확히 나눔 — 경쟁사 market/import와 동일 패턴.
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
     const overallConf = confValues.length > 0 ? Math.round(confValues.reduce((a, b) => a + b, 0) / confValues.length) : null
     const impactLevel = (item.impact_assessment?.level ?? 'steady') as string
     const ex = item.extracted ?? {}
+    normalizeExtractedModel(ex)   // 입구 정규화(재발방지·SSOT) — 공급사명 prefix 제거
     return {
       source_batch_id: valid.length > 1 ? batchId : null,
       batch_index: idx,

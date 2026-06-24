@@ -4,6 +4,7 @@ import { logTokenUsage } from '@/lib/token-logger'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { loadSchemaDigest } from '@/lib/gpu/extract-helpers'
 import { diffExtracted, normalizeReanalysis } from '@/lib/gpu/extract-diff'
+import { normalizeExtractedModel } from '@/lib/gpu/canonical-model'
 import { BILLING_EXTRACT_HINT } from '@/lib/gpu/billing'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
@@ -136,6 +137,7 @@ ${originalText || '(원본 텍스트 없음 — 이전 추출 결과 기반으�
   const { extracted: newExtracted, confidence, evidence: newEvidence } = normalizeReanalysis(
     reExtracted, (item.current_extracted ?? {}) as Record<string, unknown>,
   )
+  normalizeExtractedModel(newExtracted)   // 입구 정규화(재발방지·SSOT) — 재분석 결과의 공급사명 prefix 제거
   const values = Object.values(confidence).filter((v): v is number => typeof v === 'number')
   const overallConfidence = values.length > 0
     ? Math.round(values.reduce((a, b) => a + b, 0) / values.length)

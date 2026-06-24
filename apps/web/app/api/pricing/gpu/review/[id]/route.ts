@@ -22,6 +22,8 @@ export async function POST(
     rejected_reason?: unknown
     override_extracted?: unknown
     supplier_id?: unknown
+    // 해소 모달에서 사용자가 매핑한 기존 카탈로그 모델 id
+    product_id?: unknown
     // 일괄 확정 경로 추적 — confirmed_items(사람이 직접 확인한 필드)와 구분해 감사 정직성 유지
     bulk?: unknown
     auto_accepted_low_conf?: unknown
@@ -84,11 +86,12 @@ export async function POST(
   const result = await confirmReviewItem(supabase, adminClient, item, actorName, {
     overrideExtracted: (body.override_extracted ?? {}) as Record<string, unknown>,
     supplierId: typeof body.supplier_id === 'string' ? body.supplier_id : null,
+    productId: typeof body.product_id === 'string' ? body.product_id : null,
     confirmedItems: Array.isArray(body.confirmed_items) ? body.confirmed_items : [],
     bulk: isBulk,
     autoAcceptedLowConf,
   })
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status })
+  if (!result.ok) return NextResponse.json({ error: result.error, code: result.code }, { status: result.status })
   const resp: Record<string, unknown> = { ok: true }
   if (result.stock) resp.stock = result.stock
   if (result.strategic) resp.strategic = result.strategic

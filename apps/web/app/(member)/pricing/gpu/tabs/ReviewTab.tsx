@@ -269,6 +269,53 @@ function ConfidenceBar({ value, label }: { value: number | null; label: string }
   )
 }
 
+// 모델 미해소(카탈로그에 없음) 해소 모달 — ①기존 모델 매핑(1순위·중복 생성 0) ②새 모델 등록(스펙관리 prefill).
+function ModelResolveModal({ modelName, message, busy, onPick, onClose }: {
+  modelName: string; message: string; busy: boolean; onPick: (productId: string) => void; onClose: () => void
+}) {
+  const { data } = useSWR<{ products: Array<{ id: string; model_name: string; memory: string | null; gpu_count: number | null }> }>('/api/pricing/gpu/products', fetcher)
+  const [q, setQ] = useState('')
+  const filtered = useMemo(() => {
+    const products = data?.products ?? []
+    const k = q.trim().toLowerCase()
+    const base = k ? products.filter((p) => `${p.model_name} ${p.memory ?? ''}`.toLowerCase().includes(k)) : products
+    return base.slice(0, 60)
+  }, [data, q])
+  return (
+    <NbModal
+      title="모델 해소 — 기존 카탈로그에 매핑"
+      onClose={onClose}
+      maxWidth={520}
+      footer={
+        <button className="gpu-btn" onClick={() => { window.location.href = `/pricing/gpu?tab=specs&newModel=${encodeURIComponent(modelName)}` }}>
+          <Plus size={14} /> 정말 새 모델이면 — 스펙 관리에서 등록
+        </button>
+      }
+    >
+      <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 6px' }}>{message}</p>
+      <p style={{ fontSize: 12, color: 'var(--text-faint)', margin: '0 0 10px' }}>
+        같은 GPU가 이미 카탈로그에 있으면 <b>아래에서 골라 매핑</b>하면 바로 확정됩니다(중복 모델 생성 안 함).
+      </p>
+      <div className="gpu-search" style={{ marginBottom: 8 }}>
+        <Search size={15} />
+        <input className="input-field" placeholder="모델 검색 (H100 SXM, A100 …)" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+      </div>
+      <div style={{ maxHeight: 280, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {filtered.length === 0 ? (
+          <div style={{ fontSize: 12, color: 'var(--text-faint)', padding: '14px 0', textAlign: 'center' }}>일치하는 모델이 없습니다 — 새 모델이면 아래 등록 버튼을 쓰세요</div>
+        ) : filtered.map((p) => (
+          <button key={p.id} type="button" className="gpu-btn" disabled={busy}
+            onClick={() => onPick(p.id)}
+            style={{ display: 'flex', justifyContent: 'space-between', textAlign: 'left', width: '100%' }}>
+            <span style={{ fontWeight: 600 }}>{p.model_name}{p.gpu_count && p.gpu_count > 1 ? ` ×${p.gpu_count}` : ''}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.memory ?? '—'}</span>
+          </button>
+        ))}
+      </div>
+    </NbModal>
+  )
+}
+
 function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwPerUsd, isAdmin }: { item: ReviewItem; onDone: () => void; allSuppliers: Supplier[]; selected: boolean; onToggleSelect: () => void; krwPerUsd: number | null; isAdmin: boolean }) {
   const [expanded, setExpanded] = useState(false)
   const [showBreakdown, setShowBreakdown] = useState(false)
@@ -283,6 +330,7 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
   const [recheckErr, setRecheckErr] = useState('')
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
   const [manualSupplierName, setManualSupplierName] = useState('')
+  const [resolveMsg, setResolveMsg] = useState<string | null>(null)
 
   const extracted = item.current_extracted ?? {}
   const confidence = item.current_confidence ?? {}
@@ -305,13 +353,14 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
     })
   }
 
-  const handleConfirm = useCallback(async () => {
+  const handleConfirm = useCallback(async (productId?: string) => {
     setConfirming(true)
     try {
       const body: Record<string, unknown> = {
         action: 'confirm',
         confirmed_items: Array.from(checking),
       }
+      if (productId) body.product_id = productId   // 해소 모달에서 기존 모델로 매핑
       if (selectedSupplier) {
         body.supplier_id = selectedSupplier.id
       } else if (manualSupplierName) {
@@ -324,6 +373,8 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) {
+        // 모델 미해소 → 막다른 alert 대신 해소 모달(기존 모델 매핑 / 신규 등록)
+        if (j.code === 'model_unresolved' && !productId) { setResolveMsg(j.error ?? '모델을 카탈로그에서 찾을 수 없습니다') ; return }
         alert(j.error ?? '확정 실패')
         return
       }
@@ -331,6 +382,7 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
       if (j.stock && j.stock.ok === false) {
         alert(`확정됨. 다만 ${j.stock.msg}`)
       }
+      setResolveMsg(null)
       onDone()
     } catch {
       alert('확정 실패 — 서버에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하세요.')
@@ -584,7 +636,7 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
       <div className="gpu-rev-actions" style={{ marginTop: 14 }}>
         <button
           className="gpu-btn gpu-btn-primary"
-          onClick={handleConfirm}
+          onClick={() => handleConfirm()}
           disabled={confirming || !canConfirm}
           title={!canConfirm ? '신뢰도 낮은 항목을 모두 확인 후 체크해 주세요' : ''}
           style={{ opacity: canConfirm ? 1 : 0.5 }}
@@ -612,6 +664,16 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
           </div>
         )}
       </div>
+      )}
+
+      {resolveMsg && (
+        <ModelResolveModal
+          modelName={String(extracted.model_name ?? item.product_hint ?? '')}
+          message={resolveMsg}
+          busy={confirming}
+          onPick={(pid) => handleConfirm(pid)}
+          onClose={() => setResolveMsg(null)}
+        />
       )}
     </div>
   )

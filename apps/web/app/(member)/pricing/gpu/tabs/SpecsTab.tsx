@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { Sparkles, X, Save, Pencil } from 'lucide-react'
+import { Sparkles, X, Save, Pencil, Plus } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import { memoryTitle } from '@/lib/gpu/card-memory'
 
@@ -218,11 +219,71 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
   )
 }
 
+// 새 모델 등록 — 카탈로그 신규 모델(POST products). 확정 해소 모달의 'newModel' prefill로도 진입.
+function AddModelModal({ prefillName, onClose, onSaved }: { prefillName?: string; onClose: () => void; onSaved: () => void }) {
+  useEscClose(onClose)
+  const [f, setF] = useState({ model_name: prefillName ?? '', memory: '', gpu_count: '1' })
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const set = (k: 'model_name' | 'memory' | 'gpu_count', v: string) => setF((p) => ({ ...p, [k]: v }))
+  const save = async () => {
+    if (!f.model_name.trim()) { setErr('모델명은 필수입니다'); return }
+    setSaving(true); setErr(null)
+    try {
+      const res = await fetch('/api/pricing/gpu/products', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model_name: f.model_name.trim(), memory: f.memory.trim() || null, gpu_count: Number(f.gpu_count) || 1 }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { setErr(j.error ?? '등록 실패'); return }
+      onSaved()
+    } catch { setErr('등록 실패 — 네트워크를 확인하세요') } finally { setSaving(false) }
+  }
+  return (
+    <div className="gpu-modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="gpu-modal-card gpu-modal-card--sm" onClick={(e) => e.stopPropagation()}>
+        <div className="gpu-modal-header">
+          <strong className="tape-title">새 GPU 모델 등록</strong>
+          <button type="button" onClick={onClose} className="gpu-modal-close" aria-label="닫기"><X size={16} /></button>
+        </div>
+        <div className="gpu-modal-body">
+          <p style={{ fontSize: 12, color: 'var(--text-faint)', margin: '0 0 10px' }}>
+            카탈로그에 없는 모델을 등록합니다. 공급사명·벤더수식 없이 <b>표준 모델명</b>만 입력하세요(예: H100 SXM, A100). 장수·메모리는 구성 단위입니다.
+          </p>
+          <div className="responsive-grid-cols-2">
+            <label className="gpu-field"><span className="label">모델명 *</span><input className="input-field" value={f.model_name} onChange={(e) => set('model_name', e.target.value)} placeholder="H100 SXM" autoFocus /></label>
+            <label className="gpu-field"><span className="label">카드 메모리</span><input className="input-field" value={f.memory} onChange={(e) => set('memory', e.target.value)} placeholder="80GB" /></label>
+            <label className="gpu-field"><span className="label">장수</span><input className="input-field" type="number" min="1" value={f.gpu_count} onChange={(e) => set('gpu_count', e.target.value)} /></label>
+          </div>
+          {err && <div className="gpu-link-err">{err}</div>}
+          <button className="gpu-btn gpu-btn-primary" disabled={saving} onClick={save} style={{ marginTop: 4 }}>{saving ? '등록 중…' : '등록'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function SpecsTab() {
   const { data } = useSWR<{ models: ModelRow[] }>('/api/pricing/gpu/specs', fetcher)
   const { mutate } = useSWRConfig()
   const models = data?.models ?? []
   const [open, setOpen] = useState<ModelRow | null>(null)
+  const [addOpen, setAddOpen] = useState<{ name: string } | null>(null)
+  // 확정 해소 모달에서 ?newModel=<모델명>으로 진입 → 등록 모달 자동 오픈(1회). 이후 URL 파라미터 제거.
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const prefillConsumed = useRef(false)
+  useEffect(() => {
+    if (prefillConsumed.current) return
+    const nm = searchParams.get('newModel')
+    if (nm) {
+      prefillConsumed.current = true
+      setAddOpen({ name: nm })
+      const sp = new URLSearchParams(Array.from(searchParams.entries()))
+      sp.delete('newModel')
+      router.replace(`/pricing/gpu?${sp.toString()}`)
+    }
+  }, [searchParams, router])
   const [bulkGen, setBulkGen] = useState(false)
   const [bulkProg, setBulkProg] = useState<{ done: number; total: number; current: string; log: string } | null>(null)
   const [search, setSearch] = useState('')
@@ -308,6 +369,9 @@ export default function SpecsTab() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
           <input placeholder="GPU 모델 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
+        <button className="gpu-btn" onClick={() => setAddOpen({ name: '' })} style={{ gap: 5 }}>
+          <Plus size={15} /> 새 모델 등록
+        </button>
         <button className="gpu-btn gpu-btn-primary" onClick={bulkGenerate} disabled={bulkGen || missing === 0} style={{ gap: 5 }}>
           <Sparkles size={15} /> {bulkGen ? (bulkProg ? `생성 중 ${bulkProg.done}/${bulkProg.total}` : 'AI 생성 중…') : `AI 일괄 채우기 (부족 ${missing})`}
         </button>
@@ -368,6 +432,7 @@ export default function SpecsTab() {
       </table>
 
       {open && <SpecModal row={open} onClose={() => setOpen(null)} onSaved={refresh} />}
+      {addOpen && <AddModelModal prefillName={addOpen.name} onClose={() => setAddOpen(null)} onSaved={() => { setAddOpen(null); refresh() }} />}
     </div>
   )
 }

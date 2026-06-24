@@ -8,6 +8,7 @@ import { BILLING_EXTRACT_HINT } from '@/lib/gpu/billing'
 import { dedupSupplier, dedupCompetitor, type CompetitorLike } from '@/lib/gpu/dedup'
 import { toUsdPerGpuHour } from '@/lib/gpu/normalize-money'
 import { partitionValid, validateSupplierItem } from '@/lib/gpu/validate'
+import { normalizeExtractedModel } from '@/lib/gpu/canonical-model'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { safeFetchText } from '@/lib/security/safe-fetch'
 
@@ -445,6 +446,9 @@ export async function POST(req: NextRequest) {
   // 검증 게이트(H1) + 공용 dedup — stream 경로와 동일 구현 재사용(정책: 유관 시스템 동일 처리)
   const { passed: validItems } = partitionValid(rawItemsList.filter(isMeaningful), validateSupplierItem)
   const itemsList = dedupSupplier(validItems)
+
+  // 입구 정규화(재발방지·SSOT) — model_name 앞 공급사명 제거. 모든 입구가 normalizeExtractedModel 공용 호출.
+  for (const item of itemsList) normalizeExtractedModel(item.extracted)
   if (itemsList.length === 0) {
     const hadUrl = urls.length > 0
     return NextResponse.json({
