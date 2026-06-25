@@ -27,6 +27,10 @@ function stripModelNoise(s: string): string {
     .replace(MEMORY_TOKEN, '')
     .replace(/\s+/g, ' ')
     .trim()
+    // 토큰 제거 후 가장자리에 남는 문장부호(공백 포함) 정리 — "H200 141GB."→"H200 ."→"H200".
+    //  normModelKey는 [\s\-_]만 제거해 trailing '.'·','·')'이 키를 오염시킴(매칭·dedup 실패). 폼팩터(SXM/PCIe/NVL)는 알파넘이라 보존.
+    //  ASCII 클래스 사용(\p{}+u 플래그는 tsc target 미명시(ES3) 환경서 TS1501 — 모델명은 ASCII라 동일 결과).
+    .replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, '')
 }
 
 /** 모델명 앞 공급사명 제거(intake 오염 차단). supplier가 leading 토큰일 때만 제거 — 결정론·안전(오제거 방지).

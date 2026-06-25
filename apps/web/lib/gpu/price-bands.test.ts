@@ -1,7 +1,10 @@
 import { readFileSync } from 'fs'
-import { join } from 'path'
-import { describe, it, expect } from 'vitest'
-import { PRICE_BAND } from './validate'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
+import { describe, it, expect } from '../test-utils/vitest-compat.ts'
+import { PRICE_BAND } from './validate.ts'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 // SSOT 드리프트 가드(DC-REV M-2): 가격밴드가 TS(validate.ts) + SQL(060 메트릭·061 드릴다운) 3곳에 존재.
 // 한 곳만 바꾸고 다른 곳 누락 시 anomaly 집계·표시·검증이 어긋남 → 이 테스트가 잡는다.

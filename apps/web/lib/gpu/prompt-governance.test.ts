@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { evalPromptCandidate, autoActivatePrompt, rollbackPrompt, autoRollbackIfDegraded, monitorAiPromptOutcome, REQUIRED_PROMPT_TOKENS } from './prompt-governance'
+import { describe, it, expect } from '../test-utils/vitest-compat.ts'
+import { evalPromptCandidate, autoActivatePrompt, rollbackPrompt, autoRollbackIfDegraded, monitorAiPromptOutcome, REQUIRED_PROMPT_TOKENS } from './prompt-governance.ts'
 
 // 체이너블 mock — insert/update 기록, select.maybeSingle/리스트 반환
 function mockDb(opts: { current?: Record<string, unknown>; list?: Record<string, unknown[]> } = {}) {

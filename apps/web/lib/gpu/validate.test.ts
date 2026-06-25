@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { validateSupplierItem, validateCompetitorItem, gateFromConfidence, partitionValid, ENUMS } from './validate'
+import { describe, it, expect } from '../test-utils/vitest-compat.ts'
+import { validateSupplierItem, validateCompetitorItem, gateFromConfidence, partitionValid, ENUMS } from './validate.ts'
 
 describe('validateSupplierItem — 게이트 차단 증명', () => {
   it('정상 항목 통과', () => {

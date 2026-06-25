@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { dedupSupplier, dedupCompetitor } from './dedup'
+import { describe, it, expect } from '../test-utils/vitest-compat.ts'
+import { dedupSupplier, dedupCompetitor } from './dedup.ts'
 
 describe('dedupSupplier', () => {
   it('동일 모델+메모리+가격+약정 중복 제거', () => {
