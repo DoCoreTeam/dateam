@@ -39,6 +39,14 @@ export function fmtUSD(v: number | null | undefined): string {
   return '$' + ceilUsd(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: USD_DECIMALS })
 }
 
+/** USD 총액 표시 — 소수 없이(whole-dollar) 올림 + 천단위. 합계/장기총액용(per-unit precision 불필요).
+ *  catalog 등 "월/연 총액" 컬럼이 로컬 fmtUsd(v,0)을 복붙하던 것 SSOT화. null/NaN → '—'
+ *  @example fmtUSDWhole(518400.3) → '$518,401' */
+export function fmtUSDWhole(v: number | null | undefined): string {
+  if (v == null || !isFinite(v)) return '—'
+  return '$' + Math.ceil(v).toLocaleString('en-US')
+}
+
 export type CurrencyMode = 'KRW' | 'USD'
 
 /**

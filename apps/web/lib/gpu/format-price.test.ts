@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { fmtKRW, fmtUSD, fmtMoneyFromOriginal } from './format-price.ts'
+import { fmtKRW, fmtUSD, fmtUSDWhole, fmtMoneyFromOriginal } from './format-price.ts'
 
 // ── fmtKRW ────────────────────────────────────────────────────────────────────
 
@@ -41,6 +41,14 @@ test('fmtUSD — 무한소수는 셋째 자리에서 올림(ceil), 최대 3자�
   assert.equal(fmtUSD(3.245), '$3.245')
   // 이미 3자리 이하면 올림으로 값이 커지지 않음
   assert.equal(fmtUSD(0.5), '$0.50')
+})
+
+test('fmtUSDWhole — 총액은 소수 없이 올림 + 천단위', () => {
+  assert.equal(fmtUSDWhole(518400), '$518,400')
+  assert.equal(fmtUSDWhole(518400.3), '$518,401') // 올림
+  assert.equal(fmtUSDWhole(720), '$720')
+  assert.equal(fmtUSDWhole(null), '—')
+  assert.equal(fmtUSDWhole(NaN), '—')
 })
 
 test('fmtUSD — null/undefined/NaN → 대시', () => {

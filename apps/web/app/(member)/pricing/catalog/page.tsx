@@ -6,7 +6,7 @@ import { fetcher } from '@/lib/swr-config'
 import { formatSpec } from '@/lib/gpu/format-spec'
 import { ChevronRight } from 'lucide-react'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
-import { fmtKRW as fmtKRWSSOT } from '@/lib/gpu/format-price'
+import { fmtKRW as fmtKRWSSOT, fmtUSD, fmtUSDWhole } from '@/lib/gpu/format-price'
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
 import { perCardMemory, memoryTitle } from '@/lib/gpu/card-memory'
 
@@ -124,7 +124,7 @@ export default function SalePriceCatalogPage() {
     const lines = [
       `[GPU 판매가격표]`,
       `${p.model_name} ${p.memory}`,
-      `시간당: ${fmtKRWSSOT(price.krw)} / ${fmtUsd(price.usd, 2)}`,
+      `시간당: ${fmtKRWSSOT(price.krw)} / ${fmtUSD(price.usd)}`,
       `월 (720h): ${fmtKRWSSOT(price.krw * HR_720)}`,
       `6개월 (4,320h): ${fmtKRWSSOT(price.krw * HR_4320)}`,
       `연간 (8,760h): ${fmtKRWSSOT(price.krw * HR_8760)}`,
@@ -170,9 +170,7 @@ export default function SalePriceCatalogPage() {
   const searching = search.trim().length > 0
   const collapsedOf = (key: string) => (searching ? false : isCollapsed(key))
 
-  // fmtKrw → SSOT fmtKRWSSOT (동일 출력)
-  // fmtUsd: dec 파라미터 있는 로컬 버전 유지 (dec=0 케이스가 SSOT와 다름)
-  const fmtUsd = (v: number, dec = 0) => `$${v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec })}`
+  // fmtKrw/fmtUsd → SSOT(format-price). per-unit 가격=fmtUSD(ceil 3자리), 총액=fmtUSDWhole(whole-dollar). 로컬 dupe 제거.
   const fmtHours = (h: number) => h >= 10000 ? `${(h / 10000).toFixed(1)}만h` : h >= 1000 ? `${(h / 1000).toFixed(1)}천h` : `${h}h`
 
   // 커스텀 시간이 있으면 6개월 대신 커스텀 컬럼 표시
@@ -328,9 +326,9 @@ export default function SalePriceCatalogPage() {
               const calcKrw = (h: number) => price ? Math.round(price.krw * h) : null
               const calcUsd = (h: number) => price ? price.usd * h : null
 
-              const fmt = (h: number, dec = 0) => currencyMode === 'KRW'
+              const fmt = (h: number) => currencyMode === 'KRW'
                 ? (calcKrw(h) != null ? fmtKRWSSOT(calcKrw(h)!) : null)
-                : (calcUsd(h) != null ? fmtUsd(calcUsd(h)!, dec) : null)
+                : (calcUsd(h) != null ? fmtUSDWhole(calcUsd(h)!) : null)   // USD 총액 = whole-dollar SSOT
 
               const isCopied = copiedId === p.id
               return (
@@ -371,19 +369,19 @@ export default function SalePriceCatalogPage() {
                       customHours ? (
                         <>
                           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gpu-accent)', fontFamily: 'monospace' }}>
-                            {fmt(customHours, 0)}
+                            {fmt(customHours)}
                           </div>
                           <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>
-                            {currencyMode === 'KRW' ? fmtUsd(price.usd * customHours, 0) : fmtKRWSSOT(price.krw * customHours)}
+                            {currencyMode === 'KRW' ? fmtUSDWhole(price.usd * customHours) : fmtKRWSSOT(price.krw * customHours)}
                           </div>
                         </>
                       ) : (
                         <>
                           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gpu-accent)', fontFamily: 'monospace' }}>
-                            {currencyMode === 'KRW' ? fmtKRWSSOT(price.krw) : fmtUsd(price.usd, 2)}
+                            {currencyMode === 'KRW' ? fmtKRWSSOT(price.krw) : fmtUSD(price.usd)}
                           </div>
                           <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>
-                            {currencyMode === 'KRW' ? fmtUsd(price.usd, 2) + '/hr' : fmtKRWSSOT(price.krw) + '/hr'}
+                            {currencyMode === 'KRW' ? fmtUSD(price.usd) + '/hr' : fmtKRWSSOT(price.krw) + '/hr'}
                           </div>
                         </>
                       )
