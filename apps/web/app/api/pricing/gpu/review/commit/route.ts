@@ -34,7 +34,9 @@ export async function POST(req: NextRequest) {
   const adminClient = createAdminClient()
 
   // 검증 게이트(H1, lib/gpu/validate) — enum·범위·이상치 위반 항목은 격리(저장 차단), 통과분만 진행.
-  const { passed, blocked } = partitionValid(items, validateSupplierItem)
+  //  preserveNoPrice: 미리보기와 동일 정책(RC-C 비대칭 제거) — 무가격 행은 차단 대신 warn로 보존,
+  //  검토 큐(review_items)에 flag로 남겨 사람이 판단. "미리보기엔 보였는데 저장하니 사라짐" 방지.
+  const { passed, blocked } = partitionValid(items, (it) => validateSupplierItem(it, { preserveNoPrice: true }))
   // 공용 dedup(lib/gpu/dedup) — 저장 직전 중복 제거(방어적). 추출 단계와 동일 키 = 단일 구현 재사용.
   const valid = dedupSupplier(passed)
   if (valid.length === 0) {

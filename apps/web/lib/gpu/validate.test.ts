@@ -19,6 +19,16 @@ describe('validateSupplierItem — 게이트 차단 증명', () => {
   it('tier enum 위반 차단', () => {
     expect(validateSupplierItem({ extracted: { model_name: 'A100', unit_price_usd: 2, tier_suggestion: 5 } }).ok).toBe(false)
   })
+  // RC-C: 미리보기↔확정 비대칭 제거 — preserveNoPrice면 무가격 공급가 행을 차단 대신 warn로 보존
+  it('preserveNoPrice — 무가격 행은 차단 아닌 warn(보존), 모델만 있으면 통과', () => {
+    const blocked = validateSupplierItem({ extracted: { model_name: 'H100 SXM' } })
+    expect(blocked.ok).toBe(false) // 기본(commit 외)은 여전히 차단
+    const preserved = validateSupplierItem({ extracted: { model_name: 'H100 SXM' } }, { preserveNoPrice: true })
+    expect(preserved.ok).toBe(true) // 보존: 통과(검토 큐에 flag로 남김)
+    expect(preserved.issues.some((i) => i.field === 'price' && i.severity === 'warn')).toBe(true)
+    // 단, 모델명조차 없으면 preserveNoPrice라도 차단(식별 불가)
+    expect(validateSupplierItem({ extracted: {} }, { preserveNoPrice: true }).ok).toBe(false)
+  })
   it('이상치(밴드 밖)는 경고만 — 차단 아님', () => {
     const r = validateSupplierItem({ extracted: { model_name: 'H100', unit_price_usd: 0.31, tier_suggestion: 1 } }) // tier1 밴드 0.3~80, 0.31 통과지만 경계
     expect(r.ok).toBe(true)

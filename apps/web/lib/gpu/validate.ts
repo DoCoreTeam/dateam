@@ -43,7 +43,13 @@ function num(v: unknown): number | null {
 }
 
 // 공급가 추출 항목 검증 — { extracted: { model_name, memory, unit_price_usd|price_usd, term_months, supplier, tier_suggestion }, confidence }
-export function validateSupplierItem(item: { extracted?: Record<string, unknown>; confidence?: Record<string, number | null> }): ValidationResult {
+// 보존(opts.preserveNoPrice): 가격 없는 행을 block→price_unknown(warn)으로 완화해 passed에 포함.
+//  competitor 경로(validateCompetitorItem)와 동일 정책 — 미리보기(보존)↔확정(차단) 비대칭(RC-C) 제거.
+//  무가격 공급가 행(확인중/Contact us)은 검토 큐에 flag로 남겨 사람이 판단(무음 소실 금지).
+export function validateSupplierItem(
+  item: { extracted?: Record<string, unknown>; confidence?: Record<string, number | null> },
+  opts?: ValidateOptions,
+): ValidationResult {
   const ex = item?.extracted ?? {}
   const issues: Issue[] = []
 
@@ -53,8 +59,11 @@ export function validateSupplierItem(item: { extracted?: Record<string, unknown>
 
   // 가격: 양수 + 하드 범위(불가능치 차단) + 밴드(이상치 경고)
   const price = num(ex.unit_price_usd ?? ex.price_usd)
-  if (price === null) issues.push({ field: 'price', severity: 'block', msg: '단가 없음/숫자 아님' })
-  else if (price <= PRICE_HARD.min || price > PRICE_HARD.max) issues.push({ field: 'price', severity: 'block', msg: `단가 ${price} — 불가능 범위(0<p≤${PRICE_HARD.max})` })
+  if (price === null) {
+    issues.push(opts?.preserveNoPrice
+      ? { field: 'price', severity: 'warn', msg: '단가 미상(확인중·Contact us) — 확인 후 반영' }
+      : { field: 'price', severity: 'block', msg: '단가 없음/숫자 아님' })
+  } else if (price <= PRICE_HARD.min || price > PRICE_HARD.max) issues.push({ field: 'price', severity: 'block', msg: `단가 ${price} — 불가능 범위(0<p≤${PRICE_HARD.max})` })
 
   // tier(있으면) enum
   const tier = num(ex.tier_suggestion ?? ex.tier)
