@@ -1,9 +1,9 @@
 // 어댑터: /api/pricing/gpu/inventory 응답을 UnifiedRow에 병합(재고 보기 축)
 //   가격은 cockpit이 주관. 본 모듈은 재고 수량·상태만 product_id로 합친다. 계산 없음(상태는 카운트 매핑).
 
-import { GPU_TERMS } from './terms'
-import { stockCode } from './stock-status'
-import type { UnifiedRow } from './unified-row'
+import { GPU_TERMS } from './terms.ts'
+import { stockCode } from './stock-status.ts'
+import type { UnifiedRow } from './unified-row.ts'
 
 interface InventoryApiItem {
   id: string

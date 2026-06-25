@@ -1,7 +1,7 @@
 // 추출 항목 중복 제거 — 단일 구현(SSOT). 통합입력의 공급가·경쟁사·저장(commit) 전 경로가 이걸 재사용.
 // 정책: 유관 시스템에 동일 처리가 필요하면 새로 짜지 말고 이 모듈을 import해 쓸 것.
 // dedup 키: 모델+메모리+가격+약정(공급가) / 경쟁사는 +pricing_model. 키가 다르면 별건으로 보존(정보 손실 방지).
-import { normalizeMemory } from './normalize'
+import { normalizeMemory } from './normalize.ts'
 
 // 값 정규화 — 대소문자·공백·표기 흔들림 흡수해 같은 항목을 같은 키로
 function normName(v: unknown): string {

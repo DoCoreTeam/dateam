@@ -2,7 +2,7 @@
 // 정책: 같은 연계가 필요하면 새로 짜지 말고 여기에 추가. 재고 쓰기는 recordAvailability(repository) 재사용.
 // 축4 계약게이트: 추출 필드는 전부 INTAKE_FIELD_MAP에 저장대상이 선언돼야 함(없으면 테스트가 차단 → 증발 방지).
 
-import { recordAvailability } from './repository'
+import { recordAvailability } from './repository.ts'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = any

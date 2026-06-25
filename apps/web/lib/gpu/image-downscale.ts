@@ -1,7 +1,7 @@
 // 클라이언트 이미지 다운스케일 — 업로드 전 canvas 재인코딩으로 용량 축소.
 // 브라우저 전용(canvas/Image). SSR 안전을 위해 document 가드. QuoteRegisterTab만 사용.
 
-import { INTAKE_LIMITS } from './intake-files'
+import { INTAKE_LIMITS } from './intake-files.ts'
 
 const MAX_EDGE = 2000      // 최대 변(px) — OCR 가독 유지하면서 용량 축소
 const JPEG_QUALITY = 0.85

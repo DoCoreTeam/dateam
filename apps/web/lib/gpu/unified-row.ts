@@ -4,11 +4,11 @@
 //   - 값은 기존 라우트(cockpit/market/inventory/catalog) 결과를 어댑터가 채운다(P1-3).
 //   - resolveCell 은 계산하지 않는다. fmtKRW/fmtUSD 포맷 + GPU_TERMS 라벨만(R1).
 
-import { GPU_TERMS } from './terms'
-import { fmtMoneyFromKrw } from './format-price'
-import type { CurrencyMode } from './format-price'
-import { deviationSignal } from './price-signal'
-import type { ViewColumn } from './unified-views'
+import { GPU_TERMS } from './terms.ts'
+import { fmtMoneyFromKrw } from './format-price.ts'
+import type { CurrencyMode } from './format-price.ts'
+import { deviationSignal } from './price-signal.ts'
+import type { ViewColumn } from './unified-views.ts'
 
 export interface CurrencyCtx {
   mode: CurrencyMode

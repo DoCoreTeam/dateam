@@ -2,8 +2,8 @@
 // AI는 헤더+샘플로 매핑만 1회 판단, 코드(catalog-map.applyMapping)가 전체 행을 결정적으로 변환한다.
 // 보안: 모든 셀 값 문자열은 sanitizeCell(수식 인젝션 무력화, SSOT) 적용.
 import * as XLSX from 'xlsx'
-import { sanitizeCell } from './csv-intake'
-import { detectHeaderRow, assembleFromAoa } from './catalog-headers'
+import { sanitizeCell } from './csv-intake.ts'
+import { detectHeaderRow, assembleFromAoa } from './catalog-headers.ts'
 
 // 런어웨이 방지 상한 — 한 파일에서 처리할 최대 행 수.
 export const MAX_CATALOG_ROWS = 1000

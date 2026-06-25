@@ -9,7 +9,7 @@
 //   순수 표 헤더 보조어(자동 마진가·경쟁 최저·중앙값·표본·할인율·고객가·출처·상태)는 이 파일 로컬 라벨로 둔다.
 // 컬럼 value는 통합 카탈로그 행(UnifiedRow)에서 포맷 함수로 뽑는다. 계산은 lib/gpu/* 결과를 읽기만.
 
-import { GPU_TERMS } from './terms'
+import { GPU_TERMS } from './terms.ts'
 
 export type GpuViewId = 'sell' | 'cockpit' | 'market' | 'inventory' | 'catalog'
 

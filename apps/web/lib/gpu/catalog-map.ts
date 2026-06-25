@@ -1,6 +1,6 @@
 // 카탈로그 헤더 매핑 검증 + 전행 결정적 변환 (순수 — 단위테스트 대상, Date/random 미사용).
 // AI는 "어느 컬럼이 어느 필드인가"만 1회 판단(catalog-map prompt). 이 모듈이 전체 행을 결정적으로 변환한다.
-import type { CompetitorPriceItem } from './competitor-import'
+import type { CompetitorPriceItem } from './competitor-import.ts'
 
 // AI가 반환하는 매핑 — 값은 "원본 컬럼명" 또는 null. _ 접두는 메타 판단.
 export interface CatalogMapping {

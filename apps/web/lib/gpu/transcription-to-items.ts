@@ -4,8 +4,8 @@
 //   전사는 입력을 본 그대로 옮긴 결과 → 여기서 원문 모델명·전 행·가격미상을 보존해 경쟁사 후보로 만든다.
 // 정책: 카탈로그 매핑 절대 금지. raw_label을 model_name으로 그대로 사용. 추측·보완 없음.
 
-import type { TranscriptionRow } from './transcription'
-import type { CompetitorLike } from './dedup'
+import type { TranscriptionRow } from './transcription.ts'
+import type { CompetitorLike } from './dedup.ts'
 import { resolveCurrency, toUsdPerGpuHour } from './normalize-money.ts'
 
 // 변환 결과 — route가 emit하는 경쟁사 preview/저장 아이템과 동일 형태.

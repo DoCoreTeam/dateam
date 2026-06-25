@@ -3,11 +3,11 @@
 // 계산하지 않는다(R1): 가격은 cockpit 응답값 그대로, 시장 중앙값만 SSOT calcMedian 재사용.
 // cockpit 미포함 축(재고·고객가)은 null — 해당 보기는 후속 어댑터에서 보강(P1-3b).
 
-import { calcMedian } from './market-median'
-import { GPU_TERMS } from './terms'
-import { pickSellPrice, pickMargin, marketDevPct } from './unified-price-pick'
-import { pickSupplyCostKrw, pickListSupplierName, pickCostSupplierName } from './unified-cost-pick'
-import type { UnifiedRow } from './unified-row'
+import { calcMedian } from './market-median.ts'
+import { GPU_TERMS } from './terms.ts'
+import { pickSellPrice, pickMargin, marketDevPct } from './unified-price-pick.ts'
+import { pickSupplyCostKrw, pickListSupplierName, pickCostSupplierName } from './unified-cost-pick.ts'
+import type { UnifiedRow } from './unified-row.ts'
 
 interface CockpitCompetitor {
   company_name: string

@@ -6,7 +6,7 @@
 //
 // 모든 변경 함수는 성공 시 revalidateGpu()로 4개 메뉴 캐시를 원자 무효화한다.
 
-import { revalidateGpu } from './revalidate'
+import { revalidateGpu } from './revalidate.ts'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = any
