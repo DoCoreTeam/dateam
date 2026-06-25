@@ -9,6 +9,7 @@ import type { DailyLog, DailyLogEntryType } from '@/types/database'
 import EventModal from './EventModal'
 import { deleteCalendarEvent } from './actions'
 import { formatKstTime, formatMonthDay } from '@/lib/calendar/format-time'
+import { kstTodayKey } from '@/lib/datetime/kst'
 import { CalendarPlus, Trash2, CalendarClock, CheckSquare, StickyNote } from 'lucide-react'
 
 interface CalEvent {
@@ -72,7 +73,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = kstTodayKey()
   const isToday = date === today
 
   // 업무/메모 분리 — 타입을 1차 축으로 섹션 구분 (note=메모, 그 외=업무)

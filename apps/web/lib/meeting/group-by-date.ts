@@ -24,7 +24,7 @@ function localDateKey(iso: string): string | null {
 
 function labelFor(dateKey: string): string {
   if (dateKey === UNSCHEDULED) return '일시 미지정'
-  const d = new Date(`${dateKey}T00:00:00`)
+  const d = new Date(`${dateKey}T00:00:00`) // kst-ok: 라벨용 로컬 파싱(DB 저장 아님, dateKey는 이미 KST 날짜)
   if (Number.isNaN(d.getTime())) return dateKey
   const weekday = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()]
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${weekday})`

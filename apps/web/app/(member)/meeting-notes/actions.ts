@@ -10,6 +10,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { resolveOrgScope } from '@/lib/org-scope'
 import type { OrgPickerNode } from '@/lib/org/picker-types'
 import { htmlToPlain } from '@/lib/html-to-plain'
+import { kstTodayKey } from '@/lib/datetime/kst'
 import { createCalendarEvent } from '@/app/(member)/calendar/actions'
 import { sanitizeSearchQuery, toStartAt } from '@/lib/meeting/parse-helpers'
 import type { DailyLog } from '@/types/database'
@@ -304,7 +305,7 @@ export async function saveMeetingSummary(
 // ============================================================
 // DATE_RE/TIME_RE/toStartAt는 lib/meeting/parse-helpers.ts(SSOT) 재사용.
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10)
+  return kstTodayKey()
 }
 
 export async function applyExtractedItems(

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useSWRConfig } from 'swr'
 import { Sparkles, Plus, X } from 'lucide-react'
 import { getCalendarRecommendations, createCalendarEvent, type Recommendation } from './actions'
+import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 
 export default function RecommendPanel() {
   // Context-aware mutate — 전역 mutate는 SWRProvider 영속캐시를 못 건드림(저장 후 미반영 회귀 방지)
@@ -58,7 +59,7 @@ export default function RecommendPanel() {
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.625rem 0.75rem', background: '#fff', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)' }}>
-                      <span style={{ color: 'var(--brand)', fontWeight: 700, marginRight: '0.4rem' }}>{rec.start_at.slice(5, 16).replace('T', ' ')}</span>
+                      <span style={{ color: 'var(--brand)', fontWeight: 700, marginRight: '0.4rem' }}>{formatKstDateTimeShort(rec.start_at)}</span>
                       {rec.title}
                     </div>
                     {rec.reason && <div style={{ fontSize: '0.7rem', color: 'var(--text-faint)', marginTop: '0.15rem' }}>근거: {rec.reason}</div>}

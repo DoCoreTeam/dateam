@@ -1,6 +1,8 @@
 // 회의노트 추출 결과 매핑 + 필터링 순수 헬퍼 (Supabase/Gemini 비의존)
 // gemini-meeting.ts의 모듈-프라이빗 로직을 테스트 가능하도록 분리.
 // 출처: apps/web/lib/gemini-meeting.ts (mapTasks/mapEvents/mapHighlights 동일 로직 SSOT)
+// datetime 규약: toStartAt 은 lib/datetime/kst.ts 와 동일한 +09:00 앵커를 사용한다.
+//   (이 파일은 의존성 없는 순수 헬퍼 — node 단위테스트 직접 실행 위해 import 미추가. 가드가 lib/meeting 스캔으로 naive 회귀 차단.)
 
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 export const TIME_RE = /^\d{2}:\d{2}$/
@@ -136,5 +138,5 @@ export function toStartAt(
   if (!date || !DATE_RE.test(date)) return null
   const hasTime = !!time && TIME_RE.test(time)
   const hhmm = hasTime ? (time as string) : '09:00'
-  return `${date}T${hhmm}:00+09:00`
+  return `${date}T${hhmm}:00+09:00` // +09:00 앵커(kstWallToIso와 동일 규약). naive 조립 금지.
 }

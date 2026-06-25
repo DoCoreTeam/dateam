@@ -8,6 +8,7 @@ import type { DayLogSummary } from "../daily/actions";
 import type { DailyLog, DailyLogEntryType } from "@/types/database";
 import { fetcher } from "@/lib/swr-config";
 import { formatKstTime } from "@/lib/calendar/format-time";
+import { kstDateKey } from "@/lib/datetime/kst";
 import DayDetailPanel from "./DayDetailPanel";
 import RecommendPanel from "./RecommendPanel";
 import { STATUS_COLORS } from "@/lib/tokens/status-colors";
@@ -112,7 +113,7 @@ export default function CalendarPage() {
   );
   const eventsByDate = new Map<string, CalEventLite[]>();
   for (const ev of calEvents) {
-    const d = ev.start_at.slice(0, 10);
+    const d = kstDateKey(ev.start_at); // KST 기준 날짜 그룹핑(raw slice 금지 — 자정 경계 사고 방지)
     if (!eventsByDate.has(d)) eventsByDate.set(d, []);
     eventsByDate.get(d)!.push(ev);
   }

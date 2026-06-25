@@ -2,6 +2,7 @@
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { recordFeedbackSignal } from '@/lib/daily/feedback-signals'
+import { normalizeKstWallString } from '@/lib/datetime/kst'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -57,7 +58,7 @@ export async function getCalendarRecommendations(): Promise<{ ok: boolean; items
     const now = new Date()
     const day = now.getUTCDay()
     const toMon = ((8 - day) % 7) || 7
-    const nextMon = new Date(now.getTime() + toMon * 864e5).toISOString().slice(0, 10)
+    const nextMon = new Date(now.getTime() + toMon * 864e5).toISOString().slice(0, 10) // kst-ok: AI 프롬프트용 "다음 주" 대략 앵커(저장값 아님)
 
     const prompt = `당신은 업무 일정 코치입니다. 아래 사용자의 미완료 업무·주간계획·미처리 메모를 보고, 다음 7일(${nextMon} 주) 동안 잡으면 좋을 "추천 일정"을 최대 5개 제안하세요.
 각 항목: {"title":간결한 일정명, "start_at":"YYYY-MM-DDTHH:MM:00"(업무시간 09:00~18:00 내 합리적 배치), "reason":왜 추천하는지 한 줄, "link_kind":"daily|weekly|memo", "link_id":근거가 된 후보의 id}
@@ -76,8 +77,12 @@ ${candidates.map((c) => `- id=${c.id} kind=${c.kind}: ${c.text}`).join('\n')}`
     const raw = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? '[]'
     let items: Recommendation[] = []
     try { items = JSON.parse(raw) } catch { items = [] }
-    // 안전 필터
-    items = (Array.isArray(items) ? items : []).filter((i) => i?.title && i?.start_at).slice(0, 5)
+    // 안전 필터 + datetime 정규화: Gemini가 내는 naive 벽시계(KST 의도)를 +09:00 앵커로 고정
+    // → 등록 시 UTC로 정확히 적재(naive 저장 +9h 사고 차단, datetime SSOT).
+    items = (Array.isArray(items) ? items : [])
+      .filter((i) => i?.title && i?.start_at)
+      .slice(0, 5)
+      .map((i) => ({ ...i, start_at: normalizeKstWallString(i.start_at) }))
     return { ok: true, items }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : '추천 실패' }

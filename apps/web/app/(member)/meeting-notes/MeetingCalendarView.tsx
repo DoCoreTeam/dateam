@@ -5,6 +5,7 @@
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, CalendarClock } from 'lucide-react'
 import { formatKstTime } from '@/lib/calendar/format-time'
+import { kstDateKey } from '@/lib/datetime/kst'
 import type { MeetingListItemView } from './list-types'
 
 interface Props {
@@ -36,10 +37,8 @@ function shiftYm(year: number, month: number, delta: number): string {
 
 function dayKey(iso: string | null): string | null {
   if (!iso) return null
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return null
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  // KST 기준 날짜(datetime SSOT) — 서버 컴포넌트에서 new Date().getDate()는 서버TZ(UTC)라 자정 경계 오분류.
+  return kstDateKey(iso) || null
 }
 
 export default function MeetingCalendarView({ items, ym, q, sort, filter }: Props) {

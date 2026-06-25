@@ -3,6 +3,7 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
+import { kstTodayKey } from '@/lib/datetime/kst'
 import { isDeptTaskStatus, normalizeProgress, sanitizeChecklist, computeProgress, compareDeptTaskUrgency, summarizeDeptTasks, type DeptTaskCounts } from '@/lib/dept-task-utils'
 import type { DailyLog, DailyLogEntryType, DailyLogPriority, DailyLogThread, DeptTaskChecklistItem } from '@/types/database'
 
@@ -165,7 +166,7 @@ export async function createDeptTask(input: DeptTaskInput): Promise<ActionResult
     })
       .insert({
         user_id: user.id,
-        log_date: new Date().toISOString().slice(0, 10),
+        log_date: kstTodayKey(), // KST 오늘(datetime SSOT) — UTC slice 금지(자정 경계 1일 오차)
         content: input.content.trim(),
         entry_type: 'planned' as DailyLogEntryType,
         task_kind: 'dept_task',
@@ -226,7 +227,7 @@ export async function promoteDailyToDeptTask(
     })
       .insert({
         user_id: user.id,
-        log_date: new Date().toISOString().slice(0, 10),
+        log_date: kstTodayKey(), // KST 오늘(datetime SSOT) — UTC slice 금지(자정 경계 1일 오차)
         content: String(src.content ?? '').trim(),
         entry_type: 'planned' as DailyLogEntryType,
         task_kind: 'dept_task',
@@ -490,7 +491,7 @@ export async function listHomeDeptTasks(opts: { mode?: DeptHomeViewMode; today: 
   const empty: DeptHomeResult = { items: [], counts: { total: 0, overdue: 0, blocker: 0, dueToday: 0 }, canViewDept: false, mode: 'mine', nameMap: {}, deptNameMap: {} }
   // 입력 검증 (서버액션 신뢰경계): mode 화이트리스트, today ISO 형식
   const requestedMode = opts.mode && (opts.mode === 'mine' || opts.mode === 'dept') ? opts.mode : undefined
-  const today = ISO_DATE.test(opts.today) ? opts.today : new Date().toISOString().slice(0, 10)
+  const today = ISO_DATE.test(opts.today) ? opts.today : kstTodayKey()
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

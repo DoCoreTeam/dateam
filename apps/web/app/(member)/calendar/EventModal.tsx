@@ -4,6 +4,7 @@ import { useEscClose } from '@/lib/use-esc-close'
 import { useState, useRef } from 'react'
 import { Sparkles, X } from 'lucide-react'
 import { createCalendarEvent } from './actions'
+import { kstWallToIso, kstDateOnlyToIso } from '@/lib/datetime/kst'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 
@@ -72,8 +73,9 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
   async function save() {
     if (!title.trim()) { setMsg('제목을 입력하세요'); return }
     setBusy(true); setMsg(null)
-    const start_at = allDay ? `${startDate}T00:00:00` : `${startDate}T${startTime}:00`
-    const end_at = !allDay && endTime ? `${startDate}T${endTime}:00` : null
+    // datetime SSOT — KST 벽시계를 +09:00 앵커로 저장(UTC 정확 적재). naive 문자열 직접 조립 금지.
+    const start_at = allDay ? kstDateOnlyToIso(startDate) : kstWallToIso(startDate, startTime)
+    const end_at = !allDay && endTime ? kstWallToIso(startDate, endTime) : null
     const rrule = repeat === 'daily' ? 'FREQ=DAILY' : repeat === 'weekly' ? 'FREQ=WEEKLY' : null
     const r = await createCalendarEvent({ title: title.trim(), start_at, end_at, all_day: allDay, description: desc || null, rrule })
     setBusy(false)

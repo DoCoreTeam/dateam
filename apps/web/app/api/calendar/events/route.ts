@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { kstRangeToUtc } from '@/lib/datetime/kst'
 
 // GET /api/calendar/events?start=YYYY-MM-DD&end=YYYY-MM-DD
 // 범위 내 일정 조회 (RLS: 본인 + 조직 계층). 반복(rrule) 전개는 P4.
@@ -14,8 +15,10 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '인증 필요' }, { status: 401 })
 
-  const fromMs = new Date(`${start}T00:00:00Z`).getTime()
-  const toMs = new Date(`${end}T23:59:59Z`).getTime()
+  // KST 날짜 범위를 UTC 절대시각 경계로 환산(datetime SSOT). 'Z' 직접 앵커 금지 — 9시간 어긋남 방지.
+  const { fromIso, toIso } = kstRangeToUtc(start, end)
+  const fromMs = new Date(fromIso).getTime()
+  const toMs = new Date(toIso).getTime()
 
   // 단발: 범위 내 시작 / 반복: 시작이 범위 끝 이전이면 후보 (전개는 아래)
   // 하한(start)을 추가해 과거 전체 스캔 방지 — 단, 반복(rrule)은 시작이 범위 이전이어도
@@ -23,8 +26,8 @@ export async function GET(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase.from('calendar_events') as any)
     .select('id, title, description, start_at, end_at, all_day, source, link_kind, link_id, status, user_id, rrule')
-    .lte('start_at', `${end}T23:59:59`)
-    .or(`start_at.gte.${start}T00:00:00,rrule.not.is.null`)
+    .lte('start_at', toIso)
+    .or(`start_at.gte.${fromIso},rrule.not.is.null`)
     .order('start_at', { ascending: true })
     .limit(1000)
 
