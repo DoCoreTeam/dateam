@@ -8,6 +8,7 @@ import CatalogUploadSection from '@/components/pricing/gpu/CatalogUploadSection'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import { classifyFile, ACCEPT_ALL, formatMB } from '@/lib/gpu/intake-files'
+import { fmtUSD } from '@/lib/gpu/format-price'
 import { downscaleImage } from '@/lib/gpu/image-downscale'
 import {
   SupplierPreviewRow,
@@ -609,7 +610,7 @@ export default function QuoteRegisterTab() {
                       <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>{item.model} {item.memory}</span>
                       {unknown
                         ? <span className="gpu-badge gpu-badge-warn" title="가격 정보 없음 — 시장반영 제외, 사용자 확인 필요">가격미상</span>
-                        : <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }} title={item.original_currency && item.original_currency !== 'USD' ? `USD 환산 $${item.price_usd}/hr` : undefined}>{fmtOriginalPrice(item)}</span>}
+                        : <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-accent)' }} title={item.original_currency && item.original_currency !== 'USD' ? `USD 환산 ${fmtUSD(item.price_usd)}/hr` : undefined}>{fmtOriginalPrice(item)}</span>}
                       {!applied && (
                         <button
                           onClick={() => moveToSupplier(i)}

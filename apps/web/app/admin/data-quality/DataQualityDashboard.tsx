@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import useSWR from 'swr'
+import { fmtUSD } from '@/lib/gpu/format-price'
 
 interface Metrics {
   review_items: { total: number; pending: number; confirmed: number; rejected: number; superseded: number; low_confidence: number }
@@ -108,7 +109,7 @@ export default function DataQualityDashboard() {
                     <div key={it.id ?? i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px', borderRadius: 8, background: '#fff', border: 'var(--hairline) solid var(--surface-bg)', fontSize: 12.5 }}>
                       {drill === 'anomaly' && <>
                         <span style={{ fontWeight: 600, flex: 1 }}>{it.model_name} <span style={{ color: 'var(--text-faint)' }}>T{it.tier}</span></span>
-                        <span style={{ fontWeight: 700, color: 'var(--danger)' }}>${it.unit_price_usd}/hr</span>
+                        <span style={{ fontWeight: 700, color: 'var(--danger)' }}>{fmtUSD(it.unit_price_usd)}/hr</span>
                         <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>{it.reason}</span>
                       </>}
                       {(drill === 'low_confidence' || drill === 'pending') && <>

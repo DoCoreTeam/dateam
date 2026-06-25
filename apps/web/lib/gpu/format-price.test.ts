@@ -24,16 +24,23 @@ test('fmtKRW — null/undefined/NaN → 대시', () => {
 
 // ── fmtUSD ────────────────────────────────────────────────────────────────────
 
-test('fmtUSD — 소수 2자리 고정 + 달러 기호', () => {
+test('fmtUSD — 최소 2자리(센트) 유지 + 달러 기호', () => {
   assert.equal(fmtUSD(3.24), '$3.24')
   assert.equal(fmtUSD(1234.5), '$1,234.50')
   assert.equal(fmtUSD(0), '$0.00')
 })
 
-test('fmtUSD — 소수 2자리 이상은 반올림(en-US)', () => {
-  // toLocaleString 은 3자리에서 반올림
-  const result = fmtUSD(3.245)
-  assert.ok(result.startsWith('$3.2'), `expected $3.2x, got ${result}`)
+test('fmtUSD — 무한소수는 셋째 자리에서 올림(ceil), 최대 3자리', () => {
+  // 사용자 원성: 0.81018518… 같은 raw 정밀도 노출 차단
+  assert.equal(fmtUSD(0.81018518518), '$0.811')   // 0.810185… → 올림 0.811
+  assert.equal(fmtUSD(0.92592592592), '$0.926')   // 0.925925… → 0.926
+  assert.equal(fmtUSD(2.7546296296), '$2.755')    // 2.75462… → 2.755
+  assert.equal(fmtUSD(1.0578703703), '$1.058')
+  // 셋째 자리에 떨어지면 그대로(올림 영향 없음)
+  assert.equal(fmtUSD(3.24), '$3.24')
+  assert.equal(fmtUSD(3.245), '$3.245')
+  // 이미 3자리 이하면 올림으로 값이 커지지 않음
+  assert.equal(fmtUSD(0.5), '$0.50')
 })
 
 test('fmtUSD — null/undefined/NaN → 대시', () => {

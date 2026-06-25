@@ -5,6 +5,7 @@ import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { ChevronDown, ChevronUp, Package } from 'lucide-react'
 import { formatSpec } from '@/lib/gpu/format-spec'
+import { fmtUSD } from '@/lib/gpu/format-price'
 import { SupplierBadge } from '@/components/gpu/SupplierBadge'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { buildTierModelGroups, tierKey, modelKey } from '@/lib/gpu/group'
@@ -351,7 +352,7 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
                 <div key={i} style={{ padding: '8px 12px', borderRadius: 8, background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <SupplierBadge name={sup.name} color={sup.color} kind={sup.name === 'gcube' ? 'self' : 'ours'} unassigned={sup.supplier_id == null} />
                   <span style={{ fontSize: 12, color: 'var(--gpu-muted)', fontFamily: 'var(--font-mono, monospace)' }}>
-                    ${sup.unit_price_usd.toFixed(2)} <span style={{ fontSize: 10 }} title={memoryTitle(item.memory, item.gpu_count) || undefined}>(×{item.gpu_count} 구성)</span>
+                    {fmtUSD(sup.unit_price_usd)} <span style={{ fontSize: 10 }} title={memoryTitle(item.memory, item.gpu_count) || undefined}>(×{item.gpu_count} 구성)</span>
                   </span>
                   <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
                     {sup.has_qty && sup.resp_qty != null && (

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
+import { fmtUSD } from '@/lib/gpu/format-price'
 
 interface AuditLog {
   id: string
@@ -55,12 +56,12 @@ function renderDetail(type: string, detail: Record<string, unknown>): string | n
   const d = detail
   switch (type) {
     case 'quote_registered':
-      return d.unit_price_usd != null ? `단가 $${d.unit_price_usd}/hr` : null
+      return d.unit_price_usd != null ? `단가 ${fmtUSD(Number(d.unit_price_usd))}/hr` : null
     case 'quote_confirmed':
-      return d.unit_price_usd != null ? `$${d.unit_price_usd}/hr 확정` : '확정 완료'
+      return d.unit_price_usd != null ? `${fmtUSD(Number(d.unit_price_usd))}/hr 확정` : '확정 완료'
     case 'lowest_changed': {
-      const prev = d.prev_usd != null ? `$${d.prev_usd}` : null
-      const next = d.new_usd != null ? `$${d.new_usd}` : null
+      const prev = d.prev_usd != null ? fmtUSD(Number(d.prev_usd)) : null
+      const next = d.new_usd != null ? fmtUSD(Number(d.new_usd)) : null
       if (prev && next) return `${prev} → ${next}/hr`
       if (next) return `최저가 ${next}/hr`
       return null
@@ -83,7 +84,7 @@ function renderDetail(type: string, detail: Record<string, unknown>): string | n
     case 'review_finalized': {
       const parts: string[] = []
       if (d.supplier_hint) parts.push(String(d.supplier_hint))
-      if (d.unit_price_usd != null) parts.push(`$${d.unit_price_usd}/hr`)
+      if (d.unit_price_usd != null) parts.push(`${fmtUSD(Number(d.unit_price_usd))}/hr`)
       if (d.overall_confidence != null) parts.push(`신뢰도 ${d.overall_confidence}%`)
       return parts.length ? parts.join(' · ') : null
     }

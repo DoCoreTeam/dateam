@@ -11,6 +11,7 @@ import {
   bandLabel,
   type ConfidenceBand,
 } from '@/lib/gpu/confidence-gate'
+import { fmtUSD } from '@/lib/gpu/format-price'
 
 // 표의 한 행(공급원가 또는 시장가)
 export interface GateRow {
@@ -27,10 +28,8 @@ const BAND_BADGE: Record<ConfidenceBand, string> = {
   block: 'gpu-gate-badge--block',
 }
 
-function fmtUsd(v: number | null): string {
-  if (v == null) return '—'
-  return `$${v.toFixed(2)}`
-}
+// USD 표시 SSOT 위임(format-price). 로컬 toFixed(2) 중복 제거 — ceil 3자리 정책 일관.
+const fmtUsd = (v: number | null): string => fmtUSD(v)
 
 interface IntakeGateSummaryProps {
   rows: GateRow[]

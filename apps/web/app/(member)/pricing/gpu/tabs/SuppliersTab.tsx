@@ -206,8 +206,8 @@ function QuoteEditModal({ quote, onClose, onChanged }: { quote: QuoteRow; onClos
               <div style={{ marginTop: 10, fontSize: 12.5 }}>
                 <div style={{ display: 'flex', gap: 12, fontFamily: 'monospace', fontWeight: 700 }}>
                   <span>장수 {suggestion.gpu_count}</span>
-                  <span>단가 ${suggestion.unit_price_usd}</span>
-                  <span>1장당 ${suggestion.per_gpu_usd}</span>
+                  <span>단가 {fmtUSD(suggestion.unit_price_usd)}</span>
+                  <span>1장당 {fmtUSD(suggestion.per_gpu_usd)}</span>
                   <span style={{ color: 'var(--gpu-muted)', fontWeight: 400 }}>{suggestion.price_basis}</span>
                   {suggestion.confidence != null && <span style={{ marginLeft: 'auto', color: 'var(--gpu-accent)' }}>{suggestion.confidence}%</span>}
                 </div>

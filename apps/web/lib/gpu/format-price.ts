@@ -15,14 +15,28 @@ export function fmtKRW(v: number | null | undefined): string {
 }
 
 /**
- * USD 포맷. 소수 2자리 고정 + 천단위 구분.
+ * USD 포맷. 소수 최대 3자리·올림(ceil) + 천단위 구분. 최소 2자리(센트) 유지.
  * null/NaN → '—'
  *
+ * 왜 ceil 3자리: KRW÷FX·÷시간 환산이 0.81018518… 같은 무한소수를 만들어
+ *   raw로 노출되던 사고(사용자 원성)를 SSOT에서 차단. 셋째 자리에서 올림.
+ *
+ * @example fmtUSD(0.81018518) → '$0.811'   (셋째 자리 올림)
  * @example fmtUSD(1234.5) → '$1,234.50'
+ * @example fmtUSD(3.24) → '$3.24'
  */
+const USD_DECIMALS = 3
+const USD_CEIL_FACTOR = 10 ** USD_DECIMALS // 1000
+
+/** 셋째 자리 올림(부호 보존). 음수는 절대값 기준 올림 후 부호 복원(표시 일관). */
+function ceilUsd(v: number): number {
+  const sign = v < 0 ? -1 : 1
+  return (sign * Math.ceil(Math.abs(v) * USD_CEIL_FACTOR)) / USD_CEIL_FACTOR
+}
+
 export function fmtUSD(v: number | null | undefined): string {
   if (v == null || !isFinite(v)) return '—'
-  return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return '$' + ceilUsd(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: USD_DECIMALS })
 }
 
 export type CurrencyMode = 'KRW' | 'USD'

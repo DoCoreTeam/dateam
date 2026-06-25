@@ -1,6 +1,8 @@
 // 통합입력 미리보기 — 공급가↔경쟁사 인라인 정정 보조(형태 변환 SSOT + 공급가 행 컴포넌트).
 // QuoteRegisterTab에서 분리(파일 비대화 방지). 표시 전용 — 데이터 상태는 부모가 소유.
 
+import { fmtUSD, fmtKRW } from '@/lib/gpu/format-price'
+
 export interface CompetitorSavedItem {
   competitor: string
   model: string
@@ -17,13 +19,13 @@ export interface CompetitorSavedItem {
 export function fmtOriginalPrice(it: { original_currency?: string | null; original_price?: number | null; price_usd: number }): string {
   const cur = it.original_currency
   if (cur === 'KRW' && typeof it.original_price === 'number') {
-    return `₩${Math.round(it.original_price).toLocaleString('ko-KR')}/hr`
+    return `${fmtKRW(it.original_price)}/hr`
   }
   if (cur === 'USD' && typeof it.original_price === 'number') {
-    return `$${it.original_price}/hr`
+    return `${fmtUSD(it.original_price)}/hr`
   }
   // 통화 미상(기존행 등) → USD 가정 폴백
-  return `$${it.price_usd}/hr`
+  return `${fmtUSD(it.price_usd)}/hr`
 }
 
 export type CompetitorPreviewRaw = { competitor_name: string; model_name: string; memory: string; price_usd: number }
