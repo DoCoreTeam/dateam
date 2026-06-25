@@ -7,7 +7,7 @@ import { SCHEMA_CONTRACT } from '@/lib/gpu/schema-contract'
 import { BILLING_EXTRACT_HINT } from '@/lib/gpu/billing'
 import { dedupSupplier, dedupCompetitor, type CompetitorLike } from '@/lib/gpu/dedup'
 import { toUsdPerGpuHour } from '@/lib/gpu/normalize-money'
-import { partitionValid, validateSupplierItem } from '@/lib/gpu/validate'
+import { partitionValid, validateSupplierItem, MAX_INTAKE_ITEMS } from '@/lib/gpu/validate'
 import { normalizeExtractedModel } from '@/lib/gpu/canonical-model'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { safeFetchText } from '@/lib/security/safe-fetch'
@@ -433,8 +433,9 @@ export async function POST(req: NextRequest) {
   if (Array.isArray(parsed.items) && parsed.items.length === 0) {
     return NextResponse.json({ error: 'AI가 GPU 모델을 인식하지 못했습니다' }, { status: 422 })
   }
+  const truncated = Array.isArray(parsed.items) ? Math.max(0, parsed.items.length - MAX_INTAKE_ITEMS) : 0 // RC-D 무음 소실 방지
   const rawItemsList: SingleExtracted[] = Array.isArray(parsed.items)
-    ? parsed.items.slice(0, 50)
+    ? parsed.items.slice(0, MAX_INTAKE_ITEMS)
     : [{ extracted: parsed.extracted, confidence: parsed.confidence, evidence: parsed.evidence, impact_assessment: parsed.impact_assessment }]
 
   // 빈 추출 가드 — 모델명이 없는 항목은 GPU 견적이 아님(쓰레기 항목 생성 방지).
@@ -534,7 +535,7 @@ export async function POST(req: NextRequest) {
   if (auditError) console.error('[review POST] gpu_audit_logs insert failed:', auditError.message)
 
   if (insertedArr.length === 1) {
-    return NextResponse.json({ type: 'supplier', item: insertedArr[0] })
+    return NextResponse.json({ type: 'supplier', item: insertedArr[0], truncated })
   }
-  return NextResponse.json({ type: 'supplier', items: insertedArr, count: insertedArr.length, batch_id: batchId })
+  return NextResponse.json({ type: 'supplier', items: insertedArr, count: insertedArr.length, batch_id: batchId, truncated })
 }

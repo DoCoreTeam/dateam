@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { dedupSupplier } from '@/lib/gpu/dedup'
-import { partitionValid, validateSupplierItem } from '@/lib/gpu/validate'
+import { partitionValid, validateSupplierItem, MAX_INTAKE_ITEMS } from '@/lib/gpu/validate'
 import { normalizeExtractedModel } from '@/lib/gpu/canonical-model'
 
 // 공급가 미리보기 → 검토 대기 저장(버튼 클릭 시). stream 엔드포인트가 추출한 items를 받아 review_items INSERT.
@@ -26,7 +26,9 @@ export async function POST(req: NextRequest) {
   let body: { items?: unknown; channel?: unknown; is_test?: unknown }
   try { body = await req.json() } catch { return NextResponse.json({ error: '요청 형식 오류' }, { status: 400 }) }
 
-  const items = Array.isArray(body.items) ? (body.items as PreviewItem[]).slice(0, 50) : []
+  const allItems = Array.isArray(body.items) ? (body.items as PreviewItem[]) : []
+  const truncated = Math.max(0, allItems.length - MAX_INTAKE_ITEMS) // 무음 소실 방지(RC-D) — 응답에 노출
+  const items = allItems.slice(0, MAX_INTAKE_ITEMS)
   const channel = typeof body.channel === 'string' ? body.channel : 'own'
   const isTest = body.is_test === true
   const adminClient = createAdminClient()
@@ -76,5 +78,5 @@ export async function POST(req: NextRequest) {
     detail: { batch_id: valid.length > 1 ? batchId : null, count: arr.length, review_item_ids: arr.map((i) => i.id), is_test: isTest, via: 'stream-commit', blocked: blocked.length },
   }).then(undefined, () => {})
 
-  return NextResponse.json({ ok: true, count: arr.length, items: arr, blocked: blocked.length })
+  return NextResponse.json({ ok: true, count: arr.length, items: arr, blocked: blocked.length, truncated })
 }

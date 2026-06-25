@@ -2,6 +2,11 @@
 // 정책: 같은 검증이 필요하면 새로 짜지 말고 이 모듈 import. enum/범위는 DB CHECK 제약을 미러(드리프트 테스트로 감시).
 // H2 신뢰도 게이팅·H4 이상탐지(sanity)도 여기서 함께 수행.
 
+// 통합입력 1회 처리 행 상한(SSOT) — 추출(batch)·확정(commit) 경로가 동일 상수 사용.
+//  과거 두 경로가 slice(0,50)을 복붙해 미리보기(다수)↔저장(50)이 비대칭 → 50행 초과분 무음 소실(RC-D).
+//  상한은 남기되(거대 페이로드 방어) 500으로 상향하고, 초과 시 truncated 카운트로 노출(무음 금지).
+export const MAX_INTAKE_ITEMS = 500
+
 // ── SSOT: DB CHECK 제약 미러 (058/052 등). 변경 시 drift 테스트가 잡음 ──
 export const ENUMS = {
   pricing_model: ['on_demand', 'reserved_1y', 'reserved_3y', 'spot', 'committed'],
