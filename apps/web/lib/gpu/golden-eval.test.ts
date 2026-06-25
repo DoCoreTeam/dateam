@@ -1,7 +1,7 @@
 import { describe, it, expect } from '../test-utils/vitest-compat.ts'
 import { GOLDEN } from './golden-set.ts'
 import { validateSupplierItem, validateCompetitorItem } from './validate.ts'
-import { INTAKE_FIELD_MAP, resolveStatus } from './intake-routing.ts'
+import { INTAKE_FIELD_MAP, resolveStatus } from './intake-routing-core.ts'
 
 // 축8 골든셋 eval (#6) — 결정적 부분: bad 케이스는 검증 게이트가 100% 차단해야 한다.
 // good 케이스(가격 환산 정확도)는 라이브 추출(Gemini) 필요 — 파이프라인 단위검증(별도)에서 커버.
