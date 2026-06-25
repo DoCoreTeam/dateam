@@ -2,37 +2,17 @@
 // 정책: 같은 연계가 필요하면 새로 짜지 말고 여기에 추가. 재고 쓰기는 recordAvailability(repository) 재사용.
 // 축4 계약게이트: 추출 필드는 전부 INTAKE_FIELD_MAP에 저장대상이 선언돼야 함(없으면 테스트가 차단 → 증발 방지).
 //
-// 순수 계약/정규화(INTAKE_FIELD_MAP·resolveStatus·unmappedFields·타입)는 intake-routing-core.ts로 분리
-//   (next/cache 결합 없이 회귀테스트가 로드). 여기선 그걸 re-export + DB 부수효과(routeAvailability)만 둔다.
+// 순수 계약·라우팅 결정(routeAvailability 포함, recordAvailability 주입형)은 intake-routing-core.ts
+//   (next/cache 결합 없이 테스트 로드). 여기선 실 recordAvailability를 주입 + re-export만 한다.
 
 import { recordAvailability } from './repository.ts'
-import { num, resolveStatus, type IntakeContext, type RouteOutcome } from './intake-routing-core.ts'
+import { routeAvailability as routeAvailabilityCore, type IntakeContext, type RouteOutcome } from './intake-routing-core.ts'
 
 export * from './intake-routing-core.ts'
 
-// 재고 섹션 라우팅 — quantity 있으면 recordAvailability(SSOT) 재사용. 멱등: 같은 product×supplier 1건 current.
-export async function routeAvailability(ctx: IntakeContext, quantity: unknown): Promise<RouteOutcome> {
-  if (!quantity || typeof quantity !== 'object') {
-    return { target: 'availability_responses', status: 'skipped', reason: 'quantity 없음' }
-  }
-  const q = quantity as Record<string, unknown>
-  const respQty = num(q.resp_qty)
-  const hasSignal = respQty != null || typeof q.status === 'string' || q.out_of_stock_explicit === true
-  if (!hasSignal) {
-    return { target: 'availability_responses', status: 'skipped', reason: 'resp_qty/status 없음(부분커밋)' }
-  }
-  const r = await recordAvailability(ctx.db, ctx.adminDb, {
-    productId: ctx.productId,
-    supplierId: ctx.supplierId,
-    status: resolveStatus(q),
-    respQty,
-    isTotalCapacity: q.is_total_capacity === true,
-    actor: ctx.actor,
-    isTest: ctx.isTest,
-  })
-  return r.ok
-    ? { target: 'availability_responses', status: 'written' }
-    : { target: 'availability_responses', status: 'error', reason: r.error }
+// 재고 섹션 라우팅 — core에 실 recordAvailability(SSOT) 주입. 기존 호출처 시그니처 호환(ctx, quantity).
+export function routeAvailability(ctx: IntakeContext, quantity: unknown): Promise<RouteOutcome> {
+  return routeAvailabilityCore(ctx, quantity, recordAvailability)
 }
 
 // 통합입력 라우팅 진입점 — 가격(supply_quotes)은 confirm이 직접 처리하므로, 여기선 부가 연계(재고 등)만.

@@ -67,3 +67,39 @@ export function resolveStatus(q: Record<string, unknown>): string {
 export function unmappedFields(extractedKeys: string[]): string[] {
   return extractedKeys.filter((k) => !(k in INTAKE_FIELD_MAP))
 }
+
+// recordAvailability(재고 SSOT writer) 시그니처 — 주입용. 실구현은 repository.ts, 테스트는 fake.
+export type RecordAvailabilityFn = (
+  db: Db, adminDb: Db,
+  args: { productId: string; supplierId: string | null; status: string; respQty: number | null; isTotalCapacity: boolean; actor: string; isTest: boolean },
+) => Promise<{ ok: boolean; error?: string }>
+
+// 재고 섹션 라우팅(순수 결정 + 주입된 writer). intake-routing.ts가 실 recordAvailability 주입,
+//  테스트는 fake 주입(모듈모킹·next/cache 결합 불필요). 멱등: 같은 product×supplier 1건 current.
+export async function routeAvailability(
+  ctx: IntakeContext,
+  quantity: unknown,
+  record: RecordAvailabilityFn,
+): Promise<RouteOutcome> {
+  if (!quantity || typeof quantity !== 'object') {
+    return { target: 'availability_responses', status: 'skipped', reason: 'quantity 없음' }
+  }
+  const q = quantity as Record<string, unknown>
+  const respQty = num(q.resp_qty)
+  const hasSignal = respQty != null || typeof q.status === 'string' || q.out_of_stock_explicit === true
+  if (!hasSignal) {
+    return { target: 'availability_responses', status: 'skipped', reason: 'resp_qty/status 없음(부분커밋)' }
+  }
+  const r = await record(ctx.db, ctx.adminDb, {
+    productId: ctx.productId,
+    supplierId: ctx.supplierId,
+    status: resolveStatus(q),
+    respQty,
+    isTotalCapacity: q.is_total_capacity === true,
+    actor: ctx.actor,
+    isTest: ctx.isTest,
+  })
+  return r.ok
+    ? { target: 'availability_responses', status: 'written' }
+    : { target: 'availability_responses', status: 'error', reason: r.error }
+}
