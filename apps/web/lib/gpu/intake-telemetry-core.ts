@@ -78,6 +78,35 @@ export function deriveStatus(counts: IntakeCounts, errorCode?: string | null): R
   return lossy > 0 ? 'partial' : 'succeeded'
 }
 
+// ── 게이트 결과 → 이벤트(status+reason_code) 브릿지(순수) ──
+//  결정론 게이트(validate·conformance·slice)의 산출을 텔레메트리 이벤트로 분류한다.
+//  라우트 배선 시 emitEvent에 그대로 투입 → "무음 드롭/오염"이 reason_code로 적재됨.
+
+export interface EventClass { status: EventStatus; reasonCode: ReasonCode | null }
+
+/** 검증 결과(validate.ts issues) → 이벤트. price block=차단(dropped), price warn=보존(warn), 그 외 정상. */
+export function classifyValidation(issues: Array<{ field?: string; severity: 'block' | 'warn' }>): EventClass {
+  const priceBlock = issues.some((i) => i.field === 'price' && i.severity === 'block')
+  if (priceBlock) return { status: 'dropped', reasonCode: 'no_price_blocked' }
+  const priceWarn = issues.some((i) => i.field === 'price' && i.severity === 'warn')
+  if (priceWarn) return { status: 'warn', reasonCode: 'unparseable_price' }
+  const anyBlock = issues.some((i) => i.severity === 'block')
+  if (anyBlock) return { status: 'dropped', reasonCode: null }
+  return { status: 'ok', reasonCode: null }
+}
+
+/** 카탈로그 바인딩 결정(conformance) → 이벤트. none=held(model_unresolved), candidates=warn(보류·후보), auto=ok. */
+export function classifyBinding(decision: 'auto' | 'candidates' | 'none'): EventClass {
+  if (decision === 'none') return { status: 'held', reasonCode: 'model_unresolved' }
+  if (decision === 'candidates') return { status: 'warn', reasonCode: null }
+  return { status: 'ok', reasonCode: null }
+}
+
+/** slice 절단(RC-D) → 이벤트. truncated>0면 dropped/slice_truncated. */
+export function classifyTruncation(truncated: number): EventClass | null {
+  return truncated > 0 ? { status: 'dropped', reasonCode: 'slice_truncated' } : null
+}
+
 /** finishRun용 patch 생성. startedAtMs/nowMs는 호출부 주입(Date.now 비결정성 회피). */
 export function finalizeRunPatch(
   counts: IntakeCounts,

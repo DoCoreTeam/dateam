@@ -1,6 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildRunRow, buildEventRow, deriveStatus, finalizeRunPatch } from './intake-telemetry-core.ts'
+import {
+  buildRunRow, buildEventRow, deriveStatus, finalizeRunPatch,
+  classifyValidation, classifyBinding, classifyTruncation,
+} from './intake-telemetry-core.ts'
 
 test('buildRunRow — 기본값·snake_case 컬럼 매핑', () => {
   const row = buildRunRow({ channel: 'xlsx', userId: 'u1', sourceFilename: 'q.xlsx' })
@@ -41,4 +44,22 @@ test('finalizeRunPatch — 주입된 시각으로 duration 결정적 계산(Date
   assert.equal(patch.error_code, null)
   // 음수 방지
   assert.equal(finalizeRunPatch({}, { startedAtMs: 5000, nowMs: 4000 }).duration_ms, 0)
+})
+
+test('classifyValidation — price block=dropped/no_price_blocked, warn=warn/unparseable', () => {
+  assert.deepEqual(classifyValidation([{ field: 'price', severity: 'block' }]), { status: 'dropped', reasonCode: 'no_price_blocked' })
+  assert.deepEqual(classifyValidation([{ field: 'price', severity: 'warn' }]), { status: 'warn', reasonCode: 'unparseable_price' })
+  assert.deepEqual(classifyValidation([{ field: 'model_name', severity: 'block' }]), { status: 'dropped', reasonCode: null })
+  assert.deepEqual(classifyValidation([]), { status: 'ok', reasonCode: null })
+})
+
+test('classifyBinding — none=held/model_unresolved, candidates=warn, auto=ok', () => {
+  assert.deepEqual(classifyBinding('none'), { status: 'held', reasonCode: 'model_unresolved' })
+  assert.deepEqual(classifyBinding('candidates'), { status: 'warn', reasonCode: null })
+  assert.deepEqual(classifyBinding('auto'), { status: 'ok', reasonCode: null })
+})
+
+test('classifyTruncation — 초과 시 dropped/slice_truncated, 0이면 null', () => {
+  assert.deepEqual(classifyTruncation(40), { status: 'dropped', reasonCode: 'slice_truncated' })
+  assert.equal(classifyTruncation(0), null)
 })
