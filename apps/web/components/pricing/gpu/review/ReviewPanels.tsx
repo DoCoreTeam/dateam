@@ -6,6 +6,7 @@
 import { ChevronDown, ChevronUp, ArrowRight, Sparkles, FileText } from 'lucide-react'
 import { buildPriceBreakdown } from '@/lib/gpu/price-breakdown'
 import { parseBilling } from '@/lib/gpu/billing'
+import { fmtUSD } from '@/lib/gpu/format-price'
 import type { FieldDiff } from '@/lib/gpu/extract-diff'
 
 // AI 추출 단가와 SSOT 정합 단가가 이 비율 넘게 다르면 환산 불일치 경고
@@ -76,7 +77,7 @@ export function PriceBreakdownPanel({ extracted, krwPerUsd, open, onToggle }: Ex
               ))}
               {mismatch && (
                 <div className="gpu-rev-warn">
-                  ⚠️ AI 추출 단가({aiVal} USD/hr)와 매매기준율 기준 정합 단가({breakdown.usdPerGpuHour?.toFixed(4)})가 다릅니다. 환율·시간 환산을 확인하세요.
+                  ⚠️ AI 추출 단가({fmtUSD(aiVal)}/hr)와 매매기준율 기준 정합 단가({breakdown.usdPerGpuHour != null ? fmtUSD(breakdown.usdPerGpuHour) : '—'})가 다릅니다. 환율·시간 환산을 확인하세요.
                 </div>
               )}
             </div>
