@@ -6,7 +6,7 @@ import { fetcher } from '@/lib/swr-config'
 import { AlertTriangle, CheckCircle2, RotateCcw, ChevronDown, ChevronUp, Search, Plus, Building2, X } from 'lucide-react'
 import { PriceBreakdownPanel, BillingPanel, RecheckResultPanel, EvidenceLink, type RecheckResult } from '@/components/pricing/gpu/review/ReviewPanels'
 import NbModal from '@/components/ui/nb/NbModal'
-import { fmtUSD } from '@/lib/gpu/format-price'
+import { fmtUSD, fmtKRW } from '@/lib/gpu/format-price'
 
 interface Supplier {
   id: string
@@ -248,12 +248,17 @@ const IMPACT_CONFIG: Record<string, { label: string; color: string }> = {
 
 // USD 가격 필드 표시 SSOT — 검토 카드의 가격은 fmtUSD(ceil 3자리) 경유(raw 7.40740740… 노출 차단).
 //  추출 직후 검토 화면이 실제 렌더경로 — 정적검증/다른 7개 사이트와 별개로 여기도 SSOT 강제.
+//  krwPerUsd 주어지면 KRW 환산 병기(검토자가 익숙한 원화로 확인). ⚠️원본 통화(original_currency)는
+//  추출 단계가 보존 안 해 여기선 USD→KRW 환산만 — 원본 보존은 USAI 추출 개선이 근본해결(별도).
 const USD_PRICE_KEYS = new Set(['unit_price_usd', 'price_usd', 'per_gpu_usd'])
-function fmtField(key: string, val: unknown): string {
+function fmtField(key: string, val: unknown, krwPerUsd?: number | null): string {
   if (val == null || String(val).trim() === '') return ''
   if (USD_PRICE_KEYS.has(key)) {
     const n = typeof val === 'number' ? val : parseFloat(String(val))
-    if (Number.isFinite(n)) return fmtUSD(n)
+    if (Number.isFinite(n)) {
+      const usd = fmtUSD(n)
+      return krwPerUsd && krwPerUsd > 0 ? `${usd}  (${fmtKRW(n * krwPerUsd)})` : usd
+    }
   }
   return String(val)
 }
@@ -514,7 +519,7 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
             <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--color-border)' }}>
               <span style={{ minWidth: 96, fontSize: 12, color: 'var(--gpu-muted)' }}>{label}</span>
               <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
-                {fmtField(key, extracted[key]) !== '' ? fmtField(key, extracted[key]) : <span style={{ color: 'var(--gpu-faint)', fontWeight: 400 }}>—</span>}
+                {fmtField(key, extracted[key], krwPerUsd) !== '' ? fmtField(key, extracted[key], krwPerUsd) : <span style={{ color: 'var(--gpu-faint)', fontWeight: 400 }}>—</span>}
               </span>
             </div>
           ))}
@@ -560,7 +565,7 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
                         const display = selectedSupplier?.name ?? (manualSupplierName || null) ?? (val != null ? String(val) : null)
                         return display ?? <span style={{ color: 'var(--gpu-faint)', fontWeight: 400 }}>미인식</span>
                       })()
-                    : fmtField(f, val) !== '' ? fmtField(f, val) : <span style={{ color: 'var(--gpu-faint)', fontWeight: 400 }}>미인식</span>
+                    : fmtField(f, val, krwPerUsd) !== '' ? fmtField(f, val, krwPerUsd) : <span style={{ color: 'var(--gpu-faint)', fontWeight: 400 }}>미인식</span>
                   }
                 </span>
                 <ConfidenceBar value={conf ?? null} label="" />
