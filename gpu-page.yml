@@ -1,0 +1,516 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary "주 사이드바" [ref=e3]:
+      - generic [ref=e5]:
+        - link "데이터얼라이언스" [ref=e6] [cursor=pointer]:
+          - /url: /home
+          - generic [ref=e7]: 데이터얼라이언스
+        - button "업데이트 내역 보기" [ref=e8] [cursor=pointer]: v0.7.275
+      - navigation "주 메뉴" [ref=e9]:
+        - list [ref=e10]:
+          - listitem [ref=e11]:
+            - link "홈" [ref=e12] [cursor=pointer]:
+              - /url: /home
+              - img [ref=e14]
+              - generic [ref=e17]: 홈
+          - listitem [ref=e18]:
+            - link "업무" [ref=e19] [cursor=pointer]:
+              - /url: /work
+              - img [ref=e21]
+              - generic [ref=e24]: 업무
+          - listitem [ref=e25]:
+            - link "캘린더" [ref=e26] [cursor=pointer]:
+              - /url: /calendar
+              - img [ref=e28]
+              - generic [ref=e30]: 캘린더
+          - listitem [ref=e31]:
+            - link "회의노트" [ref=e32] [cursor=pointer]:
+              - /url: /meeting-notes
+              - img [ref=e34]
+              - generic [ref=e37]: 회의노트
+          - listitem [ref=e38]:
+            - link "조직도" [ref=e39] [cursor=pointer]:
+              - /url: /org
+              - img [ref=e41]
+              - generic [ref=e46]: 조직도
+        - generic [ref=e47]:
+          - button "가격정책" [ref=e48] [cursor=pointer]:
+            - generic [ref=e49]: 가격정책
+            - img [ref=e50]
+          - list [ref=e52]:
+            - listitem [ref=e53]:
+              - link "GPU 관리" [ref=e54] [cursor=pointer]:
+                - /url: /pricing/gpu
+                - img [ref=e56]
+                - generic [ref=e58]: GPU 관리
+            - listitem [ref=e59]:
+              - link "판매가격표" [ref=e60] [cursor=pointer]:
+                - /url: /pricing/catalog
+                - img [ref=e62]
+                - generic [ref=e65]: 판매가격표
+      - button "테 테스트계정 test@test.co.kr" [ref=e68] [cursor=pointer]:
+        - generic [ref=e69]: 테
+        - generic [ref=e70]:
+          - generic [ref=e71]: 테스트계정
+          - generic [ref=e72]: test@test.co.kr
+        - img [ref=e73]
+    - generic [ref=e75]:
+      - banner [ref=e76]:
+        - navigation "소속 조직" [ref=e79]:
+          - generic [ref=e80]: 데이터얼라이언스
+          - generic [ref=e81]: ›AX사업본부
+        - generic [ref=e82]:
+          - search [ref=e83]:
+            - button "통합 검색 열기" [ref=e84] [cursor=pointer]:
+              - img [ref=e85]
+            - generic [ref=e88]:
+              - button "검색" [ref=e89] [cursor=pointer]:
+                - img [ref=e90]
+              - searchbox "업무 통합 검색" [ref=e93]
+          - button "전체 메뉴" [ref=e95] [cursor=pointer]:
+            - img [ref=e96]
+            - generic [ref=e101]: 전체 메뉴
+      - main [ref=e102]:
+        - generic [ref=e103]:
+          - generic [ref=e104]:
+            - generic [ref=e105]:
+              - generic [ref=e106]: 가격정책
+              - heading "GPU 관리" [level=2] [ref=e107]
+            - generic [ref=e108]:
+              - generic "매 영업일 한국수출입은행 매매기준율을 자동으로 받아옵니다" [ref=e109]:
+                - text: 오늘 매매기준율
+                - generic [ref=e111]: 1 USD = 1,538원
+                - generic [ref=e112]: 2026-06-25
+                - generic [ref=e113]: 자동
+              - button "Export" [ref=e114] [cursor=pointer]:
+                - img [ref=e115]
+                - text: Export
+              - button "통합 입력" [ref=e118] [cursor=pointer]:
+                - img [ref=e119]
+                - text: 통합 입력
+          - generic [ref=e120]:
+            - button "통합 입력" [ref=e121] [cursor=pointer]:
+              - img [ref=e122]
+              - text: 통합 입력
+            - button "가격표" [ref=e125] [cursor=pointer]:
+              - img [ref=e126]
+              - text: 가격표
+            - button "검토 대기 57" [ref=e147] [cursor=pointer]:
+              - img [ref=e133]
+              - text: 검토 대기
+              - generic [ref=e148]: "57"
+            - button "변동 이력" [ref=e136] [cursor=pointer]:
+              - img [ref=e137]
+              - text: 변동 이력
+            - button "AI 조회" [ref=e141] [cursor=pointer]:
+              - img [ref=e142]
+              - text: AI 조회
+          - generic [ref=e151]:
+            - generic [ref=e152]:
+              - generic [ref=e153]:
+                - img [ref=e154]
+                - searchbox "검색" [ref=e157]
+              - tablist "보기 전환" [ref=e158]:
+                - tab "가격표" [selected] [ref=e159] [cursor=pointer]
+                - tab "가격 결정" [ref=e160] [cursor=pointer]
+                - tab "시장 비교" [ref=e161] [cursor=pointer]
+                - tab "재고" [ref=e162] [cursor=pointer]
+                - tab "고객가" [ref=e163] [cursor=pointer]
+              - group "표시 통화" [ref=e164]:
+                - button "₩ 원" [ref=e165] [cursor=pointer]
+                - button "$ 달러" [ref=e166] [cursor=pointer]
+              - generic "gcube 판매 마진 (관리자만 변경)" [ref=e167]:
+                - generic [ref=e168]: 마진
+                - strong [ref=e169]: 20%
+              - button "전체 펼치기" [ref=e170] [cursor=pointer]:
+                - img [ref=e171]
+                - text: 전체 펼치기
+              - button "일괄 반영" [ref=e174] [cursor=pointer]:
+                - img [ref=e175]
+                - text: 일괄 반영
+            - generic [ref=e178]:
+              - table "통합 표 — 가격표" [ref=e179]:
+                - row "GPU TIER 판매가 시장대비" [ref=e180]:
+                  - columnheader "GPU" [ref=e181] [cursor=pointer]: GPU
+                  - columnheader "TIER" [ref=e182] [cursor=pointer]: TIER
+                  - columnheader "판매가" [ref=e183] [cursor=pointer]: 판매가
+                  - columnheader "시장대비" [ref=e184] [cursor=pointer]: 시장대비
+                - rowgroup [ref=e185]:
+                  - button "A10 1개 구성" [ref=e186] [cursor=pointer]:
+                    - generic [ref=e187]: ▸
+                    - generic [ref=e188]: A10
+                    - generic [ref=e189]: 1개 구성
+                - rowgroup [ref=e190]:
+                  - button "A40 1개 구성" [ref=e191] [cursor=pointer]:
+                    - generic [ref=e192]: ▸
+                    - generic [ref=e193]: A40
+                    - generic [ref=e194]: 1개 구성
+                - rowgroup [ref=e195]:
+                  - button "A100 4개 구성" [ref=e196] [cursor=pointer]:
+                    - generic [ref=e197]: ▸
+                    - generic [ref=e198]: A100
+                    - generic [ref=e199]: 4개 구성
+                - rowgroup [ref=e200]:
+                  - button "A100 PCIe 2개 구성" [ref=e201] [cursor=pointer]:
+                    - generic [ref=e202]: ▸
+                    - generic [ref=e203]: A100 PCIe
+                    - generic [ref=e204]: 2개 구성
+                - rowgroup [ref=e205]:
+                  - button "A100 SXM 2개 구성" [ref=e206] [cursor=pointer]:
+                    - generic [ref=e207]: ▸
+                    - generic [ref=e208]: A100 SXM
+                    - generic [ref=e209]: 2개 구성
+                - rowgroup [ref=e210]:
+                  - button "B200 4개 구성" [ref=e211] [cursor=pointer]:
+                    - generic [ref=e212]: ▸
+                    - generic [ref=e213]: B200
+                    - generic [ref=e214]: 4개 구성
+                - rowgroup [ref=e215]:
+                  - button "B200 SXM6 1개 구성" [ref=e216] [cursor=pointer]:
+                    - generic [ref=e217]: ▸
+                    - generic [ref=e218]: B200 SXM6
+                    - generic [ref=e219]: 1개 구성
+                - rowgroup [ref=e220]:
+                  - button "B300 1개 구성" [ref=e221] [cursor=pointer]:
+                    - generic [ref=e222]: ▸
+                    - generic [ref=e223]: B300
+                    - generic [ref=e224]: 1개 구성
+                - rowgroup [ref=e225]:
+                  - button "GH200 1개 구성" [ref=e226] [cursor=pointer]:
+                    - generic [ref=e227]: ▸
+                    - generic [ref=e228]: GH200
+                    - generic [ref=e229]: 1개 구성
+                - rowgroup [ref=e230]:
+                  - button "GX7000 PRO 1개 구성" [ref=e231] [cursor=pointer]:
+                    - generic [ref=e232]: ▸
+                    - generic [ref=e233]: GX7000 PRO
+                    - generic [ref=e234]: 1개 구성
+                - rowgroup [ref=e235]:
+                  - button "H100 4개 구성" [ref=e236] [cursor=pointer]:
+                    - generic [ref=e237]: ▸
+                    - generic [ref=e238]: H100
+                    - generic [ref=e239]: 4개 구성
+                - rowgroup [ref=e240]:
+                  - button "H100 NVL 1개 구성" [ref=e241] [cursor=pointer]:
+                    - generic [ref=e242]: ▸
+                    - generic [ref=e243]: H100 NVL
+                    - generic [ref=e244]: 1개 구성
+                - rowgroup [ref=e245]:
+                  - button "H100 PCIe 1개 구성" [ref=e246] [cursor=pointer]:
+                    - generic [ref=e247]: ▸
+                    - generic [ref=e248]: H100 PCIe
+                    - generic [ref=e249]: 1개 구성
+                - rowgroup [ref=e250]:
+                  - button "H100 SXM 1개 구성" [ref=e251] [cursor=pointer]:
+                    - generic [ref=e252]: ▸
+                    - generic [ref=e253]: H100 SXM
+                    - generic [ref=e254]: 1개 구성
+                - rowgroup [ref=e255]:
+                  - button "H200 1개 구성" [ref=e256] [cursor=pointer]:
+                    - generic [ref=e257]: ▸
+                    - generic [ref=e258]: H200
+                    - generic [ref=e259]: 1개 구성
+                - rowgroup [ref=e260]:
+                  - button "L4 1개 구성" [ref=e261] [cursor=pointer]:
+                    - generic [ref=e262]: ▸
+                    - generic [ref=e263]: L4
+                    - generic [ref=e264]: 1개 구성
+                - rowgroup [ref=e265]:
+                  - button "L40 1개 구성" [ref=e266] [cursor=pointer]:
+                    - generic [ref=e267]: ▸
+                    - generic [ref=e268]: L40
+                    - generic [ref=e269]: 1개 구성
+                - rowgroup [ref=e270]:
+                  - button "L40S 1개 구성" [ref=e271] [cursor=pointer]:
+                    - generic [ref=e272]: ▸
+                    - generic [ref=e273]: L40S
+                    - generic [ref=e274]: 1개 구성
+                - rowgroup [ref=e275]:
+                  - button "NX9000 MAX 1개 구성" [ref=e276] [cursor=pointer]:
+                    - generic [ref=e277]: ▸
+                    - generic [ref=e278]: NX9000 MAX
+                    - generic [ref=e279]: 1개 구성
+                - rowgroup [ref=e280]:
+                  - button "Quadro RTX 6000 1개 구성" [ref=e281] [cursor=pointer]:
+                    - generic [ref=e282]: ▸
+                    - generic [ref=e283]: Quadro RTX 6000
+                    - generic [ref=e284]: 1개 구성
+                - rowgroup [ref=e285]:
+                  - button "RTX 2060 4개 구성" [ref=e286] [cursor=pointer]:
+                    - generic [ref=e287]: ▸
+                    - generic [ref=e288]: RTX 2060
+                    - generic [ref=e289]: 4개 구성
+                - rowgroup [ref=e290]:
+                  - button "RTX 2060 Super 2개 구성" [ref=e291] [cursor=pointer]:
+                    - generic [ref=e292]: ▸
+                    - generic [ref=e293]: RTX 2060 Super
+                    - generic [ref=e294]: 2개 구성
+                - rowgroup [ref=e295]:
+                  - button "RTX 2070 2개 구성" [ref=e296] [cursor=pointer]:
+                    - generic [ref=e297]: ▸
+                    - generic [ref=e298]: RTX 2070
+                    - generic [ref=e299]: 2개 구성
+                - rowgroup [ref=e300]:
+                  - button "RTX 2070 Super 2개 구성" [ref=e301] [cursor=pointer]:
+                    - generic [ref=e302]: ▸
+                    - generic [ref=e303]: RTX 2070 Super
+                    - generic [ref=e304]: 2개 구성
+                - rowgroup [ref=e305]:
+                  - button "RTX 2080 1개 구성" [ref=e306] [cursor=pointer]:
+                    - generic [ref=e307]: ▸
+                    - generic [ref=e308]: RTX 2080
+                    - generic [ref=e309]: 1개 구성
+                - rowgroup [ref=e310]:
+                  - button "RTX 2080 Super 1개 구성" [ref=e311] [cursor=pointer]:
+                    - generic [ref=e312]: ▸
+                    - generic [ref=e313]: RTX 2080 Super
+                    - generic [ref=e314]: 1개 구성
+                - rowgroup [ref=e315]:
+                  - button "RTX 2080 Ti 1개 구성" [ref=e316] [cursor=pointer]:
+                    - generic [ref=e317]: ▸
+                    - generic [ref=e318]: RTX 2080 Ti
+                    - generic [ref=e319]: 1개 구성
+                - rowgroup [ref=e320]:
+                  - button "RTX 3050 2개 구성" [ref=e321] [cursor=pointer]:
+                    - generic [ref=e322]: ▸
+                    - generic [ref=e323]: RTX 3050
+                    - generic [ref=e324]: 2개 구성
+                - rowgroup [ref=e325]:
+                  - button "RTX 3060 3개 구성" [ref=e326] [cursor=pointer]:
+                    - generic [ref=e327]: ▸
+                    - generic [ref=e328]: RTX 3060
+                    - generic [ref=e329]: 3개 구성
+                - rowgroup [ref=e330]:
+                  - button "RTX 3060 Ti 2개 구성" [ref=e331] [cursor=pointer]:
+                    - generic [ref=e332]: ▸
+                    - generic [ref=e333]: RTX 3060 Ti
+                    - generic [ref=e334]: 2개 구성
+                - rowgroup [ref=e335]:
+                  - button "RTX 3070 1개 구성" [ref=e336] [cursor=pointer]:
+                    - generic [ref=e337]: ▸
+                    - generic [ref=e338]: RTX 3070
+                    - generic [ref=e339]: 1개 구성
+                - rowgroup [ref=e340]:
+                  - button "RTX 3070 Ti 1개 구성" [ref=e341] [cursor=pointer]:
+                    - generic [ref=e342]: ▸
+                    - generic [ref=e343]: RTX 3070 Ti
+                    - generic [ref=e344]: 1개 구성
+                - rowgroup [ref=e345]:
+                  - button "RTX 3080 4개 구성" [ref=e346] [cursor=pointer]:
+                    - generic [ref=e347]: ▸
+                    - generic [ref=e348]: RTX 3080
+                    - generic [ref=e349]: 4개 구성
+                - rowgroup [ref=e350]:
+                  - button "RTX 3080 Ti 2개 구성" [ref=e351] [cursor=pointer]:
+                    - generic [ref=e352]: ▸
+                    - generic [ref=e353]: RTX 3080 Ti
+                    - generic [ref=e354]: 2개 구성
+                - rowgroup [ref=e355]:
+                  - button "RTX 3090 2개 구성" [ref=e356] [cursor=pointer]:
+                    - generic [ref=e357]: ▸
+                    - generic [ref=e358]: RTX 3090
+                    - generic [ref=e359]: 2개 구성
+                - rowgroup [ref=e360]:
+                  - button "RTX 3090 Ti 2개 구성" [ref=e361] [cursor=pointer]:
+                    - generic [ref=e362]: ▸
+                    - generic [ref=e363]: RTX 3090 Ti
+                    - generic [ref=e364]: 2개 구성
+                - rowgroup [ref=e365]:
+                  - button "RTX 4000 Ada 1개 구성" [ref=e366] [cursor=pointer]:
+                    - generic [ref=e367]: ▸
+                    - generic [ref=e368]: RTX 4000 Ada
+                    - generic [ref=e369]: 1개 구성
+                - rowgroup [ref=e370]:
+                  - button "RTX 4060 2개 구성" [ref=e371] [cursor=pointer]:
+                    - generic [ref=e372]: ▸
+                    - generic [ref=e373]: RTX 4060
+                    - generic [ref=e374]: 2개 구성
+                - rowgroup [ref=e375]:
+                  - button "RTX 4060 Ti 2개 구성" [ref=e376] [cursor=pointer]:
+                    - generic [ref=e377]: ▸
+                    - generic [ref=e378]: RTX 4060 Ti
+                    - generic [ref=e379]: 2개 구성
+                - rowgroup [ref=e380]:
+                  - button "RTX 4070 2개 구성" [ref=e381] [cursor=pointer]:
+                    - generic [ref=e382]: ▸
+                    - generic [ref=e383]: RTX 4070
+                    - generic [ref=e384]: 2개 구성
+                - rowgroup [ref=e385]:
+                  - button "RTX 4070 Super 2개 구성" [ref=e386] [cursor=pointer]:
+                    - generic [ref=e387]: ▸
+                    - generic [ref=e388]: RTX 4070 Super
+                    - generic [ref=e389]: 2개 구성
+                - rowgroup [ref=e390]:
+                  - button "RTX 4070 Ti 2개 구성" [ref=e391] [cursor=pointer]:
+                    - generic [ref=e392]: ▸
+                    - generic [ref=e393]: RTX 4070 Ti
+                    - generic [ref=e394]: 2개 구성
+                - rowgroup [ref=e395]:
+                  - button "RTX 4070 Ti Super 2개 구성" [ref=e396] [cursor=pointer]:
+                    - generic [ref=e397]: ▸
+                    - generic [ref=e398]: RTX 4070 Ti Super
+                    - generic [ref=e399]: 2개 구성
+                - rowgroup [ref=e400]:
+                  - button "RTX 4080 2개 구성" [ref=e401] [cursor=pointer]:
+                    - generic [ref=e402]: ▸
+                    - generic [ref=e403]: RTX 4080
+                    - generic [ref=e404]: 2개 구성
+                - rowgroup [ref=e405]:
+                  - button "RTX 4080 Super 2개 구성" [ref=e406] [cursor=pointer]:
+                    - generic [ref=e407]: ▸
+                    - generic [ref=e408]: RTX 4080 Super
+                    - generic [ref=e409]: 2개 구성
+                - rowgroup [ref=e410]:
+                  - button "RTX 4090 1개 구성" [ref=e411] [cursor=pointer]:
+                    - generic [ref=e412]: ▸
+                    - generic [ref=e413]: RTX 4090
+                    - generic [ref=e414]: 1개 구성
+                - rowgroup [ref=e415]:
+                  - button "RTX 4500 Ada 2개 구성" [ref=e416] [cursor=pointer]:
+                    - generic [ref=e417]: ▸
+                    - generic [ref=e418]: RTX 4500 Ada
+                    - generic [ref=e419]: 2개 구성
+                - rowgroup [ref=e420]:
+                  - button "RTX 5000 Ada 2개 구성" [ref=e421] [cursor=pointer]:
+                    - generic [ref=e422]: ▸
+                    - generic [ref=e423]: RTX 5000 Ada
+                    - generic [ref=e424]: 2개 구성
+                - rowgroup [ref=e425]:
+                  - button "RTX 5060 3개 구성" [ref=e426] [cursor=pointer]:
+                    - generic [ref=e427]: ▸
+                    - generic [ref=e428]: RTX 5060
+                    - generic [ref=e429]: 3개 구성
+                - rowgroup [ref=e430]:
+                  - button "RTX 5060 Ti 1개 구성" [ref=e431] [cursor=pointer]:
+                    - generic [ref=e432]: ▸
+                    - generic [ref=e433]: RTX 5060 Ti
+                    - generic [ref=e434]: 1개 구성
+                - rowgroup [ref=e435]:
+                  - button "RTX 5070 1개 구성" [ref=e436] [cursor=pointer]:
+                    - generic [ref=e437]: ▸
+                    - generic [ref=e438]: RTX 5070
+                    - generic [ref=e439]: 1개 구성
+                - rowgroup [ref=e440]:
+                  - button "RTX 5070 Ti 1개 구성" [ref=e441] [cursor=pointer]:
+                    - generic [ref=e442]: ▸
+                    - generic [ref=e443]: RTX 5070 Ti
+                    - generic [ref=e444]: 1개 구성
+                - rowgroup [ref=e445]:
+                  - button "RTX 5080 2개 구성" [ref=e446] [cursor=pointer]:
+                    - generic [ref=e447]: ▸
+                    - generic [ref=e448]: RTX 5080
+                    - generic [ref=e449]: 2개 구성
+                - rowgroup [ref=e450]:
+                  - button "RTX 5090 1개 구성" [ref=e451] [cursor=pointer]:
+                    - generic [ref=e452]: ▸
+                    - generic [ref=e453]: RTX 5090
+                    - generic [ref=e454]: 1개 구성
+                - rowgroup [ref=e455]:
+                  - button "RTX 6000 Ada 1개 구성" [ref=e456] [cursor=pointer]:
+                    - generic [ref=e457]: ▸
+                    - generic [ref=e458]: RTX 6000 Ada
+                    - generic [ref=e459]: 1개 구성
+                - rowgroup [ref=e460]:
+                  - button "RTX A2000 2개 구성" [ref=e461] [cursor=pointer]:
+                    - generic [ref=e462]: ▸
+                    - generic [ref=e463]: RTX A2000
+                    - generic [ref=e464]: 2개 구성
+                - rowgroup [ref=e465]:
+                  - button "RTX A4000 2개 구성" [ref=e466] [cursor=pointer]:
+                    - generic [ref=e467]: ▸
+                    - generic [ref=e468]: RTX A4000
+                    - generic [ref=e469]: 2개 구성
+                - rowgroup [ref=e470]:
+                  - button "RTX A4500 2개 구성" [ref=e471] [cursor=pointer]:
+                    - generic [ref=e472]: ▸
+                    - generic [ref=e473]: RTX A4500
+                    - generic [ref=e474]: 2개 구성
+                - rowgroup [ref=e475]:
+                  - button "RTX A5000 2개 구성" [ref=e476] [cursor=pointer]:
+                    - generic [ref=e477]: ▸
+                    - generic [ref=e478]: RTX A5000
+                    - generic [ref=e479]: 2개 구성
+                - rowgroup [ref=e480]:
+                  - button "RTX A5500 2개 구성" [ref=e481] [cursor=pointer]:
+                    - generic [ref=e482]: ▸
+                    - generic [ref=e483]: RTX A5500
+                    - generic [ref=e484]: 2개 구성
+                - rowgroup [ref=e485]:
+                  - button "RTX A6000 2개 구성" [ref=e486] [cursor=pointer]:
+                    - generic [ref=e487]: ▸
+                    - generic [ref=e488]: RTX A6000
+                    - generic [ref=e489]: 2개 구성
+                - rowgroup [ref=e490]:
+                  - button "RTX PRO 2000 1개 구성" [ref=e491] [cursor=pointer]:
+                    - generic [ref=e492]: ▸
+                    - generic [ref=e493]: RTX PRO 2000
+                    - generic [ref=e494]: 1개 구성
+                - rowgroup [ref=e495]:
+                  - button "RTX PRO 5000 1개 구성" [ref=e496] [cursor=pointer]:
+                    - generic [ref=e497]: ▸
+                    - generic [ref=e498]: RTX PRO 5000
+                    - generic [ref=e499]: 1개 구성
+                - rowgroup [ref=e500]:
+                  - button "RTX Pro 6000 2개 구성" [ref=e501] [cursor=pointer]:
+                    - generic [ref=e502]: ▸
+                    - generic [ref=e503]: RTX Pro 6000
+                    - generic [ref=e504]: 2개 구성
+                - rowgroup [ref=e505]:
+                  - button "T4 6개 구성" [ref=e506] [cursor=pointer]:
+                    - generic [ref=e507]: ▸
+                    - generic [ref=e508]: T4
+                    - generic [ref=e509]: 6개 구성
+                - rowgroup [ref=e510]:
+                  - button "Tesla K40 1개 구성" [ref=e511] [cursor=pointer]:
+                    - generic [ref=e512]: ▸
+                    - generic [ref=e513]: Tesla K40
+                    - generic [ref=e514]: 1개 구성
+                - rowgroup [ref=e515]:
+                  - button "Tesla K80 1개 구성" [ref=e516] [cursor=pointer]:
+                    - generic [ref=e517]: ▸
+                    - generic [ref=e518]: Tesla K80
+                    - generic [ref=e519]: 1개 구성
+                - rowgroup [ref=e520]:
+                  - button "Tesla M10 1개 구성" [ref=e521] [cursor=pointer]:
+                    - generic [ref=e522]: ▸
+                    - generic [ref=e523]: Tesla M10
+                    - generic [ref=e524]: 1개 구성
+                - rowgroup [ref=e525]:
+                  - button "Tesla M40 1개 구성" [ref=e526] [cursor=pointer]:
+                    - generic [ref=e527]: ▸
+                    - generic [ref=e528]: Tesla M40
+                    - generic [ref=e529]: 1개 구성
+                - rowgroup [ref=e530]:
+                  - button "Tesla M60 1개 구성" [ref=e531] [cursor=pointer]:
+                    - generic [ref=e532]: ▸
+                    - generic [ref=e533]: Tesla M60
+                    - generic [ref=e534]: 1개 구성
+                - rowgroup [ref=e535]:
+                  - button "Tesla P4 1개 구성" [ref=e536] [cursor=pointer]:
+                    - generic [ref=e537]: ▸
+                    - generic [ref=e538]: Tesla P4
+                    - generic [ref=e539]: 1개 구성
+                - rowgroup [ref=e540]:
+                  - button "Tesla P6 1개 구성" [ref=e541] [cursor=pointer]:
+                    - generic [ref=e542]: ▸
+                    - generic [ref=e543]: Tesla P6
+                    - generic [ref=e544]: 1개 구성
+                - rowgroup [ref=e545]:
+                  - button "Tesla P40 1개 구성" [ref=e546] [cursor=pointer]:
+                    - generic [ref=e547]: ▸
+                    - generic [ref=e548]: Tesla P40
+                    - generic [ref=e549]: 1개 구성
+                - rowgroup [ref=e550]:
+                  - button "Tesla P100 2개 구성" [ref=e551] [cursor=pointer]:
+                    - generic [ref=e552]: ▸
+                    - generic [ref=e553]: Tesla P100
+                    - generic [ref=e554]: 2개 구성
+                - rowgroup [ref=e555]:
+                  - button "V100 4개 구성" [ref=e556] [cursor=pointer]:
+                    - generic [ref=e557]: ▸
+                    - generic [ref=e558]: V100
+                    - generic [ref=e559]: 4개 구성
+              - paragraph [ref=e562]: 왼쪽 목록에서 항목을 선택하세요.
+    - button "빠른 추가" [ref=e145] [cursor=pointer]:
+      - img [ref=e146]
+  - alert [ref=e563]
