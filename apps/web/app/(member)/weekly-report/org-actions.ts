@@ -51,6 +51,14 @@ async function authedAdmin() {
   return { user, admin: createAdminClient() as any }
 }
 
+/** 부서 취합/편집 권한: 해당 부서의 부서장(editableDeptIds) 또는 어드민(role=admin)이면 허용(전 부서). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function canManageDept(admin: any, userId: string, deptId: string, editableDeptIds: string[]): Promise<boolean> {
+  if (editableDeptIds.includes(deptId)) return true
+  const { data: prof } = await admin.from('profiles').select('role').eq('id', userId).single()
+  return prof?.role === 'admin'
+}
+
 function bodyHash(rows: MemberReportRow[]): string {
   const norm = rows
     .map((r) => `${r.user_id}|${r.category}|${r.performance}|${r.plan}|${r.issues}`)
@@ -66,7 +74,7 @@ export async function aggregateDept(deptId: string, weekStart: string): Promise<
     if (!user) return { ok: false, error: '인증이 필요합니다' }
 
     const scope = await resolveOrgScope(admin, user.id)
-    if (!scope.editableDeptIds.includes(deptId)) {
+    if (!(await canManageDept(admin, user.id, deptId, scope.editableDeptIds))) {
       return { ok: false, error: '이 부서를 취합할 권한이 없습니다' }
     }
 
@@ -100,7 +108,6 @@ export async function aggregateDept(deptId: string, weekStart: string): Promise<
     ])
     const prevBody = normalizeBody(prevRes.data?.body)
     const existingBody = normalizeBody(curRes.data?.body)
-    const existingStatus = (curRes.data?.status as 'draft' | 'confirmed' | undefined) ?? null
 
     const prevCategories = Array.from(new Set(prevBody.map((r) => r.category).filter(Boolean)))
     const prevPlans = prevBody
@@ -125,8 +132,9 @@ export async function aggregateDept(deptId: string, weekStart: string): Promise<
       },
     )
 
-    // 기존 status 보존: 이미 confirmed면 유지(임의 draft 리셋 금지). 신규면 draft.
-    const nextStatus: 'draft' | 'confirmed' = existingStatus ?? 'draft'
+    // 재취합 = 부서원 보고를 다시 병합한 새 내용 → 항상 draft로 저장(재확정 유도).
+    // (확정본 재취합 시 화면에서 경고 후 진행하며, 결과는 초안으로 내려가 부서장/어드민이 재확정한다)
+    const nextStatus: 'draft' | 'confirmed' = 'draft'
 
     const hash = bodyHash(rows)
     const { error } = await admin.from('dept_weekly_reports').upsert(
@@ -159,7 +167,7 @@ export async function saveDeptReport(
     if (!user) return { ok: false, error: '인증이 필요합니다' }
 
     const scope = await resolveOrgScope(admin, user.id)
-    if (!scope.editableDeptIds.includes(deptId)) {
+    if (!(await canManageDept(admin, user.id, deptId, scope.editableDeptIds))) {
       return { ok: false, error: '이 부서를 편집할 권한이 없습니다' }
     }
 

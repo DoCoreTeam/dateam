@@ -7,6 +7,7 @@ import type { Profile, WeeklyReport } from '@/types/database'
 import AdminReportsPreview from './AdminReportsPreview'
 import RichText from '@/components/ui/RichText'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
+import DeptReportPanel, { type AnyRow, type AggState } from '@/app/(member)/weekly-report/DeptReportPanel'
 
 function RichCell({ html }: { html: string }) {
   return <RichText html={html} style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.6 }} />
@@ -68,6 +69,16 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
   }
   const memberCsv = deptMemberIds ? deptMemberIds.join(',') : ''
   const deptName = dept ? ((deptNodes ?? []).find((d) => d.id === dept)?.name ?? '') : ''
+
+  // 부서 선택 시: 멤버가 저장한 취합본(dept_weekly_reports) 로드 — 어드민도 멤버와 동일 SSOT 패널로 표시·재취합.
+  let deptAgg: { body: AnyRow[]; status: AggState } | null = null
+  if (dept) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: snap } = await (adminClient as any)
+      .from('dept_weekly_reports').select('body, status')
+      .eq('department_id', dept).eq('week_start', selectedWeek).maybeSingle() as { data: { body: AnyRow[]; status: 'draft' | 'confirmed' } | null }
+    deptAgg = { body: (snap?.body as AnyRow[]) ?? [], status: (snap?.status as AggState) ?? 'none' }
+  }
 
   // 선택한 주의 주간보고 (RLS 우회 — 어드민 전용 페이지)
   type ReportWithProfile = WeeklyReport & { profiles: { name: string } }
@@ -180,23 +191,45 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
         <AdminReportsPreview week={selectedWeek} member={member ?? ''} members={memberCsv} deptName={deptName} orgName={orgName} />
       </div>
 
-      {/* 보고서 테이블 */}
-      <div className="card">
-        <div
+      {/* 부서 선택 시: 저장된 취합본 (멤버 화면과 동일 SSOT 패널) — 취합본 우선 표시 + 어드민 재취합 */}
+      {dept && deptAgg && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <DeptReportPanel
+            key={`${dept}-${selectedWeek}`}
+            deptId={dept}
+            deptName={deptName}
+            weekStart={selectedWeek}
+            editable
+            agg={deptAgg.status}
+            initialBody={deptAgg.body}
+          />
+        </div>
+      )}
+
+      {/* 원본 멤버 보고 — 부서 선택 시 접이식(취합본 아래 병행), 그 외 기본 펼침 */}
+      {dept && (
+        <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', margin: '0 0 var(--space-2)' }}>
+          아래는 취합 전 <strong>원본 멤버 보고</strong>입니다 (개별 작성분).
+        </p>
+      )}
+      <details className="card" open={!dept} style={{ padding: 0 }}>
+        <summary
           style={{
             padding: 'var(--space-5) var(--space-6)',
             borderBottom: 'var(--border-w-2) solid var(--border-color)',
             display: 'flex',
             alignItems: 'center',
             gap: 'var(--space-2)',
+            cursor: 'pointer',
+            listStyle: 'none',
           }}
         >
           <FileText size={16} color="var(--brand)" />
-          <h2 className="tape-title" style={{ margin: 0 }}>
-            {new Date(selectedWeek).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 주 보고서
-          </h2>
+          <span className="tape-title" style={{ margin: 0 }}>
+            {dept ? '원본 멤버 보고' : `${new Date(selectedWeek).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 주 보고서`}
+          </span>
           <span className="badge badge-slate">{reports?.length ?? 0}건</span>
-        </div>
+        </summary>
 
         {reports && reports.length > 0 ? (
           <table className="table-base table-card">
@@ -241,7 +274,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
             <p style={{ margin: 0 }}>해당 주차에 작성된 주간보고가 없습니다</p>
           </div>
         )}
-      </div>
+      </details>
     </div>
   )
 }
