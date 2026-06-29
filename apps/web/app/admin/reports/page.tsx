@@ -186,10 +186,12 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
         </form>
       </div>
 
-      {/* AI 주간보고 취합 */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <AdminReportsPreview week={selectedWeek} member={member ?? ''} members={memberCsv} deptName={deptName} orgName={orgName} />
-      </div>
+      {/* AI 주간보고 취합 (전체/개인 스코프) — 부서 선택 시엔 아래 보존형 부서 취합 패널(DeptReportPanel) 하나로 정리 */}
+      {!dept && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <AdminReportsPreview week={selectedWeek} member={member ?? ''} members={memberCsv} deptName={deptName} orgName={orgName} />
+        </div>
+      )}
 
       {/* 부서 선택 시: 저장된 취합본 (멤버 화면과 동일 SSOT 패널) — 취합본 우선 표시 + 어드민 재취합 */}
       {dept && deptAgg && (

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { mergeAndRefineByCategory } from '@/lib/gemini-refine'
+import { type MergeContext, categoriesFromBodies } from '@/lib/weekly-merge-context'
+import { prevWeekStart } from '@/lib/week'
 import type { WeeklyReport } from '@/types/database'
 
 type ReportWithProfile = WeeklyReport & { profiles: { name: string } | null }
@@ -75,7 +77,22 @@ export async function GET(req: NextRequest) {
 
     const weekStart = raw[0]?.week_start ?? new Date().toISOString().slice(0, 10)
 
-    const merged = await mergeAndRefineByCategory(forMerge, apiKey, model, user.id)
+    // 이전 구분 보존(엔진 B와 동일 SSOT): 전체 조직 취합 시에만 지난주 전 부서 취합본의 구분 목록을 prevCategories로 주입.
+    // → 같은 의미의 업무 구분은 지난주 명칭 그대로 유지, 신규 업무만 새 구분 생성(buildMergeContextBlocks).
+    // 개인(member)/부서(members) 스코프는 무관 부서의 구분 오염을 피하려 주입하지 않음(부서 취합은 엔진 B가 담당).
+    let ctx: MergeContext | undefined
+    if (!member && !memberIds) {
+      const { data: prevSnaps, error: prevErr } = await adminClient
+        .from('dept_weekly_reports').select('body').eq('week_start', prevWeekStart(week)) as { data: { body: unknown }[] | null; error: unknown }
+      if (prevErr) {
+        console.error('[preview] 지난주 취합본 구분 조회 실패:', prevErr)
+      } else {
+        const prevCategories = categoriesFromBodies((prevSnaps ?? []).map((s) => s.body))
+        if (prevCategories.length > 0) ctx = { prevCategories }
+      }
+    }
+
+    const merged = await mergeAndRefineByCategory(forMerge, apiKey, model, user.id, ctx)
 
     const reports = merged.map((r) => ({
       userName: '',

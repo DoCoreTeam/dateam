@@ -17,6 +17,22 @@ export interface MergeContext {
   existingBody?: MergedCategoryReport[]
 }
 
+/**
+ * dept_weekly_reports.body(jsonb 배열) 여러 개에서 구분(category) 목록을 추출·중복제거 — 취합 SSOT.
+ * org-actions(부서 prev)·preview route(전체 prev) 양쪽이 동일 함수로 prevCategories를 만든다.
+ */
+export function categoriesFromBodies(bodies: unknown[]): string[] {
+  const out = new Set<string>()
+  for (const body of bodies) {
+    if (!Array.isArray(body)) continue
+    for (const row of body as { category?: unknown }[]) {
+      const c = typeof row?.category === 'string' ? row.category.trim() : ''
+      if (c) out.add(c)
+    }
+  }
+  return Array.from(out)
+}
+
 /** MergeContext → 프롬프트에 덧붙일 컨텍스트 블록 문자열(없으면 빈 문자열) */
 export function buildMergeContextBlocks(ctx?: MergeContext): string {
   if (!ctx) return ''

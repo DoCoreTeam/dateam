@@ -1,6 +1,16 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildMergeContextBlocks } from './weekly-merge-context.ts'
+import { buildMergeContextBlocks, categoriesFromBodies } from './weekly-merge-context.ts'
+
+// 구분 추출 SSOT — org-actions(부서 prev)·preview route(전체 prev) 공용
+test('categoriesFromBodies: 여러 body에서 구분 합집합·중복제거·빈값/비배열 무시', () => {
+  const a = [{ category: '기획' }, { category: '영업' }]
+  const b = [{ category: '영업' }, { category: ' 개발 ' }, { category: '' }, { category: '  ' }]
+  assert.deepEqual(categoriesFromBodies([a, b]), ['기획', '영업', '개발'])
+})
+test('categoriesFromBodies: 비배열·null·undefined body 안전', () => {
+  assert.deepEqual(categoriesFromBodies([null, undefined, 'x', 42, {}]), [])
+})
 
 // 취합 컨텍스트 주입 — 지난주 구분/계획·기존 편집본이 프롬프트 블록으로 들어가는지(순수 함수)
 test('ctx 없으면 빈 문자열', () => {

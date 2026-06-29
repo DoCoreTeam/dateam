@@ -6,6 +6,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { mergeAndRefineByCategory, type MergedCategoryReport } from '@/lib/gemini-refine'
 import { buildDocx, type ReportRow } from '@/lib/docx-builder'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
+import { categoriesFromBodies } from '@/lib/weekly-merge-context'
 import { prevWeekStart } from '@/lib/week'
 import { computeDeptTimeliness } from '@/lib/weekly-report/timeliness-server'
 import { formatKst, formatDelay } from '@/lib/weekly-report/timeliness'
@@ -109,7 +110,7 @@ export async function aggregateDept(deptId: string, weekStart: string): Promise<
     const prevBody = normalizeBody(prevRes.data?.body)
     const existingBody = normalizeBody(curRes.data?.body)
 
-    const prevCategories = Array.from(new Set(prevBody.map((r) => r.category).filter(Boolean)))
+    const prevCategories = categoriesFromBodies([prevRes.data?.body]) // 구분 추출 SSOT(preview route와 동일)
     const prevPlans = prevBody
       .filter((r) => r.plan && r.plan.trim() !== '' && r.plan.trim() !== '-')
       .map((r) => ({ category: r.category, plan: r.plan }))
