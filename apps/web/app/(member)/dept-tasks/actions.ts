@@ -38,15 +38,8 @@ export async function listAssigneeCandidates(
   const scope = await resolveOrgScope(admin, user.id)
   // IDOR 방어: 내가 볼 수 있는 부서의 후보만 노출
   if (!scope.isExecutive && !scope.readableDeptIds.includes(departmentId)) return []
-  // 부서장 본인도 후보에 포함 — head_user_id는 person 노드가 아니라 deptMemberUserIds(person만)에서 누락된다.
-  // 서브트리 부서 노드들의 head_user_id를 합집합으로 추가(취합 SSOT deptMemberUserIds는 미변경).
-  const subtree = new Set(
-    scope.closure.filter((c) => c.ancestor_id === departmentId).map((c) => c.descendant_id),
-  )
-  const headIds = scope.nodes
-    .filter((n) => n.head_user_id && subtree.has(n.id))
-    .map((n) => n.head_user_id as string)
-  const candidateIds = Array.from(new Set([...deptMemberUserIds(scope, departmentId), ...headIds]))
+  // 부서장 포함 — deptMemberUserIds(SSOT)가 서브트리 person + head_user_id 합집합을 반환한다.
+  const candidateIds = deptMemberUserIds(scope, departmentId)
   if (candidateIds.length === 0) return []
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

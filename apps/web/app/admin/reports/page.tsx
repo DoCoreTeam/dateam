@@ -6,6 +6,7 @@ import { FileText, Download } from 'lucide-react'
 import type { Profile, WeeklyReport } from '@/types/database'
 import AdminReportsPreview from './AdminReportsPreview'
 import RichText from '@/components/ui/RichText'
+import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
 
 function RichCell({ html }: { html: string }) {
   return <RichText html={html} style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.6 }} />
@@ -58,17 +59,12 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
   const { data: deptNodes } = await (adminClient as any)
     .from('org_nodes').select('id, name').eq('type', 'department').order('display_order') as { data: { id: string; name: string }[] | null }
 
-  // 부서 선택 시 소속 멤버 user_id 집합 (closure 서브트리 내 person)
+  // 부서 선택 시 소속 멤버 user_id 집합 — 멤버 화면 취합과 동일하게 SSOT(deptMemberUserIds) 재사용.
+  // (서브트리 내 person + 부서장 head_user_id 합집합 — 부서장 누락 방지, 두 취합 경로 결과 동일)
   let deptMemberIds: string[] | null = null
   if (dept) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: clo } = await (adminClient as any).from('org_node_closure').select('descendant_id').eq('ancestor_id', dept) as { data: { descendant_id: string }[] | null }
-    const descIds = (clo ?? []).map((c) => c.descendant_id)
-    if (descIds.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: persons } = await (adminClient as any).from('org_nodes').select('user_id').eq('type', 'person').in('id', descIds) as { data: { user_id: string | null }[] | null }
-      deptMemberIds = (persons ?? []).map((p) => p.user_id).filter((x): x is string => !!x)
-    } else deptMemberIds = []
+    const scope = await resolveOrgScope(adminClient, user.id)
+    deptMemberIds = deptMemberUserIds(scope, dept)
   }
   const memberCsv = deptMemberIds ? deptMemberIds.join(',') : ''
   const deptName = dept ? ((deptNodes ?? []).find((d) => d.id === dept)?.name ?? '') : ''

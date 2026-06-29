@@ -1,38 +1,16 @@
 import 'server-only'
+import type { OrgNode, ClosureRow, OrgScope } from './org-scope-pure'
 
 /**
  * 조직도(org_nodes) 기반 권한 스코프 해석 — 서버 전용.
  * DB의 private.* SECURITY DEFINER 함수와 동일 로직을 TS로 미러링한다.
  * (private 스키마는 PostgREST에 노출되지 않으므로 서버에서 admin client로 계산)
+ * 순수 함수/타입(deptMemberUserIds·hasOrgScope·orgPathFromScope·OrgNode 등)은 org-scope-pure.ts(SSOT)에서 재export.
  */
 
-export interface OrgNode {
-  id: string
-  type: 'company' | 'role' | 'department' | 'person'
-  parent_id: string | null
-  head_user_id: string | null
-  user_id: string | null
-  name: string
-}
-interface ClosureRow {
-  ancestor_id: string
-  descendant_id: string
-  depth: number
-}
-
-export interface OrgScope {
-  /** 내가 직접 head인 노드 id (편집/취합 권한) */
-  editableDeptIds: string[]
-  /** 내가 조회 가능한 부서 노드 id (내 관할 서브트리 + 내 소속부서, 전사면 전체) */
-  readableDeptIds: string[]
-  /** 전사 권한(대표이사 apex) 여부 */
-  isExecutive: boolean
-  /** 대시보드 시작 노드(들) */
-  scopeRootIds: string[]
-  /** 조직도 전체 노드/클로저 (대시보드 트리 구성용) */
-  nodes: OrgNode[]
-  closure: ClosureRow[]
-}
+// 순수 로직·타입은 org-scope-pure(테스트 가능)에서 재export — 기존 '@/lib/org-scope' import 호환 유지
+export type { OrgNode, ClosureRow, OrgScope } from './org-scope-pure'
+export { deptMemberUserIds, hasOrgScope, orgPathFromScope } from './org-scope-pure'
 
 const LEADER_TYPES = ['department', 'role', 'company']
 
@@ -105,51 +83,8 @@ export async function resolveOrgScope(admin: any, userId: string): Promise<OrgSc
   }
 }
 
-/** 부서 취합 대상 = 부서 서브트리 내 모든 person의 user_id */
-export function deptMemberUserIds(scope: OrgScope, deptId: string): string[] {
-  const subtree = new Set(
-    scope.closure.filter((c) => c.ancestor_id === deptId).map((c) => c.descendant_id),
-  )
-  return scope.nodes
-    .filter((n) => n.type === 'person' && n.user_id && subtree.has(n.id))
-    .map((n) => n.user_id as string)
-}
-
-/** 사용자가 조직 탭을 볼 자격(관할 노드 보유 or 전사) */
-export function hasOrgScope(scope: OrgScope): boolean {
-  return scope.isExecutive || scope.editableDeptIds.length > 0 || scope.readableDeptIds.length > 0
-}
-
-/**
- * 로그인 사용자의 조직도 소속 경로(회사 → 본부 → 팀 …) 이름 배열 — 표시용 SSOT.
- * - 일반 멤버: 본인 person 노드의 조상 체인을 root→근접 순으로(person·role 제외, 즉 회사/부서만).
- *   조직도에 팀이 추가되면 그 깊이만큼 자동 확장된다(본부로 고정하지 않음).
- * - 전사(C레벨): 회사(root) 1개만.
- * - 미소속/노드 없음: 빈 배열 → 호출측이 폴백(인사말) 처리.
- */
-export function orgPathFromScope(scope: OrgScope, userId: string): string[] {
-  const { nodes, closure, isExecutive } = scope
-  const root = nodes.find((n) => n.parent_id === null) ?? null
-  if (isExecutive) return root ? [root.name] : []
-
-  // anchor = 본인 person 노드(우선), 없으면 본인이 head인 노드(부서장 등)
-  const anchor =
-    nodes.find((n) => n.type === 'person' && n.user_id === userId) ??
-    nodes.find((n) => n.head_user_id === userId) ??
-    null
-  if (!anchor) return root ? [root.name] : []
-
-  const byId = new Map(nodes.map((n) => [n.id, n] as const))
-  // 조상 행: descendant_id = anchor. depth 큰 것(루트)부터 정렬 → root→near 순.
-  const names = closure
-    .filter((c) => c.descendant_id === anchor.id)
-    .sort((a, b) => b.depth - a.depth)
-    .map((c) => byId.get(c.ancestor_id))
-    .filter((n): n is OrgNode => !!n && n.type !== 'person' && n.type !== 'role')
-    .map((n) => n.name)
-
-  return names.length ? names : root ? [root.name] : []
-}
+// deptMemberUserIds·hasOrgScope·orgPathFromScope는 org-scope-pure(SSOT)에서 정의·재export(상단 line 13).
+// 중복 정의 금지 — 순수 로직은 org-scope-pure.ts 한 곳에서만 유지한다.
 
 // (제거됨) isInDivisionByName — isAdmin 우회/상위 조상 관할 누수로 '소속 전용' 게이트에 부적합.
 //   → isMemberOfDivisionByName(아래)로 대체. admin·상위 관할 없이 '서브트리 소속/내부 head'만 판정.
