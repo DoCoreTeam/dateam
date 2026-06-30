@@ -64,6 +64,17 @@ export function kstDateKey(iso: string): string {
   return DATE_FMT.format(d)
 }
 
+/**
+ * 'YYYY-MM-DD'(KST 날짜키)에 n일을 더한 KST 날짜키.
+ * UTC 절단(toISOString().slice) 금지 정책의 SSOT — 정오 앵커 후 항상 KST로 되돌린다.
+ */
+export function addKstDays(dateKey: string, n: number): string {
+  if (!DATE_RE.test(dateKey)) return dateKey
+  const ms = new Date(`${dateKey}T12:00:00${KST_OFFSET}`).getTime() // 정오 앵커(자정 경계 안전)
+  if (Number.isNaN(ms)) return dateKey
+  return kstDateKey(new Date(ms + n * 86_400_000).toISOString())
+}
+
 /** ISO → KST 분해 {year,month,day,hour,minute}. 라벨 조립용(getHours/getDate 직접 사용 금지). */
 export function kstParts(iso: string): { year: number; month: number; day: number; hour: number; minute: number } | null {
   const d = new Date(iso)

@@ -5,6 +5,7 @@ import QueryToast from '@/components/ui/QueryToast'
 import { getWeekStart, toDateString } from '@/lib/utils'
 import { subWeeks } from 'date-fns'
 import WeeklyReportForm from './WeeklyReportForm'
+import AutoDraftPanel from './AutoDraftPanel'
 import TeamReportView from './TeamReportView'
 import ReportAccordion from './ReportAccordion'
 import OnboardingRestartLink from '@/components/onboarding/OnboardingRestartLink'
@@ -217,28 +218,52 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
           </Suspense>
           {/* 미처리 메모 리뷰 nudge */}
           <WeeklyMemoReview />
+
+          {/* AI 자동초안(push) — 기본 작성 흐름 */}
           <div className="card" style={{ padding: 'var(--space-6)', marginBottom: '1.75rem', width: '100%', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                 <FileText size={16} color="var(--brand)" />
-                <h2 className="tape-title" style={{ margin: 0 }}>보고서 작성</h2>
+                <h2 className="tape-title" style={{ margin: 0 }}>AI 자동초안</h2>
               </div>
               <OnboardingRestartLink variant="icon" seq="weekly" gateKey="weekly_report_onboarding_done" label="작성 가이드" />
             </div>
-            <WeeklyReportForm
-              key={`${initialWeek}-${justReset ? 'reset' : 'normal'}`}
-              weekOptions={weekOptions}
-              thisWeek={thisWeek}
-              initialWeek={initialWeek}
-              pastCategories={pastCategories}
-              prefillRows={prefillRows.length > 0 ? prefillRows : carryForwardRows}
-              isFirstTimeUser={(reports ?? []).length === 0}
-              hasCarryForward={hasCarryForward}
-              hasSavedData={prefillRows.length > 0}
-              prevWeekCategories={prevWeekCategories}
-              orgName={orgName}
-            />
+            <AutoDraftPanel week={initialWeek} weekOptions={weekOptions} />
           </div>
+
+          {/* 직접 편집(기존 방식) — 하위호환 보조 영역 */}
+          <details style={{ marginBottom: '1.75rem' }}>
+            <summary
+              style={{
+                cursor: 'pointer',
+                fontSize: 'var(--fs-sm)',
+                fontWeight: 600,
+                color: 'var(--text-muted)',
+                padding: 'var(--space-2) 0',
+              }}
+            >
+              직접 편집 (기존 방식)
+            </summary>
+            <div className="card" style={{ padding: 'var(--space-6)', marginTop: 'var(--space-3)', width: '100%', boxSizing: 'border-box' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
+                <FileText size={16} color="var(--brand)" />
+                <h2 className="tape-title" style={{ margin: 0 }}>보고서 작성</h2>
+              </div>
+              <WeeklyReportForm
+                key={`${initialWeek}-${justReset ? 'reset' : 'normal'}`}
+                weekOptions={weekOptions}
+                thisWeek={thisWeek}
+                initialWeek={initialWeek}
+                pastCategories={pastCategories}
+                prefillRows={prefillRows.length > 0 ? prefillRows : carryForwardRows}
+                isFirstTimeUser={(reports ?? []).length === 0}
+                hasCarryForward={hasCarryForward}
+                hasSavedData={prefillRows.length > 0}
+                prevWeekCategories={prevWeekCategories}
+                orgName={orgName}
+              />
+            </div>
+          </details>
 
           <div>
             <h2 className="tape-title" style={{ margin: 0 }}>
