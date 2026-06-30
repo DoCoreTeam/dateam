@@ -1,6 +1,7 @@
 import { normalizeMemory } from '@/lib/gpu/normalize'
 import { resolveProductId, type ResolveHeldReason } from '@/lib/gpu/resolve-product'
 import { resolveCompetitorId, type CompetitorIdentity } from '@/lib/gpu/resolve-competitor'
+import type { VariantCandidate } from '@/lib/gpu/resolve-product'
 
 export interface CompetitorPriceItem {
   competitor_name: string
@@ -18,14 +19,16 @@ export interface CompetitorPriceItem {
 
 export interface SaveCompetitorResult {
   saved: { competitor: string; model: string; memory: string; price_usd: number }[]
-  /** 매칭 실패로 깡통 생성 대신 보류된 항목(사람 처리 필요) */
-  held: { model: string; reason: ResolveHeldReason }[]
+  /** 매칭 실패로 깡통 생성 대신 보류된 항목(사람 처리 필요). candidates=메모리 변형 후보(ambiguous_variant) */
+  held: { model: string; reason: ResolveHeldReason; candidates?: VariantCandidate[] }[]
 }
 
 export interface SaveCompetitorOptions {
   /** market_prices.source_url + 매핑 competitor_url 갱신용(웹 새로고침 경로) */
   sourceUrl?: string | null
   confidence?: number
+  /** 사용자가 검토 화면에서 고른 카탈로그 변형 id(ambiguous_variant 해소). 있으면 resolveProductId 대신 이 변형에 직접 결합(기존 행만 — 깡통 생성 아님). 단일 item일 때만 의미. */
+  targetProductId?: string | null
 }
 
 // 경쟁사 가격 DB 저장. 모델은 resolveProductId SSOT로 기존 변형에만 결합 — 매칭 실패 시 깡통 자동생성 금지(보류).
@@ -76,10 +79,20 @@ export async function saveCompetitorPrices(
     }
 
     // 모델 변형 매칭 — resolveProductId SSOT(읽기 전용). 경쟁사 on-demand=1장. 매칭 실패 시 깡통 생성 대신 보류.
+    // 단, 사용자가 검토 화면에서 변형을 직접 고른 경우(targetProductId)엔 그 기존 변형에 결합(ambiguous 해소).
     const memory = normalizeMemory(item.memory ?? '')
-    const resolved = await resolveProductId(db, { modelName: item.model_name, gpuCount: 1, memory: item.memory ?? null })
-    if ('held' in resolved) { held.push({ model: item.model_name, reason: resolved.reason }); continue }
-    const gpuProductId: string = resolved.productId
+    let gpuProductId: string
+    if (opts.targetProductId) {
+      // 경쟁사 on-demand=1장 — 사용자가 고른 변형도 1장 구성인지 재검증(공급사 경로와 대칭, 오결합 차단).
+      const { data: chosen } = await db.from('gpu_products').select('id, gpu_count').eq('id', opts.targetProductId).is('deleted_at', null).maybeSingle()
+      if (!chosen?.id) { held.push({ model: item.model_name, reason: 'no_model' }); continue }
+      if ((chosen.gpu_count ?? 1) !== 1) { held.push({ model: item.model_name, reason: 'no_variant' }); continue }
+      gpuProductId = chosen.id as string
+    } else {
+      const resolved = await resolveProductId(db, { modelName: item.model_name, gpuCount: 1, memory: item.memory ?? null })
+      if ('held' in resolved) { held.push({ model: item.model_name, reason: resolved.reason, candidates: resolved.candidates }); continue }
+      gpuProductId = resolved.productId
+    }
 
     let mappingId: string
     const pricingModel = (item.pricing_model ?? 'on_demand').replace(/-/g, '_')

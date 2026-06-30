@@ -91,7 +91,7 @@ export async function POST(
     bulk: isBulk,
     autoAcceptedLowConf,
   })
-  if (!result.ok) return NextResponse.json({ error: result.error, code: result.code }, { status: result.status })
+  if (!result.ok) return NextResponse.json({ error: result.error, code: result.code, candidates: result.candidates, modelName: result.modelName, gpuCount: result.gpuCount }, { status: result.status })
   const resp: Record<string, unknown> = { ok: true }
   if (result.stock) resp.stock = result.stock
   if (result.strategic) resp.strategic = result.strategic

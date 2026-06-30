@@ -349,6 +349,8 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
   const [manualSupplierName, setManualSupplierName] = useState('')
   const [resolveMsg, setResolveMsg] = useState<string | null>(null)
+  // 확정 보류(held) 인카드 조치 — ambiguous_variant(메모리 변형 선택) / no_model·no_variant(스펙 등록 딥링크)
+  const [heldInfo, setHeldInfo] = useState<{ code: string; message: string; candidates?: { id: string; memory: string | null; gpuCount: number }[]; modelName: string } | null>(null)
 
   const extracted = item.current_extracted ?? {}
   const confidence = item.current_confidence ?? {}
@@ -371,7 +373,8 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
     })
   }
 
-  const handleConfirm = useCallback(async (productId?: string) => {
+  const handleConfirm = useCallback(async (opts?: { productId?: string; overrideMemory?: string }) => {
+    const productId = opts?.productId
     setConfirming(true)
     try {
       const body: Record<string, unknown> = {
@@ -379,11 +382,11 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
         confirmed_items: Array.from(checking),
       }
       if (productId) body.product_id = productId   // 해소 모달에서 기존 모델로 매핑
-      if (selectedSupplier) {
-        body.supplier_id = selectedSupplier.id
-      } else if (manualSupplierName) {
-        body.override_extracted = { supplier: manualSupplierName }
-      }
+      const override: Record<string, unknown> = {}
+      if (!selectedSupplier && manualSupplierName) override.supplier = manualSupplierName
+      if (opts?.overrideMemory) override.memory = opts.overrideMemory  // 인카드 메모리 변형 선택 → 변형 특정
+      if (selectedSupplier) body.supplier_id = selectedSupplier.id
+      if (Object.keys(override).length > 0) body.override_extracted = override
       const res = await fetch(`/api/pricing/gpu/review/${item.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -391,11 +394,21 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) {
-        // 모델 미해소 → 막다른 alert 대신 해소 모달(기존 모델 매핑 / 신규 등록)
+        // 막다른 alert 대신 사유별 인카드 조치로 전환
+        if (j.code === 'ambiguous_variant') {
+          setHeldInfo({ code: j.code, message: j.error ?? '메모리 변형을 선택해 확정하세요', candidates: Array.isArray(j.candidates) ? j.candidates : [], modelName: j.modelName ?? '' })
+          return
+        }
+        if (j.code === 'no_model' || j.code === 'no_variant') {
+          setHeldInfo({ code: j.code, message: j.error ?? '카탈로그에 모델/구성이 없습니다', modelName: j.modelName ?? '' })
+          return
+        }
+        // 모델 미해소(product 매핑 불일치 등) → 기존 해소 모달(기존 모델 매핑 / 신규 등록)
         if (j.code === 'model_unresolved' && !productId) { setResolveMsg(j.error ?? '모델을 카탈로그에서 찾을 수 없습니다') ; return }
         alert(j.error ?? '확정 실패')
         return
       }
+      setHeldInfo(null)
       // M5: 재고 연계 결과 — 부분커밋(가격 확정·재고 실패) 시 사용자에게 알림
       if (j.stock && j.stock.ok === false) {
         alert(`확정됨. 다만 ${j.stock.msg}`)
@@ -649,6 +662,37 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
       </div>
       )}
 
+      {/* 확정 보류 인카드 조치 — 막다른 알럿 대신 그 자리서 해결 */}
+      {isAdmin && heldInfo && (
+        <div role="alert" style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, background: 'var(--warning-bg)', border: 'var(--hairline) solid var(--warning-border)' }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--warning)', marginBottom: 8 }}>{heldInfo.message}</div>
+          {heldInfo.code === 'ambiguous_variant' && (heldInfo.candidates ?? []).length > 0 ? (
+            <>
+              <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 6 }}>아래에서 카탈로그 변형을 선택하면 그 변형으로 바로 확정됩니다.</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {/* 동일 (메모리·장수) 중복 변형은 1개로 합쳐 표시(카탈로그 중복행 대비) — 첫 변형 id로 결합 */}
+                {Array.from(new Map((heldInfo.candidates ?? []).map((c) => [`${c.memory ?? ''}|${c.gpuCount}`, c])).values()).map((c) => (
+                  <button key={c.id} type="button" className="gpu-btn gpu-btn-primary" disabled={confirming}
+                    onClick={() => handleConfirm({ productId: c.id })}
+                    style={{ fontSize: 12 }}>
+                    {heldInfo.modelName} {c.memory ?? '(메모리 미지정)'}{c.gpuCount > 1 ? ` ×${c.gpuCount}` : ''}(으)로 확정
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 6 }}>변형 메모리가 비어 있다면 스펙 관리에서 해당 모델의 메모리를 채워 두면 다음부터 자동 매칭됩니다.</div>
+            </>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>카탈로그에 등록한 뒤 다시 확정하세요.</span>
+              <button type="button" className="gpu-btn gpu-btn-primary" style={{ fontSize: 12 }}
+                onClick={() => { window.location.href = `/pricing/gpu?tab=specs&newModel=${encodeURIComponent(heldInfo.modelName)}` }}>
+                <Plus size={13} /> 스펙 관리에서 등록
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 액션 버튼 (확정·반려) — admin 전용. member는 조회+선택(삭제)만. */}
       {isAdmin && (
       <div className="gpu-rev-actions" style={{ marginTop: 14 }}>
@@ -689,7 +733,7 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
           modelName={String(extracted.model_name ?? item.product_hint ?? '')}
           message={resolveMsg}
           busy={confirming}
-          onPick={(pid) => handleConfirm(pid)}
+          onPick={(pid) => handleConfirm({ productId: pid })}
           onClose={() => setResolveMsg(null)}
         />
       )}

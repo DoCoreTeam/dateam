@@ -42,11 +42,16 @@ test('메모리 정확매칭 — 같은 장수 다중변형 중 메모리로 특
   assert.deepEqual(r, { productId: '3060-12', matched: 'exact_memory' })
 })
 
-test('잘못 병합 차단 — 같은 장수 다중 메모리인데 특정 불가 → ambiguous 보류', async () => {
+test('잘못 병합 차단 — 같은 장수 다중 메모리인데 특정 불가 → ambiguous 보류(메모리 후보 동봉)', async () => {
+  // 보류하되 사용자가 그 자리서 고를 수 있게 메모리 변형 후보를 함께 반환(confirm-review-item 인카드 선택).
+  const candidates = [
+    { id: '3060-8', memory: '8GB', gpuCount: 1 },
+    { id: '3060-12', memory: '12GB', gpuCount: 1 },
+  ]
   const noMem = await resolveProductId(fakeDb(CATALOG), { modelName: 'RTX 3060', gpuCount: 1 })
-  assert.deepEqual(noMem, { held: true, reason: 'ambiguous_variant' })
+  assert.deepEqual(noMem, { held: true, reason: 'ambiguous_variant', candidates })
   const wrongMem = await resolveProductId(fakeDb(CATALOG), { modelName: 'RTX 3060', gpuCount: 1, memory: '10GB' })
-  assert.deepEqual(wrongMem, { held: true, reason: 'ambiguous_variant' })
+  assert.deepEqual(wrongMem, { held: true, reason: 'ambiguous_variant', candidates })
 })
 
 test('모델 없음 → no_model 보류 (깡통 생성 금지)', async () => {

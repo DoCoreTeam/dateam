@@ -6,7 +6,7 @@ import type { createClient, createAdminClient } from '@/lib/supabase/server'
 import { parseGpuCount, toPerGpuPrice } from '@/lib/gpu/parse-quantity'
 import { resolveConfirmUnitPrice } from '@/lib/gpu/price-breakdown'
 import { parseBilling } from '@/lib/gpu/billing'
-import { resolveProductId, heldReasonMessage } from '@/lib/gpu/resolve-product'
+import { resolveProductId, heldReasonMessage, type VariantCandidate } from '@/lib/gpu/resolve-product'
 import { revalidateGpu } from '@/lib/gpu/revalidate'
 import { routeIntakeExtras } from '@/lib/gpu/intake-routing'
 import { roundUpToStandard, isStandardConfig } from '@/lib/gpu/config-ladder'
@@ -46,8 +46,13 @@ export interface ConfirmResult {
   ok: boolean
   status: number
   error?: string
-  /** 'model_unresolved' = 모델 미해소(카탈로그 없음/변형 모호) → 해소 모달로 안내 */
+  /** 보류 사유 코드 → 클라이언트가 인카드 조치 분기: 'ambiguous_variant'(메모리 선택)·'no_model'·'no_variant'(스펙등록)·'model_unresolved'(폴백 모달) */
   code?: string
+  /** ambiguous_variant 시 사용자가 고를 메모리 변형 후보 */
+  candidates?: VariantCandidate[]
+  /** 인카드 조치(메모리 선택·스펙등록 딥링크)용 컨텍스트 */
+  modelName?: string
+  gpuCount?: number
   stock?: { ok: boolean; msg: string }
   strategic?: { product_id: string | null; strategic_price_krw: number | null; msg: string }
   productId?: string | null
@@ -115,12 +120,13 @@ export async function confirmReviewItem(
     if (!compItem.competitor_name || !compItem.model_name || compItem.price_usd == null || !Number.isFinite(compItem.price_usd) || compItem.price_usd <= 0) {
       return { ok: false, status: 422, error: '경쟁사·모델·가격을 특정할 수 없어 확정할 수 없습니다.' }
     }
-    const { saved, held } = await saveCompetitorPrices(adminClient, [compItem])
+    const { saved, held } = await saveCompetitorPrices(adminClient, [compItem], { targetProductId: opts.productId ?? null })
     if (saved.length === 0) {
-      // 깡통 자동생성 금지 — 매칭 실패는 사유와 함께 보류(확정 차단)
-      const reason = held[0]?.reason
+      // 깡통 자동생성 금지 — 매칭 실패는 사유+조치정보와 함께 보류(막다른 알럿 대신 인카드 조치).
+      const h = held[0]
+      const reason = h?.reason
       const msg = reason ? heldReasonMessage(reason, compItem.model_name, 1) : '경쟁사 시장가 반영에 실패했습니다.'
-      return { ok: false, status: 422, error: msg }
+      return { ok: false, status: 422, error: msg, code: reason, candidates: h?.candidates, modelName: compItem.model_name, gpuCount: 1 }
     }
     await admin.from('review_items').update({
       status: 'confirmed', confirmed_by: actorName, confirmed_at: now, confirmed_items: confirmedItems,
@@ -182,7 +188,15 @@ export async function confirmReviewItem(
       memory: typeof merged.memory === 'string' ? merged.memory : null,
     })
     if ('held' in resolved) {
-      return { ok: false, status: 422, error: heldReasonMessage(resolved.reason, merged.model_name, gpuCount), code: 'model_unresolved' }
+      // 보류 사유를 그대로 코드로 노출(클라이언트 인카드 분기) + ambiguous 시 메모리 변형 후보 동봉.
+      return {
+        ok: false, status: 422,
+        error: heldReasonMessage(resolved.reason, merged.model_name, gpuCount),
+        code: resolved.reason,
+        candidates: resolved.candidates,
+        modelName: merged.model_name,
+        gpuCount,
+      }
     }
     productId = resolved.productId
   }

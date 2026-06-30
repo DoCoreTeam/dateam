@@ -13,9 +13,12 @@ export type ResolveHeldReason =
   | 'no_variant'        // 모델은 있으나 그 장수 구성이 없음
   | 'ambiguous_variant' // 같은 장수에 메모리가 다른 변형이 여럿인데 memory로 특정 불가 → 잘못 병합 차단
 
+/** 보류 시 사용자가 그 자리서 고를 수 있는 후보 변형(같은 모델·장수, 메모리만 다름) */
+export interface VariantCandidate { id: string; memory: string | null; gpuCount: number }
+
 export type ResolveResult =
   | { productId: string; matched: 'exact_memory' | 'single_variant' }
-  | { held: true; reason: ResolveHeldReason }
+  | { held: true; reason: ResolveHeldReason; candidates?: VariantCandidate[] }
 
 interface ProductRow { id: string; model_name: string; memory: string | null; gpu_count: number | null }
 
@@ -58,7 +61,9 @@ export async function resolveProductId(
     if (exact) return { productId: exact.id, matched: 'exact_memory' }
   }
   if (cands.length === 1) return { productId: cands[0].id, matched: 'single_variant' }
-  return { held: true, reason: 'ambiguous_variant' }
+  // 여럿 → 보류하되, 사용자가 그 자리서 고를 수 있게 후보 변형(메모리만 다름)을 함께 반환.
+  const candidates: VariantCandidate[] = cands.map((p) => ({ id: p.id, memory: p.memory, gpuCount: p.gpu_count ?? 1 }))
+  return { held: true, reason: 'ambiguous_variant', candidates }
 }
 
 /** 보류 사유 → 사용자 안내 문구(확정 차단 시 표시). */
