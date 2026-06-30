@@ -45,6 +45,7 @@ export async function POST(request: Request) {
     .from('review_items')
     .select('supplier_hint, product_hint, current_extracted')
     .eq('status', 'pending')
+    .is('deleted_at', null)
     .eq('channel', REVIEW_CHANNELS.MARKET_LINK)
   const pendingKeys = new Set<string>()
   for (const r of pendings ?? []) {

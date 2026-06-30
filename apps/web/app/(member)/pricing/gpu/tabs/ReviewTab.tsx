@@ -350,7 +350,10 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
   const [manualSupplierName, setManualSupplierName] = useState('')
   const [resolveMsg, setResolveMsg] = useState<string | null>(null)
   // 확정 보류(held) 인카드 조치 — ambiguous_variant(메모리 변형 선택) / no_model·no_variant(스펙 등록 딥링크)
-  const [heldInfo, setHeldInfo] = useState<{ code: string; message: string; candidates?: { id: string; memory: string | null; gpuCount: number }[]; modelName: string } | null>(null)
+  const [heldInfo, setHeldInfo] = useState<{ code: string; message: string; candidates?: { id: string; memory: string | null; gpuCount: number }[]; modelName: string; gpuCount?: number } | null>(null)
+  // 필드 수동 보정 — AI recheck 없이 추출값(모델명·메모리·가격·요금제) 직접 교정 → 확정 시 override_extracted로 반영
+  const [editingFields, setEditingFields] = useState(false)
+  const [fieldEdits, setFieldEdits] = useState<Record<string, string>>({})
 
   const extracted = item.current_extracted ?? {}
   const confidence = item.current_confidence ?? {}
@@ -385,6 +388,13 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
       const override: Record<string, unknown> = {}
       if (!selectedSupplier && manualSupplierName) override.supplier = manualSupplierName
       if (opts?.overrideMemory) override.memory = opts.overrideMemory  // 인카드 메모리 변형 선택 → 변형 특정
+      // 필드 수동 보정값 병합(빈값 무시). price_usd는 숫자 변환·양수만.
+      for (const [k, v] of Object.entries(fieldEdits)) {
+        const t = v.trim()
+        if (!t) continue
+        if (k === 'price_usd') { const n = Number(t); if (Number.isFinite(n) && n > 0) override.price_usd = n }
+        else override[k] = t
+      }
       if (selectedSupplier) body.supplier_id = selectedSupplier.id
       if (Object.keys(override).length > 0) body.override_extracted = override
       const res = await fetch(`/api/pricing/gpu/review/${item.id}`, {
@@ -400,7 +410,7 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
           return
         }
         if (j.code === 'no_model' || j.code === 'no_variant') {
-          setHeldInfo({ code: j.code, message: j.error ?? '카탈로그에 모델/구성이 없습니다', modelName: j.modelName ?? '' })
+          setHeldInfo({ code: j.code, message: j.error ?? '카탈로그에 모델/구성이 없습니다', modelName: j.modelName ?? '', gpuCount: typeof j.gpuCount === 'number' ? j.gpuCount : undefined })
           return
         }
         // 모델 미해소(product 매핑 불일치 등) → 기존 해소 모달(기존 모델 매핑 / 신규 등록)
@@ -420,7 +430,7 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
     } finally {
       setConfirming(false)
     }
-  }, [item.id, checking, onDone, selectedSupplier, manualSupplierName])
+  }, [item.id, checking, onDone, selectedSupplier, manualSupplierName, fieldEdits])
 
   const handleReject = useCallback(async () => {
     setRejecting(true)
@@ -524,18 +534,40 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
         </div>
       </div>
 
-      {/* 경쟁사 카탈로그 항목 — 업체/모델/가격 컴팩트 표시 */}
+      {/* 경쟁사 카탈로그 항목 — 업체/모델/가격 컴팩트 표시 + 필드 수동 보정 */}
       {isCompetitor && (
         <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="competitor-review-fields">
-          <span className="gpu-badge gpu-badge-t2" style={{ alignSelf: 'flex-start', fontSize: 10 }}>경쟁사 카탈로그</span>
-          {([['업체', 'competitor_name'], ['모델', 'model_name'], ['메모리', 'memory'], ['가격(USD/hr)', 'price_usd'], ['요금제', 'pricing_model']] as Array<[string, string]>).map(([label, key]) => (
-            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--color-border)' }}>
-              <span style={{ minWidth: 96, fontSize: 12, color: 'var(--gpu-muted)' }}>{label}</span>
-              <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
-                {fmtField(key, extracted[key], krwPerUsd) !== '' ? fmtField(key, extracted[key], krwPerUsd) : <span style={{ color: 'var(--gpu-faint)', fontWeight: 400 }}>—</span>}
-              </span>
-            </div>
-          ))}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span className="gpu-badge gpu-badge-t2" style={{ fontSize: 10 }}>경쟁사 카탈로그</span>
+            {isAdmin && (
+              <button type="button" className="gpu-btn" style={{ fontSize: 11, padding: '2px 8px' }}
+                onClick={() => { setEditingFields((v) => !v); if (editingFields) setFieldEdits({}) }}>
+                {editingFields ? '편집 취소' : '✏️ 값 수정'}
+              </button>
+            )}
+          </div>
+          {([['업체', 'competitor_name'], ['모델', 'model_name'], ['메모리', 'memory'], ['가격(USD/hr)', 'price_usd'], ['요금제', 'pricing_model']] as Array<[string, string]>).map(([label, key]) => {
+            const editable = editingFields && key !== 'competitor_name'  // 업체명은 보정 대상 아님(공급사 힌트)
+            const rawVal = extracted[key]
+            const editVal = fieldEdits[key] ?? (rawVal == null ? '' : String(rawVal))
+            return (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--color-border)' }}>
+                <span style={{ minWidth: 96, fontSize: 12, color: 'var(--gpu-muted)' }}>{label}</span>
+                {editable ? (
+                  <input className="input-field" style={{ flex: 1, fontSize: 13, padding: '4px 8px' }}
+                    type={key === 'price_usd' ? 'number' : 'text'}
+                    value={editVal}
+                    placeholder={key === 'pricing_model' ? 'on_demand' : ''}
+                    onChange={(e) => setFieldEdits((p) => ({ ...p, [key]: e.target.value }))} />
+                ) : (
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+                    {fmtField(key, extracted[key], krwPerUsd) !== '' ? fmtField(key, extracted[key], krwPerUsd) : <span style={{ color: 'var(--gpu-faint)', fontWeight: 400 }}>—</span>}
+                  </span>
+                )}
+              </div>
+            )
+          })}
+          {editingFields && <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>값을 고친 뒤 아래 ✓ 확정을 누르면 보정값으로 반영됩니다.</div>}
         </div>
       )}
 
@@ -683,10 +715,17 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
             </>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>카탈로그에 등록한 뒤 다시 확정하세요.</span>
+              <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                {heldInfo.code === 'no_variant'
+                  ? `'${heldInfo.modelName}'은 있으나 ${heldInfo.gpuCount ?? 1}장 구성이 없습니다. 그 구성을 추가한 뒤 다시 확정하세요.`
+                  : `'${heldInfo.modelName}'이 카탈로그에 없습니다. 모델을 등록한 뒤 다시 확정하세요.`}
+              </span>
               <button type="button" className="gpu-btn gpu-btn-primary" style={{ fontSize: 12 }}
-                onClick={() => { window.location.href = `/pricing/gpu?tab=specs&newModel=${encodeURIComponent(heldInfo.modelName)}` }}>
-                <Plus size={13} /> 스펙 관리에서 등록
+                onClick={() => {
+                  const q = heldInfo.code === 'no_variant' && heldInfo.gpuCount ? `&count=${heldInfo.gpuCount}` : ''
+                  window.location.href = `/pricing/gpu?tab=specs&newModel=${encodeURIComponent(heldInfo.modelName)}${q}`
+                }}>
+                <Plus size={13} /> {heldInfo.code === 'no_variant' ? '스펙 관리에서 구성 추가' : '스펙 관리에서 모델 등록'}
               </button>
             </div>
           )}
@@ -843,17 +882,28 @@ export default function ReviewTab({ isAdmin = false }: { isAdmin?: boolean }) {
         setBulkResult({ title: '일괄 확정 실패', lines: [j.error ?? '서버 오류로 확정하지 못했습니다.'], failed: [] })
         return
       }
-      const failedArr = (Array.isArray(j.failed) ? j.failed : []) as Array<{ id: string; hint: string | null; error: string }>
+      const failedArr = (Array.isArray(j.failed) ? j.failed : []) as Array<{ id: string; hint: string | null; error: string; code?: string | null }>
       const failedIds = new Set(failedArr.map((f) => f.id))
       // 실패 항목만 선택 유지 — 사용자가 바로 개별 처리
       setSelected((prev) => { const n = new Set<string>(); prev.forEach((id) => { if (failedIds.has(id)) n.add(id) }); return n })
       await revalidate()
       await mutate('/api/pricing/gpu/products')
       setBulkModal(null)
+      // 보류 사유별 조치 안내 — 개별 카드에서 어떤 조치가 필요한지 그룹으로 알림(인카드 조치와 대칭).
+      const ACTION_BY_CODE: Record<string, string> = {
+        ambiguous_variant: '메모리 변형 선택',
+        no_model: '스펙 관리에서 모델 등록',
+        no_variant: '스펙 관리에서 구성 추가',
+        model_unresolved: '기존 모델 매핑',
+      }
+      const codeCounts = new Map<string, number>()
+      failedArr.forEach((f) => { if (f.code && ACTION_BY_CODE[f.code]) codeCounts.set(f.code, (codeCounts.get(f.code) ?? 0) + 1) })
+      const actionLines = Array.from(codeCounts.entries()).map(([c, n]) => `· ${n}건 → 개별 카드에서 "${ACTION_BY_CODE[c]}"로 해결`)
       setBulkResult({
         title: '일괄 확정 완료',
         lines: [`${j.confirmed ?? 0}건을 가격표에 반영했습니다.`,
-          ...(failedArr.length ? [`${failedArr.length}건은 확정하지 못했습니다 — 선택에 남겨두었으니 개별 확인하세요.`] : [])],
+          ...(failedArr.length ? [`${failedArr.length}건은 확정하지 못했습니다 — 선택에 남겨뒀습니다(아래 안내대로 개별 처리).`] : []),
+          ...actionLines],
         failed: failedArr.map((f) => ({ hint: f.hint ?? f.id, error: f.error })),
       })
     } catch {

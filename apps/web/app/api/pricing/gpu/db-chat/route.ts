@@ -53,6 +53,7 @@ async function buildDbSnapshot(supabase: Awaited<ReturnType<typeof createClient>
       sb.from('pricing_settings').select('margin_pct').limit(1),
       sb.from('review_items')
         .select('id,product_hint,supplier_hint,status,overall_confidence,confirmed_at,created_at')
+        .is('deleted_at', null)
         .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false })
         .limit(50),

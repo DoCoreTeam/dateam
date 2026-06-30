@@ -19,14 +19,14 @@ export async function GET(req: NextRequest) {
   if (metric === 'low_confidence') {
     const { data } = await db.from('review_items')
       .select('id, product_hint, supplier_hint, overall_confidence, status, channel')
-      .eq('is_test', false).not('overall_confidence', 'is', null).lt('overall_confidence', 60)
+      .eq('is_test', false).is('deleted_at', null).not('overall_confidence', 'is', null).lt('overall_confidence', 60)
       .order('overall_confidence', { ascending: true }).limit(100)
     return NextResponse.json({ metric, items: data ?? [] })
   }
   if (metric === 'pending') {
     const { data } = await db.from('review_items')
       .select('id, product_hint, supplier_hint, overall_confidence, impact_level, created_at')
-      .eq('is_test', false).eq('status', 'pending').order('created_at', { ascending: true }).limit(100)
+      .eq('is_test', false).is('deleted_at', null).eq('status', 'pending').order('created_at', { ascending: true }).limit(100)
     return NextResponse.json({ metric, items: data ?? [] })
   }
   if (metric === 'dup_suspects') {

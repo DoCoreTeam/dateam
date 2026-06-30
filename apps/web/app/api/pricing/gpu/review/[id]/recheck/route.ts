@@ -43,6 +43,7 @@ export async function POST(
     .from('review_items')
     .select('*')
     .eq('id', id)
+    .is('deleted_at', null)
     .single()
 
   if (!item) return NextResponse.json({ error: '검토 항목 없음' }, { status: 404 })
@@ -176,6 +177,7 @@ ${originalText || '(원본 텍스트 없음 — 이전 추출 결과 기반으�
       overall_confidence: overallConfidence,
     })
     .eq('id', id)
+    .is('deleted_at', null)
     .select()
     .single()
 

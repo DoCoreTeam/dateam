@@ -6,7 +6,7 @@ import { confirmReviewItem } from '@/lib/gpu/confirm-review-item'
 // POST /api/pricing/gpu/review/bulk — 검토대기 항목 일괄 처리.
 //  body: { ids: string[], action: 'delete' | 'confirm', auto_accepted_low_conf?: Record<id, string[]> }
 //  권한: 라이브 반영(confirm=가격표 확정)·검토대기 일괄 삭제 모두 admin 전용(확정/마스터 경계 SSOT).
-//  delete  = review_items 영구 삭제(가격DB 무영향, pending 정리용).
+//  delete  = review_items 소프트삭제(deleted_at)(가격DB 무영향, pending 정리용).
 //  confirm = 선택 항목을 가격표에 일괄 확정(공용 confirmReviewItem SSOT).
 const MAX_BULK = 500
 
@@ -32,9 +32,10 @@ export async function POST(req: NextRequest) {
 
   // ── 일괄 삭제 ──────────────────────────────────────────
   if (action === 'delete') {
+    // 소프트삭제 — 하드 delete 대신 deleted_at 마킹(오삭제 복구·감사 보존). 이미 삭제된 행은 제외.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (adminClient as any)
-      .from('review_items').delete().in('id', ids).select('id')
+      .from('review_items').update({ deleted_at: new Date().toISOString() }).in('id', ids).is('deleted_at', null).select('id')
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     const deleted = (data ?? []) as Array<{ id: string }>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,15 +55,15 @@ export async function POST(req: NextRequest) {
 
   const supabase = await createClient()
   let confirmed = 0
-  const failed: Array<{ id: string; hint: string | null; error: string }> = []
+  const failed: Array<{ id: string; hint: string | null; error: string; code: string | null }> = []
 
   // 순차 처리 — 각 항목이 product/supplier 자동생성·멱등 superseded를 포함하므로 동시성 충돌 방지 위해 직렬.
   for (const id of ids) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: item } = await (supabase as any).from('review_items').select('*').eq('id', id).single()
-      if (!item) { failed.push({ id, hint: null, error: '항목을 찾을 수 없음' }); continue }
-      if (item.status !== 'pending') { failed.push({ id, hint: item.product_hint ?? null, error: '이미 처리됨' }); continue }
+      const { data: item } = await (supabase as any).from('review_items').select('*').eq('id', id).is('deleted_at', null).single()
+      if (!item) { failed.push({ id, hint: null, error: '항목을 찾을 수 없음', code: null }); continue }
+      if (item.status !== 'pending') { failed.push({ id, hint: item.product_hint ?? null, error: '이미 처리됨', code: null }); continue }
       const auto = Array.isArray(autoMap[id]) ? (autoMap[id] as unknown[]).filter((v): v is string => typeof v === 'string') : []
       const result = await confirmReviewItem(supabase, adminClient, item, actorName, {
         confirmedItems: [],
@@ -70,9 +71,10 @@ export async function POST(req: NextRequest) {
         autoAcceptedLowConf: auto,
       })
       if (result.ok) confirmed++
-      else failed.push({ id, hint: item.product_hint ?? null, error: result.error ?? '확정 실패' })
+      // 실패 항목에 보류 사유 code 동봉 → 클라가 "개별 카드에서 어떤 조치가 필요한지" 그룹 안내.
+      else failed.push({ id, hint: item.product_hint ?? null, error: result.error ?? '확정 실패', code: result.code ?? null })
     } catch (e) {
-      failed.push({ id, hint: null, error: e instanceof Error ? e.message : '확정 예외' })
+      failed.push({ id, hint: null, error: e instanceof Error ? e.message : '확정 예외', code: null })
     }
   }
 

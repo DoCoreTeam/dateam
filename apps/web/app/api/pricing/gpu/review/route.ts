@@ -263,6 +263,7 @@ export async function GET(req: NextRequest) {
     .from('review_items')
     .select('*')
     .eq('status', status)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(200)
 

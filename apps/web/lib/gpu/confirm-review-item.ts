@@ -95,7 +95,7 @@ export async function confirmReviewItem(
     if (!result.ok) return { ok: false, status: 422, error: result.reason ?? '전략가 반영 실패' }
     await admin.from('review_items').update({
       status: 'confirmed', confirmed_by: actorName, confirmed_at: now, confirmed_items: confirmedItems,
-    }).eq('id', id)
+    }).eq('id', id).is('deleted_at', null)
     await admin.from('gpu_audit_logs').insert({
       actor: actorName, action_type: 'review_finalized',
       detail: { review_item_id: id, target: 'own_target', product_id: result.product_id, strategic_price_krw: result.strategic_price_krw, via: isBulk ? 'bulk' : 'single', is_test: item.is_test === true },
@@ -130,7 +130,7 @@ export async function confirmReviewItem(
     }
     await admin.from('review_items').update({
       status: 'confirmed', confirmed_by: actorName, confirmed_at: now, confirmed_items: confirmedItems,
-    }).eq('id', id)
+    }).eq('id', id).is('deleted_at', null)
     await admin.from('gpu_audit_logs').insert({
       actor: actorName, action_type: 'review_finalized',
       detail: { review_item_id: id, target: 'competitor', saved, via: isBulk ? 'bulk' : 'single', is_test: item.is_test === true },

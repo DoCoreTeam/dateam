@@ -219,10 +219,12 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
   )
 }
 
-// 새 모델 등록 — 카탈로그 신규 모델(POST products). 확정 해소 모달의 'newModel' prefill로도 진입.
-function AddModelModal({ prefillName, onClose, onSaved }: { prefillName?: string; onClose: () => void; onSaved: () => void }) {
+// 새 모델/구성 등록 — 카탈로그 모델 또는 기존 모델의 누락 구성(장수) 추가(POST products는 model+memory+count로 dedup).
+// 확정 해소: no_model → newModel만, no_variant → newModel+count(기존 모델에 그 장수 구성 추가)로 진입.
+function AddModelModal({ prefillName, prefillCount, onClose, onSaved }: { prefillName?: string; prefillCount?: string; onClose: () => void; onSaved: () => void }) {
   useEscClose(onClose)
-  const [f, setF] = useState({ model_name: prefillName ?? '', memory: '', gpu_count: '1' })
+  const isAddConfig = Boolean(prefillName && prefillCount)  // 기존 모델에 구성 추가 모드
+  const [f, setF] = useState({ model_name: prefillName ?? '', memory: '', gpu_count: prefillCount ?? '1' })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const set = (k: 'model_name' | 'memory' | 'gpu_count', v: string) => setF((p) => ({ ...p, [k]: v }))
@@ -243,12 +245,14 @@ function AddModelModal({ prefillName, onClose, onSaved }: { prefillName?: string
     <div className="gpu-modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="gpu-modal-card gpu-modal-card--sm" onClick={(e) => e.stopPropagation()}>
         <div className="gpu-modal-header">
-          <strong className="tape-title">새 GPU 모델 등록</strong>
+          <strong className="tape-title">{isAddConfig ? '구성(장수) 추가' : '새 GPU 모델 등록'}</strong>
           <button type="button" onClick={onClose} className="gpu-modal-close" aria-label="닫기"><X size={16} /></button>
         </div>
         <div className="gpu-modal-body">
           <p style={{ fontSize: 12, color: 'var(--text-faint)', margin: '0 0 10px' }}>
-            카탈로그에 없는 모델을 등록합니다. 공급사명·벤더수식 없이 <b>표준 모델명</b>만 입력하세요(예: H100 SXM, A100). 장수·메모리는 구성 단위입니다.
+            {isAddConfig
+              ? <>기존 모델 <b>{prefillName}</b>에 <b>{prefillCount}장</b> 구성을 추가합니다. 카드 메모리를 입력하면 다음부터 자동 매칭됩니다(중복 모델 생성 아님).</>
+              : <>카탈로그에 없는 모델을 등록합니다. 공급사명·벤더수식 없이 <b>표준 모델명</b>만 입력하세요(예: H100 SXM, A100). 장수·메모리는 구성 단위입니다.</>}
           </p>
           <div className="responsive-grid-cols-2">
             <label className="gpu-field"><span className="label">모델명 *</span><input className="input-field" value={f.model_name} onChange={(e) => set('model_name', e.target.value)} placeholder="H100 SXM" autoFocus /></label>
@@ -268,8 +272,8 @@ export default function SpecsTab() {
   const { mutate } = useSWRConfig()
   const models = data?.models ?? []
   const [open, setOpen] = useState<ModelRow | null>(null)
-  const [addOpen, setAddOpen] = useState<{ name: string } | null>(null)
-  // 확정 해소 모달에서 ?newModel=<모델명>으로 진입 → 등록 모달 자동 오픈(1회). 이후 URL 파라미터 제거.
+  const [addOpen, setAddOpen] = useState<{ name: string; count?: string } | null>(null)
+  // 확정 해소: ?newModel=<모델명>(no_model) 또는 +&count=<N>(no_variant=구성 추가)으로 진입 → 모달 자동 오픈(1회). 이후 URL 파라미터 제거.
   const searchParams = useSearchParams()
   const router = useRouter()
   const prefillConsumed = useRef(false)
@@ -278,9 +282,10 @@ export default function SpecsTab() {
     const nm = searchParams.get('newModel')
     if (nm) {
       prefillConsumed.current = true
-      setAddOpen({ name: nm })
+      const cnt = searchParams.get('count')
+      setAddOpen({ name: nm, count: cnt && Number(cnt) > 0 ? cnt : undefined })
       const sp = new URLSearchParams(Array.from(searchParams.entries()))
-      sp.delete('newModel')
+      sp.delete('newModel'); sp.delete('count')
       router.replace(`/pricing/gpu?${sp.toString()}`)
     }
   }, [searchParams, router])
@@ -432,7 +437,7 @@ export default function SpecsTab() {
       </table>
 
       {open && <SpecModal row={open} onClose={() => setOpen(null)} onSaved={refresh} />}
-      {addOpen && <AddModelModal prefillName={addOpen.name} onClose={() => setAddOpen(null)} onSaved={() => { setAddOpen(null); refresh() }} />}
+      {addOpen && <AddModelModal prefillName={addOpen.name} prefillCount={addOpen.count} onClose={() => setAddOpen(null)} onSaved={() => { setAddOpen(null); refresh() }} />}
     </div>
   )
 }

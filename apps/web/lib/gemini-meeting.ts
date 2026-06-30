@@ -92,8 +92,8 @@ export async function summarizeMeeting(args: MeetingArgs): Promise<MeetingSummar
   const prompt = `너는 회의록 비서다. 아래 <USER_DATA> 회의 본문(plain text)을 읽고 한국어로 요약하라.
 
 규칙(엄수):
-- "summary": 회의의 핵심 논의·맥락을 3~6문장으로 간결히 요약.
-- "decisions": 회의에서 확정된 결정사항만 줄바꿈으로 구분해 나열. 결정이 없으면 빈 문자열.
+- "summary": 회의의 핵심 논의·맥락을 3~6개의 항목으로 정리한다. 각 항목은 "- "로 시작하는 한 줄이며, 항목 사이는 줄바꿈(\n)으로 구분한다(한 덩어리 문단 금지 — 읽기 쉽게 항목별로). 각 항목은 1~2문장.
+- "decisions": 회의에서 확정된 결정사항만 "- "로 시작해 줄바꿈으로 구분해 나열. 결정이 없으면 빈 문자열.
 - 본문에 없는 내용을 지어내지 마라.
 - 출력: 순수 JSON 객체만(마크다운/설명 없이). 형식:
   { "summary": string, "decisions": string }

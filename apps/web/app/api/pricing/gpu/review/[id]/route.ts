@@ -48,6 +48,7 @@ export async function POST(
     .from('review_items')
     .select('*')
     .eq('id', id)
+    .is('deleted_at', null)
     .single()
 
   if (fetchError || !item) return NextResponse.json({ error: '검토 항목을 찾을 수 없습니다' }, { status: 404 })

@@ -24,7 +24,7 @@ export async function GET(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = adminClient as any
   const [rev, quote] = await Promise.all([
-    db.from('review_items').select('id').eq('evidence_drive_file_id', fileId).limit(1).maybeSingle(),
+    db.from('review_items').select('id').eq('evidence_drive_file_id', fileId).is('deleted_at', null).limit(1).maybeSingle(),
     db.from('supply_quotes').select('id').eq('evidence_drive_file_id', fileId).limit(1).maybeSingle(),
   ])
   if (!rev.data && !quote.data) {
