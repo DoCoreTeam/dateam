@@ -35,6 +35,34 @@ function b200Raw(): CatalogRawData {
   }
 }
 
+test('term_prices — 약정가 부착(가격순) + on_demand 제외', () => {
+  const raw: CatalogRawData = {
+    products: [{ id: 'p1', model_name: 'H100', memory: '80GB', tier: 1, pricing_mode: 'quote', gpu_count: 1, vcpu: 26, ram_gb: 220, storage_gb: 1024, series: 'H100' }],
+    quotes: [{ product_id: 'p1', supplier_id: 'A', unit_price_usd: 3.0, gpu_count: 1, valid_until: null }],
+    suppliers: [{ id: 'A', name: 'A사', color: '#000' }],
+    direct: [], margin_pct: 20, usd_krw: 1400, fx_date: '2026-06-12', today: '2026-06-12',
+    // DB는 price_krw 오름차순으로 넘겨줌 — on_demand는 대표가라 배열에서 제외되어야 함
+    termPrices: [
+      { product_id: 'p1', term: 'reserved_36m', price_krw: 3000 },
+      { product_id: 'p1', term: 'reserved_6m', price_krw: 5000 },
+      { product_id: 'p1', term: 'on_demand', price_krw: 6000 },
+    ],
+  }
+  const cat = buildCatalog(raw)
+  const p = cat.products.find((x) => x.id === 'p1')!
+  assert.deepEqual(
+    p.term_prices,
+    [{ term: 'reserved_36m', price_krw: 3000 }, { term: 'reserved_6m', price_krw: 5000 }],
+    'on_demand 제외 + DB 정렬(가격 오름차순) 순서 유지',
+  )
+})
+
+test('term_prices — 약정가 없으면 빈 배열', () => {
+  const cat = buildCatalog(b200Raw())
+  const p = cat.products.find((x) => x.id === 'p1')!
+  assert.deepEqual(p.term_prices, [], '약정가 미주입 시 빈 배열')
+})
+
 test('perGpuOf — 구성 총액 ÷ 장수', () => {
   assert.equal(perGpuOf(53.591, 8), 6.6989)
   assert.equal(perGpuOf(3.24, 1), 3.24)

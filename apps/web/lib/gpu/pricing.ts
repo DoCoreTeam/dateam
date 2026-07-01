@@ -12,6 +12,14 @@
 //   effective_unit_price_usd(config) = min(자기 구성 최저 견적, bestPerGpu × 구성 장수)
 //   전파로 산출된 값은 is_propagated=true (UI '추정' 배지 근거).
 
+import { isOnDemand } from './term.ts'
+
+/** 약정별 판매가 한 줄 (gpu_product_term_prices SSOT 유래). on_demand는 제외(대표가로 이미 표시). */
+export interface TermPrice {
+  term: string
+  price_krw: number
+}
+
 export interface ConfirmedQuote {
   id?: string
   product_id: string
@@ -88,6 +96,8 @@ export interface CatalogProduct {
   propagation_source_quote_id: string | null
   /** 전파 구성의 약정 = 모태 견적의 약정(다른 구성에서 받은 동일 약정). 비전파면 null. */
   propagation_source_term: string | null
+  /** 약정별 판매가(gpu_product_term_prices SSOT). on_demand 제외, 가격 오름차순. 약정가 없으면 빈 배열. */
+  term_prices: TermPrice[]
 }
 
 export interface ModelGroupSupplier {
@@ -150,6 +160,8 @@ export interface CatalogRawData {
   margin_pct: number
   usd_krw: number
   fx_date: string | null
+  /** 약정별 판매가 원본 행(gpu_product_term_prices). 없으면 빈 배열/미주입. */
+  termPrices?: Array<{ product_id: string; term: string; price_krw: number | string }>
   /** today (YYYY-MM-DD) — 주입 가능(테스트 결정성) */
   today?: string
 }
@@ -160,7 +172,7 @@ export interface CatalogRawData {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getGpuCatalog(db: any): Promise<GpuCatalog> {
-  const [productsRes, quotesRes, suppliersRes, directRes, settingsRes, fxRes] = await Promise.all([
+  const [productsRes, quotesRes, suppliersRes, directRes, settingsRes, fxRes, termPricesRes] = await Promise.all([
     db.from('gpu_products')
       .select('id, model_name, memory, tier, pricing_mode, gpu_count, vcpu, ram_gb, storage_gb, series, strategic_price_krw')
       .is('deleted_at', null).order('tier').order('model_name'),
@@ -175,6 +187,8 @@ export async function getGpuCatalog(db: any): Promise<GpuCatalog> {
     db.from('direct_prices').select('*, gpu_products(id)').eq('is_current', true).is('deleted_at', null),
     db.from('pricing_settings').select('margin_pct').eq('id', 1).single(),
     db.from('fx_rates').select('usd_krw, rate_date').order('rate_date', { ascending: false }).limit(1).single(),
+    // 약정별 판매가 SSOT — 전 상품 배치 조회(단일 쿼리, N+1 없음). 가격 오름차순으로 표시 순서 결정.
+    db.from('gpu_product_term_prices').select('product_id, term, price_krw').order('price_krw', { ascending: true }),
   ])
 
   return buildCatalog({
@@ -185,6 +199,7 @@ export async function getGpuCatalog(db: any): Promise<GpuCatalog> {
     margin_pct: settingsRes.data?.margin_pct ?? 18,
     usd_krw: fxRes.data?.usd_krw ?? 1400,
     fx_date: fxRes.data?.rate_date ?? null,
+    termPrices: termPricesRes.data ?? [],
   })
 }
 
@@ -336,6 +351,19 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
     ])
   )
 
+  // 상품별 약정별 판매가 — on_demand는 대표가(strategic)로 이미 표시되므로 제외(중복 방지).
+  //   나머지 약정(reserved 등)은 반드시 노출. DB에서 price_krw 오름차순 정렬된 순서 유지.
+  const termPricesByProduct = new Map<string, TermPrice[]>()
+  for (const tp of raw.termPrices ?? []) {
+    const term = tp.term
+    if (isOnDemand(term)) continue
+    const priceKrw = Number(tp.price_krw)
+    if (!Number.isFinite(priceKrw)) continue
+    const arr = termPricesByProduct.get(tp.product_id) ?? []
+    arr.push({ term, price_krw: priceKrw })
+    termPricesByProduct.set(tp.product_id, arr)
+  }
+
   const products: CatalogProduct[] = (raw.products ?? []).map(
     (p: {
       id: string; model_name: string; memory: string | null; tier: 1 | 2 | 3
@@ -371,6 +399,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
           fallback_reason: null,
           propagation_source_quote_id: null,
           propagation_source_term: null,
+          term_prices: termPricesByProduct.get(p.id) ?? [],
         }
       }
 
@@ -499,6 +528,7 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
         fallback_reason: fallbackReason,
         propagation_source_quote_id: propagationSourceQuoteId,
         propagation_source_term: propagationSourceTerm,
+        term_prices: termPricesByProduct.get(p.id) ?? [],
       }
     }
   )

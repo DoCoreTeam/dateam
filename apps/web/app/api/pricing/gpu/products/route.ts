@@ -65,6 +65,8 @@ export async function GET() {
       strategic_price_krw: p.strategic_price_krw,
       strategic_krw: p.strategic_krw,
       is_strategic_set: p.is_strategic_set,
+      // 약정별 판매가 (on_demand 제외, 가격 오름차순)
+      term_prices: p.term_prices,
     }))
 
     return NextResponse.json({

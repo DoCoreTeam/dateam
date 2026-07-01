@@ -20,7 +20,17 @@ export type ResolveResult =
   | { productId: string; matched: 'exact_memory' | 'single_variant' }
   | { held: true; reason: ResolveHeldReason; candidates?: VariantCandidate[] }
 
-interface ProductRow { id: string; model_name: string; memory: string | null; gpu_count: number | null }
+interface ProductRow { id: string; model_name: string; memory: string | null; gpu_count: number | null; strategic_price_krw: number | null }
+
+/** 완전중복 후보 중 대표 1행 선택 — 확정가가 그 행에 반영되도록 '가격 보유행' 우선, 동률은 id 사전순(안정·결정론). */
+function pickRepresentative(rows: ProductRow[]): ProductRow {
+  return [...rows].sort((a, b) => {
+    const ap = a.strategic_price_krw != null ? 0 : 1
+    const bp = b.strategic_price_krw != null ? 0 : 1
+    if (ap !== bp) return ap - bp
+    return String(a.id).localeCompare(String(b.id))
+  })[0]
+}
 
 export interface ResolveArgs {
   modelName: string
@@ -47,7 +57,7 @@ export async function resolveProductId(
   if (!key) return { held: true, reason: 'no_model' }
   const cnt = typeof args.gpuCount === 'number' && args.gpuCount > 0 ? args.gpuCount : 1
 
-  const { data } = await db.from('gpu_products').select('id, model_name, memory, gpu_count').is('deleted_at', null)
+  const { data } = await db.from('gpu_products').select('id, model_name, memory, gpu_count, strategic_price_krw').is('deleted_at', null)
   const all = (data ?? []) as ProductRow[]
   const sameModel = all.filter((p) => coreModelKey(p.model_name) === key)
   if (sameModel.length === 0) return { held: true, reason: 'no_model' }
@@ -57,12 +67,30 @@ export async function resolveProductId(
 
   const memNorm = normalizeMemory(args.memory ?? null)
   if (memNorm) {
-    const exact = cands.find((p) => normalizeMemory(p.memory) === memNorm)
-    if (exact) return { productId: exact.id, matched: 'exact_memory' }
+    // 지정 메모리 일치 — 완전중복행이 여럿이어도 대표 1개로 확정(떠넘기지 않음).
+    const exact = cands.filter((p) => normalizeMemory(p.memory) === memNorm)
+    if (exact.length > 0) return { productId: pickRepresentative(exact).id, matched: 'exact_memory' }
   }
-  if (cands.length === 1) return { productId: cands[0].id, matched: 'single_variant' }
-  // 여럿 → 보류하되, 사용자가 그 자리서 고를 수 있게 후보 변형(메모리만 다름)을 함께 반환.
-  const candidates: VariantCandidate[] = cands.map((p) => ({ id: p.id, memory: p.memory, gpuCount: p.gpu_count ?? 1 }))
+
+  // 후보를 '서로 다른 정규화 메모리'로 그룹핑 — 완전중복행(같은 메모리)은 하나의 SKU로 취급.
+  // 데이터 오염(동일 행 중복 등록)이 'ambiguous_variant'로 오판돼 사용자에게 떠넘겨지던 문제 차단.
+  const byMem = new Map<string, ProductRow[]>()
+  for (const p of cands) {
+    const m = normalizeMemory(p.memory) ?? ''
+    const grp = byMem.get(m)
+    if (grp) grp.push(p)
+    else byMem.set(m, [p])
+  }
+  if (byMem.size === 1) {
+    // 메모리 종류가 실질 1개 → 중복행이든 단일행이든 대표 1개로 자동확정.
+    return { productId: pickRepresentative(cands).id, matched: 'single_variant' }
+  }
+
+  // 서로 다른 메모리가 진짜 여럿(예: V100 16GB vs 32GB) → 보류. 후보는 메모리별 대표만(중복 제거).
+  const candidates: VariantCandidate[] = Array.from(byMem.values()).map((grp) => {
+    const rep = pickRepresentative(grp)
+    return { id: rep.id, memory: rep.memory, gpuCount: rep.gpu_count ?? 1 }
+  })
   return { held: true, reason: 'ambiguous_variant', candidates }
 }
 

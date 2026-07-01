@@ -4533,6 +4533,25 @@ label.intake-tool-btn {
 }
 .gpu-list-price-unit { font-size: var(--fs-2xs); color: var(--warning); }
 
+/* 약정별 판매가 목록 — 대표 판매가(온디맨드/전략가) 아래에 약정가 노출 */
+.gpu-term-prices {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--hairline) solid var(--border-light);
+}
+.gpu-term-price-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+}
+.gpu-term-price-label { font-size: var(--fs-2xs); font-weight: var(--font-weight-semibold); color: var(--gpu-muted); }
+.gpu-term-price-val { font-size: var(--fs-xs); font-weight: var(--font-weight-bold); color: var(--text); }
+
 /* confidence bar */
 .gpu-conf { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--gpu-muted); }
 .gpu-conf-bar {

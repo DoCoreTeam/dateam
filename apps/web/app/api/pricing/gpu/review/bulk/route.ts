@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { confirmReviewItem } from '@/lib/gpu/confirm-review-item'
+import type { VariantCandidate } from '@/lib/gpu/resolve-product'
 
 // POST /api/pricing/gpu/review/bulk — 검토대기 항목 일괄 처리.
 //  body: { ids: string[], action: 'delete' | 'confirm', auto_accepted_low_conf?: Record<id, string[]> }
@@ -55,7 +56,17 @@ export async function POST(req: NextRequest) {
 
   const supabase = await createClient()
   let confirmed = 0
-  const failed: Array<{ id: string; hint: string | null; error: string; code: string | null }> = []
+  // 실패 항목 — 단건 확정이 반환하는 인카드 조치 컨텍스트(candidates·modelName·gpuCount)를 그대로 실어
+  //  보낸다. 이게 없으면 클라가 일괄 실패 카드에서 '메모리 변형 선택' 버튼을 못 띄운다(단건과 비대칭).
+  const failed: Array<{
+    id: string
+    hint: string | null
+    error: string
+    code: string | null
+    candidates?: VariantCandidate[]
+    modelName?: string
+    gpuCount?: number
+  }> = []
 
   // 순차 처리 — 각 항목이 product/supplier 자동생성·멱등 superseded를 포함하므로 동시성 충돌 방지 위해 직렬.
   for (const id of ids) {
@@ -71,8 +82,16 @@ export async function POST(req: NextRequest) {
         autoAcceptedLowConf: auto,
       })
       if (result.ok) confirmed++
-      // 실패 항목에 보류 사유 code 동봉 → 클라가 "개별 카드에서 어떤 조치가 필요한지" 그룹 안내.
-      else failed.push({ id, hint: item.product_hint ?? null, error: result.error ?? '확정 실패', code: result.code ?? null })
+      // 실패 항목에 보류 사유 code + 인카드 조치 컨텍스트 동봉 → 클라가 개별 카드에서 단건과 동일하게 조치.
+      else failed.push({
+        id,
+        hint: item.product_hint ?? null,
+        error: result.error ?? '확정 실패',
+        code: result.code ?? null,
+        candidates: result.candidates,
+        modelName: result.modelName,
+        gpuCount: result.gpuCount,
+      })
     } catch (e) {
       failed.push({ id, hint: null, error: e instanceof Error ? e.message : '확정 예외', code: null })
     }

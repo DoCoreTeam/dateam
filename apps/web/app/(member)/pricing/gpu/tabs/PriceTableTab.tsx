@@ -9,6 +9,7 @@ import { formatSpec, scaleSpec } from '@/lib/gpu/format-spec'
 import { perCardMemory, memoryTitle } from '@/lib/gpu/card-memory'
 import { STANDARD_LADDER } from '@/lib/gpu/config-ladder'
 import { fmtKRW, fmtUSD } from '@/lib/gpu/format-price'
+import { termLabel } from '@/lib/gpu/term'
 import dynamic from 'next/dynamic'
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
 import { SortIcon } from '@/components/pricing/gpu/SortIcon'
@@ -55,6 +56,30 @@ interface GpuProduct {
   fallback_reason?: string | null
   /** products API의 effective_supplier — 전파 근거 공급사명 표시용 */
   effective_supplier?: Supplier | string | null
+  /** 약정별 판매가(on_demand 제외, 가격 오름차순). gpu_product_term_prices SSOT 유래. */
+  term_prices?: { term: string; price_krw: number }[]
+}
+
+// 약정별 판매가 목록 — 대표가(온디맨드/전략가) 아래에 '{약정 라벨}: {금액}'으로 노출.
+//   약정가 없으면 아무것도 렌더하지 않음(기존과 동일). 금액/라벨은 SSOT(fmt*, termLabel) 재사용.
+function TermPriceList({ termPrices, currencyMode, usdKrw }: {
+  termPrices?: { term: string; price_krw: number }[]
+  currencyMode: 'KRW' | 'USD'
+  usdKrw: number
+}) {
+  if (!termPrices || termPrices.length === 0) return null
+  return (
+    <div className="gpu-term-prices">
+      {termPrices.map((tp) => (
+        <div key={tp.term} className="gpu-term-price-row">
+          <span className="gpu-term-price-label">{termLabel(tp.term)}</span>
+          <span className="gpu-term-price-val gpu-mono">
+            {currencyMode === 'KRW' ? fmtKRW(tp.price_krw) : fmtUSD(usdKrw > 0 ? tp.price_krw / usdKrw : null)}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 interface ProductsResponse {
@@ -950,6 +975,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                                 ? <>{fmtUSD(sellKrw / usdKrw)} · /hr</>
                                 : <>/hr · {fmtKRW(sellKrw)}</>}
                             </div>
+                            <TermPriceList termPrices={p.term_prices} currencyMode={currencyMode} usdKrw={usdKrw} />
                           </>
                         ) : (
                           <div style={{ fontSize: '12px', color: 'var(--gpu-faint)' }}>—</div>
@@ -1153,6 +1179,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                             ? <>{fmtUSD(sellKrw / usdKrw)} · /hr</>
                             : <>/hr · {fmtKRW(sellKrw)}</>}
                         </div>
+                        {!p._derived && <TermPriceList termPrices={p.term_prices} currencyMode={currencyMode} usdKrw={usdKrw} />}
                       </>
                     ) : (
                       <span style={{ fontSize: '12px', color: 'var(--gpu-faint)' }}>—</span>

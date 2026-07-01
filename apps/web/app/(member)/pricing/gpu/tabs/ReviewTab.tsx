@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { AlertTriangle, CheckCircle2, RotateCcw, ChevronDown, ChevronUp, Search, Plus, Building2, X } from 'lucide-react'
@@ -334,7 +334,17 @@ function ModelResolveModal({ modelName, message, busy, onPick, onClose }: {
   )
 }
 
-function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwPerUsd, isAdmin }: { item: ReviewItem; onDone: () => void; allSuppliers: Supplier[]; selected: boolean; onToggleSelect: () => void; krwPerUsd: number | null; isAdmin: boolean }) {
+// 확정 보류(held) 인카드 조치 컨텍스트 SSOT — 단건 실패(카드 내부 setHeldInfo)·일괄 실패(부모→initialHeldInfo)
+//  양쪽이 동일 구조를 공유해 같은 후보버튼/딥링크 렌더 경로(아래 heldInfo 렌더)를 재사용한다.
+interface HeldInfo {
+  code: string
+  message: string
+  candidates?: { id: string; memory: string | null; gpuCount: number }[]
+  modelName: string
+  gpuCount?: number
+}
+
+function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwPerUsd, isAdmin, initialHeldInfo }: { item: ReviewItem; onDone: () => void; allSuppliers: Supplier[]; selected: boolean; onToggleSelect: () => void; krwPerUsd: number | null; isAdmin: boolean; initialHeldInfo?: HeldInfo }) {
   const [expanded, setExpanded] = useState(false)
   const [showBreakdown, setShowBreakdown] = useState(false)
   const [recheckResult, setRecheckResult] = useState<RecheckResult | null>(null)
@@ -350,7 +360,12 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
   const [manualSupplierName, setManualSupplierName] = useState('')
   const [resolveMsg, setResolveMsg] = useState<string | null>(null)
   // 확정 보류(held) 인카드 조치 — ambiguous_variant(메모리 변형 선택) / no_model·no_variant(스펙 등록 딥링크)
-  const [heldInfo, setHeldInfo] = useState<{ code: string; message: string; candidates?: { id: string; memory: string | null; gpuCount: number }[]; modelName: string; gpuCount?: number } | null>(null)
+  const [heldInfo, setHeldInfo] = useState<HeldInfo | null>(initialHeldInfo ?? null)
+  // 일괄 확정 실패 → 부모가 넘긴 조치 컨텍스트를 카드에 반영(단건과 동일한 후보버튼/딥링크 렌더).
+  //  initialHeldInfo 객체 identity는 부모가 일괄 확정 1회당 한 번만 생성 → 재검증/리렌더에도 재-seed 없음.
+  useEffect(() => {
+    if (initialHeldInfo) setHeldInfo(initialHeldInfo)
+  }, [initialHeldInfo])
   // 필드 수동 보정 — AI recheck 없이 추출값(모델명·메모리·가격·요금제) 직접 교정 → 확정 시 override_extracted로 반영
   const [editingFields, setEditingFields] = useState(false)
   const [fieldEdits, setFieldEdits] = useState<Record<string, string>>({})
@@ -811,6 +826,8 @@ export default function ReviewTab({ isAdmin = false }: { isAdmin?: boolean }) {
   const [bulkBusy, setBulkBusy] = useState(false)
   const [bulkModal, setBulkModal] = useState<null | { type: 'confirm' | 'delete'; targets: ReviewItem[]; lowConf: ReviewItem[] }>(null)
   const [bulkResult, setBulkResult] = useState<null | { title: string; lines: string[]; failed: Array<{ hint: string; error: string }> }>(null)
+  // 일괄 확정 실패 항목의 인카드 조치 컨텍스트(id→HeldInfo) — 각 실패 카드에 후보버튼/딥링크를 그대로 띄운다.
+  const [bulkHeld, setBulkHeld] = useState<Record<string, HeldInfo>>({})
 
   const filtered = useMemo(() => items.filter((it) => {
     if (targetFilter === 'all') return true
@@ -882,14 +899,30 @@ export default function ReviewTab({ isAdmin = false }: { isAdmin?: boolean }) {
         setBulkResult({ title: '일괄 확정 실패', lines: [j.error ?? '서버 오류로 확정하지 못했습니다.'], failed: [] })
         return
       }
-      const failedArr = (Array.isArray(j.failed) ? j.failed : []) as Array<{ id: string; hint: string | null; error: string; code?: string | null }>
+      const failedArr = (Array.isArray(j.failed) ? j.failed : []) as Array<{
+        id: string; hint: string | null; error: string; code?: string | null
+        candidates?: HeldInfo['candidates']; modelName?: string; gpuCount?: number
+      }>
       const failedIds = new Set(failedArr.map((f) => f.id))
       // 실패 항목만 선택 유지 — 사용자가 바로 개별 처리
       setSelected((prev) => { const n = new Set<string>(); prev.forEach((id) => { if (failedIds.has(id)) n.add(id) }); return n })
+      // 실패 항목의 인카드 조치 컨텍스트 구성 → 각 카드가 단건 확정과 동일한 후보버튼/딥링크를 즉시 표시.
+      const heldMap: Record<string, HeldInfo> = {}
+      failedArr.forEach((f) => {
+        if (!f.code) return
+        heldMap[f.id] = {
+          code: f.code,
+          message: f.error,
+          candidates: Array.isArray(f.candidates) ? f.candidates : undefined,
+          modelName: f.modelName ?? f.hint ?? '',
+          gpuCount: typeof f.gpuCount === 'number' ? f.gpuCount : undefined,
+        }
+      })
+      setBulkHeld(heldMap)
       await revalidate()
       await mutate('/api/pricing/gpu/products')
       setBulkModal(null)
-      // 보류 사유별 조치 안내 — 개별 카드에서 어떤 조치가 필요한지 그룹으로 알림(인카드 조치와 대칭).
+      // 보류 사유별 조치 안내 — 실패 카드에 이미 뜬 조치 버튼과 대칭(창을 닫으면 각 카드에서 바로 처리).
       const ACTION_BY_CODE: Record<string, string> = {
         ambiguous_variant: '메모리 변형 선택',
         no_model: '스펙 관리에서 모델 등록',
@@ -898,11 +931,11 @@ export default function ReviewTab({ isAdmin = false }: { isAdmin?: boolean }) {
       }
       const codeCounts = new Map<string, number>()
       failedArr.forEach((f) => { if (f.code && ACTION_BY_CODE[f.code]) codeCounts.set(f.code, (codeCounts.get(f.code) ?? 0) + 1) })
-      const actionLines = Array.from(codeCounts.entries()).map(([c, n]) => `· ${n}건 → 개별 카드에서 "${ACTION_BY_CODE[c]}"로 해결`)
+      const actionLines = Array.from(codeCounts.entries()).map(([c, n]) => `· ${ACTION_BY_CODE[c]} 필요 ${n}건 — 이 창을 닫고 해당 카드의 버튼으로 확정하세요`)
       setBulkResult({
         title: '일괄 확정 완료',
         lines: [`${j.confirmed ?? 0}건을 가격표에 반영했습니다.`,
-          ...(failedArr.length ? [`${failedArr.length}건은 확정하지 못했습니다 — 선택에 남겨뒀습니다(아래 안내대로 개별 처리).`] : []),
+          ...(failedArr.length ? [`${failedArr.length}건은 확정하지 못했습니다 — 선택에 남겨뒀습니다. 아래 실패 카드에서 메모리 변형 선택·모델 등록 등으로 확정하세요.`] : []),
           ...actionLines],
         failed: failedArr.map((f) => ({ hint: f.hint ?? f.id, error: f.error })),
       })
@@ -1013,6 +1046,7 @@ export default function ReviewTab({ isAdmin = false }: { isAdmin?: boolean }) {
               onToggleSelect={() => toggleSelect(item.id)}
               krwPerUsd={krwPerUsd}
               isAdmin={isAdmin}
+              initialHeldInfo={bulkHeld[item.id]}
             />
           ))
         )}
