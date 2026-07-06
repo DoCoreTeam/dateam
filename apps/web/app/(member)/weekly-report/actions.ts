@@ -87,6 +87,17 @@ export async function deleteAllWeeklyReports(
 
   if (!user) return { ok: false, error: '인증이 필요합니다' }
 
+  // 유실 0(fail-safe): 삭제 직전 현재 확정본 전체를 스냅샷(마이그144). 스냅샷이 실패하면
+  // 안전망 없이 지우게 되므로 삭제를 진행하지 않는다("절대 유실" 원칙 — 안전망 우선).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: snapErr } = await (supabase as any).rpc('snapshot_weekly_report', {
+    p_week_start: weekStart, p_reason: 'delete_all',
+  })
+  if (snapErr) {
+    console.error('[deleteAllWeeklyReports] 스냅샷 실패 — 삭제 중단', snapErr)
+    return { ok: false, error: '삭제 전 백업에 실패해 안전을 위해 삭제를 중단했습니다. 다시 시도해주세요.' }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase.from('weekly_reports') as any)
     .delete()
@@ -124,6 +135,16 @@ export async function deleteWeeklyReport(
 
   if (!user) return { ok: false, error: '인증이 필요합니다' }
 
+  // 유실 0(fail-safe): 행 삭제 직전에도 그 주차 전체를 스냅샷(마이그144). 실패 시 삭제 중단.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: snapErr } = await (supabase as any).rpc('snapshot_weekly_report', {
+    p_week_start: weekStart, p_reason: 'delete_row',
+  })
+  if (snapErr) {
+    console.error('[deleteWeeklyReport] 스냅샷 실패 — 삭제 중단', snapErr)
+    return { ok: false, error: '삭제 전 백업에 실패해 안전을 위해 삭제를 중단했습니다. 다시 시도해주세요.' }
+  }
+
   // 다중 동일카테고리(mig141) 대응: rowId가 있으면 그 행만 삭제, 없으면 하위호환(카테고리 전체).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let del = (supabase.from('weekly_reports') as any)
@@ -152,4 +173,51 @@ export async function deleteWeeklyReport(
 
   revalidatePath('/weekly-report')
   return { ok: true }
+}
+
+// 스냅샷 복원(마이그144): 사용자가 이전 버전을 되살린다. 복원도 replace_weekly_report 경유라
+// "복원 직전 상태"가 다시 스냅샷됨 → 복원의 되돌리기 보장. 유실 0의 마지막 보루.
+export async function restoreWeeklyReportSnapshot(
+  snapshotId: string
+): Promise<{ ok: true; weekStart: string } | { ok: false; error: string }> {
+  if (!snapshotId) return { ok: false, error: '스냅샷 ID가 필요합니다' }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return { ok: false, error: '인증이 필요합니다' }
+
+  // RLS(wrs_select: user_id=auth.uid())로 본인 스냅샷만 조회됨 — 타인 것 접근 불가.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: snap, error: readErr } = await (supabase.from('weekly_report_snapshots') as any)
+    .select('week_start, rows_json')
+    .eq('id', snapshotId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (readErr) {
+    console.error('[restoreWeeklyReportSnapshot] 조회 실패', readErr)
+    return { ok: false, error: '복원 이력 조회 중 오류가 발생했습니다' }
+  }
+  if (!snap) return { ok: false, error: '복원할 이력을 찾을 수 없습니다' }
+
+  const rows = Array.isArray(snap.rows_json) ? snap.rows_json : []
+
+  // replace_weekly_report: 복원 직전 상태 스냅샷 + 확정본을 스냅샷 시점으로 교체.
+  // (빈 스냅샷 복원 = 그 시점의 "빈 상태"로 되돌림도 안전. 단 RPC는 빈 배열이면 신규행 0개.)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: rpcErr } = await (supabase as any).rpc('replace_weekly_report', {
+    p_week_start: snap.week_start,
+    p_rows: rows,
+  })
+
+  if (rpcErr) {
+    console.error('[restoreWeeklyReportSnapshot] 복원 실패', rpcErr)
+    return { ok: false, error: '복원 중 오류가 발생했습니다' }
+  }
+
+  revalidatePath('/weekly-report')
+  return { ok: true, weekStart: snap.week_start as string }
 }

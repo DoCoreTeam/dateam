@@ -5,6 +5,7 @@ import QueryToast from '@/components/ui/QueryToast'
 import { getWeekStart, toDateString } from '@/lib/utils'
 import { subWeeks } from 'date-fns'
 import WeeklyReportForm from './WeeklyReportForm'
+import WeeklyEditHistory, { type WeeklySnapshot } from './WeeklyEditHistory'
 import AutoDraftPanel from './AutoDraftPanel'
 import TeamReportView from './TeamReportView'
 import ReportAccordion from './ReportAccordion'
@@ -99,6 +100,15 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     plan: r.plan,
     issues: r.issues,
   }))
+
+  // 편집 이력(유실0 스냅샷, 마이그144) — 이 주차 저장/삭제 직전 상태. RLS로 본인 것만.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: editSnapshots } = await (supabase.from('weekly_report_snapshots') as any)
+    .select('id, week_start, row_count, reason, taken_at')
+    .eq('user_id', user.id)
+    .eq('week_start', initialWeek)
+    .order('taken_at', { ascending: false })
+    .limit(30)
 
   // 전주 구분 목록 (AI 정비에서 신규 카테고리 판별용)
   const prevWeek = weekOptions[1] ?? null
@@ -258,6 +268,9 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
               orgName={orgName}
             />
           </div>
+
+          {/* 편집 이력 · 되돌리기 — 작성분 유실 0의 사용자 복원 UI(마이그144 스냅샷) */}
+          <WeeklyEditHistory weekStart={initialWeek} snapshots={(editSnapshots as WeeklySnapshot[]) ?? []} />
 
           {/* AI 자동초안(push) — 보조(접힘). 기존 작성폼이 메인, 이것은 서포트. */}
           <details style={{ marginBottom: '1.75rem' }}>

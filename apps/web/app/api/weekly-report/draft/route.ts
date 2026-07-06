@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { itemsToWeeklyRows } from '@/lib/weekly-report/serialize'
 import type { DraftItem } from '@/lib/weekly-report/draft-types'
 import {
   clampText,
@@ -127,20 +126,10 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: '저장 실패' }, { status: 500 })
   }
 
-  // 2) 확정본 동기화 — 포함 항목을 weekly_reports로 직렬화(기존 뷰·취합 호환).
-  //    빈 직렬화면 replace_weekly_report 스킵 → 기존 확정본을 비우지 않음(명시 초기화는 별도 경로).
-  const serializedRows = itemsToWeeklyRows(items)
-  if (serializedRows.length > 0) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: rpcErr } = await (supabase as any).rpc('replace_weekly_report', {
-      p_week_start: week,
-      p_rows: serializedRows,
-    })
-    if (rpcErr) {
-      console.error('[api/weekly-report/draft PUT] replace_weekly_report 실패', rpcErr)
-      return NextResponse.json({ error: '확정본 동기화 실패' }, { status: 500 })
-    }
-  }
-
-  return NextResponse.json({ ok: true, count: items.length, synced: serializedRows.length })
+  // 2) 확정본(weekly_reports)에는 여기서 절대 쓰지 않는다 (단일 Writer 원칙 — 마이그144/유실0).
+  //    과거: 포함 항목을 replace_weekly_report로 직렬화해 확정본을 덮었으나, 고인/부분 초안이
+  //    사용자 수동작성 확정본을 무경고로 clobber하는 유실 경로였다(이도현 06-29 사고).
+  //    확정본에 쓰는 유일 경로 = 사용자 폼 저장(actions.upsertWeeklyReport). 초안은 작업영역만 보관하고
+  //    "폼에 반영"(클라이언트 state)→사용자 검토→저장으로 반영된다.
+  return NextResponse.json({ ok: true, count: items.length })
 }
