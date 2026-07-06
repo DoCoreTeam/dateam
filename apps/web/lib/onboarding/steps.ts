@@ -162,9 +162,9 @@ const WEEKLY_SEQUENCE: OnboardingSequence = {
       key: 'weekly-selector',
       route: '/weekly-report',
       element: '#onboarding-daily-selector',
-      title: 'AI로 주간보고 자동 생성',
+      title: '일일보고에서 가져와 반영',
       description:
-        '이 버튼을 누르면 이번 주 일일업무가 목록으로 나타납니다. 포함할 업무를 고르고 "주간보고 생성"을 누르면 AI가 성과·계획·이슈를 작성해 줍니다.',
+        '작성폼 우측에 이번 주 일일업무가 상시 표시됩니다. 포함할 업무를 체크하고 "폼에 반영"을 누르면 AI가 성과·계획·이슈로 작성해 왼쪽 폼에 채워 줍니다.',
       side: 'bottom',
       align: 'start',
     },

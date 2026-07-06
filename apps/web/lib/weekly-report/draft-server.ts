@@ -6,8 +6,12 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { addKstDays, kstRangeToUtc } from '@/lib/datetime/kst'
 import { classifyEventSection } from '@/lib/weekly-report/classify'
 import { generateWeeklyDraft } from '@/lib/weekly-report/generate-draft'
+import { htmlToPlain } from '@/lib/html-to-plain'
 import type { CalendarInput, DraftItem } from '@/lib/weekly-report/draft-types'
 import type { DailyTaskInput } from '@/lib/gemini-daily-to-weekly'
+
+// content(plain 필드)에 HTML 태그가 섞여 저장된 오염행 감지용.
+const HTML_TAG_RE = /<[a-z][^>]*>/i
 
 const WEEK_RE = /^\d{4}-\d{2}-\d{2}$/
 const DRAFT_HORIZON_DAYS = 13 // 이번주(0~6) + 다음주(7~13) 캘린더 범위
@@ -44,11 +48,14 @@ function loadStyleGuide(): string {
 /** DB 행(snake) → DraftItem(camel). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function rowToItem(r: any): DraftItem {
+  // 방어변환: v0.7.281 초안이 HTML(<ul><li>)을 content에 저장한 오염행을 읽을 때 plain으로 복구(§5-1).
+  const rawContent = r.content ?? ''
+  const content = HTML_TAG_RE.test(rawContent) ? htmlToPlain(rawContent) : rawContent
   return {
     id: r.id,
     category: r.category ?? '',
     section: r.section,
-    content: r.content ?? '',
+    content,
     origin: r.origin,
     confidence: r.confidence === null || r.confidence === undefined ? null : Number(r.confidence),
     isIncluded: r.is_included !== false,

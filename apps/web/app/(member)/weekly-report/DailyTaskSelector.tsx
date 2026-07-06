@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { ChevronDown, ChevronUp, Sparkles, CheckSquare, Square } from 'lucide-react'
+import DailyTaskItem from './DailyTaskItem'
 import type { DailyLog } from '@/types/database'
 
 interface WeeklyRow {
@@ -14,22 +15,8 @@ interface WeeklyRow {
 interface DailyTaskSelectorProps {
   weekStart: string
   onGenerate: (rows: WeeklyRow[]) => void
-}
-
-const ENTRY_TYPE_LABEL: Record<string, string> = {
-  done: '완료',
-  doing: '진행중',
-  planned: '예정',
-  blocker: '이슈',
-  note: '메모',
-}
-
-const ENTRY_TYPE_COLOR: Record<string, string> = {
-  done: 'var(--success)',
-  doing: 'var(--info)',
-  planned: 'var(--brand)',
-  blocker: 'var(--danger)',
-  note: 'var(--text-muted)',
+  /** 'inline'=폼 상단 접이식(기본), 'side'=우측 사이드패널(상시 펼침·소형). */
+  variant?: 'inline' | 'side'
 }
 
 const GENERATE_STEPS = [
@@ -38,8 +25,9 @@ const GENERATE_STEPS = [
   { label: '결과 적용 중…', detail: '폼에 반영하는 중' },
 ]
 
-export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSelectorProps) {
-  const [isOpen, setIsOpen] = useState(false)
+export default function DailyTaskSelector({ weekStart, onGenerate, variant = 'inline' }: DailyTaskSelectorProps) {
+  const isSide = variant === 'side'
+  const [isOpen, setIsOpen] = useState(isSide) // 사이드 변형은 상시 펼침
   const [tasks, setTasks] = useState<DailyLog[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
@@ -122,7 +110,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
         return
       }
       onGenerate(data.rows)
-      setIsOpen(false)
+      if (!isSide) setIsOpen(false) // 사이드 변형은 반영 후에도 계속 열어둠
     } catch {
       setError('네트워크 오류가 발생했습니다')
     } finally {
@@ -139,30 +127,49 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
 
   const currentStep = GENERATE_STEPS[Math.min(generateStep, GENERATE_STEPS.length - 1)]
 
+  const headerInner = (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+        <Sparkles size={14} color="var(--brand)" />
+        <span>{isSide ? '일일보고에서 가져오기' : '일일업무에서 주간보고 생성'}</span>
+        {tasks.length > 0 && (
+          <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', fontWeight: 400 }}>
+            ({selectedIds.size}/{tasks.length}개 선택)
+          </span>
+        )}
+      </div>
+      {!isSide && (isOpen ? <ChevronUp size={16} color="var(--text-faint)" /> : <ChevronDown size={16} color="var(--text-faint)" />)}
+    </>
+  )
+
   return (
-    <div style={{ marginBottom: '1.25rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
-      {/* 헤더 */}
-      <button
-        id="onboarding-daily-selector"
-        type="button"
-        onClick={() => setIsOpen((v) => !v)}
-        style={{
-          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0.875rem 1rem', background: 'var(--color-bg)', border: 'none', cursor: 'pointer',
-          fontSize: 'var(--fs-base)', fontWeight: 600, color: 'var(--text-muted)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-          <Sparkles size={14} color="var(--brand)" />
-          <span>일일업무에서 주간보고 생성</span>
-          {tasks.length > 0 && (
-            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', fontWeight: 400 }}>
-              ({selectedIds.size}/{tasks.length}개 선택)
-            </span>
-          )}
+    <div style={{ marginBottom: isSide ? 0 : '1.25rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+      {/* 헤더 — 사이드 변형은 정적(토글 아님), 인라인 변형은 접이식 버튼 */}
+      {isSide ? (
+        <div
+          id="onboarding-daily-selector"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '0.75rem 0.875rem', background: 'var(--color-bg)',
+            fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text-muted)',
+          }}
+        >
+          {headerInner}
         </div>
-        {isOpen ? <ChevronUp size={16} color="var(--text-faint)" /> : <ChevronDown size={16} color="var(--text-faint)" />}
-      </button>
+      ) : (
+        <button
+          id="onboarding-daily-selector"
+          type="button"
+          onClick={() => setIsOpen((v) => !v)}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '0.875rem 1rem', background: 'var(--color-bg)', border: 'none', cursor: 'pointer',
+            fontSize: 'var(--fs-base)', fontWeight: 600, color: 'var(--text-muted)',
+          }}
+        >
+          {headerInner}
+        </button>
+      )}
 
       {/* 패널 */}
       {isOpen && (
@@ -215,38 +222,12 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
                       </p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
                         {logs.map((task) => (
-                          <label
+                          <DailyTaskItem
                             key={task.id}
-                            style={{
-                              display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)',
-                              padding: '0.5rem 0.625rem', borderRadius: 'var(--radius)', cursor: 'pointer',
-                              background: selectedIds.has(task.id) ? 'var(--brand-soft)' : 'var(--surface-bg)',
-                              border: `var(--hairline) solid ${selectedIds.has(task.id) ? 'var(--brand-soft-2)' : 'var(--surface-muted)'}`,
-                              transition: 'background 120ms',
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.has(task.id)}
-                              onChange={() => toggleTask(task.id)}
-                              style={{ marginTop: '2px', flexShrink: 0, accentColor: 'var(--brand)' }}
-                            />
-                            <div style={{ minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.125rem' }}>
-                                <span style={{
-                                  fontSize: 'var(--fs-2xs)', fontWeight: 600,
-                                  color: ENTRY_TYPE_COLOR[task.entry_type] ?? 'var(--text-muted)',
-                                  background: 'var(--color-bg)', border: 'var(--border-w-2) solid var(--border-color)',
-                                  borderRadius: 'var(--radius)', padding: '0 0.3rem',
-                                }}>
-                                  {ENTRY_TYPE_LABEL[task.entry_type] ?? task.entry_type}
-                                </span>
-                              </div>
-                              <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', margin: 0, lineHeight: 1.5 }}>
-                                {task.content}
-                              </p>
-                            </div>
-                          </label>
+                            task={task}
+                            checked={selectedIds.has(task.id)}
+                            onToggle={toggleTask}
+                          />
                         ))}
                       </div>
                     </div>
@@ -275,7 +256,7 @@ export default function DailyTaskSelector({ weekStart, onGenerate }: DailyTaskSe
                   }}
                 >
                   <Sparkles size={14} />
-                  {generating ? '생성 중...' : `주간보고 생성 (${selectedIds.size}개 업무)`}
+                  {generating ? '생성 중...' : isSide ? `폼에 반영 (${selectedIds.size})` : `주간보고 생성 (${selectedIds.size}개 업무)`}
                 </button>
               </div>
             </>

@@ -8,6 +8,7 @@ import {
 } from '../gemini-daily-to-weekly.ts'
 import { htmlToPlain } from '../html-to-plain.ts'
 import { classifyTaskSection } from './classify.ts'
+import { sectionToLines } from './section-lines.ts'
 import type { CalendarInput, DraftGenInput, DraftItem, DraftSection } from './draft-types.ts'
 
 // AI가 생성한 섹션 항목 — 추론값이라 중간 신뢰도.
@@ -24,7 +25,9 @@ const SECTION_ORDER: readonly DraftSection[] = ['performance', 'plan', 'issues']
 const DEFAULT_STYLE_GUIDE =
   '간결한 개조식 문장으로, 업무 영역별 구분(category)을 만들고 성과/계획/이슈를 분리해 작성한다.'
 
-/** WeeklyRowOutput[](구분별 묶음)을 섹션별 DraftItem으로 펼친다. */
+// sectionToLines는 section-lines.ts(SSOT)에서 import — node:test 로드 가능하도록 순수 변환만 분리(§재사용).
+
+/** WeeklyRowOutput[](구분별 묶음)을 섹션별 DraftItem으로 펼친다(섹션 HTML은 불릿별 plain 항목으로). */
 function rowsToItems(rows: WeeklyRowOutput[]): DraftItem[] {
   const items: DraftItem[] = []
   for (const row of rows) {
@@ -34,18 +37,18 @@ function rowsToItems(rows: WeeklyRowOutput[]): DraftItem[] {
       issues: row.issues ?? '',
     }
     for (const section of SECTION_ORDER) {
-      const content = bySection[section].trim()
-      if (!content) continue
-      items.push({
-        category: row.category,
-        section,
-        content,
-        origin: 'auto',
-        confidence: AI_DEFAULT_CONFIDENCE,
-        isIncluded: true,
-        sourceRef: null,
-        sortOrder: 0,
-      })
+      for (const content of sectionToLines(bySection[section])) {
+        items.push({
+          category: row.category,
+          section,
+          content,
+          origin: 'auto',
+          confidence: AI_DEFAULT_CONFIDENCE,
+          isIncluded: true,
+          sourceRef: null,
+          sortOrder: 0,
+        })
+      }
     }
   }
   return items

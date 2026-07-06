@@ -400,14 +400,9 @@ export default function WeeklyReportForm({
         </select>
       </div>
 
-      {/* 일일업무에서 주간보고 생성 — 기존 내용(이월·저장·수동) 보존하며 카테고리 단위 병합 */}
-      <DailyTaskSelector
-        weekStart={selectedWeek}
-        onGenerate={(generatedRows) => {
-          setRows((prev) => mergeWeeklyRows(prev, generatedRows))
-        }}
-      />
-
+      {/* 안 B 위계: 좌=작성폼(메인) / 우=일일보고 매핑 사이드패널(상시펼침·체크→반영) */}
+      <div className="responsive-grid-2" style={{ alignItems: 'start' }}>
+      <div style={{ minWidth: 0 }}>
       {/* 알림 */}
       {submitError && (
         <div role="alert" style={{ padding: 'var(--space-3) var(--space-4)', backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
@@ -646,6 +641,22 @@ export default function WeeklyReportForm({
           </div>
         </div>
       )}
+      </div>{/* /좌 메인 */}
+
+      {/* 우: 일일보고 매핑 사이드패널 — 데스크탑 sticky, 모바일은 폼 아래로 스택 */}
+      <aside style={{ position: 'sticky', top: 'var(--space-4)', alignSelf: 'start' }}>
+        <p style={{ margin: '0 0 var(--space-2)', fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-faint)', letterSpacing: '-0.01em' }}>
+          일일보고에서 항목을 선택해 폼에 반영하세요
+        </p>
+        <DailyTaskSelector
+          weekStart={selectedWeek}
+          variant="side"
+          onGenerate={(generatedRows) => {
+            setRows((prev) => mergeWeeklyRows(prev, generatedRows))
+          }}
+        />
+      </aside>
+      </div>{/* /responsive-grid-2 */}
     </form>
     </>
   )

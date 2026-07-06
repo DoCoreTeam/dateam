@@ -106,21 +106,38 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     ? Array.from(new Set((reports ?? []).filter((r) => r.week_start === prevWeek).map((r) => r.category))).filter(Boolean)
     : []
 
-  // carry-forward: 이번 주 보고가 없고 이번 주 폼이면, 전주 계획 → 성과로 이월
-  const isNonEmptyPlan = (plan: string) =>
-    !!plan && plan !== '<p></p>' && plan !== '<p><br></p>' && plan.trim() !== ''
-  const carryForwardRows =
-    prevWeek && initialWeek === thisWeek && prefillRows.length === 0
-      ? (reports ?? [])
-          .filter((r) => r.week_start === prevWeek && isNonEmptyPlan(r.plan))
-          .map((r) => ({
-            category: r.category,
-            performance: r.plan,
-            plan: '',
-            issues: '',
-          }))
-      : []
-  const hasCarryForward = carryForwardRows.length > 0
+  // carry-forward: 전주 계획 → 이번 주 "빈 성과"로 이월.
+  // 왜: AI 자동초안 저장이 weekly_reports를 먼저 채워도(prefillRows>0) 이월이 죽지 않도록,
+  //     "행 없음(prefill 비었음)"이 아니라 "성과 셀 비었음" 기준으로 채운다. 사용자가 작성한 성과는 절대 미덮어씀.
+  const isNonEmptyRich = (s: string) =>
+    !!s && s !== '<p></p>' && s !== '<p><br></p>' && s.trim() !== ''
+  const prevPlanByCategory = new Map<string, string>()
+  if (prevWeek && initialWeek === thisWeek) {
+    for (const r of reports ?? []) {
+      if (r.week_start === prevWeek && isNonEmptyRich(r.plan) && !prevPlanByCategory.has(r.category)) {
+        prevPlanByCategory.set(r.category, r.plan)
+      }
+    }
+  }
+  let carriedCount = 0
+  // 1) 기존 프리필 행의 빈 성과만 전주 계획으로 채움
+  const mergedPrefill = prefillRows.map((row) => {
+    const prevPlan = prevPlanByCategory.get(row.category)
+    if (prevPlan && !isNonEmptyRich(row.performance)) {
+      carriedCount++
+      return { ...row, performance: prevPlan }
+    }
+    return row
+  })
+  // 2) 전주에만 있던 구분(계획 존재) → 이번 주 이월 행으로 추가
+  const existingCats = new Set(prefillRows.map((r) => r.category))
+  prevPlanByCategory.forEach((plan, cat) => {
+    if (!existingCats.has(cat)) {
+      mergedPrefill.push({ category: cat, performance: plan, plan: '', issues: '' })
+      carriedCount++
+    }
+  })
+  const hasCarryForward = carriedCount > 0
 
   // 과거 구분 목록 (datalist용)
   const pastCategories = Array.from(new Set((reports ?? []).map((r) => r.category))).filter(Boolean)
@@ -219,19 +236,31 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
           {/* 미처리 메모 리뷰 nudge */}
           <WeeklyMemoReview />
 
-          {/* AI 자동초안(push) — 기본 작성 흐름 */}
+          {/* 기존 작성폼 — 메인 작성 흐름(안 B). 우측에 일일보고 매핑 사이드패널 내장. */}
           <div className="card" style={{ padding: 'var(--space-6)', marginBottom: '1.75rem', width: '100%', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                 <FileText size={16} color="var(--brand)" />
-                <h2 className="tape-title" style={{ margin: 0 }}>AI 자동초안</h2>
+                <h2 className="tape-title" style={{ margin: 0 }}>주간보고 작성</h2>
               </div>
               <OnboardingRestartLink variant="icon" seq="weekly" gateKey="weekly_report_onboarding_done" label="작성 가이드" />
             </div>
-            <AutoDraftPanel week={initialWeek} weekOptions={weekOptions} />
+            <WeeklyReportForm
+              key={`${initialWeek}-${justReset ? 'reset' : 'normal'}`}
+              weekOptions={weekOptions}
+              thisWeek={thisWeek}
+              initialWeek={initialWeek}
+              pastCategories={pastCategories}
+              prefillRows={mergedPrefill}
+              isFirstTimeUser={(reports ?? []).length === 0}
+              hasCarryForward={hasCarryForward}
+              hasSavedData={prefillRows.length > 0}
+              prevWeekCategories={prevWeekCategories}
+              orgName={orgName}
+            />
           </div>
 
-          {/* 직접 편집(기존 방식) — 하위호환 보조 영역 */}
+          {/* AI 자동초안(push) — 보조(접힘). 기존 작성폼이 메인, 이것은 서포트. */}
           <details style={{ marginBottom: '1.75rem' }}>
             <summary
               style={{
@@ -242,26 +271,14 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
                 padding: 'var(--space-2) 0',
               }}
             >
-              직접 편집 (기존 방식)
+              AI 자동초안 (보조)
             </summary>
             <div className="card" style={{ padding: 'var(--space-6)', marginTop: 'var(--space-3)', width: '100%', boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
                 <FileText size={16} color="var(--brand)" />
-                <h2 className="tape-title" style={{ margin: 0 }}>보고서 작성</h2>
+                <h2 className="tape-title" style={{ margin: 0 }}>AI 자동초안</h2>
               </div>
-              <WeeklyReportForm
-                key={`${initialWeek}-${justReset ? 'reset' : 'normal'}`}
-                weekOptions={weekOptions}
-                thisWeek={thisWeek}
-                initialWeek={initialWeek}
-                pastCategories={pastCategories}
-                prefillRows={prefillRows.length > 0 ? prefillRows : carryForwardRows}
-                isFirstTimeUser={(reports ?? []).length === 0}
-                hasCarryForward={hasCarryForward}
-                hasSavedData={prefillRows.length > 0}
-                prevWeekCategories={prevWeekCategories}
-                orgName={orgName}
-              />
+              <AutoDraftPanel week={initialWeek} weekOptions={weekOptions} />
             </div>
           </details>
 
