@@ -6,6 +6,7 @@ import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import { isDeptTaskStatus, normalizeProgress, sanitizeChecklist, computeProgress, compareDeptTaskUrgency, summarizeDeptTasks, type DeptTaskCounts } from '@/lib/dept-task-utils'
 import type { DailyLog, DailyLogEntryType, DailyLogPriority, DailyLogThread, DeptTaskChecklistItem } from '@/types/database'
+import { logActivity } from '@/lib/work/activity-log'
 
 // 부서업무는 daily_logs(task_kind='dept_task')에 저장 — S1(075) 스키마 재사용.
 // RLS가 부서 가시성/쓰기를 1차 강제하고, assignTask·트리거(076)가 담당자 무결성을 보강한다.
@@ -170,8 +171,19 @@ export async function createDeptTask(input: DeptTaskInput): Promise<ActionResult
         checklist: sanitizeChecklist(input.checklist),
       })
       .select().single()
-    if (error) return { ok: false, error: getErrorMessage(error) }
+    if (error) {
+      await logActivity(supabase, {
+        module: 'dept_task', action: 'create', status: 'failure',
+        actorId: user.id, ownerId: user.id, title: input.content.trim(), error,
+      })
+      return { ok: false, error: getErrorMessage(error) }
+    }
     revalidatePath('/dept-tasks')
+    await logActivity(supabase, {
+      module: 'dept_task', action: 'create', status: 'success',
+      actorId: user.id, ownerId: user.id, entityId: (data as DailyLog).id, title: input.content.trim(),
+      after: data,
+    })
     return { ok: true, data: data as DailyLog }
   } catch (error: unknown) {
     return { ok: false, error: getErrorMessage(error) }
@@ -231,9 +243,20 @@ export async function promoteDailyToDeptTask(
         promoted_from_log_id: sourceLogId,   // 참조(복제 아님)
       })
       .select().single()
-    if (error) return { ok: false, error: getErrorMessage(error) }
+    if (error) {
+      await logActivity(supabase, {
+        module: 'dept_task', action: 'promote', status: 'failure',
+        actorId: user.id, ownerId: user.id, entityId: sourceLogId, title: String(src.content ?? '').trim(), error,
+      })
+      return { ok: false, error: getErrorMessage(error) }
+    }
     revalidatePath('/dept-tasks')
     revalidatePath('/daily')
+    await logActivity(supabase, {
+      module: 'dept_task', action: 'promote', status: 'success',
+      actorId: user.id, ownerId: user.id, entityId: (data as DailyLog).id, title: String(src.content ?? '').trim(),
+      after: data,
+    })
     return { ok: true, data: data as DailyLog }
   } catch (error: unknown) {
     return { ok: false, error: getErrorMessage(error) }
@@ -263,8 +286,10 @@ export async function updateDeptTaskProgress(
   // 현재 상태/체크리스트를 읽어 진행률을 SSOT 규칙으로 재산출 (체크리스트·상태와 진행률 일관성 보장)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: cur } = await (supabase.from('daily_logs') as any)
-    .select('entry_type,checklist,progress').eq('id', id).eq('task_kind', 'dept_task').single()
+    .select('entry_type,checklist,progress,user_id').eq('id', id).eq('task_kind', 'dept_task').single()
   if (!cur) return { ok: false, error: '권한이 없거나 업무를 찾을 수 없습니다.' }
+  // 감사로그 소유자 = 업무 작성자(담당자/부서장이 대신 변경해도 실소유자가 자기 이력에서 보임).
+  const ownerId = (cur.user_id as string) ?? user.id
 
   const status = (patch.status ?? cur.entry_type) as DailyLogEntryType
   const checklist = patch.checklist ? sanitizeChecklist(patch.checklist) : (cur.checklist as DeptTaskChecklistItem[])
@@ -281,9 +306,31 @@ export async function updateDeptTaskProgress(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase.from('daily_logs') as any)
       .update(updates).eq('id', id).eq('task_kind', 'dept_task').select().single()
-    if (error) return { ok: false, error: getErrorMessage(error) }
-    if (!data) return { ok: false, error: '권한이 없거나 업무를 찾을 수 없습니다.' }
+    if (error) {
+      await logActivity(supabase, {
+        module: 'dept_task', action: 'status_change', status: 'failure',
+        actorId: user.id, ownerId, entityId: id, error,
+        evidence: { status: patch.status, progress: patch.progress },
+      })
+      return { ok: false, error: getErrorMessage(error) }
+    }
+    if (!data) {
+      await logActivity(supabase, {
+        module: 'dept_task', action: 'status_change', status: 'failure',
+        actorId: user.id, ownerId, entityId: id, error: '권한이 없거나 업무를 찾을 수 없습니다.',
+        evidence: { status: patch.status, progress: patch.progress },
+      })
+      return { ok: false, error: '권한이 없거나 업무를 찾을 수 없습니다.' }
+    }
     revalidatePath('/dept-tasks')
+    await logActivity(supabase, {
+      module: 'dept_task', action: 'status_change', status: 'success',
+      actorId: user.id, ownerId, entityId: id,
+      title: (data as DailyLog).content,
+      before: { entry_type: cur.entry_type, progress: cur.progress },
+      after: { entry_type: updates.entry_type, progress: updates.progress },
+      evidence: { status: patch.status, progress: patch.progress },
+    })
     return { ok: true, data: data as DailyLog }
   } catch (error: unknown) {
     return { ok: false, error: getErrorMessage(error) }
@@ -359,9 +406,27 @@ export async function updateDeptTask(id: string, patch: DeptTaskEditPatch): Prom
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase.from('daily_logs') as any)
       .update(updates).eq('id', id).eq('task_kind', 'dept_task').select().single()
-    if (error) return { ok: false, error: getErrorMessage(error) }
-    if (!data) return { ok: false, error: '권한이 없거나 업무를 찾을 수 없습니다.' }
+    if (error) {
+      await logActivity(supabase, {
+        module: 'dept_task', action: 'update', status: 'failure',
+        actorId: user.id, ownerId: task.user_id as string, entityId: id, error, evidence: updates,
+      })
+      return { ok: false, error: getErrorMessage(error) }
+    }
+    if (!data) {
+      await logActivity(supabase, {
+        module: 'dept_task', action: 'update', status: 'failure',
+        actorId: user.id, ownerId: task.user_id as string, entityId: id,
+        error: '권한이 없거나 업무를 찾을 수 없습니다.', evidence: updates,
+      })
+      return { ok: false, error: '권한이 없거나 업무를 찾을 수 없습니다.' }
+    }
     revalidatePath('/dept-tasks')
+    await logActivity(supabase, {
+      module: 'dept_task', action: 'update', status: 'success',
+      actorId: user.id, ownerId: task.user_id as string, entityId: id,
+      title: (data as DailyLog).content, after: updates,
+    })
     return { ok: true, data: data as DailyLog }
   } catch (error: unknown) {
     return { ok: false, error: getErrorMessage(error) }
@@ -377,8 +442,9 @@ export async function assignTask(id: string, assigneeUserId: string | null): Pro
   // 대상 업무의 부서 확인
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: task } = await (supabase.from('daily_logs') as any)
-    .select('id,department_id,task_kind').eq('id', id).eq('task_kind', 'dept_task').single()
+    .select('id,user_id,department_id,task_kind').eq('id', id).eq('task_kind', 'dept_task').single()
   if (!task?.department_id) return { ok: false, error: '부서업무를 찾을 수 없습니다.' }
+  const ownerId = (task.user_id as string) ?? user.id
 
   const guard = await ensureEditable(user.id, task.department_id as string)
   if (!guard.ok) return guard
@@ -387,8 +453,19 @@ export async function assignTask(id: string, assigneeUserId: string | null): Pro
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase.from('daily_logs') as any)
       .update({ assignee_user_id: assigneeUserId }).eq('id', id).eq('task_kind', 'dept_task').select().single()
-    if (error) return { ok: false, error: getErrorMessage(error) } // 트리거: 부서 외 담당자면 여기서 거부
+    if (error) { // 트리거: 부서 외 담당자면 여기서 거부
+      await logActivity(supabase, {
+        module: 'dept_task', action: 'assign', status: 'failure',
+        actorId: user.id, ownerId, entityId: id, error, evidence: { assigneeUserId },
+      })
+      return { ok: false, error: getErrorMessage(error) }
+    }
     revalidatePath('/dept-tasks')
+    await logActivity(supabase, {
+      module: 'dept_task', action: 'assign', status: 'success',
+      actorId: user.id, ownerId, entityId: id,
+      title: (data as DailyLog).content, evidence: { assigneeUserId },
+    })
     return { ok: true, data: data as DailyLog }
   } catch (error: unknown) {
     return { ok: false, error: getErrorMessage(error) }
@@ -405,8 +482,18 @@ export async function deleteDeptTask(id: string): Promise<ActionResult<{ id: str
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase.from('daily_logs') as any)
       .delete().eq('id', id).eq('task_kind', 'dept_task')
-    if (error) return { ok: false, error: getErrorMessage(error) }
+    if (error) {
+      await logActivity(supabase, {
+        module: 'dept_task', action: 'delete', status: 'failure',
+        actorId: user.id, ownerId: user.id, entityId: id, error,
+      })
+      return { ok: false, error: getErrorMessage(error) }
+    }
     revalidatePath('/dept-tasks')
+    await logActivity(supabase, {
+      module: 'dept_task', action: 'delete', status: 'success',
+      actorId: user.id, ownerId: user.id, entityId: id,
+    })
     return { ok: true, data: { id } }
   } catch (error: unknown) {
     return { ok: false, error: getErrorMessage(error) }
@@ -439,8 +526,18 @@ export async function addDeptTaskComment(
         log_id: logId, author_type: 'user', author_user_id: user.id,
         content: content.trim(), parent_thread_id: parentThreadId ?? null,
       }).select().single()
-    if (error) return { ok: false, error: getErrorMessage(error) }
+    if (error) {
+      await logActivity(supabase, {
+        module: 'dept_task', action: 'update', status: 'failure',
+        actorId: user.id, ownerId: user.id, entityId: logId, error, evidence: { comment: true },
+      })
+      return { ok: false, error: getErrorMessage(error) }
+    }
     revalidatePath('/dept-tasks')
+    await logActivity(supabase, {
+      module: 'dept_task', action: 'update', status: 'success',
+      actorId: user.id, ownerId: user.id, entityId: logId, evidence: { comment: true },
+    })
     return { ok: true, data: data as DailyLogThread }
   } catch (error: unknown) {
     return { ok: false, error: getErrorMessage(error) }

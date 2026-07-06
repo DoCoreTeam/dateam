@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { NotebookPen, Briefcase, FileText, FolderKanban } from 'lucide-react'
+import { NotebookPen, Briefcase, FileText, FolderKanban, History } from 'lucide-react'
 import type { CSSProperties } from 'react'
 
 // 업무 허브 공유 탭바 — 일일업무/주간보고/부서업무/프로젝트 현황을 단일 "업무" 메뉴의 탭으로 묶는다.
@@ -13,6 +13,7 @@ const TABS: { href: string; label: string; icon: typeof NotebookPen; match?: str
   { href: '/weekly-report', label: '주간보고', icon: FileText },
   { href: '/dept-tasks', label: '부서 업무', icon: Briefcase },
   { href: '/work/projects', label: '프로젝트 현황', icon: FolderKanban, match: ['/work/overview'] },
+  { href: '/work/activity', label: '이력', icon: History },
 ]
 
 function tabStyle(isActive: boolean): CSSProperties {

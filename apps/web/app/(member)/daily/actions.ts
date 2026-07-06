@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { resolveOrgScope } from '@/lib/org-scope'
 import { embedText, toVectorLiteral } from '@/lib/gemini-embedding'
 import { recordFeedbackSignal, diffDailyLog } from '@/lib/daily/feedback-signals'
+import { logActivity } from '@/lib/work/activity-log'
 import type {
   DailyLog, DailyLogEntryType, DailyLogPriority,
   DailyLogRelation, DailyLogRelationType,
@@ -259,7 +260,13 @@ export async function addDailyLog(
     .select()
     .single()
 
-  if (error) return { ok: false, error: (error as Error).message }
+  if (error) {
+    await logActivity(supabase, {
+      module: 'daily', action: 'create', status: 'failure',
+      actorId: user.id, ownerId: user.id, title: content.trim(), error,
+    })
+    return { ok: false, error: (error as Error).message }
+  }
 
   // 메모면 임베딩 생성 (best effort — 실패해도 메모는 저장됨)
   if (isNote && data?.id) {
@@ -270,6 +277,12 @@ export async function addDailyLog(
   if (!isNote && data?.id) {
     await enqueueAutolinkJobs([{ logId: data.id as string, requesterId: user.id }])
   }
+
+  await logActivity(supabase, {
+    module: 'daily', action: 'create', status: 'success',
+    actorId: user.id, ownerId: user.id, entityId: data?.id ?? null,
+    title: content.trim(), after: data,
+  })
 
   revalidateDailyCalendarViews()
   return { ok: true, data: data as DailyLog }
@@ -306,6 +319,11 @@ export async function addRawDailyLog(
   if (groupError) {
     // 원문 에러(예: PK 중복) 노출 시 그룹 존재 추정 oracle → generic 마스킹 + 서버 로그.
     console.error('[addRawDailyLog] origin group insert failed', groupError)
+    await logActivity(supabase, {
+      module: 'daily', action: 'create', status: 'failure',
+      actorId: user.id, ownerId: user.id, title: trimmed, error: groupError,
+      evidence: { raw: true, stage: 'origin_group' },
+    })
     return { ok: false, error: '저장 중 오류가 발생했습니다.' }
   }
 
@@ -328,8 +346,19 @@ export async function addRawDailyLog(
     // 그룹은 만들어졌는데 로그 INSERT 실패 → orphan 그룹 best-effort 정리(트랜잭션 미지원 보완).
     await (supabase.from('daily_log_origin_groups') as any).delete().eq('id', originGroupId).eq('user_id', user.id)
     console.error('[addRawDailyLog] daily_logs insert failed', error)
+    await logActivity(supabase, {
+      module: 'daily', action: 'create', status: 'failure',
+      actorId: user.id, ownerId: user.id, title: trimmed, error,
+      evidence: { raw: true, stage: 'daily_logs' },
+    })
     return { ok: false, error: '저장 중 오류가 발생했습니다.' }
   }
+
+  await logActivity(supabase, {
+    module: 'daily', action: 'create', status: 'success',
+    actorId: user.id, ownerId: user.id, entityId: data?.id ?? null,
+    title: trimmed, after: data, evidence: { raw: true },
+  })
 
   revalidateDailyCalendarViews()
   return { ok: true, data: data as DailyLog }
@@ -380,7 +409,14 @@ export async function updateDailyLog(
     .eq('id', id)
     .eq('user_id', user.id)
 
-  if (error) return { ok: false, error: (error as Error).message }
+  if (error) {
+    await logActivity(supabase, {
+      module: 'daily', action: 'update', status: 'failure',
+      actorId: user.id, ownerId: user.id, entityId: id,
+      title: content.trim(), before: beforeRow, error,
+    })
+    return { ok: false, error: (error as Error).message }
+  }
 
   // AI 파생 항목 수정 = correct_* 신호. target_date 는 호출에 포함된 경우만 비교.
   if (beforeRow?.ai_processed) {
@@ -406,6 +442,12 @@ export async function updateDailyLog(
   if (entryType === 'note') {
     await embedMemoRow(id, user.id, content.trim())
   }
+
+  await logActivity(supabase, {
+    module: 'daily', action: 'update', status: 'success',
+    actorId: user.id, ownerId: user.id, entityId: id,
+    title: content.trim(), before: beforeRow, after: updatePayload,
+  })
 
   revalidateDailyCalendarViews()
   return { ok: true }
@@ -442,7 +484,14 @@ export async function updateDailyLogStatus(
     .eq('id', id)
     .eq('user_id', user.id)
 
-  if (error) return { ok: false, error: (error as Error).message }
+  if (error) {
+    await logActivity(supabase, {
+      module: 'daily', action: 'status_change', status: 'failure',
+      actorId: user.id, ownerId: user.id, entityId: id,
+      before: beforeRow, error, evidence: { entryType },
+    })
+    return { ok: false, error: (error as Error).message }
+  }
 
   // AI 파생 항목 타입 변경 = correct_type 신호
   if (beforeRow?.ai_processed && (beforeRow.entry_type ?? null) !== entryType) {
@@ -458,6 +507,12 @@ export async function updateDailyLogStatus(
       aiConfidence: beforeRow.ai_confidence ?? null,
     })
   }
+
+  await logActivity(supabase, {
+    module: 'daily', action: 'status_change', status: 'success',
+    actorId: user.id, ownerId: user.id, entityId: id,
+    before: beforeRow, after: { entry_type: entryType }, evidence: { entryType },
+  })
 
   revalidateDailyCalendarViews()
   return { ok: true }
@@ -486,7 +541,14 @@ export async function deleteDailyLog(id: string): Promise<{ ok: true } | { ok: f
     .eq('id', id)
     .eq('user_id', user.id)
 
-  if (error) return { ok: false, error: (error as Error).message }
+  if (error) {
+    await logActivity(supabase, {
+      module: 'daily', action: 'delete', status: 'failure',
+      actorId: user.id, ownerId: user.id, entityId: id,
+      title: aiContext?.content ?? null, before: aiContext, error,
+    })
+    return { ok: false, error: (error as Error).message }
+  }
 
   // AI 파생 항목 삭제 = reject 신호 (수동 항목은 신호 안 냄).
   // logId=null: 행이 이미 삭제돼 FK 참조 불가(23503 방지). 맥락은 content(거부된 항목)+원본+그룹으로 보존.
@@ -513,6 +575,12 @@ export async function deleteDailyLog(id: string): Promise<{ ok: true } | { ok: f
   } catch (e) {
     console.error('[deleteDailyLog] calendar cascade failed', e)
   }
+
+  await logActivity(supabase, {
+    module: 'daily', action: 'delete', status: 'success',
+    actorId: user.id, ownerId: user.id, entityId: id,
+    title: aiContext?.content ?? null, before: aiContext,
+  })
 
   revalidateDailyCalendarViews()
   return { ok: true }
@@ -708,7 +776,14 @@ export async function addMultipleDailyLogs(
     .insert(rows)
     .select()
 
-  if (error) return { ok: false, error: (error as Error).message }
+  if (error) {
+    await logActivity(supabase, {
+      module: 'daily', action: 'create', status: 'failure',
+      actorId: user.id, ownerId: user.id, error,
+      evidence: { bulk: true, count: items.length },
+    })
+    return { ok: false, error: (error as Error).message }
+  }
 
   const savedLogs = data as DailyLog[]
 
@@ -740,6 +815,13 @@ export async function addMultipleDailyLogs(
       .filter((l) => l.entry_type !== 'note' && l.id)
       .map((l) => ({ logId: l.id, requesterId: user.id }))
   )
+
+  await logActivity(supabase, {
+    module: 'daily', action: 'create', status: 'success',
+    actorId: user.id, ownerId: user.id,
+    title: savedLogs[0]?.content ?? null, after: { ids: savedLogs.map((l) => l.id) },
+    evidence: { bulk: true, count: savedLogs.length },
+  })
 
   revalidateDailyCalendarViews()
   return { ok: true, data: savedLogs }
@@ -928,7 +1010,20 @@ export async function setMemoStatus(
     .eq('user_id', user.id)
     .eq('entry_type', 'note')
 
-  if (error) return { ok: false, error: (error as Error).message }
+  if (error) {
+    await logActivity(supabase, {
+      module: 'daily', action: 'memo', status: 'failure',
+      actorId: user.id, ownerId: user.id, entityId: logId, error,
+      evidence: { status },
+    })
+    return { ok: false, error: (error as Error).message }
+  }
+
+  await logActivity(supabase, {
+    module: 'daily', action: 'memo', status: 'success',
+    actorId: user.id, ownerId: user.id, entityId: logId,
+    after: { memo_status: status }, evidence: { status },
+  })
 
   revalidatePath('/daily')
   revalidatePath('/home')
@@ -991,7 +1086,14 @@ export async function promoteMemoToTask(
     })
     .select('id')
     .single()
-  if (insErr || !task) return { ok: false, error: insErr ? (insErr as Error).message : '업무 생성 실패' }
+  if (insErr || !task) {
+    await logActivity(supabase, {
+      module: 'daily', action: 'promote', status: 'failure',
+      actorId: user.id, ownerId: user.id, entityId: memoId,
+      title: memo.content, error: insErr ?? '업무 생성 실패',
+    })
+    return { ok: false, error: insErr ? (insErr as Error).message : '업무 생성 실패' }
+  }
 
   // 3. derived_from 엣지 (task → memo)
   await (supabase.from('daily_log_relations') as any).upsert(
@@ -1004,6 +1106,12 @@ export async function promoteMemoToTask(
     .update({ memo_status: 'actioned', memo_reviewed_at: new Date().toISOString() })
     .eq('id', memoId)
     .eq('user_id', user.id)
+
+  await logActivity(supabase, {
+    module: 'daily', action: 'promote', status: 'success',
+    actorId: user.id, ownerId: user.id, entityId: task.id as string,
+    title: memo.content, before: { memoId }, after: { taskId: task.id, newType },
+  })
 
   revalidateDailyCalendarViews()
   revalidatePath('/home')
@@ -1035,10 +1143,24 @@ export async function deleteLogGroup(
     : del.eq('id', headLogId).eq('user_id', user.id)
 
   const { data, error } = await query.select('id')
-  if (error) return { ok: false, error: (error as Error).message }
+  if (error) {
+    await logActivity(supabase, {
+      module: 'daily', action: 'delete', status: 'failure',
+      actorId: user.id, ownerId: user.id, entityId: headLogId, error,
+      evidence: { group: true, originGroupId: head.origin_group_id ?? null },
+    })
+    return { ok: false, error: (error as Error).message }
+  }
+
+  const deletedCount = (data as { id: string }[] | null)?.length ?? 0
+  await logActivity(supabase, {
+    module: 'daily', action: 'delete', status: 'success',
+    actorId: user.id, ownerId: user.id, entityId: headLogId,
+    after: { deletedCount }, evidence: { group: true, originGroupId: head.origin_group_id ?? null },
+  })
 
   revalidateDailyCalendarViews()
-  return { ok: true, deleted: (data as { id: string }[] | null)?.length ?? 0 }
+  return { ok: true, deleted: deletedCount }
 }
 
 // 묶음 원본 입력 텍스트(original_input) 수정 — 표시용 텍스트만 갱신한다.
@@ -1068,7 +1190,20 @@ export async function updateOriginInput(
     : upd.eq('id', headLogId).eq('user_id', user.id)
 
   const { error } = await query
-  if (error) return { ok: false, error: (error as Error).message }
+  if (error) {
+    await logActivity(supabase, {
+      module: 'daily', action: 'update', status: 'failure',
+      actorId: user.id, ownerId: user.id, entityId: headLogId, error,
+      title: text.trim(), evidence: { origin: true },
+    })
+    return { ok: false, error: (error as Error).message }
+  }
+
+  await logActivity(supabase, {
+    module: 'daily', action: 'update', status: 'success',
+    actorId: user.id, ownerId: user.id, entityId: headLogId,
+    title: text.trim(), after: { original_input: text.trim() }, evidence: { origin: true },
+  })
 
   revalidateDailyCalendarViews()
   return { ok: true }

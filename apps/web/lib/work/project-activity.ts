@@ -65,11 +65,6 @@ export async function logProjectActivity(
   }
 }
 
-// 액션·상태 한글 라벨(표시 SSOT — 드로어가 import).
-export const ACTIVITY_ACTION_LABEL: Record<ProjectActivityAction, string> = {
-  create: '생성', update: '수정', delete: '삭제', ai_confirm: 'AI 확정',
-  link_daily: '업무 연결', unlink_daily: '업무 해제', member_change: '멤버 변경',
-}
-export const ACTIVITY_STATUS_LABEL: Record<ProjectActivityStatus, string> = {
-  success: '성공', failure: '실패', partial: '부분 성공',
-}
+// 액션·상태 한글 라벨 — 통합 이력 SSOT(activity-log.ts) 재사용(중복 정의·불일치 방지).
+// 드로어(ProjectActivityDrawer)와 통합 '이력' 탭이 동일 텍스트로 렌더됨.
+export { ACTION_LABEL as ACTIVITY_ACTION_LABEL, STATUS_LABEL as ACTIVITY_STATUS_LABEL } from './activity-log.ts'
