@@ -34,7 +34,7 @@ import SWRProvider from './SWRProvider'
 
 const NAV_ITEMS = [
   { href: '/home', label: '홈', icon: <Home size={16} /> },
-  { href: '/work', label: '업무', icon: <Briefcase size={16} />, match: ['/daily', '/dept-tasks', '/weekly-report'] },
+  { href: '/work', label: '업무', icon: <Briefcase size={16} />, match: ['/daily', '/dept-tasks', '/weekly-report', '/work'] },
   { href: '/calendar', label: '캘린더', icon: <CalendarDays size={16} /> },
   { href: '/meeting-notes', label: '회의노트', icon: <NotebookPen size={16} /> },
   { href: '/org', label: '조직도', icon: <Network size={16} /> },

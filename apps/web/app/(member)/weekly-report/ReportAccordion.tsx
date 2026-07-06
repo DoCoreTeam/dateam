@@ -28,7 +28,7 @@ function ReportCard({ report }: { report: WeeklyReport }) {
   function handleDelete() {
     setDeleteError(null)
     startTransition(async () => {
-      const result = await deleteWeeklyReport(report.week_start, report.category)
+      const result = await deleteWeeklyReport(report.week_start, report.category, report.id)
       if (!result.ok) {
         setDeleteError(result.error)
       }

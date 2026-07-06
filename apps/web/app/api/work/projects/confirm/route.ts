@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { parseProjectMeta, PROJECT_SELECT } from '@/lib/work/project-fields'
+import { logProjectActivity } from '@/lib/work/project-activity'
 
 // POST /api/work/projects/confirm — suggest 후보를 사용자가 확인 후 "확정 생성".
 //  { name, logIds?[], ...meta } → 프로젝트 1건 생성 + logIds를 work_entity_links(kind=project)로 연결.
@@ -36,10 +37,17 @@ export async function POST(req: NextRequest) {
     .insert({ name, user_id: user.id, ...meta.fields })
     .select(PROJECT_SELECT)
     .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    await logProjectActivity(supabase, {
+      ownerId: user.id, actorId: user.id, action: 'ai_confirm', status: 'failure',
+      error, evidence: { name, requestedLinks: logIds.length },
+    })
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   // 2) 선택된 업무를 프로젝트로 연결(본인 소유 업무만). 멱등 upsert.
   let linked = 0
+  let linkFailed = false
   if (logIds.length > 0) {
     const { data: owned } = await db.from('daily_logs').select('id').eq('user_id', user.id).in('id', logIds)
     const ownedIds = ((owned ?? []) as Array<{ id: string }>).map((r) => r.id)
@@ -51,8 +59,16 @@ export async function POST(req: NextRequest) {
         .from('work_entity_links')
         .upsert(links, { onConflict: 'log_id,kind,entity_id', ignoreDuplicates: true })
       if (!linkErr) linked = ownedIds.length
+      else linkFailed = true
     }
   }
+
+  // 프로젝트는 생성됐으나 연결 요청이 실패하면 partial(=값은 저장됨을 이력으로 증명).
+  await logProjectActivity(supabase, {
+    projectId: project.id, ownerId: user.id, actorId: user.id, action: 'ai_confirm',
+    status: linkFailed ? 'partial' : 'success',
+    after: project, evidence: { name, requestedLinks: logIds.length, linkedTasks: linked },
+  })
 
   return NextResponse.json({ ...project, linkedTasks: linked }, { status: 201 })
 }

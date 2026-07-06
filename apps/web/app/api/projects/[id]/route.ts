@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { parseProjectMeta, PROJECT_SELECT } from '@/lib/work/project-fields'
+import { logProjectActivity } from '@/lib/work/project-activity'
 
 interface Ctx { params: Promise<{ id: string }> }
 
@@ -60,7 +61,13 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (Object.keys(patch).length === 0) return NextResponse.json({ error: '수정할 내용이 없습니다' }, { status: 400 })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const dbW = supabase as any
+  // 변경 전 스냅샷(감사로그 before). RLS 소유 확인 겸용.
+  const { data: before } = await dbW
+    .from('projects').select(PROJECT_SELECT)
+    .eq('id', id).eq('user_id', user.id).is('deleted_at', null).maybeSingle()
+
+  const { data, error } = await dbW
     .from('projects')
     .update(patch)
     .eq('id', id)
@@ -70,9 +77,23 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     .maybeSingle()
   if (error) {
     console.error('[projects PATCH] update failed', error)
+    await logProjectActivity(supabase, {
+      projectId: id, ownerId: user.id, actorId: user.id, action: 'update', status: 'failure',
+      before, error, evidence: { patch },
+    })
     return NextResponse.json({ error: '요청을 처리하지 못했습니다' }, { status: 500 })
   }
-  if (!data) return NextResponse.json({ error: '프로젝트를 찾을 수 없습니다' }, { status: 404 })
+  if (!data) {
+    await logProjectActivity(supabase, {
+      projectId: id, ownerId: user.id, actorId: user.id, action: 'update', status: 'failure',
+      error: { message: '대상 없음(미소유 또는 삭제됨)' }, evidence: { patch },
+    })
+    return NextResponse.json({ error: '프로젝트를 찾을 수 없습니다' }, { status: 404 })
+  }
+  await logProjectActivity(supabase, {
+    projectId: id, ownerId: user.id, actorId: user.id, action: 'update', status: 'success',
+    before, after: data,
+  })
   return NextResponse.json(data)
 }
 
@@ -84,7 +105,12 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const dbD = supabase as any
+  const { data: before } = await dbD
+    .from('projects').select(PROJECT_SELECT)
+    .eq('id', id).eq('user_id', user.id).is('deleted_at', null).maybeSingle()
+
+  const { data, error } = await dbD
     .from('projects')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
@@ -94,8 +120,22 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     .maybeSingle()
   if (error) {
     console.error('[projects DELETE] soft-delete failed', error)
+    await logProjectActivity(supabase, {
+      projectId: id, ownerId: user.id, actorId: user.id, action: 'delete', status: 'failure',
+      before, error,
+    })
     return NextResponse.json({ error: '요청을 처리하지 못했습니다' }, { status: 500 })
   }
-  if (!data) return NextResponse.json({ error: '프로젝트를 찾을 수 없습니다' }, { status: 404 })
+  if (!data) {
+    await logProjectActivity(supabase, {
+      projectId: id, ownerId: user.id, actorId: user.id, action: 'delete', status: 'failure',
+      error: { message: '대상 없음(미소유 또는 이미 삭제됨)' },
+    })
+    return NextResponse.json({ error: '프로젝트를 찾을 수 없습니다' }, { status: 404 })
+  }
+  await logProjectActivity(supabase, {
+    projectId: id, ownerId: user.id, actorId: user.id, action: 'delete', status: 'success',
+    before,
+  })
   return NextResponse.json({ success: true })
 }

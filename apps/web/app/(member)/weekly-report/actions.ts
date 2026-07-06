@@ -36,8 +36,9 @@ export async function upsertWeeklyReport(
   }
 
   const rowCount = Math.min(Math.max(0, Number(formData.get('row_count') ?? 0)), 50)
-  // category가 중복되면 마지막 행 우선 (Map으로 dedup — UNIQUE 제약 위반 방지)
-  const rowMap = new Map<string, { performance: string; plan: string; issues: string }>()
+  // 같은 카테고리라도 각 행을 독립 기록 (migration 141: seq로 구분, dedup 제거).
+  // 입력 순서를 그대로 보존 → replace_weekly_report RPC가 배열 순서로 seq 부여.
+  const rows: { category: string; performance: string; plan: string; issues: string }[] = []
 
   for (let i = 0; i < rowCount; i++) {
     const category = (formData.get(`row_category_${i}`) as string)?.trim()
@@ -47,19 +48,12 @@ export async function upsertWeeklyReport(
 
     if (!category || (!performance && !plan && !issues)) continue
 
-    rowMap.set(category, { performance, plan, issues })
+    rows.push({ category, performance, plan, issues })
   }
 
-  if (rowMap.size === 0) {
+  if (rows.length === 0) {
     return { ok: false, error: '최소 하나의 항목을 입력해주세요' }
   }
-
-  const rows = Array.from(rowMap.entries()).map(([category, fields]) => ({
-    category,
-    performance: fields.performance,
-    plan: fields.plan,
-    issues: fields.issues,
-  }))
 
   // replace_weekly_report RPC: DELETE + INSERT를 단일 트랜잭션으로 실행 (migration 033)
   // 분리된 2-step으로 하면 DELETE 성공 후 INSERT 실패 시 해당 주차 데이터 전소실 위험이 있음
@@ -118,7 +112,8 @@ export async function deleteAllWeeklyReports(
 
 export async function deleteWeeklyReport(
   weekStart: string,
-  category: string
+  category: string,
+  rowId?: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!weekStart || !category) return { ok: false, error: '주차와 구분이 필요합니다' }
 
@@ -129,12 +124,14 @@ export async function deleteWeeklyReport(
 
   if (!user) return { ok: false, error: '인증이 필요합니다' }
 
+  // 다중 동일카테고리(mig141) 대응: rowId가 있으면 그 행만 삭제, 없으면 하위호환(카테고리 전체).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase.from('weekly_reports') as any)
+  let del = (supabase.from('weekly_reports') as any)
     .delete()
     .eq('user_id', user.id)
     .eq('week_start', weekStart)
-    .eq('category', category)
+  del = rowId ? del.eq('id', rowId) : del.eq('category', category)
+  const { error } = await del
 
   if (error) {
     console.error('[deleteWeeklyReport]', error)

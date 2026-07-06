@@ -6,14 +6,17 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import useSWRInfinite from 'swr/infinite'
-import { Plus, Pencil, Trash2, FolderOpen, AlertTriangle, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, FolderOpen, AlertTriangle, X, History } from 'lucide-react'
 import WorkPageShell from '@/components/ui/WorkPageShell'
+import WorkSubTabs from '@/components/ui/WorkSubTabs'
 import { fetcher } from '@/lib/swr-config'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useEscClose } from '@/lib/use-esc-close'
 import { periodLabel, budgetLabel, statusBadge, type ProjectMeta } from '@/lib/work/project-display'
 import ProjectFormModal from './ProjectFormModal'
 import ProjectAiSuggest from './ProjectAiSuggest'
+import WorkOverviewPanel from './WorkOverviewPanel'
+import ProjectActivityDrawer from './ProjectActivityDrawer'
 
 interface Project extends ProjectMeta {
   id: string
@@ -42,8 +45,18 @@ export default function ProjectsPage() {
   const initialSort = `${params.get('sort') ?? 'created_at'}.${params.get('dir') ?? 'desc'}`
   const [sort, setSort] = useState(SORT_OPTIONS.some((o) => o.value === initialSort) ? initialSort : DEFAULT_SORT)
 
-  // 검색어·정렬 → URL 동기화. 기본값이면 파라미터 제거.
+  // 뷰 스위치(E: 현황 병합) — 프로젝트 목록 | 현황. URL ?view=overview로 공유·뒤로가기.
+  const view: 'projects' | 'overview' = params.get('view') === 'overview' ? 'overview' : 'projects'
+  const setView = (next: 'projects' | 'overview') => {
+    const sp = new URLSearchParams(Array.from(params.entries()))
+    if (next === 'overview') sp.set('view', 'overview'); else sp.delete('view')
+    const qs = sp.toString()
+    router.replace(qs ? `/work/projects?${qs}` : '/work/projects', { scroll: false })
+  }
+
+  // 검색어·정렬 → URL 동기화. 기본값이면 파라미터 제거. (현황 뷰에선 스킵 — view 파라미터 보존)
   useEffect(() => {
+    if (view !== 'projects') return
     const sp = new URLSearchParams(Array.from(params.entries()))
     if (debounced) sp.set('search', debounced); else sp.delete('search')
     const opt = SORT_OPTIONS.find((o) => o.value === sort)!
@@ -52,7 +65,7 @@ export default function ProjectsPage() {
     const qs = sp.toString()
     router.replace(qs ? `?${qs}` : '/work/projects', { scroll: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debounced, sort])
+  }, [debounced, sort, view])
 
   const getKey = useCallback((index: number, prev: Page | null) => {
     if (prev && !prev.nextCursor) return null
@@ -73,18 +86,33 @@ export default function ProjectsPage() {
 
   const [editing, setEditing] = useState<Editing>(null)
   const [deleting, setDeleting] = useState<Project | null>(null)
+  const [activityFor, setActivityFor] = useState<Project | null>(null)
 
   return (
     <WorkPageShell
-      title="프로젝트"
-      description="업무를 묶는 프로젝트를 관리합니다. 프로젝트별 업무 현황은 '현황 → 프로젝트별'에서 확인하세요."
+      title="프로젝트 현황"
+      description="프로젝트를 관리하고, 고객·딜·프로젝트별 업무 현황을 한눈에 봅니다."
+      subTabs={
+        <WorkSubTabs
+          items={[{ key: 'projects', label: '프로젝트', testId: 'view-projects' }, { key: 'overview', label: '현황', testId: 'view-overview' }]}
+          activeKey={view}
+          onSelect={(k) => setView(k as 'projects' | 'overview')}
+          ariaLabel="프로젝트 현황 뷰 전환"
+        />
+      }
       actions={
-        <button onClick={() => setEditing({ mode: 'create' })} data-testid="new-project"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand-fg)', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-4)', minHeight: 44, cursor: 'pointer' }}>
-          <Plus size={16} /> 프로젝트 추가
-        </button>
+        view === 'projects' ? (
+          <button onClick={() => setEditing({ mode: 'create' })} data-testid="new-project"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand-fg)', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-4)', minHeight: 44, cursor: 'pointer' }}>
+            <Plus size={16} /> 프로젝트 추가
+          </button>
+        ) : undefined
       }
     >
+      {view === 'overview' ? (
+        <WorkOverviewPanel />
+      ) : (
+        <>
       <ProjectAiSuggest onConfirmed={() => mutate()} />
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
@@ -124,7 +152,8 @@ export default function ProjectsPage() {
           {projects.map((p) => (
             <ProjectCard key={p.id} project={p}
               onEdit={() => setEditing({ mode: 'edit', project: p })}
-              onDelete={() => setDeleting(p)} />
+              onDelete={() => setDeleting(p)}
+              onActivity={() => setActivityFor(p)} />
           ))}
         </ul>
       )}
@@ -151,12 +180,18 @@ export default function ProjectsPage() {
       {deleting && (
         <DeleteConfirm project={deleting} onClose={() => setDeleting(null)} onDone={() => { setDeleting(null); mutate() }} />
       )}
+
+      {activityFor && (
+        <ProjectActivityDrawer projectId={activityFor.id} projectName={activityFor.name} onClose={() => setActivityFor(null)} />
+      )}
+        </>
+      )}
     </WorkPageShell>
   )
 }
 
 // 프로젝트 카드 — 이름 + 기간 + 상태뱃지 + 예산.
-function ProjectCard({ project: p, onEdit, onDelete }: { project: Project; onEdit: () => void; onDelete: () => void }) {
+function ProjectCard({ project: p, onEdit, onDelete, onActivity }: { project: Project; onEdit: () => void; onDelete: () => void; onActivity: () => void }) {
   const period = periodLabel(p)
   const budget = budgetLabel(p.budget, p.currency)
   const badge = statusBadge(p.status)
@@ -176,8 +211,12 @@ function ProjectCard({ project: p, onEdit, onDelete }: { project: Project; onEdi
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
+        <button onClick={onActivity} aria-label={`${p.name} 이력`} title="저장 이력"
+          style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, padding: 'var(--space-2)', borderRadius: 'var(--radius)', background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 'var(--fs-2xs)', fontWeight: 600 }}>
+          <History size={14} /> 이력
+        </button>
         <button onClick={onEdit} aria-label={`${p.name} 수정`}
-          style={{ marginLeft: 'auto', display: 'inline-flex', padding: 'var(--space-2)', borderRadius: 'var(--radius)', background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          style={{ display: 'inline-flex', padding: 'var(--space-2)', borderRadius: 'var(--radius)', background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer' }}>
           <Pencil size={15} />
         </button>
         <button onClick={onDelete} aria-label={`${p.name} 삭제`}

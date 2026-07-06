@@ -2,8 +2,8 @@
 // 왜: 별도 경고 카드(구 WeeklyMemoReview)로 나무라는 대신, 작성 흐름(우측 패널)에 녹여 자연 소진한다.
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
-import { StickyNote, Sparkles, Check } from 'lucide-react'
+import { useEffect, useRef, useState, useTransition } from 'react'
+import { StickyNote, Sparkles, Check, CheckCheck } from 'lucide-react'
 import { STALENESS_STYLE, relativeTime, type MemoListItem } from '@/components/ui/memo/memoUtils'
 import { setMemoStatus } from '@/app/(member)/daily/actions'
 import { generateWeeklyRows, type WeeklyRow } from '@/lib/weekly-report/generate-client'
@@ -48,6 +48,27 @@ export default function MemoIntakeList({ onReflect }: MemoIntakeListProps) {
     })
   }
 
+  // 마스터 체크박스(전체선택/해제) — 3-state indeterminate.
+  const masterRef = useRef<HTMLInputElement>(null)
+  const allSelected = items.length > 0 && selectedIds.size === items.length
+  const someSelected = selectedIds.size > 0 && !allSelected
+  useEffect(() => {
+    if (masterRef.current) masterRef.current.indeterminate = someSelected
+  }, [someSelected])
+  function toggleAll() {
+    setSelectedIds(allSelected ? new Set() : new Set(items.map((m) => m.id)))
+  }
+
+  // 일괄 확인 처리(반영 없이 소진) — 선택 항목 전부 reviewed → 목록에서 제거.
+  function bulkMarkReviewed() {
+    const selected = items.filter((m) => selectedIds.has(m.id))
+    if (selected.length === 0) { setError('확인 처리할 메모를 선택해 주세요'); return }
+    setError('')
+    startTransition(async () => { await Promise.all(selected.map((m) => setMemoStatus(m.id, 'reviewed'))) })
+    const ids = new Set(selected.map((m) => m.id))
+    setItems((prev) => prev.filter((m) => !ids.has(m.id)))
+  }
+
   async function handleReflect() {
     const selected = items.filter((m) => selectedIds.has(m.id))
     if (selected.length === 0) { setError('반영할 메모를 선택해 주세요'); return }
@@ -85,6 +106,9 @@ export default function MemoIntakeList({ onReflect }: MemoIntakeListProps) {
   return (
     <div style={{ marginTop: 'var(--space-3)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '0.75rem 0.875rem', background: 'var(--color-bg)', fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text-muted)' }}>
+        <input ref={masterRef} type="checkbox" checked={allSelected} onChange={toggleAll}
+          aria-label={allSelected ? '전체 해제' : '전체 선택'} title={allSelected ? '전체 해제' : '전체 선택'}
+          style={{ flexShrink: 0, accentColor: 'var(--brand)', cursor: 'pointer' }} />
         <StickyNote size={14} color="var(--warning)" />
         <span>미처리 메모</span>
         <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', fontWeight: 400 }}>
@@ -133,7 +157,20 @@ export default function MemoIntakeList({ onReflect }: MemoIntakeListProps) {
           })}
         </div>
 
-        <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
+          <button type="button" onClick={bulkMarkReviewed} disabled={generating || selectedIds.size === 0}
+            title="선택한 메모를 반영 없이 일괄 확인 처리"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)',
+              padding: '0.5rem 0.9rem', borderRadius: 'var(--radius)',
+              background: 'var(--surface-bg)', color: 'var(--text-muted)',
+              border: 'var(--border-w-2) solid var(--border-color)',
+              cursor: generating || selectedIds.size === 0 ? 'not-allowed' : 'pointer',
+              fontSize: 'var(--fs-sm)', fontWeight: 600,
+            }}>
+            <CheckCheck size={13} />
+            선택 확인 ({selectedIds.size})
+          </button>
           <button type="button" onClick={handleReflect} disabled={generating || selectedIds.size === 0}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)',

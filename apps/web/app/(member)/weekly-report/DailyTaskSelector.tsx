@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { ChevronDown, ChevronUp, Sparkles, CheckSquare, Square } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
 import DailyTaskItem from './DailyTaskItem'
 import { generateWeeklyRows, type WeeklyRow } from '@/lib/weekly-report/generate-client'
 import type { DailyLog } from '@/types/database'
@@ -62,12 +62,15 @@ export default function DailyTaskSelector({ weekStart, onGenerate, variant = 'in
     })
   }
 
+  // 마스터 체크박스(전체선택/해제) — 3-state indeterminate.
+  const masterRef = useRef<HTMLInputElement>(null)
+  const allSelected = tasks.length > 0 && selectedIds.size === tasks.length
+  const someSelected = selectedIds.size > 0 && !allSelected
+  useEffect(() => {
+    if (masterRef.current) masterRef.current.indeterminate = someSelected
+  }, [someSelected])
   function toggleAll() {
-    if (selectedIds.size === tasks.length) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(tasks.map((t) => t.id)))
-    }
+    setSelectedIds(allSelected ? new Set() : new Set(tasks.map((t) => t.id)))
   }
 
   async function handleGenerate() {
@@ -179,18 +182,14 @@ export default function DailyTaskSelector({ weekStart, onGenerate, variant = 'in
 
           {!loading && tasks.length > 0 && (
             <>
-              {/* 전체 선택 */}
+              {/* 전체 선택 — 마스터 체크박스(3-state) */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <button
-                  type="button"
-                  onClick={toggleAll}
-                  style={{ fontSize: 'var(--fs-sm)', color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem', padding: 0 }}
-                >
-                  {selectedIds.size === tasks.length
-                    ? <CheckSquare size={14} />
-                    : <Square size={14} />}
-                  {selectedIds.size === tasks.length ? '전체 해제' : '전체 선택'}
-                </button>
+                <label style={{ fontSize: 'var(--fs-sm)', color: 'var(--brand)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                  <input ref={masterRef} type="checkbox" checked={allSelected} onChange={toggleAll}
+                    aria-label={allSelected ? '전체 해제' : '전체 선택'}
+                    style={{ accentColor: 'var(--brand)', cursor: 'pointer' }} />
+                  {allSelected ? '전체 해제' : '전체 선택'}
+                </label>
                 <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>
                   {Object.keys(byDate).length}일치 업무
                 </span>

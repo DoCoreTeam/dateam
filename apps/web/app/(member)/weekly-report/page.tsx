@@ -76,7 +76,8 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
       .eq('user_id', user.id)
       .is('deleted_at', null)
       .order('week_start', { ascending: false })
-      .order('category', { ascending: true }) as unknown as Promise<{ data: WeeklyReport[] | null }>,
+      .order('category', { ascending: true })
+      .order('seq', { ascending: true }) as unknown as Promise<{ data: WeeklyReport[] | null }>,
     supabase
       .from('weekly_reports')
       .select('user_id, category, performance, plan, issues, week_start, profiles(name, role)')

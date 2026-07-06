@@ -126,6 +126,7 @@ export interface WeeklyReport {
   user_id: string
   week_start: string
   category: string
+  seq: number
   performance: string
   plan: string
   issues: string

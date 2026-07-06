@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { safeLike } from '@/lib/postgrest-safe'
 import { parseProjectMeta, PROJECT_SELECT, PROJECT_SORT_ALLOW } from '@/lib/work/project-fields'
+import { logProjectActivity } from '@/lib/work/project-activity'
 
 // 경량 projects 엔티티 CRUD (본인 소유). 그룹핑 ③ 프로젝트 축의 그룹 키 원천.
 // 패턴: accounts/contacts 라우트와 동형 — createClient(RLS) + user_id 소유, items/nextCursor 엔벨로프.
@@ -79,6 +80,16 @@ export async function POST(req: NextRequest) {
     .insert({ name, user_id: user.id, ...meta.fields })
     .select(PROJECT_SELECT)
     .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    await logProjectActivity(supabase, {
+      ownerId: user.id, actorId: user.id, action: 'create', status: 'failure',
+      error, evidence: { name },
+    })
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+  await logProjectActivity(supabase, {
+    projectId: data.id, ownerId: user.id, actorId: user.id, action: 'create', status: 'success',
+    after: data, evidence: { name },
+  })
   return NextResponse.json(data, { status: 201 })
 }
