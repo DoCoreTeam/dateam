@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
   const { data: existingToday } = await (supabase.from('daily_logs') as any)
     .select('content, entry_type')
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .eq('log_date', date)
     .eq('is_onboarding', false)  // onboarding: AI 프롬프트 입력(중복맥락) — 실습 행 제외
     .limit(100)

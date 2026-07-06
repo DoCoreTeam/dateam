@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await (supabase.from('daily_logs') as any)
     .select('*')
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .eq('task_kind', 'personal')   // 이월도 개인 업무만 (부서업무 역류 제거)
     .eq('is_onboarding', false)    // 온보딩 실습 행 제외(이월 제안 오염 방지)
     .eq('is_resolved', false)

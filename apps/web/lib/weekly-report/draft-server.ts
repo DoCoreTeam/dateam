@@ -155,6 +155,7 @@ export async function generateForWeek(
     .from('daily_logs')
     .select('content, entry_type, log_date, is_resolved, priority')
     .eq('is_onboarding', false)
+    .is('deleted_at', null)
     .or(`user_id.eq.${userId},assignee_user_id.eq.${userId}`)
     .gte('log_date', week)
     .lte('log_date', weekEnd)

@@ -316,6 +316,8 @@ export interface DailyLog {
   promoted_from_log_id: string | null
   // 회의노트 파생 업무 역참조 (117 migration) — 회의에서 생성된 일일업무가 원본 회의노트 id를 가리킴
   meeting_note_id: string | null
+  // 소프트삭제(146 migration) — null이면 활성 행. 삭제는 UPDATE로만(하드삭제 금지, 복구 전제).
+  deleted_at: string | null
   created_at: string
   updated_at: string
 }
@@ -481,7 +483,7 @@ export interface Database {
       }
       daily_logs: {
         Row: DailyLog
-        Insert: Omit<DailyLog, 'id' | 'logged_at' | 'created_at' | 'updated_at'>
+        Insert: Omit<DailyLog, 'id' | 'logged_at' | 'created_at' | 'updated_at' | 'deleted_at'>
         Update: Partial<Omit<DailyLog, 'id' | 'user_id' | 'log_date' | 'created_at'>>
         Relationships: [
           {

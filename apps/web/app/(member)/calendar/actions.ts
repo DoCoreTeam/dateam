@@ -27,6 +27,7 @@ export async function getCalendarRecommendations(): Promise<{ ok: boolean; items
     const { data: planned } = await sb.from('daily_logs')
       .select('id, content, entry_type, target_date, memo_status')
       .eq('user_id', user.id)
+      .is('deleted_at', null)
       .eq('is_onboarding', false)   // 온보딩 실습 행 제외(뱃지/캘린더 오염 방지)
       .in('entry_type', ['planned', 'doing', 'note'])
       .order('logged_at', { ascending: false }).limit(40)

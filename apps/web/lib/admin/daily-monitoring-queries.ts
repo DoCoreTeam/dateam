@@ -81,6 +81,7 @@ export async function fetchMonthAggregate(
     .gte('log_date', start)
     .lte('log_date', end)
     .eq('is_onboarding', false)
+    .is('deleted_at', null)
     .or(EXCLUDE_RAW_HEAD_OR)   // 원문 raw 헤드(헤더 전용) 제외 — 월 집계 오염 방지
     .limit(HARD_FETCH_CAP)
   if (error) throw new Error(`fetchMonthAggregate: ${error.message}`)
@@ -99,7 +100,7 @@ export interface DayLogFilters {
 
 /** 구조 필터(q 제외)를 daily_logs 쿼리에 적용 — KPI·리스트 공통 기반 */
 function applyStructuralFilters(qb: any, date: string, filters: DayLogFilters) {
-  let q = qb.eq('log_date', date).eq('is_onboarding', false).or(EXCLUDE_RAW_HEAD_OR)
+  let q = qb.eq('log_date', date).eq('is_onboarding', false).is('deleted_at', null).or(EXCLUDE_RAW_HEAD_OR)
   if (filters.departmentId) q = q.eq('department_id', filters.departmentId)
   if (filters.taskKind) q = q.eq('task_kind', filters.taskKind)
   // blockerOnly가 켜지면 entry_type='blocker'로 강제(둘 동시 AND로 0행 되는 충돌 방지)
@@ -158,7 +159,7 @@ export async function fetchDayDetail(
   deptNameById: Record<string, string> = {},
 ): Promise<DayDetail> {
   const { data, error } = await applyStructuralFilters(
-    (admin.from('daily_logs') as any).select(DETAIL_SELECT),
+    (admin.from('daily_logs') as any).select(DETAIL_SELECT), // soft-delete-ok: deleted_at 필터는 applyStructuralFilters(SSOT) 내부에서 적용
     date,
     filters,
   )
@@ -215,6 +216,7 @@ export async function fetchLogsForExport(
     .gte('log_date', from)
     .lte('log_date', to)
     .eq('is_onboarding', false)
+    .is('deleted_at', null)
     .or(EXCLUDE_RAW_HEAD_OR)   // 원문 raw 헤드(헤더 전용) 제외 — CSV 내보내기 오염 방지
     .order('log_date', { ascending: true })
     .order('logged_at', { ascending: true })

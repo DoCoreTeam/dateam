@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await (supabase.from('daily_logs') as any)
     .select('id, log_date, entry_type, content, target_date, scheduled_at, logged_at')
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .eq('is_onboarding', false)   // 온보딩 실습 행 제외(캘린더 오염 방지)
     .or(EXCLUDE_RAW_HEAD_OR)      // 원문 raw 헤드(헤더 전용) 제외 — 캘린더 카운트 오염 방지
     .or(`and(log_date.gte.${from},log_date.lte.${to}),and(target_date.gte.${from},target_date.lte.${to})`)

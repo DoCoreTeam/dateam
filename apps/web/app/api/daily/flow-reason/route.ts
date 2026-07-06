@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
     .select('id, content, parent_log_id, flow_reason')
     .eq('id', logId)
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .eq('is_onboarding', false)  // onboarding: AI 파생관계 설명 입력 — 실습 행은 분석 대상 제외
     .single()
 
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
   const { data: parentLog } = await (supabase.from('daily_logs') as any)
     .select('id, content')
     .eq('id', childLog.parent_log_id)
+    .is('deleted_at', null)
     .eq('is_onboarding', false)  // onboarding: AI 파생관계 설명 입력 — 실습 행 제외
     .single()
 

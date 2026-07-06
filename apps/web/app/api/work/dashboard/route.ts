@@ -15,6 +15,7 @@ export async function GET() {
   const { data } = await db.from('daily_logs')
     .select('id, content, entry_type, log_date, linked_account_id')
     .eq('user_id', auth.user.id).eq('task_kind', 'personal')
+    .is('deleted_at', null)
     .eq('is_onboarding', false)  // onboarding: 워크로드 대시보드 집계 — 실습 행 제외
     .or(EXCLUDE_RAW_HEAD_OR)     // 원문 raw 헤드(헤더 전용) 제외 — total·롤업 오염 방지
     .order('log_date', { ascending: false }).limit(2000)

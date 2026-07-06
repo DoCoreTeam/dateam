@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
   const { data: logs } = await db.from('daily_logs')
     .select('id, content, entry_type, linked_account_id')
     .eq('user_id', user.id).eq('task_kind', 'personal')
+    .is('deleted_at', null)
     .eq('is_onboarding', false)  // onboarding: 엔티티 기준 집계(관여분포) — 실습 행 제외
     .or(EXCLUDE_RAW_HEAD_OR)     // 원문 raw 헤드(헤더 전용) 제외 — 엔티티 집계 오염 방지
     .order('logged_at', { ascending: false }).limit(1000)

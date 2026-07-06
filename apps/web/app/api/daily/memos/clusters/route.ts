@@ -41,6 +41,7 @@ export async function GET() {
   const { data } = await (supabase.from('daily_logs') as any)
     .select('id, content, logged_at, embedding')
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .eq('entry_type', 'note')
     .eq('is_onboarding', false)  // onboarding: 임베딩 클러스터링(AI) 입력 — 실습 행 제외
     .in('memo_status', ['new', 'reviewed'])

@@ -648,6 +648,7 @@ export async function getMeetingDerivedLogs(meetingNoteId: string): Promise<Dail
     .select('*')
     .eq('meeting_note_id', idCheck.data)
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .order('logged_at', { ascending: false })
 
   if (error) {

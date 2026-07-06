@@ -273,7 +273,7 @@ export default function DailyPage() {
     origin_group_id: originGroupId, parent_log_id: null, source_type: 'manual', flow_reason: null,
     memo_status: null, memo_reviewed_at: null, task_kind: 'personal', assignee_user_id: null,
     department_id: null, progress: 0, checklist: [], promoted_from_log_id: null, meeting_note_id: null,
-    is_onboarding: isOnboarding, created_at: nowIso, updated_at: nowIso,
+    is_onboarding: isOnboarding, deleted_at: null, created_at: nowIso, updated_at: nowIso,
   } as DailyLog)
 
   // 백그라운드 AI 분해: 원문 저장 후 별도로 호출됨(저장 UI는 await하지 않음).

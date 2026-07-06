@@ -37,6 +37,7 @@ export async function GET() {
   const { data: logs } = await db.from('daily_logs')
     .select('id, content, log_date')
     .eq('user_id', user.id).eq('task_kind', 'personal')
+    .is('deleted_at', null)
     .eq('is_onboarding', false)  // onboarding: AI 프로젝트 군집화 입력 — 실습 행 제외
     .or(EXCLUDE_RAW_HEAD_OR)     // 원문 raw 헤드(헤더 전용) 제외 — AI 군집 입력 원문 중복 방지
     .gte('log_date', startStr)

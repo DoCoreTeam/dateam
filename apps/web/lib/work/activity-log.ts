@@ -37,6 +37,9 @@ export async function logActivity(
   supabase: any,
   input: LogInput,
 ): Promise<void> {
+  // 성공 변경은 DB 트리거(audit_log, 마이그146)가 자동·완전 기록하므로 앱단은 기록하지 않는다.
+  // 앱단은 커밋되지 않은 '실패/부분'(트리거가 볼 수 없는 것)만 남긴다 → 이중기록 제거.
+  if (input.status === 'success') return
   try {
     const { error } = await supabase.from('activity_log').insert({
       module: input.module,
@@ -69,10 +72,10 @@ export const ACTION_LABEL: Record<string, string> = {
   create: '생성', update: '수정', delete: '삭제', status_change: '상태변경',
   assign: '담당지정', promote: '승격', carryover: '이월', memo: '메모',
   ai_confirm: 'AI확정', link_daily: '업무연결', unlink_daily: '업무해제', member_change: '멤버변경',
-  edit: '수정',
+  edit: '수정', restore: '되살리기',
 }
 
-// 통합 피드 정규화 아이템(세 소스 공통 shape).
+// 통합 피드 정규화 아이템.
 export interface ActivityFeedItem {
   id: string
   module: FeedModule
@@ -82,4 +85,17 @@ export interface ActivityFeedItem {
   occurredAt: string
   after: Record<string, unknown> | null
   error: { message: string; code?: string | null } | null
+  auditId: number | null   // audit_log.id (되살리기 대상). 실패로그/복구불가면 null
+  restorable: boolean      // before 있음 + 화이트리스트 테이블 + 복구 지원 op
 }
+
+// audit_log.table_name → 피드 모듈. daily_logs는 task_kind로 daily/dept 분기.
+export function auditTableToModule(tableName: string, row: Record<string, unknown> | null): FeedModule | null {
+  if (tableName === 'daily_logs') return (row?.task_kind === 'dept_task') ? 'dept_task' : 'daily'
+  if (tableName === 'weekly_reports') return 'weekly'
+  if (tableName === 'projects') return 'project'
+  return null   // calendar_events/daily_log_threads/work_entity_links 등 부속 테이블은 피드 비노출(감사엔 기록됨)
+}
+
+// 되살리기 지원 테이블(관계/부속 테이블 제외 — 권한 재획득 IDOR 차단).
+export const RESTORABLE_TABLES = new Set(['daily_logs', 'weekly_reports', 'projects'])

@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
   let q = (supabase.from('daily_logs') as any)
     .select('id, content, logged_at, log_date, memo_status, memo_reviewed_at, linked_account_id, linked_contact_id, entry_type')
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .eq('entry_type', 'note')
     .order('logged_at', { ascending: false })
     .limit(PAGE_SIZE + 1)

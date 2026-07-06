@@ -61,7 +61,7 @@ export async function listDeptTasks(opts?: {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let q = (supabase.from('daily_logs') as any)
-    .select('*').eq('task_kind', 'dept_task')
+    .select('*').eq('task_kind', 'dept_task').is('deleted_at', null)
   if (opts?.departmentId) q = q.eq('department_id', opts.departmentId)
   if (opts?.status) q = q.eq('entry_type', opts.status)
   const { data } = await q.order('target_date', { ascending: true, nullsFirst: false }).limit(500)
@@ -101,7 +101,7 @@ export async function getDeptTaskActors(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: vis } = await (supabase.from('daily_logs') as any)
     .select('id,user_id,assignee_user_id,promoted_from_log_id')
-    .eq('task_kind', 'dept_task').in('id', ids).limit(500)
+    .eq('task_kind', 'dept_task').is('deleted_at', null).in('id', ids).limit(500)
   const rows = (vis ?? []) as Array<Pick<DailyLog, 'id' | 'user_id' | 'assignee_user_id' | 'promoted_from_log_id'>>
   if (rows.length === 0) return empty
 
@@ -124,7 +124,7 @@ export async function getDeptTaskActors(
   if (srcIds.length > 0) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: srcs } = await (supabase.from('daily_logs') as any)
-      .select('id,content').in('id', srcIds).limit(500)
+      .select('id,content').in('id', srcIds).is('deleted_at', null).limit(500)
     const contentById = Object.fromEntries(
       ((srcs ?? []) as Array<{ id: string; content: string }>).map((s) => [s.id, s.content]),
     )
@@ -209,7 +209,7 @@ export async function promoteDailyToDeptTask(
   // 원본 검증: 본인 소유 + personal 만
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: src } = await (supabase.from('daily_logs') as any)
-    .select('id, user_id, content, task_kind, target_date, priority').eq('id', sourceLogId).single()
+    .select('id, user_id, content, task_kind, target_date, priority').eq('id', sourceLogId).is('deleted_at', null).single()
   if (!src) return { ok: false, error: '원본 업무를 찾을 수 없습니다.' }
   if (src.user_id !== user.id) return { ok: false, error: '본인 업무만 등록할 수 있습니다.' }
   if (src.task_kind !== 'personal') return { ok: false, error: '개인 일일업무만 부서업무로 등록할 수 있습니다.' }
@@ -217,7 +217,7 @@ export async function promoteDailyToDeptTask(
   // 멱등: 이미 이 원본으로 승격된 부서업무가 있으면 차단
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: dup } = await (supabase.from('daily_logs') as any)
-    .select('id').eq('promoted_from_log_id', sourceLogId).eq('task_kind', 'dept_task').limit(1)
+    .select('id').eq('promoted_from_log_id', sourceLogId).eq('task_kind', 'dept_task').is('deleted_at', null).limit(1)
   if (dup && dup.length > 0) return { ok: false, error: '이미 부서업무로 등록된 항목입니다.' }
 
   const assignee = input.assigneeUserId ?? null
@@ -286,7 +286,7 @@ export async function updateDeptTaskProgress(
   // 현재 상태/체크리스트를 읽어 진행률을 SSOT 규칙으로 재산출 (체크리스트·상태와 진행률 일관성 보장)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: cur } = await (supabase.from('daily_logs') as any)
-    .select('entry_type,checklist,progress,user_id').eq('id', id).eq('task_kind', 'dept_task').single()
+    .select('entry_type,checklist,progress,user_id').eq('id', id).eq('task_kind', 'dept_task').is('deleted_at', null).single()
   if (!cur) return { ok: false, error: '권한이 없거나 업무를 찾을 수 없습니다.' }
   // 감사로그 소유자 = 업무 작성자(담당자/부서장이 대신 변경해도 실소유자가 자기 이력에서 보임).
   const ownerId = (cur.user_id as string) ?? user.id
@@ -305,7 +305,7 @@ export async function updateDeptTaskProgress(
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase.from('daily_logs') as any)
-      .update(updates).eq('id', id).eq('task_kind', 'dept_task').select().single()
+      .update(updates).eq('id', id).eq('task_kind', 'dept_task').is('deleted_at', null).select().single()
     if (error) {
       await logActivity(supabase, {
         module: 'dept_task', action: 'status_change', status: 'failure',
@@ -362,7 +362,7 @@ export async function updateDeptTask(id: string, patch: DeptTaskEditPatch): Prom
   // 대상 업무 확인
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: task } = await (supabase.from('daily_logs') as any)
-    .select('id,user_id,department_id,task_kind').eq('id', id).eq('task_kind', 'dept_task').single()
+    .select('id,user_id,department_id,task_kind').eq('id', id).eq('task_kind', 'dept_task').is('deleted_at', null).single()
   if (!task) return { ok: false, error: '부서업무를 찾을 수 없습니다.' }
 
   // 코어 수정 권한: 작성자 또는 부서장/admin
@@ -405,7 +405,7 @@ export async function updateDeptTask(id: string, patch: DeptTaskEditPatch): Prom
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase.from('daily_logs') as any)
-      .update(updates).eq('id', id).eq('task_kind', 'dept_task').select().single()
+      .update(updates).eq('id', id).eq('task_kind', 'dept_task').is('deleted_at', null).select().single()
     if (error) {
       await logActivity(supabase, {
         module: 'dept_task', action: 'update', status: 'failure',
@@ -442,7 +442,7 @@ export async function assignTask(id: string, assigneeUserId: string | null): Pro
   // 대상 업무의 부서 확인
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: task } = await (supabase.from('daily_logs') as any)
-    .select('id,user_id,department_id,task_kind').eq('id', id).eq('task_kind', 'dept_task').single()
+    .select('id,user_id,department_id,task_kind').eq('id', id).eq('task_kind', 'dept_task').is('deleted_at', null).single()
   if (!task?.department_id) return { ok: false, error: '부서업무를 찾을 수 없습니다.' }
   const ownerId = (task.user_id as string) ?? user.id
 
@@ -452,7 +452,7 @@ export async function assignTask(id: string, assigneeUserId: string | null): Pro
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase.from('daily_logs') as any)
-      .update({ assignee_user_id: assigneeUserId }).eq('id', id).eq('task_kind', 'dept_task').select().single()
+      .update({ assignee_user_id: assigneeUserId }).eq('id', id).eq('task_kind', 'dept_task').is('deleted_at', null).select().single()
     if (error) { // 트리거: 부서 외 담당자면 여기서 거부
       await logActivity(supabase, {
         module: 'dept_task', action: 'assign', status: 'failure',
@@ -478,10 +478,11 @@ export async function deleteDeptTask(id: string): Promise<ActionResult<{ id: str
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: '로그인이 필요합니다.' }
   try {
-    // daily_logs는 하드삭제 방식(soft-delete 컬럼 없음) — 기존 daily 패턴과 동일
+    // 소프트삭제(146 마이그) — deleted_at만 채운다. 복구 전제, 하드삭제 금지(daily 패턴과 동일).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase.from('daily_logs') as any)
-      .delete().eq('id', id).eq('task_kind', 'dept_task')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id).eq('task_kind', 'dept_task').is('deleted_at', null)
     if (error) {
       await logActivity(supabase, {
         module: 'dept_task', action: 'delete', status: 'failure',
@@ -601,7 +602,7 @@ export async function listHomeDeptTasks(opts: { mode?: DeptHomeViewMode; today: 
   // RLS 가시 미완료 부서업무 (readable 또는 담당자=나). 기한임박 누락 방지 위해 기한순 정렬 + 상한 상향.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (supabase.from('daily_logs') as any)
-    .select('*').eq('task_kind', 'dept_task').in('entry_type', OPEN_STATUSES)
+    .select('*').eq('task_kind', 'dept_task').is('deleted_at', null).in('entry_type', OPEN_STATUSES)
     .order('target_date', { ascending: true, nullsFirst: false }).limit(1000)
   const all = (data ?? []) as DailyLog[]
 
@@ -640,7 +641,7 @@ export async function countMyOpenDeptTasks(): Promise<number> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { count } = await (supabase.from('daily_logs') as any)
     .select('id', { count: 'exact', head: true })
-    .eq('task_kind', 'dept_task').eq('assignee_user_id', user.id).in('entry_type', OPEN_STATUSES)
+    .eq('task_kind', 'dept_task').is('deleted_at', null).eq('assignee_user_id', user.id).in('entry_type', OPEN_STATUSES)
   return count ?? 0
 }
 

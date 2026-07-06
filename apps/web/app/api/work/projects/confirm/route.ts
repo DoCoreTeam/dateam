@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   let linked = 0
   let linkFailed = false
   if (logIds.length > 0) {
-    const { data: owned } = await db.from('daily_logs').select('id').eq('user_id', user.id).in('id', logIds)
+    const { data: owned } = await db.from('daily_logs').select('id').eq('user_id', user.id).is('deleted_at', null).in('id', logIds)
     const ownedIds = ((owned ?? []) as Array<{ id: string }>).map((r) => r.id)
     if (ownedIds.length > 0) {
       const links = ownedIds.map((logId) => ({

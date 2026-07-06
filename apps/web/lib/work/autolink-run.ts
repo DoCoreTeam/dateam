@@ -46,7 +46,7 @@ export async function runAutolink(logId: string, actor: string, requesterId: str
   if (!cfg.apiKey) return { ok: false, created: 0, relations: 0, entities: 0, error: 'AI 키 미설정' }
 
   // 0) 기준 업무 로드 + 임베딩 확보
-  const { data: log } = await db.from('daily_logs').select('id, content, original_input, embedding, user_id').eq('id', logId).single()
+  const { data: log } = await db.from('daily_logs').select('id, content, original_input, embedding, user_id').eq('id', logId).is('deleted_at', null).single()
   if (!log) return { ok: false, created: 0, relations: 0, entities: 0, error: '업무 없음' }
   const baseText = (log.content || log.original_input || '').trim()
   if (!baseText) return { ok: true, created: 0, relations: 0, entities: 0 }

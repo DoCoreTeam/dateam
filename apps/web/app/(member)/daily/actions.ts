@@ -118,6 +118,7 @@ export async function getMonthLogSummary(year: number, month: number): Promise<D
   const { data } = await (supabase.from('daily_logs') as any)
     .select('id, log_date, entry_type, content, target_date, scheduled_at, logged_at, ai_processed, source_type, origin_group_id')
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .gte('log_date', from)
     .lte('log_date', to)
     .order('log_date', { ascending: true })
@@ -185,6 +186,7 @@ export async function getWeekLogs(weekStart: string): Promise<DailyLog[]> {
   const { data } = await (supabase.from('daily_logs') as any)
     .select('*')
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .gte('log_date', weekStart)
     .lte('log_date', to)
     .order('log_date', { ascending: true })
@@ -207,6 +209,7 @@ export async function getDailyLogs(date: string): Promise<DailyLog[]> {
   const { data } = await (supabase.from('daily_logs') as any)
     .select('*')
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .eq('task_kind', 'personal')   // 일일=개인 업무만 (부서업무 역류 제거)
     .eq('log_date', date)
     .order('logged_at', { ascending: true })
@@ -228,6 +231,7 @@ export async function getCalendarDayLogs(date: string): Promise<DailyLog[]> {
   const { data } = await (supabase.from('daily_logs') as any)
     .select('*')
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .or(`log_date.eq.${date},target_date.eq.${date}`)
     .order('logged_at', { ascending: true })
     .limit(500)
@@ -383,6 +387,7 @@ export async function updateDailyLog(
       .select('ai_processed, content, entry_type, target_date, origin_group_id, ai_confidence, original_input')
       .eq('id', id)
       .eq('user_id', user.id)
+      .is('deleted_at', null)
       .maybeSingle()
     beforeRow = data ?? null
   } catch (e) {
@@ -468,6 +473,7 @@ export async function updateDailyLogStatus(
       .select('ai_processed, entry_type, origin_group_id, ai_confidence, original_input')
       .eq('id', id)
       .eq('user_id', user.id)
+      .is('deleted_at', null)
       .maybeSingle()
     beforeRow = data ?? null
   } catch (e) {
@@ -530,16 +536,19 @@ export async function deleteDailyLog(id: string): Promise<{ ok: true } | { ok: f
       .select('ai_processed, content, original_input, origin_group_id, ai_confidence')
       .eq('id', id)
       .eq('user_id', user.id)
+      .is('deleted_at', null)
       .maybeSingle()
     aiContext = data ?? null
   } catch (e) {
     console.error('[deleteDailyLog] feedback pre-fetch failed', e)
   }
 
+  // 소프트삭제(146 마이그) — deleted_at만 채운다. 복구 전제, 하드삭제 금지.
   const { error } = await (supabase.from('daily_logs') as any)
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
     .eq('user_id', user.id)
+    .is('deleted_at', null)
 
   if (error) {
     await logActivity(supabase, {
@@ -566,6 +575,7 @@ export async function deleteDailyLog(id: string): Promise<{ ok: true } | { ok: f
   }
 
   // cascade: 이 업무에 연결된 캘린더 일정(link_kind='daily')도 삭제 (best effort — 실패 무해)
+  // calendar_events는 soft-delete 컬럼(deleted_at)이 없다 — 하드삭제 유지(daily_logs만 소프트삭제 전환 대상, 146 마이그 범위).
   try {
     await (supabase.from('calendar_events') as any)
       .delete()
@@ -595,6 +605,7 @@ export async function getTodayPlannedCount(): Promise<number> {
   const { count } = await (supabase.from('daily_logs') as any)
     .select('id', { count: 'exact', head: true })
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .eq('log_date', today)
     .eq('entry_type', 'planned')
 
@@ -615,6 +626,7 @@ export async function getCarryoverLogs(today: string): Promise<DailyLog[]> {
   const { data } = await (supabase.from('daily_logs') as any)
     .select('*')
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .eq('is_resolved', false)
     .in('entry_type', ['planned', 'doing', 'blocker'])
     .gte('log_date', from)
@@ -959,6 +971,7 @@ export async function getOriginGroupLogs(originGroupId: string): Promise<DailyLo
     .select('*')
     .eq('origin_group_id', originGroupId)
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .order('logged_at', { ascending: true })
     .limit(50)
 
@@ -1068,6 +1081,7 @@ export async function promoteMemoToTask(
     .select('id, content, log_date, entry_type')
     .eq('id', memoId)
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .eq('entry_type', 'note')
     .single()
   if (!memo) return { ok: false, error: '메모를 찾을 수 없습니다.' }
@@ -1134,13 +1148,15 @@ export async function deleteLogGroup(
     .select('id, origin_group_id')
     .eq('id', headLogId)
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .maybeSingle()
   if (!head) return { ok: false, error: '업무를 찾을 수 없습니다.' }
 
-  const del = (supabase.from('daily_logs') as any).delete()
+  // 소프트삭제(146 마이그) — 묶음 전체(또는 단건)의 deleted_at만 채운다. 복구 전제, 하드삭제 금지.
+  const del = (supabase.from('daily_logs') as any).update({ deleted_at: new Date().toISOString() })
   const query = head.origin_group_id
-    ? del.eq('origin_group_id', head.origin_group_id).eq('user_id', user.id)
-    : del.eq('id', headLogId).eq('user_id', user.id)
+    ? del.eq('origin_group_id', head.origin_group_id).eq('user_id', user.id).is('deleted_at', null)
+    : del.eq('id', headLogId).eq('user_id', user.id).is('deleted_at', null)
 
   const { data, error } = await query.select('id')
   if (error) {
@@ -1180,6 +1196,7 @@ export async function updateOriginInput(
     .select('id, origin_group_id')
     .eq('id', headLogId)
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .maybeSingle()
   if (!head) return { ok: false, error: '업무를 찾을 수 없습니다.' }
 
@@ -1232,6 +1249,7 @@ export async function getPromotedMap(
     .select('id')
     .in('id', ids)
     .eq('user_id', user.id)
+    .is('deleted_at', null)
     .eq('task_kind', 'personal')
     .limit(500)
   const ownIds = ((own ?? []) as Array<{ id: string }>).map((r) => r.id)
@@ -1242,6 +1260,7 @@ export async function getPromotedMap(
   const { data } = await (supabase.from('daily_logs') as any)
     .select('id, promoted_from_log_id, department_id')
     .eq('task_kind', 'dept_task')
+    .is('deleted_at', null)
     .in('promoted_from_log_id', ownIds)
     .limit(500)
   const rows = (data ?? []) as Array<{ id: string; promoted_from_log_id: string | null; department_id: string | null }>

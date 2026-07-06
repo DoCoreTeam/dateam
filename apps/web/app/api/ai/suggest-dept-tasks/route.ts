@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
     .from('daily_logs')
     .select('content, log_date, user_id')
     .in('user_id', userIds)
+    .is('deleted_at', null)
     .eq('task_kind', 'personal')
     .eq('is_onboarding', false)  // onboarding: AI 부서업무 후보 입력(교차사용자 집계) — 실습 행 제외
     .or(EXCLUDE_RAW_HEAD_OR)     // 원문 raw 헤드(헤더 전용) 제외 — AI 입력 원문 중복 방지
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
   let existingTitles: string[] = []
   if (dedupeDeptId) {
     const { data: ex } = await admin
-      .from('daily_logs').select('content').eq('task_kind', 'dept_task').eq('department_id', dedupeDeptId).limit(200)
+      .from('daily_logs').select('content').eq('task_kind', 'dept_task').is('deleted_at', null).eq('department_id', dedupeDeptId).limit(200)
     existingTitles = ((ex ?? []) as { content: string }[]).map((r) => r.content)
   }
 

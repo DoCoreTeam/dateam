@@ -2,9 +2,10 @@
 // 한 피드로 최신순 표시 — 성공/실패/부분, 저장값 스냅샷, 실패 원인까지. 모듈·상태 필터 + 더보기.
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useTransition } from 'react'
 import useSWRInfinite from 'swr/infinite'
-import { History, AlertTriangle } from 'lucide-react'
+import { History, AlertTriangle, Undo2 } from 'lucide-react'
+import { restoreFromAudit } from '@/lib/work/restore-action'
 import WorkPageShell from '@/components/ui/WorkPageShell'
 import WorkSubTabs from '@/components/ui/WorkSubTabs'
 import { fetcher } from '@/lib/swr-config'
@@ -48,7 +49,22 @@ export default function WorkActivityPage() {
     return `/api/work/activity?${sp.toString()}`
   }, [mods, status])
 
-  const { data, error, isLoading, size, setSize, isValidating } = useSWRInfinite<Page>(getKey, fetcher, { revalidateFirstPage: false })
+  const { data, error, isLoading, size, setSize, isValidating, mutate } = useSWRInfinite<Page>(getKey, fetcher, { revalidateFirstPage: false })
+  const [restoring, setRestoring] = useState<number | null>(null)
+  const [restoreMsg, setRestoreMsg] = useState<string | null>(null)
+  const [, startRestore] = useTransition()
+
+  function handleRestore(auditId: number) {
+    if (restoring) return
+    setRestoring(auditId); setRestoreMsg(null)
+    startRestore(async () => {
+      const res = await restoreFromAudit(auditId)
+      if (res.ok) { setRestoreMsg('되살렸습니다.'); await mutate() }
+      else setRestoreMsg(res.error)
+      setRestoring(null)
+    })
+  }
+
   const items = data ? data.flatMap((p) => p.items) : []
   const hasMore = data ? Boolean(data[data.length - 1]?.hasMore) : false
   const loadingMore = isValidating && !isLoading && size > 1
@@ -97,6 +113,12 @@ export default function WorkActivityPage() {
         )}
       </div>
 
+      {restoreMsg && (
+        <div role="status" style={{ marginBottom: 'var(--space-3)', padding: '0.5rem 0.8rem', borderRadius: 'var(--radius)', background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand)', color: 'var(--brand)', fontSize: 'var(--fs-sm)', fontWeight: 600 }}>
+          {restoreMsg}
+        </div>
+      )}
+
       {error ? (
         <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-5)', borderRadius: 'var(--radius-lg)', border: 'var(--border-w-2) solid var(--danger-border)', background: 'var(--danger-bg)', color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>
           <AlertTriangle size={18} /> 이력을 불러오지 못했습니다
@@ -134,6 +156,13 @@ export default function WorkActivityPage() {
                       <summary style={{ fontSize: 'var(--fs-2xs)', color: 'var(--brand)', cursor: 'pointer' }}>저장된 값 보기</summary>
                       <pre style={{ margin: '4px 0 0', fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', background: 'var(--surface-bg)', borderRadius: 'var(--radius)', padding: 'var(--space-2)', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{JSON.stringify(it.after, null, 2)}</pre>
                     </details>
+                  )}
+                  {it.restorable && it.auditId && (
+                    <button type="button" onClick={() => handleRestore(it.auditId!)} disabled={restoring === it.auditId}
+                      title="이 시점 상태로 이 항목만 되살립니다"
+                      style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 'var(--radius)', background: 'var(--surface-bg)', color: 'var(--brand)', border: 'var(--hairline) solid var(--brand)', cursor: restoring === it.auditId ? 'wait' : 'pointer', fontSize: 'var(--fs-2xs)', fontWeight: 700 }}>
+                      <Undo2 size={12} /> {restoring === it.auditId ? '되살리는 중…' : '되살리기'}
+                    </button>
                   )}
                 </div>
               </li>
