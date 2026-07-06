@@ -3,14 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ChevronDown, ChevronUp, Sparkles, CheckSquare, Square } from 'lucide-react'
 import DailyTaskItem from './DailyTaskItem'
+import { generateWeeklyRows, type WeeklyRow } from '@/lib/weekly-report/generate-client'
 import type { DailyLog } from '@/types/database'
-
-interface WeeklyRow {
-  category: string
-  performance: string
-  plan: string
-  issues: string
-}
 
 interface DailyTaskSelectorProps {
   weekStart: string
@@ -91,28 +85,19 @@ export default function DailyTaskSelector({ weekStart, onGenerate, variant = 'in
     stepTimers.push(setTimeout(() => setGenerateStep(2), 4000))
 
     try {
-      const res = await fetch('/api/weekly-report/generate-from-tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tasks: selected.map((t) => ({
-            content: t.content,
-            entry_type: t.entry_type,
-            log_date: t.log_date,
-            is_resolved: t.is_resolved,
-            priority: t.priority,
-          })),
-        }),
-      })
-      const data = await res.json() as { rows?: WeeklyRow[]; error?: string }
-      if (!res.ok || !data.rows) {
-        setError(data.error ?? 'AI 생성 중 오류가 발생했습니다')
-        return
-      }
-      onGenerate(data.rows)
+      const rows = await generateWeeklyRows(
+        selected.map((t) => ({
+          content: t.content,
+          entry_type: t.entry_type,
+          log_date: t.log_date,
+          is_resolved: t.is_resolved,
+          priority: t.priority,
+        })),
+      )
+      onGenerate(rows)
       if (!isSide) setIsOpen(false) // 사이드 변형은 반영 후에도 계속 열어둠
-    } catch {
-      setError('네트워크 오류가 발생했습니다')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '네트워크 오류가 발생했습니다')
     } finally {
       stepTimers.forEach(clearTimeout)
       setGenerating(false)

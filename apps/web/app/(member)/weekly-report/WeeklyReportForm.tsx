@@ -8,6 +8,7 @@ import { upsertWeeklyReport, deleteAllWeeklyReports } from './actions'
 import AXLoadingOverlay from '@/components/ui/AXLoadingOverlay'
 import DiffConfirmModal, { type DiffItem } from '@/components/ui/DiffConfirmModal'
 import DailyTaskSelector from './DailyTaskSelector'
+import MemoIntakeList from './MemoIntakeList'
 import RichText from '@/components/ui/RichText'
 import { useDraftPersist } from '@/lib/forms/useDraftPersist'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
@@ -653,6 +654,11 @@ export default function WeeklyReportForm({
           variant="side"
           onGenerate={(generatedRows) => {
             setRows((prev) => mergeWeeklyRows(prev, generatedRows))
+          }}
+        />
+        <MemoIntakeList
+          onReflect={(reflectedRows) => {
+            setRows((prev) => mergeWeeklyRows(prev, reflectedRows))
           }}
         />
       </aside>

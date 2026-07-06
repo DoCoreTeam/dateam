@@ -13,7 +13,6 @@ import OrgWeeklyView from './OrgWeeklyView'
 import DeptTaskWeeklyPanel from './DeptTaskWeeklyPanel'
 import WorkPageShell from '@/components/ui/WorkPageShell'
 import WorkSubTabs from '@/components/ui/WorkSubTabs'
-import WeeklyMemoReview from '@/components/ui/memo/WeeklyMemoReview'
 import { FileText, Users, GitBranch } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
 import { resolveOrgScope, deptMemberUserIds, hasOrgScope } from '@/lib/org-scope'
@@ -233,10 +232,9 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
             <QueryToast param="saved" message="주간보고가 저장되었습니다" variant="success" />
             <QueryToast param="reset" message="보고서가 초기화되었습니다" variant="danger" />
           </Suspense>
-          {/* 미처리 메모 리뷰 nudge */}
-          <WeeklyMemoReview />
+          {/* 미처리 메모는 우측 인테이크(MemoIntakeList)로 유기적 통합 — 상단 경고 nudge 제거(v0.7.285) */}
 
-          {/* 기존 작성폼 — 메인 작성 흐름(안 B). 우측에 일일보고 매핑 사이드패널 내장. */}
+          {/* 기존 작성폼 — 메인 작성 흐름(안 B). 우측에 일일보고 매핑 + 미처리 메모 인테이크 내장. */}
           <div className="card" style={{ padding: 'var(--space-6)', marginBottom: '1.75rem', width: '100%', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
