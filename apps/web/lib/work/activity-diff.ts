@@ -84,6 +84,61 @@ export interface ActivityChange {
   to: string | null     // 새값(삭제면 null)
 }
 
+// ── 주간보고 전용: 주차 전체 행 배열(rows_json) before/after diff ──
+// 주간 저장은 카테고리별 행 교체(replace)라 daily식 단일행 diff가 안 맞는다.
+// 변경 전/후 rows를 (카테고리+seq)로 짝지어 실적/계획/이슈가 바뀐 것만 자연어로.
+export interface WeeklyRow {
+  category?: string | null
+  seq?: number | null
+  performance?: string | null
+  plan?: string | null
+  issues?: string | null
+}
+
+const WEEKLY_SUBFIELDS: Array<{ key: keyof WeeklyRow; label: string }> = [
+  { key: 'performance', label: '실적' }, { key: 'plan', label: '계획' }, { key: 'issues', label: '이슈' },
+]
+
+function rowKey(r: WeeklyRow): string {
+  return `${(r.category ?? '').trim()}#${r.seq ?? 0}`
+}
+
+/**
+ * 주간 rows_json 배열 before/after를 카테고리행 단위 변경목록으로.
+ * 각 변경 = `카테고리 · 실적/계획/이슈` 별 이전→새 텍스트(HTML은 plain).
+ * 추가된 행(before 없음)=생성, 사라진 행(after 없음)=삭제로 표기.
+ */
+export function diffWeeklyRows(beforeRows: WeeklyRow[] | null, afterRows: WeeklyRow[] | null): ActivityChange[] {
+  const before = Array.isArray(beforeRows) ? beforeRows : []
+  const after = Array.isArray(afterRows) ? afterRows : []
+  const beforeMap = new Map(before.map((r) => [rowKey(r), r]))
+  const afterMap = new Map(after.map((r) => [rowKey(r), r]))
+  const keys: string[] = []
+  for (const r of [...before, ...after]) {
+    const k = rowKey(r)
+    if (!keys.includes(k)) keys.push(k)
+  }
+
+  const out: ActivityChange[] = []
+  for (const k of keys) {
+    const b = beforeMap.get(k)
+    const a = afterMap.get(k)
+    const category = (a?.category ?? b?.category ?? '').trim() || '항목'
+    for (const sub of WEEKLY_SUBFIELDS) {
+      const bv = b ? b[sub.key] : undefined
+      const av = a ? a[sub.key] : undefined
+      if (sameValue(bv ?? '', av ?? '')) continue
+      out.push({
+        field: `${k}:${String(sub.key)}`,
+        label: `${category} · ${sub.label}`,
+        from: b ? formatFieldValue(sub.key, bv) : null,
+        to: a ? formatFieldValue(sub.key, av) : null,
+      })
+    }
+  }
+  return out
+}
+
 type Snapshot = Record<string, unknown> | null
 
 function get(snap: Snapshot, field: string): unknown {

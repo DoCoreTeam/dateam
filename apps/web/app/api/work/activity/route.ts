@@ -4,10 +4,15 @@ import {
   auditTableToModule, RESTORABLE_TABLES,
   type ActivityFeedItem, type ActivityStatus, type FeedModule,
 } from '@/lib/work/activity-log'
+import { isRawHead } from '@/lib/daily/raw-head'
+import { resolveWeeklyBeforeAfter, type WeeklySnapshot, type WeeklyActivity } from '@/lib/work/weekly-history'
+import type { WeeklyRow } from '@/lib/work/activity-diff'
 
-// GET /api/work/activity — 업무 허브 통합 이력 피드.
-// 소스: audit_log(트리거 기반 완전 감사 = 성공 SSOT, 되살리기 대상) + activity_log(앱단 실패/에러만).
-//   → audit_log가 모든 성공 변경을 자동 기록하므로 앱단 성공 로그와 중복 없이 실패만 병합.
+// GET /api/work/activity — 업무 허브 통합 이력 피드(4개 원천 통합, 읽기 전용).
+//   ① audit_log(daily_logs 트리거) — 일일·부서, before/after. 원문 raw헤드 제외(중복 방지).
+//   ② project_activity — 프로젝트, before/after 스냅샷.
+//   ③ weekly_report_activity + weekly_report_snapshots + 라이브 — 주간, before/after 행 페어링(마이그144).
+//   ④ activity_log — 앱단이 잡은 실패/부분(커밋 안 된 것).
 // occurred_at 커서(before) 기반. RLS가 소유 스코프 강제. 필터: module[], status.
 
 const DEFAULT_LIMIT = 30
@@ -36,23 +41,29 @@ export async function GET(req: NextRequest) {
   const statusRaw = sp.get('status')
   const statusFilter: ActivityStatus | null =
     statusRaw === 'success' || statusRaw === 'failure' || statusRaw === 'partial' ? statusRaw : null
+  const wantSuccess = !statusFilter || statusFilter === 'success'
+  const wantFailure = !statusFilter || statusFilter === 'failure' || statusFilter === 'partial'
 
   const FETCH = limit + 1
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
   const items: ActivityFeedItem[] = []
 
-  // 1) audit_log — 성공(커밋된 모든 변경). status 필터가 failure/partial이면 제외.
-  if (!statusFilter || statusFilter === 'success') {
+  // ① audit_log — 일일·부서(성공). raw헤드(원문 즉시저장 헤더)는 AI분해 자식과 이중노출되므로 제외.
+  if (wantSuccess && (wantModule('daily') || wantModule('dept_task'))) {
     let q = db.from('audit_log')
       .select('id, table_name, entity_id, op, before_json, after_json, occurred_at')
+      .in('table_name', ['daily_logs'])
       .order('occurred_at', { ascending: false }).limit(FETCH)
     if (before) q = q.lt('occurred_at', before)
     const { data } = await q
     for (const r of (data ?? []) as Record<string, unknown>[]) {
       const after = (r.after_json as Record<string, unknown>) ?? null
       const beforeJ = (r.before_json as Record<string, unknown>) ?? null
-      const mod = auditTableToModule(String(r.table_name), after ?? beforeJ)
+      const snap = after ?? beforeJ
+      // 원문 raw헤드 insert/변경은 피드에서 숨김(집계 SSOT isRawHead 재사용).
+      if (snap && isRawHead(snap as never)) continue
+      const mod = auditTableToModule(String(r.table_name), snap)
       if (!mod || !wantModule(mod)) continue
       const op = String(r.op)
       const restorable = !!beforeJ && RESTORABLE_TABLES.has(String(r.table_name)) && (op === 'update' || op === 'delete')
@@ -64,8 +75,96 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // 2) activity_log — 실패/부분만(앱단이 잡은 것; 트리거는 커밋된 것만 봄). status=success 필터면 제외.
-  if (!statusFilter || statusFilter === 'failure' || statusFilter === 'partial') {
+  // ② project_activity — 프로젝트. before/after 스냅샷 보유. status 존중.
+  if (wantModule('project')) {
+    let q = db.from('project_activity')
+      .select('id, action, status, before_snapshot, after_snapshot, error_detail, occurred_at')
+      .order('occurred_at', { ascending: false }).limit(FETCH)
+    if (before) q = q.lt('occurred_at', before)
+    if (statusFilter === 'success') q = q.eq('status', 'success')
+    else if (statusFilter) q = q.neq('status', 'success')
+    const { data } = await q
+    for (const r of (data ?? []) as Record<string, unknown>[]) {
+      const st = (r.status === 'failure' || r.status === 'partial') ? (r.status as ActivityStatus) : 'success'
+      const after = (r.after_snapshot as Record<string, unknown>) ?? null
+      const beforeJ = (r.before_snapshot as Record<string, unknown>) ?? null
+      items.push({
+        id: `pa_${r.id}`, module: 'project', action: String(r.action), status: st,
+        title: titleFrom(after, beforeJ), occurredAt: String(r.occurred_at),
+        before: beforeJ, after,
+        error: (r.error_detail as ActivityFeedItem['error']) ?? null,
+        auditId: null, restorable: false,
+      })
+    }
+  }
+
+  // ③ 주간보고 — 이벤트(weekly_report_activity) + 스냅샷/라이브 페어링으로 before/after 행.
+  // ⚠️ 소유자 스코프는 RLS만으로 강제되지 않는다: weekly_reports(라이브, 마이그002)는 로그인 전원
+  // 공개, weekly_report_activity(마이그120)는 계층열람 허용 → 세 쿼리 모두 user_id 필터를 명시한다
+  // (없으면 타 사용자 같은 주차 행이 liveByWeek에 섞여 diff 오염·열람권한 초과).
+  if (wantSuccess && wantModule('weekly')) {
+    let q = db.from('weekly_report_activity')
+      .select('id, user_id, week_start, action, occurred_at')
+      .eq('user_id', user.id)
+      .order('occurred_at', { ascending: false }).limit(FETCH)
+    if (before) q = q.lt('occurred_at', before)
+    const { data } = await q
+    const acts = (data ?? []) as Record<string, unknown>[]
+    if (acts.length > 0) {
+      const weeks = Array.from(new Set(acts.map((a) => String(a.week_start))))
+      // 그 주차들의 스냅샷 + 라이브 확정본(RLS로 본인 것만).
+      const { data: snapRows } = await db.from('weekly_report_snapshots')
+        .select('week_start, rows_json, taken_at').eq('user_id', user.id).in('week_start', weeks)
+      const { data: liveRows } = await db.from('weekly_reports')
+        .select('week_start, category, seq, performance, plan, issues')
+        .eq('user_id', user.id).in('week_start', weeks).is('deleted_at', null)
+
+      const snapByWeek = new Map<string, WeeklySnapshot[]>()
+      for (const s of (snapRows ?? []) as Record<string, unknown>[]) {
+        const wk = String(s.week_start)
+        const arr = snapByWeek.get(wk) ?? []
+        arr.push({ takenAt: String(s.taken_at), rows: (s.rows_json as WeeklyRow[]) ?? [] })
+        snapByWeek.set(wk, arr)
+      }
+      const liveByWeek = new Map<string, WeeklyRow[]>()
+      for (const r of (liveRows ?? []) as Record<string, unknown>[]) {
+        const wk = String(r.week_start ?? '')
+        const arr = liveByWeek.get(wk) ?? []
+        arr.push({
+          category: r.category as string, seq: r.seq as number,
+          performance: r.performance as string, plan: r.plan as string, issues: r.issues as string,
+        })
+        liveByWeek.set(wk, arr)
+      }
+      // 주차별 페어링 결과.
+      const baOf = new Map<string, { before: WeeklyRow[]; after: WeeklyRow[] }>()
+      for (const wk of weeks) {
+        const weekActs: WeeklyActivity[] = acts.filter((a) => String(a.week_start) === wk)
+          .map((a) => ({ id: String(a.id), occurredAt: String(a.occurred_at) }))
+        const resolved = resolveWeeklyBeforeAfter(weekActs, snapByWeek.get(wk) ?? [], liveByWeek.get(wk) ?? [])
+        resolved.forEach((v, k) => baOf.set(k, v))
+      }
+
+      for (const a of acts) {
+        const ba = baOf.get(String(a.id))
+        const action = String(a.action)
+        // 마이그144 이전 'edit'은 대응 before 스냅샷이 없어 before=[](소급 불가) →
+        // "없음 → 전체내용" 오표시 방지: 실제 before가 있을 때(또는 생성/삭제)만 diff 노출.
+        // create=after(신규내용)로 판단, edit/delete=before가 있어야 diff 가능.
+        const canDiff = !!ba && (action === 'create' ? ba.after.length > 0 : ba.before.length > 0)
+        items.push({
+          id: `wa_${a.id}`, module: 'weekly', action, status: 'success',
+          title: `${a.week_start} 주간보고`, occurredAt: String(a.occurred_at),
+          before: canDiff ? { rows: ba!.before } : null,
+          after: canDiff ? { rows: ba!.after } : null,
+          error: null, auditId: null, restorable: false,
+        })
+      }
+    }
+  }
+
+  // ④ activity_log — 실패/부분만(앱단이 잡은 것; 트리거는 커밋된 것만 봄).
+  if (wantFailure) {
     let q = db.from('activity_log')
       .select('id, module, action, status, title, error_detail, occurred_at')
       .neq('status', 'success')
@@ -85,7 +184,11 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  items.sort((a, b) => (a.occurredAt < b.occurredAt ? 1 : a.occurredAt > b.occurredAt ? -1 : 0))
+  // occurred_at desc, 동률은 id desc로 안정 정렬(슬라이스 비결정성 제거).
+  // ⚠️ 알려진 제약: 커서는 단일 occurred_at 기반이라 경계에 동일 마이크로초 행이 여럿이면
+  //    일부가 다음 페이지에서 누락될 수 있음(4원천 id타입 상이 → 복합커서는 후속 과제).
+  items.sort((a, b) =>
+    a.occurredAt < b.occurredAt ? 1 : a.occurredAt > b.occurredAt ? -1 : (a.id < b.id ? 1 : a.id > b.id ? -1 : 0))
   const hasMore = items.length > limit
   const pageItems = items.slice(0, limit)
   const nextBefore = hasMore && pageItems.length > 0 ? pageItems[pageItems.length - 1].occurredAt : null

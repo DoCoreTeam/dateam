@@ -14,7 +14,7 @@ import {
   MODULE_LABEL, ACTION_LABEL, STATUS_LABEL,
   type ActivityFeedItem, type ActivityStatus, type FeedModule,
 } from '@/lib/work/activity-log'
-import { diffSnapshots } from '@/lib/work/activity-diff'
+import { diffSnapshots, diffWeeklyRows, type WeeklyRow } from '@/lib/work/activity-diff'
 
 interface Page { items: ActivityFeedItem[]; hasMore: boolean; nextBefore: string | null }
 
@@ -152,7 +152,7 @@ export default function WorkActivityPage() {
                   {it.error?.message && (
                     <p style={{ margin: '3px 0 0', fontSize: 'var(--fs-xs)', color: 'var(--danger)' }}>⚠ {it.error.message}</p>
                   )}
-                  <ChangeList action={it.action} before={it.before} after={it.after} />
+                  <ChangeList action={it.action} module={it.module} before={it.before} after={it.after} />
                   {it.restorable && it.auditId && (
                     <button type="button" onClick={() => handleRestore(it.auditId!)} disabled={restoring === it.auditId}
                       title="이 시점 상태로 이 항목만 되살립니다"
@@ -181,9 +181,12 @@ export default function WorkActivityPage() {
 
 // 변경내용을 자연어 필드단위로 표시 — raw JSON 덤프 대체.
 // 수정: `레이블 · 이전값 → 새값`(바뀐 필드만). 생성/삭제: `레이블 · 값`.
-function ChangeList({ action, before, after }: { action: string; before: ActivityFeedItem['before']; after: ActivityFeedItem['after'] }) {
+// 주간보고는 rows_json 배열 diff(카테고리행 단위), 그 외는 단일행 필드 diff.
+function ChangeList({ action, module, before, after }: { action: string; module: FeedModule; before: ActivityFeedItem['before']; after: ActivityFeedItem['after'] }) {
   if (!before && !after) return null
-  const changes = diffSnapshots(action, before, after)
+  const changes = module === 'weekly'
+    ? diffWeeklyRows((before?.rows as WeeklyRow[]) ?? null, (after?.rows as WeeklyRow[]) ?? null)
+    : diffSnapshots(action, before, after)
   if (changes.length === 0) return null
   const isUpdate = action === 'update' || action === 'edit'
   const isDelete = action === 'delete'

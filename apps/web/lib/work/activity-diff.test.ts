@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { formatFieldValue, diffSnapshots } from './activity-diff.ts'
+import { formatFieldValue, diffSnapshots, diffWeeklyRows } from './activity-diff.ts'
 
 test('formatFieldValue: 우선순위/상태/진행률/불리언 자연어화', () => {
   assert.equal(formatFieldValue('priority', 'high'), '높음')
@@ -64,4 +64,28 @@ test('diffSnapshots: 객체/배열 동일값은 변경 아님', () => {
   const cl = [{ done: false, label: 'a' }]
   const d = diffSnapshots('update', { checklist: cl }, { checklist: [{ done: false, label: 'a' }] })
   assert.equal(d.length, 0)
+})
+
+test('diffWeeklyRows: 카테고리행 실적 변경만 이전→새(HTML plain)', () => {
+  const before = [{ category: '개발', seq: 0, performance: '<p>초안</p>', plan: '<p>계획</p>', issues: '' }]
+  const after = [{ category: '개발', seq: 0, performance: '<p>완료</p>', plan: '<p>계획</p>', issues: '' }]
+  const d = diffWeeklyRows(before, after)
+  assert.equal(d.length, 1)
+  assert.equal(d[0].label, '개발 · 실적')
+  assert.equal(d[0].from, '초안')
+  assert.equal(d[0].to, '완료')
+})
+
+test('diffWeeklyRows: 추가된 카테고리행은 from=null, 사라진 행은 to=null', () => {
+  const added = diffWeeklyRows([], [{ category: '영업', seq: 0, performance: '<p>신규</p>' }])
+  assert.equal(added[0].from, null)
+  assert.equal(added[0].to, '신규')
+  const removed = diffWeeklyRows([{ category: '영업', seq: 0, performance: '<p>구</p>' }], [])
+  assert.equal(removed[0].from, '구')
+  assert.equal(removed[0].to, null)
+})
+
+test('diffWeeklyRows: 변경 없으면 빈 배열', () => {
+  const rows = [{ category: '개발', seq: 0, performance: '<p>x</p>', plan: '', issues: '' }]
+  assert.equal(diffWeeklyRows(rows, [{ category: '개발', seq: 0, performance: '<p>x</p>', plan: '', issues: '' }]).length, 0)
 })
