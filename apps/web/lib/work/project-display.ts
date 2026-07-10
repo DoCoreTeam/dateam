@@ -1,7 +1,7 @@
 // 프로젝트 표시 SSOT — 기간 라벨/예산 포맷/상태 뱃지 메타를 단일 정의(목록·카드·폼 공용, 복붙 금지).
 // 상태색은 토큰 변수명을 반환해 [data-theme] 전환에 자동 대응(하드코딩 금지, 디자인 §1/§3).
 
-import { PROJECT_STATUS, type ProjectStatus } from './project-fields'
+import { PROJECT_STATUS, type ProjectStatus } from './project-fields.ts'
 
 export interface ProjectMeta {
   year?: number | null

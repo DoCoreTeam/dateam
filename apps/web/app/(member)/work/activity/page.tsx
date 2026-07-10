@@ -14,6 +14,7 @@ import {
   MODULE_LABEL, ACTION_LABEL, STATUS_LABEL,
   type ActivityFeedItem, type ActivityStatus, type FeedModule,
 } from '@/lib/work/activity-log'
+import { diffSnapshots } from '@/lib/work/activity-diff'
 
 interface Page { items: ActivityFeedItem[]; hasMore: boolean; nextBefore: string | null }
 
@@ -151,12 +152,7 @@ export default function WorkActivityPage() {
                   {it.error?.message && (
                     <p style={{ margin: '3px 0 0', fontSize: 'var(--fs-xs)', color: 'var(--danger)' }}>⚠ {it.error.message}</p>
                   )}
-                  {it.after && (
-                    <details style={{ marginTop: 3 }}>
-                      <summary style={{ fontSize: 'var(--fs-2xs)', color: 'var(--brand)', cursor: 'pointer' }}>저장된 값 보기</summary>
-                      <pre style={{ margin: '4px 0 0', fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', background: 'var(--surface-bg)', borderRadius: 'var(--radius)', padding: 'var(--space-2)', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{JSON.stringify(it.after, null, 2)}</pre>
-                    </details>
-                  )}
+                  <ChangeList action={it.action} before={it.before} after={it.after} />
                   {it.restorable && it.auditId && (
                     <button type="button" onClick={() => handleRestore(it.auditId!)} disabled={restoring === it.auditId}
                       title="이 시점 상태로 이 항목만 되살립니다"
@@ -180,5 +176,36 @@ export default function WorkActivityPage() {
         </div>
       )}
     </WorkPageShell>
+  )
+}
+
+// 변경내용을 자연어 필드단위로 표시 — raw JSON 덤프 대체.
+// 수정: `레이블 · 이전값 → 새값`(바뀐 필드만). 생성/삭제: `레이블 · 값`.
+function ChangeList({ action, before, after }: { action: string; before: ActivityFeedItem['before']; after: ActivityFeedItem['after'] }) {
+  if (!before && !after) return null
+  const changes = diffSnapshots(action, before, after)
+  if (changes.length === 0) return null
+  const isUpdate = action === 'update' || action === 'edit'
+  const isDelete = action === 'delete'
+
+  return (
+    <ul style={{ listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+      {changes.map((c) => (
+        <li key={c.field} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'baseline', fontSize: 'var(--fs-xs)', lineHeight: 1.5 }}>
+          <span style={{ flexShrink: 0, fontWeight: 700, color: 'var(--text-muted)', minWidth: 56 }}>{c.label}</span>
+          {isUpdate ? (
+            <span style={{ minWidth: 0, color: 'var(--text)' }}>
+              <span style={{ color: 'var(--text-faint)', textDecoration: 'line-through' }}>{c.from ?? '없음'}</span>
+              <span style={{ margin: '0 6px', color: 'var(--brand)', fontWeight: 700 }}>→</span>
+              <span style={{ color: 'var(--text)', fontWeight: 600 }}>{c.to ?? '없음'}</span>
+            </span>
+          ) : (
+            <span style={{ minWidth: 0, color: isDelete ? 'var(--text-faint)' : 'var(--text)', textDecoration: isDelete ? 'line-through' : 'none' }}>
+              {(isDelete ? c.from : c.to) ?? '없음'}
+            </span>
+          )}
+        </li>
+      ))}
+    </ul>
   )
 }

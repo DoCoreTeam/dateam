@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       items.push({
         id: `au_${r.id}`, module: mod, action: OP_ACTION[op] ?? op, status: 'success',
         title: titleFrom(after, beforeJ), occurredAt: String(r.occurred_at),
-        after, error: null, auditId: Number(r.id), restorable,
+        before: beforeJ, after, error: null, auditId: Number(r.id), restorable,
       })
     }
   }
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
       items.push({
         id: `al_${r.id}`, module: mod, action: String(r.action), status: r.status as ActivityStatus,
         title: (r.title as string) ?? null, occurredAt: String(r.occurred_at),
-        after: null, error: (r.error_detail as ActivityFeedItem['error']) ?? null,
+        before: null, after: null, error: (r.error_detail as ActivityFeedItem['error']) ?? null,
         auditId: null, restorable: false,
       })
     }

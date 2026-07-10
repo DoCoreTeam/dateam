@@ -83,6 +83,7 @@ export interface ActivityFeedItem {
   status: ActivityStatus
   title: string | null
   occurredAt: string
+  before: Record<string, unknown> | null   // 수정 전 스냅샷(diff·되살리기 근거). 생성/실패로그면 null
   after: Record<string, unknown> | null
   error: { message: string; code?: string | null } | null
   auditId: number | null   // audit_log.id (되살리기 대상). 실패로그/복구불가면 null
