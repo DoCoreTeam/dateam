@@ -50,7 +50,12 @@ export default function WorkActivityPage() {
     return `/api/work/activity?${sp.toString()}`
   }, [mods, status])
 
-  const { data, error, isLoading, size, setSize, isValidating, mutate } = useSWRInfinite<Page>(getKey, fetcher, { revalidateFirstPage: false })
+  // 최신 페이지(1페이지)를 반드시 재검증해야 방금 만든 활동이 즉시 뜬다.
+  // (이전엔 revalidateFirstPage:false라 탭 재진입해도 새 활동이 영원히 안 보였음 — 이력 정지 사고)
+  const { data, error, isLoading, size, setSize, isValidating, mutate } = useSWRInfinite<Page>(
+    getKey, fetcher,
+    { revalidateFirstPage: true, revalidateOnFocus: true, revalidateOnMount: true },
+  )
   const [restoring, setRestoring] = useState<number | null>(null)
   const [restoreMsg, setRestoreMsg] = useState<string | null>(null)
   const [, startRestore] = useTransition()
