@@ -182,7 +182,7 @@ export default function ProjectsPage() {
       )}
 
       {activityFor && (
-        <ProjectActivityDrawer projectId={activityFor.id} projectName={activityFor.name} onClose={() => setActivityFor(null)} />
+        <ProjectActivityDrawer projectId={activityFor.id} projectName={activityFor.name} onClose={() => setActivityFor(null)} onRestored={() => mutate()} />
       )}
         </>
       )}

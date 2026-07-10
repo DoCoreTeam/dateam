@@ -9,6 +9,7 @@
 import type { WeeklyRow } from './activity-diff'
 
 export interface WeeklySnapshot {
+  id: string
   takenAt: string
   rows: WeeklyRow[]
 }
@@ -21,6 +22,7 @@ export interface WeeklyActivity {
 export interface BeforeAfter {
   before: WeeklyRow[]
   after: WeeklyRow[]
+  beforeSnapshotId: string | null   // 되살리기(restoreWeeklyReportSnapshot) 대상. 대응 스냅샷 없으면 null
 }
 
 /**
@@ -38,21 +40,22 @@ export function resolveWeeklyBeforeAfter(
   const snaps = [...snapshots].sort((a, b) => (a.takenAt < b.takenAt ? -1 : a.takenAt > b.takenAt ? 1 : 0))
 
   // 활동 직전(≤ occurredAt) 가장 최근 스냅샷 = 그 활동의 before.
-  const beforeOf = (occurredAt: string): WeeklyRow[] => {
-    let picked: WeeklyRow[] | null = null
+  const snapOf = (occurredAt: string): WeeklySnapshot | null => {
+    let picked: WeeklySnapshot | null = null
     for (const s of snaps) {
-      if (s.takenAt <= occurredAt) picked = s.rows
+      if (s.takenAt <= occurredAt) picked = s
       else break
     }
-    return picked ?? []
+    return picked
   }
 
   const out = new Map<string, BeforeAfter>()
   for (let i = 0; i < acts.length; i++) {
-    const before = beforeOf(acts[i].occurredAt)
+    const beforeSnap = snapOf(acts[i].occurredAt)
+    const before = beforeSnap?.rows ?? []
     // after = 다음 활동의 before 스냅샷(=이 활동이 만든 상태), 최신이면 라이브.
-    const after = i + 1 < acts.length ? beforeOf(acts[i + 1].occurredAt) : liveRows
-    out.set(acts[i].id, { before, after })
+    const after = i + 1 < acts.length ? (snapOf(acts[i + 1].occurredAt)?.rows ?? []) : liveRows
+    out.set(acts[i].id, { before, after, beforeSnapshotId: beforeSnap?.id ?? null })
   }
   return out
 }

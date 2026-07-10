@@ -2,10 +2,13 @@
 // 성공 시 저장값(after) 스냅샷·실패 시 원인(error_detail)을 펼쳐 본다.
 'use client'
 
-import { useEffect, useState } from 'react'
-import { X, History, AlertTriangle } from 'lucide-react'
+import { useEffect, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { X, History, AlertTriangle, Undo2 } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
+import { restoreProject } from '@/lib/work/restore-action'
+import { diffSnapshots } from '@/lib/work/activity-diff'
 import {
   ACTIVITY_ACTION_LABEL, ACTIVITY_STATUS_LABEL,
   type ProjectActivityRow, type ProjectActivityStatus,
@@ -15,6 +18,7 @@ interface Props {
   projectId: string
   projectName: string
   onClose: () => void
+  onRestored?: () => void   // 되살리기 성공 시 부모 프로젝트 목록(SWR) 재검증 — 화면 실시간 반영
 }
 
 const STATUS_STYLE: Record<ProjectActivityStatus, { color: string; bg: string; border: string }> = {
@@ -23,11 +27,16 @@ const STATUS_STYLE: Record<ProjectActivityStatus, { color: string; bg: string; b
   partial: { color: 'var(--warning)', bg: 'var(--warning-bg)', border: 'var(--warning-border)' },
 }
 
-export default function ProjectActivityDrawer({ projectId, projectName, onClose }: Props) {
+export default function ProjectActivityDrawer({ projectId, projectName, onClose, onRestored }: Props) {
   useEscClose(onClose)
+  const router = useRouter()
   const [items, setItems] = useState<ProjectActivityRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
+  const [restoring, setRestoring] = useState<string | null>(null)
+  const [restoreMsg, setRestoreMsg] = useState<string | null>(null)
+  const [, startRestore] = useTransition()
 
   useEffect(() => {
     let alive = true
@@ -44,7 +53,19 @@ export default function ProjectActivityDrawer({ projectId, projectName, onClose 
       }
     })()
     return () => { alive = false }
-  }, [projectId])
+  }, [projectId, reloadKey])
+
+  // 되돌리기 — restoreProject 후 드로어 이력 + 화면(프로젝트 목록) 실시간 갱신.
+  function handleRestore(activityId: string) {
+    if (restoring) return
+    setRestoring(activityId); setRestoreMsg(null)
+    startRestore(async () => {
+      const res = await restoreProject(activityId)
+      if (res.ok) { setRestoreMsg('되살렸습니다.'); setReloadKey((k) => k + 1); router.refresh(); onRestored?.() }
+      else setRestoreMsg(res.error)
+      setRestoring(null)
+    })
+  }
 
   return (
     <div onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
@@ -58,6 +79,11 @@ export default function ProjectActivityDrawer({ projectId, projectName, onClose 
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-4) var(--space-5)' }}>
+          {restoreMsg && (
+            <div role="status" style={{ marginBottom: 'var(--space-3)', padding: '0.5rem 0.8rem', borderRadius: 'var(--radius)', background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand)', color: 'var(--brand)', fontSize: 'var(--fs-sm)', fontWeight: 600 }}>
+              {restoreMsg}
+            </div>
+          )}
           {loading ? (
             <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: 'var(--space-6)' }}>불러오는 중…</p>
           ) : error ? (
@@ -88,13 +114,36 @@ export default function ProjectActivityDrawer({ projectId, projectName, onClose 
                         {Object.entries(it.evidence).map(([k, v]) => `${k}: ${String(v)}`).join(' · ')}
                       </p>
                     )}
-                    {it.after_snapshot && (
-                      <details style={{ marginTop: 4 }}>
-                        <summary style={{ fontSize: 'var(--fs-2xs)', color: 'var(--brand)', cursor: 'pointer' }}>저장된 값 보기</summary>
-                        <pre style={{ margin: '4px 0 0', fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', background: 'var(--surface-bg)', borderRadius: 'var(--radius)', padding: 'var(--space-2)', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                          {JSON.stringify(it.after_snapshot, null, 2)}
-                        </pre>
-                      </details>
+                    {(() => {
+                      const changes = diffSnapshots(it.action, it.before_snapshot, it.after_snapshot)
+                      if (changes.length === 0) return null
+                      const isUpd = it.action === 'update'
+                      return (
+                        <ul style={{ listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {changes.map((c) => (
+                            <li key={c.field} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'baseline', fontSize: 'var(--fs-xs)', lineHeight: 1.5 }}>
+                              <span style={{ flexShrink: 0, fontWeight: 700, color: 'var(--text-muted)', minWidth: 56 }}>{c.label}</span>
+                              {isUpd ? (
+                                <span style={{ minWidth: 0, color: 'var(--text)' }}>
+                                  <span style={{ color: 'var(--text-faint)', textDecoration: 'line-through' }}>{c.from ?? '없음'}</span>
+                                  <span style={{ margin: '0 6px', color: 'var(--brand)', fontWeight: 700 }}>→</span>
+                                  <span style={{ color: 'var(--text)', fontWeight: 600 }}>{c.to ?? '없음'}</span>
+                                </span>
+                              ) : (
+                                <span style={{ minWidth: 0, color: 'var(--text)' }}>{(it.action === 'delete' ? c.from : c.to) ?? '없음'}</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )
+                    })()}
+
+                    {it.status === 'success' && it.before_snapshot && (it.action === 'update' || it.action === 'delete') && (
+                      <button type="button" onClick={() => handleRestore(it.id)} disabled={restoring === it.id}
+                        title="이 시점 상태로 되살립니다"
+                        style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 'var(--radius)', background: 'var(--surface-bg)', color: 'var(--brand)', border: 'var(--hairline) solid var(--brand)', cursor: restoring === it.id ? 'wait' : 'pointer', fontSize: 'var(--fs-2xs)', fontWeight: 700 }}>
+                        <Undo2 size={12} /> {restoring === it.id ? '되살리는 중…' : '되살리기'}
+                      </button>
                     )}
                   </li>
                 )

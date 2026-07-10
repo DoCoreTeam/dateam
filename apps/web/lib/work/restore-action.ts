@@ -20,6 +20,8 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { RESTORABLE_TABLES } from './activity-log'
+import { CURRENT_ROW_SELECT, REVALIDATE_PATHS, pickRestorableColumns, checkWorkflowLock } from './restore-core'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = any
@@ -38,32 +40,8 @@ interface AuditLogRow {
   occurred_at: string
 }
 
-// ── 1) 테이블 화이트리스트 — 복구 허용 대상만. 관계/부속 테이블은 절대 추가하지 않는다. ──
-const RESTORABLE_TABLES = new Set(['daily_logs', 'weekly_reports', 'projects'])
-
-// ── 2) 컬럼 화이트리스트 — 테이블별 "사용자 콘텐츠" 필드만. 상태/관계/권한 컬럼은 제외. ──
-const RESTORABLE_COLUMNS: Record<string, readonly string[]> = {
-  // 제외: user_id·assignee_user_id·department_id·task_kind·ai_*·deleted_at(별도 처리)·is_resolved 등
-  daily_logs: ['content', 'entry_type', 'priority', 'checklist', 'target_date', 'log_date'],
-  // 제외: confirmed_at·seq·user_id·deleted_at(별도 처리)
-  weekly_reports: ['performance', 'plan', 'issues', 'category'],
-  // 제외: user_id·deleted_at(별도 처리)·embedding
-  projects: ['name', 'year', 'quarter', 'half', 'month', 'start_date', 'end_date', 'budget', 'currency', 'status'],
-}
-
-const REVALIDATE_PATHS: Record<string, readonly string[]> = {
-  daily_logs: ['/daily', '/home'],
-  weekly_reports: ['/weekly-report'],
-  projects: ['/work'],
-}
-
-// 현재행 조회용 SELECT 컬럼(SELECT * 금지 — 화이트리스트 필드 + 게이트 판단에 필요한 최소 컬럼만).
-// 테이블별 실제 존재 컬럼만 나열(존재하지 않는 컬럼 조회 시 42703 에러 방지).
-const CURRENT_ROW_SELECT: Record<string, string> = {
-  daily_logs: ['id', 'user_id', 'deleted_at', ...RESTORABLE_COLUMNS.daily_logs].join(', '),
-  weekly_reports: ['id', 'user_id', 'deleted_at', ...RESTORABLE_COLUMNS.weekly_reports].join(', '),
-  projects: ['id', 'user_id', 'deleted_at', ...RESTORABLE_COLUMNS.projects].join(', '),
-}
+// 테이블 화이트리스트 = activity-log.ts SSOT(RESTORABLE_TABLES) / 컬럼·SELECT·게이트 = restore-core.ts SSOT.
+// (이중선언 금지 — 피드 노출과 복구 허용이 한 소스로 일치해야 드리프트 없음.)
 
 /**
  * 감사이력의 특정 항목(audit_log.id)을 근거로 이전 상태(before_json)를 현재 행에 되돌린다.
@@ -102,14 +80,8 @@ export async function restoreFromAudit(auditId: number): Promise<RestoreResult> 
     return { ok: false, error: '복구할 이전 상태가 없습니다' }
   }
 
-  const columns = RESTORABLE_COLUMNS[audit.table_name]
-  const before = audit.before_json
-
   // ── 컬럼 화이트리스트 적용 — 화이트리스트에 없는 키는 절대 UPDATE payload에 넣지 않는다. ──
-  const patch: Record<string, unknown> = {}
-  for (const col of columns) {
-    if (col in before) patch[col] = before[col]
-  }
+  const patch = pickRestorableColumns(audit.table_name, audit.before_json)
   if (Object.keys(patch).length === 0) {
     return { ok: false, error: '복구할 수 있는 필드가 없습니다' }
   }
@@ -160,19 +132,53 @@ export async function restoreFromAudit(auditId: number): Promise<RestoreResult> 
 }
 
 /**
- * 확정/잠금 워크플로 게이트 — best-effort. 판정 불가/조회 실패 시 차단하지 않는다(fail-open).
- * 이 게이트는 보안 경계가 아니라 운영 워크플로 보호(취합 이후 조작 방지)이므로,
- * 화이트리스트·소유스코프 같은 하드 방어와 달리 실패를 관대하게 처리한다.
+ * 프로젝트 되돌리기 — project_activity(감사로그)의 before_snapshot을 근거로 이전 상태로 복구.
+ * audit_log가 projects를 캡처하지 않으므로 project_activity를 복원 근거로 사용(SSOT 동일 정책:
+ * 화이트리스트 컬럼만·소유 스코프 재확인·소프트삭제 부활). RLS로 본인 project_activity만 조회됨.
  */
-function checkWorkflowLock(tableName: string, current: Record<string, unknown> | null): string | null {
-  if (!current) return null
-  // 주의: 현 스키마상 weekly_reports 자체에는 확정 컬럼이 없다(확정은 dept_weekly_reports.status/
-  // confirmed_at 쪽에 있음 — 부서 취합 단위라 개별 행과 1:1로 안 묶임). 아래는 향후 weekly_reports에
-  // confirmed_at(또는 동등한 잠금 컬럼)이 추가될 경우를 대비한 선반영 게이트 — 현재는 값이 없어
-  // 항상 통과(no-op)한다. 부서 취합 잠금까지 막으려면 dept_weekly_reports 조인 조회가 필요하며,
-  // 이는 이 파일 범위를 넘는 별도 작업(사용자 소속 부서 해석)이 필요해 여기서는 보류한다.
-  if (tableName === 'weekly_reports' && current.confirmed_at != null) {
-    return '확정된 항목은 되살릴 수 없습니다'
-  }
-  return null
+export async function restoreProject(activityId: string): Promise<RestoreResult> {
+  const supabase = await createClient()
+  const { data: userRes, error: authErr } = await supabase.auth.getUser()
+  if (authErr || !userRes?.user) return { ok: false, error: '인증이 필요합니다' }
+
+  const { data: actRow, error: actErr } = await (supabase as Db)
+    .from('project_activity')
+    .select('id, project_id, user_id, before_snapshot')
+    .eq('id', activityId)
+    .single()
+
+  if (actErr || !actRow) return { ok: false, error: '되살릴 이력을 찾을 수 없습니다' }
+  const act = actRow as { project_id: string | null; user_id: string | null; before_snapshot: Record<string, unknown> | null }
+
+  if (!act.project_id || !act.user_id) return { ok: false, error: '되살릴 대상을 식별할 수 없습니다' }
+  // IDOR 하드가드 — RLS로 본인 activity만 조회되지만, 명시적으로 소유자=인증사용자 재확인(2중방어).
+  if (act.user_id !== userRes.user.id) return { ok: false, error: '권한이 없습니다' }
+  if (!act.before_snapshot) return { ok: false, error: '복구할 이전 상태가 없습니다' }
+
+  const patch = pickRestorableColumns('projects', act.before_snapshot)
+  if (Object.keys(patch).length === 0) return { ok: false, error: '복구할 수 있는 필드가 없습니다' }
+
+  const { data: current, error: currentErr } = await (supabase as Db)
+    .from('projects')
+    .select(CURRENT_ROW_SELECT.projects)
+    .eq('id', act.project_id)
+    .eq('user_id', act.user_id)
+    .maybeSingle()
+
+  if (currentErr) return { ok: false, error: '현재 상태를 조회하지 못했습니다' }
+  if (!current) return { ok: false, error: '되살릴 대상 행이 존재하지 않습니다' }
+
+  const updatePayload: Record<string, unknown> = { ...patch }
+  if (current.deleted_at != null) updatePayload.deleted_at = null
+
+  const { error: updateErr } = await (supabase as Db)
+    .from('projects')
+    .update(updatePayload)
+    .eq('id', act.project_id)
+    .eq('user_id', act.user_id)
+
+  if (updateErr) return { ok: false, error: '되살리기에 실패했습니다' }
+
+  for (const path of REVALIDATE_PATHS.projects) revalidatePath(path)
+  return { ok: true }
 }

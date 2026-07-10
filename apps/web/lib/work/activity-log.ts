@@ -75,6 +75,13 @@ export const ACTION_LABEL: Record<string, string> = {
   edit: '수정', restore: '되살리기',
 }
 
+// 되살리기 참조 — 모듈별 복원 인프라가 달라 kind로 분기(SSOT).
+//  audit=restoreFromAudit(일일·부서) / weekly=restoreWeeklyReportSnapshot(주간 스냅샷) / project=restoreProject.
+export type RestoreRef =
+  | { kind: 'audit'; ref: number }
+  | { kind: 'weekly'; ref: string }
+  | { kind: 'project'; ref: string }
+
 // 통합 피드 정규화 아이템.
 export interface ActivityFeedItem {
   id: string
@@ -86,8 +93,7 @@ export interface ActivityFeedItem {
   before: Record<string, unknown> | null   // 수정 전 스냅샷(diff·되살리기 근거). 생성/실패로그면 null
   after: Record<string, unknown> | null
   error: { message: string; code?: string | null } | null
-  auditId: number | null   // audit_log.id (되살리기 대상). 실패로그/복구불가면 null
-  restorable: boolean      // before 있음 + 화이트리스트 테이블 + 복구 지원 op
+  restore: RestoreRef | null   // 되살리기 참조(모듈별 분기). 복구 불가/실패로그면 null
 }
 
 // audit_log.table_name → 피드 모듈. daily_logs는 task_kind로 daily/dept 분기.

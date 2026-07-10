@@ -5,7 +5,7 @@ import {
   type ActivityFeedItem, type ActivityStatus, type FeedModule,
 } from '@/lib/work/activity-log'
 import { isRawHead } from '@/lib/daily/raw-head'
-import { resolveWeeklyBeforeAfter, type WeeklySnapshot, type WeeklyActivity } from '@/lib/work/weekly-history'
+import { resolveWeeklyBeforeAfter, type WeeklySnapshot, type WeeklyActivity, type BeforeAfter } from '@/lib/work/weekly-history'
 import type { WeeklyRow } from '@/lib/work/activity-diff'
 
 // GET /api/work/activity — 업무 허브 통합 이력 피드(4개 원천 통합, 읽기 전용).
@@ -70,7 +70,8 @@ export async function GET(req: NextRequest) {
       items.push({
         id: `au_${r.id}`, module: mod, action: OP_ACTION[op] ?? op, status: 'success',
         title: titleFrom(after, beforeJ), occurredAt: String(r.occurred_at),
-        before: beforeJ, after, error: null, auditId: Number(r.id), restorable,
+        before: beforeJ, after, error: null,
+        restore: restorable ? { kind: 'audit', ref: Number(r.id) } : null,
       })
     }
   }
@@ -88,12 +89,15 @@ export async function GET(req: NextRequest) {
       const st = (r.status === 'failure' || r.status === 'partial') ? (r.status as ActivityStatus) : 'success'
       const after = (r.after_snapshot as Record<string, unknown>) ?? null
       const beforeJ = (r.before_snapshot as Record<string, unknown>) ?? null
+      const act = String(r.action)
+      // 성공 + before 있음 + 수정/삭제면 되살리기 가능(생성은 되돌릴 before 없음).
+      const canRestore = st === 'success' && !!beforeJ && (act === 'update' || act === 'delete')
       items.push({
-        id: `pa_${r.id}`, module: 'project', action: String(r.action), status: st,
+        id: `pa_${r.id}`, module: 'project', action: act, status: st,
         title: titleFrom(after, beforeJ), occurredAt: String(r.occurred_at),
         before: beforeJ, after,
         error: (r.error_detail as ActivityFeedItem['error']) ?? null,
-        auditId: null, restorable: false,
+        restore: canRestore ? { kind: 'project', ref: String(r.id) } : null,
       })
     }
   }
@@ -114,7 +118,7 @@ export async function GET(req: NextRequest) {
       const weeks = Array.from(new Set(acts.map((a) => String(a.week_start))))
       // 그 주차들의 스냅샷 + 라이브 확정본(RLS로 본인 것만).
       const { data: snapRows } = await db.from('weekly_report_snapshots')
-        .select('week_start, rows_json, taken_at').eq('user_id', user.id).in('week_start', weeks)
+        .select('id, week_start, rows_json, taken_at').eq('user_id', user.id).in('week_start', weeks)
       const { data: liveRows } = await db.from('weekly_reports')
         .select('week_start, category, seq, performance, plan, issues')
         .eq('user_id', user.id).in('week_start', weeks).is('deleted_at', null)
@@ -123,7 +127,7 @@ export async function GET(req: NextRequest) {
       for (const s of (snapRows ?? []) as Record<string, unknown>[]) {
         const wk = String(s.week_start)
         const arr = snapByWeek.get(wk) ?? []
-        arr.push({ takenAt: String(s.taken_at), rows: (s.rows_json as WeeklyRow[]) ?? [] })
+        arr.push({ id: String(s.id), takenAt: String(s.taken_at), rows: (s.rows_json as WeeklyRow[]) ?? [] })
         snapByWeek.set(wk, arr)
       }
       const liveByWeek = new Map<string, WeeklyRow[]>()
@@ -137,12 +141,21 @@ export async function GET(req: NextRequest) {
         liveByWeek.set(wk, arr)
       }
       // 주차별 페어링 결과.
-      const baOf = new Map<string, { before: WeeklyRow[]; after: WeeklyRow[] }>()
+      const baOf = new Map<string, BeforeAfter>()
       for (const wk of weeks) {
         const weekActs: WeeklyActivity[] = acts.filter((a) => String(a.week_start) === wk)
           .map((a) => ({ id: String(a.id), occurredAt: String(a.occurred_at) }))
         const resolved = resolveWeeklyBeforeAfter(weekActs, snapByWeek.get(wk) ?? [], liveByWeek.get(wk) ?? [])
         resolved.forEach((v, k) => baOf.set(k, v))
+      }
+
+      // 주간 되살리기는 그 주차 전체를 스냅샷 시점으로 replace(파괴적)한다. 오래된 활동에 되살리면
+      // 이후 최신 편집이 무경고로 사라지므로, 되돌리기는 주차별 '가장 최근 활동'에만 노출한다
+      // (= 최근 변경 취소). 더 과거 시점 복원은 주간보고 화면 WeeklyEditHistory에서 별도 제공.
+      const latestActIdByWeek = new Map<string, string>()   // acts는 occurred_at desc → 주차별 첫 등장이 최신
+      for (const a of acts) {
+        const wk = String(a.week_start)
+        if (!latestActIdByWeek.has(wk)) latestActIdByWeek.set(wk, String(a.id))
       }
 
       for (const a of acts) {
@@ -152,12 +165,20 @@ export async function GET(req: NextRequest) {
         // "없음 → 전체내용" 오표시 방지: 실제 before가 있을 때(또는 생성/삭제)만 diff 노출.
         // create=after(신규내용)로 판단, edit/delete=before가 있어야 diff 가능.
         const canDiff = !!ba && (action === 'create' ? ba.after.length > 0 : ba.before.length > 0)
+        // ⚠️ latestActIdByWeek는 이 페이지 내에서만 최신을 판정한다. 커서(before)가 있는 2페이지+에서는
+        // 페이지-로컬 최신이 전역 최신이 아닐 수 있어(다른 모듈 활동에 밀려 분산), 되살리기를 노출하면
+        // 오래된 활동으로 최신 편집을 무경고 덮어쓸 위험이 있다. 따라서 되살리기는 커서 없는 1페이지
+        // (=desc 정렬상 주차 최신이 반드시 여기 있음)에서만 노출한다. 더 깊은 복원은 WeeklyEditHistory.
+        const isLatestForWeek = !before && latestActIdByWeek.get(String(a.week_start)) === String(a.id)
+        // 되살리기: before 스냅샷 있음 + (1페이지의) 최신 활동 + edit/delete = 그 직전 시점으로 복원.
+        const canRestore = !!ba?.beforeSnapshotId && isLatestForWeek && (action === 'edit' || action === 'delete')
         items.push({
           id: `wa_${a.id}`, module: 'weekly', action, status: 'success',
           title: `${a.week_start} 주간보고`, occurredAt: String(a.occurred_at),
           before: canDiff ? { rows: ba!.before } : null,
           after: canDiff ? { rows: ba!.after } : null,
-          error: null, auditId: null, restorable: false,
+          error: null,
+          restore: canRestore ? { kind: 'weekly', ref: ba!.beforeSnapshotId! } : null,
         })
       }
     }
@@ -179,7 +200,7 @@ export async function GET(req: NextRequest) {
         id: `al_${r.id}`, module: mod, action: String(r.action), status: r.status as ActivityStatus,
         title: (r.title as string) ?? null, occurredAt: String(r.occurred_at),
         before: null, after: null, error: (r.error_detail as ActivityFeedItem['error']) ?? null,
-        auditId: null, restorable: false,
+        restore: null,
       })
     }
   }

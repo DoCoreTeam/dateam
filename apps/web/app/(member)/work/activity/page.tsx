@@ -5,14 +5,15 @@
 import { useState, useCallback, useTransition } from 'react'
 import useSWRInfinite from 'swr/infinite'
 import { History, AlertTriangle, Undo2 } from 'lucide-react'
-import { restoreFromAudit } from '@/lib/work/restore-action'
+import { restoreFromAudit, restoreProject } from '@/lib/work/restore-action'
+import { restoreWeeklyReportSnapshot } from '@/app/(member)/weekly-report/actions'
 import WorkPageShell from '@/components/ui/WorkPageShell'
 import WorkSubTabs from '@/components/ui/WorkSubTabs'
 import { fetcher } from '@/lib/swr-config'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import {
   MODULE_LABEL, ACTION_LABEL, STATUS_LABEL,
-  type ActivityFeedItem, type ActivityStatus, type FeedModule,
+  type ActivityFeedItem, type ActivityStatus, type FeedModule, type RestoreRef,
 } from '@/lib/work/activity-log'
 import { diffSnapshots, diffWeeklyRows, type WeeklyRow } from '@/lib/work/activity-diff'
 
@@ -56,15 +57,19 @@ export default function WorkActivityPage() {
     getKey, fetcher,
     { revalidateFirstPage: true, revalidateOnFocus: true, revalidateOnMount: true },
   )
-  const [restoring, setRestoring] = useState<number | null>(null)
+  const [restoring, setRestoring] = useState<string | null>(null)   // 되살리는 중인 피드아이템 id
   const [restoreMsg, setRestoreMsg] = useState<string | null>(null)
   const [, startRestore] = useTransition()
 
-  function handleRestore(auditId: number) {
+  // 모듈별 복원 인프라 분기 — audit(일일·부서)/weekly(스냅샷)/project. 성공 시 피드 즉시 갱신(실시간).
+  function handleRestore(itemId: string, restore: RestoreRef) {
     if (restoring) return
-    setRestoring(auditId); setRestoreMsg(null)
+    setRestoring(itemId); setRestoreMsg(null)
     startRestore(async () => {
-      const res = await restoreFromAudit(auditId)
+      const res =
+        restore.kind === 'audit' ? await restoreFromAudit(restore.ref)
+        : restore.kind === 'weekly' ? await restoreWeeklyReportSnapshot(restore.ref)
+        : await restoreProject(restore.ref)
       if (res.ok) { setRestoreMsg('되살렸습니다.'); await mutate() }
       else setRestoreMsg(res.error)
       setRestoring(null)
@@ -158,11 +163,11 @@ export default function WorkActivityPage() {
                     <p style={{ margin: '3px 0 0', fontSize: 'var(--fs-xs)', color: 'var(--danger)' }}>⚠ {it.error.message}</p>
                   )}
                   <ChangeList action={it.action} module={it.module} before={it.before} after={it.after} />
-                  {it.restorable && it.auditId && (
-                    <button type="button" onClick={() => handleRestore(it.auditId!)} disabled={restoring === it.auditId}
-                      title="이 시점 상태로 이 항목만 되살립니다"
-                      style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 'var(--radius)', background: 'var(--surface-bg)', color: 'var(--brand)', border: 'var(--hairline) solid var(--brand)', cursor: restoring === it.auditId ? 'wait' : 'pointer', fontSize: 'var(--fs-2xs)', fontWeight: 700 }}>
-                      <Undo2 size={12} /> {restoring === it.auditId ? '되살리는 중…' : '되살리기'}
+                  {it.restore && (
+                    <button type="button" onClick={() => handleRestore(it.id, it.restore!)} disabled={restoring === it.id}
+                      title="이 시점 상태로 되살립니다"
+                      style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 'var(--radius)', background: 'var(--surface-bg)', color: 'var(--brand)', border: 'var(--hairline) solid var(--brand)', cursor: restoring === it.id ? 'wait' : 'pointer', fontSize: 'var(--fs-2xs)', fontWeight: 700 }}>
+                      <Undo2 size={12} /> {restoring === it.id ? '되살리는 중…' : '되살리기'}
                     </button>
                   )}
                 </div>
