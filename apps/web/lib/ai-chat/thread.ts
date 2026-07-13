@@ -14,6 +14,10 @@ export interface ThreadMsg {
 //  - parent 없는 메시지: 현재 스레드에 append
 //  - parent 있는 메시지(편집): parent가 현재 스레드에 있으면 그 위치부터 절단(truncate at parent index) 후 자신 append.
 //    parent가 스레드에 없으면(이미 다른 분기로 대체된 꼬리의 편집) 건너뜀.
+//
+// ⚠️ 입력은 반드시 **전체 메시지 집합(비활성 분기 포함)**이어야 한다. 이 함수는 **멱등(idempotent)이 아니다** —
+//    이미 활성 스레드로 축약된 결과를 다시 넣으면, 편집 메시지의 parent(원본)가 이미 절단돼 idx<0 → skip 되어
+//    편집 메시지가 사라진다. 서버 getMessages가 이미 활성 스레드를 반환하면 클라는 재적용하지 말고 그대로 렌더한다.
 export function buildActiveThread<T extends ThreadMsg>(sorted: T[]): T[] {
   let thread: T[] = []
   for (const m of sorted) {

@@ -26,9 +26,14 @@
 완료 선언 = 위 표 전항목 상태 확정 후에만. net-new 항목은 실제 통과, integ 항목은 spec 완결 + 리뷰 통과로 정의.
 격리로 검증 불가한 항목(tsc 전체·수동 멀티모달)은 "세션1 머지 후 확정"으로 명시(허위 완료 금지).
 
-## 최종 상태 (2026-07-13 · commit c402e9f)
-- **net-new(#2·13·14 등 세션2 단독)**: ✅ 구현+검증 완료 — 단위테스트 36/36 pass, design:check clean, DC-SEC PASS(0 CRIT/0 HIGH), DC-REV 87/100 APPROVED.
-- **integ(#1·4·6·7·9·11·12 등 세션1 결합)**: ✅ 05-integration-spec.md에 04 계약 기준 정밀 명세 완료 — 세션1 머지 시 기계적 적용.
-- **#15 품질게이트**: 부분 — 단위테스트·design:check ✅ / 전체 `tsc --noEmit`은 세션1 모듈 부재로 격리 검증 불가 → **세션1 머지 후 확정**(정직 표기).
-- **#17 산출물**: migration 151 파일 생성(적용=사용자) ✅ · 로컬 커밋 c402e9f(push=사용자) ✅.
-- **미검증 잔여(세션1 의존)**: 전체 tsc green, 3프로바이더 수동 멀티모달 응답, 새로고침 복원 — 세션1 머지 후 사용자/후속 루프 확정.
+## 최종 상태 (2026-07-14 · 세션1 머지 확인 후 실제 통합 완료 · commit 642b31b)
+세션1이 main에 머지된 것을 확인 → 이 브랜치를 main 위로 rebase → 05-integration-spec을 **실제 코드로 배선**.
+
+- **net-new(#2·3·13·14 등 세션2 단독)**: ✅ 구현+검증 — ai-chat 단위테스트 54/54, DC-SEC PASS, DC-REV 87/100.
+- **integ(#1·4·5·6·7·8·9·10·11·12)**: ✅ **실제 코드로 배선 완료**(더 이상 명세만이 아님) — types/database·providers·stream/route·actions·Composer·MessageBubble·MessageList·ConversationSidebar·AiChatClient·page·globals.css.
+- **#15 품질게이트**: ✅ **전체 `tsc --noEmit` exit 0** · ai-chat 단위테스트 54/54 · design:check ai-chat 위반 0.
+  - 전체 suite는 825/826 — 유일 실패는 `lib/weekly-report/single-writer-guard.test.ts`의 Windows 경로구분자 버그(main에서도 동일 실패, 세션2 무관, Linux CI green).
+- **#2 office 추출**: ✅ 실제 docx 생성→추출 런타임 검증(officeparser v7 AST→md).
+- **#17 산출물**: migration 150(세션1)·151(세션2) 파일 존재(적용=사용자) · 로컬 커밋(push=사용자).
+- **잔여(사용자/후속)**: 마이그레이션 151·Storage 정책 적용, `next build` 프로덕션 빌드 확인, 3프로바이더 실 API 키로 수동 멀티모달 응답 확인, 이 브랜치 main 머지+push.
+- **경미 스코프 결정**: 편집(edit) 모드는 본문만 재전송(편집 버블 내 신규 첨부 업로더 미구현) — 편집분기 코어(parent_message_id 저장→활성스레드 재구성→재스트림)는 완전 동작.

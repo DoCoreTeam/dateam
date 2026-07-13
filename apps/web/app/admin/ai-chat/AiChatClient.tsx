@@ -1,11 +1,10 @@
 'use client'
 
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Menu, Plus, Settings2 } from 'lucide-react'
 import type { AiChatConversation, AiChatMessage, AiChatProviderId } from '@/types/database'
 import { useSseChat, type StreamBody } from '@/lib/ai-chat/use-sse-chat'
-import { buildActiveThread } from '@/lib/ai-chat/thread'
 import {
   createConversation,
   listConversations,
@@ -137,8 +136,10 @@ export default function AiChatClient({
   const visionSupported = curProvider ? capabilities[curProvider].vision : false
   const thinkingSupported = curProvider ? capabilities[curProvider].thinking : false
 
-  // 활성 스레드 재구성(SSOT) — 편집분기/재생성 후 렌더 기준
-  const activeThread = useMemo(() => buildActiveThread(messages), [messages])
+  // `messages`는 항상 "활성 스레드"를 직접 보유한다(불변식):
+  //  - 서버(getMessages)가 이미 buildActiveThread 적용본을 반환 → 그대로 사용(재적용 금지: 재적용 시
+  //    편집 메시지의 parent가 이미 절단돼 idx<0으로 skip되어 편집 질문이 사라짐 — 이중적용 버그).
+  //  - 낙관적 편집은 편집 대상 인덱스에서 직접 절단해 불변식을 유지(handleEditSubmit).
 
   function updateUrl(id: string | null) {
     router.replace(id ? `/admin/ai-chat?c=${id}` : '/admin/ai-chat', { scroll: false })
@@ -381,6 +382,13 @@ export default function AiChatClient({
       onError: (msg) => {
         if (token.done) return
         token.done = true
+        if (reconcile === 'reload') {
+          // 재생성/편집 실패 — 서버가 이전 내용을 보존(재생성)하거나 error row를 남긴다(편집).
+          // 재조회로 서버 진실을 복원(§5-1 "이전 내용 복원"). 낙관적으로 제거/절단한 상태를 되돌린다.
+          setStreamDraft(null)
+          void reloadMessages(convId)
+          return
+        }
         setStreamDraft((d) => {
           const draft: StreamDraft = d ?? { role: 'assistant', content: '', thinking: null, streaming: false }
           const asst = assistantFromDraft(convId, draft, {
@@ -430,7 +438,7 @@ export default function AiChatClient({
 
   async function handleRegenerate() {
     if (sse.streaming || !selectedId) return
-    const last = activeThread[activeThread.length - 1]
+    const last = messages[messages.length - 1]
     if (!last || last.role !== 'assistant') return
     const provider = curProvider
     const model = curModel
@@ -445,8 +453,13 @@ export default function AiChatClient({
     const provider = curProvider
     const model = curModel
     if (!provider || !model) return
-    // 편집 = 새 user(parent=원본) — buildActiveThread가 즉시 꼬리 절단
-    setMessages((prev) => [...prev, makeUserMessage(selectedId, content, messageId)])
+    // 편집 = 편집 대상 위치에서 직접 절단 후 새 user 추가(불변식: messages == 활성 스레드).
+    // 서버도 동일 결과(활성 스레드)를 반환하므로 reload 후에도 일관.
+    setMessages((prev) => {
+      const idx = prev.findIndex((m) => m.id === messageId)
+      const head = idx >= 0 ? prev.slice(0, idx) : prev
+      return [...head, makeUserMessage(selectedId, content, messageId)]
+    })
     await runStream(
       {
         conversationId: selectedId,
@@ -554,7 +567,7 @@ export default function AiChatClient({
         </div>
 
         <MessageList
-          messages={activeThread}
+          messages={messages}
           streamDraft={streamDraft}
           loading={msgLoading}
           error={msgError}

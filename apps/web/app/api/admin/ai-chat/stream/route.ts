@@ -453,18 +453,8 @@ export async function POST(req: NextRequest) {
         const message = 'AI 응답 생성 실패'
         try {
           if (mode === 'regenerate' && regenTargetId) {
-            await adminClient
-              .from('ai_messages')
-              .update({
-                content: '',
-                thinking: null,
-                provider: providerName,
-                model,
-                stopped: false,
-                error: message,
-              })
-              .eq('id', regenTargetId)
-              .eq('conversation_id', conversationId)
+            // 재생성 실패 — 기존 assistant 응답을 **덮어쓰지 않고 보존**(§5-1 "실패 시 이전 내용 복원").
+            // 클라이언트가 done+error 수신 후 재조회하면 보존된 원본이 그대로 복원된다.
           } else {
             await adminClient.from('ai_messages').insert({
               conversation_id: conversationId,

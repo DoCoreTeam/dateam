@@ -82,3 +82,21 @@ test('제네릭 T의 부가 필드(role·content) 승계 확인', () => {
   assert.equal(out[0].content, 'edited')
   assert.equal(out[0].role, 'user')
 })
+
+// 회귀 가드: buildActiveThread는 멱등이 아니다. 축약본(활성 스레드)을 다시 넣으면 편집 메시지가 소실된다.
+// 이래서 서버 getMessages가 이미 활성 스레드를 반환하면 클라는 재적용하면 안 된다(이중적용 버그 재유입 차단).
+test('비멱등성: 편집이 포함된 축약본을 재적용하면 편집 메시지가 소실된다', () => {
+  const full = [
+    msg('u1', null, 1),
+    msg('a1', null, 2),
+    msg('u2', null, 3),
+    msg('a2', null, 4),
+    msg('u2p', 'u2', 5), // u2 편집
+    msg('a2p', null, 6),
+  ]
+  const once = buildActiveThread(full)
+  assert.deepEqual(ids(once), ['u1', 'a1', 'u2p', 'a2p']) // 1회 = 정상 활성 스레드
+  const twice = buildActiveThread(once)
+  // 재적용: u2p.parent(u2)가 축약본에 없어 skip → 편집 질문 u2p 소실 (비멱등 — 재적용 금지 근거)
+  assert.deepEqual(ids(twice), ['u1', 'a1', 'a2p'])
+})
