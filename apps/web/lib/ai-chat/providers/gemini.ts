@@ -1,3 +1,4 @@
+import type { AiChatCitation } from '@/types/database'
 import type {
   ChatProvider,
   ChatTurn,
@@ -6,6 +7,7 @@ import type {
 } from '../provider.ts'
 import { createSseParser } from '../sse.ts'
 import { toGeminiParts } from '../attachments.ts'
+import { isHttpUrl } from './claude.ts'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 const DEFAULT_MAX_OUTPUT_TOKENS = 8192
@@ -23,8 +25,28 @@ export function toGeminiContents(turns: ChatTurn[]): GeminiContent[] {
   }))
 }
 
+/** 순수 함수 (테스트 대상): groundingChunks[] → AiChatCitation[].
+ *  web.uri 기준 dedupe, web 없는 청크 skip, title 없으면 uri 대체. */
+export function mapGeminiGroundingChunks(chunks: unknown): AiChatCitation[] {
+  if (!Array.isArray(chunks)) return []
+  const out: AiChatCitation[] = []
+  const seen = new Set<string>()
+  for (const raw of chunks) {
+    const web = (raw as { web?: { uri?: string; title?: string } })?.web
+    const uri = typeof web?.uri === 'string' ? web.uri.trim() : ''
+    if (!isHttpUrl(uri) || seen.has(uri)) continue
+    seen.add(uri)
+    const title = typeof web?.title === 'string' && web.title.trim() ? web.title.trim() : uri
+    out.push({ url: uri, title })
+  }
+  return out
+}
+
 interface GeminiStreamChunk {
-  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+  candidates?: Array<{
+    content?: { parts?: Array<{ text?: string }> }
+    groundingMetadata?: { groundingChunks?: unknown }
+  }>
   usageMetadata?: {
     promptTokenCount?: number
     candidatesTokenCount?: number
@@ -33,7 +55,7 @@ interface GeminiStreamChunk {
 }
 
 async function streamChat(params: StreamChatParams): Promise<StreamChatResult> {
-  const { apiKey, model, system, turns, maxOutputTokens, signal, onDelta } = params
+  const { apiKey, model, system, turns, maxOutputTokens, signal, tools, onDelta, onCitation, onToolStatus } = params
 
   const url = `${GEMINI_API_BASE}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`
   const body: Record<string, unknown> = {
@@ -41,11 +63,32 @@ async function streamChat(params: StreamChatParams): Promise<StreamChatResult> {
     generationConfig: { maxOutputTokens: maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS },
   }
   if (system) body.system_instruction = { parts: [{ text: system }] }
+  const webSearch = tools?.webSearch === true
+  if (webSearch) body.tools = [{ google_search: {} }]
 
   let text = ''
   let usage = { promptTokens: 0, outputTokens: 0, totalTokens: 0 }
 
+  const citations: AiChatCitation[] = []
+  const seenUrls = new Set<string>()
+  let searchDone = false
+  const harvestCitations = (chunk: GeminiStreamChunk) => {
+    const grounding = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks
+    for (const c of mapGeminiGroundingChunks(grounding)) {
+      if (seenUrls.has(c.url)) continue
+      seenUrls.add(c.url)
+      citations.push(c)
+      onCitation?.(c)
+      if (!searchDone) {
+        searchDone = true
+        onToolStatus?.('done')
+      }
+    }
+  }
+
   try {
+    if (webSearch) onToolStatus?.('searching')
+
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
@@ -74,6 +117,7 @@ async function streamChat(params: StreamChatParams): Promise<StreamChatResult> {
             totalTokens: gc.usageMetadata.totalTokenCount ?? usage.totalTokens,
           }
         }
+        harvestCitations(gc)
         const delta = gc.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
         if (delta) {
           text += delta
@@ -83,20 +127,23 @@ async function streamChat(params: StreamChatParams): Promise<StreamChatResult> {
     }
     for (const ev of parser.flush()) {
       const gc = ev as GeminiStreamChunk
+      harvestCitations(gc)
       const delta = gc.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
       if (delta) {
         text += delta
         onDelta(delta)
       }
     }
+    if (webSearch && !searchDone) onToolStatus?.('done')
   } catch (err) {
+    if (webSearch && !searchDone) onToolStatus?.('done')
     if (signal.aborted || (err instanceof Error && err.name === 'AbortError')) {
-      return { text, thinking: null, usage, stopped: true }
+      return { text, thinking: null, usage, stopped: true, citations }
     }
     throw err
   }
 
-  return { text, thinking: null, usage, stopped: false }
+  return { text, thinking: null, usage, stopped: false, citations }
 }
 
 async function listModels(apiKey: string): Promise<string[]> {

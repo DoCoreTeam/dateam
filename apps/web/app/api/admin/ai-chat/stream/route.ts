@@ -10,8 +10,9 @@ import {
   attachmentFallbackText,
   MAX_REQUEST_ATTACHMENT_BYTES,
 } from '@/lib/ai-chat/attachments'
+import { retrieveProjectContext, buildProjectSystemBlock } from '@/lib/ai-chat/knowledge'
 import { autoTitle } from '@/app/admin/ai-chat/actions'
-import type { AiChatConversation } from '@/types/database'
+import type { AiChatConversation, AiChatCitation } from '@/types/database'
 
 export const runtime = 'nodejs' // extractDocumentText(officeparser) + Buffer 사용
 
@@ -217,6 +218,7 @@ export async function POST(req: NextRequest) {
     content?: unknown
     attachmentIds?: unknown
     editedMessageId?: unknown
+    tools?: unknown
   }
   try {
     body = await req.json()
@@ -248,6 +250,13 @@ export async function POST(req: NextRequest) {
 
   const editedMessageId = typeof body.editedMessageId === 'string' ? body.editedMessageId : ''
 
+  // tools 파싱 (S3) — { webSearch?: boolean }. capabilities.tools=false 프로바이더에 지정 시 400(아래 provider 로드 후)
+  const webSearchRequested =
+    typeof body.tools === 'object' &&
+    body.tools !== null &&
+    (body.tools as { webSearch?: unknown }).webSearch === true
+  const toolsOption = webSearchRequested ? { webSearch: true } : undefined
+
   // 콘텐츠 검증: send·edit 는 trim≥1 또는 attachmentIds≥1
   if (mode === 'send' || mode === 'edit') {
     if (!content && attachmentIds.length === 0) {
@@ -269,14 +278,14 @@ export async function POST(req: NextRequest) {
   // 소유 검증 (admin + owner)
   const { data: convRow } = await adminClient
     .from('ai_conversations')
-    .select('id, user_id, provider, model, system_prompt, title')
+    .select('id, user_id, provider, model, system_prompt, title, project_id')
     .eq('id', conversationId)
     .eq('user_id', user.id)
     .is('deleted_at', null)
     .single()
   const conversation = convRow as Pick<
     AiChatConversation,
-    'id' | 'user_id' | 'provider' | 'model' | 'system_prompt' | 'title'
+    'id' | 'user_id' | 'provider' | 'model' | 'system_prompt' | 'title' | 'project_id'
   > | null
   if (!conversation) {
     return NextResponse.json({ error: '대화를 찾을 수 없습니다' }, { status: 404 })
@@ -302,6 +311,14 @@ export async function POST(req: NextRequest) {
   if (attachmentIds.length > 0 && !visionSupported) {
     return NextResponse.json(
       { error: '현재 프로바이더는 첨부를 지원하지 않습니다' },
+      { status: 400 },
+    )
+  }
+
+  // 툴 게이팅(S3 §4-3): web_search 요청인데 capabilities.tools=false → 400
+  if (webSearchRequested && provider.capabilities.tools === false) {
+    return NextResponse.json(
+      { error: '현재 프로바이더는 웹 검색을 지원하지 않습니다' },
       { status: 400 },
     )
   }
@@ -369,6 +386,47 @@ export async function POST(req: NextRequest) {
 
   const turns = await buildTurns(adminClient, historyRows, visionSupported)
 
+  // ── system 합성 (S3 §3-3): [1] system_prompt → [2] project.instructions → [3] 프로젝트 지식 top-k ──
+  // project_id 있고 지식 ≥1건일 때만 [3] 조회. 임베딩 실패/0히트 → 블록 생략(응답 비차단).
+  let composedSystem = conversation.system_prompt ?? ''
+  if (conversation.project_id) {
+    const { data: projRow } = await adminClient
+      .from('ai_projects')
+      .select('instructions')
+      .eq('id', conversation.project_id)
+      .eq('user_id', user.id)
+      .is('deleted_at', null)
+      .single()
+    const instructions = (projRow as { instructions: string | null } | null)?.instructions ?? null
+
+    let hits: { content: string; source: string }[] = []
+    const { count: knowledgeCount } = await adminClient
+      .from('ai_project_knowledge')
+      .select('id', { count: 'exact', head: true })
+      .eq('project_id', conversation.project_id)
+    if ((knowledgeCount ?? 0) > 0) {
+      const geminiKey = typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : ''
+      // 쿼리 = 직전 사용자 메시지 원문(첨부 제외 = ChatTurn.content)
+      const lastUser = [...turns].reverse().find((t) => t.role === 'user')
+      const query = lastUser?.content ?? ''
+      try {
+        const retrieved = await retrieveProjectContext(
+          conversation.project_id,
+          query,
+          user.id,
+          geminiKey,
+        )
+        hits = retrieved.map((r) => ({ content: r.content, source: r.source }))
+      } catch {
+        hits = []
+      }
+    }
+    // buildProjectSystemBlock = [2]+[3] (instructions·지식 모두 비면 '')
+    const block = buildProjectSystemBlock(instructions, hits)
+    composedSystem = [composedSystem, block].filter((s) => s && s.trim()).join('\n\n')
+  }
+  const systemForStream = composedSystem.trim() ? composedSystem : undefined
+
   const providerName = conversation.provider
   const model = conversation.model
   const isFirstTitle = conversation.title === '새 대화'
@@ -380,16 +438,35 @@ export async function POST(req: NextRequest) {
         if (!closed) controller.enqueue(sse(obj))
       }
 
+      // 수집 citations(중복 url dedupe는 호출측 — 저장·SSE 전송 공용)
+      const citations: AiChatCitation[] = []
+      const seenUrls = new Set<string>()
+      const collectCitation = (c: AiChatCitation): boolean => {
+        if (!c || typeof c.url !== 'string' || !c.url || seenUrls.has(c.url)) return false
+        seenUrls.add(c.url)
+        citations.push(c)
+        return true
+      }
+
       try {
         const result = await provider.streamChat({
           apiKey: config.apiKey,
           model,
-          system: conversation.system_prompt ?? undefined,
+          system: systemForStream,
           turns,
+          tools: toolsOption,
           signal: req.signal,
           onDelta: (t) => enqueue({ delta: t }),
           onThinking: (t) => enqueue({ thinking: t }),
+          onCitation: (c) => {
+            if (collectCitation(c)) enqueue({ citation: c })
+          },
+          onToolStatus: (s) => enqueue({ toolStatus: s }),
         })
+
+        // 프로바이더가 result.citations로만 보고한 분도 병합(dedupe)
+        for (const c of result.citations ?? []) collectCitation(c)
+        const citationsForSave = citations.length > 0 ? citations : null
 
         let messageId = ''
         if (mode === 'regenerate' && regenTargetId) {
@@ -406,6 +483,7 @@ export async function POST(req: NextRequest) {
               stopped: result.stopped,
               error: null,
               feedback: null,
+              citations: citationsForSave,
             })
             .eq('id', regenTargetId)
             .eq('conversation_id', conversationId)
@@ -425,6 +503,7 @@ export async function POST(req: NextRequest) {
               prompt_tokens: result.usage.promptTokens,
               output_tokens: result.usage.outputTokens,
               stopped: result.stopped,
+              citations: citationsForSave,
             })
             .select('id')
             .single()

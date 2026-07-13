@@ -427,9 +427,12 @@ export interface AiChatConversation {
   model: string
   system_prompt: string | null
   pinned: boolean
+  project_id: string | null            // S3/152 — 대화-프로젝트 연결(ON DELETE SET NULL)
   created_at: string
   updated_at: string
   deleted_at: string | null
+  shared: boolean                      // S3/153 — admin 경계 내 공유 옵트인
+  share_token: string | null           // S3/153
 }
 
 export interface AiChatMessage {
@@ -447,6 +450,13 @@ export interface AiChatMessage {
   created_at: string
   feedback: -1 | 1 | null              // S2/151
   parent_message_id: string | null     // S2/151 — 편집분기
+  citations: AiChatCitation[] | null   // S3/152 — web_search 출처
+}
+
+export interface AiChatCitation {       // S3/152
+  url: string
+  title: string
+  snippet?: string
 }
 
 export interface AiChatAttachment {     // S2/151
@@ -459,6 +469,26 @@ export interface AiChatAttachment {     // S2/151
   mime: string
   size_bytes: number
   kind: 'image' | 'pdf' | 'document' | 'other'
+  created_at: string
+}
+
+export interface AiChatProject {        // S3/152
+  id: string
+  user_id: string
+  name: string
+  instructions: string | null
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+export interface AiChatProjectKnowledge {   // S3/152
+  id: string
+  project_id: string
+  content: string
+  embedding: string | null             // vector(768) — pg 직렬화 문자열, 앱은 직접 조작하지 않음
+  source: string | null
+  chunk_index: number
   created_at: string
 }
 

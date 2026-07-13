@@ -1,6 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildActiveThread, type ThreadMsg } from './thread.ts'
+import {
+  buildActiveThread,
+  getBranchGroups,
+  buildThreadForChoice,
+  type ThreadMsg,
+} from './thread.ts'
 
 // created_at asc 정렬 입력을 만들기 위한 헬퍼 (t = 정수 시퀀스)
 function msg(id: string, parent: string | null, t: number): ThreadMsg {
@@ -99,4 +104,137 @@ test('비멱등성: 편집이 포함된 축약본을 재적용하면 편집 메�
   const twice = buildActiveThread(once)
   // 재적용: u2p.parent(u2)가 축약본에 없어 skip → 편집 질문 u2p 소실 (비멱등 — 재적용 금지 근거)
   assert.deepEqual(ids(twice), ['u1', 'a1', 'a2p'])
+})
+
+// ── 세션 3 §5-5: getBranchGroups / buildThreadForChoice ──
+
+// mkeys(map) — 그룹 Map을 검증하기 쉬운 순수 객체로.
+function groupObj(map: Map<string, string[]>): Record<string, string[]> {
+  const out: Record<string, string[]> = {}
+  for (const [k, v] of map) out[k] = v
+  return out
+}
+
+test('getBranchGroups: 편집 없으면 빈 Map(그룹 크기1 제외)', () => {
+  const sorted = [msg('u1', null, 1), msg('a1', null, 2), msg('u2', null, 3)]
+  assert.deepEqual(groupObj(getBranchGroups(sorted)), {})
+})
+
+test('getBranchGroups: 단일 편집 그룹 [원본, 편집]', () => {
+  const sorted = [
+    msg('u1', null, 1),
+    msg('a1', null, 2),
+    msg('u2', null, 3),
+    msg('a2', null, 4),
+    msg('u2p', 'u2', 5),
+  ]
+  assert.deepEqual(groupObj(getBranchGroups(sorted)), { u2: ['u2', 'u2p'] })
+})
+
+test('getBranchGroups: 편집의 편집(중첩) → 루트 기준 단일 그룹', () => {
+  const sorted = [
+    msg('u2', null, 1),
+    msg('u2p', 'u2', 2),
+    msg('u2pp', 'u2p', 3),
+  ]
+  assert.deepEqual(groupObj(getBranchGroups(sorted)), { u2: ['u2', 'u2p', 'u2pp'] })
+})
+
+test('getBranchGroups: 다중 그룹 분리', () => {
+  const sorted = [
+    msg('u1', null, 1),
+    msg('u1p', 'u1', 2),
+    msg('u2', null, 3),
+    msg('u2p', 'u2', 4),
+    msg('u3', null, 5), // 편집 없음 → 미포함
+  ]
+  assert.deepEqual(groupObj(getBranchGroups(sorted)), {
+    u1: ['u1', 'u1p'],
+    u2: ['u2', 'u2p'],
+  })
+})
+
+test('불변식: buildThreadForChoice(sorted, {}) ≡ buildActiveThread(sorted)', () => {
+  const scenarios: ThreadMsg[][] = [
+    [msg('u1', null, 1), msg('a1', null, 2), msg('u2', null, 3), msg('a2', null, 4)],
+    [
+      msg('u1', null, 1),
+      msg('a1', null, 2),
+      msg('u2', null, 3),
+      msg('a2', null, 4),
+      msg('u3', null, 5),
+      msg('a3', null, 6),
+      msg('u2p', 'u2', 7),
+    ],
+    [msg('u1', null, 1), msg('a1', null, 2), msg('u1p', 'u1', 3)],
+    [
+      msg('u1', null, 1),
+      msg('a1', null, 2),
+      msg('u2', null, 3),
+      msg('a2', null, 4),
+      msg('u2p', 'u2', 5),
+      msg('a2p', null, 6),
+      msg('u3', null, 7),
+      msg('a3', null, 8),
+    ],
+    [
+      msg('u2', null, 1),
+      msg('u2p', 'u2', 2),
+      msg('u2pp', 'u2p', 3),
+    ],
+  ]
+  for (const s of scenarios) {
+    assert.deepEqual(ids(buildThreadForChoice(s, {})), ids(buildActiveThread(s)))
+  }
+})
+
+test('원본 버전 선택 시 과거 꼬리(a2 u3 a3) 복원 표시', () => {
+  const sorted = [
+    msg('u1', null, 1),
+    msg('a1', null, 2),
+    msg('u2', null, 3),
+    msg('a2', null, 4),
+    msg('u3', null, 5),
+    msg('a3', null, 6),
+    msg('u2p', 'u2', 7), // u2 편집 — 최신 활성은 [u1,a1,u2p]
+  ]
+  // 최신(기본)
+  assert.deepEqual(ids(buildThreadForChoice(sorted, {})), ['u1', 'a1', 'u2p'])
+  // 원본 u2 선택 → 과거 꼬리 복원
+  assert.deepEqual(ids(buildThreadForChoice(sorted, { u2: 'u2' })), [
+    'u1', 'a1', 'u2', 'a2', 'u3', 'a3',
+  ])
+})
+
+test('중간 버전 선택 + 그 분기 꼬리 복원 (skip 모드)', () => {
+  const sorted = [
+    msg('u1', null, 1),
+    msg('a1', null, 2),
+    msg('u2', null, 3),
+    msg('a2', null, 4),
+    msg('u2p', 'u2', 5),
+    msg('a2p', null, 6), // u2p의 응답
+    msg('u2pp', 'u2p', 7), // u2p를 다시 편집 → 최신
+  ]
+  // 최신(u2pp)
+  assert.deepEqual(ids(buildThreadForChoice(sorted, {})), ['u1', 'a1', 'u2pp'])
+  // 중간 u2p 선택 → u2p와 그 응답 a2p 복원, u2pp 제외
+  assert.deepEqual(ids(buildThreadForChoice(sorted, { u2: 'u2p' })), [
+    'u1', 'a1', 'u2p', 'a2p',
+  ])
+  // 원본 u2 선택 → u2와 그 응답 a2 복원
+  assert.deepEqual(ids(buildThreadForChoice(sorted, { u2: 'u2' })), [
+    'u1', 'a1', 'u2', 'a2',
+  ])
+})
+
+test('무효 choice(그룹에 없는 versionId)는 무시 → 최신 폴백', () => {
+  const sorted = [
+    msg('u1', null, 1),
+    msg('a1', null, 2),
+    msg('u2', null, 3),
+    msg('a2', null, 4),
+    msg('u2p', 'u2', 5),
+  ]
+  assert.deepEqual(ids(buildThreadForChoice(sorted, { u2: 'nonexistent' })), ['u1', 'a1', 'u2p'])
 })

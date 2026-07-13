@@ -28,6 +28,12 @@ interface MessageListProps {
   onRegenerate: () => void
   onEditSubmit: (messageId: string, content: string, attachmentIds: string[]) => void
   onFeedback: (messageId: string, value: 1 | -1 | null) => void
+  onOpenArtifact: (identity: string) => void
+  onBranchNav: (rootId: string, versionId: string) => void
+  /** S3 §5-5 — 과거 분기 열람 중이면 재생성·편집 액션 숨김. */
+  locked: boolean
+  /** S3 §4-3 — 스트림 중 web_search 진행 인디케이터. */
+  webSearching: boolean
 }
 
 export default function MessageList({
@@ -46,6 +52,10 @@ export default function MessageList({
   onRegenerate,
   onEditSubmit,
   onFeedback,
+  onOpenArtifact,
+  onBranchNav,
+  locked,
+  webSearching,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
@@ -167,9 +177,11 @@ export default function MessageList({
               message={m}
               isLastAssistant={m.role === 'assistant' && m.id === lastAssistantId}
               thinkingSupported={thinkingSupported}
-              onRegenerate={onRegenerate}
-              onEditSubmit={onEditSubmit}
+              onRegenerate={locked ? undefined : onRegenerate}
+              onEditSubmit={locked ? undefined : onEditSubmit}
               onFeedback={onFeedback}
+              onOpenArtifact={onOpenArtifact}
+              onBranchNav={onBranchNav}
             />
           ))
         })()}
@@ -180,6 +192,12 @@ export default function MessageList({
             thinkingText={thinkingText}
             thinkingSupported={thinkingSupported}
           />
+        )}
+        {webSearching && (
+          <div className="ai-chat-toolstatus" role="status" aria-live="polite">
+            <AXDotLoader size={4} color="var(--brand)" />
+            웹 검색 중…
+          </div>
         )}
         <div ref={endRef} />
         {showJump && (

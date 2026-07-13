@@ -1,4 +1,4 @@
-import type { AiChatProviderId } from '@/types/database'
+import type { AiChatProviderId, AiChatCitation } from '@/types/database'
 
 // 공통 타입 (서버/클라 공용, 순수 타입 — 04-implementation-contract §4)
 // 확정 스타일 = 콜백+Promise (AsyncIterable 금지). 확장은 옵션 필드 추가로만.
@@ -26,6 +26,10 @@ export interface ChatUsage {
   totalTokens: number
 }
 
+export interface ChatToolsOption {
+  webSearch?: boolean // S3 — v1은 web_search만
+}
+
 export interface StreamChatParams {
   apiKey: string
   model: string
@@ -33,8 +37,11 @@ export interface StreamChatParams {
   turns: ChatTurn[] // 마지막 원소 = 이번 사용자 발화
   maxOutputTokens?: number // 미지정 시 capabilities.defaultMaxOutputTokens
   signal: AbortSignal // 필수 — Stop/클라 이탈 전파
+  tools?: ChatToolsOption // S3 — capabilities.tools=false 프로바이더에 지정 시 서버 400
   onDelta: (text: string) => void
   onThinking?: (text: string) => void // Claude summarized thinking 전용
+  onCitation?: (c: AiChatCitation) => void // S3 — web_search 출처(중복 url dedupe는 호출측)
+  onToolStatus?: (s: 'searching' | 'done') => void // S3 — "웹 검색 중…" 인디케이터
 }
 
 export interface StreamChatResult {
@@ -42,6 +49,7 @@ export interface StreamChatResult {
   thinking: string | null
   usage: ChatUsage // 미보고 시 0
   stopped: boolean // signal abort로 중단됨
+  citations?: AiChatCitation[] // S3 — 수집분(저장용, url dedupe)
 }
 
 // capabilities는 세션1부터 4필드 전부 선언(04 §4 확정) — vision·tools는 선언만, 소비는 세션2·3
