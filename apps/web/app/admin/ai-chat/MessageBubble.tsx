@@ -7,6 +7,7 @@ import {
   Square,
   AlertCircle,
   ChevronRight,
+  ChevronLeft,
   Pencil,
   RotateCcw,
   ThumbsUp,
@@ -16,6 +17,8 @@ import {
 } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import MarkdownMessage from './MarkdownMessage'
+import CitationCards from './CitationCards'
+import { extractArtifacts } from '@/lib/ai-chat/artifacts'
 import type { ChatMessageView, AttachmentView } from './AiChatClient'
 
 /** 스트리밍 중 임시 어시스턴트 말풍선 (DB 확정 전). */
@@ -39,6 +42,10 @@ interface MessageBubbleProps {
   onRegenerate?: () => void
   onEditSubmit?: (messageId: string, content: string, attachmentIds: string[]) => void
   onFeedback?: (messageId: string, value: 1 | -1 | null) => void
+  /** S3 §2-3 — 본문 내 artifact 승격 펜스를 칩으로 치환·클릭 시 패널 오픈. */
+  onOpenArtifact?: (identity: string) => void
+  /** S3 §5-5 — user 버블 ‹k/n› 분기 전환(대상 versionId 전달). */
+  onBranchNav?: (rootId: string, versionId: string) => void
 }
 
 function isPersisted(m: BubbleMessage): m is ChatMessageView {
@@ -71,6 +78,8 @@ export default function MessageBubble({
   onRegenerate,
   onEditSubmit,
   onFeedback,
+  onOpenArtifact,
+  onBranchNav,
 }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -177,6 +186,38 @@ export default function MessageBubble({
               )}
             </div>
           )}
+
+          {persisted && !isEditing && message.branch && message.branch.count >= 2 && onBranchNav && (
+            <div className="ai-chat-branch-nav" role="group" aria-label="편집 분기 탐색">
+              <button
+                type="button"
+                className="ai-chat-branch-btn"
+                onClick={() => {
+                  const b = message.branch!
+                  if (b.index > 1) onBranchNav(b.rootId, b.versions[b.index - 2])
+                }}
+                disabled={message.branch.index <= 1}
+                aria-label="이전 분기"
+              >
+                <ChevronLeft size={13} />
+              </button>
+              <span className="ai-chat-branch-count">
+                {message.branch.index}/{message.branch.count}
+              </span>
+              <button
+                type="button"
+                className="ai-chat-branch-btn"
+                onClick={() => {
+                  const b = message.branch!
+                  if (b.index < b.count) onBranchNav(b.rootId, b.versions[b.index])
+                }}
+                disabled={message.branch.index >= message.branch.count}
+                aria-label="다음 분기"
+              >
+                <ChevronRight size={13} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -184,6 +225,9 @@ export default function MessageBubble({
 
   // ── assistant 버블 ──
   const feedback = persisted ? message.feedback : null
+  const citations = persisted ? message.citations : null
+  // 스트리밍 중 파싱 금지(§2-3) — 영속 assistant에서만 artifact 승격 펜스 추출
+  const artifacts = persisted && !isStreaming ? extractArtifacts(content) : undefined
   return (
     <div className="ai-chat-row" data-role="assistant">
       <div className="ai-chat-turn">
@@ -206,7 +250,7 @@ export default function MessageBubble({
           )}
 
           {content.length > 0 ? (
-            <MarkdownMessage content={content} />
+            <MarkdownMessage content={content} artifacts={artifacts} onOpenArtifact={onOpenArtifact} />
           ) : isStreaming && !error ? (
             <AXDotLoader size={5} color="var(--text-muted)" />
           ) : null}
@@ -222,6 +266,8 @@ export default function MessageBubble({
             </div>
           )}
         </div>
+
+        {citations && citations.length > 0 && <CitationCards citations={citations} />}
 
         {!isStreaming && (
           <div className="ai-chat-msg-meta">

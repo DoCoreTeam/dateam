@@ -1,8 +1,19 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { TrendingUp, Activity, Database, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { TrendingUp, Activity, Database, AlertTriangle, ChevronLeft, ChevronRight, DollarSign } from 'lucide-react'
+import { estimateCostUsd } from '@/lib/ai-chat/pricing'
+
+// 세션3 §5-4 — provider·model별 월 토큰 합계 행(서버 page.tsx에서 집계 후 주입). provider null = legacy Gemini.
+export interface ProviderModelRow {
+  provider: string | null
+  model: string
+  prompt_tokens: number
+  output_tokens: number
+  total_tokens: number
+  call_count: number
+}
 
 interface Summary {
   today_tokens: number
@@ -20,7 +31,20 @@ interface LogRow { id: string; created_at: string; user_name: string; feature_la
 
 const fmt = (n: number) => n.toLocaleString('ko-KR')
 
-export default function AiUsageDashboard() {
+// provider 표시 라벨 — null(=legacy Gemini) 포함
+const PROVIDER_LABELS: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', openai: 'OpenAI' }
+const providerLabel = (p: string | null) => (p == null ? 'legacy Gemini' : PROVIDER_LABELS[p] ?? p)
+const providerKey = (p: string | null) => p ?? 'legacy'
+
+// 추정 비용(USD) 표기 — 미등록 모델은 null → '-'. 극소액은 '<$0.01'.
+const fmtUsd = (c: number | null) => (c == null ? '-' : c === 0 ? '$0.00' : c < 0.01 ? '<$0.01' : `$${c.toFixed(2)}`)
+
+interface AiUsageDashboardProps {
+  providerModelRows: ProviderModelRow[]
+  monthLabel: string
+}
+
+export default function AiUsageDashboard({ providerModelRows, monthLabel }: AiUsageDashboardProps) {
   const [summary, setSummary] = useState<Summary | null>(null)
   const [features, setFeatures] = useState<FeatureRow[]>([])
   const [users, setUsers] = useState<UserRow[]>([])
@@ -30,6 +54,25 @@ export default function AiUsageDashboard() {
   const [logPage, setLogPage] = useState(1)
   const [days, setDays] = useState(30)
   const [loading, setLoading] = useState(true)
+  const [providerFilter, setProviderFilter] = useState<string>('all') // 'all' | providerKey
+
+  // provider 필터 옵션(행에 등장한 provider만) + 선택 필터 적용
+  const providerOptions = useMemo(() => {
+    const seen = new Map<string, string>() // key → label
+    for (const r of providerModelRows) seen.set(providerKey(r.provider), providerLabel(r.provider))
+    return Array.from(seen, ([key, label]) => ({ key, label }))
+  }, [providerModelRows])
+
+  const filteredRows = useMemo(
+    () => (providerFilter === 'all' ? providerModelRows : providerModelRows.filter((r) => providerKey(r.provider) === providerFilter)),
+    [providerModelRows, providerFilter],
+  )
+
+  // 추정 비용 총합(등록 모델만 합산)
+  const totalCostUsd = useMemo(
+    () => filteredRows.reduce((sum, r) => sum + (estimateCostUsd(r.model, r.prompt_tokens, r.output_tokens) ?? 0), 0),
+    [filteredRows],
+  )
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
@@ -181,6 +224,61 @@ export default function AiUsageDashboard() {
                 <td data-label="마지막 사용" className="card-hide">{new Date(u.last_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* provider·model 월 비용 테이블 (세션3 §5-4) */}
+      <div className="card" style={{ padding: 'var(--space-6)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+          <h2 className="tape-title" style={{ margin: 0 }}>프로바이더·모델별 비용 ({monthLabel})</h2>
+          <select
+            value={providerFilter}
+            onChange={(e) => setProviderFilter(e.target.value)}
+            aria-label="프로바이더 필터"
+            style={{ padding: 'var(--space-2) var(--space-3)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', color: 'var(--text)', background: 'var(--surface-bg)' }}
+          >
+            <option value="all">전체 프로바이더</option>
+            {providerOptions.map((o) => (
+              <option key={o.key} value={o.key}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* 추정 비용 총합 (강조 — --fs-price) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', margin: 'var(--space-4) 0 var(--space-2)' }}>
+          <DollarSign size={16} color="var(--brand)" />
+          <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', fontWeight: 500 }}>이번 달 추정 비용</span>
+          <span style={{ fontSize: 'var(--fs-price)', fontWeight: 700, color: 'var(--text)' }}>{fmtUsd(totalCostUsd)}</span>
+        </div>
+
+        <table className="table-base table-card">
+          <thead>
+            <tr>
+              <th>프로바이더</th>
+              <th>모델</th>
+              <th>프롬프트</th>
+              <th>출력</th>
+              <th>합계</th>
+              <th>추정 비용</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredRows.length === 0 ? (
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-8)' }}>데이터 없음</td></tr>
+            ) : filteredRows.map((r) => {
+              const cost = estimateCostUsd(r.model, r.prompt_tokens, r.output_tokens)
+              return (
+                <tr key={`${providerKey(r.provider)}::${r.model}`}>
+                  <td className="card-header"><span style={{ fontWeight: 600 }}>{providerLabel(r.provider)}</span></td>
+                  <td data-label="모델">{r.model}</td>
+                  <td data-label="프롬프트" className="card-hide">{fmt(r.prompt_tokens)}</td>
+                  <td data-label="출력" className="card-hide">{fmt(r.output_tokens)}</td>
+                  <td data-label="합계" style={{ fontWeight: 600, color: 'var(--brand)' }}>{fmt(r.total_tokens)}</td>
+                  <td data-label="추정 비용" style={{ fontWeight: 600, color: cost == null ? 'var(--text-faint)' : 'var(--text)' }}>{fmtUsd(cost)}</td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

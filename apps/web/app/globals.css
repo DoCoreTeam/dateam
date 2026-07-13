@@ -8106,3 +8106,388 @@ label.intake-tool-btn {
   }
   .ai-chat-bubble { max-width: 94%; }
 }
+
+/* =============================================================================
+   AI 채팅 세션3 — Artifacts 패널 / 칩 / 출처 카드 (모두 디자인 토큰 기반)
+   ============================================================================= */
+
+/* --- Artifact 우측 패널 --- */
+.artifact-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--color-surface);
+  border-left: var(--hairline) solid var(--border-color);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+}
+.artifact-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--hairline) solid var(--border-light);
+}
+.artifact-panel-title {
+  margin: 0;
+  font-size: var(--fs-md);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.artifact-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  padding: var(--space-2);
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.artifact-close-btn:hover { background: var(--surface-muted); color: var(--text); }
+.artifact-close-btn:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: 2px; }
+
+/* 탭 */
+.artifact-tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: 0 var(--space-4);
+  border-bottom: var(--hairline) solid var(--border-light);
+}
+.artifact-tab {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-bottom: var(--border-w-2) solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.artifact-tab:hover { color: var(--text); }
+.artifact-tab.is-active { color: var(--brand); border-bottom-color: var(--brand); }
+.artifact-tab:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: -2px; }
+
+/* 툴바 (버전 + 복사/다운로드) */
+.artifact-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: var(--hairline) solid var(--border-light);
+  background: var(--surface-bg);
+}
+.artifact-versions { display: inline-flex; flex-wrap: wrap; gap: var(--space-1); }
+.artifact-version-btn {
+  min-height: 32px;
+  padding: var(--space-1) var(--space-3);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: 9999px;
+  background: var(--color-surface);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.artifact-version-btn:hover { color: var(--text); border-color: var(--text-faint); }
+.artifact-version-btn.is-active {
+  background: var(--brand);
+  color: var(--brand-fg);
+  border-color: var(--brand);
+}
+.artifact-toolbar-actions { display: inline-flex; gap: var(--space-2); margin-left: auto; }
+.artifact-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+.artifact-action-btn:hover { background: var(--surface-muted); border-color: var(--text-faint); }
+.artifact-action-btn:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: 2px; }
+
+/* 본문 영역 */
+.artifact-panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.artifact-scroll { flex: 1; min-height: 0; overflow: auto; }
+.artifact-md-preview { padding: var(--space-4); }
+.artifact-codeview { padding: var(--space-3) var(--space-4); }
+.artifact-codeview pre {
+  margin: 0;
+  overflow-x: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--text);
+}
+.artifact-codeview code { font-family: var(--font-mono, monospace); }
+
+/* HTML/SVG 격리 iframe (§2-4 — 토큰 보더) */
+.artifact-sandbox {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: var(--hairline) solid var(--border-color);
+  background: var(--color-surface);
+}
+
+/* 모바일: 전면 오버레이 (JS 아님 — 미디어쿼리) */
+@media (max-width: 767px) {
+  .artifact-panel {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    border-left: none;
+  }
+}
+
+/* --- 메시지 내 artifact 칩 --- */
+.artifact-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  max-width: 100%;
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-w-2) solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--surface-bg);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.artifact-chip:hover {
+  border-color: var(--brand);
+  background: var(--surface-muted);
+  box-shadow: var(--shadow-sm);
+}
+.artifact-chip:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: 2px; }
+.artifact-chip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.artifact-chip-body { display: flex; flex-direction: column; min-width: 0; }
+.artifact-chip-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.artifact-chip-type {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* --- 출처(citation) 카드 --- */
+.citation-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.citation-card {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+  color: var(--text);
+  text-decoration: none;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+.citation-card:hover { background: var(--surface-muted); border-color: var(--text-faint); }
+.citation-card:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: 2px; }
+.citation-card-idx {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+}
+.citation-card-body { display: flex; flex-direction: column; min-width: 0; }
+.citation-card-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.citation-card-domain {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+
+/* =============================================================================
+   AI 채팅 세션3 — 허브 배선(우측 패널 분할 · 헤더 액션 · 공유 · 분기 · 웹검색)
+   ============================================================================= */
+
+/* 데스크탑: artifact 오픈 시 우측 ~40% 분할(모바일은 패널이 fixed 오버레이라 열 변경 불필요) */
+@media (min-width: 768px) {
+  .ai-chat-layout[data-artifact='true'] {
+    grid-template-columns: 288px minmax(0, 1fr) minmax(320px, 40%);
+  }
+}
+
+/* 헤더 우측 액션 클러스터(프로젝트·공유·내보내기·설정) */
+.ai-chat-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.ai-chat-project-select {
+  width: auto;
+  max-width: 40vw;
+  font-size: var(--fs-xs);
+  padding: var(--space-1) var(--space-2);
+}
+
+/* 공유 링크 바 */
+.ai-chat-share-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--hairline) solid var(--border-light);
+  background: var(--success-bg);
+}
+.ai-chat-share-url {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* 과거 분기 열람 배너(topbar와 메시지 사이) */
+.ai-chat-branch-banner {
+  flex-shrink: 0;
+  margin: var(--space-2) var(--space-3) 0;
+}
+
+/* 웹 검색 진행 인디케이터 */
+.ai-chat-toolstatus {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: flex-start;
+  padding: var(--space-2) var(--space-3);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* 웹 검색 토글 활성(지구본 버튼 — .ai-chat-attach-btn 확장) */
+.ai-chat-attach-btn[data-active='true'] {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+/* user 버블 편집분기 네비 ‹ k/n › */
+.ai-chat-branch-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  color: var(--text-faint);
+}
+.ai-chat-branch-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.ai-chat-branch-btn:hover:not(:disabled) { background: var(--surface-muted); color: var(--text); }
+.ai-chat-branch-btn:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: 1px; }
+.ai-chat-branch-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.ai-chat-branch-count {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 2.5em;
+  text-align: center;
+}
+
+/* 사이드바 프로젝트 링크 */
+.ai-chat-projects-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.ai-chat-projects-link:hover { background: var(--surface-muted); color: var(--text); }
+.ai-chat-projects-link:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: -2px; }

@@ -1,6 +1,7 @@
 // Gemini 임베딩 — text-embedding-004 (768차원)
 // 메모(daily_logs.entry_type='note') 의미 클러스터링용
 import { logTokenUsage } from '@/lib/token-logger'
+import type { AiFeature } from '@/types/database'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 const EMBED_MODEL = 'gemini-embedding-001'
@@ -13,14 +14,22 @@ interface EmbedResult {
 
 /**
  * 단일 텍스트 임베딩 생성. 실패 시 null 반환(메모 저장 자체는 막지 않음).
+ * opts 기본값(taskType='CLUSTERING', feature='memo-embedding')은 기존 메모 경로 동작 불변(회귀 0).
  */
 export async function embedText(
   text: string,
   apiKey: string,
   userId?: string | null,
+  opts?: {
+    taskType?: 'CLUSTERING' | 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY'
+    feature?: AiFeature
+  },
 ): Promise<EmbedResult | null> {
   const trimmed = text.trim()
   if (!trimmed || !apiKey) return null
+
+  const taskType = opts?.taskType ?? 'CLUSTERING'
+  const feature: AiFeature = opts?.feature ?? 'memo-embedding'
 
   try {
     const url = `${GEMINI_API_BASE}/models/${EMBED_MODEL}:embedContent`
@@ -30,7 +39,7 @@ export async function embedText(
       body: JSON.stringify({
         model: `models/${EMBED_MODEL}`,
         content: { parts: [{ text: trimmed.slice(0, 2000) }] },
-        taskType: 'CLUSTERING',
+        taskType,
         outputDimensionality: EMBED_DIM,
       }),
       cache: 'no-store',
@@ -47,7 +56,7 @@ export async function embedText(
     const estTokens = Math.ceil(trimmed.length / 4)
     logTokenUsage({
       userId: userId ?? null,
-      feature: 'memo-embedding',
+      feature,
       model: EMBED_MODEL,
       promptTokens: estTokens,
       outputTokens: 0,

@@ -1,10 +1,16 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Menu, Plus, Settings2 } from 'lucide-react'
-import type { AiChatConversation, AiChatMessage, AiChatProviderId } from '@/types/database'
+import { Menu, Plus, Settings2, Share2, Download, Copy, Check, ArrowLeftToLine } from 'lucide-react'
+import type {
+  AiChatConversation,
+  AiChatMessage,
+  AiChatProviderId,
+  AiChatProject,
+} from '@/types/database'
 import { useSseChat, type StreamBody } from '@/lib/ai-chat/use-sse-chat'
+import { buildArtifactVersions } from '@/lib/ai-chat/artifacts'
 import {
   createConversation,
   listConversations,
@@ -15,11 +21,17 @@ import {
   softDeleteConversation,
   restoreConversation,
   setMessageFeedback,
+  listProjects,
+  setConversationProject,
+  toggleShare,
+  type BranchMeta,
 } from './actions'
 import ConversationSidebar from './ConversationSidebar'
 import MessageList from './MessageList'
 import Composer from './Composer'
 import SystemPromptModal from './SystemPromptModal'
+import ArtifactPanel, { type ArtifactVersionEntry } from './ArtifactPanel'
+import NbBadge from '@/components/ui/nb/NbBadge'
 import type { StreamDraft } from './MessageBubble'
 
 // ── 클라이언트 공용 뷰 타입 (API 키는 서버 전용 — 클라엔 라벨/모델만) ──
@@ -32,6 +44,7 @@ export interface ProviderView {
 export interface ProviderCaps {
   vision: boolean
   thinking: boolean
+  tools: boolean
 }
 
 /** getMessages items의 첨부 뷰 (서명URL은 조회 시마다 신규 발급). */
@@ -44,11 +57,12 @@ export interface AttachmentView {
   signedUrl: string
 }
 
-/** 화면용 메시지 = 영속 메시지 + 세션2 필드(feedback·parent·attachments). */
+/** 화면용 메시지 = 영속 메시지 + 세션2 필드(feedback·parent·attachments) + 세션3 분기 메타. */
 export interface ChatMessageView extends AiChatMessage {
   feedback: -1 | 1 | null
   parent_message_id: string | null
   attachments: AttachmentView[]
+  branch?: BranchMeta
 }
 
 export const PROVIDER_LABELS: Record<AiChatProviderId, string> = {
@@ -59,7 +73,12 @@ export const PROVIDER_LABELS: Record<AiChatProviderId, string> = {
 
 // 서버가 세션2 필드를 아직 실을 수도/안 실을 수도 있어 관대하게 승격(병행 개발 안전).
 type RawMessage = AiChatMessage &
-  Partial<{ feedback: -1 | 1 | null; parent_message_id: string | null; attachments: AttachmentView[] }>
+  Partial<{
+    feedback: -1 | 1 | null
+    parent_message_id: string | null
+    attachments: AttachmentView[]
+    branch: BranchMeta
+  }>
 
 function toView(m: AiChatMessage): ChatMessageView {
   const r = m as RawMessage
@@ -68,7 +87,23 @@ function toView(m: AiChatMessage): ChatMessageView {
     feedback: r.feedback ?? null,
     parent_message_id: r.parent_message_id ?? null,
     attachments: r.attachments ?? [],
+    branch: r.branch,
   }
+}
+
+// URL `b=` ↔ choices(rootId→versionId) 직렬화 (S3 §5-5). rootId/versionId=UUID → '.'·',' 안전.
+function choicesToParam(ch: Record<string, string>): string {
+  return Object.entries(ch)
+    .map(([root, ver]) => `${root}.${ver}`)
+    .join(',')
+}
+function parseBranchParam(b: string): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const pair of b.split(',')) {
+    const dot = pair.indexOf('.')
+    if (dot > 0) out[pair.slice(0, dot)] = pair.slice(dot + 1)
+  }
+  return out
 }
 
 interface AiChatClientProps {
@@ -120,6 +155,14 @@ export default function AiChatClient({
     : providers[0] ?? null
   const [draftProvider, setDraftProvider] = useState<ProviderView | null>(initialDraft)
 
+  // ── 세션3 허브 상태 ──
+  const [webSearch, setWebSearch] = useState(false)
+  const [toolSearching, setToolSearching] = useState(false)
+  const [activeArtifact, setActiveArtifact] = useState<{ identity: string; versionIndex: number } | null>(null)
+  const [choices, setChoices] = useState<Record<string, string>>({})
+  const [projects, setProjects] = useState<AiChatProject[]>([])
+  const [shareCopied, setShareCopied] = useState(false)
+
   const activeSend = useRef<{ done: boolean } | null>(null)
   const deleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -129,20 +172,72 @@ export default function AiChatClient({
     }
   }, [])
 
+  // 프로젝트 목록 1회 로드(헤더 select·사이드바 뱃지 공용)
+  useEffect(() => {
+    listProjects().then((r) => {
+      if (r.ok && r.items) setProjects(r.items)
+    })
+  }, [])
+
+  // 최초 진입 시 URL의 b=(열람 분기) 복원 — 활성 스레드로 로드된 뒤 choices 반영해 재조회
+  useEffect(() => {
+    if (!initialConversationId) return
+    const b = new URLSearchParams(window.location.search).get('b')
+    const parsed = b ? parseBranchParam(b) : {}
+    if (Object.keys(parsed).length > 0) {
+      setChoices(parsed)
+      void loadMessagesWithChoices(initialConversationId, parsed)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const selectedConv = conversations.find((c) => c.id === selectedId) ?? null
   const curProvider: AiChatProviderId | null = selectedConv?.provider ?? draftProvider?.id ?? null
   const curModel: string | null = selectedConv?.model ?? draftProvider?.model ?? null
   const canCreate = providers.length > 0
   const visionSupported = curProvider ? capabilities[curProvider].vision : false
   const thinkingSupported = curProvider ? capabilities[curProvider].thinking : false
+  const toolsSupported = curProvider ? capabilities[curProvider].tools : false
+
+  // 과거(비활성) 분기 열람 중 = 표시 버전이 그룹 최신이 아님(활성 스레드는 index===count 불변).
+  const viewingPast = messages.some((m) => m.branch && m.branch.index < m.branch.count)
+
+  // artifact 버전 맵 — 영속 assistant 메시지에서만 파생(스트리밍 중 파싱 금지, §2-3). identity별 버전 시퀀스.
+  const artifactVersions = useMemo(() => {
+    const asst = messages
+      .filter((m) => m.role === 'assistant')
+      .map((m) => ({ id: m.id, content: m.content, createdAt: m.created_at }))
+    return buildArtifactVersions(asst)
+  }, [messages])
+  const activeArtifactVersions: ArtifactVersionEntry[] | null = activeArtifact
+    ? artifactVersions.get(activeArtifact.identity) ?? null
+    : null
+
+  const shareToken = selectedConv?.share_token ?? null
+  const isShared = !!selectedConv?.shared && !!shareToken
+  const shareUrl = isShared ? `/admin/ai-chat/shared/${shareToken}` : null
 
   // `messages`는 항상 "활성 스레드"를 직접 보유한다(불변식):
   //  - 서버(getMessages)가 이미 buildActiveThread 적용본을 반환 → 그대로 사용(재적용 금지: 재적용 시
   //    편집 메시지의 parent가 이미 절단돼 idx<0으로 skip되어 편집 질문이 사라짐 — 이중적용 버그).
   //  - 낙관적 편집은 편집 대상 인덱스에서 직접 절단해 불변식을 유지(handleEditSubmit).
 
-  function updateUrl(id: string | null) {
-    router.replace(id ? `/admin/ai-chat?c=${id}` : '/admin/ai-chat', { scroll: false })
+  function updateUrl(id: string | null, ch: Record<string, string> = {}) {
+    const params = new URLSearchParams()
+    if (id) params.set('c', id)
+    const b = choicesToParam(ch)
+    if (b) params.set('b', b)
+    const qs = params.toString()
+    router.replace(qs ? `/admin/ai-chat?${qs}` : '/admin/ai-chat', { scroll: false })
+  }
+
+  // 선택 버전(choices) 기준 열람 스레드 조회 — 분기 전환·URL 복원 공용
+  async function loadMessagesWithChoices(id: string, ch: Record<string, string>) {
+    const r = await getMessages({ conversationId: id, choices: ch })
+    if (r.ok) {
+      setMessages((r.items ?? []).map(toView))
+      setMsgCursor(r.nextCursor ?? null)
+    }
   }
 
   async function refreshConversations() {
@@ -181,6 +276,8 @@ export default function AiChatClient({
     setSidebarOpen(false)
     if (id === selectedId) return
     setSelectedId(id)
+    setChoices({})
+    setActiveArtifact(null)
     updateUrl(id)
     setStreamDraft(null)
     loadMessages(id)
@@ -196,6 +293,8 @@ export default function AiChatClient({
     setMsgCursor(null)
     setStreamDraft(null)
     setMsgError(null)
+    setChoices({})
+    setActiveArtifact(null)
     updateUrl(null)
     setSidebarOpen(false)
   }
@@ -308,6 +407,7 @@ export default function AiChatClient({
       created_at: new Date().toISOString(),
       feedback: null,
       parent_message_id: parentId,
+      citations: null,
       attachments: [],
     }
   }
@@ -332,6 +432,7 @@ export default function AiChatClient({
       created_at: new Date().toISOString(),
       feedback: null,
       parent_message_id: null,
+      citations: null,
       attachments: [],
     }
   }
@@ -344,6 +445,7 @@ export default function AiChatClient({
   ) {
     const convId = body.conversationId
     setStreamDraft({ role: 'assistant', content: '', thinking: null, streaming: true })
+    setToolSearching(false)
     const token = { done: false }
     activeSend.current = token
 
@@ -356,9 +458,14 @@ export default function AiChatClient({
         if (token.done) return
         setStreamDraft((d) => (d ? { ...d, thinking: (d.thinking ?? '') + t } : d))
       },
+      onToolStatus: (s) => {
+        if (token.done) return
+        setToolSearching(s === 'searching')
+      },
       onDone: () => {
         if (token.done) return
         token.done = true
+        setToolSearching(false)
         if (reconcile === 'append') {
           setStreamDraft((d) => {
             if (d) {
@@ -382,6 +489,7 @@ export default function AiChatClient({
       onError: (msg) => {
         if (token.done) return
         token.done = true
+        setToolSearching(false)
         if (reconcile === 'reload') {
           // 재생성/편집 실패 — 서버가 이전 내용을 보존(재생성)하거나 error row를 남긴다(편집).
           // 재조회로 서버 진실을 복원(§5-1 "이전 내용 복원"). 낙관적으로 제거/절단한 상태를 되돌린다.
@@ -430,6 +538,7 @@ export default function AiChatClient({
         mode: 'send',
         content,
         attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined,
+        tools: webSearch && toolsSupported ? { webSearch: true } : undefined,
       },
       'append',
       { provider, model },
@@ -509,8 +618,77 @@ export default function AiChatClient({
     setConversations((prev) => prev.map((c) => (c.id === selectedId ? { ...c, system_prompt: value } : c)))
   }
 
+  // ── S3 §5-5: 분기 전환 / 최신 복귀 ──
+  async function handleBranchNav(rootId: string, versionId: string) {
+    if (!selectedId || sse.streaming) return
+    const next = { ...choices, [rootId]: versionId }
+    setChoices(next)
+    setActiveArtifact(null)
+    updateUrl(selectedId, next)
+    await loadMessagesWithChoices(selectedId, next)
+  }
+
+  async function backToLatest() {
+    if (!selectedId) return
+    setChoices({})
+    setActiveArtifact(null)
+    updateUrl(selectedId, {})
+    await loadMessagesWithChoices(selectedId, {})
+  }
+
+  // ── S3 §3: 대화-프로젝트 연결 ──
+  async function handleSetProject(projectId: string | null) {
+    if (!selectedId) return
+    setConversations((prev) =>
+      prev.map((c) => (c.id === selectedId ? { ...c, project_id: projectId } : c)),
+    )
+    const r = await setConversationProject(selectedId, projectId)
+    if (!r.ok) refreshConversations()
+  }
+
+  // ── S3 §5-2: 공유 옵트인 토글 ──
+  async function handleToggleShare() {
+    if (!selectedId) return
+    const turnOn = !isShared
+    const r = await toggleShare(selectedId, turnOn)
+    if (r.ok) {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedId ? { ...c, shared: turnOn, share_token: r.token ?? null } : c,
+        ),
+      )
+    } else {
+      refreshConversations()
+    }
+  }
+
+  function copyShareUrl() {
+    if (!shareUrl) return
+    const abs = `${window.location.origin}${shareUrl}`
+    navigator.clipboard.writeText(abs).then(
+      () => {
+        setShareCopied(true)
+        setTimeout(() => setShareCopied(false), 1500)
+      },
+      () => {},
+    )
+  }
+
+  // ── S3 §5-1: Markdown 내보내기 (첨부 다운로드) ──
+  function handleExport() {
+    if (!selectedId) return
+    window.open(`/api/admin/ai-chat/export?c=${selectedId}`, '_blank', 'noopener,noreferrer')
+  }
+
+  // ── S3 §2-3: artifact 패널 오픈(최신 버전으로) ──
+  function handleOpenArtifact(identity: string) {
+    const versions = artifactVersions.get(identity)
+    const last = versions ? versions.length - 1 : 0
+    setActiveArtifact({ identity, versionIndex: Math.max(0, last) })
+  }
+
   return (
-    <div className="ai-chat-layout">
+    <div className="ai-chat-layout" data-artifact={activeArtifactVersions ? 'true' : undefined}>
       {sidebarOpen && (
         <div className="ai-chat-drawer-backdrop" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
       )}
@@ -518,6 +696,7 @@ export default function AiChatClient({
       <aside className="ai-chat-panel ai-chat-sidebar-panel" data-open={sidebarOpen} aria-label="대화 목록">
         <ConversationSidebar
           conversations={conversations}
+          projects={projects}
           selectedId={selectedId}
           canCreate={canCreate}
           hasMore={!!convCursor}
@@ -545,16 +724,52 @@ export default function AiChatClient({
           </button>
           <span className="ai-chat-topbar-title">{selectedConv?.title ?? '새 대화'}</span>
           {selectedConv && (
-            <button
-              type="button"
-              className="ai-chat-icon-btn ai-chat-settings-btn"
-              onClick={() => setSystemPromptOpen(true)}
-              aria-label="시스템 프롬프트 설정"
-              title="시스템 프롬프트"
-            >
-              <Settings2 size={18} />
-              {selectedConv.system_prompt && <span className="ai-chat-settings-dot" aria-hidden="true" />}
-            </button>
+            <div className="ai-chat-topbar-actions">
+              <select
+                className="input-field ai-chat-project-select"
+                value={selectedConv.project_id ?? ''}
+                onChange={(e) => handleSetProject(e.target.value || null)}
+                aria-label="프로젝트 연결"
+                title="프로젝트 연결"
+              >
+                <option value="">프로젝트 없음</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="ai-chat-icon-btn"
+                data-active={isShared}
+                onClick={handleToggleShare}
+                aria-label={isShared ? '공유 해제' : '공유하기'}
+                aria-pressed={isShared}
+                title={isShared ? '공유 해제' : '공유하기'}
+              >
+                <Share2 size={18} />
+              </button>
+              <button
+                type="button"
+                className="ai-chat-icon-btn"
+                onClick={handleExport}
+                aria-label="내보내기 (.md)"
+                title="내보내기 (.md)"
+              >
+                <Download size={18} />
+              </button>
+              <button
+                type="button"
+                className="ai-chat-icon-btn ai-chat-settings-btn"
+                onClick={() => setSystemPromptOpen(true)}
+                aria-label="시스템 프롬프트 설정"
+                title="시스템 프롬프트"
+              >
+                <Settings2 size={18} />
+                {selectedConv.system_prompt && <span className="ai-chat-settings-dot" aria-hidden="true" />}
+              </button>
+            </div>
           )}
           <button
             type="button"
@@ -565,6 +780,34 @@ export default function AiChatClient({
             <Plus size={18} />
           </button>
         </div>
+
+        {isShared && shareUrl && (
+          <div className="ai-chat-share-bar" role="status">
+            <NbBadge>공유됨</NbBadge>
+            <span className="ai-chat-share-url" title={shareUrl}>
+              {shareUrl}
+            </span>
+            <button type="button" className="ai-chat-copy-btn" onClick={copyShareUrl} aria-label="공유 링크 복사">
+              {shareCopied ? <Check size={12} /> : <Copy size={12} />}
+              {shareCopied ? '복사됨' : '링크 복사'}
+            </button>
+          </div>
+        )}
+
+        {viewingPast && (
+          <div className="ai-chat-banner ai-chat-branch-banner" data-tone="neutral" role="status">
+            <span>과거 분기 열람 중 — 이어쓰려면 최신 분기로 돌아가세요</span>
+            <button
+              type="button"
+              className="ai-chat-copy-btn"
+              onClick={backToLatest}
+              style={{ color: 'var(--brand)', fontWeight: 700, flexShrink: 0 }}
+            >
+              <ArrowLeftToLine size={12} />
+              최신 분기로
+            </button>
+          </div>
+        )}
 
         <MessageList
           messages={messages}
@@ -582,6 +825,10 @@ export default function AiChatClient({
           onRegenerate={handleRegenerate}
           onEditSubmit={handleEditSubmit}
           onFeedback={handleFeedback}
+          onOpenArtifact={handleOpenArtifact}
+          onBranchNav={handleBranchNav}
+          locked={viewingPast}
+          webSearching={toolSearching && sse.streaming}
         />
 
         <Composer
@@ -595,8 +842,21 @@ export default function AiChatClient({
           onStop={handleStop}
           onChangeModel={handleChangeModel}
           ensureConversation={ensureConversation}
+          toolsSupported={toolsSupported}
+          webSearch={webSearch}
+          onToggleWebSearch={() => setWebSearch((v) => !v)}
+          locked={viewingPast}
         />
       </section>
+
+      {activeArtifactVersions && activeArtifact && (
+        <ArtifactPanel
+          versions={activeArtifactVersions}
+          versionIndex={activeArtifact.versionIndex}
+          onClose={() => setActiveArtifact(null)}
+          onVersionChange={(i) => setActiveArtifact((a) => (a ? { ...a, versionIndex: i } : a))}
+        />
+      )}
 
       {systemPromptOpen && selectedConv && (
         <SystemPromptModal

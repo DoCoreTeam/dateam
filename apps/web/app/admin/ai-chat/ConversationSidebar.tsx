@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect, type ReactNode } from 'react'
-import { Plus, Pin, PinOff, Pencil, Trash2, Check, X, RotateCcw, Search } from 'lucide-react'
-import type { AiChatConversation } from '@/types/database'
+import Link from 'next/link'
+import { Plus, Pin, PinOff, Pencil, Trash2, Check, X, RotateCcw, Search, FolderKanban } from 'lucide-react'
+import type { AiChatConversation, AiChatProject } from '@/types/database'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { PROVIDER_LABELS } from './AiChatClient'
@@ -18,6 +19,7 @@ interface SearchResult {
 
 interface ConversationSidebarProps {
   conversations: AiChatConversation[]
+  projects: AiChatProject[]
   selectedId: string | null
   canCreate: boolean
   hasMore: boolean
@@ -60,6 +62,7 @@ function highlight(text: string, q: string): ReactNode {
 
 export default function ConversationSidebar({
   conversations,
+  projects,
   selectedId,
   canCreate,
   hasMore,
@@ -129,9 +132,12 @@ export default function ConversationSidebar({
     setDraftTitle('')
   }
 
+  const projectNameById = new Map(projects.map((p) => [p.id, p.name]))
+
   function renderConvItem(c: AiChatConversation): ReactNode {
     const active = c.id === selectedId
     const isEditing = editingId === c.id
+    const projectName = c.project_id ? projectNameById.get(c.project_id) : null
     return (
       <li key={c.id}>
         {isEditing ? (
@@ -172,8 +178,14 @@ export default function ConversationSidebar({
                 {c.pinned && <Pin size={12} color="var(--brand)" fill="var(--brand)" style={{ flexShrink: 0 }} />}
                 <span className="ai-chat-conv-title">{c.title}</span>
               </div>
-              <div style={{ marginTop: 'var(--space-1)' }}>
+              <div style={{ marginTop: 'var(--space-1)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1)' }}>
                 <NbBadge>{PROVIDER_LABELS[c.provider]}</NbBadge>
+                {c.project_id && (
+                  <NbBadge>
+                    <FolderKanban size={10} style={{ verticalAlign: 'middle', marginRight: 'var(--space-1)' }} />
+                    {projectName ?? '프로젝트'}
+                  </NbBadge>
+                )}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 'var(--space-1)', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
@@ -228,6 +240,10 @@ export default function ConversationSidebar({
             설정에서 API 키를 등록하면 대화를 시작할 수 있습니다.
           </p>
         )}
+        <Link href="/admin/ai-chat/projects" className="ai-chat-projects-link">
+          <FolderKanban size={14} />
+          프로젝트
+        </Link>
       </div>
 
       {/* 검색 */}

@@ -39,7 +39,7 @@ export default async function AiChatPage({
   // 프로바이더별 capability(vision·thinking) — 현재 대화 provider 기준으로 Composer/MessageBubble 배선
   const capabilities = ALL_PROVIDER_IDS.reduce((acc, id) => {
     const caps = getProvider(id).capabilities
-    acc[id] = { vision: caps.vision, thinking: caps.thinking }
+    acc[id] = { vision: caps.vision, thinking: caps.thinking, tools: caps.tools }
     return acc
   }, {} as Record<AiChatProviderId, ProviderCaps>)
 

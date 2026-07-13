@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { Send, Square, Paperclip, FileText, X } from 'lucide-react'
+import { Send, Square, Paperclip, FileText, X, Globe } from 'lucide-react'
 import type { AiChatProviderId } from '@/types/database'
 import type { ProviderView } from './AiChatClient'
 import {
@@ -18,6 +18,7 @@ const ACCEPT = Array.from(
   new Set(Object.values(ATTACHMENT_RULES).flatMap((r) => [...r.mimes])),
 ).join(',')
 const VISION_UNSUPPORTED_MSG = '이 프로바이더는 파일 첨부를 지원하지 않습니다'
+const TOOLS_UNSUPPORTED_MSG = '이 프로바이더는 웹 검색을 지원하지 않습니다'
 
 type AttachKind = 'image' | 'pdf' | 'document'
 
@@ -44,6 +45,12 @@ interface ComposerProps {
   onChangeModel: (provider: AiChatProviderId, model: string) => void
   /** 첨부는 대화 존재를 전제 — 없으면 지연 생성 후 id 반환(실패 시 null) */
   ensureConversation: () => Promise<string | null>
+  /** S3 §4-3 — 웹 검색 토글(요청 단위). capabilities.tools=false면 비활성. */
+  toolsSupported: boolean
+  webSearch: boolean
+  onToggleWebSearch: () => void
+  /** S3 §5-5 — 과거 분기 열람 중이면 입력·전송 잠금(배너는 허브). */
+  locked?: boolean
 }
 
 function formatBytes(n: number): string {
@@ -63,6 +70,10 @@ export default function Composer({
   onStop,
   onChangeModel,
   ensureConversation,
+  toolsSupported,
+  webSearch,
+  onToggleWebSearch,
+  locked = false,
 }: ComposerProps) {
   const [value, setValue] = useState('')
   const [pending, setPending] = useState<PendingAttachment[]>([])
@@ -75,7 +86,8 @@ export default function Composer({
   const noProviders = providers.length === 0
   const uploadingCount = pending.filter((p) => p.status === 'uploading').length
   const readyCount = pending.filter((p) => p.status === 'ready').length
-  const attachDisabled = noProviders || streaming || !visionSupported
+  const attachDisabled = noProviders || streaming || !visionSupported || locked
+  const webSearchDisabled = noProviders || streaming || !toolsSupported || locked
 
   const showNotice = useCallback((msg: string) => {
     setNotice(msg)
@@ -192,7 +204,7 @@ export default function Composer({
   function submit() {
     const trimmed = value.trim()
     const ready = pending.filter((p) => p.status === 'ready')
-    if (uploadingCount > 0 || streaming || noProviders) return
+    if (uploadingCount > 0 || streaming || noProviders || locked) return
     if (!trimmed && ready.length === 0) return
     onSend(trimmed.slice(0, MAX_LEN), ready.map((p) => p.id))
     setValue('')
@@ -238,7 +250,7 @@ export default function Composer({
     if (p) onChangeModel(p.id, p.model)
   }
 
-  const sendDisabled = (!value.trim() && readyCount === 0) || noProviders || uploadingCount > 0
+  const sendDisabled = (!value.trim() && readyCount === 0) || noProviders || uploadingCount > 0 || locked
 
   return (
     <div className="ai-chat-composer">
@@ -321,6 +333,19 @@ export default function Composer({
             <Paperclip size={18} />
           </button>
 
+          <button
+            type="button"
+            className="ai-chat-attach-btn"
+            data-active={webSearch && toolsSupported}
+            onClick={onToggleWebSearch}
+            disabled={webSearchDisabled}
+            title={toolsSupported ? (webSearch ? '웹 검색 켜짐' : '웹 검색') : TOOLS_UNSUPPORTED_MSG}
+            aria-label="웹 검색 토글"
+            aria-pressed={webSearch && toolsSupported}
+          >
+            <Globe size={18} />
+          </button>
+
           <textarea
             className="input-field ai-chat-textarea"
             ref={textareaRef}
@@ -328,9 +353,15 @@ export default function Composer({
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            placeholder={noProviders ? '설정에서 API 키를 먼저 등록하세요' : '메시지를 입력하세요  (Enter 전송 · Shift+Enter 줄바꿈)'}
+            placeholder={
+              locked
+                ? '과거 분기 열람 중 — 최신 분기로 돌아가면 이어쓸 수 있습니다'
+                : noProviders
+                  ? '설정에서 API 키를 먼저 등록하세요'
+                  : '메시지를 입력하세요  (Enter 전송 · Shift+Enter 줄바꿈)'
+            }
             rows={1}
-            disabled={noProviders}
+            disabled={noProviders || locked}
             aria-label="메시지 입력"
           />
 
