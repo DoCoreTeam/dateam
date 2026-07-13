@@ -25,6 +25,15 @@ v0.7.297
 > 사이드바(`MobileShell.tsx:261`)는 이 env var를 표시한다.
 > **루트 `package.json`이 단일 소스** — `.env.local`로 재정의하지 말 것.
 
+### 5. 사용자향 업데이트 내역 (changelog) — CI 자동 (수기 금지)
+
+`apps/web/lib/changelog/entries.ts`는 **수기 편집 금지**. main push 시 `.github/workflows/changelog-gen.yml`이 `apps/web/scripts/changelog-gen.mjs`를 실행 → git log(`vX.Y.Z: …` 커밋)를 Gemini로 요약해 사용자 체감 항목만 `entries.ts` 앞에 자동 프리펜드 + `[skip changelog]` 커밋백(배포=게시).
+
+- **키 소스**: DB `org_content`(META).`gemini_api_key`(서비스롤 조회) 또는 `GEMINI_API_KEY` env 폴백.
+  **CI 시크릿(택1)**: `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` 또는 `GEMINI_API_KEY`.
+- **⚠️ push 후 확인 필수 (무성 실패 방지)**: GitHub → Actions → `changelog-gen` 잡이 초록인지 확인. 빨간 X면 시크릿 미설정/Gemini 키 없음 → `exit(1)`로 잡 실패 → `entries.ts` 미갱신(알림 없음). 이 확인 절차가 없으면 changelog가 조용히 누락된다.
+- **수동 백필/미리보기**: `pnpm changelog:gen [--dry-run]` (로컬은 `apps/web/.env.local`의 키를 자동 로드).
+
 ---
 
 ## Git 커밋 규칙 (필수)
