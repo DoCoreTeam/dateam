@@ -5,6 +5,7 @@ interface LogParams {
   userId: string | null
   feature: AiFeature
   model: string
+  provider?: string
   promptTokens: number
   outputTokens: number
   totalTokens: number
@@ -18,6 +19,7 @@ async function logAsync(params: LogParams): Promise<void> {
       user_id: params.userId,
       feature: params.feature,
       model: params.model,
+      provider: params.provider ?? null,
       prompt_tokens: params.promptTokens,
       output_tokens: params.outputTokens,
       total_tokens: params.totalTokens,

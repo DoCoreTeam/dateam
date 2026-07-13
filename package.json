@@ -1,6 +1,6 @@
 {
   "name": "newax",
-  "version": "0.7.294",
+  "version": "0.7.295",
   "private": true,
   "packageManager": "pnpm@9.15.9",
   "scripts": {
@@ -20,5 +20,11 @@
   },
   "devDependencies": {
     "dotenv": "^17.4.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "google-auth-library": "10.9.0",
+      "driver.js": "1.4.0"
+    }
   }
 }

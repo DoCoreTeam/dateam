@@ -401,6 +401,7 @@ export type AiFeature =
   | 'project-suggest'
   | 'meeting_summarize'
   | 'meeting_extract'
+  | 'ai-chat'          // S1 — DB는 text 컬럼이라 마이그레이션 불필요
 
 export interface AiTokenLog {
   id: string
@@ -408,11 +409,42 @@ export interface AiTokenLog {
   user_id: string | null
   feature: AiFeature
   model: string
+  provider: string | null   // 150에서 추가된 컬럼 (null=legacy Gemini)
   prompt_tokens: number
   output_tokens: number
   total_tokens: number
   success: boolean
   error_message: string | null
+}
+
+export type AiChatProviderId = 'gemini' | 'claude' | 'openai'
+
+export interface AiChatConversation {
+  id: string
+  user_id: string
+  title: string
+  provider: AiChatProviderId
+  model: string
+  system_prompt: string | null
+  pinned: boolean
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+export interface AiChatMessage {
+  id: string
+  conversation_id: string
+  role: 'user' | 'assistant'
+  content: string
+  thinking: string | null
+  provider: string | null
+  model: string | null
+  prompt_tokens: number | null
+  output_tokens: number | null
+  stopped: boolean
+  error: string | null
+  created_at: string
 }
 
 export interface OrgContent {

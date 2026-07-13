@@ -18,6 +18,7 @@ export async function requireAdminApi(): Promise<
     .from('profiles')
     .select('role')
     .eq('id', user.id)
+    .is('deleted_at', null)
     .single() as unknown as Promise<{ data: Pick<Profile, 'role'> | null; error: unknown }>)
 
   if (result.data?.role !== 'admin') {
