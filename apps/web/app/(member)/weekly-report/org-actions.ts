@@ -1,9 +1,9 @@
 'use server'
 
-import { createHash } from 'node:crypto'
 import { Packer } from 'docx'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { mergeAndRefineByCategory, type MergedCategoryReport } from '@/lib/gemini-refine'
+import { reportsSourceHash } from '@/lib/reports/source-hash'
 import { buildDocx, type ReportRow } from '@/lib/docx-builder'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
 import { categoriesFromBodies } from '@/lib/weekly-merge-context'
@@ -58,14 +58,6 @@ async function canManageDept(admin: any, userId: string, deptId: string, editabl
   if (editableDeptIds.includes(deptId)) return true
   const { data: prof } = await admin.from('profiles').select('role').eq('id', userId).single()
   return prof?.role === 'admin'
-}
-
-function bodyHash(rows: MemberReportRow[]): string {
-  const norm = rows
-    .map((r) => `${r.user_id}|${r.category}|${r.performance}|${r.plan}|${r.issues}`)
-    .sort()
-    .join('\n')
-  return createHash('sha1').update(norm).digest('hex')
 }
 
 /** 부서 취합 실행: 부서원 원본 → AI 병합 → dept_weekly_reports draft 스냅샷 저장 */
@@ -137,7 +129,7 @@ export async function aggregateDept(deptId: string, weekStart: string): Promise<
     // (확정본 재취합 시 화면에서 경고 후 진행하며, 결과는 초안으로 내려가 부서장/어드민이 재확정한다)
     const nextStatus: 'draft' | 'confirmed' = 'draft'
 
-    const hash = bodyHash(rows)
+    const hash = reportsSourceHash(rows)
     const { error } = await admin.from('dept_weekly_reports').upsert(
       {
         department_id: deptId,
