@@ -304,6 +304,7 @@ git log --oneline -5
 2. `/apps/web/package.json` — `"version"` 필드 (monorepo 동기화)
 3. `CLAUDE.md` (이 파일) — `## 버전` 라인
 4. `AGENTS.md` — `## 버전` 라인 (Codex 정책 파일 동기화)
+5. `apps/web/lib/changelog/entries.ts` — **사용자 체감 변경이 있으면** `CHANGELOG` 맨 위에 이번 버전 블록 추가 (§2 참조. 어드민/내부 전용 변경만이면 생략).
 
 > **왜 중요한가**: `apps/web/next.config.js:2`가 `require('../../package.json').version`을 읽어
 > 빌드 타임에 `NEXT_PUBLIC_APP_VERSION`으로 주입한다.
@@ -312,6 +313,10 @@ git log --oneline -5
 
 패치 버전(3rd)은 `0`부터 `999`까지 입력 가능하다. 999 초과 시 MINOR(2nd)를 1 올리고 PATCH는 0으로 리셋한다.
 
-### 2. 사용자향 업데이트 내역 — CI 자동 (수기 금지)
+### 2. 사용자향 업데이트 내역 (changelog) — 버전 올릴 때 **직접 기록** (주 경로)
 
-`apps/web/lib/changelog/entries.ts`(사용자향 changelog)는 **수기로 채우지 않는다.** main 푸시 시 `.github/workflows/changelog-gen.yml`이 비동기로 `apps/web/scripts/changelog-gen.mjs`를 실행 → git log를 읽어 Gemini가 사용자 체감 변경만 선별·친절어로 작성 → entries.ts에 `[skip changelog]` 커밋백(배포=게시). 키는 앱과 동일하게 DB `org_content`(META).gemini_api_key를 서비스롤로 조회(env 폴백). 수동 백필/미리보기는 `pnpm changelog:gen [--dry-run]`. CI 시크릿: `NEXT_PUBLIC_SUPABASE_URL`·`SUPABASE_SERVICE_ROLE_KEY`(gcube와 공용).
+`apps/web/lib/changelog/entries.ts` = "사용자에게 보내는 친절한 편지"(개발자 git log와 분리). **버전을 올리는 커밋에 사용자 체감 변경이 있으면, 작업자(Claude/Codex/Gemini)가 그 자리에서 `CHANGELOG` 배열 맨 위에 해당 버전 블록 1개를 직접 추가한다.** 외부 LLM 호출·CI·시크릿 불필요 — 작업자 본인이 무엇을 바꿨는지 알고 직접 친절어로 쓴다.
+
+- **형식**: `{ version: '0.7.x', date: 'YYYY-MM-DD', title, items: [{ kind: 'feature'|'fix'|'improve', emoji, headline, detail }] }`. 최신이 위. `LATEST_CHANGELOG_VERSION`이 배열에서 파생되므로 **새 블록만 넣으면 사용자 "새로운 소식" 알림**(`MobileShell`→`ChangelogModal`)이 자동으로 뜬다(별도 배선 불필요).
+- **판정**: "로그인한 일반 사용자가 화면에서 직접 체감하나?" 예=포함(친절어), 아니오=제외. 포함 ✅ 새 기능·사용자 겪던 버그·눈에 보이는 개선 / 제외 ❌ **어드민 전용**·백엔드/DB/인프라·리팩터/테스트/CI·버전범프.
+- **보조(폴백, 없어도 됨)**: `.github/workflows/changelog-gen.yml`이 main push 시 Gemini 자동 생성도 시도(키: DB `org_content` META `gemini_api_key` 또는 `GEMINI_API_KEY`/Supabase 시크릿). **주 기록은 버전업 커밋에서 직접 하는 것** — CI는 있으면 보강, 없거나 실패해도 changelog는 유지된다. 수동 백필/미리보기: `pnpm changelog:gen [--dry-run]`.

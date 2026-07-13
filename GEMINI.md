@@ -136,6 +136,7 @@ git log --oneline -5
 2. `/apps/web/package.json` — `"version"` 필드 (monorepo 동기화)
 3. `GEMINI.md` (이 파일) — `## 버전` 라인
 4. `AGENTS.md` — `## 버전` 라인 (Codex 정책 파일 동기화)
+5. `apps/web/lib/changelog/entries.ts` — **사용자 체감 변경이 있으면** `CHANGELOG` 맨 위에 이번 버전 블록 추가 (아래 changelog 항목 참조)
 
 > **왜 중요한가**: `apps/web/next.config.js:2`가 `require('../../package.json').version`을 읽어
 > 빌드 타임에 `NEXT_PUBLIC_APP_VERSION`으로 주입한다.
@@ -143,3 +144,7 @@ git log --oneline -5
 > **루트 `package.json`이 단일 소스** — `.env.local`로 재정의하지 말 것.
 
 패치 버전(3rd)은 `0`부터 `999`까지 입력 가능하다. 999 초과 시 MINOR(2nd)를 1 올리고 PATCH는 0으로 리셋한다.
+
+### 2. 사용자향 업데이트 내역 (changelog) — 버전 올릴 때 직접 기록
+
+`apps/web/lib/changelog/entries.ts` = 사용자향 changelog. **버전을 올리는 커밋에 사용자 체감 변경이 있으면 작업자가 `CHANGELOG` 배열 맨 위에 이번 버전 블록을 직접 추가**한다(외부 LLM·CI 불필요 — 본인이 무엇을 바꿨는지 알고 직접 친절어로 쓴다). 형식: `{ version, date, title, items:[{ kind:'feature'|'fix'|'improve', emoji, headline, detail }] }`. 새 블록만 넣으면 사용자 "새로운 소식" 알림이 자동으로 뜬다. 포함=사용자 체감 변경만(**어드민/백엔드/내부 제외**), 톤=친절한 비즈니스 언어. (CI 폴백: `.github/workflows/changelog-gen.yml` — 없거나 실패해도 changelog 유지.)
