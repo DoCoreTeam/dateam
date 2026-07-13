@@ -86,3 +86,13 @@ end; $$;
 drop trigger if exists trg_aicm_touch_conv on ai_messages;
 create trigger trg_aicm_touch_conv after insert on ai_messages
 for each row execute function fn_aicm_touch_conv();
+
+-- 7) 보안 정합 [C-1]: org_content(META에 gemini/claude/openai api_key·db_connection_url 평문 저장)의
+--    SELECT RLS를 admin 전용으로 축소한다.
+--    기존 003b 정책 org_content_select = USING(auth.uid() is not null) → 로그인한 모든 사용자(member/api_user)가
+--    브라우저 anon 클라이언트로 `from('org_content').select('value').eq('key','META')` 하면 전 시크릿 유출.
+--    앱의 모든 org_content 읽기는 service_role(createAdminClient, RLS 우회)이므로 이 축소는 기능에 무영향(전수 확인됨).
+drop policy if exists org_content_select on org_content;
+create policy org_content_select on org_content
+for select to authenticated
+using (exists (select 1 from profiles where id = (select auth.uid()) and role = 'admin' and deleted_at is null));
