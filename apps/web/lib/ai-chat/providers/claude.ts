@@ -5,18 +5,22 @@ import type {
   StreamChatParams,
   StreamChatResult,
 } from '../provider.ts'
+import { toClaudeContent } from '../attachments.ts'
 
 const DEFAULT_MAX_OUTPUT_TOKENS = 32000
 const DEFAULT_MODEL = 'claude-opus-4-8'
 
 interface ClaudeMessage {
   role: 'user' | 'assistant'
-  content: string
+  content: string | ReturnType<typeof toClaudeContent>
 }
 
-/** 순수 함수 (테스트 대상): 턴 → Claude messages. role 보존. */
+/** 순수 함수 (테스트 대상): 턴 → Claude messages. role 보존. 첨부 있으면 멀티모달 블록. */
 export function toClaudeMessages(turns: ChatTurn[]): ClaudeMessage[] {
-  return turns.map((t) => ({ role: t.role, content: t.content }))
+  return turns.map((t) => ({
+    role: t.role,
+    content: t.attachments?.length ? toClaudeContent(t) : t.content,
+  }))
 }
 
 async function streamChat(params: StreamChatParams): Promise<StreamChatResult> {
@@ -34,7 +38,7 @@ async function streamChat(params: StreamChatParams): Promise<StreamChatResult> {
     model: model || DEFAULT_MODEL,
     max_tokens: maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
     ...(system ? { system } : {}),
-    messages: toClaudeMessages(turns),
+    messages: toClaudeMessages(turns) as unknown as Anthropic.MessageParam[],
     // adaptive/summarized — 요약 thinking 스트림 수신 (display 미지정 시 omitted 위험)
     thinking: { type: 'adaptive', display: 'summarized' },
   })

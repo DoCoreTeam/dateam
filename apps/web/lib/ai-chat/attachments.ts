@@ -180,11 +180,19 @@ export async function extractDocumentText(buf: Uint8Array, mime: string): Promis
   }
   if (includesMime(DOCUMENT_OFFICE_MIMES, mime)) {
     // 동적 import — 순수 함수/테스트가 officeparser 설치를 요구하지 않도록 지연 로드.
-    const { parseOfficeAsync } = await import('officeparser')
+    // officeparser v7 API: parseOffice(file) → AST → ast.to('md') → { value: string }.
+    const { parseOffice } = await import('officeparser')
     let text: string
     try {
-      // zip-bomb/과대 압축 DoS 방어 — 하드 타임아웃(15s)으로 상한
-      text = await withTimeout(parseOfficeAsync(Buffer.from(buf)), OFFICE_PARSE_TIMEOUT_MS)
+      // zip-bomb/과대 압축 DoS 방어 — parse+변환 전체를 하드 타임아웃(15s)으로 상한
+      text = await withTimeout(
+        (async () => {
+          const ast = await parseOffice(Buffer.from(buf))
+          const out = await ast.to('md')
+          return typeof out?.value === 'string' ? out.value : String(out?.value ?? '')
+        })(),
+        OFFICE_PARSE_TIMEOUT_MS,
+      )
     } catch {
       throw new Error('문서에서 텍스트를 추출하지 못했습니다')
     }

@@ -1,8 +1,11 @@
 import { requireAdmin } from '@/lib/auth/requireAdmin'
 import { createAdminClient } from '@/lib/supabase/server'
-import { getAvailableProviders, getDefaultProvider } from '@/lib/ai-chat/registry'
+import { getAvailableProviders, getDefaultProvider, getProvider } from '@/lib/ai-chat/registry'
+import type { AiChatProviderId } from '@/types/database'
 import { listConversations, getMessages } from './actions'
-import AiChatClient, { PROVIDER_LABELS, type ProviderView } from './AiChatClient'
+import AiChatClient, { PROVIDER_LABELS, type ProviderView, type ProviderCaps } from './AiChatClient'
+
+const ALL_PROVIDER_IDS: AiChatProviderId[] = ['gemini', 'claude', 'openai']
 
 export default async function AiChatPage({
   searchParams,
@@ -33,6 +36,13 @@ export default async function AiChatPage({
   const def = getDefaultProvider(meta)
   const defaultProvider = def ? { id: def.id, model: def.model } : null
 
+  // 프로바이더별 capability(vision·thinking) — 현재 대화 provider 기준으로 Composer/MessageBubble 배선
+  const capabilities = ALL_PROVIDER_IDS.reduce((acc, id) => {
+    const caps = getProvider(id).capabilities
+    acc[id] = { vision: caps.vision, thinking: caps.thinking }
+    return acc
+  }, {} as Record<AiChatProviderId, ProviderCaps>)
+
   // 초기 데이터 병렬 로드
   const [convRes, msgRes] = await Promise.all([
     listConversations({}),
@@ -53,6 +63,7 @@ export default async function AiChatPage({
       initialConversationId={conversationId}
       providers={providers}
       defaultProvider={defaultProvider}
+      capabilities={capabilities}
     />
   )
 }

@@ -5,22 +5,25 @@ import type {
   StreamChatParams,
   StreamChatResult,
 } from '../provider.ts'
+import { toOpenAiContent } from '../attachments.ts'
 
 const DEFAULT_MAX_OUTPUT_TOKENS = 16384
 
 interface OpenAiMessage {
   role: 'system' | 'user' | 'assistant'
-  content: string
+  content: string | ReturnType<typeof toOpenAiContent>
 }
 
-/** 순수 함수 (테스트 대상): system을 첫 원소로, 이어서 턴. system 없으면 미포함. */
+/** 순수 함수 (테스트 대상): system을 첫 원소로, 이어서 턴. system 없으면 미포함. 첨부 있으면 멀티모달 파트. */
 export function toOpenAiMessages(
   system: string | undefined,
   turns: ChatTurn[],
 ): OpenAiMessage[] {
   const out: OpenAiMessage[] = []
   if (system) out.push({ role: 'system', content: system })
-  for (const t of turns) out.push({ role: t.role, content: t.content })
+  for (const t of turns) {
+    out.push({ role: t.role, content: t.attachments?.length ? toOpenAiContent(t) : t.content })
+  }
   return out
 }
 
@@ -36,7 +39,7 @@ async function streamChat(params: StreamChatParams): Promise<StreamChatResult> {
     const stream = await client.chat.completions.create(
       {
         model,
-        messages: toOpenAiMessages(system, turns),
+        messages: toOpenAiMessages(system, turns) as unknown as OpenAI.Chat.ChatCompletionMessageParam[],
         stream: true,
         stream_options: { include_usage: true },
         max_completion_tokens: maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,

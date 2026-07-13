@@ -5,20 +5,21 @@ import type {
   StreamChatResult,
 } from '../provider.ts'
 import { createSseParser } from '../sse.ts'
+import { toGeminiParts } from '../attachments.ts'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 const DEFAULT_MAX_OUTPUT_TOKENS = 8192
 
 interface GeminiContent {
   role: 'user' | 'model'
-  parts: Array<{ text: string }>
+  parts: ReturnType<typeof toGeminiParts>
 }
 
-/** 순수 함수 (테스트 대상): 턴 → Gemini contents. assistant→'model' 매핑. */
+/** 순수 함수 (테스트 대상): 턴 → Gemini contents. assistant→'model' 매핑. 첨부 있으면 inline_data. */
 export function toGeminiContents(turns: ChatTurn[]): GeminiContent[] {
   return turns.map((t) => ({
     role: t.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: t.content }],
+    parts: toGeminiParts(t),
   }))
 }
 

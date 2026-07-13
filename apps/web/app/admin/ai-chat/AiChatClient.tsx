@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Menu, Plus } from 'lucide-react'
+import { Menu, Plus, Settings2 } from 'lucide-react'
 import type { AiChatConversation, AiChatMessage, AiChatProviderId } from '@/types/database'
-import { useSseChat } from '@/lib/ai-chat/use-sse-chat'
+import { useSseChat, type StreamBody } from '@/lib/ai-chat/use-sse-chat'
+import { buildActiveThread } from '@/lib/ai-chat/thread'
 import {
   createConversation,
   listConversations,
@@ -14,10 +15,12 @@ import {
   updateConversationModel,
   softDeleteConversation,
   restoreConversation,
+  setMessageFeedback,
 } from './actions'
 import ConversationSidebar from './ConversationSidebar'
 import MessageList from './MessageList'
 import Composer from './Composer'
+import SystemPromptModal from './SystemPromptModal'
 import type { StreamDraft } from './MessageBubble'
 
 // ── 클라이언트 공용 뷰 타입 (API 키는 서버 전용 — 클라엔 라벨/모델만) ──
@@ -27,10 +30,46 @@ export interface ProviderView {
   model: string
 }
 
+export interface ProviderCaps {
+  vision: boolean
+  thinking: boolean
+}
+
+/** getMessages items의 첨부 뷰 (서명URL은 조회 시마다 신규 발급). */
+export interface AttachmentView {
+  id: string
+  filename: string
+  mime: string
+  kind: string
+  sizeBytes: number
+  signedUrl: string
+}
+
+/** 화면용 메시지 = 영속 메시지 + 세션2 필드(feedback·parent·attachments). */
+export interface ChatMessageView extends AiChatMessage {
+  feedback: -1 | 1 | null
+  parent_message_id: string | null
+  attachments: AttachmentView[]
+}
+
 export const PROVIDER_LABELS: Record<AiChatProviderId, string> = {
   gemini: 'Gemini',
   claude: 'Claude',
   openai: 'OpenAI',
+}
+
+// 서버가 세션2 필드를 아직 실을 수도/안 실을 수도 있어 관대하게 승격(병행 개발 안전).
+type RawMessage = AiChatMessage &
+  Partial<{ feedback: -1 | 1 | null; parent_message_id: string | null; attachments: AttachmentView[] }>
+
+function toView(m: AiChatMessage): ChatMessageView {
+  const r = m as RawMessage
+  return {
+    ...m,
+    feedback: r.feedback ?? null,
+    parent_message_id: r.parent_message_id ?? null,
+    attachments: r.attachments ?? [],
+  }
 }
 
 interface AiChatClientProps {
@@ -41,6 +80,7 @@ interface AiChatClientProps {
   initialConversationId: string | null
   providers: ProviderView[]
   defaultProvider: { id: AiChatProviderId; model: string } | null
+  capabilities: Record<AiChatProviderId, ProviderCaps>
 }
 
 export default function AiChatClient({
@@ -51,6 +91,7 @@ export default function AiChatClient({
   initialConversationId,
   providers,
   defaultProvider,
+  capabilities,
 }: AiChatClientProps) {
   const router = useRouter()
   const sse = useSseChat()
@@ -60,7 +101,7 @@ export default function AiChatClient({
   const [loadingMore, setLoadingMore] = useState(false)
 
   const [selectedId, setSelectedId] = useState<string | null>(initialConversationId)
-  const [messages, setMessages] = useState<AiChatMessage[]>(initialMessages)
+  const [messages, setMessages] = useState<ChatMessageView[]>(initialMessages.map(toView))
   const [msgCursor, setMsgCursor] = useState<string | null>(initialMsgCursor)
   const [msgLoading, setMsgLoading] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
@@ -69,6 +110,7 @@ export default function AiChatClient({
   const [streamDraft, setStreamDraft] = useState<StreamDraft | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [recentlyDeleted, setRecentlyDeleted] = useState<{ id: string; title: string } | null>(null)
+  const [systemPromptOpen, setSystemPromptOpen] = useState(false)
 
   const initialDraft: ProviderView | null = defaultProvider
     ? providers.find((p) => p.id === defaultProvider.id) ?? {
@@ -92,6 +134,11 @@ export default function AiChatClient({
   const curProvider: AiChatProviderId | null = selectedConv?.provider ?? draftProvider?.id ?? null
   const curModel: string | null = selectedConv?.model ?? draftProvider?.model ?? null
   const canCreate = providers.length > 0
+  const visionSupported = curProvider ? capabilities[curProvider].vision : false
+  const thinkingSupported = curProvider ? capabilities[curProvider].thinking : false
+
+  // 활성 스레드 재구성(SSOT) — 편집분기/재생성 후 렌더 기준
+  const activeThread = useMemo(() => buildActiveThread(messages), [messages])
 
   function updateUrl(id: string | null) {
     router.replace(id ? `/admin/ai-chat?c=${id}` : '/admin/ai-chat', { scroll: false })
@@ -110,12 +157,23 @@ export default function AiChatClient({
     setMsgError(null)
     const r = await getMessages({ conversationId: id })
     if (r.ok) {
-      setMessages(r.items ?? [])
+      setMessages((r.items ?? []).map(toView))
       setMsgCursor(r.nextCursor ?? null)
     } else {
       setMsgError(r.error ?? '메시지를 불러오지 못했습니다')
     }
     setMsgLoading(false)
+  }
+
+  // 스트림 완료/실패 후 조용한 재조회(로딩 상태 미표시 — 화면 유지)
+  async function reloadMessages(id: string): Promise<boolean> {
+    const r = await getMessages({ conversationId: id })
+    if (r.ok) {
+      setMessages((r.items ?? []).map(toView))
+      setMsgCursor(r.nextCursor ?? null)
+      return true
+    }
+    return false
   }
 
   function selectConversation(id: string) {
@@ -146,7 +204,7 @@ export default function AiChatClient({
     setLoadingOlder(true)
     const r = await getMessages({ conversationId: selectedId, before: msgCursor })
     if (r.ok) {
-      setMessages((prev) => [...(r.items ?? []), ...prev])
+      setMessages((prev) => [...(r.items ?? []).map(toView), ...prev])
       setMsgCursor(r.nextCursor ?? null)
     }
     setLoadingOlder(false)
@@ -219,34 +277,24 @@ export default function AiChatClient({
     }
   }
 
-  async function handleSend(content: string) {
-    if (sse.streaming) return
+  // 대화 없으면 지연 생성 후 id 반환(첨부·전송 공용)
+  async function ensureConversation(): Promise<string | null> {
+    if (selectedId) return selectedId
     const provider = curProvider
     const model = curModel
-    if (!provider || !model) {
-      setMsgError('사용 가능한 프로바이더가 없습니다. 설정에서 API 키를 등록하세요.')
-      return
-    }
+    if (!provider || !model) return null
+    const r = await createConversation({ provider, model })
+    if (!r.ok || !r.id) return null
+    setSelectedId(r.id)
+    updateUrl(r.id)
+    void refreshConversations()
+    return r.id
+  }
 
-    let convId = selectedId
-    // 대화 없으면 첫 전송 시 지연 생성
-    if (!convId) {
-      const r = await createConversation({ provider, model })
-      if (!r.ok || !r.id) {
-        setMsgError(r.error ?? '대화 생성에 실패했습니다')
-        return
-      }
-      convId = r.id
-      setSelectedId(convId)
-      updateUrl(convId)
-      refreshConversations()
-    }
-
-    const finalConvId = convId
-
-    const tempUser: AiChatMessage = {
-      id: `temp-user-${Date.now()}`,
-      conversation_id: finalConvId,
+  function makeUserMessage(convId: string, content: string, parentId: string | null): ChatMessageView {
+    return {
+      id: `temp-user-${crypto.randomUUID()}`,
+      conversation_id: convId,
       role: 'user',
       content,
       thinking: null,
@@ -257,75 +305,166 @@ export default function AiChatClient({
       stopped: false,
       error: null,
       created_at: new Date().toISOString(),
+      feedback: null,
+      parent_message_id: parentId,
+      attachments: [],
     }
-    setMessages((prev) => [...prev, tempUser])
-    setStreamDraft({ role: 'assistant', content: '', thinking: null, streaming: true })
+  }
 
+  function assistantFromDraft(
+    convId: string,
+    draft: StreamDraft,
+    opts: { id: string; provider: string | null; model: string | null; stopped: boolean; error: string | null },
+  ): ChatMessageView {
+    return {
+      id: opts.id,
+      conversation_id: convId,
+      role: 'assistant',
+      content: draft.content,
+      thinking: draft.thinking,
+      provider: opts.provider,
+      model: opts.model,
+      prompt_tokens: null,
+      output_tokens: null,
+      stopped: opts.stopped,
+      error: opts.error,
+      created_at: new Date().toISOString(),
+      feedback: null,
+      parent_message_id: null,
+      attachments: [],
+    }
+  }
+
+  // 공용 스트림 실행 — mode별 낙관적 반영은 호출측이 선행, 여기선 SSE 소비만.
+  async function runStream(
+    body: StreamBody,
+    reconcile: 'append' | 'reload',
+    meta: { provider: string | null; model: string | null },
+  ) {
+    const convId = body.conversationId
+    setStreamDraft({ role: 'assistant', content: '', thinking: null, streaming: true })
     const token = { done: false }
     activeSend.current = token
 
-    await sse.send(
-      { conversationId: finalConvId, content },
-      {
-        onDelta: (t) => {
-          if (token.done) return
-          setStreamDraft((d) => (d ? { ...d, content: d.content + t } : d))
-        },
-        onThinking: (t) => {
-          if (token.done) return
-          setStreamDraft((d) => (d ? { ...d, thinking: (d.thinking ?? '') + t } : d))
-        },
-        onDone: ({ messageId }) => {
-          if (token.done) return
-          token.done = true
+    await sse.send(body, {
+      onDelta: (t) => {
+        if (token.done) return
+        setStreamDraft((d) => (d ? { ...d, content: d.content + t } : d))
+      },
+      onThinking: (t) => {
+        if (token.done) return
+        setStreamDraft((d) => (d ? { ...d, thinking: (d.thinking ?? '') + t } : d))
+      },
+      onDone: () => {
+        if (token.done) return
+        token.done = true
+        if (reconcile === 'append') {
           setStreamDraft((d) => {
             if (d) {
-              const asst: AiChatMessage = {
-                id: messageId,
-                conversation_id: finalConvId,
-                role: 'assistant',
-                content: d.content,
-                thinking: d.thinking,
-                provider,
-                model,
-                prompt_tokens: null,
-                output_tokens: null,
+              const asst = assistantFromDraft(convId, d, {
+                id: `asst-${crypto.randomUUID()}`,
+                provider: meta.provider,
+                model: meta.model,
                 stopped: false,
                 error: null,
-                created_at: new Date().toISOString(),
-              }
+              })
               setMessages((prev) => [...prev, asst])
             }
             return null
           })
-          refreshConversations()
-        },
-        onError: (msg) => {
-          if (token.done) return
-          token.done = true
-          setStreamDraft((d) => {
-            if (d) {
-              const asst: AiChatMessage = {
-                id: `err-${Date.now()}`,
-                conversation_id: finalConvId,
-                role: 'assistant',
-                content: d.content,
-                thinking: d.thinking,
-                provider,
-                model,
-                prompt_tokens: null,
-                output_tokens: null,
-                stopped: false,
-                error: msg,
-                created_at: new Date().toISOString(),
-              }
-              setMessages((prev) => [...prev, asst])
-            }
-            return null
-          })
-        },
+        } else {
+          setStreamDraft(null)
+        }
+        void reloadMessages(convId)
+        void refreshConversations()
       },
+      onError: (msg) => {
+        if (token.done) return
+        token.done = true
+        setStreamDraft((d) => {
+          const draft: StreamDraft = d ?? { role: 'assistant', content: '', thinking: null, streaming: false }
+          const asst = assistantFromDraft(convId, draft, {
+            id: `err-${crypto.randomUUID()}`,
+            provider: meta.provider,
+            model: meta.model,
+            stopped: false,
+            error: msg,
+          })
+          setMessages((prev) => [...prev, asst])
+          return null
+        })
+      },
+    })
+  }
+
+  async function handleSend(content: string, attachmentIds: string[] = []) {
+    if (sse.streaming) return
+    const provider = curProvider
+    const model = curModel
+    if (!provider || !model) {
+      setMsgError('사용 가능한 프로바이더가 없습니다. 설정에서 API 키를 등록하세요.')
+      return
+    }
+    let convId = selectedId
+    if (!convId) {
+      convId = await ensureConversation()
+      if (!convId) {
+        setMsgError('대화 생성에 실패했습니다')
+        return
+      }
+    }
+    const finalConvId = convId
+    setMessages((prev) => [...prev, makeUserMessage(finalConvId, content, null)])
+
+    await runStream(
+      {
+        conversationId: finalConvId,
+        mode: 'send',
+        content,
+        attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined,
+      },
+      'append',
+      { provider, model },
     )
+  }
+
+  async function handleRegenerate() {
+    if (sse.streaming || !selectedId) return
+    const last = activeThread[activeThread.length - 1]
+    if (!last || last.role !== 'assistant') return
+    const provider = curProvider
+    const model = curModel
+    if (!provider || !model) return
+    // 마지막 assistant를 낙관적으로 비우고(제거) 재스트림 — 완료 시 서버가 치환한 결과를 재조회
+    setMessages((prev) => prev.filter((m) => m.id !== last.id))
+    await runStream({ conversationId: selectedId, mode: 'regenerate' }, 'reload', { provider, model })
+  }
+
+  async function handleEditSubmit(messageId: string, content: string, attachmentIds: string[]) {
+    if (sse.streaming || !selectedId) return
+    const provider = curProvider
+    const model = curModel
+    if (!provider || !model) return
+    // 편집 = 새 user(parent=원본) — buildActiveThread가 즉시 꼬리 절단
+    setMessages((prev) => [...prev, makeUserMessage(selectedId, content, messageId)])
+    await runStream(
+      {
+        conversationId: selectedId,
+        mode: 'edit',
+        content,
+        editedMessageId: messageId,
+        attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined,
+      },
+      'reload',
+      { provider, model },
+    )
+  }
+
+  async function handleFeedback(messageId: string, value: 1 | -1 | null) {
+    const snapshot = messages
+    setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, feedback: value } : m)))
+    const r = await setMessageFeedback(messageId, value)
+    if (!r.ok) setMessages(snapshot)
   }
 
   function handleStop() {
@@ -333,28 +472,28 @@ export default function AiChatClient({
     const token = activeSend.current
     if (token && !token.done) {
       token.done = true
+      const convId = selectedId ?? ''
       setStreamDraft((d) => {
         if (d) {
-          const asst: AiChatMessage = {
-            id: `stop-${Date.now()}`,
-            conversation_id: selectedId ?? '',
-            role: 'assistant',
-            content: d.content,
-            thinking: d.thinking,
+          const asst = assistantFromDraft(convId, d, {
+            id: `stop-${crypto.randomUUID()}`,
             provider: curProvider,
             model: curModel,
-            prompt_tokens: null,
-            output_tokens: null,
             stopped: true,
             error: null,
-            created_at: new Date().toISOString(),
-          }
+          })
           setMessages((prev) => [...prev, asst])
         }
         return null
       })
+      if (convId) void reloadMessages(convId)
       refreshConversations()
     }
+  }
+
+  function handleSystemPromptSave(value: string | null) {
+    if (!selectedId) return
+    setConversations((prev) => prev.map((c) => (c.id === selectedId ? { ...c, system_prompt: value } : c)))
   }
 
   return (
@@ -392,6 +531,18 @@ export default function AiChatClient({
             <Menu size={18} />
           </button>
           <span className="ai-chat-topbar-title">{selectedConv?.title ?? '새 대화'}</span>
+          {selectedConv && (
+            <button
+              type="button"
+              className="ai-chat-icon-btn ai-chat-settings-btn"
+              onClick={() => setSystemPromptOpen(true)}
+              aria-label="시스템 프롬프트 설정"
+              title="시스템 프롬프트"
+            >
+              <Settings2 size={18} />
+              {selectedConv.system_prompt && <span className="ai-chat-settings-dot" aria-hidden="true" />}
+            </button>
+          )}
           <button
             type="button"
             className="ai-chat-icon-btn mobile-only"
@@ -403,27 +554,45 @@ export default function AiChatClient({
         </div>
 
         <MessageList
-          messages={messages}
+          messages={activeThread}
           streamDraft={streamDraft}
           loading={msgLoading}
           error={msgError}
+          isStreaming={sse.streaming}
+          thinkingText={streamDraft?.thinking ?? null}
+          thinkingSupported={thinkingSupported}
           onRetry={retryLoad}
           hasOlder={!!msgCursor}
           loadingOlder={loadingOlder}
           onLoadOlder={loadOlder}
           onPromptClick={handleSend}
+          onRegenerate={handleRegenerate}
+          onEditSubmit={handleEditSubmit}
+          onFeedback={handleFeedback}
         />
 
         <Composer
           streaming={sse.streaming}
+          conversationId={selectedId}
+          visionSupported={visionSupported}
           currentProvider={curProvider}
           currentModel={curModel}
           providers={providers}
           onSend={handleSend}
           onStop={handleStop}
           onChangeModel={handleChangeModel}
+          ensureConversation={ensureConversation}
         />
       </section>
+
+      {systemPromptOpen && selectedConv && (
+        <SystemPromptModal
+          conversationId={selectedConv.id}
+          systemPrompt={selectedConv.system_prompt}
+          onSave={handleSystemPromptSave}
+          onClose={() => setSystemPromptOpen(false)}
+        />
+      )}
     </div>
   )
 }

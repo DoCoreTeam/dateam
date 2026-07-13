@@ -445,6 +445,21 @@ export interface AiChatMessage {
   stopped: boolean
   error: string | null
   created_at: string
+  feedback: -1 | 1 | null              // S2/151
+  parent_message_id: string | null     // S2/151 — 편집분기
+}
+
+export interface AiChatAttachment {     // S2/151
+  id: string
+  message_id: string | null            // null = 전송 전 임시
+  conversation_id: string
+  user_id: string
+  storage_path: string
+  filename: string
+  mime: string
+  size_bytes: number
+  kind: 'image' | 'pdf' | 'document' | 'other'
+  created_at: string
 }
 
 export interface OrgContent {
@@ -534,6 +549,34 @@ export interface Database {
         Relationships: [
           {
             foreignKeyName: 'ai_token_logs_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      ai_attachments: {
+        Row: AiChatAttachment
+        Insert: Omit<AiChatAttachment, 'created_at'>
+        Update: Partial<Omit<AiChatAttachment, 'id' | 'created_at'>>
+        Relationships: [
+          {
+            foreignKeyName: 'ai_attachments_conversation_id_fkey'
+            columns: ['conversation_id']
+            isOneToOne: false
+            referencedRelation: 'ai_conversations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ai_attachments_message_id_fkey'
+            columns: ['message_id']
+            isOneToOne: false
+            referencedRelation: 'ai_messages'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ai_attachments_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
             referencedRelation: 'profiles'

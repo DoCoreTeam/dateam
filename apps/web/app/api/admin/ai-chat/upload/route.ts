@@ -121,20 +121,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
   }
 
-  // 6) 메시지당 개수 상한(대기 중 = message_id null)
-  const { count: pendingCount } = await admin
-    .from('ai_attachments')
-    .select('id', { count: 'exact', head: true })
-    .eq('conversation_id', conversationId)
-    .eq('user_id', user.id)
-    .is('message_id', null)
-  if ((pendingCount ?? 0) >= MAX_ATTACHMENTS_PER_MESSAGE) {
-    return NextResponse.json(
-      { error: `메시지당 첨부는 최대 ${MAX_ATTACHMENTS_PER_MESSAGE}개입니다` },
-      { status: 400 },
-    )
-  }
-
   // 7) id 선생성 + storage_path 확정(원본 파일명은 경로 미사용) → insert
   const id = randomUUID()
   const storagePath = `${user.id}/${conversationId}/${id}.${extFromMime(mime)}`

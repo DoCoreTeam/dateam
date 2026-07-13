@@ -2,9 +2,9 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
 import { ArrowDown, RotateCcw, MessageSquare, AlertCircle } from 'lucide-react'
-import type { AiChatMessage } from '@/types/database'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import MessageBubble, { type StreamDraft } from './MessageBubble'
+import type { ChatMessageView } from './AiChatClient'
 
 const EXAMPLE_PROMPTS = [
   '이 프로젝트의 아키텍처를 요약해줘',
@@ -13,15 +13,21 @@ const EXAMPLE_PROMPTS = [
 ]
 
 interface MessageListProps {
-  messages: AiChatMessage[]
+  messages: ChatMessageView[]
   streamDraft: StreamDraft | null
   loading: boolean
   error: string | null
+  isStreaming: boolean
+  thinkingText: string | null
+  thinkingSupported: boolean
   onRetry: () => void
   hasOlder: boolean
   loadingOlder: boolean
   onLoadOlder: () => void
   onPromptClick: (prompt: string) => void
+  onRegenerate: () => void
+  onEditSubmit: (messageId: string, content: string, attachmentIds: string[]) => void
+  onFeedback: (messageId: string, value: 1 | -1 | null) => void
 }
 
 export default function MessageList({
@@ -29,11 +35,17 @@ export default function MessageList({
   streamDraft,
   loading,
   error,
+  isStreaming,
+  thinkingText,
+  thinkingSupported,
   onRetry,
   hasOlder,
   loadingOlder,
   onLoadOlder,
   onPromptClick,
+  onRegenerate,
+  onEditSubmit,
+  onFeedback,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
@@ -141,10 +153,34 @@ export default function MessageList({
             <AXDotLoader size={5} color="var(--text-muted)" />
           </div>
         )}
-        {messages.map((m) => (
-          <MessageBubble key={m.id} message={m} />
-        ))}
-        {streamDraft && <MessageBubble message={streamDraft} />}
+        {(() => {
+          // 활성 스레드에서 마지막 assistant id — 재생성 버튼 노출 조건 (스트리밍 중엔 없음)
+          let lastAssistantId: string | null = null
+          if (!streamDraft) {
+            for (let i = messages.length - 1; i >= 0; i--) {
+              if (messages[i].role === 'assistant') { lastAssistantId = messages[i].id; break }
+            }
+          }
+          return messages.map((m) => (
+            <MessageBubble
+              key={m.id}
+              message={m}
+              isLastAssistant={m.role === 'assistant' && m.id === lastAssistantId}
+              thinkingSupported={thinkingSupported}
+              onRegenerate={onRegenerate}
+              onEditSubmit={onEditSubmit}
+              onFeedback={onFeedback}
+            />
+          ))
+        })()}
+        {streamDraft && (
+          <MessageBubble
+            message={streamDraft}
+            isStreaming={isStreaming}
+            thinkingText={thinkingText}
+            thinkingSupported={thinkingSupported}
+          />
+        )}
         <div ref={endRef} />
         {showJump && (
           <button type="button" className="ai-chat-jump" onClick={() => scrollToBottom('smooth')} aria-label="최신 메시지로 이동">
