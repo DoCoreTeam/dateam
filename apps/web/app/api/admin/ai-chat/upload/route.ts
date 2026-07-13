@@ -11,8 +11,8 @@ import {
   sniffMagicBytes,
   maxBytesForMime,
   sanitizeFilenameForDisplay,
-  extractDocumentText,
 } from '@/lib/ai-chat/attachments'
+import { extractDocumentText } from '@/lib/ai-chat/document-extract'
 
 // officeparser(extractDocumentText) + node:crypto 사용 — Node 런타임 고정
 export const runtime = 'nodejs'

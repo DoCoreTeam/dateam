@@ -10,9 +10,9 @@ import {
   sanitizeFilenameForDisplay,
   extFromMime,
   maxBytesForMime,
-  extractDocumentText,
   MAX_DOCUMENT_TEXT_CHARS,
 } from './attachments.ts'
+import { extractDocumentText } from './document-extract.ts'
 
 // ChatTurn/AttachmentInput은 provider.ts(세션1) 타입 — 런타임 plain object로 구성.
 const b64 = (s: string) => Buffer.from(s, 'utf8').toString('base64')

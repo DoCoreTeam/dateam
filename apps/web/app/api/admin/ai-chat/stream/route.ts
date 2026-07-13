@@ -6,10 +6,10 @@ import { getProvider, getProviderConfig } from '@/lib/ai-chat/registry'
 import type { ChatTurn, AttachmentInput } from '@/lib/ai-chat/provider'
 import { buildActiveThread } from '@/lib/ai-chat/thread'
 import {
-  extractDocumentText,
   attachmentFallbackText,
   MAX_REQUEST_ATTACHMENT_BYTES,
 } from '@/lib/ai-chat/attachments'
+import { extractDocumentText } from '@/lib/ai-chat/document-extract'
 import { autoTitle } from '@/app/admin/ai-chat/actions'
 import type { AiChatConversation } from '@/types/database'
 
