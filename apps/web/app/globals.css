@@ -7405,7 +7405,7 @@ label.intake-tool-btn {
 .gpu-rev-evidence:hover { text-decoration: underline; }
 
 /* ══════════════════════════════════════════════════════════
-   AI 채팅 (세션1) — /admin/ai-chat
+   AI 채팅 (세션1) — /ai-chat (구 /admin/ai-chat, §③에서 member로 이동)
    색·치수는 전부 디자인 토큰. rgba 백드롭은 CSS 파일에서만(스캔 제외).
    ══════════════════════════════════════════════════════════ */
 .ai-chat-layout {
@@ -7414,6 +7414,23 @@ label.intake-tool-btn {
   gap: var(--space-4);
   height: calc(100dvh - 9rem);
   min-height: 460px;
+}
+/* member 라우트 fullpane(daily-fullpane-main과 동일 패턴, AiChatClient가 <main class="page-inner">에 부착):
+ * main 자체 스크롤/패딩을 억제하고 .ai-chat-layout이 남은 높이 전체를 차지 — 고정 calc 대신 flex 채움. */
+.ai-chat-fullpane-main {
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+.ai-chat-fullpane-main .ai-chat-layout {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+@media (max-width: 767px) {
+  .ai-chat-fullpane-main {
+    overflow: auto !important;
+  }
 }
 .ai-chat-panel {
   display: flex;
@@ -7489,6 +7506,31 @@ label.intake-tool-btn {
 .ai-chat-icon-btn:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: 1px; }
 .ai-chat-icon-btn[data-active="true"] { color: var(--brand); }
 .ai-chat-icon-btn[data-danger="true"]:hover { color: var(--danger); }
+
+/* 모델 선택 버튼(⑤ ModelPickerModal 오픈 트리거) — input-field와 동일 리듬이되 클릭 가능함을 드러내는 hover/focus */
+.ai-chat-model-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: auto;
+  max-width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+.ai-chat-model-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-chat-model-btn:hover:not(:disabled) { border-color: var(--brand); background: var(--surface-bg); }
+.ai-chat-model-btn:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: 1px; }
+.ai-chat-model-btn:disabled { color: var(--text-faint); cursor: not-allowed; }
+
+/* 모델 새로고침 스피너(compositor-friendly transform만 사용) */
+@keyframes ai-chat-spin { to { transform: rotate(360deg); } }
+.ai-chat-spin { animation: ai-chat-spin 0.8s linear infinite; }
 
 /* 말풍선 */
 .ai-chat-row { display: flex; }

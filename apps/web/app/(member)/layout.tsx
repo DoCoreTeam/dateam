@@ -43,10 +43,10 @@ const NAV_ITEMS = [
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    // admin 전용 — 비관리자는 아래 groups 필터(가격정책만)에서 제외됨. /admin/ai-chat 라우트도 admin 게이트.
+    // admin 전용 — 비관리자는 아래 groups 필터(가격정책만)에서 제외됨. /ai-chat 라우트도 admin 게이트(requireAdmin).
     label: 'AI',
     items: [
-      { href: '/admin/ai-chat', label: 'AI 채팅', icon: <Sparkles size={16} /> },
+      { href: '/ai-chat', label: 'AI 채팅', icon: <Sparkles size={16} /> },
     ],
   },
   {

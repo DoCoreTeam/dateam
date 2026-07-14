@@ -32,8 +32,12 @@ import MessageList from './MessageList'
 import Composer from './Composer'
 import SystemPromptModal from './SystemPromptModal'
 import ArtifactPanel, { type ArtifactVersionEntry } from './ArtifactPanel'
+import ExportFormatModal, { type ExportFormat } from './ExportFormatModal'
+import ModelPickerModal from './ModelPickerModal'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import type { StreamDraft } from './MessageBubble'
+import { downloadConversationDocx } from '@/lib/ai-chat/export-docx'
+import type { ExportMessage } from '@/lib/ai-chat/export'
 
 // ── 클라이언트 공용 뷰 타입 (API 키는 서버 전용 — 클라엔 라벨/모델만) ──
 export interface ProviderView {
@@ -143,6 +147,10 @@ export default function AiChatClient({
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [recentlyDeleted, setRecentlyDeleted] = useState<{ id: string; title: string } | null>(null)
   const [systemPromptOpen, setSystemPromptOpen] = useState(false)
+  const [exportModalOpen, setExportModalOpen] = useState(false)
+  const [exportBusy, setExportBusy] = useState<ExportFormat | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
+  const [modelPickerOpen, setModelPickerOpen] = useState(false)
 
   const initialDraft: ProviderView | null = defaultProvider
     ? providers.find((p) => p.id === defaultProvider.id) ?? {
@@ -168,6 +176,15 @@ export default function AiChatClient({
     return () => {
       if (deleteTimer.current) clearTimeout(deleteTimer.current)
     }
+  }, [])
+
+  // member 라우트(/ai-chat) fullpane: <main class="page-inner">에 ai-chat-fullpane-main 부착 →
+  // main의 자체 스크롤/패딩을 억제하고 .ai-chat-layout이 남은 높이 전체를 점유(daily-fullpane-main과 동일 패턴).
+  useEffect(() => {
+    const main = document.querySelector('main.page-inner')
+    if (!main) return
+    main.classList.add('ai-chat-fullpane-main')
+    return () => { main.classList.remove('ai-chat-fullpane-main') }
   }, [])
 
   // 프로젝트 목록 1회 로드(헤더 select·사이드바 뱃지 공용)
@@ -226,7 +243,7 @@ export default function AiChatClient({
     const b = choicesToParam(ch)
     if (b) params.set('b', b)
     const qs = params.toString()
-    router.replace(qs ? `/admin/ai-chat?${qs}` : '/admin/ai-chat', { scroll: false })
+    router.replace(qs ? `/ai-chat?${qs}` : '/ai-chat', { scroll: false })
   }
 
   // 선택 버전(choices) 기준 열람 스레드 조회 — 분기 전환·URL 복원 공용
@@ -687,10 +704,71 @@ export default function AiChatClient({
     )
   }
 
-  // ── S3 §5-1: Markdown 내보내기 (첨부 다운로드) ──
+  // ── S3 §5-1 + ④ 포맷 확장: 대화 내보내기(md/txt/pdf/docx) ──
   function handleExport() {
     if (!selectedId) return
-    window.open(`/api/admin/ai-chat/export?c=${selectedId}`, '_blank', 'noopener,noreferrer')
+    setExportError(null)
+    setExportModalOpen(true)
+  }
+
+  // 전체 이력 로드(docx 클라 생성용) — 클라 `messages` state는 스크롤 미로드분이 빠질 수 있어
+  // getMessages를 cursor로 끝까지 순회해 완전한 이력을 확보한다(loadOlder와 동일한 페이지네이션 계약).
+  async function fetchFullHistoryForExport(convId: string): Promise<ExportMessage[]> {
+    const collected: ChatMessageView[] = []
+    let cursor: string | null | undefined
+    let before: string | undefined
+    do {
+      const r = await getMessages({ conversationId: convId, before })
+      if (!r.ok) throw new Error(r.error ?? '메시지를 불러오지 못했습니다')
+      collected.unshift(...(r.items ?? []).map(toView))
+      cursor = r.nextCursor ?? null
+      before = cursor ?? undefined
+    } while (cursor)
+
+    return collected
+      .filter((m) => !m.error)
+      .map((m) => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        createdAt: m.created_at,
+        citations: Array.isArray(m.citations)
+          ? m.citations.map((c) => ({ url: c.url, title: c.title }))
+          : undefined,
+      }))
+  }
+
+  async function handleExportFormat(format: ExportFormat) {
+    if (!selectedId || exportBusy) return
+    if (format === 'md' || format === 'txt') {
+      window.open(`/api/admin/ai-chat/export?c=${selectedId}&format=${format}`, '_blank', 'noopener,noreferrer')
+      setExportModalOpen(false)
+      return
+    }
+    if (format === 'pdf') {
+      window.open(`/api/admin/ai-chat/export-pdf?c=${selectedId}`, '_blank', 'noopener,noreferrer')
+      setExportModalOpen(false)
+      return
+    }
+    // docx — 클라이언트 생성(요청서 §④)
+    setExportBusy('docx')
+    setExportError(null)
+    try {
+      const history = await fetchFullHistoryForExport(selectedId)
+      await downloadConversationDocx(
+        {
+          title: selectedConv?.title ?? '새 대화',
+          provider: selectedConv?.provider ?? curProvider ?? '',
+          model: selectedConv?.model ?? curModel ?? '',
+          createdAt: selectedConv?.created_at ?? new Date().toISOString(),
+        },
+        history,
+      )
+      setExportModalOpen(false)
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : 'Word 문서 생성에 실패했습니다')
+    } finally {
+      setExportBusy(null)
+    }
   }
 
   // ── S3 §2-3: artifact 패널 오픈(최신 버전으로) ──
@@ -767,8 +845,8 @@ export default function AiChatClient({
                 type="button"
                 className="ai-chat-icon-btn"
                 onClick={handleExport}
-                aria-label="내보내기 (.md)"
-                title="내보내기 (.md)"
+                aria-label="내보내기 (md·txt·pdf·docx)"
+                title="내보내기 (md·txt·pdf·docx)"
               >
                 <Download size={18} />
               </button>
@@ -853,7 +931,7 @@ export default function AiChatClient({
           providers={providers}
           onSend={handleSend}
           onStop={handleStop}
-          onChangeModel={handleChangeModel}
+          onOpenModelPicker={() => setModelPickerOpen(true)}
           ensureConversation={ensureConversation}
           toolsSupported={toolsSupported}
           webSearch={webSearch}
@@ -877,6 +955,25 @@ export default function AiChatClient({
           systemPrompt={selectedConv.system_prompt}
           onSave={handleSystemPromptSave}
           onClose={() => setSystemPromptOpen(false)}
+        />
+      )}
+
+      {exportModalOpen && (
+        <ExportFormatModal
+          busy={exportBusy}
+          error={exportError}
+          onSelect={handleExportFormat}
+          onClose={() => { if (!exportBusy) setExportModalOpen(false) }}
+        />
+      )}
+
+      {modelPickerOpen && (
+        <ModelPickerModal
+          providers={providers}
+          currentProvider={curProvider}
+          currentModel={curModel}
+          onSelect={handleChangeModel}
+          onClose={() => setModelPickerOpen(false)}
         />
       )}
     </div>

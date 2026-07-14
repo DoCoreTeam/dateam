@@ -86,7 +86,7 @@ export default function ProjectDetailClient({ project, initialKnowledge, convers
           if (!c.ok || !c.id) return { error: c.error ?? '대화 생성에 실패했습니다' }
           const link = await setConversationProject(c.id, project.id)
           if (!link.ok) return { error: link.error ?? '프로젝트 연결에 실패했습니다' }
-          router.push(`/admin/ai-chat?c=${c.id}`)
+          router.push(`/ai-chat?c=${c.id}`)
           return null
         }}
       />
@@ -385,7 +385,7 @@ function ConversationsSection({
           {conversations.map((c) => (
             <li key={c.id}>
               <Link
-                href={`/admin/ai-chat?c=${c.id}`}
+                href={`/ai-chat?c=${c.id}`}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)', border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-3) var(--space-4)', textDecoration: 'none' }}
               >
                 <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>

@@ -13,7 +13,9 @@ function isServerless(): boolean {
 }
 
 // Vercel/Lambda면 @sparticuz, 로컬이면 시스템 Chrome(LOCAL_CHROME_PATH로 오버라이드 가능).
-async function launchOptions(): Promise<{ args: string[]; executablePath: string; headless: boolean }> {
+// export: PDF export 라우트(app/api/admin/ai-chat/export-pdf) 등 puppeteer-core 기반 다른 소비처가
+// 동일 launch 분기(서버리스/로컬/프로덕션 non-serverless 차단)를 재사용(복붙 금지, SSOT).
+export async function launchOptions(): Promise<{ args: string[]; executablePath: string; headless: boolean }> {
   if (isServerless()) {
     // 동적 import — 로컬/빌드 타임에 @sparticuz 로딩 부담 회피
     const mod = await import('@sparticuz/chromium')

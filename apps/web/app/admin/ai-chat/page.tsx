@@ -1,70 +1,18 @@
+import { redirect } from 'next/navigation'
 import { requireAdmin } from '@/lib/auth/requireAdmin'
-import { createAdminClient } from '@/lib/supabase/server'
-import { getAvailableProviders, getDefaultProvider, getProvider } from '@/lib/ai-chat/registry'
-import type { AiChatProviderId } from '@/types/database'
-import { listConversations, getMessages } from './actions'
-import AiChatClient, { type ProviderView, type ProviderCaps } from './AiChatClient'
-import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 
-const ALL_PROVIDER_IDS: AiChatProviderId[] = ['gemini', 'claude', 'openai']
-
-export default async function AiChatPage({
+// AI 채팅은 일반 앱(member)으로 이동됨(§③) — 기존 /admin/ai-chat 링크 호환을 위해 리다이렉트만 유지.
+// 쿼리스트링(대화 id `c`, 분기 `b`)도 그대로 전달해 딥링크가 깨지지 않게 한다.
+export default async function AiChatAdminRedirectPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | undefined>>
 }) {
-  // admin/layout에서 이미 게이팅 — 페이지 이중검증 컨벤션
   await requireAdmin()
 
   const params = await searchParams
-  const conversationId = params.c ?? null
-
-  const adminClient = createAdminClient()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: metaData } = await (adminClient as any)
-    .from('org_content')
-    .select('value')
-    .eq('key', 'META')
-    .single()
-  const meta = (metaData?.value as Record<string, unknown>) ?? {}
-
-  // 가용 프로바이더 — API 키는 서버 전용, 클라엔 {id,label,model}만 전달
-  const providers: ProviderView[] = getAvailableProviders(meta).map((p) => ({
-    id: p.id,
-    label: PROVIDER_LABELS[p.id],
-    model: p.model,
-  }))
-  const def = getDefaultProvider(meta)
-  const defaultProvider = def ? { id: def.id, model: def.model } : null
-
-  // 프로바이더별 capability(vision·thinking) — 현재 대화 provider 기준으로 Composer/MessageBubble 배선
-  const capabilities = ALL_PROVIDER_IDS.reduce((acc, id) => {
-    const caps = getProvider(id).capabilities
-    acc[id] = { vision: caps.vision, thinking: caps.thinking, tools: caps.tools }
-    return acc
-  }, {} as Record<AiChatProviderId, ProviderCaps>)
-
-  // 초기 데이터 병렬 로드
-  const [convRes, msgRes] = await Promise.all([
-    listConversations({}),
-    conversationId ? getMessages({ conversationId }) : Promise.resolve(null),
-  ])
-
-  const initialConversations = convRes.ok && convRes.items ? convRes.items : []
-  const initialCursor = convRes.ok ? convRes.nextCursor ?? null : null
-  const initialMessages = msgRes && msgRes.ok && msgRes.items ? msgRes.items : []
-  const initialMsgCursor = msgRes && msgRes.ok ? msgRes.nextCursor ?? null : null
-
-  return (
-    <AiChatClient
-      initialConversations={initialConversations}
-      initialCursor={initialCursor}
-      initialMessages={initialMessages}
-      initialMsgCursor={initialMsgCursor}
-      initialConversationId={conversationId}
-      providers={providers}
-      defaultProvider={defaultProvider}
-      capabilities={capabilities}
-    />
-  )
+  const qs = new URLSearchParams(
+    Object.entries(params).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+  ).toString()
+  redirect(qs ? `/ai-chat?${qs}` : '/ai-chat')
 }

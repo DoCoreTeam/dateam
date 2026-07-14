@@ -4,10 +4,11 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { logTokenUsage } from '@/lib/token-logger'
-import { getProvider, getProviderConfig } from '@/lib/ai-chat/registry'
+import { getAvailableProviders, getProvider, getProviderConfig } from '@/lib/ai-chat/registry'
 import { buildThreadForChoice, getBranchGroups } from '@/lib/ai-chat/thread'
 import { chunkText, embedKnowledgeChunks } from '@/lib/ai-chat/knowledge'
 import { sanitizeSearchQuery } from '@/lib/ai-chat/search'
+import { mergeModelCatalogEntry, type ModelCapabilities } from '@/lib/ai-chat/model-catalog'
 import type {
   AiChatProviderId,
   AiChatConversation,
@@ -145,7 +146,7 @@ export async function createConversation(input: {
     .single()
   if (error || !data) return { ok: false, error: '대화 생성 중 오류가 발생했습니다' }
 
-  revalidatePath('/admin/ai-chat')
+  revalidatePath('/ai-chat')
   return { ok: true, id: (data as { id: string }).id }
 }
 
@@ -305,7 +306,7 @@ export async function renameConversation(
     .is('deleted_at', null)
   if (error) return { ok: false, error: '이름 변경 중 오류가 발생했습니다' }
 
-  revalidatePath('/admin/ai-chat')
+  revalidatePath('/ai-chat')
   return { ok: true }
 }
 
@@ -332,7 +333,7 @@ export async function togglePin(
     .eq('user_id', ctx.userId)
   if (error) return { ok: false, error: '핀 변경 중 오류가 발생했습니다' }
 
-  revalidatePath('/admin/ai-chat')
+  revalidatePath('/ai-chat')
   return { ok: true, pinned: next }
 }
 
@@ -363,7 +364,7 @@ export async function updateConversationModel(
     .is('deleted_at', null)
   if (error) return { ok: false, error: '모델 변경 중 오류가 발생했습니다' }
 
-  revalidatePath('/admin/ai-chat')
+  revalidatePath('/ai-chat')
   return { ok: true }
 }
 
@@ -381,7 +382,7 @@ export async function softDeleteConversation(
     .eq('user_id', ctx.userId)
   if (error) return { ok: false, error: '삭제 중 오류가 발생했습니다' }
 
-  revalidatePath('/admin/ai-chat')
+  revalidatePath('/ai-chat')
   return { ok: true }
 }
 
@@ -398,7 +399,7 @@ export async function restoreConversation(
     .eq('user_id', ctx.userId)
   if (error) return { ok: false, error: '복원 중 오류가 발생했습니다' }
 
-  revalidatePath('/admin/ai-chat')
+  revalidatePath('/ai-chat')
   return { ok: true }
 }
 
@@ -445,7 +446,7 @@ export async function autoTitle(
       .update({ title })
       .eq('id', conversationId)
       .eq('user_id', ctx.userId)
-    revalidatePath('/admin/ai-chat')
+    revalidatePath('/ai-chat')
   }
 
   try {
@@ -631,7 +632,7 @@ export async function updateSystemPrompt(
     .is('deleted_at', null)
   if (error) return { ok: false, error: '시스템 프롬프트 저장 중 오류가 발생했습니다' }
 
-  revalidatePath('/admin/ai-chat')
+  revalidatePath('/ai-chat')
   return { ok: true }
 }
 
@@ -802,7 +803,7 @@ export async function setConversationProject(
     .is('deleted_at', null)
   if (error) return { ok: false, error: '프로젝트 연결 중 오류가 발생했습니다' }
 
-  revalidatePath('/admin/ai-chat')
+  revalidatePath('/ai-chat')
   return { ok: true }
 }
 
@@ -913,7 +914,7 @@ export async function toggleShare(
       .eq('user_id', ctx.userId)
       .is('deleted_at', null)
     if (error) return { ok: false, error: '공유 설정 중 오류가 발생했습니다' }
-    revalidatePath('/admin/ai-chat')
+    revalidatePath('/ai-chat')
     return { ok: true, token }
   }
 
@@ -924,6 +925,135 @@ export async function toggleShare(
     .eq('user_id', ctx.userId)
     .is('deleted_at', null)
   if (error) return { ok: false, error: '공유 해제 중 오류가 발생했습니다' }
-  revalidatePath('/admin/ai-chat')
+  revalidatePath('/ai-chat')
   return { ok: true, token: null }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// ⑤ 모델 선택 모달 — DB 캐시 기반 모델 카탈로그(마이그 156 ai_model_catalog)
+// ════════════════════════════════════════════════════════════════════════
+
+export interface ModelCatalogItem {
+  provider: AiChatProviderId
+  modelId: string
+  label: string
+  contextLength: number | null
+  capabilities: ModelCapabilities
+  releasedAt: string | null
+}
+
+interface ModelCatalogRow {
+  provider: AiChatProviderId
+  model_id: string
+  label: string
+  context_length: number | null
+  capabilities: Partial<ModelCapabilities> | null
+  released_at: string | null
+  is_active: boolean
+}
+
+// ── 키가 설정된 프로바이더의 카탈로그(is_active만) 조회 — 모델 선택 모달 데이터 소스 ──
+export async function listModelCatalog(): Promise<{
+  ok: boolean
+  items?: ModelCatalogItem[]
+  error?: string
+}> {
+  const ctx = await getCtx()
+  if (!ctx) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const meta = await readMeta(ctx.admin)
+  const available = getAvailableProviders(meta).map((c) => c.id)
+  if (available.length === 0) return { ok: true, items: [] }
+
+  const { data, error } = await ctx.admin
+    .from('ai_model_catalog')
+    .select('provider, model_id, label, context_length, capabilities, released_at, is_active')
+    .in('provider', available)
+    .eq('is_active', true)
+    .order('released_at', { ascending: false, nullsFirst: false })
+  if (error) return { ok: false, error: '모델 카탈로그 조회 중 오류가 발생했습니다' }
+
+  const rows = (data ?? []) as ModelCatalogRow[]
+  const items: ModelCatalogItem[] = rows.map((r) => ({
+    provider: r.provider,
+    modelId: r.model_id,
+    label: r.label,
+    contextLength: r.context_length,
+    capabilities: { vision: false, longContext: false, reasoning: false, ...(r.capabilities ?? {}) },
+    releasedAt: r.released_at,
+  }))
+  return { ok: true, items }
+}
+
+// ── 실 프로바이더 응답(listModels)으로 카탈로그 갱신 — capabilities/released_at은 기존값 보존 ──
+export async function refreshModelCatalog(
+  provider: AiChatProviderId,
+): Promise<{ ok: boolean; count?: number; error?: string }> {
+  const ctx = await getCtx()
+  if (!ctx) return { ok: false, error: '관리자 권한이 필요합니다' }
+  if (!isValidProvider(provider)) return { ok: false, error: '유효하지 않은 프로바이더' }
+
+  const meta = await readMeta(ctx.admin)
+  const config = getProviderConfig(meta, provider)
+  if (!config) return { ok: false, error: '해당 프로바이더의 AI 키가 설정되지 않았습니다' }
+
+  let modelIds: string[]
+  try {
+    modelIds = await getProvider(provider).listModels(config.apiKey)
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : '모델 목록 조회에 실패했습니다' }
+  }
+  if (modelIds.length === 0) return { ok: true, count: 0 }
+
+  const { data: existingData } = await ctx.admin
+    .from('ai_model_catalog')
+    .select('model_id, label, context_length, capabilities, released_at')
+    .eq('provider', provider)
+    .in('model_id', modelIds)
+  const existingRows = (existingData ?? []) as Array<{
+    model_id: string
+    label: string | null
+    context_length: number | null
+    capabilities: Partial<ModelCapabilities> | null
+    released_at: string | null
+  }>
+  const existingMap = new Map(existingRows.map((r) => [r.model_id, r]))
+
+  const upsertRows = modelIds.map((modelId) => {
+    const existing = existingMap.get(modelId)
+    const merged = mergeModelCatalogEntry(provider, modelId, {
+      label: existing?.label,
+      contextLength: existing?.context_length,
+      capabilities: existing?.capabilities,
+      releasedAt: existing?.released_at,
+    })
+    return {
+      provider: merged.provider,
+      model_id: merged.modelId,
+      label: merged.label,
+      context_length: merged.contextLength,
+      capabilities: merged.capabilities,
+      released_at: merged.releasedAt,
+      is_active: true,
+      fetched_at: new Date().toISOString(),
+    }
+  })
+
+  const { error: upsertError } = await ctx.admin
+    .from('ai_model_catalog')
+    .upsert(upsertRows, { onConflict: 'provider,model_id' })
+  if (upsertError) return { ok: false, error: '모델 카탈로그 저장 중 오류가 발생했습니다' }
+
+  // 더 이상 응답에 없는 기존 모델은 비활성화(목록에서 숨김, 행은 보존)
+  const { error: deactivateError } = await ctx.admin
+    .from('ai_model_catalog')
+    .update({ is_active: false })
+    .eq('provider', provider)
+    .not('model_id', 'in', `(${modelIds.join(',')})`)
+  if (deactivateError) {
+    // 비활성화 실패는 치명적이지 않음(다음 새로고침에서 재시도) — upsert는 이미 성공했으므로 ok 유지
+  }
+
+  revalidatePath('/ai-chat')
+  return { ok: true, count: upsertRows.length }
 }

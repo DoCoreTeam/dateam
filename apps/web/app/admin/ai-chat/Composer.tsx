@@ -1,9 +1,10 @@
 'use client'
 
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { Send, Square, Paperclip, FileText, X, Globe } from 'lucide-react'
+import { Send, Square, Paperclip, FileText, X, Globe, ChevronDown } from 'lucide-react'
 import type { AiChatProviderId } from '@/types/database'
 import type { ProviderView } from './AiChatClient'
+import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import {
   ATTACHMENT_RULES,
   MAX_ATTACHMENTS_PER_MESSAGE,
@@ -42,7 +43,8 @@ interface ComposerProps {
   providers: ProviderView[]
   onSend: (content: string, attachmentIds: string[]) => void
   onStop: () => void
-  onChangeModel: (provider: AiChatProviderId, model: string) => void
+  /** ⑤ 모델 선택 모달 오픈(단순 드롭다운 대신 능력·출시일을 보여주는 모달로 대체) */
+  onOpenModelPicker: () => void
   /** 첨부는 대화 존재를 전제 — 없으면 지연 생성 후 id 반환(실패 시 null) */
   ensureConversation: () => Promise<string | null>
   /** S3 §4-3 — 웹 검색 토글(요청 단위). capabilities.tools=false면 비활성. */
@@ -68,7 +70,7 @@ export default function Composer({
   providers,
   onSend,
   onStop,
-  onChangeModel,
+  onOpenModelPicker,
   ensureConversation,
   toolsSupported,
   webSearch,
@@ -245,11 +247,6 @@ export default function Composer({
     void handleFiles(files)
   }
 
-  function handleModelChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const p = providers.find((pv) => pv.id === e.target.value)
-    if (p) onChangeModel(p.id, p.model)
-  }
-
   const sendDisabled = (!value.trim() && readyCount === 0) || noProviders || uploadingCount > 0 || locked
 
   return (
@@ -385,28 +382,24 @@ export default function Composer({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-        <label className="label" htmlFor="ai-chat-model" style={{ margin: 0, fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>
+        <span className="label" style={{ margin: 0, fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>
           모델
-        </label>
-        <select id="ai-chat-model" className="input-field"
-          value={currentProvider ?? ''}
-          onChange={handleModelChange}
+        </span>
+        <button
+          type="button"
+          className="ai-chat-model-btn"
+          onClick={onOpenModelPicker}
           disabled={noProviders}
-          style={{ width: 'auto', maxWidth: '100%', fontSize: 'var(--fs-xs)', padding: 'var(--space-1) var(--space-2)' }}
-          aria-label="프로바이더 및 모델 선택"
+          aria-label="모델 선택 (능력·출시일 보기)"
+          title="모델 선택"
         >
-          {noProviders && <option value="">사용 가능한 프로바이더 없음</option>}
-          {currentProvider && !providers.some((p) => p.id === currentProvider) && (
-            <option value={currentProvider}>
-              {currentProvider} · {currentModel}
-            </option>
-          )}
-          {providers.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label} · {p.model}
-            </option>
-          ))}
-        </select>
+          <span>
+            {noProviders
+              ? '사용 가능한 프로바이더 없음'
+              : `${currentProvider ? PROVIDER_LABELS[currentProvider] : ''} · ${currentModel ?? ''}`}
+          </span>
+          <ChevronDown size={13} />
+        </button>
       </div>
     </div>
   )

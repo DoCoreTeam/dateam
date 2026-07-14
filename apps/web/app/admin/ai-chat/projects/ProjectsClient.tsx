@@ -41,7 +41,7 @@ export default function ProjectsClient({ initialProjects }: Props) {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)', flexWrap: 'wrap', marginBottom: 'var(--space-6)' }}>
         <div style={{ minWidth: 0 }}>
           <Link
-            href="/admin/ai-chat"
+            href="/ai-chat"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', textDecoration: 'none', marginBottom: 'var(--space-2)' }}
           >
             <ArrowLeft size={14} />

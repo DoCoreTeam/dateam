@@ -1,23 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
-import { conversationToMarkdown, conversationToPlainText, sanitizeFilename } from '@/lib/ai-chat/export'
+import { conversationToHtmlDocument, sanitizeFilename } from '@/lib/ai-chat/export'
+import { launchOptions } from '@/lib/security/headless-fetch'
 import type { AiChatCitation } from '@/types/database'
 
 export const runtime = 'nodejs'
+export const maxDuration = 30
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AdminDb = any
 
-type ExportFormat = 'md' | 'txt'
-
-function parseFormat(v: string | null): ExportFormat {
-  return v === 'txt' ? 'txt' : 'md' // 미지정/미인식 값은 기존 기본값(md) 유지 — 호환
-}
-
 /**
- * GET /api/admin/ai-chat/export?c=<conversationId>&format=md|txt (04 §6-1 / S3 §5-1, ④ 포맷 확장)
- * admin 인가 + owner 검증 → 메시지 asc 로드 → conversationToMarkdown/PlainText(KST) → 첨부 다운로드.
+ * GET /api/admin/ai-chat/export-pdf?c=<conversationId> (④ 다운로드 포맷 확장 — PDF)
+ * admin 인가 + owner 검증 → conversationToHtmlDocument(내부 생성 HTML, 사용자 입력 없음)를
+ * puppeteer-core + @sparticuz/chromium으로 렌더 → PDF 첨부 다운로드.
+ * SSRF 우려 없음: 외부 URL을 로드하지 않고 page.setContent로 로컬 문자열만 렌더한다.
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const auth = await requireAdminApi()
@@ -28,11 +26,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (!conversationId) {
     return NextResponse.json({ error: '대화 ID가 필요합니다' }, { status: 400 })
   }
-  const format = parseFormat(req.nextUrl.searchParams.get('format'))
 
   const admin = createAdminClient() as AdminDb
 
-  // 소유 검증 (admin + owner)
   const { data: conv } = await admin
     .from('ai_conversations')
     .select('id, title, provider, model, created_at')
@@ -50,7 +46,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     created_at: string
   }
 
-  // 메시지 asc — 실패(빈 error 행) 제외
   const { data: msgData } = await admin
     .from('ai_messages')
     .select('role, content, created_at, citations')
@@ -74,27 +69,41 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       : undefined,
   }))
 
-  const conversationMeta = {
-    title: conversation.title,
-    provider: conversation.provider,
-    model: conversation.model,
-    createdAt: conversation.created_at,
-  }
-  const body = format === 'txt'
-    ? conversationToPlainText(conversationMeta, messages)
-    : conversationToMarkdown(conversationMeta, messages)
-  const contentType = format === 'txt' ? 'text/plain; charset=utf-8' : 'text/markdown; charset=utf-8'
+  const html = conversationToHtmlDocument(
+    {
+      title: conversation.title,
+      provider: conversation.provider,
+      model: conversation.model,
+      createdAt: conversation.created_at,
+    },
+    messages,
+  )
 
-  // 파일명: 유니코드 보존 filename* + ASCII 폴백 filename(비ASCII → '_')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let browser: any = null
+  let pdf: Uint8Array
+  try {
+    const puppeteer = (await import('puppeteer-core')).default
+    const opt = await launchOptions()
+    browser = await puppeteer.launch({ args: opt.args, executablePath: opt.executablePath, headless: opt.headless })
+    const page = await browser.newPage()
+    await page.setContent(html, { waitUntil: 'domcontentloaded' })
+    pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '20px', bottom: '20px', left: '20px', right: '20px' } })
+  } catch {
+    return NextResponse.json({ error: 'PDF 생성 중 오류가 발생했습니다' }, { status: 500 })
+  } finally {
+    try { await browser?.close() } catch { /* noop */ }
+  }
+
   const base = sanitizeFilename(conversation.title)
   const asciiFallback = base.replace(/[^\x20-\x7e]/g, '_').replace(/_+/g, '_') || 'conversation'
-  const encoded = encodeURIComponent(`${base}.${format}`)
-  const disposition = `attachment; filename="${asciiFallback}.${format}"; filename*=UTF-8''${encoded}`
+  const encoded = encodeURIComponent(`${base}.pdf`)
+  const disposition = `attachment; filename="${asciiFallback}.pdf"; filename*=UTF-8''${encoded}`
 
-  return new NextResponse(body, {
+  return new NextResponse(Buffer.from(pdf), {
     status: 200,
     headers: {
-      'Content-Type': contentType,
+      'Content-Type': 'application/pdf',
       'Content-Disposition': disposition,
       'Cache-Control': 'no-store',
     },
