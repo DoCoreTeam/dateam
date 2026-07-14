@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Upload, Trash2, FileText, MessageSquarePlus, MessageSquare, Loader2 } from 'lucide-react'
 import type { AiChatProject, AiChatProviderId } from '@/types/database'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
+import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import {
@@ -38,11 +39,6 @@ interface Props {
   defaultProvider: { id: AiChatProviderId; model: string } | null
 }
 
-const PROVIDER_LABELS: Record<AiChatProviderId, string> = {
-  gemini: 'Gemini',
-  claude: 'Claude',
-  openai: 'OpenAI',
-}
 
 const INSTRUCTIONS_MAX = 4000
 const KNOWLEDGE_ACCEPT = '.txt,.md,.csv,.docx,.xlsx,.pptx,.pdf,text/plain,text/markdown,text/csv'

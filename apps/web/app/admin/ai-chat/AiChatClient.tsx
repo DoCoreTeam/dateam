@@ -11,6 +11,7 @@ import type {
 } from '@/types/database'
 import { useSseChat, type StreamBody } from '@/lib/ai-chat/use-sse-chat'
 import { buildArtifactVersions } from '@/lib/ai-chat/artifacts'
+import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import {
   createConversation,
   listConversations,
@@ -65,11 +66,8 @@ export interface ChatMessageView extends AiChatMessage {
   branch?: BranchMeta
 }
 
-export const PROVIDER_LABELS: Record<AiChatProviderId, string> = {
-  gemini: 'Gemini',
-  claude: 'Claude',
-  openai: 'OpenAI',
-}
+// PROVIDER_LABELS는 lib/ai-chat/labels.ts(SSOT)에서 import — 'use client'에서 정의·export하면 서버
+// 컴포넌트(page.tsx)가 import할 때 RSC 매니페스트 오류가 난다. 아래 컴포넌트들은 labels에서 직접 import.
 
 // 서버가 세션2 필드를 아직 실을 수도/안 실을 수도 있어 관대하게 승격(병행 개발 안전).
 type RawMessage = AiChatMessage &
@@ -245,6 +243,21 @@ export default function AiChatClient({
     if (r.ok && r.items) {
       setConversations(r.items)
       setConvCursor(r.nextCursor ?? null)
+    }
+  }
+
+  // 첫 메시지 제목 경합 대응: 서버 autoTitle은 fire-and-forget(별도 Gemini 호출)이라 스트림 done 시점엔
+  // 아직 '새 대화'다. 해당 대화 제목이 기본값을 벗어날 때까지 몇 번 재조회해 사이드바에 실시간 반영한다.
+  async function refreshConversationsUntilTitled(convId: string, tries = 5) {
+    for (let i = 0; i < tries; i++) {
+      const r = await listConversations({})
+      if (r.ok && r.items) {
+        setConversations(r.items)
+        setConvCursor(r.nextCursor ?? null)
+        const title = r.items.find((c) => c.id === convId)?.title
+        if (title && title !== '새 대화') return   // 제목 확정됨 → 종료
+      }
+      await new Promise((res) => setTimeout(res, 1200))
     }
   }
 
@@ -484,7 +497,7 @@ export default function AiChatClient({
           setStreamDraft(null)
         }
         void reloadMessages(convId)
-        void refreshConversations()
+        void refreshConversationsUntilTitled(convId)   // 제목 경합 대응(첫 메시지 후 실시간 반영)
       },
       onError: (msg) => {
         if (token.done) return

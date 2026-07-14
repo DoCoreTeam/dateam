@@ -6,7 +6,7 @@ import { Plus, Pin, PinOff, Pencil, Trash2, Check, X, RotateCcw, Search, FolderK
 import type { AiChatConversation, AiChatProject } from '@/types/database'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
-import { PROVIDER_LABELS } from './AiChatClient'
+import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import { searchConversations } from './actions'
 
 interface SearchResult {

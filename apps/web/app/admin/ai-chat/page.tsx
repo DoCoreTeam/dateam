@@ -3,7 +3,8 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { getAvailableProviders, getDefaultProvider, getProvider } from '@/lib/ai-chat/registry'
 import type { AiChatProviderId } from '@/types/database'
 import { listConversations, getMessages } from './actions'
-import AiChatClient, { PROVIDER_LABELS, type ProviderView, type ProviderCaps } from './AiChatClient'
+import AiChatClient, { type ProviderView, type ProviderCaps } from './AiChatClient'
+import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 
 const ALL_PROVIDER_IDS: AiChatProviderId[] = ['gemini', 'claude', 'openai']
 
