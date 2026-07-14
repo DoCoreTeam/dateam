@@ -32,6 +32,41 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.298',
+    date: '2026-07-14',
+    title: '주간보고가 쉬워지고, 지난 활동을 한눈에',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🤖',
+        headline: '주간보고 AI 자동 초안',
+        detail:
+          '한 주 동안의 일일 업무와 일정을 AI가 분석해 성과·계획·이슈 초안을 미리 작성해 드려요. 확인하고 다듬기만 하면 주간보고가 완성됩니다.',
+      },
+      {
+        kind: 'feature',
+        emoji: '📋',
+        headline: '업무 통합 이력 한눈에',
+        detail:
+          '일일·주간·부서·프로젝트 활동을 한 곳에서 모아 보고, 예전에 작성한 내용을 그대로 되살릴 수 있어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '👥',
+        headline: '조직원 선택이 편리해졌어요',
+        detail:
+          '이름 검색이나 조직도 트리에서 여러 명을 한 번에 골라 담을 수 있어, 회의·업무 연결이 훨씬 빨라졌습니다.',
+      },
+      {
+        kind: 'fix',
+        emoji: '🕘',
+        headline: '캘린더 시간 표시 정확도 개선',
+        detail:
+          '일정 시각이 실제보다 늦게 표시되던 문제를 바로잡아, 입력한 시간 그대로 정확히 보이도록 했어요.',
+      },
+    ],
+  },
+  {
     version: '0.7.224',
     date: '2026-06-21',
     title: '사용자 편의 및 기능 개선 업데이트',

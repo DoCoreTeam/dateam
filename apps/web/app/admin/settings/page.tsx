@@ -2,6 +2,11 @@ import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { Key, Palette, Bell, Cloud, Database, Paintbrush } from 'lucide-react'
 import GeminiSettings from './GeminiSettings'
+import ClaudeSettings from './ClaudeSettings'
+import OpenAiSettings from './OpenAiSettings'
+import AiChatDefaultProviderPicker from './AiChatDefaultProviderPicker'
+import { getAvailableProviders, META_DEFAULT_PROVIDER_KEY } from '@/lib/ai-chat/registry'
+import type { AiChatProviderId } from '@/types/database'
 import DbSettings from './DbSettings'
 import KoraeximSettings from './KoraeximSettings'
 import BrandingSettings from './BrandingSettings'
@@ -14,6 +19,14 @@ import { getActiveTheme } from '@/lib/theme'
 
 const GEMINI_KEY = 'gemini_api_key'
 const KOREAEXIM_KEY = 'koreaexim_api_key'
+const CLAUDE_KEY = 'claude_api_key'
+const OPENAI_KEY = 'openai_api_key'
+
+const AI_PROVIDER_LABELS: Record<AiChatProviderId, string> = {
+  gemini: 'Gemini',
+  claude: 'Claude',
+  openai: 'OpenAI',
+}
 
 function maskKey(key: string): string {
   if (key.length <= 8) return '••••••••'
@@ -53,6 +66,23 @@ export default async function AdminSettingsPage({
   const hasKey = !!storedKey
   const maskedKey = storedKey ? maskKey(storedKey) : null
   const savedModel = (meta.gemini_model as string | undefined) ?? null
+
+  const storedClaudeKey = meta[CLAUDE_KEY] as string | undefined
+  const hasClaudeKey = !!storedClaudeKey
+  const maskedClaudeKey = storedClaudeKey ? maskKey(storedClaudeKey) : null
+  const savedClaudeModel = (meta.claude_model as string | undefined) ?? null
+
+  const storedOpenAiKey = meta[OPENAI_KEY] as string | undefined
+  const hasOpenAiKey = !!storedOpenAiKey
+  const maskedOpenAiKey = storedOpenAiKey ? maskKey(storedOpenAiKey) : null
+  const savedOpenAiModel = (meta.openai_model as string | undefined) ?? null
+
+  // 채팅 기본 프로바이더 셀렉트 — 가용 프로바이더만 노출
+  const availableChatProviders = getAvailableProviders(meta).map((p) => ({
+    id: p.id,
+    label: AI_PROVIDER_LABELS[p.id],
+  }))
+  const currentDefaultProvider = (meta[META_DEFAULT_PROVIDER_KEY] as AiChatProviderId | undefined) ?? ''
 
   const storedKoraeximKey = meta[KOREAEXIM_KEY] as string | undefined
   const hasKoraeximKey = !!storedKoraeximKey
@@ -98,7 +128,12 @@ export default async function AdminSettingsPage({
           <Key size={15} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>AI 모델 연동</h2>
         </div>
-        <GeminiSettings hasKey={hasKey} maskedKey={maskedKey} savedModel={savedModel} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+          <GeminiSettings hasKey={hasKey} maskedKey={maskedKey} savedModel={savedModel} />
+          <ClaudeSettings hasKey={hasClaudeKey} maskedKey={maskedClaudeKey} savedModel={savedClaudeModel} />
+          <OpenAiSettings hasKey={hasOpenAiKey} maskedKey={maskedOpenAiKey} savedModel={savedOpenAiModel} />
+          <AiChatDefaultProviderPicker available={availableChatProviders} current={currentDefaultProvider} />
+        </div>
       </section>
 
       {/* 한국수출입은행 환율 API */}

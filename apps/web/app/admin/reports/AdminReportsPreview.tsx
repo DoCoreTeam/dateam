@@ -43,36 +43,6 @@ const TH_COLS = [
   { label: '이슈/협조사항' },
 ]
 
-const CACHE_V = 5
-const CACHE_TTL = 24 * 60 * 60 * 1000
-
-interface CacheEntry { v: number; savedAt: number; rows: PreviewRow[] }
-
-function cacheKey(week: string, member: string) {
-  return `ai-preview::${week}::${member || 'all'}`
-}
-
-function readCache(week: string, member: string): PreviewRow[] | null {
-  try {
-    const raw = sessionStorage.getItem(cacheKey(week, member))
-    if (!raw) return null
-    const entry = JSON.parse(raw) as CacheEntry
-    if (entry.v !== CACHE_V || Date.now() - entry.savedAt > CACHE_TTL) return null
-    const rows = entry.rows
-    if (!Array.isArray(rows) || rows.length === 0) return null
-    const f = rows[0]
-    if (typeof f !== 'object' || f === null || !('category' in f) || !('performance' in f)) return null
-    return rows
-  } catch { return null }
-}
-
-function writeCache(week: string, member: string, rows: PreviewRow[]) {
-  try {
-    const entry: CacheEntry = { v: CACHE_V, savedAt: Date.now(), rows }
-    sessionStorage.setItem(cacheKey(week, member), JSON.stringify(entry))
-  } catch { /* quota 초과 등 무시 */ }
-}
-
 function RichCell({ html }: { html: string }) {
   return <RichText html={html} style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.6 }} />
 }
@@ -84,10 +54,11 @@ const STEPS = [
 ]
 
 export default function AdminReportsPreview({ week, member, members = '', deptName = '', orgName = '' }: AdminReportsPreviewProps) {
-  const tag = member || (members ? `d:${members}` : '') // 캐시/필터 구분 태그
   const displayOrg = deptName || orgName // 부서 필터 시 부서명, 아니면 회사명
   const [rows, setRows] = useState<PreviewRow[]>([])
-  const [fromCache, setFromCache] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [savedAt, setSavedAt] = useState<string | null>(null)
+  const [restoring, setRestoring] = useState(false)
   const [editingCell, setEditingCell] = useState<EditingCell>(null)
   const [loading, setLoading] = useState(false)
   const [downloading, setDownloading] = useState(false)
@@ -101,18 +72,27 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
   const overlayRef = useRef<HTMLDivElement>(null)
   const prevFocusRef = useRef<HTMLElement | null>(null)
 
-  // 마운트/필터 변경 시 sessionStorage에서 복원
+  // 마운트/필터 변경 시 DB 저장본에서 복원 (Gemini 미호출)
   useEffect(() => {
-    const cached = readCache(week, tag)
-    if (cached) {
-      const normalized = displayOrg ? cached.map(r => ({ ...r, orgName: displayOrg })) : cached
-      if (displayOrg) writeCache(week, tag, normalized)
-      setRows(normalized)
-      setFromCache(true)
-    } else {
-      setRows([])
-      setFromCache(false)
-    }
+    const myId = ++reqIdRef.current
+    const params = new URLSearchParams({ week })
+    if (member) params.set('member', member)
+    if (members) params.set('members', members)
+    setRows([])
+    setSaved(false)
+    setSavedAt(null)
+    setRestoring(true)
+    fetch(`/api/reports/preview?${params.toString()}`)
+      .then(res => (res.ok ? res.json() : null))
+      .then((data: { reports: PreviewRow[]; saved: boolean; updatedAt: string | null } | null) => {
+        if (myId !== reqIdRef.current) return
+        const rowsOut = displayOrg && data?.reports ? data.reports.map(r => ({ ...r, orgName: displayOrg })) : (data?.reports ?? [])
+        setRows(rowsOut)
+        setSaved(!!data?.saved && rowsOut.length > 0)
+        setSavedAt(data?.updatedAt ?? null)
+      })
+      .catch(() => { /* 조회 실패 시 빈 상태 유지 */ })
+      .finally(() => { if (myId === reqIdRef.current) setRestoring(false) })
   }, [week, member, members, displayOrg])
 
   function clearTimers() {
@@ -137,7 +117,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
     clearTimers()
     setLoading(true)
     setError(null)
-    setFromCache(false)
+    setSaved(false)
     setStatusStep(0)
     setElapsed(0)
     const myId = ++reqIdRef.current
@@ -151,16 +131,17 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
       const params = new URLSearchParams({ week })
       if (member) params.set('member', member)
       if (members) params.set('members', members)
-      const res = await fetch(`/api/reports/preview?${params.toString()}`)
+      const res = await fetch(`/api/reports/preview?${params.toString()}`, { method: 'POST' })
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string }
         throw new Error(body.error ?? '미리보기 불러오기 실패')
       }
-      const data = await res.json() as { reports: PreviewRow[] }
+      const data = await res.json() as { reports: PreviewRow[]; updatedAt?: string | null }
       if (myId !== reqIdRef.current) return
       const rowsOut = displayOrg ? data.reports.map(r => ({ ...r, orgName: displayOrg })) : data.reports
       setRows(rowsOut)
-      writeCache(week, tag, rowsOut)
+      setSaved(true)
+      setSavedAt(data.updatedAt ?? new Date().toISOString())
     } catch (err) {
       if (myId === reqIdRef.current) {
         setError(err instanceof Error ? err.message : '알 수 없는 오류')
@@ -199,12 +180,18 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
     }
   }
 
+  // 편집은 로컬 상태만 갱신(키스트로크마다 PUT 금지). DB 영속은 모달 닫힐 때 1회.
   function updateCell(rowIdx: number, field: EditableField, value: string) {
-    setRows(prev => {
-      const next = prev.map((row, i) => (i === rowIdx ? { ...row, [field]: value } : row))
-      writeCache(week, tag, next)
-      return next
-    })
+    setRows(prev => prev.map((row, i) => (i === rowIdx ? { ...row, [field]: value } : row)))
+  }
+
+  // 편집 종료 시 현재 취합본을 DB에 저장(fire-and-forget). 실패해도 다음 편집/취합 시 재저장됨.
+  function persistEdits(next: PreviewRow[]) {
+    fetch('/api/reports/preview', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ week, member, members, reports: next }),
+    }).then(res => { if (res.ok) { setSaved(true); setSavedAt(new Date().toISOString()) } }).catch(() => { /* 저장 실패 무시 */ })
   }
 
   const activeCell = editingCell !== null ? rows[editingCell.rowIdx] : null
@@ -266,6 +253,10 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
           </div>
         )}
 
+        {restoring && !loading && rows.length === 0 && (
+          <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>저장본 불러오는 중…</span>
+        )}
+
         {error && <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>{error}</p>}
       </div>
 
@@ -280,10 +271,10 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
               <span style={{ padding: '0.125rem 0.5rem', background: 'var(--brand-soft-2)', color: 'var(--brand)', borderRadius: '9999px', fontSize: 'var(--fs-2xs)', fontWeight: 700, letterSpacing: '0.04em' }}>
                 Gemini AI
               </span>
-              {fromCache && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.125rem 0.5rem', background: 'var(--warning-bg)', color: 'var(--warning)', borderRadius: '9999px', fontSize: 'var(--fs-2xs)', fontWeight: 600 }}>
+              {saved && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.125rem 0.5rem', background: 'var(--success-bg)', color: 'var(--success)', borderRadius: '9999px', fontSize: 'var(--fs-2xs)', fontWeight: 600 }}>
                   <RefreshCw size={10} />
-                  세션 캐시 — 최신 데이터로 다시 생성하려면 버튼을 누르세요
+                  저장됨{savedAt ? ` · ${new Date(savedAt).toLocaleString('ko-KR')}` : ''} — 원본 반영은 다시 취합
                 </span>
               )}
             </div>
@@ -364,7 +355,7 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
           value={activeValue}
           placeholder="내용을 입력하세요"
           onChange={html => updateCell(editingCell.rowIdx, editingCell.field, html)}
-          onClose={() => setEditingCell(null)}
+          onClose={() => { setEditingCell(null); persistEdits(rows) }}
         />
       )}
     </>

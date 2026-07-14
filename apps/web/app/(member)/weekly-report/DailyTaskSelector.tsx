@@ -47,11 +47,16 @@ export default function DailyTaskSelector({ weekStart, onGenerate, variant = 'in
     }
   }, [weekStart])
 
+  // 페치는 weekStart별로 1회만. deps에 tasks.length/loading을 넣으면 일일보고가 없는
+  // 주차(빈 결과)에서 loading이 true→false로 토글될 때마다 조건이 재충족되어 무한
+  // 재요청 루프(=화면 깜빡임)가 발생한다. ref 가드로 주차당 1회만 페치한다.
+  const fetchedWeekRef = useRef<string | null>(null)
   useEffect(() => {
-    if (isOpen && tasks.length === 0 && !loading) {
+    if (isOpen && fetchedWeekRef.current !== weekStart) {
+      fetchedWeekRef.current = weekStart
       fetchTasks()
     }
-  }, [isOpen, tasks.length, loading, fetchTasks])
+  }, [isOpen, weekStart, fetchTasks])
 
   function toggleTask(id: string) {
     setSelectedIds((prev) => {
