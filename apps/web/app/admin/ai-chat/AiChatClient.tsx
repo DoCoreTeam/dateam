@@ -399,12 +399,10 @@ export default function AiChatClient({
       const r = await updateConversationModel(selectedId, provider, model)
       if (!r.ok) refreshConversations()
     } else {
-      const pv = providers.find((p) => p.id === provider) ?? {
-        id: provider,
-        label: PROVIDER_LABELS[provider],
-        model,
-      }
-      setDraftProvider(pv)
+      // ⚠️ providers.find(...)를 그대로 쓰면 그 프로바이더의 '기본 모델'이 실려 사용자가 고른 model을
+      // 덮어쓴다(선택 반영 안 됨 버그). 라벨만 가져오고 선택한 model은 반드시 보존한다.
+      const found = providers.find((p) => p.id === provider)
+      setDraftProvider({ id: provider, label: found?.label ?? PROVIDER_LABELS[provider], model })
     }
   }
 

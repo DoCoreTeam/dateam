@@ -49,9 +49,23 @@
 | `confidence-gate.ts` | 자동확정/검토 분기 | ✅(제4조 배선과 공유) |
 | `review_items` + restore 백본 | 변경 검토·유실0 | ✅(제9조와 공유) |
 
+## 2-B. 트리거 방식 결정 — 크론 대신 "KST 00시 이후 첫 접속자 구동" (대표 지시)
+
+> **왜 크론이 아니라 첫 접속자 트리거인가**: gcube 크론(`gcube-price-check.yml`, 매일 KST 00시)은 코드상 "돌 수 있는 상태"이나 실제 작동을 신뢰하기 어렵다 — ①GitHub Secrets 실등록 여부 코드로 확인 불가 ②60일 무활동 시 크론 자동 중단(GitHub 정책) ③**실패해도 알림 채널 없음**(조용히 안 돎). 대표 지시대로 **그날 처음 접속한 사용자의 요청이 하루치 수집을 1회 구동**하고, 이미 돌았으면 스킵하는 방식이 이 프로젝트에 더 견고하다.
+
+**재사용 레퍼런스 = 환율 동기화(fx)**: `GpuPricingClient.tsx:185-194` — `fxDate !== KST오늘`이면 그날 첫 접속자가 `POST /api/pricing/gpu/fx` 1회 호출, 서버는 `fx_rates.rate_date` upsert로 멱등 보장(오늘자 있으면 클라가 아예 호출 안 함). **이 패턴이 "첫 접속자 트리거+DB일자 멱등"의 검증된 원형이다.**
+
+**단, fx를 그대로 베끼면 안 되는 3가지 (market/refresh는 fx보다 무거움)**:
+| 요소 | fx 상태 | market/refresh 필요 |
+|---|---|---|
+| 멱등(마지막 수집일 저장) | ✅ `fx_rates.rate_date` | ❌ 없음 → `market_refresh_runs.run_date` 신설 |
+| 경합 방지(동시 접속 중복 실행) | ⚠️ 락 없음(fx는 upsert 수렴이라 무해) | ❌ 필수 신설 — URL×AI 중복 실행 방지 `pg_try_advisory_lock` 또는 run_date unique+선점 |
+| 비차단(백그라운드) | ✅ 가벼워 무관 | ❌ **필수** — 현재 URL수×(fetch+AI)를 **동기 루프**로 처리(refresh/route.ts:132-178) → 트리거한 사용자 화면이 그대로 멈춤. fire-and-forget+폴링 또는 Vercel `after()` 필요 |
+| 권한 | admin 전용 | 첫 접속자가 member일 수 있음 → 트리거는 **서버가 대행**(사용자 권한과 분리)해야 member 접속으로도 구동 |
+
 ## 3. 새로 붙일 결손 부품 (최소)
 
-1. **스케줄러 배선(③ — 핵심 결손)**: gcube 크론 템플릿을 복제해 매일(또는 주기) `market/refresh`를 등록된 링크 전체에 대해 호출. GitHub Actions cron 또는 Vercel cron. 링크별 주기 설정(`refresh_interval`) 컬럼 추가 여지.
+1. **첫 접속자 트리거 배선(③ — 핵심 결손)**: fx 패턴을 복제하되 위 3요소 보강. GpuPricingClient(또는 앱 진입 공통부)에서 `lastRefreshDate !== KST오늘`이면 `POST /market/refresh?auto=1` 1회 발화 → 서버가 **① run_date 선점(경합 방지) → ② 백그라운드로 링크 순회 → ③ 완료 시 run_date 확정**. 트리거는 member 접속도 가능하도록 서버가 서비스롤로 대행. **크론(gcube-price-check.yml)은 폐기하지 않고 "백업 경로"로 병존**(첫 접속자가 늦는 날 대비) — 단 둘 다 같은 run_date 멱등을 공유해 이중 실행 방지.
 2. **수집 상태 필드**: 링크별 `last_checked_at`·`last_status`·`last_error` (as-of·성공/실패). gcube의 `gcube_price_checks` 패턴을 경쟁사 링크로 일반화.
 3. **변경 → 검토 큐 라우팅(④)**: 현재 경쟁사 refresh는 값을 **즉시 덮어씀**(검토 미경유). 이를 제9조/제4조에 맞춰 "변동분은 review_items로, 신뢰도 높으면 auto-confirm"으로 전환. 조용한 자동 덮어쓰기 → 추적가능한 변경으로.
 4. **공급사 소스 링크(신규)**: 현재 링크 저장은 경쟁사만. 공급사도 견적 페이지/포털 URL을 등록·재수집하려면 `suppliers` 쪽 소스 URL 개념 신설(경쟁사 스키마 미러링).
