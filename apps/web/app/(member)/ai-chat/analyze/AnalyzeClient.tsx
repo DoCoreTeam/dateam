@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
-import { ArrowLeft, Upload, ListChecks, History } from 'lucide-react'
+import { Upload } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { extractItems, type AnalyzeExtractResult, type AnalysisLens } from './actions'
@@ -13,10 +12,13 @@ import {
   type AnalysisSessionSummary,
 } from './session-actions'
 import ItemReviewList, { type ReviewItem } from './ItemReviewList'
+import CommandPresetPanel from './CommandPresetPanel'
 import AnalysisResults from './AnalysisResults'
+import AnalyzePageHeader from './AnalyzePageHeader'
+import RecentSessionsList from './RecentSessionsList'
+import type { InitialItem } from './useAnalysisStream'
 
 type Step = 'input' | 'review' | 'results'
-type ResultState = { status: 'idle' | 'running' | 'done' | 'error'; text?: string; error?: string }
 
 const ACCEPT =
   'image/png,image/jpeg,image/webp,.xlsx,.pptx,.docx,.pdf,.md,.txt,.csv,.html,.htm,.json'
@@ -40,12 +42,12 @@ export default function AnalyzeClient() {
   const [sourceKind, setSourceKind] = useState('text')
 
   const [lens, setLens] = useState<AnalysisLens>('summary')
-  const [customInstruction, setCustomInstruction] = useState('')
+  const [command, setCommand] = useState('')
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   // §G 영속 저장 — 분석 착수 시 생성되는 세션 id, "이전 분석" 이어하기 시 미리 채워짐
   const [sessionId, setSessionId] = useState<string | null>(null)
-  const [initialResults, setInitialResults] = useState<Record<string, ResultState> | undefined>(undefined)
-  const [initialTokens, setInitialTokens] = useState(0)
+  const [initialItems, setInitialItems] = useState<InitialItem[]>([])
   const [proceeding, setProceeding] = useState(false)
 
   // §G "이전 분석" 목록
@@ -100,10 +102,9 @@ export default function AnalyzeClient() {
     setParsedCount(result.parsedCount)
     setRestoredCount(result.restoredCount)
     setSourceText(result.sourceText)
-    setInitialTokens(result.usage.totalTokens)
     setTruncatedWarning(result.truncated)
     setSessionId(null)
-    setInitialResults(undefined)
+    setInitialItems([])
     setStep('review')
   }
 
@@ -118,25 +119,42 @@ export default function AnalyzeClient() {
     setRestoredCount(0)
     setSourceText('')
     setSourceKind('text')
+    setCommand('')
+    setLens('summary')
+    setSaveError(null)
     setSessionId(null)
-    setInitialResults(undefined)
-    setInitialTokens(0)
+    setInitialItems([])
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  /** 검수 완료 → 분석 착수: 세션+항목을 먼저 영속화(유실0)한 뒤 결과 화면으로 진입. */
+  function handleSelectLens(id: AnalysisLens, instruction: string): void {
+    setLens(id)
+    setCommand(instruction)
+  }
+
+  /** 검수 완료 → 분석 착수: 세션+항목을 먼저 영속화(유실0)한 뒤 결과 화면으로 진입(§ 관전자 —
+   *  실제 분석은 결과 화면에서 서버 SSE 스트림 POST로 착수된다, 여기서는 저장만 한다). */
   async function handleProceedToResults(): Promise<void> {
     const selected = items.filter((i) => i.selected)
     if (selected.length === 0) return
     setProceeding(true)
+    setSaveError(null)
     const r = await saveAnalysisSession({
       sourceText,
       lens,
       sourceKind,
+      command,
       items: selected.map((i) => ({ text: i.text })),
     })
     setProceeding(false)
-    setSessionId(r.ok ? r.sessionId : null)
+    if (!r.ok) {
+      setSaveError(r.error)
+      return
+    }
+    setSessionId(r.sessionId)
+    setInitialItems(
+      selected.map((i, idx) => ({ idx, text: i.text, status: 'pending' as const, resultText: null })),
+    )
     setStep('results')
   }
 
@@ -147,124 +165,21 @@ export default function AnalyzeClient() {
     setLoadingSession(false)
     if (!r.ok) return
 
-    const resumedItems: ReviewItem[] = r.session.items.map((it) => ({
-      id: makeId(),
-      text: it.text,
-      recovered: false,
-      selected: true,
-    }))
-    const resumedResults: Record<string, ResultState> = {}
-    r.session.items.forEach((it, i) => {
-      const id2 = resumedItems[i].id
-      if (it.status === 'done' || it.status === 'error') {
-        resumedResults[id2] =
-          it.status === 'done'
-            ? { status: 'done', text: it.resultText ?? '' }
-            : { status: 'error', error: '분석에 실패했습니다' }
-      }
-    })
-
-    setItems(resumedItems)
-    setLens(r.session.lens)
     setSourceText(r.session.sourceText)
     setSourceKind(r.session.sourceKind)
+    setLens(r.session.lens)
     setSessionId(r.session.id)
-    setInitialResults(resumedResults)
-    setInitialTokens(0)
+    setInitialItems(
+      r.session.items.map((it) => ({ idx: it.idx, text: it.text, status: it.status, resultText: it.resultText })),
+    )
     setStep('results')
   }
 
   return (
     <div>
-      {/* 페이지 헤더 표준(§2-3) */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          gap: 'var(--space-4)',
-          flexWrap: 'wrap',
-          marginBottom: 'var(--space-6)',
-        }}
-      >
-        <div style={{ minWidth: 0 }}>
-          <Link
-            href="/ai-chat"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 'var(--space-1)',
-              fontSize: 'var(--fs-sm)',
-              color: 'var(--text-muted)',
-              textDecoration: 'none',
-              marginBottom: 'var(--space-2)',
-            }}
-          >
-            <ArrowLeft size={14} />
-            AI 채팅으로
-          </Link>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: 'var(--fs-2xl)',
-              fontWeight: 700,
-              letterSpacing: '-0.03em',
-              color: 'var(--text)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--space-2)',
-            }}
-          >
-            <ListChecks size={22} color="var(--brand)" />
-            목록 심층분석
-          </h1>
-          <p style={{ margin: 'var(--space-2) 0 0', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-            자료를 붙여넣거나 파일을 올리면 목록 항목을 전부 추출해 검수 후 항목별로 심층 분석합니다.
-          </p>
-        </div>
-      </div>
+      <AnalyzePageHeader />
 
-      {step === 'input' && sessions.length > 0 && (
-        <div className="card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-          <span className="tape-title" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-            <History size={14} />
-            이전 분석
-          </span>
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-            {sessions.map((s) => (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  onClick={() => handleResumeSession(s.id)}
-                  disabled={loadingSession}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 'var(--space-2)',
-                    padding: 'var(--space-2) var(--space-3)',
-                    borderRadius: 'var(--radius)',
-                    border: `var(--hairline) solid var(--border-color)`,
-                    background: 'transparent',
-                    cursor: loadingSession ? 'default' : 'pointer',
-                    textAlign: 'left',
-                    color: 'var(--text)',
-                    fontSize: 'var(--fs-sm)',
-                  }}
-                >
-                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {s.title}
-                  </span>
-                  <span style={{ flexShrink: 0, fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>
-                    {s.doneCount}/{s.itemCount}개 완료
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {step === 'input' && <RecentSessionsList sessions={sessions} loading={loadingSession} onResume={handleResumeSession} />}
 
       {step === 'input' && (
         <div className="card" style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -320,31 +235,30 @@ export default function AnalyzeClient() {
       )}
 
       {step === 'review' && (
-        <ItemReviewList
-          items={items}
-          setItems={setItems}
-          parsedCount={parsedCount}
-          restoredCount={restoredCount}
-          truncatedWarning={truncatedWarning}
-          lens={lens}
-          setLens={setLens}
-          customInstruction={customInstruction}
-          setCustomInstruction={setCustomInstruction}
-          onBack={resetAll}
-          onProceed={handleProceedToResults}
-          proceeding={proceeding}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+          <CommandPresetPanel lens={lens} command={command} onSelectLens={handleSelectLens} onCommandChange={setCommand} />
+          <ItemReviewList
+            items={items}
+            setItems={setItems}
+            parsedCount={parsedCount}
+            restoredCount={restoredCount}
+            truncatedWarning={truncatedWarning}
+            onBack={resetAll}
+            onProceed={handleProceedToResults}
+            proceeding={proceeding}
+          />
+          {saveError && (
+            <p role="alert" style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
+              {saveError}
+            </p>
+          )}
+        </div>
       )}
 
-      {step === 'results' && (
+      {step === 'results' && sessionId && (
         <AnalysisResults
-          items={items.filter((i) => i.selected)}
-          contextText={sourceText}
-          lens={lens}
-          customInstruction={customInstruction}
           sessionId={sessionId}
-          initialResults={initialResults}
-          initialTokens={initialTokens}
+          initialItems={initialItems}
           onBack={() => setStep('review')}
           onStartOver={resetAll}
         />

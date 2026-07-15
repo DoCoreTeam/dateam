@@ -1,51 +1,18 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, Copy, Download, MessageSquareText, RotateCw, Sparkles } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
-import AXDotLoader from '@/components/ui/AXDotLoader'
-import MarkdownMessage from '@/app/admin/ai-chat/MarkdownMessage'
-import { analyzeItem, synthesizeInsights, type AnalysisLens } from './actions'
-import { updateAnalysisItem, continueInChat, type AnalysisItemStatus } from './session-actions'
-import type { ReviewItem } from './ItemReviewList'
-
-const CONCURRENCY = 3
-
-type ItemStatus = 'idle' | 'running' | 'done' | 'error'
-interface ResultState {
-  status: ItemStatus
-  text?: string
-  error?: string
-}
+import { continueInChat } from './session-actions'
+import { useAnalysisStream, type InitialItem } from './useAnalysisStream'
+import AnalysisProgressBar from './AnalysisProgressBar'
+import AnalysisSynthPanel, { type ExportFormat } from './AnalysisSynthPanel'
+import AnalysisResultItem from './AnalysisResultItem'
 
 interface Props {
-  items: ReviewItem[] // 선택된 항목만
-  contextText: string
-  lens: AnalysisLens
-  customInstruction: string
-  sessionId: string | null // §G 영속 저장 — 있으면 항목별 결과를 즉시 DB 반영(유실0)
-  initialResults?: Record<string, ResultState> // §G "이전 분석" 이어하기 — item.id 키
-  initialTokens?: number // §H 추출 단계에서 이미 소모한 토큰(세션 누적 표시용)
+  sessionId: string // §G 영속 저장 — 검수 완료 시 항상 먼저 생성된다(유실0)
+  initialItems: InitialItem[] // 신규 세션=전부 pending, 이어하기=서버 상태 그대로
   onBack: () => void
   onStartOver: () => void
-}
-
-async function runWithConcurrency(ids: string[], worker: (id: string) => Promise<void>): Promise<void> {
-  let idx = 0
-  async function runner(): Promise<void> {
-    while (idx < ids.length) {
-      const my = ids[idx]
-      idx += 1
-      await worker(my)
-    }
-  }
-  const workerCount = Math.min(CONCURRENCY, ids.length)
-  await Promise.all(Array.from({ length: workerCount }, runner))
-}
-
-function copyToClipboard(text: string): void {
-  navigator.clipboard.writeText(text).catch(() => {})
 }
 
 function downloadTextFile(filename: string, content: string, mime: string): void {
@@ -60,97 +27,29 @@ function downloadTextFile(filename: string, content: string, mime: string): void
   URL.revokeObjectURL(url)
 }
 
-export default function AnalysisResults({
-  items,
-  contextText,
-  lens,
-  customInstruction,
-  sessionId,
-  initialResults,
-  initialTokens,
-  onBack,
-  onStartOver,
-}: Props) {
+/**
+ * 목록 심층분석 v2 결과 화면 — 클라이언트는 "관전자"다(.ralph/decisions/DECISION-20260715-ui-realtime-client.md).
+ * 실제 분석은 서버(drainSession)+크론이 수행하고, 이 화면은 SSE·폴링으로 진행상황을 그리며
+ * 취소/일시정지만 지시한다. 부분완료 항목은 전체 완료를 기다리지 않고 즉시 열람 가능하다.
+ */
+export default function AnalysisResults({ sessionId, initialItems, onBack, onStartOver }: Props) {
   const router = useRouter()
-  const [results, setResults] = useState<Record<string, ResultState>>(() => {
-    const base: Record<string, ResultState> = Object.fromEntries(
-      items.map((i) => [i.id, { status: 'idle' as ItemStatus }]),
-    )
-    if (initialResults) {
-      for (const [id, r] of Object.entries(initialResults)) {
-        if (id in base) base[id] = r
-      }
-    }
-    return base
-  })
-  const [copiedId, setCopiedId] = useState<string | null>(null)
-  const [synth, setSynth] = useState<ResultState>({ status: 'idle' })
-  const [tokenTotal, setTokenTotal] = useState(initialTokens ?? 0)
-  const startedRef = useRef(false)
+  const stream = useAnalysisStream(sessionId, initialItems)
 
-  function persistItem(id: string, status: AnalysisItemStatus, resultText?: string): void {
-    if (!sessionId) return
-    const idx = items.findIndex((i) => i.id === id)
-    if (idx < 0) return
-    updateAnalysisItem({ sessionId, idx, status, resultText }).catch(() => {
-      /* 영속 저장 실패는 화면 흐름을 막지 않음 — 결과는 이미 클라 상태에 있음 */
-    })
-  }
+  const itemList = Object.values(stream.items).sort((a, b) => a.idx - b.idx)
+  const hasFailed = itemList.some((i) => i.status === 'error')
+  const doneCount = itemList.filter((i) => i.status === 'done').length
 
-  async function runOne(id: string): Promise<void> {
-    const item = items.find((i) => i.id === id)
-    if (!item) return
-    setResults((prev) => ({ ...prev, [id]: { status: 'running' } }))
-    persistItem(id, 'running')
-    const r = await analyzeItem({ itemText: item.text, contextText, lens, customInstruction })
-    if (r.ok) setTokenTotal((t) => t + r.usage.totalTokens)
-    setResults((prev) => ({
-      ...prev,
-      [id]: r.ok ? { status: 'done', text: r.text } : { status: 'error', error: r.error },
-    }))
-    persistItem(id, r.ok ? 'done' : 'error', r.ok ? r.text : undefined)
-  }
-
-  useEffect(() => {
-    if (startedRef.current) return
-    startedRef.current = true
-    // §G 이어하기 — 이미 완료(done)된 항목은 재분석하지 않는다.
-    const idsToRun = items.filter((i) => results[i.id]?.status !== 'done').map((i) => i.id)
-    if (idsToRun.length > 0) runWithConcurrency(idsToRun, runOne)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  function retryFailed(): void {
-    const failedIds = items.filter((i) => results[i.id]?.status === 'error').map((i) => i.id)
-    if (failedIds.length === 0) return
-    runWithConcurrency(failedIds, runOne)
-  }
-
-  async function handleSynthesize(): Promise<void> {
-    const entries = items
-      .filter((i) => results[i.id]?.status === 'done')
-      .map((i) => ({ itemText: i.text, resultText: results[i.id]?.text ?? '' }))
-    if (entries.length === 0) return
-    setSynth({ status: 'running' })
-    const r = await synthesizeInsights(entries)
-    if (r.ok) setTokenTotal((t) => t + r.usage.totalTokens)
-    setSynth(r.ok ? { status: 'done', text: r.text } : { status: 'error', error: r.error })
-  }
-
-  async function handleContinueChat(item: ReviewItem): Promise<void> {
-    const r = results[item.id]
-    if (!r || r.status !== 'done' || !r.text) return
-    const res = await continueInChat({ itemText: item.text, resultText: r.text })
+  async function handleContinueChat(_idx: number, itemText: string, resultText: string): Promise<void> {
+    const res = await continueInChat({ itemText, resultText })
     if (res.ok) router.push(`/ai-chat?c=${res.conversationId}`)
   }
 
   function buildExportSections(): { text: string; result: string }[] {
-    return items
-      .filter((i) => results[i.id]?.status === 'done')
-      .map((i) => ({ text: i.text, result: results[i.id]?.text ?? '' }))
+    return itemList.filter((i) => i.status === 'done' && i.resultText).map((i) => ({ text: i.text, result: i.resultText ?? '' }))
   }
 
-  async function handleExport(format: 'md' | 'txt' | 'docx' | 'pdf'): Promise<void> {
+  async function handleExport(format: ExportFormat): Promise<void> {
     const sections = buildExportSections()
     if (sections.length === 0) return
     const conv = { title: '목록 심층분석 결과', provider: 'gemini', model: '', createdAt: new Date().toISOString() }
@@ -158,8 +57,8 @@ export default function AnalysisResults({
       { role: 'user' as const, content: s.text, createdAt: conv.createdAt },
       { role: 'assistant' as const, content: s.result, createdAt: conv.createdAt },
     ])
-    if (synth.status === 'done' && synth.text) {
-      messages.push({ role: 'assistant' as const, content: `[종합 인사이트]\n${synth.text}`, createdAt: conv.createdAt })
+    if (stream.synthStatus === 'done' && stream.synthText) {
+      messages.push({ role: 'assistant' as const, content: `[종합 인사이트]\n${stream.synthText}`, createdAt: conv.createdAt })
     }
 
     if (format === 'md') {
@@ -178,7 +77,7 @@ export default function AnalysisResults({
         body: JSON.stringify({
           title: conv.title,
           sections: sections.map((s) => ({ itemText: s.text, resultText: s.result })),
-          synthText: synth.status === 'done' ? synth.text : undefined,
+          synthText: stream.synthStatus === 'done' ? stream.synthText : undefined,
         }),
       })
       if (!res.ok) return
@@ -194,143 +93,70 @@ export default function AnalysisResults({
     }
   }
 
-  const doneCount = items.filter((i) => results[i.id]?.status === 'done').length
-  const errorCount = items.filter((i) => results[i.id]?.status === 'error').length
-  const allSettled = doneCount + errorCount === items.length && items.length > 0
+  if (itemList.length === 0) {
+    return (
+      <div className="card" style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>
+        분석할 항목이 없습니다.
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-          완료 {doneCount} · 실패 {errorCount} · 전체 {items.length}
-          {' · '}
-          <span style={{ color: 'var(--text-faint)' }}>이번 세션 토큰 {tokenTotal.toLocaleString()}</span>
-        </span>
-        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-          {errorCount > 0 && (
-            <NbButton variant="ghost" onClick={retryFailed} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: 'var(--fs-sm)' }}>
-              <RotateCw size={14} />
-              실패 항목만 재시도 ({errorCount})
-            </NbButton>
-          )}
-          {doneCount > 0 && (
-            <NbButton
-              variant="ghost"
-              onClick={handleSynthesize}
-              disabled={synth.status === 'running'}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: 'var(--fs-sm)' }}
-            >
-              <Sparkles size={14} />
-              {synth.status === 'running' ? '종합 중…' : '종합 인사이트'}
-            </NbButton>
-          )}
-          {doneCount > 0 && (
-            <>
-              <NbButton variant="ghost" onClick={() => handleExport('md')} style={{ fontSize: 'var(--fs-sm)' }}>
-                <Download size={14} /> md
-              </NbButton>
-              <NbButton variant="ghost" onClick={() => handleExport('txt')} style={{ fontSize: 'var(--fs-sm)' }}>
-                <Download size={14} /> txt
-              </NbButton>
-              <NbButton variant="ghost" onClick={() => handleExport('docx')} style={{ fontSize: 'var(--fs-sm)' }}>
-                <Download size={14} /> docx
-              </NbButton>
-              <NbButton variant="ghost" onClick={() => handleExport('pdf')} style={{ fontSize: 'var(--fs-sm)' }}>
-                <Download size={14} /> pdf
-              </NbButton>
-            </>
-          )}
-        </div>
-      </div>
+      <AnalysisProgressBar
+        progress={stream.progress}
+        itemCount={itemList.length}
+        control={stream.control}
+        mode={stream.mode}
+        streamError={stream.streamError}
+        onPause={stream.pause}
+        onCancel={stream.cancel}
+        onResume={stream.resume}
+      />
 
-      {synth.status !== 'idle' && (
-        <div className="card" style={{ padding: 'var(--space-5)', borderColor: 'var(--brand)' }}>
-          <span className="tape-title">종합 인사이트</span>
-          <div style={{ marginTop: 'var(--space-2)' }}>
-            {synth.status === 'running' && <AXDotLoader size={5} color="var(--text-muted)" />}
-            {synth.status === 'error' && <p role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>{synth.error}</p>}
-            {synth.status === 'done' && synth.text && <MarkdownMessage content={synth.text} />}
-          </div>
+      {hasFailed && (
+        <div>
+          <NbButton
+            variant="ghost"
+            onClick={stream.retryAllFailed}
+            style={{ fontSize: 'var(--fs-sm)' }}
+          >
+            실패 항목만 재시도
+          </NbButton>
         </div>
       )}
 
-      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-        {items.map((item, idx) => {
-          const r = results[item.id] ?? { status: 'idle' as ItemStatus }
-          return (
-            <li key={item.id} className="card" style={{ padding: 'var(--space-5)' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
-                <div style={{ minWidth: 0 }}>
-                  <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>항목 {idx + 1}</span>
-                  <p style={{ margin: '0.15rem 0 0', fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                    {item.text}
-                  </p>
-                </div>
-                <StatusBadge status={r.status} />
-              </div>
+      <AnalysisSynthPanel
+        synthStatus={stream.synthStatus}
+        synthText={stream.synthText}
+        coverage={stream.coverage}
+        canExport={doneCount > 0}
+        onExport={handleExport}
+      />
 
-              {r.status === 'running' && <AXDotLoader size={5} color="var(--text-muted)" />}
-              {r.status === 'error' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                  <p role="alert" style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>{r.error}</p>
-                  <NbButton variant="ghost" onClick={() => runOne(item.id)} style={{ fontSize: 'var(--fs-xs)' }}>
-                    재시도
-                  </NbButton>
-                </div>
-              )}
-              {r.status === 'done' && r.text && (
-                <>
-                  <MarkdownMessage content={r.text} />
-                  <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
-                    <button
-                      type="button"
-                      className="ai-chat-icon-btn"
-                      onClick={() => {
-                        copyToClipboard(r.text ?? '')
-                        setCopiedId(item.id)
-                        setTimeout(() => setCopiedId((c) => (c === item.id ? null : c)), 1500)
-                      }}
-                      aria-label="분석 결과 복사"
-                    >
-                      {copiedId === item.id ? <Check size={14} /> : <Copy size={14} />}
-                    </button>
-                    <NbButton
-                      variant="ghost"
-                      onClick={() => handleContinueChat(item)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: 'var(--fs-xs)' }}
-                    >
-                      <MessageSquareText size={14} />
-                      채팅으로 이어가기
-                    </NbButton>
-                  </div>
-                </>
-              )}
-            </li>
-          )
-        })}
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        {itemList.map((item) => (
+          <AnalysisResultItem
+            key={item.idx}
+            idx={item.idx}
+            text={item.text}
+            status={item.status}
+            resultText={item.resultText}
+            liveDelta={stream.deltas[item.idx] ?? ''}
+            onRetry={stream.retryItem}
+            onContinueChat={handleContinueChat}
+          />
+        ))}
       </ul>
 
       <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-        <NbButton variant="ghost" onClick={onBack} disabled={!allSettled && items.some((i) => results[i.id]?.status === 'running')}>
+        <NbButton variant="ghost" onClick={onBack}>
           검수로 돌아가기
         </NbButton>
-        <NbButton variant="ghost" onClick={onStartOver}>처음부터 다시</NbButton>
+        <NbButton variant="ghost" onClick={onStartOver}>
+          처음부터 다시
+        </NbButton>
       </div>
     </div>
-  )
-}
-
-function StatusBadge({ status }: { status: ItemStatus }) {
-  const map: Record<ItemStatus, { label: string; color: string; bg: string }> = {
-    idle: { label: '대기', color: 'var(--text-faint)', bg: 'var(--surface-bg)' },
-    running: { label: '분석중', color: 'var(--info)', bg: 'var(--info-bg)' },
-    done: { label: '완료', color: 'var(--success)', bg: 'var(--success-bg)' },
-    error: { label: '실패', color: 'var(--danger)', bg: 'var(--danger-bg)' },
-  }
-  const s = map[status]
-  return (
-    <span style={{ flexShrink: 0, fontSize: 'var(--fs-2xs)', fontWeight: 600, color: s.color, background: s.bg, borderRadius: 'var(--radius)', padding: '0.15rem 0.5rem' }}>
-      {s.label}
-    </span>
   )
 }

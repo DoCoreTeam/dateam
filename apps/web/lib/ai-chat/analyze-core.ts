@@ -3,14 +3,14 @@
 // command(사용자 자유 명령)가 항목분석·취합 양쪽 프롬프트를 지배 — command/항목/원문은
 // 인젝션·희석 방지를 위해 분리 주입한다(command+공통지시=system, 항목+맥락=user).
 
-import { getProvider } from './registry'
-import type { ChatUsage } from './provider'
+import { getProvider } from './registry.ts'
+import type { ChatUsage } from './provider.ts'
 import {
   buildSynthesisPrompt,
   checkCoverage,
   buildAppendix,
   type DigestItem,
-} from './synthesize-hierarchical'
+} from './synthesize-hierarchical.ts'
 
 const DEFAULT_COMMAND =
   '핵심요지 / 배경·근거 / 리스크 / 다음 액션 섹션을 포함해 마크다운으로 심층 분석하라.'

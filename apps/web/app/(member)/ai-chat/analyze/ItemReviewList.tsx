@@ -3,7 +3,6 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { AlertTriangle, Plus, Trash2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
-import type { AnalysisLens } from './actions'
 
 export interface ReviewItem {
   id: string
@@ -12,24 +11,12 @@ export interface ReviewItem {
   selected: boolean
 }
 
-const LENS_OPTIONS: { id: AnalysisLens; label: string }[] = [
-  { id: 'summary', label: '핵심 요약' },
-  { id: 'risk', label: '리스크·우려사항' },
-  { id: 'action-plan', label: '실행계획' },
-  { id: 'evidence', label: '근거·출처 점검' },
-  { id: 'compare', label: '비교·대안 검토' },
-]
-
 interface Props {
   items: ReviewItem[]
   setItems: Dispatch<SetStateAction<ReviewItem[]>>
   parsedCount: number
   restoredCount: number
   truncatedWarning: boolean
-  lens: AnalysisLens
-  setLens: (lens: AnalysisLens) => void
-  customInstruction: string
-  setCustomInstruction: (v: string) => void
   onBack: () => void
   onProceed: () => void
   proceeding?: boolean
@@ -45,10 +32,6 @@ export default function ItemReviewList({
   parsedCount,
   restoredCount,
   truncatedWarning,
-  lens,
-  setLens,
-  customInstruction,
-  setCustomInstruction,
   onBack,
   onProceed,
   proceeding,
@@ -187,48 +170,6 @@ export default function ItemReviewList({
           ))}
         </ul>
       )}
-
-      {/* 분석 관점 선택(§B) */}
-      <div className="card" style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-        <span className="tape-title">분석 관점</span>
-        <div role="radiogroup" aria-label="분석 관점" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-          {LENS_OPTIONS.map((opt) => (
-            <label
-              key={opt.id}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                fontSize: 'var(--fs-sm)',
-                padding: '0.35rem 0.75rem',
-                borderRadius: 'var(--radius)',
-                border: `var(--border-w) solid ${lens === opt.id ? 'var(--brand)' : 'var(--border-color)'}`,
-                background: lens === opt.id ? 'var(--surface-bg)' : 'transparent',
-                cursor: 'pointer',
-                color: 'var(--text)',
-              }}
-            >
-              <input type="radio" name="analysis-lens"
-                checked={lens === opt.id}
-                onChange={() => setLens(opt.id)}
-                style={{ margin: 0 }}
-              />
-              {opt.label}
-            </label>
-          ))}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <label className="label" htmlFor="analyze-custom-instruction">추가 지시(선택)</label>
-          <textarea className="input-field"
-            id="analyze-custom-instruction"
-            rows={2}
-            value={customInstruction}
-            onChange={(e) => setCustomInstruction(e.target.value)}
-            placeholder="예: 비용 관점에서도 짚어줘, 경쟁사 대비 관점 추가해줘"
-            style={{ resize: 'vertical', fontFamily: 'inherit' }}
-          />
-        </div>
-      </div>
 
       <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'space-between' }}>
         <NbButton variant="ghost" onClick={onBack}>다시 입력</NbButton>
