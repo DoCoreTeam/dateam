@@ -6,7 +6,9 @@
 export interface RunOptions {
   /** 실패 시 재시도 횟수. 기본 0(재시도 없음). */
   retries?: number
-  /** 지수 백오프 기준(ms). 1차 재시도 backoffMs, 2차 backoffMs*2, 3차 backoffMs*4 … 기본 500. */
+  /** 지수 백오프 기준(ms). 1차 재시도 backoffMs, 2차 backoffMs*3, 3차 backoffMs*9 … 기본 500.
+   *  (factor 3 — 부하 높은 러너에서 타이머 스케줄 지터[수십 ms]가 첫 짧은 간격에 절대값으로
+   *   더해져도 연속 간격 비율이 무너지지 않도록 충분히 벌림) */
   backoffMs?: number
   /** 중단 신호. aborted 상태면 신규 착수를 중단한다. */
   signal?: AbortSignal
@@ -41,7 +43,7 @@ async function runWithRetry<T, R>(
       if (attempt >= retries) {
         return { ok: false, error: toError(err) }
       }
-      const delay = backoffMs * 2 ** attempt
+      const delay = backoffMs * 3 ** attempt
       await sleep(delay)
       attempt += 1
     }
