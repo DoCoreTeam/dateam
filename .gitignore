@@ -49,3 +49,4 @@ test-*.jpeg
 theme-*.jpeg
 *.jpeg
 /cockpit-edit.yml
+.ralph/snapshots/
