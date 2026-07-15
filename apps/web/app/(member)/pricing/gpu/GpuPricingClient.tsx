@@ -193,6 +193,15 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
       .catch(() => {})
   }, [fxDate, mutateSettings])
 
+  // 경쟁사 가격 자동 수집 — 그날 첫 접속(관리자)이 1회 구동. 서버가 run_date(KST)로 하루 1회·경합 스킵.
+  //   fire-and-forget(응답 안 기다림) — 화면 로딩을 막지 않는다(헌법 제10조·제10-B조).
+  const autoRefreshFired = useRef(false)
+  useEffect(() => {
+    if (autoRefreshFired.current || !isAdmin) return
+    autoRefreshFired.current = true
+    fetch('/api/pricing/gpu/market/refresh?auto=1', { method: 'POST' }).catch(() => {})
+  }, [isAdmin])
+
   // P4-3 가드: 비-admin이 URL/복원으로 마스터 관리(admin 전용) 탭에 진입하면 기본 탭으로 복귀.
   useEffect(() => {
     if (!isAdmin && (['suppliers', 'competitors', 'specs'] as TabId[]).includes(activeTab)) {

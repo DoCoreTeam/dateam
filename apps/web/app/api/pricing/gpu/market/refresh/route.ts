@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { saveCompetitorPrices, type CompetitorPriceItem } from '@/lib/gpu/competitor-import'
 import { safeFetchText } from '@/lib/security/safe-fetch'
+import { kstTodayKey } from '@/lib/datetime/kst'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -79,13 +80,27 @@ async function fetchUrlText(url: string): Promise<string> {
 
 // POST /api/pricing/gpu/market/refresh
 // DB에 저장된 URL들을 AI로 분석해서 market_prices 업데이트
-export async function POST() {
+export async function POST(req: Request) {
   const auth = await requireAdminApi()
   if (auth.error) return auth.error
+
+  // 자동 수집 모드(?auto=1) — 그날 첫 접속자가 1회만 구동. run_date(KST) 멱등키로 하루 1회·경합방지. (헌법 제10조)
+  const isAuto = new URL(req.url).searchParams.get('auto') === '1'
+  const runDate = kstTodayKey()  // KST 기준 '오늘'
 
   const adminClient = createAdminClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = adminClient as any
+
+  if (isAuto) {
+    // 오늘 실행 기록을 선점(INSERT). 기본키 충돌=이미 누군가 오늘 돌림 → 조용히 스킵.
+    const { error: claimErr } = await db.from('market_refresh_runs')
+      .insert({ run_date: runDate, status: 'running', trigger_source: 'first-visit' })
+    if (claimErr) {
+      // 23505=unique_violation → 이미 오늘 돌았음(정상 스킵). 그 외 에러는 로깅만 하고 스킵(자동은 조용히).
+      return NextResponse.json({ skipped: true, reason: 'already_ran_today', run_date: runDate })
+    }
+  }
 
   // Gemini 설정
   const { data: metaRow } = await db.from('org_content').select('value').eq('key', 'META').single()
@@ -119,6 +134,7 @@ export async function POST() {
   }
 
   if (urlSet.size === 0) {
+    if (isAuto) await db.from('market_refresh_runs').update({ status: 'done', finished_at: new Date().toISOString(), urls_checked: 0, prices_updated: 0 }).eq('run_date', runDate)
     return NextResponse.json({
       message: '분석할 URL이 없습니다. 경쟁사에 pricing_url을 등록하거나 매핑에 competitor_url을 추가하세요.',
       urls_checked: 0,
@@ -176,6 +192,8 @@ export async function POST() {
       results.push({ url, competitor: compName, prices_found: 0, error: String(err) })
     }
   }
+
+  if (isAuto) await db.from('market_refresh_runs').update({ status: 'done', finished_at: new Date().toISOString(), urls_checked: urlSet.size, prices_updated: totalPricesUpdated }).eq('run_date', runDate)
 
   return NextResponse.json({
     urls_checked: urlSet.size,
