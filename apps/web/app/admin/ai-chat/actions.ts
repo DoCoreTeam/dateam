@@ -8,7 +8,7 @@ import { getAvailableProviders, getProvider, getProviderConfig } from '@/lib/ai-
 import { buildThreadForChoice, getBranchGroups } from '@/lib/ai-chat/thread'
 import { chunkText, embedKnowledgeChunks } from '@/lib/ai-chat/knowledge'
 import { sanitizeSearchQuery } from '@/lib/ai-chat/search'
-import { mergeModelCatalogEntry, type ModelCapabilities } from '@/lib/ai-chat/model-catalog'
+import { mergeModelCatalogEntry, inferModelMeta, isChatModel, type ModelCapabilities } from '@/lib/ai-chat/model-catalog'
 import type {
   AiChatProviderId,
   AiChatConversation,
@@ -974,14 +974,24 @@ export async function listModelCatalog(): Promise<{
   if (error) return { ok: false, error: '모델 카탈로그 조회 중 오류가 발생했습니다' }
 
   const rows = (data ?? []) as ModelCatalogRow[]
-  const items: ModelCatalogItem[] = rows.map((r) => ({
-    provider: r.provider,
-    modelId: r.model_id,
-    label: r.label,
-    contextLength: r.context_length,
-    capabilities: { vision: false, longContext: false, reasoning: false, ...(r.capabilities ?? {}) },
-    releasedAt: r.released_at,
-  }))
+  // 비채팅 모델 제외 + 표시 시점 추론 fallback(이미 저장된 빈칸 행도 능력·출시일이 즉시 뜨게).
+  const items: ModelCatalogItem[] = rows
+    .filter((r) => isChatModel(r.provider, r.model_id))
+    .map((r) => {
+      const inferred = inferModelMeta(r.provider, r.model_id)
+      const dbCaps = r.capabilities ?? {}
+      const capsEmpty = !dbCaps.vision && !dbCaps.longContext && !dbCaps.reasoning
+      return {
+        provider: r.provider,
+        modelId: r.model_id,
+        label: r.label ?? inferred.label,
+        contextLength: r.context_length ?? inferred.contextLength ?? null,
+        capabilities: capsEmpty
+          ? inferred.capabilities
+          : { vision: false, longContext: false, reasoning: false, ...dbCaps },
+        releasedAt: r.released_at ?? inferred.releasedAt ?? null,
+      }
+    })
   return { ok: true, items }
 }
 
@@ -1003,6 +1013,8 @@ export async function refreshModelCatalog(
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : '모델 목록 조회에 실패했습니다' }
   }
+  // 비채팅 모델(임베딩·TTS·이미지 등) 제외 — 모델 선택에 무관.
+  modelIds = modelIds.filter((id) => isChatModel(provider, id))
   if (modelIds.length === 0) return { ok: true, count: 0 }
 
   const { data: existingData } = await ctx.admin

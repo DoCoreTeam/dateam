@@ -66,17 +66,61 @@ export function mergeModelCatalogEntry(
   existing?: ExistingCatalogRow | null,
 ): ModelCatalogEntry {
   const curated = CURATED_MODELS[provider]?.[modelId]
+  const inferred = inferModelMeta(provider, modelId) // 큐레이션에 없는 라이브 모델 보완(빈칸 방지)
   return {
     provider,
     modelId,
-    label: existing?.label ?? curated?.label ?? modelId,
-    contextLength: existing?.contextLength ?? curated?.contextLength ?? null,
+    label: existing?.label ?? curated?.label ?? inferred.label,
+    contextLength: existing?.contextLength ?? curated?.contextLength ?? inferred.contextLength ?? null,
     capabilities: {
       ...DEFAULT_CAPS,
-      ...curated?.capabilities,
-      ...(existing?.capabilities ?? {}),
+      ...inferred.capabilities,       // 추론이 최하위
+      ...curated?.capabilities,       // 큐레이션이 우선
+      ...(existing?.capabilities ?? {}), // 기존 DB값이 최우선
     },
-    releasedAt: existing?.releasedAt ?? curated?.releasedAt ?? null,
+    releasedAt: existing?.releasedAt ?? curated?.releasedAt ?? inferred.releasedAt ?? null,
     isActive: true,
   }
+}
+
+// 비채팅 모델(임베딩·TTS·이미지생성 등)은 모델 선택에서 제외.
+const NON_CHAT_RE = /(embedding|aqa|tts|imagen|image-generation|image-gen|veo|whisper|dall-e|audio|realtime|moderation|rerank)/i
+export function isChatModel(_provider: AiChatProviderId, modelId: string): boolean {
+  return !NON_CHAT_RE.test(modelId)
+}
+
+function prettifyLabel(modelId: string): string {
+  return modelId
+    .replace(/^models\//, '')
+    .split(/[-_]/)
+    .map((t) => (/^\d/.test(t) ? t : t.charAt(0).toUpperCase() + t.slice(1)))
+    .join(' ')
+}
+
+/**
+ * 모델 ID 휴리스틱 추론 — 큐레이션 맵에 없는 라이브 모델도 능력(멀티모달=vision)·라벨·출시일·컨텍스트를
+ * 이름 패턴으로 유추해 "빈칸"을 없앤다. 큐레이션이 있으면 그게 우선(정확), 없으면 이 추론이 채운다.
+ */
+export function inferModelMeta(provider: AiChatProviderId, modelId: string): CuratedModelInfo {
+  const id = modelId.toLowerCase()
+  let capabilities: ModelCapabilities = { ...DEFAULT_CAPS }
+  let releasedAt: string | undefined
+  let contextLength: number | undefined
+
+  if (provider === 'gemini') {
+    // 현대 Gemini는 전부 멀티모달(vision)+대용량 컨텍스트. pro/thinking/2.5/exp는 추론형.
+    capabilities = { vision: true, longContext: true, reasoning: /pro|thinking|2\.5|exp/.test(id) }
+    contextLength = /pro/.test(id) ? 2097152 : 1048576
+    releasedAt = /2\.5/.test(id) ? '2025-03-25' : /2\.0/.test(id) ? '2025-02-05' : /1\.5/.test(id) ? '2024-05-14' : undefined
+  } else if (provider === 'claude') {
+    capabilities = { vision: true, longContext: false, reasoning: /opus|sonnet-4|3-7|thinking/.test(id) }
+    contextLength = 200000
+    releasedAt = /opus-4|sonnet-4-6/.test(id) ? '2026-01-01' : /sonnet-4/.test(id) ? '2025-05-14' : undefined
+  } else {
+    // openai: o1/o3/o4 계열은 추론형, 4o/4.1은 멀티모달.
+    const reasoning = /^o[134]/.test(id)
+    capabilities = { vision: /4o|4\.1|o1|o3|o4|4-turbo/.test(id), longContext: false, reasoning }
+    contextLength = reasoning ? 200000 : 128000
+  }
+  return { label: prettifyLabel(modelId), contextLength, capabilities, releasedAt }
 }
