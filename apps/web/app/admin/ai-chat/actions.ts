@@ -9,6 +9,7 @@ import { buildThreadForChoice, getBranchGroups } from '@/lib/ai-chat/thread'
 import { chunkText, embedKnowledgeChunks } from '@/lib/ai-chat/knowledge'
 import { sanitizeSearchQuery } from '@/lib/ai-chat/search'
 import { mergeModelCatalogEntry, inferModelMeta, inferModelUseCase, isChatModel, type ModelCapabilities } from '@/lib/ai-chat/model-catalog'
+import { probeModelIds } from '@/lib/ai-chat/probe-models'
 import type {
   AiChatProviderId,
   AiChatConversation,
@@ -1020,6 +1021,10 @@ export async function refreshModelCatalog(
   modelIds = modelIds.filter((id) => isChatModel(provider, id))
   if (modelIds.length === 0) return { ok: true, count: 0 }
 
+  // listModels는 generateContent 지원 여부만 알려줄 뿐, 현재 키/요금제로 실제 전송 가능한지는
+  // 보장하지 않는다(예: 요금제 할당량 0·신규 불가 모델). 실사용 프로브로 진짜 못 쓰는 모델만 걸러낸다.
+  const usableMap = await probeModelIds(getProvider(provider), config.apiKey, modelIds)
+
   const { data: existingData } = await ctx.admin
     .from('ai_model_catalog')
     .select('model_id, label, context_length, capabilities, released_at')
@@ -1049,7 +1054,7 @@ export async function refreshModelCatalog(
       context_length: merged.contextLength,
       capabilities: merged.capabilities,
       released_at: merged.releasedAt,
-      is_active: true,
+      is_active: usableMap.get(modelId) ?? true,
       fetched_at: new Date().toISOString(),
     }
   })
