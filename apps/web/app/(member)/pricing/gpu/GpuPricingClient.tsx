@@ -217,7 +217,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
     // GPU 가격 전 탭(통합뷰·구뷰·suppliers·review·market·catalog탭)을 단일 제어점으로 마운트 재검증.
     // 전역 SWRProvider는 revalidateIfStale:false(영속캐시 최적화)인데 GPU pricing은 SyncRevalidator 미커버라
     // 여기서 nested SWRConfig로 override → 가격 정확도 우선, 영속 stale 방지(부모 provider/fetcher는 그대로 상속).
-    <SWRConfig value={{ revalidateIfStale: true }}>
+    <SWRConfig value={{ revalidateIfStale: true, keepPreviousData: true }}>
     <div className="gpu-pricing-root">
       {/* 상단 헤더 */}
       <div className="gpu-topbar">

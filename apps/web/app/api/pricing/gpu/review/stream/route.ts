@@ -178,7 +178,10 @@ export async function POST(req: NextRequest) {
         // 3) 분류 (경쟁사 vs 공급가) — 스트리밍.
         //    C3: 이미지/PDF도 분류 수행(스킵 제거). 텍스트와 동일하게 AI 분류 + provider 화이트리스트/사용자 의도 override 적용.
         let classified: { type?: string; items?: unknown[]; supplier_present?: boolean } = {}
-        send('progress', { step: 'classify', msg: '경쟁사 가격인지 공급사 견적인지 판별하는 중…' })
+        // 사용자가 종류를 선언했으면 "판별 중"이 아니라 "선택한 종류로 분석 중"으로 표시(모순 방지). 헌법 제1조.
+        send('progress', { step: 'classify', msg: declaredKind
+          ? `${declaredKind === 'competitor' ? '경쟁사 시장가' : '공급사 견적'}로 분석하는 중…`
+          : '경쟁사 가격인지 공급사 견적인지 판별하는 중…' })
         const classifyPrompt = await getClassifyPrompt(adminClient, CLASSIFY_FALLBACK)
         const classifyParts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = []
         if (hasImages) classifyParts.push(...imageParts)
