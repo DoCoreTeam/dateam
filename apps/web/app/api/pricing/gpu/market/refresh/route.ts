@@ -97,8 +97,9 @@ export async function POST(req: Request) {
     const { error: claimErr } = await db.from('market_refresh_runs')
       .insert({ run_date: runDate, status: 'running', trigger_source: 'first-visit' })
     if (claimErr) {
-      // 23505=unique_violation → 이미 오늘 돌았음(정상 스킵). 그 외 에러는 로깅만 하고 스킵(자동은 조용히).
-      return NextResponse.json({ skipped: true, reason: 'already_ran_today', run_date: runDate })
+      // 23505=unique_violation → 이미 오늘 돌았음(정상 스킵). 그 외(DB 장애 등)는 원인을 서버 로그로 남긴다(가시성).
+      if (claimErr.code && claimErr.code !== '23505') console.error('[gpu/market/refresh] auto claim 실패:', claimErr)
+      return NextResponse.json({ skipped: true, reason: claimErr.code === '23505' ? 'already_ran_today' : 'claim_failed', run_date: runDate })
     }
   }
 
@@ -189,7 +190,8 @@ export async function POST(req: Request) {
         results.push({ url, competitor: compName, prices_found: 0 })
       }
     } catch (err) {
-      results.push({ url, competitor: compName, prices_found: 0, error: String(err) })
+      console.error('[gpu/market/refresh] url fetch/parse 실패:', url, err)  // 상세는 서버 로그만
+      results.push({ url, competitor: compName, prices_found: 0, error: err instanceof Error ? err.message : '수집 실패' })
     }
   }
 

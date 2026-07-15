@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { RefreshCw, ExternalLink, Save } from 'lucide-react'
+import { RefreshCw, ExternalLink, Save, Link2 } from 'lucide-react'
+import EmptyState from '@/components/ui/EmptyState'
 
 interface SourceRow {
   id: string
@@ -100,10 +101,11 @@ export default function SourcesTab() {
       {isLoading ? (
         <div style={{ padding: '24px 0', color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>불러오는 중…</div>
       ) : sources.length === 0 ? (
-        <div style={{ padding: '32px 16px', textAlign: 'center', border: 'var(--hairline) dashed var(--border-color)', borderRadius: 12, color: 'var(--text-muted)' }}>
-          <p style={{ margin: '0 0 8px', fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text)' }}>아직 등록된 수집 링크가 없어요</p>
-          <p style={{ margin: 0, fontSize: 'var(--fs-sm)' }}>경쟁사 화면에서 각 경쟁사에 "가격 페이지 주소"를 넣으면 여기에 나타나고, 매일 자동으로 가격을 확인합니다.</p>
-        </div>
+        <EmptyState
+          icon={<Link2 size={28} />}
+          title="아직 등록된 수집 링크가 없어요"
+          description={'경쟁사 화면에서 각 경쟁사에 "가격 페이지 주소"를 넣으면 여기에 나타나고, 매일 아침 자동으로 가격을 확인합니다.'}
+        />
       ) : (
         <table className="table-base table-card gpu-mgmt-table">
           <thead>
