@@ -402,6 +402,7 @@ export type AiFeature =
   | 'meeting_summarize'
   | 'meeting_extract'
   | 'ai-chat'          // S1 — DB는 text 컬럼이라 마이그레이션 불필요
+  | 'ai-chat-analyze'  // 목록 심층분석 — DB는 text 컬럼이라 마이그레이션 불필요
 
 export interface AiTokenLog {
   id: string

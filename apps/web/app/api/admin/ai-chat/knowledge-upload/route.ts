@@ -6,7 +6,7 @@ import {
   sniffMagicBytes,
   sanitizeFilenameForDisplay,
 } from '@/lib/ai-chat/attachments'
-import { extractDocumentText } from '@/lib/ai-chat/document-extract'
+import { extractDocumentText, extractPdfText } from '@/lib/ai-chat/document-extract'
 import { addKnowledgeText } from '@/app/admin/ai-chat/actions'
 
 // officeparser(extractDocumentText/PDF 추출) + Buffer 사용 — Node 런타임 고정
@@ -20,33 +20,9 @@ const TEXT_MIMES = ['text/plain', 'text/markdown', 'text/csv'] as const
 const PDF_MIME = 'application/pdf'
 const TEXT_MAX_BYTES = 1 * 1024 * 1024
 const BINARY_MAX_BYTES = 10 * 1024 * 1024
-const PDF_PARSE_TIMEOUT_MS = 15_000 // zip/pdf 파싱 DoS 방어 하드 타임아웃
 
 const UNSUPPORTED_MSG =
   '지원하지 않는 파일 형식입니다 (텍스트 txt/md/csv · 문서 docx/xlsx/pptx · pdf)'
-
-// PDF 텍스트 추출 — extractDocumentText는 텍스트/office만 라우팅하므로(pdf 미지원)
-// officeparser(parseOffice, pdf 지원)를 직접 호출한다. 추출 실패 시 throw.
-async function extractPdfText(buf: Uint8Array): Promise<string> {
-  const { parseOffice } = await import('officeparser')
-  return await new Promise<string>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('pdf extract timeout')), PDF_PARSE_TIMEOUT_MS)
-    ;(async () => {
-      const ast = await parseOffice(Buffer.from(buf))
-      const out = await ast.to('md')
-      return typeof out?.value === 'string' ? out.value : String(out?.value ?? '')
-    })().then(
-      (v) => {
-        clearTimeout(timer)
-        resolve(v)
-      },
-      (e) => {
-        clearTimeout(timer)
-        reject(e)
-      },
-    )
-  })
-}
 
 /**
  * POST /api/admin/ai-chat/knowledge-upload — 프로젝트 지식 파일 업로드 (multipart/form-data)

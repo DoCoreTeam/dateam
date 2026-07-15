@@ -68,3 +68,24 @@ export async function extractDocumentText(buf: Uint8Array, mime: string): Promis
   }
   throw new Error('문서에서 텍스트를 추출하지 못했습니다')
 }
+
+// PDF 텍스트 추출 — pdf는 DOCUMENT_OFFICE_MIMES에 없어 extractDocumentText가 라우팅하지 않는다.
+// officeparser(parseOffice, pdf 지원)는 office 계열과 동일 경로이므로 여기 SSOT로 노출해
+// 호출측(knowledge-upload 라우트·목록 심층분석)이 각자 복붙하지 않고 재사용한다.
+export async function extractPdfText(buf: Uint8Array): Promise<string> {
+  const { parseOffice } = await import('officeparser')
+  let text: string
+  try {
+    text = await withTimeout(
+      (async () => {
+        const ast = await parseOffice(Buffer.from(buf))
+        const out = await ast.to('md')
+        return typeof out?.value === 'string' ? out.value : String(out?.value ?? '')
+      })(),
+      OFFICE_PARSE_TIMEOUT_MS,
+    )
+  } catch {
+    throw new Error('문서에서 텍스트를 추출하지 못했습니다')
+  }
+  return truncateDocText(text)
+}

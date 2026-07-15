@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Menu, Plus, Settings2, Share2, Download, Copy, Check, ArrowLeftToLine } from 'lucide-react'
+import Link from 'next/link'
+import { Menu, Plus, Settings2, Share2, Download, Copy, Check, ArrowLeftToLine, ListChecks } from 'lucide-react'
 import type {
   AiChatConversation,
   AiChatMessage,
@@ -814,6 +815,14 @@ export default function AiChatClient({
             <Menu size={18} />
           </button>
           <span className="ai-chat-topbar-title">{selectedConv?.title ?? '새 대화'}</span>
+          <Link
+            href="/ai-chat/analyze"
+            className="ai-chat-icon-btn"
+            aria-label="목록 심층분석"
+            title="목록 심층분석 — 자료 붙여넣기/파일에서 목록 추출 후 항목별 분석"
+          >
+            <ListChecks size={18} />
+          </Link>
           {selectedConv && (
             <div className="ai-chat-topbar-actions">
               <select
