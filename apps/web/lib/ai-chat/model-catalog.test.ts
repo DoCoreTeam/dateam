@@ -1,6 +1,19 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mergeModelCatalogEntry, inferModelMeta, isChatModel, CURATED_MODELS } from './model-catalog.ts'
+import { mergeModelCatalogEntry, inferModelMeta, isChatModel, inferModelUseCase, CURATED_MODELS } from './model-catalog.ts'
+
+test('용도안내: 티어별 친절 설명', () => {
+  assert.match(inferModelUseCase('gemini', 'gemini-2.5-pro', { vision: true, longContext: true, reasoning: true }), /추론|분석|코딩/)
+  assert.match(inferModelUseCase('gemini', 'gemini-2.0-flash-lite', { vision: true, longContext: true, reasoning: false }), /빠르고 저렴|간단/)
+  assert.match(inferModelUseCase('gemini', 'gemini-2.0-flash', { vision: true, longContext: true, reasoning: false }), /빠른 범용|대화/)
+})
+
+test('필터: 이미지 생성 모델(-image·banana)은 채팅목록 제외', () => {
+  assert.equal(isChatModel('gemini', 'gemini-3-pro-image'), false)
+  assert.equal(isChatModel('gemini', 'gemini-3.1-flash-image-preview'), false)
+  assert.equal(isChatModel('gemini', 'nano-banana-pro-preview'), false)
+  assert.equal(isChatModel('gemini', 'gemini-2.5-flash'), true)
+})
 
 test('추론: 큐레이션에 없는 라이브 Gemini 모델도 능력(멀티모달)·출시일이 채워진다', () => {
   const m = inferModelMeta('gemini', 'gemini-2.5-flash')

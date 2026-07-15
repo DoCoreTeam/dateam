@@ -83,10 +83,32 @@ export function mergeModelCatalogEntry(
   }
 }
 
-// 비채팅 모델(임베딩·TTS·이미지생성 등)은 모델 선택에서 제외.
-const NON_CHAT_RE = /(embedding|aqa|tts|imagen|image-generation|image-gen|veo|whisper|dall-e|audio|realtime|moderation|rerank)/i
+// 비채팅 모델(임베딩·TTS·이미지생성 등)은 모델 선택에서 제외. `-image`/`banana`=이미지 생성 모델.
+const NON_CHAT_RE = /(embedding|aqa|tts|imagen|image-generation|image-gen|-image|banana|veo|whisper|dall-e|audio|realtime|moderation|rerank)/i
 export function isChatModel(_provider: AiChatProviderId, modelId: string): boolean {
   return !NON_CHAT_RE.test(modelId)
+}
+
+/**
+ * 모델 용도 한 줄 안내(친절어) — 사용자가 "이게 뭐 할 때 쓰는지" 바로 알게. 이름·능력 기반 추론.
+ */
+export function inferModelUseCase(provider: AiChatProviderId, modelId: string, caps: ModelCapabilities): string {
+  // 세그먼트(-/_/. 구분) 단위 매칭 — "gemini"가 "mini"를 부분포함하는 오탐 방지.
+  const parts = modelId.toLowerCase().split(/[-_.]/)
+  const has = (...ws: string[]) => ws.some((w) => parts.includes(w))
+  if (caps.reasoning && has('pro', 'opus', 'o1', 'o3', 'o4', 'thinking')) {
+    return '복잡한 추론·분석·코딩 등 어려운 작업에 강함 (정확하지만 느린 편)'
+  }
+  if (has('lite', 'mini', 'nano', 'haiku')) {
+    return '가장 빠르고 저렴 — 간단한 질문·분류·대량 처리에 적합'
+  }
+  if (has('flash', 'turbo')) {
+    return '빠른 범용 — 일상 대화·요약·초안 작성에 적합'
+  }
+  if (has('pro', 'opus', '4o', 'sonnet')) {
+    return '고품질 범용 — 긴 문서 분석·정밀한 답변에 적합'
+  }
+  return '범용 대화 모델'
 }
 
 function prettifyLabel(modelId: string): string {

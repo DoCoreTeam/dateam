@@ -8,7 +8,7 @@ import { getAvailableProviders, getProvider, getProviderConfig } from '@/lib/ai-
 import { buildThreadForChoice, getBranchGroups } from '@/lib/ai-chat/thread'
 import { chunkText, embedKnowledgeChunks } from '@/lib/ai-chat/knowledge'
 import { sanitizeSearchQuery } from '@/lib/ai-chat/search'
-import { mergeModelCatalogEntry, inferModelMeta, isChatModel, type ModelCapabilities } from '@/lib/ai-chat/model-catalog'
+import { mergeModelCatalogEntry, inferModelMeta, inferModelUseCase, isChatModel, type ModelCapabilities } from '@/lib/ai-chat/model-catalog'
 import type {
   AiChatProviderId,
   AiChatConversation,
@@ -940,6 +940,7 @@ export interface ModelCatalogItem {
   contextLength: number | null
   capabilities: ModelCapabilities
   releasedAt: string | null
+  useCase: string   // "무엇에 쓰는지" 친절 안내
 }
 
 interface ModelCatalogRow {
@@ -981,15 +982,17 @@ export async function listModelCatalog(): Promise<{
       const inferred = inferModelMeta(r.provider, r.model_id)
       const dbCaps = r.capabilities ?? {}
       const capsEmpty = !dbCaps.vision && !dbCaps.longContext && !dbCaps.reasoning
+      const capabilities = capsEmpty
+        ? inferred.capabilities
+        : { vision: false, longContext: false, reasoning: false, ...dbCaps }
       return {
         provider: r.provider,
         modelId: r.model_id,
         label: r.label ?? inferred.label,
         contextLength: r.context_length ?? inferred.contextLength ?? null,
-        capabilities: capsEmpty
-          ? inferred.capabilities
-          : { vision: false, longContext: false, reasoning: false, ...dbCaps },
+        capabilities,
         releasedAt: r.released_at ?? inferred.releasedAt ?? null,
+        useCase: inferModelUseCase(r.provider, r.model_id, capabilities),
       }
     })
   return { ok: true, items }

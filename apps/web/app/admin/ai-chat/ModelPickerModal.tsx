@@ -190,6 +190,11 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
                     {m.contextLength && <span>{m.contextLength.toLocaleString()} tok</span>}
                     {m.releasedAt && <span>출시 {formatReleased(m.releasedAt)}</span>}
                   </span>
+                  {m.useCase && (
+                    <span style={{ display: 'block', marginTop: 'var(--space-1)', fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                      💡 {m.useCase}
+                    </span>
+                  )}
                 </span>
                 <span
                   aria-hidden="true"
