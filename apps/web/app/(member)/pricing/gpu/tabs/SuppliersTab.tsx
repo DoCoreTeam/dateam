@@ -456,7 +456,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
                           {q.effective_tier != null && (
                             <span
                               className={q.tier_override != null ? 'gpu-tier-badge gpu-tier-badge--override' : 'gpu-tier-badge'}
-                              title={q.tier_override != null ? '공급사 지정 Tier (모델 기본값 덮어씀)' : '모델 기본 Tier'}
+                              title={q.tier_override != null ? '이 공급사에서만 다르게 표시하도록 지정한 등급 (표시용)' : '이 모델의 기본 등급'}
                             >
                               T{q.effective_tier}{q.tier_override != null ? '*' : ''}
                             </span>
@@ -473,7 +473,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
                             disabled={tierBusy === prod.model_name}
                             onChange={(e) => setModelTier(prod.model_name, e.target.value === '' ? null : Number(e.target.value))}
                             aria-label={`${prod.model_name} 공급사 Tier 지정`}
-                            title="이 공급사의 해당 모델 Tier 지정 (분류·표시 전용, 가격 불변)"
+                            title="이 공급사에서 이 모델을 몇 등급으로 볼지 표시용으로만 지정해요 (가격에는 영향 없음). 실제 등급은 가격표 상세에서 바꿉니다."
                             onClick={(e) => e.stopPropagation()}
                           >
                             <option value="">자동(T{prod.tier})</option>
