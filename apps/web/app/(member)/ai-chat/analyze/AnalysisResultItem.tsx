@@ -5,7 +5,7 @@ import { Check, Copy, MessageSquareText, RotateCw } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import MarkdownMessage from '@/app/admin/ai-chat/MarkdownMessage'
-import type { AnalysisItemStatus } from './session-actions'
+import type { AnalysisItemStatus } from './session-item-actions'
 
 interface Props {
   idx: number

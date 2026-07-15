@@ -4,7 +4,7 @@ import { Download } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import MarkdownMessage from '@/app/admin/ai-chat/MarkdownMessage'
-import type { SessionCoverage } from './client-session'
+import type { SessionCoverage } from './session-item-actions'
 
 export type ExportFormat = 'md' | 'txt' | 'docx' | 'pdf'
 

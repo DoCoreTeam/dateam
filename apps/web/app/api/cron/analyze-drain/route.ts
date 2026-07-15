@@ -4,8 +4,17 @@
 // (.ralph/decisions/DECISION-20260715-cron-drain.md)
 
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { createAdminClient } from '@/lib/supabase/server'
 import { drainSession } from '@/lib/ai-chat/analyze-runner'
+
+/** 상수시간 문자열 비교(타이밍 공격 방어, OWASP A07). 길이 불일치는 즉시 false. */
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a)
+  const bb = Buffer.from(b)
+  if (ab.length !== bb.length) return false
+  return timingSafeEqual(ab, bb)
+}
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -60,7 +69,7 @@ async function findClaimableSessions(admin: AdminClient): Promise<{ id: string }
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET
   const authHeader = req.headers.get('authorization') ?? ''
-  if (!secret || authHeader !== `Bearer ${secret}`) {
+  if (!secret || !safeEqual(authHeader, `Bearer ${secret}`)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 

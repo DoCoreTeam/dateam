@@ -16,7 +16,7 @@ import {
   restoreAnalysisSession,
   type AnalysisSessionSummary,
   type SessionSortKey,
-} from './session-actions'
+} from './session-list-actions'
 import { RenameModal, ConfirmModal, SessionDetailDrawer } from './SessionListModals'
 
 const SORT_OPTIONS: { value: SessionSortKey; label: string }[] = [

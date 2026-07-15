@@ -5,12 +5,8 @@ import { Upload } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { extractItems, type AnalyzeExtractResult, type AnalysisLens } from './actions'
-import {
-  saveAnalysisSession,
-  listAnalysisSessions,
-  getAnalysisSession,
-  type AnalysisSessionSummary,
-} from './session-actions'
+import { saveAnalysisSession, getAnalysisSession } from './session-persist-actions'
+import { listAnalysisSessions, type AnalysisSessionSummary } from './session-list-actions'
 import ItemReviewList, { type ReviewItem } from './ItemReviewList'
 import CommandPresetPanel from './CommandPresetPanel'
 import AnalysisResults from './AnalysisResults'

@@ -5,6 +5,11 @@
 //
 // 진행상태는 항상 count(status) 파생이다(deriveProgress) — 저장된 진행률 컬럼은 없다(하드코딩 금지).
 // claim/항목처리/취합의 구현은 analyze-runner-worker.ts로 분리(300줄 제약 — 로직 경계는 그 파일 헤더 참고).
+//
+// control='cancelled' in-flight abort(§3 orchestrator-protocol): 배치(runWithConcurrency) 실행 중
+// watchControlForAbort가 세션 control을 주기 폴링해 cancelled 감지 시 배치 전용 AbortController를
+// abort() → analyzeOneItem/provider.streamChat까지 signal이 전파되어 진행 중인 스트림도 즉시 중단된다.
+// 'paused'는 기존대로 신규 착수만 중단(진행 중인 항목은 완료 — 토큰 낭비 방지).
 
 import { getProviderConfig } from './registry.ts'
 import { runWithConcurrency } from './concurrency.ts'
@@ -16,6 +21,7 @@ type AdminClient = any
 const DEFAULT_CONCURRENCY = 4
 const RETRY_COUNT = 1
 const RETRY_BACKOFF_MS = 800
+const CONTROL_POLL_MS = 1500 // in-flight cancel 감시 폴링 간격
 
 export interface Progress {
   phase: string
@@ -30,6 +36,31 @@ export interface Progress {
 export interface DrainResult {
   drained: boolean
   progress: Progress
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * control 폴링 감시 — getControl()이 'cancelled'를 반환하면 controller.abort()로 in-flight 배치를
+ * 즉시 중단한다. controller가 이미 aborted면(배치 정상 종료 등) 루프를 스스로 끝낸다.
+ * 순수 로직(주입 가능) — 단위테스트 대상. 실사용은 loadSession()을 getControl로 주입.
+ */
+export async function watchControlForAbort(
+  getControl: () => Promise<string>,
+  controller: AbortController,
+  intervalMs: number,
+): Promise<void> {
+  while (!controller.signal.aborted) {
+    const control = await getControl().catch(() => 'running')
+    if (control === 'cancelled') {
+      controller.abort()
+      return
+    }
+    if (controller.signal.aborted) return
+    await sleep(intervalMs)
+  }
 }
 
 async function readMeta(admin: AdminClient): Promise<Record<string, unknown>> {
@@ -140,6 +171,21 @@ export async function drainSession(
       return { drained: false, progress }
     }
 
+    // 배치 전용 AbortController — 외부 signal(opts.signal) abort는 여기로 전파하고,
+    // watchControlForAbort가 세션 control='cancelled'를 감지하면 여기로 직접 abort()한다.
+    const batchController = new AbortController()
+    if (opts.signal.aborted) batchController.abort()
+    const forwardAbort = (): void => batchController.abort()
+    opts.signal.addEventListener('abort', forwardAbort)
+    const watchPromise = watchControlForAbort(
+      async () => {
+        const s = await loadSession(admin, sessionId)
+        return s?.control ?? 'running'
+      },
+      batchController,
+      CONTROL_POLL_MS,
+    ).catch(() => {})
+
     const results = await runWithConcurrency(
       claimed,
       concurrency,
@@ -152,13 +198,17 @@ export async function drainSession(
             model: geminiConfig.model,
             command: session.command,
             sourceText: session.source_text,
-            signal: opts.signal,
+            signal: batchController.signal,
             onDelta: opts.onDelta,
           },
           emitProgress,
         ),
-      { signal: opts.signal, retries: RETRY_COUNT, backoffMs: RETRY_BACKOFF_MS },
+      { signal: batchController.signal, retries: RETRY_COUNT, backoffMs: RETRY_BACKOFF_MS },
     )
+
+    batchController.abort() // 배치 종료 — 감시 루프 정지(완료 후 abort는 안전한 no-op)
+    opts.signal.removeEventListener('abort', forwardAbort)
+    await watchPromise
 
     for (let i = 0; i < results.length; i++) {
       const r = results[i]

@@ -2,7 +2,7 @@
 
 import { Pause, Play, Square } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
-import type { AnalysisSessionControl } from './session-actions'
+import type { AnalysisSessionControl } from './session-item-actions'
 import type { StreamProgress } from './useAnalysisStream'
 
 interface Props {

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import NbButton from '@/components/ui/nb/NbButton'
-import { continueInChat } from './session-actions'
+import { continueInChat } from './session-persist-actions'
 import { useAnalysisStream, type InitialItem } from './useAnalysisStream'
 import AnalysisProgressBar from './AnalysisProgressBar'
 import AnalysisSynthPanel, { type ExportFormat } from './AnalysisSynthPanel'

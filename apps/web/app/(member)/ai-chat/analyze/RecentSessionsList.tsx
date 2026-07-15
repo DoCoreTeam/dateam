@@ -1,7 +1,7 @@
 'use client'
 
 import { History } from 'lucide-react'
-import type { AnalysisSessionSummary } from './session-actions'
+import type { AnalysisSessionSummary } from './session-list-actions'
 
 interface Props {
   sessions: AnalysisSessionSummary[]

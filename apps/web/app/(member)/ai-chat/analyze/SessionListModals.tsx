@@ -8,12 +8,8 @@ import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import { useEscClose } from '@/lib/use-esc-close'
-import {
-  renameAnalysisSession,
-  getAnalysisSession,
-  type AnalysisSessionSummary,
-  type AnalysisSessionDetail,
-} from './session-actions'
+import { renameAnalysisSession, type AnalysisSessionSummary } from './session-list-actions'
+import { getAnalysisSession, type AnalysisSessionDetail } from './session-persist-actions'
 
 const BACKDROP = 'var(--modal-backdrop)'
 const MODAL_SHADOW = 'var(--shadow-modal)'

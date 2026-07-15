@@ -9,14 +9,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createSseParser } from '@/lib/ai-chat/sse'
+import { getAnalysisSession } from './session-persist-actions'
 import {
-  getAnalysisSession,
   setSessionControl,
   updateAnalysisItem,
+  getSessionExtras,
   type AnalysisItemStatus,
   type AnalysisSessionControl,
-} from './session-actions'
-import { getSessionExtras, type SessionCoverage } from './client-session'
+  type SessionCoverage,
+} from './session-item-actions'
 
 const POLL_MS = 2500
 
@@ -210,6 +211,7 @@ export function useAnalysisStream(sessionId: string, initialItems: InitialItem[]
     await setSessionControl(sessionId, 'cancelled')
     controlRef.current = 'cancelled'
     setControlState('cancelled')
+    abortRef.current?.abort() // 클라 자신의 SSE fetch 즉시 종료(서버 in-flight 중단은 control 폴링이 처리)
     await pollTick().catch(() => {})
   }, [sessionId, pollTick])
 
