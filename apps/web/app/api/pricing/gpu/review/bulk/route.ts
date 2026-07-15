@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { confirmReviewItem } from '@/lib/gpu/confirm-review-item'
+import { CONFIDENCE_AUTO_MIN } from '@/lib/gpu/confidence-gate'
 import type { VariantCandidate } from '@/lib/gpu/resolve-product'
 
 // POST /api/pricing/gpu/review/bulk — 검토대기 항목 일괄 처리.
@@ -19,17 +20,34 @@ export async function POST(req: NextRequest) {
   let body: { ids?: unknown; action?: unknown; auto_accepted_low_conf?: unknown }
   try { body = await req.json() } catch { return NextResponse.json({ error: '요청 형식 오류' }, { status: 400 }) }
 
-  const ids = Array.isArray(body.ids)
+  let ids = Array.isArray(body.ids)
     ? body.ids.filter((v): v is string => typeof v === 'string' && v.length > 0).slice(0, MAX_BULK)
     : []
   const action = typeof body.action === 'string' ? body.action : ''
-  if (ids.length === 0) return NextResponse.json({ error: '선택된 항목이 없습니다' }, { status: 400 })
-  if (!['delete', 'confirm'].includes(action)) {
-    return NextResponse.json({ error: 'action은 delete 또는 confirm' }, { status: 400 })
+  if (!['delete', 'confirm', 'auto_confirm'].includes(action)) {
+    return NextResponse.json({ error: 'action은 delete·confirm·auto_confirm' }, { status: 400 })
+  }
+  // auto_confirm 은 ids 를 받지 않고, 서버가 "AI 확신(신뢰도 높음)" 대기 항목을 직접 골라 확정한다.
+  //   (설계 헌법 제4조 — AI가 채우고 사람은 확인만. 관리자 전용·감사기록·되돌리기 그대로 = 안전.)
+  if (action !== 'auto_confirm' && ids.length === 0) {
+    return NextResponse.json({ error: '선택된 항목이 없습니다' }, { status: 400 })
   }
 
   const adminClient = createAdminClient()
   const actorName = user.email ?? user.id
+
+  if (action === 'auto_confirm') {
+    // 신뢰도 ≥ 자동확정 임계(보수적) & 실데이터(테스트 제외) & 미처리(pending) 만 선별.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: hi } = await (adminClient as any)
+      .from('review_items')
+      .select('id')
+      .eq('status', 'pending').is('deleted_at', null).eq('is_test', false)
+      .gte('overall_confidence', CONFIDENCE_AUTO_MIN)
+      .limit(MAX_BULK)
+    ids = ((hi ?? []) as Array<{ id: string }>).map((r) => r.id)
+    if (ids.length === 0) return NextResponse.json({ ok: true, confirmed: 0, failed: [], message: 'AI가 확신하는 대기 항목이 없어요' })
+  }
 
   // ── 일괄 삭제 ──────────────────────────────────────────
   if (action === 'delete') {

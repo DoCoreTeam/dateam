@@ -880,6 +880,32 @@ export default function ReviewTab({ isAdmin = false }: { isAdmin?: boolean }) {
     setBulkModal({ type: 'delete', targets, lowConf: [] })
   }, [filtered, selected])
 
+  // AI 확신(신뢰도 높음) 대기 항목만 서버가 골라 한 번에 확정. 관리자 전용·감사기록·되돌리기 그대로.
+  const runAutoConfirm = useCallback(async () => {
+    setBulkBusy(true)
+    try {
+      const res = await fetch('/api/pricing/gpu/review/bulk', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'auto_confirm' }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { setBulkResult({ title: '자동 확정 실패', lines: [j.error ?? '서버 오류로 확정하지 못했어요.'], failed: [] }); return }
+      const failedArr = (Array.isArray(j.failed) ? j.failed : []) as Array<{ hint: string | null; error: string }>
+      setBulkResult({
+        title: 'AI 확신 항목 자동 확정',
+        lines: [
+          j.confirmed > 0 ? `신뢰도 높은 ${j.confirmed}건을 가격표에 확정했어요.` : (j.message ?? 'AI가 확신하는 대기 항목이 없어요.'),
+          failedArr.length > 0 ? `${failedArr.length}건은 확인이 필요해 남겨뒀어요.` : '',
+        ].filter(Boolean),
+        failed: failedArr.map((f) => ({ hint: f.hint ?? '', error: f.error })),
+      })
+      await mutate('/api/pricing/gpu/products')
+      await mutate('/api/pricing/gpu/review?status=pending')
+    } catch {
+      setBulkResult({ title: '자동 확정 실패', lines: ['서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.'], failed: [] })
+    } finally { setBulkBusy(false) }
+  }, [mutate])
+
   const runBulkConfirm = useCallback(async () => {
     if (!bulkModal) return
     const targets = bulkModal.targets
@@ -1013,6 +1039,18 @@ export default function ReviewTab({ isAdmin = false }: { isAdmin?: boolean }) {
           </label>
         )}
         <div style={{ flex: 1 }} />
+        {isAdmin && selected.size === 0 && (
+          <button
+            onClick={runAutoConfirm}
+            disabled={bulkBusy}
+            className="gpu-btn gpu-btn-primary"
+            data-testid="auto-confirm-btn"
+            title="AI가 확신하는(신뢰도 높은) 대기 항목만 골라 한 번에 확정해요. 틀리면 되돌리기로 복구할 수 있어요."
+            style={{ fontSize: 12, gap: 5 }}
+          >
+            <CheckCircle2 size={13} /> AI 확신 항목 한 번에 확정
+          </button>
+        )}
         {selected.size > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>선택 {selected.size}건</span>
