@@ -347,14 +347,27 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           </div>
         )}
         {activeTab === 'board' && unifiedOn && (
-          <div className="gpu-tab-panel">
-            <UnifiedTableConnected
-              marginPct={settings?.margin_pct ?? undefined}
-              isAdmin={isAdmin}
-              onMarginSaved={() => mutateSettings()}
-              onRegisterQuote={() => setActiveTab('intake')}
-              onManageMapping={() => setActiveTab('market')}
-            />
+          <div className="gpu-tab-panel" style={{ display: 'flex', flexDirection: 'row', gap: 0, minHeight: 0 }}>
+            <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <UnifiedTableConnected
+                marginPct={settings?.margin_pct ?? undefined}
+                isAdmin={isAdmin}
+                onMarginSaved={() => mutateSettings()}
+                onRegisterQuote={() => setActiveTab('intake')}
+                onManageMapping={() => setActiveTab('market')}
+              />
+            </div>
+            <div className={`gpu-ai-sidebar${showAiPanel ? ' gpu-ai-sidebar--open' : ''}`}>
+              <div className="gpu-ai-sidebar-inner">
+                <div style={{ padding: '8px 12px', borderBottom: 'var(--hairline) solid var(--gpu-border)', fontSize: 12, fontWeight: 600, color: 'var(--gpu-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+                  AI 조회
+                  <button className="gpu-btn" style={{ padding: '2px 6px', fontSize: 11 }} onClick={() => setShowAiPanel(false)}>✕</button>
+                </div>
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                  <DbChatTab />
+                </div>
+              </div>
+            </div>
           </div>
         )}
         {activeTab === 'board' && !unifiedOn && (

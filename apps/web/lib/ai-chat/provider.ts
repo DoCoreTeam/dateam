@@ -60,10 +60,17 @@ export interface ProviderCapabilities {
   defaultMaxOutputTokens: number
 }
 
+export interface ProbeModelResult {
+  usable: boolean
+}
+
 export interface ChatProvider {
   id: ProviderId
   label: string // 'Gemini' | 'Claude' | 'OpenAI'
   capabilities: ProviderCapabilities
   streamChat(params: StreamChatParams): Promise<StreamChatResult>
   listModels(apiKey: string): Promise<string[]>
+  // 옵셔널 — listModels가 노출해도 현재 키/요금제로 실제 전송 불가한 모델(404 삭제·429 할당량0)을
+  // 걸러내기 위한 실사용 프로브. 미구현 프로바이더는 refreshModelCatalog가 스킵(기존 동작 유지).
+  probeModel?(apiKey: string, model: string): Promise<ProbeModelResult>
 }

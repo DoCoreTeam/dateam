@@ -12,6 +12,7 @@ import {
 import { extractDocumentText } from '@/lib/ai-chat/document-extract'
 import { retrieveProjectContext, buildProjectSystemBlock } from '@/lib/ai-chat/knowledge'
 import { autoTitle } from '@/app/admin/ai-chat/actions'
+import { classifyProviderError } from '@/lib/ai-chat/provider-errors'
 import type { AiChatConversation, AiChatCitation } from '@/types/database'
 
 export const runtime = 'nodejs' // extractDocumentText(officeparser) + Buffer 사용

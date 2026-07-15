@@ -160,6 +160,34 @@ async function listModels(apiKey: string): Promise<string[]> {
     .map((m) => m.name.replace('models/', ''))
 }
 
+/** 실사용 프로브: 최소 페이로드로 generateContent(비스트리밍) 1회 호출.
+ *  200 = usable. 404/400(모델없음·미지원)·429(limit: 0, 요금제 할당량 0) = usable:false(근본 미사용).
+ *  그 외(일시 429·5xx·네트워크 오류)는 usable:true — 일시 장애로 모델을 벌하지 않는다. */
+async function probeModel(apiKey: string, model: string): Promise<{ usable: boolean }> {
+  try {
+    const url = `${GEMINI_API_BASE}/models/${encodeURIComponent(model)}:generateContent`
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+        generationConfig: { maxOutputTokens: 1 },
+      }),
+      cache: 'no-store',
+    })
+    if (res.ok) return { usable: true }
+    if (res.status === 404 || res.status === 400) return { usable: false }
+    if (res.status === 429) {
+      const bodyText = await res.text().catch(() => '')
+      if (bodyText.toLowerCase().includes('limit: 0')) return { usable: false }
+      return { usable: true } // 일시 레이트리밋
+    }
+    return { usable: true } // 5xx 등 일시 장애
+  } catch {
+    return { usable: true } // 네트워크 오류 등 — 관대하게 처리(기존 동작 보존)
+  }
+}
+
 export const geminiProvider: ChatProvider = {
   id: 'gemini',
   label: 'Gemini',
@@ -171,4 +199,5 @@ export const geminiProvider: ChatProvider = {
   },
   streamChat,
   listModels,
+  probeModel,
 }

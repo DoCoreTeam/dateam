@@ -32,6 +32,20 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.311',
+    date: '2026-07-15',
+    title: 'GPU 데이터에 말로 물어보는 AI 조회가 켜졌어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '💬',
+        headline: 'AI 조회 — 우리 GPU 데이터에 바로 질문',
+        detail:
+          'GPU 가격표 화면 오른쪽 "AI 조회"를 누르면, 우리 시스템에 저장된 상품·공급가·시장가·재고에 대해 한국어로 물어보고 답을 받을 수 있어요. (그동안 버튼만 있고 안 열리던 문제를 고쳐 실제로 동작하게 했습니다.)',
+      },
+    ],
+  },
+  {
     version: '0.7.309',
     date: '2026-07-15',
     title: 'GPU 가격 화면이 넣은 그대로 보이고, 정렬도 돼요',
