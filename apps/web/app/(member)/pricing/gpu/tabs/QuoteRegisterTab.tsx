@@ -79,8 +79,8 @@ export default function QuoteRegisterTab() {
   const [successMsg, setSuccessMsg] = useState('')
   const [channel, setChannel] = useState('own')
   const [isTest, setIsTest] = useState(false)
-  // 인입 종류 선언 — 넣기 전에 "무엇을 넣는지" 사용자가 고른다(추측 제거, 헌법 제1조). 'auto'면 기존 자동판별.
-  const [declaredKind, setDeclaredKind] = useState<'auto' | 'supplier' | 'competitor'>('auto')
+  // 인입 종류 선언 — 넣기 전에 "무엇을 넣는지" 탭으로 고른다(추측 제거, 헌법 제1조). 기본=공급사 견적.
+  const [declaredKind, setDeclaredKind] = useState<'supplier' | 'competitor'>('supplier')
   // 실시간 스트리밍 상태
   const [liveMsgs, setLiveMsgs] = useState<string[]>([])      // 실 진행 로그
   const [streamText, setStreamText] = useState('')            // AI가 지금 쓰고 있는 실 토큰
@@ -182,7 +182,7 @@ export default function QuoteRegisterTab() {
     try {
       const fd = new FormData()
       fd.append('text', text)
-      if (declaredKind !== 'auto') fd.append('declared_kind', declaredKind)  // 사용자가 종류를 선택했으면 추측 대신 그 값으로 확정(헌법 제1조)
+      fd.append('declared_kind', declaredKind)  // 탭으로 고른 종류로 확정(추측 안 함, 헌법 제1조)
       for (const sf of streamFiles) fd.append('files', sf.file, sf.name)
       // Content-Type 헤더 미지정 — 브라우저가 multipart boundary 자동 설정
       const res = await fetch('/api/pricing/gpu/review/stream', { method: 'POST', body: fd })
@@ -390,10 +390,33 @@ export default function QuoteRegisterTab() {
         <div className="gpu-panel gpu-card-pad">
           <div className="gpu-card-title">
             <span className="gpu-step">1</span>
-            가격·견적 정보 붙여넣기
+            무엇을 넣나요?
+          </div>
+          {/* 넣는 종류 = 탭. 먼저 고르면 시스템이 추측하지 않고 그대로 분류한다(헌법 제1조). */}
+          <div role="tablist" aria-label="넣는 데이터 종류" style={{ display: 'flex', gap: 6, margin: '4px 0 10px' }}>
+            {([
+              { k: 'supplier', label: '공급사 견적', sub: '우리 매입가' },
+              { k: 'competitor', label: '경쟁사 시장가', sub: '남의 판매가' },
+            ] as const).map((t) => {
+              const on = declaredKind === t.k
+              return (
+                <button key={t.k} role="tab" aria-selected={on} onClick={() => setDeclaredKind(t.k)}
+                  style={{
+                    flex: 1, padding: '10px 12px', borderRadius: 9, cursor: 'pointer', textAlign: 'left',
+                    border: `var(--border-w-2) solid ${on ? 'var(--brand)' : 'var(--border-color)'}`,
+                    background: on ? 'var(--gpu-accent-soft, var(--info-bg))' : '#fff',
+                    boxShadow: on ? '0 0 0 1px var(--brand)' : 'none',
+                  }}>
+                  <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: on ? 'var(--brand)' : 'var(--text)' }}>{t.label}</div>
+                  <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>{t.sub}</div>
+                </button>
+              )
+            })}
           </div>
           <div className="gpu-card-desc">
-            붙여넣으면 공급가·경쟁가를 자동 분류합니다. 공급가는 검토 대기, 경쟁가는 시장 비교에 반영됩니다.
+            {declaredKind === 'supplier'
+              ? '공급사에게 받은 견적(우리 매입가)을 붙여넣으세요. 검토 대기로 들어갑니다.'
+              : '경쟁사 가격 페이지·시세(남의 판매가)를 붙여넣으세요. 시장 비교에 반영됩니다.'}
           </div>
 
           {/* 지원 형식 — 정보성 표시(클릭 대상 아님). 끌어다 놓으면 종류별 자동 분류. */}
@@ -493,20 +516,6 @@ export default function QuoteRegisterTab() {
           />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-              <span style={{ color: 'var(--gpu-muted)' }} title="무엇을 넣는지 먼저 고르면 시스템이 추측하지 않고 정확히 분류합니다">넣는 종류</span>
-              <select
-                className="input-field"
-                value={declaredKind}
-                onChange={(e) => setDeclaredKind(e.target.value as 'auto' | 'supplier' | 'competitor')}
-                style={{ height: 30, padding: '2px 8px', fontSize: 12, width: 'auto' }}
-                aria-label="넣는 데이터 종류 선택"
-              >
-                <option value="auto">자동 판별</option>
-                <option value="supplier">공급사 견적(우리 매입가)</option>
-                <option value="competitor">경쟁사 시장가(남의 판매가)</option>
-              </select>
-            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
               <span style={{ color: 'var(--gpu-muted)' }}>채널</span>
               <select

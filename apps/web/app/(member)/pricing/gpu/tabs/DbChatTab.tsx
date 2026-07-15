@@ -26,16 +26,15 @@ export default function DbChatTab() {
   const [loading, setLoading] = useState(false)
   const msgAreaRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const msgCountRef = useRef(0)
 
+  // 새 메시지뿐 아니라 답변이 스트리밍으로 채워질 때도(내용이 늘어날 때마다) 맨 아래로 자동 스크롤.
+  //   (버그: 예전엔 messages.length 변화에만 스크롤 → 답변이 길어져도 안 내려가 사용자가 직접 스크롤해야 했음.)
+  const lastContent = messages.length > 0 ? messages[messages.length - 1].content : ''
   useEffect(() => {
-    if (messages.length !== msgCountRef.current) {
-      msgCountRef.current = messages.length
-      if (msgAreaRef.current) {
-        msgAreaRef.current.scrollTop = msgAreaRef.current.scrollHeight
-      }
+    if (msgAreaRef.current) {
+      msgAreaRef.current.scrollTop = msgAreaRef.current.scrollHeight
     }
-  }, [messages.length])
+  }, [messages.length, lastContent])
 
   async function sendMessage(query: string) {
     if (!query.trim() || loading) return
