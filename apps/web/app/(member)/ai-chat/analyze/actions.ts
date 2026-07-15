@@ -20,6 +20,7 @@ import {
   classifySourceMime,
   type MergedItem,
 } from '@/lib/ai-chat/list-extract'
+import { analyzeOneItem, synthesizeItems, type SynthItem } from '@/lib/ai-chat/analyze-core'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AdminClient = any
@@ -34,7 +35,6 @@ const MAX_FILE_BYTES: Record<string, number> = {
   html: 2 * 1024 * 1024,
 }
 const MAX_ITEM_TEXT_CHARS = 50_000 // 항목 1건 상한(DoS 방어 — 정상 목록항목은 이보다 훨씬 짧음)
-const MAX_CONTEXT_CHARS = 8_000 // analyzeItem에 배경으로 넘기는 원문 컨텍스트 상한(항목 본문 아님)
 
 export type AnalysisLens = 'summary' | 'risk' | 'action-plan' | 'evidence' | 'compare'
 
@@ -66,6 +66,26 @@ export type AnalyzeExtractResult = AnalyzeExtractOk | AnalyzeExtractErr
 async function readMeta(admin: AdminClient): Promise<Record<string, unknown>> {
   const { data } = await admin.from('org_content').select('value').eq('key', 'META').single()
   return (data?.value as Record<string, unknown>) ?? {}
+}
+
+/** Gemini 설정 조회(analyzeItem/synthesizeInsights 공용) — 미설정 시 null. */
+async function getGeminiConfig() {
+  const admin = createAdminClient() as AdminClient
+  const meta = await readMeta(admin)
+  return getProviderConfig(meta, 'gemini')
+}
+
+/** analyze-core 결과의 토큰 사용 로깅(analyzeItem/synthesizeInsights 공용, feature 고정). */
+function logAnalyzeUsage(userId: string, model: string, usage: ChatUsage): void {
+  logTokenUsage({
+    userId,
+    feature: 'ai-chat-analyze',
+    model,
+    provider: 'gemini',
+    promptTokens: usage.promptTokens,
+    outputTokens: usage.outputTokens,
+    totalTokens: usage.totalTokens,
+  })
 }
 
 /** Gemini 1회 호출(비스트리밍 누적) — 프로바이더 SSOT(registry.ts) 재사용. 토큰 사용은 항상 로깅 + 호출측에 반환(§H 세션 토큰 표시). */
@@ -273,13 +293,14 @@ export interface AnalyzeItemOk {
   ok: true
   text: string
   usage: ChatUsage
+  coverage?: { total: number; covered: number[]; missing: number[]; appended: number[] }
 }
 export interface AnalyzeItemErr {
   ok: false
   error: string
 }
 
-/** 항목 1건 심층분석 — 관점(lens) + 자유 지시 + 원문 컨텍스트(고립 아닌 맥락 기반). */
+/** 항목 1건 심층분석 — 관점(lens)/자유 지시(command로 정규화) + 원문 컨텍스트(고립 아닌 맥락 기반). */
 export async function analyzeItem(input: AnalyzeItemInput): Promise<AnalyzeItemOk | AnalyzeItemErr> {
   const auth = await requireAdminApi()
   if (auth.error) return { ok: false, error: '권한이 없습니다' }
@@ -292,30 +313,36 @@ export async function analyzeItem(input: AnalyzeItemInput): Promise<AnalyzeItemO
   }
 
   const lensLabel = LENS_LABEL[input.lens] ?? LENS_LABEL.summary
-  const context = input.contextText.trim().slice(0, MAX_CONTEXT_CHARS)
   const custom = (input.customInstruction ?? '').trim()
+  // command가 상위: 자유 지시가 있으면 그대로, 없으면 lens 라벨 기반 기본 명령으로 매핑.
+  const command =
+    custom ||
+    `관점(${lensLabel})에서 핵심요지 / 배경·근거 / 리스크 / 다음 액션 섹션을 포함해 마크다운으로 심층 분석하라.`
+  const contextExcerpt = input.contextText.trim() || undefined
 
-  const promptParts = [
-    `아래 "분석 대상 항목"을 관점(${lensLabel})에서 심층 분석하라.`,
-    '이 항목은 더 큰 목록·자료의 일부이므로, 아래 "원문 컨텍스트"를 참고해 고립되지 않은 분석을 하라.',
-    '출력은 마크다운으로: 핵심요지 / 배경·근거 / 리스크 / 다음 액션 섹션을 포함하라(관점에 맞게 비중 조절 가능).',
-  ]
-  if (custom) promptParts.push(`추가 지시: ${custom}`)
-  if (context) promptParts.push(`\n원문 컨텍스트(배경 참고용):\n"""\n${context}\n"""`)
-  promptParts.push(`\n분석 대상 항목:\n"""\n${itemText}\n"""`)
+  const cfg = await getGeminiConfig()
+  if (!cfg) return { ok: false, error: 'Gemini API 키가 설정되지 않았습니다' }
 
   try {
-    const raw = await callGemini(userId, promptParts.join('\n\n'))
-    if (!raw.text.trim()) return { ok: false, error: '분석 결과가 비어 있습니다' }
-    return { ok: true, text: raw.text, usage: raw.usage }
+    const controller = new AbortController()
+    const result = await analyzeOneItem({
+      apiKey: cfg.apiKey,
+      model: cfg.model,
+      itemText,
+      contextExcerpt,
+      command,
+      signal: controller.signal,
+    })
+    if (!result.text.trim()) return { ok: false, error: '분석 결과가 비어 있습니다' }
+
+    logAnalyzeUsage(userId, cfg.model, result.usage)
+    return { ok: true, text: result.text, usage: result.usage }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : '분석 중 오류가 발생했습니다' }
   }
 }
 
-const MAX_SYNTH_ITEMS_CHARS = 30_000 // 종합 인사이트 입력 상한(비용 방어 — 분석 자체를 자르는 게 아니라 종합요약 입력 캡)
-
-/** 완료된 항목별 분석 결과를 모아 cross-item 종합 인사이트 생성. */
+/** 완료된 항목별 분석 결과를 모아 cross-item 무손실 종합 인사이트 생성(analyze-core synthesizeItems 재사용). */
 export async function synthesizeInsights(
   entries: { itemText: string; resultText: string }[],
 ): Promise<AnalyzeItemOk | AnalyzeItemErr> {
@@ -325,20 +352,27 @@ export async function synthesizeInsights(
 
   if (entries.length === 0) return { ok: false, error: '종합할 분석 결과가 없습니다' }
 
-  const body = entries
-    .map((e, idx) => `### 항목 ${idx + 1}: ${e.itemText}\n${e.resultText}`)
-    .join('\n\n')
-    .slice(0, MAX_SYNTH_ITEMS_CHARS)
+  const cfg = await getGeminiConfig()
+  if (!cfg) return { ok: false, error: 'Gemini API 키가 설정되지 않았습니다' }
 
-  const prompt =
-    '아래는 여러 항목을 각각 심층분석한 결과다. 항목 간 공통 패턴·상충되는 지점·우선순위를 종합해 ' +
-    '"종합 인사이트"를 마크다운으로 작성하라(공통 테마 / 상충·트레이드오프 / 우선순위 제안 섹션 포함).\n\n' +
-    body
+  const items: SynthItem[] = entries.map((e, idx) => ({ idx, itemText: e.itemText, digest: e.resultText }))
+  const command =
+    '항목 간 공통 패턴·상충되는 지점·우선순위를 종합해 "종합 인사이트"를 마크다운으로 작성하라 ' +
+    '(공통 테마 / 상충·트레이드오프 / 우선순위 제안 섹션 포함).'
 
   try {
-    const raw = await callGemini(userId, prompt)
-    if (!raw.text.trim()) return { ok: false, error: '종합 결과가 비어 있습니다' }
-    return { ok: true, text: raw.text, usage: raw.usage }
+    const controller = new AbortController()
+    const result = await synthesizeItems({
+      apiKey: cfg.apiKey,
+      model: cfg.model,
+      items,
+      command,
+      signal: controller.signal,
+    })
+    if (!result.text.trim()) return { ok: false, error: '종합 결과가 비어 있습니다' }
+
+    logAnalyzeUsage(userId, cfg.model, result.usage)
+    return { ok: true, text: result.text, usage: result.usage, coverage: result.coverage }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : '종합 중 오류가 발생했습니다' }
   }
@@ -346,3 +380,4 @@ export async function synthesizeInsights(
 
 // §G 영속 저장(세션/항목 CRUD)과 §F AI채팅 연계는 session-actions.ts로 분리(파일당 300줄 내 유지).
 // export: listAnalysisSessions·saveAnalysisSession·updateAnalysisItem·getAnalysisSession·continueInChat
+// export: setSessionControl·updateSessionSynth(v2 — 오케스트레이터 배선용)

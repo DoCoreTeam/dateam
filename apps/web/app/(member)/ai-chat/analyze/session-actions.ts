@@ -80,6 +80,7 @@ export async function saveAnalysisSession(input: {
   lens: AnalysisLens
   sourceKind: string
   items: { text: string }[]
+  command?: string
 }): Promise<{ ok: true; sessionId: string } | AnalyzeItemErr> {
   const auth = await requireAdminApi()
   if (auth.error) return { ok: false, error: '권한이 없습니다' }
@@ -97,6 +98,7 @@ export async function saveAnalysisSession(input: {
       source_text: input.sourceText,
       lens: input.lens,
       source_kind: input.sourceKind,
+      command: input.command?.trim() ?? '',
     })
     .select('id')
     .single()
@@ -141,6 +143,69 @@ export async function updateAnalysisItem(input: {
     .eq('session_id', input.sessionId)
     .eq('idx', input.idx)
   if (error) return { ok: false, error: '항목 갱신 중 오류가 발생했습니다' }
+
+  return { ok: true }
+}
+
+export type AnalysisSessionControl = 'running' | 'paused' | 'cancelled'
+
+/** 사용자 임의중단/재개(§ v2 오케스트레이터 배선) — owner 검증 후 control만 갱신. */
+export async function setSessionControl(
+  sessionId: string,
+  control: AnalysisSessionControl,
+): Promise<{ ok: true } | AnalyzeItemErr> {
+  const auth = await requireAdminApi()
+  if (auth.error) return { ok: false, error: '권한이 없습니다' }
+  const admin = createAdminClient() as AdminClient
+
+  const { data: owned } = await admin
+    .from('ai_analysis_sessions')
+    .select('id')
+    .eq('id', sessionId)
+    .eq('user_id', auth.user.id)
+    .is('deleted_at', null)
+    .single()
+  if (!owned) return { ok: false, error: '세션을 찾을 수 없습니다' }
+
+  const { error } = await admin.from('ai_analysis_sessions').update({ control }).eq('id', sessionId)
+  if (error) return { ok: false, error: '세션 제어 갱신 중 오류가 발생했습니다' }
+
+  return { ok: true }
+}
+
+export type AnalysisSynthStatus = 'pending' | 'running' | 'done' | 'error'
+
+/** 종합(synth) 결과 영속(§ v2 유실0 — 브라우저 종료에도 종합 결과 보존). owner 검증 후 갱신. */
+export async function updateSessionSynth(
+  sessionId: string,
+  input: {
+    synthStatus: AnalysisSynthStatus
+    synthText?: string
+    coverage?: { total: number; covered: number[]; missing: number[]; appended: number[] }
+  },
+): Promise<{ ok: true } | AnalyzeItemErr> {
+  const auth = await requireAdminApi()
+  if (auth.error) return { ok: false, error: '권한이 없습니다' }
+  const admin = createAdminClient() as AdminClient
+
+  const { data: owned } = await admin
+    .from('ai_analysis_sessions')
+    .select('id')
+    .eq('id', sessionId)
+    .eq('user_id', auth.user.id)
+    .is('deleted_at', null)
+    .single()
+  if (!owned) return { ok: false, error: '세션을 찾을 수 없습니다' }
+
+  const { error } = await admin
+    .from('ai_analysis_sessions')
+    .update({
+      synth_status: input.synthStatus,
+      synth_text: input.synthText ?? null,
+      coverage: input.coverage ?? null,
+    })
+    .eq('id', sessionId)
+  if (error) return { ok: false, error: '종합 결과 저장 중 오류가 발생했습니다' }
 
   return { ok: true }
 }
