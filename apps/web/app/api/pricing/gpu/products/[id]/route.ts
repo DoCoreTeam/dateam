@@ -45,11 +45,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
     patch.pricing_mode = body.pricing_mode
   }
-  // tier 수동 변경 (1/2/3)
+  // tier 수동 변경 (1/2/3) — 사람이 손댄 값이므로 잠금(자동판정이 다시 덮지 않도록). 헌법 제5·1조
   if ('tier' in body) {
     const t = Number(body.tier)
     if (![1, 2, 3].includes(t)) return NextResponse.json({ error: 'tier는 1·2·3만 가능합니다' }, { status: 400 })
     patch.tier = t
+    patch.tier_locked = true
   }
   // 필수 필드 null 방지
   if ('vcpu' in patch && patch.vcpu == null) return NextResponse.json({ error: 'vCPU는 비울 수 없습니다' }, { status: 400 })

@@ -527,9 +527,16 @@ export async function POST(req: NextRequest) {
 
         enqueue({ done: true, messageId })
       } catch (err) {
-        // 프로바이더 예외 → 원문은 서버 로그, 클라이언트에는 일반화된 메시지만 (M-1)
+        // 프로바이더 예외 → 원문은 서버 로그. 클라이언트에는 사유별 친절 메시지(민감정보는 제외).
         console.error('[ai-chat/stream] provider error', err)
-        const message = 'AI 응답 생성 실패'
+        const { message, fatalModel } = classifyProviderError(err)
+        // learn-on-failure: 근본적으로 못 쓰는 모델(404·할당량0)은 카탈로그에서 즉시 비활성화 → 목록에서 사라짐.
+        if (fatalModel) {
+          try {
+            await adminClient.from('ai_model_catalog')
+              .update({ is_active: false }).eq('provider', providerName).eq('model_id', model)
+          } catch { /* best-effort */ }
+        }
         try {
           if (mode === 'regenerate' && regenTargetId) {
             // 재생성 실패 — 기존 assistant 응답을 **덮어쓰지 않고 보존**(§5-1 "실패 시 이전 내용 복원").
@@ -547,6 +554,8 @@ export async function POST(req: NextRequest) {
         } catch (insertErr) {
           console.error('[ai-chat/stream] error row 저장 실패', insertErr)
         }
+        // 첫 메시지면 응답 실패여도 제목을 사용자 질의로 설정(autoTitle이 폴백=첫 사용자 메시지). "새 대화" 잔존 방지.
+        if (isFirstTitle) autoTitle(conversationId).catch(() => {})
         enqueue({ done: true, error: message })
       } finally {
         closed = true
