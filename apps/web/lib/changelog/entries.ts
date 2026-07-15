@@ -32,6 +32,20 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.326',
+    date: '2026-07-15',
+    title: '통합입력이 GPU가 아닌 항목은 걸러내요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🧹',
+        headline: 'GPU 모델이 아닌 잘못된 추출 자동 제외',
+        detail:
+          '가격표가 아닌 페이지(예: 메뉴·소개 페이지)를 넣었을 때 "서비스·월정액·스토리지" 같은 GPU가 아닌 항목이 모델로 잘못 잡히던 문제를 고쳤어요. 이제 진짜 GPU 모델만 남깁니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.324',
     date: '2026-07-15',
     title: 'AI 조회를 어느 화면에서든 바로 열 수 있어요',
