@@ -32,6 +32,20 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.324',
+    date: '2026-07-15',
+    title: 'AI 조회를 어느 화면에서든 바로 열 수 있어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '✨',
+        headline: 'AI 조회 상시 열기',
+        detail:
+          'GPU 관리의 어느 탭(공급사·경쟁사·수집 소스 등)에 있든 오른쪽 위 "AI 조회"를 누르면 바로 질문 패널이 떠요. 예전엔 가격표에서만 열렸어요.',
+      },
+    ],
+  },
+  {
     version: '0.7.323',
     date: '2026-07-15',
     title: '통합입력 종류를 탭으로, AI 조회가 더 똑똑해졌어요',

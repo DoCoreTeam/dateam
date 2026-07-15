@@ -339,19 +339,18 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
             )}
           </button>
         ))}
-        {activeTab === 'board' && (
-          <div style={{ marginLeft: 'auto', paddingRight: 4, flexShrink: 0 }}>
-            <button
-              data-testid="ai-panel-toggle"
-              className={`gpu-ai-toggle${showAiPanel ? ' gpu-ai-toggle--on' : ''}`}
-              onClick={() => setShowAiPanel((v) => !v)}
-              title="AI 조회 패널 토글"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-              AI 조회
-            </button>
-          </div>
-        )}
+        {/* AI 조회 토글 — 모든 탭에서 상시 노출(어느 화면에서든 우리 데이터에 질문). */}
+        <div style={{ marginLeft: 'auto', paddingRight: 4, flexShrink: 0 }}>
+          <button
+            data-testid="ai-panel-toggle"
+            className={`gpu-ai-toggle${showAiPanel ? ' gpu-ai-toggle--on' : ''}`}
+            onClick={() => setShowAiPanel((v) => !v)}
+            title="AI 조회 열기/닫기 — 어느 화면에서든 우리 GPU 데이터에 질문"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+            AI 조회
+          </button>
+        </div>
       </div>
 
       {/* 탭 컨텐츠 — gpu-tab-content: flex:1 min-height:0 overflow:hidden display:flex flex-direction:column
@@ -363,73 +362,31 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           </div>
         )}
         {activeTab === 'board' && unifiedOn && (
-          <div className="gpu-tab-panel" style={{ display: 'flex', flexDirection: 'row', gap: 0, minHeight: 0 }}>
-            <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <UnifiedTableConnected
-                marginPct={settings?.margin_pct ?? undefined}
-                isAdmin={isAdmin}
-                onMarginSaved={() => mutateSettings()}
-                onRegisterQuote={() => setActiveTab('intake')}
-                onManageMapping={() => setActiveTab('market')}
-              />
-            </div>
-            <div className={`gpu-ai-sidebar${showAiPanel ? ' gpu-ai-sidebar--open' : ''}`}>
-              <div className="gpu-ai-sidebar-inner">
-                <div style={{ padding: '8px 12px', borderBottom: 'var(--hairline) solid var(--gpu-border)', fontSize: 12, fontWeight: 600, color: 'var(--gpu-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-                  AI 조회
-                  <button className="gpu-btn" style={{ padding: '2px 6px', fontSize: 11 }} onClick={() => setShowAiPanel(false)}>✕</button>
-                </div>
-                <div style={{ flex: 1, overflow: 'hidden' }}>
-                  <DbChatTab />
-                </div>
-              </div>
-            </div>
+          <div className="gpu-tab-panel">
+            <UnifiedTableConnected
+              marginPct={settings?.margin_pct ?? undefined}
+              isAdmin={isAdmin}
+              onMarginSaved={() => mutateSettings()}
+              onRegisterQuote={() => setActiveTab('intake')}
+              onManageMapping={() => setActiveTab('market')}
+            />
           </div>
         )}
         {activeTab === 'board' && !unifiedOn && (
-          <div className="gpu-tab-panel" style={{ display: 'flex', flexDirection: 'row', gap: 0, minHeight: 0 }}>
-            <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <PriceTableTab
-                onGoToIntake={() => setActiveTab('intake')}
-                onGoToReview={() => setActiveTab('review')}
-                initialSearch={boardSearch}
-                onSearchConsumed={() => setBoardSearch('')}
-                initialProductId={boardFocusProductId}
-                onProductFocusConsumed={() => setBoardFocusProductId(null)}
-                initialMargin={settings?.margin_pct ?? null}
-                initialUsdKrw={settings?.usd_krw ?? null}
-                isAdmin={isAdmin}
-                onSearchChange={(q) => persistBoard({ q })}
-                onExpandChange={(id) => persistBoard({ expand: id })}
-              />
-            </div>
-            <div className={`gpu-ai-sidebar${showAiPanel ? ' gpu-ai-sidebar--open' : ''}`}>
-              <div className="gpu-ai-sidebar-inner">
-                <div style={{
-                  padding: '8px 12px',
-                  borderBottom: 'var(--hairline) solid var(--gpu-border)',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: 'var(--gpu-muted)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexShrink: 0,
-                }}>
-                  AI 조회
-                  <button
-                    className="gpu-btn"
-                    style={{ padding: '2px 6px', fontSize: 11 }}
-                    onClick={() => setShowAiPanel(false)}
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div style={{ flex: 1, overflow: 'hidden' }}>
-                  <DbChatTab />
-                </div>
-              </div>
-            </div>
+          <div className="gpu-tab-panel">
+            <PriceTableTab
+              onGoToIntake={() => setActiveTab('intake')}
+              onGoToReview={() => setActiveTab('review')}
+              initialSearch={boardSearch}
+              onSearchConsumed={() => setBoardSearch('')}
+              initialProductId={boardFocusProductId}
+              onProductFocusConsumed={() => setBoardFocusProductId(null)}
+              initialMargin={settings?.margin_pct ?? null}
+              initialUsdKrw={settings?.usd_krw ?? null}
+              isAdmin={isAdmin}
+              onSearchChange={(q) => persistBoard({ q })}
+              onExpandChange={(id) => persistBoard({ expand: id })}
+            />
           </div>
         )}
         {activeTab === 'cockpit' && (
@@ -468,6 +425,27 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
         {activeTab === 'specs' && <div className="gpu-tab-panel--scroll"><div className="page-inner"><SpecsTab /></div></div>}
         {activeTab === 'log' && <div className="gpu-tab-panel--scroll"><HistoryTab /></div>}
       </div>
+
+      {/* AI 조회 플로팅 패널 — 어느 탭에서든 우측에 떠서 우리 데이터에 질문. (상시 노출) */}
+      {showAiPanel && (
+        <div
+          role="complementary"
+          aria-label="AI 조회"
+          style={{
+            position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(400px, 92vw)', zIndex: 1000,
+            background: '#fff', borderLeft: 'var(--border-w-2) solid var(--gpu-border, var(--border-color))',
+            boxShadow: '-12px 0 40px rgba(15,23,42,0.14)', display: 'flex', flexDirection: 'column',
+          }}
+        >
+          <div style={{ padding: '10px 14px', borderBottom: 'var(--hairline) solid var(--gpu-border, var(--border-color))', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+            <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text)' }}>AI 조회</span>
+            <button className="gpu-btn" style={{ padding: '2px 8px', fontSize: 12 }} onClick={() => setShowAiPanel(false)} aria-label="AI 조회 닫기">✕</button>
+          </div>
+          <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+            <DbChatTab />
+          </div>
+        </div>
+      )}
     </div>
     </SWRConfig>
   )
