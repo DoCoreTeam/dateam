@@ -81,3 +81,14 @@ test('resolveClassification: supplier 의도 → 화이트리스트 무시', () 
   assert.equal(r.decision, 'supplier')
   assert.equal(r.reason, 'intent')
 })
+
+test('resolveClassification: 사용자 선언(declared)이 모든 추측보다 우선', () => {
+  // declared=supplier면 텍스트에 "경쟁사"·화이트리스트·AI competitor가 있어도 supplier로 확정(추측 안 함).
+  const r1 = resolveClassification({ text: '경쟁사 Nebius 시장가', aiType: 'competitor', declared: 'supplier' })
+  assert.equal(r1.decision, 'supplier')
+  assert.equal(r1.reason, 'declared')
+  // declared=competitor면 "공급가" 의도가 있어도 competitor로 확정.
+  const r2 = resolveClassification({ text: '공급가 매입 견적', aiType: 'supplier', declared: 'competitor' })
+  assert.equal(r2.decision, 'competitor')
+  assert.equal(r2.reason, 'declared')
+})

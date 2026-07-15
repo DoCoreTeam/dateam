@@ -32,6 +32,20 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.314',
+    date: '2026-07-15',
+    title: '통합입력에서 "넣는 종류"를 먼저 고를 수 있어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🎯',
+        headline: '공급사 견적인지 경쟁사 시장가인지 먼저 선택',
+        detail:
+          'GPU 통합입력에서 붙여넣기 전에 "넣는 종류"(공급사 견적 / 경쟁사 시장가)를 고르면, 시스템이 추측하지 않고 고른 대로 정확히 분류해요. 그동안 가끔 공급가와 경쟁가가 뒤바뀌던 혼란이 줄어듭니다. (그대로 두면 예전처럼 자동 판별해요.)',
+      },
+    ],
+  },
+  {
     version: '0.7.311',
     date: '2026-07-15',
     title: 'GPU 데이터에 말로 물어보는 AI 조회가 켜졌어요',

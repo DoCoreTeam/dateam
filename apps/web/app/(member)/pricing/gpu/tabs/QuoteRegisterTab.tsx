@@ -79,6 +79,8 @@ export default function QuoteRegisterTab() {
   const [successMsg, setSuccessMsg] = useState('')
   const [channel, setChannel] = useState('own')
   const [isTest, setIsTest] = useState(false)
+  // 인입 종류 선언 — 넣기 전에 "무엇을 넣는지" 사용자가 고른다(추측 제거, 헌법 제1조). 'auto'면 기존 자동판별.
+  const [declaredKind, setDeclaredKind] = useState<'auto' | 'supplier' | 'competitor'>('auto')
   // 실시간 스트리밍 상태
   const [liveMsgs, setLiveMsgs] = useState<string[]>([])      // 실 진행 로그
   const [streamText, setStreamText] = useState('')            // AI가 지금 쓰고 있는 실 토큰
@@ -180,6 +182,7 @@ export default function QuoteRegisterTab() {
     try {
       const fd = new FormData()
       fd.append('text', text)
+      if (declaredKind !== 'auto') fd.append('declared_kind', declaredKind)  // 사용자가 종류를 선택했으면 추측 대신 그 값으로 확정(헌법 제1조)
       for (const sf of streamFiles) fd.append('files', sf.file, sf.name)
       // Content-Type 헤더 미지정 — 브라우저가 multipart boundary 자동 설정
       const res = await fetch('/api/pricing/gpu/review/stream', { method: 'POST', body: fd })
@@ -482,6 +485,19 @@ export default function QuoteRegisterTab() {
           />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+              <span style={{ color: 'var(--gpu-muted)' }} title="무엇을 넣는지 먼저 고르면 시스템이 추측하지 않고 정확히 분류합니다">넣는 종류</span>
+              <select
+                value={declaredKind}
+                onChange={(e) => setDeclaredKind(e.target.value as 'auto' | 'supplier' | 'competitor')}
+                style={{ padding: '4px 8px', borderRadius: 6, border: 'var(--border-w-2) solid var(--border-color)', fontSize: 12 }}
+                aria-label="넣는 데이터 종류 선택"
+              >
+                <option value="auto">자동 판별</option>
+                <option value="supplier">공급사 견적(우리 매입가)</option>
+                <option value="competitor">경쟁사 시장가(남의 판매가)</option>
+              </select>
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
               <span style={{ color: 'var(--gpu-muted)' }}>채널</span>
               <select

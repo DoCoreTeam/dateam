@@ -76,12 +76,15 @@ export async function POST(req: NextRequest) {
   // 이미지/PDF를 raw 바이너리로 받아 서버에서 base64 변환 → 클라이언트 JSON 본문 +33% 인플레로 인한 4.5MB 초과 실패 해소.
   const contentType = req.headers.get('content-type') ?? ''
   let rawInputText = ''
+  let declaredKind: 'competitor' | 'supplier' | null = null
   let imageParts: Array<{ inlineData: { data: string; mimeType: string } }> = []
 
   if (contentType.includes('multipart/form-data')) {
     let form: FormData
     try { form = await req.formData() } catch { return new Response('bad request', { status: 400 }) }
     rawInputText = (typeof form.get('text') === 'string' ? (form.get('text') as string).trim() : '').slice(0, MAX_INPUT_TEXT)
+    const dk = typeof form.get('declared_kind') === 'string' ? (form.get('declared_kind') as string) : ''
+    declaredKind = dk === 'supplier' || dk === 'competitor' ? dk : null
     const files = form.getAll('files').filter((f): f is File => f instanceof File)
     const parts: Array<{ inlineData: { data: string; mimeType: string } }> = []
     for (const file of files.slice(0, 10)) {
@@ -98,9 +101,10 @@ export async function POST(req: NextRequest) {
     }
     imageParts = parts
   } else {
-    let body: { text?: unknown; images?: unknown; imageData?: unknown }
+    let body: { text?: unknown; images?: unknown; imageData?: unknown; declared_kind?: unknown }
     try { body = await req.json() } catch { return new Response('bad request', { status: 400 }) }
     rawInputText = (typeof body.text === 'string' ? body.text.trim() : '').slice(0, MAX_INPUT_TEXT)
+    declaredKind = body.declared_kind === 'supplier' || body.declared_kind === 'competitor' ? body.declared_kind : null
     // 다중 이미지(images[]) 우선, 없으면 단일 imageData(하위호환)
     const rawImages: Array<{ data?: unknown; mimeType?: unknown }> = Array.isArray(body.images)
       ? body.images as Array<{ data?: unknown; mimeType?: unknown }>
@@ -193,7 +197,11 @@ export async function POST(req: NextRequest) {
           text: rawInputText,
           aiType: classified.type,
           aiSupplierPresent: classified.supplier_present,
+          declared: declaredKind,
         })
+        if (decision.reason === 'declared') {
+          send('progress', { step: 'classify_declared', msg: `사용자가 선택한 종류로 확정: ${decision.decision === 'competitor' ? '경쟁사 시장가' : '공급사 견적'}` })
+        }
         if (decision.decision === 'competitor') {
           classified = { ...classified, type: 'competitor', supplier_present: decision.supplierPresent }
           if (decision.reason === 'whitelist' || decision.reason === 'intent') {

@@ -71,7 +71,16 @@ export function resolveClassification(input: {
   text: string
   aiType?: string | null
   aiSupplierPresent?: boolean
+  /** 사용자가 인입 전 직접 선택한 종류. 있으면 추측(키워드/AI/화이트리스트)을 건너뛰고 이 값으로 확정한다. (헌법 제1조 선언 우선) */
+  declared?: 'competitor' | 'supplier' | null
 }): { decision: 'competitor' | 'supplier'; supplierPresent: boolean; reason: string } {
+  // 0) 사용자 선언 최우선 — 추측 자체를 하지 않는다.
+  if (input.declared === 'competitor') {
+    return { decision: 'competitor', supplierPresent: !!input.aiSupplierPresent, reason: 'declared' }
+  }
+  if (input.declared === 'supplier') {
+    return { decision: 'supplier', supplierPresent: false, reason: 'declared' }
+  }
   const intent = classifyByIntent(input.text)
   const aiType = input.aiType === 'competitor' || input.aiType === 'supplier' ? input.aiType : null
   const hasCompetitorProvider = isCompetitorProvider(input.text)
