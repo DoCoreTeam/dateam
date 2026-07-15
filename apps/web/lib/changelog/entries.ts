@@ -32,6 +32,27 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.309',
+    date: '2026-07-15',
+    title: 'GPU 가격 화면이 넣은 그대로 보이고, 정렬도 돼요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '💱',
+        headline: '원으로 넣은 가격은 원으로 보여요',
+        detail:
+          '공급사 화면에서 원(₩)으로 입력한 공급가가 달러($)로 바뀌어 보이던 문제를 고쳤어요. 이제 넣은 통화 그대로 — 원은 원, 달러는 달러로 표시됩니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '↕️',
+        headline: '공급사 모델 목록 정렬 추가',
+        detail:
+          '공급사 상세에서 모델 목록을 이름순·가격 낮은순·등급순·상태순으로 정렬할 수 있어요. 원하는 순서로 빠르게 찾아보세요.',
+      },
+    ],
+  },
+  {
     version: '0.7.298',
     date: '2026-07-14',
     title: '주간보고가 쉬워지고, 지난 활동을 한눈에',

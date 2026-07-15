@@ -8,7 +8,7 @@ import { GPU_TERMS as T } from '@/lib/gpu/terms'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { countryFlag } from '@/lib/gpu/country-flag'
 import { useEscClose } from '@/lib/use-esc-close'
-import { fmtUSD } from '@/lib/gpu/format-price'
+import { fmtUSD, fmtMoneyFromOriginal, type CurrencyMode } from '@/lib/gpu/format-price'
 import { memoryTitle } from '@/lib/gpu/card-memory'
 
 interface SupplierStats {
@@ -239,6 +239,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
   const [editing, setEditing] = useState(false)              // 조회-우선: 기본 조회, 수정 클릭 시 편집
   const [newContact, setNewContact] = useState({ name: '', title: '', email: '', phone: '' })
   const [contactSaving, setContactSaving] = useState(false)
+  const [quoteSort, setQuoteSort] = useState<'model' | 'price' | 'tier' | 'status'>('model')  // 모델 목록 정렬 기준
   useEscClose(onClose, !editQuote)                           // 견적 모달 열렸을 땐 비활성(자식 우선)
 
   const s = data?.supplier
@@ -415,12 +416,32 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
 
             {/* 이 공급사의 모든 견적 */}
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>공급 견적 ({data.quotes.length})</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 700 }}>공급 견적 ({data.quotes.length})</div>
+                {data.quotes.length > 1 && (
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--gpu-muted)' }}>
+                    정렬
+                    <select className="input-field" style={{ height: 28, padding: '2px 8px', fontSize: 12, width: 'auto' }}
+                      value={quoteSort} onChange={(e) => setQuoteSort(e.target.value as typeof quoteSort)}
+                      aria-label="공급 견적 목록 정렬 기준">
+                      <option value="model">모델 이름순</option>
+                      <option value="price">가격 낮은순</option>
+                      <option value="tier">등급순</option>
+                      <option value="status">상태순</option>
+                    </select>
+                  </label>
+                )}
+              </div>
               {data.quotes.length === 0 ? (
                 <div style={{ fontSize: 12, color: 'var(--gpu-faint)', padding: '12px 0' }}>등록된 견적이 없습니다</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {data.quotes.map((q) => {
+                  {[...data.quotes].sort((a, b) => {
+                    if (quoteSort === 'price') return (a.unit_price_usd ?? 0) - (b.unit_price_usd ?? 0)
+                    if (quoteSort === 'tier') return (a.effective_tier ?? 99) - (b.effective_tier ?? 99)
+                    if (quoteSort === 'status') return (a.status ?? '').localeCompare(b.status ?? '')
+                    return (a.gpu_products?.model_name ?? '').localeCompare(b.gpu_products?.model_name ?? '', 'en')
+                  }).map((q) => {
                     const st = STATUS_LABEL[q.status] ?? { t: q.status, c: 'var(--gpu-faint)' }
                     const prod = q.gpu_products
                     const canLocate = !!(prod && onGoToPriceTable)
@@ -441,7 +462,9 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
                             </span>
                           )}
                           <span style={{ color: 'var(--gpu-muted)' }} title={memoryTitle(prod?.memory, q.gpu_count) || undefined}>×{q.gpu_count}GPU</span>
-                          <span style={{ fontFamily: 'monospace', fontWeight: 700, marginLeft: 'auto' }}>{fmtUSD(q.unit_price_usd)}</span>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 700, marginLeft: 'auto' }} title="공급사가 입력한 통화 그대로 표시 (원으로 넣으면 원, 달러로 넣으면 달러)">
+                            {fmtMoneyFromOriginal(q.original_currency, q.original_price, q.unit_price_usd, (q.original_currency === 'KRW' ? 'KRW' : 'USD') as CurrencyMode, 0)}
+                          </span>
                           <span style={{ fontSize: 11, fontWeight: 600, color: st.c, minWidth: 36, textAlign: 'right' }}>{st.t}</span>
                         </button>
                         {prod?.model_name && (
