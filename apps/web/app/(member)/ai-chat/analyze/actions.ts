@@ -9,6 +9,7 @@
 import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { getProviderConfig, getProvider } from '@/lib/ai-chat/registry'
+import type { ChatUsage } from '@/lib/ai-chat/provider'
 import { logTokenUsage } from '@/lib/token-logger'
 import { htmlToPlain } from '@/lib/html-to-plain'
 import { extractDocumentText, extractPdfText } from '@/lib/ai-chat/document-extract'
@@ -45,6 +46,8 @@ const LENS_LABEL: Record<AnalysisLens, string> = {
   compare: '비교·대안 검토',
 }
 
+const ZERO_USAGE: ChatUsage = { promptTokens: 0, outputTokens: 0, totalTokens: 0 }
+
 export interface AnalyzeExtractOk {
   ok: true
   items: MergedItem[]
@@ -52,6 +55,7 @@ export interface AnalyzeExtractOk {
   restoredCount: number
   truncated: boolean
   sourceText: string
+  usage: ChatUsage
 }
 export interface AnalyzeExtractErr {
   ok: false
@@ -64,12 +68,12 @@ async function readMeta(admin: AdminClient): Promise<Record<string, unknown>> {
   return (data?.value as Record<string, unknown>) ?? {}
 }
 
-/** Gemini 1회 호출(비스트리밍 누적) — 프로바이더 SSOT(registry.ts) 재사용. 토큰 사용은 항상 로깅. */
+/** Gemini 1회 호출(비스트리밍 누적) — 프로바이더 SSOT(registry.ts) 재사용. 토큰 사용은 항상 로깅 + 호출측에 반환(§H 세션 토큰 표시). */
 async function callGemini(
   userId: string,
   turnContent: string,
   attachments?: { kind: 'image'; mime: string; filename: string; dataBase64: string }[],
-): Promise<string> {
+): Promise<{ text: string; usage: ChatUsage }> {
   const admin = createAdminClient() as AdminClient
   const meta = await readMeta(admin)
   const cfg = getProviderConfig(meta, 'gemini')
@@ -98,7 +102,7 @@ async function callGemini(
     totalTokens: result.usage.totalTokens,
   })
 
-  return result.text
+  return { text: result.text, usage: result.usage }
 }
 
 /** AI 응답에서 JSON 문자열 배열만 안전 파싱(코드펜스 방어). 실패 시 빈 배열(호출측이 1차 파싱으로 폴백). */
@@ -126,9 +130,11 @@ const EXTRACT_PROMPT_HEADER =
 async function extractFromText(userId: string, sourceText: string): Promise<AnalyzeExtractOk> {
   const parsed = parseListItems(sourceText)
   let aiTexts: string[] = []
+  let usage: ChatUsage = ZERO_USAGE
   try {
     const raw = await callGemini(userId, `${EXTRACT_PROMPT_HEADER}${sourceText}\n"""`)
-    aiTexts = parseJsonStringArray(raw)
+    aiTexts = parseJsonStringArray(raw.text)
+    usage = raw.usage
   } catch {
     aiTexts = [] // 폴백 — 1차 파싱 결과만으로 진행(유실0은 여전히 보장)
   }
@@ -140,6 +146,7 @@ async function extractFromText(userId: string, sourceText: string): Promise<Anal
     restoredCount: merge.restoredCount,
     truncated: false,
     sourceText,
+    usage,
   }
 }
 
@@ -155,7 +162,7 @@ async function extractFromImage(
     '- 번호·기호·문장형 나열 전부 포함. 항목 텍스트는 원문 그대로(요약·생략 금지).\n' +
     '- 출력은 JSON 문자열 배열만.'
   const raw = await callGemini(userId, prompt, [{ kind: 'image', mime, filename, dataBase64 }])
-  const aiTexts = parseJsonStringArray(raw)
+  const aiTexts = parseJsonStringArray(raw.text)
   const merge = mergeExtractedItems([], aiTexts)
   return {
     ok: true,
@@ -164,6 +171,7 @@ async function extractFromImage(
     restoredCount: 0,
     truncated: false,
     sourceText: '',
+    usage: raw.usage,
   }
 }
 
@@ -264,6 +272,7 @@ export interface AnalyzeItemInput {
 export interface AnalyzeItemOk {
   ok: true
   text: string
+  usage: ChatUsage
 }
 export interface AnalyzeItemErr {
   ok: false
@@ -296,9 +305,9 @@ export async function analyzeItem(input: AnalyzeItemInput): Promise<AnalyzeItemO
   promptParts.push(`\n분석 대상 항목:\n"""\n${itemText}\n"""`)
 
   try {
-    const text = await callGemini(userId, promptParts.join('\n\n'))
-    if (!text.trim()) return { ok: false, error: '분석 결과가 비어 있습니다' }
-    return { ok: true, text }
+    const raw = await callGemini(userId, promptParts.join('\n\n'))
+    if (!raw.text.trim()) return { ok: false, error: '분석 결과가 비어 있습니다' }
+    return { ok: true, text: raw.text, usage: raw.usage }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : '분석 중 오류가 발생했습니다' }
   }
@@ -327,10 +336,13 @@ export async function synthesizeInsights(
     body
 
   try {
-    const text = await callGemini(userId, prompt)
-    if (!text.trim()) return { ok: false, error: '종합 결과가 비어 있습니다' }
-    return { ok: true, text }
+    const raw = await callGemini(userId, prompt)
+    if (!raw.text.trim()) return { ok: false, error: '종합 결과가 비어 있습니다' }
+    return { ok: true, text: raw.text, usage: raw.usage }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : '종합 중 오류가 발생했습니다' }
   }
 }
+
+// §G 영속 저장(세션/항목 CRUD)과 §F AI채팅 연계는 session-actions.ts로 분리(파일당 300줄 내 유지).
+// export: listAnalysisSessions·saveAnalysisSession·updateAnalysisItem·getAnalysisSession·continueInChat

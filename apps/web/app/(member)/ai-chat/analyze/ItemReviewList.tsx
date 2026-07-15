@@ -32,6 +32,7 @@ interface Props {
   setCustomInstruction: (v: string) => void
   onBack: () => void
   onProceed: () => void
+  proceeding?: boolean
 }
 
 function makeId(): string {
@@ -50,6 +51,7 @@ export default function ItemReviewList({
   setCustomInstruction,
   onBack,
   onProceed,
+  proceeding,
 }: Props) {
   const selectedCount = items.filter((i) => i.selected).length
   const allSelected = items.length > 0 && selectedCount === items.length
@@ -230,8 +232,8 @@ export default function ItemReviewList({
 
       <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'space-between' }}>
         <NbButton variant="ghost" onClick={onBack}>다시 입력</NbButton>
-        <NbButton onClick={onProceed} disabled={selectedCount === 0} style={{ minHeight: 44 }}>
-          선택 항목 분석 ({selectedCount})
+        <NbButton onClick={onProceed} disabled={selectedCount === 0 || !!proceeding} style={{ minHeight: 44 }}>
+          {proceeding ? '저장 중…' : `선택 항목 분석 (${selectedCount})`}
         </NbButton>
       </div>
     </div>
