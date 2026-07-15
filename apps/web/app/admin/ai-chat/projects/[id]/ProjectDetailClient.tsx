@@ -57,7 +57,7 @@ export default function ProjectDetailClient({ project, initialKnowledge, convers
       {/* 헤더 */}
       <div>
         <Link
-          href="/admin/ai-chat/projects"
+          href="/ai-chat/projects"
           style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', textDecoration: 'none', marginBottom: 'var(--space-2)' }}
         >
           <ArrowLeft size={14} />

@@ -230,7 +230,7 @@ export default function AiChatClient({
 
   const shareToken = selectedConv?.share_token ?? null
   const isShared = !!selectedConv?.shared && !!shareToken
-  const shareUrl = isShared ? `/admin/ai-chat/shared/${shareToken}` : null
+  const shareUrl = isShared ? `/ai-chat/shared/${shareToken}` : null
 
   // `messages`는 항상 "활성 스레드"를 직접 보유한다(불변식):
   //  - 서버(getMessages)가 이미 buildActiveThread 적용본을 반환 → 그대로 사용(재적용 금지: 재적용 시

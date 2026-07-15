@@ -240,7 +240,7 @@ export default function ConversationSidebar({
             설정에서 API 키를 등록하면 대화를 시작할 수 있습니다.
           </p>
         )}
-        <Link href="/admin/ai-chat/projects" className="ai-chat-projects-link">
+        <Link href="/ai-chat/projects" className="ai-chat-projects-link">
           <FolderKanban size={14} />
           프로젝트
         </Link>

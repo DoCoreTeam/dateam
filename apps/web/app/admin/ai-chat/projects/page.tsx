@@ -1,13 +1,8 @@
+import { redirect } from 'next/navigation'
 import { requireAdmin } from '@/lib/auth/requireAdmin'
-import { listProjects } from '../actions'
-import ProjectsClient from './ProjectsClient'
 
-// 프로젝트 목록 (서버) — admin/layout 게이팅 후 페이지 이중검증 컨벤션
-export default async function AiChatProjectsPage() {
+// AI 채팅 프로젝트 목록은 일반 앱(member)으로 이동됨(§③) — 기존 /admin/ai-chat/projects 링크 호환을 위해 리다이렉트만 유지.
+export default async function AiChatProjectsAdminRedirectPage() {
   await requireAdmin()
-
-  const res = await listProjects()
-  const initialProjects = res.ok && res.items ? res.items : []
-
-  return <ProjectsClient initialProjects={initialProjects} />
+  redirect('/ai-chat/projects')
 }

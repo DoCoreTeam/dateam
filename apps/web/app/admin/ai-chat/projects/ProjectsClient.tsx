@@ -119,7 +119,7 @@ function ProjectCard({ project, onEdit, onDeleted }: { project: AiChatProject; o
     <article className="card" style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
         <Link
-          href={`/admin/ai-chat/projects/${project.id}`}
+          href={`/ai-chat/projects/${project.id}`}
           style={{ minWidth: 0, fontSize: 'var(--fs-lg)', fontWeight: 700, color: 'var(--text)', textDecoration: 'none', letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
         >
           {project.name}
@@ -145,7 +145,7 @@ function ProjectCard({ project, onEdit, onDeleted }: { project: AiChatProject; o
           수정 {formatKstDateTimeShort(project.updated_at)}
         </span>
         <Link
-          href={`/admin/ai-chat/projects/${project.id}`}
+          href={`/ai-chat/projects/${project.id}`}
           style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand)', textDecoration: 'none' }}
         >
           열기 →

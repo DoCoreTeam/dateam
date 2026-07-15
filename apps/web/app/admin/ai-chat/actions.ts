@@ -699,7 +699,7 @@ export async function createProject(
     .single()
   if (error || !data) return { ok: false, error: '프로젝트 생성 중 오류가 발생했습니다' }
 
-  revalidatePath('/admin/ai-chat/projects')
+  revalidatePath('/ai-chat/projects')
   return { ok: true, id: (data as { id: string }).id }
 }
 
@@ -759,7 +759,7 @@ export async function updateProject(
     .is('deleted_at', null)
   if (error) return { ok: false, error: '프로젝트 수정 중 오류가 발생했습니다' }
 
-  revalidatePath('/admin/ai-chat/projects')
+  revalidatePath('/ai-chat/projects')
   return { ok: true }
 }
 
@@ -775,7 +775,7 @@ export async function softDeleteProject(id: string): Promise<{ ok: boolean; erro
     .eq('user_id', ctx.userId)
   if (error) return { ok: false, error: '삭제 중 오류가 발생했습니다' }
 
-  revalidatePath('/admin/ai-chat/projects')
+  revalidatePath('/ai-chat/projects')
   return { ok: true }
 }
 
@@ -828,7 +828,7 @@ export async function addKnowledgeText(
 
   const embedded = await embedKnowledgeChunks(projectId, src, chunks, ctx.userId)
 
-  revalidatePath(`/admin/ai-chat/projects/${projectId}`)
+  revalidatePath(`/ai-chat/projects/${projectId}`)
   return { ok: true, chunks: chunks.length, embedded }
 }
 
@@ -890,7 +890,7 @@ export async function deleteKnowledgeSource(
     .eq('source', source)
   if (error) return { ok: false, error: '지식 삭제 중 오류가 발생했습니다' }
 
-  revalidatePath(`/admin/ai-chat/projects/${projectId}`)
+  revalidatePath(`/ai-chat/projects/${projectId}`)
   return { ok: true }
 }
 
