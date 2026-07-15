@@ -109,7 +109,10 @@ export async function POST(req: Request) {
   const apiKey = typeof meta.gemini_api_key === 'string' ? meta.gemini_api_key : ''
   const model = typeof meta.gemini_model === 'string' ? meta.gemini_model : 'gemini-2.0-flash'
 
-  if (!apiKey) return NextResponse.json({ error: 'AI 키가 설정되지 않았습니다' }, { status: 500 })
+  if (!apiKey) {
+    if (isAuto) await db.from('market_refresh_runs').update({ status: 'error', finished_at: new Date().toISOString(), error: 'AI 키가 설정되지 않았습니다' }).eq('run_date', runDate)
+    return NextResponse.json({ error: 'AI 키가 설정되지 않았습니다' }, { status: 500 })
+  }
 
   // 활성 매핑 + 경쟁사 URL 조회
   const { data: mappings, error: mapErr } = await db
@@ -120,7 +123,10 @@ export async function POST(req: Request) {
     `)
     .eq('is_active', true)
 
-  if (mapErr) return NextResponse.json({ error: mapErr.message }, { status: 500 })
+  if (mapErr) {
+    if (isAuto) await db.from('market_refresh_runs').update({ status: 'error', finished_at: new Date().toISOString(), error: '매핑 조회 실패' }).eq('run_date', runDate)
+    return NextResponse.json({ error: mapErr.message }, { status: 500 })
+  }
 
   // URL 수집: competitor_url 우선, 없으면 pricing_url
   const urlSet = new Map<string, string>() // url → competitor name

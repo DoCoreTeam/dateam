@@ -95,7 +95,7 @@ export default function SourcesTab() {
       {msg && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', background: 'var(--info-bg)', border: 'var(--hairline) solid var(--info-border)', borderRadius: 8, padding: '8px 12px', marginBottom: 10 }}>{msg}</div>}
 
       <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', marginBottom: 10, cursor: 'pointer' }}>
-        <input type="checkbox" checked={filterFail} onChange={(e) => setFilterFail(e.target.checked)} /> 문제 있는 링크만 보기
+        <input type="checkbox" checked={filterFail} onChange={(e) => setFilterFail(e.target.checked)} /> 자동수집 꺼진 링크만 보기
       </label>
 
       {isLoading ? (

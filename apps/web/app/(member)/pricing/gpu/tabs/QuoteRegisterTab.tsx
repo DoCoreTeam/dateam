@@ -488,9 +488,10 @@ export default function QuoteRegisterTab() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
               <span style={{ color: 'var(--gpu-muted)' }} title="무엇을 넣는지 먼저 고르면 시스템이 추측하지 않고 정확히 분류합니다">넣는 종류</span>
               <select
+                className="input-field"
                 value={declaredKind}
                 onChange={(e) => setDeclaredKind(e.target.value as 'auto' | 'supplier' | 'competitor')}
-                style={{ padding: '4px 8px', borderRadius: 6, border: 'var(--border-w-2) solid var(--border-color)', fontSize: 12 }}
+                style={{ height: 30, padding: '2px 8px', fontSize: 12, width: 'auto' }}
                 aria-label="넣는 데이터 종류 선택"
               >
                 <option value="auto">자동 판별</option>
@@ -501,9 +502,11 @@ export default function QuoteRegisterTab() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
               <span style={{ color: 'var(--gpu-muted)' }}>채널</span>
               <select
+                className="input-field"
                 value={channel}
                 onChange={(e) => setChannel(e.target.value)}
-                style={{ padding: '4px 8px', borderRadius: 6, border: 'var(--border-w-2) solid var(--border-color)', fontSize: 12 }}
+                style={{ height: 30, padding: '2px 8px', fontSize: 12, width: 'auto' }}
+                aria-label="입력 채널 선택"
               >
                 <option value="own">자체</option>
                 <option value="mail">메일</option>
