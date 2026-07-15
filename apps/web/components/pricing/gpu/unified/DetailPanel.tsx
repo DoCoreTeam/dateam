@@ -69,9 +69,11 @@ interface DetailPanelProps {
   onRegisterQuote?: () => void
   /** 매핑 관리 — 기존 경쟁사 매핑 관리 화면으로 이동(부모가 탭 전환). */
   onManageMapping?: () => void
+  /** 관리자만 등급(tier) 편집 가능 */
+  isAdmin?: boolean
 }
 
-export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }, onRegisterQuote, onManageMapping }: DetailPanelProps) {
+export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }, onRegisterQuote, onManageMapping, isAdmin = false }: DetailPanelProps) {
   const mKrw = (krw: number | null) => fmtMoneyFromKrw(krw, currency.mode, currency.usdKrw)
   const mUsd = (usd: number | null) => fmtMoneyFromUsd(usd, currency.mode, currency.usdKrw)
   const [tab, setTab] = useState<DetailTab>('cost')
@@ -81,6 +83,28 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
   const [costEditNote, setCostEditNote] = useState(false)
   const [designating, setDesignating] = useState<string | null>(null)
+  const [tierSaving, setTierSaving] = useState(false)
+
+  // 등급(tier) 수동 변경 — 저장 시 서버가 tier_locked=true 로 잠가 자동판정이 다시 덮지 않는다(헌법 제5·1조).
+  async function changeTier(nextTier: number) {
+    if (!row || nextTier === row.tier) return
+    setTierSaving(true)
+    try {
+      const res = await fetch(`/api/pricing/gpu/products/${row.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tier: nextTier }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        alert(j.error ?? '등급 변경에 실패했습니다.')
+        return
+      }
+      mutateGpu(globalMutate)  // 가격표·콕핏 전역 즉시 갱신
+    } catch {
+      alert('등급 변경 중 오류가 발생했습니다.')
+    } finally {
+      setTierSaving(false)
+    }
+  }
   // 공급가 지정 범위 선택 모달 대상 (지정할 견적 + 표시 라벨). null=닫힘.
   const [designateTarget, setDesignateTarget] = useState<{ qid: string; label: string } | null>(null)
   useEscClose(() => setDesignateTarget(null), !!designateTarget) // 모달 표준 §2-2(a): ESC 닫기
@@ -446,8 +470,22 @@ export default function DetailPanel({ row, currency = { mode: 'KRW', usdKrw: 1 }
               <span className="gpu-udetail-kv-v">{row.storage_gb != null ? `${row.storage_gb} GB` : '—'}</span>
             </div>
             <div className="gpu-udetail-kv">
-              <span className="gpu-udetail-kv-k">TIER</span>
-              <span className="gpu-udetail-kv-v">{tierName(row.tier)}</span>
+              <span className="gpu-udetail-kv-k" title="GPU 성능·가격 묶음 등급 (1=최상위·프리미엄, 3=보급형)">등급(Tier)</span>
+              {isAdmin && row.tier != null ? (
+                <span className="gpu-udetail-kv-v" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <select className="input-field" style={{ height: 28, padding: '2px 8px', fontSize: 12, width: 'auto' }}
+                    value={row.tier} disabled={tierSaving}
+                    onChange={(e) => changeTier(Number(e.target.value))}
+                    aria-label="등급 변경" title="등급을 바꾸면 자동판정이 다시 덮지 않도록 잠깁니다">
+                    <option value={1}>{tierName(1)}</option>
+                    <option value={2}>{tierName(2)}</option>
+                    <option value={3}>{tierName(3)}</option>
+                  </select>
+                  {tierSaving && <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>저장 중…</span>}
+                </span>
+              ) : (
+                <span className="gpu-udetail-kv-v">{tierName(row.tier)}</span>
+              )}
             </div>
           </>
         )}
