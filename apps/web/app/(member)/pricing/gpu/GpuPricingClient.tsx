@@ -14,6 +14,7 @@ const PriceCockpitTab = dynamic(() => import('./tabs/PriceCockpitTab'), { ssr: f
 const ReviewTab = dynamic(() => import('./tabs/ReviewTab'), { ssr: false })
 const SuppliersTab = dynamic(() => import('./tabs/SuppliersTab'), { ssr: false })
 const CompetitorsTab = dynamic(() => import('./tabs/CompetitorsTab'), { ssr: false })
+const SourcesTab = dynamic(() => import('./tabs/SourcesTab'), { ssr: false })
 const HistoryTab = dynamic(() => import('./tabs/HistoryTab'), { ssr: false })
 const InventoryTab = dynamic(() => import('./tabs/InventoryTab'), { ssr: false })
 const DbChatTab = dynamic(() => import('./tabs/DbChatTab'), { ssr: false })
@@ -24,10 +25,10 @@ const SalePriceCatalogPage = dynamic(() => import('../catalog/page'), { ssr: fal
 const UnifiedTableConnected = dynamic(() => import('@/components/pricing/gpu/unified/UnifiedTableConnected'), { ssr: false })
 
 type MainTabId = 'intake' | 'board' | 'cockpit' | 'market' | 'inventory' | 'catalog'
-type SecondaryTabId = 'review' | 'suppliers' | 'competitors' | 'specs' | 'log'
+type SecondaryTabId = 'review' | 'suppliers' | 'competitors' | 'sources' | 'specs' | 'log'
 type TabId = MainTabId | SecondaryTabId
 
-const VALID_TABS: string[] = ['intake', 'board', 'cockpit', 'market', 'inventory', 'catalog', 'review', 'suppliers', 'competitors', 'specs', 'log']
+const VALID_TABS: string[] = ['intake', 'board', 'cockpit', 'market', 'inventory', 'catalog', 'review', 'suppliers', 'competitors', 'sources', 'specs', 'log']
 
 interface SettingsData {
   usd_krw: number | null
@@ -204,7 +205,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
 
   // P4-3 가드: 비-admin이 URL/복원으로 마스터 관리(admin 전용) 탭에 진입하면 기본 탭으로 복귀.
   useEffect(() => {
-    if (!isAdmin && (['suppliers', 'competitors', 'specs'] as TabId[]).includes(activeTab)) {
+    if (!isAdmin && (['suppliers', 'competitors', 'sources', 'specs'] as TabId[]).includes(activeTab)) {
       setActiveTab('board')
     }
   }, [isAdmin, activeTab])
@@ -282,6 +283,12 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
             icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="7" r="3"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2M15 15h2a4 4 0 014 4v2"/></svg>,
           },
           {
+            id: 'sources' as SecondaryTabId,
+            label: '수집 소스',
+            badge: 0,
+            icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg>,
+          },
+          {
             id: 'specs' as SecondaryTabId,
             label: '스펙 관리',
             badge: 0,
@@ -295,7 +302,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           },
         ]
           // P4-3 메뉴 분리(RBAC): 마스터 관리 탭은 admin 전용. member는 통합 표 상세 패널에서 마스터를 읽음.
-          .filter((item) => isAdmin || !(['suppliers', 'competitors', 'specs'] as SecondaryTabId[]).includes(item.id))
+          .filter((item) => isAdmin || !(['suppliers', 'competitors', 'sources', 'specs'] as SecondaryTabId[]).includes(item.id))
           .map((item) => (
           <button
             key={item.id}
@@ -457,6 +464,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
         {activeTab === 'review' && <div className="gpu-tab-panel"><ReviewTab isAdmin={isAdmin} /></div>}
         {activeTab === 'suppliers' && <div className="gpu-tab-panel--scroll"><SuppliersTab autoCreate={autoCreateTab === 'suppliers'} onAutoCreateConsumed={() => setAutoCreateTab(null)} onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board') }} /></div>}
         {activeTab === 'competitors' && <div className="gpu-tab-panel--scroll"><div className="page-inner"><CompetitorsTab autoCreate={autoCreateTab === 'competitors'} onAutoCreateConsumed={() => setAutoCreateTab(null)} /></div></div>}
+        {activeTab === 'sources' && <div className="gpu-tab-panel--scroll"><SourcesTab /></div>}
         {activeTab === 'specs' && <div className="gpu-tab-panel--scroll"><div className="page-inner"><SpecsTab /></div></div>}
         {activeTab === 'log' && <div className="gpu-tab-panel--scroll"><HistoryTab /></div>}
       </div>
