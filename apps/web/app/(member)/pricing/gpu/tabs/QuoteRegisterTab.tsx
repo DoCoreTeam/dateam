@@ -186,7 +186,15 @@ export default function QuoteRegisterTab() {
       for (const sf of streamFiles) fd.append('files', sf.file, sf.name)
       // Content-Type 헤더 미지정 — 브라우저가 multipart boundary 자동 설정
       const res = await fetch('/api/pricing/gpu/review/stream', { method: 'POST', body: fd })
-      if (!res.ok || !res.body) { setErrorMsg('AI 분석 시작 실패'); setAnalyzing(false); return }
+      if (!res.ok || !res.body) {
+        const detail = await res.text().catch(() => '')
+        setErrorMsg(
+          res.status === 401 || res.status === 403 ? '분석 권한이 없어요. 관리자 계정으로 로그인했는지 확인해 주세요.'
+          : res.status === 400 ? '입력 형식을 읽지 못했어요. 텍스트를 다시 붙여넣거나 파일을 다시 올려 주세요.'
+          : `AI 분석을 시작하지 못했어요 (오류 ${res.status}). 잠시 후 다시 시도하거나, 입력을 조금 줄여 다시 올려 주세요.${detail ? ' — ' + detail.slice(0, 120) : ''}`,
+        )
+        setAnalyzing(false); return
+      }
       // AI 분석을 실행했으면 임시저장(복원 draft)은 제거 — 새로고침 시 복원 배너가 다시 뜨지 않게.
       //  (분석을 안 누르면 draft 유지되어 복원됨. clear는 persist만 지우고 textarea 값은 그대로 둠.)
       rawTextDraft.clear()
@@ -240,7 +248,7 @@ export default function QuoteRegisterTab() {
         }
       }
     } catch {
-      setErrorMsg('서버 연결 실패')
+      setErrorMsg('서버에 연결하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요. (입력한 내용은 그대로 남아 있어요.)')
     } finally {
       setAnalyzing(false); setStreamText('')
     }
