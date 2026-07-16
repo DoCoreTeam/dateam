@@ -120,8 +120,14 @@ export async function confirmReviewItem(
     if (!compItem.competitor_name || !compItem.model_name || compItem.price_usd == null || !Number.isFinite(compItem.price_usd) || compItem.price_usd <= 0) {
       return { ok: false, status: 422, error: '경쟁사·모델·가격을 특정할 수 없어 확정할 수 없습니다.' }
     }
-    const { saved, held } = await saveCompetitorPrices(adminClient, [compItem], { targetProductId: opts.productId ?? null })
+    const { saved, held, rejected } = await saveCompetitorPrices(adminClient, [compItem], { targetProductId: opts.productId ?? null })
     if (saved.length === 0) {
+      // H1 게이트 차단(GPU 아님·가격 불가능범위) 우선 보고 — 사유 명확화(라벨 오추출/¥→$ 둔갑 차단).
+      const rej = rejected[0]
+      if (rej) {
+        const blockMsg = rej.issues[0]?.msg ?? 'GPU 모델·가격 검증에 실패했습니다.'
+        return { ok: false, status: 422, error: `확정 불가 — ${blockMsg}`, modelName: compItem.model_name, gpuCount: 1 }
+      }
       // 깡통 자동생성 금지 — 매칭 실패는 사유+조치정보와 함께 보류(막다른 알럿 대신 인카드 조치).
       const h = held[0]
       const reason = h?.reason

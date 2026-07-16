@@ -38,6 +38,21 @@ describe('validateSupplierItem — 게이트 차단 증명', () => {
   })
 })
 
+// PRICE_HARD 경계값 회귀 고정 — 마이그 162 CHECK(0<p≤1000)와 정합. 리팩터 시 조용히 깨지는 것 방지.
+describe('PRICE_HARD 경계값(0<p≤1000) — 공급가·경쟁사 공통', () => {
+  it('정확히 1000은 허용, 1001은 차단', () => {
+    expect(validateSupplierItem({ extracted: { model_name: 'H100', unit_price_usd: 1000 } }).ok).toBe(true)
+    expect(validateSupplierItem({ extracted: { model_name: 'H100', unit_price_usd: 1001 } }).ok).toBe(false)
+    expect(validateCompetitorItem({ competitor_name: 'X', model_name: 'H100', price_usd: 1000 }).ok).toBe(true)
+    expect(validateCompetitorItem({ competitor_name: 'X', model_name: 'H100', price_usd: 1001 }).ok).toBe(false)
+  })
+  it('0·음수는 차단(경쟁사 $30,000 둔갑값도 차단)', () => {
+    expect(validateCompetitorItem({ competitor_name: 'X', model_name: 'H100', price_usd: 0 }).ok).toBe(false)
+    expect(validateCompetitorItem({ competitor_name: 'X', model_name: 'H100', price_usd: -1 }).ok).toBe(false)
+    expect(validateCompetitorItem({ competitor_name: 'SoftBank', model_name: 'H100', price_usd: 30000 }).ok).toBe(false)
+  })
+})
+
 describe('validateCompetitorItem — 게이트 차단', () => {
   it('정상 통과', () => {
     expect(validateCompetitorItem({ competitor_name: 'RunPod', model_name: 'H100', price_usd: 2.99, pricing_model: 'on_demand' }).ok).toBe(true)

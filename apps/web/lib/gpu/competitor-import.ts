@@ -2,6 +2,7 @@ import { normalizeMemory } from '@/lib/gpu/normalize'
 import { resolveProductId, type ResolveHeldReason } from '@/lib/gpu/resolve-product'
 import { resolveCompetitorId, type CompetitorIdentity } from '@/lib/gpu/resolve-competitor'
 import type { VariantCandidate } from '@/lib/gpu/resolve-product'
+import { validateCompetitorItem, type Issue } from '@/lib/gpu/validate'
 
 export interface CompetitorPriceItem {
   competitor_name: string
@@ -21,6 +22,8 @@ export interface SaveCompetitorResult {
   saved: { competitor: string; model: string; memory: string; price_usd: number }[]
   /** 매칭 실패로 깡통 생성 대신 보류된 항목(사람 처리 필요). candidates=메모리 변형 후보(ambiguous_variant) */
   held: { model: string; reason: ResolveHeldReason; candidates?: VariantCandidate[] }[]
+  /** H1 게이트(validate.ts) 차단 항목 — GPU 모델 아님(라벨 오추출)·가격 불가능범위($30,000 등). 저장 거부. */
+  rejected: { model: string; issues: Issue[] }[]
 }
 
 export interface SaveCompetitorOptions {
@@ -43,6 +46,7 @@ export async function saveCompetitorPrices(
   const confidence = typeof opts.confidence === 'number' ? opts.confidence : 85
   const saved: SaveCompetitorResult['saved'] = []
   const held: SaveCompetitorResult['held'] = []
+  const rejected: SaveCompetitorResult['rejected'] = []
   const now = new Date().toISOString()
 
   // 경쟁사 식별 SSOT — 기존 회사 1회 로드 후 도메인/별칭으로 해소(재발 중복 차단).
@@ -59,6 +63,15 @@ export async function saveCompetitorPrices(
 
   for (const item of items) {
     if (!item.competitor_name || !item.model_name || !item.price_usd) continue
+
+    // H1 게이트(validate.ts SSOT) — 저장 경계 최종 방어. 미리보기가 게이트를 새더라도 여기서 차단.
+    //   ① GPU 모델 아님(モデルプラン·サービス 등 라벨 오추출) ② 가격 불가능범위(¥→$ 둔갑된 $30,000 등).
+    //   price_usd는 위 truthy 체크로 이미 존재 → preserveNoPrice 불요. block이면 저장 거부(깡통 오염 차단).
+    const gate = validateCompetitorItem(item)
+    if (!gate.ok) {
+      rejected.push({ model: item.model_name, issues: gate.issues.filter((i) => i.severity === 'block') })
+      continue
+    }
 
     let competitorId: string
     const resolvedCompId = resolveCompetitorId(
@@ -119,5 +132,5 @@ export async function saveCompetitorPrices(
     })
     saved.push({ competitor: item.competitor_name, model: item.model_name, memory: memory ?? '', price_usd: item.price_usd })
   }
-  return { saved, held }
+  return { saved, held, rejected }
 }

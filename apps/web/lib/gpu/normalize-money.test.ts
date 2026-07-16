@@ -1,8 +1,32 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  resolveCurrency, resolvePeriod, resolveGpuCount, periodToHours, toUsdPerGpuHour,
+  resolveCurrency, resolvePeriod, resolveGpuCount, periodToHours, toUsdPerGpuHour, competitorPriceToUsd,
 } from './normalize-money.ts'
+
+// competitorPriceToUsd(SSOT) — market/refresh 경로가 AI 자체환산 대신 이 함수로 통화 정규화.
+test('competitorPriceToUsd — USD는 그대로', () => {
+  assert.equal(competitorPriceToUsd('USD', 2.39, 1300), 2.39)
+})
+test('competitorPriceToUsd — 통화 미감지(null)는 USD 가정', () => {
+  assert.equal(competitorPriceToUsd(null, 2.5, 1300), 2.5)
+})
+test('competitorPriceToUsd — KRW는 fx로 환산', () => {
+  assert.equal(competitorPriceToUsd('KRW', 2600, 1300), 2)
+})
+test('competitorPriceToUsd — JPY/EUR/CNY는 null 보류(USD 둔갑 절대 금지)', () => {
+  for (const cur of ['JPY', 'EUR', 'CNY']) {
+    assert.equal(competitorPriceToUsd(cur, 30000, 1300), null, `${cur}는 보류`)
+  }
+})
+test('competitorPriceToUsd — 금액 없음/0/음수는 null', () => {
+  assert.equal(competitorPriceToUsd('USD', null, 1300), null)
+  assert.equal(competitorPriceToUsd('USD', 0, 1300), null)
+  assert.equal(competitorPriceToUsd('USD', -5, 1300), null)
+})
+test('competitorPriceToUsd — KRW인데 fx 무효면 null', () => {
+  assert.equal(competitorPriceToUsd('KRW', 2600, 0), null)
+})
 
 test('통화 토큰 정규화(기호·약어·다국어)', () => {
   assert.equal(resolveCurrency('₩'), 'KRW')

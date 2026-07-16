@@ -111,14 +111,20 @@ export function transcriptionToCompetitorItems(
     if (rep) {
       originalPrice = rep.amount
       originalCurrency = rep.currency // 미감지면 null(폴백=USD 가정)
-      if (rep.currency === 'KRW') {
+      if (rep.currency === 'USD' || rep.currency === null) {
+        // USD 또는 통화 미감지(무기호 표) → 금액을 그대로 USD로. (기존 동작 유지 — 회귀 0)
+        priceUsd = rep.amount
+      } else if (rep.currency === 'KRW') {
         // KRW는 환율 필요 — 미주입이면 환산 불가(price_usd=null, price_unknown 처리). 원본은 보존.
         priceUsd = krwPerUsd
           ? toUsdPerGpuHour({ amount: rep.amount, currency: 'KRW', period: 'hour', gpuCount: 1, krwPerUsd })
           : null
       } else {
-        // USD 또는 통화 미감지(폴백 USD 가정) → 금액을 price_usd로.
-        priceUsd = rep.amount
+        // 감지된 비USD·비KRW 통화(JPY/EUR/CNY 등) → 환율 미지원.
+        //   과거: amount를 그대로 USD로 대입해 ¥30,000이 $30,000으로 둔갑(150배 오류, 일본 사이트 사고).
+        //   지금: USD 둔갑 절대 금지 → price_usd=null(보류·price_unknown). 원본 통화·금액은 보존해 검수로 넘김.
+        //   정식 환산은 fx_rates 다통화 확장 후속(DECISION-20260716-currency-hold).
+        priceUsd = null
       }
     }
     // 환산 결과가 NaN/음수면 미상 처리(방어).

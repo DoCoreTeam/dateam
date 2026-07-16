@@ -51,13 +51,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ staged: true, count: inserted?.length ?? insertRows.length, blocked: blocked.length })
   }
 
-  // admin → 라이브 반영(현행). 매칭 실패는 깡통 생성 대신 보류(held)로 반환.
+  // admin → 라이브 반영(현행). 매칭 실패는 깡통 생성 대신 보류(held), H1 게이트 차단은 rejected로 반환.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { saved, held } = await saveCompetitorPrices(adminClient as any, items, { sourceUrl })
+  const { saved, held, rejected } = await saveCompetitorPrices(adminClient as any, items, { sourceUrl })
   if (saved.length === 0) {
-    const detail = held.length ? ` (보류 ${held.length}건: 모델 미등록/특정불가 — 스펙관리에서 등록 후 재시도)` : ''
-    return NextResponse.json({ error: `반영된 경쟁가가 없습니다${detail}`, held }, { status: 422 })
+    const heldDetail = held.length ? ` (보류 ${held.length}건: 모델 미등록/특정불가 — 스펙관리에서 등록 후 재시도)` : ''
+    const rejDetail = rejected.length ? ` (제외 ${rejected.length}건: GPU 모델 아님·가격 불가능범위)` : ''
+    return NextResponse.json({ error: `반영된 경쟁가가 없습니다${heldDetail}${rejDetail}`, held, rejected }, { status: 422 })
   }
   revalidateGpu()
-  return NextResponse.json({ saved, count: saved.length, held, staged: false, blocked: blocked.length })
+  return NextResponse.json({ saved, count: saved.length, held, rejected, staged: false, blocked: blocked.length })
 }

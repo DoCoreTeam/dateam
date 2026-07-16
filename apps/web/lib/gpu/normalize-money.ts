@@ -10,7 +10,7 @@ export const CURRENCY_TOKENS: Record<string, string> = {
   '₩': 'KRW', '원': 'KRW', krw: 'KRW', won: 'KRW',
   '$': 'USD', usd: 'USD', 'us$': 'USD', 달러: 'USD', dollar: 'USD',
   '€': 'EUR', eur: 'EUR', 유로: 'EUR',
-  '¥': 'JPY', jpy: 'JPY', 엔: 'JPY', '元': 'CNY', cny: 'CNY', rmb: 'CNY',
+  '¥': 'JPY', jpy: 'JPY', 엔: 'JPY', '円': 'JPY', '元': 'CNY', cny: 'CNY', rmb: 'CNY',
 }
 
 export const PERIOD_TOKENS: Record<string, Period> = {
@@ -91,4 +91,22 @@ export function toUsdPerGpuHour(input: MoneyNormalizeInput): number {
   const perHour = usd / periodToHours(period)
   // 3) 장수 → 단일 GPU
   return perHour / gpuCount
+}
+
+/**
+ * 이미 "GPU 1장·1시간당" 정규화된 원본 통화 금액 → USD (통화만 환산).
+ * 정책(SSOT): AI가 환율을 스스로 계산하게 두지 않는다. USD=그대로, KRW=fx 환산,
+ *   그 외(JPY/EUR/CNY/미감지)=null 보류(USD 둔갑 금지 — ¥30,000→$30,000 150배 사고 방지).
+ * transcription-to-items의 통화 분기와 동일 정책을 경쟁사 AI 항목(market/refresh) 경로에도 재사용.
+ */
+export function competitorPriceToUsd(
+  originalCurrency: string | null | undefined,
+  originalPrice: number | null | undefined,
+  krwPerUsd: number,
+): number | null {
+  if (typeof originalPrice !== 'number' || !Number.isFinite(originalPrice) || originalPrice <= 0) return null
+  const cur = originalCurrency ?? 'USD' // 통화 미감지(무기호) → USD 가정(기존 동작 유지)
+  if (cur === 'USD') return originalPrice
+  if (cur === 'KRW') return krwPerUsd > 0 ? originalPrice / krwPerUsd : null
+  return null // JPY/EUR/CNY 등 — 환율 미지원, USD 둔갑 금지 → 보류(검수)
 }
