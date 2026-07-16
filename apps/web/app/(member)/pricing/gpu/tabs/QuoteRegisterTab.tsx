@@ -8,6 +8,7 @@ import CatalogUploadSection from '@/components/pricing/gpu/CatalogUploadSection'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import { classifyFile, ACCEPT_ALL, formatMB } from '@/lib/gpu/intake-files'
+import { looksLikeGpuModel } from '@/lib/gpu/validate'
 import { fmtUSD } from '@/lib/gpu/format-price'
 import { downscaleImage } from '@/lib/gpu/image-downscale'
 import {
@@ -69,6 +70,10 @@ export default function QuoteRegisterTab() {
   }, [])
   const [analysisResults, setAnalysisResults] = useState<ReviewItemResult[]>([])
   const [competitorResults, setCompetitorResults] = useState<CompetitorSavedItem[]>([])
+  // GPU 모델이 아니어서 미리보기·반영에서 제외된 라벨(예: 일본 마케팅 페이지의 モデルプラン·サービス·月額 등).
+  //   AI가 페이지 전체를 훑어 메뉴/서비스명을 모델로 잘못 뽑는 것을, 저장 게이트와 동일한 결정론 규칙
+  //   (looksLikeGpuModel)로 표시 단계에서도 걸러 사용자에게 "이건 GPU가 아니라 제외됨"을 명시(무음 소실 금지).
+  const [excludedNonGpu, setExcludedNonGpu] = useState<string[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [previewItems, setPreviewItems] = useState<any[]>([])   // 반영 대기 경쟁가 원본
   const [previewSourceUrl, setPreviewSourceUrl] = useState<string | null>(null)
@@ -161,7 +166,7 @@ export default function QuoteRegisterTab() {
     setRawText(''); rawTextDraft.clear(); setAttached(null)
     setStreamFiles((p) => { p.forEach((s) => s.previewUrl && URL.revokeObjectURL(s.previewUrl)); return [] })
     setCatalogFile(null); setAnalysisResults([])
-    setCompetitorResults([]); setActiveTabIdx(0); setErrorMsg(''); setSuccessMsg('')
+    setCompetitorResults([]); setExcludedNonGpu([]); setActiveTabIdx(0); setErrorMsg(''); setSuccessMsg('')
     setLiveMsgs([]); setStreamText(''); setSupplierPreview([]); setCommitted(false)
     setPreviewItems([]); setPreviewSourceUrl(null); setApplied(false); setExpandedIdx(null)
     setTruncated(false); setReconciliation(null)
@@ -173,7 +178,7 @@ export default function QuoteRegisterTab() {
     if (!text && !hasFiles) { setErrorMsg('텍스트 또는 파일을 입력해 주세요.'); return }
 
     setAnalyzing(true); setErrorMsg(''); setSuccessMsg('')
-    setAnalysisResults([]); setCompetitorResults([]); setActiveTabIdx(0)
+    setAnalysisResults([]); setCompetitorResults([]); setExcludedNonGpu([]); setActiveTabIdx(0)
     setPreviewItems([]); setPreviewSourceUrl(null); setApplied(false)
     setLiveMsgs([]); setStreamText(''); setSupplierPreview([]); setCommitted(false); setTruncated(false)
     setReconciliation(null)
@@ -224,8 +229,13 @@ export default function QuoteRegisterTab() {
             const items = (data.items ?? []) as unknown[]
             if (data.type === 'competitor') {
               const cp = items as Array<{ competitor_name: string; model_name: string; memory?: string; price_usd: number; original_currency?: string | null; original_price?: number | null }>
-              setCompetitorResults(cp.map((p) => ({ competitor: p.competitor_name, model: p.model_name, memory: p.memory ?? '', price_usd: p.price_usd, original_currency: p.original_currency ?? null, original_price: p.original_price ?? null })))
-              setPreviewItems(items); setPreviewSourceUrl((data.source_url as string) ?? null)
+              // 저장 게이트와 동일 기준으로 표시 단계에서도 GPU 아닌 라벨(메뉴·서비스명 오추출)을 분리 —
+              //   미리보기에 GPU가 아닌 행이 "시장 반영"으로 뜨던 것을 차단(저장이 어차피 거부하던 것과 일치).
+              const gpuItems = cp.filter((p) => looksLikeGpuModel(p.model_name))
+              const excluded = cp.filter((p) => !looksLikeGpuModel(p.model_name)).map((p) => p.model_name)
+              setCompetitorResults(gpuItems.map((p) => ({ competitor: p.competitor_name, model: p.model_name, memory: p.memory ?? '', price_usd: p.price_usd, original_currency: p.original_currency ?? null, original_price: p.original_price ?? null })))
+              setExcludedNonGpu(excluded)
+              setPreviewItems(gpuItems); setPreviewSourceUrl((data.source_url as string) ?? null)
             } else {
               setSupplierPreview(items)
             }
@@ -601,7 +611,7 @@ export default function QuoteRegisterTab() {
                 </div>
               )}
             </div>
-          ) : (supplierPreview.length > 0 || hasCompetitorResults) && !hasResults ? (
+          ) : (supplierPreview.length > 0 || hasCompetitorResults || excludedNonGpu.length > 0) && !hasResults ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8, overflowY: 'auto' }}>
               {/* 누락 대조 경고 — done.reconciliation.missing>0 일 때만 노출 */}
               {reconciliation && reconciliation.missing > 0 && (
@@ -619,6 +629,16 @@ export default function QuoteRegisterTab() {
                 <div className="gpu-banner gpu-banner-warning" style={{ marginBottom: 0 }} data-testid="truncation-banner" role="alert">
                   <span className="gpu-banner-dot" aria-hidden>⚠</span>
                   <span>일부 항목이 상한으로 잘렸습니다 — 입력을 나눠서 다시 시도하세요.</span>
+                </div>
+              )}
+              {/* GPU 모델이 아니어서 제외된 라벨 고지 — AI가 페이지 메뉴·서비스명을 모델로 오추출한 것을 결정론 게이트로 걸러냄(무음 소실 금지) */}
+              {excludedNonGpu.length > 0 && (
+                <div className="gpu-banner gpu-banner-warning" style={{ marginBottom: 0 }} data-testid="non-gpu-excluded" role="alert">
+                  <span className="gpu-banner-dot" aria-hidden>⚠</span>
+                  <span>
+                    GPU 모델이 아니어서 <b>{excludedNonGpu.length}개 제외</b>됨(페이지 메뉴·서비스명 등 오추출):{' '}
+                    {excludedNonGpu.slice(0, 6).join(', ')}{excludedNonGpu.length > 6 ? ` 외 ${excludedNonGpu.length - 6}개` : ''}
+                  </span>
                 </div>
               )}
               {/* §05 신뢰도 자동 게이트 3구간 요약 + 통합 표 */}

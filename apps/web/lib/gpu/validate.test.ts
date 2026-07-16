@@ -1,5 +1,5 @@
 import { describe, it, expect } from '../test-utils/vitest-compat.ts'
-import { validateSupplierItem, validateCompetitorItem, gateFromConfidence, partitionValid, ENUMS } from './validate.ts'
+import { validateSupplierItem, validateCompetitorItem, gateFromConfidence, partitionValid, ENUMS, looksLikeGpuModel } from './validate.ts'
 
 describe('validateSupplierItem — 게이트 차단 증명', () => {
   it('정상 항목 통과', () => {
@@ -35,6 +35,40 @@ describe('validateSupplierItem — 게이트 차단 증명', () => {
     const r2 = validateSupplierItem({ extracted: { model_name: 'H100', unit_price_usd: 0.05, tier_suggestion: 1 } }) // tier1인데 $0.05 → 밴드 밖
     expect(r2.ok).toBe(true) // 차단 아님
     expect(r2.issues.some((i) => i.severity === 'warn')).toBe(true) // 경고는 있음
+  })
+})
+
+// 다국어 모델 게이트 — GPU 모델 식별은 언어 무관(H100·RTX 등 보편 토큰 기준).
+//   비영어권(일본·중국·아랍·한국) 페이지의 메뉴·서비스명은 언어 불문 제외되고,
+//   실제 GPU 모델은 페이지 언어와 무관하게(라틴 토큰이 있으므로) 통과해야 한다.
+describe('looksLikeGpuModel — 언어 무관 게이트(비영어권 사이트 대응)', () => {
+  it('각국어 메뉴·서비스명(비-GPU)은 언어 불문 제외', () => {
+    const nonGpuLabels = [
+      // 일본어(softbank 사고)
+      'モデルプラン', 'サービス', '月額', 'メインストレージ', 'インターネット回線', 'データストアストレージ',
+      // 중국어
+      '模型套餐', '服务', '月费', '登录服务器', '互联网线路', '数据存储',
+      // 아랍어
+      'خطة النموذج', 'خدمة', 'التخزين الرئيسي', 'الرسوم الشهرية',
+      // 한국어
+      '모델플랜', '서비스', '월정액', '메인스토리지',
+    ]
+    for (const label of nonGpuLabels) {
+      expect(looksLikeGpuModel(label)).toBe(false)
+    }
+  })
+  it('실제 GPU 모델은 페이지 언어와 무관하게 통과(라틴 토큰 기준)', () => {
+    const gpuModels = [
+      'H100', 'A100 80GB', 'RTX 4090', 'B200', 'L40S', 'V100', 'MI300X',
+      'NVIDIA H100 SXM',
+      '英伟达 H100',            // 중국어 브랜드 + H100
+      'H100 (엔비디아)',        // 한국어 병기
+      'ريكس RTX 4090',         // 아랍어 + RTX
+      'エヌビディア A100',       // 일본어 브랜드 + A100
+    ]
+    for (const model of gpuModels) {
+      expect(looksLikeGpuModel(model)).toBe(true)
+    }
   })
 })
 
