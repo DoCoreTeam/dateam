@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import useSWR, { SWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
@@ -92,6 +92,21 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
   useEffect(() => { setUnifiedOn(isGpuFlagOn('unified')) }, [])
   const [boardSearch, setBoardSearch] = useState('')
   const [boardFocusProductId, setBoardFocusProductId] = useState<string | null>(null)
+
+  // 탭 전환 SSOT — 사용자/프로그램 탭 이동은 반드시 이걸로. 넘어온 t(fresh)로 state·URL·세션을 "한 번에" 갱신.
+  //   왜: 과거엔 탭→URL 반영을 effect(deps [activeTab])에서 window.location.search를 읽어 처리 → mount 시
+  //   activeTab이 아직 배치 대기(stale='board')인데 URL은 실제 탭이라, effect가 URL을 'board'로 되덮고
+  //   URL→탭 effect가 다시 되받아치는 board↔현재탭 무한 진동(화면 "다다다닥")이 발생했다.
+  //   → URL 쓰기를 effect에서 제거하고, 여기(핸들러)에서 fresh t로만 replaceState → 단방향·수렴 보장.
+  const goToTab = useCallback((t: TabId) => {
+    setActiveTab(t)
+    const p = new URLSearchParams(window.location.search)
+    if (p.get('tab') !== t) {
+      p.set('tab', t)
+      window.history.replaceState(null, '', `${window.location.pathname}?${p.toString()}`)
+    }
+    try { sessionStorage.setItem('gpu:view', JSON.stringify({ tab: t, q: p.get('q') || '', expand: p.get('expand') || '' })) } catch { /* noop */ }
+  }, [])
   // 서버 프리페치 설정값을 SWR 초기값으로 주입 → 첫 페인트부터 실제값(하드코딩 깜빡임 제거)
   const { data: settings, mutate: mutateSettings } = useSWR<SettingsData>('/api/pricing/gpu/settings', fetcher, {
     refreshInterval: 300000,
@@ -120,7 +135,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
     const p = new URLSearchParams(window.location.search)
     let t = p.get('tab')
     if (!t) { try { t = (JSON.parse(sessionStorage.getItem('gpu:view') || '{}').tab as string) || null } catch { t = null } }
-    if (t && VALID_TABS.includes(t)) setActiveTab(t as TabId)
+    if (t && VALID_TABS.includes(t)) goToTab(t as TabId)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 사이드바 메뉴 등으로 URL ?tab= 가 바뀌면(이미 이 페이지에 있어도) 해당 탭으로 전환.
@@ -141,18 +156,15 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
     window.history.replaceState(null, '', `${window.location.pathname}?${p.toString()}`)
   }, [searchParams])
 
-  // 탭 변경 → URL·sessionStorage 반영 (navigation 없이 replaceState)
-  // Next 14.1+는 replaceState를 router에 동기화 → useSearchParams() 재생성됨.
-  // URL의 tab이 이미 activeTab과 같으면 replaceState를 호출하지 않아(중복쓰기 차단)
-  // searchParams 재발화→activeTab effect 재발화의 무한 루프를 끊는다. sessionStorage는 항상 갱신.
+  // 탭 변경 → sessionStorage만 반영. (URL 쓰기는 goToTab 핸들러가 fresh 값으로 수행 — 여기서 URL을 쓰면
+  //  mount 시 stale activeTab으로 URL을 되덮어 URL↔state 무한 진동이 재발한다. sessionStorage는 리렌더를
+  //  유발하지 않으므로 안전. 프로그램적 탭 변경(복원·외부네비·admin가드)의 세션 동기화를 담당.)
   useEffect(() => {
     if (!viewRestored.current) return
-    const p = new URLSearchParams(window.location.search)
-    if (p.get('tab') !== activeTab) {
-      p.set('tab', activeTab)
-      window.history.replaceState(null, '', `${window.location.pathname}?${p.toString()}`)
-    }
-    try { sessionStorage.setItem('gpu:view', JSON.stringify({ tab: activeTab, q: p.get('q') || '', expand: p.get('expand') || '' })) } catch { /* noop */ }
+    try {
+      const p = new URLSearchParams(window.location.search)
+      sessionStorage.setItem('gpu:view', JSON.stringify({ tab: activeTab, q: p.get('q') || '', expand: p.get('expand') || '' }))
+    } catch { /* noop */ }
   }, [activeTab])
 
   // 가격표 탭 진입 시: URL의 검색·펼침을 재주입(복원)
@@ -206,7 +218,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
   // P4-3 가드: 비-admin이 URL/복원으로 마스터 관리(admin 전용) 탭에 진입하면 기본 탭으로 복귀.
   useEffect(() => {
     if (!isAdmin && (['suppliers', 'competitors', 'sources', 'specs'] as TabId[]).includes(activeTab)) {
-      setActiveTab('board')
+      goToTab('board')
     }
   }, [isAdmin, activeTab])
 
@@ -241,7 +253,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           <button
             className="gpu-btn gpu-btn-primary"
             title="공급가·경쟁사 통합 입력"
-            onClick={() => setActiveTab('intake')}
+            onClick={() => goToTab('intake')}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
           >
             <Plus size={15} /> 통합 입력
@@ -256,7 +268,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           <button
             key={tab.id}
             className={`gpu-tab${activeTab === tab.id ? ' active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => goToTab(tab.id)}
           >
             {tab.icon}
             {tab.label}
@@ -306,7 +318,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           .map((item) => (
           <button
             key={item.id}
-            onClick={() => setActiveTab(item.id)}
+            onClick={() => goToTab(item.id)}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -367,16 +379,16 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
               marginPct={settings?.margin_pct ?? undefined}
               isAdmin={isAdmin}
               onMarginSaved={() => mutateSettings()}
-              onRegisterQuote={() => setActiveTab('intake')}
-              onManageMapping={() => setActiveTab('market')}
+              onRegisterQuote={() => goToTab('intake')}
+              onManageMapping={() => goToTab('market')}
             />
           </div>
         )}
         {activeTab === 'board' && !unifiedOn && (
           <div className="gpu-tab-panel">
             <PriceTableTab
-              onGoToIntake={() => setActiveTab('intake')}
-              onGoToReview={() => setActiveTab('review')}
+              onGoToIntake={() => goToTab('intake')}
+              onGoToReview={() => goToTab('review')}
               initialSearch={boardSearch}
               onSearchConsumed={() => setBoardSearch('')}
               initialProductId={boardFocusProductId}
@@ -393,7 +405,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           <div className="gpu-tab-panel">
             <PriceCockpitTab
               isAdmin={isAdmin}
-              onGoToTab={(tab) => setActiveTab(tab as TabId)}
+              onGoToTab={(tab) => goToTab(tab as TabId)}
             />
           </div>
         )}
@@ -403,8 +415,8 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
               isAdmin={isAdmin}
               autoCreate={autoCreateTab === 'market'}
               onAutoCreateConsumed={() => setAutoCreateTab(null)}
-              onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board') }}
-              onOpenAI={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board'); setShowAiPanel(true) }}
+              onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); goToTab('board') }}
+              onOpenAI={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); goToTab('board'); setShowAiPanel(true) }}
             />
           </div>
         )}
@@ -419,7 +431,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           </div>
         )}
         {activeTab === 'review' && <div className="gpu-tab-panel"><ReviewTab isAdmin={isAdmin} /></div>}
-        {activeTab === 'suppliers' && <div className="gpu-tab-panel--scroll"><SuppliersTab autoCreate={autoCreateTab === 'suppliers'} onAutoCreateConsumed={() => setAutoCreateTab(null)} onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); setActiveTab('board') }} /></div>}
+        {activeTab === 'suppliers' && <div className="gpu-tab-panel--scroll"><SuppliersTab autoCreate={autoCreateTab === 'suppliers'} onAutoCreateConsumed={() => setAutoCreateTab(null)} onGoToPriceTable={(modelName, productId) => { setBoardSearch(modelName); setBoardFocusProductId(productId); goToTab('board') }} /></div>}
         {activeTab === 'competitors' && <div className="gpu-tab-panel--scroll"><div className="page-inner"><CompetitorsTab autoCreate={autoCreateTab === 'competitors'} onAutoCreateConsumed={() => setAutoCreateTab(null)} /></div></div>}
         {activeTab === 'sources' && <div className="gpu-tab-panel--scroll"><SourcesTab /></div>}
         {activeTab === 'specs' && <div className="gpu-tab-panel--scroll"><div className="page-inner"><SpecsTab /></div></div>}
