@@ -1,3 +1,8 @@
+'use client'
+
+// client 컴포넌트 — aggBadge가 client 모듈(DeptReportPanel)의 함수라, 서버 컴포넌트에서 호출 시
+// client-reference 프록시가 되어 "not a function" 런타임 에러가 남. 같은 client 경계에서 호출해야 안전.
+// props(stats·weekStart)는 서버 페이지가 넘기는 직렬화 가능한 값이라 client 경계 이동 안전.
 import Link from 'next/link'
 import { aggBadge } from '@/app/(member)/weekly-report/DeptReportPanel'
 import type { DeptAggStat } from '@/lib/weekly-report/dept-agg-stats'

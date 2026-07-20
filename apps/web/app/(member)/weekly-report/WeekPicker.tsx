@@ -22,8 +22,8 @@ export default function WeekPicker({ weekOptions, selectedWeek, thisWeek, active
   }
 
   return (
-    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-      <span style={{ fontWeight: 600 }}>주차</span>
+    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', flexShrink: 0, whiteSpace: 'nowrap' }}>
+      <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>주차</span>
       <select className="input-field"
         style={{ cursor: 'pointer', minHeight: 36, paddingTop: '0.25rem', paddingBottom: '0.25rem', maxWidth: 200 }}
         value={selectedWeek}
