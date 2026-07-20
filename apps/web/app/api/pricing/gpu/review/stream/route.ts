@@ -10,7 +10,7 @@ import { INTAKE_LIMITS } from '@/lib/gpu/intake-files'
 import { resolveClassification, detectCompetitorProviders } from '@/lib/gpu/provider-registry'
 import { buildTranscriptionPrompt, parseTranscription, type TranscriptionResult } from '@/lib/gpu/transcription'
 import { reconcile, type ReconcileResult, type ReconcileExtractedLike } from '@/lib/gpu/reconcile'
-import { transcriptionToCompetitorItems } from '@/lib/gpu/transcription-to-items'
+import { transcriptionToCompetitorItems, proseToCompetitorItems } from '@/lib/gpu/transcription-to-items'
 import { validateCompetitorItem, looksLikeGpuModel } from '@/lib/gpu/validate'
 import { reconstructPivot } from '@/lib/gpu/pivot-reconstruct'
 import { classifyObservation } from '@/lib/gpu/observation-classify'
@@ -283,6 +283,11 @@ export async function POST(req: NextRequest) {
             //   놓친다 → GPU 모델이 0건이 된다. 이때만 classify가 찾은 GPU 모델로 복구한다.
             //   단, classify 가격은 specContext 편향으로 환각 위험 → price_usd=null(보류)로만 살린다(가짜가격 유입 금지).
             //   전사가 GPU 모델을 하나라도 뽑은 정상 페이지엔 발동 안 함(회귀 0).
+            // 산문 회수용 경쟁사명 — 전사 provider가 비면 classify가 식별한 회사명으로 보완(빈 이름 저장 방지).
+            //   classify의 "가격"은 불신하지만 "회사명"은 라벨 식별이라 채택 가능(가짜 가격 유입과 무관).
+            const proseProvider = provider || (Array.isArray(classified.items)
+              ? String((classified.items as Array<Record<string, unknown>>).find((it) => typeof it.competitor_name === 'string' && it.competitor_name)?.competitor_name ?? '')
+              : '')
             const gpuValid = compItems.filter((it) => looksLikeGpuModel(String((it as Record<string, unknown>).model_name ?? '')))
             if (gpuValid.length === 0) {
               // 1순위 — 피벗 재구성: 세로표에서 열별로 모델(サービス)+원본가(月額)+장수(×8)를 다시 묶는다.
@@ -324,6 +329,14 @@ export async function POST(req: NextRequest) {
               if (fromPivot.length > 0) {
                 compItems = fromPivot
                 send('progress', { step: 'recovered', msg: `세로형 비교표를 열별로 재구성 — GPU ${fromPivot.length}건 복원(원본가+환율 환산, 번들 격리)` })
+              } else if (proseToCompetitorItems(rawInputText, { provider: proseProvider, krwPerUsd, fxMap }).length > 0) {
+                // 1.5순위 — 산문형 복합요금 회수(T1.3 실경로): 표가 아니라 한 덩어리 산문이라 전사가 행을
+                //   못 쪼갠 경우. 원문 전체에 결정론 파서를 1회 적용해 기본료·종량·스토리지를 성분으로 회수.
+                //   결정론(AI 산술 없음) — 대표가는 usage 성분에서만 산출, 기본료·스토리지는 성분으로만 보존.
+                const fromProse = proseToCompetitorItems(rawInputText, { provider: proseProvider, krwPerUsd, fxMap })
+                compItems = fromProse as unknown as Record<string, unknown>[]
+                const nComp = fromProse[0]?.components?.length ?? 0
+                send('progress', { step: 'recovered', msg: `산문형 복합요금 회수 — ${fromProse[0]?.model_name} 요금성분 ${nComp}건(기본료·종량·스토리지) 무손실 복원` })
               } else if (Array.isArray(classified.items)) {
                 // 2순위 — 피벗도 실패하면 classify 모델만 복구(가격은 AI 불신 → 보류).
                 const recovered = (classified.items as Array<Record<string, unknown>>)

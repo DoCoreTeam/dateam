@@ -228,3 +228,58 @@ export function transcriptionToCompetitorItems(
 
   return out
 }
+
+/**
+ * 산문(비표) 복합요금 → 경쟁사 후보 1건 (v0.7.351 T1.3 실경로 결선).
+ *
+ * 왜 별도 경로인가: `transcriptionToCompetitorItems`의 성분 흡수는 "직전 행이 GPU 모델"이라는
+ * **행 구조**를 전제한다. 그런데 소프트뱅크 시간제 요금처럼 원본이 한 덩어리 산문이면 전사가 행으로
+ * 쪼개지 못해 그 전제가 성립하지 않고, 성분이 통째로 유실된다(실화면 검증에서 확인 — 3성분 0건 회수).
+ * → 행 구조에 의존하지 않고 **원문 전체**에 결정론 파서를 1회 적용해 회수한다.
+ *
+ * 대표가(price_usd)는 usage(GPU 종량) 성분에서만 산출한다. 기본료·스토리지는 시간축이 아니라
+ * 1장·1시간 단가로 환산할 수 없으므로 성분으로만 보존하고 대표가에 섞지 않는다(무손실 ≠ 임의합산).
+ * 환율 미보유면 성분은 붙이되 가격은 보류(price_unknown) — AI 추정가 유입 금지 정책 유지.
+ */
+export function proseToCompetitorItems(
+  rawText: string,
+  opts: { provider: string; krwPerUsd?: number | null; fxMap?: FxKrwMap },
+): CompetitorCandidate[] {
+  if (!rawText || !rawText.trim()) return []
+  const det = parseHourlyProse(rawText)
+  if (!det || det.components.length === 0) return []
+
+  const krwPerUsd = typeof opts.krwPerUsd === 'number' && opts.krwPerUsd > 0 ? opts.krwPerUsd : null
+  const usage = det.components.find((c) => c.component_kind === 'usage')
+
+  let priceUsd: number | null = null
+  if (usage && opts.fxMap && krwPerUsd) {
+    const krwPerGpuHour = componentToKrwPerGpuHour(usage, opts.fxMap)
+    if (krwPerGpuHour != null && Number.isFinite(krwPerGpuHour) && krwPerGpuHour > 0) {
+      priceUsd = krwPerGpuHour / krwPerUsd
+    }
+  }
+
+  const cls = classifyObservation(`${det.provenance} ${det.model_name} ${rawText.slice(0, 400)}`)
+  return [{
+    competitor_name: opts.provider,
+    model_name: det.model_name,
+    source_model_name: det.source_model_name,
+    price_usd: priceUsd,
+    price_unknown: priceUsd == null,
+    original_currency: usage?.currency ?? det.components[0]?.currency ?? null,
+    original_price: usage?.amount ?? null,
+    components: det.components,
+    obs: {
+      amount: usage?.amount ?? null,
+      currency: usage?.currency ?? null,
+      pricing_unit: usage?.unit ?? null,
+      gpu_count: usage?.gpu_count ?? 1,
+      segment: det.segment,
+      bundle_inclusive: cls.bundle_inclusive,
+      tax_basis: cls.tax_basis,
+      comparable: true,
+      provenance: det.components.map((c) => c.provenance).filter(Boolean).join(' | ').slice(0, 500),
+    },
+  }]
+}

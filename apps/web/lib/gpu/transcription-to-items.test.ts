@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { transcriptionToCompetitorItems } from './transcription-to-items.ts'
+import { transcriptionToCompetitorItems, proseToCompetitorItems } from './transcription-to-items.ts'
 import type { TranscriptionRow } from './transcription.ts'
 
 function row(raw_label: string, price_text: string | null, cells: string[] = []): TranscriptionRow {
@@ -250,4 +250,38 @@ test('직전 GPU 모델 없이 나오는 비GPU 라벨 행 — 기존 동작 그
   const items = transcriptionToCompetitorItems(rows, { provider: 'SoftBank' })
   assert.equal(items.length, 1, '흡수 대상 모델이 없으면 기존처럼 자기 자신이 후보(다운스트림에서 걸러짐)')
   assert.equal(items[0].model_name, '月額基本料金')
+})
+
+// [실화면 회귀고정 v0.7.352] 산문형 복합요금 회수 — 행 구조 없는 한 덩어리 입력.
+//   사고: 성분 흡수를 "직전 행이 GPU 모델"이라는 행 구조에 의존시켰더니, 실제 소프트뱅크 원문처럼
+//   산문 1블록으로 들어오면 전사가 행을 못 쪼개 3성분이 통째로 유실됐다(실화면 $0.00·가격미상).
+//   단위테스트는 이미 행으로 정리된 입력을 먹고 있어 이를 못 잡았다 → 실제 원문 그대로 박제한다.
+test('실화면 회귀 — 소프트뱅크 산문 원문에서 3성분 전량 회수 + 대표가 산출', () => {
+  const REAL = 'ソフトバンク AIデータセンター GPUサーバー 料金例（税抜） サービス NVIDIA A100 時間貸しプラン 月額基本料金 30,000円 GPU利用料金（1枚あたり） 7.2円/1分 データストアストレージ（月額） 1,000円/100GB'
+  const items = proseToCompetitorItems(REAL, { provider: 'SoftBank', krwPerUsd: 1484, fxMap: { JPY: 9.134 } })
+  assert.equal(items.length, 1, '후보 1건')
+  const it = items[0]
+  assert.equal(it.competitor_name, 'SoftBank')
+  assert.equal(it.model_name, 'A100')
+  assert.equal(it.components?.length, 3, '기본료·종량·스토리지 3성분(누락=무음 손실)')
+
+  const byKind = Object.fromEntries((it.components ?? []).map((c) => [c.component_kind, c]))
+  assert.equal(byKind.base_fee.amount, 30_000)
+  assert.equal(byKind.base_fee.unit, 'month', '月額 주기 보존')
+  assert.equal(byKind.usage.amount, 7.2)
+  assert.equal(byKind.usage.unit, 'minute')
+  assert.equal(byKind.storage.amount, 10, '1,000円/100GB → 1GB 단가(미정규화 시 100배)')
+  assert.equal(byKind.storage.unit, 'per_gb')
+
+  // 대표가는 usage 성분에서만 — 7.2엔/분 ×60 = 432엔/hr → ×9.134 ÷1484
+  assert.equal(it.price_unknown, false)
+  assert.ok(Math.abs(it.price_usd! - (7.2 * 60 * 9.134) / 1484) < 1e-6, `실제 ${it.price_usd}`)
+})
+
+test('실화면 회귀 — 환율 미보유면 성분은 붙되 대표가는 보류(AI 추정가 유입 금지)', () => {
+  const REAL = 'NVIDIA A100 時間貸しプラン 月額基本料金 30,000円 GPU利用料金 7.2円/1分'
+  const items = proseToCompetitorItems(REAL, { provider: 'SoftBank', krwPerUsd: 1484 })
+  assert.equal(items[0].components?.length, 2)
+  assert.equal(items[0].price_unknown, true, '환율 없으면 보류')
+  assert.equal(items[0].price_usd, null)
 })
