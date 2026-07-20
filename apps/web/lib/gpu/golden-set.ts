@@ -88,3 +88,32 @@ export const USD_FORMAT_FIXTURES: Array<{ v: number; expect: string }> = [
   { v: 3.24, expect: '$3.24' },
   { v: 1234.5, expect: '$1,234.50' },
 ]
+
+// ── 재설계 4대 사고 회귀 fixture (확정 기획 P0 — golden-accidents.test.ts가 소비) ──
+
+/** [사고A·D] 비-GPU 라벨(요금·서비스·메뉴명) → looksLikeGpuModel 반드시 false.
+ *  소프트뱅크 GPU利用料金 오통과(v0.7.335)·비영어권 메뉴 오추출. */
+export const NON_GPU_LABEL_FIXTURES: string[] = [
+  'GPU利用料金（1枚あたり）', 'GPU 서버', 'GPU 이용요금',
+  'モデルプラン', 'サービス', '月額基本料金', 'メインストレージ',   // 일본어
+  '模型套餐', '服务', '月费', '登录服务器',                          // 중국어
+  'خطة النموذج', 'خدمة',                                            // 아랍어
+  '모델플랜', '서비스',                                             // 한국어
+]
+
+/** [사고B] 진짜 GPU 모델은 언어 무관·번들이어도 통과(유실 금지). */
+export const GPU_LABEL_PASS_FIXTURES: string[] = [
+  'H100', 'A100 80GB', 'NVIDIA DGX H100プラン', 'B200', 'GB200 β版プラン', '英伟达 H100', 'NVIDIA A100 時間貸しプラン',
+]
+
+/** [사고C] 다통화 관측 → per-GPU·1시간당 원화(정답). 엔100단위·번들8장·분당 사고 박제.
+ *  fx=1통화당 KRW(정규화 완료). expectKrw=amount×fx÷시간÷장수. */
+export const CURRENCY_OBS_FIXTURES: Array<{
+  obs: { amount: number; currency: string; pricing_unit: 'minute' | 'hour' | 'day' | 'month' | 'year'; gpu_count: number }
+  fx: Record<string, number>
+  expectKrwPerGpuHour: number
+}> = [
+  { obs: { amount: 2_500_000, currency: 'JPY', pricing_unit: 'month', gpu_count: 8 }, fx: { JPY: 9.5 }, expectKrwPerGpuHour: (2_500_000 * 9.5) / 720 / 8 }, // 소프트뱅크 H100 번들
+  { obs: { amount: 7.2, currency: 'JPY', pricing_unit: 'minute', gpu_count: 1 }, fx: { JPY: 9.5 }, expectKrwPerGpuHour: 7.2 * 9.5 * 60 },               // A100 시간제 분당
+  { obs: { amount: 24, currency: 'USD', pricing_unit: 'hour', gpu_count: 8 }, fx: { USD: 1342.5 }, expectKrwPerGpuHour: (24 * 1342.5) / 8 },            // 8-GPU 노드 $24/hr
+]
