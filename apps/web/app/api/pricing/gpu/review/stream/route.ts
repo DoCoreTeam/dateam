@@ -13,6 +13,7 @@ import { reconcile, type ReconcileResult, type ReconcileExtractedLike } from '@/
 import { transcriptionToCompetitorItems, proseToCompetitorItems } from '@/lib/gpu/transcription-to-items'
 import { extractAiObservations } from '@/lib/gpu/ai-observation'
 import { observationToKrwPerGpuHour, type AiObservation } from '@/lib/gpu/observation-contract'
+import { reconcile as reconcileCompleteness } from '@/lib/gpu/completeness-reconcile'
 import { validateCompetitorItem, looksLikeGpuModel } from '@/lib/gpu/validate'
 import { reconstructPivot } from '@/lib/gpu/pivot-reconstruct'
 import { classifyObservation } from '@/lib/gpu/observation-classify'
@@ -297,10 +298,11 @@ export async function POST(req: NextRequest) {
             const catalogModelNames = Array.from(new Set(((catRows ?? []) as Array<{ model_name: string | null }>)
               .map((c) => (c.model_name ?? '').trim()).filter(Boolean)))
 
+            let aiRes: { valid: AiObservation[]; rejected: Array<{ reason: string; detail: string }> } | null = null
             let aiItems: Array<Record<string, unknown>> = []
             let aiRejected: Array<{ reason: string; detail: string }> = []
             try {
-              const aiRes = await extractAiObservations({
+              aiRes = await extractAiObservations({
                 apiKey: config.apiKey, model: config.model, sourceText: contentText, specContext,
                 catalogNames: catalogModelNames,
               })
@@ -323,7 +325,11 @@ export async function POST(req: NextRequest) {
                 const usd = krw != null && krwPerUsd > 0 ? krw / krwPerUsd : null
                 return {
                   competitor_name: o.competitor_name || provider || providerFromUrl(sourceUrl),
-                  model_name: o.catalog_match ?? o.model,
+                  // 모델명은 **AI가 인식한 축을 코드가 조립**한다 — catalog_match(AI의 매칭 의견)로 이름을 정하지 않는다.
+                  //   실측: AI가 model="GB200"을 정확히 인식하고도 catalog_match를 GH200·B200으로 골랐다(실행마다 다름).
+                  //   매칭은 저장 단계의 resolveProductId(결정론)가 하고, 실패하면 기존 정책대로 보류된다.
+                  //   폼팩터는 카탈로그가 구분하는 축이므로 이름에 붙인다("H100"+"SXM" → "H100 SXM").
+                  model_name: [o.model, o.form_factor].filter(Boolean).join(' '),
                   source_model_name: o.model,
                   ...(o.memory_gb ? { memory: `${o.memory_gb}GB` } : {}),
                   price_usd: usd,
@@ -438,6 +444,65 @@ export async function POST(req: NextRequest) {
                 }
               }
             }
+            // ── 완전성 게이트(P1) — 원본 스냅샷 금액 전수스캔 ↔ 추출 커버리지 대조 ──
+            //   "추출이 스스로 보고한 것"이 아니라 "원본에 있던 것"을 기준으로 검증한다.
+            //   미커버 = 은폐 금지, 명시 노출. (실사고: GB200 ￥4,569,000이 조용히 누락됐는데 화면엔 '가격미상'만)
+            const collectAmounts = (items: Array<Record<string, unknown>>): number[] => {
+              const out: number[] = []
+              for (const it of items) {
+                const o = it.obs as { amount?: unknown } | undefined
+                if (typeof o?.amount === 'number' && o.amount > 0) out.push(o.amount)
+                const op = it.original_price
+                if (typeof op === 'number' && op > 0) out.push(op)
+                const comps = it.components as Array<{ amount?: unknown }> | undefined
+                for (const c of comps ?? []) if (typeof c?.amount === 'number' && c.amount > 0) out.push(c.amount)
+              }
+              return out
+            }
+            //   대조는 **원본 금액**으로 한다 — components는 per_qty로 정규화된 값(1,000円/100GB→10)을 갖고 있어
+            //   그대로 대조하면 원문 1000이 미커버로 잡히는 오탐이 난다(실측).
+            const rawAiAmounts = aiRes ? aiRes.valid.map((o) => o.amount).filter((n) => n > 0) : []
+            // ── 교차검증(P3) — AI 관측 ↔ 결정론 파서 대조 ──
+            //   AI는 비결정성이 있다(실측: 같은 입력에서 GB200→GH200으로 바뀜. 접두 가드로는 못 잡는 형태).
+            //   결정론 파서는 표기 변형에 약하지만 **같은 입력에 항상 같은 답**을 낸다. 둘을 대조해
+            //   모델명이 어긋나면 조용히 한쪽을 고르지 않고 **보류**로 올린다.
+            if (aiRes && aiItems.length > 0) {
+              const detRef = reconstructPivot(transcription.rows as Array<{ raw_label?: string; cells?: unknown[]; price_text?: string | null }>)
+              const conflicts: string[] = []
+              let compared = 0
+              for (const it of compItems) {
+                const amt = (it.obs as { amount?: unknown } | undefined)?.amount
+                if (typeof amt !== 'number') continue
+                const det = detRef.find((d) => typeof d.amount === 'number' && Math.abs(d.amount - amt) < 1e-6)
+                if (!det) continue
+                compared++
+                const aiKey = String(it.source_model_name ?? it.model_name ?? '').toLowerCase().replace(/[\s\-_]+/g, '')
+                const detKey = canonicalizeModel(det.model_name).canonical.toLowerCase().replace(/[\s\-_]+/g, '')
+                if (aiKey && detKey && aiKey !== detKey) {
+                  conflicts.push(`${amt.toLocaleString()}: AI "${it.source_model_name ?? it.model_name}" ↔ 결정론 "${det.model_name}"`)
+                  it.price_unknown = true
+                  it.price_usd = null
+                }
+              }
+              if (conflicts.length > 0) {
+                send('progress', { step: 'crosscheck', msg: `⚠️ AI·결정론 모델 불일치 ${conflicts.length}건 — 보류 처리: ${conflicts.slice(0, 3).join(' / ')}` })
+              } else if (compared > 0) {
+                // 실제로 대조가 일어난 경우에만 '통과'를 말한다 — 비교 0건에 통과를 찍으면 거짓 안심이다.
+                send('progress', { step: 'crosscheck', msg: `✅ 교차검증 통과 — AI·결정론 모델 판정 일치(${compared}건 대조)` })
+              }
+            }
+
+            const completeness = reconcileCompleteness(contentText, [...collectAmounts(compItems), ...rawAiAmounts])
+            if (!completeness.complete) {
+              const shown = completeness.uncovered.slice(0, 8).map((n) => n.toLocaleString())
+              send('progress', {
+                step: 'completeness',
+                msg: `⚠️ 원본에 있으나 추출에 없는 금액 ${completeness.uncovered.length}건: ${shown.join(', ')}${completeness.uncovered.length > 8 ? ' 외' : ''} — 누락 여부를 확인하세요`,
+              })
+            } else if (completeness.sourceAmounts.length > 0) {
+              send('progress', { step: 'completeness', msg: `✅ 완전성 확인 — 원본 금액 ${completeness.sourceAmounts.length}건 전부 추출에 반영됨` })
+            }
+
             send('progress', { step: 'classified', msg: `경쟁사 가격 ${compItems.length}건 — 원문 모델명 그대로(전사 기반)${compItems.length < rawCount ? ` (중복 ${rawCount - compItems.length}건 제거)` : ''}` })
           } else if (Array.isArray(classified.items) && classified.items.length > 0) {
             // 폴백: 전사 실패 시 기존 classify.items(카탈로그 매핑) 경로 유지(회귀 0).
