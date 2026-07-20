@@ -6,7 +6,8 @@
 
 import type { TranscriptionRow } from './transcription.ts'
 import type { CompetitorLike } from './dedup.ts'
-import { resolveCurrency, toUsdPerGpuHour } from './normalize-money.ts'
+import { resolveCurrency, resolvePeriod, resolveGpuCount, toUsdPerGpuHour } from './normalize-money.ts'
+import { classifyObservation } from './observation-classify.ts'
 
 // 변환 결과 — route가 emit하는 경쟁사 preview/저장 아이템과 동일 형태.
 // CompetitorLike(+ source_model_name·price_unknown) — dedup·validate·프론트가 그대로 소비.
@@ -26,6 +27,18 @@ export interface CompetitorCandidate extends CompetitorLike {
   original_price: number | null
   /** 보조가(preemptible 등)·기타 메모 */
   notes?: string
+  /** 관측 원본 성격(확정 기획 P5) — 세그먼트·번들·세금·기간·장수. 저장 시 market_prices obs_*로 persist. */
+  obs?: {
+    amount: number | null
+    currency: string | null
+    pricing_unit: string | null    // resolvePeriod 결과(hour/month…)
+    gpu_count: number | null
+    segment: 'raw_gpu' | 'managed_bundle'
+    bundle_inclusive: boolean
+    tax_basis: 'tax_excluded' | 'tax_included' | 'unknown'
+    comparable: boolean
+    provenance: string             // 원문 근거(라벨+셀)
+  }
 }
 
 export interface TranscriptionToItemsOptions {
@@ -131,6 +144,22 @@ export function transcriptionToCompetitorItems(
     if (priceUsd != null && (!Number.isFinite(priceUsd) || priceUsd <= 0)) priceUsd = null
     const priceUnknown = priceUsd === null
 
+    // 관측 성격 판정(P5) — 라벨+셀+가격문구 전체를 근거로 세그먼트·번들·세금·기간·장수 결정론 판정.
+    //   콕핏 밴드는 raw_gpu·comparable만 쓰므로(P4 필터), 소프트뱅크 DGX 번들행은 여기서 managed_bundle로 격리된다.
+    const ctx = [label, ...(Array.isArray(row.cells) ? row.cells : []), row.price_text ?? ''].filter(Boolean).join(' ')
+    const cls = classifyObservation(ctx)
+    const obs: CompetitorCandidate['obs'] = {
+      amount: originalPrice,
+      currency: originalCurrency,
+      pricing_unit: resolvePeriod(ctx),      // 미감지면 null(호출부가 hour 가정 가능)
+      gpu_count: resolveGpuCount(ctx),       // "8장"·"x8" 등, 미감지 null
+      segment: cls.segment,
+      bundle_inclusive: cls.bundle_inclusive,
+      tax_basis: cls.tax_basis,
+      comparable: cls.comparable,
+      provenance: ctx.slice(0, 200),
+    }
+
     out.push({
       competitor_name: provider,
       model_name: label,        // 원문 그대로 — 카탈로그 매핑 금지
@@ -139,6 +168,7 @@ export function transcriptionToCompetitorItems(
       source_model_name: label, // 원문 보존(프론트 병기·reconcile)
       original_currency: originalCurrency,
       original_price: originalPrice,
+      obs,
       ...(notes ? { notes } : {}),
     })
   }

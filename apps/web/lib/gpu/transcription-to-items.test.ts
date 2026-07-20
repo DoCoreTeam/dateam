@@ -120,6 +120,26 @@ test('비배열 입력 방어', () => {
   assert.deepEqual(transcriptionToCompetitorItems(undefined as unknown as TranscriptionRow[]), [])
 })
 
+// ── 관측 성격 obs 부착(P5) — 소프트뱅크 DGX 번들행은 managed_bundle·비교불가로 격리 ──
+test('DGX 번들행 → obs.segment=managed_bundle·comparable=false·tax_excluded·month', () => {
+  const rows = [{ raw_label: 'NVIDIA DGX H100プラン', price_text: '¥2,500,000/月 税別', cells: ['ストレージ InfiniBand 포함', 'H100 80GB 8장'] }] as unknown as TranscriptionRow[]
+  const items = transcriptionToCompetitorItems(rows, { provider: 'SoftBank' })
+  const obs = items[0].obs!
+  assert.equal(obs.segment, 'managed_bundle')   // DGX 플랜 → 번들
+  assert.equal(obs.comparable, false)            // 콕핏 밴드 제외(참고전용)
+  assert.equal(obs.tax_basis, 'tax_excluded')    // 税別
+  assert.equal(obs.pricing_unit, 'month')        // /月
+  assert.equal(obs.gpu_count, 8)                 // 8장
+  assert.equal(obs.bundle_inclusive, true)       // 스토리지·InfiniBand 포함
+})
+test('순수 GPU 시간임대 → obs.segment=raw_gpu·comparable=true', () => {
+  const items = transcriptionToCompetitorItems([{ raw_label: 'H100 SXM', price_text: '$2.79/hr on-demand' }] as unknown as TranscriptionRow[], { provider: 'RunPod' })
+  const obs = items[0].obs!
+  assert.equal(obs.segment, 'raw_gpu')
+  assert.equal(obs.comparable, true)
+  assert.equal(obs.pricing_unit, 'hour')
+})
+
 // ── 통화 원본보존(W2) ──
 test('KRW 입력 — 원본 통화·금액 보존 + krwPerUsd로 USD 환산', () => {
   const rows = [{ raw_label: 'H100', price_text: '₩2,400/hr' }] as unknown as TranscriptionRow[]

@@ -14,10 +14,10 @@ export const CURRENCY_TOKENS: Record<string, string> = {
 }
 
 export const PERIOD_TOKENS: Record<string, Period> = {
-  hour: 'hour', hourly: 'hour', hr: 'hour', '/hr': 'hour', '시간당': 'hour', '시간': 'hour', perhour: 'hour',
-  day: 'day', daily: 'day', '/day': 'day', '일': 'day', '일당': 'day',
-  month: 'month', monthly: 'month', mo: 'month', '/mo': 'month', '월': 'month', '월간': 'month',
-  year: 'year', yearly: 'year', annual: 'year', yr: 'year', '/yr': 'year', '년': 'year', '연간': 'year',
+  hour: 'hour', hourly: 'hour', hr: 'hour', '/hr': 'hour', '시간당': 'hour', '시간': 'hour', perhour: 'hour', '時間': 'hour',
+  day: 'day', daily: 'day', '/day': 'day', '일': 'day', '일당': 'day', '日': 'day',
+  month: 'month', monthly: 'month', mo: 'month', '/mo': 'month', '월': 'month', '월간': 'month', '月': 'month', '月額': 'month',
+  year: 'year', yearly: 'year', annual: 'year', yr: 'year', '/yr': 'year', '년': 'year', '연간': 'year', '年': 'year',
 }
 
 // "월 720시간기준"(입력 파일 자체 규약) — 월을 시간으로 환산하는 표준 계수.
