@@ -14,6 +14,7 @@ import OrgWeeklyView from './OrgWeeklyView'
 import DeptTaskWeeklyPanel from './DeptTaskWeeklyPanel'
 import WorkPageShell from '@/components/ui/WorkPageShell'
 import WorkSubTabs from '@/components/ui/WorkSubTabs'
+import WeekPicker from './WeekPicker'
 import { FileText, Users, GitBranch } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
 import { resolveOrgScope, deptMemberUserIds, hasOrgScope } from '@/lib/org-scope'
@@ -245,7 +246,12 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     <WorkPageShell
       title="주간보고"
       description="주간 성과, 계획, 이슈를 기록합니다"
-      subTabs={<WorkSubTabs items={subTabItems} activeKey={activeTab} ariaLabel="주간보고 탭 전환" />}
+      subTabs={
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+          <WorkSubTabs items={subTabItems} activeKey={activeTab} ariaLabel="주간보고 탭 전환" />
+          <WeekPicker weekOptions={weekOptions} selectedWeek={selectedWeek} thisWeek={thisWeek} activeTab={activeTab} />
+        </div>
+      }
     >
       {activeTab === 'mine' ? (
         <>
