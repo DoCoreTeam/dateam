@@ -8,6 +8,8 @@ import AdminReportsPreview from './AdminReportsPreview'
 import RichText from '@/components/ui/RichText'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
 import DeptReportPanel, { type AnyRow, type AggState } from '@/app/(member)/weekly-report/DeptReportPanel'
+import DeptAggGrid from './DeptAggGrid'
+import { computeDeptAggStats, type DeptAggStat } from '@/lib/weekly-report/dept-agg-stats'
 
 function RichCell({ html }: { html: string }) {
   return <RichText html={html} style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.6 }} />
@@ -69,6 +71,13 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
   }
   const memberCsv = deptMemberIds ? deptMemberIds.join(',') : ''
   const deptName = dept ? ((deptNodes ?? []).find((d) => d.id === dept)?.name ?? '') : ''
+
+  // 첫 진입(부서 미선택) 탐색성 — 전 부서 취합 상태를 일괄 계산(SSOT computeDeptAggStats).
+  let deptAggStats: DeptAggStat[] = []
+  if (!dept && !member) {
+    const scope = await resolveOrgScope(adminClient, user.id)
+    deptAggStats = await computeDeptAggStats(adminClient, scope, deptNodes ?? [], selectedWeek)
+  }
 
   // 부서 선택 시: 멤버가 저장한 취합본(dept_weekly_reports) 로드 — 어드민도 멤버와 동일 SSOT 패널로 표시·재취합.
   let deptAgg: { body: AnyRow[]; status: AggState } | null = null
@@ -185,6 +194,11 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
           </a>
         </form>
       </div>
+
+      {/* 첫 진입 탐색성 — 전 부서 취합 상태 카드. 부서를 고르지 않아도 바로 현황 파악(DeptAggGrid). */}
+      {!dept && !member && deptAggStats.length > 0 && (
+        <DeptAggGrid stats={deptAggStats} weekStart={selectedWeek} />
+      )}
 
       {/* AI 주간보고 취합 (전체/개인 스코프) — 부서 선택 시엔 아래 보존형 부서 취합 패널(DeptReportPanel) 하나로 정리 */}
       {!dept && (
