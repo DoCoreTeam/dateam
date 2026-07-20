@@ -47,13 +47,15 @@ export function resolvePeriod(token: string | null | undefined): Period | null {
   return null
 }
 
-/** 텍스트에서 GPU 장수 추론("x8","8장","서버1대(8장)" → 8 / "1장","x1" → 1). 미지 → null. */
+/** 텍스트에서 GPU 장수 추론("x8"·"×8"(전각)·"8장"·"8枚"(일)·"서버1대(8장)" → 8 / "1장","x1" → 1). 미지 → null. */
 export function resolveGpuCount(text: string | null | undefined): number | null {
   if (!text) return null
   const t = text.toLowerCase()
-  const x = t.match(/x\s*(\d{1,2})\b/)
+  // "x N" 또는 "× N"(전각). GPU[80GB] × 8 처럼 대괄호·공백 뒤에도 매칭.
+  const x = t.match(/[x×]\s*(\d{1,2})(?!\d)/)
   if (x) return parseInt(x[1], 10)
-  const jang = t.match(/(\d{1,2})\s*장/)
+  // "N장"(한) 또는 "N枚"(일 — GPU 카드 세는 단위 "1枚あたり").
+  const jang = t.match(/(\d{1,2})\s*[장枚]/)
   if (jang) return parseInt(jang[1], 10)
   return null
 }

@@ -12,6 +12,9 @@ import { buildTranscriptionPrompt, parseTranscription, type TranscriptionResult 
 import { reconcile, type ReconcileResult, type ReconcileExtractedLike } from '@/lib/gpu/reconcile'
 import { transcriptionToCompetitorItems } from '@/lib/gpu/transcription-to-items'
 import { validateCompetitorItem, looksLikeGpuModel } from '@/lib/gpu/validate'
+import { reconstructPivot } from '@/lib/gpu/pivot-reconstruct'
+import { classifyObservation } from '@/lib/gpu/observation-classify'
+import { amountToKrw, type FxKrwMap } from '@/lib/gpu/normalize-money'
 
 // 헤드리스 렌더(@sparticuz/chromium)·전사·AI 호출에 시간 필요 → Node 런타임 + maxDuration 확대(Vercel 콜드스타트 여유).
 export const runtime = 'nodejs'
@@ -256,6 +259,16 @@ export async function POST(req: NextRequest) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const { data: fxRow } = await (adminClient.from('fx_rates') as any).select('usd_krw').order('rate_date', { ascending: false }).limit(1).maybeSingle()
             const krwPerUsd = typeof fxRow?.usd_krw === 'number' && fxRow.usd_krw > 0 ? fxRow.usd_krw : 1400
+            // 다통화 환율맵(엔·위안 등) — 피벗 복구 시 원본 통화가를 KRW/USD로 환산. 최신 고시일 1행.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: fxMultiRows } = await (adminClient.from('fx_rates_multi') as any)
+              .select('currency, krw_per_1, rate_date').order('rate_date', { ascending: false }).limit(60)
+            const fxMap: FxKrwMap = { KRW: 1, USD: krwPerUsd }
+            let fxDate: string | null = null
+            for (const r of (fxMultiRows ?? []) as Array<{ currency: string; krw_per_1: number; rate_date: string }>) {
+              if (fxDate === null) fxDate = r.rate_date
+              if (r.rate_date === fxDate && fxMap[r.currency] === undefined) fxMap[r.currency] = r.krw_per_1
+            }
             const cands = transcriptionToCompetitorItems(transcription.rows, { provider, krwPerUsd })
             // 동일 경쟁사·모델 중복만 제거(원문 보존 — 가격미상도 유지). 전사 1행=모델 1건이라 통상 no-op.
             const deduped = dedupCompetitor(cands as CompetitorLike[])
@@ -269,20 +282,51 @@ export async function POST(req: NextRequest) {
             //   단, classify 가격은 specContext 편향으로 환각 위험 → price_usd=null(보류)로만 살린다(가짜가격 유입 금지).
             //   전사가 GPU 모델을 하나라도 뽑은 정상 페이지엔 발동 안 함(회귀 0).
             const gpuValid = compItems.filter((it) => looksLikeGpuModel(String((it as Record<string, unknown>).model_name ?? '')))
-            if (gpuValid.length === 0 && Array.isArray(classified.items)) {
-              const recovered = (classified.items as Array<Record<string, unknown>>)
-                .filter((it) => looksLikeGpuModel(String(it.model_name ?? '')))
-                .map((it) => ({
-                  competitor_name: (typeof it.competitor_name === 'string' ? it.competitor_name : provider) || provider,
-                  model_name: it.model_name,
-                  ...(it.memory ? { memory: it.memory } : {}),
-                  source_model_name: String(it.model_name ?? ''),
-                  price_usd: null,       // AI 계산가 불신(번들·환산 편향) → 보류
-                  price_unknown: true,   // 검수 필요(원본가·번들 확인)
-                }))
-              if (recovered.length > 0) {
-                compItems = recovered
-                send('progress', { step: 'recovered', msg: `표 구조상 전사가 모델을 놓쳐 분류결과에서 GPU 모델 ${recovered.length}건 복구 — 가격은 검수 필요(번들·통화 확인)` })
+            if (gpuValid.length === 0) {
+              // 1순위 — 피벗 재구성: 세로표에서 열별로 모델(サービス)+원본가(月額)+장수(×8)를 다시 묶는다.
+              //   진짜 엔화 금액을 살려 fx로 환산(번들은 managed_bundle로 격리). 결정론(AI 산술 없음).
+              const HOURS: Record<string, number> = { minute: 1 / 60, hour: 1, day: 24, month: 720, year: 8760 }
+              const pivot = reconstructPivot(transcription.rows as Array<{ raw_label?: string; cells?: unknown[]; price_text?: string | null }>)
+              const fromPivot = pivot.map((o) => {
+                const cls = classifyObservation(o.provenance + ' ' + o.model_name)
+                const totalKrw = amountToKrw(o.amount, o.currency, fxMap) // 기간×장수 전체 KRW(환율 미보유면 null)
+                const hours = o.pricing_unit ? HOURS[o.pricing_unit] : undefined
+                const cnt = o.gpu_count && o.gpu_count > 0 ? o.gpu_count : 1
+                const perGpuHrKrw = totalKrw != null && hours ? totalKrw / hours / cnt : null
+                const priceUsd = perGpuHrKrw != null && krwPerUsd > 0 ? perGpuHrKrw / krwPerUsd : null
+                return {
+                  competitor_name: provider,
+                  model_name: o.model_name,
+                  source_model_name: o.model_name,
+                  price_usd: priceUsd,               // 원본 엔화 → 환율 환산(번들 환산가). 미보유 통화면 null
+                  price_unknown: priceUsd == null,
+                  original_currency: o.currency,
+                  original_price: o.amount,
+                  obs: {
+                    amount: o.amount, currency: o.currency, pricing_unit: o.pricing_unit, gpu_count: o.gpu_count,
+                    segment: cls.segment, bundle_inclusive: cls.bundle_inclusive, tax_basis: cls.tax_basis,
+                    comparable: cls.comparable, fx_source: 'koreaexim', fx_rate_date: fxDate,
+                    fx_rate: o.currency && o.currency !== 'KRW' ? fxMap[o.currency] ?? null : 1,
+                    provenance: o.provenance,
+                  },
+                }
+              })
+              if (fromPivot.length > 0) {
+                compItems = fromPivot
+                send('progress', { step: 'recovered', msg: `세로형 비교표를 열별로 재구성 — GPU ${fromPivot.length}건 복원(원본가+환율 환산, 번들 격리)` })
+              } else if (Array.isArray(classified.items)) {
+                // 2순위 — 피벗도 실패하면 classify 모델만 복구(가격은 AI 불신 → 보류).
+                const recovered = (classified.items as Array<Record<string, unknown>>)
+                  .filter((it) => looksLikeGpuModel(String(it.model_name ?? '')))
+                  .map((it) => ({
+                    competitor_name: (typeof it.competitor_name === 'string' ? it.competitor_name : provider) || provider,
+                    model_name: it.model_name, ...(it.memory ? { memory: it.memory } : {}),
+                    source_model_name: String(it.model_name ?? ''), price_usd: null, price_unknown: true,
+                  }))
+                if (recovered.length > 0) {
+                  compItems = recovered
+                  send('progress', { step: 'recovered', msg: `분류결과에서 GPU 모델 ${recovered.length}건 복구 — 가격은 검수 필요` })
+                }
               }
             }
             send('progress', { step: 'classified', msg: `경쟁사 가격 ${compItems.length}건 — 원문 모델명 그대로(전사 기반)${compItems.length < rawCount ? ` (중복 ${rawCount - compItems.length}건 제거)` : ''}` })
