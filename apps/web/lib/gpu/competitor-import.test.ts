@@ -25,3 +25,13 @@ test('P0-2 — SaveCompetitorResult에 rejected 필드가 있고 반환된다', 
   assert.match(SRC, /rejected:\s*\{\s*model:\s*string;\s*issues:\s*Issue\[\]\s*\}\[\]/, 'result 타입에 rejected')
   assert.match(SRC, /return\s*\{\s*saved,\s*held,\s*rejected\s*\}/, 'rejected 반환')
 })
+
+// P1 관측원본 배선 — obs 필드가 market_prices insert로 통과(persist)되는지 정적 가드.
+test('P1 — buildObsColumns가 존재하고 market_prices insert에 배선된다', () => {
+  assert.match(SRC, /export function buildObsColumns/, '관측원본 매핑 함수 존재')
+  assert.match(SRC, /\.\.\.buildObsColumns\(item\.obs\)/, 'insert에 obs 통과')
+  // 관측 원본 핵심 컬럼 매핑 확인(환산 전 진실값 + 환율 스냅샷)
+  assert.match(SRC, /obs_amount/, 'obs_amount 매핑')
+  assert.match(SRC, /obs_segment/, 'obs_segment(세그먼트 격리)')
+  assert.match(SRC, /o\.fx_rate = obs\.fx_rate/, '환율 스냅샷 매핑')
+})

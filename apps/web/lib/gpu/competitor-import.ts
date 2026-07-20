@@ -16,6 +16,24 @@ export interface CompetitorPriceItem {
   original_currency?: string | null
   /** 원본 통화 기준 금액(GPU 1장·1시간당). 보존용. */
   original_price?: number | null
+  /** ── 관측 원본(확정 기획 P1) — 있으면 market_prices에 그대로 persist. 환산 전 진실값. ── */
+  obs?: {
+    amount?: number | null           // 관측 금액(obs_currency 기준, 환산 전)
+    currency?: string | null         // ISO4217
+    pricing_unit?: string | null     // minute|hour|day|month|year
+    gpu_count?: number | null        // 이 금액이 포함하는 장수
+    tax_basis?: string | null        // tax_excluded|tax_included|unknown
+    bundle_inclusive?: boolean | null
+    inclusions?: string | null
+    segment?: string | null          // raw_gpu|managed_bundle
+    comparable?: boolean | null
+    fx_rate?: number | null          // 관측시점 환율 스냅샷(1통화=KRW)
+    fx_rate_date?: string | null
+    fx_source?: string | null
+    observed_at?: string | null
+    provenance?: string | null
+    confirmed_by_kind?: string | null
+  }
 }
 
 export interface SaveCompetitorResult {
@@ -32,6 +50,30 @@ export interface SaveCompetitorOptions {
   confidence?: number
   /** 사용자가 검토 화면에서 고른 카탈로그 변형 id(ambiguous_variant 해소). 있으면 resolveProductId 대신 이 변형에 직접 결합(기존 행만 — 깡통 생성 아님). 단일 item일 때만 의미. */
   targetProductId?: string | null
+}
+
+// 관측 원본(obs) → market_prices obs_* 컬럼 매핑(순수·테스트가능). null/undefined 필드는 생략(기존행 무변경).
+export function buildObsColumns(obs?: CompetitorPriceItem['obs']): Record<string, unknown> {
+  if (!obs) return {}
+  const put = (v: unknown) => v !== null && v !== undefined
+  const o: Record<string, unknown> = {}
+  if (put(obs.amount)) o.obs_amount = obs.amount
+  if (put(obs.currency)) o.obs_currency = obs.currency
+  if (put(obs.pricing_unit)) o.obs_pricing_unit = obs.pricing_unit
+  if (put(obs.gpu_count)) o.obs_gpu_count = obs.gpu_count
+  if (put(obs.tax_basis)) o.obs_tax_basis = obs.tax_basis
+  if (put(obs.bundle_inclusive)) o.obs_bundle_inclusive = obs.bundle_inclusive
+  if (put(obs.inclusions)) o.obs_inclusions = obs.inclusions
+  if (put(obs.segment)) o.obs_segment = obs.segment
+  if (put(obs.comparable)) o.obs_comparable = obs.comparable
+  if (put(obs.fx_rate)) o.fx_rate = obs.fx_rate
+  if (put(obs.fx_rate_date)) o.fx_rate_date = obs.fx_rate_date
+  if (put(obs.fx_source)) o.fx_source = obs.fx_source
+  if (put(obs.provenance)) o.provenance = obs.provenance
+  if (put(obs.confirmed_by_kind)) o.confirmed_by_kind = obs.confirmed_by_kind
+  // observed_at은 insert에서 now()로 이미 설정 — obs.observed_at이 명시되면 우선.
+  if (put(obs.observed_at)) o.observed_at = obs.observed_at
+  return o
 }
 
 // 경쟁사 가격 DB 저장. 모델은 resolveProductId SSOT로 기존 변형에만 결합 — 매칭 실패 시 깡통 자동생성 금지(보류).
@@ -129,6 +171,8 @@ export async function saveCompetitorPrices(
       // 원본 통화·금액 보존(W4) — 표시 시 fx 실환율로 양통화 병기. 미상이면 생략(기존행=USD 가정).
       ...(item.original_currency ? { original_currency: item.original_currency } : {}),
       ...(typeof item.original_price === 'number' ? { original_price: item.original_price } : {}),
+      // 관측 원본(P1) — 추출이 obs를 주면 그대로 persist(환산 전 진실값). 없으면 생략(기존 경로 무변경).
+      ...buildObsColumns(item.obs),
     })
     saved.push({ competitor: item.competitor_name, model: item.model_name, memory: memory ?? '', price_usd: item.price_usd })
   }
