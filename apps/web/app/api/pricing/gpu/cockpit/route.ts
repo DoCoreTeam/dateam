@@ -224,7 +224,7 @@ export async function GET() {
       mappingIds.length > 0
         ? await db
             .from('market_prices')
-            .select('mapping_id, price_usd, recorded_at')
+            .select('mapping_id, price_usd, recorded_at, obs_segment')
             .in('mapping_id', mappingIds)
             .is('deleted_at', null)
             .order('recorded_at', { ascending: false })
@@ -232,12 +232,12 @@ export async function GET() {
 
     if (priceErr) throw priceErr
 
-    // 매핑별 최신 가격 (recorded_at DESC → 첫 번째가 최신)
-    const latestPriceMap = new Map<string, { price_usd: number | null; recorded_at: string | null }>()
+    // 매핑별 최신 가격 (recorded_at DESC → 첫 번째가 최신). obs_segment는 비교가능성 격리(P4)용.
+    const latestPriceMap = new Map<string, { price_usd: number | null; recorded_at: string | null; obs_segment: string | null }>()
     for (const p of rawPrices ?? []) {
-      const row = p as { mapping_id: string; price_usd: number | null; recorded_at: string | null }
+      const row = p as { mapping_id: string; price_usd: number | null; recorded_at: string | null; obs_segment?: string | null }
       if (!latestPriceMap.has(row.mapping_id)) {
-        latestPriceMap.set(row.mapping_id, { price_usd: row.price_usd, recorded_at: row.recorded_at })
+        latestPriceMap.set(row.mapping_id, { price_usd: row.price_usd, recorded_at: row.recorded_at, obs_segment: row.obs_segment ?? null })
       }
     }
 
@@ -266,6 +266,9 @@ export async function GET() {
     Array.from(mappingMeta.entries()).forEach(([mid, meta]) => {
       const priceData = latestPriceMap.get(mid)
       if (!priceData || priceData.price_usd == null) return
+      // P4: 매니지드/번들가(스토리지·네트워크 포함, 월정액 세트)는 raw GPU 시세 밴드에 섞지 않음(비교 불가).
+      //   원본은 DB에 보존(obs_segment='managed_bundle') — 콕핏 raw 밴드에서만 격리. NULL/raw_gpu는 포함.
+      if (priceData.obs_segment === 'managed_bundle') return
 
       const usd = priceData.price_usd
       const krw = Math.round(usd * usdKrw)

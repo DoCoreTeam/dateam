@@ -88,7 +88,7 @@ export async function GET() {
     const { data: latestPrices, error: priceErr } = mappingIds.length > 0
       ? await db
           .from('market_prices')
-          .select('id, mapping_id, price_usd, original_currency, original_price, recorded_at, confidence, notes, source_url')
+          .select('id, mapping_id, price_usd, original_currency, original_price, recorded_at, confidence, notes, source_url, obs_segment')
           .in('mapping_id', mappingIds)
           .is('deleted_at', null)
           .order('recorded_at', { ascending: false })
@@ -185,6 +185,8 @@ export async function GET() {
           pricing_model: m.pricing_model,
           region: m.region,
           price_usd: priceData?.price_usd ?? null,
+          // P4 비교가능성 격리 — managed_bundle(번들가)은 시장 범위(min/max/median)에서 제외.
+          obs_segment: (priceData as Record<string, unknown> | null)?.obs_segment ?? null,
           // 원본 통화 보존(표시 SSOT) — 행별 원본 통화/금액. 표시는 fmtMoneyFromOriginal이 뷰통화로 환산.
           original_currency: (priceData as Record<string, unknown> | null)?.original_currency ?? null,
           original_price: (priceData as Record<string, unknown> | null)?.original_price ?? null,
@@ -242,7 +244,8 @@ export async function GET() {
       // 신선도(is_fresh/hours_ago)는 숨김 기준이 아니라 표시 전용으로만 사용한다.
       // (만료로 가격을 버리면 "데이터 부족"으로 사라지므로, 마지막 수집값을 항상 표시)
       const latestPrices = enrichedCompetitors
-        .filter((c: { price_usd: number | null }) => c.price_usd != null)
+        // P4: 번들가(managed_bundle)는 raw GPU 시세 범위에서 제외(비교 불가). NULL/raw_gpu는 포함.
+        .filter((c: { price_usd: number | null; obs_segment?: string | null }) => c.price_usd != null && c.obs_segment !== 'managed_bundle')
         .map((c: { price_usd: number | null }) => c.price_usd as number)
         .sort((a: number, b: number) => a - b)
 
