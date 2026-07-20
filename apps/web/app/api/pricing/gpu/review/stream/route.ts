@@ -19,6 +19,7 @@ import { reconstructPivot } from '@/lib/gpu/pivot-reconstruct'
 import { classifyObservation } from '@/lib/gpu/observation-classify'
 import { amountToKrw, pricingModelForUnit, type FxKrwMap } from '@/lib/gpu/normalize-money'
 import { canonicalizeModel } from '@/lib/gpu/canonical-model'
+import { extractFormFactor } from '@/lib/gpu/form-factor'
 import { HOURS_PER_PERIOD } from '@/lib/gpu/hours'
 
 // 헤드리스 렌더(@sparticuz/chromium)·전사·AI 호출에 시간 필요 → Node 런타임 + maxDuration 확대(Vercel 콜드스타트 여유).
@@ -329,14 +330,17 @@ export async function POST(req: NextRequest) {
                   //   실측: AI가 model="GB200"을 정확히 인식하고도 catalog_match를 GH200·B200으로 골랐다(실행마다 다름).
                   //   매칭은 저장 단계의 resolveProductId(결정론)가 하고, 실패하면 기존 정책대로 보류된다.
                   //   폼팩터는 카탈로그가 구분하는 축이므로 이름에 붙인다("H100"+"SXM" → "H100 SXM").
-                  model_name: [o.model, o.form_factor].filter(Boolean).join(' '),
+                  //   캐노니컬 SSOT를 반드시 거친다 — AI 원문 그대로 쓰면 "Tesla V100"(카탈로그 "V100")처럼
+                  //   벤더 수식·별칭이 남아 카탈로그와 어긋난다(실측). 폼팩터는 축이므로 캐노니컬 뒤에 붙인다.
+                  model_name: [canonicalizeModel(o.model).canonical || o.model, o.form_factor].filter(Boolean).join(' '),
                   source_model_name: o.model,
                   ...(o.memory_gb ? { memory: `${o.memory_gb}GB` } : {}),
                   price_usd: usd,
                   price_unknown: usd == null,
                   original_currency: o.currency,
                   original_price: o.amount,
-                  pricing_model: pricingModelForUnit(o.unit),
+                  // 요금 등급은 AI가 인식한 축을 그대로 — spot을 on_demand와 섞으면 시세 밴드가 왜곡된다.
+                  pricing_model: o.price_tier,
                   // 같은 모델의 기본료·스토리지를 성분으로 첨부(market_price_components 저장 경로로 이어짐)
                   ...(primaries.length > 0 && (sidesByModel.get(o.model.toLowerCase())?.length ?? 0) > 0
                     ? { components: (sidesByModel.get(o.model.toLowerCase()) ?? []).map((sc) => ({
@@ -370,8 +374,45 @@ export async function POST(req: NextRequest) {
               : '')
             const gpuValid = compItems.filter((it) => looksLikeGpuModel(String((it as Record<string, unknown>).model_name ?? '')))
             if (aiItems.length > 0) {
-              // AI 구조화 관측이 성공하면 이것이 1순위. 기존 결정론 결과는 교차검증용으로 남는다.
-              compItems = aiItems
+              // ── 이중 추출 합집합 ── AI 1순위 + 결정론이 놓친 행을 보완.
+              //   실측: 같은 verda 입력에서 AI 추출이 24~28건으로 흔들렸다(GB300·V100이 실행마다 누락).
+              //   AI는 인식은 정확하지만 **전량 열거에 비결정적**이고, 결정론 파서는 표기에 약하지만
+              //   같은 입력에 항상 같은 행을 낸다. 둘을 합쳐야 누락이 사라진다(교체가 아니라 합집합).
+              //   중복 판정: 모델 + 요금등급 + 대표가(소수 4자리) — 같은 행을 두 번 넣지 않는다.
+              //   ★ 중복 판정은 **금액**으로 한다 — 모델명으로 하면 "GB300 SXM"(AI)와 "GB300 SXM6"(결정론)가
+              //     다른 키가 돼 같은 행이 두 번 들어간다(실측).
+              //   ★ 보완 대상은 **GPU 모델로 판정되고 가격이 있는 행만** — 결정론 경로는 "1 month"·"AMD EPYC"·
+              //     "NVMe" 같은 비가격/비GPU 라벨도 뱉는다. AI 경로가 걸러주던 것을 합집합이 되살리면 안 된다.
+              const amtKey = (it: Record<string, unknown>) => {
+                const o = it.obs as { amount?: unknown } | undefined
+                const a = typeof o?.amount === 'number' ? o.amount
+                  : typeof it.original_price === 'number' ? it.original_price
+                  : typeof it.price_usd === 'number' ? it.price_usd : null
+                return a === null ? null : `${a.toFixed(4)}|${String(it.pricing_model ?? 'on_demand')}`
+              }
+              const seen = new Set(aiItems.map(amtKey).filter((k): k is string => k !== null))
+              const detOnly = compItems.filter((it) => {
+                const k = amtKey(it)
+                if (k === null || seen.has(k)) return false
+                if (typeof it.price_usd !== 'number' || it.price_usd <= 0) return false
+                return looksLikeGpuModel(String(it.model_name ?? ''))
+              })
+              //   결정론 보완분도 **같은 표기 규칙**을 거친다 — 안 하면 "B300 SXM6"(결정론)와 "B300 SXM"(AI)가
+              //   같은 화면에 섞여 다른 제품처럼 보인다(실측). 캐노니컬 + 폼팩터 세대 흡수.
+              const normalizedDet = detOnly.map((it) => {
+                const raw = String(it.model_name ?? '')
+                const { core, formFactor } = extractFormFactor(canonicalizeModel(raw).canonical || raw)
+                return {
+                  ...it,
+                  model_name: [core, formFactor].filter(Boolean).join(' '),
+                  source_model_name: it.source_model_name ?? raw,
+                  pricing_model: it.pricing_model ?? 'on_demand',
+                }
+              })
+              compItems = [...aiItems, ...normalizedDet]
+              if (normalizedDet.length > 0) {
+                send('progress', { step: 'union', msg: `결정론 파서가 AI 누락분 ${normalizedDet.length}건 보완 — 합집합 ${compItems.length}건` })
+              }
             } else if (gpuValid.length === 0) {
               // 1순위 — 피벗 재구성: 세로표에서 열별로 모델(サービス)+원본가(月額)+장수(×8)를 다시 묶는다.
               //   진짜 엔화 금액을 살려 fx로 환산(번들은 managed_bundle로 격리). 결정론(AI 산술 없음).
@@ -494,10 +535,19 @@ export async function POST(req: NextRequest) {
 
             const completeness = reconcileCompleteness(contentText, [...collectAmounts(compItems), ...rawAiAmounts])
             if (!completeness.complete) {
-              const shown = completeness.uncovered.slice(0, 8).map((n) => n.toLocaleString())
+              // 미커버 금액만 나열하면 판단이 불가능하다 — **그 금액이 있던 원문 행**을 함께 보여준다.
+              //   (실측: verda 미커버 35건이 전부 CPU 인스턴스 요금이었다. 행을 보면 1초에 판단된다.)
+              //   게이트를 GPU 행으로 좁히지 않는 이유: 모델명 없는 행(스토리지 요금)의 진짜 누락을 놓치게 된다.
+              const lines = contentText.split('\n')
+              const withCtx = completeness.uncovered.slice(0, 6).map((n) => {
+                const asStr = n.toLocaleString('en-US')
+                const line = lines.find((l) => l.includes(asStr) || l.includes(String(n)))
+                const ctx = line ? line.trim().slice(0, 46) : ''
+                return ctx ? `${asStr}(${ctx}…)` : asStr
+              })
               send('progress', {
                 step: 'completeness',
-                msg: `⚠️ 원본에 있으나 추출에 없는 금액 ${completeness.uncovered.length}건: ${shown.join(', ')}${completeness.uncovered.length > 8 ? ' 외' : ''} — 누락 여부를 확인하세요`,
+                msg: `⚠️ 원본에 있으나 추출에 없는 금액 ${completeness.uncovered.length}건 — GPU 요금이 맞는지 확인하세요: ${withCtx.join(' / ')}${completeness.uncovered.length > 6 ? ' 외' : ''}`,
               })
             } else if (completeness.sourceAmounts.length > 0) {
               send('progress', { step: 'completeness', msg: `✅ 완전성 확인 — 원본 금액 ${completeness.sourceAmounts.length}건 전부 추출에 반영됨` })

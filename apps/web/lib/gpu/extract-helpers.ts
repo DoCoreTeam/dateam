@@ -131,7 +131,12 @@ export async function callGeminiOnce(
 ): Promise<string> {
   const res = await fetch(`${GEMINI_API_BASE}/models/${model}:generateContent`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text }] }], generationConfig: jsonMode ? { responseMimeType: 'application/json', temperature: 0 } : { temperature: 0.2 } }),
+    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text }] }], // JSON 추출은 행 수가 많으면 기본 출력한도(8k)에 걸려 **뒷부분이 조용히 잘린다**
+    //   (실사고 v0.7.363: verda 22관측 추출 시 V100·RTX PRO 6000 CC 행이 누락 — 완전성 게이트가 검출).
+    //   한도를 넉넉히 열어 절단 유실을 막는다.
+    generationConfig: jsonMode
+      ? { responseMimeType: 'application/json', temperature: 0, maxOutputTokens: 32768 }
+      : { temperature: 0.2 } }),
   })
   if (!res.ok) throw new Error(`gemini ${res.status}`)
   const j = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }

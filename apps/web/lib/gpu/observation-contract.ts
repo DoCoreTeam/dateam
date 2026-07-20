@@ -11,6 +11,7 @@ import { amountToKrw, type FxKrwMap } from './normalize-money.ts'
 export type ObservationUnit = HourPeriod | 'per_gb' | 'per_account'
 export type ComponentKind = 'flat' | 'base_fee' | 'usage' | 'storage'
 export type MatchBasis = 'exact' | 'spec' | 'none'
+export type PriceTier = 'on_demand' | 'spot' | 'reserved'
 export type FormFactor = 'SXM' | 'PCIe' | 'NVL' | null
 
 const TIME_UNITS: readonly HourPeriod[] = ['minute', 'hour', 'day', 'week', 'month', 'year']
@@ -18,6 +19,10 @@ const ALL_UNITS: readonly ObservationUnit[] = [...TIME_UNITS, 'per_gb', 'per_acc
 const FORM_FACTORS: readonly Exclude<FormFactor, null>[] = ['SXM', 'PCIe', 'NVL']
 const COMPONENT_KINDS: readonly ComponentKind[] = ['flat', 'base_fee', 'usage', 'storage']
 const MATCH_BASES: readonly MatchBasis[] = ['exact', 'spec', 'none']
+// 요금 등급(비교축) — 같은 모델이라도 on_demand/spot/reserved는 서로 다른 상품이다.
+//   실사고 v0.7.363: verda 요금표가 'Price | Spot price' 2열인데 spot 열을 통째로 버리고 있었다
+//   (완전성 게이트가 미커버 56건으로 지목). 버리지 말고 별도 축으로 보존한다.
+const PRICE_TIERS: readonly PriceTier[] = ['on_demand', 'spot', 'reserved']
 
 /** AI가 채우는 구조화 관측 — 산술 절대 금지, 원문 근거 그대로. */
 export interface AiObservation {
@@ -33,6 +38,8 @@ export interface AiObservation {
   component_kind: ComponentKind
   catalog_match: string | null
   match_basis: MatchBasis
+  /** 요금 등급. 같은 모델의 on_demand/spot/reserved는 별개 상품 — 섞으면 시세 밴드가 왜곡된다. 미지정 시 unit에서 파생. */
+  price_tier: PriceTier
   provenance: string
 }
 
@@ -97,6 +104,22 @@ export function validateAiObservation(raw: unknown): ObservationValidationResult
   }
 
   if (!ALL_UNITS.includes(r.unit as ObservationUnit)) return fail('invalid_enum', `unit: ${String(r.unit)}`)
+
+  // price_tier: 미지정이면 unit에서 파생(월/년=약정, 그 외=on_demand) — 기존 동작과 동일한 안전 기본값.
+  //   AI가 'spot' 등을 명시하면 그대로 채택. enum 밖 값은 거부(무단 어휘 확장 차단).
+  let price_tier: PriceTier
+  if (r.price_tier === null || r.price_tier === undefined || r.price_tier === '') {
+    price_tier = r.unit === 'month' || r.unit === 'year' ? 'reserved' : 'on_demand'
+  } else if (PRICE_TIERS.includes(r.price_tier as PriceTier)) {
+    price_tier = r.price_tier as PriceTier
+    // 단위가 월/년이면 시간제(on_demand)일 수 없다 — 약정으로 교정한다.
+    //   실사고 v0.7.363: price_tier 도입 후 AI가 소프트뱅크 월정액(2,500,000엔/월)을 on_demand로 보고해
+    //   시간제와 같은 밴드에 섞일 뻔했다. 단위는 원문에 명시된 사실이라 AI의 등급 추정보다 신뢰도가 높다.
+    //   spot은 존중한다(월 단위 spot 상품이 있을 수 있고, 그건 별도 축이다).
+    if ((r.unit === 'month' || r.unit === 'year') && price_tier === 'on_demand') price_tier = 'reserved'
+  } else {
+    return fail('invalid_enum', `price_tier: ${String(r.price_tier)}`)
+  }
   if (!COMPONENT_KINDS.includes(r.component_kind as ComponentKind)) return fail('invalid_enum', `component_kind: ${String(r.component_kind)}`)
   if (!MATCH_BASES.includes(r.match_basis as MatchBasis)) return fail('invalid_enum', `match_basis: ${String(r.match_basis)}`)
 
@@ -184,6 +207,7 @@ export function validateAiObservation(raw: unknown): ObservationValidationResult
     component_kind: r.component_kind as ComponentKind,
     catalog_match,
     match_basis: r.match_basis as MatchBasis,
+    price_tier,
     provenance: (r.provenance as string).trim(),
   }
   return { ok: true, value }

@@ -39,6 +39,9 @@ export function buildObservationPrompt(sourceText: string, specContext: string):
 기본료·스토리지처럼 그 행 자체에는 모델명이 없는 부가 요금도 **반드시 같은 요금 블록의 GPU 모델명을 model에 넣어** 보고하세요.
   예: "NVIDIA A100 時間貸しプラン ... 月額基本料金 30,000円 ... データストアストレージ 1,000円/100GB"
   → 기본료도 스토리지도 model="A100"입니다. model을 비우면 그 요금은 통째로 버려집니다(실제 유실 사고).
+가격표의 **모든 행을 빠짐없이** 보고하세요 — 행 수가 많아도 생략·요약하지 마세요(누락은 사고입니다).
+한 행에 가격 열이 여러 개면(예: "Price | Spot price", "On-demand | Spot") **열마다 별도 관측으로 각각 보고**하고
+  price_tier를 "on_demand"·"spot"·"reserved" 중 맞는 값으로 지정하세요. 한 열만 보고하면 나머지는 유실됩니다(실제 사고).
 provenance에는 **모델명이 보이는 원문 조각을 반드시 포함**하세요(금액만 넣지 마세요). 모델 판정의 근거이며, 근거 없는 모델명은 검증에서 거부됩니다.
 통화 기호는 전각(￥￦＄)·반각(¥₩$) 구분 없이 인식하세요.
 수량 접두("1x", "2×", "8장", "8枚")는 gpu_count로 분리하고 amount에서 제거하세요.
@@ -58,6 +61,7 @@ ${specContext}
   "currency": string,          // ISO4217 ('JPY','USD','KRW' 등)
   "unit": "minute"|"hour"|"day"|"week"|"month"|"year"|"per_gb"|"per_account",
   "per_qty": number,           // 단위 분모. "1,000円/100GB"면 100. 기본 1.
+  "price_tier": "on_demand"|"spot"|"reserved",  // 요금 등급. 미지정 시 unit에서 파생.
   "component_kind": "flat"|"base_fee"|"usage"|"storage",
   "catalog_match": string|null,
   "match_basis": "exact"|"spec"|"none",
