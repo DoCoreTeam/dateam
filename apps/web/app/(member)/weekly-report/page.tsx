@@ -15,6 +15,7 @@ import DeptTaskWeeklyPanel from './DeptTaskWeeklyPanel'
 import WorkPageShell from '@/components/ui/WorkPageShell'
 import WorkSubTabs from '@/components/ui/WorkSubTabs'
 import WeekPicker from './WeekPicker'
+import { resolveSelectedWeek, clampToWindow, tabEffectiveWeek } from '@/lib/weekly-report/week-continuity'
 import { FileText, Users, GitBranch } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
 import { resolveOrgScope, deptMemberUserIds, hasOrgScope } from '@/lib/org-scope'
@@ -62,15 +63,10 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
   })
   const thisWeek = weekOptions[0]
 
-  // 주차 연속성 SSOT — 탭 전환에도 유지되는 단일 `?week=`. 레거시 orgWeek/editWeek 하위호환 수용.
-  // org 탭은 8주 윈도우 밖 과거(유효 월요일)도 허용, mine/team은 윈도우 내로 클램프(폼/옵션 제약).
-  const isMonday = (s?: string) =>
-    !!s && /^\d{4}-\d{2}-\d{2}$/.test(s) && new Date(`${s}T00:00:00Z`).getUTCDay() === 1
-  const weekParam = week ?? orgWeek ?? editWeek
-  const selectedWeek =
-    weekParam && (weekOptions.includes(weekParam) || isMonday(weekParam)) ? weekParam : thisWeek
-  // mine/team은 8주 옵션(select) 제약 → 윈도우 밖 주차는 이번주로 클램프. org만 selectedWeek(무제한) 사용.
-  const windowWeek = weekOptions.includes(selectedWeek) ? selectedWeek : thisWeek
+  // 주차 연속성 SSOT(week-continuity.ts) — 단일 `?week=`(레거시 orgWeek/editWeek 하위호환).
+  // org는 무제한 과거(유효 월요일) 허용, mine/team은 8주 윈도우로 클램프(폼/옵션 제약).
+  const selectedWeek = resolveSelectedWeek(week ?? orgWeek ?? editWeek, weekOptions)
+  const windowWeek = clampToWindow(selectedWeek, weekOptions)
   const withWeek = (base: string) => `${base}&week=${selectedWeek}`
 
   // 스코프 확정 후 서로 독립인 3개 쿼리(조직명·내보고·팀보고)를 병렬화 — 워터폴 단축(결과 동일).
@@ -249,7 +245,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
       subTabs={
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
           <WorkSubTabs items={subTabItems} activeKey={activeTab} ariaLabel="주간보고 탭 전환" />
-          <WeekPicker weekOptions={weekOptions} selectedWeek={selectedWeek} thisWeek={thisWeek} activeTab={activeTab} />
+          <WeekPicker weekOptions={weekOptions} selectedWeek={tabEffectiveWeek(activeTab, selectedWeek, weekOptions)} thisWeek={thisWeek} activeTab={activeTab} />
         </div>
       }
     >

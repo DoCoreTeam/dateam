@@ -80,7 +80,8 @@ export default function WeeklyReportForm({
   orgName = '',
 }: WeeklyReportFormProps) {
   const router = useRouter()
-  const [selectedWeek, setSelectedWeek] = useState(initialWeek)
+  // 주차는 상단 WeekPicker(?week=)가 서버 리렌더로 주입 → 폼 내에서는 불변(중복 선택기 제거).
+  const [selectedWeek] = useState(initialWeek)
   const [rows, setRows] = useState<Row[]>(prefillRows.length > 0 ? prefillRows : [{ ...EMPTY_ROW }])
   // 임시저장(주차별, 새로고침 유지) — 비침습 persist(상태는 그대로, undo는 Tiptap 자체)
   const weeklyDraft = useDraftPersist<Row[]>({
@@ -247,13 +248,6 @@ export default function WeeklyReportForm({
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, [field]: value } : r)))
   }
 
-  function handleWeekChange(week: string) {
-    // M2(미저장 유실0): 주차 전환 시 remount되지만, useDraftPersist가 주차별 localStorage에 초안을
-    // 이미 보존하고(복귀 시 DraftRestoreBanner로 복원) 있으므로 내용은 사라지지 않는다 — 별도 경고 불필요.
-    // 주차 연속성 — editWeek 대신 통일 파라미터 ?week= 사용(탭 전환에도 유지).
-    router.push(`/weekly-report?tab=mine&week=${week}`)
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitError('')
@@ -384,24 +378,14 @@ export default function WeeklyReportForm({
         </div>
       )}
 
-      {/* 주차 선택 */}
-      <div style={{ marginBottom: '1.25rem' }}>
-        <label htmlFor="week_start" className="label">주차</label>
-        <select
-          id="week_start"
-          required
-          className="input-field"
-          style={{ cursor: 'pointer', maxWidth: '320px' }}
-          value={selectedWeek}
-          onChange={(e) => handleWeekChange(e.target.value)}
-        >
-          {weekOptions.map((w) => (
-            <option key={w} value={w}>
-              {new Date(w).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })} 주
-              {w === thisWeek ? ' (이번 주)' : ''}
-            </option>
-          ))}
-        </select>
+      {/* 주차 표시(읽기전용) — 변경은 상단 공용 WeekPicker에서. 주차 선택기 중복 제거(SSOT). */}
+      <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+        <span className="label" style={{ margin: 0 }}>주차</span>
+        <span style={{ fontWeight: 700, color: 'var(--text)' }}>
+          {new Date(selectedWeek).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })} 주
+          {selectedWeek === thisWeek ? ' (이번 주)' : ''}
+        </span>
+        <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>· 주차 변경은 상단에서</span>
       </div>
 
       {/* 안 B 위계: 좌=작성폼(메인) / 우=일일보고 매핑 사이드패널(상시펼침·체크→반영) */}

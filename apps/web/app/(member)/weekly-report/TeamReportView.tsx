@@ -2,7 +2,6 @@
 import { useEscClose } from '@/lib/use-esc-close'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import RichText from '@/components/ui/RichText'
 
 interface MemberReport {
@@ -26,40 +25,12 @@ interface TeamReportViewProps {
 
 const CELL_BORDER = 'var(--border-w-2) solid var(--border-color)'
 
-export default function TeamReportView({ weekOptions, thisWeek, initialWeek, initialReports }: TeamReportViewProps) {
-  const router = useRouter()
-  const [selectedWeek, setSelectedWeek] = useState(initialWeek)
-  const [reports, setReports] = useState<MemberReport[]>(initialReports)
-  const [loading, setLoading] = useState(false)
-  const [fetchError, setFetchError] = useState<string | null>(null)
+export default function TeamReportView({ initialReports }: TeamReportViewProps) {
+  // 주차는 상단 공용 WeekPicker(?week=)가 서버 리렌더로 주입 → 뷰는 서버가 준 initialReports를 그대로 렌더.
+  // (자체 주차 select·클라 fetch 제거 — 주차 선택기 중복 해소, SSOT)
+  const reports = initialReports
   const [modal, setModal] = useState<MemberReport | null>(null)
   useEscClose(() => setModal(null), !!modal)
-
-  async function fetchWeek(week: string) {
-    setReports([])
-    setFetchError(null)
-    setLoading(true)
-    try {
-      const res = await fetch(`/api/weekly-report/team?week=${week}`)
-      if (res.ok) {
-        const data = await res.json() as MemberReport[]
-        setReports(data)
-      } else {
-        setFetchError('데이터를 불러오지 못했습니다. 다시 시도해주세요.')
-      }
-    } catch {
-      setFetchError('네트워크 오류가 발생했습니다. 다시 시도해주세요.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  function handleWeekChange(week: string) {
-    setSelectedWeek(week)
-    fetchWeek(week)
-    // 주차 연속성 — URL(?week=)에 반영해 다른 탭으로 가도 같은 주차 유지(scroll 보존).
-    router.replace(`/weekly-report?tab=team&week=${week}`, { scroll: false })
-  }
 
   // 이름별 그룹화
   const grouped = reports.reduce<Record<string, MemberReport[]>>((acc, r) => {
@@ -77,34 +48,8 @@ export default function TeamReportView({ weekOptions, thisWeek, initialWeek, ini
 
   return (
     <div>
-      {/* 주차 선택 */}
-      <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-        <label style={{ fontSize: 'var(--fs-base)', fontWeight: 600, color: 'var(--text)' }}>주차</label>
-        <select
-          className="input-field"
-          style={{ cursor: 'pointer', maxWidth: '280px' }}
-          value={selectedWeek}
-          onChange={(e) => handleWeekChange(e.target.value)}
-        >
-          {weekOptions.map((w) => (
-            <option key={w} value={w}>
-              {new Date(w).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })} 주
-              {w === thisWeek ? ' (이번 주)' : ''}
-            </option>
-          ))}
-        </select>
-        {loading && <span style={{ fontSize: '0.8rem', color: 'var(--text-faint)' }}>불러오는 중...</span>}
-      </div>
-
-      {/* 에러 */}
-      {fetchError && (
-        <div role="alert" style={{ padding: 'var(--space-3) var(--space-4)', backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
-          {fetchError}
-        </div>
-      )}
-
-      {/* 팀 보고 테이블 */}
-      {!fetchError && members.length === 0 && !loading ? (
+      {/* 팀 보고 테이블 (주차 표시·변경은 상단 공용 WeekPicker) */}
+      {members.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 'var(--space-12) var(--space-4)', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>
           해당 주차 작성된 보고가 없습니다
         </div>

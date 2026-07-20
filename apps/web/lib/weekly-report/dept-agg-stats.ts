@@ -1,21 +1,15 @@
-// 부서별 주간보고 취합 현황 집계(SSOT) — 어드민 취합 첫화면·조직현황이 공유하는 계산.
+// 부서별 주간보고 취합 현황 집계 — 어드민 취합 첫화면·조직현황 공유. 순수 코어는 dept-agg-core(테스트 대상).
 // dept_weekly_reports.status(취합) + weekly_reports 제출자 집합 → 부서별 {제출 N/M, 취합상태}.
 
-import { deptMemberUserIds, type OrgScope } from '@/lib/org-scope'
-import type { AggState } from '@/app/(member)/weekly-report/DeptReportPanel'
+import { deptMemberUserIds, type OrgScope } from '../org-scope-pure'
+import { buildDeptAggStats, type DeptAggStat, type DeptAggState } from './dept-agg-core'
 
-export interface DeptAggStat {
-  id: string
-  name: string
-  memberCount: number
-  reportedCount: number
-  agg: AggState
-}
+export type { DeptAggStat } from './dept-agg-core'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AdminClient = any
 
-/** 전 부서 취합 현황 일괄 계산(배치 IN 쿼리 — N+1 없음). */
+/** 전 부서 취합 현황 일괄 계산(배치 IN 쿼리 — N+1 없음). 순수 집계는 buildDeptAggStats로 위임. */
 export async function computeDeptAggStats(
   admin: AdminClient,
   scope: OrgScope,
@@ -28,16 +22,10 @@ export async function computeDeptAggStats(
     admin.from('dept_weekly_reports').select('department_id, status').eq('week_start', weekStart)
       .in('department_id', allDeptIds.length ? allDeptIds : ['00000000-0000-0000-0000-000000000000']),
   ])
-  const reporters = new Set((weekReps ?? []).map((r: { user_id: string }) => r.user_id))
-  const statusMap = new Map((snaps ?? []).map((s: { department_id: string; status: AggState }) => [s.department_id, s.status]))
-  return deptNodes.map((d) => {
-    const members = deptMemberUserIds(scope, d.id)
-    return {
-      id: d.id,
-      name: d.name,
-      memberCount: members.length,
-      reportedCount: members.filter((m) => reporters.has(m)).length,
-      agg: (statusMap.get(d.id) as AggState) ?? 'none',
-    }
-  })
+  const reporters = new Set<string>((weekReps ?? []).map((r: { user_id: string }) => r.user_id))
+  const membersByDept: Record<string, string[]> = {}
+  const statusByDept: Record<string, DeptAggState> = {}
+  for (const d of deptNodes) membersByDept[d.id] = deptMemberUserIds(scope, d.id)
+  for (const s of (snaps ?? []) as { department_id: string; status: DeptAggState }[]) statusByDept[s.department_id] = s.status
+  return buildDeptAggStats(deptNodes, membersByDept, reporters, statusByDept)
 }
