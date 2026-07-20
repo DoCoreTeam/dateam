@@ -159,6 +159,15 @@ export function amountToKrw(
   return null // 환율 미보유 통화 → 보류(검수). 감지 실패도 여기.
 }
 
+/**
+ * 요금 단위 → pricing_model. 월/년 단위 = 약정(reserved), 시간/분/일 = 온디맨드(on_demand).
+ * 정책(사용자 확정): 월정액 번들도 "대상 없음"이 아니라 시간으로 나눠 per-GPU-hour 환산 후 reserved로 저장한다.
+ *   시간제 = on_demand. 이 구분이 경쟁사 시세 비교의 like-for-like 축(market_prices.pricing_model).
+ */
+export function pricingModelForUnit(unit: string | null | undefined): 'reserved' | 'on_demand' {
+  return unit === 'month' || unit === 'year' ? 'reserved' : 'on_demand'
+}
+
 /** KRW → 임의 통화(표시 보조). 교차환율은 같은 맵(같은 날짜·소스)에서만. */
 export function krwToCurrency(krw: number, currency: string, fx: FxKrwMap): number | null {
   const cur = currency.toUpperCase()

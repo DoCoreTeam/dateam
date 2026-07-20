@@ -14,7 +14,8 @@ import { transcriptionToCompetitorItems } from '@/lib/gpu/transcription-to-items
 import { validateCompetitorItem, looksLikeGpuModel } from '@/lib/gpu/validate'
 import { reconstructPivot } from '@/lib/gpu/pivot-reconstruct'
 import { classifyObservation } from '@/lib/gpu/observation-classify'
-import { amountToKrw, type FxKrwMap } from '@/lib/gpu/normalize-money'
+import { amountToKrw, pricingModelForUnit, type FxKrwMap } from '@/lib/gpu/normalize-money'
+import { canonicalizeModel } from '@/lib/gpu/canonical-model'
 
 // 헤드리스 렌더(@sparticuz/chromium)·전사·AI 호출에 시간 필요 → Node 런타임 + maxDuration 확대(Vercel 콜드스타트 여유).
 export const runtime = 'nodejs'
@@ -294,18 +295,26 @@ export async function POST(req: NextRequest) {
                 const cnt = o.gpu_count && o.gpu_count > 0 ? o.gpu_count : 1
                 const perGpuHrKrw = totalKrw != null && hours ? totalKrw / hours / cnt : null
                 const priceUsd = perGpuHrKrw != null && krwPerUsd > 0 ? perGpuHrKrw / krwPerUsd : null
+                // 모델명 정규화(SSOT) — "NVIDIA DGX H100プラン"→"H100"(카탈로그 매칭). 정규화 실패 시 원본 유지.
+                const canon = canonicalizeModel(o.model_name)
+                const modelName = canon.canonical || o.model_name
+                // 요금형태: 월/년 = reserved(약정), 시간/분 = on_demand. 월정액도 버리지 않고 시간환산해 약정으로 저장(사용자 확정).
+                const pricingModel = pricingModelForUnit(o.pricing_unit)
                 return {
                   competitor_name: provider,
-                  model_name: o.model_name,
+                  model_name: modelName,
                   source_model_name: o.model_name,
-                  price_usd: priceUsd,               // 원본 엔화 → 환율 환산(번들 환산가). 미보유 통화면 null
+                  pricing_model: pricingModel,       // reserved(월정액) / on_demand(시간제) — 저장 시 like-for-like 비교축
+                  price_usd: priceUsd,               // 원본 엔화 → 시간환산(÷720÷장수) → 환율 환산. 미보유 통화면 null
                   price_unknown: priceUsd == null,
                   original_currency: o.currency,
                   original_price: o.amount,
                   obs: {
                     amount: o.amount, currency: o.currency, pricing_unit: o.pricing_unit, gpu_count: o.gpu_count,
-                    segment: cls.segment, bundle_inclusive: cls.bundle_inclusive, tax_basis: cls.tax_basis,
-                    comparable: cls.comparable, fx_source: 'koreaexim', fx_rate_date: fxDate,
+                    // segment는 obs 메타(포함내역·과세)만 보존 — 밴드 제외(managed_bundle)는 하지 않음.
+                    //   사용자 확정: 월정액 번들도 reserved 시세로 비교 대상에 포함. 원본 포함내역은 참고용으로만 기록.
+                    segment: null, bundle_inclusive: cls.bundle_inclusive, tax_basis: cls.tax_basis,
+                    comparable: true, fx_source: 'koreaexim', fx_rate_date: fxDate,
                     fx_rate: o.currency && o.currency !== 'KRW' ? fxMap[o.currency] ?? null : 1,
                     provenance: o.provenance,
                   },
@@ -318,11 +327,15 @@ export async function POST(req: NextRequest) {
                 // 2순위 — 피벗도 실패하면 classify 모델만 복구(가격은 AI 불신 → 보류).
                 const recovered = (classified.items as Array<Record<string, unknown>>)
                   .filter((it) => looksLikeGpuModel(String(it.model_name ?? '')))
-                  .map((it) => ({
-                    competitor_name: (typeof it.competitor_name === 'string' ? it.competitor_name : provider) || provider,
-                    model_name: it.model_name, ...(it.memory ? { memory: it.memory } : {}),
-                    source_model_name: String(it.model_name ?? ''), price_usd: null, price_unknown: true,
-                  }))
+                  .map((it) => {
+                    const raw = String(it.model_name ?? '')
+                    const canon = canonicalizeModel(raw).canonical || raw
+                    return {
+                      competitor_name: (typeof it.competitor_name === 'string' ? it.competitor_name : provider) || provider,
+                      model_name: canon, ...(it.memory ? { memory: it.memory } : {}),
+                      source_model_name: raw, price_usd: null, price_unknown: true,
+                    }
+                  })
                 if (recovered.length > 0) {
                   compItems = recovered
                   send('progress', { step: 'recovered', msg: `분류결과에서 GPU 모델 ${recovered.length}건 복구 — 가격은 검수 필요` })

@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   resolveCurrency, resolvePeriod, resolveGpuCount, periodToHours, toUsdPerGpuHour, competitorPriceToUsd,
-  resolveCurrencyWithCountry, amountToKrw, krwToCurrency,
+  resolveCurrencyWithCountry, amountToKrw, krwToCurrency, pricingModelForUnit,
 } from './normalize-money.ts'
 
 // competitorPriceToUsd(SSOT) — market/refresh 경로가 AI 자체환산 대신 이 함수로 통화 정규화.
@@ -116,4 +116,15 @@ test('잘못된 입력은 throw(조용한 오답 금지)', () => {
 test('GPU 장수 경계: x0→null(폴백1), 3자리 x128→null', () => {
   assert.equal(resolveGpuCount('x0'), 0) // 0은 reconcile에서 <=0 → null 폴백
   assert.equal(resolveGpuCount('x128'), null) // \d{1,2} → 3자리 미매치
+})
+
+// 요금형태 — 월/년=reserved(약정), 시간/분/일=on_demand. 소프트뱅크 월정액 번들을 버리지 않고 약정으로 저장.
+test('pricingModelForUnit — 월정액=reserved, 시간제=on_demand', () => {
+  assert.equal(pricingModelForUnit('month'), 'reserved')   // ¥2,500,000/월 → 약정
+  assert.equal(pricingModelForUnit('year'), 'reserved')
+  assert.equal(pricingModelForUnit('hour'), 'on_demand')   // 7.2円/분·시간제
+  assert.equal(pricingModelForUnit('minute'), 'on_demand')
+  assert.equal(pricingModelForUnit('day'), 'on_demand')
+  assert.equal(pricingModelForUnit(null), 'on_demand')     // 미상 → 기본 on_demand
+  assert.equal(pricingModelForUnit(undefined), 'on_demand')
 })

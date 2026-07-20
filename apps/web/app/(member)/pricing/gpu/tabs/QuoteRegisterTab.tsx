@@ -311,11 +311,19 @@ export default function QuoteRegisterTab() {
       // member 제출은 검토대기 staging(staged:true), admin은 라이브 반영. 메시지·갱신 분기.
       if (j.staged) { await mutate('/api/pricing/gpu/review?status=pending') } else { await mutate('/api/pricing/gpu/market') }
       setApplied(true)
+      // held(모델 미등록·특정불가) / rejected(GPU 아님·범위초과)는 조용히 드롭 금지 — 사용자에게 명시 고지.
+      const heldN = Array.isArray(j.held) ? j.held.length : 0
+      const rejN = Array.isArray(j.rejected) ? j.rejected.length : 0
+      const heldNames = heldN > 0
+        ? ' — ' + (j.held as Array<{ model?: string }>).map((h) => h?.model).filter(Boolean).slice(0, 5).join(', ')
+        : ''
       setSuccessMsg(
         (j.staged
           ? `경쟁사 가격 ${j.count}건을 검토 대기에 제출했습니다 — 관리자 확정 후 시장 비교에 반영됩니다.`
           : `경쟁사 가격 ${j.count}건이 시장 비교에 반영되었습니다.`) +
-        (skipped > 0 ? ` 가격미상 ${skipped}건은 제외 — 직접 확인이 필요합니다.` : '')
+        (skipped > 0 ? ` 가격미상 ${skipped}건은 제외 — 직접 확인이 필요합니다.` : '') +
+        (heldN > 0 ? ` 미등록 모델 ${heldN}건은 등록 필요${heldNames} (스펙관리에서 등록 후 재반영).` : '') +
+        (rejN > 0 ? ` 대상 아님 ${rejN}건 제외(GPU 모델 아님).` : '')
       )
     } catch {
       setErrorMsg('반영 실패')

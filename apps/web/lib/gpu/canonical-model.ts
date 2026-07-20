@@ -10,7 +10,10 @@ export function normModelKey(s: string | null | undefined): string {
 // 소스명 잡음 토큰 제거 — 벤더/보드패밀리/호스트CPU 수식. 카탈로그 단축명엔 이 토큰들이 없어 오병합 0(실측 검증).
 //  ⚠️ 폼팩터(SXM·PCIe·NVL)는 카탈로그가 구분하는 별개 모델이라 절대 제거하지 않는다(H100 SXM≠H100 PCIe).
 const CPU_HOST = /\s+with\s+(amd|intel)\s+cpu\b/gi   // "L40S with AMD CPU" → "L40S"
-const VENDOR_BOARD = /\b(nvidia|hgx)\b/gi            // "NVIDIA HGX B200" → "B200" (HGX=보드패밀리, 벤더수식)
+const VENDOR_BOARD = /\b(nvidia|hgx|dgx)\b/gi        // "NVIDIA HGX B200" → "B200" (HGX=보드패밀리, DGX=서버섀시라인, 벤더수식) — 카탈로그에 DGX/HGX 모델 없어 오제거 0
+// 일본어/외국어 요금제 접미(플랜/시간제/월액/베타판)는 모델명이 아니라 상품명 수식 → 매칭 키에서 제거.
+//  "H100プラン"→"H100", "A100 時間貸しプラン"→"A100". 트레일링 non-ASCII 정리(33행)가 대부분 처리하나, 중간 등장 방어.
+const PLAN_SUFFIX = /プラン|時間貸し|時間貸|月額|β版|ベータ版|\bplan\b/gi
 // GPU 클라우드 공급사/플랫폼명이 모델명 앞에 붙는 오염("Nebius H100 SXM 80GB") 방어 — leading만 제거.
 //  이 토큰들은 NVIDIA 모델명에 절대 등장하지 않아 오제거 0. 입구 정규화(stripSupplierPrefix)가 1차, 이건 매칭 방어선.
 const PROVIDER_PREFIX = /^\s*(nebius|lambda(?:\s+labs)?|runpod|coreweave|paperspace|vast(?:\.?\s*ai)?|datacrunch|fluidstack|hyperstack|crusoe|jarvislabs|scaleway|ovh(?:cloud)?|genesis\s+cloud|gcube|nscale)\s+/gi
@@ -24,6 +27,7 @@ function stripModelNoise(s: string): string {
     .replace(PROVIDER_PREFIX, '')
     .replace(CPU_HOST, '')
     .replace(VENDOR_BOARD, '')
+    .replace(PLAN_SUFFIX, '')
     .replace(MEMORY_TOKEN, '')
     .replace(/\s+/g, ' ')
     .trim()
