@@ -4,6 +4,8 @@ import { resolveCompetitorId, type CompetitorIdentity } from '@/lib/gpu/resolve-
 import type { VariantCandidate } from '@/lib/gpu/resolve-product'
 import { validateCompetitorItem, type Issue } from '@/lib/gpu/validate'
 import { toComponentRow, type PriceComponent } from '@/lib/gpu/price-components'
+import { canonicalizeModel } from '@/lib/gpu/canonical-model'
+import { extractFormFactor } from '@/lib/gpu/form-factor'
 
 export interface CompetitorPriceItem {
   competitor_name: string
@@ -34,6 +36,12 @@ export interface CompetitorPriceItem {
     observed_at?: string | null
     provenance?: string | null
     confirmed_by_kind?: string | null
+    /** ── 관측 스펙 축(마이그168) — 인식했으면 반드시 남긴다 ──
+     *  실측 사고: AI가 form_factor·memory를 정확히 인식하고도 담을 컬럼이 없어 매칭에만 쓰고 버렸다.
+     *  그 결과 신규 모델(GB300) 등록 근거가 사라지고, 변형이 여럿인 모델은 메모리를 알면서도 보류됐다. */
+    form_factor?: string | null      // SXM|PCIe|NVL (세대숫자 흡수)
+    memory_gb?: number | null
+    source_model?: string | null     // 원문 모델 라벨(캐노니컬 이전)
   }
   /**
    * 요금성분 N개(v0.7.351 §3) — 복합요금(기본료+종량+스토리지)의 무손실 진실.
@@ -77,6 +85,10 @@ export function buildObsColumns(obs?: CompetitorPriceItem['obs']): Record<string
   if (put(obs.fx_source)) o.fx_source = obs.fx_source
   if (put(obs.provenance)) o.provenance = obs.provenance
   if (put(obs.confirmed_by_kind)) o.confirmed_by_kind = obs.confirmed_by_kind
+  // 관측 스펙 축(마이그168) — 신규모델 등록 제안·변형 판별의 근거로 보존
+  if (put(obs.form_factor)) o.obs_form_factor = obs.form_factor
+  if (put(obs.memory_gb)) o.obs_memory_gb = obs.memory_gb
+  if (put(obs.source_model)) o.obs_source_model = obs.source_model
   // observed_at은 insert에서 now()로 이미 설정 — obs.observed_at이 명시되면 우선.
   if (put(obs.observed_at)) o.observed_at = obs.observed_at
   return o
@@ -156,7 +168,16 @@ export async function saveCompetitorPrices(
       gpuProductId = chosen.id as string
     } else {
       const resolved = await resolveProductId(db, { modelName: item.model_name, gpuCount: 1, memory: item.memory ?? null })
-      if ('held' in resolved) { held.push({ model: item.model_name, reason: resolved.reason, candidates: resolved.candidates }); continue }
+      if ('held' in resolved) {
+        held.push({ model: item.model_name, reason: resolved.reason, candidates: resolved.candidates })
+        // 보류를 "버림"이 아니라 "등록 대기"로 — 카탈로그에 아예 없는 모델(no_model)은 관측 근거와 함께
+        //   후보 큐(마이그169)에 남긴다. 자동 생성은 여전히 금지(깡통 방지) — 사람이 보고 승인한다.
+        //   실사고: GB300이 held되면 관측 스펙까지 사라져, 화면은 "스펙관리에서 등록하라"는데 근거가 없었다.
+        if (resolved.reason === 'no_model') {
+          await recordModelCandidate(db, item, sourceUrl)
+        }
+        continue
+      }
       gpuProductId = resolved.productId
     }
 
@@ -212,4 +233,42 @@ export async function saveCompetitorPrices(
     saved.push({ competitor: item.competitor_name, model: item.model_name, memory: memory ?? '', price_usd: item.price_usd })
   }
   return { saved, held, rejected }
+}
+
+/**
+ * 카탈로그 미등록 모델 후보 기록(마이그169) — 같은 모델이 반복 관측되면 observed_count가 오른다.
+ *   never-block: 후보 기록 실패가 시세 저장을 막지 않는다(로그만).
+ */
+async function recordModelCandidate(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: any,
+  item: CompetitorPriceItem,
+  sourceUrl: string | null,
+): Promise<void> {
+  try {
+    const raw = item.obs?.source_model ?? item.model_name
+    const { core, formFactor } = extractFormFactor(canonicalizeModel(raw).canonical || raw)
+    const ff = item.obs?.form_factor ?? formFactor ?? null
+    const key = `${core.toLowerCase().replace(/[\s\-_]+/g, '')}|${ff ?? ''}`
+    const now = new Date().toISOString()
+    const { data: existing } = await db.from('gpu_model_candidates')
+      .select('id, observed_count').eq('candidate_key', key).maybeSingle()
+    if (existing?.id) {
+      await db.from('gpu_model_candidates')
+        .update({ observed_count: (existing.observed_count ?? 1) + 1, last_seen_at: now })
+        .eq('id', existing.id)
+      return
+    }
+    await db.from('gpu_model_candidates').insert({
+      candidate_key: key,
+      source_model: raw,
+      model_core: core,
+      form_factor: ff,
+      memory_gb: item.obs?.memory_gb ?? null,
+      competitor: item.competitor_name,
+      source_url: sourceUrl,
+    })
+  } catch (e) {
+    console.error('[competitor] 모델 후보 기록 실패(시세 저장에는 영향 없음):', e instanceof Error ? e.message : e)
+  }
 }

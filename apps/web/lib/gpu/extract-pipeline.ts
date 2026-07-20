@@ -162,6 +162,11 @@ export async function extractCompetitorObservations(
           fx_source: 'koreaexim', fx_rate_date: fxDate,
           fx_rate: o.currency && o.currency !== 'KRW' ? fxMap[o.currency] ?? null : 1,
           provenance: o.provenance,
+          // 인식한 스펙 축을 그대로 보존(마이그168) — 매칭에만 쓰고 버리지 않는다.
+          //   신규 모델 등록 제안·변형(96GB vs 48GB) 판별의 근거가 된다.
+          form_factor: o.form_factor,
+          memory_gb: o.memory_gb,
+          source_model: o.model,
         },
       }
     })
