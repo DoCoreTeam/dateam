@@ -87,10 +87,24 @@ export function parseHourlyProse(structuredText: string, model?: string): DetObs
   //   (소프트뱅크 "… NVIDIA A100 時間貸しプラン 月額基本料金 …" → A100)
   let detected = model
   if (!detected) {
-    const baseIdx = t.search(/基本料金|時間貸|従量|per\s*minute|\/\s*1?\s*分/i)
-    const before = baseIdx > 0 ? t.slice(Math.max(0, baseIdx - 120), baseIdx) : ''
-    const words = before.split(/[\s|:：、]+/).filter(Boolean)
-    for (let i = words.length - 1; i >= 0; i--) { if (looksLikeGpuModel(words[i])) { detected = words[i]; break } }
+    //   앵커는 "키워드"가 아니라 **실제 금액이 붙은 위치**여야 한다. 전체 페이지에는 특장점 섹션에도
+    //   "従量課金"·"時間貸し" 같은 키워드가 먼저 나오는데 그 부근엔 모델명이 없어 감지가 실패했다
+    //   (URL 실화면 검증: 소프트뱅크 전체 페이지 → parseHourlyProse null → 성분 0건).
+    //   → 금액 동반 패턴들의 위치를 모두 모아, 각각의 앞쪽에서 GPU 모델을 역방향 탐색한다.
+    const anchors: number[] = []
+    for (const re of [/基本料金[^0-9]{0,6}\d/g, /\d+(?:\.\d+)?\s*(?:円|¥|￥|원)\s*\/\s*1?\s*(?:分|時間|hour|min)/g]) {
+      let m: RegExpExecArray | null
+      while ((m = re.exec(t)) !== null) { anchors.push(m.index); if (m.index === re.lastIndex) re.lastIndex++ }
+    }
+    anchors.sort((a, b) => a - b)
+    for (const idx of anchors) {
+      const before = t.slice(Math.max(0, idx - 400), idx)
+      const words = before.split(/[\s|:：、]+/).filter(Boolean)
+      for (let i = words.length - 1; i >= 0; i--) {
+        if (looksLikeGpuModel(words[i])) { detected = words[i]; break }
+      }
+      if (detected) break
+    }
   }
   if (!detected) return null
   // 기본료: "基本料金 30,000円" / "월 기본료 30000원"

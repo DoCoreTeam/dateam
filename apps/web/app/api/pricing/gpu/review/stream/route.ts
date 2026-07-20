@@ -307,7 +307,8 @@ export async function POST(req: NextRequest) {
                 // 요금형태: 월/년 = reserved(약정), 시간/분 = on_demand. 월정액도 버리지 않고 시간환산해 약정으로 저장(사용자 확정).
                 const pricingModel = pricingModelForUnit(o.pricing_unit)
                 return {
-                  competitor_name: provider,
+                  // 전사 provider가 비면 classify 식별 회사명으로 보완 — 경쟁사명 공란 저장 방지(URL 경로 실화면 사고).
+                  competitor_name: proseProvider,
                   model_name: modelName,
                   source_model_name: o.model_name,
                   pricing_model: pricingModel,       // reserved(월정액) / on_demand(시간제) — 저장 시 like-for-like 비교축
@@ -326,17 +327,21 @@ export async function POST(req: NextRequest) {
                   },
                 }
               })
-              if (fromPivot.length > 0) {
-                compItems = fromPivot
-                send('progress', { step: 'recovered', msg: `세로형 비교표를 열별로 재구성 — GPU ${fromPivot.length}건 복원(원본가+환율 환산, 번들 격리)` })
-              } else if (proseToCompetitorItems(rawInputText, { provider: proseProvider, krwPerUsd, fxMap }).length > 0) {
-                // 1.5순위 — 산문형 복합요금 회수(T1.3 실경로): 표가 아니라 한 덩어리 산문이라 전사가 행을
-                //   못 쪼갠 경우. 원문 전체에 결정론 파서를 1회 적용해 기본료·종량·스토리지를 성분으로 회수.
-                //   결정론(AI 산술 없음) — 대표가는 usage 성분에서만 산출, 기본료·스토리지는 성분으로만 보존.
-                const fromProse = proseToCompetitorItems(rawInputText, { provider: proseProvider, krwPerUsd, fxMap })
-                compItems = fromProse as unknown as Record<string, unknown>[]
-                const nComp = fromProse[0]?.components?.length ?? 0
-                send('progress', { step: 'recovered', msg: `산문형 복합요금 회수 — ${fromProse[0]?.model_name} 요금성분 ${nComp}건(기본료·종량·스토리지) 무손실 복원` })
+              // 산문형 복합요금 회수(T1.3 실경로) — 표가 아니라 산문이라 전사가 행을 못 쪼갠 요금(시간제 등).
+              //   원문 전체에 결정론 파서를 1회 적용해 기본료·종량·스토리지를 성분으로 회수(AI 산술 없음).
+              //   ★ 피벗과 배타가 아니라 **합집합**이다 — 소프트뱅크처럼 월정액 번들표와 시간제 산문이 한
+              //   페이지에 공존하면 배타 처리 시 뒤엣것이 통째로 유실된다(URL 실화면 검증에서 확인).
+              //   ★ 입력은 contentText(=URL fetch 본문 병합 결과) — rawInputText는 URL만 넣은 경우 URL 문자열
+              //   자체라 파싱할 내용이 없다(URL 실화면 검증에서 성분 0건으로 확인).
+              const fromProse = proseToCompetitorItems(contentText, { provider: proseProvider, krwPerUsd, fxMap })
+                .filter((pi) => !fromPivot.some((pv) => pv.model_name === pi.model_name && pv.pricing_model === 'on_demand'))
+
+              if (fromPivot.length > 0 || fromProse.length > 0) {
+                compItems = [...fromPivot, ...fromProse] as unknown as Record<string, unknown>[]
+                const parts: string[] = []
+                if (fromPivot.length > 0) parts.push(`세로형 비교표 ${fromPivot.length}건(원본가+환율 환산)`)
+                if (fromProse.length > 0) parts.push(`산문형 복합요금 ${fromProse.length}건(요금성분 ${fromProse.reduce((n, i) => n + (i.components?.length ?? 0), 0)}건 무손실)`)
+                send('progress', { step: 'recovered', msg: `GPU 복원 — ${parts.join(' + ')}` })
               } else if (Array.isArray(classified.items)) {
                 // 2순위 — 피벗도 실패하면 classify 모델만 복구(가격은 AI 불신 → 보류).
                 const recovered = (classified.items as Array<Record<string, unknown>>)

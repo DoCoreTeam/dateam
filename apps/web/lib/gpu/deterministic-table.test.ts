@@ -41,3 +41,25 @@ test('비-표·비-산문 입력은 [] / null', () => {
   assert.deepEqual(parsePivotFlat('그냥 텍스트'), [])
   assert.equal(parseHourlyProse('가격 없음', 'A100'), null)
 })
+
+// [URL 실화면 회귀고정 v0.7.354] 전체 페이지에서 모델 자동감지.
+//   사고: 앵커를 "키워드 첫 매치"로 잡아, 특장점 섹션의 '従量課金'·'時間貸し'가 먼저 걸리고 그 부근엔
+//   모델명이 없어 감지 실패 → null → 성분 0건(URL로 넣으면 시간제 요금이 통째로 유실).
+//   → 앵커는 **실제 금액이 붙은 위치**여야 한다. 키워드만 있고 금액이 없는 앞 구간에 속으면 안 된다.
+test('URL 회귀 — 키워드가 앞서 나와도 금액 위치 기준으로 모델을 찾는다', () => {
+  const FULL = [
+    '特長 大規模学習に適した AIコンピューティングシステムを専有利用',
+    '分単位で利用できる従量課金サービス',            // ← 키워드 선행(모델 없음). 여기 속으면 실패.
+    'NVIDIA DGX A100 時間貸しプラン A100 GPUを1枚から、1分単位で利用できます。',
+    'サービス NVIDIA A100 時間貸しプラン 月額基本料金 30,000円 GPU利用料金（1枚あたり） 7.2円/1分 データストアストレージ（月額） 1,000円/100GB',
+  ].join(' ')
+  const r = parseHourlyProse(FULL)   // 모델 미지정 → 자동감지
+  assert.ok(r != null, '전체 페이지에서도 감지돼야 함(null이면 성분 통째 유실)')
+  assert.equal(r!.model_name, 'A100')
+  assert.equal(r!.components.length, 3, '기본료·종량·스토리지')
+})
+
+test('URL 회귀 — 금액이 아예 없으면 여전히 null(오탐 방지)', () => {
+  const NO_PRICE = '分単位で利用できる従量課金サービス NVIDIA DGX A100 時間貸しプラン 詳細はお問い合わせください。'
+  assert.equal(parseHourlyProse(NO_PRICE), null)
+})
