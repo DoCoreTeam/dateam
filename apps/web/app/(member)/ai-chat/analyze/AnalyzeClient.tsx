@@ -1,50 +1,38 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Upload } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
-import { extractItems, type AnalyzeExtractResult, type AnalysisLens } from './actions'
-import { saveAnalysisSession, getAnalysisSession } from './session-persist-actions'
+import { extractSourceText } from './actions'
+import { getAnalysisSession } from './session-persist-actions'
 import { listAnalysisSessions, type AnalysisSessionSummary } from './session-list-actions'
-import ItemReviewList, { type ReviewItem } from './ItemReviewList'
-import CommandPresetPanel from './CommandPresetPanel'
+import { analyzeDocument, regroupSession, type GroupingOk } from './grouping-actions'
+import type { DocType } from '@/lib/ai-chat/grouping/classify-doc'
 import AnalysisResults from './AnalysisResults'
 import AnalyzePageHeader from './AnalyzePageHeader'
 import RecentSessionsList from './RecentSessionsList'
+import GroupsResultView from './GroupsResultView'
 import type { InitialItem } from './useAnalysisStream'
 
-type Step = 'input' | 'review' | 'results'
+type Step = 'input' | 'groups' | 'results'
 
 const ACCEPT =
   'image/png,image/jpeg,image/webp,.xlsx,.pptx,.docx,.pdf,.md,.txt,.csv,.html,.htm,.json'
-
-function makeId(): string {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36)
-}
 
 export default function AnalyzeClient() {
   const [step, setStep] = useState<Step>('input')
   const [pastedText, setPastedText] = useState('')
   const [file, setFile] = useState<File | null>(null)
-  const [extracting, setExtracting] = useState(false)
-  const [extractError, setExtractError] = useState<string | null>(null)
-  const [truncatedWarning, setTruncatedWarning] = useState(false)
-
-  const [items, setItems] = useState<ReviewItem[]>([])
-  const [parsedCount, setParsedCount] = useState(0)
-  const [restoredCount, setRestoredCount] = useState(0)
-  const [sourceText, setSourceText] = useState('')
-  const [sourceKind, setSourceKind] = useState('text')
-
-  const [lens, setLens] = useState<AnalysisLens>('summary')
   const [command, setCommand] = useState('')
-  const [saveError, setSaveError] = useState<string | null>(null)
+  const [running, setRunning] = useState(false)
+  const [regrouping, setRegrouping] = useState(false)
+  const [runError, setRunError] = useState<string | null>(null)
 
-  // §G 영속 저장 — 분석 착수 시 생성되는 세션 id, "이전 분석" 이어하기 시 미리 채워짐
-  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [groupingResult, setGroupingResult] = useState<GroupingOk | null>(null)
   const [initialItems, setInitialItems] = useState<InitialItem[]>([])
-  const [proceeding, setProceeding] = useState(false)
+  // "이전 분석" 이어하기는 grouping-actions 세션 결과를 거치지 않으므로 sessionId를 별도 보관
+  const [resumedSessionId, setResumedSessionId] = useState<string | null>(null)
 
   // §G "이전 분석" 목록
   const [sessions, setSessions] = useState<AnalysisSessionSummary[]>([])
@@ -58,113 +46,105 @@ export default function AnalyzeClient() {
     })
   }, [])
 
-  async function handleExtract() {
+  /** 문서+지시 → ①~④ 그룹핑 실행. 명령과 실행이 한 덩어리(검수 단계 없음, §A). */
+  async function handleAnalyze(): Promise<void> {
     if (!pastedText.trim() && !file) {
-      setExtractError('텍스트를 붙여넣거나 파일을 첨부하세요')
+      setRunError('텍스트를 붙여넣거나 파일을 첨부하세요')
       return
     }
-    setExtracting(true)
-    setExtractError(null)
+    setRunning(true)
+    setRunError(null)
 
-    const formData = new FormData()
+    let sourceText = pastedText
+
+    // 파일 → 원문 텍스트만 (extractSourceText). extractItems를 쓰면 구 평탄화 파서 + 폐기되는
+    // Gemini 호출이 매 업로드마다 돌아 비용이 샌다(🟥 DC-REV HIGH-1).
     if (file) {
+      const formData = new FormData()
       formData.set('file', file)
-    } else {
-      formData.set('text', pastedText)
+      const extracted = await extractSourceText(formData)
+      if (!extracted.ok) {
+        setRunning(false)
+        setRunError(extracted.error)
+        return
+      }
+      if (!extracted.sourceText.trim()) {
+        setRunning(false)
+        setRunError('파일에서 원문을 확보하지 못했습니다')
+        return
+      }
+      sourceText = extracted.sourceText
     }
-    setSourceKind(file ? 'file' : 'text')
 
-    let result: AnalyzeExtractResult
-    try {
-      result = await extractItems(formData)
-    } catch {
-      result = { ok: false, error: '추출 중 오류가 발생했습니다' }
-    }
-    setExtracting(false)
-
+    const result = await analyzeDocument(sourceText, command)
+    setRunning(false)
     if (!result.ok) {
-      setExtractError(result.error)
+      setRunError(result.error)
       return
     }
-
-    setItems(
-      result.items.map((it) => ({
-        id: makeId(),
-        text: it.text,
-        recovered: it.recovered,
-        selected: true,
-      })),
-    )
-    setParsedCount(result.parsedCount)
-    setRestoredCount(result.restoredCount)
-    setSourceText(result.sourceText)
-    setTruncatedWarning(result.truncated)
-    setSessionId(null)
-    setInitialItems([])
-    setStep('review')
+    setGroupingResult(result)
+    setStep('groups')
   }
 
   function resetAll() {
     setStep('input')
     setPastedText('')
     setFile(null)
-    setExtractError(null)
-    setTruncatedWarning(false)
-    setItems([])
-    setParsedCount(0)
-    setRestoredCount(0)
-    setSourceText('')
-    setSourceKind('text')
     setCommand('')
-    setLens('summary')
-    setSaveError(null)
-    setSessionId(null)
+    setRunError(null)
+    setGroupingResult(null)
     setInitialItems([])
+    setResumedSessionId(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  function handleSelectLens(id: AnalysisLens, instruction: string): void {
-    setLens(id)
-    setCommand(instruction)
-  }
-
-  /** 검수 완료 → 분석 착수: 세션+항목을 먼저 영속화(유실0)한 뒤 결과 화면으로 진입(§ 관전자 —
-   *  실제 분석은 결과 화면에서 서버 SSE 스트림 POST로 착수된다, 여기서는 저장만 한다). */
-  async function handleProceedToResults(): Promise<void> {
-    const selected = items.filter((i) => i.selected)
-    if (selected.length === 0) return
-    setProceeding(true)
-    setSaveError(null)
-    const r = await saveAnalysisSession({
-      sourceText,
-      lens,
-      sourceKind,
-      command,
-      items: selected.map((i) => ({ text: i.text })),
-    })
-    setProceeding(false)
-    if (!r.ok) {
-      setSaveError(r.error)
+  /** 재지시 루프 — 원문은 그대로, 절단만 재실행(리비전 +1, §B). */
+  async function handleRegroup(newCommand: string): Promise<void> {
+    if (!groupingResult) return
+    setRegrouping(true)
+    setRunError(null)
+    const result = await regroupSession(groupingResult.sessionId, newCommand)
+    setRegrouping(false)
+    if (!result.ok) {
+      setRunError(result.error)
       return
     }
-    setSessionId(r.sessionId)
+    setGroupingResult(result)
+  }
+
+  /** 유형 변경 — 동일 지시를 유지한 채 재그룹핑(§B DocTypeBadge). */
+  async function handleChangeType(next: DocType): Promise<void> {
+    if (!groupingResult || next === groupingResult.docType) return
+    setRegrouping(true)
+    setRunError(null)
+    const result = await regroupSession(groupingResult.sessionId, command, next)
+    setRegrouping(false)
+    if (!result.ok) {
+      setRunError(result.error)
+      return
+    }
+    setGroupingResult(result)
+  }
+
+  /** 심화 실행 — 그룹을 항목으로 승계해 기존 결과 화면(§ 관전자 스트림)으로 진입.
+   *  세션·그룹은 analyzeDocument가 이미 영속화했으므로 재저장하지 않는다. */
+  function handleDeepRun(): void {
+    if (!groupingResult) return
     setInitialItems(
-      selected.map((i, idx) => ({ idx, text: i.text, status: 'pending' as const, resultText: null })),
+      groupingResult.groups.map((g, idx) => ({ idx, text: g.title, status: 'pending' as const, resultText: null })),
     )
     setStep('results')
   }
 
-  /** "이전 분석" 이어하기 — 세션 상세를 불러와 검수 단계를 건너뛰고 결과 화면으로 바로 진입. */
+  /** "이전 분석" 이어하기 — 세션 상세를 불러와 그룹 단계를 건너뛰고 결과 화면으로 바로 진입. */
   async function handleResumeSession(id: string): Promise<void> {
     setLoadingSession(true)
     const r = await getAnalysisSession(id)
     setLoadingSession(false)
     if (!r.ok) return
 
-    setSourceText(r.session.sourceText)
-    setSourceKind(r.session.sourceKind)
-    setLens(r.session.lens)
-    setSessionId(r.session.id)
+    setGroupingResult(null)
+    setResumedSessionId(r.session.id)
     setInitialItems(
       r.session.items.map((it) => ({ idx: it.idx, text: it.text, status: it.status, resultText: it.resultText })),
     )
@@ -187,7 +167,7 @@ export default function AnalyzeClient() {
               value={pastedText}
               disabled={!!file}
               onChange={(e) => setPastedText(e.target.value)}
-              placeholder="다른 곳에서 나온 답변·자료를 여기 붙여넣으세요. 번호·기호·문장형 목록을 모두 인식합니다."
+              placeholder="문서 원문을 여기 붙여넣으세요. 구조(헤딩·번호·들여쓰기)를 그대로 인식합니다."
               style={{ resize: 'vertical', fontFamily: 'inherit' }}
             />
           </div>
@@ -211,51 +191,66 @@ export default function AnalyzeClient() {
             </span>
           </div>
 
-          {extractError && (
-            <p role="alert" style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
-              {extractError}
-            </p>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>실행</span>
+            <div style={{ flex: 1, height: 'var(--hairline)', background: 'var(--border-color)' }} />
+          </div>
 
-          <div>
+          {/* 지시 입력창과 실행 버튼을 한 덩어리로 — 명령↔실행 사이에 검수 단계 없음(§A). */}
+          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 280px', minWidth: 0 }}>
+              <label className="label" htmlFor="analyze-command">지시(선택)</label>
+              <textarea className="input-field"
+                id="analyze-command"
+                rows={2}
+                value={command}
+                onChange={(e) => setCommand(e.target.value)}
+                placeholder="예: 요구사항 단위로 묶어줘 / 카테고리 단위로 크게 / P2 부분만"
+                style={{ resize: 'vertical', fontFamily: 'inherit', width: '100%' }}
+              />
+            </div>
             <NbButton
-              onClick={handleExtract}
-              disabled={extracting || (!pastedText.trim() && !file)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', minHeight: 44 }}
+              onClick={handleAnalyze}
+              disabled={running || (!pastedText.trim() && !file)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', minHeight: 44, flexShrink: 0 }}
             >
-              {extracting ? <AXDotLoader size={5} color="currentColor" /> : <Upload size={16} />}
-              {extracting ? '항목 추출 중…' : '항목 추출'}
+              {running ? <AXDotLoader size={5} color="currentColor" /> : <Sparkles size={16} />}
+              {running ? '분석 중…' : '실행'}
             </NbButton>
           </div>
-        </div>
-      )}
 
-      {step === 'review' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-          <CommandPresetPanel lens={lens} command={command} onSelectLens={handleSelectLens} onCommandChange={setCommand} />
-          <ItemReviewList
-            items={items}
-            setItems={setItems}
-            parsedCount={parsedCount}
-            restoredCount={restoredCount}
-            truncatedWarning={truncatedWarning}
-            onBack={resetAll}
-            onProceed={handleProceedToResults}
-            proceeding={proceeding}
-          />
-          {saveError && (
+          {runError && (
             <p role="alert" style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
-              {saveError}
+              {runError}
             </p>
           )}
         </div>
       )}
 
-      {step === 'results' && sessionId && (
+      {step === 'groups' && groupingResult && (
+        <>
+          <GroupsResultView
+            result={groupingResult}
+            regrouping={regrouping}
+            onChangeType={handleChangeType}
+            onRegroup={handleRegroup}
+            onDeepRun={handleDeepRun}
+            onStartOver={resetAll}
+          />
+          {runError && (
+            <p role="alert" style={{ margin: 'var(--space-3) 0 0', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
+              {runError}
+            </p>
+          )}
+        </>
+      )}
+
+      {step === 'results' && (groupingResult?.sessionId ?? resumedSessionId) && (
         <AnalysisResults
-          sessionId={sessionId}
+          sessionId={groupingResult?.sessionId ?? (resumedSessionId as string)}
           initialItems={initialItems}
-          onBack={() => setStep('review')}
+          docType={groupingResult?.docType ?? null}
+          onBack={() => setStep(groupingResult ? 'groups' : 'input')}
           onStartOver={resetAll}
         />
       )}

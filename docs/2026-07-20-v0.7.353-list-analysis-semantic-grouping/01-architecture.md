@@ -72,10 +72,16 @@
 
 ### 2-2. DB 델타
 
-> ⚠️ **선행 조건: `161_ai_analysis_v2.sql` 적용.** 161이 없으면 현행 코드도 동작하지 않는다.
-> 신규 마이그는 **166번부터** 할당한다 (163은 GPU 마이그가 점유 — 00-requirements §7 참조).
+> ⚠️ **선행 조건: `161_ai_analysis_v2.sql` 적용.** → **2026-07-21 적용 완료** (컬럼 17개 확인).
+>
+> **번호 재할당 (2026-07-21 실측 기준)**: 기획 작성 시점 이후 GPU 작업분이 추가되어 **169까지 적용 완료** 상태다.
+> `166_gpu_products_form_factor` / `167_pricing_model_reserved` / `168_market_prices_observed_spec` / `169_gpu_model_candidates`가 선점.
+> → 신규 마이그는 **170번부터** 할당한다.
+>
+> 실측 확인된 번호 중복(선행 부채, 이번 범위 밖): `014, 058, 059, 090`.
+> 브랜치 `163_ai_analysis_templates.sql` ↔ 적용된 `163_market_prices_observation_original.sql` 충돌 실물 확인 — 이식 시 반드시 재넘버링.
 
-#### `166_ai_analysis_grouping.sql` (예정)
+#### `170_ai_analysis_grouping.sql` (예정)
 
 `ai_analysis_sessions` ALTER:
 | 컬럼 | 타입 | 용도 |

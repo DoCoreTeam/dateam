@@ -7,10 +7,13 @@ import { useAnalysisStream, type InitialItem } from './useAnalysisStream'
 import AnalysisProgressBar from './AnalysisProgressBar'
 import AnalysisSynthPanel, { type ExportFormat } from './AnalysisSynthPanel'
 import AnalysisResultItem from './AnalysisResultItem'
+import AnalysisOutcomeActions from './AnalysisOutcomeActions'
 
 interface Props {
   sessionId: string // §G 영속 저장 — 검수 완료 시 항상 먼저 생성된다(유실0)
   initialItems: InitialItem[] // 신규 세션=전부 pending, 이어하기=서버 상태 그대로
+  /** §FR-11-2 문서함 저장 시 doc_type 승계 — 모를 때(이어하기 등) null. */
+  docType?: string | null
   onBack: () => void
   onStartOver: () => void
 }
@@ -32,7 +35,7 @@ function downloadTextFile(filename: string, content: string, mime: string): void
  * 실제 분석은 서버(drainSession)+크론이 수행하고, 이 화면은 SSE·폴링으로 진행상황을 그리며
  * 취소/일시정지만 지시한다. 부분완료 항목은 전체 완료를 기다리지 않고 즉시 열람 가능하다.
  */
-export default function AnalysisResults({ sessionId, initialItems, onBack, onStartOver }: Props) {
+export default function AnalysisResults({ sessionId, initialItems, docType = null, onBack, onStartOver }: Props) {
   const router = useRouter()
   const stream = useAnalysisStream(sessionId, initialItems)
 
@@ -132,6 +135,14 @@ export default function AnalysisResults({ sessionId, initialItems, onBack, onSta
         coverage={stream.coverage}
         canExport={doneCount > 0}
         onExport={handleExport}
+      />
+
+      <AnalysisOutcomeActions
+        sessionId={sessionId}
+        docType={docType}
+        title={itemList[0]?.text.slice(0, 120) ?? '목록 심층분석 결과'}
+        bodyMd={stream.synthText}
+        canSave={stream.synthStatus === 'done' && !!stream.synthText}
       />
 
       <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>

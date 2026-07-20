@@ -13,6 +13,8 @@ import RichText from '@/components/ui/RichText'
 import { useDraftPersist } from '@/lib/forms/useDraftPersist'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import { mergeWeeklyRows } from '@/lib/weekly-report/merge-rows'
+import { consumeWorkflowHandoff } from '@/lib/ai-chat/workflow-handoff'
+import { escapeHtml } from '@/lib/ai-chat/export'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 const OnboardingProvider = dynamic(() => import('@/components/onboarding/OnboardingProvider'), { ssr: false })
@@ -89,6 +91,25 @@ export default function WeeklyReportForm({
     value: rows, initial: prefillRows.length > 0 ? prefillRows : [{ ...EMPTY_ROW }],
     onRestore: (v) => setRows(v),
   })
+  // §FR-11-3 업무 흐름 연계 — 목록 심층분석 문서/결과에서 "주간보고로 전달"을 눌러 들어온 경우 1회 프리필.
+  // 자동 등록 금지: 여기서는 폼 값만 채운다. 저장은 사용자가 직접 '저장' 버튼을 눌러야 확정된다.
+  const [handoffNotice, setHandoffNotice] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (new URLSearchParams(window.location.search).get('handoff') !== '1') return
+    const payload = consumeWorkflowHandoff('weekly-report')
+    if (!payload) return
+    const html = `<p>${escapeHtml(payload.bodyMd).replace(/\n/g, '<br/>')}</p>`
+    setRows((prev) => {
+      const meaningful = prev.filter((r) => r.category || r.performance || r.plan || r.issues)
+      return [{ category: payload.title.slice(0, 40), performance: html, plan: '', issues: '' }, ...meaningful]
+    })
+    setHandoffNotice(true)
+    const next = new URLSearchParams(window.location.search)
+    next.delete('handoff')
+    router.replace(`?${next.toString()}`, { scroll: false })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [pending, setPending] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [showResetConfirm, setShowResetConfirm] = useState(false)
@@ -350,6 +371,11 @@ export default function WeeklyReportForm({
       onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.currentTarget.requestSubmit() } }}
     >
       <DraftRestoreBanner show={weeklyDraft.hasDraft} onRestore={weeklyDraft.restore} onDiscard={weeklyDraft.discard} />
+      {handoffNotice && (
+        <div role="status" style={{ margin: '0 0 var(--space-3)', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius)', border: 'var(--hairline) solid var(--info-border)', background: 'var(--info-bg)', color: 'var(--info)', fontSize: 'var(--fs-sm)' }}>
+          목록 심층분석 결과가 첫 항목에 채워졌습니다. 내용을 확인하고 저장을 눌러주세요.
+        </div>
+      )}
       {/* 수정 모드 배너 */}
       {isEditMode && (
         <div style={{

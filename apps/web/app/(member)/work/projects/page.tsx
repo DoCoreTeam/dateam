@@ -17,6 +17,7 @@ import ProjectFormModal from './ProjectFormModal'
 import ProjectAiSuggest from './ProjectAiSuggest'
 import WorkOverviewPanel from './WorkOverviewPanel'
 import ProjectActivityDrawer from './ProjectActivityDrawer'
+import { consumeWorkflowHandoff } from '@/lib/ai-chat/workflow-handoff'
 
 interface Project extends ProjectMeta {
   id: string
@@ -87,6 +88,18 @@ export default function ProjectsPage() {
   const [editing, setEditing] = useState<Editing>(null)
   const [deleting, setDeleting] = useState<Project | null>(null)
   const [activityFor, setActivityFor] = useState<Project | null>(null)
+  const [handoffName, setHandoffName] = useState<string | null>(null)
+
+  // §FR-11-3 업무 흐름 연계 — 목록 심층분석에서 "프로젝트로 전달" 시 새 프로젝트 폼을 이름 프리필로 연다.
+  // 프로젝트는 자유 서술 본문 필드가 없어 제목만 전달된다(자동 등록 금지 — 저장은 사용자가 직접 확정).
+  useEffect(() => {
+    if (params.get('handoff') !== '1') return
+    const payload = consumeWorkflowHandoff('project')
+    if (!payload) return
+    setHandoffName(payload.title)
+    setEditing({ mode: 'create' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <WorkPageShell
@@ -171,9 +184,15 @@ export default function ProjectsPage() {
         <ProjectFormModal
           mode={editing.mode}
           projectId={editing.mode === 'edit' ? editing.project.id : undefined}
-          initial={editing.mode === 'edit' ? editing.project : undefined}
-          onClose={() => setEditing(null)}
-          onSaved={() => { setEditing(null); mutate() }}
+          initial={
+            editing.mode === 'edit'
+              ? editing.project
+              : handoffName
+                ? { name: handoffName }
+                : undefined
+          }
+          onClose={() => { setEditing(null); setHandoffName(null) }}
+          onSaved={() => { setEditing(null); setHandoffName(null); mutate() }}
         />
       )}
 

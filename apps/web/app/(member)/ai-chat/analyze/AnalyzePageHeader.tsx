@@ -48,7 +48,7 @@ export default function AnalyzePageHeader() {
           목록 심층분석
         </h1>
         <p style={{ margin: 'var(--space-2) 0 0', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-          자료를 붙여넣거나 파일을 올리면 목록 항목을 전부 추출해 검수 후 항목별로 심층 분석합니다.
+          문서를 붙여넣거나 파일을 올리고 지시(선택)를 적으면, 문서 구조 그대로 그룹으로 묶어 보여줍니다.
         </p>
       </div>
     </div>

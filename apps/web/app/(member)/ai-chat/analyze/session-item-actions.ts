@@ -11,6 +11,10 @@
 import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import type { AnalyzeItemErr } from './actions'
+import { logDbError } from '@/lib/ai-chat/log-db-error'
+
+/** 결과 텍스트 상한 — 다른 쓰기 경로와 동일한 방어(레코드 비대화 방지). */
+const MAX_RESULT_CHARS = 200_000
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AdminClient = any
@@ -26,24 +30,35 @@ export async function updateAnalysisItem(input: {
 }): Promise<{ ok: true } | AnalyzeItemErr> {
   const auth = await requireAdminApi()
   if (auth.error) return { ok: false, error: '권한이 없습니다' }
+  if ((input.resultText ?? '').length > MAX_RESULT_CHARS) {
+    return { ok: false, error: '결과 텍스트가 너무 깁니다' }
+  }
   const admin = createAdminClient() as AdminClient
 
-  // owner 검증(세션이 본인 소유인지) — RLS도 동일 조건을 강제하지만 명시적 404 메시지를 위해 선확인
+  // owner 검증 + 현재 리비전 확보(서버가 권위 있는 값을 읽는다 — 클라이언트가 리비전을 못 지정)
   const { data: owned } = await admin
     .from('ai_analysis_sessions')
-    .select('id')
+    .select('id, grouping_revision')
     .eq('id', input.sessionId)
     .eq('user_id', auth.user.id)
     .is('deleted_at', null)
     .single()
   if (!owned) return { ok: false, error: '세션을 찾을 수 없습니다' }
+  const revision = (owned as { grouping_revision: number | null }).grouping_revision ?? 1
 
+  // ★ revision 필터 필수 — 리비전마다 idx가 0부터 다시 매겨지므로(재그룹핑 설계),
+  // 필터가 없으면 현재 리비전 idx=N을 재시도할 때 **보존돼야 할 과거 리비전의 idx=N까지
+  // 함께 pending으로 덮어써진다**(FR-7 "이전 리비전 보존" 위반).
   const { error } = await admin
     .from('ai_analysis_items')
     .update({ status: input.status, result_text: input.resultText ?? null })
     .eq('session_id', input.sessionId)
+    .eq('revision', revision)
     .eq('idx', input.idx)
-  if (error) return { ok: false, error: '항목 갱신 중 오류가 발생했습니다' }
+  if (error) {
+    logDbError('updateAnalysisItem:update', error)
+    return { ok: false, error: '항목 갱신 중 오류가 발생했습니다' }
+  }
 
   return { ok: true }
 }
@@ -69,7 +84,10 @@ export async function setSessionControl(
   if (!owned) return { ok: false, error: '세션을 찾을 수 없습니다' }
 
   const { error } = await admin.from('ai_analysis_sessions').update({ control }).eq('id', sessionId)
-  if (error) return { ok: false, error: '세션 제어 갱신 중 오류가 발생했습니다' }
+  if (error) {
+    logDbError('updateSessionControl:update', error)
+    return { ok: false, error: '세션 제어 갱신 중 오류가 발생했습니다' }
+  }
 
   return { ok: true }
 }
@@ -106,7 +124,10 @@ export async function updateSessionSynth(
       coverage: input.coverage ?? null,
     })
     .eq('id', sessionId)
-  if (error) return { ok: false, error: '종합 결과 저장 중 오류가 발생했습니다' }
+  if (error) {
+    logDbError('saveSynthResult:update', error)
+    return { ok: false, error: '종합 결과 저장 중 오류가 발생했습니다' }
+  }
 
   return { ok: true }
 }

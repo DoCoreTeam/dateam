@@ -19,6 +19,8 @@ interface Props {
   task?: DailyLog
   /** 편집 모드에서 부서 변경 권한(부서장) 여부 */
   canEditDept?: boolean
+  /** §FR-11-3 업무 흐름 연계 — 생성 모드에서만 사용, 내용 입력창 초깃값 프리필(자동 저장 아님) */
+  initialContent?: string
 }
 
 const PRIORITIES: Array<{ value: DailyLogPriority; label: string }> =
@@ -27,10 +29,10 @@ const PRIORITIES: Array<{ value: DailyLogPriority; label: string }> =
 const checklistToText = (task?: DailyLog): string =>
   (task?.checklist ?? []).map((c) => c.label).join('\n')
 
-export default function DeptTaskFormModal({ creatableDepts, onClose, onSaved, task, canEditDept }: Props) {
+export default function DeptTaskFormModal({ creatableDepts, onClose, onSaved, task, canEditDept, initialContent }: Props) {
   const isEdit = !!task
   const contentRef = useRef<HTMLDivElement>(null)
-  const draft = useFormCore<string>({ formId: 'dept-task', recordId: task?.id ?? 'new', initial: task?.content ?? '', scopeRef: contentRef })
+  const draft = useFormCore<string>({ formId: 'dept-task', recordId: task?.id ?? 'new', initial: task?.content ?? initialContent ?? '', scopeRef: contentRef })
   const content = draft.value
   const setContent = draft.set
   const [departmentId, setDepartmentId] = useState(task?.department_id ?? creatableDepts[0]?.id ?? '')

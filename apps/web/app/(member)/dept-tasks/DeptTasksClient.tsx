@@ -13,6 +13,7 @@ import { listDeptTasks } from './actions'
 import DeptTaskFormModal from './DeptTaskFormModal'
 import DeptTaskDetail from './DeptTaskDetail'
 import DeptTaskSuggestPanel from './DeptTaskSuggestPanel'
+import { consumeWorkflowHandoff } from '@/lib/ai-chat/workflow-handoff'
 
 export interface DeptOption { id: string; name: string }
 
@@ -43,12 +44,23 @@ export default function DeptTasksClient({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [handoffContent, setHandoffContent] = useState<string | null>(null)
 
   // 일일업무 "부서업무 연결됨" 뱃지 → /dept-tasks?task=ID 진입 시 해당 업무 자동 선택
   const taskParam = searchParams.get('task')
   useEffect(() => {
     if (taskParam && tasks.some((t) => t.id === taskParam)) setSelectedId(taskParam)
   }, [taskParam, tasks])
+
+  // §FR-11-3 업무 흐름 연계 — 목록 심층분석에서 "부서업무로 전달" 시 새 업무 폼을 프리필해 자동으로 연다.
+  // 자동 등록 금지: 폼만 열고 채운다. 저장은 사용자가 직접 확정.
+  useEffect(() => {
+    if (searchParams.get('handoff') !== '1') return
+    const payload = consumeWorkflowHandoff('dept-task')
+    if (!payload) return
+    setHandoffContent(`${payload.title}\n\n${payload.bodyMd}`)
+    setShowCreate(true)
+  }, [searchParams])
 
   const refresh = useCallback(async () => {
     const next = await listDeptTasks()
@@ -143,8 +155,9 @@ export default function DeptTasksClient({
       {showCreate && (
         <DeptTaskFormModal
           creatableDepts={creatableDepts}
-          onClose={() => setShowCreate(false)}
-          onSaved={async () => { setShowCreate(false); await refresh() }}
+          initialContent={handoffContent ?? undefined}
+          onClose={() => { setShowCreate(false); setHandoffContent(null) }}
+          onSaved={async () => { setShowCreate(false); setHandoffContent(null); await refresh() }}
         />
       )}
 

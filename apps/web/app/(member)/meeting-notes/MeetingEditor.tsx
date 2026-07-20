@@ -8,6 +8,8 @@ import TiptapEditor from '@/components/ui/TiptapEditor'
 import AttendeesEditor, { type MemberChip } from './AttendeesEditor'
 import { createMeetingNote, updateMeetingNote, deleteMeetingNote, getMeetingDepartments, getMyDefaultDepartmentId, listOrgPeople, getOrgTreeForPicker } from './actions'
 import type { OrgPickerNode } from '@/components/ui/OrgPeoplePicker'
+import { consumeWorkflowHandoff } from '@/lib/ai-chat/workflow-handoff'
+import { escapeHtml } from '@/lib/ai-chat/export'
 
 export interface MeetingNoteDraft {
   id?: string
@@ -69,6 +71,21 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
   const [deleting, startDelete] = useTransition()
+  const [handoffNotice, setHandoffNotice] = useState(false)
+
+  // §FR-11-3 업무 흐름 연계 — 목록 심층분석에서 "회의노트로 전달" 시 새 회의노트 본문을 프리필한다.
+  // 자동 등록 금지: 폼만 채운다. 저장은 사용자가 직접 '저장' 버튼을 눌러야 확정된다.
+  useEffect(() => {
+    if (mode !== 'create') return
+    if (typeof window === 'undefined') return
+    if (new URLSearchParams(window.location.search).get('handoff') !== '1') return
+    const payload = consumeWorkflowHandoff('meeting-note')
+    if (!payload) return
+    setTitle((prev) => prev || payload.title)
+    setBody(`<p>${escapeHtml(payload.bodyMd).replace(/\n/g, '<br/>')}</p>`)
+    setHandoffNotice(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
 
   // 부서 + 조직원 선택지 로드. 조직원 로드 후 초기 참석자 칩(조직원/외부) 분류.
   const initAttendees = useMemo(() => initial.attendees ?? [], [initial.attendees])
@@ -171,6 +188,12 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
         <p role="alert" style={{ margin: 0, padding: 'var(--space-3) var(--space-4)', background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>
           {error}
         </p>
+      )}
+
+      {handoffNotice && (
+        <div role="status" style={{ margin: 0, padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius)', border: 'var(--hairline) solid var(--info-border)', background: 'var(--info-bg)', color: 'var(--info)', fontSize: 'var(--fs-sm)' }}>
+          목록 심층분석 결과가 본문에 채워졌습니다. 내용을 확인하고 저장을 눌러주세요.
+        </div>
       )}
 
       <div className="card" style={{ padding: 'var(--space-5) var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>

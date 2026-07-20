@@ -171,6 +171,79 @@ function capText(text: string): { text: string; truncated: boolean } {
   return { text: text.slice(0, MAX_DOC_TEXT_CHARS), truncated: true }
 }
 
+
+export interface ExtractTextOk {
+  ok: true
+  sourceText: string
+  truncated: boolean
+}
+export type ExtractTextResult = ExtractTextOk | AnalyzeExtractErr
+
+/**
+ * 파일 → **원문 텍스트만** 추출(그룹핑 파이프라인 전용).
+ *
+ * 왜 별도 액션인가: 그룹핑 재정의 이후 화면은 `sourceText`만 필요한데, extractItems를 재사용하면
+ * 파일마다 구 평탄화 파서(parseListItems) + 전체 원문 Gemini 호출(EXTRACT_PROMPT_HEADER)이
+ * 돌고 그 결과가 100% 폐기된다 — 사용자 모르게 매 업로드마다 AI 비용이 나간다(🟥 DC-REV HIGH-1).
+ * 이미지(OCR)는 AI가 없으면 텍스트 자체를 얻을 수 없으므로 예외로 비전 호출을 유지한다.
+ */
+export async function extractSourceText(formData: FormData): Promise<ExtractTextResult> {
+  const auth = await requireAdminApi()
+  if (auth.error) return { ok: false, error: '권한이 없습니다' }
+
+  const file = formData.get('file')
+  if (!(file instanceof File)) return { ok: false, error: '파일을 첨부하세요' }
+
+  const method = classifySourceMime(file.type, file.name)
+  if (!method) return { ok: false, error: '지원하지 않는 파일 형식입니다' }
+  const cap = MAX_FILE_BYTES[method]
+  if (file.size > cap) {
+    return { ok: false, error: `파일 크기가 상한(${Math.floor(cap / (1024 * 1024))}MB)을 초과합니다` }
+  }
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  if (bytes.byteLength <= 0) return { ok: false, error: '빈 파일은 처리할 수 없습니다' }
+  if (bytes.byteLength > cap) {
+    return { ok: false, error: `파일 크기가 상한(${Math.floor(cap / (1024 * 1024))}MB)을 초과합니다` }
+  }
+  if (file.type && !sniffMagicBytes(bytes, file.type) && method !== 'text' && method !== 'html') {
+    return { ok: false, error: '파일 내용이 형식과 일치하지 않습니다' }
+  }
+
+  try {
+    if (method === 'image') {
+      // 이미지는 OCR 없이는 원문을 얻을 수 없다 — 비전 1회 호출은 불가피(폐기되는 호출 아님)
+      const dataBase64 = Buffer.from(bytes).toString('base64')
+      const r = await extractFromImage(auth.user.id, file.type || 'image/png', file.name, dataBase64)
+      return { ok: true, sourceText: r.items.map((it) => it.text).join('\n'), truncated: false }
+    }
+
+    let text: string
+    let truncated = false
+    if (method === 'pdf') {
+      text = await extractPdfText(bytes)
+      truncated = text.endsWith('[이하 절단]')
+    } else if (method === 'office') {
+      text = await extractDocumentText(bytes, file.type)
+      truncated = text.endsWith('[이하 절단]')
+    } else if (method === 'html') {
+      const capped = capText(htmlToPlain(new TextDecoder('utf-8', { fatal: false }).decode(bytes)))
+      text = capped.text
+      truncated = capped.truncated
+    } else {
+      const knownTextMime = ['text/plain', 'text/markdown', 'text/csv', 'application/json']
+      const mimeForExtract = knownTextMime.includes(file.type) ? file.type : 'text/plain'
+      text = await extractDocumentText(bytes, mimeForExtract)
+      truncated = text.endsWith('[이하 절단]')
+    }
+
+    const clean = text.replace(/\[이하 절단\]$/, '')
+    if (!clean.trim()) return { ok: false, error: '파일에서 텍스트를 추출하지 못했습니다' }
+    return { ok: true, sourceText: clean, truncated }
+  } catch {
+    return { ok: false, error: '파일에서 텍스트를 추출하지 못했습니다' }
+  }
+}
+
 /**
  * 목록 항목 추출 — 붙여넣기 텍스트 또는 업로드 파일(전 포맷) 지원.
  * formData: 'text'(string, 붙여넣기) 또는 'file'(File) 중 최소 1개.

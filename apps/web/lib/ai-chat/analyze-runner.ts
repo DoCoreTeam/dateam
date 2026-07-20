@@ -14,6 +14,11 @@
 import { getProviderConfig } from './registry.ts'
 import { runWithConcurrency } from './concurrency.ts'
 import { claimItems, runItem, runSynthesis, type SessionRow, type ItemRow } from './analyze-runner-worker.ts'
+import { buildStructureTree } from './grouping/structure-tree.ts'
+import { serializeOutline } from './grouping/cut-groups.ts'
+import { DOC_TYPES, type DocType } from './grouping/classify-doc.ts'
+import { resolveTemplate } from './templates/resolve.ts'
+import type { TemplateSpec } from './templates/catalog.ts'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AdminClient = any
@@ -68,6 +73,22 @@ async function readMeta(admin: AdminClient): Promise<Record<string, unknown>> {
   return (data?.value as Record<string, unknown>) ?? {}
 }
 
+/**
+ * 심화 실행 1회에 허용하는 최대 그룹 수(=AI 콜 수) — 비용 사고 방지 가드.
+ *
+ * 그룹핑 자체에는 상한을 두지 않는다(계약 B: "그룹 수는 결과값"). 상한을 두면 잘림 사고가 난다.
+ * 대신 실제로 돈이 나가는 **심화 실행 단계에서만** 예산을 막고, 사용자에게
+ * "더 크게 묶어서 다시 실행하라"고 안내한다 — 조용히 자르지 않는다.
+ * META `ai_analysis_max_groups`로 조정 가능.
+ */
+const DEFAULT_MAX_GROUPS_PER_RUN = 300
+
+export function maxGroupsFromMeta(meta: Record<string, unknown>): number {
+  const v = meta['ai_analysis_max_groups']
+  const n = typeof v === 'number' ? v : typeof v === 'string' ? parseInt(v, 10) : NaN
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : DEFAULT_MAX_GROUPS_PER_RUN
+}
+
 /** META `ai_analysis_concurrency`(문자열/숫자 모두 허용) → 양의 정수, 미설정/무효 시 기본값. 순수 함수. */
 export function concurrencyFromMeta(meta: Record<string, unknown>): number {
   const v = meta['ai_analysis_concurrency']
@@ -78,20 +99,27 @@ export function concurrencyFromMeta(meta: Record<string, unknown>): number {
 async function loadSession(admin: AdminClient, sessionId: string): Promise<SessionRow | null> {
   const { data } = await admin
     .from('ai_analysis_sessions')
-    .select('id, command, source_text, control, phase, synth_status')
+    .select('id, title, command, source_text, control, phase, synth_status, doc_type, grouping_revision')
     .eq('id', sessionId)
     .is('deleted_at', null)
     .single()
   return (data as SessionRow | null) ?? null
 }
 
+function isDocType(v: unknown): v is DocType {
+  return typeof v === 'string' && (DOC_TYPES as readonly string[]).includes(v)
+}
+
 /** 세션 진행 상태 — count(status) 파생 전용(저장값 아님). */
 export async function deriveProgress(admin: AdminClient, sessionId: string): Promise<Progress> {
   const session = await loadSession(admin, sessionId)
+  // 현재 리비전만 센다 — 재그룹핑하면 이전 리비전 행이 남아 있어(히스토리 보존),
+  // 필터하지 않으면 "완료 5 / 전체 8"처럼 구·신 리비전이 섞여 집계된다.
   const { data: items } = await admin
     .from('ai_analysis_items')
     .select('status')
     .eq('session_id', sessionId)
+    .eq('revision', session?.grouping_revision ?? 1)
   const rows = (items ?? []) as { status: string }[]
 
   return {
@@ -124,6 +152,22 @@ export async function drainSession(
   const meta = await readMeta(admin)
   const geminiConfig = getProviderConfig(meta, 'gemini')
   const concurrency = concurrencyFromMeta(meta)
+  const maxGroups = maxGroupsFromMeta(meta)
+
+  // 비용 가드 — 그룹핑은 무제한이지만 AI 콜을 태우는 심화 실행은 예산을 넘지 않는다.
+  // 자르지 않고 실행을 거부한다(유실 0 유지). 사용자는 더 크게 재그룹핑해서 다시 실행하면 된다.
+  const progressBefore = await deriveProgress(admin, sessionId)
+  if (progressBefore.total > maxGroups) {
+    await admin
+      .from('ai_analysis_sessions')
+      .update({
+        phase: 'error',
+        synth_status: 'error',
+        synth_error: `그룹이 ${progressBefore.total}개로 1회 실행 한도(${maxGroups}개)를 넘습니다. 더 크게 묶어서 다시 실행하세요.`,
+      })
+      .eq('id', sessionId)
+    return { drained: true, progress: progressBefore }
+  }
 
   const emitProgress = async (): Promise<void> => {
     if (!opts.onProgress) return
@@ -153,7 +197,8 @@ export async function drainSession(
       return { drained: false, progress: await deriveProgress(admin, sessionId) }
     }
 
-    const claimed: ItemRow[] = await claimItems(admin, sessionId, concurrency)
+    const revision = session.grouping_revision ?? 1
+    const claimed: ItemRow[] = await claimItems(admin, sessionId, revision, concurrency)
 
     if (claimed.length === 0) {
       const progress = await deriveProgress(admin, sessionId)
@@ -186,6 +231,12 @@ export async function drainSession(
       CONTROL_POLL_MS,
     ).catch(() => {})
 
+    // 배치당 1회 계산 — 그룹마다 다시 만들 필요 없는 순수 결정론 값(문서 구조·템플릿은 원문/명령 불변).
+    const docType: DocType = isDocType(session.doc_type) ? session.doc_type : 'other'
+    const docContext = serializeOutline(buildStructureTree(session.source_text))
+    const template: Pick<TemplateSpec, 'name' | 'fields'> | undefined =
+      resolveTemplate(session.command)?.template
+
     const results = await runWithConcurrency(
       claimed,
       concurrency,
@@ -197,7 +248,9 @@ export async function drainSession(
             apiKey: geminiConfig.apiKey,
             model: geminiConfig.model,
             command: session.command,
-            sourceText: session.source_text,
+            docType,
+            docContext,
+            template,
             signal: batchController.signal,
             onDelta: opts.onDelta,
           },

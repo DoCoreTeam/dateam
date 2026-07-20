@@ -29,11 +29,13 @@ type AdminClient = any
 interface ItemStatusRow {
   status: string
   claimed_at: string | null
+  revision: number | null
 }
 
 interface ClaimableSessionRow {
   id: string
   synth_status: string
+  grouping_revision: number | null
   ai_analysis_items: ItemStatusRow[] | null
 }
 
@@ -41,7 +43,7 @@ interface ClaimableSessionRow {
 async function findClaimableSessions(admin: AdminClient): Promise<{ id: string }[]> {
   const { data } = await admin
     .from('ai_analysis_sessions')
-    .select('id, synth_status, ai_analysis_items(status, claimed_at)')
+    .select('id, synth_status, grouping_revision, ai_analysis_items(status, claimed_at, revision)')
     .eq('control', 'running')
     .is('deleted_at', null)
     .limit(MAX_SESSIONS_PER_TICK)
@@ -51,7 +53,9 @@ async function findClaimableSessions(admin: AdminClient): Promise<{ id: string }
 
   return rows
     .filter((r) => {
-      const items = r.ai_analysis_items ?? []
+      // 현재 리비전만 — 구 리비전 pending이 남아 크론이 영원히 재드레인하는 것을 막는다
+      const rev = r.grouping_revision ?? 1
+      const items = (r.ai_analysis_items ?? []).filter((it) => (it.revision ?? 1) === rev)
       if (items.length === 0) return false
 
       const hasPending = items.some((i) => i.status === 'pending')

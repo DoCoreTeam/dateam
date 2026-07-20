@@ -1,9 +1,21 @@
-// 목록 심층분석 v2 — analyze-runner.ts(drainSession, SSOT)의 항목단위 워커 헬퍼.
-// 300줄 분할 목적의 파일 분리이며 로직 경계: claim(원자적 조건부 갱신)·항목 1건 처리·취합 실행.
+// 목록 심층분석 v3(그룹핑 재정의) — analyze-runner.ts(drainSession, SSOT)의 그룹단위 워커 헬퍼.
+// 300줄 분할 목적의 파일 분리이며 로직 경계: claim(원자적 조건부 갱신)·그룹 1건 재가공·문서 조립.
 // 공개 API는 analyze-runner.ts만(drainSession) — 이 파일은 그 내부 구현.
+//
+// Phase 4 계약 변경: ai_analysis_items는 "항목(1줄)"이 아니라 "그룹"(title+body_raw 전체)이다.
+// claim은 세션의 현재 활성 grouping_revision 안에서만 이뤄진다(과거 리비전 재처리 방지).
 
-import { analyzeOneItem, synthesizeItems, type SynthItem } from './analyze-core.ts'
-import { anchorItem } from './context-anchor.ts'
+import { refineGroupItem, type RefineGroupOutcome } from './analyze-core.ts'
+import { getProvider } from './registry.ts'
+import { logDbError } from './log-db-error.ts'
+import {
+  assembleDocument,
+  buildCriticPrompt,
+  appendCriticNotes,
+  type GroupRefineOutcome,
+} from './grouping/assemble-document.ts'
+import type { DocType } from './grouping/classify-doc.ts'
+import type { TemplateSpec } from './templates/catalog.ts'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AdminClient = any
@@ -14,21 +26,26 @@ const DIGEST_MAX_CHARS = 500
 
 export interface SessionRow {
   id: string
+  title: string
   command: string
   source_text: string
   control: 'running' | 'paused' | 'cancelled'
   phase: string
   synth_status: string
+  doc_type: string | null
+  grouping_revision: number
 }
 
+/** ai_analysis_items 1행 = 그룹 1건(Phase 4 계약 — title+body_raw가 심화 입력의 핵심). */
 export interface ItemRow {
   id: string
   idx: number
-  item_text: string
+  revision: number
+  title: string
+  body_raw: string
+  tree_path: string
+  depth: number
   status: string
-  context_excerpt: string | null
-  intent_note: string | null
-  digest_text: string | null
 }
 
 interface ItemRowWithAttempts extends ItemRow {
@@ -36,15 +53,21 @@ interface ItemRowWithAttempts extends ItemRow {
 }
 
 /**
- * pending 또는 stalled(running & claimed_at < 10분전) 항목을 idx순 최대 limit개 조건부 claim.
- * 조회 후 `.eq('status', 기존status)` 조건부 update — affected 0(경합 패)이면 해당 후보는 스킵.
+ * 세션의 현재 리비전(revision) 안에서 pending 또는 stalled(running & claimed_at < 10분전) 그룹을
+ * idx순 최대 limit개 조건부 claim. 다른 리비전의 그룹은 절대 claim하지 않는다.
  */
-export async function claimItems(admin: AdminClient, sessionId: string, limit: number): Promise<ItemRow[]> {
+export async function claimItems(
+  admin: AdminClient,
+  sessionId: string,
+  revision: number,
+  limit: number,
+): Promise<ItemRow[]> {
   const stallThreshold = new Date(Date.now() - STALL_MS).toISOString()
   const { data: candidates } = await admin
     .from('ai_analysis_items')
-    .select('id, idx, item_text, status, context_excerpt, intent_note, digest_text, attempts')
+    .select('id, idx, revision, title, body_raw, tree_path, depth, status, attempts')
     .eq('session_id', sessionId)
+    .eq('revision', revision)
     .or(`status.eq.pending,and(status.eq.running,claimed_at.lt.${stallThreshold})`)
     .order('idx', { ascending: true })
     .limit(limit * CLAIM_CANDIDATE_MULTIPLIER)
@@ -59,8 +82,8 @@ export async function claimItems(admin: AdminClient, sessionId: string, limit: n
       .from('ai_analysis_items')
       .update({ status: 'running', claimed_at: nowIso, started_at: nowIso, attempts: c.attempts + 1 })
       .eq('id', c.id)
-      .eq('status', c.status) // 조건부 — 다른 워커가 먼저 claim했으면 affected 0
-      .select('id, idx, item_text, status, context_excerpt, intent_note, digest_text')
+      .eq('status', c.status) // 조건부 — 다른 워커가 먼저 claim했으면 affected 0(멱등 — 재과금 없음)
+      .select('id, idx, revision, title, body_raw, tree_path, depth, status')
     if (error || !updated || updated.length === 0) continue // 경합 패 — 스킵
     claimed.push(updated[0] as ItemRow)
   }
@@ -71,37 +94,29 @@ export interface RunItemCtx {
   apiKey: string
   model: string
   command: string
-  sourceText: string
+  docType: DocType
+  /** 문서 전체 아웃라인(배치당 1회 계산 — cut-groups.ts serializeOutline). */
+  docContext: string
+  template?: Pick<TemplateSpec, 'name' | 'fields'>
   signal: AbortSignal
   onDelta?: (itemIdx: number, delta: string) => void
 }
 
-/** 항목 1건 처리(맥락앵커 보강 → analyzeOneItem → done 영속). 실패 시 throw(runWithConcurrency 재시도용). */
+/** 그룹 1건 재가공(⑥) → done 영속. 실패 시 throw(runWithConcurrency 재시도용 — 429 등 정상 경로). */
 export async function runItem(
   admin: AdminClient,
   item: ItemRow,
   ctx: RunItemCtx,
   emitProgress: () => Promise<void>,
 ): Promise<void> {
-  let contextExcerpt = item.context_excerpt ?? undefined
-  if (!contextExcerpt) {
-    const anchored = anchorItem(ctx.sourceText, item.item_text)
-    if (anchored) {
-      contextExcerpt = anchored.excerpt
-      await admin
-        .from('ai_analysis_items')
-        .update({ context_excerpt: contextExcerpt, span_start: anchored.start, span_end: anchored.end })
-        .eq('id', item.id)
-    }
-  }
-
-  const result = await analyzeOneItem({
+  const outcome: RefineGroupOutcome = await refineGroupItem({
     apiKey: ctx.apiKey,
     model: ctx.model,
-    itemText: item.item_text,
-    contextExcerpt,
-    intentNote: item.intent_note ?? undefined,
+    group: { title: item.title, bodyRaw: item.body_raw, treePath: item.tree_path, depth: item.depth },
+    docType: ctx.docType,
+    docContext: ctx.docContext,
     command: ctx.command,
+    template: ctx.template,
     signal: ctx.signal,
     onDelta: (d) => ctx.onDelta?.(item.idx, d),
   })
@@ -110,18 +125,33 @@ export async function runItem(
     .from('ai_analysis_items')
     .update({
       status: 'done',
-      result_text: result.text,
-      digest_text: result.text.slice(0, DIGEST_MAX_CHARS),
+      result_text: outcome.resultText,
+      digest_text: outcome.resultText.slice(0, DIGEST_MAX_CHARS),
       finished_at: new Date().toISOString(),
-      prompt_tokens: result.usage.promptTokens,
-      output_tokens: result.usage.outputTokens,
+      prompt_tokens: outcome.usage.promptTokens,
+      output_tokens: outcome.usage.outputTokens,
     })
     .eq('id', item.id)
 
   await emitProgress()
 }
 
-/** 완료 항목 전부 취합(A3 SSOT synthesizeItems 재사용) → 세션에 영속. 반환값은 항상 true(취합 시도 완료). */
+interface GroupResultRow {
+  idx: number
+  tree_path: string
+  title: string
+  depth: number
+  status: string
+  result_text: string | null
+  error_text: string | null
+}
+
+/**
+ * ⑦ 정합 패스 + 결정론 조립(A3 old synthesizeItems를 그룹 기반 assembleDocument로 대체).
+ * 완료(done)/실패(error) 그룹 전부를 순회해 완성 문서를 결정론 조립하고, 비차단 크리틱 1회로
+ * "## 검토 노트"를 덧붙인다(크리틱 실패해도 문서는 이미 완성돼 있다 — FR 비차단 원칙).
+ * 반환값은 항상 true(조립 시도 완료).
+ */
 export async function runSynthesis(
   admin: AdminClient,
   sessionId: string,
@@ -134,26 +164,16 @@ export async function runSynthesis(
     .update({ phase: 'synthesizing', synth_status: 'running' })
     .eq('id', sessionId)
 
-  const { data: doneItems } = await admin
+  const revision = session.grouping_revision ?? 1
+  const { data: rows } = await admin
     .from('ai_analysis_items')
-    .select('idx, item_text, digest_text, result_text')
+    .select('idx, tree_path, title, depth, status, result_text, error_text')
     .eq('session_id', sessionId)
-    .eq('status', 'done')
+    .eq('revision', revision)
     .order('idx', { ascending: true })
 
-  const rows = (doneItems ?? []) as {
-    idx: number
-    item_text: string
-    digest_text: string | null
-    result_text: string | null
-  }[]
-  const items: SynthItem[] = rows.map((r) => ({
-    idx: r.idx,
-    itemText: r.item_text,
-    digest: r.digest_text ?? (r.result_text ?? '').slice(0, DIGEST_MAX_CHARS),
-  }))
-
-  if (items.length === 0) {
+  const groupRows = (rows ?? []) as GroupResultRow[]
+  if (groupRows.length === 0) {
     await admin
       .from('ai_analysis_sessions')
       .update({ phase: 'done', synth_status: 'error' })
@@ -161,23 +181,49 @@ export async function runSynthesis(
     return true
   }
 
+  const outcomes: GroupRefineOutcome[] = groupRows.map((r) => ({
+    idx: r.idx,
+    treePath: r.tree_path,
+    title: r.title,
+    depth: r.depth,
+    status: r.status === 'done' ? 'done' : 'error',
+    resultText: r.result_text ?? undefined,
+    errorText: r.error_text ?? undefined,
+  }))
+
+  const docTitle = session.title?.trim() || '심층분석 결과'
+  const assembled = assembleDocument(docTitle, outcomes)
+  let synthText = assembled.markdown
+
+  // 정합 패스(크리틱) — 비차단. 실패해도 이미 완성된 문서를 그대로 쓴다(부록/재시도 없음).
   try {
-    const result = await synthesizeItems({
+    const provider = getProvider('gemini')
+    const critic = await provider.streamChat({
       apiKey: geminiConfig.apiKey,
       model: geminiConfig.model,
-      items,
-      command: session.command,
+      turns: [{ role: 'user', content: buildCriticPrompt(docTitle, session.command, synthText) }],
       signal,
+      onDelta: () => {},
     })
-    await admin
-      .from('ai_analysis_sessions')
-      .update({ phase: 'done', synth_status: 'done', synth_text: result.text, coverage: result.coverage })
-      .eq('id', sessionId)
-  } catch {
-    await admin
-      .from('ai_analysis_sessions')
-      .update({ phase: 'done', synth_status: 'error' })
-      .eq('id', sessionId)
+    synthText = appendCriticNotes(synthText, critic.text)
+  } catch (err) {
+    logDbError('runSynthesis:critic', err, { sessionId })
   }
+
+  await admin
+    .from('ai_analysis_sessions')
+    .update({
+      phase: 'done',
+      synth_status: 'done',
+      synth_text: synthText,
+      coverage: {
+        total: outcomes.length,
+        covered: outcomes.filter((o) => o.status === 'done').map((o) => o.idx),
+        missing: assembled.missingGroups.map((m) => m.idx),
+        appended: [],
+      },
+    })
+    .eq('id', sessionId)
+
   return true
 }

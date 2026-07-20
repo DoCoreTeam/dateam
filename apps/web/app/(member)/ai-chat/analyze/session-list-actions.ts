@@ -9,6 +9,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import type { AnalysisLens, AnalyzeItemErr } from './actions'
 import type { AnalysisItemStatus, AnalysisSynthStatus } from './session-item-actions'
+import { logDbError } from '@/lib/ai-chat/log-db-error'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AdminClient = any
@@ -33,9 +34,10 @@ interface SessionRow {
   lens: AnalysisLens
   phase: string
   synth_status: AnalysisSynthStatus
+  grouping_revision: number | null
   created_at: string
   updated_at: string
-  ai_analysis_items: { status: AnalysisItemStatus }[] | null
+  ai_analysis_items: { status: AnalysisItemStatus; revision: number | null }[] | null
 }
 
 export type SessionSortKey = 'updated' | 'created'
@@ -90,7 +92,7 @@ export async function listAnalysisSessions(
 
   let query = admin
     .from('ai_analysis_sessions')
-    .select('id, title, lens, phase, synth_status, created_at, updated_at, ai_analysis_items(status)')
+    .select('id, title, lens, phase, synth_status, grouping_revision, created_at, updated_at, ai_analysis_items(status, revision)')
     .eq('user_id', auth.user.id)
   query = wantDeleted ? query.not('deleted_at', 'is', null) : query.is('deleted_at', null)
 
@@ -108,11 +110,16 @@ export async function listAnalysisSessions(
   if (params?.cursor) query = query.lt(sortColumn, params.cursor)
 
   const { data, error } = await query.order(sortColumn, { ascending: false }).limit(limit)
-  if (error) return { ok: false, error: '이전 분석 목록 조회 중 오류가 발생했습니다' }
+  if (error) {
+    logDbError('listAnalysisSessions:select', error)
+    return { ok: false, error: '이전 분석 목록 조회 중 오류가 발생했습니다' }
+  }
 
   const rows = (data ?? []) as SessionRow[]
   const sessions: AnalysisSessionSummary[] = rows.map((r) => {
-    const items = r.ai_analysis_items ?? []
+    // 현재 리비전 그룹만 집계 — 이전 리비전 행이 보존되므로 필터 없이는 진행률이 부풀려진다
+    const rev = r.grouping_revision ?? 1
+    const items = (r.ai_analysis_items ?? []).filter((it) => (it.revision ?? 1) === rev)
     return {
       id: r.id,
       title: r.title,
@@ -152,7 +159,10 @@ export async function renameAnalysisSession(
   if (!owned) return { ok: false, error: '세션을 찾을 수 없습니다' }
 
   const { error } = await admin.from('ai_analysis_sessions').update({ title: trimmed }).eq('id', sessionId)
-  if (error) return { ok: false, error: '제목 변경 중 오류가 발생했습니다' }
+  if (error) {
+    logDbError('renameAnalysisSession:update', error)
+    return { ok: false, error: '제목 변경 중 오류가 발생했습니다' }
+  }
 
   return { ok: true }
 }
@@ -176,7 +186,10 @@ export async function deleteAnalysisSession(sessionId: string): Promise<{ ok: tr
     .from('ai_analysis_sessions')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', sessionId)
-  if (error) return { ok: false, error: '삭제 중 오류가 발생했습니다' }
+  if (error) {
+    logDbError('deleteAnalysisSession:update', error)
+    return { ok: false, error: '삭제 중 오류가 발생했습니다' }
+  }
 
   return { ok: true }
 }
@@ -197,7 +210,10 @@ export async function restoreAnalysisSession(sessionId: string): Promise<{ ok: t
   if (!owned) return { ok: false, error: '삭제된 세션을 찾을 수 없습니다' }
 
   const { error } = await admin.from('ai_analysis_sessions').update({ deleted_at: null }).eq('id', sessionId)
-  if (error) return { ok: false, error: '되돌리기 중 오류가 발생했습니다' }
+  if (error) {
+    logDbError('restoreAnalysisSession:update', error)
+    return { ok: false, error: '되돌리기 중 오류가 발생했습니다' }
+  }
 
   return { ok: true }
 }

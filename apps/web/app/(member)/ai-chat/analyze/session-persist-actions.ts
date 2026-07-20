@@ -10,6 +10,7 @@ import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { getDefaultProvider } from '@/lib/ai-chat/registry'
 import type { AnalysisLens, AnalyzeItemErr } from './actions'
 import type { AnalysisItemStatus } from './session-item-actions'
+import { logDbError } from '@/lib/ai-chat/log-db-error'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AdminClient = any
@@ -49,7 +50,10 @@ export async function saveAnalysisSession(input: {
     })
     .select('id')
     .single()
-  if (sessionErr || !session) return { ok: false, error: '세션 저장 중 오류가 발생했습니다' }
+  if (sessionErr || !session) {
+    logDbError('saveAnalysisSession:sessions.insert', sessionErr)
+    return { ok: false, error: '세션 저장 중 오류가 발생했습니다' }
+  }
   const sessionId = (session as { id: string }).id
 
   const itemRows = input.items.map((it, idx) => ({
@@ -58,7 +62,10 @@ export async function saveAnalysisSession(input: {
     item_text: it.text,
   }))
   const { error: itemsErr } = await admin.from('ai_analysis_items').insert(itemRows)
-  if (itemsErr) return { ok: false, error: '항목 저장 중 오류가 발생했습니다' }
+  if (itemsErr) {
+    logDbError('saveAnalysisSession:items.insert', itemsErr, { sessionId })
+    return { ok: false, error: '항목 저장 중 오류가 발생했습니다' }
+  }
 
   return { ok: true, sessionId }
 }
@@ -81,20 +88,31 @@ export async function getAnalysisSession(
 
   const { data: sessionRow } = await admin
     .from('ai_analysis_sessions')
-    .select('id, source_text, lens, source_kind')
+    .select('id, source_text, lens, source_kind, grouping_revision')
     .eq('id', sessionId)
     .eq('user_id', auth.user.id)
     .is('deleted_at', null)
     .single()
   if (!sessionRow) return { ok: false, error: '세션을 찾을 수 없습니다' }
 
+  const sess = sessionRow as {
+    id: string
+    source_text: string
+    lens: AnalysisLens
+    source_kind: string
+    grouping_revision: number | null
+  }
+
+  // 현재 리비전 그룹만 로드 — 재그룹핑 시 이전 리비전 행이 보존되므로 필터하지 않으면
+  // 구·신 그룹이 한 목록에 섞여 보인다(실측 사고: 리비전1 3건 + 리비전2 5건 = 8건 노출).
   const { data: itemRows } = await admin
     .from('ai_analysis_items')
-    .select('idx, item_text, status, result_text')
+    .select('idx, item_text, title, status, result_text')
     .eq('session_id', sessionId)
+    .eq('revision', sess.grouping_revision ?? 1)
     .order('idx', { ascending: true })
 
-  const s = sessionRow as { id: string; source_text: string; lens: AnalysisLens; source_kind: string }
+  const s = sess
   const items = (itemRows ?? []) as {
     idx: number
     item_text: string
@@ -143,7 +161,10 @@ export async function continueInChat(input: {
     .insert({ user_id: auth.user.id, provider: def.id, model: def.model, title })
     .select('id')
     .single()
-  if (convErr || !conv) return { ok: false, error: '대화 생성 중 오류가 발생했습니다' }
+  if (convErr || !conv) {
+    logDbError('continueInChat:conversations.insert', convErr)
+    return { ok: false, error: '대화 생성 중 오류가 발생했습니다' }
+  }
   const conversationId = (conv as { id: string }).id
 
   const content = `${itemText}\n\n---\n[이전 분석 결과]\n${resultText}\n\n---\n이 내용을 이어서 논의하고 싶습니다.`
@@ -151,7 +172,10 @@ export async function continueInChat(input: {
   const { error: msgErr } = await admin
     .from('ai_messages')
     .insert({ conversation_id: conversationId, role: 'user', content })
-  if (msgErr) return { ok: false, error: '메시지 저장 중 오류가 발생했습니다' }
+  if (msgErr) {
+    logDbError('continueInChat:messages.insert', msgErr)
+    return { ok: false, error: '메시지 저장 중 오류가 발생했습니다' }
+  }
 
   return { ok: true, conversationId }
 }

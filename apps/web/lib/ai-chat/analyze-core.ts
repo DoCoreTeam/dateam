@@ -11,6 +11,14 @@ import {
   buildAppendix,
   type DigestItem,
 } from './synthesize-hierarchical.ts'
+import {
+  buildRefinePrompt,
+  refineResultOrFallback,
+  renderRefineMarkdown,
+  type GroupRefineInput,
+} from './grouping/refine-group.ts'
+import type { DocType } from './grouping/classify-doc.ts'
+import type { TemplateSpec } from './templates/catalog.ts'
 
 const DEFAULT_COMMAND =
   '핵심요지 / 배경·근거 / 리스크 / 다음 액션 섹션을 포함해 마크다운으로 심층 분석하라.'
@@ -74,6 +82,52 @@ export async function analyzeOneItem(p: AnalyzeOneParams): Promise<AnalyzeOneRes
   })
 
   return { text: result.text, usage: result.usage, stopped: result.stopped }
+}
+
+export interface RefineGroupParams {
+  apiKey: string
+  model: string
+  group: GroupRefineInput
+  docType: DocType
+  /** 문서 전체 아웃라인(cut-groups.ts serializeOutline) — 그룹을 문서 맥락 안에 놓는다. */
+  docContext: string
+  command: string
+  template?: Pick<TemplateSpec, 'name' | 'fields'>
+  signal: AbortSignal
+  onDelta?: (t: string) => void
+}
+
+export interface RefineGroupOutcome {
+  /** 렌더된 최종 텍스트(본문+근거/가정/미결질문) — result_text로 그대로 영속. */
+  resultText: string
+  parseOk: boolean
+  usage: ChatUsage
+}
+
+/**
+ * ⑥ 그룹 1건 재가공 — Phase 4 핵심. 입력은 "항목 1줄"이 아니라 "그룹"(제목+원문 전체+위치)
+ * + 문서 유형 + 문서 전체 맥락(docContext) + 사용자 지시. 유실 0: AI 응답이 비정형이거나
+ * 호출 자체가 실패해도 refineResultOrFallback이 그룹 원문을 최종 폴백으로 보증한다.
+ */
+export async function refineGroupItem(p: RefineGroupParams): Promise<RefineGroupOutcome> {
+  const provider = getProvider('gemini')
+  const prompt = buildRefinePrompt({
+    group: p.group,
+    docType: p.docType,
+    docContext: p.docContext,
+    command: p.command,
+    template: p.template,
+  })
+
+  const result = await provider.streamChat({
+    apiKey: p.apiKey,
+    model: p.model,
+    turns: [{ role: 'user', content: prompt }],
+    signal: p.signal,
+    onDelta: (d) => p.onDelta?.(d),
+  })
+  const parsed = refineResultOrFallback(result.text, p.group)
+  return { resultText: renderRefineMarkdown(parsed), parseOk: parsed.parseOk, usage: result.usage }
 }
 
 export interface SynthItem {
