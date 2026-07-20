@@ -2,9 +2,9 @@
 // dept_weekly_reports.status(취합) + weekly_reports 제출자 집합 → 부서별 {제출 N/M, 취합상태}.
 
 import { deptMemberUserIds, type OrgScope } from '../org-scope-pure'
-import { buildDeptAggStats, type DeptAggStat, type DeptAggState } from './dept-agg-core'
+import { buildDeptAggStats, buildCompanyRollup, type DeptAggStat, type DeptAggState, type CompanyRollup } from './dept-agg-core'
 
-export type { DeptAggStat } from './dept-agg-core'
+export type { DeptAggStat, CompanyRollup } from './dept-agg-core'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AdminClient = any
@@ -15,7 +15,7 @@ export async function computeDeptAggStats(
   scope: OrgScope,
   deptNodes: { id: string; name: string }[],
   weekStart: string,
-): Promise<DeptAggStat[]> {
+): Promise<{ stats: DeptAggStat[]; rollup: CompanyRollup }> {
   const allDeptIds = deptNodes.map((d) => d.id)
   const [{ data: weekReps }, { data: snaps }] = await Promise.all([
     admin.from('weekly_reports').select('user_id').eq('week_start', weekStart).is('deleted_at', null),
@@ -27,5 +27,6 @@ export async function computeDeptAggStats(
   const statusByDept: Record<string, DeptAggState> = {}
   for (const d of deptNodes) membersByDept[d.id] = deptMemberUserIds(scope, d.id)
   for (const s of (snaps ?? []) as { department_id: string; status: DeptAggState }[]) statusByDept[s.department_id] = s.status
-  return buildDeptAggStats(deptNodes, membersByDept, reporters, statusByDept)
+  const stats = buildDeptAggStats(deptNodes, membersByDept, reporters, statusByDept)
+  return { stats, rollup: buildCompanyRollup(membersByDept, reporters, stats) }
 }

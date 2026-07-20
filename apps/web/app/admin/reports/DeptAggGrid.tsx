@@ -5,18 +5,30 @@
 // props(stats·weekStart)는 서버 페이지가 넘기는 직렬화 가능한 값이라 client 경계 이동 안전.
 import Link from 'next/link'
 import { aggBadge } from '@/app/(member)/weekly-report/DeptReportPanel'
-import type { DeptAggStat } from '@/lib/weekly-report/dept-agg-stats'
+import type { DeptAggStat, CompanyRollup } from '@/lib/weekly-report/dept-agg-stats'
 
 interface Props {
   stats: DeptAggStat[]
+  rollup?: CompanyRollup | null
   weekStart: string
 }
 
-/** 어드민 취합 첫화면 — 전 부서 취합 상태 카드(취합완료 뱃지 + 제출 N/M). 부서 선택 없이 현황 한눈에. */
-export default function DeptAggGrid({ stats, weekStart }: Props) {
+/** 어드민 취합 첫화면 — 회사 전체 롤업 + 전 부서 취합 상태 카드(취합완료 뱃지 + 제출 N/M). 조직도 기반 자동 반영. */
+export default function DeptAggGrid({ stats, rollup, weekStart }: Props) {
   const confirmedCount = stats.filter((d) => d.agg === 'confirmed').length
   return (
     <div style={{ marginBottom: '1.5rem' }}>
+      {rollup && (
+        <div className="card" style={{ padding: 'var(--space-4) var(--space-5)', marginBottom: 'var(--space-3)', display: 'flex', alignItems: 'center', gap: 'var(--space-4)', flexWrap: 'wrap', background: 'var(--surface-bg)' }}>
+          <span style={{ fontWeight: 700, fontSize: 'var(--fs-md)' }}>전체 회사</span>
+          <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
+            제출 <strong style={{ color: 'var(--text)' }}>{rollup.reportedMembers}</strong>/{rollup.totalMembers}명
+          </span>
+          <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
+            부서 취합 완료 <strong style={{ color: 'var(--success)' }}>{rollup.confirmedDepts}</strong>/{rollup.totalDepts}
+          </span>
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
         <h2 className="tape-title" style={{ margin: 0 }}>부서 취합 현황</h2>
         <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>

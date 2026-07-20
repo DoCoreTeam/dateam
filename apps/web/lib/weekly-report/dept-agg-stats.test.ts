@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildDeptAggStats } from './dept-agg-core.ts'
+import { buildDeptAggStats, buildCompanyRollup } from './dept-agg-core.ts'
 
 const NODES = [{ id: 'd1', name: '개발' }, { id: 'd2', name: '영업' }, { id: 'd3', name: '빈부서' }]
 
@@ -32,4 +32,24 @@ test('buildDeptAggStats: statusByDept 없는 부서 → none', () => {
   const stats = buildDeptAggStats([{ id: 'd1', name: 'X' }], { d1: ['u1'] }, new Set(['u1']), {})
   assert.equal(stats[0].agg, 'none')
   assert.equal(stats[0].reportedCount, 1)
+})
+
+test('buildCompanyRollup: 중첩 부서 멤버 중복 제거(distinct) + 제출 distinct', () => {
+  // u1은 본부(d1)와 하위부서(d2)에 모두 속함 → 회사 전체는 1명으로 카운트.
+  const rollup = buildCompanyRollup(
+    { d1: ['u1', 'u2'], d2: ['u1'], d3: [] },
+    new Set(['u1']),
+    [{ agg: 'confirmed' }, { agg: 'draft' }, { agg: 'none' }],
+  )
+  assert.equal(rollup.totalMembers, 2) // u1,u2 (u1 중복 제거)
+  assert.equal(rollup.reportedMembers, 1) // u1만 제출
+  assert.equal(rollup.confirmedDepts, 1)
+  assert.equal(rollup.totalDepts, 3)
+})
+
+test('buildCompanyRollup: 빈 조직 → 0', () => {
+  const r = buildCompanyRollup({}, new Set(), [])
+  assert.equal(r.totalMembers, 0)
+  assert.equal(r.reportedMembers, 0)
+  assert.equal(r.totalDepts, 0)
 })
