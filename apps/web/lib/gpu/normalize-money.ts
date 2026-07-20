@@ -110,3 +110,57 @@ export function competitorPriceToUsd(
   if (cur === 'KRW') return krwPerUsd > 0 ? originalPrice / krwPerUsd : null
   return null // JPY/EUR/CNY 등 — 환율 미지원, USD 둔갑 금지 → 보류(검수)
 }
+
+// ── 다통화 환산 (확정 기획 P2·P3) — 원본에서 KRW로. 환율맵은 fx_rates_multi.krw_per_1(1통화당 KRW) ──
+
+/** 통화 → KRW 환율맵. { JPY: 9.5, USD: 1342.5, ... } (1통화당 KRW, JPY 100단위는 이미 정규화된 값). */
+export type FxKrwMap = Record<string, number>
+
+// 통화 기호 중의성 — 국가 힌트로 확정. $=US/SG/HK/AU, ¥/￥=CN(위안)/JP(엔).
+//   국가 힌트 없으면 기본값(¥→JPY, $→USD)으로 폴백(기존 동작 유지).
+const AMBIGUOUS_BY_COUNTRY: Record<string, Record<string, string>> = {
+  $:  { US: 'USD', SG: 'SGD', HK: 'HKD', AU: 'AUD', CA: 'CAD', NZ: 'NZD', TW: 'TWD' },
+  '¥': { JP: 'JPY', CN: 'CNY' },
+  '￥': { JP: 'JPY', CN: 'CNY' },
+}
+
+/**
+ * 통화 확정 — 텍스트에서 통화를 뽑되, `$`/`¥` 같은 중의적 기호는 국가 힌트(ISO2, 예 'JP'·'CN'·'SG')로 확정.
+ * 국가 힌트가 없거나 매핑에 없으면 resolveCurrency 기본값으로 폴백. (사이트 도메인/국가로 호출부가 힌트 주입)
+ */
+export function resolveCurrencyWithCountry(
+  token: string | null | undefined,
+  countryHint?: string | null,
+): string | null {
+  if (!token) return null
+  const cc = (countryHint ?? '').toUpperCase()
+  for (const [sym, byCountry] of Object.entries(AMBIGUOUS_BY_COUNTRY)) {
+    if (token.includes(sym) && cc && byCountry[cc]) return byCountry[cc]
+  }
+  return resolveCurrency(token)
+}
+
+/**
+ * 관측 원본 금액(통화 기준) → KRW. 환율맵(krw_per_1)에서 통화를 찾아 곱한다.
+ * KRW=그대로, 맵에 없는 통화=null(보류 — 임의 USD 둔갑 금지). float 오류 방지 위해 호출부가 표시 직전 1회 반올림.
+ */
+export function amountToKrw(
+  amount: number | null | undefined,
+  currency: string | null | undefined,
+  fx: FxKrwMap,
+): number | null {
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) return null
+  const cur = (currency ?? '').toUpperCase()
+  if (cur === 'KRW') return amount
+  const rate = fx[cur]
+  if (typeof rate === 'number' && rate > 0) return amount * rate
+  return null // 환율 미보유 통화 → 보류(검수). 감지 실패도 여기.
+}
+
+/** KRW → 임의 통화(표시 보조). 교차환율은 같은 맵(같은 날짜·소스)에서만. */
+export function krwToCurrency(krw: number, currency: string, fx: FxKrwMap): number | null {
+  const cur = currency.toUpperCase()
+  if (cur === 'KRW') return krw
+  const rate = fx[cur]
+  return typeof rate === 'number' && rate > 0 ? krw / rate : null
+}

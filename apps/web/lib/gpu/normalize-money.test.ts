@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   resolveCurrency, resolvePeriod, resolveGpuCount, periodToHours, toUsdPerGpuHour, competitorPriceToUsd,
+  resolveCurrencyWithCountry, amountToKrw, krwToCurrency,
 } from './normalize-money.ts'
 
 // competitorPriceToUsd(SSOT) — market/refresh 경로가 AI 자체환산 대신 이 함수로 통화 정규화.
@@ -26,6 +27,38 @@ test('competitorPriceToUsd — 금액 없음/0/음수는 null', () => {
 })
 test('competitorPriceToUsd — KRW인데 fx 무효면 null', () => {
   assert.equal(competitorPriceToUsd('KRW', 2600, 0), null)
+})
+
+// ── 다통화 환산 (P2·P3) ──
+test('resolveCurrencyWithCountry — $ 중의성: 국가로 확정(SG→SGD, US→USD)', () => {
+  assert.equal(resolveCurrencyWithCountry('$500/hr', 'SG'), 'SGD')
+  assert.equal(resolveCurrencyWithCountry('$500/hr', 'US'), 'USD')
+  assert.equal(resolveCurrencyWithCountry('$500/hr', 'HK'), 'HKD')
+})
+test('resolveCurrencyWithCountry — ¥ 중의성: CN→위안(CNY), JP→엔(JPY)', () => {
+  assert.equal(resolveCurrencyWithCountry('¥30000', 'CN'), 'CNY')
+  assert.equal(resolveCurrencyWithCountry('¥30000', 'JP'), 'JPY')
+})
+test('resolveCurrencyWithCountry — 국가 힌트 없으면 기본값 폴백(¥→JPY, $→USD)', () => {
+  assert.equal(resolveCurrencyWithCountry('¥30000', null), 'JPY')
+  assert.equal(resolveCurrencyWithCountry('$500', undefined), 'USD')
+})
+test('amountToKrw — 통화맵으로 환산(JPY 9.5원/엔), KRW는 그대로', () => {
+  const fx = { JPY: 9.5, USD: 1342.5 }
+  assert.equal(amountToKrw(30000, 'JPY', fx), 285000)   // 30000 × 9.5
+  assert.equal(amountToKrw(2400000, 'KRW', fx), 2400000)
+  assert.equal(amountToKrw(2, 'USD', fx), 2685)
+})
+test('amountToKrw — 환율 미보유 통화·감지실패는 null(USD 둔갑 금지)', () => {
+  const fx = { USD: 1342.5 }
+  assert.equal(amountToKrw(30000, 'JPY', fx), null)  // 맵에 JPY 없음 → 보류
+  assert.equal(amountToKrw(30000, null, fx), null)
+  assert.equal(amountToKrw(0, 'USD', fx), null)
+})
+test('krwToCurrency — 교차환율(KRW→USD)', () => {
+  const fx = { USD: 1342.5 }
+  assert.equal(krwToCurrency(1342.5, 'USD', fx), 1)
+  assert.equal(krwToCurrency(1000, 'KRW', fx), 1000)
 })
 
 test('통화 토큰 정규화(기호·약어·다국어)', () => {
