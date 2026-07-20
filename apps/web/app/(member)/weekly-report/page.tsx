@@ -18,12 +18,9 @@ import WeekPicker from './WeekPicker'
 import { resolveSelectedWeek, clampToWindow, tabEffectiveWeek } from '@/lib/weekly-report/week-continuity'
 import { FileText, Users, GitBranch } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
-import { resolveOrgScope, deptMemberUserIds, hasOrgScope } from '@/lib/org-scope'
-import { computeDeptTimeliness } from '@/lib/weekly-report/timeliness-server'
-import type { MemberTimeliness } from '@/lib/weekly-report/timeliness'
-
-interface AuthorBlock { name: string; rank?: string; performance: string; plan: string; issues: string }
-interface MergedRow { category: string; authors: AuthorBlock[] }
+import { resolveOrgScope, hasOrgScope } from '@/lib/org-scope'
+import { loadOrgWeeklyData, EMPTY_ORG_WEEKLY } from '@/lib/weekly-report/org-weekly-load'
+import { mapTeamReports, buildHistoryGroups } from '@/lib/weekly-report/page-data'
 
 interface TeamRow {
   user_id: string
@@ -160,74 +157,17 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
   // 과거 구분 목록 (datalist용)
   const pastCategories = Array.from(new Set((reports ?? []).map((r) => r.category))).filter(Boolean)
 
-  // 주차별 그룹화 (내 보고 히스토리)
-  const grouped = (reports ?? []).reduce<Record<string, WeeklyReport[]>>((acc, r) => {
-    if (!acc[r.week_start]) acc[r.week_start] = []
-    acc[r.week_start].push(r)
-    return acc
-  }, {})
-  const groups = Object.entries(grouped)
-    .filter(([weekStart]) => weekStart !== thisWeek)
-    .map(([weekStart, reps]) => ({ weekStart, reports: reps }))
+  // 내 보고 히스토리 그룹핑 · 팀 행 매핑 — 순수 변환(page-data SSOT, 테스트 대상).
+  const groups = buildHistoryGroups(reports, thisWeek)
+  const teamReports = mapTeamReports(teamRawRes.data)
 
-  // 팀 전체 보고 (이번 주 초기값) — 002 migration 적용 후 member도 조회 가능
-  // 위 Promise.all에서 병렬 조회됨(teamRawRes). 결과 동일.
-  const teamRaw = teamRawRes.data
-
-  const teamReports = (teamRaw ?? [])
-    .map((r) => ({
-      userId: r.user_id,
-      userName: r.profiles?.name ?? '알 수 없음',
-      role: r.profiles?.role ?? 'member',
-      category: r.category,
-      performance: r.performance,
-      plan: r.plan,
-      issues: r.issues,
-      weekStart: r.week_start,
-    }))
-    .sort((a, b) => (a.role === 'admin' ? -1 : 1) - (b.role === 'admin' ? -1 : 1))
-
-  // 조직 현황 탭 데이터 (부서 카드 통계 + 취합본)
-  // orgWeek는 월요일 형식이면 무제한 과거/현재까지 허용 (화살표 네비) — 8주 윈도우에 묶이지 않음
+  // 조직 현황 탭 데이터(부서 카드·취합본·적시성·admin 게이트) — 서버 로드 SSOT(org-weekly-load).
+  // orgWeekStart는 무제한 과거(유효 월요일) 허용 — 8주 윈도우에 묶이지 않음(org 탭 화살표 네비).
   const orgWeekStart = selectedWeek
-  let orgDeptStats: Record<string, { memberCount: number; reportedCount: number; agg: 'none' | 'draft' | 'confirmed' }> = {}
-  let orgDeptBodies: Record<string, MergedRow[]> = {}
-  let orgDeptTimeliness: Record<string, MemberTimeliness[]> = {}
-  let isAdmin = false
-  if (activeTab === 'org' && showOrgTab) {
-    const readable = orgScope.readableDeptIds
-    // 이번 주차 보고 제출자 집합
-    const { data: weekReps } = await adminForScope
-      .from('weekly_reports')
-      .select('user_id')
-      .eq('week_start', orgWeekStart)
-      .is('deleted_at', null) as { data: { user_id: string }[] | null }
-    const reporters = new Set((weekReps ?? []).map((r) => r.user_id))
-    // 취합 스냅샷
-    const { data: snaps } = await adminForScope
-      .from('dept_weekly_reports')
-      .select('department_id, body, status')
-      .eq('week_start', orgWeekStart)
-      .in('department_id', readable.length ? readable : ['00000000-0000-0000-0000-000000000000']) as {
-        data: { department_id: string; body: MergedRow[]; status: 'draft' | 'confirmed' }[] | null
-      }
-    const snapMap = new Map((snaps ?? []).map((s) => [s.department_id, s]))
-    for (const deptId of readable) {
-      const members = deptMemberUserIds(orgScope, deptId)
-      const snap = snapMap.get(deptId)
-      orgDeptStats[deptId] = {
-        memberCount: members.length,
-        reportedCount: members.filter((m) => reporters.has(m)).length,
-        agg: snap ? snap.status : 'none',
-      }
-      if (snap) orgDeptBodies[deptId] = snap.body ?? []
-    }
-    // 멤버별 작성 적시성(작성시각 로그 + 취합시각 → 지연 판정) + admin 증빙 export 게이트
-    orgDeptTimeliness = await computeDeptTimeliness(adminForScope, orgScope, readable, orgWeekStart)
-    const { data: meRole } = await adminForScope
-      .from('profiles').select('role').eq('id', user.id).single() as { data: { role: string } | null }
-    isAdmin = meRole?.role === 'admin'
-  }
+  const { orgDeptStats, orgDeptBodies, orgDeptTimeliness, isAdmin } =
+    activeTab === 'org' && showOrgTab
+      ? await loadOrgWeeklyData(adminForScope, orgScope, orgWeekStart, user.id)
+      : EMPTY_ORG_WEEKLY
 
   // 서버 컴포넌트 → 클라이언트(WorkSubTabs) 경계로 함수(아이콘 컴포넌트)를 넘길 수 없으므로
   // 텍스트 라벨만 전달(다른 3개 화면도 아이콘 없음 — 4페이지 서브탭 질감 통일).
