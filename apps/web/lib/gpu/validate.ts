@@ -27,7 +27,9 @@ const PRICE_HARD = { min: 0, max: 1000 }   // 이 밖은 불가능 → 차단
 // "이게 진짜 GPU 모델인가" 게이트 — 비정형 페이지(예: 일본 마케팅 사이트)에서 AI가
 //   메뉴·섹션 라벨(モデルプラン·サービス·月額·데이터스토리지 등)을 모델로 잘못 추출하는 것을 차단한다.
 //   GPU 계열 토큰(H100/A100/RTX/L40… 또는 문자+숫자 모델패턴)이 하나도 없으면 GPU가 아니라고 본다.
-const GPU_MODEL_SIGNAL = /(rtx|gtx|geforce|tesla|quadro|radeon|instinct|gaudi|h100|h200|a100|a10\b|a16|a30|a40|l4\b|l40|t4\b|v100|b100|b200|b300|gh200|gb200|mi\d{2,3}|[ahlv]\d{2,3}|\brtx\s?\d{3,4}|\bgpu\b)/i
+//   주의: "GPU"라는 단어 자체(\bgpu\b)는 모델 신호에서 제외 — "GPU利用料金"·"GPU 서버" 같은 요금·설명
+//   라벨이 모델로 오통과하던 사고(v0.7.335 소프트뱅크 GPU利用料金 $0.00 노출)를 차단. 진짜 모델은 h100/a100/rtx 등 토큰을 반드시 갖는다.
+const GPU_MODEL_SIGNAL = /(rtx|gtx|geforce|tesla|quadro|radeon|instinct|gaudi|h100|h200|a100|a10\b|a16|a30|a40|l4\b|l40|t4\b|v100|b100|b200|b300|gh200|gb200|mi\d{2,3}|[ahlv]\d{2,3}|\brtx\s?\d{3,4})/i
 export function looksLikeGpuModel(name: string): boolean {
   return typeof name === 'string' && GPU_MODEL_SIGNAL.test(name)
 }
