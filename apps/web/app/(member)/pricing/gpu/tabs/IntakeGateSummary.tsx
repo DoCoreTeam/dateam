@@ -20,6 +20,12 @@ export interface GateRow {
   party: string          // 공급사 또는 경쟁사
   priceUsd: number | null
   confidence: number | null   // 공급원가: overall_confidence / 시장가: null(시장가는 게이트 비대상)
+  /** 요금 등급(시장가 전용) — on_demand|spot|reserved. 같은 모델이 등급별로 여러 줄 나오므로 화면에 반드시 구분 표기.
+   *  (실사고 v0.7.365: spot 가격이 on_demand와 나란히 떠서 같은 모델 중복으로 보였다) */
+  priceTier?: string | null
+  /** 스펙(폼팩터·메모리) — 모델명에 붙이지 않는다. 모델·폼팩터·메모리는 각각 별개 축이고 DB도 컬럼이 나뉘어 있다.
+   *  (실사고 v0.7.365: "A100 SXM 40GB"처럼 세 축이 한 문자열로 뭉쳐 보여 카탈로그 정합성이 깨져 보였다) */
+  spec?: string | null
 }
 
 const BAND_BADGE: Record<ConfidenceBand, string> = {
@@ -72,6 +78,7 @@ export default function IntakeGateSummary({ rows }: IntakeGateSummaryProps) {
           <tr>
             <th>분류</th>
             <th>모델</th>
+            <th>스펙</th>
             <th>공급사/경쟁사</th>
             <th>단가</th>
             <th>신뢰도</th>
@@ -92,7 +99,13 @@ export default function IntakeGateSummary({ rows }: IntakeGateSummaryProps) {
                 </td>
                 <td className={modelMissing ? 'gpu-gate-cell-missing' : undefined}>
                   {r.model || '(모델 미상)'}
+                  {r.priceTier && r.priceTier !== 'on_demand' ? (
+                    <span className={`gpu-badge ${r.priceTier === 'spot' ? 'gpu-badge-gray' : 'gpu-badge-t2'}`} style={{ marginLeft: 'var(--space-2)' }}>
+                      {r.priceTier === 'spot' ? 'Spot' : '약정'}
+                    </span>
+                  ) : null}
                 </td>
+                <td className="gpu-gate-cell-spec">{r.spec || '—'}</td>
                 <td>{r.party || '—'}</td>
                 <td className="gpu-gate-cell-price">{fmtUsd(r.priceUsd)}</td>
                 <td>

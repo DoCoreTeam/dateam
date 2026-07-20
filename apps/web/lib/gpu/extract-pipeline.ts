@@ -7,7 +7,7 @@
 //   canonical-model+form-factor(모델명 표기 통일)·validate(GPU 모델 게이트)·provider-registry(경쟁사명 폴백).
 
 import { extractAiObservations, type GeminiCaller } from './ai-observation.ts'
-import { observationToKrwPerGpuHour, type AiObservation } from './observation-contract.ts'
+import { usdPerGpuHourDirect, observationToKrwPerGpuHour, type AiObservation } from './observation-contract.ts'
 import { reconcile as reconcileCompleteness, type ReconcileResult } from './completeness-reconcile.ts'
 import { canonicalizeModel } from './canonical-model.ts'
 import { extractFormFactor } from './form-factor.ts'
@@ -92,6 +92,23 @@ export async function extractCompetitorObservations(
     provider, sourceUrl, krwPerUsd, fxMap, fxDate, deterministicItems, geminiCaller,
   } = params
 
+  // 카탈로그 정식명 해석기 — 우리가 조립한 이름("B200 SXM")을 카탈로그 실제 이름("B200 SXM6")으로 바꾼다.
+  //   실사고 v0.7.365: 화면에 보이는 이름이 저장될 카탈로그 이름과 달라 정합성이 깨져 보였다.
+  //   (core, formFactor) 2축으로 대조 — 폼팩터 세대(SXM4/5/6)는 흡수해 비교하되 표시는 카탈로그 표기를 따른다.
+  //   매칭 실패 시엔 우리 조립명을 그대로 쓴다(신규 모델 후보 — 억지로 비슷한 이름을 붙이지 않는다).
+  const catalogIndex = (catalogNames ?? []).map((n) => {
+    const { core, formFactor } = extractFormFactor(n)
+    return { name: n, key: `${core.toLowerCase().replace(/[\s\-_]+/g, '')}|${formFactor ?? ''}` }
+  })
+  const toCatalogName = (assembled: string): string => {
+    if (catalogIndex.length === 0) return assembled
+    const { core, formFactor } = extractFormFactor(assembled)
+    const ck = core.toLowerCase().replace(/[\s\-_]+/g, '')
+    return catalogIndex.find((c) => c.key === `${ck}|${formFactor ?? ''}`)?.name
+      ?? catalogIndex.find((c) => c.key === `${ck}|`)?.name
+      ?? assembled
+  }
+
   let aiRes: { valid: AiObservation[]; rejected: Array<{ reason: string; detail: string }> } | null = null
   let aiItems: ExtractPipelineItem[] = []
   let aiRejected: Array<{ reason: string; detail: string }> = []
@@ -112,14 +129,18 @@ export async function extractCompetitorObservations(
     // 대표 관측이 하나도 없으면(기본료만 있는 페이지) 성분을 잃지 않도록 그대로 노출.
     const aiSource = primaries.length > 0 ? primaries : aiRes.valid
     aiItems = aiSource.map((o: AiObservation) => {
-      const krw = observationToKrwPerGpuHour(o, fxMap)
-      const usd = krw != null && krwPerUsd > 0 ? krw / krwPerUsd : null
+      // 원본이 USD면 **KRW 왕복 없이 직접 산출** — 왕복하면 fxMap.USD와 krwPerUsd의 미세 차이가
+      //   금액에 그대로 붙는다(실사고 v0.7.365: 원문 $3.02가 화면에 $3.021로, $1.40이 $1.401로 표시).
+      //   USD 원본은 환산이 애초에 필요 없다 — 시간·장수·분모만 나누면 끝이다.
+      const usd = o.currency === 'USD'
+        ? usdPerGpuHourDirect(o)
+        : (() => { const krw = observationToKrwPerGpuHour(o, fxMap); return krw != null && krwPerUsd > 0 ? krw / krwPerUsd : null })()
       return {
         competitor_name: o.competitor_name || provider || providerFromUrl(sourceUrl),
         // 모델명은 AI가 인식한 축을 코드가 조립한다 — catalog_match(AI의 매칭 의견)로 이름을 정하지 않는다.
         //   매칭은 저장 단계의 resolveProductId(결정론)가 하고, 실패하면 기존 정책대로 보류된다.
         //   폼팩터는 카탈로그가 구분하는 축이므로 이름에 붙인다("H100"+"SXM" → "H100 SXM").
-        model_name: [canonicalizeModel(o.model).canonical || o.model, o.form_factor].filter(Boolean).join(' '),
+        model_name: toCatalogName([canonicalizeModel(o.model).canonical || o.model, o.form_factor].filter(Boolean).join(' ')),
         source_model_name: o.model,
         ...(o.memory_gb ? { memory: `${o.memory_gb}GB` } : {}),
         price_usd: usd,
@@ -171,7 +192,8 @@ export async function extractCompetitorObservations(
         const { core, formFactor } = extractFormFactor(canonicalizeModel(raw).canonical || raw)
         return {
           ...it,
-          model_name: [core, formFactor].filter(Boolean).join(' '),
+          //   보완분도 카탈로그 정식명으로 — 안 하면 "B300 SXM"(우리 조립)과 "B300"(카탈로그)이 섞여 보인다.
+          model_name: toCatalogName([core, formFactor].filter(Boolean).join(' ')),
           source_model_name: it.source_model_name ?? raw,
           pricing_model: it.pricing_model ?? 'on_demand',
         }

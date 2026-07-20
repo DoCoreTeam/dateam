@@ -12,6 +12,9 @@ export interface CompetitorSavedItem {
   original_currency?: string | null
   /** 원본 통화 기준 금액(GPU 1장·1시간당). 표시 기본값. */
   original_price?: number | null
+  /** 요금 등급 — on_demand|spot|reserved. 같은 모델이 등급별로 여러 줄 나오므로 화면 구분에 필수.
+   *  (실사고 v0.7.365: verda spot 가격이 on_demand와 나란히 떠 같은 모델 중복으로 보였다) */
+  pricing_model?: string | null
 }
 
 // 가격 표시 SSOT — 원본 통화 기준으로 보여준다(원으로 들어오면 ₩, 달러면 $).

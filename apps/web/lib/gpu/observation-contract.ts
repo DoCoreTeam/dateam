@@ -236,3 +236,19 @@ export function observationToKrwPerGpuHour(obs: AiObservation, fx: FxKrwMap): nu
   const perHour = krw / hours
   return perHour / obs.gpu_count
 }
+
+/**
+ * USD 원본 관측 → USD per GPU·hr **직접 산출**(환산 없음).
+ *   KRW로 갔다 오면 fx 값 차이로 미세 오차가 붙는다($3.02 → $3.021). USD는 환산이 불필요하다.
+ *   base_fee·storage는 대표가 대상이 아니므로 null(observationToKrwPerGpuHour와 동일 정책).
+ */
+export function usdPerGpuHourDirect(obs: AiObservation): number | null {
+  if (obs.currency !== 'USD') return null
+  if (obs.component_kind === 'base_fee' || obs.component_kind === 'storage') return null
+  if (!isTimeUnit(obs.unit)) return null
+  const perUnit = obs.amount / obs.per_qty
+  const hours = HOURS_PER_PERIOD[obs.unit]
+  if (!Number.isFinite(hours) || hours <= 0) return null
+  const cnt = obs.gpu_count > 0 ? obs.gpu_count : 1
+  return perUnit / hours / cnt
+}

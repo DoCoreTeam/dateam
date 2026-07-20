@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useSWRConfig } from 'swr'
 import { Sparkles, Send, Paperclip, X, RotateCcw } from 'lucide-react'
 import IntakeGateSummary, { type GateRow } from './IntakeGateSummary'
+import { extractFormFactor } from '@/lib/gpu/form-factor'
 import CatalogUploadSection from '@/components/pricing/gpu/CatalogUploadSection'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
@@ -233,7 +234,7 @@ export default function QuoteRegisterTab() {
               //   미리보기에 GPU가 아닌 행이 "시장 반영"으로 뜨던 것을 차단(저장이 어차피 거부하던 것과 일치).
               const gpuItems = cp.filter((p) => looksLikeGpuModel(p.model_name))
               const excluded = cp.filter((p) => !looksLikeGpuModel(p.model_name)).map((p) => p.model_name)
-              setCompetitorResults(gpuItems.map((p) => ({ competitor: p.competitor_name, model: p.model_name, memory: p.memory ?? '', price_usd: p.price_usd, original_currency: p.original_currency ?? null, original_price: p.original_price ?? null })))
+              setCompetitorResults(gpuItems.map((p) => ({ competitor: p.competitor_name, model: p.model_name, memory: p.memory ?? '', price_usd: p.price_usd, original_currency: p.original_currency ?? null, original_price: p.original_price ?? null, pricing_model: (p as { pricing_model?: string | null }).pricing_model ?? null })))
               setExcludedNonGpu(excluded)
               setPreviewItems(gpuItems); setPreviewSourceUrl((data.source_url as string) ?? null)
             } else {
@@ -382,10 +383,14 @@ export default function QuoteRegisterTab() {
     }),
     ...competitorResults.map((c): GateRow => ({
       kind: 'market',
-      model: `${c.model}${c.memory ? ' ' + c.memory : ''}`.trim(),
+      // 모델명에 메모리를 붙이지 않는다 — 스펙은 별도 컬럼(모델·폼팩터·메모리는 각각 축이다).
+      model: extractFormFactor(c.model).core,
+      spec: [extractFormFactor(c.model).formFactor, c.memory].filter(Boolean).join(' · ') || null,
       party: c.competitor,
-      priceUsd: typeof c.price_usd === 'number' ? c.price_usd : Number(c.price_usd),
+      // null을 Number()로 넘기면 0이 된다 — 가격 미상이 "$0.00 시세"로 둔갑한다(실사고 v0.7.365 화면 확인).
+      priceUsd: typeof c.price_usd === 'number' && Number.isFinite(c.price_usd) ? c.price_usd : null,
       confidence: null,
+      priceTier: (c as { pricing_model?: string | null }).pricing_model ?? null,
     })),
   ]
   const confirmCount = supplierPreview.length + competitorResults.length
