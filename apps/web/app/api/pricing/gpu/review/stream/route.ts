@@ -11,8 +11,7 @@ import { resolveClassification, detectCompetitorProviders, providerFromUrl } fro
 import { buildTranscriptionPrompt, parseTranscription, type TranscriptionResult } from '@/lib/gpu/transcription'
 import { reconcile, type ReconcileResult, type ReconcileExtractedLike } from '@/lib/gpu/reconcile'
 import { transcriptionToCompetitorItems, proseToCompetitorItems } from '@/lib/gpu/transcription-to-items'
-import { extractAiObservations } from '@/lib/gpu/ai-observation'
-import { observationToKrwPerGpuHour, type AiObservation } from '@/lib/gpu/observation-contract'
+import { extractCompetitorObservations } from '@/lib/gpu/extract-pipeline'
 import { reconcile as reconcileCompleteness } from '@/lib/gpu/completeness-reconcile'
 import { validateCompetitorItem, looksLikeGpuModel } from '@/lib/gpu/validate'
 import { reconstructPivot } from '@/lib/gpu/pivot-reconstruct'
@@ -299,121 +298,34 @@ export async function POST(req: NextRequest) {
             const catalogModelNames = Array.from(new Set(((catRows ?? []) as Array<{ model_name: string | null }>)
               .map((c) => (c.model_name ?? '').trim()).filter(Boolean)))
 
-            let aiRes: { valid: AiObservation[]; rejected: Array<{ reason: string; detail: string }> } | null = null
-            let aiItems: Array<Record<string, unknown>> = []
-            let aiRejected: Array<{ reason: string; detail: string }> = []
-            try {
-              aiRes = await extractAiObservations({
-                apiKey: config.apiKey, model: config.model, sourceText: contentText, specContext,
-                catalogNames: catalogModelNames,
-              })
-              aiRejected = aiRes.rejected
-              // GPU 시간축이 아닌 성분(base_fee·storage)은 독립 항목으로 만들지 않고,
-              //   같은 모델의 대표 관측에 components로 붙인다(무손실 보존 + 시세 왜곡 차단).
-              const isSideComponent = (o: AiObservation) => o.component_kind === 'base_fee' || o.component_kind === 'storage'
-              const primaries = aiRes.valid.filter((o) => !isSideComponent(o))
-              const sides = aiRes.valid.filter(isSideComponent)
-              const sidesByModel = new Map<string, AiObservation[]>()
-              for (const sc of sides) {
-                const k = sc.model.toLowerCase()
-                if (!sidesByModel.has(k)) sidesByModel.set(k, [])
-                sidesByModel.get(k)!.push(sc)
-              }
-              // 대표 관측이 하나도 없으면(기본료만 있는 페이지) 성분을 잃지 않도록 그대로 노출.
-              const aiSource = primaries.length > 0 ? primaries : aiRes.valid
-              aiItems = aiSource.map((o: AiObservation) => {
-                const krw = observationToKrwPerGpuHour(o, fxMap)
-                const usd = krw != null && krwPerUsd > 0 ? krw / krwPerUsd : null
-                return {
-                  competitor_name: o.competitor_name || provider || providerFromUrl(sourceUrl),
-                  // 모델명은 **AI가 인식한 축을 코드가 조립**한다 — catalog_match(AI의 매칭 의견)로 이름을 정하지 않는다.
-                  //   실측: AI가 model="GB200"을 정확히 인식하고도 catalog_match를 GH200·B200으로 골랐다(실행마다 다름).
-                  //   매칭은 저장 단계의 resolveProductId(결정론)가 하고, 실패하면 기존 정책대로 보류된다.
-                  //   폼팩터는 카탈로그가 구분하는 축이므로 이름에 붙인다("H100"+"SXM" → "H100 SXM").
-                  //   캐노니컬 SSOT를 반드시 거친다 — AI 원문 그대로 쓰면 "Tesla V100"(카탈로그 "V100")처럼
-                  //   벤더 수식·별칭이 남아 카탈로그와 어긋난다(실측). 폼팩터는 축이므로 캐노니컬 뒤에 붙인다.
-                  model_name: [canonicalizeModel(o.model).canonical || o.model, o.form_factor].filter(Boolean).join(' '),
-                  source_model_name: o.model,
-                  ...(o.memory_gb ? { memory: `${o.memory_gb}GB` } : {}),
-                  price_usd: usd,
-                  price_unknown: usd == null,
-                  original_currency: o.currency,
-                  original_price: o.amount,
-                  // 요금 등급은 AI가 인식한 축을 그대로 — spot을 on_demand와 섞으면 시세 밴드가 왜곡된다.
-                  pricing_model: o.price_tier,
-                  // 같은 모델의 기본료·스토리지를 성분으로 첨부(market_price_components 저장 경로로 이어짐)
-                  ...(primaries.length > 0 && (sidesByModel.get(o.model.toLowerCase())?.length ?? 0) > 0
-                    ? { components: (sidesByModel.get(o.model.toLowerCase()) ?? []).map((sc) => ({
-                        component_kind: sc.component_kind, amount: sc.amount / sc.per_qty,
-                        currency: sc.currency, unit: sc.unit, gpu_count: sc.gpu_count, provenance: sc.provenance,
-                      })) }
-                    : {}),
-                  obs: {
-                    amount: o.amount, currency: o.currency, pricing_unit: o.unit, gpu_count: o.gpu_count,
-                    segment: null, bundle_inclusive: false, tax_basis: 'unknown', comparable: true,
-                    fx_source: 'koreaexim', fx_rate_date: fxDate,
-                    fx_rate: o.currency && o.currency !== 'KRW' ? fxMap[o.currency] ?? null : 1,
-                    provenance: o.provenance,
-                  },
-                }
-              })
-              if (aiItems.length > 0) {
-                send('progress', { step: 'ai_observed', msg: `AI 구조화 관측 ${aiItems.length}건 — 축 분리(모델·폼팩터·메모리·장수) 완료` })
-              }
-              if (aiRejected.length > 0) {
-                send('progress', { step: 'ai_rejected', msg: `검증 거부 ${aiRejected.length}건: ${aiRejected.slice(0, 3).map((r) => r.detail).join(' / ')}` })
-              }
-            } catch (e) {
-              send('progress', { step: 'ai_failed', msg: `AI 구조화 관측 실패 — 기존 경로로 진행(${e instanceof Error ? e.message : 'unknown'})` })
-            }
-
             // 산문 회수용 경쟁사명 — 전사 provider가 비면 classify가 식별한 회사명으로 보완(빈 이름 저장 방지).
             //   classify의 "가격"은 불신하지만 "회사명"은 라벨 식별이라 채택 가능(가짜 가격 유입과 무관).
             const proseProvider = provider || (Array.isArray(classified.items)
               ? String((classified.items as Array<Record<string, unknown>>).find((it) => typeof it.competitor_name === 'string' && it.competitor_name)?.competitor_name ?? '')
               : '')
-            const gpuValid = compItems.filter((it) => looksLikeGpuModel(String((it as Record<string, unknown>).model_name ?? '')))
-            if (aiItems.length > 0) {
-              // ── 이중 추출 합집합 ── AI 1순위 + 결정론이 놓친 행을 보완.
-              //   실측: 같은 verda 입력에서 AI 추출이 24~28건으로 흔들렸다(GB300·V100이 실행마다 누락).
-              //   AI는 인식은 정확하지만 **전량 열거에 비결정적**이고, 결정론 파서는 표기에 약하지만
-              //   같은 입력에 항상 같은 행을 낸다. 둘을 합쳐야 누락이 사라진다(교체가 아니라 합집합).
-              //   중복 판정: 모델 + 요금등급 + 대표가(소수 4자리) — 같은 행을 두 번 넣지 않는다.
-              //   ★ 중복 판정은 **금액**으로 한다 — 모델명으로 하면 "GB300 SXM"(AI)와 "GB300 SXM6"(결정론)가
-              //     다른 키가 돼 같은 행이 두 번 들어간다(실측).
-              //   ★ 보완 대상은 **GPU 모델로 판정되고 가격이 있는 행만** — 결정론 경로는 "1 month"·"AMD EPYC"·
-              //     "NVMe" 같은 비가격/비GPU 라벨도 뱉는다. AI 경로가 걸러주던 것을 합집합이 되살리면 안 된다.
-              const amtKey = (it: Record<string, unknown>) => {
-                const o = it.obs as { amount?: unknown } | undefined
-                const a = typeof o?.amount === 'number' ? o.amount
-                  : typeof it.original_price === 'number' ? it.original_price
-                  : typeof it.price_usd === 'number' ? it.price_usd : null
-                return a === null ? null : `${a.toFixed(4)}|${String(it.pricing_model ?? 'on_demand')}`
-              }
-              const seen = new Set(aiItems.map(amtKey).filter((k): k is string => k !== null))
-              const detOnly = compItems.filter((it) => {
-                const k = amtKey(it)
-                if (k === null || seen.has(k)) return false
-                if (typeof it.price_usd !== 'number' || it.price_usd <= 0) return false
-                return looksLikeGpuModel(String(it.model_name ?? ''))
-              })
-              //   결정론 보완분도 **같은 표기 규칙**을 거친다 — 안 하면 "B300 SXM6"(결정론)와 "B300 SXM"(AI)가
-              //   같은 화면에 섞여 다른 제품처럼 보인다(실측). 캐노니컬 + 폼팩터 세대 흡수.
-              const normalizedDet = detOnly.map((it) => {
-                const raw = String(it.model_name ?? '')
-                const { core, formFactor } = extractFormFactor(canonicalizeModel(raw).canonical || raw)
-                return {
-                  ...it,
-                  model_name: [core, formFactor].filter(Boolean).join(' '),
-                  source_model_name: it.source_model_name ?? raw,
-                  pricing_model: it.pricing_model ?? 'on_demand',
-                }
-              })
-              compItems = [...aiItems, ...normalizedDet]
-              if (normalizedDet.length > 0) {
-                send('progress', { step: 'union', msg: `결정론 파서가 AI 누락분 ${normalizedDet.length}건 보완 — 합집합 ${compItems.length}건` })
-              }
-            } else if (gpuValid.length === 0) {
+
+            // AI 구조화 관측 + 검증 + 축 조립 + 결정론 합집합 보완 + 완전성 게이트 — SSOT(extract-pipeline.ts).
+            //   market/refresh(자동 시세 수집)와 동일 함수를 호출해 두 경로의 처리를 통일한다(P4).
+            const pipeline = await extractCompetitorObservations({
+              apiKey: config.apiKey, model: config.model, sourceText: contentText, specContext,
+              catalogNames: catalogModelNames, provider, sourceUrl, krwPerUsd, fxMap, fxDate,
+              deterministicItems: compItems,
+            })
+            compItems = pipeline.items
+            if (pipeline.aiItemsCount > 0) {
+              send('progress', { step: 'ai_observed', msg: `AI 구조화 관측 ${pipeline.aiItemsCount}건 — 축 분리(모델·폼팩터·메모리·장수) 완료` })
+            }
+            if (pipeline.aiRejected.length > 0) {
+              send('progress', { step: 'ai_rejected', msg: `검증 거부 ${pipeline.aiRejected.length}건: ${pipeline.aiRejected.slice(0, 3).map((r) => r.detail).join(' / ')}` })
+            }
+            if (pipeline.detSupplemented > 0) {
+              send('progress', { step: 'union', msg: `결정론 파서가 AI 누락분 ${pipeline.detSupplemented}건 보완 — 합집합 ${compItems.length}건` })
+            }
+            if (pipeline.crosscheckConflicts.length > 0) {
+              send('progress', { step: 'crosscheck', msg: `⚠️ AI·결정론 모델 불일치 ${pipeline.crosscheckConflicts.length}건 — 보류 처리: ${pipeline.crosscheckConflicts.slice(0, 3).join(' / ')}` })
+            }
+
+            if (compItems.length === 0) {
               // 1순위 — 피벗 재구성: 세로표에서 열별로 모델(サービス)+원본가(月額)+장수(×8)를 다시 묶는다.
               //   진짜 엔화 금액을 살려 fx로 환산(번들은 managed_bundle로 격리). 결정론(AI 산술 없음).
               const HOURS: Record<string, number> = HOURS_PER_PERIOD
@@ -485,55 +397,21 @@ export async function POST(req: NextRequest) {
                 }
               }
             }
-            // ── 완전성 게이트(P1) — 원본 스냅샷 금액 전수스캔 ↔ 추출 커버리지 대조 ──
-            //   "추출이 스스로 보고한 것"이 아니라 "원본에 있던 것"을 기준으로 검증한다.
-            //   미커버 = 은폐 금지, 명시 노출. (실사고: GB200 ￥4,569,000이 조용히 누락됐는데 화면엔 '가격미상'만)
-            const collectAmounts = (items: Array<Record<string, unknown>>): number[] => {
-              const out: number[] = []
-              for (const it of items) {
-                const o = it.obs as { amount?: unknown } | undefined
-                if (typeof o?.amount === 'number' && o.amount > 0) out.push(o.amount)
-                const op = it.original_price
-                if (typeof op === 'number' && op > 0) out.push(op)
-                const comps = it.components as Array<{ amount?: unknown }> | undefined
-                for (const c of comps ?? []) if (typeof c?.amount === 'number' && c.amount > 0) out.push(c.amount)
-              }
-              return out
-            }
-            //   대조는 **원본 금액**으로 한다 — components는 per_qty로 정규화된 값(1,000円/100GB→10)을 갖고 있어
-            //   그대로 대조하면 원문 1000이 미커버로 잡히는 오탐이 난다(실측).
-            const rawAiAmounts = aiRes ? aiRes.valid.map((o) => o.amount).filter((n) => n > 0) : []
-            // ── 교차검증(P3) — AI 관측 ↔ 결정론 파서 대조 ──
-            //   AI는 비결정성이 있다(실측: 같은 입력에서 GB200→GH200으로 바뀜. 접두 가드로는 못 잡는 형태).
-            //   결정론 파서는 표기 변형에 약하지만 **같은 입력에 항상 같은 답**을 낸다. 둘을 대조해
-            //   모델명이 어긋나면 조용히 한쪽을 고르지 않고 **보류**로 올린다.
-            if (aiRes && aiItems.length > 0) {
-              const detRef = reconstructPivot(transcription.rows as Array<{ raw_label?: string; cells?: unknown[]; price_text?: string | null }>)
-              const conflicts: string[] = []
-              let compared = 0
-              for (const it of compItems) {
-                const amt = (it.obs as { amount?: unknown } | undefined)?.amount
-                if (typeof amt !== 'number') continue
-                const det = detRef.find((d) => typeof d.amount === 'number' && Math.abs(d.amount - amt) < 1e-6)
-                if (!det) continue
-                compared++
-                const aiKey = String(it.source_model_name ?? it.model_name ?? '').toLowerCase().replace(/[\s\-_]+/g, '')
-                const detKey = canonicalizeModel(det.model_name).canonical.toLowerCase().replace(/[\s\-_]+/g, '')
-                if (aiKey && detKey && aiKey !== detKey) {
-                  conflicts.push(`${amt.toLocaleString()}: AI "${it.source_model_name ?? it.model_name}" ↔ 결정론 "${det.model_name}"`)
-                  it.price_unknown = true
-                  it.price_usd = null
-                }
-              }
-              if (conflicts.length > 0) {
-                send('progress', { step: 'crosscheck', msg: `⚠️ AI·결정론 모델 불일치 ${conflicts.length}건 — 보류 처리: ${conflicts.slice(0, 3).join(' / ')}` })
-              } else if (compared > 0) {
-                // 실제로 대조가 일어난 경우에만 '통과'를 말한다 — 비교 0건에 통과를 찍으면 거짓 안심이다.
-                send('progress', { step: 'crosscheck', msg: `✅ 교차검증 통과 — AI·결정론 모델 판정 일치(${compared}건 대조)` })
-              }
-            }
-
-            const completeness = reconcileCompleteness(contentText, [...collectAmounts(compItems), ...rawAiAmounts])
+            // ── 완전성 게이트(P1) — SSOT(extract-pipeline.ts)가 이미 원본 스냅샷 금액 전수스캔 ↔
+            //   추출 커버리지를 대조해 pipeline.completeness로 반환했다. 여기서는 결과만 노출한다.
+            //   단, 피벗/산문/classify 폴백 경로(위 if 블록)가 compItems를 다시 채운 경우 그 결과 기준으로 재대조한다.
+            const completeness = compItems === pipeline.items
+              ? pipeline.completeness
+              : reconcileCompleteness(contentText, compItems.flatMap((it): number[] => {
+                  const out: number[] = []
+                  const o = it.obs as { amount?: unknown } | undefined
+                  if (typeof o?.amount === 'number' && o.amount > 0) out.push(o.amount)
+                  const op = it.original_price
+                  if (typeof op === 'number' && op > 0) out.push(op)
+                  const comps = it.components as Array<{ amount?: unknown }> | undefined
+                  for (const c of comps ?? []) if (typeof c?.amount === 'number' && c.amount > 0) out.push(c.amount)
+                  return out
+                }))
             if (!completeness.complete) {
               // 미커버 금액만 나열하면 판단이 불가능하다 — **그 금액이 있던 원문 행**을 함께 보여준다.
               //   (실측: verda 미커버 35건이 전부 CPU 인스턴스 요금이었다. 행을 보면 1초에 판단된다.)

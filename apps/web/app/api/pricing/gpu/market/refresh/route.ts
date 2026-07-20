@@ -1,68 +1,18 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
-import { saveCompetitorPrices } from '@/lib/gpu/competitor-import'
-import { getGeminiConfig, fetchUrlText, callGeminiOnce } from '@/lib/gpu/extract-helpers'
-import { buildMarketRefreshCompetitorItem, type RawMarketRefreshItem, type FxSnapshot } from '@/lib/gpu/market-refresh-item'
+import { saveCompetitorPrices, type CompetitorPriceItem } from '@/lib/gpu/competitor-import'
+import { getGeminiConfig, fetchUrlText, loadSpecContext } from '@/lib/gpu/extract-helpers'
+import { extractCompetitorObservations } from '@/lib/gpu/extract-pipeline'
 import type { FxKrwMap } from '@/lib/gpu/normalize-money'
 import { kstTodayKey } from '@/lib/datetime/kst'
 
-// R2 재설계(v0.7.351) — AI는 원본(amount/currency/pricing_unit/gpu_count/context)만 보고, 산술은 100% 코드가 한다.
+// P4 통합(v0.7.372) — 자동 수집(하루 1회) 경로를 review/stream(사용자 수동 입력)과 동일 SSOT로 통일한다.
+//   과거 이 라우트는 독자 CLASSIFY_PROMPT로 AI에게 직접 분류·추출을 맡겼다(AI 구조화 관측·완전성 게이트·
+//   결정론 합집합 보완 없음) — 같은 데이터가 어느 문으로 들어오냐에 따라 다르게 처리되는 버그 공급원이었다.
+//   지금은 review/stream이 쓰는 lib/gpu/extract-pipeline.ts(extractCompetitorObservations)를 그대로 호출한다.
 //   SSOT: 시간계수=lib/gpu/hours.ts, 통화환산=lib/gpu/normalize-money.ts, 세그먼트판정=lib/gpu/observation-classify.ts,
-//   조립=lib/gpu/market-refresh-item.ts(buildMarketRefreshCompetitorItem). 과거 CLASSIFY_PROMPT의 "월÷720" 등
-//   AI 자체환산·USD 단일통화(competitorPriceToUsd)·본문 15k 절단은 전부 폐기(review/stream 경로와 동일 정책 통일).
-const CLASSIFY_PROMPT = `당신은 GPU 클라우드 가격 분석 AI입니다. 입력된 내용을 분석하여 분류하세요.
-
-분류 기준:
-- competitor_pricing: RunPod, Lambda Labs, AWS, CoreWeave, Vast.ai, NHN Cloud, NAVER Cloud, Azure, GCP, Runyour AI, SaladCloud 등 경쟁 클라우드 서비스의 GPU 가격 정보
-- supplier_quote: AX사업본부가 구매/공급받는 GPU 하드웨어/클라우드 자원 견적 (공급사로부터 받은 견적)
-
-【중요 — 산술 절대 금지. 원본 그대로만 보고하세요. 시간환산·장수분할·환율계산은 전부 서버가 합니다】
-- amount: 원문에 표기된 금액 숫자만(콤마 제거, 나누지 마세요). 예) "$138.54/월(8장 기준)" → amount: 138.54 (÷8, ÷720 절대 금지)
-- currency: 통화 ISO 코드("USD"|"KRW"|"JPY"|"EUR"|"CNY" 등). 통화 기호(₩/円/¥/€/元)나 표기로 판별. 판별 불가면 "USD".
-- pricing_unit: 원문의 청구 주기 그대로 하나만: "hour"|"day"|"month"|"year". 판별 불가면 "hour".
-- gpu_count: 이 amount가 포함하는 GPU 장수(예: "8장 기준", "×8", "8 GPUs"). 명시 없으면 1.
-- context: 가격 판정에 쓴 원문 근거 문구(라벨+숫자+단위, 200자 이내) — 번들·최소약정 등 판정에 서버가 사용.
-
-competitor_pricing인 경우 JSON 반환:
-{
-  "type": "competitor",
-  "items": [
-    {
-      "competitor_name": "회사명",
-      "model_name": "H100",
-      "memory": "80GB",
-      "amount": 3615,
-      "currency": "KRW",
-      "pricing_unit": "hour",
-      "gpu_count": 1,
-      "pricing_model": "on-demand",
-      "context": "H100 80GB 온디맨드 3,615원/시간",
-      "notes": "원문 표기 그대로(참고용)"
-    }
-  ]
-}
-
-pricing_model 값: "on-demand" | "reserved-1y" | "reserved-3y" | "spot"
-memory 값: "80GB", "40GB", "24GB" 등 숫자+단위
-
-【선택 — 복합요금(기본료+종량+스토리지 등 여러 성분으로 구성된 청구) 감지 시에만 components 추가】
-원문이 "기본료 + GPU 종량 + 스토리지"처럼 명확히 분리된 여러 요금 성분을 보여줄 때만, 각 성분을 원본 그대로(산술 없이) 보고하세요.
-그 외(단일 요금)에는 components를 아예 생략하세요.
-{
-  "components": [
-    { "component_kind": "base_fee", "amount": 30000, "currency": "JPY", "unit": "month", "provenance": "월額基本料金 30,000円" },
-    { "component_kind": "usage", "amount": 7.2, "currency": "JPY", "unit": "minute", "gpu_count": 1, "provenance": "GPU利用料金 7.2円/1分" },
-    { "component_kind": "storage", "amount": 1000, "currency": "JPY", "unit": "per_gb", "provenance": "ストレージ 1,000円/100GB" }
-  ]
-}
-component_kind 값: "base_fee"(계정 고정비) | "usage"(GPU 종량) | "storage"(용량) | "flat"(월정액 번들 총액)
-unit 값: "minute"|"hour"|"day"|"week"|"month"|"year"|"per_gb"|"per_account"
-
-supplier_quote이거나 GPU 가격이 아닌 경우:
-{ "type": "supplier" }
-
-JSON만 반환. 설명 없이.`
+//   AI 관측 검증+산술=lib/gpu/observation-contract.ts, 완전성 게이트=lib/gpu/completeness-reconcile.ts.
 
 // POST /api/pricing/gpu/market/refresh
 // DB에 저장된 URL들을 AI로 분석해서 market_prices 업데이트
@@ -134,7 +84,8 @@ export async function POST(req: Request) {
 
   const results: {
     url: string; competitor: string; prices_found: number
-    held?: number; rejected?: number; fx_unresolved?: number; components_saved?: number; error?: string
+    held?: number; rejected?: number; fx_unresolved?: number; components_saved?: number
+    completeness_uncovered?: number; ai_rejected?: number; error?: string
   }[] = []
   let totalPricesUpdated = 0
 
@@ -150,7 +101,12 @@ export async function POST(req: Request) {
     if (fxRateDate === null) fxRateDate = r.rate_date
     if (r.rate_date === fxRateDate && fxMap[r.currency] === undefined) fxMap[r.currency] = r.krw_per_1
   }
-  const fxSnapshot: FxSnapshot = { fxMap, krwPerUsd, fxRateDate, fxSource: 'koreaexim' }
+
+  // 보유 스펙 카탈로그 + 카탈로그 모델명 목록(SSOT — review/stream과 동일 로직) — AI 관측의 catalog_match 검증용.
+  const specContext = await loadSpecContext(adminClient)
+  const { data: catRows } = await db.from('gpu_products').select('model_name').is('deleted_at', null).limit(500)
+  const catalogModelNames = Array.from(new Set(((catRows ?? []) as Array<{ model_name: string | null }>)
+    .map((c) => (c.model_name ?? '').trim()).filter(Boolean)))
 
   for (const [url, compName] of Array.from(urlSet.entries())) {
     try {
@@ -163,48 +119,40 @@ export async function POST(req: Request) {
         continue
       }
 
-      let rawText: string
-      try {
-        rawText = await callGeminiOnce(apiKey, model, `${CLASSIFY_PROMPT}\n\n입력:\n${pageText}`, true)
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'AI 호출 실패'
-        console.error('[gpu/market/refresh] AI 분류 호출 실패:', url, msg)
-        results.push({ url, competitor: compName, prices_found: 0, error: msg })
-        continue
-      }
+      // 추출 SSOT(P4 통합) — review/stream과 동일한 AI 구조화 관측+검증+완전성 게이트. 자동 수집 경로엔
+      //   전사 기반 결정론 후보가 없으므로 deterministicItems는 미주입(합집합 보완 없음, AI 단독 소스).
+      const pipeline = await extractCompetitorObservations({
+        apiKey, model, sourceText: pageText, specContext, catalogNames: catalogModelNames,
+        provider: compName, sourceUrl: url, krwPerUsd, fxMap, fxDate: fxRateDate,
+      })
 
-      let classified: { type?: string; items?: RawMarketRefreshItem[] }
-      try { classified = JSON.parse(rawText) } catch {
-        console.error('[gpu/market/refresh] AI 응답 파싱 실패:', url)
-        results.push({ url, competitor: compName, prices_found: 0, error: 'AI 응답 파싱 실패' })
-        continue
-      }
-
-      if (classified.type === 'competitor' && Array.isArray(classified.items) && classified.items.length > 0) {
-        // 조립 SSOT(market-refresh-item.ts) — 시간계수÷통화환산÷세그먼트판정 전부 코드가 수행(AI 산술 없음).
-        const built = (classified.items as RawMarketRefreshItem[])
-          .map((raw) => buildMarketRefreshCompetitorItem(raw, fxSnapshot))
-          .filter((it): it is NonNullable<typeof it> => it !== null)
-
-        // 무음 소실 금지 — 원본 금액은 있는데 통화 미지원(fx_rates_multi에 없는 통화)이라 price_usd가
-        //   null로 보류된 건수를 saveCompetitorPrices 진입 전에 여기서 집계해 노출한다.
-        //   (saveCompetitorPrices는 price_usd falsy면 held/rejected 집계 없이 조용히 continue하므로 여기서 세지 않으면 무음 드롭이 된다)
-        const fxUnresolved = built.filter((it) => it.price_usd == null && it.obs?.amount != null).length
-        const componentsSaved = built.reduce((sum, it) => sum + (it.components?.length ?? 0), 0)
-
-        // H1 게이트(validateCompetitorItem)는 saveCompetitorPrices 내부에서 강제 — 자동 크롤 경로도 GPU 아님·이상가 차단.
-        const { saved, held, rejected } = await saveCompetitorPrices(db, built, { sourceUrl: url, confidence: 80 })
+      if (pipeline.items.length === 0) {
         results.push({
-          url, competitor: compName, prices_found: saved.length,
-          ...(held.length ? { held: held.length } : {}),
-          ...(rejected.length ? { rejected: rejected.length } : {}),
-          ...(fxUnresolved ? { fx_unresolved: fxUnresolved } : {}),
-          ...(componentsSaved ? { components_saved: componentsSaved } : {}),
+          url, competitor: compName, prices_found: 0,
+          ...(pipeline.aiRejected.length ? { ai_rejected: pipeline.aiRejected.length } : {}),
         })
-        totalPricesUpdated += saved.length
-      } else {
-        results.push({ url, competitor: compName, prices_found: 0 })
+        continue
       }
+
+      const built = pipeline.items as unknown as CompetitorPriceItem[]
+      // 무음 소실 금지 — 원본 금액은 있는데 통화 미지원(fx_rates_multi에 없는 통화)이라 price_usd가
+      //   null로 보류된 건수를 saveCompetitorPrices 진입 전에 여기서 집계해 노출한다.
+      //   (saveCompetitorPrices는 price_usd falsy면 held/rejected 집계 없이 조용히 continue하므로 여기서 세지 않으면 무음 드롭이 된다)
+      const fxUnresolved = built.filter((it) => it.price_usd == null && it.obs?.amount != null).length
+      const componentsSaved = built.reduce((sum, it) => sum + (it.components?.length ?? 0), 0)
+
+      // H1 게이트(validateCompetitorItem)는 saveCompetitorPrices 내부에서 강제 — 자동 크롤 경로도 GPU 아님·이상가 차단.
+      const { saved, held, rejected } = await saveCompetitorPrices(db, built, { sourceUrl: url, confidence: 80 })
+      results.push({
+        url, competitor: compName, prices_found: saved.length,
+        ...(held.length ? { held: held.length } : {}),
+        ...(rejected.length ? { rejected: rejected.length } : {}),
+        ...(fxUnresolved ? { fx_unresolved: fxUnresolved } : {}),
+        ...(componentsSaved ? { components_saved: componentsSaved } : {}),
+        ...(!pipeline.completeness.complete ? { completeness_uncovered: pipeline.completeness.uncovered.length } : {}),
+        ...(pipeline.aiRejected.length ? { ai_rejected: pipeline.aiRejected.length } : {}),
+      })
+      totalPricesUpdated += saved.length
     } catch (err) {
       console.error('[gpu/market/refresh] url fetch/parse 실패:', url, err)  // 상세는 서버 로그만
       results.push({ url, competitor: compName, prices_found: 0, error: err instanceof Error ? err.message : '수집 실패' })
@@ -216,11 +164,15 @@ export async function POST(req: Request) {
   const heldTotal = results.reduce((s, r) => s + (r.held ?? 0), 0)
   const rejectedTotal = results.reduce((s, r) => s + (r.rejected ?? 0), 0)
   const fxUnresolvedTotal = results.reduce((s, r) => s + (r.fx_unresolved ?? 0), 0)
+  const completenessUncoveredTotal = results.reduce((s, r) => s + (r.completeness_uncovered ?? 0), 0)
+  const aiRejectedTotal = results.reduce((s, r) => s + (r.ai_rejected ?? 0), 0)
   const hasIssues = failedUrls.length > 0 || heldTotal > 0 || rejectedTotal > 0 || fxUnresolvedTotal > 0
+    || completenessUncoveredTotal > 0 || aiRejectedTotal > 0
   const issueSummary = hasIssues
     ? JSON.stringify({
         failed_urls: failedUrls.map((r) => ({ url: r.url, error: r.error })),
         held: heldTotal, rejected: rejectedTotal, fx_unresolved: fxUnresolvedTotal,
+        completeness_uncovered: completenessUncoveredTotal, ai_rejected: aiRejectedTotal,
       })
     : null
   if (issueSummary) console.error('[gpu/market/refresh] 부분 실패/보류 요약:', issueSummary)
