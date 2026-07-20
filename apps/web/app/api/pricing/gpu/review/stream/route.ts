@@ -16,6 +16,7 @@ import { reconstructPivot } from '@/lib/gpu/pivot-reconstruct'
 import { classifyObservation } from '@/lib/gpu/observation-classify'
 import { amountToKrw, pricingModelForUnit, type FxKrwMap } from '@/lib/gpu/normalize-money'
 import { canonicalizeModel } from '@/lib/gpu/canonical-model'
+import { HOURS_PER_PERIOD } from '@/lib/gpu/hours'
 
 // 헤드리스 렌더(@sparticuz/chromium)·전사·AI 호출에 시간 필요 → Node 런타임 + maxDuration 확대(Vercel 콜드스타트 여유).
 export const runtime = 'nodejs'
@@ -286,7 +287,7 @@ export async function POST(req: NextRequest) {
             if (gpuValid.length === 0) {
               // 1순위 — 피벗 재구성: 세로표에서 열별로 모델(サービス)+원본가(月額)+장수(×8)를 다시 묶는다.
               //   진짜 엔화 금액을 살려 fx로 환산(번들은 managed_bundle로 격리). 결정론(AI 산술 없음).
-              const HOURS: Record<string, number> = { minute: 1 / 60, hour: 1, day: 24, month: 720, year: 8760 }
+              const HOURS: Record<string, number> = HOURS_PER_PERIOD
               const pivot = reconstructPivot(transcription.rows as Array<{ raw_label?: string; cells?: unknown[]; price_text?: string | null }>)
               const fromPivot = pivot.map((o) => {
                 const cls = classifyObservation(o.provenance + ' ' + o.model_name)

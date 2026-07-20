@@ -57,8 +57,8 @@ function str(v: unknown): string {
   return v == null ? '' : String(v).trim()
 }
 
-// 월 단가 → 시간 단가 환산 계수 (평균 730시간/월). 우리 표준은 USD/GPU·hr.
-const HOURS_PER_MONTH = 730
+// 월 단가 → 시간 단가 환산 계수 — SSOT=hours.ts(월=720h, 720/730 이원화 해소). 우리 표준은 USD/GPU·hr.
+import { HOURS_PER_MONTH } from './hours.ts'
 
 /** 단위 정규화 — per_month면 시간당으로 환산. unknown/per_hour는 원값. */
 function toHourly(price: number, unit: CatalogMapping['_unit']): number {

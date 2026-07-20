@@ -20,8 +20,9 @@ export const PERIOD_TOKENS: Record<string, Period> = {
   year: 'year', yearly: 'year', annual: 'year', yr: 'year', '/yr': 'year', '년': 'year', '연간': 'year', '年': 'year',
 }
 
-// "월 720시간기준"(입력 파일 자체 규약) — 월을 시간으로 환산하는 표준 계수.
-const HOURS_PER: Record<Period, number> = { hour: 1, day: 24, month: 720, year: 8760 }
+// "월 720시간기준"(입력 파일 자체 규약) — 월을 시간으로 환산하는 표준 계수. SSOT=hours.ts(720/730 이원화 해소).
+import { HOURS_PER_HOUR, HOURS_PER_DAY, HOURS_PER_MONTH, HOURS_PER_YEAR } from './hours.ts'
+const HOURS_PER: Record<Period, number> = { hour: HOURS_PER_HOUR, day: HOURS_PER_DAY, month: HOURS_PER_MONTH, year: HOURS_PER_YEAR }
 
 const norm = (s: string): string => s.toLowerCase().replace(/\s+/g, '')
 

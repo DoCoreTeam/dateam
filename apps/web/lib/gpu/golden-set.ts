@@ -20,7 +20,7 @@ export const GOLDEN: GoldenCase[] = [
   {
     name: '공급가-단건-환산', kind: 'good',
     text: 'GMI Cloud H100 80GB SXM 월 3,650,000원 (월정액)',
-    expect: [{ model: 'H100', memory: '80GB', price: 3650000 / 730 / 1370 }],   // ≈3.65
+    expect: [{ model: 'H100', memory: '80GB', price: 3650000 / 720 / 1370 }],   // ≈3.70
   },
   {
     name: '공급가-배치-약어', kind: 'good',
@@ -34,7 +34,7 @@ export const GOLDEN: GoldenCase[] = [
   {
     name: '경쟁사-환율', kind: 'good',
     text: 'NAVER Cloud H100 80GB 인스턴스 월 4,380,000원 reserved',
-    expect: [{ model: 'H100', memory: '80GB', price: 4380000 / 730 / 1370 }],  // ≈4.38
+    expect: [{ model: 'H100', memory: '80GB', price: 4380000 / 720 / 1370 }],  // ≈4.44
   },
 
   // ── 게이트 차단(bad) ──

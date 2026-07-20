@@ -2,12 +2,13 @@
 //   원칙: 환산·나눗셈은 100% 코드(AI 금지). 원본에서만 계산(동결 KRW 재환산 금지 — 이중환산 방지).
 //   이원화는 호출부가 fx맵으로 결정: 표시=최신환율맵 / 판가·이력=관측시점 스냅샷맵({currency: 저장된 fx_rate}).
 import { amountToKrw, krwToCurrency, type FxKrwMap } from './normalize-money.ts'
+import { HOURS_PER_MINUTE, HOURS_PER_HOUR, HOURS_PER_DAY, HOURS_PER_MONTH, HOURS_PER_YEAR } from './hours.ts'
 
 export type PricingUnit = 'minute' | 'hour' | 'day' | 'month' | 'year'
 
-// 기간 → 시간 (월=720h SSOT, 기존 normalize-money HOURS_PER와 동일 상수 유지). 분 추가.
+// 기간 → 시간 (월=720h SSOT=hours.ts, 720/730 이원화 해소). 분 포함.
 const HOURS_PER_UNIT: Record<PricingUnit, number> = {
-  minute: 1 / 60, hour: 1, day: 24, month: 720, year: 8760,
+  minute: HOURS_PER_MINUTE, hour: HOURS_PER_HOUR, day: HOURS_PER_DAY, month: HOURS_PER_MONTH, year: HOURS_PER_YEAR,
 }
 
 export interface PriceObservation {

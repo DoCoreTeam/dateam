@@ -6,7 +6,7 @@
 export const SCHEMA_CONTRACT = `【출력 스키마 계약 — 아래 규칙을 반드시 준수】
 1) price_usd: GPU "1장·1시간당" USD(양수). 통화·시간 단위가 다르면 환산.
    - 통화: KRW/원/₩/P/C ÷1370, JPY ÷155, EUR ×1.09 → USD
-   - 시간: 월 ÷730, 주 ÷168, 일 ÷24, 년 ÷8760 → 시간당
+   - 시간: 월 ÷720, 주 ÷168, 일 ÷24, 년 ÷8760 → 시간당
    - 여러 장 묶음가는 장수로 나눠 1장당. 환산 시 notes에 원본 기재.
 2) memory(VRAM): "80GB","40GB","48GB","24GB"처럼 숫자+GB. 공백 없이 정규화.
 3) pricing_model(경쟁사): on_demand | reserved_1y | reserved_3y | spot | committed (이 외 금지, 하이픈X 언더스코어O)
