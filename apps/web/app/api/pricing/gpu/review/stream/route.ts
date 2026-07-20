@@ -7,7 +7,7 @@ import {
 } from '@/lib/gpu/extract-helpers'
 import { dedupSupplier, dedupCompetitor, type CompetitorLike } from '@/lib/gpu/dedup'
 import { INTAKE_LIMITS } from '@/lib/gpu/intake-files'
-import { resolveClassification, detectCompetitorProviders } from '@/lib/gpu/provider-registry'
+import { resolveClassification, detectCompetitorProviders, providerFromUrl } from '@/lib/gpu/provider-registry'
 import { buildTranscriptionPrompt, parseTranscription, type TranscriptionResult } from '@/lib/gpu/transcription'
 import { reconcile, type ReconcileResult, type ReconcileExtractedLike } from '@/lib/gpu/reconcile'
 import { transcriptionToCompetitorItems, proseToCompetitorItems } from '@/lib/gpu/transcription-to-items'
@@ -256,7 +256,9 @@ export async function POST(req: NextRequest) {
           if (useTranscription) {
             // provider 추론 — 입력 텍스트의 화이트리스트 경쟁사명(Nebius 등). 첫 매칭 1개.
             const detected = detectCompetitorProviders(contentText)
-            const provider = detected[0] ?? ''
+            // 화이트리스트 미등록 사이트는 provider가 비어 경쟁사명 공란으로 저장된다(verda 실사고 41건).
+            //   → URL 도메인 폴백(SSOT: providerFromUrl). 도메인은 그 자체로 회사 식별자.
+            const provider = detected[0] ?? providerFromUrl(sourceUrl)
             // 원본 통화 보존(W3) — KRW 입력의 USD 환산에 fx_rates 실환율 주입(하드코딩 금지). 폴백 1400.
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const { data: fxRow } = await (adminClient.from('fx_rates') as any).select('usd_krw').order('rate_date', { ascending: false }).limit(1).maybeSingle()

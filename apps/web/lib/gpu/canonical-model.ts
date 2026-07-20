@@ -20,10 +20,15 @@ const PROVIDER_PREFIX = /^\s*(nebius|lambda(?:\s+labs)?|runpod|coreweave|papersp
 // 메모리 용량 토큰(80GB·192 GB·1.5TB)은 모델 식별 키가 아닌 '변형 축'(resolveProductId의 memory 파라미터로 별도 구분).
 //  모델명에 섞여 들어온 메모리는 매칭 키에서 제거 → "H100 SXM 80GB"가 카탈로그 "H100 SXM"과 매칭. (폼팩터는 보존)
 const MEMORY_TOKEN = /\b\d+(?:\.\d+)?\s*(gb|tb)\b/gi
+// 수량 접두("1x H100 SXM5 80GB"·"2× A100") — 장수는 gpu_count 축이지 모델명이 아니다.
+//  실사고: verda.com 요금표가 "1x GB300 SXM6 288GB" 형태라 모델명에 "1x"가 그대로 남아 카탈로그 매칭 실패.
+//  뒤에 영문자가 오는 경우만 제거해 "4090" 같은 숫자 모델명 오손상 0.
+const QTY_PREFIX = /^\s*\d{1,2}\s*[x×]\s*(?=[a-z])/gi
 
 /** 잡음 토큰 제거 후 읽기 좋은 모델명 — 폼팩터(SXM/PCIe/NVL)·세대는 보존, 공급사·벤더·메모리는 제거. */
 function stripModelNoise(s: string): string {
   return s
+    .replace(QTY_PREFIX, '')
     .replace(PROVIDER_PREFIX, '')
     .replace(CPU_HOST, '')
     .replace(VENDOR_BOARD, '')

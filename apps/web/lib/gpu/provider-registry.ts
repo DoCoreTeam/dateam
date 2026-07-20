@@ -106,3 +106,19 @@ export function resolveClassification(input: {
   // 4) 폴백 supplier
   return { decision: 'supplier', supplierPresent: false, reason: aiType ? 'ai' : 'fallback' }
 }
+
+/**
+ * URL 도메인 → 경쟁사 표시명 폴백. 화이트리스트(COMPETITOR_RULES)는 아는 회사만 잡으므로
+ * 신규 사이트는 항상 경쟁사명이 공란이 된다(실사고: verda.com → 41건 전부 공란 저장 직전).
+ * 도메인은 그 자체로 회사 식별자라 결정론 폴백으로 안전하다. verda.com → "Verda".
+ * (정식 식별·병합은 저장부의 resolveCompetitorId SSOT가 도메인 기준으로 수행)
+ */
+export function providerFromUrl(url: string | null | undefined): string {
+  if (!url) return ''
+  try {
+    const host = new URL(url).hostname.replace(/^www\./i, '')
+    const label = host.split('.')[0] ?? ''
+    if (!label || label.length < 2) return ''
+    return label.charAt(0).toUpperCase() + label.slice(1)
+  } catch { return '' }
+}

@@ -69,6 +69,9 @@ export function resolveGpuCount(text: string | null | undefined): number | null 
   //   예: "Grace CPU × 2 GPU：Blackwell GPU × 4" → 4. 미매치 시 아래 일반 규칙 폴백(하위호환).
   const gpuX = t.match(/gpu[^0-9x×枚장]{0,40}[x×]\s*(\d{1,2})(?!\d)/)
   if (gpuX) return parseInt(gpuX[1], 10)
+  // 수량 접두 "N x 모델"("1x H100 SXM5 80GB"·"2× A100") — verda류 표기. 뒤에 영문자가 와야 수량으로 인정.
+  const leadX = t.match(/^\s*(\d{1,2})\s*[x×]\s*(?=[a-z])/)
+  if (leadX) return parseInt(leadX[1], 10)
   // "x N" 또는 "× N"(전각). GPU[80GB] × 8 처럼 대괄호·공백 뒤에도 매칭.
   const x = t.match(/[x×]\s*(\d{1,2})(?!\d)/)
   if (x) return parseInt(x[1], 10)

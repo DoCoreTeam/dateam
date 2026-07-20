@@ -11,6 +11,7 @@ import { classifyObservation } from './observation-classify.ts'
 import { looksLikeGpuModel } from './validate.ts'
 import { parseHourlyProse } from './deterministic-table.ts'
 import { componentToKrwPerGpuHour, type PriceComponent } from './price-components.ts'
+import { canonicalizeModel } from './canonical-model.ts'
 
 // 변환 결과 — route가 emit하는 경쟁사 preview/저장 아이템과 동일 형태.
 // CompetitorLike(+ source_model_name·price_unknown) — dedup·validate·프론트가 그대로 소비.
@@ -212,7 +213,10 @@ export function transcriptionToCompetitorItems(
 
     const candidate: CompetitorCandidate = {
       competitor_name: provider,
-      model_name: label,        // 원문 그대로 — 카탈로그 매핑 금지
+      // 잡음 제거만(캐노니컬 SSOT) — 벤더·수량접두·메모리 토큰 제거. **카탈로그 매핑은 아니다**(그건 resolveProductId).
+      //   실사고: verda 요금표 "1x GB300 SXM6 288GB"가 원문 그대로 나와 화면·매칭 양쪽에서 틀림.
+      //   피벗·산문 경로는 이미 캐노니컬을 쓰는데 이 정상 경로만 원문이라 같은 화면에서 표기가 갈렸다.
+      model_name: canonicalizeModel(label).canonical || label,
       price_usd: priceUsd,
       price_unknown: priceUnknown,
       source_model_name: label, // 원문 보존(프론트 병기·reconcile)

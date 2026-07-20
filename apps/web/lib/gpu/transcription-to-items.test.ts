@@ -7,13 +7,14 @@ function row(raw_label: string, price_text: string | null, cells: string[] = [])
   return { raw_label, price_text, cells }
 }
 
-test('원문 모델명 보존 — 카탈로그 매핑 절대 안 함(HGX B300이 H100으로 둔갑하지 않음)', () => {
+test('모델명 잡음제거 — 원문은 source_model_name에 보존, 다른 모델로 둔갑 절대 금지(v0.7.356)', () => {
   const rows = [row('NVIDIA HGX B300', '$7.85'), row('HGX B200', '$7.15')]
   const items = transcriptionToCompetitorItems(rows, { provider: 'Nebius' })
   assert.equal(items.length, 2)
-  assert.equal(items[0].model_name, 'NVIDIA HGX B300')
-  assert.equal(items[0].source_model_name, 'NVIDIA HGX B300')
-  assert.equal(items[1].model_name, 'HGX B200')
+  assert.equal(items[0].model_name, 'B300', '잡음(NVIDIA·HGX) 제거 — 다른 모델로 둔갑은 아님')
+  assert.equal(items[0].source_model_name, 'NVIDIA HGX B300', '원문 보존')
+  assert.notEqual(items[0].model_name, 'H100', 'B300이 H100으로 둔갑 금지')
+  assert.equal(items[1].model_name, 'B200', 'HGX(보드패밀리) 제거')
   assert.equal(items[0].competitor_name, 'Nebius')
   // 어디에도 H100으로 둔갑한 항목이 없어야 함
   assert.ok(!items.some((it) => /h100/i.test(it.model_name)))
@@ -102,12 +103,17 @@ test('Nebius 전체 표 — 9모델 전부, H100 둔갑 0, GB300/GB200 price_unk
   ]
   const items = transcriptionToCompetitorItems(rows, { provider: 'Nebius' })
   assert.equal(items.length, 9, '9모델 전부 보존(누락 0)')
-  // 원문 모델명 그대로 — H100 둔갑 없음(B300/B200이 H100으로 안 바뀜)
-  assert.ok(items.some((it) => it.model_name === 'NVIDIA HGX B300'))
-  assert.ok(items.some((it) => it.model_name === 'NVIDIA HGX B200'))
+  // 잡음(NVIDIA·HGX)만 제거 — H100 둔갑 없음(B300/B200이 H100으로 안 바뀜). 원문은 source_model_name 보존.
+  assert.ok(items.some((it) => it.model_name === 'B300' && it.source_model_name === 'NVIDIA HGX B300'))
+  assert.ok(items.some((it) => it.model_name === 'B200' && it.source_model_name === 'NVIDIA HGX B200'))
   assert.ok(items.some((it) => it.model_name === 'RTX PRO 6000'))
+  // 둔갑 0 — 어떤 항목도 H100으로 바뀌지 않고, B300≠GB300·B200≠GB200이 각각 유지된다(오병합 금지).
+  assert.equal(items.filter((it) => it.model_name === 'H100').length, 1, 'H100은 원래 1건뿐')
+  for (const m of ['B300', 'GB300', 'B200', 'GB200']) {
+    assert.equal(items.filter((it) => it.model_name === m).length, 1, `${m} 1건 유지(오병합 0)`)
+  }
   // B300 대표가 = on-demand 7.85
-  const b300 = items.find((it) => it.model_name === 'NVIDIA HGX B300')!
+  const b300 = items.find((it) => it.model_name === 'B300')!
   assert.equal(b300.price_usd, 7.85)
   // GB300/GB200 = price_unknown(드롭 금지)
   const gb300 = items.find((it) => it.model_name === 'GB300')!
@@ -215,7 +221,7 @@ test('소프트뱅크 A100 시간제 — 기본료·종량·스토리지 3성분
   // 기본료/종량/스토리지 라벨 행은 각자 후보로 새지 않고 A100 1건으로 흡수됨(무손실 회수 — 드롭 0)
   assert.equal(items.length, 1, '비GPU 라벨 3행이 별도 후보로 새지 않고 흡수됨')
   const a100 = items[0]
-  assert.equal(a100.model_name, 'NVIDIA A100 時間貸しプラン')
+  assert.equal(a100.model_name, 'A100', '요금제 접미(時間貸しプラン) 제거 — 원문은 source_model_name')
   assert.equal(a100.components?.length, 3, '기본료+종량+스토리지 3성분 전량 회수')
   const base = a100.components!.find((c) => c.component_kind === 'base_fee')!
   assert.equal(base.amount, 30_000); assert.equal(base.currency, 'JPY'); assert.equal(base.unit, 'month')
