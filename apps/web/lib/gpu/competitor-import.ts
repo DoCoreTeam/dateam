@@ -133,7 +133,12 @@ export async function saveCompetitorPrices(
       const { data: newComp, error: compErr } = await db.from('competitors')
         .insert({ name: compName, short_name: compName.slice(0, 20), type: 'specialist', ...(sourceUrl ? { website_url: sourceUrl } : {}) })
         .select('id').single()
-      if (compErr || !newComp) { console.error('[competitor] 경쟁사 생성 실패:', compErr?.message); continue }
+      if (compErr || !newComp) {
+        // 조용한 드롭 금지(v0.7.362) — 실패를 rejected로 노출해 사용자가 "왜 안 들어갔는지" 알 수 있게 한다.
+        console.error('[competitor] 경쟁사 생성 실패:', compErr?.message)
+        rejected.push({ model: item.model_name, issues: [{ field: 'competitor', severity: 'block', msg: `경쟁사 생성 실패: ${compErr?.message ?? 'unknown'}` }] })
+        continue
+      }
       competitorId = newComp.id
       // 같은 배치 후속 항목이 이 회사로 해소되도록 인메모리 목록에 추가
       existing.push({ id: competitorId, name: compName, short_name: compName.slice(0, 20), website_url: sourceUrl, aliases: [] })
@@ -166,7 +171,13 @@ export async function saveCompetitorPrices(
       const sku = `${item.model_name} ${memory ?? ''} (${pricingModel})`.trim()
       const { data: newMap, error: mapErr } = await db.from('competitor_product_mapping')
         .insert({ competitor_id: competitorId, gpu_product_id: gpuProductId, competitor_sku: sku, pricing_model: pricingModel, is_active: true, ...(sourceUrl ? { competitor_url: sourceUrl } : {}) }).select('id').single()
-      if (mapErr || !newMap) { console.error('[competitor] 매핑 생성 실패:', mapErr?.message); continue }
+      if (mapErr || !newMap) {
+        // 실사고: pricing_model='reserved'가 DB CHECK에 없어 매핑 insert가 전부 실패했는데
+        //   continue로 조용히 넘어가 월정액 번들이 통째로 유실됐다(SoftBank 저장행 on_demand 2건뿐).
+        console.error('[competitor] 매핑 생성 실패:', mapErr?.message, { pricingModel })
+        rejected.push({ model: item.model_name, issues: [{ field: 'mapping', severity: 'block', msg: `매핑 생성 실패(${pricingModel}): ${mapErr?.message ?? 'unknown'}` }] })
+        continue
+      }
       mappingId = newMap.id
     }
 
@@ -180,7 +191,11 @@ export async function saveCompetitorPrices(
       // 관측 원본(P1) — 추출이 obs를 주면 그대로 persist(환산 전 진실값). 없으면 생략(기존 경로 무변경).
       ...buildObsColumns(item.obs),
     }).select('id').single()
-    if (obsErr) { console.error('[competitor] 관측 저장 실패:', obsErr.message); continue }
+    if (obsErr) {
+      console.error('[competitor] 관측 저장 실패:', obsErr.message)
+      rejected.push({ model: item.model_name, issues: [{ field: 'observation', severity: 'block', msg: `관측 저장 실패: ${obsErr.message}` }] })
+      continue
+    }
 
     // 요금성분 1:N(마이그165) — 있을 때만. 실패해도 관측 헤더 저장은 되돌리지 않는다(유실0 > 정합, never-block).
     //   성분 저장 실패는 조용히 넘기지 않고 로그로 노출 — 사후 재적재 대상.

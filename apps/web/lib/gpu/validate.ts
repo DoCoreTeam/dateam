@@ -9,7 +9,9 @@ export const MAX_INTAKE_ITEMS = 500
 
 // ── SSOT: DB CHECK 제약 미러 (058/052 등). 변경 시 drift 테스트가 잡음 ──
 export const ENUMS = {
-  pricing_model: ['on_demand', 'reserved_1y', 'reserved_3y', 'spot', 'committed'],
+  // 'reserved'(약정·기간 미상) 포함 — 월정액 번들 표기. SSOT pricingModelForUnit이 월/년에 이 값을 낸다.
+  //   실사고 v0.7.362: 이 목록과 DB CHECK 양쪽에 'reserved'가 없어 월정액이 전부 차단·유실됐다(마이그167로 DB 정렬).
+  pricing_model: ['on_demand', 'reserved', 'reserved_1y', 'reserved_3y', 'spot', 'committed'],
   tier: [1, 2, 3],
   review_status: ['pending', 'confirmed', 'rejected', 'superseded'],
   channel: ['mail', 'msg', 'pdf', 'img', 'own'],
