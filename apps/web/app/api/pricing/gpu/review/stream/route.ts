@@ -11,6 +11,8 @@ import { resolveClassification, detectCompetitorProviders, providerFromUrl } fro
 import { buildTranscriptionPrompt, parseTranscription, type TranscriptionResult } from '@/lib/gpu/transcription'
 import { reconcile, type ReconcileResult, type ReconcileExtractedLike } from '@/lib/gpu/reconcile'
 import { transcriptionToCompetitorItems, proseToCompetitorItems } from '@/lib/gpu/transcription-to-items'
+import { extractAiObservations } from '@/lib/gpu/ai-observation'
+import { observationToKrwPerGpuHour, type AiObservation } from '@/lib/gpu/observation-contract'
 import { validateCompetitorItem, looksLikeGpuModel } from '@/lib/gpu/validate'
 import { reconstructPivot } from '@/lib/gpu/pivot-reconstruct'
 import { classifyObservation } from '@/lib/gpu/observation-classify'
@@ -285,13 +287,66 @@ export async function POST(req: NextRequest) {
             //   놓친다 → GPU 모델이 0건이 된다. 이때만 classify가 찾은 GPU 모델로 복구한다.
             //   단, classify 가격은 specContext 편향으로 환각 위험 → price_usd=null(보류)로만 살린다(가짜가격 유입 금지).
             //   전사가 GPU 모델을 하나라도 뽑은 정상 페이지엔 발동 안 함(회귀 0).
+            // ── AI 구조화 관측(v0.7.357) — 최우선 소스 ──
+            //   AI가 축(model·form_factor·memory·gpu_count·per_qty)을 필드로 분리해 인식하고, 산술은 코드가 한다.
+            //   정규식 열거표가 못 읽는 표기(전각 ￥·1x 수량접두·100GB당 분모)를 원천 처리한다.
+            //   실패(429·파싱오류)해도 아래 기존 경로가 그대로 살아있어 회귀 0.
+            // 카탈로그 실재 검증용 이름 목록 — AI가 없는 모델명을 지어내는 것을 차단(강등).
+            const { data: catRows } = await adminClient.from('gpu_products')
+              .select('model_name').is('deleted_at', null).limit(500)
+            const catalogModelNames = Array.from(new Set(((catRows ?? []) as Array<{ model_name: string | null }>)
+              .map((c) => (c.model_name ?? '').trim()).filter(Boolean)))
+
+            let aiItems: Array<Record<string, unknown>> = []
+            let aiRejected: Array<{ reason: string; detail: string }> = []
+            try {
+              const aiRes = await extractAiObservations({
+                apiKey: config.apiKey, model: config.model, sourceText: contentText, specContext,
+                catalogNames: catalogModelNames,
+              })
+              aiRejected = aiRes.rejected
+              aiItems = aiRes.valid.map((o: AiObservation) => {
+                const krw = observationToKrwPerGpuHour(o, fxMap)
+                const usd = krw != null && krwPerUsd > 0 ? krw / krwPerUsd : null
+                return {
+                  competitor_name: o.competitor_name || provider || providerFromUrl(sourceUrl),
+                  model_name: o.catalog_match ?? o.model,
+                  source_model_name: o.model,
+                  ...(o.memory_gb ? { memory: `${o.memory_gb}GB` } : {}),
+                  price_usd: usd,
+                  price_unknown: usd == null,
+                  original_currency: o.currency,
+                  original_price: o.amount,
+                  pricing_model: pricingModelForUnit(o.unit),
+                  obs: {
+                    amount: o.amount, currency: o.currency, pricing_unit: o.unit, gpu_count: o.gpu_count,
+                    segment: null, bundle_inclusive: false, tax_basis: 'unknown', comparable: true,
+                    fx_source: 'koreaexim', fx_rate_date: fxDate,
+                    fx_rate: o.currency && o.currency !== 'KRW' ? fxMap[o.currency] ?? null : 1,
+                    provenance: o.provenance,
+                  },
+                }
+              })
+              if (aiItems.length > 0) {
+                send('progress', { step: 'ai_observed', msg: `AI 구조화 관측 ${aiItems.length}건 — 축 분리(모델·폼팩터·메모리·장수) 완료` })
+              }
+              if (aiRejected.length > 0) {
+                send('progress', { step: 'ai_rejected', msg: `검증 거부 ${aiRejected.length}건: ${aiRejected.slice(0, 3).map((r) => r.detail).join(' / ')}` })
+              }
+            } catch (e) {
+              send('progress', { step: 'ai_failed', msg: `AI 구조화 관측 실패 — 기존 경로로 진행(${e instanceof Error ? e.message : 'unknown'})` })
+            }
+
             // 산문 회수용 경쟁사명 — 전사 provider가 비면 classify가 식별한 회사명으로 보완(빈 이름 저장 방지).
             //   classify의 "가격"은 불신하지만 "회사명"은 라벨 식별이라 채택 가능(가짜 가격 유입과 무관).
             const proseProvider = provider || (Array.isArray(classified.items)
               ? String((classified.items as Array<Record<string, unknown>>).find((it) => typeof it.competitor_name === 'string' && it.competitor_name)?.competitor_name ?? '')
               : '')
             const gpuValid = compItems.filter((it) => looksLikeGpuModel(String((it as Record<string, unknown>).model_name ?? '')))
-            if (gpuValid.length === 0) {
+            if (aiItems.length > 0) {
+              // AI 구조화 관측이 성공하면 이것이 1순위. 기존 결정론 결과는 교차검증용으로 남는다.
+              compItems = aiItems
+            } else if (gpuValid.length === 0) {
               // 1순위 — 피벗 재구성: 세로표에서 열별로 모델(サービス)+원본가(月額)+장수(×8)를 다시 묶는다.
               //   진짜 엔화 금액을 살려 fx로 환산(번들은 managed_bundle로 격리). 결정론(AI 산술 없음).
               const HOURS: Record<string, number> = HOURS_PER_PERIOD

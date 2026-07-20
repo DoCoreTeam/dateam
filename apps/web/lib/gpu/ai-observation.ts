@@ -36,6 +36,7 @@ export function buildObservationPrompt(sourceText: string, specContext: string):
 절대 산술을 하지 마세요 — 나누지 말고, 환산하지 말고, 원문에 적힌 금액과 단위를 그대로 보고하세요.
 예: "1,000円/100GB" 같은 표기를 보면 amount=1000, per_qty=100으로 분리해서 보고하세요(1000÷100을 계산해서 10을 보고하지 마세요).
 "月額"(월정액) 표기는 반드시 unit="month"로 보고하세요 — 주기를 빠뜨리지 마세요.
+provenance에는 **모델명이 보이는 원문 조각을 반드시 포함**하세요(금액만 넣지 마세요). 모델 판정의 근거이며, 근거 없는 모델명은 검증에서 거부됩니다.
 통화 기호는 전각(￥￦＄)·반각(¥₩$) 구분 없이 인식하세요.
 수량 접두("1x", "2×", "8장", "8枚")는 gpu_count로 분리하고 amount에서 제거하세요.
 
@@ -81,8 +82,10 @@ export async function extractAiObservations(params: {
   specContext: string
   /** 테스트 주입용. 미주입 시 extract-helpers.callGeminiOnce(운영 경로) 사용. */
   geminiCaller?: GeminiCaller
+  /** 실제 카탈로그 model_name 집합. 주면 catalog_match가 이 집합에 없을 때 none으로 강등(환각 매칭 차단). */
+  catalogNames?: string[]
 }): Promise<ExtractAiObservationsResult> {
-  const { apiKey, model, sourceText, specContext, geminiCaller } = params
+  const { apiKey, model, sourceText, specContext, geminiCaller, catalogNames } = params
   const prompt = buildObservationPrompt(sourceText, specContext)
   const call = geminiCaller ?? defaultGeminiCaller
 
@@ -104,10 +107,33 @@ export async function extractAiObservations(params: {
   const items = Array.isArray(parsed.observations) ? parsed.observations : []
   const valid: AiObservation[] = []
   const rejected: ObservationRejection[] = []
+  // 카탈로그 실재 검증 — AI가 카탈로그에 없는 이름을 catalog_match로 적는 환각을 차단.
+  //   (실측: 카탈로그에 GB200이 없는데 catalog_match="GB200"(exact)로 보고)
+  //   거부가 아니라 **미등록으로 강등**한다 — 관측 자체는 살리고 매칭만 보류(신규 모델 후보로 사람이 판단).
+  const catalogSet = new Set((catalogNames ?? []).map((n) => n.toLowerCase().replace(/[\s\-_]+/g, '')))
   for (const item of items) {
     const result = validateAiObservation(item)
-    if (result.ok) valid.push(result.value)
-    else rejected.push({ reason: result.reason, detail: result.detail })
+    if (!result.ok) { rejected.push({ reason: result.reason, detail: result.detail }); continue }
+    let obs = result.value
+    // 접두 혼동 강등 — model과 catalog_match의 접두가 다르면 별개 제품(GB200≠B200, GB300≠B300).
+    //   실측: AI가 model="GB200"으로 정확히 인식하고도 catalog_match="B200"을 골랐다(카탈로그에 GB200 부재).
+    //   거부가 아니라 **미등록 강등** — 관측(가격)은 살리고 매칭만 보류해 신규 모델 후보로 사람이 판단.
+    if (obs.catalog_match !== null) {
+      const mk = obs.model.toLowerCase().replace(/[\s\-_]+/g, '')
+      const ck = obs.catalog_match.toLowerCase().replace(/[\s\-_]+/g, '')
+      if (mk !== ck && (mk.endsWith(ck) || ck.endsWith(mk))) {
+        rejected.push({ reason: 'prefix_confusion', detail: `"${obs.model}" → 카탈로그 "${obs.catalog_match}" 접두 불일치 — 별개 제품 가능. 미등록(신규 후보)으로 강등` })
+        obs = { ...obs, catalog_match: null, match_basis: 'none' }
+      }
+    }
+    if (catalogSet.size > 0 && obs.catalog_match !== null) {
+      const key = obs.catalog_match.toLowerCase().replace(/[\s\-_]+/g, '')
+      if (!catalogSet.has(key)) {
+        rejected.push({ reason: 'catalog_match_mismatch', detail: `카탈로그에 없는 매칭 "${obs.catalog_match}" — 미등록(신규 후보)으로 강등` })
+        obs = { ...obs, catalog_match: null, match_basis: 'none' }
+      }
+    }
+    valid.push(obs)
   }
   return { valid, rejected }
 }
