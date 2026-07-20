@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { resolveProductId, heldReasonMessage } from './resolve-product.ts'
 
 // 읽기전용 가짜 DB — db.from(t).select(c).is('deleted_at', null) → { data: rows }
-interface Row { id: string; model_name: string; memory: string | null; gpu_count: number | null; strategic_price_krw?: number | null }
+interface Row { id: string; model_name: string; memory: string | null; gpu_count: number | null; strategic_price_krw?: number | null; form_factor?: string | null }
 function fakeDb(rows: Row[]) {
   return {
     from() {
@@ -100,6 +100,57 @@ test('gpuCount 기본값 1 — 경쟁사 on-demand', async () => {
 
 test('빈 모델명 → no_model', async () => {
   const r = await resolveProductId(fakeDb(CATALOG), { modelName: '   ' })
+  assert.deepEqual(r, { held: true, reason: 'no_model' })
+})
+
+// P5 — 폼팩터 축 분리 카탈로그(마이그166 백필과 동일 형상): 폼팩터 없는 bare 모델과
+// SXM/PCIe 변형이 각각 별개 행으로 공존.
+const FORM_FACTOR_CATALOG: Row[] = [
+  { id: 'a100-sxm', model_name: 'A100 SXM', memory: '80GB', gpu_count: 1, form_factor: 'SXM' },
+  { id: 'a100-pcie', model_name: 'A100 PCIe', memory: '80GB', gpu_count: 1, form_factor: 'PCIe' },
+  { id: 'h100-nvl', model_name: 'H100 NVL', memory: '94GB', gpu_count: 1, form_factor: 'NVL' },
+  { id: 'l40s', model_name: 'L40S', memory: '48GB', gpu_count: 1, form_factor: null },
+]
+
+test('P5 — 세대숫자 변형(A100 SXM4) ↔ 카탈로그 A100 SXM 매칭 성공', async () => {
+  const r = await resolveProductId(fakeDb(FORM_FACTOR_CATALOG), { modelName: 'A100 SXM4', gpuCount: 1 })
+  assert.deepEqual(r, { productId: 'a100-sxm', matched: 'single_variant' })
+})
+
+test('P5 — 폼팩터 다른 제품(A100 PCIe)은 A100 SXM과 불일치(별개 매칭)', async () => {
+  const r = await resolveProductId(fakeDb(FORM_FACTOR_CATALOG), { modelName: 'A100 PCIe', gpuCount: 1 })
+  assert.deepEqual(r, { productId: 'a100-pcie', matched: 'single_variant' })
+  // 다른 폼팩터끼리 서로의 id로 오매칭되지 않았는지 명시적으로 확인
+  assert.notEqual((r as { productId: string }).productId, 'a100-sxm')
+})
+
+test('P5 — 세대숫자 변형(H100 SXM5)도 동일 축 분리로 매칭(카탈로그에 SXM5는 없고 core+SXM만 있음)', async () => {
+  const CATALOG_H100: Row[] = [
+    { id: 'h100-sxm', model_name: 'H100 SXM', memory: '80GB', gpu_count: 1, form_factor: 'SXM' },
+  ]
+  const r = await resolveProductId(fakeDb(CATALOG_H100), { modelName: 'H100 SXM5', gpuCount: 1 })
+  assert.deepEqual(r, { productId: 'h100-sxm', matched: 'single_variant' })
+})
+
+test('P5 — 폼팩터 없는 모델(L40S)은 기존 경로 그대로 정상 매칭(회귀 0)', async () => {
+  const r = await resolveProductId(fakeDb(FORM_FACTOR_CATALOG), { modelName: 'L40S', gpuCount: 1 })
+  assert.deepEqual(r, { productId: 'l40s', matched: 'single_variant' })
+})
+
+test('P5 — 전체문자열 일치(1차)가 성공하면 폼팩터 폴백을 타지 않음(회귀 0)', async () => {
+  // "A100 SXM" 그대로 입력 → 1차 경로(coreModelKey 전체일치)로 바로 매칭, 폴백 관여 불필요
+  const r = await resolveProductId(fakeDb(FORM_FACTOR_CATALOG), { modelName: 'A100 SXM', gpuCount: 1 })
+  assert.deepEqual(r, { productId: 'a100-sxm', matched: 'single_variant' })
+})
+
+test('P5 — 카탈로그에 그 폼팩터 변형이 전혀 없으면 no_variant 보류(깡통 생성 금지)', async () => {
+  // A100 core는 카탈로그에 있으나(SXM·PCIe) NVL 변형은 없음 → 오매칭 대신 보류
+  const r = await resolveProductId(fakeDb(FORM_FACTOR_CATALOG), { modelName: 'A100 NVL', gpuCount: 1 })
+  assert.deepEqual(r, { held: true, reason: 'no_variant' })
+})
+
+test('P5 — 입력에 폼팩터 토큰이 없고 core도 카탈로그에 없으면 여전히 no_model(폴백 미관여)', async () => {
+  const r = await resolveProductId(fakeDb(FORM_FACTOR_CATALOG), { modelName: 'MI300X' })
   assert.deepEqual(r, { held: true, reason: 'no_model' })
 })
 
