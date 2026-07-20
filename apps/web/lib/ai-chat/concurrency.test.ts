@@ -80,16 +80,20 @@ test('runWithConcurrency: 지수 백오프 간격 증가', async () => {
     },
     { retries: 3, backoffMs: 20 },
   )
-  // 4 attempts total (initial + 3 retries) → 3 gaps: ~20, ~40, ~80
+  // 4 attempts total (initial + 3 retries) → 3 gaps ≈ backoffMs * 3^attempt: 20, 60, 180.
+  // setTimeout은 요청한 지연 이상만 보장(조기 발화 없음)하므로, 측정 gap은 항상 기대 백오프 이상이다.
+  // 연속 측정 gap의 비율(gap1 >= gap0*1.5)로 검증하면 러너 지터가 짧은 첫 gap에 절대값으로 더해져
+  // 비율이 무너지며 flaky해진다. 각 gap을 "기대 백오프의 하한"과 비교해 결정적으로 판정한다.
   assert.equal(timestamps.length, 4)
   const gaps = [
     timestamps[1] - timestamps[0],
     timestamps[2] - timestamps[1],
     timestamps[3] - timestamps[2],
   ]
-  assert.ok(gaps[0] >= 15, `gap0=${gaps[0]}`)
-  assert.ok(gaps[1] >= gaps[0] * 1.5, `gap1=${gaps[1]} should be notably > gap0=${gaps[0]}`)
-  assert.ok(gaps[2] >= gaps[1] * 1.5, `gap2=${gaps[2]} should be notably > gap1=${gaps[1]}`)
+  // 타이머 슬랙 여유로 0.8배 하한(setTimeout이 드물게 1~2ms 일찍 계상되는 환경 방어)
+  assert.ok(gaps[0] >= 20 * 0.8, `gap0=${gaps[0]} should be >= ~20`)
+  assert.ok(gaps[1] >= 60 * 0.8, `gap1=${gaps[1]} should be >= ~60`)
+  assert.ok(gaps[2] >= 180 * 0.8, `gap2=${gaps[2]} should be >= ~180`)
 })
 
 test('runWithConcurrency: signal 중단 시 미착수 항목 실행 안 됨', async () => {

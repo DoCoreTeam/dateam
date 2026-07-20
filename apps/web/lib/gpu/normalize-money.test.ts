@@ -128,3 +128,11 @@ test('pricingModelForUnit — 월정액=reserved, 시간제=on_demand', () => {
   assert.equal(pricingModelForUnit(null), 'on_demand')     // 미상 → 기본 on_demand
   assert.equal(pricingModelForUnit(undefined), 'on_demand')
 })
+
+// [회귀고정 v0.7.351] GPU 인접 우선 — 같은 셀에 CPU 장수가 먼저 오면 CPU를 잡던 사고 방어.
+test('resolveGpuCount — CPU 장수가 앞서도 GPU 장수를 집는다', () => {
+  assert.equal(resolveGpuCount('Grace CPU × 2 GPU：Blackwell GPU × 4'), 4)
+})
+test('resolveGpuCount — GPU 인접 미매치 시 일반 규칙 폴백(하위호환)', () => {
+  assert.equal(resolveGpuCount('H100 [80GB] × 8'), 8)
+})

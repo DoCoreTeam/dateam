@@ -200,3 +200,54 @@ test('EUR(€)·CNY(元) 입력 — 환율 미지원 통화 전부 보류(둔갑
     assert.equal(items[0].price_unknown, true)
   }
 })
+
+// ── 요금성분 회수 결선(v0.7.351 T1.3) — 소프트뱅크 A100 時間貸し(기본료+종량+스토리지) 무손실 흡수 ──
+test('소프트뱅크 A100 시간제 — 기본료·종량·스토리지 3성분이 A100 후보 1건에 흡수됨(비GPU 라벨 행은 별도 후보로 새지 않음)', () => {
+  const rows: TranscriptionRow[] = [
+    row('NVIDIA A100 時間貸しプラン', null, []),
+    row('月額基本料金', '30,000円', []),
+    row('GPU利用料金（1枚あたり）', '7.2円/1分', []),
+    row('データストアストレージ（月額）', '1,000円/100GB', []),
+  ]
+  const fxMap = { JPY: 9.5, USD: 1400 }
+  const items = transcriptionToCompetitorItems(rows, { provider: 'SoftBank', krwPerUsd: 1400, fxMap })
+
+  // 기본료/종량/스토리지 라벨 행은 각자 후보로 새지 않고 A100 1건으로 흡수됨(무손실 회수 — 드롭 0)
+  assert.equal(items.length, 1, '비GPU 라벨 3행이 별도 후보로 새지 않고 흡수됨')
+  const a100 = items[0]
+  assert.equal(a100.model_name, 'NVIDIA A100 時間貸しプラン')
+  assert.equal(a100.components?.length, 3, '기본료+종량+스토리지 3성분 전량 회수')
+  const base = a100.components!.find((c) => c.component_kind === 'base_fee')!
+  assert.equal(base.amount, 30_000); assert.equal(base.currency, 'JPY'); assert.equal(base.unit, 'month')
+  const usage = a100.components!.find((c) => c.component_kind === 'usage')!
+  assert.equal(usage.amount, 7.2); assert.equal(usage.unit, 'minute')
+  const storage = a100.components!.find((c) => c.component_kind === 'storage')!
+  assert.equal(storage.amount, 10); assert.equal(storage.unit, 'per_gb')
+
+  // 대표가 — usage 성분(GPU 종량)으로 갱신, price_unknown 해소(기본료/스토리지는 시간축 아니라 제외)
+  assert.equal(a100.price_unknown, false)
+  // 7.2 JPY/min × 9.5(fx) × 60(분→시) ÷ 1400(krwPerUsd)
+  const expectUsd = (7.2 * 9.5 * 60) / 1400
+  assert.ok(Math.abs(a100.price_usd! - expectUsd) < 1e-6, `기대 ${expectUsd}, 실제 ${a100.price_usd}`)
+  assert.equal(a100.original_currency, 'JPY')
+  assert.equal(a100.original_price, 7.2)
+})
+
+test('fxMap 미주입 — 성분은 부착되지만 대표가는 갱신되지 않음(price_unknown 유지, 보류)', () => {
+  const rows: TranscriptionRow[] = [
+    row('NVIDIA A100 時間貸しプラン', null, []),
+    row('GPU利用料金（1枚あたり）', '7.2円/1分', []),
+  ]
+  const items = transcriptionToCompetitorItems(rows, { provider: 'SoftBank', krwPerUsd: 1400 })
+  assert.equal(items.length, 1)
+  assert.equal(items[0].components?.length, 1)
+  assert.equal(items[0].price_unknown, true, 'fxMap 없이는 JPY 대표가 확정 불가 — 보류 유지')
+  assert.equal(items[0].price_usd, null)
+})
+
+test('직전 GPU 모델 없이 나오는 비GPU 라벨 행 — 기존 동작 그대로(별도 후보, 결국 필터링 대상)', () => {
+  const rows: TranscriptionRow[] = [row('月額基本料金', '30,000円', [])]
+  const items = transcriptionToCompetitorItems(rows, { provider: 'SoftBank' })
+  assert.equal(items.length, 1, '흡수 대상 모델이 없으면 기존처럼 자기 자신이 후보(다운스트림에서 걸러짐)')
+  assert.equal(items[0].model_name, '月額基本料金')
+})

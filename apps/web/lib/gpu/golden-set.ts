@@ -117,3 +117,26 @@ export const CURRENCY_OBS_FIXTURES: Array<{
   { obs: { amount: 7.2, currency: 'JPY', pricing_unit: 'minute', gpu_count: 1 }, fx: { JPY: 9.5 }, expectKrwPerGpuHour: 7.2 * 9.5 * 60 },               // A100 시간제 분당
   { obs: { amount: 24, currency: 'USD', pricing_unit: 'hour', gpu_count: 8 }, fx: { USD: 1342.5 }, expectKrwPerGpuHour: (24 * 1342.5) / 8 },            // 8-GPU 노드 $24/hr
 ]
+
+/** [사고E — v0.7.351 T4.1] 복합요금 무손실 회수 박제.
+ *  소프트뱅크 A100 시간제는 3성분(기본료+분당 종량+스토리지)인데 재설계 전엔 1개만 저장되고 나머지는 폐기됐다.
+ *  기본료는 GPU에 귀속 안 돼 looksLikeGpuModel 게이트에서 "GPU 아님"으로 사라지던 것이 근본 원인.
+ *  → 라벨 자체는 여전히 모델이 아니지만(NON_GPU_LABEL_FIXTURES 유지), 직전 식별된 GPU 모델의
+ *    요금성분으로 흡수돼야 한다. 성분 개수·종류가 줄면 회귀(= 다시 무음 손실). */
+export const COMPONENT_RECOVERY_FIXTURES: Array<{
+  label: string
+  prose: string
+  model: string
+  expect: Array<{ component_kind: 'base_fee' | 'usage' | 'storage' | 'flat'; amount: number; currency: string; unit: string }>
+}> = [
+  {
+    label: '소프트뱅크 A100 시간제 — 3성분 전량 회수(1개만 남고 2개 폐기되던 사고)',
+    prose: 'NVIDIA A100 時間貸しプラン 月額基本料金 30,000円 GPU利用料金 7.2円/1分 メインストレージ 1,000円/100GB',
+    model: 'A100',
+    expect: [
+      { component_kind: 'base_fee', amount: 30_000, currency: 'JPY', unit: 'month' },   // 月額 → 시간정보 보존(per_account로 뭉개면 손실)
+      { component_kind: 'usage', amount: 7.2, currency: 'JPY', unit: 'minute' },
+      { component_kind: 'storage', amount: 10, currency: 'JPY', unit: 'per_gb' },       // 1,000円/100GB → 1GB 단가 10(미정규화 시 100배 과대계상)
+    ],
+  },
+]

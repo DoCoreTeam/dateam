@@ -60,10 +60,10 @@ test('applyMapping: 모델/업체/가격 없는 행은 skip', () => {
   assert.equal(out[0].model_name, 'H100')
 })
 
-test('applyMapping: 월 단가(_unit=per_month)는 시간당으로 환산(÷730)', () => {
-  const rows = [{ location: 'x/y', gpu_name: 'H100', price: 730, spot: false }]
+test('applyMapping: 월 단가(_unit=per_month)는 시간당으로 환산(÷720, hours.ts SSOT)', () => {
+  const rows = [{ location: 'x/y', gpu_name: 'H100', price: 720, spot: false }]
   const out = applyMapping(rows, { ...goodMapping, _unit: 'per_month' })
-  assert.equal(out[0].price_usd, 1)  // 730/월 → 1/시간
+  assert.equal(out[0].price_usd, 1)  // 720/월 → 1/시간 (월=720h SSOT, 720/730 이원화 해소)
 })
 
 test('applyMapping: per_hour/unknown은 원값 유지', () => {

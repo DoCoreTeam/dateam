@@ -271,7 +271,7 @@ export async function POST(req: NextRequest) {
               if (fxDate === null) fxDate = r.rate_date
               if (r.rate_date === fxDate && fxMap[r.currency] === undefined) fxMap[r.currency] = r.krw_per_1
             }
-            const cands = transcriptionToCompetitorItems(transcription.rows, { provider, krwPerUsd })
+            const cands = transcriptionToCompetitorItems(transcription.rows, { provider, krwPerUsd, fxMap })
             // 동일 경쟁사·모델 중복만 제거(원문 보존 — 가격미상도 유지). 전사 1행=모델 1건이라 통상 no-op.
             const deduped = dedupCompetitor(cands as CompetitorLike[])
             rawCount = cands.length

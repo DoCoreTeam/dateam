@@ -52,6 +52,10 @@ export function resolvePeriod(token: string | null | undefined): Period | null {
 export function resolveGpuCount(text: string | null | undefined): number | null {
   if (!text) return null
   const t = text.toLowerCase()
+  // GPU 인접 우선 — "GPU：… × 4"처럼 GPU 뒤 ×N을 먼저(같은 셀에 "CPU × 2"가 앞서면 CPU를 잡던 사고 방지).
+  //   예: "Grace CPU × 2 GPU：Blackwell GPU × 4" → 4. 미매치 시 아래 일반 규칙 폴백(하위호환).
+  const gpuX = t.match(/gpu[^0-9x×枚장]{0,40}[x×]\s*(\d{1,2})(?!\d)/)
+  if (gpuX) return parseInt(gpuX[1], 10)
   // "x N" 또는 "× N"(전각). GPU[80GB] × 8 처럼 대괄호·공백 뒤에도 매칭.
   const x = t.match(/[x×]\s*(\d{1,2})(?!\d)/)
   if (x) return parseInt(x[1], 10)

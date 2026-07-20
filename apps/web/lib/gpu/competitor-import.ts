@@ -3,6 +3,7 @@ import { resolveProductId, type ResolveHeldReason } from '@/lib/gpu/resolve-prod
 import { resolveCompetitorId, type CompetitorIdentity } from '@/lib/gpu/resolve-competitor'
 import type { VariantCandidate } from '@/lib/gpu/resolve-product'
 import { validateCompetitorItem, type Issue } from '@/lib/gpu/validate'
+import { toComponentRow, type PriceComponent } from '@/lib/gpu/price-components'
 
 export interface CompetitorPriceItem {
   competitor_name: string
@@ -34,6 +35,11 @@ export interface CompetitorPriceItem {
     provenance?: string | null
     confirmed_by_kind?: string | null
   }
+  /**
+   * 요금성분 N개(v0.7.351 §3) — 복합요금(기본료+종량+스토리지)의 무손실 진실.
+   * 있으면 market_price_components(마이그165)에 관측 헤더와 함께 저장. 없으면 기존 obs_* 경로 그대로(하위호환).
+   */
+  components?: PriceComponent[]
 }
 
 export interface SaveCompetitorResult {
@@ -164,7 +170,7 @@ export async function saveCompetitorPrices(
       mappingId = newMap.id
     }
 
-    await db.from('market_prices').insert({
+    const { data: obsRow, error: obsErr } = await db.from('market_prices').insert({
       mapping_id: mappingId, price_usd: item.price_usd, source_url: sourceUrl,
       source_type: sourceUrl ? 'webpage' : 'manual', recorded_at: now, observed_at: now,
       confidence, is_stale: false, ...(item.notes ? { notes: item.notes } : {}),
@@ -173,7 +179,21 @@ export async function saveCompetitorPrices(
       ...(typeof item.original_price === 'number' ? { original_price: item.original_price } : {}),
       // 관측 원본(P1) — 추출이 obs를 주면 그대로 persist(환산 전 진실값). 없으면 생략(기존 경로 무변경).
       ...buildObsColumns(item.obs),
-    })
+    }).select('id').single()
+    if (obsErr) { console.error('[competitor] 관측 저장 실패:', obsErr.message); continue }
+
+    // 요금성분 1:N(마이그165) — 있을 때만. 실패해도 관측 헤더 저장은 되돌리지 않는다(유실0 > 정합, never-block).
+    //   성분 저장 실패는 조용히 넘기지 않고 로그로 노출 — 사후 재적재 대상.
+    if (obsRow?.id && item.components?.length) {
+      const fxSnap = {
+        rate: item.obs?.fx_rate ?? null,
+        date: item.obs?.fx_rate_date ?? null,
+        source: item.obs?.fx_source ?? null,
+      }
+      const rows = item.components.map((c) => ({ observation_id: obsRow.id, ...toComponentRow(c, fxSnap) }))
+      const { error: compErr2 } = await db.from('market_price_components').insert(rows)
+      if (compErr2) console.error('[competitor] 요금성분 저장 실패(관측은 저장됨):', compErr2.message, { observation_id: obsRow.id })
+    }
     saved.push({ competitor: item.competitor_name, model: item.model_name, memory: memory ?? '', price_usd: item.price_usd })
   }
   return { saved, held, rejected }

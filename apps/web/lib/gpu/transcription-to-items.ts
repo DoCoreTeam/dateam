@@ -6,8 +6,11 @@
 
 import type { TranscriptionRow } from './transcription.ts'
 import type { CompetitorLike } from './dedup.ts'
-import { resolveCurrency, resolvePeriod, resolveGpuCount, toUsdPerGpuHour } from './normalize-money.ts'
+import { resolveCurrency, resolvePeriod, resolveGpuCount, toUsdPerGpuHour, type FxKrwMap } from './normalize-money.ts'
 import { classifyObservation } from './observation-classify.ts'
+import { looksLikeGpuModel } from './validate.ts'
+import { parseHourlyProse } from './deterministic-table.ts'
+import { componentToKrwPerGpuHour, type PriceComponent } from './price-components.ts'
 
 // 변환 결과 — route가 emit하는 경쟁사 preview/저장 아이템과 동일 형태.
 // CompetitorLike(+ source_model_name·price_unknown) — dedup·validate·프론트가 그대로 소비.
@@ -27,6 +30,12 @@ export interface CompetitorCandidate extends CompetitorLike {
   original_price: number | null
   /** 보조가(preemptible 등)·기타 메모 */
   notes?: string
+  /**
+   * 요금성분 N개(v0.7.351 재설계 T1.3) — 복합요금(기본료+종량+스토리지)의 무손실 진실.
+   * 라벨산문(parseHourlyProse)에서 회수된 성분을 "이미 GPU로 식별된" 이 후보에 부착한다(라벨 승격 아님).
+   * 있으면 market_price_components(마이그165)에 저장. 없으면 기존 obs_* 경로 그대로(하위호환).
+   */
+  components?: PriceComponent[]
   /** 관측 원본 성격(확정 기획 P5) — 세그먼트·번들·세금·기간·장수. 저장 시 market_prices obs_*로 persist. */
   obs?: {
     amount: number | null
@@ -46,6 +55,12 @@ export interface TranscriptionToItemsOptions {
   provider?: string
   /** 1 USD = krwPerUsd KRW(fx_rates 최신 usd_krw). KRW 금액의 USD 환산에 필요. 미주입 시 KRW는 price_usd=null. */
   krwPerUsd?: number
+  /**
+   * 통화→KRW 환율맵(fx_rates_multi, 예 { JPY: 9.5, USD: 1400 }). 라벨산문 요금성분 회수(T1.3)에서
+   * usage 성분을 대표가로 환산할 때 필요(JPY 등 krwPerUsd 단일값으로 못 다루는 통화). 없으면 회수된
+   * 성분은 부착되지만 대표가(price_usd)는 갱신되지 않음(price_unknown 유지 — 보류).
+   */
+  fxMap?: FxKrwMap
 }
 
 // 가격 토큰 1개 → { amount, currency }. "$7.85"→{7.85,'USD'}, "₩2,400,000"→{2400000,'KRW'}, "1,234.5"→{1234.5,null}.
@@ -96,12 +111,47 @@ export function transcriptionToCompetitorItems(
   if (!Array.isArray(rows)) return []
   const provider = typeof opts.provider === 'string' ? opts.provider.trim() : ''
   const krwPerUsd = typeof opts.krwPerUsd === 'number' && opts.krwPerUsd > 0 ? opts.krwPerUsd : null
+  const fxMap = opts.fxMap
   const out: CompetitorCandidate[] = []
+  // 라벨산문 요금성분 회수(T1.3) — 직전에 GPU 모델로 식별된 후보(같은 표/블록의 앞선 행). 기본료·종량·
+  //   스토리지처럼 자기 라벨은 GPU가 아닌(비GPU 라벨) 행이 나오면 이 후보에 성분으로 흡수한다.
+  let currentModelCandidate: CompetitorCandidate | null = null
 
   for (const row of rows) {
     if (!row || typeof row !== 'object') continue
     const label = typeof row.raw_label === 'string' ? row.raw_label.trim() : ''
     if (!label) continue // 모델 라벨 없는 행은 경쟁사 후보로 식별 불가 — 스킵
+
+    // 비GPU 라벨 행(月額基本料金·GPU利用料金·스토리지 등) — 라벨 자체를 모델로 승격하지 않는다(게이트 유지).
+    //   직전 식별된 GPU 모델이 있으면 이 행의 금액을 그 모델의 요금성분으로 흡수(무손실 회수).
+    //   parseHourlyProse는 결정론 정규식만 사용(SSOT 재사용) — model을 강제 주입해 자동감지를 건너뛴다.
+    if (!looksLikeGpuModel(label) && currentModelCandidate) {
+      const rowCtx = [label, row.price_text ?? '', ...(Array.isArray(row.cells) ? row.cells : [])].filter(Boolean).join(' ')
+      const recovered = parseHourlyProse(rowCtx, currentModelCandidate.source_model_name)
+      if (recovered && recovered.components.length > 0) {
+        currentModelCandidate.components = [...(currentModelCandidate.components ?? []), ...recovered.components]
+        // 대표가 갱신 — usage(GPU 종량) 성분이 있으면 그것으로 price_usd 재계산(base_fee/storage는 시간축 아님 → 제외).
+        const usageComp = recovered.components.find((c) => c.component_kind === 'usage')
+        if (usageComp && fxMap) {
+          const krwPerGpuHour = componentToKrwPerGpuHour(usageComp, fxMap)
+          const usdPerGpuHour = krwPerGpuHour != null && krwPerUsd ? krwPerGpuHour / krwPerUsd : null
+          if (usdPerGpuHour != null && Number.isFinite(usdPerGpuHour) && usdPerGpuHour > 0) {
+            currentModelCandidate.price_usd = usdPerGpuHour
+            currentModelCandidate.price_unknown = false
+            currentModelCandidate.original_currency = usageComp.currency
+            currentModelCandidate.original_price = usageComp.amount
+            if (currentModelCandidate.obs) {
+              currentModelCandidate.obs.amount = usageComp.amount
+              currentModelCandidate.obs.currency = usageComp.currency
+              currentModelCandidate.obs.pricing_unit = usageComp.unit
+              currentModelCandidate.obs.gpu_count = usageComp.gpu_count ?? 1
+              currentModelCandidate.obs.comparable = true
+            }
+          }
+        }
+        continue // 이 행 자체는 별도 후보로 만들지 않음(성분으로 흡수 완료 — 기존 드롭 자리 대체)
+      }
+    }
 
     const prices = extractPriceCandidates(row)
     // 시장비교 표준 = on-demand(보통 더 비싼/마지막 가격). 대표가 1개 선택.
@@ -160,7 +210,7 @@ export function transcriptionToCompetitorItems(
       provenance: ctx.slice(0, 200),
     }
 
-    out.push({
+    const candidate: CompetitorCandidate = {
       competitor_name: provider,
       model_name: label,        // 원문 그대로 — 카탈로그 매핑 금지
       price_usd: priceUsd,
@@ -170,7 +220,10 @@ export function transcriptionToCompetitorItems(
       original_price: originalPrice,
       obs,
       ...(notes ? { notes } : {}),
-    })
+    }
+    out.push(candidate)
+    // 다음 비GPU 라벨 행(기본료·종량·스토리지 등)이 성분으로 흡수될 대상 갱신 — GPU로 식별된 행만.
+    if (looksLikeGpuModel(label)) currentModelCandidate = candidate
   }
 
   return out

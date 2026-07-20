@@ -20,3 +20,20 @@ export const HOURS_PER_PERIOD: Record<HourPeriod, number> = {
   month: HOURS_PER_MONTH,
   year: HOURS_PER_YEAR,
 }
+
+/**
+ * 기간 → **개월** 계수 — 정액 반복요금(flat·base_fee) 전용.
+ *   왜 별도 SSOT: 정기 구독료의 연↔월은 달력(1년=12개월)이지 시간비가 아니다.
+ *   HOURS_PER_YEAR/HOURS_PER_MONTH = 8760/720 = 12.167로 환산하면 年額 요금에 +1.4% 오차가 붙는다
+ *   (월=30일 규약과 연=365일이 태생적으로 불일치하기 때문). 사용량 요금(usage)은 실제 가동시간이
+ *   기준이므로 그대로 HOURS_PER_PERIOD를 쓴다 — 두 축을 섞지 말 것.
+ *   월 미만 주기는 월=30일 규약과 일관되게 시간계수에서 파생.
+ */
+export const MONTHS_PER_PERIOD: Record<HourPeriod, number> = {
+  minute: HOURS_PER_MONTH / HOURS_PER_MINUTE,
+  hour: HOURS_PER_MONTH / HOURS_PER_HOUR,
+  day: HOURS_PER_MONTH / HOURS_PER_DAY,
+  week: HOURS_PER_MONTH / HOURS_PER_WEEK,
+  month: 1,
+  year: 1 / 12,
+}
