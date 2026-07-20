@@ -136,3 +136,18 @@ test('resolveGpuCount — CPU 장수가 앞서도 GPU 장수를 집는다', () =
 test('resolveGpuCount — GPU 인접 미매치 시 일반 규칙 폴백(하위호환)', () => {
   assert.equal(resolveGpuCount('H100 [80GB] × 8'), 8)
 })
+
+// [실화면 회귀고정 v0.7.355] 전각 통화기호 — 같은 표에서 한 건만 조용히 탈락하던 사고.
+//   소프트뱅크 요금표는 GB200만 전각 ￥(U+FFE5), H100·A100은 반각 ¥(U+00A5)를 쓴다.
+//   토큰표에 반각만 있어 GB200만 currency=null → 가격미상. 금액·장수는 정상 인식돼 더 눈에 안 띄었다.
+test('resolveCurrency — 전각 통화기호도 반각과 동일하게 인식(￥·＄·￦)', () => {
+  assert.equal(resolveCurrency('￥4,569,000'), 'JPY')   // 전각 ￥ (GB200 실사고)
+  assert.equal(resolveCurrency('¥2,500,000'), 'JPY')    // 반각 ¥ (H100)
+  assert.equal(resolveCurrency('＄12.5'), 'USD')
+  assert.equal(resolveCurrency('￦1000'), 'KRW')
+})
+
+test('resolveCurrency — 전각/반각이 같은 결과를 낸다(표 안에서 갈리면 안 됨)', () => {
+  assert.equal(resolveCurrency('￥1000'), resolveCurrency('¥1000'))
+  assert.equal(resolveCurrency('＄1000'), resolveCurrency('$1000'))
+})

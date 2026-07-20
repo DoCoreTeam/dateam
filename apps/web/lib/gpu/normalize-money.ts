@@ -24,7 +24,20 @@ export const PERIOD_TOKENS: Record<string, Period> = {
 import { HOURS_PER_HOUR, HOURS_PER_DAY, HOURS_PER_MONTH, HOURS_PER_YEAR } from './hours.ts'
 const HOURS_PER: Record<Period, number> = { hour: HOURS_PER_HOUR, day: HOURS_PER_DAY, month: HOURS_PER_MONTH, year: HOURS_PER_YEAR }
 
-const norm = (s: string): string => s.toLowerCase().replace(/\s+/g, '')
+/**
+ * 전각(full-width) → 반각 정규화. 일본어 페이지는 통화·숫자를 전각으로 쓰는 경우가 많다.
+ *   실제 사고: 소프트뱅크 요금표에서 GB200만 전각 ￥(U+FFE5), H100·A100은 반각 ¥(U+00A5)를 써서
+ *   GB200만 currency=null → 가격미상으로 조용히 탈락(같은 표 같은 행인데 한 건만 유실).
+ *   기호를 하나씩 토큰표에 덧붙이면 같은 계열(＄·￦·전각숫자)이 계속 재발하므로 정규화로 원천 차단한다.
+ */
+const toHalfwidth = (s: string): string =>
+  s.replace(/[\uFF01-\uFF5E]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)) // ！-～ → !-~
+    .replace(/\uFFE5/g, '\u00A5')   // ￥ → ¥
+    .replace(/\uFFE6/g, '\u20A9')   // ￦ → ₩
+    .replace(/\uFFE1/g, '\u00A3')   // ￡ → £
+    .replace(/\uFFE0/g, '\u00A2')   // ￠ → ¢
+
+const norm = (s: string): string => toHalfwidth(s).toLowerCase().replace(/\s+/g, '')
 
 /** 토큰 → ISO 통화코드. 부분일치(기호 포함) 허용. 미지 → null(호출부가 needs_human 처리). */
 export function resolveCurrency(token: string | null | undefined): string | null {
