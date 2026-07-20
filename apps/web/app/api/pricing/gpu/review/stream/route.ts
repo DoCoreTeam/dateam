@@ -305,7 +305,20 @@ export async function POST(req: NextRequest) {
                 catalogNames: catalogModelNames,
               })
               aiRejected = aiRes.rejected
-              aiItems = aiRes.valid.map((o: AiObservation) => {
+              // GPU 시간축이 아닌 성분(base_fee·storage)은 독립 항목으로 만들지 않고,
+              //   같은 모델의 대표 관측에 components로 붙인다(무손실 보존 + 시세 왜곡 차단).
+              const isSideComponent = (o: AiObservation) => o.component_kind === 'base_fee' || o.component_kind === 'storage'
+              const primaries = aiRes.valid.filter((o) => !isSideComponent(o))
+              const sides = aiRes.valid.filter(isSideComponent)
+              const sidesByModel = new Map<string, AiObservation[]>()
+              for (const sc of sides) {
+                const k = sc.model.toLowerCase()
+                if (!sidesByModel.has(k)) sidesByModel.set(k, [])
+                sidesByModel.get(k)!.push(sc)
+              }
+              // 대표 관측이 하나도 없으면(기본료만 있는 페이지) 성분을 잃지 않도록 그대로 노출.
+              const aiSource = primaries.length > 0 ? primaries : aiRes.valid
+              aiItems = aiSource.map((o: AiObservation) => {
                 const krw = observationToKrwPerGpuHour(o, fxMap)
                 const usd = krw != null && krwPerUsd > 0 ? krw / krwPerUsd : null
                 return {
@@ -318,6 +331,13 @@ export async function POST(req: NextRequest) {
                   original_currency: o.currency,
                   original_price: o.amount,
                   pricing_model: pricingModelForUnit(o.unit),
+                  // 같은 모델의 기본료·스토리지를 성분으로 첨부(market_price_components 저장 경로로 이어짐)
+                  ...(primaries.length > 0 && (sidesByModel.get(o.model.toLowerCase())?.length ?? 0) > 0
+                    ? { components: (sidesByModel.get(o.model.toLowerCase()) ?? []).map((sc) => ({
+                        component_kind: sc.component_kind, amount: sc.amount / sc.per_qty,
+                        currency: sc.currency, unit: sc.unit, gpu_count: sc.gpu_count, provenance: sc.provenance,
+                      })) }
+                    : {}),
                   obs: {
                     amount: o.amount, currency: o.currency, pricing_unit: o.unit, gpu_count: o.gpu_count,
                     segment: null, bundle_inclusive: false, tax_basis: 'unknown', comparable: true,

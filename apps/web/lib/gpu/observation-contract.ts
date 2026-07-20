@@ -198,6 +198,11 @@ function isTimeUnit(unit: ObservationUnit): unit is HourPeriod {
  * 산술 순서(전부 코드): amount/per_qty(분모 분리) → KRW 환산(amountToKrw) → 시간환산(HOURS_PER_PERIOD, SSOT=hours.ts) → /gpu_count.
  */
 export function observationToKrwPerGpuHour(obs: AiObservation, fx: FxKrwMap): number | null {
+  // 대표가(GPU 1장·1시간 시세)는 **GPU 사용량에 비례하는 성분만** 해당한다.
+  //   base_fee = 계정 고정비(GPU 몇 장을 쓰든 동일), storage = 용량 요금 → GPU 시간단가로 환산하면
+  //   의미가 왜곡되고 시장 밴드까지 끌어내린다(실측: 소프트뱅크 기본료 30,000엔/월이 $0.257 시세로 표시됨).
+  //   두 성분은 버리지 않고 components로 보존한다(무손실) — 실효비용 합산은 scenario-cost가 담당.
+  if (obs.component_kind === 'base_fee' || obs.component_kind === 'storage') return null
   if (!isTimeUnit(obs.unit)) return null
   const perUnitAmount = obs.amount / obs.per_qty
   const krw = amountToKrw(perUnitAmount, obs.currency, fx)
