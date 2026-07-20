@@ -207,7 +207,7 @@ export default function WeeklyReportForm({
       const result = await deleteAllWeeklyReports(initialWeek)
       if (result.ok) {
         const dest = initialWeek !== thisWeek
-          ? `/weekly-report?tab=mine&editWeek=${initialWeek}&reset=1`
+          ? `/weekly-report?tab=mine&week=${initialWeek}&reset=1`
           : '/weekly-report?tab=mine&reset=1'
         router.push(dest, { scroll: false })
       } else {
@@ -248,7 +248,10 @@ export default function WeeklyReportForm({
   }
 
   function handleWeekChange(week: string) {
-    router.push(`/weekly-report?tab=mine&editWeek=${week}`)
+    // M2(미저장 유실0): 주차 전환 시 remount되지만, useDraftPersist가 주차별 localStorage에 초안을
+    // 이미 보존하고(복귀 시 DraftRestoreBanner로 복원) 있으므로 내용은 사라지지 않는다 — 별도 경고 불필요.
+    // 주차 연속성 — editWeek 대신 통일 파라미터 ?week= 사용(탭 전환에도 유지).
+    router.push(`/weekly-report?tab=mine&week=${week}`)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -286,7 +289,7 @@ export default function WeeklyReportForm({
     if (result.ok) {
       weeklyDraft.clear()
       const dest = selectedWeek !== thisWeek
-        ? `/weekly-report?tab=mine&editWeek=${selectedWeek}&saved=1`
+        ? `/weekly-report?tab=mine&week=${selectedWeek}&saved=1`
         : '/weekly-report?tab=mine&saved=1'
       router.push(dest, { scroll: false })
     } else {

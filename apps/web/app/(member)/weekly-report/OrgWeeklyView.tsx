@@ -86,7 +86,7 @@ export default function OrgWeeklyView(props: Props) {
     <div style={{ width: '100%' }}>
       {/* 주차 네비 — 이전/다음 화살표 (무한 과거 이동, 미래는 이번 주까지) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1rem' }}>
-        <Link href={`/weekly-report?tab=org&orgWeek=${prevWeek}`} prefetch={false} aria-label="이전 주"
+        <Link href={`/weekly-report?tab=org&week=${prevWeek}`} prefetch={false} aria-label="이전 주"
           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)', background: '#fff', color: 'var(--text-muted)', textDecoration: 'none' }}>
           <ChevronLeft size={16} />
         </Link>
@@ -96,7 +96,7 @@ export default function OrgWeeklyView(props: Props) {
             <ChevronRight size={16} />
           </span>
         ) : (
-          <Link href={`/weekly-report?tab=org&orgWeek=${nextWeek}`} prefetch={false} aria-label="다음 주"
+          <Link href={`/weekly-report?tab=org&week=${nextWeek}`} prefetch={false} aria-label="다음 주"
             style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)', background: '#fff', color: 'var(--text-muted)', textDecoration: 'none' }}>
             <ChevronRight size={16} />
           </Link>

@@ -2,6 +2,7 @@
 import { useEscClose } from '@/lib/use-esc-close'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import RichText from '@/components/ui/RichText'
 
 interface MemberReport {
@@ -18,13 +19,16 @@ interface MemberReport {
 interface TeamReportViewProps {
   weekOptions: string[]
   thisWeek: string
+  /** 서버가 선택 주차(?week=)로 확정해 준 초기 주차 — 탭 전환에도 유지되는 연속성 SSOT. */
+  initialWeek: string
   initialReports: MemberReport[]
 }
 
 const CELL_BORDER = 'var(--border-w-2) solid var(--border-color)'
 
-export default function TeamReportView({ weekOptions, thisWeek, initialReports }: TeamReportViewProps) {
-  const [selectedWeek, setSelectedWeek] = useState(thisWeek)
+export default function TeamReportView({ weekOptions, thisWeek, initialWeek, initialReports }: TeamReportViewProps) {
+  const router = useRouter()
+  const [selectedWeek, setSelectedWeek] = useState(initialWeek)
   const [reports, setReports] = useState<MemberReport[]>(initialReports)
   const [loading, setLoading] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
@@ -53,6 +57,8 @@ export default function TeamReportView({ weekOptions, thisWeek, initialReports }
   function handleWeekChange(week: string) {
     setSelectedWeek(week)
     fetchWeek(week)
+    // 주차 연속성 — URL(?week=)에 반영해 다른 탭으로 가도 같은 주차 유지(scroll 보존).
+    router.replace(`/weekly-report?tab=team&week=${week}`, { scroll: false })
   }
 
   // 이름별 그룹화

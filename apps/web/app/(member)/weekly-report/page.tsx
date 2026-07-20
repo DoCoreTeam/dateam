@@ -34,7 +34,7 @@ interface TeamRow {
 }
 
 interface PageProps {
-  searchParams: Promise<{ tab?: string; editWeek?: string; saved?: string; reset?: string; orgWeek?: string }>
+  searchParams: Promise<{ tab?: string; editWeek?: string; saved?: string; reset?: string; orgWeek?: string; week?: string }>
 }
 
 export default async function WeeklyReportPage({ searchParams }: PageProps) {
@@ -45,7 +45,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
 
   if (!user) redirect('/login')
 
-  const { tab, editWeek, reset, orgWeek } = await searchParams
+  const { tab, editWeek, reset, orgWeek, week } = await searchParams
   const justReset = reset === '1'
 
   // 조직 권한 스코프 (조직 현황 탭 노출/데이터)
@@ -60,6 +60,17 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     return toDateString(d)
   })
   const thisWeek = weekOptions[0]
+
+  // 주차 연속성 SSOT — 탭 전환에도 유지되는 단일 `?week=`. 레거시 orgWeek/editWeek 하위호환 수용.
+  // org 탭은 8주 윈도우 밖 과거(유효 월요일)도 허용, mine/team은 윈도우 내로 클램프(폼/옵션 제약).
+  const isMonday = (s?: string) =>
+    !!s && /^\d{4}-\d{2}-\d{2}$/.test(s) && new Date(`${s}T00:00:00Z`).getUTCDay() === 1
+  const weekParam = week ?? orgWeek ?? editWeek
+  const selectedWeek =
+    weekParam && (weekOptions.includes(weekParam) || isMonday(weekParam)) ? weekParam : thisWeek
+  // mine/team은 8주 옵션(select) 제약 → 윈도우 밖 주차는 이번주로 클램프. org만 selectedWeek(무제한) 사용.
+  const windowWeek = weekOptions.includes(selectedWeek) ? selectedWeek : thisWeek
+  const withWeek = (base: string) => `${base}&week=${selectedWeek}`
 
   // 스코프 확정 후 서로 독립인 3개 쿼리(조직명·내보고·팀보고)를 병렬화 — 워터폴 단축(결과 동일).
   const [orgMetaRes, reportsRes, teamRawRes] = await Promise.all([
@@ -82,7 +93,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     supabase
       .from('weekly_reports')
       .select('user_id, category, performance, plan, issues, week_start, profiles(name, role)')
-      .eq('week_start', thisWeek)
+      .eq('week_start', windowWeek)
       .is('deleted_at', null)
       .order('category', { ascending: true }) as unknown as Promise<{ data: TeamRow[] | null }>,
   ])
@@ -91,8 +102,8 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
   const orgName = typeof meta.org === 'string' ? meta.org : typeof meta.title === 'string' ? meta.title : ''
   const reports = reportsRes.data
 
-  // 수정 모드: editWeek가 유효한 주차면 그 주 데이터로 프리필
-  const initialWeek = (editWeek && weekOptions.includes(editWeek)) ? editWeek : thisWeek
+  // 수정 모드: 선택 주차가 8주 윈도우 내면 그 주 데이터로 프리필(폼은 윈도우 제약).
+  const initialWeek = windowWeek
   const formSourceData = (reports ?? []).filter((r) => r.week_start === initialWeek)
   const prefillRows = formSourceData.map((r) => ({
     category: r.category,
@@ -181,9 +192,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
 
   // 조직 현황 탭 데이터 (부서 카드 통계 + 취합본)
   // orgWeek는 월요일 형식이면 무제한 과거/현재까지 허용 (화살표 네비) — 8주 윈도우에 묶이지 않음
-  const isValidMonday = (s?: string) =>
-    !!s && /^\d{4}-\d{2}-\d{2}$/.test(s) && new Date(`${s}T00:00:00Z`).getUTCDay() === 1
-  const orgWeekStart = isValidMonday(orgWeek) ? (orgWeek as string) : thisWeek
+  const orgWeekStart = selectedWeek
   let orgDeptStats: Record<string, { memberCount: number; reportedCount: number; agg: 'none' | 'draft' | 'confirmed' }> = {}
   let orgDeptBodies: Record<string, MergedRow[]> = {}
   let orgDeptTimeliness: Record<string, MemberTimeliness[]> = {}
@@ -225,10 +234,11 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
 
   // 서버 컴포넌트 → 클라이언트(WorkSubTabs) 경계로 함수(아이콘 컴포넌트)를 넘길 수 없으므로
   // 텍스트 라벨만 전달(다른 3개 화면도 아이콘 없음 — 4페이지 서브탭 질감 통일).
+  // 탭 href에 현재 선택 주차를 실어 전환에도 주차가 유지되도록(연속성 SSOT).
   const subTabItems = [
-    { key: 'mine', label: '내 보고', href: '/weekly-report?tab=mine' },
-    { key: 'team', label: '팀 전체', href: '/weekly-report?tab=team' },
-    ...(showOrgTab ? [{ key: 'org', label: '조직 현황', href: '/weekly-report?tab=org' }] : []),
+    { key: 'mine', label: '내 보고', href: withWeek('/weekly-report?tab=mine') },
+    { key: 'team', label: '팀 전체', href: withWeek('/weekly-report?tab=team') },
+    ...(showOrgTab ? [{ key: 'org', label: '조직 현황', href: withWeek('/weekly-report?tab=org') }] : []),
   ]
 
   return (
@@ -309,7 +319,7 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
             <Users size={16} color="var(--brand)" />
             <h2 className="tape-title" style={{ margin: 0 }}>팀 전체 주간보고</h2>
           </div>
-          <TeamReportView weekOptions={weekOptions} thisWeek={thisWeek} initialReports={teamReports} />
+          <TeamReportView weekOptions={weekOptions} thisWeek={thisWeek} initialWeek={windowWeek} initialReports={teamReports} />
         </div>
       ) : (
         <>
