@@ -11,6 +11,7 @@ import type {
   AiChatProject,
 } from '@/types/database'
 import { useSseChat, type StreamBody } from '@/lib/ai-chat/use-sse-chat'
+import { consumeAnalyzeChatHandoff } from '@/lib/ai-chat/analyze-chat-bridge'
 import { buildArtifactVersions } from '@/lib/ai-chat/artifacts'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import {
@@ -204,6 +205,16 @@ export default function AiChatClient({
       setChoices(parsed)
       void loadMessagesWithChoices(initialConversationId, parsed)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 목록 심층분석 "채팅으로 이어가기"(ca=1) — 브리지 내용을 새 대화에 자동 전송한다.
+  // handleSend가 user 저장 + AI 스트림을 모두 하므로, AI가 바로 이어서 답한다(자동응답 결함 해소).
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (new URLSearchParams(window.location.search).get('ca') !== '1') return
+    const content = consumeAnalyzeChatHandoff()
+    if (content) void handleSend(content)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

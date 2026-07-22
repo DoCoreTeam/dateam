@@ -21,6 +21,7 @@ export interface AnalysisSessionSummary {
   title: string
   lens: AnalysisLens
   phase: string
+  control: string
   synthStatus: AnalysisSynthStatus
   itemCount: number
   doneCount: number
@@ -33,6 +34,7 @@ interface SessionRow {
   title: string
   lens: AnalysisLens
   phase: string
+  control: string
   synth_status: AnalysisSynthStatus
   grouping_revision: number | null
   created_at: string
@@ -92,7 +94,7 @@ export async function listAnalysisSessions(
 
   let query = admin
     .from('ai_analysis_sessions')
-    .select('id, title, lens, phase, synth_status, grouping_revision, created_at, updated_at, ai_analysis_items(status, revision)')
+    .select('id, title, lens, phase, control, synth_status, grouping_revision, created_at, updated_at, ai_analysis_items(status, revision)')
     .eq('user_id', auth.user.id)
   query = wantDeleted ? query.not('deleted_at', 'is', null) : query.is('deleted_at', null)
 
@@ -125,6 +127,7 @@ export async function listAnalysisSessions(
       title: r.title,
       lens: r.lens,
       phase: r.phase,
+      control: r.control ?? 'running',
       synthStatus: r.synth_status,
       itemCount: items.length,
       doneCount: items.filter((i) => i.status === 'done').length,

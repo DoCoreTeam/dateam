@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import NbButton from '@/components/ui/nb/NbButton'
-import { continueInChat } from './session-persist-actions'
+import { setAnalyzeChatHandoff } from '@/lib/ai-chat/analyze-chat-bridge'
 import { useAnalysisStream, type InitialItem } from './useAnalysisStream'
 import AnalysisProgressBar from './AnalysisProgressBar'
 import AnalysisSynthPanel, { type ExportFormat } from './AnalysisSynthPanel'
@@ -43,9 +43,11 @@ export default function AnalysisResults({ sessionId, initialItems, docType = nul
   const hasFailed = itemList.some((i) => i.status === 'error')
   const doneCount = itemList.filter((i) => i.status === 'done').length
 
-  async function handleContinueChat(_idx: number, itemText: string, resultText: string): Promise<void> {
-    const res = await continueInChat({ itemText, resultText })
-    if (res.ok) router.push(`/ai-chat?c=${res.conversationId}`)
+  function handleContinueChat(_idx: number, itemText: string, resultText: string): void {
+    // 브리지에 담아 새 채팅에서 자동 전송 → AI가 바로 이어서 답한다(ca=1).
+    // continueInChat(서버액션)은 user 메시지만 저장하고 AI 응답을 안 냈다(실측 사고) — 폐기.
+    setAnalyzeChatHandoff(itemText, resultText)
+    router.push('/ai-chat?ca=1')
   }
 
   function buildExportSections(): { text: string; result: string }[] {

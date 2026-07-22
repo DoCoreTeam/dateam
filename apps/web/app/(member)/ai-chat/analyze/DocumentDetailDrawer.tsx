@@ -10,7 +10,7 @@ import { Check, Download, MessageSquarePlus, Pencil, Share2, Trash2, X } from 'l
 import NbButton from '@/components/ui/nb/NbButton'
 import MarkdownMessage from '@/app/admin/ai-chat/MarkdownMessage'
 import { getDocument, updateDocument, deleteDocument, type AnalysisDocumentSummary } from './document-actions'
-import { continueInChat } from './session-persist-actions'
+import { setAnalyzeChatHandoff } from '@/lib/ai-chat/analyze-chat-bridge'
 import WorkflowHandoffModal from './WorkflowHandoffModal'
 
 interface Props {
@@ -80,9 +80,10 @@ export default function DocumentDetailDrawer({ documentId, onClose, onChanged, o
     else setError(r.error)
   }
 
-  async function handleContinueChat() {
-    const r = await continueInChat({ itemText: title, resultText: bodyMd })
-    if (r.ok) router.push(`/ai-chat?c=${r.conversationId}`)
+  function handleContinueChat() {
+    // 브리지 방식 — 채팅 진입 시 자동 전송돼 AI가 바로 이어서 답한다(AnalysisResults와 동일).
+    setAnalyzeChatHandoff(title, bodyMd)
+    router.push('/ai-chat?ca=1')
   }
 
   async function handleExport(format: ExportFormat) {

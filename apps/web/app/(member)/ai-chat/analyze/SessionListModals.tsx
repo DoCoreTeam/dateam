@@ -10,6 +10,7 @@ import NbButton from '@/components/ui/nb/NbButton'
 import { useEscClose } from '@/lib/use-esc-close'
 import { renameAnalysisSession, type AnalysisSessionSummary } from './session-list-actions'
 import { getAnalysisSession, type AnalysisSessionDetail } from './session-persist-actions'
+import MarkdownMessage from '@/app/admin/ai-chat/MarkdownMessage'
 
 const BACKDROP = 'var(--modal-backdrop)'
 const MODAL_SHADOW = 'var(--shadow-modal)'
@@ -123,9 +124,9 @@ export function SessionDetailDrawer({ sessionId, onClose }: { sessionId: string;
             {detail.items.map((it) => (
               <div key={it.idx} style={{ padding: 'var(--space-3)', border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)' }}>
                 <p style={{ margin: '0 0 var(--space-2)', fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>{it.text}</p>
-                {it.resultText && (
-                  <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', whiteSpace: 'pre-wrap' }}>{it.resultText}</p>
-                )}
+                {/* 심화 결과는 마크다운 — 실시간 화면(AnalysisResultItem)과 동일하게 렌더한다.
+                    raw <p>로 표시하면 재열람 시 '### **근거**'가 기호째 노출된다(실측 사고). */}
+                {it.resultText && <MarkdownMessage content={it.resultText} />}
                 {it.status !== 'done' && (
                   <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>{it.status === 'error' ? '분석 실패' : it.status === 'running' ? '분석중' : '대기중'}</span>
                 )}

@@ -33,7 +33,19 @@ const SYNTH_LABEL: Record<string, string> = {
 const PHASE_OPTIONS = ['idle', 'analyzing', 'synthesizing', 'done']
 const SYNTH_OPTIONS = ['pending', 'running', 'done', 'error']
 
-function phaseColor(phase: string): string {
+/**
+ * 상태 라벨/색 — control(사용자 제어)이 phase(서버 진행)보다 우선한다.
+ * 취소/일시정지된 세션이 phase='analyzing'으로 남아 "분석중"으로 영원히 표시되던 버그 해소
+ * (실측: control='cancelled' + phase='analyzing' 세션이 목록에서 "분석중"으로 오표시).
+ */
+function statusLabel(phase: string, control: string): string {
+  if (control === 'cancelled') return '중단됨'
+  if (control === 'paused') return '일시정지'
+  return PHASE_LABEL[phase] ?? phase
+}
+function statusColor(phase: string, control: string): string {
+  if (control === 'cancelled') return 'var(--text-faint)'
+  if (control === 'paused') return 'var(--warning)'
   if (phase === 'done') return 'var(--success)'
   if (phase === 'idle') return 'var(--text-faint)'
   return 'var(--info)'
@@ -123,8 +135,8 @@ export default function SessionListClient() {
     {
       key: 'phase', header: '상태', label: '상태',
       render: (s) => (
-        <span style={{ display: 'inline-flex', gap: 'var(--space-1)', alignItems: 'center', fontSize: 'var(--fs-2xs)', fontWeight: 700, color: phaseColor(s.phase) }}>
-          {PHASE_LABEL[s.phase] ?? s.phase}
+        <span style={{ display: 'inline-flex', gap: 'var(--space-1)', alignItems: 'center', fontSize: 'var(--fs-2xs)', fontWeight: 700, color: statusColor(s.phase, s.control) }}>
+          {statusLabel(s.phase, s.control)}
           {s.synthStatus !== 'pending' && (
             <span style={{ color: 'var(--text-faint)', fontWeight: 500 }}>· {SYNTH_LABEL[s.synthStatus] ?? s.synthStatus}</span>
           )}
