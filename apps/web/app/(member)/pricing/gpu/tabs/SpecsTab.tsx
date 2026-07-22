@@ -7,6 +7,7 @@ import { fetcher } from '@/lib/swr-config'
 import { Sparkles, X, Save, Pencil, Plus } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import { memoryTitle } from '@/lib/gpu/card-memory'
+import ModelCandidateQueue from './ModelCandidateQueue'
 
 interface Spec {
   model_name: string
@@ -369,6 +370,8 @@ export default function SpecsTab() {
 
   return (
     <div>
+      {/* 신규 모델 후보 큐 — 경쟁사 시세에서 발견된 미등록 모델을 등록 대기로 노출(마이그169) */}
+      <ModelCandidateQueue onRegistered={refresh} />
       <div className="gpu-toolbar">
         <div className="gpu-search">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
