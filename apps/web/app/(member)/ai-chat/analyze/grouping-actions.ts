@@ -12,7 +12,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { callGeminiOnce, parseJsonObject, ZERO_USAGE } from '@/lib/ai-chat/analyze-gemini'
 import { logDbError } from '@/lib/ai-chat/log-db-error'
 import { runGrouping, runRegroup, type JsonAiCaller } from '@/lib/ai-chat/grouping/pipeline'
-import { DOC_TYPE_LABEL, DOC_TYPES, type DocType } from '@/lib/ai-chat/grouping/classify-doc'
+import { DOC_TYPE_LABEL, DOC_TYPES, docTypeFromCommand, type DocType } from '@/lib/ai-chat/grouping/classify-doc'
 import type { Group, DocMetaEntry, UnassignedLine } from '@/lib/ai-chat/grouping/types'
 import type { ChatUsage } from '@/lib/ai-chat/provider'
 
@@ -67,15 +67,29 @@ function makeAiCaller(userId: string, acc: { usage: ChatUsage }): JsonAiCaller {
   }
 }
 
+/** 문서명·프로젝트명·제목 성격의 메타 키(제목 후보로 쓴다). */
+const TITLE_META_KEY_RE = /(문서\s*명|프로젝트\s*명|제목|title|project|name)/i
+
 /**
- * 세션 제목 도출.
- * 첫 헤딩 > 첫 그룹 제목 > 메타가 아닌 첫 줄 순으로 고른다.
- * 단순히 "첫 비공백 줄"을 쓰면 front-matter 메타가 제목이 된다
- * (실측: 제목이 "- 문서 버전: v0.1.0"로 잡힘 — 메타를 항목에서 뺀 설계와 모순).
+ * 세션 제목 도출 — 목록에서 "무슨 문서인지" 알아볼 수 있어야 한다.
+ * 우선순위: ① H1 헤딩 → ② 문서명/프로젝트명 메타 값 → ③ 첫 그룹 제목 → ④ 메타 아닌 첫 줄.
+ *
+ * 왜 이 순서인가: front-matter 메타로 시작하고 H1이 없는 문서(예: "프로젝트명: 제타 클론"으로
+ * 시작하는 기획서)는 첫 비공백 줄을 쓰면 "- 문서 버전: v0.1.0"이 제목이 되어 식별 불가다(실측 사고).
+ * 그런 문서는 대개 프로젝트명 메타에 진짜 이름이 있으므로 그것을 제목으로 승격한다.
  */
 function titleFrom(text: string, groups: Group[], meta: DocMetaEntry[]): string {
-  const heading = text.split('\n').find((l) => /^#{1,6}\s+\S/.test(l))
-  if (heading) return heading.replace(/^#+\s*/, '').trim().slice(0, 120)
+  // ① H1 (레벨1 헤딩) — 문서 대표 제목
+  const h1 = text.split('\n').find((l) => /^#\s+\S/.test(l))
+  if (h1) return h1.replace(/^#+\s*/, '').trim().slice(0, 120)
+
+  // ② 문서명/프로젝트명 메타 — H1 없는 문서의 진짜 이름
+  const nameMeta = meta.find((m) => TITLE_META_KEY_RE.test(m.key))
+  if (nameMeta?.value?.trim()) return nameMeta.value.trim().slice(0, 120)
+
+  // ③ 임의 헤딩(H2~) → ④ 첫 그룹 제목
+  const anyHeading = text.split('\n').find((l) => /^#{2,6}\s+\S/.test(l))
+  if (anyHeading) return anyHeading.replace(/^#+\s*/, '').trim().slice(0, 120)
 
   const firstGroup = groups[0]?.title?.trim()
   if (firstGroup) return firstGroup.replace(/^[-*•]\s*/, '').slice(0, 120)
@@ -213,11 +227,13 @@ export async function regroupSession(
   }
 
   const session = row as { source_text: string; doc_type: string | null; grouping_revision: number }
+  // 유형 결정 우선순위: 명시 override > 재지시 문장에서 도출(예: "회의록으로 다시 묶어") > 기존 유형.
+  // 이 중간 단계가 드롭다운을 대체한다 — 유형도 지시로 바꾼다(계약 D: 지시가 전 단계를 지배).
+  const fromCmd = docTypeFromCommand(newCommand ?? '')
   const docType: DocType = isDocType(docTypeOverride)
     ? docTypeOverride
-    : isDocType(session.doc_type)
-      ? session.doc_type
-      : 'other'
+    : (fromCmd ?? (isDocType(session.doc_type) ? session.doc_type : 'other'))
+  const docTypeChanged = isDocType(docTypeOverride) || fromCmd !== null
   const nextRevision = (session.grouping_revision ?? 1) + 1
 
   const acc = { usage: ZERO_USAGE }
@@ -253,7 +269,7 @@ export async function regroupSession(
     revision: nextRevision,
     docType,
     docTypeLabel: DOC_TYPE_LABEL[docType],
-    docTypeSource: isDocType(docTypeOverride) ? 'instruction' : 'ai',
+    docTypeSource: docTypeChanged ? 'instruction' : 'ai',
     groups: result.groups,
     meta: result.meta,
     unassignedLines: result.coverage.unassignedLines,

@@ -8,7 +8,6 @@ import { extractSourceText } from './actions'
 import { getAnalysisSession } from './session-persist-actions'
 import { listAnalysisSessions, type AnalysisSessionSummary } from './session-list-actions'
 import { analyzeDocument, regroupSession, type GroupingOk } from './grouping-actions'
-import type { DocType } from '@/lib/ai-chat/grouping/classify-doc'
 import AnalysisResults from './AnalysisResults'
 import AnalyzePageHeader from './AnalyzePageHeader'
 import RecentSessionsList from './RecentSessionsList'
@@ -104,20 +103,6 @@ export default function AnalyzeClient() {
     setRegrouping(true)
     setRunError(null)
     const result = await regroupSession(groupingResult.sessionId, newCommand)
-    setRegrouping(false)
-    if (!result.ok) {
-      setRunError(result.error)
-      return
-    }
-    setGroupingResult(result)
-  }
-
-  /** 유형 변경 — 동일 지시를 유지한 채 재그룹핑(§B DocTypeBadge). */
-  async function handleChangeType(next: DocType): Promise<void> {
-    if (!groupingResult || next === groupingResult.docType) return
-    setRegrouping(true)
-    setRunError(null)
-    const result = await regroupSession(groupingResult.sessionId, command, next)
     setRegrouping(false)
     if (!result.ok) {
       setRunError(result.error)
@@ -232,7 +217,6 @@ export default function AnalyzeClient() {
           <GroupsResultView
             result={groupingResult}
             regrouping={regrouping}
-            onChangeType={handleChangeType}
             onRegroup={handleRegroup}
             onDeepRun={handleDeepRun}
             onStartOver={resetAll}

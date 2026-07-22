@@ -2,7 +2,6 @@
 
 import { AlertTriangle, Sparkles } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
-import type { DocType } from '@/lib/ai-chat/grouping/classify-doc'
 import type { GroupingOk } from './grouping-actions'
 import DocTypeBadge from './DocTypeBadge'
 import GroupList from './GroupList'
@@ -13,7 +12,6 @@ import RegroupBar from './RegroupBar'
 interface Props {
   result: GroupingOk
   regrouping: boolean
-  onChangeType: (next: DocType) => void
   onRegroup: (newCommand: string) => void
   onDeepRun: () => void
   onStartOver: () => void
@@ -23,7 +21,6 @@ interface Props {
 export default function GroupsResultView({
   result,
   regrouping,
-  onChangeType,
   onRegroup,
   onDeepRun,
   onStartOver,
@@ -35,8 +32,6 @@ export default function GroupsResultView({
           docType={result.docType}
           docTypeLabel={result.docTypeLabel}
           docTypeSource={result.docTypeSource}
-          onChangeType={onChangeType}
-          disabled={regrouping}
         />
         <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
           {result.groups.length}개 그룹으로 나뉘었습니다
