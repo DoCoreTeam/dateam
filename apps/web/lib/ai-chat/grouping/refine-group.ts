@@ -61,23 +61,34 @@ export interface BuildRefinePromptParams {
 
 export function buildRefinePrompt(p: BuildRefinePromptParams): string {
   const cmd = p.command.trim()
-  const defaultAction = `이 문서 유형(${DOC_TYPE_LABEL[p.docType]})의 기본 동작: "${DEFAULT_CUT_HINT[p.docType]}" 단위를 근거·시사점·세부사항으로 심화한다.`
+  const defaultAction = `기본 동작: 이 문서 유형(${DOC_TYPE_LABEL[p.docType]})의 관점에서, "${DEFAULT_CUT_HINT[p.docType]}" 단위로 복원한다.`
   return (
-    '아래는 한 문서의 일부인 "그룹" 1건이다. 이 그룹을 상세화(심화)하라.\n\n' +
-    (cmd ? `사용자 지시(최우선 — 아래 기본 동작보다 우선한다): ${cmd}\n` : `${defaultAction}\n`) +
+    // ── 핵심 프레임: 원문은 "압축본"이다. 심화 = 압축 복원 ──
+    // 사용자 통찰: 원문 각 줄("- 사용자 확보 10만 명")은 작성자가 머릿속 큰 그림을 한 줄로 압축한 것.
+    // 그러니 심화는 "더 길게 쓰기"(재표현)도, 없는 걸 지어내기(환각)도 아니라 그 압축을 풀어
+    // 작성자가 원래 의도했을 완전한 형태로 복원하는 것이다.
+    '아래는 한 문서의 일부인 "그룹" 1건이다.\n' +
+    '이 그룹의 원문은 작성자가 더 큰 내용을 짧게 "압축"해 적은 것이다(예: "사용자 확보 10만 명" 한 줄에는 획득 채널·시점·측정 기준 등이 생략돼 있다).\n' +
+    '네 일은 그 압축을 풀어(decompress), 작성자가 원래 머릿속에 갖고 있었을 완전한 내용으로 복원하는 것이다.\n\n' +
+    (cmd ? `사용자 지시(최우선): ${cmd}\n` : `${defaultAction}\n`) +
     templateGuideLines(p.template) +
-    '\n규칙:\n' +
-    '- 원문 근거가 있으면 evidence에 원문 문구를 인용한다.\n' +
-    '- 원문에 없어 추정한 부분은 assumptions에 명시한다(지어낸 값을 사실처럼 쓰지 않는다).\n' +
-    '- 확인이 필요한 미결 사항은 openQuestions에 담는다(없으면 빈 배열).\n' +
-    '- 원문 슬라이스 자체를 다시 쓰지 않는다 — 심화·근거·시사점을 더하는 것이지 원문 대체가 아니다.\n' +
+    '\n반드시 지킬 것:\n' +
+    '- 재표현 금지: 원문을 말만 바꿔 되풀이하지 마라. 그건 심화가 아니다. 생략된 정보를 실제로 펼쳐라.\n' +
+    '- 복원의 근거는 이 문서다: 원문이 빈약하면 **문서 전체 맥락**(다른 그룹·문서 유형·목적)을 단서로 삼아 합리적으로 복원하라.\n' +
+    '- 근거 등급을 반드시 구분하라(이게 재표현/환각을 가르는 핵심):\n' +
+    '    · evidence   = 원문 또는 문서 다른 곳에 명시된 근거(문구 인용)\n' +
+    '    · assumptions = 문서 맥락상 합리적으로 추론한 것(문서에 직접 안 적혔음을 밝힘)\n' +
+    '    · openQuestions = 문서 어디에도 단서가 없어 작성자만 답할 수 있는 것\n' +
+    '- 문서 어디에도 근거가 없는 사실을 evidence처럼 단정하지 마라 — 그런 건 assumptions나 openQuestions로 내린다.\n' +
+    '- 원문에 정말 복원할 재료가 없으면 억지로 부풀리지 말고, 무엇이 비었는지를 openQuestions로 드러내라.\n' +
+    '- 원문 슬라이스 자체를 다시 쓰지 않는다(원문은 이미 보존돼 있다).\n' +
     '- 출력은 JSON 객체 하나만. 형식:\n' +
     '  {"markdown":"...", "evidence":["..."], "assumptions":["..."], "openQuestions":["..."]}\n' +
     '- 다른 설명·코드펜스를 추가하지 않는다.\n\n' +
-    `문서 전체 구조(맥락 — 이 그룹이 어디에 있는지 참고):\n"""\n${p.docContext.slice(0, 6000)}\n"""\n\n` +
+    `문서 전체 구조(복원의 맥락 단서 — 이 그룹이 문서 어디에 있고 앞뒤에 뭐가 있는지):\n"""\n${p.docContext.slice(0, 6000)}\n"""\n\n` +
     `이 그룹의 문서 내 위치: ${p.group.treePath} (깊이 ${p.group.depth})\n` +
     `그룹 제목: ${p.group.title}\n\n` +
-    `그룹 원문 전체:\n"""\n${p.group.bodyRaw}\n"""`
+    `복원할 그룹 원문(압축본):\n"""\n${p.group.bodyRaw}\n"""`
   )
 }
 
