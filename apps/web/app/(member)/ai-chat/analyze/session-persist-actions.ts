@@ -1,13 +1,12 @@
 'use server'
 
 // 목록 심층분석 — §G 분석 착수 전 영속 저장(세션+항목) / 세션 상세 조회 / §F AI채팅 연계.
-// session-actions.ts를 3분할한 것 중 (c) save/get/continueInChat 부분(파일당 300줄 제약).
+// session-actions.ts를 3분할한 것 중 (c) save/get 부분(파일당 300줄 제약).
 // 나머지: session-list-actions.ts(목록·CRUD) · session-item-actions.ts(항목/제어/synth).
 // RLS는 150_ai_chat.sql의 ai_conversations/ai_messages(admin+owner) 패턴 재사용(157 마이그레이션 동일 정합).
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
-import { getDefaultProvider } from '@/lib/ai-chat/registry'
 import type { AnalysisLens, AnalyzeItemErr } from './actions'
 import type { AnalysisItemStatus } from './session-item-actions'
 import { logDbError } from '@/lib/ai-chat/log-db-error'
@@ -135,47 +134,4 @@ export async function getAnalysisSession(
       })),
     },
   }
-}
-
-/** 분석 결과를 새 AI채팅 대화의 첫 사용자 메시지로 이어감(admin/ai-chat/actions.ts createConversation과 동일 스키마 재사용). */
-export async function continueInChat(input: {
-  itemText: string
-  resultText: string
-}): Promise<{ ok: true; conversationId: string } | AnalyzeItemErr> {
-  const auth = await requireAdminApi()
-  if (auth.error) return { ok: false, error: '권한이 없습니다' }
-  const admin = createAdminClient() as AdminClient
-
-  const itemText = input.itemText.trim()
-  const resultText = input.resultText.trim()
-  if (!itemText || !resultText) return { ok: false, error: '이어갈 분석 결과가 없습니다' }
-
-  const meta = await readMeta(admin)
-  const def = getDefaultProvider(meta)
-  if (!def) return { ok: false, error: 'AI 프로바이더가 설정되지 않았습니다' }
-
-  const title = itemText.slice(0, MAX_TITLE_CHARS) || '목록 심층분석 이어가기'
-
-  const { data: conv, error: convErr } = await admin
-    .from('ai_conversations')
-    .insert({ user_id: auth.user.id, provider: def.id, model: def.model, title })
-    .select('id')
-    .single()
-  if (convErr || !conv) {
-    logDbError('continueInChat:conversations.insert', convErr)
-    return { ok: false, error: '대화 생성 중 오류가 발생했습니다' }
-  }
-  const conversationId = (conv as { id: string }).id
-
-  const content = `${itemText}\n\n---\n[이전 분석 결과]\n${resultText}\n\n---\n이 내용을 이어서 논의하고 싶습니다.`
-
-  const { error: msgErr } = await admin
-    .from('ai_messages')
-    .insert({ conversation_id: conversationId, role: 'user', content })
-  if (msgErr) {
-    logDbError('continueInChat:messages.insert', msgErr)
-    return { ok: false, error: '메시지 저장 중 오류가 발생했습니다' }
-  }
-
-  return { ok: true, conversationId }
 }

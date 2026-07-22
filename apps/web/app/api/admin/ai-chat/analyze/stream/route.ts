@@ -48,11 +48,22 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: '세션을 찾을 수 없습니다' }), { status: 404 })
   }
 
+  // closed는 start/cancel 양쪽에서 공유한다 — 클라 이탈(cancel)로 controller가 닫힌 걸
+  // start 쪽 enqueue가 알 수 있어야 한다. 이 플래그가 없으면 닫힌 controller에 enqueue해
+  // "Invalid state: Controller is already closed"가 나고, 그 예외가 onDelta를 타고 항목
+  // 처리까지 전파되어 항목이 error로 오염됐다(실측: 심화 중 페이지 이탈 → 전 항목 error).
+  let closed = false
   const stream = new ReadableStream({
     async start(controller) {
-      let closed = false
+      // enqueue는 절대 throw하지 않는다 — 스트림 write 실패가 AI 항목 처리를 죽이면 안 된다.
+      // write가 실패해도(클라 이탈) 항목 처리는 계속되고, 미완은 크론이 이어받아 완주한다.
       const enqueue = (obj: unknown) => {
-        if (!closed) controller.enqueue(sse(obj))
+        if (closed) return
+        try {
+          controller.enqueue(sse(obj))
+        } catch {
+          closed = true // 이미 닫힘(클라 abort 등) — 이후 write 중단, 처리는 계속
+        }
       }
 
       try {
@@ -75,6 +86,10 @@ export async function POST(req: NextRequest) {
           // 이미 닫힘
         }
       }
+    },
+    cancel() {
+      // 클라이언트 연결 끊김 — 이후 enqueue를 즉시 중단(서버 drain은 백그라운드로 계속).
+      closed = true
     },
   })
 
