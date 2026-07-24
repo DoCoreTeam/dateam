@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
+import TiptapEditor from '@/components/ui/TiptapEditor'
+import { htmlToMarkdown } from '@/lib/ai-chat/html-to-markdown'
 import { extractSourceText } from './actions'
 import { getAnalysisSession } from './session-persist-actions'
 import { listAnalysisSessions, type AnalysisSessionSummary } from './session-list-actions'
@@ -45,16 +47,22 @@ export default function AnalyzeClient() {
     })
   }, [])
 
+  // 리치에디터는 HTML을 담는다 → 마크다운 정규화본(표=파이프표)이 실제 붙여넣기 유무 판단·AI 입력의 SSOT.
+  const pastedMd = htmlToMarkdown(pastedText).trim()
+  const isRich = pastedText.includes('<') // 리치에디터 산출(태그 포함) 여부
+
   /** 문서+지시 → ①~④ 그룹핑 실행. 명령과 실행이 한 덩어리(검수 단계 없음, §A). */
   async function handleAnalyze(): Promise<void> {
-    if (!pastedText.trim() && !file) {
+    if (!pastedMd && !file) {
       setRunError('텍스트를 붙여넣거나 파일을 첨부하세요')
       return
     }
     setRunning(true)
     setRunError(null)
 
-    let sourceText = pastedText
+    // 붙여넣기 경로: 마크다운 정규화본을 AI·그룹핑에, 원본 HTML은 무손실 보존(R1-2).
+    let sourceText = pastedMd
+    let sourceHtml: string | undefined = isRich && pastedText.trim() ? pastedText : undefined
 
     // 파일 → 원문 텍스트만 (extractSourceText). extractItems를 쓰면 구 평탄화 파서 + 폐기되는
     // Gemini 호출이 매 업로드마다 돌아 비용이 샌다(🟥 DC-REV HIGH-1).
@@ -73,9 +81,10 @@ export default function AnalyzeClient() {
         return
       }
       sourceText = extracted.sourceText
+      sourceHtml = undefined
     }
 
-    const result = await analyzeDocument(sourceText, command)
+    const result = await analyzeDocument(sourceText, command, sourceHtml)
     setRunning(false)
     if (!result.ok) {
       setRunError(result.error)
@@ -146,15 +155,19 @@ export default function AnalyzeClient() {
         <div className="card" style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
             <label className="label" htmlFor="analyze-paste">자료 붙여넣기</label>
-            <textarea className="input-field"
-              id="analyze-paste"
-              rows={10}
-              value={pastedText}
-              disabled={!!file}
-              onChange={(e) => setPastedText(e.target.value)}
-              placeholder="문서 원문을 여기 붙여넣으세요. 구조(헤딩·번호·들여쓰기)를 그대로 인식합니다."
-              style={{ resize: 'vertical', fontFamily: 'inherit' }}
-            />
+            {file ? (
+              <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text-faint)' }}>
+                파일이 첨부되어 있어요. 붙여넣기로 입력하려면 첨부를 먼저 지워주세요.
+              </p>
+            ) : (
+              <TiptapEditor
+                value={pastedText}
+                onChange={setPastedText}
+                enableTable
+                minHeight={220}
+                placeholder="문서 원문을 여기 붙여넣으세요. 표·헤딩·번호·목록 구조를 그대로 인식합니다."
+              />
+            )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
@@ -168,7 +181,7 @@ export default function AnalyzeClient() {
               id="analyze-file"
               type="file"
               accept={ACCEPT}
-              disabled={!!pastedText.trim()}
+              disabled={!!pastedMd}
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
             <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>
@@ -196,7 +209,7 @@ export default function AnalyzeClient() {
             </div>
             <NbButton
               onClick={handleAnalyze}
-              disabled={running || (!pastedText.trim() && !file)}
+              disabled={running || (!pastedMd && !file)}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', minHeight: 44, flexShrink: 0 }}
             >
               {running ? <AXDotLoader size={5} color="currentColor" /> : <Sparkles size={16} />}

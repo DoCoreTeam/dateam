@@ -134,6 +134,7 @@ async function persistGroups(
 export async function analyzeDocument(
   sourceText: string,
   command: string,
+  sourceHtml?: string,
 ): Promise<GroupingResultPayload> {
   const auth = await requireAdminApi()
   if (auth.error) return { ok: false, error: '권한이 없습니다' }
@@ -157,6 +158,8 @@ export async function analyzeDocument(
       user_id: auth.user.id,
       title: titleFrom(text, result.groups, result.meta),
       source_text: text,
+      source_html: sourceHtml && sourceHtml.trim() ? sourceHtml : null, // R1-2 원본 HTML 무손실 보존
+      source_format: sourceHtml && sourceHtml.trim() ? 'html' : 'plain',
       source_kind: 'text',
       command: (command ?? '').trim(),
       doc_type: result.docType,

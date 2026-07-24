@@ -720,6 +720,33 @@
     height: 0;
   }
 
+  /* 표 — 목록 심층분석 리치에디터·읽기 렌더 공용(셀 경계 가시화, ⑦ 구조 충실도) */
+  .tiptap-content table,
+  .report-rich table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.5rem 0;
+    font-size: 0.875rem;
+    table-layout: fixed;
+    overflow-wrap: break-word;
+  }
+  .tiptap-content th,
+  .tiptap-content td,
+  .report-rich th,
+  .report-rich td {
+    border: var(--hairline) solid var(--border-color);
+    padding: 0.375rem 0.5rem;
+    text-align: left;
+    vertical-align: top;
+    color: var(--text);
+    word-break: break-word;
+  }
+  .tiptap-content th,
+  .report-rich th {
+    background: var(--surface-bg);
+    font-weight: 700;
+  }
+
   /* Report rich content (read-only display) */
   .report-rich h2 {
     font-size: 1rem;
