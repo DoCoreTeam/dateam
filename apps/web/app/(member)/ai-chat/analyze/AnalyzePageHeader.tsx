@@ -1,10 +1,16 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, ListChecks } from 'lucide-react'
+import { ArrowLeft, ListChecks, FilePlus2 } from 'lucide-react'
+import NbButton from '@/components/ui/nb/NbButton'
+
+interface Props {
+  /** 그룹·결과 화면에서 "새 분석"으로 즉시 초기화(새 창처럼). 입력 단계에선 undefined(숨김). */
+  onNewAnalysis?: () => void
+}
 
 /** 목록 심층분석 — 페이지 헤더(§2-3 표준). AnalyzeClient에서 분리(300줄 유지). */
-export default function AnalyzePageHeader() {
+export default function AnalyzePageHeader({ onNewAnalysis }: Props = {}) {
   return (
     <div
       style={{
@@ -51,6 +57,16 @@ export default function AnalyzePageHeader() {
           문서를 붙여넣거나 파일을 올리고 지시(선택)를 적으면, 문서 구조 그대로 그룹으로 묶어 보여줍니다.
         </p>
       </div>
+      {onNewAnalysis && (
+        <NbButton
+          variant="ghost"
+          onClick={onNewAnalysis}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', minHeight: 44, flexShrink: 0 }}
+        >
+          <FilePlus2 size={16} />
+          새 분석
+        </NbButton>
+      )}
     </div>
   )
 }

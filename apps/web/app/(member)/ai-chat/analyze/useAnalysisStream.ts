@@ -192,8 +192,12 @@ export function useAnalysisStream(sessionId: string, initialItems: InitialItem[]
   }, [progress])
 
   // 최초 진입 시 SSE 루프 착수(§ 관전자 — 클라는 진행을 그리기만, 실행은 서버).
+  // 단, 이미 전 항목이 done인 세션(이전 분석 재열람)은 SSE를 열지 않는다 — 서버는 done을 claim하지
+  // 않아 즉시 no-op이지만, 그 사이 'connecting/live' 스피너가 떠 사용자에게 "재분석 중"으로 오인된다.
+  // 미완료 항목이 하나라도 있으면(신규 분석·이어하기) 정상적으로 SSE를 연다. synth 확정은 폴링이 반영.
   useEffect(() => {
-    startSseLoop()
+    const allDone = initialItems.length > 0 && initialItems.every((it) => it.status === 'done')
+    if (!allDone) startSseLoop()
     return () => {
       sseTokenRef.current += 1 // 진행 중인 루프 무효화
       abortRef.current?.abort()

@@ -138,7 +138,7 @@ export default function AnalyzeClient() {
 
   return (
     <div>
-      <AnalyzePageHeader />
+      <AnalyzePageHeader onNewAnalysis={step === 'input' ? undefined : resetAll} />
 
       {step === 'input' && <RecentSessionsList sessions={sessions} loading={loadingSession} onResume={handleResumeSession} />}
 

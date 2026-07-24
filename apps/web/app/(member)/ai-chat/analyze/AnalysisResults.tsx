@@ -18,6 +18,13 @@ interface Props {
   onStartOver: () => void
 }
 
+/** 다운로드 파일명 베이스 — 분석 주제(첫 의미블록 제목 = 세션 title 파생값)로. 파일시스템 금지문자 제거. */
+function exportBaseName(topic: string | undefined): string {
+  const base = (topic ?? '').replace(/\s+/g, ' ').trim().slice(0, 60)
+  const safe = base.replace(/[\\/:*?"<>|]/g, '').trim()
+  return safe || '목록 심층분석'
+}
+
 function downloadTextFile(filename: string, content: string, mime: string): void {
   const blob = new Blob([content], { type: mime })
   const url = URL.createObjectURL(blob)
@@ -57,7 +64,8 @@ export default function AnalysisResults({ sessionId, initialItems, docType = nul
   async function handleExport(format: ExportFormat): Promise<void> {
     const sections = buildExportSections()
     if (sections.length === 0) return
-    const conv = { title: '목록 심층분석 결과', provider: 'gemini', model: '', createdAt: new Date().toISOString() }
+    const baseName = exportBaseName(itemList[0]?.text)
+    const conv = { title: baseName, provider: 'gemini', model: '', createdAt: new Date().toISOString() }
     const messages = sections.flatMap((s) => [
       { role: 'user' as const, content: s.text, createdAt: conv.createdAt },
       { role: 'assistant' as const, content: s.result, createdAt: conv.createdAt },
@@ -68,10 +76,10 @@ export default function AnalysisResults({ sessionId, initialItems, docType = nul
 
     if (format === 'md') {
       const { conversationToMarkdown } = await import('@/lib/ai-chat/export')
-      downloadTextFile('목록_심층분석.md', conversationToMarkdown(conv, messages), 'text/markdown')
+      downloadTextFile(`${baseName}.md`, conversationToMarkdown(conv, messages), 'text/markdown')
     } else if (format === 'txt') {
       const { conversationToPlainText } = await import('@/lib/ai-chat/export')
-      downloadTextFile('목록_심층분석.txt', conversationToPlainText(conv, messages), 'text/plain')
+      downloadTextFile(`${baseName}.txt`, conversationToPlainText(conv, messages), 'text/plain')
     } else if (format === 'docx') {
       const { downloadConversationDocx } = await import('@/lib/ai-chat/export-docx')
       await downloadConversationDocx(conv, messages)
@@ -90,7 +98,7 @@ export default function AnalysisResults({ sessionId, initialItems, docType = nul
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = '목록_심층분석.pdf'
+      a.download = `${baseName}.pdf`
       document.body.appendChild(a)
       a.click()
       a.remove()
