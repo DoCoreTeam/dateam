@@ -6,8 +6,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { concurrencyFromMeta } from './analyze-runner.ts'
 
-test('concurrencyFromMeta: 미설정이면 기본값 4', () => {
-  assert.equal(concurrencyFromMeta({}), 4)
+test('concurrencyFromMeta: 미설정이면 기본값 2(Gemini RPM 429 내성)', () => {
+  assert.equal(concurrencyFromMeta({}), 2)
 })
 
 test('concurrencyFromMeta: 숫자값 그대로 사용', () => {
@@ -19,10 +19,10 @@ test('concurrencyFromMeta: 문자열 숫자도 파싱', () => {
 })
 
 test('concurrencyFromMeta: 0 이하/비정상 값은 기본값 폴백', () => {
-  assert.equal(concurrencyFromMeta({ ai_analysis_concurrency: 0 }), 4)
-  assert.equal(concurrencyFromMeta({ ai_analysis_concurrency: -3 }), 4)
-  assert.equal(concurrencyFromMeta({ ai_analysis_concurrency: 'abc' }), 4)
-  assert.equal(concurrencyFromMeta({ ai_analysis_concurrency: null }), 4)
+  assert.equal(concurrencyFromMeta({ ai_analysis_concurrency: 0 }), 2)
+  assert.equal(concurrencyFromMeta({ ai_analysis_concurrency: -3 }), 2)
+  assert.equal(concurrencyFromMeta({ ai_analysis_concurrency: 'abc' }), 2)
+  assert.equal(concurrencyFromMeta({ ai_analysis_concurrency: null }), 2)
 })
 
 test('concurrencyFromMeta: 소수는 내림', () => {
