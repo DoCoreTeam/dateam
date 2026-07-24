@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import NbButton from '@/components/ui/nb/NbButton'
 import { setAnalyzeChatHandoff } from '@/lib/ai-chat/analyze-chat-bridge'
+import { synthesizeSession } from './analyze-converse-actions'
 import { useAnalysisStream, type InitialItem } from './useAnalysisStream'
 import AnalysisProgressBar from './AnalysisProgressBar'
 import AnalysisSynthPanel, { type ExportFormat } from './AnalysisSynthPanel'
@@ -146,6 +147,7 @@ export default function AnalysisResults({ sessionId, initialItems, docType = nul
         canExport={doneCount > 0}
         onExport={handleExport}
         onResynthesize={stream.resynthesize}
+        onSynthesizeWithFormat={async (format) => { await synthesizeSession(sessionId, format) }}
       />
 
       <AnalysisOutcomeActions

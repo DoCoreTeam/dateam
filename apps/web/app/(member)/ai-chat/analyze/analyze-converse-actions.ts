@@ -137,9 +137,10 @@ export async function sendItemMessage(
   return { ok: true, assistant: ai.text }
 }
 
-/** 대화로 확정된 항목들을 모아 단일 종합 문서 생성 + 세션에 영속. */
+/** 확정 항목들을 모아 단일 종합 문서 생성 + 세션에 영속. formatInstruction으로 취합 형식(템플릿/샘플)을 지시할 수 있다. */
 export async function synthesizeSession(
   sessionId: string,
+  formatInstruction?: string,
 ): Promise<{ ok: true; synthText: string } | AnalyzeItemErr> {
   const auth = await requireAdminApi()
   if (auth.error) return { ok: false, error: '권한이 없습니다' }
@@ -163,7 +164,7 @@ export async function synthesizeSession(
   if (entries.length === 0) return { ok: false, error: '종합할 확정 항목이 없습니다 — 먼저 항목에 지시해 답을 받으세요' }
 
   await updateSessionSynth(sessionId, { synthStatus: 'running' })
-  const synth = await synthesizeInsights(entries, own.model ?? undefined)
+  const synth = await synthesizeInsights(entries, own.model ?? undefined, formatInstruction)
   if (!synth.ok) {
     await updateSessionSynth(sessionId, { synthStatus: 'error' })
     return { ok: false, error: synth.error }

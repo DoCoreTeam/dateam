@@ -111,6 +111,7 @@ export async function analyzeItem(input: AnalyzeItemInput): Promise<AnalyzeItemO
 export async function synthesizeInsights(
   entries: { itemText: string; resultText: string }[],
   model?: string,
+  formatInstruction?: string,
 ): Promise<AnalyzeItemOk | AnalyzeItemErr> {
   const auth = await requireAdminApi()
   if (auth.error) return { ok: false, error: '권한이 없습니다' }
@@ -122,9 +123,12 @@ export async function synthesizeInsights(
   if (!cfg) return { ok: false, error: 'Gemini API 키가 설정되지 않았습니다' }
 
   const items: SynthItem[] = entries.map((e, idx) => ({ idx, itemText: e.itemText, digest: e.resultText }))
-  const command =
-    '항목 간 공통 패턴·상충되는 지점·우선순위를 종합해 "종합 인사이트"를 마크다운으로 작성하라 ' +
-    '(공통 테마 / 상충·트레이드오프 / 우선순위 제안 섹션 포함).'
+  const fmt = (formatInstruction ?? '').trim()
+  const command = fmt
+    ? // 사용자가 지정한 형식/샘플이 최우선 — 그 형식 그대로 종합 문서를 작성한다.
+      `아래 "형식 지시"에 정확히 맞춰 항목들을 하나의 문서로 종합하라. 형식 지시가 섹션·표·순서를 지배한다.\n\n[형식 지시]\n${fmt}`
+    : '항목 간 공통 패턴·상충되는 지점·우선순위를 종합해 "종합 인사이트"를 마크다운으로 작성하라 ' +
+      '(공통 테마 / 상충·트레이드오프 / 우선순위 제안 섹션 포함).'
 
   try {
     const controller = new AbortController()
