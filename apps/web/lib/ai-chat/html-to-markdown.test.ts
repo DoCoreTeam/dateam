@@ -53,3 +53,13 @@ test('열 수 불균형 — 짧은 행은 빈 셀로 패딩', () => {
   assert.match(md, /\| a \| b \| c \|/)
   assert.match(md, /\| 1 \|  \|  \|/)
 })
+
+test('리스트 항목 안에 중첩된 표도 자기 줄에서 시작(파이프표 깨짐 방지) — 실브라우저 사고', () => {
+  const html = '<ol><li><p>담당자별 일정</p><table><tr><th>담당자</th><th>역할</th></tr><tr><td>김도현</td><td>기획</td></tr></table></li></ol>'
+  const md = htmlToMarkdown(html)
+  // 표 헤더가 불릿 줄에 인라인으로 붙지 않고 별도 줄에서 시작해야 한다.
+  assert.ok(!/- .*\| 담당자 \| 역할 \|/.test(md), '표가 불릿 줄에 인라인으로 붙으면 안 됨')
+  assert.match(md, /^\| 담당자 \| 역할 \|/m)
+  assert.match(md, /^\| --- \| --- \|/m)
+  assert.match(md, /^\| 김도현 \| 기획 \|/m)
+})

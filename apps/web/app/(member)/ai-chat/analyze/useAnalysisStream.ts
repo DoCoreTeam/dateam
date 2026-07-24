@@ -198,6 +198,7 @@ export function useAnalysisStream(sessionId: string, initialItems: InitialItem[]
   useEffect(() => {
     const allDone = initialItems.length > 0 && initialItems.every((it) => it.status === 'done')
     if (!allDone) startSseLoop()
+    else setMode('finished') // 재열람·대화종합 진입: SSE 없이도 '연결 중' 잔상 없이 완료 표시(폴링이 진실 반영)
     return () => {
       sseTokenRef.current += 1 // 진행 중인 루프 무효화
       abortRef.current?.abort()

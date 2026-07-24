@@ -30,12 +30,19 @@ const TabIndent = Extension.create({
   addKeyboardShortcuts() {
     return {
       Tab: () => {
+        // 표 안에서는 Tab이 다음 셀로 이동해야 한다(공백 삽입 금지 — 실브라우저 사고).
+        if (this.editor.isActive('table')) {
+          return this.editor.commands.goToNextCell()
+        }
         if (this.editor.can().sinkListItem('listItem')) {
           return this.editor.commands.sinkListItem('listItem')
         }
         return this.editor.commands.insertContent('    ')
       },
       'Shift-Tab': () => {
+        if (this.editor.isActive('table')) {
+          return this.editor.commands.goToPreviousCell()
+        }
         if (this.editor.can().liftListItem('listItem')) {
           return this.editor.commands.liftListItem('listItem')
         }
