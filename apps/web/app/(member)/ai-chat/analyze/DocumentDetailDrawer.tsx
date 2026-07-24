@@ -4,8 +4,9 @@
 // (경로1 파일 내보내기·경로4 AI채팅 이어가기는 저장된 문서에서도 다시 실행 가능해야 재가공 흐름이 완결된다).
 // 모달 표준(§2-2) 준수: useEscClose·X닫기·tape-title·boxShadow(var(--shadow-modal))·backdrop(var(--modal-backdrop)).
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import ScrollJumpButtons from '@/components/ui/ScrollJumpButtons'
 import { Check, Copy, MessageSquarePlus, Pencil, Share2, Trash2, X } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import MarkdownMessage from '@/app/admin/ai-chat/MarkdownMessage'
@@ -52,6 +53,7 @@ export default function DocumentDetailDrawer({ documentId, onClose, onChanged, o
   const [savingTitle, setSavingTitle] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [showHandoff, setShowHandoff] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let alive = true
@@ -126,7 +128,7 @@ export default function DocumentDetailDrawer({ documentId, onClose, onChanged, o
   return (
     <div onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
       style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--modal-backdrop)', display: 'flex', justifyContent: 'flex-end' }}>
-      <div style={{ width: '100%', maxWidth: 640, height: '100%', background: 'var(--color-surface)', boxShadow: 'var(--shadow-modal)', overflowY: 'auto', padding: 'var(--space-6)', boxSizing: 'border-box' }}>
+      <div ref={scrollRef} style={{ width: '100%', maxWidth: 640, height: '100%', background: 'var(--color-surface)', boxShadow: 'var(--shadow-modal)', overflowY: 'auto', padding: 'var(--space-6)', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 'var(--space-4)', gap: 'var(--space-3)' }}>
           {editingTitle ? (
             <div style={{ display: 'flex', gap: 'var(--space-2)', flex: 1, alignItems: 'center' }}>
@@ -178,6 +180,7 @@ export default function DocumentDetailDrawer({ documentId, onClose, onChanged, o
         )}
       </div>
 
+      <ScrollJumpButtons targetRef={scrollRef} />
       {showHandoff && <WorkflowHandoffModal title={title} bodyMd={bodyMd} onClose={() => setShowHandoff(false)} />}
     </div>
   )
