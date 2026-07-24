@@ -32,6 +32,27 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.393',
+    date: '2026-07-24',
+    title: '업무를 고치면 일정이 다시 잡히고, "다음주"는 그 주 전체로 떠요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🔁',
+        headline: '업무 수정하면 날짜·시간 다시 분석',
+        detail:
+          '일일업무 내용을 고치면 AI가 다시 읽어 날짜·시간을 새로 잡아 캘린더에 반영해요. 예전엔 고쳐도 일정이 그대로였어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '📆',
+        headline: '"다음주" 같은 기간은 캘린더에 통째로',
+        detail:
+          '"다음주"처럼 기간으로 말하면 그 주 전체(월~일)에 걸쳐 표시되고, "3시"처럼 시간을 적으면 그 시각에 등록돼요.',
+      },
+    ],
+  },
+  {
     version: '0.7.392',
     date: '2026-07-24',
     title: '패치노트를 언제든 열어볼 수 있어요',

@@ -24,6 +24,7 @@ interface ParsedWorkItem {
   title: string
   status: 'done' | 'doing' | 'planned' | 'blocker' | 'note'
   targetDate: string | null
+  targetEndDate: string | null
   targetDateCertainty: 'exact' | 'inferred' | 'none'
   scheduledTime: string | null
   priority: 'urgent' | 'high' | 'normal' | 'low'

@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { resolveOrgScope } from '@/lib/org-scope'
 import { embedText, toVectorLiteral } from '@/lib/gemini-embedding'
 import { recordFeedbackSignal, diffDailyLog } from '@/lib/daily/feedback-signals'
+import { analyzeWorkOnce } from '@/lib/daily/analyze-work-core'
 import { logActivity } from '@/lib/work/activity-log'
 import type {
   DailyLog, DailyLogEntryType, DailyLogPriority,
@@ -77,6 +78,7 @@ export interface AiParsedItem {
   scheduledTime: string | null
   // 관계 시스템 필드
   targetDate: string | null
+  targetEndDate?: string | null // 기간 일정 종료일(다음주 전체 등). NULL=단일 날짜.
   targetDateCertainty: 'exact' | 'inferred' | 'none'
   tags: string[]
   originGroupId: string | null
@@ -222,7 +224,7 @@ export async function getDailyLogs(date: string): Promise<DailyLog[]> {
   return (data ?? []) as DailyLog[]
 }
 
-// 캘린더 날짜 클릭용 — log_date OR target_date가 해당 날짜인 로그 모두 반환
+// 캘린더 날짜 클릭용 — log_date/target_date가 해당 날짜이거나, 기간 밴드[target_date,target_end_date]가 그날을 포함하는 로그 반환
 export async function getCalendarDayLogs(date: string): Promise<DailyLog[]> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -232,7 +234,7 @@ export async function getCalendarDayLogs(date: string): Promise<DailyLog[]> {
     .select('*')
     .eq('user_id', user.id)
     .is('deleted_at', null)
-    .or(`log_date.eq.${date},target_date.eq.${date}`)
+    .or(`log_date.eq.${date},target_date.eq.${date},and(target_date.lte.${date},target_end_date.gte.${date})`)
     .order('logged_at', { ascending: true })
     .limit(500)
 
@@ -454,8 +456,60 @@ export async function updateDailyLog(
     title: content.trim(), before: beforeRow, after: updatePayload,
   })
 
+  // 수정 시 재분석(해당 항목만) — 사용자가 날짜를 직접 지정하지 않았고 메모가 아니면,
+  // 바뀐 내용에서 날짜/기간/시간을 다시 추출해 캘린더 등록을 갱신한다(수정하면 재분석 안 되던 사고).
+  if (targetDate === undefined && entryType !== 'note') {
+    await reanalyzeDailyLog(id).catch(() => {}) // 재분석 실패가 수정 자체를 막지 않음
+  }
+
   revalidateDailyCalendarViews()
   return { ok: true }
+}
+
+/**
+ * 수정된 일일업무 1건을 다시 분석해 날짜(target_date)·기간(target_end_date)·시간(scheduled_at)을 갱신한다.
+ * '해당 항목만' 재분석 — 원문 그룹을 재분할하지 않는다(기존 구조 유지). analyzeWorkOnce(라우트와 동일 프롬프트) 재사용.
+ */
+export async function reanalyzeDailyLog(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: '로그인이 필요합니다.' }
+
+  const { data: row } = await (supabase.from('daily_logs') as any)
+    .select('content, log_date')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .is('deleted_at', null)
+    .maybeSingle()
+  if (!row) return { ok: false, error: '항목을 찾을 수 없습니다.' }
+
+  try {
+    const items = await analyzeWorkOnce((row.content ?? '').trim(), row.log_date)
+    const it = items[0]
+    if (!it) return { ok: true } // 추출 결과 없음 — 무변경(기존 날짜 유지)
+
+    const scheduledAt = it.targetDate
+      ? it.scheduledTime
+        ? `${it.targetDate}T${it.scheduledTime}:00+09:00`
+        : `${it.targetDate}T00:00:00+09:00`
+      : null
+
+    await (supabase.from('daily_logs') as any)
+      .update({
+        target_date: it.targetDate ?? null,
+        target_end_date: it.targetEndDate ?? null,
+        scheduled_at: scheduledAt,
+        target_date_set_by: it.targetDate && it.targetDateCertainty !== 'none' ? 'ai' : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .eq('user_id', user.id)
+
+    revalidateDailyCalendarViews()
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : '재분석 중 오류가 발생했습니다' }
+  }
 }
 
 export async function updateDailyLogStatus(
@@ -772,6 +826,7 @@ export async function addMultipleDailyLogs(
       linked_contact_id: item.contactId ?? null,
       // 관계 시스템 필드
       target_date: targetDate,
+      target_end_date: item.targetEndDate ?? null, // 기간 밴드 종료일
       target_date_set_by: targetDateSetBy,
       origin_group_id: originGroupId,
       source_type: parentLogId ? 'thread_derived' as const : 'ai_split' as const,
