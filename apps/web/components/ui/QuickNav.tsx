@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { LayoutGrid, X, Home, NotebookPen, CalendarDays, FileText, Briefcase, Users, TrendingUp, Inbox, DollarSign, Tag, Key, Code2, ChevronRight } from 'lucide-react'
+import { LayoutGrid, X, Home, NotebookPen, CalendarDays, FileText, Briefcase, Users, TrendingUp, Inbox, DollarSign, Tag, Key, Code2, ChevronRight, Sparkles } from 'lucide-react'
 
 const PAGES = [
   {
@@ -114,6 +114,24 @@ export default function QuickNav() {
                 ))}
               </div>
             ))}
+            {/* 패치노트 — 라우트가 아니라 모달. window 이벤트로 MobileShell의 패치노트를 연다. */}
+            <div>
+              <div style={{ padding: '6px 16px 2px', fontSize: 11, fontWeight: 600, color: 'var(--border-subtle)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>정보</div>
+              <button
+                type="button"
+                onClick={() => { setOpen(false); if (typeof window !== 'undefined') window.dispatchEvent(new Event('open-patchnotes')) }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                  padding: '8px 16px', color: 'var(--text)', fontSize: 13,
+                  background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', transition: 'background .1s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-bg)'; e.currentTarget.style.color = 'var(--brand)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text)' }}
+              >
+                <span style={{ color: 'inherit', opacity: 0.7 }}><Sparkles size={14} /></span>
+                <span style={{ flex: 1 }}>패치노트</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

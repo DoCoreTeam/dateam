@@ -32,6 +32,20 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.392',
+    date: '2026-07-24',
+    title: '패치노트를 언제든 열어볼 수 있어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '📢',
+        headline: '"업데이트 내역"이 "패치노트"로, 메뉴에서 바로 열려요',
+        detail:
+          '이름을 "패치노트"로 바꾸고, 왼쪽 아래 내 계정 메뉴와 오른쪽 위 전체 메뉴에서 언제든 다시 열어볼 수 있게 했어요. 한 번 확인하면 새 소식이 나오기 전까지 다시 자동으로 뜨지 않습니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.388',
     date: '2026-07-24',
     title: '긴 화면에서 맨 위·아래로 한 번에 이동해요',

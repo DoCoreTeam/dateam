@@ -92,6 +92,12 @@ export default function MobileShell({
   }, [])
 
   const openChangelogFull = useCallback(() => { setChangelogNewOnly(false); setChangelogOpen(true) }, [])
+  // 계정 메뉴·전체메뉴 등 다른 컴포넌트에서 패치노트 열기 — window 이벤트로 결합도 없이 트리거.
+  useEffect(() => {
+    const handler = () => openChangelogFull()
+    window.addEventListener('open-patchnotes', handler)
+    return () => window.removeEventListener('open-patchnotes', handler)
+  }, [openChangelogFull])
   const hamburgerRef = useRef<HTMLButtonElement>(null)
   const firstNavRef = useRef<HTMLAnchorElement>(null)
   const mainRef = useRef<HTMLElement>(null)
@@ -176,12 +182,12 @@ export default function MobileShell({
                 </span>
               )}
             </Link>
-            {/* 로고/브랜드 바로 아래 버전 — 클릭 시 업데이트 내역 모달 */}
+            {/* 로고/브랜드 바로 아래 버전 — 클릭 시 패치노트 모달 */}
             <button
               type="button"
               onClick={openChangelogFull}
-              aria-label={hasNewChangelog ? '새 업데이트 내역 보기' : '업데이트 내역 보기'}
-              title="업데이트 내역"
+              aria-label={hasNewChangelog ? '새 패치노트 보기' : '패치노트 보기'}
+              title="패치노트"
               className="app-version-btn"
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', fontSize: '0.625rem', color: 'var(--text-muted)', letterSpacing: '0.06em', fontWeight: 600, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '4px' }}
             >

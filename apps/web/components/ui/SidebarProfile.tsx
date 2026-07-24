@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen, Palette, Check, ChevronRight } from 'lucide-react'
+import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen, Palette, Check, ChevronRight, Sparkles } from 'lucide-react'
 import { THEMES, type ThemeId } from '@/lib/themes'
 import { clearPersistedSwrCache } from '@/lib/swr-persist'
 
@@ -185,6 +185,30 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
             <BookOpen size={14} />
             개발자센터
           </Link>
+          <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0 0.75rem' }} />
+          {/* 패치노트 — 사이드바 버전 클릭과 동일한 모달을 window 이벤트로 연다(MobileShell이 수신). */}
+          <button
+            type="button"
+            onClick={() => { setOpen(false); if (typeof window !== 'undefined') window.dispatchEvent(new Event('open-patchnotes')) }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.625rem',
+              width: '100%',
+              padding: 'var(--space-3) var(--space-4)',
+              fontSize: 'var(--fs-sm)',
+              color: 'var(--text)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'background 120ms',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            <Sparkles size={14} />
+            패치노트
+          </button>
           <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0 0.75rem' }} />
           {/* 테마변경 — 오른쪽 서브메뉴로 개인 테마 선택 (호버/클릭 모두 열림) */}
           <div

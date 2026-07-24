@@ -42,7 +42,7 @@ export default function ChangelogModal({ currentVersion, onClose, newOnly = fals
       <div
         onClick={(e) => e.stopPropagation()}
         role="dialog"
-        aria-label="업데이트 내역"
+        aria-label="패치노트"
         className="modal-card"
         style={{ width: 'min(560px, 100%)', maxHeight: '80vh' }}
       >
@@ -50,7 +50,7 @@ export default function ChangelogModal({ currentVersion, onClose, newOnly = fals
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-4) var(--space-5)', borderBottom: 'var(--hairline) solid var(--border-color)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <Sparkles size={18} style={{ color: 'var(--brand)' }} />
-            <span className="tape-title" style={{ fontSize: 'var(--fs-lg)' }}>{newOnly ? '새로운 소식이 있어요' : '업데이트 내역'}</span>
+            <span className="tape-title" style={{ fontSize: 'var(--fs-lg)' }}>{newOnly ? '패치노트 · 새로운 소식이 있어요' : '패치노트'}</span>
           </div>
           <button onClick={onClose} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 'var(--space-1)' }}>
             <X size={18} />
