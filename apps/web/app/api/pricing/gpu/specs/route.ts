@@ -2,9 +2,30 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
+import { baseModelKey, baseModelName } from '@/lib/gpu/canonical-model'
+import { extractFormFactor, type FormFactor } from '@/lib/gpu/form-factor'
+
+interface ConfigRow {
+  id: string; gpu_count: number; memory: string | null
+  vcpu: number | null; ram_gb: number | null; storage_gb: number | null; series: string | null
+}
+// 변형(폼팩터) 단위 — model_name 하나 = 한 변형. 기존 ModelRow와 동형이라 SpecModal이 그대로 재사용.
+interface Variant {
+  model_name: string; form_factor: FormFactor | null; tier: number; memory: string | null
+  spec: Record<string, unknown> | null; has_spec: boolean; configs: ConfigRow[]
+}
+// base 모델 그룹 — "H100" 하나에 폼팩터 변형(generic/SXM/PCIe/NVL)을 하위로 묶는다.
+interface ModelGroup {
+  base_key: string; base_name: string; tier: number; config_count: number; variants: Variant[]
+}
+
+// 폼팩터 표시 순서: generic(null) → SXM → PCIe → NVL
+const FF_ORDER: Record<string, number> = { SXM: 1, PCIe: 2, NVL: 3 }
+const ffRank = (f: FormFactor | null): number => (f ? FF_ORDER[f] ?? 9 : 0)
 
 // GET /api/pricing/gpu/specs
-//  실제 gpu_products의 모델(임의 X)별로 gpu_specs를 조인해 반환.
+//  실제 gpu_products를 base 모델(캐노니컬)로 그룹핑 → 폼팩터 하위축 → 구성(장수) 배열. gpu_specs 조인.
+//  "H100 SXM/PCIe/NVL/H100"이 한 "H100" 그룹으로 묶여 화면에 1종으로 뜬다(그룹핑 SSOT=baseModelKey).
 export async function GET() {
   const auth = await requireMemberApi()
   if (auth.error) return auth.error
@@ -23,23 +44,40 @@ export async function GET() {
   const specByModel = new Map<string, Record<string, unknown>>()
   for (const s of specs ?? []) specByModel.set(s.model_name as string, s)
 
-  // 모델 단위 그룹 (구성=gpu_products 인스턴스 스펙 배열 포함 — 4탭 표시 스펙의 단일 편집 소스)
-  const byModel = new Map<string, Record<string, unknown>>()
+  // 1) model_name 단위 변형 조립 (폼팩터는 model_name에서 파생 — baseModelKey와 동일 SSOT)
+  const byVariant = new Map<string, Variant>()
   for (const p of products ?? []) {
     const key = p.model_name as string
-    if (!byModel.has(key)) {
-      byModel.set(key, {
-        model_name: key, tier: p.tier, memory: p.memory,
-        spec: specByModel.get(key) ?? null, has_spec: specByModel.has(key),
-        configs: [],
+    if (!byVariant.has(key)) {
+      byVariant.set(key, {
+        model_name: key, form_factor: extractFormFactor(key).formFactor,
+        tier: p.tier, memory: p.memory,
+        spec: specByModel.get(key) ?? null, has_spec: specByModel.has(key), configs: [],
       })
     }
-    ;(byModel.get(key)!.configs as Record<string, unknown>[]).push({
+    byVariant.get(key)!.configs.push({
       id: p.id, gpu_count: p.gpu_count, memory: p.memory,
       vcpu: p.vcpu, ram_gb: p.ram_gb, storage_gb: p.storage_gb, series: p.series,
     })
   }
-  return NextResponse.json({ models: Array.from(byModel.values()) })
+
+  // 2) base 모델로 그룹핑 (폼팩터를 하위로 접음)
+  const byBase = new Map<string, ModelGroup>()
+  for (const v of Array.from(byVariant.values())) {
+    const bk = baseModelKey(v.model_name)
+    if (!byBase.has(bk)) {
+      byBase.set(bk, { base_key: bk, base_name: baseModelName(v.model_name), tier: v.tier, config_count: 0, variants: [] })
+    }
+    const g = byBase.get(bk)!
+    g.variants.push(v)
+    g.config_count += v.configs.length
+    g.tier = Math.min(g.tier, v.tier)   // 그룹 tier = 최상위(데이터센터=1 우선)
+  }
+  for (const g of Array.from(byBase.values())) {
+    g.variants.sort((a: Variant, b: Variant) => ffRank(a.form_factor) - ffRank(b.form_factor) || a.model_name.localeCompare(b.model_name))
+  }
+
+  return NextResponse.json({ models: Array.from(byBase.values()) })
 }
 
 const EDITABLE = [

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
@@ -31,7 +31,12 @@ interface Spec {
   ai_confidence: number | null
 }
 interface ConfigRow { id: string; gpu_count: number; memory: string | null; vcpu: number | null; ram_gb: number | null; storage_gb: number | null; series: string | null }
-interface ModelRow { model_name: string; tier: number; memory: string | null; spec: Spec | null; has_spec: boolean; configs: ConfigRow[] }
+// 변형(폼팩터) 단위 — model_name 하나. SpecModal은 이 형태(=기존 ModelRow)를 그대로 받는다.
+interface ModelRow { model_name: string; form_factor?: string | null; tier: number; memory: string | null; spec: Spec | null; has_spec: boolean; configs: ConfigRow[] }
+// base 모델 그룹 — "H100" 하나에 폼팩터 변형(generic/SXM/PCIe/NVL)을 하위로 묶음.
+interface ModelGroup { base_key: string; base_name: string; tier: number; config_count: number; variants: ModelRow[] }
+const FF_LABEL: Record<string, string> = { SXM: 'SXM', PCIe: 'PCIe', NVL: 'NVL' }
+const variantLabel = (v: ModelRow): string => (v.form_factor ? (FF_LABEL[v.form_factor] ?? v.form_factor) : '기본')
 
 const FIELDS: { key: keyof Spec; label: string; type?: 'number' | 'bool' }[] = [
   { key: 'architecture', label: '아키텍처' },
@@ -269,10 +274,12 @@ function AddModelModal({ prefillName, prefillCount, onClose, onSaved }: { prefil
 }
 
 export default function SpecsTab() {
-  const { data } = useSWR<{ models: ModelRow[] }>('/api/pricing/gpu/specs', fetcher)
+  const { data } = useSWR<{ models: ModelGroup[] }>('/api/pricing/gpu/specs', fetcher)
   const { mutate } = useSWRConfig()
-  const models = data?.models ?? []
+  const groups = data?.models ?? []
   const [open, setOpen] = useState<ModelRow | null>(null)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const toggleExpand = (k: string) => setExpanded((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n })
   const [addOpen, setAddOpen] = useState<{ name: string; count?: string } | null>(null)
   // 확정 해소: ?newModel=<모델명>(no_model) 또는 +&count=<N>(no_variant=구성 추가)으로 진입 → 모달 자동 오픈(1회). 이후 URL 파라미터 제거.
   const searchParams = useSearchParams()
@@ -296,8 +303,9 @@ export default function SpecsTab() {
   const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'default', dir: 'asc' })
 
   const refresh = () => mutate('/api/pricing/gpu/specs')
-  // 부족 정보 = 칩 데이터시트(아키텍처) 미보유 모델 (VRAM만 시드된 것 포함)
-  const missing = models.filter((m) => !m.spec?.architecture).length
+  // 부족 정보 = 칩 데이터시트(아키텍처) 미보유 변형 (VRAM만 시드된 것 포함). AI 채우기는 변형(model_name) 단위.
+  const allVariants = groups.flatMap((g) => g.variants)
+  const missing = allVariants.filter((v) => !v.spec?.architecture).length
 
   // 일괄 생성 — SSE 실시간 진행(어떤 모델/몇 번째). 각 모델은 즉시 DB 저장 → 중단돼도 처리분 보존.
   const bulkGenerate = async () => {
@@ -335,9 +343,12 @@ export default function SpecsTab() {
     } finally { setBulkGen(false); setBulkProg(null) }
   }
 
-  const filtered = search.trim() ? models.filter((m) => m.model_name.toLowerCase().includes(search.toLowerCase())) : models
+  const q = search.trim().toLowerCase()
+  const filtered = q
+    ? groups.filter((g) => g.base_name.toLowerCase().includes(q) || g.variants.some((v) => v.model_name.toLowerCase().includes(q)))
+    : groups
 
-  // 정렬 — 상태값(완성도)은 스펙없음<기존값<AI<수정됨 순서로 가중치
+  // 정렬 — 상태값(완성도)은 스펙없음<기존값<AI<수정됨 순서로 가중치. 그룹은 대표 변형(변형[0])의 스펙으로 정렬.
   const statusRank = (m: ModelRow): number => {
     if (!m.has_spec) return 0
     if (m.spec?.ai_generated) return 2
@@ -347,14 +358,15 @@ export default function SpecsTab() {
   const sorted = (() => {
     if (sort.key === 'default') return filtered
     const dir = sort.dir === 'asc' ? 1 : -1
-    const val = (m: ModelRow): number | string => {
+    const val = (g: ModelGroup): number | string => {
+      const p = g.variants[0]
       switch (sort.key) {
-        case 'model': return m.model_name.toLowerCase()
-        case 'tier': return m.tier
-        case 'configs': return m.configs.length
-        case 'arch': return (m.spec?.architecture ?? '').toLowerCase()
-        case 'fp16': return m.spec?.fp16_tflops ?? -1
-        case 'status': return statusRank(m)
+        case 'model': return g.base_name.toLowerCase()
+        case 'tier': return g.tier
+        case 'configs': return g.config_count
+        case 'arch': return (p?.spec?.architecture ?? '').toLowerCase()
+        case 'fp16': return p?.spec?.fp16_tflops ?? -1
+        case 'status': return statusRank(p)
         default: return 0
       }
     }
@@ -362,11 +374,35 @@ export default function SpecsTab() {
       const va = val(a), vb = val(b)
       if (va < vb) return -1 * dir
       if (va > vb) return 1 * dir
-      return a.model_name.localeCompare(b.model_name)
+      return a.base_name.localeCompare(b.base_name)
     })
   })()
   const toggleSort = (key: string) => setSort((s) => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' })
   const arrow = (key: string) => sort.key === key ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''
+
+  // 변형 1개 셀 렌더(단일변형 그룹 = 기존과 동일한 평평한 행 / 다변형 그룹의 하위 변형 행)
+  const variantCells = (v: ModelRow) => {
+    const c0 = v.configs[0]
+    const inst = c0 ? [c0.memory ? `VRAM ${c0.memory}` : null, c0.vcpu ? `${c0.vcpu} vCPU` : null, c0.ram_gb ? `${c0.ram_gb}GB RAM` : null, c0.storage_gb ? `${c0.storage_gb}GB SSD` : null].filter(Boolean).join(' · ') : '—'
+    return (
+      <>
+        <td data-label="Tier"><span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>T{v.tier}</span></td>
+        <td data-label="구성">{v.configs.length}개</td>
+        <td data-label="표시 스펙" style={{ fontSize: 11.5 }}>{inst || '—'}</td>
+        <td data-label="아키텍처">{fmt(v.spec?.architecture)}</td>
+        <td data-label="FP16">{v.spec?.fp16_tflops ? `${v.spec.fp16_tflops} TF` : '—'}</td>
+        <td data-label="상태">
+          {!v.has_spec
+            ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-amber)' }}>스펙 없음</span>
+            : v.spec?.ai_generated
+              ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-accent)' }}>AI {v.spec.ai_confidence ?? ''}%</span>
+              : v.spec?.architecture
+                ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-green)' }}>수정됨</span>
+                : <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-muted)' }}>기존값(VRAM)</span>}
+        </td>
+      </>
+    )
+  }
 
   return (
     <div>
@@ -413,29 +449,60 @@ export default function SpecsTab() {
           </tr>
         </thead>
         <tbody>
-          {sorted.map((m) => {
-            const base = m.configs[0]
-            const inst = base ? [base.memory ? `VRAM ${base.memory}` : null, base.vcpu ? `${base.vcpu} vCPU` : null, base.ram_gb ? `${base.ram_gb}GB RAM` : null, base.storage_gb ? `${base.storage_gb}GB SSD` : null].filter(Boolean).join(' · ') : '—'
-            return (
-            <tr key={m.model_name} onClick={() => setOpen(m)} style={{ cursor: 'pointer' }}>
-              <td className="card-header"><span style={{ fontWeight: 700 }}>{m.model_name}</span></td>
-              <td data-label="Tier"><span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>T{m.tier}</span></td>
-              <td data-label="구성">{m.configs.length}개</td>
-              <td data-label="표시 스펙" style={{ fontSize: 11.5 }}>{inst || '—'}</td>
-              <td data-label="아키텍처">{fmt(m.spec?.architecture)}</td>
-              <td data-label="FP16">{m.spec?.fp16_tflops ? `${m.spec.fp16_tflops} TF` : '—'}</td>
-              <td data-label="상태">
-                {!m.has_spec
-                  ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-amber)' }}>스펙 없음</span>
-                  : m.spec?.ai_generated
-                    ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-accent)' }}>AI {m.spec.ai_confidence ?? ''}%</span>
-                    : m.spec?.architecture
-                      ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-green)' }}>수정됨</span>
-                      : <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-muted)' }}>기존값(VRAM)</span>}
-              </td>
-            </tr>
-          )})}
-          {filtered.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--gpu-faint)' }}>모델이 없습니다</td></tr>}
+          {sorted.flatMap((g): ReactNode[] => {
+            // 단일 변형(폼팩터 1개) = 기존과 동일한 평평한 행. 클릭 → SpecModal.
+            if (g.variants.length === 1) {
+              const v = g.variants[0]
+              return [(
+                <tr key={g.base_key} onClick={() => setOpen(v)} style={{ cursor: 'pointer' }}>
+                  <td className="card-header"><span style={{ fontWeight: 700 }}>{v.model_name}</span></td>
+                  {variantCells(v)}
+                </tr>
+              )]
+            }
+            // 다변형(H100/A100/B200…) = base 행 + 확장 시 폼팩터별 하위 행.
+            const isOpen = expanded.has(g.base_key)
+            const missingN = g.variants.filter((v) => !v.spec?.architecture).length
+            const ffSummary = g.variants.map(variantLabel).join(' · ')
+            const rows: ReactNode[] = [(
+              <tr key={g.base_key} onClick={() => toggleExpand(g.base_key)} style={{ cursor: 'pointer' }}>
+                <td className="card-header">
+                  <span style={{ fontWeight: 700 }}>
+                    <span style={{ display: 'inline-block', width: 14, color: 'var(--gpu-muted)', transition: 'transform .15s', transform: isOpen ? 'rotate(90deg)' : 'none' }}>▸</span>
+                    {g.base_name}
+                    <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.1)', borderRadius: 5, padding: '1px 6px' }}>폼팩터 {g.variants.length}</span>
+                  </span>
+                </td>
+                <td data-label="Tier"><span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>T{g.tier}</span></td>
+                <td data-label="구성">{g.config_count}개</td>
+                <td data-label="폼팩터" style={{ fontSize: 11.5 }}>{ffSummary}</td>
+                <td data-label="아키텍처" style={{ fontSize: 11.5, color: 'var(--gpu-muted)' }}>폼팩터별</td>
+                <td data-label="FP16" style={{ color: 'var(--gpu-muted)' }}>—</td>
+                <td data-label="상태">
+                  {missingN > 0
+                    ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-amber)' }}>부족 {missingN}/{g.variants.length}</span>
+                    : <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gpu-green)' }}>완료</span>}
+                </td>
+              </tr>
+            )]
+            if (isOpen) {
+              for (const v of g.variants) {
+                rows.push(
+                  <tr key={v.model_name} onClick={() => setOpen(v)} style={{ cursor: 'pointer', background: 'var(--color-bg)' }}>
+                    <td className="card-header">
+                      <span style={{ paddingLeft: 20, fontWeight: 600, fontSize: 12.5 }}>
+                        <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--gpu-accent)', border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 5, padding: '1px 6px', marginRight: 6 }}>{variantLabel(v)}</span>
+                        {v.model_name}
+                      </span>
+                    </td>
+                    {variantCells(v)}
+                  </tr>
+                )
+              }
+            }
+            return rows
+          })}
+          {filtered.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40, color: 'var(--gpu-faint)' }}>모델이 없습니다</td></tr>}
         </tbody>
       </table>
 

@@ -32,6 +32,27 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.377',
+    date: '2026-07-24',
+    title: 'GPU 목록이 한눈에 깔끔해졌어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🗂️',
+        headline: 'H100·A100이 폼팩터별로 하나로 묶여 보여요',
+        detail:
+          '같은 H100인데 SXM·PCIe·NVL이 제각기 다른 모델처럼 여러 줄로 흩어져 보이던 걸, 이제 "H100" 하나로 묶고 펼치면 폼팩터별로 확인할 수 있게 정리했어요. 장수(×1·2·4·8) 계산도 폼팩터마다 동일하게 적용됩니다.',
+      },
+      {
+        kind: 'fix',
+        emoji: '🧹',
+        headline: '똑같은 GPU가 중복으로 뜨던 것 정리',
+        detail:
+          'RTX 시리즈·T4 등 완전히 같은 사양이 목록에 두세 번씩 겹쳐 보이던 중복을 하나로 합쳤어요. 기존 가격·견적 정보는 그대로 유지되며 목록만 깔끔해집니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.365',
     date: '2026-07-21',
     title: '경쟁사 GPU 시세가 더 정확해졌어요',

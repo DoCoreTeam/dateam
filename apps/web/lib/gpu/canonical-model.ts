@@ -2,6 +2,8 @@
 // 결정론 정규화 + 보수적 alias(확실한 동의어만). 다른 시리즈/세대/숫자는 절대 미병합(오병합 0).
 // AI 의존 없음(완전 자동·무화면). 확정·추출·정리 경로가 동일하게 import해 사용(복붙 금지).
 
+import { extractFormFactor } from './form-factor.ts'
+
 /** 비교용 정규화 키 — 소문자 + 공백/하이픈/언더바 제거. "RTX PRO 6000"="rtx pro 6000"="rtxpro6000" */
 export function normModelKey(s: string | null | undefined): string {
   return (s ?? '').toLowerCase().replace(/[\s\-_]+/g, '')
@@ -121,4 +123,20 @@ export function sameModel(a: string | null | undefined, b: string | null | undef
   const ka = canonicalizeModel(a).key
   const kb = canonicalizeModel(b).key
   return ka.length > 0 && ka === kb
+}
+
+// ── 화면 그룹핑용 base 키 (폼팩터를 하위축으로 접음) ──
+// coreModelKey는 폼팩터(SXM/PCIe/NVL)를 매칭축으로 **보존**한다(resolve-product가 변형 구분에 사용).
+// 반면 GPU 관리 화면은 "H100"을 1종으로 묶고 폼팩터를 그 하위에 두므로, 그룹핑엔 폼팩터까지 제거한 base가 필요하다.
+// 이 두 함수가 그 유일한 SSOT — 화면마다 인라인 접기 복붙 금지.
+
+/** 폼팩터까지 제거한 base 모델 그룹 키. "H100 SXM"·"H100 PCIe"·"H100 NVL"·"H100" → 모두 "h100". */
+export function baseModelKey(name: string | null | undefined): string {
+  return coreModelKey(extractFormFactor(name ?? '').core)
+}
+
+/** base 그룹의 표시명(폼팩터 없는 core). "H100 SXM" → "H100". 빈/폼팩터-only 입력은 원본 유지. */
+export function baseModelName(name: string | null | undefined): string {
+  const core = extractFormFactor(name ?? '').core.trim()
+  return core || (name ?? '').trim()
 }
