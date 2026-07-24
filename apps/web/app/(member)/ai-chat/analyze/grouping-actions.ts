@@ -49,10 +49,10 @@ export interface GroupingErr {
 export type GroupingResultPayload = GroupingOk | GroupingErr
 
 /** 누적 토큰을 모으면서 AI를 호출하는 caller를 만든다. AI 실패는 던지지 않고 null 반환(폴백 유도). */
-function makeAiCaller(userId: string, acc: { usage: ChatUsage }): JsonAiCaller {
+function makeAiCaller(userId: string, acc: { usage: ChatUsage }, model?: string): JsonAiCaller {
   return async (prompt: string) => {
     try {
-      const res = await callGeminiOnce(userId, prompt)
+      const res = await callGeminiOnce(userId, prompt, undefined, model)
       acc.usage = {
         promptTokens: acc.usage.promptTokens + res.usage.promptTokens,
         outputTokens: acc.usage.outputTokens + res.usage.outputTokens,
@@ -135,6 +135,7 @@ export async function analyzeDocument(
   sourceText: string,
   command: string,
   sourceHtml?: string,
+  model?: string,
 ): Promise<GroupingResultPayload> {
   const auth = await requireAdminApi()
   if (auth.error) return { ok: false, error: '권한이 없습니다' }
@@ -149,7 +150,7 @@ export async function analyzeDocument(
   }
 
   const acc = { usage: ZERO_USAGE }
-  const result = await runGrouping(text, command ?? '', makeAiCaller(auth.user.id, acc))
+  const result = await runGrouping(text, command ?? '', makeAiCaller(auth.user.id, acc, model))
 
   const admin = createAdminClient() as AdminClient
   const { data: session, error: sessionErr } = await admin
@@ -160,6 +161,7 @@ export async function analyzeDocument(
       source_text: text,
       source_html: sourceHtml && sourceHtml.trim() ? sourceHtml : null, // R1-2 원본 HTML 무손실 보존
       source_format: sourceHtml && sourceHtml.trim() ? 'html' : 'plain',
+      model: model?.trim() || null, // 세션 선택 모델(NULL=org 기본 폴백)
       source_kind: 'text',
       command: (command ?? '').trim(),
       doc_type: result.docType,

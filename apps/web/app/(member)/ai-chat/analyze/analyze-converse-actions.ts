@@ -22,16 +22,22 @@ export interface ItemMessage {
 
 const MAX_USER_TEXT = 4000
 
-/** 세션 소유권 + 현재 grouping_revision 확인. */
-async function ownSession(admin: AdminClient, sessionId: string, userId: string): Promise<number | null> {
+/** 세션 소유권 + 현재 grouping_revision + 선택 모델 확인. */
+async function ownSession(
+  admin: AdminClient,
+  sessionId: string,
+  userId: string,
+): Promise<{ revision: number; model: string | null } | null> {
   const { data } = await admin
     .from('ai_analysis_sessions')
-    .select('id, grouping_revision')
+    .select('id, grouping_revision, model')
     .eq('id', sessionId)
     .eq('user_id', userId)
     .is('deleted_at', null)
     .single()
-  return data ? ((data as { grouping_revision: number | null }).grouping_revision ?? 1) : null
+  if (!data) return null
+  const row = data as { grouping_revision: number | null; model: string | null }
+  return { revision: row.grouping_revision ?? 1, model: row.model }
 }
 
 /** 항목 1건의 대화 이력 로드(재열람 = 로드, AI 재호출 없음). */
@@ -43,8 +49,9 @@ export async function getItemMessages(
   if (auth.error) return { ok: false, error: '권한이 없습니다' }
   const admin = createAdminClient() as AdminClient
 
-  const revision = await ownSession(admin, sessionId, auth.user.id)
-  if (revision == null) return { ok: false, error: '세션을 찾을 수 없습니다' }
+  const own = await ownSession(admin, sessionId, auth.user.id)
+  if (!own) return { ok: false, error: '세션을 찾을 수 없습니다' }
+  const revision = own.revision
 
   const { data } = await admin
     .from('ai_analysis_item_messages')
@@ -71,8 +78,9 @@ export async function sendItemMessage(
   if (!text) return { ok: false, error: '지시 내용을 입력하세요' }
   if (text.length > MAX_USER_TEXT) return { ok: false, error: '지시가 너무 깁니다' }
 
-  const revision = await ownSession(admin, sessionId, auth.user.id)
-  if (revision == null) return { ok: false, error: '세션을 찾을 수 없습니다' }
+  const own = await ownSession(admin, sessionId, auth.user.id)
+  if (!own) return { ok: false, error: '세션을 찾을 수 없습니다' }
+  const revision = own.revision
 
   const { data: itemRow } = await admin
     .from('ai_analysis_items')
@@ -112,7 +120,7 @@ export async function sendItemMessage(
     ? `이 항목에 대한 이전 대화:\n${histText}\n\n새 지시: ${text}\n\n위 지시에 따라 이 항목을 분석/작업하고 마크다운으로 답하라(표가 있으면 마크다운 표로 유지).`
     : `${text}\n\n위 지시에 따라 이 항목을 분석/작업하고 마크다운으로 답하라(표가 있으면 마크다운 표로 유지).`
 
-  const ai = await analyzeItem({ itemText, contextText: '', lens: 'summary', customInstruction })
+  const ai = await analyzeItem({ itemText, contextText: '', lens: 'summary', customInstruction, model: own.model ?? undefined })
   if (!ai.ok) return { ok: false, error: ai.error }
 
   // AI 응답 영속 + 항목 확정본 스냅샷(종합·export 대상).
@@ -137,8 +145,9 @@ export async function synthesizeSession(
   if (auth.error) return { ok: false, error: '권한이 없습니다' }
   const admin = createAdminClient() as AdminClient
 
-  const revision = await ownSession(admin, sessionId, auth.user.id)
-  if (revision == null) return { ok: false, error: '세션을 찾을 수 없습니다' }
+  const own = await ownSession(admin, sessionId, auth.user.id)
+  if (!own) return { ok: false, error: '세션을 찾을 수 없습니다' }
+  const revision = own.revision
 
   const { data: rows } = await admin
     .from('ai_analysis_items')
@@ -154,7 +163,7 @@ export async function synthesizeSession(
   if (entries.length === 0) return { ok: false, error: '종합할 확정 항목이 없습니다 — 먼저 항목에 지시해 답을 받으세요' }
 
   await updateSessionSynth(sessionId, { synthStatus: 'running' })
-  const synth = await synthesizeInsights(entries)
+  const synth = await synthesizeInsights(entries, own.model ?? undefined)
   if (!synth.ok) {
     await updateSessionSynth(sessionId, { synthStatus: 'error' })
     return { ok: false, error: synth.error }

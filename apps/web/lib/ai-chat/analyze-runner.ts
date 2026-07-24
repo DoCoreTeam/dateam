@@ -102,7 +102,7 @@ export function concurrencyFromMeta(meta: Record<string, unknown>): number {
 async function loadSession(admin: AdminClient, sessionId: string): Promise<SessionRow | null> {
   const { data } = await admin
     .from('ai_analysis_sessions')
-    .select('id, title, command, source_text, control, phase, synth_status, doc_type, grouping_revision')
+    .select('id, title, command, source_text, control, phase, synth_status, doc_type, grouping_revision, model')
     .eq('id', sessionId)
     .is('deleted_at', null)
     .single()
@@ -212,7 +212,7 @@ export async function drainSession(
         if (progress.synthStatus === 'done' || progress.synthStatus === 'error') {
           return { drained: true, progress }
         }
-        const drained = await runSynthesis(admin, sessionId, session, geminiConfig, opts.signal)
+        const drained = await runSynthesis(admin, sessionId, session, { apiKey: geminiConfig.apiKey, model: session.model || geminiConfig.model }, opts.signal)
         return { drained, progress: await deriveProgress(admin, sessionId) }
       }
       // 다른 워커가 진행 중(아직 stall 아님) — 이번 틱에서 더 할 것 없음.
@@ -249,7 +249,7 @@ export async function drainSession(
           item,
           {
             apiKey: geminiConfig.apiKey,
-            model: geminiConfig.model,
+            model: session.model || geminiConfig.model, // 세션 선택 모델 우선
             command: session.command,
             docType,
             docContext,

@@ -55,6 +55,8 @@ export interface AnalyzeItemInput {
   contextText: string
   lens: AnalysisLens
   customInstruction?: string
+  /** 세션 선택 모델(NULL/미지정 시 org 기본). */
+  model?: string
 }
 export interface AnalyzeItemOk {
   ok: true
@@ -90,7 +92,7 @@ export async function analyzeItem(input: AnalyzeItemInput): Promise<AnalyzeItemO
     const controller = new AbortController()
     const result = await analyzeOneItem({
       apiKey: cfg.apiKey,
-      model: cfg.model,
+      model: input.model?.trim() || cfg.model,
       itemText,
       contextExcerpt,
       command,
@@ -108,6 +110,7 @@ export async function analyzeItem(input: AnalyzeItemInput): Promise<AnalyzeItemO
 /** 완료된 항목별 분석 결과를 모아 cross-item 무손실 종합 인사이트 생성(analyze-core synthesizeItems 재사용). */
 export async function synthesizeInsights(
   entries: { itemText: string; resultText: string }[],
+  model?: string,
 ): Promise<AnalyzeItemOk | AnalyzeItemErr> {
   const auth = await requireAdminApi()
   if (auth.error) return { ok: false, error: '권한이 없습니다' }
@@ -127,7 +130,7 @@ export async function synthesizeInsights(
     const controller = new AbortController()
     const result = await synthesizeItems({
       apiKey: cfg.apiKey,
-      model: cfg.model,
+      model: model?.trim() || cfg.model,
       items,
       command,
       signal: controller.signal,

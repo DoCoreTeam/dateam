@@ -34,6 +34,7 @@ export interface SessionRow {
   synth_status: string
   doc_type: string | null
   grouping_revision: number
+  model: string | null
 }
 
 /** ai_analysis_items 1행 = 그룹 1건(Phase 4 계약 — title+body_raw가 심화 입력의 핵심). */

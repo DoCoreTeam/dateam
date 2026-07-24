@@ -7,6 +7,7 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import TiptapEditor from '@/components/ui/TiptapEditor'
 import { htmlToMarkdown } from '@/lib/ai-chat/html-to-markdown'
 import { extractSourceText } from './actions'
+import { listModelCatalog } from '@/app/admin/ai-chat/actions'
 import { getAnalysisSession } from './session-persist-actions'
 import { listAnalysisSessions, type AnalysisSessionSummary } from './session-list-actions'
 import { analyzeDocument, regroupSession, type GroupingOk } from './grouping-actions'
@@ -40,6 +41,10 @@ export default function AnalyzeClient() {
   const [sessions, setSessions] = useState<AnalysisSessionSummary[]>([])
   const [loadingSession, setLoadingSession] = useState(false)
 
+  // 분석 모델 선택(Gemini) — 채팅과 동일 localStorage 선호(ai_chat_model_pref) 공유. 빈값=org 기본.
+  const [models, setModels] = useState<{ modelId: string; label: string }[]>([])
+  const [selectedModel, setSelectedModel] = useState('')
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -48,6 +53,36 @@ export default function AnalyzeClient() {
       if (r.ok) setSessions(r.sessions)
     })
   }, [])
+
+  useEffect(() => {
+    listModelCatalog().then((r) => {
+      if (!r.ok || !r.items) return
+      const gemini = r.items.filter((m) => m.provider === 'gemini').map((m) => ({ modelId: m.modelId, label: m.label }))
+      setModels(gemini)
+      // 저장된 선호(채팅과 공유)가 gemini면 기본값으로, 아니면 목록 첫 모델.
+      let pref = ''
+      try {
+        const raw = localStorage.getItem('ai_chat_model_pref')
+        if (raw) {
+          const p = JSON.parse(raw) as { provider?: string; model?: string }
+          if (p?.provider === 'gemini' && p?.model) pref = p.model
+        }
+      } catch {
+        /* 무시 */
+      }
+      if (pref && gemini.some((m) => m.modelId === pref)) setSelectedModel(pref)
+      else if (gemini.length > 0) setSelectedModel(gemini[0].modelId)
+    })
+  }, [])
+
+  function handleModelChange(model: string): void {
+    setSelectedModel(model)
+    try {
+      localStorage.setItem('ai_chat_model_pref', JSON.stringify({ provider: 'gemini', model }))
+    } catch {
+      /* 무시 */
+    }
+  }
 
   // 리치에디터는 HTML을 담는다 → 마크다운 정규화본(표=파이프표)이 실제 붙여넣기 유무 판단·AI 입력의 SSOT.
   const pastedMd = htmlToMarkdown(pastedText).trim()
@@ -86,7 +121,7 @@ export default function AnalyzeClient() {
       sourceHtml = undefined
     }
 
-    const result = await analyzeDocument(sourceText, command, sourceHtml)
+    const result = await analyzeDocument(sourceText, command, sourceHtml, selectedModel || undefined)
     setRunning(false)
     if (!result.ok) {
       setRunError(result.error)
@@ -210,6 +245,17 @@ export default function AnalyzeClient() {
             <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>실행</span>
             <div style={{ flex: 1, height: 'var(--hairline)', background: 'var(--border-color)' }} />
           </div>
+
+          {models.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', maxWidth: 340 }}>
+              <label className="label" htmlFor="analyze-model">분석 모델</label>
+              <select className="input-field" id="analyze-model" value={selectedModel} onChange={(e) => handleModelChange(e.target.value)}>
+                {models.map((m) => (
+                  <option key={m.modelId} value={m.modelId}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* 지시 입력창과 실행 버튼을 한 덩어리로 — 명령↔실행 사이에 검수 단계 없음(§A). */}
           <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', flexWrap: 'wrap' }}>

@@ -33,18 +33,20 @@ export async function callGeminiOnce(
   userId: string,
   turnContent: string,
   attachments?: GeminiAttachment[],
+  modelOverride?: string,
 ): Promise<{ text: string; usage: ChatUsage }> {
   const admin = createAdminClient() as AdminClient
   const meta = await readMeta(admin)
   const cfg = getProviderConfig(meta, 'gemini')
   if (!cfg) throw new Error('Gemini API 키가 설정되지 않았습니다')
+  const model = modelOverride?.trim() || cfg.model // 세션 선택 모델 우선, 없으면 org 기본
 
   const provider = getProvider('gemini')
   const controller = new AbortController()
   let text = ''
   const result = await provider.streamChat({
     apiKey: cfg.apiKey,
-    model: cfg.model,
+    model,
     turns: [{ role: 'user', content: turnContent, attachments }],
     signal: controller.signal,
     onDelta: (d) => {
@@ -55,7 +57,7 @@ export async function callGeminiOnce(
   logTokenUsage({
     userId,
     feature: 'ai-chat-analyze',
-    model: cfg.model,
+    model,
     provider: 'gemini',
     promptTokens: result.usage.promptTokens,
     outputTokens: result.usage.outputTokens,
