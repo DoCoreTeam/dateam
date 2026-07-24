@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Check, Copy, RefreshCw, LayoutTemplate, Paperclip } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -21,10 +21,12 @@ interface Props {
   onResynthesize?: () => void
   /** 형식/샘플 지정 취합 — 지정한 형식(또는 샘플 파일 형식)대로 종합 문서를 다시 생성. */
   onSynthesizeWithFormat?: (format: string) => Promise<void> | void
+  /** 상단 액션 줄에 함께 노출할 배출 액션(문서함 저장·업무 전달 등). */
+  headerExtra?: ReactNode
 }
 
 /** 목록 심층분석 v2 — 완성형 취합 뷰(마크다운 렌더 + 커버리지 배지) + 다운로드 드롭다운·복사. */
-export default function AnalysisSynthPanel({ synthStatus, synthText, coverage, canExport, onExport, onResynthesize, onSynthesizeWithFormat }: Props) {
+export default function AnalysisSynthPanel({ synthStatus, synthText, coverage, canExport, onExport, onResynthesize, onSynthesizeWithFormat, headerExtra }: Props) {
   const [copied, setCopied] = useState(false)
   const [fmtOpen, setFmtOpen] = useState(false)
   const [fmtText, setFmtText] = useState('')
@@ -107,6 +109,7 @@ export default function AnalysisSynthPanel({ synthStatus, synthText, coverage, c
                 <LayoutTemplate size={14} /> 형식 지정 취합
               </NbButton>
             )}
+            {headerExtra}
           </div>
         )}
       </div>

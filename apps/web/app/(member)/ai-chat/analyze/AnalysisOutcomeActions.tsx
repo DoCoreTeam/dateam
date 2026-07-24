@@ -37,25 +37,24 @@ export default function AnalysisOutcomeActions({ sessionId, docType, title, body
     setSavedId(r.id)
   }
 
+  // 종합 패널 상단 액션 줄에 인라인으로 배치(다운로드/복사와 한 곳). 카드 래퍼·헤더 없음.
   return (
-    <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--space-3)' }}>
-      <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text-muted)' }}>완성 문서 배출</span>
-
+    <>
       {savedId ? (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)', color: 'var(--success)' }}>
-          <CheckCircle2 size={16} /> 문서함에 저장됨 —{' '}
+          <CheckCircle2 size={16} /> 저장됨 —{' '}
           <Link href="/ai-chat/analyze?tab=documents" style={{ color: 'var(--brand)', textDecoration: 'underline' }}>
-            내 분석 문서에서 열람
+            문서함
           </Link>
         </span>
       ) : (
-        <NbButton variant="secondary" onClick={handleSave} disabled={saving} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', minHeight: 40 }}>
-          <FolderPlus size={15} /> {saving ? '저장 중…' : '문서함에 저장'}
+        <NbButton variant="secondary" onClick={handleSave} disabled={saving} style={{ fontSize: 'var(--fs-sm)', minHeight: 36, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <FolderPlus size={14} /> {saving ? '저장 중…' : '문서함에 저장'}
         </NbButton>
       )}
 
-      <NbButton variant="ghost" onClick={() => setShowHandoff(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', minHeight: 40 }}>
-        <Share2 size={15} /> 업무 흐름으로 전달
+      <NbButton variant="ghost" onClick={() => setShowHandoff(true)} style={{ fontSize: 'var(--fs-sm)', minHeight: 36, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        <Share2 size={14} /> 업무로 전달
       </NbButton>
 
       {error && <p role="alert" style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>{error}</p>}
@@ -63,6 +62,6 @@ export default function AnalysisOutcomeActions({ sessionId, docType, title, body
       {showHandoff && (
         <WorkflowHandoffModal title={title} bodyMd={bodyMd} onClose={() => setShowHandoff(false)} />
       )}
-    </div>
+    </>
   )
 }

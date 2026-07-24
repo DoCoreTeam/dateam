@@ -148,14 +148,15 @@ export default function AnalysisResults({ sessionId, initialItems, docType = nul
         onExport={handleExport}
         onResynthesize={stream.resynthesize}
         onSynthesizeWithFormat={async (format) => { await synthesizeSession(sessionId, format) }}
-      />
-
-      <AnalysisOutcomeActions
-        sessionId={sessionId}
-        docType={docType}
-        title={itemList[0]?.text.slice(0, 120) ?? '목록 심층분석 결과'}
-        bodyMd={stream.synthText}
-        canSave={stream.synthStatus === 'done' && !!stream.synthText}
+        headerExtra={
+          <AnalysisOutcomeActions
+            sessionId={sessionId}
+            docType={docType}
+            title={itemList[0]?.text.slice(0, 120) ?? '목록 심층분석 결과'}
+            bodyMd={stream.synthText}
+            canSave={stream.synthStatus === 'done' && !!stream.synthText}
+          />
+        }
       />
 
       <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
