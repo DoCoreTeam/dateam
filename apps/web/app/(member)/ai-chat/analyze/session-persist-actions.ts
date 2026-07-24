@@ -71,9 +71,12 @@ export async function saveAnalysisSession(input: {
 
 export interface AnalysisSessionDetail {
   id: string
+  title: string
   sourceText: string
   lens: AnalysisLens
   sourceKind: string
+  synthText: string | null
+  docType: string | null
   items: { idx: number; text: string; status: AnalysisItemStatus; resultText: string | null }[]
 }
 
@@ -87,7 +90,7 @@ export async function getAnalysisSession(
 
   const { data: sessionRow } = await admin
     .from('ai_analysis_sessions')
-    .select('id, source_text, lens, source_kind, grouping_revision')
+    .select('id, title, source_text, lens, source_kind, grouping_revision, synth_text, doc_type')
     .eq('id', sessionId)
     .eq('user_id', auth.user.id)
     .is('deleted_at', null)
@@ -96,10 +99,13 @@ export async function getAnalysisSession(
 
   const sess = sessionRow as {
     id: string
+    title: string | null
     source_text: string
     lens: AnalysisLens
     source_kind: string
     grouping_revision: number | null
+    synth_text: string | null
+    doc_type: string | null
   }
 
   // 현재 리비전 그룹만 로드 — 재그룹핑 시 이전 리비전 행이 보존되므로 필터하지 않으면
@@ -123,9 +129,12 @@ export async function getAnalysisSession(
     ok: true,
     session: {
       id: s.id,
+      title: s.title ?? '세션',
       sourceText: s.source_text,
       lens: s.lens,
       sourceKind: s.source_kind,
+      synthText: s.synth_text,
+      docType: s.doc_type,
       items: items.map((it) => ({
         idx: it.idx,
         text: it.item_text,
