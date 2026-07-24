@@ -23,9 +23,12 @@ import type { TemplateSpec } from './templates/catalog.ts'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AdminClient = any
 
-const DEFAULT_CONCURRENCY = 4
-const RETRY_COUNT = 1
-const RETRY_BACKOFF_MS = 800
+// Gemini 분당 쿼터(RPM) 내성 — 50개+ 대량 항목에서 15개쯤부터 429가 터지던 사고 대응.
+// 동시성을 낮춰 버스트를 줄이고, 429 재시도를 분당 창(≈60s)을 넘길 만큼 길게(2.5s→7.5s→22.5s→67.5s) 준다.
+// 백그라운드 드레인(270s)+크론이 이어받으므로 긴 백오프가 전체 완료를 막지 않는다.
+const DEFAULT_CONCURRENCY = 2
+const RETRY_COUNT = 4
+const RETRY_BACKOFF_MS = 2500
 const CONTROL_POLL_MS = 1500 // in-flight cancel 감시 폴링 간격
 
 export interface Progress {
