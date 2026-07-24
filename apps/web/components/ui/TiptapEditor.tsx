@@ -10,6 +10,10 @@ import Highlight from '@tiptap/extension-highlight'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 import Link from '@tiptap/extension-link'
+import { Table } from '@tiptap/extension-table'
+import { TableRow } from '@tiptap/extension-table-row'
+import { TableHeader } from '@tiptap/extension-table-header'
+import { TableCell } from '@tiptap/extension-table-cell'
 import { useEffect, useRef, useState } from 'react'
 
 interface TiptapEditorProps {
@@ -17,6 +21,8 @@ interface TiptapEditorProps {
   onChange: (html: string) => void
   placeholder?: string
   minHeight?: number
+  /** 표 편집 활성화(목록 심층분석 등 표 보존이 필요한 화면). 기본 off — 주간보고/회의노트 무영향. */
+  enableTable?: boolean
 }
 
 const TabIndent = Extension.create({
@@ -90,6 +96,7 @@ export default function TiptapEditor({
   onChange,
   placeholder = '내용을 입력하세요',
   minHeight = 120,
+  enableTable = false,
 }: TiptapEditorProps) {
   const [colorOpen, setColorOpen] = useState(false)
   const [highlightOpen, setHighlightOpen] = useState(false)
@@ -111,6 +118,9 @@ export default function TiptapEditor({
       TextStyle,
       Color,
       Link.configure({ openOnClick: false, HTMLAttributes: { rel: 'noopener noreferrer' } }),
+      ...(enableTable
+        ? [Table.configure({ resizable: true }), TableRow, TableHeader, TableCell]
+        : []),
       TabIndent,
     ],
     content: value || '',
@@ -361,6 +371,11 @@ export default function TiptapEditor({
         <button type="button" onClick={() => editor.chain().focus().setHorizontalRule().run()} style={BTN} title="구분선">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="7.25" width="14" height="1.5" rx="0.75"/></svg>
         </button>
+        {enableTable && (
+          <button type="button" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} style={editor.isActive('table') ? BTN_ACTIVE : BTN} title="표 삽입">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><rect x="2" y="2" width="12" height="12" rx="1"/><line x1="2" y1="6" x2="14" y2="6"/><line x1="2" y1="10" x2="14" y2="10"/><line x1="6" y1="2" x2="6" y2="14"/><line x1="10" y1="2" x2="10" y2="14"/></svg>
+          </button>
+        )}
 
         {DIVIDER}
 

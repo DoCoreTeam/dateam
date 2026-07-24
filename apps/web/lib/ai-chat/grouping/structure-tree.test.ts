@@ -106,3 +106,18 @@ test('노드의 charStart/charEnd로 원문을 정확히 슬라이스할 수 있
   const slice = text.slice(heading.charStart, heading.charEnd)
   assert.equal(slice, '## 섹션\n')
 })
+
+test('마크다운 파이프표는 하나의 원자 노드로 병합된다(그룹 절단이 표 중간을 못 가름) — R1-4', () => {
+  const text = ['## 사양', '| 이름 | 값 |', '| --- | --- |', '| A | 1 |', '| B | 2 |', '', '## 다음'].join('\n')
+  const tree = buildStructureTree(text)
+  const tableNodes: string[] = []
+  walkStructureTree(tree.root, (n) => {
+    if (n.kind === 'table') tableNodes.push(n.title)
+  })
+  // 표 4줄(헤더+구분선+2행)이 단일 table 노드 1개로 병합되어야 한다.
+  assert.equal(tableNodes.length, 1, '표는 노드 1개여야 함(줄마다 쪼개지면 안 됨)')
+  const section = tree.root.children.find((c) => c.title === '사양')!
+  const tableChild = section.children.find((c) => c.kind === 'table')!
+  // 표 노드가 4줄을 모두 포괄(중간 절단 불가).
+  assert.equal(tableChild.lineEnd - tableChild.lineStart + 1, 4)
+})
