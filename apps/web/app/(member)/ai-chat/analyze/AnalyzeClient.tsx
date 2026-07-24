@@ -43,7 +43,8 @@ export default function AnalyzeClient() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    listAnalysisSessions().then((r) => {
+    // 빠른 재개용 최근 소수만 — 전체는 "이전 원문" 탭(페이지네이션)이 담당(페이지 스크롤 팽창 방지).
+    listAnalysisSessions({ limit: 5 }).then((r) => {
       if (r.ok) setSessions(r.sessions)
     })
   }, [])
