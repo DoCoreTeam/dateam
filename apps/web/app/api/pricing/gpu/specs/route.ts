@@ -38,6 +38,7 @@ export async function GET() {
   const { data: products } = await db
     .from('gpu_products')
     .select('id, model_name, tier, memory, gpu_count, vcpu, ram_gb, storage_gb, series')
+    .is('deleted_at', null)   // 소프트삭제 제품 제외 — 안 걸면 삭제된 표기중복(예: "NVIDIA RTX PRO 6000")이 그룹에 섞여 가짜 폼팩터로 뜬다
     .order('tier').order('model_name').order('gpu_count')
   const { data: specs } = await db.from('gpu_specs').select('*')
 

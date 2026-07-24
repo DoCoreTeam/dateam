@@ -9,6 +9,7 @@ import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 import { fmtKRW as fmtKRWSSOT, fmtUSD, fmtUSDWhole } from '@/lib/gpu/format-price'
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
 import { perCardMemory, memoryTitle } from '@/lib/gpu/card-memory'
+import { baseModelKey, baseModelName } from '@/lib/gpu/canonical-model'
 
 interface GpuProduct {
   id: string
@@ -35,15 +36,16 @@ interface ProductsResponse {
   usd_krw: number
 }
 
-// 모델 단위 그룹 (Tier 그룹 제거 — 모델명 기준, 첫 등장 순서 유지)
-function buildModelGroups(items: GpuProduct[]): { model: string; items: GpuProduct[] }[] {
+// base 모델 단위 그룹 — 폼팩터(SXM/PCIe/NVL)를 하위로 접어 "H100" 하나로(그룹핑 SSOT=baseModelKey). 첫 등장 순서 유지.
+function buildModelGroups(items: GpuProduct[]): { key: string; model: string; items: GpuProduct[] }[] {
   const order: string[] = []
-  const map = new Map<string, GpuProduct[]>()
+  const map = new Map<string, { model: string; items: GpuProduct[] }>()
   for (const p of items) {
-    if (!map.has(p.model_name)) { map.set(p.model_name, []); order.push(p.model_name) }
-    map.get(p.model_name)!.push(p)
+    const key = baseModelKey(p.model_name)
+    if (!map.has(key)) { map.set(key, { model: baseModelName(p.model_name), items: [] }); order.push(key) }
+    map.get(key)!.items.push(p)
   }
-  return order.map((model) => ({ model, items: map.get(model)! }))
+  return order.map((key) => ({ key, model: map.get(key)!.model, items: map.get(key)!.items }))
 }
 
 const GPU_ICONS: Record<string, string> = {
@@ -163,9 +165,9 @@ export default function SalePriceCatalogPage() {
   })
 
   // 모델 단위 그룹만 (Tier 제거). 기본 전부 펼침(defaultCollapsed=false).
-  const mKey = (model: string) => `model:${model}`
+  const mKey = (key: string) => `model:${key}`
   const modelGroups = buildModelGroups(filtered)
-  const allKeys = pricedProducts.map((p) => mKey(p.model_name))
+  const allKeys = pricedProducts.map((p) => mKey(baseModelKey(p.model_name)))
   const { isCollapsed, toggle } = useCollapsibleGroups(allKeys, false)
   const searching = search.trim().length > 0
   const collapsedOf = (key: string) => (searching ? false : isCollapsed(key))
@@ -292,10 +294,10 @@ export default function SalePriceCatalogPage() {
             </div>
           ) : (
             modelGroups.flatMap((mg) => {
-              const key = mKey(mg.model)
+              const key = mKey(mg.key)
               const mC = collapsedOf(key)
               const modelHeaderEl = (
-                <div key={`m-${mg.model}`} style={{ padding: '6px 14px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
+                <div key={`m-${mg.key}`} style={{ padding: '6px 14px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
                   <div
                     onClick={() => toggle(key)}
                     style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '7px 12px', background: 'var(--surface-bg)', borderRadius: 7, userSelect: 'none' }}

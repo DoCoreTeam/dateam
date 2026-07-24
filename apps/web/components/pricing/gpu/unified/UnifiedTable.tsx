@@ -14,6 +14,8 @@ import { getViewPreset, DEFAULT_VIEW } from '@/lib/gpu/unified-views'
 import type { GpuViewId } from '@/lib/gpu/unified-views'
 import { resolveCell } from '@/lib/gpu/unified-row'
 import { formatCardMemory, memoryTitle } from '@/lib/gpu/card-memory'
+import { baseModelKey, baseModelName } from '@/lib/gpu/canonical-model'
+import { extractFormFactor } from '@/lib/gpu/form-factor'
 import type { UnifiedRow, CurrencyCtx } from '@/lib/gpu/unified-row'
 import type { CurrencyMode } from '@/lib/gpu/format-price'
 
@@ -72,13 +74,13 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
   const [bulkOpen, setBulkOpen] = useState(false)
   // 정렬: null이면 기본(모델·용량). 컬럼 헤더 클릭 시 해당 컬럼 asc→desc→해제 순환.
   const [sortConfig, setSortConfig] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(null)
-  // 모델별 그룹 접힘 상태 — model_name 집합. 기본 전체 접힘(첫 데이터 로드 시 1회 초기화).
+  // 모델별 그룹 접힘 상태 — base 모델키 집합(폼팩터 하위로 접음: H100/H100 SXM/PCIe/NVL → 한 "H100"). 기본 전체 접힘.
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
   const collapseInited = useRef(false)
   useEffect(() => {
     if (collapseInited.current || rows.length === 0) return
     collapseInited.current = true
-    setCollapsed(new Set(rows.map((r) => r.model_name)))
+    setCollapsed(new Set(rows.map((r) => baseModelKey(r.model_name))))
   }, [rows])
   const toggleGroup = (model: string) =>
     setCollapsed((prev) => {
@@ -126,16 +128,18 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
     : sortedRows
   const selectedRow = rows.find((r) => r.id === selectedId) ?? null
 
-  // 모델별 그룹핑 — visibleRows는 이미 정렬·검색 반영. Map 삽입순서로 등장 순서 보존.
-  const groupMap = new Map<string, UnifiedRow[]>()
+  // base 모델별 그룹핑 — 폼팩터(SXM/PCIe/NVL)를 하위로 접어 "H100" 하나로 묶는다(그룹핑 SSOT=baseModelKey).
+  //   visibleRows는 이미 정렬·검색 반영. Map 삽입순서로 등장 순서 보존. 표시명은 폼팩터 없는 base명.
+  const groupMap = new Map<string, { name: string; rows: UnifiedRow[] }>()
   for (const r of visibleRows) {
-    const arr = groupMap.get(r.model_name)
-    if (arr) arr.push(r)
-    else groupMap.set(r.model_name, [r])
+    const key = baseModelKey(r.model_name)
+    const g = groupMap.get(key)
+    if (g) g.rows.push(r)
+    else groupMap.set(key, { name: baseModelName(r.model_name), rows: [r] })
   }
-  const groups = Array.from(groupMap, ([model, groupRows]) => ({ model, rows: groupRows }))
-  const allCollapsed = groups.length > 0 && groups.every((g) => collapsed.has(g.model))
-  const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(groups.map((g) => g.model)))
+  const groups = Array.from(groupMap, ([key, g]) => ({ key, name: g.name, rows: g.rows }))
+  const allCollapsed = groups.length > 0 && groups.every((g) => collapsed.has(g.key))
+  const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(groups.map((g) => g.key)))
 
   // 멤버 행 1줄 렌더(그룹 안). 모델명은 그룹 헤더에 있으므로 행에선 구성(용량·공급사)을 보여준다.
   const renderRow = (row: UnifiedRow) => {
@@ -153,10 +157,13 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
           const cell = resolveCell(row, col, currency)
           const base = `gpu-unified-cell gpu-unified-cell--${col.align}${col.hideMobile ? ' gpu-unified-cell--hide-mobile' : ''}`
           if (cell.kind === 'model') {
+            // 그룹은 base명(예 "H100"). 행은 폼팩터(SXM/PCIe/NVL)를 태그로 구분 + 구성(카드VRAM·공급사) 표시.
+            const ff = extractFormFactor(row.model_name).formFactor
             return (
               <span key={col.key} role="cell" className={base}>
                 <span className="gpu-unified-model">
                   <span title={memoryTitle(row.memory, row.gpu_count) || undefined}>
+                    {ff && <span className="gpu-ubadge gpu-ubadge--muted" style={{ marginRight: 6 }}>{ff}</span>}
                     {row.memory ? formatCardMemory(row.memory, row.gpu_count) : cell.text}
                   </span>
                   {row.supplier_name && <small>{row.supplier_name}</small>}
@@ -261,17 +268,17 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
 
           {!loading && !error &&
             groups.map((group) => {
-              const isCollapsed = collapsed.has(group.model)
+              const isCollapsed = collapsed.has(group.key)
               return (
-                <div key={group.model} role="rowgroup" className="gpu-unified-group">
+                <div key={group.key} role="rowgroup" className="gpu-unified-group">
                   <button
                     type="button"
                     className="gpu-unified-group-head"
-                    onClick={() => toggleGroup(group.model)}
+                    onClick={() => toggleGroup(group.key)}
                     aria-expanded={!isCollapsed}
                   >
                     <span className="gpu-unified-group-chevron" aria-hidden>{isCollapsed ? '▸' : '▾'}</span>
-                    <span className="gpu-unified-group-name">{group.model}</span>
+                    <span className="gpu-unified-group-name">{group.name}</span>
                     <span className="gpu-unified-group-count">{group.rows.length}개 구성</span>
                   </button>
                   {!isCollapsed && group.rows.map(renderRow)}

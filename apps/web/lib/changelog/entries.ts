@@ -32,6 +32,34 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.386',
+    date: '2026-07-24',
+    title: 'GPU 목록이 모든 화면에서 하나로 묶여요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🗂️',
+        headline: '가격표·판매가격표에서도 H100이 1종으로',
+        detail:
+          '스펙 관리뿐 아니라 가격표·판매가격표 등 GPU 목록을 쓰는 모든 화면에서 H100·A100이 폼팩터(SXM·PCIe·NVL)별로 한 항목에 묶여 보이도록 통일했어요. 펼치면 폼팩터가 태그로 구분됩니다.',
+      },
+      {
+        kind: 'fix',
+        emoji: '👻',
+        headline: '삭제한 GPU가 유령처럼 뜨던 문제 수정',
+        detail:
+          '이미 지운 표기중복(예: 대문자·제조사명만 다른 같은 모델)이 목록에 계속 남아 "폼팩터가 여러 개"인 것처럼 잘못 보이던 문제를 고쳤어요. 이제 삭제한 항목은 목록에서 완전히 사라집니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '✨',
+        headline: '신규 모델 등록 대기가 모델별로 정리돼요',
+        detail:
+          '경쟁사 시세에서 발견된 신규 폼팩터(H100 SXM·PCIe·NVL 등)를 흩어놓지 않고 "H100의 신규 폼팩터"처럼 모델별로 묶어, 한 번에 모두 등록할 수 있게 했어요.',
+      },
+    ],
+  },
+  {
     version: '0.7.377',
     date: '2026-07-24',
     title: 'GPU 목록이 한눈에 깔끔해졌어요',
