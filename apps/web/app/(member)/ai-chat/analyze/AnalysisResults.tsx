@@ -145,6 +145,7 @@ export default function AnalysisResults({ sessionId, initialItems, docType = nul
         coverage={stream.coverage}
         canExport={doneCount > 0}
         onExport={handleExport}
+        onResynthesize={stream.resynthesize}
       />
 
       <AnalysisOutcomeActions

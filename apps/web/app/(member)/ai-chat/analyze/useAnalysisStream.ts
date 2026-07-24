@@ -13,6 +13,7 @@ import { getAnalysisSession } from './session-persist-actions'
 import {
   setSessionControl,
   updateAnalysisItem,
+  updateSessionSynth,
   getSessionExtras,
   type AnalysisItemStatus,
   type AnalysisSessionControl,
@@ -227,6 +228,14 @@ export function useAnalysisStream(sessionId: string, initialItems: InitialItem[]
     startSseLoop()
   }, [sessionId, startSseLoop])
 
+  // 종합 무효화 — 항목이 바뀌면(재시도) 기존 취합본은 낡았으므로 pending으로 되돌려 재취합을 유도한다.
+  // 이 처리가 없으면 synth_status='done'인 세션은 drainSession이 조기 반환해 재취합이 영원히 안 됨(사고).
+  const invalidateSynth = useCallback(async (): Promise<void> => {
+    setSynthStatus('pending')
+    setSynthText(null)
+    await updateSessionSynth(sessionId, { synthStatus: 'pending' }).catch(() => {})
+  }, [sessionId])
+
   const retryItem = useCallback(
     async (idx: number): Promise<void> => {
       await updateAnalysisItem({ sessionId, idx, status: 'pending' })
@@ -235,10 +244,11 @@ export function useAnalysisStream(sessionId: string, initialItems: InitialItem[]
         const { [idx]: _drop, ...rest } = prev
         return rest
       })
+      await invalidateSynth() // 재시도 완료 후 자동 재취합
       if (controlRef.current === 'running') startSseLoop()
       else await resume()
     },
-    [sessionId, startSseLoop, resume],
+    [sessionId, startSseLoop, resume, invalidateSynth],
   )
 
   const retryAllFailed = useCallback(async (): Promise<void> => {
@@ -252,9 +262,17 @@ export function useAnalysisStream(sessionId: string, initialItems: InitialItem[]
       })
       return next
     })
+    await invalidateSynth() // 재시도 완료 후 자동 재취합
     if (controlRef.current === 'running') startSseLoop()
     else await resume()
-  }, [items, sessionId, startSseLoop, resume])
+  }, [items, sessionId, startSseLoop, resume, invalidateSynth])
+
+  // 수동 "다시 취합" — 항목은 그대로 두고 종합만 다시 생성(사용자가 원할 때 언제든).
+  const resynthesize = useCallback(async (): Promise<void> => {
+    await invalidateSynth()
+    if (controlRef.current === 'running') startSseLoop()
+    else await resume()
+  }, [invalidateSynth, startSseLoop, resume])
 
   return {
     items,
@@ -271,5 +289,6 @@ export function useAnalysisStream(sessionId: string, initialItems: InitialItem[]
     resume,
     retryItem,
     retryAllFailed,
+    resynthesize,
   }
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { Send, Square, Paperclip, FileText, X, Globe, ChevronDown } from 'lucide-react'
+import { Send, Square, Paperclip, FileText, X, Globe, ChevronDown, ListChecks } from 'lucide-react'
 import type { AiChatProviderId } from '@/types/database'
 import type { ProviderView } from './AiChatClient'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
@@ -45,6 +45,8 @@ interface ComposerProps {
   onStop: () => void
   /** ⑤ 모델 선택 모달 오픈(단순 드롭다운 대신 능력·출시일을 보여주는 모달로 대체) */
   onOpenModelPicker: () => void
+  /** 목록 심층분석 진입(첨부·지구본 옆). */
+  onOpenAnalyze: () => void
   /** 첨부는 대화 존재를 전제 — 없으면 지연 생성 후 id 반환(실패 시 null) */
   ensureConversation: () => Promise<string | null>
   /** S3 §4-3 — 웹 검색 토글(요청 단위). capabilities.tools=false면 비활성. */
@@ -71,6 +73,7 @@ export default function Composer({
   onSend,
   onStop,
   onOpenModelPicker,
+  onOpenAnalyze,
   ensureConversation,
   toolsSupported,
   webSearch,
@@ -341,6 +344,16 @@ export default function Composer({
             aria-pressed={webSearch && toolsSupported}
           >
             <Globe size={18} />
+          </button>
+
+          <button
+            type="button"
+            className="ai-chat-attach-btn"
+            onClick={onOpenAnalyze}
+            title="목록 심층분석 (자료를 항목으로 나눠 항목별 지시·분석)"
+            aria-label="목록 심층분석"
+          >
+            <ListChecks size={18} />
           </button>
 
           <textarea

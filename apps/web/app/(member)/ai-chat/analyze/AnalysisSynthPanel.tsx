@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Copy } from 'lucide-react'
+import { Check, Copy, RefreshCw } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import MarkdownMessage from '@/app/admin/ai-chat/MarkdownMessage'
@@ -16,10 +16,12 @@ interface Props {
   coverage: SessionCoverage | null
   canExport: boolean
   onExport: (format: ExportFormat) => void
+  /** 다시 취합 — 항목 결과로 종합을 재생성(재시도 후 낡은 취합본 갱신). */
+  onResynthesize?: () => void
 }
 
 /** 목록 심층분석 v2 — 완성형 취합 뷰(마크다운 렌더 + 커버리지 배지) + 다운로드 드롭다운·복사. */
-export default function AnalysisSynthPanel({ synthStatus, synthText, coverage, canExport, onExport }: Props) {
+export default function AnalysisSynthPanel({ synthStatus, synthText, coverage, canExport, onExport, onResynthesize }: Props) {
   const [copied, setCopied] = useState(false)
 
   function copySynth(): void {
@@ -57,6 +59,11 @@ export default function AnalysisSynthPanel({ synthStatus, synthText, coverage, c
             <NbButton variant="ghost" onClick={copySynth} style={{ fontSize: 'var(--fs-sm)', minHeight: 36, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? '복사됨' : '복사'}
             </NbButton>
+            {onResynthesize && (
+              <NbButton variant="ghost" onClick={onResynthesize} title="항목 결과로 종합을 다시 생성" style={{ fontSize: 'var(--fs-sm)', minHeight: 36, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <RefreshCw size={14} /> 다시 취합
+              </NbButton>
+            )}
           </div>
         )}
       </div>

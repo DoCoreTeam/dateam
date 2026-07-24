@@ -163,6 +163,23 @@ export default function AiChatClient({
     : providers[0] ?? null
   const [draftProvider, setDraftProvider] = useState<ProviderView | null>(initialDraft)
 
+  // 마운트 후 저장된 모델 선호를 draft 기본값으로 복원(SSR-safe: 초기값은 org기본, 클라에서만 덮어씀).
+  // 대화가 선택되면 그 대화의 model이 우선하므로(curModel), 이 복원은 '새 대화' 기본값에만 영향.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('ai_chat_model_pref')
+      if (!raw) return
+      const pref = JSON.parse(raw) as { provider?: string; model?: string }
+      if (!pref?.provider || !pref?.model) return
+      const found = providers.find((p) => p.id === pref.provider)
+      if (!found) return // 더 이상 사용 불가한 프로바이더면 org 기본값 유지
+      setDraftProvider({ id: pref.provider as AiChatProviderId, label: found.label, model: pref.model })
+    } catch {
+      /* 파싱 실패 무시 */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // ── 세션3 허브 상태 ──
   const [webSearch, setWebSearch] = useState(false)
   const [toolSearching, setToolSearching] = useState(false)
@@ -405,6 +422,12 @@ export default function AiChatClient({
   }
 
   async function handleChangeModel(provider: AiChatProviderId, model: string) {
+    // 사용자가 고른 모델을 브라우저에 영속 → 새로고침·새 대화에도 유지(org 기본값으로 되돌아가는 사고 해소).
+    try {
+      localStorage.setItem('ai_chat_model_pref', JSON.stringify({ provider, model }))
+    } catch {
+      /* localStorage 불가 환경은 무시 — 세션 내 draftProvider로는 여전히 반영됨 */
+    }
     if (selectedId) {
       setConversations((prev) => prev.map((c) => (c.id === selectedId ? { ...c, provider, model } : c)))
       const r = await updateConversationModel(selectedId, provider, model)
@@ -950,6 +973,7 @@ export default function AiChatClient({
           onSend={handleSend}
           onStop={handleStop}
           onOpenModelPicker={() => setModelPickerOpen(true)}
+          onOpenAnalyze={() => router.push('/ai-chat/analyze')}
           ensureConversation={ensureConversation}
           toolsSupported={toolsSupported}
           webSearch={webSearch}
