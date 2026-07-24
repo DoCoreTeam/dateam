@@ -32,6 +32,20 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.388',
+    date: '2026-07-24',
+    title: '긴 화면에서 맨 위·아래로 한 번에 이동해요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '⬆️',
+        headline: '스크롤 점프 버튼',
+        detail:
+          '내용이 긴 화면에서 오른쪽 아래에 나타나는 버튼으로 맨 위나 맨 아래로 부드럽게 한 번에 이동할 수 있어요. 길게 스크롤하지 않아도 됩니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.386',
     date: '2026-07-24',
     title: 'GPU 목록이 모든 화면에서 하나로 묶여요',

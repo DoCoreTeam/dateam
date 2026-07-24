@@ -7,6 +7,7 @@ import { Menu, X, ChevronDown } from 'lucide-react'
 import NbNavItem from './nb/NbNavItem'
 import QuickAddFab from './QuickAddFab'
 import ChangelogModal from './ChangelogModal'
+import ScrollJumpButtons from './ScrollJumpButtons'
 import { LATEST_CHANGELOG_VERSION, CHANGELOG_SEEN_KEY, isChangelogPending } from '@/lib/changelog/entries'
 
 
@@ -93,6 +94,7 @@ export default function MobileShell({
   const openChangelogFull = useCallback(() => { setChangelogNewOnly(false); setChangelogOpen(true) }, [])
   const hamburgerRef = useRef<HTMLButtonElement>(null)
   const firstNavRef = useRef<HTMLAnchorElement>(null)
+  const mainRef = useRef<HTMLElement>(null)
 
   const closeMobile = useCallback(() => setMobileOpen(false), [])
 
@@ -356,10 +358,13 @@ export default function MobileShell({
         </header>
 
         {/* 콘텐츠 — page-inner가 전 페이지 공통 컨테이너(full-width 반응형, 폭 제한 없음) */}
-        <main className="page-inner" style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-bg)' }}>
+        <main ref={mainRef} className="page-inner" style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--color-bg)' }}>
           {children}
         </main>
       </div>
+
+      {/* 전역 스크롤 점프(맨 위/맨 아래) — 긴 페이지 기본 UX */}
+      <ScrollJumpButtons targetRef={mainRef} />
 
       {/* 빠른 추가 FAB — 하이브리드 speed-dial(맥락 강조 + 멀티). 데스크탑·모바일 */}
       <QuickAddFab isAdmin={isAdmin} />
