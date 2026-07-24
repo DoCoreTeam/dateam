@@ -14,9 +14,10 @@ import AnalysisResults from './AnalysisResults'
 import AnalyzePageHeader from './AnalyzePageHeader'
 import RecentSessionsList from './RecentSessionsList'
 import GroupsResultView from './GroupsResultView'
+import ItemConversePanel from './ItemConversePanel'
 import type { InitialItem } from './useAnalysisStream'
 
-type Step = 'input' | 'groups' | 'results'
+type Step = 'input' | 'groups' | 'converse' | 'results'
 
 const ACCEPT =
   'image/png,image/jpeg,image/webp,.xlsx,.pptx,.docx,.pdf,.md,.txt,.csv,.html,.htm,.json'
@@ -130,6 +131,21 @@ export default function AnalyzeClient() {
     setStep('results')
   }
 
+  /** 완전 대화형(④) — 항목별 지시·대화 단계로 진입. 세션은 이미 영속됨. */
+  function handleConverse(): void {
+    if (!groupingResult) return
+    setStep('converse')
+  }
+
+  /** 대화 종합 완료 → 결과 화면(단일 문서). 항목은 대화로 done 처리되어 폴링이 결과·종합을 로드한다. */
+  function handleConverseSynthesized(): void {
+    if (!groupingResult) return
+    setInitialItems(
+      groupingResult.groups.map((g, idx) => ({ idx, text: g.title, status: 'done' as const, resultText: null })),
+    )
+    setStep('results')
+  }
+
   /** "이전 분석" 이어하기 — 세션 상세를 불러와 그룹 단계를 건너뛰고 결과 화면으로 바로 진입. */
   async function handleResumeSession(id: string): Promise<void> {
     setLoadingSession(true)
@@ -232,6 +248,7 @@ export default function AnalyzeClient() {
             regrouping={regrouping}
             onRegroup={handleRegroup}
             onDeepRun={handleDeepRun}
+            onConverse={handleConverse}
             onStartOver={resetAll}
           />
           {runError && (
@@ -240,6 +257,15 @@ export default function AnalyzeClient() {
             </p>
           )}
         </>
+      )}
+
+      {step === 'converse' && groupingResult && (
+        <ItemConversePanel
+          sessionId={groupingResult.sessionId}
+          items={groupingResult.groups.map((g, idx) => ({ idx, title: g.title }))}
+          onSynthesized={handleConverseSynthesized}
+          onBack={() => setStep('groups')}
+        />
       )}
 
       {step === 'results' && (groupingResult?.sessionId ?? resumedSessionId) && (

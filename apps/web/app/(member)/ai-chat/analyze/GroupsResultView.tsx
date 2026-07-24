@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertTriangle, Sparkles } from 'lucide-react'
+import { AlertTriangle, MessagesSquare, Sparkles } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import type { GroupingOk } from './grouping-actions'
 import DocTypeBadge from './DocTypeBadge'
@@ -14,6 +14,7 @@ interface Props {
   regrouping: boolean
   onRegroup: (newCommand: string) => void
   onDeepRun: () => void
+  onConverse: () => void
   onStartOver: () => void
 }
 
@@ -23,6 +24,7 @@ export default function GroupsResultView({
   regrouping,
   onRegroup,
   onDeepRun,
+  onConverse,
   onStartOver,
 }: Props) {
   return (
@@ -78,17 +80,26 @@ export default function GroupsResultView({
         <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
           {result.groups.length}개 그룹 · 예상 {result.groups.length}회 호출
         </span>
-        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
           <NbButton variant="ghost" onClick={onStartOver}>
             처음부터 다시
           </NbButton>
           <NbButton
+            variant="ghost"
             onClick={onDeepRun}
             disabled={regrouping || result.groups.length === 0}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', minHeight: 44 }}
           >
             <Sparkles size={16} />
-            심화 실행
+            일괄 심화
+          </NbButton>
+          <NbButton
+            onClick={onConverse}
+            disabled={regrouping || result.groups.length === 0}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', minHeight: 44 }}
+          >
+            <MessagesSquare size={16} />
+            항목별 지시·대화
           </NbButton>
         </div>
       </div>
