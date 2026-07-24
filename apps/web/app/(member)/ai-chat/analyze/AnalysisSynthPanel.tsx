@@ -1,12 +1,14 @@
 'use client'
 
-import { Download } from 'lucide-react'
+import { useState } from 'react'
+import { Check, Copy } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import MarkdownMessage from '@/app/admin/ai-chat/MarkdownMessage'
+import ExportMenu, { type ExportFormat } from './ExportMenu'
 import type { SessionCoverage } from './session-item-actions'
 
-export type ExportFormat = 'md' | 'txt' | 'docx' | 'pdf'
+export type { ExportFormat }
 
 interface Props {
   synthStatus: string
@@ -16,8 +18,16 @@ interface Props {
   onExport: (format: ExportFormat) => void
 }
 
-/** 목록 심층분석 v2 — 완성형 취합 뷰(마크다운 렌더 + 커버리지 배지) + export 4종. */
+/** 목록 심층분석 v2 — 완성형 취합 뷰(마크다운 렌더 + 커버리지 배지) + 다운로드 드롭다운·복사. */
 export default function AnalysisSynthPanel({ synthStatus, synthText, coverage, canExport, onExport }: Props) {
+  const [copied, setCopied] = useState(false)
+
+  function copySynth(): void {
+    navigator.clipboard.writeText(synthText ?? '').catch(() => {})
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
   if (synthStatus === 'pending' && !synthText) return null
 
   return (
@@ -42,12 +52,11 @@ export default function AnalysisSynthPanel({ synthStatus, synthText, coverage, c
           )}
         </div>
         {synthStatus === 'done' && canExport && (
-          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-            {(['md', 'txt', 'docx', 'pdf'] as ExportFormat[]).map((fmt) => (
-              <NbButton key={fmt} variant="ghost" onClick={() => onExport(fmt)} style={{ fontSize: 'var(--fs-sm)', minHeight: 36 }}>
-                <Download size={14} /> {fmt}
-              </NbButton>
-            ))}
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
+            <ExportMenu onExport={onExport} />
+            <NbButton variant="ghost" onClick={copySynth} style={{ fontSize: 'var(--fs-sm)', minHeight: 36, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? '복사됨' : '복사'}
+            </NbButton>
           </div>
         )}
       </div>

@@ -6,12 +6,13 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, Download, MessageSquarePlus, Pencil, Share2, Trash2, X } from 'lucide-react'
+import { Check, Copy, MessageSquarePlus, Pencil, Share2, Trash2, X } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import MarkdownMessage from '@/app/admin/ai-chat/MarkdownMessage'
 import { getDocument, updateDocument, deleteDocument, type AnalysisDocumentSummary } from './document-actions'
 import { setAnalyzeChatHandoff } from '@/lib/ai-chat/analyze-chat-bridge'
 import WorkflowHandoffModal from './WorkflowHandoffModal'
+import ExportMenu, { type ExportFormat } from './ExportMenu'
 
 interface Props {
   documentId: string
@@ -32,14 +33,19 @@ function downloadTextFile(filename: string, content: string, mime: string): void
   URL.revokeObjectURL(url)
 }
 
-type ExportFormat = 'md' | 'txt' | 'docx' | 'pdf'
-
 export default function DocumentDetailDrawer({ documentId, onClose, onChanged, onDeleted }: Props) {
   const router = useRouter()
   const [title, setTitle] = useState('')
   const [bodyMd, setBodyMd] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  function copyBody(): void {
+    navigator.clipboard.writeText(bodyMd ?? '').catch(() => {})
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
 
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
@@ -149,12 +155,11 @@ export default function DocumentDetailDrawer({ documentId, onClose, onChanged, o
           <p role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>{error}</p>
         ) : (
           <>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
-              {(['md', 'txt', 'docx', 'pdf'] as ExportFormat[]).map((fmt) => (
-                <NbButton key={fmt} variant="ghost" onClick={() => handleExport(fmt)} style={{ fontSize: 'var(--fs-sm)', minHeight: 36, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <Download size={14} /> {fmt}
-                </NbButton>
-              ))}
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+              <ExportMenu onExport={handleExport} />
+              <NbButton variant="ghost" onClick={copyBody} style={{ fontSize: 'var(--fs-sm)', minHeight: 36, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? '복사됨' : '복사'}
+              </NbButton>
               <NbButton variant="ghost" onClick={() => setShowHandoff(true)} style={{ fontSize: 'var(--fs-sm)', minHeight: 36, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                 <Share2 size={14} /> 업무로 전달
               </NbButton>
