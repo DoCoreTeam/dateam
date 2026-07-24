@@ -3,6 +3,14 @@
   "outputDirectory": ".next",
   "installCommand": "cd ../.. && corepack enable pnpm && pnpm install",
   "framework": "nextjs",
+  "git": {
+    "deploymentEnabled": {
+      "feature/weekly-week-continuity": false,
+      "feature/usai-ingestion": false,
+      "feature/meeting-relations": false,
+      "feature/gpu-market-ai-extraction": false
+    }
+  },
   "crons": [
     { "path": "/api/cron/analyze-drain", "schedule": "* * * * *" }
   ]
