@@ -1251,7 +1251,7 @@ export async function updateOriginInput(
   if (!user) return { ok: false, error: '로그인이 필요합니다.' }
 
   const { data: head } = await (supabase.from('daily_logs') as any)
-    .select('id, origin_group_id')
+    .select('id, origin_group_id, log_date')
     .eq('id', headLogId)
     .eq('user_id', user.id)
     .is('deleted_at', null)
@@ -1279,6 +1279,53 @@ export async function updateOriginInput(
     actorId: user.id, ownerId: user.id, entityId: headLogId,
     title: text.trim(), after: { original_input: text.trim() }, evidence: { origin: true },
   })
+
+  // 재분해: 원문이 바뀌었으니 AI가 다시 분석해 분해 항목·일정을 재생성한다("수정했는데 분석 안 됨" 사고 해소).
+  // 그룹이 있는 경우에만(단일 raw는 스킵). 기존 ai_split 자식을 소프트삭제 → analyzeWorkOnce로 재삽입.
+  const groupId = head.origin_group_id as string | null
+  if (groupId) {
+    try {
+      const items = await analyzeWorkOnce(text.trim(), head.log_date)
+      if (items.length > 0) {
+        await (supabase.from('daily_logs') as any)
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('origin_group_id', groupId)
+          .eq('user_id', user.id)
+          .eq('source_type', 'ai_split')
+          .is('deleted_at', null)
+
+        const rows = items.map((it) => {
+          const scheduledAt = it.targetDate
+            ? it.scheduledTime
+              ? `${it.targetDate}T${it.scheduledTime}:00+09:00`
+              : `${it.targetDate}T00:00:00+09:00`
+            : null
+          return {
+            user_id: user.id,
+            log_date: head.log_date,
+            content: it.title,
+            entry_type: it.status === 'blocker' ? 'doing' : it.status,
+            priority: it.priority,
+            scheduled_at: scheduledAt,
+            ai_processed: true,
+            ai_confidence: it.confidence,
+            original_input: text.trim(),
+            target_date: it.targetDate ?? null,
+            target_end_date: it.targetEndDate ?? null,
+            target_date_set_by: it.targetDate && it.targetDateCertainty !== 'none' ? ('ai' as const) : null,
+            origin_group_id: groupId,
+            source_type: 'ai_split' as const,
+            parent_log_id: headLogId,
+            is_onboarding: false,
+          }
+        })
+        await (supabase.from('daily_logs') as any).insert(rows)
+      }
+    } catch (e) {
+      // 재분해 실패가 원문 저장을 되돌리지 않는다 — 원문은 이미 저장됨.
+      console.error('[updateOriginInput] 재분해 실패', e)
+    }
+  }
 
   revalidateDailyCalendarViews()
   return { ok: true }
