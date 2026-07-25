@@ -456,9 +456,12 @@ export async function updateDailyLog(
     title: content.trim(), before: beforeRow, after: updatePayload,
   })
 
-  // 수정 시 재분석(해당 항목만) — 사용자가 날짜를 직접 지정하지 않았고 메모가 아니면,
-  // 바뀐 내용에서 날짜/기간/시간을 다시 추출해 캘린더 등록을 갱신한다(수정하면 재분석 안 되던 사고).
-  if (targetDate === undefined && entryType !== 'note') {
+  // 수정 시 재분석(해당 항목만) — 내용이 실제로 바뀌었고, 메모가 아니며, 사용자가 날짜를 '직접 변경'하지
+  // 않았을 때: 바뀐 내용에서 날짜/기간/시간을 다시 추출해 캘린더 등록을 갱신한다.
+  // (수정 UI가 targetDate를 항상 넘겨 'undefined' 가드가 무력화되던 사고 — 내용변경 기준으로 재조정)
+  const contentChanged = (beforeRow?.content ?? '') !== content.trim()
+  const dateManuallyChanged = targetDate !== undefined && (targetDate || null) !== (beforeRow?.target_date ?? null)
+  if (entryType !== 'note' && contentChanged && !dateManuallyChanged) {
     await reanalyzeDailyLog(id).catch(() => {}) // 재분석 실패가 수정 자체를 막지 않음
   }
 
