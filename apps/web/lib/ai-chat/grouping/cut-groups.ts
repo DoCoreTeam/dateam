@@ -88,12 +88,21 @@ export interface CutDecision {
   fallback: boolean
 }
 
-/** 폴백 절단 레벨 — 자식이 있는 최상위 레벨. AI가 실패해도 그룹핑은 진행된다. */
+/**
+ * 폴백 절단 레벨 — AI가 실패해도 그룹핑은 진행된다.
+ * "실제로 2개 이상으로 갈라지는 가장 얕은 레벨"을 고른다. 최소 레벨(minLevel)을 그대로 쓰면
+ * 문서 전체가 단일 H1 제목 아래 있는 흔한 구조(예: "# ...요구사항 정의서" 하나 + ## 섹션들)에서
+ * 레벨1=1그룹으로 문서 전체가 뭉쳐 "각 항목별 분할"이 되지 않는 사고가 난다(실측: 506줄 1그룹).
+ */
 export function fallbackCutSpec(tree: StructureTree): CutSpec {
-  const rows = outlineRows(tree, 2)
+  const rows = outlineRows(tree, 4)
   if (rows.length === 0) return { level: 1 }
-  const minLevel = Math.min(...rows.map((r) => r.level))
-  return { level: minLevel }
+  const countByLevel = new Map<number, number>()
+  for (const r of rows) countByLevel.set(r.level, (countByLevel.get(r.level) ?? 0) + 1)
+  const levels = Array.from(countByLevel.keys()).sort((a, b) => a - b)
+  // 2개 이상으로 갈라지는 가장 얕은 레벨. 없으면(전부 단일 체인) 최소 레벨로.
+  const splittable = levels.find((lv) => (countByLevel.get(lv) ?? 0) >= 2)
+  return { level: splittable ?? levels[0] }
 }
 
 export function parseCutResult(

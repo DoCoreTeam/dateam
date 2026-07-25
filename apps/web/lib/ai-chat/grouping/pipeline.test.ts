@@ -95,6 +95,26 @@ test('AI가 전부 실패해도 결정론 폴백으로 그룹핑이 완료된다
   assert.equal(r.coverage.unassignedLines.length, 0, '폴백이어도 유실 0')
 })
 
+test('★ 단일 H1 제목 아래 여러 섹션 문서 — 폴백이 1그룹으로 뭉치지 않고 섹션별로 쪼갠다', () => {
+  // 실측 사고: "# ...정의서" 하나 + ## 섹션 다수인 506줄 문서가 폴백에서 레벨1=1그룹으로 뭉쳤다.
+  const doc = [
+    '# AI 캐릭터 챗 플랫폼 요구사항 정의서',
+    '',
+    '## 0 문서 거버넌스',
+    '거버넌스 내용.',
+    '## 1 개요',
+    '개요 내용.',
+    '## 4 기능 요구사항',
+    '### 4.1 계정',
+    'FR-101.',
+    '## 5 비기능 요구사항',
+    'NFR-01.',
+  ].join('\n')
+  const tree = buildStructureTree(doc)
+  const spec = fallbackCutSpec(tree)
+  assert.deepEqual(spec, { level: 2 }, '단일 H1 아래 여러 ## 섹션이면 레벨2로 갈라야 한다(레벨1 금지)')
+})
+
 test('AI가 환각 nodeId를 주면 걸러내고 폴백한다', () => {
   const tree = buildStructureTree(planDoc)
   const d = parseCutResult({ mode: 'nodes', nodeIds: ['존재하지-않는-id', '9.9.9'] }, tree)

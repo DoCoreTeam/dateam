@@ -50,17 +50,30 @@ export type GroupingResultPayload = GroupingOk | GroupingErr
 
 /** 누적 토큰을 모으면서 AI를 호출하는 caller를 만든다. AI 실패는 던지지 않고 null 반환(폴백 유도). */
 function makeAiCaller(userId: string, acc: { usage: ChatUsage }, model?: string): JsonAiCaller {
+  const callWith = async (prompt: string, m?: string) => {
+    const res = await callGeminiOnce(userId, prompt, undefined, m)
+    acc.usage = {
+      promptTokens: acc.usage.promptTokens + res.usage.promptTokens,
+      outputTokens: acc.usage.outputTokens + res.usage.outputTokens,
+      totalTokens: acc.usage.totalTokens + res.usage.totalTokens,
+    }
+    return parseJsonObject(res.text)
+  }
   return async (prompt: string) => {
     try {
-      const res = await callGeminiOnce(userId, prompt, undefined, model)
-      acc.usage = {
-        promptTokens: acc.usage.promptTokens + res.usage.promptTokens,
-        outputTokens: acc.usage.outputTokens + res.usage.outputTokens,
-        totalTokens: acc.usage.totalTokens + res.usage.totalTokens,
-      }
-      return parseJsonObject(res.text)
+      return await callWith(prompt, model)
     } catch (err) {
-      // AI 실패가 파이프라인을 막지 않는다 — 결정론 폴백으로 계속 진행한다.
+      // 세션 선택 모델이 실패하면(429·쿼터 소진 등) org 기본 모델로 1회 폴백한다.
+      // 그룹핑은 배경 작업이라 pro 모델 쿼터가 말라도 신뢰 가능한 기본 모델(flash-lite)로 성공시켜,
+      // "AI 판정 실패 → 1그룹" 사고를 막는다. 그마저 실패하면 결정론 폴백(fallbackCutSpec)이 이어받는다.
+      if (model) {
+        try {
+          return await callWith(prompt, undefined)
+        } catch (err2) {
+          logDbError('grouping:ai-fallback', err2, { promptHead: prompt.slice(0, 80) })
+          return null
+        }
+      }
       logDbError('grouping:ai', err, { promptHead: prompt.slice(0, 80) })
       return null
     }
