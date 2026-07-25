@@ -250,6 +250,7 @@ export async function drainSession(
           {
             apiKey: geminiConfig.apiKey,
             model: session.model || geminiConfig.model, // 세션 선택 모델 우선
+            fallbackModel: geminiConfig.model, // 세션 모델이 429 등으로 죽으면 org 기본(flash-lite)으로 완주
             command: session.command,
             docType,
             docContext,

@@ -94,6 +94,8 @@ export async function claimItems(
 export interface RunItemCtx {
   apiKey: string
   model: string
+  /** 세션 모델(429 등) 실패 시 폴백 모델(org 기본 flash-lite). */
+  fallbackModel?: string
   command: string
   docType: DocType
   /** 문서 전체 아웃라인(배치당 1회 계산 — cut-groups.ts serializeOutline). */
@@ -113,6 +115,7 @@ export async function runItem(
   const outcome: RefineGroupOutcome = await refineGroupItem({
     apiKey: ctx.apiKey,
     model: ctx.model,
+    fallbackModel: ctx.fallbackModel,
     group: { title: item.title, bodyRaw: item.body_raw, treePath: item.tree_path, depth: item.depth },
     docType: ctx.docType,
     docContext: ctx.docContext,

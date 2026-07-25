@@ -135,6 +135,7 @@ export async function synthesizeInsights(
     const result = await synthesizeItems({
       apiKey: cfg.apiKey,
       model: model?.trim() || cfg.model,
+      fallbackModel: cfg.model, // 세션 모델(429) 실패 시 org 기본(flash-lite)으로 폴백
       items,
       command,
       signal: controller.signal,

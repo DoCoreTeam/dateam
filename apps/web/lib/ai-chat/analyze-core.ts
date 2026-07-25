@@ -4,7 +4,7 @@
 // 인젝션·희석 방지를 위해 분리 주입한다(command+공통지시=system, 항목+맥락=user).
 
 import { getProvider } from './registry.ts'
-import type { ChatUsage } from './provider.ts'
+import type { ChatUsage, StreamChatParams, StreamChatResult } from './provider.ts'
 import {
   buildSynthesisPrompt,
   checkCoverage,
@@ -27,6 +27,25 @@ const DEFAULT_COMMAND =
 const DEFAULT_SYNTH_BUDGET_CHARS = 200_000
 
 const ZERO_USAGE: ChatUsage = { promptTokens: 0, outputTokens: 0, totalTokens: 0 }
+
+/**
+ * 목록 심층분석 AI 호출 공용 — 세션 선택 모델이 실패(429·쿼터 소진 등)하면 org 기본 모델로 1회 폴백한다.
+ * 심화·취합은 배경 작업이므로, 채팅에서 고른 pro 모델의 쿼터가 말라도 신뢰 가능한 기본 모델(flash-lite)로
+ * 완주시켜 "항목이 계속 분석중에서 멈추고 실패"하는 사고를 막는다. (그룹핑 caller의 폴백과 동일 원칙.)
+ */
+async function streamChatWithFallback(
+  params: StreamChatParams,
+  fallbackModel?: string,
+): Promise<StreamChatResult> {
+  const provider = getProvider('gemini')
+  try {
+    return await provider.streamChat(params)
+  } catch (err) {
+    const fb = fallbackModel?.trim()
+    if (fb && fb !== params.model) return await provider.streamChat({ ...params, model: fb })
+    throw err
+  }
+}
 
 function mergeUsage(a: ChatUsage, b: ChatUsage): ChatUsage {
   return {
@@ -89,6 +108,8 @@ export async function analyzeOneItem(p: AnalyzeOneParams): Promise<AnalyzeOneRes
 export interface RefineGroupParams {
   apiKey: string
   model: string
+  /** 세션 모델이 429 등으로 실패하면 이 모델로 1회 폴백(보통 org 기본 flash-lite). 미지정 시 폴백 없음. */
+  fallbackModel?: string
   group: GroupRefineInput
   docType: DocType
   /** 문서 전체 아웃라인(cut-groups.ts serializeOutline) — 그룹을 문서 맥락 안에 놓는다. */
@@ -112,7 +133,6 @@ export interface RefineGroupOutcome {
  * 호출 자체가 실패해도 refineResultOrFallback이 그룹 원문을 최종 폴백으로 보증한다.
  */
 export async function refineGroupItem(p: RefineGroupParams): Promise<RefineGroupOutcome> {
-  const provider = getProvider('gemini')
   // 사용자 지시(command)가 있으면 지시가 출력 골격까지 지배한다 — 근거/가정/미결질문 고정 래퍼·JSON 스키마 없이
   // 자유 서술("틀에 갇힌 출력" 해소). 지시가 없을 때만 문서유형 기반 복원 골격(현행)을 유지한다.
   const hasCommand = p.command.trim().length > 0
@@ -125,13 +145,16 @@ export async function refineGroupItem(p: RefineGroupParams): Promise<RefineGroup
   }
   const prompt = hasCommand ? buildFreeRefinePrompt(promptParams) : buildRefinePrompt(promptParams)
 
-  const result = await provider.streamChat({
-    apiKey: p.apiKey,
-    model: p.model,
-    turns: [{ role: 'user', content: prompt }],
-    signal: p.signal,
-    onDelta: (d) => p.onDelta?.(d),
-  })
+  const result = await streamChatWithFallback(
+    {
+      apiKey: p.apiKey,
+      model: p.model,
+      turns: [{ role: 'user', content: prompt }],
+      signal: p.signal,
+      onDelta: (d) => p.onDelta?.(d),
+    },
+    p.fallbackModel,
+  )
 
   if (hasCommand) {
     // 자유 서술 — 지시한 형식 그대로. 고정 섹션 조립 없이 AI markdown을 그대로 쓰되 유실0 폴백은 유지.
@@ -182,6 +205,8 @@ function buildRepassPrompt(items: DigestItem[], missing: number[], command: stri
 export async function synthesizeItems(p: {
   apiKey: string
   model: string
+  /** 세션 모델 실패 시 폴백(org 기본). refineGroupItem과 동일 원칙. */
+  fallbackModel?: string
   items: SynthItem[]
   command: string
   signal: AbortSignal
@@ -196,20 +221,22 @@ export async function synthesizeItems(p: {
     digest: item.digest,
   }))
 
-  const provider = getProvider('gemini')
   const { prompt } = buildSynthesisPrompt(digestItems, command, { budgetChars })
 
   let text = ''
   let usage: ChatUsage = ZERO_USAGE
-  const first = await provider.streamChat({
-    apiKey: p.apiKey,
-    model: p.model,
-    turns: [{ role: 'user', content: prompt }],
-    signal: p.signal,
-    onDelta: (d) => {
-      text += d
+  const first = await streamChatWithFallback(
+    {
+      apiKey: p.apiKey,
+      model: p.model,
+      turns: [{ role: 'user', content: prompt }],
+      signal: p.signal,
+      onDelta: (d) => {
+        text += d
+      },
     },
-  })
+    p.fallbackModel,
+  )
   usage = mergeUsage(usage, first.usage)
 
   let coverage = checkCoverage(text, allIdx)
@@ -217,15 +244,18 @@ export async function synthesizeItems(p: {
   if (coverage.missing.length > 0) {
     const repassPrompt = buildRepassPrompt(digestItems, coverage.missing, command)
     let repassText = ''
-    const second = await provider.streamChat({
-      apiKey: p.apiKey,
-      model: p.model,
-      turns: [{ role: 'user', content: repassPrompt }],
-      signal: p.signal,
-      onDelta: (d) => {
-        repassText += d
+    const second = await streamChatWithFallback(
+      {
+        apiKey: p.apiKey,
+        model: p.model,
+        turns: [{ role: 'user', content: repassPrompt }],
+        signal: p.signal,
+        onDelta: (d) => {
+          repassText += d
+        },
       },
-    })
+      p.fallbackModel,
+    )
     usage = mergeUsage(usage, second.usage)
     text = `${text}\n\n${repassText}`
     coverage = checkCoverage(text, allIdx)
