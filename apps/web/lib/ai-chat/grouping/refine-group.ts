@@ -98,6 +98,41 @@ export function buildRefinePrompt(p: BuildRefinePromptParams): string {
 }
 
 /**
+ * command 주도 "자유 서술" 프롬프트 — 사용자 지시가 있을 때 사용한다.
+ * 근거/가정/미결질문 고정 래퍼도, JSON 스키마 강제도 없다. 지시가 출력 형식·구성을 지배한다.
+ * (문서 맥락·위치·원문은 여전히 주입 — 고립되지 않은 심화를 위해.) 압축복원 원칙(재표현·환각 금지)은 유지.
+ */
+export function buildFreeRefinePrompt(p: BuildRefinePromptParams): string {
+  const cmd = p.command.trim()
+  return (
+    '아래는 한 문서의 일부인 "그룹" 1건이다.\n' +
+    '이 그룹의 원문은 작성자가 더 큰 내용을 짧게 "압축"해 적은 것이다(예: "사용자 확보 10만 명" 한 줄에 채널·시점·측정 기준이 생략됨).\n' +
+    '네 일은 그 압축을 풀어 실무에서 바로 쓸 수 있는 깊이까지 구체화하되 — 아래 사용자 지시가 요구하는 형식·구성 그대로 내는 것이다.\n\n' +
+    `사용자 지시(최우선 — 이 지시가 출력 형식·구성·말투를 지배한다): ${cmd}\n` +
+    templateGuideLines(p.template) +
+    '\n반드시 지킬 것:\n' +
+    '- 사용자 지시가 요구하는 형식·구성 그대로 markdown으로 출력하라. 지시가 요구하지 않은 "근거 / 가정 / 미결 질문" 같은 고정 섹션을 임의로 붙이지 마라.\n' +
+    '- 포괄적·원론적 서술 금지("~를 검토해야 한다 / ~가 중요하다"류 일반론은 심화가 아니다). 실제 선택지·절차·판단 기준·측정 지표(숫자·단위)까지 구체화하라.\n' +
+    '- 재표현·환각 금지: 원문을 말만 바꿔 되풀이하지 말고, 생략된 정보를 실제로 펼쳐라. 문서에 근거가 없는 사실을 단정하지 마라(불확실하면 그렇다고 밝혀라).\n' +
+    '- 원문 슬라이스 자체를 그대로 다시 쓰지 않는다(원문은 이미 보존돼 있다).\n' +
+    '- 출력은 순수 markdown 본문만. JSON·코드펜스·메타설명을 붙이지 않는다.\n\n' +
+    `문서 전체 구조(복원의 맥락 단서):\n"""\n${p.docContext.slice(0, 6000)}\n"""\n\n` +
+    `이 그룹의 문서 내 위치: ${p.group.treePath} (깊이 ${p.group.depth})\n` +
+    `그룹 제목: ${p.group.title}\n\n` +
+    `대상 그룹 원문(압축본):\n"""\n${p.group.bodyRaw}\n"""`
+  )
+}
+
+/**
+ * 자유 서술 모드 유실0 — AI 응답을 그대로 본문으로 쓴다(코드펜스만 벗김). 빈 응답이면 그룹 원문으로 폴백.
+ * JSON 파싱을 하지 않는다(자유 markdown이 곧 결과).
+ */
+export function freeRefineOrFallback(raw: string, group: GroupRefineInput): string {
+  const stripped = raw.trim().replace(/^```(?:\w+)?\s*/i, '').replace(/```\s*$/i, '').trim()
+  return stripped || group.bodyRaw
+}
+
+/**
  * AI 응답 파싱. JSON이 아니면 raw를 그대로 markdown으로 보존한다(유실 0).
  * raw 자체가 빈 문자열이면 markdown도 빈 문자열 — 호출측이 group.bodyRaw로 최종 폴백해야 한다.
  */

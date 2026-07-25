@@ -2,8 +2,10 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildRefinePrompt,
+  buildFreeRefinePrompt,
   parseRefineResult,
   refineResultOrFallback,
+  freeRefineOrFallback,
   renderRefineMarkdown,
   type GroupRefineInput,
 } from './refine-group.ts'
@@ -27,6 +29,31 @@ test('buildRefinePrompt: 그룹 4요소(제목·원문·위치·docContext)가 �
   assert.match(prompt, /로그인은 이메일과 비밀번호로 한다/)
   assert.match(prompt, /1\.2/)
   assert.match(prompt, /개요/) // docContext 포함
+})
+
+test('buildFreeRefinePrompt: 지시 주도 — 고정 섹션 금지 지시 + 지시문 지배 + 맥락 주입', () => {
+  const prompt = buildFreeRefinePrompt({
+    group,
+    docType: 'requirements',
+    docContext: '[1] (L1) 개요',
+    command: '회의록 형식으로 정리해',
+  })
+  assert.match(prompt, /회의록 형식으로 정리해/)
+  assert.match(prompt, /출력 형식·구성·말투를 지배한다/)
+  assert.match(prompt, /고정 섹션을 임의로 붙이지 마라/) // 근거/가정/미결 래퍼 금지 지시
+  assert.match(prompt, /순수 markdown 본문만/) // JSON 스키마 강제 없음
+  assert.match(prompt, /사용자 인증/) // 그룹 원문 주입
+  assert.doesNotMatch(prompt, /JSON 객체 하나만/) // 복원 골격의 스키마 강제 문구는 없어야 함
+})
+
+test('freeRefineOrFallback: 코드펜스를 벗기고 본문을 그대로 보존한다', () => {
+  const out = freeRefineOrFallback('```md\n## 회의록\n- 결정: A\n```', group)
+  assert.equal(out, '## 회의록\n- 결정: A')
+})
+
+test('freeRefineOrFallback: 빈 응답이면 그룹 원문으로 유실0 폴백', () => {
+  assert.equal(freeRefineOrFallback('   ', group), group.bodyRaw)
+  assert.equal(freeRefineOrFallback('```\n```', group), group.bodyRaw)
 })
 
 test('buildRefinePrompt: 지시가 없으면 문서 유형 기본 동작 문구를 쓴다', () => {

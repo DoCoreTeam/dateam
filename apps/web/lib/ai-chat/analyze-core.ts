@@ -13,7 +13,9 @@ import {
 } from './synthesize-hierarchical.ts'
 import {
   buildRefinePrompt,
+  buildFreeRefinePrompt,
   refineResultOrFallback,
+  freeRefineOrFallback,
   renderRefineMarkdown,
   type GroupRefineInput,
 } from './grouping/refine-group.ts'
@@ -111,13 +113,17 @@ export interface RefineGroupOutcome {
  */
 export async function refineGroupItem(p: RefineGroupParams): Promise<RefineGroupOutcome> {
   const provider = getProvider('gemini')
-  const prompt = buildRefinePrompt({
+  // 사용자 지시(command)가 있으면 지시가 출력 골격까지 지배한다 — 근거/가정/미결질문 고정 래퍼·JSON 스키마 없이
+  // 자유 서술("틀에 갇힌 출력" 해소). 지시가 없을 때만 문서유형 기반 복원 골격(현행)을 유지한다.
+  const hasCommand = p.command.trim().length > 0
+  const promptParams = {
     group: p.group,
     docType: p.docType,
     docContext: p.docContext,
     command: p.command,
     template: p.template,
-  })
+  }
+  const prompt = hasCommand ? buildFreeRefinePrompt(promptParams) : buildRefinePrompt(promptParams)
 
   const result = await provider.streamChat({
     apiKey: p.apiKey,
@@ -126,6 +132,11 @@ export async function refineGroupItem(p: RefineGroupParams): Promise<RefineGroup
     signal: p.signal,
     onDelta: (d) => p.onDelta?.(d),
   })
+
+  if (hasCommand) {
+    // 자유 서술 — 지시한 형식 그대로. 고정 섹션 조립 없이 AI markdown을 그대로 쓰되 유실0 폴백은 유지.
+    return { resultText: freeRefineOrFallback(result.text, p.group), parseOk: true, usage: result.usage }
+  }
   const parsed = refineResultOrFallback(result.text, p.group)
   return { resultText: renderRefineMarkdown(parsed), parseOk: parsed.parseOk, usage: result.usage }
 }
