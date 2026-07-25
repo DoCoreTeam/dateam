@@ -5,7 +5,7 @@ import { Check, Copy, MessageSquareText, RotateCw, FileText } from 'lucide-react
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import MarkdownMessage from '@/app/admin/ai-chat/MarkdownMessage'
-import { computeRetention } from '@/lib/ai-chat/analyze/retention'
+import { computeRetention, computeAddedNumbers } from '@/lib/ai-chat/analyze/retention'
 import type { AnalysisItemStatus } from './session-item-actions'
 
 interface Props {
@@ -39,6 +39,9 @@ export default function AnalysisResultItem({ idx, text, status, resultText, body
   const retention =
     status === 'done' && resultText && bodyRaw ? computeRetention(bodyRaw, resultText) : null
   const hasMissing = retention !== null && !retention.empty && retention.missing.length > 0
+  // 충실도 신호(P2·결정론): 결과에 새로 등장한 수치 = AI가 원문 근거 없이 도입 → 검토 필요.
+  const addedNumbers =
+    status === 'done' && resultText && bodyRaw ? computeAddedNumbers(bodyRaw, resultText) : []
 
   function copy(): void {
     navigator.clipboard.writeText(resultText ?? '').catch(() => {})
@@ -156,6 +159,18 @@ export default function AnalysisResultItem({ idx, text, status, resultText, body
               <NbButton variant="ghost" onClick={(e) => { e.stopPropagation(); onRetry(idx) }} style={{ fontSize: 'var(--fs-2xs)', minHeight: 30 }}>
                 <RotateCw size={11} /> 누락 반영 재분석
               </NbButton>
+            </div>
+          )}
+          {addedNumbers.length > 0 && (
+            <div
+              style={{
+                fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', background: 'var(--surface-bg)',
+                border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)',
+                padding: '0.3rem 0.55rem', marginBottom: 'var(--space-2)',
+              }}
+              title="원문에 없던 수치 — AI 보강이 도입한 값이니 근거를 검토하세요"
+            >
+              🔬 AI가 더한 수치 {addedNumbers.length}개(원문 근거 없음 · 검토 권장): {addedNumbers.join(', ')}
             </div>
           )}
           <MarkdownMessage content={resultText} />

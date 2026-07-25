@@ -18,6 +18,7 @@ import {
   renderAugmentMarkdown,
   type GroupRefineInput,
 } from './grouping/refine-group.ts'
+import { classifyDensity } from './analyze/retention.ts'
 import type { DocType } from './grouping/classify-doc.ts'
 import type { TemplateSpec } from './templates/catalog.ts'
 
@@ -144,7 +145,10 @@ export async function refineGroupItem(p: RefineGroupParams): Promise<RefineGroup
     command: p.command,
     template: p.template,
   }
-  const prompt = hasCommand ? buildFreeRefinePrompt(promptParams) : buildAugmentPrompt(promptParams)
+  // 증강 모드는 입력 밀도로 보강 방향을 자동분기(P2): 정본=검증/갭, 목록=확장.
+  const prompt = hasCommand
+    ? buildFreeRefinePrompt(promptParams)
+    : buildAugmentPrompt(promptParams, classifyDensity(p.group.bodyRaw))
 
   const result = await streamChatWithFallback(
     {

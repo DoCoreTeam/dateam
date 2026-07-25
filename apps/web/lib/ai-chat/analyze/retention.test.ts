@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { extractEntities, computeRetention } from './retention.ts'
+import { extractEntities, computeRetention, classifyDensity, computeAddedNumbers } from './retention.ts'
 
 test('extractEntities: 요구 ID와 단위 수치를 뽑는다', () => {
   const e = extractEntities('FR-101 로그인. 닉네임 2~20자, 유예 30일, 가용성 99.5%, P50 3초.')
@@ -36,4 +36,19 @@ test('computeRetention: 공백/표 재배치가 있어도 토큰이 있으면 �
 test('computeRetention: 추적 엔티티가 없으면 empty=true', () => {
   const r = computeRetention('세계관 배경 설명입니다.', '분석 결과')
   assert.equal(r.empty, true)
+})
+
+test('classifyDensity: 표·ID 많은 정본은 dense, 짧은 한 줄은 sparse', () => {
+  const dense = '| ID | 요구문 |\n| FR-101 | 로그인 |\n| FR-102 | 가입 |\nNFR-03 가용성 99.5%'
+  assert.equal(classifyDensity(dense), 'dense')
+  assert.equal(classifyDensity('사용자 확보 10만 명'), 'sparse')
+})
+
+test('computeAddedNumbers: 원문에 없던 결과 수치를 AI 추가로 잡는다', () => {
+  const src = 'FR-601 정기 구독. 재시도 3회.'
+  // 결과가 원문(3회)은 유지하되 원문에 없던 30초·99.9%를 새로 도입
+  const added = computeAddedNumbers(src, '재시도 3회. 타임아웃 30초, 가용성 99.9% 목표.')
+  assert.ok(added.some((n) => n.includes('30초')))
+  assert.ok(added.some((n) => n.includes('99.9%')))
+  assert.ok(!added.some((n) => n.includes('3회')), '원문에 있던 값은 추가로 안 잡는다')
 })

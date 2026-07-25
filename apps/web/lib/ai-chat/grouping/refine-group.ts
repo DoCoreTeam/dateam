@@ -103,11 +103,20 @@ export function buildRefinePrompt(p: BuildRefinePromptParams): string {
  * 이렇게 하면 (1)원문 100% 보존 (2)양이 원문 이하로 안 내려감 (3)ID·수치 보존율 100%가 설계상 보장된다.
  * (기존 "복원 골격"은 원문을 산문으로 재서술해 고밀도 정본에서 양·구체성이 되레 줄던 문제가 있었다.)
  */
-export function buildAugmentPrompt(p: BuildRefinePromptParams): string {
+export function buildAugmentPrompt(p: BuildRefinePromptParams, density: 'dense' | 'sparse' = 'sparse'): string {
   const cmd = p.command.trim()
+  // 입력 밀도에 따라 보강의 방향을 바꾼다(P2 모드 자동분기):
+  //  dense  = 이미 상세한 정본 → 없는 걸 지어내 부풀리지 말고 검증·갭·리스크·상충·미결 중심.
+  //  sparse = 압축된 목록 → 생략된 실행 상세를 적극적으로 펼친다.
+  const densityLine =
+    density === 'dense'
+      ? '이 원문은 이미 상세하다. **새 정보를 지어내 부풀리지 말고**, 검증 포인트·빠진 조건(갭)·리스크·상충점·확인이 필요한 미결 질문 중심으로 보강하라.\n'
+      : '이 원문은 압축돼 있다. 생략된 실행 상세(선택지·절차·판단 기준·수치)를 적극적으로 펼쳐 정보 밀도를 높여라.\n'
   return (
     '아래 "그룹 원문"은 사용자에게 그대로 보존되어 보여진다. 너는 원문을 다시 쓰지 않는다.\n' +
-    '네 일은 원문 바로 아래에 붙일 **"분석·보강"** 블록만 작성하는 것이다 — 원문 각 요소를 실무에서 바로 쓸 깊이로 구체화한다.\n\n' +
+    '네 일은 원문 바로 아래에 붙일 **"분석·보강"** 블록만 작성하는 것이다 — 원문 각 요소를 실무에서 바로 쓸 깊이로 구체화한다.\n' +
+    densityLine +
+    '\n' +
     (cmd ? `참고 지시: ${cmd}\n` : '') +
     templateGuideLines(p.template) +
     '\n반드시 지킬 것:\n' +

@@ -13,8 +13,8 @@ const ID_RE = /\b[A-Z]{1,4}-?\d{1,4}\b/g
  */
 const NUM_RE =
   /\b\d[\d,]*(?:\.\d+)?\s?(?:%|배|일|시간|분|초|자|개|건|명|원|점|회|위|주|월|년|만|억|천|VU|RPM|TPM|MB|GB|KB|TB|ms|초당|비트)/g
-/** "T+N", "P50", "P95", "1.3" 같은 지표성 토큰. */
-const METRIC_RE = /\b(?:T\+\d+|P\d{2,3}|\d+\.\d+)\b/g
+/** "T+N", "P50", "P95" 같은 지표성 토큰. (맨소수 \d+\.\d+는 섹션번호 오검출이 많아 제외 — 단위 붙은 소수는 NUM_RE가 잡는다.) */
+const METRIC_RE = /\b(?:T\+\d+|P\d{2,3})\b/g
 
 function uniqueMatches(text: string, re: RegExp): string[] {
   const found = text.match(re) ?? []
@@ -54,6 +54,42 @@ export interface RetentionResult {
 /** 공백을 무시한 포함 검사 — 결과의 표/줄바꿈 재배치로 토큰 사이 공백이 달라져도 매칭되게. */
 function contains(haystackNoSpace: string, needle: string): boolean {
   return haystackNoSpace.includes(needle.replace(/\s+/g, ''))
+}
+
+export type InputDensity = 'dense' | 'sparse'
+
+/**
+ * 입력 밀도 분류 — 심화 모드 자동분기용.
+ *  dense  = 이미 상세한 정본(표·ID·수치 다수) → "검증·갭·리스크" 중심 보강(부풀리기 금지)
+ *  sparse = 압축된 목록(짧은 항목) → "생략된 실행 상세 펼치기" 보강
+ * 순수·결정론 — AI 호출 없음.
+ */
+export function classifyDensity(source: string): InputDensity {
+  const { ids, numbers } = extractEntities(source)
+  const chars = source.length || 1
+  const hasTable = /\|.*\|/.test(source)
+  const entityPerK = (ids.length + numbers.length) / (chars / 1000)
+  // 짧은 한 줄(예: "10만 명")은 엔티티 1개만으로 per-K가 폭등하므로 최소 길이 이상에서만 밀도 판정.
+  if (hasTable || ids.length >= 3 || (chars >= 40 && entityPerK >= 6)) return 'dense'
+  return 'sparse'
+}
+
+/**
+ * 결과에 등장하지만 원문엔 없던 수치 — AI가 새로 도입한 값(충실도 신호, 결정론 프록시).
+ * "이 수치는 원문 근거가 없으니 검토하라"를 정확히 짚어준다. LLM-judge보다 값싸고 재현 가능하다.
+ * (augment 모드 결과는 원문을 그대로 담으므로, 여기서 잡히는 건 순수하게 '보강'이 더한 값이다.)
+ */
+export function computeAddedNumbers(source: string, result: string): string[] {
+  const srcNums = new Set(extractEntities(source).numbers.map((n) => n.replace(/\s+/g, '')))
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const n of extractEntities(result).numbers) {
+    const key = n.replace(/\s+/g, '')
+    if (srcNums.has(key) || seen.has(key)) continue
+    seen.add(key)
+    out.push(n)
+  }
+  return out.slice(0, 12)
 }
 
 /**

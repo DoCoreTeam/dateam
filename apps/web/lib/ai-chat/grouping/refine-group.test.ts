@@ -66,6 +66,14 @@ test('renderAugmentMarkdown: 보강이 비면 원문만(무손실)', () => {
   assert.equal(renderAugmentMarkdown(group.bodyRaw, '   '), group.bodyRaw.trim())
 })
 
+test('buildAugmentPrompt: 밀도 분기 — dense=검증/갭, sparse=펼치기', () => {
+  const dense = buildAugmentPrompt({ group, docType: 'requirements', docContext: '', command: '' }, 'dense')
+  assert.match(dense, /부풀리지 말고/)
+  assert.match(dense, /갭|검증 포인트/)
+  const sparse = buildAugmentPrompt({ group, docType: 'requirements', docContext: '', command: '' }, 'sparse')
+  assert.match(sparse, /압축돼 있다|펼쳐/)
+})
+
 test('freeRefineOrFallback: 코드펜스를 벗기고 본문을 그대로 보존한다', () => {
   const out = freeRefineOrFallback('```md\n## 회의록\n- 결정: A\n```', group)
   assert.equal(out, '## 회의록\n- 결정: A')
