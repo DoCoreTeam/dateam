@@ -12,6 +12,7 @@ import {
   maxBytesForMime,
 } from '@/lib/ai-chat/attachments'
 import AXDotLoader from '@/components/ui/AXDotLoader'
+import { historyPrev, historyNext } from '@/lib/ai-chat/composer-history'
 
 const MAX_LEN = 32000
 // ACCEPT는 ATTACHMENT_RULES(SSOT)에서 파생 — 화이트리스트 이중정의 금지
@@ -43,6 +44,11 @@ interface ComposerProps {
   providers: ProviderView[]
   onSend: (content: string, attachmentIds: string[]) => void
   onStop: () => void
+  /** ↑↓ 입력 히스토리 — 내가 보낸 메시지 원문(오래된→최신). */
+  history: string[]
+  /** 전송 실패 시 되돌려줄 원문(입력창이 비어있으면 채워 넣음). 소비 후 onRestoreConsumed. */
+  restoreDraft: string | null
+  onRestoreConsumed: () => void
   /** ⑤ 모델 선택 모달 오픈(단순 드롭다운 대신 능력·출시일을 보여주는 모달로 대체) */
   onOpenModelPicker: () => void
   /** 목록 심층분석 진입(첨부·지구본 옆). */
@@ -72,6 +78,9 @@ export default function Composer({
   providers,
   onSend,
   onStop,
+  history,
+  restoreDraft,
+  onRestoreConsumed,
   onOpenModelPicker,
   onOpenAnalyze,
   ensureConversation,
@@ -81,6 +90,8 @@ export default function Composer({
   locked = false,
 }: ComposerProps) {
   const [value, setValue] = useState('')
+  // ↑↓ 히스토리 포인터. -1 = 라이브 초안(탐색 안 함), 0..n-1 = history 인덱스.
+  const [histIndex, setHistIndex] = useState(-1)
   const [pending, setPending] = useState<PendingAttachment[]>([])
   const [isDragOver, setIsDragOver] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -110,6 +121,37 @@ export default function Composer({
   }, [])
 
   useEffect(() => { autoGrow() }, [value, autoGrow])
+
+  // 커서를 끝으로 두고 값 설정(히스토리/복원 공용).
+  const setValueWithCaretEnd = useCallback((text: string) => {
+    setValue(text)
+    requestAnimationFrame(() => {
+      const el = textareaRef.current
+      if (!el) return
+      el.focus()
+      const end = el.value.length
+      el.setSelectionRange(end, end)
+      el.scrollTop = el.scrollHeight
+    })
+  }, [])
+
+  // 전송 실패 원문 복원 — 입력창이 비어있을 때만(작성 중 내용 덮어쓰기 방지).
+  useEffect(() => {
+    if (restoreDraft == null) return
+    onRestoreConsumed()
+    setHistIndex(-1)
+    setValue((cur) => {
+      if (cur.trim()) return cur
+      requestAnimationFrame(() => {
+        const el = textareaRef.current
+        if (!el) return
+        el.focus()
+        const end = el.value.length
+        el.setSelectionRange(end, end)
+      })
+      return restoreDraft
+    })
+  }, [restoreDraft, onRestoreConsumed])
 
   const uploadOne = useCallback(
     async (file: File, convId: string) => {
@@ -213,6 +255,7 @@ export default function Composer({
     if (!trimmed && ready.length === 0) return
     onSend(trimmed.slice(0, MAX_LEN), ready.map((p) => p.id))
     setValue('')
+    setHistIndex(-1)
     setPending([])
     requestAnimationFrame(() => {
       const el = textareaRef.current
@@ -224,6 +267,24 @@ export default function Composer({
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
       submit()
+      return
+    }
+    if (e.nativeEvent.isComposing || history.length === 0) return
+    // ↑ : 탐색 중이면 계속 더 오래된 쪽으로(커서 위치 무관, 터미널 방식).
+    //     초안 상태에서는 입력창이 비었을 때만 진입(작성 중 내용 보호). 타이핑하면 histIndex 리셋.
+    if (e.key === 'ArrowUp' && (histIndex !== -1 || value === '')) {
+      e.preventDefault()
+      const next = historyPrev(histIndex, history.length)
+      setHistIndex(next)
+      setValueWithCaretEnd(history[next])
+      return
+    }
+    // ↓ : 탐색 중이면 더 최신 쪽으로, 최신을 넘으면 초안(빈칸)으로 복귀.
+    if (e.key === 'ArrowDown' && histIndex !== -1) {
+      e.preventDefault()
+      const next = historyNext(histIndex, history.length)
+      setHistIndex(next)
+      setValueWithCaretEnd(next === -1 ? '' : history[next])
     }
   }
 
@@ -360,7 +421,7 @@ export default function Composer({
             className="input-field ai-chat-textarea"
             ref={textareaRef}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e) => { setValue(e.target.value); if (histIndex !== -1) setHistIndex(-1) }}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
             placeholder={

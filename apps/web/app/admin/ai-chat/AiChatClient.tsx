@@ -146,6 +146,8 @@ export default function AiChatClient({
   const [msgError, setMsgError] = useState<string | null>(null)
 
   const [streamDraft, setStreamDraft] = useState<StreamDraft | null>(null)
+  // 전송 실패 시 입력창에 되돌려줄 원문(유실 방지). Composer가 소비 후 null로.
+  const [pendingRestore, setPendingRestore] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [recentlyDeleted, setRecentlyDeleted] = useState<{ id: string; title: string } | null>(null)
   const [systemPromptOpen, setSystemPromptOpen] = useState(false)
@@ -245,6 +247,12 @@ export default function AiChatClient({
 
   // 과거(비활성) 분기 열람 중 = 표시 버전이 그룹 최신이 아님(활성 스레드는 index===count 불변).
   const viewingPast = messages.some((m) => m.branch && m.branch.index < m.branch.count)
+
+  // ↑↓ 입력 히스토리 — 내가 보낸(정상) user 메시지 원문, 오래된→최신 순.
+  const sentHistory = useMemo(
+    () => messages.filter((m) => m.role === 'user' && !m.error && m.content.trim()).map((m) => m.content),
+    [messages],
+  )
 
   // artifact 버전 맵 — 영속 assistant 메시지에서만 파생(스트리밍 중 파싱 금지, §2-3). identity별 버전 시퀀스.
   const artifactVersions = useMemo(() => {
@@ -560,6 +568,8 @@ export default function AiChatClient({
           void reloadMessages(convId)
           return
         }
+        // 전송 실패 → 사용자가 쓴 원문을 입력창으로 되돌려 재시도 가능하게(유실 방지).
+        if (body.mode === 'send' && body.content) setPendingRestore(body.content)
         setStreamDraft((d) => {
           const draft: StreamDraft = d ?? { role: 'assistant', content: '', thinking: null, streaming: false }
           const asst = assistantFromDraft(convId, draft, {
@@ -972,6 +982,9 @@ export default function AiChatClient({
           providers={providers}
           onSend={handleSend}
           onStop={handleStop}
+          history={sentHistory}
+          restoreDraft={pendingRestore}
+          onRestoreConsumed={() => setPendingRestore(null)}
           onOpenModelPicker={() => setModelPickerOpen(true)}
           onOpenAnalyze={() => router.push('/ai-chat/analyze')}
           ensureConversation={ensureConversation}
