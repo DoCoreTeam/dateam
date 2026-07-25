@@ -3,11 +3,17 @@
 import { Pause, Play, Square } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import type { AnalysisSessionControl } from './session-item-actions'
-import type { StreamProgress } from './useAnalysisStream'
+
+export interface AnalysisCounts {
+  total: number
+  done: number
+  running: number
+  pending: number
+  error: number
+}
 
 interface Props {
-  progress: StreamProgress | null
-  itemCount: number
+  counts: AnalysisCounts
   control: AnalysisSessionControl
   mode: 'connecting' | 'live' | 'polling' | 'finished'
   streamError: string | null
@@ -23,19 +29,20 @@ const MODE_LABEL: Record<Props['mode'], string> = {
   finished: '완료',
 }
 
-/** 목록 심층분석 v2 — 진행 표시는 서버 파생값(progress) 그대로 렌더(§ 클라 계산 금지). */
-export default function AnalysisProgressBar({ progress, itemCount, control, mode, streamError, onPause, onCancel, onResume }: Props) {
-  const total = progress?.total ?? itemCount
-  const done = progress?.done ?? 0
-  const error = progress?.error ?? 0
-  const running = progress?.running ?? 0
+/**
+ * 목록 심층분석 v2 — 진행 표시는 항목 상태(items — 서버 폴링 동기화 SSOT)에서 파생한 counts를 렌더한다.
+ * SSE progress 스냅샷만 쓰면 재시도 직후(error→pending) 카운터가 얼어붙어 "아무 일도 안 함"으로 보였다(사고).
+ */
+export default function AnalysisProgressBar({ counts, control, mode, streamError, onPause, onCancel, onResume }: Props) {
+  const { total, done, error, running, pending } = counts
   const pct = total > 0 ? Math.round(((done + error) / total) * 100) : 0
 
   return (
     <div className="card" style={{ padding: 'var(--space-4) var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
         <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-          완료 {done} · 분석중 {running} · 실패 {error} · 전체 {total}
+          완료 {done} · 분석중 {running}
+          {pending > 0 ? ` · 대기 ${pending}` : ''} · 실패 {error} · 전체 {total}
           {' · '}
           <span style={{ color: 'var(--text-faint)' }}>{MODE_LABEL[mode]}</span>
         </span>

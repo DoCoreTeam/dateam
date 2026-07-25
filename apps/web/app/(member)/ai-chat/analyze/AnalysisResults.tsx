@@ -1,7 +1,9 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { RotateCw } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
+import AXDotLoader from '@/components/ui/AXDotLoader'
 import { setAnalyzeChatHandoff } from '@/lib/ai-chat/analyze-chat-bridge'
 import { synthesizeSession } from './analyze-converse-actions'
 import { useAnalysisStream, type InitialItem } from './useAnalysisStream'
@@ -50,6 +52,15 @@ export default function AnalysisResults({ sessionId, initialItems, docType = nul
   const itemList = Object.values(stream.items).sort((a, b) => a.idx - b.idx)
   const hasFailed = itemList.some((i) => i.status === 'error')
   const doneCount = itemList.filter((i) => i.status === 'done').length
+  // 진행 카운트는 항목 상태(items — 서버 폴링 동기화 SSOT)에서 파생한다. SSE progress 스냅샷만 쓰면
+  // 재시도 직후(error→pending) 카운터가 갱신 전까지 얼어붙어 "아무 일도 안 함"으로 보인다(사고).
+  const counts = {
+    total: itemList.length,
+    done: doneCount,
+    running: itemList.filter((i) => i.status === 'running').length,
+    pending: itemList.filter((i) => i.status === 'pending').length,
+    error: itemList.filter((i) => i.status === 'error').length,
+  }
 
   function handleContinueChat(_idx: number, itemText: string, resultText: string): void {
     // 브리지에 담아 새 채팅에서 자동 전송 → AI가 바로 이어서 답한다(ca=1).
@@ -118,8 +129,7 @@ export default function AnalysisResults({ sessionId, initialItems, docType = nul
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
       <AnalysisProgressBar
-        progress={stream.progress}
-        itemCount={itemList.length}
+        counts={counts}
         control={stream.control}
         mode={stream.mode}
         streamError={stream.streamError}
@@ -135,8 +145,15 @@ export default function AnalysisResults({ sessionId, initialItems, docType = nul
             onClick={stream.retryAllFailed}
             style={{ fontSize: 'var(--fs-sm)' }}
           >
-            실패 항목만 재시도
+            <RotateCw size={13} style={{ marginRight: 4 }} />
+            실패 항목만 재시도 ({counts.error})
           </NbButton>
+        </div>
+      )}
+      {!hasFailed && counts.pending > 0 && (
+        <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--info)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <AXDotLoader size={5} color="var(--info)" />
+          재분석 진행 중 · 대기 {counts.pending}건
         </div>
       )}
 

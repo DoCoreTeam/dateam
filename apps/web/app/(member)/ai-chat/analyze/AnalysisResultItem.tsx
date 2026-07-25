@@ -80,6 +80,13 @@ export default function AnalysisResultItem({ idx, text, status, resultText, live
         </span>
       </div>
 
+      {status === 'pending' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <AXDotLoader size={5} color="var(--info)" />
+          <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>분석 대기 중…</span>
+        </div>
+      )}
+
       {status === 'running' && (
         <>
           {liveDelta ? (
