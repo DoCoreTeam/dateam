@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Copy, MessageSquareText, RotateCw } from 'lucide-react'
+import { Check, Copy, MessageSquareText, RotateCw, FileText } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import MarkdownMessage from '@/app/admin/ai-chat/MarkdownMessage'
+import { computeRetention } from '@/lib/ai-chat/analyze/retention'
 import type { AnalysisItemStatus } from './session-item-actions'
 
 interface Props {
@@ -12,6 +13,8 @@ interface Props {
   text: string
   status: AnalysisItemStatus
   resultText: string | null
+  /** 그룹 원문(보존됨) — 원문↔결과 비교·보존율 배지용. */
+  bodyRaw: string
   liveDelta: string
   onRetry: (idx: number) => void
   onContinueChat: (idx: number, text: string, resultText: string) => void
@@ -25,11 +28,17 @@ const STATUS_MAP: Record<AnalysisItemStatus, { label: string; color: string; bg:
 }
 
 /** 목록 심층분석 v2 — 항목 1건 카드. 상태 배지는 항상 서버 status 그대로(§ 하드코딩 금지). */
-export default function AnalysisResultItem({ idx, text, status, resultText, liveDelta, onRetry, onContinueChat }: Props) {
+export default function AnalysisResultItem({ idx, text, status, resultText, bodyRaw, liveDelta, onRetry, onContinueChat }: Props) {
   const [copied, setCopied] = useState(false)
   const [expanded, setExpanded] = useState(status === 'done')
+  const [showOriginal, setShowOriginal] = useState(false)
   const s = STATUS_MAP[status]
   const displayText = status === 'done' ? resultText ?? '' : liveDelta
+
+  // 보존율 — 원문의 ID·수치가 결과에 남았는지(생략 자동감지). 원문·결과 둘 다 있을 때만 계산.
+  const retention =
+    status === 'done' && resultText && bodyRaw ? computeRetention(bodyRaw, resultText) : null
+  const hasMissing = retention !== null && !retention.empty && retention.missing.length > 0
 
   function copy(): void {
     navigator.clipboard.writeText(resultText ?? '').catch(() => {})
@@ -65,19 +74,35 @@ export default function AnalysisResultItem({ idx, text, status, resultText, live
             {text}
           </p>
         </div>
-        <span
-          style={{
-            flexShrink: 0,
-            fontSize: 'var(--fs-2xs)',
-            fontWeight: 600,
-            color: s.color,
-            background: s.bg,
-            borderRadius: 'var(--radius)',
-            padding: '0.15rem 0.5rem',
-          }}
-        >
-          {s.label}
-        </span>
+        <div style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+          {retention && !retention.empty && (
+            <span
+              title={hasMissing ? `누락: ${retention.missing.join(', ')}` : '원문의 ID·수치가 결과에 모두 보존됨'}
+              style={{
+                fontSize: 'var(--fs-2xs)',
+                fontWeight: 600,
+                color: hasMissing ? 'var(--warning)' : 'var(--success)',
+                background: hasMissing ? 'var(--warning-bg)' : 'var(--success-bg)',
+                borderRadius: 'var(--radius)',
+                padding: '0.15rem 0.5rem',
+              }}
+            >
+              ID {retention.idKept}/{retention.idTotal} · 수치 {retention.numKept}/{retention.numTotal}
+            </span>
+          )}
+          <span
+            style={{
+              fontSize: 'var(--fs-2xs)',
+              fontWeight: 600,
+              color: s.color,
+              background: s.bg,
+              borderRadius: 'var(--radius)',
+              padding: '0.15rem 0.5rem',
+            }}
+          >
+            {s.label}
+          </span>
+        </div>
       </div>
 
       {status === 'pending' && (
@@ -117,8 +142,24 @@ export default function AnalysisResultItem({ idx, text, status, resultText, live
 
       {status === 'done' && resultText && expanded && (
         <>
+          {hasMissing && (
+            <div
+              role="alert"
+              style={{
+                display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--space-2)',
+                fontSize: 'var(--fs-xs)', color: 'var(--warning)', background: 'var(--warning-bg)',
+                border: 'var(--hairline) solid var(--warning-border)', borderRadius: 'var(--radius)',
+                padding: '0.4rem 0.6rem', marginBottom: 'var(--space-2)',
+              }}
+            >
+              <span>원문 대비 누락 {retention?.missing.length}건: {retention?.missing.join(', ')}</span>
+              <NbButton variant="ghost" onClick={(e) => { e.stopPropagation(); onRetry(idx) }} style={{ fontSize: 'var(--fs-2xs)', minHeight: 30 }}>
+                <RotateCw size={11} /> 누락 반영 재분석
+              </NbButton>
+            </div>
+          )}
           <MarkdownMessage content={resultText} />
-          <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)', flexWrap: 'wrap' }}>
             <button
               type="button"
               className="ai-chat-icon-btn"
@@ -130,6 +171,17 @@ export default function AnalysisResultItem({ idx, text, status, resultText, live
             >
               {copied ? <Check size={14} /> : <Copy size={14} />}
             </button>
+            {bodyRaw && (
+              <NbButton
+                variant="ghost"
+                onClick={(e) => { e.stopPropagation(); setShowOriginal((v) => !v) }}
+                data-active={showOriginal}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: 'var(--fs-xs)' }}
+              >
+                <FileText size={14} />
+                {showOriginal ? '원문 숨기기' : '원문 보기'}
+              </NbButton>
+            )}
             <NbButton
               variant="ghost"
               onClick={(e) => {
@@ -142,6 +194,22 @@ export default function AnalysisResultItem({ idx, text, status, resultText, live
               채팅으로 이어가기
             </NbButton>
           </div>
+          {showOriginal && bodyRaw && (
+            <div
+              style={{
+                marginTop: 'var(--space-2)', padding: 'var(--space-3)',
+                background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--border-color)',
+                borderRadius: 'var(--radius)',
+              }}
+            >
+              <div style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--text-faint)', marginBottom: 'var(--space-1)' }}>
+                내가 넣은 원문
+              </div>
+              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', fontFamily: 'inherit' }}>
+                {bodyRaw}
+              </pre>
+            </div>
+          )}
         </>
       )}
       {status === 'done' && resultText && !expanded && (

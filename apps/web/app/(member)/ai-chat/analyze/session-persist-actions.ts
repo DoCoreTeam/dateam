@@ -77,7 +77,7 @@ export interface AnalysisSessionDetail {
   sourceKind: string
   synthText: string | null
   docType: string | null
-  items: { idx: number; text: string; status: AnalysisItemStatus; resultText: string | null }[]
+  items: { idx: number; text: string; status: AnalysisItemStatus; resultText: string | null; bodyRaw: string }[]
 }
 
 /** 세션 1건 상세 조회(§G "이어하기") — 항목은 idx asc(추출 당시 순서 보존). */
@@ -112,7 +112,7 @@ export async function getAnalysisSession(
   // 구·신 그룹이 한 목록에 섞여 보인다(실측 사고: 리비전1 3건 + 리비전2 5건 = 8건 노출).
   const { data: itemRows } = await admin
     .from('ai_analysis_items')
-    .select('idx, item_text, title, status, result_text')
+    .select('idx, item_text, title, status, result_text, body_raw')
     .eq('session_id', sessionId)
     .eq('revision', sess.grouping_revision ?? 1)
     .order('idx', { ascending: true })
@@ -123,6 +123,7 @@ export async function getAnalysisSession(
     item_text: string
     status: AnalysisItemStatus
     result_text: string | null
+    body_raw: string | null
   }[]
 
   return {
@@ -140,6 +141,7 @@ export async function getAnalysisSession(
         text: it.item_text,
         status: it.status,
         resultText: it.result_text,
+        bodyRaw: it.body_raw ?? '',
       })),
     },
   }

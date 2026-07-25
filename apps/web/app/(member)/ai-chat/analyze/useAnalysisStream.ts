@@ -27,6 +27,8 @@ export interface StreamItemState {
   text: string
   status: AnalysisItemStatus
   resultText: string | null
+  /** 그룹 원문(보존됨) — 원문↔결과 비교·보존율 산출용. 없으면 빈 문자열. */
+  bodyRaw: string
 }
 
 export interface StreamProgress {
@@ -46,6 +48,8 @@ export interface InitialItem {
   text: string
   status: AnalysisItemStatus
   resultText: string | null
+  /** 그룹 원문(보존됨). 그룹핑 결과=g.bodyRaw, 세션 로드=item.body_raw. */
+  bodyRaw: string
 }
 
 function settled(progress: StreamProgress | null): boolean {
@@ -62,7 +66,7 @@ export function useAnalysisStream(sessionId: string, initialItems: InitialItem[]
   const [items, setItems] = useState<Record<number, StreamItemState>>(() => {
     const map: Record<number, StreamItemState> = {}
     initialItems.forEach((it) => {
-      map[it.idx] = { idx: it.idx, text: it.text, status: it.status, resultText: it.resultText }
+      map[it.idx] = { idx: it.idx, text: it.text, status: it.status, resultText: it.resultText, bodyRaw: it.bodyRaw }
     })
     return map
   })
@@ -83,7 +87,7 @@ export function useAnalysisStream(sessionId: string, initialItems: InitialItem[]
     setItems((prev) => {
       const next = { ...prev }
       rows.forEach((r) => {
-        next[r.idx] = { idx: r.idx, text: r.text, status: r.status, resultText: r.resultText }
+        next[r.idx] = { idx: r.idx, text: r.text, status: r.status, resultText: r.resultText, bodyRaw: r.bodyRaw }
       })
       return next
     })

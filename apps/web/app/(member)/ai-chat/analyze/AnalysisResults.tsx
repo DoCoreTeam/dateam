@@ -184,6 +184,7 @@ export default function AnalysisResults({ sessionId, initialItems, docType = nul
             text={item.text}
             status={item.status}
             resultText={item.resultText}
+            bodyRaw={item.bodyRaw}
             liveDelta={stream.deltas[item.idx] ?? ''}
             onRetry={stream.retryItem}
             onContinueChat={handleContinueChat}

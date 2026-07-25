@@ -144,7 +144,7 @@ export default function AnalyzeClient() {
   function handleDeepRun(): void {
     if (!groupingResult) return
     setInitialItems(
-      groupingResult.groups.map((g, idx) => ({ idx, text: g.title, status: 'pending' as const, resultText: null })),
+      groupingResult.groups.map((g, idx) => ({ idx, text: g.title, status: 'pending' as const, resultText: null, bodyRaw: g.bodyRaw })),
     )
     setStep('results')
   }
@@ -159,7 +159,7 @@ export default function AnalyzeClient() {
   function handleConverseSynthesized(): void {
     if (!groupingResult) return
     setInitialItems(
-      groupingResult.groups.map((g, idx) => ({ idx, text: g.title, status: 'done' as const, resultText: null })),
+      groupingResult.groups.map((g, idx) => ({ idx, text: g.title, status: 'done' as const, resultText: null, bodyRaw: g.bodyRaw })),
     )
     setStep('results')
   }
@@ -174,7 +174,7 @@ export default function AnalyzeClient() {
     setGroupingResult(null)
     setResumedSessionId(r.session.id)
     setInitialItems(
-      r.session.items.map((it) => ({ idx: it.idx, text: it.text, status: it.status, resultText: it.resultText })),
+      r.session.items.map((it) => ({ idx: it.idx, text: it.text, status: it.status, resultText: it.resultText, bodyRaw: it.bodyRaw })),
     )
     setStep('results')
   }

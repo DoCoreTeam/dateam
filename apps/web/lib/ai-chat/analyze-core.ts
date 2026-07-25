@@ -12,11 +12,10 @@ import {
   type DigestItem,
 } from './synthesize-hierarchical.ts'
 import {
-  buildRefinePrompt,
   buildFreeRefinePrompt,
-  refineResultOrFallback,
+  buildAugmentPrompt,
   freeRefineOrFallback,
-  renderRefineMarkdown,
+  renderAugmentMarkdown,
   type GroupRefineInput,
 } from './grouping/refine-group.ts'
 import type { DocType } from './grouping/classify-doc.ts'
@@ -133,8 +132,10 @@ export interface RefineGroupOutcome {
  * 호출 자체가 실패해도 refineResultOrFallback이 그룹 원문을 최종 폴백으로 보증한다.
  */
 export async function refineGroupItem(p: RefineGroupParams): Promise<RefineGroupOutcome> {
-  // 사용자 지시(command)가 있으면 지시가 출력 골격까지 지배한다 — 근거/가정/미결질문 고정 래퍼·JSON 스키마 없이
-  // 자유 서술("틀에 갇힌 출력" 해소). 지시가 없을 때만 문서유형 기반 복원 골격(현행)을 유지한다.
+  // 두 모드:
+  //  - 지시 없음(기본) = 증강: 원문을 그대로 보존하고 그 아래 "분석·보강"만 덧붙인다.
+  //    → 양이 원문 이하로 안 내려가고, ID·수치 보존율 100%가 설계상 보장된다("양 감소·생략" 해소).
+  //  - 지시 있음 = 자유 서술: 사용자가 형식 변환을 원한 것이므로 지시대로 재작성한다(v0.7.399).
   const hasCommand = p.command.trim().length > 0
   const promptParams = {
     group: p.group,
@@ -143,7 +144,7 @@ export async function refineGroupItem(p: RefineGroupParams): Promise<RefineGroup
     command: p.command,
     template: p.template,
   }
-  const prompt = hasCommand ? buildFreeRefinePrompt(promptParams) : buildRefinePrompt(promptParams)
+  const prompt = hasCommand ? buildFreeRefinePrompt(promptParams) : buildAugmentPrompt(promptParams)
 
   const result = await streamChatWithFallback(
     {
@@ -157,11 +158,11 @@ export async function refineGroupItem(p: RefineGroupParams): Promise<RefineGroup
   )
 
   if (hasCommand) {
-    // 자유 서술 — 지시한 형식 그대로. 고정 섹션 조립 없이 AI markdown을 그대로 쓰되 유실0 폴백은 유지.
+    // 자유 서술 — 지시한 형식 그대로. 유실0 폴백 유지.
     return { resultText: freeRefineOrFallback(result.text, p.group), parseOk: true, usage: result.usage }
   }
-  const parsed = refineResultOrFallback(result.text, p.group)
-  return { resultText: renderRefineMarkdown(parsed), parseOk: parsed.parseOk, usage: result.usage }
+  // 증강 — 원문(verbatim) + AI 보강. AI가 비어도 원문은 그대로 남는다(무손실).
+  return { resultText: renderAugmentMarkdown(p.group.bodyRaw, result.text), parseOk: true, usage: result.usage }
 }
 
 export interface SynthItem {

@@ -3,10 +3,12 @@ import assert from 'node:assert/strict'
 import {
   buildRefinePrompt,
   buildFreeRefinePrompt,
+  buildAugmentPrompt,
   parseRefineResult,
   refineResultOrFallback,
   freeRefineOrFallback,
   renderRefineMarkdown,
+  renderAugmentMarkdown,
   type GroupRefineInput,
 } from './refine-group.ts'
 
@@ -44,6 +46,24 @@ test('buildFreeRefinePrompt: 지시 주도 — 고정 섹션 금지 지시 + 지
   assert.match(prompt, /순수 markdown 본문만/) // JSON 스키마 강제 없음
   assert.match(prompt, /사용자 인증/) // 그룹 원문 주입
   assert.doesNotMatch(prompt, /JSON 객체 하나만/) // 복원 골격의 스키마 강제 문구는 없어야 함
+})
+
+test('buildAugmentPrompt: 원문 재출력 금지 + 보강만 지시', () => {
+  const prompt = buildAugmentPrompt({ group, docType: 'requirements', docContext: '', command: '' })
+  assert.match(prompt, /원문을 다시 출력하지 마라/)
+  assert.match(prompt, /분석·보강/)
+  assert.match(prompt, /로그인은 이메일과 비밀번호로 한다/) // 원문 주입(모델이 보고 보강)
+})
+
+test('renderAugmentMarkdown: 원문 verbatim 보존 + 보강 덧붙임', () => {
+  const out = renderAugmentMarkdown(group.bodyRaw, 'bcrypt로 해싱한다.')
+  assert.ok(out.startsWith(group.bodyRaw.trim()), '원문이 앞에 그대로')
+  assert.match(out, /분석·보강/)
+  assert.match(out, /bcrypt로 해싱한다/)
+})
+
+test('renderAugmentMarkdown: 보강이 비면 원문만(무손실)', () => {
+  assert.equal(renderAugmentMarkdown(group.bodyRaw, '   '), group.bodyRaw.trim())
 })
 
 test('freeRefineOrFallback: 코드펜스를 벗기고 본문을 그대로 보존한다', () => {

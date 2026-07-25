@@ -98,6 +98,34 @@ export function buildRefinePrompt(p: BuildRefinePromptParams): string {
 }
 
 /**
+ * "증강(augment)" 프롬프트 — 지시가 없을 때의 새 기본. 원문을 재서술·대체하지 않는다.
+ * 원문은 호출측이 결과 앞에 그대로(verbatim) 붙이므로, AI는 **원문 아래에 덧붙일 '분석·보강'만** 생성한다.
+ * 이렇게 하면 (1)원문 100% 보존 (2)양이 원문 이하로 안 내려감 (3)ID·수치 보존율 100%가 설계상 보장된다.
+ * (기존 "복원 골격"은 원문을 산문으로 재서술해 고밀도 정본에서 양·구체성이 되레 줄던 문제가 있었다.)
+ */
+export function buildAugmentPrompt(p: BuildRefinePromptParams): string {
+  const cmd = p.command.trim()
+  return (
+    '아래 "그룹 원문"은 사용자에게 그대로 보존되어 보여진다. 너는 원문을 다시 쓰지 않는다.\n' +
+    '네 일은 원문 바로 아래에 붙일 **"분석·보강"** 블록만 작성하는 것이다 — 원문 각 요소를 실무에서 바로 쓸 깊이로 구체화한다.\n\n' +
+    (cmd ? `참고 지시: ${cmd}\n` : '') +
+    templateGuideLines(p.template) +
+    '\n반드시 지킬 것:\n' +
+    '- 원문을 다시 출력하지 마라(원문은 이미 위에 그대로 있다). 오직 "덧붙일 보강"만 낸다.\n' +
+    '- 원문에 이미 있는 문장을 말만 바꿔 반복하지 마라. 원문이 생략한 것을 실제로 더한다:\n' +
+    '    · 실제 선택지·후보·비교 축(예: "PG 비교" → "수수료율·정산주기(T+N)·지원수단·연동난이도")\n' +
+    '    · 실행 절차·판단 기준·측정 지표(숫자·단위 포함)\n' +
+    '    · 원문 수치·ID를 인용해 그 근거·트레이드오프·리스크를 전개(원문 ID/수치는 지우지 말고 참조)\n' +
+    '- 포괄적·원론적 서술("~를 검토해야 한다"류) 금지. 근거 없는 사실을 지어내지 마라(불확실하면 밝힌다).\n' +
+    '- 출력은 순수 markdown 보강 본문만. 제목은 붙이지 마라(호출측이 "분석·보강" 헤더를 붙인다).\n\n' +
+    `문서 전체 구조(맥락 단서):\n"""\n${p.docContext.slice(0, 6000)}\n"""\n\n` +
+    `이 그룹의 문서 내 위치: ${p.group.treePath} (깊이 ${p.group.depth})\n` +
+    `그룹 제목: ${p.group.title}\n\n` +
+    `그룹 원문(보존됨 — 재출력 금지):\n"""\n${p.group.bodyRaw}\n"""`
+  )
+}
+
+/**
  * command 주도 "자유 서술" 프롬프트 — 사용자 지시가 있을 때 사용한다.
  * 근거/가정/미결질문 고정 래퍼도, JSON 스키마 강제도 없다. 지시가 출력 형식·구성을 지배한다.
  * (문서 맥락·위치·원문은 여전히 주입 — 고립되지 않은 심화를 위해.) 압축복원 원칙(재표현·환각 금지)은 유지.
@@ -121,6 +149,17 @@ export function buildFreeRefinePrompt(p: BuildRefinePromptParams): string {
     `그룹 제목: ${p.group.title}\n\n` +
     `대상 그룹 원문(압축본):\n"""\n${p.group.bodyRaw}\n"""`
   )
+}
+
+/**
+ * 증강 모드 렌더 — 원문(verbatim) + 구분선 + "분석·보강"(AI). AI 보강이 비면 원문만(무손실).
+ * 원문을 코드가 직접 붙이므로 AI가 원문을 지우거나 축약할 수 없다(보존 100% 보장).
+ */
+export function renderAugmentMarkdown(bodyRaw: string, augmentationRaw: string): string {
+  const aug = augmentationRaw.trim().replace(/^```(?:\w+)?\s*/i, '').replace(/```\s*$/i, '').trim()
+  const original = bodyRaw.trim()
+  if (!aug) return original
+  return `${original}\n\n---\n\n**🔎 분석·보강**\n\n${aug}`
 }
 
 /**
