@@ -31,6 +31,7 @@ export type GpuActionType =
   | 'product_created'
   | 'product_updated'
   | 'product_deleted'
+  | 'product_restored'
   | 'market_price_updated'
   | 'market_price_deleted'
   | 'competitor_merged'
@@ -56,13 +57,16 @@ export interface RecordGpuAuditParams {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function recordGpuAudit(db: any, params: RecordGpuAuditParams): Promise<void> {
   try {
-    await db.from('gpu_audit_logs').insert({
+    // supabase-js는 CHECK 위반 시 throw하지 않고 { error }를 반환 — 무음 실패(action_type CHECK 드리프트)
+    // 조기 감지를 위해 error를 검사·로깅한다. 여전히 비치명적(주 흐름 미중단).
+    const { error } = await db.from('gpu_audit_logs').insert({
       actor: params.actor,
       action_type: params.actionType,
       product_id: params.productId ?? null,
       detail: params.detail ?? {},
       evidence_ref: params.evidenceRef ?? null,
     })
+    if (error) console.error('[gpu/audit] insert rejected', params.actionType, error.message ?? error)
   } catch (err) {
     // 감사 로그 실패는 비치명적 — 주 작업 흐름을 중단하지 않음
     console.error('[gpu/audit] recordGpuAudit failed', err)

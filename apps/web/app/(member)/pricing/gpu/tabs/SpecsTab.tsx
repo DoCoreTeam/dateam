@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
-import { Sparkles, X, Save, Pencil, Plus } from 'lucide-react'
+import { Sparkles, X, Save, Pencil, Plus, Trash2, RotateCcw } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import { memoryTitle } from '@/lib/gpu/card-memory'
 import ModelCandidateQueue from './ModelCandidateQueue'
@@ -273,11 +273,131 @@ function AddModelModal({ prefillName, prefillCount, onClose, onSaved }: { prefil
   )
 }
 
+// 영향 상세 키 → 한글 라벨 (impact.ts countProductRefs와 동기)
+const IMPACT_LABEL: Record<string, string> = {
+  supply_quotes: '공급 견적', direct_prices: '직접가', availability_responses: '재고 응답',
+  pool_stock: '풀 재고', gcube_price_checks: 'gcube 시세', term_prices: '약정가', competitor_mapping: '경쟁사 매칭',
+}
+
+// 모델(base) 일괄 삭제 확인 모달 — 연관 데이터 영향 프리뷰 후 확정. 소프트삭제라 되돌리기 가능.
+function DeleteModelModal({ group, onClose, onDeleted }: { group: ModelGroup; onClose: () => void; onDeleted: () => void }) {
+  useEscClose(onClose)
+  const productIds = group.variants.flatMap((v) => v.configs.map((c) => c.id))
+  const [impact, setImpact] = useState<Record<string, number> | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const run = async (force: boolean) => {
+    setBusy(true); setErr(null)
+    try {
+      const res = await fetch(`/api/pricing/gpu/models${force ? '?force=true' : ''}`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productIds }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (res.status === 409) { setImpact(j.impact ?? {}); return }   // 연관 데이터 있음 → 영향 노출 후 강제 확인
+      if (!res.ok) { setErr(j.error ?? '삭제 실패'); return }
+      onDeleted()
+    } catch { setErr('삭제 실패 — 네트워크를 확인하세요') } finally { setBusy(false) }
+  }
+
+  const impactRows = impact ? Object.entries(impact).filter(([, n]) => (n ?? 0) > 0) : []
+  const impactTotal = impactRows.reduce((s, [, n]) => s + (n ?? 0), 0)
+
+  return (
+    <div className="gpu-modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="gpu-modal-card gpu-modal-card--sm" onClick={(e) => e.stopPropagation()}>
+        <div className="gpu-modal-header">
+          <strong className="tape-title">모델 삭제 — {group.base_name}</strong>
+          <button type="button" onClick={onClose} className="gpu-modal-close" aria-label="닫기"><X size={16} /></button>
+        </div>
+        <div className="gpu-modal-body">
+          <p style={{ fontSize: 12.5, color: 'var(--text-faint)', margin: '0 0 10px' }}>
+            <b>{group.base_name}</b>의 폼팩터 {group.variants.length}종 · 구성 {group.config_count}개를 모두 삭제합니다.
+            소프트삭제이므로 <b>‘삭제된 모델’에서 되돌릴 수 있습니다.</b>
+          </p>
+          {impact && (
+            impactRows.length > 0 ? (
+              <div style={{ fontSize: 12, background: 'var(--color-bg)', border: 'var(--border-w-2) solid var(--gpu-amber)', borderRadius: 8, padding: '9px 11px', margin: '0 0 10px' }}>
+                <div style={{ fontWeight: 700, color: 'var(--gpu-amber)', marginBottom: 5 }}>연결된 데이터 {impactTotal}건이 함께 숨겨집니다</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 10px', color: 'var(--text-muted)' }}>
+                  {impactRows.map(([k, n]) => <span key={k}>{IMPACT_LABEL[k] ?? k} <b>{n}</b></span>)}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 5 }}>되돌리면 이 데이터도 그대로 복구됩니다.</div>
+              </div>
+            ) : (
+              <div style={{ fontSize: 12, color: 'var(--gpu-muted)', margin: '0 0 10px' }}>연결된 데이터 없음 — 바로 삭제됩니다.</div>
+            )
+          )}
+          {err && <div className="gpu-link-err">{err}</div>}
+          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+            {!impact ? (
+              <button className="gpu-btn" disabled={busy} onClick={() => run(false)} style={{ gap: 5, color: 'var(--gpu-red)', borderColor: 'var(--gpu-red)' }}>
+                <Trash2 size={14} /> {busy ? '확인 중…' : '삭제'}
+              </button>
+            ) : impactRows.length > 0 ? (
+              <button className="gpu-btn" disabled={busy} onClick={() => run(true)} style={{ gap: 5, color: '#fff', background: 'var(--gpu-red)', borderColor: 'var(--gpu-red)' }}>
+                <Trash2 size={14} /> {busy ? '삭제 중…' : `함께 삭제하고 정리 (${impactTotal}건)`}
+              </button>
+            ) : (
+              <button className="gpu-btn" disabled={busy} onClick={() => run(true)} style={{ gap: 5, color: '#fff', background: 'var(--gpu-red)', borderColor: 'var(--gpu-red)' }}>
+                <Trash2 size={14} /> {busy ? '삭제 중…' : '삭제'}
+              </button>
+            )}
+            <button className="gpu-btn" onClick={onClose}>취소</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// 삭제된 모델 — 되돌리기(복구) 섹션. 접힘 상태 기본, 펼칠 때만 로드. 고정높이 스크롤(무한 팽창 방지).
+function DeletedModelsSection({ onRestored }: { onRestored: () => void }) {
+  const [open, setOpen] = useState(false)
+  const { data, mutate: mutateDeleted } = useSWR<{ models: ModelGroup[] }>(open ? '/api/pricing/gpu/specs?deleted=1' : null, fetcher)
+  const deleted = data?.models ?? []
+  const [busy, setBusy] = useState<string | null>(null)
+
+  const restore = async (g: ModelGroup) => {
+    setBusy(g.base_key)
+    try {
+      const productIds = g.variants.flatMap((v) => v.configs.map((c) => c.id))
+      const res = await fetch('/api/pricing/gpu/models', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productIds }) })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); alert(j.error ?? '복구 실패'); return }
+      mutateDeleted(); onRestored()
+    } finally { setBusy(null) }
+  }
+
+  return (
+    <div style={{ margin: '14px 0 0' }}>
+      <button className="gpu-btn" onClick={() => setOpen((o) => !o)} style={{ gap: 6, fontSize: 12.5 }}>
+        <RotateCcw size={14} /> 삭제된 모델 {open ? '접기' : '보기'}{open && ` (${deleted.length})`}
+      </button>
+      {open && (
+        <div style={{ marginTop: 8, maxHeight: 260, overflowY: 'auto', border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 10 }}>
+          {deleted.length === 0 ? (
+            <div style={{ padding: 20, textAlign: 'center', fontSize: 12.5, color: 'var(--gpu-faint)' }}>삭제된 모델이 없습니다</div>
+          ) : deleted.map((g) => (
+            <div key={g.base_key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderBottom: 'var(--hairline) solid var(--surface-bg)' }}>
+              <span style={{ fontWeight: 700, fontSize: 13 }}>{g.base_name}</span>
+              <span style={{ fontSize: 11.5, color: 'var(--gpu-muted)' }}>폼팩터 {g.variants.length} · 구성 {g.config_count}</span>
+              <button className="gpu-btn" disabled={busy === g.base_key} onClick={() => restore(g)} style={{ gap: 4, marginLeft: 'auto', fontSize: 12, color: 'var(--gpu-green)', borderColor: 'var(--gpu-green)' }}>
+                <RotateCcw size={13} /> {busy === g.base_key ? '복구 중…' : '되돌리기'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function SpecsTab() {
   const { data } = useSWR<{ models: ModelGroup[] }>('/api/pricing/gpu/specs', fetcher)
   const { mutate } = useSWRConfig()
   const groups = data?.models ?? []
   const [open, setOpen] = useState<ModelRow | null>(null)
+  const [delOpen, setDelOpen] = useState<ModelGroup | null>(null)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const toggleExpand = (k: string) => setExpanded((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n })
   const [addOpen, setAddOpen] = useState<{ name: string; count?: string } | null>(null)
@@ -455,7 +575,12 @@ export default function SpecsTab() {
               const v = g.variants[0]
               return [(
                 <tr key={g.base_key} onClick={() => setOpen(v)} style={{ cursor: 'pointer' }}>
-                  <td className="card-header"><span style={{ fontWeight: 700 }}>{v.model_name}</span></td>
+                  <td className="card-header">
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontWeight: 700 }}>{v.model_name}</span>
+                      <button onClick={(e) => { e.stopPropagation(); setDelOpen(g) }} title="모델 삭제" className="gpu-btn" style={{ marginLeft: 'auto', padding: '3px 6px', color: 'var(--gpu-red)' }}><Trash2 size={13} /></button>
+                    </span>
+                  </td>
                   {variantCells(v)}
                 </tr>
               )]
@@ -467,10 +592,13 @@ export default function SpecsTab() {
             const rows: ReactNode[] = [(
               <tr key={g.base_key} onClick={() => toggleExpand(g.base_key)} style={{ cursor: 'pointer' }}>
                 <td className="card-header">
-                  <span style={{ fontWeight: 700 }}>
-                    <span style={{ display: 'inline-block', width: 14, color: 'var(--gpu-muted)', transition: 'transform .15s', transform: isOpen ? 'rotate(90deg)' : 'none' }}>▸</span>
-                    {g.base_name}
-                    <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.1)', borderRadius: 5, padding: '1px 6px' }}>폼팩터 {g.variants.length}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontWeight: 700 }}>
+                      <span style={{ display: 'inline-block', width: 14, color: 'var(--gpu-muted)', transition: 'transform .15s', transform: isOpen ? 'rotate(90deg)' : 'none' }}>▸</span>
+                      {g.base_name}
+                      <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.1)', borderRadius: 5, padding: '1px 6px' }}>폼팩터 {g.variants.length}</span>
+                    </span>
+                    <button onClick={(e) => { e.stopPropagation(); setDelOpen(g) }} title="모델 전체 삭제" className="gpu-btn" style={{ marginLeft: 'auto', padding: '3px 6px', color: 'var(--gpu-red)' }}><Trash2 size={13} /></button>
                   </span>
                 </td>
                 <td data-label="Tier"><span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>T{g.tier}</span></td>
@@ -506,7 +634,10 @@ export default function SpecsTab() {
         </tbody>
       </table>
 
+      <DeletedModelsSection onRestored={refresh} />
+
       {open && <SpecModal row={open} onClose={() => setOpen(null)} onSaved={refresh} />}
+      {delOpen && <DeleteModelModal group={delOpen} onClose={() => setDelOpen(null)} onDeleted={() => { setDelOpen(null); refresh() }} />}
       {addOpen && <AddModelModal prefillName={addOpen.name} prefillCount={addOpen.count} onClose={() => setAddOpen(null)} onSaved={() => { setAddOpen(null); refresh() }} />}
     </div>
   )

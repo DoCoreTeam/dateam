@@ -23,25 +23,10 @@ interface ModelGroup {
 const FF_ORDER: Record<string, number> = { SXM: 1, PCIe: 2, NVL: 3 }
 const ffRank = (f: FormFactor | null): number => (f ? FF_ORDER[f] ?? 9 : 0)
 
-// GET /api/pricing/gpu/specs
-//  실제 gpu_products를 base 모델(캐노니컬)로 그룹핑 → 폼팩터 하위축 → 구성(장수) 배열. gpu_specs 조인.
-//  "H100 SXM/PCIe/NVL/H100"이 한 "H100" 그룹으로 묶여 화면에 1종으로 뜬다(그룹핑 SSOT=baseModelKey).
-export async function GET() {
-  const auth = await requireMemberApi()
-  if (auth.error) return auth.error
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 })
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
-
-  const { data: products } = await db
-    .from('gpu_products')
-    .select('id, model_name, tier, memory, gpu_count, vcpu, ram_gb, storage_gb, series')
-    .is('deleted_at', null)   // 소프트삭제 제품 제외 — 안 걸면 삭제된 표기중복(예: "NVIDIA RTX PRO 6000")이 그룹에 섞여 가짜 폼팩터로 뜬다
-    .order('tier').order('model_name').order('gpu_count')
-  const { data: specs } = await db.from('gpu_specs').select('*')
-
+// gpu_products 행 + gpu_specs를 base 모델(캐노니컬) → 폼팩터 변형 → 구성(장수) 배열로 그룹핑.
+//  활성 목록과 삭제된(복구용) 목록이 동일 로직을 공유하도록 분리(SSOT).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function groupModels(products: any[], specs: any[]): ModelGroup[] {
   const specByModel = new Map<string, Record<string, unknown>>()
   for (const s of specs ?? []) specByModel.set(s.model_name as string, s)
 
@@ -77,8 +62,34 @@ export async function GET() {
   for (const g of Array.from(byBase.values())) {
     g.variants.sort((a: Variant, b: Variant) => ffRank(a.form_factor) - ffRank(b.form_factor) || a.model_name.localeCompare(b.model_name))
   }
+  return Array.from(byBase.values())
+}
 
-  return NextResponse.json({ models: Array.from(byBase.values()) })
+// GET /api/pricing/gpu/specs          — 활성(deleted_at IS NULL) 모델 그룹
+// GET /api/pricing/gpu/specs?deleted=1 — 소프트삭제된 모델 그룹(되돌리기 UI용). 각 변형의 configs[].id로 복구.
+//  "H100 SXM/PCIe/NVL/H100"이 한 "H100" 그룹으로 묶여 화면에 1종으로 뜬다(그룹핑 SSOT=baseModelKey).
+export async function GET(req: NextRequest) {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
+  const wantDeleted = new URL(req.url).searchParams.get('deleted') === '1'
+
+  let q = db
+    .from('gpu_products')
+    .select('id, model_name, tier, memory, gpu_count, vcpu, ram_gb, storage_gb, series')
+    .order('tier').order('model_name').order('gpu_count')
+  // 삭제 제품 제외 — 안 걸면 삭제된 표기중복이 그룹에 섞여 가짜 폼팩터로 뜬다. deleted=1이면 반대로 삭제분만.
+  q = wantDeleted ? q.not('deleted_at', 'is', null) : q.is('deleted_at', null)
+
+  const { data: products } = await q
+  const { data: specs } = await db.from('gpu_specs').select('*')
+
+  return NextResponse.json({ models: groupModels(products ?? [], specs ?? []) })
 }
 
 const EDITABLE = [
