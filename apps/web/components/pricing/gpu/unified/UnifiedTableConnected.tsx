@@ -42,6 +42,8 @@ export default function UnifiedTableConnected({ marginPct, isAdmin, onMarginSave
       isAdmin={isAdmin}
       // 마진 저장 → cockpit 재조회(자동가 재계산) + 상위 settings revalidate(표시값 갱신)
       onMarginSaved={() => { mutate(); onMarginSaved?.() }}
+      // 취급(노출) 토글 → cockpit 재조회로 is_active 반영
+      onVisibilityChanged={() => { mutate() }}
       onRegisterQuote={onRegisterQuote}
       onManageMapping={onManageMapping}
     />

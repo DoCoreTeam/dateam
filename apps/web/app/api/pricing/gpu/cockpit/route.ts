@@ -459,6 +459,10 @@ export async function GET() {
         storage_gb: p.storage_gb ?? null,
 
         // gcube 사이트 가격 (list 견적 기반)
+        // 노출 큐레이션(마이그180) — 표시 계층 필터/배지용. 값 전달만, 필터는 클라이언트(UnifiedTable)에서.
+        is_active: p.is_active ?? true,
+        needs_review: p.needs_review ?? false,
+
         gcube_site_price_krw: gcubeSitePriceKrw,
         gcube_site_quote_id: gcubeSite?.quote_id ?? null,
         gcube_site_updated_at: gcubeSite?.updated_at ?? null,

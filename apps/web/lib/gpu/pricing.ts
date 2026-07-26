@@ -59,6 +59,10 @@ export interface CatalogProduct {
   ram_gb: number | null
   storage_gb: number | null
   series: string | null
+  /** 노출 큐레이션(마이그180) — 가격표 기본 노출 여부. 필터는 표시 계층에서만. */
+  is_active: boolean | null
+  /** 신규 유입 검토 대기 표식(마이그180). */
+  needs_review: boolean | null
   // 자기 구성 직접 최저견적 (전파 전)
   own_lowest_usd: number | null
   own_supplier: { name: string; color: string } | null
@@ -153,6 +157,9 @@ export interface CatalogRawData {
     ram_gb: number | null; storage_gb: number | null; series: string | null
     /** 마이그레이션 080에서 신설. 컬럼 미존재 환경 대비 옵셔널. */
     strategic_price_krw?: number | null
+    /** 마이그180 노출 큐레이션. 컬럼 미존재 환경 대비 옵셔널(폴백: 노출/검토없음). */
+    is_active?: boolean | null
+    needs_review?: boolean | null
   }>
   quotes: ConfirmedQuote[]
   suppliers: SupplierLite[]
@@ -174,7 +181,9 @@ export interface CatalogRawData {
 export async function getGpuCatalog(db: any): Promise<GpuCatalog> {
   const [productsRes, quotesRes, suppliersRes, directRes, settingsRes, fxRes, termPricesRes] = await Promise.all([
     db.from('gpu_products')
-      .select('id, model_name, memory, tier, pricing_mode, gpu_count, vcpu, ram_gb, storage_gb, series, strategic_price_krw')
+      // is_active/needs_review(마이그180): 노출 큐레이션 필드. 여기선 select만 — 필터 없음(SSOT 무오염).
+      //   전량 반환 유지: 공개 API·시세·매칭이 이 함수를 공유하므로 필터는 표시 계층(콕핏)에서만 건다.
+      .select('id, model_name, memory, tier, pricing_mode, gpu_count, vcpu, ram_gb, storage_gb, series, strategic_price_krw, is_active, needs_review')
       .is('deleted_at', null).order('tier').order('model_name'),
     // 확정·유효 견적 전체 (v_lowest_quotes는 구성별 최저만 → 전파 위해 원천 견적 직접 사용)
     // deleted_at IS NULL: 소프트삭제된 견적은 카탈로그 계산에서 제외
@@ -370,6 +379,8 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
       pricing_mode: 'quote' | 'direct'; gpu_count: number; vcpu: number | null
       ram_gb: number | null; storage_gb: number | null; series: string | null
       strategic_price_krw?: number | null
+      is_active?: boolean | null
+      needs_review?: boolean | null
     }) => {
       const mk = modelKeyOf(p)
       const count = Math.max(1, Number(p.gpu_count) || 1)
@@ -383,6 +394,8 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
         return {
           ...p,
           gpu_count: count,
+          is_active: p.is_active ?? true, // 값 null 방어층 = 노출(현행 동작 유지). 컬럼 자체 부재면 select에서 먼저 throw.
+          needs_review: p.needs_review ?? false,
           own_lowest_usd: null, own_supplier: null, own_valid_until: null,
           per_gpu_usd: null, effective_unit_price_usd: null, effective_supplier: null,
           is_propagated: false,
@@ -506,6 +519,8 @@ export function buildCatalog(raw: CatalogRawData): GpuCatalog {
       return {
         ...p,
         gpu_count: count,
+        is_active: p.is_active ?? true, // 값 null 방어층 = 노출(현행 동작 유지). 컬럼 자체 부재면 select에서 먼저 throw.
+        needs_review: p.needs_review ?? false,
         own_lowest_usd: ownUsd,
         own_supplier: ownSup ? { name: ownSup.name, color: ownSup.color } : null,
         own_valid_until: own?.valid_until ?? null,

@@ -32,6 +32,7 @@ export type GpuActionType =
   | 'product_updated'
   | 'product_deleted'
   | 'product_restored'
+  | 'product_visibility_changed'
   | 'market_price_updated'
   | 'market_price_deleted'
   | 'competitor_merged'

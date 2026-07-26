@@ -32,6 +32,31 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.406',
+    date: '2026-07-27',
+    title: 'GPU 가격표가 훨씬 깔끔해졌어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🧹',
+        headline: '이제 취급하는 모델만 가격표에 보여요',
+        detail: '거의 다루지 않는 옛날 카드(TESLA 계열 등)로 목록이 어지럽던 문제를 정리했어요. 기본 화면에는 실제 취급 모델만 나오고, 숨겨진 모델이 궁금하면 "전체 보기" 버튼으로 언제든 다시 볼 수 있어요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '🆕',
+        headline: '최신 모델 순으로 정렬할 수 있어요',
+        detail: '알파벳 순 말고 "최신순"을 누르면 Blackwell → Hopper → Ada … 최신 세대부터 위로 정렬돼요. 요즘 많이 찾는 카드를 맨 위에서 바로 볼 수 있어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🏷️',
+        headline: '새로 들어온 모델은 "검토 대기"로 표시돼요',
+        detail: '견적서에서 새 모델이 자동으로 들어오면 조용히 사라지거나 갑자기 노출되지 않고, "검토 대기" 배지로 먼저 알려드려요. 확인 후 노출 여부를 정할 수 있어요.',
+      },
+    ],
+  },
+  {
     version: '0.7.400',
     date: '2026-07-25',
     title: 'AI 채팅에서 쓴 말이 이제 사라지지 않아요',

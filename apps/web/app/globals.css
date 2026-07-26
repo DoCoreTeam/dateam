@@ -6907,6 +6907,17 @@ label.intake-tool-btn {
 .gpu-unified-group-count { color: var(--gpu-muted); font-weight: 500; font-size: var(--fs-xs); }
 .gpu-unified-collapse-btn { display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; min-height: 38px; }
 
+/* 노출 큐레이션(마이그180) — 그룹 헤더 행(제목 버튼 + admin 노출 토글), 배지, 숨김 dim */
+.gpu-unified-group-head-row { display: flex; align-items: stretch; }
+.gpu-unified-group-head-row .gpu-unified-group-head { flex: 1 1 auto; border-right: 0; }
+.gpu-unified-vis-btn { flex: 0 0 auto; white-space: nowrap; min-height: 38px; border-top: var(--hairline) solid var(--gpu-border); border-bottom: var(--border-w) solid var(--gpu-border); }
+.gpu-unified-group:first-child .gpu-unified-vis-btn { border-top: 0; }
+.gpu-unified-group--hidden .gpu-unified-group-head { opacity: 0.55; }
+.gpu-unified-group--hidden .gpu-unified-group-name { text-decoration: line-through; text-decoration-color: var(--gpu-muted); }
+.gpu-unified-order { min-height: 38px; }
+.gpu-unified-showall-btn { display: inline-flex; align-items: center; white-space: nowrap; min-height: 38px; }
+.gpu-unified-showall-btn.is-on { background: var(--gpu-accent-soft); color: var(--gpu-accent-ink); }
+
 /* gcube 판매 마진(%) 설정 컨트롤 — 통합 표 툴바 */
 .gpu-margin-ctrl { display: inline-flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; }
 .gpu-margin-ctrl-lbl { font-size: var(--fs-xs); color: var(--gpu-muted); font-weight: 600; }

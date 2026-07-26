@@ -53,6 +53,9 @@ export interface CockpitApiRow {
   gcube_reflected_at?: string | null
   gcube_reflected_by?: string | null
   gcube_reflected_price_krw?: number | null
+  // 노출 큐레이션(마이그180)
+  is_active?: boolean | null
+  needs_review?: boolean | null
 }
 
 export interface CockpitApiResponse {
@@ -132,6 +135,9 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
       discount_rate: null,
       customer_price_krw: null,
       status: p.is_strategic_set ? GPU_TERMS.statusConfirmed : null,
+      // 노출 큐레이션(마이그180) — 폴백: 노출/검토없음(마이그 이전 환경 현행 유지)
+      is_active: p.is_active ?? true,
+      needs_review: p.needs_review ?? false,
     }
   })
 }

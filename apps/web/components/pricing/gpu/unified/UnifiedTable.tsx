@@ -15,6 +15,7 @@ import type { GpuViewId } from '@/lib/gpu/unified-views'
 import { resolveCell } from '@/lib/gpu/unified-row'
 import { formatCardMemory, memoryTitle } from '@/lib/gpu/card-memory'
 import { baseModelKey, baseModelName } from '@/lib/gpu/canonical-model'
+import { generationRank } from '@/lib/gpu/generation'
 import { extractFormFactor } from '@/lib/gpu/form-factor'
 import type { UnifiedRow, CurrencyCtx } from '@/lib/gpu/unified-row'
 import type { CurrencyMode } from '@/lib/gpu/format-price'
@@ -31,9 +32,14 @@ interface UnifiedTableProps {
   isAdmin?: boolean
   /** 마진 저장 성공 후 — 가격 데이터 revalidate. */
   onMarginSaved?: () => void
+  /** 노출(취급) 토글 후 — 가격 데이터 revalidate. */
+  onVisibilityChanged?: () => void
   onRegisterQuote?: () => void
   onManageMapping?: () => void
 }
+
+/** 모델 표시 정렬 모드 — 최신순(세대 랭크) 기본 / 이름순(알파벳). URL·저장 없이 세션 상태. */
+type OrderMode = 'newest' | 'name'
 
 /** 메모리 문자열("160GB")에서 GB 숫자 추출. 없으면 맨 뒤로(Infinity). */
 function memGB(memory: string | null): number {
@@ -65,13 +71,18 @@ function sortValue(row: UnifiedRow, key: string): number | string | null {
   }
 }
 
-export default function UnifiedTable({ rows, loading = false, error = null, usdKrw = 1, marginPct, isAdmin = false, onMarginSaved, onRegisterQuote, onManageMapping }: UnifiedTableProps) {
+export default function UnifiedTable({ rows, loading = false, error = null, usdKrw = 1, marginPct, isAdmin = false, onMarginSaved, onVisibilityChanged, onRegisterQuote, onManageMapping }: UnifiedTableProps) {
   // 하이드레이션 안전: 서버/첫 렌더는 DEFAULT_VIEW, mount 후 저장된 보기로 복원(localStorage 불일치 방지).
   const [view, setView] = useState<GpuViewId>(DEFAULT_VIEW)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [currencyMode, setCurrencyMode] = useState<CurrencyMode>('KRW')
   const [bulkOpen, setBulkOpen] = useState(false)
+  // 정렬 모드(그룹 기본 순서): 최신순(세대) 기본 — 사용자 요청. 컬럼 정렬(sortConfig)이 있으면 그게 우선.
+  const [orderMode, setOrderMode] = useState<OrderMode>('newest')
+  // 노출 큐레이션: 기본은 취급 모델(is_active)만. "전체 보기"로 숨김/검토대기까지 노출. 전원 동일 기본(취급만).
+  const [showAll, setShowAll] = useState(false)
+  const [busyKey, setBusyKey] = useState<string | null>(null) // admin 토글 진행 중 그룹키
   // 정렬: null이면 기본(모델·용량). 컬럼 헤더 클릭 시 해당 컬럼 asc→desc→해제 순환.
   const [sortConfig, setSortConfig] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(null)
   // 모델별 그룹 접힘 상태 — base 모델키 집합(폼팩터 하위로 접음: H100/H100 SXM/PCIe/NVL → 한 "H100"). 기본 전체 접힘.
@@ -98,12 +109,21 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
       prev?.key !== key ? { key, dir: 'asc' } : prev.dir === 'asc' ? { key, dir: 'desc' } : null,
     )
   }
-  // 기본 정렬: 모델명(숫자 인식, A10<A100) → 같은 모델은 용량(GB) 오름차순. 목록 뒤죽박죽 방지.
+  // 기본 정렬:
+  //   · 최신순(newest, 기본) = 아키텍처 세대 내림차순(SSOT generationRank) → 같은 세대는 이름 → 용량.
+  //   · 이름순(name) = 모델명 알파벳(숫자 인식, A10<A100) → 용량.
   const defaultCmp = (a: UnifiedRow, b: UnifiedRow) => {
+    if (orderMode === 'newest') {
+      const g = generationRank(b.model_name) - generationRank(a.model_name) // 큰 값(최신)이 위로
+      if (g !== 0) return g
+    }
     const m = a.model_name.localeCompare(b.model_name, 'en', { numeric: true, sensitivity: 'base' })
     return m !== 0 ? m : memGB(a.memory) - memGB(b.memory)
   }
-  const sortedRows = [...rows].sort((a, b) => {
+  // 노출 필터(표시 계층 전용) — 기본은 취급(is_active)만. showAll이면 전량. 검색/정렬 전에 적용.
+  const curated = showAll ? rows : rows.filter((r) => r.is_active)
+  const hiddenCount = rows.length - curated.length
+  const sortedRows = [...curated].sort((a, b) => {
     if (!sortConfig) return defaultCmp(a, b)
     const av = sortValue(a, sortConfig.key)
     const bv = sortValue(b, sortConfig.key)
@@ -140,6 +160,29 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
   const groups = Array.from(groupMap, ([key, g]) => ({ key, name: g.name, rows: g.rows }))
   const allCollapsed = groups.length > 0 && groups.every((g) => collapsed.has(g.key))
   const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(groups.map((g) => g.key)))
+
+  // admin 취급(노출) 토글 — 그룹 내 전 구성(productIds)의 is_active를 일괄 변경. PATCH → 재조회.
+  //   noop 방지: 이미 목표 상태면 스킵. 실패는 alert(가격표는 revalidate로 원복).
+  const toggleGroupVisibility = async (groupKey: string, ids: string[], nextActive: boolean) => {
+    if (ids.length === 0) return
+    setBusyKey(groupKey)
+    try {
+      const res = await fetch('/api/pricing/gpu/models', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productIds: ids, is_active: nextActive }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        throw new Error(j.error || '요청 실패')
+      }
+      onVisibilityChanged?.()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '노출 변경에 실패했습니다.')
+    } finally {
+      setBusyKey(null)
+    }
+  }
 
   // 멤버 행 1줄 렌더(그룹 안). 모델명은 그룹 헤더에 있으므로 행에선 구성(용량·공급사)을 보여준다.
   const renderRow = (row: UnifiedRow) => {
@@ -215,6 +258,20 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
         {marginPct != null && (
           <MarginControl marginPct={marginPct} isAdmin={isAdmin} onSaved={onMarginSaved} />
         )}
+        {/* 정렬 모드 — 최신순(세대) 기본 / 이름순. */}
+        <div className="gpu-seg gpu-unified-order" role="group" aria-label="정렬 순서">
+          <button type="button" className={orderMode === 'newest' ? 'on' : ''} onClick={() => setOrderMode('newest')} title="최신 세대 순(Blackwell→Hopper→…)">최신순</button>
+          <button type="button" className={orderMode === 'name' ? 'on' : ''} onClick={() => setOrderMode('name')} title="모델명 알파벳 순">이름순</button>
+        </div>
+        {/* 취급/전체 보기 — 기본은 취급 모델만. 숨김 개수 표시. */}
+        <button
+          type="button"
+          className={`gpu-btn gpu-unified-showall-btn${showAll ? ' is-on' : ''}`}
+          onClick={() => setShowAll((v) => !v)}
+          title={showAll ? '취급 모델만 보기' : '숨김·검토대기 포함 전체 보기'}
+        >
+          {showAll ? '취급만 보기' : `전체 보기${hiddenCount > 0 ? ` (+${hiddenCount})` : ''}`}
+        </button>
         {/* 모델 그룹 전체 접기/펼치기 */}
         <button
           type="button"
@@ -263,24 +320,48 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
           {loading && <div className="gpu-unified-state">불러오는 중…</div>}
           {error && <div className="gpu-unified-state gpu-unified-state--error">{error}</div>}
           {!loading && !error && visibleRows.length === 0 && (
-            <div className="gpu-unified-state">{q ? '검색 결과가 없습니다.' : '등록된 항목이 없습니다.'}</div>
+            <div className="gpu-unified-state">
+              {q ? '검색 결과가 없습니다.'
+                : !showAll && hiddenCount > 0
+                  ? `취급 중인 모델이 없습니다. 숨김 ${hiddenCount}개 — "전체 보기"로 확인하세요.`
+                  : '등록된 항목이 없습니다.'}
+            </div>
           )}
 
           {!loading && !error &&
             groups.map((group) => {
               const isCollapsed = collapsed.has(group.key)
+              const groupActive = group.rows.some((r) => r.is_active)
+              const groupReview = group.rows.some((r) => r.needs_review)
+              const groupIds = group.rows.map((r) => r.id)
+              const busy = busyKey === group.key
               return (
-                <div key={group.key} role="rowgroup" className="gpu-unified-group">
-                  <button
-                    type="button"
-                    className="gpu-unified-group-head"
-                    onClick={() => toggleGroup(group.key)}
-                    aria-expanded={!isCollapsed}
-                  >
-                    <span className="gpu-unified-group-chevron" aria-hidden>{isCollapsed ? '▸' : '▾'}</span>
-                    <span className="gpu-unified-group-name">{group.name}</span>
-                    <span className="gpu-unified-group-count">{group.rows.length}개 구성</span>
-                  </button>
+                <div key={group.key} role="rowgroup" className={`gpu-unified-group${!groupActive ? ' gpu-unified-group--hidden' : ''}`}>
+                  <div className="gpu-unified-group-head-row">
+                    <button
+                      type="button"
+                      className="gpu-unified-group-head"
+                      onClick={() => toggleGroup(group.key)}
+                      aria-expanded={!isCollapsed}
+                    >
+                      <span className="gpu-unified-group-chevron" aria-hidden>{isCollapsed ? '▸' : '▾'}</span>
+                      <span className="gpu-unified-group-name">{group.name}</span>
+                      <span className="gpu-unified-group-count">{group.rows.length}개 구성</span>
+                      {groupReview && <span className="gpu-ubadge gpu-ubadge--warn" title="신규 유입 — 검토 대기">검토 대기</span>}
+                      {!groupActive && <span className="gpu-ubadge gpu-ubadge--muted" title="가격표 기본 노출에서 제외됨">숨김</span>}
+                    </button>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        className="gpu-btn gpu-unified-vis-btn"
+                        disabled={busy}
+                        onClick={() => toggleGroupVisibility(group.key, groupIds, !groupActive)}
+                        title={groupActive ? '가격표에서 숨기기(취급 안 함)' : '가격표에 노출(취급)'}
+                      >
+                        {busy ? '…' : groupActive ? '숨기기' : '노출'}
+                      </button>
+                    )}
+                  </div>
                   {!isCollapsed && group.rows.map(renderRow)}
                 </div>
               )

@@ -135,8 +135,17 @@ export function baseModelKey(name: string | null | undefined): string {
   return coreModelKey(extractFormFactor(name ?? '').core)
 }
 
+/**
+ * 표시명 캐노니컬 — 같은 제품의 표기 흔들림을 통일(그룹핑엔 영향 없음, 순수 표시용).
+ *  · "RTX Pro"/"RTX pro" → "RTX PRO" (DB 혼재: "RTX Pro 6000" vs "RTX PRO 5000" 통일).
+ *  다른 시리즈/세대/숫자는 절대 건드리지 않는다(오표기 0).
+ */
+export function canonicalDisplayName(name: string): string {
+  return name.replace(/\bRTX\s+Pro\b/gi, 'RTX PRO')
+}
+
 /** base 그룹의 표시명(폼팩터 없는 core). "H100 SXM" → "H100". 빈/폼팩터-only 입력은 원본 유지. */
 export function baseModelName(name: string | null | undefined): string {
   const core = extractFormFactor(name ?? '').core.trim()
-  return core || (name ?? '').trim()
+  return canonicalDisplayName(core || (name ?? '').trim())
 }

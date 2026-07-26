@@ -77,6 +77,9 @@ export interface UnifiedRow {
   customer_price_krw: number | null
   // 상태
   status: string | null // 확정/검토 대기/만료/반려/대체됨
+  // 노출 큐레이션(마이그180) — 가격표 표시 필터/배지. is_active=false는 기본 숨김(전체보기 토글로만 노출).
+  is_active: boolean
+  needs_review: boolean // 신규 유입 검토 대기 → "검토 대기" 배지
 }
 
 export type CellTone = 'default' | 'sell' | 'ok' | 'warn' | 'danger' | 'muted'
