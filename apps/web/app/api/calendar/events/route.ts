@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { kstRangeToUtc } from '@/lib/datetime/kst'
+import { isOrphanDailyEvent } from '@/lib/calendar/orphan-event'
 
 // GET /api/calendar/events?start=YYYY-MM-DD&end=YYYY-MM-DD
 // 범위 내 일정 조회 (RLS: 본인 + 조직 계층). 반복(rrule) 전개는 P4.
@@ -36,10 +37,31 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: '조회 실패' }, { status: 500 })
   }
 
+  // 고아 방지: 원본 일일업무가 삭제된 자동생성 일정(link_kind='daily')은 노출하지 않는다.
+  // 본인 소유 이벤트에만 적용(타인 링크 로그는 RLS로 못 읽어 오탐). daily_logs는 soft-delete 기준.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ownDailyLinkIds = Array.from(
+    new Set(
+      (data ?? [])
+        .filter((ev: any) => ev.user_id === user.id && ev.link_kind === 'daily' && ev.link_id)
+        .map((ev: any) => ev.link_id as string),
+    ),
+  )
+  const liveLogIds = new Set<string>()
+  if (ownDailyLinkIds.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: liveLogs } = await (supabase.from('daily_logs') as any)
+      .select('id')
+      .in('id', ownDailyLinkIds)
+      .is('deleted_at', null)
+    for (const r of liveLogs ?? []) liveLogIds.add(r.id as string)
+  }
+
   // 반복 전개 (FREQ=DAILY / WEEKLY 단순 지원)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const out: any[] = []
   for (const ev of data ?? []) {
+    if (isOrphanDailyEvent(ev, user.id, liveLogIds)) continue
     const baseMs = new Date(ev.start_at).getTime()
     if (!ev.rrule) {
       if (baseMs >= fromMs && baseMs <= toMs) out.push({ ...ev, base_id: ev.id })

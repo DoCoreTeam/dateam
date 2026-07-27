@@ -21,6 +21,8 @@ import type { WeeklyReport } from '@/types/database'
 import { resolveOrgScope, hasOrgScope } from '@/lib/org-scope'
 import { loadOrgWeeklyData, EMPTY_ORG_WEEKLY } from '@/lib/weekly-report/org-weekly-load'
 import { mapTeamReports, buildHistoryGroups } from '@/lib/weekly-report/page-data'
+import { buildPrevPlanMap, computeCarryForward } from '@/lib/weekly-report/carry-forward'
+import { prevWeekStart } from '@/lib/week'
 
 interface TeamRow {
   user_id: string
@@ -121,37 +123,14 @@ export default async function WeeklyReportPage({ searchParams }: PageProps) {
     ? Array.from(new Set((reports ?? []).filter((r) => r.week_start === prevWeek).map((r) => r.category))).filter(Boolean)
     : []
 
-  // carry-forward: 전주 계획 → 이번 주 "빈 성과"로 이월.
-  // 왜: AI 자동초안 저장이 weekly_reports를 먼저 채워도(prefillRows>0) 이월이 죽지 않도록,
-  //     "행 없음(prefill 비었음)"이 아니라 "성과 셀 비었음" 기준으로 채운다. 사용자가 작성한 성과는 절대 미덮어씀.
-  const isNonEmptyRich = (s: string) =>
-    !!s && s !== '<p></p>' && s !== '<p><br></p>' && s.trim() !== ''
-  const prevPlanByCategory = new Map<string, string>()
-  if (prevWeek && initialWeek === thisWeek) {
-    for (const r of reports ?? []) {
-      if (r.week_start === prevWeek && isNonEmptyRich(r.plan) && !prevPlanByCategory.has(r.category)) {
-        prevPlanByCategory.set(r.category, r.plan)
-      }
-    }
-  }
-  let carriedCount = 0
-  // 1) 기존 프리필 행의 빈 성과만 전주 계획으로 채움
-  const mergedPrefill = prefillRows.map((row) => {
-    const prevPlan = prevPlanByCategory.get(row.category)
-    if (prevPlan && !isNonEmptyRich(row.performance)) {
-      carriedCount++
-      return { ...row, performance: prevPlan }
-    }
-    return row
-  })
-  // 2) 전주에만 있던 구분(계획 존재) → 이번 주 이월 행으로 추가
-  const existingCats = new Set(prefillRows.map((r) => r.category))
-  prevPlanByCategory.forEach((plan, cat) => {
-    if (!existingCats.has(cat)) {
-      mergedPrefill.push({ category: cat, performance: plan, plan: '', issues: '' })
-      carriedCount++
-    }
-  })
+  // carry-forward: 전주 계획 → 이번 주 "빈 성과"로 이월 (carry-forward.ts SSOT).
+  // 왜(수정): 직전 주는 "편집 주(initialWeek)의 직전 주"여야 한다 — 과거엔 `initialWeek === thisWeek`
+  //   게이트 + prevWeek=지난 캘린더주로 묶여, 새 주 초에 "지난주 보고서"를 작성하면(가장 흔한 시나리오)
+  //   이월이 죽었다. 이제 편집 주 기준 직전 주 계획을 빈 성과로 이월(캘린더 현재주와 무관).
+  //   프리필 전용(useDraftPersist=localStorage, 저장 전 DB 미반영)이라 과거 주 열람에도 비파괴적.
+  const carryPrevWeek = prevWeekStart(initialWeek)
+  const prevPlanByCategory = buildPrevPlanMap(reports ?? [], carryPrevWeek)
+  const { rows: mergedPrefill, carriedCount } = computeCarryForward(prefillRows, prevPlanByCategory)
   const hasCarryForward = carriedCount > 0
 
   // 과거 구분 목록 (datalist용)
