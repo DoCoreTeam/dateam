@@ -125,16 +125,6 @@ export function sameModel(a: string | null | undefined, b: string | null | undef
   return ka.length > 0 && ka === kb
 }
 
-// ── 화면 그룹핑용 base 키 (폼팩터를 하위축으로 접음) ──
-// coreModelKey는 폼팩터(SXM/PCIe/NVL)를 매칭축으로 **보존**한다(resolve-product가 변형 구분에 사용).
-// 반면 GPU 관리 화면은 "H100"을 1종으로 묶고 폼팩터를 그 하위에 두므로, 그룹핑엔 폼팩터까지 제거한 base가 필요하다.
-// 이 두 함수가 그 유일한 SSOT — 화면마다 인라인 접기 복붙 금지.
-
-/** 폼팩터까지 제거한 base 모델 그룹 키. "H100 SXM"·"H100 PCIe"·"H100 NVL"·"H100" → 모두 "h100". */
-export function baseModelKey(name: string | null | undefined): string {
-  return coreModelKey(extractFormFactor(name ?? '').core)
-}
-
 /**
  * 표시명 캐노니컬 — 같은 제품의 표기 흔들림을 통일(그룹핑엔 영향 없음, 순수 표시용).
  *  · "RTX Pro"/"RTX pro" → "RTX PRO" (DB 혼재: "RTX Pro 6000" vs "RTX PRO 5000" 통일).
@@ -144,8 +134,77 @@ export function canonicalDisplayName(name: string): string {
   return name.replace(/\bRTX\s+Pro\b/gi, 'RTX PRO')
 }
 
-/** base 그룹의 표시명(폼팩터 없는 core). "H100 SXM" → "H100". 빈/폼팩터-only 입력은 원본 유지. */
+// ── 화면 그룹핑용 base 키 (폼팩터 + 에디션 + 세대 라인을 하위축으로 접음) ──
+// coreModelKey는 폼팩터(SXM/PCIe/NVL)를 매칭축으로 **보존**한다(resolve-product가 가격 매칭·중복제거에 사용).
+// 화면 그룹핑은 탐색성을 위해 더 넓게 접는다 — 아래 3축을 하위로:
+//   ① 폼팩터(SXM/PCIe/NVL)  ② 에디션(Ti/Super)  ③ 세대 라인(Quadro RTX 6000·A6000·6000 Ada·PRO 6000 → "RTX 6000")
+// ⚠️ 이 함수들은 **표시 그룹핑 전용 SSOT**. 가격 매칭/중복제거(coreModelKey·canonicalizeModel)는 절대 건드리지 않음 → 데이터 무영향.
+// ⚠️ 세대 라인 병합은 **RTX 계열(RTX/Quadro/A+4자리)에만** 적용. 데이터센터(A100·L40·H100·B200 등)는 숫자 공유(100·40·200)로
+//    과병합될 수 있어 제외 — coreModelKey 그대로 둔다(A100≠V100≠H100, A40≠L40 보존).
+
+// 에디션(그레이드) 접미 — "RTX 5070 Ti"·"RTX 4080 Super"·"RTX 4070 Ti Super"의 뒤 토큰.
+//  ⚠️ "Ada"(세대)·"L40S"(S가 모델 일부)는 정체성이라 제거 안 함. 후행 " Ti"/" Super"/" Ti Super"만.
+const EDITION_SUFFIX = /\s+(Ti\s+Super|Super|Ti)\s*$/i
+
+/** 모델명 core에서 에디션 접미(Ti/Super) 분리. { core, edition('Ti'|'Super'|'Ti Super'|null) }. */
+export function extractEdition(core: string | null | undefined): { core: string; edition: string | null } {
+  const s = (core ?? '').trim()
+  const m = s.match(EDITION_SUFFIX)
+  if (!m) return { core: s, edition: null }
+  const norm = m[1].replace(/\s+/g, ' ').toLowerCase().replace(/\bti\b/g, 'Ti').replace(/\bsuper\b/g, 'Super')
+  return { core: s.slice(0, m.index).trim(), edition: norm }
+}
+
+/**
+ * RTX 계열 세대 라인 번호 — 같은 제품 라인을 세대 무관하게 한 그룹으로 접기 위한 4자리 번호.
+ *  "RTX A6000"·"RTX 6000 Ada"·"RTX PRO 6000"·"Quadro RTX 6000"·"A6000" → "6000".
+ *  소비자 "RTX 5070"·"RTX 5070 Ti" → "5070".
+ *  데이터센터(A100/A40/L40/H100/B200/V100/GB200 등)는 null → 라인 병합 제외(과병합 방지).
+ */
+function rtxLineNumber(name: string | null | undefined): string | null {
+  const s = (name ?? '').trim()
+  // RTX 계열 판정: RTX/Quadro 포함, 또는 "A" + 4자리(A4000·A5000·A6000 — Ampere 워크스테이션). "A100"(3자리)·"A40"(2자리)는 미해당.
+  const isRtxFamily = /\b(rtx|quadro)\b/i.test(s) || /^A\d{4}\b/i.test(s)
+  if (!isRtxFamily) return null
+  const m = s.match(/\bA?(\d{4})\b/i) // 4자리 모델번호(선행 A는 Ampere 워크스테이션 접두)
+  return m ? m[1] : null
+}
+
+/**
+ * base 모델 그룹 키. 폼팩터·에디션·세대 라인을 모두 접는다.
+ *  "H100 SXM"→"h100", "RTX 5070 Ti"→"rtx5070", "RTX A6000"·"RTX 6000 Ada"·"RTX PRO 6000"→"rtx6000".
+ *  데이터센터는 coreModelKey 그대로(A100≠V100≠H100 보존).
+ */
+export function baseModelKey(name: string | null | undefined): string {
+  const num = rtxLineNumber(name)
+  if (num) return `rtx${num}`
+  const noFf = extractFormFactor(name ?? '').core
+  return coreModelKey(extractEdition(noFf).core)
+}
+
+/**
+ * base 그룹의 표시명. RTX 라인은 "RTX <번호>"(예 "RTX 6000"·"RTX 5070"), 그 외는 폼팩터·에디션 없는 core.
+ *  "H100 SXM"→"H100", "RTX 5070 Ti"→"RTX 5070", "RTX A6000"→"RTX 6000". 빈/토큰-only는 원본 유지.
+ */
 export function baseModelName(name: string | null | undefined): string {
-  const core = extractFormFactor(name ?? '').core.trim()
-  return canonicalDisplayName(core || (name ?? '').trim())
+  const num = rtxLineNumber(name)
+  if (num) return `RTX ${num}`
+  const noFf = extractFormFactor(name ?? '').core.trim()
+  const core = extractEdition(noFf).core.trim()
+  return canonicalDisplayName(core || noFf || (name ?? '').trim())
+}
+
+/**
+ * 하위 변형 표시 라벨 — 그룹 안에서 이 구성을 구별하는 짧은 이름.
+ *  base명으로 시작하면 그 뒤 잔여("H100 SXM"→"SXM", "RTX 5070 Ti"→"Ti", "RTX 6000 Ada"→"Ada"),
+ *  아니면(세대 라인 교차: "RTX A6000"·"RTX PRO 6000"·"Quadro RTX 6000") 전체명 그대로. 잔여 없으면 '기본'.
+ */
+export function modelVariantLabel(name: string | null | undefined): string {
+  const full = canonicalDisplayName((name ?? '').trim())
+  const base = baseModelName(name)
+  if (full.toLowerCase().startsWith(base.toLowerCase())) {
+    const rem = full.slice(base.length).trim()
+    return rem || '기본'
+  }
+  return full
 }

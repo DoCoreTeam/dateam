@@ -14,9 +14,8 @@ import { getViewPreset, DEFAULT_VIEW } from '@/lib/gpu/unified-views'
 import type { GpuViewId } from '@/lib/gpu/unified-views'
 import { resolveCell } from '@/lib/gpu/unified-row'
 import { formatCardMemory, memoryTitle } from '@/lib/gpu/card-memory'
-import { baseModelKey, baseModelName } from '@/lib/gpu/canonical-model'
+import { baseModelKey, baseModelName, modelVariantLabel } from '@/lib/gpu/canonical-model'
 import { generationRank } from '@/lib/gpu/generation'
-import { extractFormFactor } from '@/lib/gpu/form-factor'
 import type { UnifiedRow, CurrencyCtx } from '@/lib/gpu/unified-row'
 import type { CurrencyMode } from '@/lib/gpu/format-price'
 
@@ -200,13 +199,13 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
           const cell = resolveCell(row, col, currency)
           const base = `gpu-unified-cell gpu-unified-cell--${col.align}${col.hideMobile ? ' gpu-unified-cell--hide-mobile' : ''}`
           if (cell.kind === 'model') {
-            // 그룹은 base명(예 "H100"). 행은 폼팩터(SXM/PCIe/NVL)를 태그로 구분 + 구성(카드VRAM·공급사) 표시.
-            const ff = extractFormFactor(row.model_name).formFactor
+            // 그룹은 base명(예 "RTX 6000"). 행은 변형(에디션 Ti/Super·폼팩터 SXM·세대 A6000 등)을 태그로 구분 + 구성(카드VRAM·공급사) 표시.
+            const variant = modelVariantLabel(row.model_name)
             return (
               <span key={col.key} role="cell" className={base}>
                 <span className="gpu-unified-model">
                   <span title={memoryTitle(row.memory, row.gpu_count) || undefined}>
-                    {ff && <span className="gpu-ubadge gpu-ubadge--muted" style={{ marginRight: 6 }}>{ff}</span>}
+                    {variant && variant !== '기본' && <span className="gpu-ubadge gpu-ubadge--muted" style={{ marginRight: 6 }}>{variant}</span>}
                     {row.memory ? formatCardMemory(row.memory, row.gpu_count) : cell.text}
                   </span>
                   {row.supplier_name && <small>{row.supplier_name}</small>}

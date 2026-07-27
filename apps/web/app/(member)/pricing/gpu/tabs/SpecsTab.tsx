@@ -7,6 +7,7 @@ import { fetcher } from '@/lib/swr-config'
 import { Sparkles, X, Save, Pencil, Plus, Trash2, RotateCcw } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import { memoryTitle } from '@/lib/gpu/card-memory'
+import { modelVariantLabel } from '@/lib/gpu/canonical-model'
 import ModelCandidateQueue from './ModelCandidateQueue'
 
 interface Spec {
@@ -35,8 +36,8 @@ interface ConfigRow { id: string; gpu_count: number; memory: string | null; vcpu
 interface ModelRow { model_name: string; form_factor?: string | null; tier: number; memory: string | null; spec: Spec | null; has_spec: boolean; configs: ConfigRow[] }
 // base 모델 그룹 — "H100" 하나에 폼팩터 변형(generic/SXM/PCIe/NVL)을 하위로 묶음.
 interface ModelGroup { base_key: string; base_name: string; tier: number; config_count: number; variants: ModelRow[] }
-const FF_LABEL: Record<string, string> = { SXM: 'SXM', PCIe: 'PCIe', NVL: 'NVL' }
-const variantLabel = (v: ModelRow): string => (v.form_factor ? (FF_LABEL[v.form_factor] ?? v.form_factor) : '기본')
+// 변형 라벨 SSOT — 에디션(Ti/Super)·폼팩터(SXM)·세대(A6000 등)를 모두 반영(canonical-model). 폼팩터만 보던 로컬 로직 제거.
+const variantLabel = (v: ModelRow): string => modelVariantLabel(v.model_name)
 
 const FIELDS: { key: keyof Spec; label: string; type?: 'number' | 'bool' }[] = [
   { key: 'architecture', label: '아키텍처' },
@@ -312,7 +313,7 @@ function DeleteModelModal({ group, onClose, onDeleted }: { group: ModelGroup; on
         </div>
         <div className="gpu-modal-body">
           <p style={{ fontSize: 12.5, color: 'var(--text-faint)', margin: '0 0 10px' }}>
-            <b>{group.base_name}</b>의 폼팩터 {group.variants.length}종 · 구성 {group.config_count}개를 모두 삭제합니다.
+            <b>{group.base_name}</b>의 변형 {group.variants.length}종 · 구성 {group.config_count}개를 모두 삭제합니다.
             소프트삭제이므로 <b>‘삭제된 모델’에서 되돌릴 수 있습니다.</b>
           </p>
           {impact && (
@@ -380,7 +381,7 @@ function DeletedModelsSection({ onRestored }: { onRestored: () => void }) {
           ) : deleted.map((g) => (
             <div key={g.base_key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderBottom: 'var(--hairline) solid var(--surface-bg)' }}>
               <span style={{ fontWeight: 700, fontSize: 13 }}>{g.base_name}</span>
-              <span style={{ fontSize: 11.5, color: 'var(--gpu-muted)' }}>폼팩터 {g.variants.length} · 구성 {g.config_count}</span>
+              <span style={{ fontSize: 11.5, color: 'var(--gpu-muted)' }}>변형 {g.variants.length} · 구성 {g.config_count}</span>
               <button className="gpu-btn" disabled={busy === g.base_key} onClick={() => restore(g)} style={{ gap: 4, marginLeft: 'auto', fontSize: 12, color: 'var(--gpu-green)', borderColor: 'var(--gpu-green)' }}>
                 <RotateCcw size={13} /> {busy === g.base_key ? '복구 중…' : '되돌리기'}
               </button>
@@ -573,11 +574,14 @@ export default function SpecsTab() {
             // 단일 변형(폼팩터 1개) = 기존과 동일한 평평한 행. 클릭 → SpecModal.
             if (g.variants.length === 1) {
               const v = g.variants[0]
+              const vlabel = variantLabel(v)
               return [(
                 <tr key={g.base_key} onClick={() => setOpen(v)} style={{ cursor: 'pointer' }}>
                   <td className="card-header">
                     <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontWeight: 700 }}>{v.model_name}</span>
+                      {/* 단일 변형도 base명("GB200")으로 통일 — 폼팩터/에디션은 태그로. */}
+                      <span style={{ fontWeight: 700 }}>{g.base_name}</span>
+                      {vlabel && vlabel !== '기본' && <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--gpu-accent)', border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 5, padding: '1px 6px' }}>{vlabel}</span>}
                       <button onClick={(e) => { e.stopPropagation(); setDelOpen(g) }} title="모델 삭제" className="gpu-btn" style={{ marginLeft: 'auto', padding: '3px 6px', color: 'var(--gpu-red)' }}><Trash2 size={13} /></button>
                     </span>
                   </td>
@@ -596,15 +600,15 @@ export default function SpecsTab() {
                     <span style={{ fontWeight: 700 }}>
                       <span style={{ display: 'inline-block', width: 14, color: 'var(--gpu-muted)', transition: 'transform .15s', transform: isOpen ? 'rotate(90deg)' : 'none' }}>▸</span>
                       {g.base_name}
-                      <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.1)', borderRadius: 5, padding: '1px 6px' }}>폼팩터 {g.variants.length}</span>
+                      <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.1)', borderRadius: 5, padding: '1px 6px' }}>변형 {g.variants.length}</span>
                     </span>
                     <button onClick={(e) => { e.stopPropagation(); setDelOpen(g) }} title="모델 전체 삭제" className="gpu-btn" style={{ marginLeft: 'auto', padding: '3px 6px', color: 'var(--gpu-red)' }}><Trash2 size={13} /></button>
                   </span>
                 </td>
                 <td data-label="Tier"><span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>T{g.tier}</span></td>
                 <td data-label="구성">{g.config_count}개</td>
-                <td data-label="폼팩터" style={{ fontSize: 11.5 }}>{ffSummary}</td>
-                <td data-label="아키텍처" style={{ fontSize: 11.5, color: 'var(--gpu-muted)' }}>폼팩터별</td>
+                <td data-label="변형" style={{ fontSize: 11.5 }}>{ffSummary}</td>
+                <td data-label="아키텍처" style={{ fontSize: 11.5, color: 'var(--gpu-muted)' }}>변형별</td>
                 <td data-label="FP16" style={{ color: 'var(--gpu-muted)' }}>—</td>
                 <td data-label="상태">
                   {missingN > 0

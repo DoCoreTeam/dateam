@@ -4,6 +4,7 @@ import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { baseModelKey, baseModelName } from '@/lib/gpu/canonical-model'
 import { extractFormFactor, type FormFactor } from '@/lib/gpu/form-factor'
+import { generationRank } from '@/lib/gpu/generation'
 
 interface ConfigRow {
   id: string; gpu_count: number; memory: string | null
@@ -60,7 +61,11 @@ function groupModels(products: any[], specs: any[]): ModelGroup[] {
     g.tier = Math.min(g.tier, v.tier)   // 그룹 tier = 최상위(데이터센터=1 우선)
   }
   for (const g of Array.from(byBase.values())) {
-    g.variants.sort((a: Variant, b: Variant) => ffRank(a.form_factor) - ffRank(b.form_factor) || a.model_name.localeCompare(b.model_name))
+    // 정렬: 세대 최신 우선(라인 교차 그룹) → 폼팩터 순 → 이름. (에디션 Ti/Super는 같은 세대라 이름으로 갈림)
+    g.variants.sort((a: Variant, b: Variant) =>
+      generationRank(b.model_name) - generationRank(a.model_name)
+      || ffRank(a.form_factor) - ffRank(b.form_factor)
+      || a.model_name.localeCompare(b.model_name))
   }
   return Array.from(byBase.values())
 }
