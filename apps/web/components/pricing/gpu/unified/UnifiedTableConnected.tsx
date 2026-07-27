@@ -8,6 +8,7 @@ import { fetcher } from '@/lib/swr-config'
 import UnifiedTable from './UnifiedTable'
 import { cockpitToUnified } from '@/lib/gpu/cockpit-to-unified'
 import { mergeInventory } from '@/lib/gpu/inventory-to-unified'
+import { expandStandardLadder } from '@/lib/gpu/config-ladder-expand'
 import type { CockpitApiResponse } from '@/lib/gpu/cockpit-to-unified'
 import type { InventoryApiResponse } from '@/lib/gpu/inventory-to-unified'
 
@@ -31,7 +32,8 @@ export default function UnifiedTableConnected({ marginPct, isAdmin, onMarginSave
   const { data: invData } = useSWR<InventoryApiResponse>('/api/pricing/gpu/inventory', fetcher, {
     refreshInterval: 120000,
   })
-  const rows = mergeInventory(cockpitToUnified(data), invData)
+  // 표준 사다리(1/2/4/8) 표시계층 확장 — 없는 장수는 per-card×count로 계산해 채움(DB 미변경).
+  const rows = expandStandardLadder(mergeInventory(cockpitToUnified(data), invData))
   return (
     <UnifiedTable
       rows={rows}

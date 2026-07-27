@@ -80,6 +80,8 @@ export interface UnifiedRow {
   // 노출 큐레이션(마이그180) — 가격표 표시 필터/배지. is_active=false는 기본 숨김(전체보기 토글로만 노출).
   is_active: boolean
   needs_review: boolean // 신규 유입 검토 대기 → "검토 대기" 배지
+  // 표준 사다리(1/2/4/8) 표시계층 합성 구성(config-ladder-expand). DB 미존재 — per-card×count 계산행. 배지 표기용.
+  synthetic?: boolean
 }
 
 export type CellTone = 'default' | 'sell' | 'ok' | 'warn' | 'danger' | 'muted'

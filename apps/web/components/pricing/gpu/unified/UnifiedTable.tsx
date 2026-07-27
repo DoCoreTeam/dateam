@@ -207,6 +207,7 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
                   <span title={memoryTitle(row.memory, row.gpu_count) || undefined}>
                     {variant && variant !== '기본' && <span className="gpu-ubadge gpu-ubadge--muted" style={{ marginRight: 6 }}>{variant}</span>}
                     {row.memory ? formatCardMemory(row.memory, row.gpu_count) : cell.text}
+                    {row.synthetic && <span className="gpu-ubadge gpu-ubadge--muted" style={{ marginLeft: 6 }} title="1장 가격 × 장수로 계산된 표준 구성">계산</span>}
                   </span>
                   {row.supplier_name && <small>{row.supplier_name}</small>}
                 </span>

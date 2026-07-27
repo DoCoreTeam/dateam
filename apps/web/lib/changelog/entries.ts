@@ -32,6 +32,19 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.409',
+    date: '2026-07-27',
+    title: '모든 GPU가 1·2·4·8장 구성으로 한눈에 보여요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🧮',
+        headline: '1장 가격만 있어도 2·4·8장 가격이 자동으로 계산돼요',
+        detail: '이제 모든 모델이 1·2·4·8장 구성으로 정리돼 표시돼요. 실제 견적이 1장만 있어도 2·4·8장 가격을 "1장 단가 × 장수"로 시스템이 계산해 보여줘, 몇 장을 사면 얼마인지 바로 알 수 있어요. 계산으로 채운 구성은 "계산" 표시가 붙어요.',
+      },
+    ],
+  },
+  {
     version: '0.7.408',
     date: '2026-07-27',
     title: 'GPU 목록이 "같은 라인"끼리 깔끔하게 묶여요',
