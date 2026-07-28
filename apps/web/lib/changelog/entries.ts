@@ -32,6 +32,19 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.410',
+    date: '2026-07-28',
+    title: '가격표 "전체 보기" 숫자가 실제 모델 수랑 딱 맞아요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🔢',
+        headline: '"전체 보기 (+44)"처럼 부풀려 보이던 숨김 개수를 바로잡았어요',
+        detail: '구성(1·2·4·8장)이 자동으로 늘어나면서 숨김 개수가 실제보다 몇 배 크게 표시되던 문제를 고쳤어요. 이제 "전체 보기" 옆 숫자가 숨겨진 실제 모델 수와 정확히 일치해요.',
+      },
+    ],
+  },
+  {
     version: '0.7.409',
     date: '2026-07-27',
     title: '모든 GPU가 1·2·4·8장 구성으로 한눈에 보여요',

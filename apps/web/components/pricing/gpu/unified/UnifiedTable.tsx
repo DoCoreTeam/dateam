@@ -121,7 +121,17 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
   }
   // 노출 필터(표시 계층 전용) — 기본은 취급(is_active)만. showAll이면 전량. 검색/정렬 전에 적용.
   const curated = showAll ? rows : rows.filter((r) => r.is_active)
-  const hiddenCount = rows.length - curated.length
+  // 숨김 개수 = "완전히 숨겨진 모델 그룹" 수(전체 보기 시 새로 나타나는 그룹 수).
+  //   ⚠️ rows엔 구성 사다리(1/2/4/8) 합성 행이 섞여 있어 단순 행 차감(rows.length-curated.length)은
+  //      숨긴 모델 1개를 합성 4개로 부풀린다(예: 11모델→44). 화면은 그룹 단위이므로 그룹 기준으로 센다.
+  const activeGroupKeys = new Set(
+    rows.filter((r) => r.is_active).map((r) => baseModelKey(r.model_name)),
+  )
+  const hiddenCount = new Set(
+    rows
+      .filter((r) => !r.is_active && !activeGroupKeys.has(baseModelKey(r.model_name)))
+      .map((r) => baseModelKey(r.model_name)),
+  ).size
   const sortedRows = [...curated].sort((a, b) => {
     if (!sortConfig) return defaultCmp(a, b)
     const av = sortValue(a, sortConfig.key)

@@ -6910,8 +6910,26 @@ label.intake-tool-btn {
 /* 노출 큐레이션(마이그180) — 그룹 헤더 행(제목 버튼 + admin 노출 토글), 배지, 숨김 dim */
 .gpu-unified-group-head-row { display: flex; align-items: stretch; }
 .gpu-unified-group-head-row .gpu-unified-group-head { flex: 1 1 auto; border-right: 0; }
-.gpu-unified-vis-btn { flex: 0 0 auto; white-space: nowrap; min-height: 38px; border-top: var(--hairline) solid var(--gpu-border); border-bottom: var(--border-w) solid var(--gpu-border); }
-.gpu-unified-group:first-child .gpu-unified-vis-btn { border-top: 0; }
+/* admin 노출 토글 — 헤더 행 우측에 인라인 통합된 컴팩트 pill. .gpu-btn의 흰 카드(radius/full-height)를
+   그대로 물려받으면 헤더 위에 부유하는 팝오버처럼 보임 → 고스트 pill로 재정의(부유 금지). */
+.gpu-unified-vis-btn {
+  flex: 0 0 auto;
+  align-self: center;
+  margin-right: var(--space-3);
+  min-height: 30px;
+  padding: 4px var(--space-3);
+  border: var(--hairline) solid var(--gpu-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--gpu-muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.gpu-unified-vis-btn:hover { background: #fff; border-color: var(--gpu-border-strong); color: var(--text); }
+/* 숨김 상태 그룹의 '노출'은 되살리는 긍정 액션 → 강조 */
+.gpu-unified-group--hidden .gpu-unified-vis-btn { color: var(--gpu-accent); border-color: var(--gpu-accent-soft); }
+.gpu-unified-group--hidden .gpu-unified-vis-btn:hover { background: var(--gpu-accent-soft); color: var(--gpu-accent-ink); }
 .gpu-unified-group--hidden .gpu-unified-group-head { opacity: 0.55; }
 .gpu-unified-group--hidden .gpu-unified-group-name { text-decoration: line-through; text-decoration-color: var(--gpu-muted); }
 .gpu-unified-order { min-height: 38px; }
