@@ -32,6 +32,19 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.411',
+    date: '2026-07-28',
+    title: '회의록을 PDF·이미지로 깔끔하게 내보낼 수 있어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📤',
+        headline: '회의노트 상세에 "PDF"·"이미지" 내보내기 버튼이 생겼어요',
+        detail: '지금 보고 있는 탭(AI 정제본 또는 원본)을 그대로 문서로 저장할 수 있어요. 제목·일시·요약·결정사항·참석자까지 보기 좋게 정리된 PDF와, 선명한 이미지(PNG)로 바로 내려받아 공유하세요.',
+      },
+    ],
+  },
+  {
     version: '0.7.410',
     date: '2026-07-28',
     title: '가격표 "전체 보기" 숫자가 실제 모델 수랑 딱 맞아요',
