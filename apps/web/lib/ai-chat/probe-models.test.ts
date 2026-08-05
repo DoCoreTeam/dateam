@@ -6,6 +6,7 @@ import { classifyModelProbeFailure, getProviderErrorDetail } from './probe-resul
 import { claudeProvider } from './providers/claude.ts'
 import { geminiProvider } from './providers/gemini.ts'
 import { openaiProvider } from './providers/openai.ts'
+import { isSelectableModelAvailability } from './model-availability.ts'
 
 function fakeProvider(overrides: Partial<ChatProvider> = {}): ChatProvider {
   return {
@@ -84,4 +85,11 @@ test('모델 가용 점검을 모든 공급자가 모두 제공', () => {
   assert.equal(typeof geminiProvider.probeModel, 'function')
   assert.equal(typeof claudeProvider.probeModel, 'function')
   assert.equal(typeof openaiProvider.probeModel, 'function')
+})
+
+test('모델 선택 후보는 available·unknown만 허용', () => {
+  assert.equal(isSelectableModelAvailability('available'), true)
+  assert.equal(isSelectableModelAvailability('unknown'), true)
+  assert.equal(isSelectableModelAvailability('limited'), false)
+  assert.equal(isSelectableModelAvailability('unavailable'), false)
 })

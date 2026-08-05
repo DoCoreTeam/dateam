@@ -1,5 +1,12 @@
 import type { AiChatProviderId } from '@/types/database'
 
+export type ModelAvailability = 'available' | 'limited' | 'unavailable' | 'unknown'
+
+/** 모델 선택창에는 지금 실제 호출 가능한 후보만 노출한다. */
+export function isSelectableModelAvailability(value: ModelAvailability): boolean {
+  return value === 'available' || value === 'unknown'
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AdminClient = any
 

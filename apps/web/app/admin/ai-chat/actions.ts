@@ -10,7 +10,7 @@ import { chunkText, embedKnowledgeChunks } from '@/lib/ai-chat/knowledge'
 import { sanitizeSearchQuery } from '@/lib/ai-chat/search'
 import { mergeModelCatalogEntry, inferModelMeta, inferModelUseCase, isChatModel, type ModelCapabilities } from '@/lib/ai-chat/model-catalog'
 import { probeModelIds } from '@/lib/ai-chat/probe-models'
-import { getModelSelectionError, isAvailabilitySchemaMissing } from '@/lib/ai-chat/model-availability'
+import { getModelSelectionError, isAvailabilitySchemaMissing, isSelectableModelAvailability } from '@/lib/ai-chat/model-availability'
 import type {
   AiChatProviderId,
   AiChatConversation,
@@ -1003,7 +1003,7 @@ export async function listModelCatalog(): Promise<{
   const rows = (data ?? []) as ModelCatalogRow[]
   // 비채팅 모델 제외 + 표시 시점 추론 fallback(이미 저장된 빈칸 행도 능력·출시일이 즉시 뜨게).
   const items: ModelCatalogItem[] = rows
-    .filter((r) => isChatModel(r.provider, r.model_id))
+    .filter((r) => r.is_active && isChatModel(r.provider, r.model_id))
     .map((r) => {
       const inferred = inferModelMeta(r.provider, r.model_id)
       const dbCaps = r.capabilities ?? {}
@@ -1024,6 +1024,7 @@ export async function listModelCatalog(): Promise<{
         availabilityCheckedAt: r.availability_checked_at,
       }
     })
+    .filter((item) => isSelectableModelAvailability(item.availability))
   return { ok: true, items }
 }
 

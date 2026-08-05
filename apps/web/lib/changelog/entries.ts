@@ -32,6 +32,19 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.415',
+    date: '2026-08-06',
+    title: '실제로 사용할 수 있는 AI 모델만 보여드려요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '✅',
+        headline: '모델 선택창이 열리면 사용 가능 여부를 바로 확인해요',
+        detail: '각 공급자 탭을 열 때 최소 호출로 모델 상태를 확인하고, 현재 사용할 수 없는 모델은 선택 목록에서 자동으로 제외해요.',
+      },
+    ],
+  },
+  {
     version: '0.7.414',
     date: '2026-08-06',
     title: 'AI 모델의 실제 사용 가능 상태를 확인해요',

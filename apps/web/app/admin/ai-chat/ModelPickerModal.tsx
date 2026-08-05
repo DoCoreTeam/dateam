@@ -1,11 +1,12 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { X, RefreshCw, Eye, BookOpenText, Brain, CircleCheck, CircleAlert, CircleX, CircleHelp } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import type { AiChatProviderId } from '@/types/database'
 import { listModelCatalog, refreshModelCatalog, type ModelCatalogItem } from './actions'
 import type { ProviderView } from './AiChatClient'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
+import { isSelectableModelAvailability } from '@/lib/ai-chat/model-availability'
 
 interface Props {
   providers: ProviderView[] // 키가 설정된(가용) 프로바이더만 — 탭 소스
@@ -43,6 +44,7 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [picked, setPicked] = useState<string | null>(currentModel ?? null)
+  const probedProviders = useRef(new Set<AiChatProviderId>())
 
   useEffect(() => {
     let alive = true
@@ -55,29 +57,28 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
     return () => { alive = false }
   }, [])
 
-  const itemsForTab = useMemo(() => items.filter((i) => i.provider === tab), [items, tab])
+  const itemsForTab = useMemo(
+    () => items.filter((i) => i.provider === tab && isSelectableModelAvailability(i.availability)),
+    [items, tab],
+  )
   const pickedItem = items.find((item) => item.provider === tab && item.modelId === picked)
-  const canConfirm = !!pickedItem && pickedItem.availability !== 'limited' && pickedItem.availability !== 'unavailable'
+  const canConfirm = !!pickedItem && isSelectableModelAvailability(pickedItem.availability)
 
   function handleTabChange(id: AiChatProviderId) {
+    if (refreshing) return
     setTab(id)
     setPicked(id === currentProvider ? currentModel : null)
   }
 
-  async function handleRefresh() {
-    if (!tab || refreshing) return
+  const refreshProvider = useCallback(async (provider: AiChatProviderId) => {
     setRefreshing(true)
     setError(null)
-    const r = await refreshModelCatalog(tab)
+    const r = await refreshModelCatalog(provider)
     if (r.ok) {
       const list = await listModelCatalog()
       if (list.ok && list.items) {
-        const live = new Map((r.availability ?? []).map((status) => [status.modelId, status]))
-        setItems(list.items.map((item) => {
-          if (item.provider !== tab) return item
-          const status = live.get(item.modelId)
-          return status ? { ...item, ...status } : item
-        }))
+        setItems(list.items)
+        setPicked((value) => list.items?.some((item) => item.provider === provider && item.modelId === value) ? value : null)
       } else {
         setError(list.error ?? '새로고친 모델 목록을 불러오지 못했습니다')
       }
@@ -85,6 +86,17 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
       setError(r.error ?? '모델 새로고침에 실패했습니다')
     }
     setRefreshing(false)
+  }, [])
+
+  useEffect(() => {
+    if (!tab || loading || probedProviders.current.has(tab)) return
+    probedProviders.current.add(tab)
+    void refreshProvider(tab)
+  }, [loading, refreshProvider, tab])
+
+  function handleRefresh() {
+    if (!tab || refreshing) return
+    void refreshProvider(tab)
   }
 
   function confirm() {
@@ -128,6 +140,7 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
               type="button"
               role="tab"
               aria-selected={tab === p.id}
+              disabled={refreshing}
               onClick={() => handleTabChange(p.id)}
               style={{
                 padding: 'var(--space-1) var(--space-3)',
@@ -178,12 +191,17 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
 
         <div role="radiogroup" aria-label="모델 목록" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', maxHeight: 360, overflowY: 'auto' }}>
           {loading && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', padding: 'var(--space-3)' }}>불러오는 중…</div>}
-          {!loading && itemsForTab.length === 0 && (
+          {!loading && refreshing && (
+            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', padding: 'var(--space-3)' }}>
+              실제 사용 가능 여부를 확인하는 중…
+            </div>
+          )}
+          {!loading && !refreshing && itemsForTab.length === 0 && (
             <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', padding: 'var(--space-3)' }}>
               카탈로그에 모델이 없습니다. &quot;모델 새로고침&quot;으로 최신 목록을 가져오세요.
             </div>
           )}
-          {itemsForTab.map((m) => {
+          {!refreshing && itemsForTab.map((m) => {
             const selected = picked === m.modelId
             const blocked = m.availability === 'limited' || m.availability === 'unavailable'
             const status = STATUS_META[m.availability]
