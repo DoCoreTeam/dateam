@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { X, RefreshCw, Eye, BookOpenText, Brain } from 'lucide-react'
+import { X, RefreshCw, Eye, BookOpenText, Brain, CircleCheck, CircleAlert, CircleX, CircleHelp } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import type { AiChatProviderId } from '@/types/database'
 import { listModelCatalog, refreshModelCatalog, type ModelCatalogItem } from './actions'
@@ -19,6 +19,18 @@ function formatReleased(d: string | null): string {
   if (!d) return ''
   const [y, m] = d.split('-')
   return `${y}.${m}`
+}
+
+const STATUS_META = {
+  available: { label: '사용 가능', icon: CircleCheck, color: 'var(--success)' },
+  limited: { label: '현재 한도 도달', icon: CircleAlert, color: 'var(--warning)' },
+  unavailable: { label: '사용 불가', icon: CircleX, color: 'var(--danger)' },
+  unknown: { label: '확인 필요', icon: CircleHelp, color: 'var(--text-faint)' },
+} as const
+
+function formatCheckedAt(value: string | null): string {
+  if (!value) return '아직 확인하지 않음'
+  return new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 }
 
 // 모델 선택 모달(⑤) — DB 카탈로그(능력·출시일)에서 선택 + "모델 새로고침"으로 실 프로바이더 목록 반영.
@@ -44,6 +56,8 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
   }, [])
 
   const itemsForTab = useMemo(() => items.filter((i) => i.provider === tab), [items, tab])
+  const pickedItem = items.find((item) => item.provider === tab && item.modelId === picked)
+  const canConfirm = !!pickedItem && pickedItem.availability !== 'limited' && pickedItem.availability !== 'unavailable'
 
   function handleTabChange(id: AiChatProviderId) {
     setTab(id)
@@ -135,6 +149,11 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
           </button>
         </div>
 
+        <div style={{ marginBottom: 'var(--space-3)', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+          토큰 한도는 한 요청에 담을 수 있는 최대 컨텍스트입니다. 공급자가 계정의 정확한 잔여 쿼터를 제공하지 않아,
+          최소 호출로 확인한 현재 가용 상태와 점검 시각을 함께 보여드립니다.
+        </div>
+
         {error && (
           <div
             role="alert"
@@ -157,20 +176,24 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
           )}
           {itemsForTab.map((m) => {
             const selected = picked === m.modelId
+            const blocked = m.availability === 'limited' || m.availability === 'unavailable'
+            const status = STATUS_META[m.availability]
+            const StatusIcon = status.icon
             return (
               <button
                 key={m.modelId}
                 type="button"
                 role="radio"
                 aria-checked={selected}
-                onClick={() => setPicked(m.modelId)}
+                onClick={() => { if (!blocked) setPicked(m.modelId) }}
+                disabled={blocked}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)',
                   textAlign: 'left', width: '100%',
                   padding: 'var(--space-3) var(--space-4)', borderRadius: 'var(--radius)',
                   border: `var(--border-w) solid ${selected ? 'var(--brand)' : 'var(--border-color)'}`,
                   background: selected ? 'var(--surface-bg)' : 'transparent',
-                  cursor: 'pointer',
+                  cursor: blocked ? 'not-allowed' : 'pointer', opacity: blocked ? 0.68 : 1,
                 }}
               >
                 <span style={{ minWidth: 0 }}>
@@ -193,6 +216,17 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
                   {m.useCase && (
                     <span style={{ display: 'block', marginTop: 'var(--space-1)', fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                       💡 {m.useCase}
+                    </span>
+                  )}
+                  <span style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginTop: 'var(--space-2)', fontSize: 'var(--fs-2xs)' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: status.color, fontWeight: 700 }}>
+                      <StatusIcon size={12} /> {status.label}
+                    </span>
+                    <span style={{ color: 'var(--text-faint)' }}>점검 {formatCheckedAt(m.availabilityCheckedAt)}</span>
+                  </span>
+                  {m.availabilityReason && m.availability !== 'available' && (
+                    <span style={{ display: 'block', marginTop: 'var(--space-1)', fontSize: 'var(--fs-2xs)', color: status.color }}>
+                      {m.availabilityReason}
                     </span>
                   )}
                 </span>
@@ -218,12 +252,12 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
           </button>
           <button
             onClick={confirm}
-            disabled={!picked}
+            disabled={!canConfirm}
             style={{
               fontSize: 'var(--fs-sm)', fontWeight: 600,
               color: 'var(--accent-fg)', background: 'var(--accent)', border: 'none',
               borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-5)',
-              cursor: picked ? 'pointer' : 'not-allowed',
+              cursor: canConfirm ? 'pointer' : 'not-allowed', opacity: canConfirm ? 1 : 0.55,
             }}
           >
             선택

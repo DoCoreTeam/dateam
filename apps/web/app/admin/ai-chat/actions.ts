@@ -10,6 +10,7 @@ import { chunkText, embedKnowledgeChunks } from '@/lib/ai-chat/knowledge'
 import { sanitizeSearchQuery } from '@/lib/ai-chat/search'
 import { mergeModelCatalogEntry, inferModelMeta, inferModelUseCase, isChatModel, type ModelCapabilities } from '@/lib/ai-chat/model-catalog'
 import { probeModelIds } from '@/lib/ai-chat/probe-models'
+import { getModelSelectionError } from '@/lib/ai-chat/model-availability'
 import type {
   AiChatProviderId,
   AiChatConversation,
@@ -139,6 +140,8 @@ export async function createConversation(input: {
   if (!getProviderConfig(meta, input.provider)) {
     return { ok: false, error: '해당 프로바이더의 AI 키가 설정되지 않았습니다' }
   }
+  const unavailable = await getModelSelectionError(ctx.admin, input.provider, model)
+  if (unavailable) return { ok: false, error: unavailable }
 
   const { data, error } = await ctx.admin
     .from('ai_conversations')
@@ -356,6 +359,8 @@ export async function updateConversationModel(
   if (!getProviderConfig(meta, provider)) {
     return { ok: false, error: '해당 프로바이더의 AI 키가 설정되지 않았습니다' }
   }
+  const unavailable = await getModelSelectionError(ctx.admin, provider, trimmed)
+  if (unavailable) return { ok: false, error: unavailable }
 
   const { error } = await ctx.admin
     .from('ai_conversations')
@@ -942,6 +947,9 @@ export interface ModelCatalogItem {
   capabilities: ModelCapabilities
   releasedAt: string | null
   useCase: string   // "무엇에 쓰는지" 친절 안내
+  availability: 'available' | 'limited' | 'unavailable' | 'unknown'
+  availabilityReason: string | null
+  availabilityCheckedAt: string | null
 }
 
 interface ModelCatalogRow {
@@ -952,6 +960,9 @@ interface ModelCatalogRow {
   capabilities: Partial<ModelCapabilities> | null
   released_at: string | null
   is_active: boolean
+  availability: ModelCatalogItem['availability']
+  availability_reason: string | null
+  availability_checked_at: string | null
 }
 
 // ── 키가 설정된 프로바이더의 카탈로그(is_active만) 조회 — 모델 선택 모달 데이터 소스 ──
@@ -969,9 +980,8 @@ export async function listModelCatalog(): Promise<{
 
   const { data, error } = await ctx.admin
     .from('ai_model_catalog')
-    .select('provider, model_id, label, context_length, capabilities, released_at, is_active')
+    .select('provider, model_id, label, context_length, capabilities, released_at, is_active, availability, availability_reason, availability_checked_at')
     .in('provider', available)
-    .eq('is_active', true)
     .order('released_at', { ascending: false, nullsFirst: false })
   if (error) return { ok: false, error: '모델 카탈로그 조회 중 오류가 발생했습니다' }
 
@@ -994,6 +1004,9 @@ export async function listModelCatalog(): Promise<{
         capabilities,
         releasedAt: r.released_at ?? inferred.releasedAt ?? null,
         useCase: inferModelUseCase(r.provider, r.model_id, capabilities),
+        availability: r.is_active ? (r.availability ?? 'unknown') : 'unavailable',
+        availabilityReason: r.is_active ? r.availability_reason : '더 이상 공급자 모델 목록에 없는 모델입니다.',
+        availabilityCheckedAt: r.availability_checked_at,
       }
     })
   return { ok: true, items }
@@ -1023,7 +1036,7 @@ export async function refreshModelCatalog(
 
   // listModels는 generateContent 지원 여부만 알려줄 뿐, 현재 키/요금제로 실제 전송 가능한지는
   // 보장하지 않는다(예: 요금제 할당량 0·신규 불가 모델). 실사용 프로브로 진짜 못 쓰는 모델만 걸러낸다.
-  const usableMap = await probeModelIds(getProvider(provider), config.apiKey, modelIds)
+  const probeMap = await probeModelIds(getProvider(provider), config.apiKey, modelIds)
 
   const { data: existingData } = await ctx.admin
     .from('ai_model_catalog')
@@ -1039,6 +1052,7 @@ export async function refreshModelCatalog(
   }>
   const existingMap = new Map(existingRows.map((r) => [r.model_id, r]))
 
+  const checkedAt = new Date().toISOString()
   const upsertRows = modelIds.map((modelId) => {
     const existing = existingMap.get(modelId)
     const merged = mergeModelCatalogEntry(provider, modelId, {
@@ -1054,8 +1068,11 @@ export async function refreshModelCatalog(
       context_length: merged.contextLength,
       capabilities: merged.capabilities,
       released_at: merged.releasedAt,
-      is_active: usableMap.get(modelId) ?? true,
-      fetched_at: new Date().toISOString(),
+      is_active: true,
+      availability: probeMap.get(modelId)?.availability ?? 'unknown',
+      availability_reason: probeMap.get(modelId)?.reason ?? null,
+      availability_checked_at: checkedAt,
+      fetched_at: checkedAt,
     }
   })
 

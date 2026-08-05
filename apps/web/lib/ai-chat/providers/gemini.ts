@@ -97,7 +97,8 @@ async function streamChat(params: StreamChatParams): Promise<StreamChatResult> {
     })
 
     if (!res.ok || !res.body) {
-      throw new Error(`Gemini API 오류 (${res.status})`)
+      const errorBody = await res.text().catch(() => '')
+      throw new Error(`Gemini API 오류 (${res.status}): ${errorBody.slice(0, 2000)}`)
     }
 
     const reader = res.body.getReader()
@@ -163,7 +164,7 @@ async function listModels(apiKey: string): Promise<string[]> {
 /** 실사용 프로브: 최소 페이로드로 generateContent(비스트리밍) 1회 호출.
  *  200 = usable. 404/400(모델없음·미지원)·429(limit: 0, 요금제 할당량 0) = usable:false(근본 미사용).
  *  그 외(일시 429·5xx·네트워크 오류)는 usable:true — 일시 장애로 모델을 벌하지 않는다. */
-async function probeModel(apiKey: string, model: string): Promise<{ usable: boolean }> {
+async function probeModel(apiKey: string, model: string): Promise<import('../provider.ts').ProbeModelResult> {
   try {
     const url = `${GEMINI_API_BASE}/models/${encodeURIComponent(model)}:generateContent`
     const res = await fetch(url, {
@@ -175,16 +176,21 @@ async function probeModel(apiKey: string, model: string): Promise<{ usable: bool
       }),
       cache: 'no-store',
     })
-    if (res.ok) return { usable: true }
-    if (res.status === 404 || res.status === 400) return { usable: false }
-    if (res.status === 429) {
-      const bodyText = await res.text().catch(() => '')
-      if (bodyText.toLowerCase().includes('limit: 0')) return { usable: false }
-      return { usable: true } // 일시 레이트리밋
+    if (res.ok) return { usable: true, availability: 'available', reason: null }
+    const bodyText = await res.text().catch(() => '')
+    const raw = bodyText.toLowerCase()
+    if (res.status === 404 || res.status === 400) {
+      return { usable: false, availability: 'unavailable', reason: '현재 API 키에서 지원되지 않는 모델입니다.' }
     }
-    return { usable: true } // 5xx 등 일시 장애
+    if (res.status === 429) {
+      if (raw.includes('limit: 0')) {
+        return { usable: false, availability: 'unavailable', reason: '현재 요금제에 이 모델의 할당량이 없습니다.' }
+      }
+      return { usable: false, availability: 'limited', reason: '현재 요청 또는 토큰 한도에 도달했습니다. 잠시 후 다시 확인하세요.' }
+    }
+    return { usable: true, availability: 'unknown', reason: `공급자 상태를 확인하지 못했습니다. (${res.status})` }
   } catch {
-    return { usable: true } // 네트워크 오류 등 — 관대하게 처리(기존 동작 보존)
+    return { usable: true, availability: 'unknown', reason: '네트워크 오류로 상태를 확인하지 못했습니다.' }
   }
 }
 

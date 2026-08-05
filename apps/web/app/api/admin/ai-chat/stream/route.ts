@@ -13,6 +13,7 @@ import { extractDocumentText } from '@/lib/ai-chat/document-extract'
 import { retrieveProjectContext, buildProjectSystemBlock } from '@/lib/ai-chat/knowledge'
 import { autoTitle } from '@/app/admin/ai-chat/actions'
 import { classifyProviderError } from '@/lib/ai-chat/provider-errors'
+import { getModelSelectionError } from '@/lib/ai-chat/model-availability'
 import type { AiChatConversation, AiChatCitation } from '@/types/database'
 
 export const runtime = 'nodejs' // extractDocumentText(officeparser) + Buffer 사용
@@ -305,6 +306,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'AI 키가 설정되지 않았습니다' }, { status: 500 })
   }
 
+  const unavailable = await getModelSelectionError(adminClient, conversation.provider, conversation.model)
+  if (unavailable) return NextResponse.json({ error: unavailable }, { status: 409 })
+
   const provider = getProvider(conversation.provider)
   const visionSupported = provider.capabilities.vision
 
@@ -530,12 +534,17 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         // 프로바이더 예외 → 원문은 서버 로그. 클라이언트에는 사유별 친절 메시지(민감정보는 제외).
         console.error('[ai-chat/stream] provider error', err)
-        const { message, fatalModel } = classifyProviderError(err)
-        // learn-on-failure: 근본적으로 못 쓰는 모델(404·할당량0)은 카탈로그에서 즉시 비활성화 → 목록에서 사라짐.
-        if (fatalModel) {
+        const { message, availability } = classifyProviderError(err)
+        // learn-on-failure: 제한/미지원 상태를 카탈로그에 즉시 반영해 다음 선택 때 사전에 안내한다.
+        if (availability) {
           try {
             await adminClient.from('ai_model_catalog')
-              .update({ is_active: false }).eq('provider', providerName).eq('model_id', model)
+              .update({
+                is_active: true,
+                availability,
+                availability_reason: message,
+                availability_checked_at: new Date().toISOString(),
+              }).eq('provider', providerName).eq('model_id', model)
           } catch { /* best-effort */ }
         }
         try {

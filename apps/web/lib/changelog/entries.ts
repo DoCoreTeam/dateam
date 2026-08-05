@@ -32,6 +32,19 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.412',
+    date: '2026-08-06',
+    title: 'AI 모델을 고르기 전에 사용 가능 여부를 확인할 수 있어요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🤖',
+        headline: '모델별 토큰 한도와 현재 가용 상태를 한눈에 보여드려요',
+        detail: '모델 선택창에서 요청당 컨텍스트 한도와 상태 점검 시각을 확인할 수 있어요. 현재 한도에 도달했거나 사용할 수 없는 모델은 선택되지 않아, 메시지를 다 쓴 뒤 실패하는 일을 줄였어요.',
+      },
+    ],
+  },
+  {
     version: '0.7.411',
     date: '2026-07-28',
     title: '회의록을 PDF·이미지로 깔끔하게 내보낼 수 있어요',

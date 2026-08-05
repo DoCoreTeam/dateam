@@ -2,7 +2,7 @@
 // listModels는 generateContent 지원 목록일 뿐, 현재 API키/요금제로 실제 전송 가능한지는 보장 안 함
 // (예: gemini-pro-latest=free tier limit 0, 신규 불가 모델=404). refreshModelCatalog가 이를 사용해
 // is_active를 결정한다. 신규 npm 의존성 없이 최소 구현.
-import type { ChatProvider } from './provider.ts'
+import type { ChatProvider, ProbeModelResult } from './provider.ts'
 
 const DEFAULT_CONCURRENCY = 4
 
@@ -39,10 +39,10 @@ export async function probeModelIds(
   apiKey: string,
   modelIds: string[],
   concurrency: number = DEFAULT_CONCURRENCY,
-): Promise<Map<string, boolean>> {
-  const usableMap = new Map<string, boolean>()
+): Promise<Map<string, ProbeModelResult>> {
+  const usableMap = new Map<string, ProbeModelResult>()
   if (!provider.probeModel || modelIds.length === 0) {
-    for (const id of modelIds) usableMap.set(id, true)
+    for (const id of modelIds) usableMap.set(id, { usable: true, availability: 'unknown', reason: '가용 상태 확인을 지원하지 않는 공급자입니다.' })
     return usableMap
   }
 
@@ -50,9 +50,9 @@ export async function probeModelIds(
   await mapWithConcurrency(modelIds, concurrency, async (modelId) => {
     try {
       const result = await probe(apiKey, modelId)
-      usableMap.set(modelId, result.usable)
+      usableMap.set(modelId, result)
     } catch {
-      usableMap.set(modelId, true)
+      usableMap.set(modelId, { usable: true, availability: 'unknown', reason: '상태 확인 요청에 실패했습니다.' })
     }
   })
   return usableMap

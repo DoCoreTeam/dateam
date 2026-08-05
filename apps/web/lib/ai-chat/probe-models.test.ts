@@ -31,8 +31,8 @@ test('mapWithConcurrency: 빈 배열', async () => {
 test('probeModelIds: probeModel 미구현 프로바이더는 전부 usable:true(스킵)', async () => {
   const provider = fakeProvider() // probeModel 없음
   const result = await probeModelIds(provider, 'key', ['a', 'b'])
-  assert.equal(result.get('a'), true)
-  assert.equal(result.get('b'), true)
+  assert.equal(result.get('a')?.usable, true)
+  assert.equal(result.get('b')?.usable, true)
 })
 
 test('probeModelIds: usable false 모델은 false로 표시', async () => {
@@ -40,8 +40,8 @@ test('probeModelIds: usable false 모델은 false로 표시', async () => {
     probeModel: async (_key, model) => ({ usable: model !== 'dead-model' }),
   })
   const result = await probeModelIds(provider, 'key', ['live-model', 'dead-model'])
-  assert.equal(result.get('live-model'), true)
-  assert.equal(result.get('dead-model'), false)
+  assert.equal(result.get('live-model')?.usable, true)
+  assert.equal(result.get('dead-model')?.usable, false)
 })
 
 test('probeModelIds: 개별 프로브가 예외를 던지면 관대하게 usable:true', async () => {
@@ -51,7 +51,7 @@ test('probeModelIds: 개별 프로브가 예외를 던지면 관대하게 usable
     },
   })
   const result = await probeModelIds(provider, 'key', ['flaky-model'])
-  assert.equal(result.get('flaky-model'), true)
+  assert.equal(result.get('flaky-model')?.usable, true)
 })
 
 test('probeModelIds: modelIds 빈 배열은 빈 map', async () => {

@@ -62,6 +62,8 @@ export interface ProviderCapabilities {
 
 export interface ProbeModelResult {
   usable: boolean
+  availability?: 'available' | 'limited' | 'unavailable' | 'unknown'
+  reason?: string | null
 }
 
 export interface ChatProvider {
