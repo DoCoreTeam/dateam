@@ -32,6 +32,19 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.413',
+    date: '2026-08-06',
+    title: 'AI 모델 선택창이 안정적으로 열려요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🛠️',
+        headline: '모델 카탈로그 조회·새로고침 오류를 해결했어요',
+        detail: '서버 업데이트 순서와 관계없이 모델 목록을 불러올 수 있고, 새로고침으로 확인한 현재 가용 상태도 선택창에 바로 반영돼요.',
+      },
+    ],
+  },
+  {
     version: '0.7.412',
     date: '2026-08-06',
     title: 'AI 모델을 고르기 전에 사용 가능 여부를 확인할 수 있어요',

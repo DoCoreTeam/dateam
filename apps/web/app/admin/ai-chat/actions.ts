@@ -10,7 +10,7 @@ import { chunkText, embedKnowledgeChunks } from '@/lib/ai-chat/knowledge'
 import { sanitizeSearchQuery } from '@/lib/ai-chat/search'
 import { mergeModelCatalogEntry, inferModelMeta, inferModelUseCase, isChatModel, type ModelCapabilities } from '@/lib/ai-chat/model-catalog'
 import { probeModelIds } from '@/lib/ai-chat/probe-models'
-import { getModelSelectionError } from '@/lib/ai-chat/model-availability'
+import { getModelSelectionError, isAvailabilitySchemaMissing } from '@/lib/ai-chat/model-availability'
 import type {
   AiChatProviderId,
   AiChatConversation,
@@ -952,6 +952,13 @@ export interface ModelCatalogItem {
   availabilityCheckedAt: string | null
 }
 
+export interface ModelAvailabilitySnapshot {
+  modelId: string
+  availability: ModelCatalogItem['availability']
+  availabilityReason: string | null
+  availabilityCheckedAt: string
+}
+
 interface ModelCatalogRow {
   provider: AiChatProviderId
   model_id: string
@@ -978,12 +985,20 @@ export async function listModelCatalog(): Promise<{
   const available = getAvailableProviders(meta).map((c) => c.id)
   if (available.length === 0) return { ok: true, items: [] }
 
-  const { data, error } = await ctx.admin
+  let { data, error } = await ctx.admin
     .from('ai_model_catalog')
     .select('provider, model_id, label, context_length, capabilities, released_at, is_active, availability, availability_reason, availability_checked_at')
     .in('provider', available)
     .order('released_at', { ascending: false, nullsFirst: false })
-  if (error) return { ok: false, error: '모델 카탈로그 조회 중 오류가 발생했습니다' }
+  if (isAvailabilitySchemaMissing(error)) {
+    const legacy = await ctx.admin.from('ai_model_catalog')
+      .select('provider, model_id, label, context_length, capabilities, released_at, is_active')
+      .in('provider', available)
+      .order('released_at', { ascending: false, nullsFirst: false })
+    data = legacy.data
+    error = legacy.error
+  }
+  if (error) return { ok: false, error: `모델 카탈로그 조회 중 오류가 발생했습니다 (${error.code ?? 'unknown'})` }
 
   const rows = (data ?? []) as ModelCatalogRow[]
   // 비채팅 모델 제외 + 표시 시점 추론 fallback(이미 저장된 빈칸 행도 능력·출시일이 즉시 뜨게).
@@ -1015,7 +1030,7 @@ export async function listModelCatalog(): Promise<{
 // ── 실 프로바이더 응답(listModels)으로 카탈로그 갱신 — capabilities/released_at은 기존값 보존 ──
 export async function refreshModelCatalog(
   provider: AiChatProviderId,
-): Promise<{ ok: boolean; count?: number; error?: string }> {
+): Promise<{ ok: boolean; count?: number; availability?: ModelAvailabilitySnapshot[]; error?: string }> {
   const ctx = await getCtx()
   if (!ctx) return { ok: false, error: '관리자 권한이 필요합니다' }
   if (!isValidProvider(provider)) return { ok: false, error: '유효하지 않은 프로바이더' }
@@ -1076,9 +1091,15 @@ export async function refreshModelCatalog(
     }
   })
 
-  const { error: upsertError } = await ctx.admin
+  let { error: upsertError } = await ctx.admin
     .from('ai_model_catalog')
     .upsert(upsertRows, { onConflict: 'provider,model_id' })
+  if (isAvailabilitySchemaMissing(upsertError)) {
+    const legacyRows = upsertRows.map(({ availability: _availability, availability_reason: _reason, availability_checked_at: _availabilityCheckedAt, ...row }) => row)
+    const legacy = await ctx.admin.from('ai_model_catalog')
+      .upsert(legacyRows, { onConflict: 'provider,model_id' })
+    upsertError = legacy.error
+  }
   if (upsertError) return { ok: false, error: '모델 카탈로그 저장 중 오류가 발생했습니다' }
 
   // 더 이상 응답에 없는 기존 모델은 비활성화(목록에서 숨김, 행은 보존)
@@ -1092,5 +1113,14 @@ export async function refreshModelCatalog(
   }
 
   revalidatePath('/ai-chat')
-  return { ok: true, count: upsertRows.length }
+  return {
+    ok: true,
+    count: upsertRows.length,
+    availability: upsertRows.map((row) => ({
+      modelId: row.model_id,
+      availability: row.availability,
+      availabilityReason: row.availability_reason,
+      availabilityCheckedAt: row.availability_checked_at,
+    })),
+  }
 }

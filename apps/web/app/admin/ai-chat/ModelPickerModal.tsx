@@ -71,7 +71,16 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
     const r = await refreshModelCatalog(tab)
     if (r.ok) {
       const list = await listModelCatalog()
-      if (list.ok && list.items) setItems(list.items)
+      if (list.ok && list.items) {
+        const live = new Map((r.availability ?? []).map((status) => [status.modelId, status]))
+        setItems(list.items.map((item) => {
+          if (item.provider !== tab) return item
+          const status = live.get(item.modelId)
+          return status ? { ...item, ...status } : item
+        }))
+      } else {
+        setError(list.error ?? '새로고친 모델 목록을 불러오지 못했습니다')
+      }
     } else {
       setError(r.error ?? '모델 새로고침에 실패했습니다')
     }

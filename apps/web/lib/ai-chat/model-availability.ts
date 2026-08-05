@@ -3,6 +3,10 @@ import type { AiChatProviderId } from '@/types/database'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AdminClient = any
 
+export function isAvailabilitySchemaMissing(error: unknown): boolean {
+  return (error as { code?: string } | null)?.code === '42703'
+}
+
 export async function getModelSelectionError(
   admin: AdminClient,
   provider: AiChatProviderId,
