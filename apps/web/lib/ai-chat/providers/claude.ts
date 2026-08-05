@@ -6,6 +6,7 @@ import type {
   StreamChatParams,
   StreamChatResult,
 } from '../provider.ts'
+import { classifyModelProbeFailure, getProviderErrorDetail } from '../probe-result.ts'
 import { toClaudeContent } from '../attachments.ts'
 
 const DEFAULT_MAX_OUTPUT_TOKENS = 32000
@@ -200,6 +201,21 @@ async function listModels(apiKey: string): Promise<string[]> {
   return out
 }
 
+async function probeModel(apiKey: string, model: string): Promise<import('../provider.ts').ProbeModelResult> {
+  try {
+    const client = new Anthropic({ apiKey })
+    await client.messages.create({
+      model,
+      max_tokens: 16,
+      messages: [{ role: 'user', content: 'hi' }],
+    })
+    return { usable: true, availability: 'available', reason: null }
+  } catch (error) {
+    const { status, detail } = getProviderErrorDetail(error)
+    return classifyModelProbeFailure('Claude', status, detail)
+  }
+}
+
 export const claudeProvider: ChatProvider = {
   id: 'claude',
   label: 'Claude',
@@ -211,4 +227,5 @@ export const claudeProvider: ChatProvider = {
   },
   streamChat,
   listModels,
+  probeModel,
 }

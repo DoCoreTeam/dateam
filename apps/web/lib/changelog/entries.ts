@@ -32,6 +32,19 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.414',
+    date: '2026-08-06',
+    title: 'AI 모델의 실제 사용 가능 상태를 확인해요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🔍',
+        headline: 'OpenAI·Claude·Gemini 모델을 전부 점검해요',
+        detail: '모델 목록을 새로고침할 때 현재 API 키에서 사용할 수 있는지 확인해, 선택 후 실패하는 일을 줄여드려요.',
+      },
+    ],
+  },
+  {
     version: '0.7.413',
     date: '2026-08-06',
     title: 'AI 모델 선택창이 안정적으로 열려요',

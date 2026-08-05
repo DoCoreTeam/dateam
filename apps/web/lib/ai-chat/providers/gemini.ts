@@ -5,6 +5,7 @@ import type {
   StreamChatParams,
   StreamChatResult,
 } from '../provider.ts'
+import { classifyModelProbeFailure } from '../probe-result.ts'
 import { createSseParser } from '../sse.ts'
 import { toGeminiParts } from '../attachments.ts'
 import { isHttpUrl } from './claude.ts'
@@ -172,23 +173,13 @@ async function probeModel(apiKey: string, model: string): Promise<import('../pro
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
-        generationConfig: { maxOutputTokens: 1 },
+        generationConfig: { maxOutputTokens: 16 },
       }),
       cache: 'no-store',
     })
     if (res.ok) return { usable: true, availability: 'available', reason: null }
     const bodyText = await res.text().catch(() => '')
-    const raw = bodyText.toLowerCase()
-    if (res.status === 404 || res.status === 400) {
-      return { usable: false, availability: 'unavailable', reason: '현재 API 키에서 지원되지 않는 모델입니다.' }
-    }
-    if (res.status === 429) {
-      if (raw.includes('limit: 0')) {
-        return { usable: false, availability: 'unavailable', reason: '현재 요금제에 이 모델의 할당량이 없습니다.' }
-      }
-      return { usable: false, availability: 'limited', reason: '현재 요청 또는 토큰 한도에 도달했습니다. 잠시 후 다시 확인하세요.' }
-    }
-    return { usable: true, availability: 'unknown', reason: `공급자 상태를 확인하지 못했습니다. (${res.status})` }
+    return classifyModelProbeFailure('Gemini', res.status, bodyText)
   } catch {
     return { usable: true, availability: 'unknown', reason: '네트워크 오류로 상태를 확인하지 못했습니다.' }
   }
