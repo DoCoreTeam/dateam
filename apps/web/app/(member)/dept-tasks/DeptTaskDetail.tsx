@@ -77,7 +77,7 @@ export default function DeptTaskDetail({ task, canAssign, canEdit, nameMap, dept
   }
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+    <div className="card dept-task-detail" style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
         <h2 style={{ margin: 0, fontSize: 'var(--fs-xl)' }}>{task.content}</h2>
         <div style={{ display: 'flex', gap: 'var(--space-2)', flexShrink: 0 }}>

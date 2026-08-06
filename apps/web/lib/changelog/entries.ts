@@ -32,6 +32,19 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.416',
+    date: '2026-08-06',
+    title: '모바일에서도 업무를 빠르고 편하게 처리해요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '📱',
+        headline: '업무 화면을 모바일 사용 순서에 맞게 정리했어요',
+        detail: '업무 탭을 한눈에 고르고, 일일업무 요약과 부서업무 상세를 스크롤 낭비 없이 확인할 수 있어요. 주간보고·프로젝트·이력·검색의 입력과 버튼도 손가락으로 편하게 사용할 수 있도록 다듬었어요.',
+      },
+    ],
+  },
+  {
     version: '0.7.415',
     date: '2026-08-06',
     title: '실제로 사용할 수 있는 AI 모델만 보여드려요',

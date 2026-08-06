@@ -1059,6 +1059,7 @@ function LogList({
     return (
           <div key={log.id}>
             <div
+              className="daily-log-card"
               onClick={() => { if (!isEditing) setFlowLog(log) }}
               style={{
                 background: 'var(--color-surface)', border: 'var(--border-w-2) solid var(--border-color)',
@@ -1134,7 +1135,7 @@ function LogList({
                   </div>
                 </div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)' }}>
+                <div className="daily-log-card-body" style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '0.375rem', flexWrap: 'wrap' }}>
                       <div style={{ position: 'relative', display: 'inline-block' }}>
@@ -1258,6 +1259,7 @@ function LogList({
                     </p>
                   </div>
                   <div
+                    className="daily-log-actions"
                     onClick={(e) => e.stopPropagation()}
                     style={{ display: 'flex', gap: 'var(--space-1)', flexShrink: 0, alignItems: 'center' }}
                   >

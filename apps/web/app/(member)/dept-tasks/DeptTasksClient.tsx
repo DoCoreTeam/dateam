@@ -92,8 +92,8 @@ export default function DeptTasksClient({
         <DeptTaskSuggestPanel creatableDepts={creatableDepts} editableDeptIds={editableDeptIds} onRegistered={refresh} />
       )}
 
-      <div className="responsive-grid-2">
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className={`responsive-grid-2 dept-task-layout${selected ? ' has-selection' : ''}`}>
+        <div className="card dept-task-list" style={{ padding: 0, overflow: 'hidden' }}>
           {visible.length === 0 ? (
             <p style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-muted)' }}>
               표시할 부서 업무가 없습니다.
@@ -129,7 +129,7 @@ export default function DeptTasksClient({
           )}
         </div>
 
-        <aside>
+        <aside className="dept-task-detail-pane">
           {selected ? (
             <DeptTaskDetail
               key={selected.id}

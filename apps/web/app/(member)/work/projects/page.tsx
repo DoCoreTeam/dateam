@@ -128,7 +128,7 @@ export default function ProjectsPage() {
         <>
       <ProjectAiSuggest onConfirmed={() => mutate()} />
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+      <div className="project-list-controls" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
         <input className="input-field" value={search} onChange={(e) => setSearch(e.target.value)}
           placeholder="프로젝트 이름 검색" aria-label="프로젝트 검색"
           style={{ flex: '1 1 240px', minWidth: 0, maxWidth: 360, minHeight: 44 }} />
@@ -229,7 +229,7 @@ function ProjectCard({ project: p, onEdit, onDelete, onActivity }: { project: Pr
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
+      <div className="project-card-actions" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
         <button onClick={onActivity} aria-label={`${p.name} 이력`} title="저장 이력"
           style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, padding: 'var(--space-2)', borderRadius: 'var(--radius)', background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 'var(--fs-2xs)', fontWeight: 600 }}>
           <History size={14} /> 이력

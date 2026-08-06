@@ -102,7 +102,7 @@ export default function WorkActivityPage() {
       }
     >
       {/* 모듈 필터 칩 */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+      <div className="work-activity-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
         {MODULES.map((m) => {
           const on = mods.has(m.key)
           return (
@@ -146,7 +146,7 @@ export default function WorkActivityPage() {
           {items.map((it) => {
             const st = STATUS_STYLE[it.status]
             return (
-              <li key={it.id} style={{ display: 'flex', gap: 'var(--space-3)', padding: 'var(--space-3) var(--space-4)', borderRadius: 'var(--radius)', border: 'var(--hairline) solid var(--border-color)', background: 'var(--color-surface)', borderLeft: `3px solid ${MODULE_DOT[it.module]}` }}>
+              <li className="work-activity-card" key={it.id} style={{ display: 'flex', gap: 'var(--space-3)', padding: 'var(--space-3) var(--space-4)', borderRadius: 'var(--radius)', border: 'var(--hairline) solid var(--border-color)', background: 'var(--color-surface)', borderLeft: `3px solid ${MODULE_DOT[it.module]}` }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--text-muted)', background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '1px 7px' }}>{MODULE_LABEL[it.module]}</span>
@@ -204,7 +204,7 @@ function ChangeList({ action, module, before, after }: { action: string; module:
   return (
     <ul style={{ listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
       {changes.map((c) => (
-        <li key={c.field} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'baseline', fontSize: 'var(--fs-xs)', lineHeight: 1.5 }}>
+        <li className="work-activity-change" key={c.field} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'baseline', fontSize: 'var(--fs-xs)', lineHeight: 1.5 }}>
           <span style={{ flexShrink: 0, fontWeight: 700, color: 'var(--text-muted)', minWidth: 56 }}>{c.label}</span>
           {isUpdate ? (
             <span style={{ minWidth: 0, color: 'var(--text)' }}>

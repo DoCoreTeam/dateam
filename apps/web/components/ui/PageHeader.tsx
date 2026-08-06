@@ -14,7 +14,7 @@ interface PageHeaderProps {
 export default function PageHeader({ title, description, actions, className, descClassName }: PageHeaderProps) {
   return (
     <header
-      className={className}
+      className={`page-header${className ? ` ${className}` : ''}`}
       style={{
         display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
         gap: 'var(--space-3)', flexWrap: 'wrap', marginBottom: 'var(--space-5)',
@@ -28,7 +28,7 @@ export default function PageHeader({ title, description, actions, className, des
           <p className={descClassName} style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>{description}</p>
         )}
       </div>
-      {actions && <div style={{ flexShrink: 0 }}>{actions}</div>}
+      {actions && <div className="page-header-actions" style={{ flexShrink: 0 }}>{actions}</div>}
     </header>
   )
 }
