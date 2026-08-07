@@ -230,7 +230,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
     // 전역 SWRProvider는 revalidateIfStale:false(영속캐시 최적화)인데 GPU pricing은 SyncRevalidator 미커버라
     // 여기서 nested SWRConfig로 override → 가격 정확도 우선, 영속 stale 방지(부모 provider/fetcher는 그대로 상속).
     <SWRConfig value={{ revalidateIfStale: true, keepPreviousData: true }}>
-    <div className="gpu-pricing-root">
+    <div className="gpu-pricing-root" data-active-tab={activeTab}>
       {/* 상단 헤더 */}
       <div className="gpu-topbar">
         <div>
@@ -247,17 +247,17 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
               <span className="gpu-badge gpu-badge-green" style={{ fontSize: '9px', padding: '1px 6px' }}>자동</span>
             </div>
           )}
-          <button className="gpu-btn">
+          <button className="gpu-btn gpu-export-btn">
             <Download size={15} /> Export
           </button>
-          <button
+          {activeTab !== 'intake' && <button
             className="gpu-btn gpu-btn-primary"
             title="공급가·경쟁사 통합 입력"
             onClick={() => goToTab('intake')}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
           >
             <Plus size={15} /> 통합 입력
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -275,6 +275,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           </button>
         ))}
         <div style={{ width: 1, height: 16, background: 'var(--gpu-border)', margin: '0 6px', flexShrink: 0 }} />
+        <div className="gpu-admin-tabs">
         {[
           {
             id: 'review' as SecondaryTabId,
@@ -319,6 +320,7 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           <button
             key={item.id}
             onClick={() => goToTab(item.id)}
+            className="gpu-admin-tab"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -351,6 +353,23 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
             )}
           </button>
         ))}
+        </div>
+        <label className="gpu-admin-tab-select-wrap">
+          <span>관리 화면</span>
+          <select className="input-field gpu-admin-tab-select"
+            value={isMainTab(activeTab) ? '' : activeTab}
+            onChange={(e) => { if (e.target.value) goToTab(e.target.value as SecondaryTabId) }}
+            aria-label="GPU 관리 화면 선택"
+          >
+            <option value="" disabled>선택</option>
+            <option value="review">검토 대기{pendingCount > 0 ? ` (${pendingCount})` : ''}</option>
+            {isAdmin && <option value="suppliers">공급사</option>}
+            {isAdmin && <option value="competitors">경쟁사</option>}
+            {isAdmin && <option value="sources">수집 소스</option>}
+            {isAdmin && <option value="specs">스펙 관리</option>}
+            <option value="log">변동 이력</option>
+          </select>
+        </label>
         {/* AI 조회 토글 — 모든 탭에서 상시 노출(어느 화면에서든 우리 데이터에 질문). */}
         <div style={{ marginLeft: 'auto', paddingRight: 4, flexShrink: 0 }}>
           <button

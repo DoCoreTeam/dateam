@@ -415,8 +415,8 @@ export default function WeeklyReportForm({
       </div>
 
       {/* 안 B 위계: 좌=작성폼(메인) / 우=일일보고 매핑 사이드패널(상시펼침·체크→반영) */}
-      <div className="responsive-grid-2" style={{ alignItems: 'start' }}>
-      <div style={{ minWidth: 0 }}>
+      <div className="responsive-grid-2 weekly-report-compose-grid" style={{ alignItems: 'start' }}>
+      <div className="weekly-report-compose-main" style={{ minWidth: 0 }}>
       {/* 알림 */}
       {submitError && (
         <div role="alert" style={{ padding: 'var(--space-3) var(--space-4)', backgroundColor: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', marginBottom: '1rem', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>
@@ -549,7 +549,7 @@ export default function WeeklyReportForm({
       </div>
 
       {/* 행 추가 + 초기화 + 저장 */}
-      <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+      <div className="weekly-report-form-actions" style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
         <button
           type="button"
           onClick={addRow}
@@ -563,7 +563,7 @@ export default function WeeklyReportForm({
           <Plus size={14} />
           행 추가
         </button>
-        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="weekly-report-form-submit-actions" style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
           {hasExistingData && !showResetConfirm && (
             <button
               type="button"
@@ -658,7 +658,7 @@ export default function WeeklyReportForm({
       </div>{/* /좌 메인 */}
 
       {/* 우: 일일보고 매핑 사이드패널 — 데스크탑 sticky, 모바일은 폼 아래로 스택 */}
-      <aside style={{ position: 'sticky', top: 'var(--space-4)', alignSelf: 'start' }}>
+      <aside className="weekly-report-source-panel" style={{ position: 'sticky', top: 'var(--space-4)', alignSelf: 'start', minWidth: 0 }}>
         <p style={{ margin: '0 0 var(--space-2)', fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-faint)', letterSpacing: '-0.01em' }}>
           일일보고에서 항목을 선택해 폼에 반영하세요
         </p>

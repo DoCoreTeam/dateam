@@ -29,7 +29,11 @@ export default function QuickAddFab({ isAdmin = true }: { isAdmin?: boolean }) {
   }, [open])
 
   // admin 콘솔 등에선 노출 안 함(회원 빠른추가 전용). 모든 hook 호출 뒤에 early-return(hooks 규칙).
-  if (pathname.startsWith('/admin')) return null
+  if (
+    pathname.startsWith('/admin')
+    || pathname.startsWith('/pricing/gpu')
+    || pathname.startsWith('/weekly-report')
+  ) return null
 
   return (
     <div ref={ref} className="quickadd-fab-wrap">

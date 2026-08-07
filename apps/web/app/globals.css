@@ -1006,8 +1006,10 @@
   }
 
   .responsive-grid-2 {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
+
+  .responsive-grid-2 > * { min-width: 0; }
 
   .responsive-grid-cols-2 {
     grid-template-columns: 1fr;
@@ -1190,6 +1192,25 @@
   .report-form-delete-desktop {
     display: none !important;
   }
+
+  /* 주간보고: 자료 선택 → 작성 → 저장의 실제 모바일 작업 순서. */
+  .weekly-report-compose-grid { display: flex; flex-direction: column; }
+  .weekly-report-source-panel {
+    order: -1;
+    position: static !important;
+    width: 100%;
+    margin-bottom: var(--space-4);
+  }
+  .weekly-report-compose-main { width: 100%; }
+  .weekly-report-form-actions,
+  .weekly-report-form-submit-actions { width: 100%; }
+  .weekly-report-form-submit-actions > button { min-height: 44px; }
+  .weekly-report-form-submit-actions .btn-primary {
+    flex: 1 1 100%;
+    justify-content: center;
+    order: -1;
+  }
+  .report-form-delete-mobile { min-width: 44px; min-height: 44px; justify-content: center; }
 }
 
 /* ─── 사이드바 nav 항목 (NbNavItem SSOT — data-state로 active/highlight 구분) ─── */
@@ -4056,6 +4077,8 @@ label.intake-tool-btn {
   width: fit-content;
   flex-wrap: wrap;
 }
+.gpu-admin-tabs { display: contents; }
+.gpu-admin-tab-select-wrap { display: none; }
 .gpu-tab {
   padding: 8px 15px;
   font-size: 13px;
@@ -5013,10 +5036,35 @@ label.intake-tool-btn {
 
 /* mobile overrides */
 @media (max-width: 767px) {
+  .gpu-pricing-root { padding: var(--space-4) var(--space-4) 0; overflow: visible; }
+  .gpu-tab-content, .gpu-tab-panel { overflow: visible; }
   .gpu-topbar { flex-direction: column; align-items: flex-start; }
-  .gpu-topbar-right { width: 100%; }
-  .gpu-tabs { width: 100%; }
-  .gpu-tab { flex: 1; justify-content: center; padding: 8px 10px; font-size: 12px; }
+  .gpu-topbar-right { width: 100%; min-width: 0; }
+  .gpu-fx-pill { width: 100%; min-width: 0; flex-wrap: wrap; }
+  .gpu-export-btn { display: none; }
+  .gpu-tabs { width: 100%; align-items: stretch !important; gap: var(--space-2); }
+  .gpu-tab { flex: 1; justify-content: center; padding: 8px 10px; font-size: 12px; min-height: 44px; }
+  .gpu-pricing-root:not([data-active-tab="intake"]) .gpu-tab:first-child { display: none; }
+  .gpu-admin-tabs { display: none; }
+  .gpu-admin-tab-select-wrap {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 44px;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    color: var(--gpu-muted);
+  }
+  .gpu-admin-tab-select {
+    min-height: 44px;
+    border: var(--hairline) solid var(--gpu-border);
+    border-radius: var(--radius);
+    background: #fff;
+    color: var(--text);
+    padding: 0 var(--space-3);
+    font: inherit;
+  }
+  .gpu-ai-toggle { min-height: 44px; }
   .gpu-qline { grid-template-columns: 1fr 1fr; }
   .gpu-table thead { display: none; }
   .gpu-table tbody td { display: block; padding: 8px 16px; border: none; }
@@ -7196,6 +7244,38 @@ label.intake-tool-btn {
   .gpu-unified-detail { display: none; position: fixed; inset: 0; z-index: var(--z-modal, 1000); border-left: 0; }
   .gpu-unified-detail--open { display: block; }
   .gpu-unified-detail-back { display: inline-flex; align-items: center; gap: var(--space-1); margin: var(--space-2); font: inherit; font-size: var(--fs-sm); color: var(--gpu-accent); background: transparent; border: var(--hairline) solid var(--gpu-border); border-radius: var(--radius); padding: var(--space-2) var(--space-3); cursor: pointer; min-height: 44px; }
+}
+
+@media (max-width: 767px) {
+  /* GPU 모바일 조작: 조회 관점과 계산/정렬 설정을 줄 단위로 분리한다. */
+  .gpu-unified-toolbar { align-items: stretch; }
+  .gpu-unified-search { flex: 1 1 100%; min-width: 0; }
+  .gpu-uview-seg { flex: 1 1 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .gpu-uview-seg-btn { min-height: 44px; padding: var(--space-2); border-bottom: var(--hairline) solid var(--gpu-border); }
+  .gpu-margin-ctrl { flex: 1 1 100%; padding: var(--space-2) 0; }
+  .gpu-margin-preset,
+  .gpu-margin-stepper button,
+  .gpu-margin-input { min-height: 44px !important; }
+  .gpu-unified-collapse-btn,
+  .gpu-unified-showall-btn,
+  .gpu-unified-bulk-btn { min-height: 44px; }
+  .gpu-unified-row--head button { min-height: 44px; }
+  .gpu-unified-vis-btn { min-width: 44px; min-height: 44px; }
+
+  /* 관리 목록의 긴 식별자/이메일이 카드 폭을 밀지 않도록 한다. */
+  .gpu-log-item { min-width: 0; gap: var(--space-2); }
+  .gpu-log-time { width: 64px; }
+  .gpu-log-body,
+  .gpu-log-ttl,
+  .gpu-log-dsc,
+  .gpu-log-actor { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
+
+  /* GPU 영역의 모든 실제 조작 대상은 손가락 터치 높이를 보장한다. */
+  .gpu-pricing-root button,
+  .gpu-pricing-root select,
+  .gpu-pricing-root input:not([type="checkbox"]):not([type="radio"]) { min-height: 44px; }
+  .gpu-pricing-root input[type="checkbox"],
+  .gpu-pricing-root input[type="radio"] { min-width: 20px; min-height: 20px; }
 }
 
 /* AI 자동 연결 카드 — 클릭 가능(연결 대상으로 이동) 상태 */

@@ -32,6 +32,25 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.417',
+    date: '2026-08-07',
+    title: '주간보고와 GPU 관리를 모바일에서 흐름대로 처리해요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '📝',
+        headline: '주간보고 작성 화면이 오른쪽으로 밀리지 않아요',
+        detail: '일일업무와 메모를 먼저 고른 뒤 내용을 작성하고 저장하는 순서로 정리했어요. 작성칸과 저장 버튼도 모바일 화면 안에서 빠짐없이 사용할 수 있어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '💻',
+        headline: 'GPU 가격과 관리 기능을 더 분명하게 찾을 수 있어요',
+        detail: '가격 조회·통합 입력과 공급사·경쟁사·수집 소스 같은 관리 화면을 구분했어요. 버튼 크기와 긴 이력 표시도 모바일에 맞춰 다듬었어요.',
+      },
+    ],
+  },
+  {
     version: '0.7.416',
     date: '2026-08-06',
     title: '모바일에서도 업무를 빠르고 편하게 처리해요',
