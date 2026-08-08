@@ -32,6 +32,10 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.422', date: '2026-08-09', title: '프로젝트가 실행 중심으로 더 똑똑해졌어요',
+    items: [{ kind: 'feature', emoji: '🧠', headline: '말로 프로젝트 실행 항목을 등록해요', detail: '할일·마일스톤·리스크·결정을 자연어로 입력하고, 실행 전 확인한 뒤 안전하게 반영할 수 있어요.' }],
+  },
+  {
     version: '0.7.421',
     date: '2026-08-09',
     title: '프로젝트를 함께 운영할 수 있어요',

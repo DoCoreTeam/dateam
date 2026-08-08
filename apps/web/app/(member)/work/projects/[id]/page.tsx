@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { PROJECT_SELECT } from '@/lib/work/project-fields'
 import { budgetLabel, periodLabel, statusBadge } from '@/lib/work/project-display'
 import ProjectMembersClient from './ProjectMembersClient'
+import ProjectCommandClient from './ProjectCommandClient'
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -18,11 +19,13 @@ export default async function ProjectDetailPage({ params }: PageProps) {
     .eq('id', id).is('deleted_at', null).maybeSingle()
   if (!project) notFound()
 
-  const [{ data: account }, { data: deal }, { data: members }, { data: links }] = await Promise.all([
+  const [{ data: account }, { data: deal }, { data: members }, { data: links }, { data: items }, { data: aiProject }] = await Promise.all([
     project.account_id ? db.from('accounts').select('id,name').eq('id', project.account_id).maybeSingle() : { data: null },
     project.origin_deal_id ? db.from('deals').select('id,title,stage').eq('id', project.origin_deal_id).maybeSingle() : { data: null },
     db.from('project_members').select('user_id,role,profiles(name,position)').eq('project_id', id).order('created_at'),
     db.from('work_entity_links').select('log_id').eq('kind', 'project').eq('entity_id', id).limit(100),
+    db.from('project_items').select('id,kind,title,status,due_date').eq('project_id', id).is('deleted_at', null).order('created_at'),
+    db.from('ai_projects').select('id,name').eq('work_project_id', id).is('deleted_at', null).maybeSingle(),
   ])
   const logIds = (links ?? []).map((row: { log_id: string }) => row.log_id)
   const { data: myProfile } = user
@@ -66,6 +69,10 @@ export default async function ProjectDetailPage({ params }: PageProps) {
               </ul>
             )}
           </Panel>
+          {canManage && <Panel icon={<Target size={18} />} title="AI 자연어 실행"><ProjectCommandClient projectId={id} /></Panel>}
+          <Panel icon={<ListChecks size={18} />} title={`실행 항목 ${items?.length ?? 0}건`}>
+            {(items ?? []).length === 0 ? <Empty text="마일스톤·작업·리스크·결정사항이 없습니다." /> : (items ?? []).map((item: {id:string;kind:string;title:string;status:string}) => <div key={item.id} style={{display:'flex',justifyContent:'space-between',gap:8,padding:'var(--space-2) 0',borderBottom:'var(--hairline) solid var(--border-light)'}}><span><strong style={{marginRight:8}}>{itemKindLabel(item.kind)}</strong>{item.title}</span><span style={{color:'var(--text-muted)'}}>{item.status}</span></div>)}
+          </Panel>
         </div>
 
         <aside style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -73,6 +80,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
             <Detail label="거래처" value={account?.name} href={isAdmin && account?.id ? `/accounts/${account.id}` : undefined} />
             <Detail label="원본 영업기회" value={deal?.title} href={isAdmin && deal?.id ? `/deals/${deal.id}` : undefined} />
           </Panel>
+          <Panel icon={<Target size={18} />} title="AI 작업공간"><Detail label="연결 상태" value={aiProject?.name ?? '미연결'} href={isAdmin && aiProject?.id ? `/ai-chat/projects/${aiProject.id}` : undefined} /></Panel>
           <Panel icon={<Users size={18} />} title={`참여자 ${members?.length ?? 0}명`}>
             {canManage ? <ProjectMembersClient projectId={id} initialMembers={members ?? []} profiles={profiles ?? []} /> : (members ?? []).map((member: { user_id: string; role: string; profiles: { name?: string; position?: string } | null }) => (
               <div key={member.user_id} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-2)', padding: 'var(--space-2) 0', borderBottom: 'var(--hairline) solid var(--border-light)' }}>
@@ -101,3 +109,4 @@ function Detail({ label, value, href }: { label: string; value?: string | null; 
 function Empty({ text }: { text: string }) { return <p style={{ color: 'var(--text-faint)', margin: 0 }}>{text}</p> }
 function visibilityLabel(value: string): string { return ({ private: '비공개', members: '참여자', department: '부서', organization: '전사', admin_only: '관리자' } as Record<string, string>)[value] ?? '비공개' }
 function roleLabel(value: string): string { return ({ owner: '책임자', manager: '운영자', contributor: '참여자', viewer: '조회자', stakeholder: '이해관계자' } as Record<string, string>)[value] ?? value }
+function itemKindLabel(value:string):string{return ({milestone:'마일스톤',task:'작업',risk:'리스크',decision:'결정'} as Record<string,string>)[value]??value}

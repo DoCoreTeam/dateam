@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { safeLike } from '@/lib/postgrest-safe'
 import { hasProjectCrmRelationInput, parseProjectMeta, PROJECT_SELECT, PROJECT_SORT_ALLOW } from '@/lib/work/project-fields'
 import { logProjectActivity } from '@/lib/work/project-activity'
@@ -90,6 +90,11 @@ export async function POST(req: NextRequest) {
       error, evidence: { name },
     })
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+  if (auth.user.role === 'admin' && data) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any
+    await admin.from('ai_projects').upsert({ user_id: user.id, name, work_project_id: data.id }, { onConflict: 'work_project_id' })
   }
   await logProjectActivity(supabase, {
     projectId: data.id, ownerId: user.id, actorId: user.id, action: 'create', status: 'success',
