@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { safeLike, safeEq } from '@/lib/postgrest-safe'
+import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 
 const LIMIT = 20
 const SORT_ALLOW = new Set(['created_at', 'name', 'fit_score', 'industry', 'region', 'segment', 'gpu_demand_intensity'])
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAdminApi()
+  if (auth.error) return auth.error
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const sp = req.nextUrl.searchParams
   const cursorRaw = sp.get('cursor')
@@ -60,16 +61,15 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireAdminApi()
+  if (auth.error) return auth.error
 
   const body = await req.json()
   const adminClient = createAdminClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (adminClient as any)
     .from('accounts')
-    .insert({ ...body, user_id: user.id })
+    .insert({ ...body, user_id: auth.user.id })
     .select()
     .single()
 

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
 import { probabilityForStage } from '@/lib/crm'
 import type { AiFeature } from '@/types/database'
+import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -68,9 +69,9 @@ async function extractActivity(
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireAdminApi()
+  if (auth.error) return auth.error
+  const userId = auth.user.id
 
   const body = await req.json() as { deal_id: string; type: string; content: string }
   if (!body.deal_id || !body.content?.trim()) {
@@ -82,12 +83,12 @@ export async function POST(req: NextRequest) {
   const adm = adminClient as any
   const { data, error } = await adm
     .from('deal_activities')
-    .insert({ deal_id: body.deal_id, user_id: user.id, type: body.type, content: body.content })
+    .insert({ deal_id: body.deal_id, user_id: userId, type: body.type, content: body.content })
     .select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   try {
-    const extracted = await extractActivity(adm, user.id, body.content)
+    const extracted = await extractActivity(adm, userId, body.content)
     if (extracted) {
       await adm.from('deal_activities').update({
         ai_parsed: true,
@@ -111,13 +112,13 @@ export async function POST(req: NextRequest) {
 
       const logs = [
         ...(extracted.todos ?? []).filter(t => t.title && t.due_date).map(t => ({
-          user_id: user.id,
+          user_id: userId,
           log_date: t.due_date,
           content: `[영업 할 일] ${t.title}`,
           entry_type: 'planned',
         })),
         ...(extracted.events ?? []).filter(ev => ev.title && ev.date).map(ev => ({
-          user_id: user.id,
+          user_id: userId,
           log_date: ev.date,
           content: `[영업 일정] ${ev.title}`,
           entry_type: 'planned',

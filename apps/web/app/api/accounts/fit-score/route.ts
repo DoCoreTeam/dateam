@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { scoreFit } from '@/lib/gemini-lead'
+import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireAdminApi()
+  if (auth.error) return auth.error
 
   const body = await req.json() as { name: string; industry?: string; segment?: string; size?: string; region?: string }
 
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   if (!apiKey) return NextResponse.json({ error: 'Gemini API 키 미설정' }, { status: 500 })
 
   try {
-    const result = await scoreFit(body, apiKey, model, user.id)
+    const result = await scoreFit(body, apiKey, model, auth.user.id)
     return NextResponse.json(result)
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : '오류' }, { status: 500 })

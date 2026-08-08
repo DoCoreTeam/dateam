@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 import { parseProjectMeta, PROJECT_SELECT } from '@/lib/work/project-fields'
 import { logProjectActivity } from '@/lib/work/project-activity'
@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
   // 1) 프로젝트 생성(RLS owner). POST /api/projects와 동일 SSOT 필드.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
+  const writer = createAdminClient() as any
   const { data: project, error } = await db
     .from('projects')
     .insert({ name, user_id: user.id, ...meta.fields })
@@ -55,7 +56,9 @@ export async function POST(req: NextRequest) {
       const links = ownedIds.map((logId) => ({
         log_id: logId, kind: 'project', entity_id: project.id, created_by: 'user', weak: false,
       }))
-      const { error: linkErr } = await db
+      // work_entity_links는 authenticated 쓰기 정책이 없다. 소유권을 위에서 확정한 ID만
+      // 서버 writer로 저장해 autolink 원칙(쓰기=service role, 읽기=owner/admin)을 재사용한다.
+      const { error: linkErr } = await writer
         .from('work_entity_links')
         .upsert(links, { onConflict: 'log_id,kind,entity_id', ignoreDuplicates: true })
       if (!linkErr) linked = ownedIds.length

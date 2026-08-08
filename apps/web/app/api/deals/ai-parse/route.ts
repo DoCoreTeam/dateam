@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
 import type { AiFeature } from '@/types/database'
+import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
@@ -16,9 +17,8 @@ const ACTIVITY_PARSE_PROMPT = `당신은 B2B 영업 활동 기록 전문가입�
 반환: {"summary": "정리된 내용"} JSON만`
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireAdminApi()
+  if (auth.error) return auth.error
 
   const body = await req.json() as { deal_id: string; raw_text: string }
   if (!body.raw_text?.trim()) return NextResponse.json({ error: '내용 없음' }, { status: 400 })
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   if (!text) return NextResponse.json({ error: 'Gemini 응답 없음' }, { status: 500 })
 
   logTokenUsage({
-    userId: user.id,
+    userId: auth.user.id,
     feature: 'deal-activity-parse' as AiFeature,
     model,
     promptTokens: json.usageMetadata?.promptTokenCount ?? 0,

@@ -32,6 +32,19 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.420',
+    date: '2026-08-09',
+    title: '프로젝트와 업무가 끊기지 않게 연결돼요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🔗',
+        headline: 'AI가 찾은 업무를 프로젝트에 빠짐없이 연결해요',
+        detail: '예상 프로젝트를 확정하면 화면에 표시된 관련 업무가 실제 프로젝트에도 안전하게 모두 연결돼요.',
+      },
+    ],
+  },
+  {
     version: '0.7.419',
     date: '2026-08-08',
     title: '판매가격표의 GPU 구성을 빠짐없이 맞췄어요',

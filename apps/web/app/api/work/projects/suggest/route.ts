@@ -13,13 +13,13 @@ import { suggestProjects, type ProjectLogInput, type ProjectWeeklyInput } from '
 const RECENT_LIMIT = 250        // 본인 최근 업무 스캔 상한(LIMIT 필수)
 const WEEKS_BACK = 12           // 최근 12주
 const WEEKLY_LIMIT = 80
-const SAMPLE_MAX = 5            // 후보당 sampleLogIds 상한
+const LINK_MAX = 200            // confirm 라우트와 동일 상한—표시한 업무를 모두 연결
 
 interface Suggestion {
   suggestedName: string
   reason: string
   taskCount: number
-  sampleLogIds: string[]
+  logIds: string[]
 }
 
 export async function GET() {
@@ -90,7 +90,7 @@ export async function GET() {
           suggestedName: c.suggestedName,
           reason: c.reason || `연관 업무 ${ids.length}건을 묶은 프로젝트 후보입니다`,
           taskCount: ids.length,
-          sampleLogIds: ids.slice(0, SAMPLE_MAX),
+          logIds: ids.slice(0, LINK_MAX),
         } as Suggestion
       })
       .filter((s): s is Suggestion => s !== null)

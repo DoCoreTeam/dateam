@@ -10,7 +10,7 @@ interface Suggestion {
   suggestedName: string
   reason: string
   taskCount: number
-  sampleLogIds: string[]
+  logIds: string[]
 }
 
 interface Props {
@@ -54,7 +54,7 @@ export default function ProjectAiSuggest({ onConfirmed }: Props) {
       const results = await Promise.all(targets.map((s) =>
         fetch('/api/work/projects/confirm', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: s.suggestedName, logIds: s.sampleLogIds }),
+          body: JSON.stringify({ name: s.suggestedName, logIds: s.logIds }),
         })))
       if (results.some((r) => !r.ok)) { setError('일부 항목 생성에 실패했습니다'); setConfirming(false); return }
       setOpen(false); setSuggestions(null); setPicked(new Set())

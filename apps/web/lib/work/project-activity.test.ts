@@ -1,5 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import {
   normalizeError, ACTIVITY_ACTION_LABEL, ACTIVITY_STATUS_LABEL,
   type ProjectActivityAction, type ProjectActivityStatus,
@@ -32,4 +34,38 @@ test('라벨 맵: 모든 action/status 키 커버', () => {
   for (const a of actions) assert.ok(ACTIVITY_ACTION_LABEL[a], `action 라벨 누락: ${a}`)
   const statuses: ProjectActivityStatus[] = ['success', 'failure', 'partial']
   for (const s of statuses) assert.ok(ACTIVITY_STATUS_LABEL[s], `status 라벨 누락: ${s}`)
+})
+
+const WEB_ROOT = resolve(import.meta.dirname, '../..')
+const routeSource = (path: string) => readFileSync(resolve(WEB_ROOT, path), 'utf8')
+const CRM_ROUTES = [
+  'app/api/accounts/route.ts', 'app/api/accounts/[id]/route.ts',
+  'app/api/accounts/fit-score/route.ts', 'app/api/contacts/route.ts',
+  'app/api/contacts/[id]/route.ts', 'app/api/deals/route.ts',
+  'app/api/deals/[id]/route.ts', 'app/api/deals/activities/route.ts',
+  'app/api/deals/ai-parse/route.ts', 'app/api/lead-intakes/route.ts',
+  'app/api/lead-intakes/[id]/route.ts',
+]
+
+test('CRM 프로젝트관리 API는 모두 관리자 게이트를 적용한다', () => {
+  for (const route of CRM_ROUTES) {
+    const source = routeSource(route)
+    const handlers = source.match(/export async function (GET|POST|PATCH|DELETE)/g) ?? []
+    const gates = source.match(/await requireAdminApi\(\)/g) ?? []
+    assert.match(source, /import \{ requireAdminApi \}/, `${route}: admin import`)
+    assert.equal(gates.length, handlers.length, `${route}: 핸들러마다 admin gate`)
+  }
+})
+
+test('AI 프로젝트 확정은 소유 업무만 서버 writer로 연결한다', () => {
+  const source = routeSource('app/api/work/projects/confirm/route.ts')
+  assert.match(source, /\.eq\('user_id', user\.id\).*\.in\('id', logIds\)/s)
+  assert.match(source, /const writer = createAdminClient\(\)/)
+  assert.match(source, /await writer\s*\.from\('work_entity_links'\)\s*\.upsert/s)
+})
+
+test('AI 후보는 표시한 업무 건수와 연결 ID 건수를 일치시킨다', () => {
+  const source = routeSource('app/api/work/projects/suggest/route.ts')
+  assert.match(source, /taskCount: ids\.length,\s*logIds: ids\.slice\(0, LINK_MAX\)/s)
+  assert.doesNotMatch(source, /sampleLogIds|SAMPLE_MAX/)
 })
