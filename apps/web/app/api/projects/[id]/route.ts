@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { parseProjectMeta, PROJECT_SELECT } from '@/lib/work/project-fields'
+import { hasProjectCrmRelationInput, parseProjectMeta, PROJECT_SELECT } from '@/lib/work/project-fields'
 import { logProjectActivity } from '@/lib/work/project-activity'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 
 interface Ctx { params: Promise<{ id: string }> }
 
@@ -12,11 +13,11 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // 모두 본인 소유(eq user_id) — RLS 위 앱 레이어 2중 방어.
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
   const { id } = await params
   if (!UUID_RE.test(id)) return NextResponse.json({ error: '잘못된 요청입니다' }, { status: 400 })
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
@@ -24,7 +25,6 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     .from('projects')
     .select(PROJECT_SELECT)
     .eq('id', id)
-    .eq('user_id', user.id)
     .is('deleted_at', null)
     .maybeSingle()
   if (error) {
@@ -37,14 +37,18 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
   const { id } = await params
   if (!UUID_RE.test(id)) return NextResponse.json({ error: '잘못된 요청입니다' }, { status: 400 })
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const user = auth.user
 
   const raw = await req.json().catch(() => null) as Record<string, unknown> | null
   if (!raw) return NextResponse.json({ error: '요청 형식 오류' }, { status: 400 })
+  if (auth.user.role !== 'admin' && hasProjectCrmRelationInput(raw)) {
+    return NextResponse.json({ error: 'CRM 관계는 관리자만 지정할 수 있습니다' }, { status: 403 })
+  }
 
   const patch: Record<string, unknown> = {}
   if ('name' in raw) {
@@ -65,13 +69,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   // 변경 전 스냅샷(감사로그 before). RLS 소유 확인 겸용.
   const { data: before } = await dbW
     .from('projects').select(PROJECT_SELECT)
-    .eq('id', id).eq('user_id', user.id).is('deleted_at', null).maybeSingle()
+    .eq('id', id).is('deleted_at', null).maybeSingle()
 
   const { data, error } = await dbW
     .from('projects')
     .update(patch)
     .eq('id', id)
-    .eq('user_id', user.id)
     .is('deleted_at', null)
     .select(PROJECT_SELECT)
     .maybeSingle()
@@ -98,11 +101,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
   const { id } = await params
   if (!UUID_RE.test(id)) return NextResponse.json({ error: '잘못된 요청입니다' }, { status: 400 })
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const user = auth.user
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const dbD = supabase as any

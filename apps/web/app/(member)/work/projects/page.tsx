@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import useSWRInfinite from 'swr/infinite'
 import { Plus, Pencil, Trash2, FolderOpen, AlertTriangle, X, History } from 'lucide-react'
 import WorkPageShell from '@/components/ui/WorkPageShell'
@@ -221,6 +222,10 @@ function ProjectCard({ project: p, onEdit, onDelete, onActivity }: { project: Pr
         <span style={{ flex: 1, fontSize: 'var(--fs-md)', fontWeight: 700, color: 'var(--text)', wordBreak: 'break-word', lineHeight: 1.3 }}>{p.name}</span>
         <span style={{ flexShrink: 0, fontSize: 'var(--fs-2xs)', fontWeight: 700, color: badge.color, background: badge.bg, border: `var(--hairline) solid ${badge.border}`, borderRadius: '9999px', padding: '2px 10px' }}>{badge.label}</span>
       </div>
+
+      <Link href={`/work/projects/${p.id}`} style={{ color: 'var(--brand)', fontSize: 'var(--fs-sm)', fontWeight: 600, textDecoration: 'none', minHeight: 44, display: 'inline-flex', alignItems: 'center' }}>
+        프로젝트 상세 보기
+      </Link>
 
       {(period || budget) && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-1) var(--space-3)', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>

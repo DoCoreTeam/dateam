@@ -6,6 +6,7 @@ import {
   normalizeError, ACTIVITY_ACTION_LABEL, ACTIVITY_STATUS_LABEL,
   type ProjectActivityAction, type ProjectActivityStatus,
 } from './project-activity.ts'
+import { hasProjectCrmRelationInput, parseProjectMeta } from './project-fields.ts'
 
 test('normalizeError: Supabase 에러객체(message+code) 보존', () => {
   const out = normalizeError({ message: 'duplicate key', code: '23505' })
@@ -68,4 +69,27 @@ test('AI 후보는 표시한 업무 건수와 연결 ID 건수를 일치시킨�
   const source = routeSource('app/api/work/projects/suggest/route.ts')
   assert.match(source, /taskCount: ids\.length,\s*logIds: ids\.slice\(0, LINK_MAX\)/s)
   assert.doesNotMatch(source, /sampleLogIds|SAMPLE_MAX/)
+})
+
+test('프로젝트 공유 범위와 CRM 관계 필드를 엄격하게 검증한다', () => {
+  assert.deepEqual(parseProjectMeta({ visibility: 'members', account_id: null }), {
+    fields: { visibility: 'members', account_id: null },
+  })
+  assert.equal('error' in parseProjectMeta({ visibility: 'public' }), true)
+  assert.equal('error' in parseProjectMeta({ account_id: 'not-uuid' }), true)
+  assert.equal(hasProjectCrmRelationInput({ account_id: null }), true)
+  assert.equal(hasProjectCrmRelationInput({ department_id: null }), false)
+})
+
+test('프로젝트 권한 마이그레이션은 기본 비공개·단일 판정·owner 보호를 유지한다', () => {
+  const source = readFileSync(resolve(WEB_ROOT, '../../supabase/migrations/182_project_access_and_relations.sql'), 'utf8')
+  assert.match(source, /visibility text NOT NULL DEFAULT 'private'/)
+  assert.match(source, /FUNCTION private\.can_read_project/)
+  assert.match(source, /role <> 'owner'/)
+  assert.match(source, /ALTER TABLE project_members ADD COLUMN IF NOT EXISTS created_by/)
+  assert.match(source, /ALTER TABLE project_members ALTER COLUMN role SET NOT NULL/)
+  assert.match(source, /project_members_user_profile_fk/)
+  assert.match(source, /guard_project_owner_change/)
+  assert.match(source, /visibility <> 'department' OR department_id IS NOT NULL/)
+  assert.match(source, /me\.role IN \('admin','member'\)/)
 })

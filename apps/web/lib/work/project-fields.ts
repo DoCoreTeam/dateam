@@ -5,6 +5,8 @@
 export const PROJECT_STATUS = ['active', 'planning', 'done', 'hold'] as const
 export type ProjectStatus = (typeof PROJECT_STATUS)[number]
 export const PROJECT_HALF = ['H1', 'H2'] as const
+export const PROJECT_VISIBILITY = ['private', 'members', 'department', 'organization', 'admin_only'] as const
+export type ProjectVisibility = (typeof PROJECT_VISIBILITY)[number]
 const CURRENCY_ALLOW = new Set(['KRW', 'USD', 'EUR', 'JPY', 'CNY'])
 
 // GET 정렬 화이트리스트(SQL injection 방지 — 컬럼명 직접 보간 금지).
@@ -12,7 +14,7 @@ export const PROJECT_SORT_ALLOW = new Set(['created_at', 'name', 'updated_at', '
 
 // GET list / 단건 조회 시 항상 함께 반환하는 컬럼(엔벨로프 일관).
 export const PROJECT_SELECT =
-  'id, name, year, quarter, half, month, start_date, end_date, budget, currency, status, created_at, updated_at'
+  'id, name, description, objective, success_criteria, visibility, account_id, origin_deal_id, department_id, user_id, year, quarter, half, month, start_date, end_date, budget, currency, status, created_at, updated_at'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -26,9 +28,20 @@ export interface ProjectMetaFields {
   budget: number | null
   currency: string
   status: ProjectStatus
+  visibility: ProjectVisibility
+  description: string | null
+  objective: string | null
+  success_criteria: string | null
+  account_id: string | null
+  origin_deal_id: string | null
+  department_id: string | null
 }
 
 type Partial = globalThis.Partial<ProjectMetaFields>
+
+export function hasProjectCrmRelationInput(raw: Record<string, unknown>): boolean {
+  return ['account_id', 'origin_deal_id'].some((key) => key in raw)
+}
 
 /**
  * raw 입력에서 메타 필드만 골라 검증·정규화한다.
@@ -83,6 +96,22 @@ export function parseProjectMeta(raw: Record<string, unknown>): { fields: Partia
     if (v !== null && !PROJECT_STATUS.includes(v as ProjectStatus)) return { error: '잘못된 상태값입니다' }
     if (v !== null) out.status = v as ProjectStatus
   }
+  if ('visibility' in raw && raw.visibility !== undefined) {
+    const v = toStrOrNull(raw.visibility)
+    if (v !== null && !PROJECT_VISIBILITY.includes(v as ProjectVisibility)) return { error: '잘못된 공유 범위입니다' }
+    if (v !== null) out.visibility = v as ProjectVisibility
+  }
+
+  for (const key of ['description', 'objective', 'success_criteria'] as const) {
+    if (key in raw && raw[key] !== undefined) out[key] = toLimitedText(raw[key], 5000)
+  }
+  for (const key of ['account_id', 'origin_deal_id', 'department_id'] as const) {
+    if (key in raw && raw[key] !== undefined) {
+      const v = toStrOrNull(raw[key])
+      if (v !== null && !UUID_RE.test(v)) return { error: '잘못된 관계 ID입니다' }
+      out[key] = v
+    }
+  }
 
   // 둘 다 이번 입력에 값으로 들어온 경우에만 순서 검증(한쪽만이면 통과 — 부분 수정 지원).
   if (out.start_date && out.end_date && out.start_date > out.end_date) {
@@ -90,6 +119,13 @@ export function parseProjectMeta(raw: Record<string, unknown>): { fields: Partia
   }
 
   return { fields: out }
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function toLimitedText(v: unknown, max: number): string | null {
+  const text = toStrOrNull(v)
+  return text === null ? null : text.slice(0, max)
 }
 
 function toIntOrNull(v: unknown): number | null {

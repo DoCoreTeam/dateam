@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { safeLike } from '@/lib/postgrest-safe'
-import { parseProjectMeta, PROJECT_SELECT, PROJECT_SORT_ALLOW } from '@/lib/work/project-fields'
+import { hasProjectCrmRelationInput, parseProjectMeta, PROJECT_SELECT, PROJECT_SORT_ALLOW } from '@/lib/work/project-fields'
 import { logProjectActivity } from '@/lib/work/project-activity'
+import { requireMemberApi } from '@/lib/auth/requireMemberApi'
 
 // 경량 projects 엔티티 CRUD (본인 소유). 그룹핑 ③ 프로젝트 축의 그룹 키 원천.
 // 패턴: accounts/contacts 라우트와 동형 — createClient(RLS) + user_id 소유, items/nextCursor 엔벨로프.
@@ -12,9 +13,9 @@ const LIMIT = 20
 const NAME_MAX = 200
 
 export async function GET(req: NextRequest) {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const sp = req.nextUrl.searchParams
   const cursorRaw = sp.get('cursor')
@@ -29,7 +30,6 @@ export async function GET(req: NextRequest) {
     .from('projects')
     .select(PROJECT_SELECT)
     .is('deleted_at', null)
-    .eq('user_id', user.id)
     .order(sortField, { ascending: sortAsc, nullsFirst: false })
     .order('id', { ascending: false })
 
@@ -62,14 +62,18 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const user = auth.user
 
   const raw = await req.json().catch(() => null) as Record<string, unknown> | null
   const name = typeof raw?.name === 'string' ? raw.name.trim() : ''
   if (!name) return NextResponse.json({ error: '프로젝트 이름은 필수입니다' }, { status: 400 })
   if (name.length > NAME_MAX) return NextResponse.json({ error: `이름은 ${NAME_MAX}자 이하여야 합니다` }, { status: 400 })
+  if (auth.user.role !== 'admin' && hasProjectCrmRelationInput(raw ?? {})) {
+    return NextResponse.json({ error: 'CRM 관계는 관리자만 지정할 수 있습니다' }, { status: 403 })
+  }
 
   const meta = parseProjectMeta(raw ?? {})
   if ('error' in meta) return NextResponse.json({ error: meta.error }, { status: 400 })

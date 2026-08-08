@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import {
   PROJECT_STATUS_OPTIONS, CURRENCY_OPTIONS, type ProjectMeta,
 } from '@/lib/work/project-display'
+import { PROJECT_VISIBILITY, type ProjectVisibility } from '@/lib/work/project-fields'
 
 // 프로젝트 생성/수정 공용 모달. 이름 + 날짜체계 + 기간 + 예산/통화 + 상태.
 // mode='create'→POST /api/projects, 'edit'→PATCH. 모달 표준(§2-2) 준수.
@@ -32,6 +33,13 @@ interface FormState {
   budget: string
   currency: string
   status: string
+  description: string
+  objective: string
+  successCriteria: string
+  visibility: ProjectVisibility
+  accountId: string
+  dealId: string
+  departmentId: string
 }
 
 function toForm(initial?: Props['initial']): FormState {
@@ -46,14 +54,21 @@ function toForm(initial?: Props['initial']): FormState {
     budget: initial?.budget != null ? String(initial.budget) : '',
     currency: initial?.currency ?? 'KRW',
     status: initial?.status ?? 'active',
+    description: initial?.description ?? '',
+    objective: initial?.objective ?? '',
+    successCriteria: initial?.success_criteria ?? '',
+    visibility: (initial?.visibility as ProjectVisibility | undefined) ?? 'private',
+    accountId: initial?.account_id ?? '',
+    dealId: initial?.origin_deal_id ?? '',
+    departmentId: initial?.department_id ?? '',
   }
 }
 
 // 폼 → API payload(메타 키는 null 허용 = 값 해제). 빈 문자열은 null.
-function toPayload(f: FormState): Record<string, unknown> {
+function toPayload(f: FormState, includeRelations: boolean): Record<string, unknown> {
   const numOrNull = (v: string) => (v.trim() === '' ? null : Number(v))
   const strOrNull = (v: string) => (v.trim() === '' ? null : v)
-  return {
+  const payload: Record<string, unknown> = {
     name: f.name.trim(),
     year: numOrNull(f.year),
     quarter: numOrNull(f.quarter),
@@ -64,7 +79,17 @@ function toPayload(f: FormState): Record<string, unknown> {
     budget: numOrNull(f.budget),
     currency: f.currency,
     status: f.status,
+    description: strOrNull(f.description),
+    objective: strOrNull(f.objective),
+    success_criteria: strOrNull(f.successCriteria),
+    visibility: f.visibility,
+    department_id: f.visibility === 'department' ? strOrNull(f.departmentId) : null,
   }
+  if (includeRelations) {
+    payload.account_id = strOrNull(f.accountId)
+    payload.origin_deal_id = strOrNull(f.dealId)
+  }
+  return payload
 }
 
 export default function ProjectFormModal({ mode, projectId, initial, onClose, onSaved }: Props) {
@@ -72,6 +97,21 @@ export default function ProjectFormModal({ mode, projectId, initial, onClose, on
   const [form, setForm] = useState<FormState>(() => toForm(initial))
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [relationOptions, setRelationOptions] = useState<{ accounts: Array<{ id: string; name: string }>; deals: Array<{ id: string; title: string; account_id: string | null }> } | null>(null)
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([])
+
+  useEffect(() => {
+    async function loadRelations() {
+      try {
+        const [relationsRes, accessRes] = await Promise.all([
+          fetch('/api/projects/relation-options'), fetch('/api/projects/access-options'),
+        ])
+        if (relationsRes.ok) setRelationOptions(await relationsRes.json())
+        if (accessRes.ok) { const data = await accessRes.json(); setDepartments(data.departments ?? []) }
+      } catch { /* 비관리자는 CRM 관계 옵션을 노출하지 않음 */ }
+    }
+    void loadRelations()
+  }, [])
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -79,6 +119,7 @@ export default function ProjectFormModal({ mode, projectId, initial, onClose, on
   async function save() {
     const trimmed = form.name.trim()
     if (!trimmed) { setErr('프로젝트 이름은 필수입니다'); return }
+    if (form.visibility === 'department' && !form.departmentId) { setErr('공유할 부서를 선택해주세요'); return }
     if (busy) return
     setBusy(true); setErr(null)
     try {
@@ -86,7 +127,7 @@ export default function ProjectFormModal({ mode, projectId, initial, onClose, on
       const res = await fetch(url, {
         method: mode === 'create' ? 'POST' : 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(toPayload(form)),
+        body: JSON.stringify(toPayload(form, relationOptions !== null)),
       })
       if (!res.ok) {
         const j = await res.json().catch(() => null)
@@ -117,6 +158,60 @@ export default function ProjectFormModal({ mode, projectId, initial, onClose, on
             <input id="project-name" className="input-field" value={form.name} maxLength={NAME_MAX} autoFocus
               onChange={(e) => set('name', e.target.value)} placeholder="예: 2026 상반기 GPU 도입" style={{ minHeight: 44 }} />
           </div>
+
+          {form.visibility === 'department' && <div>
+            <label className="label" htmlFor="project-department">공유 부서 *</label>
+            <select id="project-department" className="input-field" value={form.departmentId}
+              onChange={(e) => set('departmentId', e.target.value)} style={{ minHeight: 44 }}>
+              <option value="">부서 선택</option>
+              {departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
+            </select>
+          </div>}
+
+          <div>
+            <label className="label" htmlFor="project-description">프로젝트 설명</label>
+            <textarea id="project-description" className="input-field" rows={3} value={form.description}
+              onChange={(e) => set('description', e.target.value)} placeholder="배경과 범위를 적어주세요" />
+          </div>
+
+          <div className="responsive-grid-cols-2" style={{ gap: 'var(--space-3)' }}>
+            <div>
+              <label className="label" htmlFor="project-objective">목표</label>
+              <textarea id="project-objective" className="input-field" rows={3} value={form.objective}
+                onChange={(e) => set('objective', e.target.value)} placeholder="이 프로젝트로 달성할 것" />
+            </div>
+            <div>
+              <label className="label" htmlFor="project-success">성공 기준</label>
+              <textarea id="project-success" className="input-field" rows={3} value={form.successCriteria}
+                onChange={(e) => set('successCriteria', e.target.value)} placeholder="완료를 판단할 명확한 기준" />
+            </div>
+          </div>
+
+          <div>
+            <label className="label" htmlFor="project-visibility">공유 범위</label>
+            <select id="project-visibility" className="input-field" value={form.visibility}
+              onChange={(e) => set('visibility', e.target.value as ProjectVisibility)} style={{ minHeight: 44 }}>
+              {PROJECT_VISIBILITY.map((value) => <option key={value} value={value}>{visibilityLabel(value)}</option>)}
+            </select>
+          </div>
+
+          {relationOptions && <div className="responsive-grid-cols-2" style={{ gap: 'var(--space-3)' }}>
+            <div>
+              <label className="label" htmlFor="project-account">연결 거래처</label>
+              <select id="project-account" className="input-field" value={form.accountId}
+                onChange={(e) => { set('accountId', e.target.value); set('dealId', '') }} style={{ minHeight: 44 }}>
+                <option value="">미지정</option>
+                {relationOptions.accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="project-deal">원본 영업기회</label>
+              <select id="project-deal" className="input-field" value={form.dealId} onChange={(e) => set('dealId', e.target.value)} style={{ minHeight: 44 }}>
+                <option value="">미지정</option>
+                {relationOptions.deals.filter((deal) => !form.accountId || deal.account_id === form.accountId).map((deal) => <option key={deal.id} value={deal.id}>{deal.title}</option>)}
+              </select>
+            </div>
+          </div>}
 
           <fieldset style={{ border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-3)', margin: 0 }}>
             <legend style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--text-muted)', padding: '0 var(--space-1)' }}>기간 (선택 — 연도+분기만 골라도 됩니다)</legend>
@@ -188,4 +283,11 @@ export default function ProjectFormModal({ mode, projectId, initial, onClose, on
       </div>
     </div>
   )
+}
+
+function visibilityLabel(value: ProjectVisibility): string {
+  return {
+    private: '비공개—나만', members: '참여자만', department: '지정 부서',
+    organization: '전체 임직원', admin_only: '관리자만',
+  }[value]
 }

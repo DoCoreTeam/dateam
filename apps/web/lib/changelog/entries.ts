@@ -32,6 +32,25 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.421',
+    date: '2026-08-09',
+    title: '프로젝트를 함께 운영할 수 있어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🤝',
+        headline: '필요한 사람과만 프로젝트를 공유해요',
+        detail: '기본은 나만 보는 비공개로 유지되고, 참여자·부서·전체 임직원 중 필요한 범위를 선택할 수 있어요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '📋',
+        headline: '프로젝트 상세에서 핵심 맥락을 한눈에 보세요',
+        detail: '목표·성공 기준·참여자·연결 업무와 고객·영업기회 관계를 프로젝트 상세에서 함께 확인할 수 있어요.',
+      },
+    ],
+  },
+  {
     version: '0.7.420',
     date: '2026-08-09',
     title: '프로젝트와 업무가 끊기지 않게 연결돼요',

@@ -13,6 +13,14 @@ export interface ProjectMeta {
   budget?: number | null
   currency?: string | null
   status?: string | null
+  description?: string | null
+  objective?: string | null
+  success_criteria?: string | null
+  visibility?: string | null
+  account_id?: string | null
+  origin_deal_id?: string | null
+  department_id?: string | null
+  user_id?: string | null
 }
 
 // 상태 뱃지 메타 — color/bg/border 모두 토큰 변수명(SSOT). status-colors.ts와 동형 구조.
