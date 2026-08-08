@@ -7,6 +7,7 @@ import { PROJECT_SELECT } from '@/lib/work/project-fields'
 import { budgetLabel, periodLabel, statusBadge } from '@/lib/work/project-display'
 import ProjectMembersClient from './ProjectMembersClient'
 import ProjectCommandClient from './ProjectCommandClient'
+import ProjectOperationsClient from './ProjectOperationsClient'
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -71,7 +72,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
           </Panel>
           {canManage && <Panel icon={<Target size={18} />} title="AI 자연어 실행"><ProjectCommandClient projectId={id} /></Panel>}
           <Panel icon={<ListChecks size={18} />} title={`실행 항목 ${items?.length ?? 0}건`}>
-            {(items ?? []).length === 0 ? <Empty text="마일스톤·작업·리스크·결정사항이 없습니다." /> : (items ?? []).map((item: {id:string;kind:string;title:string;status:string}) => <div key={item.id} style={{display:'flex',justifyContent:'space-between',gap:8,padding:'var(--space-2) 0',borderBottom:'var(--hairline) solid var(--border-light)'}}><span><strong style={{marginRight:8}}>{itemKindLabel(item.kind)}</strong>{item.title}</span><span style={{color:'var(--text-muted)'}}>{item.status}</span></div>)}
+            <ProjectOperationsClient projectId={id} items={items ?? []} canManage={canManage} />
           </Panel>
         </div>
 
@@ -109,4 +110,3 @@ function Detail({ label, value, href }: { label: string; value?: string | null; 
 function Empty({ text }: { text: string }) { return <p style={{ color: 'var(--text-faint)', margin: 0 }}>{text}</p> }
 function visibilityLabel(value: string): string { return ({ private: '비공개', members: '참여자', department: '부서', organization: '전사', admin_only: '관리자' } as Record<string, string>)[value] ?? '비공개' }
 function roleLabel(value: string): string { return ({ owner: '책임자', manager: '운영자', contributor: '참여자', viewer: '조회자', stakeholder: '이해관계자' } as Record<string, string>)[value] ?? value }
-function itemKindLabel(value:string):string{return ({milestone:'마일스톤',task:'작업',risk:'리스크',decision:'결정'} as Record<string,string>)[value]??value}
