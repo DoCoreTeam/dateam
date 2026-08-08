@@ -32,6 +32,7 @@ export default function QuickAddFab({ isAdmin = true }: { isAdmin?: boolean }) {
   if (
     pathname.startsWith('/admin')
     || pathname.startsWith('/pricing/gpu')
+    || pathname.startsWith('/pricing/catalog')
     || pathname.startsWith('/weekly-report')
   ) return null
 

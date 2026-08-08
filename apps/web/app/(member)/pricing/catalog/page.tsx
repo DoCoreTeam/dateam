@@ -6,7 +6,7 @@ import { fetcher } from '@/lib/swr-config'
 import { formatSpec } from '@/lib/gpu/format-spec'
 import { ChevronRight } from 'lucide-react'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
-import { fmtKRW as fmtKRWSSOT, fmtUSD, fmtUSDWhole } from '@/lib/gpu/format-price'
+import { fmtKRW as fmtKRWSSOT, fmtCatalogHourlyUSD, fmtUSDWhole } from '@/lib/gpu/format-price'
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
 import { perCardMemory, memoryTitle } from '@/lib/gpu/card-memory'
 import { baseModelKey, baseModelName } from '@/lib/gpu/canonical-model'
@@ -27,7 +27,12 @@ interface GpuProduct {
   // 전략가 (콕핏 통합)
   strategic_price_krw?: number | null
   strategic_krw?: number | null
+  final_sell_price_krw?: number | null
+  final_sell_price_usd?: number | null
   is_strategic_set?: boolean
+  basis?: 'selected' | 'auto' | 'fallback' | 'list' | 'none'
+  is_propagated?: boolean
+  effective_supplier?: { name: string; color: string | null; logo_url: string | null } | null
 }
 
 interface ProductsResponse {
@@ -60,7 +65,7 @@ function GpuChip({ model, memory, gpuCount }: { model: string; memory: string; g
     <span title={memoryTitle(memory, gpuCount) || undefined} style={{
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       width: 36, height: 36, borderRadius: 8, background: bg,
-      color: '#fff', fontSize: 11, fontWeight: 700, flexShrink: 0,
+      color: 'var(--nb-white)', fontSize: 11, fontWeight: 700, flexShrink: 0,
       fontFamily: 'monospace', lineHeight: 1,
     }}>
       <span style={{ fontSize: 9 }}>{perCard.replace('GB', '')}</span>
@@ -74,28 +79,9 @@ const HR_4320 = 24 * 180
 const HR_8760 = 24 * 365
 
 export default function SalePriceCatalogPage() {
-  const { data, isLoading, mutate } = useSWR<ProductsResponse>('/api/pricing/gpu/products', fetcher, {
+  const { data, isLoading } = useSWR<ProductsResponse>('/api/pricing/gpu/products', fetcher, {
     refreshInterval: 60000,
   })
-  // 직접 판매가 설정/해제 (CRUD) — 행 복사 UX와 충돌 없도록 stopPropagation
-  const setDirectPrice = async (e: React.MouseEvent, p: GpuProduct) => {
-    e.stopPropagation()
-    const cur = p.pricing_mode === 'direct' && p.sell_price_krw ? String(p.sell_price_krw) : ''
-    const input = window.prompt(`${p.model_name} ×${p.gpu_count ?? 1} 직접 판매가(원/시간). 비우면 해제:`, cur)
-    if (input === null) return
-    try {
-      if (input.trim() === '') {
-        const res = await fetch(`/api/pricing/gpu/direct-prices?product_id=${p.id}`, { method: 'DELETE' })
-        if (!res.ok) { alert('해제 실패'); return }
-      } else {
-        const v = Number(input.replace(/[^0-9.]/g, ''))
-        if (!v || v <= 0) { alert('유효한 금액을 입력하세요'); return }
-        const res = await fetch('/api/pricing/gpu/direct-prices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product_id: p.id, sell_price_krw: v }) })
-        if (!res.ok) { alert('설정 실패'); return }
-      }
-      mutate()
-    } catch { alert('처리 실패') }
-  }
   const [currencyMode, setCurrencyMode] = useState<'KRW' | 'USD'>('KRW')
   const [search, setSearch] = useState('')
   const [hoursInput, setHoursInput] = useState('')
@@ -107,17 +93,15 @@ export default function SalePriceCatalogPage() {
   const customHours = parseInt(hoursInput) > 0 ? parseInt(hoursInput) : null
 
   const getSellPrice = (p: GpuProduct) => {
-    // 콕핏 전략가가 설정되어 있으면 우선 사용 (strategic_krw = strategic_price_krw ?? auto_margin_krw)
-    if (p.strategic_krw != null) {
-      return { krw: p.strategic_krw, usd: p.strategic_krw / usdKrw }
+    // API가 가격표와 공용 SSOT로 확정한 최종 판매가만 사용한다.
+    if (p.final_sell_price_krw != null) {
+      return {
+        krw: p.final_sell_price_krw,
+        usd: p.final_sell_price_usd ?? p.final_sell_price_krw / usdKrw,
+      }
     }
-    if (p.pricing_mode === 'direct') {
-      if (!p.sell_price_krw) return null
-      return { krw: p.sell_price_krw, usd: p.sell_price_krw / usdKrw }
-    }
-    if (!p.lowest_unit_price_usd) return null
-    const usd = p.lowest_unit_price_usd * (1 + marginPct / 100)
-    return { krw: Math.round(usd * usdKrw), usd }
+    if (p.strategic_krw == null) return null
+    return { krw: p.strategic_krw, usd: p.strategic_krw / usdKrw }
   }
 
   const handleRowClick = (p: GpuProduct) => {
@@ -126,7 +110,7 @@ export default function SalePriceCatalogPage() {
     const lines = [
       `[GPU 판매가격표]`,
       `${p.model_name} ${p.memory}`,
-      `시간당: ${fmtKRWSSOT(price.krw)} / ${fmtUSD(price.usd)}`,
+      `시간당: ${fmtKRWSSOT(price.krw)} / ${fmtCatalogHourlyUSD(price.usd)}`,
       `월 (720h): ${fmtKRWSSOT(price.krw * HR_720)}`,
       `6개월 (4,320h): ${fmtKRWSSOT(price.krw * HR_4320)}`,
       `연간 (8,760h): ${fmtKRWSSOT(price.krw * HR_8760)}`,
@@ -152,9 +136,7 @@ export default function SalePriceCatalogPage() {
   // 표시 가능한 가격이 있는 모든 상품:
   // strategic_krw(전략가 포함) 또는 sell_price_krw(자동마진가/직접가) 중 하나라도 있으면 포함.
   // 전략가만 설정된(자동마진가 없는) 상품도 목록에 올라오도록 getSellPrice와 동일한 우선순위 기준 사용.
-  const pricedProducts = products.filter(
-    (p) => (p.strategic_krw ?? p.sell_price_krw) != null,
-  )
+  const pricedProducts = products.filter((p) => getSellPrice(p) != null)
 
   const filtered = pricedProducts.filter((p) => {
     if (search) {
@@ -184,7 +166,7 @@ export default function SalePriceCatalogPage() {
   }
 
   return (
-    <div className="page-inner">
+    <div className="page-inner sale-catalog-page">
       {/* 헤더 */}
       <div className="gpu-topbar">
         <div>
@@ -203,7 +185,7 @@ export default function SalePriceCatalogPage() {
       </div>
 
       {/* 필터 바 */}
-      <div className="gpu-toolbar" style={{ marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+      <div className="gpu-toolbar sale-catalog-toolbar" style={{ marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
         <div className="gpu-search">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.3-4.3" />
@@ -220,7 +202,7 @@ export default function SalePriceCatalogPage() {
           display: 'flex', alignItems: 'center', gap: 0,
           border: `1.5px solid ${customHours ? 'var(--gpu-accent)' : 'var(--border-subtle)'}`,
           borderRadius: 8,
-          background: '#fff',
+          background: 'var(--gpu-surface)',
           height: 34,
           boxShadow: customHours ? '0 0 0 3px rgba(124,58,237,0.12)' : '0 1px 2px rgba(0,0,0,0.05)',
           cursor: 'text',
@@ -275,9 +257,9 @@ export default function SalePriceCatalogPage() {
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--gpu-muted)' }}>로딩 중...</div>
       ) : (
-        <div style={{ background: 'var(--gpu-surface)', borderRadius: 12, border: 'var(--hairline) solid var(--gpu-border)', overflow: 'hidden' }}>
+        <div className="sale-catalog-table">
           {/* 헤더 행 */}
-          <div style={{ display: 'grid', gridTemplateColumns: COL, gap: 8, padding: '10px 20px', background: 'var(--gpu-bg)', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
+          <div className="sale-catalog-grid sale-catalog-head" style={{ gridTemplateColumns: COL }}>
             <div style={{ ...thBase }}>GPU 모델</div>
             <div style={{ ...thBase, textAlign: 'right', color: customHours ? 'var(--gpu-accent)' : 'var(--gpu-muted)' }}>
               {customHours ? <>/ {customHours.toLocaleString()}<span style={{ fontWeight: 400, opacity: 0.8 }}>시간</span></> : '/ 1시간'}
@@ -297,7 +279,7 @@ export default function SalePriceCatalogPage() {
               const key = mKey(mg.key)
               const mC = collapsedOf(key)
               const modelHeaderEl = (
-                <div key={`m-${mg.key}`} style={{ padding: '6px 14px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
+                <div key={`m-${mg.key}`} className="sale-catalog-group">
                   <div
                     onClick={() => toggle(key)}
                     style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '7px 12px', background: 'var(--surface-bg)', borderRadius: 7, userSelect: 'none' }}
@@ -336,7 +318,8 @@ export default function SalePriceCatalogPage() {
               return (
                 <div
                   key={p.id}
-                  style={{ display: 'grid', gridTemplateColumns: COL, gap: 8, padding: '12px 20px', alignItems: 'center', borderBottom: 'var(--hairline) solid var(--gpu-border)', transition: 'background 0.15s', cursor: price ? 'pointer' : 'default', position: 'relative' }}
+                  className="sale-catalog-grid sale-catalog-row"
+                  style={{ gridTemplateColumns: COL, cursor: price ? 'pointer' : 'default' }}
                   title={price ? '클릭하면 가격 복사' : undefined}
                   onClick={() => handleRowClick(p)}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--gpu-hover)' }}
@@ -352,21 +335,22 @@ export default function SalePriceCatalogPage() {
                     </div>
                   )}
                   {/* 모델 */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="sale-catalog-model">
                     <GpuChip model={p.model_name} memory={p.memory} gpuCount={gpuCount} />
                     <div>
                       <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <GpuModelName modelName={p.model_name} gpuCount={gpuCount} />
-                        {p.pricing_mode === 'direct' && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gpu-amber)', background: 'var(--warning-bg)', border: 'var(--hairline) solid var(--warning-border)', borderRadius: 4, padding: '0 5px' }}>직접가</span>}
-                        <button onClick={(e) => setDirectPrice(e, p)} title="직접 판매가 설정/해제" aria-label="직접 판매가 설정"
-                          style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--gpu-faint)', fontSize: 11, padding: '0 2px' }}>✎</button>
+                        {p.is_strategic_set
+                          ? <span className="gpu-ubadge gpu-ubadge--sell">결정가</span>
+                          : <span className="gpu-ubadge gpu-ubadge--muted">자동 계산가</span>}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--gpu-muted)', marginTop: 1 }}>{formatSpec(p)}</div>
+                      <CatalogPriceSource product={p} />
                     </div>
                   </div>
 
                   {/* /1시간 or /N시간 */}
-                  <div style={{ textAlign: 'right' }}>
+                  <div className="sale-catalog-hourly">
                     {price ? (
                       customHours ? (
                         <>
@@ -374,41 +358,62 @@ export default function SalePriceCatalogPage() {
                             {fmt(customHours)}
                           </div>
                           <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>
-                            {currencyMode === 'KRW' ? fmtUSDWhole(price.usd * customHours) : fmtKRWSSOT(price.krw * customHours)}
+                            {customHours.toLocaleString()}시간 합계
                           </div>
                         </>
                       ) : (
                         <>
                           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gpu-accent)', fontFamily: 'monospace' }}>
-                            {currencyMode === 'KRW' ? fmtKRWSSOT(price.krw) : fmtUSD(price.usd)}
+                            {currencyMode === 'KRW' ? fmtKRWSSOT(price.krw) : fmtCatalogHourlyUSD(price.usd)}
                           </div>
-                          <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>
-                            {currencyMode === 'KRW' ? fmtUSD(price.usd) + '/hr' : fmtKRWSSOT(price.krw) + '/hr'}
-                          </div>
+                          <div className="sale-catalog-unit">시간당</div>
                         </>
                       )
                     ) : <span style={{ fontSize: 12, color: 'var(--gpu-muted)' }}>준비 중</span>}
                   </div>
 
                   {/* /월 — 항상 표시 */}
-                  <PriceCell value={fmt(HR_720)} sub="30일 · 720h" />
+                  <PriceCell value={fmt(HR_720)} sub="30일 · 720h" label="월" />
 
                   {/* /6개월 — 항상 표시 */}
-                  <PriceCell value={fmt(HR_4320)} sub="180일 · 4,320h" />
+                  <PriceCell value={fmt(HR_4320)} sub="180일 · 4,320h" label="6개월" />
 
                   {/* /연간 */}
-                  <PriceCell value={fmt(HR_8760)} sub="365일 · 8,760h" green />
+                  <PriceCell value={fmt(HR_8760)} sub="365일 · 8,760h" label="연간" green />
                 </div>
               )
   }
 }
 
-function PriceCell({ value, sub, green }: { value: string | null; sub: string; green?: boolean }) {
+function PriceCell({ value, sub, label, green }: { value: string | null; sub: string; label: string; green?: boolean }) {
   if (!value) return <span style={{ color: 'var(--gpu-muted)', fontSize: 12 }}>—</span>
   return (
-    <div style={{ textAlign: 'right' }}>
+    <div className="sale-catalog-period">
+      <div className="sale-catalog-period-label">{label}</div>
       <div style={{ fontSize: 12, fontWeight: 600, color: green ? 'var(--success)' : 'var(--text)', fontFamily: 'monospace' }}>{value}</div>
       <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>{sub}</div>
+    </div>
+  )
+}
+
+function CatalogPriceSource({ product }: { product: GpuProduct }) {
+  const [logoFailed, setLogoFailed] = useState(false)
+  const supplier = product.effective_supplier
+  const sourceLabel = product.pricing_mode === 'direct'
+    ? '직접 입력 가격'
+    : product.basis === 'list'
+      ? '기존 판매가격 기준'
+      : product.basis === 'selected'
+        ? (product.is_propagated ? '지정 공급가 전파 계산' : '지정 공급가 기준')
+        : product.is_propagated ? '공급가 전파 계산' : '공급가 기준 자동 계산'
+  const name = supplier?.name ?? (product.pricing_mode === 'direct' ? '직접 결정' : '출처 확인 필요')
+  return (
+    <div className="sale-catalog-source" title={`${name} · ${sourceLabel}`}>
+      {supplier?.logo_url && !logoFailed
+        ? <img src={supplier.logo_url} alt="" onError={() => setLogoFailed(true)} />
+        : <span style={{ background: supplier?.color ?? 'var(--gpu-border)' }}>{name.charAt(0)}</span>}
+      <strong>{name}</strong>
+      <small>{sourceLabel}</small>
     </div>
   )
 }

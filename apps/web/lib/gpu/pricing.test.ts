@@ -264,6 +264,24 @@ test('cost 없고 list만 있으면 list 공시가를 고객가로 그대로(마
   assert.equal(p.sell_price_krw, 2800)                    // 2.0 × 1400
 })
 
+test('list 공시가를 다른 장수 구성에 전파해도 출처 공급사·로고를 보존', () => {
+  const raw: CatalogRawData = {
+    products: [
+      { id: 'p1', model_name: 'T4', memory: '16GB', tier: 3, pricing_mode: 'quote', gpu_count: 1, vcpu: 4, ram_gb: 16, storage_gb: 100, series: 'T4' },
+      { id: 'p2', model_name: 'T4', memory: '32GB', tier: 3, pricing_mode: 'quote', gpu_count: 2, vcpu: 8, ram_gb: 32, storage_gb: 200, series: 'T4' },
+    ],
+    quotes: [{ product_id: 'p1', supplier_id: 'gc', unit_price_usd: 0.5, gpu_count: 1, valid_until: null, price_type: 'list' }],
+    suppliers: [{ id: 'gc', name: 'gcube', color: '#10b981', logo_url: 'https://gcube.ai/favicon.ico' }],
+    direct: [], margin_pct: 25, usd_krw: 1400, fx_date: '2026-08-08', today: '2026-08-08',
+  }
+  const byId = new Map(buildCatalog(raw).products.map((p) => [p.id, p]))
+  const inherited = byId.get('p2')!
+  assert.equal(inherited.basis, 'list')
+  assert.equal(inherited.sell_price_usd, 1)
+  assert.equal(inherited.effective_supplier?.name, 'gcube')
+  assert.equal(inherited.effective_supplier?.logo_url, 'https://gcube.ai/favicon.ico')
+})
+
 // ─── P2-2: 경쟁사 시장가 인입(market_link) cost가 자동으로 effective→+마진 sell에 반영 ───
 
 test('인입 cost(market_link)는 일반 cost와 동일하게 effective→×(1+마진) sell로 자동 반영', () => {

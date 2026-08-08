@@ -46,6 +46,7 @@ export interface CockpitApiRow {
   competitors: CockpitCompetitor[]
   competitor_mapping_ids?: string[]
   strategic_krw: number | null
+  final_sell_price_krw?: number | null
   strategic_price_krw: number | null
   is_strategic_set: boolean
   effective_margin_pct: number | null
@@ -75,8 +76,8 @@ export function cockpitToUnified(res: CockpitApiResponse | undefined): UnifiedRo
     // 판매가·마진 선택은 자기완결 SSOT(unified-price-pick)에 위임 — 단위 테스트로 분기 고정.
     // 전략가/견적 후보가 없으면 buildCatalog 최종 판매가(공시가 폴백)로 채움 — 가격표 SSOT와 동일(빈 행 방지).
     const pricedSell = pickSellPrice(p)
-    const sellFromList = pricedSell == null && p.sell_price_krw != null
-    const sellPrice = pricedSell ?? p.sell_price_krw ?? null
+    const sellPrice = p.final_sell_price_krw ?? p.strategic_krw ?? pricedSell ?? p.sell_price_krw ?? null
+    const sellFromList = p.basis === 'list' && !p.is_strategic_set
     // 견적 기반 판매가면 실효/설정 마진. 공시가 폴백이면 단순 패스스루 → 마진 측정불가(null, 정직 표기).
     const margin = sellPrice == null || sellFromList ? null : pickMargin(p)
 

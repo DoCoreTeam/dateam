@@ -493,6 +493,8 @@ export async function GET() {
         // 전략가 (기존 유지)
         strategic_price_krw: p.strategic_price_krw,
         strategic_krw: p.strategic_krw,
+        // 판매가격표와 동일한 최종 판매가. 표시 계층의 재계산·재선택 금지.
+        final_sell_price_krw: p.strategic_krw,
         is_strategic_set: p.is_strategic_set,
         effective_margin_pct: p.effective_margin_pct,
         strategic_history: strategicHistory,

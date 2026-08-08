@@ -64,6 +64,11 @@ export async function GET() {
       // 전략가 (콕핏 통합 — catalog에서 strategic_krw 우선 표시용)
       strategic_price_krw: p.strategic_price_krw,
       strategic_krw: p.strategic_krw,
+      // 가격표·판매가격표 공용 최종 판매가 SSOT. 각 화면에서 후보/전략가를 다시 고르지 않는다.
+      final_sell_price_krw: p.strategic_krw,
+      final_sell_price_usd: p.strategic_krw != null && catalog.usd_krw > 0
+        ? p.strategic_krw / catalog.usd_krw
+        : null,
       is_strategic_set: p.is_strategic_set,
       // 약정별 판매가 (on_demand 제외, 가격 오름차순)
       term_prices: p.term_prices,

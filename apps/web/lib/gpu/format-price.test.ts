@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { fmtKRW, fmtUSD, fmtUSDWhole, fmtMoneyFromOriginal } from './format-price.ts'
+import { fmtKRW, fmtUSD, fmtUSDWhole, fmtCatalogHourlyUSD, fmtMoneyFromOriginal } from './format-price.ts'
 
 // ── fmtKRW ────────────────────────────────────────────────────────────────────
 
@@ -49,6 +49,13 @@ test('fmtUSDWhole — 총액은 소수 없이 올림 + 천단위', () => {
   assert.equal(fmtUSDWhole(720), '$720')
   assert.equal(fmtUSDWhole(null), '—')
   assert.equal(fmtUSDWhole(NaN), '—')
+})
+
+test('fmtCatalogHourlyUSD — 판매가격표는 소수 1자리, $0.1 미만은 오인 방지', () => {
+  assert.equal(fmtCatalogHourlyUSD(24.339), '$24.3')
+  assert.equal(fmtCatalogHourlyUSD(0.655), '$0.7')
+  assert.equal(fmtCatalogHourlyUSD(0.0467), '<$0.1')
+  assert.equal(fmtCatalogHourlyUSD(null), '—')
 })
 
 test('fmtUSD — null/undefined/NaN → 대시', () => {

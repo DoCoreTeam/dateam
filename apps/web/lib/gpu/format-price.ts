@@ -47,6 +47,14 @@ export function fmtUSDWhole(v: number | null | undefined): string {
   return '$' + Math.ceil(v).toLocaleString('en-US')
 }
 
+/** 판매가격표 시간당 USD 표시 — 비교가 쉬운 소수 1자리.
+ *  0보다 크고 $0.1 미만인 값은 '$0.0'으로 오인되지 않도록 '<$0.1'로 표시한다. */
+export function fmtCatalogHourlyUSD(v: number | null | undefined): string {
+  if (v == null || !isFinite(v)) return '—'
+  if (v > 0 && v < 0.1) return '<$0.1'
+  return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+}
+
 export type CurrencyMode = 'KRW' | 'USD'
 
 /**

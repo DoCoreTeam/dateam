@@ -36,3 +36,15 @@ test('고객 판매가격표는 가격표와 동일 API(/products) 사용', () =
   const src = readFileSync(join(ROOT, 'app/(member)/pricing/catalog/page.tsx'), 'utf8')
   assert.match(src, /\/api\/pricing\/gpu\/products/, '고객가가 products API를 쓰지 않음 — 가격표와 불일치 위험')
 })
+
+test('가격표·판매가격표 API는 final_sell_price_krw 공용 계약을 노출', () => {
+  for (const rel of [
+    'app/api/pricing/gpu/products/route.ts',
+    'app/api/pricing/gpu/cockpit/route.ts',
+  ]) {
+    const src = readFileSync(join(ROOT, rel), 'utf8')
+    assert.match(src, /final_sell_price_krw:\s*p\.strategic_krw/, `${rel} 최종 판매가 계약 누락`)
+  }
+  const adapter = readFileSync(join(ROOT, 'lib/gpu/cockpit-to-unified.ts'), 'utf8')
+  assert.match(adapter, /p\.final_sell_price_krw/, '가격표 어댑터가 공용 최종 판매가를 우선 사용하지 않음')
+})

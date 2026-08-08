@@ -7012,6 +7012,118 @@ label.intake-tool-btn {
   .cockpit-competitor-btn { min-height: 44px; }
 }
 
+/* ===== GPU 판매가격표 — 가격표 SSOT + 출처 확인 ===== */
+.sale-catalog-table {
+  background: var(--gpu-surface);
+  border-radius: var(--radius-lg);
+  border: var(--hairline) solid var(--gpu-border);
+  overflow: hidden;
+}
+.sale-catalog-grid {
+  display: grid;
+  gap: var(--space-2);
+  align-items: center;
+}
+.sale-catalog-head {
+  padding: 10px 20px;
+  background: var(--gpu-bg);
+  border-bottom: var(--hairline) solid var(--gpu-border);
+}
+.sale-catalog-group {
+  padding: 6px 14px;
+  border-bottom: var(--hairline) solid var(--gpu-border);
+}
+.sale-catalog-row {
+  padding: 12px 20px;
+  border-bottom: var(--hairline) solid var(--gpu-border);
+  transition: background 0.15s;
+  position: relative;
+}
+.sale-catalog-model { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.sale-catalog-hourly,
+.sale-catalog-period { text-align: right; }
+.sale-catalog-unit,
+.sale-catalog-period-label { display: none; }
+.sale-catalog-source {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  margin-top: var(--space-1);
+  font-size: var(--fs-2xs);
+  color: var(--gpu-muted);
+}
+.sale-catalog-source img,
+.sale-catalog-source > span {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius);
+  object-fit: contain;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--nb-white);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.sale-catalog-source strong {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sale-catalog-source small { white-space: nowrap; }
+.sale-catalog-toolbar input,
+.sale-catalog-toolbar button { min-height: 44px; }
+.sale-catalog-toolbar label { min-height: 44px; height: 44px !important; }
+
+@media (max-width: 1023px) {
+  .sale-catalog-page { min-width: 0; }
+  .sale-catalog-toolbar > * { flex: 1 1 100%; min-width: 0; margin-left: 0 !important; }
+  .sale-catalog-toolbar .gpu-seg { flex: 0 0 auto; width: fit-content; }
+  .sale-catalog-table { border: 0; background: transparent; overflow: visible; }
+  .sale-catalog-head { display: none; }
+  .sale-catalog-group { padding: var(--space-2) 0; border: 0; }
+  .sale-catalog-row {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+    padding: var(--space-4);
+    border: var(--hairline) solid var(--gpu-border);
+    border-radius: var(--radius-lg);
+    background: var(--gpu-surface);
+  }
+  .sale-catalog-model { grid-column: 1 / -1; align-items: flex-start; }
+  .sale-catalog-hourly {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: var(--space-3) 0;
+    border-top: var(--hairline) solid var(--gpu-border);
+    border-bottom: var(--hairline) solid var(--gpu-border);
+  }
+  .sale-catalog-unit { display: block; order: -1; font-size: var(--fs-xs); color: var(--gpu-muted); }
+  .sale-catalog-period { text-align: left; min-width: 0; }
+  .sale-catalog-period-label { display: block; font-size: var(--fs-xs); color: var(--gpu-muted); margin-bottom: var(--space-1); }
+  .sale-catalog-period > div:not(.sale-catalog-period-label) { overflow-wrap: anywhere; }
+}
+
+@media (max-width: 480px) {
+  .sale-catalog-row { grid-template-columns: 1fr !important; }
+  .sale-catalog-period {
+    display: grid;
+    grid-template-columns: 54px minmax(0, 1fr);
+    align-items: baseline;
+    text-align: right;
+  }
+  .sale-catalog-period-label { text-align: left; }
+  .sale-catalog-period > div:last-child { grid-column: 2; }
+  .sale-catalog-source { flex-wrap: wrap; }
+  .sale-catalog-source small { flex-basis: calc(100% - 24px); margin-left: 22px; }
+}
+
 /* ===== GPU 통합 표 (마스터·디테일 + 보기 전환) ===== */
 .gpu-unified { display: flex; flex-direction: column; min-height: 0; flex: 1; }
 .gpu-unified-toolbar { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) 0; flex-wrap: wrap; }
