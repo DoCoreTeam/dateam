@@ -32,6 +32,19 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.419',
+    date: '2026-08-08',
+    title: '판매가격표의 GPU 구성을 빠짐없이 맞췄어요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🧩',
+        headline: '모든 GPU를 1·2·4·8장 구성으로 비교해요',
+        detail: '가격표와 같은 구성 기준을 판매가격표에도 적용했어요. 실제 구성의 가격은 그대로 유지하고, 빠진 구성만 장당 가격을 기준으로 계산해 보여드려요.',
+      },
+    ],
+  },
+  {
     version: '0.7.418',
     date: '2026-08-08',
     title: '판매가격과 그 근거를 한눈에 확인해요',

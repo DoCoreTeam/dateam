@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { expandStandardLadder, memGb } from './config-ladder-expand.ts'
+import { expandLadderWith, expandStandardLadder, memGb } from './config-ladder-expand.ts'
 import type { UnifiedRow } from './unified-row.ts'
 
 function row(over: Partial<UnifiedRow>): UnifiedRow {
@@ -96,4 +96,19 @@ test('기준행이 2장뿐이어도 per-card로 1/4/8 산출', () => {
   assert.equal(x1.sell_price_krw, 1200)
   const x8 = out.find((r) => r.gpu_count === 8)!
   assert.equal(x8.supply_cost_krw, 8000)
+})
+
+test('다른 화면도 동일한 1·2·4·8 구성 순서를 재사용한다', () => {
+  const rows = [{ id: 'catalog-2', model_name: 'H100', memory: '160GB', gpu_count: 2, price: 200 }]
+  const out = expandLadderWith(rows, (base, count, baseCount, cardGb) => ({
+    ...base,
+    id: `${base.id}::x${count}`,
+    gpu_count: count,
+    memory: `${cardGb * count}GB`,
+    price: (base.price / baseCount) * count,
+  }))
+
+  assert.deepEqual(out.map((item) => item.gpu_count), [1, 2, 4, 8])
+  assert.deepEqual(out.map((item) => item.price), [100, 200, 400, 800])
+  assert.equal(out[1], rows[0])
 })

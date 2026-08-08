@@ -10,6 +10,7 @@ import { fmtKRW as fmtKRWSSOT, fmtCatalogHourlyUSD, fmtUSDWhole } from '@/lib/gp
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
 import { perCardMemory, memoryTitle } from '@/lib/gpu/card-memory'
 import { baseModelKey, baseModelName } from '@/lib/gpu/canonical-model'
+import { expandLadderWith } from '@/lib/gpu/config-ladder-expand'
 
 interface GpuProduct {
   id: string
@@ -33,6 +34,7 @@ interface GpuProduct {
   basis?: 'selected' | 'auto' | 'fallback' | 'list' | 'none'
   is_propagated?: boolean
   effective_supplier?: { name: string; color: string | null; logo_url: string | null } | null
+  synthetic?: boolean
 }
 
 interface ProductsResponse {
@@ -87,7 +89,24 @@ export default function SalePriceCatalogPage() {
   const [hoursInput, setHoursInput] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
-  const products = data?.products ?? []
+  const products = expandLadderWith(data?.products ?? [], (base, count, baseCount, cardGb) => {
+    const scale = (value: number | null | undefined) => value == null ? value : Math.round((value / baseCount) * count)
+    const scaleUsd = (value: number | null | undefined) => value == null ? value : (value / baseCount) * count
+    return {
+      ...base,
+      id: `${base.id}::catalog-x${count}`,
+      gpu_count: count,
+      memory: cardGb > 0 ? `${Math.round(cardGb * count)}GB` : base.memory,
+      sell_price_krw: scale(base.sell_price_krw) ?? null,
+      final_sell_price_krw: scale(base.final_sell_price_krw),
+      final_sell_price_usd: scaleUsd(base.final_sell_price_usd),
+      strategic_krw: scale(base.strategic_krw),
+      strategic_price_krw: null,
+      is_strategic_set: false,
+      is_propagated: true,
+      synthetic: true,
+    }
+  })
   const usdKrw = data?.usd_krw ?? 1400
   const marginPct = data?.margin_pct ?? 18
   const customHours = parseInt(hoursInput) > 0 ? parseInt(hoursInput) : null
