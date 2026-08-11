@@ -8,7 +8,7 @@ import type {
   Connector, ConnectorCtx, IngestMethod, UcmContent, UcmChannelRef,
 } from './types.ts'
 import { ConnectorError } from './types.ts'
-import { fetchWatchMetrics } from './youtube-page.ts'
+import { fetchWatchMetrics, extractHashtags } from './youtube-page.ts'
 import type { CiContentFormat } from '../types.ts'
 
 const API_BASE = 'https://www.googleapis.com/youtube/v3'
@@ -30,6 +30,7 @@ interface YtVideoItem {
     channelTitle?: string
     defaultAudioLanguage?: string
     defaultLanguage?: string
+    tags?: string[]
     thumbnails?: Record<string, { url?: string }>
   }
   contentDetails?: { duration?: string }
@@ -139,6 +140,7 @@ async function viaOfficialApi(
     format: judgeFormat(durationSec, null),
     title: core.title,
     caption: item.snippet?.description ?? null,
+    keywords: item.snippet?.tags ?? extractHashtags(item.snippet?.description ?? null),
     publishedAt: core.publishedAt,
     durationSec,
     language: item.snippet?.defaultAudioLanguage ?? item.snippet?.defaultLanguage ?? null,
@@ -254,7 +256,9 @@ async function viaWatchPage(
     channel,
     format: page?.isShort ? 'short' : judgeFormat(durationSec, null),
     title: core.title,
-    caption: oembed?.caption ?? null,
+    // 설명문은 시청 페이지에만 있다 — oEmbed는 주지 않는다.
+    caption: page?.description ?? oembed?.caption ?? null,
+    keywords: page?.keywords ?? [],
     publishedAt: core.publishedAt,
     durationSec,
     language: null,

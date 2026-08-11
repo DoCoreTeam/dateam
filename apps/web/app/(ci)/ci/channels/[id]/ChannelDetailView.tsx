@@ -19,6 +19,16 @@ export default function ChannelDetailView({ workspaceId, channel, contents }: Pr
   const router = useRouter()
   const [openId, setOpenId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  /** 이 채널이 어떤 후킹으로 통했는지 — 게시물별 분석을 채널 단위로 합친다. */
+  const hookSummary = Object.entries(
+    contents.reduce<Record<string, number>>((acc, c) => {
+      const type = c.creative?.hookType
+      if (type) acc[type] = (acc[type] ?? 0) + 1
+      return acc
+    }, {}),
+  ).sort((a, b) => b[1] - a[1])
 
   async function toggleMonitor() {
     setBusy(true)
@@ -34,43 +44,101 @@ export default function ChannelDetailView({ workspaceId, channel, contents }: Pr
     }
   }
 
+  /** 채널 페이지에서 구독자·소개문·아바타를 다시 읽어온다. */
+  async function refreshMeta() {
+    setBusy(true); setNotice(null)
+    try {
+      const res = await fetch(`/api/ci/channels/${channel.id}/refresh-meta`, {
+        method: 'POST', headers: { 'X-CI-Workspace': workspaceId },
+      }).then((r) => r.json() as Promise<{ success: boolean; data?: { note: string }; error?: { message: string } }>)
+      setNotice(res.success ? (res.data?.note ?? '채널 정보를 새로 가져왔습니다') : (res.error?.message ?? '가져오지 못했습니다'))
+      router.refresh()
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <>
-      <section
-        style={{
-          display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap', alignItems: 'center',
-          padding: 'var(--space-4)', border: 'var(--border-w-2) solid var(--border-color)',
-          borderRadius: 'var(--radius)', background: 'var(--color-surface)',
-          marginBottom: 'var(--space-6)',
-        }}
-      >
-        <div>
-          <p className="ci-basis">구독자</p>
-          <p className="ci-metric-big">
-            {channel.subscriberCount != null
-              ? channel.subscriberCount.toLocaleString('ko-KR')
-              : '—'}
-          </p>
-          {channel.subscriberCount == null && (
-            <p className="ci-basis">아직 확보하지 못했습니다</p>
+      <section className="ci-channel-head">
+        <div className="ci-channel-identity">
+          {channel.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="ci-channel-avatar" src={channel.avatarUrl} alt="" width={72} height={72} />
+          ) : (
+            <div className="ci-channel-avatar ci-thumb-empty">사진 없음</div>
           )}
+          <div style={{ minWidth: 0 }}>
+            <p className="ci-card-meta">
+              {channel.handle && <span>{channel.handle}</span>}
+              {channel.profileUrl && (
+                <a href={channel.profileUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--brand)' }}>
+                  채널 열기
+                </a>
+              )}
+            </p>
+            {channel.description
+              ? <p className="ci-caption">{channel.description}</p>
+              : <p className="ci-empty-desc">채널 소개문을 아직 확보하지 못했습니다.</p>}
+          </div>
         </div>
-        <div>
-          <p className="ci-basis">수집한 게시물</p>
-          <p className="ci-metric-big">{contents.length}</p>
-        </div>
-        <div>
-          <p className="ci-basis">규모 구간</p>
-          <p style={{ fontWeight: 600 }}>{channel.sizeBand ?? '판정 전'}</p>
-        </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--space-2)' }}>
+
+        <dl className="ci-meta-grid">
+          <div className="ci-meta-cell">
+            <dt className="ci-basis">구독자</dt>
+            <dd className="ci-metric-big">
+              {channel.subscriberCount != null
+                ? channel.subscriberCount.toLocaleString('ko-KR')
+                : '미확보'}
+            </dd>
+            {channel.subscriberProvenance === 'estimated' && (
+              <span className="ci-basis">공개 페이지 반올림 표기</span>
+            )}
+          </div>
+          <div className="ci-meta-cell">
+            <dt className="ci-basis">채널 게시물</dt>
+            <dd className="ci-metric-big">
+              {channel.videoCount != null ? channel.videoCount.toLocaleString('ko-KR') : '미확보'}
+            </dd>
+          </div>
+          <div className="ci-meta-cell">
+            <dt className="ci-basis">수집한 게시물</dt>
+            <dd className="ci-metric-big">{contents.length}</dd>
+          </div>
+          <div className="ci-meta-cell">
+            <dt className="ci-basis">규모 구간</dt>
+            <dd style={{ fontWeight: 600 }}>{channel.sizeBand ?? '판정 전'}</dd>
+          </div>
+        </dl>
+
+        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
+          <button type="button" className="btn-ghost" onClick={refreshMeta} disabled={busy}>
+            {busy ? '가져오는 중…' : '채널 정보 새로고침'}
+          </button>
           {channel.ownership === 'tracked' && (
             <button type="button" className="btn-ghost" onClick={toggleMonitor} disabled={busy}>
               {channel.isMonitored ? '모니터링 중지' : '모니터링 시작'}
             </button>
           )}
+          {notice && <span className="ci-basis" role="status">{notice}</span>}
+          {channel.metaError && !notice && (
+            <span className="ci-status ci-status-warn">{channel.metaError}</span>
+          )}
         </div>
       </section>
+
+      {hookSummary.length > 0 && (
+        <section style={{ marginBottom: 'var(--space-6)' }}>
+          <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>
+            이 채널이 통한 방식
+          </h2>
+          <div className="ci-card-badges">
+            {hookSummary.map(([type, count]) => (
+              <span key={type} className="ci-status ci-status-info">{type} {count}</span>
+            ))}
+          </div>
+        </section>
+      )}
 
       <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-3)' }}>
         게시물

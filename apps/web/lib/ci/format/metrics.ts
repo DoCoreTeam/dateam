@@ -112,3 +112,25 @@ export function judgeConfidence(input: {
 export function allowsAssertiveNarrative(c: CiConfidence): boolean {
   return c !== 'insufficient'
 }
+
+/**
+ * 영상 길이를 사람이 읽는 표기로. 없으면 null — 0초로 위장하지 않는다.
+ * 1시간이 넘으면 시:분:초, 아니면 분:초.
+ */
+export function formatDuration(sec: number | null | undefined): string | null {
+  if (sec == null || !Number.isFinite(sec) || sec <= 0) return null
+  const h = Math.floor(sec / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  const s = Math.floor(sec % 60)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`
+}
+
+/**
+ * 지표 수치 표기. 정확한 수를 쓰되 천단위 구분을 넣는다.
+ * null은 "미확보" — 0으로 채우면 "조회수 0"이라는 거짓이 된다.
+ */
+export function formatCount(n: number | null | undefined): string | null {
+  if (n == null || !Number.isFinite(n) || n < 0) return null
+  return n.toLocaleString('ko-KR')
+}

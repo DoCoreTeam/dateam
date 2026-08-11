@@ -3,14 +3,16 @@ import { ok, fail, failUnexpected } from '@/lib/ci/api'
 import { requireCiMemberApi, workspaceIdFromRequest } from '@/lib/ci/auth/requireCiMember'
 import { toListItem } from '@/lib/ci/queries/contents'
 import { getCreative } from '@/lib/ci/queries/creative'
-import { allowsAssertiveNarrative } from '@/lib/ci/format/metrics'
+import { getLatestMetrics } from '@/lib/ci/queries/metrics'
+import { allowsAssertiveNarrative, formatDuration } from '@/lib/ci/format/metrics'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const SELECT = `
-  id, platform, title, caption, thumbnail_url, canonical_url, ingest_status, completeness,
+  id, platform, title, caption, keywords, duration_sec, language,
+  thumbnail_url, canonical_url, ingest_status, completeness,
   missing_fields, topic_confidence, comparability_class, published_at, first_seen_at,
-  content_group_id, provenance,
+  content_group_id, provenance, channel_id,
   ci_channels ( display_name ),
   ci_topics ( id, name ),
   ci_content_derived ( outlier_index, outlier_baseline_n, topic_percentile, confidence )
@@ -54,7 +56,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     }
 
     const provenance = (row.provenance ?? {}) as Record<string, unknown>
-    const creative = await getCreative(session.workspaceId, id)
+    const [creative, metrics] = await Promise.all([
+      getCreative(session.workspaceId, id),
+      getLatestMetrics(id),
+    ])
 
     return ok({
       ...base,
@@ -65,6 +70,11 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       analysisAllowed: allowsAssertiveNarrative(base.confidence),
       // "왜 터졌나"는 지어낸 서술이 아니라 관측한 요소다 — 위 게이트와 무관하게 있으면 준다.
       creative,
+      // 메타 정보 — 상세는 "무엇을 근거로 이 판단이 나왔나"를 보여주는 자리다.
+      keywords: (row.keywords ?? []) as string[],
+      durationText: formatDuration(row.duration_sec),
+      language: row.language ?? null,
+      metrics,
       groupSiblings,
       provenanceMethod: typeof provenance.method === 'string' ? provenance.method : null,
       fetchedAt: typeof provenance.fetchedAt === 'string' ? provenance.fetchedAt : null,

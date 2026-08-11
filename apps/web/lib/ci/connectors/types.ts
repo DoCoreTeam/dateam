@@ -40,6 +40,8 @@ export interface UcmContent {
   format: CiContentFormat
   title: string | null
   caption: string | null
+  /** 플랫폼이 노출하는 키워드/태그. 개념이 없거나 못 읽은 커넥터는 생략한다. */
+  keywords?: string[]
   publishedAt: string | null
   durationSec: number | null
   language: string | null

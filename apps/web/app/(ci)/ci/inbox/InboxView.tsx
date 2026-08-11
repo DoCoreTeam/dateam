@@ -12,6 +12,7 @@ import CiPageHeader from '@/components/ci/CiPageHeader'
 import StageNav, { RESEARCH_STAGES } from '@/components/ci/StageNav'
 import LinkIntakeBox from '@/components/ci/LinkIntakeBox'
 import DetailSheet from '@/components/ci/DetailSheet'
+import ChannelGroupedList from '@/components/ci/ChannelGroupedList'
 import MetricBadge from '@/components/ci/MetricBadge'
 import { CompletenessBadge, IngestStatusBadge } from '@/components/ci/StatusBadge'
 import { EmptyState } from '@/components/ci/states'
@@ -32,6 +33,7 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
   const router = useRouter()
   const searchParams = useSearchParams()
   const [openId, setOpenId] = useState<string | null>(null)
+  const [groupByChannel, setGroupByChannel] = useState(false)
   const [retrying, setRetrying] = useState<string | null>(null)
   const [savingTopic, setSavingTopic] = useState<string | null>(null)
 
@@ -99,6 +101,17 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
             {t.count ? <span className="ci-count">{t.count}</span> : null}
           </button>
         ))}
+
+        {/* 콘텐츠는 채널에 귀속된다. 평평한 목록만으로는 어느 채널이 뭘 올렸는지 안 보인다. */}
+        <button
+          type="button"
+          className="ci-metric"
+          style={{ marginLeft: 'auto' }}
+          onClick={() => setGroupByChannel((v) => !v)}
+          title="채널별로 묶어 어느 채널의 게시물인지 한눈에 봅니다"
+        >
+          {groupByChannel ? '표로 보기' : '채널별로 묶기'}
+        </button>
       </div>
 
       {items.length === 0 ? (
@@ -121,6 +134,12 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
             action={{ label: '전체 보기', href: '/ci/inbox' }}
           />
         )
+      ) : groupByChannel ? (
+        <ChannelGroupedList
+          items={items}
+          onOpen={setOpenId}
+          onNextStep={(id) => router.push(`/ci/pipeline?from=${id}`)}
+        />
       ) : (
         <table className="table-base table-card">
           <thead>

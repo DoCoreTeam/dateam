@@ -14,6 +14,8 @@ import { computePatterns, type PatternSample } from '../analysis/patterns.ts'
 import { resolveSettings, type SettingRow } from '../settings/resolve.ts'
 import { CORPUS_FILTER } from '../corpus.ts'
 import { fetchChannelFeed } from '../connectors/channel-feed.ts'
+import { fetchChannelMeta } from '../connectors/youtube-channel.ts'
+import { isProvisionalKey } from '../ucm/channel-key.ts'
 import { analyzeCreative } from '../ai/creative-server.ts'
 import { enqueueJob } from './queue.ts'
 import { OUTLIER_MIN_BASELINE } from '../format/metrics.ts'
@@ -269,6 +271,10 @@ export async function runChannelSweep(workspaceId: string, channelId: string): P
     .eq('id', channelId).eq('workspace_id', workspaceId).is('deleted_at', null).maybeSingle()
   if (!ch) return { ok: false, errorCode: 'NOT_FOUND', errorMessage: '채널을 찾을 수 없습니다' }
 
+  // 게시물을 훑는 김에 채널 자체의 정보도 채운다. 게시물만 모으고 채널을 모르면
+  // "이 채널은 뭐 하는 곳인가"에 답할 수 없다. 실패해도 게시물 수집은 계속한다.
+  await enrichChannelMeta(channelId).catch(() => null)
+
   const feed = await fetchChannelFeed({
     platform: ch.platform,
     externalId: ch.external_id,
@@ -322,6 +328,92 @@ export async function runChannelSweep(workspaceId: string, channelId: string): P
   }).eq('id', channelId)
 
   return { ok: true, errorMessage: `${created}건 새로 담았습니다` }
+}
+
+/** 한 번에 정보를 가져올 채널 수 상한. */
+export const CHANNEL_META_MAX_PER_PASS = 5
+
+/**
+ * 채널 자체의 정보를 채운다 — 구독자·소개문·아바타·게시물 수.
+ *
+ * 콘텐츠 수집은 채널을 "이름과 URL"로만 만든다. 그래서 채널 상세가 계속 "—"였다.
+ * 채널을 알아야 그 채널의 콘텐츠를 판단하는데 정작 채널을 몰랐다.
+ * 실패는 sweep_error가 아니라 meta_error에 남긴다 — 게시물 수집 실패와 구분해야 한다.
+ */
+export async function enrichChannelMeta(channelId: string): Promise<StageResult> {
+  const adminClient = createAdminClient() as any
+
+  const { data: ch } = await adminClient
+    .from('ci_channels')
+    .select('id, platform, external_id, handle, profile_url, display_name, subscriber_count')
+    .eq('id', channelId).maybeSingle()
+
+  if (!ch) return { ok: false, errorMessage: '채널을 찾을 수 없습니다' }
+  if (ch.platform !== 'youtube') {
+    await adminClient.from('ci_channels').update({
+      meta_fetched_at: new Date().toISOString(),
+      meta_error: `${ch.platform}는 공개 채널 정보 경로가 없습니다`,
+    }).eq('id', channelId)
+    return { ok: true, errorMessage: '이 플랫폼은 채널 정보를 공개하지 않습니다' }
+  }
+
+  const result = await fetchChannelMeta({
+    externalId: isProvisionalKey(ch.external_id) ? null : ch.external_id,
+    handle: ch.handle,
+    profileUrl: ch.profile_url,
+  })
+
+  if (!result.ok) {
+    await adminClient.from('ci_channels').update({
+      meta_fetched_at: new Date().toISOString(),
+      meta_error: result.error,
+    }).eq('id', channelId)
+    return { ok: false, errorMessage: result.error }
+  }
+
+  const m = result.meta
+  // 이미 가진 값을 빈 값으로 덮지 않는다. 새로 얻은 것만 채운다.
+  const patch: Record<string, unknown> = {
+    meta_fetched_at: new Date().toISOString(),
+    meta_error: null,
+  }
+  if (m.displayName) patch.display_name = m.displayName
+  if (m.description) patch.description = m.description
+  if (m.avatarUrl) patch.avatar_url = m.avatarUrl
+  if (m.handle) patch.handle = m.handle
+  if (m.videoCount != null) patch.video_count = m.videoCount
+  if (m.subscriberCount != null) {
+    patch.subscriber_count = m.subscriberCount
+    // 공개 페이지 값은 "137만"처럼 반올림 표기다. 정확값인 척하지 않는다.
+    patch.subscriber_provenance = 'estimated'
+  }
+  if (m.externalId && isProvisionalKey(ch.external_id)) patch.external_id = m.externalId
+
+  await adminClient.from('ci_channels').update(patch).eq('id', channelId)
+  return { ok: true, errorMessage: m.subscriberText ? `구독자 ${m.subscriberText}` : undefined }
+}
+
+/** 정보를 한 번도 못 가져온 채널을 훑어 채운다. 크리에이티브와 같은 자가치유 방식. */
+export async function enrichChannelMetaBacklog(workspaceId: string): Promise<StageResult> {
+  const adminClient = createAdminClient() as any
+  const { data } = await adminClient
+    .from('ci_channels')
+    .select('id')
+    .eq('workspace_id', workspaceId)
+    .eq('platform', 'youtube')
+    .is('meta_fetched_at', null)
+    .is('deleted_at', null)
+    .limit(CHANNEL_META_MAX_PER_PASS)
+
+  const ids = ((data ?? []) as { id: string }[]).map((r) => r.id)
+  if (ids.length === 0) return { ok: true }
+
+  let done = 0
+  for (const id of ids) {
+    const r = await enrichChannelMeta(id)
+    if (r.ok) done += 1
+  }
+  return { ok: true, errorMessage: `채널 ${done}곳 정보 확보` }
 }
 
 /** 이 배수를 넘긴 것만 분석한다 — 평범한 걸 분석해봐야 배울 게 없고 AI 비용만 든다. */

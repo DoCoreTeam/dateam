@@ -10,10 +10,13 @@ import { ConnectorError, type UcmContent } from '../connectors/types.ts'
 import { completenessFor } from '../connectors/meta-tags.ts'
 import { getGeminiMeta } from '../ai/meta.ts'
 import { computeDerived, recomputeChannelDerived } from '../analysis/derive.ts'
-import { runClassify, runVerify, runPatterns, runChannelSweep, runCreativeBacklog } from './stages.ts'
+import {
+  runClassify, runVerify, runPatterns, runChannelSweep, runCreativeBacklog,
+  enrichChannelMetaBacklog,
+} from './stages.ts'
 import { enqueueJob, type ClaimedJob } from './queue.ts'
 import { nextStage } from './policy.ts'
-import { buildChannelKey, isProvisionalKey } from '../ucm/channel-key.ts'
+import { buildChannelKey, isProvisionalKey, provisionalKeyCandidates } from '../ucm/channel-key.ts'
 import type { CiPlatform } from '../types.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -79,6 +82,7 @@ async function handleIngest(job: ClaimedJob): Promise<HandlerResult> {
     format: ucm.format,
     title: ucm.title,
     caption: ucm.caption,
+    keywords: ucm.keywords ?? [],
     published_at: ucm.publishedAt,
     duration_sec: ucm.durationSec,
     language: ucm.language,
@@ -130,7 +134,7 @@ async function upsertChannel(workspaceId: string, ucm: UcmContent): Promise<stri
 
   const adminClient = createAdminClient() as any
 
-  const { data: existing } = await adminClient
+  let { data: existing } = await adminClient
     .from('ci_channels')
     .select('id, external_id, display_name, subscriber_count')
     .eq('workspace_id', workspaceId)
@@ -138,6 +142,35 @@ async function upsertChannel(workspaceId: string, ucm: UcmContent): Promise<stri
     .eq('external_id', key.externalId)
     .is('deleted_at', null)
     .maybeSingle()
+
+  // 진짜 ID를 이제 얻었는데, 같은 채널이 예전에 임시 키로 만들어져 있을 수 있다.
+  // 그대로 두면 같은 채널이 두 행으로 쪼개지고 비교군까지 쪼개져 배수가 망가진다.
+  // 임시 행을 찾아 진짜 ID로 승격한다(행을 새로 만들지 않는다).
+  if (!existing?.id && key.source === 'platform_id') {
+    const candidates = provisionalKeyCandidates({
+      handle: ch.handle,
+      profileUrl: ch.profileUrl,
+      displayName: ch.displayName,
+    })
+    if (candidates.length > 0) {
+      const { data: stale } = await adminClient
+        .from('ci_channels')
+        .select('id, external_id, display_name, subscriber_count')
+        .eq('workspace_id', workspaceId)
+        .eq('platform', ch.platform)
+        .in('external_id', candidates)
+        .is('deleted_at', null)
+        .limit(1)
+        .maybeSingle()
+
+      if (stale?.id) {
+        await adminClient.from('ci_channels')
+          .update({ external_id: key.externalId })
+          .eq('id', stale.id)
+        existing = { ...stale, external_id: key.externalId }
+      }
+    }
+  }
 
   if (existing?.id) {
     // 나중에 더 나은 정보를 얻으면 채운다. 이미 있는 값을 빈 값으로 덮지 않는다.
@@ -189,6 +222,8 @@ async function handleProject(job: ClaimedJob): Promise<HandlerResult> {
     // 배수가 나온 뒤에야 "왜 터졌나"를 볼 수 있다. 순서가 중요하다.
     // 이번 건만이 아니라 형제 재계산으로 이제 막 자격을 얻은 것들까지 함께 훑는다.
     await runCreativeBacklog(job.workspace_id)
+    // 콘텐츠 수집이 만든 채널은 이름과 URL뿐이다. 정보를 못 채운 채널을 함께 메운다.
+    await enrichChannelMetaBacklog(job.workspace_id)
     // 파생값이 바뀌면 성공 공식도 다시 봐야 한다. 낡은 공식이 화면에 남지 않게.
     await runPatterns(job.workspace_id)
   }

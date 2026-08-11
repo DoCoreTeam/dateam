@@ -9216,6 +9216,42 @@ label.intake-tool-btn {
 }
 .ci-creative-quote { font-weight: 600; line-height: 1.5; }
 .ci-creative-compact { display: flex; flex-direction: column; gap: var(--space-1); }
+
+/* ── 상세 메타 정보 ── */
+.ci-meta-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2);
+}
+.ci-meta-cell {
+  padding: var(--space-3); border: var(--border-w-2) solid var(--border-color);
+  border-radius: var(--radius); background: var(--surface-muted);
+  display: flex; flex-direction: column; gap: var(--space-1); min-width: 0;
+}
+.ci-meta-cell dd { overflow-wrap: anywhere; }
+.ci-caption {
+  font-size: var(--fs-sm); line-height: 1.7; color: var(--text);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  max-height: 20rem; overflow-y: auto;
+  padding: var(--space-3); border-radius: var(--radius);
+  background: var(--surface-muted);
+  margin-top: var(--space-2);
+}
+@media (max-width: 767px) {
+  .ci-meta-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── 채널 상세 헤더 ── */
+.ci-channel-head {
+  display: flex; flex-direction: column; gap: var(--space-4);
+  padding: var(--space-4); border: var(--border-w-2) solid var(--border-color);
+  border-radius: var(--radius-lg); background: var(--color-surface);
+  margin-bottom: var(--space-6);
+}
+.ci-channel-identity { display: flex; gap: var(--space-4); align-items: flex-start; }
+.ci-channel-avatar {
+  width: 72px; height: 72px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+  border: var(--border-w-2) solid var(--border-color); background: var(--surface-muted);
+}
+.ci-channel-head .ci-caption { max-height: 9rem; }
 .ci-creative-thumbtext {
   font-size: var(--fs-xs); color: var(--text); font-weight: 600; line-height: 1.4;
   display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildChannelKey, channelRefFromUrl, isProvisionalKey } from './channel-key.ts'
+import { buildChannelKey, channelRefFromUrl, isProvisionalKey , provisionalKeyCandidates } from './channel-key.ts'
 
 test('플랫폼 ID가 있으면 그것을 쓴다', () => {
   const k = buildChannelKey({ platform: 'youtube', externalId: 'UC123' })
@@ -50,4 +50,16 @@ test('잘못된 URL은 예외 없이 무시된다', () => {
 test('게시물 URL을 채널로 오인하지 않는다', () => {
   assert.deepEqual(channelRefFromUrl('https://www.instagram.com/p/ABC'), {})
   assert.deepEqual(channelRefFromUrl('https://x.com/someone/status/1'), { handle: '@someone' })
+})
+
+test('임시 키 후보 — 진짜 ID를 얻었을 때 옛 행을 찾을 수 있어야 한다', () => {
+  const c = provisionalKeyCandidates({
+    handle: '@jawed',
+    profileUrl: 'https://www.youtube.com/@jawed',
+    displayName: 'jawed',
+  })
+  assert.ok(c.includes('handle:@jawed'))
+  assert.ok(c.includes('name:jawed'))
+  // 후보가 하나도 없으면 승격 자체를 시도하지 않는다
+  assert.deepEqual(provisionalKeyCandidates({}), [])
 })

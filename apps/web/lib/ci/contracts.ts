@@ -157,6 +157,14 @@ export interface CiChannelListItem {
   sizeBand: string | null
   topic: { id: string; name: string } | null
   lastSeenAt: string | null
+  /** 채널 소개문 — 이 채널이 뭐 하는 곳인지 */
+  description: string | null
+  videoCount: number | null
+  profileUrl: string | null
+  /** 구독자 수의 출처. 'estimated'는 공개 페이지의 반올림 표기 */
+  subscriberProvenance: 'platform' | 'web_verified' | 'estimated' | null
+  metaFetchedAt: string | null
+  metaError: string | null
 }
 
 // ── 수집 ─────────────────────────────────────────────────────────

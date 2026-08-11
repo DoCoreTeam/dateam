@@ -84,3 +84,38 @@ export function buildChannelKey(input: {
 export function isProvisionalKey(externalId: string): boolean {
   return /^(handle|url|name):/.test(externalId)
 }
+
+/**
+ * 같은 채널이 임시 키로 이미 만들어져 있는지 찾을 때 쓸 후보 키들.
+ *
+ * 왜 필요한가: 링크 한 건을 oEmbed로 수집하면 채널 ID가 없어 `name:`/`handle:` 키로
+ * 채널이 만들어진다. 나중에 시청 페이지에서 진짜 `UC...` ID를 얻으면 **다른 채널**이
+ * 하나 더 생겨 같은 채널이 둘로 쪼개진다. 쪼개지면 비교군도 쪼개져 배수가 망가진다.
+ * (실측: jawed·LuisFonsiVEVO가 각각 2행)
+ *
+ * 진짜 ID를 얻은 시점에 이 후보들로 옛 행을 찾아 승격한다.
+ */
+export function provisionalKeyCandidates(input: {
+  handle?: string | null
+  profileUrl?: string | null
+  displayName?: string | null
+}): string[] {
+  const out: string[] = []
+  const push = (v: string) => { if (!out.includes(v)) out.push(v) }
+
+  const fromUrl = channelRefFromUrl(input.profileUrl)
+  const handle = input.handle ?? fromUrl.handle
+  if (handle) push(`handle:${slug(handle)}`)
+
+  if (input.profileUrl) {
+    try {
+      const u = new URL(input.profileUrl)
+      push(`url:${slug(u.host + u.pathname)}`)
+    } catch {
+      // 무시 — 후보가 하나 줄 뿐이다
+    }
+  }
+
+  if (input.displayName) push(`name:${slug(input.displayName)}`)
+  return out
+}

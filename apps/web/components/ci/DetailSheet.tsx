@@ -5,6 +5,7 @@
 // 화면마다 상세 뷰를 다시 만들면 표시 규칙이 갈라진다.
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { X } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
@@ -15,12 +16,12 @@ import { ComparabilityBadge, CompletenessBadge, ConfidenceBadge, IngestStatusBad
 import { ErrorState, RowSkeleton } from './states'
 import EvidenceSheet from './EvidenceSheet'
 
-type Tab = 'analysis' | 'group' | 'channel' | 'ingest'
+type Tab = 'meta' | 'analysis' | 'group' | 'ingest'
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'meta', label: '메타 정보' },
   { id: 'analysis', label: '분석' },
   { id: 'group', label: '같은 소재 묶음' },
-  { id: 'channel', label: '채널' },
   { id: 'ingest', label: '수집 정보' },
 ]
 
@@ -31,6 +32,17 @@ export interface DetailSheetData extends CiContentListItem {
   groupSiblings: { id: string; platform: string; title: string | null }[]
   provenanceMethod: string | null
   fetchedAt: string | null
+  keywords: string[]
+  durationText: string | null
+  language: string | null
+  metrics: {
+    viewsText: string | null
+    likesText: string | null
+    commentsText: string | null
+    capturedAtText: string | null
+    sourceMethod: string | null
+    isEstimated: boolean
+  } | null
 }
 
 interface DetailSheetProps {
@@ -57,7 +69,7 @@ export default function DetailSheet({
   useEffect(() => {
     if (!contentId) return
     let cancelled = false
-    setLoading(true); setError(null); setTab('analysis')
+    setLoading(true); setError(null); setTab('meta')
 
     fetch(`/api/ci/contents/${contentId}`, { headers: { 'X-CI-Workspace': workspaceId } })
       .then((r) => r.json() as Promise<ApiResponse<DetailSheetData>>)
@@ -117,8 +129,21 @@ export default function DetailSheet({
               </h3>
               <p className="ci-card-meta">
                 <span>{CI_PLATFORM_LABEL[data.platform]}</span>
-                {data.channelName && <span>{data.channelName}</span>}
+                {/* 채널을 누르면 채널 상세로 — 콘텐츠에서 채널로 가는 길을 끊지 않는다 */}
+                {data.channelName && (
+                  data.channelId
+                    ? (
+                      <Link href={`/ci/channels/${data.channelId}`} style={{ color: 'var(--brand)' }}>
+                        {data.channelName}
+                      </Link>
+                    )
+                    : <span>{data.channelName}</span>
+                )}
                 {data.publishedAtText && <span>{data.publishedAtText}</span>}
+                {data.durationText && <span>{data.durationText}</span>}
+                <a href={data.canonicalUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--brand)' }}>
+                  원본 열기
+                </a>
               </p>
 
               <div className="ci-card-badges" style={{ margin: 'var(--space-3) 0' }}>
@@ -150,6 +175,61 @@ export default function DetailSheet({
                 ))}
               </div>
 
+              {tab === 'meta' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                  <dl className="ci-meta-grid">
+                    <div className="ci-meta-cell">
+                      <dt className="ci-basis">조회수</dt>
+                      <dd className="ci-metric-big">{data.metrics?.viewsText ?? '미확보'}</dd>
+                    </div>
+                    <div className="ci-meta-cell">
+                      <dt className="ci-basis">좋아요</dt>
+                      <dd className="ci-metric-big">{data.metrics?.likesText ?? '미확보'}</dd>
+                    </div>
+                    <div className="ci-meta-cell">
+                      <dt className="ci-basis">댓글</dt>
+                      <dd className="ci-metric-big">{data.metrics?.commentsText ?? '미확보'}</dd>
+                    </div>
+                    <div className="ci-meta-cell">
+                      <dt className="ci-basis">길이</dt>
+                      <dd className="ci-metric-big">{data.durationText ?? '미확보'}</dd>
+                    </div>
+                  </dl>
+                  {data.metrics?.capturedAtText && (
+                    <p className="ci-basis">
+                      지표 확인 {data.metrics.capturedAtText}
+                      {data.metrics.sourceMethod ? ` · ${data.metrics.sourceMethod}` : ''}
+                      {data.metrics.isEstimated ? ' · 추정값' : ''}
+                    </p>
+                  )}
+
+                  <section>
+                    <h4 className="ci-creative-head">키워드</h4>
+                    {data.keywords.length > 0 ? (
+                      <div className="ci-card-badges" style={{ marginTop: 'var(--space-2)' }}>
+                        {data.keywords.map((k) => (
+                          <span key={k} className="ci-status ci-status-neutral">{k}</span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="ci-empty-desc">
+                        이 게시물에서 키워드를 확보하지 못했습니다. 업로더가 붙이지 않았거나
+                        플랫폼이 공개하지 않는 경우입니다.
+                      </p>
+                    )}
+                  </section>
+
+                  <section>
+                    <h4 className="ci-creative-head">설명문</h4>
+                    {data.caption ? (
+                      <p className="ci-caption">{data.caption}</p>
+                    ) : (
+                      <p className="ci-empty-desc">설명문을 확보하지 못했습니다.</p>
+                    )}
+                  </section>
+                </div>
+              )}
+
               {tab === 'analysis' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                   {data.analysis && (
@@ -175,12 +255,6 @@ export default function DetailSheet({
                     </ul>
                   )
                   : <p className="ci-empty-desc">같은 소재로 묶인 다른 게시물이 없습니다.</p>
-              )}
-
-              {tab === 'channel' && (
-                data.channelName
-                  ? <p style={{ fontSize: 'var(--fs-sm)' }}>{data.channelName}</p>
-                  : <p className="ci-empty-desc">채널 정보를 아직 확보하지 못했습니다.</p>
               )}
 
               {tab === 'ingest' && (

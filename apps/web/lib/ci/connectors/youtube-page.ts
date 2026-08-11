@@ -16,6 +16,10 @@ export interface PageMetrics {
   channelId: string | null
   channelName: string | null
   isShort: boolean
+  /** 영상 설명문 원문. 상세에서 "무슨 문장으로 설명했나"를 보여주는 근거다. */
+  description: string | null
+  /** 업로더가 붙인 키워드 + 설명문의 해시태그 */
+  keywords: string[]
 }
 
 function toInt(raw: string | undefined): number | null {
@@ -58,6 +62,93 @@ const COMMENT_PATTERNS: readonly RegExp[] = [
 ]
 
 /**
+ * JSON 문자열 리터럴의 이스케이프를 되돌린다.
+ * `shortDescription`은 줄바꿈이 `\n`으로 들어 있어 그대로 쓰면 한 줄로 뭉개진다.
+ */
+function unescapeJsonString(raw: string): string {
+  return raw
+    .replace(/\\n/g, '\n').replace(/\\r/g, '')
+    .replace(/\\"/g, '"').replace(/\\\//g, '/')
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/\\\\/g, '\\')
+    .trim()
+}
+
+const MAX_DESCRIPTION = 2000
+const MAX_KEYWORDS = 20
+
+/** 설명문에서 해시태그를 뽑는다. 업로더가 직접 붙인 주제어라 키워드로서 값이 높다. */
+export function extractHashtags(text: string | null): string[] {
+  if (!text) return []
+  const out: string[] = []
+  const re = /#([^\s#.,!?()[\]{}<>"']{1,40})/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text)) !== null) {
+    const tag = m[1].trim()
+    if (tag && !out.includes(tag)) out.push(tag)
+  }
+  return out
+}
+
+/**
+ * 영상 본문 블록(`videoDetails`)을 잘라낸다.
+ *
+ * 왜 이 블록을 쓰는가: 시청 페이지에는 추천 영상들의 정보도 함께 들어 있어
+ * `"channelId"`를 그냥 처음부터 찾으면 **남의 채널 ID를 잡는다**.
+ * (실측 사고: 같은 채널이 서로 다른 ID 두 행으로 쪼개짐)
+ * videoDetails는 이 영상 자신의 정보만 담는다.
+ */
+export function sliceVideoDetails(html: string): string | null {
+  const start = html.indexOf('"videoDetails":{')
+  if (start < 0) return null
+  // 블록 전체를 정확히 괄호 매칭할 필요는 없다 — 뒤쪽 일정 길이면 필요한 필드가 다 들어온다
+  return html.slice(start, start + 4000)
+}
+
+/** videoDetails의 keywords 배열. 업로더가 직접 넣은 값이라 가장 정확하다. */
+function keywordsFromVideoDetails(details: string | null): string[] {
+  if (!details) return []
+  const m = /"keywords":\[((?:[^\]\\]|\\.)*)\]/.exec(details)
+  if (!m) return []
+  return Array.from(m[1].matchAll(/"((?:[^"\\]|\\.)*)"/g))
+    .map((x) => unescapeJsonString(x[1]))
+    .filter(Boolean)
+}
+
+/**
+ * 유튜브가 모든 시청 페이지에 똑같이 박아 두는 `<meta name="keywords">` 값.
+ * 이 영상의 키워드가 아니라 유튜브 사이트의 상투어다 —
+ * 그대로 쓰면 화면에 "동영상·공유·카메라폰"이 키워드랍시고 뜬다(실측 사고).
+ */
+const YOUTUBE_BOILERPLATE_KEYWORDS = new Set([
+  '동영상', '공유', '카메라폰', '동영상폰', '무료', '올리기',
+  'video', 'sharing', 'camera phone', 'video phone', 'free', 'upload',
+])
+
+/**
+ * 키워드. 업로더가 실제로 넣은 것만 쓴다 — videoDetails, 그리고 설명문 해시태그.
+ * meta 태그는 유튜브 상투어라 쓰지 않는다.
+ */
+export function parseKeywords(html: string, description: string | null): string[] {
+  const fromDetails = keywordsFromVideoDetails(sliceVideoDetails(html))
+
+  const merged: string[] = []
+  for (const k of [...fromDetails, ...extractHashtags(description)]) {
+    if (YOUTUBE_BOILERPLATE_KEYWORDS.has(k.trim().toLowerCase())) continue
+    if (!merged.some((x) => x.toLowerCase() === k.toLowerCase())) merged.push(k)
+  }
+  return merged.slice(0, MAX_KEYWORDS)
+}
+
+/** 시청 페이지에서 설명문을 뽑는다. 못 읽으면 null — 제목으로 대신 채우지 않는다. */
+export function parseDescription(html: string): string | null {
+  const m = /"shortDescription":"((?:[^"\\]|\\.)*)"/.exec(html)
+  if (!m) return null
+  const text = unescapeJsonString(m[1])
+  return text ? text.slice(0, MAX_DESCRIPTION) : null
+}
+
+/**
  * 시청 페이지 HTML에서 지표를 뽑는다.
  * 값이 없으면 0이 아니라 null이다 — 못 얻은 것과 0인 것은 다르다.
  */
@@ -68,18 +159,27 @@ export function parseWatchPage(html: string): PageMetrics {
   const durationMatch = /"lengthSeconds":\s*"(\d+)"/.exec(html)
   const duration = durationMatch ? Number(durationMatch[1]) : null
 
-  const channelIdMatch = /"channelId":\s*"(UC[\w-]{20,})"/.exec(html)
-  const channelNameMatch = /"ownerChannelName":\s*"([^"]+)"/.exec(html)
-    ?? /"author":\s*"([^"]+)"/.exec(html)
+  // 소유자 채널 ID는 반드시 이 영상 자신의 블록에서 읽는다.
+  // 페이지 전체에서 찾으면 추천 영상의 채널을 잡아 채널이 쪼개진다.
+  const details = sliceVideoDetails(html)
+  const channelIdMatch = /"externalChannelId":\s*"(UC[\w-]{20,})"/.exec(html)
+    ?? (details ? /"channelId":\s*"(UC[\w-]{20,})"/.exec(details) : null)
+
+  const channelNameMatch = (details ? /"author":\s*"((?:[^"\\]|\\.)*)"/.exec(details) : null)
+    ?? /"ownerChannelName":\s*"((?:[^"\\]|\\.)*)"/.exec(html)
+
+  const description = parseDescription(html)
 
   return {
+    description,
+    keywords: parseKeywords(html, description),
     views: firstNumber(html, VIEW_PATTERNS),
     likes: firstNumber(html, LIKE_PATTERNS),
     comments: firstNumber(html, COMMENT_PATTERNS),
     publishedAt: publishedMatch?.[1] ?? null,
     durationSec: Number.isFinite(duration) && duration! > 0 ? duration! : null,
     channelId: channelIdMatch?.[1] ?? null,
-    channelName: channelNameMatch?.[1] ?? null,
+    channelName: channelNameMatch ? unescapeJsonString(channelNameMatch[1]) : null,
     isShort: /"isShortsEligible":true/.test(html) || (duration != null && duration <= 60),
   }
 }
