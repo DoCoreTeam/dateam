@@ -24,7 +24,7 @@ async function countRows(
 }
 
 /** 최근 며칠 안에 발견된 떡상을 "새 떡상"으로 본다. */
-const NEW_OUTLIER_WINDOW_DAYS = 7
+export const NEW_OUTLIER_WINDOW_DAYS = 7
 
 export async function getLoopCounts(workspaceId: string): Promise<CiLoopMinimap> {
   if (!workspaceId) return EMPTY

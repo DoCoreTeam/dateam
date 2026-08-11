@@ -2,7 +2,7 @@
 // 홈은 페이지(서버 컴포넌트)와 API가 같은 함수를 쓴다 — 두 경로가 다른 값을 보이면 안 된다.
 
 import { createAdminClient } from '@/lib/supabase/server'
-import { getLoopCounts, getRefreshState } from './home.ts'
+import { getLoopCounts, getRefreshState, NEW_OUTLIER_WINDOW_DAYS } from './home.ts'
 import { listContents } from './contents.ts'
 import type { CiColdStartStep, CiHomeData } from '../contracts.ts'
 
@@ -41,7 +41,10 @@ export async function getHomeData(workspaceId: string): Promise<CiHomeData> {
       workspaceId,
       corpusOnly: true,
       sort: 'outlier',
-      windowDays: 7,
+      windowDays: NEW_OUTLIER_WINDOW_DAYS,
+      // 미니맵 '새 떡상' 건수와 같은 기준(발견 시각)으로 센다.
+      // 기준이 다르면 숫자와 목록이 어긋난다.
+      windowBasis: 'discovered',
       limit: BRIEFING_LIMIT,
     }),
   ])

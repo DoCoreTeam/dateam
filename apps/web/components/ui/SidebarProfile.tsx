@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen, Palette, Check, ChevronRight, Sparkles } from 'lucide-react'
+import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen, Palette, Check, ChevronRight, Sparkles, Radar } from 'lucide-react'
 import { THEMES, type ThemeId } from '@/lib/themes'
 import { clearPersistedSwrCache } from '@/lib/swr-persist'
 
@@ -184,6 +184,25 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
           >
             <BookOpen size={14} />
             개발자센터
+          </Link>
+          <Link
+            href="/ci"
+            onClick={() => setOpen(false)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.625rem',
+              padding: 'var(--space-3) var(--space-4)',
+              fontSize: 'var(--fs-sm)',
+              color: 'var(--text)',
+              textDecoration: 'none',
+              transition: 'background 120ms',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--nav-hover-bg)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            <Radar size={14} />
+            콘텐츠 인텔리전스
           </Link>
           <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0 0.75rem' }} />
           {/* 패치노트 — 사이드바 버전 클릭과 동일한 모달을 window 이벤트로 연다(MobileShell이 수신). */}

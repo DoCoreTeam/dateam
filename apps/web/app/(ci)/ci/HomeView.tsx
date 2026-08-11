@@ -39,6 +39,11 @@ export default function HomeView({ data }: { data: CiHomeData }) {
     ? COLD_START_COPY[data.coldStart.step]
     : null
 
+  // 콜드 스타트 안내는 "빈 대시보드"를 막으려는 장치다(설계서 §8.6).
+  // 보여줄 브리핑이 이미 있으면 안내가 콘텐츠를 가려서는 안 된다 — 옆에 덧붙이기만 한다.
+  const hasBriefing = data.briefing.length > 0
+  const showColdStartInstead = Boolean(cold) && !hasBriefing
+
   return (
     <>
       <CiPageHeader
@@ -68,26 +73,39 @@ export default function HomeView({ data }: { data: CiHomeData }) {
           <span className="ci-basis">최근 7일, 평소 대비 높은 순</span>
         </div>
 
-        {cold ? (
+        {showColdStartInstead && cold ? (
           <EmptyState title={cold.title} description={cold.desc} action={cold.action} />
-        ) : data.briefing.length === 0 ? (
+        ) : !hasBriefing ? (
           <EmptyState
             title="아직 브리핑할 새 소식이 없습니다"
             description="관심 채널에 새 게시물이 올라오면 평소 대비 배수와 함께 여기 모입니다."
             action={{ label: '관심 채널 추가', href: '/ci/monitoring' }}
           />
         ) : (
-          <div className="ci-card-grid">
-            {data.briefing.map((item) => (
-              <ContentCard
-                key={item.id}
-                item={item}
-                onOpen={setOpenId}
-                onNextStep={(id) => router.push(`/ci/pipeline?from=${id}`)}
-                onAddToBoard={(id) => router.push(`/ci/boards?add=${id}`)}
-              />
-            ))}
-          </div>
+          <>
+            {cold && (
+              <p
+                className="ci-status ci-status-info"
+                style={{ marginBottom: 'var(--space-3)', display: 'inline-flex' }}
+              >
+                {cold.title} —{' '}
+                <Link href={cold.action.href} style={{ marginLeft: 'var(--space-1)' }}>
+                  {cold.action.label}
+                </Link>
+              </p>
+            )}
+            <div className="ci-card-grid">
+              {data.briefing.map((item) => (
+                <ContentCard
+                  key={item.id}
+                  item={item}
+                  onOpen={setOpenId}
+                  onNextStep={(id) => router.push(`/ci/pipeline?from=${id}`)}
+                  onAddToBoard={(id) => router.push(`/ci/boards?add=${id}`)}
+                />
+              ))}
+            </div>
+          </>
         )}
       </section>
 

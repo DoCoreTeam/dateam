@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { LayoutGrid, X, Home, NotebookPen, CalendarDays, FileText, Briefcase, Users, TrendingUp, Inbox, DollarSign, Tag, Key, Code2, ChevronRight, Sparkles } from 'lucide-react'
+import { LayoutGrid, X, Home, NotebookPen, CalendarDays, FileText, Briefcase, Users, TrendingUp, Inbox, DollarSign, Tag, Key, Code2, ChevronRight, Sparkles, Radar } from 'lucide-react'
 
 const PAGES = [
   {
@@ -31,8 +31,10 @@ const PAGES = [
     ],
   },
   {
-    group: '개발자',
+    // 사내 업무와 별개로 도는 독립 표면들. 개발자센터와 같은 성격이라 같은 자리에 둔다.
+    group: '별도 서비스',
     items: [
+      { href: '/ci', label: '콘텐츠 인텔리전스', icon: <Radar size={14} /> },
       { href: '/api-keys', label: 'API Keys', icon: <Key size={14} /> },
       { href: '/develop', label: '개발자센터', icon: <Code2 size={14} />, external: true },
     ],
