@@ -8,6 +8,7 @@
 import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { logDbError } from '@/lib/ai-chat/log-db-error'
+import { bulkSoftDelete } from '@/lib/ai-chat/soft-delete-bulk'
 import { DOC_TYPES } from '@/lib/ai-chat/grouping/classify-doc'
 import type { AnalyzeItemErr } from './actions'
 
@@ -248,51 +249,55 @@ export async function updateDocument(
   return { ok: true }
 }
 
-/** 소프트삭제 — owner 검증 후 deleted_at=now(). */
-export async function deleteDocument(id: string): Promise<{ ok: true } | AnalyzeItemErr> {
-  const auth = await requireAdminApi()
-  if (auth.error) return { ok: false, error: '권한이 없습니다' }
-  const admin = createAdminClient() as AdminClient
+const DOCUMENT_TABLE = 'ai_analysis_documents'
 
-  const { data: owned } = await admin
-    .from('ai_analysis_documents')
-    .select('id')
-    .eq('id', id)
-    .eq('user_id', auth.user.id)
-    .is('deleted_at', null)
-    .single()
-  if (!owned) return { ok: false, error: '문서를 찾을 수 없습니다' }
-
-  const { error } = await admin
-    .from('ai_analysis_documents')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id)
-  if (error) {
-    logDbError('deleteDocument:update', error, { id })
-    return { ok: false, error: '삭제 중 오류가 발생했습니다' }
-  }
-  return { ok: true }
+export interface BulkDocumentOk {
+  ok: true
+  /** 실제로 반영된 문서 id — 목록에서 제거/이동할 대상. */
+  affectedIds: string[]
 }
 
-/** 소프트삭제 되돌리기 — owner 검증 후 deleted_at=null. */
-export async function restoreDocument(id: string): Promise<{ ok: true } | AnalyzeItemErr> {
+/**
+ * 문서 일괄 소프트삭제(선택 삭제) — 소유·상태 검증은 bulkSoftDelete SSOT가 담당(세션과 동일 구현).
+ * 1건 삭제(deleteDocument)도 이 구현을 거친다.
+ */
+export async function deleteDocuments(ids: string[]): Promise<BulkDocumentOk | AnalyzeItemErr> {
   const auth = await requireAdminApi()
   if (auth.error) return { ok: false, error: '권한이 없습니다' }
   const admin = createAdminClient() as AdminClient
 
-  const { data: owned } = await admin
-    .from('ai_analysis_documents')
-    .select('id')
-    .eq('id', id)
-    .eq('user_id', auth.user.id)
-    .not('deleted_at', 'is', null)
-    .single()
-  if (!owned) return { ok: false, error: '삭제된 문서를 찾을 수 없습니다' }
+  return bulkSoftDelete(admin, {
+    table: DOCUMENT_TABLE,
+    userId: auth.user.id,
+    ids,
+    action: 'delete',
+    notFoundError: '문서를 찾을 수 없습니다',
+  })
+}
 
-  const { error } = await admin.from('ai_analysis_documents').update({ deleted_at: null }).eq('id', id)
-  if (error) {
-    logDbError('restoreDocument:update', error, { id })
-    return { ok: false, error: '되돌리기 중 오류가 발생했습니다' }
-  }
-  return { ok: true }
+/** 문서 일괄 되돌리기(휴지통 선택 복구). */
+export async function restoreDocuments(ids: string[]): Promise<BulkDocumentOk | AnalyzeItemErr> {
+  const auth = await requireAdminApi()
+  if (auth.error) return { ok: false, error: '권한이 없습니다' }
+  const admin = createAdminClient() as AdminClient
+
+  return bulkSoftDelete(admin, {
+    table: DOCUMENT_TABLE,
+    userId: auth.user.id,
+    ids,
+    action: 'restore',
+    notFoundError: '삭제된 문서를 찾을 수 없습니다',
+  })
+}
+
+/** 문서 1건 소프트삭제 — 일괄 구현에 위임. */
+export async function deleteDocument(id: string): Promise<{ ok: true } | AnalyzeItemErr> {
+  const r = await deleteDocuments([id])
+  return r.ok ? { ok: true } : r
+}
+
+/** 문서 1건 되돌리기 — 일괄 구현에 위임. */
+export async function restoreDocument(id: string): Promise<{ ok: true } | AnalyzeItemErr> {
+  const r = await restoreDocuments([id])
+  return r.ok ? { ok: true } : r
 }

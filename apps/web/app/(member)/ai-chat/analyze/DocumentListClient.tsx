@@ -9,12 +9,15 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { AlertTriangle, FileText, History, Inbox, RotateCcw, Trash2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbTable, { type NbColumn } from '@/components/ui/nb/NbTable'
+import BulkActionBar from '@/components/ui/BulkActionBar'
+import TrashToggle from '@/components/ui/TrashToggle'
 import { useDebounce } from '@/hooks/useDebounce'
+import { useRowSelection } from '@/hooks/useRowSelection'
 import { DOC_TYPES, DOC_TYPE_LABEL, type DocType } from '@/lib/ai-chat/grouping/classify-doc'
 import {
   listDocuments,
-  deleteDocument,
-  restoreDocument,
+  deleteDocuments,
+  restoreDocuments,
   type AnalysisDocumentSummary,
   type DocumentSortKey,
 } from './document-actions'
@@ -30,6 +33,9 @@ function docTypeLabel(t: string | null): string {
   if (t && (DOC_TYPES as readonly string[]).includes(t)) return DOC_TYPE_LABEL[t as DocType]
   return '일반 문서'
 }
+
+/** 모듈 스코프 — 렌더마다 새 identity가 생겨 선택 훅 메모가 무효화되는 것을 막는다. */
+const getDocumentId = (d: AnalysisDocumentSummary) => d.id
 
 export default function DocumentListClient() {
   const router = useRouter()
@@ -47,8 +53,12 @@ export default function DocumentListClient() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [deleting, setDeleting] = useState<AnalysisDocumentSummary | null>(null)
+  /** 삭제/되돌리기 확인 대상 — 1건(행 버튼)과 N건(선택 일괄)을 같은 배열로 다룬다. */
+  const [pending, setPending] = useState<AnalysisDocumentSummary[] | null>(null)
+  const [pendingError, setPendingError] = useState<string | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
+
+  const selection = useRowSelection(documents, getDocumentId)
 
   useEffect(() => {
     const next = new URLSearchParams(Array.from(sp.entries()))
@@ -89,13 +99,32 @@ export default function DocumentListClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, sort, docType, showDeleted])
 
-  async function handleDeleteConfirmed() {
-    if (!deleting) return
-    const r = showDeleted ? await restoreDocument(deleting.id) : await deleteDocument(deleting.id)
-    if (r.ok) {
-      setDocuments((prev) => prev.filter((d) => d.id !== deleting.id))
-      setDeleting(null)
+  /** 1건·N건 공용 확정 처리 — 서버가 실제 반영한 id(affectedIds)만 목록·선택에서 뺀다(부분 성공 정합). */
+  async function handleConfirmed() {
+    if (!pending || pending.length === 0) return
+    const ids = pending.map((d) => d.id)
+    const r = showDeleted ? await restoreDocuments(ids) : await deleteDocuments(ids)
+    if (!r.ok) {
+      setPendingError(r.error)
+      return
     }
+    const done = new Set(r.affectedIds)
+    setDocuments((prev) => prev.filter((d) => !done.has(d.id)))
+    selection.remove(r.affectedIds)
+    setPending(null)
+    setPendingError(null)
+  }
+
+  function openBulkConfirm() {
+    const targets = documents.filter((d) => selection.isSelected(d.id))
+    if (targets.length === 0) return
+    setPendingError(null)
+    setPending(targets)
+  }
+
+  function openSingleConfirm(d: AnalysisDocumentSummary) {
+    setPendingError(null)
+    setPending([d])
   }
 
   const columns: NbColumn<AnalysisDocumentSummary>[] = [
@@ -127,7 +156,7 @@ export default function DocumentListClient() {
       key: 'actions', header: '', label: '',
       render: (d) => (
         <div className="card-actions" style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
-          <button type="button" onClick={(e) => { e.stopPropagation(); setDeleting(d) }}
+          <button type="button" onClick={(e) => { e.stopPropagation(); openSingleConfirm(d) }}
             aria-label={showDeleted ? `${d.title} 되돌리기` : `${d.title} 삭제`}
             title={showDeleted ? '되돌리기' : '삭제'}
             style={{ minHeight: 44, minWidth: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -156,11 +185,24 @@ export default function DocumentListClient() {
           <option value="">전체 유형</option>
           {DOC_TYPES.map((t) => <option key={t} value={t}>{DOC_TYPE_LABEL[t]}</option>)}
         </select>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', minHeight: 44 }}>
-          <input type="checkbox" checked={showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} />
-          휴지통
-        </label>
+        <div style={{ marginLeft: 'auto' }}>
+          <TrashToggle value={showDeleted} onChange={setShowDeleted} activeLabel="문서 목록" />
+        </div>
       </div>
+
+      <BulkActionBar count={selection.count} onClear={selection.clear}>
+        {showDeleted ? (
+          <NbButton variant="secondary" onClick={openBulkConfirm}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', minHeight: 44 }}>
+            <RotateCcw size={15} /> 선택 되돌리기
+          </NbButton>
+        ) : (
+          <NbButton variant="danger" onClick={openBulkConfirm} data-testid="bulk-delete-documents"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', minHeight: 44 }}>
+            <Trash2 size={15} /> 선택 삭제
+          </NbButton>
+        )}
+      </BulkActionBar>
 
       {error ? (
         <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-5)', borderRadius: 'var(--radius-lg)', border: 'var(--border-w-2) solid var(--danger-border)', background: 'var(--danger-bg)', color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>
@@ -182,7 +224,20 @@ export default function DocumentListClient() {
           )}
         </div>
       ) : (
-        <NbTable columns={columns} rows={documents} getRowKey={(d) => d.id} onRowClick={showDeleted ? undefined : (d) => setDetailId(d.id)} />
+        <NbTable
+          columns={columns}
+          rows={documents}
+          getRowKey={(d) => d.id}
+          onRowClick={showDeleted ? undefined : (d) => setDetailId(d.id)}
+          selection={{
+            isSelected: (d) => selection.isSelected(d.id),
+            onToggle: (d) => selection.toggle(d.id),
+            onToggleAll: selection.toggleAll,
+            allSelected: selection.allSelected,
+            someSelected: selection.someSelected,
+            rowLabel: (d) => `${d.title} 선택`,
+          }}
+        />
       )}
 
       {nextCursor && !error && (
@@ -193,18 +248,24 @@ export default function DocumentListClient() {
         </div>
       )}
 
-      {deleting && (
+      {pending && pending.length > 0 && (
         <ConfirmModal
           title={showDeleted ? '문서 되돌리기' : '문서 삭제'}
           message={
-            showDeleted
-              ? <>‘<b style={{ color: 'var(--text)' }}>{deleting.title}</b>’ 문서를 되돌릴까요? 목록에 다시 표시됩니다.</>
-              : <>‘<b style={{ color: 'var(--text)' }}>{deleting.title}</b>’ 문서를 삭제할까요? 나중에 휴지통에서 되돌릴 수 있습니다.</>
+            <>
+              {pending.length === 1 ? (
+                <>‘<b style={{ color: 'var(--text)' }}>{pending[0].title}</b>’ 문서를</>
+              ) : (
+                <>선택한 <b style={{ color: 'var(--text)' }}>{pending.length}개</b> 문서를</>
+              )}
+              {showDeleted ? ' 되돌릴까요? 목록에 다시 표시됩니다.' : ' 삭제할까요? 나중에 휴지통에서 되돌릴 수 있습니다.'}
+            </>
           }
           confirmLabel={showDeleted ? '되돌리기' : '삭제'}
           danger={!showDeleted}
-          onClose={() => setDeleting(null)}
-          onConfirm={handleDeleteConfirmed}
+          error={pendingError}
+          onClose={() => { setPending(null); setPendingError(null) }}
+          onConfirm={handleConfirmed}
         />
       )}
 

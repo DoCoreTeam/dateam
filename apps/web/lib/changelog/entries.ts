@@ -32,6 +32,13 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.424', date: '2026-08-11', title: '분석 목록을 골라서 한 번에 정리해요',
+    items: [
+      { kind: 'feature', emoji: '☑️', headline: '여러 건을 골라 한 번에 지워요', detail: '"내 분석 문서"와 "이전 원문" 목록에서 왼쪽 체크박스로 원하는 항목만 고르거나 전체를 선택해 한 번에 삭제할 수 있어요. 지운 항목은 휴지통에서 골라서 되돌리는 것도 가능해요.' },
+      { kind: 'improve', emoji: '🗑️', headline: '휴지통이 한눈에 보이는 전환 버튼이 됐어요', detail: '작게 체크되어 헷갈리던 "휴지통" 체크박스를 "목록 | 휴지통" 전환 버튼으로 바꿨어요. 지금 어느 목록을 보고 있는지 바로 알 수 있어요.' },
+    ],
+  },
+  {
     version: '0.7.423', date: '2026-08-09', title: '프로젝트 연결과 실행을 끝까지 관리해요',
     items: [{ kind: 'feature', emoji: '🔗', headline: '업무 자료를 프로젝트에서 바로 연결해요', detail: '일일업무·회의록·주간보고·AI 작업공간을 연결하고 필요할 때 해제할 수 있어요. 실행 항목의 상태 변경과 삭제도 가능해요.' }],
   },

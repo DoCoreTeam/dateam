@@ -86,9 +86,10 @@ export function RenameModal({ session, onClose, onRenamed }: { session: Analysis
   )
 }
 
-/** 삭제/되돌리기 공용 확인 모달(§C4 CRUD). */
-export function ConfirmModal({ title, message, confirmLabel, danger, onClose, onConfirm }: {
-  title: string; message: ReactNode; confirmLabel: string; danger?: boolean; onClose: () => void; onConfirm: () => void
+/** 삭제/되돌리기 공용 확인 모달(§C4 CRUD). 1건·N건(선택 일괄) 공용 — error를 주면 모달 안에서 실패를 보여준다. */
+export function ConfirmModal({ title, message, confirmLabel, danger, error, onClose, onConfirm }: {
+  title: string; message: ReactNode; confirmLabel: string; danger?: boolean; error?: string | null
+  onClose: () => void; onConfirm: () => void | Promise<void>
 }) {
   useEscClose(onClose)
   const [busy, setBusy] = useState(false)
@@ -102,6 +103,9 @@ export function ConfirmModal({ title, message, confirmLabel, danger, onClose, on
   return (
     <ModalShell title={title} onClose={onClose}>
       <p style={{ margin: '0 0 var(--space-4)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', lineHeight: 1.5 }}>{message}</p>
+      {error && (
+        <p role="alert" style={{ margin: '0 0 var(--space-3)', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>{error}</p>
+      )}
       <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
         <NbButton variant="ghost" onClick={onClose} type="button">취소</NbButton>
         <NbButton variant={danger ? 'danger' : 'primary'} onClick={run} disabled={busy} type="button">{busy ? '처리중…' : confirmLabel}</NbButton>

@@ -10,6 +10,7 @@ import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import type { AnalysisLens, AnalyzeItemErr } from './actions'
 import type { AnalysisItemStatus, AnalysisSynthStatus } from './session-item-actions'
 import { logDbError } from '@/lib/ai-chat/log-db-error'
+import { bulkSoftDelete } from '@/lib/ai-chat/soft-delete-bulk'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AdminClient = any
@@ -170,53 +171,55 @@ export async function renameAnalysisSession(
   return { ok: true }
 }
 
-/** 세션 소프트삭제(§C4 CRUD) — owner 검증 후 deleted_at=now(). 되돌리기 가능(restoreAnalysisSession). */
-export async function deleteAnalysisSession(sessionId: string): Promise<{ ok: true } | AnalyzeItemErr> {
-  const auth = await requireAdminApi()
-  if (auth.error) return { ok: false, error: '권한이 없습니다' }
-  const admin = createAdminClient() as AdminClient
+const SESSION_TABLE = 'ai_analysis_sessions'
 
-  const { data: owned } = await admin
-    .from('ai_analysis_sessions')
-    .select('id')
-    .eq('id', sessionId)
-    .eq('user_id', auth.user.id)
-    .is('deleted_at', null)
-    .single()
-  if (!owned) return { ok: false, error: '세션을 찾을 수 없습니다' }
-
-  const { error } = await admin
-    .from('ai_analysis_sessions')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', sessionId)
-  if (error) {
-    logDbError('deleteAnalysisSession:update', error)
-    return { ok: false, error: '삭제 중 오류가 발생했습니다' }
-  }
-
-  return { ok: true }
+export interface BulkSessionOk {
+  ok: true
+  /** 실제로 반영된 세션 id — 목록에서 제거/이동할 대상. */
+  affectedIds: string[]
 }
 
-/** 소프트삭제된 세션 되돌리기(§C4 CRUD) — owner 검증 후 deleted_at=null. */
-export async function restoreAnalysisSession(sessionId: string): Promise<{ ok: true } | AnalyzeItemErr> {
+/**
+ * 세션 일괄 소프트삭제(§C4 CRUD, 선택 삭제) — 소유·상태 검증은 bulkSoftDelete SSOT가 담당.
+ * 1건 삭제(deleteAnalysisSession)도 이 구현을 거친다(로직 이중화 금지).
+ */
+export async function deleteAnalysisSessions(ids: string[]): Promise<BulkSessionOk | AnalyzeItemErr> {
   const auth = await requireAdminApi()
   if (auth.error) return { ok: false, error: '권한이 없습니다' }
   const admin = createAdminClient() as AdminClient
 
-  const { data: owned } = await admin
-    .from('ai_analysis_sessions')
-    .select('id')
-    .eq('id', sessionId)
-    .eq('user_id', auth.user.id)
-    .not('deleted_at', 'is', null)
-    .single()
-  if (!owned) return { ok: false, error: '삭제된 세션을 찾을 수 없습니다' }
+  return bulkSoftDelete(admin, {
+    table: SESSION_TABLE,
+    userId: auth.user.id,
+    ids,
+    action: 'delete',
+    notFoundError: '세션을 찾을 수 없습니다',
+  })
+}
 
-  const { error } = await admin.from('ai_analysis_sessions').update({ deleted_at: null }).eq('id', sessionId)
-  if (error) {
-    logDbError('restoreAnalysisSession:update', error)
-    return { ok: false, error: '되돌리기 중 오류가 발생했습니다' }
-  }
+/** 세션 일괄 되돌리기(§C4 CRUD, 휴지통 선택 복구). */
+export async function restoreAnalysisSessions(ids: string[]): Promise<BulkSessionOk | AnalyzeItemErr> {
+  const auth = await requireAdminApi()
+  if (auth.error) return { ok: false, error: '권한이 없습니다' }
+  const admin = createAdminClient() as AdminClient
 
-  return { ok: true }
+  return bulkSoftDelete(admin, {
+    table: SESSION_TABLE,
+    userId: auth.user.id,
+    ids,
+    action: 'restore',
+    notFoundError: '삭제된 세션을 찾을 수 없습니다',
+  })
+}
+
+/** 세션 1건 소프트삭제(§C4 CRUD) — 일괄 구현에 위임. */
+export async function deleteAnalysisSession(sessionId: string): Promise<{ ok: true } | AnalyzeItemErr> {
+  const r = await deleteAnalysisSessions([sessionId])
+  return r.ok ? { ok: true } : r
+}
+
+/** 소프트삭제된 세션 1건 되돌리기(§C4 CRUD) — 일괄 구현에 위임. */
+export async function restoreAnalysisSession(sessionId: string): Promise<{ ok: true } | AnalyzeItemErr> {
+  const r = await restoreAnalysisSessions([sessionId])
+  return r.ok ? { ok: true } : r
 }
