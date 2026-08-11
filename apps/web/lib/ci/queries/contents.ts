@@ -4,6 +4,7 @@
 import { createAdminClient } from '@/lib/supabase/server'
 import { CORPUS_FILTER } from '../corpus.ts'
 import { formatOutlier, formatPercentile } from '../format/metrics.ts'
+import { getCreativeMap } from './creative.ts'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import type { CiContentListItem } from '../contracts.ts'
 import type { CiComparability, CiConfidence, CiContentFormat, CiIngestStatus, CiPlatform } from '../types.ts'
@@ -93,6 +94,8 @@ export interface ContentListParams {
   sort?: 'outlier' | 'recent' | 'velocity'
   limit: number
   cursor?: string | null
+  /** "왜 터졌나"를 함께 붙일지. 떡상 목록처럼 그게 본론인 화면에서만 켠다. */
+  withCreative?: boolean
 }
 
 export interface ContentListResult {
@@ -150,9 +153,16 @@ export async function listContents(p: ContentListParams): Promise<ContentListRes
   const total = count ?? rows.length
   const population = p.corpusOnly ? total : 0
 
+  let items = rows.map((r) => toListItem(r, population))
+
+  if (p.withCreative && items.length > 0) {
+    const map = await getCreativeMap(p.workspaceId, items.map((i) => i.id))
+    items = items.map((i) => ({ ...i, creative: map[i.id] ?? null }))
+  }
+
   const nextOffset = start + rows.length
   return {
-    items: rows.map((r) => toListItem(r, population)),
+    items,
     total,
     cursor: nextOffset < total ? String(nextOffset) : null,
     population,

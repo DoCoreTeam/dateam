@@ -10,6 +10,7 @@ import { useEscClose } from '@/lib/use-esc-close'
 import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
 import type { CiContentListItem, CiEvidence, ApiResponse } from '@/lib/ci/contracts'
 import MetricBadge, { MetricBasis } from './MetricBadge'
+import CreativeSummary from './CreativeSummary'
 import { ComparabilityBadge, CompletenessBadge, ConfidenceBadge, IngestStatusBadge } from './StatusBadge'
 import { ErrorState, RowSkeleton } from './states'
 import EvidenceSheet from './EvidenceSheet'
@@ -150,13 +151,18 @@ export default function DetailSheet({
               </div>
 
               {tab === 'analysis' && (
-                data.analysis
-                  ? <p style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.7 }}>{data.analysis}</p>
-                  : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                  {data.analysis && (
+                    <p style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.7 }}>{data.analysis}</p>
+                  )}
+                  <CreativeSummary creative={data.creative} />
+                  {!data.analysis && !data.creative && (
                     <p className="ci-empty-desc">
-                      아직 근거가 충분하지 않아 분석을 단정하지 않습니다. 비교 표본이 쌓이면 표시됩니다.
+                      아직 근거가 충분하지 않아 분석을 단정하지 않습니다.
+                      비교 표본이 쌓이고 평소 대비 1.5배를 넘으면 무엇이 통했는지 분석합니다.
                     </p>
-                  )
+                  )}
+                </div>
               )}
 
               {tab === 'group' && (

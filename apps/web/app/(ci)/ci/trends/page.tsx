@@ -53,6 +53,8 @@ export default async function TrendsPage({
           windowDays,
           sort,
           limit: 30,
+          // 떡상 탭의 본론은 배수가 아니라 "무엇이 통했나"다
+          withCreative: true,
         })
       : Promise.resolve(null),
     tab === 'market' ? getMarketOverview(workspace.id, windowDays, topicId) : Promise.resolve(null),

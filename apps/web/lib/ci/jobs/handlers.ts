@@ -10,7 +10,7 @@ import { ConnectorError, type UcmContent } from '../connectors/types.ts'
 import { completenessFor } from '../connectors/meta-tags.ts'
 import { getGeminiMeta } from '../ai/meta.ts'
 import { computeDerived, recomputeChannelDerived } from '../analysis/derive.ts'
-import { runClassify, runVerify, runPatterns, runChannelSweep, runCreative } from './stages.ts'
+import { runClassify, runVerify, runPatterns, runChannelSweep, runCreativeBacklog } from './stages.ts'
 import { enqueueJob, type ClaimedJob } from './queue.ts'
 import { nextStage } from './policy.ts'
 import { buildChannelKey, isProvisionalKey } from '../ucm/channel-key.ts'
@@ -187,7 +187,8 @@ async function handleProject(job: ClaimedJob): Promise<HandlerResult> {
 
   if (job.workspace_id) {
     // 배수가 나온 뒤에야 "왜 터졌나"를 볼 수 있다. 순서가 중요하다.
-    await runCreative(job.workspace_id, contentId)
+    // 이번 건만이 아니라 형제 재계산으로 이제 막 자격을 얻은 것들까지 함께 훑는다.
+    await runCreativeBacklog(job.workspace_id)
     // 파생값이 바뀌면 성공 공식도 다시 봐야 한다. 낡은 공식이 화면에 남지 않게.
     await runPatterns(job.workspace_id)
   }

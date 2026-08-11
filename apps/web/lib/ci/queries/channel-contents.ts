@@ -3,6 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/server'
 import { formatOutlier, formatPercentile } from '../format/metrics.ts'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
+import { getCreativeMap } from './creative.ts'
 import type { CiContentListItem } from '../contracts.ts'
 import type { CiComparability, CiConfidence, CiIngestStatus, CiPlatform } from '../types.ts'
 
@@ -52,8 +53,12 @@ export async function listChannelContents(
     .limit(limit)
 
   const population = count ?? 0
+  const rows = (data ?? []) as Row[]
 
-  return ((data ?? []) as Row[]).map((row) => {
+  // 채널 상세는 "이 채널에서 뭐가 통했나"를 보는 화면이다 — 떡상 목록과 같은 것을 보여준다.
+  const creativeMap = await getCreativeMap(workspaceId, rows.map((r) => r.id))
+
+  return rows.map((row) => {
     const d = row.ci_content_derived
     return {
       id: row.id,
@@ -74,6 +79,7 @@ export async function listChannelContents(
       confidence: d?.confidence ?? 'insufficient',
       publishedAtText: row.published_at ? formatKstDateTimeShort(row.published_at) : null,
       firstSeenAt: row.first_seen_at,
+      creative: creativeMap[row.id] ?? null,
     }
   })
 }

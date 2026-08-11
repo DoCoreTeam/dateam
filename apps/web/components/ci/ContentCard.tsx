@@ -9,6 +9,7 @@
 
 import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
 import MetricBadge from './MetricBadge'
+import CreativeSummary from './CreativeSummary'
 import { ComparabilityBadge, CompletenessBadge, IngestStatusBadge } from './StatusBadge'
 import type { CiContentListItem } from '@/lib/ci/contracts'
 
@@ -56,6 +57,9 @@ export default function ContentCard({
           {!showIngestStatus && <ComparabilityBadge cls={item.comparability} />}
           <CompletenessBadge completeness={item.completeness} missingFields={item.missingFields} />
         </div>
+
+        {/* 배수만 보여주면 "그래서 뭘 따라 하지?"가 남는다. 통한 요소를 카드에서 바로 보여준다. */}
+        <CreativeSummary creative={item.creative} variant="compact" />
 
         <div className="ci-card-actions">
           {onNextStep && (

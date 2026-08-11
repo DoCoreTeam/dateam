@@ -9202,6 +9202,28 @@ label.intake-tool-btn {
 /* 수치에 병기하는 기준 (기간 창·표본 수) */
 .ci-basis { font-size: var(--fs-2xs); color: var(--text-faint); font-variant-numeric: tabular-nums; }
 
+/* ── 왜 터졌나 (크리에이티브 분석) ── */
+.ci-creative {
+  display: flex; flex-direction: column; gap: var(--space-3);
+  padding: var(--space-3); border: var(--border-w-2) solid var(--border-color);
+  border-radius: var(--radius-lg); background: var(--surface-muted);
+}
+.ci-creative-head { font-size: var(--fs-sm); font-weight: 700; color: var(--text); }
+.ci-creative-grid { display: flex; flex-direction: column; gap: var(--space-2); }
+.ci-creative-row {
+  display: grid; grid-template-columns: 88px 1fr; gap: var(--space-2);
+  align-items: start; font-size: var(--fs-sm); color: var(--text);
+}
+.ci-creative-quote { font-weight: 600; line-height: 1.5; }
+.ci-creative-compact { display: flex; flex-direction: column; gap: var(--space-1); }
+.ci-creative-thumbtext {
+  font-size: var(--fs-xs); color: var(--text); font-weight: 600; line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+}
+@media (max-width: 767px) {
+  .ci-creative-row { grid-template-columns: 1fr; gap: var(--space-1); }
+}
+
 /* ── 파이프라인 보드 ── */
 .ci-board { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: var(--space-3); }
 .ci-board-col {

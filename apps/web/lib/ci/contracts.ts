@@ -69,6 +69,29 @@ export interface CiContentListItem {
   confidence: CiConfidence
   publishedAtText: string | null
   firstSeenAt: string
+  /**
+   * "왜 터졌나" — 배수가 나온 콘텐츠에만 붙는다.
+   * 요청한 화면(트렌드 떡상·상세)에서만 채워 내려보낸다. 없으면 undefined.
+   */
+  creative?: CiCreativeInfo | null
+}
+
+/**
+ * 크리에이티브 분석 결과의 표시용 형태.
+ * 저장은 `ci_content_creative`, 채우는 곳은 `lib/ci/queries/creative.ts`(SSOT).
+ */
+export interface CiCreativeInfo {
+  thumbnailText: string | null
+  thumbnailStyle: string[]
+  thumbnailSummary: string | null
+  hookMessage: string | null
+  hookType: string | null
+  titlePattern: string[]
+  /** 'ai' = 썸네일을 실제로 읽음, 'rules' = 제목 규칙만 */
+  source: 'ai' | 'rules'
+  /** AI 실패·키 부재 등 한계 고지. 없으면 null */
+  note: string | null
+  analyzedAtText: string | null
 }
 
 export interface CiEvidence {

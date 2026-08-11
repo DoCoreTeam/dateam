@@ -71,6 +71,7 @@ export default function TrendsView(p: Props) {
   const [openId, setOpenId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<{ code: string; message: string } | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
 
   const [groupByChannel, setGroupByChannel] = useState(false)
   const [sKind, setSKind] = useState('news')
@@ -91,6 +92,19 @@ export default function TrendsView(p: Props) {
         method: 'POST', headers: { 'X-CI-Workspace': p.workspaceId },
       }).then((r) => r.json() as Promise<ApiResponse<unknown>>)
       if (!res.success) { setError({ code: res.error.code, message: res.error.message }); return }
+      router.refresh()
+    } finally { setBusy(false) }
+  }
+
+  /** 밀린 "왜 터졌나" 분석을 지금 돌린다. 결과 건수를 그대로 알려준다 — 조용히 끝내지 않는다. */
+  async function analyzeCreatives() {
+    setBusy(true); setError(null); setNotice(null)
+    try {
+      const res = await fetch('/api/ci/creative/backfill', {
+        method: 'POST', headers: { 'X-CI-Workspace': p.workspaceId },
+      }).then((r) => r.json() as Promise<ApiResponse<{ note: string }>>)
+      if (!res.success) { setError({ code: res.error.code, message: res.error.message }); return }
+      setNotice(res.data.note)
       router.refresh()
     } finally { setBusy(false) }
   }
@@ -149,6 +163,9 @@ export default function TrendsView(p: Props) {
       </div>
 
       {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} /></div>}
+      {notice && (
+        <p className="ci-basis" style={{ marginBottom: 'var(--space-4)' }} role="status">{notice}</p>
+      )}
 
       {/* ── 시장 ── */}
       {p.tab === 'market' && p.market && (
@@ -269,6 +286,10 @@ export default function TrendsView(p: Props) {
               onClick={() => setGroupByChannel((v) => !v)}
               title="채널별로 묶어 어느 채널이 잘 나가는지 비교합니다">
               {groupByChannel ? '전체 목록으로' : '채널별로 묶기'}
+            </button>
+            <button type="button" className="btn-ghost" onClick={analyzeCreatives} disabled={busy}
+              title="평소 대비 1.5배를 넘은 콘텐츠의 썸네일 문구와 후킹을 분석합니다">
+              {busy ? '분석 중…' : '왜 터졌는지 분석'}
             </button>
             <MetricBasis text={p.basisText} />
           </div>

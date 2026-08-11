@@ -324,30 +324,52 @@ export async function runChannelSweep(workspaceId: string, channelId: string): P
   return { ok: true, errorMessage: `${created}건 새로 담았습니다` }
 }
 
+/** 이 배수를 넘긴 것만 분석한다 — 평범한 걸 분석해봐야 배울 게 없고 AI 비용만 든다. */
+export const CREATIVE_MIN_INDEX = 1.5
+/** 한 번에 분석할 상한. 15건 일괄 수집 뒤 한꺼번에 터지는 비용을 막는다. */
+export const CREATIVE_MAX_PER_PASS = 10
+
 /**
  * 크리에이티브 분석 — "왜 터졌나"를 뽑는다.
- * 비교군이 충분해 배수가 나온 콘텐츠만 분석한다. 아무거나 분석하면 AI 비용만 태운다.
+ *
+ * 워크스페이스 단위로 도는 이유: 배수는 채널 중앙값 대비라 **형제가 들어온 뒤에야** 값이 선다.
+ * 자기 콘텐츠 하나만 보면, 먼저 처리된 건은 비교군이 비어 영원히 미달로 지나가고
+ * 나중에 배수가 9배로 확정돼도 아무도 다시 보지 않는다.
+ * (실제로 그래서 9.01·8.56·7.05배 6건에 분석이 0건이었다.)
+ * 매 적재마다 밀린 것을 함께 훑어 스스로 메운다.
  */
-export async function runCreative(workspaceId: string, contentId: string): Promise<StageResult> {
+export async function runCreativeBacklog(workspaceId: string): Promise<StageResult> {
   const adminClient = createAdminClient() as any
 
-  const { data } = await adminClient
+  // ci_content_derived에는 workspace_id가 없다 — 콘텐츠를 inner join해 워크스페이스를 가둔다.
+  const { data: hot } = await adminClient
     .from('ci_content_derived')
-    .select('outlier_index, outlier_baseline_n')
-    .eq('content_id', contentId).maybeSingle()
+    .select('content_id, outlier_index, ci_contents!inner(workspace_id, deleted_at)')
+    .eq('ci_contents.workspace_id', workspaceId)
+    .is('ci_contents.deleted_at', null)
+    .gte('outlier_index', CREATIVE_MIN_INDEX)
+    .gte('outlier_baseline_n', OUTLIER_MIN_BASELINE)
+    .order('outlier_index', { ascending: false })
+    .limit(200)
 
-  const baselineN = data?.outlier_baseline_n ?? 0
-  const index = data?.outlier_index ?? null
+  const ids = ((hot ?? []) as { content_id: string }[]).map((r) => r.content_id)
+  if (ids.length === 0) return { ok: true }
 
-  // 배수가 안 나왔거나 평범하면 분석하지 않는다 — 잘 된 것에서만 배울 게 있다
-  if (baselineN < OUTLIER_MIN_BASELINE || index == null || index < 1.5) {
-    return { ok: true }
+  const { data: done } = await adminClient
+    .from('ci_content_creative').select('content_id').in('content_id', ids)
+  const analyzed = new Set(((done ?? []) as { content_id: string }[]).map((r) => r.content_id))
+
+  const pending = ids.filter((id) => !analyzed.has(id)).slice(0, CREATIVE_MAX_PER_PASS)
+  if (pending.length === 0) return { ok: true }
+
+  let failed = 0
+  for (const id of pending) {
+    const result = await analyzeCreative(id)
+    if (!result.ok) failed += 1
   }
 
-  const { data: already } = await adminClient
-    .from('ci_content_creative').select('content_id').eq('content_id', contentId).maybeSingle()
-  if (already) return { ok: true }
-
-  const result = await analyzeCreative(contentId)
-  return { ok: result.ok, errorMessage: result.note }
+  return {
+    ok: true,
+    errorMessage: `${pending.length - failed}건 분석${failed ? ` · ${failed}건 실패` : ''}`,
+  }
 }
