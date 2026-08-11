@@ -9239,6 +9239,29 @@ label.intake-tool-btn {
   .ci-meta-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* ── 자료: 등록 · 조건 바 ── */
+.ci-asset-intake {
+  display: flex; flex-direction: column; gap: var(--space-3);
+  padding: var(--space-4); margin-bottom: var(--space-4);
+  border: var(--border-w-2) solid var(--border-color);
+  border-radius: var(--radius-lg); background: var(--surface-muted);
+}
+.ci-asset-intake-row {
+  display: flex; gap: var(--space-3); align-items: flex-end; flex-wrap: wrap;
+}
+.ci-asset-intake-row .ci-basis {
+  display: inline-flex; align-items: center; gap: var(--space-1); padding-bottom: var(--space-2);
+}
+.ci-asset-toolbar {
+  display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+.ci-asset-search {
+  position: relative; display: flex; align-items: center; gap: var(--space-2);
+  flex: 1; min-width: 220px;
+}
+.ci-asset-search .input-field { flex: 1; }
+
 /* ── 채널 상세 헤더 ── */
 .ci-channel-head {
   display: flex; flex-direction: column; gap: var(--space-4);
