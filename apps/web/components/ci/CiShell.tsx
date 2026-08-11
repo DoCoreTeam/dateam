@@ -1,148 +1,116 @@
 'use client'
 
 // components/ci/CiShell.tsx — 콘텐츠 인텔리전스 셸
-// 설계서 §5.1 동사형 5그룹 IA. (member) 셸의 사내 업무 NAV와 물리적으로 분리된 표면이다.
-// data-surface="ci"가 밀도형 토큰을 켠다(globals.css).
+//
+// 셸을 자작하지 않는다. 기존 MobileShell을 그대로 쓴다 —
+// 로고·사이드바 타이포·배지·모바일 드로어가 전부 거기 있고,
+// 따로 만들면 같은 앱 안에서 질감이 갈라진다
+// (실제 사고: 로고 누락 · 메뉴 폰트 흐림 · 배지 색 불일치).
+// 여기서는 CI의 메뉴 구성과 어시스턴트만 얹는다.
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import {
-  Home, Search, PenTool, Send, BarChart3, Settings, ArrowLeft, Plus,
+  Home, Inbox, Radar, TrendingUp, PenTool, Layers, Send, Radio, BarChart3, Settings,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
+import MobileShell from '@/components/ui/MobileShell'
+import type { NavGroup } from '@/components/ui/MobileShell'
+import SidebarProfile from '@/components/ui/SidebarProfile'
+import QuickNav from '@/components/ui/QuickNav'
+import type { ThemeId } from '@/lib/themes'
 import type { CiLoopMinimap } from '@/lib/ci/contracts'
 import AssistantPanel from './AssistantPanel'
+import CiSidebarFooter from './CiSidebarFooter'
 
-interface NavItem {
-  href: string
-  label: string
-  icon: ReactNode
-  match?: string[]
-  countKey?: keyof CiLoopMinimap
-}
-
-interface NavGroup {
-  label: string | null
-  items: NavItem[]
-}
-
-const NAV: NavGroup[] = [
-  {
-    label: null,
-    items: [{ href: '/ci', label: '홈', icon: <Home size={16} /> }],
-  },
-  {
-    label: '리서치',
-    items: [
-      { href: '/ci/inbox', label: '수집함', icon: <Search size={16} />, countKey: 'review' },
-      { href: '/ci/monitoring', label: '모니터링', icon: <Search size={16} />, match: ['/ci/monitoring', '/ci/channels'] },
-      { href: '/ci/trends', label: '트렌드', icon: <Search size={16} />, countKey: 'newOutliers' },
-    ],
-  },
-  {
-    label: '제작',
-    items: [
-      { href: '/ci/pipeline', label: '파이프라인', icon: <PenTool size={16} />, countKey: 'producing' },
-      { href: '/ci/boards', label: '보드', icon: <PenTool size={16} /> },
-      { href: '/ci/assets', label: '자료', icon: <PenTool size={16} /> },
-    ],
-  },
-  {
-    label: '게시',
-    items: [
-      { href: '/ci/publish', label: '게시', icon: <Send size={16} />, countKey: 'ready' },
-      { href: '/ci/my-channels', label: '내 채널', icon: <Send size={16} /> },
-    ],
-  },
-  {
-    label: '성과',
-    items: [
-      { href: '/ci/performance', label: '성과', icon: <BarChart3 size={16} />, countKey: 'tracking' },
-    ],
-  },
+const NAV_ITEMS = [
+  { href: '/ci', label: '홈', icon: <Home size={16} /> },
 ]
 
-const MOBILE_TABS: NavItem[] = [
-  { href: '/ci', label: '홈', icon: <Home size={18} /> },
-  { href: '/ci/trends', label: '리서치', icon: <Search size={18} /> },
-  { href: '/ci/inbox?add=1', label: '추가', icon: <Plus size={18} /> },
-  { href: '/ci/pipeline', label: '제작', icon: <PenTool size={18} /> },
-  { href: '/ci/performance', label: '성과', icon: <BarChart3 size={18} /> },
-]
+/** 건수는 MobileShell의 badge 슬롯으로 넘긴다. 라벨에 숫자를 붙이지 않는다. */
+function badge(count?: number): number | undefined {
+  return count && count > 0 ? count : undefined
+}
 
-function isCurrent(pathname: string, item: NavItem): boolean {
-  const targets = item.match ?? [item.href.split('?')[0]]
-  return targets.some((t) => (t === '/ci' ? pathname === '/ci' : pathname === t || pathname.startsWith(t + '/')))
+function buildGroups(counts?: CiLoopMinimap): NavGroup[] {
+  return [
+    {
+      label: '리서치',
+      items: [
+        { href: '/ci/inbox', label: '수집함', icon: <Inbox size={16} />, badge: badge(counts?.review) },
+        { href: '/ci/monitoring', label: '모니터링', icon: <Radar size={16} />, match: ['/ci/channels'] },
+        { href: '/ci/trends', label: '트렌드', icon: <TrendingUp size={16} />, badge: badge(counts?.newOutliers) },
+      ],
+    },
+    {
+      label: '제작',
+      items: [
+        { href: '/ci/pipeline', label: '파이프라인', icon: <PenTool size={16} />, match: ['/ci/briefs'], badge: badge(counts?.producing) },
+        { href: '/ci/boards', label: '보드', icon: <Layers size={16} /> },
+        { href: '/ci/assets', label: '자료', icon: <Layers size={16} /> },
+      ],
+    },
+    {
+      label: '게시',
+      items: [
+        { href: '/ci/publish', label: '게시', icon: <Send size={16} />, badge: badge(counts?.ready) },
+        { href: '/ci/my-channels', label: '내 채널', icon: <Radio size={16} /> },
+      ],
+    },
+    {
+      label: '성과',
+      items: [
+        { href: '/ci/performance', label: '성과', icon: <BarChart3 size={16} /> },
+        { href: '/ci/settings', label: '설정', icon: <Settings size={16} /> },
+      ],
+    },
+  ]
+}
+
+interface CiShellProfile {
+  name: string
+  email: string
+  isAdmin: boolean
+  currentTheme?: ThemeId
+  defaultTheme?: ThemeId
 }
 
 interface CiShellProps {
   workspaceId: string
   workspaceName: string
+  logoUrl?: string | null
+  brandName?: string
   counts?: CiLoopMinimap
+  profile: CiShellProfile
   children: ReactNode
 }
 
-export default function CiShell({ workspaceId, workspaceName, counts, children }: CiShellProps) {
-  const pathname = usePathname()
-
+export default function CiShell({
+  workspaceId, workspaceName, logoUrl, brandName, counts, profile, children,
+}: CiShellProps) {
   return (
-    <div className="ci-shell" data-surface="ci">
-      <aside className="ci-sidebar">
-        <div className="ci-sidebar-brand">콘텐츠 인텔리전스</div>
-
-        <nav className="ci-nav" aria-label="주 메뉴">
-          {NAV.map((group, gi) => (
-            <div className="ci-nav-group" key={group.label ?? `g${gi}`}>
-              {group.label && <p className="ci-nav-group-label">{group.label}</p>}
-              {group.items.map((item) => {
-                const count = item.countKey && counts ? counts[item.countKey] : 0
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="ci-nav-item"
-                    aria-current={isCurrent(pathname, item) ? 'page' : undefined}
-                  >
-                    {item.icon}
-                    {item.label}
-                    {count > 0 && <span className="ci-nav-count ci-num">{count}</span>}
-                  </Link>
-                )
-              })}
-            </div>
-          ))}
-        </nav>
-
-        <div className="ci-sidebar-foot">
-          <Link href="/ci/settings" className="ci-nav-item">
-            <Settings size={16} />설정
-          </Link>
-          <Link href="/home" className="ci-nav-item">
-            <ArrowLeft size={16} />사내 업무로
-          </Link>
-          <p className="ci-basis" style={{ marginTop: 'var(--space-2)' }}>{workspaceName}</p>
-        </div>
-      </aside>
-
-      <main className="ci-main">
-        <div className="page-inner">{children}</div>
-      </main>
-
+    <MobileShell
+      items={NAV_ITEMS}
+      groups={buildGroups(counts)}
+      logoUrl={logoUrl}
+      brandName={brandName}
+      adminHref={profile.isAdmin ? '/admin/users' : undefined}
+      isAdmin={profile.isAdmin}
+      // 좌측 하단은 사내 업무와 같은 계정 영역. 그 위에 사내 업무로 돌아가는 길만 얹는다.
+      footer={
+        <>
+          <CiSidebarFooter workspaceName={workspaceName} />
+          <SidebarProfile
+            name={profile.name}
+            email={profile.email}
+            isAdmin={profile.isAdmin}
+            currentTheme={profile.currentTheme}
+            defaultTheme={profile.defaultTheme}
+          />
+        </>
+      }
+      headerRight={<QuickNav />}
+    >
+      {children}
       <AssistantPanel workspaceId={workspaceId} />
-
-      <nav className="ci-tabbar" aria-label="모바일 메뉴">
-        {MOBILE_TABS.map((t) => (
-          <Link
-            key={t.href}
-            href={t.href}
-            className="ci-tabbar-item"
-            aria-current={isCurrent(pathname, t) ? 'page' : undefined}
-          >
-            {t.icon}
-            {t.label}
-          </Link>
-        ))}
-      </nav>
-    </div>
+    </MobileShell>
   )
 }

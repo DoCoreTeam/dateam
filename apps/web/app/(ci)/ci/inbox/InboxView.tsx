@@ -96,7 +96,7 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
             onClick={() => goTab(t.id)}
           >
             {t.label}
-            {t.count ? <span className="ci-nav-count ci-num">{t.count}</span> : null}
+            {t.count ? <span className="ci-count">{t.count}</span> : null}
           </button>
         ))}
       </div>
@@ -126,6 +126,7 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
           <thead>
             <tr>
               <th>제목</th>
+              <th>채널</th>
               <th>플랫폼</th>
               <th>상태</th>
               <th>주제</th>
@@ -145,6 +146,15 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
                   >
                     {item.title ?? item.canonicalUrl}
                   </button>
+                </td>
+                <td data-label="채널">
+                  {item.channelId ? (
+                    <Link href={`/ci/channels/${item.channelId}`} style={{ color: 'var(--text)' }}>
+                      {item.channelName ?? '채널 미확인'}
+                    </Link>
+                  ) : (
+                    <span className="ci-basis">채널 미확인</span>
+                  )}
                 </td>
                 <td data-label="플랫폼">{CI_PLATFORM_LABEL[item.platform]}</td>
                 <td data-label="상태">

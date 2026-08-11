@@ -13,7 +13,8 @@ import type { CiComparability, CiConfidence, CiContentFormat, CiIngestStatus, Ci
 const SELECT = `
   id, platform, title, thumbnail_url, canonical_url, ingest_status, completeness,
   missing_fields, topic_confidence, comparability_class, published_at, first_seen_at,
-  ci_channels ( display_name ),
+  channel_id,
+  ci_channels ( id, display_name ),
   ci_topics ( id, name ),
   ci_content_derived ( outlier_index, outlier_baseline_n, topic_percentile, confidence )
 `
@@ -31,7 +32,8 @@ interface Row {
   comparability_class: CiComparability | null
   published_at: string | null
   first_seen_at: string
-  ci_channels: { display_name: string } | null
+  channel_id: string | null
+  ci_channels: { id: string; display_name: string } | null
   ci_topics: { id: string; name: string } | null
   ci_content_derived: {
     outlier_index: number | null
@@ -52,6 +54,7 @@ export function toListItem(row: Row, population: number): CiContentListItem {
     platform: row.platform,
     title: row.title,
     thumbnailUrl: row.thumbnail_url,
+    channelId: row.channel_id,
     channelName: row.ci_channels?.display_name ?? null,
     canonicalUrl: row.canonical_url,
     ingestStatus: row.ingest_status,

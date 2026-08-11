@@ -134,7 +134,7 @@ export default function PipelineView({ workspaceId, ideas, seed }: Props) {
               >
                 <header className="ci-board-col-head">
                   <span>{CI_STAGE_LABEL[stage]}</span>
-                  <span className="ci-nav-count ci-num">{cards.length}</span>
+                  <span className="ci-count">{cards.length}</span>
                 </header>
                 <p className="ci-basis">{COLUMN_HINT[stage]}</p>
 

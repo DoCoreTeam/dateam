@@ -8,6 +8,7 @@ import type {
   Connector, ConnectorCtx, IngestMethod, UcmContent, UcmChannelRef,
 } from './types.ts'
 import { ConnectorError } from './types.ts'
+import { fetchWatchMetrics } from './youtube-page.ts'
 import type { CiContentFormat } from '../types.ts'
 
 const API_BASE = 'https://www.googleapis.com/youtube/v3'
@@ -203,15 +204,87 @@ async function viaOembed(
   }
 }
 
+/**
+ * 공개 시청 페이지에서 지표를 읽는다.
+ * oEmbed와 RSS는 조회수를 주지 않는다 — 조회수가 없으면 배수가 영원히 안 나오므로,
+ * API 키가 없을 때 이 경로가 제품을 살리는 유일한 길이다.
+ */
+async function viaWatchPage(
+  externalId: string, canonicalUrl: string, ctx: ConnectorCtx, attempted: IngestMethod[],
+): Promise<UcmContent | null> {
+  attempted.push('meta_tags')
+
+  const [page, oembed] = await Promise.all([
+    fetchWatchMetrics(externalId),
+    // 제목·썸네일은 oEmbed가 더 안정적이라 함께 쓴다
+    viaOembed(externalId, canonicalUrl, ctx, []).catch(() => null),
+  ])
+  if (!page && !oembed) return null
+
+  const durationSec = page?.durationSec ?? null
+  const now = new Date().toISOString()
+
+  const core = {
+    title: oembed?.title ?? null,
+    publishedAt: page?.publishedAt ?? null,
+    views: page?.views ?? null,
+    likes: page?.likes ?? null,
+    comments: page?.comments ?? null,
+    thumbnailUrl: oembed?.thumbnailUrl ?? `https://i.ytimg.com/vi/${externalId}/hqdefault.jpg`,
+    durationSec,
+  }
+  const missing = missingOf(core)
+
+  const channel: UcmChannelRef | null = page?.channelId
+    ? {
+      platform: 'youtube',
+      externalId: page.channelId,
+      handle: null,
+      displayName: page.channelName ?? oembed?.channel?.displayName ?? null,
+      profileUrl: `https://www.youtube.com/channel/${page.channelId}`,
+      avatarUrl: null,
+      subscriberCount: null,
+    }
+    : oembed?.channel ?? null
+
+  return {
+    platform: 'youtube',
+    externalId,
+    canonicalUrl,
+    channel,
+    format: page?.isShort ? 'short' : judgeFormat(durationSec, null),
+    title: core.title,
+    caption: oembed?.caption ?? null,
+    publishedAt: core.publishedAt,
+    durationSec,
+    language: null,
+    thumbnailUrl: core.thumbnailUrl,
+    // 조회수를 얻었으면 같은 플랫폼끼리 비교 가능하다
+    comparability: core.views != null ? 'A' : 'C',
+    metrics: {
+      views: core.views, likes: core.likes, comments: core.comments,
+      shares: null, saves: null, capturedAt: now,
+    },
+    provenance: {
+      method: 'meta_tags', attemptedMethods: [...attempted],
+      fetchedAt: now, verified: 'platform', missingFields: missing,
+      notes: core.views != null
+        ? '공개 시청 페이지에서 지표를 읽었습니다.'
+        : '지표를 읽지 못했습니다. 페이지 구조가 바뀌었거나 접근이 제한되었습니다.',
+    },
+  }
+}
+
 export const youtubeConnector: Connector = {
   platform: 'youtube',
-  methodChain: ['official_api', 'oembed', 'meta_tags'],
+  methodChain: ['official_api', 'meta_tags', 'oembed'],
 
   async fetchContent(externalId, canonicalUrl, ctx) {
     const attempted: IngestMethod[] = []
 
     // 체인은 앞 단계가 실패해야만 다음으로 내려간다.
-    for (const step of [viaOfficialApi, viaOembed]) {
+    // 공식 API(지표 정확) → 시청 페이지(지표 확보 가능) → oEmbed(제목만)
+    for (const step of [viaOfficialApi, viaWatchPage, viaOembed]) {
       try {
         const result = await step(externalId, canonicalUrl, ctx, attempted)
         if (result) return result

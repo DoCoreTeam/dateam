@@ -60,6 +60,7 @@ export async function listChannelContents(
       platform: row.platform,
       title: row.title,
       thumbnailUrl: row.thumbnail_url,
+      channelId,
       channelName: null,
       canonicalUrl: row.canonical_url,
       ingestStatus: row.ingest_status,

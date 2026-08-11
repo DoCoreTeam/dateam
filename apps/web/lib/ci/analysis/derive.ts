@@ -152,3 +152,28 @@ export async function computeDerived(contentId: string): Promise<void> {
     computed_at: new Date().toISOString(),
   }, { onConflict: 'content_id' })
 }
+
+
+/**
+ * 채널 전체의 파생값을 다시 계산한다.
+ *
+ * 왜 전체인가: 배수는 "같은 채널 중앙값 대비"라서, 한 콘텐츠의 지표가 새로 들어오면
+ * 그 채널의 모든 콘텐츠 배수가 함께 움직인다. 한 건만 계산하면
+ * 먼저 처리된 콘텐츠는 비교군이 비어 있던 시점의 값(=비어 있음)에 갇힌다.
+ * (실제 사고: 채널 15건을 한꺼번에 수집했는데 전부 비교군 0으로 남음)
+ */
+export async function recomputeChannelDerived(channelId: string): Promise<number> {
+  const adminClient = createAdminClient() as any
+  const { data } = await adminClient
+    .from('ci_contents')
+    .select('id')
+    .eq('channel_id', channelId)
+    .is('deleted_at', null)
+    .limit(500)
+
+  const ids = ((data ?? []) as { id: string }[]).map((r) => r.id)
+  for (const id of ids) {
+    await computeDerived(id)
+  }
+  return ids.length
+}

@@ -2,6 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { parseChannelUrl } from '../ucm/url.ts'
+import { enqueueJob } from '../jobs/queue.ts'
 import type { CiChannelListItem } from '../contracts.ts'
 import type { CiChannelOwnership, CiPlatform } from '../types.ts'
 
@@ -122,6 +123,11 @@ export async function addChannel(input: {
       await adminClient.from('ci_channels')
         .update({ is_monitored: true, monitored_since: new Date().toISOString() })
         .eq('id', existing.id)
+      // 지켜보기를 켜면 그 채널의 게시물을 끌어온다 — 비교군이 있어야 배수가 나온다
+      await enqueueJob({
+        workspaceId: input.workspaceId, stage: 'ingest',
+        targetType: 'channel', targetId: existing.id, version: Date.now(),
+      })
     }
     const item = await getChannel(input.workspaceId, existing.id)
     return item ? { ok: true, item, created: false } : { ok: false, code: 'INVALID_URL', message: '채널을 불러오지 못했습니다' }
@@ -154,6 +160,14 @@ export async function addChannel(input: {
     monitored_since: input.monitor ? new Date().toISOString() : null,
     topic_id: input.topicId ?? null,
   }).select('id').single()
+
+  if (created?.id) {
+    // 새 채널은 바로 게시물을 훑는다. 등록만 하고 비어 있으면 아무것도 못 본다.
+    await enqueueJob({
+      workspaceId: input.workspaceId, stage: 'ingest',
+      targetType: 'channel', targetId: created.id, version: Date.now(),
+    })
+  }
 
   const item = created?.id ? await getChannel(input.workspaceId, created.id) : null
   return item

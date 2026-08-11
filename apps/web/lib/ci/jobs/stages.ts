@@ -13,6 +13,10 @@ import {
 import { computePatterns, type PatternSample } from '../analysis/patterns.ts'
 import { resolveSettings, type SettingRow } from '../settings/resolve.ts'
 import { CORPUS_FILTER } from '../corpus.ts'
+import { fetchChannelFeed } from '../connectors/channel-feed.ts'
+import { analyzeCreative } from '../ai/creative-server.ts'
+import { enqueueJob } from './queue.ts'
+import { OUTLIER_MIN_BASELINE } from '../format/metrics.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -247,4 +251,103 @@ export async function runPatterns(workspaceId: string): Promise<StageResult> {
   }
 
   return { ok: true }
+}
+
+
+/**
+ * 채널 일괄 수집 — 채널의 최근 게시물을 전부 끌어와 비교군을 만든다.
+ *
+ * 이게 없으면 콘텐츠 한 건만 있는 채널의 배수가 영원히 계산되지 않는다.
+ * "평소 대비"는 같은 채널의 평소가 있어야 성립한다.
+ */
+export async function runChannelSweep(workspaceId: string, channelId: string): Promise<StageResult> {
+  const adminClient = createAdminClient() as any
+
+  const { data: ch } = await adminClient
+    .from('ci_channels')
+    .select('id, platform, external_id, handle, profile_url')
+    .eq('id', channelId).eq('workspace_id', workspaceId).is('deleted_at', null).maybeSingle()
+  if (!ch) return { ok: false, errorCode: 'NOT_FOUND', errorMessage: '채널을 찾을 수 없습니다' }
+
+  const feed = await fetchChannelFeed({
+    platform: ch.platform,
+    externalId: ch.external_id,
+    handle: ch.handle,
+    profileUrl: ch.profile_url,
+  })
+
+  if (!feed.ok) {
+    // 실패를 감추지 않는다. 채널 화면에 그대로 보여준다.
+    await adminClient.from('ci_channels').update({
+      last_sweep_at: new Date().toISOString(),
+      sweep_error: feed.error,
+    }).eq('id', channelId)
+    return { ok: false, errorCode: 'CONNECTOR_FAILED', errorMessage: feed.error }
+  }
+
+  let created = 0
+  for (const entry of feed.entries) {
+    const { data: existing } = await adminClient.from('ci_contents').select('id')
+      .eq('workspace_id', workspaceId).eq('platform', ch.platform)
+      .eq('external_id', entry.externalId).is('deleted_at', null).maybeSingle()
+    if (existing?.id) continue
+
+    const { data: row } = await adminClient.from('ci_contents').insert({
+      workspace_id: workspaceId,
+      platform: ch.platform,
+      external_id: entry.externalId,
+      canonical_url: entry.canonicalUrl,
+      channel_id: channelId,
+      format: 'long',
+      title: entry.title,
+      published_at: entry.publishedAt,
+      thumbnail_url: entry.thumbnailUrl,
+      // 채널에서 끌어온 것은 시장 비교의 모집단이 된다
+      source: 'monitoring',
+      ingest_status: 'queued',
+    }).select('id').single()
+
+    if (row?.id) {
+      created++
+      await enqueueJob({
+        workspaceId, stage: 'ingest', targetType: 'content', targetId: row.id, version: Date.now(),
+      })
+    }
+  }
+
+  await adminClient.from('ci_channels').update({
+    last_sweep_at: new Date().toISOString(),
+    sweep_cursor: feed.method,
+    sweep_error: null,
+  }).eq('id', channelId)
+
+  return { ok: true, errorMessage: `${created}건 새로 담았습니다` }
+}
+
+/**
+ * 크리에이티브 분석 — "왜 터졌나"를 뽑는다.
+ * 비교군이 충분해 배수가 나온 콘텐츠만 분석한다. 아무거나 분석하면 AI 비용만 태운다.
+ */
+export async function runCreative(workspaceId: string, contentId: string): Promise<StageResult> {
+  const adminClient = createAdminClient() as any
+
+  const { data } = await adminClient
+    .from('ci_content_derived')
+    .select('outlier_index, outlier_baseline_n')
+    .eq('content_id', contentId).maybeSingle()
+
+  const baselineN = data?.outlier_baseline_n ?? 0
+  const index = data?.outlier_index ?? null
+
+  // 배수가 안 나왔거나 평범하면 분석하지 않는다 — 잘 된 것에서만 배울 게 있다
+  if (baselineN < OUTLIER_MIN_BASELINE || index == null || index < 1.5) {
+    return { ok: true }
+  }
+
+  const { data: already } = await adminClient
+    .from('ci_content_creative').select('content_id').eq('content_id', contentId).maybeSingle()
+  if (already) return { ok: true }
+
+  const result = await analyzeCreative(contentId)
+  return { ok: result.ok, errorMessage: result.note }
 }

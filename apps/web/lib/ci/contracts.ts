@@ -54,6 +54,7 @@ export interface CiContentListItem {
   platform: CiPlatform
   title: string | null
   thumbnailUrl: string | null
+  channelId: string | null
   channelName: string | null
   canonicalUrl: string
   ingestStatus: CiIngestStatus

@@ -11,6 +11,7 @@ import { CI_PLATFORMS, CI_PLATFORM_LABEL } from '@/lib/ci/types'
 import CiPageHeader from '@/components/ci/CiPageHeader'
 import StageNav, { RESEARCH_STAGES } from '@/components/ci/StageNav'
 import ContentCard from '@/components/ci/ContentCard'
+import ChannelGroupedList from '@/components/ci/ChannelGroupedList'
 import DetailSheet from '@/components/ci/DetailSheet'
 import { ConfidenceBadge } from '@/components/ci/StatusBadge'
 import { EmptyState, InsufficientData, ErrorState } from '@/components/ci/states'
@@ -71,6 +72,7 @@ export default function TrendsView(p: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<{ code: string; message: string } | null>(null)
 
+  const [groupByChannel, setGroupByChannel] = useState(false)
   const [sKind, setSKind] = useState('news')
   const [sTitle, setSTitle] = useState('')
   const [sUrl, setSUrl] = useState('')
@@ -263,6 +265,11 @@ export default function TrendsView(p: Props) {
                 {SORTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
             </div>
+            <button type="button" className="ci-metric"
+              onClick={() => setGroupByChannel((v) => !v)}
+              title="채널별로 묶어 어느 채널이 잘 나가는지 비교합니다">
+              {groupByChannel ? '전체 목록으로' : '채널별로 묶기'}
+            </button>
             <MetricBasis text={p.basisText} />
           </div>
 
@@ -279,13 +286,22 @@ export default function TrendsView(p: Props) {
                   <InsufficientData what="같은 주제 상위 %" action={{ label: '관심 채널 추가', href: '/ci/monitoring' }} />
                 </div>
               )}
-              <div className="ci-card-grid">
-                {p.items.map((item) => (
-                  <ContentCard key={item.id} item={item} onOpen={setOpenId}
-                    onNextStep={(id) => router.push(`/ci/pipeline?from=${id}`)}
-                    onAddToBoard={(id) => router.push(`/ci/boards?add=${id}`)} />
-                ))}
-              </div>
+              {groupByChannel ? (
+                <ChannelGroupedList
+                  items={p.items}
+                  onOpen={setOpenId}
+                  onNextStep={(id) => router.push(`/ci/pipeline?from=${id}`)}
+                  onAddToBoard={(id) => router.push(`/ci/boards?add=${id}`)}
+                />
+              ) : (
+                <div className="ci-card-grid">
+                  {p.items.map((item) => (
+                    <ContentCard key={item.id} item={item} onOpen={setOpenId}
+                      onNextStep={(id) => router.push(`/ci/pipeline?from=${id}`)}
+                      onAddToBoard={(id) => router.push(`/ci/boards?add=${id}`)} />
+                  ))}
+                </div>
+              )}
             </>
           )}
         </>

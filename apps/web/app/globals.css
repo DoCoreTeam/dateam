@@ -9041,59 +9041,31 @@ label.intake-tool-btn {
    ─ 기존 토큰 값은 건드리지 않는다. CI 셸 안에서만 재정의한다.
    ─ 색·치수는 전부 토큰 경유. 화면에서 hex 하드코딩 금지.
    ══════════════════════════════════════════════════════════════════ */
-/* CI 표면은 기존 서비스 디자인(토큰·보더·그림자)을 그대로 상속한다.
-   설계서 §6은 밀도형 라이트 UI를 제안했지만, 같은 앱 안에서 표면마다 질감이 갈라지면
-   사용자에게는 "다른 서비스"로 보인다. 토큰을 재정의하지 않고 CI 고유 값만 추가한다. */
-[data-surface='ci'] {
-  /* 차트 팔레트 6색 — 색약 안전 조합 (§6.2). 기존 체계에 없던 값이라 여기서만 정의한다. */
+/* 콘텐츠 인텔리전스 전용 추가 토큰.
+   기존 토큰을 재정의하지 않는다 — 셸과 컴포넌트는 서비스 공용 디자인을 그대로 상속한다.
+   여기 있는 값은 기존 체계에 없던 것(차트 팔레트·지표 폰트)뿐이라 :root에 둔다. */
+:root {
+  /* 차트 팔레트 6색 — 색약 안전 조합 (설계서 §6.2) */
   --ci-chart-1: #4f46e5; --ci-chart-2: #0ea5e9; --ci-chart-3: #16a34a;
   --ci-chart-4: #d97706; --ci-chart-5: #db2777; --ci-chart-6: #64748b;
 
-  /* 지표 숫자 (§6.3) — 금액용 --fs-price와 용도가 다르다 */
+  /* 지표 숫자 (설계서 §6.3) — 금액용 --fs-price와 용도가 다르다 */
   --ci-fs-metric: var(--fs-2xl);
+}
+
+/* 탭·보드 헤더의 건수 배지 (사이드바 배지는 MobileShell 것을 쓴다) */
+.ci-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; padding: 0 var(--space-2); margin-left: var(--space-1);
+  border-radius: 9999px; background: var(--brand); color: var(--brand-fg);
+  font-size: var(--fs-2xs); font-weight: 700; font-variant-numeric: tabular-nums;
 }
 
 /* 숫자 고정폭 — 표·지표에서 자릿수가 흔들리지 않게 (§6.1) */
 .ci-num { font-variant-numeric: tabular-nums; }
 
 /* ── 셸 ── */
-.ci-shell { display: flex; min-height: 100vh; background: var(--color-bg); }
-.ci-sidebar {
-  width: 240px; flex-shrink: 0; background: var(--sidebar-bg);
-  border-right: var(--border-w) solid var(--border-color);
-  display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
-}
-.ci-sidebar-brand {
-  height: var(--header-height); display: flex; align-items: center; gap: var(--space-2);
-  padding: 0 var(--space-4); font-weight: 700; font-size: var(--fs-lg);
-  letter-spacing: -0.02em; color: var(--text);
-}
-.ci-nav { flex: 1; overflow-y: auto; padding: var(--space-2); }
-.ci-nav-group { margin-bottom: var(--space-4); }
-.ci-nav-group-label {
-  font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.04em;
-  color: var(--text-faint); padding: var(--space-2) var(--space-3) var(--space-1);
-  text-transform: none;
-}
-.ci-nav-item {
-  display: flex; align-items: center; gap: var(--space-2);
-  min-height: 40px; padding: 0 var(--space-3); border-radius: var(--radius);
-  color: var(--text-muted); font-size: var(--fs-sm); text-decoration: none;
-  transition: background-color 0.12s ease, color 0.12s ease;
-}
-.ci-nav-item:hover { background: var(--nav-hover-bg); color: var(--text); }
-.ci-nav-item[aria-current='page'] { background: var(--brand); color: var(--brand-fg); font-weight: 600; }
-.ci-nav-count {
-  margin-left: auto; font-size: var(--fs-2xs); font-weight: 700;
-  background: var(--surface-muted); color: var(--text-muted);
-  border-radius: 9999px; padding: 1px var(--space-2); font-variant-numeric: tabular-nums;
-}
-.ci-nav-item[aria-current='page'] .ci-nav-count { background: rgba(255,255,255,0.24); color: var(--brand-fg); }
-.ci-sidebar-foot {
-  padding: var(--space-3); border-top: var(--border-w-2) solid var(--border-color);
-  font-size: var(--fs-xs);
-}
-.ci-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+/* 셸은 MobileShell을 쓴다. 자작 사이드바 CSS를 두지 않는다. */
 
 /* ── 스테이지 내비 (그룹 내부 1→2→3 흐름) ── */
 .ci-stage-nav { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; }
@@ -9248,25 +9220,10 @@ label.intake-tool-btn {
   .ci-board { grid-template-columns: repeat(2, minmax(200px, 1fr)); }
 }
 @media (max-width: 767px) {
-  .ci-sidebar { display: none; }
   .ci-minimap { grid-template-columns: repeat(2, 1fr); }
   .ci-board { grid-template-columns: 1fr; }
   .ci-card-grid { grid-template-columns: 1fr; }
   .ci-sheet { width: 100%; }
 }
 
-/* 모바일 하단 5탭 (Metricool 패턴, §5.5) */
-.ci-tabbar {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: var(--z-sticky, 100);
-  display: none; grid-template-columns: repeat(5, 1fr);
-  background: var(--color-surface); border-top: var(--border-w-2) solid var(--border-color);
-}
-.ci-tabbar-item {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  min-height: 56px; font-size: var(--fs-2xs); color: var(--text-muted); text-decoration: none;
-}
-.ci-tabbar-item[aria-current='page'] { color: var(--brand); font-weight: 600; }
-@media (max-width: 767px) {
-  .ci-tabbar { display: grid; }
-  .ci-main { padding-bottom: 56px; }
-}
+

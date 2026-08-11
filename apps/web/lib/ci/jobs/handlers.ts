@@ -9,10 +9,11 @@ import { getConnector } from '../connectors/registry.ts'
 import { ConnectorError, type UcmContent } from '../connectors/types.ts'
 import { completenessFor } from '../connectors/meta-tags.ts'
 import { getGeminiMeta } from '../ai/meta.ts'
-import { computeDerived } from '../analysis/derive.ts'
-import { runClassify, runVerify, runPatterns } from './stages.ts'
+import { computeDerived, recomputeChannelDerived } from '../analysis/derive.ts'
+import { runClassify, runVerify, runPatterns, runChannelSweep, runCreative } from './stages.ts'
 import { enqueueJob, type ClaimedJob } from './queue.ts'
 import { nextStage } from './policy.ts'
+import { buildChannelKey, isProvisionalKey } from '../ucm/channel-key.ts'
 import type { CiPlatform } from '../types.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -28,6 +29,12 @@ export interface HandlerResult {
  * 일부만 확보해도 저장한다 — 완전도와 미확보 항목을 함께 남겨 화면이 정직하게 말하게 한다.
  */
 async function handleIngest(job: ClaimedJob): Promise<HandlerResult> {
+  // 채널이 대상이면 그 채널의 게시물을 일괄로 끌어온다.
+  // 채널을 알면 콘텐츠를 모으는 것이 이 제품의 출발점이다.
+  if (job.target_type === 'channel' && job.workspace_id && job.target_id) {
+    return runChannelSweep(job.workspace_id, job.target_id)
+  }
+
   const adminClient = createAdminClient() as any
   const contentId = job.target_id
   if (!contentId) return { ok: false, errorCode: 'NOT_FOUND', errorMessage: '대상 콘텐츠가 없습니다' }
@@ -101,34 +108,65 @@ async function handleIngest(job: ClaimedJob): Promise<HandlerResult> {
   return { ok: true }
 }
 
+/**
+ * 콘텐츠가 속한 채널을 확보한다.
+ *
+ * 콘텐츠는 반드시 채널에 귀속되어야 한다 — 배수는 "같은 채널·같은 포맷"을 비교군으로 쓰므로,
+ * 채널이 없으면 비교군이 영원히 비고 배수가 나오지 않는다.
+ * 플랫폼이 채널 ID를 안 주면 핸들·프로필 URL·표시 이름 순으로 키를 만들어서라도 채널을 만든다.
+ */
 async function upsertChannel(workspaceId: string, ucm: UcmContent): Promise<string | null> {
   const ch = ucm.channel
-  if (!ch?.externalId) return null
+  if (!ch) return null
+
+  const key = buildChannelKey({
+    platform: ch.platform,
+    externalId: ch.externalId,
+    handle: ch.handle,
+    profileUrl: ch.profileUrl,
+    displayName: ch.displayName,
+  })
+  if (!key) return null
 
   const adminClient = createAdminClient() as any
+
   const { data: existing } = await adminClient
     .from('ci_channels')
-    .select('id')
+    .select('id, external_id, display_name, subscriber_count')
     .eq('workspace_id', workspaceId)
     .eq('platform', ch.platform)
-    .eq('external_id', ch.externalId)
+    .eq('external_id', key.externalId)
     .is('deleted_at', null)
     .maybeSingle()
 
-  if (existing?.id) return existing.id
+  if (existing?.id) {
+    // 나중에 더 나은 정보를 얻으면 채운다. 이미 있는 값을 빈 값으로 덮지 않는다.
+    const patch: Record<string, unknown> = { last_seen_at: new Date().toISOString() }
+    if (ch.displayName && (!existing.display_name || isProvisionalKey(existing.external_id))) {
+      patch.display_name = ch.displayName
+    }
+    if (ch.subscriberCount != null && existing.subscriber_count == null) {
+      patch.subscriber_count = ch.subscriberCount
+      patch.subscriber_provenance = 'platform'
+    }
+    await adminClient.from('ci_channels').update(patch).eq('id', existing.id)
+    return existing.id
+  }
 
   const { data: created } = await adminClient.from('ci_channels').insert({
     workspace_id: workspaceId,
     platform: ch.platform,
-    external_id: ch.externalId,
+    external_id: key.externalId,
     handle: ch.handle,
-    display_name: ch.displayName ?? '이름 미확인',
+    display_name: ch.displayName ?? ch.handle ?? '이름 미확인',
     profile_url: ch.profileUrl,
     avatar_url: ch.avatarUrl,
     subscriber_count: ch.subscriberCount,
     subscriber_provenance: ch.subscriberCount != null ? 'platform' : null,
     ownership: 'tracked',
-    is_monitored: false,          // 수집으로 자동 생성된 채널을 몰래 과금 대상으로 만들지 않는다
+    // 수집으로 자동 생성된 채널을 몰래 과금(모니터링) 대상으로 만들지 않는다.
+    // 사용자가 모니터링에서 직접 켜야 지켜보기가 시작된다.
+    is_monitored: false,
     last_seen_at: new Date().toISOString(),
   }).select('id').single()
 
@@ -140,8 +178,19 @@ async function handleProject(job: ClaimedJob): Promise<HandlerResult> {
   const contentId = job.target_id
   if (!contentId) return { ok: false, errorCode: 'NOT_FOUND', errorMessage: '대상이 없습니다' }
   await computeDerived(contentId)
-  // 파생값이 바뀌면 성공 공식도 다시 봐야 한다. 낡은 공식이 화면에 남지 않게.
-  if (job.workspace_id) await runPatterns(job.workspace_id)
+
+  // 배수는 채널 중앙값 대비라, 한 건이 들어오면 그 채널 전체가 다시 계산되어야 한다.
+  const adminClient = createAdminClient() as any
+  const { data: own } = await adminClient
+    .from('ci_contents').select('channel_id').eq('id', contentId).maybeSingle()
+  if (own?.channel_id) await recomputeChannelDerived(own.channel_id)
+
+  if (job.workspace_id) {
+    // 배수가 나온 뒤에야 "왜 터졌나"를 볼 수 있다. 순서가 중요하다.
+    await runCreative(job.workspace_id, contentId)
+    // 파생값이 바뀌면 성공 공식도 다시 봐야 한다. 낡은 공식이 화면에 남지 않게.
+    await runPatterns(job.workspace_id)
+  }
   return { ok: true }
 }
 
