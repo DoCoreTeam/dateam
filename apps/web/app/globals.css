@@ -9041,26 +9041,16 @@ label.intake-tool-btn {
    ─ 기존 토큰 값은 건드리지 않는다. CI 셸 안에서만 재정의한다.
    ─ 색·치수는 전부 토큰 경유. 화면에서 hex 하드코딩 금지.
    ══════════════════════════════════════════════════════════════════ */
+/* CI 표면은 기존 서비스 디자인(토큰·보더·그림자)을 그대로 상속한다.
+   설계서 §6은 밀도형 라이트 UI를 제안했지만, 같은 앱 안에서 표면마다 질감이 갈라지면
+   사용자에게는 "다른 서비스"로 보인다. 토큰을 재정의하지 않고 CI 고유 값만 추가한다. */
 [data-surface='ci'] {
-  /* 밀도형: 보더 얇게, 하드 섀도 제거 (NB 시그니처를 CI 표면에서만 완화) */
-  --border-w: 1px;
-  --border-w-2: 1px;
-  --radius: 8px;
-  --radius-lg: 12px;
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
-  --shadow-md: 0 2px 8px rgba(16, 24, 40, 0.08);
-  --shadow-lg: 0 8px 24px rgba(16, 24, 40, 0.10);
-  --border-color: #e4e4e7;
-  --sidebar-bg: #fafafa;
-  --sidebar-divider: transparent;
-  --nav-hover-bg: rgba(16, 24, 40, 0.05);
-
-  /* 차트 팔레트 6색 — 색약 안전 조합 (§6.2) */
+  /* 차트 팔레트 6색 — 색약 안전 조합 (§6.2). 기존 체계에 없던 값이라 여기서만 정의한다. */
   --ci-chart-1: #4f46e5; --ci-chart-2: #0ea5e9; --ci-chart-3: #16a34a;
   --ci-chart-4: #d97706; --ci-chart-5: #db2777; --ci-chart-6: #64748b;
 
   /* 지표 숫자 (§6.3) — 금액용 --fs-price와 용도가 다르다 */
-  --ci-fs-metric: 1.5rem;
+  --ci-fs-metric: var(--fs-2xl);
 }
 
 /* 숫자 고정폭 — 표·지표에서 자릿수가 흔들리지 않게 (§6.1) */
@@ -9070,7 +9060,7 @@ label.intake-tool-btn {
 .ci-shell { display: flex; min-height: 100vh; background: var(--color-bg); }
 .ci-sidebar {
   width: 240px; flex-shrink: 0; background: var(--sidebar-bg);
-  border-right: var(--hairline) solid var(--border-color);
+  border-right: var(--border-w) solid var(--border-color);
   display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
 }
 .ci-sidebar-brand {
@@ -9100,7 +9090,7 @@ label.intake-tool-btn {
 }
 .ci-nav-item[aria-current='page'] .ci-nav-count { background: rgba(255,255,255,0.24); color: var(--brand-fg); }
 .ci-sidebar-foot {
-  padding: var(--space-3); border-top: var(--hairline) solid var(--border-color);
+  padding: var(--space-3); border-top: var(--border-w-2) solid var(--border-color);
   font-size: var(--fs-xs);
 }
 .ci-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -9110,7 +9100,7 @@ label.intake-tool-btn {
 .ci-stage-item {
   display: inline-flex; align-items: center; gap: var(--space-2);
   min-height: 36px; padding: 0 var(--space-3); border-radius: var(--radius);
-  border: var(--hairline) solid var(--border-color); background: var(--color-surface);
+  border: var(--border-w-2) solid var(--border-color); background: var(--color-surface);
   color: var(--text-muted); font-size: var(--fs-sm); text-decoration: none;
 }
 .ci-stage-item[aria-current='page'] { border-color: var(--brand); color: var(--brand); font-weight: 600; }
@@ -9126,7 +9116,7 @@ label.intake-tool-btn {
 .ci-minimap { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-2); }
 .ci-minimap-cell {
   display: flex; flex-direction: column; gap: var(--space-1);
-  padding: var(--space-3); border: var(--hairline) solid var(--border-color);
+  padding: var(--space-3); border: var(--border-w-2) solid var(--border-color);
   border-radius: var(--radius); background: var(--color-surface);
   text-decoration: none; color: var(--text); text-align: left;
   transition: border-color 0.12s ease, box-shadow 0.12s ease;
@@ -9145,14 +9135,14 @@ label.intake-tool-btn {
 }
 .ci-content-card {
   display: flex; flex-direction: column;
-  border: var(--hairline) solid var(--border-color); border-radius: var(--radius-lg);
+  border: var(--border-w-2) solid var(--border-color); border-radius: var(--radius-lg);
   background: var(--color-surface); overflow: hidden;
   transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 .ci-content-card:hover { border-color: var(--brand); box-shadow: var(--shadow-md); }
 .ci-thumb {
   aspect-ratio: 16 / 9; width: 100%; object-fit: cover; display: block;
-  background: var(--surface-muted); border-bottom: var(--hairline) solid var(--border-color);
+  background: var(--surface-muted); border-bottom: var(--border-w-2) solid var(--border-color);
 }
 .ci-thumb-empty { display: grid; place-items: center; color: var(--text-faint); font-size: var(--fs-xs); }
 .ci-card-body { padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); flex: 1; }
@@ -9164,7 +9154,7 @@ label.intake-tool-btn {
 .ci-card-badges { display: flex; gap: var(--space-1); flex-wrap: wrap; }
 .ci-card-actions {
   margin-top: auto; display: flex; gap: var(--space-2); align-items: center;
-  padding-top: var(--space-2); border-top: var(--hairline) solid var(--border-color);
+  padding-top: var(--space-2); border-top: var(--border-w-2) solid var(--border-color);
 }
 
 /* ── 지표 배지 ── */
@@ -9184,7 +9174,7 @@ label.intake-tool-btn {
   display: inline-flex; align-items: center; gap: var(--space-1);
   font-size: var(--fs-2xs); font-weight: 600; border-radius: var(--radius);
   padding: 2px var(--space-2); min-height: 20px;
-  border: var(--hairline) solid transparent;
+  border: var(--border-w-2) solid transparent;
 }
 .ci-status-ok      { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
 .ci-status-warn    { background: var(--warning-bg); color: var(--warning); border-color: var(--warning-border); }
@@ -9203,12 +9193,12 @@ label.intake-tool-btn {
 }
 .ci-sheet-head {
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
-  padding: var(--space-4); border-bottom: var(--hairline) solid var(--border-color);
+  padding: var(--space-4); border-bottom: var(--border-w-2) solid var(--border-color);
 }
 .ci-sheet-body { flex: 1; overflow-y: auto; padding: var(--space-4); }
 .ci-sheet-foot {
   display: flex; gap: var(--space-2); padding: var(--space-3) var(--space-4);
-  border-top: var(--hairline) solid var(--border-color); background: var(--surface-muted);
+  border-top: var(--border-w-2) solid var(--border-color); background: var(--surface-muted);
 }
 
 /* ── 5상태 공통 ── */
@@ -9223,7 +9213,7 @@ label.intake-tool-btn {
 .ci-empty {
   display: flex; flex-direction: column; align-items: center; gap: var(--space-3);
   padding: var(--space-12) var(--space-4); text-align: center;
-  border: var(--hairline) dashed var(--border-color); border-radius: var(--radius-lg);
+  border: var(--border-w-2) dashed var(--border-color); border-radius: var(--radius-lg);
   background: var(--color-surface);
 }
 .ci-empty-title { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
@@ -9231,7 +9221,7 @@ label.intake-tool-btn {
 
 .ci-error {
   display: flex; flex-direction: column; gap: var(--space-2);
-  padding: var(--space-4); border: var(--hairline) solid var(--danger-border);
+  padding: var(--space-4); border: var(--border-w-2) solid var(--danger-border);
   border-radius: var(--radius-lg); background: var(--danger-bg); color: var(--danger);
   font-size: var(--fs-sm);
 }
@@ -9269,7 +9259,7 @@ label.intake-tool-btn {
 .ci-tabbar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: var(--z-sticky, 100);
   display: none; grid-template-columns: repeat(5, 1fr);
-  background: var(--color-surface); border-top: var(--hairline) solid var(--border-color);
+  background: var(--color-surface); border-top: var(--border-w-2) solid var(--border-color);
 }
 .ci-tabbar-item {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;

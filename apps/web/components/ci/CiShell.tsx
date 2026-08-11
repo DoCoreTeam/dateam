@@ -31,29 +31,29 @@ const NAV: NavGroup[] = [
     items: [{ href: '/ci', label: '홈', icon: <Home size={16} /> }],
   },
   {
-    label: '리서치 — 모으고 지켜보고 분석',
+    label: '리서치',
     items: [
-      { href: '/ci/inbox', label: '1 수집함', icon: <Search size={16} />, countKey: 'review' },
-      { href: '/ci/monitoring', label: '2 모니터링', icon: <Search size={16} />, match: ['/ci/monitoring', '/ci/channels'] },
-      { href: '/ci/trends', label: '3 트렌드', icon: <Search size={16} />, countKey: 'newOutliers' },
+      { href: '/ci/inbox', label: '수집함', icon: <Search size={16} />, countKey: 'review' },
+      { href: '/ci/monitoring', label: '모니터링', icon: <Search size={16} />, match: ['/ci/monitoring', '/ci/channels'] },
+      { href: '/ci/trends', label: '트렌드', icon: <Search size={16} />, countKey: 'newOutliers' },
     ],
   },
   {
-    label: '제작 — 아이디어에서 완성까지',
+    label: '제작',
     items: [
       { href: '/ci/pipeline', label: '파이프라인', icon: <PenTool size={16} />, countKey: 'producing' },
       { href: '/ci/assets', label: '자료', icon: <PenTool size={16} /> },
     ],
   },
   {
-    label: '게시 — 내보내고 기록',
+    label: '게시',
     items: [
       { href: '/ci/publish', label: '게시', icon: <Send size={16} />, countKey: 'ready' },
       { href: '/ci/my-channels', label: '내 채널', icon: <Send size={16} /> },
     ],
   },
   {
-    label: '성과 — 확인하고 배우기',
+    label: '성과',
     items: [
       { href: '/ci/performance', label: '성과', icon: <BarChart3 size={16} />, countKey: 'tracking' },
     ],
