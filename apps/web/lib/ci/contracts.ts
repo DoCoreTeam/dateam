@@ -1,0 +1,167 @@
+// lib/ci/contracts.ts — API 응답 계약 (서버·클라이언트 공용 타입)
+// 설계: docs/2026-08-11-v0.6.0-content-intelligence-api/01-api-contract.md
+//
+// 핵심 규약: 문장형 지표는 서버가 완성해 내려보낸다.
+// 클라이언트가 배수를 다시 계산하거나 포맷하지 않는다(§4.3 규격을 한 곳에서만 강제).
+
+import type {
+  CiComparability, CiConfidence, CiIngestStatus, CiPipelineStage, CiPlatform,
+} from './types.ts'
+
+// ── 공통 봉투 ────────────────────────────────────────────────────
+
+export interface ApiMeta {
+  total?: number
+  cursor?: string | null
+  [k: string]: unknown
+}
+
+export type ApiResponse<T> =
+  | { success: true; data: T; meta?: ApiMeta }
+  | { success: false; error: ApiError }
+
+export interface ApiError {
+  code: CiErrorCode
+  message: string
+  details?: unknown
+}
+
+export type CiErrorCode =
+  | 'UNAUTHORIZED' | 'FORBIDDEN' | 'WORKSPACE_REQUIRED' | 'VALIDATION_FAILED'
+  | 'NOT_FOUND' | 'CONFLICT' | 'PLAN_LIMIT_EXCEEDED' | 'QUOTA_EXHAUSTED'
+  | 'CONNECTOR_FAILED' | 'AI_BUDGET_EXCEEDED' | 'SETTING_ENCRYPTION_UNAVAILABLE'
+  | 'INTERNAL'
+
+export const CI_ERROR_STATUS: Record<CiErrorCode, number> = {
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  WORKSPACE_REQUIRED: 400,
+  VALIDATION_FAILED: 422,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  PLAN_LIMIT_EXCEEDED: 402,
+  QUOTA_EXHAUSTED: 429,
+  CONNECTOR_FAILED: 502,
+  AI_BUDGET_EXCEEDED: 402,
+  SETTING_ENCRYPTION_UNAVAILABLE: 500,
+  INTERNAL: 500,
+}
+
+// ── 콘텐츠 ───────────────────────────────────────────────────────
+
+export interface CiContentListItem {
+  id: string
+  platform: CiPlatform
+  title: string | null
+  thumbnailUrl: string | null
+  channelName: string | null
+  canonicalUrl: string
+  ingestStatus: CiIngestStatus
+  completeness: number | null
+  missingFields: string[]
+  topic: { id: string; name: string } | null
+  topicConfidence: number | null
+  /** 서버가 완성한 문장. 표시 불가면 null */
+  outlierText: string | null
+  percentileText: string | null
+  comparability: CiComparability | null
+  confidence: CiConfidence
+  publishedAtText: string | null
+  firstSeenAt: string
+}
+
+export interface CiEvidence {
+  windowDays: number
+  sampleSize: number
+  basisText: string
+  includedCount: number
+  excludedReasons: { reason: string; count: number }[]
+  method: string | null
+  fetchedAt: string | null
+  missingFields: string[]
+}
+
+// ── 홈 ───────────────────────────────────────────────────────────
+
+export interface CiLoopMinimap {
+  review: number
+  newOutliers: number
+  producing: number
+  ready: number
+  tracking: number
+}
+
+export interface CiRefreshState {
+  status: 'idle' | 'running' | 'failed'
+  progress: number
+  newCount: number
+  failedCount: number
+  lastRunAt: string | null
+}
+
+export type CiColdStartStep = 'topic' | 'samples' | 'channels' | 'schedule'
+
+export interface CiHomeData {
+  workspaceId: string
+  workspaceName: string
+  minimap: CiLoopMinimap
+  briefing: CiContentListItem[]
+  refresh: CiRefreshState
+  coldStart: { needed: boolean; step: CiColdStartStep | null }
+}
+
+// ── 트렌드 ───────────────────────────────────────────────────────
+
+export interface CiTrendMeta extends ApiMeta {
+  population: number
+  windowDays: number
+  insufficient: boolean
+  basisText: string
+}
+
+// ── 채널 ─────────────────────────────────────────────────────────
+
+export interface CiChannelListItem {
+  id: string
+  platform: CiPlatform
+  displayName: string
+  handle: string | null
+  avatarUrl: string | null
+  subscriberCount: number | null
+  isMonitored: boolean
+  ownership: 'owned' | 'tracked'
+  sizeBand: string | null
+  topic: { id: string; name: string } | null
+  lastSeenAt: string | null
+}
+
+// ── 수집 ─────────────────────────────────────────────────────────
+
+export interface CiIngestAccepted {
+  url: string
+  contentId: string
+  jobId: string
+  status: 'queued'
+}
+
+export interface CiIngestRejected {
+  url: string
+  code: 'UNSUPPORTED_PLATFORM' | 'DUPLICATE' | 'INVALID_URL'
+  message: string
+}
+
+export interface CiIngestResult {
+  accepted: CiIngestAccepted[]
+  rejected: CiIngestRejected[]
+}
+
+// ── 파이프라인 ───────────────────────────────────────────────────
+
+export interface CiIdeaCard {
+  id: string
+  title: string
+  stage: CiPipelineStage
+  evidenceBadge: string | null
+  targetPlatforms: CiPlatform[]
+  daysInStage: number
+}

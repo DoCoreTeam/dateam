@@ -1,0 +1,181 @@
+'use client'
+
+// app/(ci)/ci/inbox/InboxView.tsx — R01 수집함 뷰
+// 목록과 검토 큐를 탭으로 통합한다(설계서 §5.4 R01 비고).
+
+import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import type { CiContentListItem } from '@/lib/ci/contracts'
+import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
+import CiPageHeader from '@/components/ci/CiPageHeader'
+import StageNav, { RESEARCH_STAGES } from '@/components/ci/StageNav'
+import LinkIntakeBox from '@/components/ci/LinkIntakeBox'
+import DetailSheet from '@/components/ci/DetailSheet'
+import MetricBadge from '@/components/ci/MetricBadge'
+import { CompletenessBadge, IngestStatusBadge } from '@/components/ci/StatusBadge'
+import { EmptyState } from '@/components/ci/states'
+
+type Tab = 'all' | 'review' | 'failed'
+
+interface InboxViewProps {
+  workspaceId: string
+  tab: Tab
+  items: CiContentListItem[]
+  counts: { review: number; failed: number }
+}
+
+const PLATFORMS = ['유튜브', '틱톡', '인스타', '페북', 'X', '스레드']
+
+export default function InboxView({ workspaceId, tab, items, counts }: InboxViewProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [retrying, setRetrying] = useState<string | null>(null)
+
+  function goTab(next: Tab) {
+    const params = new URLSearchParams(searchParams.toString())
+    if (next === 'all') params.delete('tab')
+    else params.set('tab', next)
+    router.push(`/ci/inbox${params.toString() ? `?${params}` : ''}`, { scroll: false })
+  }
+
+  async function retry(id: string) {
+    setRetrying(id)
+    try {
+      await fetch(`/api/ci/contents/${id}/retry`, {
+        method: 'POST',
+        headers: { 'X-CI-Workspace': workspaceId },
+      })
+      router.refresh()
+    } finally {
+      setRetrying(null)
+    }
+  }
+
+  const TABS: { id: Tab; label: string; count?: number }[] = [
+    { id: 'all', label: '전체' },
+    { id: 'review', label: '검토 필요', count: counts.review },
+    { id: 'failed', label: '실패', count: counts.failed },
+  ]
+
+  return (
+    <>
+      <CiPageHeader
+        title="수집함"
+        desc="링크를 넣으면 자동으로 분석해 분류합니다"
+        stageNav={<StageNav stages={RESEARCH_STAGES} />}
+      />
+
+      <LinkIntakeBox workspaceId={workspaceId} onDone={() => router.refresh()} />
+
+      <div role="tablist" className="ci-stage-nav" style={{ margin: 'var(--space-6) 0 var(--space-4)' }}>
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            type="button"
+            className="ci-stage-item"
+            aria-selected={tab === t.id}
+            aria-current={tab === t.id ? 'page' : undefined}
+            onClick={() => goTab(t.id)}
+          >
+            {t.label}
+            {t.count ? <span className="ci-nav-count ci-num">{t.count}</span> : null}
+          </button>
+        ))}
+      </div>
+
+      {items.length === 0 ? (
+        tab === 'all' ? (
+          <EmptyState
+            title="아직 담은 링크가 없습니다"
+            description={`${PLATFORMS.join(', ')} 링크를 붙여넣어 보세요. 붙여넣는 즉시 수집이 시작됩니다.`}
+            secondary={<p className="ci-basis">{PLATFORMS.join(' · ')}</p>}
+          />
+        ) : tab === 'review' ? (
+          <EmptyState
+            title="검토할 항목이 없습니다"
+            description="분류가 애매한 항목만 여기로 옵니다. 지금은 전부 자동으로 확정되었습니다."
+            action={{ label: '전체 보기', href: '/ci/inbox' }}
+          />
+        ) : (
+          <EmptyState
+            title="실패한 수집이 없습니다"
+            description="수집에 실패한 링크는 원인과 함께 여기 모입니다."
+            action={{ label: '전체 보기', href: '/ci/inbox' }}
+          />
+        )
+      ) : (
+        <table className="table-base table-card">
+          <thead>
+            <tr>
+              <th>제목</th>
+              <th>플랫폼</th>
+              <th>상태</th>
+              <th>주제</th>
+              <th>평소 대비</th>
+              <th>담은 날짜</th>
+              <th>작업</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.id}>
+                <td className="card-header">
+                  <button
+                    type="button"
+                    onClick={() => setOpenId(item.id)}
+                    style={{ all: 'unset', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    {item.title ?? item.canonicalUrl}
+                  </button>
+                </td>
+                <td data-label="플랫폼">{CI_PLATFORM_LABEL[item.platform]}</td>
+                <td data-label="상태">
+                  <IngestStatusBadge status={item.ingestStatus} />
+                  <CompletenessBadge
+                    completeness={item.completeness}
+                    missingFields={item.missingFields}
+                  />
+                </td>
+                <td data-label="주제">{item.topic?.name ?? '미분류'}</td>
+                <td data-label="평소 대비">
+                  <MetricBadge text={item.outlierText} />
+                  {!item.outlierText && (
+                    <span className="ci-basis" title="같은 채널·포맷 비교 이력이 8개 미만입니다">—</span>
+                  )}
+                </td>
+                <td data-label="담은 날짜" className="card-hide">
+                  <span className="ci-num">{item.firstSeenAt.slice(0, 10)}</span>
+                </td>
+                <td className="card-actions">
+                  {(item.ingestStatus === 'failed' || item.ingestStatus === 'partial') && (
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      onClick={() => retry(item.id)}
+                      disabled={retrying === item.id}
+                    >
+                      {retrying === item.id ? '재시도 중…' : '재시도'}
+                    </button>
+                  )}
+                  <Link href={item.canonicalUrl} target="_blank" rel="noreferrer" className="btn-ghost">
+                    원본
+                  </Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <DetailSheet
+        contentId={openId}
+        workspaceId={workspaceId}
+        onClose={() => setOpenId(null)}
+        onNextStep={(id) => router.push(`/ci/pipeline?from=${id}`)}
+      />
+    </>
+  )
+}

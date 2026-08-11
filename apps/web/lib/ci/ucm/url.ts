@@ -1,0 +1,189 @@
+// lib/ci/ucm/url.ts — 플랫폼 판별과 정규 URL 산출 SSOT
+// 설계: 02-ucm-and-connectors.md
+// 링크 투입은 전역 추가·모바일 공유 시트·어시스턴트가 모두 같은 입구를 쓴다.
+// 판별 규칙을 여러 곳에 복붙하면 플랫폼이 늘 때마다 누락이 생긴다.
+
+import type { CiPlatform, CiContentFormat } from '../types.ts'
+
+export interface ParsedUrl {
+  platform: CiPlatform
+  externalId: string
+  canonicalUrl: string
+  /** URL 형태만으로 확정 가능한 포맷. 불확실하면 null(수집 후 판정) */
+  formatHint: CiContentFormat | null
+}
+
+function hostOf(u: URL): string {
+  return u.hostname.replace(/^www\./, '').toLowerCase()
+}
+
+/**
+ * 지원 플랫폼이면 파싱 결과를, 아니면 null을 돌려준다.
+ * 예외를 던지지 않는다 — 잘못된 링크는 정상 흐름의 일부다.
+ */
+export function parseContentUrl(input: string): ParsedUrl | null {
+  const trimmed = input.trim()
+  if (!trimmed) return null
+
+  let u: URL
+  try {
+    u = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`)
+  } catch {
+    return null
+  }
+
+  const host = hostOf(u)
+  const seg = u.pathname.split('/').filter(Boolean)
+
+  // ── YouTube ──
+  if (host === 'youtu.be' && seg[0]) {
+    return yt(seg[0], null)
+  }
+  if (host.endsWith('youtube.com')) {
+    const v = u.searchParams.get('v')
+    if (v) return yt(v, 'long')
+    if (seg[0] === 'shorts' && seg[1]) return yt(seg[1], 'short')
+    if (seg[0] === 'live' && seg[1]) return yt(seg[1], 'live')
+    if (seg[0] === 'embed' && seg[1]) return yt(seg[1], null)
+  }
+
+  // ── TikTok ── /@handle/video/{id}
+  if (host.endsWith('tiktok.com')) {
+    const i = seg.indexOf('video')
+    if (i >= 0 && seg[i + 1]) {
+      return {
+        platform: 'tiktok', externalId: seg[i + 1],
+        canonicalUrl: `https://www.tiktok.com/${seg[0]}/video/${seg[i + 1]}`,
+        formatHint: 'short',
+      }
+    }
+    // 단축 링크(vm.tiktok.com 등)는 ID를 알 수 없다 → 수집 단계에서 해석
+    if (seg[0]) {
+      return {
+        platform: 'tiktok', externalId: `short:${seg[0]}`,
+        canonicalUrl: u.toString(), formatHint: 'short',
+      }
+    }
+  }
+
+  // ── Instagram ── /p/{code} /reel/{code}
+  if (host.endsWith('instagram.com') && seg[0] && seg[1]) {
+    if (seg[0] === 'p' || seg[0] === 'reel' || seg[0] === 'tv') {
+      return {
+        platform: 'instagram', externalId: seg[1],
+        canonicalUrl: `https://www.instagram.com/${seg[0]}/${seg[1]}/`,
+        formatHint: seg[0] === 'reel' ? 'short' : seg[0] === 'p' ? 'image' : null,
+      }
+    }
+  }
+
+  // ── Threads ── /@handle/post/{code}
+  if (host.endsWith('threads.net') || host.endsWith('threads.com')) {
+    const i = seg.indexOf('post')
+    if (i >= 0 && seg[i + 1]) {
+      return {
+        platform: 'threads', externalId: seg[i + 1],
+        canonicalUrl: u.origin + u.pathname, formatHint: 'text',
+      }
+    }
+  }
+
+  // ── X ── /{handle}/status/{id}
+  if (host === 'x.com' || host === 'twitter.com') {
+    const i = seg.indexOf('status')
+    if (i >= 0 && seg[i + 1]) {
+      return {
+        platform: 'x', externalId: seg[i + 1],
+        canonicalUrl: `https://x.com/${seg[0]}/status/${seg[i + 1]}`,
+        formatHint: 'text',
+      }
+    }
+  }
+
+  // ── Facebook ── /{page}/videos/{id} 또는 ?story_fbid=
+  if (host.endsWith('facebook.com') || host === 'fb.watch') {
+    const i = seg.indexOf('videos')
+    if (i >= 0 && seg[i + 1]) {
+      return {
+        platform: 'facebook', externalId: seg[i + 1],
+        canonicalUrl: u.origin + u.pathname, formatHint: 'long',
+      }
+    }
+    const story = u.searchParams.get('story_fbid')
+    if (story) {
+      return {
+        platform: 'facebook', externalId: story,
+        canonicalUrl: u.origin + u.pathname + `?story_fbid=${story}`, formatHint: null,
+      }
+    }
+    if (host === 'fb.watch' && seg[0]) {
+      return {
+        platform: 'facebook', externalId: `short:${seg[0]}`,
+        canonicalUrl: u.toString(), formatHint: 'long',
+      }
+    }
+  }
+
+  return null
+}
+
+function yt(id: string, formatHint: CiContentFormat | null): ParsedUrl {
+  return {
+    platform: 'youtube',
+    externalId: id,
+    canonicalUrl: `https://www.youtube.com/watch?v=${id}`,
+    formatHint,
+  }
+}
+
+/** 채널/프로필 URL 판별 — 관심 채널 추가 입력에 쓴다. */
+export interface ParsedChannelRef {
+  platform: CiPlatform
+  handle: string | null
+  externalId: string | null
+  url: string
+}
+
+export function parseChannelUrl(input: string): ParsedChannelRef | null {
+  const trimmed = input.trim()
+  if (!trimmed) return null
+
+  // @handle 만 입력한 경우는 플랫폼을 알 수 없다 — URL을 요구한다
+  let u: URL
+  try {
+    u = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`)
+  } catch {
+    return null
+  }
+
+  const host = hostOf(u)
+  const seg = u.pathname.split('/').filter(Boolean)
+
+  if (host.endsWith('youtube.com')) {
+    if (seg[0]?.startsWith('@')) {
+      return { platform: 'youtube', handle: seg[0], externalId: null, url: u.toString() }
+    }
+    if (seg[0] === 'channel' && seg[1]) {
+      return { platform: 'youtube', handle: null, externalId: seg[1], url: u.toString() }
+    }
+    if ((seg[0] === 'c' || seg[0] === 'user') && seg[1]) {
+      return { platform: 'youtube', handle: seg[1], externalId: null, url: u.toString() }
+    }
+  }
+  if (host.endsWith('tiktok.com') && seg[0]?.startsWith('@')) {
+    return { platform: 'tiktok', handle: seg[0], externalId: null, url: u.toString() }
+  }
+  if (host.endsWith('instagram.com') && seg[0] && !['p', 'reel', 'tv'].includes(seg[0])) {
+    return { platform: 'instagram', handle: seg[0], externalId: null, url: u.toString() }
+  }
+  if ((host.endsWith('threads.net') || host.endsWith('threads.com')) && seg[0]?.startsWith('@')) {
+    return { platform: 'threads', handle: seg[0], externalId: null, url: u.toString() }
+  }
+  if ((host === 'x.com' || host === 'twitter.com') && seg[0] && seg[0] !== 'i') {
+    return { platform: 'x', handle: seg[0], externalId: null, url: u.toString() }
+  }
+  if (host.endsWith('facebook.com') && seg[0]) {
+    return { platform: 'facebook', handle: seg[0], externalId: null, url: u.toString() }
+  }
+  return null
+}

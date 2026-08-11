@@ -34,8 +34,13 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Public routes: API key authenticated, open documentation, or access request
+  //
+  // /api/ci/internal/*는 사용자 세션이 아니라 서비스 토큰(CI_WORKER_TOKEN)으로 인증한다.
+  // 잡 워커는 크론·큐가 호출하므로 쿠키가 없다 — 세션 게이트를 통과시키되,
+  // 해당 라우트가 자체적으로 Bearer 토큰을 검사하고 토큰 미설정 시 전면 거부한다.
   if (
     pathname.startsWith('/api/public/') ||
+    pathname.startsWith('/api/ci/internal/') ||
     pathname === '/develop' || pathname.startsWith('/develop/') ||
     pathname === '/api-access' || pathname.startsWith('/api-access/')
   ) {

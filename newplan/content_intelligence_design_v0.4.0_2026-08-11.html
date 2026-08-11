@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>콘텐츠 인텔리전스 설계서 v0.4.0</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<style>
+:root{
+  --bg:#FAFAFA; --surface:#FFFFFF; --surface-2:#F4F4F5;
+  --border:#E4E4E7; --border-strong:#D4D4D8;
+  --text:#18181B; --text-2:#52525B; --text-3:#A1A1AA;
+  --brand:#4F46E5; --brand-weak:#EEF2FF;
+  --success:#16A34A; --success-weak:#F0FDF4;
+  --warning:#D97706; --warning-weak:#FFFBEB;
+  --danger:#DC2626; --danger-weak:#FEF2F2;
+  --info:#2563EB; --info-weak:#EFF6FF;
+  --r-sm:8px; --r-md:12px; --r-lg:16px;
+}
+*{box-sizing:border-box; margin:0; padding:0}
+body{font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  background:var(--bg); color:var(--text); font-size:14px; line-height:1.7; letter-spacing:-0.01em;}
+.wrap{max-width:1080px; margin:0 auto; padding:48px 32px 120px}
+header.doc{border-bottom:1px solid var(--border); padding-bottom:28px; margin-bottom:40px}
+h1{font-size:26px; font-weight:700; letter-spacing:-0.02em; margin-bottom:10px}
+.meta{display:flex; gap:16px; flex-wrap:wrap; color:var(--text-2); font-size:13px}
+.meta b{color:var(--text); font-weight:600}
+h2{font-size:20px; font-weight:700; margin:56px 0 8px; padding-top:24px; border-top:1px solid var(--border); letter-spacing:-0.02em}
+h2 .no{color:var(--brand); margin-right:8px}
+h3{font-size:15px; font-weight:700; margin:28px 0 8px}
+p{margin:8px 0; color:var(--text-2)}
+p.lead{color:var(--text); font-size:14.5px}
+table{width:100%; border-collapse:collapse; margin:14px 0; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; font-size:13px}
+th{background:var(--surface-2); text-align:left; font-weight:600; padding:9px 12px; border-bottom:1px solid var(--border); color:var(--text); white-space:nowrap}
+td{padding:9px 12px; border-bottom:1px solid var(--border); vertical-align:top; color:var(--text-2)}
+tr:last-child td{border-bottom:none}
+td b, li b{color:var(--text); font-weight:600}
+.badge{display:inline-block; padding:1px 8px; border-radius:999px; font-size:11.5px; font-weight:600; white-space:nowrap}
+.b-brand{background:var(--brand-weak); color:var(--brand)}
+.b-ok{background:var(--success-weak); color:var(--success)}
+.b-warn{background:var(--warning-weak); color:var(--warning)}
+.b-danger{background:var(--danger-weak); color:var(--danger)}
+.b-info{background:var(--info-weak); color:var(--info)}
+.b-muted{background:var(--surface-2); color:var(--text-2)}
+ul,ol{margin:8px 0 8px 20px; color:var(--text-2)}
+li{margin:4px 0}
+.card{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); padding:18px 20px; margin:14px 0}
+.callout{border-left:3px solid var(--brand); background:var(--brand-weak); border-radius:0 var(--r-sm) var(--r-sm) 0; padding:12px 16px; margin:14px 0; color:var(--text)}
+.toc{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); padding:16px 20px; margin:20px 0; font-size:13px}
+.toc a{color:var(--text-2); text-decoration:none; margin-right:18px; line-height:2}
+.toc a:hover{color:var(--brand)}
+code{background:var(--surface-2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:12px; font-family:"SF Mono",Consolas,monospace; color:var(--text)}
+.flow{display:flex; align-items:stretch; gap:0; flex-wrap:wrap; margin:12px 0}
+.flow .step{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-sm); padding:10px 14px; min-width:120px; text-align:center}
+.flow .step small{display:block; color:var(--text-3); font-size:11.5px; margin-top:2px}
+.flow .arr{align-self:center; color:var(--text-3); padding:0 8px; font-weight:700}
+.menu-map{display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin:16px 0}
+.menu-col{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden}
+.menu-col .head{background:var(--text); color:#fff; font-weight:700; padding:10px 12px; font-size:13.5px}
+.menu-col .head small{display:block; font-weight:400; color:#D4D4D8; font-size:11px}
+.menu-col .stage{padding:8px 12px; border-bottom:1px solid var(--border); font-size:12.5px; color:var(--text)}
+.menu-col .stage:last-child{border-bottom:none}
+.menu-col .stage small{display:block; color:var(--text-3); font-size:11px}
+.wire{background:var(--surface); border:1px solid var(--border-strong); border-radius:var(--r-md); padding:10px; margin:12px 0; font-size:11.5px; color:var(--text-2)}
+.wire .row{display:flex; gap:8px; margin-bottom:8px}
+.wire .row:last-child{margin-bottom:0}
+.wire .box{border:1px dashed var(--border-strong); border-radius:6px; padding:8px 10px; background:var(--surface-2); text-align:center}
+.wire .box.solid{border-style:solid; background:var(--surface)}
+.wire .box b{display:block; color:var(--text); font-size:12px; font-weight:600}
+.chips{display:flex; gap:8px; flex-wrap:wrap; margin:10px 0}
+.chip{border:1px solid var(--border); background:var(--surface); border-radius:999px; padding:4px 12px; font-size:12px; color:var(--text)}
+.swatches{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin:12px 0}
+.sw{border:1px solid var(--border); border-radius:var(--r-sm); overflow:hidden; background:var(--surface); font-size:11.5px}
+.sw .c{height:44px}
+.sw .l{padding:6px 10px; color:var(--text-2)}
+.sw .l b{display:block; color:var(--text); font-size:12px}
+.type-scale div{border-bottom:1px dashed var(--border); padding:8px 0; color:var(--text)}
+.type-scale span{color:var(--text-3); font-size:12px; margin-left:12px}
+.num{font-variant-numeric:tabular-nums}
+footer{margin-top:64px; padding-top:20px; border-top:1px solid var(--border); color:var(--text-3); font-size:12px}
+@media (max-width:860px){ .menu-map{grid-template-columns:1fr 1fr} .wrap{padding:32px 18px 80px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="doc">
+  <h1>콘텐츠 인텔리전스 설계서</h1>
+  <div class="meta">
+    <span>버전 <b>v0.4.0</b></span>
+    <span>작성일 <b>2026-08-11</b></span>
+    <span>상태 <b>설계 검토용</b></span>
+    <span>선행 <b>v0.2.0 md (커넥터, 분석 방법론, Command 절 유효), v0.3.0 (본 버전이 대체)</b></span>
+  </div>
+</header>
+
+<div class="toc">
+  <a href="#s1">1 개정 배경</a>
+  <a href="#s2">2 벤치마킹 조사</a>
+  <a href="#s3">3 자기 점검</a>
+  <a href="#s4">4 용어 v3</a>
+  <a href="#s5">5 IA v3</a>
+  <a href="#s6">6 디자인 시스템</a>
+  <a href="#s7">7 핵심 화면 스펙</a>
+  <a href="#s8">8 신규 보강</a>
+  <a href="#s9">9 문서 체계와 구현 연결</a>
+  <a href="#s10">10 설정 체계</a>
+  <a href="#s11">11 자료정리 백엔드</a>
+  <a href="#s12">12 구현 준비도 점검</a>
+  <a href="#s13">13 리스크와 부정적 팩트</a>
+  <a href="#s14">14 버전 이력</a>
+</div>
+
+<h2 id="s1"><span class="no">1</span>개정 배경</h2>
+<p class="lead">v0.2.0에 대한 지적 4건을 그대로 받아들이고, 실제 제품 조사를 근거로 다시 설계한 버전</p>
+<table>
+  <tr><th style="width:34%">지적</th><th style="width:14%">판정</th><th>v0.3.0 조치</th></tr>
+  <tr><td>용어가 와닿지 않음, 영어 음차 한글화가 어색함</td><td><span class="badge b-danger">타당</span></td><td>음차 라벨 전면 폐기, 국내 시장에서 이미 통용되는 자연 한국어 용어로 재정의, 통계 용어는 문장형 표기로 전환 (4절)</td></tr>
+  <tr><td>메뉴가 1depth 나열, 연관 묶음과 흐름 내 프로세싱 부재</td><td><span class="badge b-danger">타당</span></td><td>7개 메뉴를 5개 그룹으로 재편, 각 그룹 안에 스테이지 흐름 내장, 제작은 파이프라인 보드가 기본 화면 (5절)</td></tr>
+  <tr><td>디자인 시스템 부재, 현재 시스템 기준 필요</td><td><span class="badge b-danger">타당</span></td><td>표준 스택(Next.js, Tailwind, shadcn/ui)에 정합하는 토큰, 타이포, 컴포넌트, 상태 규칙 정의 (6절)</td></tr>
+  <tr><td>분량 대비 구체성 부족, 구현 가능성 의문</td><td><span class="badge b-danger">타당</span></td><td>핵심 화면 6개를 영역, 표시 필드, 액션, 5개 상태, 빈 상태 문구까지 명세 (7절), 벤치마킹으로 발견한 누락 기능 보강 (8절)</td></tr>
+</table>
+
+<h2 id="s2"><span class="no">2</span>벤치마킹 조사</h2>
+<p class="lead">이 시장에서 실제로 돈을 벌고 있는 제품 7개의 구조와 용어를 조사한 결과</p>
+
+<h3>2.1 제품별 조사 요약</h3>
+<table>
+  <tr><th style="width:16%">제품</th><th style="width:30%">구조와 핵심 기능</th><th>이 설계에 주는 시사점</th></tr>
+  <tr><td><b>Spotter Studio</b><br><span class="badge b-muted">유튜브 기획</span></td><td>Brainstorm, Outliers, Projects 3개 모듈. 홈 화면이 AI 채팅 기반 아이디에이션 입구. Idea Bank에 저장, 패키징(제목과 썸네일 시안), Outline, 프로젝트로 전개</td><td>리서치에서 제작까지가 하나의 흐름으로 이어지는 구조가 표준. 홈에 AI 대화 입구를 두는 방식은 우리의 AI 어시스턴트 요구와 정확히 일치</td></tr>
+  <tr><td><b>1of10</b><br><span class="badge b-muted">아웃라이어 발굴</span></td><td>채널 평균 대비 6배에서 100배 성과 영상을 배수로 표기. 채널 규모, 날짜, 배수 필터. 경쟁 채널 트래커, 아이디어 폴더(Idea Vault), 크롬 확장에서 배수 표시와 썸네일 미리보기</td><td>평소 대비 배수가 이 시장의 공용 지표 언어. 발견물을 보드에 저장하는 흐름과 브라우저 확장이 리텐션 장치</td></tr>
+  <tr><td><b>vidIQ</b><br><span class="badge b-muted">유튜브 SEO</span></td><td>일일 맞춤 아이디어 피드, 니치 트렌드 알림, 시간당 조회수, 확장 프로그램으로 유튜브 화면 위에 지표 오버레이</td><td>매일 찾아올 이유(맞춤 피드와 알림)가 구독 유지의 핵심. 우리 설계에 알림이 빠져 있었음</td></tr>
+  <tr><td><b>Metricool</b><br><span class="badge b-muted">SNS 통합 관리</span></td><td>Analytics, Inbox, Planning, SmartLinks, Ads 상단 5메뉴. 계획, 게시, 측정, 응대의 루프로 자기 제품을 설명. 계정 위계는 User 아래 Brand. 모바일은 하단 5탭에 중앙 추가 버튼</td><td>메뉴 5개 내외가 이 시장의 상한. 루프로 제품을 설명하는 프레임과 모바일 하단 탭 패턴 차용</td></tr>
+  <tr><td><b>Buffer</b><br><span class="badge b-muted">SNS 게시</span></td><td>Create, Publish, Analyze, Engage의 동사형 메뉴. 채널 수 기반 과금</td><td>동사형(하는 일 중심) 메뉴 그룹이 흐름 기반 IA의 표준 관례</td></tr>
+  <tr><td><b>블링 vling</b><br><span class="badge b-muted">국내 유튜브 분석</span></td><td>채널 검색과 분석, 영상 검색과 분석, 요즘 뜨는 순위, 유튜버 모니터링(관심 채널의 업로드와 성과 변화 추적), 채널 비교, 내 채널 리포트. 자연어 검색 예시 노출</td><td>국내 사용자에게 통하는 한국어 용어의 실측 데이터: 관심 채널, 모니터링, 요즘 뜨는, 내 채널 리포트. 음차가 아니라 이런 말들이 와닿는 언어</td></tr>
+  <tr><td><b>뷰트랩 viewtrap</b><br><span class="badge b-muted">국내 트렌드 리서치</span></td><td>크리에이터를 위한 트렌드 리서치로 자기 정의. 노출확률, 추천 키워드, 조회수 성장 추정 그래프, 규모 필터. 따라 만들 영상을 쉽게 찾는 것에 집중</td><td>국내 시장은 트렌드 리서치라는 말로 이 활동을 부름. 리서치를 상위 메뉴명으로 쓰는 근거</td></tr>
+</table>
+
+<h3>2.2 조사에서 도출한 결론 5가지</h3>
+<ol>
+  <li><b>지표 언어는 배수다</b> 시장 전체가 채널 평균 대비 몇 배를 공용어로 쓰고, 국내 커뮤니티는 이것을 떡상이라 부름 (평균 대비 2배 이상을 떡상 영상으로 정의하는 용례가 일반적)</li>
+  <li><b>메뉴는 동사형 그룹 4에서 5개</b> Create, Publish, Analyze처럼 하는 일 중심으로 묶고, 그 안에서 흐름이 이어짐</li>
+  <li><b>리서치와 제작은 끊기면 안 됨</b> 발견한 것을 보드에 저장하고 바로 아이디어로 전개하는 연결이 제품의 몸통</li>
+  <li><b>매일 올 이유가 구독을 지킴</b> 맞춤 피드, 알림, 브라우저 확장이 리텐션 3종 세트인데 v0.2.0에는 전부 없었음</li>
+  <li><b>국내 용어는 이미 존재함</b> 관심 채널, 모니터링, 요즘 뜨는, 리포트처럼 검증된 한국어가 있으므로 새로 만들 필요가 없음</li>
+</ol>
+
+<h2 id="s3"><span class="no">3</span>자기 점검 (v0.2.0 감사)</h2>
+<p class="lead">사용자 지적 외에 스스로 찾은 결함과, 벤치마킹으로 드러난 누락</p>
+
+<h3>3.1 v0.2.0의 결함</h3>
+<table>
+  <tr><th style="width:30%">결함</th><th>내용과 영향</th></tr>
+  <tr><td>용어 원칙의 자기모순</td><td>음차 금지를 원칙으로 세우고도 워치리스트, 아웃라이어, 니치, 킷 같은 음차 라벨을 그대로 채택함. 원칙과 결과가 어긋난 상태였음</td></tr>
+  <tr><td>IA가 도메인 나열</td><td>백엔드 도메인 구분(UC-100대 단위)을 그대로 메뉴로 옮김. 사용자의 일 순서가 아니라 시스템 구조를 노출한 설계였음</td></tr>
+  <tr><td>화면 정의가 목록 수준</td><td>화면 이름과 한 줄 설명만 있고 영역 구성, 표시 필드, 상태가 없어 구현자가 처음부터 다시 설계해야 하는 상태</td></tr>
+  <tr><td>디자인 근거 부재</td><td>표준 스택에 shadcn과 Tailwind가 이미 있는데 디자인 토큰과 컴포넌트 매핑을 정의하지 않음</td></tr>
+  <tr><td>콜드 스타트 미정의</td><td>데이터가 없는 첫 사용자가 무엇을 보는지 정의가 없었음. 첫 실패의 재현 조건</td></tr>
+  <tr><td>과금 축 미정의</td><td>구독 SaaS가 목표인데 무엇을 제한하고 무엇에 과금하는지 설계가 없었음</td></tr>
+</table>
+
+<h3>3.2 벤치마킹으로 드러난 기능 누락 (경쟁 제품은 있고 우리 설계에 없던 것)</h3>
+<table>
+  <tr><th style="width:24%">누락 기능</th><th>근거 제품</th><th>반영 위치</th></tr>
+  <tr><td>떡상 알림</td><td>vidIQ 트렌드 알림, 1of10 트래커</td><td>8.1절</td></tr>
+  <tr><td>아이디어 보드 (발견물 저장함)</td><td>Spotter Idea Bank, 1of10 Idea Vault</td><td>5.3절, 8.2절</td></tr>
+  <tr><td>썸네일 미리보기 (실제 피드 목업 배치)</td><td>1of10 크롬 확장</td><td>8.3절</td></tr>
+  <tr><td>브라우저 확장과 공유 시트 진입점</td><td>1of10, vidIQ 확장</td><td>8.3절</td></tr>
+  <tr><td>일일 맞춤 피드</td><td>vidIQ 데일리 아이디어</td><td>7.1절 홈</td></tr>
+  <tr><td>과금 축 (추적 수, 갱신 빈도, AI 사용량)</td><td>전 제품 공통 과금 구조</td><td>8.4절</td></tr>
+  <tr><td>팀 협업과 승인</td><td>Metricool, Buffer 승인 워크플로우</td><td>8.5절 (후순위 명시)</td></tr>
+</table>
+
+<h2 id="s4"><span class="no">4</span>용어 v3</h2>
+<p class="lead">새로 만들지 않고, 국내 시장에서 이미 검증된 한국어를 채택. 통계 용어는 화면에서 문장으로 풀어씀</p>
+
+<h3>4.1 명명 원칙</h3>
+<ol>
+  <li><b>실측 우선</b> 블링, 뷰트랩 등 국내 제품과 크리에이터 커뮤니티가 이미 쓰는 말을 채택 (관심 채널, 모니터링, 요즘 뜨는, 떡상)</li>
+  <li><b>음차 금지</b> 워치리스트, 아웃라이어, 니치 같은 영어 소리 옮김 라벨 사용 금지. 코드와 API는 영문 캐노니컬 유지 (다국어 대비)</li>
+  <li><b>통계는 문장으로</b> 지표명 대신 의미를 그대로 노출: 평소 대비 8.4배, 같은 주제 상위 3%, 근거 32개</li>
+</ol>
+
+<h3>4.2 용어 매핑표 (최종)</h3>
+<table>
+  <tr><th style="width:17%">개념</th><th style="width:15%">코드 EN</th><th style="width:16%">UI 라벨 v3</th><th style="width:22%">기각한 안</th><th>채택 근거</th></tr>
+  <tr><td>수집 대기함</td><td>inbox</td><td><b>수집함</b></td><td>인박스</td><td>보관함 계열의 자연스러운 한국어, 의미 즉시 전달</td></tr>
+  <tr><td>추적 대상 채널</td><td>tracked_channel</td><td><b>관심 채널</b></td><td>워치리스트, 관측망, 벤치마크 계정</td><td>블링이 실사용 중인 검증 용어, 내 채널과 완벽 대구</td></tr>
+  <tr><td>추적 활동</td><td>monitoring</td><td><b>모니터링</b></td><td>관측, 추적망</td><td>블링의 유튜버 모니터링 용례, 업계 통용어</td></tr>
+  <tr><td>내 소유 채널</td><td>channel</td><td><b>내 채널</b></td><td>계정 연결</td><td>관심 채널과 소유 구분이 한 단어로 명확</td></tr>
+  <tr><td>분석 단위</td><td>topic</td><td><b>주제</b></td><td>니치, 카테고리</td><td>크리에이터의 실제 대화 언어 (무슨 주제 하세요)</td></tr>
+  <tr><td>초과 성과 콘텐츠</td><td>outlier</td><td><b>떡상</b></td><td>아웃라이어, TOP 콘텐츠, 급상승</td><td>커뮤니티 표준어이자 국내 분석 문화에서 평균 대비 배수로 정의되어 쓰이는 말. 급상승은 트렌딩과 혼동되어 기각</td></tr>
+  <tr><td>반복 성공 구조</td><td>pattern</td><td><b>성공 공식</b></td><td>성공 패턴</td><td>제목 공식, 떡상 공식 등 관용 표현과 일치, 실행 가능함이 전달됨</td></tr>
+  <tr><td>외부 신호</td><td>signal</td><td><b>이슈</b></td><td>시그널, 외부 웹뉴스 트렌드</td><td>뉴스, 검색 급상승, 커뮤니티 화제를 묶는 일상어</td></tr>
+  <tr><td>제작 산출물 번들</td><td>brief</td><td><b>기획안</b></td><td>킷, 제작 패키지</td><td>제목, 훅, 대본, 썸네일, 캡션, 태그 묶음의 실무 용어</td></tr>
+  <tr><td>편집 산출물</td><td>edit_plan</td><td><b>편집안</b></td><td>클립 에디터</td><td>유지, 이미 자연스러움</td></tr>
+  <tr><td>발견물 저장 공간</td><td>board</td><td><b>보드</b></td><td>스와이프 파일, 폴더</td><td>Spotter의 Idea Bank, 1of10의 Idea Vault에 대응하는 신규 개념, 보드는 국내 협업 도구에서 통용</td></tr>
+  <tr><td>AI 실행 계층</td><td>assistant</td><td><b>AI 어시스턴트</b></td><td>에이전트, AI Dock</td><td>요구사항 원문의 표현 그대로 채택</td></tr>
+  <tr><td>데이터 갱신</td><td>refresh</td><td><b>자동 업데이트</b></td><td>스마트 리프레시, 첫 접속 갱신</td><td>일상어, 갱신 시점과 상태는 화면에 별도 표시</td></tr>
+  <tr><td>비교 집합</td><td>cohort</td><td>UI 비노출</td><td>코호트</td><td>내부 계산 개념. 화면에는 같은 주제의 숏폼끼리 비교처럼 문장으로만 등장</td></tr>
+  <tr><td>크로스포스트 묶음</td><td>content_group</td><td><b>같은 소재 묶음</b></td><td>콘텐츠 그룹</td><td>의미 그대로 노출</td></tr>
+</table>
+
+<h3>4.3 문장형 지표 표기 (화면 표기 규격)</h3>
+<table>
+  <tr><th style="width:22%">내부 지표 (코드)</th><th style="width:30%">화면 표기</th><th>표기 규칙</th></tr>
+  <tr><td>outlier_index</td><td><b>평소 대비 <span class="num">8.4</span>배</b></td><td>같은 채널, 같은 포맷 최근 20개 중앙값 대비 배수. 이력 8개 미만이면 미표시. 소수 1자리</td></tr>
+  <tr><td>topic_percentile</td><td><b>같은 주제 상위 <span class="num">3</span>%</b></td><td>같은 주제, 같은 플랫폼, 같은 포맷, 같은 기간 창 안에서의 백분위</td></tr>
+  <tr><td>pattern_lift</td><td><b>이 공식 적용 시 중앙값 <span class="num">2.1</span>배</b></td><td>근거 개수와 채널 수 병기 필수: 근거 32개, 채널 7곳</td></tr>
+  <tr><td>confidence</td><td><span class="badge b-ok">근거 충분</span> <span class="badge b-warn">관찰 중</span> <span class="badge b-muted">데이터 부족</span></td><td>v0.2.0 문서 9.8절 게이트 기준(High, Medium, 미달)을 한국어 배지로 표기</td></tr>
+  <tr><td>comparability_class</td><td><span class="badge b-info">조회수 비교 가능</span> <span class="badge b-muted">참여로만 비교</span></td><td>클래스 A와 B, C의 사용자용 번역. 플랫폼 지표 정의 차이를 숨기지 않음</td></tr>
+  <tr><td>completeness</td><td><span class="badge b-warn">일부만 수집됨</span></td><td>0.8 미만 시 표시, 탭하면 미확보 항목 목록</td></tr>
+</table>
+<div class="callout">원칙: 사용자는 지표 이름을 배우지 않아도 됨. 숫자가 스스로 설명하게 만들고, 정의가 궁금하면 탭 한 번으로 산출 근거(포함 표본, 제외 사유)까지 열람</div>
+
+<h2 id="s5"><span class="no">5</span>IA v3</h2>
+<p class="lead">동사형 5그룹. 각 그룹 안에 작업 흐름(스테이지)이 내장되고, 그룹 사이는 다음 단계 버튼으로 이어짐</p>
+
+<h3>5.1 전체 구조</h3>
+<div class="menu-map">
+  <div class="menu-col"><div class="head">홈<small>오늘 할 일과 루프 현황</small></div>
+    <div class="stage">오늘의 브리핑<small>떡상 알림, 맞춤 피드</small></div>
+    <div class="stage">루프 미니맵<small>단계별 건수, 클릭 시 이동</small></div>
+    <div class="stage">AI 어시스턴트 입력창<small>무엇이든 여기서 시작</small></div>
+  </div>
+  <div class="menu-col"><div class="head">리서치<small>모으고 지켜보고 분석</small></div>
+    <div class="stage">1 수집함<small>링크 투입, 검토, 분류</small></div>
+    <div class="stage">2 모니터링<small>관심 채널, 관심 키워드</small></div>
+    <div class="stage">3 트렌드<small>시장, 떡상, 성공 공식, 이슈</small></div>
+  </div>
+  <div class="menu-col"><div class="head">제작<small>아이디어에서 완성까지</small></div>
+    <div class="stage">파이프라인 보드<small>아이디어, 기획, 편집, 게시 준비</small></div>
+    <div class="stage">기획안 편집기<small>제목, 훅, 대본, 썸네일</small></div>
+    <div class="stage">편집안, 자료<small>Timecode, 원본과 산출물</small></div>
+  </div>
+  <div class="menu-col"><div class="head">게시<small>내보내고 기록</small></div>
+    <div class="stage">캘린더와 대기열<small>예약, 게시 준비 목록</small></div>
+    <div class="stage">두 가지 게시 경로<small>보조 수동(기본), API(선택)</small></div>
+    <div class="stage">내 채널<small>연결과 상태</small></div>
+  </div>
+  <div class="menu-col"><div class="head">성과<small>확인하고 배우기</small></div>
+    <div class="stage">내 콘텐츠<small>평소 대비, 추이</small></div>
+    <div class="stage">시장 대비<small>같은 주제 상위 %</small></div>
+    <div class="stage">학습<small>다음 추천에 반영된 내역</small></div>
+  </div>
+</div>
+<p>설정은 하단 별도 진입 (프로필, 워크스페이스, 플랫폼, 요금, 데이터). v0.2.0의 7개 나열 메뉴 대비: 수집함, 모니터링, 트렌드 3개가 리서치 1개 그룹으로 묶이고 그룹 내부에서 1, 2, 3 순서의 흐름으로 배치됨</p>
+
+<h3>5.2 제품 루프 (전 화면의 상위 개념)</h3>
+<div class="flow">
+  <div class="step"><b>리서치</b><small>모으고 분석</small></div><div class="arr">→</div>
+  <div class="step"><b>제작</b><small>아이디어를 기획안으로</small></div><div class="arr">→</div>
+  <div class="step"><b>게시</b><small>내보내고 URL 기록</small></div><div class="arr">→</div>
+  <div class="step"><b>성과</b><small>평소와 시장 대비</small></div><div class="arr">→</div>
+  <div class="step"><b>다시 리서치</b><small>결과가 추천에 반영</small></div>
+</div>
+<p>홈의 루프 미니맵이 이 다섯 칸을 건수와 함께 상시 표시: 검토 대기 4, 새 떡상 12, 제작 중 3, 게시 준비 2, 추적 중 5. 각 숫자를 누르면 해당 스테이지로 바로 이동</p>
+
+<h3>5.3 그룹 사이를 잇는 연결 장치 (1depth 나열을 흐름으로 바꾸는 실제 수단)</h3>
+<table>
+  <tr><th style="width:24%">장치</th><th>동작</th></tr>
+  <tr><td><b>다음 단계 버튼</b></td><td>모든 콘텐츠 카드와 상세에 상황별 다음 행동 1개를 고정 노출: 떡상 카드에는 이걸로 아이디어 만들기, 아이디어에는 기획안 만들기, 기획안에는 게시 준비로 보내기. 클릭 시 다음 그룹의 해당 위치로 컨텍스트를 들고 이동</td></tr>
+  <tr><td><b>보드 담기</b></td><td>리서치 어디서든 발견물을 보드에 저장. 보드는 제작의 아이디어 열에서 그대로 꺼내 씀 (리서치와 제작의 접착제)</td></tr>
+  <tr><td><b>전역 추가</b></td><td>어느 화면에서든 링크 붙여넣기와 모바일 공유 시트로 수집함에 투입</td></tr>
+  <tr><td><b>AI 어시스턴트</b></td><td>우측 패널 상주. 현재 화면과 선택 항목을 컨텍스트로 물려받아 전 기능 실행 (Command 체계는 v0.2.0 문서 11절 유지)</td></tr>
+  <tr><td><b>빵부스러기 유지</b></td><td>다음 단계로 넘어온 항목은 출처 배지를 유지 (이 기획안의 근거: 떡상 3건, 성공 공식 1건). 탭하면 근거로 되돌아감</td></tr>
+</table>
+
+<h3>5.4 화면 목록 v3</h3>
+<table>
+  <tr><th style="width:10%">코드</th><th style="width:20%">화면</th><th style="width:16%">소속</th><th>비고</th></tr>
+  <tr><td>H01</td><td>홈</td><td>홈</td><td>브리핑, 루프 미니맵, AI 입력창</td></tr>
+  <tr><td>R01</td><td>수집함</td><td>리서치 1</td><td>목록과 검토 큐 통합 (탭 전환)</td></tr>
+  <tr><td>R02</td><td>모니터링</td><td>리서치 2</td><td>관심 채널, 관심 키워드</td></tr>
+  <tr><td>R03</td><td>채널 상세</td><td>리서치 2</td><td>프로필, 전체 게시물, 지표 추이, 같은 소재 묶음</td></tr>
+  <tr><td>R04</td><td>트렌드</td><td>리서치 3</td><td>탭 4개: 시장, 떡상, 성공 공식, 이슈</td></tr>
+  <tr><td>P01</td><td>파이프라인 보드</td><td>제작</td><td>제작 그룹의 기본 화면 (칸반)</td></tr>
+  <tr><td>P02</td><td>기획안 편집기</td><td>제작</td><td>부분 재생성, 버전 비교, 플랫폼별 변형</td></tr>
+  <tr><td>P03</td><td>편집안</td><td>제작</td><td>Timecode 복수안, Export</td></tr>
+  <tr><td>P04</td><td>자료</td><td>제작</td><td>원본과 산출 파일</td></tr>
+  <tr><td>B01</td><td>게시</td><td>게시</td><td>캘린더, 대기열, 두 경로</td></tr>
+  <tr><td>B02</td><td>내 채널</td><td>게시</td><td>연결 상태, API 가능 여부 표시</td></tr>
+  <tr><td>A01</td><td>성과</td><td>성과</td><td>탭 3개: 내 콘텐츠, 시장 대비, 학습</td></tr>
+  <tr><td>S01</td><td>설정</td><td>설정</td><td>10절 설정 체계에서 전체 인벤토리 정의</td></tr>
+  <tr><td>공용</td><td>콘텐츠 상세 시트</td><td>전역</td><td>우측 시트로 열림, 전 화면 공용, 중복 구현 금지</td></tr>
+  <tr><td>공용</td><td>보드</td><td>전역</td><td>리서치와 제작 양쪽에서 접근</td></tr>
+</table>
+
+<h3>5.5 모바일 (하단 5탭, Metricool 패턴 차용)</h3>
+<div class="chips">
+  <span class="chip">홈</span><span class="chip">리서치</span><span class="chip"><b>+ 추가</b> (중앙, 링크와 공유 시트)</span><span class="chip">제작</span><span class="chip">성과</span>
+</div>
+<p>게시는 제작 파이프라인의 마지막 열과 홈 브리핑에서 진입. 1순위 모바일 시나리오는 공유 시트로 링크 저장과 떡상 알림 확인</p>
+
+<h2 id="s6"><span class="no">6</span>디자인 시스템</h2>
+<p class="lead">표준 스택(Next.js 15, Tailwind, shadcn/ui)에 그대로 얹는 토큰과 규칙. 이 문서 자체가 아래 토큰으로 렌더링되어 있음</p>
+
+<h3>6.1 방향 3가지</h3>
+<ol>
+  <li><b>데이터 밀도형 라이트 UI</b> Linear, Vercel 계열의 밀도 높은 대시보드 문법. 보더 중심, 그림자 최소, 카드 라운드 12px. 다크 모드는 토큰 반전으로 지원하되 기본은 라이트</li>
+  <li><b>숫자가 주인공</b> 표와 지표에 tabular-nums 고정폭 숫자, 문장형 지표 표기(4.3절)를 컴포넌트 수준에서 강제</li>
+  <li><b>토큰 외 색 금지</b> 아래 정의된 CSS 변수 외의 임의 색상 사용 금지, 플랫폼 브랜드 색은 아이콘에만 허용하고 차트는 중립 팔레트 사용</li>
+</ol>
+
+<h3>6.2 컬러 토큰</h3>
+<div class="swatches">
+  <div class="sw"><div class="c" style="background:#FAFAFA;border-bottom:1px solid #E4E4E7"></div><div class="l"><b>bg</b>#FAFAFA 페이지 배경</div></div>
+  <div class="sw"><div class="c" style="background:#FFFFFF;border-bottom:1px solid #E4E4E7"></div><div class="l"><b>surface</b>#FFFFFF 카드</div></div>
+  <div class="sw"><div class="c" style="background:#F4F4F5"></div><div class="l"><b>surface-2</b>#F4F4F5 헤더, 입력</div></div>
+  <div class="sw"><div class="c" style="background:#E4E4E7"></div><div class="l"><b>border</b>#E4E4E7</div></div>
+  <div class="sw"><div class="c" style="background:#18181B"></div><div class="l"><b>text</b>#18181B 본문</div></div>
+  <div class="sw"><div class="c" style="background:#52525B"></div><div class="l"><b>text-2</b>#52525B 보조</div></div>
+  <div class="sw"><div class="c" style="background:#4F46E5"></div><div class="l"><b>brand</b>#4F46E5 주요 액션 (브랜드 확정 시 교체 가능한 단일 슬롯)</div></div>
+  <div class="sw"><div class="c" style="background:#16A34A"></div><div class="l"><b>success</b>#16A34A 근거 충분, 완료</div></div>
+  <div class="sw"><div class="c" style="background:#D97706"></div><div class="l"><b>warning</b>#D97706 관찰 중, 부분 수집</div></div>
+  <div class="sw"><div class="c" style="background:#DC2626"></div><div class="l"><b>danger</b>#DC2626 실패, 삭제</div></div>
+  <div class="sw"><div class="c" style="background:#2563EB"></div><div class="l"><b>info</b>#2563EB 안내, 클래스 표기</div></div>
+</div>
+<p>차트 팔레트 6색 (색약 안전 조합): #4F46E5, #0EA5E9, #16A34A, #D97706, #DB2777, #64748B. 시맨틱 배지는 위 4색의 weak 배경 + 본색 텍스트 조합만 사용</p>
+
+<h3>6.3 타이포그래피</h3>
+<p>서체: Pretendard Variable (한국어 최적화, 무료 라이선스), 숫자는 tabular-nums. 폴백: 시스템 산세리프</p>
+<div class="card type-scale">
+  <div style="font-size:26px;font-weight:700">화면 제목 26 Bold<span>페이지 1회</span></div>
+  <div style="font-size:20px;font-weight:700">섹션 제목 20 Bold<span>카드 그룹 헤더</span></div>
+  <div style="font-size:15px;font-weight:600">카드 제목 15 Semibold</div>
+  <div style="font-size:14px">본문 14 Regular<span>기본</span></div>
+  <div style="font-size:13px">표와 목록 13 Regular<span>데이터 밀도 구간</span></div>
+  <div style="font-size:11.5px;color:#A1A1AA">캡션과 배지 11.5<span>메타 정보</span></div>
+  <div style="font-size:24px;font-weight:700" class="num">지표 숫자 24 Bold 8.4배<span>tabular-nums 필수</span></div>
+</div>
+
+<h3>6.4 간격과 형태</h3>
+<div class="chips">
+  <span class="chip">간격 스케일 4, 8, 12, 16, 24, 32</span>
+  <span class="chip">라운드 8(버튼, 입력) 12(카드) 16(모달)</span>
+  <span class="chip">행 높이 40(목록) 48(터치)</span>
+  <span class="chip">보더 1px 우선, 그림자는 오버레이만</span>
+  <span class="chip">기준 폭 1280, 콘텐츠 최대 1440</span>
+  <span class="chip">좌측 내비 240px, 축소 시 64px 아이콘 레일</span>
+</div>
+
+<h3>6.5 컴포넌트 인벤토리</h3>
+<table>
+  <tr><th style="width:22%">컴포넌트</th><th style="width:20%">기반</th><th>규칙</th></tr>
+  <tr><td>버튼, 입력, 셀렉트, 탭, 시트, 다이얼로그, 토스트, 드롭다운, 테이블</td><td>shadcn/ui 기본</td><td>토큰만 오버라이드, 구조 커스텀 금지</td></tr>
+  <tr><td><b>ContentCard</b></td><td>커스텀</td><td>썸네일 16:9, 제목 2줄 말줄임, 하단에 평소 대비 배수 배지와 플랫폼 아이콘, 우측 하단 다음 단계 버튼과 보드 담기</td></tr>
+  <tr><td><b>MetricBadge</b></td><td>커스텀</td><td>문장형 지표 전용 (4.3절 규격 강제), 탭 시 산출 근거 시트</td></tr>
+  <tr><td><b>StatusBadge</b></td><td>커스텀</td><td>수집 상태, 신뢰도, 비교 가능성, 수집 완전도 4계열만 존재</td></tr>
+  <tr><td><b>PipelineBoard</b></td><td>커스텀</td><td>4열 칸반, 드래그 = 상태 전이, 열 헤더에 건수</td></tr>
+  <tr><td><b>StageNav</b></td><td>커스텀</td><td>그룹 내부 스테이지 이동 (1 수집함, 2 모니터링, 3 트렌드), 번호와 화살표로 순서 암시</td></tr>
+  <tr><td><b>DetailSheet</b></td><td>커스텀</td><td>콘텐츠 상세 전용 우측 시트 640px, 전 화면 공용, 중복 구현 금지</td></tr>
+  <tr><td><b>EvidenceSheet</b></td><td>커스텀</td><td>수치의 포함 표본, 제외 사유, 수집 방법 표시</td></tr>
+  <tr><td><b>AssistantPanel</b></td><td>커스텀</td><td>우측 상주 패널 380px, 홈에서는 중앙 입력창으로 확장</td></tr>
+  <tr><td><b>LoopMinimap</b></td><td>커스텀</td><td>홈 상단 5칸 루프와 건수, 클릭 이동</td></tr>
+</table>
+
+<h3>6.6 상태 규칙 (모든 화면 공통 5상태)</h3>
+<table>
+  <tr><th style="width:16%">상태</th><th>규칙</th></tr>
+  <tr><td>로딩</td><td>스켈레톤 (스피너 금지), 카드와 표의 실제 형태를 유지</td></tr>
+  <tr><td>빈 상태</td><td>다음 행동 1개를 반드시 제시 (7절 화면별 문구 정의), 일러스트 없이 텍스트와 버튼</td></tr>
+  <tr><td>부분 데이터</td><td>일부만 수집됨 배지와 미확보 항목 안내, 그럴듯한 수치로 위장 금지</td></tr>
+  <tr><td>오류</td><td>원인 코드, 재시도 버튼, 문의 경로. 침묵 실패 금지</td></tr>
+  <tr><td>정상</td><td>수치에는 항상 기준 병기 (기간 창, 표본 수)</td></tr>
+</table>
+
+<h2 id="s7"><span class="no">7</span>핵심 화면 스펙</h2>
+<p class="lead">Slice 1과 2에 해당하는 6개 화면의 구현 수준 명세. 와이어프레임은 영역 비율 개념도</p>
+
+<h3>7.1 H01 홈</h3>
+<div class="wire">
+  <div class="row"><div class="box solid" style="flex:1"><b>AI 어시스턴트 입력창</b>무엇을 도와드릴까요. 예: 요리 주제에서 이번 주 떡상 보여줘</div></div>
+  <div class="row"><div class="box" style="flex:1"><b>루프 미니맵</b>검토 4, 새 떡상 12, 제작 중 3, 게시 준비 2, 추적 5</div></div>
+  <div class="row">
+    <div class="box" style="flex:2"><b>오늘의 브리핑</b>관심 채널 새 게시물, 떡상 알림, 맞춤 추천 카드 피드</div>
+    <div class="box" style="flex:1"><b>자동 업데이트 상태</b>진행률, 신규, 실패</div>
+  </div>
+</div>
+<table>
+  <tr><th style="width:18%">항목</th><th>정의</th></tr>
+  <tr><td>브리핑 카드 필드</td><td>썸네일, 제목, 채널명, 평소 대비 배수, 게시 경과 시간, 다음 단계 버튼(아이디어 만들기), 보드 담기</td></tr>
+  <tr><td>대표 액션</td><td>링크 추가, 브리핑 카드 열기(상세 시트), 미니맵 이동, AI 입력</td></tr>
+  <tr><td>빈 상태</td><td>첫 링크를 붙여넣으면 30초 안에 분석이 시작됩니다 + 입력창 포커스 + 예시 링크 버튼 (8.6절 콜드 스타트)</td></tr>
+</table>
+
+<h3>7.2 R01 수집함</h3>
+<div class="wire">
+  <div class="row"><div class="box" style="flex:1"><b>상단 바</b>링크 붙여넣기 입력, 탭: 전체 | 검토 필요 8 | 실패 1</div></div>
+  <div class="row"><div class="box" style="flex:1"><b>목록 행</b>썸네일, 제목, 플랫폼, 상태 배지(수집 중, 완료, 일부만, 실패), 주제, 담은 날짜</div></div>
+  <div class="row"><div class="box" style="flex:1"><b>검토 필요 탭</b>카드 단위 주제 확정: 제안 주제 버튼 2개 + 직접 선택 + 제외</div></div>
+</div>
+<table>
+  <tr><th style="width:18%">항목</th><th>정의</th></tr>
+  <tr><td>상태 표기</td><td>QUEUED 수집 중, DONE 완료, PARTIAL 일부만 수집됨(탭 시 미확보 필드), FAILED 실패(원인과 재시도)</td></tr>
+  <tr><td>대표 액션</td><td>링크 추가, 재시도, 주제 확정, 보드 담기, 상세 열기</td></tr>
+  <tr><td>빈 상태</td><td>유튜브, 틱톡, 인스타, 페북, X, 스레드 링크를 붙여넣어 보세요 + 플랫폼 아이콘 6종</td></tr>
+</table>
+
+<h3>7.3 R04 트렌드, 떡상 탭</h3>
+<div class="wire">
+  <div class="row"><div class="box" style="flex:1"><b>조건 바 (전역 유지)</b>주제: 요리 | 플랫폼: 전체 | 포맷: 숏폼 | 기간: 28일 | 채널 규모: 1만에서 10만</div></div>
+  <div class="row"><div class="box" style="flex:1"><b>정렬</b>평소 대비 높은 순 | 최신순 | 조회 속도순</div></div>
+  <div class="row">
+    <div class="box" style="flex:1"><b>카드</b>평소 대비 12.3배</div>
+    <div class="box" style="flex:1"><b>카드</b>평소 대비 9.1배</div>
+    <div class="box" style="flex:1"><b>카드</b>평소 대비 8.4배</div>
+    <div class="box" style="flex:1"><b>카드</b>평소 대비 6.0배</div>
+  </div>
+</div>
+<table>
+  <tr><th style="width:18%">항목</th><th>정의</th></tr>
+  <tr><td>카드 필드</td><td>썸네일, 제목, 채널명과 규모, 평소 대비 배수, 같은 주제 상위 %, 게시일, 비교 가능성 배지, 다음 단계(아이디어 만들기), 보드 담기</td></tr>
+  <tr><td>데이터 규칙</td><td>모니터링 코퍼스만 표시 (수집함 단건은 통계 제외, v0.2.0 문서 9.9절), 조건 미달 시 데이터 부족 배지와 관심 채널 추가 유도</td></tr>
+  <tr><td>빈 상태</td><td>관심 채널을 3곳 이상 등록하면 이 주제의 떡상이 여기 모입니다 + 채널 추천 버튼</td></tr>
+</table>
+
+<h3>7.4 공용 콘텐츠 상세 시트</h3>
+<div class="wire">
+  <div class="row">
+    <div class="box" style="flex:2"><b>좌: 원본</b>임베드 또는 미디어, 제목, 캡션, 채널</div>
+    <div class="box" style="flex:1"><b>우: 수치</b>평소 대비, 상위 %, 조회 추이 미니 차트, 수집 상태</div>
+  </div>
+  <div class="row"><div class="box" style="flex:1"><b>탭</b>분석(왜 잘됐나) | 같은 소재 묶음 | 채널 | 수집 정보(방법, 시각, 미확보)</div></div>
+  <div class="row"><div class="box solid" style="flex:1"><b>하단 고정</b>아이디어 만들기(다음 단계) | 보드 담기 | 채널 모니터링 추가</div></div>
+</div>
+<p>전 화면에서 동일 컴포넌트로 열림. 분석 탭의 서술은 근거 배지(근거 충분, 관찰 중) 없이 단정 문구 생성 금지</p>
+
+<h3>7.5 P01 파이프라인 보드 (제작 기본 화면)</h3>
+<div class="wire">
+  <div class="row">
+    <div class="box" style="flex:1"><b>아이디어 6</b>보드에서 가져오기</div>
+    <div class="box" style="flex:1"><b>기획 3</b>기획안 작성 중</div>
+    <div class="box" style="flex:1"><b>편집 2</b>편집안, Export</div>
+    <div class="box" style="flex:1"><b>게시 준비 2</b>게시로 보내기</div>
+  </div>
+</div>
+<table>
+  <tr><th style="width:18%">항목</th><th>정의</th></tr>
+  <tr><td>카드 필드</td><td>제목(가제), 근거 배지(떡상 3건, 공식 1건), 대상 플랫폼 아이콘, 담당(후순위), 경과일</td></tr>
+  <tr><td>이동 규칙</td><td>드래그 = 상태 전이 (v0.2.0 문서 10.5절 상태도와 1:1), 뒤로 이동 허용, 편집 열은 원본 연결 시에만 활성</td></tr>
+  <tr><td>빈 상태</td><td>트렌드의 떡상에서 아이디어 만들기를 누르면 여기에 쌓입니다 + 트렌드로 이동 버튼</td></tr>
+</table>
+
+<h3>7.6 B01 게시</h3>
+<div class="wire">
+  <div class="row">
+    <div class="box" style="flex:2"><b>캘린더</b>주간 기본, 예약과 게시됨 표시</div>
+    <div class="box" style="flex:1"><b>게시 준비 목록</b>기획안, 대상 플랫폼</div>
+  </div>
+  <div class="row"><div class="box solid" style="flex:1"><b>게시 실행 시트</b>규격 검사 결과 → (API 보유) 즉시 또는 예약 / (기본) 내보내기, 캡션 복사, 업로드 바로가기, 게시 URL 입력</div></div>
+</div>
+<p>URL 입력 즉시 성과 추적 시작 안내 표시. 과거에 올린 게시물도 URL만 붙여넣으면 소급 추적 (게시 경로와 무관하게 루프가 닫힘)</p>
+
+<h2 id="s8"><span class="no">8</span>신규 보강 (벤치마킹 반영)</h2>
+<h3>8.1 떡상 알림</h3>
+<p>관심 채널의 새 게시물이 평소 대비 3배(기본값, 조정 가능)를 넘기면 푸시와 이메일 알림. 알림에서 상세 시트로 직행. 매일 접속할 이유의 1번</p>
+<h3>8.2 보드</h3>
+<p>발견물(콘텐츠, 성공 공식, 이슈)을 주제별 보드에 저장. 제작 파이프라인의 아이디어 열이 보드를 소스로 사용. 팀 공유는 후순위</p>
+<h3>8.3 진입점 확장</h3>
+<p>모바일 공유 시트를 Slice 1에 포함(1순위 유입 경로), 브라우저 확장(플랫폼 화면 위에 평소 대비 배수 표시와 원클릭 저장)은 Slice 2 이후 별도 트랙. 썸네일 미리보기(내 시안을 실제 피드 목업에 배치해 비교)는 기획안 편집기의 기능으로 Slice 3에 포함</p>
+<h3>8.4 과금 축 (구독 설계의 뼈대)</h3>
+<table>
+  <tr><th style="width:22%">축</th><th>무료 체험 범위(안)</th><th>유료 확장</th></tr>
+  <tr><td>관심 채널 수</td><td>3곳</td><td>플랜별 30, 100, 무제한</td></tr>
+  <tr><td>자동 업데이트 빈도</td><td>일 1회</td><td>스냅샷 정책 전체 (속도 지표 해금)</td></tr>
+  <tr><td>AI 사용량</td><td>일 한도</td><td>기획안 생성, 부분 재생성 확장</td></tr>
+  <tr><td>워크스페이스와 멤버</td><td>1인</td><td>팀 플랜</td></tr>
+</table>
+<p>원칙: 링크 수집과 상세 열람은 무료 구간에 두어 첫 가치를 막지 않고, 계속 지켜보는 것(모니터링, 스냅샷, 알림)에 과금</p>
+<h3>8.5 후순위 명시</h3>
+<p>팀 승인 워크플로우, 브라우저 확장, 광고 데이터 연동은 이번 재구축 범위에서 제외하고 백로그로 관리 (범위 팽창 방지)</p>
+<h3>8.6 콜드 스타트</h3>
+<p>가입 직후: 주제 1개 선택 → 예시 링크 3개 제공(클릭 시 실제 수집 시연) → 관심 채널 3곳 추천(주제 기반) → 첫 자동 업데이트 예약. 데이터 없는 빈 대시보드를 보여주는 상황을 설계상 금지</p>
+
+<h2 id="s9"><span class="no">9</span>문서 체계와 구현 연결</h2>
+<table>
+  <tr><th style="width:34%">문서</th><th>지위</th></tr>
+  <tr><td>본 문서 v0.4.0 (HTML)</td><td>용어, IA, 디자인 시스템, 화면 스펙의 기준. v0.2.0의 2절(용어)과 7절(IA)을 대체</td></tr>
+  <tr><td>v0.2.0 (md)</td><td>커넥터와 UCM(8절), 시장 분석 방법론(9절), Command 체계(11절), 게시 어댑터(12절), Slice 완료 기준(14절)은 유효. 화면 코드는 본 문서 5.4절로 갱신</td></tr>
+</table>
+<p>Slice 1 구현 착수 시 필요한 것: 본 문서 6절 토큰을 Tailwind 설정으로 이식, 7.1과 7.2와 7.4 화면, v0.2.0 문서 8.2절 수집 파이프라인, Tier 1 6개 플랫폼 회귀 URL 세트</p>
+
+
+<h2 id="s10"><span class="no">10</span>설정 체계</h2>
+<p class="lead">v0.3.0까지 설정이 메뉴 한 줄로만 존재했던 결함을 인정하고, 시장조사 기반 전체 인벤토리로 정의</p>
+
+<h3>10.1 원칙</h3>
+<ol>
+  <li><b>설정은 DB, 관리는 UI</b> 모든 운영 설정은 DB에 저장하고 화면에서 변경. 코드 하드코딩과 env 파일 토글 금지. 재배포 없이 즉시 반영, 누가 언제 바꿨는지 감사 기록</li>
+  <li><b>env의 정직한 경계</b> DB 접속 정보와 설정 암호화 마스터 키, 이 두 부트스트랩 값만은 env 또는 시크릿 매니저에 남음 (DB의 위치를 DB에 저장할 수 없는 물리적 한계). 그 외 전부, 플랫폼 API 키까지 DB에 암호화 저장하고 UI에서 등록과 회전. 이 분리는 업계 표준과도 일치: env는 배포 시점 인프라 값, 런타임에 바뀌는 값은 DB 기반이 정석이며 env 토글은 안티패턴</li>
+  <li><b>3계층 스코프</b> 시스템(운영자) 위에 워크스페이스, 그 위에 개인. 하위 스코프가 상위를 덮어쓰고 해석 순서는 개인, 워크스페이스, 시스템, 코드 기본값</li>
+  <li><b>성능</b> 매 요청 DB 조회 금지. 캐시(Upstash)에 룰셋을 올려 로컬 평가하고 변경 시 무효화</li>
+  <li><b>안전한 기본값</b> 설정을 하나도 건드리지 않아도 제품이 완전히 동작. 설정은 조정 수단이지 필수 입력이 아님. 설정 항목이 많다고 온보딩에 노출하지 않음</li>
+</ol>
+
+<h3>10.2 설정 데이터 모델</h3>
+<div class="card"><code>Setting { scope: system | workspace | user, scope_id, key, value: jsonb, encrypted: bool, version, updated_by, updated_at }</code><br>
+<code>SettingAudit { key, scope, scope_id, old_value, new_value, actor, at }</code><br>
+<code>feature flag는 Setting의 한 종류 (key 접두사 flag.), 킬 스위치 포함</code></div>
+<ul>
+  <li>키별 Zod 스키마 레지스트리로 타입과 범위 검증, 설정 UI 폼은 스키마에서 자동 생성 (신규 설정 추가 시 화면 코드 수정 없음)</li>
+  <li>시크릿 값은 AES-GCM 암호화 저장, 화면에는 마스킹, 회전 이력 보존. 시크릿을 flag나 일반 설정에 평문 저장 금지</li>
+</ul>
+
+<h3>10.3 설정 인벤토리 (전수)</h3>
+<table>
+  <tr><th style="width:16%">그룹</th><th style="width:12%">스코프</th><th>항목</th></tr>
+  <tr><td>1 내 계정</td><td>개인</td><td>프로필, 표시 언어, 시간대, 알림 수신 채널(푸시, 이메일), 2단계 인증, 로그인 세션 관리</td></tr>
+  <tr><td>2 워크스페이스 일반</td><td>워크스페이스</td><td>이름, 로고, 기본 언어, 기본 시간대, 기본 주제</td></tr>
+  <tr><td>3 멤버와 역할</td><td>워크스페이스</td><td>이메일 초대, 역할 4종(소유자, 관리자, 멤버, 뷰어), 소유권 이양. 과금과 권한과 사용량 한도는 전부 워크스페이스 스코프에 귀속</td></tr>
+  <tr><td>4 알림 규칙</td><td>워크스페이스</td><td>떡상 알림 임계 배수(기본 3배), 대상 범위(전체, 특정 주제, 특정 채널), 일간 브리핑 발송 시각, 방해 금지 시간</td></tr>
+  <tr><td>5 데이터와 수집</td><td>워크스페이스</td><td>자동 업데이트 주기, 스냅샷 정밀도 프리셋(절약, 표준, 정밀), 수집 쿼터 사용 현황, 보존 기간, 전체 내보내기, 워크스페이스 삭제(유예 기간)</td></tr>
+  <tr><td>6 주제 관리</td><td>워크스페이스</td><td>주제 생성, 병합, 분리(이력 보존), 포함 제외 규칙, 자동 확정 확신도 임계(기본 0.85), 전체 재분류 실행</td></tr>
+  <tr><td>7 분석 기준</td><td>워크스페이스</td><td>채널 규모 밴드 경계값, 기본 기간 창(28일), 비교 근거 표시 수준</td></tr>
+  <tr><td>8 AI</td><td>워크스페이스</td><td>AI 응답 언어, 브랜드 보이스(기획안 톤 프리셋과 커스텀 지침), 자동화 수준(자동 확정 우선, 검토 우선), 일 사용량 한도와 현황</td></tr>
+  <tr><td>9 내 채널 연결</td><td>워크스페이스</td><td>플랫폼별 OAuth 연결 상태, 재인증, 해제 (API 게시 가능 플랫폼 표시)</td></tr>
+  <tr><td>10 게시 기본값</td><td>워크스페이스</td><td>기본 게시 채널 매핑, 예약 기본 시각, 수동 게시 체크리스트 커스텀</td></tr>
+  <tr><td>11 요금과 사용량</td><td>워크스페이스</td><td>플랜, 사용량 미터(관심 채널 수, AI 호출, 스냅샷 건수), 결제 수단(PG), 인보이스, 다운그레이드 시 초과분 처리 규칙</td></tr>
+  <tr><td>12 보안과 규정</td><td>워크스페이스</td><td>감사 로그 열람, 데이터 삭제 요청 처리, API 토큰(후순위)</td></tr>
+  <tr><td>13 운영자 콘솔</td><td>시스템(/admin)</td><td>PlatformProfile 편집 UI, 커넥터 헬스와 회귀 URL 세트 관리, 잡 대시보드(11절), 분류 프롬프트와 모델 버전 관리, LLM 라우팅과 예산 상한, 플랜 정의, feature flag, 공지 발송. 일반 사용자 설정과 물리적으로 분리</td></tr>
+</table>
+
+<h3>10.4 설정 UI 패턴</h3>
+<p>좌측 세로 카테고리 목록과 우측 패널, 상단 설정 검색, 각 항목 아래 한 줄 설명 문구, 변경 즉시 저장과 실행 취소 토스트, 파괴적 작업(삭제, 재분류)은 확인 절차. 설정 UX 조사에서 검색 기능 부재와 실수로 인한 워크스페이스 삭제가 대표적 실패 신호로 확인되어 검색과 유예 삭제를 필수로 포함</p>
+
+<h2 id="s11"><span class="no">11</span>자료정리 백엔드 (AI 큐레이션 파이프라인)</h2>
+<p class="lead">1차 구현에서 분류와 정리가 동작하지 않고 전부 수동이 되었던 실패의 원인을 지목하고, 자동이 기본이 되는 구조로 재정의</p>
+
+<h3>11.1 1차 실패 진단</h3>
+<table>
+  <tr><th style="width:22%">겪은 증상</th><th style="width:34%">추정 원인</th><th>본 설계의 차단 장치</th></tr>
+  <tr><td>분류 백엔드가 제대로 동작 안 함</td><td>요청 경로에서 동기 처리, 실패하면 그대로 방치, 재시도와 상태 추적 부재</td><td>모든 정리 작업을 비동기 잡으로 분리, 재시도와 실패 큐, 잡 상태를 화면에 노출 (침묵 실패 금지)</td></tr>
+  <tr><td>전부 수동으로 하게 됨</td><td>자동화가 보조 수단이고 수동 입력이 기본 흐름이었음</td><td>자동 확정이 기본, 수동은 저확신 예외만. 검토 큐 유입률 자체를 관리 지표로 삼음 (11.6)</td></tr>
+  <tr><td>AI 정제 기능 없음</td><td>분류를 1회 호출로 끝내고 불명확하면 포기</td><td>불명확하면 AI가 추가 근거를 찾아 재판정하는 2차 검증 루프 (11.3)</td></tr>
+  <tr><td>사용자 정정이 소용없음</td><td>정정 데이터를 버림</td><td>정정 학습 루프로 축적과 반영 (11.4)</td></tr>
+</table>
+
+<h3>11.2 잡 아키텍처</h3>
+<div class="flow">
+  <div class="step"><b>수집</b><small>ingest</small></div><div class="arr">→</div>
+  <div class="step"><b>정규화</b><small>UCM 변환</small></div><div class="arr">→</div>
+  <div class="step"><b>보강</b><small>자막, 언어, 지문</small></div><div class="arr">→</div>
+  <div class="step"><b>분류</b><small>주제, 확신도</small></div><div class="arr">→</div>
+  <div class="step"><b>검증</b><small>저확신, 결손 처리</small></div><div class="arr">→</div>
+  <div class="step"><b>반영</b><small>코퍼스, 주제 투영</small></div>
+</div>
+<ul>
+  <li>각 잡: 멱등키(콘텐츠 id + 단계), 지수 백오프 재시도 3회, 최종 실패는 원인 코드와 함께 실패 큐(DLQ)로, JobRun 테이블에 전 이력 기록</li>
+  <li>큐 기반 워커 (표준 스택 정합: Upstash QStash 또는 Redis 기반 BullMQ), 이벤트 구동이 기본이고 예약 잡은 스냅샷 스케줄뿐</li>
+  <li>관측: 운영자 콘솔에 단계별 성공률, 처리 지연, 대기 길이, 실패 사유 상위 목록</li>
+</ul>
+
+<h3>11.3 AI 검증 루프 (불명확하면 AI가 확인한다)</h3>
+<table>
+  <tr><th style="width:24%">상황</th><th style="width:44%">AI 행동</th><th>결과</th></tr>
+  <tr><td>분류 확신도 미달</td><td>같은 채널의 다른 게시물, 채널 소개, 필요 시 웹 검색으로 근거를 보강해 재판정</td><td>임계 도달 시 자동 확정, 그래도 미달이면 근거 요약을 붙여 검토 큐로</td></tr>
+  <tr><td>필드 결손 (일부만 수집)</td><td>대체 수집 방법 재시도, 공개 웹에서 결손 값 보강 (예: 구독자 수)</td><td>확보 시 확보 방법을 provenance에 verified로 기록</td></tr>
+  <tr><td>지표 급변, 삭제 의심</td><td>재수집으로 교차 확인</td><td>이상치 플래그 또는 삭제 플래그, 통계 제외 처리</td></tr>
+  <tr><td>같은 소재 의심</td><td>미디어 지문 매칭 후 AI 유사도 재확인</td><td>같은 소재 묶음 생성</td></tr>
+  <tr><td>플랫폼 간 동일 채널 의심</td><td>프로필 링크, 이름, 소개 교차 확인</td><td>채널 연결 제안 (확정은 사용자)</td></tr>
+</table>
+<div class="callout">원칙: 검토 큐에 도착하는 카드에는 AI가 이미 시도한 것과 판단 근거가 첨부되어 있어야 함. 사용자는 최종 심판이지 분류 노동자가 아님</div>
+
+<h3>11.4 정정 학습 루프</h3>
+<ul>
+  <li>주제 정정, 묶음 해제, 이상치 해제 등 모든 사용자 정정을 CorrectionLog에 축적</li>
+  <li>주제별 정정 사례를 분류 프롬프트에 예시로 주입, 반복 정정은 포함 제외 규칙 승격 제안</li>
+  <li>월간 표본 정확도 리포트(운영자 콘솔)로 임계값 재조정</li>
+</ul>
+
+<h3>11.5 비용 구조 (정직)</h3>
+<p>전량 LLM 분류는 비용상 불가. 1차는 규칙과 임베딩 유사도(저비용 대량), 2차 LLM 판정은 저확신 구간만, 3차 웹 검증은 그 중 일부만 진입하는 깔때기 구조. 단계별 통과율과 단가를 운영자 콘솔에서 계측하고 AI 예산 상한(10.3 그룹 13)과 연동</p>
+
+<h3>11.6 목표 지표 (초기 SLO, 측정 후 조정)</h3>
+<div class="chips">
+  <span class="chip">자동 확정률 85% 이상</span>
+  <span class="chip">검토 큐 유입 15% 이하</span>
+  <span class="chip">분류 정확도 표본 95% (월 100건 검수)</span>
+  <span class="chip">링크 투입에서 상세 표시 p50 60초, p95 180초</span>
+  <span class="chip">잡 최종 실패율 1% 이하</span>
+  <span class="chip">실패 큐 24시간 내 처리</span>
+</div>
+
+<h2 id="s12"><span class="no">12</span>구현 준비도 점검 (메뉴별 정직 판정)</h2>
+<p class="lead">질문: 이대로 구현을 시켜도 문제가 없는가. 답: 아직 아님. 화면과 원칙은 준비되었지만 DB 스키마와 API 계약이 없어 지금 착수하면 구현자가 임의로 채우게 되고, 그것이 1차 실패의 재현 경로</p>
+<table>
+  <tr><th style="width:12%">메뉴</th><th style="width:20%">화면 스펙</th><th style="width:24%">데이터 모델</th><th style="width:18%">API 계약</th><th>판정</th></tr>
+  <tr><td>홈</td><td><span class="badge b-ok">있음</span> 7.1절</td><td><span class="badge b-warn">부분</span> 엔티티 목록만</td><td><span class="badge b-danger">없음</span></td><td>착수 불가</td></tr>
+  <tr><td>리서치</td><td><span class="badge b-ok">있음</span> 7.2, 7.3, 7.4절</td><td><span class="badge b-warn">부분</span> UCM 골격만, 필드와 관계 미정</td><td><span class="badge b-danger">없음</span></td><td>착수 불가</td></tr>
+  <tr><td>제작</td><td><span class="badge b-ok">있음</span> 7.5절</td><td><span class="badge b-warn">부분</span></td><td><span class="badge b-danger">없음</span></td><td>착수 불가</td></tr>
+  <tr><td>게시</td><td><span class="badge b-ok">있음</span> 7.6절</td><td><span class="badge b-warn">부분</span></td><td><span class="badge b-danger">없음</span></td><td>착수 불가</td></tr>
+  <tr><td>성과</td><td><span class="badge b-danger">없음</span> 화면 스펙 미작성</td><td><span class="badge b-warn">부분</span></td><td><span class="badge b-danger">없음</span></td><td>착수 불가</td></tr>
+  <tr><td>설정</td><td><span class="badge b-ok">본 버전 추가</span> 10절</td><td><span class="badge b-warn">초안</span> 10.2절</td><td><span class="badge b-danger">없음</span></td><td>착수 불가</td></tr>
+</table>
+<h3>착수 전 필수 산출물과 순서</h3>
+<ol>
+  <li><b>v0.5.0 DB 스키마 명세</b> 전 테이블의 필드, 타입, 관계, 인덱스, 상태 enum (설정, 잡, 정정 로그 테이블 포함), 성과 화면(A01) 스펙 동봉</li>
+  <li><b>v0.6.0 API 계약과 Command 카탈로그</b> 엔드포인트, 요청 응답 스키마, 에러 코드 체계, Command 전체 목록과 위험도, AI 어시스턴트 도구 정의</li>
+  <li>위 두 문서 확정 후 Slice 1 착수. 이 순서를 건너뛰는 것을 금지사항에 추가</li>
+</ol>
+
+<h2 id="s13"><span class="no">13</span>리스크와 부정적 팩트</h2>
+<p class="lead">알고 시작해야 하는 불리한 사실들. 낙관 서술 없이 대응과 남는 위험까지 기록</p>
+<table>
+  <tr><th style="width:20%">리스크</th><th style="width:34%">내용</th><th style="width:26%">대응</th><th>남는 위험</th></tr>
+  <tr><td>수집 전제의 현실</td><td>Instagram, TikTok, Threads는 공식 API 제약으로 렌더 기반 수집 의존. 차단과 구조 변경이 일상</td><td>방법 체인 폴백, 커넥터 헬스 상시 계측, 플랫폼별 회귀 URL 세트</td><td>완전 제거 불가, 유지보수 비용이 상수로 존재</td></tr>
+  <tr><td>YouTube API 쿼터</td><td>기본 일 10,000 유닛, 검색 1회에 100유닛 이상 소모, 쿼터 확장 심사는 까다로움 (국내 개발자 실측 사례로 확인)</td><td>쿼터 회계와 캐시, 검색형 기능은 쿼터 설계 선행, oEmbed와 메타 우선 사용</td><td>무료 구간 기능 폭에 상한</td></tr>
+  <tr><td>스냅샷 비용 폭증</td><td>관심 채널 100곳 x 추적 30건 x 일 4회면 하루 12,000건. 사용자 수에 선형 비례</td><td>나이별 간격 정책, 플랜별 정밀도, 워크스페이스 예산 상한</td><td>원가 구조가 요금제 설계를 지배</td></tr>
+  <tr><td>LLM 비용과 정확도</td><td>전량 LLM 처리 불가, 100% 자동 분류도 불가</td><td>깔때기 구조(11.5)와 SLO 관리(11.6)</td><td>오분류 잔존, 표본 검수로만 통제</td></tr>
+  <tr><td>약관과 법</td><td>렌더 수집은 플랫폼 약관과 긴장 관계, 공개 데이터라도 삭제 대응 의무 발생 가능</td><td>게시는 공식 경로만, 보존과 삭제 정책(10.3 그룹 5, 12), 원문 재배포 금지</td><td>플랫폼 정책 변경 리스크 상존</td></tr>
+  <tr><td>env 배제의 물리 한계</td><td>DB 접속 정보와 암호화 마스터 키는 DB에 넣을 수 없음</td><td>이 두 값만 env, 나머지 전부 DB와 UI (10.1)</td><td>없음 (경계 명확화로 해소)</td></tr>
+  <tr><td>설정 과다의 역효과</td><td>설정 항목이 많을수록 초기 사용자는 이탈</td><td>안전 기본값, 점진 노출, 설정 검색</td><td>온보딩 UX 검증 필요</td></tr>
+  <tr><td>1인 운영 부하</td><td>커넥터 6종, 잡 인프라, LLM 파이프라인 동시 유지는 부담이 큼</td><td>운영자 콘솔의 관측을 최우선 구축, 후순위 백로그(8.5) 엄수</td><td>사용자 증가 시 운영 병목</td></tr>
+</table>
+
+<h2 id="s14"><span class="no">14</span>버전 이력</h2>
+<table>
+  <tr><th style="width:12%">버전</th><th style="width:16%">일자</th><th>내용</th></tr>
+  <tr><td>v0.1.0</td><td>2026-08-11</td><td>최초 Usecase와 IA (md)</td></tr>
+  <tr><td>v0.2.0</td><td>2026-08-11</td><td>커넥터 표준화, 분석 방법론, 용어 1차 교체 (md)</td></tr>
+  <tr><td>v0.3.0</td><td>2026-08-11</td><td>벤치마킹 기반 전면 개정: 자연 한국어 용어, 5그룹 흐름형 IA, 디자인 시스템, 화면 스펙, 과금 축과 콜드 스타트 (HTML).</td></tr>
+  <tr><td>v0.4.0</td><td>2026-08-11</td><td>설정 체계 전체 인벤토리와 DB 기반 설정 원칙(10절), AI 큐레이션 파이프라인과 1차 실패 진단(11절), 메뉴별 구현 준비도 정직 판정과 착수 전 필수 산출물 순서(12절), 리스크와 부정적 팩트(13절). 커밋 메시지에 동일 버전 기록</td></tr>
+</table>
+
+<footer>콘텐츠 인텔리전스 설계서 v0.4.0, 2026-08-11. 본 문서의 렌더링 자체가 6절 디자인 토큰의 적용 예시</footer>
+</div>
+</body>
+</html>
