@@ -32,7 +32,7 @@ export default async function CiLayout({ children }: { children: React.ReactNode
   const counts = await getLoopCounts(workspace.id)
 
   return (
-    <CiShell workspaceName={workspace.name} counts={counts}>
+    <CiShell workspaceId={workspace.id} workspaceName={workspace.name} counts={counts}>
       {children}
     </CiShell>
   )

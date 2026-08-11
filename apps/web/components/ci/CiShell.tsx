@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { CiLoopMinimap } from '@/lib/ci/contracts'
+import AssistantPanel from './AssistantPanel'
 
 interface NavItem {
   href: string
@@ -42,6 +43,7 @@ const NAV: NavGroup[] = [
     label: '제작',
     items: [
       { href: '/ci/pipeline', label: '파이프라인', icon: <PenTool size={16} />, countKey: 'producing' },
+      { href: '/ci/boards', label: '보드', icon: <PenTool size={16} /> },
       { href: '/ci/assets', label: '자료', icon: <PenTool size={16} /> },
     ],
   },
@@ -74,12 +76,13 @@ function isCurrent(pathname: string, item: NavItem): boolean {
 }
 
 interface CiShellProps {
+  workspaceId: string
   workspaceName: string
   counts?: CiLoopMinimap
   children: ReactNode
 }
 
-export default function CiShell({ workspaceName, counts, children }: CiShellProps) {
+export default function CiShell({ workspaceId, workspaceName, counts, children }: CiShellProps) {
   const pathname = usePathname()
 
   return (
@@ -124,6 +127,8 @@ export default function CiShell({ workspaceName, counts, children }: CiShellProp
       <main className="ci-main">
         <div className="page-inner">{children}</div>
       </main>
+
+      <AssistantPanel workspaceId={workspaceId} />
 
       <nav className="ci-tabbar" aria-label="모바일 메뉴">
         {MOBILE_TABS.map((t) => (

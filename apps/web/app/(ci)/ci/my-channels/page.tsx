@@ -24,7 +24,7 @@ export default async function MyChannelsPage() {
         desc="내가 운영하는 채널입니다. 게시와 성과 추적의 기준이 됩니다"
       />
       <p className="ci-basis" style={{ marginBottom: 'var(--space-4)' }}>
-        플랫폼 계정 연결(OAuth)은 아직 준비 중입니다. 지금은 채널을 등록해 두면 게시 URL을 기록하는 방식으로 성과를 추적합니다.
+        채널을 등록해 두면 게시 화면에서 올린 주소를 기록하는 것만으로 성과가 추적됩니다.
       </p>
       <ChannelListView workspaceId={workspace.id} items={items} mode="owned" />
     </>

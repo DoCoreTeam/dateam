@@ -398,6 +398,12 @@ export type AiFeature =
   | 'memo-embedding'
   | 'memo-cluster-label'
   | 'dept-task-suggest'
+  // 콘텐츠 인텔리전스 — 사용량은 기존 ai_token_logs에 함께 적재한다(별도 로깅 테이블 없음)
+  | 'ci-classify'
+  | 'ci-verify'
+  | 'ci-brief'
+  | 'ci-assistant'
+  | 'ci-embedding'
   | 'project-suggest'
   | 'meeting_summarize'
   | 'meeting_extract'

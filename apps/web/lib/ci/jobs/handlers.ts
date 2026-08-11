@@ -5,20 +5,17 @@
 // 나머지 단계는 통과 처리하되 잡 이력은 남긴다 — 단계를 지운 것이 아니라 아직 비어 있는 것이다.
 
 import { createAdminClient } from '@/lib/supabase/server'
-import { youtubeConnector } from '../connectors/youtube.ts'
-import { ConnectorError, type Connector, type UcmContent } from '../connectors/types.ts'
-import { completenessOf } from '../connectors/youtube.ts'
+import { getConnector } from '../connectors/registry.ts'
+import { ConnectorError, type UcmContent } from '../connectors/types.ts'
+import { completenessFor } from '../connectors/meta-tags.ts'
 import { getGeminiMeta } from '../ai/meta.ts'
 import { computeDerived } from '../analysis/derive.ts'
+import { runClassify, runVerify, runPatterns } from './stages.ts'
 import { enqueueJob, type ClaimedJob } from './queue.ts'
 import { nextStage } from './policy.ts'
 import type { CiPlatform } from '../types.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
-const CONNECTORS: Partial<Record<CiPlatform, Connector>> = {
-  youtube: youtubeConnector,
-}
 
 export interface HandlerResult {
   ok: boolean
@@ -43,17 +40,7 @@ async function handleIngest(job: ClaimedJob): Promise<HandlerResult> {
 
   if (!content) return { ok: false, errorCode: 'NOT_FOUND', errorMessage: '콘텐츠를 찾을 수 없습니다' }
 
-  const connector = CONNECTORS[content.platform as CiPlatform]
-  if (!connector) {
-    await adminClient.from('ci_contents').update({
-      ingest_status: 'failed',
-      provenance: { error: 'NO_CONNECTOR', platform: content.platform },
-    }).eq('id', contentId)
-    return {
-      ok: false, errorCode: 'CONNECTOR_FAILED',
-      errorMessage: `${content.platform} 커넥터가 아직 없습니다`,
-    }
-  }
+  const connector = getConnector(content.platform as CiPlatform)
 
   await adminClient.from('ci_contents').update({ ingest_status: 'running' }).eq('id', contentId)
 
@@ -77,7 +64,7 @@ async function handleIngest(job: ClaimedJob): Promise<HandlerResult> {
     return { ok: false, errorCode: failure.code, errorMessage: failure.message }
   }
 
-  const completeness = completenessOf(ucm.provenance.missingFields)
+  const completeness = completenessFor(content.platform as CiPlatform, ucm.provenance.missingFields)
   const channelId = await upsertChannel(content.workspace_id, ucm)
 
   await adminClient.from('ci_contents').update({
@@ -153,20 +140,32 @@ async function handleProject(job: ClaimedJob): Promise<HandlerResult> {
   const contentId = job.target_id
   if (!contentId) return { ok: false, errorCode: 'NOT_FOUND', errorMessage: '대상이 없습니다' }
   await computeDerived(contentId)
+  // 파생값이 바뀌면 성공 공식도 다시 봐야 한다. 낡은 공식이 화면에 남지 않게.
+  if (job.workspace_id) await runPatterns(job.workspace_id)
   return { ok: true }
 }
 
-/** Slice 1에서 아직 비어 있는 단계 — 통과시키되 이력은 남긴다. */
+/** 정규화·보강은 수집 단계에서 UCM으로 이미 끝난다. 이력만 남기고 통과한다. */
 async function handlePassthrough(): Promise<HandlerResult> {
   return { ok: true }
+}
+
+async function handleClassify(job: ClaimedJob): Promise<HandlerResult> {
+  if (!job.workspace_id || !job.target_id) return { ok: true }
+  return runClassify(job.workspace_id, job.target_id)
+}
+
+async function handleVerify(job: ClaimedJob): Promise<HandlerResult> {
+  if (!job.workspace_id || !job.target_id) return { ok: true }
+  return runVerify(job.workspace_id, job.target_id)
 }
 
 const HANDLERS = {
   ingest: handleIngest,
   normalize: handlePassthrough,
   enrich: handlePassthrough,
-  classify: handlePassthrough,
-  verify: handlePassthrough,
+  classify: handleClassify,
+  verify: handleVerify,
   project: handleProject,
 } as const
 

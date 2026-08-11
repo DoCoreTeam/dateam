@@ -55,6 +55,20 @@ export default function PipelineView({ workspaceId, ideas, seed }: Props) {
     }
   }
 
+  /** 기획안 만들기 — 이미 있으면 그 편집기로, 없으면 AI 초안을 만들어 연다. */
+  async function makeBrief(ideaId: string) {
+    setBusy(true); setError(null)
+    try {
+      const res = await fetch('/api/ci/briefs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CI-Workspace': workspaceId },
+        body: JSON.stringify({ ideaId, useAi: true }),
+      }).then((r) => r.json() as Promise<ApiResponse<{ id: string; aiNote: string | null }>>)
+      if (!res.success) { setError({ code: res.error.code, message: res.error.message }); return }
+      router.push(`/ci/briefs/${res.data.id}`)
+    } finally { setBusy(false) }
+  }
+
   async function move(id: string, stage: CiPipelineStage) {
     await fetch(`/api/ci/ideas/${id}`, {
       method: 'PATCH',
@@ -147,7 +161,11 @@ export default function PipelineView({ workspaceId, ideas, seed }: Props) {
                     )}
                     <span className="ci-basis">{card.daysInStage}일째</span>
 
-                    <div style={{ display: 'flex', gap: 'var(--space-1)', marginTop: 'var(--space-1)' }}>
+                    <div style={{ display: 'flex', gap: 'var(--space-1)', marginTop: 'var(--space-1)', flexWrap: 'wrap' }}>
+                      <button type="button" className="ci-metric ci-metric-strong"
+                        onClick={() => makeBrief(card.id)} disabled={busy}>
+                        기획안
+                      </button>
                       {CI_PIPELINE_STAGES.filter((s) => s !== stage).map((s) => (
                         <button
                           key={s}

@@ -23,15 +23,30 @@ interface InboxViewProps {
   tab: Tab
   items: CiContentListItem[]
   counts: { review: number; failed: number }
+  topics: { id: string; name: string }[]
 }
 
 const PLATFORMS = ['유튜브', '틱톡', '인스타', '페북', 'X', '스레드']
 
-export default function InboxView({ workspaceId, tab, items, counts }: InboxViewProps) {
+export default function InboxView({ workspaceId, tab, items, counts, topics }: InboxViewProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [openId, setOpenId] = useState<string | null>(null)
   const [retrying, setRetrying] = useState<string | null>(null)
+  const [savingTopic, setSavingTopic] = useState<string | null>(null)
+
+  /** 주제 확정 — 사용자가 최종 심판이다. 정정은 학습에 쌓인다. */
+  async function confirmTopic(contentId: string, topicId: string | null) {
+    setSavingTopic(contentId)
+    try {
+      await fetch(`/api/ci/contents/${contentId}/topic`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CI-Workspace': workspaceId },
+        body: JSON.stringify({ topicId }),
+      })
+      router.refresh()
+    } finally { setSavingTopic(null) }
+  }
 
   function goTab(next: Tab) {
     const params = new URLSearchParams(searchParams.toString())
@@ -139,7 +154,23 @@ export default function InboxView({ workspaceId, tab, items, counts }: InboxView
                     missingFields={item.missingFields}
                   />
                 </td>
-                <td data-label="주제">{item.topic?.name ?? '미분류'}</td>
+                <td data-label="주제">
+                  {tab === 'review' ? (
+                    <div style={{ display: 'flex', gap: 'var(--space-1)', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <label className="label" htmlFor={`t-${item.id}`} style={{ position: 'absolute', left: '-9999px' }}>주제</label>
+                      <select className="input-field" id={`t-${item.id}`} style={{ width: 'auto' }}
+                        defaultValue={item.topic?.id ?? ''}
+                        disabled={savingTopic === item.id}
+                        onChange={(e) => confirmTopic(item.id, e.target.value || null)}>
+                        <option value="">미분류</option>
+                        {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                      {item.topicConfidence != null && item.topicConfidence > 0 && (
+                        <span className="ci-basis ci-num">AI {Math.round(item.topicConfidence * 100)}%</span>
+                      )}
+                    </div>
+                  ) : (item.topic?.name ?? '미분류')}
+                </td>
                 <td data-label="평소 대비">
                   <MetricBadge text={item.outlierText} />
                   {!item.outlierText && (
