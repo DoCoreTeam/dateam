@@ -32,6 +32,12 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.447', date: '2026-08-12', title: '내보내기 전에 결과를 먼저 볼 수 있어요',
+    items: [
+      { kind: 'improve', emoji: '👀', headline: '회의록을 저장하기 전에 미리보기로 확인해요', detail: '[내보내기]를 누르면 완성된 회의록 모습이 그대로 뜨고, 확인한 뒤 PDF나 이미지 중에 고르시면 됩니다. 파일을 열어보고 나서야 마음에 안 드는 걸 알게 되는 일이 없어요.' },
+    ],
+  },
+  {
     version: '0.7.446', date: '2026-08-12', title: '회의록을 진짜 회의록처럼 내보내고, 작성중·작성완료를 직접 정해요',
     items: [
       { kind: 'improve', emoji: '📋', headline: '내보낸 회의록이 보고서 서식으로 바뀌었어요', detail: '화면 모습을 그대로 찍는 대신, 표제 아래 작성일시·작성자·부서·참석자를 표로 정리한 일반적인 회의록 양식으로 만듭니다. 개조식으로 쓴 내용은 글머리표 목록으로 예쁘게 나와요.' },

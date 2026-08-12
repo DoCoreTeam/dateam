@@ -1,0 +1,17 @@
+/* 내보내기 미리보기 액자.
+   화면 전용 스타일이라 globals.css에 넣지 않는다(CLAUDE.md §0-1) — 이 화면과 함께 사는 CSS Module. */
+.previewFrame {
+  display: block;
+  width: 100%;
+  height: 56vh;
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+/* 모바일에서는 화면이 낮아 액자가 화면을 다 먹는다 — 조금 낮춰 버튼이 항상 보이게. */
+@media (max-width: 767px) {
+  .previewFrame {
+    height: 48vh;
+  }
+}

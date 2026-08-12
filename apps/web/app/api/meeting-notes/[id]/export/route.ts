@@ -44,7 +44,10 @@ export async function GET(
 ): Promise<NextResponse> {
   const url = new URL(req.url)
   const view: MeetingExportView = url.searchParams.get('view') === 'original' ? 'original' : 'refined'
-  const format: 'pdf' | 'png' = url.searchParams.get('format') === 'png' ? 'png' : 'pdf'
+  const rawFormat = url.searchParams.get('format')
+  // html = 미리보기. 실제 산출물과 같은 빌더를 쓰므로 "본 것과 받는 것"이 어긋날 수 없다(브라우저 렌더 불필요).
+  const isPreview = rawFormat === 'html'
+  const format: 'pdf' | 'png' = rawFormat === 'png' ? 'png' : 'pdf'
 
   const note = await getMeetingNote(params.id).catch(() => null)
   if (!note) return NextResponse.json({ error: '회의록을 찾을 수 없습니다' }, { status: 404 })
@@ -69,6 +72,14 @@ export async function GET(
     decisions: note.decisions ?? '',
     bodyHtml: sanitizeRichHtml(note.body ?? ''),
   })
+
+  // 미리보기는 여기서 끝 — 브라우저 엔진을 띄우지 않는다(빠르고, 엔진이 죽어도 미리보기는 뜬다).
+  if (isPreview) {
+    return new NextResponse(html, {
+      status: 200,
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+    })
+  }
 
   let browser: PuppeteerBrowser = null
   let bytes: Uint8Array

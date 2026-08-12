@@ -6,11 +6,12 @@
 //  - 수동 텍스트 수정은 편집(에디터) 화면에서 — 조회엔 편집 컨트롤을 두지 않는다(CRUD 모드 분리).
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileText, Sparkles, FileDown, ImageIcon } from 'lucide-react'
+import { FileText, Sparkles, FileDown } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import RichText from '@/components/ui/RichText'
 import { saveMeetingSummary } from './actions'
 import ExtractConfirmModal, { type ExtractResult } from './ExtractConfirmModal'
+import MeetingExportModal from './MeetingExportModal'
 
 interface Props {
   meetingNoteId: string
@@ -38,38 +39,12 @@ export default function MeetingReadBody({
   const [err, setErr] = useState('')
   const [info, setInfo] = useState('')
   const [modalResult, setModalResult] = useState<ExtractResult | null>(null)
-  const [exporting, setExporting] = useState<null | 'pdf' | 'png'>(null)
+  // 내보내기는 미리보기를 먼저 보여주고 형식을 고르게 한다 — 저장 뒤 파일을 열어보고서야
+  // "이게 아닌데"를 알게 되는 흐름을 없앤다. 실제 다운로드는 모달이 수행한다.
+  const [exportOpen, setExportOpen] = useState(false)
 
   const hasBody = bodyPlain.trim().length > 0
   const canExport = hasBody || hasRefined
-
-  // 현재 탭(정제본/원본)을 그대로 PDF·이미지로 내보낸다. 서버 puppeteer 렌더(깔끔한 문서/레티나 이미지).
-  async function doExport(format: 'pdf' | 'png') {
-    if (exporting) return
-    setExporting(format); setErr(''); setInfo('')
-    try {
-      const res = await fetch(`/api/meeting-notes/${meetingNoteId}/export?view=${tab}&format=${format}`)
-      if (!res.ok) {
-        // 서버가 준 사유를 그대로 보여준다. "잠시 후 다시"로 덮으면 사용자도 우리도 원인을 못 본다.
-        const reason = await res.json().then((j) => (typeof j?.error === 'string' ? j.error : '')).catch(() => '')
-        setErr(reason || '내보내기에 실패했습니다. 잠시 후 다시 시도해 주세요.')
-        return
-      }
-      const blob = await res.blob()
-      const cd = res.headers.get('Content-Disposition') ?? ''
-      const m = cd.match(/filename\*=UTF-8''([^;]+)/)
-      const filename = m ? decodeURIComponent(m[1]) : `회의록.${format}`
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url; a.download = filename
-      document.body.appendChild(a); a.click(); a.remove()
-      URL.revokeObjectURL(url)
-    } catch {
-      setErr('내보내기 중 오류가 발생했습니다.')
-    } finally {
-      setExporting(null)
-    }
-  }
 
   async function runAnalyze() {
     if (!hasBody || busy) return
@@ -138,14 +113,9 @@ export default function MeetingReadBody({
             <BodyTab label="원본" selected={tab === 'original'} onClick={() => setTab('original')} />
           </div>
           {canExport && (
-            <>
-              <NbButton variant="secondary" onClick={() => doExport('pdf')} disabled={!!exporting} title={`${tab === 'refined' ? 'AI 정제본' : '원본'}을 PDF로 내보내기`} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                <FileDown size={15} /> {exporting === 'pdf' ? '생성 중…' : 'PDF'}
-              </NbButton>
-              <NbButton variant="secondary" onClick={() => doExport('png')} disabled={!!exporting} title={`${tab === 'refined' ? 'AI 정제본' : '원본'}을 이미지로 내보내기`} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                <ImageIcon size={15} /> {exporting === 'png' ? '생성 중…' : '이미지'}
-              </NbButton>
-            </>
+            <NbButton variant="secondary" onClick={() => setExportOpen(true)} title={`${tab === 'refined' ? 'AI 정제본' : '원본'}을 문서로 내보내기`} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <FileDown size={15} /> 내보내기
+            </NbButton>
           )}
           {hasBody && (
             <NbButton onClick={runAnalyze} disabled={busy} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
@@ -186,6 +156,10 @@ export default function MeetingReadBody({
 
       {err && <p role="alert" style={{ margin: 0, color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>{err}</p>}
       {info && <p role="status" style={{ margin: 0, color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>{info}</p>}
+
+      {exportOpen && (
+        <MeetingExportModal meetingNoteId={meetingNoteId} view={tab} onClose={() => setExportOpen(false)} />
+      )}
 
       {modalResult && (
         <ExtractConfirmModal
