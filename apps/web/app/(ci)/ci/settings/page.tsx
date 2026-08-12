@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
-import CiPageHeader from '@/components/ci/CiPageHeader'
+import PageHeader from '@/components/ui/PageHeader'
 import SettingsView from './SettingsView'
 
 export const dynamic = 'force-dynamic'
@@ -17,9 +17,9 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <CiPageHeader
+      <PageHeader
         title="설정"
-        desc={`${workspace.name} · 내 권한: ${workspace.role}`}
+        description={`${workspace.name} · 내 권한: ${workspace.role}`}
       />
       <SettingsView workspaceId={workspace.id} />
     </>

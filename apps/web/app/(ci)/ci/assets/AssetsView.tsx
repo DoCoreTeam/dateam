@@ -11,7 +11,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { LayoutGrid, List, Search, Link2, Upload, Trash2 } from 'lucide-react'
 import type { ApiResponse, ApiMeta } from '@/lib/ci/contracts'
 import type { CiAssetItem } from '@/lib/ci/queries/assets'
-import { EmptyState, ErrorState, RowSkeleton } from '@/components/ci/states'
+import EmptyState from '@/components/ui/EmptyState'
+import ErrorState from '@/components/ui/ErrorState'
+import { SkelList } from '@/components/ui/LoadingSkeleton'
 import { isEnterKey } from '@/lib/ui/ime'
 
 type ViewMode = 'card' | 'list'
@@ -196,7 +198,7 @@ export default function AssetsView({
       </section>
 
       {notice && <p className="ci-status ci-status-ok" style={{ marginBottom: 'var(--space-3)', display: 'inline-flex' }}>{notice}</p>}
-      {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} /></div>}
+      {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} helpHref="/ci/settings" /></div>}
 
       {/* 조건 바 — 검색 · 종류 · 보기 방식 */}
       <div className="ci-asset-toolbar">
@@ -227,7 +229,7 @@ export default function AssetsView({
       </div>
 
       {loading && items.length === 0 ? (
-        <RowSkeleton rows={4} />
+        <SkelList rows={4} />
       ) : items.length === 0 ? (
         <EmptyState
           title={query ? '검색 결과가 없습니다' : '아직 등록된 자료가 없습니다'}

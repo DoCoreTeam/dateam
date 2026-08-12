@@ -13,7 +13,8 @@ import {
   type EditPoint, type SuccessEvidence, type VideoSignals,
 } from '@/lib/ci/production/edit-points'
 import { analyzeVideoFile, MAX_ANALYZE_SEC, type AnalyzeProgress } from '@/lib/ci/production/video-analyze'
-import { EmptyState, ErrorState } from '@/components/ci/states'
+import EmptyState from '@/components/ui/EmptyState'
+import ErrorState from '@/components/ui/ErrorState'
 
 const KIND_LABEL: Record<EditPoint['kind'], string> = {
   hook: '훅', trim: '잘라내기', cut: '컷', emphasis: '강조', length: '길이',
@@ -114,7 +115,7 @@ export default function StudioView({ workspaceId }: { workspaceId: string }) {
         )}
       </section>
 
-      {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} /></div>}
+      {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} helpHref="/ci/settings" /></div>}
 
       {!fileName && !error && (
         <EmptyState
@@ -193,7 +194,7 @@ export default function StudioView({ workspaceId }: { workspaceId: string }) {
             )}
 
             {points && points.length === 0 && (
-              <p className="ci-empty-desc">
+              <p className="empty-state-desc">
                 제안할 편집점을 찾지 못했습니다. 이미 군더더기가 없거나, 분석이 신호를 얻지 못한 경우입니다.
               </p>
             )}

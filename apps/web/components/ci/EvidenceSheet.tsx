@@ -7,7 +7,7 @@
 import { X } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import type { CiEvidence } from '@/lib/ci/contracts'
-import { RowSkeleton } from './states'
+import { SkelList } from '@/components/ui/LoadingSkeleton'
 
 export default function EvidenceSheet({
   evidence, onClose,
@@ -37,7 +37,7 @@ export default function EvidenceSheet({
         </header>
 
         <div className="ci-sheet-body">
-          {!evidence && <RowSkeleton rows={4} />}
+          {!evidence && <SkelList rows={4} />}
 
           {evidence && (
             <>
@@ -62,7 +62,7 @@ export default function EvidenceSheet({
                   제외한 것과 그 이유
                 </h3>
                 {evidence.excludedReasons.length === 0 ? (
-                  <p className="ci-empty-desc">제외된 표본이 없습니다.</p>
+                  <p className="empty-state-desc">제외된 표본이 없습니다.</p>
                 ) : (
                   <ul style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
                     {evidence.excludedReasons.map((r) => (
@@ -80,7 +80,7 @@ export default function EvidenceSheet({
                   <h3 style={{ fontSize: 'var(--fs-base)', fontWeight: 600, marginBottom: 'var(--space-2)' }}>
                     확보하지 못한 항목
                   </h3>
-                  <p className="ci-empty-desc">
+                  <p className="empty-state-desc">
                     {evidence.missingFields.join(', ')} — 추정값으로 채우지 않고 비워 둡니다.
                   </p>
                 </section>

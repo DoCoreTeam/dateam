@@ -9,8 +9,8 @@ import type { CiHomeData } from '@/lib/ci/contracts'
 import LoopMinimap from '@/components/ci/LoopMinimap'
 import ContentCard from '@/components/ci/ContentCard'
 import DetailSheet from '@/components/ci/DetailSheet'
-import { EmptyState } from '@/components/ci/states'
-import CiPageHeader from '@/components/ci/CiPageHeader'
+import EmptyState from '@/components/ui/EmptyState'
+import PageHeader from '@/components/ui/PageHeader'
 import LinkIntakeBox from '@/components/ci/LinkIntakeBox'
 
 const COLD_START_COPY: Record<string, { title: string; desc: string; action: { label: string; href: string } }> = {
@@ -46,9 +46,9 @@ export default function HomeView({ data }: { data: CiHomeData }) {
 
   return (
     <>
-      <CiPageHeader
+      <PageHeader
         title="홈"
-        desc="오늘 할 일과 루프 현황"
+        description="오늘 할 일과 루프 현황"
       />
 
       <LinkIntakeBox

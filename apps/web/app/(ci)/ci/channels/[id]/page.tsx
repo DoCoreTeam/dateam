@@ -6,7 +6,7 @@ import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { getChannel } from '@/lib/ci/queries/channels'
 import { listChannelContents } from '@/lib/ci/queries/channel-contents'
 import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
-import CiPageHeader from '@/components/ci/CiPageHeader'
+import PageHeader from '@/components/ui/PageHeader'
 import StageNav, { RESEARCH_STAGES } from '@/components/ci/StageNav'
 import ChannelDetailView from './ChannelDetailView'
 
@@ -29,10 +29,10 @@ export default async function ChannelDetailPage({
 
   return (
     <>
-      <CiPageHeader
+      <PageHeader
         title={channel.displayName}
-        desc={`${CI_PLATFORM_LABEL[channel.platform]} · ${channel.ownership === 'owned' ? '내 채널' : '관심 채널'}`}
-        stageNav={<StageNav stages={RESEARCH_STAGES} />}
+        description={`${CI_PLATFORM_LABEL[channel.platform]} · ${channel.ownership === 'owned' ? '내 채널' : '관심 채널'}`}
+        below={<StageNav stages={RESEARCH_STAGES} />}
         actions={
           <Link href={channel.ownership === 'owned' ? '/ci/my-channels' : '/ci/monitoring'} className="btn-ghost">
             목록으로

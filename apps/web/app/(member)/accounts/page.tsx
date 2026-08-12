@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import SortIcon from '@/components/ui/SortIcon'
 import useSWRInfinite from 'swr/infinite'
 import Link from 'next/link'
-import { Briefcase, Plus, Loader2, Search, X, Globe, Phone, MapPin, ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown, Sparkles } from 'lucide-react'
+import { Briefcase, Plus, Loader2, Search, X, Globe, Phone, MapPin, ExternalLink, Sparkles } from 'lucide-react'
 import type { Account } from '@/types/database'
 import AccountActions from './AccountActions'
 import SlidePanel from '@/components/ui/SlidePanel'
@@ -21,13 +22,6 @@ function fitColor(score: number | null) {
   if (score >= 70) return { color: 'var(--success)', background: 'var(--success-bg)' }
   if (score >= 40) return { color: 'var(--warning)', background: 'var(--warning-bg)' }
   return { color: 'var(--danger)', background: 'var(--danger-bg)' }
-}
-
-function SortIcon({ field, sort, dir }: { field: SortField; sort: SortField; dir: 'asc' | 'desc' }) {
-  if (sort !== field) return <ChevronsUpDown size={12} className="sort-icon" />
-  return dir === 'asc'
-    ? <ChevronUp size={12} className="sort-icon" />
-    : <ChevronDown size={12} className="sort-icon" />
 }
 
 export default function AccountsPage() {
@@ -147,21 +141,21 @@ export default function AccountsPage() {
             <thead>
               <tr>
                 <th className={`sort-th${sort === 'name' ? ' active' : ''}`} onClick={() => handleSort('name')}>
-                  거래처명 <SortIcon field="name" sort={sort} dir={sortDir} />
+                  거래처명 <SortIcon active={sort === 'name'} dir={sortDir} />
                 </th>
                 <th className={`sort-th${sort === 'industry' ? ' active' : ''}`} onClick={() => handleSort('industry')}>
-                  업종 <SortIcon field="industry" sort={sort} dir={sortDir} />
+                  업종 <SortIcon active={sort === 'industry'} dir={sortDir} />
                 </th>
                 <th>세그먼트</th>
                 <th className={`sort-th${sort === 'region' ? ' active' : ''}`} onClick={() => handleSort('region')}>
-                  지역 <SortIcon field="region" sort={sort} dir={sortDir} />
+                  지역 <SortIcon active={sort === 'region'} dir={sortDir} />
                 </th>
                 <th className={`sort-th${sort === 'gpu_demand_intensity' ? ' active' : ''}`} onClick={() => handleSort('gpu_demand_intensity')}>
-                  GPU수요 <SortIcon field="gpu_demand_intensity" sort={sort} dir={sortDir} />
+                  GPU수요 <SortIcon active={sort === 'gpu_demand_intensity'} dir={sortDir} />
                 </th>
                 <th>거래처유형</th>
                 <th className={`sort-th${sort === 'fit_score' ? ' active' : ''}`} style={{ textAlign: 'center' }} onClick={() => handleSort('fit_score')}>
-                  Fit <SortIcon field="fit_score" sort={sort} dir={sortDir} />
+                  Fit <SortIcon active={sort === 'fit_score'} dir={sortDir} />
                 </th>
                 <th style={{ width: '80px' }}>관리</th>
               </tr>

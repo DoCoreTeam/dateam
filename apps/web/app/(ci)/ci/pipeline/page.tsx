@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { listIdeas } from '@/lib/ci/queries/ideas'
 import { createAdminClient } from '@/lib/supabase/server'
-import CiPageHeader from '@/components/ci/CiPageHeader'
+import PageHeader from '@/components/ui/PageHeader'
 import PipelineView from './PipelineView'
 
 export const dynamic = 'force-dynamic'
@@ -35,7 +35,7 @@ export default async function PipelinePage({
 
   return (
     <>
-      <CiPageHeader title="파이프라인" desc="아이디어에서 게시 준비까지" />
+      <PageHeader title="파이프라인" description="아이디어에서 게시 준비까지" />
       <PipelineView workspaceId={workspace.id} ideas={ideas} seed={seed} />
     </>
   )

@@ -12,7 +12,7 @@ import { fmtKRW, fmtUSD } from '@/lib/gpu/format-price'
 import { termLabel } from '@/lib/gpu/term'
 import dynamic from 'next/dynamic'
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
-import { SortIcon } from '@/components/pricing/gpu/SortIcon'
+import SortIcon from '@/components/ui/SortIcon'
 import { buildTierModelGroups, tierKey, modelKey } from '@/lib/gpu/group'
 import { GPU_TERMS } from '@/lib/gpu/terms'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
@@ -853,13 +853,13 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                 onClick={() => handleSort('model')}
                 style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
               >
-                <span className="gpu-th-sort">GPU 모델<SortIcon col="model" sortConfig={sortConfig} /></span>
+                <span className="gpu-th-sort">GPU 모델<SortIcon active={sortConfig?.key === 'model'} dir={sortConfig?.dir ?? 'asc'} size={11} /></span>
               </th>
               <th
                 onClick={() => handleSort('supply')}
                 style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
               >
-                <span className="gpu-th-sort">최저 공급가 <span className="gpu-th-note">(시간당 · {currencyMode === 'KRW' ? '원화' : '달러'})</span><SortIcon col="supply" sortConfig={sortConfig} /></span>
+                <span className="gpu-th-sort">최저 공급가 <span className="gpu-th-note">(시간당 · {currencyMode === 'KRW' ? '원화' : '달러'})</span><SortIcon active={sortConfig?.key === 'supply'} dir={sortConfig?.dir ?? 'asc'} size={11} /></span>
               </th>
               <th>최저가 공급사</th>
               <th
@@ -867,7 +867,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                 onClick={() => handleSort('sell')}
                 style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
               >
-                <span className="gpu-th-sort gpu-th-sort-r">gcube 판매가 <span className="gpu-th-note">(마진 적용 · {currencyMode === 'KRW' ? '원화' : '달러'})</span><SortIcon col="sell" sortConfig={sortConfig} /></span>
+                <span className="gpu-th-sort gpu-th-sort-r">gcube 판매가 <span className="gpu-th-note">(마진 적용 · {currencyMode === 'KRW' ? '원화' : '달러'})</span><SortIcon active={sortConfig?.key === 'sell'} dir={sortConfig?.dir ?? 'asc'} size={11} /></span>
               </th>
               <th>견적 상태</th>
               {selectedTier && (

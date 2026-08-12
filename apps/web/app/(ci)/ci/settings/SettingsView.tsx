@@ -13,7 +13,8 @@ import Link from 'next/link'
 import { Check, X, ExternalLink, Plus } from 'lucide-react'
 import type { ApiResponse } from '@/lib/ci/contracts'
 import type { CiControl } from '@/lib/ci/settings/registry'
-import { RowSkeleton, ErrorState } from '@/components/ci/states'
+import ErrorState from '@/components/ui/ErrorState'
+import { SkelList } from '@/components/ui/LoadingSkeleton'
 import { isEnterKey } from '@/lib/ui/ime'
 
 interface SettingItem {
@@ -124,8 +125,8 @@ export default function SettingsView({ workspaceId }: { workspaceId: string }) {
     return GROUP_ORDER.filter((g) => g === 'overview' || present.has(g))
   }, [items])
 
-  if (error && !items) return <ErrorState code={error.code} message={error.message} />
-  if (!items) return <RowSkeleton rows={5} />
+  if (error && !items) return <ErrorState code={error.code} message={error.message} helpHref="/ci/settings" />
+  if (!items) return <SkelList rows={5} />
 
   return (
     <>
@@ -153,7 +154,7 @@ export default function SettingsView({ workspaceId }: { workspaceId: string }) {
           {toast}
         </p>
       )}
-      {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} /></div>}
+      {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} helpHref="/ci/settings" /></div>}
 
       {!query && tab === 'overview' ? (
         <OverviewPanel overview={overview} />
@@ -176,7 +177,7 @@ export default function SettingsView({ workspaceId }: { workspaceId: string }) {
 
 /** 개요 — 계정·연동·멤버. 레지스트리로 표현되지 않지만 사용자가 가장 먼저 찾는 것들. */
 function OverviewPanel({ overview }: { overview: Overview | null }) {
-  if (!overview) return <RowSkeleton rows={3} />
+  if (!overview) return <SkelList rows={3} />
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>

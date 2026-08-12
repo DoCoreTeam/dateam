@@ -2,7 +2,7 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
-import CiPageHeader from '@/components/ci/CiPageHeader'
+import PageHeader from '@/components/ui/PageHeader'
 import BoardsView from './BoardsView'
 
 export const dynamic = 'force-dynamic'
@@ -32,7 +32,7 @@ export default async function BoardsPage({
 
   return (
     <>
-      <CiPageHeader title="보드" desc="리서치에서 발견한 것을 모아두고 제작으로 넘깁니다" />
+      <PageHeader title="보드" description="리서치에서 발견한 것을 모아두고 제작으로 넘깁니다" />
       <BoardsView workspaceId={workspace.id} boards={boards} pendingContentId={sp.add ?? null} />
     </>
   )

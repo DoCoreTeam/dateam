@@ -235,7 +235,8 @@ git commit -m "claude v0.4.6: 거래처 목록 검색 필터 추가"  # 위치 �
 
 > **왜**: 이 정책이 "카드 → `NbCard`"라고 못 박아 놨는데 **`NbCard` 실사용은 0건**이고, 실제 그 일은 `.card` 클래스(196건)가 하고 있었다.
 > 정책이 가리키는 목록과 현실이 달라서, 만드는 사람은 매번 **새로 만드는 쪽**을 택했다.
-> 그 결과 v0.7.438 실측 기준 **로딩 부품 6종·탭 5종·표 4방식·빈상태 2벌·페이지헤더 2벌·정렬아이콘 2벌**이 동시에 살아 있다.
+> 그 결과 v0.7.438 실측 기준 **로딩 부품 6종·탭 5종·표 4방식·빈상태 2벌·페이지헤더 2벌·정렬아이콘 2벌**이 동시에 살아 있었다.
+> (v0.7.445에서 빈상태·오류·페이지헤더·정렬아이콘·탭은 1벌로 통일했다. **표 4방식과 로딩 5종은 아직 남아 있다.**)
 > (전수 근거: `docs/2026-08-12-v0.7.438-ui-system-audit/01-AUDIT.md`)
 
 **무엇을 만들지 정해지면, 코드를 쓰기 전에 반드시 이 순서를 따른다.**
@@ -282,16 +283,17 @@ newAX의 UI는 **두 축**이다. 둘 다 정상이며, **섞어서 재구현하
 | 무엇 | 쓸 것 | 실사용 | 쓰지 말 것 |
 |---|---|---|---|
 | 버튼 | `components/ui/nb/NbButton` | 85 | `<button style={{…}}` 자작(352건) |
-| 카드 | **`className="card"`** (클래스) | 196 | ~~`NbCard`~~ (0건·폐기 예정), 자작 박스(476건) |
-| 입력·레이블 | **`input-field` / `label`** (클래스, §2-1) | 247 / 185 | ~~`NbField`/`NbInput`/`NbSelect`/`NbTextarea`~~ (0건·폐기 예정) |
+| 카드 | **`className="card"`** (클래스) | 196 | ~~`NbCard`~~ (v0.7.445 삭제 — 0건이었다), 자작 박스(476건) |
+| 입력·레이블 | **`input-field` / `label`** (클래스, §2-1) | 247 / 185 | ~~`NbField`/`NbInput`/`NbSelect`/`NbTextarea`~~ (v0.7.445 삭제 — 0건이었다) |
 | 뱃지 | `NbBadge` | 10 | 인라인 pill 자작 |
 | 표 | **`.table-card`**(모바일 카드 변환) + `DynamicTable` | 70 / 7 | 가로 스크롤 표, 새 표 컴포넌트 |
-| 빈 상태 | `components/ui/EmptyState` | 18(+ci 18 이관 대상) | "없습니다" 문구 직접 렌더(188건) |
-| 오류 | `ErrorState` (현재 `components/ci/states.tsx` — 공용 승격 대상) | 11 | 자작 오류 박스 |
+| 빈 상태 | `components/ui/EmptyState` | 19 (v0.7.445 1벌 통합) | "없습니다" 문구 직접 렌더(188건) |
+| 오류 | `components/ui/ErrorState` (v0.7.445 공용 승격) | 11 | 자작 오류 박스 |
 | 로딩(골격) | `SkelPage` / `SkelCard` / `SkelList` (`components/ui/LoadingSkeleton.tsx`) | 11/9/7 | "불러오는 중" 문구 직접 렌더(37건) |
 | 로딩(인라인 소형) | `AXDotLoader` | 35 | 자작 스피너 |
-| 탭 | `components/ui/SegmentedTabs` | 1 | `WorkSubTabs`·`ProjectTabs`·`StageNav`·`WorkTabBar`(통합 대상) |
-| 페이지 헤더 | `components/ui/PageHeader` | 15 | raw `<h1>`, `CiPageHeader`(통합 대상) |
+| 탭 | `components/ui/SegmentedTabs` (유일 렌더러) | 16 | 탭 마크업 자작. `WorkSubTabs`·`ProjectTabs`·`WorkTabBar`·`StageNav`는 v0.7.445부터 **데이터만 넘기는 어댑터** |
+| 페이지 헤더 | `components/ui/PageHeader` | 29 (v0.7.445 CiPageHeader 흡수) | raw `<h1>` |
+| 정렬 아이콘 | `components/ui/SortIcon` | 7화면 (v0.7.445 1벌 통합) | 화면마다 SortIcon 자작 |
 | 모달 | `NbModal` + §2-2 체크리스트 | 5 | 처음부터 자작 |
 | 리치텍스트 | `components/ui/RichText` | 11 | `dangerouslySetInnerHTML` 직접 |
 | 레이아웃 | `MobileShell` (member/admin layout 자동 상속) | 3 | 새 셸 신설 |
@@ -410,7 +412,7 @@ newAX의 UI는 **두 축**이다. 둘 다 정상이며, **섞어서 재구현하
 - TypeScript
 
 ## 버전
-v0.7.444
+v0.7.445
 
 ## 버전 업데이트 체크리스트 (필수 — 누락 시 UI 버전 불일치 발생)
 

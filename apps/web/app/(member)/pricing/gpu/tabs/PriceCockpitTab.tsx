@@ -30,7 +30,7 @@ import type { GcubeCheckItem } from '@/app/api/pricing/gpu/gcube-check/route'
 import { StrategicCell } from '@/components/pricing/gpu/cockpit/StrategicCell'
 import { GcubeSiteCell } from '@/components/pricing/gpu/cockpit/GcubeSiteCell'
 import { CandidateCell } from '@/components/pricing/gpu/cockpit/CandidateCell'
-import { SortIcon } from '@/components/pricing/gpu/cockpit/SortIcon'
+import SortIcon from '@/components/ui/SortIcon'
 import { MarginBadge } from '@/components/pricing/gpu/cockpit/MarginBadge'
 import {
   CostDrawer,
@@ -589,7 +589,7 @@ export default function PriceCockpitTab({
                 >
                   <span className="cockpit-th-inner">
                     모델·구성
-                    <SortIcon col="model" sortConfig={sortConfig} />
+                    <SortIcon active={sortConfig?.key === 'model'} dir={sortConfig?.dir ?? 'asc'} size={11} />
                   </span>
                 </th>
 
@@ -606,7 +606,7 @@ export default function PriceCockpitTab({
                 >
                   <span className="cockpit-th-inner">
                     gcube 사이트 가격
-                    <SortIcon col="gcube" sortConfig={sortConfig} />
+                    <SortIcon active={sortConfig?.key === 'gcube'} dir={sortConfig?.dir ?? 'asc'} size={11} />
                   </span>
                 </th>
 
@@ -623,7 +623,7 @@ export default function PriceCockpitTab({
                 >
                   <span className="cockpit-th-inner">
                     원가 (최저~최고)
-                    <SortIcon col="cost" sortConfig={sortConfig} />
+                    <SortIcon active={sortConfig?.key === 'cost'} dir={sortConfig?.dir ?? 'asc'} size={11} />
                   </span>
                 </th>
 
@@ -640,7 +640,7 @@ export default function PriceCockpitTab({
                 >
                   <span className="cockpit-th-inner">
                     판매가 후보
-                    <SortIcon col="candidate" sortConfig={sortConfig} />
+                    <SortIcon active={sortConfig?.key === 'candidate'} dir={sortConfig?.dir ?? 'asc'} size={11} />
                   </span>
                 </th>
 
@@ -657,7 +657,7 @@ export default function PriceCockpitTab({
                 >
                   <span className="cockpit-th-inner">
                     경쟁사 가격 (최저~최고)
-                    <SortIcon col="competitor" sortConfig={sortConfig} />
+                    <SortIcon active={sortConfig?.key === 'competitor'} dir={sortConfig?.dir ?? 'asc'} size={11} />
                   </span>
                 </th>
 
@@ -674,7 +674,7 @@ export default function PriceCockpitTab({
                 >
                   <span className="cockpit-th-inner">
                     우리 판매가
-                    <SortIcon col="strategic" sortConfig={sortConfig} />
+                    <SortIcon active={sortConfig?.key === 'strategic'} dir={sortConfig?.dir ?? 'asc'} size={11} />
                   </span>
                 </th>
               </tr>

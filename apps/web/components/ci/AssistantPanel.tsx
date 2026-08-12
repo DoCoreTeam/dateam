@@ -102,7 +102,7 @@ export default function AssistantPanel({ workspaceId }: { workspaceId: string })
       <div className="ci-sheet-body">
         {!reply && (
           <>
-            <p className="ci-empty-desc" style={{ marginBottom: 'var(--space-3)' }}>
+            <p className="empty-state-desc" style={{ marginBottom: 'var(--space-3)' }}>
               무엇을 도와드릴까요. 링크를 붙여넣거나 아래처럼 물어보세요.
             </p>
             <div className="ci-card-badges">

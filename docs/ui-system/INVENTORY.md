@@ -30,11 +30,11 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 
 | 무엇 | 구현 A | 구현 B | 상태 |
 |---|---|---|---|
-| **빈 상태** | `ui/EmptyState.tsx` → `EmptyState` **18** | `ci/states.tsx` → `EmptyState` **18** | ⛔ **동일 이름 2벌, 사용량 동률** |
-| **페이지 헤더** | `ui/PageHeader.tsx` **15** | `ci/CiPageHeader.tsx` **14** | ⛔ 2벌 |
-| **정렬 아이콘** | `pricing/gpu/SortIcon.tsx` **26** | `pricing/gpu/cockpit/SortIcon.tsx` **26** | ⛔ 2벌, 사용량 동률 |
-| **로딩** | `ui/LoadingSkeleton`(Skel*) **27** · `ui/AXDotLoader` **35** · `ui/AXLoadingOverlay` **7** · `ci/states`(RowSkeleton) **5** · `ui/BrandLoaderMark` **2** · `ui/NavigationLoader` **1** | — | ⛔ **6종 병존 / 총 77건** |
-| **탭** | `ui/SegmentedTabs` **1** · `ui/WorkSubTabs` **7** · `ui/ProjectTabs` **4** · `ui/WorkTabBar` **1** · `ci/StageNav` **4** | — | ⛔ **5종 병존** |
+| **빈 상태** | ~~2벌~~ → **`ui/EmptyState` 1벌** (v0.7.445, 이긴 CI판을 승격) | — | ✅ 해소 |
+| **페이지 헤더** | ~~2벌~~ → **`ui/PageHeader` 1벌** (v0.7.445, `below` 슬롯으로 stageNav 흡수) | — | ✅ 해소 |
+| **정렬 아이콘** | ~~7곳 자작~~ → **`ui/SortIcon` 1벌** (v0.7.445, `active`+`dir` 계약) | — | ✅ 해소 |
+| **로딩** | `ui/LoadingSkeleton`(Skel*) **32** · `ui/AXDotLoader` **35** · `ui/AXLoadingOverlay` **7** · `ui/BrandLoaderMark` **2** · `ui/NavigationLoader` **1** | — | ⛔ **5종 병존** (v0.7.445에 `ci/states` 골격만 `SkelList`로 흡수) |
+| **탭** | ~~5종~~ → **`ui/SegmentedTabs` 1벌이 그린다** (v0.7.445). `WorkSubTabs`·`ProjectTabs`·`WorkTabBar`·`StageNav`는 데이터/프롭 어댑터 | — | ✅ 해소 |
 | **상세 표면** | `ci/DetailSheet` **4** · `ui/SlidePanel` **3** · 모달 26파일 · `[id]` 페이지 9 | — | ⛔ 3방식 |
 | **표** | `ui/DynamicTable` **7** · `ui/nb/NbTable` **2** · `.table-card` 클래스 **70** · GPU `UnifiedTable` **1** | — | ⛔ 4방식 |
 | **셸** | ~~3벌~~ → **`ui/shell/AppShell` 1벌** (v0.7.443 통합) | `ui/shell/AppShell` | ✅ 해소 |
@@ -75,14 +75,13 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 
 | 부품 | 사용 | 역할 | 비고 |
 |---|---|---|---|
-| `ui/PageHeader` | **15** | 제목·설명·액션 | 표준 후보 |
-| `ci/CiPageHeader` | **14** | 동일 역할 | ⛔ 중복 |
+| `ui/PageHeader` | **29** | 제목·설명·액션·`below`(스테이지/탭) | **표준** (v0.7.445 CiPageHeader 흡수) |
 | `ui/WorkPageShell` | **7** | 업무영역 페이지 골격 (globals.css §3007 SSOT와 한 쌍) | **PageScaffold 유사품 — 이미 존재** |
-| `ui/WorkSubTabs` | 7 | 업무 하위 탭 | |
-| `ui/WorkTabBar` | 1 | 업무 상위 탭 | |
-| `ui/SegmentedTabs` | 1 | 세그먼트 탭 (v0.7.437 신설) | 표준 후보 |
-| `ui/ProjectTabs` | 4 | 프로젝트 탭 | ⛔ 중복 |
-| `ci/StageNav` | 4 | CI 단계 내비 | 도메인 전용 |
+| `ui/SegmentedTabs` | **16** | 탭을 그리는 유일한 곳(이동형/제어형/패널형 × segment·primary·stage) | **표준** |
+| `ui/WorkSubTabs` | 7 | 업무 하위 탭 **데이터** | 어댑터 |
+| `ui/WorkTabBar` | 1 | 업무 상위 탭 **데이터** | 어댑터 |
+| `ui/ProjectTabs` | 4 | CRM 탭 **데이터** | 어댑터 |
+| `ci/StageNav` | 4 | CI 단계 **데이터**(번호·화살표) | 어댑터 |
 
 ---
 
@@ -120,12 +119,11 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 ### 5-2. 상태 3종
 | 상태 | 부품 | 사용 |
 |---|---|---|
-| 빈 | `ui/EmptyState` / `ci/states→EmptyState` | 18 / 18 ⛔중복 |
-| 오류 | `ci/states→ErrorState` | **11** (공용 위치에 없음) |
+| 빈 | `ui/EmptyState` | **19** (v0.7.445 1벌) |
+| 오류 | `ui/ErrorState` | **11** (v0.7.445 공용 승격, 도움 링크는 `helpHref`로 주입) |
 | 로딩 | `ui/LoadingSkeleton→SkelPage/SkelCard/SkelList` | **11 / 9 / 7** |
 | 로딩 | `ui/AXDotLoader` | **35** |
 | 로딩 | `ui/AXLoadingOverlay` | 7 |
-| 로딩 | `ci/states→RowSkeleton` | 5 |
 | 데이터부족 | `ci/states→InsufficientData` | 2 |
 
 ### 5-3. 뱃지·기타
@@ -192,12 +190,12 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 
 | 심볼 | 파일 | 줄 | 조치 |
 |---|---|---|---|
-| `NbCard` | `ui/nb/NbCard.tsx` | 24 | **정책(§2)이 "카드→NbCard"라 지정했는데 0건.** 되살리거나 정책에서 내린다 |
-| `NbField` `NbInput` `NbSelect` `NbTextarea` | `ui/nb/NbField.tsx` | 47 | 클래스 축(`input-field` 247)이 이미 이김 → **폐기 권장** |
+| ~~`NbCard`~~ | ~~`ui/nb/NbCard.tsx`~~ | 24 | ✅ v0.7.445 삭제 — 정책(§2)의 지정도 함께 정정(`.card` 클래스가 실제 표준) |
+| ~~`NbField` `NbInput` `NbSelect` `NbTextarea`~~ | ~~`ui/nb/NbField.tsx`~~ | 47 | ✅ v0.7.445 삭제 — 클래스 축(`input-field` 247)이 이미 이겼다 |
 | ~~`LogoutButton`~~ | ~~`ui/LogoutButton.tsx`~~ | 31 | ✅ v0.7.443 삭제 (`SidebarProfile`에 흡수) |
-| `WeeklyReportBannerButton` | `ui/WeeklyReportBannerButton.tsx` | 34 | 삭제 후보 (Phase 1.5) |
+| ~~`WeeklyReportBannerButton`~~ | ~~`ui/WeeklyReportBannerButton.tsx`~~ | 34 | ✅ v0.7.445 삭제 |
 | `SkelLine` | `ui/LoadingSkeleton.tsx` | — | 나머지 3개(`SkelCard/List/Page`)는 **27건 사용 중** |
-| `CardSkeleton` | `ci/states.tsx` | — | 형제 4개는 사용 중 |
+| ~~`CardSkeleton`~~ | ~~`ci/states.tsx`~~ | — | ✅ v0.7.445 삭제 (`RowSkeleton`은 `SkelList`로 흡수) |
 | `MetricPlaceholder` | `ci/MetricBadge.tsx` | — | |
 
 > **주의: `LoadingSkeleton.tsx`는 죽지 않았다.** export 이름이 `SkelPage/SkelCard/SkelList`라서 파일명으로 세면 0건으로 보인다. **부품 조사는 반드시 export 이름 기준으로 한다.**
@@ -207,7 +205,7 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 ## 9. 도메인 전용 부품 (공용 승격 금지 — 해당 도메인에서만)
 
 - **GPU/가격** `components/pricing/gpu/**` 23파일 — `UnifiedTable`(403줄) · `DetailPanel`(633줄) · `BulkReflectPanel` · 각종 Modal · `cockpit/*`
-- **CI** `components/ci/**` 18파일 — 단, `states.tsx`(EmptyState/ErrorState)와 `CiPageHeader`는 **공용 승격 대상**(§1 중복)
+- **CI** `components/ci/**` — `states.tsx`의 빈상태/오류/골격은 v0.7.445에 `components/ui/`로 승격했고, `CiPageHeader`는 삭제했다. 남은 `InsufficientData`("모집단이 얇아 계산 불가")만 CI 고유 판정이라 도메인에 둔다
 - **온보딩** `components/onboarding/**` 2파일 — `OnboardingProvider`(driver.js)
 
 ---

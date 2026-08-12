@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import SortIcon from '@/components/ui/SortIcon'
 import { useRouter } from 'next/navigation'
-import { ChevronUp, ChevronDown, ChevronsUpDown, Search, Download } from 'lucide-react'
+import { ChevronUp, ChevronDown, Search, Download } from 'lucide-react'
 import {
   type DayDetail,
   type EntryType,
@@ -37,11 +38,6 @@ interface Props {
   sort: SortKey
   dir: SortDir
   filters: DayLogFilters
-}
-
-function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
-  if (!active) return <ChevronsUpDown size={13} style={{ opacity: 0.35 }} />
-  return dir === 'asc' ? <ChevronUp size={13} /> : <ChevronDown size={13} />
 }
 
 export default function DayDetailPanel({ detail, departments, month, sort, dir, filters }: Props) {

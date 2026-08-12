@@ -1,11 +1,11 @@
 'use client'
 
-// components/ci/StageNav.tsx — 그룹 내부 스테이지 이동 (설계서 §6.5)
+// components/ci/StageNav.tsx — 그룹 내부 스테이지 흐름 (설계서 §6.5)
 // 번호와 화살표로 순서를 암시한다: 1 수집함 → 2 모니터링 → 3 트렌드.
-// 메뉴를 1depth로 나열하지 않고 흐름으로 보이게 하는 장치다.
+// 메뉴를 1depth로 나열하지 않고 "흐름"으로 보이게 하는 장치다.
+// 그리는 일은 SegmentedTabs(variant=stage)가 한다 — 여기는 단계 데이터만 안다.
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import SegmentedTabs, { type SegmentedTab } from '@/components/ui/SegmentedTabs'
 
 export interface Stage {
   num: number
@@ -22,27 +22,13 @@ export const RESEARCH_STAGES: Stage[] = [
 ]
 
 export default function StageNav({ stages }: { stages: Stage[] }) {
-  const pathname = usePathname()
+  const tabs: SegmentedTab[] = stages.map((s) => ({
+    id: s.href,
+    label: s.label,
+    href: s.href,
+    match: s.match,
+    icon: <span className="seg-tab-num">{s.num}</span>,
+  }))
 
-  return (
-    <nav className="ci-stage-nav" aria-label="작업 단계">
-      {stages.map((s, i) => {
-        const targets = s.match ?? [s.href]
-        const current = targets.some((t) => pathname === t || pathname.startsWith(t + '/'))
-        return (
-          <span key={s.href} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-            <Link
-              href={s.href}
-              className="ci-stage-item"
-              aria-current={current ? 'page' : undefined}
-            >
-              <span className="ci-stage-num">{s.num}</span>
-              {s.label}
-            </Link>
-            {i < stages.length - 1 && <span className="ci-stage-arrow" aria-hidden="true">→</span>}
-          </span>
-        )
-      })}
-    </nav>
-  )
+  return <SegmentedTabs tabs={tabs} variant="stage" ariaLabel="작업 단계" />
 }

@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ApiResponse } from '@/lib/ci/contracts'
-import { EmptyState, ErrorState } from '@/components/ci/states'
+import EmptyState from '@/components/ui/EmptyState'
+import ErrorState from '@/components/ui/ErrorState'
 import { isEnterKey } from '@/lib/ui/ime'
 
 interface Board { id: string; name: string; itemCount: number }
@@ -71,7 +72,7 @@ export default function BoardsView({
         </button>
       </div>
 
-      {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} /></div>}
+      {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} helpHref="/ci/settings" /></div>}
 
       {boards.length === 0 ? (
         <EmptyState

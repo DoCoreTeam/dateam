@@ -9,7 +9,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { ApiResponse, CiChannelListItem } from '@/lib/ci/contracts'
 import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
-import { EmptyState, ErrorState } from './states'
+import EmptyState from '@/components/ui/EmptyState'
+import ErrorState from '@/components/ui/ErrorState'
 import { isEnterKey } from '@/lib/ui/ime'
 
 interface ChannelListViewProps {
@@ -85,7 +86,7 @@ export default function ChannelListView({ workspaceId, items, mode }: ChannelLis
 
       {error && (
         <div style={{ marginBottom: 'var(--space-4)' }}>
-          <ErrorState code={error.code} message={error.message} />
+          <ErrorState code={error.code} message={error.message} helpHref="/ci/settings" />
         </div>
       )}
 

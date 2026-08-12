@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import type { CiChannelListItem, CiContentListItem } from '@/lib/ci/contracts'
 import ContentCard from '@/components/ci/ContentCard'
 import DetailSheet from '@/components/ci/DetailSheet'
-import { EmptyState } from '@/components/ci/states'
+import EmptyState from '@/components/ui/EmptyState'
 
 interface Props {
   workspaceId: string
@@ -93,7 +93,7 @@ export default function ChannelDetailView({ workspaceId, channel, contents }: Pr
             </p>
             {channel.description
               ? <p className="ci-caption">{channel.description}</p>
-              : <p className="ci-empty-desc">채널 소개문을 아직 확보하지 못했습니다.</p>}
+              : <p className="empty-state-desc">채널 소개문을 아직 확보하지 못했습니다.</p>}
           </div>
         </div>
 

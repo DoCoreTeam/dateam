@@ -14,7 +14,7 @@ import { fmtKRW, fmtUSD, fmtMoneyFromOriginal } from '@/lib/gpu/format-price'
 import dynamic from 'next/dynamic'
 import type { MarketPriceForEdit } from '@/components/pricing/gpu/MarketPriceEditModal'
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
-import { SortIcon } from '@/components/pricing/gpu/SortIcon'
+import SortIcon from '@/components/ui/SortIcon'
 import { buildTierModelGroups, tierKey, modelKey, TIER_META } from '@/lib/gpu/group'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 
@@ -864,7 +864,7 @@ function StrategyOverviewPanel({ products, fmt }: { products: ProductGroup[]; fm
                 color: sortKey === key ? 'var(--gpu-accent)' : undefined,
               }}
             >
-              {label} <SortIcon col={key} sortConfig={{ key: sortKey, dir: sortDir }} />
+              {label} <SortIcon active={sortKey === key} dir={sortDir} size={11} />
             </div>
           ))}
         </div>

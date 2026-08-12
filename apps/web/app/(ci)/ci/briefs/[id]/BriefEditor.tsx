@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { ApiResponse } from '@/lib/ci/contracts'
 import type { BriefDraft } from '@/lib/ci/ai/brief'
-import { ErrorState } from '@/components/ci/states'
+import ErrorState from '@/components/ui/ErrorState'
 
 type Field = keyof BriefDraft
 
@@ -140,7 +140,7 @@ export default function BriefEditor({
   return (
     <>
       {toast && <p className="ci-status ci-status-ok" style={{ marginBottom: 'var(--space-3)', display: 'inline-flex' }}>{toast}</p>}
-      {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} /></div>}
+      {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} helpHref="/ci/settings" /></div>}
 
       <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-4)' }}>
         <button type="button" className="btn-primary" onClick={() => regenerate(ALL_FIELDS)} disabled={busy}>
@@ -324,7 +324,7 @@ export default function BriefEditor({
         </div>
 
         {editPlans.length === 0 ? (
-          <p className="ci-empty-desc">
+          <p className="empty-state-desc">
             아직 편집안이 없습니다. 위에서 구간을 넣고 만들면 여기에 쌓입니다. 여러 안을 만들어 비교할 수 있습니다.
           </p>
         ) : (

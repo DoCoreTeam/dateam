@@ -8,13 +8,15 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import type { ApiResponse, CiContentListItem } from '@/lib/ci/contracts'
 import type { MarketOverview, PatternRow, SignalRow, TimingOverview } from '@/lib/ci/queries/trends'
 import { CI_PLATFORMS, CI_PLATFORM_LABEL } from '@/lib/ci/types'
-import CiPageHeader from '@/components/ci/CiPageHeader'
+import PageHeader from '@/components/ui/PageHeader'
 import StageNav, { RESEARCH_STAGES } from '@/components/ci/StageNav'
 import ContentCard from '@/components/ci/ContentCard'
 import ChannelGroupedList from '@/components/ci/ChannelGroupedList'
 import DetailSheet from '@/components/ci/DetailSheet'
 import { ConfidenceBadge } from '@/components/ci/StatusBadge'
-import { EmptyState, InsufficientData, ErrorState } from '@/components/ci/states'
+import EmptyState from '@/components/ui/EmptyState'
+import ErrorState from '@/components/ui/ErrorState'
+import { InsufficientData } from '@/components/ci/states'
 import { MetricBasis } from '@/components/ci/MetricBadge'
 
 type Tab = 'market' | 'outliers' | 'patterns' | 'signals'
@@ -159,10 +161,10 @@ export default function TrendsView(p: Props) {
 
   return (
     <>
-      <CiPageHeader
+      <PageHeader
         title="트렌드"
-        desc="시장에서 지금 무엇이 통하는지"
-        stageNav={<StageNav stages={RESEARCH_STAGES} />}
+        description="시장에서 지금 무엇이 통하는지"
+        below={<StageNav stages={RESEARCH_STAGES} />}
       />
 
       <div role="tablist" className="ci-stage-nav" style={{ marginBottom: 'var(--space-4)' }}>
@@ -175,7 +177,7 @@ export default function TrendsView(p: Props) {
         ))}
       </div>
 
-      {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} /></div>}
+      {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} helpHref="/ci/settings" /></div>}
       {notice && (
         <p className="ci-basis" style={{ marginBottom: 'var(--space-4)' }} role="status">{notice}</p>
       )}
@@ -273,7 +275,7 @@ export default function TrendsView(p: Props) {
               <section>
                 <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>많이 올린 채널</h2>
                 {p.market.topChannels.length === 0 ? (
-                  <p className="ci-empty-desc">채널 정보를 아직 확보하지 못했습니다.</p>
+                  <p className="empty-state-desc">채널 정보를 아직 확보하지 못했습니다.</p>
                 ) : (
                   <table className="table-base table-card">
                     <thead><tr><th>채널</th><th>게시물</th><th>평소 대비 중앙값</th></tr></thead>

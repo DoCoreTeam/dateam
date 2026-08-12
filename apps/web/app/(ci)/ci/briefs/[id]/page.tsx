@@ -3,7 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
-import CiPageHeader from '@/components/ci/CiPageHeader'
+import PageHeader from '@/components/ui/PageHeader'
 import BriefEditor from './BriefEditor'
 
 export const dynamic = 'force-dynamic'
@@ -34,9 +34,9 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
 
   return (
     <>
-      <CiPageHeader
+      <PageHeader
         title={brief.ci_ideas?.title ?? '기획안'}
-        desc={`버전 ${brief.version} · ${brief.generated_by === 'ai' ? 'AI 초안' : '직접 작성'}`}
+        description={`버전 ${brief.version} · ${brief.generated_by === 'ai' ? 'AI 초안' : '직접 작성'}`}
         actions={<Link href="/ci/pipeline" className="btn-ghost">파이프라인으로</Link>}
       />
       <BriefEditor

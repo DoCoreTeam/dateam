@@ -13,7 +13,8 @@ import type { CiContentListItem, CiEvidence, ApiResponse } from '@/lib/ci/contra
 import MetricBadge, { MetricBasis } from './MetricBadge'
 import CreativeSummary from './CreativeSummary'
 import { ComparabilityBadge, CompletenessBadge, ConfidenceBadge, IngestStatusBadge } from './StatusBadge'
-import { ErrorState, RowSkeleton } from './states'
+import ErrorState from '@/components/ui/ErrorState'
+import { SkelList } from '@/components/ui/LoadingSkeleton'
 import EvidenceSheet from './EvidenceSheet'
 
 type Tab = 'meta' | 'analysis' | 'group' | 'ingest'
@@ -115,8 +116,8 @@ export default function DetailSheet({
         </header>
 
         <div className="ci-sheet-body">
-          {loading && <RowSkeleton rows={5} />}
-          {error && <ErrorState code={error.code} message={error.message} />}
+          {loading && <SkelList rows={5} />}
+          {error && <ErrorState code={error.code} message={error.message} helpHref="/ci/settings" />}
 
           {data && !loading && (
             <>
@@ -212,7 +213,7 @@ export default function DetailSheet({
                         ))}
                       </div>
                     ) : (
-                      <p className="ci-empty-desc">
+                      <p className="empty-state-desc">
                         이 게시물에서 키워드를 확보하지 못했습니다. 업로더가 붙이지 않았거나
                         플랫폼이 공개하지 않는 경우입니다.
                       </p>
@@ -224,7 +225,7 @@ export default function DetailSheet({
                     {data.caption ? (
                       <p className="ci-caption">{data.caption}</p>
                     ) : (
-                      <p className="ci-empty-desc">설명문을 확보하지 못했습니다.</p>
+                      <p className="empty-state-desc">설명문을 확보하지 못했습니다.</p>
                     )}
                   </section>
                 </div>
@@ -237,7 +238,7 @@ export default function DetailSheet({
                   )}
                   <CreativeSummary creative={data.creative} />
                   {!data.analysis && !data.creative && (
-                    <p className="ci-empty-desc">
+                    <p className="empty-state-desc">
                       아직 근거가 충분하지 않아 분석을 단정하지 않습니다.
                       비교 표본이 쌓이고 평소 대비 1.5배를 넘으면 무엇이 통했는지 분석합니다.
                     </p>
@@ -254,7 +255,7 @@ export default function DetailSheet({
                       ))}
                     </ul>
                   )
-                  : <p className="ci-empty-desc">같은 소재로 묶인 다른 게시물이 없습니다.</p>
+                  : <p className="empty-state-desc">같은 소재로 묶인 다른 게시물이 없습니다.</p>
               )}
 
               {tab === 'ingest' && (

@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import SortIcon from '@/components/ui/SortIcon'
 import useSWRInfinite from 'swr/infinite'
 import Link from 'next/link'
-import { Users, Plus, Mail, Phone, Loader2, Search, X, ExternalLink, Briefcase, ChevronUp, ChevronDown, ChevronsUpDown, Sparkles } from 'lucide-react'
+import { Users, Plus, Mail, Phone, Loader2, Search, X, ExternalLink, Briefcase, Sparkles } from 'lucide-react'
 import type { Contact, Account } from '@/types/database'
 import SlidePanel from '@/components/ui/SlidePanel'
 import PageHeader from '@/components/ui/PageHeader'
@@ -12,13 +13,6 @@ import { useDebounce } from '@/hooks/useDebounce'
 type ContactWithAccount = Contact & { accounts: Pick<Account, 'id' | 'name'> | null }
 type PageData = { items: ContactWithAccount[]; nextCursor: string | null; hasMore: boolean; capped?: boolean }
 type SortField = 'created_at' | 'name' | 'title' | 'department'
-
-function SortIcon({ field, sort, dir }: { field: SortField; sort: SortField; dir: 'asc' | 'desc' }) {
-  if (sort !== field) return <ChevronsUpDown size={12} className="sort-icon" />
-  return dir === 'asc'
-    ? <ChevronUp size={12} className="sort-icon" />
-    : <ChevronDown size={12} className="sort-icon" />
-}
 
 export default function ContactsPage() {
   const [search, setSearch] = useState('')
@@ -117,10 +111,10 @@ export default function ContactsPage() {
             <thead>
               <tr>
                 <th className={`sort-th${sort === 'name' ? ' active' : ''}`} onClick={() => handleSort('name')}>
-                  담당자 <SortIcon field="name" sort={sort} dir={sortDir} />
+                  담당자 <SortIcon active={sort === 'name'} dir={sortDir} />
                 </th>
                 <th className={`sort-th${sort === 'title' ? ' active' : ''}`} onClick={() => handleSort('title')}>
-                  직책/부서 <SortIcon field="title" sort={sort} dir={sortDir} />
+                  직책/부서 <SortIcon active={sort === 'title'} dir={sortDir} />
                 </th>
                 <th>연락처</th>
                 <th>역할</th>

@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { listAssets } from '@/lib/ci/queries/assets'
 import { getDriveConnectionStatus } from '@/lib/google-drive'
-import CiPageHeader from '@/components/ci/CiPageHeader'
+import PageHeader from '@/components/ui/PageHeader'
 import AssetsView from './AssetsView'
 
 export const dynamic = 'force-dynamic'
@@ -25,9 +25,9 @@ export default async function AssetsPage() {
 
   return (
     <>
-      <CiPageHeader
+      <PageHeader
         title="자료"
-        desc="제작에 쓴 원본과 산출물 — 파일은 구글드라이브에 보관하고 우리는 분석 정보만 갖습니다"
+        description="제작에 쓴 원본과 산출물 — 파일은 구글드라이브에 보관하고 우리는 분석 정보만 갖습니다"
       />
       <AssetsView
         workspaceId={workspace.id}

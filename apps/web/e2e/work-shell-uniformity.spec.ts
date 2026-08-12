@@ -30,8 +30,8 @@ for (const w of WIDTHS) {
       // 2) 공유 헤더 h1 존재
       await expect(page.locator('h1').first()).toBeVisible()
 
-      // 3) 공유 서브탭(.work-subtabs) 존재 + 첫 라벨 노출
-      const subtabs = page.locator('.work-subtabs').first()
+      // 3) 공유 서브탭(.seg-tabs) 존재 + 첫 라벨 노출
+      const subtabs = page.locator('.seg-tabs').first()
       await expect(subtabs).toBeVisible()
       await expect(subtabs.getByText(p.subtabLabels[0], { exact: true }).first()).toBeVisible()
 
@@ -53,19 +53,19 @@ test('subtab switching works on each page', async ({ page }) => {
   // daily: 일간 → 주간 (state)
   await page.goto('/daily')
   await dismissGlobalModals(page)
-  await page.locator('.work-subtab', { hasText: '주간' }).click()
-  await expect(page.locator('.work-subtab.is-active', { hasText: '주간' })).toBeVisible()
+  await page.locator('.seg-tab', { hasText: '주간' }).click()
+  await expect(page.locator('.seg-tab.is-active', { hasText: '주간' })).toBeVisible()
 
   // dept-tasks: 전체 → 완료 (state filter)
   await page.goto('/dept-tasks')
   await dismissGlobalModals(page)
-  await page.locator('.work-subtab', { hasText: '완료' }).click()
-  await expect(page.locator('.work-subtab.is-active', { hasText: '완료' })).toBeVisible()
+  await page.locator('.seg-tab', { hasText: '완료' }).click()
+  await expect(page.locator('.seg-tab.is-active', { hasText: '완료' })).toBeVisible()
 
   // weekly-report: 내 보고 → 팀 전체 (href ?tab=)
   await page.goto('/weekly-report')
   await dismissGlobalModals(page)
-  await page.locator('.work-subtab', { hasText: '팀 전체' }).click()
+  await page.locator('.seg-tab', { hasText: '팀 전체' }).click()
   await expect(page).toHaveURL(/tab=team/)
 
   // projects: 프로젝트 → 현황 (state ?view=overview)
@@ -73,7 +73,7 @@ test('subtab switching works on each page', async ({ page }) => {
   await dismissGlobalModals(page)
   await page.getByTestId('view-overview').click()
   await expect(page).toHaveURL(/view=overview/)
-  await expect(page.locator('.work-subtab.is-active', { hasText: '현황' }).first()).toBeVisible()
+  await expect(page.locator('.seg-tab.is-active', { hasText: '현황' }).first()).toBeVisible()
 })
 
 test('mobile daily order and department detail use the intended flow', async ({ page }) => {

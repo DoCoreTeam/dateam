@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { listChannels } from '@/lib/ci/queries/channels'
-import CiPageHeader from '@/components/ci/CiPageHeader'
+import PageHeader from '@/components/ui/PageHeader'
 import PublishView from './PublishView'
 
 export const dynamic = 'force-dynamic'
@@ -27,7 +27,7 @@ export default async function PublishPage() {
 
   return (
     <>
-      <CiPageHeader title="게시" desc="예약하고 내보내고, 올린 주소를 기록해 성과를 추적합니다" />
+      <PageHeader title="게시" description="예약하고 내보내고, 올린 주소를 기록해 성과를 추적합니다" />
       <PublishView workspaceId={workspace.id} items={data ?? []} ownedChannels={owned} />
     </>
   )

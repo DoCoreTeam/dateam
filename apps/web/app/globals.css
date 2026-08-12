@@ -3016,13 +3016,13 @@ label.intake-tool-btn {
 .work-page-header { margin-bottom: var(--space-3) !important; }
 .work-subtabs-row { margin-bottom: var(--space-5); }
 
-.work-primary-tabs {
+.seg-tabs-primary {
   display: flex;
   margin-bottom: var(--space-5);
   overflow-x: auto;
   border-bottom: var(--border-w-2) solid var(--border-color);
 }
-.work-primary-tab {
+.seg-tab-primary {
   display: flex;
   min-height: 44px;
   align-items: center;
@@ -3035,53 +3035,12 @@ label.intake-tool-btn {
   text-decoration: none;
   white-space: nowrap;
 }
-.work-primary-tab.is-active {
+.seg-tab-primary.is-active {
   border-bottom-color: var(--brand);
   color: var(--brand);
   font-weight: 700;
 }
 
-/* 서브탭 — WorkTabBar(언더라인 섹션 네비) 아래의 pill 세그먼트. 4페이지 동일 적용. */
-.work-subtabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  width: fit-content;
-  max-width: 100%;
-  padding: 0.25rem;
-  border-radius: var(--radius-lg);
-  background: var(--surface-muted);
-}
-.work-subtab {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  min-height: 2.75rem;
-  padding: 0.4rem 1rem;
-  border: none;
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--text-muted);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  white-space: nowrap;
-  text-decoration: none;
-  cursor: pointer;
-  transition:
-    background-color 120ms ease,
-    color 120ms ease,
-    box-shadow 120ms ease;
-}
-.work-subtab:hover { color: var(--text); }
-.work-subtab:focus-visible {
-  outline: var(--border-w-2) solid var(--brand);
-  outline-offset: 2px;
-}
-.work-subtab.is-active {
-  background: #fff;
-  color: var(--text);
-  box-shadow: var(--shadow-sm);
-}
 
 .daily-date-nav {
   display: flex;
@@ -3251,14 +3210,14 @@ label.intake-tool-btn {
 
 @media (max-width: 767px) {
   .work-tabbar-wrap { margin-bottom: var(--space-3); }
-  .work-primary-tabs {
+  .seg-tabs-primary {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: var(--space-1);
     overflow: visible;
     border-bottom: 0;
   }
-  .work-primary-tab {
+  .seg-tab-primary {
     grid-column: span 2;
     min-width: 0;
     justify-content: center;
@@ -3270,9 +3229,9 @@ label.intake-tool-btn {
     text-align: center;
     white-space: normal;
   }
-  .work-primary-tab:nth-child(4) { grid-column: 2 / span 2; }
-  .work-primary-tab:nth-child(5) { grid-column: 4 / span 2; }
-  .work-primary-tab.is-active {
+  .seg-tab-primary:nth-child(4) { grid-column: 2 / span 2; }
+  .seg-tab-primary:nth-child(5) { grid-column: 4 / span 2; }
+  .seg-tab-primary.is-active {
     border-color: var(--brand);
     background: var(--brand-soft);
   }
@@ -3282,8 +3241,8 @@ label.intake-tool-btn {
   .page-header-actions { width: 100%; }
   .page-header-actions > button,
   .page-header-actions > a { width: 100%; justify-content: center; min-height: 44px; }
-  .work-subtabs { width: 100%; }
-  .work-subtab { flex: 1 1 auto; justify-content: center; padding-inline: var(--space-2); }
+  .seg-tabs { width: 100%; }
+  .seg-tab { flex: 1 1 auto; }
   .weekly-week-picker { width: 100%; }
   .weekly-week-picker-select { min-height: 44px !important; max-width: none !important; flex: 1; }
   .project-list-controls .input-field { width: 100% !important; max-width: none !important; flex-basis: 100% !important; }
@@ -3879,7 +3838,10 @@ label.intake-tool-btn {
   margin-left: 0.25rem;
   opacity: 0.4;
   font-size: 0.7em;
+  flex-shrink: 0;
 }
+/* 정렬 중인 열 — 아이콘 자신이 상태를 말한다(부모 .sort-th.active에 의존하지 않음) */
+.sort-icon-active,
 .sort-th.active .sort-icon {
   opacity: 1;
   color: var(--brand);
@@ -6644,14 +6606,6 @@ label.intake-tool-btn {
   gap: var(--space-1);
 }
 
-.cockpit-sort-idle {
-  opacity: 0.32;
-  flex-shrink: 0;
-}
-.cockpit-sort-active {
-  color: var(--gpu-accent);
-  flex-shrink: 0;
-}
 
 /* 셀 클릭 펼침 */
 .cockpit-cell-clickable {
@@ -9281,21 +9235,22 @@ label.intake-tool-btn {
 /* 셸은 MobileShell을 쓴다. 자작 사이드바 CSS를 두지 않는다. */
 
 /* ── 스테이지 내비 (그룹 내부 1→2→3 흐름) ── */
-.ci-stage-nav { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; }
-.ci-stage-item {
+.seg-tabs-stage { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; }
+.seg-tab-stage {
   display: inline-flex; align-items: center; gap: var(--space-2);
   min-height: 36px; padding: 0 var(--space-3); border-radius: var(--radius);
   border: var(--border-w-2) solid var(--border-color); background: var(--color-surface);
   color: var(--text-muted); font-size: var(--fs-sm); text-decoration: none;
 }
-.ci-stage-item[aria-current='page'] { border-color: var(--brand); color: var(--brand); font-weight: 600; }
-.ci-stage-num {
+.seg-tab-stage[aria-current='page'] { border-color: var(--brand); color: var(--brand); font-weight: 600; }
+.seg-tab-num {
   width: 18px; height: 18px; border-radius: 9999px; display: grid; place-items: center;
   background: var(--surface-muted); color: var(--text-muted);
   font-size: var(--fs-2xs); font-weight: 700;
 }
-.ci-stage-item[aria-current='page'] .ci-stage-num { background: var(--brand); color: var(--brand-fg); }
-.ci-stage-arrow { color: var(--text-faint); }
+.seg-tab-stage[aria-current='page'] .seg-tab-num { background: var(--brand); color: var(--brand-fg); }
+.seg-tab-arrow { color: var(--text-faint); }
+.seg-stage-step { display: inline-flex; align-items: center; gap: var(--space-1); }
 
 /* ── 루프 미니맵 ── */
 .ci-minimap { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-2); }
@@ -9395,22 +9350,22 @@ label.intake-tool-btn {
 @keyframes ci-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .ci-skeleton { animation: none; } }
 
-.ci-empty {
+.empty-state {
   display: flex; flex-direction: column; align-items: center; gap: var(--space-3);
   padding: var(--space-12) var(--space-4); text-align: center;
   border: var(--border-w-2) dashed var(--border-color); border-radius: var(--radius-lg);
   background: var(--color-surface);
 }
-.ci-empty-title { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
-.ci-empty-desc { font-size: var(--fs-sm); color: var(--text-muted); max-width: 44ch; line-height: 1.6; }
+.empty-state-title { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
+.empty-state-desc { font-size: var(--fs-sm); color: var(--text-muted); max-width: 44ch; line-height: 1.6; }
 
-.ci-error {
+.error-state {
   display: flex; flex-direction: column; gap: var(--space-2);
   padding: var(--space-4); border: var(--border-w-2) solid var(--danger-border);
   border-radius: var(--radius-lg); background: var(--danger-bg); color: var(--danger);
   font-size: var(--fs-sm);
 }
-.ci-error-code { font-size: var(--fs-2xs); font-family: ui-monospace, monospace; opacity: 0.8; }
+.error-state-code { font-size: var(--fs-2xs); font-family: ui-monospace, monospace; opacity: 0.8; }
 
 /* 수치에 병기하는 기준 (기간 창·표본 수) */
 .ci-basis { font-size: var(--fs-2xs); color: var(--text-faint); font-variant-numeric: tabular-nums; }

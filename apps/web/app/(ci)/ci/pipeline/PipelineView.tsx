@@ -7,7 +7,8 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ApiResponse, CiIdeaCard } from '@/lib/ci/contracts'
 import { CI_PIPELINE_STAGES, CI_STAGE_LABEL, type CiPipelineStage } from '@/lib/ci/types'
-import { EmptyState, ErrorState } from '@/components/ci/states'
+import EmptyState from '@/components/ui/EmptyState'
+import ErrorState from '@/components/ui/ErrorState'
 import { isEnterKey } from '@/lib/ui/ime'
 
 const COLUMN_HINT: Record<CiPipelineStage, string> = {
@@ -108,7 +109,7 @@ export default function PipelineView({ workspaceId, ideas, seed }: Props) {
 
       {error && (
         <div style={{ marginBottom: 'var(--space-4)' }}>
-          <ErrorState code={error.code} message={error.message} />
+          <ErrorState code={error.code} message={error.message} helpHref="/ci/settings" />
         </div>
       )}
 

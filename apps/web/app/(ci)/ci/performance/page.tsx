@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { getMinePerformance, getMarketPerformance, getLearningPerformance } from '@/lib/ci/queries/performance'
-import CiPageHeader from '@/components/ci/CiPageHeader'
+import PageHeader from '@/components/ui/PageHeader'
 import PerformanceView from './PerformanceView'
 
 export const dynamic = 'force-dynamic'
@@ -31,7 +31,7 @@ export default async function PerformancePage({
 
   return (
     <>
-      <CiPageHeader title="성과" desc="내 콘텐츠가 평소와 시장 대비 어땠는지" />
+      <PageHeader title="성과" description="내 콘텐츠가 평소와 시장 대비 어땠는지" />
       <PerformanceView tab={tab} mine={mine} market={market} learning={learning} />
     </>
   )

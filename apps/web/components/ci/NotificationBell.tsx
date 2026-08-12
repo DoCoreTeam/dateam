@@ -137,14 +137,14 @@ export default function NotificationBell({ workspaceId }: { workspaceId: string 
           </div>
 
           <div className="ci-bell-list">
-            {error && <p className="ci-error">{error}</p>}
+            {error && <p className="error-state">{error}</p>}
             {!error && loading && items.length === 0 && (
               <p className="ci-bell-empty">불러오는 중…</p>
             )}
             {!error && !loading && items.length === 0 && (
               <div className="ci-bell-empty">
-                <p className="ci-empty-title">아직 알림이 없어요</p>
-                <p className="ci-empty-desc">
+                <p className="empty-state-title">아직 알림이 없어요</p>
+                <p className="empty-state-desc">
                   관심 채널의 새 게시물이 평소 대비 기준 배수를 넘기면 여기로 알려드립니다.
                   기준은 설정 → 알림에서 바꿀 수 있어요.
                 </p>

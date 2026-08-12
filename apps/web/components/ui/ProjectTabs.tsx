@@ -1,42 +1,17 @@
 'use client'
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+// components/ui/ProjectTabs.tsx — CRM 그룹 탭(리드→거래처→담당자→영업기회)
+// 그리는 일은 SegmentedTabs가 한다. 여기는 "어떤 탭이 있는가"만 안다.
 
-const TABS = [
-  { href: '/lead-intake', label: '리드 인테이크' },
-  { href: '/accounts', label: '거래처' },
-  { href: '/contacts', label: '담당자' },
-  { href: '/deals', label: '영업기회' },
-] as const
+import SegmentedTabs, { type SegmentedTab } from './SegmentedTabs'
+
+const TABS: SegmentedTab[] = [
+  { id: 'lead-intake', label: '리드 인테이크', href: '/lead-intake' },
+  { id: 'accounts', label: '거래처', href: '/accounts' },
+  { id: 'contacts', label: '담당자', href: '/contacts' },
+  { id: 'deals', label: '영업기회', href: '/deals' },
+]
 
 export default function ProjectTabs() {
-  const pathname = usePathname()
-
-  return (
-    <div style={{ display: 'flex', borderBottom: 'var(--border-w-2) solid var(--color-border)', marginBottom: '1.5rem', overflowX: 'auto' }}>
-      {TABS.map(t => {
-        const active = pathname === t.href || pathname.startsWith(t.href + '/')
-        return (
-          <Link
-            key={t.href}
-            href={t.href}
-            style={{
-              padding: '0.625rem 1.25rem',
-              fontSize: 'var(--fs-base)',
-              fontWeight: active ? 600 : 400,
-              color: active ? 'var(--brand-dark)' : 'var(--text-muted)',
-              borderBottom: active ? 'var(--border-w-2) solid var(--brand-dark)' : 'var(--border-w-2) solid transparent',
-              marginBottom: '-2px',
-              textDecoration: 'none',
-              whiteSpace: 'nowrap',
-              transition: 'color 0.15s',
-            }}
-          >
-            {t.label}
-          </Link>
-        )
-      })}
-    </div>
-  )
+  return <SegmentedTabs tabs={TABS} variant="primary" ariaLabel="영업 탭" />
 }

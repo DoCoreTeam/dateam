@@ -44,7 +44,7 @@ export default function CiOnboardingGate() {
       }}>
         시작할 공간을 만듭니다
       </h1>
-      <p className="ci-empty-desc" style={{ marginBottom: 'var(--space-6)' }}>
+      <p className="empty-state-desc" style={{ marginBottom: 'var(--space-6)' }}>
         주제를 하나 고르면 관심 채널을 추천하고 첫 자동 업데이트를 예약합니다.
         설정을 하나도 건드리지 않아도 바로 쓸 수 있습니다.
       </p>
@@ -79,7 +79,7 @@ export default function CiOnboardingGate() {
           </div>
         </div>
 
-        {error && <p className="ci-error" role="alert">{error}</p>}
+        {error && <p className="error-state" role="alert">{error}</p>}
 
         <button type="button" className="btn-primary" onClick={create} disabled={busy}>
           {busy ? '만드는 중…' : '워크스페이스 만들기'}

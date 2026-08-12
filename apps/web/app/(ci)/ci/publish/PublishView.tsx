@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import type { ApiResponse, CiChannelListItem } from '@/lib/ci/contracts'
 import { CI_PLATFORMS, CI_PLATFORM_LABEL, type CiPlatform } from '@/lib/ci/types'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
-import { EmptyState, ErrorState } from '@/components/ci/states'
+import EmptyState from '@/components/ui/EmptyState'
+import ErrorState from '@/components/ui/ErrorState'
 
 interface PubRow {
   id: string
@@ -95,7 +96,7 @@ export default function PublishView({
         </button>
       </section>
 
-      {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} /></div>}
+      {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} helpHref="/ci/settings" /></div>}
 
       <p className="ci-basis" style={{ marginBottom: 'var(--space-3)' }}>
         지금은 수동 게시가 기본입니다. 플랫폼에 직접 올린 뒤 주소를 여기 붙여넣으면 그 시점부터 성과를 추적합니다.
@@ -122,7 +123,7 @@ export default function PublishView({
                     : p.status === 'failed' ? 'ci-status ci-status-danger' : 'ci-status ci-status-neutral'}>
                     {STATUS_LABEL[p.status] ?? p.status}
                   </span>
-                  {p.error_message && <span className="ci-error-code"> {p.error_code}: {p.error_message}</span>}
+                  {p.error_message && <span className="error-state-code"> {p.error_code}: {p.error_message}</span>}
                 </td>
                 <td data-label="예약·게시">
                   {p.published_at ? formatKstDateTimeShort(p.published_at)

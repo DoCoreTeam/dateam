@@ -8,14 +8,14 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import type { CiContentListItem } from '@/lib/ci/contracts'
 import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
-import CiPageHeader from '@/components/ci/CiPageHeader'
+import PageHeader from '@/components/ui/PageHeader'
 import StageNav, { RESEARCH_STAGES } from '@/components/ci/StageNav'
 import LinkIntakeBox from '@/components/ci/LinkIntakeBox'
 import DetailSheet from '@/components/ci/DetailSheet'
 import ChannelGroupedList from '@/components/ci/ChannelGroupedList'
 import MetricBadge from '@/components/ci/MetricBadge'
 import { CompletenessBadge, IngestStatusBadge } from '@/components/ci/StatusBadge'
-import { EmptyState } from '@/components/ci/states'
+import EmptyState from '@/components/ui/EmptyState'
 
 type Tab = 'all' | 'review' | 'failed'
 
@@ -78,10 +78,10 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
 
   return (
     <>
-      <CiPageHeader
+      <PageHeader
         title="수집함"
-        desc="링크를 넣으면 자동으로 분석해 분류합니다"
-        stageNav={<StageNav stages={RESEARCH_STAGES} />}
+        description="링크를 넣으면 자동으로 분석해 분류합니다"
+        below={<StageNav stages={RESEARCH_STAGES} />}
       />
 
       <LinkIntakeBox workspaceId={workspaceId} onDone={() => router.refresh()} />

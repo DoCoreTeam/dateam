@@ -26,6 +26,7 @@ const SHARED_CSS_PREFIXES = new Set([
   'detail', 'quickadd', 'card', 'input', 'label', 'table', 'responsive', 'tape',
   'btn', 'badge', 'empty', 'error', 'state', 'modal', 'toast', 'sr', 'mobile',
   'desktop', 'text', 'sidebar', 'settings', 'chip', 'form', 'grid', 'stack',
+  'sort', // 정렬 아이콘/헤더 — 목록형 화면 공통 프리미티브
 ])
 const MIN_FONT_PX = 10
 

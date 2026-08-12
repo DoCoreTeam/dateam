@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import SortIcon from '@/components/ui/SortIcon'
 import useSWRInfinite from 'swr/infinite'
 import Link from 'next/link'
-import { TrendingUp, Plus, Loader2, Search, X, ExternalLink, Briefcase, ChevronUp, ChevronDown, ChevronsUpDown, Sparkles } from 'lucide-react'
+import { TrendingUp, Plus, Loader2, Search, X, ExternalLink, Briefcase, Sparkles } from 'lucide-react'
 import type { Deal, Account } from '@/types/database'
 import SlidePanel from '@/components/ui/SlidePanel'
 import PageHeader from '@/components/ui/PageHeader'
@@ -23,13 +24,6 @@ const STAGE_STYLE: Record<string, { color: string; bg: string; border: string }>
   '협상':  { color: 'var(--warning)', bg: 'var(--warning-bg)',  border: 'var(--warning-border)' },
   '수주':  { color: 'var(--success)', bg: 'var(--success-bg)',  border: 'var(--success-border)' },
   '실패':  { color: 'var(--danger)', bg: 'var(--danger-bg)',  border: 'var(--danger-border)' },
-}
-
-function SortIcon({ field, sort, dir }: { field: SortField; sort: SortField; dir: 'asc' | 'desc' }) {
-  if (sort !== field) return <ChevronsUpDown size={12} className="sort-icon" />
-  return dir === 'asc'
-    ? <ChevronUp size={12} className="sort-icon" />
-    : <ChevronDown size={12} className="sort-icon" />
 }
 
 function StageBadge({ stage }: { stage: string }) {
@@ -223,16 +217,16 @@ export default function DealsPage() {
                 <thead>
                   <tr>
                     <th className={`sort-th${sort === 'title' ? ' active' : ''}`} onClick={() => handleSort('title')}>
-                      영업기회 <SortIcon field="title" sort={sort} dir={sortDir} />
+                      영업기회 <SortIcon active={sort === 'title'} dir={sortDir} />
                     </th>
                     <th className={`sort-th${sort === 'stage' ? ' active' : ''}`} onClick={() => handleSort('stage')}>
-                      단계 <SortIcon field="stage" sort={sort} dir={sortDir} />
+                      단계 <SortIcon active={sort === 'stage'} dir={sortDir} />
                     </th>
                     <th className={`sort-th${sort === 'value' ? ' active' : ''}`} onClick={() => handleSort('value')}>
-                      금액 <SortIcon field="value" sort={sort} dir={sortDir} />
+                      금액 <SortIcon active={sort === 'value'} dir={sortDir} />
                     </th>
                     <th className={`sort-th${sort === 'probability' ? ' active' : ''}`} onClick={() => handleSort('probability')}>
-                      확률 <SortIcon field="probability" sort={sort} dir={sortDir} />
+                      확률 <SortIcon active={sort === 'probability'} dir={sortDir} />
                     </th>
                     <th>리드유형</th>
                     <th>제품</th>

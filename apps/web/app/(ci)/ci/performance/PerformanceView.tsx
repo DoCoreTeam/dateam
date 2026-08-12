@@ -3,7 +3,8 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
 import { ConfidenceBadge } from '@/components/ci/StatusBadge'
-import { EmptyState, InsufficientData } from '@/components/ci/states'
+import EmptyState from '@/components/ui/EmptyState'
+import { InsufficientData } from '@/components/ci/states'
 import type { MinePerf, MarketPerf, LearningPerf } from '@/lib/ci/queries/performance'
 
 const TABS = [
@@ -122,7 +123,7 @@ export default function PerformanceView({
               확인된 성공 공식
             </h2>
             {learning.patterns.length === 0 ? (
-              <p className="ci-empty-desc">
+              <p className="empty-state-desc">
                 공식으로 부를 만한 반복 패턴이 아직 없습니다. 근거 20개·채널 5곳을 넘어야 공식으로 승격합니다.
               </p>
             ) : (
@@ -145,7 +146,7 @@ export default function PerformanceView({
               내 정정이 만든 변화
             </h2>
             {learning.corrections.length === 0 ? (
-              <p className="ci-empty-desc">아직 정정한 내역이 없습니다. 분류를 고치면 다음 추천에 반영됩니다.</p>
+              <p className="empty-state-desc">아직 정정한 내역이 없습니다. 분류를 고치면 다음 추천에 반영됩니다.</p>
             ) : (
               <>
                 <ul>
@@ -165,7 +166,7 @@ export default function PerformanceView({
             {learning.promotions.length > 0 && (
               <ul style={{ marginTop: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                 {learning.promotions.map((p) => (
-                  <li key={p.topicId} className="ci-empty-desc">{p.suggestion}</li>
+                  <li key={p.topicId} className="empty-state-desc">{p.suggestion}</li>
                 ))}
               </ul>
             )}
@@ -176,7 +177,7 @@ export default function PerformanceView({
               분류 품질
             </h2>
             {learning.slo.total === 0 ? (
-              <p className="ci-empty-desc">아직 분류한 콘텐츠가 없어 비율을 계산하지 않습니다.</p>
+              <p className="empty-state-desc">아직 분류한 콘텐츠가 없어 비율을 계산하지 않습니다.</p>
             ) : (
               <p className="ci-card-meta">
                 <span>자동 확정 {learning.slo.autoConfirmRate}%</span>

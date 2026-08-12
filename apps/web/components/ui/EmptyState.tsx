@@ -1,51 +1,60 @@
-'use client'
+// components/ui/EmptyState.tsx — 빈 상태 SSOT
+//
+// 왜 이 구현인가:
+//   빈 상태가 두 벌이었다. 정책(CLAUDE.md §2)은 이 파일을 "18건 사용"이라고 지정했지만
+//   **실사용 18건은 `ci/states.tsx` 쪽**이었고 이 파일은 1건이었다(v0.7.443 실측).
+//   그래서 이긴 구현(클래스 기반 + href 액션 + 보조 슬롯)을 여기로 올리고,
+//   기존 API(icon·actionLabel·onAction)도 흡수해 양쪽 호출부를 모두 받는다.
+//   스타일은 `.empty-state*` 클래스(globals.css) — 예전엔 `ci-empty`라 도메인에 묶여 보였다.
+//
+// 규칙: 데이터가 0건일 때 빈 화면으로 끝내지 않는다. **다음 행동을 하나 제시한다.**
 
+import Link from 'next/link'
 import type { ReactNode } from 'react'
 
-/**
- * 공용 빈 상태 컴포넌트 — 데이터가 0건일 때 "빈 화면"으로 끝내지 않고,
- * 무엇을 할 수 있는지(만들기/가져오기 동선)를 안내한다. (설계 헌법 제2조 "없으면 만들게")
- *
- * 화면마다 빈 상태를 제각각 그리지 말고 이 컴포넌트를 재사용한다.
- */
+export interface EmptyStateAction {
+  label: string
+  /** 이동이면 href, 실행이면 onClick */
+  href?: string
+  onClick?: () => void
+}
+
 export interface EmptyStateProps {
-  /** 굵은 제목 한 줄 (무엇이 없는지) */
+  /** 무엇이 없는지 — 한 줄 */
   title: string
-  /** 안내 문장 (어떻게 채우는지) — 쉬운 말로 */
+  /** 어떻게 채우는지 — 쉬운 말로 */
   description?: ReactNode
-  /** 아이콘(선택) */
   icon?: ReactNode
-  /** 주 행동 버튼 라벨 (있으면 primary 액션 노출) */
+  /** 다음 행동 1개 */
+  action?: EmptyStateAction
+  /** 보조 안내·부가 링크 */
+  secondary?: ReactNode
+  /** @deprecated `action`을 쓴다. 기존 호출부 호환용 */
   actionLabel?: string
-  /** 주 행동 클릭 */
+  /** @deprecated `action`을 쓴다. 기존 호출부 호환용 */
   onAction?: () => void
 }
 
-export default function EmptyState({ title, description, icon, actionLabel, onAction }: EmptyStateProps) {
+export default function EmptyState({
+  title, description, icon, action, secondary, actionLabel, onAction,
+}: EmptyStateProps) {
+  const primary: EmptyStateAction | undefined =
+    action ?? (actionLabel ? { label: actionLabel, onClick: onAction } : undefined)
+
   return (
-    <div
-      style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
-        padding: '36px 16px', textAlign: 'center',
-        border: 'var(--hairline) dashed var(--border-color)', borderRadius: 12,
-        color: 'var(--text-muted)',
-      }}
-    >
+    <div className="empty-state">
       {icon && <div style={{ color: 'var(--text-faint)' }}>{icon}</div>}
-      <p style={{ margin: 0, fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text)' }}>{title}</p>
-      {description && <p style={{ margin: 0, fontSize: 'var(--fs-sm)', maxWidth: 440, lineHeight: 1.6 }}>{description}</p>}
-      {actionLabel && onAction && (
-        <button
-          onClick={onAction}
-          style={{
-            marginTop: 4, padding: '8px 16px', borderRadius: 8,
-            border: 'var(--border-w-2) solid var(--brand)', background: 'var(--brand)', color: '#fff',
-            fontWeight: 600, fontSize: 'var(--fs-sm)', cursor: 'pointer',
-          }}
-        >
-          {actionLabel}
+      <p className="empty-state-title">{title}</p>
+      {description && <p className="empty-state-desc">{description}</p>}
+      {primary?.href && (
+        <Link href={primary.href} className="btn-primary">{primary.label}</Link>
+      )}
+      {primary && !primary.href && (
+        <button type="button" className="btn-primary" onClick={primary.onClick}>
+          {primary.label}
         </button>
       )}
+      {secondary}
     </div>
   )
 }

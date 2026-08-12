@@ -7,7 +7,7 @@ const workTabs = readFileSync(new URL('../../components/ui/WorkTabBar.tsx', impo
 const deptTasks = readFileSync(new URL('../../app/(member)/dept-tasks/DeptTasksClient.tsx', import.meta.url), 'utf8')
 
 test('업무 주탭은 모바일 3+2 그리드를 사용하고 인라인 가로 스크롤이 없다', () => {
-  assert.match(css, /\.work-primary-tabs\s*\{[\s\S]*?grid-template-columns:\s*repeat\(6,/)
+  assert.match(css, /\.seg-tabs-primary\s*\{[\s\S]*?grid-template-columns:\s*repeat\(6,/)
   assert.doesNotMatch(workTabs, /overflowX:\s*'auto'/)
 })
 

@@ -9,10 +9,12 @@ interface PageHeaderProps {
   // 페이지별 여백 압축 등 추가 클래스(예: daily 상단 밀도 개선). 기본 동작은 불변.
   className?: string
   descClassName?: string
+  /** 헤더 아래 줄 — 스테이지 내비·탭처럼 제목에 종속된 것만 넣는다 */
+  below?: ReactNode
 }
 
-export default function PageHeader({ title, description, actions, className, descClassName }: PageHeaderProps) {
-  return (
+export default function PageHeader({ title, description, actions, className, descClassName, below }: PageHeaderProps) {
+  const header = (
     <header
       className={`page-header${className ? ` ${className}` : ''}`}
       style={{
@@ -30,5 +32,14 @@ export default function PageHeader({ title, description, actions, className, des
       </div>
       {actions && <div className="page-header-actions" style={{ flexShrink: 0 }}>{actions}</div>}
     </header>
+  )
+
+  if (!below) return header
+  // below가 있으면 헤더의 하단 여백을 아래 줄이 이어받는다(간격 두 번 주지 않기)
+  return (
+    <div style={{ marginBottom: 'var(--space-5)' }}>
+      {header}
+      <div style={{ marginTop: 'calc(var(--space-5) * -1 + var(--space-4))' }}>{below}</div>
+    </div>
   )
 }

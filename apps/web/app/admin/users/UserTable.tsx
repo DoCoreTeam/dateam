@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Pencil, ChevronUp, ChevronDown, ChevronsUpDown, Search } from 'lucide-react'
+import SortIcon from '@/components/ui/SortIcon'
+import { Pencil, Search } from 'lucide-react'
 import RoleToggle from './RoleToggle'
 import ResetPasswordButton from './ResetPasswordButton'
 import ResetOnboardingButton from './ResetOnboardingButton'
@@ -25,11 +26,6 @@ interface Props {
 
 type SortKey = 'name' | 'rank' | 'role' | 'created_at'
 type SortDir = 'asc' | 'desc'
-
-function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
-  if (col !== sortKey) return <ChevronsUpDown size={13} style={{ opacity: 0.35 }} />
-  return sortDir === 'asc' ? <ChevronUp size={13} /> : <ChevronDown size={13} />
-}
 
 export default function UserTable({ profiles, emailMap, currentUserId, ranks, positions }: Props) {
   const [editTarget, setEditTarget] = useState<Profile | null>(null)
@@ -109,24 +105,24 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
           <tr>
             <th onClick={() => toggleSort('name')} style={thStyle}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-                이름 <SortIcon col="name" sortKey={sortKey} sortDir={sortDir} />
+                이름 <SortIcon active={sortKey === 'name'} dir={sortDir} />
               </span>
             </th>
             <th onClick={() => toggleSort('rank')} style={thStyle}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-                직급 <SortIcon col="rank" sortKey={sortKey} sortDir={sortDir} />
+                직급 <SortIcon active={sortKey === 'rank'} dir={sortDir} />
               </span>
             </th>
             <th>직책</th>
             <th onClick={() => toggleSort('role')} style={thStyle}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-                역할 <SortIcon col="role" sortKey={sortKey} sortDir={sortDir} />
+                역할 <SortIcon active={sortKey === 'role'} dir={sortDir} />
               </span>
             </th>
             <th>초기PW변경</th>
             <th onClick={() => toggleSort('created_at')} style={thStyle}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-                가입일 <SortIcon col="created_at" sortKey={sortKey} sortDir={sortDir} />
+                가입일 <SortIcon active={sortKey === 'created_at'} dir={sortDir} />
               </span>
             </th>
             <th style={{ width: '80px' }}>수정</th>

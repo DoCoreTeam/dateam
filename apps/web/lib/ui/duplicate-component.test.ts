@@ -1,7 +1,8 @@
 // lib/ui/duplicate-component.test.ts — "같은 것을 두 번 만들었다" 차단 (02-SYSTEM §8-3)
 //
 // 왜: 이 시스템의 실제 문제는 "부품을 안 쓴다"가 아니라 "두 벌 만들었다"였다.
-//   EmptyState가 ui/EmptyState.tsx와 ci/states.tsx에 **같은 이름으로** 18건씩 존재했고,
+//   EmptyState가 ui/EmptyState.tsx와 ci/states.tsx에 **같은 이름으로** 존재했고
+//   (정책이 지목한 ui/ 쪽은 실사용 1건, 실제로 쓰이던 건 ci/ 쪽 18건),
 //   화면을 만드는 사람은 매번 다른 쪽을 골랐다. 이름이 같으니 grep으로도 안 보였다.
 // 이 가드는 components/** 안에서 같은 이름을 2곳이 export하면 즉시 실패한다.
 
@@ -10,13 +11,10 @@ import assert from 'node:assert/strict'
 import { walkFiles, read, exportedSymbols, isComponentName } from './component-scan.ts'
 
 /**
- * 아직 남은 중복 — Phase 1.5가 이 목록을 **비운다**.
+ * 남은 중복 — v0.7.445에서 **비웠다**(EmptyState·ErrorState → components/ui/, SortIcon → 1벌).
  * 새 중복을 여기 추가하는 것은 정책 위반이다(통일 대상을 먼저 정한다).
  */
-const KNOWN_REMAINING: readonly string[] = [
-  'EmptyState', // ui/EmptyState.tsx(18) vs ci/states.tsx(18) — ui/ 로 통일 예정
-  'SortIcon',   // pricing/gpu/SortIcon.tsx(26) vs pricing/gpu/cockpit/SortIcon.tsx(26)
-]
+const KNOWN_REMAINING: readonly string[] = []
 
 test('components/** 에서 같은 이름을 2곳이 export하지 않는다', () => {
   const byName = new Map<string, string[]>()
