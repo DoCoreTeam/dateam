@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import PageHeader from '@/components/ui/PageHeader'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { Users, UserPlus } from 'lucide-react'
@@ -82,14 +83,7 @@ export default async function AdminMembersPage({
 
   return (
     <div>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
-          구성원 관리
-        </h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
-          사용자 계정·조직도·직급 직책 통합 관리
-        </p>
-      </div>
+      <PageHeader title="구성원 관리" description="사용자 계정·조직도·직급 직책 통합 관리" />
 
       <SegmentedTabs
         ariaLabel="구성원 관리 분류"

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import PageHeader from '@/components/ui/PageHeader'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import type { Profile } from '@/types/database'
 import ApproveRejectButtons from '../api-access/ApproveRejectButtons'
@@ -88,14 +89,7 @@ export default async function AdminApiPage({
 
   return (
     <div>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.03em', margin: 0 }}>
-          API 관리
-        </h1>
-        <p style={{ color: '#64748b', marginTop: '0.375rem', fontSize: '0.9rem' }}>
-          API 접근 신청 처리 및 키 발급 현황 관리
-        </p>
-      </div>
+      <PageHeader title="API 관리" description="API 접근 신청 처리 및 키 발급 현황 관리" />
 
       {/* 탭 네비게이션 */}
       <div style={{ display: 'flex', gap: '0', borderBottom: '2px solid var(--color-border)', marginBottom: '1.5rem' }}>
