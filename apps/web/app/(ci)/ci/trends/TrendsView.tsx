@@ -3,7 +3,7 @@
 // app/(ci)/ci/trends/TrendsView.tsx — R04 트렌드 (시장·떡상·성공 공식·이슈)
 // 조건 바는 URL 상태로 보존한다 — 공유 가능한 뷰가 이 제품의 관례다.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { ApiResponse, CiContentListItem } from '@/lib/ci/contracts'
 import type { MarketOverview, PatternRow, SignalRow, TimingOverview } from '@/lib/ci/queries/trends'
@@ -69,7 +69,9 @@ interface Props {
 export default function TrendsView(p: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [openId, setOpenId] = useState<string | null>(null)
+  // 알림에서 바로 상세로 들어오는 경로(§8.1 "알림에서 상세 시트로 직행").
+  // 상세를 여는 것도 URL 상태로 둔다 — 링크를 공유하면 같은 화면이 열려야 한다.
+  const [openId, setOpenId] = useState<string | null>(searchParams.get('content'))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<{ code: string; message: string } | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -78,6 +80,16 @@ export default function TrendsView(p: Props) {
   const [sKind, setSKind] = useState('news')
   const [sTitle, setSTitle] = useState('')
   const [sUrl, setSUrl] = useState('')
+
+  // 이미 트렌드 화면에 있는 상태에서 알림을 누르면 컴포넌트가 다시 마운트되지 않는다.
+  // useState 초기값만 믿으면 그때 상세가 열리지 않는다.
+  const contentParam = searchParams.get('content')
+  useEffect(() => { if (contentParam) setOpenId(contentParam) }, [contentParam])
+
+  function closeDetail() {
+    setOpenId(null)
+    if (contentParam) setParam('content', '')
+  }
 
   function setParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -453,7 +465,7 @@ export default function TrendsView(p: Props) {
       )}
 
       <DetailSheet contentId={openId} workspaceId={p.workspaceId}
-        onClose={() => setOpenId(null)}
+        onClose={closeDetail}
         onNextStep={(id) => router.push(`/ci/pipeline?from=${id}`)} />
     </>
   )

@@ -147,11 +147,25 @@ export default function PerformanceView({
             {learning.corrections.length === 0 ? (
               <p className="ci-empty-desc">아직 정정한 내역이 없습니다. 분류를 고치면 다음 추천에 반영됩니다.</p>
             ) : (
-              <ul>
-                {learning.corrections.map((c) => (
-                  <li key={c.kind} className="ci-card-meta">
-                    <span>{c.kind}</span><span className="ci-num">{c.count}건</span>
-                  </li>
+              <>
+                <ul>
+                  {learning.corrections.map((c) => (
+                    <li key={c.kind} className="ci-card-meta">
+                      <span>{c.kind}</span><span className="ci-num">{c.count}건</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="ci-basis" style={{ marginTop: 'var(--space-2)' }}>
+                  정정 내역은 다음 AI 분류에 예시로 함께 전달됩니다
+                </p>
+              </>
+            )}
+
+            {/* 반복 정정 → 규칙 승격 제안. 자동으로 규칙을 만들지 않는다 — 오분류가 규칙으로 굳으면 되돌리기 어렵다. */}
+            {learning.promotions.length > 0 && (
+              <ul style={{ marginTop: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                {learning.promotions.map((p) => (
+                  <li key={p.topicId} className="ci-empty-desc">{p.suggestion}</li>
                 ))}
               </ul>
             )}

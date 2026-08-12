@@ -111,8 +111,14 @@ export function buildClassifyPrompt(input: {
   title: string | null
   caption: string | null
   topics: { id: string; name: string }[]
+  /**
+   * 이 워크스페이스에서 사용자가 실제로 고친 사례 (설계서 §11.4 정정 학습 루프).
+   * 정정을 쌓아만 두고 프롬프트에 돌려주지 않으면 같은 오분류를 영원히 반복한다.
+   */
+  correctionExamples?: readonly string[]
 }): string {
   const list = input.topics.map((t) => `- ${t.name} (id: ${t.id})`).join('\n')
+  const examples = input.correctionExamples ?? []
   return [
     '아래 콘텐츠가 어떤 주제에 속하는지 판단해 주세요.',
     '',
@@ -121,6 +127,11 @@ export function buildClassifyPrompt(input: {
     '',
     '후보 주제:',
     list,
+    ...(examples.length > 0 ? [
+      '',
+      '이 조직이 지금까지 직접 고친 사례입니다. 같은 성격이면 이 판단을 따르세요.',
+      ...examples,
+    ] : []),
     '',
     '다음 JSON만 출력하세요. 다른 문장은 넣지 마세요.',
     '{"topicId": "후보 중 하나의 id 또는 null", "confidence": 0.0~1.0, "reason": "한 문장 근거"}',

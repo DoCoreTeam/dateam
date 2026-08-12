@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { CORPUS_FILTER } from '../corpus.ts'
 import { formatBasis, formatLift, formatOutlier, formatPercentile } from '../format/metrics.ts'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
+import { suggestRulePromotions, type RulePromotion } from '../analysis/corrections.ts'
 import type { CiConfidence, CiPlatform } from '../types.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -160,6 +161,8 @@ export async function getMarketPerformance(workspaceId: string): Promise<MarketP
 export interface LearningPerf {
   patterns: { id: string; statement: string; liftText: string | null; confidence: CiConfidence }[]
   corrections: { kind: string; count: number }[]
+  /** 반복 정정 → 규칙 승격 제안 (설계서 §11.4). 확정은 사람이 한다. */
+  promotions: RulePromotion[]
   slo: { autoConfirmRate: number | null; reviewQueueRate: number | null; total: number }
 }
 
@@ -174,20 +177,40 @@ const CORRECTION_LABEL: Record<string, string> = {
 export async function getLearningPerformance(workspaceId: string): Promise<LearningPerf> {
   const adminClient = createAdminClient() as any
 
-  const [{ data: patterns }, { data: corrections }, { data: contents }] = await Promise.all([
+  const [{ data: patterns }, { data: corrections }, { data: contents }, { data: topics }] = await Promise.all([
     adminClient.from('ci_patterns')
       .select('id, statement, lift, evidence_count, channel_count, confidence')
       .eq('workspace_id', workspaceId).eq('is_archived', false)
       .order('lift', { ascending: false }).limit(20),
-    adminClient.from('ci_corrections').select('kind').eq('workspace_id', workspaceId).limit(1000),
+    adminClient.from('ci_corrections')
+      .select('kind, before_value, after_value, created_at')
+      .eq('workspace_id', workspaceId).limit(1000),
     adminClient.from('ci_contents').select('topic_source, review_state')
       .eq('workspace_id', workspaceId).is('deleted_at', null).limit(1000),
+    adminClient.from('ci_topics').select('id, name')
+      .eq('workspace_id', workspaceId).is('deleted_at', null).is('merged_into_id', null),
   ])
 
   const counts = new Map<string, number>()
   for (const c of (corrections ?? []) as { kind: string }[]) {
     counts.set(c.kind, (counts.get(c.kind) ?? 0) + 1)
   }
+
+  // 반복 정정을 규칙으로 굳힐 후보. 제목은 여기서 쓰지 않으므로 조회하지 않는다.
+  const topicNameById = Object.fromEntries(
+    ((topics ?? []) as { id: string; name: string }[]).map((t) => [t.id, t.name]),
+  )
+  const promotions = suggestRulePromotions(
+    ((corrections ?? []) as any[])
+      .filter((c) => c.kind === 'topic')
+      .map((c) => ({
+        title: null,
+        fromTopicId: (c.before_value?.topicId as string | null) ?? null,
+        toTopicId: (c.after_value?.topicId as string | null) ?? null,
+        createdAt: c.created_at,
+      })),
+    topicNameById,
+  )
 
   const all = (contents ?? []) as { topic_source: string; review_state: string }[]
   const total = all.length
@@ -204,6 +227,7 @@ export async function getLearningPerformance(workspaceId: string): Promise<Learn
     corrections: Array.from(counts.entries()).map(([kind, count]) => ({
       kind: CORRECTION_LABEL[kind] ?? kind, count,
     })),
+    promotions,
     // 표본이 없으면 비율을 만들지 않는다 — 0%는 "완벽하다"로 오독된다
     slo: {
       autoConfirmRate: total > 0 ? Math.round((auto / total) * 100) : null,

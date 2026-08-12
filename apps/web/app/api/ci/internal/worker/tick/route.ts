@@ -1,6 +1,7 @@
 import { ok, fail, failUnexpected } from '@/lib/ci/api'
 import { claimJobs, startRun, finishJob } from '@/lib/ci/jobs/queue'
 import { runJob } from '@/lib/ci/jobs/handlers'
+import { runDueSnapshots } from '@/lib/ci/jobs/snapshot'
 
 /** 한 번의 tick에서 처리할 잡 수 — 서버리스 타임아웃 안에 끝나야 한다 */
 const BATCH = 10
@@ -24,6 +25,10 @@ export async function POST(req: Request) {
   }
 
   try {
+    // 때가 된 지표 스냅샷을 먼저 큐에 올린다.
+    // 예약만 있고 아무도 읽지 않으면 자동 업데이트는 영원히 오지 않는다.
+    const snapshots = await runDueSnapshots()
+
     const workerId = `w-${Math.random().toString(36).slice(2, 10)}`
     const jobs = await claimJobs(BATCH, workerId)
 
@@ -62,7 +67,10 @@ export async function POST(req: Request) {
       else failed++
     }
 
-    return ok({ claimed: jobs.length, succeeded, failed, dead })
+    return ok({
+      claimed: jobs.length, succeeded, failed, dead,
+      snapshotsDue: snapshots.due, snapshotsEnqueued: snapshots.enqueued,
+    })
   } catch (e) {
     return failUnexpected(e)
   }

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { backoffSeconds, idempotencyKey, MAX_ATTEMPTS, nextStatusAfterFailure, nextStage } from './policy.ts'
+import { backoffSeconds, idempotencyKey, MAX_ATTEMPTS, nextStatusAfterFailure, nextStage, chainVersionFromKey } from './policy.ts'
 
 test('멱등키는 단계·대상·버전으로만 결정된다 (같은 입력 = 같은 키)', () => {
   assert.equal(idempotencyKey('ingest', 'c1'), 'ingest:c1:1')
@@ -43,4 +43,20 @@ test('파이프라인 단계는 정해진 순서로 이어지고 마지막에서
   assert.equal(nextStage('classify'), 'verify')
   assert.equal(nextStage('verify'), 'project')
   assert.equal(nextStage('project'), null)
+})
+
+test('체인 버전 — 멱등키 꼬리에서 버전을 되읽는다(재수집 체인이 dedup에 죽지 않게)', () => {
+  assert.equal(chainVersionFromKey('ingest:c1:1'), 1)
+  assert.equal(chainVersionFromKey('ingest:c1:2'), 2)
+  assert.equal(chainVersionFromKey(idempotencyKey('ingest', 'c1', 7)), 7)
+})
+
+test('체인 버전 — 읽을 수 없으면 1(버전을 지어내 남의 잡과 충돌시키지 않는다)', () => {
+  assert.equal(chainVersionFromKey(null), 1)
+  assert.equal(chainVersionFromKey(undefined), 1)
+  assert.equal(chainVersionFromKey(''), 1)
+  assert.equal(chainVersionFromKey('ingest:c1:abc'), 1)
+  assert.equal(chainVersionFromKey('ingest:c1:0'), 1)
+  assert.equal(chainVersionFromKey('ingest:c1:-3'), 1)
+  assert.equal(chainVersionFromKey('ingest:c1:1.5'), 1)
 })

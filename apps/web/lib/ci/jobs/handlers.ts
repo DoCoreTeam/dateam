@@ -15,8 +15,11 @@ import {
   enrichChannelMetaBacklog,
 } from './stages.ts'
 import { enrichContextBacklog } from '../analysis/context-enrich.ts'
+import { runAlertBacklog } from '../alerts/evaluate.ts'
+import { scheduleSnapshot, type SnapshotPreset } from './snapshot.ts'
+import { resolveSettings, getResolved, type SettingRow } from '../settings/resolve.ts'
 import { enqueueJob, type ClaimedJob } from './queue.ts'
-import { nextStage } from './policy.ts'
+import { nextStage, chainVersionFromKey } from './policy.ts'
 import { buildChannelKey, isProvisionalKey, provisionalKeyCandidates } from '../ucm/channel-key.ts'
 import type { CiPlatform } from '../types.ts'
 
@@ -114,7 +117,32 @@ async function handleIngest(job: ClaimedJob): Promise<HandlerResult> {
     })
   }
 
+  // 다음 촬영을 예약한다. 온보딩이 "첫 자동 업데이트를 예약한다"고 약속한 것이 이것이고,
+  // 예약이 없으면 지표는 수집 시점 한 장으로 굳어 속도(velocity)가 영원히 null이 된다.
+  await scheduleSnapshot({
+    workspaceId: content.workspace_id,
+    contentId,
+    preset: await loadSnapshotPreset(content.workspace_id),
+    publishedAt: ucm.publishedAt ?? null,
+    firstSeenAt: ucm.provenance.fetchedAt,
+  })
+
   return { ok: true }
+}
+
+/** 워크스페이스의 스냅샷 정밀도. 못 읽으면 가장 싼 쪽으로 — 비용은 조용히 늘어나면 안 된다. */
+async function loadSnapshotPreset(workspaceId: string): Promise<SnapshotPreset> {
+  try {
+    const adminClient = createAdminClient() as any
+    const { data } = await adminClient
+      .from('ci_settings').select('scope, scope_id, key, value, is_encrypted, version')
+      .eq('key', 'snapshot.preset')
+    const resolved = resolveSettings((data ?? []) as SettingRow[], { userId: null, workspaceId })
+    const v = getResolved<SnapshotPreset>(resolved, 'snapshot.preset')
+    return v === 'standard' || v === 'precise' ? v : 'economy'
+  } catch {
+    return 'economy'
+  }
 }
 
 /**
@@ -233,6 +261,8 @@ async function handleProject(job: ClaimedJob): Promise<HandlerResult> {
     await enrichContextBacklog(job.workspace_id)
     // 파생값이 바뀌면 성공 공식도 다시 봐야 한다. 낡은 공식이 화면에 남지 않게.
     await runPatterns(job.workspace_id)
+    // 떡상 알림도 배수에 딸린 파생 처리라 같은 함정을 갖는다 — 단건이 아니라 재훑기다.
+    await runAlertBacklog(job.workspace_id)
   }
   return { ok: true }
 }
@@ -277,6 +307,10 @@ export async function runJob(job: ClaimedJob): Promise<HandlerResult> {
         targetType: job.target_type,
         targetId: job.target_id,
         payload: job.payload,
+        // 이 잡의 버전을 그대로 물려준다.
+        // 멱등키가 전역 유니크라 버전을 안 넘기면 재수집 2회차부터 normalize~project가
+        // 통째로 dedup에 걸려 사라진다 — 수집은 되는데 파생값이 안 도는 조용한 실패.
+        version: chainVersionFromKey(job.idempotency_key),
       })
     }
   }

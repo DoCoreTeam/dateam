@@ -68,6 +68,8 @@ export async function enqueueJob(input: EnqueueInput): Promise<EnqueueResult> {
 export interface ClaimedJob {
   id: string
   workspace_id: string | null
+  /** 이 잡의 멱등키. 다음 단계에 버전을 물려주는 근거다(policy.chainVersionFromKey). */
+  idempotency_key: string
   stage: CiJobStage
   target_type: string
   target_id: string | null
@@ -86,7 +88,7 @@ export async function claimJobs(limit: number, workerId: string): Promise<Claime
 
   const { data: candidates } = await adminClient
     .from('ci_jobs')
-    .select('id, workspace_id, stage, target_type, target_id, payload, attempt, max_attempts')
+    .select('id, workspace_id, idempotency_key, stage, target_type, target_id, payload, attempt, max_attempts')
     .in('status', ['queued', 'failed'])
     .lte('next_run_at', nowIso)
     .order('next_run_at', { ascending: true })

@@ -11,6 +11,7 @@ import {
   type TopicCandidate,
 } from '../analysis/classify.ts'
 import { computePatterns, type PatternSample } from '../analysis/patterns.ts'
+import { buildCorrectionExamples, type CorrectionRecord } from '../analysis/corrections.ts'
 import { resolveSettings, type SettingRow } from '../settings/resolve.ts'
 import { CORPUS_FILTER } from '../corpus.ts'
 import { fetchChannelFeed } from '../connectors/channel-feed.ts'
@@ -42,6 +43,52 @@ async function loadThreshold(workspaceId: string): Promise<number> {
     return Number.isFinite(v) ? v : 0.85
   } catch {
     return 0.85
+  }
+}
+
+/**
+ * 이 워크스페이스의 주제 정정 이력 (설계서 §11.4).
+ * 실패해도 분류를 막지 않는다 — 학습 재료가 없는 것과 분류가 죽는 것은 다르다.
+ */
+async function loadCorrectionExamples(
+  workspaceId: string,
+  topics: readonly TopicCandidate[],
+): Promise<string[]> {
+  try {
+    const adminClient = createAdminClient() as any
+    // ci_corrections.target_id는 여러 테이블을 가리키는 다형 참조라 FK가 없다.
+    // PostgREST 임베드가 성립하지 않으므로 제목은 따로 읽는다(임베드하면 조회 자체가 실패한다).
+    const { data } = await adminClient
+      .from('ci_corrections')
+      .select('target_id, before_value, after_value, created_at')
+      .eq('workspace_id', workspaceId)
+      .eq('kind', 'topic')
+      .eq('target_type', 'content')
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+    const rows = (data ?? []) as any[]
+    if (rows.length === 0) return []
+
+    const { data: titles } = await adminClient
+      .from('ci_contents')
+      .select('id, title')
+      .in('id', rows.map((r) => r.target_id).filter(Boolean))
+    const titleById = new Map(
+      ((titles ?? []) as { id: string; title: string | null }[]).map((c) => [c.id, c.title]),
+    )
+
+    const records: CorrectionRecord[] = rows.map((r) => ({
+      title: titleById.get(r.target_id) ?? null,
+      fromTopicId: (r.before_value?.topicId as string | null) ?? null,
+      toTopicId: (r.after_value?.topicId as string | null) ?? null,
+      createdAt: r.created_at,
+    }))
+
+    const nameById = Object.fromEntries(topics.map((t) => [t.id, t.name]))
+    return buildCorrectionExamples(records, nameById)
+  } catch {
+    return []
   }
 }
 
@@ -97,9 +144,15 @@ export async function runClassify(workspaceId: string, contentId: string): Promi
   if (!shouldAutoConfirm(verdict.confidence, threshold)) {
     const meta = await getGeminiMeta()
     if (meta.geminiApiKey) {
+      // 사용자가 고친 것을 AI에게 돌려준다 — 정정을 쌓아만 두면 같은 실수를 영원히 반복한다.
+      const correctionExamples = await loadCorrectionExamples(workspaceId, topics)
+      if (correctionExamples.length > 0) {
+        attempts.push(`지금까지의 정정 ${correctionExamples.length}건을 근거로 함께 넘겼습니다`)
+      }
       const prompt = buildClassifyPrompt({
         title: content.title, caption: content.caption,
         topics: topics.map((t) => ({ id: t.id, name: t.name })),
+        correctionExamples,
       })
       const res = await callGemini({ apiKey: meta.geminiApiKey, model: meta.geminiModel, prompt })
       if (res.ok) {

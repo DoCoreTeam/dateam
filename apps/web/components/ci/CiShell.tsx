@@ -19,6 +19,7 @@ import type { ThemeId } from '@/lib/themes'
 import type { CiLoopMinimap } from '@/lib/ci/contracts'
 import AssistantPanel from './AssistantPanel'
 import CiSidebarFooter from './CiSidebarFooter'
+import NotificationBell from './NotificationBell'
 
 const NAV_ITEMS = [
   // 섹션 루트라 exact로 둔다 — 안 그러면 /ci/* 어디서나 '홈'이 활성으로 남는다
@@ -108,7 +109,14 @@ export default function CiShell({
           />
         </>
       }
-      headerRight={<QuickNav />}
+      // 떡상 알림은 "매일 접속할 이유의 1번"(§8.1)이라 화면이 아니라 셸에 붙는다 —
+      // 어느 화면에 있든 새 알림이 보여야 한다.
+      headerRight={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <NotificationBell workspaceId={workspaceId} />
+          <QuickNav />
+        </div>
+      }
     >
       {children}
       <AssistantPanel workspaceId={workspaceId} />
