@@ -12,8 +12,22 @@ const ALLOW_HEX = new Set([
   '#ec4899', '#fbcfe8',
 ])
 const roots = ['apps/web/app', 'apps/web/components']
+// CSS 본체도 스캔한다 — 예전에는 app/components의 .tsx만 봐서 globals.css의
+// font-size:7px 같은 §3-1 위반이 통과 중이었다(v0.7.438 실측).
+const CSS_FILE = 'apps/web/app/globals.css'
 const BASELINE_PATH = 'scripts/.design-guard-baseline.json'
 const UPDATE = process.argv.includes('--update-baseline')
+
+// globals.css에 새로 들어와도 되는 클래스 = 시스템 공용 프리미티브 prefix.
+// 여기 없는 prefix로 새 최상위 규칙을 만들면 "화면 전용 CSS"로 보고 차단한다
+// (§0-1: 새 도메인 스타일은 해당 폴더의 CSS Module).
+const SHARED_CSS_PREFIXES = new Set([
+  'app', 'shell', 'dock', 'list', 'page', 'nb', 'seg', 'skel', 'filter', 'slide',
+  'detail', 'quickadd', 'card', 'input', 'label', 'table', 'responsive', 'tape',
+  'btn', 'badge', 'empty', 'error', 'state', 'modal', 'toast', 'sr', 'mobile',
+  'desktop', 'text', 'sidebar', 'settings', 'chip', 'form', 'grid', 'stack',
+])
+const MIN_FONT_PX = 10
 
 function walk(d, a) {
   for (const e of readdirSync(d)) {
@@ -43,6 +57,36 @@ const badTokenRe = /var\(--text-(xs|sm|md|lg|xl|2xl|3xl)\b/g
 // raw 입력: input-field 클래스 없는 <input|select|textarea (type=hidden/checkbox/radio 제외 — 토글류는 필드 스타일 비대상)
 // input-field 외에 filter-bar 전용 스타일 클래스(filter-search/filter-select)도 정식 필드 디자인으로 인정.
 const rawInputRe = /<(input|select|textarea)\b(?![^>]*\b(?:input-field|filter-search|filter-select)\b)(?![^>]*type=["'](?:hidden|checkbox|radio)["'])/g
+// z-index 하드코딩 — 레이어 순서는 --z-* 토큰만이 진실이어야 겹침 사고를 막는다.
+const zIndexRe = /zIndex: *['"]?[0-9]/g
+// 이름색·3자리 hex — 테마 전환에서 통째로 누락된다.
+const namedColorRe = /(?:'white'|"white"|#[0-9a-fA-F]{3}\b)/g
+// 자작 상태 문구 — 빈/로딩은 EmptyState·Skel*로 처리한다.
+const loadingTextRe = /불러오는 ?중|로딩 ?중/g
+const emptyTextRe = /없습니다|비어 ?있습니다/g
+
+/** JSX 여는 태그 전체를 잘라낸다. `onClick={() => x}`의 `>`에 속지 않도록 중괄호 깊이를 센다. */
+function openTag(text, start) {
+  let depth = 0
+  for (let i = start; i < text.length && i < start + 4000; i++) {
+    const c = text[i]
+    if (c === '{') depth++
+    else if (c === '}') depth--
+    else if (c === '>' && depth === 0) return text.slice(start, i + 1)
+  }
+  return text.slice(start, start + 4000)
+}
+
+/** `<button ... style={{`  = 공용 버튼(NbButton·.btn-*)을 안 쓰고 그 자리에서 만든 버튼 */
+function inlineStyledTags(text, tagName) {
+  const hits = []
+  const re = new RegExp(`<${tagName}\\b`, 'g')
+  for (const m of text.matchAll(re)) {
+    const tag = openTag(text, m.index)
+    if (/style=\{\{/.test(tag)) hits.push(text.slice(0, m.index).split('\n').length)
+  }
+  return hits
+}
 
 for (const f of files) {
   const text = readFileSync(f, 'utf8')
@@ -61,6 +105,48 @@ for (const f of files) {
     for (const m of line.matchAll(rgbaRe)) ratchet.push({ key: `${f}::rgba`, desc: `${f}:${i + 1}  rgba 인라인색` })
     for (const m of line.matchAll(badTokenRe)) ratchet.push({ key: `${f}::badtoken::${m[0]}`, desc: `${f}:${i + 1}  미정의 토큰 ${m[0]})` })
     for (const m of line.matchAll(rawInputRe)) ratchet.push({ key: `${f}::rawinput::${m[1]}`, desc: `${f}:${i + 1}  raw <${m[1]}> (input-field 누락)` })
+    for (const m of line.matchAll(zIndexRe)) ratchet.push({ key: `${f}::zindex`, desc: `${f}:${i + 1}  z-index 하드코딩 → var(--z-*)` })
+    for (const m of line.matchAll(namedColorRe)) ratchet.push({ key: `${f}::namedcolor`, desc: `${f}:${i + 1}  이름색/3자리hex ${m[0]} → 토큰` })
+    for (const m of line.matchAll(loadingTextRe)) ratchet.push({ key: `${f}::loadingtext`, desc: `${f}:${i + 1}  로딩 문구 자작 → SkelPage/SkelList/AXDotLoader` })
+    for (const m of line.matchAll(emptyTextRe)) ratchet.push({ key: `${f}::emptytext`, desc: `${f}:${i + 1}  빈 상태 문구 자작 → EmptyState` })
+  })
+  for (const ln of inlineStyledTags(text, 'button')) {
+    ratchet.push({ key: `${f}::inlinebutton`, desc: `${f}:${ln}  자작 버튼(style 인라인) → NbButton / .btn-*` })
+  }
+  if (/borderRadius: *['"`]?(var\(--radius|[0-9])/.test(text) && /(border|background): *['"`]?(var\(|[0-9'"])/.test(text)) {
+    const ln = text.split('\n').findIndex((l) => /borderRadius:/.test(l)) + 1
+    ratchet.push({ key: `${f}::inlinecard`, desc: `${f}:${ln}  자작 카드 박스(인라인) → className="card"` })
+  }
+}
+
+// ── globals.css — CSS 본체 (이전 가드의 진짜 사각지대) ────────────────────────
+if (existsSync(CSS_FILE)) {
+  const cssLines = readFileSync(CSS_FILE, 'utf8').split('\n')
+  let selector = '(root)'
+  cssLines.forEach((line, i) => {
+    const sel = line.match(/^([.#][^{]*?)\s*\{/)
+    if (sel) selector = sel[1].trim()
+    const fs = line.match(/font-size: *([0-9.]+)(px|rem)/)
+    if (fs) {
+      const px = fs[2] === 'rem' ? parseFloat(fs[1]) * 16 : parseFloat(fs[1])
+      if (px < MIN_FONT_PX) {
+        ratchet.push({
+          key: `${CSS_FILE}::tinyfont::${selector}`,
+          desc: `${CSS_FILE}:${i + 1}  ${fs[0]} (${px}px) — 10px 미만 금지(§3-1) [${selector}]`,
+        })
+      }
+    }
+    // 최상위 클래스 규칙의 prefix가 공용 목록에 없으면 = 화면 전용 CSS 신규 유입
+    const top = line.match(/^\.([a-zA-Z][\w-]*)/)
+    if (top) {
+      const prefix = top[1].split('-')[0]
+      if (!SHARED_CSS_PREFIXES.has(prefix)) {
+        ratchet.push({
+          key: `${CSS_FILE}::cssdomain::${top[1]}`,
+          desc: `${CSS_FILE}:${i + 1}  화면 전용 CSS 신규 .${top[1]} → 도메인 폴더 CSS Module(§0-1)`,
+        })
+      }
+    }
   })
 }
 

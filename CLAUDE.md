@@ -382,11 +382,10 @@ newAX의 UI는 **두 축**이다. 둘 다 정상이며, **섞어서 재구현하
 
 ### 4. 강제 검증
 - 커밋/PR 전 `pnpm design:check`(=`scripts/check-design-tokens.mjs`) 통과 필수. CI(`.github/workflows/design-guard.yml`)가 PR에서 자동 차단.
-- **현재 design:check가 잡는 것**(v0.7.438 실측): ① hex 색 **즉시 차단** ② swr 모듈레벨 `mutate` **즉시 차단** ③ `rgba()` ④ 미정의 토큰(`var(--text-sm)` 등) ⑤ **raw `<input/select/textarea>`의 `input-field` 누락** — ③④⑤는 ratchet(baseline 294건 동결, **신규 유입만 차단**).
-- **⚠️ 진짜 사각지대 (정정됨)**: 스캔 루트가 `apps/web/app` + `apps/web/components` 뿐이라 **`app/globals.css`를 보지 않는다.** 그래서 CSS 본체의 `font-size:7px`(`.gpu-chip span`)·`9px`·`0.55rem` 같은 **§3-1 위반이 통과 중**이다. CSS에 값을 넣을 때는 눈으로 대조할 것.
-  (예전 판의 "클래스 누락·공용 컴포넌트 미재사용을 탐지 못 함"은 **낡은 서술** — ⑤가 이미 있다.)
-- **기존 UI 정적 가드**: `lib/ui/integration-consistency.test.ts`(연동 카드 일관성 §2-5) · `lib/work/mobile-layout-guard.test.ts`(업무 화면 모바일). 새 가드는 **이것들 옆에 추가**하고 `design:check`를 확장한다. 병렬 시스템을 새로 만들지 않는다.
-- **⚠️ 새 `*.test.ts`는 `apps/web/package.json`의 `test` 목록(수기, 현재 171개)에 반드시 등재**한다. 등재 안 하면 `pnpm test`가 그 가드를 돌리지 않는다.
+- **현재 design:check가 잡는 것**(v0.7.441 확장): ① hex 색 **즉시 차단** ② swr 모듈레벨 `mutate` **즉시 차단** ③ `rgba()` ④ 미정의 토큰(`var(--text-sm)` 등) ⑤ **raw `<input/select/textarea>`의 `input-field` 누락** ⑥ **z-index 하드코딩** ⑦ **이름색/3자리 hex(`'white'`·`#fff`)** ⑧ **자작 버튼(`<button style={{`)·자작 카드 박스** ⑨ **자작 로딩·빈상태 문구** ⑩ **`globals.css`의 10px 미만 폰트** ⑪ **`globals.css`에 화면 전용 CSS 신규 추가** — ③~⑪은 ratchet(baseline 동결, **신규 유입만 차단**).
+- **스캔 루트**: `apps/web/app` + `apps/web/components`(.tsx) + **`apps/web/app/globals.css`**. 예전 판의 "globals.css를 안 본다"는 v0.7.441에서 해소됐다.
+- **기존 UI 정적 가드**: `lib/ui/integration-consistency.test.ts`(연동 카드 일관성 §2-5) · `lib/ui/shell-contract.test.ts`(셸 계약·PublicSurface 면제) · `lib/ui/dock-exclusive.test.ts`(우측하단 Dock 독점) · `lib/ui/duplicate-component.test.ts`(같은 이름 2곳 export 차단) · `lib/work/mobile-layout-guard.test.ts`(업무 화면 모바일). 스캔 공용 모듈은 `lib/ui/component-scan.ts`. 새 가드는 **이것들 옆에 추가**하고 `design:check`를 확장한다. 병렬 시스템을 새로 만들지 않는다.
+- **⚠️ 새 `*.test.ts`는 `apps/web/package.json`의 `test` 목록(수기, 현재 175개)에 반드시 등재**한다. 등재 안 하면 `pnpm test`가 그 가드를 돌리지 않는다.
 - **가드는 만든 뒤 일부러 깨서 실패를 확인**한다. (v0.7.438에서 1차 가드가 부분문자열 매칭이라 위반을 통과시킨 전례)
 
 ### 4-1. 신규 화면 착수 체크리스트 (전부 충족해야 코드 시작)
@@ -411,7 +410,7 @@ newAX의 UI는 **두 축**이다. 둘 다 정상이며, **섞어서 재구현하
 - TypeScript
 
 ## 버전
-v0.7.439
+v0.7.441
 
 ## 버전 업데이트 체크리스트 (필수 — 누락 시 UI 버전 불일치 발생)
 

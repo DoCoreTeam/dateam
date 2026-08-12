@@ -11,7 +11,7 @@
 - TypeScript
 
 ## 버전
-v0.7.439
+v0.7.441
 
 버전 변경 시 아래 **모든** 항목을 반드시 업데이트한다:
 
@@ -163,10 +163,10 @@ node docs/ui-system/scan-inventory.mjs --dead    # 사용 0건
 
 ### 가드 — 현황과 사각지대
 
-- `pnpm design:check`가 잡는 것: ① hex **즉시차단** ② swr 전역 `mutate` **즉시차단** ③ `rgba()` ④ 미정의 토큰 ⑤ **raw `<input/select/textarea>`의 `input-field` 누락** (③④⑤ = ratchet, baseline 294건 동결·신규만 차단).
-- **진짜 사각지대**: 스캔 루트가 `app`+`components`뿐이라 **`app/globals.css`를 안 본다.** CSS 본체의 `7px`·`9px`·`0.55rem` 폰트가 통과 중.
-- 기존 UI 정적 가드: `lib/ui/integration-consistency.test.ts` · `lib/work/mobile-layout-guard.test.ts`. 새 가드는 **이 옆에 추가 + design:check 확장**. 병렬 시스템 신설 금지.
-- **새 `*.test.ts`는 `apps/web/package.json`의 `test` 목록(수기, 171개)에 반드시 등재.** 등재 안 하면 안 돈다.
+- `pnpm design:check`가 잡는 것(v0.7.441 확장): ① hex **즉시차단** ② swr 전역 `mutate` **즉시차단** ③ `rgba()` ④ 미정의 토큰 ⑤ **raw `<input/select/textarea>`의 `input-field` 누락** ⑥ z-index 하드코딩 ⑦ `'white'`·3자리 hex ⑧ 자작 버튼·자작 카드 박스 ⑨ 자작 로딩/빈상태 문구 ⑩ **globals.css 10px 미만 폰트** ⑪ **globals.css 화면 전용 CSS 신규 추가** (③~⑪ = ratchet, baseline 동결·신규만 차단).
+- **스캔 루트**: `app` + `components`(.tsx) + **`app/globals.css`**. 예전의 "globals.css를 안 본다" 사각지대는 v0.7.441에서 해소.
+- 기존 UI 정적 가드: `lib/ui/integration-consistency.test.ts` · `lib/ui/shell-contract.test.ts` · `lib/ui/dock-exclusive.test.ts` · `lib/ui/duplicate-component.test.ts` · `lib/work/mobile-layout-guard.test.ts` (스캔 공용 모듈 `lib/ui/component-scan.ts`). 새 가드는 **이 옆에 추가 + design:check 확장**. 병렬 시스템 신설 금지.
+- **새 `*.test.ts`는 `apps/web/package.json`의 `test` 목록(수기, 175개)에 반드시 등재.** 등재 안 하면 안 돈다.
 - **가드는 만든 뒤 일부러 깨서 실패를 확인**한다.
 
 ### 신규 화면 착수 체크리스트
