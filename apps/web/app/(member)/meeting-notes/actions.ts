@@ -492,6 +492,8 @@ export interface MeetingNoteDetail {
   summary: string | null
   decisions: string | null
   created_at: string
+  /** 작성자 — 회의록 문서에 "작성자"로 표기한다. */
+  user_id: string | null
 }
 
 export async function getMeetingNote(id: string): Promise<MeetingNoteDetail | null> {
@@ -505,7 +507,7 @@ export async function getMeetingNote(id: string): Promise<MeetingNoteDetail | nu
   if (!user) return null
 
   const { data, error } = await (supabase.from('meeting_notes') as any)
-    .select('id, title, meeting_at, status, attendees, attendee_user_ids, department_id, tags, body_html, body_plain, summary, decisions, created_at')
+    .select('id, title, meeting_at, status, attendees, attendee_user_ids, department_id, tags, body_html, body_plain, summary, decisions, created_at, user_id')
     .eq('id', idCheck.data)
     .is('deleted_at', null)
     .maybeSingle()
@@ -535,6 +537,7 @@ export async function getMeetingNote(id: string): Promise<MeetingNoteDetail | nu
     summary: data.summary ?? null,
     decisions: data.decisions ?? null,
     created_at: data.created_at,
+    user_id: data.user_id ?? null,
   }
 }
 

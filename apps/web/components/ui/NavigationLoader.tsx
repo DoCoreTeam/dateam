@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import BrandLoaderMark from './BrandLoaderMark'
+import { isRouteNavigationClick } from '@/lib/ui/nav-anchor'
 
 interface NavigationLoaderProps {
   brandName: string
@@ -18,18 +19,30 @@ export default function NavigationLoader({ brandName, logoUrl }: NavigationLoade
     const handleClick = (e: MouseEvent) => {
       const anchor = (e.target as HTMLElement).closest('a')
       if (!anchor) return
-      const href = anchor.getAttribute('href')
-      if (!href) return
-      if (href.startsWith('#') || href.startsWith('http') || href.startsWith('mailto:')) return
-      if (anchor.target === '_blank') return
-      const normalised = href.split('?')[0]
-      if (normalised === pathname) return
+      // 이동인지 아닌지는 SSOT가 판정한다 — 이동이 아닌 클릭에 로더를 켜면 끌 신호(pathname 변화)가
+      // 영영 안 와서 화면이 잠긴다. (사고: PDF 내보내기의 blob 다운로드 앵커)
+      if (!isRouteNavigationClick({
+        href: anchor.getAttribute('href'),
+        hasDownload: anchor.hasAttribute('download'),
+        target: anchor.target,
+        pathname,
+        opensElsewhere: e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0,
+        defaultPrevented: e.defaultPrevented,
+      })) return
       pendingRef.current = true
       setLoading(true)
     }
     document.addEventListener('click', handleClick, true)
     return () => document.removeEventListener('click', handleClick, true)
   }, [pathname])
+
+  // 최후 안전망 — 이동이 어떤 이유로든 일어나지 않으면(라우트 가드·에러·판정 실패) 로더가 스스로 꺼진다.
+  // 화면이 잠기는 것보다 로더가 일찍 사라지는 편이 낫다.
+  useEffect(() => {
+    if (!loading) return
+    const t = setTimeout(() => { pendingRef.current = false; setLoading(false) }, 8000)
+    return () => clearTimeout(t)
+  }, [loading])
 
   useEffect(() => {
     if (pendingRef.current) {

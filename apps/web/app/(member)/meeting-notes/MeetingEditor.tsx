@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Save, ArrowLeft, Trash2, X } from 'lucide-react'
+import { Save, ArrowLeft, Trash2, X, CheckCircle2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import TiptapEditor from '@/components/ui/TiptapEditor'
 import AttendeesEditor, { type MemberChip } from './AttendeesEditor'
@@ -130,7 +130,8 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
     setTagInput('')
   }
 
-  function save() {
+  // 상태(작성중/확정)는 이 두 버튼으로만 움직인다. 저장이 하나뿐이면 status가 기본값에 영원히 머문다.
+  function save(nextStatus: 'draft' | 'final') {
     if (!title.trim()) { setError('제목을 입력해 주세요.'); return }
     setError('')
     const attendeeNames = [...members.map((m) => m.name), ...externals]
@@ -143,6 +144,7 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
       tags: tags.length > 0 ? tags : null,
       attendees: attendeeNames.length > 0 ? attendeeNames : null,
       attendee_user_ids: attendeeUserIds.length > 0 ? attendeeUserIds : null,
+      status: nextStatus,
     }
     startTransition(async () => {
       try {
@@ -281,8 +283,11 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
               <Trash2 size={15} /> {deleting ? '삭제 중…' : '삭제'}
             </NbButton>
           )}
-          <NbButton onClick={save} disabled={pending || deleting} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <Save size={15} /> {pending ? '저장 중…' : mode === 'create' ? '작성 완료' : '변경 저장'}
+          <NbButton variant="secondary" onClick={() => save('draft')} disabled={pending || deleting} title="아직 정리 중 — 목록에 '작성중'으로 남습니다" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <Save size={15} /> {pending ? '저장 중…' : '임시저장'}
+          </NbButton>
+          <NbButton onClick={() => save('final')} disabled={pending || deleting} title="내용을 확정합니다 — 목록에 '작성완료'로 표시됩니다" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <CheckCircle2 size={15} /> {pending ? '저장 중…' : '작성 완료'}
           </NbButton>
         </div>
       </div>

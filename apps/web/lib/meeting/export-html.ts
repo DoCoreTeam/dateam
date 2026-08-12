@@ -1,6 +1,8 @@
-// 회의록 내보내기(PDF·이미지) 표준 HTML 문서 빌더 (SSOT).
-//   · 현재 탭(정제본/원본)에 맞춰 본문을 렌더한다.
-//   · plain text 필드(제목·요약·결정사항·참석자)는 escapeHtml로 이스케이프 → 마크업 주입 방지.
+// 회의록 내보내기(PDF·이미지) 문서 빌더 (SSOT).
+//   · 화면 UI를 그대로 찍지 않는다 — 밖으로 나가는 산출물이므로 "회의록 문서" 서식을 따른다.
+//     제목 아래 라벨-값 표(작성일시·작성자·부서·참석자) → 본문 섹션 → 서명란. 일반적인 회의록 양식.
+//   · 상태(작성중/확정)는 문서에 넣지 않는다 — 내부 작업 상태지 회의 사실이 아니다.
+//   · plain text 필드는 escapeHtml로 이스케이프 → 마크업 주입 방지.
 //   · bodyHtml(원본)은 호출부에서 sanitizeRichHtml로 이미 소독된 값을 받는다(라우트 책임).
 //   · 서버 puppeteer가 page.setContent로 렌더 → page.pdf() / page.screenshot()로 산출.
 //   · 순수 함수(부수효과·I/O 없음) → 단위 테스트 대상.
@@ -11,7 +13,10 @@ export type MeetingExportView = 'refined' | 'original'
 export interface MeetingExportInput {
   title: string
   meetingAtLabel: string
-  statusLabel: string
+  /** 작성자 이름. 모르면 빈 문자열 — 지어내지 않고 행을 숨긴다. */
+  authorName?: string
+  /** 부서명. 없으면 행을 숨긴다. */
+  departmentName?: string
   memberAttendees: string[]
   externalAttendees: string[]
   view: MeetingExportView
@@ -23,53 +28,56 @@ export interface MeetingExportInput {
 
 const EMPTY_HTML = new Set(['', '<p></p>', '<p><br></p>', '<p><br/></p>', '<p><br /></p>'])
 
-/** 문서 본문(탭별) 마크업 생성. refined=요약/결정사항, original=소독된 리치 HTML. */
+/** "- 항목" 줄이 이어지면 실제 목록으로 — 회의록에서 개조식은 글머리표로 보여야 읽힌다. */
+function renderTextBlock(text: string): string {
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
+  const bulletish = lines.length > 1 && lines.every((l) => /^[-–—·•*]\s?/.test(l))
+  if (bulletish) {
+    const items = lines.map((l) => `<li>${escapeHtml(l.replace(/^[-–—·•*]\s?/, ''))}</li>`).join('')
+    return `<ul class="bullets">${items}</ul>`
+  }
+  return `<p class="pre">${escapeHtml(text)}</p>`
+}
+
+/** 문서 본문(탭별). refined=요약/결정사항, original=소독된 리치 HTML. */
 function renderBody(input: MeetingExportInput): string {
   if (input.view === 'refined') {
     const summary = input.summary.trim()
     const decisions = input.decisions.trim()
-    if (!summary && !decisions) {
-      return `<p class="empty">AI 정제본이 없습니다.</p>`
-    }
+    if (!summary && !decisions) return `<p class="empty">AI 정제본이 없습니다.</p>`
     const parts: string[] = []
-    if (summary) {
-      parts.push(
-        `<section class="block"><h2>요약</h2><p class="pre">${escapeHtml(summary)}</p></section>`,
-      )
-    }
+    if (summary) parts.push(`<section class="sec"><h2>1. 회의 내용</h2>${renderTextBlock(summary)}</section>`)
     if (decisions) {
-      parts.push(
-        `<section class="block"><h2>결정사항</h2><p class="pre">${escapeHtml(decisions)}</p></section>`,
-      )
+      const n = summary ? 2 : 1
+      parts.push(`<section class="sec"><h2>${n}. 결정사항</h2>${renderTextBlock(decisions)}</section>`)
     }
     return parts.join('\n')
   }
-  // original
   const html = input.bodyHtml.trim()
-  if (EMPTY_HTML.has(html) || html === '') {
-    return `<p class="empty">본문이 비어 있습니다.</p>`
-  }
-  // 이미 소독됨(화이트리스트 태그만). 텍스트만 있으면 문단으로 감싼다.
+  if (EMPTY_HTML.has(html) || html === '') return `<p class="empty">본문이 비어 있습니다.</p>`
   const wrapped = html.startsWith('<') ? html : `<p>${escapeHtml(html)}</p>`
-  return `<section class="block rich">${wrapped}</section>`
+  return `<section class="sec"><h2>1. 회의 내용</h2><div class="rich">${wrapped}</div></section>`
 }
 
-/** 참석자 chip 목록(멤버 indigo·외부 slate). 없으면 빈 문자열. */
-function renderAttendees(members: string[], externals: string[]): string {
-  if (members.length === 0 && externals.length === 0) return ''
-  const chips = [
-    ...members.map((n) => `<span class="chip chip-mem">${escapeHtml(n)}</span>`),
-    ...externals.map((n) => `<span class="chip chip-ext">${escapeHtml(n)}</span>`),
-  ].join('')
-  return `<section class="attendees"><h2>참석자</h2><div class="chips">${chips}</div></section>`
+/** 라벨-값 한 행. 값이 비면 행 자체를 만들지 않는다(빈 칸을 문서에 남기지 않는다). */
+function metaRow(label: string, value: string): string {
+  if (!value.trim()) return ''
+  return `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`
 }
 
 /**
- * 회의록 내보내기용 독립 실행 HTML 문서. 외부 리소스 없음(폰트=시스템, CSS 인라인) → 오프라인·CSP 안전.
+ * 회의록 문서 HTML. 외부 리소스 없음(폰트=시스템, CSS 인라인) → 오프라인·CSP 안전.
  */
 export function buildMeetingExportHtml(input: MeetingExportInput): string {
   const title = input.title.trim() || '(제목 없음)'
-  const viewLabel = input.view === 'refined' ? 'AI 정제본' : '원본'
+  const attendees = [...input.memberAttendees, ...input.externalAttendees]
+  const meta = [
+    metaRow('작성일시', input.meetingAtLabel),
+    metaRow('작성자', input.authorName ?? ''),
+    metaRow('부　　서', input.departmentName ?? ''),
+    metaRow('참 석 자', attendees.join(', ')),
+  ].filter(Boolean).join('\n      ')
+
   return `<!doctype html>
 <html lang="ko">
 <head>
@@ -81,47 +89,52 @@ export function buildMeetingExportHtml(input: MeetingExportInput): string {
   html, body { margin: 0; padding: 0; background: #ffffff; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
-    color: #1e293b; line-height: 1.7; -webkit-font-smoothing: antialiased;
+    color: #1f2937; line-height: 1.75; -webkit-font-smoothing: antialiased;
   }
-  .doc { max-width: 720px; margin: 0 auto; padding: 48px 44px 56px; }
-  header.head { border-bottom: 2px solid #4f46e5; padding-bottom: 20px; margin-bottom: 28px; }
-  .kicker { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #6366f1; text-transform: uppercase; margin: 0 0 8px; }
-  h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; color: #0f172a; margin: 0 0 14px; line-height: 1.3; }
-  .meta { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: #64748b; }
-  .meta .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #eef2ff; color: #4338ca; font-weight: 700; font-size: 12px; }
-  .block { margin: 0 0 26px; }
-  .block h2 { font-size: 13px; font-weight: 700; letter-spacing: 0.03em; color: #64748b; margin: 0 0 8px; text-transform: none; }
-  .block .pre { margin: 0; white-space: pre-wrap; font-size: 15px; color: #1e293b; }
-  .rich { font-size: 15px; color: #1e293b; }
+  .doc { max-width: 740px; margin: 0 auto; padding: 52px 48px 44px; }
+
+  /* 표제 — 문서 제목은 가운데, 그 아래 굵은 괘선. 관공서·사내 보고서의 표준 머리. */
+  .doctype { text-align: center; font-size: 12px; letter-spacing: 0.42em; color: #6b7280; margin: 0 0 10px; padding-left: 0.42em; }
+  h1 { text-align: center; font-size: 27px; font-weight: 800; letter-spacing: -0.02em; color: #111827; margin: 0 0 22px; line-height: 1.35; }
+  .rule { border: 0; border-top: 2.5px solid #111827; margin: 0 0 0; }
+
+  /* 라벨-값 표 — 회의록의 얼굴. 라벨 열은 옅은 바탕으로 고정폭. */
+  table.meta { width: 100%; border-collapse: collapse; margin: 0 0 34px; font-size: 14px; }
+  table.meta th, table.meta td { border-bottom: 1px solid #e5e7eb; padding: 11px 14px; text-align: left; vertical-align: top; }
+  table.meta th { width: 108px; background: #f9fafb; color: #4b5563; font-weight: 700; white-space: nowrap; }
+  table.meta td { color: #111827; }
+
+  .sec { margin: 0 0 30px; }
+  .sec h2 { font-size: 15px; font-weight: 800; color: #111827; margin: 0 0 12px; padding-left: 10px; border-left: 3px solid #111827; line-height: 1.4; }
+  .pre { margin: 0; white-space: pre-wrap; font-size: 14.5px; }
+  ul.bullets { margin: 0; padding-left: 20px; font-size: 14.5px; }
+  ul.bullets li { margin: 5px 0; padding-left: 2px; }
+
+  .rich { font-size: 14.5px; }
   .rich p { margin: 0 0 10px; }
   .rich ul, .rich ol { margin: 0 0 12px; padding-left: 22px; }
-  .rich li { margin: 2px 0; }
-  .rich table { border-collapse: collapse; width: 100%; margin: 8px 0 14px; font-size: 14px; }
-  .rich th, .rich td { border: 1px solid #e2e8f0; padding: 6px 10px; text-align: left; }
-  .rich th { background: #f8fafc; font-weight: 700; }
-  .rich h1, .rich h2, .rich h3 { font-size: 16px; font-weight: 700; color: #0f172a; margin: 14px 0 6px; text-transform: none; letter-spacing: 0; }
-  .empty { color: #94a3b8; font-size: 14px; margin: 0; }
-  .attendees { border-top: 1px solid #e2e8f0; padding-top: 20px; margin-top: 8px; }
-  .attendees h2 { font-size: 13px; font-weight: 700; color: #64748b; margin: 0 0 10px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip { display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; }
-  .chip-mem { background: #eef2ff; color: #4338ca; }
-  .chip-ext { background: #f1f5f9; color: #475569; }
-  footer.foot { margin-top: 36px; padding-top: 14px; border-top: 1px solid #f1f5f9; font-size: 11px; color: #94a3b8; text-align: right; }
+  .rich li { margin: 3px 0; }
+  .rich table { border-collapse: collapse; width: 100%; margin: 8px 0 14px; font-size: 13.5px; }
+  .rich th, .rich td { border: 1px solid #d1d5db; padding: 7px 10px; text-align: left; }
+  .rich th { background: #f9fafb; font-weight: 700; }
+  .rich h1, .rich h2, .rich h3 { font-size: 15px; font-weight: 700; color: #111827; margin: 16px 0 6px; text-align: left; letter-spacing: 0; border: 0; padding: 0; }
+  .empty { color: #9ca3af; font-size: 14px; margin: 0; }
+
+  /* 마무리 — 문서의 끝을 알리고 발행 주체를 밝힌다. */
+  .end { text-align: center; font-size: 12.5px; color: #6b7280; letter-spacing: 0.3em; margin: 38px 0 0; padding-left: 0.3em; }
+  footer.foot { margin-top: 14px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 11.5px; color: #9ca3af; text-align: center; }
 </style>
 </head>
 <body>
   <div class="doc">
-    <header class="head">
-      <p class="kicker">회의록 · ${escapeHtml(viewLabel)}</p>
-      <h1>${escapeHtml(title)}</h1>
-      <div class="meta">
-        <span class="badge">${escapeHtml(input.statusLabel)}</span>
-        <span>${escapeHtml(input.meetingAtLabel)}</span>
-      </div>
-    </header>
+    <p class="doctype">회 의 록</p>
+    <h1>${escapeHtml(title)}</h1>
+    <hr class="rule" />
+    <table class="meta">
+      ${meta}
+    </table>
     ${renderBody(input)}
-    ${renderAttendees(input.memberAttendees, input.externalAttendees)}
+    <p class="end">— 이 상 —</p>
     <footer class="foot">데이터얼라이언스 · AX사업본부</footer>
   </div>
 </body>

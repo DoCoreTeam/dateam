@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getMeetingNote, listOrgPeople } from '@/app/(member)/meeting-notes/actions'
+import { getMeetingNote, listOrgPeople, getMeetingDepartments } from '@/app/(member)/meeting-notes/actions'
 import { sanitizeRichHtml } from '@/components/ui/RichText'
 import { sanitizeFilename } from '@/lib/ai-chat/export'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
+import { exportFailureMessage } from '@/lib/meeting/export-failure'
 import { buildMeetingExportHtml, type MeetingExportView } from '@/lib/meeting/export-html'
 import { launchOptions } from '@/lib/security/headless-fetch'
 
@@ -11,25 +12,6 @@ export const maxDuration = 30
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PuppeteerBrowser = any
-
-const STATUS_LABEL: Record<string, string> = { draft: '작성중', final: '확정', archived: '보관' }
-
-/** 렌더 실패를 사람이 읽을 사유로. "잠시 후 다시"로 뭉개면 영영 못 고친다. */
-export function exportFailureMessage(format: 'pdf' | 'png', err: unknown): string {
-  const raw = (err instanceof Error ? err.message : String(err ?? '')).toLowerCase()
-  const label = format.toUpperCase()
-  // 서버리스에서 크로미움 바이너리를 못 찾는 경우 — 배포 설정 문제지 일시 장애가 아니다.
-  if (raw.includes('could not find') || raw.includes('enoent') || raw.includes('executablepath') || raw.includes('spawn')) {
-    return `${label} 변환기(브라우저 엔진)를 서버에서 찾지 못했습니다. 배포 설정을 확인해 주세요.`
-  }
-  if (raw.includes('headless render disabled')) {
-    return `이 환경에서는 ${label} 내보내기가 비활성화되어 있습니다.`
-  }
-  if (raw.includes('timeout') || raw.includes('timed out')) {
-    return `${label} 생성이 제한 시간을 넘었습니다. 회의록이 너무 길지 않은지 확인해 주세요.`
-  }
-  return `${label} 생성에 실패했습니다. 관리자에게 문의해 주세요.`
-}
 
 /** 회의 참석자 분류 — user_ids→조직원(이름 매칭), 그 외 attendees→외부. MeetingDetailClient와 동일 규칙. */
 function classifyAttendees(
@@ -69,11 +51,17 @@ export async function GET(
 
   const people = await listOrgPeople().catch(() => [])
   const { members, externals } = classifyAttendees(note.attendees, note.attendee_user_ids, people)
+  // 작성자·부서는 회의록 문서의 필수 표기다. 못 찾으면 빈 문자열 — 빌더가 그 행을 통째로 뺀다(지어내지 않는다).
+  const authorName = people.find((p) => p.id === note.user_id)?.name ?? ''
+  const departmentName = note.department_id
+    ? (await getMeetingDepartments().catch(() => [])).find((d) => d.id === note.department_id)?.name ?? ''
+    : ''
 
   const html = buildMeetingExportHtml({
     title: note.title ?? '',
     meetingAtLabel: note.meeting_at ? formatKstDateTimeShort(note.meeting_at) : '일시 미지정',
-    statusLabel: STATUS_LABEL[note.status] ?? note.status ?? '',
+    authorName: authorName,
+    departmentName: departmentName,
     memberAttendees: members,
     externalAttendees: externals,
     view,
