@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ApiResponse } from '@/lib/ci/contracts'
 import { EmptyState, ErrorState } from '@/components/ci/states'
+import { isEnterKey } from '@/lib/ui/ime'
 
 interface Board { id: string; name: string; itemCount: number }
 
@@ -62,7 +63,7 @@ export default function BoardsView({
         <label className="label" htmlFor="ci-board-name" style={{ position: 'absolute', left: '-9999px' }}>보드 이름</label>
         <input className="input-field" id="ci-board-name"
           value={name} onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); create() } }}
+          onKeyDown={(e) => { if (isEnterKey(e)) { e.preventDefault(); create() } }}
           placeholder="새 보드 이름 (예: 이번 달 소재)" disabled={busy} style={{ flex: 1 }}
         />
         <button type="button" className="btn-primary" onClick={create} disabled={busy || !name.trim()}>

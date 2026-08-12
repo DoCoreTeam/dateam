@@ -12,6 +12,7 @@ import { LayoutGrid, List, Search, Link2, Upload, Trash2 } from 'lucide-react'
 import type { ApiResponse, ApiMeta } from '@/lib/ci/contracts'
 import type { CiAssetItem } from '@/lib/ci/queries/assets'
 import { EmptyState, ErrorState, RowSkeleton } from '@/components/ci/states'
+import { isEnterKey } from '@/lib/ui/ime'
 
 type ViewMode = 'card' | 'list'
 type Filter = 'all' | 'file' | 'link'
@@ -168,7 +169,7 @@ export default function AssetsView({
               placeholder="유튜브·드라이브 등 주소를 붙여넣으세요"
               onChange={(e) => setLinkUrl(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') void addLink((e.target as HTMLInputElement).value)
+                if (isEnterKey(e)) void addLink((e.target as HTMLInputElement).value)
               }}
               disabled={busy}
             />

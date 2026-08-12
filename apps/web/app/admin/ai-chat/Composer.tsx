@@ -13,6 +13,7 @@ import {
 } from '@/lib/ai-chat/attachments'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { historyPrev, historyNext } from '@/lib/ai-chat/composer-history'
+import { isEnterKey } from '@/lib/ui/ime'
 
 const MAX_LEN = 32000
 // ACCEPT는 ATTACHMENT_RULES(SSOT)에서 파생 — 화이트리스트 이중정의 금지
@@ -264,7 +265,7 @@ export default function Composer({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+    if (isEnterKey(e) && !e.shiftKey) {
       e.preventDefault()
       submit()
       return

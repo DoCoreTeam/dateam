@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Trash2, Plus } from 'lucide-react'
 import { createRank, deleteRank, createPosition, deletePosition } from './actions'
+import { isEnterKey } from '@/lib/ui/ime'
 
 interface RankItem {
   id: number
@@ -65,7 +66,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
           <input
             value={rankInput}
             onChange={e => setRankInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAddRank()}
+            onKeyDown={e => isEnterKey(e) && handleAddRank()}
             placeholder="직급명 입력"
             disabled={isPending}
             style={{
@@ -117,7 +118,7 @@ export default function RankPositionManager({ ranks, positions }: Props) {
           <input
             value={posInput}
             onChange={e => setPosInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAddPosition()}
+            onKeyDown={e => isEnterKey(e) && handleAddPosition()}
             placeholder="직책명 입력"
             disabled={isPending}
             style={{

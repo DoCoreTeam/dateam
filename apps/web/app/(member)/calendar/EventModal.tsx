@@ -7,6 +7,7 @@ import { createCalendarEvent } from './actions'
 import { kstWallToIso, kstDateOnlyToIso } from '@/lib/datetime/kst'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
+import { isEnterKey } from '@/lib/ui/ime'
 
 interface Props {
   date: string // YYYY-MM-DD 기본 날짜
@@ -97,7 +98,7 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
         <div ref={nlRef}><DraftRestoreBanner show={nlDraft.hasDraft} onRestore={nlDraft.restore} onDiscard={nlDraft.discard} /></div>
         <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.875rem' }}>
           <input value={nl} onChange={(e) => setNl(e.target.value)} placeholder="자연어: 내일 오후 3시 A사 미팅"
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); parseNl() } }}
+            onKeyDown={(e) => { if (isEnterKey(e)) { e.preventDefault(); parseNl() } }}
             style={{ flex: 1, border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem 0.625rem', fontSize: 'var(--fs-sm)', outline: 'none' }} />
           <button onClick={parseNl} disabled={aiBusy} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand-fg)', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-3)', cursor: aiBusy ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
             <Sparkles size={14} /> {aiBusy ? '파싱중' : 'AI 파싱'}

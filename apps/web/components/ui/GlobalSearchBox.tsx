@@ -6,6 +6,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, X } from 'lucide-react'
+import { isEnterKey } from '@/lib/ui/ime'
 
 export default function GlobalSearchBox() {
   const router = useRouter()
@@ -29,7 +30,7 @@ export default function GlobalSearchBox() {
   }
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') submit()
+    if (isEnterKey(e)) submit()
     if (e.key === 'Escape') {
       setValue('')
       setExpanded(false)

@@ -49,7 +49,12 @@ export default function MeetingReadBody({
     setExporting(format); setErr(''); setInfo('')
     try {
       const res = await fetch(`/api/meeting-notes/${meetingNoteId}/export?view=${tab}&format=${format}`)
-      if (!res.ok) { setErr('내보내기에 실패했습니다. 잠시 후 다시 시도해 주세요.'); return }
+      if (!res.ok) {
+        // 서버가 준 사유를 그대로 보여준다. "잠시 후 다시"로 덮으면 사용자도 우리도 원인을 못 본다.
+        const reason = await res.json().then((j) => (typeof j?.error === 'string' ? j.error : '')).catch(() => '')
+        setErr(reason || '내보내기에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+        return
+      }
       const blob = await res.blob()
       const cd = res.headers.get('Content-Disposition') ?? ''
       const m = cd.match(/filename\*=UTF-8''([^;]+)/)

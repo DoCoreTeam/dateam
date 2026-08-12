@@ -10,6 +10,7 @@ import { createMeetingNote, updateMeetingNote, deleteMeetingNote, getMeetingDepa
 import type { OrgPickerNode } from '@/components/ui/OrgPeoplePicker'
 import { consumeWorkflowHandoff } from '@/lib/ai-chat/workflow-handoff'
 import { escapeHtml } from '@/lib/ai-chat/export'
+import { isEnterKey } from '@/lib/ui/ime'
 
 export interface MeetingNoteDraft {
   id?: string
@@ -263,7 +264,7 @@ export default function MeetingEditor({ initial, mode, onExit }: Props) {
           )}
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             <input id="mn-tag" className="input-field" value={tagInput} onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
+              onKeyDown={(e) => { if (isEnterKey(e)) { e.preventDefault(); addTag() } }}
               placeholder="태그 입력 후 Enter" style={{ minHeight: 44, flex: 1, minWidth: 0 }} />
             <NbButton variant="ghost" onClick={addTag} disabled={!tagInput.trim()} style={{ flexShrink: 0 }}>추가</NbButton>
           </div>

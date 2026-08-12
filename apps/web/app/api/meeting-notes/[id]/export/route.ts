@@ -14,6 +14,23 @@ type PuppeteerBrowser = any
 
 const STATUS_LABEL: Record<string, string> = { draft: '작성중', final: '확정', archived: '보관' }
 
+/** 렌더 실패를 사람이 읽을 사유로. "잠시 후 다시"로 뭉개면 영영 못 고친다. */
+export function exportFailureMessage(format: 'pdf' | 'png', err: unknown): string {
+  const raw = (err instanceof Error ? err.message : String(err ?? '')).toLowerCase()
+  const label = format.toUpperCase()
+  // 서버리스에서 크로미움 바이너리를 못 찾는 경우 — 배포 설정 문제지 일시 장애가 아니다.
+  if (raw.includes('could not find') || raw.includes('enoent') || raw.includes('executablepath') || raw.includes('spawn')) {
+    return `${label} 변환기(브라우저 엔진)를 서버에서 찾지 못했습니다. 배포 설정을 확인해 주세요.`
+  }
+  if (raw.includes('headless render disabled')) {
+    return `이 환경에서는 ${label} 내보내기가 비활성화되어 있습니다.`
+  }
+  if (raw.includes('timeout') || raw.includes('timed out')) {
+    return `${label} 생성이 제한 시간을 넘었습니다. 회의록이 너무 길지 않은지 확인해 주세요.`
+  }
+  return `${label} 생성에 실패했습니다. 관리자에게 문의해 주세요.`
+}
+
 /** 회의 참석자 분류 — user_ids→조직원(이름 매칭), 그 외 attendees→외부. MeetingDetailClient와 동일 규칙. */
 function classifyAttendees(
   attendees: string | null,
@@ -84,8 +101,10 @@ export async function GET(
       await page.setContent(html, { waitUntil: 'domcontentloaded' })
       bytes = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '24px', bottom: '24px', left: '24px', right: '24px' } })
     }
-  } catch {
-    return NextResponse.json({ error: `${format.toUpperCase()} 생성 중 오류가 발생했습니다` }, { status: 500 })
+  } catch (err) {
+    // 원문을 삼키면 원인을 영영 못 찾는다 — 서버 로그에 남기고, 화면에는 사람이 읽을 사유를 준다.
+    console.error('[meeting-notes/export] render failed', { format, view, noteId: params.id, err })
+    return NextResponse.json({ error: exportFailureMessage(format, err) }, { status: 500 })
   } finally {
     try { await browser?.close() } catch { /* noop */ }
   }

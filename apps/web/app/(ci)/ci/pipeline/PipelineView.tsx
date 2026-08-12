@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import type { ApiResponse, CiIdeaCard } from '@/lib/ci/contracts'
 import { CI_PIPELINE_STAGES, CI_STAGE_LABEL, type CiPipelineStage } from '@/lib/ci/types'
 import { EmptyState, ErrorState } from '@/components/ci/states'
+import { isEnterKey } from '@/lib/ui/ime'
 
 const COLUMN_HINT: Record<CiPipelineStage, string> = {
   idea: '보드나 트렌드에서 가져오기',
@@ -89,7 +90,7 @@ export default function PipelineView({ workspaceId, ideas, seed }: Props) {
         <input className="input-field" id="ci-idea-title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); create() } }}
+          onKeyDown={(e) => { if (isEnterKey(e)) { e.preventDefault(); create() } }}
           placeholder={seed ? '이 콘텐츠를 근거로 만들 아이디어 제목' : '새 아이디어 제목'}
           disabled={busy}
           style={{ flex: 1 }}

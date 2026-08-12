@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Send, RotateCcw, MessageSquare } from 'lucide-react'
+import { isEnterKey } from '@/lib/ui/ime'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -144,7 +145,7 @@ export default function DbChatTab() {
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (isEnterKey(e) && !e.shiftKey) {
       e.preventDefault()
       sendMessage(input)
     }

@@ -7,6 +7,7 @@ import { STATUS_COLORS, PRIORITY_COLORS, type PriorityKey } from '@/lib/tokens/s
 import { isProgressAuto } from '@/lib/dept-task-utils'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
+import { isEnterKey } from '@/lib/ui/ime'
 import {
   updateDeptTaskProgress, assignTask, deleteDeptTask,
   getDeptTaskComments, addDeptTaskComment, listAssigneeCandidates,
@@ -194,7 +195,7 @@ export default function DeptTaskDetail({ task, canAssign, canEdit, nameMap, dept
         </ul>
         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
           <input className="input-field" value={commentText} onChange={(e) => setCommentText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComment() } }}
+            onKeyDown={(e) => { if (isEnterKey(e) && !e.shiftKey) { e.preventDefault(); submitComment() } }}
             placeholder="진행상황 댓글 입력" style={{ flex: 1, minHeight: 44 }} aria-label="댓글 입력" />
           <NbButton onClick={submitComment} disabled={busy || !commentText.trim()}>등록</NbButton>
         </div>

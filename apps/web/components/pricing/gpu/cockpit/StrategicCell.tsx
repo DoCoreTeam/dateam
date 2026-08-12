@@ -8,6 +8,7 @@ import { useState, useRef, useCallback } from 'react'
 import { Pencil, Check, X } from 'lucide-react'
 import { fmtKRW } from '@/lib/gpu/format-price'
 import type { CockpitProduct } from './types'
+import { isEnterKey } from '@/lib/ui/ime'
 
 interface StrategicCellProps {
   product: CockpitProduct
@@ -68,7 +69,7 @@ export function StrategicCell({ product, isAdmin, onSaved }: StrategicCellProps)
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') save()
+      if (isEnterKey(e)) save()
       if (e.key === 'Escape') cancel()
     },
     [save, cancel],

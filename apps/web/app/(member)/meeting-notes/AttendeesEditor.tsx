@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { Users, Plus, X } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import OrgPeoplePicker, { type OrgPickerNode, type PickerPerson } from '@/components/ui/OrgPeoplePicker'
+import { isEnterKey } from '@/lib/ui/ime'
 
 export interface MemberChip {
   id: string
@@ -100,7 +101,7 @@ export default function AttendeesEditor({ people, tree, members, externals, onCh
             <input id="mn-att-external" className="input-field"
               value={externalInput}
               onChange={(e) => setExternalInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addExternal() } }}
+              onKeyDown={(e) => { if (isEnterKey(e)) { e.preventDefault(); addExternal() } }}
               placeholder="외부 참석자 이름"
               style={{ minHeight: 44, flex: 1, minWidth: 0 }}
             />

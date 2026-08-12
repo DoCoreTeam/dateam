@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Plus, Trash2, Copy, Check, ExternalLink, Key, AlertTriangle } from 'lucide-react'
+import { isEnterKey } from '@/lib/ui/ime'
 
 interface ApiKey {
   id: string
@@ -200,7 +201,7 @@ export default function ApiKeysPage() {
               placeholder="API 키 이름을 입력하세요 (예: 운영 서버 연동)"
               value={newKeyName}
               onChange={e => { setNewKeyName(e.target.value); if (createError) setCreateError(null) }}
-              onKeyDown={e => e.key === 'Enter' && createKey()}
+              onKeyDown={e => isEnterKey(e) && createKey()}
               style={{ flex: 1 }}
             />
             <button onClick={createKey} disabled={creating} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: 'var(--brand)', color: '#fff', fontWeight: 600, fontSize: 14, cursor: creating ? 'not-allowed' : 'pointer', opacity: creating ? 0.5 : 1 }}>

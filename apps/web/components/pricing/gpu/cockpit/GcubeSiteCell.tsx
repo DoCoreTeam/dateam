@@ -10,6 +10,7 @@ import { fmtKRW } from '@/lib/gpu/format-price'
 import type { CockpitProduct } from './types'
 import type { GcubeCheckItem } from '@/app/api/pricing/gpu/gcube-check/route'
 import { GcubeSyncBadge } from './GcubeSyncBadge'
+import { isEnterKey } from '@/lib/ui/ime'
 
 interface GcubeSiteCellProps {
   product: CockpitProduct
@@ -78,7 +79,7 @@ export function GcubeSiteCell({ product, isAdmin, onSaved, syncItem }: GcubeSite
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') save()
+      if (isEnterKey(e)) save()
       if (e.key === 'Escape') cancel()
     },
     [save, cancel],

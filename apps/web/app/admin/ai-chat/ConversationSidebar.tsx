@@ -8,6 +8,7 @@ import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import { searchConversations } from './actions'
+import { isEnterKey } from '@/lib/ui/ime'
 
 interface SearchResult {
   id: string
@@ -148,7 +149,7 @@ export default function ConversationSidebar({
               maxLength={100}
               onChange={(e) => setDraftTitle(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') { e.preventDefault(); commitEdit() }
+                if (isEnterKey(e)) { e.preventDefault(); commitEdit() }
                 if (e.key === 'Escape') { e.preventDefault(); cancelEdit() }
               }}
               style={{ flex: 1, minWidth: 0, fontSize: 'var(--fs-sm)', padding: 'var(--space-1) var(--space-2)' }}

@@ -8,6 +8,7 @@ import { useEscClose } from '@/lib/use-esc-close'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import NbButton from '@/components/ui/nb/NbButton'
 import { createProject, updateProject, softDeleteProject, listProjects } from '../actions'
+import { isEnterKey } from '@/lib/ui/ime'
 
 interface Props {
   initialProjects: AiChatProject[]
@@ -216,7 +217,7 @@ function ProjectModal({ project, onClose, onSaved }: { project: AiChatProject | 
             value={name}
             maxLength={NAME_MAX}
             onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
+            onKeyDown={(e) => { if (isEnterKey(e)) { e.preventDefault(); save() } }}
             placeholder="예: 제품 매뉴얼 Q&A"
             autoFocus
           />

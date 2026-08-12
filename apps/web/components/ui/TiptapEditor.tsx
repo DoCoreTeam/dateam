@@ -15,6 +15,7 @@ import { TableRow } from '@tiptap/extension-table-row'
 import { TableHeader } from '@tiptap/extension-table-header'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { useEffect, useRef, useState } from 'react'
+import { isEnterKey } from '@/lib/ui/ime'
 
 interface TiptapEditorProps {
   value: string
@@ -352,7 +353,7 @@ export default function TiptapEditor({
                 type="text"
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSetLink() } }}
+                onKeyDown={(e) => { if (isEnterKey(e)) { e.preventDefault(); handleSetLink() } }}
                 placeholder="URL 입력 (Enter)"
                 autoFocus
                 style={{ flex: 1, fontSize: 'var(--fs-sm)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.375rem 0.5rem', outline: 'none', fontFamily: 'inherit' }}

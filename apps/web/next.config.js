@@ -11,7 +11,10 @@ const securityHeaders = [
 
 const nextConfig = {
   experimental: {
-    serverComponentsExternalPackages: ['sanitize-html'],
+    // 번들하면 안 되는 서버 전용 패키지. @sparticuz/chromium은 압축된 크로미움 바이너리를
+    // 런타임에 풀어 쓰는데, webpack이 번들해버리면 그 파일들이 배포본에 안 실려
+    // executablePath()가 실패한다 → 회의록 PDF·이미지 내보내기가 통째로 죽는다.
+    serverComponentsExternalPackages: ['sanitize-html', 'puppeteer-core', '@sparticuz/chromium'],
   },
   env: {
     NEXT_PUBLIC_APP_VERSION: version,

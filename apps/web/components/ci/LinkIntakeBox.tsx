@@ -6,6 +6,7 @@
 
 import { useState } from 'react'
 import type { ApiResponse, CiIngestResult } from '@/lib/ci/contracts'
+import { isEnterKey } from '@/lib/ui/ime'
 
 interface LinkIntakeBoxProps {
   workspaceId: string
@@ -58,7 +59,7 @@ export default function LinkIntakeBox({
           id="ci-link-intake"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
+          onKeyDown={(e) => { if (isEnterKey(e) && !e.shiftKey) { e.preventDefault(); submit() } }}
           placeholder={placeholder ?? '링크를 붙여넣으세요 (여러 개는 줄바꿈이나 쉼표로 구분)'}
           disabled={busy}
           style={{ flex: 1 }}
@@ -69,8 +70,8 @@ export default function LinkIntakeBox({
       </div>
 
       {error && (
-        <p className="ci-error" role="alert" style={{ marginTop: 'var(--space-2)' }}>
-          {error.message} <span className="ci-error-code">코드: {error.code}</span>
+        <p className="error-state" role="alert" style={{ marginTop: 'var(--space-2)' }}>
+          {error.message} <span className="error-state-code">코드: {error.code}</span>
         </p>
       )}
 

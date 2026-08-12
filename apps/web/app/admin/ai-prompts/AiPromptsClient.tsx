@@ -1,6 +1,7 @@
 'use client'
 import { Fragment, useState } from 'react'
 import useSWR from 'swr'
+import { isEnterKey } from '@/lib/ui/ime'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const fetcher = (u: string) => fetch(u).then((r) => r.json())
@@ -121,7 +122,7 @@ function PromptsTab() {
             {/* AI에게 편집 지시 — 스키마 인지 상태로 현재 본문을 개선해 아래 편집창에 채움(저장은 사람이) */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
               <input value={instr} onChange={(e) => setInstr(e.target.value)} placeholder="AI에게 지시 (예: 약정·수량 추출을 강화하고 재고 resp_qty를 더 정확히)" disabled={aiBusy}
-                style={{ flex: 1, fontSize: 12, padding: '8px 10px', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 8 }} onKeyDown={(e) => { if (e.key === 'Enter') aiEdit() }} />
+                style={{ flex: 1, fontSize: 12, padding: '8px 10px', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 8 }} onKeyDown={(e) => { if (isEnterKey(e)) aiEdit() }} />
               <button onClick={aiEdit} disabled={aiBusy} className="gpu-btn" style={{ fontSize: 12, padding: '6px 14px', color: 'var(--info)', borderColor: 'var(--info-border)', fontWeight: 600, whiteSpace: 'nowrap' }}>{aiBusy ? '편집 중…' : '🤖 AI로 편집'}</button>
             </div>
             <div title={schemaTables.join(', ')} style={{ fontSize: 11, color: 'var(--info)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4 }}>

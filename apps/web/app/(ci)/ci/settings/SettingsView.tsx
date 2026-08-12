@@ -14,6 +14,7 @@ import { Check, X, ExternalLink, Plus } from 'lucide-react'
 import type { ApiResponse } from '@/lib/ci/contracts'
 import type { CiControl } from '@/lib/ci/settings/registry'
 import { RowSkeleton, ErrorState } from '@/components/ci/states'
+import { isEnterKey } from '@/lib/ui/ime'
 
 interface SettingItem {
   key: string
@@ -159,7 +160,7 @@ export default function SettingsView({ workspaceId }: { workspaceId: string }) {
       ) : (
         <div className="ci-setting-list">
           {visible.length === 0 && (
-            <p className="ci-empty-desc">
+            <p className="empty-state-desc">
               {query ? '검색 결과가 없습니다.' : '이 분류에는 설정이 없습니다.'}
             </p>
           )}
@@ -409,7 +410,7 @@ function ChipsControl({ id, value, placeholder, disabled, onCommit }: {
           disabled={disabled} style={{ width: '220px' }}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); add((e.target as HTMLInputElement).value) }
+            if (isEnterKey(e)) { e.preventDefault(); add((e.target as HTMLInputElement).value) }
           }} />
         <button type="button" className="btn-ghost" disabled={disabled || !draft.trim()}
           onClick={() => add(draft)}>

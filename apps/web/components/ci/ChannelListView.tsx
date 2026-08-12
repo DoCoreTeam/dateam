@@ -10,6 +10,7 @@ import Link from 'next/link'
 import type { ApiResponse, CiChannelListItem } from '@/lib/ci/contracts'
 import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
 import { EmptyState, ErrorState } from './states'
+import { isEnterKey } from '@/lib/ui/ime'
 
 interface ChannelListViewProps {
   workspaceId: string
@@ -72,7 +73,7 @@ export default function ChannelListView({ workspaceId, items, mode }: ChannelLis
         <input className="input-field" id="ci-ch-add"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
+          onKeyDown={(e) => { if (isEnterKey(e)) { e.preventDefault(); add() } }}
           placeholder="채널 페이지 주소를 붙여넣으세요 (예: https://www.youtube.com/@채널)"
           disabled={busy}
           style={{ flex: 1 }}
