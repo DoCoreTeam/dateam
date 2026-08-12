@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import Link from 'next/link'
 import { Building2, AlertTriangle } from 'lucide-react'
 import type { DailyLog } from '@/types/database'
@@ -50,12 +51,12 @@ export default function HomeDeptTaskWidget({ initial, today }: Props) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
           {canViewDept && (
-            <div className="home-dept-toggle" role="tablist" aria-label="조회 모드">
-              <button role="tab" aria-selected={mode === 'mine'} disabled={pending}
-                className={mode === 'mine' ? 'active' : ''} onClick={() => switchMode('mine')}>내 담당</button>
-              <button role="tab" aria-selected={mode === 'dept'} disabled={pending}
-                className={mode === 'dept' ? 'active' : ''} onClick={() => switchMode('dept')}>부서 전체</button>
-            </div>
+            <SegmentedTabs
+              ariaLabel="조회 모드"
+              tabs={[{ id: 'mine', label: '내 담당' }, { id: 'dept', label: '부서 전체' }]}
+              activeId={mode}
+              onSelect={(id) => switchMode(id as typeof mode)}
+            />
           )}
           <Link href="/dept-tasks" style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', textDecoration: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}>
             전체보기 →

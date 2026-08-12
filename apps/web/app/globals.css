@@ -1557,7 +1557,8 @@
 
 /* ─── 공용 탭 (components/ui/SegmentedTabs) ───────────────────────
    화면마다 탭을 인라인으로 만들지 않는다. 여기가 유일한 탭 스타일이다. */
-.seg-tabs {
+.seg-tabs,
+.seg-tabs-primary {
   /* 내용 폭만 차지한다 — 화면 끝까지 늘이면 탭 사이가 벌어져 한 묶음으로 안 읽힌다 */
   display: inline-flex;
   max-width: 100%;
@@ -1571,9 +1572,11 @@
   overflow-x: auto;
   scrollbar-width: none;
 }
-.seg-tabs::-webkit-scrollbar { display: none; }
+.seg-tabs::-webkit-scrollbar,
+.seg-tabs-primary::-webkit-scrollbar { display: none; }
 
-.seg-tab {
+.seg-tab,
+.seg-tab-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1591,9 +1594,12 @@
   cursor: pointer;
   transition: background var(--duration-fast) ease, color var(--duration-fast) ease;
 }
-.seg-tab:hover { color: var(--text); background: var(--color-surface); }
-.seg-tab:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: -2px; }
-.seg-tab.is-active {
+.seg-tab:hover,
+.seg-tab-primary:hover { color: var(--text); background: var(--color-surface); }
+.seg-tab:focus-visible,
+.seg-tab-primary:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: -2px; }
+.seg-tab.is-active,
+.seg-tab-primary.is-active {
   background: var(--color-surface);
   color: var(--brand);
   box-shadow: var(--shadow-sm);
@@ -1602,7 +1608,8 @@
 
 @media (max-width: 767px) {
   /* 좁은 화면에서는 균등분할을 풀어 라벨이 잘리지 않게 한다 */
-  .seg-tab { flex: 0 0 auto; padding: 0 var(--space-3); }
+  .seg-tab,
+  .seg-tab-primary { flex: 0 0 auto; padding: 0 var(--space-3); }
 }
 
 /* ─── 시스템 설정 화면 ─────────────────────────────────────────── */
@@ -3022,30 +3029,10 @@ label.intake-tool-btn {
 .work-page-header { margin-bottom: var(--space-3) !important; }
 .work-subtabs-row { margin-bottom: var(--space-5); }
 
-.seg-tabs-primary {
-  display: flex;
-  margin-bottom: var(--space-5);
-  overflow-x: auto;
-  border-bottom: var(--border-w-2) solid var(--border-color);
-}
-.seg-tab-primary {
-  display: flex;
-  min-height: 44px;
-  align-items: center;
-  gap: 0.375rem;
-  padding: var(--space-2) var(--space-4);
-  border-bottom: var(--border-w-2) solid transparent;
-  color: var(--text-muted);
-  font-size: var(--fs-base);
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
-}
-.seg-tab-primary.is-active {
-  border-bottom-color: var(--brand);
-  color: var(--brand);
-  font-weight: 700;
-}
+/* 상위 섹션 탭도 하위 보기 탭과 **같은 알약 모양**이다.
+   한 화면에 탭이 두 종류로 보이면 사용자는 서로 다른 기능으로 읽는다(실제 지적 사항).
+   계층은 모양이 아니라 위치로 구분한다 — 헤더 바로 아래냐, 본문 위냐. */
+
 
 
 .daily-date-nav {

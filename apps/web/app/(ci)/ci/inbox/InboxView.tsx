@@ -4,6 +4,7 @@
 // 목록과 검토 큐를 탭으로 통합한다(설계서 §5.4 R01 비고).
 
 import { useState } from 'react'
+import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import type { CiContentListItem } from '@/lib/ci/contracts'
@@ -86,26 +87,18 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
 
       <LinkIntakeBox workspaceId={workspaceId} onDone={() => router.refresh()} />
 
-      <div role="tablist" className="ci-stage-nav" style={{ margin: 'var(--space-6) 0 var(--space-4)' }}>
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            type="button"
-            className="ci-stage-item"
-            aria-selected={tab === t.id}
-            aria-current={tab === t.id ? 'page' : undefined}
-            onClick={() => goTab(t.id)}
-          >
-            {t.label}
-            {t.count ? <span className="ci-count">{t.count}</span> : null}
-          </button>
-        ))}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', margin: 'var(--space-6) 0 var(--space-4)', flexWrap: 'wrap' }}>
+        <SegmentedTabs
+          ariaLabel="수집함 분류"
+          tabs={TABS.map((t) => ({ id: t.id, label: t.count ? `${t.label} ${t.count}` : t.label }))}
+          activeId={tab}
+          onSelect={(id) => goTab(id as Tab)}
+        />
 
         {/* 콘텐츠는 채널에 귀속된다. 평평한 목록만으로는 어느 채널이 뭘 올렸는지 안 보인다. */}
         <button
           type="button"
-          className="ci-metric"
+          className="btn-ghost"
           style={{ marginLeft: 'auto' }}
           onClick={() => setGroupByChannel((v) => !v)}
           title="채널별로 묶어 어느 채널의 게시물인지 한눈에 봅니다"

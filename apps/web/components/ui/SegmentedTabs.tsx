@@ -65,11 +65,14 @@ export default function SegmentedTabs({
   const skin = SKIN[variant]
 
   function isCurrent(t: SegmentedTab) {
+    // 이동형이라도 화면이 활성 탭을 알고 있으면 그게 정답이다.
+    // 쿼리로 갈리는 탭(?tab=users)은 pathname이 전부 같아서 경로 비교로는 못 가른다.
+    if (activeId !== undefined) return t.id === activeId
     if (t.href) {
       return [t.href, ...(t.match ?? [])]
         .some((p) => pathname === p || pathname.startsWith(p + '/'))
     }
-    return t.id === (activeId ?? ownActive)
+    return t.id === ownActive
   }
 
   function select(id: string) {

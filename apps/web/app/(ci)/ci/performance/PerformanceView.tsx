@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
+import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
 import { ConfidenceBadge } from '@/components/ci/StatusBadge'
 import EmptyState from '@/components/ui/EmptyState'
@@ -32,15 +33,12 @@ export default function PerformanceView({
 
   return (
     <>
-      <div role="tablist" className="ci-stage-nav" style={{ marginBottom: 'var(--space-4)' }}>
-        {TABS.map((t) => (
-          <button key={t.id} role="tab" type="button" className="ci-stage-item"
-            aria-selected={tab === t.id} aria-current={tab === t.id ? 'page' : undefined}
-            onClick={() => go(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        ariaLabel="성과 보기"
+        tabs={TABS.map((t) => ({ id: t.id, label: t.label }))}
+        activeId={tab}
+        onSelect={(id) => go(id as typeof tab)}
+      />
 
       {tab === 'mine' && mine && (
         mine.rows.length === 0 ? (

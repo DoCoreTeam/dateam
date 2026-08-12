@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { Users, UserPlus } from 'lucide-react'
 import InviteForm from '../users/InviteForm'
@@ -90,27 +91,11 @@ export default async function AdminMembersPage({
         </p>
       </div>
 
-      {/* 탭 네비게이션 */}
-      <div style={{ display: 'flex', borderBottom: 'var(--border-w-2) solid var(--color-border)', marginBottom: '1.5rem' }}>
-        {TABS.map(t => (
-          <a
-            key={t.key}
-            href={`/admin/members?tab=${t.key}`}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.4rem',
-              padding: '0.625rem 1.25rem',
-              fontSize: 'var(--fs-base)', fontWeight: tab === t.key ? 600 : 400,
-              color: tab === t.key ? 'var(--brand-dark)' : 'var(--text-muted)',
-              borderBottom: tab === t.key ? 'var(--border-w-2) solid var(--brand-dark)' : 'var(--border-w-2) solid transparent',
-              marginBottom: '-2px',
-              textDecoration: 'none',
-              transition: 'color 0.15s',
-            }}
-          >
-            {t.label}
-          </a>
-        ))}
-      </div>
+      <SegmentedTabs
+        ariaLabel="구성원 관리 분류"
+        tabs={TABS.map((t) => ({ id: t.key, label: t.label, href: `/admin/members?tab=${t.key}` }))}
+        activeId={tab}
+      />
 
       {/* 사용자 관리 탭 */}
       {tab === 'users' && (

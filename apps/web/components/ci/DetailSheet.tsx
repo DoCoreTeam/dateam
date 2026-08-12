@@ -5,6 +5,7 @@
 // 화면마다 상세 뷰를 다시 만들면 표시 규칙이 갈라진다.
 
 import { useEffect, useState } from 'react'
+import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import Link from 'next/link'
 import { X } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
@@ -160,21 +161,12 @@ export default function DetailSheet({
                 <IngestStatusBadge status={data.ingestStatus} />
               </div>
 
-              <div role="tablist" className="ci-stage-nav" style={{ marginBottom: 'var(--space-3)' }}>
-                {TABS.map((t) => (
-                  <button
-                    key={t.id}
-                    role="tab"
-                    type="button"
-                    className="ci-stage-item"
-                    aria-selected={tab === t.id}
-                    aria-current={tab === t.id ? 'page' : undefined}
-                    onClick={() => setTab(t.id)}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
+              <SegmentedTabs
+                ariaLabel="상세 보기"
+                tabs={TABS.map((t) => ({ id: t.id, label: t.label }))}
+                activeId={tab}
+                onSelect={(id) => setTab(id as typeof tab)}
+              />
 
               {tab === 'meta' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>

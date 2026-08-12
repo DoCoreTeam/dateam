@@ -4,6 +4,7 @@
 // 조건 바는 URL 상태로 보존한다 — 공유 가능한 뷰가 이 제품의 관례다.
 
 import { useEffect, useState } from 'react'
+import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { ApiResponse, CiContentListItem } from '@/lib/ci/contracts'
 import type { MarketOverview, PatternRow, SignalRow, TimingOverview } from '@/lib/ci/queries/trends'
@@ -167,15 +168,12 @@ export default function TrendsView(p: Props) {
         below={<StageNav stages={RESEARCH_STAGES} />}
       />
 
-      <div role="tablist" className="ci-stage-nav" style={{ marginBottom: 'var(--space-4)' }}>
-        {TABS.map((t) => (
-          <button key={t.id} role="tab" type="button" className="ci-stage-item"
-            aria-selected={p.tab === t.id} aria-current={p.tab === t.id ? 'page' : undefined}
-            onClick={() => setParam('tab', t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        ariaLabel="트렌드 보기"
+        tabs={TABS.map((t) => ({ id: t.id, label: t.label }))}
+        activeId={p.tab}
+        onSelect={(id) => setParam('tab', id)}
+      />
 
       {error && <div style={{ marginBottom: 'var(--space-4)' }}><ErrorState code={error.code} message={error.message} helpHref="/ci/settings" /></div>}
       {notice && (

@@ -9,6 +9,7 @@
 //  3) 레지스트리로 표현되지 않는 것(계정·연동·멤버)은 '개요' 탭에서 따로 보여준다.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import Link from 'next/link'
 import { Check, X, ExternalLink, Plus } from 'lucide-react'
 import type { ApiResponse } from '@/lib/ci/contracts'
@@ -138,15 +139,12 @@ export default function SettingsView({ workspaceId }: { workspaceId: string }) {
       </div>
 
       {!query && (
-        <div role="tablist" aria-label="설정 분류" className="ci-stage-nav" style={{ marginBottom: 'var(--space-4)' }}>
-          {groupsWithItems.map((g) => (
-            <button key={g} type="button" role="tab" className="ci-stage-item"
-              aria-selected={tab === g} aria-current={tab === g ? 'page' : undefined}
-              onClick={() => setTab(g)}>
-              {GROUP_LABEL[g] ?? g}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          ariaLabel="설정 분류"
+          tabs={groupsWithItems.map((g) => ({ id: g, label: GROUP_LABEL[g] ?? g }))}
+          activeId={tab}
+          onSelect={(id) => setTab(id as typeof tab)}
+        />
       )}
 
       {toast && (

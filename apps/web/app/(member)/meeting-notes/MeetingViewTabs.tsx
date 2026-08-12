@@ -2,6 +2,7 @@
 
 // 회의노트 목록 뷰 모드 토글 — [리스트 | 날짜별 | 캘린더]. q/sort/filter 보존 + ?view= URL 동기화.
 import Link from 'next/link'
+import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import { List, CalendarDays, CalendarRange } from 'lucide-react'
 
 interface Props {
@@ -29,28 +30,12 @@ export default function MeetingViewTabs({ view, q, sort, filter }: Props) {
   }
 
   return (
-    <div role="tablist" aria-label="보기 모드" style={{ display: 'inline-flex', gap: 'var(--space-1)', padding: 'var(--space-1)', background: 'var(--surface-bg)', borderRadius: 'var(--radius)' }}>
-      {VIEWS.map(({ value, label, icon: Icon }) => {
-        const selected = view === value
-        return (
-          <Link
-            key={value}
-            href={href(value)}
-            role="tab"
-            aria-selected={selected}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)',
-              padding: 'var(--space-1) var(--space-3)', minHeight: 36, borderRadius: 'var(--radius)',
-              textDecoration: 'none', fontSize: 'var(--fs-sm)', fontWeight: selected ? 700 : 500,
-              background: selected ? 'var(--surface-card)' : 'transparent',
-              color: selected ? 'var(--text)' : 'var(--text-muted)',
-              boxShadow: selected ? 'var(--shadow-sm)' : 'none',
-            }}
-          >
-            <Icon size={14} /> {label}
-          </Link>
-        )
-      })}
-    </div>
+    <SegmentedTabs
+      ariaLabel="보기 모드"
+      tabs={VIEWS.map(({ value, label, icon: Icon }) => ({
+        id: value, label, href: href(value), icon: <Icon size={14} />,
+      }))}
+      activeId={view}
+    />
   )
 }
