@@ -286,7 +286,9 @@ newAX의 UI는 **두 축**이다. 둘 다 정상이며, **섞어서 재구현하
 | 카드 | **`className="card"`** (클래스) | 196 | ~~`NbCard`~~ (v0.7.445 삭제 — 0건이었다), 자작 박스(476건) |
 | 입력·레이블 | **`input-field` / `label`** (클래스, §2-1) | 247 / 185 | ~~`NbField`/`NbInput`/`NbSelect`/`NbTextarea`~~ (v0.7.445 삭제 — 0건이었다) |
 | 뱃지 | `NbBadge` | 10 | 인라인 pill 자작 |
-| 표 | **`.table-card`**(모바일 카드 변환) + `DynamicTable` | 70 / 7 | 가로 스크롤 표, 새 표 컴포넌트 |
+| 표 | **`ListSurface`**(표/카드/조밀 한 벌, 내부에서 `.table-card` 사용) | 신설 | 화면에서 `<table>` 직접 작성(가드가 차단), 새 표 컴포넌트 |
+| 목록 도구 | **`ListToolbar`**(검색·필터·정렬·보기·선택) + **`ListPager`** | 신설 | 화면마다 필터바·페이지네이션 자작 |
+| 목록 상태 | **`useListQuery`** (URL이 진실) | 신설 | 로컬 `useState`로 검색·정렬 보관 |
 | 빈 상태 | `components/ui/EmptyState` | 19 (v0.7.445 1벌 통합) | "없습니다" 문구 직접 렌더(188건) |
 | 오류 | `components/ui/ErrorState` (v0.7.445 공용 승격) | 11 | 자작 오류 박스 |
 | 로딩(골격) | `SkelPage` / `SkelCard` / `SkelList` (`components/ui/LoadingSkeleton.tsx`) | 11/9/7 | "불러오는 중" 문구 직접 렌더(37건) |
@@ -300,7 +302,7 @@ newAX의 UI는 **두 축**이다. 둘 다 정상이며, **섞어서 재구현하
 | 페이지 패딩 | `page-inner` | — | 페이지별 폭 래퍼 |
 
 - 같은 UI를 인라인으로 다시 만들지 말 것. 없으면 공용 부품으로 만들고 **INVENTORY.md에 등재**해 재사용.
-- **⛔ 목록 툴바·페이지네이션·필터·정렬은 아직 공용 부품이 없다**(전수 검색 0건). 목록 화면을 새로 만들 때는 §0-4에 따라 **먼저 시스템에 정의**한다.
+- 목록 툴바·페이지네이션·표/카드는 v0.7.448에 **신설**했다 → `components/ui/list/*` + `lib/ui/use-list-query`. 목록 화면은 §2-6을 따른다.
 
 ### 2-1. 폼 입력·레이블 표준 클래스 강제 (필수 — 누락 시 브라우저 기본 렌더로 디자인 깨짐)
 > **왜**: globals.css에는 `input/select/textarea` **전역 스타일이 없다.** 클래스 없는 날 태그는 100% 브라우저 UA 스타일로 렌더되어 통합 디자인에서 이탈한다. (실제 사고: v0.7.49 부서업무 모달이 `input-field` 누락으로 밋밋하게 렌더됨)
@@ -357,6 +359,37 @@ newAX의 UI는 **두 축**이다. 둘 다 정상이며, **섞어서 재구현하
 
 **(6) 가드**: `lib/ui/integration-consistency.test.ts`가 정적 스캔으로 (2)(3) 위반을 차단한다. `pnpm design:check`는 hex/치수만 보므로 이 가드가 별도로 필요하다.
 
+### 2-6. 목록 화면 표준 (필수 — 목록을 새로 그리지 않는다)
+
+> **왜**: 목록 화면 40여 개가 검색·정렬·보기·페이지를 각자 `useState`로 들고 있었다.
+> 그래서 **새로고침하면 조건이 날아가고**, 링크를 공유하면 받는 사람이 다른 화면을 봤다.
+> 전수 검색 결과 `ListToolbar|Pagination|FilterBar|SortControl` **0건** — 여기만 신설이 정당했다(v0.7.448).
+
+**(1) URL이 진실이다.** 검색어·정렬·필터·보기·페이지는 `useListQuery(defaults)`가 URL과 동기화한다.
+화면은 값을 읽고 `set(patch)`만 부른다. 로컬 `useState`로 목록 조건을 들지 않는다.
+
+**(2) 부품 3개 + 컬럼 1벌**
+| 무엇 | 부품 |
+|---|---|
+| 상단 도구(검색·필터·정렬·보기전환·개수·선택 작업) | `components/ui/list/ListToolbar` |
+| 본문(표/카드/조밀) | `components/ui/list/ListSurface` + `ColumnDef<T>` |
+| 페이지 이동(`pages` 기본 / 피드형만 `more`) | `components/ui/list/ListPager` |
+
+- 컬럼은 `ColumnDef` **한 벌**로 선언한다 — 표와 카드를 같은 정의로 그린다.
+- 빈·오류·로딩 3상태는 `ListSurface`가 강제한다(EmptyState/ErrorState/SkelList). 화면이 다시 만들지 않는다.
+
+**(3) 저장 범위**: `view`·`size`·`sort`만 `ui_preferences`(마이그 197)에 저장한다.
+**필터·검색어는 저장하지 않는다** — 다음 방문에 조건이 살아 있으면 "왜 데이터가 없지?"가 된다.
+우선순위는 **URL > 저장된 설정 > 화면 기본값**(공유 링크가 남의 설정에 덮이면 안 된다).
+
+**(4) 성능 규약**: 기본 `size=20`·상한 100, 목록 조회는 **반드시 limit 포함**,
+정렬·필터 변경은 **서버 재조회**(클라 재정렬 금지 — 페이지네이션과 어긋난다).
+
+**(5) 가드**: `lib/ui/list-standard.test.ts`가 화면의 `<table>` 자작을 차단한다(ratchet).
+표준 이전 화면은 PENDING에 있고, **그 화면을 기능 수정으로 건드리면 함께 이관하고 목록에서 지운다.**
+
+---
+
 ## 디자인 시스템 정책 — AI 결과 표시 표준 (필수)
 ### 5-1. 텍스트 데이터 SSOT
 - 사용자에게 보이는 본문은 **plain text가 기본**(daily_logs.content). 리치텍스트(HTML)는 Tiptap 쓰는 주간보고 등 한정.
@@ -397,7 +430,8 @@ newAX의 UI는 **두 축**이다. 둘 다 정상이며, **섞어서 재구현하
 - [ ] 레이아웃은 `MobileShell`을 상속받는가 (새 셸 신설 금지)
 - [ ] 페이지 제목은 `PageHeader`인가 (raw `<h1>` 금지, §2-3)
 - [ ] 폼은 `input-field`·`label`인가 (§2-1) · 모달은 `useEscClose`·`tape-title`인가 (§2-2)
-- [ ] 표는 `.table-card`인가 (가로 스크롤 금지)
+- [ ] 목록형이면 `ListToolbar`/`ListSurface`/`ListPager` + `useListQuery`인가 (§2-6)
+- [ ] 표는 `.table-card`인가 (가로 스크롤 금지) — `ListSurface`가 내부에서 쓴다
 - [ ] 빈·로딩·오류 3상태를 **기존 부품**(`EmptyState`/`SkelList`/`AXDotLoader`/`ErrorState`)으로 처리했는가
 - [ ] 색·폰트·z-index를 **토큰으로만** 썼는가 (10px 미만 폰트 금지)
 - [ ] 화면 전용 CSS를 `globals.css`에 추가하지 **않았는가** (§0-1)
@@ -412,7 +446,7 @@ newAX의 UI는 **두 축**이다. 둘 다 정상이며, **섞어서 재구현하
 - TypeScript
 
 ## 버전
-v0.7.447
+v0.7.448
 
 ## 버전 업데이트 체크리스트 (필수 — 누락 시 UI 버전 불일치 발생)
 

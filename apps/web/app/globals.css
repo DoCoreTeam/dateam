@@ -161,6 +161,9 @@
    ════════════════════════════════════════════════════════════ */
 [data-theme="classic"] {
   --ink: #0f172a;
+  /* 페이지 바탕이 회색(#eef1f6)이라 트랙은 한 단 더 낮춰야 눌린 곳이 보인다 */
+  --surface-muted: #e2e8f0;
+  --border-light: #eef2f7;
   --border-color: #e2e8f0;       /* 잉크 → 연회색 */
   --shadow-color: rgba(15, 23, 42, 0.08);
   --accent: #6366f1;             /* 노랑 → 인디고 */
@@ -259,6 +262,9 @@
    ════════════════════════════════════════════════════════════ */
 [data-theme="mono"] {
   --ink: #111111;
+  /* 무채색 테마 — 파란기 도는 기본 회색을 그대로 쓰면 색이 튄다 */
+  --surface-muted: #f2f2f2;
+  --border-light: #e5e5e5;
   --border-color: #111111;       /* hairline 두께로 사용 */
   --shadow-color: transparent;   /* 플랫 */
   --accent: #ff3333;             /* 레드 */
@@ -1585,10 +1591,10 @@
   cursor: pointer;
   transition: background var(--duration-fast) ease, color var(--duration-fast) ease;
 }
-.seg-tab:hover { color: var(--text); background: var(--surface-bg); }
+.seg-tab:hover { color: var(--text); background: var(--color-surface); }
 .seg-tab:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: -2px; }
 .seg-tab.is-active {
-  background: var(--surface-bg);
+  background: var(--color-surface);
   color: var(--brand);
   box-shadow: var(--shadow-sm);
 }

@@ -514,9 +514,24 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+/** 화면별 개인 UI 설정(마이그 197) — view/size/sort만 저장한다 */
+export interface UiPreference {
+  user_id: string
+  scope_key: string
+  /** 이 테이블이 담는 건 목록 보기 설정뿐이다 — 임의 jsonb를 넣지 않는다 */
+  value: { view?: string; size?: number; sort?: { key: string; dir: string } }
+  updated_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
+      ui_preferences: {
+        Row: UiPreference
+        Insert: UiPreference
+        Update: Partial<UiPreference>
+        Relationships: []
+      }
       profiles: {
         Row: Profile
         Insert: Omit<Profile, 'created_at' | 'updated_at'>

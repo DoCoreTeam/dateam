@@ -36,7 +36,7 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 | **로딩** | `ui/LoadingSkeleton`(Skel*) **32** · `ui/AXDotLoader` **35** · `ui/AXLoadingOverlay` **7** · `ui/BrandLoaderMark` **2** · `ui/NavigationLoader` **1** | — | ⛔ **5종 병존** (v0.7.445에 `ci/states` 골격만 `SkelList`로 흡수) |
 | **탭** | ~~5종~~ → **`ui/SegmentedTabs` 1벌이 그린다** (v0.7.445). `WorkSubTabs`·`ProjectTabs`·`WorkTabBar`·`StageNav`는 데이터/프롭 어댑터 | — | ✅ 해소 |
 | **상세 표면** | `ci/DetailSheet` **4** · `ui/SlidePanel` **3** · 모달 26파일 · `[id]` 페이지 9 | — | ⛔ 3방식 |
-| **표** | `ui/DynamicTable` **7** · `ui/nb/NbTable` **2** · `.table-card` 클래스 **70** · GPU `UnifiedTable` **1** | — | ⛔ 4방식 |
+| **표** | `ui/list/ListSurface`(표준, v0.7.448) · `ui/DynamicTable` **7** · `ui/nb/NbTable` **2** · `.table-card` **70** · GPU `UnifiedTable` **1** | — | ⛔ 표준은 생겼고 이관은 진행 중(가드 PENDING 39) |
 | **셸** | ~~3벌~~ → **`ui/shell/AppShell` 1벌** (v0.7.443 통합) | `ui/shell/AppShell` | ✅ 해소 |
 
 > **신규 작업 규칙: 위 표에 있는 성격의 UI를 만들 때는 새로 만들지 말고, 어느 쪽으로 통일할지 먼저 정한다.**
