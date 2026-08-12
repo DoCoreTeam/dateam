@@ -1,14 +1,18 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
-import SortIcon from '@/components/ui/SortIcon'
+import { useState, useCallback, useEffect } from 'react'
 import useSWRInfinite from 'swr/infinite'
 import Link from 'next/link'
-import { TrendingUp, Plus, Loader2, Search, X, ExternalLink, Briefcase, Sparkles } from 'lucide-react'
+import { TrendingUp, Plus, Loader2, ExternalLink, Briefcase, Sparkles } from 'lucide-react'
 import type { Deal, Account } from '@/types/database'
 import SlidePanel from '@/components/ui/SlidePanel'
 import PageHeader from '@/components/ui/PageHeader'
-import { useDebounce } from '@/hooks/useDebounce'
+import ListToolbar from '@/components/ui/list/ListToolbar'
+import ListSurface from '@/components/ui/list/ListSurface'
+import ListPager from '@/components/ui/list/ListPager'
+import type { ColumnDef } from '@/components/ui/list/types'
+import { useListQuery } from '@/lib/ui/use-list-query'
+import type { ListDefaults } from '@/lib/ui/list-query'
 
 type DealWithAccount = Deal & { accounts: Pick<Account, 'id' | 'name'> | null }
 type PageData = { items: DealWithAccount[]; nextCursor: string | null; hasMore: boolean; total: number; capped?: boolean }
@@ -35,35 +39,92 @@ function StageBadge({ stage }: { stage: string }) {
   )
 }
 
-export default function DealsPage() {
-  const [search, setSearch] = useState('')
-  const [filterStage, setFilterStage] = useState('')
-  const [sort, setSort] = useState<SortField>('created_at')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const [selected, setSelected] = useState<DealWithAccount | null>(null)
+// 목록 표준(§2-6) — 칸반은 이 화면 고유 표면이라 그대로 두고, 표만 표준으로 옮긴다
+const LIST_DEFAULTS: ListDefaults = {
+  sort: { key: 'created_at', dir: 'desc' },
+  mode: 'more',
+  view: 'table',
+  filterKeys: ['stage'],
+}
+const SORT_OPTIONS = [
+  { key: 'created_at', label: '등록일' },
+  { key: 'title', label: '영업기회명' },
+  { key: 'stage', label: '단계' },
+  { key: 'value', label: '금액' },
+  { key: 'probability', label: '확률' },
+]
+const FILTERS = [{ key: 'stage', label: '단계', options: STAGES.map((s) => ({ value: s, label: s })) }]
 
-  const debouncedSearch = useDebounce(search, 300)
+const dash = <span style={{ color: 'var(--text-faint)' }}>-</span>
+
+const COLUMNS: ColumnDef<DealWithAccount>[] = [
+  {
+    key: 'title', header: '영업기회', primary: true, sortable: 'title',
+    cell: (d) => (
+      <div>
+        <span style={{ fontWeight: 600, color: 'var(--text)', fontSize: 'var(--fs-md)' }}>{d.title}</span>
+        {d.accounts?.name && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', marginTop: '0.125rem' }}>{d.accounts.name}</div>}
+      </div>
+    ),
+  },
+  { key: 'stage', header: '단계', sortable: 'stage', cell: (d) => <StageBadge stage={d.stage} /> },
+  {
+    key: 'value', header: '금액', sortable: 'value', align: 'right',
+    cell: (d) => d.value
+      ? <span style={{ fontSize: 'var(--fs-base)', color: 'var(--brand)', fontWeight: 600 }}>₩{d.value.toLocaleString()}</span>
+      : dash,
+  },
+  { key: 'probability', header: '확률', sortable: 'probability', align: 'right', cell: (d) => `${d.probability}%` },
+  {
+    key: 'lead_type', header: '리드유형', hideOnCard: true,
+    cell: (d) => d.lead_type
+      ? <span className="badge badge-slate" style={{ fontSize: 'var(--fs-xs)' }}>{d.lead_type}</span>
+      : dash,
+  },
+  { key: 'product', header: '제품', hideOnCard: true, cell: (d) => d.product ?? dash },
+  {
+    key: 'fit_score', header: '적합도', align: 'right',
+    cell: (d) => d.fit_score !== null
+      ? <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, color: d.fit_score >= 70 ? 'var(--success)' : d.fit_score >= 40 ? 'var(--warning)' : 'var(--danger)' }}>{d.fit_score}</span>
+      : dash,
+  },
+  {
+    key: 'account', header: '거래처', hideOnCard: true,
+    cell: (d) => d.accounts?.name
+      ? (
+        <Link href={`/accounts/${d.account_id}`} onClick={(e) => e.stopPropagation()}
+          style={{ fontSize: 'var(--fs-base)', color: 'var(--brand)', textDecoration: 'none' }}>
+          {d.accounts.name}
+        </Link>
+      )
+      : dash,
+  },
+]
+
+export default function DealsPage() {
+  const { query, set } = useListQuery(LIST_DEFAULTS, { persistKey: '/deals' })
+  const [selected, setSelected] = useState<DealWithAccount | null>(null)
 
   const getKey = useCallback((pageIndex: number, prev: PageData | null) => {
     if (pageIndex > 0 && !prev?.nextCursor) return null
     const params = new URLSearchParams()
-    if (debouncedSearch) params.set('search', debouncedSearch)
-    if (filterStage)     params.set('stage', filterStage)
-    if (sort !== 'created_at') params.set('sort', sort)
-    if (sortDir !== 'desc') params.set('dir', sortDir)
+    if (query.q) params.set('search', query.q)
+    if (query.filters.stage) params.set('stage', query.filters.stage)
+    if (query.sort.key !== 'created_at') params.set('sort', query.sort.key)
+    if (query.sort.dir !== 'desc') params.set('dir', query.sort.dir)
     if (prev?.nextCursor) params.set('cursor', prev.nextCursor)
     const qs = params.toString()
     return `/api/deals${qs ? `?${qs}` : ''}`
-  }, [debouncedSearch, filterStage, sort, sortDir])
+  }, [query.q, query.filters.stage, query.sort.key, query.sort.dir])
 
-  const { data, size, setSize, isLoading, isValidating, mutate } = useSWRInfinite<PageData>(getKey)
+  const { data, size, setSize, isLoading, isValidating, mutate, error } = useSWRInfinite<PageData>(getKey)
 
-  useEffect(() => { setSize(1) }, [debouncedSearch, filterStage, sort, sortDir, setSize])
+  // '더 보기'는 URL(page)이 진실 — 새로고침해도 보던 만큼 다시 불러온다
+  useEffect(() => { if (size !== query.page) setSize(query.page) }, [query.page, size, setSize])
 
   const list = data?.flatMap((p) => p.items) ?? []
-  const hasMore = data?.[data.length - 1]?.hasMore ?? false
-  const isCapped = data?.[data.length - 1]?.capped ?? false
-  const hasFilters = debouncedSearch || filterStage || sort !== 'created_at'
+  const last = data?.[data.length - 1]
+  const hasFilters = Boolean(query.q || query.filters.stage) || query.sort.key !== 'created_at'
   const totalCount = data?.[0]?.total ?? 0
 
   const activeList = list.filter(d => d.stage !== '실패')
@@ -75,29 +136,6 @@ export default function DealsPage() {
     return acc
   }, {})
 
-  const sentinelRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const el = sentinelRef.current
-    if (!el) return
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting && hasMore && !isValidating) setSize(s => s + 1) },
-      { threshold: 0.1 }
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [hasMore, isValidating, setSize])
-
-  function handleSort(field: SortField) {
-    if (sort === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSort(field); setSortDir('asc') }
-  }
-
-  function clearFilters() {
-    setSearch('')
-    setFilterStage('')
-    setSort('created_at')
-    setSortDir('desc')
-  }
 
   return (
     <div className="page-inner">
@@ -178,126 +216,37 @@ export default function DealsPage() {
             </div>
           )}
 
-          {/* 테이블 목록 */}
-          <div className="card">
-            <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              <TrendingUp size={16} color="var(--brand)" />
-              <h2 className="tape-title" style={{ margin: 0 }}>전체 목록</h2>
-              <span className="badge badge-slate">{list.length}{hasFilters ? '건 (필터됨)' : '건'}</span>
-            </div>
+          <ListToolbar
+            query={query}
+            onChange={set}
+            searchPlaceholder="영업기회명 검색"
+            filters={FILTERS}
+            sortOptions={SORT_OPTIONS}
+            showSize={false}
+            total={list.length}
+          />
 
-            {/* 필터 바 */}
-            <div className="filter-bar">
-              <div className="filter-search-wrap">
-                <Search size={14} />
-                <input
-                  className="filter-search"
-                  placeholder="영업기회명 검색…"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                />
-              </div>
-              <select className="filter-select" value={filterStage} onChange={e => setFilterStage(e.target.value)}>
-                <option value="">단계 전체</option>
-                {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              {(search || filterStage || sort !== 'created_at') && (
-                <button className="filter-clear" onClick={clearFilters}>
-                  <X size={13} /> 초기화
-                </button>
-              )}
-            </div>
+          <ListSurface
+            rows={list}
+            columns={COLUMNS}
+            query={query}
+            rowKey={(d) => d.id}
+            onChange={set}
+            loading={isLoading}
+            error={error ? { message: '영업기회 목록을 불러오지 못했습니다', onRetry: () => { void mutate() } } : null}
+            empty={hasFilters
+              ? { title: '조건에 맞는 영업기회가 없어요', description: '검색어나 단계를 바꿔보세요' }
+              : { title: '아직 등록된 영업기회가 없어요', description: '거래처와 나눈 이야기를 넣으면 AI가 기회로 정리합니다', action: { label: 'AI로 영업기회 추가', href: '/lead-intake?target=deal' } }}
+            onRowClick={(d) => setSelected(d)}
+          />
 
-            {list.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>
-                {hasFilters ? '검색 결과가 없습니다' : '영업기회가 없습니다'}
-              </div>
-            ) : (
-              <table className="table-base table-card">
-                <thead>
-                  <tr>
-                    <th className={`sort-th${sort === 'title' ? ' active' : ''}`} onClick={() => handleSort('title')}>
-                      영업기회 <SortIcon active={sort === 'title'} dir={sortDir} />
-                    </th>
-                    <th className={`sort-th${sort === 'stage' ? ' active' : ''}`} onClick={() => handleSort('stage')}>
-                      단계 <SortIcon active={sort === 'stage'} dir={sortDir} />
-                    </th>
-                    <th className={`sort-th${sort === 'value' ? ' active' : ''}`} onClick={() => handleSort('value')}>
-                      금액 <SortIcon active={sort === 'value'} dir={sortDir} />
-                    </th>
-                    <th className={`sort-th${sort === 'probability' ? ' active' : ''}`} onClick={() => handleSort('probability')}>
-                      확률 <SortIcon active={sort === 'probability'} dir={sortDir} />
-                    </th>
-                    <th>리드유형</th>
-                    <th>제품</th>
-                    <th style={{ textAlign: 'center' }}>적합도</th>
-                    <th>거래처</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {list.map((d) => (
-                    <tr key={d.id} style={{ cursor: 'pointer' }} onClick={() => setSelected(d)}>
-                      <td className="card-header">
-                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-2)', width: '100%' }}>
-                          <div>
-                            <button
-                              onClick={() => setSelected(d)}
-                              style={{ fontWeight: 600, color: 'var(--text)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-md)', padding: 0, textAlign: 'left' }}
-                            >
-                              {d.title}
-                            </button>
-                            {d.accounts?.name && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', marginTop: '0.125rem' }}>{d.accounts.name}</div>}
-                          </div>
-                          <StageBadge stage={d.stage} />
-                        </div>
-                      </td>
-                      <td data-label="단계"><StageBadge stage={d.stage} /></td>
-                      <td data-label="금액">
-                        {d.value
-                          ? <span style={{ fontSize: 'var(--fs-base)', color: 'var(--brand)', fontWeight: 600 }}>₩{d.value.toLocaleString()}</span>
-                          : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
-                      </td>
-                      <td data-label="확률">
-                        <span style={{ fontSize: 'var(--fs-base)', color: 'var(--text)' }}>{d.probability}%</span>
-                      </td>
-                      <td data-label="리드유형">
-                        {d.lead_type
-                          ? <span className="badge badge-slate" style={{ fontSize: 'var(--fs-xs)' }}>{d.lead_type}</span>
-                          : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
-                      </td>
-                      <td data-label="제품">
-                        <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)' }}>{d.product ?? '-'}</span>
-                      </td>
-                      <td data-label="적합도" style={{ textAlign: 'center' }}>
-                        {d.fit_score !== null
-                          ? <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, color: d.fit_score >= 70 ? 'var(--success)' : d.fit_score >= 40 ? 'var(--warning)' : 'var(--danger)' }}>{d.fit_score}</span>
-                          : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
-                      </td>
-                      <td data-label="거래처" onClick={e => e.stopPropagation()}>
-                        {d.accounts?.name ? (
-                          <Link href={`/accounts/${d.account_id}`} style={{ fontSize: 'var(--fs-base)', color: 'var(--brand)', textDecoration: 'none' }}>
-                            {d.accounts.name}
-                          </Link>
-                        ) : <span style={{ color: 'var(--border-subtle)', fontSize: 'var(--fs-sm)' }}>-</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+          <ListPager query={query} hasMore={last?.hasMore ?? false} onChange={set} loading={isValidating && !isLoading} />
 
-            <div ref={sentinelRef} style={{ height: 1 }} />
-            {isValidating && !isLoading && (
-              <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: 'var(--text-faint)' }}>
-                <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-              </div>
-            )}
-            {isCapped && (
-              <div style={{ textAlign: 'center', padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--fs-sm)', color: 'var(--warning)', background: 'var(--warning-bg)', borderTop: 'var(--hairline) solid var(--warning-border)' }}>
-                결과가 500건을 초과합니다. 검색 조건을 좁혀주세요.
-              </div>
-            )}
-          </div>
+          {last?.capped && (
+            <p style={{ textAlign: 'center', padding: 'var(--space-3)', fontSize: 'var(--fs-sm)', color: 'var(--warning)' }}>
+              결과가 500건을 초과합니다. 검색 조건을 좁혀주세요.
+            </p>
+          )}
         </>
       )}
 

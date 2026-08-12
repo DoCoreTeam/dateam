@@ -21,7 +21,6 @@ const PENDING = new Set<string>([
   'app/(ci)/ci/performance/PerformanceView.tsx',
   'app/(ci)/ci/publish/PublishView.tsx',
   'app/(ci)/ci/trends/TrendsView.tsx',
-  'app/(member)/deals/page.tsx',
   'app/(member)/dept-tasks/DeptTasksClient.tsx',
   'app/(member)/kpi/page.tsx',
   'app/(member)/lead-intake/page.tsx',
@@ -49,7 +48,6 @@ const PENDING = new Set<string>([
   'app/admin/reports/AdminReportsPreview.tsx',
   'app/admin/reports/page.tsx',
   'app/admin/routine/page.tsx',
-  'app/admin/users/UserTable.tsx',
   'app/develop/DemoSection.tsx',
   'app/develop/page.tsx',
 ])

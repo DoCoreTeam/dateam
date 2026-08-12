@@ -1,13 +1,22 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import SortIcon from '@/components/ui/SortIcon'
-import { Pencil, Search } from 'lucide-react'
+// app/admin/users/UserTable.tsx — 구성원 목록
+// 목록 표준(§2-6)을 따른다. 데이터는 서버가 전부 넘겨주므로(수백 명 규모)
+// 검색·정렬·필터는 클라이언트에서 처리하되, **조건은 URL이 진실**이다.
+
+import { useMemo, useState } from 'react'
+import { Pencil } from 'lucide-react'
 import RoleToggle from './RoleToggle'
 import ResetPasswordButton from './ResetPasswordButton'
 import ResetOnboardingButton from './ResetOnboardingButton'
 import DeleteUserButton from './DeleteUserButton'
 import EditProfileModal from './EditProfileModal'
+import ListToolbar from '@/components/ui/list/ListToolbar'
+import ListSurface from '@/components/ui/list/ListSurface'
+import ListPager from '@/components/ui/list/ListPager'
+import type { ColumnDef } from '@/components/ui/list/types'
+import { useListQuery } from '@/lib/ui/use-list-query'
+import { rangeOf, type ListDefaults } from '@/lib/ui/list-query'
 import type { Profile } from '@/types/database'
 
 interface RankItem {
@@ -24,218 +33,164 @@ interface Props {
   positions: RankItem[]
 }
 
-type SortKey = 'name' | 'rank' | 'role' | 'created_at'
-type SortDir = 'asc' | 'desc'
+const LIST_DEFAULTS: ListDefaults = {
+  sort: { key: 'name', dir: 'asc' },
+  view: 'table',
+  size: 50,
+  filterKeys: ['role'],
+}
+const SORT_OPTIONS = [
+  { key: 'name', label: '이름' },
+  { key: 'rank', label: '직급' },
+  { key: 'role', label: '역할' },
+  { key: 'created_at', label: '가입일' },
+]
+const FILTERS = [{
+  key: 'role',
+  label: '역할',
+  options: [{ value: 'admin', label: 'admin' }, { value: 'member', label: 'member' }],
+}]
+
+function sortValue(p: Profile, key: string): string {
+  if (key === 'rank') return p.rank ?? ''
+  if (key === 'role') return p.role
+  if (key === 'created_at') return p.created_at
+  return p.name ?? ''
+}
 
 export default function UserTable({ profiles, emailMap, currentUserId, ranks, positions }: Props) {
+  const { query, set } = useListQuery(LIST_DEFAULTS, { persistKey: '/admin/users' })
   const [editTarget, setEditTarget] = useState<Profile | null>(null)
-  const [search, setSearch] = useState('')
-  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'member'>('all')
-  const [sortKey, setSortKey] = useState<SortKey>('name')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
-
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) {
-      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortKey(key)
-      setSortDir('asc')
-    }
-  }
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
+    const q = query.q.trim().toLowerCase()
+    const role = query.filters.role
     return profiles
-      .filter(p => {
-        if (roleFilter !== 'all' && p.role !== roleFilter) return false
+      .filter((p) => {
+        if (role && p.role !== role) return false
         if (!q) return true
         const email = (emailMap[p.id] ?? '').toLowerCase()
         return (p.name ?? '').toLowerCase().includes(q) || email.includes(q) || (p.rank ?? '').includes(q)
       })
       .sort((a, b) => {
-        let va = '', vb = ''
-        if (sortKey === 'name') { va = a.name ?? ''; vb = b.name ?? '' }
-        else if (sortKey === 'rank') { va = a.rank ?? ''; vb = b.rank ?? '' }
-        else if (sortKey === 'role') { va = a.role; vb = b.role }
-        else if (sortKey === 'created_at') { va = a.created_at; vb = b.created_at }
-        const cmp = va.localeCompare(vb, 'ko')
-        return sortDir === 'asc' ? cmp : -cmp
+        const cmp = sortValue(a, query.sort.key).localeCompare(sortValue(b, query.sort.key), 'ko')
+        return query.sort.dir === 'asc' ? cmp : -cmp
       })
-  }, [profiles, emailMap, search, roleFilter, sortKey, sortDir])
+  }, [profiles, emailMap, query.q, query.filters.role, query.sort.key, query.sort.dir])
 
-  const thStyle: React.CSSProperties = { cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }
+  // 전체를 한 번에 그리지 않는다 — 화면에 필요한 구간만 자른다
+  const { from, to } = rangeOf(query)
+  const rows = filtered.slice(from, to + 1)
+
+  const columns: ColumnDef<Profile>[] = [
+    {
+      key: 'name', header: '이름', primary: true, sortable: 'name',
+      cell: (p) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+          <span style={{
+            width: '2rem', height: '2rem', borderRadius: '50%',
+            background: p.role === 'admin' ? 'var(--danger)' : 'var(--brand)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--brand-fg)', flexShrink: 0,
+          }}>
+            {p.name?.charAt(0)?.toUpperCase() ?? '?'}
+          </span>
+          <span>
+            <span style={{ fontWeight: 500, display: 'block' }}>{p.name || '-'}</span>
+            <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>{emailMap[p.id] ?? ''}</span>
+          </span>
+        </div>
+      ),
+    },
+    { key: 'rank', header: '직급', sortable: 'rank', cell: (p) => p.rank || '—' },
+    { key: 'position', header: '직책', cell: (p) => p.position || '—' },
+    {
+      key: 'role', header: '역할', sortable: 'role',
+      cell: (p) => (
+        <span className={`badge ${p.role === 'admin' ? 'badge-indigo' : 'badge-slate'}`}
+          style={p.role === 'admin' ? { backgroundColor: 'var(--danger-bg)', color: 'var(--danger)' } : undefined}>
+          {p.role}
+        </span>
+      ),
+    },
+    {
+      key: 'must_change_password', header: '초기PW변경', hideOnCard: true,
+      cell: (p) => (
+        <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: p.must_change_password ? 'var(--warning)' : 'var(--success)' }}>
+          {p.must_change_password ? '대기중' : '완료'}
+        </span>
+      ),
+    },
+    {
+      key: 'created_at', header: '가입일', sortable: 'created_at', hideOnCard: true,
+      cell: (p) => (
+        <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>
+          {new Date(p.created_at).toLocaleDateString('ko-KR')}
+        </span>
+      ),
+    },
+    {
+      key: 'edit', header: '수정', width: '80px',
+      cell: (p) => (
+        <button type="button" className="btn-ghost" onClick={() => setEditTarget(p)}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)' }}>
+          <Pencil size={12} /> 수정
+        </button>
+      ),
+    },
+    {
+      key: 'role_toggle', header: '역할 변경', width: '120px',
+      cell: (p) => <RoleToggle userId={p.id} currentRole={p.role} isSelf={p.id === currentUserId} />,
+    },
+    {
+      key: 'reset_pw', header: 'PW초기화', width: '110px',
+      cell: (p) => <ResetPasswordButton userId={p.id} userEmail={emailMap[p.id] ?? ''} userName={p.name ?? '-'} />,
+    },
+    {
+      key: 'onboarding', header: '온보딩', width: '130px',
+      cell: (p) => (
+        <span style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', alignItems: 'flex-start' }}>
+          <span style={{
+            fontSize: 'var(--fs-2xs)', fontWeight: 600,
+            color: p.onboarding_completed_at ? 'var(--success)' : p.onboarding_skipped_at ? 'var(--text-muted)' : 'var(--warning)',
+          }}>
+            {p.onboarding_completed_at ? '완료' : p.onboarding_skipped_at ? '건너뜀' : '미완료'}
+          </span>
+          <ResetOnboardingButton userId={p.id} userName={p.name ?? '-'} />
+        </span>
+      ),
+    },
+    {
+      key: 'delete', header: '삭제', width: '100px',
+      cell: (p) => <DeleteUserButton userId={p.id} userName={p.name ?? p.id} isSelf={p.id === currentUserId} />,
+    },
+  ]
+
+  const hasFilters = Boolean(query.q || query.filters.role)
 
   return (
     <>
-      {/* 검색 / 필터 바 */}
-      <div style={{ padding: '0.875rem 1.25rem', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', flexWrap: 'wrap', gap: '0.625rem', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 0 }}>
-          <Search size={14} style={{ position: 'absolute', left: '0.625rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' }} />
-          <input
-            type="search"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="이름 · 이메일 · 직급 검색"
-            className="input-field"
-            style={{ paddingLeft: 'var(--space-8)', fontSize: 'var(--fs-sm)', height: '2rem' }}
-          />
-        </div>
-        <div style={{ display: 'flex', gap: '0.375rem' }}>
-          {(['all', 'admin', 'member'] as const).map(r => (
-            <button
-              key={r}
-              onClick={() => setRoleFilter(r)}
-              style={{
-                padding: 'var(--space-1) var(--space-3)', fontSize: '0.8rem', borderRadius: '999px', cursor: 'pointer',
-                border: roleFilter === r ? 'var(--hairline) solid var(--brand)' : 'var(--border-w-2) solid var(--border-color)',
-                background: roleFilter === r ? 'var(--brand-soft)' : '#fff',
-                color: roleFilter === r ? 'var(--brand-dark)' : 'var(--text-muted)',
-                fontWeight: roleFilter === r ? 600 : 400,
-              }}
-            >
-              {r === 'all' ? '전체' : r}
-            </button>
-          ))}
-        </div>
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-faint)', marginLeft: 'auto' }}>{filtered.length}명</span>
-      </div>
+      <ListToolbar
+        query={query}
+        onChange={set}
+        searchPlaceholder="이름 · 이메일 · 직급 검색"
+        filters={FILTERS}
+        sortOptions={SORT_OPTIONS}
+        total={filtered.length}
+      />
 
-      <table className="table-base table-card">
-        <thead>
-          <tr>
-            <th onClick={() => toggleSort('name')} style={thStyle}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-                이름 <SortIcon active={sortKey === 'name'} dir={sortDir} />
-              </span>
-            </th>
-            <th onClick={() => toggleSort('rank')} style={thStyle}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-                직급 <SortIcon active={sortKey === 'rank'} dir={sortDir} />
-              </span>
-            </th>
-            <th>직책</th>
-            <th onClick={() => toggleSort('role')} style={thStyle}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-                역할 <SortIcon active={sortKey === 'role'} dir={sortDir} />
-              </span>
-            </th>
-            <th>초기PW변경</th>
-            <th onClick={() => toggleSort('created_at')} style={thStyle}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-                가입일 <SortIcon active={sortKey === 'created_at'} dir={sortDir} />
-              </span>
-            </th>
-            <th style={{ width: '80px' }}>수정</th>
-            <th style={{ width: '120px' }}>역할 변경</th>
-            <th style={{ width: '110px' }}>PW초기화</th>
-            <th style={{ width: '130px' }}>온보딩</th>
-            <th style={{ width: '100px' }}>삭제</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filtered.length === 0 ? (
-            <tr>
-              <td colSpan={10} style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>
-                검색 결과가 없습니다
-              </td>
-            </tr>
-          ) : filtered.map((profile) => {
-            const email = emailMap[profile.id] ?? ''
-            return (
-              <tr key={profile.id}>
-                <td className="card-header">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                    <div style={{
-                      width: '2rem', height: '2rem', borderRadius: '50%',
-                      background: profile.role === 'admin'
-                        ? 'linear-gradient(135deg, var(--danger), var(--danger))'
-                        : 'linear-gradient(135deg, var(--brand), var(--brand))',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'white', flexShrink: 0,
-                    }}>
-                      {profile.name?.charAt(0)?.toUpperCase() ?? '?'}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 500 }}>{profile.name || '-'}</div>
-                      <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>{email}</div>
-                    </div>
-                  </div>
-                </td>
-                <td data-label="직급">
-                  <span style={{ fontSize: 'var(--fs-base)', color: profile.rank ? 'var(--text)' : 'var(--text-faint)' }}>
-                    {profile.rank || '—'}
-                  </span>
-                </td>
-                <td data-label="직책">
-                  <span style={{ fontSize: 'var(--fs-base)', color: profile.position ? 'var(--text)' : 'var(--text-faint)' }}>
-                    {profile.position || '—'}
-                  </span>
-                </td>
-                <td data-label="역할">
-                  <span className={`badge ${profile.role === 'admin' ? 'badge-indigo' : 'badge-slate'}`}
-                    style={profile.role === 'admin' ? { backgroundColor: 'var(--danger-bg)', color: 'var(--danger)' } : undefined}>
-                    {profile.role}
-                  </span>
-                </td>
-                <td data-label="초기PW">
-                  <span style={{
-                    fontSize: 'var(--fs-xs)', fontWeight: 600,
-                    color: profile.must_change_password ? 'var(--warning)' : 'var(--success)',
-                  }}>
-                    {profile.must_change_password ? '대기중' : '완료'}
-                  </span>
-                </td>
-                <td data-label="가입일">
-                  <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>
-                    {new Date(profile.created_at).toLocaleDateString('ko-KR')}
-                  </span>
-                </td>
-                <td data-label="수정">
-                  <button
-                    onClick={() => setEditTarget(profile)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 'var(--space-1)',
-                      padding: '0.3rem 0.6rem', background: 'var(--surface-muted)', color: 'var(--text-muted)',
-                      border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius-lg)',
-                      fontSize: '0.8rem', cursor: 'pointer',
-                    }}
-                  >
-                    <Pencil size={12} /> 수정
-                  </button>
-                </td>
-                <td data-label="역할 변경">
-                  <RoleToggle userId={profile.id} currentRole={profile.role} isSelf={profile.id === currentUserId} />
-                </td>
-                <td data-label="PW초기화">
-                  <ResetPasswordButton
-                    userId={profile.id}
-                    userEmail={email}
-                    userName={profile.name ?? '-'}
-                  />
-                </td>
-                <td data-label="온보딩">
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', alignItems: 'flex-start' }}>
-                    <span style={{
-                      fontSize: 'var(--fs-2xs)', fontWeight: 600,
-                      color: profile.onboarding_completed_at
-                        ? 'var(--success)'
-                        : profile.onboarding_skipped_at
-                          ? 'var(--text-muted)'
-                          : 'var(--warning)',
-                    }}>
-                      {profile.onboarding_completed_at ? '완료' : profile.onboarding_skipped_at ? '건너뜀' : '미완료'}
-                    </span>
-                    <ResetOnboardingButton userId={profile.id} userName={profile.name ?? '-'} />
-                  </div>
-                </td>
-                <td data-label="삭제">
-                  <DeleteUserButton userId={profile.id} userName={profile.name ?? profile.id} isSelf={profile.id === currentUserId} />
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+      <ListSurface
+        rows={rows}
+        columns={columns}
+        query={query}
+        rowKey={(p) => p.id}
+        onChange={set}
+        empty={hasFilters
+          ? { title: '조건에 맞는 구성원이 없어요', description: '검색어나 역할 필터를 바꿔보세요' }
+          : { title: '등록된 구성원이 없어요', description: '구성원을 추가하면 여기 표시됩니다' }}
+      />
+
+      <ListPager query={query} total={filtered.length} onChange={set} />
 
       {editTarget && (
         <EditProfileModal
