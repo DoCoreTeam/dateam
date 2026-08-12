@@ -1600,6 +1600,74 @@
 }
 
 /* ─── 시스템 설정 화면 ─────────────────────────────────────────── */
+/* 연동 카드 UI 시스템 (admin/settings/integration-ui) —
+   카드 골격·상태·연결 테스트의 유일한 스타일. 카드마다 다시 그리지 않는다. */
+.integration-card { padding: var(--space-6); display: flex; flex-direction: column; }
+.integration-card-head {
+  display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2);
+}
+.integration-card-icon { display: inline-flex; color: var(--brand); }
+.integration-card-desc {
+  margin: 0 0 var(--space-4); font-size: var(--fs-sm); color: var(--text-muted); line-height: 1.6;
+}
+.integration-card-body { display: flex; flex-direction: column; gap: var(--space-4); flex: 1; }
+
+.integration-status { margin: 0; }
+.integration-status-loading {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--fs-sm); color: var(--text-faint);
+}
+.integration-status-empty {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-3); flex-wrap: wrap;
+}
+.integration-status-empty-text {
+  display: flex; align-items: center; gap: var(--space-2);
+  margin: 0; font-size: var(--fs-sm); color: var(--text-muted);
+}
+.integration-status-empty-text svg { color: var(--danger); flex-shrink: 0; }
+.integration-status-set {
+  padding: var(--space-3) var(--space-4);
+  background: var(--success-bg);
+  border: var(--hairline) solid var(--success-border);
+  border-radius: var(--radius);
+}
+.integration-status-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-2); flex-wrap: wrap;
+}
+.integration-status-label {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  font-size: var(--fs-sm); font-weight: 600; color: var(--success);
+}
+.integration-status-actions { display: inline-flex; gap: var(--space-1); }
+.integration-status-btn {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: none; border: none; border-radius: var(--radius);
+  color: var(--brand); font-size: var(--fs-xs); font-weight: 600; cursor: pointer;
+}
+.integration-status-btn:hover { background: var(--surface-bg); }
+.integration-status-btn.is-danger { color: var(--danger); }
+.integration-status-btn:disabled { opacity: 0.6; cursor: default; }
+.integration-status-value {
+  display: block; margin-top: var(--space-1);
+  font-family: ui-monospace, monospace; font-size: var(--fs-sm); color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+/* 연결 테스트는 언제나 카드 맨 아래, 같은 모양 */
+.integration-test {
+  margin-top: auto; padding-top: var(--space-4);
+  border-top: var(--hairline) solid var(--border-light);
+  display: flex; flex-direction: column; gap: var(--space-2);
+}
+.integration-test-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+}
+.integration-test-title { font-size: var(--fs-sm); font-weight: 600; color: var(--text); }
+.integration-test-desc { margin: 0; font-size: var(--fs-xs); color: var(--text-faint); }
+
 /* 키 설정 상태 (admin/settings/KeyStatus) — 카드마다 다르게 그리지 않는다 */
 .key-status { margin: 0 0 var(--space-4); }
 .key-status-empty {
@@ -1674,9 +1742,33 @@
   color: var(--text-muted);
 }
 /* 카드가 저마다 max-width를 들고 있으면 폭이 제각각으로 보인다.
-   폭은 그리드가 정하고 카드는 칸을 채운다(§2-4 full-width 반응형). */
-.settings-grid { align-items: start; }
-.settings-grid > * { min-width: 0; max-width: none; }
+   폭은 레이아웃이 정하고 카드는 칸을 채운다(§2-4 full-width 반응형). */
+.settings-balance > *,
+.settings-pair > * { min-width: 0; max-width: none; }
+
+/* 배치 규칙 — 카드는 행 단위로 높이를 맞춘다.
+   열 균형(masonry)은 빈 공간이 적지만 카드 시작점이 서로 어긋나 "사이즈가 안 맞는" 것처럼 보인다.
+   정렬이 우선이다. 짧은 카드에 생기는 여백은 연결 테스트 줄이 바닥으로 내려가며 흡수한다. */
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+  align-items: stretch;
+}
+.settings-grid > * { min-width: 0; max-width: none; height: 100%; }
+/* 그리드 칸을 채우도록 — 섹션(제목+카드) 형태와 카드 단독 형태 둘 다 지원 */
+.settings-grid > .settings-section { display: flex; flex-direction: column; }
+.settings-grid > .settings-section > .card { flex: 1; }
+.settings-grid > .card { display: flex; flex-direction: column; }
+/* 짧은 카드가 빈 박스로 보이지 않게 마지막 블록(액션 줄)을 바닥에 붙인다 */
+.settings-grid .card > :last-child { margin-top: auto; }
+
+@media (max-width: 1023px) {
+  /* 한 열이 되면 높이 맞추기가 의미 없다 */
+  .settings-grid { grid-template-columns: minmax(0, 1fr); }
+  .settings-grid > * { height: auto; }
+  .settings-grid .card > :last-child { margin-top: 0; }
+}
 
 /* ─── 리드 인테이크 ────────────────────────────────────────────── */
 .tab-btn {

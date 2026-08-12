@@ -3,8 +3,8 @@
 import { useState, useTransition, useEffect } from 'react'
 import { Key, CheckCircle, XCircle, RefreshCw, Cpu } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
-import { saveOpenAiKey, saveOpenAiModel, getOpenAiModels } from './actions'
-import KeyStatus from './KeyStatus'
+import { saveOpenAiKey, saveOpenAiModel, getOpenAiModels, deleteOpenAiKey } from './actions'
+import { IntegrationStatus, IntegrationTest } from './integration-ui'
 
 interface OpenAiSettingsProps {
   hasKey: boolean
@@ -35,6 +35,36 @@ export default function OpenAiSettings({ hasKey: initialHasKey, maskedKey: initi
       setModelMsg(null)
     }
   }, [hasKey])
+
+  const [disconnectPending, startDisconnect] = useTransition()
+
+  function handleDisconnect() {
+    setSaveMsg(null)
+    startDisconnect(async () => {
+      const result = await deleteOpenAiKey()
+      if (result.ok) {
+        setHasKey(false)
+        setMaskedKey(null)
+        setShowInput(true)
+      } else {
+        setSaveMsg({ ok: false, text: result.error ?? '연결 해제 실패' })
+      }
+    })
+  }
+
+  const [healthPending, startHealth] = useTransition()
+  const [healthMsg, setHealthMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  /** 모델 목록 조회가 곧 연결 확인이다 — 키·네트워크·권한을 한 번에 검증한다. */
+  function handleHealth() {
+    setHealthMsg(null)
+    startHealth(async () => {
+      const r = await getOpenAiModels()
+      setHealthMsg(r.ok
+        ? { ok: true, text: `연결 성공 — ${r.models?.length ?? 0}개 모델 사용 가능` }
+        : { ok: false, text: r.error ?? '연결 실패' })
+    })
+  }
 
   function handleSave(formData: FormData) {
     setSaveMsg(null)
@@ -91,9 +121,11 @@ export default function OpenAiSettings({ hasKey: initialHasKey, maskedKey: initi
       </div>
 
       {hasKey && maskedKey && (
-        <KeyStatus
-          maskedKey={maskedKey}
-          onChangeClick={() => setShowInput((v) => !v)}
+        <IntegrationStatus
+          value={maskedKey}
+          onChange={() => setShowInput((v) => !v)}
+          onDisconnect={handleDisconnect}
+          disconnectPending={disconnectPending}
         />
       )}
 
@@ -236,6 +268,12 @@ export default function OpenAiSettings({ hasKey: initialHasKey, maskedKey: initi
           </div>
         )}
       </div>
+      <IntegrationTest
+        onRun={handleHealth}
+        pending={healthPending}
+        result={healthMsg}
+        desc="OpenAI API에 연결 가능한지 확인합니다"
+      />
     </div>
   )
 }

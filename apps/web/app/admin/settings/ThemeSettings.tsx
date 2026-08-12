@@ -72,7 +72,7 @@ export default function ThemeSettings({ initialTheme }: { initialTheme: ThemeId 
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
         <button type="button" onClick={handleSave} disabled={saving} className="btn-primary" style={{ padding: 'var(--space-2) var(--space-5)', fontSize: 'var(--fs-base)' }}>
-          {saving ? '저장 중...' : '테마 적용'}
+          {saving ? '저장 중...' : '저장'}
         </button>
         {message && (
           <p style={{ fontSize: 'var(--fs-sm)', color: message.type === 'success' ? 'var(--success)' : 'var(--danger)' }}>{message.text}</p>

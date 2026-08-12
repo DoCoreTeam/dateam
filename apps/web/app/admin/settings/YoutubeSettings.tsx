@@ -7,8 +7,8 @@
 
 import { useState, useTransition } from 'react'
 import { Key } from 'lucide-react'
-import { saveYoutubeKey, deleteYoutubeKey } from './actions'
-import KeyStatus from './KeyStatus'
+import { saveYoutubeKey, deleteYoutubeKey, checkYoutubeHealth } from './actions'
+import { IntegrationStatus, IntegrationTest } from './integration-ui'
 
 interface Props {
   hasKey: boolean
@@ -36,6 +36,17 @@ export default function YoutubeSettings({ hasKey: initialHasKey, maskedKey: init
       } else {
         setMsg({ ok: false, text: result.error ?? '저장 실패' })
       }
+    })
+  }
+
+  const [healthPending, startHealth] = useTransition()
+  const [healthMsg, setHealthMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  function handleHealth() {
+    setHealthMsg(null)
+    startHealth(async () => {
+      const r = await checkYoutubeHealth()
+      setHealthMsg({ ok: r.ok, text: r.message })
     })
   }
 
@@ -68,12 +79,12 @@ export default function YoutubeSettings({ hasKey: initialHasKey, maskedKey: init
       </p>
 
       {!showInput && (
-        <KeyStatus
-          maskedKey={hasKey ? maskedKey : null}
+        <IntegrationStatus
+          value={hasKey ? maskedKey : null}
           emptyHint="채널 수집이 최근 15개로 제한됩니다"
-          onChangeClick={() => setShowInput(true)}
-          onDelete={handleDelete}
-          deletePending={deletePending}
+          onChange={() => setShowInput(true)}
+          onDisconnect={handleDelete}
+          disconnectPending={deletePending}
         />
       )}
 
@@ -99,6 +110,12 @@ export default function YoutubeSettings({ hasKey: initialHasKey, maskedKey: init
           {msg.text}
         </p>
       )}
+      <IntegrationTest
+        onRun={handleHealth}
+        pending={healthPending}
+        result={healthMsg}
+        desc="YouTube Data API 연결과 수집 범위를 확인합니다"
+      />
     </section>
   )
 }

@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { Database, CheckCircle, XCircle, Trash2, RefreshCw } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { saveDbUrl, deleteDbUrl, checkDbHealth } from './actions'
+import { IntegrationTest } from './integration-ui'
 
 interface DbSettingsProps {
   hasUrl: boolean
@@ -105,22 +106,12 @@ export default function DbSettings({ hasUrl: initialHas, maskedUrl: initialMaske
         </div>
       )}
 
-      <div style={{ borderTop: 'var(--border-w-2) solid var(--border-color)', paddingTop: 'var(--space-4)', marginTop: '0.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-          <span style={{ fontSize: 'var(--fs-base)', fontWeight: 600, color: 'var(--text)' }}>연결 테스트</span>
-          <button type="button" onClick={handleHealth} disabled={!hasUrl || healthPending} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 0.875rem', backgroundColor: hasUrl ? 'var(--brand)' : 'var(--color-border)', color: hasUrl ? '#fff' : 'var(--text-faint)', border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: hasUrl ? 'pointer' : 'not-allowed' }}>
-            {healthPending ? <AXDotLoader size={4} color="#fff" /> : <RefreshCw size={13} />}헬스체크
-          </button>
-        </div>
-        {healthMsg && (
-          <div role="status" style={{ padding: 'var(--space-3) var(--space-4)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 'var(--space-2)', backgroundColor: healthMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)', color: healthMsg.ok ? 'var(--success)' : 'var(--danger)', border: `var(--hairline) solid ${healthMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
-            {healthMsg.ok ? <CheckCircle size={14} /> : <XCircle size={14} />}{healthMsg.text}
-          </div>
-        )}
-        {!healthMsg && (
-          <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', margin: 0 }}>{hasUrl ? '저장된 연결 문자열로 실제 접속을 테스트합니다 (SELECT version)' : 'DB 연결 문자열을 먼저 저장해주세요'}</p>
-        )}
-      </div>
+      <IntegrationTest
+        onRun={handleHealth}
+        pending={healthPending}
+        result={healthMsg}
+        desc="DB 연결을 확인합니다"
+      />
     </div>
   )
 }

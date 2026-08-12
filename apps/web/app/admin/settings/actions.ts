@@ -471,3 +471,35 @@ export async function deleteYoutubeKey(): Promise<{ ok: boolean; error?: string 
   revalidatePath('/admin/settings')
   return { ok: true }
 }
+
+/**
+ * YouTube Data API 연결 확인.
+ * 연결 테스트는 카드마다 있고 없고가 갈리면 안 된다(§UI 시스템) — 가능한 연동은 전부 제공한다.
+ * 쿼터를 아끼려고 videos.list 1건(1유닛)만 부른다.
+ */
+export async function checkYoutubeHealth(): Promise<{ ok: boolean; message: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, message: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  const apiKey = meta.youtube_api_key as string | undefined
+  if (!apiKey) return { ok: false, message: '저장된 API 키가 없습니다' }
+
+  try {
+    const res = await fetch(
+      `https://youtube.googleapis.com/youtube/v3/videos?part=id&id=dQw4w9WgXcQ&key=${encodeURIComponent(apiKey)}`,
+      { cache: 'no-store' },
+    )
+    if (res.ok) return { ok: true, message: '연결 성공 — 채널 전체 수집을 쓸 수 있습니다' }
+
+    const err = await res.json().catch(() => ({})) as { error?: { message?: string } }
+    const msg = err?.error?.message ?? res.statusText
+    // 프로젝트에서 API가 꺼져 있는 경우가 가장 흔하다 — 무엇을 해야 하는지까지 알려준다
+    if (/has not been used in project|is disabled/i.test(msg)) {
+      return { ok: false, message: 'Google Cloud 프로젝트에서 YouTube Data API v3가 꺼져 있습니다' }
+    }
+    return { ok: false, message: `API 오류: ${msg}` }
+  } catch {
+    return { ok: false, message: '네트워크 오류가 발생했습니다' }
+  }
+}

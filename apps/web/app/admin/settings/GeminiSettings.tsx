@@ -5,7 +5,7 @@ import { Key, CheckCircle, XCircle, RefreshCw } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { saveGeminiKey, deleteGeminiKey, checkGeminiHealth } from './actions'
 import GeminiModelPicker from './GeminiModelPicker'
-import KeyStatus from './KeyStatus'
+import { IntegrationStatus, IntegrationTest } from './integration-ui'
 
 interface GeminiSettingsProps {
   hasKey: boolean
@@ -75,11 +75,11 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
 
       {/* 현재 상태 */}
       {hasKey && maskedKey && (
-        <KeyStatus
-          maskedKey={maskedKey}
-          onChangeClick={() => setShowInput((v) => !v)}
-          onDelete={handleDelete}
-          deletePending={deletePending}
+        <IntegrationStatus
+          value={maskedKey}
+          onChange={() => setShowInput((v) => !v)}
+          onDisconnect={handleDelete}
+          disconnectPending={deletePending}
         />
       )}
 
@@ -134,63 +134,12 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
         </div>
       )}
 
-      {/* 헬스체크 */}
-      <div style={{ borderTop: 'var(--border-w-2) solid var(--border-color)', paddingTop: 'var(--space-4)', marginTop: '0.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-          <span style={{ fontSize: 'var(--fs-base)', fontWeight: 600, color: 'var(--text)' }}>연결 테스트</span>
-          <button
-            type="button"
-            onClick={handleHealth}
-            disabled={!hasKey || healthPending}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              padding: '0.5rem 0.875rem',
-              backgroundColor: hasKey ? 'var(--brand)' : 'var(--color-border)',
-              color: hasKey ? '#fff' : 'var(--text-faint)',
-              border: 'none',
-              borderRadius: 'var(--radius)',
-              fontSize: 'var(--fs-sm)',
-              fontWeight: 600,
-              cursor: hasKey ? 'pointer' : 'not-allowed',
-            }}
-          >
-            {healthPending ? <AXDotLoader size={4} color="#fff" /> : <RefreshCw size={13} />}
-            헬스체크
-          </button>
-        </div>
-
-        {healthMsg && (
-          <div
-            role="status"
-            style={{
-              padding: 'var(--space-3) var(--space-4)',
-              borderRadius: 'var(--radius)',
-              fontSize: 'var(--fs-sm)',
-              fontWeight: 500,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--space-2)',
-              backgroundColor: healthMsg.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
-              color: healthMsg.ok ? 'var(--success)' : 'var(--danger)',
-              border: `var(--hairline) solid ${healthMsg.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
-            }}
-          >
-            {healthMsg.ok ? <CheckCircle size={14} /> : <XCircle size={14} />}
-            {healthMsg.text}
-          </div>
-        )}
-
-        {!healthMsg && (
-          <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', margin: 0 }}>
-            {hasKey ? 'Gemini API에 연결 가능한지 확인합니다' : 'API 키를 먼저 저장해주세요'}
-          </p>
-        )}
-      </div>
-
-      {/* 모델 선택 */}
-      <GeminiModelPicker hasKey={hasKey} savedModel={savedModel} />
+      <IntegrationTest
+        onRun={handleHealth}
+        pending={healthPending}
+        result={healthMsg}
+        desc="Gemini API에 연결 가능한지 확인합니다"
+      />
     </div>
   )
 }

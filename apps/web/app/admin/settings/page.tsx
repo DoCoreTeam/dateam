@@ -107,9 +107,8 @@ export default async function AdminSettingsPage({
       label: '브랜딩',
       icon: <Palette size={15} />,
       content: (
-        <div className="responsive-grid-cols-2 settings-grid">
-          {/* 나란히 둔다 — 한 칸씩 차지하면 입력 폭이 저절로 읽기 좋은 크기가 된다.
-              전체폭 한 줄이면 브랜드명 입력이 화면 끝까지 늘어나 오히려 쓰기 나쁘다. */}
+        <div className="settings-grid">
+          {/* 한 칸씩 차지하면 입력 폭이 읽기 좋은 크기가 되고, 두 카드 높이가 맞는다. */}
           <SettingsSection title="브랜딩 설정" desc="로고와 이름은 사이드바·로그인 화면에 그대로 쓰입니다.">
             <BrandingSettings
               initialLogoUrl={branding.logoUrl}
@@ -130,7 +129,7 @@ export default async function AdminSettingsPage({
       content: (
         <div className="settings-stack">
           <SettingsSection title="AI 모델 연동" desc="키를 등록한 모델만 AI 기능에서 고를 수 있습니다.">
-            <div className="responsive-grid-cols-2 settings-grid">
+            <div className="settings-grid">
               <GeminiSettings hasKey={hasKey} maskedKey={maskedKey} savedModel={savedModel} />
               <ClaudeSettings hasKey={hasClaudeKey} maskedKey={maskedClaudeKey} savedModel={savedClaudeModel} />
               <OpenAiSettings hasKey={hasOpenAiKey} maskedKey={maskedOpenAiKey} savedModel={savedOpenAiModel} />
@@ -150,7 +149,7 @@ export default async function AdminSettingsPage({
       content: (
         <div className="settings-stack">
           <SettingsSection title="데이터 수집·저장 연동" desc="콘텐츠 수집과 자료 보관에 쓰이는 외부 서비스입니다.">
-            <div className="responsive-grid-cols-2 settings-grid">
+            <div className="settings-grid">
               <YoutubeSettings hasKey={Boolean(ytKey)} maskedKey={ytMasked} />
               <GoogleDriveSettings />
               <KoraeximSettings hasKey={hasKoraeximKey} maskedKey={maskedKoraeximKey} />
