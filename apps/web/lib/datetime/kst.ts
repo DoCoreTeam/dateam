@@ -98,6 +98,19 @@ export function kstRangeToUtc(start: string, end: string): { fromIso: string; to
   }
 }
 
+/**
+ * 문서용 KST 전체 표기 — '2026년 8월 12일 14시 20분'.
+ * 밖으로 나가는 산출물(회의록·보고서)은 축약형(2026-08-12 14:20)이 아니라 이 형식을 쓴다.
+ * 00:00이면 날짜만('2026년 8월 12일') — 시각 미지정을 자정으로 단정해 보이지 않게.
+ */
+export function formatKstDateTimeKorean(iso: string): string {
+  const p = kstParts(iso)
+  if (!p) return ''
+  const date = `${p.year}년 ${p.month}월 ${p.day}일`
+  if (p.hour === 0 && p.minute === 0) return date
+  return `${date} ${p.hour}시 ${String(p.minute).padStart(2, '0')}분`
+}
+
 /** 월/일 + 선택적 시각 KST 라벨('6/17' 또는 '6/17 14:00'). 00:00이면 시각 생략. */
 export function formatKstDateTimeShort(iso: string): string {
   const p = kstParts(iso)

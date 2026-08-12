@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getMeetingNote, listOrgPeople, getMeetingDepartments } from '@/app/(member)/meeting-notes/actions'
+import { getMeetingNote, listOrgPeople } from '@/app/(member)/meeting-notes/actions'
 import { sanitizeRichHtml } from '@/components/ui/RichText'
 import { sanitizeFilename } from '@/lib/ai-chat/export'
-import { formatKstDateTimeShort } from '@/lib/datetime/kst'
+import { formatKstDateTimeKorean } from '@/lib/datetime/kst'
 import { exportFailureMessage } from '@/lib/meeting/export-failure'
 import { buildMeetingExportHtml, type MeetingExportView } from '@/lib/meeting/export-html'
 import { launchOptions } from '@/lib/security/headless-fetch'
@@ -56,15 +56,11 @@ export async function GET(
   const { members, externals } = classifyAttendees(note.attendees, note.attendee_user_ids, people)
   // 작성자·부서는 회의록 문서의 필수 표기다. 못 찾으면 빈 문자열 — 빌더가 그 행을 통째로 뺀다(지어내지 않는다).
   const authorName = people.find((p) => p.id === note.user_id)?.name ?? ''
-  const departmentName = note.department_id
-    ? (await getMeetingDepartments().catch(() => [])).find((d) => d.id === note.department_id)?.name ?? ''
-    : ''
 
   const html = buildMeetingExportHtml({
     title: note.title ?? '',
-    meetingAtLabel: note.meeting_at ? formatKstDateTimeShort(note.meeting_at) : '일시 미지정',
+    meetingAtLabel: note.meeting_at ? formatKstDateTimeKorean(note.meeting_at) : '일시 미지정',
     authorName: authorName,
-    departmentName: departmentName,
     memberAttendees: members,
     externalAttendees: externals,
     view,

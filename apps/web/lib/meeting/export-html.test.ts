@@ -6,7 +6,6 @@ const base: MeetingExportInput = {
   title: '테스트 회의',
   meetingAtLabel: '2026-07-22 14:02',
   authorName: '김도현',
-  departmentName: 'AX사업본부',
   memberAttendees: ['김도현'],
   externalAttendees: ['이기용 교수'],
   view: 'refined',
@@ -15,13 +14,12 @@ const base: MeetingExportInput = {
   bodyHtml: '<p>원본 본문</p>',
 }
 
-test('회의록 서식: 표제 + 라벨-값 메타표(작성일시·작성자·부서·참석자)', () => {
+test('회의록 서식: 표제 + 라벨-값 메타표(작성일시·작성자·참석자)', () => {
   const html = buildMeetingExportHtml(base)
   assert.match(html, /class="doctype">회 의 록</)
   assert.match(html, /<h1>테스트 회의<\/h1>/)
   assert.match(html, /<th>작성일시<\/th><td>2026-07-22 14:02<\/td>/)
   assert.match(html, /<th>작성자<\/th><td>김도현<\/td>/)
-  assert.match(html, /<td>AX사업본부<\/td>/)
   assert.match(html, /<td>김도현, 이기용 교수<\/td>/) // 참석자는 한 줄로 — 시스템 칩이 아니라 문서 표기
 })
 
@@ -38,16 +36,16 @@ test('시스템 UI 흔적(칩·AI 정제본 머리말)이 문서에 남지 않�
 
 test('본문은 번호 붙은 절로 렌더된다 (요약=회의 내용, 결정사항)', () => {
   const html = buildMeetingExportHtml(base)
-  assert.match(html, /<h2>1\. 회의 내용<\/h2>/)
-  assert.match(html, /<h2>2\. 결정사항<\/h2>/)
+  assert.match(html, /<h2><span class="no">1<\/span>회의 내용<\/h2>/)
+  assert.match(html, /<h2><span class="no">2<\/span>결정사항<\/h2>/)
   assert.match(html, /요약 내용/)
   assert.match(html, /결정 내용/)
 })
 
 test('요약이 없으면 결정사항이 1번이 된다 (빈 번호 남기지 않음)', () => {
   const html = buildMeetingExportHtml({ ...base, summary: '' })
-  assert.match(html, /<h2>1\. 결정사항<\/h2>/)
-  assert.doesNotMatch(html, /2\. 결정사항/)
+  assert.match(html, /<h2><span class="no">1<\/span>결정사항<\/h2>/)
+  assert.doesNotMatch(html, /<span class="no">2<\/span>결정사항/)
 })
 
 test('개조식("- 항목") 줄은 실제 글머리표 목록으로 렌더된다', () => {
@@ -60,11 +58,15 @@ test('줄글 요약은 목록으로 바꾸지 않고 원문 그대로 둔다', (
   assert.match(html, /<p class="pre">한 문단으로 쓴 요약입니다\.<\/p>/)
 })
 
-test('작성자·부서를 모르면 그 행 자체를 만들지 않는다 (빈 칸을 남기지 않는다)', () => {
-  const html = buildMeetingExportHtml({ ...base, authorName: '', departmentName: '' })
+test('작성자를 모르면 그 행 자체를 만들지 않는다 (빈 칸을 남기지 않는다)', () => {
+  const html = buildMeetingExportHtml({ ...base, authorName: '' })
   assert.doesNotMatch(html, /<th>작성자<\/th>/)
-  assert.doesNotMatch(html, /부　　서/)
   assert.match(html, /<th>작성일시<\/th>/) // 있는 것은 그대로
+})
+
+test('부서는 표에 넣지 않는다 — 하단 발행 주체가 이미 밝힌다', () => {
+  const html = buildMeetingExportHtml(base)
+  assert.doesNotMatch(html, /<th>부/)
 })
 
 test('참석자 없으면 참석자 행을 생략한다', () => {
@@ -74,7 +76,7 @@ test('참석자 없으면 참석자 행을 생략한다', () => {
 
 test('원본 뷰는 소독된 bodyHtml을 회의 내용 절에 주입한다', () => {
   const html = buildMeetingExportHtml({ ...base, view: 'original', bodyHtml: '<ul><li>항목</li></ul>' })
-  assert.match(html, /<h2>1\. 회의 내용<\/h2>/)
+  assert.match(html, /<h2><span class="no">1<\/span>회의 내용<\/h2>/)
   assert.match(html, /<div class="rich"><ul><li>항목<\/li><\/ul><\/div>/)
 })
 

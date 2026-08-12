@@ -1,4 +1,4 @@
-import { test } from 'node:test'
+import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   KST_OFFSET,
@@ -6,6 +6,7 @@ import {
   kstDateOnlyToIso,
   normalizeKstWallString,
   formatKstTime,
+  formatKstDateTimeKorean,
   kstDateKey,
   kstParts,
   kstTodayKey,
@@ -72,4 +73,12 @@ test('kstTodayKey: 고정 시각에서 KST 날짜', () => {
 test('kstWallToIso: 잘못된 입력은 throw(우회 방지)', () => {
   assert.throws(() => kstWallToIso('2026/06/25', '13:00'))
   assert.throws(() => kstWallToIso('2026-06-25', '1:00'))
+})
+
+test('formatKstDateTimeKorean: 문서용 전체 표기 — 2026년 8월 12일 14시 20분', () => {
+  // 05:20 UTC = 14:20 KST
+  assert.equal(formatKstDateTimeKorean('2026-08-12T05:20:00Z'), '2026년 8월 12일 14시 20분')
+  // 자정이면 시각을 붙이지 않는다 — 미지정을 00시로 단정해 보이지 않게
+  assert.equal(formatKstDateTimeKorean('2026-08-11T15:00:00Z'), '2026년 8월 12일')
+  assert.equal(formatKstDateTimeKorean('bad'), '')
 })

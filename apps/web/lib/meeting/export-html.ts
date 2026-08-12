@@ -1,6 +1,7 @@
 // 회의록 내보내기(PDF·이미지) 문서 빌더 (SSOT).
 //   · 화면 UI를 그대로 찍지 않는다 — 밖으로 나가는 산출물이므로 "회의록 문서" 서식을 따른다.
-//     제목 아래 라벨-값 표(작성일시·작성자·부서·참석자) → 본문 섹션 → 서명란. 일반적인 회의록 양식.
+//     제목 아래 라벨-값 표(작성일시·작성자·참석자) → 번호 붙은 절 → 이상/발행 주체. 일반적인 회의록 양식.
+//     부서는 표에 넣지 않는다 — 하단 발행 주체가 이미 밝힌다.
 //   · 상태(작성중/확정)는 문서에 넣지 않는다 — 내부 작업 상태지 회의 사실이 아니다.
 //   · plain text 필드는 escapeHtml로 이스케이프 → 마크업 주입 방지.
 //   · bodyHtml(원본)은 호출부에서 sanitizeRichHtml로 이미 소독된 값을 받는다(라우트 책임).
@@ -15,8 +16,6 @@ export interface MeetingExportInput {
   meetingAtLabel: string
   /** 작성자 이름. 모르면 빈 문자열 — 지어내지 않고 행을 숨긴다. */
   authorName?: string
-  /** 부서명. 없으면 행을 숨긴다. */
-  departmentName?: string
   memberAttendees: string[]
   externalAttendees: string[]
   view: MeetingExportView
@@ -46,17 +45,17 @@ function renderBody(input: MeetingExportInput): string {
     const decisions = input.decisions.trim()
     if (!summary && !decisions) return `<p class="empty">AI 정제본이 없습니다.</p>`
     const parts: string[] = []
-    if (summary) parts.push(`<section class="sec"><h2>1. 회의 내용</h2>${renderTextBlock(summary)}</section>`)
+    if (summary) parts.push(`<section class="sec"><h2><span class="no">1</span>회의 내용</h2>${renderTextBlock(summary)}</section>`)
     if (decisions) {
       const n = summary ? 2 : 1
-      parts.push(`<section class="sec"><h2>${n}. 결정사항</h2>${renderTextBlock(decisions)}</section>`)
+      parts.push(`<section class="sec"><h2><span class="no">${n}</span>결정사항</h2>${renderTextBlock(decisions)}</section>`)
     }
     return parts.join('\n')
   }
   const html = input.bodyHtml.trim()
   if (EMPTY_HTML.has(html) || html === '') return `<p class="empty">본문이 비어 있습니다.</p>`
   const wrapped = html.startsWith('<') ? html : `<p>${escapeHtml(html)}</p>`
-  return `<section class="sec"><h2>1. 회의 내용</h2><div class="rich">${wrapped}</div></section>`
+  return `<section class="sec"><h2><span class="no">1</span>회의 내용</h2><div class="rich">${wrapped}</div></section>`
 }
 
 /** 라벨-값 한 행. 값이 비면 행 자체를 만들지 않는다(빈 칸을 문서에 남기지 않는다). */
@@ -71,11 +70,11 @@ function metaRow(label: string, value: string): string {
 export function buildMeetingExportHtml(input: MeetingExportInput): string {
   const title = input.title.trim() || '(제목 없음)'
   const attendees = [...input.memberAttendees, ...input.externalAttendees]
+  // 부서는 문서 하단 발행 주체에 이미 있다 — 표에 또 넣지 않는다.
   const meta = [
     metaRow('작성일시', input.meetingAtLabel),
     metaRow('작성자', input.authorName ?? ''),
-    metaRow('부　　서', input.departmentName ?? ''),
-    metaRow('참 석 자', attendees.join(', ')),
+    metaRow('참석자', attendees.join(', ')),
   ].filter(Boolean).join('\n      ')
 
   return `<!doctype html>
@@ -91,21 +90,35 @@ export function buildMeetingExportHtml(input: MeetingExportInput): string {
     font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
     color: #1f2937; line-height: 1.75; -webkit-font-smoothing: antialiased;
   }
-  .doc { max-width: 740px; margin: 0 auto; padding: 52px 48px 44px; }
+  .doc { max-width: 740px; margin: 0 auto; padding: 56px 48px 44px; }
 
-  /* 표제 — 문서 제목은 가운데, 그 아래 굵은 괘선. 관공서·사내 보고서의 표준 머리. */
-  .doctype { text-align: center; font-size: 12px; letter-spacing: 0.42em; color: #6b7280; margin: 0 0 10px; padding-left: 0.42em; }
-  h1 { text-align: center; font-size: 27px; font-weight: 800; letter-spacing: -0.02em; color: #111827; margin: 0 0 22px; line-height: 1.35; }
-  .rule { border: 0; border-top: 2.5px solid #111827; margin: 0 0 0; }
+  /* 표제 — 자간을 벌린 문서 종별, 가운데 제목, 그 아래 굵은 괘선 + 짧은 강조선. */
+  .doctype { text-align: center; font-size: 12px; letter-spacing: 0.42em; color: #9ca3af; margin: 0 0 12px; padding-left: 0.42em; }
+  h1 { text-align: center; font-size: 28px; font-weight: 800; letter-spacing: -0.02em; color: #111827; margin: 0 0 24px; line-height: 1.35; }
+  .rule { position: relative; border: 0; border-top: 2.5px solid #111827; margin: 0; }
+  .rule::after {
+    content: ''; position: absolute; left: 50%; top: -2.5px; width: 84px; height: 2.5px;
+    background: #4f46e5; transform: translateX(-50%);
+  }
 
-  /* 라벨-값 표 — 회의록의 얼굴. 라벨 열은 옅은 바탕으로 고정폭. */
-  table.meta { width: 100%; border-collapse: collapse; margin: 0 0 34px; font-size: 14px; }
-  table.meta th, table.meta td { border-bottom: 1px solid #e5e7eb; padding: 11px 14px; text-align: left; vertical-align: top; }
-  table.meta th { width: 108px; background: #f9fafb; color: #4b5563; font-weight: 700; white-space: nowrap; }
-  table.meta td { color: #111827; }
+  /* 라벨-값 표 — 회의록의 얼굴. 라벨은 자간을 벌려 값과 역할을 분리한다. */
+  table.meta { width: 100%; border-collapse: collapse; margin: 0 0 36px; font-size: 14px; }
+  table.meta th, table.meta td { border-bottom: 1px solid #eef0f3; padding: 12px 4px; text-align: left; vertical-align: top; }
+  table.meta th { width: 104px; color: #6b7280; font-weight: 600; white-space: nowrap; letter-spacing: 0.06em; }
+  table.meta td { color: #111827; font-weight: 500; }
 
-  .sec { margin: 0 0 30px; }
-  .sec h2 { font-size: 15px; font-weight: 800; color: #111827; margin: 0 0 12px; padding-left: 10px; border-left: 3px solid #111827; line-height: 1.4; }
+  /* 절 제목 — 번호를 짙은 사각 배지로 떼어내 본문과 층을 만든다. */
+  .sec { margin: 0 0 32px; }
+  .sec h2 {
+    font-size: 15px; font-weight: 800; color: #111827; line-height: 1.4;
+    margin: 0 0 14px; display: flex; align-items: center; gap: 10px;
+  }
+  .sec h2 .no {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; flex: 0 0 22px;
+    background: #111827; color: #ffffff; border-radius: 4px;
+    font-size: 12px; font-weight: 700;
+  }
   .pre { margin: 0; white-space: pre-wrap; font-size: 14.5px; }
   ul.bullets { margin: 0; padding-left: 20px; font-size: 14.5px; }
   ul.bullets li { margin: 5px 0; padding-left: 2px; }
@@ -122,7 +135,7 @@ export function buildMeetingExportHtml(input: MeetingExportInput): string {
 
   /* 마무리 — 문서의 끝을 알리고 발행 주체를 밝힌다. */
   .end { text-align: center; font-size: 12.5px; color: #6b7280; letter-spacing: 0.3em; margin: 38px 0 0; padding-left: 0.3em; }
-  footer.foot { margin-top: 14px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 11.5px; color: #9ca3af; text-align: center; }
+  footer.foot { margin-top: 14px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 11.5px; color: #9ca3af; text-align: right; }
 </style>
 </head>
 <body>
