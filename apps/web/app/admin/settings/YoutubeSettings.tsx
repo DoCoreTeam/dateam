@@ -6,8 +6,9 @@
 // 543개 올린 채널을 15개로 판단하게 된다. 이 키가 곧 분석 범위다.
 
 import { useState, useTransition } from 'react'
-import { Key, CheckCircle, XCircle, Trash2 } from 'lucide-react'
+import { Key } from 'lucide-react'
 import { saveYoutubeKey, deleteYoutubeKey } from './actions'
+import KeyStatus from './KeyStatus'
 
 interface Props {
   hasKey: boolean
@@ -54,7 +55,7 @@ export default function YoutubeSettings({ hasKey: initialHasKey, maskedKey: init
   }
 
   return (
-    <section className="card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-5)' }}>
+    <section className="card" style={{ padding: 'var(--space-6)' }}>
       <h2 style={{
         fontSize: 'var(--fs-lg)', fontWeight: 700, letterSpacing: '-0.02em',
         display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)',
@@ -66,11 +67,15 @@ export default function YoutubeSettings({ hasKey: initialHasKey, maskedKey: init
         키가 없으면 최근 15개(RSS)까지만 볼 수 있고, 키가 있으면 설정한 기간의 업로드를 전부 가져옵니다.
       </p>
 
-      <p style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-        {hasKey
-          ? <><CheckCircle size={16} color="var(--success)" /> 설정됨 <code>{maskedKey}</code></>
-          : <><XCircle size={16} color="var(--danger)" /> 설정되지 않음 — 채널 수집이 최근 15개로 제한됩니다</>}
-      </p>
+      {!showInput && (
+        <KeyStatus
+          maskedKey={hasKey ? maskedKey : null}
+          emptyHint="채널 수집이 최근 15개로 제한됩니다"
+          onChangeClick={() => setShowInput(true)}
+          onDelete={handleDelete}
+          deletePending={deletePending}
+        />
+      )}
 
       {showInput ? (
         <form action={handleSave} style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -86,14 +91,7 @@ export default function YoutubeSettings({ hasKey: initialHasKey, maskedKey: init
             <button type="button" className="btn-ghost" onClick={() => setShowInput(false)}>취소</button>
           )}
         </form>
-      ) : (
-        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-          <button type="button" className="btn-ghost" onClick={() => setShowInput(true)}>키 교체</button>
-          <button type="button" className="btn-ghost" onClick={handleDelete} disabled={deletePending}>
-            <Trash2 size={14} /> {deletePending ? '삭제 중…' : '삭제'}
-          </button>
-        </div>
-      )}
+      ) : null}
 
       {msg && (
         <p className={`ci-status ${msg.ok ? 'ci-status-ok' : 'ci-status-danger'}`}

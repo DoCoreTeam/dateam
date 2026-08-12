@@ -25,7 +25,7 @@ export default function TokenAlertSettings({ currentThreshold }: Props) {
   }
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6)', maxWidth: '640px' }}>
+    <div className="card" style={{ padding: 'var(--space-6)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
         <Bell size={16} color="var(--brand)" />
         <h2 className="tape-title" style={{ margin: 0 }}>AI 토큰 알림 임계치</h2>
@@ -43,7 +43,7 @@ export default function TokenAlertSettings({ currentThreshold }: Props) {
               type="text"
               value={threshold}
               onChange={e => setThreshold(e.target.value)}
-              style={{ flex: 1, maxWidth: '220px', padding: 'var(--space-2) var(--space-3)', border: 'var(--hairline) solid var(--border-subtle)', borderRadius: 'var(--radius)', fontSize: '0.9rem', color: 'var(--text)' }}
+              style={{ flex: 1, maxWidth: '220px', padding: 'var(--space-2) var(--space-3)', border: 'var(--hairline) solid var(--border-subtle)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)', color: 'var(--text)' }}
               placeholder="1,000,000"
             />
             <button

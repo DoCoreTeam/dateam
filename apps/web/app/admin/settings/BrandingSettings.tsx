@@ -78,10 +78,10 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
   const displayUrl = previewUrl ?? logoUrl
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+    <div className="card" style={{ padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
       {/* 로고 미리보기 */}
       <div>
-        <p style={{ fontSize: 'var(--fs-base)', fontWeight: 500, color: 'var(--text)', marginBottom: '0.75rem' }}>로고 이미지</p>
+        <p className="label">로고 이미지</p>
         <div
           style={{
             width: '200px',
@@ -112,14 +112,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
         </div>
 
         <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '0.75rem' }}>
-          <label
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.375rem',
-              padding: '0.375rem 0.75rem', fontSize: 'var(--fs-sm)', fontWeight: 500,
-              border: 'var(--hairline) solid var(--border-subtle)', borderRadius: 'var(--radius)',
-              backgroundColor: 'white', color: 'var(--text)', cursor: 'pointer',
-            }}
-          >
+          <label className="btn-ghost" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer' }}>
             <Upload size={13} /> 파일 선택
             <input
               ref={fileInputRef}
@@ -152,7 +145,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
 
       {/* 브랜드명 */}
       <div>
-        <label style={{ fontSize: 'var(--fs-base)', fontWeight: 500, color: 'var(--text)', display: 'block', marginBottom: '0.5rem' }}>
+        <label className="label">
           시스템 이름 (브랜드명)
         </label>
         <input
@@ -162,7 +155,6 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
           maxLength={30}
           placeholder="AX사업본부"
           className="input-field"
-          style={{ maxWidth: '300px' }}
         />
         <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
           로고 이미지가 없을 때 표시됩니다 · 최대 30자
@@ -171,7 +163,7 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
 
       {/* 부제목 (로그인 페이지 등) */}
       <div>
-        <label style={{ fontSize: 'var(--fs-base)', fontWeight: 500, color: 'var(--text)', display: 'block', marginBottom: '0.5rem' }}>
+        <label className="label">
           부제목
         </label>
         <input
@@ -181,7 +173,6 @@ export default function BrandingSettings({ initialLogoUrl, initialBrandName, ini
           maxLength={40}
           placeholder="본부 운영 플랫폼"
           className="input-field"
-          style={{ maxWidth: '300px' }}
         />
         <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
           로그인 화면 브랜드명 아래에 표시됩니다 · 최대 40자 · 비우면 숨김

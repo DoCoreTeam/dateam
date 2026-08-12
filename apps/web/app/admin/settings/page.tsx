@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { Key, Palette, Bell, Cloud, Database, Paintbrush } from 'lucide-react'
+import { Palette, Bot, Plug, Server } from 'lucide-react'
+import PageHeader from '@/components/ui/PageHeader'
+import SegmentedTabs, { type SegmentedTab } from '@/components/ui/SegmentedTabs'
+import SettingsSection from './SettingsSection'
 import GeminiSettings from './GeminiSettings'
 import YoutubeSettings from './YoutubeSettings'
 import ClaudeSettings from './ClaudeSettings'
@@ -96,86 +99,85 @@ export default async function AdminSettingsPage({
   const hasDbUrl = !!storedDbUrl
   const maskedDbUrl = storedDbUrl ? storedDbUrl.replace(/(postgres(?:ql)?:\/\/[^:]+:)([^@]+)(@)/i, (_m, a, _pw, c) => `${a}••••••••${c}`) : null
 
+  // 탭 구성 — 아래로 계속 스크롤하는 대신 성격별로 나눈다.
+  // YouTube는 "AI 모델"이 아니라 데이터 수집용 API라 연동 탭으로 옮겼다(원래 자리가 틀렸다).
+  const tabs: SegmentedTab[] = [
+    {
+      id: 'branding',
+      label: '브랜딩',
+      icon: <Palette size={15} />,
+      content: (
+        <div className="responsive-grid-cols-2 settings-grid">
+          {/* 나란히 둔다 — 한 칸씩 차지하면 입력 폭이 저절로 읽기 좋은 크기가 된다.
+              전체폭 한 줄이면 브랜드명 입력이 화면 끝까지 늘어나 오히려 쓰기 나쁘다. */}
+          <SettingsSection title="브랜딩 설정" desc="로고와 이름은 사이드바·로그인 화면에 그대로 쓰입니다.">
+            <BrandingSettings
+              initialLogoUrl={branding.logoUrl}
+              initialBrandName={branding.brandName}
+              initialTagline={branding.tagline}
+            />
+          </SettingsSection>
+          <SettingsSection title="디자인 테마" desc="선택한 테마가 전 화면에 즉시 적용됩니다.">
+            <ThemeSettings initialTheme={activeTheme} />
+          </SettingsSection>
+        </div>
+      ),
+    },
+    {
+      id: 'ai',
+      label: 'AI 모델',
+      icon: <Bot size={15} />,
+      content: (
+        <div className="settings-stack">
+          <SettingsSection title="AI 모델 연동" desc="키를 등록한 모델만 AI 기능에서 고를 수 있습니다.">
+            <div className="responsive-grid-cols-2 settings-grid">
+              <GeminiSettings hasKey={hasKey} maskedKey={maskedKey} savedModel={savedModel} />
+              <ClaudeSettings hasKey={hasClaudeKey} maskedKey={maskedClaudeKey} savedModel={savedClaudeModel} />
+              <OpenAiSettings hasKey={hasOpenAiKey} maskedKey={maskedOpenAiKey} savedModel={savedOpenAiModel} />
+              <AiChatDefaultProviderPicker available={availableChatProviders} current={currentDefaultProvider} />
+            </div>
+          </SettingsSection>
+          <SettingsSection title="AI 토큰 알림" desc="사용량이 기준을 넘으면 알려드립니다.">
+            <TokenAlertSettings currentThreshold={tokenAlertThreshold} />
+          </SettingsSection>
+        </div>
+      ),
+    },
+    {
+      id: 'integrations',
+      label: '외부 연동',
+      icon: <Plug size={15} />,
+      content: (
+        <div className="settings-stack">
+          <SettingsSection title="데이터 수집·저장 연동" desc="콘텐츠 수집과 자료 보관에 쓰이는 외부 서비스입니다.">
+            <div className="responsive-grid-cols-2 settings-grid">
+              <YoutubeSettings hasKey={Boolean(ytKey)} maskedKey={ytMasked} />
+              <GoogleDriveSettings />
+              <KoraeximSettings hasKey={hasKoraeximKey} maskedKey={maskedKoraeximKey} />
+            </div>
+          </SettingsSection>
+        </div>
+      ),
+    },
+    {
+      id: 'system',
+      label: '시스템',
+      icon: <Server size={15} />,
+      content: (
+        <div className="settings-stack">
+          <SettingsSection title="DB 연결" desc="마이그레이션과 운영 점검에 쓰는 연결 정보입니다.">
+            <DbSettings hasUrl={hasDbUrl} maskedUrl={maskedDbUrl} />
+          </SettingsSection>
+        </div>
+      ),
+    },
+  ]
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-10)' }}>
+    <>
       {driveParam === 'connected' && <DriveConnectedBanner />}
-      <div>
-        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
-          시스템 설정
-        </h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
-          브랜딩 및 외부 API를 관리합니다
-        </p>
-      </div>
-
-      {/* 브랜딩 설정 */}
-      <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
-          <Palette size={15} color="var(--brand)" />
-          <h2 className="tape-title" style={{ margin: 0 }}>브랜딩 설정</h2>
-        </div>
-        <BrandingSettings initialLogoUrl={branding.logoUrl} initialBrandName={branding.brandName} initialTagline={branding.tagline} />
-      </section>
-
-      {/* 디자인 테마 */}
-      <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
-          <Paintbrush size={15} color="var(--brand)" />
-          <h2 style={{ fontSize: 'var(--fs-lg)', fontWeight: 600, color: 'var(--text)', margin: 0 }}>디자인 테마</h2>
-        </div>
-        <ThemeSettings initialTheme={activeTheme} />
-      </section>
-
-      {/* API 설정 */}
-      <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
-          <Key size={15} color="var(--brand)" />
-          <h2 className="tape-title" style={{ margin: 0 }}>AI 모델 연동</h2>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-          <GeminiSettings hasKey={hasKey} maskedKey={maskedKey} savedModel={savedModel} />
-          <YoutubeSettings hasKey={Boolean(ytKey)} maskedKey={ytMasked} />
-          <ClaudeSettings hasKey={hasClaudeKey} maskedKey={maskedClaudeKey} savedModel={savedClaudeModel} />
-          <OpenAiSettings hasKey={hasOpenAiKey} maskedKey={maskedOpenAiKey} savedModel={savedOpenAiModel} />
-          <AiChatDefaultProviderPicker available={availableChatProviders} current={currentDefaultProvider} />
-        </div>
-      </section>
-
-      {/* 한국수출입은행 환율 API */}
-      <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
-          <Key size={15} color="var(--brand)" />
-          <h2 className="tape-title" style={{ margin: 0 }}>환율 API 연동</h2>
-        </div>
-        <KoraeximSettings hasKey={hasKoraeximKey} maskedKey={maskedKoraeximKey} />
-      </section>
-
-      {/* DB 연결 설정 */}
-      <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
-          <Database size={15} color="var(--brand)" />
-          <h2 className="tape-title" style={{ margin: 0 }}>DB 연결</h2>
-        </div>
-        <DbSettings hasUrl={hasDbUrl} maskedUrl={maskedDbUrl} />
-      </section>
-
-      {/* AI 토큰 알림 설정 */}
-      <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
-          <Bell size={15} color="var(--brand)" />
-          <h2 className="tape-title" style={{ margin: 0 }}>AI 토큰 알림</h2>
-        </div>
-        <TokenAlertSettings currentThreshold={tokenAlertThreshold} />
-      </section>
-
-      {/* Google Drive 연동 */}
-      <section>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
-          <Cloud size={15} color="var(--brand)" />
-          <h2 className="tape-title" style={{ margin: 0 }}>Google Drive 연동</h2>
-        </div>
-        <GoogleDriveSettings />
-      </section>
-    </div>
+      <PageHeader title="시스템 설정" description="브랜딩·외부 연동·시스템 값을 한곳에서 관리합니다" />
+      <SegmentedTabs tabs={tabs} ariaLabel="시스템 설정 분류" />
+    </>
   )
 }

@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Key, CheckCircle, XCircle, Trash2, RefreshCw } from 'lucide-react'
+import { Key, CheckCircle, XCircle, RefreshCw } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { saveGeminiKey, deleteGeminiKey, checkGeminiHealth } from './actions'
 import GeminiModelPicker from './GeminiModelPicker'
+import KeyStatus from './KeyStatus'
 
 interface GeminiSettingsProps {
   hasKey: boolean
@@ -65,7 +66,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
   }
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6)', maxWidth: '640px' }}>
+    <div className="card" style={{ padding: 'var(--space-6)' }}>
       {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
         <Key size={16} color="var(--brand)" />
@@ -74,35 +75,12 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
 
       {/* 현재 상태 */}
       {hasKey && maskedKey && (
-        <div style={{ padding: '0.875rem 1rem', backgroundColor: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              <CheckCircle size={14} color="var(--success)" />
-              <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--success)' }}>API 키 설정됨</span>
-            </div>
-            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-              <button
-                type="button"
-                onClick={() => setShowInput((v) => !v)}
-                style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 'var(--space-1) var(--space-2)' }}
-              >
-                변경
-              </button>
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={deletePending}
-                style={{ fontSize: 'var(--fs-xs)', color: 'var(--danger)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 'var(--space-1) var(--space-2)', display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}
-              >
-                {deletePending ? <AXDotLoader size={4} color="var(--danger)" /> : <Trash2 size={12} />}
-                삭제
-              </button>
-            </div>
-          </div>
-          <code style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', marginTop: '0.375rem', display: 'block', fontFamily: 'monospace' }}>
-            {maskedKey}
-          </code>
-        </div>
+        <KeyStatus
+          maskedKey={maskedKey}
+          onChangeClick={() => setShowInput((v) => !v)}
+          onDelete={handleDelete}
+          deletePending={deletePending}
+        />
       )}
 
       {/* 키 입력 폼 */}

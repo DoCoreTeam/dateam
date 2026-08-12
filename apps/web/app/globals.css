@@ -1549,6 +1549,135 @@
   }
 }
 
+/* ─── 공용 탭 (components/ui/SegmentedTabs) ───────────────────────
+   화면마다 탭을 인라인으로 만들지 않는다. 여기가 유일한 탭 스타일이다. */
+.seg-tabs {
+  /* 내용 폭만 차지한다 — 화면 끝까지 늘이면 탭 사이가 벌어져 한 묶음으로 안 읽힌다 */
+  display: inline-flex;
+  max-width: 100%;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  margin-bottom: var(--space-5);
+  background: var(--surface-muted);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius-lg);
+  /* 탭이 많거나 화면이 좁으면 줄바꿈으로 무너지는 대신 가로로 민다 */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.seg-tabs::-webkit-scrollbar { display: none; }
+
+.seg-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+  min-height: 44px;              /* 터치 영역 최소 44px */
+  padding: 0 var(--space-4);
+  white-space: nowrap;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--duration-fast) ease, color var(--duration-fast) ease;
+}
+.seg-tab:hover { color: var(--text); background: var(--surface-bg); }
+.seg-tab:focus-visible { outline: var(--border-w-2) solid var(--brand); outline-offset: -2px; }
+.seg-tab.is-active {
+  background: var(--surface-bg);
+  color: var(--brand);
+  box-shadow: var(--shadow-sm);
+}
+.seg-tab-icon { display: inline-flex; opacity: 0.85; }
+
+@media (max-width: 767px) {
+  /* 좁은 화면에서는 균등분할을 풀어 라벨이 잘리지 않게 한다 */
+  .seg-tab { flex: 0 0 auto; padding: 0 var(--space-3); }
+}
+
+/* ─── 시스템 설정 화면 ─────────────────────────────────────────── */
+/* 키 설정 상태 (admin/settings/KeyStatus) — 카드마다 다르게 그리지 않는다 */
+.key-status { margin: 0 0 var(--space-4); }
+.key-status-empty {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.key-status-empty svg { color: var(--danger); flex-shrink: 0; }
+.key-status-set {
+  padding: var(--space-3) var(--space-4);
+  background: var(--success-bg);
+  border: var(--hairline) solid var(--success-border);
+  border-radius: var(--radius);
+}
+.key-status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.key-status-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--success);
+}
+.key-status-actions { display: inline-flex; gap: var(--space-1); }
+.key-status-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--brand);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.key-status-btn:hover { background: var(--surface-bg); }
+.key-status-btn.is-danger { color: var(--danger); }
+.key-status-btn:disabled { opacity: 0.6; cursor: default; }
+.key-status-value {
+  display: block;
+  margin-top: var(--space-1);
+  font-family: ui-monospace, monospace;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+.settings-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+.settings-section-desc {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+/* 카드가 저마다 max-width를 들고 있으면 폭이 제각각으로 보인다.
+   폭은 그리드가 정하고 카드는 칸을 채운다(§2-4 full-width 반응형). */
+.settings-grid { align-items: start; }
+.settings-grid > * { min-width: 0; max-width: none; }
+
 /* ─── 리드 인테이크 ────────────────────────────────────────────── */
 .tab-btn {
   padding: 0.5rem 1.25rem;

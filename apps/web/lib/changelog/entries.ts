@@ -32,6 +32,13 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.437', date: '2026-08-12', title: '채널을 통째로 가져올 수 있게 됐어요',
+    items: [
+      { kind: 'feature', emoji: '📺', headline: '이제 채널의 영상을 전부 가져옵니다', detail: 'YouTube 연동이 켜졌어요. 그동안은 최근 15개까지만 볼 수 있었는데, 이제 설정한 기간의 업로드를 전부 가져옵니다. "평소 대비 몇 배"도 훨씬 정확해져요.' },
+      { kind: 'feature', emoji: '💬', headline: '댓글 수도 함께 보여드려요', detail: '조회수·좋아요만 보이고 비어 있던 댓글 수가 채워집니다. 다시 수집하는 콘텐츠부터 순서대로 반영돼요.' },
+    ],
+  },
+  {
     version: '0.7.436', date: '2026-08-12', title: '떡상하면 바로 알려드리고, 지표를 계속 따라갑니다',
     items: [
       { kind: 'feature', emoji: '🔔', headline: '평소보다 크게 터지면 알림으로 알려드려요', detail: '지켜보던 채널의 새 게시물이 기준 배수를 넘기면 화면 오른쪽 위 종에 쌓입니다. 몇 배인지와 무엇과 비교했는지까지 함께 적어드려요. 기준 배수와 방해 금지 시간은 설정 → 알림에서 바꿀 수 있어요.' },

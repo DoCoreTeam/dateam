@@ -63,7 +63,7 @@ export default function DbSettings({ hasUrl: initialHas, maskedUrl: initialMaske
   }
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6)', maxWidth: '640px' }}>
+    <div className="card" style={{ padding: 'var(--space-6)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
         <Database size={16} color="var(--brand)" />
         <h2 className="tape-title" style={{ margin: 0 }}>DB 연결 (PostgreSQL)</h2>

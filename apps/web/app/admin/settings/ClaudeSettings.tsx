@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect } from 'react'
 import { Key, CheckCircle, XCircle, RefreshCw, Cpu } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { saveClaudeKey, saveClaudeModel, getClaudeModels } from './actions'
+import KeyStatus from './KeyStatus'
 
 const RECOMMENDED_MODEL = 'claude-opus-4-8'
 
@@ -86,31 +87,17 @@ export default function ClaudeSettings({ hasKey: initialHasKey, maskedKey: initi
   }
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6)', maxWidth: '640px' }}>
+    <div className="card" style={{ padding: 'var(--space-6)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1.25rem' }}>
         <Key size={16} color="var(--brand)" />
         <h2 className="tape-title" style={{ margin: 0 }}>Claude API 키</h2>
       </div>
 
       {hasKey && maskedKey && (
-        <div style={{ padding: '0.875rem 1rem', backgroundColor: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              <CheckCircle size={14} color="var(--success)" />
-              <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--success)' }}>API 키 설정됨</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowInput((v) => !v)}
-              style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 'var(--space-1) var(--space-2)' }}
-            >
-              변경
-            </button>
-          </div>
-          <code style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)', marginTop: '0.375rem', display: 'block', fontFamily: 'monospace' }}>
-            {maskedKey}
-          </code>
-        </div>
+        <KeyStatus
+          maskedKey={maskedKey}
+          onChangeClick={() => setShowInput((v) => !v)}
+        />
       )}
 
       {showInput && (

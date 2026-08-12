@@ -31,7 +31,7 @@ export default function AiChatDefaultProviderPicker({ available, current }: AiCh
   }
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6)', maxWidth: '640px' }}>
+    <div className="card" style={{ padding: 'var(--space-6)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '0.75rem' }}>
         <Sparkles size={16} color="var(--brand)" />
         <h2 className="tape-title" style={{ margin: 0 }}>채팅 기본 프로바이더</h2>
