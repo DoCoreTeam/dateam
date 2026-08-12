@@ -21,7 +21,6 @@ const PENDING = new Set<string>([
   'app/(ci)/ci/performance/PerformanceView.tsx',
   'app/(ci)/ci/publish/PublishView.tsx',
   'app/(ci)/ci/trends/TrendsView.tsx',
-  'app/(member)/accounts/page.tsx',
   'app/(member)/deals/page.tsx',
   'app/(member)/dept-tasks/DeptTasksClient.tsx',
   'app/(member)/kpi/page.tsx',

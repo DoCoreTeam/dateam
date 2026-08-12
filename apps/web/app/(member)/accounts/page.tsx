@@ -1,21 +1,45 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
-import SortIcon from '@/components/ui/SortIcon'
+// app/(member)/accounts/page.tsx — 거래처 목록
+// 목록 표준(§2-6)을 따른다 — 담당자·영업기회와 같은 도구줄·표/카드·페이지 규격.
+
+import { useCallback, useEffect, useState } from 'react'
 import useSWRInfinite from 'swr/infinite'
 import Link from 'next/link'
-import { Briefcase, Plus, Loader2, Search, X, Globe, Phone, MapPin, ExternalLink, Sparkles } from 'lucide-react'
+import { Plus, Globe, Phone, MapPin, ExternalLink, Sparkles } from 'lucide-react'
 import type { Account } from '@/types/database'
 import AccountActions from './AccountActions'
 import SlidePanel from '@/components/ui/SlidePanel'
 import PageHeader from '@/components/ui/PageHeader'
-import { useDebounce } from '@/hooks/useDebounce'
+import ListToolbar from '@/components/ui/list/ListToolbar'
+import ListSurface from '@/components/ui/list/ListSurface'
+import ListPager from '@/components/ui/list/ListPager'
+import type { ColumnDef } from '@/components/ui/list/types'
+import { useListQuery } from '@/lib/ui/use-list-query'
+import type { ListDefaults } from '@/lib/ui/list-query'
 import { ACCOUNT_SEGMENTS } from '@/lib/crm'
 
 type PageData = { items: Account[]; nextCursor: string | null; hasMore: boolean; capped?: boolean }
-type SortField = 'created_at' | 'name' | 'fit_score' | 'industry' | 'region' | 'gpu_demand_intensity'
 
-const SEGMENTS = ACCOUNT_SEGMENTS
+const LIST_DEFAULTS: ListDefaults = {
+  sort: { key: 'created_at', dir: 'desc' },
+  mode: 'more',
+  view: 'table',
+  filterKeys: ['segment'],
+}
+const SORT_OPTIONS = [
+  { key: 'created_at', label: '등록일' },
+  { key: 'name', label: '거래처명' },
+  { key: 'fit_score', label: 'Fit 점수' },
+  { key: 'industry', label: '업종' },
+  { key: 'region', label: '지역' },
+  { key: 'gpu_demand_intensity', label: 'GPU 수요' },
+]
+const FILTERS = [{
+  key: 'segment',
+  label: '세그먼트',
+  options: ACCOUNT_SEGMENTS.map((s) => ({ value: s, label: s })),
+}]
 
 function fitColor(score: number | null) {
   if (score === null) return { color: 'var(--text-faint)', background: 'var(--color-bg)' }
@@ -24,60 +48,75 @@ function fitColor(score: number | null) {
   return { color: 'var(--danger)', background: 'var(--danger-bg)' }
 }
 
-export default function AccountsPage() {
-  const [search, setSearch] = useState('')
-  const [filterSegment, setFilterSegment] = useState('')
-  const [sort, setSort] = useState<SortField>('created_at')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const [selected, setSelected] = useState<Account | null>(null)
+const dash = <span style={{ color: 'var(--text-faint)' }}>-</span>
 
-  const debouncedSearch = useDebounce(search, 300)
+const COLUMNS: ColumnDef<Account>[] = [
+  {
+    key: 'name', header: '거래처명', primary: true, sortable: 'name',
+    cell: (a) => (
+      <div>
+        <span style={{ fontWeight: 600, color: 'var(--text)', fontSize: 'var(--fs-md)' }}>{a.name}</span>
+        {a.industry && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', marginTop: '0.125rem' }}>{a.industry}</div>}
+      </div>
+    ),
+  },
+  { key: 'industry', header: '업종', sortable: 'industry', hideOnCard: true, cell: (a) => a.industry ?? dash },
+  {
+    key: 'segment', header: '세그먼트',
+    cell: (a) => a.segment
+      ? <span className="badge badge-indigo" style={{ fontSize: 'var(--fs-xs)' }}>{a.segment}</span>
+      : dash,
+  },
+  { key: 'region', header: '지역', sortable: 'region', cell: (a) => a.region ?? dash },
+  {
+    key: 'gpu_demand_intensity', header: 'GPU수요', sortable: 'gpu_demand_intensity',
+    cell: (a) => a.gpu_demand_intensity
+      ? <span className={`badge ${a.gpu_demand_intensity === 'High' ? 'badge-indigo' : 'badge-slate'}`} style={{ fontSize: 'var(--fs-xs)' }}>{a.gpu_demand_intensity}</span>
+      : dash,
+  },
+  {
+    key: 'account_type', header: '거래처유형', hideOnCard: true,
+    cell: (a) => a.account_type
+      ? <span className="badge badge-slate" style={{ fontSize: 'var(--fs-xs)' }}>{a.account_type}</span>
+      : dash,
+  },
+  {
+    key: 'fit_score', header: 'Fit', sortable: 'fit_score', align: 'right',
+    cell: (a) => a.fit_score !== null
+      ? <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '9999px', ...fitColor(a.fit_score) }}>{a.fit_score}</span>
+      : dash,
+  },
+  {
+    key: 'actions', header: '관리', width: '80px',
+    // 행 클릭(상세 열기)과 겹치지 않게 이벤트를 여기서 끊는다
+    cell: (a) => <span onClick={(e) => e.stopPropagation()}><AccountActions accountId={a.id} /></span>,
+  },
+]
+
+export default function AccountsPage() {
+  const { query, set } = useListQuery(LIST_DEFAULTS, { persistKey: '/accounts' })
+  const [selected, setSelected] = useState<Account | null>(null)
 
   const getKey = useCallback((pageIndex: number, prev: PageData | null) => {
     if (pageIndex > 0 && !prev?.nextCursor) return null
     const params = new URLSearchParams()
-    if (debouncedSearch) params.set('search', debouncedSearch)
-    if (filterSegment)   params.set('segment', filterSegment)
-    if (sort !== 'created_at') params.set('sort', sort)
-    if (sortDir !== 'desc') params.set('dir', sortDir)
+    if (query.q) params.set('search', query.q)
+    if (query.filters.segment) params.set('segment', query.filters.segment)
+    if (query.sort.key !== 'created_at') params.set('sort', query.sort.key)
+    if (query.sort.dir !== 'desc') params.set('dir', query.sort.dir)
     if (prev?.nextCursor) params.set('cursor', prev.nextCursor)
     const qs = params.toString()
     return `/api/accounts${qs ? `?${qs}` : ''}`
-  }, [debouncedSearch, filterSegment, sort, sortDir])
+  }, [query.q, query.filters.segment, query.sort.key, query.sort.dir])
 
-  const { data, size, setSize, isLoading, isValidating, mutate } = useSWRInfinite<PageData>(getKey)
+  const { data, size, setSize, isLoading, isValidating, mutate, error } = useSWRInfinite<PageData>(getKey)
 
-  // 필터 변경 시 페이지 리셋
-  useEffect(() => { setSize(1) }, [debouncedSearch, filterSegment, sort, sortDir, setSize])
+  // '더 보기'는 URL(page)이 진실 — 새로고침해도 보던 만큼 다시 불러온다
+  useEffect(() => { if (size !== query.page) setSize(query.page) }, [query.page, size, setSize])
 
   const accounts = data?.flatMap((p) => p.items) ?? []
-  const hasMore = data?.[data.length - 1]?.hasMore ?? false
-  const isCapped = data?.[data.length - 1]?.capped ?? false
-  const hasFilters = debouncedSearch || filterSegment || sort !== 'created_at'
-
-  const sentinelRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const el = sentinelRef.current
-    if (!el) return
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting && hasMore && !isValidating) setSize(s => s + 1) },
-      { threshold: 0.1 }
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [hasMore, isValidating, setSize])
-
-  function handleSort(field: SortField) {
-    if (sort === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSort(field); setSortDir('asc') }
-  }
-
-  function clearFilters() {
-    setSearch('')
-    setFilterSegment('')
-    setSort('created_at')
-    setSortDir('desc')
-  }
+  const last = data?.[data.length - 1]
+  const hasFilters = Boolean(query.q || query.filters.segment) || query.sort.key !== 'created_at'
 
   return (
     <div className="page-inner">
@@ -86,151 +125,46 @@ export default function AccountsPage() {
           <Link href="/lead-intake?target=account" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', minHeight: '44px' }}>
             <Sparkles size={16} /> AI로 추가
           </Link>
-          <Link href="/accounts/new?mode=manual" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', minHeight: '44px', border: 'var(--border-w-2) solid var(--border-color)', color: 'var(--text-muted)', background: '#fff', fontSize: 'var(--fs-base)', fontWeight: 600 }}>
+          <Link href="/accounts/new?mode=manual" className="btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', padding: 'var(--space-2) var(--space-4)', minHeight: '44px' }}>
             <Plus size={16} /> 수동 입력
           </Link>
         </div>
       } />
 
-      <div className="card">
-        {/* 헤더 */}
-        <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-          <Briefcase size={16} color="var(--brand)" />
-          <h2 className="tape-title" style={{ margin: 0 }}>전체 거래처</h2>
-          <span className="badge badge-slate">{accounts.length}{hasFilters ? '건 (필터됨)' : '개'}</span>
-        </div>
+      <ListToolbar
+        query={query}
+        onChange={set}
+        searchPlaceholder="거래처명 검색"
+        filters={FILTERS}
+        sortOptions={SORT_OPTIONS}
+        showSize={false}
+        total={accounts.length}
+      />
 
-        {/* 필터 바 */}
-        <div className="filter-bar">
-          <div className="filter-search-wrap">
-            <Search size={14} />
-            <input
-              className="filter-search"
-              placeholder="거래처명 검색…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
-          <select className="filter-select" value={filterSegment} onChange={e => setFilterSegment(e.target.value)}>
-            <option value="">세그먼트 전체</option>
-            {SEGMENTS.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-          {(search || filterSegment || sort !== 'created_at') && (
-            <button className="filter-clear" onClick={clearFilters}>
-              <X size={13} /> 초기화
-            </button>
-          )}
-        </div>
+      <ListSurface
+        rows={accounts}
+        columns={COLUMNS}
+        query={query}
+        rowKey={(a) => a.id}
+        onChange={set}
+        loading={isLoading}
+        error={error ? { message: '거래처 목록을 불러오지 못했습니다', onRetry: () => { void mutate() } } : null}
+        empty={hasFilters
+          ? { title: '조건에 맞는 거래처가 없어요', description: '검색어나 세그먼트를 바꿔보세요' }
+          : { title: '아직 등록된 거래처가 없어요', description: '이름만 넣어도 AI가 나머지를 채워줍니다', action: { label: 'AI로 첫 거래처 추가', href: '/lead-intake?target=account' } }}
+        onRowClick={(a) => setSelected(a)}
+      />
 
-        {isLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--space-12) var(--space-4)' }}>
-            <Loader2 size={24} style={{ color: 'var(--brand)', animation: 'spin 1s linear infinite' }} />
-          </div>
-        ) : accounts.length === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'var(--space-12) var(--space-4)', color: 'var(--text-faint)', fontSize: 'var(--fs-base)', textAlign: 'center' }}>
-            <Briefcase size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
-            <p style={{ margin: 0 }}>{hasFilters ? '검색 결과가 없습니다' : '등록된 거래처가 없습니다'}</p>
-            {!hasFilters && (
-              <Link href="/accounts/new" style={{ marginTop: '1rem', display: 'inline-block', color: 'var(--brand)', fontSize: 'var(--fs-base)', fontWeight: 600 }}>
-                AI로 첫 거래처 추가하기 →
-              </Link>
-            )}
-          </div>
-        ) : (
-          <table className="table-base table-card">
-            <thead>
-              <tr>
-                <th className={`sort-th${sort === 'name' ? ' active' : ''}`} onClick={() => handleSort('name')}>
-                  거래처명 <SortIcon active={sort === 'name'} dir={sortDir} />
-                </th>
-                <th className={`sort-th${sort === 'industry' ? ' active' : ''}`} onClick={() => handleSort('industry')}>
-                  업종 <SortIcon active={sort === 'industry'} dir={sortDir} />
-                </th>
-                <th>세그먼트</th>
-                <th className={`sort-th${sort === 'region' ? ' active' : ''}`} onClick={() => handleSort('region')}>
-                  지역 <SortIcon active={sort === 'region'} dir={sortDir} />
-                </th>
-                <th className={`sort-th${sort === 'gpu_demand_intensity' ? ' active' : ''}`} onClick={() => handleSort('gpu_demand_intensity')}>
-                  GPU수요 <SortIcon active={sort === 'gpu_demand_intensity'} dir={sortDir} />
-                </th>
-                <th>거래처유형</th>
-                <th className={`sort-th${sort === 'fit_score' ? ' active' : ''}`} style={{ textAlign: 'center' }} onClick={() => handleSort('fit_score')}>
-                  Fit <SortIcon active={sort === 'fit_score'} dir={sortDir} />
-                </th>
-                <th style={{ width: '80px' }}>관리</th>
-              </tr>
-            </thead>
-            <tbody>
-              {accounts.map((acc) => {
-                const fc = fitColor(acc.fit_score)
-                return (
-                  <tr key={acc.id} style={{ cursor: 'pointer' }} onClick={() => setSelected(acc)}>
-                    <td className="card-header">
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 'var(--space-2)' }}>
-                        <div>
-                          <button
-                            onClick={() => setSelected(acc)}
-                            style={{ fontWeight: 600, color: 'var(--text)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--fs-md)', padding: 0, textAlign: 'left' }}
-                          >
-                            {acc.name}
-                          </button>
-                          {acc.industry && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', marginTop: '0.125rem' }}>{acc.industry}</div>}
-                        </div>
-                        {acc.fit_score !== null && (
-                          <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '9999px', ...fc, flexShrink: 0 }}>
-                            Fit {acc.fit_score}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td data-label="업종"><span style={{ color: 'var(--text)' }}>{acc.industry ?? '-'}</span></td>
-                    <td data-label="세그먼트">
-                      {acc.segment
-                        ? <span className="badge badge-indigo" style={{ fontSize: 'var(--fs-xs)' }}>{acc.segment}</span>
-                        : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
-                    </td>
-                    <td data-label="지역"><span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>{acc.region ?? '-'}</span></td>
-                    <td data-label="GPU수요">
-                      {acc.gpu_demand_intensity
-                        ? <span className={`badge ${acc.gpu_demand_intensity === 'High' ? 'badge-indigo' : acc.gpu_demand_intensity === 'Medium' ? 'badge-slate' : ''}`} style={{ fontSize: 'var(--fs-xs)' }}>{acc.gpu_demand_intensity}</span>
-                        : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
-                    </td>
-                    <td data-label="거래처유형">
-                      {acc.account_type
-                        ? <span className="badge badge-slate" style={{ fontSize: 'var(--fs-xs)' }}>{acc.account_type}</span>
-                        : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
-                    </td>
-                    <td data-label="Fit" style={{ textAlign: 'center' }}>
-                      {acc.fit_score !== null
-                        ? <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '9999px', ...fc }}>{acc.fit_score}</span>
-                        : <span style={{ color: 'var(--border-subtle)' }}>-</span>}
-                    </td>
-                    <td data-label="관리" onClick={e => e.stopPropagation()}>
-                      <AccountActions accountId={acc.id} />
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        )}
+      <ListPager query={query} hasMore={last?.hasMore ?? false} onChange={set} loading={isValidating && !isLoading} />
 
-        <div ref={sentinelRef} style={{ height: 1 }} />
-        {isValidating && !isLoading && (
-          <div style={{ textAlign: 'center', padding: 'var(--space-4)', color: 'var(--text-faint)' }}>
-            <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-          </div>
-        )}
-        {isCapped && (
-          <div style={{ textAlign: 'center', padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--fs-sm)', color: 'var(--warning)', background: 'var(--warning-bg)', borderTop: 'var(--hairline) solid var(--warning-border)' }}>
-            결과가 500건을 초과합니다. 검색 조건을 좁혀주세요.
-          </div>
-        )}
-      </div>
+      {last?.capped && (
+        <p style={{ textAlign: 'center', padding: 'var(--space-3)', fontSize: 'var(--fs-sm)', color: 'var(--warning)' }}>
+          결과가 500건을 초과합니다. 검색 조건을 좁혀주세요.
+        </p>
+      )}
 
-      {/* 슬라이드 패널 */}
       <SlidePanel isOpen={!!selected} onClose={() => setSelected(null)} title={selected?.name ?? ''}>
-        {selected && <AccountDetail account={selected} onClose={() => setSelected(null)} onDeleted={() => { mutate(); setSelected(null) }} />}
+        {selected && <AccountDetail account={selected} onClose={() => setSelected(null)} onDeleted={() => { void mutate(); setSelected(null) }} />}
       </SlidePanel>
     </div>
   )
