@@ -9,8 +9,7 @@
 // 여기서는 CI의 메뉴 구성과 어시스턴트만 얹는다.
 
 import {
-  Home, Inbox, Radar, TrendingUp, PenTool, Layers, Send, Radio, BarChart3, Settings,
-} from 'lucide-react'
+  Home, Inbox, Radar, TrendingUp, PenTool, Layers, Send, Radio, BarChart3, Settings, Scissors } from 'lucide-react'
 import type { ReactNode } from 'react'
 import MobileShell from '@/components/ui/MobileShell'
 import type { NavGroup } from '@/components/ui/MobileShell'
@@ -44,6 +43,7 @@ function buildGroups(counts?: CiLoopMinimap): NavGroup[] {
       label: '제작',
       items: [
         { href: '/ci/pipeline', label: '파이프라인', icon: <PenTool size={16} />, match: ['/ci/briefs'], badge: badge(counts?.producing) },
+        { href: '/ci/studio', label: '편집점', icon: <Scissors size={16} /> },
         { href: '/ci/boards', label: '보드', icon: <Layers size={16} /> },
         { href: '/ci/assets', label: '자료', icon: <Layers size={16} /> },
       ],

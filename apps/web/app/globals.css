@@ -9262,6 +9262,51 @@ label.intake-tool-btn {
 }
 .ci-asset-search .input-field { flex: 1; }
 
+/* ── 목록 행 썸네일 ── */
+.ci-row-thumb-cell { width: 104px; }
+.ci-row-thumb {
+  width: 96px; aspect-ratio: 16 / 9; object-fit: cover; display: block;
+  border-radius: var(--radius); background: var(--surface-muted);
+  border: var(--border-w-2) solid var(--border-color);
+}
+@media (max-width: 767px) {
+  /* 카드 레이아웃에서는 썸네일이 카드 상단에 크게 온다 */
+  .ci-row-thumb-cell { width: auto; }
+  .ci-row-thumb { width: 100%; max-width: 240px; }
+}
+
+/* ── 편집점 스튜디오 ── */
+.ci-studio {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-4);
+  align-items: start;
+}
+.ci-studio-player { position: sticky; top: var(--space-4); }
+.ci-studio-video {
+  width: 100%; max-height: 60vh; border-radius: var(--radius-lg);
+  background: var(--color-bg); border: var(--border-w-2) solid var(--border-color);
+}
+.ci-studio-points {
+  border: var(--border-w-2) solid var(--border-color); border-radius: var(--radius-lg);
+  background: var(--color-surface); padding: var(--space-4);
+}
+.ci-studio-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.ci-studio-item {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-3);
+  align-items: start; padding: var(--space-3);
+  border: var(--border-w-2) solid var(--border-color); border-radius: var(--radius);
+  background: var(--surface-muted);
+}
+.ci-studio-time {
+  font-size: var(--fs-xs); font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--brand); background: none; border: none; cursor: pointer;
+  padding: 0; white-space: nowrap; min-height: 24px;
+}
+.ci-studio-time:hover { text-decoration: underline; }
+@media (max-width: 1023px) {
+  .ci-studio { grid-template-columns: 1fr; }
+  .ci-studio-player { position: static; }
+}
+
 /* ── 채널 상세 헤더 ── */
 .ci-channel-head {
   display: flex; flex-direction: column; gap: var(--space-4);

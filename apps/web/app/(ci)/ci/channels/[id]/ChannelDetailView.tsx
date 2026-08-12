@@ -104,6 +104,13 @@ export default function ChannelDetailView({ workspaceId, channel, contents }: Pr
           <div className="ci-meta-cell">
             <dt className="ci-basis">수집한 게시물</dt>
             <dd className="ci-metric-big">{contents.length}</dd>
+            {/* 몇 개 중 몇 개인지 밝힌다 — 3%만 보고 채널을 판단하게 두면 안 된다 */}
+            {channel.videoCount != null && channel.videoCount > contents.length && (
+              <span className="ci-basis">
+                채널 {channel.videoCount.toLocaleString('ko-KR')}개 중{' '}
+                {Math.round((contents.length / channel.videoCount) * 100)}%
+              </span>
+            )}
           </div>
           <div className="ci-meta-cell">
             <dt className="ci-basis">규모 구간</dt>

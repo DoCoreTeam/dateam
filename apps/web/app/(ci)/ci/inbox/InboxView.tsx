@@ -144,6 +144,7 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
         <table className="table-base table-card">
           <thead>
             <tr>
+              <th aria-label="썸네일" />
               <th>제목</th>
               <th>채널</th>
               <th>플랫폼</th>
@@ -157,6 +158,16 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
           <tbody>
             {items.map((item) => (
               <tr key={item.id}>
+                {/* 썸네일이 있으면 보여준다 — 목록에서 무엇인지 알아보는 가장 빠른 단서다 */}
+                <td className="ci-row-thumb-cell">
+                  {item.thumbnailUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img className="ci-row-thumb" src={item.thumbnailUrl} alt="" loading="lazy"
+                      width={96} height={54} />
+                  ) : (
+                    <div className="ci-row-thumb ci-thumb-empty" aria-hidden />
+                  )}
+                </td>
                 <td className="card-header">
                   <button
                     type="button"

@@ -15,6 +15,7 @@ import { resolveSettings, type SettingRow } from '../settings/resolve.ts'
 import { CORPUS_FILTER } from '../corpus.ts'
 import { fetchChannelFeed } from '../connectors/channel-feed.ts'
 import { fetchChannelMeta } from '../connectors/youtube-channel.ts'
+import { fetchAllUploads } from '../connectors/youtube-uploads.ts'
 import { isProvisionalKey } from '../ucm/channel-key.ts'
 import { analyzeCreative } from '../ai/creative-server.ts'
 import { enqueueJob } from './queue.ts'
@@ -275,12 +276,31 @@ export async function runChannelSweep(workspaceId: string, channelId: string): P
   // "이 채널은 뭐 하는 곳인가"에 답할 수 없다. 실패해도 게시물 수집은 계속한다.
   await enrichChannelMeta(channelId).catch(() => null)
 
-  const feed = await fetchChannelFeed({
-    platform: ch.platform,
-    externalId: ch.external_id,
-    handle: ch.handle,
-    profileUrl: ch.profile_url,
-  })
+  // 전체 업로드를 먼저 시도한다. RSS는 최근 15개만 주므로 543개 채널을 15개로 판단하게 된다.
+  // 키가 없어 전체를 못 받으면 RSS로 내려가되, **몇 개 중 몇 개인지 화면에 남긴다.**
+  const meta = await getGeminiMeta()
+  const realChannelId = isProvisionalKey(ch.external_id) ? null : ch.external_id
+  const full = ch.platform === 'youtube' && realChannelId
+    ? await fetchAllUploads(realChannelId, meta.youtubeApiKey).catch(() => null)
+    : null
+
+  const feed = full?.ok
+    ? {
+      ok: true as const,
+      entries: full.items,
+      method: `youtube_api:${full.items.length}건${full.truncated ? '(상한 절단)' : ' 전량'}`,
+    }
+    : await fetchChannelFeed({
+      platform: ch.platform,
+      externalId: ch.external_id,
+      handle: ch.handle,
+      profileUrl: ch.profile_url,
+    })
+
+  // 전체를 못 받은 이유를 채널에 남긴다 — 사용자가 "왜 15개뿐이지"를 화면에서 알 수 있어야 한다
+  const coverageNote = !full?.ok && full !== null && !full.ok
+    ? full.error
+    : (full?.ok && full.truncated ? '업로드가 많아 일부만 가져왔습니다' : null)
 
   if (!feed.ok) {
     // 실패를 감추지 않는다. 채널 화면에 그대로 보여준다.
@@ -324,10 +344,14 @@ export async function runChannelSweep(workspaceId: string, channelId: string): P
   await adminClient.from('ci_channels').update({
     last_sweep_at: new Date().toISOString(),
     sweep_cursor: feed.method,
-    sweep_error: null,
+    // 수집 범위의 한계는 오류가 아니지만 숨기면 안 된다. 같은 자리에 남겨 화면이 말하게 한다.
+    sweep_error: coverageNote,
   }).eq('id', channelId)
 
-  return { ok: true, errorMessage: `${created}건 새로 담았습니다` }
+  const scope = full?.ok
+    ? `채널 전체 ${feed.entries.length}건 확인`
+    : `최근 ${feed.entries.length}건만 확인(RSS 한계)`
+  return { ok: true, errorMessage: `${created}건 새로 담았습니다 · ${scope}` }
 }
 
 /** 한 번에 정보를 가져올 채널 수 상한. */
