@@ -47,9 +47,21 @@ export async function probeModelIds(
   }
 
   const probe = provider.probeModel
+  // 계정(키) 단위 실패 — 크레딧 소진·키 무효는 모델을 바꿔도 결과가 같다. 한 번 감지되면 남은 모델은
+  // 호출 없이 같은 결과로 채운다. 이게 없으면 모델 수만큼(예: OpenAI 86개) 실 API를 때려
+  // 비용을 태우고 레이트리밋을 스스로 만들어낸다.
+  // 주의: 이미 떠 있는 요청은 취소하지 않으므로 실제 호출 수는 1이 아니라 최대 concurrency다
+  // (O(n) → O(concurrency)로 줄이는 것이 목적). 모델 단위 실패(404·일반 429)는 신호가 아니다.
+  let accountFailure: ProbeModelResult | null = null
+
   await mapWithConcurrency(modelIds, concurrency, async (modelId) => {
+    if (accountFailure) {
+      usableMap.set(modelId, accountFailure)
+      return
+    }
     try {
       const result = await probe(apiKey, modelId)
+      if (result.accountLevel) accountFailure = result
       usableMap.set(modelId, result)
     } catch {
       usableMap.set(modelId, { usable: true, availability: 'unknown', reason: '상태 확인 요청에 실패했습니다.' })

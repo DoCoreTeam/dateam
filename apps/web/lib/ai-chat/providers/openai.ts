@@ -91,8 +91,8 @@ async function probeModel(apiKey: string, model: string): Promise<import('../pro
     })
     return { usable: true, availability: 'available', reason: null }
   } catch (error) {
-    const { status, detail } = getProviderErrorDetail(error)
-    return classifyModelProbeFailure('OpenAI', status, detail)
+    const { status, detail, code } = getProviderErrorDetail(error)
+    return classifyModelProbeFailure('OpenAI', status, detail, code)
   }
 }
 

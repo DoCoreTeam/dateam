@@ -10,7 +10,7 @@ import { chunkText, embedKnowledgeChunks } from '@/lib/ai-chat/knowledge'
 import { sanitizeSearchQuery } from '@/lib/ai-chat/search'
 import { mergeModelCatalogEntry, inferModelMeta, inferModelUseCase, isChatModel, type ModelCapabilities } from '@/lib/ai-chat/model-catalog'
 import { probeModelIds } from '@/lib/ai-chat/probe-models'
-import { getModelSelectionError, isAvailabilitySchemaMissing, isSelectableModelAvailability } from '@/lib/ai-chat/model-availability'
+import { getModelSelectionError, isAvailabilitySchemaMissing } from '@/lib/ai-chat/model-availability'
 import type {
   AiChatProviderId,
   AiChatConversation,
@@ -1024,17 +1024,25 @@ export async function listModelCatalog(): Promise<{
         availabilityCheckedAt: r.availability_checked_at,
       }
     })
-    .filter((item) => isSelectableModelAvailability(item.availability))
+  // 선택 가능 여부(available·unknown) 필터는 모달이 담당한다. 여기서 미리 걸러버리면
+  // "차단된 모델이 N개 있다"는 사실 자체가 사라져 화면이 "카탈로그에 모델이 없습니다"로 거짓말한다.
   return { ok: true, items }
 }
+
+// 가용 상태 재사용 창(6h). 모달을 열 때마다 모델 수만큼 실 API를 때리면 비용이 들고
+// 스스로 레이트리밋을 만든다(OpenAI 86개 사고). 이 창 안의 결과는 재사용하고,
+// 사용자가 "모델 새로고침"을 직접 누른 경우(force)에만 전량 다시 확인한다.
+const AVAILABILITY_TTL_MS = 6 * 60 * 60 * 1000
 
 // ── 실 프로바이더 응답(listModels)으로 카탈로그 갱신 — capabilities/released_at은 기존값 보존 ──
 export async function refreshModelCatalog(
   provider: AiChatProviderId,
+  options?: { force?: boolean },
 ): Promise<{ ok: boolean; count?: number; availability?: ModelAvailabilitySnapshot[]; error?: string }> {
   const ctx = await getCtx()
   if (!ctx) return { ok: false, error: '관리자 권한이 필요합니다' }
   if (!isValidProvider(provider)) return { ok: false, error: '유효하지 않은 프로바이더' }
+  const force = options?.force === true
 
   const meta = await readMeta(ctx.admin)
   const config = getProviderConfig(meta, provider)
@@ -1050,33 +1058,61 @@ export async function refreshModelCatalog(
   modelIds = modelIds.filter((id) => isChatModel(provider, id))
   if (modelIds.length === 0) return { ok: true, count: 0 }
 
-  // listModels는 generateContent 지원 여부만 알려줄 뿐, 현재 키/요금제로 실제 전송 가능한지는
-  // 보장하지 않는다(예: 요금제 할당량 0·신규 불가 모델). 실사용 프로브로 진짜 못 쓰는 모델만 걸러낸다.
-  const probeMap = await probeModelIds(getProvider(provider), config.apiKey, modelIds)
-
-  const { data: existingData } = await ctx.admin
+  const EXISTING_COLUMNS = 'model_id, label, context_length, capabilities, released_at'
+  let { data: existingData, error: existingError } = await ctx.admin
     .from('ai_model_catalog')
-    .select('model_id, label, context_length, capabilities, released_at')
+    .select(`${EXISTING_COLUMNS}, availability, availability_reason, availability_checked_at`)
     .eq('provider', provider)
     .in('model_id', modelIds)
+  if (isAvailabilitySchemaMissing(existingError)) {
+    const legacy = await ctx.admin.from('ai_model_catalog')
+      .select(EXISTING_COLUMNS)
+      .eq('provider', provider)
+      .in('model_id', modelIds)
+    existingData = legacy.data
+    existingError = legacy.error
+  }
   const existingRows = (existingData ?? []) as Array<{
     model_id: string
     label: string | null
     context_length: number | null
     capabilities: Partial<ModelCapabilities> | null
     released_at: string | null
+    availability?: ModelCatalogItem['availability'] | null
+    availability_reason?: string | null
+    availability_checked_at?: string | null
   }>
   const existingMap = new Map(existingRows.map((r) => [r.model_id, r]))
 
   const checkedAt = new Date().toISOString()
+  const nowMs = Date.parse(checkedAt)
+  // 최근에 확인한 모델은 다시 찌르지 않는다(force면 전량 재확인).
+  const isFresh = (modelId: string): boolean => {
+    if (force) return false
+    const row = existingMap.get(modelId)
+    if (!row?.availability || !row.availability_checked_at) return false
+    const checked = Date.parse(row.availability_checked_at)
+    return Number.isFinite(checked) && nowMs - checked < AVAILABILITY_TTL_MS
+  }
+  const staleModelIds = modelIds.filter((id) => !isFresh(id))
+
+  // listModels는 generateContent 지원 여부만 알려줄 뿐, 현재 키/요금제로 실제 전송 가능한지는
+  // 보장하지 않는다(예: 요금제 할당량 0·신규 불가 모델). 실사용 프로브로 진짜 못 쓰는 모델만 걸러낸다.
+  const probeMap = await probeModelIds(getProvider(provider), config.apiKey, staleModelIds)
+
   const upsertRows = modelIds.map((modelId) => {
     const existing = existingMap.get(modelId)
-    const merged = mergeModelCatalogEntry(provider, modelId, {
+    // 평소엔 기존 DB값을 보존한다. 다만 "모델 새로고침"(force)은 기존값을 버리고 큐레이션+추론으로
+    // 다시 도출한다 — 이 세 컬럼을 쓰는 곳이 여기뿐이라 사람이 넣은 값이 없고, 과거의 잘못된 추론이
+    // 스스로 풀릴 길이 달리 없기 때문이다(gpt-5.x가 전부 128,000 tok·능력 false로 굳어 있던 문제).
+    // 나중에 관리자 수정 UI가 생기면 여기에 출처(provenance) 구분을 먼저 넣어야 한다.
+    const merged = mergeModelCatalogEntry(provider, modelId, force ? null : {
       label: existing?.label,
       contextLength: existing?.context_length,
       capabilities: existing?.capabilities,
       releasedAt: existing?.released_at,
     })
+    const probed = probeMap.get(modelId)
     return {
       provider: merged.provider,
       model_id: merged.modelId,
@@ -1085,9 +1121,9 @@ export async function refreshModelCatalog(
       capabilities: merged.capabilities,
       released_at: merged.releasedAt,
       is_active: true,
-      availability: probeMap.get(modelId)?.availability ?? 'unknown',
-      availability_reason: probeMap.get(modelId)?.reason ?? null,
-      availability_checked_at: checkedAt,
+      availability: probed ? probed.availability ?? 'unknown' : existing?.availability ?? 'unknown',
+      availability_reason: probed ? probed.reason ?? null : existing?.availability_reason ?? null,
+      availability_checked_at: probed ? checkedAt : existing?.availability_checked_at ?? checkedAt,
       fetched_at: checkedAt,
     }
   })

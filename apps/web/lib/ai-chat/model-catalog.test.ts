@@ -55,11 +55,19 @@ test('큐레이션 맵에 있는 모델: 기존 행 없으면 큐레이션 값�
 })
 
 test('큐레이션 맵에 없는 모델: label prettify(빈칸 방지)·이름에 신호 없으면 능력 false, released null', () => {
-  const entry = mergeModelCatalogEntry('openai', 'gpt-5-unknown', null)
-  assert.equal(entry.label, 'Gpt 5 Unknown')                  // prettify로 빈칸 방지(raw modelId 아님)
+  const entry = mergeModelCatalogEntry('openai', 'gpt-4-classic', null)
+  assert.equal(entry.label, 'Gpt 4 Classic')                  // prettify로 빈칸 방지(raw modelId 아님)
   assert.equal(entry.contextLength, 128000)                    // openai 기본 컨텍스트 추론
   assert.deepEqual(entry.capabilities, { vision: false, longContext: false, reasoning: false }) // 이름에 멀티모달/추론 신호 없음
   assert.equal(entry.releasedAt, null)                         // 출시일 단서 없음
+})
+
+test('gpt-5 계열: 멀티모달·추론으로 표기하되 컨텍스트 길이는 날조하지 않는다', () => {
+  const entry = mergeModelCatalogEntry('openai', 'gpt-5.5', null)
+  assert.equal(entry.capabilities.vision, true)
+  assert.equal(entry.capabilities.reasoning, true)
+  // 세부 모델마다 다르므로 추론하지 않는다. 128,000 같은 확실치 않은 숫자를 화면에 띄우느니 빈칸.
+  assert.equal(entry.contextLength, null)
 })
 
 test('기존 DB 행 값은 널로 덮어쓰지 않고 보존', () => {

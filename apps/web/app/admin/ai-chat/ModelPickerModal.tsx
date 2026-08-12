@@ -57,10 +57,27 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
     return () => { alive = false }
   }, [])
 
+  const allForTab = useMemo(() => items.filter((i) => i.provider === tab), [items, tab])
   const itemsForTab = useMemo(
-    () => items.filter((i) => i.provider === tab && isSelectableModelAvailability(i.availability)),
-    [items, tab],
+    () => allForTab.filter((i) => isSelectableModelAvailability(i.availability)),
+    [allForTab],
   )
+  // 선택 가능한 게 0개일 때 "왜"를 보여주기 위한 집계 — 이게 없으면 화면이 "모델이 없습니다"로 거짓말한다.
+  const blockedForTab = useMemo(() => {
+    const blocked = allForTab.filter((i) => !isSelectableModelAvailability(i.availability))
+    const reasons = new Map<string, number>()
+    for (const item of blocked) {
+      const reason = item.availabilityReason?.trim()
+      if (reason) reasons.set(reason, (reasons.get(reason) ?? 0) + 1)
+    }
+    const topReason = Array.from(reasons.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
+    return {
+      total: blocked.length,
+      unavailable: blocked.filter((i) => i.availability === 'unavailable').length,
+      limited: blocked.filter((i) => i.availability === 'limited').length,
+      topReason,
+    }
+  }, [allForTab])
   const pickedItem = items.find((item) => item.provider === tab && item.modelId === picked)
   const canConfirm = !!pickedItem && isSelectableModelAvailability(pickedItem.availability)
 
@@ -70,10 +87,11 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
     setPicked(id === currentProvider ? currentModel : null)
   }
 
-  const refreshProvider = useCallback(async (provider: AiChatProviderId) => {
+  // force=false(탭 자동 진입)는 최근 확인분을 재사용하고, 사용자가 버튼을 누른 경우에만 전량 재확인한다.
+  const refreshProvider = useCallback(async (provider: AiChatProviderId, force: boolean) => {
     setRefreshing(true)
     setError(null)
-    const r = await refreshModelCatalog(provider)
+    const r = await refreshModelCatalog(provider, { force })
     if (r.ok) {
       const list = await listModelCatalog()
       if (list.ok && list.items) {
@@ -91,12 +109,12 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
   useEffect(() => {
     if (!tab || loading || probedProviders.current.has(tab)) return
     probedProviders.current.add(tab)
-    void refreshProvider(tab)
+    void refreshProvider(tab, false)
   }, [loading, refreshProvider, tab])
 
   function handleRefresh() {
     if (!tab || refreshing) return
-    void refreshProvider(tab)
+    void refreshProvider(tab, true)
   }
 
   function confirm() {
@@ -196,9 +214,29 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
               실제 사용 가능 여부를 확인하는 중…
             </div>
           )}
-          {!loading && !refreshing && itemsForTab.length === 0 && (
+          {!loading && !refreshing && itemsForTab.length === 0 && blockedForTab.total === 0 && (
             <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', padding: 'var(--space-3)' }}>
               카탈로그에 모델이 없습니다. &quot;모델 새로고침&quot;으로 최신 목록을 가져오세요.
+            </div>
+          )}
+          {!loading && !refreshing && itemsForTab.length === 0 && blockedForTab.total > 0 && (
+            <div
+              role="alert"
+              style={{
+                padding: 'var(--space-3) var(--space-4)',
+                background: 'var(--warning-bg)', border: 'var(--hairline) solid var(--warning-border)',
+                borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)', color: 'var(--text)', lineHeight: 1.6,
+              }}
+            >
+              <strong style={{ display: 'block', marginBottom: 'var(--space-1)' }}>
+                {tab ? PROVIDER_LABELS[tab] : ''} 모델 {blockedForTab.total}개를 찾았지만 지금은 모두 사용할 수 없습니다.
+              </strong>
+              {blockedForTab.topReason && (
+                <span style={{ display: 'block', color: 'var(--text-muted)' }}>{blockedForTab.topReason}</span>
+              )}
+              <span style={{ display: 'block', marginTop: 'var(--space-1)', fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>
+                사용 불가 {blockedForTab.unavailable}개 · 한도 도달 {blockedForTab.limited}개
+              </span>
             </div>
           )}
           {!refreshing && itemsForTab.map((m) => {

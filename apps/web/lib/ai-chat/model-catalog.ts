@@ -139,10 +139,13 @@ export function inferModelMeta(provider: AiChatProviderId, modelId: string): Cur
     contextLength = 200000
     releasedAt = /opus-4|sonnet-4-6/.test(id) ? '2026-01-01' : /sonnet-4/.test(id) ? '2025-05-14' : undefined
   } else {
-    // openai: o1/o3/o4 계열은 추론형, 4o/4.1은 멀티모달.
-    const reasoning = /^o[134]/.test(id)
-    capabilities = { vision: /4o|4\.1|o1|o3|o4|4-turbo/.test(id), longContext: false, reasoning }
-    contextLength = reasoning ? 200000 : 128000
+    // openai: o1/o3/o4·gpt-5 계열은 추론형, 4o/4.1·gpt-5 계열은 멀티모달.
+    // gpt-5 계열의 컨텍스트 길이는 세부 모델마다 달라 추론하지 않는다 — 확실치 않은 숫자를 화면에
+    // 띄우느니 비워 둔다(과거 gpt-5.x가 전부 128,000 tok으로 잘못 표기되던 문제).
+    const isGpt5 = /^gpt-5/.test(id)
+    const reasoning = /^o[134]/.test(id) || isGpt5
+    capabilities = { vision: isGpt5 || /4o|4\.1|o1|o3|o4|4-turbo/.test(id), longContext: false, reasoning }
+    contextLength = isGpt5 ? undefined : /^o[134]/.test(id) ? 200000 : 128000
   }
   return { label: prettifyLabel(modelId), contextLength, capabilities, releasedAt }
 }

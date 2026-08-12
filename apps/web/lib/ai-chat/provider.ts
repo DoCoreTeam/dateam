@@ -64,6 +64,8 @@ export interface ProbeModelResult {
   usable: boolean
   availability?: 'available' | 'limited' | 'unavailable' | 'unknown'
   reason?: string | null
+  // 계정(키) 단위 실패 — 모델을 바꿔도 같은 결과. probeModelIds가 이걸 보고 조기 중단한다.
+  accountLevel?: boolean
 }
 
 export interface ChatProvider {
