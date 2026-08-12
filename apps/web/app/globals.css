@@ -9700,3 +9700,154 @@ label.intake-tool-btn {
   color: var(--sidebar-fg);
   opacity: 0.7;
 }
+
+/* ─── 목록 표준 (ListToolbar / ListSurface / ListPager) ─────────────
+   목록 화면 40여 개가 검색·정렬·보기를 각자 그리던 것을 한 규격으로 모은다.
+   화면 전용 스타일을 여기에 더 넣지 않는다 — 부품이 쓰는 것만 둔다. */
+.list-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+/* 전역 .input-field가 width:100%라 도구줄에서는 폭을 내용에 맞춘다 —
+   안 그러면 셀렉트 하나가 한 줄을 통째로 먹고 도구줄이 세로로 무너진다 */
+.list-toolbar .input-field { width: auto; }
+.list-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.list-toolbar-selection {
+  padding: var(--space-2) var(--space-3);
+  border: var(--hairline) solid var(--brand);
+  border-radius: var(--radius);
+  background: var(--brand-soft);
+}
+.list-selection-count { font-size: var(--fs-sm); font-weight: 700; color: var(--brand); }
+
+.list-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1 1 14rem;
+  min-width: 10rem;
+  max-width: 26rem;
+  color: var(--text-faint);
+}
+.list-search .input-field { flex: 1; width: 100%; min-height: 44px; }
+.list-search-clear {
+  position: absolute;
+  right: var(--space-2);
+  display: inline-flex;
+  padding: var(--space-1);
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.list-search-clear:hover { color: var(--text); }
+
+.list-filter { display: inline-flex; }
+.list-filter .input-field { min-height: 44px; min-width: 7rem; }
+.list-total { font-size: var(--fs-sm); color: var(--text-muted); white-space: nowrap; }
+
+.list-views {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+}
+.list-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 36px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.list-view-btn:hover { color: var(--text); }
+/* 눌린 상태는 '카드 흰색' 위에 떠야 한다 — --surface-bg는 테마에 따라
+   페이지 바탕과 같아져 선택 표시가 사라진다 */
+.list-view-btn.is-active { background: var(--color-surface); color: var(--brand); box-shadow: var(--shadow-sm); }
+
+/* 카드 보기 — 표와 같은 컬럼 정의로 그린다 */
+.list-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: var(--space-3);
+}
+.list-card { padding: var(--space-4); }
+.list-card.is-clickable { cursor: pointer; }
+.list-card.is-clickable:hover { border-color: var(--brand); }
+.list-card-title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text);
+}
+.list-card-fields { display: grid; gap: var(--space-2); margin: 0; }
+.list-card-field { display: flex; justify-content: space-between; gap: var(--space-3); }
+.list-card-field dt { font-size: var(--fs-sm); color: var(--text-muted); }
+.list-card-field dd { margin: 0; font-size: var(--fs-sm); color: var(--text); text-align: right; }
+
+.list-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.list-select-col { width: 2.5rem; }
+.list-select-col .input-field { width: auto; min-height: 0; }
+.list-compact td, .list-compact th { padding-block: var(--space-2); font-size: var(--fs-sm); }
+.table-base tr.is-clickable { cursor: pointer; }
+
+.list-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  margin-top: var(--space-5);
+  flex-wrap: wrap;
+}
+.list-pager-more { margin-top: var(--space-4); }
+.list-page-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.list-page-btn:hover:not(:disabled) { color: var(--text); border-color: var(--border-color); }
+.list-page-btn:disabled { opacity: 0.4; cursor: default; }
+.list-page-btn.is-active {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-weight: 700;
+}
+
+@media (max-width: 767px) {
+  /* 좁은 화면에서는 검색이 한 줄을 갖고, 나머지는 그 아래에서 나눠 쓴다 */
+  .list-search { flex: 1 1 100%; max-width: none; }
+  .list-toolbar-right { margin-left: 0; width: 100%; }
+}

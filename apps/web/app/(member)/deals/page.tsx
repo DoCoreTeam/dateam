@@ -223,7 +223,7 @@ export default function DealsPage() {
             filters={FILTERS}
             sortOptions={SORT_OPTIONS}
             showSize={false}
-            total={list.length}
+            total={isLoading ? undefined : list.length}
           />
 
           <ListSurface

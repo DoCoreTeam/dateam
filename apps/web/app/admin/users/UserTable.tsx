@@ -130,10 +130,10 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
       ),
     },
     {
-      key: 'edit', header: '수정', width: '80px',
+      key: 'edit', header: '수정', width: '96px',
       cell: (p) => (
         <button type="button" className="btn-ghost" onClick={() => setEditTarget(p)}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)' }}>
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)', whiteSpace: 'nowrap' }}>
           <Pencil size={12} /> 수정
         </button>
       ),

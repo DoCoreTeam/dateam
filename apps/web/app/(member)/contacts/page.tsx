@@ -133,7 +133,7 @@ export default function ContactsPage() {
         searchPlaceholder="이름 또는 이메일 검색"
         sortOptions={SORT_OPTIONS}
         showSize={false}
-        total={contacts.length}
+        total={isLoading ? undefined : contacts.length}
       />
 
       <ListSurface

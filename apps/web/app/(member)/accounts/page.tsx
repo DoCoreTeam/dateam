@@ -138,7 +138,7 @@ export default function AccountsPage() {
         filters={FILTERS}
         sortOptions={SORT_OPTIONS}
         showSize={false}
-        total={accounts.length}
+        total={isLoading ? undefined : accounts.length}
       />
 
       <ListSurface
