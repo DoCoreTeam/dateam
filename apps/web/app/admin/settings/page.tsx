@@ -20,6 +20,7 @@ import GoogleDriveSettings from './GoogleDriveSettings'
 import DriveConnectedBanner from './DriveConnectedBanner'
 import { getBranding } from '@/lib/branding'
 import { getActiveTheme } from '@/lib/theme'
+import { getDriveConnectionStatus } from '@/lib/google-drive'
 
 const GEMINI_KEY = 'gemini_api_key'
 const YOUTUBE_KEY = 'youtube_api_key'
@@ -52,9 +53,12 @@ export default async function AdminSettingsPage({
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [branding, activeTheme, adminClient] = await Promise.all([
+  // Drive 연결 상태는 다른 연동 카드와 동일하게 **서버 렌더**로 읽는다.
+  // (예전엔 카드가 진입할 때마다 클라이언트에서 /status를 불러 이 카드만 동작이 달랐다 — §2-5)
+  const [branding, activeTheme, driveStatus, adminClient] = await Promise.all([
     getBranding(),
     getActiveTheme(),
+    getDriveConnectionStatus(),
     Promise.resolve(createAdminClient()),
   ])
 
@@ -151,7 +155,12 @@ export default async function AdminSettingsPage({
           <SettingsSection title="데이터 수집·저장 연동" desc="콘텐츠 수집과 자료 보관에 쓰이는 외부 서비스입니다.">
             <div className="settings-grid">
               <YoutubeSettings hasKey={Boolean(ytKey)} maskedKey={ytMasked} />
-              <GoogleDriveSettings />
+              <GoogleDriveSettings
+                connected={driveStatus.connected}
+                email={driveStatus.email}
+                outcome={typeof driveParam === 'string' ? driveParam : undefined}
+                reason={typeof params.reason === 'string' ? params.reason : undefined}
+              />
               <KoraeximSettings hasKey={hasKoraeximKey} maskedKey={maskedKoraeximKey} />
             </div>
           </SettingsSection>

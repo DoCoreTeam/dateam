@@ -67,16 +67,26 @@ export async function saveTokens(
     updated_at: new Date().toISOString(),
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (admin as any).from('oauth_tokens').upsert(record, { onConflict: 'provider' })
+  const { error } = await (admin as any)
+    .from('oauth_tokens')
+    .upsert(record, { onConflict: 'provider' })
+
+  // 저장 실패를 삼키면 화면은 "연결됨"인데 토큰은 없는 상태가 된다.
+  // supabase-js는 던지지 않고 error를 돌려주므로 여기서 올려야 호출부가 안다.
+  if (error) {
+    throw new Error(`oauth_tokens 저장 실패: ${error.message ?? String(error)}`)
+  }
 }
 
 // ── OAuth2Client 반환 ─────────────────────────────────────────
 export function getOAuth2Client(): OAuth2Client {
   const clientId = process.env.GOOGLE_CLIENT_ID
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+  // 폴백은 dev 서버 포트(:3000)와 같아야 한다. 예전 기본값이 :4000이라
+  // env를 안 주면 동의까지 통과해도 콜백이 죽은 포트로 가서 연결이 실패했다.
   const redirectUri =
     process.env.GOOGLE_REDIRECT_URI ??
-    'http://localhost:4000/api/auth/google-drive/callback'
+    'http://localhost:3000/api/auth/google-drive/callback'
 
   if (!clientId || !clientSecret) {
     throw new Error('GOOGLE_CLIENT_ID 또는 GOOGLE_CLIENT_SECRET 환경변수가 설정되지 않았습니다')

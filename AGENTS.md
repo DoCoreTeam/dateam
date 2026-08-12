@@ -11,7 +11,7 @@
 - TypeScript
 
 ## 버전
-v0.7.438
+v0.7.439
 
 버전 변경 시 아래 **모든** 항목을 반드시 업데이트한다:
 
@@ -33,6 +33,16 @@ v0.7.438
 ---
 
 ## Git 커밋 규칙 (필수)
+
+### 커밋 범위 (필수 — 작업 공간은 항상 공유된다고 가정)
+
+> **왜**: 같은 저장소에서 여러 작업이 동시에 진행된다. 작업 트리에 내가 만들지 않은 변경이 있는 건 **정상**이다. 사고로 취급해 보고하거나 통째로 담으면 남의 작업을 망친다.
+
+- **내가 바꾼 파일만 경로 지정 스테이징.** `git add -A` · `git add .` · `git commit -a` **금지**
+- 내 것이 아닌 변경은 **건드리지도·되돌리지도·보고하지도 않는다**
+- **주제가 다르면 커밋을 나눈다** (문서·정책 / 기능 코드 / 마이그레이션)
+- **검증은 내 변경 범위로 판정.** 내 변경 밖 파일의 tsc/lint/test 오류는 손대지 않고 내 범위만 본다
+- 커밋 후 남는 다른 변경은 **그대로 둔다**
 
 ### 형식
 
@@ -79,6 +89,97 @@ UI/표시 수정 착수 전, 코드 손대기 전에 반드시:
 2. **활성(기본 ON) 경로 먼저 수정** → 이어서 플래그·분기로 도달 가능한 **모든 공존 경로(롤백용 구뷰 포함)**에 동일 SSOT 적용. 활성만 고쳐 구뷰 방치(롤백 회귀)도, 구뷰만 고침(사고)도 금지.
 3. **검증은 실제 렌더 경로에서** — tsc·design·unit 통과만으로 "완료" 금지. 기본 플래그 상태의 실제 화면에서 변경 확인.
 4. **표시 로직도 SSOT** — 같은 값을 여러 뷰가 렌더하면 표시 변환을 `lib/` 공용 함수로(예 `lib/gpu/card-memory.ts`) 두고 전 뷰가 import. 뷰별 인라인 포맷 복붙 금지(= "한 곳만 고쳐 누락"의 근본 원인).
+
+## 복귀 경로 정책 (필수 — "설정을 마치면 원래 있던 화면으로")
+
+> **왜**: 외부 왕복 흐름(OAuth·외부 인증·결제)이 끝나면 **떠났던 화면**으로 돌아와야 한다. 라우트가 복귀 주소를 직접 적으면 쿼리(탭·필터·정렬)가 날아간다.
+> (실제 사고: Drive 콜백이 `/admin/settings?drive=connected` 고정 → `?tab=integrations` 소실 → 엉뚱한 탭이 열림)
+
+**모든 왕복 흐름은 `lib/nav/return-to.ts`(SSOT)를 쓴다. 복귀 주소를 라우트에 적지 않는다.**
+
+- 떠날 때: `withReturnTo(href, currentReturnTo())` — 경로+쿼리를 담아 탭·필터 유지
+- 보관: 시작 라우트가 `sanitizeReturnTo()`로 검증 후 **httpOnly 쿠키**(CSRF state와 같은 수명)
+- 돌아올 때: `appendParams(returnTo, { 결과 })` — **기존 쿼리 보존**하고 결과만 얹기
+- 보안: `sanitizeReturnTo()`가 절대 URL·`//`·`/\`·CR/LF 차단(열린 리다이렉트 방어). 검증 없이 리다이렉트 금지
+- **결과 표시 필수**: `?xxx=error&reason=…`을 화면이 반드시 표시. 붙여만 놓고 안 보여주면 실패가 묻힌다
+- 가드: `lib/nav/return-to.test.ts`
+
+---
+
+## 디자인 시스템 참조 순서 (필수 — 코드를 쓰기 전에 먼저 한다)
+
+> **왜**: 정책이 "카드 → `NbCard`"라고 못 박아 놨는데 **`NbCard` 실사용은 0건**이고, 실제 그 일은 `.card` 클래스(196건)가 하고 있었다.
+> 정책이 가리키는 목록과 현실이 달라서 만드는 사람은 매번 **새로 만드는 쪽**을 택했다.
+> v0.7.438 실측: **로딩 6종·탭 5종·표 4방식·빈상태 2벌·페이지헤더 2벌·정렬아이콘 2벌**이 동시에 살아 있다.
+> 근거: `docs/2026-08-12-v0.7.438-ui-system-audit/01-AUDIT.md`
+
+**무엇을 만들지 정해지면, 코드를 쓰기 전에 반드시 이 순서를 따른다.**
+
+1. **`docs/ui-system/INVENTORY.md`를 연다** — UI 부품 121심볼 전수 색인(SSOT).
+2. **동일 성격 부품이 있으면 그대로 쓴다.** 부족하면 **그 부품을 고쳐서** 쓴다. 새로 만들지 않는다.
+3. **INVENTORY §1 "중복 경보" 성격이면**(로딩·탭·표·빈상태·헤더·상세표면·셸) **신규 제작 금지.** 통일 대상을 쓴다.
+4. **없으면 시스템에 먼저 정의한다** — `components/ui/`에 부품 생성 → **INVENTORY.md 등재** → 화면에서 사용.
+5. **화면에만 존재하는 UI를 만들지 않는다.** 두 번째 사용처가 생기면 이미 늦다.
+
+**부품 실사용 확인은 반드시 export 이름 기준:**
+```bash
+node docs/ui-system/scan-inventory.mjs           # 전체 사용량
+node docs/ui-system/scan-inventory.mjs --dupes   # 같은 이름 2곳 export = 중복 구현
+node docs/ui-system/scan-inventory.mjs --dead    # 사용 0건
+```
+> 파일명으로 세면 안 된다. `LoadingSkeleton.tsx`는 `SkelPage/SkelCard/SkelList`를 export하므로 `<LoadingSkeleton`으로 세면 **27건 쓰이는 부품이 0건으로 보인다.** 1차 조사가 실제로 이 오판을 했다.
+
+### 클래스 축 vs 컴포넌트 축
+
+| 축 | 무엇 | 규모/채택 | 언제 |
+|---|---|---|---|
+| **클래스**(`globals.css`) | `input-field` 247 · `label` 185 · `tape-title` 118 · `.card` 196 · `table-card` 70 · `responsive-grid-*` 61 | 9,710줄 / 규칙 1,550 / 토큰 123 | **순수 스타일(모양만)** |
+| **컴포넌트**(`components/`) | `NbButton` 85 · `EmptyState` · `SkelPage` · `PageHeader` | 97파일 / 121심볼 | **상태·이벤트·조합** |
+
+1. 모양만 → **클래스.** 컴포넌트 신설 금지.
+2. 상태·이벤트 → **컴포넌트.** 컴포넌트 **내부가** 클래스를 쓴다.
+3. **화면 전용 스타일을 `globals.css`에 추가 금지.** 이미 94%(약 1,350규칙)가 화면 전용(`gpu-*` 505 · `ai-*` 142 · `cockpit-*` 116 · `ci-*` 112). 새 도메인 스타일은 CSS Module.
+
+### 무엇을 쓸 것인가 (실사용 기준 — v0.7.439 정정)
+
+| 무엇 | 쓸 것 | 실사용 | 쓰지 말 것 |
+|---|---|---|---|
+| 버튼 | `components/ui/nb/NbButton` | 85 | `<button style={{…}}` 자작(352) |
+| 카드 | **`className="card"`** | 196 | ~~`NbCard`~~(0·폐기예정), 자작 박스(476) |
+| 입력·레이블 | **`input-field` / `label`** | 247 / 185 | ~~`NbField` 계열~~(0·폐기예정) |
+| 뱃지 | `NbBadge` | 10 | 인라인 pill |
+| 표 | **`.table-card`** + `DynamicTable` | 70 / 7 | 가로 스크롤 표, 새 표 컴포넌트 |
+| 빈 상태 | `components/ui/EmptyState` | 18 | "없습니다" 직접 렌더(188) |
+| 오류 | `ErrorState`(`components/ci/states.tsx` — 공용 승격 대상) | 11 | 자작 오류 박스 |
+| 로딩(골격) | `SkelPage`/`SkelCard`/`SkelList` | 11/9/7 | "불러오는 중" 직접 렌더(37) |
+| 로딩(인라인) | `AXDotLoader` | 35 | 자작 스피너 |
+| 탭 | `components/ui/SegmentedTabs` | 1 | `WorkSubTabs`·`ProjectTabs`·`StageNav`·`WorkTabBar`(통합 대상) |
+| 페이지 헤더 | `components/ui/PageHeader` | 15 | raw `<h1>`, `CiPageHeader`(통합 대상) |
+| 모달 | `NbModal` + 모달 체크리스트 | 5 | 처음부터 자작 |
+| 리치텍스트 | `components/ui/RichText` | 11 | `dangerouslySetInnerHTML` 직접 |
+| 레이아웃 | `MobileShell` | 3 | 새 셸 신설 |
+
+**⛔ 목록 툴바·페이지네이션·필터·정렬은 공용 부품이 없다**(전수 검색 0건). 목록 화면 신규 시 4번 절차(시스템에 먼저 정의)를 따른다.
+
+### 가드 — 현황과 사각지대
+
+- `pnpm design:check`가 잡는 것: ① hex **즉시차단** ② swr 전역 `mutate` **즉시차단** ③ `rgba()` ④ 미정의 토큰 ⑤ **raw `<input/select/textarea>`의 `input-field` 누락** (③④⑤ = ratchet, baseline 294건 동결·신규만 차단).
+- **진짜 사각지대**: 스캔 루트가 `app`+`components`뿐이라 **`app/globals.css`를 안 본다.** CSS 본체의 `7px`·`9px`·`0.55rem` 폰트가 통과 중.
+- 기존 UI 정적 가드: `lib/ui/integration-consistency.test.ts` · `lib/work/mobile-layout-guard.test.ts`. 새 가드는 **이 옆에 추가 + design:check 확장**. 병렬 시스템 신설 금지.
+- **새 `*.test.ts`는 `apps/web/package.json`의 `test` 목록(수기, 171개)에 반드시 등재.** 등재 안 하면 안 돈다.
+- **가드는 만든 뒤 일부러 깨서 실패를 확인**한다.
+
+### 신규 화면 착수 체크리스트
+
+- [ ] `INVENTORY.md`에서 동일 성격 부품 부재 확인 · [ ] 중복 경보면 통일 대상 사용
+- [ ] `MobileShell` 상속(새 셸 금지) · [ ] `PageHeader`(raw h1 금지)
+- [ ] `input-field`/`label` · [ ] 모달 `useEscClose`/`tape-title` · [ ] 표 `.table-card`
+- [ ] 빈·로딩·오류를 **기존 부품**으로 · [ ] 색·폰트·z-index 토큰만(10px 미만 금지)
+- [ ] 화면 전용 CSS를 `globals.css`에 추가하지 않음 · [ ] 새 부품이면 INVENTORY 등재
+
+> **면제**: 셸 밖 공개·인증 4화면(`/login`·`/change-password`·`/develop`·`/api-access`)은 **셸 계약만 면제**. 토큰·폼 클래스·프리미티브·모달 표준은 동일 적용. `/develop`·`/api-access`는 **외부 공개**라 예외 없음.
+
+---
 
 ## 반응형 디자인 정책 (필수)
 

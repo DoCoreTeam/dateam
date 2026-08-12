@@ -1,7 +1,9 @@
 'use server'
 
+import { google } from 'googleapis'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { getTokens, refreshTokenIfNeeded } from '@/lib/google-drive'
 import type { AiChatProviderId } from '@/types/database'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
@@ -240,6 +242,44 @@ export async function checkKoraeximHealth(): Promise<{ ok: boolean; message: str
     return { ok: true, message: `연결 성공 — 오늘 USD/KRW: ${usdRow.deal_bas_r}원` }
   } catch {
     return { ok: false, message: '네트워크 오류가 발생했습니다' }
+  }
+}
+
+/**
+ * Google Drive 연결 확인.
+ * 다른 연동 카드와 동일하게 **버튼을 눌렀을 때만** 외부를 호출한다.
+ * (진입 시 자동 조회하던 것을 v0.7.439에서 제거 — 카드마다 동작이 갈리면 안 된다, §2-5)
+ * 토큰 유효성까지 봐야 "연결됨"이 참인지 알 수 있으므로 about.get으로 실제 호출한다.
+ */
+export async function checkGoogleDriveHealth(): Promise<{ ok: boolean; message: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, message: '관리자 권한이 필요합니다' }
+
+  const tokens = await getTokens()
+  if (!tokens) return { ok: false, message: '연결된 Google 계정이 없습니다' }
+
+  try {
+    const auth = await refreshTokenIfNeeded()
+    const drive = google.drive({ version: 'v3', auth })
+    const { data } = await drive.about.get({ fields: 'user(emailAddress),storageQuota(limit,usage)' })
+
+    const email = data.user?.emailAddress ?? tokens.accountEmail
+    const { limit, usage } = data.storageQuota ?? {}
+    if (limit && usage) {
+      const gb = (n: string) => (Number(n) / 1024 ** 3).toFixed(1)
+      return { ok: true, message: `연결 성공 — ${email} · 사용량 ${gb(usage)}GB / ${gb(limit)}GB` }
+    }
+    return { ok: true, message: `연결 성공 — ${email}` }
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : ''
+    // 리프레시 토큰이 만료·철회된 경우가 가장 흔하다 — 무엇을 해야 하는지까지 알려준다
+    if (/invalid_grant|Token has been expired or revoked/i.test(msg)) {
+      return { ok: false, message: '인증이 만료되었습니다 — [변경]으로 Google 계정을 다시 연결해주세요' }
+    }
+    if (/insufficient|403/i.test(msg)) {
+      return { ok: false, message: '권한이 부족합니다 — 다시 연결하며 드라이브 접근을 허용해주세요' }
+    }
+    return { ok: false, message: msg ? `연결 실패: ${msg}` : '네트워크 오류가 발생했습니다' }
   }
 }
 
