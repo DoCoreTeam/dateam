@@ -32,6 +32,13 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.443', date: '2026-08-12', title: '어느 화면에서든 검색이 있고, 버튼이 겹치지 않아요',
+    items: [
+      { kind: 'improve', emoji: '🔎', headline: '콘텐츠 화면에도 전역 검색이 생겼어요', detail: '화면마다 있는 것과 없는 것이 달랐는데, 이제 검색·계정 메뉴·전체 메뉴가 모든 화면에 똑같이 있습니다. 쓰던 기능을 찾아 헤매지 않아도 돼요.' },
+      { kind: 'fix', emoji: '🎯', headline: '오른쪽 아래 버튼들이 서로 겹치던 문제를 고쳤어요', detail: '빠른 등록·어시스턴트·맨위로 버튼이 같은 자리에 포개져 눌리지 않던 일이 있었어요. 이제 나란히 정리돼 전부 잘 눌립니다.' },
+    ],
+  },
+  {
     version: '0.7.437', date: '2026-08-12', title: '채널을 통째로 가져올 수 있게 됐어요',
     items: [
       { kind: 'feature', emoji: '📺', headline: '이제 채널의 영상을 전부 가져옵니다', detail: 'YouTube 연동이 켜졌어요. 그동안은 최근 15개까지만 볼 수 있었는데, 이제 설정한 기간의 업로드를 전부 가져옵니다. "평소 대비 몇 배"도 훨씬 정확해져요.' },

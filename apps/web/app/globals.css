@@ -3384,10 +3384,6 @@ label.intake-tool-btn {
 
 /* ── 통합 입력 FAB ────────────────────────────── */
 .intake-fab {
-  position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
-  z-index: 90;
   width: 3.5rem;
   height: 3.5rem;
   border-radius: 50%;
@@ -3412,10 +3408,6 @@ label.intake-tool-btn {
 /* 빠른 추가 speed-dial 래퍼 — 버튼+메뉴를 우하단 고정 컨테이너로 묶음. 데스크탑·모바일 모두 노출 */
 .quickadd-fab-wrap {
   display: flex;
-  position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
-  z-index: var(--z-sticky, 90);
   flex-direction: column;
   align-items: flex-end;
   gap: var(--space-3);
@@ -9708,3 +9700,42 @@ label.intake-tool-btn {
 }
 
 
+
+/* ── Dock — 우측하단 고정 레이어 (components/ui/shell/Dock.tsx SSOT) ──────────
+   좌표를 여기서만 정한다. 예전에는 FAB·어시스턴트·스크롤점프가 각자 fixed로
+   같은 자리를 잡아 겹쳤고, 그걸 피하려 만든 손계산 여백이 매직넘버로 남았다. */
+.app-dock {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-direction: column-reverse; /* 첫 항목(primary)이 코너에 가장 가깝다 */
+  align-items: flex-end;
+  gap: var(--space-3);
+  pointer-events: none;           /* 빈 공간은 아래 콘텐츠가 받는다 */
+}
+.app-dock-slot { pointer-events: auto; }
+
+/* 본문이 Dock을 피해야 할 때 쓰는 여백(손계산 금지) */
+.app-shell { --dock-safe-area: 5.5rem; }
+
+/* 셸 좌측하단 워크스페이스 표시 — CI처럼 워크스페이스 안에 있을 때만 */
+.shell-workspace { display: flex; flex-direction: column; gap: var(--space-2); }
+.shell-workspace-exit {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--sidebar-fg);
+  text-decoration: none;
+  border-radius: var(--radius);
+}
+.shell-workspace-exit:hover { background: var(--nav-hover-bg); }
+.shell-workspace-name {
+  padding: 0 var(--space-3);
+  font-size: var(--fs-2xs);
+  color: var(--sidebar-fg);
+  opacity: 0.7;
+}

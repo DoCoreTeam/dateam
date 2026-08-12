@@ -1,15 +1,15 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import MobileShell from '@/components/ui/MobileShell'
-import AdminUserMenu from '@/components/ui/AdminUserMenu'
+import AppShell from '@/components/ui/shell/AppShell'
+import type { NavGroup } from '@/components/ui/shell/AppShell'
 import PasswordChangeModal from '@/components/ui/PasswordChangeModal'
 import NameSetupModal from '@/components/ui/NameSetupModal'
+import { getActiveTheme, resolveTheme } from '@/lib/theme'
 import {
   Users,
   FileText,
   CheckSquare,
   BarChart2,
-  BarChart3,
   SlidersHorizontal,
   NotebookPen,
   Key,
@@ -21,7 +21,6 @@ import {
 } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import { getBranding } from '@/lib/branding'
-import type { NavGroup } from '@/components/ui/MobileShell'
 
 const ADMIN_NAV_GROUPS: NavGroup[] = [
   {
@@ -71,40 +70,50 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!user) redirect('/login')
 
   const adminClient = createAdminClient()
-  const [branding, profileResult] = await Promise.all([
+  // 테마·이메일은 계정 메뉴(AppShell 기본 제공)가 요구하는 값이다.
+  // 예전 admin 셸은 이 둘을 안 읽어서 관리자에게만 테마·비밀번호·패치노트가 없었다.
+  const [branding, profileResult, globalTheme] = await Promise.all([
     getBranding(),
     adminClient
       .from('profiles')
-      .select('name, role, must_change_password')
+      .select('name, role, must_change_password, theme_preference')
       .eq('id', user.id)
       .is('deleted_at', null)
-      .single() as unknown as Promise<{ data: Pick<Profile, 'name' | 'role' | 'must_change_password'> | null; error: unknown }>,
+      .single() as unknown as Promise<{ data: Pick<Profile, 'name' | 'role' | 'must_change_password' | 'theme_preference'> | null; error: unknown }>,
+    getActiveTheme(),
   ])
   const profile = profileResult.data
 
   if (!profile || profile.role !== 'admin') redirect('/dashboard')
 
   const displayName = profile.name ?? user.email ?? '관리자'
+  const currentTheme = resolveTheme(profile.theme_preference, globalTheme)
 
   return (
     <>
-      <MobileShell
-        items={[]}
+      <AppShell
         groups={ADMIN_NAV_GROUPS}
-        logoUrl={branding.logoUrl}
-        brandName={branding.brandName}
-        footer={<AdminUserMenu displayName={displayName} />}
-        headerLeft={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <span className="badge badge-indigo" style={{ fontSize: 'var(--fs-xs)' }}>관리자</span>
-            <span style={{ fontSize: 'var(--fs-base)', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {displayName}
-            </span>
-          </div>
-        }
+        branding={{ logoUrl: branding.logoUrl, brandName: branding.brandName }}
+        session={{
+          name: displayName,
+          email: user.email ?? '',
+          isAdmin: true,
+          currentTheme,
+          defaultTheme: globalTheme,
+        }}
+        extras={{
+          headerLeft: (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <span className="badge badge-indigo" style={{ fontSize: 'var(--fs-xs)' }}>관리자</span>
+              <span style={{ fontSize: 'var(--fs-base)', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {displayName}
+              </span>
+            </div>
+          ),
+        }}
       >
         {children}
-      </MobileShell>
+      </AppShell>
       {profile?.must_change_password && <PasswordChangeModal />}
       {!profile?.must_change_password && !profile?.name && <NameSetupModal />}
     </>

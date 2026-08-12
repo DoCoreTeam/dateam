@@ -2,11 +2,8 @@ import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import OnboardingProvider from '@/components/onboarding/OnboardingProvider'
-import MobileShell from '@/components/ui/MobileShell'
-import type { NavGroup } from '@/components/ui/MobileShell'
-import SidebarProfile from '@/components/ui/SidebarProfile'
-import QuickNav from '@/components/ui/QuickNav'
-import GlobalSearchBox from '@/components/ui/GlobalSearchBox'
+import AppShell from '@/components/ui/shell/AppShell'
+import type { NavGroup } from '@/components/ui/shell/AppShell'
 import NavigationLoader from '@/components/ui/NavigationLoader'
 import { getBranding } from '@/lib/branding'
 import { resolveOrgScope, orgPathFromScope } from '@/lib/org-scope'
@@ -129,15 +126,18 @@ export default async function MemberLayout({ children }: { children: React.React
 
   return (
     <>
-      <MobileShell
+      <AppShell
         items={navItemsWithBadge}
         groups={profile?.role === 'admin' ? NAV_GROUPS : NAV_GROUPS.filter(g => g.label === '가격정책')}
-        logoUrl={branding.logoUrl}
-        brandName={branding.brandName}
-        footer={<SidebarProfile name={displayName} email={userEmail} isAdmin={profile?.role === 'admin'} currentTheme={currentTheme} defaultTheme={globalTheme} />}
-        adminHref={profile?.role === 'admin' ? '/admin/users' : undefined}
-        isAdmin={profile?.role === 'admin'}
-        headerLeft={
+        branding={{ logoUrl: branding.logoUrl, brandName: branding.brandName }}
+        session={{
+          name: displayName,
+          email: userEmail,
+          isAdmin: profile?.role === 'admin',
+          currentTheme,
+          defaultTheme: globalTheme,
+        }}
+        extras={{ headerLeft: (
           orgPath.length > 0 ? (
             <nav aria-label="소속 조직" style={{ fontSize: 'var(--fs-base)', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {orgPath.map((name, i) => (
@@ -154,11 +154,10 @@ export default async function MemberLayout({ children }: { children: React.React
               님
             </span>
           )
-        }
-        headerRight={<><GlobalSearchBox /><QuickNav /></>}
+        ) }}
       >
         <SWRProvider>{children}</SWRProvider>
-      </MobileShell>
+      </AppShell>
       {profile?.must_change_password && <PasswordChangeModal />}
       {!profile?.must_change_password && !profile?.name && <NameSetupModal />}
       {!profile?.must_change_password && profile?.name && weeklyReportPending && (

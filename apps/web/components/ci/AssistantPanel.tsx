@@ -73,11 +73,9 @@ export default function AssistantPanel({ workspaceId }: { workspaceId: string })
         className="btn-primary"
         onClick={() => setOpen(true)}
         aria-label="AI 어시스턴트 열기"
-        style={{
-          position: 'fixed', right: 'var(--space-4)', bottom: 'var(--space-4)',
-          zIndex: 'var(--z-sticky, 100)', display: 'inline-flex', alignItems: 'center',
-          gap: 'var(--space-2)',
-        }}
+        // 좌표를 스스로 정하지 않는다 — Dock의 assistant 슬롯이 위치를 준다.
+        // 예전에는 QuickAddFab과 좌표·z가 똑같아 실제로 겹쳐 잘렸다.
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}
       >
         <Sparkles size={16} />어시스턴트
       </button>

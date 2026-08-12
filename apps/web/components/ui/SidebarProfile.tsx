@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { KeyRound, LogOut, ChevronUp, LayoutDashboard, Code2, BookOpen, Palette, Check, ChevronRight, Sparkles, Radar } from 'lucide-react'
 import { THEMES, type ThemeId } from '@/lib/themes'
@@ -17,6 +17,10 @@ interface SidebarProfileProps {
 }
 
 export default function SidebarProfile({ name, email, isAdmin = false, currentTheme, defaultTheme }: SidebarProfileProps) {
+  const pathname = usePathname()
+  // 관리자 화면 안에서는 나가는 길이 필요하다 — 예전 AdminUserMenu가 하던 일.
+  // 셸이 하나로 합쳐졌으니 계정 메뉴가 위치에 맞는 링크를 고른다.
+  const inAdmin = pathname?.startsWith('/admin') ?? false
   const [open, setOpen] = useState(false)
   const [themeOpen, setThemeOpen] = useState(false)
   const [activeTheme, setActiveTheme] = useState<ThemeId | undefined>(currentTheme)
@@ -107,7 +111,7 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
           {isAdmin && (
             <>
               <Link
-                href="/admin/users"
+                href={inAdmin ? '/home' : '/admin/users'}
                 onClick={() => setOpen(false)}
                 style={{
                   display: 'flex',
@@ -123,7 +127,7 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
                 <LayoutDashboard size={14} />
-                관리자 패널
+                {inAdmin ? '멤버 화면으로' : '관리자 패널'}
               </Link>
               <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0 0.75rem' }} />
             </>

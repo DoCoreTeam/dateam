@@ -37,7 +37,7 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 | **탭** | `ui/SegmentedTabs` **1** · `ui/WorkSubTabs` **7** · `ui/ProjectTabs` **4** · `ui/WorkTabBar` **1** · `ci/StageNav` **4** | — | ⛔ **5종 병존** |
 | **상세 표면** | `ci/DetailSheet` **4** · `ui/SlidePanel` **3** · 모달 26파일 · `[id]` 페이지 9 | — | ⛔ 3방식 |
 | **표** | `ui/DynamicTable` **7** · `ui/nb/NbTable` **2** · `.table-card` 클래스 **70** · GPU `UnifiedTable` **1** | — | ⛔ 4방식 |
-| **셸** | `(member)/layout` · `admin/layout` · `ci/CiShell` (전부 `MobileShell` 위) | — | ⚠️ 3벌 (§2) |
+| **셸** | ~~3벌~~ → **`ui/shell/AppShell` 1벌** (v0.7.443 통합) | `ui/shell/AppShell` | ✅ 해소 |
 
 > **신규 작업 규칙: 위 표에 있는 성격의 UI를 만들 때는 새로 만들지 말고, 어느 쪽으로 통일할지 먼저 정한다.**
 
@@ -47,23 +47,27 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 
 | 부품 | 사용 | 역할 |
 |---|---|---|
-| `ui/MobileShell` | **3** | 유일한 셸 구현체. 사이드바·헤더·모바일 드로어·전역 FAB |
-| `ui/SidebarProfile` | 2 | 좌측하단 계정 메뉴 — 이름·비번·테마·패치노트·로그아웃 (**상위집합**) |
-| `ui/AdminUserMenu` | 1 | 좌측하단 계정 메뉴 — **로그아웃만** (하위집합, 중복) |
-| `ui/QuickNav` | 2 | 우측상단 전체 메뉴 |
-| `ui/GlobalSearchBox` | 1 | 우측상단 전역 검색 — **(member)에만** |
-| `ci/NotificationBell` | 1 | 알림 벨 — **CI에만** |
-| `ci/CiSidebarFooter` | 1 | CI 사이드바 푸터 |
-| `ci/CiShell` | 1 | CI 전용 셸 래퍼 |
+| **`ui/shell/AppShell`** | **3** | **화면이 쓰는 유일한 셸.** 계정 메뉴·전역검색·전체메뉴·Dock을 **항상** 넣는다(끄는 옵션 없음). `items·groups·session·branding·workspace·extras` |
+| `ui/shell/Dock` | 1 | 우측하단 고정 레이어의 **유일한 좌표 주인**. 슬롯 `primary/assistant/utility` |
+| `ui/MobileShell` | 1 | AppShell **내부 구현**(사이드바·헤더·모바일 드로어). 화면에서 직접 import 금지 |
+| `ui/SidebarProfile` | 1 | 좌측하단 계정 메뉴 — 이름·비번·테마·패치노트·로그아웃. `/admin`에서는 "멤버 화면으로" |
+| `ui/QuickNav` | 1 | 우측상단 전체 메뉴 — AppShell이 항상 넣음 |
+| `ui/GlobalSearchBox` | 1 | 우측상단 전역 검색 — AppShell이 항상 넣음(예전엔 admin·CI에 없었다) |
+| `ci/NotificationBell` | 1 | 알림 벨 — CI가 `extras.headerExtra`로 **추가** |
 
-**셸 3종이 꽂는 것이 서로 다르다** (`01-AUDIT.md §2` 표 참조).
+**빠뜨릴 수 없는 구조다.** 예전 자유 슬롯(`footer`/`headerRight`) 시절엔 admin에 전역검색·테마·비밀번호가 통째로 없었고 CI엔 검색이 없었다.
+가드: `lib/ui/shell-contract.test.ts`(새 셸 신설·셸 밖 화면 차단) · `lib/ui/dock-exclusive.test.ts`(좌표 독점).
 
 ### 고정 레이어 (우측하단) — 좌표 충돌 구역
-| 부품 | 사용 | 좌표 | z |
-|---|---|---|---|
-| `ui/QuickAddFab` (`.intake-fab`) | 1 | `bottom:1.5rem right:1.5rem` | 90 |
-| `ci/AssistantPanel` FAB | 1 | `bottom:var(--space-4) right:var(--space-4)` | `var(--z-sticky)`=90 |
-| `ui/ScrollJumpButtons` | 3 | `bottom:92` ← **매직넘버 회피** | 40 |
+**좌표는 `Dock`만 안다.** 부품은 슬롯에 등록만 하고 자기 위치를 정하지 않는다.
+
+| 부품 | Dock 슬롯 | 등록처 |
+|---|---|---|
+| `ui/QuickAddFab` | `primary` | `MobileShell`(AppShell 내부) |
+| `ci/AssistantPanel` FAB | `assistant` | `(ci)/layout` `extras.dock` |
+| `ui/ScrollJumpButtons` | `utility` | `MobileShell`(AppShell 내부) |
+
+> 예전엔 셋이 각자 `position:fixed`로 같은 자리를 잡아 실제로 겹쳤고, 그걸 피하려 만든 `bottom:92` 손계산이 매직넘버로 남아 있었다.
 
 ---
 
@@ -190,8 +194,8 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 |---|---|---|---|
 | `NbCard` | `ui/nb/NbCard.tsx` | 24 | **정책(§2)이 "카드→NbCard"라 지정했는데 0건.** 되살리거나 정책에서 내린다 |
 | `NbField` `NbInput` `NbSelect` `NbTextarea` | `ui/nb/NbField.tsx` | 47 | 클래스 축(`input-field` 247)이 이미 이김 → **폐기 권장** |
-| `LogoutButton` | `ui/LogoutButton.tsx` | 31 | `SidebarProfile`에 흡수됨 → 삭제 후보 |
-| `WeeklyReportBannerButton` | `ui/WeeklyReportBannerButton.tsx` | 34 | 삭제 후보 |
+| ~~`LogoutButton`~~ | ~~`ui/LogoutButton.tsx`~~ | 31 | ✅ v0.7.443 삭제 (`SidebarProfile`에 흡수) |
+| `WeeklyReportBannerButton` | `ui/WeeklyReportBannerButton.tsx` | 34 | 삭제 후보 (Phase 1.5) |
 | `SkelLine` | `ui/LoadingSkeleton.tsx` | — | 나머지 3개(`SkelCard/List/Page`)는 **27건 사용 중** |
 | `CardSkeleton` | `ci/states.tsx` | — | 형제 4개는 사용 중 |
 | `MetricPlaceholder` | `ci/MetricBadge.tsx` | — | |
@@ -214,6 +218,9 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 |---|---|---|
 | `scripts/check-design-tokens.mjs` (`pnpm design:check`) | ① hex 색 **즉시 차단** ② swr 전역 `mutate` **즉시 차단** ③ `rgba()` ④ 미정의 토큰(`--text-sm` 등) ⑤ **raw `<input/select/textarea>`에 `input-field` 누락** | ratchet + baseline **294건** |
 | `lib/ui/integration-consistency.test.ts` | 연동 카드 용어·기능 일관성 (CLAUDE.md §2-5) | 정적 스캔 |
+| `lib/ui/shell-contract.test.ts` | 새 셸 신설 금지 · 모든 화면이 셸 아래 (공개 4경로만 면제) | 정적 스캔 |
+| `lib/ui/dock-exclusive.test.ts` | 우측하단 좌표 독점 · `bottom` 매직넘버 금지 | 정적 스캔 |
+| `lib/ui/duplicate-component.test.ts` | 같은 export 이름을 2곳이 내보내는 중복 구현 차단 | 정적 스캔 |
 | `lib/work/mobile-layout-guard.test.ts` | 업무 화면 모바일 레이아웃 | 정적 스캔 |
 
 **⚠️ 알려진 사각지대 (실측 확인)**

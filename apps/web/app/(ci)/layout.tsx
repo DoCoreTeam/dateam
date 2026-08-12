@@ -2,17 +2,72 @@
 // 미들웨어가 인증을 보장한다. 여기서는 워크스페이스 소속을 판정한다.
 // 소속이 없으면 셸을 씌우지 않고 온보딩(워크스페이스 만들기)으로 넘긴다.
 //
-// 셸·로고·계정·전체메뉴는 사내 업무 화면과 같은 구성 요소를 그대로 쓴다.
+// 셸은 AppShell 하나뿐이다. CI 전용 셸(CiShell)을 따로 두던 시절엔
+// 전역검색이 통째로 빠져 있었다 — 자유 슬롯이라 "안 꽂으면 없는" 구조였기 때문.
+// 이제 검색·계정·전체메뉴는 AppShell이 항상 넣고, CI는 메뉴·알림·어시스턴트만 얹는다.
 
 import { redirect } from 'next/navigation'
+import {
+  Home, Inbox, Radar, TrendingUp, PenTool, Layers, Send, Radio, BarChart3, Settings, Scissors,
+} from 'lucide-react'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getBranding } from '@/lib/branding'
 import { getActiveTheme, resolveTheme } from '@/lib/theme'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { getLoopCounts } from '@/lib/ci/queries/home'
-import CiShell from '@/components/ci/CiShell'
+import AppShell from '@/components/ui/shell/AppShell'
+import type { NavGroup } from '@/components/ui/shell/AppShell'
 import CiOnboardingGate from '@/components/ci/CiOnboardingGate'
+import AssistantPanel from '@/components/ci/AssistantPanel'
+import NotificationBell from '@/components/ci/NotificationBell'
+import type { CiLoopMinimap } from '@/lib/ci/contracts'
 import type { Profile } from '@/types/database'
+
+const NAV_ITEMS = [
+  // 섹션 루트라 exact로 둔다 — 안 그러면 /ci/* 어디서나 '홈'이 활성으로 남는다
+  { href: '/ci', label: '홈', icon: <Home size={16} />, exact: true },
+]
+
+/** 건수는 사이드바 badge 슬롯으로 넘긴다. 라벨에 숫자를 붙이지 않는다. */
+function badge(count?: number): number | undefined {
+  return count && count > 0 ? count : undefined
+}
+
+function buildGroups(counts?: CiLoopMinimap): NavGroup[] {
+  return [
+    {
+      label: '리서치',
+      items: [
+        { href: '/ci/inbox', label: '수집함', icon: <Inbox size={16} />, badge: badge(counts?.review) },
+        { href: '/ci/monitoring', label: '모니터링', icon: <Radar size={16} />, match: ['/ci/channels'] },
+        { href: '/ci/trends', label: '트렌드', icon: <TrendingUp size={16} />, badge: badge(counts?.newOutliers) },
+      ],
+    },
+    {
+      label: '제작',
+      items: [
+        { href: '/ci/pipeline', label: '파이프라인', icon: <PenTool size={16} />, match: ['/ci/briefs'], badge: badge(counts?.producing) },
+        { href: '/ci/studio', label: '편집점', icon: <Scissors size={16} /> },
+        { href: '/ci/boards', label: '보드', icon: <Layers size={16} /> },
+        { href: '/ci/assets', label: '자료', icon: <Layers size={16} /> },
+      ],
+    },
+    {
+      label: '게시',
+      items: [
+        { href: '/ci/publish', label: '게시', icon: <Send size={16} />, badge: badge(counts?.ready) },
+        { href: '/ci/my-channels', label: '내 채널', icon: <Radio size={16} /> },
+      ],
+    },
+    {
+      label: '성과',
+      items: [
+        { href: '/ci/performance', label: '성과', icon: <BarChart3 size={16} /> },
+        { href: '/ci/settings', label: '설정', icon: <Settings size={16} /> },
+      ],
+    },
+  ]
+}
 
 export default async function CiLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -54,21 +109,26 @@ export default async function CiLayout({ children }: { children: React.ReactNode
   const counts = await getLoopCounts(workspace.id)
 
   return (
-    <CiShell
-      workspaceId={workspace.id}
-      workspaceName={workspace.name}
-      logoUrl={branding.logoUrl}
-      brandName={branding.brandName}
-      counts={counts}
-      profile={{
+    <AppShell
+      items={NAV_ITEMS}
+      groups={buildGroups(counts)}
+      branding={{ logoUrl: branding.logoUrl, brandName: branding.brandName }}
+      session={{
         name: displayName,
         email: userEmail,
         isAdmin,
         currentTheme,
         defaultTheme: globalTheme,
       }}
+      workspace={{ name: workspace.name }}
+      extras={{
+        // 떡상 알림은 "매일 접속할 이유의 1번"(§8.1)이라 화면이 아니라 셸에 붙는다.
+        headerExtra: <NotificationBell workspaceId={workspace.id} />,
+        // 어시스턴트는 좌표를 스스로 정하지 않는다 — Dock의 assistant 슬롯에 등록만 한다.
+        dock: [{ slot: 'assistant', node: <AssistantPanel workspaceId={workspace.id} /> }],
+      }}
     >
       {children}
-    </CiShell>
+    </AppShell>
   )
 }

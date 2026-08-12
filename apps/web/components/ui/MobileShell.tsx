@@ -8,10 +8,11 @@ import NbNavItem from './nb/NbNavItem'
 import QuickAddFab from './QuickAddFab'
 import ChangelogModal from './ChangelogModal'
 import ScrollJumpButtons from './ScrollJumpButtons'
+import Dock, { type DockItem } from './shell/Dock'
 import { LATEST_CHANGELOG_VERSION, CHANGELOG_SEEN_KEY, isChangelogPending } from '@/lib/changelog/entries'
 
 
-interface NavItem {
+export interface NavItem {
   href: string
   label: string
   icon: React.ReactNode
@@ -52,6 +53,8 @@ interface MobileShellProps {
   children: React.ReactNode
   adminHref?: string
   isAdmin?: boolean
+  /** 우측하단 고정 레이어 추가 항목. 좌표는 Dock이 정한다(§4) */
+  dock?: DockItem[]
 }
 
 export default function MobileShell({
@@ -65,6 +68,7 @@ export default function MobileShell({
   children,
   adminHref,
   isAdmin = false,
+  dock,
 }: MobileShellProps) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -376,11 +380,18 @@ export default function MobileShell({
         </main>
       </div>
 
-      {/* 전역 스크롤 점프(맨 위/맨 아래) — 긴 페이지 기본 UX */}
-      <ScrollJumpButtons targetRef={mainRef} />
-
-      {/* 빠른 추가 FAB — 하이브리드 speed-dial(맥락 강조 + 멀티). 데스크탑·모바일 */}
-      <QuickAddFab isAdmin={isAdmin} />
+      {/* 우측하단 고정 레이어 — 좌표는 Dock이 독점한다(§4).
+          예전엔 FAB·스크롤점프가 각자 fixed 좌표를 정해 겹쳤고, 그걸 피하려 만든
+          손계산 여백이 매직넘버로 남았다. Dock이 세로 스택을 관리하면 그 계산이 사라진다. */}
+      <Dock
+        items={[
+          // 빠른 추가 FAB — 하이브리드 speed-dial(맥락 강조 + 멀티). 데스크탑·모바일
+          { slot: 'primary', node: <QuickAddFab isAdmin={isAdmin} /> },
+          ...(dock ?? []),
+          // 전역 스크롤 점프(맨 위/맨 아래) — 긴 페이지 기본 UX
+          { slot: 'utility', node: <ScrollJumpButtons targetRef={mainRef} /> },
+        ]}
+      />
       {changelogOpen && (
         <ChangelogModal
           currentVersion={appVersion}

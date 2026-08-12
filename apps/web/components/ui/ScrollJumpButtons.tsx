@@ -50,17 +50,9 @@ export default function ScrollJumpButtons({ targetRef }: { targetRef: RefObject<
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        right: 'var(--space-4)',
-        bottom: 92, // FAB(하단) 위로
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 'var(--space-2)',
-        zIndex: 40,
-      }}
-    >
+    // 좌표를 스스로 정하지 않는다 — Dock(components/ui/shell/Dock.tsx)의 utility 슬롯이 위치를 준다.
+    // 예전에는 FAB를 피하려고 여백을 손으로 계산해 넣었고, FAB이 하나 늘 때마다 어긋났다.
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
       {!atTop && (
         <button type="button" onClick={() => jump(0)} style={btnStyle} aria-label="맨 위로" title="맨 위로">
           <ArrowUp size={18} />

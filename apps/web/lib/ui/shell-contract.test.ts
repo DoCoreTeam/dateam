@@ -37,11 +37,7 @@ const PUBLIC_SURFACES = [
 ]
 
 /** 아직 AppShell로 안 옮긴 셸 — Phase 1이 이 목록을 **비운다**. */
-const SHELL_MIGRATION_PENDING = new Set([
-  'app/(member)/layout.tsx',
-  'app/admin/layout.tsx',
-  'components/ci/CiShell.tsx',
-])
+const SHELL_MIGRATION_PENDING = new Set<string>([])
 
 const SHELL_MARKERS = ['AppShell', 'MobileShell', 'CiShell']
 
