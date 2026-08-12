@@ -3,9 +3,10 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getWeekStart, toDateString } from '@/lib/utils'
 import { addDays } from 'date-fns'
 import { insertKpi } from './actions'
-import KpiRow from './KpiRow'
+import KpiHistoryTable from './KpiHistoryTable'
 import PageHeader from '@/components/ui/PageHeader'
 import { TrendingUp, Plus, Target, Calendar, Flag, AlertCircle } from 'lucide-react'
+import EmptyState from '@/components/ui/EmptyState'
 import type { KpiEntry } from '@/types/database'
 
 interface KpiPageProps {
@@ -207,9 +208,11 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
         )}
 
         {weeklyTargets.length === 0 && h1Kpi.length === 0 && yearKpi.length === 0 ? (
-          <p style={{ fontSize: 'var(--fs-base)', color: 'var(--text-faint)', margin: 0, padding: 'var(--space-4) var(--space-0)' }}>
-            관리자가 KPI 항목을 설정하지 않았습니다. 관리자에게 문의하세요.
-          </p>
+          <EmptyState
+            title="기록할 KPI 항목이 없어요"
+            description="관리자가 조직 KPI를 설정하면 여기에서 실적을 기록할 수 있습니다"
+            secondary={<span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)' }}>설정이 필요하면 관리자에게 문의하세요</span>}
+          />
         ) : (
           <form action={insertKpi}>
             {/* 기간 자동 세팅 — 이번 주 */}
@@ -291,31 +294,14 @@ export default async function KpiPage({ searchParams }: KpiPageProps) {
           </span>
         </div>
 
-        {kpiEntries && kpiEntries.length > 0 ? (
-          <div className="table-responsive">
-            <table className="table-base table-card">
-              <thead>
-                <tr>
-                  <th>KPI 항목</th>
-                  <th>실적</th>
-                  <th>단위</th>
-                  <th>주차</th>
-                  <th style={{ width: '90px' }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {kpiEntries.map((kpi) => (
-                  <KpiRow key={kpi.id} entry={kpi} weeklyTargets={weeklyTargets} h1Kpi={h1Kpi} yearKpi={yearKpi} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'var(--space-12) var(--space-4)', color: 'var(--text-faint)', textAlign: 'center' }}>
-            <TrendingUp size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
-            <p style={{ margin: 0, fontSize: 'var(--fs-base)' }}>아직 등록된 실적이 없습니다</p>
-          </div>
-        )}
+        <div style={{ padding: 'var(--space-4) var(--space-5)' }}>
+          <KpiHistoryTable
+            entries={kpiEntries ?? []}
+            weeklyTargets={weeklyTargets}
+            h1Kpi={h1Kpi}
+            yearKpi={yearKpi}
+          />
+        </div>
       </div>
     </div>
   )

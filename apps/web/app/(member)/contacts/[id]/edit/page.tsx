@@ -1,4 +1,5 @@
 import { redirect, notFound } from 'next/navigation'
+import PageHeader from '@/components/ui/PageHeader'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import ContactForm from '../../ContactForm'
 import type { Contact, Account } from '@/types/database'
@@ -22,9 +23,7 @@ export default async function EditContactPage({ params }: PageProps) {
 
   return (
     <div>
-      <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>담당자 편집</h1>
-      </div>
+      <PageHeader title="담당자 편집" description={contact.name} />
       <ContactForm contact={contact} accounts={accounts ?? []} />
     </div>
   )

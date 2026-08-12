@@ -14,18 +14,6 @@ import { walkFiles, read } from './component-scan.ts'
 
 /** 표준 이전 화면 — 늘리지 말 것. 화면을 건드리면 표준으로 옮기고 여기서 지운다. */
 const PENDING = new Set<string>([
-  'app/(ci)/ci/assets/AssetsView.tsx',
-  'app/(ci)/ci/boards/BoardsView.tsx',
-  'app/(ci)/ci/briefs/[id]/BriefEditor.tsx',
-  'app/(ci)/ci/inbox/InboxView.tsx',
-  'app/(ci)/ci/performance/PerformanceView.tsx',
-  'app/(ci)/ci/publish/PublishView.tsx',
-  'app/(ci)/ci/trends/TrendsView.tsx',
-  'app/(member)/dept-tasks/DeptTasksClient.tsx',
-  'app/(member)/kpi/page.tsx',
-  'app/(member)/lead-intake/page.tsx',
-  'app/(member)/meeting-notes/page.tsx',
-  'app/(member)/operations/page.tsx',
   'app/(member)/pricing/gpu/tabs/CompetitorsTab.tsx',
   'app/(member)/pricing/gpu/tabs/DbChatTab.tsx',
   'app/(member)/pricing/gpu/tabs/IntakeGateSummary.tsx',
@@ -35,19 +23,13 @@ const PENDING = new Set<string>([
   'app/(member)/pricing/gpu/tabs/SourcesTab.tsx',
   'app/(member)/pricing/gpu/tabs/SpecsTab.tsx',
   'app/(member)/pricing/gpu/tabs/SuppliersTab.tsx',
-  'app/(member)/routine/RoutineGrid.tsx',
   'app/(member)/weekly-report/DeptTaskWeeklyPanel.tsx',
   'app/(member)/weekly-report/TeamReportView.tsx',
   'app/(member)/weekly-report/WeeklyReportForm.tsx',
-  'app/admin/ai-prompts/AiPromptsClient.tsx',
-  'app/admin/ai-usage/AiUsageDashboard.tsx',
-  'app/admin/api/page.tsx',
-  'app/admin/daily-logs/DayDetailPanel.tsx',
+  // kpi/page.tsx = 사람×지표 피벗 교차표, AdminReportsPreview = orgName rowSpan 병합표.
+  // 둘 다 "행 목록"이 아니라 ListSurface(컬럼 1벌 → 표/카드)로 표현되지 않는다.
   'app/admin/kpi/page.tsx',
-  'app/admin/partner-tiers/page.tsx',
   'app/admin/reports/AdminReportsPreview.tsx',
-  'app/admin/reports/page.tsx',
-  'app/admin/routine/page.tsx',
   'app/develop/DemoSection.tsx',
   'app/develop/page.tsx',
 ])

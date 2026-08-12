@@ -7,6 +7,9 @@ import { listModelCatalog, refreshModelCatalog, type ModelCatalogItem } from './
 import type { ProviderView } from './AiChatClient'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import { isSelectableModelAvailability } from '@/lib/ai-chat/model-availability'
+import SegmentedTabs from '@/components/ui/SegmentedTabs'
+import EmptyState from '@/components/ui/EmptyState'
+import AXDotLoader from '@/components/ui/AXDotLoader'
 
 interface Props {
   providers: ProviderView[] // 키가 설정된(가용) 프로바이더만 — 탭 소스
@@ -151,38 +154,21 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
           </button>
         </div>
 
-        <div role="tablist" aria-label="프로바이더" style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-4)', flexWrap: 'wrap' }}>
-          {providers.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === p.id}
-              disabled={refreshing}
-              onClick={() => handleTabChange(p.id)}
-              style={{
-                padding: 'var(--space-1) var(--space-3)',
-                borderRadius: 'var(--radius)',
-                border: `var(--border-w) solid ${tab === p.id ? 'var(--brand)' : 'var(--border-color)'}`,
-                background: tab === p.id ? 'var(--brand)' : 'transparent',
-                color: tab === p.id ? 'var(--accent-fg)' : 'var(--text-muted)',
-                fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: 'pointer',
-              }}
-            >
-              {PROVIDER_LABELS[p.id]}
-            </button>
-          ))}
+        {/* 프로바이더 탭 — 탭 렌더러 SSOT(§2). 새로고침 중에는 전환을 막는다(기존 disabled 동작 유지) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)', flexWrap: 'wrap' }}>
+          <SegmentedTabs
+            ariaLabel="프로바이더"
+            tabs={providers.map((p) => ({ id: p.id, label: PROVIDER_LABELS[p.id] }))}
+            activeId={tab ?? undefined}
+            onSelect={(id) => { if (!refreshing) handleTabChange(id as AiChatProviderId) }}
+          />
           <button
             type="button"
             onClick={handleRefresh}
             disabled={!tab || refreshing}
             title="모델 새로고침"
-            style={{
-              marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)',
-              padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius)',
-              border: 'var(--border-w) solid var(--border-color)', background: 'transparent',
-              color: 'var(--text-muted)', fontSize: 'var(--fs-xs)', cursor: refreshing ? 'wait' : 'pointer',
-            }}
+            className="btn-ghost"
+            style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', cursor: refreshing ? 'wait' : 'pointer' }}
           >
             <RefreshCw size={13} className={refreshing ? 'ai-chat-spin' : undefined} />
             {refreshing ? '새로고침 중…' : '모델 새로고침'}
@@ -208,16 +194,23 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
         )}
 
         <div role="radiogroup" aria-label="모델 목록" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', maxHeight: 360, overflowY: 'auto' }}>
-          {loading && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', padding: 'var(--space-3)' }}>불러오는 중…</div>}
+          {loading && (
+            <div style={{ padding: 'var(--space-3)' }} aria-live="polite" aria-label="모델 목록 불러오는 중">
+              <AXDotLoader size={5} color="var(--text-faint)" />
+            </div>
+          )}
           {!loading && refreshing && (
-            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', padding: 'var(--space-3)' }}>
-              실제 사용 가능 여부를 확인하는 중…
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-3)', fontSize: 'var(--fs-sm)', color: 'var(--text-faint)' }} aria-live="polite">
+              <AXDotLoader size={5} color="var(--text-faint)" />
+              실제 사용 가능 여부를 확인하는 중
             </div>
           )}
           {!loading && !refreshing && itemsForTab.length === 0 && blockedForTab.total === 0 && (
-            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', padding: 'var(--space-3)' }}>
-              카탈로그에 모델이 없습니다. &quot;모델 새로고침&quot;으로 최신 목록을 가져오세요.
-            </div>
+            <EmptyState
+              title="카탈로그에 모델이 없어요"
+              description="모델 새로고침으로 최신 목록을 가져오세요"
+              action={{ label: '모델 새로고침', onClick: handleRefresh }}
+            />
           )}
           {!loading && !refreshing && itemsForTab.length === 0 && blockedForTab.total > 0 && (
             <div

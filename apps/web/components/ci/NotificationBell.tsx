@@ -10,6 +10,9 @@ import { useRouter } from 'next/navigation'
 import { Bell, X } from 'lucide-react'
 import type { ApiResponse } from '@/lib/ci/contracts'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
+import EmptyState from '@/components/ui/EmptyState'
+import ErrorState from '@/components/ui/ErrorState'
+import AXDotLoader from '@/components/ui/AXDotLoader'
 
 interface NotificationItem {
   id: string
@@ -137,18 +140,15 @@ export default function NotificationBell({ workspaceId }: { workspaceId: string 
           </div>
 
           <div className="ci-bell-list">
-            {error && <p className="error-state">{error}</p>}
+            {error && <ErrorState message={error} onRetry={() => void load()} />}
             {!error && loading && items.length === 0 && (
-              <p className="ci-bell-empty">불러오는 중…</p>
+              <div className="ci-bell-empty"><AXDotLoader /></div>
             )}
             {!error && !loading && items.length === 0 && (
-              <div className="ci-bell-empty">
-                <p className="empty-state-title">아직 알림이 없어요</p>
-                <p className="empty-state-desc">
-                  관심 채널의 새 게시물이 평소 대비 기준 배수를 넘기면 여기로 알려드립니다.
-                  기준은 설정 → 알림에서 바꿀 수 있어요.
-                </p>
-              </div>
+              <EmptyState
+                title="아직 알림이 없어요"
+                description="관심 채널의 새 게시물이 평소 대비 기준 배수를 넘기면 여기로 알려드립니다. 기준은 설정 → 알림에서 바꿀 수 있어요."
+              />
             )}
             {items.map((n) => (
               <button

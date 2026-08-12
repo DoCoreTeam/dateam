@@ -3,14 +3,22 @@
 // components/ci/ChannelListView.tsx — 채널 목록 공용 뷰
 // 모니터링(관심 채널)과 내 채널이 같은 데이터·같은 표를 쓴다.
 // 화면 두 개가 각자 표를 만들면 표시 규칙이 갈라진다.
+//
+// 목록 자체는 표준 부품(ListToolbar/ListSurface/ListPager)이 그린다 — 검색·정렬·보기가
+// URL에 남아 새로고침·공유가 성립한다. 데이터는 그대로 서버 컴포넌트가 통째로 넘긴다.
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { ApiResponse, CiChannelListItem } from '@/lib/ci/contracts'
 import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
-import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
+import ListToolbar from '@/components/ui/list/ListToolbar'
+import ListSurface from '@/components/ui/list/ListSurface'
+import ListPager from '@/components/ui/list/ListPager'
+import type { ColumnDef } from '@/components/ui/list/types'
+import { useListQuery } from '@/lib/ui/use-list-query'
+import { rangeOf, type ListDefaults } from '@/lib/ui/list-query'
 import { isEnterKey } from '@/lib/ui/ime'
 
 interface ChannelListViewProps {
@@ -20,8 +28,19 @@ interface ChannelListViewProps {
   mode: 'tracked' | 'owned'
 }
 
+const LIST_DEFAULTS: ListDefaults = { sort: { key: 'name', dir: 'asc' }, view: 'table' }
+
+const SORT_OPTIONS = [
+  { key: 'name', label: '채널명' },
+  { key: 'subscribers', label: '구독자' },
+  { key: 'platform', label: '플랫폼' },
+]
+
 export default function ChannelListView({ workspaceId, items, mode }: ChannelListViewProps) {
   const router = useRouter()
+  const { query, set } = useListQuery(LIST_DEFAULTS, {
+    persistKey: mode === 'tracked' ? '/ci/monitoring' : '/ci/my-channels',
+  })
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<{ code: string; message: string } | null>(null)
@@ -65,6 +84,73 @@ export default function ChannelListView({ workspaceId, items, mode }: ChannelLis
 
   const monitored = items.filter((c) => c.isMonitored).length
 
+  const columns = useMemo<ColumnDef<CiChannelListItem>[]>(() => {
+    const base: ColumnDef<CiChannelListItem>[] = [
+      {
+        key: 'name', header: '채널', primary: true, sortable: true,
+        cell: (ch) => (
+          <Link href={`/ci/channels/${ch.id}`} style={{ fontWeight: 600, color: 'var(--text)' }}>
+            {ch.displayName}
+          </Link>
+        ),
+      },
+      { key: 'platform', header: '플랫폼', sortable: true, cell: (ch) => CI_PLATFORM_LABEL[ch.platform] },
+      {
+        key: 'subscribers', header: '구독자', align: 'right', sortable: true,
+        cell: (ch) => (ch.subscriberCount != null
+          ? <span className="ci-num">{ch.subscriberCount.toLocaleString('ko-KR')}</span>
+          : <span className="ci-basis" title="아직 확보하지 못했습니다">—</span>),
+      },
+      { key: 'topic', header: '주제', cell: (ch) => ch.topic?.name ?? '미지정' },
+    ]
+
+    if (mode === 'tracked') {
+      base.push({
+        key: 'monitored', header: '모니터링',
+        cell: (ch) => (
+          <span className={ch.isMonitored ? 'ci-status ci-status-ok' : 'ci-status ci-status-neutral'}>
+            {ch.isMonitored ? '지켜보는 중' : '중지'}
+          </span>
+        ),
+      })
+    }
+
+    base.push({
+      key: 'action', header: '작업',
+      cell: (ch) => (
+        <span style={{ display: 'inline-flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+          {mode === 'tracked' && (
+            <button type="button" className="btn-ghost" onClick={() => toggleMonitor(ch)}>
+              {ch.isMonitored ? '중지' : '지켜보기'}
+            </button>
+          )}
+          <Link href={`/ci/channels/${ch.id}`} className="btn-ghost">상세</Link>
+        </span>
+      ),
+    })
+
+    return base
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
+
+  // 서버가 전체 목록을 한 번에 넘긴다 — 걸러내기·정렬·자르기는 표현 계층에서 한다(§2-6)
+  const rows = useMemo(() => {
+    const q = query.q.trim().toLowerCase()
+    const filtered = q
+      ? items.filter((ch) => `${ch.displayName} ${ch.handle ?? ''}`.toLowerCase().includes(q))
+      : items
+    const dir = query.sort.dir === 'asc' ? 1 : -1
+    return [...filtered].sort((a, b) => {
+      if (query.sort.key === 'subscribers') return ((a.subscriberCount ?? -1) - (b.subscriberCount ?? -1)) * dir
+      if (query.sort.key === 'platform') {
+        return (CI_PLATFORM_LABEL[a.platform] ?? '').localeCompare(CI_PLATFORM_LABEL[b.platform] ?? '', 'ko') * dir
+      }
+      return a.displayName.localeCompare(b.displayName, 'ko') * dir
+    })
+  }, [items, query.q, query.sort.key, query.sort.dir])
+
+  const { from, to } = rangeOf(query)
+
   return (
     <>
       <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
@@ -96,60 +182,31 @@ export default function ChannelListView({ workspaceId, items, mode }: ChannelLis
         </p>
       )}
 
-      {items.length === 0 ? (
-        <EmptyState
-          title={mode === 'tracked' ? '아직 등록한 관심 채널이 없습니다' : '연결한 내 채널이 없습니다'}
-          description={mode === 'tracked'
-            ? '지켜볼 채널을 3곳 이상 등록하면 평소 대비 배수와 시장 비교가 의미를 갖습니다.'
-            : '내 채널을 등록하면 게시물 성과를 추적하고 시장과 비교할 수 있습니다.'}
-        />
-      ) : (
-        <table className="table-base table-card">
-          <thead>
-            <tr>
-              <th>채널</th>
-              <th>플랫폼</th>
-              <th>구독자</th>
-              <th>주제</th>
-              {mode === 'tracked' && <th>모니터링</th>}
-              <th>작업</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((ch) => (
-              <tr key={ch.id}>
-                <td className="card-header">
-                  <Link href={`/ci/channels/${ch.id}`} style={{ fontWeight: 600, color: 'var(--text)' }}>
-                    {ch.displayName}
-                  </Link>
-                </td>
-                <td data-label="플랫폼">{CI_PLATFORM_LABEL[ch.platform]}</td>
-                <td data-label="구독자">
-                  {ch.subscriberCount != null
-                    ? <span className="ci-num">{ch.subscriberCount.toLocaleString('ko-KR')}</span>
-                    : <span className="ci-basis" title="아직 확보하지 못했습니다">—</span>}
-                </td>
-                <td data-label="주제">{ch.topic?.name ?? '미지정'}</td>
-                {mode === 'tracked' && (
-                  <td data-label="모니터링">
-                    <span className={ch.isMonitored ? 'ci-status ci-status-ok' : 'ci-status ci-status-neutral'}>
-                      {ch.isMonitored ? '지켜보는 중' : '중지'}
-                    </span>
-                  </td>
-                )}
-                <td className="card-actions">
-                  {mode === 'tracked' && (
-                    <button type="button" className="btn-ghost" onClick={() => toggleMonitor(ch)}>
-                      {ch.isMonitored ? '중지' : '지켜보기'}
-                    </button>
-                  )}
-                  <Link href={`/ci/channels/${ch.id}`} className="btn-ghost">상세</Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <ListToolbar
+        query={query}
+        onChange={set}
+        searchPlaceholder="채널명·핸들로 찾기"
+        sortOptions={SORT_OPTIONS}
+        total={rows.length}
+      />
+
+      <ListSurface
+        rows={rows.slice(from, to + 1)}
+        columns={columns}
+        query={query}
+        rowKey={(ch) => ch.id}
+        onChange={set}
+        empty={items.length === 0
+          ? {
+            title: mode === 'tracked' ? '아직 등록한 관심 채널이 없습니다' : '연결한 내 채널이 없습니다',
+            description: mode === 'tracked'
+              ? '지켜볼 채널을 3곳 이상 등록하면 평소 대비 배수와 시장 비교가 의미를 갖습니다. 위 칸에 채널 주소를 붙여넣어 보세요.'
+              : '내 채널을 등록하면 게시물 성과를 추적하고 시장과 비교할 수 있습니다. 위 칸에 채널 주소를 붙여넣어 보세요.',
+          }
+          : { title: '조건에 맞는 채널이 없어요', description: '검색어나 정렬을 바꿔보세요' }}
+      />
+
+      <ListPager query={query} total={rows.length} onChange={set} />
     </>
   )
 }

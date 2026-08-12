@@ -113,10 +113,9 @@ export default function HomeView({ data }: { data: CiHomeData }) {
         <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>
           자동 업데이트
         </h2>
-        <div style={{
+        <div className="card" style={{
           display: 'flex', gap: 'var(--space-4)', alignItems: 'center', flexWrap: 'wrap',
-          padding: 'var(--space-3)', border: 'var(--hairline) solid var(--border-color)',
-          borderRadius: 'var(--radius)', background: 'var(--color-surface)',
+          padding: 'var(--space-3)',
         }}>
           <span className="ci-status ci-status-neutral">
             {data.refresh.status === 'running' ? '진행 중'

@@ -7,6 +7,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Sparkles, Plus, Save, AlertCircle } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
+import EmptyState from '@/components/ui/EmptyState'
+import { SkelList } from '@/components/ui/LoadingSkeleton'
 import AutoDraftItemList, { SECTION_ORDER, SECTION_LABELS } from './AutoDraftItemList'
 import type { DraftItem, DraftSection } from '@/lib/weekly-report/draft-types'
 
@@ -164,26 +166,18 @@ export default function AutoDraftPanel({ week, weekOptions }: AutoDraftPanelProp
 
       {/* 로딩 스켈레톤 */}
       {loading ? (
-        <div aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              style={{
-                height: 56,
-                background: 'var(--surface-bg)',
-                border: 'var(--hairline) solid var(--border-light)',
-                borderRadius: 'var(--radius)',
-              }}
-            />
-          ))}
-          <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
+        <div aria-busy="true">
+          <SkelList rows={3} />
+          <p style={{ margin: 'var(--space-3) 0 0', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
             초안을 불러오는 중입니다. 처음이라면 AI 작성에 수 초 걸릴 수 있어요.
           </p>
         </div>
       ) : isEmpty ? (
-        <p style={{ margin: '0 0 var(--space-4)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-          이번 주 일일업무/일정이 없어 초안이 비어 있습니다. 아래에서 직접 추가하세요.
-        </p>
+        <EmptyState
+          title="이번 주 초안이 비어 있어요"
+          description="이번 주 일일업무·일정이 없어 AI가 뽑을 재료가 없습니다. 아래에서 직접 항목을 추가하세요."
+          action={{ label: '일일업무 기록하러 가기', href: '/daily' }}
+        />
       ) : (
         <AutoDraftItemList
           items={items}

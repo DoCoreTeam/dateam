@@ -7,6 +7,7 @@ import { exportTimelinessCsv } from './org-actions'
 import TimelinessPanel from './TimelinessPanel'
 import DeptReportPanel, { aggBadge, type AnyRow, type AggState } from './DeptReportPanel'
 import { TIMELINESS_COLORS } from '@/lib/tokens/status-colors'
+import EmptyState from '@/components/ui/EmptyState'
 import type { MemberTimeliness } from '@/lib/weekly-report/timeliness'
 
 interface SlimNode { id: string; type: string; parent_id: string | null; name: string }
@@ -87,7 +88,7 @@ export default function OrgWeeklyView(props: Props) {
       {/* 주차 네비 — 이전/다음 화살표 (무한 과거 이동, 미래는 이번 주까지) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1rem' }}>
         <Link href={`/weekly-report?tab=org&week=${prevWeek}`} prefetch={false} aria-label="이전 주"
-          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)', background: '#fff', color: 'var(--text-muted)', textDecoration: 'none' }}>
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)', background: 'var(--color-surface)', color: 'var(--text-muted)', textDecoration: 'none' }}>
           <ChevronLeft size={16} />
         </Link>
         <span style={{ fontSize: 'var(--fs-base)', fontWeight: 700, color: 'var(--text)', minWidth: 96, textAlign: 'center' }}>{weekStart} 주</span>
@@ -97,7 +98,7 @@ export default function OrgWeeklyView(props: Props) {
           </span>
         ) : (
           <Link href={`/weekly-report?tab=org&week=${nextWeek}`} prefetch={false} aria-label="다음 주"
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)', background: '#fff', color: 'var(--text-muted)', textDecoration: 'none' }}>
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)', background: 'var(--color-surface)', color: 'var(--text-muted)', textDecoration: 'none' }}>
             <ChevronRight size={16} />
           </Link>
         )}
@@ -109,7 +110,7 @@ export default function OrgWeeklyView(props: Props) {
         )}
         {isAdmin && (
           <button onClick={onExportCsv} disabled={exporting}
-            style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: 'var(--fs-xs)', fontWeight: 600, padding: '0.3rem 0.7rem', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)', background: '#fff', color: 'var(--text-muted)', cursor: exporting ? 'wait' : 'pointer' }}>
+            style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: 'var(--fs-xs)', fontWeight: 600, padding: '0.3rem 0.7rem', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)', background: 'var(--color-surface)', color: 'var(--text-muted)', cursor: exporting ? 'wait' : 'pointer' }}>
             <Clock size={13} /> {exporting ? '내보내는 중…' : '적시성 CSV'}
           </button>
         )}
@@ -141,12 +142,14 @@ export default function OrgWeeklyView(props: Props) {
         </>
       ) : (
         <div className="responsive-grid-cols-3" style={{ display: 'grid', gap: 'var(--space-3)' }}>
-          {childDepts.length === 0 && <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>하위 부서가 없습니다.</p>}
+          {childDepts.length === 0 && (
+            <EmptyState title="하위 부서가 없어요" description="위 경로에서 상위 조직을 눌러 다른 부서를 열어 보세요" />
+          )}
           {childDepts.map((d) => {
             const st = deptStats[d.id] ?? { memberCount: 0, reportedCount: 0, agg: 'none' as const }
             const canEdit = editableDeptIds.includes(d.id)
             return (
-              <button key={d.id} onClick={() => drillInto(d.id)} style={{ textAlign: 'left', background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-4)', cursor: 'pointer', minHeight: 44 }}>
+              <button key={d.id} onClick={() => drillInto(d.id)} style={{ textAlign: 'left', background: 'var(--color-surface)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-4)', cursor: 'pointer', minHeight: 44 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                   <span style={{ fontWeight: 700, fontSize: 'var(--fs-md)', color: 'var(--text)' }}>{d.name}</span>
                   {canEdit ? <Pencil size={13} color="var(--brand)" /> : <Lock size={12} color="var(--text-faint)" />}

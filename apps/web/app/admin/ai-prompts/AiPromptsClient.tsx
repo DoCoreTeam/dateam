@@ -1,6 +1,25 @@
 'use client'
-import { Fragment, useState } from 'react'
+
+// app/admin/ai-prompts/AiPromptsClient.tsx — AI 프롬프트 운영
+//
+// 표현을 표준으로 옮겼다: 제목 PageHeader(§2-3) · 탭 SegmentedTabs(§2) ·
+// 표 ListSurface + ListToolbar + ListPager(§2-6) · 모달 §2-2 · 폼 input-field/label(§2-1).
+// 조회(SWR)와 저장·롤백 API 호출은 그대로다.
+
+import { useState } from 'react'
 import useSWR from 'swr'
+import { X } from 'lucide-react'
+import PageHeader from '@/components/ui/PageHeader'
+import SegmentedTabs from '@/components/ui/SegmentedTabs'
+import EmptyState from '@/components/ui/EmptyState'
+import { SkelCard } from '@/components/ui/LoadingSkeleton'
+import ListToolbar from '@/components/ui/list/ListToolbar'
+import ListSurface from '@/components/ui/list/ListSurface'
+import ListPager from '@/components/ui/list/ListPager'
+import type { ColumnDef } from '@/components/ui/list/types'
+import { useListQuery } from '@/lib/ui/use-list-query'
+import { rangeOf, type ListDefaults } from '@/lib/ui/list-query'
+import { useEscClose } from '@/lib/use-esc-close'
 import { isEnterKey } from '@/lib/ui/ime'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -32,18 +51,37 @@ const EVENT_LABEL: Record<string, { t: string; c: string }> = {
   held: { t: 'AI 보류', c: 'var(--danger)' }, activated: { t: '활성화', c: 'var(--success)' }, deactivated: { t: '비활성화', c: 'var(--text-muted)' },
 }
 
+const CODE_BLOCK: React.CSSProperties = {
+  margin: 0,
+  fontSize: 'var(--fs-2xs)',
+  fontFamily: 'monospace',
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-word',
+  color: 'var(--text)',
+  maxHeight: '320px',
+  overflowY: 'auto',
+  backgroundColor: 'var(--surface-bg)',
+  border: 'var(--hairline) solid var(--border-light)',
+  borderRadius: 'var(--radius)',
+  padding: 'var(--space-3)',
+}
+
+type TabId = 'prompts' | 'history' | 'schema'
+
 export default function AiPromptsClient() {
-  const [tab, setTab] = useState<'prompts' | 'history' | 'schema'>('prompts')
+  const [tab, setTab] = useState<TabId>('prompts')
+  const tabs = [
+    { id: 'prompts', label: '프롬프트' },
+    { id: 'history', label: '변경 이력' },
+    { id: 'schema', label: '스키마(AI 가시)' },
+  ]
   return (
-    <div className="page-inner" style={{ height: '100%', overflowY: 'auto' }}>
-      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>관리자 · AI</div>
-      <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', margin: '0 0 4px' }}>AI 프롬프트 운영</h2>
-      <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 16px' }}>DB 프롬프트 CRUD · AI 자가갱신 이력(왜·어떻게) · 롤백 · AI가 보는 스키마</p>
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
-        {([['prompts', '프롬프트'], ['history', '변경 이력'], ['schema', '스키마(AI 가시)']] as const).map(([k, label]) => (
-          <button key={k} onClick={() => setTab(k)} style={{ padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: tab === k ? 700 : 500, color: tab === k ? 'var(--gpu-accent,var(--brand))' : 'var(--text-muted)', borderBottom: tab === k ? 'var(--border-w-2) solid var(--gpu-accent,var(--brand))' : 'var(--border-w-2) solid transparent' }}>{label}</button>
-        ))}
-      </div>
+    <div>
+      <PageHeader
+        title="AI 프롬프트 운영"
+        description="DB 프롬프트 CRUD · AI 자가갱신 이력(왜·어떻게) · 롤백 · AI가 보는 스키마"
+        below={<SegmentedTabs ariaLabel="AI 프롬프트 분류" tabs={tabs} activeId={tab} onSelect={(id) => setTab(id as TabId)} />}
+      />
       {tab === 'prompts' && <PromptsTab />}
       {tab === 'history' && <HistoryTab />}
       {tab === 'schema' && <SchemaTab />}
@@ -51,18 +89,30 @@ export default function AiPromptsClient() {
   )
 }
 
+const LIST_DEFAULTS: ListDefaults = {
+  sort: { key: 'prompt_key', dir: 'asc' },
+  view: 'table',
+  size: 20,
+}
+
+const SORT_OPTIONS = [
+  { key: 'prompt_key', label: '프롬프트 키' },
+  { key: 'updated_at', label: '수정일' },
+]
+
 function PromptsTab() {
-  const { data, mutate } = useSWR<{ prompts: Prompt[] }>('/api/admin/ai-prompts', fetcher)
+  const { data, isLoading, mutate } = useSWR<{ prompts: Prompt[] }>('/api/admin/ai-prompts', fetcher)
   const { data: schemaData } = useSWR<{ tables: string[] }>('/api/admin/ai-prompts?view=schema', fetcher)
   const schemaTables = schemaData?.tables ?? []
+  const { query, set } = useListQuery(LIST_DEFAULTS, { persistKey: '/admin/ai-prompts' })
   const [edit, setEdit] = useState<Prompt | null>(null)
   const [draft, setDraft] = useState('')
   const [msg, setMsg] = useState('')
-  const [open, setOpen] = useState<Set<string>>(new Set())
   const [instr, setInstr] = useState('')
   const [aiBusy, setAiBusy] = useState(false)
   const prompts = data?.prompts ?? []
-  const toggleOpen = (id: string) => setOpen((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+
+  useEscClose(() => setEdit(null), edit != null)
 
   const aiEdit = async () => {
     if (!instr.trim()) { setMsg('지시문을 입력하세요'); return }
@@ -85,54 +135,145 @@ function PromptsTab() {
     mutate()
   }
 
+  const columns: ColumnDef<Prompt>[] = [
+    {
+      key: 'prompt_key', header: '프롬프트 키', primary: true, sortable: 'prompt_key',
+      cell: (p) => <span style={{ fontWeight: 600 }}>{p.prompt_key}</span>,
+    },
+    { key: 'version', header: '버전', cell: (p) => fmtVer(p.version) },
+    {
+      key: 'source', header: '출처',
+      cell: (p) => (
+        <span style={{ color: p.source === 'ai' ? 'var(--info)' : 'var(--text-muted)', fontWeight: p.source === 'ai' ? 700 : 400 }}>
+          {p.source === 'ai' ? '🤖 AI' : '👤 사람'}
+        </span>
+      ),
+    },
+    {
+      key: 'active', header: '활성',
+      cell: (p) => (
+        <button type="button" onClick={() => toggle(p)} className="btn-ghost"
+          style={{ color: p.active ? 'var(--success)' : 'var(--text-faint)', borderColor: p.active ? 'var(--success-border)' : 'var(--border-color)' }}>
+          {p.active ? '활성' : '비활성'}
+        </button>
+      ),
+    },
+    {
+      key: 'updated_at', header: '수정', sortable: 'updated_at', hideOnCard: true,
+      cell: (p) => (
+        <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>
+          {p.updated_at?.slice(0, 16).replace('T', ' ')}{p.updated_by ? ` · ${p.updated_by}` : ''}
+        </span>
+      ),
+    },
+    {
+      key: 'content', header: '내용', width: '260px',
+      cell: (p) => (
+        <details>
+          <summary style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', cursor: 'pointer' }}>
+            본문 보기 ({p.content?.length ?? 0}자)
+          </summary>
+          <pre style={{ ...CODE_BLOCK, marginTop: 'var(--space-2)' }}>{p.content}</pre>
+        </details>
+      ),
+    },
+    {
+      key: 'edit', header: '편집', width: '90px',
+      cell: (p) => (
+        <button type="button" className="btn-ghost" onClick={() => { setEdit(p); setDraft(p.content); setInstr(''); setMsg('') }}>편집</button>
+      ),
+    },
+  ]
+
+  const q = query.q.trim().toLowerCase()
+  const filtered = prompts
+    .filter((p) => (q ? p.prompt_key.toLowerCase().includes(q) : true))
+    .sort((a, b) => {
+      const cmp = query.sort.key === 'updated_at'
+        ? (a.updated_at ?? '').localeCompare(b.updated_at ?? '')
+        : a.prompt_key.localeCompare(b.prompt_key)
+      return query.sort.dir === 'asc' ? cmp : -cmp
+    })
+
+  const { from, to } = rangeOf(query)
+  const rows = filtered.slice(from, to + 1)
+
   return (
     <>
-      <table className="table-base table-card" style={{ width: '100%' }}>
-        <thead><tr><th>프롬프트 키</th><th>버전</th><th>출처</th><th>활성</th><th>수정</th><th></th></tr></thead>
-        <tbody>
-          {prompts.map((p) => (
-            <Fragment key={p.id}>
-              <tr>
-                <td className="card-header"><span style={{ fontWeight: 600 }}>{p.prompt_key}</span></td>
-                <td data-label="버전">{fmtVer(p.version)}</td>
-                <td data-label="출처"><span style={{ color: p.source === 'ai' ? 'var(--info)' : 'var(--text-muted)', fontWeight: p.source === 'ai' ? 700 : 400 }}>{p.source === 'ai' ? '🤖 AI' : '👤 사람'}</span></td>
-                <td data-label="활성"><button onClick={() => toggle(p)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: p.active ? 'var(--success)' : 'var(--text-faint)', borderColor: p.active ? 'var(--success-border)' : 'var(--color-border)' }}>{p.active ? '활성' : '비활성'}</button></td>
-                <td data-label="수정" className="card-hide" style={{ fontSize: 11, color: 'var(--text-faint)' }}>{p.updated_at?.slice(0, 16).replace('T', ' ')}{p.updated_by ? ` · ${p.updated_by}` : ''}</td>
-                <td style={{ whiteSpace: 'nowrap' }}>
-                  <button onClick={() => toggleOpen(p.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', marginRight: 4 }}>{open.has(p.id) ? '내용 닫기' : `내용 (${p.content?.length ?? 0}자)`}</button>
-                  <button onClick={() => { setEdit(p); setDraft(p.content); setInstr(''); setMsg('') }} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px' }}>편집</button>
-                </td>
-              </tr>
-              {open.has(p.id) && (
-                <tr>
-                  <td colSpan={6} style={{ background: 'var(--color-bg)', padding: 0 }}>
-                    <pre style={{ margin: 0, padding: 14, fontSize: 11.5, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--text)', maxHeight: 420, overflowY: 'auto' }}>{p.content}</pre>
-                  </td>
-                </tr>
-              )}
-            </Fragment>
-          ))}
-        </tbody>
-      </table>
+      <div className="card">
+        <ListToolbar
+          query={query}
+          onChange={set}
+          searchPlaceholder="프롬프트 키 검색"
+          sortOptions={SORT_OPTIONS}
+          total={filtered.length}
+        />
+        <ListSurface
+          rows={rows}
+          columns={columns}
+          query={query}
+          rowKey={(p) => p.id}
+          onChange={set}
+          loading={isLoading}
+          empty={q
+            ? { title: '조건에 맞는 프롬프트가 없어요', description: '검색어를 바꿔보세요' }
+            : { title: '등록된 프롬프트가 없어요', description: 'AI 추출이 처음 실행되면 프롬프트가 생성됩니다' }}
+        />
+        <ListPager query={query} total={filtered.length} onChange={set} />
+      </div>
+
       {edit && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 20 }} onClick={() => setEdit(null)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: 20, width: 'min(760px, 96vw)', maxHeight: '88vh', overflowY: 'auto' }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 15 }}>{edit.prompt_key} <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>{fmtVer(edit.version)}</span></h3>
-            <p style={{ fontSize: 11.5, color: 'var(--text-faint)', margin: '0 0 10px' }}>편집·저장 시 변경 이력에 기록됩니다(왜·어떻게)</p>
-            {/* AI에게 편집 지시 — 스키마 인지 상태로 현재 본문을 개선해 아래 편집창에 채움(저장은 사람이) */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
-              <input value={instr} onChange={(e) => setInstr(e.target.value)} placeholder="AI에게 지시 (예: 약정·수량 추출을 강화하고 재고 resp_qty를 더 정확히)" disabled={aiBusy}
-                style={{ flex: 1, fontSize: 12, padding: '8px 10px', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 8 }} onKeyDown={(e) => { if (isEnterKey(e)) aiEdit() }} />
-              <button onClick={aiEdit} disabled={aiBusy} className="gpu-btn" style={{ fontSize: 12, padding: '6px 14px', color: 'var(--info)', borderColor: 'var(--info-border)', fontWeight: 600, whiteSpace: 'nowrap' }}>{aiBusy ? '편집 중…' : '🤖 AI로 편집'}</button>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${edit.prompt_key} 편집`}
+          style={{
+            position: 'fixed', inset: 0, backgroundColor: 'var(--modal-backdrop)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', zIndex: 'var(--z-modal)', padding: 'var(--space-5)',
+          }}
+          onClick={() => setEdit(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-modal)',
+              padding: 'var(--space-5)', width: 'min(760px, 96vw)', maxHeight: '88vh', overflowY: 'auto',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
+              <h2 className="tape-title" style={{ margin: 0 }}>{edit.prompt_key}</h2>
+              <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>{fmtVer(edit.version)}</span>
+              <button type="button" onClick={() => setEdit(null)} className="btn-ghost" aria-label="닫기" style={{ marginLeft: 'auto' }}>
+                <X size={18} />
+              </button>
             </div>
-            <div title={schemaTables.join(', ')} style={{ fontSize: 11, color: 'var(--info)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', margin: '0 0 var(--space-3)' }}>
+              편집·저장 시 변경 이력에 기록됩니다(왜·어떻게)
+            </p>
+
+            {/* AI에게 편집 지시 — 스키마 인지 상태로 현재 본문을 개선해 아래 편집창에 채움(저장은 사람이) */}
+            <label className="label" htmlFor="ai-prompt-instruction">AI 편집 지시</label>
+            <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
+              <input id="ai-prompt-instruction" className="input-field" value={instr} onChange={(e) => setInstr(e.target.value)}
+                placeholder="AI에게 지시 (예: 약정·수량 추출을 강화하고 재고 resp_qty를 더 정확히)" disabled={aiBusy}
+                style={{ flex: 1 }} onKeyDown={(e) => { if (isEnterKey(e)) aiEdit() }} />
+              <button type="button" onClick={aiEdit} disabled={aiBusy} className="btn-ghost"
+                style={{ color: 'var(--info)', borderColor: 'var(--info-border)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                {aiBusy ? '편집 중…' : '🤖 AI로 편집'}
+              </button>
+            </div>
+            <div title={schemaTables.join(', ')} style={{ fontSize: 'var(--fs-2xs)', color: 'var(--info)', marginBottom: 'var(--space-3)', display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
               🗂 AI는 현재 DB 스키마 <strong>{schemaTables.length}개 테이블</strong>을 참고해 수정합니다 (마우스 올리면 목록)
             </div>
-            <textarea value={draft} onChange={(e) => setDraft(e.target.value)} style={{ width: '100%', minHeight: 340, fontFamily: 'monospace', fontSize: 12, padding: 10, border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 8 }} />
-            <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
-              <button onClick={save} className="gpu-btn gpu-btn-primary">저장</button>
-              <button onClick={() => setEdit(null)} className="gpu-btn">취소</button>
-              {msg && <span style={{ fontSize: 12, color: 'var(--success)' }}>{msg}</span>}
+
+            <label className="label" htmlFor="ai-prompt-body">프롬프트 본문</label>
+            <textarea id="ai-prompt-body" className="input-field" value={draft} onChange={(e) => setDraft(e.target.value)}
+              style={{ width: '100%', minHeight: '340px', fontFamily: 'monospace' }} />
+
+            <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-3)', alignItems: 'center' }}>
+              <button type="button" onClick={save} className="btn-primary">저장</button>
+              <button type="button" onClick={() => setEdit(null)} className="btn-ghost">취소</button>
+              {msg && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--success)' }}>{msg}</span>}
             </div>
           </div>
         </div>
@@ -153,47 +294,53 @@ function HistoryTab() {
     const j = await r.json().catch(() => ({}))
     setMsg(r.ok ? `롤백 완료 → ${j.restored}` : (j.error ?? '실패')); mutate()
   }
+
+  if (revs.length === 0) {
+    return <EmptyState title="변경 이력이 없어요" description="프롬프트를 편집하거나 AI가 자가갱신하면 여기에 기록됩니다" />
+  }
+
   return (
     <>
-      {msg && <div style={{ fontSize: 12, color: 'var(--success)', marginBottom: 8 }}>{msg}</div>}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {revs.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--text-faint)' }}>변경 이력 없음</div>}
+      {msg && <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--success)', marginBottom: 'var(--space-2)' }}>{msg}</div>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
         {revs.map((r) => {
           const ev = EVENT_LABEL[r.event] ?? { t: r.event, c: 'var(--text-muted)' }
           const isOpen = open.has(r.id)
           const diff = r.prev_content != null && r.content != null ? lineDiff(r.prev_content, r.content) : null
           return (
-            <div key={r.id} style={{ borderRadius: 8, background: '#fff', border: 'var(--hairline) solid var(--surface-bg)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', fontSize: 12.5, flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: 700, color: ev.c, minWidth: 78 }}>{ev.t}</span>
+            <div key={r.id} className="card" style={{ padding: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', padding: 'var(--space-2) var(--space-3)', fontSize: 'var(--fs-sm)', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 700, color: ev.c, minWidth: '78px' }}>{ev.t}</span>
                 <span style={{ fontWeight: 600 }}>{r.prompt_key}</span>
                 <span style={{ color: 'var(--text-faint)' }}>{r.version}</span>
-                {r.diff_summary && <span style={{ fontSize: 11, color: 'var(--success)', fontWeight: 600 }}>{r.diff_summary}</span>}
-                <span style={{ fontSize: 10.5, color: 'var(--border-subtle)', marginLeft: 'auto' }}>{r.created_at?.slice(0, 16).replace('T', ' ')}</span>
-                <button onClick={() => toggle(r.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px' }}>{isOpen ? '닫기' : '왜·무엇'}</button>
-                <button onClick={() => rollback(r.id)} className="gpu-btn" style={{ fontSize: 11, padding: '2px 10px', color: 'var(--brand)', borderColor: 'var(--brand-soft-2)' }}>이 버전 롤백</button>
+                {r.diff_summary && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--success)', fontWeight: 600 }}>{r.diff_summary}</span>}
+                <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)', marginLeft: 'auto' }}>{r.created_at?.slice(0, 16).replace('T', ' ')}</span>
+                <button type="button" onClick={() => toggle(r.id)} className="btn-ghost">{isOpen ? '닫기' : '왜·무엇'}</button>
+                <button type="button" onClick={() => rollback(r.id)} className="btn-ghost" style={{ color: 'var(--brand)', borderColor: 'var(--brand)' }}>이 버전 롤백</button>
               </div>
               {isOpen && (
-                <div style={{ borderTop: 'var(--hairline) solid var(--surface-muted)', padding: '10px 14px', background: 'var(--color-bg)' }}>
+                <div style={{ borderTop: 'var(--hairline) solid var(--border-light)', padding: 'var(--space-3) var(--space-4)', backgroundColor: 'var(--surface-bg)' }}>
                   {/* 왜 바꿨나 */}
-                  <div style={{ fontSize: 12, marginBottom: 8 }}>
+                  <div style={{ fontSize: 'var(--fs-xs)', marginBottom: 'var(--space-2)' }}>
                     <strong style={{ color: 'var(--text-muted)' }}>왜:</strong> {r.reason || '—'}
-                    {r.trigger && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 8px', borderRadius: 999, background: 'var(--brand-soft-2)', color: 'var(--brand-dark)' }}>{TRIGGER_LABEL[r.trigger] ?? r.trigger}</span>}
-                    <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-faint)' }}>by {r.source === 'ai' ? '🤖 AI' : `👤 ${r.created_by}`}</span>
+                    {r.trigger && <span className="badge" data-status="planned" style={{ marginLeft: 'var(--space-2)' }}>{TRIGGER_LABEL[r.trigger] ?? r.trigger}</span>}
+                    <span style={{ marginLeft: 'var(--space-2)', fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>by {r.source === 'ai' ? '🤖 AI' : `👤 ${r.created_by}`}</span>
                   </div>
                   {/* 무엇을 바꿨나 — before→after 라인 diff */}
-                  <div style={{ fontSize: 12, marginBottom: 4 }}><strong style={{ color: 'var(--text-muted)' }}>무엇:</strong> {r.diff_summary ?? (r.prev_content == null ? '최초 생성(이전본 없음)' : '변경 없음')}</div>
+                  <div style={{ fontSize: 'var(--fs-xs)', marginBottom: 'var(--space-1)' }}>
+                    <strong style={{ color: 'var(--text-muted)' }}>무엇:</strong> {r.diff_summary ?? (r.prev_content == null ? '최초 생성(이전본 없음)' : '변경 없음')}
+                  </div>
                   {diff && (diff.removed.length > 0 || diff.added.length > 0) && (
-                    <pre style={{ margin: '4px 0 0', fontSize: 11, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto', background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 6, padding: 10 }}>
-                      {diff.removed.map((l, i) => <div key={`r${i}`} style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>- {l}</div>)}
-                      {diff.added.map((l, i) => <div key={`a${i}`} style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>+ {l}</div>)}
+                    <pre style={{ ...CODE_BLOCK, marginTop: 'var(--space-1)' }}>
+                      {diff.removed.map((l, i) => <div key={`r${i}`} style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger)' }}>- {l}</div>)}
+                      {diff.added.map((l, i) => <div key={`a${i}`} style={{ backgroundColor: 'var(--success-bg)', color: 'var(--success)' }}>+ {l}</div>)}
                     </pre>
                   )}
                   {/* 최종 본문 전체 보기 */}
                   {r.content && (
-                    <details style={{ marginTop: 8 }}>
-                      <summary style={{ fontSize: 11.5, color: 'var(--info)', cursor: 'pointer' }}>이 버전 전체 본문 보기</summary>
-                      <pre style={{ margin: '6px 0 0', fontSize: 11, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto', background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 6, padding: 10 }}>{r.content}</pre>
+                    <details style={{ marginTop: 'var(--space-2)' }}>
+                      <summary style={{ fontSize: 'var(--fs-xs)', color: 'var(--info)', cursor: 'pointer' }}>이 버전 전체 본문 보기</summary>
+                      <pre style={{ ...CODE_BLOCK, marginTop: 'var(--space-2)' }}>{r.content}</pre>
                     </details>
                   )}
                 </div>
@@ -207,14 +354,23 @@ function HistoryTab() {
 }
 
 function SchemaTab() {
-  const { data } = useSWR<{ digest: string; tables: string[] }>('/api/admin/ai-prompts?view=schema', fetcher)
+  const { data, isLoading } = useSWR<{ digest: string; tables: string[] }>('/api/admin/ai-prompts?view=schema', fetcher)
+  const tables = data?.tables ?? []
+
+  if (isLoading) return <SkelCard lines={5} />
+  if (tables.length === 0) {
+    return <EmptyState title="AI가 볼 수 있는 테이블이 없어요" description="스키마 다이제스트를 아직 만들지 못했습니다" />
+  }
+
   return (
-    <>
-      <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '0 0 10px' }}>AI가 추출 시 인지하는 테이블 {data?.tables?.length ?? 0}개 (public 전체 테이블 자동 포함 — 구조만, 행 데이터는 미포함)</p>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-        {(data?.tables ?? []).map((t) => <span key={t} style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 999, background: 'var(--brand-soft)', color: 'var(--brand-dark)', fontWeight: 600 }}>{t}</span>)}
+    <div className="card" style={{ padding: 'var(--space-5)' }}>
+      <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', margin: '0 0 var(--space-3)' }}>
+        AI가 추출 시 인지하는 테이블 {tables.length}개 (public 전체 테이블 자동 포함 — 구조만, 행 데이터는 미포함)
+      </p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+        {tables.map((t) => <span key={t} className="badge" data-status="planned">{t}</span>)}
       </div>
-      <pre style={{ fontSize: 11, fontFamily: 'monospace', background: 'var(--text)', color: 'var(--color-border)', padding: 14, borderRadius: 10, overflowX: 'auto', maxHeight: 460 }}>{data?.digest ?? '불러오는 중…'}</pre>
-    </>
+      <pre style={{ ...CODE_BLOCK, maxHeight: '460px' }}>{data?.digest}</pre>
+    </div>
   )
 }

@@ -343,7 +343,7 @@ export default function Composer({
                     )}
                     {p.status === 'uploading' && (
                       <span className="ai-chat-chip-overlay">
-                        <AXDotLoader size={4} color="#fff" />
+                        <AXDotLoader size={4} color="var(--brand-fg)" />
                       </span>
                     )}
                   </span>

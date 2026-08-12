@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
 import DailyTaskItem from './DailyTaskItem'
+import EmptyState from '@/components/ui/EmptyState'
+import AXDotLoader from '@/components/ui/AXDotLoader'
 import { generateWeeklyRows, type WeeklyRow } from '@/lib/weekly-report/generate-client'
 import type { DailyLog } from '@/types/database'
 
@@ -168,8 +170,8 @@ export default function DailyTaskSelector({ weekStart, onGenerate, variant = 'in
       {isOpen && (
         <div style={{ padding: 'var(--space-4)', borderTop: 'var(--border-w-2) solid var(--border-color)' }}>
           {loading && (
-            <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--space-4) var(--space-0)' }}>
-              이번 주 업무를 불러오는 중…
+            <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--space-4) var(--space-0)' }} aria-live="polite">
+              <AXDotLoader /> 이번 주 업무를 불러오는 중
             </p>
           )}
 
@@ -180,9 +182,11 @@ export default function DailyTaskSelector({ weekStart, onGenerate, variant = 'in
           )}
 
           {!loading && tasks.length === 0 && !error && (
-            <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', textAlign: 'center', padding: 'var(--space-4) var(--space-0)' }}>
-              이번 주 등록된 일일업무가 없습니다
-            </p>
+            <EmptyState
+              title="이번 주 일일업무가 없어요"
+              description="일일업무를 기록하면 여기서 골라 주간보고로 바로 옮길 수 있습니다"
+              action={{ label: '일일업무 쓰러 가기', href: '/daily' }}
+            />
           )}
 
           {!loading && tasks.length > 0 && (
@@ -232,17 +236,10 @@ export default function DailyTaskSelector({ weekStart, onGenerate, variant = 'in
                 )}
                 <button
                   type="button"
+                  className="btn-primary"
                   onClick={handleGenerate}
                   disabled={generating || selectedIds.size === 0}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)',
-                    padding: '0.625rem 1.25rem', borderRadius: 'var(--radius)',
-                    background: generating || selectedIds.size === 0 ? 'var(--color-border)' : 'linear-gradient(135deg, var(--brand), var(--brand))',
-                    color: generating || selectedIds.size === 0 ? 'var(--text-faint)' : '#fff',
-                    border: 'none', cursor: generating || selectedIds.size === 0 ? 'not-allowed' : 'pointer',
-                    fontSize: 'var(--fs-base)', fontWeight: 600,
-                    transition: 'opacity 120ms',
-                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', minHeight: 44 }}
                 >
                   <Sparkles size={14} />
                   {generating ? '생성 중...' : isSide ? `폼에 반영 (${selectedIds.size})` : `주간보고 생성 (${selectedIds.size}개 업무)`}

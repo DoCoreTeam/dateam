@@ -1,11 +1,25 @@
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
+import PageHeader from '@/components/ui/PageHeader'
+import SegmentedTabs, { type SegmentedTab } from '@/components/ui/SegmentedTabs'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import DealForm from '../DealForm'
 import type { Account, Contact } from '@/types/database'
 import LeadIntakeForm from '../../lead-intake/LeadIntakeForm'
 
 interface PageProps { searchParams: Promise<{ account_id?: string; mode?: string }> }
+
+// 거래처·담당자 추가와 같은 골격 — AI ↔ 수동은 링크가 아니라 탭으로 고른다(§2-5 동종 UI 통일)
+function tabsFor(accountId?: string): SegmentedTab[] {
+  const q = accountId ? `account_id=${encodeURIComponent(accountId)}` : ''
+  const join = (extra?: string) => {
+    const parts = [q, extra].filter(Boolean)
+    return parts.length ? `/deals/new?${parts.join('&')}` : '/deals/new'
+  }
+  return [
+    { id: 'ai', label: 'AI 입력', href: join() },
+    { id: 'manual', label: '수동 입력', href: join('mode=manual') },
+  ]
+}
 
 export default async function NewDealPage({ searchParams }: PageProps) {
   const { account_id, mode } = await searchParams
@@ -21,26 +35,24 @@ export default async function NewDealPage({ searchParams }: PageProps) {
     adm.from('contacts').select('id, name, account_id').order('name') as Promise<{ data: Pick<Contact, 'id' | 'name' | 'account_id'>[] | null }>,
   ])
 
+  const isManual = mode === 'manual'
+
   return (
     <div>
-      <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
-          {mode === 'manual' ? '영업기회 수동 입력' : 'AI로 영업기회 추가'}
-        </h1>
-      </div>
-      {mode === 'manual' ? (
+      <PageHeader
+        title="영업기회 추가"
+        description={isManual
+          ? '거래처·단계·금액을 직접 입력합니다'
+          : '미팅 메모, 파일에서 영업기회 정보를 자동 생성합니다'}
+        below={<SegmentedTabs tabs={tabsFor(account_id)} ariaLabel="영업기회 입력 방식" activeId={isManual ? 'manual' : 'ai'} />}
+      />
+
+      {isManual ? (
         <DealForm accounts={accounts ?? []} contacts={contacts ?? []} defaultAccountId={account_id} />
       ) : (
-        <>
-          <div className="card" style={{ padding: 'var(--space-6)', maxWidth: '760px' }}>
-            <LeadIntakeForm />
-          </div>
-          <div style={{ marginTop: '1rem' }}>
-            <Link href="/deals/new?mode=manual" style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-base)', fontWeight: 600, textDecoration: 'none' }}>
-              수동 입력으로 전환
-            </Link>
-          </div>
-        </>
+        <div className="card" style={{ padding: 'var(--space-6)', maxWidth: '760px' }}>
+          <LeadIntakeForm />
+        </div>
       )}
     </div>
   )

@@ -15,6 +15,7 @@ import { Check, X, ExternalLink, Plus } from 'lucide-react'
 import type { ApiResponse } from '@/lib/ci/contracts'
 import type { CiControl } from '@/lib/ci/settings/registry'
 import ErrorState from '@/components/ui/ErrorState'
+import EmptyState from '@/components/ui/EmptyState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
 import { isEnterKey } from '@/lib/ui/ime'
 
@@ -159,9 +160,15 @@ export default function SettingsView({ workspaceId }: { workspaceId: string }) {
       ) : (
         <div className="ci-setting-list">
           {visible.length === 0 && (
-            <p className="empty-state-desc">
-              {query ? '검색 결과가 없습니다.' : '이 분류에는 설정이 없습니다.'}
-            </p>
+            query
+              ? <EmptyState
+                  title="찾는 설정이 안 보여요"
+                  description="다른 낱말로 찾아보세요. 검색은 탭과 상관없이 전체 설정을 훑습니다."
+                />
+              : <EmptyState
+                  title="이 분류에는 설정이 없어요"
+                  description="위 탭에서 다른 분류를 골라 보세요."
+                />
           )}
           {visible.map((item) => (
             <SettingRow key={item.key} item={item} saving={savingKey === item.key}

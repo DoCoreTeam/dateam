@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import AXLoadingOverlay from '@/components/ui/AXLoadingOverlay'
+import ErrorState from '@/components/ui/ErrorState'
 
 interface SseEvent {
   type: 'start' | 'progress' | 'done'
@@ -165,13 +166,7 @@ export default function BulkImportProgress({ file, onComplete, onCancel }: BulkI
 
   if (error) {
     return (
-      <div className="bulk-result-summary bulk-result-error">
-        <p style={{ margin: 0, fontWeight: 600, color: 'var(--danger)' }}>오류 발생</p>
-        <p style={{ margin: '0.25rem 0 0', fontSize: 'var(--fs-base)', color: 'var(--danger)' }}>{error}</p>
-        <button onClick={onCancel} style={{ marginTop: '0.75rem', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-          ← 다시 시도
-        </button>
-      </div>
+      <ErrorState message={error} onRetry={onCancel} />
     )
   }
 
@@ -218,8 +213,7 @@ export default function BulkImportProgress({ file, onComplete, onCancel }: BulkI
               style={{ padding: '0.625rem 1.25rem', minHeight: '44px' }}>
               {`전체 CRM 등록 (${success}건)`}
             </button>
-            <button onClick={onCancel}
-              style={{ padding: '0.625rem 1.25rem', minHeight: '44px', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 'var(--fs-base)', color: 'var(--text-muted)' }}>
+            <button onClick={onCancel} className="btn-ghost" style={{ minHeight: '44px' }}>
               취소
             </button>
           </div>

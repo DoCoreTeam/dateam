@@ -8,6 +8,9 @@ import WorkPageShell from '@/components/ui/WorkPageShell'
 import WorkSubTabs from '@/components/ui/WorkSubTabs'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
+import EmptyState from '@/components/ui/EmptyState'
+import AXDotLoader from '@/components/ui/AXDotLoader'
+import { SkelList } from '@/components/ui/LoadingSkeleton'
 import PromoteToDeptButton from './PromoteToDeptButton'
 const KnowledgeGraphView = dynamic(() => import('./KnowledgeGraphView').then(m => ({ default: m.KnowledgeGraphView })), { ssr: false })
 const LogFlowView = dynamic(() => import('./LogFlowView').then(m => ({ default: m.LogFlowView })), { ssr: false })
@@ -744,14 +747,14 @@ export default function DailyPage() {
 
               {/* 타임라인 */}
               {loading ? (
-                <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-12) var(--space-0)' }}>로딩 중...</div>
+                <SkelList rows={4} />
               ) : logs.length === 0 ? (
-                <div style={{
-                  textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-12) var(--space-0)',
-                  border: 'var(--hairline) dashed var(--color-border)', borderRadius: 'var(--radius)',
-                }}>
-                  {isToday ? '오늘 첫 업무 로그를 작성해 보세요.' : '이 날의 업무 로그가 없습니다.'}
-                </div>
+                <EmptyState
+                  title={isToday ? '오늘 기록이 아직 없어요' : '이 날 기록한 업무가 없어요'}
+                  description={isToday
+                    ? '위 입력창에 오늘 한 일을 적으면 AI가 항목으로 정리해 줍니다'
+                    : '다른 날짜를 골라 보거나, 이 날의 업무를 지금 적어도 됩니다'}
+                />
               ) : (
                 <LogList
                   logs={logs}
@@ -797,7 +800,7 @@ export default function DailyPage() {
                     )}
                   </div>
                   {carryoverLoading ? (
-                    <div style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-base)', padding: 'var(--space-2) var(--space-0)' }}>로딩 중...</div>
+                    <div style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-base)', padding: 'var(--space-2) var(--space-0)' }}></div>
                   ) : (
                     <>
                       <CarryoverList
@@ -891,7 +894,7 @@ export default function DailyPage() {
           </div>
 
           {weekLoading ? (
-            <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-12) var(--space-0)' }}>로딩 중...</div>
+            <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-12) var(--space-0)' }}></div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
               {weekDates.map((dateStr) => {
@@ -1444,10 +1447,10 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
       background: 'var(--color-bg)', padding: 'var(--space-3) var(--space-4)',
     }}>
       {threadLoading ? (
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-faint)', padding: 'var(--space-1) var(--space-0)' }}>로딩 중...</div>
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', padding: 'var(--space-1) var(--space-0)' }} aria-live="polite"><AXDotLoader /></div>
       ) : threads.length === 0 ? (
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-faint)', paddingBottom: 'var(--space-2)' }}>
-          아직 스레드가 없습니다. 관련 내용을 자유롭게 남겨보세요.
+        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', paddingBottom: 'var(--space-2)' }}>
+          관련 내용을 자유롭게 남겨보세요.
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginBottom: '0.75rem' }}>

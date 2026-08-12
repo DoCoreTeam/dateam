@@ -416,9 +416,22 @@ export interface ListMeetingNotesResult {
   limit: number
 }
 
+/** 옛 정렬 라벨 → (컬럼, 방향). 예전 링크·북마크를 깨지 않기 위해 남긴다.
+ *  'title'은 옛 라벨이면서 새 컬럼 키이기도 하다 — 여기 두면 방향이 통째로 무시돼
+ *  제목 내림차순이 영영 동작하지 않는다. 컬럼 키로만 취급하고 기본 방향은 아래에서 준다. */
+const LEGACY_SORT: Record<string, { col: string; asc: boolean }> = {
+  recent: { col: 'meeting_at', asc: false },
+  oldest: { col: 'meeting_at', asc: true },
+  created: { col: 'created_at', asc: false },
+}
+const SORT_COLUMNS = ['meeting_at', 'created_at', 'title']
+/** 방향이 안 실린 옛 링크의 기본값 — 이름은 A→Z, 날짜는 최신순. */
+const DEFAULT_DIR: Record<string, 'asc' | 'desc'> = { title: 'asc', meeting_at: 'desc', created_at: 'desc' }
+
 export async function listMeetingNotes(params: {
   q?: string
   sort?: string
+  dir?: 'asc' | 'desc'
   filter?: string
   page?: number
   limit?: number
@@ -453,11 +466,13 @@ export async function listMeetingNotes(params: {
     query = query.or(`title.ilike.%${safe}%,body_plain.ilike.%${safe}%`)
   }
 
-  // 정렬: recent=회의일시 desc(NULL 후순위), oldest=회의일시 asc, created=작성일 desc, title=제목 asc
-  if (sort === 'oldest') query = query.order('meeting_at', { ascending: true, nullsFirst: false })
-  else if (sort === 'created') query = query.order('created_at', { ascending: false })
-  else if (sort === 'title') query = query.order('title', { ascending: true })
-  else query = query.order('meeting_at', { ascending: false, nullsFirst: false })
+  // 정렬: 컬럼 키 + 방향. 옛 라벨(recent/oldest/created/title)이 오면 그 의미대로 접는다.
+  const legacy = LEGACY_SORT[sort]
+  const col = legacy ? legacy.col : (SORT_COLUMNS.includes(sort) ? sort : 'meeting_at')
+  const ascending = legacy ? legacy.asc : (params.dir ?? DEFAULT_DIR[col] ?? 'desc') === 'asc'
+  query = col === 'meeting_at'
+    ? query.order(col, { ascending, nullsFirst: false })
+    : query.order(col, { ascending })
 
   const from = (page - 1) * limit
   query = query.range(from, from + limit - 1)

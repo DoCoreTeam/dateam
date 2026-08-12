@@ -7,6 +7,7 @@
 import { useState } from 'react'
 import type { ApiResponse, CiIngestResult } from '@/lib/ci/contracts'
 import { isEnterKey } from '@/lib/ui/ime'
+import ErrorState from '@/components/ui/ErrorState'
 
 interface LinkIntakeBoxProps {
   workspaceId: string
@@ -70,9 +71,9 @@ export default function LinkIntakeBox({
       </div>
 
       {error && (
-        <p className="error-state" role="alert" style={{ marginTop: 'var(--space-2)' }}>
-          {error.message} <span className="error-state-code">코드: {error.code}</span>
-        </p>
+        <div style={{ marginTop: 'var(--space-2)' }}>
+          <ErrorState message={error.message} code={error.code} />
+        </div>
       )}
 
       {result && (

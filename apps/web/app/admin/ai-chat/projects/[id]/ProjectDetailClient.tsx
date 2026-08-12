@@ -3,12 +3,15 @@
 import { useState, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Upload, Trash2, FileText, MessageSquarePlus, MessageSquare, Loader2 } from 'lucide-react'
+import { ArrowLeft, Upload, Trash2, FileText, MessageSquarePlus, MessageSquare } from 'lucide-react'
 import type { AiChatProject, AiChatProviderId } from '@/types/database'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
+import PageHeader from '@/components/ui/PageHeader'
+import EmptyState from '@/components/ui/EmptyState'
+import AXDotLoader from '@/components/ui/AXDotLoader'
 import {
   updateProject,
   addKnowledgeText,
@@ -63,12 +66,7 @@ export default function ProjectDetailClient({ project, initialKnowledge, convers
           <ArrowLeft size={14} />
           프로젝트 목록
         </Link>
-        <h1 style={{ margin: 0, fontSize: 'var(--fs-2xl)', fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text)' }}>
-          {project.name}
-        </h1>
-        <p style={{ margin: 'var(--space-2) 0 0', fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>
-          수정 {formatKstDateTimeShort(project.updated_at)}
-        </p>
+        <PageHeader title={project.name} description={`수정 ${formatKstDateTimeShort(project.updated_at)}`} />
       </div>
 
       <InstructionsEditor project={project} />
@@ -236,7 +234,7 @@ function AddKnowledge({ project, onChanged }: { project: AiChatProject; onChange
           disabled={uploadBusy || textBusy}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}
         >
-          {uploadBusy ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Upload size={14} />}
+          {uploadBusy ? <AXDotLoader size={4} /> : <Upload size={14} />}
           {uploadBusy ? '업로드중…' : '파일 업로드'}
         </NbButton>
         <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>
@@ -263,12 +261,11 @@ function KnowledgeList({ project, knowledge, onChanged }: { project: AiChatProje
       </div>
 
       {knowledge.length === 0 ? (
-        <div style={{ padding: 'var(--space-6) var(--space-2)', textAlign: 'center' }}>
-          <FileText size={26} color="var(--text-faint)" style={{ margin: '0 auto var(--space-2)' }} />
-          <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-            등록된 지식이 없습니다. 위에서 텍스트나 파일을 추가하세요.
-          </p>
-        </div>
+        <EmptyState
+          icon={<FileText size={26} />}
+          title="등록된 지식이 없어요"
+          description="위에서 텍스트를 붙여넣거나 파일을 올려 첫 지식을 추가하세요"
+        />
       ) : (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           {knowledge.map((k) => (
@@ -374,12 +371,11 @@ function ConversationsSection({
       {error && <p role="alert" style={{ margin: '0 0 var(--space-3)', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>{error}</p>}
 
       {conversations.length === 0 ? (
-        <div style={{ padding: 'var(--space-6) var(--space-2)', textAlign: 'center' }}>
-          <MessageSquare size={26} color="var(--text-faint)" style={{ margin: '0 auto var(--space-2)' }} />
-          <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-            이 프로젝트에 연결된 대화가 없습니다.
-          </p>
-        </div>
+        <EmptyState
+          icon={<MessageSquare size={26} />}
+          title="연결된 대화가 없어요"
+          description="위의 '이 프로젝트에서 새 대화'로 첫 대화를 시작하세요"
+        />
       ) : (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           {conversations.map((c) => (

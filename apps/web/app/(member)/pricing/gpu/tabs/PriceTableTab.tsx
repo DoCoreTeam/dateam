@@ -1061,7 +1061,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
               // 해당 모델의 첫 번째 실제(non-derived) 상품 — 편집 진입점
               const representativeProduct = group.rows.find((r) => !r._derived) ?? null
               const groupHeader = (
-                <tr key={`grp-${group.model}`} className="gpu-group-header" onClick={() => toggleModel(group.model, group.tier)} style={{ cursor: 'pointer', background: 'var(--surface-bg)' }}>
+                <tr key={`grp-${group.model}`} onClick={() => toggleModel(group.model, group.tier)} style={{ cursor: 'pointer', background: 'var(--surface-bg)' }}>
                   <td colSpan={colCount}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <ChevronRight size={15} style={{ transform: collapsed ? 'none' : 'rotate(90deg)', transition: 'transform 0.15s', color: 'var(--gpu-muted)' }} />

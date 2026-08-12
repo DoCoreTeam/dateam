@@ -1,172 +1,153 @@
 // 통합 검색 결과 페이지 — 개인 일일 / 부서업무 / 주간보고를 한 화면에서 검색.
-// URL(q·types) 동기화로 공유·뒤로가기 가능. SWR Infinite로 커서 페이지네이션('더 보기').
-// 상태 3종(로딩/빈 결과/에러) + 검색어 없음 안내 UI.
+// 목록 표준(§2-6): 검색어·유형 필터·더보기는 URL이 진실(useListQuery) + ListToolbar/ListSurface/ListPager.
+// 데이터는 기존 그대로 /api/work/search 커서 페이지네이션(SWR Infinite).
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useMemo, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import useSWRInfinite from 'swr/infinite'
-import { Search, SearchX, AlertTriangle } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
-import NbButton from '@/components/ui/nb/NbButton'
-import { useDebounce } from '@/hooks/useDebounce'
-import ResultCard from './ResultCard'
+import ListToolbar from '@/components/ui/list/ListToolbar'
+import ListSurface from '@/components/ui/list/ListSurface'
+import ListPager from '@/components/ui/list/ListPager'
+import EmptyState from '@/components/ui/EmptyState'
+import type { ColumnDef, ListFilterDef } from '@/components/ui/list/types'
+import { useListQuery } from '@/lib/ui/use-list-query'
+import type { ListDefaults } from '@/lib/ui/list-query'
 import {
   FILTER_CHIPS,
-  type FilterChip,
+  SEARCH_TYPE_META,
   type WorkSearchResponse,
+  type WorkSearchResult,
 } from './search-types'
 
 const PAGE_LIMIT = 20
-const DEBOUNCE_MS = 300
 
-type FilterKey = FilterChip['key']
+// 커서 API라 개수는 서버가 정한다. 정렬 축은 서버가 관련도로 고정 → 정렬 선택지를 두지 않는다.
+const LIST_DEFAULTS: ListDefaults = {
+  sort: { key: 'date', dir: 'desc' },
+  mode: 'more',
+  view: 'card',
+  filterKeys: ['types'],
+}
 
-function parseFilter(raw: string | null): FilterKey {
-  const valid = FILTER_CHIPS.map((c) => c.key)
-  return (valid as string[]).includes(raw ?? '') ? (raw as FilterKey) : 'all'
+const TYPE_FILTER: ListFilterDef = {
+  key: 'types',
+  label: '유형',
+  options: FILTER_CHIPS.filter((c) => c.key !== 'all').map((c) => ({ value: c.key, label: c.label })),
+}
+
+/** plain text를 q 기준으로 분할해 매칭 부분만 <mark>로 강조(대소문자 무시, XSS 안전) */
+function highlight(text: string, q: string): ReactNode {
+  const query = q.trim()
+  if (!query) return text
+  const lower = text.toLowerCase()
+  const qLower = query.toLowerCase()
+  const parts: ReactNode[] = []
+  let cursor = 0
+  let idx = lower.indexOf(qLower, cursor)
+  let key = 0
+  while (idx >= 0) {
+    if (idx > cursor) parts.push(text.slice(cursor, idx))
+    parts.push(<mark key={key++}>{text.slice(idx, idx + query.length)}</mark>)
+    cursor = idx + query.length
+    idx = lower.indexOf(qLower, cursor)
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor))
+  return parts
+}
+
+function formatDate(raw: string): string {
+  const d = new Date(raw)
+  if (Number.isNaN(d.getTime())) return raw.slice(0, 10)
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
 }
 
 export default function WorkSearchPage() {
   const router = useRouter()
-  const params = useSearchParams()
+  const { query, set } = useListQuery(LIST_DEFAULTS, { persistKey: '/work/search' })
 
-  const urlQ = params.get('q') ?? ''
-  const filter = parseFilter(params.get('types'))
-
-  // 입력은 로컬 상태 → 디바운스 후 URL(q) 갱신(replace로 히스토리 오염 방지)
-  const [input, setInput] = useState(urlQ)
-  const debounced = useDebounce(input, DEBOUNCE_MS)
-
-  // 뒤로/공유 진입 등 URL이 외부에서 바뀌면 입력 동기화
-  useEffect(() => { setInput(urlQ) }, [urlQ])
-
-  // 디바운스된 입력을 URL에 반영
-  useEffect(() => {
-    if (debounced === urlQ) return
-    const next = new URLSearchParams(params.toString())
-    if (debounced.trim()) next.set('q', debounced.trim())
-    else next.delete('q')
-    router.replace(`/work/search?${next.toString()}`)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debounced])
-
-  const setFilter = useCallback((key: FilterKey) => {
-    const next = new URLSearchParams(params.toString())
-    if (key === 'all') next.delete('types')
-    else next.set('types', key)
-    router.replace(`/work/search?${next.toString()}`)
-  }, [params, router])
-
-  const q = urlQ.trim()
-  const typesParam = filter === 'all' ? '' : `&types=${filter}`
+  const q = query.q.trim()
+  const typeFilter = query.filters.types ?? ''
 
   const getKey = (index: number, prev: WorkSearchResponse | null): string | null => {
     if (!q) return null
     if (prev && !prev.hasMore) return null
     const cursor = prev?.nextCursor ? `&cursor=${encodeURIComponent(prev.nextCursor)}` : ''
-    return `/api/work/search?q=${encodeURIComponent(q)}&limit=${PAGE_LIMIT}${typesParam}${cursor}`
+    const types = typeFilter ? `&types=${typeFilter}` : ''
+    return `/api/work/search?q=${encodeURIComponent(q)}&limit=${PAGE_LIMIT}${types}${cursor}`
   }
 
   const { data, error, size, setSize, isLoading, isValidating } =
     useSWRInfinite<WorkSearchResponse>(getKey)
 
+  // '더 보기'는 URL(page)이 진실이다 — 새로고침해도 보던 만큼 다시 불러온다
+  useEffect(() => { if (size !== query.page) setSize(query.page) }, [query.page, size, setSize])
+
   const results = data ? data.flatMap((p) => p.results) : []
   const hasMore = data ? (data[data.length - 1]?.hasMore ?? false) : false
-  const isLoadingMore = isValidating && !!data && size > data.length
-  const isFirstLoad = !data && isLoading && !!q
 
+  const columns = useMemo<ColumnDef<WorkSearchResult>[]>(() => [
+    {
+      key: 'title', header: '제목', primary: true,
+      cell: (r) => (
+        <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: SEARCH_TYPE_META[r.type].color }}>
+            {SEARCH_TYPE_META[r.type].label}
+          </span>
+          <span style={{ fontWeight: 600, color: 'var(--text)', wordBreak: 'break-word' }}>{highlight(r.title, q)}</span>
+        </span>
+      ),
+    },
+    {
+      key: 'snippet', header: '내용',
+      cell: (r) => r.snippet
+        ? <span style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>{highlight(r.snippet, q)}</span>
+        : <span style={{ color: 'var(--text-faint)' }}>—</span>,
+    },
+    {
+      key: 'date', header: '날짜', align: 'right',
+      cell: (r) => <time dateTime={r.date} style={{ color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>{formatDate(r.date)}</time>,
+    },
+  ], [q])
+
+  // PageHeader의 h1에는 id가 없다 — 끊긴 aria-labelledby 대신 섹션에 직접 이름을 준다
   return (
-    <section aria-labelledby="work-search-heading">
+    <section aria-label="통합 검색">
       <PageHeader
         title="통합 검색"
         description="개인 일일업무 · 부서업무 · 주간보고를 한 번에 찾습니다."
       />
-      <h1 id="work-search-heading" className="sr-only" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>통합 검색</h1>
 
-      <div className="work-search-input-wrap">
-        <Search size={18} aria-hidden="true" className="work-search-input-icon" />
-        <input className="input-field work-search-input"
-          type="search"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="검색어를 입력하세요…"
-          aria-label="업무 통합 검색"
-          enterKeyHint="search"
-          autoFocus
+      <ListToolbar
+        query={query}
+        onChange={set}
+        searchPlaceholder="업무 제목·내용으로 검색"
+        filters={[TYPE_FILTER]}
+        views={['card']}
+        showSize={false}
+        total={q && !isLoading ? results.length : undefined}
+      />
+
+      {!q ? (
+        <EmptyState
+          title="검색어를 입력하세요"
+          description="업무 제목·내용으로 일일·부서·주간 기록을 찾아봅니다."
         />
-      </div>
-
-      <div className="work-search-filters" role="group" aria-label="결과 유형 필터">
-        {FILTER_CHIPS.map((chip) => (
-          <button
-            key={chip.key}
-            type="button"
-            className="work-search-chip"
-            aria-pressed={filter === chip.key}
-            onClick={() => setFilter(chip.key)}
-          >
-            {chip.label}
-          </button>
-        ))}
-      </div>
-
-      {/* 검색어 없음 안내 */}
-      {!q && (
-        <div className="work-search-state">
-          <Search size={40} className="work-search-state-icon" aria-hidden="true" />
-          <p className="work-search-state-title">검색어를 입력하세요</p>
-          <p className="work-search-state-desc">업무 제목·내용으로 일일·부서·주간 기록을 찾아봅니다.</p>
-        </div>
-      )}
-
-      {/* 에러 */}
-      {q && error && (
-        <div className="work-search-state" role="alert">
-          <AlertTriangle size={40} className="work-search-state-icon" aria-hidden="true" style={{ color: 'var(--danger)' }} />
-          <p className="work-search-state-title">검색에 실패했습니다</p>
-          <p className="work-search-state-desc">{error.message || '잠시 후 다시 시도해 주세요.'}</p>
-          <NbButton variant="secondary" onClick={() => setSize(1)}>다시 시도</NbButton>
-        </div>
-      )}
-
-      {/* 로딩(첫 페이지) — 스켈레톤 */}
-      {isFirstLoad && !error && (
-        <div className="work-search-list" aria-busy="true" aria-label="검색 중">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="work-search-skeleton" />
-          ))}
-        </div>
-      )}
-
-      {/* 빈 결과 */}
-      {q && !error && !isFirstLoad && results.length === 0 && (
-        <div className="work-search-state">
-          <SearchX size={40} className="work-search-state-icon" aria-hidden="true" />
-          <p className="work-search-state-title">검색 결과가 없습니다</p>
-          <p className="work-search-state-desc">&ldquo;{q}&rdquo;에 일치하는 업무를 찾지 못했습니다.</p>
-        </div>
-      )}
-
-      {/* 결과 리스트 */}
-      {q && !error && results.length > 0 && (
+      ) : (
         <>
-          <div className="work-search-list">
-            {results.map((r) => (
-              <ResultCard key={`${r.type}-${r.id}`} result={r} query={q} />
-            ))}
-          </div>
-          {hasMore && (
-            <div className="work-search-more">
-              <NbButton
-                variant="secondary"
-                onClick={() => setSize(size + 1)}
-                disabled={isLoadingMore}
-              >
-                {isLoadingMore ? '불러오는 중…' : '더 보기'}
-              </NbButton>
-            </div>
-          )}
+          <ListSurface
+            rows={results}
+            columns={columns}
+            query={query}
+            rowKey={(r) => `${r.type}-${r.id}`}
+            onChange={set}
+            loading={isLoading}
+            error={error ? { message: '검색에 실패했습니다', code: error.message, onRetry: () => { void setSize(1) } } : null}
+            empty={{ title: '검색 결과가 없습니다', description: `“${q}”에 일치하는 업무를 찾지 못했습니다. 다른 낱말로 찾아보세요.` }}
+            onRowClick={(r) => router.push(r.href)}
+          />
+          <ListPager query={query} hasMore={hasMore} onChange={set} loading={isValidating && !isLoading} />
         </>
       )}
     </section>

@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/server'
-import { Settings2 } from 'lucide-react'
+import PageHeader from '@/components/ui/PageHeader'
 import {
   updateMeta,
   updateProjects,
@@ -31,17 +31,10 @@ export default async function AdminContentPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.375rem' }}>
-          <Settings2 size={20} color="var(--brand)" />
-          <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
-            콘텐츠 관리
-          </h1>
-        </div>
-        <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.9rem' }}>
-          본부 콘텐츠를 관리합니다. 각 섹션에서 항목을 추가·수정·삭제하고 저장하세요.
-        </p>
-      </div>
+      <PageHeader
+        title="콘텐츠 관리"
+        description="본부 콘텐츠를 관리합니다. 각 섹션에서 항목을 추가·수정·삭제하고 저장하세요."
+      />
 
       <ContentSections
         data={byKey}

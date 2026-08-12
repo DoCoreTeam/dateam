@@ -127,7 +127,8 @@ export default function ListSurface<T>({
                   key={c.key}
                   // 첫 칸(또는 primary)은 모바일 카드의 제목 줄이 된다
                   className={c.primary || (i === 0 && !columns.some((x) => x.primary)) ? 'card-header' : (c.hideOnCard ? 'card-hide' : undefined)}
-                  data-label={c.header}
+                  // 이름이 필요 없는 칸(썸네일·액션)은 모바일에서 레이블을 붙이지 않는다
+                  data-label={c.noLabel ? undefined : c.header}
                   style={{ textAlign: c.align }}
                 >
                   {c.cell(row)}

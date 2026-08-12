@@ -6,6 +6,7 @@ import { ChevronDown, Trash2, Pencil, AlertTriangle } from 'lucide-react'
 import type { WeeklyReport } from '@/types/database'
 import { deleteWeeklyReport } from './actions'
 import RichText from '@/components/ui/RichText'
+import EmptyState from '@/components/ui/EmptyState'
 
 interface WeekGroup {
   weekStart: string
@@ -88,24 +89,19 @@ function ReportCard({ report }: { report: WeeklyReport }) {
           )}
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             <button
+              type="button"
+              className="btn-primary"
               onClick={handleDelete}
               disabled={pending}
-              style={{
-                padding: 'var(--space-2) var(--space-4)', backgroundColor: 'var(--danger)', color: '#fff',
-                border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer',
-                fontSize: 'var(--fs-base)', fontWeight: 700,
-              }}
+              style={{ background: 'var(--danger)', borderColor: 'var(--danger)' }}
             >
               {pending ? '삭제 중...' : '영구 삭제'}
             </button>
             <button
+              type="button"
+              className="btn-ghost"
               onClick={() => { setConfirmDelete(false); setDeleteError(null) }}
               disabled={pending}
-              style={{
-                padding: 'var(--space-2) var(--space-4)', backgroundColor: '#fff', color: 'var(--text-muted)',
-                border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer',
-                fontSize: 'var(--fs-base)',
-              }}
             >
               취소
             </button>
@@ -167,9 +163,10 @@ export default function ReportAccordion({ groups }: ReportAccordionProps) {
 
   if (groups.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: 'var(--space-12) var(--space-4)', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>
-        작성된 주간보고가 없습니다
-      </div>
+      <EmptyState
+        title="지난 주간보고가 아직 없어요"
+        description="이번 주 보고를 저장하면 다음 주부터 여기에 쌓입니다"
+      />
     )
   }
 

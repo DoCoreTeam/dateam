@@ -260,7 +260,7 @@ export default function UnifiedTable({ rows, loading = false, error = null, usdK
         </div>
         <ViewSwitcher value={view} onChange={setView} />
         {/* 통화 토글 — 기존 가격표와 동일(원/달러). 모든 금액이 이 모드를 따른다. */}
-        <div className="gpu-seg gpu-unified-cur" role="group" aria-label="표시 통화">
+        <div className="gpu-seg" role="group" aria-label="표시 통화">
           <button type="button" className={currencyMode === 'KRW' ? 'on' : ''} onClick={() => setCurrencyMode('KRW')} title="원화 기준">₩ 원</button>
           <button type="button" className={currencyMode === 'USD' ? 'on' : ''} onClick={() => setCurrencyMode('USD')} title="달러 기준">$ 달러</button>
         </div>

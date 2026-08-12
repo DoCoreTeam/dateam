@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import { useSearchParams } from 'next/navigation'
 import useSWR, { SWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
@@ -39,6 +40,39 @@ interface SettingsData {
 interface ReviewPendingData {
   items: unknown[]
 }
+
+const ADMIN_TABS: { id: SecondaryTabId; label: string; icon: React.ReactNode }[] = [
+  {
+    id: 'review',
+    label: '검토 대기',
+    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>,
+  },
+  {
+    id: 'suppliers',
+    label: '공급사',
+    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>,
+  },
+  {
+    id: 'competitors',
+    label: '경쟁사',
+    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="7" r="3"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2M15 15h2a4 4 0 014 4v2"/></svg>,
+  },
+  {
+    id: 'sources',
+    label: '수집 소스',
+    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg>,
+  },
+  {
+    id: 'specs',
+    label: '스펙 관리',
+    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6M9 13h6M9 17h3"/></svg>,
+  },
+  {
+    id: 'log',
+    label: '변동 이력',
+    icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>,
+  },
+]
 
 const MAIN_TABS: { id: MainTabId; label: string; icon: React.ReactNode }[] = [
   {
@@ -261,115 +295,30 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
         </div>
       </div>
 
-      {/* 메인 탭 + 더보기 인라인 */}
-      <div className="gpu-tabs" style={{ display: 'flex', alignItems: 'center', borderBottom: 'var(--hairline) solid var(--gpu-border)', paddingBottom: 0 }}>
-        {/* 통합 표 ON: 메인 5탭(가격표·가격결정·시장·재고·고객가)은 통합 표의 보기 세그먼트가 대체 → 'intake'·'board'만 유지 */}
-        {(unifiedOn ? MAIN_TABS.filter((t) => t.id === 'intake' || t.id === 'board') : MAIN_TABS).map((tab) => (
-          <button
-            key={tab.id}
-            className={`gpu-tab${activeTab === tab.id ? ' active' : ''}`}
-            onClick={() => goToTab(tab.id)}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
-        <div style={{ width: 1, height: 16, background: 'var(--gpu-border)', margin: '0 6px', flexShrink: 0 }} />
-        <div className="gpu-admin-tabs">
-        {[
-          {
-            id: 'review' as SecondaryTabId,
-            label: '검토 대기',
-            badge: pendingCount,
-            icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>,
-          },
-          {
-            id: 'suppliers' as SecondaryTabId,
-            label: '공급사',
-            badge: 0,
-            icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>,
-          },
-          {
-            id: 'competitors' as SecondaryTabId,
-            label: '경쟁사',
-            badge: 0,
-            icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="7" r="3"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2M15 15h2a4 4 0 014 4v2"/></svg>,
-          },
-          {
-            id: 'sources' as SecondaryTabId,
-            label: '수집 소스',
-            badge: 0,
-            icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg>,
-          },
-          {
-            id: 'specs' as SecondaryTabId,
-            label: '스펙 관리',
-            badge: 0,
-            icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6M9 13h6M9 17h3"/></svg>,
-          },
-          {
-            id: 'log' as SecondaryTabId,
-            label: '변동 이력',
-            badge: 0,
-            icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>,
-          },
-        ]
-          // P4-3 메뉴 분리(RBAC): 마스터 관리 탭은 admin 전용. member는 통합 표 상세 패널에서 마스터를 읽음.
-          .filter((item) => isAdmin || !(['suppliers', 'competitors', 'sources', 'specs'] as SecondaryTabId[]).includes(item.id))
-          .map((item) => (
-          <button
-            key={item.id}
-            onClick={() => goToTab(item.id)}
-            className="gpu-admin-tab"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 3,
-              padding: '3px 8px',
-              borderRadius: 5,
-              border: 'var(--hairline) solid',
-              borderColor: activeTab === item.id ? 'var(--gpu-accent)' : 'var(--gpu-border)',
-              background: activeTab === item.id ? 'rgba(var(--gpu-accent-rgb, 59,130,246),0.08)' : 'transparent',
-              color: activeTab === item.id ? 'var(--gpu-accent)' : 'var(--gpu-muted)',
-              fontSize: 11,
-              fontWeight: activeTab === item.id ? 600 : 400,
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-              marginRight: 3,
-            }}
-          >
-            {item.icon}
-            {item.label}
-            {item.badge > 0 && (
-              <span style={{
-                background: 'var(--danger)',
-                color: '#fff',
-                borderRadius: 9,
-                fontSize: 9,
-                padding: '0 5px',
-                fontWeight: 700,
-                lineHeight: '16px',
-              }}>{item.badge}</span>
-            )}
-          </button>
-        ))}
-        </div>
-        <label className="gpu-admin-tab-select-wrap">
-          <span>관리 화면</span>
-          <select className="input-field gpu-admin-tab-select"
-            value={isMainTab(activeTab) ? '' : activeTab}
-            onChange={(e) => { if (e.target.value) goToTab(e.target.value as SecondaryTabId) }}
-            aria-label="GPU 관리 화면 선택"
-          >
-            <option value="" disabled>선택</option>
-            <option value="review">검토 대기{pendingCount > 0 ? ` (${pendingCount})` : ''}</option>
-            {isAdmin && <option value="suppliers">공급사</option>}
-            {isAdmin && <option value="competitors">경쟁사</option>}
-            {isAdmin && <option value="sources">수집 소스</option>}
-            {isAdmin && <option value="specs">스펙 관리</option>}
-            <option value="log">변동 이력</option>
-          </select>
-        </label>
+      {/* 탭 — 메인/관리를 한 줄로 합쳐 공용 SegmentedTabs가 그린다.
+           예전엔 메인은 .gpu-tab, 관리는 인라인 style(정의 없는 .gpu-admin-tab)로 그려
+           같은 줄의 탭이 서로 다른 모양이었고, 관리 탭은 규칙이 없어 스타일이 통째로 빠져 있었다.
+           모바일 전용 select도 함께 걷어냈다 — 탭 자체가 가로 스크롤된다. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+        <SegmentedTabs
+          ariaLabel="GPU 관리 화면"
+          activeId={activeTab}
+          onSelect={(id) => goToTab(id as MainTabId | SecondaryTabId)}
+          tabs={[
+            // 통합 표 ON: 메인 5탭은 통합 표의 보기 세그먼트가 대체 → 'intake'·'board'만 남긴다
+            ...(unifiedOn ? MAIN_TABS.filter((t) => t.id === 'intake' || t.id === 'board') : MAIN_TABS)
+              .map((t) => ({ id: t.id as string, label: t.label, icon: t.icon })),
+            // 마스터 관리 탭은 admin 전용(P4-3 RBAC) — member는 통합 표 상세 패널에서 읽는다
+            ...ADMIN_TABS
+              .filter((item) => isAdmin || !(['suppliers', 'competitors', 'sources', 'specs'] as SecondaryTabId[]).includes(item.id))
+              .map((item) => ({
+                id: item.id as string,
+                label: item.id === 'review' && pendingCount > 0 ? `${item.label} ${pendingCount}` : item.label,
+                icon: item.icon,
+              })),
+          ]}
+        />
+
         {/* AI 조회 토글 — 모든 탭에서 상시 노출(어느 화면에서든 우리 데이터에 질문). */}
         <div style={{ marginLeft: 'auto', paddingRight: 4, flexShrink: 0 }}>
           <button

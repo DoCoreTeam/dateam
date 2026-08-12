@@ -1,6 +1,11 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import PageHeader from '@/components/ui/PageHeader'
+import EmptyState from '@/components/ui/EmptyState'
+import ErrorState from '@/components/ui/ErrorState'
+import NbBadge from '@/components/ui/nb/NbBadge'
+import type { StatusKey } from '@/lib/tokens/status-colors'
 
 function useOrigin(fallback = '') {
   const [origin, setOrigin] = useState(fallback)
@@ -76,7 +81,7 @@ function ProductsResult({ data }: { data: { data?: Product[]; meta?: { total?: n
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <span style={{ fontWeight: 700, color: 'var(--color-border)', fontSize: 15 }}>GPU 제품 목록</span>
+        <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>GPU 제품 목록</span>
         <div style={{ display: 'flex', gap: 12 }}>
           {meta?.total && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>총 {meta.total}개</span>}
           {meta?.fx_usd_krw && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>환율 {meta.fx_usd_krw.toLocaleString()}원/USD</span>}
@@ -84,21 +89,21 @@ function ProductsResult({ data }: { data: { data?: Product[]; meta?: { total?: n
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {items.slice(0, 10).map((p, i) => (
-          <div key={p.id ?? i} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 120px 120px 70px', gap: 12, alignItems: 'center', padding: '12px 16px', background: 'var(--text)', border: 'var(--hairline) solid var(--text)', borderRadius: 8, fontSize: 13 }}>
+          <div key={p.id ?? i} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 120px 120px 70px', gap: 12, alignItems: 'center', padding: '12px 16px', background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 8, fontSize: 13 }}>
             <div>
-              <span style={{ fontWeight: 600, color: 'var(--color-border)' }}>{p.model_name ?? '—'}</span>
-              {p.memory && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 6px', background: 'var(--text)', borderRadius: 4, color: 'var(--text-muted)' }}>{p.memory}</span>}
+              <span style={{ fontWeight: 600, color: 'var(--text)' }}>{p.model_name ?? '—'}</span>
+              {p.memory && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 6px', background: 'var(--surface-muted)', borderRadius: 4, color: 'var(--text-muted)' }}>{p.memory}</span>}
               {p.tier && <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--brand)' }}>Tier {p.tier}</span>}
             </div>
             <div style={{ color: 'var(--text-muted)' }}>{p.gpu_count ? `×${p.gpu_count}` : '—'}</div>
             <div style={{ color: 'var(--success)', fontFamily: 'monospace', fontWeight: 600 }}>
               {p.price_per_unit_usd != null ? `$${p.price_per_unit_usd.toLocaleString()}` : '—'}
             </div>
-            <div style={{ color: 'var(--text-faint)', fontFamily: 'monospace', fontSize: 12 }}>
+            <div style={{ color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: 12 }}>
               {p.price_per_unit_krw != null ? `₩${p.price_per_unit_krw.toLocaleString()}` : '—'}
             </div>
             <div>
-              <span style={{ padding: '3px 8px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: p.available ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: p.available ? 'var(--success)' : 'var(--danger)' }}>
+              <span style={{ padding: '3px 8px', borderRadius: 100, fontSize: 11, fontWeight: 600, background: p.available ? 'var(--success-bg)' : 'var(--danger-bg)', color: p.available ? 'var(--success)' : 'var(--danger)' }}>
                 {p.available ? '가용' : '품절'}
               </span>
             </div>
@@ -123,7 +128,7 @@ function QuoteResult({ data }: { data: { data?: { items?: QuoteItem[]; summary?:
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <span style={{ fontWeight: 700, color: 'var(--color-border)', fontSize: 15 }}>견적서</span>
+        <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>견적서</span>
         {summary?.quoted_at && (
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             {new Date(summary.quoted_at).toLocaleString('ko-KR')} 기준
@@ -131,10 +136,10 @@ function QuoteResult({ data }: { data: { data?: { items?: QuoteItem[]; summary?:
         )}
       </div>
 
-      <div style={{ background: 'var(--text)', border: 'var(--hairline) solid var(--text)', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
+      <div style={{ background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
-            <tr style={{ background: 'var(--text)' }}>
+            <tr style={{ background: 'var(--surface-muted)' }}>
               <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>제품</th>
               <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>수량</th>
               <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>단가</th>
@@ -145,10 +150,10 @@ function QuoteResult({ data }: { data: { data?: { items?: QuoteItem[]; summary?:
           </thead>
           <tbody>
             {items.map((item, i) => (
-              <tr key={i} style={{ borderTop: 'var(--hairline) solid var(--text)' }}>
-                <td style={{ padding: '12px 16px', color: 'var(--color-border)', fontWeight: 500 }}>{item.model_name ?? '—'}</td>
-                <td style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-faint)' }}>{item.quantity ?? 0}</td>
-                <td style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-faint)', fontFamily: 'monospace' }}>
+              <tr key={i} style={{ borderTop: 'var(--hairline) solid var(--border-light)' }}>
+                <td style={{ padding: '12px 16px', color: 'var(--text)', fontWeight: 500 }}>{item.model_name ?? '—'}</td>
+                <td style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-muted)' }}>{item.quantity ?? 0}</td>
+                <td style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                   {isKRW && item.unit_price_krw != null ? `₩${item.unit_price_krw.toLocaleString()}` :
                    item.unit_price_usd != null ? `$${item.unit_price_usd.toLocaleString()}` : '—'}
                 </td>
@@ -160,7 +165,7 @@ function QuoteResult({ data }: { data: { data?: { items?: QuoteItem[]; summary?:
                    item.total_usd != null ? `$${item.total_usd.toLocaleString()}` : '—'}
                 </td>
                 <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                  <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 100, background: item.available ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: item.available ? 'var(--success)' : 'var(--danger)' }}>
+                  <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 100, background: item.available ? 'var(--success-bg)' : 'var(--danger-bg)', color: item.available ? 'var(--success)' : 'var(--danger)' }}>
                     {item.available ? '가용' : '품절'}
                   </span>
                 </td>
@@ -172,13 +177,13 @@ function QuoteResult({ data }: { data: { data?: { items?: QuoteItem[]; summary?:
 
       {summary && (
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <div style={{ background: 'var(--text)', border: 'var(--hairline) solid var(--text)', borderRadius: 10, padding: '16px 24px', minWidth: 260 }}>
+          <div style={{ background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 10, padding: '16px 24px', minWidth: 260 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13, color: 'var(--text-muted)' }}>
               <span>환율 적용</span>
               <span style={{ fontFamily: 'monospace' }}>1 USD = ₩{summary.fx_usd_krw?.toLocaleString() ?? '—'}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: 'var(--hairline) solid var(--text)' }}>
-              <span style={{ fontWeight: 700, color: 'var(--color-border)' }}>최종 합계</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: 'var(--hairline) solid var(--border-light)' }}>
+              <span style={{ fontWeight: 700, color: 'var(--text)' }}>최종 합계</span>
               <span style={{ fontWeight: 700, color: 'var(--success)', fontSize: 18, fontFamily: 'monospace' }}>
                 {isKRW ? `₩${(summary.total ?? 0).toLocaleString()}` : `$${(summary.subtotal_usd ?? 0).toLocaleString()}`}
               </span>
@@ -197,7 +202,7 @@ function InventoryResult({ data }: { data: { data?: InventoryItem[]; meta?: { as
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <span style={{ fontWeight: 700, color: 'var(--color-border)', fontSize: 15 }}>재고 현황</span>
+        <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>재고 현황</span>
         {data?.meta?.as_of && (
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             기준: {new Date(data.meta.as_of).toLocaleString('ko-KR')}
@@ -208,20 +213,20 @@ function InventoryResult({ data }: { data: { data?: InventoryItem[]; meta?: { as
         {items.map((item, i) => {
           const pct = Math.round(((item.available_qty ?? 0) / maxQty) * 100)
           return (
-            <div key={item.product_id ?? i} style={{ background: 'var(--text)', border: 'var(--hairline) solid var(--text)', borderRadius: 8, padding: '12px 16px' }}>
+            <div key={item.product_id ?? i} style={{ background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 8, padding: '12px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div>
-                  <span style={{ fontWeight: 600, color: 'var(--color-border)', fontSize: 13 }}>{item.model_name ?? '—'}</span>
-                  {item.memory && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 6px', background: 'var(--text)', borderRadius: 4, color: 'var(--text-muted)' }}>{item.memory}</span>}
+                  <span style={{ fontWeight: 600, color: 'var(--text)', fontSize: 13 }}>{item.model_name ?? '—'}</span>
+                  {item.memory && <span style={{ marginLeft: 8, fontSize: 11, padding: '1px 6px', background: 'var(--surface-muted)', borderRadius: 4, color: 'var(--text-muted)' }}>{item.memory}</span>}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 13, fontFamily: 'monospace', color: 'var(--text-faint)' }}>{(item.available_qty ?? 0).toLocaleString()}개</span>
-                  <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 100, fontWeight: 600, background: item.in_stock ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: item.in_stock ? 'var(--success)' : 'var(--danger)' }}>
+                  <span style={{ fontSize: 13, fontFamily: 'monospace', color: 'var(--text-muted)' }}>{(item.available_qty ?? 0).toLocaleString()}개</span>
+                  <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 100, fontWeight: 600, background: item.in_stock ? 'var(--success-bg)' : 'var(--danger-bg)', color: item.in_stock ? 'var(--success)' : 'var(--danger)' }}>
                     {item.in_stock ? '가용' : '품절'}
                   </span>
                 </div>
               </div>
-              <div style={{ height: 6, background: 'var(--text)', borderRadius: 100, overflow: 'hidden' }}>
+              <div style={{ height: 6, background: 'var(--surface-muted)', borderRadius: 100, overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${pct}%`, background: item.in_stock ? 'var(--success)' : 'var(--danger)', borderRadius: 100, transition: 'width .5s' }} />
               </div>
             </div>
@@ -237,12 +242,12 @@ function FxResult({ data }: { data: { data?: FxRate[]; meta?: { total?: number }
   return (
     <div>
       <div style={{ marginBottom: 16 }}>
-        <span style={{ fontWeight: 700, color: 'var(--color-border)', fontSize: 15 }}>USD/KRW 환율 이력</span>
+        <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>USD/KRW 환율 이력</span>
       </div>
-      <div style={{ background: 'var(--text)', border: 'var(--hairline) solid var(--text)', borderRadius: 10, overflow: 'hidden' }}>
+      <div style={{ background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
-            <tr style={{ background: 'var(--text)' }}>
+            <tr style={{ background: 'var(--surface-muted)' }}>
               <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>날짜</th>
               <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>1 USD = KRW</th>
               <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>변동</th>
@@ -254,8 +259,8 @@ function FxResult({ data }: { data: { data?: FxRate[]; meta?: { total?: number }
               const prev = items[i + 1]
               const diff = prev?.usd_krw != null && r.usd_krw != null ? r.usd_krw - prev.usd_krw : null
               return (
-                <tr key={r.rate_date ?? i} style={{ borderTop: 'var(--hairline) solid var(--text)' }}>
-                  <td style={{ padding: '12px 16px', color: 'var(--color-border)', fontFamily: 'monospace' }}>{r.rate_date ?? '—'}</td>
+                <tr key={r.rate_date ?? i} style={{ borderTop: 'var(--hairline) solid var(--border-light)' }}>
+                  <td style={{ padding: '12px 16px', color: 'var(--text)', fontFamily: 'monospace' }}>{r.rate_date ?? '—'}</td>
                   <td style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--success)', fontFamily: 'monospace', fontWeight: 600 }}>
                     {r.usd_krw != null ? r.usd_krw.toLocaleString('ko-KR', { minimumFractionDigits: 1 }) : '—'}
                   </td>
@@ -282,18 +287,18 @@ function SuppliersResult({ data }: { data: { data?: Supplier[] } }) {
   return (
     <div>
       <div style={{ marginBottom: 16 }}>
-        <span style={{ fontWeight: 700, color: 'var(--color-border)', fontSize: 15 }}>공급사 목록</span>
+        <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>공급사 목록</span>
         <span style={{ marginLeft: 10, fontSize: 12, color: 'var(--text-muted)' }}>총 {items.length}개</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
         {items.map((s, i) => (
-          <div key={s.id ?? i} style={{ background: 'var(--text)', border: 'var(--hairline) solid var(--text)', borderRadius: 10, padding: '16px 18px' }}>
-            <div style={{ fontWeight: 700, color: 'var(--color-border)', fontSize: 14, marginBottom: 4 }}>{s.name ?? '—'}</div>
+          <div key={s.id ?? i} style={{ background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 10, padding: '16px 18px' }}>
+            <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 14, marginBottom: 4 }}>{s.name ?? '—'}</div>
             {s.location && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>📍 {s.location}</div>}
-            {s.contact && <div style={{ fontSize: 12, color: 'var(--text-faint)', marginBottom: 8 }}>✉️ {s.contact}</div>}
+            {s.contact && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>✉️ {s.contact}</div>}
             <div style={{ display: 'flex', gap: 10, fontSize: 12 }}>
               {s.active_quotes != null && (
-                <span style={{ padding: '2px 8px', background: 'rgba(124,58,237,0.1)', color: 'var(--brand-soft-2)', borderRadius: 100 }}>
+                <span style={{ padding: '2px 8px', background: 'var(--brand-soft)', color: 'var(--brand)', borderRadius: 100 }}>
                   활성 견적 {s.active_quotes}건
                 </span>
               )}
@@ -307,26 +312,26 @@ function SuppliersResult({ data }: { data: { data?: Supplier[] } }) {
 
 function GenericTableResult({ data, title }: { data: { data?: Record<string, unknown>[] }; title: string }) {
   const items = Array.isArray(data?.data) ? data.data : []
-  if (!items.length) return <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>데이터 없음</div>
+  if (!items.length) return <EmptyState title="결과가 0건입니다" description="다른 데모를 실행하거나 API 키를 확인해 주세요." />
   const keys = Object.keys(items[0]).slice(0, 7)
   return (
     <div>
       <div style={{ marginBottom: 12 }}>
-        <span style={{ fontWeight: 700, color: 'var(--color-border)', fontSize: 15 }}>{title}</span>
+        <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>{title}</span>
         <span style={{ marginLeft: 10, fontSize: 12, color: 'var(--text-muted)' }}>총 {(data as { total?: number }).total ?? items.length}건</span>
       </div>
-      <div style={{ background: 'var(--text)', border: 'var(--hairline) solid var(--text)', borderRadius: 10, overflow: 'auto' }}>
+      <div style={{ background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 10, overflow: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
-            <tr style={{ background: 'var(--text)' }}>
+            <tr style={{ background: 'var(--surface-muted)' }}>
               {keys.map(k => <th key={k} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</th>)}
             </tr>
           </thead>
           <tbody>
             {items.slice(0, 8).map((row, i) => (
-              <tr key={i} style={{ borderTop: 'var(--hairline) solid var(--text)' }}>
+              <tr key={i} style={{ borderTop: 'var(--hairline) solid var(--border-light)' }}>
                 {keys.map(k => (
-                  <td key={k} style={{ padding: '8px 12px', color: 'var(--text-faint)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td key={k} style={{ padding: '8px 12px', color: 'var(--text-muted)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {String(row[k] ?? '—')}
                   </td>
                 ))}
@@ -342,10 +347,11 @@ function GenericTableResult({ data, title }: { data: { data?: Record<string, unk
 function renderDemoResult(activeDemo: string, parsed: Record<string, unknown>) {
   if (!parsed.success) {
     return (
-      <div style={{ padding: '16px 20px', background: 'rgba(239,68,68,0.05)', border: 'var(--hairline) solid rgba(239,68,68,0.2)', borderRadius: 10 }}>
-        <div style={{ color: 'var(--danger)', fontWeight: 600, marginBottom: 4 }}>오류</div>
-        <div style={{ color: 'var(--text-faint)', fontSize: 13 }}>{String(parsed.error ?? 'Unknown error')}</div>
-      </div>
+      <ErrorState
+        message={String(parsed.error ?? 'Unknown error')}
+        helpHref="/api-keys"
+        helpLabel="API 키 확인"
+      />
     )
   }
 
@@ -359,13 +365,16 @@ function renderDemoResult(activeDemo: string, parsed: Record<string, unknown>) {
   if (activeDemo.includes('영업기회')) return <GenericTableResult data={parsed as Parameters<typeof GenericTableResult>[0]['data']} title="영업기회 목록" />
 
   return (
-    <pre style={{ margin: 0, fontSize: 12, color: 'var(--color-border)', overflowX: 'auto' }}>
+    <pre style={{ margin: 0, fontSize: 12, color: 'var(--text)', overflowX: 'auto' }}>
       {JSON.stringify(parsed, null, 2)}
     </pre>
   )
 }
 
 // ─── 메인 데모 섹션 ───────────────────────────────────────────────────────────
+
+/** HTTP 메서드 → 뱃지 의미색. 색맵을 화면에서 만들지 않는다(NbBadge SSOT) */
+const METHOD_STATUS: Record<string, StatusKey> = { GET: 'done', POST: 'planned', PATCH: 'note', DELETE: 'blocker' }
 
 interface Demo {
   label: string
@@ -485,35 +494,30 @@ export default function DemoSection() {
     },
   ]
 
-  const methodColors: Record<string, string> = { GET: 'var(--success)', POST: 'var(--brand)' }
+  // HTTP 메서드 뱃지 — 색은 NbBadge(.badge[data-status])가 토큰으로 준다
 
   return (
     <div>
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 13, color: 'var(--brand)', fontWeight: 600, marginBottom: 8 }}>🧪 인터랙티브 데모</div>
-        <h1 style={{ fontSize: 32, fontWeight: 800, color: 'var(--surface-muted)', marginBottom: 12, letterSpacing: '-0.02em' }}>라이브 API 테스트</h1>
-        <p style={{ color: 'var(--text-faint)', lineHeight: 1.7, fontSize: 15, marginBottom: 0 }}>
-          실제 API 키를 입력하고 버튼을 누르면 라이브 데이터가 아래에 구조화된 UI로 표시됩니다.
-          JSON 원문을 보려면 결과 우측 상단의 <strong style={{ color: 'var(--color-border)' }}>JSON 보기</strong>를 클릭하세요.
-        </p>
-      </div>
+      <PageHeader
+        title="라이브 API 테스트"
+        description="실제 API 키를 입력하고 버튼을 누르면 라이브 데이터가 아래에 구조화된 UI로 표시됩니다. JSON 원문은 결과 우측 상단의 'JSON 보기'로 확인하세요."
+      />
 
       {/* API Key 입력 */}
-      <div style={{ background: 'var(--text)', border: 'var(--hairline) solid var(--text)', borderRadius: 12, padding: '20px 24px', marginBottom: 28 }}>
-        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-faint)', marginBottom: 8 }}>
+      <div className="card" style={{ padding: 'var(--space-5) var(--space-6)', marginBottom: 'var(--space-6)' }}>
+        <label htmlFor="ax-demo-key" className="label">
           API Key <span style={{ color: 'var(--danger)' }}>*</span>
         </label>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <input
+        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+          <input className="input-field"
+            id="ax-demo-key"
             type="password"
             placeholder="ax_live_..."
             value={apiKey}
             onChange={e => setApiKey(e.target.value)}
-            style={{ flex: 1, padding: '10px 14px', borderRadius: 8, border: 'var(--hairline) solid var(--text)', background: 'var(--text)', color: 'var(--color-border)', fontSize: 14, outline: 'none', fontFamily: 'monospace' }}
+            style={{ flex: 1, fontFamily: 'monospace' }}
           />
-          <a href="/api-keys" style={{ padding: '10px 16px', borderRadius: 8, background: 'rgba(124,58,237,0.1)', color: 'var(--brand-soft-2)', fontSize: 13, fontWeight: 500, textDecoration: 'none', border: 'var(--hairline) solid rgba(124,58,237,0.2)', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
-            키 발급 →
-          </a>
+          <a href="/api-keys" className="btn-ghost" style={{ whiteSpace: 'nowrap' }}>키 발급</a>
         </div>
         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '8px 0 0' }}>
           입력한 키는 이 브라우저에서만 사용됩니다. 서버에 저장되지 않습니다.
@@ -521,27 +525,30 @@ export default function DemoSection() {
       </div>
 
       {/* 데모 버튼 그리드 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 28 }}>
+      {/* 고정 4열 금지(반응형 정책) — 공용 그리드 클래스가 모바일에서 2열로 접는다 */}
+      <div className="responsive-grid-cols-4" style={{ marginBottom: 'var(--space-6)' }}>
         {demos.map(({ label, emoji, desc, method, endpoint }) => {
           const isActive = activeDemo === label
           return (
             <button
               key={label}
+              type="button"
+              className="card"
               onClick={() => run(label, demos.find(d => d.label === label)!.fn)}
               disabled={loading && isActive}
               style={{
-                padding: '14px 16px', borderRadius: 10, border: `var(--hairline) solid ${isActive ? 'var(--brand)' : 'var(--text)'}`,
-                background: isActive ? 'rgba(124,58,237,0.08)' : 'var(--text)',
-                color: 'var(--color-border)', cursor: loading && isActive ? 'wait' : 'pointer',
-                textAlign: 'left', transition: 'all .15s',
+                padding: 'var(--space-4)',
+                background: isActive ? 'var(--brand-soft)' : undefined,
+                color: 'var(--text)', cursor: loading && isActive ? 'wait' : 'pointer',
+                textAlign: 'left',
               }}
             >
-              <div style={{ fontSize: 20, marginBottom: 6 }}>{loading && isActive ? '⏳' : emoji}</div>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{label}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>{desc}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, background: (methodColors[method] ?? 'var(--text-muted)') + '22', color: methodColors[method] ?? 'var(--text-muted)', fontWeight: 700, fontFamily: 'monospace' }}>{method}</span>
-                <code style={{ fontSize: 10, color: 'var(--text-muted)' }}>{endpoint}</code>
+              <div style={{ fontSize: 'var(--fs-xl)', marginBottom: 'var(--space-2)' }}>{loading && isActive ? '⏳' : emoji}</div>
+              <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', marginBottom: 'var(--space-1)' }}>{label}</div>
+              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-2)' }}>{desc}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+                <NbBadge status={METHOD_STATUS[method]}>{method}</NbBadge>
+                <code style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>{endpoint}</code>
               </div>
             </button>
           )
@@ -550,26 +557,26 @@ export default function DemoSection() {
 
       {/* 결과 */}
       {result !== null && (
-        <div style={{ background: 'var(--text)', border: 'var(--hairline) solid var(--text)', borderRadius: 12, overflow: 'hidden' }}>
-          <div style={{ padding: '12px 20px', background: 'var(--text)', borderBottom: 'var(--hairline) solid var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="card" style={{ overflow: 'hidden' }}>
+          <div style={{ padding: '12px 20px', background: 'var(--surface-muted)', borderBottom: 'var(--hairline) solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: result.success ? 'var(--success)' : 'var(--danger)', display: 'inline-block' }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-faint)' }}>{activeDemo}</span>
-              {result.success === true && <span style={{ fontSize: 11, color: 'var(--success)', background: 'rgba(16,185,129,0.1)', padding: '2px 7px', borderRadius: 100 }}>200 OK</span>}
-              {!result.success && <span style={{ fontSize: 11, color: 'var(--danger)', background: 'rgba(239,68,68,0.1)', padding: '2px 7px', borderRadius: 100 }}>오류</span>}
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>{activeDemo}</span>
+              {result.success === true && <span style={{ fontSize: 11, color: 'var(--success)', background: 'var(--success-bg)', padding: '2px 7px', borderRadius: 100 }}>200 OK</span>}
+              {!result.success && <span style={{ fontSize: 11, color: 'var(--danger)', background: 'var(--danger-bg)', padding: '2px 7px', borderRadius: 100 }}>오류</span>}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setShowRaw(v => !v)} style={{ padding: '3px 10px', borderRadius: 6, border: 'var(--hairline) solid var(--text)', background: showRaw ? 'var(--text)' : 'var(--text)', color: 'var(--text-faint)', fontSize: 12, cursor: 'pointer' }}>
+              <button type="button" className="btn-ghost" onClick={() => setShowRaw(v => !v)}>
                 {showRaw ? 'UI 보기' : 'JSON 보기'}
               </button>
-              <button onClick={() => { try { navigator.clipboard.writeText(JSON.stringify(result, null, 2)) } catch {} }} style={{ padding: '3px 10px', borderRadius: 6, border: 'var(--hairline) solid var(--text)', background: 'var(--text)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer' }}>
+              <button type="button" className="btn-ghost" onClick={() => { try { navigator.clipboard.writeText(JSON.stringify(result, null, 2)) } catch {} }}>
                 복사
               </button>
             </div>
           </div>
           <div style={{ padding: '20px 24px', maxHeight: 560, overflowY: 'auto' }}>
             {showRaw ? (
-              <pre style={{ margin: 0, fontSize: 12, lineHeight: 1.7, color: 'var(--color-border)', overflowX: 'auto' }}>
+              <pre style={{ margin: 0, fontSize: 12, lineHeight: 1.7, color: 'var(--text)', overflowX: 'auto' }}>
                 {JSON.stringify(result, null, 2)}
               </pre>
             ) : (

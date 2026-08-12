@@ -7,6 +7,7 @@ import { STATUS_COLORS, PRIORITY_COLORS, type PriorityKey } from '@/lib/tokens/s
 import { isProgressAuto } from '@/lib/dept-task-utils'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
+import EmptyState from '@/components/ui/EmptyState'
 import { isEnterKey } from '@/lib/ui/ime'
 import {
   updateDeptTaskProgress, assignTask, deleteDeptTask,
@@ -191,7 +192,11 @@ export default function DeptTaskDetail({ task, canAssign, canEdit, nameMap, dept
               <div>{c.content}</div>
             </li>
           ))}
-          {comments.length === 0 && <li style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-base)' }}>아직 댓글이 없습니다.</li>}
+          {comments.length === 0 && (
+            <li>
+              <EmptyState title="첫 진행 코멘트를 남겨보세요" description="아래 입력창에 진행 상황을 적으면 담당자와 공유됩니다" />
+            </li>
+          )}
         </ul>
         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
           <input className="input-field" value={commentText} onChange={(e) => setCommentText(e.target.value)}

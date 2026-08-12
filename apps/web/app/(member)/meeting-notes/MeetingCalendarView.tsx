@@ -13,6 +13,7 @@ interface Props {
   ym: string // 'YYYY-MM'
   q: string
   sort: string
+  dir: 'asc' | 'desc'
   filter: string
 }
 
@@ -41,15 +42,16 @@ function dayKey(iso: string | null): string | null {
   return kstDateKey(iso) || null
 }
 
-export default function MeetingCalendarView({ items, ym, q, sort, filter }: Props) {
+export default function MeetingCalendarView({ items, ym, q, sort, dir, filter }: Props) {
   const { year, month } = parseYm(ym)
 
   function navHref(targetYm: string): string {
     const params = new URLSearchParams()
     if (q) params.set('q', q)
-    if (sort !== 'recent') params.set('sort', sort)
+    if (sort !== 'meeting_at') params.set('sort', sort)
+    if (dir !== 'desc') params.set('dir', dir)
     if (filter !== 'all') params.set('filter', filter)
-    params.set('view', 'calendar')
+    params.set('mode', 'calendar')
     params.set('ym', targetYm)
     return `/meeting-notes?${params.toString()}`
   }

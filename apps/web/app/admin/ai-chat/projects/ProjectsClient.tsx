@@ -7,6 +7,8 @@ import type { AiChatProject } from '@/types/database'
 import { useEscClose } from '@/lib/use-esc-close'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import NbButton from '@/components/ui/nb/NbButton'
+import PageHeader from '@/components/ui/PageHeader'
+import EmptyState from '@/components/ui/EmptyState'
 import { createProject, updateProject, softDeleteProject, listProjects } from '../actions'
 import { isEnterKey } from '@/lib/ui/ime'
 
@@ -38,44 +40,33 @@ export default function ProjectsClient({ initialProjects }: Props) {
 
   return (
     <div>
-      {/* 페이지 헤더 — 표준(§2-3): fs-2xl / 700 / -0.03em / --text */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)', flexWrap: 'wrap', marginBottom: 'var(--space-6)' }}>
-        <div style={{ minWidth: 0 }}>
-          <Link
-            href="/ai-chat"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', textDecoration: 'none', marginBottom: 'var(--space-2)' }}
-          >
-            <ArrowLeft size={14} />
-            AI 채팅으로
-          </Link>
-          <h1 style={{ margin: 0, fontSize: 'var(--fs-2xl)', fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text)' }}>
-            프로젝트
-          </h1>
-          <p style={{ margin: 'var(--space-2) 0 0', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-            지시문과 지식을 묶어 대화에 컨텍스트로 주입합니다.
-          </p>
-        </div>
-        <NbButton onClick={openCreate} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', minHeight: 44 }}>
-          <Plus size={16} />
-          새 프로젝트
-        </NbButton>
-      </div>
-
-      {/* 목록 / 빈 상태 */}
-      {projects.length === 0 ? (
-        <div className="card" style={{ padding: 'var(--space-8) var(--space-6)', textAlign: 'center' }}>
-          <FolderOpen size={32} color="var(--text-faint)" style={{ margin: '0 auto var(--space-3)' }} />
-          <p style={{ margin: 0, fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text)' }}>
-            아직 프로젝트가 없습니다.
-          </p>
-          <p style={{ margin: 'var(--space-1) 0 var(--space-4)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-            첫 프로젝트를 만들어 지식과 지시문을 정리하세요.
-          </p>
+      {/* 페이지 헤더 — 공용 PageHeader(§2-3). raw <h1>을 화면이 다시 그리지 않는다 */}
+      <Link
+        href="/ai-chat"
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', textDecoration: 'none', marginBottom: 'var(--space-2)' }}
+      >
+        <ArrowLeft size={14} />
+        AI 채팅으로
+      </Link>
+      <PageHeader
+        title="프로젝트"
+        description="지시문과 지식을 묶어 대화에 컨텍스트로 주입합니다."
+        actions={
           <NbButton onClick={openCreate} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', minHeight: 44 }}>
             <Plus size={16} />
             새 프로젝트
           </NbButton>
-        </div>
+        }
+      />
+
+      {/* 목록 / 빈 상태 */}
+      {projects.length === 0 ? (
+        <EmptyState
+          icon={<FolderOpen size={32} />}
+          title="아직 프로젝트가 없어요"
+          description="첫 프로젝트를 만들어 지식과 지시문을 정리하세요"
+          action={{ label: '새 프로젝트', onClick: openCreate }}
+        />
       ) : (
         <div className="responsive-grid-cols-3" style={{ gap: 'var(--space-4)' }}>
           {projects.map((p) => (

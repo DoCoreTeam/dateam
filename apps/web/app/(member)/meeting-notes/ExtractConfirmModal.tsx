@@ -198,6 +198,7 @@ function CandidateRow({ selectable, checked, onToggle, title, confidence, quote,
   return (
     <li style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start', padding: 'var(--space-2) var(--space-3)', background: 'var(--surface-bg)', borderRadius: 'var(--radius)' }}>
       {selectable && (
+        // 토글류(checkbox/radio)는 필드 스타일 비대상 — input-field의 배경·보더·radius가 네이티브 체크 렌더를 덮는다
         <input type="checkbox" checked={checked} onChange={onToggle} aria-label={`${title} 선택`} style={{ marginTop: 4 }} />
       )}
       <div style={{ flex: 1, minWidth: 0 }}>

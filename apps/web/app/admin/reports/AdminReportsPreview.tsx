@@ -6,6 +6,7 @@ import { Sparkles, RefreshCw } from 'lucide-react'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 import AXDotLoader from '@/components/ui/AXDotLoader'
+import ErrorState from '@/components/ui/ErrorState'
 import RichText from '@/components/ui/RichText'
 import AXLoadingOverlay from '@/components/ui/AXLoadingOverlay'
 
@@ -210,22 +211,8 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
 
       {/* Trigger button + inline status */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
-        <button
-          onClick={handlePreview}
-          disabled={loading}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)',
-            padding: 'var(--space-2) var(--space-4)',
-            background: loading ? 'var(--brand-dark)' : 'linear-gradient(135deg, var(--brand), var(--brand))',
-            color: '#fff', border: 'none', borderRadius: 'var(--radius)',
-            fontSize: 'var(--fs-base)', fontWeight: 600,
-            cursor: loading ? 'not-allowed' : 'pointer',
-            opacity: loading ? 0.85 : 1, transition: 'opacity 200ms',
-            boxShadow: '0 2px 8px rgba(124,58,237,0.35)',
-            flexShrink: 0,
-          }}
-        >
-          {loading ? <AXDotLoader size={5} color="#fff" /> : <Sparkles size={15} />}
+        <button type="button" className="btn-primary" onClick={handlePreview} disabled={loading}>
+          {loading ? <AXDotLoader size={5} color="var(--brand-fg)" /> : <Sparkles size={15} />}
           AI 주간보고 취합
         </button>
 
@@ -254,11 +241,15 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
         )}
 
         {restoring && !loading && rows.length === 0 && (
-          <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>저장본 불러오는 중…</span>
+          <span style={{ color: 'var(--text-muted)' }} aria-label="저장본 확인 중"><AXDotLoader /></span>
         )}
-
-        {error && <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>{error}</p>}
       </div>
+
+      {error && (
+        <div style={{ marginTop: 'var(--space-3)' }}>
+          <ErrorState message={error} onRetry={handlePreview} />
+        </div>
+      )}
 
       {/* Preview panel */}
       {rows.length > 0 && (
@@ -279,11 +270,14 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
               )}
             </div>
             <button
+              type="button"
+              className="btn-primary"
               onClick={handleDownload}
               disabled={downloading}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', background: 'var(--success)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: downloading ? 'not-allowed' : 'pointer', opacity: downloading ? 0.7 : 1, transition: 'opacity 150ms', flexShrink: 0 }}
+              style={{ backgroundColor: 'var(--success)', color: 'var(--success-fg)', flexShrink: 0 }}
             >
-              {downloading ? '다운로드 중…' : 'DOCX 다운로드'}
+              {downloading ? <AXDotLoader size={5} color="var(--success-fg)" /> : null}
+              {downloading ? '다운로드 중' : 'DOCX 다운로드'}
             </button>
           </div>
 
@@ -332,8 +326,10 @@ export default function AdminReportsPreview({ week, member, members = '', deptNa
                         <td key={field} data-label={FIELD_LABELS[field]} style={{ padding: '0.75rem 0.875rem', verticalAlign: 'top' }}>
                           <RichCell html={row[field]} />
                           <button
+                            type="button"
+                            className="btn-ghost"
                             onClick={() => setEditingCell({ rowIdx, field })}
-                            style={{ marginTop: '0.375rem', padding: '0.125rem 0.375rem', fontSize: '0.7rem', color: 'var(--text-faint)', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', lineHeight: 1.4 }}
+                            style={{ marginTop: '0.375rem', padding: '0.125rem 0.5rem', fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}
                           >
                             수정
                           </button>

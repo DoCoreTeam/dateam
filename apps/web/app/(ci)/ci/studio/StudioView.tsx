@@ -15,6 +15,7 @@ import {
 import { analyzeVideoFile, MAX_ANALYZE_SEC, type AnalyzeProgress } from '@/lib/ci/production/video-analyze'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
+import AXDotLoader from '@/components/ui/AXDotLoader'
 
 const KIND_LABEL: Record<EditPoint['kind'], string> = {
   hook: '훅', trim: '잘라내기', cut: '컷', emphasis: '강조', length: '길이',
@@ -108,7 +109,8 @@ export default function StudioView({ workspaceId }: { workspaceId: string }) {
         </div>
 
         {busy && (
-          <p className="ci-basis" role="status">
+          <p className="ci-basis" role="status" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <AXDotLoader />
             {progress?.phase === 'video' ? '화면을 훑는 중' : progress?.phase === 'audio' ? '소리를 살피는 중' : '마무리 중'}
             {' · '}{Math.round((progress?.ratio ?? 0) * 100)}%
           </p>
@@ -194,9 +196,11 @@ export default function StudioView({ workspaceId }: { workspaceId: string }) {
             )}
 
             {points && points.length === 0 && (
-              <p className="empty-state-desc">
-                제안할 편집점을 찾지 못했습니다. 이미 군더더기가 없거나, 분석이 신호를 얻지 못한 경우입니다.
-              </p>
+              <EmptyState
+                title="제안할 편집점이 없어요"
+                description="이미 군더더기가 없거나, 분석이 신호를 얻지 못한 경우예요. 다른 영상으로 다시 해보세요."
+                action={{ label: '다른 영상 고르기', onClick: () => inputRef.current?.click() }}
+              />
             )}
 
             {points && points.length > 0 && (

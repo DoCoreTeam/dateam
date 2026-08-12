@@ -47,7 +47,7 @@ export default function ProjectMembersClient({ projectId, initialMembers, profil
     {available.length > 0 && <div className="responsive-grid-cols-2" style={{ display: 'grid', gap: 8 }}>
       <select className="input-field" value={userId} onChange={(event) => setUserId(event.target.value)} style={{ minHeight: 44 }}><option value="">참여자 선택</option>{available.map((profile) => <option key={profile.id} value={profile.id}>{profile.name ?? '이름 없음'}</option>)}</select>
       <select className="input-field" value={role} onChange={(event) => setRole(event.target.value)} style={{ minHeight: 44 }}><option value="manager">운영자</option><option value="contributor">참여자</option><option value="viewer">조회자</option><option value="stakeholder">이해관계자</option></select>
-      <button onClick={add} disabled={!userId} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44, border: 0, borderRadius: 'var(--radius)', background: 'var(--brand)', color: 'var(--brand-fg)', fontWeight: 600, cursor: userId ? 'pointer' : 'not-allowed' }}><Plus size={16} /> 추가</button>
+      <button type="button" className="btn-primary" onClick={add} disabled={!userId} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44 }}><Plus size={16} /> 추가</button>
     </div>}
     {error && <div role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>{error}</div>}
   </div>

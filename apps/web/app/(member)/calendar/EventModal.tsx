@@ -97,46 +97,48 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
         {/* 자연어 */}
         <div ref={nlRef}><DraftRestoreBanner show={nlDraft.hasDraft} onRestore={nlDraft.restore} onDiscard={nlDraft.discard} /></div>
         <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.875rem' }}>
-          <input value={nl} onChange={(e) => setNl(e.target.value)} placeholder="자연어: 내일 오후 3시 A사 미팅"
+          <input className="input-field" value={nl} onChange={(e) => setNl(e.target.value)} placeholder="자연어: 내일 오후 3시 A사 미팅"
+            aria-label="자연어로 일정 입력"
             onKeyDown={(e) => { if (isEnterKey(e)) { e.preventDefault(); parseNl() } }}
-            style={{ flex: 1, border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem 0.625rem', fontSize: 'var(--fs-sm)', outline: 'none' }} />
-          <button onClick={parseNl} disabled={aiBusy} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand-fg)', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-3)', cursor: aiBusy ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+            style={{ flex: 1, minWidth: 0 }} />
+          <button type="button" onClick={parseNl} disabled={aiBusy} className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
             <Sparkles size={14} /> {aiBusy ? '파싱중' : 'AI 파싱'}
           </button>
         </div>
 
         {msg && <div role="status" style={{ padding: 'var(--space-2) var(--space-3)', background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)', marginBottom: '0.75rem', fontSize: '0.78rem', color: 'var(--brand-dark)' }}>{msg}</div>}
 
-        <label style={lbl}>제목</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="일정 제목" style={inp} />
+        <label className="label" htmlFor="cal-ev-title">제목</label>
+        <input id="cal-ev-title" className="input-field" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="일정 제목" />
 
         <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '0.75rem', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 130 }}>
-            <label style={lbl}>날짜</label>
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={inp} />
+            <label className="label" htmlFor="cal-ev-date">날짜</label>
+            <input id="cal-ev-date" type="date" className="input-field" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           </div>
           {!allDay && (
             <>
               <div style={{ width: 100 }}>
-                <label style={lbl}>시작</label>
-                <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={inp} />
+                <label className="label" htmlFor="cal-ev-start">시작</label>
+                <input id="cal-ev-start" type="time" className="input-field" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
               </div>
               <div style={{ width: 100 }}>
-                <label style={lbl}>종료</label>
-                <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} style={inp} />
+                <label className="label" htmlFor="cal-ev-end">종료</label>
+                <input id="cal-ev-end" type="time" className="input-field" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
               </div>
             </>
           )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', cursor: 'pointer' }}>
+          <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: 0, cursor: 'pointer' }}>
+            {/* 토글류(checkbox/radio)는 필드 스타일 비대상 — input-field의 배경·보더·radius가 네이티브 체크 렌더를 덮는다 */}
             <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} /> 종일
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
+          <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: 0 }}>
             반복
-            <select value={repeat} onChange={(e) => setRepeat(e.target.value as 'none' | 'daily' | 'weekly')}
-              style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.3rem 0.5rem', fontSize: 'var(--fs-sm)' }}>
+            <select className="input-field" value={repeat} onChange={(e) => setRepeat(e.target.value as 'none' | 'daily' | 'weekly')}
+              style={{ width: 'auto' }}>
               <option value="none">안 함</option>
               <option value="daily">매일</option>
               <option value="weekly">매주</option>
@@ -144,17 +146,15 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
           </label>
         </div>
 
-        <label style={{ ...lbl, marginTop: '0.75rem' }}>설명 (선택)</label>
-        <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }} />
+        <label className="label" htmlFor="cal-ev-desc" style={{ marginTop: '0.75rem' }}>설명 (선택)</label>
+        <textarea id="cal-ev-desc" className="input-field" value={desc} onChange={(e) => setDesc(e.target.value)} rows={2} style={{ resize: 'vertical' }} />
 
         <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>취소</button>
-          <button onClick={save} disabled={busy} style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--brand-fg)', background: 'var(--brand)', border: 'none', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-5)', cursor: busy ? 'wait' : 'pointer' }}>{busy ? '저장중' : '저장'}</button>
+          <button type="button" onClick={onClose} className="btn-ghost">취소</button>
+          <button type="button" onClick={save} disabled={busy} className="btn-primary">{busy ? '저장중' : '저장'}</button>
         </div>
       </div>
     </div>
   )
 }
 
-const lbl: React.CSSProperties = { display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-faint)', marginBottom: '0.25rem' }
-const inp: React.CSSProperties = { width: '100%', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.5rem 0.625rem', fontSize: 'var(--fs-sm)', outline: 'none', boxSizing: 'border-box' }

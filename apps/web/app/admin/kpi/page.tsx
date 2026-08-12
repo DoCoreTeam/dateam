@@ -1,9 +1,12 @@
 import { redirect } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
+import EmptyState from '@/components/ui/EmptyState'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { toDateString, getWeekStart } from '@/lib/utils'
 import { BarChart2 } from 'lucide-react'
 import type { Profile, KpiEntry } from '@/types/database'
+import { rateColor } from './rate-color'
+import KpiLogTable, { type KpiLogRow } from './KpiLogTable'
 
 interface PageProps {
   searchParams: Promise<{ period_start?: string; period_end?: string }>
@@ -19,12 +22,6 @@ type KpiEntryWithProfile = KpiEntry & { profiles: { name: string } }
 
 function parseTargetNumber(target: string): number {
   return parseFloat(target) || 0
-}
-
-function rateColor(rate: number) {
-  if (rate >= 100) return { color: 'var(--success)', background: 'var(--success-bg)' }
-  if (rate >= 50) return { color: 'var(--warning)', background: 'var(--warning-bg)' }
-  return { color: 'var(--danger)', background: 'var(--danger-bg)' }
 }
 
 export default async function AdminKpiPage({ searchParams }: PageProps) {
@@ -97,6 +94,21 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
     ])
   )
 
+  // 목록 부품으로 넘길 직렬화 가능한 행(달성률까지 서버에서 산출)
+  const logRows: KpiLogRow[] = allEntries.map((entry) => {
+    const t = targetMap.get(entry.metric_name)
+    return {
+      id: entry.id,
+      userName: entry.profiles?.name ?? '-',
+      metricName: entry.metric_name,
+      value: entry.value,
+      unit: entry.unit ?? null,
+      rate: t && t.targetNum > 0 ? Math.round((entry.value / t.targetNum) * 100) : null,
+      periodStart: entry.period_start,
+      periodEnd: entry.period_end,
+    }
+  })
+
   return (
     <div>
       <PageHeader title="KPI 집계" description="팀원별 KPI 실적과 달성률을 확인합니다" />
@@ -116,7 +128,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
         </form>
       </div>
 
-      {/* 팀원별 KPI 달성률 */}
+      {/* 팀원별 KPI 달성률 — 사람×지표 교차표(목록이 아니라 피벗이라 표를 유지) */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <BarChart2 size={16} color="var(--brand)" />
@@ -136,7 +148,7 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
                       <th key={m} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {m}
                         {t && (
-                          <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 400, color: 'var(--text-faint)', marginTop: '0.1rem' }}>
+                          <span style={{ display: 'block', fontSize: 'var(--fs-2xs)', fontWeight: 400, color: 'var(--text-faint)', marginTop: '0.1rem' }}>
                             목표 {t.targetStr}
                           </span>
                         )}
@@ -171,13 +183,13 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
                                   )}
                                 </span>
                                 {rate !== null && (
-                                  <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: '9999px', ...rateColor(rate) }}>
+                                  <span className="badge" style={{ ...rateColor(rate), fontSize: 'var(--fs-2xs)', fontWeight: 700 }}>
                                     {rate}%
                                   </span>
                                 )}
                               </div>
                             ) : (
-                              <span style={{ color: 'var(--border-subtle)', fontSize: 'var(--fs-sm)' }}>-</span>
+                              <span style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>-</span>
                             )}
                           </td>
                         )
@@ -189,72 +201,19 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
             </table>
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: 'var(--space-12) var(--space-4)', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>
-            <BarChart2 size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
-            <p style={{ margin: 0 }}>해당 기간에 입력된 KPI 데이터가 없습니다</p>
-          </div>
+          <EmptyState
+            icon={<BarChart2 size={36} />}
+            title="해당 기간에 입력된 KPI가 없어요"
+            description="기간을 넓혀 조회하거나, 조직 KPI 목표를 먼저 설정하세요"
+            action={{ label: 'KPI 목표 설정', href: '/admin/content' }}
+          />
         )}
       </div>
 
       {/* 전체 KPI 로그 */}
-      <div className="card">
-        <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
-          <h2 className="tape-title" style={{ margin: 0 }}>전체 KPI 로그</h2>
-        </div>
-        <table className="table-base table-card">
-          <thead>
-            <tr>
-              <th>팀원</th>
-              <th>KPI 항목</th>
-              <th style={{ textAlign: 'right' }}>실적</th>
-              <th>달성률</th>
-              <th>기간</th>
-            </tr>
-          </thead>
-          <tbody>
-            {allEntries.map((entry) => {
-              const t = targetMap.get(entry.metric_name)
-              const rate = t && t.targetNum > 0 ? Math.round((entry.value / t.targetNum) * 100) : null
-              return (
-                <tr key={entry.id}>
-                  <td className="card-header">
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 'var(--space-2)' }}>
-                      <div>
-                        <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 'var(--fs-base)' }}>{entry.profiles?.name ?? '-'}</div>
-                        <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', marginTop: '0.125rem' }}>{entry.metric_name}</div>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem', flexShrink: 0 }}>
-                        <strong style={{ color: 'var(--text)' }}>{entry.value.toLocaleString()}{entry.unit && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', marginLeft: '0.2rem' }}>{entry.unit}</span>}</strong>
-                        {rate !== null && (
-                          <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: '9999px', ...rateColor(rate) }}>
-                            {rate}%
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="card-hide"><span style={{ color: 'var(--text)' }}>{entry.metric_name}</span></td>
-                  <td className="card-hide" style={{ textAlign: 'right' }}>
-                    <strong>{entry.value.toLocaleString()}</strong>
-                    {entry.unit && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', marginLeft: '0.25rem' }}>{entry.unit}</span>}
-                  </td>
-                  <td className="card-hide">
-                    {rate !== null ? (
-                      <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '9999px', ...rateColor(rate) }}>
-                        {rate}%
-                      </span>
-                    ) : (
-                      <span style={{ color: 'var(--border-subtle)', fontSize: 'var(--fs-sm)' }}>-</span>
-                    )}
-                  </td>
-                  <td data-label="기간">
-                    <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>{entry.period_start} ~ {entry.period_end}</span>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+      <div className="card" style={{ padding: 'var(--space-5) var(--space-6)' }}>
+        <h2 className="tape-title" style={{ margin: '0 0 var(--space-4)' }}>전체 KPI 로그</h2>
+        <KpiLogTable entries={logRows} />
       </div>
     </div>
   )

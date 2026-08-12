@@ -1,4 +1,5 @@
 import { redirect, notFound } from 'next/navigation'
+import PageHeader from '@/components/ui/PageHeader'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import DealForm from '../../DealForm'
 import type { Deal, Account, Contact } from '@/types/database'
@@ -23,9 +24,7 @@ export default async function EditDealPage({ params }: PageProps) {
 
   return (
     <div>
-      <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>영업기회 편집</h1>
-      </div>
+      <PageHeader title="영업기회 편집" description={deal.title} />
       <DealForm deal={deal} accounts={accounts ?? []} contacts={contacts ?? []} />
     </div>
   )

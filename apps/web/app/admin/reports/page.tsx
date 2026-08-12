@@ -5,15 +5,12 @@ import { subWeeks } from 'date-fns'
 import { FileText, Download } from 'lucide-react'
 import type { Profile, WeeklyReport } from '@/types/database'
 import AdminReportsPreview from './AdminReportsPreview'
-import RichText from '@/components/ui/RichText'
+import PageHeader from '@/components/ui/PageHeader'
 import { resolveOrgScope, deptMemberUserIds } from '@/lib/org-scope'
 import DeptReportPanel, { type AnyRow, type AggState } from '@/app/(member)/weekly-report/DeptReportPanel'
 import DeptAggGrid from './DeptAggGrid'
+import ReportsTable, { type ReportRow } from './ReportsTable'
 import { computeDeptAggStats, type DeptAggStat, type CompanyRollup } from '@/lib/weekly-report/dept-agg-stats'
-
-function RichCell({ html }: { html: string }) {
-  return <RichText html={html} style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.6 }} />
-}
 
 interface PageProps {
   searchParams: Promise<{ week?: string; member?: string; sel?: string }>
@@ -111,35 +108,30 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
 
   const { data: reports } = await query as { data: ReportWithProfile[] | null; error: unknown }
 
+  // 클라이언트 목록 부품으로 넘길 직렬화 가능한 행(함수·객체 미포함)
+  const reportRows: ReportRow[] = (reports ?? []).map((r) => ({
+    id: r.id,
+    userName: r.profiles?.name ?? '-',
+    category: r.category,
+    performance: r.performance,
+    plan: r.plan,
+    issues: r.issues,
+  }))
+
   return (
     <div>
-      <div style={{ marginBottom: '1.75rem' }}>
-        <h1
-          style={{
-            fontSize: 'var(--fs-2xl)',
-            fontWeight: 700,
-            color: 'var(--text)',
-            letterSpacing: '-0.03em',
-            margin: 0,
-          }}
-        >
-          전체 조직 주간보고 취합
-        </h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
-          모든 조직(전 부서) 주간보고를 주차별로 AI 취합합니다 — 부서 단위 취합은 각 부서장이 사용자 화면(주간보고 → 조직 현황)에서 수행합니다
-        </p>
-      </div>
+      <PageHeader
+        title="전체 조직 주간보고 취합"
+        description="모든 조직(전 부서) 주간보고를 주차별로 AI 취합합니다 — 부서 단위 취합은 각 부서장이 사용자 화면(주간보고 → 조직 현황)에서 수행합니다"
+      />
 
       {/* 필터 */}
       <div className="card" style={{ padding: 'var(--space-5) var(--space-6)', marginBottom: '1.5rem' }}>
         <form style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div>
             <label htmlFor="week" className="label">주차</label>
-            <select
-              id="week"
-              name="week"
+            <select id="week" name="week" className="input-field"
               defaultValue={selectedWeek}
-              className="input-field"
               style={{ width: 'clamp(160px, 100%, 220px)', cursor: 'pointer' }}
             >
               {weekOptions.map((w) => (
@@ -152,11 +144,8 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
 
           <div>
             <label htmlFor="sel" className="label">부서 / 팀원 필터</label>
-            <select
-              id="sel"
-              name="sel"
+            <select id="sel" name="sel" className="input-field"
               defaultValue={selValue}
-              className="input-field"
               style={{ width: 'clamp(160px, 100%, 200px)', cursor: 'pointer' }}
             >
               <option value="">전체 팀원</option>
@@ -178,19 +167,8 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
           <button type="submit" className="btn-primary">조회</button>
           <a
             href={`/api/reports/export?week=${selectedWeek}${member ? `&member=${member}` : ''}${memberCsv ? `&members=${memberCsv}` : ''}`}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              padding: 'var(--space-2) var(--space-4)',
-              backgroundColor: 'var(--success)',
-              color: '#fff',
-              borderRadius: 'var(--radius)',
-              fontSize: 'var(--fs-base)',
-              fontWeight: 600,
-              textDecoration: 'none',
-              cursor: 'pointer',
-            }}
+            className="btn-primary"
+            style={{ backgroundColor: 'var(--success)', color: 'var(--success-fg)', textDecoration: 'none' }}
           >
             <Download size={14} />
             DOCX 다운로드
@@ -247,52 +225,12 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
           <span className="tape-title" style={{ margin: 0 }}>
             {dept ? '원본 멤버 보고' : `${new Date(selectedWeek).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 주 보고서`}
           </span>
-          <span className="badge badge-slate">{reports?.length ?? 0}건</span>
+          <span className="badge badge-slate">{reportRows.length}건</span>
         </summary>
 
-        {reports && reports.length > 0 ? (
-          <table className="table-base table-card">
-            <thead>
-              <tr>
-                <th style={{ width: '120px', whiteSpace: 'nowrap' }}>팀원</th>
-                <th style={{ width: '80px', whiteSpace: 'nowrap' }}>구분</th>
-                <th>성과</th>
-                <th>계획</th>
-                <th>이슈/협조사항</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reports.map((report) => {
-                return (
-                  <tr key={report.id}>
-                    <td className="card-header">
-                      <span style={{ fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap' }}>
-                        {report.profiles?.name ?? '-'}
-                      </span>
-                    </td>
-                    <td data-label="구분">
-                      <span className="badge badge-indigo">{report.category}</span>
-                    </td>
-                    <td data-label="성과" style={{ maxWidth: '280px' }}>
-                      <RichCell html={report.performance} />
-                    </td>
-                    <td data-label="계획" style={{ maxWidth: '220px' }}>
-                      <RichCell html={report.plan} />
-                    </td>
-                    <td data-label="이슈" style={{ maxWidth: '200px' }}>
-                      <RichCell html={report.issues} />
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        ) : (
-          <div style={{ textAlign: 'center', padding: 'var(--space-12) var(--space-4)', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>
-            <FileText size={36} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
-            <p style={{ margin: 0 }}>해당 주차에 작성된 주간보고가 없습니다</p>
-          </div>
-        )}
+        <div style={{ padding: 'var(--space-4) var(--space-5)' }}>
+          <ReportsTable rows={reportRows} />
+        </div>
       </details>
     </div>
   )

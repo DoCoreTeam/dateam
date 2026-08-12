@@ -88,8 +88,8 @@ export default function ActivityLogger({ dealId }: Props) {
                   fontWeight: 600,
                   border: 'var(--hairline) solid',
                   cursor: 'pointer',
-                  background: type === t.value ? 'var(--brand)' : 'white',
-                  color: type === t.value ? 'white' : 'var(--text-muted)',
+                  background: type === t.value ? 'var(--brand)' : 'var(--color-surface)',
+                  color: type === t.value ? 'var(--brand-fg)' : 'var(--text-muted)',
                   borderColor: type === t.value ? 'var(--brand)' : 'var(--color-border)',
                 }}
               >
@@ -103,7 +103,8 @@ export default function ActivityLogger({ dealId }: Props) {
             onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.currentTarget.form?.requestSubmit() } }}
             rows={3}
             placeholder="활동 내용을 입력하세요... (Ctrl+Enter 저장)"
-            style={{ width: '100%', padding: '0.625rem 0.75rem', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', resize: 'vertical', boxSizing: 'border-box' }}
+            className="input-field"
+            style={{ resize: 'vertical', boxSizing: 'border-box' }}
           />
           {error && <p style={{ color: 'var(--danger)', fontSize: 'var(--fs-sm)', margin: 0 }}>{error}</p>}
           <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
@@ -113,7 +114,7 @@ export default function ActivityLogger({ dealId }: Props) {
             <button type="button" onClick={handleAiParse} disabled={aiLoading} style={{ fontSize: 'var(--fs-sm)', padding: '0.5rem 0.875rem', minHeight: '36px', background: 'var(--info-bg)', color: 'var(--info)', border: 'var(--hairline) solid var(--info-border)', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600 }}>
               {aiLoading ? 'AI분석중...' : '🤖 AI정리'}
             </button>
-            <button type="button" onClick={() => { setOpen(false); setContent(''); draft.clear(); setError('') }} style={{ fontSize: 'var(--fs-sm)', padding: '0.5rem 0.875rem', minHeight: '36px', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer', color: 'var(--text-muted)' }}>
+            <button type="button" onClick={() => { setOpen(false); setContent(''); draft.clear(); setError('') }} className="btn-ghost" style={{ minHeight: '36px' }}>
               취소
             </button>
           </div>

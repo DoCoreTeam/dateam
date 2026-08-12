@@ -1,8 +1,10 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { Briefcase, ArrowLeft, Globe, Phone, MapPin, Users, TrendingUp } from 'lucide-react'
+import { ArrowLeft, Globe, Phone, MapPin, Users, TrendingUp } from 'lucide-react'
 import type { Account, Contact, Deal } from '@/types/database'
+import PageHeader from '@/components/ui/PageHeader'
+import EmptyState from '@/components/ui/EmptyState'
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -49,27 +51,14 @@ export default async function AccountDetailPage({ params }: PageProps) {
 
   return (
     <div>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <Link href="/accounts" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: 'var(--brand)', fontSize: 'var(--fs-base)', fontWeight: 500, textDecoration: 'none', marginBottom: '0.75rem' }}>
-          <ArrowLeft size={14} /> 거래처 목록
-        </Link>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-            <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: 'var(--radius)', background: 'linear-gradient(135deg, var(--brand), var(--brand))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Briefcase size={18} color="white" />
-            </div>
-            <div>
-              <h1 style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>{account.name}</h1>
-              <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '0.25rem', flexWrap: 'wrap' }}>
-                {account.industry && <span className="badge badge-slate">{account.industry}</span>}
-                {account.segment && <span className="badge badge-indigo">{account.segment}</span>}
-                {account.size && <span className="badge" style={{ background: 'var(--color-bg)', color: 'var(--text-muted)' }}>{account.size}</span>}
-                {account.account_type && <span className="badge" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>{account.account_type}</span>}
-                {account.gpu_demand_intensity && <span className="badge" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>GPU {account.gpu_demand_intensity}</span>}
-              </div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+      {/* 목록 복귀 → 제목은 PageHeader(§2-3). 뱃지 줄은 제목에 종속되므로 below로 붙인다 */}
+      <Link href="/accounts" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: 'var(--brand)', fontSize: 'var(--fs-base)', fontWeight: 500, textDecoration: 'none', marginBottom: '0.75rem' }}>
+        <ArrowLeft size={14} /> 거래처 목록
+      </Link>
+      <PageHeader
+        title={account.name}
+        actions={
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
             {account.fit_score !== null && (
               <span style={{ fontSize: 'var(--fs-base)', fontWeight: 700, padding: '0.375rem 0.875rem', borderRadius: '9999px', ...fc }}>
                 Fit {account.fit_score}점
@@ -79,8 +68,17 @@ export default async function AccountDetailPage({ params }: PageProps) {
               편집
             </Link>
           </div>
-        </div>
-      </div>
+        }
+        below={
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+            {account.industry && <span className="badge badge-slate">{account.industry}</span>}
+            {account.segment && <span className="badge badge-indigo">{account.segment}</span>}
+            {account.size && <span className="badge" style={{ background: 'var(--color-bg)', color: 'var(--text-muted)' }}>{account.size}</span>}
+            {account.account_type && <span className="badge" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>{account.account_type}</span>}
+            {account.gpu_demand_intensity && <span className="badge" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>GPU {account.gpu_demand_intensity}</span>}
+          </div>
+        }
+      />
 
       <div className="responsive-grid-2" style={{ gap: 'var(--space-5)', alignItems: 'flex-start' }}>
         {/* 기본 정보 */}
@@ -142,7 +140,11 @@ export default async function AccountDetailPage({ params }: PageProps) {
               <Link href={`/contacts/new?account_id=${id}`} style={{ fontSize: 'var(--fs-sm)', color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}>+ 추가</Link>
             </div>
             {contacts.length === 0 ? (
-              <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>담당자가 없습니다</div>
+              <EmptyState
+                title="담당자가 아직 없어요"
+                description="이 거래처에 연결된 담당자를 추가하면 여기에 보입니다"
+                action={{ label: '담당자 추가', href: `/contacts/new?account_id=${id}` }}
+              />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {contacts.map((c) => (
@@ -171,7 +173,11 @@ export default async function AccountDetailPage({ params }: PageProps) {
             <Link href={`/deals/new?account_id=${id}`} style={{ fontSize: 'var(--fs-sm)', color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}>+ 추가</Link>
           </div>
           {deals.length === 0 ? (
-            <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>영업기회가 없습니다</div>
+            <EmptyState
+              title="영업기회가 아직 없어요"
+              description="이 거래처와 진행 중인 건을 등록하면 여기에 보입니다"
+              action={{ label: '영업기회 추가', href: `/deals/new?account_id=${id}` }}
+            />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {deals.map((d) => {

@@ -6,6 +6,8 @@ import { CheckSquare } from 'lucide-react'
 import type { Profile, RoutineCheck } from '@/types/database'
 import { DEFAULT_ROUTINES as DEFAULT_ITEMS } from '@/lib/routine-defaults'
 import type { RoutineItemParsed } from '@/lib/routine-defaults'
+import PageHeader from '@/components/ui/PageHeader'
+import RoutineTable, { type RoutineMemberRow } from './RoutineTable'
 
 type RoutineItemRaw = string | { name: string; freq?: 'daily' | 'weekly' }
 
@@ -76,39 +78,40 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
     if (c.is_completed) checkMap[c.user_id][c.routine_name] += 1
   })
 
-  // 전체 달성률 계산 (weekly=1, daily=7)
+  // 팀원별 달성률 — 표시 계층(RoutineTable)에 직렬화 가능한 값만 넘긴다
   let allCompleted = 0
   let allTotal = 0
-  profiles.forEach((p) => {
+  const memberRows: RoutineMemberRow[] = profiles.map((p) => {
     const template = templates.find((t) => t.name === p.name)
     const items: RoutineItemParsed[] = template?.items?.length ? parseItems(template.items) : DEFAULT_ITEMS
     const userChecks = checkMap[p.id] ?? {}
-    items.forEach((item) => {
+
+    let completed = 0
+    let total = 0
+    const itemStats = items.map((item) => {
       const max = item.freq === 'weekly' ? 1 : 7
-      allTotal += max
-      allCompleted += Math.min(userChecks[item.name] ?? 0, max)
+      const count = Math.min(userChecks[item.name] ?? 0, max)
+      total += max
+      completed += count
+      return { name: item.name, freq: item.freq, count, max, rate: Math.round((count / max) * 100) }
     })
+
+    allTotal += total
+    allCompleted += completed
+
+    return {
+      id: p.id,
+      name: p.name ?? '',
+      hasTemplate: Boolean(template),
+      rate: total > 0 ? Math.round((completed / total) * 100) : 0,
+      items: itemStats,
+    }
   })
   const overallRate = allTotal > 0 ? Math.round((allCompleted / allTotal) * 100) : 0
 
   return (
     <div>
-      <div style={{ marginBottom: '1.75rem' }}>
-        <h1
-          style={{
-            fontSize: 'var(--fs-2xl)',
-            fontWeight: 700,
-            color: 'var(--text)',
-            letterSpacing: '-0.03em',
-            margin: 0,
-          }}
-        >
-          루틴 달성 현황
-        </h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>
-          팀원별 개인 루틴 달성률을 주차별로 확인합니다
-        </p>
-      </div>
+      <PageHeader title="루틴 달성 현황" description="팀원별 개인 루틴 달성률을 주차별로 확인합니다" />
 
       {/* 필터 + 전체 달성률 */}
       <div className="responsive-grid-2" style={{ marginBottom: '1.5rem', alignItems: 'stretch' }}>
@@ -116,11 +119,8 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
           <form style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div>
               <label htmlFor="week" className="label">주차 선택</label>
-              <select
-                id="week"
-                name="week"
+              <select id="week" name="week" className="input-field"
                 defaultValue={selectedWeek}
-                className="input-field"
                 style={{ width: 'clamp(160px, 100%, 220px)', cursor: 'pointer' }}
               >
                 {weekOptions.map((w) => (
@@ -138,7 +138,7 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
           <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>전체 달성률</p>
           <p
             style={{
-              fontSize: '2rem',
+              fontSize: 'var(--fs-3xl)',
               fontWeight: 700,
               color: overallRate >= 70 ? 'var(--success)' : overallRate >= 40 ? 'var(--warning)' : 'var(--danger)',
               letterSpacing: '-0.04em',
@@ -151,96 +151,14 @@ export default async function AdminRoutinePage({ searchParams }: PageProps) {
         </div>
       </div>
 
-      {/* 팀원별 루틴 달성 카드 */}
-      <div className="card">
-        <div
-          style={{
-            padding: 'var(--space-5) var(--space-6)',
-            borderBottom: 'var(--border-w-2) solid var(--border-color)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--space-2)',
-          }}
-        >
+      {/* 팀원별 루틴 달성 목록 */}
+      <div className="card" style={{ padding: 'var(--space-5) var(--space-6)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
           <CheckSquare size={16} color="var(--brand)" />
-          <h2 className="tape-title" style={{ margin: 0 }}>
-            팀원별 루틴 달성률
-          </h2>
+          <h2 className="tape-title" style={{ margin: 0 }}>팀원별 루틴 달성률</h2>
         </div>
 
-        <table className="table-base table-card">
-          <thead>
-            <tr>
-              <th>팀원</th>
-              <th>루틴 항목</th>
-              <th style={{ textAlign: 'center', width: '120px' }}>달성률</th>
-            </tr>
-          </thead>
-          <tbody>
-            {profiles.map((profile) => {
-              const template = templates.find((t) => t.name === profile.name)
-              const items: RoutineItemParsed[] = template?.items?.length ? parseItems(template.items) : DEFAULT_ITEMS
-              const userChecks = checkMap[profile.id] ?? {}
-
-              let completed = 0
-              let total = 0
-              items.forEach((item) => {
-                const max = item.freq === 'weekly' ? 1 : 7
-                total += max
-                completed += Math.min(userChecks[item.name] ?? 0, max)
-              })
-              const rate = total > 0 ? Math.round((completed / total) * 100) : 0
-
-              return (
-                <tr key={profile.id}>
-                  <td className="card-header">
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 'var(--space-2)' }}>
-                      <div>
-                        <div style={{ fontWeight: 600, color: 'var(--text)' }}>{profile.name || '-'}</div>
-                        {!template && profile.name && (
-                          <div style={{ fontSize: '0.7rem', color: 'var(--warning)', marginTop: '2px' }}>
-                            조직도 미연결
-                          </div>
-                        )}
-                      </div>
-                      <span style={{ fontWeight: 700, fontSize: 'var(--fs-xl)', color: rate >= 70 ? 'var(--success)' : rate >= 40 ? 'var(--warning)' : 'var(--danger)', flexShrink: 0 }}>
-                        {rate}%
-                      </span>
-                    </div>
-                  </td>
-                  <td data-label="루틴">
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
-                      {items.map((item) => {
-                        const max = item.freq === 'weekly' ? 1 : 7
-                        const itemCount = Math.min(userChecks[item.name] ?? 0, max)
-                        const itemRate = Math.round((itemCount / max) * 100)
-                        return (
-                          <span
-                            key={item.name}
-                            className="badge"
-                            style={{
-                              backgroundColor: itemRate >= 80 ? 'var(--success-bg)' : itemRate >= 40 ? 'var(--warning-bg)' : 'var(--color-bg)',
-                              color: itemRate >= 80 ? 'var(--success)' : itemRate >= 40 ? 'var(--warning)' : 'var(--text-muted)',
-                              fontSize: 'var(--fs-2xs)',
-                            }}
-                            title={item.freq === 'weekly' ? `${itemCount}/1회` : `${itemCount}/7일`}
-                          >
-                            {item.name} {item.freq === 'weekly' ? (itemRate === 100 ? '✓' : '미완') : `${itemRate}%`}
-                          </span>
-                        )
-                      })}
-                    </div>
-                  </td>
-                  <td className="card-hide" style={{ textAlign: 'center' }}>
-                    <span style={{ fontWeight: 700, fontSize: 'var(--fs-lg)', color: rate >= 70 ? 'var(--success)' : rate >= 40 ? 'var(--warning)' : 'var(--danger)' }}>
-                      {rate}%
-                    </span>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+        <RoutineTable members={memberRows} />
       </div>
     </div>
   )

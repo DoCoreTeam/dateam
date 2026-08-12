@@ -143,13 +143,11 @@ export default function PipelineView({ workspaceId, ideas, seed }: Props) {
                 {cards.map((card) => (
                   <article
                     key={card.id}
+                    className="card"
                     draggable
                     onDragStart={() => setDragId(card.id)}
                     onDragEnd={() => setDragId(null)}
                     style={{
-                      background: 'var(--color-surface)',
-                      border: 'var(--border-w-2) solid var(--border-color)',
-                      borderRadius: 'var(--radius)',
                       padding: 'var(--space-3)',
                       cursor: 'grab',
                       display: 'flex', flexDirection: 'column', gap: 'var(--space-1)',

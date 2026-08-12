@@ -13,6 +13,7 @@ interface TierFormProps {
   defaultRate?: number
   defaultDescription?: string
   onCancel?: () => void
+  onSaved?: () => void
 }
 
 export default function TierForm({
@@ -22,6 +23,7 @@ export default function TierForm({
   defaultRate = 0,
   defaultDescription = '',
   onCancel,
+  onSaved,
 }: TierFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -41,8 +43,10 @@ export default function TierForm({
       setError(result.error)
     } else if (mode === 'create') {
       form.reset()
-    } else if (onCancel) {
-      onCancel()
+      onSaved?.()
+    } else {
+      onSaved?.()
+      onCancel?.()
     }
     setPending(false)
   }
@@ -51,84 +55,44 @@ export default function TierForm({
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
       <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 160px' }}>
-          <label style={{ display: 'block', fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-            등급명 *
-          </label>
-          <input
-            name="name"
+          <label htmlFor={`tier-name-${tierId ?? 'new'}`} className="label">등급명 *</label>
+          <input id={`tier-name-${tierId ?? 'new'}`} name="name" className="input-field"
             defaultValue={defaultName}
             placeholder="예: VIP, Gold, 파트너A"
             required
-            style={{
-              width: '100%', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius)',
-              border: 'var(--border-w-2) solid var(--border-color)', fontSize: 'var(--fs-base)', boxSizing: 'border-box',
-              outline: 'none',
-            }}
           />
         </div>
         <div style={{ flex: '0 1 120px' }}>
-          <label style={{ display: 'block', fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-            할인율 (%) *
-          </label>
-          <input
-            name="discount_rate"
+          <label htmlFor={`tier-rate-${tierId ?? 'new'}`} className="label">할인율 (%) *</label>
+          <input id={`tier-rate-${tierId ?? 'new'}`} name="discount_rate" className="input-field"
             type="number"
             min="0"
             max="100"
             step="0.01"
             defaultValue={defaultRate}
             required
-            style={{
-              width: '100%', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius)',
-              border: 'var(--border-w-2) solid var(--border-color)', fontSize: 'var(--fs-base)', boxSizing: 'border-box',
-            }}
           />
         </div>
         <div style={{ flex: '2 1 200px' }}>
-          <label style={{ display: 'block', fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-            설명 (선택)
-          </label>
-          <input
-            name="description"
+          <label htmlFor={`tier-desc-${tierId ?? 'new'}`} className="label">설명 (선택)</label>
+          <input id={`tier-desc-${tierId ?? 'new'}`} name="description" className="input-field"
             defaultValue={defaultDescription}
             placeholder="등급 설명"
-            style={{
-              width: '100%', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius)',
-              border: 'var(--border-w-2) solid var(--border-color)', fontSize: 'var(--fs-base)', boxSizing: 'border-box',
-            }}
           />
         </div>
       </div>
 
       {error && (
-        <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--danger)', margin: 0 }}>{error}</p>
+        <p role="alert" style={{ fontSize: 'var(--fs-sm)', color: 'var(--danger)', margin: 0 }}>{error}</p>
       )}
 
       <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-        <button
-          type="submit"
-          disabled={pending}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '0.375rem',
-            padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)',
-            background: pending ? 'var(--text-faint)' : 'var(--brand)', color: 'white',
-            border: 'none', fontSize: 'var(--fs-base)', fontWeight: 500, cursor: pending ? 'not-allowed' : 'pointer',
-          }}
-        >
+        <button type="submit" className="btn-primary" disabled={pending}>
           <Save size={14} />
-          {pending ? '저장 중...' : '저장'}
+          {pending ? '저장 중' : '저장'}
         </button>
         {onCancel && (
-          <button
-            type="button"
-            onClick={onCancel}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.375rem',
-              padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius)',
-              background: 'transparent', color: 'var(--text-muted)',
-              border: 'var(--border-w-2) solid var(--border-color)', fontSize: 'var(--fs-base)', cursor: 'pointer',
-            }}
-          >
+          <button type="button" className="btn-ghost" onClick={onCancel}>
             <X size={14} />
             취소
           </button>

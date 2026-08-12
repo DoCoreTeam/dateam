@@ -3,6 +3,7 @@ import { useEscClose } from '@/lib/use-esc-close'
 
 import { useState } from 'react'
 import RichText from '@/components/ui/RichText'
+import EmptyState from '@/components/ui/EmptyState'
 
 interface MemberReport {
   userId: string
@@ -50,9 +51,11 @@ export default function TeamReportView({ initialReports }: TeamReportViewProps) 
     <div>
       {/* 팀 보고 테이블 (주차 표시·변경은 상단 공용 WeekPicker) */}
       {members.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 'var(--space-12) var(--space-4)', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>
-          해당 주차 작성된 보고가 없습니다
-        </div>
+        <EmptyState
+          title="이 주차에 올라온 팀 보고가 없어요"
+          description="상단 주차 선택기로 다른 주를 보거나, 내 보고 탭에서 이번 주 보고를 먼저 작성해 보세요"
+          action={{ label: '내 보고 작성하기', href: '/weekly-report?tab=mine' }}
+        />
       ) : (
         <div className="table-responsive">
           <table className="table-base table-card" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
@@ -70,7 +73,7 @@ export default function TeamReportView({ initialReports }: TeamReportViewProps) 
                 grouped[name].map((r, rIdx) => (
                   <tr
                     key={`${r.userId}-${r.category}-${rIdx}`}
-                    style={{ cursor: 'pointer', backgroundColor: rIdx % 2 === 0 ? '#fff' : 'var(--surface-bg)' }}
+                    style={{ cursor: 'pointer', backgroundColor: rIdx % 2 === 0 ? 'var(--color-surface)' : 'var(--surface-bg)' }}
                     onClick={() => setModal(r)}
                   >
                     <td className="mobile-only card-header">
@@ -116,18 +119,19 @@ export default function TeamReportView({ initialReports }: TeamReportViewProps) 
           aria-modal="true"
           aria-label="보고 상세"
           onClick={() => setModal(null)}
-          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 'var(--space-4)' }}
+          className="modal-backdrop"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ backgroundColor: '#fff', borderRadius: 'var(--radius)', padding: 'var(--space-6)', maxWidth: '600px', width: '100%', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+            className="modal-card"
+            style={{ padding: 'var(--space-6)', maxWidth: '600px', width: '100%', maxHeight: '80vh', overflowY: 'auto', boxSizing: 'border-box' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
               <div>
                 <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', fontWeight: 700 }}>{modal.userName}</span>
                 <h3 className="tape-title" style={{ margin: 0 }}>{modal.category}</h3>
               </div>
-              <button onClick={() => setModal(null)} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: '1.25rem', lineHeight: 1 }}>×</button>
+              <button type="button" onClick={() => setModal(null)} aria-label="닫기" className="btn-ghost" style={{ padding: 'var(--space-1) var(--space-2)', lineHeight: 1 }}>×</button>
             </div>
 
             {[

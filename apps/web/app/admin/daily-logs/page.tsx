@@ -17,6 +17,7 @@ import {
   fetchDayDetail,
   type DayLogFilters,
 } from '@/lib/admin/daily-monitoring-queries'
+import PageHeader from '@/components/ui/PageHeader'
 import MonitoringCalendar from './MonitoringCalendar'
 import DayDetailPanel from './DayDetailPanel'
 
@@ -27,9 +28,13 @@ interface PageProps {
   searchParams: Promise<Record<string, string | undefined>>
 }
 
+/**
+ * URL의 page는 목록 표준(useListQuery)과 같은 1-based다.
+ * 서버 조회는 0-based라 여기서 한 번만 접는다(경계 SSOT).
+ */
 function parsePage(raw: string | undefined): number {
   const n = Number(raw)
-  return Number.isInteger(n) && n >= 0 ? n : 0
+  return Number.isInteger(n) && n >= 1 ? n - 1 : 0
 }
 
 export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
@@ -79,15 +84,15 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
   if (blockerOnly) baseParams.blocker = '1'
   if (sort !== 'logged_at') baseParams.sort = sort
   if (dir !== 'desc') baseParams.dir = dir
+  // 보기 전환(표/카드)은 달력으로 날짜를 옮겨도 유지한다
+  if (params.view) baseParams.view = params.view
 
   return (
     <div className="page-inner">
-      <header className="monitor-header">
-        <div>
-          <h1 className="monitor-title">일일업무 모니터링</h1>
-          <p className="monitor-subtitle">달력에서 작성 현황을 보고, 날짜를 눌러 상세를 확인합니다.</p>
-        </div>
-      </header>
+      <PageHeader
+        title="일일업무 모니터링"
+        description="달력에서 작성 현황을 보고, 날짜를 눌러 상세를 확인합니다."
+      />
 
       <MonitoringCalendar
         month={month}
@@ -102,8 +107,6 @@ export default async function AdminDailyLogsPage({ searchParams }: PageProps) {
         detail={dayDetail}
         departments={departments}
         month={month}
-        sort={sort}
-        dir={dir}
         filters={filters}
       />
     </div>

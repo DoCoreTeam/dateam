@@ -10,20 +10,18 @@ import EventModal from './EventModal'
 import { deleteCalendarEvent } from './actions'
 import { formatKstTime, formatMonthDay } from '@/lib/calendar/format-time'
 import { kstTodayKey } from '@/lib/datetime/kst'
-import { CalendarPlus, Trash2, CalendarClock, CheckSquare, StickyNote } from 'lucide-react'
+import { CalendarPlus, Trash2, CalendarClock, CheckSquare, StickyNote, X } from 'lucide-react'
+import EmptyState from '@/components/ui/EmptyState'
+import { SkelList } from '@/components/ui/LoadingSkeleton'
+import { STATUS_COLORS } from '@/lib/tokens/status-colors'
 
 interface CalEvent {
   id: string; base_id?: string; title: string; start_at: string; end_at: string | null; all_day: boolean
   source: string; link_kind: string | null; link_id?: string | null; status: string; user_id: string; rrule?: string | null
 }
 
-const ENTRY_TYPES: Record<DailyLogEntryType, { label: string; color: string; bg: string; border: string }> = {
-  done:    { label: '완료',   color: 'var(--success)', bg: 'var(--success-bg)', border: 'var(--success-border)' },
-  doing:   { label: '진행중', color: 'var(--info)', bg: 'var(--info-bg)', border: 'var(--info-border)' },
-  planned: { label: '예정',   color: 'var(--brand)', bg: 'var(--brand-soft)', border: 'var(--brand-soft-2)' },
-  blocker: { label: '블로커', color: 'var(--danger)', bg: 'var(--danger-bg)', border: 'var(--danger-border)' },
-  note:    { label: '메모',   color: 'var(--warning)', bg: 'var(--warning-bg)', border: 'var(--warning-border)' },
-}
+// 상태 색·라벨은 SSOT(lib/tokens/status-colors) — 화면마다 색맵을 복붙하지 않는다
+const ENTRY_TYPES: Record<DailyLogEntryType, { label: string; color: string; bg: string; border: string }> = STATUS_COLORS
 
 const WEEK_DAYS = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -165,39 +163,29 @@ export default function DayDetailPanel({ date, onClose }: Props) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <button
+              type="button"
+              className="btn-ghost"
               onClick={() => setShowModal(true)}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                padding: '0.375rem 0.625rem', fontSize: 'var(--fs-sm)',
-                background: 'var(--brand-soft)', color: 'var(--brand)', border: 'var(--hairline) solid var(--brand-soft-2)',
-                borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600, minHeight: 36,
-              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', minHeight: 36 }}
             >
               <CalendarPlus size={14} /> 일정
             </button>
             <button
+              type="button"
+              className="btn-primary"
               onClick={() => router.push(`/daily?date=${date}`)}
-              style={{
-                padding: '0.375rem 0.75rem', fontSize: 'var(--fs-sm)',
-                background: 'var(--info)', color: '#fff', border: 'none',
-                borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600,
-                minHeight: 36,
-              }}
+              style={{ minHeight: 36 }}
             >
               {isToday ? '작성' : '보기'}
             </button>
             <button
+              type="button"
+              className="btn-ghost"
               onClick={onClose}
-              style={{
-                width: 36, height: 36, border: 'var(--border-w-2) solid var(--border-color)',
-                borderRadius: 'var(--radius)', background: 'var(--color-bg)',
-                cursor: 'pointer', fontSize: 'var(--fs-xl)', color: 'var(--text-muted)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-              }}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 36, flexShrink: 0 }}
               aria-label="닫기"
             >
-              ×
+              <X size={16} />
             </button>
           </div>
         </div>
@@ -244,13 +232,13 @@ export default function DayDetailPanel({ date, onClose }: Props) {
             </section>
           )}
           {loading ? (
-            <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-8) var(--space-0)', fontSize: 'var(--fs-base)' }}>
-              로딩 중...
-            </div>
+            <SkelList rows={3} />
           ) : logs.length === 0 ? (
-            <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-8) var(--space-0)', fontSize: 'var(--fs-base)' }}>
-              작성된 로그가 없습니다.
-            </div>
+            <EmptyState
+              title="이 날 기록이 없어요"
+              description="업무·메모를 남기면 여기 모입니다"
+              action={{ label: isToday ? '오늘 업무 쓰기' : '이 날 업무 쓰기', href: `/daily?date=${date}` }}
+            />
           ) : (
             <>
               {taskLogs.length > 0 && (

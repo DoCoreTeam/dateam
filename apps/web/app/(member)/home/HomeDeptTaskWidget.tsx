@@ -8,6 +8,7 @@ import type { DailyLog } from '@/types/database'
 import { STATUS_COLORS, PRIORITY_COLORS, type PriorityKey } from '@/lib/tokens/status-colors'
 import { formatDueLabel, type DueTone } from '@/lib/dept-task-utils'
 import NbBadge from '@/components/ui/nb/NbBadge'
+import EmptyState from '@/components/ui/EmptyState'
 import { listHomeDeptTasks, type DeptHomeResult, type DeptHomeViewMode } from '../dept-tasks/actions'
 
 interface Props {
@@ -87,7 +88,11 @@ export default function HomeDeptTaskWidget({ initial, today }: Props) {
 
       {/* 리스트 */}
       {shown.length === 0 ? (
-        <p className="home-dept-empty">{mode === 'mine' ? '내가 챙길 부서업무가 없습니다 ✅' : '미완료 부서업무가 없습니다 ✅'}</p>
+        <EmptyState
+          title={mode === 'mine' ? '내가 챙길 부서업무가 없어요' : '미완료 부서업무가 없어요'}
+          description="새 업무가 배정되면 여기에 먼저 보입니다"
+          action={{ label: '부서 업무 보기', href: '/dept-tasks' }}
+        />
       ) : (
         <ul className="home-dept-list">
           {shown.map((t) => <TaskRow key={t.id} task={t} today={today} nameMap={nameMap} deptNameMap={deptNameMap} showDept={mode === 'dept'} />)}

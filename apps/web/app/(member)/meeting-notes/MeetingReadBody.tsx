@@ -9,6 +9,8 @@ import { useRouter } from 'next/navigation'
 import { FileText, Sparkles, FileDown } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import RichText from '@/components/ui/RichText'
+import SegmentedTabs from '@/components/ui/SegmentedTabs'
+import EmptyState from '@/components/ui/EmptyState'
 import { saveMeetingSummary } from './actions'
 import ExtractConfirmModal, { type ExtractResult } from './ExtractConfirmModal'
 import MeetingExportModal from './MeetingExportModal'
@@ -108,10 +110,12 @@ export default function MeetingReadBody({
           <h2 id="mn-body-h" className="tape-title" style={{ margin: 0 }}>회의 본문</h2>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-          <div role="tablist" aria-label="본문 보기 전환" style={{ display: 'inline-flex', gap: 'var(--space-1)', padding: 'var(--space-1)', background: 'var(--surface-bg)', borderRadius: 'var(--radius)' }}>
-            <BodyTab label="AI 정제본" selected={tab === 'refined'} onClick={() => setTab('refined')} />
-            <BodyTab label="원본" selected={tab === 'original'} onClick={() => setTab('original')} />
-          </div>
+          <SegmentedTabs
+            ariaLabel="본문 보기 전환"
+            tabs={[{ id: 'refined', label: 'AI 정제본' }, { id: 'original', label: '원본' }]}
+            activeId={tab}
+            onSelect={(id) => setTab(id === 'original' ? 'original' : 'refined')}
+          />
           {canExport && (
             <NbButton variant="secondary" onClick={() => setExportOpen(true)} title={`${tab === 'refined' ? 'AI 정제본' : '원본'}을 문서로 내보내기`} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <FileDown size={15} /> 내보내기
@@ -142,10 +146,18 @@ export default function MeetingReadBody({
                 </div>
               )}
             </>
+          ) : hasBody ? (
+            <EmptyState
+              title="아직 AI 정제본이 없어요"
+              description="[AI 분석]을 실행하면 요약·결정사항을 자동으로 정리합니다"
+              action={{ label: 'AI 분석 실행', onClick: () => { void runAnalyze() } }}
+            />
           ) : (
-            <p style={{ margin: 0, color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>
-              {hasBody ? '아직 AI 정제본이 없습니다. [AI 분석]을 실행하거나 [편집]에서 직접 입력하세요.' : '본문이 없습니다.'}
-            </p>
+            // 편집 전용 라우트는 없다(같은 페이지의 [편집] 토글) — 죽은 링크를 만들지 않고 그 버튼을 가리킨다
+            <EmptyState
+              title="본문이 비어 있어요"
+              description="위 [편집]으로 회의 내용을 적으면 AI 요약·업무 추출을 쓸 수 있습니다"
+            />
           )}
         </div>
       ) : (
@@ -175,16 +187,3 @@ export default function MeetingReadBody({
   )
 }
 
-function BodyTab({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
-  return (
-    <button type="button" role="tab" aria-selected={selected} onClick={onClick}
-      style={{
-        padding: 'var(--space-1) var(--space-3)', minHeight: 36, border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer',
-        fontSize: 'var(--fs-sm)', fontWeight: selected ? 700 : 500,
-        background: selected ? 'var(--surface-card)' : 'transparent', color: selected ? 'var(--text)' : 'var(--text-muted)',
-        boxShadow: selected ? 'var(--shadow-sm)' : 'none',
-      }}>
-      {label}
-    </button>
-  )
-}

@@ -86,7 +86,7 @@ export default function HomeMiniCalendar({ year, month, todayStr, monthSummary }
               <span style={{
                 fontSize: 'var(--fs-sm)',
                 fontWeight: isToday ? 700 : 400,
-                color: isToday ? '#ffffff' : dow === 0 ? 'var(--danger)' : dow === 6 ? 'var(--info)' : 'var(--text)',
+                color: isToday ? 'var(--brand-fg)' : dow === 0 ? 'var(--danger)' : dow === 6 ? 'var(--info)' : 'var(--text)',
               }}>
                 {day}
               </span>
@@ -96,7 +96,7 @@ export default function HomeMiniCalendar({ year, month, todayStr, monthSummary }
                   background: summary.hasBlocker
                     ? 'var(--danger)'
                     : isToday
-                      ? 'rgba(255,255,255,0.7)'
+                      ? 'color-mix(in srgb, var(--brand-fg) 70%, transparent)'
                       : 'var(--success)',
                 }} />
               )}

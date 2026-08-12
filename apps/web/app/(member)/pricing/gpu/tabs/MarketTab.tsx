@@ -1025,7 +1025,7 @@ function PriceRegisterModal({
           <select
             value={mappingId}
             onChange={e => setMappingId(e.target.value)}
-            className="gpu-input"
+            className="input-field"
             style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--gpu-border)', fontSize: 13 }}
           >
             {mappings.map(m => (

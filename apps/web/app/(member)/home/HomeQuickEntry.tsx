@@ -103,43 +103,33 @@ export default function HomeQuickEntry({ todayStr, initialLogs }: Props) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
         <textarea
           ref={textareaRef}
+          className="input-field"
+          aria-label="오늘 업무 내용"
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmit() }}
           placeholder="업무 내용 입력 (Cmd/Ctrl+Enter 등록)"
           rows={2}
-          style={{
-            width: '100%', padding: '0.625rem 0.75rem',
-            border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
-            fontSize: 'var(--fs-base)', color: 'var(--text)', resize: 'none',
-            fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
-            background: 'var(--color-bg)', lineHeight: 1.5,
-          }}
+          style={{ resize: 'none', lineHeight: 1.5 }}
         />
         <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
           <select
+            className="input-field"
+            aria-label="업무 상태"
             value={entryType}
             onChange={(e) => setEntryType(e.target.value as DailyLogEntryType)}
-            style={{
-              flex: 1, padding: 'var(--space-2) var(--space-2)', border: 'var(--border-w-2) solid var(--border-color)',
-              borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)', background: 'var(--color-bg)',
-              color: 'var(--text)', cursor: 'pointer', fontFamily: 'inherit', minHeight: 36,
-            }}
+            style={{ flex: 1, cursor: 'pointer', minHeight: 36 }}
           >
             {ENTRY_TYPES.map((t) => (
               <option key={t.value} value={t.value}>{t.label}</option>
             ))}
           </select>
           <button
+            type="button"
+            className="btn-primary"
             onClick={handleSubmit}
             disabled={isPending || !content.trim()}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.375rem',
-              padding: 'var(--space-2) var(--space-4)', border: 'none', borderRadius: 'var(--radius)',
-              background: 'var(--brand)', color: '#ffffff', fontSize: 'var(--fs-sm)',
-              fontWeight: 600, cursor: isPending || !content.trim() ? 'not-allowed' : 'pointer',
-              opacity: isPending || !content.trim() ? 0.5 : 1, minHeight: 36, flexShrink: 0,
-            }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', minHeight: 36, flexShrink: 0, opacity: isPending || !content.trim() ? 0.6 : 1, cursor: isPending || !content.trim() ? 'not-allowed' : 'pointer' }}
           >
             <Plus size={14} />
             {isPending ? '등록 중' : '등록'}

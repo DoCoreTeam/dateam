@@ -7,6 +7,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ApiResponse } from '@/lib/ci/contracts'
+import PageHeader from '@/components/ui/PageHeader'
+import ErrorState from '@/components/ui/ErrorState'
 
 const TOPIC_SUGGESTIONS = ['요리', 'IT·테크', '뷰티', '게임', '재테크', '여행', '운동', '교육']
 
@@ -38,16 +40,10 @@ export default function CiOnboardingGate() {
 
   return (
     <section style={{ maxWidth: '560px', margin: '0 auto', paddingTop: 'var(--space-12)' }}>
-      <h1 style={{
-        fontSize: 'var(--fs-2xl)', fontWeight: 700,
-        letterSpacing: '-0.03em', color: 'var(--text)', marginBottom: 'var(--space-2)',
-      }}>
-        시작할 공간을 만듭니다
-      </h1>
-      <p className="empty-state-desc" style={{ marginBottom: 'var(--space-6)' }}>
-        주제를 하나 고르면 관심 채널을 추천하고 첫 자동 업데이트를 예약합니다.
-        설정을 하나도 건드리지 않아도 바로 쓸 수 있습니다.
-      </p>
+      <PageHeader
+        title="시작할 공간을 만듭니다"
+        description="주제를 하나 고르면 관심 채널을 추천하고 첫 자동 업데이트를 예약합니다. 설정을 하나도 건드리지 않아도 바로 쓸 수 있습니다."
+      />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         <div>
@@ -79,7 +75,7 @@ export default function CiOnboardingGate() {
           </div>
         </div>
 
-        {error && <p className="error-state" role="alert">{error}</p>}
+        {error && <ErrorState message={error} />}
 
         <button type="button" className="btn-primary" onClick={create} disabled={busy}>
           {busy ? '만드는 중…' : '워크스페이스 만들기'}

@@ -105,7 +105,7 @@ export default function IntakeGateSummary({ rows }: IntakeGateSummaryProps) {
                     </span>
                   ) : null}
                 </td>
-                <td className="gpu-gate-cell-spec">{r.spec || '—'}</td>
+                <td>{r.spec || '—'}</td>
                 <td>{r.party || '—'}</td>
                 <td className="gpu-gate-cell-price">{fmtUsd(r.priceUsd)}</td>
                 <td>

@@ -3,6 +3,9 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { TrendingUp, ArrowLeft, Calendar, Target } from 'lucide-react'
 import type { Deal, Account, Contact, DealActivity } from '@/types/database'
+import PageHeader from '@/components/ui/PageHeader'
+import EmptyState from '@/components/ui/EmptyState'
+import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import ActivityLogger from './ActivityLogger'
 import DealStageUpdater from './DealStageUpdater'
 
@@ -55,22 +58,25 @@ export default async function DealDetailPage({ params }: PageProps) {
         <Link href="/deals" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: 'var(--brand)', fontSize: 'var(--fs-base)', fontWeight: 500, textDecoration: 'none', marginBottom: '0.75rem' }}>
           <ArrowLeft size={14} /> 영업기회 목록
         </Link>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.375rem' }}>
-              <h1 style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>{deal.title}</h1>
+        {/* 제목은 PageHeader가 유일 렌더러(§2-3). 단계 뱃지·거래처는 제목에 종속되므로 below로 붙인다 */}
+        <PageHeader
+          title={deal.title}
+          actions={
+            <Link href={`/deals/${id}/edit`} className="btn-primary" style={{ textDecoration: 'none', padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
+              편집
+            </Link>
+          }
+          below={
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
               <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: '9999px', color: sc.color, background: sc.bg }}>{deal.stage}</span>
+              {deal.accounts?.name && (
+                <Link href={`/accounts/${deal.accounts.id}`} style={{ fontSize: 'var(--fs-base)', color: 'var(--brand)', textDecoration: 'none' }}>
+                  {deal.accounts.name}
+                </Link>
+              )}
             </div>
-            {deal.accounts?.name && (
-              <Link href={`/accounts/${deal.accounts.id}`} style={{ fontSize: 'var(--fs-base)', color: 'var(--brand)', textDecoration: 'none' }}>
-                {deal.accounts.name}
-              </Link>
-            )}
-          </div>
-          <Link href={`/deals/${id}/edit`} className="btn-primary" style={{ textDecoration: 'none', padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
-            편집
-          </Link>
-        </div>
+          }
+        />
       </div>
 
       <div className="responsive-grid-2" style={{ gap: 'var(--space-5)', alignItems: 'flex-start' }}>
@@ -132,7 +138,10 @@ export default async function DealDetailPage({ params }: PageProps) {
           <ActivityLogger dealId={id} />
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {activities.length === 0 ? (
-              <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>활동 기록이 없습니다</div>
+              <EmptyState
+                title="활동 기록이 아직 없어요"
+                description="통화·메일·미팅을 기록하면 여기에 쌓입니다"
+              />
             ) : activities.map((act) => (
               <div key={act.id} style={{ padding: '0.875rem 1.5rem', borderBottom: 'var(--hairline) solid var(--surface-muted)', display: 'flex', gap: 'var(--space-3)' }}>
                 <span style={{ fontSize: 'var(--fs-xl)', flexShrink: 0 }}>{ACTIVITY_ICON[act.type] ?? '📝'}</span>
@@ -144,7 +153,7 @@ export default async function DealDetailPage({ params }: PageProps) {
                     </div>
                   )}
                   <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', marginTop: '0.25rem' }}>
-                    {new Date(act.created_at).toLocaleString('ko-KR')}
+                    {formatKstDateTimeShort(act.created_at)}
                     {act.ai_extracted && <span style={{ marginLeft: '0.375rem', color: 'var(--brand)' }}>· AI 추출</span>}
                   </div>
                 </div>

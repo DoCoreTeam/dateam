@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, Building2, Handshake, Users, Target, ListChecks } from 'lucide-react'
 import WorkPageShell from '@/components/ui/WorkPageShell'
+import EmptyState from '@/components/ui/EmptyState'
 import { createClient } from '@/lib/supabase/server'
 import { PROJECT_SELECT } from '@/lib/work/project-fields'
 import { budgetLabel, periodLabel, statusBadge } from '@/lib/work/project-display'
@@ -64,7 +65,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
             <Detail label="성공 기준" value={project.success_criteria} />
           </Panel>
           <Panel icon={<ListChecks size={18} />} title={`연결된 업무 ${logs?.length ?? 0}건`}>
-            {(logs ?? []).length === 0 ? <Empty text="아직 연결된 업무가 없습니다." /> : (
+            {(logs ?? []).length === 0 ? <EmptyState title="아직 연결된 업무가 없어요" description="일일업무에서 이 프로젝트를 연결하면 여기에 모입니다" action={{ label: '일일업무로 이동', href: '/daily' }} /> : (
               <ul style={{ margin: 0, paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                 {(logs ?? []).map((log: { id: string; content: string; log_date: string }) => <li key={log.id} style={{ color: 'var(--text)', lineHeight: 1.5 }}><span style={{ color: 'var(--text-faint)', marginRight: 8 }}>{log.log_date}</span>{log.content}</li>)}
               </ul>
@@ -107,6 +108,5 @@ function Detail({ label, value, href }: { label: string; value?: string | null; 
   const content = value || '미지정'
   return <div style={{ marginBottom: 'var(--space-3)' }}><div style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-xs)', marginBottom: 4 }}>{label}</div>{href && value ? <Link href={href} style={{ color: 'var(--brand)', fontWeight: 600 }}>{content}</Link> : <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{content}</div>}</div>
 }
-function Empty({ text }: { text: string }) { return <p style={{ color: 'var(--text-faint)', margin: 0 }}>{text}</p> }
 function visibilityLabel(value: string): string { return ({ private: '비공개', members: '참여자', department: '부서', organization: '전사', admin_only: '관리자' } as Record<string, string>)[value] ?? '비공개' }
 function roleLabel(value: string): string { return ({ owner: '책임자', manager: '운영자', contributor: '참여자', viewer: '조회자', stakeholder: '이해관계자' } as Record<string, string>)[value] ?? value }

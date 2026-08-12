@@ -15,6 +15,7 @@ import MetricBadge, { MetricBasis } from './MetricBadge'
 import CreativeSummary from './CreativeSummary'
 import { ComparabilityBadge, CompletenessBadge, ConfidenceBadge, IngestStatusBadge } from './StatusBadge'
 import ErrorState from '@/components/ui/ErrorState'
+import EmptyState from '@/components/ui/EmptyState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
 import EvidenceSheet from './EvidenceSheet'
 
@@ -230,10 +231,10 @@ export default function DetailSheet({
                   )}
                   <CreativeSummary creative={data.creative} />
                   {!data.analysis && !data.creative && (
-                    <p className="empty-state-desc">
-                      아직 근거가 충분하지 않아 분석을 단정하지 않습니다.
-                      비교 표본이 쌓이고 평소 대비 1.5배를 넘으면 무엇이 통했는지 분석합니다.
-                    </p>
+                    <EmptyState
+                      title="아직 근거가 충분하지 않아 분석을 단정하지 않습니다"
+                      description="비교 표본이 쌓이고 평소 대비 1.5배를 넘으면 무엇이 통했는지 분석합니다."
+                    />
                   )}
                 </div>
               )}
@@ -247,7 +248,7 @@ export default function DetailSheet({
                       ))}
                     </ul>
                   )
-                  : <p className="empty-state-desc">같은 소재로 묶인 다른 게시물이 없습니다.</p>
+                  : <EmptyState title="같은 소재로 묶인 다른 게시물이 없습니다" />
               )}
 
               {tab === 'ingest' && (

@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/ui/PageHeader'
+import RrMatrixTable from './RrMatrixTable'
 
 interface Project {
   name: string
@@ -85,8 +86,6 @@ export default async function OperationsPage() {
   const rhythm = rhythmRow?.value as RhythmData | null
   const rrMatrix = rhythm?.rr_matrix ?? []
 
-  const rrHeaders = ['프로젝트', 'PM', '개발 PM', '백엔드', '프론트', '지원']
-
   return (
     <div
       className="page-inner"
@@ -116,16 +115,13 @@ export default async function OperationsPage() {
             return (
               <article
                 key={idx}
+                className="card"
                 style={{
-                  background: '#fff',
-                  border: 'var(--border-w-2) solid var(--border-color)',
-                  borderRadius: 'var(--radius)',
                   padding: 'var(--space-5) var(--space-6)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 'var(--space-3)',
                   opacity: isDim ? 0.6 : 1,
-                  transition: 'box-shadow 200ms ease',
                 }}
               >
                 {/* 상단: 이름 + phase badge + progress % */}
@@ -264,10 +260,8 @@ export default async function OperationsPage() {
             return (
               <article
                 key={idx}
+                className="card"
                 style={{
-                  background: '#fff',
-                  border: 'var(--border-w-2) solid var(--border-color)',
-                  borderRadius: 'var(--radius)',
                   padding: 'var(--space-5) var(--space-6)',
                   display: 'flex',
                   flexDirection: 'column',
@@ -442,68 +436,7 @@ export default async function OperationsPage() {
           >
             R&R 매트릭스
           </h2>
-          <div className="table-responsive">
-            <table
-              className="table-base table-card"
-              style={{
-                width: '100%',
-                borderCollapse: 'collapse',
-                fontSize: 'var(--fs-base)',
-              }}
-            >
-              <thead>
-                <tr>
-                  {rrHeaders.map((header, i) => (
-                    <th
-                      key={i}
-                      style={{
-                        padding: 'var(--space-3) var(--space-4)',
-                        textAlign: 'left',
-                        fontWeight: 600,
-                        fontSize: 'var(--fs-xs)',
-                        color: 'var(--text-muted)',
-                        background: 'var(--color-bg)',
-                        borderBottom: 'var(--border-w-2) solid var(--border-color)',
-                        borderRight: i < rrHeaders.length - 1 ? 'var(--border-w-2) solid var(--border-color)' : 'none',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {header}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rrMatrix.map((row, rowIdx) => (
-                  <tr
-                    key={rowIdx}
-                    style={{
-                      borderBottom:
-                        rowIdx < rrMatrix.length - 1 ? 'var(--border-w-2) solid var(--border-color)' : 'none',
-                    }}
-                  >
-                    {row.map((cell, colIdx) => (
-                      <td
-                        key={colIdx}
-                        className={colIdx === 0 ? 'card-header' : undefined}
-                        data-label={colIdx > 0 ? rrHeaders[colIdx] : undefined}
-                        style={{
-                          padding: 'var(--space-3) var(--space-4)',
-                          color: colIdx === 0 ? 'var(--text)' : 'var(--text-muted)',
-                          fontWeight: colIdx === 0 ? 600 : 400,
-                          borderRight:
-                            colIdx < row.length - 1 ? 'var(--border-w-2) solid var(--border-color)' : 'none',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {cell}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <RrMatrixTable rows={rrMatrix} />
         </section>
       )}
     </div>

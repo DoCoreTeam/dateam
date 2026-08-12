@@ -35,21 +35,21 @@ export default function TokenAlertSettings({ currentThreshold }: Props) {
       </p>
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         <div>
-          <label style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text)', display: 'block', marginBottom: '0.375rem' }}>
+          <label className="label">
             월간 임계치 (tokens)
           </label>
           <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
-            <input
+            <input className="input-field"
               type="text"
               value={threshold}
               onChange={e => setThreshold(e.target.value)}
-              style={{ flex: 1, maxWidth: '220px', padding: 'var(--space-2) var(--space-3)', border: 'var(--hairline) solid var(--border-subtle)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)', color: 'var(--text)' }}
+              style={{ flex: 1, maxWidth: "220px" }}
               placeholder="1,000,000"
             />
             <button
               type="submit"
               disabled={pending}
-              className="btn btn-primary"
+              className="btn-primary"
               style={{ opacity: pending ? 0.7 : 1 }}
             >
               {pending ? '저장 중...' : '저장'}

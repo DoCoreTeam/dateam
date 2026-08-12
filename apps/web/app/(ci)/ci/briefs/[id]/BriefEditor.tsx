@@ -9,6 +9,10 @@ import Link from 'next/link'
 import type { ApiResponse } from '@/lib/ci/contracts'
 import type { BriefDraft } from '@/lib/ci/ai/brief'
 import ErrorState from '@/components/ui/ErrorState'
+import ListSurface from '@/components/ui/list/ListSurface'
+import type { ColumnDef } from '@/components/ui/list/types'
+import { useListQuery } from '@/lib/ui/use-list-query'
+import type { ListDefaults } from '@/lib/ui/list-query'
 
 type Field = keyof BriefDraft
 
@@ -35,6 +39,10 @@ interface EditPlan {
   exportStatus: string
 }
 
+// 편집안은 한 기획안에 몇 건뿐이라 검색·페이지가 필요 없다.
+// 표만 표준 부품으로 그린다 — 빈 상태를 화면이 다시 만들지 않게.
+const PLAN_DEFAULTS: ListDefaults = { sort: { key: 'label', dir: 'asc' }, view: 'table', size: 100 }
+
 export default function BriefEditor({
   workspaceId, brief, versions, editPlans,
 }: {
@@ -44,6 +52,8 @@ export default function BriefEditor({
   editPlans: EditPlan[]
 }) {
   const router = useRouter()
+  // 편집안 표도 목록 부품을 쓴다 — 정렬·검색이 없으니 보기 값만 읽는다
+  const { query: planQuery } = useListQuery(PLAN_DEFAULTS)
   const [state, setState] = useState<BriefState>(brief)
   const [preview, setPreview] = useState<{ draft: BriefDraft; fields: Field[] } | null>(null)
   const [busy, setBusy] = useState(false)
@@ -137,6 +147,30 @@ export default function BriefEditor({
 
   const ALL_FIELDS: Field[] = ['titleOptions', 'hook', 'script', 'caption', 'tags', 'thumbnailIdeas']
 
+  // 편집안은 몇 건짜리 목록이라 검색·페이지가 필요 없다.
+  // 그래도 표는 ListSurface 한 벌로 그린다 — 빈 상태까지 부품이 책임진다.
+  const planColumns: ColumnDef<EditPlan>[] = [
+    { key: 'label', header: '안', primary: true, cell: (p) => <strong>{p.label}</strong> },
+    {
+      key: 'timecodes', header: '구간',
+      cell: (p) => (
+        <>
+          {p.timecodes.map((t, i) => (
+            <div key={i} className="ci-card-meta">
+              <span className="ci-num">{t.start}</span><span>{t.note}</span>
+            </div>
+          ))}
+        </>
+      ),
+    },
+    {
+      key: 'actions', header: '작업', align: 'right',
+      cell: (p) => (
+        <button type="button" className="btn-ghost" onClick={() => exportPlan(p)}>내보내기</button>
+      ),
+    },
+  ]
+
   return (
     <>
       {toast && <p className="ci-status ci-status-ok" style={{ marginBottom: 'var(--space-3)', display: 'inline-flex' }}>{toast}</p>}
@@ -158,9 +192,8 @@ export default function BriefEditor({
       </div>
 
       {preview && (
-        <section style={{
-          padding: 'var(--space-4)', border: 'var(--border-w-2) solid var(--brand)',
-          borderRadius: 'var(--radius)', background: 'var(--color-surface)', marginBottom: 'var(--space-4)',
+        <section className="card" style={{
+          padding: 'var(--space-4)', borderColor: 'var(--brand)', marginBottom: 'var(--space-4)',
         }}>
           <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>
             AI 제안 미리보기
@@ -275,10 +308,7 @@ export default function BriefEditor({
       <section>
         <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-3)' }}>편집안</h2>
 
-        <div style={{
-          padding: 'var(--space-3)', border: 'var(--border-w-2) solid var(--border-color)',
-          borderRadius: 'var(--radius)', background: 'var(--color-surface)', marginBottom: 'var(--space-4)',
-        }}>
+        <div className="card" style={{ padding: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
           <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div>
               <label className="label" htmlFor="p-label">안 이름</label>
@@ -323,34 +353,16 @@ export default function BriefEditor({
           </button>
         </div>
 
-        {editPlans.length === 0 ? (
-          <p className="empty-state-desc">
-            아직 편집안이 없습니다. 위에서 구간을 넣고 만들면 여기에 쌓입니다. 여러 안을 만들어 비교할 수 있습니다.
-          </p>
-        ) : (
-          <table className="table-base table-card">
-            <thead><tr><th>안</th><th>구간</th><th>작업</th></tr></thead>
-            <tbody>
-              {editPlans.map((p) => (
-                <tr key={p.id}>
-                  <td className="card-header"><strong>{p.label}</strong></td>
-                  <td data-label="구간">
-                    {p.timecodes.map((t, i) => (
-                      <div key={i} className="ci-card-meta">
-                        <span className="ci-num">{t.start}</span><span>{t.note}</span>
-                      </div>
-                    ))}
-                  </td>
-                  <td className="card-actions">
-                    <button type="button" className="btn-ghost" onClick={() => exportPlan(p)}>
-                      내보내기
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        <ListSurface
+          rows={editPlans}
+          columns={planColumns}
+          query={planQuery}
+          rowKey={(p) => p.id}
+          empty={{
+            title: '아직 편집안이 없어요',
+            description: '위에서 구간을 넣고 만들면 여기에 쌓입니다. 여러 안을 만들어 비교할 수 있습니다.',
+          }}
+        />
       </section>
 
       <p style={{ marginTop: 'var(--space-6)' }}>

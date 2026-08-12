@@ -1,18 +1,25 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import SortIcon from '@/components/ui/SortIcon'
-import { useRouter } from 'next/navigation'
-import { ChevronUp, ChevronDown, Search, Download } from 'lucide-react'
+// app/admin/daily-logs/DayDetailPanel.tsx — 선택일 상세(목록 표준 §2-6)
+//
+// 검색·정렬·필터·페이지는 URL이 진실이다(useListQuery). 서버 컴포넌트가 그 URL을 읽어
+// 다시 조회하므로, 표현 계층만 표준 부품으로 옮기고 데이터 흐름은 그대로 둔다.
+// date·month를 filterKeys에 넣는 이유: 목록 조작이 선택한 날짜/달을 날리면 안 된다.
+
+import { Download } from 'lucide-react'
+import ListToolbar from '@/components/ui/list/ListToolbar'
+import ListSurface from '@/components/ui/list/ListSurface'
+import ListPager from '@/components/ui/list/ListPager'
+import type { ColumnDef, ListFilterDef } from '@/components/ui/list/types'
+import { useListQuery } from '@/lib/ui/use-list-query'
+import type { ListDefaults } from '@/lib/ui/list-query'
 import {
   type DayDetail,
   type EntryType,
-  type SortKey,
-  type SortDir,
+  type MonitoringLogRow,
   formatKstDateTime,
 } from '@/lib/admin/daily-monitoring'
 import type { DayLogFilters } from '@/lib/admin/daily-monitoring-queries'
-import { buildUrl } from './url'
 
 /** entry_type 라벨 + 아이콘 (색은 .badge[data-status] CSS 토큰에서 — 하드코딩 금지) */
 const ENTRY_LABELS: Record<EntryType, { label: string; icon: string }> = {
@@ -24,63 +31,71 @@ const ENTRY_LABELS: Record<EntryType, { label: string; icon: string }> = {
 }
 const ENTRY_VALUES: EntryType[] = ['done', 'doing', 'planned', 'blocker', 'note']
 
-const SORTABLE: { key: SortKey; label: string }[] = [
+// 서버가 DEFAULT_PAGE_SIZE(50)로 고정 조회한다 → 개수 선택은 감춘다(안 먹는 선택지 금지)
+const LIST_DEFAULTS: ListDefaults = {
+  sort: { key: 'logged_at', dir: 'desc' },
+  view: 'table',
+  size: 50,
+  filterKeys: ['dept', 'type', 'kind', 'blocker', 'date', 'month'],
+}
+
+const SORT_OPTIONS = [
   { key: 'logged_at', label: '작성일시' },
   { key: 'name', label: '멤버' },
   { key: 'department', label: '부서' },
   { key: 'entry_type', label: '타입' },
 ]
 
+const COLUMNS: ColumnDef<MonitoringLogRow>[] = [
+  {
+    key: 'logged_at', header: '작성일시', primary: true, sortable: 'logged_at', width: '150px',
+    cell: (row) => (
+      <>
+        <span className="monitor-time">{formatKstDateTime(row.loggedAt)}</span>
+        {row.isEdited && <span className="monitor-edited">수정됨</span>}
+      </>
+    ),
+  },
+  { key: 'name', header: '멤버', sortable: 'name', width: '110px', cell: (row) => row.authorName },
+  {
+    key: 'department', header: '부서', sortable: 'department', width: '120px',
+    cell: (row) => (
+      <span className={row.departmentName ? '' : 'monitor-muted'}>{row.departmentName ?? '—'}</span>
+    ),
+  },
+  {
+    key: 'entry_type', header: '타입', sortable: 'entry_type', width: '100px',
+    cell: (row) => {
+      const meta = ENTRY_LABELS[row.entryType] ?? ENTRY_LABELS.note
+      return <span className="badge" data-status={row.entryType}>{meta.icon} {meta.label}</span>
+    },
+  },
+  {
+    key: 'content', header: '내용',
+    cell: (row) => <p className="monitor-content">{row.content}</p>,
+  },
+]
+
 interface Props {
   detail: DayDetail
   departments: { id: string; name: string }[]
   month: string
-  sort: SortKey
-  dir: SortDir
   filters: DayLogFilters
 }
 
-export default function DayDetailPanel({ detail, departments, month, sort, dir, filters }: Props) {
-  const router = useRouter()
-  const [q, setQ] = useState(filters.q ?? '')
-  // URL의 q가 외부에서 바뀌면 입력창 동기화(stale 방지)
-  useEffect(() => setQ(filters.q ?? ''), [filters.q])
+export default function DayDetailPanel({ detail, departments, month, filters }: Props) {
+  const { query, set } = useListQuery(LIST_DEFAULTS)
 
-  // 필터 변경 시 보존할 공통 파라미터(검색 외 컨텍스트)
-  const ctx: Record<string, string> = { month, date: detail.date }
-
-  function pushFilters(overrides: Record<string, string | undefined>) {
-    router.push(buildUrl(ctx, { sort, dir, page: undefined, ...currentFilterParams(), ...overrides }))
-  }
-
-  function currentFilterParams(): Record<string, string | undefined> {
-    return {
-      q: filters.q || undefined,
-      dept: filters.departmentId || undefined,
-      type: filters.entryType || undefined,
-      kind: filters.taskKind || undefined,
-      blocker: filters.blockerOnly ? '1' : undefined,
-    }
-  }
-
-  function submitSearch(e: React.FormEvent) {
-    e.preventDefault()
-    pushFilters({ q: q.trim() || undefined })
-  }
-
-  function toggleSort(key: SortKey) {
-    const nextDir: SortDir = sort === key && dir === 'asc' ? 'desc' : 'asc'
-    router.push(buildUrl(ctx, { sort: key, dir: nextDir, page: undefined, ...currentFilterParams() }))
-  }
-
-  function goPage(p: number) {
-    router.push(
-      buildUrl(ctx, { sort, dir, page: String(p), ...currentFilterParams() }),
-    )
-  }
-
-  const totalPages = Math.max(1, Math.ceil(detail.total / detail.pageSize))
-  const pageNumbers = pageWindow(detail.page, totalPages)
+  const listFilters: ListFilterDef[] = [
+    { key: 'dept', label: '부서', options: departments.map((d) => ({ value: d.id, label: d.name })) },
+    {
+      key: 'type',
+      label: '타입',
+      options: ENTRY_VALUES.map((t) => ({ value: t, label: `${ENTRY_LABELS[t].icon} ${ENTRY_LABELS[t].label}` })),
+    },
+    { key: 'kind', label: '구분', options: [{ value: 'personal', label: '개인' }, { value: 'dept_task', label: '부서' }] },
+    { key: 'blocker', label: '블로커', options: [{ value: '1', label: '블로커만' }] },
+  ]
 
   // CSV 내보내기 — 선택일 + 현재 필터(검색 q 포함). export 라우트가 q를 동일 기준으로 반영.
   const exportHref = (() => {
@@ -92,6 +107,10 @@ export default function DayDetailPanel({ detail, departments, month, sort, dir, 
     if (filters.blockerOnly) sp.set('blocker', '1')
     return `/admin/daily-logs/export?${sp.toString()}`
   })()
+
+  const hasFilters = Boolean(
+    query.q || filters.departmentId || filters.entryType || filters.taskKind || filters.blockerOnly,
+  )
 
   return (
     <section className="monitor-panel" aria-label="선택일 상세">
@@ -114,160 +133,36 @@ export default function DayDetailPanel({ detail, departments, month, sort, dir, 
         ) : null}
       </div>
 
-      {/* 필터 바 */}
-      <form className="monitor-filters" onSubmit={submitSearch}>
-        <div className="monitor-search">
-          <Search size={14} aria-hidden="true" className="monitor-search-icon" />
-          <input type="search" className="input-field monitor-search-input"
-            placeholder="내용 검색"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            aria-label="내용 검색"
-          />
-        </div>
-        <label className="monitor-field">
-          <span className="label">부서</span>
-          <select className="input-field"
-            value={filters.departmentId ?? ''}
-            onChange={(e) => pushFilters({ dept: e.target.value || undefined })}
-          >
-            <option value="">전체 부서</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="monitor-field">
-          <span className="label">타입</span>
-          <select className="input-field"
-            value={filters.entryType ?? ''}
-            onChange={(e) => pushFilters({ type: e.target.value || undefined })}
-          >
-            <option value="">전체 타입</option>
-            {ENTRY_VALUES.map((t) => (
-              <option key={t} value={t}>
-                {ENTRY_LABELS[t].icon} {ENTRY_LABELS[t].label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="monitor-field">
-          <span className="label">구분</span>
-          <select className="input-field"
-            value={filters.taskKind ?? ''}
-            onChange={(e) => pushFilters({ kind: e.target.value || undefined })}
-          >
-            <option value="">전체</option>
-            <option value="personal">개인</option>
-            <option value="dept_task">부서</option>
-          </select>
-        </label>
-        <label className="monitor-check">
-          <input type="checkbox"
-            checked={!!filters.blockerOnly}
-            onChange={(e) => pushFilters({ blocker: e.target.checked ? '1' : undefined })}
-          />
-          <span>블로커만</span>
-        </label>
-        <button type="submit" className="monitor-search-btn">
-          검색
-        </button>
-        <a href={exportHref} className="monitor-export-btn" download aria-label="선택일 CSV 내보내기">
-          <Download size={14} /> CSV
-        </a>
-      </form>
+      <ListToolbar
+        query={query}
+        onChange={set}
+        searchPlaceholder="내용 검색"
+        filters={listFilters}
+        sortOptions={SORT_OPTIONS}
+        showSize={false}
+        total={detail.total}
+        actions={
+          <a href={exportHref} className="btn-ghost" download aria-label="선택일 CSV 내보내기">
+            <Download size={14} /> CSV
+          </a>
+        }
+      />
 
-      {/* 리스트 */}
-      {detail.rows.length === 0 ? (
-        <div className="monitor-empty">해당 조건의 로그가 없습니다.</div>
-      ) : (
-        <table className="table-base table-card monitor-table">
-          <thead>
-            <tr>
-              {SORTABLE.map((c) => (
-                <th
-                  key={c.key}
-                  onClick={() => toggleSort(c.key)}
-                  className="monitor-th-sort"
-                  aria-sort={sort === c.key ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                >
-                  <span className="monitor-th-inner">
-                    {c.label} <SortIcon active={sort === c.key} dir={dir} />
-                  </span>
-                </th>
-              ))}
-              <th>내용</th>
-            </tr>
-          </thead>
-          <tbody>
-            {detail.rows.map((row) => {
-              const meta = ENTRY_LABELS[row.entryType] ?? ENTRY_LABELS.note
-              return (
-                <tr key={row.id}>
-                  <td className="card-header" data-label="작성일시">
-                    <span className="monitor-time">{formatKstDateTime(row.loggedAt)}</span>
-                    {row.isEdited && <span className="monitor-edited">수정됨</span>}
-                  </td>
-                  <td data-label="멤버">{row.authorName}</td>
-                  <td data-label="부서">
-                    <span className={row.departmentName ? '' : 'monitor-muted'}>
-                      {row.departmentName ?? '—'}
-                    </span>
-                  </td>
-                  <td data-label="타입">
-                    <span className="badge" data-status={row.entryType}>
-                      {meta.icon} {meta.label}
-                    </span>
-                  </td>
-                  <td data-label="내용">
-                    <p className="monitor-content">{row.content}</p>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      )}
+      <ListSurface
+        rows={detail.rows}
+        columns={COLUMNS}
+        query={query}
+        rowKey={(row) => row.id}
+        onChange={set}
+        empty={hasFilters
+          ? { title: '조건에 맞는 기록이 없어요', description: '검색어나 필터를 바꿔보세요' }
+          : { title: `${detail.date}에 작성된 일일업무가 없어요`, description: '달력에서 다른 날짜를 선택해보세요' }}
+      />
 
-      {/* 페이지네이션 */}
-      {detail.rows.length > 0 && totalPages > 1 && (
-        <nav className="monitor-pager" aria-label="페이지">
-          <button
-            type="button"
-            className="monitor-pager-btn"
-            onClick={() => goPage(detail.page - 1)}
-            disabled={detail.page <= 0}
-            aria-label="이전 페이지"
-          >
-            <ChevronUp size={14} style={{ transform: 'rotate(-90deg)' }} />
-          </button>
-          {pageNumbers.map((p) => (
-            <button
-              key={p}
-              type="button"
-              className={`monitor-pager-btn${p === detail.page ? ' is-active' : ''}`}
-              onClick={() => goPage(p)}
-              aria-current={p === detail.page ? 'page' : undefined}
-            >
-              {p + 1}
-            </button>
-          ))}
-          <button
-            type="button"
-            className="monitor-pager-btn"
-            onClick={() => goPage(detail.page + 1)}
-            disabled={detail.page >= totalPages - 1}
-            aria-label="다음 페이지"
-          >
-            <ChevronDown size={14} style={{ transform: 'rotate(-90deg)' }} />
-          </button>
-        </nav>
-      )}
+      <ListPager query={query} total={detail.total} onChange={set} />
 
       {/* 미작성자 */}
-      <div className="monitor-missing">
+      <div className="monitor-missing" data-month={month}>
         {detail.missingMembers.length === 0 ? (
           <span className="monitor-missing-ok">전원 작성 완료</span>
         ) : (
@@ -285,15 +180,4 @@ export default function DayDetailPanel({ detail, departments, month, sort, dir, 
       </div>
     </section>
   )
-}
-
-/** 현재 페이지 주변 최대 5개 번호 윈도우 */
-function pageWindow(current: number, total: number): number[] {
-  const span = 5
-  let start = Math.max(0, current - Math.floor(span / 2))
-  const end = Math.min(total, start + span)
-  start = Math.max(0, end - span)
-  const out: number[] = []
-  for (let i = start; i < end; i++) out.push(i)
-  return out
 }

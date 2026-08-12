@@ -4,7 +4,10 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, History, AlertTriangle, Undo2 } from 'lucide-react'
+import { X, History, Undo2 } from 'lucide-react'
+import EmptyState from '@/components/ui/EmptyState'
+import ErrorState from '@/components/ui/ErrorState'
+import { SkelList } from '@/components/ui/LoadingSkeleton'
 import { useEscClose } from '@/lib/use-esc-close'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { restoreProject } from '@/lib/work/restore-action'
@@ -85,13 +88,11 @@ export default function ProjectActivityDrawer({ projectId, projectName, onClose,
             </div>
           )}
           {loading ? (
-            <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: 'var(--space-6)' }}>불러오는 중…</p>
+            <SkelList rows={4} />
           ) : error ? (
-            <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-3)', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--danger-border)', background: 'var(--danger-bg)', color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>
-              <AlertTriangle size={16} /> {error}
-            </div>
+            <ErrorState message={error} onRetry={() => { setError(null); setLoading(true); setReloadKey((k) => k + 1) }} />
           ) : items.length === 0 ? (
-            <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-sm)', textAlign: 'center', padding: 'var(--space-6)' }}>아직 기록된 이력이 없습니다.</p>
+            <EmptyState title="아직 기록된 이력이 없어요" description="이 프로젝트를 저장·수정하면 그 기록이 여기에 남습니다" />
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
               {items.map((it) => {

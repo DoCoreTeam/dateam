@@ -104,7 +104,7 @@ export default function GeminiSettings({ hasKey: initialHasKey, maskedKey: initi
               className="btn-primary"
               style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.375rem' }}
             >
-              {savePending ? <AXDotLoader size={4} color="#fff" /> : null}
+              {savePending ? <AXDotLoader size={4} color="var(--brand-fg)" /> : null}
               저장
             </button>
           </div>

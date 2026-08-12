@@ -6,6 +6,8 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import WorkSubTabs from '@/components/ui/WorkSubTabs'
+import EmptyState from '@/components/ui/EmptyState'
+import { SkelList } from '@/components/ui/LoadingSkeleton'
 
 type Axis = 'account' | 'deal' | 'project'
 interface Group { id: string; name: string; count: number; statusCounts: Record<string, number>; recent: { id: string; content: string; entry_type: string }[] }
@@ -73,7 +75,7 @@ export default function WorkOverviewPanel() {
       )}
 
       {isLoading ? (
-        <div style={{ color: 'var(--text-faint)', padding: 'var(--space-6)', textAlign: 'center' }}>불러오는 중…</div>
+        <SkelList rows={4} />
       ) : (
         <div data-testid="work-groups" className="responsive-grid-cols-3" style={{ display: 'grid', gap: 'var(--space-3)' }}>
           {groups.map((g) => (
@@ -99,9 +101,11 @@ export default function WorkOverviewPanel() {
       )}
 
       {!isLoading && groups.length === 0 && (
-        <div style={{ color: 'var(--text-faint)', padding: 'var(--space-6)', textAlign: 'center', fontSize: 'var(--fs-sm)' }}>
-          아직 {AXIS_NOUN[axis]}에 연결된 업무가 없습니다.
-        </div>
+        <EmptyState
+          title={`${AXIS_NOUN[axis]}에 연결된 업무가 아직 없어요`}
+          description={`업무를 ${AXIS_NOUN[axis]}에 연결하면 여기에 묶여서 보입니다`}
+          action={{ label: '일일업무로 이동', href: '/daily' }}
+        />
       )}
 
       {!isLoading && ungrouped > 0 && (

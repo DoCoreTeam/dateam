@@ -87,7 +87,7 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
             cursor: hasKey ? 'pointer' : 'not-allowed',
           }}
         >
-          {modelsPending ? <AXDotLoader size={4} color="#fff" /> : <RefreshCw size={13} />}
+          {modelsPending ? <AXDotLoader size={4} color="var(--brand-fg)" /> : <RefreshCw size={13} />}
           모델 목록 불러오기
         </button>
       </div>
@@ -123,7 +123,7 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
             className="btn-primary"
             style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.375rem' }}
           >
-            {modelSavePending ? <AXDotLoader size={4} color="#fff" /> : null}
+            {modelSavePending ? <AXDotLoader size={4} color="var(--brand-fg)" /> : null}
             적용
           </button>
         </div>

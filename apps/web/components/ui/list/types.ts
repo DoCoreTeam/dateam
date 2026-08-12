@@ -18,6 +18,8 @@ export interface ColumnDef<T> {
   align?: 'left' | 'right'
   /** 카드에서는 생략(표에서 이미 충분한 보조 정보) */
   hideOnCard?: boolean
+  /** 모바일 카드에서 레이블을 붙이지 않는다 — 썸네일·액션처럼 이름이 필요 없는 칸 */
+  noLabel?: boolean
   width?: string
 }
 

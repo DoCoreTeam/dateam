@@ -7,59 +7,24 @@ import DynamicTable, { type ColumnDef } from '@/components/ui/DynamicTable'
 import DynamicKeyValue from '@/components/ui/DynamicKeyValue'
 import AXLoadingOverlay from '@/components/ui/AXLoadingOverlay'
 import ContentDiffModal from '@/components/ui/ContentDiffModal'
+import NbModal from '@/components/ui/nb/NbModal'
+import ErrorState from '@/components/ui/ErrorState'
 import { aiApplySection } from './actions'
 
 type Toast = { msg: string; ok: boolean }
 
-// ─── 스타일 ───────────────────────────────────────────────────────────────
+// ─── 레이아웃(공용 클래스 + 토큰) ────────────────────────────────────────
+// 카드·라벨·입력·버튼은 전부 공용 클래스(§2, §2-1)를 쓴다. 인라인 재구현 금지.
 
-const CARD: React.CSSProperties = {
-  background: '#ffffff',
-  border: 'var(--border-w-2) solid var(--border-color)',
-  borderRadius: 'var(--radius)',
-  overflow: 'hidden',
-  marginBottom: '1.5rem',
-  boxShadow: 'var(--shadow-sm)',
-}
 const CARD_HEADER: React.CSSProperties = {
   padding: 'var(--space-4) var(--space-6)',
   borderBottom: 'var(--border-w-2) solid var(--border-color)',
   display: 'flex',
   alignItems: 'center',
   gap: 'var(--space-2)',
-  background: 'var(--color-bg)',
+  backgroundColor: 'var(--color-bg)',
 }
 const CARD_BODY: React.CSSProperties = { padding: 'var(--space-5) var(--space-6)' }
-const LABEL: React.CSSProperties = {
-  display: 'block',
-  fontSize: 'var(--fs-xs)',
-  fontWeight: 600,
-  color: 'var(--text-muted)',
-  marginBottom: '0.3rem',
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-}
-const INPUT: React.CSSProperties = {
-  width: '100%',
-  padding: 'var(--space-2) var(--space-3)',
-  border: 'var(--border-w-2) solid var(--border-color)',
-  borderRadius: 'var(--radius-lg)',
-  fontSize: 'var(--fs-base)',
-  color: 'var(--text)',
-  background: '#fff',
-  boxSizing: 'border-box',
-}
-const SUBMIT: React.CSSProperties = {
-  marginTop: '1rem',
-  padding: 'var(--space-2) var(--space-5)',
-  background: 'var(--brand)',
-  color: '#fff',
-  border: 'none',
-  borderRadius: 'var(--radius-lg)',
-  fontSize: 'var(--fs-base)',
-  fontWeight: 600,
-  cursor: 'pointer',
-}
 const FIELD_GRID: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
@@ -160,7 +125,7 @@ function SectionCard({
   headerAction?: React.ReactNode
 }) {
   return (
-    <section style={CARD}>
+    <section className="card" style={{ overflow: 'hidden', marginBottom: '1.5rem' }}>
       <div style={CARD_HEADER}>
         <span style={{ fontSize: 'var(--fs-base)', fontWeight: 600, color: 'var(--text)' }}>{title}</span>
         <span
@@ -279,15 +244,9 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
   }) => (
     <button
       type="button"
+      className="btn-ghost"
       onClick={() => openAiModal({ sectionKey, sectionName, columns, data: currentData })}
-      style={{
-        marginLeft: '0.5rem',
-        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-        padding: '0.25rem 0.625rem',
-        background: 'var(--brand-soft)', color: 'var(--brand-dark)',
-        border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)',
-        fontSize: 'var(--fs-xs)', fontWeight: 600, cursor: 'pointer',
-      }}
+      style={{ marginLeft: '0.5rem', padding: '0.25rem 0.625rem', fontSize: 'var(--fs-xs)', color: 'var(--brand-dark)' }}
     >
       <Sparkles size={11} />
       AI 작성
@@ -324,107 +283,47 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
   return (
     <>
       {toast && (
-        <div role="alert" aria-live="polite" style={{
-          position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 9999,
-          padding: 'var(--space-3) var(--space-5)',
-          background: toast.ok ? 'var(--success)' : 'var(--danger)',
-          color: '#fff', borderRadius: 'var(--radius)',
-          fontSize: 'var(--fs-base)', fontWeight: 600,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
-          pointerEvents: 'none',
-        }}>
-          {toast.ok ? '✓ ' : '✕ '}{toast.msg}
+        <div className="toast-container">
+          <div role="alert" aria-live="polite" className={`toast ${toast.ok ? 'toast-success' : 'toast-error'}`}>
+            {toast.ok ? '✓ ' : '✕ '}{toast.msg}
+          </div>
         </div>
       )}
 
-      {/* AI 프롬프트 모달 */}
+      {/* AI 프롬프트 모달 — 공용 NbModal(ESC·X·tape-title·backdrop 표준) */}
       {aiPromptModal && !aiLoading && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed', inset: 0, zIndex: 8000,
-            background: 'rgba(15,23,42,0.45)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 'var(--space-4)',
-          }}
-          onClick={(e) => { if (e.target === e.currentTarget) setAiPromptModal(null) }}
-        >
-          <div style={{
-            background: '#fff',
-            borderRadius: 'var(--radius)',
-            boxShadow: '0 16px 48px rgba(0,0,0,0.2)',
-            width: '100%', maxWidth: '480px',
-            padding: 'var(--space-6)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: '1rem' }}>
-              <Sparkles size={16} color="var(--brand)" />
-              <span style={{ fontSize: 'var(--fs-md)', fontWeight: 700, color: 'var(--text)' }}>
-                AI 작성 — {aiPromptModal.sectionName}
-              </span>
-            </div>
-            <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>
-              수정 요청을 자유롭게 입력하세요. AI가 현재 데이터를 기반으로 반영합니다.
-            </p>
-            <textarea
-              autoFocus
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleAiRun() }}
-              placeholder={`예: "평택 스마트시티 진행률을 95로 올려줘" / "김철수 PM 추가해줘" / "완료된 프로젝트 삭제해줘"`}
-              rows={4}
-              style={{
-                width: '100%', padding: '0.625rem 0.875rem',
-                border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
-                fontSize: 'var(--fs-base)', color: 'var(--text)',
-                resize: 'vertical', fontFamily: 'inherit',
-                boxSizing: 'border-box', outline: 'none',
-              }}
-              onFocus={(e) => { e.target.style.borderColor = 'var(--brand)' }}
-              onBlur={(e) => { e.target.style.borderColor = 'var(--color-border)' }}
-            />
-            {aiError && (
-              <div style={{
-                marginTop: '0.5rem', padding: 'var(--space-2) var(--space-3)',
-                background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)',
-                borderRadius: 'var(--radius-lg)', fontSize: 'var(--fs-sm)', color: 'var(--danger)',
-              }}>
-                {aiError}
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', marginTop: '1rem' }}>
-              <button
-                type="button"
-                onClick={() => setAiPromptModal(null)}
-                style={{
-                  padding: 'var(--space-2) var(--space-4)', background: 'transparent',
-                  color: 'var(--text-muted)', border: 'var(--border-w-2) solid var(--border-color)',
-                  borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', cursor: 'pointer',
-                }}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={handleAiRun}
-                disabled={!aiPrompt.trim()}
-                style={{
-                  padding: 'var(--space-2) var(--space-5)',
-                  background: aiPrompt.trim() ? 'var(--brand)' : 'var(--color-border)',
-                  color: aiPrompt.trim() ? '#fff' : 'var(--text-faint)',
-                  border: 'none', borderRadius: 'var(--radius)',
-                  fontSize: 'var(--fs-base)', fontWeight: 600,
-                  cursor: aiPrompt.trim() ? 'pointer' : 'not-allowed',
-                  display: 'flex', alignItems: 'center', gap: '0.375rem',
-                }}
-              >
+        <NbModal
+          title={`AI 작성 — ${aiPromptModal.sectionName}`}
+          onClose={() => setAiPromptModal(null)}
+          maxWidth={480}
+          footer={
+            <>
+              <button type="button" className="btn-ghost" onClick={() => setAiPromptModal(null)}>취소</button>
+              <button type="button" className="btn-primary" onClick={handleAiRun} disabled={!aiPrompt.trim()}>
                 <Sparkles size={13} />
-                AI 실행 <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>(⌘↵)</span>
+                AI 실행 <span style={{ fontSize: 'var(--fs-2xs)', opacity: 0.7 }}>(⌘↵)</span>
               </button>
+            </>
+          }
+        >
+          <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>
+            수정 요청을 자유롭게 입력하세요. AI가 현재 데이터를 기반으로 반영합니다.
+          </p>
+          <textarea className="input-field"
+            autoFocus
+            value={aiPrompt}
+            onChange={(e) => setAiPrompt(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleAiRun() }}
+            placeholder={`예: "평택 스마트시티 진행률을 95로 올려줘" / "김철수 PM 추가해줘" / "완료된 프로젝트 삭제해줘"`}
+            rows={4}
+            style={{ resize: 'vertical' }}
+          />
+          {aiError && (
+            <div style={{ marginTop: 'var(--space-2)' }}>
+              <ErrorState message={aiError} />
             </div>
-          </div>
-        </div>
+          )}
+        </NbModal>
       )}
 
       <AXLoadingOverlay
@@ -463,12 +362,12 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
               ] as { key: keyof MetaValue; label: string }[]
             ).map(({ key, label }) => (
               <div key={key}>
-                <label htmlFor={`meta_${key}`} style={LABEL}>{label}</label>
-                <input id={`meta_${key}`} name={key} defaultValue={String(meta[key] ?? '')} style={INPUT} />
+                <label htmlFor={`meta_${key}`} className="label">{label}</label>
+                <input id={`meta_${key}`} name={key} className="input-field" defaultValue={String(meta[key] ?? '')} />
               </div>
             ))}
           </div>
-          <button type="submit" style={SUBMIT}>저장</button>
+          <button type="submit" className="btn-primary" style={{ marginTop: '1rem' }}>저장</button>
         </form>
       </SectionCard>
 
@@ -478,7 +377,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       >
         <form onSubmit={submit(actions.updateProjects)}>
           <DynamicTable key={`projects-${tableKeys['projects'] ?? 0}`} name="projects_json" columns={PROJECT_COLS} initialData={projects} addLabel="프로젝트 추가" />
-          <button type="submit" style={SUBMIT}>저장</button>
+          <button type="submit" className="btn-primary" style={{ marginTop: '1rem' }}>저장</button>
         </form>
       </SectionCard>
 
@@ -488,7 +387,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       >
         <form onSubmit={submit(actions.updateMembers)}>
           <DynamicTable key={`members-${tableKeys['members'] ?? 0}`} name="members_json" columns={MEMBER_COLS} initialData={members} addLabel="멤버 추가" />
-          <button type="submit" style={SUBMIT}>저장</button>
+          <button type="submit" className="btn-primary" style={{ marginTop: '1rem' }}>저장</button>
         </form>
       </SectionCard>
 
@@ -498,7 +397,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       >
         <form onSubmit={submit(actions.updateMissions)}>
           <DynamicTable key={`missions-${tableKeys['missions'] ?? 0}`} name="missions_json" columns={MISSION_COLS} initialData={missions} addLabel="미션 추가" />
-          <button type="submit" style={SUBMIT}>저장</button>
+          <button type="submit" className="btn-primary" style={{ marginTop: '1rem' }}>저장</button>
         </form>
       </SectionCard>
 
@@ -508,7 +407,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       >
         <form onSubmit={submit(actions.updateOkr)}>
           <DynamicTable key={`okr-${tableKeys['okr'] ?? 0}`} name="okr_json" columns={OKR_COLS} initialData={okr} addLabel="OKR 추가" />
-          <button type="submit" style={SUBMIT}>저장</button>
+          <button type="submit" className="btn-primary" style={{ marginTop: '1rem' }}>저장</button>
         </form>
       </SectionCard>
 
@@ -518,7 +417,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       >
         <form onSubmit={submit(actions.updatePrinciples)}>
           <DynamicTable key={`principles-${tableKeys['principles'] ?? 0}`} name="principles_json" columns={PRINCIPLE_COLS} initialData={principles} addLabel="원칙 추가" />
-          <button type="submit" style={SUBMIT}>저장</button>
+          <button type="submit" className="btn-primary" style={{ marginTop: '1rem' }}>저장</button>
         </form>
       </SectionCard>
 
@@ -528,7 +427,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       >
         <form onSubmit={submit(actions.updateKpiTargets)}>
           <DynamicTable key={`kpi_targets-${tableKeys['kpi_targets'] ?? 0}`} name="kpi_targets_json" columns={KPI_TARGET_COLS} initialData={kpiTargets} addLabel="KPI 목표 추가" />
-          <button type="submit" style={SUBMIT}>저장</button>
+          <button type="submit" className="btn-primary" style={{ marginTop: '1rem' }}>저장</button>
         </form>
       </SectionCard>
 
@@ -538,7 +437,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       >
         <form onSubmit={submit(actions.updateRoutineTemplates)}>
           <DynamicTable key={`routine_templates-${tableKeys['routine_templates'] ?? 0}`} name="routine_templates_json" columns={ROUTINE_COLS} initialData={routineTemplates} addLabel="루틴 추가" />
-          <button type="submit" style={SUBMIT}>저장</button>
+          <button type="submit" className="btn-primary" style={{ marginTop: '1rem' }}>저장</button>
         </form>
       </SectionCard>
 
@@ -546,7 +445,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       <SectionCard title="리듬 (Rhythm)" badge="rhythm" badgeColor="var(--success-bg)" badgeText="var(--success)">
         <form onSubmit={submit(actions.updateRhythm)}>
           <DynamicKeyValue name="rhythm_json" initialData={rhythm} addLabel="리듬 항목 추가" />
-          <button type="submit" style={SUBMIT}>저장</button>
+          <button type="submit" className="btn-primary" style={{ marginTop: '1rem' }}>저장</button>
         </form>
       </SectionCard>
 
@@ -554,7 +453,7 @@ export default function ContentSections({ data, actions }: ContentSectionsProps)
       <SectionCard title="개발 분배" badge="dev_split" badgeColor="var(--brand-soft-2)" badgeText="var(--brand)">
         <form onSubmit={submit(actions.updateDevSplit)}>
           <DynamicKeyValue name="dev_split_json" initialData={devSplit} addLabel="항목 추가" />
-          <button type="submit" style={SUBMIT}>저장</button>
+          <button type="submit" className="btn-primary" style={{ marginTop: '1rem' }}>저장</button>
         </form>
       </SectionCard>
     </>

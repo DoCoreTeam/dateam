@@ -58,7 +58,7 @@ export default function PromoteToDeptButton({ logId, onToast }: { logId: string;
           </select>
           <div style={{ display: 'flex', gap: 'var(--space-1)', justifyContent: 'flex-end' }}>
             <button onClick={() => setOpen(false)} style={{ fontSize: 'var(--fs-xs)', padding: '3px 10px', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)', background: 'var(--surface-bg)', color: 'var(--text-muted)', cursor: 'pointer' }}>취소</button>
-            <button data-testid={`promote-confirm-${logId}`} onClick={promote} disabled={busy} style={{ fontSize: 'var(--fs-xs)', padding: '3px 10px', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--brand)', background: 'var(--brand)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>{busy ? '등록 중…' : '등록'}</button>
+            <button data-testid={`promote-confirm-${logId}`} onClick={promote} disabled={busy} style={{ fontSize: 'var(--fs-xs)', padding: '3px 10px', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--brand)', background: 'var(--brand)', color: 'var(--brand-fg)', fontWeight: 700, cursor: 'pointer' }}>{busy ? '등록 중…' : '등록'}</button>
           </div>
         </div>
       )}

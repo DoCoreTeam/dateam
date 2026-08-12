@@ -12,6 +12,9 @@ import { kstDateKey } from "@/lib/datetime/kst";
 import DayDetailPanel from "./DayDetailPanel";
 import RecommendPanel from "./RecommendPanel";
 import { STATUS_COLORS } from "@/lib/tokens/status-colors";
+import PageHeader from "@/components/ui/PageHeader";
+import SegmentedTabs from "@/components/ui/SegmentedTabs";
+import AXDotLoader from "@/components/ui/AXDotLoader";
 
 interface CalEventLite {
   id: string; title: string; start_at: string; end_at: string | null; all_day: boolean; source: string;
@@ -182,63 +185,22 @@ export default function CalendarPage() {
           onClose={() => setSelectedDate(null)}
         />
       )}
-      {/* 헤더 — 공용 compact 밀도(GPU/일일과 동일). h1은 .page-header--compact가 fs-xl로 통일. */}
-      <div
+      {/* 헤더 — 공용 PageHeader(compact 밀도) + 보기 전환은 SegmentedTabs(탭 렌더러 SSOT) */}
+      <PageHeader
         className="page-header--compact"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: "0.75rem",
-        }}
-      >
-        <h1
-          style={{
-            fontWeight: 700,
-            color: "var(--text)",
-            letterSpacing: "-0.03em",
-            margin: 0,
-          }}
-        >
-          {viewMode === "month"
-            ? formatMonth(year, month)
-            : `${weekDates[0]} ~ ${weekEnd}`}
-        </h1>
-
-        {/* 뷰 토글 */}
-        <div
-          style={{
-            display: "flex",
-            gap: "0.25rem",
-            background: "var(--nb-white)",
-            border: "var(--border-w-2) solid var(--border-color)",
-            borderRadius: "var(--radius)",
-            padding: "0.25rem",
-          }}
-        >
-          {(["month", "week"] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setViewMode(m)}
-              style={{
-                padding: "0.375rem 0.875rem",
-                borderRadius: "var(--radius)",
-                border: "none",
-                fontSize: "0.8125rem",
-                fontWeight: 700,
-                cursor: "pointer",
-                background: viewMode === m ? "var(--accent)" : "transparent",
-                color: "var(--ink)",
-                boxShadow:
-                  viewMode === m ? "var(--shadow-sm)" : "none",
-              }}
-            >
-              {m === "month" ? "월간" : "주간"}
-            </button>
-          ))}
-        </div>
-      </div>
+        title={viewMode === "month" ? formatMonth(year, month) : `${weekDates[0]} ~ ${weekEnd}`}
+        actions={
+          <SegmentedTabs
+            ariaLabel="캘린더 보기"
+            tabs={[
+              { id: "month", label: "월간" },
+              { id: "week", label: "주간" },
+            ]}
+            activeId={viewMode}
+            onSelect={(id) => setViewMode(id === "week" ? "week" : "month")}
+          />
+        }
+      />
 
       {/* AI 일정 추천 */}
       <RecommendPanel />
@@ -301,9 +263,10 @@ export default function CalendarPage() {
               className="calendar-loading-inline"
               role="status"
               aria-live="polite"
+              aria-label="일정을 불러오는 중"
               style={{ marginBottom: "0.5rem" }}
             >
-              일정 불러오는 중
+              <AXDotLoader />
             </div>
           )}
           {/* 요일 헤더 + 날짜 그리드 — 데이터 없이 즉시 렌더 */}
@@ -558,9 +521,10 @@ export default function CalendarPage() {
               className="calendar-loading-inline"
               role="status"
               aria-live="polite"
+              aria-label="일정을 불러오는 중"
               style={{ marginBottom: "0.5rem" }}
             >
-              일정 불러오는 중
+              <AXDotLoader />
             </div>
           )}
           <div
@@ -586,7 +550,7 @@ export default function CalendarPage() {
                         ? "var(--hairline) solid var(--info)"
                         : "var(--border-w-2) solid var(--border-color)",
                       borderRadius: "0.625rem",
-                      background: isToday ? "var(--surface-bg)" : "#fff",
+                      background: isToday ? "var(--surface-bg)" : "var(--color-surface)",
                       overflow: "hidden",
                     }}
                   >

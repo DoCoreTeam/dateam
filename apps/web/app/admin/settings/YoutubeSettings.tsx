@@ -67,10 +67,7 @@ export default function YoutubeSettings({ hasKey: initialHasKey, maskedKey: init
 
   return (
     <section className="card" style={{ padding: 'var(--space-6)' }}>
-      <h2 style={{
-        fontSize: 'var(--fs-lg)', fontWeight: 700, letterSpacing: '-0.02em',
-        display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)',
-      }}>
+      <h2 className="tape-title" style={{ margin: '0 0 var(--space-2)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
         <Key size={18} /> YouTube Data API 키
       </h2>
       <p className="ci-basis" style={{ marginBottom: 'var(--space-4)' }}>

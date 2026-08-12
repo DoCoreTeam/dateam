@@ -8,6 +8,7 @@ import type { CiChannelListItem, CiContentListItem } from '@/lib/ci/contracts'
 import ContentCard from '@/components/ci/ContentCard'
 import DetailSheet from '@/components/ci/DetailSheet'
 import EmptyState from '@/components/ui/EmptyState'
+import ErrorState from '@/components/ui/ErrorState'
 
 interface Props {
   workspaceId: string
@@ -20,6 +21,8 @@ export default function ChannelDetailView({ workspaceId, channel, contents }: Pr
   const [openId, setOpenId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  // 실패를 작은 회색 글씨로 흘리면 사용자가 고장을 모른다 — 공용 오류 상태로 드러낸다
+  const [error, setError] = useState<string | null>(null)
 
   /** 이 채널이 어떤 후킹으로 통했는지 — 게시물별 분석을 채널 단위로 합친다. */
   const hookSummary = Object.entries(
@@ -60,12 +63,13 @@ export default function ChannelDetailView({ workspaceId, channel, contents }: Pr
 
   /** 채널 페이지에서 구독자·소개문·아바타를 다시 읽어온다. */
   async function refreshMeta() {
-    setBusy(true); setNotice(null)
+    setBusy(true); setNotice(null); setError(null)
     try {
       const res = await fetch(`/api/ci/channels/${channel.id}/refresh-meta`, {
         method: 'POST', headers: { 'X-CI-Workspace': workspaceId },
       }).then((r) => r.json() as Promise<{ success: boolean; data?: { note: string }; error?: { message: string } }>)
-      setNotice(res.success ? (res.data?.note ?? '채널 정보를 새로 가져왔습니다') : (res.error?.message ?? '가져오지 못했습니다'))
+      if (res.success) setNotice(res.data?.note ?? '채널 정보를 새로 가져왔습니다')
+      else setError(res.error?.message ?? '채널 정보를 가져오지 못했습니다')
       router.refresh()
     } finally {
       setBusy(false)
@@ -153,10 +157,18 @@ export default function ChannelDetailView({ workspaceId, channel, contents }: Pr
             </button>
           )}
           {notice && <span className="ci-basis" role="status">{notice}</span>}
-          {channel.metaError && !notice && (
+          {channel.metaError && !notice && !error && (
             <span className="ci-status ci-status-warn">{channel.metaError}</span>
           )}
         </div>
+
+        {error && (
+          <ErrorState
+            message={error}
+            onRetry={() => void refreshMeta()}
+            helpHref="/ci/settings"
+          />
+        )}
       </section>
 
       {hookSummary.length > 0 && (

@@ -2,12 +2,18 @@
 
 // app/(ci)/ci/trends/TrendsView.tsx — R04 트렌드 (시장·떡상·성공 공식·이슈)
 // 조건 바는 URL 상태로 보존한다 — 공유 가능한 뷰가 이 제품의 관례다.
+//
+// 목록 표준(§2-6): 표는 전부 ListSurface가 그린다(화면이 <table>을 짜지 않는다).
+// 공식·이슈는 서버가 전량(50·100건)을 내려주므로 검색·페이지는 ListToolbar/ListPager가 맡는다.
+// 시장 탭의 집계표는 사용자가 조회하는 목록이 아니라 고정 요약이라 SUMMARY_QUERY로 그린다.
 
 import { useEffect, useState } from 'react'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { ApiResponse, CiContentListItem } from '@/lib/ci/contracts'
-import type { MarketOverview, PatternRow, SignalRow, TimingOverview } from '@/lib/ci/queries/trends'
+import type {
+  MarketOverview, MarketSlice, PatternRow, SignalRow, TimingOverview, TimingSlice,
+} from '@/lib/ci/queries/trends'
 import { CI_PLATFORMS, CI_PLATFORM_LABEL } from '@/lib/ci/types'
 import PageHeader from '@/components/ui/PageHeader'
 import StageNav, { RESEARCH_STAGES } from '@/components/ci/StageNav'
@@ -19,6 +25,12 @@ import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import { InsufficientData } from '@/components/ci/states'
 import { MetricBasis } from '@/components/ci/MetricBadge'
+import ListToolbar from '@/components/ui/list/ListToolbar'
+import ListSurface from '@/components/ui/list/ListSurface'
+import ListPager from '@/components/ui/list/ListPager'
+import type { ColumnDef } from '@/components/ui/list/types'
+import { useListQuery } from '@/lib/ui/use-list-query'
+import { rangeOf, type ListDefaults, type ListQuery } from '@/lib/ui/list-query'
 
 type Tab = 'market' | 'outliers' | 'patterns' | 'signals'
 
@@ -51,6 +63,60 @@ const SIGNAL_KINDS = [
   { id: 'community', label: '커뮤니티 화제' },
 ]
 
+// 탭·필터는 URL에 남아야 보기 전환이 조건을 지우지 않는다.
+// 'sort'는 떡상 탭의 정렬 파라미터와 같은 자리를 쓴다(서버가 화이트리스트로 정규화).
+const LIST_DEFAULTS: ListDefaults = {
+  sort: { key: 'outlier', dir: 'desc' },
+  view: 'table',
+  size: 20,
+  filterKeys: ['tab', 'topicId', 'platform', 'format', 'windowDays', 'content'],
+}
+
+/** 시장 탭 집계표 — 사용자가 정렬·페이지를 정하는 목록이 아니라 고정 요약이다 */
+const SUMMARY_QUERY: ListQuery = {
+  q: '', sort: { key: '', dir: 'desc' }, filters: {},
+  view: 'table', size: 100, mode: 'pages', page: 1,
+}
+
+const basis = (text: string | null) => text ?? <span className="ci-basis">비교 이력 부족</span>
+
+/** 플랫폼별·포맷별 집계는 열 구성이 같다 — 머리글만 다르다 */
+function sliceColumns(head: string): ColumnDef<MarketSlice>[] {
+  return [
+    { key: 'label', header: head, primary: true, cell: (s) => s.label },
+    { key: 'count', header: '건수', cell: (s) => <span className="ci-num">{s.count}</span> },
+    { key: 'share', header: '비중', cell: (s) => <span className="ci-num">{s.share}%</span> },
+    { key: 'median', header: '평소 대비 중앙값', cell: (s) => basis(s.medianOutlierText) },
+  ]
+}
+
+const TIMING_COLUMNS: ColumnDef<TimingSlice>[] = [
+  { key: 'label', header: '구간', primary: true, cell: (s) => s.label },
+  { key: 'count', header: '건수', cell: (s) => <span className="ci-num">{s.count}</span> },
+  {
+    key: 'median', header: '평소 대비 중앙값',
+    cell: (s) => s.medianOutlierText ?? <span className="ci-basis">표본 부족</span>,
+  },
+]
+
+type TopChannel = MarketOverview['topChannels'][number]
+
+const TOP_CHANNEL_COLUMNS: ColumnDef<TopChannel>[] = [
+  { key: 'name', header: '채널', primary: true, cell: (c) => c.name },
+  { key: 'count', header: '게시물', cell: (c) => <span className="ci-num">{c.count}</span> },
+  { key: 'median', header: '평소 대비 중앙값', cell: (c) => basis(c.medianOutlierText) },
+]
+
+const PATTERN_COLUMNS: ColumnDef<PatternRow>[] = [
+  { key: 'statement', header: '공식', primary: true, cell: (pt) => <strong>{pt.statement}</strong> },
+  {
+    key: 'lift', header: '효과와 근거',
+    cell: (pt) => pt.liftText ?? <span className="ci-basis">근거 부족</span>,
+  },
+  { key: 'topic', header: '주제', cell: (pt) => pt.topicName ?? '전체' },
+  { key: 'confidence', header: '신뢰도', cell: (pt) => <ConfidenceBadge confidence={pt.confidence} /> },
+]
+
 interface Props {
   workspaceId: string
   tab: Tab
@@ -72,6 +138,7 @@ interface Props {
 export default function TrendsView(p: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { query, set } = useListQuery(LIST_DEFAULTS)
   // 알림에서 바로 상세로 들어오는 경로(§8.1 "알림에서 상세 시트로 직행").
   // 상세를 여는 것도 URL 상태로 둔다 — 링크를 공유하면 같은 화면이 열려야 한다.
   const [openId, setOpenId] = useState<string | null>(searchParams.get('content'))
@@ -98,6 +165,12 @@ export default function TrendsView(p: Props) {
     const params = new URLSearchParams(searchParams.toString())
     if (value) params.set(key, value)
     else params.delete(key)
+    // 조건이 바뀌면 목록 위치를 1페이지로 되돌린다 — 3페이지를 보던 채로 주제를 바꾸면
+    // 결과가 줄어 빈 화면이 되고, 화면은 "패턴이 없습니다"라고 거짓말을 한다.
+    // 'content'는 상세 시트를 여닫는 값일 뿐 목록 조건이 아니다 — 위치를 건드리지 않는다.
+    if (key !== 'content') params.delete('page')
+    // 탭을 옮길 때만 검색어까지 지운다 — 다른 목록에 남의 검색어를 물려주지 않는다
+    if (key === 'tab') params.delete('q')
     router.push(`/ci/trends?${params}`, { scroll: false })
   }
 
@@ -160,6 +233,39 @@ export default function TrendsView(p: Props) {
     </div>
   )
 
+  // 공식·이슈는 서버가 전량을 내려준다 — 검색·페이지는 화면에서 자른다(URL이 진실).
+  const needle = query.q.trim().toLowerCase()
+  const { from, to } = rangeOf(query)
+
+  const patternsAll = (p.patterns ?? []).filter((pt) => !needle
+    || pt.statement.toLowerCase().includes(needle)
+    || (pt.topicName ?? '').toLowerCase().includes(needle))
+
+  const signalsAll = (p.signals ?? []).filter((s) => !needle
+    || s.title.toLowerCase().includes(needle)
+    || (s.topicName ?? '').toLowerCase().includes(needle))
+
+  const SIGNAL_COLUMNS: ColumnDef<SignalRow>[] = [
+    {
+      key: 'title', header: '이슈', primary: true,
+      cell: (s) => (s.url
+        ? <a href={s.url} target="_blank" rel="noreferrer">{s.title}</a>
+        : <strong>{s.title}</strong>),
+    },
+    {
+      key: 'kind', header: '종류',
+      cell: (s) => SIGNAL_KINDS.find((k) => k.id === s.kind)?.label ?? s.kind,
+    },
+    { key: 'topic', header: '주제', cell: (s) => s.topicName ?? '전체' },
+    { key: 'occurred', header: '시점', cell: (s) => s.occurredAtText ?? '—' },
+    {
+      key: 'actions', header: '작업',
+      cell: (s) => (
+        <button type="button" className="btn-ghost" onClick={() => removeSignal(s.id)}>삭제</button>
+      ),
+    },
+  ]
+
   return (
     <>
       <PageHeader
@@ -205,36 +311,32 @@ export default function TrendsView(p: Props) {
             <>
               <section style={{ marginBottom: 'var(--space-6)' }}>
                 <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>플랫폼별</h2>
-                <table className="table-base table-card">
-                  <thead><tr><th>플랫폼</th><th>건수</th><th>비중</th><th>평소 대비 중앙값</th></tr></thead>
-                  <tbody>
-                    {p.market.byPlatform.map((s) => (
-                      <tr key={s.label}>
-                        <td className="card-header">{s.label}</td>
-                        <td data-label="건수"><span className="ci-num">{s.count}</span></td>
-                        <td data-label="비중"><span className="ci-num">{s.share}%</span></td>
-                        <td data-label="평소 대비 중앙값">{s.medianOutlierText ?? <span className="ci-basis">비교 이력 부족</span>}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <ListSurface
+                  rows={p.market.byPlatform}
+                  columns={sliceColumns('플랫폼')}
+                  query={SUMMARY_QUERY}
+                  rowKey={(s) => s.label}
+                  empty={{
+                    title: '이 기간에 집계된 플랫폼이 없습니다',
+                    description: '기간을 넓히거나 관심 채널을 더 등록해 보세요.',
+                    action: { label: '관심 채널 추가', href: '/ci/monitoring' },
+                  }}
+                />
               </section>
 
               <section style={{ marginBottom: 'var(--space-6)' }}>
                 <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>포맷별</h2>
-                <table className="table-base table-card">
-                  <thead><tr><th>포맷</th><th>건수</th><th>비중</th><th>평소 대비 중앙값</th></tr></thead>
-                  <tbody>
-                    {p.market.byFormat.map((s) => (
-                      <tr key={s.label}>
-                        <td className="card-header">{s.label}</td>
-                        <td data-label="건수"><span className="ci-num">{s.count}</span></td>
-                        <td data-label="비중"><span className="ci-num">{s.share}%</span></td>
-                        <td data-label="평소 대비 중앙값">{s.medianOutlierText ?? <span className="ci-basis">비교 이력 부족</span>}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <ListSurface
+                  rows={p.market.byFormat}
+                  columns={sliceColumns('포맷')}
+                  query={SUMMARY_QUERY}
+                  rowKey={(s) => s.label}
+                  empty={{
+                    title: '이 기간에 집계된 포맷이 없습니다',
+                    description: '기간을 넓히거나 관심 채널을 더 등록해 보세요.',
+                    action: { label: '관심 채널 추가', href: '/ci/monitoring' },
+                  }}
+                />
               </section>
 
               {p.timing && p.timing.contextFilled > 0 && (
@@ -250,20 +352,16 @@ export default function TrendsView(p: Props) {
                     {([['계절', p.timing.bySeason], ['시간대', p.timing.byDayPart], ['요일', p.timing.byWeekday]] as const).map(([title, slices]) => (
                       <div key={title}>
                         <h3 className="ci-creative-head">{title}</h3>
-                        <table className="table-base table-card">
-                          <thead><tr><th>구간</th><th>건수</th><th>평소 대비 중앙값</th></tr></thead>
-                          <tbody>
-                            {slices.map((s) => (
-                              <tr key={s.key}>
-                                <td className="card-header">{s.label}</td>
-                                <td data-label="건수"><span className="ci-num">{s.count}</span></td>
-                                <td data-label="평소 대비 중앙값">
-                                  {s.medianOutlierText ?? <span className="ci-basis">표본 부족</span>}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                        <ListSurface
+                          rows={slices}
+                          columns={TIMING_COLUMNS}
+                          query={SUMMARY_QUERY}
+                          rowKey={(s) => s.key}
+                          empty={{
+                            title: `${title}별로 나눌 만한 게시물이 없습니다`,
+                            description: '게시 시각을 확보한 게시물이 쌓이면 자동으로 채워집니다.',
+                          }}
+                        />
                       </div>
                     ))}
                   </div>
@@ -272,22 +370,17 @@ export default function TrendsView(p: Props) {
 
               <section>
                 <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>많이 올린 채널</h2>
-                {p.market.topChannels.length === 0 ? (
-                  <p className="empty-state-desc">채널 정보를 아직 확보하지 못했습니다.</p>
-                ) : (
-                  <table className="table-base table-card">
-                    <thead><tr><th>채널</th><th>게시물</th><th>평소 대비 중앙값</th></tr></thead>
-                    <tbody>
-                      {p.market.topChannels.map((c) => (
-                        <tr key={c.id}>
-                          <td className="card-header">{c.name}</td>
-                          <td data-label="게시물"><span className="ci-num">{c.count}</span></td>
-                          <td data-label="평소 대비 중앙값">{c.medianOutlierText ?? <span className="ci-basis">비교 이력 부족</span>}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+                <ListSurface
+                  rows={p.market.topChannels}
+                  columns={TOP_CHANNEL_COLUMNS}
+                  query={SUMMARY_QUERY}
+                  rowKey={(c) => c.id}
+                  empty={{
+                    title: '채널 정보를 아직 확보하지 못했습니다',
+                    description: '관심 채널을 등록하면 어느 채널이 얼마나 올리는지 여기 모입니다.',
+                    action: { label: '관심 채널 추가', href: '/ci/monitoring' },
+                  }}
+                />
               </section>
             </>
           )}
@@ -384,37 +477,37 @@ export default function TrendsView(p: Props) {
             </button>
           </div>
 
-          {p.patterns.length === 0 ? (
-            <EmptyState
-              title="아직 공식으로 부를 만한 패턴이 없습니다"
-              description="근거 20개·채널 5곳을 넘고 효과가 1.2배 이상일 때만 공식으로 승격합니다. 한 채널의 우연을 공식으로 팔지 않기 위해서입니다."
-              action={{ label: '관심 채널 추가', href: '/ci/monitoring' }}
-            />
-          ) : (
-            <table className="table-base table-card">
-              <thead><tr><th>공식</th><th>효과와 근거</th><th>주제</th><th>신뢰도</th></tr></thead>
-              <tbody>
-                {p.patterns.map((pt) => (
-                  <tr key={pt.id}>
-                    <td className="card-header"><strong>{pt.statement}</strong></td>
-                    <td data-label="효과와 근거">{pt.liftText ?? <span className="ci-basis">근거 부족</span>}</td>
-                    <td data-label="주제">{pt.topicName ?? '전체'}</td>
-                    <td data-label="신뢰도"><ConfidenceBadge confidence={pt.confidence} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <ListToolbar
+            query={query}
+            onChange={set}
+            searchPlaceholder="공식 문장 · 주제 검색"
+            total={patternsAll.length}
+          />
+
+          <ListSurface
+            rows={patternsAll.slice(from, to + 1)}
+            columns={PATTERN_COLUMNS}
+            query={query}
+            rowKey={(pt) => pt.id}
+            empty={needle
+              ? { title: '검색어에 맞는 공식이 없습니다', description: '다른 낱말로 찾아보세요.' }
+              : {
+                title: '아직 공식으로 부를 만한 패턴이 없습니다',
+                description: '근거 20개·채널 5곳을 넘고 효과가 1.2배 이상일 때만 공식으로 승격합니다. 한 채널의 우연을 공식으로 팔지 않기 위해서입니다.',
+                action: { label: '관심 채널 추가', href: '/ci/monitoring' },
+              }}
+          />
+
+          <ListPager query={query} total={patternsAll.length} onChange={set} />
         </>
       )}
 
       {/* ── 이슈 ── */}
       {p.tab === 'signals' && p.signals && (
         <>
-          <section style={{
+          <section className="card" style={{
             display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'flex-end',
-            padding: 'var(--space-3)', border: 'var(--border-w-2) solid var(--border-color)',
-            borderRadius: 'var(--radius)', background: 'var(--color-surface)', marginBottom: 'var(--space-4)',
+            padding: 'var(--space-3)', marginBottom: 'var(--space-4)',
           }}>
             <div>
               <label className="label" htmlFor="s-kind">종류</label>
@@ -436,31 +529,27 @@ export default function TrendsView(p: Props) {
             </button>
           </section>
 
-          {p.signals.length === 0 ? (
-            <EmptyState
-              title="등록된 이슈가 없습니다"
-              description="뉴스·검색 급상승·커뮤니티 화제처럼 콘텐츠 소재가 될 만한 것을 위에서 기록해 두면 기획할 때 근거로 씁니다."
-            />
-          ) : (
-            <table className="table-base table-card">
-              <thead><tr><th>이슈</th><th>종류</th><th>주제</th><th>시점</th><th>작업</th></tr></thead>
-              <tbody>
-                {p.signals.map((s) => (
-                  <tr key={s.id}>
-                    <td className="card-header">
-                      {s.url ? <a href={s.url} target="_blank" rel="noreferrer">{s.title}</a> : <strong>{s.title}</strong>}
-                    </td>
-                    <td data-label="종류">{SIGNAL_KINDS.find((k) => k.id === s.kind)?.label ?? s.kind}</td>
-                    <td data-label="주제">{s.topicName ?? '전체'}</td>
-                    <td data-label="시점">{s.occurredAtText ?? '—'}</td>
-                    <td className="card-actions">
-                      <button type="button" className="btn-ghost" onClick={() => removeSignal(s.id)}>삭제</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <ListToolbar
+            query={query}
+            onChange={set}
+            searchPlaceholder="이슈 내용 · 주제 검색"
+            total={signalsAll.length}
+          />
+
+          <ListSurface
+            rows={signalsAll.slice(from, to + 1)}
+            columns={SIGNAL_COLUMNS}
+            query={query}
+            rowKey={(s) => s.id}
+            empty={needle
+              ? { title: '검색어에 맞는 이슈가 없습니다', description: '다른 낱말로 찾아보세요.' }
+              : {
+                title: '등록된 이슈가 없습니다',
+                description: '뉴스·검색 급상승·커뮤니티 화제처럼 콘텐츠 소재가 될 만한 것을 위에서 기록해 두면 기획할 때 근거로 씁니다.',
+              }}
+          />
+
+          <ListPager query={query} total={signalsAll.length} onChange={set} />
         </>
       )}
 

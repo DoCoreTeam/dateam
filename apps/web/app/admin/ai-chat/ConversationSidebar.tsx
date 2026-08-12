@@ -9,6 +9,7 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
 import { searchConversations } from './actions'
 import { isEnterKey } from '@/lib/ui/ime'
+import EmptyState from '@/components/ui/EmptyState'
 
 interface SearchResult {
   id: string
@@ -302,9 +303,7 @@ export default function ConversationSidebar({
               <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--danger)', margin: 0 }}>{searchError}</p>
             </div>
           ) : searchResults && searchResults.length === 0 ? (
-            <div className="ai-chat-state" style={{ padding: 'var(--space-5)' }}>
-              <p style={{ fontSize: 'var(--fs-sm)', margin: 0 }}>검색 결과가 없습니다.</p>
-            </div>
+            <EmptyState title="검색 결과가 없어요" description="다른 낱말로 다시 찾아보세요" />
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 'var(--space-2) 0', display: 'flex', flexDirection: 'column' }}>
               {searchResults?.map((r) => (
@@ -327,10 +326,7 @@ export default function ConversationSidebar({
           )
         ) : conversations.length === 0 ? (
           // ── 빈 목록 ──
-          <div className="ai-chat-state" style={{ padding: 'var(--space-5)' }}>
-            <p style={{ fontSize: 'var(--fs-sm)', margin: 0 }}>대화가 없습니다.</p>
-            <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', margin: 0 }}>새 대화를 시작하세요.</p>
-          </div>
+          <EmptyState title="대화가 없어요" description="위의 새 대화 버튼으로 첫 대화를 시작하세요" />
         ) : (
           // ── 고정됨 / 최근 2섹션 ──
           <>

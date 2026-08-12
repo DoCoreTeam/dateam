@@ -10,6 +10,7 @@ import { ClipboardList, ArrowRight } from 'lucide-react'
 import type { DailyLog, DailyLogEntryType } from '@/types/database'
 import { getMeetingDerivedLogs, getMeetingNote } from '../meeting-notes/actions'
 import { STATUS_LIST } from '@/lib/tokens/status-colors'
+import EmptyState from '@/components/ui/EmptyState'
 
 const ENTRY_MAP = Object.fromEntries(
   (STATUS_LIST as { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[]).map((t) => [t.value, t])
@@ -101,15 +102,13 @@ export default function MeetingContextView({ meetingId }: { meetingId: string })
         </ul>
       )}
 
-      {/* 빈 상태 — 배너가 안내, 추가 행동 유도 */}
+      {/* 빈 상태 — 다음 행동을 하나 제시 */}
       {!loading && logs.length === 0 && !error && (
-        <div style={{
-          textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-8) var(--space-0)',
-          border: 'var(--hairline) dashed var(--color-border)', borderRadius: 'var(--radius)',
-          fontSize: 'var(--fs-base)',
-        }}>
-          이 회의에서 아직 생성된 업무가 없습니다. 회의노트에서 AI 분석으로 업무를 추출해 보세요.
-        </div>
+        <EmptyState
+          title="이 회의에서 만들어진 업무가 아직 없어요"
+          description="회의노트에서 AI 분석을 돌리면 할 일이 업무로 추출됩니다"
+          action={{ label: '회의노트 열기', href: noteHref }}
+        />
       )}
     </section>
   )

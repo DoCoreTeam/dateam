@@ -3,15 +3,7 @@ import PageHeader from '@/components/ui/PageHeader'
 import { createClient } from '@/lib/supabase/server'
 import { Tag, Plus } from 'lucide-react'
 import TierForm from './TierForm'
-import TierRow from './TierRow'
-
-interface PartnerTier {
-  id: string
-  name: string
-  discount_rate: number
-  description: string | null
-  created_at: string
-}
+import TierTable, { type PartnerTierRow } from './TierTable'
 
 export default async function PartnerTiersPage() {
   const supabase = await createClient()
@@ -21,7 +13,9 @@ export default async function PartnerTiersPage() {
   const { data: tiers } = await supabase
     .from('partner_tiers')
     .select('*')
-    .order('discount_rate', { ascending: false }) as unknown as { data: PartnerTier[] | null }
+    .order('discount_rate', { ascending: false }) as unknown as { data: PartnerTierRow[] | null }
+
+  const rows = tiers ?? []
 
   return (
     <div>
@@ -39,42 +33,14 @@ export default async function PartnerTiersPage() {
       </div>
 
       {/* 등급 목록 */}
-      <div className="card">
-        <div style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+      <div className="card" style={{ padding: 'var(--space-5) var(--space-6)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
           <Tag size={16} color="var(--brand)" />
           <h2 className="tape-title" style={{ margin: 0 }}>등급 목록</h2>
-          <span className="badge badge-slate">{tiers?.length ?? 0}개</span>
+          <span className="badge badge-slate">{rows.length}개</span>
         </div>
 
-        {(!tiers || tiers.length === 0) ? (
-          <div style={{ padding: 'var(--space-12)', textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>
-            등록된 등급이 없습니다. 새 등급을 추가해주세요.
-          </div>
-        ) : (
-          <table className="table-base table-card">
-            <thead>
-              <tr>
-                <th>등급명</th>
-                <th>할인율</th>
-                <th>설명</th>
-                <th>생성일</th>
-                <th style={{ width: '140px' }}>관리</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tiers.map((tier) => (
-                <TierRow
-                  key={tier.id}
-                  id={tier.id}
-                  name={tier.name}
-                  discountRate={tier.discount_rate}
-                  description={tier.description}
-                  createdAt={tier.created_at}
-                />
-              ))}
-            </tbody>
-          </table>
-        )}
+        <TierTable tiers={rows} />
       </div>
     </div>
   )

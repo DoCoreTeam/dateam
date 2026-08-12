@@ -7,6 +7,8 @@ import { Lock, Sparkles, FileDown } from 'lucide-react'
 import { saveDeptReport, aggregateDept, exportDeptDocx } from './org-actions'
 import RichText from '@/components/ui/RichText'
 import { useEscClose } from '@/lib/use-esc-close'
+import EmptyState from '@/components/ui/EmptyState'
+import AXDotLoader from '@/components/ui/AXDotLoader'
 
 const EditorModal = dynamic(() => import('@/components/ui/EditorModal'), { ssr: false })
 
@@ -150,13 +152,13 @@ export default function DeptReportPanel({ deptId, deptName, weekStart, editable,
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexShrink: 0 }}>
           {rows.length > 0 && (
-            <button onClick={onExportDocx} disabled={exportingDocx} title="Word(.docx) 내보내기"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', background: '#fff', color: 'var(--text-muted)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: exportingDocx ? 'wait' : 'pointer', opacity: exportingDocx ? 0.7 : 1 }}>
+            <button type="button" className="btn-ghost" onClick={onExportDocx} disabled={exportingDocx} title="Word(.docx) 내보내기"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', fontSize: 'var(--fs-sm)' }}>
               <FileDown size={14} /> {exportingDocx ? '내보내는 중…' : 'Word 내보내기'}
             </button>
           )}
           {editable && (
-            <button onClick={onAggregate} disabled={busy} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', background: 'var(--brand)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.7 : 1 }}>
+            <button type="button" className="btn-primary" onClick={onAggregate} disabled={busy} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', fontSize: 'var(--fs-sm)' }}>
               <Sparkles size={14} /> {busy ? 'AI 취합 중…' : agg === 'none' ? 'AI 취합' : '재취합'}
             </button>
           )}
@@ -166,13 +168,17 @@ export default function DeptReportPanel({ deptId, deptName, weekStart, editable,
       {msg && <div role="status" style={{ padding: '0.625rem 1.25rem', background: 'var(--brand-soft)', borderBottom: 'var(--hairline) solid var(--brand-soft-2)', fontSize: 'var(--fs-sm)', color: 'var(--brand-dark)' }}>{msg}</div>}
 
       {busy ? (
-        <div style={{ padding: 'var(--space-5)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: 'var(--fs-base)', fontWeight: 700, color: 'var(--brand)' }}>
-          <Sparkles size={15} /> AI가 부서원 보고를 카테고리별로 취합·정제 중…
+        <div style={{ padding: 'var(--space-5)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: 'var(--fs-base)', fontWeight: 700, color: 'var(--brand)' }} aria-live="polite">
+          <AXDotLoader /> AI가 부서원 보고를 카테고리별로 취합·정제 중
         </div>
       ) : rows.length === 0 ? (
-        <p style={{ padding: 'var(--space-5)', color: 'var(--text-faint)', fontSize: 'var(--fs-base)', margin: 0 }}>
-          {editable ? '아직 취합본이 없습니다. 상단 "AI 취합"으로 부서원 보고를 모으세요.' : '아직 확정된 취합본이 없습니다.'}
-        </p>
+        <EmptyState
+          title="아직 취합본이 없어요"
+          description={editable
+            ? '상단 "AI 취합"을 누르면 부서원 보고를 카테고리별로 모아 초안을 만듭니다'
+            : '부서장이 취합을 마치면 여기에 확정본이 표시됩니다'}
+          {...(editable ? { action: { label: 'AI 취합 실행', onClick: onAggregate } } : {})}
+        />
       ) : (
         <div>
           {rows.map((row, idx) => (
@@ -203,9 +209,9 @@ export default function DeptReportPanel({ deptId, deptName, weekStart, editable,
           {localStatus === 'confirmed' && !dirty ? (
             <button disabled style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--success)', background: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-4)', cursor: 'default' }}>✓ 확정됨</button>
           ) : (
-            <button onClick={() => save(true)} disabled={busy} style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: '#fff', background: 'var(--success)', border: 'none', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-4)', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>{dirty && localStatus === 'confirmed' ? '재확정' : '확정'}</button>
+            <button type="button" className="btn-primary" onClick={() => save(true)} disabled={busy} style={{ background: 'var(--success)', borderColor: 'var(--success)', fontSize: 'var(--fs-sm)' }}>{dirty && localStatus === 'confirmed' ? '재확정' : '확정'}</button>
           )}
-          <button onClick={() => save(false)} disabled={busy} style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text-muted)', background: 'var(--surface-muted)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-4)', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>임시저장</button>
+          <button type="button" className="btn-ghost" onClick={() => save(false)} disabled={busy} style={{ fontSize: 'var(--fs-sm)' }}>임시저장</button>
           {dirty && <span style={{ alignSelf: 'center', fontSize: 'var(--fs-xs)', color: 'var(--warning)' }}>저장되지 않은 변경</span>}
         </div>
       )}
@@ -234,8 +240,8 @@ export default function DeptReportPanel({ deptId, deptName, weekStart, editable,
               이 주간보고는 <strong style={{ color: 'var(--success)' }}>확정</strong> 상태입니다. 재취합하면 부서원 보고를 다시 병합해 <strong>초안(draft)</strong>으로 덮어쓰며, 다시 확정해야 합니다. 계속할까요?
             </p>
             <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
-              <button onClick={() => setConfirmReagg(false)} style={{ padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', border: 'var(--border-w) solid var(--border-color)', background: 'var(--surface-bg)', color: 'var(--text)', fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: 'pointer' }}>취소</button>
-              <button onClick={() => void runAggregate()} style={{ padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', border: 'none', background: 'var(--brand)', color: '#fff', fontSize: 'var(--fs-sm)', fontWeight: 600, cursor: 'pointer' }}>재취합</button>
+              <button type="button" className="btn-ghost" onClick={() => setConfirmReagg(false)}>취소</button>
+              <button type="button" className="btn-primary" onClick={() => void runAggregate()}>재취합</button>
             </div>
           </div>
         </div>

@@ -1,10 +1,14 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { upsertRoutineCheck } from './actions'
 import { cn } from '@/lib/utils'
 import type { RoutineCheck } from '@/types/database'
 import type { RoutineItemParsed } from '@/lib/routine-defaults'
+import EmptyState from '@/components/ui/EmptyState'
+import ListSurface from '@/components/ui/list/ListSurface'
+import type { ColumnDef } from '@/components/ui/list/types'
+import { resolveListQuery } from '@/lib/ui/list-query'
 
 const DAY_LABELS = ['월', '화', '수', '목', '금', '토', '일']
 
@@ -52,7 +56,7 @@ function CheckBox({
     >
       {checked && (
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-          <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M2 6L5 9L10 3" stroke="var(--brand-fg)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       )}
     </button>
@@ -67,6 +71,11 @@ export default function RoutineGrid({
   routineItems,
 }: RoutineGridProps) {
   const [isPending, startTransition] = useTransition()
+  // 검색·정렬·페이지가 없는 고정 매트릭스 — URL 상태를 만들지 않고 표 렌더러만 재사용한다
+  const listQuery = useMemo(
+    () => resolveListQuery(new URLSearchParams(), { sort: { key: 'name', dir: 'asc' }, view: 'table' }),
+    [],
+  )
 
   const [checks, setChecks] = useState<Record<string, boolean>>(() => {
     const map: Record<string, boolean> = {}
@@ -102,6 +111,45 @@ export default function RoutineGrid({
   const totalUnits = weeklyTotal + dailyTotal
   const completedUnits = weeklyCompleted + dailyCompleted
   const overallRate = totalUnits > 0 ? Math.round((completedUnits / totalUnits) * 100) : 0
+
+  // 컬럼은 한 벌만 선언한다 — 표와 모바일 카드를 같은 정의로 그린다
+  const dailyColumns: ColumnDef<RoutineItemParsed>[] = [
+    {
+      key: 'name', header: '루틴', primary: true, width: '200px',
+      cell: (item) => {
+        const rowCompleted = weekDates.filter((d) => checks[`${item.name}|${d}`]).length
+        const rowRate = Math.round((rowCompleted / 7) * 100)
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
+            <span style={{ fontSize: 'var(--fs-base)', color: 'var(--text)', fontWeight: 500 }}>{item.name}</span>
+            <span className={cn('badge', rowRate === 100 ? 'badge-emerald' : 'badge-slate')} style={{ fontSize: 'var(--fs-2xs)', flexShrink: 0 }}>
+              {rowRate}%
+            </span>
+          </div>
+        )
+      },
+    },
+    ...weekDates.map((date, i) => ({
+      key: date,
+      header: `${DAY_LABELS[i]} ${new Date(date).getDate()}`,
+      align: 'left' as const,
+      cell: (item: RoutineItemParsed) => {
+        const key = `${item.name}|${date}`
+        const isChecked = !!checks[key]
+        const isToday = date === todayStr
+        const isFuture = date > todayStr
+        return (
+          <CheckBox
+            checked={isChecked}
+            disabled={isPending || isFuture}
+            isToday={isToday}
+            label={`${item.name} ${date} ${isChecked ? '완료됨' : '미완료'}`}
+            onToggle={() => !isFuture && handleToggle(item.name, date)}
+          />
+        )
+      },
+    })),
+  ]
 
   return (
     <div>
@@ -195,74 +243,22 @@ export default function RoutineGrid({
               <span className="badge badge-slate" style={{ fontSize: 'var(--fs-2xs)' }}>매일</span>
             </div>
           )}
-          <div className="table-responsive">
-            <table className="table-base table-card" style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={{ padding: 'var(--space-4) var(--space-5)', textAlign: 'left', fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text-muted)', borderBottom: 'var(--border-w-2) solid var(--border-color)', width: '200px' }}>
-                    루틴
-                  </th>
-                  {weekDates.map((date, i) => {
-                    const isToday = date === todayStr
-                    return (
-                      <th key={date} style={{ padding: 'var(--space-4) var(--space-2)', textAlign: 'center', fontSize: 'var(--fs-sm)', fontWeight: 600, color: isToday ? 'var(--brand)' : 'var(--text-muted)', borderBottom: 'var(--border-w-2) solid var(--border-color)', minWidth: '60px' }}>
-                        <div>{DAY_LABELS[i]}</div>
-                        <div style={{ fontSize: 'var(--fs-xs)', fontWeight: isToday ? 700 : 400, color: isToday ? 'var(--brand)' : 'var(--text-faint)', marginTop: '0.125rem' }}>
-                          {new Date(date).getDate()}
-                        </div>
-                        {isToday && <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'var(--brand)', margin: '0.25rem auto 0' }} />}
-                      </th>
-                    )
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {dailyItems.map((item, rIdx) => {
-                  const rowCompleted = weekDates.filter((d) => checks[`${item.name}|${d}`]).length
-                  const rowRate = Math.round((rowCompleted / 7) * 100)
-
-                  return (
-                    <tr key={item.name}>
-                      <td className="card-header" style={{ padding: '0.875rem 1.25rem', borderBottom: rIdx < dailyItems.length - 1 ? 'var(--hairline) solid var(--surface-muted)' : 'none', verticalAlign: 'middle' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
-                          <span style={{ fontSize: 'var(--fs-base)', color: 'var(--text)', fontWeight: 500 }}>{item.name}</span>
-                          <span className={cn('badge', rowRate === 100 ? 'badge-emerald' : 'badge-slate')} style={{ fontSize: 'var(--fs-2xs)', flexShrink: 0 }}>
-                            {rowRate}%
-                          </span>
-                        </div>
-                      </td>
-                      {weekDates.map((date, i) => {
-                        const key = `${item.name}|${date}`
-                        const isChecked = !!checks[key]
-                        const isToday = date === todayStr
-                        const isFuture = date > todayStr
-
-                        return (
-                          <td key={date} data-label={DAY_LABELS[i]} style={{ padding: '0.875rem 0.5rem', textAlign: 'center', borderBottom: rIdx < dailyItems.length - 1 ? 'var(--hairline) solid var(--surface-muted)' : 'none', backgroundColor: isToday ? 'var(--surface-bg)' : 'transparent' }}>
-                            <CheckBox
-                              checked={isChecked}
-                              disabled={isPending || isFuture}
-                              isToday={isToday}
-                              label={`${item.name} ${date} ${isChecked ? '완료됨' : '미완료'}`}
-                              onToggle={() => !isFuture && handleToggle(item.name, date)}
-                            />
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          <ListSurface
+            rows={dailyItems}
+            columns={dailyColumns}
+            query={listQuery}
+            rowKey={(item) => item.name}
+            empty={{ title: '일간 루틴이 없어요', description: '관리자가 루틴 템플릿을 등록하면 여기에 표시됩니다' }}
+          />
         </div>
       )}
 
       {/* 루틴 없음 */}
       {weeklyItems.length === 0 && dailyItems.length === 0 && (
-        <div className="card" style={{ padding: 'var(--space-12) var(--space-4)', textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>
-          등록된 루틴이 없습니다
-        </div>
+        <EmptyState
+          title="등록된 루틴이 없어요"
+          description="관리자가 루틴 템플릿을 만들면 이 주의 체크 항목이 나타납니다"
+        />
       )}
     </div>
   )

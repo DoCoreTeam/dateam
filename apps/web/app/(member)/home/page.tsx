@@ -10,6 +10,8 @@ import { listHomeDeptTasks } from '../dept-tasks/actions'
 import Link from 'next/link'
 import { FileText, BarChart2, CheckSquare, Building2 } from 'lucide-react'
 import FridaySpotlightOverlay from '@/components/ui/FridaySpotlightOverlay'
+import PageHeader from '@/components/ui/PageHeader'
+import EmptyState from '@/components/ui/EmptyState'
 import UnreviewedMemoWidget from '@/components/ui/memo/UnreviewedMemoWidget'
 import { isMemberOfDivisionByName } from '@/lib/org-scope'
 
@@ -63,43 +65,44 @@ export default async function HomePage() {
       */}
       <div className="home-layout">
 
-        {/* 헤더 */}
+        {/* 헤더 — 공용 PageHeader(제목 타이포 SSOT). 바로가기 칩은 헤더 액션으로. */}
         <div className="home-section-header">
-          <h1 style={{ fontSize: 'var(--fs-3xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
-            안녕하세요, {displayName}님
-          </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginTop: '0.375rem', flexWrap: 'wrap' }}>
-            <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-md)' }}>
-              {now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
-            </span>
-            {showAxTiles && [
-              { href: '/kpi', label: 'KPI', icon: <BarChart2 size={12} />, color: 'var(--brand)', bg: 'var(--brand-soft)' },
-              { href: '/routine', label: '루틴', icon: <CheckSquare size={12} />, color: 'var(--info)', bg: 'var(--info-bg)' },
-              { href: '/operations', label: '본부 운영', icon: <Building2 size={12} />, color: 'var(--success)', bg: 'var(--success-bg)' },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.3rem',
-                  padding: '0.2rem 0.6rem',
-                  borderRadius: 'var(--radius)',
-                  background: item.bg,
-                  color: item.color,
-                  fontSize: 'var(--fs-xs)',
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                  border: `var(--hairline) solid ${item.color}33`,
-                  lineHeight: 1.4,
-                }}
-              >
-                {item.icon}
-                {item.label}
-              </Link>
-            ))}
-          </div>
+          <PageHeader
+            title={`안녕하세요, ${displayName}님`}
+            description={now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
+            actions={showAxTiles ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                {[
+                  { href: '/kpi', label: 'KPI', icon: <BarChart2 size={12} />, color: 'var(--brand)', bg: 'var(--brand-soft)' },
+                  { href: '/routine', label: '루틴', icon: <CheckSquare size={12} />, color: 'var(--info)', bg: 'var(--info-bg)' },
+                  { href: '/operations', label: '본부 운영', icon: <Building2 size={12} />, color: 'var(--success)', bg: 'var(--success-bg)' },
+                ].map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      padding: '0.2rem 0.6rem',
+                      borderRadius: 'var(--radius)',
+                      background: item.bg,
+                      color: item.color,
+                      fontSize: 'var(--fs-xs)',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      border: 'var(--hairline) solid var(--border-light)',
+                      lineHeight: 1.4,
+                      minHeight: '32px',
+                    }}
+                  >
+                    {item.icon}
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            ) : undefined}
+          />
         </div>
 
         {/* 부서업무 와이드 섹션 — 중요도 높음, 헤더 직하 배치 */}
@@ -146,10 +149,11 @@ export default async function HomePage() {
               ))}
             </ul>
             ) : (
-              <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', margin: 0, textAlign: 'center' }}>
-                아직 주간보고가 없습니다.{' '}
-                <Link href="/weekly-report" style={{ color: 'var(--brand)', fontWeight: 600 }}>작성하기</Link>
-              </p>
+              <EmptyState
+                title="아직 주간보고가 없어요"
+                description="이번 주 한 일을 정리해 두면 취합이 쉬워집니다"
+                action={{ label: '주간보고 작성', href: '/weekly-report' }}
+              />
             )}
           </div>
         </div>

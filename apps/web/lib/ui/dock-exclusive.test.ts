@@ -20,7 +20,6 @@ const DOCK_OWNERS = new Set([
  */
 const DOCK_MIGRATION_PENDING = new Set([
   'components/ui/QueryToast.tsx', // 토스트 층 — Dock 대상 아님
-  'app/admin/content/ContentSections.tsx', // 콘텐츠 관리 저장바 — Phase 2 목록 툴바로 흡수
 ])
 
 /** `position:'fixed'` 주변에서 bottom+right만 지정 = 우측하단 점유 */

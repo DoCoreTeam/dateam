@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import type { DailyLog, DailyLogEntryType } from '@/types/database'
 import { DdayBadge, todayLocal } from '@/lib/dday'
+import EmptyState from '@/components/ui/EmptyState'
 import AutolinkSection from './AutolinkSection'
 
 const ENTRY_TYPES: { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[] = [
@@ -133,9 +134,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
 
           <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text)', margin: 'var(--space-2) 0' }}>↳ 파생 트리</div>
           {flat.length <= 1 ? (
-            <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: 'var(--space-8) var(--space-0)', fontSize: 'var(--fs-base)' }}>
-              연결된 파생 업무가 없습니다
-            </div>
+            <EmptyState title="연결된 파생 업무가 없어요" description="이 업무에서 갈라져 나온 기록이 생기면 여기에 트리로 보입니다" />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               {flat.map((n, idx) => {

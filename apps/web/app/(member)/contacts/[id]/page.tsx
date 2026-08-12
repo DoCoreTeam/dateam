@@ -1,8 +1,10 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { Users, ArrowLeft, Mail, Phone, Linkedin } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, Linkedin } from 'lucide-react'
 import type { Contact, Account } from '@/types/database'
+import PageHeader from '@/components/ui/PageHeader'
+import EmptyState from '@/components/ui/EmptyState'
 
 interface PageProps { params: Promise<{ id: string }> }
 
@@ -25,26 +27,26 @@ export default async function ContactDetailPage({ params }: PageProps) {
         <Link href="/contacts" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: 'var(--brand)', fontSize: 'var(--fs-base)', fontWeight: 500, textDecoration: 'none', marginBottom: '0.75rem' }}>
           <ArrowLeft size={14} /> 담당자 목록
         </Link>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-            <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '50%', background: 'linear-gradient(135deg, var(--brand), var(--brand))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 'var(--fs-lg)', flexShrink: 0 }}>
-              {data.name.charAt(0)}
+        {/* 제목은 PageHeader가 유일 렌더러(§2-3). 소속·역할은 제목에 종속되므로 below로 붙인다 */}
+        <PageHeader
+          title={data.name}
+          actions={
+            <Link href={`/contacts/${id}/edit`} className="btn-primary" style={{ textDecoration: 'none', padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
+              편집
+            </Link>
+          }
+          below={
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap', fontSize: 'var(--fs-base)', color: 'var(--text-muted)' }}>
+              {[data.title, data.department].filter(Boolean).length > 0 && (
+                <span>{[data.title, data.department].filter(Boolean).join(' · ')}</span>
+              )}
+              {data.accounts?.name && (
+                <Link href={`/accounts/${data.accounts.id}`} style={{ color: 'var(--brand)', textDecoration: 'none' }}>{data.accounts.name}</Link>
+              )}
+              {data.role && <span className="badge badge-slate">{data.role}</span>}
             </div>
-            <div>
-              <h1 style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>{data.name}</h1>
-              <div style={{ fontSize: 'var(--fs-base)', color: 'var(--text-muted)', marginTop: '0.125rem' }}>
-                {[data.title, data.department].filter(Boolean).join(' · ')}
-                {data.accounts?.name && (
-                  <> · <Link href={`/accounts/${data.accounts.id}`} style={{ color: 'var(--brand)', textDecoration: 'none' }}>{data.accounts.name}</Link></>
-                )}
-              </div>
-              {data.role && <span className="badge badge-slate" style={{ marginTop: '0.375rem' }}>{data.role}</span>}
-            </div>
-          </div>
-          <Link href={`/contacts/${id}/edit`} className="btn-primary" style={{ textDecoration: 'none', padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
-            편집
-          </Link>
-        </div>
+          }
+        />
       </div>
 
       <div className="card" style={{ maxWidth: '480px', padding: 'var(--space-6)' }}>
@@ -82,7 +84,11 @@ export default async function ContactDetailPage({ params }: PageProps) {
             </div>
           )}
           {!data.email && !data.phone && !data.mobile && !data.linkedin && !data.notes && (
-            <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-base)', margin: 0 }}>연락처 정보가 없습니다</p>
+            <EmptyState
+              title="연락처 정보가 아직 없어요"
+              description="이메일·전화번호를 입력하면 여기에 보입니다"
+              action={{ label: '정보 입력', href: `/contacts/${id}/edit` }}
+            />
           )}
         </div>
       </div>

@@ -94,7 +94,7 @@ export default function DbSettings({ hasUrl: initialHas, maskedUrl: initialMaske
           <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '0.375rem' }}>
             <input name="dbUrl" type="password" value={inputUrl} onChange={(e) => setInputUrl(e.target.value)} placeholder="postgresql://user:password@host:5432/db" className="input-field" style={{ flex: 1, fontFamily: 'monospace' }} autoComplete="off" />
             <button type="submit" disabled={savePending || !inputUrl.trim()} className="btn-primary" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-              {savePending ? <AXDotLoader size={4} color="#fff" /> : null}저장
+              {savePending ? <AXDotLoader size={4} color="var(--brand-fg)" /> : null}저장
             </button>
           </div>
         </form>

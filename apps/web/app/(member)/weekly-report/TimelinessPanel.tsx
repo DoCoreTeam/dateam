@@ -38,7 +38,7 @@ export default function TimelinessPanel({ members }: Props) {
   }, {})
 
   return (
-    <div style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-4)', marginBottom: 'var(--space-3)', background: '#fff' }}>
+    <div style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-4)', marginBottom: 'var(--space-3)', background: 'var(--color-surface)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
         <Clock size={14} color="var(--brand)" />
         <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text)' }}>작성 적시성</span>

@@ -1,14 +1,21 @@
 // 업무 허브 통합 이력 탭 (프로젝트 현황 옆). 일일·주간·부서·프로젝트의 모든 활동을
-// 한 피드로 최신순 표시 — 성공/실패/부분, 저장값 스냅샷, 실패 원인까지. 모듈·상태 필터 + 더보기.
+// 한 피드로 최신순 표시 — 성공/실패/부분, 저장값 스냅샷, 실패 원인까지.
+// 모듈·상태 필터와 '더 보기'는 URL이 진실(useListQuery) — 공유·새로고침·뒤로가기가 성립한다.
 'use client'
 
-import { useState, useCallback, useTransition } from 'react'
+import { useState, useCallback, useEffect, useTransition } from 'react'
 import useSWRInfinite from 'swr/infinite'
-import { History, AlertTriangle, Undo2 } from 'lucide-react'
+import { AlertTriangle, Undo2 } from 'lucide-react'
 import { restoreFromAudit, restoreProject } from '@/lib/work/restore-action'
 import { restoreWeeklyReportSnapshot } from '@/app/(member)/weekly-report/actions'
 import WorkPageShell from '@/components/ui/WorkPageShell'
 import WorkSubTabs from '@/components/ui/WorkSubTabs'
+import EmptyState from '@/components/ui/EmptyState'
+import ErrorState from '@/components/ui/ErrorState'
+import { SkelList } from '@/components/ui/LoadingSkeleton'
+import ListPager from '@/components/ui/list/ListPager'
+import { useListQuery } from '@/lib/ui/use-list-query'
+import type { ListDefaults } from '@/lib/ui/list-query'
 import { fetcher } from '@/lib/swr-config'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import {
@@ -38,9 +45,19 @@ const MODULE_DOT: Record<FeedModule, string> = {
   daily: 'var(--brand)', weekly: 'var(--info)', dept_task: 'var(--warning)', project: 'var(--success)',
 }
 
+// 시간순 피드다 — 페이지 버튼보다 '더 보기'가 흐름을 안 끊는다(§2-6 (2)).
+const LIST_DEFAULTS: ListDefaults = {
+  sort: { key: 'occurredAt', dir: 'desc' },
+  mode: 'more',
+  view: 'card',
+  filterKeys: ['status', 'module'],
+}
+
 export default function WorkActivityPage() {
-  const [mods, setMods] = useState<Set<FeedModule>>(new Set())
-  const [status, setStatus] = useState<'all' | ActivityStatus>('all')
+  const { query, set } = useListQuery(LIST_DEFAULTS, { persistKey: '/work/activity' })
+  const status = (query.filters.status as ActivityStatus | undefined) ?? 'all'
+  // 모듈은 여러 개를 동시에 볼 수 있다 — URL에는 쉼표로 싣는다
+  const mods = (query.filters.module ?? '').split(',').filter(Boolean) as FeedModule[]
 
   const getKey = useCallback((index: number, prev: Page | null) => {
     if (prev && (!prev.hasMore || !prev.nextBefore)) return null
@@ -49,7 +66,8 @@ export default function WorkActivityPage() {
     mods.forEach((m) => sp.append('module', m))
     if (status !== 'all') sp.set('status', status)
     return `/api/work/activity?${sp.toString()}`
-  }, [mods, status])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query.filters.module, status])
 
   // 최신 페이지(1페이지)를 반드시 재검증해야 방금 만든 활동이 즉시 뜬다.
   // (이전엔 revalidateFirstPage:false라 탭 재진입해도 새 활동이 영원히 안 보였음 — 이력 정지 사고)
@@ -60,6 +78,9 @@ export default function WorkActivityPage() {
   const [restoring, setRestoring] = useState<string | null>(null)   // 되살리는 중인 피드아이템 id
   const [restoreMsg, setRestoreMsg] = useState<string | null>(null)
   const [, startRestore] = useTransition()
+
+  // '더 보기'는 URL(page)이 진실이다 — 새로고침해도 보던 만큼 다시 불러온다
+  useEffect(() => { if (size !== query.page) setSize(query.page) }, [query.page, size, setSize])
 
   // 모듈별 복원 인프라 분기 — audit(일일·부서)/weekly(스냅샷)/project. 성공 시 피드 즉시 갱신(실시간).
   function handleRestore(itemId: string, restore: RestoreRef) {
@@ -78,14 +99,10 @@ export default function WorkActivityPage() {
 
   const items = data ? data.flatMap((p) => p.items) : []
   const hasMore = data ? Boolean(data[data.length - 1]?.hasMore) : false
-  const loadingMore = isValidating && !isLoading && size > 1
 
   function toggleMod(m: FeedModule) {
-    setMods((prev) => {
-      const next = new Set(prev)
-      if (next.has(m)) next.delete(m); else next.add(m)
-      return next
-    })
+    const next = mods.includes(m) ? mods.filter((x) => x !== m) : [...mods, m]
+    set({ filters: { module: next.join(',') } })
   }
 
   return (
@@ -96,7 +113,7 @@ export default function WorkActivityPage() {
         <WorkSubTabs
           items={STATUS_TABS.map((s) => ({ key: s.key, label: s.label }))}
           activeKey={status}
-          onSelect={(k) => setStatus(k as 'all' | ActivityStatus)}
+          onSelect={(k) => set({ filters: { status: k === 'all' ? '' : k } })}
           ariaLabel="상태 필터"
         />
       }
@@ -104,9 +121,9 @@ export default function WorkActivityPage() {
       {/* 모듈 필터 칩 */}
       <div className="work-activity-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
         {MODULES.map((m) => {
-          const on = mods.has(m.key)
+          const on = mods.includes(m.key)
           return (
-            <button key={m.key} onClick={() => toggleMod(m.key)}
+            <button key={m.key} type="button" aria-pressed={on} onClick={() => toggleMod(m.key)}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', minHeight: 36,
                 borderRadius: '9999px', cursor: 'pointer', fontSize: 'var(--fs-sm)', fontWeight: 600,
@@ -119,8 +136,9 @@ export default function WorkActivityPage() {
             </button>
           )
         })}
-        {mods.size > 0 && (
-          <button onClick={() => setMods(new Set())} style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', background: 'none', border: 'none', cursor: 'pointer' }}>필터 해제</button>
+        {mods.length > 0 && (
+          <button type="button" className="btn-ghost" onClick={() => set({ filters: { module: '' } })}
+            style={{ fontSize: 'var(--fs-sm)', padding: 'var(--space-1) var(--space-3)' }}>필터 해제</button>
         )}
       </div>
 
@@ -131,16 +149,19 @@ export default function WorkActivityPage() {
       )}
 
       {error ? (
-        <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-5)', borderRadius: 'var(--radius-lg)', border: 'var(--border-w-2) solid var(--danger-border)', background: 'var(--danger-bg)', color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>
-          <AlertTriangle size={18} /> 이력을 불러오지 못했습니다
-        </div>
+        <ErrorState message="이력을 불러오지 못했습니다" onRetry={() => { void mutate() }} />
       ) : isLoading ? (
-        <div style={{ color: 'var(--text-faint)', padding: 'var(--space-6)', textAlign: 'center', fontSize: 'var(--fs-sm)' }}>불러오는 중…</div>
+        <SkelList rows={6} />
       ) : items.length === 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-8) var(--space-4)', color: 'var(--text-faint)', textAlign: 'center' }}>
-          <History size={32} strokeWidth={1.5} />
-          <p style={{ margin: 0, fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text-muted)' }}>기록된 활동 이력이 없습니다</p>
-        </div>
+        <EmptyState
+          title="기록된 활동 이력이 없습니다"
+          description={mods.length > 0 || status !== 'all'
+            ? '필터를 풀면 더 많은 활동이 보입니다'
+            : '일일업무·주간보고를 저장하면 여기에 기록이 쌓입니다'}
+          action={mods.length > 0 || status !== 'all'
+            ? { label: '필터 해제', onClick: () => set({ filters: { module: '', status: '' } }) }
+            : { label: '일일업무 쓰러 가기', href: '/daily' }}
+        />
       ) : (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           {items.map((it) => {
@@ -160,7 +181,9 @@ export default function WorkActivityPage() {
                     <p style={{ margin: '3px 0 0', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.title}</p>
                   )}
                   {it.error?.message && (
-                    <p style={{ margin: '3px 0 0', fontSize: 'var(--fs-xs)', color: 'var(--danger)' }}>⚠ {it.error.message}</p>
+                    <p style={{ margin: '3px 0 0', fontSize: 'var(--fs-xs)', color: 'var(--danger)' }}>
+                      <AlertTriangle size={12} aria-hidden style={{ verticalAlign: 'text-bottom' }} /> {it.error.message}
+                    </p>
                   )}
                   <ChangeList action={it.action} module={it.module} before={it.before} after={it.after} />
                   {it.restore && (
@@ -177,14 +200,7 @@ export default function WorkActivityPage() {
         </ul>
       )}
 
-      {hasMore && !error && (
-        <div style={{ textAlign: 'center', marginTop: 'var(--space-4)' }}>
-          <button onClick={() => setSize(size + 1)} disabled={loadingMore}
-            style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--text-muted)', background: 'var(--surface-bg)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-2) var(--space-5)', cursor: loadingMore ? 'wait' : 'pointer' }}>
-            {loadingMore ? '불러오는 중…' : '더 보기'}
-          </button>
-        </div>
-      )}
+      {!error && <ListPager query={query} hasMore={hasMore} onChange={set} loading={isValidating && !isLoading} />}
     </WorkPageShell>
   )
 }

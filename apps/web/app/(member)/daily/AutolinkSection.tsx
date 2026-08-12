@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import AXDotLoader from '@/components/ui/AXDotLoader'
 
 // 업무 자동 연관 연결 표시 — 완전 자동(패널 열릴 때 연결 없으면 자동 실행) + 가역(해제=학습신호) + 투명(근거·신뢰도).
 interface LinkRow {
@@ -114,7 +115,11 @@ export default function AutolinkSection({ logId }: { logId: string }) {
     <div style={{ marginBottom: 'var(--space-4)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 'var(--space-2)' }}>
         <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text)' }}>✦ AI 자동 연결</span>
-        {(loading || running) && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--brand)' }}>{running ? '연결 찾는 중…' : '불러오는 중…'}</span>}
+        {(loading || running) && (
+          <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--brand)' }} aria-live="polite">
+            <AXDotLoader /> <span className="sr-only">{running ? '연결 찾는 중' : '불러오는 중'}</span>
+          </span>
+        )}
         <button onClick={run} disabled={running} title="다시 연결 찾기"
           style={{ marginLeft: 'auto', fontSize: 'var(--fs-2xs)', color: 'var(--brand)', background: 'none', border: 'var(--hairline) solid var(--brand-soft-2)', borderRadius: 'var(--radius)', padding: '2px 8px', cursor: 'pointer' }}>
           ↻ 다시 찾기

@@ -1,11 +1,18 @@
 import { redirect } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
-import Link from 'next/link'
+import SegmentedTabs, { type SegmentedTab } from '@/components/ui/SegmentedTabs'
 import { createClient } from '@/lib/supabase/server'
 import AccountForm from '../AccountForm'
 import LeadIntakeForm from '../../lead-intake/LeadIntakeForm'
 
 interface PageProps { searchParams: Promise<{ mode?: string }> }
+
+// AI ↔ 수동은 같은 화면의 두 입력 방식이다 — 링크 문구가 아니라 탭으로 고른다(§2 탭 SSOT).
+// 경로가 같고 쿼리로만 갈리므로 activeId로 활성 탭을 알려준다.
+const TABS: SegmentedTab[] = [
+  { id: 'ai', label: 'AI 입력', href: '/accounts/new' },
+  { id: 'manual', label: '수동 입력', href: '/accounts/new?mode=manual' },
+]
 
 export default async function NewAccountPage({ searchParams }: PageProps) {
   const { mode } = await searchParams
@@ -13,31 +20,25 @@ export default async function NewAccountPage({ searchParams }: PageProps) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  if (mode === 'manual') {
-    return (
-      <div>
-        <PageHeader title="거래처 수동 입력" description="AI가 처리하지 못한 예외 건만 직접 등록합니다" />
-        <AccountForm />
-      </div>
-    )
-  }
+  const isManual = mode === 'manual'
 
   return (
     <div>
-      <div style={{ marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
-          AI로 거래처 추가
-        </h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: '0.375rem', fontSize: '0.9rem' }}>미팅 메모, 명함, 음성, 파일에서 거래처·담당자·영업기회를 자동 생성합니다</p>
-      </div>
-      <div className="card" style={{ padding: 'var(--space-6)', maxWidth: '760px' }}>
-        <LeadIntakeForm />
-      </div>
-      <div style={{ marginTop: '1rem' }}>
-        <Link href="/accounts/new?mode=manual" style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-base)', fontWeight: 600, textDecoration: 'none' }}>
-          수동 입력으로 전환
-        </Link>
-      </div>
+      <PageHeader
+        title="거래처 추가"
+        description={isManual
+          ? 'AI가 처리하지 못한 예외 건만 직접 등록합니다'
+          : '미팅 메모, 명함, 음성, 파일에서 거래처·담당자·영업기회를 자동 생성합니다'}
+        below={<SegmentedTabs tabs={TABS} ariaLabel="거래처 입력 방식" activeId={isManual ? 'manual' : 'ai'} />}
+      />
+
+      {isManual ? (
+        <AccountForm />
+      ) : (
+        <div className="card" style={{ padding: 'var(--space-6)', maxWidth: '760px' }}>
+          <LeadIntakeForm />
+        </div>
+      )}
     </div>
   )
 }

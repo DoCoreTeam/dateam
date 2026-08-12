@@ -158,28 +158,14 @@ export default function MemoIntakeList({ onReflect }: MemoIntakeListProps) {
         </div>
 
         <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
-          <button type="button" onClick={bulkMarkReviewed} disabled={generating || selectedIds.size === 0}
+          <button type="button" className="btn-ghost" onClick={bulkMarkReviewed} disabled={generating || selectedIds.size === 0}
             title="선택한 메모를 반영 없이 일괄 확인 처리"
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)',
-              padding: '0.5rem 0.9rem', borderRadius: 'var(--radius)',
-              background: 'var(--surface-bg)', color: 'var(--text-muted)',
-              border: 'var(--border-w-2) solid var(--border-color)',
-              cursor: generating || selectedIds.size === 0 ? 'not-allowed' : 'pointer',
-              fontSize: 'var(--fs-sm)', fontWeight: 600,
-            }}>
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)' }}>
             <CheckCheck size={13} />
             선택 확인 ({selectedIds.size})
           </button>
-          <button type="button" onClick={handleReflect} disabled={generating || selectedIds.size === 0}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)',
-              padding: '0.5rem 0.9rem', borderRadius: 'var(--radius)',
-              background: generating || selectedIds.size === 0 ? 'var(--color-border)' : 'var(--brand)',
-              color: generating || selectedIds.size === 0 ? 'var(--text-faint)' : '#fff',
-              border: 'none', cursor: generating || selectedIds.size === 0 ? 'not-allowed' : 'pointer',
-              fontSize: 'var(--fs-sm)', fontWeight: 600,
-            }}>
+          <button type="button" className="btn-primary" onClick={handleReflect} disabled={generating || selectedIds.size === 0}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)' }}>
             <Sparkles size={13} />
             {generating ? '반영 중…' : `폼에 반영 (${selectedIds.size})`}
           </button>

@@ -106,7 +106,7 @@ export default function KoraeximSettings({ hasKey: initialHasKey, maskedKey: ini
               className="btn-primary"
               style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.375rem' }}
             >
-              {savePending ? <AXDotLoader size={4} color="#fff" /> : null}
+              {savePending ? <AXDotLoader size={4} color="var(--brand-fg)" /> : null}
               저장
             </button>
           </div>

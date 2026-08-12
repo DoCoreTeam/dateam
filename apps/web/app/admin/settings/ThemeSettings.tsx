@@ -47,7 +47,7 @@ export default function ThemeSettings({ initialTheme }: { initialTheme: ThemeId 
                 padding: 'var(--space-4)',
                 borderRadius: 'var(--radius)',
                 border: `var(--border-w) solid ${selected ? 'var(--brand)' : 'var(--border-color)'}`,
-                background: 'var(--surface, #fff)',
+                background: 'var(--color-surface)',
                 boxShadow: selected ? 'var(--shadow-md)' : 'var(--shadow-sm)',
                 cursor: 'pointer',
               }}

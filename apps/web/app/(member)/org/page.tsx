@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import OrgPublicTree from './OrgPublicTreeClient'
 import { getBranding } from '@/lib/branding'
+import PageHeader from '@/components/ui/PageHeader'
 
 export async function generateMetadata() {
   const { brandName } = await getBranding()
@@ -49,6 +50,7 @@ export default async function OrgPage() {
 
   return (
     <div className="page-inner" id="onboarding-org-tree">
+      <PageHeader title="조직도" description="본부·팀·담당자를 한눈에 봅니다 (스크롤: 줌 · 드래그: 이동)" />
       <OrgPublicTree nodes={nodes} emailMap={emailMap} profileMap={profileMap} />
     </div>
   )

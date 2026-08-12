@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { Sparkles, AlertTriangle, Check } from 'lucide-react'
 import InfoHint from '@/components/ui/InfoHint'
+import AXDotLoader from '@/components/ui/AXDotLoader'
+import EmptyState from '@/components/ui/EmptyState'
 
 // AI 예상 프로젝트 제안 (§5-3 추출형) — 후보를 "제목+근거+업무수+체크박스" 리스트로 제시.
 // 사용자가 선택 → 확정(confirm)으로만 생성(자동 생성 금지). 날짜·예산은 생성 후 수정으로 채운다.
@@ -94,12 +96,15 @@ export default function ProjectAiSuggest({ onConfirmed }: Props) {
           )}
 
           {loading ? (
-            <p style={{ margin: 0, padding: 'var(--space-4)', textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>업무를 분석해 묶는 중…</p>
+            <p style={{ margin: 0, padding: 'var(--space-4)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }} aria-live="polite">
+              <AXDotLoader /> 업무를 분석해 묶는 중
+            </p>
           ) : suggestions && suggestions.length === 0 ? (
-            <div style={{ margin: 0, padding: 'var(--space-4)', textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-sm)', lineHeight: 1.5 }}>
-              <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-muted)' }}>묶을 만한 업무 흐름을 찾지 못했어요.</p>
-              <p style={{ margin: '4px 0 0' }}>관련된 업무가 2건 이상 쌓이면 자동으로 묶어 제안합니다. 일일업무를 더 기록한 뒤 다시 시도해 보세요.</p>
-            </div>
+            <EmptyState
+              title="묶을 만한 업무 흐름을 찾지 못했어요"
+              description="관련된 업무가 2건 이상 쌓이면 자동으로 묶어 제안합니다."
+              action={{ label: '일일업무 기록하러 가기', href: '/daily' }}
+            />
           ) : suggestions && suggestions.length > 0 ? (
             <>
               <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>

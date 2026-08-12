@@ -1,4 +1,5 @@
 import LoginForm from './LoginForm'
+import PageHeader from '@/components/ui/PageHeader'
 import { getBranding } from '@/lib/branding'
 
 export default async function LoginPage() {
@@ -21,7 +22,7 @@ export default async function LoginPage() {
           maxWidth: '400px',
         }}
       >
-        {/* 로고 영역 */}
+        {/* 브랜드 마크 — 페이지 제목(h1)은 카드 안의 PageHeader가 맡는다 */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           {branding.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -31,7 +32,7 @@ export default async function LoginPage() {
               style={{ maxHeight: '64px', maxWidth: '240px', objectFit: 'contain', margin: '0 auto 0.5rem' }}
             />
           ) : (
-            <h1
+            <p
               style={{
                 fontSize: 'var(--fs-2xl)',
                 fontWeight: 700,
@@ -41,7 +42,7 @@ export default async function LoginPage() {
               }}
             >
               {branding.brandName}
-            </h1>
+            </p>
           )}
           {branding.tagline && (
             <p
@@ -56,27 +57,9 @@ export default async function LoginPage() {
           )}
         </div>
 
-        {/* 카드 */}
-        <div
-          style={{
-            backgroundColor: 'white',
-            borderRadius: 'var(--radius)',
-            padding: 'var(--space-8)',
-            boxShadow: '0 4px 24px rgb(0 0 0 / 0.08), 0 1px 3px rgb(0 0 0 / 0.05)',
-            border: 'var(--border-w-2) solid var(--border-color)',
-          }}
-        >
-          <h2
-            style={{
-              fontSize: 'var(--fs-xl)',
-              fontWeight: 600,
-              color: 'var(--text)',
-              marginBottom: '1.5rem',
-              letterSpacing: '-0.01em',
-            }}
-          >
-            로그인
-          </h2>
+        {/* 카드 — 표면·보더·그림자는 .card(SSOT) */}
+        <div className="card" style={{ padding: 'var(--space-8)' }}>
+          <PageHeader title="로그인" />
 
           <LoginForm brandName={branding.brandName} logoUrl={branding.logoUrl} />
         </div>

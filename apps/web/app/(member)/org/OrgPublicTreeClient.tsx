@@ -1,15 +1,12 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import { SkelCard } from '@/components/ui/LoadingSkeleton'
 
 // react-organizational-chart(Tree)가 SSR 중 document를 참조해 크래시 → 클라이언트 전용 로드
 const OrgPublicTree = dynamic(() => import('./OrgPublicTree'), {
   ssr: false,
-  loading: () => (
-    <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--text-faint)', fontSize: 'var(--fs-base)' }}>
-      조직도를 불러오는 중…
-    </div>
-  ),
+  loading: () => <SkelCard lines={6} />,
 })
 
 interface Props {
