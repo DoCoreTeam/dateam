@@ -141,24 +141,21 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
           onNextStep={(id) => router.push(`/ci/pipeline?from=${id}`)}
         />
       ) : (
-        <table className="table-base table-card">
+        <table className="table-base table-card ci-inbox-table">
           <thead>
             <tr>
               <th aria-label="썸네일" />
-              <th>제목</th>
-              <th>채널</th>
-              <th>플랫폼</th>
+              <th>콘텐츠</th>
               <th>상태</th>
               <th>주제</th>
               <th>평소 대비</th>
-              <th>담은 날짜</th>
-              <th>작업</th>
+              <th aria-label="작업" />
             </tr>
           </thead>
           <tbody>
             {items.map((item) => (
               <tr key={item.id}>
-                {/* 썸네일이 있으면 보여준다 — 목록에서 무엇인지 알아보는 가장 빠른 단서다 */}
+                {/* 썸네일 — 목록에서 무엇인지 알아보는 가장 빠른 단서다 */}
                 <td className="ci-row-thumb-cell">
                   {item.thumbnailUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -168,32 +165,38 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
                     <div className="ci-row-thumb ci-thumb-empty" aria-hidden />
                   )}
                 </td>
+
+                {/* 제목 + 채널·플랫폼·날짜를 한 셀에 모은다.
+                    컬럼을 9개로 벌리면 데스크탑에서도 셀이 짓눌려 버튼이 줄바꿈된다. */}
                 <td className="card-header">
                   <button
                     type="button"
                     onClick={() => setOpenId(item.id)}
-                    style={{ all: 'unset', cursor: 'pointer', fontWeight: 600 }}
+                    style={{ all: 'unset', cursor: 'pointer', fontWeight: 600, display: 'block' }}
                   >
                     {item.title ?? item.canonicalUrl}
                   </button>
+                  <span className="ci-card-meta" style={{ marginTop: '2px' }}>
+                    {item.channelId ? (
+                      <Link href={`/ci/channels/${item.channelId}`} style={{ color: 'var(--text-muted)' }}>
+                        {item.channelName ?? '채널 미확인'}
+                      </Link>
+                    ) : (
+                      <span>채널 미확인</span>
+                    )}
+                    <span>{CI_PLATFORM_LABEL[item.platform]}</span>
+                    <span className="ci-num">{item.firstSeenAt.slice(0, 10)}</span>
+                  </span>
                 </td>
-                <td data-label="채널">
-                  {item.channelId ? (
-                    <Link href={`/ci/channels/${item.channelId}`} style={{ color: 'var(--text)' }}>
-                      {item.channelName ?? '채널 미확인'}
-                    </Link>
-                  ) : (
-                    <span className="ci-basis">채널 미확인</span>
-                  )}
-                </td>
-                <td data-label="플랫폼">{CI_PLATFORM_LABEL[item.platform]}</td>
-                <td data-label="상태">
+
+                <td data-label="상태" className="ci-nowrap">
                   <IngestStatusBadge status={item.ingestStatus} />
                   <CompletenessBadge
                     completeness={item.completeness}
                     missingFields={item.missingFields}
                   />
                 </td>
+
                 <td data-label="주제">
                   {tab === 'review' ? (
                     <div style={{ display: 'flex', gap: 'var(--space-1)', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -211,16 +214,15 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
                     </div>
                   ) : (item.topic?.name ?? '미분류')}
                 </td>
-                <td data-label="평소 대비">
+
+                <td data-label="평소 대비" className="ci-nowrap">
                   <MetricBadge text={item.outlierText} />
                   {!item.outlierText && (
                     <span className="ci-basis" title="같은 채널·포맷 비교 이력이 8개 미만입니다">—</span>
                   )}
                 </td>
-                <td data-label="담은 날짜" className="card-hide">
-                  <span className="ci-num">{item.firstSeenAt.slice(0, 10)}</span>
-                </td>
-                <td className="card-actions">
+
+                <td className="card-actions ci-nowrap">
                   {(item.ingestStatus === 'failed' || item.ingestStatus === 'partial') && (
                     <button
                       type="button"

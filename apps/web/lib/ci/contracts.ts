@@ -165,6 +165,8 @@ export interface CiChannelListItem {
   subscriberProvenance: 'platform' | 'web_verified' | 'estimated' | null
   metaFetchedAt: string | null
   metaError: string | null
+  /** 이 채널에서 가져올 기간 ('1m'|'3m'|'1y'|'all') */
+  collectWindow: string
 }
 
 // ── 수집 ─────────────────────────────────────────────────────────

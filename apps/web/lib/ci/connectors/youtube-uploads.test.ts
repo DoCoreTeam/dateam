@@ -1,6 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parsePlaylistItems, bestThumbnail, fetchAllUploads } from './youtube-uploads.ts'
+import {
+  parsePlaylistItems, bestThumbnail, fetchAllUploads, windowSince, COLLECT_WINDOWS,
+} from './youtube-uploads.ts'
 
 test('썸네일은 큰 것부터 고른다', () => {
   assert.equal(
@@ -51,4 +53,20 @@ test('API 키가 없으면 전체 수집을 시도하지 않고 이유를 밝힌
   assert.equal(r.ok, false)
   assert.ok(!r.ok && r.needsKey, '키가 필요하다는 사실을 알려야 한다')
   assert.ok(!r.ok && r.error.includes('15개'), '지금 한계를 숫자로 밝혀야 한다')
+})
+
+test('기간 id → 기준 시각. 전체는 제한 없음', () => {
+  const now = Date.parse('2026-08-12T00:00:00Z')
+  assert.equal(windowSince('all', now), null)
+  assert.equal(windowSince('1m', now), new Date(now - 30 * 86400_000).toISOString())
+  assert.equal(windowSince('1y', now), new Date(now - 365 * 86400_000).toISOString())
+  // 모르는 값은 제한 없음으로 — 잘못된 입력이 수집을 0건으로 만들지 않는다
+  assert.equal(windowSince('없는값' as never, now), null)
+})
+
+test('기간 옵션 목록에 1개월·1년·전체가 있다', () => {
+  const ids = COLLECT_WINDOWS.map((w) => w.id)
+  assert.ok(ids.includes('1m'))
+  assert.ok(ids.includes('1y'))
+  assert.ok(ids.includes('all'))
 })

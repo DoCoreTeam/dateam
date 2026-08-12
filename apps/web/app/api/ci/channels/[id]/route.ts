@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { ok, fail, failUnexpected } from '@/lib/ci/api'
 import { requireCiMemberApi, workspaceIdFromRequest } from '@/lib/ci/auth/requireCiMember'
 import { getChannel } from '@/lib/ci/queries/channels'
+import { enqueueJob } from '@/lib/ci/jobs/queue'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -10,6 +11,9 @@ const Patch = z.object({
   isMonitored: z.boolean().optional(),
   topicId: z.string().uuid().nullable().optional(),
   ownership: z.enum(['owned', 'tracked']).optional(),
+  collectWindow: z.enum(['1m', '3m', '1y', 'all']).optional(),
+  /** 기간을 바꾸면 그 자리에서 다시 훑을 수 있게 한다 */
+  resweep: z.boolean().optional(),
 })
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -42,10 +46,22 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     }
     if (parsed.data.topicId !== undefined) patch.topic_id = parsed.data.topicId
     if (parsed.data.ownership !== undefined) patch.ownership = parsed.data.ownership
+    if (parsed.data.collectWindow !== undefined) patch.collect_window = parsed.data.collectWindow
 
     const adminClient = createAdminClient() as any
-    await adminClient.from('ci_channels').update(patch)
-      .eq('id', id).eq('workspace_id', session.workspaceId)
+    if (Object.keys(patch).length > 0) {
+      await adminClient.from('ci_channels').update(patch)
+        .eq('id', id).eq('workspace_id', session.workspaceId)
+    }
+
+    // 기간을 바꿨거나 사용자가 요청하면 즉시 다시 훑는다 —
+    // 설정만 바뀌고 목록이 그대로면 바뀐 걸 확인할 방법이 없다
+    if (parsed.data.resweep || parsed.data.collectWindow !== undefined) {
+      await enqueueJob({
+        workspaceId: session.workspaceId, stage: 'ingest',
+        targetType: 'channel', targetId: id, version: Date.now(),
+      })
+    }
 
     const item = await getChannel(session.workspaceId, id)
     return item ? ok(item) : fail('NOT_FOUND', '채널을 찾을 수 없습니다')

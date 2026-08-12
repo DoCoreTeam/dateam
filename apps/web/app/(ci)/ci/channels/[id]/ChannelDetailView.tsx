@@ -44,6 +44,20 @@ export default function ChannelDetailView({ workspaceId, channel, contents }: Pr
     }
   }
 
+  /** 수집 기간 변경 — 바꾸면 그 자리에서 다시 훑는다. */
+  async function changeWindow(collectWindow: string) {
+    setBusy(true); setNotice(null)
+    try {
+      await fetch(`/api/ci/channels/${channel.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-CI-Workspace': workspaceId },
+        body: JSON.stringify({ collectWindow }),
+      })
+      setNotice('수집 기간을 바꿨습니다. 다시 훑는 중입니다')
+      router.refresh()
+    } finally { setBusy(false) }
+  }
+
   /** 채널 페이지에서 구독자·소개문·아바타를 다시 읽어온다. */
   async function refreshMeta() {
     setBusy(true); setNotice(null)
@@ -119,6 +133,17 @@ export default function ChannelDetailView({ workspaceId, channel, contents }: Pr
         </dl>
 
         <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div>
+            <label className="label" htmlFor="ch-window" style={{ margin: 0 }}>수집 기간</label>
+            <select className="input-field" id="ch-window" style={{ width: 'auto' }}
+              value={channel.collectWindow} disabled={busy}
+              onChange={(e) => void changeWindow(e.target.value)}>
+              <option value="1m">최근 1개월</option>
+              <option value="3m">최근 3개월</option>
+              <option value="1y">최근 1년</option>
+              <option value="all">전체</option>
+            </select>
+          </div>
           <button type="button" className="btn-ghost" onClick={refreshMeta} disabled={busy}>
             {busy ? '가져오는 중…' : '채널 정보 새로고침'}
           </button>

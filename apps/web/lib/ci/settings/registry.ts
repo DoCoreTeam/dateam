@@ -99,6 +99,11 @@ export const CI_SETTING_DEFS: readonly CiSettingDef<unknown>[] = [
     schema: z.number().int().min(1).max(168), defaultValue: 24,
   }),
   def({
+    key: 'ingest.collect_window', scope: 'workspace', group: 'data',
+    label: '채널 수집 기간', help: '새 채널을 등록할 때 기본으로 가져올 기간입니다. 채널별로 따로 바꿀 수 있습니다.',
+    schema: z.enum(['1m', '3m', '1y', 'all']), defaultValue: '1y',
+  }),
+  def({
     key: 'snapshot.preset', scope: 'workspace', group: 'data',
     label: '스냅샷 정밀도', help: '지표를 얼마나 자주 기록할지입니다. 정밀할수록 비용이 늘어납니다.',
     schema: z.enum(['economy', 'standard', 'precise']), defaultValue: 'economy',
@@ -233,4 +238,80 @@ export function codeDefaults(): Record<string, unknown> {
   const out: Record<string, unknown> = {}
   for (const d of CI_SETTING_DEFS) out[d.key] = d.defaultValue
   return out
+}
+
+// ── 표시 컨트롤 ───────────────────────────────────────────────
+// 왜 여기 두는가: 서버(API 응답)와 화면이 같은 정의를 봐야 한다.
+// 화면에서 따로 판정하면 설정을 추가할 때 한쪽만 고쳐지고 결국 텍스트 입력으로 떨어진다.
+
+export type CiControl =
+  | { type: 'select'; options: { value: string; label: string }[] }
+  | { type: 'toggle' }
+  | { type: 'number'; min?: number; max?: number; step?: number; unit?: string }
+  | { type: 'time' }
+  | { type: 'text'; multiline?: boolean; placeholder?: string }
+  | { type: 'chips'; placeholder?: string }
+  | { type: 'quiet_hours' }
+  | { type: 'json' }
+
+/** 키별 컨트롤. 없으면 값 타입으로 최소 추론한다. */
+export const CI_SETTING_CONTROLS: Record<string, CiControl> = {
+  'account.locale': { type: 'select', options: [
+    { value: 'ko', label: '한국어' }, { value: 'en', label: 'English' },
+  ] },
+  'account.timezone': { type: 'select', options: [
+    { value: 'Asia/Seoul', label: '한국 표준시 (Asia/Seoul)' },
+    { value: 'UTC', label: '협정 세계시 (UTC)' },
+    { value: 'America/Los_Angeles', label: '미국 태평양 (Los Angeles)' },
+    { value: 'America/New_York', label: '미국 동부 (New York)' },
+    { value: 'Asia/Tokyo', label: '일본 (Tokyo)' },
+  ] },
+  'notify.channels': { type: 'chips', placeholder: 'push, email, slack' },
+  'ws.locale': { type: 'select', options: [
+    { value: 'ko', label: '한국어' }, { value: 'en', label: 'English' },
+  ] },
+  'ws.timezone': { type: 'select', options: [
+    { value: 'Asia/Seoul', label: '한국 표준시 (Asia/Seoul)' },
+    { value: 'UTC', label: '협정 세계시 (UTC)' },
+  ] },
+  'alert.outlier.threshold': { type: 'number', min: 1, max: 100, step: 0.1, unit: '배' },
+  'alert.brief.send_at': { type: 'time' },
+  'alert.quiet_hours': { type: 'quiet_hours' },
+  'ingest.refresh_interval_hours': { type: 'number', min: 1, max: 168, step: 1, unit: '시간' },
+  'ingest.collect_window': { type: 'select', options: [
+    { value: '1m', label: '최근 1개월' }, { value: '3m', label: '최근 3개월' },
+    { value: '1y', label: '최근 1년' }, { value: 'all', label: '전체' },
+  ] },
+  'snapshot.preset': { type: 'select', options: [
+    { value: 'light', label: '가볍게 (하루 1회)' },
+    { value: 'standard', label: '표준 (6시간마다)' },
+    { value: 'dense', label: '촘촘히 (1시간마다)' },
+  ] },
+  'data.retention_days': { type: 'number', min: 30, max: 3650, step: 30, unit: '일' },
+  'topic.autoconfirm_threshold': { type: 'number', min: 0, max: 1, step: 0.05 },
+  'analysis.window_days': { type: 'number', min: 7, max: 365, step: 7, unit: '일' },
+  'analysis.size_bands': { type: 'json' },
+  'ai.response_locale': { type: 'select', options: [
+    { value: 'ko', label: '한국어' }, { value: 'en', label: 'English' },
+  ] },
+  'ai.brand_voice': { type: 'text', multiline: true, placeholder: '예: 담백하고 단정한 존댓말. 과장 금지.' },
+  'ai.automation_level': { type: 'select', options: [
+    { value: 'auto_first', label: '자동 확정 우선' },
+    { value: 'review_first', label: '사람 검토 우선' },
+  ] },
+  'ai.daily_call_limit': { type: 'number', min: 0, max: 100000, step: 10, unit: '회' },
+  'publish.default_time': { type: 'time' },
+  'publish.checklist': { type: 'chips', placeholder: '확인할 항목' },
+  'llm.budget_cap_krw': { type: 'number', min: 0, step: 10000, unit: '원' },
+  'flag.ci_enabled': { type: 'toggle' },
+}
+
+export function getControl(key: string, defaultValue: unknown): CiControl {
+  const found = CI_SETTING_CONTROLS[key]
+  if (found) return found
+  if (typeof defaultValue === 'boolean') return { type: 'toggle' }
+  if (typeof defaultValue === 'number') return { type: 'number' }
+  if (Array.isArray(defaultValue)) return { type: 'chips' }
+  if (defaultValue && typeof defaultValue === 'object') return { type: 'json' }
+  return { type: 'text' }
 }

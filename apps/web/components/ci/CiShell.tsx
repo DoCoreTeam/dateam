@@ -21,7 +21,8 @@ import AssistantPanel from './AssistantPanel'
 import CiSidebarFooter from './CiSidebarFooter'
 
 const NAV_ITEMS = [
-  { href: '/ci', label: '홈', icon: <Home size={16} /> },
+  // 섹션 루트라 exact로 둔다 — 안 그러면 /ci/* 어디서나 '홈'이 활성으로 남는다
+  { href: '/ci', label: '홈', icon: <Home size={16} />, exact: true },
 ]
 
 /** 건수는 MobileShell의 badge 슬롯으로 넘긴다. 라벨에 숫자를 붙이지 않는다. */

@@ -124,10 +124,33 @@ export const REQUIRED_FIELDS: Record<CiPlatform, readonly string[]> = {
   threads: ['caption', 'published_at', 'likes', 'comments'],
 }
 
-export function completenessFor(platform: CiPlatform, missing: readonly string[]): number {
-  const total = REQUIRED_FIELDS[platform].length
-  if (total === 0) return 1
-  return Math.max(0, (total - missing.length) / total)
+/**
+ * 수집 경로가 구조적으로 못 주는 값.
+ *
+ * 왜 필요한가: 유튜브 댓글 수는 공식 API에만 있고 시청 페이지 초기 HTML에는 없다.
+ * 그런데 필수 필드에 넣어두면 API 키가 없는 한 **모든 콘텐츠가 영원히 partial**이 된다.
+ * (실측 사고: 21건 중 진짜 실패는 1건인데 화면은 "실패 21"이라고 말했다)
+ * 못 주는 경로에서는 분모에서 빼고, 그 사실은 미확보 목록에 남겨 화면이 밝힌다.
+ */
+export const UNAVAILABLE_BY_METHOD: Partial<Record<IngestMethod, Partial<Record<CiPlatform, readonly string[]>>>> = {
+  meta_tags: { youtube: ['comments'] },
+  oembed: { youtube: ['comments', 'views', 'likes', 'published_at', 'duration_sec'] },
+}
+
+/** 이 경로에서 실제로 요구할 수 있는 필드. */
+export function requiredFieldsFor(platform: CiPlatform, method?: IngestMethod): readonly string[] {
+  const unavailable = method ? UNAVAILABLE_BY_METHOD[method]?.[platform] ?? [] : []
+  return REQUIRED_FIELDS[platform].filter((f) => !unavailable.includes(f))
+}
+
+export function completenessFor(
+  platform: CiPlatform, missing: readonly string[], method?: IngestMethod,
+): number {
+  const required = requiredFieldsFor(platform, method)
+  if (required.length === 0) return 1
+  // 이 경로가 못 주는 값은 결손으로 세지 않는다
+  const counted = missing.filter((m) => required.includes(m))
+  return Math.max(0, (required.length - counted.length) / required.length)
 }
 
 export function missingFor(

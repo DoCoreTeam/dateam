@@ -74,7 +74,11 @@ async function handleIngest(job: ClaimedJob): Promise<HandlerResult> {
     return { ok: false, errorCode: failure.code, errorMessage: failure.message }
   }
 
-  const completeness = completenessFor(content.platform as CiPlatform, ucm.provenance.missingFields)
+  // 완전도는 **이 경로가 줄 수 있는 것** 기준으로 센다.
+  // 못 주는 값을 결손으로 세면 모든 콘텐츠가 영원히 '일부만 수집됨'이 된다.
+  const completeness = completenessFor(
+    content.platform as CiPlatform, ucm.provenance.missingFields, ucm.provenance.method,
+  )
   const channelId = await upsertChannel(content.workspace_id, ucm)
 
   await adminClient.from('ci_contents').update({

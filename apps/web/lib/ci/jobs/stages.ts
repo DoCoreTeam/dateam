@@ -15,7 +15,9 @@ import { resolveSettings, type SettingRow } from '../settings/resolve.ts'
 import { CORPUS_FILTER } from '../corpus.ts'
 import { fetchChannelFeed } from '../connectors/channel-feed.ts'
 import { fetchChannelMeta } from '../connectors/youtube-channel.ts'
-import { fetchAllUploads } from '../connectors/youtube-uploads.ts'
+import {
+  fetchAllUploads, windowSince, COLLECT_WINDOWS, type CollectWindowId,
+} from '../connectors/youtube-uploads.ts'
 import { isProvisionalKey } from '../ucm/channel-key.ts'
 import { analyzeCreative } from '../ai/creative-server.ts'
 import { enqueueJob } from './queue.ts'
@@ -268,7 +270,7 @@ export async function runChannelSweep(workspaceId: string, channelId: string): P
 
   const { data: ch } = await adminClient
     .from('ci_channels')
-    .select('id, platform, external_id, handle, profile_url')
+    .select('id, platform, external_id, handle, profile_url, collect_window')
     .eq('id', channelId).eq('workspace_id', workspaceId).is('deleted_at', null).maybeSingle()
   if (!ch) return { ok: false, errorCode: 'NOT_FOUND', errorMessage: '채널을 찾을 수 없습니다' }
 
@@ -280,8 +282,11 @@ export async function runChannelSweep(workspaceId: string, channelId: string): P
   // 키가 없어 전체를 못 받으면 RSS로 내려가되, **몇 개 중 몇 개인지 화면에 남긴다.**
   const meta = await getGeminiMeta()
   const realChannelId = isProvisionalKey(ch.external_id) ? null : ch.external_id
+  // 개수가 아니라 기간으로 끊는다 — 사용자가 이해할 수 있는 기준이고, 쿼터도 그만큼만 쓴다
+  const win = (ch.collect_window ?? '1y') as CollectWindowId
+  const sinceIso = windowSince(win, Date.now())
   const full = ch.platform === 'youtube' && realChannelId
-    ? await fetchAllUploads(realChannelId, meta.youtubeApiKey).catch(() => null)
+    ? await fetchAllUploads(realChannelId, meta.youtubeApiKey, { sinceIso }).catch(() => null)
     : null
 
   const feed = full?.ok
@@ -348,9 +353,10 @@ export async function runChannelSweep(workspaceId: string, channelId: string): P
     sweep_error: coverageNote,
   }).eq('id', channelId)
 
+  const winLabel = COLLECT_WINDOWS.find((w) => w.id === win)?.label ?? '최근 1년'
   const scope = full?.ok
-    ? `채널 전체 ${feed.entries.length}건 확인`
-    : `최근 ${feed.entries.length}건만 확인(RSS 한계)`
+    ? `${winLabel} ${feed.entries.length}건 확인`
+    : `최근 ${feed.entries.length}건만 확인(RSS 한계 — ${winLabel} 전체를 보려면 YouTube API 키 필요)`
   return { ok: true, errorMessage: `${created}건 새로 담았습니다 · ${scope}` }
 }
 

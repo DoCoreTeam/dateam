@@ -25,6 +25,7 @@ interface Row {
   subscriber_provenance: 'platform' | 'web_verified' | 'estimated' | null
   meta_fetched_at: string | null
   meta_error: string | null
+  collect_window: string | null
   ci_topics: { id: string; name: string } | null
 }
 
@@ -47,6 +48,7 @@ function toItem(r: Row): CiChannelListItem {
     subscriberProvenance: r.subscriber_provenance,
     metaFetchedAt: r.meta_fetched_at,
     metaError: r.meta_error,
+    collectWindow: r.collect_window ?? '1y',
   }
 }
 
@@ -57,7 +59,7 @@ export async function listChannels(
   const adminClient = createAdminClient() as any
   let q = adminClient
     .from('ci_channels')
-    .select('id, platform, display_name, handle, avatar_url, subscriber_count, is_monitored, ownership, size_band, last_seen_at, description, video_count, profile_url, subscriber_provenance, meta_fetched_at, meta_error, ci_topics ( id, name )')
+    .select('id, platform, display_name, handle, avatar_url, subscriber_count, is_monitored, ownership, size_band, last_seen_at, description, video_count, profile_url, subscriber_provenance, meta_fetched_at, meta_error, collect_window, ci_topics ( id, name )')
     .eq('workspace_id', workspaceId)
     .is('deleted_at', null)
     .order('is_monitored', { ascending: false })
@@ -76,7 +78,7 @@ export async function getChannel(
   const adminClient = createAdminClient() as any
   const { data } = await adminClient
     .from('ci_channels')
-    .select('id, platform, display_name, handle, avatar_url, subscriber_count, is_monitored, ownership, size_band, last_seen_at, description, video_count, profile_url, subscriber_provenance, meta_fetched_at, meta_error, ci_topics ( id, name )')
+    .select('id, platform, display_name, handle, avatar_url, subscriber_count, is_monitored, ownership, size_band, last_seen_at, description, video_count, profile_url, subscriber_provenance, meta_fetched_at, meta_error, collect_window, ci_topics ( id, name )')
     .eq('workspace_id', workspaceId).eq('id', channelId).is('deleted_at', null)
     .maybeSingle()
   return data ? toItem(data as Row) : null

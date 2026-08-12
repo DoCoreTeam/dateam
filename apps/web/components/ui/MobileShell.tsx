@@ -19,6 +19,12 @@ interface NavItem {
   highlight?: boolean
   /** 추가로 active 처리할 경로들 (예: "업무"=/work가 /daily·/dept-tasks·/weekly-report에서도 강조) */
   match?: string[]
+  /**
+   * 경로가 정확히 같을 때만 active.
+   * 섹션 루트(예: '/ci')는 접두사 매칭을 하면 모든 하위 화면에서 계속 켜져 있어
+   * "홈이 항상 활성"으로 보인다. 그런 항목에만 켠다.
+   */
+  exact?: boolean
 }
 
 // 와이드 페이지(표/그리드 多) — 콘텐츠 폭 클램프(1200) 예외. 그 외 전 페이지는 1200 통일.
@@ -26,6 +32,7 @@ interface NavItem {
 // 메뉴 항목 active 판정 — href 또는 match 경로 중 하나에 매칭
 function isNavActive(pathname: string, item: NavItem): boolean {
   const paths = [item.href, ...(item.match ?? [])]
+  if (item.exact) return paths.some((p) => pathname === p)
   return paths.some((p) => pathname === p || pathname.startsWith(p + '/'))
 }
 

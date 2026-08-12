@@ -437,3 +437,37 @@ export async function saveAiChatDefaultProvider(
   revalidatePath('/admin/settings')
   return { ok: true }
 }
+
+// ── YouTube Data API 키 — Gemini 키와 같은 저장소(META), 같은 패턴 ──
+// 왜 필요한가: 키가 없으면 채널 수집이 RSS(최근 15개)로 묶인다.
+// 543개 올린 채널을 15개로 판단하게 되므로, 키 입력 자리가 없으면 제품이 반쪽이다.
+
+export async function saveYoutubeKey(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  const apiKey = (formData.get('apiKey') as string)?.trim()
+  if (!apiKey) return { ok: false, error: 'API 키를 입력해주세요' }
+
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  const { error } = await setMetaValue(client, { ...meta, youtube_api_key: apiKey })
+
+  if (error) return { ok: false, error: '저장 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  return { ok: true }
+}
+
+export async function deleteYoutubeKey(): Promise<{ ok: boolean; error?: string }> {
+  const client = await requireAdmin()
+  if (!client) return { ok: false, error: '관리자 권한이 필요합니다' }
+
+  const meta = await getMetaValue(client)
+  delete meta.youtube_api_key
+  const { error } = await setMetaValue(client, meta)
+
+  if (error) return { ok: false, error: '삭제 중 오류가 발생했습니다' }
+
+  revalidatePath('/admin/settings')
+  return { ok: true }
+}

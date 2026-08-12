@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { Key, Palette, Bell, Cloud, Database, Paintbrush } from 'lucide-react'
 import GeminiSettings from './GeminiSettings'
+import YoutubeSettings from './YoutubeSettings'
 import ClaudeSettings from './ClaudeSettings'
 import OpenAiSettings from './OpenAiSettings'
 import AiChatDefaultProviderPicker from './AiChatDefaultProviderPicker'
@@ -18,6 +19,7 @@ import { getBranding } from '@/lib/branding'
 import { getActiveTheme } from '@/lib/theme'
 
 const GEMINI_KEY = 'gemini_api_key'
+const YOUTUBE_KEY = 'youtube_api_key'
 const KOREAEXIM_KEY = 'koreaexim_api_key'
 const CLAUDE_KEY = 'claude_api_key'
 const OPENAI_KEY = 'openai_api_key'
@@ -63,6 +65,8 @@ export default async function AdminSettingsPage({
   const meta = (metaData?.value as Record<string, unknown>) ?? {}
   const tokenAlertThreshold = typeof meta.ai_token_alert_threshold === 'number' ? meta.ai_token_alert_threshold : 1_000_000
   const storedKey = meta[GEMINI_KEY] as string | undefined
+  const ytKey = meta[YOUTUBE_KEY] as string | undefined
+  const ytMasked = ytKey ? `${ytKey.slice(0, 7)}••••••••${ytKey.slice(-4)}` : null
   const hasKey = !!storedKey
   const maskedKey = storedKey ? maskKey(storedKey) : null
   const savedModel = (meta.gemini_model as string | undefined) ?? null
@@ -130,6 +134,7 @@ export default async function AdminSettingsPage({
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
           <GeminiSettings hasKey={hasKey} maskedKey={maskedKey} savedModel={savedModel} />
+          <YoutubeSettings hasKey={Boolean(ytKey)} maskedKey={ytMasked} />
           <ClaudeSettings hasKey={hasClaudeKey} maskedKey={maskedClaudeKey} savedModel={savedClaudeModel} />
           <OpenAiSettings hasKey={hasOpenAiKey} maskedKey={maskedOpenAiKey} savedModel={savedOpenAiModel} />
           <AiChatDefaultProviderPicker available={availableChatProviders} current={currentDefaultProvider} />

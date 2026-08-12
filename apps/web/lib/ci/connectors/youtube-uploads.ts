@@ -82,8 +82,33 @@ async function uploadsPlaylistId(channelId: string, apiKey: string): Promise<str
  * 채널의 전체 업로드를 가져온다.
  * 상한에 걸리면 truncated=true로 **잘렸다는 사실을 함께** 돌려준다 — 조용히 자르지 않는다.
  */
+export interface UploadsOptions {
+  /**
+   * 이 시각보다 오래된 업로드는 가져오지 않는다.
+   * uploads 목록은 최신순이라 여기 닿는 순간 멈추면 된다 — 쿼터도 그만큼만 쓴다.
+   */
+  sinceIso?: string | null
+}
+
+/** 기간 옵션 — 화면과 서버가 같은 목록을 쓴다. */
+export const COLLECT_WINDOWS = [
+  { id: '1m', label: '최근 1개월', days: 30 },
+  { id: '3m', label: '최근 3개월', days: 90 },
+  { id: '1y', label: '최근 1년', days: 365 },
+  { id: 'all', label: '전체', days: null },
+] as const
+
+export type CollectWindowId = typeof COLLECT_WINDOWS[number]['id']
+
+/** 기간 id → 기준 시각. 'all'이면 null(제한 없음). */
+export function windowSince(id: CollectWindowId, nowMs: number): string | null {
+  const win = COLLECT_WINDOWS.find((w) => w.id === id)
+  if (!win || win.days == null) return null
+  return new Date(nowMs - win.days * 86400_000).toISOString()
+}
+
 export async function fetchAllUploads(
-  channelId: string, apiKey: string | undefined,
+  channelId: string, apiKey: string | undefined, opts: UploadsOptions = {},
 ): Promise<UploadsResult> {
   if (!apiKey) {
     return {
@@ -125,7 +150,19 @@ export async function fetchAllUploads(
     // eslint-disable-next-line no-await-in-loop
     const json = await res.json() as PlaylistItemsResponse
     total = json.pageInfo?.totalResults ?? total
-    items.push(...parsePlaylistItems(json))
+    const page = parsePlaylistItems(json)
+
+    // 기간 제한 — 목록이 최신순이므로 기준보다 오래된 게 나오면 거기서 멈춘다
+    if (opts.sinceIso) {
+      const within = page.filter((it) => !it.publishedAt || it.publishedAt >= opts.sinceIso!)
+      items.push(...within)
+      if (within.length < page.length) {
+        return { ok: true, items, total, truncated: false, quotaUnits }
+      }
+    } else {
+      items.push(...page)
+    }
+
     pageToken = json.nextPageToken
   } while (pageToken && items.length < MAX_UPLOADS)
 

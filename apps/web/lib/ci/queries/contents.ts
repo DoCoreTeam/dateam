@@ -119,7 +119,9 @@ export async function listContents(p: ContentListParams): Promise<ContentListRes
       .eq('is_stat_excluded', CORPUS_FILTER.is_stat_excluded)
   }
   if (p.tab === 'review') q = q.eq('review_state', 'pending')
-  if (p.tab === 'failed') q = q.in('ingest_status', ['failed', 'partial'])
+  // 실패는 **진짜 실패**만이다. partial(일부만 확보)을 실패로 세면
+  // 댓글 수 하나 못 얻은 것까지 실패로 보여 제품이 고장난 것처럼 보인다.
+  if (p.tab === 'failed') q = q.eq('ingest_status', 'failed')
   if (p.topicId) q = q.eq('topic_id', p.topicId)
   if (p.platform) q = q.eq('platform', p.platform)
   if (p.format) q = q.eq('format', p.format)

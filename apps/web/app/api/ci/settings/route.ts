@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/server'
 import { ok, fail, failUnexpected } from '@/lib/ci/api'
 import { requireCiMemberApi, workspaceIdFromRequest } from '@/lib/ci/auth/requireCiMember'
-import { listSettingDefs, validateSetting, getSettingDef } from '@/lib/ci/settings/registry'
+import { listSettingDefs, validateSetting, getSettingDef, getControl } from '@/lib/ci/settings/registry'
 import { resolveSettings, resolveOrigin, type SettingRow } from '@/lib/ci/settings/resolve'
 import { encryptSecret, isMasterKeyAvailable, maskIfSecret } from '@/lib/ci/settings/crypto'
 import type { CiSettingScope } from '@/lib/ci/types'
@@ -48,11 +48,8 @@ export async function GET(req: Request) {
       isSecret: Boolean(d.isSecret),
       destructive: Boolean(d.destructive),
       version: rows.find((r) => r.key === d.key && r.scope === d.scope)?.version ?? 0,
-      // 설정 UI가 입력 위젯을 고르는 힌트. 스키마에서 화면을 만들기 위한 최소 정보.
-      kind: typeof d.defaultValue === 'boolean' ? 'boolean'
-        : typeof d.defaultValue === 'number' ? 'number'
-        : Array.isArray(d.defaultValue) ? 'list'
-        : typeof d.defaultValue === 'object' ? 'json' : 'text',
+      // 입력 위젯은 레지스트리가 정한다 — 화면이 따로 판정하면 새 설정이 텍스트로 떨어진다
+      control: getControl(d.key, d.defaultValue),
     }))
 
     return ok({ items, encryptionAvailable: isMasterKeyAvailable() })

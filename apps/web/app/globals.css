@@ -9262,6 +9262,66 @@ label.intake-tool-btn {
 }
 .ci-asset-search .input-field { flex: 1; }
 
+/* ── 설정 ── */
+.ci-setting-list { display: flex; flex-direction: column; gap: var(--space-3); list-style: none; margin: 0; padding: 0; }
+.ci-setting-card {
+  padding: var(--space-4); border: var(--border-w-2) solid var(--border-color);
+  border-radius: var(--radius-lg); background: var(--color-surface);
+}
+.ci-setting-head {
+  display: flex; gap: var(--space-3); align-items: flex-start; justify-content: space-between;
+}
+.ci-integration-row {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-3);
+  align-items: center; padding: var(--space-3);
+  border: var(--border-w-2) solid var(--border-color); border-radius: var(--radius);
+  background: var(--surface-muted);
+}
+
+/* 토글 — 켬/끔을 텍스트 입력으로 받지 않는다 */
+.ci-toggle {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  background: none; border: none; cursor: pointer; padding: 0; min-height: 44px;
+}
+/* 트랙은 손잡이를 담는 상자다. 음수 마진으로 위치를 맞추면 폰트·줌에 따라 어긋난다. */
+.ci-toggle-knob {
+  position: relative; display: inline-block; flex-shrink: 0;
+  width: 40px; height: 22px; border-radius: 9999px;
+  background: var(--border-color); transition: background 0.15s ease;
+}
+.ci-toggle-knob::after {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--color-surface); box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease;
+}
+.ci-toggle.is-on .ci-toggle-knob { background: var(--brand); }
+.ci-toggle.is-on .ci-toggle-knob::after { transform: translateX(18px); }
+.ci-toggle-label { font-size: var(--fs-xs); color: var(--text-muted); }
+@media (prefers-reduced-motion: reduce) {
+  .ci-toggle-knob, .ci-toggle-knob::after { transition: none; }
+}
+@media (max-width: 767px) {
+  .ci-setting-head { flex-direction: column; gap: var(--space-1); }
+  .ci-integration-row { grid-template-columns: auto minmax(0, 1fr); }
+  .ci-integration-row > :last-child { grid-column: 1 / -1; justify-self: start; }
+}
+
+/* ── 표 셀 줄바꿈 억제 ──
+   배지·버튼·수치는 줄바꿈되면 UI가 무너진다. 대신 컬럼 수를 줄여 폭을 확보한다. */
+.ci-nowrap { white-space: nowrap; }
+/* td에 display:flex를 주면 표 레이아웃이 통째로 깨진다(셀이 열 밖으로 밀려남).
+   데스크탑에서는 셀을 table-cell로 두고 nowrap으로만 줄바꿈을 막는다.
+   모바일 카드 전환(.table-card)은 별도 규칙이 flex로 바꾼다. */
+@media (min-width: 768px) {
+  .table-base td.card-actions.ci-nowrap { white-space: nowrap; }
+  .table-base td.card-actions.ci-nowrap > * { display: inline-flex; vertical-align: middle; }
+  .table-base td.card-actions.ci-nowrap > * + * { margin-left: var(--space-2); }
+}
+/* 콘텐츠 셀이 남는 폭을 다 먹고, 나머지는 내용만큼만 */
+.ci-inbox-table th:nth-child(2) { width: 100%; }
+.ci-inbox-table td[data-label='주제'] { white-space: nowrap; }
+
 /* ── 목록 행 썸네일 ── */
 .ci-row-thumb-cell { width: 104px; }
 .ci-row-thumb {
