@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { listContents } from '@/lib/ci/queries/contents'
-import { getMarketOverview, getPatterns, getSignals } from '@/lib/ci/queries/trends'
+import { getMarketOverview, getPatterns, getSignals, getTimingOverview } from '@/lib/ci/queries/trends'
 import { formatBasis } from '@/lib/ci/format/metrics'
 import TrendsView from './TrendsView'
 import type { CiContentFormat, CiPlatform } from '@/lib/ci/types'
@@ -42,7 +42,7 @@ export default async function TrendsPage({
     .is('deleted_at', null).is('merged_into_id', null).order('name')
   const topics = (topicRows ?? []) as { id: string; name: string }[]
 
-  const [outliers, market, patterns, signals] = await Promise.all([
+  const [outliers, market, timing, patterns, signals] = await Promise.all([
     tab === 'outliers'
       ? listContents({
           workspaceId: workspace.id,
@@ -58,6 +58,7 @@ export default async function TrendsPage({
         })
       : Promise.resolve(null),
     tab === 'market' ? getMarketOverview(workspace.id, windowDays, topicId) : Promise.resolve(null),
+    tab === 'market' ? getTimingOverview(workspace.id) : Promise.resolve(null),
     tab === 'patterns' ? getPatterns(workspace.id, topicId) : Promise.resolve(null),
     tab === 'signals' ? getSignals(workspace.id, topicId) : Promise.resolve(null),
   ])
@@ -76,6 +77,7 @@ export default async function TrendsPage({
       format={sp.format ?? ''}
       basisText={formatBasis(windowDays, outliers?.population ?? 0)}
       market={market}
+      timing={timing}
       patterns={patterns}
       signals={signals}
     />

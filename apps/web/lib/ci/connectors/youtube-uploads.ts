@@ -22,7 +22,12 @@ export interface UploadItem {
 }
 
 export type UploadsResult =
-  | { ok: true; items: UploadItem[]; total: number | null; truncated: boolean; quotaUnits: number }
+  | {
+    ok: true; items: UploadItem[]; total: number | null; truncated: boolean
+    quotaUnits: number
+    /** 채널 국가(ISO 3166-1 alpha-2). 공식 API만이 아는 값 */
+    country: string | null
+  }
   | { ok: false; error: string; needsKey: boolean }
 
 interface PlaylistItemsResponse {
@@ -67,15 +72,25 @@ export function parsePlaylistItems(json: PlaylistItemsResponse): UploadItem[] {
  * 채널 ID → uploads 재생목록 ID.
  * 규칙상 UC... → UU...로 바꾸면 되지만, 규칙에 기대지 않고 API가 알려준 값을 쓴다.
  */
-async function uploadsPlaylistId(channelId: string, apiKey: string): Promise<string | null> {
+async function channelBasics(
+  channelId: string, apiKey: string,
+): Promise<{ uploads: string | null; country: string | null }> {
   const res = await fetch(
-    `${API_BASE}/channels?part=contentDetails&id=${encodeURIComponent(channelId)}&key=${apiKey}`,
+    `${API_BASE}/channels?part=contentDetails,snippet&id=${encodeURIComponent(channelId)}&key=${apiKey}`,
   )
-  if (!res.ok) return null
+  if (!res.ok) return { uploads: null, country: null }
   const json = await res.json() as {
-    items?: { contentDetails?: { relatedPlaylists?: { uploads?: string } } }[]
+    items?: {
+      contentDetails?: { relatedPlaylists?: { uploads?: string } }
+      snippet?: { country?: string }
+    }[]
   }
-  return json.items?.[0]?.contentDetails?.relatedPlaylists?.uploads ?? null
+  const item = json.items?.[0]
+  return {
+    uploads: item?.contentDetails?.relatedPlaylists?.uploads ?? null,
+    // 채널이 스스로 밝힌 국가. 없으면 없는 대로 둔다
+    country: item?.snippet?.country ?? null,
+  }
 }
 
 /**
@@ -119,7 +134,8 @@ export async function fetchAllUploads(
   }
 
   let quotaUnits = 1 // channels.list
-  const playlistId = await uploadsPlaylistId(channelId, apiKey)
+  const basics = await channelBasics(channelId, apiKey)
+  const playlistId = basics.uploads
   if (!playlistId) {
     return { ok: false, needsKey: false, error: '채널의 업로드 목록을 찾지 못했습니다' }
   }
@@ -139,7 +155,7 @@ export async function fetchAllUploads(
     if (!res.ok) {
       // 일부라도 건졌으면 버리지 않는다
       if (items.length > 0) {
-        return { ok: true, items, total, truncated: true, quotaUnits }
+        return { ok: true, items, total, truncated: true, quotaUnits, country: basics.country }
       }
       return {
         ok: false, needsKey: res.status === 403,
@@ -157,7 +173,7 @@ export async function fetchAllUploads(
       const within = page.filter((it) => !it.publishedAt || it.publishedAt >= opts.sinceIso!)
       items.push(...within)
       if (within.length < page.length) {
-        return { ok: true, items, total, truncated: false, quotaUnits }
+        return { ok: true, items, total, truncated: false, quotaUnits, country: basics.country }
       }
     } else {
       items.push(...page)
@@ -172,5 +188,6 @@ export async function fetchAllUploads(
     total,
     truncated: Boolean(pageToken) || items.length > MAX_UPLOADS,
     quotaUnits,
+    country: basics.country,
   }
 }

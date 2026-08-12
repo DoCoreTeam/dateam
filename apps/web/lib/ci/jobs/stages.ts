@@ -349,6 +349,8 @@ export async function runChannelSweep(workspaceId: string, channelId: string): P
   await adminClient.from('ci_channels').update({
     last_sweep_at: new Date().toISOString(),
     sweep_cursor: feed.method,
+    // 채널 국가는 공식 API만이 아는 값이다. 얻었을 때만 채운다.
+    ...(full?.ok && full.country ? { country: full.country } : {}),
     // 수집 범위의 한계는 오류가 아니지만 숨기면 안 된다. 같은 자리에 남겨 화면이 말하게 한다.
     sweep_error: coverageNote,
   }).eq('id', channelId)

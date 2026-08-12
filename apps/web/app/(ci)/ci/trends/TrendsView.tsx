@@ -6,7 +6,7 @@
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { ApiResponse, CiContentListItem } from '@/lib/ci/contracts'
-import type { MarketOverview, PatternRow, SignalRow } from '@/lib/ci/queries/trends'
+import type { MarketOverview, PatternRow, SignalRow, TimingOverview } from '@/lib/ci/queries/trends'
 import { CI_PLATFORMS, CI_PLATFORM_LABEL } from '@/lib/ci/types'
 import CiPageHeader from '@/components/ci/CiPageHeader'
 import StageNav, { RESEARCH_STAGES } from '@/components/ci/StageNav'
@@ -61,6 +61,7 @@ interface Props {
   format: string
   basisText: string
   market: MarketOverview | null
+  timing: TimingOverview | null
   patterns: PatternRow[] | null
   signals: SignalRow[] | null
 }
@@ -223,6 +224,39 @@ export default function TrendsView(p: Props) {
                   </tbody>
                 </table>
               </section>
+
+              {p.timing && p.timing.contextFilled > 0 && (
+                <section style={{ marginBottom: 'var(--space-6)' }}>
+                  <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>
+                    언제 통했나
+                  </h2>
+                  <p className="ci-basis" style={{ marginBottom: 'var(--space-2)' }}>
+                    게시 시각을 콘텐츠 지역 기준으로 읽었습니다 · {p.timing.contextFilled}/{p.timing.total}건 판정
+                    {p.timing.regionUnknown > 0 && ` · 지역 미상 ${p.timing.regionUnknown}건은 UTC 기준`}
+                  </p>
+                  <div className="responsive-grid-cols-3">
+                    {([['계절', p.timing.bySeason], ['시간대', p.timing.byDayPart], ['요일', p.timing.byWeekday]] as const).map(([title, slices]) => (
+                      <div key={title}>
+                        <h3 className="ci-creative-head">{title}</h3>
+                        <table className="table-base table-card">
+                          <thead><tr><th>구간</th><th>건수</th><th>평소 대비 중앙값</th></tr></thead>
+                          <tbody>
+                            {slices.map((s) => (
+                              <tr key={s.key}>
+                                <td className="card-header">{s.label}</td>
+                                <td data-label="건수"><span className="ci-num">{s.count}</span></td>
+                                <td data-label="평소 대비 중앙값">
+                                  {s.medianOutlierText ?? <span className="ci-basis">표본 부족</span>}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               <section>
                 <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>많이 올린 채널</h2>

@@ -190,3 +190,97 @@ export async function getSignals(workspaceId: string, topicId?: string | null): 
     topicName: s.ci_topics?.name ?? null,
   }))
 }
+
+// ── 언제 통했나 (게시 맥락별 집계) ────────────────────────────
+// "평소 대비 9배"만으로는 언제의 트렌드인지 알 수 없다.
+// 계절·요일·시간대로 갈라 보면 "여름 주말 밤에 통했다"까지 말할 수 있다.
+
+export interface TimingSlice {
+  key: string
+  label: string
+  count: number
+  /** 이 구간 배수 중앙값. 표본이 얇으면 null */
+  medianOutlierText: string | null
+}
+
+export interface TimingOverview {
+  bySeason: TimingSlice[]
+  byDayPart: TimingSlice[]
+  byWeekday: TimingSlice[]
+  /** 맥락을 채운 콘텐츠 수 / 전체 */
+  contextFilled: number
+  total: number
+  /** 지역을 몰라 UTC로 읽은 건수 — 화면이 한계를 밝힐 수 있게 */
+  regionUnknown: number
+}
+
+const SEASON_KO: Record<string, string> = {
+  spring: '봄', summer: '여름', autumn: '가을', winter: '겨울',
+}
+const DAYPART_KO: Record<string, string> = {
+  dawn: '새벽', morning: '오전', afternoon: '오후', evening: '저녁', night: '밤',
+}
+const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토']
+
+/** 표본이 이 수보다 적으면 중앙값을 말하지 않는다 — 한두 건으로 계절을 논하지 않는다. */
+export const TIMING_MIN_SAMPLE = 3
+
+function sliceOf(
+  rows: { key: string | null; outlier: number | null }[],
+  keys: string[],
+  labelOf: (k: string) => string,
+): TimingSlice[] {
+  return keys.map((k) => {
+    const mine = rows.filter((r) => r.key === k)
+    const values = mine.map((r) => r.outlier).filter((v): v is number => v != null).sort((a, b) => a - b)
+    const mid = Math.floor(values.length / 2)
+    const median = values.length === 0 ? null
+      : values.length % 2 === 0 ? (values[mid - 1] + values[mid]) / 2 : values[mid]
+    return {
+      key: k,
+      label: labelOf(k),
+      count: mine.length,
+      medianOutlierText: median != null && values.length >= TIMING_MIN_SAMPLE
+        ? `평소 대비 ${median.toFixed(1)}배`
+        : null,
+    }
+  }).filter((s) => s.count > 0)
+}
+
+export async function getTimingOverview(workspaceId: string): Promise<TimingOverview> {
+  const adminClient = createAdminClient() as any
+  const { data } = await adminClient
+    .from('ci_contents')
+    .select('season, day_part, weekday, region_known, ci_content_derived ( outlier_index )')
+    .eq('workspace_id', workspaceId)
+    .eq('source', CORPUS_FILTER.source)
+    .eq('is_stat_excluded', CORPUS_FILTER.is_stat_excluded)
+    .is('deleted_at', null)
+    .limit(1000)
+
+  const rows = (data ?? []) as {
+    season: string | null; day_part: string | null; weekday: number | null
+    region_known: boolean | null
+    ci_content_derived: { outlier_index: number | null } | null
+  }[]
+
+  const withOutlier = rows.map((r) => ({ ...r, outlier: r.ci_content_derived?.outlier_index ?? null }))
+
+  return {
+    bySeason: sliceOf(
+      withOutlier.map((r) => ({ key: r.season, outlier: r.outlier })),
+      ['spring', 'summer', 'autumn', 'winter'], (k) => SEASON_KO[k] ?? k,
+    ),
+    byDayPart: sliceOf(
+      withOutlier.map((r) => ({ key: r.day_part, outlier: r.outlier })),
+      ['dawn', 'morning', 'afternoon', 'evening', 'night'], (k) => DAYPART_KO[k] ?? k,
+    ),
+    byWeekday: sliceOf(
+      withOutlier.map((r) => ({ key: r.weekday == null ? null : String(r.weekday), outlier: r.outlier })),
+      ['0', '1', '2', '3', '4', '5', '6'], (k) => `${WEEKDAY_KO[Number(k)]}요일`,
+    ),
+    contextFilled: rows.filter((r) => r.season != null).length,
+    total: rows.length,
+    regionUnknown: rows.filter((r) => r.season != null && r.region_known === false).length,
+  }
+}

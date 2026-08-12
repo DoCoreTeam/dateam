@@ -14,6 +14,7 @@ import {
   runClassify, runVerify, runPatterns, runChannelSweep, runCreativeBacklog,
   enrichChannelMetaBacklog,
 } from './stages.ts'
+import { enrichContextBacklog } from '../analysis/context-enrich.ts'
 import { enqueueJob, type ClaimedJob } from './queue.ts'
 import { nextStage } from './policy.ts'
 import { buildChannelKey, isProvisionalKey, provisionalKeyCandidates } from '../ucm/channel-key.ts'
@@ -228,6 +229,8 @@ async function handleProject(job: ClaimedJob): Promise<HandlerResult> {
     await runCreativeBacklog(job.workspace_id)
     // 콘텐츠 수집이 만든 채널은 이름과 URL뿐이다. 정보를 못 채운 채널을 함께 메운다.
     await enrichChannelMetaBacklog(job.workspace_id)
+    // "언제의 트렌드인가" — 계절·요일·시간대·지역·날씨를 채운다
+    await enrichContextBacklog(job.workspace_id)
     // 파생값이 바뀌면 성공 공식도 다시 봐야 한다. 낡은 공식이 화면에 남지 않게.
     await runPatterns(job.workspace_id)
   }

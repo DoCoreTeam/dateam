@@ -23,6 +23,8 @@ export interface ChannelMeta {
   subscriberCount: number | null
   subscriberText: string | null
   videoCount: number | null
+  /** ISO 3166-1 alpha-2. 시간대·계절·날씨 판정의 출발점 */
+  country: string | null
 }
 
 export type ChannelMetaResult =
@@ -127,6 +129,10 @@ export function parseChannelPage(html: string): ChannelMeta {
     subscriberCount: parseCompactCount(subsMatch?.[1] ?? null),
     subscriberText: subsMatch?.[1] ?? null,
     videoCount: parseCompactCount(videosMatch?.[1] ?? null),
+    // 채널 국가는 여기서 읽지 않는다.
+    // 페이지의 countryCode·gl은 **보는 사람**의 국가라, 그걸 채널에 붙이면
+    // 내 위치를 남의 채널에 덮어씌우는 셈이 된다. 공식 API(snippet.country)로만 확보한다.
+    country: null,
   }
 }
 
