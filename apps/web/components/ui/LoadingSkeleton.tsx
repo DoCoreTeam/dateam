@@ -44,7 +44,7 @@ export function SkelPage({
   children: React.ReactNode
 }) {
   return (
-    <div className="page-inner">
+    <div className="page-inner skel-reveal">
       {title ? <PageHeader title={title} description={description} /> : <div className="skel-line lg" style={{ width: '40%', marginBottom: 'var(--space-5)' }} aria-hidden />}
       {children}
     </div>

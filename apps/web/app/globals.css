@@ -7922,6 +7922,16 @@ label.intake-tool-btn {
   animation: work-search-shimmer 1.4s ease infinite;
   border-radius: var(--radius);
 }
+/* 골격은 **오래 걸릴 때만** 보인다.
+   전환이 250ms 안에 끝나면 화면에 아무것도 스치지 않는다 — 늘 띄우면 빠른 전환에서
+   골격이 번쩍여 오히려 더 느려 보인다. JS 없이 나타나는 시점만 늦춘다. */
+.skel-reveal { animation: skelReveal 120ms ease-out 250ms both; }
+@keyframes skelReveal { from { opacity: 0 } to { opacity: 1 } }
+@media (prefers-reduced-motion: reduce) {
+  .skel-reveal { animation: skelRevealInstant 0s 250ms both; }
+  @keyframes skelRevealInstant { from { opacity: 0 } to { opacity: 1 } }
+}
+
 .skel-line { height: 14px; border-radius: var(--radius); margin-bottom: var(--space-3); }
 .skel-line.lg { height: 22px; }
 .skel-line.sm { height: 10px; }
