@@ -603,6 +603,17 @@
     white-space: nowrap;
   }
 
+  /* 한국어는 브라우저 기본이 **아무 글자에서나** 줄바꿈이라, 칸이 좁으면 "요리"가
+     "요/리"로 쪼개진다(v0.7.459 /ci/inbox 실화면). keep-all로 낱말 단위만 허용하고,
+     끊을 데가 없는 긴 토큰(URL·이메일)만 break-word로 분할한다.
+     ⚠️ `anywhere`를 쓰면 안 된다 — 그건 keep-all을 무력화해 다시 낱말을 쪼갠다.
+     `break-word`는 컬럼 최소폭 계산을 낱말 기준으로 남겨둔다. */
+  .table-base th,
+  .table-base td {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+
   .table-base td {
     padding: 0.75rem 1rem;
     border-bottom: var(--hairline) solid #d4d4d4;

@@ -130,39 +130,34 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
       ),
     },
     {
-      key: 'edit', header: '수정', width: '96px',
+      // 액션이 수정·역할변경·PW초기화·온보딩·삭제로 **5칸**이었다. 각 칸이 nowrap이라
+      // 표 최소폭이 1150px가 되어 부모(982px)를 169px 넘쳤고 "온보딩" 칸이 화면 밖으로 잘렸다.
+      // 다른 목록 화면은 액션이 한 칸이다 — 한 칸으로 합쳐 넘침과 불일치를 함께 없앤다.
+      key: 'actions', header: '관리', width: '260px', noLabel: true,
       cell: (p) => (
-        <button type="button" className="btn-ghost" onClick={() => setEditTarget(p)}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)', whiteSpace: 'nowrap' }}>
-          <Pencil size={12} /> 수정
-        </button>
-      ),
-    },
-    {
-      key: 'role_toggle', header: '역할 변경', width: '120px',
-      cell: (p) => <RoleToggle userId={p.id} currentRole={p.role} isSelf={p.id === currentUserId} />,
-    },
-    {
-      key: 'reset_pw', header: 'PW초기화', width: '110px',
-      cell: (p) => <ResetPasswordButton userId={p.id} userEmail={emailMap[p.id] ?? ''} userName={p.name ?? '-'} />,
-    },
-    {
-      key: 'onboarding', header: '온보딩', width: '130px',
-      cell: (p) => (
-        <span style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', alignItems: 'flex-start' }}>
-          <span style={{
-            fontSize: 'var(--fs-2xs)', fontWeight: 600,
-            color: p.onboarding_completed_at ? 'var(--success)' : p.onboarding_skipped_at ? 'var(--text-muted)' : 'var(--warning)',
-          }}>
-            {p.onboarding_completed_at ? '완료' : p.onboarding_skipped_at ? '건너뜀' : '미완료'}
-          </span>
+        <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <button type="button" className="btn-ghost" onClick={() => setEditTarget(p)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)', whiteSpace: 'nowrap' }}>
+            <Pencil size={12} /> 수정
+          </button>
+          <RoleToggle userId={p.id} currentRole={p.role} isSelf={p.id === currentUserId} />
+          <ResetPasswordButton userId={p.id} userEmail={emailMap[p.id] ?? ''} userName={p.name ?? '-'} />
           <ResetOnboardingButton userId={p.id} userName={p.name ?? '-'} />
+          <DeleteUserButton userId={p.id} userName={p.name ?? p.id} isSelf={p.id === currentUserId} />
         </span>
       ),
     },
     {
-      key: 'delete', header: '삭제', width: '100px',
-      cell: (p) => <DeleteUserButton userId={p.id} userName={p.name ?? p.id} isSelf={p.id === currentUserId} />,
+      // 온보딩 상태는 액션이 아니라 **정보**다 — 버튼과 분리해 상태 칸으로 남긴다.
+      key: 'onboarding', header: '온보딩', width: '90px', hideOnCard: true,
+      cell: (p) => (
+        <span style={{
+          fontSize: 'var(--fs-2xs)', fontWeight: 600, whiteSpace: 'nowrap',
+          color: p.onboarding_completed_at ? 'var(--success)' : p.onboarding_skipped_at ? 'var(--text-muted)' : 'var(--warning)',
+        }}>
+          {p.onboarding_completed_at ? '완료' : p.onboarding_skipped_at ? '건너뜀' : '미완료'}
+        </span>
+      ),
     },
   ]
 
