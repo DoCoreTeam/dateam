@@ -7,7 +7,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ScrollJumpButtons from '@/components/ui/ScrollJumpButtons'
-import { Check, Copy, MessageSquarePlus, Pencil, Share2, Trash2, X } from 'lucide-react'
+import SlidePanel from '@/components/ui/SlidePanel'
+import ErrorState from '@/components/ui/ErrorState'
+import { SkelList } from '@/components/ui/LoadingSkeleton'
+import { Check, Copy, MessageSquarePlus, Pencil, Share2, Trash2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import MarkdownMessage from '@/app/admin/ai-chat/MarkdownMessage'
 import { getDocument, updateDocument, deleteDocument, type AnalysisDocumentSummary } from './document-actions'
@@ -126,35 +129,36 @@ export default function DocumentDetailDrawer({ documentId, onClose, onChanged, o
   }
 
   return (
-    <div onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--modal-backdrop)', display: 'flex', justifyContent: 'flex-end' }}>
-      <div ref={scrollRef} style={{ width: '100%', maxWidth: 640, height: '100%', background: 'var(--color-surface)', boxShadow: 'var(--shadow-modal)', overflowY: 'auto', padding: 'var(--space-6)', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 'var(--space-4)', gap: 'var(--space-3)' }}>
-          {editingTitle ? (
-            <div style={{ display: 'flex', gap: 'var(--space-2)', flex: 1, alignItems: 'center' }}>
-              <input className="input-field" value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)}
-                maxLength={120} autoFocus style={{ flex: 1, minHeight: 40 }} />
-              <button type="button" onClick={saveTitle} disabled={savingTitle} aria-label="제목 저장"
-                style={{ minHeight: 40, minWidth: 40, background: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', borderRadius: 'var(--radius)', color: 'var(--success)', cursor: 'pointer' }}>
-                <Check size={16} />
-              </button>
-            </div>
-          ) : (
-            <h3 className="tape-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              {title}
-              <button type="button" onClick={() => { setTitleDraft(title); setEditingTitle(true) }} aria-label="제목 편집"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}>
-                <Pencil size={14} />
-              </button>
-            </h3>
-          )}
-          <button onClick={onClose} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', flexShrink: 0 }}><X size={18} /></button>
-        </div>
-
+    <>
+    <SlidePanel
+      isOpen
+      onClose={onClose}
+      width={640}
+      bodyRef={scrollRef}
+      floating={<ScrollJumpButtons targetRef={scrollRef} />}
+      ariaLabel={title}
+      title={editingTitle ? (
+        <span style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+          <input className="input-field" value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)}
+            maxLength={120} autoFocus style={{ flex: 1, minHeight: 40 }} />
+          <button type="button" onClick={saveTitle} disabled={savingTitle} aria-label="제목 저장"
+            style={{ minHeight: 40, minWidth: 40, background: 'var(--success-bg)', border: 'var(--hairline) solid var(--success-border)', borderRadius: 'var(--radius)', color: 'var(--success)', cursor: 'pointer' }}>
+            <Check size={16} />
+          </button>
+        </span>
+      ) : title}
+      titleExtra={editingTitle ? undefined : (
+        <button type="button" onClick={() => { setTitleDraft(title); setEditingTitle(true) }} aria-label="제목 편집"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', flexShrink: 0 }}>
+          <Pencil size={14} />
+        </button>
+      )}
+    >
+      <>
         {loading ? (
-          <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>불러오는 중…</p>
+          <SkelList rows={4} />
         ) : error ? (
-          <p role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>{error}</p>
+          <ErrorState message={error} />
         ) : (
           <>
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
@@ -178,10 +182,10 @@ export default function DocumentDetailDrawer({ documentId, onClose, onChanged, o
             </div>
           </>
         )}
-      </div>
-
-      <ScrollJumpButtons targetRef={scrollRef} />
-      {showHandoff && <WorkflowHandoffModal title={title} bodyMd={bodyMd} onClose={() => setShowHandoff(false)} />}
-    </div>
+      </>
+    </SlidePanel>
+    {/* 전체화면 모달은 패널 **바깥**에 둔다 — 패널의 transform이 fixed 기준을 뺏는다 */}
+    {showHandoff && <WorkflowHandoffModal title={title} bodyMd={bodyMd} onClose={() => setShowHandoff(false)} />}
+    </>
   )
 }

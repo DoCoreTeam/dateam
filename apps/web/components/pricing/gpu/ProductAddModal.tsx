@@ -6,6 +6,7 @@ import { useEscClose } from '@/lib/use-esc-close'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { STANDARD_LADDER } from '@/lib/gpu/config-ladder'
 import { X, Plus } from 'lucide-react'
+import InlineError from '@/components/ui/InlineError'
 
 type GpuCount = (typeof STANDARD_LADDER)[number]
 
@@ -234,7 +235,7 @@ export default function ProductAddModal({ onClose, onAdded }: ProductAddModalPro
             </div>
           </div>
 
-          {error && <div className="gpu-field-error">{error}</div>}
+          <InlineError banner>{error}</InlineError>
 
           {/* 액션 */}
           <div className="gpu-modal-actions-end">

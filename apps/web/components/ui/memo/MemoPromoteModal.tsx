@@ -5,6 +5,7 @@ import { useState, useTransition } from 'react'
 import { X, ArrowUpRight } from 'lucide-react'
 import { promoteMemoToTask } from '@/app/(member)/daily/actions'
 import type { MemoListItem } from './memoUtils'
+import InlineError from '@/components/ui/InlineError'
 
 interface Props {
   memo: MemoListItem
@@ -67,7 +68,7 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
               style={{ padding: 'var(--space-2) var(--space-3)', border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)' }} />
           </label>
 
-          {error && <p style={{ margin: 0, color: 'var(--danger)', fontSize: '0.8rem' }}>{error}</p>}
+          <InlineError compact>{error}</InlineError>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', paddingTop: 'var(--space-1)' }}>
             <button onClick={onClose} disabled={isPending}

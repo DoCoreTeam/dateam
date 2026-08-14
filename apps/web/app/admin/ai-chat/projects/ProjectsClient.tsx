@@ -11,6 +11,7 @@ import PageHeader from '@/components/ui/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
 import { createProject, updateProject, softDeleteProject, listProjects } from '../actions'
 import { isEnterKey } from '@/lib/ui/ime'
+import InlineError from '@/components/ui/InlineError'
 
 interface Props {
   initialProjects: AiChatProject[]
@@ -147,7 +148,7 @@ function ProjectCard({ project, onEdit, onDeleted }: { project: AiChatProject; o
       {confirming && (
         <div role="alertdialog" aria-label="삭제 확인" style={{ borderTop: 'var(--hairline) solid var(--border-color)', paddingTop: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)' }}>이 프로젝트를 삭제할까요?</span>
-          {error && <span role="alert" style={{ fontSize: 'var(--fs-xs)', color: 'var(--danger)' }}>{error}</span>}
+          <InlineError compact>{error}</InlineError>
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             <NbButton variant="danger" onClick={doDelete} disabled={busy} style={{ fontSize: 'var(--fs-sm)' }}>
               {busy ? '삭제중…' : '삭제'}
@@ -229,7 +230,7 @@ function ProjectModal({ project, onClose, onSaved }: { project: AiChatProject | 
           </span>
         </div>
 
-        {error && <p role="alert" style={{ margin: 'var(--space-3) 0 0', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>{error}</p>}
+        <InlineError spaced>{error}</InlineError>
 
         <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-5)', justifyContent: 'flex-end' }}>
           <NbButton variant="ghost" onClick={onClose} disabled={busy}>취소</NbButton>

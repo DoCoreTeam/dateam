@@ -27,6 +27,7 @@ const SHARED_CSS_PREFIXES = new Set([
   'btn', 'badge', 'empty', 'error', 'state', 'modal', 'toast', 'sr', 'mobile',
   'desktop', 'text', 'sidebar', 'settings', 'chip', 'form', 'grid', 'stack',
   'sort', // 정렬 아이콘/헤더 — 목록형 화면 공통 프리미티브
+  'inline', // inline-error — 폼·버튼 옆 한 줄 오류(components/ui/InlineError)
 ])
 const MIN_FONT_PX = 10
 

@@ -5,6 +5,7 @@ import { Key, CheckCircle, XCircle, RefreshCw, Cpu } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { saveOpenAiKey, saveOpenAiModel, getOpenAiModels, deleteOpenAiKey } from './actions'
 import { IntegrationStatus, IntegrationTest } from './integration-ui'
+import EmptyState from '@/components/ui/EmptyState'
 
 interface OpenAiSettingsProps {
   hasKey: boolean
@@ -219,7 +220,7 @@ export default function OpenAiSettings({ hasKey: initialHasKey, maskedKey: initi
         )}
 
         {modelsLoaded && models.length === 0 && (
-          <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', margin: 0 }}>사용 가능한 모델이 없습니다</p>
+          <EmptyState title="쓸 수 있는 모델이 없어요" description="키 권한이나 결제 상태를 확인한 뒤 다시 불러와 주세요" />
         )}
 
         {modelsLoaded && models.length > 0 && (

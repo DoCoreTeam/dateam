@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { resetUserPassword } from './actions'
 import { RefreshCw } from 'lucide-react'
+import InlineError from '@/components/ui/InlineError'
 
 interface Props {
   userId: string
@@ -56,7 +57,7 @@ export default function ResetPasswordButton({ userId, userEmail, userName }: Pro
         <RefreshCw size={11} />
         {loading ? '처리중...' : 'PW초기화'}
       </button>
-      {error && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--danger)' }}>{error}</span>}
+      <InlineError compact>{error}</InlineError>
     </div>
   )
 }

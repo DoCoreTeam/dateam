@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Trash2 } from 'lucide-react'
 import { deleteTier } from './actions'
+import InlineError from '@/components/ui/InlineError'
 
 export default function DeleteTierButton({ tierId, tierName }: { tierId: string; tierName: string }) {
   const [confirming, setConfirming] = useState(false)
@@ -34,7 +35,7 @@ export default function DeleteTierButton({ tierId, tierName }: { tierId: string;
         >
           취소
         </button>
-        {error && <span role="alert" style={{ fontSize: 'var(--fs-xs)', color: 'var(--danger)' }}>{error}</span>}
+        <InlineError compact>{error}</InlineError>
       </span>
     )
   }

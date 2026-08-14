@@ -7,6 +7,7 @@ import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { STANDARD_LADDER } from '@/lib/gpu/config-ladder'
 import { X, Pencil } from 'lucide-react'
 import ImpactDeleteDialog from './ImpactDeleteDialog'
+import InlineError from '@/components/ui/InlineError'
 
 type GpuCount = (typeof STANDARD_LADDER)[number]
 
@@ -238,7 +239,7 @@ export default function QuoteEditModal({ quote, productId, onClose, onSaved }: Q
               />
             </div>
 
-            {error && <div className="gpu-field-error">{error}</div>}
+            <InlineError banner>{error}</InlineError>
 
             {/* 액션 */}
             <div className="gpu-modal-actions">

@@ -10,6 +10,7 @@ import { CheckCircle2, FolderPlus, Share2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import { createDocument } from './document-actions'
 import WorkflowHandoffModal from './WorkflowHandoffModal'
+import InlineError from '@/components/ui/InlineError'
 
 interface Props {
   sessionId: string
@@ -57,7 +58,7 @@ export default function AnalysisOutcomeActions({ sessionId, docType, title, body
         <Share2 size={14} /> 업무로 전달
       </NbButton>
 
-      {error && <p role="alert" style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>{error}</p>}
+      <InlineError>{error}</InlineError>
 
       {showHandoff && (
         <WorkflowHandoffModal title={title} bodyMd={bodyMd} onClose={() => setShowHandoff(false)} />

@@ -35,7 +35,7 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 | **정렬 아이콘** | ~~7곳 자작~~ → **`ui/SortIcon` 1벌** (v0.7.445, `active`+`dir` 계약) | — | ✅ 해소 |
 | **로딩** | `ui/LoadingSkeleton`(Skel*) **32** · `ui/AXDotLoader` **35** · `ui/AXLoadingOverlay` **7** · `ui/BrandLoaderMark` **2** · `ui/NavigationLoader` **1** | — | ⛔ **5종 병존** (v0.7.445에 `ci/states` 골격만 `SkelList`로 흡수) |
 | **탭** | ~~5종~~ → **`ui/SegmentedTabs` 1벌이 그린다** (v0.7.445). `WorkSubTabs`·`ProjectTabs`·`WorkTabBar`·`StageNav`는 데이터/프롭 어댑터 | — | ✅ 해소 |
-| **상세 표면** | `ci/DetailSheet` **4** · `ui/SlidePanel` **3** · 모달 26파일 · `[id]` 페이지 9 | — | ⛔ 3방식 |
+| **상세 표면** | `ci/DetailSheet` **4** · `ui/SlidePanel` **6** · 모달 26파일 · `[id]` 페이지 9 | — | ⛔ 3방식 (v0.7.456에 자작 드로어 3벌은 SlidePanel로 흡수) |
 | **표** | `ui/list/ListSurface`(표준, v0.7.448) · `ui/DynamicTable` **7** · `ui/nb/NbTable` **2** · `.table-card` **70** · GPU `UnifiedTable` **1** | — | ⛔ 표준은 생겼고 이관은 진행 중(가드 PENDING 39) |
 | **셸** | ~~3벌~~ → **`ui/shell/AppShell` 1벌** (v0.7.443 통합) | `ui/shell/AppShell` | ✅ 해소 |
 
@@ -95,7 +95,7 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 | `ui/BulkActionBar` | 2 | 목록 일괄 액션 바 |
 | `ui/TrashToggle` | 2 | 휴지통 필터 토글 |
 | `ci/DetailSheet` | **4** | 우측 상세 시트 |
-| `ui/SlidePanel` | 3 | 우측 슬라이드 패널 |
+| `ui/SlidePanel` | **6** | 우측 슬라이드 패널(드로어) — v0.7.456에 포커스 트랩·스크롤 잠금 보유분으로 확정하고 자작 드로어 3벌 흡수 |
 | `ci/EvidenceSheet` | 1 | 근거 시트 |
 | `ci/ContentCard` | 4 | 콘텐츠 카드 |
 | `ci/ChannelGroupedList` / `ChannelListView` | 2 / 2 | 목록 뷰 |
@@ -120,7 +120,8 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 | 상태 | 부품 | 사용 |
 |---|---|---|
 | 빈 | `ui/EmptyState` | **19** (v0.7.445 1벌) |
-| 오류 | `ui/ErrorState` | **11** (v0.7.445 공용 승격, 도움 링크는 `helpHref`로 주입) |
+| 오류(영역) | `ui/ErrorState` | **11** (v0.7.445 공용 승격, 도움 링크는 `helpHref`로 주입) |
+| 오류(한 줄) | **`ui/InlineError`** | **56** (v0.7.456 신설 — 폼·버튼 옆 한 줄. 예전엔 화면마다 인라인 style, 글자 크기 8종) |
 | 로딩 | `ui/LoadingSkeleton→SkelPage/SkelCard/SkelList` | **11 / 9 / 7** |
 | 로딩 | `ui/AXDotLoader` | **35** |
 | 로딩 | `ui/AXLoadingOverlay` | 7 |
@@ -142,7 +143,7 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 ### 5-4. 모달
 | 부품 | 사용 |
 |---|---|
-| `ui/nb/NbModal` | **5** (표준 후보) |
+| `ui/nb/NbModal` | **8** (가운데 카드 표준 — v0.7.456 org-chart·세션모달 흡수) |
 | `ui/EditorModal` | 3 |
 | 개별 모달 파일 | **26개** (`*Modal.tsx`) |
 | 모달 표준 준수 | `useEscClose` **91** · `tape-title` **118** (§2-2 — 채택률 높음) |

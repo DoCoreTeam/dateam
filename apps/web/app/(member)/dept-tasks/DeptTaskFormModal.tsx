@@ -10,6 +10,7 @@ import { parseChecklistText } from '@/lib/dept-task-utils'
 import { PRIORITY_KEYS, PRIORITY_COLORS } from '@/lib/tokens/status-colors'
 import { createDeptTask, updateDeptTask, listAssigneeCandidates } from './actions'
 import type { DeptOption } from './DeptTasksClient'
+import InlineError from '@/components/ui/InlineError'
 
 interface Props {
   creatableDepts: DeptOption[]
@@ -136,7 +137,7 @@ export default function DeptTaskFormModal({ creatableDepts, onClose, onSaved, ta
             <textarea className="input-field" value={checklistText} onChange={(e) => setChecklistText(e.target.value)} rows={2} placeholder="예: 자료 수집&#10;초안 작성" />
             {isEdit && <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>진행률은 체크리스트 완료 비율로 자동 산출됩니다.</p>}
           </div>
-          {error && <p role="alert" style={{ color: 'var(--danger)', margin: 0 }}>{error}</p>}
+          <InlineError>{error}</InlineError>
         </div>
     </NbModal>
   )

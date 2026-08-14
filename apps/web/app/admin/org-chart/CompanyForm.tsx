@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { updateCompany } from './actions'
 import { Building2, Save } from 'lucide-react'
+import InlineError from '@/components/ui/InlineError'
 
 interface CompanyFormProps {
   defaultName: string
@@ -69,7 +70,7 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
               }}
             />
           </div>
-          {error && <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--danger)', margin: 0 }}>{error}</p>}
+          <InlineError>{error}</InlineError>
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             <button
               type="submit"

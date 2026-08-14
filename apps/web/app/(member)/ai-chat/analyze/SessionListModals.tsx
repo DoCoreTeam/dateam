@@ -6,9 +6,10 @@
 import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { X, Copy, Check, FolderPlus, Share2 } from 'lucide-react'
+import { Copy, Check, FolderPlus, Share2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
-import { useEscClose } from '@/lib/use-esc-close'
+import NbModal from '@/components/ui/nb/NbModal'
+import SlidePanel from '@/components/ui/SlidePanel'
 import { renameAnalysisSession, type AnalysisSessionSummary } from './session-list-actions'
 import { getAnalysisSession, type AnalysisSessionDetail } from './session-persist-actions'
 import { createDocument } from './document-actions'
@@ -16,6 +17,9 @@ import ExportMenu, { type ExportFormat } from './ExportMenu'
 import WorkflowHandoffModal from './WorkflowHandoffModal'
 import ScrollJumpButtons from '@/components/ui/ScrollJumpButtons'
 import MarkdownMessage from '@/app/admin/ai-chat/MarkdownMessage'
+import InlineError from '@/components/ui/InlineError'
+import ErrorState from '@/components/ui/ErrorState'
+import { SkelList } from '@/components/ui/LoadingSkeleton'
 
 function downloadTextFile(filename: string, content: string, mime: string): void {
   const blob = new Blob([content], { type: mime })
@@ -38,27 +42,18 @@ function sessionBodyMd(detail: AnalysisSessionDetail): string {
     .join('\n\n')
 }
 
-const BACKDROP = 'var(--modal-backdrop)'
-const MODAL_SHADOW = 'var(--shadow-modal)'
-
+/** 이 파일 안에서만 쓰는 얇은 어댑터 — 폭만 정하고 골격은 `NbModal`이 그린다.
+ *  예전엔 backdrop·카드·헤더를 여기서 직접 그렸다(NbModal의 지역 재구현). */
 function ModalShell({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   return (
-    <div onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: BACKDROP, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-4)' }}>
-      <div style={{ width: '100%', maxWidth: wide ? 420 : 400, background: 'var(--color-surface)', borderRadius: 'var(--radius)', padding: 'var(--space-6)', boxShadow: MODAL_SHADOW, boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
-          <h3 className="tape-title" style={{ margin: 0 }}>{title}</h3>
-          <button onClick={onClose} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={18} /></button>
-        </div>
-        {children}
-      </div>
-    </div>
+    <NbModal title={title} onClose={onClose} maxWidth={wide ? 420 : 400}>
+      {children}
+    </NbModal>
   )
 }
 
 /** 세션 이름변경 모달(§C4 CRUD). */
 export function RenameModal({ session, onClose, onRenamed }: { session: AnalysisSessionSummary; onClose: () => void; onRenamed: (title: string) => void }) {
-  useEscClose(onClose)
   const [title, setTitle] = useState(session.title)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -77,7 +72,7 @@ export function RenameModal({ session, onClose, onRenamed }: { session: Analysis
       <label className="label" htmlFor="rename-title">제목</label>
       <input id="rename-title" className="input-field" value={title} onChange={(e) => setTitle(e.target.value)}
         maxLength={60} autoFocus style={{ marginTop: 'var(--space-1)', marginBottom: 'var(--space-3)' }} />
-      {err && <p role="alert" style={{ margin: '0 0 var(--space-3)', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>{err}</p>}
+      <InlineError spaced>{err}</InlineError>
       <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
         <NbButton variant="ghost" onClick={onClose} type="button">취소</NbButton>
         <NbButton onClick={submit} disabled={busy || !title.trim()} type="button">{busy ? '저장중…' : '저장'}</NbButton>
@@ -91,7 +86,6 @@ export function ConfirmModal({ title, message, confirmLabel, danger, error, onCl
   title: string; message: ReactNode; confirmLabel: string; danger?: boolean; error?: string | null
   onClose: () => void; onConfirm: () => void | Promise<void>
 }) {
-  useEscClose(onClose)
   const [busy, setBusy] = useState(false)
 
   async function run() {
@@ -103,9 +97,7 @@ export function ConfirmModal({ title, message, confirmLabel, danger, error, onCl
   return (
     <ModalShell title={title} onClose={onClose}>
       <p style={{ margin: '0 0 var(--space-4)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', lineHeight: 1.5 }}>{message}</p>
-      {error && (
-        <p role="alert" style={{ margin: '0 0 var(--space-3)', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>{error}</p>
-      )}
+      <InlineError spaced>{error}</InlineError>
       <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
         <NbButton variant="ghost" onClick={onClose} type="button">취소</NbButton>
         <NbButton variant={danger ? 'danger' : 'primary'} onClick={run} disabled={busy} type="button">{busy ? '처리중…' : confirmLabel}</NbButton>
@@ -120,7 +112,6 @@ export function ConfirmModal({ title, message, confirmLabel, danger, error, onCl
  * (분석 재개 로직은 그쪽 SSOT — 여기서 중복 구현하지 않음).
  */
 export function SessionDetailDrawer({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
-  useEscClose(onClose)
   const [detail, setDetail] = useState<AnalysisSessionDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -191,18 +182,14 @@ export function SessionDetailDrawer({ sessionId, onClose }: { sessionId: string;
   }
 
   return (
-    <div onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: BACKDROP, display: 'flex', justifyContent: 'flex-end' }}>
-      <div ref={scrollRef} style={{ width: '100%', maxWidth: 520, height: '100%', background: 'var(--color-surface)', boxShadow: MODAL_SHADOW, overflowY: 'auto', padding: 'var(--space-6)', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
-          <h3 className="tape-title" style={{ margin: 0 }}>세션 상세</h3>
-          <button onClick={onClose} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={18} /></button>
-        </div>
-
+    <>
+    <SlidePanel isOpen title="세션 상세" onClose={onClose} width={520} bodyRef={scrollRef}
+      floating={<ScrollJumpButtons targetRef={scrollRef} />}>
+      <>
         {loading ? (
-          <p style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-sm)' }}>불러오는 중…</p>
+          <SkelList rows={4} />
         ) : error || !detail ? (
-          <p role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>{error ?? '세션을 찾을 수 없습니다'}</p>
+          <ErrorState message={error ?? '세션을 찾을 수 없습니다'} />
         ) : (
           <>
             {/* 문서 상세와 동일한 배출 액션 — 세션도 결과가 있으면 다운로드·복사·저장·전달 가능 */}
@@ -242,12 +229,12 @@ export function SessionDetailDrawer({ sessionId, onClose }: { sessionId: string;
             </div>
           </>
         )}
-      </div>
-
-      <ScrollJumpButtons targetRef={scrollRef} />
-      {detail && showHandoff && (
-        <WorkflowHandoffModal title={title} bodyMd={body} onClose={() => setShowHandoff(false)} />
-      )}
-    </div>
+      </>
+    </SlidePanel>
+    {/* 전체화면 모달은 패널 **바깥**에 둔다 — 패널의 transform이 fixed 기준을 뺏는다 */}
+    {detail && showHandoff && (
+      <WorkflowHandoffModal title={title} bodyMd={body} onClose={() => setShowHandoff(false)} />
+    )}
+    </>
   )
 }

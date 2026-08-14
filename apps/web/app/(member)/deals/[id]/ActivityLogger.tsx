@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
+import InlineError from '@/components/ui/InlineError'
 
 const TYPES = [
   { value: 'call', label: '통화' },
@@ -106,7 +107,7 @@ export default function ActivityLogger({ dealId }: Props) {
             className="input-field"
             style={{ resize: 'vertical', boxSizing: 'border-box' }}
           />
-          {error && <p style={{ color: 'var(--danger)', fontSize: 'var(--fs-sm)', margin: 0 }}>{error}</p>}
+          <InlineError>{error}</InlineError>
           <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
             <button type="submit" disabled={loading} className="btn-primary" style={{ fontSize: 'var(--fs-sm)', padding: 'var(--space-2) var(--space-4)', minHeight: '36px' }}>
               {loading ? '저장중...' : '저장'}{!loading && <span style={{ fontSize: '0.65rem', opacity: 0.65, marginLeft: '0.3rem' }}>Ctrl+↵</span>}

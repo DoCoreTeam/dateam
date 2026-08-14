@@ -12,6 +12,7 @@ import rehypeHighlight from 'rehype-highlight'
 import { Check, Copy, Download, X } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import { extForLanguage, type ArtifactBlock } from '@/lib/ai-chat/artifacts'
+import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import HtmlSandbox from './HtmlSandbox'
 
 export interface ArtifactVersionEntry {
@@ -99,26 +100,15 @@ export default function ArtifactPanel({ versions, versionIndex, onClose, onVersi
         </button>
       </header>
 
-      <div className="artifact-tabs" role="tablist" aria-label="미리보기/코드">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'preview'}
-          className={`artifact-tab${tab === 'preview' ? ' is-active' : ''}`}
-          onClick={() => setTab('preview')}
-        >
-          미리보기
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'code'}
-          className={`artifact-tab${tab === 'code' ? ' is-active' : ''}`}
-          onClick={() => setTab('code')}
-        >
-          코드
-        </button>
-      </div>
+      <SegmentedTabs
+        ariaLabel="미리보기/코드"
+        activeId={tab}
+        onSelect={(id) => setTab(id as 'preview' | 'code')}
+        tabs={[
+          { id: 'preview', label: '미리보기' },
+          { id: 'code', label: '코드' },
+        ]}
+      />
 
       <div className="artifact-toolbar">
         {versions.length > 1 && (

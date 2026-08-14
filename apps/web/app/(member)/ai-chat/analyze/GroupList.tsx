@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import type { Group } from '@/lib/ai-chat/grouping/types'
+import EmptyState from '@/components/ui/EmptyState'
 
 interface Props {
   groups: Group[]
@@ -27,11 +28,7 @@ export default function GroupList({ groups }: Props) {
   }
 
   if (groups.length === 0) {
-    return (
-      <div className="card" style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>
-        인식된 그룹이 없습니다.
-      </div>
-    )
+    return <EmptyState title="인식된 그룹이 없어요" description="자료를 다시 올리거나 지시문을 바꿔 다시 분석해 보세요" />
   }
 
   return (

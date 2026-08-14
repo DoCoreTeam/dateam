@@ -6,6 +6,7 @@ import type { Account } from '@/types/database'
 import { ACCOUNT_SEGMENTS, ACCOUNT_TYPES, GPU_DEMAND_LEVELS } from '@/lib/crm'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
+import InlineError from '@/components/ui/InlineError'
 
 interface Props {
   account?: Account
@@ -211,7 +212,7 @@ export default function AccountForm({ account }: Props) {
           )}
         </div>
 
-        {error && <p style={{ color: 'var(--danger)', fontSize: 'var(--fs-base)', margin: 0 }}>{error}</p>}
+        <InlineError>{error}</InlineError>
 
         <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
           <button type="submit" disabled={loading} className="btn-primary" style={{ minHeight: '44px', padding: '0.625rem 1.5rem' }}>

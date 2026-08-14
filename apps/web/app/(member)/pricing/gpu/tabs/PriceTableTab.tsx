@@ -17,6 +17,7 @@ import { buildTierModelGroups, tierKey, modelKey } from '@/lib/gpu/group'
 import { GPU_TERMS } from '@/lib/gpu/terms'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 import MarginControl from '@/components/pricing/gpu/MarginControl'
+import InlineError from '@/components/ui/InlineError'
 
 const ProductAddModal = dynamic(() => import('@/components/pricing/gpu/ProductAddModal'), { ssr: false })
 const ProductEditModal = dynamic(() => import('@/components/pricing/gpu/ProductEditModal'), { ssr: false })
@@ -226,7 +227,7 @@ function AssignSupplier({ quoteId, onAssigned }: { quoteId: string; onAssigned: 
       >
         {saving ? '지정 중…' : '지정'}
       </button>
-      {err && <span style={{ fontSize: 10.5, color: 'var(--gpu-red)' }}>{err}</span>}
+      <InlineError compact>{err}</InlineError>
     </div>
   )
 }
@@ -503,7 +504,7 @@ function PartnerTierManagerModal({ tiers, onClose, onChanged }: { tiers: Partner
             <span style={{ fontSize: 12, color: 'var(--gpu-muted)' }}>%↓</span>
             <button onClick={add} disabled={busy} className="gpu-btn gpu-btn-primary" style={{ gap: 4 }}>추가</button>
           </div>
-          {err && <div style={{ fontSize: 12, color: 'var(--gpu-red)' }}>{err}</div>}
+          <InlineError compact>{err}</InlineError>
         </div>
       </div>
     </div>

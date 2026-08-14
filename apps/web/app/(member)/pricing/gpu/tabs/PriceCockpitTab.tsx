@@ -32,6 +32,7 @@ import { GcubeSiteCell } from '@/components/pricing/gpu/cockpit/GcubeSiteCell'
 import { CandidateCell } from '@/components/pricing/gpu/cockpit/CandidateCell'
 import SortIcon from '@/components/ui/SortIcon'
 import { MarginBadge } from '@/components/pricing/gpu/cockpit/MarginBadge'
+import AXDotLoader from '@/components/ui/AXDotLoader'
 import {
   CostDrawer,
   CompetitorDrawer,
@@ -475,7 +476,7 @@ export default function PriceCockpitTab({
   if (isLoading) {
     return (
       <div className="price-cockpit-wrap">
-        <div className="gpu-empty-hint" role="status">로딩 중…</div>
+        <div className="gpu-empty-hint" role="status"><AXDotLoader /></div>
       </div>
     )
   }

@@ -5,6 +5,7 @@ import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { Sparkles, Check, X } from 'lucide-react'
 import { coreModelKey, baseModelName } from '@/lib/gpu/canonical-model'
+import InlineError from '@/components/ui/InlineError'
 
 // 신규 모델 후보 큐(마이그169) — 카탈로그 미등록 관측을 등록 대기로 노출.
 //   경쟁사 시세에서 카탈로그에 없는 실존 모델(예 GB300)이 나오면 관측 근거와 함께 여기 쌓인다.
@@ -86,7 +87,7 @@ export default function ModelCandidateQueue({ onRegistered }: { onRegistered?: (
         </span>
       </div>
 
-      {err && <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--danger)', marginBottom: 'var(--space-2)' }}>{err}</div>}
+      <InlineError spaced>{err}</InlineError>
 
       <table className="table-base table-card">
         <thead>

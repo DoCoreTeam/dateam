@@ -6,6 +6,7 @@ import type { Deal, Account, Contact } from '@/types/database'
 import { DEAL_NATURES, LEAD_TYPES, PRODUCTS, probabilityForStage } from '@/lib/crm'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
+import InlineError from '@/components/ui/InlineError'
 
 const STAGES = ['신규', '검증', '컨택', 'PoC', '제안', '협상', '수주', '실패'] as const
 
@@ -209,7 +210,7 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
           <label className="label">태그 (쉼표 구분)</label>
           <input className="input-field" value={form.tags} onChange={(e) => set('tags', e.target.value)} style={inputStyle} />
         </div>
-        {error && <p style={{ color: 'var(--danger)', fontSize: 'var(--fs-base)', margin: 0 }}>{error}</p>}
+        <InlineError>{error}</InlineError>
         <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
           <button type="submit" disabled={loading} className="btn-primary" style={{ minHeight: '44px', padding: '0.625rem 1.5rem' }}>
             {loading ? '저장중...' : deal ? '수정' : '등록'}{!loading && <span style={{ fontSize: '0.7rem', opacity: 0.65, marginLeft: '0.375rem' }}>Ctrl+↵</span>}

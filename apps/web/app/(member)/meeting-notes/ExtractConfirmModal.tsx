@@ -11,6 +11,7 @@ import NbButton from '@/components/ui/nb/NbButton'
 import { useEscClose } from '@/lib/use-esc-close'
 import { applyExtractedItems, updateMeetingNote } from './actions'
 import { matchAttendees, normalizeName } from '@/lib/meeting/match-attendees'
+import InlineError from '@/components/ui/InlineError'
 
 interface TaskCandidate { title: string; confidence: number; source_quote: string }
 interface EventCandidate { title: string; confidence: number; source_quote: string; suggested_date: string | null; suggested_time: string | null }
@@ -166,7 +167,7 @@ export default function ExtractConfirmModal({
           </CandidateGroup>
         )}
 
-        {err && <p role="alert" style={{ margin: 0, color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>{err}</p>}
+        <InlineError>{err}</InlineError>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
           <NbButton variant="ghost" onClick={onClose} disabled={busy}>닫기</NbButton>

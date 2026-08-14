@@ -22,6 +22,10 @@ const SYSTEM_PREFIXES = [
   'list-', 'seg-', 'empty-state', 'error-state', 'sort-icon',
   'app-dock', 'shell-', 'skel',
   'ci-', 'gpu-', 'work-', 'daily-', 'cockpit-', 'weekly-',
+  // v0.7.456 추가 — `nb-danger`가 **정의 없이** 쓰이고 있었다. NbButton variant="danger"가
+  // `btn-primary nb-danger`를 붙이는데 규칙이 없어, 앱 전체의 삭제 버튼이 일반 버튼과
+  // 똑같은 파란색으로 렌더됐다. 되돌릴 수 없는 동작이 안전한 동작과 구분되지 않았다.
+  'nb-', 'inline-error', 'slide-panel',
 ]
 
 /**
@@ -43,12 +47,17 @@ function usedClasses(): Map<string, string[]> {
   const used = new Map<string, string[]>()
   for (const file of [...walkFiles('components', ['.tsx']), ...walkFiles('app', ['.tsx'])]) {
     const src = read(file)
-    // className="a b" / className={`a ${x} b`} 양쪽에서 리터럴 토큰만 걷는다
-    const re = /className=(?:"([^"]*)"|\{`([^`]*)`\})/g
+    // className="a b" / className={`a ${x} b`} 양쪽에서 리터럴 토큰만 걷는다.
+    // **className 밖의 클래스 문자열도 본다** — `nb-danger`는 컴포넌트 안의
+    // `VARIANT_CLASS = { danger: 'btn-primary nb-danger' }` 상수에 있어서
+    // className만 훑던 옛 가드가 통째로 놓쳤다(v0.7.456 실브라우저에서 발견).
+    // 따옴표 리터럴은 **토큰 2개 이상**(= 클래스 목록)일 때만 본다.
+    // 단일 토큰은 라우트('weekly-report')·이벤트키('daily-saved')와 구분이 안 돼 오탐이 난다.
+    const re = /className=(?:"([^"]*)"|\{`([^`]*)`\})|'([a-z][\w-]*(?: [a-z][\w-]*)+)'/g
     let m: RegExpExecArray | null
     while ((m = re.exec(src))) {
       // 보간(${…})이 붙은 토큰은 조각이라 클래스명이 아니다 — 표식을 남겨 걸러낸다
-      const raw = (m[1] ?? m[2] ?? '').replace(/\$\{[^}]*\}/g, '\u0000')
+      const raw = (m[1] ?? m[2] ?? m[3] ?? '').replace(/\$\{[^}]*\}/g, '\u0000')
       for (const token of raw.split(/\s+/)) {
         if (!token || token.includes('\u0000') || IGNORE.has(token)) continue
         if (!SYSTEM_PREFIXES.some((p) => token.startsWith(p))) continue

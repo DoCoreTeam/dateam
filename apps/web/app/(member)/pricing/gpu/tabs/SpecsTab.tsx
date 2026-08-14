@@ -9,6 +9,7 @@ import { useEscClose } from '@/lib/use-esc-close'
 import { memoryTitle } from '@/lib/gpu/card-memory'
 import { modelVariantLabel } from '@/lib/gpu/canonical-model'
 import ModelCandidateQueue from './ModelCandidateQueue'
+import InlineError from '@/components/ui/InlineError'
 
 interface Spec {
   model_name: string
@@ -202,7 +203,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
             ))}
           </div>
 
-          {err && <div style={{ fontSize: 12, color: 'var(--gpu-red)' }}>{err}</div>}
+          <InlineError compact>{err}</InlineError>
 
           {/* 통합 액션 — 한 화면, 한 수정/저장, AI 자동완성 */}
           <div style={{ display: 'flex', gap: 8, paddingTop: 4, borderTop: 'var(--hairline) solid var(--gpu-border)', marginTop: 2 }}>
@@ -266,7 +267,7 @@ function AddModelModal({ prefillName, prefillCount, onClose, onSaved }: { prefil
             <label className="gpu-field"><span className="label">카드 메모리</span><input className="input-field" value={f.memory} onChange={(e) => set('memory', e.target.value)} placeholder="80GB" /></label>
             <label className="gpu-field"><span className="label">장수</span><input className="input-field" type="number" min="1" value={f.gpu_count} onChange={(e) => set('gpu_count', e.target.value)} /></label>
           </div>
-          {err && <div className="gpu-link-err">{err}</div>}
+          <InlineError compact>{err}</InlineError>
           <button className="gpu-btn gpu-btn-primary" disabled={saving} onClick={save} style={{ marginTop: 4 }}>{saving ? '등록 중…' : '등록'}</button>
         </div>
       </div>
@@ -329,7 +330,7 @@ function DeleteModelModal({ group, onClose, onDeleted }: { group: ModelGroup; on
               <div style={{ fontSize: 12, color: 'var(--gpu-muted)', margin: '0 0 10px' }}>연결된 데이터 없음 — 바로 삭제됩니다.</div>
             )
           )}
-          {err && <div className="gpu-link-err">{err}</div>}
+          <InlineError compact>{err}</InlineError>
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
             {!impact ? (
               <button className="gpu-btn" disabled={busy} onClick={() => run(false)} style={{ gap: 5, color: 'var(--gpu-red)', borderColor: 'var(--gpu-red)' }}>

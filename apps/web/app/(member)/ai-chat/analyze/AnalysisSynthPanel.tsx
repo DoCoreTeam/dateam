@@ -8,6 +8,7 @@ import MarkdownMessage from '@/app/admin/ai-chat/MarkdownMessage'
 import ExportMenu, { type ExportFormat } from './ExportMenu'
 import { extractSourceText } from './actions'
 import type { SessionCoverage } from './session-item-actions'
+import InlineError from '@/components/ui/InlineError'
 
 export type { ExportFormat }
 
@@ -135,7 +136,7 @@ export default function AnalysisSynthPanel({ synthStatus, synthText, coverage, c
             </NbButton>
           </div>
           <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>형식 지시나 샘플 파일 중 하나만 있어도 됩니다. 샘플의 구성·표·말투를 따라 종합해요.</span>
-          {fmtErr && <p role="alert" style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>{fmtErr}</p>}
+          <InlineError>{fmtErr}</InlineError>
         </div>
       )}
 

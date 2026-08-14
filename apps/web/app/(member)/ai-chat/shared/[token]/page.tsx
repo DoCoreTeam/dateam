@@ -4,6 +4,7 @@ import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { loadSharedConversationData } from '@/app/admin/ai-chat/shared/[token]/load'
 import MarkdownMessage from '@/app/admin/ai-chat/MarkdownMessage'
 import CitationCards from '@/app/admin/ai-chat/CitationCards'
+import EmptyState from '@/components/ui/EmptyState'
 
 // 세션 3 §5-2 — admin 경계 내 공유 옵트인 read-only 뷰.
 // 공개 라우트 아님: requireAdmin으로 인증 경계 유지 + 서버가 shared=true·token 일치·미삭제를
@@ -24,12 +25,10 @@ export default async function SharedConversationPage({
     return (
       <div className="ai-chat-state" role="alert">
         <MessageSquareOff size={30} style={{ opacity: 0.4 }} />
-        <div style={{ fontSize: 'var(--fs-lg)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>
-          공유된 대화를 찾을 수 없습니다
-        </div>
-        <p style={{ fontSize: 'var(--fs-sm)', margin: 0 }}>
-          링크가 만료되었거나 공유가 해제된 대화입니다.
-        </p>
+        <EmptyState
+          title="공유된 대화를 찾을 수 없어요"
+          description="링크가 만료되었거나 공유가 해제된 대화입니다"
+        />
       </div>
     )
   }
@@ -78,8 +77,7 @@ export default async function SharedConversationPage({
       {/* 트랜스크립트 (입력창 없음 — read-only) */}
       {messages.length === 0 ? (
         <div className="ai-chat-state">
-          <MessageSquareOff size={28} style={{ opacity: 0.4 }} />
-          <span style={{ fontSize: 'var(--fs-sm)' }}>표시할 메시지가 없습니다.</span>
+          <EmptyState icon={<MessageSquareOff size={28} style={{ opacity: 0.4 }} />} title="표시할 메시지가 없어요" />
         </div>
       ) : (
         <div className="ai-chat-messages" style={{ padding: 0 }}>

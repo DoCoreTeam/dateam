@@ -4,6 +4,7 @@ import { useEscClose } from '@/lib/use-esc-close'
 import { useState, useTransition } from 'react'
 import { X } from 'lucide-react'
 import { updateUserProfile } from '../org-chart/actions'
+import InlineError from '@/components/ui/InlineError'
 
 interface RankItem {
   id: number
@@ -122,7 +123,7 @@ export default function EditProfileModal({
             </select>
           </label>
 
-          {error && <p style={{ margin: 0, color: 'var(--danger)', fontSize: '0.8rem' }}>{error}</p>}
+          <InlineError compact>{error}</InlineError>
         </div>
 
         <div style={{

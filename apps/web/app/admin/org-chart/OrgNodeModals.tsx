@@ -1,10 +1,11 @@
 'use client'
-import { useEscClose } from '@/lib/use-esc-close'
 
 import { useState, useTransition } from 'react'
-import { X } from 'lucide-react'
-import type { OrgNode, OrgNodeType, OrgNodeWithChildren } from './OrgNodeCard'
+import type { OrgNode, OrgNodeType } from './OrgNodeCard'
 import { createNode, updateNode, moveNode } from './actions'
+import NbModal from '@/components/ui/nb/NbModal'
+import NbButton from '@/components/ui/nb/NbButton'
+import InlineError from '@/components/ui/InlineError'
 
 interface Profile {
   id: string
@@ -74,44 +75,50 @@ export function AddNodeModal({ parentId, parentType, allProfiles, existingPerson
   }
 
   return (
-    <Modal title="노드 추가" onClose={onClose}>
-      {allowedTypes.length > 1 && (
-        <label style={labelStyle}>
-          <span style={labelTextStyle}>타입</span>
-          <select value={type} onChange={e => setType(e.target.value as OrgNodeType)} style={inputStyle}>
-            {allowedTypes.map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
-          </select>
-        </label>
-      )}
-
-      {type === 'person' ? (
-        <label style={labelStyle}>
-          <span style={labelTextStyle}>구성원 선택 *</span>
-          <select value={userId} onChange={e => handleUserSelect(e.target.value)} style={inputStyle}>
-            <option value="">— 선택하세요 —</option>
-            {availableProfiles.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.name}{p.position ? ` (${p.position})` : p.rank ? ` (${p.rank})` : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : (
-        <>
-          <label style={labelStyle}>
-            <span style={labelTextStyle}>이름 *</span>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="예: 개발본부" style={inputStyle} />
+    <NbModal
+      title="노드 추가"
+      onClose={onClose}
+      maxWidth={420}
+      footer={<ModalActions onClose={onClose} onSubmit={handleSubmit} isPending={isPending} label="추가" />}
+    >
+      <div style={FIELDS}>
+        {allowedTypes.length > 1 && (
+          <label className="label">
+            타입
+            <select className="input-field" value={type} onChange={e => setType(e.target.value as OrgNodeType)}>
+              {allowedTypes.map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
+            </select>
           </label>
-          <label style={labelStyle}>
-            <span style={labelTextStyle}>설명 / 부제목</span>
-            <input value={subtitle} onChange={e => setSubtitle(e.target.value)} placeholder="선택사항" style={inputStyle} />
-          </label>
-        </>
-      )}
+        )}
 
-      {error && <p style={errorStyle}>{error}</p>}
-      <ModalFooter onClose={onClose} onSubmit={handleSubmit} isPending={isPending} label="추가" />
-    </Modal>
+        {type === 'person' ? (
+          <label className="label">
+            구성원 선택 *
+            <select className="input-field" value={userId} onChange={e => handleUserSelect(e.target.value)}>
+              <option value="">— 선택하세요 —</option>
+              {availableProfiles.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.name}{p.position ? ` (${p.position})` : p.rank ? ` (${p.rank})` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <>
+            <label className="label">
+              이름 *
+              <input className="input-field" value={name} onChange={e => setName(e.target.value)} placeholder="예: 개발본부" />
+            </label>
+            <label className="label">
+              설명 / 부제목
+              <input className="input-field" value={subtitle} onChange={e => setSubtitle(e.target.value)} placeholder="선택사항" />
+            </label>
+          </>
+        )}
+
+        <InlineError>{error}</InlineError>
+      </div>
+    </NbModal>
   )
 }
 
@@ -165,80 +172,65 @@ export function EditNodeModal({ node, allProfiles, allNodes = [], onClose }: Edi
   }
 
   return (
-    <Modal title="노드 수정" onClose={onClose}>
-      {node.type !== 'person' && (
-        <label style={labelStyle}>
-          <span style={labelTextStyle}>이름 *</span>
-          <input value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
-        </label>
-      )}
-      {node.type !== 'person' && (
-        <label style={labelStyle}>
-          <span style={labelTextStyle}>설명 / 부제목</span>
-          <input value={subtitle} onChange={e => setSubtitle(e.target.value)} style={inputStyle} />
-        </label>
-      )}
-      {showHead && (
-        <label style={labelStyle}>
-          <span style={labelTextStyle}>부서장</span>
-          <select value={headUserId} onChange={e => setHeadUserId(e.target.value)} style={inputStyle}>
-            <option value="">— 없음 —</option>
-            {allProfiles.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.name}{p.position ? ` (${p.position})` : p.rank ? ` (${p.rank})` : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      {parentCandidates.length > 0 && (
-        <label style={labelStyle}>
-          <span style={labelTextStyle}>상위 노드 변경</span>
-          <select value={parentId} onChange={e => setParentId(e.target.value)} style={inputStyle}>
-            <option value="">— 현재 위치 유지 —</option>
-            {parentCandidates.map(n => (
-              <option key={n.id} value={n.id}>{n.name}</option>
-            ))}
-          </select>
-        </label>
-      )}
-      {error && <p style={errorStyle}>{error}</p>}
-      <ModalFooter onClose={onClose} onSubmit={handleSubmit} isPending={isPending} label="저장" />
-    </Modal>
+    <NbModal
+      title="노드 수정"
+      onClose={onClose}
+      maxWidth={420}
+      footer={<ModalActions onClose={onClose} onSubmit={handleSubmit} isPending={isPending} label="저장" />}
+    >
+      <div style={FIELDS}>
+        {node.type !== 'person' && (
+          <label className="label">
+            이름 *
+            <input className="input-field" value={name} onChange={e => setName(e.target.value)} />
+          </label>
+        )}
+        {node.type !== 'person' && (
+          <label className="label">
+            설명 / 부제목
+            <input className="input-field" value={subtitle} onChange={e => setSubtitle(e.target.value)} />
+          </label>
+        )}
+        {showHead && (
+          <label className="label">
+            부서장
+            <select className="input-field" value={headUserId} onChange={e => setHeadUserId(e.target.value)}>
+              <option value="">— 없음 —</option>
+              {allProfiles.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.name}{p.position ? ` (${p.position})` : p.rank ? ` (${p.rank})` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {parentCandidates.length > 0 && (
+          <label className="label">
+            상위 노드 변경
+            <select className="input-field" value={parentId} onChange={e => setParentId(e.target.value)}>
+              <option value="">— 현재 위치 유지 —</option>
+              {parentCandidates.map(n => (
+                <option key={n.id} value={n.id}>{n.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
+        <InlineError>{error}</InlineError>
+      </div>
+    </NbModal>
   )
 }
 
 // ── Shared UI ─────────────────────────────────────────────────────────────────
 
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  useEscClose(onClose)
+/** 필드 사이 간격만 — 모달 골격·백드롭·ESC·X는 NbModal이 갖는다 */
+const FIELDS: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }
+
+function ModalActions({ onClose, onSubmit, isPending, label }: { onClose: () => void; onSubmit: () => void; isPending: boolean; label: string }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'var(--modal-backdrop)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-      <div style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius)', width: '380px', boxShadow: 'var(--shadow-modal)', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-4) var(--space-5)', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
-          <h3 className="tape-title" style={{ margin: 0 }}>{title}</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
-        </div>
-        <div style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-          {children}
-        </div>
-      </div>
-    </div>
+    <>
+      <NbButton variant="secondary" onClick={onClose} disabled={isPending}>취소</NbButton>
+      <NbButton onClick={onSubmit} disabled={isPending}>{isPending ? '처리 중...' : label}</NbButton>
+    </>
   )
 }
-
-function ModalFooter({ onClose, onSubmit, isPending, label }: { onClose: () => void; onSubmit: () => void; isPending: boolean; label: string }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)', paddingTop: 'var(--space-1)' }}>
-      <button onClick={onClose} disabled={isPending} style={{ padding: '0.45rem 1rem', background: 'var(--surface-muted)', color: 'var(--text-muted)', border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', cursor: 'pointer' }}>취소</button>
-      <button onClick={onSubmit} disabled={isPending} style={{ padding: '0.45rem 1rem', background: 'var(--brand-dark)', color: 'var(--brand-fg)', border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1 }}>
-        {isPending ? '처리 중...' : label}
-      </button>
-    </div>
-  )
-}
-
-const labelStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '0.35rem' }
-const labelTextStyle: React.CSSProperties = { fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }
-const inputStyle: React.CSSProperties = { padding: 'var(--space-2) var(--space-3)', border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', background: 'var(--color-surface)', outline: 'none' }
-const errorStyle: React.CSSProperties = { margin: 0, color: 'var(--danger)', fontSize: '0.8rem' }

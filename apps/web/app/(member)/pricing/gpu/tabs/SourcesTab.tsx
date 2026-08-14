@@ -5,6 +5,7 @@ import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { RefreshCw, ExternalLink, Save, Link2 } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
+import { SkelList } from '@/components/ui/LoadingSkeleton'
 
 interface SourceRow {
   id: string
@@ -99,7 +100,7 @@ export default function SourcesTab() {
       </label>
 
       {isLoading ? (
-        <div style={{ padding: '24px 0', color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>불러오는 중…</div>
+        <div style={{ padding: '24px 0' }}><SkelList rows={3} /></div>
       ) : sources.length === 0 ? (
         <EmptyState
           icon={<Link2 size={28} />}

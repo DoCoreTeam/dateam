@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { resetUserOnboarding } from './actions'
 import { Compass } from 'lucide-react'
+import InlineError from '@/components/ui/InlineError'
 
 interface Props {
   userId: string
@@ -52,7 +53,7 @@ export default function ResetOnboardingButton({ userId, userName }: Props) {
         <Compass size={11} />
         {loading ? '처리중...' : '온보딩 초기화'}
       </button>
-      {error && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--danger)' }}>{error}</span>}
+      <InlineError compact>{error}</InlineError>
     </div>
   )
 }

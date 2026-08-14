@@ -7,6 +7,7 @@ import type { Contact, Account } from '@/types/database'
 import { CONTACT_ROLES } from '@/lib/crm'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
+import InlineError from '@/components/ui/InlineError'
 
 interface Props {
   contact?: Contact
@@ -304,7 +305,7 @@ export default function ContactForm({ contact, accounts, defaultAccountId }: Pro
           <label className="label">메모</label>
           <textarea className="input-field" value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
         </div>
-        {error && <p style={{ color: 'var(--danger)', fontSize: 'var(--fs-base)', margin: 0 }}>{error}</p>}
+        <InlineError>{error}</InlineError>
         <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
           <button type="submit" disabled={loading} className="btn-primary" style={{ minHeight: '44px', padding: '0.625rem 1.5rem' }}>
             {loading ? '저장중...' : contact ? '수정' : '담당자 등록'}{!loading && <span style={{ fontSize: '0.7rem', opacity: 0.65, marginLeft: '0.375rem' }}>Ctrl+↵</span>}

@@ -17,6 +17,7 @@ import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
 import SortIcon from '@/components/ui/SortIcon'
 import { buildTierModelGroups, tierKey, modelKey, TIER_META } from '@/lib/gpu/group'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
+import InlineError from '@/components/ui/InlineError'
 
 const MarketPriceEditModal = dynamic(() => import('@/components/pricing/gpu/MarketPriceEditModal'), { ssr: false })
 
@@ -1153,7 +1154,7 @@ function MappingManagerModal({ mappings, competitors, onClose, onChanged }: {
             <button onClick={add} disabled={busy} className="gpu-btn gpu-btn-primary">추가</button>
           </div>
           <input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="SKU (선택)" style={{ height: 28, fontSize: 12, border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 6, padding: '0 8px' }} />
-          {err && <div style={{ fontSize: 12, color: 'var(--gpu-red)' }}>{err}</div>}
+          <InlineError compact>{err}</InlineError>
           <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
             {mappings.map((m) => (
               <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '6px 8px', borderRadius: 7, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--surface-bg)' }}>
@@ -1225,7 +1226,7 @@ function SupplierLinkControl({
         >
           <Link2Off size={11} aria-hidden /> 해제
         </button>
-        {err && <span className="gpu-link-err">{err}</span>}
+        <InlineError compact>{err}</InlineError>
       </div>
     )
   }
@@ -1242,7 +1243,7 @@ function SupplierLinkControl({
       >
         <PackagePlus size={12} aria-hidden /> {busy ? '등록 중…' : '공급사로 지정'}
       </button>
-      {err && <span className="gpu-link-err">{err}</span>}
+      <InlineError compact>{err}</InlineError>
     </div>
   )
 }

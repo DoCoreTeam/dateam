@@ -8,6 +8,8 @@ import { extractFormFactor } from '@/lib/gpu/form-factor'
 import CatalogUploadSection from '@/components/pricing/gpu/CatalogUploadSection'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
+import SegmentedTabs from '@/components/ui/SegmentedTabs'
+import InlineError from '@/components/ui/InlineError'
 import { classifyFile, ACCEPT_ALL, formatMB } from '@/lib/gpu/intake-files'
 import { looksLikeGpuModel } from '@/lib/gpu/validate'
 import { fmtUSD } from '@/lib/gpu/format-price'
@@ -406,7 +408,7 @@ export default function QuoteRegisterTab() {
           <button className="gpu-btn" style={{ marginLeft: 12, fontSize: 11 }} onClick={reset}>새 견적 입력</button>
         </div>
       )}
-      {errorMsg && <div className="gpu-error-msg" style={{ marginBottom: 12 }}>✕ {errorMsg}</div>}
+      {errorMsg && <div style={{ marginBottom: 'var(--space-3)' }}><InlineError banner>{errorMsg}</InlineError></div>}
 
       <div className="gpu-grid2">
         {/* 왼쪽: 입력 */}
@@ -416,26 +418,15 @@ export default function QuoteRegisterTab() {
             무엇을 넣나요?
           </div>
           {/* 넣는 종류 = 탭. 먼저 고르면 시스템이 추측하지 않고 그대로 분류한다(헌법 제1조). */}
-          <div role="tablist" aria-label="넣는 데이터 종류" style={{ display: 'flex', gap: 6, margin: '4px 0 10px' }}>
-            {([
-              { k: 'supplier', label: '공급사 견적', sub: '우리 매입가' },
-              { k: 'competitor', label: '경쟁사 시장가', sub: '남의 판매가' },
-            ] as const).map((t) => {
-              const on = declaredKind === t.k
-              return (
-                <button key={t.k} role="tab" aria-selected={on} onClick={() => setDeclaredKind(t.k)}
-                  style={{
-                    flex: 1, padding: '10px 12px', borderRadius: 9, cursor: 'pointer', textAlign: 'left',
-                    border: `var(--border-w-2) solid ${on ? 'var(--brand)' : 'var(--border-color)'}`,
-                    background: on ? 'var(--gpu-accent-soft, var(--info-bg))' : '#fff',
-                    boxShadow: on ? '0 0 0 1px var(--brand)' : 'none',
-                  }}>
-                  <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: on ? 'var(--brand)' : 'var(--text)' }}>{t.label}</div>
-                  <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', marginTop: 2 }}>{t.sub}</div>
-                </button>
-              )
-            })}
-          </div>
+          <SegmentedTabs
+            ariaLabel="넣는 데이터 종류"
+            activeId={declaredKind}
+            onSelect={(id) => setDeclaredKind(id as 'supplier' | 'competitor')}
+            tabs={[
+              { id: 'supplier', label: '공급사 견적', sub: '우리 매입가' },
+              { id: 'competitor', label: '경쟁사 시장가', sub: '남의 판매가' },
+            ]}
+          />
           <div className="gpu-card-desc">
             {declaredKind === 'supplier'
               ? '공급사에게 받은 견적(우리 매입가)을 붙여넣으세요. 검토 대기로 들어갑니다.'

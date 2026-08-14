@@ -11,6 +11,7 @@ import type { DailyLog, DailyLogEntryType } from '@/types/database'
 import { getMeetingDerivedLogs, getMeetingNote } from '../meeting-notes/actions'
 import { STATUS_LIST } from '@/lib/tokens/status-colors'
 import EmptyState from '@/components/ui/EmptyState'
+import InlineError from '@/components/ui/InlineError'
 
 const ENTRY_MAP = Object.fromEntries(
   (STATUS_LIST as { value: DailyLogEntryType; label: string; color: string; bg: string; border: string }[]).map((t) => [t.value, t])
@@ -67,7 +68,7 @@ export default function MeetingContextView({ meetingId }: { meetingId: string })
         </Link>
       </div>
 
-      {error && <p role="alert" style={{ margin: 0, color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>{error}</p>}
+      <InlineError>{error}</InlineError>
 
       {/* 파생 업무 목록(읽기 전용) */}
       {!loading && logs.length > 0 && (

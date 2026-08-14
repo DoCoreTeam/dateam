@@ -8,6 +8,7 @@ import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import ParsedCard from './ParsedCard'
 import BulkImportProgress from './BulkImportProgress'
+import InlineError from '@/components/ui/InlineError'
 
 const BULK_EXTENSIONS = new Set(['xlsx', 'xls'])
 
@@ -343,7 +344,7 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
           </div>
         )}
 
-        {error && <p style={{ color: 'var(--danger)', fontSize: 'var(--fs-base)', margin: 0 }}>{error}</p>}
+        <InlineError>{error}</InlineError>
 
         {/* 텍스트 분석 결과 — 저장 성공 시 resetAll로 사라지고 상단 완료 배너로 안내 */}
         {result && (

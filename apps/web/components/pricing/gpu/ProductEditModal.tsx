@@ -6,6 +6,7 @@ import { useEscClose } from '@/lib/use-esc-close'
 import { mutateGpu } from '@/lib/gpu/swr-keys'
 import { X, Pencil } from 'lucide-react'
 import ImpactDeleteDialog from './ImpactDeleteDialog'
+import InlineError from '@/components/ui/InlineError'
 
 export interface ProductForEdit {
   id: string
@@ -199,7 +200,7 @@ export default function ProductEditModal({ product, onClose, onSaved }: ProductE
               </div>
             </div>
 
-            {error && <div className="gpu-field-error">{error}</div>}
+            <InlineError banner>{error}</InlineError>
 
             <div className="gpu-modal-actions">
               <button

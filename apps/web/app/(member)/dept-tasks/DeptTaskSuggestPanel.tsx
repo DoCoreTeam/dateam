@@ -6,6 +6,7 @@ import NbButton from '@/components/ui/nb/NbButton'
 import { createDeptTasksBulk } from './actions'
 import { htmlToPlain } from '@/lib/html-to-plain'
 import type { DeptOption } from './DeptTasksClient'
+import InlineError from '@/components/ui/InlineError'
 
 interface Candidate {
   title: string
@@ -119,7 +120,7 @@ export default function DeptTaskSuggestPanel({ creatableDepts, editableDeptIds, 
             </span>
           </div>
 
-          {error && <p role="alert" style={{ color: 'var(--danger)', margin: 0 }}>{error}</p>}
+          <InlineError>{error}</InlineError>
           {info && <p role="status" style={{ color: 'var(--text-muted)', margin: 0 }}>{info}</p>}
 
           {candidates.length > 0 && (

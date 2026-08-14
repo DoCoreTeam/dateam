@@ -137,35 +137,35 @@ function QuoteResult({ data }: { data: { data?: { items?: QuoteItem[]; summary?:
       </div>
 
       <div style={{ background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <table className="table-base table-card" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
           <thead>
             <tr style={{ background: 'var(--surface-muted)' }}>
-              <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>제품</th>
-              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>수량</th>
-              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>단가</th>
-              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>마진</th>
-              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>소계</th>
-              <th style={{ padding: '10px 16px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>가용</th>
+              <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 'var(--fs-xs)' }}>제품</th>
+              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 'var(--fs-xs)' }}>수량</th>
+              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 'var(--fs-xs)' }}>단가</th>
+              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 'var(--fs-xs)' }}>마진</th>
+              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 'var(--fs-xs)' }}>소계</th>
+              <th style={{ padding: '10px 16px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600, fontSize: 'var(--fs-xs)' }}>가용</th>
             </tr>
           </thead>
           <tbody>
             {items.map((item, i) => (
               <tr key={i} style={{ borderTop: 'var(--hairline) solid var(--border-light)' }}>
-                <td style={{ padding: '12px 16px', color: 'var(--text)', fontWeight: 500 }}>{item.model_name ?? '—'}</td>
-                <td style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-muted)' }}>{item.quantity ?? 0}</td>
-                <td style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                <td className="card-header" style={{ padding: '12px 16px', color: 'var(--text)', fontWeight: 500 }}>{item.model_name ?? '—'}</td>
+                <td data-label="수량" style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-muted)' }}>{item.quantity ?? 0}</td>
+                <td data-label="단가" style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                   {isKRW && item.unit_price_krw != null ? `₩${item.unit_price_krw.toLocaleString()}` :
                    item.unit_price_usd != null ? `$${item.unit_price_usd.toLocaleString()}` : '—'}
                 </td>
-                <td style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--warning)' }}>
+                <td data-label="마진" style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--warning)' }}>
                   {item.margin_pct != null ? `${item.margin_pct}%` : '—'}
                 </td>
-                <td style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--success)', fontFamily: 'monospace', fontWeight: 600 }}>
+                <td data-label="소계" style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--success)', fontFamily: 'monospace', fontWeight: 600 }}>
                   {isKRW && item.total_krw != null ? `₩${item.total_krw.toLocaleString()}` :
                    item.total_usd != null ? `$${item.total_usd.toLocaleString()}` : '—'}
                 </td>
-                <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                  <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 100, background: item.available ? 'var(--success-bg)' : 'var(--danger-bg)', color: item.available ? 'var(--success)' : 'var(--danger)' }}>
+                <td data-label="가용" style={{ padding: '12px 16px', textAlign: 'center' }}>
+                  <span style={{ fontSize: 'var(--fs-2xs)', padding: '2px 7px', borderRadius: 100, background: item.available ? 'var(--success-bg)' : 'var(--danger-bg)', color: item.available ? 'var(--success)' : 'var(--danger)' }}>
                     {item.available ? '가용' : '품절'}
                   </span>
                 </td>
@@ -245,13 +245,13 @@ function FxResult({ data }: { data: { data?: FxRate[]; meta?: { total?: number }
         <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>USD/KRW 환율 이력</span>
       </div>
       <div style={{ background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <table className="table-base table-card" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
           <thead>
             <tr style={{ background: 'var(--surface-muted)' }}>
-              <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>날짜</th>
-              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>1 USD = KRW</th>
-              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>변동</th>
-              <th style={{ padding: '10px 16px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>출처</th>
+              <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 'var(--fs-xs)' }}>날짜</th>
+              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 'var(--fs-xs)' }}>1 USD = KRW</th>
+              <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: 'var(--fs-xs)' }}>변동</th>
+              <th style={{ padding: '10px 16px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600, fontSize: 'var(--fs-xs)' }}>출처</th>
             </tr>
           </thead>
           <tbody>
@@ -260,18 +260,18 @@ function FxResult({ data }: { data: { data?: FxRate[]; meta?: { total?: number }
               const diff = prev?.usd_krw != null && r.usd_krw != null ? r.usd_krw - prev.usd_krw : null
               return (
                 <tr key={r.rate_date ?? i} style={{ borderTop: 'var(--hairline) solid var(--border-light)' }}>
-                  <td style={{ padding: '12px 16px', color: 'var(--text)', fontFamily: 'monospace' }}>{r.rate_date ?? '—'}</td>
-                  <td style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--success)', fontFamily: 'monospace', fontWeight: 600 }}>
+                  <td className="card-header" style={{ padding: '12px 16px', color: 'var(--text)', fontFamily: 'monospace' }}>{r.rate_date ?? '—'}</td>
+                  <td data-label="1 USD = KRW" style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--success)', fontFamily: 'monospace', fontWeight: 600 }}>
                     {r.usd_krw != null ? r.usd_krw.toLocaleString('ko-KR', { minimumFractionDigits: 1 }) : '—'}
                   </td>
-                  <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'monospace', fontSize: 12 }}>
+                  <td data-label="변동" style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'monospace', fontSize: 'var(--fs-xs)' }}>
                     {diff != null ? (
                       <span style={{ color: diff > 0 ? 'var(--danger)' : diff < 0 ? 'var(--success)' : 'var(--text-muted)' }}>
                         {diff > 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1)}
                       </span>
                     ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                   </td>
-                  <td style={{ padding: '12px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>{r.source ?? '—'}</td>
+                  <td data-label="출처" style={{ padding: '12px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>{r.source ?? '—'}</td>
                 </tr>
               )
             })}
@@ -320,8 +320,8 @@ function GenericTableResult({ data, title }: { data: { data?: Record<string, unk
         <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>{title}</span>
         <span style={{ marginLeft: 10, fontSize: 12, color: 'var(--text-muted)' }}>총 {(data as { total?: number }).total ?? items.length}건</span>
       </div>
-      <div style={{ background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 10, overflow: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+      <div style={{ background: 'var(--color-surface)', border: 'var(--hairline) solid var(--border-light)', borderRadius: 10, overflow: 'hidden' }}>
+        <table className="table-base table-card" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-xs)' }}>
           <thead>
             <tr style={{ background: 'var(--surface-muted)' }}>
               {keys.map(k => <th key={k} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</th>)}
@@ -330,8 +330,10 @@ function GenericTableResult({ data, title }: { data: { data?: Record<string, unk
           <tbody>
             {items.slice(0, 8).map((row, i) => (
               <tr key={i} style={{ borderTop: 'var(--hairline) solid var(--border-light)' }}>
-                {keys.map(k => (
-                  <td key={k} style={{ padding: '8px 12px', color: 'var(--text-muted)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {keys.map((k, ki) => (
+                  // 첫 칸이 카드 제목, 나머지는 모바일에서 키를 레이블로 단다(가로 스크롤 대체)
+                  <td key={k} className={ki === 0 ? 'card-header' : undefined} data-label={ki === 0 ? undefined : k}
+                    style={{ padding: '8px 12px', color: 'var(--text-muted)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {String(row[k] ?? '—')}
                   </td>
                 ))}

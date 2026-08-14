@@ -7,6 +7,7 @@ import { AlertTriangle, CheckCircle2, RotateCcw, ChevronDown, ChevronUp, Search,
 import { PriceBreakdownPanel, BillingPanel, RecheckResultPanel, EvidenceLink, type RecheckResult } from '@/components/pricing/gpu/review/ReviewPanels'
 import NbModal from '@/components/ui/nb/NbModal'
 import { fmtUSD, fmtKRW } from '@/lib/gpu/format-price'
+import InlineError from '@/components/ui/InlineError'
 
 interface Supplier {
   id: string
@@ -694,7 +695,7 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
           placeholder="예) 단가가 월 단위인 것 같습니다. 시간당으로 환산해 주세요."
           style={{ width: '100%', minHeight: 60, padding: '7px 10px', borderRadius: 7, border: 'var(--hairline) solid var(--brand-soft-2)', fontSize: 12, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
         />
-        {recheckErr && <div style={{ fontSize: 12, color: 'var(--gpu-red)', marginTop: 4 }}>{recheckErr}</div>}
+        <InlineError compact spaced>{recheckErr}</InlineError>
         <button
           className="gpu-btn"
           style={{ marginTop: 6, fontSize: 12 }}

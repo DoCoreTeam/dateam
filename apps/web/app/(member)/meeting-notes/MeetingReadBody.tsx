@@ -14,6 +14,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import { saveMeetingSummary } from './actions'
 import ExtractConfirmModal, { type ExtractResult } from './ExtractConfirmModal'
 import MeetingExportModal from './MeetingExportModal'
+import InlineError from '@/components/ui/InlineError'
 
 interface Props {
   meetingNoteId: string
@@ -166,7 +167,7 @@ export default function MeetingReadBody({
         </div>
       )}
 
-      {err && <p role="alert" style={{ margin: 0, color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>{err}</p>}
+      <InlineError>{err}</InlineError>
       {info && <p role="status" style={{ margin: 0, color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>{info}</p>}
 
       {exportOpen && (

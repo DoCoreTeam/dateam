@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Trash2, AlertTriangle } from 'lucide-react'
 import { deleteUser } from './actions'
+import InlineError from '@/components/ui/InlineError'
 
 interface DeleteUserButtonProps {
   userId: string
@@ -35,7 +36,7 @@ export default function DeleteUserButton({ userId, userName, isSelf }: DeleteUse
           <AlertTriangle size={12} />
           <span><strong>{userName}</strong>을 삭제합니까?</span>
         </div>
-        {error && <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--danger)', margin: 0 }}>{error}</p>}
+        <InlineError compact>{error}</InlineError>
         <div style={{ display: 'flex', gap: '0.375rem' }}>
           <button
             onClick={handleDelete}

@@ -20,6 +20,8 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 export interface SegmentedTab {
   id: string
   label: string
+  /** 라벨 아래 한 줄 보조설명 — 선택지가 헷갈리는 탭에서 쓴다(예: 공급사 견적 = "우리 매입가") */
+  sub?: string
   icon?: ReactNode
   /** 패널형 */
   content?: ReactNode
@@ -102,11 +104,12 @@ export default function SegmentedTabs({
       <div className={skin.list} role="tablist" aria-label={ariaLabel}>
         {tabs.map((t, i) => {
           const active = t === current
-          const cls = `${skin.item}${active ? ' is-active' : ''}`
+          const cls = `${skin.item}${active ? ' is-active' : ''}${t.sub ? ' has-sub' : ''}`
           const inner = (
             <>
               {t.icon && <span className="seg-tab-icon">{t.icon}</span>}
-              {t.label}
+              {t.sub ? <span className="seg-tab-label">{t.label}</span> : t.label}
+              {t.sub && <span className="seg-tab-sub">{t.sub}</span>}
             </>
           )
 

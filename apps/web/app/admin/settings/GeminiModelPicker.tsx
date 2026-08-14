@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect } from 'react'
 import { CheckCircle, XCircle, RefreshCw, Cpu } from 'lucide-react'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import { getGeminiModels, saveGeminiModel } from './actions'
+import EmptyState from '@/components/ui/EmptyState'
 
 interface GeminiModelPickerProps {
   hasKey: boolean
@@ -99,9 +100,10 @@ export default function GeminiModelPicker({ hasKey, savedModel: initialModel }: 
       )}
 
       {modelsLoaded && models.length === 0 && (
-        <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', margin: 0 }}>
-          generateContent를 지원하는 모델이 없습니다
-        </p>
+        <EmptyState
+          title="쓸 수 있는 모델이 없어요"
+          description="이 키로는 generateContent를 지원하는 모델이 조회되지 않습니다. 키 권한을 확인해 주세요"
+        />
       )}
 
       {modelsLoaded && models.length > 0 && (

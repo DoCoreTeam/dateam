@@ -8,6 +8,7 @@ import { useEscClose } from '@/lib/use-esc-close'
 import { GPU_TERMS as T } from '@/lib/gpu/terms'
 import { countryFlag } from '@/lib/gpu/country-flag'
 import { Plus, X, Search, Trash2, PackagePlus, Pencil, Link2, Globe, Sparkles, GitMerge } from 'lucide-react'
+import InlineError from '@/components/ui/InlineError'
 
 interface CompetitorRow {
   id: string
@@ -286,7 +287,7 @@ function MergeModal({ members, onClose, onMerged }: { members: CompetitorRow[]; 
               </label>
             ))}
           </div>
-          {err && <div className="gpu-link-err">{err}</div>}
+          <InlineError compact>{err}</InlineError>
           <div className="gpu-merge-actions">
             <button className="gpu-btn" onClick={onClose} disabled={saving}>{T.cancel}</button>
             <button className="gpu-btn gpu-btn-primary" onClick={merge} disabled={saving}>
@@ -373,7 +374,7 @@ function CompetitorModal({ row, onClose, onSaved }: { row?: CompetitorRow; onClo
             <label className="gpu-field"><span className="label">웹사이트</span><input className="input-field" value={f.website_url} onChange={(e) => set('website_url', e.target.value)} /></label>
             <label className="gpu-field"><span className="label">가격 페이지 URL</span><input className="input-field" value={f.pricing_url} onChange={(e) => set('pricing_url', e.target.value)} placeholder="재수집 출처" /></label>
           </div>
-          {err && <div className="gpu-link-err">{err}</div>}
+          <InlineError compact>{err}</InlineError>
           <button className="gpu-btn gpu-btn-primary" disabled={saving} onClick={save}>{saving ? `${T.save} 중…` : T.save}</button>
         </div>
       </div>

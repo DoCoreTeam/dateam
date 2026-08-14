@@ -9,6 +9,7 @@ import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import MarkdownMessage from '@/app/admin/ai-chat/MarkdownMessage'
 import { getItemMessages, sendItemMessage, synthesizeSession, type ItemMessage } from './analyze-converse-actions'
+import InlineError from '@/components/ui/InlineError'
 
 interface ConverseItem {
   idx: number
@@ -152,7 +153,7 @@ export default function ItemConversePanel({ sessionId, items, onSynthesized, onB
             {sending && <AXDotLoader size={5} color="var(--text-muted)" />}
           </div>
 
-          {error && <p role="alert" style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>{error}</p>}
+          <InlineError>{error}</InlineError>
 
           <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', marginTop: 'auto' }}>
             <textarea className="input-field" rows={2} value={input}

@@ -11,6 +11,7 @@ import AnalysisProgressBar from './AnalysisProgressBar'
 import AnalysisSynthPanel, { type ExportFormat } from './AnalysisSynthPanel'
 import AnalysisResultItem from './AnalysisResultItem'
 import AnalysisOutcomeActions from './AnalysisOutcomeActions'
+import EmptyState from '@/components/ui/EmptyState'
 
 interface Props {
   sessionId: string // §G 영속 저장 — 검수 완료 시 항상 먼저 생성된다(유실0)
@@ -119,11 +120,7 @@ export default function AnalysisResults({ sessionId, initialItems, docType = nul
   }
 
   if (itemList.length === 0) {
-    return (
-      <div className="card" style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>
-        분석할 항목이 없습니다.
-      </div>
-    )
+    return <EmptyState title="분석할 항목이 없어요" description="앞 단계에서 항목을 확정하면 여기에 결과가 쌓입니다" />
   }
 
   return (

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
+import InlineError from '@/components/ui/InlineError'
 
 interface Member { user_id: string; role: string; profiles: { name?: string; position?: string } | null }
 interface ProfileOption { id: string; name: string | null; position: string | null }
@@ -49,7 +50,7 @@ export default function ProjectMembersClient({ projectId, initialMembers, profil
       <select className="input-field" value={role} onChange={(event) => setRole(event.target.value)} style={{ minHeight: 44 }}><option value="manager">운영자</option><option value="contributor">참여자</option><option value="viewer">조회자</option><option value="stakeholder">이해관계자</option></select>
       <button type="button" className="btn-primary" onClick={add} disabled={!userId} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44 }}><Plus size={16} /> 추가</button>
     </div>}
-    {error && <div role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>{error}</div>}
+    <InlineError>{error}</InlineError>
   </div>
 }
 

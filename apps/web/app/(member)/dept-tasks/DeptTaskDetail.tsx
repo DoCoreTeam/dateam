@@ -9,6 +9,7 @@ import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import EmptyState from '@/components/ui/EmptyState'
 import { isEnterKey } from '@/lib/ui/ime'
+import InlineError from '@/components/ui/InlineError'
 import {
   updateDeptTaskProgress, assignTask, deleteDeptTask,
   getDeptTaskComments, addDeptTaskComment, listAssigneeCandidates,
@@ -206,7 +207,7 @@ export default function DeptTaskDetail({ task, canAssign, canEdit, nameMap, dept
         </div>
       </div>
 
-      {error && <p role="alert" style={{ color: 'var(--danger)', margin: 0 }}>{error}</p>}
+      <InlineError>{error}</InlineError>
       <div style={{ borderTop: 'var(--hairline, 1px) solid var(--border-color)', paddingTop: 'var(--space-3)' }}>
         <NbButton variant="danger" disabled={busy} onClick={remove}>업무 삭제</NbButton>
       </div>

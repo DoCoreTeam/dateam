@@ -2,6 +2,7 @@
 
 import { useEscClose } from '@/lib/use-esc-close'
 import { AlertTriangle, Trash2, X } from 'lucide-react'
+import InlineError from '@/components/ui/InlineError'
 
 export interface ImpactDeleteDialogProps {
   /** 다이얼로그 제목 (예: "견적 삭제") */
@@ -115,7 +116,7 @@ export default function ImpactDeleteDialog({
             </p>
           )}
 
-          {error && <div className="gpu-field-error">{error}</div>}
+          <InlineError banner>{error}</InlineError>
         </div>
 
         {/* 하단 액션 */}

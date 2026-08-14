@@ -4,7 +4,8 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, History, Undo2 } from 'lucide-react'
+import { History, Undo2 } from 'lucide-react'
+import SlidePanel from '@/components/ui/SlidePanel'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
@@ -71,17 +72,14 @@ export default function ProjectActivityDrawer({ projectId, projectName, onClose,
   }
 
   return (
-    <div onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--modal-backdrop)', display: 'flex', justifyContent: 'flex-end' }}>
-      <div role="dialog" aria-label={`${projectName} 저장 이력`}
-        style={{ width: '100%', maxWidth: 460, height: '100%', background: 'var(--color-surface)', boxShadow: 'var(--shadow-modal)', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-4) var(--space-5)', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
-          <History size={18} style={{ color: 'var(--brand)' }} />
-          <h3 className="tape-title" style={{ margin: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{projectName} · 이력</h3>
-          <button onClick={onClose} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={18} /></button>
-        </div>
-
-        <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-4) var(--space-5)' }}>
+    <SlidePanel
+      isOpen
+      title={`${projectName} · 이력`}
+      icon={<History size={18} style={{ color: 'var(--brand)' }} />}
+      onClose={onClose}
+      width={460}
+    >
+      <>
           {restoreMsg && (
             <div role="status" style={{ marginBottom: 'var(--space-3)', padding: '0.5rem 0.8rem', borderRadius: 'var(--radius)', background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand)', color: 'var(--brand)', fontSize: 'var(--fs-sm)', fontWeight: 600 }}>
               {restoreMsg}
@@ -151,8 +149,7 @@ export default function ProjectActivityDrawer({ projectId, projectName, onClose,
               })}
             </ul>
           )}
-        </div>
-      </div>
-    </div>
+      </>
+    </SlidePanel>
   )
 }

@@ -13,6 +13,7 @@ import { memoryTitle } from '@/lib/gpu/card-memory'
 import { TierHeader, ModelHeader } from '@/components/gpu/CategoryGroup'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
+import InlineError from '@/components/ui/InlineError'
 
 interface SupplierAvail {
   supplier_id: string | null
@@ -137,7 +138,7 @@ function QtyInput({ item, sup, onSaved }: { item: InventoryItem; sup: QuoteSuppl
       >
         {saving ? '저장…' : sup.has_qty ? '수정' : '입력'}
       </button>
-      {err && <span style={{ fontSize: 10.5, color: 'var(--gpu-red)' }}>{err}</span>}
+      <InlineError compact>{err}</InlineError>
     </div>
   )
 }
@@ -234,7 +235,7 @@ function PoolQtyEditor({ item, onSaved }: { item: InventoryItem; onSaved: () => 
           취소
         </button>
       </div>
-      {err && <span style={{ fontSize: 10.5, color: 'var(--gpu-red)' }}>{err}</span>}
+      <InlineError compact>{err}</InlineError>
     </div>
   )
 }

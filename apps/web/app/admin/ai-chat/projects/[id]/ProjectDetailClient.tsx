@@ -12,6 +12,7 @@ import NbBadge from '@/components/ui/nb/NbBadge'
 import PageHeader from '@/components/ui/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
 import AXDotLoader from '@/components/ui/AXDotLoader'
+import InlineError from '@/components/ui/InlineError'
 import {
   updateProject,
   addKnowledgeText,
@@ -320,7 +321,7 @@ function KnowledgeRow({ projectId, item, onChanged }: { projectId: string; item:
           </button>
         )}
       </div>
-      {error && <span role="alert" style={{ width: '100%', fontSize: 'var(--fs-xs)', color: 'var(--danger)' }}>{error}</span>}
+      <InlineError compact>{error}</InlineError>
     </li>
   )
 }
@@ -368,7 +369,7 @@ function ConversationsSection({
           사용 가능한 AI 프로바이더가 없습니다. 설정에서 API 키를 등록하세요.
         </p>
       )}
-      {error && <p role="alert" style={{ margin: '0 0 var(--space-3)', fontSize: 'var(--fs-sm)', color: 'var(--danger)' }}>{error}</p>}
+      <InlineError spaced>{error}</InlineError>
 
       {conversations.length === 0 ? (
         <EmptyState

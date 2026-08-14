@@ -8,6 +8,10 @@ import type { OrgNode, OrgNodeType, OrgNodeWithChildren } from './OrgNodeCard'
 import { NodeCard } from './OrgNodeCard'
 import { AddNodeModal, EditNodeModal } from './OrgNodeModals'
 import { moveNode, deleteNode, reorderNode } from './actions'
+import NbModal from '@/components/ui/nb/NbModal'
+import NbButton from '@/components/ui/nb/NbButton'
+import EmptyState from '@/components/ui/EmptyState'
+import InlineError from '@/components/ui/InlineError'
 
 interface Profile {
   id: string
@@ -256,7 +260,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
   }
 
   if (roots.length === 0) {
-    return <div style={{ textAlign: 'center', padding: 'var(--space-12)', color: 'var(--text-faint)' }}>조직도 데이터가 없습니다.</div>
+    return <EmptyState title="조직도가 아직 비어 있어요" description="회사/조직 노드를 먼저 추가하면 여기에 조직 트리가 그려집니다" />
   }
 
   const root = roots[0]
@@ -264,9 +268,8 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
   return (
     <>
       {errorMsg && (
-        <div style={{ marginBottom: '1rem', padding: 'var(--space-3) var(--space-4)', background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', color: 'var(--danger)', fontSize: 'var(--fs-base)', display: 'flex', justifyContent: 'space-between' }}>
-          {errorMsg}
-          <button onClick={() => setErrorMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', fontWeight: 700 }}>×</button>
+        <div style={{ marginBottom: 'var(--space-4)' }}>
+          <InlineError banner onDismiss={() => setErrorMsg(null)}>{errorMsg}</InlineError>
         </div>
       )}
 
@@ -384,19 +387,22 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
       )}
 
       {deleteConfirm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: 'var(--space-6)', width: '340px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)' }}>
-            <h3 className="tape-title" style={{ margin: 0 }}>삭제 확인</h3>
-            <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: 'var(--fs-base)' }}>
-              <strong>{deleteConfirm.name}</strong>을(를) 삭제하시겠습니까?
-              {deleteConfirm.type !== 'person' && ' 하위 노드가 있으면 삭제할 수 없습니다.'}
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
-              <button onClick={() => setDeleteConfirm(null)} style={{ padding: '0.45rem 1rem', background: 'var(--surface-muted)', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 'var(--fs-base)', color: 'var(--text-muted)' }}>취소</button>
-              <button onClick={confirmDelete} style={{ padding: '0.45rem 1rem', background: 'var(--danger)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 'var(--fs-base)' }}>삭제</button>
-            </div>
-          </div>
-        </div>
+        <NbModal
+          title="삭제 확인"
+          onClose={() => setDeleteConfirm(null)}
+          maxWidth={380}
+          footer={
+            <>
+              <NbButton variant="secondary" onClick={() => setDeleteConfirm(null)}>취소</NbButton>
+              <NbButton variant="danger" onClick={confirmDelete}>삭제</NbButton>
+            </>
+          }
+        >
+          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 'var(--fs-base)' }}>
+            <strong>{deleteConfirm.name}</strong>을(를) 삭제하시겠습니까?
+            {deleteConfirm.type !== 'person' && ' 하위 노드가 있으면 삭제할 수 없습니다.'}
+          </p>
+        </NbModal>
       )}
     </>
   )

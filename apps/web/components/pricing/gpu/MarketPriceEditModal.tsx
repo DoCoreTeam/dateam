@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useEscClose } from '@/lib/use-esc-close'
 import { X, Pencil } from 'lucide-react'
 import ImpactDeleteDialog from './ImpactDeleteDialog'
+import InlineError from '@/components/ui/InlineError'
 
 export interface MarketPriceForEdit {
   price_id: string
@@ -150,7 +151,7 @@ export default function MarketPriceEditModal({ price, onClose, onSaved }: Market
               />
             </div>
 
-            {error && <div className="gpu-field-error">{error}</div>}
+            <InlineError banner>{error}</InlineError>
 
             <div className="gpu-modal-actions">
               <button

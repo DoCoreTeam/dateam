@@ -10,6 +10,8 @@ import { countryFlag } from '@/lib/gpu/country-flag'
 import { useEscClose } from '@/lib/use-esc-close'
 import { fmtUSD, fmtMoneyFromOriginal, type CurrencyMode } from '@/lib/gpu/format-price'
 import { memoryTitle } from '@/lib/gpu/card-memory'
+import InlineError from '@/components/ui/InlineError'
+import { SkelList } from '@/components/ui/LoadingSkeleton'
 
 interface SupplierStats {
   id: string
@@ -219,7 +221,7 @@ function QuoteEditModal({ quote, onClose, onChanged }: { quote: QuoteRow; onClos
             )}
           </div>
 
-          {err && <div style={{ fontSize: 12, color: 'var(--gpu-red)' }}>{err}</div>}
+          <InlineError compact>{err}</InlineError>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={save} disabled={saving} className="gpu-btn gpu-btn-primary" style={{ gap: 5 }}><Save size={14} /> {saving ? '저장 중…' : '저장'}</button>
             <button onClick={del} disabled={saving} className="gpu-btn" style={{ marginLeft: 'auto', color: 'var(--gpu-red)', gap: 5 }}><Trash2 size={14} /> 삭제</button>
@@ -320,7 +322,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
         </div>
 
         {!data ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--gpu-muted)' }}>로딩 중…</div>
+          <div style={{ padding: 'var(--space-6)' }}><SkelList rows={4} /></div>
         ) : (
           <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* 회사 정보 — 조회 우선, 수정 클릭 시 편집 (거래처/딜과 동일 UX) */}
@@ -366,7 +368,7 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
                         style={{ width: 20, height: 20, borderRadius: '50%', background: c, border: (f?.color === c) ? 'var(--border-w-2) solid var(--text)' : 'var(--border-w-2) solid transparent', cursor: 'pointer' }} />
                     ))}
                   </div>
-                  {err && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--gpu-red)' }}>{err}</div>}
+                  <InlineError compact spaced>{err}</InlineError>
                   <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
                     <button onClick={async () => { await save(); setEditing(false) }} disabled={saving} className="gpu-btn gpu-btn-primary" style={{ gap: 5 }}>
                       <Save size={14} /> {saving ? '저장 중…' : '저장'}
@@ -584,7 +586,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
             <Field label="연락처" value={f.contact} onChange={(v) => set('contact', v)} />
           </div>
           <Field label="회사 소개" value={f.description} onChange={(v) => set('description', v)} textarea />
-          {err && <div style={{ fontSize: 12, color: 'var(--gpu-red)' }}>{err}</div>}
+          <InlineError compact>{err}</InlineError>
           <button onClick={create} disabled={saving} className="gpu-btn gpu-btn-primary">{saving ? '생성 중…' : '추가'}</button>
         </div>
       </div>
