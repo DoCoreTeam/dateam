@@ -66,12 +66,14 @@ function GpuChip({ model, memory, gpuCount }: { model: string; memory: string; g
   return (
     <span title={memoryTitle(memory, gpuCount) || undefined} style={{
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      width: 36, height: 36, borderRadius: 8, background: bg,
-      color: 'var(--nb-white)', fontSize: 11, fontWeight: 700, flexShrink: 0,
-      fontFamily: 'monospace', lineHeight: 1,
+      // 36px 박스에 9px·7px를 욱여넣어 "GB"가 읽히지 않았다(§3-1 10px 미만 금지).
+      // 박스를 키워 최소 크기를 지킨다 — 고객이 보는 판매가격표다.
+      width: 42, height: 42, borderRadius: 8, background: bg,
+      color: 'var(--nb-white)', fontWeight: 700, flexShrink: 0,
+      fontFamily: 'monospace', lineHeight: 1.05, flexDirection: 'column', gap: 1,
     }}>
-      <span style={{ fontSize: 9 }}>{perCard.replace('GB', '')}</span>
-      <span style={{ fontSize: 7, opacity: 0.7 }}>GB</span>
+      <span style={{ fontSize: 'var(--fs-xs)' }}>{perCard.replace('GB', '')}</span>
+      <span style={{ fontSize: 'var(--fs-2xs)', opacity: 0.8 }}>GB</span>
     </span>
   )
 }

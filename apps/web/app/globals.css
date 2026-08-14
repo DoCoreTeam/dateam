@@ -7438,6 +7438,8 @@ label.intake-tool-btn {
   font-size: var(--fs-2xs);
   color: var(--gpu-muted);
 }
+/* <small>은 브라우저 기본이 부모의 80%다 — --fs-2xs(11px)가 8.8px로 줄어 읽히지 않았다 */
+.sale-catalog-source small { font-size: inherit; }
 .sale-catalog-source img,
 .sale-catalog-source > span {
   width: 18px;
