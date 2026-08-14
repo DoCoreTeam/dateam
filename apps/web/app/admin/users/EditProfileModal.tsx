@@ -2,9 +2,9 @@
 import { useEscClose } from '@/lib/use-esc-close'
 
 import { useState, useTransition } from 'react'
-import { X } from 'lucide-react'
 import { updateUserProfile } from '../org-chart/actions'
 import InlineError from '@/components/ui/InlineError'
+import NbModal from '@/components/ui/nb/NbModal'
 
 interface RankItem {
   id: number
@@ -53,29 +53,11 @@ export default function EditProfileModal({
   }
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'var(--modal-backdrop)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
-    }}>
-      <div style={{
-        background: 'var(--color-surface)', borderRadius: 'var(--radius)', width: '360px',
-        boxShadow: 'var(--shadow-modal)', overflow: 'hidden',
-      }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: 'var(--space-4) var(--space-5)', borderBottom: 'var(--border-w-2) solid var(--border-color)',
-        }}>
-          <h3 className="tape-title" style={{ margin: 0 }}>
-            사용자 정보 수정
-          </h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <div style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>이름 *</span>
+    // 골격 자작 → NbModal. zIndex 9999 매직넘버·role 부재가 함께 사라진다.
+    <NbModal title="사용자 정보 수정" onClose={onClose} maxWidth={360}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <label className="label">
+            <span>이름 *</span>
             <input
               value={name}
               onChange={e => setName(e.target.value)}
@@ -87,8 +69,8 @@ export default function EditProfileModal({
             />
           </label>
 
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>직급</span>
+          <label className="label">
+            <span>직급</span>
             <select
               value={rank}
               onChange={e => setRank(e.target.value)}
@@ -105,8 +87,8 @@ export default function EditProfileModal({
             </select>
           </label>
 
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>직책</span>
+          <label className="label">
+            <span>직책</span>
             <select
               value={position}
               onChange={e => setPosition(e.target.value)}
@@ -152,7 +134,6 @@ export default function EditProfileModal({
             {isPending ? '저장 중...' : '저장'}
           </button>
         </div>
-      </div>
-    </div>
+    </NbModal>
   )
 }

@@ -12,6 +12,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import { createProject, updateProject, softDeleteProject, listProjects } from '../actions'
 import { isEnterKey } from '@/lib/ui/ime'
 import InlineError from '@/components/ui/InlineError'
+import NbModal from '@/components/ui/nb/NbModal'
 
 interface Props {
   initialProjects: AiChatProject[]
@@ -191,17 +192,8 @@ function ProjectModal({ project, onClose, onSaved }: { project: AiChatProject | 
   }
 
   return (
-    <div
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--modal-backdrop)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-4)' }}
-    >
-      <div style={{ width: '100%', maxWidth: 480, background: 'var(--color-surface)', borderRadius: 'var(--radius)', padding: 'var(--space-6)', boxShadow: 'var(--shadow-modal)', maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
-          <h3 className="tape-title" style={{ margin: 0 }}>{project ? '프로젝트 수정' : '새 프로젝트'}</h3>
-          <button onClick={onClose} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}>
-            <X size={18} />
-          </button>
-        </div>
+    <NbModal title={project ? '프로젝트 수정' : '새 프로젝트'} onClose={onClose} maxWidth={480}>
+      <>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-4)' }}>
           <label className="label" htmlFor="project-name">이름</label>
@@ -236,7 +228,7 @@ function ProjectModal({ project, onClose, onSaved }: { project: AiChatProject | 
           <NbButton variant="ghost" onClick={onClose} disabled={busy}>취소</NbButton>
           <NbButton onClick={save} disabled={busy}>{busy ? '저장중…' : '저장'}</NbButton>
         </div>
-      </div>
-    </div>
+      </>
+    </NbModal>
   )
 }

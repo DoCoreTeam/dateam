@@ -5,9 +5,9 @@
 // 자동 등록 금지: 여기서 하는 일은 "폼에 미리 채워 넣기"까지다. 실제 저장은 각 화면에서 사용자가 직접 확정한다.
 // 모달 표준(§2-2) 준수: useEscClose·X닫기·tape-title·boxShadow(var(--shadow-modal))·backdrop(var(--modal-backdrop)).
 
-import { CalendarClock, ClipboardList, FolderKanban, NotebookPen, X } from 'lucide-react'
+import { CalendarClock, ClipboardList, FolderKanban, NotebookPen } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEscClose } from '@/lib/use-esc-close'
+import NbModal from '@/components/ui/nb/NbModal'
 import { setWorkflowHandoff, type WorkflowTarget } from '@/lib/ai-chat/workflow-handoff'
 
 interface Props {
@@ -56,7 +56,6 @@ const TARGETS: TargetDef[] = [
 ]
 
 export default function WorkflowHandoffModal({ title, bodyMd, onClose }: Props) {
-  useEscClose(onClose)
   const router = useRouter()
 
   function pick(target: TargetDef) {
@@ -66,15 +65,9 @@ export default function WorkflowHandoffModal({ title, bodyMd, onClose }: Props) 
   }
 
   return (
-    <div
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--modal-backdrop)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-4)' }}
-    >
-      <div style={{ width: '100%', maxWidth: 460, background: 'var(--color-surface)', borderRadius: 'var(--radius)', padding: 'var(--space-6)', boxShadow: 'var(--shadow-modal)', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
-          <h3 className="tape-title" style={{ margin: 0 }}>업무 흐름으로 전달</h3>
-          <button onClick={onClose} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)' }}><X size={18} /></button>
-        </div>
+    // 골격을 직접 그리던 것을 NbModal로 — role="dialog"·aria-modal·ESC가 딸려온다.
+    <NbModal title="업무 흐름으로 전달" onClose={onClose} maxWidth={460}>
+      <>
         <p style={{ margin: '0 0 var(--space-4)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
           대상을 고르면 생성 화면으로 이동해 내용을 미리 채워줍니다. 저장은 그 화면에서 직접 확인 후 진행하세요.
         </p>
@@ -103,7 +96,7 @@ export default function WorkflowHandoffModal({ title, bodyMd, onClose }: Props) 
             )
           })}
         </div>
-      </div>
-    </div>
+      </>
+    </NbModal>
   )
 }

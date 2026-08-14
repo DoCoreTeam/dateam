@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { changePasswordAction, getOrgMemberNames, getMyProfileData } from '@/app/change-password/actions'
+import NbModal from '@/components/ui/nb/NbModal'
 
 export default function PasswordChangeModal() {
   const router = useRouter()
@@ -54,30 +55,13 @@ export default function PasswordChangeModal() {
     }
   }
 
+  // 첫 로그인 강제 모달 — 닫을 수 없다(disableClose).
+  // 예전엔 backdrop·카드를 직접 그렸고 `background: 'white'` 하드코딩 때문에
+  // 다크 테마에서 이 모달만 흰색이었다. 무엇보다 `role="dialog"`가 없어
+  // 스크린리더에는 존재하지 않는 화면이었다(v0.7.459 전수 점검).
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1000,
-        background: 'rgba(15, 23, 42, 0.6)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 'var(--space-4)',
-      }}
-    >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '420px',
-          background: 'white',
-          borderRadius: 'var(--radius)',
-          padding: 'var(--space-10)',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2)',
-        }}
-      >
+    <NbModal onClose={() => {}} disableClose maxWidth={420} ariaLabel="첫 로그인 설정">
+      <>
         <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
           <div
             style={{
@@ -180,7 +164,7 @@ export default function PasswordChangeModal() {
             {pending ? '저장 중...' : '설정 완료'}
           </button>
         </form>
-      </div>
-    </div>
+      </>
+    </NbModal>
   )
 }

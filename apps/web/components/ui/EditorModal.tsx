@@ -41,9 +41,14 @@ export default function EditorModal({ title, value, placeholder, onClose, onChan
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         style={{
           width: '100%', maxWidth: '720px',
-          background: 'white', borderRadius: 'var(--radius)',
+          // `background: 'white'` 하드코딩이었다 — 다크 테마에서 이 모달만 흰색이었다.
+          // role도 없어 스크린리더에는 대화상자가 아니었다(v0.7.459 전수 점검).
+          background: 'var(--color-surface)', borderRadius: 'var(--radius)',
           boxShadow: 'var(--shadow-modal)',
           display: 'flex', flexDirection: 'column',
           maxHeight: 'calc(100vh - 3rem)',

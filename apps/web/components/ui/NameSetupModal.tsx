@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { setProfileNameAction, getOrgMemberNames } from '@/app/change-password/actions'
+import NbModal from '@/components/ui/nb/NbModal'
 
 export default function NameSetupModal() {
   const router = useRouter()
@@ -34,30 +35,11 @@ export default function NameSetupModal() {
     }
   }
 
+  // 이름 설정 강제 모달 — 닫을 수 없다. PasswordChangeModal과 같은 사고였다:
+  // 자작 backdrop + `background: 'white'` 하드코딩 + role 없음(v0.7.459).
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1000,
-        background: 'rgba(15, 23, 42, 0.6)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 'var(--space-4)',
-      }}
-    >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '380px',
-          background: 'white',
-          borderRadius: 'var(--radius)',
-          padding: 'var(--space-10)',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2)',
-        }}
-      >
+    <NbModal onClose={() => {}} disableClose maxWidth={380} ariaLabel="이름 설정">
+      <>
         <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
           <div
             style={{
@@ -124,7 +106,7 @@ export default function NameSetupModal() {
             {pending ? '저장 중...' : '확인'}
           </button>
         </form>
-      </div>
-    </div>
+      </>
+    </NbModal>
   )
 }

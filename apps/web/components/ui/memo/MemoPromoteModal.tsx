@@ -6,6 +6,7 @@ import { X, ArrowUpRight } from 'lucide-react'
 import { promoteMemoToTask } from '@/app/(member)/daily/actions'
 import type { MemoListItem } from './memoUtils'
 import InlineError from '@/components/ui/InlineError'
+import NbModal from '@/components/ui/nb/NbModal'
 
 interface Props {
   memo: MemoListItem
@@ -30,17 +31,14 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'var(--modal-backdrop)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}
-      onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()}
-        style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius)', width: '380px', maxWidth: '92vw', boxShadow: 'var(--shadow-modal)', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-4) var(--space-5)', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
-          <h3 className="tape-title" style={{ margin: 0 }}>
-            <ArrowUpRight size={16} color="var(--brand-dark)" /> 메모를 업무로
-          </h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
-        </div>
-        <div style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+    // 골격 자작 → NbModal. zIndex 9999 매직넘버와 role 부재가 함께 사라진다.
+    <NbModal
+      title={<><ArrowUpRight size={16} color="var(--brand-dark)" /> 메모를 업무로</>}
+      ariaLabel="메모를 업무로"
+      onClose={onClose}
+      maxWidth={380}
+    >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', background: 'var(--color-bg)', borderRadius: 'var(--radius)', padding: '0.6rem 0.75rem', lineHeight: 1.5 }}>
             {memo.content}
           </div>
@@ -79,7 +77,6 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </NbModal>
   )
 }
