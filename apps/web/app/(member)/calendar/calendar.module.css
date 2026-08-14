@@ -1,0 +1,19 @@
+/* 캘린더 화면 전용 스타일.
+   globals.css에 화면 전용 CSS를 더 넣지 않는다(§0-1) — 새 도메인 스타일은 폴더 모듈로. */
+
+/* 월간 칩의 일정 제목.
+   맨텍스트로 두면 flex 자식이 아니라서 칩의 ellipsis가 안 걸리고 글자 중간이 잘렸다. */
+.eventTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 모바일은 셀이 55px라 제목이 들어갈 자리가 없다.
+   아이콘 + 시각만 깔끔히 보이고, 제목은 날짜를 눌러 여는 패널에서 읽는다. */
+@media (max-width: 767px) {
+  .eventTitle {
+    display: none;
+  }
+}

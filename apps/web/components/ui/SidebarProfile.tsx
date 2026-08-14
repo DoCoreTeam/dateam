@@ -385,7 +385,8 @@ export default function SidebarProfile({ name, email, isAdmin = false, currentTh
             flexShrink: 0,
             fontSize: 'var(--fs-sm)',
             fontWeight: 700,
-            color: 'white',
+            /* brand 배경 위 글자색은 테마마다 다르다 — 'white' 고정이면 테마를 못 따라간다 */
+            color: 'var(--brand-fg)',
           }}
         >
           {initial}

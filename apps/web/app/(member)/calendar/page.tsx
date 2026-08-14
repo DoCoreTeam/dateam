@@ -15,6 +15,7 @@ import { STATUS_COLORS } from "@/lib/tokens/status-colors";
 import PageHeader from "@/components/ui/PageHeader";
 import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import AXDotLoader from "@/components/ui/AXDotLoader";
+import styles from "./calendar.module.css";
 
 interface CalEventLite {
   id: string; title: string; start_at: string; end_at: string | null; all_day: boolean; source: string;
@@ -338,7 +339,10 @@ export default function CalendarPage() {
                             <CalendarClock size={11} strokeWidth={2.4} />
                           </span>
                           <span className="cal-event-time">{ev.all_day ? "종일" : formatKstTime(ev.start_at)}</span>
-                          {ev.title}
+                          {/* 제목은 감싸야 말줄임이 걸린다 — 맨텍스트일 땐 flex 자식이 아니라
+                              글자 중간에서 그냥 잘렸다. 모바일(셀 55px)에선 자리가 없어 숨긴다
+                              (제목은 날짜를 눌러 여는 패널에서 읽는다) */}
+                          <span className={styles.eventTitle}>{ev.title}</span>
                           {ev.link_kind === "daily" && (
                             <span className="cal-link-badge" title="업무에서 자동 등록된 일정">업무</span>
                           )}
