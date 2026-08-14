@@ -124,7 +124,8 @@ export default function WorkSearchPage() {
         onChange={set}
         searchPlaceholder="업무 제목·내용으로 검색"
         filters={[TYPE_FILTER]}
-        views={['card']}
+        // 컬럼(제목·내용·날짜)이 이미 표에 맞게 정의돼 있는데 카드로만 볼 수 있었다.
+        views={['table', 'card']}
         showSize={false}
         total={q && !isLoading ? results.length : undefined}
       />

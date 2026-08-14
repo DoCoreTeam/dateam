@@ -9910,7 +9910,14 @@ label.intake-tool-btn {
 }
 .list-card-fields { display: grid; gap: var(--space-2); margin: 0; }
 .list-card-field { display: flex; justify-content: space-between; gap: var(--space-3); }
-.list-card-field dt { font-size: var(--fs-sm); color: var(--text-muted); }
+/* 레이블은 낱말이다 — 값이 길면 dt가 눌려 "내용"이 "내/용"으로 쪼개졌다(v0.7.459 /work/search).
+   한국어는 브라우저 기본이 아무 글자에서나 줄바꿈이라 폭이 좁아지는 즉시 깨진다. */
+.list-card-field dt {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 .list-card-field dd { margin: 0; font-size: var(--fs-sm); color: var(--text); text-align: right; }
 
 .list-sort-btn {
