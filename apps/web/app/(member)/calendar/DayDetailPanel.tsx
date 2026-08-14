@@ -141,8 +141,10 @@ export default function DayDetailPanel({ date, onClose }: Props) {
 
   return createPortal(
     <>
-      <div className="day-panel-backdrop" onClick={onClose} />
-      <div className="day-panel">
+      <div className="day-panel-backdrop" onClick={onClose} aria-hidden="true" />
+      {/* 화면을 덮는 오버레이인데 role·aria-modal·이름이 전부 없어서, 스크린리더에는
+          이 패널이 아예 존재하지 않았다(v0.7.459 실화면). 대화상자로 선언한다. */}
+      <div className="day-panel" role="dialog" aria-modal="true" aria-label={`${formatPanelDate(date)} 기록`}>
         {/* 모바일 드래그 핸들 */}
         <div className="day-panel-drag-handle" />
 
