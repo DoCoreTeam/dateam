@@ -50,11 +50,17 @@ export default function ProjectsPage() {
   const params = useSearchParams()
   const { query, set } = useListQuery(LIST_DEFAULTS, { persistKey: '/work/projects' })
 
-  // 뷰 스위치(E: 현황 병합) — 프로젝트 목록 | 현황. URL ?view=overview로 공유·뒤로가기.
-  const view: 'projects' | 'overview' = params.get('view') === 'overview' ? 'overview' : 'projects'
-  const setView = (next: 'projects' | 'overview') => {
+  // 화면 전환(프로젝트 목록 | 현황)은 `?panel=`이다.
+  // 예전엔 `?view=overview`였는데, 목록 표준(§2-6)이 `view`를 표/카드/조밀 전환에
+  // **예약**하고 있어 충돌했다. 그래서 목록 보기전환을 `views={['card']}`로 막아 둔
+  // 상태였고, 사용자는 프로젝트를 표로 볼 수 없었다. 화면 고유 상태가 자리를 비켜준다.
+  // 구 링크(?view=overview)는 계속 받는다.
+  const panel: 'projects' | 'overview' =
+    params.get('panel') === 'overview' || params.get('view') === 'overview' ? 'overview' : 'projects'
+  const setPanel = (next: 'projects' | 'overview') => {
     const sp = new URLSearchParams(Array.from(params.entries()))
-    if (next === 'overview') sp.set('view', 'overview'); else sp.delete('view')
+    sp.delete('view') // 구 파라미터 정리 — 남아 있으면 목록 보기전환과 다시 엉킨다
+    if (next === 'overview') sp.set('panel', 'overview'); else sp.delete('panel')
     const qs = sp.toString()
     router.replace(qs ? `/work/projects?${qs}` : '/work/projects', { scroll: false })
   }
@@ -138,13 +144,13 @@ export default function ProjectsPage() {
       subTabs={
         <WorkSubTabs
           items={[{ key: 'projects', label: '프로젝트', testId: 'view-projects' }, { key: 'overview', label: '현황', testId: 'view-overview' }]}
-          activeKey={view}
-          onSelect={(k) => setView(k as 'projects' | 'overview')}
+          activeKey={panel}
+          onSelect={(k) => setPanel(k as 'projects' | 'overview')}
           ariaLabel="프로젝트 현황 뷰 전환"
         />
       }
       actions={
-        view === 'projects' ? (
+        panel === 'projects' ? (
           <button type="button" className="btn-primary" onClick={() => setEditing({ mode: 'create' })} data-testid="new-project"
             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', minHeight: 44 }}>
             <Plus size={16} /> 프로젝트 추가
@@ -152,7 +158,7 @@ export default function ProjectsPage() {
         ) : undefined
       }
     >
-      {view === 'overview' ? (
+      {panel === 'overview' ? (
         <WorkOverviewPanel />
       ) : (
         <>
@@ -163,7 +169,7 @@ export default function ProjectsPage() {
             onChange={set}
             searchPlaceholder="프로젝트 이름 검색"
             sortOptions={SORT_OPTIONS}
-            views={['card']}
+            views={['table', 'card']}
             showSize={false}
             total={isLoading ? undefined : projects.length}
           />
