@@ -18,14 +18,14 @@ interface DynamicTableProps {
   addLabel?: string
 }
 
+/**
+ * 표 셀 안이라 기본 필드보다 좁게 쓴다. 보더·배경·글자색은 적지 않는다 —
+ * `input-field`가 테마 토큰으로 이미 준다. (예전엔 여기서 background '#fff'를
+ * 덮어써서 어두운 테마에서 입력칸만 하얗게 떴다)
+ */
 const INPUT: React.CSSProperties = {
-  width: '100%',
   padding: '0.375rem 0.5rem',
-  border: 'var(--border-w-2) solid var(--border-color)',
-  borderRadius: 'var(--radius)',
   fontSize: 'var(--fs-sm)',
-  color: 'var(--text)',
-  background: '#fff',
   boxSizing: 'border-box',
 }
 
@@ -74,8 +74,13 @@ export default function DynamicTable({
     <div>
       <input type="hidden" name={name} value={JSON.stringify(rows)} />
 
+      {/* table-card: 모바일에서 행 → 카드. 예전엔 열이 그대로 눌려서 390px에서
+          입력칸이 28~69px가 됐고 글자를 읽지도 치지도 못했다(실측). */}
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}>
+        <table
+          className="table-card"
+          style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--fs-sm)' }}
+        >
           <thead>
             <tr style={{ background: 'var(--color-bg)', borderBottom: 'var(--border-w-2) solid var(--border-color)' }}>
               <th style={{ width: '32px', padding: '0.4rem' }} />
@@ -103,7 +108,9 @@ export default function DynamicTable({
                 key={idx}
                 style={{ borderBottom: 'var(--hairline) solid var(--surface-muted)' }}
               >
+                {/* 행 번호 — 카드에선 순서가 이미 보이므로 숨긴다 */}
                 <td
+                  className="card-hide"
                   style={{
                     padding: '0.35rem',
                     color: 'var(--text-faint)',
@@ -114,7 +121,11 @@ export default function DynamicTable({
                   {idx + 1}
                 </td>
                 {columns.map((col) => (
-                  <td key={col.key} style={{ padding: '0.35rem 0.3rem', verticalAlign: 'top' }}>
+                  <td
+                    key={col.key}
+                    data-label={col.label}
+                    style={{ padding: '0.35rem 0.3rem', verticalAlign: 'top' }}
+                  >
                     {col.type === 'textarea' ? (
                       <textarea className="input-field"
                         value={(row[col.key] as string) || ''}
@@ -148,7 +159,10 @@ export default function DynamicTable({
                     )}
                   </td>
                 ))}
-                <td style={{ padding: '0.35rem', textAlign: 'center', verticalAlign: 'top' }}>
+                <td
+                  className="card-actions"
+                  style={{ padding: '0.35rem', textAlign: 'center', verticalAlign: 'top' }}
+                >
                   <button
                     type="button"
                     onClick={() => removeRow(idx)}

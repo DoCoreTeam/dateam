@@ -1207,7 +1207,8 @@
     border: var(--border-w-2) solid var(--border-color);
     border-radius: var(--radius);
     overflow: hidden;
-    background: #fff;
+    /* 테마 토큰 — #fff 하드코딩이던 것. 목록 화면 전부의 모바일 카드가 이 규칙을 탄다 */
+    background: var(--color-surface);
     box-shadow: var(--shadow-sm);
   }
   .table-card td {
