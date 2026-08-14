@@ -256,7 +256,7 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
       >
         <div className="gpu-chip" style={{ width: 38, height: 38, flexShrink: 0 }}>
           {item.model_name.charAt(0)}
-          <span style={{ fontSize: 8 }}>{item.memory}</span>
+          <span style={{ fontSize: 'var(--fs-2xs)' }}>{item.memory}</span>
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -264,7 +264,7 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
               <GpuModelName modelName={item.model_name} gpuCount={item.gpu_count} />
             </span>
             <span style={{ fontSize: 12, color: 'var(--gpu-muted)' }}>{item.memory}</span>
-            <span className={`gpu-badge ${TIER_BADGES[item.tier]}`} style={{ fontSize: 10 }}>
+            <span className={`gpu-badge ${TIER_BADGES[item.tier]}`} style={{ fontSize: 'var(--fs-2xs)' }}>
               {TIER_LABELS[item.tier]}
             </span>
           </div>
@@ -283,20 +283,20 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
               <div style={{ fontSize: 20, fontWeight: 800, color: item.pool_qty > 0 ? 'var(--gpu-green)' : 'var(--gpu-red)', fontFamily: 'var(--font-mono, monospace)' }}>
                 {item.pool_qty.toLocaleString()}
               </div>
-              <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>풀 재고 (GPU)</div>
+              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)' }}>풀 재고 (GPU)</div>
             </div>
           ) : (item.fresh_available_qty === 0 && item.supplier_availability.length === 0 && item.has_active_quote) ? (
             // 견적은 있으나 가용량 응답 없음 → 0(품절)이 아니라 "확인 필요"
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--gpu-green)' }}>공급가능</div>
-              <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>수량 확인 필요</div>
+              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)' }}>수량 확인 필요</div>
             </div>
           ) : (
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 20, fontWeight: 800, color: item.fresh_available_qty > 0 ? 'var(--gpu-green)' : 'var(--gpu-faint)', fontFamily: 'var(--font-mono, monospace)' }}>
                 {item.fresh_available_qty.toLocaleString()}
               </div>
-              <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>가용 (신선)</div>
+              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)' }}>가용 (신선)</div>
             </div>
           )}
 
@@ -318,25 +318,25 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
       {/* 상태 요약 칩 */}
       <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
         {item.oos_supplier_count > 0 && (
-          <span className="gpu-badge" style={{ background: 'var(--danger-bg)', color: 'var(--danger)', fontSize: 10 }}>
+          <span className="gpu-badge" style={{ background: 'var(--danger-bg)', color: 'var(--danger)', fontSize: 'var(--fs-2xs)' }}>
             품절 {item.oos_supplier_count}개 공급사
           </span>
         )}
         {item.stale_count > 0 && (
-          <span className="gpu-badge" style={{ background: 'var(--surface-muted)', color: 'var(--gpu-muted)', fontSize: 10 }}>
+          <span className="gpu-badge" style={{ background: 'var(--surface-muted)', color: 'var(--gpu-muted)', fontSize: 'var(--fs-2xs)' }}>
             만료 {item.stale_count}개
           </span>
         )}
         {item.pending_review_count > 0 && (
-          <span className="gpu-badge gpu-badge-amber" style={{ fontSize: 10 }}>
+          <span className="gpu-badge gpu-badge-amber" style={{ fontSize: 'var(--fs-2xs)' }}>
             검토 중 {item.pending_review_count}개
           </span>
         )}
         {item.supplier_availability.length === 0 && item.pool_qty == null && item.has_active_quote && (
-          <span className="gpu-badge" style={{ background: 'var(--success-bg)', color: 'var(--success)', fontSize: 10 }}>견적 보유 · 공급 가능</span>
+          <span className="gpu-badge" style={{ background: 'var(--success-bg)', color: 'var(--success)', fontSize: 'var(--fs-2xs)' }}>견적 보유 · 공급 가능</span>
         )}
         {item.supplier_availability.length === 0 && item.pool_qty == null && !item.has_active_quote && (
-          <span className="gpu-badge gpu-badge-gray" style={{ fontSize: 10 }}>가용량 정보 없음</span>
+          <span className="gpu-badge gpu-badge-gray" style={{ fontSize: 'var(--fs-2xs)' }}>가용량 정보 없음</span>
         )}
       </div>
 
@@ -353,7 +353,7 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
                 <div key={i} style={{ padding: '8px 12px', borderRadius: 8, background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <SupplierBadge name={sup.name} color={sup.color} kind={sup.name === 'gcube' ? 'self' : 'ours'} unassigned={sup.supplier_id == null} />
                   <span style={{ fontSize: 12, color: 'var(--gpu-muted)', fontFamily: 'var(--font-mono, monospace)' }}>
-                    {fmtUSD(sup.unit_price_usd)} <span style={{ fontSize: 10 }} title={memoryTitle(item.memory, item.gpu_count) || undefined}>(×{item.gpu_count} 구성)</span>
+                    {fmtUSD(sup.unit_price_usd)} <span style={{ fontSize: 'var(--fs-2xs)' }} title={memoryTitle(item.memory, item.gpu_count) || undefined}>(×{item.gpu_count} 구성)</span>
                   </span>
                   <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
                     {sup.has_qty && sup.resp_qty != null && (
@@ -400,8 +400,8 @@ function InventoryCard({ item, onMutate }: { item: InventoryItem; onMutate: () =
                     {sa.resp_qty.toLocaleString()} GPU
                   </span>
                 )}
-                <span style={{ fontSize: 10, color: freshness.color, minWidth: 32 }}>{freshness.label}</span>
-                <span style={{ fontSize: 10, color: 'var(--gpu-faint)' }}>
+                <span style={{ fontSize: 'var(--fs-2xs)', color: freshness.color, minWidth: 32 }}>{freshness.label}</span>
+                <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-faint)' }}>
                   {new Date(sa.received_at).toLocaleDateString('ko-KR')}
                 </span>
               </div>

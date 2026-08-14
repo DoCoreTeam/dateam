@@ -150,7 +150,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
               <span style={{ fontSize: 12, color: 'var(--gpu-muted)', fontWeight: 400 }}>Tier {row.tier}</span>
             )}
           </strong>
-          {row.spec?.ai_generated && <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.1)', borderRadius: 5, padding: '2px 7px' }}>AI {row.spec.ai_confidence != null ? `${row.spec.ai_confidence}%` : ''}</span>}
+          {row.spec?.ai_generated && <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.1)', borderRadius: 5, padding: '2px 7px' }}>AI {row.spec.ai_confidence != null ? `${row.spec.ai_confidence}%` : ''}</span>}
           <button onClick={onClose} className="gpu-btn" style={{ padding: 6 }}><X size={16} /></button>
         </div>
 
@@ -169,7 +169,7 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
                 const lbl = k === 'memory' ? 'VRAM' : k === 'vcpu' ? 'vCPU' : k === 'ram_gb' ? 'RAM(GB)' : 'SSD(GB)'
                 return editing ? (
                   <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                    <span style={{ fontSize: 10.5, color: 'var(--gpu-muted)' }}>{lbl}</span>
+                    <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)' }}>{lbl}</span>
                     <input value={c[k]} onChange={(e) => setCfgF(c.id, k, e.target.value)} style={{ width: k === 'memory' ? 62 : 54, height: 28, fontSize: 12, borderRadius: 6, border: '1.5px solid var(--gpu-border)', padding: '0 6px' }} />
                   </span>
                 ) : (
@@ -582,7 +582,7 @@ export default function SpecsTab() {
                     <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {/* 단일 변형도 base명("GB200")으로 통일 — 폼팩터/에디션은 태그로. */}
                       <span style={{ fontWeight: 700 }}>{g.base_name}</span>
-                      {vlabel && vlabel !== '기본' && <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--gpu-accent)', border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 5, padding: '1px 6px' }}>{vlabel}</span>}
+                      {vlabel && vlabel !== '기본' && <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--gpu-accent)', border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 5, padding: '1px 6px' }}>{vlabel}</span>}
                       <button onClick={(e) => { e.stopPropagation(); setDelOpen(g) }} title="모델 삭제" className="gpu-btn" style={{ marginLeft: 'auto', padding: '3px 6px', color: 'var(--gpu-red)' }}><Trash2 size={13} /></button>
                     </span>
                   </td>
@@ -601,7 +601,7 @@ export default function SpecsTab() {
                     <span style={{ fontWeight: 700 }}>
                       <span style={{ display: 'inline-block', width: 14, color: 'var(--gpu-muted)', transition: 'transform .15s', transform: isOpen ? 'rotate(90deg)' : 'none' }}>▸</span>
                       {g.base_name}
-                      <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.1)', borderRadius: 5, padding: '1px 6px' }}>변형 {g.variants.length}</span>
+                      <span style={{ marginLeft: 6, fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--gpu-accent)', background: 'rgba(91,94,240,.1)', borderRadius: 5, padding: '1px 6px' }}>변형 {g.variants.length}</span>
                     </span>
                     <button onClick={(e) => { e.stopPropagation(); setDelOpen(g) }} title="모델 전체 삭제" className="gpu-btn" style={{ marginLeft: 'auto', padding: '3px 6px', color: 'var(--gpu-red)' }}><Trash2 size={13} /></button>
                   </span>
@@ -624,7 +624,7 @@ export default function SpecsTab() {
                   <tr key={v.model_name} onClick={() => setOpen(v)} style={{ cursor: 'pointer', background: 'var(--color-bg)' }}>
                     <td className="card-header">
                       <span style={{ paddingLeft: 20, fontWeight: 600, fontSize: 12.5 }}>
-                        <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--gpu-accent)', border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 5, padding: '1px 6px', marginRight: 6 }}>{variantLabel(v)}</span>
+                        <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--gpu-accent)', border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 5, padding: '1px 6px', marginRight: 6 }}>{variantLabel(v)}</span>
                         {v.model_name}
                       </span>
                     </td>

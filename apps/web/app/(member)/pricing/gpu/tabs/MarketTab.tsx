@@ -196,7 +196,7 @@ function PositionBar({ ourPrice, marketMin, marketMax, marketMedian, fmt }: {
 
   return (
     <div style={{ minWidth: 140 }}>
-      <div style={{ fontSize: 10, color: 'var(--gpu-muted)', marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
         <span style={{ fontFamily: 'monospace' }}>{fmt(marketMin)}</span>
         <span style={{ fontFamily: 'monospace' }}>{fmt(marketMax)}</span>
       </div>
@@ -209,7 +209,7 @@ function PositionBar({ ourPrice, marketMin, marketMax, marketMedian, fmt }: {
           transform: 'translateX(-5px)',
         }} />
       </div>
-      <div style={{ marginTop: 8, fontSize: 10, color: 'var(--gpu-muted)' }}>
+      <div style={{ marginTop: 8, fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)' }}>
         <span style={{ fontWeight: 700, color: markerColor }}>
           {isLow ? '저가 ↓' : isHigh ? '고가 ↑' : '중간'}
         </span>
@@ -348,9 +348,9 @@ function AnalyzePanel({ p, activeGroups, fmt, fmtOrig, onGoToPriceTable, onOpenA
                   <SupplierBadge name={s.name} color={s.color} kind={s.name === 'gcube' ? 'self' : 'ours'} unassigned={s.supplier_id == null} />
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>원가</span>
+                  <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)' }}>원가</span>
                   <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{fmt(s.unit_price_usd)}</span>
-                  <span style={{ fontSize: 10, color: 'var(--gpu-muted)', marginLeft: 4 }}>판매</span>
+                  <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', marginLeft: 4 }}>판매</span>
                   <span style={{ fontFamily: 'monospace', fontWeight: 800, color: 'var(--gpu-accent)' }}>{fmt(s.sell_price_usd)}</span>
                 </div>
               </div>
@@ -399,7 +399,7 @@ function AnalyzePanel({ p, activeGroups, fmt, fmtOrig, onGoToPriceTable, onOpenA
                   {!isAdmin && linkedName && (
                     <span className="gpu-link-badge" title="연결된 공급사"><Link2 size={11} aria-hidden />{linkedName}</span>
                   )}
-                  <span style={{ fontSize: 9, color: 'var(--gpu-muted)', marginLeft: 'auto' }}>
+                  <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', marginLeft: 'auto' }}>
                     {c.type} · {c.region}
                   </span>
                 </div>
@@ -412,7 +412,7 @@ function AnalyzePanel({ p, activeGroups, fmt, fmtOrig, onGoToPriceTable, onOpenA
                     />
                   </div>
                 )}
-                <div style={{ fontSize: 10, color: 'var(--gpu-muted)', marginBottom: 6, fontFamily: 'monospace' }}>
+                <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', marginBottom: 6, fontFamily: 'monospace' }}>
                   {items[0].competitor_sku}
                 </div>
                 {items.map(x => {
@@ -424,7 +424,7 @@ function AnalyzePanel({ p, activeGroups, fmt, fmtOrig, onGoToPriceTable, onOpenA
                   return (
                     <div key={x.mapping_id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                       <span style={{
-                        fontSize: 9, fontWeight: 600, padding: '1px 6px', borderRadius: 4,
+                        fontSize: 'var(--fs-2xs)', fontWeight: 600, padding: '1px 6px', borderRadius: 4,
                         background: 'var(--surface-bg)', color: 'var(--gpu-ink-2)',
                       }}>
                         {PRICING_MODEL_LABEL[x.pricing_model] ?? x.pricing_model}
@@ -433,7 +433,7 @@ function AnalyzePanel({ p, activeGroups, fmt, fmtOrig, onGoToPriceTable, onOpenA
                         {x.price_usd != null ? fmtOrig(x) : '—'}
                       </span>
                       {vsTxt && (
-                        <span style={{ fontSize: 10, fontWeight: 700, color: vsCls, fontFamily: 'monospace' }}>
+                        <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: vsCls, fontFamily: 'monospace' }}>
                           {vsTxt}
                         </span>
                       )}
@@ -467,7 +467,7 @@ function AnalyzePanel({ p, activeGroups, fmt, fmtOrig, onGoToPriceTable, onOpenA
                 })}
                 <div style={{ marginTop: 6, paddingTop: 6, borderTop: 'var(--hairline) solid var(--surface-bg)' }}>
                   <FreshnessDot hoursAgo={lastH === 999 ? null : lastH} maxHours={48} />
-                  {anyStale && <span style={{ fontSize: 9, color: 'var(--gpu-red)', marginLeft: 6 }}>만료</span>}
+                  {anyStale && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-red)', marginLeft: 6 }}>만료</span>}
                 </div>
               </div>
             )
@@ -561,9 +561,9 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
             background: 'linear-gradient(135deg,var(--brand-soft-2),#fff)',
             border: '1.5px solid var(--brand-soft-2)', borderRadius: 10,
           }}>
-            <div style={{ fontSize: 10, color: 'var(--gpu-muted)', fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>현재 시장 최저가</div>
+            <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>현재 시장 최저가</div>
             <div style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, color: 'var(--gpu-accent)' }}>{fmt(market_min)}</div>
-            <div style={{ fontSize: 10, color: 'var(--gpu-muted)', marginTop: 3 }}>경쟁사 최저</div>
+            <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', marginTop: 3 }}>경쟁사 최저</div>
           </div>
           <div style={{ color: 'var(--gpu-muted)', fontSize: 18, fontWeight: 700 }}>→</div>
           {/* 카드 2: 목표 판매가 */}
@@ -572,9 +572,9 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
             background: 'linear-gradient(135deg,var(--success-bg),#fff)',
             border: '1.5px solid var(--success-bg)', borderRadius: 10,
           }}>
-            <div style={{ fontSize: 10, color: 'var(--gpu-muted)', fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>목표 1등 판매가</div>
+            <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>목표 1등 판매가</div>
             <div style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, color: 'var(--gpu-green)' }}>{fmt(normalScn.targetSellUsd)}</div>
-            <div style={{ fontSize: 10, color: 'var(--gpu-muted)', marginTop: 3 }}>시장 최저 −{edgePct}%</div>
+            <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', marginTop: 3 }}>시장 최저 −{edgePct}%</div>
           </div>
           <div style={{ color: 'var(--gpu-muted)', fontSize: 18, fontWeight: 700 }}>←</div>
           {/* 카드 3: 필요 공급가 */}
@@ -583,9 +583,9 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
             background: isGapOk ? 'linear-gradient(135deg,var(--success-bg),#fff)' : 'linear-gradient(135deg,var(--warning-bg),#fff)',
             border: `1.5px solid ${isGapOk ? 'var(--success-bg)' : 'var(--warning-bg)'}`, borderRadius: 10,
           }}>
-            <div style={{ fontSize: 10, color: 'var(--gpu-muted)', fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>필요 공급가</div>
+            <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>필요 공급가</div>
             <div style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, color: isGapOk ? 'var(--gpu-green)' : 'var(--gpu-amber)' }}>{fmt(normalScn.requiredSupplyUsd)}</div>
-            <div style={{ fontSize: 10, color: 'var(--gpu-muted)', marginTop: 3 }}>÷ (1 + 마진 {marginPct}%)</div>
+            <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', marginTop: 3 }}>÷ (1 + 마진 {marginPct}%)</div>
           </div>
         </div>
 
@@ -617,9 +617,9 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
         <div style={{ fontSize: 11, color: 'var(--gpu-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
           ⚙ 전략 변수 — 모델별 조정
           {p.strategy.is_overridden ? (
-            <span style={{ fontSize: 9, color: 'var(--gpu-amber)', background: 'var(--warning-bg)', padding: '2px 6px', borderRadius: 4 }}>모델별 설정 적용 중</span>
+            <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-amber)', background: 'var(--warning-bg)', padding: '2px 6px', borderRadius: 4 }}>모델별 설정 적용 중</span>
           ) : (
-            <span style={{ fontSize: 9, color: 'var(--gpu-accent)', background: 'var(--gpu-accent-bg)', padding: '2px 6px', borderRadius: 4 }}>전역 기본값 사용 중</span>
+            <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-accent)', background: 'var(--gpu-accent-bg)', padding: '2px 6px', borderRadius: 4 }}>전역 기본값 사용 중</span>
           )}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -634,7 +634,7 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
               onClick={e => e.stopPropagation()}
               style={{ width: '100%', accentColor: 'var(--gpu-accent)' }}
             />
-            <div style={{ fontSize: 10, color: 'var(--gpu-faint)', marginTop: 3 }}>클수록 1등 입지 강함, 공급가 압박 ↑</div>
+            <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-faint)', marginTop: 3 }}>클수록 1등 입지 강함, 공급가 압박 ↑</div>
           </div>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 5 }}>
@@ -647,7 +647,7 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
               onClick={e => e.stopPropagation()}
               style={{ width: '100%', accentColor: 'var(--gpu-accent)' }}
             />
-            <div style={{ fontSize: 10, color: 'var(--gpu-faint)', marginTop: 3 }}>줄이면 공급가 압박 줄지만 수익 감소</div>
+            <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-faint)', marginTop: 3 }}>줄이면 공급가 압박 줄지만 수익 감소</div>
           </div>
         </div>
       </div>
@@ -674,13 +674,13 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
               >
                 {isSelected && (
                   <div style={{
-                    position: 'absolute', top: -6, right: 8, fontSize: 9, fontWeight: 700,
+                    position: 'absolute', top: -6, right: 8, fontSize: 'var(--fs-2xs)', fontWeight: 700,
                     background: 'var(--gpu-accent)', color: '#fff', padding: '1px 7px', borderRadius: 10,
                   }}>선택됨</div>
                 )}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 700 }}>{s.name}</div>
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 5, background: jc.bg, color: jc.color }}>
+                  <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, padding: '2px 7px', borderRadius: 5, background: jc.bg, color: jc.color }}>
                     {judgeLabel(s.judge)}
                   </span>
                 </div>
@@ -692,12 +692,12 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
                   필요 공급가 <strong style={{ fontFamily: 'monospace', fontSize: 13, color: jc.color }}>{fmt(s.requiredSupplyUsd)}</strong>
                 </div>
                 <div style={{
-                  fontSize: 10, fontWeight: 600, fontFamily: 'monospace',
+                  fontSize: 'var(--fs-2xs)', fontWeight: 600, fontFamily: 'monospace',
                   color: s.supplyChangePct < 0 ? 'var(--gpu-red)' : 'var(--gpu-green)',
                 }}>
                   {s.supplyChangePct >= 0 ? '+' : ''}{s.supplyChangePct.toFixed(1)}% 변화 필요
                 </div>
-                <div style={{ fontSize: 9.5, color: 'var(--gpu-faint)', marginTop: 5, borderTop: 'var(--hairline) solid var(--surface-bg)', paddingTop: 5 }}>
+                <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-faint)', marginTop: 5, borderTop: 'var(--hairline) solid var(--surface-bg)', paddingTop: 5 }}>
                   {s.basis === 'history' && supply_history
                     ? `이력 ${supply_history.sample_count}건 기반 (${fmt(supply_history.min_usd)}~${fmt(supply_history.max_usd)})`
                     : `비율 폴백 (인하 폭 ${Math.abs(s.supplyChangePct).toFixed(0)}%)`}
@@ -720,14 +720,14 @@ function StrategyPanel({ p, fmt }: { p: ProductGroup; fmt: (v: number) => string
           <>자체 이력 부족 ({supply_history?.sample_count ?? 0}건 {'<'} 임계 {HISTORY_MIN_SAMPLES}건) — 단순 비율 기반 판정</>
         )}
         <span style={{
-          marginLeft: 8, fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 5,
+          marginLeft: 8, fontSize: 'var(--fs-2xs)', fontWeight: 700, padding: '2px 7px', borderRadius: 5,
           background: useHistory ? 'var(--success-bg)' : 'var(--warning-bg)',
           color: useHistory ? 'var(--gpu-green)' : 'var(--gpu-amber)',
         }}>
           {useHistory ? '자체 이력' : '비율 폴백'}
         </span>
         {!useHistory && (
-          <div style={{ fontSize: 10, color: 'var(--gpu-muted)', marginTop: 4 }}>
+          <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', marginTop: 4 }}>
             → 자체 거래 이력이 {HISTORY_MIN_SAMPLES}건 이상 누적되면 이력 기반 판정으로 자동 전환됩니다
           </div>
         )}
@@ -845,7 +845,7 @@ function StrategyOverviewPanel({ products, fmt }: { products: ProductGroup[]; fm
           display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr 1fr 1.1fr',
           gap: 12, padding: '10px 18px',
           background: 'var(--surface-bg)', borderBottom: 'var(--hairline) solid var(--gpu-border)',
-          fontSize: 10.5, color: 'var(--gpu-muted)', fontWeight: 600,
+          fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', fontWeight: 600,
           textTransform: 'uppercase', letterSpacing: '.04em',
         }}>
           {([
@@ -882,7 +882,7 @@ function StrategyOverviewPanel({ products, fmt }: { products: ProductGroup[]; fm
                 <div>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gpu-ink)' }}>{p.product.model_name}</span>
                   <span style={{ fontSize: 11, color: 'var(--gpu-muted)', marginLeft: 6 }} title={memoryTitle(p.product.memory, p.product.gpu_count) || undefined}>{formatCardMemory(p.product.memory, p.product.gpu_count)}</span>
-                  <div style={{ fontSize: 10.5, color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p.product)}</div>
+                  <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p.product)}</div>
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--gpu-faint)', gridColumn: '2 / 7' }}>데이터 부족 — 공급가 또는 시장가 필요</div>
               </div>
@@ -903,7 +903,7 @@ function StrategyOverviewPanel({ products, fmt }: { products: ProductGroup[]; fm
               <div>
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gpu-ink)' }}>{p.product.model_name}</span>
                 <span style={{ fontSize: 11, color: 'var(--gpu-muted)', marginLeft: 6 }}>{p.product.memory}</span>
-                <div style={{ fontSize: 10.5, color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p.product)}</div>
+                <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p.product)}</div>
               </div>
               {/* 현재 공급가 */}
               <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 600, color: 'var(--gpu-ink-2)' }}>
@@ -916,20 +916,20 @@ function StrategyOverviewPanel({ products, fmt }: { products: ProductGroup[]; fm
               {/* 목표 판매가 */}
               <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: 'var(--gpu-green)' }}>
                 {fmt(scn.targetSellUsd)}
-                <div style={{ fontSize: 10, fontFamily: 'sans-serif', color: 'var(--gpu-faint)', fontWeight: 400 }}>−{scn.edgePct}%</div>
+                <div style={{ fontSize: 'var(--fs-2xs)', fontFamily: 'sans-serif', color: 'var(--gpu-faint)', fontWeight: 400 }}>−{scn.edgePct}%</div>
               </div>
               {/* 필요 공급가 */}
               <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: jc.color }}>
                 {fmt(scn.requiredSupplyUsd)}
-                <div style={{ fontSize: 10, fontFamily: 'sans-serif', color: 'var(--gpu-faint)', fontWeight: 400 }}>마진 {scn.marginPct}%</div>
+                <div style={{ fontSize: 'var(--fs-2xs)', fontFamily: 'sans-serif', color: 'var(--gpu-faint)', fontWeight: 400 }}>마진 {scn.marginPct}%</div>
               </div>
               {/* 갭 + 판정 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <div style={{ fontFamily: 'monospace', fontSize: 12.5, fontWeight: 700, color: isGapOk ? 'var(--gpu-green)' : 'var(--gpu-amber)' }}>
                   {isGapOk ? '▼' : '▲'}{fmt(Math.abs(gapAmount))}
-                  <span style={{ fontSize: 10, fontWeight: 400, marginLeft: 4 }}>({Math.abs(scn.supplyChangePct).toFixed(1)}%)</span>
+                  <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 400, marginLeft: 4 }}>({Math.abs(scn.supplyChangePct).toFixed(1)}%)</span>
                 </div>
-                <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: jc.bg, color: jc.color, alignSelf: 'flex-start', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: jc.bg, color: jc.color, alignSelf: 'flex-start', whiteSpace: 'nowrap' }}>
                   {judgeLabel(scn.judge)}
                 </span>
               </div>
@@ -1160,7 +1160,7 @@ function MappingManagerModal({ mappings, competitors, onClose, onChanged }: {
               <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '6px 8px', borderRadius: 7, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--surface-bg)' }}>
                 <span style={{ fontWeight: 700, minWidth: 90 }}>{m.competitors?.name ?? '?'}</span>
                 <span style={{ flex: 1 }} title={memoryTitle(m.gpu_products?.memory, m.gpu_products?.gpu_count) || undefined}>{m.gpu_products?.model_name} {formatCardMemory(m.gpu_products?.memory, m.gpu_products?.gpu_count)}</span>
-                <span style={{ fontSize: 10.5, color: 'var(--gpu-muted)' }}>{PRICING_MODEL_LABEL[m.pricing_model] ?? m.pricing_model}</span>
+                <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)' }}>{PRICING_MODEL_LABEL[m.pricing_model] ?? m.pricing_model}</span>
                 <button onClick={() => del(m.id)} className="gpu-btn" style={{ padding: 4, color: 'var(--gpu-red)' }}>🗑</button>
               </div>
             ))}
@@ -1614,7 +1614,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
         display: 'flex', flexWrap: 'wrap', gap: 6, padding: '10px 14px',
         background: '#fff', border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 11, alignItems: 'center',
       }}>
-        <span className="gpu-filter-label-mob" style={{ fontSize: 10.5, color: 'var(--gpu-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginRight: 2 }}>그룹:</span>
+        <span className="gpu-filter-label-mob" style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginRight: 2 }}>그룹:</span>
         {Object.entries(COMP_GROUPS).map(([key, group]) => (
           <button
             key={key}
@@ -1631,7 +1631,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
           </button>
         ))}
         <div style={{ width: 1, height: 16, background: 'var(--gpu-border)', margin: '0 4px' }} />
-        <span className="gpu-filter-label-mob" style={{ fontSize: 10.5, color: 'var(--gpu-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginRight: 2 }}>경쟁사:</span>
+        <span className="gpu-filter-label-mob" style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginRight: 2 }}>경쟁사:</span>
         <button
           onClick={() => setShowCompModal(true)}
           style={{
@@ -1648,7 +1648,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
                 const c = competitors.find(x => x.id === id)
                 return c ? <span key={id} style={{ width: 7, height: 7, borderRadius: '50%', background: c.color, display: 'inline-block' }} /> : null
               })}
-              {activeComps.size > 3 && <span style={{ fontSize: 10 }}>+{activeComps.size - 3}</span>}
+              {activeComps.size > 3 && <span style={{ fontSize: 'var(--fs-2xs)' }}>+{activeComps.size - 3}</span>}
               {activeComps.size}개 선택
             </>
           ) : '전체 ▾'}
@@ -1708,7 +1708,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
                 if (groupComps.length === 0) return null
                 return (
                   <div key={groupKey}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--gpu-muted)', textTransform: 'uppercase', letterSpacing: '.06em', padding: '8px 4px 4px' }}>
+                    <div style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--gpu-muted)', textTransform: 'uppercase', letterSpacing: '.06em', padding: '8px 4px 4px' }}>
                       {group.label}
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -1740,7 +1740,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
                 if (ungrouped.length === 0) return null
                 return (
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--gpu-muted)', textTransform: 'uppercase', letterSpacing: '.06em', padding: '8px 4px 4px' }}>기타</div>
+                    <div style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--gpu-muted)', textTransform: 'uppercase', letterSpacing: '.06em', padding: '8px 4px 4px' }}>기타</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {ungrouped.map(c => (
                         <button
@@ -1819,7 +1819,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
             display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1.5fr 36px',
             gap: 14, padding: '10px 18px',
             background: 'var(--surface-bg)', borderBottom: 'var(--hairline) solid var(--gpu-border)',
-            fontSize: 10.5, color: 'var(--gpu-muted)', fontWeight: 600,
+            fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', fontWeight: 600,
             textTransform: 'uppercase', letterSpacing: '.04em',
           }}>
             <div>GPU 모델</div>
@@ -1892,16 +1892,16 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
                           />
                         </div>
                         <div className="gpu-model-meta">
-                          <span className={`gpu-badge ${tierCfg.badge}`} style={{ fontSize: '10px' }}>{tierCfg.label}</span>
+                          <span className={`gpu-badge ${tierCfg.badge}`} style={{ fontSize: 'var(--fs-2xs)' }}>{tierCfg.label}</span>
                         </div>
-                        <div style={{ fontSize: '10.5px', color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p.product)}</div>
+                        <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p.product)}</div>
                       </div>
                     </div>
 
                     <div>
                       {p.our_price_usd != null ? (
                         <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 14, color: 'var(--gpu-accent)' }}>
-                          {fmt(p.our_price_usd)}<span style={{ fontSize: 10, color: 'var(--gpu-muted)', fontWeight: 400 }}>/hr</span>
+                          {fmt(p.our_price_usd)}<span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', fontWeight: 400 }}>/hr</span>
                         </span>
                       ) : (
                         <span style={{ fontSize: 11, color: 'var(--gpu-faint)' }}>공급가 없음</span>
@@ -1914,7 +1914,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
                           <div style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12.5 }}>
                             {fmt(min)} ~ {fmt(max)}
                           </div>
-                          <div style={{ fontSize: 10.5, color: 'var(--gpu-muted)', marginTop: 2 }}>
+                          <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', marginTop: 2 }}>
                             {pricedComps.length}개 경쟁사
                           </div>
                         </div>
@@ -1980,7 +1980,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
                             const scn = computeScenarios(p)
                             const recommended = scn?.find(s => s.judge === 'ok') || scn?.find(s => s.judge === 'warn') || scn?.[0]
                             return recommended ? (
-                              <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 8, background: 'var(--gpu-accent-bg)', color: 'var(--gpu-accent)' }}>
+                              <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, padding: '1px 6px', borderRadius: 8, background: 'var(--gpu-accent-bg)', color: 'var(--gpu-accent)' }}>
                                 {recommended.name}
                               </span>
                             ) : null
@@ -2044,8 +2044,8 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
                       onClick={() => toggleTierModel(mKey)}
                       style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 18px 7px 30px', cursor: 'pointer', background: '#fff', borderBottom: 'var(--hairline) solid var(--surface-bg)', userSelect: 'none' }}
                     >
-                      <span style={{ transform: mCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform .15s', color: 'var(--gpu-muted)', display: 'inline-flex', fontSize: 10 }}>▶</span>
-                      <span className={`gpu-badge ${tMeta.badge}`} style={{ fontSize: 9.5 }}>T{tg.tier}</span>
+                      <span style={{ transform: mCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform .15s', color: 'var(--gpu-muted)', display: 'inline-flex', fontSize: 'var(--fs-2xs)' }}>▶</span>
+                      <span className={`gpu-badge ${tMeta.badge}`} style={{ fontSize: 'var(--fs-2xs)' }}>T{tg.tier}</span>
                       <strong style={{ fontSize: 12.5, color: 'var(--text)' }}>{mg.model}</strong>
                       <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>{mg.items.length}개 구성</span>
                     </div>

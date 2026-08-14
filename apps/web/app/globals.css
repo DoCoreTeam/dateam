@@ -163,7 +163,11 @@
   --ink: #0f172a;
   /* 페이지 바탕이 회색(#eef1f6)이라 트랙은 한 단 더 낮춰야 눌린 곳이 보인다 */
   --surface-muted: #e2e8f0;
-  --border-light: #eef2f7;
+  /* 바탕(--surface-bg #eef1f6)보다 **밝으면** 테두리가 사라진다.
+     예전 값 #eef2f7이 바탕보다 밝아, 바탕색으로 채운 부품 14곳
+     (AI채팅 입력줄·예시버튼·칩·코드블록·인용카드·콕핏 뱃지 …)의
+     테두리가 통째로 안 보였다. :root와 같은 값으로 되돌린다. */
+  --border-light: #e2e8f0;
   --border-color: #e2e8f0;       /* 잉크 → 연회색 */
   --shadow-color: rgba(15, 23, 42, 0.08);
   --accent: #6366f1;             /* 노랑 → 인디고 */
@@ -2374,7 +2378,7 @@ label.intake-tool-btn {
 }
 .cal-preview-type {
   flex-shrink: 0;
-  font-size: 0.625rem;
+  font-size: var(--fs-2xs);
   font-weight: 800;
   color: var(--text-muted);
   letter-spacing: 0;
@@ -3406,7 +3410,7 @@ label.intake-tool-btn {
   .cal-preview-text,
   .calendar-more-count,
   .calendar-blocker-chip {
-    font-size: 0.625rem;
+    font-size: var(--fs-2xs);
   }
 }
 
@@ -3519,7 +3523,7 @@ label.intake-tool-btn {
   right: -0.2rem;
   background: var(--danger);
   color: #fff;
-  font-size: 0.625rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   border-radius: 999px;
   padding: 0.15rem 0.35rem;
@@ -4406,23 +4410,6 @@ label.intake-tool-btn {
   overflow-y: auto;
 }
 
-.gpu-topbar {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-}
-.gpu-crumb { font-size: 12.5px; color: var(--gpu-muted); }
-.gpu-page-title {
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 2px;
-}
 .gpu-version-pill {
   font-size: 11px;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
@@ -4495,7 +4482,7 @@ label.intake-tool-btn {
   box-shadow: var(--gpu-shadow);
 }
 .gpu-tab-cnt {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   background: var(--gpu-red);
   color: #fff;
   border-radius: var(--radius-lg);
@@ -4630,13 +4617,15 @@ label.intake-tool-btn {
   flex-wrap: wrap;
 }
 .gpu-search { flex: 1; min-width: 200px; position: relative; }
+/* 검색칸은 좌측 아이콘 자리(38px) 때문에 input-field를 못 쓴다.
+   대신 같은 토큰을 써서 표준 필드와 질감을 맞춘다 */
 .gpu-search input {
   width: 100%;
   border: var(--hairline) solid var(--gpu-border);
-  background: #fff;
+  background: var(--color-surface);
   border-radius: var(--radius);
   padding: 10px 14px 10px 38px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-family: inherit;
   color: var(--gpu-ink);
 }
@@ -4831,11 +4820,11 @@ label.intake-tool-btn {
   justify-content: center;
   flex-shrink: 0;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   line-height: 1.1;
 }
-.gpu-chip span { font-size: 7px; opacity: 0.65; font-weight: 500; }
+.gpu-chip span { font-size: var(--fs-2xs); opacity: 0.65; font-weight: 500; }
 .gpu-model-nm { font-weight: 600; font-size: 13.5px; }
 .gpu-model-meta { font-size: 11.5px; color: var(--gpu-muted); margin-top: 2px; display: flex; align-items: center; gap: 5px; }
 
@@ -4894,7 +4883,7 @@ label.intake-tool-btn {
 .gpu-badge-best {
   background: var(--gpu-green-soft);
   color: var(--gpu-green);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   padding: 1px 6px;
   border-radius: var(--radius-lg);
@@ -5049,7 +5038,7 @@ label.intake-tool-btn {
 .gpu-cell-faint { font-size: var(--fs-xs); color: var(--gpu-faint); }
 
 /* 유효기간 D-day */
-.gpu-dday { font-size: 10.5px; font-weight: var(--font-weight-bold); }
+.gpu-dday { font-size: var(--fs-2xs); font-weight: var(--font-weight-bold); }
 
 /* 공시 판매가 박스 */
 .gpu-list-price-box {
@@ -5375,7 +5364,7 @@ label.intake-tool-btn {
   border-bottom: var(--hairline) dashed var(--gpu-border);
 }
 @media (max-width: 600px) { .gpu-rev-fields { grid-template-columns: repeat(2, 1fr); } }
-.gpu-rev-f .gpu-rev-f-lbl { font-size: 10.5px; color: var(--gpu-muted); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 5px; font-weight: 600; }
+.gpu-rev-f .gpu-rev-f-lbl { font-size: var(--fs-2xs); color: var(--gpu-muted); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 5px; font-weight: 600; }
 .gpu-rev-f .gpu-rev-f-val { font-size: 14px; font-weight: 600; font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .gpu-rev-actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
 .gpu-rev-sp { margin-left: auto; font-size: 11.5px; color: var(--gpu-muted); }
@@ -5432,7 +5421,6 @@ label.intake-tool-btn {
 @media (max-width: 767px) {
   .gpu-pricing-root { padding: var(--space-4) var(--space-4) 0; overflow: visible; }
   .gpu-tab-content, .gpu-tab-panel { overflow: visible; }
-  .gpu-topbar { flex-direction: column; align-items: flex-start; }
   .gpu-topbar-right { width: 100%; min-width: 0; }
   .gpu-fx-pill { width: 100%; min-width: 0; flex-wrap: wrap; }
   .gpu-export-btn { display: none; }
@@ -7336,7 +7324,7 @@ label.intake-tool-btn {
   transition: opacity 0.15s;
 }
 .cockpit-gcube-sync-icon {
-  font-size: 0.65rem;
+  font-size: var(--fs-2xs);
   line-height: 1;
   font-style: normal;
 }

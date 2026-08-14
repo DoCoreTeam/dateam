@@ -108,10 +108,10 @@ export default function MemoListView() {
                     <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '0.3rem', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.7rem', color: st.text }}>{relativeTime(m.logged_at)}</span>
                       {m.memo_status === 'reviewed' && (
-                        <span style={{ fontSize: '0.65rem', color: 'var(--success)', background: 'var(--success-bg)', borderRadius: '999px', padding: '0 6px' }}>확인됨</span>
+                        <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--success)', background: 'var(--success-bg)', borderRadius: '999px', padding: '0 6px' }}>확인됨</span>
                       )}
                       {m.memo_status === 'actioned' && (
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', background: 'var(--surface-muted)', borderRadius: '999px', padding: '0 6px' }}>정리됨</span>
+                        <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', background: 'var(--surface-muted)', borderRadius: '999px', padding: '0 6px' }}>정리됨</span>
                       )}
                     </div>
                   </div>

@@ -118,7 +118,7 @@ export default function DayDetailPanel({ date, onClose }: Props) {
             <span className="day-panel-time day-panel-time--made">{madeLabel}</span>
             {log.log_date !== date && (
               <span style={{
-                fontSize: '0.65rem', color: 'var(--brand)',
+                fontSize: 'var(--fs-2xs)', color: 'var(--brand)',
                 background: 'var(--brand-soft)', border: 'var(--hairline) solid var(--brand-soft-2)',
                 padding: '0.05rem 0.35rem', borderRadius: 'var(--radius)',
               }}>
@@ -225,8 +225,8 @@ export default function DayDetailPanel({ date, onClose }: Props) {
                     {ev.link_kind === 'meeting' && (
                       <span className="cal-link-badge" title="회의노트에서 생성된 일정">회의</span>
                     )}
-                    {ev.rrule && <span style={{ fontSize: '0.6rem', color: 'var(--brand)' }} title="반복">↻</span>}
-                    {ev.source === 'ai' && <span style={{ fontSize: '0.6rem', color: 'var(--brand)' }}>AI</span>}
+                    {ev.rrule && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--brand)' }} title="반복">↻</span>}
+                    {ev.source === 'ai' && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--brand)' }}>AI</span>}
                     <button onClick={() => onDeleteEvent(ev.base_id ?? ev.id)} aria-label="삭제" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--border-subtle)', flexShrink: 0 }}><Trash2 size={13} /></button>
                   </div>
                 ))}

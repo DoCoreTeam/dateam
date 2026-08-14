@@ -279,7 +279,7 @@ export default function TiptapEditor({
                     position: 'relative',
                   }}
                 >
-                  {!c.value && <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: 'var(--text-faint)' }}>✕</span>}
+                  {!c.value && <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)' }}>✕</span>}
                 </button>
               ))}
             </div>

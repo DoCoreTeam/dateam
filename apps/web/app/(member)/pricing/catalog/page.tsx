@@ -8,6 +8,7 @@ import { ChevronRight } from 'lucide-react'
 import { useCollapsibleGroups } from '@/hooks/useCollapsibleGroups'
 import { fmtKRW as fmtKRWSSOT, fmtCatalogHourlyUSD, fmtUSDWhole } from '@/lib/gpu/format-price'
 import { GpuModelName } from '@/components/pricing/gpu/GpuModelName'
+import PageHeader from '@/components/ui/PageHeader'
 import { perCardMemory, memoryTitle } from '@/lib/gpu/card-memory'
 import { baseModelKey, baseModelName } from '@/lib/gpu/canonical-model'
 import { expandLadderWith } from '@/lib/gpu/config-ladder-expand'
@@ -188,22 +189,23 @@ export default function SalePriceCatalogPage() {
 
   return (
     <div className="page-inner sale-catalog-page">
-      {/* 헤더 */}
-      <div className="gpu-topbar">
-        <div>
-          <div className="gpu-crumb">가격정책</div>
-          <h2 className="gpu-page-title">GPU 판매 가격표</h2>
-        </div>
-        <div className="gpu-topbar-right" style={{ gap: 8 }}>
-          <div className="gpu-fx-pill" title="현재 적용 환율">
-            <span className="gpu-fx-dot" />
-            1 USD = <span className="gpu-mono">{Math.round(usdKrw).toLocaleString('ko-KR')}원</span>
+      {/* 헤더 — 공용 PageHeader(§2-3). GPU 관리와 같은 제목 크기를 쓴다 */}
+      <PageHeader
+        className="page-header--compact"
+        eyebrow="가격정책"
+        title="GPU 판매 가격표"
+        actions={
+          <div className="gpu-topbar-right" style={{ gap: 8 }}>
+            <div className="gpu-fx-pill" title="현재 적용 환율">
+              <span className="gpu-fx-dot" />
+              1 USD = <span className="gpu-mono">{Math.round(usdKrw).toLocaleString('ko-KR')}원</span>
+            </div>
+            <div className="gpu-fx-pill" style={{ color: 'var(--gpu-muted)', fontSize: 'var(--fs-2xs)' }}>
+              마진 {marginPct}% 적용
+            </div>
           </div>
-          <div className="gpu-fx-pill" style={{ color: 'var(--gpu-muted)', fontSize: 11 }}>
-            마진 {marginPct}% 적용
-          </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* 필터 바 */}
       <div className="gpu-toolbar sale-catalog-toolbar" style={{ marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
@@ -378,7 +380,7 @@ export default function SalePriceCatalogPage() {
                           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gpu-accent)', fontFamily: 'monospace' }}>
                             {fmt(customHours)}
                           </div>
-                          <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>
+                          <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)' }}>
                             {customHours.toLocaleString()}시간 합계
                           </div>
                         </>
@@ -412,7 +414,7 @@ function PriceCell({ value, sub, label, green }: { value: string | null; sub: st
     <div className="sale-catalog-period">
       <div className="sale-catalog-period-label">{label}</div>
       <div style={{ fontSize: 12, fontWeight: 600, color: green ? 'var(--success)' : 'var(--text)', fontFamily: 'monospace' }}>{value}</div>
-      <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>{sub}</div>
+      <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)' }}>{sub}</div>
     </div>
   )
 }

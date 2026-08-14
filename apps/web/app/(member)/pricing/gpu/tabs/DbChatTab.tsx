@@ -231,7 +231,7 @@ export default function DbChatTab() {
                   )}
                   {!msg.streaming && msg.data && msg.data.length > 0 && renderTable(msg.data)}
                   {!msg.streaming && msg.source_tables && msg.source_tables.length > 0 && (
-                    <div style={{ marginTop: 6, fontSize: 10, opacity: 0.6 }}>
+                    <div style={{ marginTop: 6, fontSize: 'var(--fs-2xs)', opacity: 0.6 }}>
                       참조: {msg.source_tables.join(', ')}
                     </div>
                   )}

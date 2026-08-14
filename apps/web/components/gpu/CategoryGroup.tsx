@@ -46,7 +46,7 @@ export function ModelHeader({
       }}
     >
       <ChevronRight size={14} style={{ transform: collapsed ? 'none' : 'rotate(90deg)', transition: 'transform .15s', color: 'var(--gpu-muted)' }} />
-      <span className={`gpu-badge ${tierMeta.badge}`} style={{ fontSize: 9.5 }}>T{tier}</span>
+      <span className={`gpu-badge ${tierMeta.badge}`} style={{ fontSize: 'var(--fs-2xs)' }}>T{tier}</span>
       <strong style={{ fontSize: 13, color: 'var(--text)' }}>{model}</strong>
       <span style={{ fontSize: 11, color: 'var(--gpu-muted)', marginLeft: 'auto' }}>
         {itemCount}개 구성{meta ? ` · ${meta}` : ''}

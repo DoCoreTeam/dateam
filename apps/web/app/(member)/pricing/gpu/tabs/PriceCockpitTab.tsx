@@ -758,7 +758,7 @@ export default function PriceCockpitTab({
                                 color: 'var(--gpu-muted)',
                               }}
                             />
-                            <span className={`gpu-badge ${tMeta.badge}`} style={{ fontSize: 9.5 }}>T{tg.tier}</span>
+                            <span className={`gpu-badge ${tMeta.badge}`} style={{ fontSize: 'var(--fs-2xs)' }}>T{tg.tier}</span>
                             <strong style={{ fontSize: 13, color: 'var(--text)' }}>{mg.model}</strong>
                             <span style={{ fontSize: 11, color: 'var(--gpu-muted)', marginLeft: 'auto' }}>
                               {mg.items.length}개 구성

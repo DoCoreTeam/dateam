@@ -191,7 +191,7 @@ export function LogFlowView({ log, allLogs, onClose }: {
                         </span>
                         {isHighlight && (
                           <span style={{
-                            fontSize: '0.6rem', fontWeight: 700, color: 'var(--info)',
+                            fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--info)',
                             background: 'var(--info-bg)', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius)',
                           }}>
                             현재

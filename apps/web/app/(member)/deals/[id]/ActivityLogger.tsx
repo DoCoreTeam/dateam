@@ -110,7 +110,7 @@ export default function ActivityLogger({ dealId }: Props) {
           <InlineError>{error}</InlineError>
           <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
             <button type="submit" disabled={loading} className="btn-primary" style={{ fontSize: 'var(--fs-sm)', padding: 'var(--space-2) var(--space-4)', minHeight: '36px' }}>
-              {loading ? '저장중...' : '저장'}{!loading && <span style={{ fontSize: '0.65rem', opacity: 0.65, marginLeft: '0.3rem' }}>Ctrl+↵</span>}
+              {loading ? '저장중...' : '저장'}{!loading && <span style={{ fontSize: 'var(--fs-2xs)', opacity: 0.65, marginLeft: '0.3rem' }}>Ctrl+↵</span>}
             </button>
             <button type="button" onClick={handleAiParse} disabled={aiLoading} style={{ fontSize: 'var(--fs-sm)', padding: '0.5rem 0.875rem', minHeight: '36px', background: 'var(--info-bg)', color: 'var(--info)', border: 'var(--hairline) solid var(--info-border)', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 600 }}>
               {aiLoading ? 'AI분석중...' : '🤖 AI정리'}

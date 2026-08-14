@@ -35,8 +35,8 @@ export function SupplierBadge({ name, color, kind = 'ours', unassigned }: Suppli
     >
       <span className="gpu-sdot" style={{ background: color ?? 'var(--text-faint)', flexShrink: 0 }} />
       {name}
-      {kind === 'self' && <span style={{ fontSize: 9, opacity: 0.7 }}>자사</span>}
-      {kind === 'ours' && <span style={{ fontSize: 9, opacity: 0.7 }}>공급사</span>}
+      {kind === 'self' && <span style={{ fontSize: 'var(--fs-2xs)', opacity: 0.7 }}>자사</span>}
+      {kind === 'ours' && <span style={{ fontSize: 'var(--fs-2xs)', opacity: 0.7 }}>공급사</span>}
     </span>
   )
 }

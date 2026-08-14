@@ -75,7 +75,7 @@ export default function MemoAllModal({ items, onReview, onPromote, onClose, onGo
                     <div style={{ fontSize: '0.85rem', color: 'var(--text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5 }}>
                       {m.content}
                     </div>
-                    <div style={{ fontSize: '0.68rem', color: st.text, marginTop: '0.15rem' }}>{relativeTime(m.logged_at)}</div>
+                    <div style={{ fontSize: 'var(--fs-2xs)', color: st.text, marginTop: '0.15rem' }}>{relativeTime(m.logged_at)}</div>
                   </div>
                   <button
                     onClick={() => onReview(m.id)}

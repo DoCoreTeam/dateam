@@ -92,7 +92,7 @@ export default function UnreviewedMemoWidget({ variant = 'compact', onGoToMemoTa
                     <div style={{ fontSize: '0.82rem', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {m.content}
                     </div>
-                    <div style={{ fontSize: '0.68rem', color: st.text }}>{relativeTime(m.logged_at)}</div>
+                    <div style={{ fontSize: 'var(--fs-2xs)', color: st.text }}>{relativeTime(m.logged_at)}</div>
                   </div>
                   <button onClick={() => handleReview(m.id)} title="확인 완료"
                     style={{ background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius-lg)', cursor: 'pointer', padding: '3px 5px', color: 'var(--success)', display: 'flex', flexShrink: 0 }}>

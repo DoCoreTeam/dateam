@@ -97,7 +97,12 @@ export default function SegmentedTabs({
     document.getElementById(`segtab-${next.id}`)?.focus()
   }
 
-  const current = tabs.find(isCurrent) ?? (isNav ? undefined : tabs[0])
+  // 제어형(activeId)에서 활성 탭이 목록에 없으면 **아무 탭도 활성이 아니다.**
+  // tabs[0]으로 떨어뜨리면 탭이 거짓말을 한다 — GPU 화면이 ?tab=cockpit일 때
+  // 내용은 '가격 결정'인데 첫 탭 '통합 입력'에 불이 들어와 있었다(실측).
+  const current = tabs.find(isCurrent) ?? (isNav || activeId !== undefined ? undefined : tabs[0])
+  // 활성 탭이 없어도 키보드로는 탭 줄에 들어올 수 있어야 한다(roving tabindex).
+  const focusableId = current?.id ?? tabs[0]?.id
 
   return (
     <>
@@ -135,7 +140,7 @@ export default function SegmentedTabs({
               className={cls}
               aria-selected={active}
               aria-controls={t.content ? `segpanel-${t.id}` : undefined}
-              tabIndex={active ? 0 : -1}
+              tabIndex={t.id === focusableId ? 0 : -1}
               onClick={() => select(t.id)}
               onKeyDown={(e) => onKeyDown(e, i)}
               data-testid={t.testId}

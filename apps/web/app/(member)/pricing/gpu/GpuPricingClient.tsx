@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
+import PageHeader from '@/components/ui/PageHeader'
 import { useSearchParams } from 'next/navigation'
 import useSWR, { SWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
@@ -265,20 +266,21 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
     // 여기서 nested SWRConfig로 override → 가격 정확도 우선, 영속 stale 방지(부모 provider/fetcher는 그대로 상속).
     <SWRConfig value={{ revalidateIfStale: true, keepPreviousData: true }}>
     <div className="gpu-pricing-root" data-active-tab={activeTab}>
-      {/* 상단 헤더 */}
-      <div className="gpu-topbar">
-        <div>
-          <div className="gpu-crumb">가격정책</div>
-          <h2 className="gpu-page-title">GPU 관리</h2>
-        </div>
+      {/* 상단 헤더 — 공용 PageHeader(§2-3). 예전엔 .gpu-page-title로 자작해
+           제목만 19px이라 다른 페이지(24px)보다 작게 보였고 h1이 아예 없었다 */}
+      <PageHeader
+        className="page-header--compact"
+        eyebrow="가격정책"
+        title="GPU 관리"
+        actions={
         <div className="gpu-topbar-right">
           {usdKrw != null && (
             <div className="gpu-fx-pill" title="매 영업일 한국수출입은행 매매기준율을 자동으로 받아옵니다">
               <span className="gpu-fx-dot" />
               오늘 매매기준율
               <span className="gpu-mono">1 USD = {Math.round(usdKrw).toLocaleString('ko-KR')}원</span>
-              {fxDate && <span style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>{fxDate}</span>}
-              <span className="gpu-badge gpu-badge-green" style={{ fontSize: '9px', padding: '1px 6px' }}>자동</span>
+              {fxDate && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)' }}>{fxDate}</span>}
+              <span className="gpu-badge gpu-badge-green" style={{ fontSize: 'var(--fs-2xs)', padding: '1px 6px' }}>자동</span>
             </div>
           )}
           <button className="gpu-btn gpu-export-btn">
@@ -292,8 +294,21 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           >
             <Plus size={15} /> 통합 입력
           </button>}
+          {/* AI 조회 토글 — 탭이 아니라 화면 단위 동작이라 헤더 액션에 둔다.
+              예전엔 탭 줄 끝에 margin-left:auto로 붙어, 모바일에서 탭이 줄바꿈되면
+              혼자 오른쪽에 덩그러니 남는 빈 줄이 생겼다. */}
+          <button
+            data-testid="ai-panel-toggle"
+            className={`gpu-ai-toggle${showAiPanel ? ' gpu-ai-toggle--on' : ''}`}
+            onClick={() => setShowAiPanel((v) => !v)}
+            title="AI 조회 열기/닫기 — 어느 화면에서든 우리 GPU 데이터에 질문"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+            AI 조회
+          </button>
         </div>
-      </div>
+        }
+      />
 
       {/* 탭 — 메인/관리를 한 줄로 합쳐 공용 SegmentedTabs가 그린다.
            예전엔 메인은 .gpu-tab, 관리는 인라인 style(정의 없는 .gpu-admin-tab)로 그려
@@ -305,8 +320,12 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           activeId={activeTab}
           onSelect={(id) => goToTab(id as MainTabId | SecondaryTabId)}
           tabs={[
-            // 통합 표 ON: 메인 5탭은 통합 표의 보기 세그먼트가 대체 → 'intake'·'board'만 남긴다
-            ...(unifiedOn ? MAIN_TABS.filter((t) => t.id === 'intake' || t.id === 'board') : MAIN_TABS)
+            // 통합 표 ON: 메인 5탭은 통합 표의 보기 세그먼트가 대체 → 'intake'·'board'만 남긴다.
+            // 단, 지금 열려 있는 탭이 그 중 하나면(예: 링크로 들어온 ?tab=cockpit) 함께 보여 준다 —
+            // 안 그러면 내용은 '가격 결정'인데 탭 줄에는 그 탭이 없어 어디에 있는지 알 수 없다.
+            ...(unifiedOn
+              ? MAIN_TABS.filter((t) => t.id === 'intake' || t.id === 'board' || t.id === activeTab)
+              : MAIN_TABS)
               .map((t) => ({ id: t.id as string, label: t.label, icon: t.icon })),
             // 마스터 관리 탭은 admin 전용(P4-3 RBAC) — member는 통합 표 상세 패널에서 읽는다
             ...ADMIN_TABS
@@ -319,18 +338,6 @@ export default function GpuPricingClient({ initialSettings, isAdmin = false }: {
           ]}
         />
 
-        {/* AI 조회 토글 — 모든 탭에서 상시 노출(어느 화면에서든 우리 데이터에 질문). */}
-        <div style={{ marginLeft: 'auto', paddingRight: 4, flexShrink: 0 }}>
-          <button
-            data-testid="ai-panel-toggle"
-            className={`gpu-ai-toggle${showAiPanel ? ' gpu-ai-toggle--on' : ''}`}
-            onClick={() => setShowAiPanel((v) => !v)}
-            title="AI 조회 열기/닫기 — 어느 화면에서든 우리 GPU 데이터에 질문"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-            AI 조회
-          </button>
-        </div>
       </div>
 
       {/* 탭 컨텐츠 — gpu-tab-content: flex:1 min-height:0 overflow:hidden display:flex flex-direction:column

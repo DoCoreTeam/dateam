@@ -200,7 +200,7 @@ export default function MobileShell({
               aria-label={hasNewChangelog ? '새 패치노트 보기' : '패치노트 보기'}
               title="패치노트"
               className="app-version-btn"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', fontSize: '0.625rem', color: 'var(--text-muted)', letterSpacing: '0.06em', fontWeight: 600, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '4px' }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', letterSpacing: '0.06em', fontWeight: 600, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '4px' }}
             >
               v{appVersion || '—'}
               {hasNewChangelog && (

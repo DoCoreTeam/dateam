@@ -4,6 +4,8 @@ import type { ReactNode } from 'react'
 // 기준: 주간보고 헤더 토큰(--fs-2xl / 700 / letterSpacing -0.03em). raw <h1> 금지(§2-3).
 interface PageHeaderProps {
   title: string
+  /** 제목 위 한 줄 분류(예: '가격정책'). 화면이 속한 묶음을 밝힐 때만 쓴다 */
+  eyebrow?: string
   description?: string
   actions?: ReactNode
   // 페이지별 여백 압축 등 추가 클래스(예: daily 상단 밀도 개선). 기본 동작은 불변.
@@ -13,7 +15,7 @@ interface PageHeaderProps {
   below?: ReactNode
 }
 
-export default function PageHeader({ title, description, actions, className, descClassName, below }: PageHeaderProps) {
+export default function PageHeader({ title, eyebrow, description, actions, className, descClassName, below }: PageHeaderProps) {
   const header = (
     <header
       className={`page-header${className ? ` ${className}` : ''}`}
@@ -23,6 +25,9 @@ export default function PageHeader({ title, description, actions, className, des
       }}
     >
       <div>
+        {eyebrow && (
+          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', marginBottom: '0.125rem' }}>{eyebrow}</div>
+        )}
         <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', margin: 0 }}>
           {title}
         </h1>

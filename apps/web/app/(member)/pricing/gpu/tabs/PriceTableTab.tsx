@@ -911,9 +911,9 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                               <GpuModelName modelName={p.model_name} gpuCount={p.gpu_count} />
                             </div>
                             <div className="gpu-model-meta">
-                              <span className={`gpu-badge ${tier.badge}`} style={{ fontSize: '10px' }}>{tier.label}</span>
+                              <span className={`gpu-badge ${tier.badge}`} style={{ fontSize: 'var(--fs-2xs)' }}>{tier.label}</span>
                             </div>
-                            <div style={{ fontSize: '10.5px', color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p)}</div>
+                            <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p)}</div>
                           </div>
                         </div>
                       </td>
@@ -947,13 +947,13 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                               {p.lowest_supplier.name}
                             </div>
                             {p.basis === 'selected' && (
-                              <span style={{ fontSize: 9.5, fontWeight: 700, color: '#fff', background: 'var(--gpu-accent, var(--brand))', borderRadius: 4, padding: '0 5px' }}>✓ 기준</span>
+                              <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: '#fff', background: 'var(--gpu-accent, var(--brand))', borderRadius: 4, padding: '0 5px' }}>✓ 기준</span>
                             )}
                             {p.basis === 'fallback' && (
-                              <span title={p.fallback_reason ?? ''} style={{ fontSize: 9.5, fontWeight: 700, color: '#fff', background: 'var(--gpu-red)', borderRadius: 4, padding: '0 5px' }}>⚠️ 기준만료→자동</span>
+                              <span title={p.fallback_reason ?? ''} style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: '#fff', background: 'var(--gpu-red)', borderRadius: 4, padding: '0 5px' }}>⚠️ 기준만료→자동</span>
                             )}
                             {p.basis === 'list' && (
-                              <span title="매입원가 미등록 — gcube 홈페이지 게시가를 그대로 사용" style={{ fontSize: 9.5, fontWeight: 800, color: '#fff', background: 'var(--gpu-amber, var(--warning))', borderRadius: 4, padding: '0 5px' }}>📢 {GPU_TERMS.gcubeListPrice}</span>
+                              <span title="매입원가 미등록 — gcube 홈페이지 게시가를 그대로 사용" style={{ fontSize: 'var(--fs-2xs)', fontWeight: 800, color: '#fff', background: 'var(--gpu-amber, var(--warning))', borderRadius: 4, padding: '0 5px' }}>📢 {GPU_TERMS.gcubeListPrice}</span>
                             )}
                           </div>
                         ) : p.lowest_unit_price_usd != null ? (
@@ -969,7 +969,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                               {currencyMode === 'KRW'
                                 ? fmtKRW(sellKrw)
                                 : fmtUSD(sellKrw / usdKrw)}
-                              {p.basis === 'list' && <span title="gcube 홈페이지 금액" style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--warning)', marginLeft: 4, verticalAlign: 'middle' }}>gcube</span>}
+                              {p.basis === 'list' && <span title="gcube 홈페이지 금액" style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--warning)', marginLeft: 4, verticalAlign: 'middle' }}>gcube</span>}
                             </div>
                             <div className="gpu-price-sub">
                               {currencyMode === 'KRW'
@@ -984,7 +984,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                       </td>
                       <td>
                         {dday && (
-                          <span className="gpu-mono" style={{ fontSize: '10px', color: dday.color }}>{dday.label}</span>
+                          <span className="gpu-mono" style={{ fontSize: 'var(--fs-2xs)', color: dday.color }}>{dday.label}</span>
                         )}
                       </td>
                       {selectedTier && (
@@ -1066,7 +1066,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                   <td colSpan={colCount}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <ChevronRight size={15} style={{ transform: collapsed ? 'none' : 'rotate(90deg)', transition: 'transform 0.15s', color: 'var(--gpu-muted)' }} />
-                      <span className={`gpu-badge ${tierCfg.badge}`} style={{ fontSize: 10 }}>{tierCfg.label}</span>
+                      <span className={`gpu-badge ${tierCfg.badge}`} style={{ fontSize: 'var(--fs-2xs)' }}>{tierCfg.label}</span>
                       <strong style={{ fontSize: 13.5, color: 'var(--text)' }}>{group.model}</strong>
                       <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>
                         {group.rows.length}개 구성{group.perGpu != null ? ` · 1장당 ${currencyMode === 'KRW' ? fmtKRW(Math.round(group.perGpu * usdKrw)) : fmtUSD(group.perGpu)}/GPU·hr` : ''}
@@ -1112,12 +1112,12 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                       <div>
                         <div className="gpu-model-nm">
                           <GpuModelName modelName={p.model_name} gpuCount={p.gpu_count} isDerived={p._derived} />
-                          {p._derived && <span style={{ fontSize: '10px', color: 'var(--gpu-accent)', marginLeft: 6, fontWeight: 600 }}>추정</span>}
+                          {p._derived && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-accent)', marginLeft: 6, fontWeight: 600 }}>추정</span>}
                         </div>
                         <div className="gpu-model-meta">
-                          <span className={`gpu-badge ${tier.badge}`} style={{ fontSize: '10px' }}>{tier.label}</span>
+                          <span className={`gpu-badge ${tier.badge}`} style={{ fontSize: 'var(--fs-2xs)' }}>{tier.label}</span>
                         </div>
-                        <div style={{ fontSize: '10.5px', color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p)}</div>
+                        <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-faint)', marginTop: 2 }}>{formatSpec(p)}</div>
                       </div>
                     </div>
                   </td>
@@ -1151,13 +1151,13 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                           {p.lowest_supplier.name}
                         </div>
                         {p.basis === 'selected' && (
-                          <span style={{ fontSize: 9.5, fontWeight: 700, color: '#fff', background: 'var(--gpu-accent, var(--brand))', borderRadius: 4, padding: '0 5px' }}>✓ 기준</span>
+                          <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: '#fff', background: 'var(--gpu-accent, var(--brand))', borderRadius: 4, padding: '0 5px' }}>✓ 기준</span>
                         )}
                         {p.basis === 'fallback' && (
-                          <span title={p.fallback_reason ?? ''} style={{ fontSize: 9.5, fontWeight: 700, color: '#fff', background: 'var(--gpu-red)', borderRadius: 4, padding: '0 5px' }}>⚠️ 기준만료→자동</span>
+                          <span title={p.fallback_reason ?? ''} style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: '#fff', background: 'var(--gpu-red)', borderRadius: 4, padding: '0 5px' }}>⚠️ 기준만료→자동</span>
                         )}
                         {p.basis === 'list' && (
-                          <span title="매입원가 미등록 — gcube 홈페이지 게시가를 그대로 사용" style={{ fontSize: 9.5, fontWeight: 800, color: '#fff', background: 'var(--gpu-amber, var(--warning))', borderRadius: 4, padding: '0 5px' }}>📢 {GPU_TERMS.gcubeListPrice}</span>
+                          <span title="매입원가 미등록 — gcube 홈페이지 게시가를 그대로 사용" style={{ fontSize: 'var(--fs-2xs)', fontWeight: 800, color: '#fff', background: 'var(--gpu-amber, var(--warning))', borderRadius: 4, padding: '0 5px' }}>📢 {GPU_TERMS.gcubeListPrice}</span>
                         )}
                       </div>
                     ) : p.lowest_unit_price_usd != null ? (
@@ -1173,7 +1173,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                           {currencyMode === 'KRW'
                             ? fmtKRW(sellKrw)
                             : fmtUSD(sellKrw / usdKrw)}
-                          {p.basis === 'list' && <span title="gcube 홈페이지 금액" style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--warning)', marginLeft: 4, verticalAlign: 'middle' }}>gcube</span>}
+                          {p.basis === 'list' && <span title="gcube 홈페이지 금액" style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--warning)', marginLeft: 4, verticalAlign: 'middle' }}>gcube</span>}
                         </div>
                         <div className="gpu-price-sub">
                           {currencyMode === 'KRW'
@@ -1201,7 +1201,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                           <span className="gpu-badge gpu-badge-green">견적 확정</span>
                         )}
                         {dday && (
-                          <span className="gpu-mono" style={{ fontSize: '10px', color: dday.color }}>{dday.label}</span>
+                          <span className="gpu-mono" style={{ fontSize: 'var(--fs-2xs)', color: dday.color }}>{dday.label}</span>
                         )}
                       </div>
                     ) : p.pending_count > 0 ? (

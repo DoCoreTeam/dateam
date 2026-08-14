@@ -278,7 +278,7 @@ export default function AiUsageDashboard({ providerModelRows, monthLabel }: AiUs
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={daily} margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-muted)" />
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text-faint)' }} tickFormatter={(v: string) => v.slice(5)} interval="preserveStartEnd" />
+                <XAxis dataKey="date" tick={{ fontSize: 'var(--fs-2xs)', fill: 'var(--text-faint)' }} tickFormatter={(v: string) => v.slice(5)} interval="preserveStartEnd" />
                 <YAxis tick={{ fontSize: 11, fill: 'var(--text-faint)' }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : String(v)} />
                 <Tooltip formatter={(v: number) => [fmt(v), '토큰']} labelStyle={{ fontSize: 12 }} contentStyle={{ fontSize: 12, borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)' }} />
                 <Line type="monotone" dataKey="total_tokens" stroke="var(--brand)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />

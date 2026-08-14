@@ -504,7 +504,7 @@ export default function QuoteRegisterTab() {
                 <div key={i} title={im.name} style={{ position: 'relative', width: 56, height: 56, borderRadius: 8, overflow: 'hidden', border: 'var(--hairline) solid var(--brand-soft-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-bg)' }}>
                   {im.previewUrl
                     ? <img src={im.previewUrl} alt={im.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>PDF</span>}
+                    : <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--text-muted)' }}>PDF</span>}
                   <button onClick={() => setStreamFiles((p) => { const t = p[i]; if (t?.previewUrl) URL.revokeObjectURL(t.previewUrl); return p.filter((_, idx) => idx !== i) })} title="제거"
                     style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', background: 'rgba(15,23,42,.7)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
                     <X size={11} />
@@ -577,7 +577,7 @@ export default function QuoteRegisterTab() {
             <Sparkles size={15} style={{ color: 'var(--gpu-accent)' }} />
             AI 추출 결과
             {analysisResults.length > 1 && (
-              <span className="gpu-badge" style={{ marginLeft: 8, background: 'var(--gpu-accent)', color: '#fff', fontSize: 10 }}>
+              <span className="gpu-badge" style={{ marginLeft: 8, background: 'var(--gpu-accent)', color: '#fff', fontSize: 'var(--fs-2xs)' }}>
                 {analysisResults.length}개 모델 감지
               </span>
             )}
@@ -657,8 +657,8 @@ export default function QuoteRegisterTab() {
               {hasCompetitorResults && (
                 <div data-testid="competitor-preview" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
-                    <span className="gpu-badge" style={{ background: 'var(--gpu-accent)', color: '#fff', fontSize: 10 }}>🟢 경쟁사 가격</span>
-                    <span className="gpu-badge" style={{ background: applied ? 'var(--gpu-green)' : 'var(--gpu-amber)', color: '#fff', fontSize: 10 }}>
+                    <span className="gpu-badge" style={{ background: 'var(--gpu-accent)', color: '#fff', fontSize: 'var(--fs-2xs)' }}>🟢 경쟁사 가격</span>
+                    <span className="gpu-badge" style={{ background: applied ? 'var(--gpu-green)' : 'var(--gpu-amber)', color: '#fff', fontSize: 'var(--fs-2xs)' }}>
                       {applied ? '반영 완료' : '반영 대기'}
                     </span>
                   </div>
@@ -697,8 +697,8 @@ export default function QuoteRegisterTab() {
               {supplierPreview.length > 0 && (
                 <div data-testid="supplier-preview" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
-                    <span className="gpu-badge" style={{ background: 'var(--brand)', color: '#fff', fontSize: 10 }}>🟡 공급사 견적</span>
-                    <span className="gpu-badge" style={{ background: committed ? 'var(--gpu-green)' : 'var(--gpu-amber)', color: '#fff', fontSize: 10 }}>
+                    <span className="gpu-badge" style={{ background: 'var(--brand)', color: '#fff', fontSize: 'var(--fs-2xs)' }}>🟡 공급사 견적</span>
+                    <span className="gpu-badge" style={{ background: committed ? 'var(--gpu-green)' : 'var(--gpu-amber)', color: '#fff', fontSize: 'var(--fs-2xs)' }}>
                       {committed ? '검토 대기 추가됨' : '저장 대기'}
                     </span>
                   </div>

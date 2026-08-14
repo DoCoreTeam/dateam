@@ -253,7 +253,7 @@ export function ResultPanel({ item }: { item: ReviewItemResult }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {/* 임팩트 배지 */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
-        <span className="gpu-badge" style={{ background: impact.color, color: '#fff', fontSize: 10 }}>
+        <span className="gpu-badge" style={{ background: impact.color, color: '#fff', fontSize: 'var(--fs-2xs)' }}>
           {impact.label}
         </span>
         {item.product_hint && (
@@ -261,9 +261,9 @@ export function ResultPanel({ item }: { item: ReviewItemResult }) {
         )}
         {item.supplier_hint
           ? <span className="gpu-badge gpu-badge-gray">{item.supplier_hint}</span>
-          : <span className="gpu-badge" style={{ background: 'var(--gpu-amber)', color: '#fff', fontSize: 10 }}>⚠ 공급사 미확인</span>
+          : <span className="gpu-badge" style={{ background: 'var(--gpu-amber)', color: '#fff', fontSize: 'var(--fs-2xs)' }}>⚠ 공급사 미확인</span>
         }
-        <span className="gpu-badge" style={{ background: getConfColor(overallPct), color: '#fff', fontSize: 10 }}>
+        <span className="gpu-badge" style={{ background: getConfColor(overallPct), color: '#fff', fontSize: 'var(--fs-2xs)' }}>
           신뢰도 {overallPct}%
         </span>
       </div>

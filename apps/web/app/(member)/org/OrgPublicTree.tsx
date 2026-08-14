@@ -64,7 +64,7 @@ const CARD_W = 172
 function EmailRow({ email }: { email: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginTop: '2px', width: '100%', overflow: 'hidden' }}>
-      <span style={{ fontSize: '0.6rem', color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{email}</span>
+      <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{email}</span>
       <CopyEmailBtn email={email} />
     </div>
   )
@@ -106,7 +106,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
         </div>
         {displayPerson && (
           <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
-            <div style={{ width: '1.35rem', height: '1.35rem', borderRadius: '50%', background: 'color-mix(in srgb, var(--nb-white) 20%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 700, color: 'var(--nb-white)', flexShrink: 0 }}>
+            <div style={{ width: '1.35rem', height: '1.35rem', borderRadius: '50%', background: 'color-mix(in srgb, var(--nb-white) 20%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--nb-white)', flexShrink: 0 }}>
               {displayPerson.name.charAt(0)}
             </div>
             <span style={{ fontSize: '0.72rem', color: 'color-mix(in srgb, var(--nb-white) 85%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -117,7 +117,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
         )}
         {email && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginTop: '3px', overflow: 'hidden' }}>
-            <span style={{ fontSize: '0.6rem', color: 'color-mix(in srgb, var(--nb-white) 50%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{email}</span>
+            <span style={{ fontSize: 'var(--fs-2xs)', color: 'color-mix(in srgb, var(--nb-white) 50%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{email}</span>
             <CopyEmailBtn email={email} />
           </div>
         )}
@@ -137,22 +137,22 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
           <Users size={13} color="var(--brand-soft-2)" style={{ flexShrink: 0 }} />
           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--nb-white)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</span>
           {personChildren.length > 0 && (
-            <span style={{ fontSize: '0.65rem', background: 'color-mix(in srgb, var(--nb-white) 15%, transparent)', color: 'var(--nb-white)', borderRadius: '999px', padding: '1px 6px', flexShrink: 0 }}>
+            <span style={{ fontSize: 'var(--fs-2xs)', background: 'color-mix(in srgb, var(--nb-white) 15%, transparent)', color: 'var(--nb-white)', borderRadius: '999px', padding: '1px 6px', flexShrink: 0 }}>
               {personChildren.length}명
             </span>
           )}
         </div>
         {headName && (
           <div style={{ marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.3rem', overflow: 'hidden' }}>
-            <div style={{ width: '1.1rem', height: '1.1rem', borderRadius: '50%', background: 'color-mix(in srgb, var(--nb-white) 25%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem', fontWeight: 700, color: 'var(--nb-white)', flexShrink: 0 }}>
+            <div style={{ width: '1.1rem', height: '1.1rem', borderRadius: '50%', background: 'color-mix(in srgb, var(--nb-white) 25%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-2xs)', fontWeight: 700, color: 'var(--nb-white)', flexShrink: 0 }}>
               {headName.charAt(0)}
             </div>
-            <span style={{ fontSize: '0.68rem', color: 'color-mix(in srgb, var(--nb-white) 80%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{headName}</span>
+            <span style={{ fontSize: 'var(--fs-2xs)', color: 'color-mix(in srgb, var(--nb-white) 80%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{headName}</span>
           </div>
         )}
         {email && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginTop: '3px', overflow: 'hidden' }}>
-            <span style={{ fontSize: '0.6rem', color: 'color-mix(in srgb, var(--nb-white) 50%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{email}</span>
+            <span style={{ fontSize: 'var(--fs-2xs)', color: 'color-mix(in srgb, var(--nb-white) 50%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{email}</span>
             <CopyEmailBtn email={email} />
           </div>
         )}
@@ -178,7 +178,7 @@ function NodeCard({ node, headName, email }: NodeCardProps) {
         </div>
         <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
           <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</div>
-          {node.subtitle && <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.subtitle}</div>}
+          {node.subtitle && <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.subtitle}</div>}
           {email && <EmailRow email={email} />}
         </div>
       </div>
@@ -381,13 +381,13 @@ export default function OrgPublicTree({
         <button onClick={() => setZoom(z => ({ ...z, scale: Math.max(z.scale / 1.2, 0.2) }))} style={{ width: 32, height: 32, border: 'none', borderRadius: 'var(--radius)', background: 'transparent', cursor: 'pointer', fontSize: '1.1rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>−</button>
         <div style={{ width: 1, background: 'var(--color-border)', margin: '4px 2px' }} />
         <button onClick={fitToScreen} style={{ width: 32, height: 32, border: 'none', borderRadius: 'var(--radius)', background: 'transparent', cursor: 'pointer', fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>FIT</button>
-        <button onClick={() => setZoom({ scale: 1, tx: 50, ty: 30 })} style={{ width: 32, height: 32, border: 'none', borderRadius: 'var(--radius)', background: 'transparent', cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>1:1</button>
+        <button onClick={() => setZoom({ scale: 1, tx: 50, ty: 30 })} style={{ width: 32, height: 32, border: 'none', borderRadius: 'var(--radius)', background: 'transparent', cursor: 'pointer', fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>1:1</button>
       </div>
 
       <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', zIndex: 10, background: 'color-mix(in srgb, var(--nb-white) 85%, transparent)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.15rem 0.5rem', fontSize: '0.7rem', color: 'var(--text-muted)', pointerEvents: 'none' }}>
         {Math.round(zoom.scale * 100)}%
       </div>
-      <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', zIndex: 10, background: 'color-mix(in srgb, var(--nb-white) 80%, transparent)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.15rem 0.5rem', fontSize: '0.68rem', color: 'var(--text-faint)', pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', zIndex: 10, background: 'color-mix(in srgb, var(--nb-white) 80%, transparent)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.15rem 0.5rem', fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)', pointerEvents: 'none' }}>
         스크롤: 줌 · 드래그: 이동
       </div>
 

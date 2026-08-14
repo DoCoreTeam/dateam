@@ -229,7 +229,7 @@ function InlineMember({
         width: '1.5rem', height: '1.5rem', borderRadius: '50%', flexShrink: 0,
         background: dark ? 'rgba(255,255,255,0.2)' : 'linear-gradient(135deg,var(--brand),var(--brand))',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '0.65rem', fontWeight: 700, color: '#fff',
+        fontSize: 'var(--fs-2xs)', fontWeight: 700, color: '#fff',
       }}>
         {displayName.charAt(0)}
       </div>
@@ -240,7 +240,7 @@ function InlineMember({
         </div>
         {profile?.email && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '2px', overflow: 'hidden' }}>
-            <span style={{ fontSize: '0.6rem', color: dark ? 'rgba(255,255,255,0.5)' : 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{profile.email}</span>
+            <span style={{ fontSize: 'var(--fs-2xs)', color: dark ? 'rgba(255,255,255,0.5)' : 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{profile.email}</span>
             <CopyBtn email={profile.email} />
           </div>
         )}
@@ -279,11 +279,11 @@ function RoleCard(props: CardProps) {
           <div style={{ marginTop: '0.25rem', overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <Crown size={10} color={c.badge} style={{ flexShrink: 0 }} />
-              <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{headName}</span>
+              <span style={{ fontSize: 'var(--fs-2xs)', color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{headName}</span>
             </div>
             {headEmail && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginTop: '1px', overflow: 'hidden' }}>
-                <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{headEmail}</span>
+                <span style={{ fontSize: 'var(--fs-2xs)', color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{headEmail}</span>
                 <CopyBtn email={headEmail} />
               </div>
             )}
@@ -314,16 +314,16 @@ function DeptCard(props: CardProps) {
           <Users size={iconSize} color={c.badge} />
           <span style={{ fontSize, fontWeight: 700, color: c.text, flex: 1 }}>{node.name}</span>
         </div>
-        {node.subtitle && <p style={{ margin: '0.15rem 0 0', fontSize: '0.68rem', color: 'rgba(255,255,255,0.65)' }}>{node.subtitle}</p>}
+        {node.subtitle && <p style={{ margin: '0.15rem 0 0', fontSize: 'var(--fs-2xs)', color: 'rgba(255,255,255,0.65)' }}>{node.subtitle}</p>}
         {headName && (
           <div style={{ marginTop: '0.3rem', overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <Crown size={10} color={c.badge} style={{ flexShrink: 0 }} />
-              <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{headName}</span>
+              <span style={{ fontSize: 'var(--fs-2xs)', color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{headName}</span>
             </div>
             {headEmail && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginTop: '1px', overflow: 'hidden' }}>
-                <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{headEmail}</span>
+                <span style={{ fontSize: 'var(--fs-2xs)', color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{headEmail}</span>
                 <CopyBtn email={headEmail} />
               </div>
             )}
@@ -349,15 +349,15 @@ function PersonCard(props: CardProps) {
             width: '1.6rem', height: '1.6rem', borderRadius: '50%',
             background: 'linear-gradient(135deg,var(--brand),var(--brand))',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '0.68rem', fontWeight: 700, color: '#fff', flexShrink: 0,
+            fontSize: 'var(--fs-2xs)', fontWeight: 700, color: '#fff', flexShrink: 0,
           }}>
             {displayName.charAt(0) || <User size={11} />}
           </div>
           <div>
             <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text)' }}>{displayName}</div>
-            {label && <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{label}</div>}
+            {label && <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>{label}</div>}
             {profile?.email && (
-              <div style={{ fontSize: '0.62rem', color: 'var(--text-faint)', marginTop: '1px', display: 'flex', alignItems: 'center', gap: '2px' }}>
+              <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)', marginTop: '1px', display: 'flex', alignItems: 'center', gap: '2px' }}>
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>{profile.email}</span>
                 <CopyBtn email={profile.email} />
               </div>

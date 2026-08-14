@@ -312,7 +312,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
             >FIT</button>
             <button
               onClick={() => setZoom({ scale: 1, tx: 50, ty: 30 })}
-              style={{ width: 32, height: 32, border: 'none', borderRadius: 'var(--radius)', background: 'transparent', cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}
+              style={{ width: 32, height: 32, border: 'none', borderRadius: 'var(--radius)', background: 'transparent', cursor: 'pointer', fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}
               title="100% 리셋"
             >1:1</button>
           </div>
@@ -323,7 +323,7 @@ export default function OrgTree({ nodes, allProfiles }: Props) {
           </div>
 
           {/* Help hint */}
-          <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.8)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.15rem 0.5rem', fontSize: '0.68rem', color: 'var(--text-faint)', pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', zIndex: 10, background: 'rgba(255,255,255,0.8)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.15rem 0.5rem', fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)', pointerEvents: 'none' }}>
             스크롤: 줌 · 드래그: 이동
           </div>
 

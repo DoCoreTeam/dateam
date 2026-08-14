@@ -128,7 +128,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
                     <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{s.name}</span>
                     {s.location && <span style={{ fontSize: 11, color: 'var(--gpu-muted)' }}>{s.location}</span>}
-                    <span style={{ fontSize: 10, color: 'var(--brand)', fontWeight: 700 }}>{Math.round(s.score * 100)}% 일치</span>
+                    <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--brand)', fontWeight: 700 }}>{Math.round(s.score * 100)}% 일치</span>
                   </button>
                 ))}
               </div>
@@ -163,7 +163,7 @@ function SupplierPicker({ extractedName, confidence, onSelect, onManualName, sel
                 >
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
                   <span style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}>{s.name}</span>
-                  {s.location && <span style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>{s.location}</span>}
+                  {s.location && <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)' }}>{s.location}</span>}
                 </button>
               ))}
             </div>
@@ -517,7 +517,7 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
         />
         <div className="gpu-chip" style={{ width: 42, height: 42, flexShrink: 0 }}>
           {(item.product_hint ?? 'G').charAt(0)}
-          <span style={{ fontSize: 9 }}>GPU</span>
+          <span style={{ fontSize: 'var(--fs-2xs)' }}>GPU</span>
         </div>
         <div className="gpu-rev-info" style={{ flex: 1 }}>
           <div className="gpu-rev-nm" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -525,12 +525,12 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
             {item.is_test && <span className="gpu-badge gpu-badge-gray">TEST</span>}
             <span
               className="gpu-badge"
-              style={{ background: impact.color, color: '#fff', fontSize: 10 }}
+              style={{ background: impact.color, color: '#fff', fontSize: 'var(--fs-2xs)' }}
             >
               {impact.label}
             </span>
             {item.current_iteration > 1 && (
-              <span className="gpu-badge gpu-badge-t2" style={{ fontSize: 10 }}>
+              <span className="gpu-badge gpu-badge-t2" style={{ fontSize: 'var(--fs-2xs)' }}>
                 {item.current_iteration}차 재분석
               </span>
             )}
@@ -546,7 +546,7 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
           <div style={{ fontSize: 22, fontWeight: 800, color: overallPct >= 80 ? 'var(--gpu-green)' : overallPct >= 60 ? 'var(--gpu-amber)' : 'var(--gpu-red)', fontFamily: 'var(--font-mono, monospace)' }}>
             {overallPct}%
           </div>
-          <div style={{ fontSize: 10, color: 'var(--gpu-muted)' }}>전체 신뢰도</div>
+          <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)' }}>전체 신뢰도</div>
         </div>
       </div>
 
@@ -554,7 +554,7 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
       {isCompetitor && (
         <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="competitor-review-fields">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span className="gpu-badge gpu-badge-t2" style={{ fontSize: 10 }}>경쟁사 카탈로그</span>
+            <span className="gpu-badge gpu-badge-t2" style={{ fontSize: 'var(--fs-2xs)' }}>경쟁사 카탈로그</span>
             {isAdmin && (
               <button type="button" className="gpu-btn" style={{ fontSize: 11, padding: '2px 8px' }}
                 onClick={() => { setEditingFields((v) => !v); if (editingFields) setFieldEdits({}) }}>

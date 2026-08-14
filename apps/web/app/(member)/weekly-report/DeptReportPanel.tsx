@@ -190,10 +190,10 @@ export default function DeptReportPanel({ deptId, deptName, weekStart, editable,
                 <div className="responsive-grid-cols-3" style={{ display: 'grid', gap: 'var(--space-3)' }}>
                   {FIELDS.map((f) => (
                     <div key={f.key}>
-                      <div style={{ fontSize: '0.66rem', fontWeight: 600, color: 'var(--text-faint)', marginBottom: '0.2rem' }}>{f.label}</div>
+                      <div style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--text-faint)', marginBottom: '0.2rem' }}>{f.label}</div>
                       <RichText html={row[f.key]} />
                       {editable && (
-                        <button onClick={() => setEditingCell({ idx, field: f.key })} style={{ marginTop: '0.3rem', padding: '0.1rem 0.35rem', fontSize: '0.68rem', color: 'var(--text-faint)', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer' }}>수정</button>
+                        <button onClick={() => setEditingCell({ idx, field: f.key })} style={{ marginTop: '0.3rem', padding: '0.1rem 0.35rem', fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)', background: 'none', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', cursor: 'pointer' }}>수정</button>
                       )}
                     </div>
                   ))}
