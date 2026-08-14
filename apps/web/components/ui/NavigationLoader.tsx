@@ -10,12 +10,27 @@ interface NavigationLoaderProps {
   logoUrl?: string | null
 }
 
+/**
+ * 로더를 띄우기까지 기다리는 시간.
+ * 이보다 빨리 끝나는 이동에는 **아무것도 보여주지 않는다** — 전체화면 블러가 깜빡이면
+ * 실제보다 느리게 느껴진다. (전환이 즉시 끝났는데도 브랜드 로더가 번쩍여서
+ * "로컬인데 화면 전환이 왜 이렇게 오래 걸리냐"는 인상을 줬다)
+ */
+const SHOW_DELAY_MS = 400
+
 export default function NavigationLoader({ brandName, logoUrl }: NavigationLoaderProps) {
   const pathname = usePathname()
   const [loading, setLoading] = useState(false)
   const pendingRef = useRef(false)
+  const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
+    const clearShowTimer = () => {
+      if (showTimerRef.current) {
+        clearTimeout(showTimerRef.current)
+        showTimerRef.current = null
+      }
+    }
     const handleClick = (e: MouseEvent) => {
       const anchor = (e.target as HTMLElement).closest('a')
       if (!anchor) return
@@ -30,10 +45,14 @@ export default function NavigationLoader({ brandName, logoUrl }: NavigationLoade
         defaultPrevented: e.defaultPrevented,
       })) return
       pendingRef.current = true
-      setLoading(true)
+      clearShowTimer()
+      showTimerRef.current = setTimeout(() => setLoading(true), SHOW_DELAY_MS)
     }
     document.addEventListener('click', handleClick, true)
-    return () => document.removeEventListener('click', handleClick, true)
+    return () => {
+      document.removeEventListener('click', handleClick, true)
+      clearShowTimer()
+    }
   }, [pathname])
 
   // 최후 안전망 — 이동이 어떤 이유로든 일어나지 않으면(라우트 가드·에러·판정 실패) 로더가 스스로 꺼진다.
@@ -47,6 +66,11 @@ export default function NavigationLoader({ brandName, logoUrl }: NavigationLoade
   useEffect(() => {
     if (pendingRef.current) {
       pendingRef.current = false
+      // 대기 중이던 표시 타이머도 함께 끈다 — 이동이 끝난 뒤에 로더가 뜨면 안 된다
+      if (showTimerRef.current) {
+        clearTimeout(showTimerRef.current)
+        showTimerRef.current = null
+      }
       setLoading(false)
     }
   }, [pathname])

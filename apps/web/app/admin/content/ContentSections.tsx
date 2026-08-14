@@ -33,19 +33,21 @@ const FIELD_GRID: React.CSSProperties = {
 
 // ─── 컬럼 정의 ───────────────────────────────────────────────────────────
 
+// 사람 이름 칸(PM·Lead·이름)은 80px이면 '김태형 실장'이 잘려 보인다 — 편집 중에만 스크롤로
+// 확인할 수 있어 표를 훑을 땐 누구인지 알 수 없었다. 한국어 이름+직함이 들어가게 넓혔다.
 const PROJECT_COLS: ColumnDef[] = [
   { key: 'name', label: '프로젝트명', placeholder: '프로젝트명', width: '180px' },
   { key: 'client', label: '고객사', placeholder: '고객사' },
   { key: 'phase', label: '단계', placeholder: '기획/개발/운영', width: '100px' },
-  { key: 'pm', label: 'PM', placeholder: 'PM', width: '80px' },
+  { key: 'pm', label: 'PM', placeholder: 'PM', width: '120px' },
   { key: 'progress', label: '진행률', type: 'number', placeholder: '0', width: '80px' },
   { key: 'target', label: '목표일', placeholder: 'YYYY-MM', width: '100px' },
 ]
 
 const MEMBER_COLS: ColumnDef[] = [
-  { key: 'name', label: '이름', placeholder: '이름', width: '80px' },
+  { key: 'name', label: '이름', placeholder: '이름', width: '120px' },
   { key: 'role', label: '역할', placeholder: '역할', width: '100px' },
-  { key: 'title', label: '직급', placeholder: '직급', width: '80px' },
+  { key: 'title', label: '직급', placeholder: '직급', width: '100px' },
   { key: 'pms', label: 'PM 프로젝트', type: 'tags', placeholder: '쉼표로 구분' },
   { key: 'extras', label: '추가 역할', type: 'tags', placeholder: '쉼표로 구분' },
 ]
@@ -57,7 +59,7 @@ const MISSION_COLS: ColumnDef[] = [
 
 const OKR_COLS: ColumnDef[] = [
   { key: 'objective', label: 'Objective', placeholder: '목표', width: '200px' },
-  { key: 'lead', label: 'Lead', placeholder: '담당자', width: '80px' },
+  { key: 'lead', label: 'Lead', placeholder: '담당자', width: '120px' },
   { key: 'key_results', label: 'Key Results', type: 'tags', placeholder: 'KR1, KR2, KR3' },
 ]
 

@@ -32,6 +32,12 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.464', date: '2026-08-14', title: '화면 전환이 한결 매끄러워졌어요',
+    items: [
+      { kind: 'improve', emoji: '⚡', headline: '메뉴를 옮길 때마다 뜨던 전체화면 로딩 화면을 줄였어요', detail: '금방 끝나는 이동에도 브랜드 로고가 번쩍 떠서 오히려 더 느리게 느껴졌어요. 이제 정말 오래 걸릴 때만 나타납니다.' },
+    ],
+  },
+  {
     version: '0.7.463', date: '2026-08-14', title: '작은 글씨를 걷어내고, 화면이 어디인지 분명해졌어요',
     items: [
       { kind: 'improve', emoji: '🔎', headline: '눈에 힘주고 봐야 했던 작은 글씨 141곳을 키웠어요', detail: 'GPU 가격·재고·조직도 등에서 뱃지와 보조 설명이 9~10px로 작아 읽기 힘들었어요. 이제 모든 글씨가 최소 크기 이상으로 나옵니다.' },
