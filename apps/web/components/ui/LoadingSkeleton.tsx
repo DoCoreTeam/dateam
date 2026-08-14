@@ -37,13 +37,15 @@ export function SkelPage({
   description,
   children,
 }: {
-  title: string
+  /** 화면 이름을 아는 경우에만. 라우트 그룹 공통 골격처럼 모르면 비운다 —
+   *  로딩 안내를 글자로 넣으면 골격이 대체하려던 자작 문구가 되살아난다. */
+  title?: string
   description?: string
   children: React.ReactNode
 }) {
   return (
     <div className="page-inner">
-      <PageHeader title={title} description={description} />
+      {title ? <PageHeader title={title} description={description} /> : <div className="skel-line lg" style={{ width: '40%', marginBottom: 'var(--space-5)' }} aria-hidden />}
       {children}
     </div>
   )

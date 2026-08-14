@@ -73,7 +73,15 @@ export default async function MemberLayout({ children }: { children: React.React
   const calendarSeenDate = cookieStore.get('calendar_seen_date')?.value
   const shouldCountCalendar = calendarSeenDate !== todayStr
 
-  const [branding, profileResult, routineStatus, calendarCount, deptTaskCount, globalTheme, orgScope] = await Promise.all([
+  // 이번 주(ISO 월요일) — 주간보고 미작성 게이트용. Promise.all보다 먼저 계산해야 같이 태울 수 있다.
+  const weekAnchor = new Date(`${todayStr}T00:00:00Z`)
+  const dow = weekAnchor.getUTCDay()
+  weekAnchor.setUTCDate(weekAnchor.getUTCDate() + (dow === 0 ? -6 : 1 - dow))
+  const thisMonday = weekAnchor.toISOString().slice(0, 10)
+
+  // 이 레이아웃은 **화면을 전환할 때마다** 다시 돈다. 하나라도 Promise.all 밖에 있으면
+  // 그만큼 원격 왕복이 직렬로 붙는다(myWeekCount가 그랬다 — v0.7.458 실측에서 발견).
+  const [branding, profileResult, routineStatus, calendarCount, deptTaskCount, globalTheme, orgScope, myWeekResult] = await Promise.all([
     getBranding(),
     adminClient
       .from('profiles')
@@ -85,21 +93,15 @@ export default async function MemberLayout({ children }: { children: React.React
     countMyOpenDeptTasks(),
     getActiveTheme(),
     resolveOrgScope(adminClient, user.id),
+    adminClient
+      .from('weekly_reports')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('week_start', thisMonday)
+      .is('deleted_at', null),
   ])
   const profile = profileResult.data
-
-  // 이번 주(ISO 월요일) 주간보고 미작성 여부 → 작성 안내 모달 게이트
-  const weekAnchor = new Date(`${todayStr}T00:00:00Z`)
-  const dow = weekAnchor.getUTCDay()
-  weekAnchor.setUTCDate(weekAnchor.getUTCDate() + (dow === 0 ? -6 : 1 - dow))
-  const thisMonday = weekAnchor.toISOString().slice(0, 10)
-  const { count: myWeekCount } = await adminClient
-    .from('weekly_reports')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .eq('week_start', thisMonday)
-    .is('deleted_at', null)
-  const weeklyReportPending = (myWeekCount ?? 0) === 0
+  const weeklyReportPending = (myWeekResult.count ?? 0) === 0
 
   const orgPath = orgPathFromScope(orgScope, user.id)
   const currentTheme = resolveTheme(profile?.theme_preference, globalTheme)
