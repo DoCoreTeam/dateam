@@ -13,16 +13,11 @@ import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
-import type { ListDefaults, SavedListPrefs } from '@/lib/ui/list-query'
+import type { SavedListPrefs } from '@/lib/ui/list-query'
+// 기본값은 서버(page.tsx)도 읽는다 — 'use client' 밖에 둬야 RSC 경계를 안 넘는다
+import { MEETING_LIST_DEFAULTS } from './list-defaults'
 import type { MeetingListItemView } from './list-types'
 
-export const MEETING_LIST_DEFAULTS: ListDefaults = {
-  sort: { key: 'meeting_at', dir: 'desc' },
-  view: 'table',
-  size: 20,
-  // mode(리스트/날짜별/캘린더)·ym은 이 화면의 상태다 — 필터 키로 선언해야 URL 갱신에서 살아남는다
-  filterKeys: ['filter', 'mode', 'ym'],
-}
 
 const SORT_OPTIONS = [
   { key: 'meeting_at', label: '회의일시' },

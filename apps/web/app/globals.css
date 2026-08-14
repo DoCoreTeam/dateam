@@ -734,6 +734,9 @@
     border: var(--border-w-2) solid var(--border-color);
     font-size: 0.75rem;
     font-weight: 700;
+    /* 좁은 표 칸에서 "작성중"이 한 글자씩 세로로 쪼개졌다(v0.7.457 실브라우저).
+       뱃지는 한 낱말 단위라 줄바꿈하지 않는다. */
+    white-space: nowrap;
   }
 
   /* 상태 뱃지 — 토큰 기반(NbBadge data-status). 인라인 hex 제거, 테마 토큰 자동 대응 */
@@ -9809,7 +9812,22 @@ label.intake-tool-btn {
   max-width: 26rem;
   color: var(--text-faint);
 }
-.list-search .input-field { flex: 1; width: 100%; min-height: 44px; }
+/* 돋보기는 입력 **안** 왼쪽에 얹는다. 예전엔 클래스가 없어 그냥 flex 아이템이라
+   입력칸 바깥에 덩그러니 떠 있었다(v0.7.448 신설 이후 전 목록 화면에서 그랬다). */
+.list-search-icon {
+  position: absolute;
+  left: var(--space-3);
+  pointer-events: none;
+  color: var(--text-faint);
+}
+.list-search .input-field {
+  flex: 1;
+  width: 100%;
+  min-height: 44px;
+  padding-left: calc(var(--space-3) + 15px + var(--space-2));
+  /* 지우기(X) 버튼이 글자를 덮지 않게 오른쪽도 비워둔다 */
+  padding-right: calc(var(--space-2) + 14px + var(--space-2));
+}
 .list-search-clear {
   position: absolute;
   right: var(--space-2);

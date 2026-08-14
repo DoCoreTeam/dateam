@@ -61,7 +61,7 @@ export default function ListToolbar({
   return (
     <div className="list-toolbar" role="toolbar" aria-label="목록 도구">
       <div className="list-search">
-        <Search size={15} aria-hidden />
+        <Search size={15} aria-hidden className="list-search-icon" />
         <input className="input-field" type="search"
           value={draft}
           placeholder={searchPlaceholder}
