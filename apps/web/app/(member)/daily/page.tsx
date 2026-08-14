@@ -704,7 +704,7 @@ export default function DailyPage() {
                       <Sparkles size={14} strokeWidth={2.4} />
                       저장
                     </span>
-                    <span style={{ fontSize: '0.6rem', opacity: 0.75 }}>Ctrl+↵</span>
+                    <span style={{ fontSize: 'var(--fs-2xs)', opacity: 0.75 }}>Ctrl+↵</span>
                   </button>
                 </div>
                 {content.trim() && aiHintCount > 0 && (
@@ -1133,7 +1133,7 @@ function LogList({
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '0.5rem' }}>
-                    <button onClick={() => onUpdate(log.id)} disabled={isPending} style={actionBtnPrimary}>저장 <span style={{ fontSize: '0.65rem', opacity: 0.7 }}>Ctrl+↵</span></button>
+                    <button onClick={() => onUpdate(log.id)} disabled={isPending} style={actionBtnPrimary}>저장 <span style={{ fontSize: 'var(--fs-2xs)', opacity: 0.7 }}>Ctrl+↵</span></button>
                     <button onClick={onCancelEdit} style={actionBtnSecondary}>취소</button>
                   </div>
                 </div>
@@ -1472,7 +1472,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
                 }}>
                   {t.content}
                 </p>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-faint)', marginTop: '0.25rem', textAlign: 'right' }}>
+                <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)', marginTop: '0.25rem', textAlign: 'right' }}>
                   {t.author_type === 'ai' ? '🤖 AI' : '나'} · {formatTime(t.created_at)}
                 </div>
               </div>
@@ -1496,7 +1496,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
               return (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
                   <span style={{
-                    fontSize: '0.6rem', fontWeight: 700, color: t.color,
+                    fontSize: 'var(--fs-2xs)', fontWeight: 700, color: t.color,
                     background: t.bg, border: `var(--hairline) solid ${t.border}`,
                     padding: '0.05rem 0.3rem', borderRadius: 'var(--radius)',
                   }}>{t.label}</span>

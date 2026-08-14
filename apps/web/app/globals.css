@@ -5977,7 +5977,8 @@ label.intake-tool-btn {
 /* 일정 칩 안의 "업무 연동" 배지 */
 .cal-link-badge {
   flex-shrink: 0;
-  font-size: 0.55rem;
+  /* 0.55rem(8.8px)이었다 — 10px 미만 금지(§3-1). 읽을 수 없는 크기다. */
+  font-size: var(--fs-2xs);
   font-weight: 800;
   color: var(--brand-dark);
   background: var(--brand-soft-2);
