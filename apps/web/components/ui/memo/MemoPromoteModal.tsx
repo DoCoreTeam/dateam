@@ -62,7 +62,7 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>목표일 (선택)</span>
-            <input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)}
+            <input className="input-field" type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)}
               style={{ padding: 'var(--space-2) var(--space-3)', border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)' }} />
           </label>
 

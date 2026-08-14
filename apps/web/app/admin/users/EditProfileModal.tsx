@@ -56,54 +56,50 @@ export default function EditProfileModal({
     // 골격 자작 → NbModal. zIndex 9999 매직넘버·role 부재가 함께 사라진다.
     <NbModal title="사용자 정보 수정" onClose={onClose} maxWidth={360}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          <label className="label">
-            <span>이름 *</span>
+          {/* 레퍼런스: contacts/ContactForm — label은 감싸지 않고 형제로 둔다.
+              (.label이 display:block이라 감싸면 라벨 글자가 입력 옆에 붙는다) */}
+          <div>
+            <label className="label" htmlFor="edit-profile-name">이름 *</label>
             <input
+              id="edit-profile-name"
+              className="input-field"
               value={name}
               onChange={e => setName(e.target.value)}
               disabled={isPending}
-              style={{
-                padding: 'var(--space-2) var(--space-3)', border: 'var(--hairline) solid var(--border-color)',
-                borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', outline: 'none',
-              }}
             />
-          </label>
+          </div>
 
-          <label className="label">
-            <span>직급</span>
+          <div>
+            <label className="label" htmlFor="edit-profile-rank">직급</label>
             <select
+              id="edit-profile-rank"
+              className="input-field"
               value={rank}
               onChange={e => setRank(e.target.value)}
               disabled={isPending}
-              style={{
-                padding: 'var(--space-2) var(--space-3)', border: 'var(--hairline) solid var(--border-color)',
-                borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', background: 'var(--color-surface)', outline: 'none',
-              }}
             >
               <option value="">— 직급 없음 —</option>
               {ranks.sort((a, b) => a.display_order - b.display_order).map(r => (
                 <option key={r.id} value={r.name}>{r.name}</option>
               ))}
             </select>
-          </label>
+          </div>
 
-          <label className="label">
-            <span>직책</span>
+          <div>
+            <label className="label" htmlFor="edit-profile-position">직책</label>
             <select
+              id="edit-profile-position"
+              className="input-field"
               value={position}
               onChange={e => setPosition(e.target.value)}
               disabled={isPending}
-              style={{
-                padding: 'var(--space-2) var(--space-3)', border: 'var(--hairline) solid var(--border-color)',
-                borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', background: 'var(--color-surface)', outline: 'none',
-              }}
             >
               <option value="">— 직책 없음 —</option>
               {positions.sort((a, b) => a.display_order - b.display_order).map(p => (
                 <option key={p.id} value={p.name}>{p.name}</option>
               ))}
             </select>
-          </label>
+          </div>
 
           <InlineError compact>{error}</InlineError>
         </div>

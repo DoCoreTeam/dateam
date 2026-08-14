@@ -115,7 +115,7 @@ export default function ListSurface<T>({
             >
               {selection && (
                 <td className="list-select-col" onClick={(e) => e.stopPropagation()}>
-                  <input className="input-field" type="checkbox"
+                  <input type="checkbox"
                     aria-label="행 선택"
                     checked={selection.selected.has(id)}
                     onChange={() => selection.onToggle(id)}

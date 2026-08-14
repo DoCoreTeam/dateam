@@ -9933,7 +9933,6 @@ label.intake-tool-btn {
   cursor: pointer;
 }
 .list-select-col { width: 2.5rem; }
-.list-select-col .input-field { width: auto; min-height: 0; }
 .list-compact td, .list-compact th { padding-block: var(--space-2); font-size: var(--fs-sm); }
 .table-base tr.is-clickable { cursor: pointer; }
 

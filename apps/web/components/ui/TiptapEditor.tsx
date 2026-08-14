@@ -174,14 +174,14 @@ export default function TiptapEditor({
   }
 
   if (!editor) return (
-    <div style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', minHeight: `${minHeight}px`, background: '#fff' }} />
+    <div style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', minHeight: `${minHeight}px`, background: 'var(--color-surface)' }} />
   )
 
   const currentColor = (editor.getAttributes('textStyle') as { color?: string }).color ?? ''
   const isHighlighted = editor.isActive('highlight')
 
   return (
-    <div style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', overflow: 'visible', background: '#fff' }}>
+    <div style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', overflow: 'visible', background: 'var(--color-surface)' }}>
       {/* 툴바 */}
       <div
         style={{
@@ -223,7 +223,7 @@ export default function TiptapEditor({
             <span style={{ width: '14px', height: '3px', borderRadius: '1px', background: currentColor || 'var(--text)', display: 'block' }} />
           </button>
           {colorOpen && (
-            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100, background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-2)', display: 'flex', gap: '0.375rem', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100, background: 'var(--color-surface)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-2)', display: 'flex', gap: '0.375rem', boxShadow: 'var(--shadow-sm)' }}>
               {TEXT_COLORS.map((c) => (
                 <button
                   key={c.value}
@@ -260,7 +260,7 @@ export default function TiptapEditor({
             </svg>
           </button>
           {highlightOpen && (
-            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100, background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-2)', display: 'flex', gap: '0.375rem', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100, background: 'var(--color-surface)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-2)', display: 'flex', gap: '0.375rem', boxShadow: 'var(--shadow-sm)' }}>
               {HIGHLIGHT_COLORS.map((c) => (
                 <button
                   key={c.value}
@@ -348,8 +348,8 @@ export default function TiptapEditor({
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M6.5 9.5a3.5 3.5 0 0 0 5 0l2-2a3.5 3.5 0 0 0-5-5L7 4"/><path d="M9.5 6.5a3.5 3.5 0 0 0-5 0l-2 2a3.5 3.5 0 0 0 5 5l1.5-1.5"/></svg>
           </button>
           {linkOpen && (
-            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100, background: '#fff', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-2)', display: 'flex', gap: '0.375rem', boxShadow: 'var(--shadow-sm)', minWidth: '240px' }}>
-              <input
+            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 100, background: 'var(--color-surface)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: 'var(--space-2)', display: 'flex', gap: '0.375rem', boxShadow: 'var(--shadow-sm)', minWidth: '240px' }}>
+              <input className="input-field"
                 type="text"
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
@@ -358,7 +358,7 @@ export default function TiptapEditor({
                 autoFocus
                 style={{ flex: 1, fontSize: 'var(--fs-sm)', border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', padding: '0.375rem 0.5rem', outline: 'none', fontFamily: 'inherit' }}
               />
-              <button type="button" onClick={handleSetLink} style={{ ...BTN, background: 'var(--brand)', color: '#fff', border: 'none', padding: '0.375rem 0.625rem', borderRadius: 'var(--radius)' }}>
+              <button type="button" onClick={handleSetLink} style={{ ...BTN, background: 'var(--brand)', color: 'var(--brand-fg)', border: 'none', padding: '0.375rem 0.625rem', borderRadius: 'var(--radius)' }}>
                 확인
               </button>
               {editor.isActive('link') && (

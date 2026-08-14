@@ -59,3 +59,68 @@ export function exportedSymbols(src: string): string[] {
 export function isComponentName(name: string): boolean {
   return /^[A-Z][A-Za-z0-9]*$/.test(name) && !/^[A-Z0-9_]+$/.test(name)
 }
+
+/**
+ * JSX 여는 태그의 **진짜** 끝 `>` 위치. 못 찾으면 -1.
+ *
+ * 왜 필요한가: `<input ... onChange={(e) => f(e)} className="x" />`에서
+ * `[^>]*` 류의 정규식은 **화살표 함수의 `>`를 태그 끝으로 오인**한다.
+ * 그러면 뒤쪽 속성(className·type…)이 통째로 안 보여서
+ * "이미 input-field가 있는데 또 붙인다" 같은 판정 사고가 난다.
+ * (v0.7.460 실제 사고: 코드모드가 className을 8곳 중복 삽입하고
+ *  `type="file"` 입력 2곳을 폼 필드로 오염시켰다.)
+ *
+ * 중괄호 깊이와 문자열/템플릿 리터럴을 건너뛰며 depth 0의 `>`만 태그 끝으로 본다.
+ */
+export function jsxTagEnd(src: string, from: number): number {
+  let i = from
+  let depth = 0
+  let quote: string | null = null
+  while (i < src.length) {
+    const c = src[i]
+    if (quote) {
+      if (c === '\\') i++
+      else if (c === quote) quote = null
+      i++
+      continue
+    }
+    if (c === '"' || c === "'" || c === '`') {
+      quote = c
+      i++
+      continue
+    }
+    if (c === '{') depth++
+    else if (c === '}') depth--
+    else if (c === '>' && depth === 0) return i
+    i++
+  }
+  return -1
+}
+
+/** 여는 태그 하나 */
+export interface JsxTag {
+  /** 태그 이름 (input · select · textarea …) */
+  name: string
+  /** 태그명 뒤 ~ 끝 `>` 앞까지의 속성 원문 */
+  attrs: string
+  /** 1-기반 줄 번호 */
+  line: number
+}
+
+/** src 안의 여는 태그를 이름으로 골라 전부 (속성 원문과 함께) 돌려준다. */
+export function findJsxTags(src: string, names: readonly string[]): JsxTag[] {
+  const out: JsxTag[] = []
+  const re = new RegExp(`<(${names.join('|')})\\b`, 'g')
+  let m: RegExpExecArray | null
+  while ((m = re.exec(src)) !== null) {
+    const attrStart = m.index + m[0].length
+    const end = jsxTagEnd(src, attrStart)
+    if (end < 0) continue
+    out.push({
+      name: m[1],
+      attrs: src.slice(attrStart, end),
+      line: src.slice(0, m.index).split('\n').length,
+    })
+  }
+  return out
+}

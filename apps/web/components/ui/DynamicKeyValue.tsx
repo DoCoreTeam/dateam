@@ -49,7 +49,7 @@ export default function DynamicKeyValue({
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '0.625rem' }}>
         {pairs.map((p, idx) => (
           <div key={idx} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-            <input
+            <input className="input-field"
               type="text"
               value={p.k}
               onChange={(e) => update(idx, 'k', e.target.value)}
@@ -57,7 +57,7 @@ export default function DynamicKeyValue({
               style={{ ...INPUT_SM, maxWidth: '160px', fontWeight: 600 }}
             />
             <span style={{ color: 'var(--text-faint)', flexShrink: 0 }}>:</span>
-            <input
+            <input className="input-field"
               type="text"
               value={p.v}
               onChange={(e) => update(idx, 'v', e.target.value)}

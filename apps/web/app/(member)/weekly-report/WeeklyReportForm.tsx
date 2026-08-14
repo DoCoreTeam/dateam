@@ -437,7 +437,9 @@ export default function WeeklyReportForm({
       <div className="report-form-wrap" style={{ overflowX: 'auto', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)' }}>
         <table className="report-form-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: '500px' }}>
           <colgroup>
-            <col style={{ width: '120px' }} />
+            {/* 구분: 점선 상자 여백(좌우 0.625rem)까지 감안한 폭.
+                120px일 땐 자리표시 '구분 (필수)'가 잘렸다. */}
+            <col style={{ width: '150px' }} />
             <col />
             <col />
             <col />
@@ -461,7 +463,7 @@ export default function WeeklyReportForm({
                   style={{ padding: '0.75rem 0.875rem', verticalAlign: 'top', borderRight: 'var(--hairline) solid var(--surface-muted)' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                    <input
+                    <input className="input-field"
                       type="text"
                       list="category-list"
                       value={row.category}
@@ -479,8 +481,12 @@ export default function WeeklyReportForm({
                       placeholder="구분 (필수)"
                       style={{
                         flex: 1,
-                        border: invalidCategoryRows.has(idx) ? 'var(--hairline) solid var(--danger)' : 'none',
-                        borderRadius: invalidCategoryRows.has(idx) ? '0.375rem' : 0,
+                        // 같은 행의 성과·계획·이슈(EditorCell)와 같은 점선 상자로 보이게 한다.
+                        // 예전엔 평소 border:none이라 구분만 '편집할 수 있는 칸'으로 안 읽혔다.
+                        border: invalidCategoryRows.has(idx)
+                          ? 'var(--hairline) solid var(--danger)'
+                          : 'var(--hairline) dashed var(--color-border)',
+                        borderRadius: 'var(--radius)',
                         outline: 'none',
                         fontSize: 'var(--fs-base)',
                         fontWeight: 600,
@@ -488,7 +494,7 @@ export default function WeeklyReportForm({
                         background: invalidCategoryRows.has(idx) ? 'var(--danger-bg)' : 'transparent',
                         fontFamily: 'inherit',
                         minWidth: 0,
-                        padding: invalidCategoryRows.has(idx) ? '0.25rem 0.375rem' : 0,
+                        padding: '0.5rem 0.625rem',
                         transition: 'background 120ms, border-color 120ms',
                       }}
                     />

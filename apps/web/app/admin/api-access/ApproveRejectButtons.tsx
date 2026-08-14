@@ -84,7 +84,7 @@ export default function ApproveRejectButtons({ requestId }: { requestId: string 
   if (showReject) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 200 }}>
-        <input
+        <input className="input-field"
           type="text"
           placeholder="거절 사유 (선택)"
           value={rejectNote}

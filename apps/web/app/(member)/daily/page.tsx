@@ -1092,7 +1092,7 @@ function LogList({
                       </button>
                     ))}
                   </div>
-                  <textarea
+                  <textarea className="input-field"
                     value={editContent}
                     onChange={(e) => onEditContentChange(e.target.value)}
                     onKeyDown={(e) => {
@@ -1112,11 +1112,13 @@ function LogList({
                   />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: '0.375rem', flexWrap: 'wrap' }}>
                     <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>일정 날짜</label>
-                    <input
+                    <input className="input-field"
                       type="date"
                       value={editTargetDate}
                       onChange={(e) => onEditTargetDateChange(e.target.value)}
                       style={{
+                        // input-field의 width:100%를 되돌린다 — 날짜 칸은 한 줄 안에서 내용만큼만 차지한다
+                        width: 'auto',
                         border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)',
                         padding: '0.2rem 0.4rem', fontSize: 'var(--fs-sm)',
                         color: 'var(--text)', outline: 'none', cursor: 'pointer',
@@ -1544,7 +1546,7 @@ function ThreadView({ logId, selectedDate }: { logId: string; selectedDate: stri
         </div>
       )}
       <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end' }}>
-        <textarea
+        <textarea className="input-field"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {

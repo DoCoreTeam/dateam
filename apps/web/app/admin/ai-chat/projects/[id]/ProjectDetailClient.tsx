@@ -223,7 +223,7 @@ function AddKnowledge({ project, onChanged }: { project: AiChatProject; onChange
           {textBusy ? '추가중…' : '텍스트 추가'}
         </NbButton>
 
-        <input className="input-field" ref={fileRef} type="file"
+        <input ref={fileRef} type="file"
           accept={KNOWLEDGE_ACCEPT}
           aria-label="지식 파일 선택"
           onChange={onFilePicked}

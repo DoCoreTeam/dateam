@@ -211,7 +211,7 @@ export default function SalePriceCatalogPage() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.3-4.3" />
           </svg>
-          <input
+          <input className="input-field"
             type="text"
             placeholder="모델 검색 (H100, B200, 4090 ...)"
             value={search}
@@ -241,7 +241,7 @@ export default function SalePriceCatalogPage() {
             시간 계산
           </span>
           <div style={{ width: 1, height: 16, background: customHours ? 'rgba(124,58,237,0.3)' : 'var(--color-border)' }} />
-          <input
+          <input className="input-field"
             type="number"
             min="1"
             max="99999"

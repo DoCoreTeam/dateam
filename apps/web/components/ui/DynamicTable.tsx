@@ -116,7 +116,7 @@ export default function DynamicTable({
                 {columns.map((col) => (
                   <td key={col.key} style={{ padding: '0.35rem 0.3rem', verticalAlign: 'top' }}>
                     {col.type === 'textarea' ? (
-                      <textarea
+                      <textarea className="input-field"
                         value={(row[col.key] as string) || ''}
                         onChange={(e) => updateCell(idx, col.key, e.target.value)}
                         placeholder={col.placeholder}
@@ -124,7 +124,7 @@ export default function DynamicTable({
                         style={{ ...INPUT, resize: 'vertical', minHeight: '3.5rem' }}
                       />
                     ) : col.type === 'tags' ? (
-                      <input
+                      <input className="input-field"
                         type="text"
                         value={((row[col.key] as string[]) || []).join(', ')}
                         onChange={(e) => updateTags(idx, col.key, e.target.value)}
@@ -132,7 +132,7 @@ export default function DynamicTable({
                         style={INPUT}
                       />
                     ) : (
-                      <input
+                      <input className="input-field"
                         type={col.type === 'number' ? 'number' : 'text'}
                         value={(row[col.key] as string | number) ?? ''}
                         onChange={(e) =>

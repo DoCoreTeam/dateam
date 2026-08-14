@@ -80,7 +80,7 @@ export default function CatalogUploadSection({ isTest, file, onConsumed }: Catal
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
             컬럼명이 제각각인 경쟁사 카탈로그 파일을 올리면 AI가 우리 스키마에 매핑하고 전체 행을 검토 대기로 적재합니다.
           </div>
-          <input className="input-field" ref={inputRef} type="file" accept=".xlsx,.xls,.csv"
+          <input ref={inputRef} type="file" accept=".xlsx,.xls,.csv"
             style={{ display: 'none' }}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = '' }}
           />

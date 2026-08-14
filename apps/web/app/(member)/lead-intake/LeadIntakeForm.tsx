@@ -290,13 +290,13 @@ export default function LeadIntakeForm({ brandName }: LeadIntakeFormProps) {
             ref={leadScopeRef}
             style={{ border: 'var(--border-w-2) solid var(--border-color)', borderRadius: 'var(--radius)', background: 'var(--color-surface)' }}>
             <DraftRestoreBanner show={draft.hasDraft} onRestore={draft.restore} onDiscard={draft.discard} />
-            <textarea value={rawInput} onChange={e => setRawInput(e.target.value)} onPaste={handlePaste} rows={6}
+            <textarea className="input-field" value={rawInput} onChange={e => setRawInput(e.target.value)} onPaste={handlePaste} rows={6}
               placeholder={`텍스트를 입력·붙여넣거나, 명함·문서 파일을 끌어다 놓으세요.\n\n예시:\n삼성SDS 김철수 부장 (IT전략팀)\nkcs@samsung.com / 02-6360-0000\n클라우드 전환 프로젝트 논의 필요`}
               style={{ width: '100%', padding: 'var(--space-3)', border: 'none', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6, background: 'transparent', outline: 'none' }} />
           </div>
           {/* 입력 도구 — 숨김 input + 버튼 클릭으로 열기(코드 정상, 일반 브라우저에서 동작) */}
-          <input ref={fileInputRef} type="file" multiple accept={ACCEPTED_TYPES} className="input-field" style={{ display: 'none' }} disabled={loading} onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
-          <input ref={cameraInputRef} type="file" accept="image/*" className="input-field" style={{ display: 'none' }} disabled={loading} onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
+          <input ref={fileInputRef} type="file" multiple accept={ACCEPTED_TYPES} style={{ display: 'none' }} disabled={loading} onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
+          <input ref={cameraInputRef} type="file" accept="image/*" style={{ display: 'none' }} disabled={loading} onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
           <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginTop: '0.5rem' }}>
             <button type="button" className="intake-tool-btn" disabled={loading} onClick={() => fileInputRef.current?.click()} aria-label="파일 첨부">📎 파일</button>
             <button type="button" className="intake-tool-btn" disabled={loading} onClick={() => cameraInputRef.current?.click()} aria-label="사진 첨부">📷 사진</button>

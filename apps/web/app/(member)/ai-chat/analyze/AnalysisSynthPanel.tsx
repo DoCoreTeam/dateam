@@ -124,7 +124,7 @@ export default function AnalysisSynthPanel({ synthStatus, synthText, coverage, c
             style={{ resize: 'vertical', fontFamily: 'inherit' }}
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-            <input ref={sampleRef} className="input-field" type="file" style={{ display: 'none' }}
+            <input ref={sampleRef} type="file" style={{ display: 'none' }}
               accept="image/png,image/jpeg,image/webp,.xlsx,.pptx,.docx,.pdf,.md,.txt,.csv,.html,.htm"
               onChange={(e) => { void handleSampleFile(e.target.files?.[0] ?? null) }} />
             <NbButton variant="ghost" onClick={() => sampleRef.current?.click()} style={{ fontSize: 'var(--fs-sm)', minHeight: 36, display: 'inline-flex', alignItems: 'center', gap: 4 }}>

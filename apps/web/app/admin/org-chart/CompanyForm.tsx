@@ -43,31 +43,24 @@ export default function CompanyForm({ defaultName, defaultDescription }: Company
       {editing ? (
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           <div>
-            <label style={{ display: 'block', fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-              회사명 *
-            </label>
+            <label className="label" htmlFor="company-name">회사명 *</label>
             <input
+              id="company-name"
+              className="input-field"
               name="name"
               defaultValue={defaultName}
               required
-              style={{
-                width: '100%', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius)',
-                border: 'var(--border-w-2) solid var(--border-color)', fontSize: 'var(--fs-base)', boxSizing: 'border-box',
-              }}
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-              설명 (선택)
-            </label>
+            <label className="label" htmlFor="company-description">설명 (선택)</label>
             <textarea
+              id="company-description"
+              className="input-field"
               name="description"
               defaultValue={defaultDescription}
               rows={2}
-              style={{
-                width: '100%', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius)',
-                border: 'var(--border-w-2) solid var(--border-color)', fontSize: 'var(--fs-base)', boxSizing: 'border-box', resize: 'vertical',
-              }}
+              style={{ resize: 'vertical' }}
             />
           </div>
           <InlineError>{error}</InlineError>
