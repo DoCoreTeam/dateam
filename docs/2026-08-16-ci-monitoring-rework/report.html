@@ -1,0 +1,970 @@
+<title>콘텐츠 인텔리전스 관측 재설계</title>
+<style>
+  /* ── tokens: light (bare :root = complete palette) ───────────────── */
+  :root {
+    --ground:      #F1F4F4;
+    --surface:     #FFFFFF;
+    --surface-alt: #E8EDEC;
+    --ink:         #14201F;
+    --ink-soft:    #3A4A48;
+    --ink-mute:    #647472;
+    --rule:        #D2DAD9;
+    --rule-soft:   #E2E8E7;
+    --accent:      #0F6E5C;
+    --accent-soft: #D9EAE5;
+    --crit:        #A32B24;
+    --crit-soft:   #F6E3E1;
+    --warn:        #8A5A0C;
+    --warn-soft:   #F6EBD8;
+    --ok:          #2E6B3E;
+    --ok-soft:     #DEEBE1;
+    --shadow:      0 1px 2px rgba(20,32,31,.05), 0 8px 24px -12px rgba(20,32,31,.18);
+
+    --sans: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo",
+            "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, "D2Coding", monospace;
+
+    --measure: 70ch;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #0D1514;
+      --surface:     #151F1E;
+      --surface-alt: #1D2A28;
+      --ink:         #E6EDEB;
+      --ink-soft:    #B4C3C0;
+      --ink-mute:    #869895;
+      --rule:        #2A3937;
+      --rule-soft:   #223130;
+      --accent:      #4FBFA3;
+      --accent-soft: #17332E;
+      --crit:        #E8867D;
+      --crit-soft:   #34201E;
+      --warn:        #DFA850;
+      --warn-soft:   #33280F;
+      --ok:          #7FC08E;
+      --ok-soft:     #1B2E20;
+      --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:      #0D1514;
+    --surface:     #151F1E;
+    --surface-alt: #1D2A28;
+    --ink:         #E6EDEB;
+    --ink-soft:    #B4C3C0;
+    --ink-mute:    #869895;
+    --rule:        #2A3937;
+    --rule-soft:   #223130;
+    --accent:      #4FBFA3;
+    --accent-soft: #17332E;
+    --crit:        #E8867D;
+    --crit-soft:   #34201E;
+    --warn:        #DFA850;
+    --warn-soft:   #33280F;
+    --ok:          #7FC08E;
+    --ok-soft:     #1B2E20;
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+    word-break: keep-all;
+  }
+
+  .wrap {
+    max-width: 78rem;
+    margin: 0 auto;
+    padding: clamp(1.5rem, 4vw, 4rem) clamp(1.1rem, 4vw, 3rem) 7rem;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2.5rem, 5vw, 4.5rem);
+  }
+
+  /* ── masthead ────────────────────────────────────────────────────── */
+  .mast { display: flex; flex-direction: column; gap: 1.5rem; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    display: flex; flex-wrap: wrap; gap: .4rem 1.1rem;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(2rem, 5.5vw, 3.4rem);
+    line-height: 1.12;
+    letter-spacing: -.035em;
+    font-weight: 800;
+    text-wrap: balance;
+    max-width: 22ch;
+  }
+  .standfirst {
+    margin: 0;
+    max-width: var(--measure);
+    font-size: clamp(1.02rem, 1.6vw, 1.18rem);
+    color: var(--ink-soft);
+  }
+
+  /* ── instrument readout: the measured reality ────────────────────── */
+  .readout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .cell { background: var(--surface); padding: .95rem 1.1rem; display: flex; flex-direction: column; gap: .25rem; }
+  .cell dt {
+    font-family: var(--mono);
+    font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+  .cell dd {
+    margin: 0;
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.5rem; font-weight: 600; letter-spacing: -.02em;
+    line-height: 1.1;
+  }
+  .cell .unit { font-size: .8rem; font-weight: 500; color: var(--ink-mute); margin-left: .15rem; }
+  .cell[data-flag="bad"] dd { color: var(--crit); }
+  .cell[data-flag="warn"] dd { color: var(--warn); }
+
+  /* ── verdict ─────────────────────────────────────────────────────── */
+  .verdict {
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    border-radius: 0 3px 3px 0;
+    padding: 1.4rem clamp(1.1rem, 3vw, 2rem);
+    display: flex; flex-direction: column; gap: .9rem;
+  }
+  .verdict p { margin: 0; max-width: var(--measure); }
+  .verdict p:first-of-type { font-size: 1.14rem; font-weight: 600; letter-spacing: -.015em; }
+
+  /* ── sections ────────────────────────────────────────────────────── */
+  section { display: flex; flex-direction: column; gap: 1.5rem; scroll-margin-top: 2rem; }
+  .head { display: flex; flex-direction: column; gap: .45rem; border-top: 1px solid var(--rule); padding-top: 1.3rem; }
+  .head .tag {
+    font-family: var(--mono);
+    font-size: .7rem; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent);
+  }
+  h2 {
+    margin: 0;
+    font-size: clamp(1.35rem, 3vw, 1.85rem);
+    letter-spacing: -.028em; font-weight: 750; line-height: 1.24;
+    text-wrap: balance;
+  }
+  h3 {
+    margin: 0;
+    font-size: 1.05rem; font-weight: 700; letter-spacing: -.015em;
+  }
+  .lede { margin: 0; max-width: var(--measure); color: var(--ink-soft); }
+  p { margin: 0; max-width: var(--measure); }
+  .stack { display: flex; flex-direction: column; gap: 1rem; }
+
+  /* ── evidence: mono readouts, the subject's vernacular ───────────── */
+  pre.trace {
+    margin: 0;
+    background: var(--surface-alt);
+    border: 1px solid var(--rule-soft);
+    border-radius: 3px;
+    padding: 1rem 1.1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: .8rem;
+    line-height: 1.75;
+    color: var(--ink-soft);
+    white-space: pre;
+  }
+  pre.trace b { color: var(--crit); font-weight: 600; }
+  code {
+    font-family: var(--mono);
+    font-size: .86em;
+    background: var(--surface-alt);
+    padding: .1em .38em;
+    border-radius: 2px;
+    word-break: break-all;
+  }
+
+  /* ── findings ────────────────────────────────────────────────────── */
+  .findings { display: flex; flex-direction: column; gap: .75rem; }
+  .finding {
+    background: var(--surface);
+    border: 1px solid var(--rule-soft);
+    border-left: 3px solid var(--sev, var(--rule));
+    border-radius: 0 3px 3px 0;
+    padding: 1.05rem 1.15rem;
+    display: grid;
+    grid-template-columns: 5.5rem 1fr;
+    gap: .3rem 1.1rem;
+    align-items: start;
+  }
+  .finding[data-sev="p0"] { --sev: var(--crit); }
+  .finding[data-sev="p1"] { --sev: var(--warn); }
+  .finding[data-sev="p2"] { --sev: var(--accent); }
+  .finding[data-sev="p3"] { --sev: var(--ink-mute); }
+  .finding .id {
+    font-family: var(--mono);
+    font-size: .78rem; font-weight: 700; letter-spacing: .06em;
+    color: var(--sev);
+    padding-top: .18rem;
+  }
+  .finding .body { display: flex; flex-direction: column; gap: .5rem; min-width: 0; }
+  .finding .body > p { max-width: 62ch; }
+  .cite {
+    display: flex; flex-wrap: wrap; gap: .35rem;
+  }
+  .cite span {
+    font-family: var(--mono);
+    font-size: .71rem;
+    color: var(--ink-mute);
+    background: var(--surface-alt);
+    border: 1px solid var(--rule-soft);
+    border-radius: 2px;
+    padding: .12rem .45rem;
+    word-break: break-all;
+  }
+  .cite span.measured {
+    color: var(--crit);
+    background: var(--crit-soft);
+    border-color: transparent;
+    font-weight: 600;
+  }
+  @media (max-width: 34rem) {
+    .finding { grid-template-columns: 1fr; gap: .55rem; }
+    .finding .id { padding-top: 0; }
+  }
+
+  /* ── tables ──────────────────────────────────────────────────────── */
+  .scroller { overflow-x: auto; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 34rem; font-size: .92rem; }
+  th, td { text-align: left; padding: .7rem .9rem; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  thead th {
+    font-family: var(--mono);
+    font-size: .69rem; letter-spacing: .11em; text-transform: uppercase;
+    color: var(--ink-mute); font-weight: 600;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.was { color: var(--ink-mute); }
+
+  /* ── step sequence (order carries meaning here) ──────────────────── */
+  .steps { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--rule-soft); }
+  .step {
+    display: grid;
+    grid-template-columns: 3.2rem 1fr;
+    gap: .35rem 1.1rem;
+    padding: 1.1rem 0;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .step .n {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.55rem; font-weight: 700; line-height: 1;
+    color: var(--accent);
+    letter-spacing: -.03em;
+  }
+  .step .body { display: flex; flex-direction: column; gap: .55rem; min-width: 0; }
+  .step ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .25rem; }
+  .step li { max-width: 62ch; }
+  .gate {
+    font-size: .88rem;
+    background: var(--ok-soft);
+    border-radius: 2px;
+    padding: .5rem .75rem;
+    max-width: 64ch;
+  }
+  .gate b { color: var(--ok); font-weight: 700; }
+  @media (max-width: 34rem) { .step { grid-template-columns: 1fr; } }
+
+  /* ── decisions ───────────────────────────────────────────────────── */
+  .decisions { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: .75rem; }
+  .decision {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 1rem 1.1rem;
+    display: flex; flex-direction: column; gap: .45rem;
+  }
+  .decision .k {
+    font-family: var(--mono);
+    font-size: .69rem; letter-spacing: .12em; text-transform: uppercase; color: var(--accent);
+  }
+  .decision p { font-size: .92rem; color: var(--ink-soft); }
+
+  /* ── plain lists ─────────────────────────────────────────────────── */
+  ol.plain, ul.plain { margin: 0; padding-left: 1.3rem; display: flex; flex-direction: column; gap: .6rem; }
+  ol.plain li, ul.plain li { max-width: var(--measure); }
+  ul.dont { list-style: none; padding-left: 0; }
+  ul.dont li {
+    border-left: 2px solid var(--crit);
+    padding-left: .9rem;
+  }
+
+  strong { font-weight: 700; }
+  mark {
+    background: var(--accent-soft);
+    color: inherit;
+    padding: .05em .25em;
+    border-radius: 2px;
+  }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 1.2rem;
+    font-family: var(--mono);
+    font-size: .74rem;
+    color: var(--ink-mute);
+    display: flex; flex-wrap: wrap; gap: .4rem 1.2rem;
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="eyebrow">
+      <span>2026-08-16</span><span>v0.7.477 기준</span><span>점검 · 기획 전용 / 구현 없음</span>
+    </div>
+    <h1>콘텐츠 인텔리전스 관측 재설계</h1>
+    <p class="standfirst">
+      링크를 넣으면 그 계정의 모든 게시물을 모으고, 잘 된 것을 골라내고, 왜 잘 됐는지를 근거와 함께 보관한다 —
+      이 1차 프로세스가 지금 어디까지 되어 있는지 소스와 운영 DB로 직접 확인했다.
+    </p>
+  </header>
+
+  <dl class="readout">
+    <div class="cell"><dt>채널</dt><dd>14<span class="unit">행</span></dd></div>
+    <div class="cell" data-flag="bad"><dt>지켜보는 중</dt><dd>0<span class="unit">곳</span></dd></div>
+    <div class="cell"><dt>수집 게시물</dt><dd>21<span class="unit">건</span></dd></div>
+    <div class="cell" data-flag="warn"><dt>배수 산출</dt><dd>12<span class="unit">건</span></dd></div>
+    <div class="cell" data-flag="warn"><dt>왜 잘됐나 분석</dt><dd>6<span class="unit">건</span></dd></div>
+    <div class="cell" data-flag="bad"><dt>성공 공식</dt><dd>0<span class="unit">건</span></dd></div>
+    <div class="cell" data-flag="bad"><dt>최근 4일 처리</dt><dd>0<span class="unit">건</span></dd></div>
+    <div class="cell" data-flag="bad"><dt>중복 채널</dt><dd>5<span class="unit">쌍</span></dd></div>
+  </dl>
+
+  <div class="verdict">
+    <p>의도는 정확하고 스키마도 잘 잡혀 있다. 그런데 이 시스템은 지금 <mark>돌지 않는다</mark>.</p>
+    <p>
+      링크를 넣으면 잡이 큐에 쌓이지만 <strong>그 큐를 부르는 것이 아무것도 없다</strong>(크론 미등록).
+      콘텐츠 링크는 그 계정으로 확장되지 않고, 채널·프로필 링크는 입구에서 거부되며,
+      “모니터링”에는 주기적으로 지켜보는 코드가 없다. 어시스턴트는 AI가 아니라 <strong>정규식 12개</strong>다.
+    </p>
+    <p>
+      그리고 가장 중요한 것 — <strong>“계정의 모든 게시물”은 유튜브에서만, 그것도 API 키가 있어야 가능하다.</strong>
+      나머지 5개 플랫폼은 구조적으로 불가능하다. 이건 버그가 아니라 기획을 고쳐야 하는 제약이다.
+    </p>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────────── -->
+  <section id="trace">
+    <div class="head">
+      <span class="tag">관측 / 링크를 넣는 순간</span>
+      <h2>지금 실제로 일어나는 일</h2>
+    </div>
+
+    <div class="stack">
+      <h3>① 유튜브 <em>영상</em> 링크를 홈 입력칸에 넣는다</h3>
+      <pre class="trace">POST /api/ci/ingest
+  → ci_contents 1행 생성 (source='inbox', ingest_status='queued')
+  → ci_jobs 에 ingest 잡 1건 적재
+  → 화면: "1건 수집을 시작했습니다"
+  → <b>여기서 끝. 이 잡을 처리하는 워커를 부르는 것이 없다.</b></pre>
+      <p class="lede">워커를 수동으로 돌렸다고 가정해도:</p>
+      <pre class="trace">handleIngest → 영상 메타 수집 → upsertChannel 로 채널 행 생성
+  → is_monitored=false, 채널 스윕 잡 없음
+  → 그 채널의 형제 게시물 0건
+  → 비교군은 source='monitoring' 인 형제만 센다 → baseline_n = 0
+  → 8 미만이라 배수 미산출
+  → 배수 1.5 미만이라 크리에이티브 분석 미발화
+  → <b>"왜 잘 됐나"는 영원히 나오지 않는다.</b></pre>
+    </div>
+
+    <div class="stack">
+      <h3>② 유튜브 <em>채널·프로필</em> 링크를 같은 칸에 넣는다</h3>
+      <pre class="trace">parseContentUrl(채널URL) → null
+  → <b>rejected: "유튜브, 틱톡, 인스타, 페북, X, 스레드 링크만 받을 수 있습니다"</b></pre>
+      <p>
+        채널 등록은 <code>/ci/monitoring</code> 화면의 <strong>다른 입력칸 + 다른 API</strong>로만 된다.
+        입구가 둘이고 서로를 모른다.
+      </p>
+    </div>
+
+    <div class="stack">
+      <h3>③ 어시스턴트에 물어본다</h3>
+      <pre class="trace">placeholder: "무엇이든 물어보세요"
+  → parseIntent = 정규식 12개.  LLM 호출 0.  대화 이력 0.
+
+  채널 URL만 붙임    → "채널/구독/관심" 단어가 없어 ingest.add → <b>"지원하지 않는 주소"</b>
+  "왜 이게 잘됐어?"   → <b>"무슨 뜻인지 확실하지 않아 아무것도 실행하지 않았습니다"</b>
+  "이 계정 분석해줘"  → <b>같음</b>
+  "썸네일 바꿔볼까"   → 정규식 /바꿔|변경/ 에 납치 → "설정 화면에서 직접 바꾸세요"</pre>
+      <p><strong>“아예 말을 안 듣는다”는 정확한 관찰이다. 어시스턴트에는 AI가 없다.</strong></p>
+    </div>
+
+    <div class="stack">
+      <h3>④ 홈 입력칸에 자연어를 넣는다 — 제품이 스스로 유도한다</h3>
+      <p>
+        홈 입력칸은 <code>"링크를 붙여넣거나 예: 요리 주제에서 이번 주 떡상 보여줘"</code>라고 안내한다.
+        그런데 이 칸은 오직 수집 API로만 보낸다. 문장을 넣으면 공백으로 쪼개
+        <strong>단어 6개를 URL로 전송해 오류 6줄</strong>을 띄운다.
+      </p>
+      <p class="lede">제품이 자기 입으로 시킨 행동을 자기가 오류로 되돌려준다. 신뢰가 여기서 무너진다.</p>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────────── -->
+  <section id="findings">
+    <div class="head">
+      <span class="tag">결함 / 심각도순</span>
+      <h2>무엇이 막고 있나</h2>
+      <p class="lede">
+        빨강 = 이게 없으면 제품이 아예 돌지 않는다. 회색 칩은 근거 위치, 붉은 칩은 운영 DB 실측값이다.
+      </p>
+    </div>
+
+    <div class="findings">
+
+      <article class="finding" data-sev="p0">
+        <span class="id">P0-1</span>
+        <div class="body">
+          <h3>잡 워커를 부르는 곳이 세상에 없다</h3>
+          <p>
+            <code>vercel.json</code> 크론에는 <code>/api/cron/analyze-drain</code> 하나뿐이다.
+            GitHub Actions에도 없고 앱 내 호출도 없다. 링크를 넣어도 영원히 <code>queued</code>다.
+          </p>
+          <div class="cite">
+            <span>apps/web/vercel.json:14-16</span>
+            <span>worker/tick 호출처 전수 grep = 0</span>
+            <span class="measured">잡 271건 전부 08-11~12자 · 이후 0건</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="finding" data-sev="p0">
+        <span class="id">P0-2</span>
+        <div class="body">
+          <h3>링크 입구가 채널·프로필을 못 받는다</h3>
+          <p>
+            수집 API는 <code>parseContentUrl</code>만 쓴다. 채널을 판별하는 <code>parseChannelUrl</code>은
+            <strong>같은 파일에 있는데 호출되지 않는다.</strong>
+          </p>
+          <div class="cite">
+            <span>api/ci/ingest/route.ts:43</span><span>lib/ci/ucm/url.ts:147</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="finding" data-sev="p0">
+        <span class="id">P0-3</span>
+        <div class="body">
+          <h3>콘텐츠 링크가 계정으로 확장되지 않는다</h3>
+          <p>
+            <code>upsertChannel</code>이 채널 행은 만들지만 스윕 잡을 걸지 않고 <code>is_monitored=false</code>로 둔다.
+            비교군이 비어 배수가 나오지 않고, 배수가 없으니 “왜 잘됐나”도 발화하지 않는다.
+          </p>
+          <div class="cite"><span>lib/ci/jobs/handlers.ts:86, 235</span><span>lib/ci/analysis/derive.ts:56</span></div>
+        </div>
+      </article>
+
+      <article class="finding" data-sev="p0">
+        <span class="id">P0-4</span>
+        <div class="body">
+          <h3>채널 잡은 반드시 죽는다</h3>
+          <p>
+            채널 수집이 성공하면 다음 단계를 <code>nextStage(job.stage)</code>로 거는데
+            <code>target_type</code>을 보지 않는다. 그래서 분류 단계가 채널 id로 콘텐츠를 찾다 실패하고,
+            3회 재시도 후 폐기된다. <strong>채널을 훑을 때마다 실패 잡이 쌓인다.</strong>
+          </p>
+          <div class="cite">
+            <span>lib/ci/jobs/handlers.ts:301-315</span>
+            <span class="measured">dead: classify/channel 2건 · NOT_FOUND</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="finding" data-sev="p0">
+        <span class="id">P0-5</span>
+        <div class="body">
+          <h3>채널이 중복 생성되고, 남의 채널 ID를 저장한다</h3>
+          <p>
+            원인 ① 승격이 단방향이다 — 수집 경로는 <code>handle:</code> 행을 진짜 ID로 올리지만,
+            채널 추가 경로는 <code>external_id='handle:@x'</code>만 조회해 <strong>이미 있는 <code>UC…</code> 행을 못 본다.</strong>
+          </p>
+          <p>
+            원인 ② 채널 페이지 HTML 전체에서 <strong>첫 번째</strong> <code>"channelId":"UC…"</code>를 취한다.
+            채널 페이지에는 추천 채널·피처드 영상 소유자의 ID가 섞여 있다.
+            실제로 <code>@jawed</code>에 대해 <code>UCPszuZ3…</code>가 저장돼 있는데,
+            jawed의 진짜 채널은 <code>UC4QobU6STFB0P71PMvOGN5A</code>다.
+            <strong>남의 채널 ID로 게시물을 귀속하고 있다 — 판정 근거가 통째로 틀어진다.</strong>
+          </p>
+          <div class="cite">
+            <span>lib/ci/queries/channels.ts:126</span>
+            <span>lib/ci/connectors/youtube-channel.ts:103</span>
+            <span class="measured">14행 중 5쌍 중복</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="finding" data-sev="p1">
+        <span class="id">P1-1</span>
+        <div class="body">
+          <h3>“모니터링”에 지켜보는 코드가 없다</h3>
+          <p>
+            채널 스윕은 채널을 추가할 때 1회, 수집 기간을 바꿀 때 1회뿐이다.
+            <strong>주기적 재훑기가 어디에도 없고</strong>, 설정 “관심 채널의 새 게시물을 몇 시간마다 확인할지”는
+            소비처가 0이다.
+          </p>
+          <div class="cite">
+            <span>lib/ci/queries/channels.ts:141,180</span>
+            <span>ingest.refresh_interval_hours 소비처 0</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="finding" data-sev="p1">
+        <span class="id">P1-2</span>
+        <div class="body">
+          <h3>“모니터링 시작” 버튼이 아무것도 하지 않는다</h3>
+          <p>
+            토글은 플래그만 바꾸고 스윕을 걸지 않는다(수집 기간 변경일 때만 건다).
+            그리고 실측상 <strong>지켜보는 중인 채널은 0곳</strong> — 모니터링 화면은 지금 14곳을 전부 “중지”로 나열한다.
+          </p>
+          <div class="cite">
+            <span>api/ci/channels/[id]/route.ts:59</span>
+            <span class="measured">is_monitored=true 채널 0곳</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="finding" data-sev="p2">
+        <span class="id">P2-1</span>
+        <div class="body">
+          <h3>“왜 잘 되나”가 계정 단위로는 산출되지 않는다</h3>
+          <p>
+            성공 공식은 <strong>주제 단위</strong>로만 계산되고 승격 기준이 근거 20개·채널 5곳이다.
+            계정 1곳을 분석해서는 절대 뜨지 않는다. 사용자가 원한 “이 계정이 왜 잘되나”의 산출물이
+            <strong>아예 없다.</strong> 이번 점검에서 발견한 가장 큰 기획 공백이다.
+          </p>
+          <div class="cite">
+            <span>lib/ci/jobs/stages.ts:260-312</span>
+            <span class="measured">활성 성공 공식 0건</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="finding" data-sev="p2">
+        <span class="id">P2-2</span>
+        <div class="body">
+          <h3>생존자 편향 — 잘된 것만 분석한다</h3>
+          <p>
+            크리에이티브 분석은 평소 대비 1.5배 이상만 돌린다. 잘된 것만 보면 “왜 잘됐나”는 성립하지 않는다.
+            <strong>못 된 것과 대조해야 근거다.</strong>
+          </p>
+          <div class="cite"><span>lib/ci/jobs/stages.ts:505</span></div>
+        </div>
+      </article>
+
+      <article class="finding" data-sev="p3">
+        <span class="id">P3</span>
+        <div class="body">
+          <h3>어시스턴트 — LLM 없음, 컨텍스트 미사용, 죽은 커맨드 2개</h3>
+          <p>
+            현재 화면(<code>route</code>)을 인자로 받고 <strong>함수 안에서 한 번도 쓰지 않는다</strong>
+            — 주석에는 “현재 화면을 컨텍스트로 물려받아”라고 적혀 있다.
+            대화 이력이 없어 되묻기·명확화가 불가능하고, 답변은 전부 목록 나열이라
+            <strong>“왜”에 답하는 커맨드가 하나도 없다.</strong>
+            카탈로그의 <code>signal.add</code>·<code>topic.reclassify</code>는 해석에도 실행부에도 없다.
+          </p>
+          <div class="cite">
+            <span>lib/ci/ai/assistant.ts:63-125</span>
+            <span>lib/ci/ai/assistant-server.ts:49-247</span>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────────── -->
+  <section id="extra">
+    <div class="head">
+      <span class="tag">지시 범위 밖 / 발견 8건</span>
+      <h2>사용자가 짚지 않은 것</h2>
+      <p class="lede">고치지 않았고 기록만 한다.</p>
+    </div>
+
+    <ol class="plain">
+      <li>
+        <strong>설정 21개 중 9개가 소비처 0</strong> — 바꿔도 아무 일이 일어나지 않는다.
+        <code>ingest.refresh_interval_hours</code> · <code>ingest.collect_window</code> ·
+        <code>data.retention_days</code> · <code>analysis.size_bands</code> ·
+        <code>ai.automation_level</code> · <code>ai.daily_call_limit</code> ·
+        <code>publish.*</code> · <code>alert.brief.send_at</code> · <code>notify.channels</code>.
+        이 프로젝트의 알려진 함정(“표·설정만 만들고 소비 코드 0”)이 그대로 재발했다.
+      </li>
+      <li>
+        그 결과 <code>size_band</code>는 <strong>읽는 코드는 있는데 채우는 코드가 없다</strong> —
+        채널 상세의 “규모 구간”은 영구히 “판정 전”이다.
+      </li>
+      <li><strong>“일간 브리핑”은 설정만 있고 발송 코드가 없다.</strong> 시각을 맞춰도 아무것도 오지 않는다.</li>
+      <li><strong>알림 수신 채널</strong>을 고르게 하지만 실제 발송은 앱 내 알림뿐 — 외부 전달 경로가 없다.</li>
+      <li>
+        홈의 <strong>“자동 업데이트” 카드가 거짓 신호</strong>다. “신규 N”은 성공한 <em>잡</em> 수이지 새 콘텐츠 수가 아니고,
+        큐가 비면 영구히 “대기 · 100% · 신규 200”으로 굳는다.
+      </li>
+      <li>
+        <strong>주제가 하나면 모든 콘텐츠가 그 주제로 자동 배정된다</strong>(확신도 0.55, 콜드 스타트 배려).
+        실측 결과 PSY·Luis Fonsi·OneRepublic·“Me at the zoo”가 전부 <strong>“요리”</strong>로 태깅돼 있다.
+        이 값이 “같은 주제 상위 %” 모집단에 그대로 들어가 지표를 오염시키고, 검토 큐를 21건 중 19건으로 부풀린다.
+      </li>
+      <li>핸들이 URL 인코딩된 채 저장된다 — 실측 <code>@%C3%A4%CC%872</code>. 디코딩 단계가 없다.</li>
+      <li>
+        채널 스윕 실패는 수집함에서 볼 수 없다. 홈의 “실패 N건 보기”는 <em>콘텐츠</em> 목록으로 가는데,
+        채널 대상 실패 잡은 거기 뜨지 않는다.
+      </li>
+    </ol>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────────── -->
+  <section id="limits">
+    <div class="head">
+      <span class="tag">구조적 한계</span>
+      <h2>코드로는 못 고치는 것 — 기획을 바꿔야 한다</h2>
+    </div>
+
+    <div class="stack">
+      <h3>“계정의 모든 게시물”은 유튜브에서만 가능하다</h3>
+      <pre class="trace">lib/ci/connectors/channel-feed.ts:96
+  "{platform}는 공개 게시물 목록을 제공하지 않아 채널 일괄 수집을 할 수 없습니다.
+   게시물 링크를 직접 넣어 주세요"</pre>
+      <p>
+        틱톡·인스타·페이스북·X·스레드는 <strong>콘텐츠 링크 1건씩</strong>만 처리된다.
+        우리 구현의 부족이 아니라 각 플랫폼이 공개 목록을 주지 않기 때문이다.
+        지금처럼 화면이 6개 플랫폼을 나란히 약속하면 5개에서 반드시 실망한다.
+      </p>
+    </div>
+
+    <div class="stack">
+      <h3>유튜브도 API 키가 없으면 최근 15개만 본다</h3>
+      <p>
+        키가 있으면 기간 창 전체를, 없으면 RSS로 내려가 최근 15개만 가져온다.
+        실측상 추성훈 채널은 <strong>543개 중 15개(2.8%)</strong>만 수집됐다.
+        화면은 이 한계를 정직하게 표시한다 — 좋다. 그러나 <strong>2.8%를 보고 “이 계정에서 뭐가 잘 되는지”를 판정할 수는 없다.</strong>
+      </p>
+      <p class="lede">
+        쿼터는 문제가 아니다. 543개 채널 전량 수집이 하루 무료 한도의 1% 미만이다.
+        <strong>비용이 아니라 키 발급 결정의 문제다.</strong>
+      </p>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────────── -->
+  <section id="target">
+    <div class="head">
+      <span class="tag">재설계 / 목표 상태</span>
+      <h2>어떻게 되어야 하나</h2>
+    </div>
+
+    <div class="stack">
+      <h3>입구는 하나, 종류는 시스템이 판별한다</h3>
+      <pre class="trace">사용자: 링크 1개 (무엇이든)
+   ↓
+parseAnyCiUrl(input)                     ← 신설 SSOT
+   ↓
+ ├ kind='channel'  → 채널 등록 + 즉시 전체 훑기 + 모니터링 ON 제안
+ └ kind='content'  → 콘텐츠 적재 + <b>그 채널 전체 훑기를 반드시 동반</b>
+   ↓
+ 어느 쪽이든 도착지는 같다: "이 계정" 화면</pre>
+      <p>
+        “잘 됨”은 그 계정의 평소 대비로만 정의된다. 그러므로 콘텐츠 1건을 받으면
+        계정 전체 훑기는 <strong>선택이 아니라 필수</strong>다.
+      </p>
+    </div>
+
+    <div class="stack">
+      <h3>계정(채널)이 분석의 단위가 된다</h3>
+      <div class="scroller">
+        <table>
+          <thead>
+            <tr><th>구역</th><th>지금</th><th>목표</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>모니터링 목록</td>
+              <td class="was">채널명 · 플랫폼 · 구독자 · 주제 · 상태</td>
+              <td>+ <strong>수집 N/전체 M · 마지막 훑은 시각 · 최근 떡상 건수 · 최고 배수 · 다음 훑기 예정</strong></td>
+            </tr>
+            <tr>
+              <td>채널 상세</td>
+              <td class="was">게시물 카드 격자, 정렬 없음</td>
+              <td>
+                ① 계정 요약(평소 조회수 중앙값 · 업로드 주기 · 주 포맷)<br>
+                ② 잘 된 게시물 상위 N (배수순 기본)<br>
+                ③ <strong>왜 잘 됐나 — 상위군 vs 중앙군 대조표</strong><br>
+                ④ 전체 게시물(정렬 · 필터)
+              </td>
+            </tr>
+            <tr>
+              <td>수집 한계</td>
+              <td class="was">오류 문구 한 줄</td>
+              <td>상시 배지 — “543개 중 15개(2.8%)만 봅니다 · 전체를 보려면 API 키 필요” + 설정 바로가기</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="stack">
+      <h3>“왜 잘 됐나”를 계정 단위 대조로 산출한다</h3>
+      <pre class="trace">채널 C 의 게시물 N건 중
+  상위군 = 배수 상위 20% (최소 3건)
+  중앙군 = 중앙값 ±20%  (최소 3건)
+
+두 군의 관측 가능한 차이를 나열한다
+  · 썸네일 유형 / 문구 길이   · 후킹 유형     · 제목 패턴
+  · 길이(초) 중앙값           · 발행 요일·시각 · 키워드
+
+각 항목: 상위군 비율 vs 중앙군 비율 + 표본 수 + "근거 부족" 판정</pre>
+      <p>
+        표본이 얇으면 공식을 만들지 않고 <strong>“아직 말할 수 없다 — N건 더 필요”</strong>를 표시한다.
+        기존 승격 기준의 철학을 그대로 잇는다.
+      </p>
+    </div>
+
+    <div class="stack">
+      <h3>어시스턴트를 진짜 AI로</h3>
+      <pre class="trace">발화 → ① 규칙 해석 (지금 것 유지 — 빠르고 공짜, LLM 장애 시 폴백)
+        ↓ 못 잡으면
+      ② LLM 의도 해석: 커맨드 카탈로그 + 현재 화면(route·대상 id) + 최근 대화 3턴
+        ↓
+      ③ 실행 등급 규약 유지 (safe/write 실행 · guarded는 제안만)  ← 이 설계는 옳다
+        ↓
+      ④ 목록만이 아니라 <b>"왜"에 답한다</b></pre>
+      <div class="scroller">
+        <table>
+          <thead><tr><th>신설 커맨드</th><th>답하는 질문</th></tr></thead>
+          <tbody>
+            <tr><td class="num">content.explain</td><td>“이거 왜 잘됐어?” → 배수·백분위·속도 + 크리에이티브 + 발행 맥락을 <strong>문장으로</strong></td></tr>
+            <tr><td class="num">channel.analyze</td><td>“이 계정 분석해줘” → 상위군 vs 중앙군 대조 요약</td></tr>
+            <tr><td class="num">channel.top</td><td>“여기서 제일 잘된 거” → 배수 상위 N</td></tr>
+            <tr><td class="num">data.status</td><td>“왜 데이터가 없어?” → 수집 진행·한계·막힌 지점 <em>(이게 없어서 사용자가 고장을 진단할 수 없다)</em></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────────── -->
+  <section id="plan">
+    <div class="head">
+      <span class="tag">실행 / 앞 단계가 끝나야 다음이 의미를 갖는다</span>
+      <h2>단계별 계획과 완료 판정</h2>
+      <p class="lede">각 단계는 “무엇이 끝났다고 말할 수 있는가”를 함께 정의한다. 검증 없이 다음으로 넘어가지 않는다.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <span class="n">0</span>
+        <div class="body">
+          <h3>심장 박동</h3>
+          <ul>
+            <li>워커를 부르는 크론 등록</li>
+            <li>워커가 N분 이상 멈추면 홈에 “수집이 멈춰 있습니다”를 띄운다 — 조용한 정지 금지</li>
+          </ul>
+          <p class="gate"><b>완료 판정</b> — 링크를 넣고 <strong>아무것도 하지 않은 채</strong> 60초 뒤 새로고침하면 제목·썸네일·지표가 채워져 있다.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="n">1</span>
+        <div class="body">
+          <h3>링크 단일 입구</h3>
+          <ul>
+            <li><code>parseAnyCiUrl</code> SSOT 신설 — 수집 API가 채널·콘텐츠를 모두 받는다</li>
+            <li>콘텐츠 링크가 채널 스윕을 동반 예약</li>
+            <li>채널 잡 체인 분기 수정</li>
+          </ul>
+          <p class="gate"><b>완료 판정</b> — 채널 URL · 영상 URL · 숏츠 URL · <code>@handle</code> 4종을 <strong>같은 칸</strong>에 넣어 전부 “이 계정” 화면에 도달한다.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="n">2</span>
+        <div class="body">
+          <h3>채널 동일성 — 데이터 신뢰의 기반</h3>
+          <ul>
+            <li>채널 페이지에서 <strong>소유자 ID만</strong> 취한다(첫 매칭 금지)</li>
+            <li>채널 추가 시 핸들로 기존 <code>UC…</code> 행을 양방향 조회</li>
+            <li>기존 중복 5쌍 병합 — 콘텐츠 재귀속 + 파생값 재계산 <em>(되돌릴 수 없어 승인 필요)</em></li>
+            <li>핸들 URL 디코딩</li>
+          </ul>
+          <p class="gate"><b>완료 판정</b> — 같은 채널을 3경로로 넣어도 행이 1개이고, 저장된 <code>UC…</code>가 실제 소유자와 일치한다(API로 대조).</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="n">3</span>
+        <div class="body">
+          <h3>모니터링을 살린다</h3>
+          <ul>
+            <li>주기 재훑기 잡 신설 + <code>refresh_interval_hours</code> 실제 소비</li>
+            <li>모니터링 ON 시 즉시 스윕</li>
+            <li>목록에 수집률 · 마지막/다음 훑기 · 최근 떡상 노출</li>
+          </ul>
+          <p class="gate"><b>완료 판정</b> — 모니터링을 켜고 주기가 지나면 <strong>사람이 아무것도 하지 않아도</strong> 새 게시물이 늘어난다.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="n">4</span>
+        <div class="body">
+          <h3>“왜 잘 됐나”를 계정 단위로</h3>
+          <ul>
+            <li>상위군 vs 중앙군 대조 분석 신설</li>
+            <li>크리에이티브 분석에 중앙군 포함(생존자 편향 제거)</li>
+            <li>채널 상세 재구성</li>
+          </ul>
+          <p class="gate"><b>완료 판정</b> — 게시물 30건 이상 채널에서 “상위군은 X가 n/m, 중앙군은 k/m”이 <strong>표본 수와 함께</strong> 나온다. 얇으면 “말할 수 없다”가 나온다.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="n">5</span>
+        <div class="body">
+          <h3>어시스턴트</h3>
+          <ul>
+            <li>LLM 의도 해석 + 규칙 폴백 · 신설 커맨드 4개</li>
+            <li>화면 컨텍스트 실사용 · “바꿔/변경” 하이재킹 제거 · 죽은 커맨드 정리 · 대화 이력</li>
+          </ul>
+          <p class="gate"><b>완료 판정</b> — “이거 왜 잘됐어?” · “이 계정 분석해줘” · “왜 데이터가 없어?” 세 질문에 <strong>근거 있는 문장</strong>으로 답한다.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="n">6</span>
+        <div class="body">
+          <h3>정직성 부채 청산</h3>
+          <ul>
+            <li>소비처 0 설정 9개 — <strong>구현하거나 화면에서 내린다</strong>(그대로 두는 것이 최악)</li>
+            <li><code>size_band</code> 산출 · 홈 “자동 업데이트” 신호 정정</li>
+            <li>단일 주제 자동배정을 ‘가배정’으로 표시하고 백분위 모집단에서 제외</li>
+          </ul>
+          <p class="gate"><b>완료 판정</b> — 설정 화면의 모든 항목에 대해 “바꾸면 무엇이 달라지는가”를 한 줄로 답할 수 있다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────────── -->
+  <section id="decisions">
+    <div class="head">
+      <span class="tag">승인 필요</span>
+      <h2>결정해 주셔야 진행되는 것</h2>
+    </div>
+
+    <div class="decisions">
+      <div class="decision">
+        <span class="k">전제 조건</span>
+        <h3>YouTube Data API 키를 확보할 것인가</h3>
+        <p>안 하면 “계정의 모든 게시물”이 최근 15개로 고정된다. 무료 쿼터로 충분하므로 비용이 아니라 발급 결정의 문제다.</p>
+      </div>
+      <div class="decision">
+        <span class="k">인프라</span>
+        <h3>워커를 무엇으로 돌릴 것인가</h3>
+        <p>Vercel Cron(플랜 한도 확인 필요) · GitHub Actions · Supabase pg_cron 중 하나를 정해야 단계 0을 시작한다.</p>
+      </div>
+      <div class="decision">
+        <span class="k">약속 수준</span>
+        <h3>비유튜브 플랫폼을 어디까지 약속할 것인가</h3>
+        <p>“계정 전체”를 유튜브 한정으로 명시할지, 나머지는 “링크 단건”으로 정직하게 낮출지.</p>
+      </div>
+      <div class="decision">
+        <span class="k">되돌릴 수 없음</span>
+        <h3>중복 채널 5쌍을 병합할 것인가</h3>
+        <p>운영 DB 변경이다. 콘텐츠 재귀속과 파생값 재계산이 따른다.</p>
+      </div>
+      <div class="decision">
+        <span class="k">비용</span>
+        <h3>AI 호출 상한을 어떻게 둘 것인가</h3>
+        <p>계정 전체 훑기 × 대조 분석은 게시물 수에 비례한다. 채널당·일별 상한 정책이 필요하다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────────── -->
+  <section id="dont">
+    <div class="head">
+      <span class="tag">경계</span>
+      <h2>하지 말 것</h2>
+    </div>
+    <ul class="dont plain">
+      <li>
+        <strong>화면부터 손대지 말 것.</strong> 지금 UI가 비어 보이는 진짜 이유는 UI가 아니라 데이터가 안 들어오기 때문이다.
+        단계 0~2 없이 화면을 고치면 예쁜 빈 화면이 된다.
+      </li>
+      <li>
+        <strong>“모르는 것을 모른다고 말하는” 현재 설계를 훼손하지 말 것.</strong>
+        완전도 · 수집 한계 · “543개 중 15개” · “근거 부족”은 이 시스템에서 <em>가장 잘 만들어진 부분</em>이다.
+        데이터가 얇다고 추정치로 채우면 제품이 거짓말을 시작한다.
+      </li>
+      <li><strong>어시스턴트에 guarded 실행을 열지 말 것.</strong> “되돌리기 어려운 일은 AI가 몰래 하지 않는다”는 현재 규약은 옳다.</li>
+      <li>
+        <strong>새 표·새 설정을 먼저 만들지 말 것.</strong> 이미 같은 실수를 했다(설정 9개 소비처 0).
+        소비하는 코드를 먼저 쓰고 그 다음에 저장소를 만든다.
+      </li>
+      <li><strong>병렬 시스템 신설 금지.</strong> 목록은 표준 부품, 상태는 공용 상태 부품을 쓴다. 채널 화면도 예외가 아니다.</li>
+    </ul>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────────── -->
+  <section id="verify">
+    <div class="head">
+      <span class="tag">검증</span>
+      <h2>“진짜 되는가”를 어떻게 증명하나</h2>
+      <p class="lede">
+        이 프로젝트에서 타입 검사·린트·단위 테스트가 전부 초록인데 브라우저가 결함을 잡아낸 전례가 반복됐다.
+        그래서 완료 판정은 정적 검증이 아니라 <strong>실제 경로 관측</strong>으로 한다.
+      </p>
+    </div>
+    <ol class="plain">
+      <li><strong>엔드투엔드 1회</strong> — 새 워크스페이스에 채널 링크 1개 투입 → 사람이 아무것도 하지 않고 대기 → 게시물·배수·대조가 화면에 뜨는지</li>
+      <li><strong>동일성</strong> — 같은 채널 3경로 투입 시 채널 행 1개, 저장된 ID가 플랫폼 응답과 일치</li>
+      <li><strong>지속성</strong> — 모니터링 ON 후 주기 경과 시 자동으로 게시물이 늘어나는지</li>
+      <li><strong>어시스턴트 회귀 세트</strong> — 질문 10개(되는 것 4 / 애매한 것 3 / 못 하는 것 3). <strong>못 하는 것에 못 한다고 답하는지</strong>까지 본다</li>
+      <li><strong>가드 신설</strong> — 설정 키에 소비처가 없으면 실패하는 정적 테스트. 이 프로젝트의 알려진 함정이므로 가드가 필요하다</li>
+    </ol>
+    <p class="lede">
+      이번 점검에서 브라우저 실화면 검증은 하지 않았다. 개발 서버는 살아 있으나 여러 세션이 공유하는 환경이고,
+      로그인 세션 확보와 운영 워커 수동 기동이 필요해 다른 세션의 작업 상태를 오염시킬 위험이 있었다.
+      위 결함은 전부 <strong>소스 + 운영 DB 실측</strong>으로 확인했다.
+    </p>
+  </section>
+
+  <footer>
+    <span>docs/2026-08-16-ci-monitoring-rework/PLAN.md</span>
+    <span>API 37 · lib 60 · 화면 13 전수 읽기</span>
+    <span>ci_* 14개 표 직접 질의</span>
+    <span>구현 없음</span>
+  </footer>
+
+</div>
