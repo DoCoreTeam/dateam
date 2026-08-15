@@ -43,6 +43,9 @@ export default function SystemPromptModal({ conversationId, systemPrompt, onSave
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="시스템 프롬프트"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
       style={{
         position: 'fixed', inset: 0, zIndex: 'var(--z-modal)',

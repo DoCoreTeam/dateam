@@ -140,7 +140,10 @@ export default function ProjectFormModal({ mode, projectId, initial, onClose, on
   }
 
   return (
-    <div className="project-form-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={mode === 'create' ? '프로젝트 추가' : '프로젝트 수정'} className="project-form-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
       style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--modal-backdrop)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-4)' }}>
       <div className="project-form-sheet" style={{ width: '100%', maxWidth: 520, background: 'var(--color-surface)', borderRadius: 'var(--radius)', padding: 'var(--space-6)', boxShadow: 'var(--shadow-modal)', maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>

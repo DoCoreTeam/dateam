@@ -33,6 +33,9 @@ export default function ExportFormatModal({ onSelect, onClose, busy, error }: Pr
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="내보내기 포맷 선택"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
       style={{
         position: 'fixed', inset: 0, zIndex: 'var(--z-modal)',

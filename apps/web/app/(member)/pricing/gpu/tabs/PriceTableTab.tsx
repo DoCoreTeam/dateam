@@ -480,8 +480,11 @@ function PartnerTierManagerModal({ tiers, onClose, onChanged }: { tiers: Partner
     if (res.ok) onChanged(); else alert('삭제 실패')
   }
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(480px,100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
+    <div className="gpu-modal-backdrop" role="dialog" aria-modal="true"
+      aria-label="파트너 등급 관리" onClick={onClose}>
+      <div className="gpu-modal-card gpu-modal-card--scroll"
+        style={{ width: 'min(480px,100%)' }}
+        onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
           <strong style={{ fontSize: 15, flex: 1 }}>파트너 등급 관리</strong>
           <button onClick={onClose} className="gpu-btn" style={{ padding: 6 }}><X size={16} /></button>

@@ -164,8 +164,11 @@ function QuoteEditModal({ quote, onClose, onChanged }: { quote: QuoteRow; onClos
   }
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(560px, 100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
+    <div className="gpu-modal-backdrop" role="dialog" aria-modal="true"
+      aria-label="견적 수정" onClick={onClose}>
+      <div className="gpu-modal-card gpu-modal-card--scroll"
+        style={{ width: 'min(560px, 100%)' }}
+        onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
           <strong style={{ fontSize: 15, flex: 1 }}>
             {quote.gpu_products?.model_name ?? '상품 미연결'} {quote.gpu_products?.memory ?? ''} 견적 수정
@@ -303,8 +306,11 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
   }
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(720px, 100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
+    <div className="gpu-modal-backdrop" role="dialog" aria-modal="true"
+      aria-label="공급사 상세" onClick={onClose}>
+      <div className="gpu-modal-card gpu-modal-card--scroll"
+        style={{ width: 'min(720px, 100%)' }}
+        onClick={(e) => e.stopPropagation()}>
         {/* 헤더 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: 'var(--hairline) solid var(--gpu-border)', position: 'sticky', top: 0, background: '#fff' }}>
           <LogoAvatar name={s?.name ?? '?'} color={f?.color || s?.color || COLORS[0]} logoUrl={s?.logo_url} />
@@ -569,8 +575,11 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   }
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(520px, 100%)', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
+    <div className="gpu-modal-backdrop" role="dialog" aria-modal="true"
+      aria-label="공급사 등록" onClick={onClose}>
+      <div className="gpu-modal-card"
+        style={{ width: 'min(520px, 100%)' }}
+        onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
           <strong style={{ fontSize: 15, flex: 1 }}>{T.supplier} {T.create}</strong>
           <button onClick={aiFill} disabled={aiBusy || !f.name.trim()} className="gpu-btn gpu-promote-btn" title="회사명으로 AI가 정보를 채웁니다(빈 칸만, 편집 가능)">

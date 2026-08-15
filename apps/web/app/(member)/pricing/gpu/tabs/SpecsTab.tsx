@@ -135,8 +135,11 @@ function SpecModal({ row, onClose, onSaved }: { row: ModelRow; onClose: () => vo
   )
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(680px,100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
+    <div className="gpu-modal-backdrop" role="dialog" aria-modal="true"
+      aria-label="GPU 스펙 편집" onClick={onClose}>
+      <div className="gpu-modal-card gpu-modal-card--scroll"
+        style={{ width: 'min(680px,100%)' }}
+        onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: 'var(--hairline) solid var(--gpu-border)', position: 'sticky', top: 0, background: '#fff' }}>
           <strong style={{ fontSize: 16, flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
             {row.model_name}

@@ -1000,16 +1000,15 @@ function PriceRegisterModal({
   }
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 9000,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }} onClick={onClose}>
+    <div className="gpu-modal-backdrop" role="dialog" aria-modal="true"
+      aria-label="경쟁사 가격 등록" onClick={onClose}>
       <form
         onSubmit={handleSubmit}
         onClick={e => e.stopPropagation()}
+        className="gpu-modal-card"
         style={{
-          background: '#fff', borderRadius: 14, padding: '24px 28px', width: 460,
-          boxShadow: '0 24px 64px rgba(16,22,40,.22)', display: 'flex', flexDirection: 'column', gap: 16,
+          width: 'min(460px, 100%)', padding: '24px 28px',
+          display: 'flex', flexDirection: 'column', gap: 16,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1134,8 +1133,11 @@ function MappingManagerModal({ mappings, competitors, onClose, onChanged }: {
     if (res.ok) onChanged(); else alert('삭제 실패')
   }
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: 'min(620px,100%)', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
+    <div className="gpu-modal-backdrop" role="dialog" aria-modal="true"
+      aria-label="경쟁사 매핑 관리" onClick={onClose}>
+      <div className="gpu-modal-card gpu-modal-card--scroll"
+        style={{ width: 'min(620px,100%)' }}
+        onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>
           <strong style={{ fontSize: 15, flex: 1 }}>경쟁사 매핑 관리 ({mappings.length})</strong>
           <button onClick={onClose} className="gpu-btn" style={{ padding: 6 }}><X size={16} /></button>
@@ -1670,18 +1672,16 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
       {/* 경쟁사 선택 모달 */}
       {showCompModal && (
         <div
+          className="gpu-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="경쟁사 선택"
           onClick={() => setShowCompModal(false)}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 1000,
-            background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{
-              background: '#fff', borderRadius: 14, padding: '20px 24px', width: 400, maxWidth: '90vw',
-              boxShadow: '0 12px 40px rgba(0,0,0,0.18)',
-            }}
+            className="gpu-modal-card"
+            style={{ width: 'min(400px, 100%)', padding: '20px 24px' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--gpu-ink)' }}>경쟁사 선택</span>

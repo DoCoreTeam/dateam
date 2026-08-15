@@ -128,6 +128,9 @@ export default function ModelPickerModal({ providers, currentProvider, currentMo
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="모델 선택"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
       style={{
         position: 'fixed', inset: 0, zIndex: 'var(--z-modal)',

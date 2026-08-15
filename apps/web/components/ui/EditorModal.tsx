@@ -31,6 +31,7 @@ export default function EditorModal({ title, value, placeholder, onClose, onChan
 
   return (
     <div
+      role="presentation"
       ref={backdropRef}
       onClick={handleBackdrop}
       style={{

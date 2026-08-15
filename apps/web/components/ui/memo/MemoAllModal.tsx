@@ -22,6 +22,7 @@ export default function MemoAllModal({ items, onReview, onPromote, onClose, onGo
 
   return (
     <div
+      role="presentation"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
       style={{
         position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--modal-backdrop)',

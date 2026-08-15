@@ -86,7 +86,10 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
   }
 
   return (
-    <div onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="일정 등록" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
       style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'var(--modal-backdrop)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-4)' }}>
       <div style={{ width: '100%', maxWidth: 460, background: 'var(--color-surface)', borderRadius: 'var(--radius)', padding: 'var(--space-6)', boxShadow: 'var(--shadow-modal)', maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
