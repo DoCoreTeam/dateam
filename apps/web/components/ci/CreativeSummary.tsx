@@ -22,10 +22,13 @@ export default function CreativeSummary({ creative, variant = 'full' }: Props) {
   if (!creative) return null
 
   if (variant === 'compact') {
-    const chips = [
-      creative.hookType,
-      ...creative.titlePattern.slice(0, 2),
-    ].filter((v): v is string => Boolean(v))
+    // 후킹 유형과 제목 패턴에 **같은 말이 들어 있을 수 있다**(예: 둘 다 "질문형").
+    // 겹친 채로 두면 ① 같은 배지가 두 번 보이고 ② key가 중복돼 React가
+    // "자식을 중복·누락시킬 수 있다"고 경고한다(실측: 채널 상세에서 콘솔 오류 3건).
+    // 겹침을 먼저 걷어낸 뒤에 개수를 자른다 — 자르고 걷어내면 남는 게 하나로 줄어든다.
+    const chips = Array.from(new Set(
+      [creative.hookType, ...creative.titlePattern].filter((v): v is string => Boolean(v)),
+    )).slice(0, 3)
 
     if (chips.length === 0 && !creative.thumbnailText) return null
 
@@ -81,7 +84,8 @@ export default function CreativeSummary({ creative, variant = 'full' }: Props) {
       value: creative.titlePattern.length
         ? (
           <span className="ci-card-badges">
-            {creative.titlePattern.map((t) => (
+            {/* 같은 패턴이 두 번 들어와도 배지는 하나만 — key 중복과 중복 표시를 함께 막는다 */}
+            {Array.from(new Set(creative.titlePattern)).map((t) => (
               <span key={t} className="ci-status ci-status-neutral">{t}</span>
             ))}
           </span>

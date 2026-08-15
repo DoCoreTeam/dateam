@@ -2,7 +2,7 @@
 
 // app/(ci)/ci/channels/[id]/ChannelDetailView.tsx — R03 채널 상세 뷰
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import type { CiChannelListItem, CiContentListItem } from '@/lib/ci/contracts'
 import ContentCard from '@/components/ci/ContentCard'
@@ -14,9 +14,18 @@ interface Props {
   workspaceId: string
   channel: CiChannelListItem
   contents: CiContentListItem[]
+  /**
+   * 이 채널을 두고 하는 분석("이 계정에서 왜 잘 됐나").
+   *
+   * 왜 슬롯인가: 데이터는 서버(page.tsx)가 읽지만, **놓일 자리는 이 화면의 순서 문제**다.
+   * 예전엔 page가 이 화면보다 위에 그려서 **채널이 누구인지 알기도 전에 분석이 먼저 나왔다**
+   * (사용자 지적: "이거 채널명보다 위쪽에 나오는 게 맞는 거야?").
+   * 분석은 대상을 알고 난 뒤에 읽는 것이라 정체(아바타·구독자·수집 현황) 다음에 둔다.
+   */
+  insight?: ReactNode
 }
 
-export default function ChannelDetailView({ workspaceId, channel, contents }: Props) {
+export default function ChannelDetailView({ workspaceId, channel, contents, insight }: Props) {
   const router = useRouter()
   const [openId, setOpenId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -172,6 +181,8 @@ export default function ChannelDetailView({ workspaceId, channel, contents }: Pr
           />
         )}
       </section>
+
+      {insight}
 
       {hookSummary.length > 0 && (
         <section style={{ marginBottom: 'var(--space-6)' }}>

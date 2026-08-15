@@ -43,9 +43,14 @@ export default async function ChannelDetailPage({
           label: channel.ownership === 'owned' ? '내 채널' : '모니터링',
         }}
       />
-      {/* "왜 잘 됐나"를 게시물 목록보다 먼저 둔다 — 사용자가 이걸 보러 들어온다 */}
-      <AccountWhyPanel contrast={contrast} />
-      <ChannelDetailView workspaceId={workspace.id} channel={channel} contents={contents} />
+      {/* 분석은 채널 정체(아바타·구독자·수집 현황) 다음에 놓는다 — 대상을 알고 읽는 글이다.
+          예전엔 여기서 바로 그려서 제목 바로 밑, 프로필보다 위에 나왔다. */}
+      <ChannelDetailView
+        workspaceId={workspace.id}
+        channel={channel}
+        contents={contents}
+        insight={<AccountWhyPanel contrast={contrast} />}
+      />
     </>
   )
 }

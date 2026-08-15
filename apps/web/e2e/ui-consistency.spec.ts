@@ -185,13 +185,24 @@ test('수집함: 탭을 옮겨도 표의 기본 행 높이가 같다', async ({ 
 })
 
 test('채널 상세: 같은 줄의 셀렉트와 버튼이 같은 높이·같은 바닥선', async ({ page }) => {
-  test.setTimeout(90_000)
+  test.setTimeout(180_000)
   test.skip(!(await open(page, '/ci/monitoring')), '인증 세션 없음')
 
   const firstRow = page.locator('table tbody tr').first()
   test.skip((await firstRow.count()) === 0, '등록된 채널이 없어 상세를 열 수 없음')
+  // 행 클릭은 **hydration이 끝난 뒤에야** 동작한다 — React 핸들러가 그때 붙는다.
+  // 그 전에 누르면 클릭은 행까지 도달하는데 아무 일도 안 일어난다(실측: dev에서 hydration 10.8초).
+  await firstRow.evaluate((el) => new Promise<void>((resolve) => {
+    const ready = () => Object.keys(el).some((k) => k.startsWith('__reactProps$'))
+    if (ready()) return resolve()
+    const t = setInterval(() => { if (ready()) { clearInterval(t); resolve() } }, 100)
+    setTimeout(() => { clearInterval(t); resolve() }, 30_000)
+  }), undefined, { timeout: 40_000 })
   await firstRow.click()
-  await page.waitForURL(/\/ci\/channels\//, { timeout: 20_000 })
+  // 이동에도 시간이 걸린다 — `router.push`는 대상 라우트의 서버 렌더를 받아야 주소를 바꾸는데,
+  // dev에서 그 라우트를 처음 컴파일하면 20초가 걸린다(실측: 3초·10초엔 그대로, 20초에 도착).
+  // 20초 상한으로는 **되는 기능을 안 된다고 보고**하게 된다.
+  await page.waitForURL(/\/ci\/channels\//, { timeout: 60_000 })
   await dismissGlobalModals(page)
 
   const box = await page.locator('#ch-window').boundingBox()
