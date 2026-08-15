@@ -41,16 +41,22 @@ async function dismissOverlays(page: Page) {
   })
 }
 
-// 생성 버튼은 "(N개 업무)" — 헤더 "(N/N개 선택)"와 구분
-const GEN_BTN = /주간보고 생성 \(\d+개 업무\)/
+// 일일보고 선택기는 폼 우측 사이드 패널(variant="side")이다 — 상시 펼침이라 여는 클릭이 없고,
+// 반영 버튼 이름도 "폼에 반영 (N)"이다(인라인 변형일 때만 "주간보고 생성 (N개 업무)").
+const GEN_BTN = /폼에 반영 \(\d+\)/
 
-async function generateOnce(page: Page) {
+/**
+ * 반영 1회. 사이드 변형은 **반영 후에도 패널이 열린 채**라 "패널이 닫힘"을 완료 신호로 쓸 수 없다.
+ * 폼에 해당 카테고리 행이 실제로 생겼는지로 판정한다(사용자가 보는 결과 = 완료 정의).
+ */
+async function generateOnce(page: Page, expectCategory: string) {
   await dismissOverlays(page)
-  await page.locator('#onboarding-daily-selector').click()
-  await page.getByRole('button', { name: GEN_BTN }).waitFor({ state: 'visible' })
-  await page.getByRole('button', { name: GEN_BTN }).click()
-  // 패널이 닫히면 생성 반영 완료
-  await expect(page.getByRole('button', { name: GEN_BTN })).toBeHidden({ timeout: 10_000 })
+  const btn = page.getByRole('button', { name: GEN_BTN })
+  await btn.waitFor({ state: 'visible' })
+  await btn.click()
+  await expect
+    .poll(async () => (await readRows(page)).some((r) => r.category === expectCategory), { timeout: 20_000 })
+    .toBe(true)
 }
 
 test('생성은 기존 내용을 덮어쓰지 않고 카테고리 단위로 병합한다', async ({ page }) => {
@@ -82,7 +88,7 @@ test('생성은 기존 내용을 덮어쓰지 않고 카테고리 단위로 병�
       ] }),
     }),
   )
-  await generateOnce(page)
+  await generateOnce(page, 'E2E_영업')
 
   let rows = await readRows(page)
   let byCat = Object.fromEntries(rows.map((r) => [r.category, r]))
@@ -100,7 +106,7 @@ test('생성은 기존 내용을 덮어쓰지 않고 카테고리 단위로 병�
       ] }),
     }),
   )
-  await generateOnce(page)
+  await generateOnce(page, 'E2E_개발')
 
   rows = await readRows(page)
   byCat = Object.fromEntries(rows.map((r) => [r.category, r]))

@@ -38,23 +38,24 @@ test.describe('GPU 다중 모델 추출', () => {
     expect(res.status()).toBe(200)
     const json = await res.json()
 
-    // 다중 모델인 경우 items 배열 반환
-    if (json.items) {
-      expect(Array.isArray(json.items)).toBe(true)
-      expect(json.items.length).toBeGreaterThanOrEqual(2)
-      expect(json).toHaveProperty('count')
-      expect(json).toHaveProperty('batch_id')
-      expect(json.count).toBe(json.items.length)
+    // 응답은 분류에 따라 두 갈래다(v0.7.x 계약):
+    //  · competitor(클라우드 시세) → { type:'competitor', preview[], count } — **적재 없이 미리보기만**
+    //  · supplier(공급사 견적)     → { items[](id 포함), count, batch_id } — 검토대기 즉시 적재
+    // 예전 판은 supplier 갈래만 알고 있어서, 경쟁사로 분류되면 그냥 죽었다.
+    const rows = json.preview ?? json.items ?? (json.item ? [json.item] : [])
+    expect(Array.isArray(rows), `예상 밖 응답 형태: ${JSON.stringify(json).slice(0, 200)}`).toBe(true)
+    expect(rows.length, '다중 모델 텍스트에서 2개 이상 추출').toBeGreaterThanOrEqual(2)
+    expect(json.count).toBe(rows.length)
 
-      // 각 item 구조 검증
+    if (json.items) {
+      // supplier 갈래 — 실제 적재까지 확인
       for (const item of json.items) {
         expect(item).toHaveProperty('id')
         expect(item).toHaveProperty('product_hint')
         expect(item).toHaveProperty('overall_confidence')
         expect(item).toHaveProperty('current_extracted')
       }
-
-      // batch_id로 DB 묶음 확인 (GET으로 검색)
+      expect(json).toHaveProperty('batch_id')
       const getRes = await request.get('/api/pricing/gpu/review?status=pending')
       expect(getRes.status()).toBe(200)
       const getData = await getRes.json()
@@ -62,12 +63,12 @@ test.describe('GPU 다중 모델 추출', () => {
         (i: { source_batch_id?: string }) => i.source_batch_id === json.batch_id
       )
       expect(batchItems.length).toBe(json.count)
-
     } else {
-      // 단일 모델 응답 (AI가 1개만 인식한 경우) — 하위 호환 검증
-      expect(json).toHaveProperty('item')
-      expect(json.item).toHaveProperty('id')
-      console.log('단일 모델만 감지됨 (AI 응답에 따라 허용)')
+      // competitor 갈래 — 미리보기 행의 최소 필드
+      for (const row of rows) {
+        expect(row).toHaveProperty('model_name')
+        expect(row).toHaveProperty('price_usd')
+      }
     }
   })
 
@@ -87,13 +88,13 @@ test.describe('GPU 다중 모델 추출', () => {
     expect(res.status()).toBe(200)
     const json = await res.json()
 
-    // 단일 모델: item(단수) 또는 items[1개] 모두 허용
-    const hasItem = !!json.item
-    const hasOneItemArr = Array.isArray(json.items) && json.items.length === 1
-    expect(hasItem || hasOneItemArr).toBe(true)
+    // 단일 모델: item(단수) · items[1개] · preview[1개](경쟁사 미리보기) 모두 허용
+    const rows = json.preview ?? json.items ?? (json.item ? [json.item] : [])
+    expect(rows.length, `단일 모델 1건 기대, 응답: ${JSON.stringify(json).slice(0, 200)}`).toBe(1)
   })
 
   test('GPU 통합 입력 페이지 — 다중 모델 탭 UI 렌더링', async ({ page }) => {
+    test.setTimeout(120_000) // 실 AI 호출 — 기본 30초는 결과 대기(30초)와 같아 catch 안에서 페이지가 닫혔다
     await page.goto('/pricing/gpu')
 
     const url = page.url()
@@ -119,47 +120,27 @@ test.describe('GPU 다중 모델 추출', () => {
     await expect(analyzeBtn).toBeEnabled()
     await analyzeBtn.click()
 
-    // 분석 중 상태 확인
-    await expect(page.locator('[data-testid="analyze-step-msg"]')).toBeVisible({ timeout: 3000 })
+    // 분석 중 상태 확인 — 진행 로그(analyze-live-log)가 현재 렌더러다(구 analyze-step-msg는 없어졌다)
+    await expect(page.locator('[data-testid="analyze-live-log"]')).toBeVisible({ timeout: 10_000 })
 
-    // 결과 대기 (최대 30초)
-    try {
-      await page.waitForSelector('[data-testid="multi-model-tabs"]', { timeout: 30000 })
+    // 결과가 어떤 형태로든 반드시 떠야 한다 — '분석 중'에서 영영 안 돌아오는 것만은 허용하지 않는다.
+    //  · supplier 분류 → 공급가 미리보기(다중이면 모델 탭)
+    //  · competitor 분류 → 경쟁사 미리보기(탭 UI 없음 — 이 텍스트는 클라우드 시세라 보통 이쪽이다)
+    //  · 실패 → 에러 메시지(무음 아님)
+    const anyResult = page.locator(
+      '[data-testid="multi-model-tabs"], [data-testid="supplier-preview"], [data-testid="competitor-preview"], .gpu-error-msg',
+    )
+    await expect(anyResult.first()).toBeVisible({ timeout: 90_000 })
 
-      // 탭이 2개 이상 렌더됐는지 확인
-      const tabs = page.locator('[data-testid^="model-tab-"]')
-      const tabCount = await tabs.count()
-      expect(tabCount).toBeGreaterThanOrEqual(2)
-      console.log(`✅ 다중 모델 탭 ${tabCount}개 렌더됨`)
-
-      // 탭 0 선택 시 내용 표시 확인
+    // 모델 탭이 떴다면 다중 렌더·전환까지 확인한다(안 떴으면 이 화면의 계약이 아니다).
+    const tabs = page.locator('[data-testid^="model-tab-"]')
+    if (await page.locator('[data-testid="multi-model-tabs"]').count()) {
+      expect(await tabs.count()).toBeGreaterThanOrEqual(2)
       await tabs.nth(0).click()
-      await page.waitForTimeout(200)
-
-      // 두 번째 탭 클릭 시 내용 전환 확인
       await tabs.nth(1).click()
-      await page.waitForTimeout(200)
-
-      // 성공 메시지 확인
-      await expect(page.locator('.gpu-success-msg')).toBeVisible({ timeout: 3000 })
-      const successText = await page.locator('.gpu-success-msg').textContent()
-      expect(successText).toContain('개 모델')
-
-    } catch {
-      // AI 키 미설정 or 단일 모델 감지 시 — 에러 메시지 또는 단일 결과 허용
-      const errorMsg = page.locator('.gpu-error-msg')
-      const successMsg = page.locator('.gpu-success-msg')
-      const hasError = await errorMsg.isVisible()
-      const hasSuccess = await successMsg.isVisible()
-
-      if (hasError) {
-        console.log('AI 키 미설정 또는 분석 오류 — 에러 메시지 표시 확인됨')
-      } else if (hasSuccess) {
-        console.log('단일 모델만 감지됨 — 성공 메시지 확인됨')
-      } else {
-        // 타임아웃 — AI 응답 지연 가능성
-        console.log('결과 대기 타임아웃 (AI 응답 지연 가능)')
-      }
+      await expect(page.locator('.gpu-success-msg')).toContainText('개 모델', { timeout: 5_000 })
+    } else {
+      console.log('모델 탭 아님 — 경쟁사/단일 미리보기 경로로 결과 렌더 확인됨')
     }
   })
 

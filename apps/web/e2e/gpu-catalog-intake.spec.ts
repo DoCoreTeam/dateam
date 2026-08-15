@@ -65,20 +65,29 @@ test('카탈로그 xlsx 업로드 → AI 매핑 → 검토대기 적재 → 승�
   expect(j.mapping?.model_name).toBeTruthy()
   expect(j.mapping?.price_usd).toBeTruthy()
 
-  // 승인 반영 — 인증된 브라우저 세션으로 검토대기 경쟁사 항목 1건 confirm
+  // 승인 반영 — 인증된 브라우저 세션으로 검토대기 경쟁사 항목을 confirm.
+  //
+  // ⚠️ 첫 항목 1건만 시도하면 안 된다. 카탈로그에는 우리 제품 목록에 없는 모델이 섞여 있고,
+  //    그런 항목의 confirm은 **의도된 4xx(매칭 실패 안내)** 다 — 실패가 아니라 정상 동작이다.
+  //    매칭되는 항목이 나올 때까지 훑어 "적어도 1건은 실제로 반영된다"를 확인한다.
   const confirm = await page.evaluate(async () => {
     const list = await fetch('/api/pricing/gpu/review?status=pending').then((r) => r.json())
-    const item = (list.items || []).find((it: any) => it.target === 'competitor' && it.is_test === true)
-    if (!item) return { found: false }
-    const res = await fetch(`/api/pricing/gpu/review/${item.id}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'confirm' }),
-    })
-    const body = await res.json().catch(() => ({}))
-    return { found: true, ok: res.ok, body, hint: item.supplier_hint, product: item.product_hint }
+    const items = (list.items || []).filter((it: any) => it.target === 'competitor' && it.is_test === true)
+    if (items.length === 0) return { found: false, tried: 0, ok: false, lastError: null as unknown }
+    let lastError: unknown = null
+    for (const item of items.slice(0, 30)) {
+      const res = await fetch(`/api/pricing/gpu/review/${item.id}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'confirm' }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (res.ok) return { found: true, tried: items.length, ok: true, body, product: item.product_hint }
+      lastError = { status: res.status, body }
+    }
+    return { found: true, tried: items.length, ok: false, lastError }
   })
   console.log('[confirm]', JSON.stringify(confirm))
-  expect(confirm.found).toBeTruthy()
-  expect(confirm.ok).toBeTruthy()
+  expect(confirm.found, '검토대기에 is_test 경쟁사 항목이 적재됨').toBeTruthy()
+  expect(confirm.ok, `승인 반영 성공 0건 — 마지막 오류: ${JSON.stringify(confirm.lastError)}`).toBeTruthy()
 
   // 검토대기 탭에서 경쟁사 카탈로그 카드 렌더 확인(다각도 UI)
   await page.goto('/pricing/gpu?tab=review')

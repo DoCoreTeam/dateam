@@ -19,14 +19,16 @@ test.describe('GPU 통합 입력 — 분석 중 단계 UX', () => {
       return
     }
 
-    // 통합 입력 탭 클릭 시도
-    const unifiedTab = page.getByText('통합 입력')
-    if (await unifiedTab.isVisible()) {
+    // 통합 입력 탭 클릭 시도.
+    // ⚠️ '통합 입력'은 상단 바로가기 버튼과 탭 두 곳에 있다 — getByText는 strict mode에서 죽는다.
+    const unifiedTab = page.getByRole('tab', { name: '통합 입력' })
+    if (await unifiedTab.isVisible().catch(() => false)) {
       await unifiedTab.click()
     }
 
-    // 분석 버튼 존재 확인
-    const analyzeBtn = page.getByText(/AI 분석 시작/)
+    // 분석 버튼 존재 확인.
+    // ⚠️ getByText는 안내문("…\"AI 분석 시작\"을 누르세요")까지 잡아 strict mode에서 죽는다 — 역할로 집는다.
+    const analyzeBtn = page.getByRole('button', { name: 'AI 분석 시작' })
     await expect(analyzeBtn).toBeVisible({ timeout: 5000 })
   })
 

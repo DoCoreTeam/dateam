@@ -67,11 +67,35 @@ async function dismissOverlays(page: Page): Promise<void> {
   if ((await backdrop.count()) > 0) await backdrop.click({ position: { x: 5, y: 5 } }).catch(() => {})
 }
 
+/**
+ * 원문 입력칸. v0.7.375~382에서 textarea → **Tiptap 에디터**(contenteditable)로 바뀌었다.
+ * placeholder가 HTML 속성이 아니라 Tiptap Placeholder 확장이라 `getByPlaceholder`로는 못 잡는다.
+ */
+function sourceEditor(page: Page) {
+  return page.locator('.ProseMirror').first()
+}
+
+/**
+ * 원문을 붙여넣는다. contenteditable에 `fill()`을 쓰면 줄바꿈이 뭉개져 문서 구조(헤딩·목록)가
+ * 사라지고, 구조를 보는 검사가 무의미해진다. 실제 사용자와 같은 경로 — **붙여넣기 이벤트**로 넣는다
+ * (ProseMirror가 text/plain을 문단으로 파싱한다).
+ */
+async function pasteSource(page: Page, doc: string): Promise<void> {
+  await sourceEditor(page).click()
+  await page.evaluate((text) => {
+    const dt = new DataTransfer()
+    dt.setData('text/plain', text)
+    document.activeElement?.dispatchEvent(
+      new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }),
+    )
+  }, doc)
+  await expect(sourceEditor(page)).toContainText(doc.slice(0, 12))
+}
+
 /** 입력 화면에 문서+지시를 채우고 실행. 그룹 결과가 뜰 때까지 대기(그룹 헤더 등장). */
 async function runAnalysis(page: Page, doc: string, command: string): Promise<boolean> {
   await dismissOverlays(page)
-  const source = page.getByPlaceholder(/문서 원문을 여기 붙여넣으세요/)
-  await source.fill(doc)
+  await pasteSource(page, doc)
   if (command) {
     await page.getByPlaceholder(/요구사항 단위로 묶어줘/).fill(command)
   }
@@ -99,7 +123,7 @@ test.describe('목록 심층분석 — 의미블록 그룹핑', () => {
       return
     }
     // 명령↔실행이 한 화면(구 141개 체크박스 검수 단계 제거 확인)
-    await expect(page.getByPlaceholder(/문서 원문을 여기 붙여넣으세요/)).toBeVisible()
+    await expect(sourceEditor(page)).toBeVisible()
     await expect(page.getByPlaceholder(/요구사항 단위로 묶어줘/)).toBeVisible()
     await expect(page.getByRole('button', { name: '실행', exact: true })).toBeVisible()
 
@@ -111,8 +135,9 @@ test.describe('목록 심층분석 — 의미블록 그룹핑', () => {
   test('탭 구조: "내 분석 문서"가 1급, 세션은 "이전 원문"으로 강등(계약 E)', async ({ page }) => {
     if (isAuthRedirect(page)) return
     // 이동형 탭은 v0.7.475부터 **링크**다 — 페이지를 바꾸는 것을 탭으로 읽히게 두지 않는다.
-    await expect(page.getByRole('link', { name: '내 분석 문서' })).toBeVisible()
-    await expect(page.getByRole('link', { name: '이전 원문' })).toBeVisible()
+    // 본문에도 "이전 원문 탭에서 …" 같은 안내 링크가 있어 이름만으로는 2개가 잡힌다 — 탭은 testId로 집는다.
+    await expect(page.getByTestId('analyze-tab-documents')).toBeVisible()
+    await expect(page.getByTestId('analyze-tab-list')).toBeVisible()
     // 구 라벨 "전체 세션"은 없어야 한다(계약 E: 세션 강등)
     await expect(page.getByRole('link', { name: '전체 세션' })).toHaveCount(0)
   })

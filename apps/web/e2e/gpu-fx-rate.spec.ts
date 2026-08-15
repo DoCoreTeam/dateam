@@ -2,21 +2,17 @@ import { test, expect } from '@playwright/test'
 
 test.describe('GPU 환율 (FX Rate)', () => {
   test('POST /api/pricing/gpu/fx — 미인증 요청은 성공(200+rate) 응답 없음', async ({ browser }) => {
-    // 미들웨어가 /login으로 307 redirect → Playwright POST /login → 비성공
-    // 또는 route handler getUser() → 401. 두 경우 모두 rate 데이터 없음을 확인
-    const ctx = await browser.newContext()
+    // ⚠️ `browser.newContext()`는 playwright.config의 `use.storageState`(로그인 세션)를 **물려받는다**.
+    //    그냥 만들면 "미인증"이라고 이름 붙인 컨텍스트가 실은 로그인 상태라, 이 보안 단언이
+    //    아무것도 검사하지 않게 된다(실제로 그 상태로 통과하고 있었다). 명시적으로 비워야 한다.
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } })
     const req = await ctx.request.post('http://localhost:3000/api/pricing/gpu/fx', {
       failOnStatusCode: false,
     })
-    // 200 성공이더라도 rate 데이터가 없으면 OK (login 페이지 HTML 응답)
-    // 절대 안 되는 것: status 200이고 json에 usd_krw가 있는 경우
-    if (req.status() === 200) {
-      const text = await req.text()
-      expect(text).not.toContain('"usd_krw"')
-    } else {
-      // 401, 307, 500 등 모두 허용 — 성공 응답이 아님을 확인
-      expect(req.status()).not.toBe(200)
-    }
+    // 미들웨어 리다이렉트(3xx)든 route handler의 401이든, 성공 응답이 아니어야 하고
+    // 어떤 경우에도 환율 데이터가 새어 나가면 안 된다.
+    expect(req.status()).not.toBe(200)
+    expect(await req.text()).not.toContain('"usd_krw"')
     await ctx.close()
   })
 

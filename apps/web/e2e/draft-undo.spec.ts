@@ -13,9 +13,10 @@ test('임시저장 새로고침 유지 + 복원 + Undo', async ({ page }) => {
 
   // 1) 입력 → localStorage draft 저장(디바운스 500ms)
   await ta.fill('임시저장 테스트 — 새로고침해도 유지되어야 함')
-  await page.waitForTimeout(800)
-  const saved = await page.evaluate(() => Object.keys(localStorage).find(k => k.startsWith('draft:v1:') && k.includes('daily-new')))
-  expect(saved).toBeTruthy()
+  // 디바운스 500ms + draft 키용 사용자 id 비동기 해석 — 고정 대기는 느린 날 깨진다(조건으로 기다린다).
+  await expect
+    .poll(() => page.evaluate(() => Object.keys(localStorage).some(k => k.startsWith('draft:v1:') && k.includes('daily-new'))), { timeout: 15_000 })
+    .toBe(true)
 
   // 2) 새로고침 → 복원 배너 노출
   await page.reload()

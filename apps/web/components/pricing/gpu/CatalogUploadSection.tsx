@@ -38,7 +38,16 @@ export default function CatalogUploadSection({ isTest, file, onConsumed }: Catal
   const abortRef = useRef<AbortController | null>(null)
 
   // 언마운트 시 진행 중 업로드 취소 + setState 차단(초기화로 즉시 언마운트되는 controlled 모드 대비).
-  useEffect(() => () => { mountedRef.current = false; abortRef.current?.abort() }, [])
+  //
+  // ⚠️ 마운트마다 반드시 true로 되돌린다. 예전엔 정리 함수만 두고 `useRef(true)` 초깃값에 기댔는데,
+  //    React 18 StrictMode(dev 기본값)가 마운트 직후 정리→재실행을 한 번 흉내 내면서 ref가 **영구히
+  //    false로 굳었다.** 그러면 업로드가 서버에서 성공(5초·127건 적재)해도 `if (!mountedRef.current) return`에
+  //    걸려 setResult·setBusy(false)가 전부 건너뛰고, 화면은 "AI 매핑·변환 중…"에 무한정 멈춘다.
+  //    (E2E가 이 화면을 120초 기다리다 죽어서 드러났다)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false; abortRef.current?.abort() }
+  }, [])
 
   const handleUpload = useCallback(async (f: File) => {
     abortRef.current?.abort()

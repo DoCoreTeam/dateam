@@ -37,7 +37,11 @@ export default function PromoteToDeptButton({ logId, onToast }: { logId: string;
   if (done) return <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--brand)', fontWeight: 700 }} title="부서업무로 등록됨">↗ 부서업무 등록됨</span>
 
   return (
-    <div style={{ position: 'relative', display: 'inline-block' }}>
+    // 이 위젯 안의 클릭은 카드로 올려보내지 않는다.
+    // 카드(.daily-log-card)에는 "업무 플로우 패널 열기" onClick이 걸려 있어, 그냥 두면
+    // 부서업무 등록을 누른 것만으로 관계없는 플로우 패널이 같이 열린다(그 패널은 AI 자동연결까지 돌린다).
+    // 사용자에게는 엉뚱한 화면이 뜨는 일이고, 그 요청 폭주가 부서 목록 로딩까지 밀어낸다.
+    <div style={{ position: 'relative', display: 'inline-block' }} onClick={(e) => e.stopPropagation()}>
       <button
         data-testid={`promote-btn-${logId}`}
         onClick={() => setOpen((v) => !v)}
@@ -58,7 +62,10 @@ export default function PromoteToDeptButton({ logId, onToast }: { logId: string;
           </select>
           <div style={{ display: 'flex', gap: 'var(--space-1)', justifyContent: 'flex-end' }}>
             <button onClick={() => setOpen(false)} style={{ fontSize: 'var(--fs-xs)', padding: '3px 10px', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--border-color)', background: 'var(--surface-bg)', color: 'var(--text-muted)', cursor: 'pointer' }}>취소</button>
-            <button data-testid={`promote-confirm-${logId}`} onClick={promote} disabled={busy} style={{ fontSize: 'var(--fs-xs)', padding: '3px 10px', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--brand)', background: 'var(--brand)', color: 'var(--brand-fg)', fontWeight: 700, cursor: 'pointer' }}>{busy ? '등록 중…' : '등록'}</button>
+            {/* 부서를 못 고른 상태에서 누르면 요청조차 안 나가고 **아무 반응도 없다**(promote가 즉시 return).
+                여기 onToast가 안 넘어오는 화면(/daily)에서는 오류 통보마저 사라져 "눌렀는데 먹통"이 된다.
+                → 고를 게 생기기 전에는 누를 수 없게 한다. */}
+            <button data-testid={`promote-confirm-${logId}`} onClick={promote} disabled={busy || depts.length === 0} style={{ fontSize: 'var(--fs-xs)', padding: '3px 10px', borderRadius: 'var(--radius)', border: 'var(--border-w-2) solid var(--brand)', background: 'var(--brand)', color: 'var(--brand-fg)', fontWeight: 700, cursor: busy || depts.length === 0 ? 'not-allowed' : 'pointer', opacity: depts.length === 0 ? 0.6 : 1 }}>{busy ? '등록 중…' : '등록'}</button>
           </div>
         </div>
       )}

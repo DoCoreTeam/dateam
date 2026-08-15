@@ -15,8 +15,8 @@ test.describe('주간보고 지연 추적', () => {
       return
     }
     await expect(page.getByRole('heading', { name: '주간보고', exact: true })).toBeVisible()
-    // 작성 폼 카드
-    await expect(page.getByText('보고서 작성')).toBeVisible()
+    // 작성 폼 카드 (제목: page.tsx의 tape-title h2)
+    await expect(page.getByRole('heading', { name: '주간보고 작성', exact: true })).toBeVisible()
   })
 
   test('조직 현황 탭 → 부서 드릴 → 작성 적시성 패널', async ({ page }) => {
@@ -60,7 +60,7 @@ test.describe('주간보고 지연 추적', () => {
     await expect(prev).toBeVisible()
     await prev.click()
     await page.waitForLoadState('networkidle')
-    // URL 에 orgWeek 파라미터 반영
-    expect(page.url()).toContain('orgWeek=')
+    // 주차 파라미터는 v0.7.337 주차 연속성 SSOT에서 탭별 `orgWeek`을 버리고 단일 `week`으로 통일했다.
+    expect(page.url()).toContain('week=')
   })
 })

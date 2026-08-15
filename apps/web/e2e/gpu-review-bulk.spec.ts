@@ -22,21 +22,33 @@ test('검토대기 — 필터 렌더 + is_test 카탈로그 일괄 삭제', asyn
   await expect(page.getByRole('button', { name: /공급사 \d+/ })).toBeVisible()
 
   // 3) is_test 카탈로그 항목만 골라 일괄 삭제(엔드포인트 검증, 사용자 데이터 미접촉)
+  //
+  // ⚠️ 목록 API는 `.limit(200)`이고 페이지네이션이 없다. 한 번만 지우면 다음 200건이 다시 올라와
+  //    "잔여 0"에 절대 못 닿는다(실측: 지운 뒤에도 200 그대로). 비워질 때까지 회차를 돈다.
+  //    삭제 대상 조건과 잔여 확인 조건은 **같아야 한다** — 예전엔 지울 땐 competitor만 보고
+  //    남은 걸 셀 땐 target 무관하게 세서, 조건이 어긋나면 영원히 실패했다.
   const result = await page.evaluate(async () => {
-    const list = await fetch('/api/pricing/gpu/review?status=pending').then((r) => r.json())
-    const ids = (list.items || [])
-      .filter((it: any) => it.is_test === true && it.target === 'competitor' && it.channel === 'catalog')
-      .map((it: any) => it.id)
-    if (ids.length === 0) return { before: 0, deleted: 0 }
-    const res = await fetch('/api/pricing/gpu/review/bulk', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids, action: 'delete' }),
-    })
-    const body = await res.json().catch(() => ({}))
-    // 삭제 후 잔여 is_test 카탈로그 확인
-    const list2 = await fetch('/api/pricing/gpu/review?status=pending').then((r) => r.json())
-    const remain = (list2.items || []).filter((it: any) => it.is_test === true && it.channel === 'catalog').length
-    return { before: ids.length, ok: res.ok, deleted: body.deleted, remain }
+    const isTestCatalog = (it: any) => it.is_test === true && it.channel === 'catalog'
+    const pending = async () =>
+      (await fetch('/api/pricing/gpu/review?status=pending').then((r) => r.json())).items || []
+
+    let before = 0
+    let deleted = 0
+    let ok = true
+    for (let round = 0; round < 20; round += 1) {
+      const ids = (await pending()).filter(isTestCatalog).map((it: any) => it.id)
+      if (ids.length === 0) break
+      before += ids.length
+      const res = await fetch('/api/pricing/gpu/review/bulk', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, action: 'delete' }),
+      })
+      if (!res.ok) { ok = false; break }
+      const body = await res.json().catch(() => ({}))
+      deleted += body.deleted ?? 0
+    }
+    const remain = (await pending()).filter(isTestCatalog).length
+    return { before, ok, deleted, remain }
   })
   console.log('[bulk-delete]', JSON.stringify(result))
   expect(result.before).toBeGreaterThan(0)

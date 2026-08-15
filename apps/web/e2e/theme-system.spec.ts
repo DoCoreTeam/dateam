@@ -37,12 +37,21 @@ test('개인 테마: 사용자 메뉴 → 테마변경 서브메뉴 → mono 선
   const monoItem = page.getByRole('menuitemradio', { name: /Monochrome/ })
   await expect(monoItem).toBeVisible({ timeout: 10_000 })
 
-  // mono 선택 → 즉시 반영
+  // mono 선택 → 즉시 반영(낙관적). 저장 POST는 아직 날아가는 중일 수 있다.
+  const saving = page.waitForResponse(
+    (r) => r.url().includes('/api/user/theme') && r.request().method() === 'POST',
+    { timeout: 15_000 },
+  )
   await monoItem.click()
   await expect.poll(
     () => page.evaluate(() => document.documentElement.getAttribute('data-theme')),
     { timeout: 10_000 },
   ).toBe('mono')
+
+  // ⚠️ 저장이 끝나기 전에 새로고침하면 서버는 아직 옛 값을 그린다 — 앱 버그가 아니라 검사의 경합이다.
+  //    저장 응답을 기다린 뒤에 새로고침해야 "영속됐는가"를 실제로 묻는 검사가 된다.
+  const saved = await saving
+  expect(saved.ok(), '개인 테마 저장 응답').toBeTruthy()
 
   // 새로고침 후에도 mono 유지(DB 영속 + SSR 주입)
   await page.reload()
