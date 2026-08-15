@@ -582,7 +582,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   return (
     <div className="gpu-modal-backdrop" role="dialog" aria-modal="true"
       aria-label="공급사 등록" onClick={onClose}>
-      <div className="gpu-modal-card"
+      <div className="gpu-modal-card gpu-modal-card--scroll"
         style={{ width: 'min(520px, 100%)' }}
         onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: 'var(--hairline) solid var(--gpu-border)' }}>

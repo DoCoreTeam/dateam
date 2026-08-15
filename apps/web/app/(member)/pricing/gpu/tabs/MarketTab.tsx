@@ -1005,7 +1005,7 @@ function PriceRegisterModal({
       <form
         onSubmit={handleSubmit}
         onClick={e => e.stopPropagation()}
-        className="gpu-modal-card"
+        className="gpu-modal-card gpu-modal-card--scroll"
         style={{
           width: 'min(460px, 100%)', padding: '24px 28px',
           display: 'flex', flexDirection: 'column', gap: 16,
@@ -1680,7 +1680,7 @@ export default function MarketTab({ onGoToPriceTable, onOpenAI, isAdmin = false,
         >
           <div
             onClick={e => e.stopPropagation()}
-            className="gpu-modal-card"
+            className="gpu-modal-card gpu-modal-card--scroll"
             style={{ width: 'min(400px, 100%)', padding: '20px 24px' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
