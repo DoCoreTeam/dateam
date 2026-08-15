@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { redirectApiUser } from '@/lib/auth/api-user-gate'
 import { Suspense } from 'react'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import OnboardingProvider from '@/components/onboarding/OnboardingProvider'
@@ -101,6 +102,9 @@ export default async function MemberLayout({ children }: { children: React.React
       .is('deleted_at', null),
   ])
   const profile = profileResult.data
+  // api_user는 내부 화면에 들어올 수 없다 — 예전엔 미들웨어가 role을 따로 조회해 막았지만,
+  // 위 Promise.all이 이미 같은 행에서 role을 읽으므로 여기서 막으면 왕복이 0회다.
+  redirectApiUser(profile?.role)
   const weeklyReportPending = (myWeekResult.count ?? 0) === 0
 
   const orgPath = orgPathFromScope(orgScope, user.id)

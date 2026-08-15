@@ -64,35 +64,27 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // 로그인 후 /login 접근 → /dashboard (단, api_user는 /api-keys로)
+  // 로그인 후 /login 접근 → /dashboard
+  // (/dashboard는 (member) 아래라, api_user면 그 레이아웃이 /api-keys로 되돌린다 — 목적지 동일)
   if (user && pathname === '/login') {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
   }
 
-  // api_user 권한 제한 — 내부 페이지 접근 차단.
-  // 최적화(가역·무회귀): role 조회는 "api_user를 비허용 경로에서 리다이렉트"할 때만 필요하다.
-  // 현재 경로가 이미 허용 경로면 role과 무관하게 결과가 동일(리다이렉트 없음)하므로 DB 조회를 건너뛴다.
-  // → api_user 트래픽(주로 /api-keys 상주)과 /login·/develop·/api-access 접근은 매요청 profiles 조회 제거.
-  // 비허용 경로에서만 기존대로 profiles.role 조회 후 차단(인증/차단 동작 100% 보존).
-  if (user) {
-    const allowedPrefixes = ['/api-keys', '/change-password', '/develop', '/api-access', '/login']
-    const isAllowed = allowedPrefixes.some(p => pathname === p || pathname.startsWith(p + '/'))
-    if (!isAllowed) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-      const userRole = (profile as { role?: string } | null)?.role
-      if (userRole === 'api_user') {
-        const url = request.nextUrl.clone()
-        url.pathname = '/api-keys'
-        return NextResponse.redirect(url)
-      }
-    }
-  }
+  // api_user 차단은 여기서 하지 않는다 — 레이아웃이 한다(lib/auth/api-user-gate.ts).
+  //
+  // 왜 옮겼나: 판정에 필요한 profiles.role을 여기서 **따로** 조회하느라
+  //   페이지 요청 하나당 236ms가 들었다(실측 — 같은 /kpi 페이지로 조회 유무만 바꿔 비교).
+  //   정작 (member)·admin·(ci) 레이아웃은 렌더에 필요한 name·theme_preference를 가져오는
+  //   그 한 번의 조회에서 **role을 이미 함께 읽고 있었다.** 게이트를 레이아웃으로 내리면
+  //   추가 왕복이 0회가 된다.
+  //
+  // 구멍이 없는지: 화면 페이지 81개를 전수로 확인했다.
+  //   76개는 세 레이아웃이 덮고, 4개(/api-keys·/change-password·/develop·/api-access)는
+  //   api_user에게 원래 허용된 곳이며, 나머지 1개(app/page.tsx)는 redirect('/home')뿐이라
+  //   (member) 레이아웃으로 들어가 막힌다.
+  //   가드: lib/auth/api-user-gate.test.ts가 새 페이지가 이 밖으로 새면 실패한다.
 
   return supabaseResponse
 }

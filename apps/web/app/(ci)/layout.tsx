@@ -7,6 +7,7 @@
 // 이제 검색·계정·전체메뉴는 AppShell이 항상 넣고, CI는 메뉴·알림·어시스턴트만 얹는다.
 
 import { redirect } from 'next/navigation'
+import { redirectApiUser } from '@/lib/auth/api-user-gate'
 import {
   Home, Inbox, Radar, TrendingUp, PenTool, Layers, Send, Radio, BarChart3, Settings, Scissors,
 } from 'lucide-react'
@@ -90,6 +91,8 @@ export default async function CiLayout({ children }: { children: React.ReactNode
   ])
 
   const profile = profileResult.data
+  // (member)와 같은 이유 — role은 위 조회에 이미 들어 있다
+  redirectApiUser(profile?.role)
   const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'
   const userEmail = user.email ?? ''
   const isAdmin = profile?.role === 'admin'
