@@ -1,6 +1,6 @@
 {
   "name": "newax",
-  "version": "0.7.469",
+  "version": "0.7.470",
   "private": true,
   "packageManager": "pnpm@9.15.9",
   "scripts": {

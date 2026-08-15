@@ -13,7 +13,7 @@
 //   패널형(content) : 이 컴포넌트가 URL 쿼리로 상태를 쥐고 활성 패널만 그린다.
 // 숨긴 패널까지 DOM에 두면 폼 id가 중복되고 탭 이동이 무거워진다 — 활성만 그린다.
 
-import { useState, type ReactNode } from 'react'
+import { Suspense, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 
@@ -52,7 +52,26 @@ interface Props {
   onSelect?: (id: string) => void
 }
 
-export default function SegmentedTabs({
+/**
+ * useSearchParams()는 정적 프리렌더에서 CSR bailout을 일으킨다 — 쓰는 페이지는
+ * **Suspense 경계 안**에 있어야 하고, 없으면 `next build`가 그 페이지에서 통째로 실패한다.
+ *
+ * 실제 사고: v0.7.455에서 /develop(공개 문서 화면)의 탭을 이 부품으로 통일했는데,
+ * /develop은 인증이 없어 정적 프리렌더 대상이라 빌드가 깨졌다.
+ * dev 서버는 멀쩡했고 tsc·테스트·design:check도 전부 초록이라 이틀간 드러나지 않았다.
+ *
+ * 경계를 **부품 안에** 둔다 — 쓰는 쪽이 매번 기억해야 하는 규칙은 반드시 빠뜨린다.
+ */
+export default function SegmentedTabs(props: Props) {
+  const skin = SKIN[props.variant ?? 'segment']
+  return (
+    <Suspense fallback={<div className={skin.list} role="tablist" aria-label={props.ariaLabel} aria-busy="true" />}>
+      <SegmentedTabsInner {...props} />
+    </Suspense>
+  )
+}
+
+function SegmentedTabsInner({
   tabs, ariaLabel, variant = 'segment', param = 'tab', activeId, onSelect,
 }: Props) {
   const router = useRouter()

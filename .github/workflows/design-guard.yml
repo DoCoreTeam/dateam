@@ -23,3 +23,17 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: 타입체크
         run: npx tsc --noEmit -p apps/web/tsconfig.json
+      - name: 단위 가드 (UI 계약·인증 경계·SSOT)
+        run: pnpm --filter web test
+      - name: 프로덕션 빌드
+        # 왜: tsc·테스트·design:check가 전부 초록인데 `next build`만 깨지는 회귀가 있다.
+        #   실제로 v0.7.455에서 /develop이 Suspense 없이 useSearchParams를 쓰는 부품을
+        #   렌더하게 되면서 빌드가 깨졌고, CI가 빌드를 안 돌아 **이틀간 배포 불가**였는데
+        #   아무도 몰랐다(v0.7.470에서 발견·수정).
+        # 자격증명은 넣지 않는다 — 플레이스홀더로도 빌드가 통과함을 확인했다.
+        #   (Supabase를 실제로 부르는 화면은 전부 동적 렌더라 프리렌더 대상이 아니다)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-key
+        run: pnpm --filter web exec next build
