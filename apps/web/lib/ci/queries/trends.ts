@@ -2,7 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { CORPUS_FILTER } from '../corpus.ts'
-import { formatBasis, formatLift, formatOutlier } from '../format/metrics.ts'
+import { formatBasis, formatLift, formatOutlier, SEASON_MIN_WINDOW_DAYS } from '../format/metrics.ts'
 import { median } from '../analysis/outlier.ts'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { CI_PLATFORM_LABEL, type CiConfidence, type CiPlatform } from '../types.ts'
@@ -212,7 +212,12 @@ export interface TimingOverview {
   total: number
   /** 지역을 몰라 UTC로 읽은 건수 — 화면이 한계를 밝힐 수 있게 */
   regionUnknown: number
+  /** 어느 기간을 읽었는가 — 화면 위쪽 조건과 같은 값이어야 한다 */
+  windowDays: number
+  /** 계절을 말할 수 있는 기간인가. 28일 창에서 "가을 1.9배"는 계절 얘기가 아니다. */
+  seasonMeaningful: boolean
 }
+
 
 const SEASON_KO: Record<string, string> = {
   spring: '봄', summer: '여름', autumn: '가을', winter: '겨울',
@@ -247,16 +252,36 @@ function sliceOf(
   }).filter((s) => s.count > 0)
 }
 
-export async function getTimingOverview(workspaceId: string): Promise<TimingOverview> {
+/**
+ * 게시 맥락별 집계.
+ *
+ * ⚠️ `windowDays`·`topicId`는 **선택이 아니라 의무**다.
+ * 예전에는 이 함수가 조건을 아예 안 받아, 위쪽은 "28일 표본 18건"인데
+ * 아래쪽은 "312/313건"을 보여줬다. 같은 화면에 모집단이 둘이었고,
+ * 기간을 바꿔도 아래 절반은 꿈쩍하지 않았다. 조건 바가 화면 전체를 지배해야 한다.
+ */
+export async function getTimingOverview(
+  workspaceId: string,
+  windowDays = 28,
+  topicId?: string | null,
+): Promise<TimingOverview> {
   const adminClient = createAdminClient() as any
-  const { data } = await adminClient
+  const since = new Date(Date.now() - windowDays * 86400_000).toISOString()
+
+  let q = adminClient
     .from('ci_contents')
     .select('season, day_part, weekday, region_known, ci_content_derived ( outlier_index )')
     .eq('workspace_id', workspaceId)
     .eq('source', CORPUS_FILTER.source)
     .eq('is_stat_excluded', CORPUS_FILTER.is_stat_excluded)
     .is('deleted_at', null)
+    // 집계표(getMarketOverview)와 **같은 기간 식**을 쓴다 — 다르면 모집단이 갈린다
+    .or(`published_at.gte.${since},and(published_at.is.null,first_seen_at.gte.${since})`)
     .limit(1000)
+
+  if (topicId) q = q.eq('topic_id', topicId)
+
+  const { data } = await q
 
   const rows = (data ?? []) as {
     season: string | null; day_part: string | null; weekday: number | null
@@ -282,5 +307,7 @@ export async function getTimingOverview(workspaceId: string): Promise<TimingOver
     contextFilled: rows.filter((r) => r.season != null).length,
     total: rows.length,
     regionUnknown: rows.filter((r) => r.season != null && r.region_known === false).length,
+    windowDays,
+    seasonMeaningful: windowDays >= SEASON_MIN_WINDOW_DAYS,
   }
 }

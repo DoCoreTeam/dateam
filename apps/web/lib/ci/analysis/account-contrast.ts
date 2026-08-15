@@ -69,6 +69,28 @@ export interface ContrastFinding {
   lift: number
 }
 
+/**
+ * 배수를 낸 콘텐츠인가. 이게 아니면 잘됐는지 아닌지 **판정 자체가 불가능**하다 —
+ * 0건으로 세는 것과 "모른다"는 다르다.
+ */
+export function isJudged(r: Pick<ContrastInput, 'outlierIndex'>): boolean {
+  return r.outlierIndex != null && Number.isFinite(r.outlierIndex)
+}
+
+/**
+ * "잘된 것"의 정의. **이 함수가 유일한 정의다.**
+ *
+ * 왜 노출하는가: 시장 단위 대조(market-contrast)도 "잘된 게시물이 채널 몇 곳에서 나왔나"를
+ * 세야 한다. 거기서 기준을 다시 적으면 두 화면의 "잘된"이 조용히 어긋나고,
+ * 한쪽만 고치는 순간 같은 데이터가 다른 답을 낸다.
+ */
+export function isWinner(
+  r: Pick<ContrastInput, 'outlierIndex'>,
+  minIndex: number = CREATIVE_MIN_INDEX,
+): boolean {
+  return isJudged(r) && (r.outlierIndex as number) >= minIndex
+}
+
 export interface AccountContrast {
   /** 대조에 쓴 잘된 게시물 수 */
   winners: number
@@ -178,9 +200,9 @@ export function buildAccountContrast(
   minIndex: number = CREATIVE_MIN_INDEX,
 ): AccountContrast {
   // 배수가 없는 콘텐츠는 잘됐는지 아닌지 판정 자체가 불가능하다.
-  const judged = rows.filter((r) => r.outlierIndex != null && Number.isFinite(r.outlierIndex))
-  const winners = judged.filter((r) => (r.outlierIndex as number) >= minIndex)
-  const baseline = judged.filter((r) => (r.outlierIndex as number) < minIndex)
+  const judged = rows.filter(isJudged)
+  const winners = judged.filter((r) => isWinner(r, minIndex))
+  const baseline = judged.filter((r) => !isWinner(r, minIndex))
 
   const basisText = `잘된 게시물 ${winners.length}건 · 평소 ${baseline.length}건 비교`
 

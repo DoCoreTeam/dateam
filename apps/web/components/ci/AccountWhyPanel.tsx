@@ -6,20 +6,39 @@
 // 근거가 없으면 빈 화면을 두지 않고 **왜 아직 말할 수 없는지**를 그대로 보여준다.
 // 그래야 사용자가 "고장인가?"가 아니라 "게시물이 더 모이면 되겠구나"로 읽는다.
 
+import type { ReactNode } from 'react'
 import type { AccountContrast } from '@/lib/ci/analysis/account-contrast'
 import EmptyState from '@/components/ui/EmptyState'
 
-export default function AccountWhyPanel({ contrast }: { contrast: AccountContrast }) {
+interface AccountWhyPanelProps {
+  contrast: AccountContrast
+  /** 제목. 시장 단위로도 같은 대조를 쓰므로 문구만 갈아 끼운다(부품은 하나다). */
+  title?: string
+  /**
+   * 표본이 어떻게 구성됐는지. 시장 단위에서는 **반드시** 넘긴다 —
+   * "채널 4곳 중 한 곳이 99%"를 숨기면 한 계정의 습관이 법칙처럼 읽힌다.
+   */
+  composition?: ReactNode
+}
+
+export default function AccountWhyPanel({
+  contrast, title = '이 계정에서 왜 잘 됐나', composition,
+}: AccountWhyPanelProps) {
   return (
     <section style={{ marginBottom: 'var(--space-6)' }}>
       <div style={{
         display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
         gap: 'var(--space-3)', marginBottom: 'var(--space-3)',
       }}>
-        <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700 }}>이 계정에서 왜 잘 됐나</h2>
+        <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700 }}>{title}</h2>
         {/* 근거는 항상 붙인다 — 표본 수를 숨기면 3건짜리 발견이 법칙처럼 읽힌다 */}
         <span className="ci-basis">{contrast.basisText}</span>
       </div>
+
+      {/* 발견이 있든 없든 표본 구성은 먼저 보여준다 */}
+      {composition && (
+        <p className="ci-basis" style={{ marginBottom: 'var(--space-3)' }}>{composition}</p>
+      )}
 
       {contrast.findings.length === 0 ? (
         <EmptyState

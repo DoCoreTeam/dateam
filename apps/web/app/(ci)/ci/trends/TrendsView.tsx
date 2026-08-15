@@ -14,6 +14,9 @@ import type { ApiResponse, CiContentListItem } from '@/lib/ci/contracts'
 import type {
   MarketOverview, MarketSlice, PatternRow, SignalRow, TimingOverview, TimingSlice,
 } from '@/lib/ci/queries/trends'
+import { MARKET_MIN_CHANNELS, type MarketContrast } from '@/lib/ci/analysis/market-contrast'
+import { SEASON_MIN_WINDOW_DAYS } from '@/lib/ci/format/metrics'
+import AccountWhyPanel from '@/components/ci/AccountWhyPanel'
 import { CI_PLATFORMS, CI_PLATFORM_LABEL } from '@/lib/ci/types'
 import PageHeader from '@/components/ui/PageHeader'
 import StageNav, { RESEARCH_STAGES } from '@/components/ci/StageNav'
@@ -131,6 +134,7 @@ interface Props {
   basisText: string
   market: MarketOverview | null
   timing: TimingOverview | null
+  marketWhy: MarketContrast | null
   patterns: PatternRow[] | null
   signals: SignalRow[] | null
 }
@@ -147,6 +151,8 @@ export default function TrendsView(p: Props) {
   const [notice, setNotice] = useState<string | null>(null)
 
   const [groupByChannel, setGroupByChannel] = useState(false)
+  // 시장 탭의 집계표는 **근거**다 — 결론보다 먼저 보이면 무엇을 하라는 화면인지 사라진다.
+  const [showBasis, setShowBasis] = useState(false)
   const [sKind, setSKind] = useState('news')
   const [sTitle, setSTitle] = useState('')
   const [sUrl, setSUrl] = useState('')
@@ -241,6 +247,16 @@ export default function TrendsView(p: Props) {
     || pt.statement.toLowerCase().includes(needle)
     || (pt.topicName ?? '').toLowerCase().includes(needle))
 
+  // 계절은 90일 이상 창에서만 말한다. 28일 창의 "가을 1.9배"는 계절이 아니라
+  // 그냥 최근이다 — 없는 것을 보여주느니 왜 없는지를 보여준다.
+  const timingBlocks: { title: string; slices: TimingSlice[] }[] = p.timing
+    ? [
+      ...(p.timing.seasonMeaningful ? [{ title: '계절', slices: p.timing.bySeason }] : []),
+      { title: '시간대', slices: p.timing.byDayPart },
+      { title: '요일', slices: p.timing.byWeekday },
+    ]
+    : []
+
   const signalsAll = (p.signals ?? []).filter((s) => !needle
     || s.title.toLowerCase().includes(needle)
     || (s.topicName ?? '').toLowerCase().includes(needle))
@@ -304,11 +320,35 @@ export default function TrendsView(p: Props) {
           {p.market.insufficient ? (
             <EmptyState
               title="이 기간에 모인 시장 데이터가 없습니다"
-              description="관심 채널을 등록하면 그 채널의 게시물이 모여 시장 그림이 만들어집니다."
+              description={`관심 채널을 ${MARKET_MIN_CHANNELS}곳 이상 등록하면 시장 그림이 만들어집니다. 그보다 적으면 한 계정의 습관을 시장이라 부르게 되어 집계만 보여 드립니다.`}
               action={{ label: '관심 채널 추가', href: '/ci/monitoring' }}
             />
           ) : (
             <>
+              {/* 결론이 먼저다. 나열은 근거이지 답이 아니다. */}
+              {p.marketWhy && (
+                <AccountWhyPanel
+                  contrast={p.marketWhy}
+                  title="지금 시장에서 무엇이 통하나"
+                  composition={p.marketWhy.composition.text}
+                />
+              )}
+
+              <button type="button" className="btn-ghost"
+                aria-expanded={showBasis}
+                onClick={() => setShowBasis((v) => !v)}
+                title="위 결론이 어떤 집계에서 나왔는지 펼쳐 봅니다">
+                {showBasis ? '근거 접기' : '근거 자세히 보기'}
+              </button>
+
+              {showBasis && (
+                <div style={{ marginTop: 'var(--space-4)' }}>
+                  {/* 용어를 화면이 직접 푼다 — 아래 표 전부가 이 말을 쓴다 */}
+                  <p className="ci-basis" style={{ marginBottom: 'var(--space-4)' }}>
+                    ‘평소 대비’는 그 채널 자기 자신의 최근 중앙값과 견준 배수입니다.
+                    1.0배면 그 채널의 평소만큼이라는 뜻이고, 채널끼리 크기를 비교한 값이 아닙니다.
+                  </p>
+
               <section style={{ marginBottom: 'var(--space-6)' }}>
                 <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>플랫폼별</h2>
                 <ListSurface
@@ -345,11 +385,13 @@ export default function TrendsView(p: Props) {
                     언제 통했나
                   </h2>
                   <p className="ci-basis" style={{ marginBottom: 'var(--space-2)' }}>
-                    게시 시각을 콘텐츠 지역 기준으로 읽었습니다 · {p.timing.contextFilled}/{p.timing.total}건 판정
+                    게시 시각을 콘텐츠 지역 기준으로 읽었습니다 · 최근 {p.timing.windowDays}일 {p.timing.contextFilled}/{p.timing.total}건 판정
                     {p.timing.regionUnknown > 0 && ` · 지역 미상 ${p.timing.regionUnknown}건은 UTC 기준`}
+                    {!p.timing.seasonMeaningful
+                      && ` · 계절은 ${SEASON_MIN_WINDOW_DAYS}일 이상 볼 때만 말합니다`}
                   </p>
-                  <div className="responsive-grid-cols-3">
-                    {([['계절', p.timing.bySeason], ['시간대', p.timing.byDayPart], ['요일', p.timing.byWeekday]] as const).map(([title, slices]) => (
+                  <div className={timingBlocks.length >= 3 ? 'responsive-grid-cols-3' : 'responsive-grid-cols-2'}>
+                    {timingBlocks.map(({ title, slices }) => (
                       <div key={title}>
                         <h3 className="ci-creative-head">{title}</h3>
                         <ListSurface
@@ -368,20 +410,22 @@ export default function TrendsView(p: Props) {
                 </section>
               )}
 
-              <section>
-                <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>많이 올린 채널</h2>
-                <ListSurface
-                  rows={p.market.topChannels}
-                  columns={TOP_CHANNEL_COLUMNS}
-                  query={SUMMARY_QUERY}
-                  rowKey={(c) => c.id}
-                  empty={{
-                    title: '채널 정보를 아직 확보하지 못했습니다',
-                    description: '관심 채널을 등록하면 어느 채널이 얼마나 올리는지 여기 모입니다.',
-                    action: { label: '관심 채널 추가', href: '/ci/monitoring' },
-                  }}
-                />
-              </section>
+                  <section>
+                    <h2 style={{ fontSize: 'var(--fs-md)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>많이 올린 채널</h2>
+                    <ListSurface
+                      rows={p.market.topChannels}
+                      columns={TOP_CHANNEL_COLUMNS}
+                      query={SUMMARY_QUERY}
+                      rowKey={(c) => c.id}
+                      empty={{
+                        title: '채널 정보를 아직 확보하지 못했습니다',
+                        description: '관심 채널을 등록하면 어느 채널이 얼마나 올리는지 여기 모입니다.',
+                        action: { label: '관심 채널 추가', href: '/ci/monitoring' },
+                      }}
+                    />
+                  </section>
+                </div>
+              )}
             </>
           )}
         </>
