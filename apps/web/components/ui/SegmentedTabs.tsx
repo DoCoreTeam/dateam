@@ -123,9 +123,15 @@ function SegmentedTabsInner({
   // 활성 탭이 없어도 키보드로는 탭 줄에 들어올 수 있어야 한다(roving tabindex).
   const focusableId = current?.id ?? tabs[0]?.id
 
-  return (
+  // 이동형(라우트 탭)은 **네비게이션 랜드마크**로 감싼다.
+  // v0.7.445에서 WorkTabBar의 <nav aria-label="업무 탭">를 이 부품으로 통일하면서
+  // 랜드마크가 사라졌고, 스크린리더가 "업무 탭 네비게이션"으로 안내하지 못하게 됐다.
+  // (E2E 17건이 그때부터 실패하고 있었는데 CI가 E2E를 안 돌아 사흘간 안 보였다 — v0.7.475)
+  // role="tab"은 그대로 둔다: 이미 그 역할에 기대는 화면·검사가 있고, 랜드마크만 되돌리면 충분하다.
+  const list = (
     <>
-      <div className={skin.list} role="tablist" aria-label={ariaLabel}>
+      {/* 이동형은 nav가 이름을 갖는다 — 여기 tablist를 또 씌우면 링크가 탭으로 읽힌다 */}
+      <div className={skin.list} role={isNav ? undefined : 'tablist'} aria-label={isNav ? undefined : ariaLabel}>
         {tabs.map((t, i) => {
           const active = t === current
           const cls = `${skin.item}${active ? ' is-active' : ''}${t.sub ? ' has-sub' : ''}`
@@ -138,12 +144,13 @@ function SegmentedTabsInner({
           )
 
           const tab = t.href ? (
+            // 이동형은 **링크다.** role="tab"을 달면 스크린리더가 "탭 1/3"이라고 읽는데
+            // 실제로는 페이지가 통째로 바뀐다(연결된 tabpanel도 없다).
+            // 현재 위치는 aria-current="page"로 알린다 — 링크의 표준 방식이다.
             <Link
               key={t.id}
               href={t.href}
               prefetch={false}
-              role="tab"
-              aria-selected={active}
               aria-current={active ? 'page' : undefined}
               className={cls}
               data-testid={t.testId}
@@ -186,4 +193,6 @@ function SegmentedTabsInner({
       )}
     </>
   )
+
+  return isNav ? <nav aria-label={ariaLabel}>{list}</nav> : list
 }

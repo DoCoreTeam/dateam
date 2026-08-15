@@ -1,14 +1,5 @@
-import { test, expect, type Page } from '@playwright/test'
-
-async function dismissGlobalModals(page: Page) {
-  await page.waitForTimeout(400)
-  for (let i = 0; i < 3; i += 1) {
-    const backdrop = page.locator('.modal-backdrop').first()
-    if (!await backdrop.isVisible().catch(() => false)) return
-    await backdrop.click({ position: { x: 2, y: 2 } })
-    await page.waitForTimeout(100)
-  }
-}
+import { test, expect } from '@playwright/test'
+import { dismissGlobalModals } from './_helpers'
 
 const WIDTHS = [375, 768, 1024, 1440]
 const PAGES = [
@@ -72,7 +63,9 @@ test('subtab switching works on each page', async ({ page }) => {
   await page.goto('/work/projects')
   await dismissGlobalModals(page)
   await page.getByTestId('view-overview').click()
-  await expect(page).toHaveURL(/view=overview/)
+  // `view`는 목록 표준(§2-6)에서 표/카드/조밀 전환에 쓰기로 했고, 현황 패널은 `panel`로 옮겼다
+  // (구 링크 ?view=overview도 계속 받는다 — work/projects/page.tsx 참조).
+  await expect(page).toHaveURL(/panel=overview/)
   await expect(page.locator('.seg-tab.is-active', { hasText: '현황' }).first()).toBeVisible()
 })
 

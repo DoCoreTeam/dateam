@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { dismissGlobalModals } from './_helpers'
 
 // 업무 허브 IA E2E — /work 진입 리다이렉트 + 공유 탭바 3탭 전환. (auth-state 세션 재사용)
 test.describe('업무 허브 IA', () => {
@@ -6,6 +7,7 @@ test.describe('업무 허브 IA', () => {
     await page.goto('/work')
     await expect(page).toHaveURL(/\/daily$/)
 
+    await dismissGlobalModals(page)
     const tabbar = page.getByRole('navigation', { name: '업무 탭' })
     await expect(tabbar.getByRole('link', { name: '일일업무' })).toBeVisible()
     await expect(tabbar.getByRole('link', { name: '부서 업무' })).toBeVisible()

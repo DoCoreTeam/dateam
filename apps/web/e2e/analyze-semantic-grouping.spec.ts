@@ -110,11 +110,11 @@ test.describe('목록 심층분석 — 의미블록 그룹핑', () => {
 
   test('탭 구조: "내 분석 문서"가 1급, 세션은 "이전 원문"으로 강등(계약 E)', async ({ page }) => {
     if (isAuthRedirect(page)) return
-    // WorkSubTabs는 <Link role="tab">이라 role은 'link'가 아니라 'tab'이다.
-    await expect(page.getByRole('tab', { name: '내 분석 문서' })).toBeVisible()
-    await expect(page.getByRole('tab', { name: '이전 원문' })).toBeVisible()
+    // 이동형 탭은 v0.7.475부터 **링크**다 — 페이지를 바꾸는 것을 탭으로 읽히게 두지 않는다.
+    await expect(page.getByRole('link', { name: '내 분석 문서' })).toBeVisible()
+    await expect(page.getByRole('link', { name: '이전 원문' })).toBeVisible()
     // 구 라벨 "전체 세션"은 없어야 한다(계약 E: 세션 강등)
-    await expect(page.getByRole('tab', { name: '전체 세션' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: '전체 세션' })).toHaveCount(0)
   })
 
   test('E2·E4·E5: 141 사고 문서 → 섹션 규모 그룹 + 미귀속 0 + 메타 분리', async ({ page }) => {

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { dismissGlobalModals } from './_helpers'
 
 // 통합 표(리팩토링) E2E — 'unified' 기본 ON(v0.7.124~). 미설정이면 통합 표가 기본.
 //   1) 통합 표(.gpu-unified) 기본 렌더 + 모델별 그룹 헤더
@@ -40,6 +41,8 @@ test.describe('GPU 통합 표 (flag: unified)', () => {
     await expect(head).toContainText('판매가')
 
     // '가격 결정' 보기로 전환 → 헤더에 '공급원가' 컬럼 등장
+    // 자동 안내 모달이 떠 있으면 backdrop이 클릭을 가로챈다(앱은 정상, 검사만 죽는다)
+    await dismissGlobalModals(page)
     await page.getByRole('tab', { name: '가격 결정' }).click()
     await expect(head).toContainText('공급원가')
 
