@@ -453,11 +453,16 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
                     const st = STATUS_LABEL[q.status] ?? { t: q.status, c: 'var(--gpu-faint)' }
                     const prod = q.gpu_products
                     const canLocate = !!(prod && onGoToPriceTable)
+                    // 좁아지면 오른쪽 컨트롤(Tier·가격표)이 아랫줄로 내려간다 —
+                    // 한 줄에 억지로 욱여넣으면 모델명이 "RT…"까지 줄어 아무것도 못 읽는다.
                     return (
-                      <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 7, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--surface-bg)', fontSize: 12.5 }}>
+                      <div key={q.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '8px 10px', borderRadius: 7, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--surface-bg)', fontSize: 12.5 }}>
                         <button onClick={() => setEditQuote(q)} title="클릭하면 견적 수정·삭제·AI 재분석"
-                          style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, padding: 0, background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', textAlign: 'left' }}>
-                          <span style={{ fontWeight: 600, minWidth: 110 }}>
+                          style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '1 1 240px', minWidth: 0, padding: 0, background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', textAlign: 'left' }}>
+                          {/* 모델명만 줄어든다 — 좁은 화면에서 **금액이 밀려 옆 컨트롤에 가려지면 안 된다.**
+                              실제로 452px에서 $1.53이 "$1"로 읽혔다(가려진 것이지 잘린 게 아니라 더 나빴다). */}
+                          <span style={{ fontWeight: 600, flex: '1 1 110px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                            title={prod?.model_name ?? undefined}>
                             {prod?.model_name ?? '상품 미연결'}
                             {prod?.memory && <span style={{ color: 'var(--gpu-muted)', fontWeight: 400 }}> {prod.memory}</span>}
                           </span>
@@ -469,11 +474,11 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
                               T{q.effective_tier}{q.tier_override != null ? '*' : ''}
                             </span>
                           )}
-                          <span style={{ color: 'var(--gpu-muted)' }} title={memoryTitle(prod?.memory, q.gpu_count) || undefined}>×{q.gpu_count}GPU</span>
-                          <span style={{ fontFamily: 'monospace', fontWeight: 700, marginLeft: 'auto' }} title="공급사가 입력한 통화 그대로 표시 (원으로 넣으면 원, 달러로 넣으면 달러)">
+                          <span style={{ color: 'var(--gpu-muted)', flexShrink: 0 }} title={memoryTitle(prod?.memory, q.gpu_count) || undefined}>×{q.gpu_count}GPU</span>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 700, marginLeft: 'auto', flexShrink: 0 }} title="공급사가 입력한 통화 그대로 표시 (원으로 넣으면 원, 달러로 넣으면 달러)">
                             {fmtMoneyFromOriginal(q.original_currency, q.original_price, q.unit_price_usd, (q.original_currency === 'KRW' ? 'KRW' : 'USD') as CurrencyMode, 0)}
                           </span>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: st.c, minWidth: 36, textAlign: 'right' }}>{st.t}</span>
+                          <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600, color: st.c, minWidth: 36, flexShrink: 0, textAlign: 'right' }}>{st.t}</span>
                         </button>
                         {prod?.model_name && (
                           <select className="input-field gpu-tier-select"
