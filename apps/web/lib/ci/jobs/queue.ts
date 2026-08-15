@@ -81,16 +81,29 @@ export interface ClaimedJob {
 /**
  * 실행할 잡을 임대한다.
  * 동시에 여러 워커가 돌아도 같은 잡을 두 번 집지 않도록 원자적으로 상태를 바꾼다.
+ *
+ * `workspaceId`를 주면 그 워크스페이스의 잡만 집는다.
+ * 왜 필요한가: 예전에는 서비스 토큰을 가진 크론만 이 함수를 불렀으므로 전역 임대가 무해했다.
+ * 브라우저(사용자 세션)가 큐를 돌리게 되면 **남의 워크스페이스 잡을 처리**하게 된다 —
+ * 권한 경계 위반이자, 남의 외부 API 쿼터를 내 접속으로 태우는 일이다.
+ * 전역 드레인(크론·토큰 워커)은 계속 생략해서 부른다.
  */
-export async function claimJobs(limit: number, workerId: string): Promise<ClaimedJob[]> {
+export async function claimJobs(
+  limit: number,
+  workerId: string,
+  workspaceId?: string | null,
+): Promise<ClaimedJob[]> {
   const adminClient = createAdminClient() as any
   const nowIso = new Date().toISOString()
 
-  const { data: candidates } = await adminClient
+  let query = adminClient
     .from('ci_jobs')
     .select('id, workspace_id, idempotency_key, stage, target_type, target_id, payload, attempt, max_attempts')
     .in('status', ['queued', 'failed'])
     .lte('next_run_at', nowIso)
+  if (workspaceId) query = query.eq('workspace_id', workspaceId)
+
+  const { data: candidates } = await query
     .order('next_run_at', { ascending: true })
     .limit(limit)
 
@@ -112,6 +125,115 @@ export async function claimJobs(limit: number, workerId: string): Promise<Claime
     if (updated && updated.length > 0) claimed.push({ ...c, attempt: c.attempt + 1 })
   }
   return claimed
+}
+
+/**
+ * 잠금이 만료된 running 잡을 회수한다.
+ *
+ * 왜 필요한가: `claimJobs`는 queued·failed만 집는다. 실행 중 프로세스가 죽으면
+ * 그 잡은 running으로 남아 **아무도 다시 집지 않는다**(영구 좀비). 크론만 워커를 돌리던
+ * 시절에는 프로세스가 끝까지 도니 드물었지만, 브라우저가 큐를 돌리면
+ * **사용자가 탭을 닫을 때마다** 발생한다. 회수 없이는 큐가 좀비로 막힌다.
+ *
+ * 회수는 새 상태를 발명하지 않는다 — 실패와 똑같이 취급해 기존 재시도·DLQ 규약을 그대로 탄다.
+ * 시도 한도를 이미 쓴 잡은 되살리지 않고 실패 큐로 보낸다(무한 부활 금지).
+ */
+export async function recoverStalledJobs(input: {
+  staleMs: number
+  limit: number
+  workspaceId?: string | null
+}): Promise<number> {
+  const adminClient = createAdminClient() as any
+  const nowIso = new Date().toISOString()
+  const cutoffIso = new Date(Date.now() - input.staleMs).toISOString()
+
+  let query = adminClient
+    .from('ci_jobs')
+    .select('id, attempt, max_attempts')
+    .eq('status', 'running')
+    .lt('locked_at', cutoffIso)
+  if (input.workspaceId) query = query.eq('workspace_id', input.workspaceId)
+
+  const { data } = await query.limit(input.limit)
+  const rows = (data ?? []) as { id: string; attempt: number; max_attempts: number }[]
+  if (rows.length === 0) return 0
+
+  // 시도가 남았으면 즉시 재시도(failed), 다 썼으면 실패 큐(dead).
+  // 판정은 정상 실패와 같은 함수를 쓴다 — 회수만 다른 규칙을 쓰면 규약이 둘로 갈린다.
+  const retry = rows.filter((r) => nextStatusAfterFailure(r.attempt, r.max_attempts) === 'failed')
+  const giveUp = rows.filter((r) => nextStatusAfterFailure(r.attempt, r.max_attempts) !== 'failed')
+
+  const patch = {
+    locked_at: null,
+    locked_by: null,
+    next_run_at: nowIso,          // 백오프 없이 바로 — 이미 오래 멈춰 있었다
+    error_code: 'STALLED',
+    error_message: '실행이 중단된 채 잠금이 만료되어 회수했습니다',
+    updated_at: nowIso,
+  }
+
+  let recovered = 0
+  for (const [ids, status] of [[retry, 'failed'], [giveUp, 'dead']] as const) {
+    if (ids.length === 0) continue
+    // status 조건을 함께 건다 — 그 사이 정상 종료됐으면 0행이 갱신되고 건드리지 않는다
+    const { data: updated } = await adminClient
+      .from('ci_jobs')
+      .update({ ...patch, status })
+      .in('id', ids.map((r) => r.id))
+      .eq('status', 'running')
+      .select('id')
+    recovered += (updated ?? []).length
+  }
+
+  // 매달린 실행 기록도 함께 닫는다 — 열린 채 두면 관측이 거짓말을 한다
+  if (recovered > 0) {
+    await adminClient
+      .from('ci_job_runs')
+      .update({
+        finished_at: nowIso,
+        status: 'failed',
+        error_code: 'STALLED',
+        error_message: '실행이 중단된 채 잠금이 만료되어 회수했습니다',
+      })
+      .in('job_id', rows.map((r) => r.id))
+      .eq('status', 'running')
+  }
+
+  return recovered
+}
+
+/**
+ * 지금 처리할 수 있는 잡 수. 브라우저 구동기가 "더 돌릴지"를 정하는 근거다.
+ * running은 세지 않는다 — 지금 누군가 잡고 있는 것이지 대기가 아니다.
+ */
+export async function countPendingJobs(workspaceId?: string | null): Promise<number> {
+  const adminClient = createAdminClient() as any
+  let query = adminClient
+    .from('ci_jobs')
+    .select('id', { count: 'exact', head: true })
+    .in('status', ['queued', 'failed'])
+    .lte('next_run_at', new Date().toISOString())
+  if (workspaceId) query = query.eq('workspace_id', workspaceId)
+
+  const { count } = await query
+  return count ?? 0
+}
+
+/** 잠금이 만료된 running 잡 수. 백스톱이 "돌 이유가 있는가"를 판단할 때 쓴다. */
+export async function countStalledJobs(
+  staleMs: number,
+  workspaceId?: string | null,
+): Promise<number> {
+  const adminClient = createAdminClient() as any
+  let query = adminClient
+    .from('ci_jobs')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'running')
+    .lt('locked_at', new Date(Date.now() - staleMs).toISOString())
+  if (workspaceId) query = query.eq('workspace_id', workspaceId)
+
+  const { count } = await query
+  return count ?? 0
 }
 
 export async function startRun(jobId: string, attempt: number): Promise<string | null> {

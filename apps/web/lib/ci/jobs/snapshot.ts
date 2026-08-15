@@ -58,6 +58,24 @@ export interface DueSweepResult {
 }
 
 /**
+ * 때가 된 스냅샷 수만 센다(실행하지 않는다).
+ * 백스톱이 "돌 이유가 있는가"를 판단할 때 쓴다 — 이유가 없으면 즉시 반환해야 비용이 0이다.
+ */
+export async function countDueSnapshots(workspaceId?: string | null): Promise<number> {
+  const adminClient = createAdminClient() as any
+  const nowIso = new Date().toISOString()
+  let query = adminClient
+    .from('ci_snapshot_schedules')
+    .select('content_id', { count: 'exact', head: true })
+    .lte('next_capture_at', nowIso)
+    .or(`stop_after.is.null,stop_after.gt.${nowIso}`)
+  if (workspaceId) query = query.eq('workspace_id', workspaceId)
+
+  const { count } = await query
+  return count ?? 0
+}
+
+/**
  * 때가 된 스냅샷을 재수집 잡으로 건다.
  *
  * 멱등키가 `{stage}:{target}:{version}`이고 전역 유니크라, 같은 콘텐츠를 다시 수집하려면
@@ -66,15 +84,20 @@ export interface DueSweepResult {
  */
 export async function runDueSnapshots(
   limit: number = SNAPSHOT_DUE_MAX_PER_TICK,
+  workspaceId?: string | null,
 ): Promise<DueSweepResult> {
   const adminClient = createAdminClient() as any
   const nowIso = new Date().toISOString()
 
-  const { data: rows } = await adminClient
+  // 브라우저가 부르는 드레인은 그 사용자의 워크스페이스만 훑는다(claimJobs와 같은 경계).
+  let query = adminClient
     .from('ci_snapshot_schedules')
     .select('content_id, workspace_id, interval_sec, preset, captures_done, stop_after')
     .lte('next_capture_at', nowIso)
     .or(`stop_after.is.null,stop_after.gt.${nowIso}`)
+  if (workspaceId) query = query.eq('workspace_id', workspaceId)
+
+  const { data: rows } = await query
     .order('next_capture_at', { ascending: true })
     .limit(limit)
 

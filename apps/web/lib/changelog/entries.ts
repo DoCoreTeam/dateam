@@ -32,7 +32,7 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
-    version: '0.7.479', date: '2026-08-16', title: '콘텐츠 링크를 넣으면 이제 정말로 수집이 시작돼요',
+    version: '0.7.480', date: '2026-08-16', title: '콘텐츠 링크를 넣으면 이제 정말로 수집이 시작돼요',
     items: [
       { kind: 'fix', emoji: '▶️', headline: '링크를 넣어도 아무 일이 없던 문제를 고쳤어요', detail: '그동안 콘텐츠 링크를 넣으면 "수집을 시작했습니다"라고만 하고 실제로는 멈춰 있었어요. 이제 화면을 열어두시면 제목·썸네일·조회수가 알아서 채워집니다.' },
       { kind: 'improve', emoji: '🔄', headline: '수집이 어디까지 됐는지 화면에서 보여드려요', detail: '처리할 것이 남아 있으면 화면 오른쪽 아래에 "수집 중 N건 남음"이 뜹니다. 다 끝나면 조용히 사라져요.' },

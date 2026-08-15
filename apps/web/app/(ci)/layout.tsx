@@ -21,6 +21,7 @@ import type { NavGroup } from '@/components/ui/shell/AppShell'
 import CiOnboardingGate from '@/components/ci/CiOnboardingGate'
 import AssistantPanel from '@/components/ci/AssistantPanel'
 import NotificationBell from '@/components/ci/NotificationBell'
+import QueueDriver from '@/components/ci/QueueDriver'
 import type { CiLoopMinimap } from '@/lib/ci/contracts'
 import type { Profile } from '@/types/database'
 
@@ -127,8 +128,13 @@ export default async function CiLayout({ children }: { children: React.ReactNode
       extras={{
         // 떡상 알림은 "매일 접속할 이유의 1번"(§8.1)이라 화면이 아니라 셸에 붙는다.
         headerExtra: <NotificationBell workspaceId={workspace.id} />,
-        // 어시스턴트는 좌표를 스스로 정하지 않는다 — Dock의 assistant 슬롯에 등록만 한다.
-        dock: [{ slot: 'assistant', node: <AssistantPanel workspaceId={workspace.id} /> }],
+        dock: [
+          // 어시스턴트는 좌표를 스스로 정하지 않는다 — Dock의 assistant 슬롯에 등록만 한다.
+          { slot: 'assistant', node: <AssistantPanel workspaceId={workspace.id} /> },
+          // 큐 구동기. 크론을 늘리지 않고 큐를 돌리는 주 경로다(설계 §7-0 A).
+          // 화면이 열려 있는 동안만 짧은 요청을 반복하고, 진행 중이거나 멈췄을 때만 보인다.
+          { slot: 'utility', node: <QueueDriver workspaceId={workspace.id} /> },
+        ],
       }}
     >
       {children}

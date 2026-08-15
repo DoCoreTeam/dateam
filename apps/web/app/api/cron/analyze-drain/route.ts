@@ -7,6 +7,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { timingSafeEqual } from 'crypto'
 import { createAdminClient } from '@/lib/supabase/server'
 import { drainSession } from '@/lib/ai-chat/analyze-runner'
+import { drainQueue } from '@/lib/ci/jobs/drain'
+import { countPendingJobs, countStalledJobs } from '@/lib/ci/jobs/queue'
+import { countDueSnapshots } from '@/lib/ci/jobs/snapshot'
+import {
+  shouldRunBackstop, STALE_LOCK_MS, CRON_DRAIN_LIMIT, CRON_DRAIN_BUDGET_MS,
+} from '@/lib/ci/jobs/drain-policy'
 
 /** 상수시간 문자열 비교(타이밍 공격 방어, OWASP A07). 길이 불일치는 즉시 false. */
 function safeEqual(a: string, b: string): boolean {
@@ -94,5 +100,35 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, processed })
+  // ── 콘텐츠 인텔리전스 백스톱 ────────────────────────────────────────
+  // 주 경로는 브라우저(components/ci/QueueDriver)다. 여기는 **사람이 없는 시간**만 메운다.
+  // 크론을 새로 추가하지 않는 이유: 이 크론이 이미 매분 돌고 있어서 여기에 얹으면 스케줄이 늘지 않는다.
+  // 시간 게이트 대신 **할 일 유무**로 끊는다 — 일이 없으면 조회 3건으로 즉시 반환(사실상 0원),
+  // 일이 있을 때만 처리한다. 시간으로 막으면 아낄 돈은 몇 푼인데 처리는 그만큼 늦어진다.
+  // 브라우저가 동시에 돌고 있어도 잡 임대가 원자적이라 같은 잡을 두 번 실행하지 않는다.
+  const ci = await runCiBackstop().catch((err) => {
+    console.error('[cron/analyze-drain] ci backstop failed', err)
+    return { skipped: 'error' as const }
+  })
+
+  return NextResponse.json({ ok: true, processed, ci })
+}
+
+/** 할 일이 있을 때만 CI 큐를 돌린다. 없으면 즉시 반환한다. */
+async function runCiBackstop() {
+  const [dueJobs, dueSnapshots, stalledJobs] = await Promise.all([
+    countPendingJobs(),
+    countDueSnapshots(),
+    countStalledJobs(STALE_LOCK_MS),
+  ])
+
+  if (!shouldRunBackstop({ dueJobs, dueSnapshots, stalledJobs })) {
+    return { skipped: 'idle' as const, dueJobs, dueSnapshots, stalledJobs }
+  }
+
+  return drainQueue({
+    limit: CRON_DRAIN_LIMIT,
+    budgetMs: CRON_DRAIN_BUDGET_MS,
+    workerPrefix: 'cron',
+  })
 }
