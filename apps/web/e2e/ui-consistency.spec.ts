@@ -140,8 +140,12 @@ async function open(page: Page, path: string): Promise<boolean> {
   await page.goto(path, { waitUntil: 'domcontentloaded' })
   if (page.url().includes('/login')) return false
   await dismissGlobalModals(page)
-  await page.waitForLoadState('networkidle').catch(() => {})
-  await page.waitForTimeout(400)
+  // `networkidle`을 기다리지 않는다 — `/ci/*`는 큐 구동기가 주기적으로 요청을 보내서
+  // **idle이 영영 오지 않는다.** 실측: 그 한 줄 때문에 /ci 화면 12개가 전부 60초 타임아웃으로
+  // 실패했고, 치수는 재 보지도 못했다(검사기가 스스로 눈을 가린 셈).
+  // 대신 본문이 그려졌는지만 확정적으로 기다린다.
+  await page.locator('main.page-inner').first().waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {})
+  await page.waitForTimeout(600)
   return !page.url().includes('/login')
 }
 
