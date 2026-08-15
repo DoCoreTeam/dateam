@@ -2,6 +2,7 @@ import { ok, failUnexpected, readPaging } from '@/lib/ci/api'
 import { requireCiMemberApi, workspaceIdFromRequest } from '@/lib/ci/auth/requireCiMember'
 import { listContents } from '@/lib/ci/queries/contents'
 import { formatBasis, PERCENTILE_MIN_POPULATION } from '@/lib/ci/format/metrics'
+import { normalizeWindowDays } from '@/lib/ci/window'
 import type { CiContentFormat, CiPlatform } from '@/lib/ci/types'
 
 /**
@@ -16,7 +17,7 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url)
     const { limit, cursor } = readPaging(url)
-    const windowDays = Number(url.searchParams.get('windowDays') ?? 28) || 28
+    const windowDays = normalizeWindowDays(url.searchParams.get('windowDays'))
     const sortParam = url.searchParams.get('sort')
     const sort = sortParam === 'recent' || sortParam === 'velocity' ? sortParam : 'outlier'
 

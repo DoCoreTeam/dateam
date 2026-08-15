@@ -8,6 +8,7 @@ import { listChannels } from '../queries/channels.ts'
 import { listIdeas } from '../queries/ideas.ts'
 import { getMarketOverview, getPatterns, getSignals } from '../queries/trends.ts'
 import { getMinePerformance } from '../queries/performance.ts'
+import { normalizeWindowDays } from '../window.ts'
 import { addChannel } from '../queries/channels.ts'
 import { parseContentUrl } from '../ucm/url.ts'
 import { enqueueJob } from '../jobs/queue.ts'
@@ -109,7 +110,7 @@ export async function runAssistant(input: {
 
   switch (intent.command) {
     case 'trends.outliers': {
-      const windowDays = Number(intent.args.windowDays ?? 28)
+      const windowDays = normalizeWindowDays(intent.args.windowDays)
       const r = await listContents({ workspaceId: ws, corpusOnly: true, sort: 'outlier', windowDays, limit: 8 })
       return {
         say: intent.say, command: intent.command, executed: true, suggestion: null,
