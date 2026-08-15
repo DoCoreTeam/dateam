@@ -32,11 +32,20 @@ const PENDING = new Set<string>([
   'app/admin/reports/AdminReportsPreview.tsx',
   'app/develop/DemoSection.tsx',
   'app/develop/page.tsx',
+  // GPU 콕핏 내부 패널 — 목록이 아니라 상세/일괄 반영 표면이라 ListSurface(행 목록)로 그대로 옮겨지지 않는다.
+  // 그 화면을 손볼 때 함께 정리한다.
+  'components/pricing/gpu/unified/BulkReflectPanel.tsx',
+  'components/pricing/gpu/unified/DetailPanel.tsx',
+  // DynamicTable = 행을 추가·편집하는 **입력 격자**(어드민 콘텐츠 JSON 편집)다.
+  // ListSurface는 "읽는 목록"이라 성격이 다르다 — 합치면 둘 다 나빠진다.
+  'components/ui/DynamicTable.tsx',
 ])
 
 function rawTableFiles(): string[] {
   const hits: string[] = []
-  for (const file of walkFiles('app', ['.tsx'])) {
+  // components/도 함께 본다 — 예전엔 app/만 봐서 공용 폴더에 새 표 부품이 생겨도 통과했다
+  // (실제로 NbTable이 그렇게 자라 "표 4방식"이 됐다).
+  for (const file of [...walkFiles('app', ['.tsx']), ...walkFiles('components', ['.tsx'])]) {
     const src = read(file)
     if (!src.includes('<table')) continue
     // 표준을 쓰면 화면이 <table>을 직접 적지 않는다

@@ -1,5 +1,6 @@
 'use client'
 
+import { useEscClose } from '@/lib/use-esc-close'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import useSWR, { useSWRConfig } from 'swr'
 import { fetcher } from '@/lib/swr-config'
@@ -479,6 +480,8 @@ function PartnerTierManagerModal({ tiers, onClose, onChanged }: { tiers: Partner
     const res = await fetch(`/api/pricing/gpu/partner-tiers/${id}`, { method: 'DELETE' })
     if (res.ok) onChanged(); else alert('삭제 실패')
   }
+  // ESC로도 닫힌다(§2-2) — 롤백용 구뷰라도 대화상자 계약은 같다
+  useEscClose(onClose)
   return (
     <div className="gpu-modal-backdrop" role="dialog" aria-modal="true"
       aria-label="파트너 등급 관리" onClick={onClose}>

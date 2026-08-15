@@ -6,6 +6,8 @@
 //   baseline 재생성: node scripts/check-design-tokens.mjs --update-baseline
 import { readFileSync, readdirSync, statSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
+// 상태 문구·이름색 판정은 화면 스캐너와 **같은 정의**를 쓴다(scripts/ui-phrases.mjs = SSOT).
+import { EMPTY, LOADING, NAMED_COLOR_RE, NAMED_COLOR_PROP_RE, isSelfMadeStateText, stripComments } from './ui-phrases.mjs'
 
 const ALLOW_HEX = new Set([
   '#fcd34d', '#ffffff', '#0a0a0a', '#f8f8f6', '#efede8',
@@ -66,11 +68,6 @@ const INVISIBLE_INPUT_RE = /type=["']hidden["']|display:\s*['"]none['"]/
 const FIELD_CLASS_RE = /\b(?:input-field|filter-search|filter-select)\b/
 // z-index 하드코딩 — 레이어 순서는 --z-* 토큰만이 진실이어야 겹침 사고를 막는다.
 const zIndexRe = /zIndex: *['"]?[0-9]/g
-// 이름색·3자리 hex — 테마 전환에서 통째로 누락된다.
-const namedColorRe = /(?:'white'|"white"|#[0-9a-fA-F]{3}\b)/g
-// 자작 상태 문구 — 빈/로딩은 EmptyState·Skel*로 처리한다.
-const loadingTextRe = /불러오는 ?중|로딩 ?중/g
-const emptyTextRe = /없습니다|비어 ?있습니다/g
 
 /** JSX 여는 태그 전체를 잘라낸다. `onClick={() => x}`의 `>`에 속지 않도록 중괄호 깊이를 센다. */
 function openTag(text, start) {
@@ -113,7 +110,8 @@ function inlineStyledTags(text, tagName) {
 
 for (const f of files) {
   const text = readFileSync(f, 'utf8')
-  const lines = text.split('\n')
+  // 주석 속 예시 문구는 위반이 아니다 — 판정 전에 걷어낸다.
+  const lines = stripComments(text).split('\n')
   for (const m of text.matchAll(swrMutateRe)) {
     if (/\{[^}]*\bmutate\b[^}]*\}/.test(m[0])) {
       const lineNo = text.slice(0, m.index).split('\n').length
@@ -128,9 +126,13 @@ for (const f of files) {
     for (const m of line.matchAll(rgbaRe)) ratchet.push({ key: `${f}::rgba`, desc: `${f}:${i + 1}  rgba 인라인색` })
     for (const m of line.matchAll(badTokenRe)) ratchet.push({ key: `${f}::badtoken::${m[0]}`, desc: `${f}:${i + 1}  미정의 토큰 ${m[0]})` })
     for (const m of line.matchAll(zIndexRe)) ratchet.push({ key: `${f}::zindex`, desc: `${f}:${i + 1}  z-index 하드코딩 → var(--z-*)` })
-    for (const m of line.matchAll(namedColorRe)) ratchet.push({ key: `${f}::namedcolor`, desc: `${f}:${i + 1}  이름색/3자리hex ${m[0]} → 토큰` })
-    for (const m of line.matchAll(loadingTextRe)) ratchet.push({ key: `${f}::loadingtext`, desc: `${f}:${i + 1}  로딩 문구 자작 → SkelPage/SkelList/AXDotLoader` })
-    for (const m of line.matchAll(emptyTextRe)) ratchet.push({ key: `${f}::emptytext`, desc: `${f}:${i + 1}  빈 상태 문구 자작 → EmptyState` })
+    for (const m of line.matchAll(NAMED_COLOR_RE)) ratchet.push({ key: `${f}::namedcolor`, desc: `${f}:${i + 1}  이름색/3자리hex ${m[0]} → 토큰` })
+    for (const m of line.matchAll(NAMED_COLOR_PROP_RE)) ratchet.push({ key: `${f}::namedcolor`, desc: `${f}:${i + 1}  이름색 ${m[0]} → 토큰` })
+    // 상태 문구는 **JSX 텍스트 노드일 때만** 자작으로 센다.
+    // 줄 단위로 문구만 찾으면 `<EmptyState title="…없어요">` 같은 정상 사용까지 위반으로 세어
+    // 숫자가 부풀고(실제 4곳 → 22곳 보고 사고) 완료 판정이 불가능해진다.
+    if (isSelfMadeStateText(line, LOADING)) ratchet.push({ key: `${f}::loadingtext`, desc: `${f}:${i + 1}  로딩 문구 자작 → SkelPage/SkelList/AXDotLoader` })
+    if (isSelfMadeStateText(line, EMPTY)) ratchet.push({ key: `${f}::emptytext`, desc: `${f}:${i + 1}  빈 상태 문구 자작 → EmptyState` })
   })
   for (const hit of rawInputHits(text)) {
     ratchet.push({ key: `${f}::rawinput::${hit.tag}`, desc: `${f}:${hit.line}  raw <${hit.tag}> (input-field 누락)` })
@@ -175,17 +177,50 @@ if (existsSync(CSS_FILE)) {
   })
 }
 
-// 파일별 rgba는 key를 file::rgba 로 묶음(라인 이동에 견고). 신규 파일/카테고리만 차단.
-const currentKeys = [...new Set(ratchet.map((r) => r.key))]
+// ── ratchet 대조 ────────────────────────────────────────────────────────────
+// key는 `파일::유형` 단위로 묶는다(라인 이동에 견고). **개수까지 기록한다** —
+// 예전 판은 key 존재 여부만 봐서, 이미 baseline에 있는 파일에는 같은 유형을 몇 개든
+// 더 넣어도 통과했다(v0.7.476 실측: LoginForm.tsx에 자작 버튼을 새로 넣었는데 초록).
+// 기존 화면을 고칠 때가 실제로 코드가 늘어나는 자리라, 그 구멍이 곧 "표준이 안 지켜지는" 이유였다.
+const currentCounts = new Map()
+for (const r of ratchet) currentCounts.set(r.key, (currentCounts.get(r.key) ?? 0) + 1)
+const countsObject = () => Object.fromEntries([...currentCounts.entries()].sort(([a], [b]) => (a < b ? -1 : 1)))
 
 if (UPDATE) {
-  writeFileSync(BASELINE_PATH, JSON.stringify(currentKeys.sort(), null, 2) + '\n')
-  console.log(`✅ baseline 갱신 — ${currentKeys.length}개 키 기록 (${BASELINE_PATH})`)
+  writeFileSync(BASELINE_PATH, JSON.stringify(countsObject(), null, 2) + '\n')
+  console.log(`✅ baseline 갱신 — ${currentCounts.size}개 키 / ${ratchet.length}건 기록 (${BASELINE_PATH})`)
   process.exit(0)
 }
 
-const baseline = existsSync(BASELINE_PATH) ? new Set(JSON.parse(readFileSync(BASELINE_PATH, 'utf8'))) : new Set()
-const newRatchet = ratchet.filter((r) => !baseline.has(r.key))
+/** 구판(배열=키 목록)도 읽는다. 개수를 모르므로 이번 실행 값으로 1회 이관한다. */
+function loadBaseline() {
+  if (!existsSync(BASELINE_PATH)) return { counts: new Map(), legacy: false }
+  const raw = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'))
+  if (Array.isArray(raw)) {
+    const counts = new Map()
+    for (const k of raw) counts.set(k, currentCounts.get(k) ?? 0) // 오늘 상태를 그대로 동결
+    return { counts, legacy: true }
+  }
+  return { counts: new Map(Object.entries(raw)), legacy: false }
+}
+const { counts: baselineCounts, legacy } = loadBaseline()
+
+// 유형별 대표 설명(개수 초과 보고에 쓴다)
+const descByKey = new Map()
+for (const r of ratchet) if (!descByKey.has(r.key)) descByKey.set(r.key, r.desc)
+
+const newRatchet = []
+for (const [key, count] of currentCounts) {
+  const allowed = baselineCounts.get(key) ?? 0
+  if (count <= allowed) continue
+  const over = count - allowed
+  newRatchet.push({
+    key,
+    desc: allowed === 0
+      ? `${descByKey.get(key)}${count > 1 ? ` (${count}건)` : ''}`
+      : `${descByKey.get(key)} — ${count}건으로 늘었습니다(기준 ${allowed}건, +${over})`,
+  })
+}
 
 let failed = false
 if (swrMutate.length) {
@@ -200,10 +235,27 @@ if (hardHex.length) {
 }
 if (newRatchet.length) {
   failed = true
-  console.error(`❌ [ratchet] baseline에 없는 신규 위반 ${newRatchet.length}건 (토큰/공용컴포넌트 사용):`)
+  console.error(`❌ [ratchet] 기준을 넘은 위반 ${newRatchet.length}곳 (토큰/공용컴포넌트 사용):`)
   for (const v of newRatchet.slice(0, 40)) console.error('  ' + v.desc)
+  console.error('  → 기존 화면이라도 **지금보다 늘리는 것**은 막습니다. 줄이는 방향으로만 갑니다.')
 }
 if (failed) process.exit(1)
 
+// ── 자동 조임(ratchet) ──────────────────────────────────────────────────────
+// 줄어든 만큼 기준도 같이 내려간다. 안 내리면 "고쳤다가 다시 넣기"가 열려 있어서
+// 잔여가 영원히 제자리를 맴돈다. 실패한 실행에서는 쓰지 않는다(부분 상태 동결 방지).
+const loosened = []
+for (const [key, allowed] of baselineCounts) {
+  const now = currentCounts.get(key) ?? 0
+  if (now < allowed) loosened.push(`${key} ${allowed}→${now}`)
+}
 const tracked = ratchet.length
-console.log(`✅ 디자인 토큰 가드 통과 — hex 0, 신규 ratchet 위반 0 (baseline 추적 ${tracked}건 = 마이그레이션 잔여)`)
+if (legacy || loosened.length) {
+  writeFileSync(BASELINE_PATH, JSON.stringify(countsObject(), null, 2) + '\n')
+  if (legacy) console.log(`🔁 baseline을 개수 기준으로 이관했습니다 — ${BASELINE_PATH}도 함께 커밋하세요.`)
+  if (loosened.length) {
+    console.log(`🔽 baseline 자동 하향 ${loosened.length}곳 (줄어든 만큼 기준도 내림) — ${BASELINE_PATH}도 함께 커밋하세요.`)
+    for (const l of loosened.slice(0, 10)) console.log('   ' + l)
+  }
+}
+console.log(`✅ 디자인 토큰 가드 통과 — hex 0, 기준 초과 0 (추적 ${tracked}건 / ${currentCounts.size}곳 = 마이그레이션 잔여)`)

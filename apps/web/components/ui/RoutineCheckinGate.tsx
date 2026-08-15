@@ -1,5 +1,6 @@
 'use client'
 
+import { useEscClose } from '@/lib/use-esc-close'
 import { useState, useEffect, useTransition } from 'react'
 import { upsertRoutineCheck } from '@/app/(member)/routine/actions'
 import type { RoutineItemParsed } from '@/lib/routine-defaults'
@@ -16,6 +17,9 @@ export default function RoutineCheckinGate({ weekStart, weeklyItems, initialComp
   const [isPending, startTransition] = useTransition()
 
   const pendingItems = weeklyItems.filter((i) => !completed.has(i.name))
+
+  // ESC로도 닫힌다 — 닫기 버튼이 있는 대화상자는 키보드로도 벗어날 수 있어야 한다(§2-2)
+  useEscClose(() => setOpen(false), open)
 
   useEffect(() => {
     if (weeklyItems.length === 0) return

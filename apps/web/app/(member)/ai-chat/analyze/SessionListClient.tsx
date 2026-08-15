@@ -2,16 +2,21 @@
 
 // 목록 심층분석 — 세션 목록(§C4). 검색·정렬·필터·서버 커서 페이지네이션 + CRUD(이름변경/소프트삭제/되돌리기).
 // AnalyzeClient(새 분석)와 별개 탭 — 새 분석 착수는 그 화면에서, 여기는 지난 세션 관리 전용.
-// 상태(q/sort/phase/synth/deleted/cursor)는 URL 동기화(tab=list 보존, 공유·뒤로가기 가능).
+//
+// 목록 표준(§2-6)을 쓴다: useListQuery(URL이 진실) + ListToolbar + ListSurface + ListPager.
+// 예전엔 이 화면만을 위한 부품 한 벌(NbTable·BulkActionBar)과 자작 필터바·오류·로딩·빈상태를
+// 따로 갖고 있었다. 같은 일을 하는 부품이 두 벌이면 화면마다 다르게 동작하고, 고칠 때 한쪽만 고쳐진다.
 
 import { useCallback, useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { AlertTriangle, History, Inbox, Pencil, RotateCcw, Trash2 } from 'lucide-react'
+import { Pencil, RotateCcw, Trash2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
-import NbTable, { type NbColumn } from '@/components/ui/nb/NbTable'
-import BulkActionBar from '@/components/ui/BulkActionBar'
 import TrashToggle from '@/components/ui/TrashToggle'
-import { useDebounce } from '@/hooks/useDebounce'
+import ListToolbar from '@/components/ui/list/ListToolbar'
+import ListSurface from '@/components/ui/list/ListSurface'
+import ListPager from '@/components/ui/list/ListPager'
+import type { ColumnDef, ListFilterDef } from '@/components/ui/list/types'
+import { useListQuery } from '@/lib/ui/use-list-query'
+import type { ListDefaults } from '@/lib/ui/list-query'
 import { useRowSelection } from '@/hooks/useRowSelection'
 import {
   listAnalysisSessions,
@@ -22,9 +27,15 @@ import {
 } from './session-list-actions'
 import { RenameModal, ConfirmModal, SessionDetailDrawer } from './SessionListModals'
 
-const SORT_OPTIONS: { value: SessionSortKey; label: string }[] = [
-  { value: 'updated', label: '최근 수정순' },
-  { value: 'created', label: '최근 생성순' },
+const LIST_DEFAULTS: ListDefaults = {
+  sort: { key: 'updated', dir: 'desc' },
+  view: 'table',
+  mode: 'more',            // 서버가 커서로 주는 목록 — 총 건수를 모른다
+  filterKeys: ['phase', 'synth', 'deleted'],
+}
+const SORT_OPTIONS = [
+  { key: 'updated', label: '수정일' },
+  { key: 'created', label: '생성일' },
 ]
 
 const PHASE_LABEL: Record<string, string> = {
@@ -33,13 +44,14 @@ const PHASE_LABEL: Record<string, string> = {
 const SYNTH_LABEL: Record<string, string> = {
   pending: '종합 대기', running: '종합중', done: '종합완료', error: '종합 실패',
 }
-const PHASE_OPTIONS = ['idle', 'analyzing', 'synthesizing', 'done']
-const SYNTH_OPTIONS = ['pending', 'running', 'done', 'error']
+const FILTERS: ListFilterDef[] = [
+  { key: 'phase', label: '상태', options: ['idle', 'analyzing', 'synthesizing', 'done'].map((v) => ({ value: v, label: PHASE_LABEL[v] })) },
+  { key: 'synth', label: '종합', options: ['pending', 'running', 'done', 'error'].map((v) => ({ value: v, label: SYNTH_LABEL[v] })) },
+]
 
 /**
  * 상태 라벨/색 — control(사용자 제어)이 phase(서버 진행)보다 우선한다.
- * 취소/일시정지된 세션이 phase='analyzing'으로 남아 "분석중"으로 영원히 표시되던 버그 해소
- * (실측: control='cancelled' + phase='analyzing' 세션이 목록에서 "분석중"으로 오표시).
+ * 취소/일시정지된 세션이 phase='analyzing'으로 남아 "분석중"으로 영원히 표시되던 버그 해소.
  */
 function statusLabel(phase: string, control: string): string {
   if (control === 'cancelled') return '중단됨'
@@ -58,15 +70,9 @@ function statusColor(phase: string, control: string): string {
 const getSessionId = (s: AnalysisSessionSummary) => s.id
 
 export default function SessionListClient() {
-  const router = useRouter()
-  const sp = useSearchParams()
-
-  const [search, setSearch] = useState(sp.get('q') ?? '')
-  const debouncedSearch = useDebounce(search, 300)
-  const [sort, setSort] = useState<SessionSortKey>(sp.get('sort') === 'created' ? 'created' : 'updated')
-  const [phase, setPhase] = useState(sp.get('phase') ?? '')
-  const [synth, setSynth] = useState(sp.get('synth') ?? '')
-  const [showDeleted, setShowDeleted] = useState(sp.get('deleted') === '1')
+  const { query, set } = useListQuery(LIST_DEFAULTS, { persistKey: '/ai-chat/analyze/list' })
+  const showDeleted = query.filters.deleted === '1'
+  const sortKey: SessionSortKey = query.sort.key === 'created' ? 'created' : 'updated'
 
   const [sessions, setSessions] = useState<AnalysisSessionSummary[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
@@ -82,28 +88,18 @@ export default function SessionListClient() {
 
   const selection = useRowSelection(sessions, getSessionId)
 
-  // URL 동기화 — tab=list 보존, 기본값이면 파라미터 제거
-  useEffect(() => {
-    const next = new URLSearchParams(Array.from(sp.entries()))
-    next.set('tab', 'list')
-    if (debouncedSearch) next.set('q', debouncedSearch); else next.delete('q')
-    if (sort !== 'updated') next.set('sort', sort); else next.delete('sort')
-    if (phase) next.set('phase', phase); else next.delete('phase')
-    if (synth) next.set('synth', synth); else next.delete('synth')
-    if (showDeleted) next.set('deleted', '1'); else next.delete('deleted')
-    next.delete('cursor')
-    router.replace(`?${next.toString()}`, { scroll: false })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, sort, phase, synth, showDeleted])
-
   const load = useCallback(
     async (cursor?: string) => {
       cursor ? setLoadingMore(true) : setLoading(true)
       setError(null)
       const r = await listAnalysisSessions({
-        q: debouncedSearch || undefined,
-        sort,
-        filter: { phase: phase || undefined, synthStatus: synth || undefined, deleted: showDeleted },
+        q: query.q || undefined,
+        sort: sortKey,
+        filter: {
+          phase: query.filters.phase || undefined,
+          synthStatus: query.filters.synth || undefined,
+          deleted: showDeleted,
+        },
         cursor,
         limit: 30,
       })
@@ -116,13 +112,13 @@ export default function SessionListClient() {
       setNextCursor(r.nextCursor)
       cursor ? setLoadingMore(false) : setLoading(false)
     },
-    [debouncedSearch, sort, phase, synth, showDeleted],
+    [query.q, sortKey, query.filters.phase, query.filters.synth, showDeleted],
   )
 
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, sort, phase, synth, showDeleted])
+  }, [query.q, sortKey, query.filters.phase, query.filters.synth, showDeleted])
 
   /** 1건·N건 공용 확정 처리 — 서버가 실제 반영한 id(affectedIds)만 목록·선택에서 뺀다(부분 성공 정합). */
   async function handleConfirmed() {
@@ -152,18 +148,18 @@ export default function SessionListClient() {
     setPending([s])
   }
 
-  const columns: NbColumn<AnalysisSessionSummary>[] = [
+  const columns: ColumnDef<AnalysisSessionSummary>[] = [
     {
-      key: 'title', header: '제목', cardHeader: true,
-      render: (s) => <span style={{ fontWeight: 700, color: 'var(--text)' }}>{s.title}</span>,
+      key: 'title', header: '제목', primary: true, sortable: false,
+      cell: (s) => <span style={{ fontWeight: 700, color: 'var(--text)' }}>{s.title}</span>,
     },
     {
-      key: 'progress', header: '진행', label: '진행',
-      render: (s) => <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>{s.doneCount}/{s.itemCount}개</span>,
+      key: 'progress', header: '진행',
+      cell: (s) => <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>{s.doneCount}/{s.itemCount}개</span>,
     },
     {
-      key: 'phase', header: '상태', label: '상태',
-      render: (s) => (
+      key: 'phase', header: '상태',
+      cell: (s) => (
         <span style={{ display: 'inline-flex', gap: 'var(--space-1)', alignItems: 'center', fontSize: 'var(--fs-2xs)', fontWeight: 700, color: statusColor(s.phase, s.control) }}>
           {statusLabel(s.phase, s.control)}
           {s.synthStatus !== 'pending' && (
@@ -173,28 +169,25 @@ export default function SessionListClient() {
       ),
     },
     {
-      key: 'updated', header: '수정일', hideOnMobile: true,
-      render: (s) => <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>{new Date(s.updatedAt).toLocaleString('ko-KR')}</span>,
+      key: 'updated', header: '수정일', hideOnCard: true, sortable: 'updated',
+      cell: (s) => <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>{new Date(s.updatedAt).toLocaleString('ko-KR')}</span>,
     },
     {
-      key: 'actions', header: '', label: '',
-      render: (s) => (
+      key: 'actions', header: '', noLabel: true, align: 'right',
+      cell: (s) => (
         <div className="card-actions" style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
           {showDeleted ? (
-            <button type="button" onClick={(e) => { e.stopPropagation(); openSingleConfirm(s) }} aria-label={`${s.title} 되돌리기`} title="되돌리기"
-              style={{ minHeight: 44, minWidth: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)', color: 'var(--info)', cursor: 'pointer' }}>
+            <NbButton variant="ghost" onClick={(e) => { e.stopPropagation(); openSingleConfirm(s) }} aria-label={`${s.title} 되돌리기`} title="되돌리기">
               <RotateCcw size={15} />
-            </button>
+            </NbButton>
           ) : (
             <>
-              <button type="button" onClick={(e) => { e.stopPropagation(); setRenaming(s) }} aria-label={`${s.title} 이름변경`} title="이름변경"
-                style={{ minHeight: 44, minWidth: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)', color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <NbButton variant="ghost" onClick={(e) => { e.stopPropagation(); setRenaming(s) }} aria-label={`${s.title} 이름변경`} title="이름변경">
                 <Pencil size={14} />
-              </button>
-              <button type="button" onClick={(e) => { e.stopPropagation(); openSingleConfirm(s) }} aria-label={`${s.title} 삭제`} title="삭제"
-                style={{ minHeight: 44, minWidth: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'var(--danger-bg)', border: 'var(--hairline) solid var(--danger-border)', borderRadius: 'var(--radius)', color: 'var(--danger)', cursor: 'pointer' }}>
+              </NbButton>
+              <NbButton variant="danger-ghost" onClick={(e) => { e.stopPropagation(); openSingleConfirm(s) }} aria-label={`${s.title} 삭제`} title="삭제">
                 <Trash2 size={14} />
-              </button>
+              </NbButton>
             </>
           )}
         </div>
@@ -204,80 +197,71 @@ export default function SessionListClient() {
 
   return (
     <div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
-        <input className="input-field" value={search} onChange={(e) => setSearch(e.target.value)}
-          placeholder="제목·원문 검색" aria-label="세션 검색"
-          style={{ flex: '1 1 220px', minWidth: 0, maxWidth: 320, minHeight: 44 }} />
-        <select className="input-field" value={sort} onChange={(e) => setSort(e.target.value as SessionSortKey)}
-          aria-label="정렬 기준" style={{ flex: '0 0 auto', width: 'auto', minHeight: 44 }}>
-          {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <select className="input-field" value={phase} onChange={(e) => setPhase(e.target.value)}
-          aria-label="상태 필터" style={{ flex: '0 0 auto', width: 'auto', minHeight: 44 }}>
-          <option value="">전체 상태</option>
-          {PHASE_OPTIONS.map((p) => <option key={p} value={p}>{PHASE_LABEL[p]}</option>)}
-        </select>
-        <select className="input-field" value={synth} onChange={(e) => setSynth(e.target.value)}
-          aria-label="종합 상태 필터" style={{ flex: '0 0 auto', width: 'auto', minHeight: 44 }}>
-          <option value="">종합 전체</option>
-          {SYNTH_OPTIONS.map((s) => <option key={s} value={s}>{SYNTH_LABEL[s]}</option>)}
-        </select>
-        <div style={{ marginLeft: 'auto' }}>
-          <TrashToggle value={showDeleted} onChange={setShowDeleted} activeLabel="원문 목록" />
-        </div>
-      </div>
+      <ListToolbar
+        query={query}
+        onChange={set}
+        searchPlaceholder="제목·원문 검색"
+        filters={FILTERS}
+        sortOptions={SORT_OPTIONS}
+        showSize={false}
+        views={['table', 'card']}
+        selection={{
+          count: selection.count,
+          onClear: selection.clear,
+          actions: showDeleted ? (
+            <NbButton variant="secondary" onClick={openBulkConfirm}>
+              <RotateCcw size={15} /> 선택 되돌리기
+            </NbButton>
+          ) : (
+            <NbButton variant="danger" onClick={openBulkConfirm} data-testid="bulk-delete-sessions">
+              <Trash2 size={15} /> 선택 삭제
+            </NbButton>
+          ),
+        }}
+        actions={
+          <TrashToggle
+            value={showDeleted}
+            onChange={(v) => set({ filters: { deleted: v ? '1' : '' } })}
+            activeLabel="원문 목록"
+          />
+        }
+      />
 
-      <BulkActionBar count={selection.count} onClear={selection.clear}>
-        {showDeleted ? (
-          <NbButton variant="secondary" onClick={openBulkConfirm}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', minHeight: 44 }}>
-            <RotateCcw size={15} /> 선택 되돌리기
-          </NbButton>
-        ) : (
-          <NbButton variant="danger" onClick={openBulkConfirm} data-testid="bulk-delete-sessions"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', minHeight: 44 }}>
-            <Trash2 size={15} /> 선택 삭제
-          </NbButton>
-        )}
-      </BulkActionBar>
+      <ListSurface
+        rows={sessions}
+        columns={columns}
+        query={query}
+        rowKey={getSessionId}
+        onChange={set}
+        loading={loading}
+        error={error ? { message: `목록을 불러오지 못했습니다 — ${error}`, onRetry: () => load() } : null}
+        empty={{
+          title: showDeleted
+            ? '삭제된 세션이 없어요'
+            : query.q || query.filters.phase || query.filters.synth
+              ? '조건에 맞는 세션이 없어요'
+              : '아직 분석 세션이 없어요',
+          description: showDeleted ? undefined : '‘새 분석’ 탭에서 자료를 넣으면 여기에 쌓입니다',
+        }}
+        onRowClick={showDeleted ? undefined : (s) => setDetailId(s.id)}
+        selection={{
+          selected: new Set(selection.selectedIds),
+          onToggle: selection.toggle,
+          onToggleAll: selection.toggleAll,
+          allSelected: selection.allSelected,
+          someSelected: selection.someSelected,
+          rowLabel: (s) => `${s.title} 선택`,
+        }}
+      />
 
-      {error ? (
-        <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-5)', borderRadius: 'var(--radius-lg)', border: 'var(--border-w-2) solid var(--danger-border)', background: 'var(--danger-bg)', color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>
-          <AlertTriangle size={18} /> 목록을 불러오지 못했습니다 — {error}
-          <button onClick={() => load()} style={{ marginLeft: 'auto', fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--danger)', background: 'none', border: 'var(--border-w-2) solid var(--danger-border)', borderRadius: 'var(--radius)', padding: '4px 10px', cursor: 'pointer' }}>다시 시도</button>
-        </div>
-      ) : loading ? (
-        <div style={{ color: 'var(--text-faint)', padding: 'var(--space-6)', textAlign: 'center', fontSize: 'var(--fs-sm)' }}>불러오는 중…</div>
-      ) : sessions.length === 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-8) var(--space-4)', color: 'var(--text-faint)', textAlign: 'center' }}>
-          {showDeleted ? <History size={32} strokeWidth={1.5} /> : <Inbox size={32} strokeWidth={1.5} />}
-          <p style={{ margin: 0, fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text-muted)' }}>
-            {showDeleted ? '삭제된 세션이 없습니다' : debouncedSearch || phase || synth ? '검색 결과가 없습니다' : '아직 분석 세션이 없습니다'}
-          </p>
-        </div>
-      ) : (
-        <NbTable
-          columns={columns}
-          rows={sessions}
-          getRowKey={(s) => s.id}
-          onRowClick={showDeleted ? undefined : (s) => setDetailId(s.id)}
-          selection={{
-            isSelected: (s) => selection.isSelected(s.id),
-            onToggle: (s) => selection.toggle(s.id),
-            onToggleAll: selection.toggleAll,
-            allSelected: selection.allSelected,
-            someSelected: selection.someSelected,
-            rowLabel: (s) => `${s.title} 선택`,
-          }}
+      {!error && (
+        <ListPager
+          query={query}
+          hasMore={!!nextCursor}
+          loading={loadingMore}
+          // 커서 목록이라 페이지 번호가 주소에 남을 이유가 없다 — 다음 커서를 이어 붙인다.
+          onChange={() => { if (nextCursor) load(nextCursor) }}
         />
-      )}
-
-      {nextCursor && !error && (
-        <div style={{ textAlign: 'center', marginTop: 'var(--space-4)' }}>
-          <NbButton variant="secondary" onClick={() => load(nextCursor)} disabled={loadingMore}>
-            {loadingMore ? '불러오는 중…' : '더 보기'}
-          </NbButton>
-        </div>
       )}
 
       {renaming && (

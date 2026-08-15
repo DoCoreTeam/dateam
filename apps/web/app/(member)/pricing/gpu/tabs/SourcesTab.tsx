@@ -1,5 +1,7 @@
 'use client'
 
+import NbButton from '@/components/ui/nb/NbButton'
+import PageHeader from '@/components/ui/PageHeader'
 import { useState } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
@@ -75,18 +77,15 @@ export default function SourcesTab() {
 
   return (
     <div className="page-inner">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--fs-2xl)', fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text)', margin: 0 }}>수집 소스</h1>
-          <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', margin: '4px 0 0' }}>
-            경쟁사 가격을 자동으로 가져올 링크를 모아 보고·수정·관리하는 곳이에요. 매일 아침 첫 접속 때 자동으로 확인합니다.
-          </p>
-        </div>
-        <button className="gpu-btn" onClick={refreshNow} disabled={refreshing}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: 'var(--border-w-2) solid var(--brand)', background: 'var(--brand)', color: '#fff', fontWeight: 600, fontSize: 'var(--fs-sm)', cursor: refreshing ? 'wait' : 'pointer' }}>
-          <RefreshCw size={15} style={{ animation: refreshing ? 'spin 1s linear infinite' : undefined }} /> 지금 전체 다시 가져오기
-        </button>
-      </div>
+      <PageHeader
+        title="수집 소스"
+        description="경쟁사 가격을 자동으로 가져올 링크를 모아 보고·수정·관리하는 곳이에요. 매일 아침 첫 접속 때 자동으로 확인합니다."
+        actions={
+          <NbButton onClick={refreshNow} disabled={refreshing}>
+            <RefreshCw size={15} style={{ animation: refreshing ? 'spin 1s linear infinite' : undefined }} /> 지금 전체 다시 가져오기
+          </NbButton>
+        }
+      />
 
       {lastRun && (
         <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', marginBottom: 10 }}>

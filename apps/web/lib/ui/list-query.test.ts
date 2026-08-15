@@ -126,3 +126,23 @@ test('pageWindow: 100페이지를 다 그리지 않고 현재 주변만', () => 
   assert.deepEqual(pageWindow(100, 100), [96, 97, 98, 99, 100])
   assert.deepEqual(pageWindow(2, 3), [1, 2, 3], '총 페이지가 창보다 적으면 전부')
 })
+
+test('주소를 다시 쓸 때 목록이 소유하지 않은 파라미터를 지우지 않는다', () => {
+  // 왜 중요한가: 탭·드로어 같은 **화면의 다른 상태**가 같은 주소에 함께 산다.
+  // 목록이 주소를 통째로 새로 쓰면 필터를 한 번 건드리는 순간 그 상태가 사라져
+  // 엉뚱한 탭으로 튕긴다. 그게 화면들이 이 표준을 안 쓰고 URL 동기화를 자작한 이유였다.
+  const current = new URLSearchParams('tab=list&detail=abc&status=old&q=이전')
+  const q = resolveListQuery(current, DEFAULTS)
+  const out = listQueryToParams({ ...q, q: '새검색' }, DEFAULTS, current)
+
+  assert.equal(out.get('tab'), 'list', '남의 파라미터는 보존')
+  assert.equal(out.get('detail'), 'abc', '남의 파라미터는 보존')
+  assert.equal(out.get('q'), '새검색', '목록 소유 파라미터는 새 값이 이긴다')
+  assert.equal(out.get('status'), 'old', '선언된 필터는 목록 소유 — 쿼리 값이 남는다')
+})
+
+test('보존 인자를 안 주면 목록 파라미터만 남는다(구 동작 유지)', () => {
+  const current = new URLSearchParams('tab=list')
+  const q = resolveListQuery(current, DEFAULTS)
+  assert.equal(listQueryToParams(q, DEFAULTS).get('tab'), null)
+})

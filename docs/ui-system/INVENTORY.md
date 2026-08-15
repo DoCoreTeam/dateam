@@ -36,7 +36,7 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 | **로딩** | `ui/LoadingSkeleton`(Skel*) **32** · `ui/AXDotLoader` **35** · `ui/AXLoadingOverlay` **7** · `ui/BrandLoaderMark` **2** · `ui/NavigationLoader` **1** | — | ⛔ **5종 병존** (v0.7.445에 `ci/states` 골격만 `SkelList`로 흡수) |
 | **탭** | ~~5종~~ → **`ui/SegmentedTabs` 1벌이 그린다** (v0.7.445). `WorkSubTabs`·`ProjectTabs`·`WorkTabBar`·`StageNav`는 데이터/프롭 어댑터 | — | ✅ 해소 |
 | **상세 표면** | `ci/DetailSheet` **4** · `ui/SlidePanel` **6** · 모달 26파일 · `[id]` 페이지 9 | — | ⛔ 3방식 (v0.7.456에 자작 드로어 3벌은 SlidePanel로 흡수) |
-| **표** | `ui/list/ListSurface`(표준, v0.7.448) · `ui/DynamicTable` **7** · `ui/nb/NbTable` **2** · `.table-card` **70** · GPU `UnifiedTable` **1** | — | ⛔ 표준은 생겼고 이관은 진행 중(가드 PENDING 39) |
+| **표** | ~~4방식~~ → **`ui/list/ListSurface` 1벌** (v0.7.477). `ui/nb/NbTable`·`ui/BulkActionBar` **삭제** — 화면 2개만을 위한 병렬 소계통이었다. 전체선택은 ListSurface가 흡수 | 28 | ✅ 부품은 1벌. 화면 이관은 `list-standard` PENDING으로 단조 감소 |
 | **셸** | ~~3벌~~ → **`ui/shell/AppShell` 1벌** (v0.7.443 통합) | `ui/shell/AppShell` | ✅ 해소 |
 
 > **신규 작업 규칙: 위 표에 있는 성격의 UI를 만들 때는 새로 만들지 말고, 어느 쪽으로 통일할지 먼저 정한다.**
@@ -75,7 +75,7 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 
 | 부품 | 사용 | 역할 | 비고 |
 |---|---|---|---|
-| `ui/PageHeader` | **29** | 제목·설명·액션·`below`(스테이지/탭) | **표준** (v0.7.445 CiPageHeader 흡수) |
+| `ui/PageHeader` | **32** | 제목·설명·액션·`below`(스테이지/탭)·`icon`·`back`(v0.7.477) | **표준** — raw `<h1>` 0건, `screen-standard` 가드가 잠금 |
 | `ui/WorkPageShell` | **7** | 업무영역 페이지 골격 (globals.css §3007 SSOT와 한 쌍) | **PageScaffold 유사품 — 이미 존재** |
 | `ui/SegmentedTabs` | **16** | 탭을 그리는 유일한 곳(이동형/제어형/패널형 × segment·primary·stage) | **표준** |
 | `ui/WorkSubTabs` | 7 | 업무 하위 탭 **데이터** | 어댑터 |
@@ -90,9 +90,7 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 | 부품 | 사용 | 역할 |
 |---|---|---|
 | `ui/DynamicTable` | **7** | 동적 컬럼 표 |
-| `ui/nb/NbTable` | 2 | 기본 표 |
 | `ui/DynamicKeyValue` | 2 | 키-값 표시 |
-| `ui/BulkActionBar` | 2 | 목록 일괄 액션 바 |
 | `ui/TrashToggle` | 2 | 휴지통 필터 토글 |
 | `ci/DetailSheet` | **4** | 우측 상세 시트 |
 | `ui/SlidePanel` | **6** | 우측 슬라이드 패널(드로어) — v0.7.456에 포커스 트랩·스크롤 잠금 보유분으로 확정하고 자작 드로어 3벌 흡수 |
@@ -273,3 +271,24 @@ cd apps/web && node - <<'EOF'
 EOF
 ```
 전체 스크립트: `docs/ui-system/scan-inventory.mjs` (§13)
+
+
+---
+
+## v0.7.477 — 표준이 "지켜지는지"를 코드가 보게 만든 판
+
+이 판의 핵심은 부품을 더 만든 게 아니라 **가드의 구멍을 막은 것**이다.
+
+| 무엇 | 전 | 후 |
+|---|---|---|
+| design:check ratchet | `파일::유형` **키 존재**만 확인 → 이미 등록된 파일엔 같은 유형을 **몇 개든 더 넣어도 통과** | `{키: 개수}` — 지금보다 늘면 차단, 줄면 기준도 자동 하향(되돌리기 차단) |
+| 상태 문구 판정 | 가드와 화면 스캐너가 **각자 정의** (가드는 `없습니다`만, `없어요`는 통과) | `scripts/ui-phrases.mjs` SSOT 공유 + JSX 텍스트 노드일 때만 자작으로 판정 |
+| 표 | ListSurface·NbTable·DynamicTable·raw `<table>` 4방식 | ListSurface 1벌(+입력격자 DynamicTable은 성격이 다름을 명시) |
+| 페이지 헤더 | raw `<h1>` 3곳 | 0곳 + 가드로 잠금 (`icon`·`back` 슬롯을 부품에 넣어 자작 이유를 없앰) |
+| 탭 | `role="tab"` 자작 2곳 | PENDING 2곳으로 동결(접촉 시 이관) + 죽은 예외 방지 테스트 |
+| 대화상자 ESC | 3곳 누락 | 0곳 + 가드로 잠금 |
+| `useListQuery` | 주소를 통째로 새로 써 **`?tab=` 같은 남의 상태를 삭제** | 소유하지 않은 파라미터 보존 — 이게 목록들이 표준을 안 쓰고 자작하던 실제 이유였다 |
+
+**교훈**: 표준을 안 쓰는 이유는 대개 게으름이 아니라 **표준이 그 화면에서 실제로 못 쓰게 돼 있어서**다.
+(전체선택이 없어서 NbTable을 썼고, `?tab=`이 지워져서 URL 동기화를 자작했고, 뒤로가기 슬롯이 없어서 헤더를 베꼈다.)
+부품을 고쳐서 쓸 수 있게 만드는 게 먼저고, 가드는 그 다음이다.

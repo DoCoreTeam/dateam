@@ -1,3 +1,4 @@
+import PageHeader from '@/components/ui/PageHeader'
 import { Lock, MessageSquareOff } from 'lucide-react'
 import { requireAdmin } from '@/lib/auth/requireAdmin'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
@@ -56,23 +57,11 @@ export default async function SharedConversationPage({
         <span>읽기 전용 — {ownerName}의 공유 대화</span>
       </div>
 
-      {/* 대화 헤더 */}
-      <header style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-        <h1
-          style={{
-            fontSize: 'var(--fs-2xl)',
-            fontWeight: 700,
-            letterSpacing: '-0.03em',
-            color: 'var(--text)',
-            margin: 0,
-          }}
-        >
-          {c.title}
-        </h1>
-        <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-          {c.provider} · {c.model} · {formatKstDateTimeShort(c.created_at)}
-        </p>
-      </header>
+      {/* 대화 헤더 — 공용 PageHeader(§2-3). 화면이 raw <h1>을 다시 그리지 않는다 */}
+      <PageHeader
+        title={c.title}
+        description={`${c.provider} · ${c.model} · ${formatKstDateTimeShort(c.created_at)}`}
+      />
 
       {/* 트랜스크립트 (입력창 없음 — read-only) */}
       {messages.length === 0 ? (

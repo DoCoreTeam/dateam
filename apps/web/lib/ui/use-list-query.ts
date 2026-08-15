@@ -60,7 +60,8 @@ export function useListQuery(defaults: ListDefaults, options: Options = {}) {
       filters: patch.filters ? { ...query.filters, ...patch.filters } : query.filters,
       page: shouldResetPage(patch) ? 1 : (patch.page ?? query.page),
     }
-    router.replace(`${pathname}?${listQueryToParams(next, defaults)}`, { scroll: false })
+    // 목록이 소유하지 않은 파라미터(`tab` 등)는 그대로 둔다 — 표준이 남의 상태를 부수면 아무도 안 쓴다.
+    router.replace(`${pathname}?${listQueryToParams(next, defaults, searchParams)}`, { scroll: false })
 
     if (!options.persistKey) return
     // 저장 실패가 화면 조작을 막으면 안 된다 — 다음 변경에서 다시 시도된다
@@ -70,7 +71,7 @@ export function useListQuery(defaults: ListDefaults, options: Options = {}) {
       body: JSON.stringify({ scopeKey: options.persistKey, value: savedFromQuery(next) }),
     }).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, pathname, router, options.persistKey])
+  }, [query, pathname, router, searchParams, options.persistKey])
 
   return { query, set }
 }

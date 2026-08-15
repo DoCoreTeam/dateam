@@ -51,13 +51,14 @@ for (const [label, url, testId] of [
     await expect(active).toHaveAttribute('aria-pressed', 'true')
     await expect(trash).toHaveAttribute('aria-pressed', 'false')
 
+    // 휴지통 전환은 주소를 바꾸고 서버가 다시 그린다 — 기본 5초는 dev 서버에서 빠듯하다
     await trash.click()
-    await expect(trash).toHaveAttribute('aria-pressed', 'true')
+    await expect(page).toHaveURL(/deleted=1/, { timeout: 15_000 })
+    await expect(trash).toHaveAttribute('aria-pressed', 'true', { timeout: 15_000 })
     await expect(active).toHaveAttribute('aria-pressed', 'false')
-    await expect(page).toHaveURL(/deleted=1/)
 
     await active.click()
-    await expect(page).not.toHaveURL(/deleted=1/)
+    await expect(page).not.toHaveURL(/deleted=1/, { timeout: 15_000 })
   })
 
   test(`${label} — 전체선택 후 선택 삭제 확인 모달까지`, async ({ page }) => {
@@ -76,11 +77,11 @@ for (const [label, url, testId] of [
 
     // 1건 선택 → 일괄 바 등장
     await rowChecks.first().check()
-    await expect(page.getByText('1개 선택됨')).toBeVisible()
+    await expect(page.getByText('1건 선택됨')).toBeVisible()
 
     // 전체선택
     await page.getByTestId('nb-select-all').check()
-    await expect(page.getByText(`${rowCount}개 선택됨`)).toBeVisible()
+    await expect(page.getByText(`${rowCount}건 선택됨`)).toBeVisible()
 
     // 선택 삭제 → 확인 모달(대상 건수 노출) → 취소(실데이터 보존)
     await page.getByTestId(testId).click()

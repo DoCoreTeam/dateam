@@ -5,7 +5,7 @@
 
 import type { ButtonHTMLAttributes } from 'react'
 
-type Variant = 'primary' | 'secondary' | 'danger' | 'ghost'
+type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'danger-ghost'
 
 interface NbButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant
@@ -16,6 +16,8 @@ const VARIANT_CLASS: Record<Variant, string> = {
   secondary: 'btn-ghost',
   danger: 'btn-primary nb-danger',
   ghost: 'btn-ghost',
+  // 목록 행의 삭제처럼 **위험하지만 주역이 아닌** 액션. 채워진 빨강은 행을 덮는다.
+  'danger-ghost': 'btn-ghost nb-danger',
 }
 
 export default function NbButton({ variant = 'primary', className, ...rest }: NbButtonProps) {

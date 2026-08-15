@@ -4,6 +4,7 @@ import { X, Sparkles } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
 import type { ChangeType } from '@/lib/changelog/types'
 import { CHANGELOG, cmpVersion } from '@/lib/changelog/entries'
+import EmptyState from '@/components/ui/EmptyState'
 
 const TYPE_LABEL: Record<ChangeType, { label: string; bg: string }> = {
   feature: { label: '새 기능', bg: 'var(--success)' },
@@ -60,7 +61,7 @@ export default function ChangelogModal({ currentVersion, onClose, newOnly = fals
         {/* 본문 */}
         <div style={{ overflowY: 'auto', padding: 'var(--space-4) var(--space-5)' }}>
           {notes.length === 0 ? (
-            <div style={{ color: 'var(--text-faint)', fontSize: 'var(--fs-sm)', padding: 'var(--space-6) 0', textAlign: 'center' }}>새로운 소식이 없어요. 최신 상태예요!</div>
+            <EmptyState title="새로운 소식이 없어요" description="최신 상태예요!" icon={<Sparkles size={20} />} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
               {notes.map((note, idx) => {

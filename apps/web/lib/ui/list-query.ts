@@ -107,7 +107,21 @@ export function resolveListQuery(
  * 기본값과 같은 값은 URL에 쓰지 않는다 — 주소가 길어지면 공유가 꺼려진다.
  * 저장 설정과 같아도 **URL에는 남긴다**: 링크를 받은 사람에게는 그게 유일한 단서다.
  */
-export function listQueryToParams(query: ListQuery, defaults: ListDefaults): URLSearchParams {
+/** 목록이 소유하는 URL 키 — 이 밖의 파라미터는 목록이 건드리지 않는다. */
+export function ownedParamKeys(defaults: ListDefaults): Set<string> {
+  return new Set<string>(['q', 'sort', 'dir', 'view', 'size', 'page', ...(defaults.filterKeys ?? [])])
+}
+
+/**
+ * @param preserveFrom 현재 주소. 목록이 소유하지 않은 파라미터(`tab` 등)를 그대로 옮긴다.
+ *   주지 않으면 목록 파라미터만 남는다 — 예전 동작이며, 화면의 다른 상태를 지워
+ *   "필터를 건드리면 엉뚱한 탭으로 튕기는" 사고를 냈다.
+ */
+export function listQueryToParams(
+  query: ListQuery,
+  defaults: ListDefaults,
+  preserveFrom?: URLSearchParams,
+): URLSearchParams {
   const p = new URLSearchParams()
   if (query.q) p.set('q', query.q)
   if (query.sort.key !== defaults.sort.key) p.set('sort', query.sort.key)
@@ -116,6 +130,11 @@ export function listQueryToParams(query: ListQuery, defaults: ListDefaults): URL
   if (query.view !== (defaults.view ?? 'table')) p.set('view', query.view)
   if (query.size !== (defaults.size ?? 20)) p.set('size', String(query.size))
   if (query.page > 1) p.set('page', String(query.page))
+  if (preserveFrom) {
+    const owned = ownedParamKeys(defaults)
+    // forEach — URLSearchParams 이터레이터는 tsconfig target에서 for..of가 막힌다
+    preserveFrom.forEach((v, k) => { if (!owned.has(k)) p.set(k, v) })
+  }
   return p
 }
 

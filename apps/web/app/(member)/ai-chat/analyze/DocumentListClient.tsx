@@ -1,17 +1,22 @@
 'use client'
 
-// 목록 심층분석 — §FR-11-2 "내 분석 문서" 라이브러리 목록. session-list-actions.ts와 동일 컨벤션:
-// 검색·정렬·필터·서버 커서 페이지네이션 + URL 동기화(tab=documents 보존) + CRUD(소프트삭제/되돌리기).
+// 목록 심층분석 — §FR-11-2 "내 분석 문서" 라이브러리 목록.
 // 상세 열람/제목편집은 DocumentDetailDrawer로 분리(300줄 제약).
+//
+// 목록 표준(§2-6): useListQuery(URL이 진실) + ListToolbar + ListSurface + ListPager.
+// SessionListClient와 **같은 부품·같은 배치**를 쓴다 — 두 목록이 다르게 동작할 이유가 없다.
 
 import { useCallback, useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { AlertTriangle, FileText, History, Inbox, RotateCcw, Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { FileText, RotateCcw, Trash2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
-import NbTable, { type NbColumn } from '@/components/ui/nb/NbTable'
-import BulkActionBar from '@/components/ui/BulkActionBar'
 import TrashToggle from '@/components/ui/TrashToggle'
-import { useDebounce } from '@/hooks/useDebounce'
+import ListToolbar from '@/components/ui/list/ListToolbar'
+import ListSurface from '@/components/ui/list/ListSurface'
+import ListPager from '@/components/ui/list/ListPager'
+import type { ColumnDef, ListFilterDef } from '@/components/ui/list/types'
+import { useListQuery } from '@/lib/ui/use-list-query'
+import type { ListDefaults } from '@/lib/ui/list-query'
 import { useRowSelection } from '@/hooks/useRowSelection'
 import { DOC_TYPES, DOC_TYPE_LABEL, type DocType } from '@/lib/ai-chat/grouping/classify-doc'
 import {
@@ -24,9 +29,18 @@ import {
 import DocumentDetailDrawer from './DocumentDetailDrawer'
 import { ConfirmModal } from './SessionListModals'
 
-const SORT_OPTIONS: { value: DocumentSortKey; label: string }[] = [
-  { value: 'updated', label: '최근 수정순' },
-  { value: 'created', label: '최근 생성순' },
+const LIST_DEFAULTS: ListDefaults = {
+  sort: { key: 'updated', dir: 'desc' },
+  view: 'table',
+  mode: 'more',            // 서버가 커서로 주는 목록 — 총 건수를 모른다
+  filterKeys: ['docType', 'deleted'],
+}
+const SORT_OPTIONS = [
+  { key: 'updated', label: '수정일' },
+  { key: 'created', label: '생성일' },
+]
+const FILTERS: ListFilterDef[] = [
+  { key: 'docType', label: '유형', options: DOC_TYPES.map((t) => ({ value: t, label: DOC_TYPE_LABEL[t] })) },
 ]
 
 function docTypeLabel(t: string | null): string {
@@ -39,13 +53,9 @@ const getDocumentId = (d: AnalysisDocumentSummary) => d.id
 
 export default function DocumentListClient() {
   const router = useRouter()
-  const sp = useSearchParams()
-
-  const [search, setSearch] = useState(sp.get('q') ?? '')
-  const debouncedSearch = useDebounce(search, 300)
-  const [sort, setSort] = useState<DocumentSortKey>(sp.get('sort') === 'created' ? 'created' : 'updated')
-  const [docType, setDocType] = useState(sp.get('docType') ?? '')
-  const [showDeleted, setShowDeleted] = useState(sp.get('deleted') === '1')
+  const { query, set } = useListQuery(LIST_DEFAULTS, { persistKey: '/ai-chat/analyze/documents' })
+  const showDeleted = query.filters.deleted === '1'
+  const sortKey: DocumentSortKey = query.sort.key === 'created' ? 'created' : 'updated'
 
   const [documents, setDocuments] = useState<AnalysisDocumentSummary[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
@@ -60,25 +70,14 @@ export default function DocumentListClient() {
 
   const selection = useRowSelection(documents, getDocumentId)
 
-  useEffect(() => {
-    const next = new URLSearchParams(Array.from(sp.entries()))
-    next.set('tab', 'documents')
-    if (debouncedSearch) next.set('q', debouncedSearch); else next.delete('q')
-    if (sort !== 'updated') next.set('sort', sort); else next.delete('sort')
-    if (docType) next.set('docType', docType); else next.delete('docType')
-    if (showDeleted) next.set('deleted', '1'); else next.delete('deleted')
-    router.replace(`?${next.toString()}`, { scroll: false })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, sort, docType, showDeleted])
-
   const load = useCallback(
     async (cursor?: string) => {
       cursor ? setLoadingMore(true) : setLoading(true)
       setError(null)
       const r = await listDocuments({
-        q: debouncedSearch || undefined,
-        sort,
-        filter: { docType: docType || undefined, deleted: showDeleted },
+        q: query.q || undefined,
+        sort: sortKey,
+        filter: { docType: query.filters.docType || undefined, deleted: showDeleted },
         cursor,
         limit: 30,
       })
@@ -91,13 +90,13 @@ export default function DocumentListClient() {
       setNextCursor(r.nextCursor)
       cursor ? setLoadingMore(false) : setLoading(false)
     },
-    [debouncedSearch, sort, docType, showDeleted],
+    [query.q, sortKey, query.filters.docType, showDeleted],
   )
 
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, sort, docType, showDeleted])
+  }, [query.q, sortKey, query.filters.docType, showDeleted])
 
   /** 1건·N건 공용 확정 처리 — 서버가 실제 반영한 id(affectedIds)만 목록·선택에서 뺀다(부분 성공 정합). */
   async function handleConfirmed() {
@@ -127,44 +126,40 @@ export default function DocumentListClient() {
     setPending([d])
   }
 
-  const columns: NbColumn<AnalysisDocumentSummary>[] = [
+  const columns: ColumnDef<AnalysisDocumentSummary>[] = [
     {
-      key: 'title', header: '제목', cardHeader: true,
-      render: (d) => <span style={{ fontWeight: 700, color: 'var(--text)' }}>{d.title}</span>,
+      key: 'title', header: '제목', primary: true,
+      cell: (d) => <span style={{ fontWeight: 700, color: 'var(--text)' }}>{d.title}</span>,
     },
     {
-      key: 'docType', header: '문서유형', label: '문서유형',
-      render: (d) => <span className="badge" data-status="planned">{docTypeLabel(d.docType)}</span>,
+      key: 'docType', header: '문서유형',
+      cell: (d) => <span className="badge" data-status="planned">{docTypeLabel(d.docType)}</span>,
     },
     {
-      key: 'updated', header: '수정일', label: '수정일',
-      render: (d) => <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>{new Date(d.updatedAt).toLocaleString('ko-KR')}</span>,
+      key: 'updated', header: '수정일', sortable: 'updated',
+      cell: (d) => <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>{new Date(d.updatedAt).toLocaleString('ko-KR')}</span>,
     },
     {
-      key: 'session', header: '원본 세션', hideOnMobile: true,
-      render: (d) =>
+      key: 'session', header: '원본 세션', hideOnCard: true,
+      cell: (d) =>
         d.sessionId ? (
-          <button type="button" onClick={(e) => { e.stopPropagation(); router.push(`/ai-chat/analyze?tab=list`) }}
-            style={{ background: 'none', border: 'none', color: 'var(--brand)', textDecoration: 'underline', cursor: 'pointer', fontSize: 'var(--fs-xs)' }}>
+          <NbButton variant="ghost" onClick={(e) => { e.stopPropagation(); router.push('/ai-chat/analyze?tab=list') }}>
             세션 보기
-          </button>
+          </NbButton>
         ) : (
           <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>—</span>
         ),
     },
     {
-      key: 'actions', header: '', label: '',
-      render: (d) => (
+      key: 'actions', header: '', noLabel: true, align: 'right',
+      cell: (d) => (
         <div className="card-actions" style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
-          <button type="button" onClick={(e) => { e.stopPropagation(); openSingleConfirm(d) }}
+          <NbButton variant={showDeleted ? 'ghost' : 'danger-ghost'}
+            onClick={(e) => { e.stopPropagation(); openSingleConfirm(d) }}
             aria-label={showDeleted ? `${d.title} 되돌리기` : `${d.title} 삭제`}
-            title={showDeleted ? '되돌리기' : '삭제'}
-            style={{ minHeight: 44, minWidth: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              background: showDeleted ? 'var(--surface-bg)' : 'var(--danger-bg)',
-              border: `var(--hairline) solid ${showDeleted ? 'var(--border-color)' : 'var(--danger-border)'}`,
-              borderRadius: 'var(--radius)', color: showDeleted ? 'var(--info)' : 'var(--danger)', cursor: 'pointer' }}>
+            title={showDeleted ? '되돌리기' : '삭제'}>
             {showDeleted ? <RotateCcw size={15} /> : <Trash2 size={14} />}
-          </button>
+          </NbButton>
         </div>
       ),
     },
@@ -172,80 +167,75 @@ export default function DocumentListClient() {
 
   return (
     <div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
-        <input className="input-field" value={search} onChange={(e) => setSearch(e.target.value)}
-          placeholder="제목·본문 검색" aria-label="문서 검색"
-          style={{ flex: '1 1 220px', minWidth: 0, maxWidth: 320, minHeight: 44 }} />
-        <select className="input-field" value={sort} onChange={(e) => setSort(e.target.value as DocumentSortKey)}
-          aria-label="정렬 기준" style={{ flex: '0 0 auto', width: 'auto', minHeight: 44 }}>
-          {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <select className="input-field" value={docType} onChange={(e) => setDocType(e.target.value)}
-          aria-label="문서유형 필터" style={{ flex: '0 0 auto', width: 'auto', minHeight: 44 }}>
-          <option value="">전체 유형</option>
-          {DOC_TYPES.map((t) => <option key={t} value={t}>{DOC_TYPE_LABEL[t]}</option>)}
-        </select>
-        <div style={{ marginLeft: 'auto' }}>
-          <TrashToggle value={showDeleted} onChange={setShowDeleted} activeLabel="문서 목록" />
-        </div>
-      </div>
+      <ListToolbar
+        query={query}
+        onChange={set}
+        searchPlaceholder="제목·본문 검색"
+        filters={FILTERS}
+        sortOptions={SORT_OPTIONS}
+        showSize={false}
+        views={['table', 'card']}
+        selection={{
+          count: selection.count,
+          onClear: selection.clear,
+          actions: showDeleted ? (
+            <NbButton variant="secondary" onClick={openBulkConfirm}>
+              <RotateCcw size={15} /> 선택 되돌리기
+            </NbButton>
+          ) : (
+            <NbButton variant="danger" onClick={openBulkConfirm} data-testid="bulk-delete-documents">
+              <Trash2 size={15} /> 선택 삭제
+            </NbButton>
+          ),
+        }}
+        actions={
+          <TrashToggle
+            value={showDeleted}
+            onChange={(v) => set({ filters: { deleted: v ? '1' : '' } })}
+            activeLabel="문서 목록"
+          />
+        }
+      />
 
-      <BulkActionBar count={selection.count} onClear={selection.clear}>
-        {showDeleted ? (
-          <NbButton variant="secondary" onClick={openBulkConfirm}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', minHeight: 44 }}>
-            <RotateCcw size={15} /> 선택 되돌리기
-          </NbButton>
-        ) : (
-          <NbButton variant="danger" onClick={openBulkConfirm} data-testid="bulk-delete-documents"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', minHeight: 44 }}>
-            <Trash2 size={15} /> 선택 삭제
-          </NbButton>
-        )}
-      </BulkActionBar>
+      <ListSurface
+        rows={documents}
+        columns={columns}
+        query={query}
+        rowKey={getDocumentId}
+        onChange={set}
+        loading={loading}
+        error={error ? { message: `문서 목록을 불러오지 못했습니다 — ${error}`, onRetry: () => load() } : null}
+        empty={{
+          title: showDeleted
+            ? '삭제된 문서가 없어요'
+            : query.q || query.filters.docType
+              ? '조건에 맞는 문서가 없어요'
+              : '아직 저장된 분석 문서가 없어요',
+          description: showDeleted ? undefined : (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <FileText size={14} /> 분석을 마치고 “문서함에 저장”을 누르면 여기 쌓입니다
+            </span>
+          ),
+        }}
+        onRowClick={showDeleted ? undefined : (d) => setDetailId(d.id)}
+        selection={{
+          selected: new Set(selection.selectedIds),
+          onToggle: selection.toggle,
+          onToggleAll: selection.toggleAll,
+          allSelected: selection.allSelected,
+          someSelected: selection.someSelected,
+          rowLabel: (d) => `${d.title} 선택`,
+        }}
+      />
 
-      {error ? (
-        <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-5)', borderRadius: 'var(--radius-lg)', border: 'var(--border-w-2) solid var(--danger-border)', background: 'var(--danger-bg)', color: 'var(--danger)', fontSize: 'var(--fs-sm)' }}>
-          <AlertTriangle size={18} /> 문서 목록을 불러오지 못했습니다 — {error}
-          <button onClick={() => load()} style={{ marginLeft: 'auto', fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--danger)', background: 'none', border: 'var(--border-w-2) solid var(--danger-border)', borderRadius: 'var(--radius)', padding: '4px 10px', cursor: 'pointer' }}>다시 시도</button>
-        </div>
-      ) : loading ? (
-        <div style={{ color: 'var(--text-faint)', padding: 'var(--space-6)', textAlign: 'center', fontSize: 'var(--fs-sm)' }}>불러오는 중…</div>
-      ) : documents.length === 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-8) var(--space-4)', color: 'var(--text-faint)', textAlign: 'center' }}>
-          {showDeleted ? <History size={32} strokeWidth={1.5} /> : <Inbox size={32} strokeWidth={1.5} />}
-          <p style={{ margin: 0, fontSize: 'var(--fs-md)', fontWeight: 600, color: 'var(--text-muted)' }}>
-            {showDeleted ? '삭제된 문서가 없습니다' : debouncedSearch || docType ? '검색 결과가 없습니다' : '아직 저장된 분석 문서가 없습니다'}
-          </p>
-          {!showDeleted && !debouncedSearch && !docType && (
-            <p style={{ margin: 0, fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <FileText size={14} /> 분석 완료 후 &quot;문서함에 저장&quot;을 누르면 여기 쌓입니다
-            </p>
-          )}
-        </div>
-      ) : (
-        <NbTable
-          columns={columns}
-          rows={documents}
-          getRowKey={(d) => d.id}
-          onRowClick={showDeleted ? undefined : (d) => setDetailId(d.id)}
-          selection={{
-            isSelected: (d) => selection.isSelected(d.id),
-            onToggle: (d) => selection.toggle(d.id),
-            onToggleAll: selection.toggleAll,
-            allSelected: selection.allSelected,
-            someSelected: selection.someSelected,
-            rowLabel: (d) => `${d.title} 선택`,
-          }}
+      {!error && (
+        <ListPager
+          query={query}
+          hasMore={!!nextCursor}
+          loading={loadingMore}
+          // 커서 목록이라 페이지 번호가 주소에 남을 이유가 없다 — 다음 커서를 이어 붙인다.
+          onChange={() => { if (nextCursor) load(nextCursor) }}
         />
-      )}
-
-      {nextCursor && !error && (
-        <div style={{ textAlign: 'center', marginTop: 'var(--space-4)' }}>
-          <NbButton variant="secondary" onClick={() => load(nextCursor)} disabled={loadingMore}>
-            {loadingMore ? '불러오는 중…' : '더 보기'}
-          </NbButton>
-        </div>
       )}
 
       {pending && pending.length > 0 && (

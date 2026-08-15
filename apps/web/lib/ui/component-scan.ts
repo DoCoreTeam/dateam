@@ -33,6 +33,17 @@ export function read(file: string): string {
   return readFileSync(file, 'utf-8')
 }
 
+/**
+ * 주석 제거 — 주석 속 예시(`raw <h1>을 다시 그리지 않는다` 같은 설명)를 위반으로 세지 않는다.
+ * 실제로 이 처리가 없으면 "규칙을 설명한 주석" 때문에 그 파일이 위반으로 잡힌다.
+ * (scripts/ui-phrases.mjs의 같은 이름 함수와 규칙이 같다 — 한쪽만 고치지 말 것)
+ */
+export function stripComments(src: string): string {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1')
+}
+
 /** 파일이 export하는 최상위 심볼 이름들 (default export의 이름 포함). */
 export function exportedSymbols(src: string): string[] {
   const names: string[] = []

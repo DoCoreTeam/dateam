@@ -1,5 +1,6 @@
 'use client'
 
+import { useEscClose } from '@/lib/use-esc-close'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
@@ -22,8 +23,6 @@ export default function FridaySpotlightOverlay({ showGlow }: FridaySpotlightOver
     }
   }, [showGlow])
 
-  if (!showGlow || dismissed) return null
-
   const handleDismiss = () => {
     try {
       sessionStorage.setItem(DISMISS_KEY, '1')
@@ -32,6 +31,12 @@ export default function FridaySpotlightOverlay({ showGlow }: FridaySpotlightOver
     }
     setDismissed(true)
   }
+
+  // ESC로도 닫힌다 — 화면을 덮는 것은 키보드로 벗어날 수 있어야 한다(§2-2).
+  // 훅은 조기 return보다 위에 있어야 한다(렌더마다 호출 순서가 같아야 하므로).
+  useEscClose(handleDismiss, showGlow && !dismissed)
+
+  if (!showGlow || dismissed) return null
 
   return (
     <div
