@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
+import ProjectTabs from '@/components/ui/ProjectTabs'
 import SegmentedTabs, { type SegmentedTab } from '@/components/ui/SegmentedTabs'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import ContactForm from '../ContactForm'
@@ -40,7 +41,10 @@ export default async function NewContactPage({ searchParams }: PageProps) {
         description={isManual
           ? '이름·연락처를 직접 입력합니다'
           : '명함, 미팅 메모, 파일에서 담당자 정보를 자동 생성합니다'}
-        below={<SegmentedTabs tabs={tabsFor(account_id)} ariaLabel="담당자 입력 방식" activeId={isManual ? 'manual' : 'ai'} />}
+        below={<>
+          <ProjectTabs />
+          <SegmentedTabs tabs={tabsFor(account_id)} ariaLabel="담당자 입력 방식" activeId={isManual ? 'manual' : 'ai'} />
+        </>}
       />
 
       {isManual ? (

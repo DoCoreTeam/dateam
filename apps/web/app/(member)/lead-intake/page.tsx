@@ -4,6 +4,7 @@ import { Inbox } from 'lucide-react'
 import type { LeadIntake } from '@/types/database'
 import LeadIntakeForm from './LeadIntakeForm'
 import PageHeader from '@/components/ui/PageHeader'
+import ProjectTabs from '@/components/ui/ProjectTabs'
 import IntakeHistory from './IntakeHistory'
 import { getBranding } from '@/lib/branding'
 
@@ -37,7 +38,9 @@ export default async function LeadIntakePage({ searchParams }: PageProps) {
 
   return (
     <div className="page-inner">
-      <PageHeader title={`${targetLabel(target)} 인테이크`} description="텍스트, 명함, 음성, 파일을 입력하면 AI가 거래처·담당자·영업기회를 분석하고 생성 후보를 만듭니다" />
+      <PageHeader title={`${targetLabel(target)} 인테이크`} description="텍스트, 명함, 음성, 파일을 입력하면 AI가 거래처·담당자·영업기회를 분석하고 생성 후보를 만듭니다" 
+        below={<ProjectTabs />}
+      />
 
       {/* 인테이크 폼 */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>

@@ -82,3 +82,18 @@ test('입력과 버튼은 공용 높이를 쓴다 — 같은 줄에서 어긋나
   const rule = css.match(/\.input-field,\s*\n\s*\.btn-primary,\s*\n\s*\.btn-ghost \{ min-height: var\(--control-h\); \}/)
   assert.ok(rule, '입력·버튼이 --control-h를 함께 쓰지 않는다 (한쪽만 바뀌면 다시 어긋난다)')
 })
+
+test('화면 간 이동 탭은 제목 아래에 둔다 — 레이아웃에서 그리지 않는다', () => {
+  // 왜: 레이아웃(`layout.tsx`)이 탭을 그리면 페이지 제목은 `children` 안에 있으므로 **구조상 탭이 항상 위**다.
+  //   그러면 사용자는 지금 보고 있는 화면의 이름을 알기 전에 다른 화면 목록부터 읽는다.
+  //   실측: 리서치(/ci)는 제목 → StageNav(PageHeader의 below)인데 업무·CRM은 탭 → 제목으로 **반대**였다
+  //   (사용자 지적: "다 맞춰야지 통일 시켜 안정감있게").
+  //   지금은 셋 다 "제목 → 화면 간 탭 → 화면 내부 탭 → 본문"이다. 되돌아가지 않게 잠근다.
+  const NAV_TABS = /<(ProjectTabs|WorkTabBar|StageNav)\b/
+  const offenders = sources()
+    .filter(({ file }) => file.endsWith('/layout.tsx'))
+    .filter(({ src }) => NAV_TABS.test(src))
+    .map(({ file }) => file)
+  assert.deepEqual(offenders, [],
+    `레이아웃이 화면 간 탭을 그린다(구조상 제목 위가 된다). 각 화면 PageHeader의 below로 옮길 것:\n  ${offenders.join('\n  ')}`)
+})

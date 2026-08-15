@@ -11,6 +11,7 @@ import { Plus, Mail, Phone, ExternalLink, Briefcase, Sparkles } from 'lucide-rea
 import type { Contact, Account } from '@/types/database'
 import SlidePanel from '@/components/ui/SlidePanel'
 import PageHeader from '@/components/ui/PageHeader'
+import ProjectTabs from '@/components/ui/ProjectTabs'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
@@ -125,7 +126,9 @@ export default function ContactsPage() {
             <Plus size={16} /> 수동 입력
           </Link>
         </div>
-      } />
+      } 
+        below={<ProjectTabs />}
+      />
 
       <ListToolbar
         query={query}

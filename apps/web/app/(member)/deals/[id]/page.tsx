@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { TrendingUp, Calendar, Target } from 'lucide-react'
 import type { Deal, Account, Contact, DealActivity } from '@/types/database'
 import PageHeader from '@/components/ui/PageHeader'
+import ProjectTabs from '@/components/ui/ProjectTabs'
 import EmptyState from '@/components/ui/EmptyState'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import ActivityLogger from './ActivityLogger'
@@ -64,7 +65,8 @@ export default async function DealDetailPage({ params }: PageProps) {
               편집
             </Link>
           }
-          below={
+          below={<>
+            <ProjectTabs />
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
               <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: '9999px', color: sc.color, background: sc.bg }}>{deal.stage}</span>
               {deal.accounts?.name && (
@@ -73,7 +75,7 @@ export default async function DealDetailPage({ params }: PageProps) {
                 </Link>
               )}
             </div>
-          }
+          </>}
         />
       </div>
 

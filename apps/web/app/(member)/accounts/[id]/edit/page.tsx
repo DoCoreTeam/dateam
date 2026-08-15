@@ -1,5 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
+import ProjectTabs from '@/components/ui/ProjectTabs'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import AccountForm from '../../AccountForm'
 import type { Account } from '@/types/database'
@@ -19,7 +20,9 @@ export default async function EditAccountPage({ params }: PageProps) {
 
   return (
     <div>
-      <PageHeader back={{ href: `/accounts/${id}`, label: '거래처 상세' }} title="거래처 편집" description={data.name} />
+      <PageHeader back={{ href: `/accounts/${id}`, label: '거래처 상세' }} title="거래처 편집" description={data.name} 
+        below={<ProjectTabs />}
+      />
       <AccountForm account={data} />
     </div>
   )

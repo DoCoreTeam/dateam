@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Globe, Phone, MapPin, Users, TrendingUp } from 'lucide-react'
 import type { Account, Contact, Deal } from '@/types/database'
 import PageHeader from '@/components/ui/PageHeader'
+import ProjectTabs from '@/components/ui/ProjectTabs'
 import EmptyState from '@/components/ui/EmptyState'
 
 interface PageProps { params: Promise<{ id: string }> }
@@ -67,7 +68,8 @@ export default async function AccountDetailPage({ params }: PageProps) {
             </Link>
           </div>
         }
-        below={
+        below={<>
+          <ProjectTabs />
           <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
             {account.industry && <span className="badge badge-slate">{account.industry}</span>}
             {account.segment && <span className="badge badge-indigo">{account.segment}</span>}
@@ -75,7 +77,7 @@ export default async function AccountDetailPage({ params }: PageProps) {
             {account.account_type && <span className="badge" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>{account.account_type}</span>}
             {account.gpu_demand_intensity && <span className="badge" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>GPU {account.gpu_demand_intensity}</span>}
           </div>
-        }
+        </>}
       />
 
       <div className="responsive-grid-2" style={{ gap: 'var(--space-5)', alignItems: 'flex-start' }}>

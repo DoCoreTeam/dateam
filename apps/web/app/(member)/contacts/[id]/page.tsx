@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Mail, Phone, Linkedin } from 'lucide-react'
 import type { Contact, Account } from '@/types/database'
 import PageHeader from '@/components/ui/PageHeader'
+import ProjectTabs from '@/components/ui/ProjectTabs'
 import EmptyState from '@/components/ui/EmptyState'
 
 interface PageProps { params: Promise<{ id: string }> }
@@ -33,7 +34,8 @@ export default async function ContactDetailPage({ params }: PageProps) {
               편집
             </Link>
           }
-          below={
+          below={<>
+            <ProjectTabs />
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap', fontSize: 'var(--fs-base)', color: 'var(--text-muted)' }}>
               {[data.title, data.department].filter(Boolean).length > 0 && (
                 <span>{[data.title, data.department].filter(Boolean).join(' · ')}</span>
@@ -43,7 +45,7 @@ export default async function ContactDetailPage({ params }: PageProps) {
               )}
               {data.role && <span className="badge badge-slate">{data.role}</span>}
             </div>
-          }
+          </>}
         />
       </div>
 

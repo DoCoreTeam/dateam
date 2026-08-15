@@ -1,5 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
+import ProjectTabs from '@/components/ui/ProjectTabs'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import ContactForm from '../../ContactForm'
 import type { Contact, Account } from '@/types/database'
@@ -23,7 +24,9 @@ export default async function EditContactPage({ params }: PageProps) {
 
   return (
     <div>
-      <PageHeader back={{ href: `/contacts/${id}`, label: '담당자 상세' }} title="담당자 편집" description={contact.name} />
+      <PageHeader back={{ href: `/contacts/${id}`, label: '담당자 상세' }} title="담당자 편집" description={contact.name} 
+        below={<ProjectTabs />}
+      />
       <ContactForm contact={contact} accounts={accounts ?? []} />
     </div>
   )

@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
+import ProjectTabs from '@/components/ui/ProjectTabs'
 import SegmentedTabs, { type SegmentedTab } from '@/components/ui/SegmentedTabs'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import DealForm from '../DealForm'
@@ -44,7 +45,10 @@ export default async function NewDealPage({ searchParams }: PageProps) {
         description={isManual
           ? '거래처·단계·금액을 직접 입력합니다'
           : '미팅 메모, 파일에서 영업기회 정보를 자동 생성합니다'}
-        below={<SegmentedTabs tabs={tabsFor(account_id)} ariaLabel="영업기회 입력 방식" activeId={isManual ? 'manual' : 'ai'} />}
+        below={<>
+          <ProjectTabs />
+          <SegmentedTabs tabs={tabsFor(account_id)} ariaLabel="영업기회 입력 방식" activeId={isManual ? 'manual' : 'ai'} />
+        </>}
       />
 
       {isManual ? (

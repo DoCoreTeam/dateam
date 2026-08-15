@@ -1,5 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
+import ProjectTabs from '@/components/ui/ProjectTabs'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import DealForm from '../../DealForm'
 import type { Deal, Account, Contact } from '@/types/database'
@@ -24,7 +25,9 @@ export default async function EditDealPage({ params }: PageProps) {
 
   return (
     <div>
-      <PageHeader back={{ href: `/deals/${id}`, label: '영업기회 상세' }} title="영업기회 편집" description={deal.title} />
+      <PageHeader back={{ href: `/deals/${id}`, label: '영업기회 상세' }} title="영업기회 편집" description={deal.title} 
+        below={<ProjectTabs />}
+      />
       <DealForm deal={deal} accounts={accounts ?? []} contacts={contacts ?? []} />
     </div>
   )

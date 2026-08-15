@@ -32,6 +32,12 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.491', date: '2026-08-16', title: '어느 화면을 열어도 제목이 먼저 보여요',
+    items: [
+      { kind: 'improve', emoji: '📐', headline: '화면 이름이 탭보다 먼저 나오도록 전부 맞췄어요', detail: '업무와 거래처 쪽은 탭이 제목보다 위에 있어서, 지금 보고 있는 화면 이름을 알기 전에 다른 화면 목록부터 읽어야 했어요. 리서치 화면과 같은 "제목 → 탭 → 내용" 순서로 통일했습니다.' },
+    ],
+  },
+  {
     version: '0.7.490', date: '2026-08-16', title: '회의록에서 참석자를 먼저 보여드려요',
     items: [
       { kind: 'improve', emoji: '🙋', headline: '회의록 참석자가 맨 아래에 있던 것을 본문 위로 올렸어요', detail: '회의록은 누가 있었는지 알고 내용을 읽는 문서예요. 내보내는 문서는 참석자가 위에 있었는데 화면만 맨 아래여서, 같은 회의록인데 보는 곳마다 순서가 달랐어요.' },

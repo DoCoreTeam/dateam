@@ -7,6 +7,7 @@ import { TrendingUp, Plus, Loader2, ExternalLink, Briefcase, Sparkles } from 'lu
 import type { Deal, Account } from '@/types/database'
 import SlidePanel from '@/components/ui/SlidePanel'
 import PageHeader from '@/components/ui/PageHeader'
+import ProjectTabs from '@/components/ui/ProjectTabs'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
@@ -148,7 +149,9 @@ export default function DealsPage() {
             <Plus size={16} /> 수동 입력
           </Link>
         </div>
-      } />
+      } 
+        below={<ProjectTabs />}
+      />
 
       {/* 요약 카드 */}
       <div className="responsive-grid-cols-3" style={{ marginBottom: '1.5rem', gap: 'var(--space-4)' }}>

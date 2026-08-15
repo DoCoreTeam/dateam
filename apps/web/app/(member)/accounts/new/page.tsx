@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
+import ProjectTabs from '@/components/ui/ProjectTabs'
 import SegmentedTabs, { type SegmentedTab } from '@/components/ui/SegmentedTabs'
 import { createClient, getRequestUser } from '@/lib/supabase/server'
 import AccountForm from '../AccountForm'
@@ -29,7 +30,10 @@ export default async function NewAccountPage({ searchParams }: PageProps) {
         description={isManual
           ? 'AI가 처리하지 못한 예외 건만 직접 등록합니다'
           : '미팅 메모, 명함, 음성, 파일에서 거래처·담당자·영업기회를 자동 생성합니다'}
-        below={<SegmentedTabs tabs={TABS} ariaLabel="거래처 입력 방식" activeId={isManual ? 'manual' : 'ai'} />}
+        below={<>
+          <ProjectTabs />
+          <SegmentedTabs tabs={TABS} ariaLabel="거래처 입력 방식" activeId={isManual ? 'manual' : 'ai'} />
+        </>}
       />
 
       {isManual ? (
