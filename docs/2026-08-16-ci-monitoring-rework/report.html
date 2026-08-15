@@ -354,24 +354,37 @@
   <dl class="readout">
     <div class="cell"><dt>채널</dt><dd>14<span class="unit">행</span></dd></div>
     <div class="cell" data-flag="bad"><dt>지켜보는 중</dt><dd>0<span class="unit">곳</span></dd></div>
+    <div class="cell" data-flag="bad"><dt>중복 채널</dt><dd>5<span class="unit">쌍</span></dd></div>
     <div class="cell"><dt>수집 게시물</dt><dd>21<span class="unit">건</span></dd></div>
     <div class="cell" data-flag="warn"><dt>배수 산출</dt><dd>12<span class="unit">건</span></dd></div>
-    <div class="cell" data-flag="warn"><dt>왜 잘됐나 분석</dt><dd>6<span class="unit">건</span></dd></div>
     <div class="cell" data-flag="bad"><dt>성공 공식</dt><dd>0<span class="unit">건</span></dd></div>
     <div class="cell" data-flag="bad"><dt>최근 4일 처리</dt><dd>0<span class="unit">건</span></dd></div>
-    <div class="cell" data-flag="bad"><dt>중복 채널</dt><dd>5<span class="unit">쌍</span></dd></div>
+    <div class="cell" data-flag="bad"><dt>스냅샷 예약</dt><dd>1<span class="unit">건</span></dd></div>
+    <div class="cell"><dt>유튜브 키</dt><dd style="color:var(--ok)">유효<span class="unit">544개 확인</span></dd></div>
+    <div class="cell"><dt>기존 크론</dt><dd>1<span class="unit">분마다</span></dd></div>
   </dl>
 
   <div class="verdict">
     <p>의도는 정확하고 스키마도 잘 잡혀 있다. 그런데 이 시스템은 지금 <mark>돌지 않는다</mark>.</p>
     <p>
-      링크를 넣으면 잡이 큐에 쌓이지만 <strong>그 큐를 부르는 것이 아무것도 없다</strong>(크론 미등록).
+      링크를 넣으면 잡이 큐에 쌓이지만 <strong>그 큐를 부르는 것이 아무것도 없다.</strong>
       콘텐츠 링크는 그 계정으로 확장되지 않고, 채널·프로필 링크는 입구에서 거부되며,
       “모니터링”에는 주기적으로 지켜보는 코드가 없다. 어시스턴트는 AI가 아니라 <strong>정규식 12개</strong>다.
     </p>
     <p>
-      그리고 가장 중요한 것 — <strong>“계정의 모든 게시물”은 유튜브에서만, 그것도 API 키가 있어야 가능하다.</strong>
-      나머지 5개 플랫폼은 구조적으로 불가능하다. 이건 버그가 아니라 기획을 고쳐야 하는 제약이다.
+      좋은 소식이 둘 있다. <strong>유튜브 키는 이미 있고 유효하다</strong> — 직접 호출해 추성훈 채널 544개를 확인했다.
+      그리고 <strong>“첫 접속자가 큐를 처리한다”는 방식의 최대 난제가 이미 해결돼 있다</strong> — 잡 임대가 원자적이라
+      여러 명이 동시에 들어와도 같은 잡을 두 번 실행하지 않는다. <strong>크론을 늘리지 않고 갈 수 있다.</strong>
+    </p>
+  </div>
+
+  <div class="verdict" style="border-left-color: var(--warn)">
+    <p style="color:var(--warn)">1차 보고 정정 — “유튜브 API 키가 없다”는 틀렸다</p>
+    <p>
+      채널에 남은 오류 문구(<code>"YouTube API 키가 없어…"</code>)를 근거로 삼았는데, 그건
+      <strong>08-12 스윕 당시의 기록</strong>이었다. 그 뒤 키가 추가됐지만 <strong>아무도 다시 훑지 않아
+      15개인 채로 굳어 있는 것</strong>이다. 이 정정으로 “전량 수집을 막는 것”이 키가 아니라
+      <strong>재훑기 부재(P1-1) + 중복 채널(P0-5)</strong>임이 드러났다 — 둘 다 우리가 고칠 수 있다.
     </p>
   </div>
 
@@ -449,14 +462,41 @@
         <div class="body">
           <h3>잡 워커를 부르는 곳이 세상에 없다</h3>
           <p>
-            <code>vercel.json</code> 크론에는 <code>/api/cron/analyze-drain</code> 하나뿐이다.
-            GitHub Actions에도 없고 앱 내 호출도 없다. 링크를 넣어도 영원히 <code>queued</code>다.
+            워커는 서비스 토큰을 요구하는 내부 엔드포인트인데, 이걸 부르는 크론·액션·앱 내 호출이 전부 없다.
+            링크를 넣어도 영원히 <code>queued</code>다.
           </p>
           <div class="cite">
-            <span>apps/web/vercel.json:14-16</span>
-            <span>worker/tick 호출처 전수 grep = 0</span>
+            <span>api/ci/internal/worker/tick/route.ts:19</span>
+            <span>호출처 전수 grep = 0</span>
             <span class="measured">잡 271건 전부 08-11~12자 · 이후 0건</span>
           </div>
+        </div>
+      </article>
+
+      <article class="finding" data-sev="p0">
+        <span class="id">P0-6</span>
+        <div class="body">
+          <h3>죽은 잡을 회수하는 로직이 없다</h3>
+          <p>
+            잡 임대는 <code>queued</code>·<code>failed</code>만 집는다. 실행 중 프로세스가 죽으면
+            그 잡은 <code>running</code>으로 남아 <strong>아무도 다시 집지 않는다</strong>(영구 좀비).
+            지금은 running이 0건이라 표면화되지 않았지만,
+            <strong>접속자 트리거로 바꾸면 브라우저를 닫을 때마다 발생한다.</strong> 채택 전 선행 수정.
+          </p>
+          <div class="cite"><span>lib/ci/jobs/queue.ts:85-112</span><span class="measured">running 0건 — 아직 잠복</span></div>
+        </div>
+      </article>
+
+      <article class="finding" data-sev="p0">
+        <span class="id">P0-7</span>
+        <div class="body">
+          <h3>잡 임대에 워크스페이스 경계가 없다</h3>
+          <p>
+            전역에서 잡을 집는다. 서비스 토큰으로만 부를 땐 무해했지만,
+            <strong>사용자 세션으로 드레인을 트리거하는 순간 남의 워크스페이스 잡을 처리</strong>하게 된다.
+            접속자 트리거와 반드시 함께 고쳐야 한다.
+          </p>
+          <div class="cite"><span>lib/ci/jobs/queue.ts:85 — workspace_id 필터 없음</span></div>
         </div>
       </article>
 
@@ -649,7 +689,7 @@
   <section id="limits">
     <div class="head">
       <span class="tag">구조적 한계</span>
-      <h2>코드로는 못 고치는 것 — 기획을 바꿔야 한다</h2>
+      <h2>플랫폼이 정한 것 — 기획을 바꿔야 한다</h2>
     </div>
 
     <div class="stack">
@@ -665,15 +705,153 @@
     </div>
 
     <div class="stack">
-      <h3>유튜브도 API 키가 없으면 최근 15개만 본다</h3>
+      <h3>키가 아니라 재훑기와 채널 동일성이 전량 수집을 막는다</h3>
       <p>
-        키가 있으면 기간 창 전체를, 없으면 RSS로 내려가 최근 15개만 가져온다.
-        실측상 추성훈 채널은 <strong>543개 중 15개(2.8%)</strong>만 수집됐다.
-        화면은 이 한계를 정직하게 표시한다 — 좋다. 그러나 <strong>2.8%를 보고 “이 계정에서 뭐가 잘 되는지”를 판정할 수는 없다.</strong>
+        키는 있고 유효하다. 그런데도 추성훈 채널은 <strong>544개 중 15개</strong>만 수집돼 있다. 원인은 둘이다.
+      </p>
+      <p>
+        <strong>① 재훑기가 없다.</strong> 스윕은 채널을 추가한 시점에 한 번 돈 것이 전부다.
+        조건이 좋아져도(키가 생겨도) 시스템이 스스로 다시 시도하지 않는다.
+      </p>
+      <pre class="trace">lib/ci/jobs/stages.ts:337-343
+  const realChannelId = isProvisionalKey(ch.external_id) ? null : ch.external_id
+  const full = platform==='youtube' && realChannelId ? await fetchAllUploads(...) : null</pre>
+      <p>
+        <strong>② 중복 채널이 전량 경로를 막는다.</strong> <code>handle:@…</code> 임시 키로 만들어진 행은
+        <strong>키가 있어도 전량 경로를 아예 시도하지 않고</strong> RSS(15개)로 내려간다.
+        추성훈은 두 행으로 쪼개져 있고 그중 하나가 <code>handle:@choosunghoon_ajossi</code>다.
+        <strong>P0-5를 고치지 않으면 키가 있어도 전량 수집은 안 된다.</strong>
       </p>
       <p class="lede">
-        쿼터는 문제가 아니다. 543개 채널 전량 수집이 하루 무료 한도의 1% 미만이다.
-        <strong>비용이 아니라 키 발급 결정의 문제다.</strong>
+        쿼터는 문제가 아니다 — 544개 전량 수집이 <strong>12유닛</strong>, 일 한도 10,000의 0.12%다.
+      </p>
+    </div>
+
+    <div class="stack">
+      <h3>그래도 남는 진짜 한계 — 시계열</h3>
+      <p>
+        실행 경로를 무엇으로 정하든, 지표 스냅샷이 정해진 시각에 찍혀야 “조회 속도”와 “평소 대비”가 성립한다.
+        실측상 콘텐츠 21건 중 <strong>다음 촬영이 예약된 것은 1건</strong>뿐이다. 시계열이 사실상 없다.
+        접속자 기반은 사람이 없는 시간에 촬영이 밀리므로, 아래 설계에 <strong>백스톱과 지연 표기</strong>가 함께 들어간다.
+      </p>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────────────────────────────────────── -->
+  <section id="runtime">
+    <div class="head">
+      <span class="tag">실행 경로 / 크론을 늘리지 않는다</span>
+      <h2>첫 접속자가 큐를 돌린다</h2>
+      <p class="lede">
+        가능하다. 그리고 실측해 보니 이 방식의 최대 난제가 이미 해결돼 있다.
+        다만 <strong>선행 수정 3개</strong>와 <strong>백스톱 1개</strong>가 필요하다.
+      </p>
+    </div>
+
+    <div class="stack">
+      <h3>먼저, 비용의 실체</h3>
+      <div class="scroller">
+        <table>
+          <thead><tr><th>통념</th><th>실측</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="was">“크론을 추가하면 비용이 붙는다”</td>
+              <td>Vercel은 크론 자체에 요금을 매기지 않는다. 과금 대상은 <strong>크론이 부른 함수의 실행 시간</strong>이다</td>
+            </tr>
+            <tr>
+              <td class="was">“지금은 크론이 없다”</td>
+              <td><strong>이미 <code>/api/cron/analyze-drain</code>이 매분 돌고 있다</strong> — 크론 슬롯은 이미 열려 있다</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        즉 진짜 비용은 “크론이냐 아니냐”가 아니라 <mark>얼마나 자주, 얼마나 오래 도느냐</mark>다.
+        그리고 이미 매분 도는 크론이 있으므로 <strong>거기에 CI 드레인을 얹으면 크론 추가는 0</strong>이다.
+        그래서 <strong>접속자 트리거를 주 경로로, 기존 크론 편승을 백스톱으로</strong> 두는 것이 가장 싸다.
+      </p>
+    </div>
+
+    <div class="stack">
+      <h3>왜 “응답 후 백그라운드”가 아니라 “브라우저가 때리는” 방식인가</h3>
+      <pre class="trace">Next.js 14.2.29    → <b>after() 없음</b> (Next 15부터 도입)
+@vercel/functions  → <b>미설치</b> (waitUntil 사용 불가)</pre>
+      <p>
+        아무 장치 없이 <code>void doWork()</code>로 던지면 Vercel이 응답 반환 시점에 인스턴스를 동결·종료해
+        <strong>작업이 잘린다.</strong> 패키지를 추가하는 선택지도 있지만, 이 제품에는 브라우저가 때리는 방식이 더 낫다 —
+        의존성 0이고, 화면을 보는 동안 크론보다 촘촘하게 돌며, <strong>진행 상황을 그 자리에서 보여줄 수 있다.</strong>
+      </p>
+    </div>
+
+    <div class="stack">
+      <h3>설계 — 3겹</h3>
+      <pre class="trace">A. 주 경로 — 브라우저 하트비트          (비용 0 · 의존성 0)
+
+   CI 셸에 &lt;QueueDriver /&gt; 하나를 마운트한다
+     화면 진입   → 즉시 POST /api/ci/queue/drain     (세션 인증)
+     이후        → visibilityState==='visible' 인 동안만 N초 간격 반복
+     remaining   → 남아 있으면 간격을 줄여 몰아친다 / 0이면 늘린다
+
+   서버 /api/ci/queue/drain
+     · requireCiMemberApi 로 세션·워크스페이스 확정
+     · claimJobs(limit=5, <b>workspaceId</b>) — 소량만
+     · 실행 예산 8초 초과 시 남은 건 다음 틱으로 넘기고 즉시 반환
+     · { processed, remaining, stuck } 반환
+
+B. 백스톱 — 이미 도는 크론에 얹기        (크론 슬롯 추가 0)
+   analyze-drain 에 CI 드레인 1줄 + "마지막 드레인 후 15분 게이트"
+
+C. 정직성 — 밀린 것을 숨기지 않는다
+   예정 대비 실제 촬영 지연 기록 · 속도는 <b>실제 간격</b>으로 계산
+   채널 카드에 "마지막 훑음 / 다음 예정" · 큐가 멈추면 홈에 경고</pre>
+      <p>
+        <strong>첫 접속자가 기다리지 않는다</strong> — 소량·짧은 예산으로 끊고 나머지는 다음 틱이 가져간다.
+        <strong>동시 접속도 안전하다</strong> — 잡 임대가 이미 조건부 UPDATE로 원자적이라
+        (<code>queue.ts:96-110</code>) 같은 잡을 두 번 집지 않는다.
+        그리고 지금 홈의 가짜 “자동 업데이트” 카드를 <strong>이 진짜 신호로 교체</strong>한다.
+      </p>
+    </div>
+
+    <div class="stack">
+      <h3>선행 수정 — 이거 없이 켜면 사고가 난다</h3>
+      <div class="scroller">
+        <table>
+          <thead><tr><th>항목</th><th>무엇</th><th>왜 접속자 트리거에서 치명적인가</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="num">P0-6</td><td>running 좀비 회수</td>
+              <td><strong>브라우저를 닫을 때마다 잡이 running으로 죽는다.</strong> 크론은 한 프로세스가 끝까지 돌지만 접속자는 언제든 이탈한다</td>
+            </tr>
+            <tr>
+              <td class="num">P0-7</td><td>워크스페이스 경계</td>
+              <td>사용자 세션으로 트리거하는 순간 <strong>남의 워크스페이스 잡을 처리</strong>하게 된다</td>
+            </tr>
+            <tr>
+              <td class="num">신규</td><td>세션 인증 드레인</td>
+              <td>워커는 서비스 토큰만 받는다. <strong>토큰을 클라이언트에 내보내면 큐가 외부에 열린다</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="stack">
+      <h3>A와 크론, 무엇을 얻고 무엇을 잃나</h3>
+      <div class="scroller">
+        <table>
+          <thead><tr><th></th><th>브라우저 하트비트 (A)</th><th>크론</th></tr></thead>
+          <tbody>
+            <tr><td>비용</td><td>사람이 볼 때만 실행 → <strong>사실상 0</strong></td><td class="was">할 일이 없어도 매번 깨어난다</td></tr>
+            <tr><td>반응 속도</td><td>화면 여는 즉시 · 이후 수십 초 간격</td><td class="was">스케줄 간격에 묶임</td></tr>
+            <tr><td>진행 표시</td><td><strong>그 자리에서 보인다</strong></td><td class="was">다음 새로고침까지 모름</td></tr>
+            <tr><td>무인 시간</td><td style="color:var(--crit)"><strong>아무도 없으면 안 돈다</strong></td><td style="color:var(--ok)">돈다</td></tr>
+            <tr><td>중단 내성</td><td class="was">이탈 시 잡이 죽는다 → P0-6 선행 필수</td><td>프로세스가 끝까지 돈다</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        <strong>A는 “사람이 볼 때 빠르고 공짜”, B는 “사람이 없을 때 최소한”</strong>이다.
+        둘을 겹치면 크론을 늘리지 않고도 빈틈이 없다.
       </p>
     </div>
   </section>
@@ -786,12 +964,18 @@ parseAnyCiUrl(input)                     ← 신설 SSOT
       <div class="step">
         <span class="n">0</span>
         <div class="body">
-          <h3>심장 박동</h3>
+          <h3>심장 박동 — 크론 추가 없음</h3>
           <ul>
-            <li>워커를 부르는 크론 등록</li>
-            <li>워커가 N분 이상 멈추면 홈에 “수집이 멈춰 있습니다”를 띄운다 — 조용한 정지 금지</li>
+            <li><strong>P0-6</strong> 잡 임대가 <code>running</code> + 잠금 5분 초과인 잡도 회수하도록 (기존 드레인의 STALL 규약과 동일하게)</li>
+            <li><strong>P0-7</strong> 잡 임대에 워크스페이스 경계 추가</li>
+            <li><strong>세션 인증 드레인</strong> <code>POST /api/ci/queue/drain</code> 신설 — 소량·짧은 예산·<code>remaining</code> 반환. 기존 토큰 워커는 그대로 둔다</li>
+            <li>CI 셸에 <code>&lt;QueueDriver /&gt;</code> 마운트 — 화면이 보이는 동안만 반복</li>
+            <li>백스톱: 기존 크론에 CI 드레인 1줄 + 15분 게이트 <em>(채택 여부는 결정 필요)</em></li>
+            <li>큐가 멈추면 홈에 “수집이 멈춰 있습니다” — 조용한 정지 금지</li>
           </ul>
-          <p class="gate"><b>완료 판정</b> — 링크를 넣고 <strong>아무것도 하지 않은 채</strong> 60초 뒤 새로고침하면 제목·썸네일·지표가 채워져 있다.</p>
+          <p class="gate"><b>완료 판정 ①</b> — 링크를 넣고 <strong>화면만 열어둔 채</strong> 수십 초 뒤 제목·썸네일·지표가 채워진다.</p>
+          <p class="gate"><b>완료 판정 ②</b> — 처리 도중 <strong>탭을 닫았다 다시 열면</strong> 남은 잡이 이어서 처리된다(좀비 없음).</p>
+          <p class="gate"><b>완료 판정 ③</b> — 두 탭을 동시에 열어도 같은 잡이 두 번 실행되지 않는다.</p>
         </div>
       </div>
 
@@ -883,15 +1067,21 @@ parseAnyCiUrl(input)                     ← 신설 SSOT
     </div>
 
     <div class="decisions">
-      <div class="decision">
-        <span class="k">전제 조건</span>
-        <h3>YouTube Data API 키를 확보할 것인가</h3>
-        <p>안 하면 “계정의 모든 게시물”이 최근 15개로 고정된다. 무료 쿼터로 충분하므로 비용이 아니라 발급 결정의 문제다.</p>
+      <div class="decision" style="border-color: var(--ok); background: var(--ok-soft)">
+        <span class="k" style="color: var(--ok)">해소됨</span>
+        <h3>YouTube API 키 — 결정할 것이 없다</h3>
+        <p>키가 있고 유효함을 실제 호출로 확인했다. 쿼터도 일 한도의 0.12%다. 이 항목은 목록에서 내린다.</p>
       </div>
       <div class="decision">
-        <span class="k">인프라</span>
-        <h3>워커를 무엇으로 돌릴 것인가</h3>
-        <p>Vercel Cron(플랜 한도 확인 필요) · GitHub Actions · Supabase pg_cron 중 하나를 정해야 단계 0을 시작한다.</p>
+        <span class="k">유일하게 남은 실행 결정</span>
+        <h3>사람이 없는 시간을 어떻게 할 것인가</h3>
+        <p>
+          접속자 트리거(A)는 확정. 문제는 밤·주말이다.
+          <strong>ⓐ</strong> 이미 매분 도는 크론에 얹기(크론 추가 0 · 15분 게이트) /
+          <strong>ⓑ</strong> A만 쓰고 “접속한 날에만 자란다”를 화면에 명시.
+          ⓑ는 스냅샷이 밀려 “조회 속도”와 “평소 대비” 정확도가 깎인다 —
+          <strong>비용 문제가 아니라 정확도를 얼마나 포기할지의 문제다.</strong>
+        </p>
       </div>
       <div class="decision">
         <span class="k">약속 수준</span>
@@ -901,12 +1091,17 @@ parseAnyCiUrl(input)                     ← 신설 SSOT
       <div class="decision">
         <span class="k">되돌릴 수 없음</span>
         <h3>중복 채널 5쌍을 병합할 것인가</h3>
-        <p>운영 DB 변경이다. 콘텐츠 재귀속과 파생값 재계산이 따른다.</p>
+        <p>운영 DB 변경이다. 그리고 <strong>이걸 안 고치면 키가 있어도 전량 수집이 안 된다.</strong></p>
       </div>
       <div class="decision">
         <span class="k">비용</span>
         <h3>AI 호출 상한을 어떻게 둘 것인가</h3>
         <p>계정 전체 훑기 × 대조 분석은 게시물 수에 비례한다. 채널당·일별 상한 정책이 필요하다.</p>
+      </div>
+      <div class="decision">
+        <span class="k">첫 수확</span>
+        <h3>어느 채널부터 열 것인가</h3>
+        <p>병합 직후 재훑기를 걸면 추성훈 채널이 <strong>15 → 544건</strong>으로 늘어난다. 순서를 정해야 한다.</p>
       </div>
     </div>
   </section>
