@@ -9893,6 +9893,32 @@ main.page-inner.daily-fullpane-main { padding-bottom: var(--space-6); }
    행 클릭만 있으면 그 셋이 전부 안 된다(그래서 부품이 링크를 같이 그린다). */
 .list-row-link { color: inherit; text-decoration: none; font-weight: 600; }
 .list-row-link:hover { text-decoration: underline; }
+
+/* 행 작업 묶음(components/ui/list/RowActions) — 접히지 않는 한 줄.
+   nowrap이 핵심이다: 접히면 그 행만 세로로 커져 목록 리듬이 깨진다(실측 216px). */
+.row-actions { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+.row-actions-more { position: relative; display: inline-flex; }
+.row-actions-toggle { padding: var(--space-1) var(--space-2); }
+.row-actions-menu {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  min-width: 10rem;
+  padding: var(--space-2);
+  background: var(--surface-bg);
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  white-space: nowrap;
+}
+/* 메뉴 안에서는 버튼이 줄을 꽉 채워 목록처럼 읽힌다 */
+.row-actions-item { display: flex; }
+.row-actions-item > * { width: 100%; justify-content: flex-start; }
 .list-card-title a { color: inherit; text-decoration: none; }
 
 .list-card-title {

@@ -6,6 +6,7 @@
 // 목록 표준(§2-6): 표는 ListSurface가 그린다(화면이 <table>을 짜지 않는다).
 // 탭·채널묶기 같은 보기 조건은 URL이 진실이다 — 링크를 공유하면 같은 화면이 열린다.
 
+import { RotateCcw, ExternalLink } from 'lucide-react'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
@@ -160,11 +161,11 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
     {
       key: 'topic', header: '주제',
       cell: (item) => (tab === 'review' ? (
-        // 접히면 셀이 두 줄이 되어 **탭마다 표 행 높이가 달라진다**(실측 79px ↔ 87px).
-        // 한 줄로 고정하고 폭은 표가 알아서 나눈다.
-        <span style={{ display: 'inline-flex', gap: 'var(--space-1)', alignItems: 'center', flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
+        // 한 줄로 세운다. 접히면 그 행만 높아지고(79→87px), 셀렉트가 길어지면 표가 가로로 넘친다
+        // → 셀렉트 폭에 상한을 둬서 긴 주제명이 표를 밀지 못하게 한다(닫힌 상태는 말줄임).
+        <span style={{ display: 'inline-flex', gap: 'var(--space-1)', alignItems: 'center', whiteSpace: 'nowrap' }}>
           <label className="label" htmlFor={`t-${item.id}`} style={{ position: 'absolute', left: '-9999px' }}>주제</label>
-          <select className="input-field" id={`t-${item.id}`} style={{ width: 'auto' }}
+          <select className="input-field" id={`t-${item.id}`} style={{ width: 'auto', maxWidth: '8rem' }}
             defaultValue={item.topic?.id ?? ''}
             disabled={savingTopic === item.id}
             onChange={(e) => confirmTopic(item.id, e.target.value || null)}>
@@ -172,7 +173,7 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
             {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
           {item.topicConfidence != null && item.topicConfidence > 0 && (
-            <span className="ci-basis ci-num">AI {Math.round(item.topicConfidence * 100)}%</span>
+            <span className="ci-basis ci-num" title="AI가 주제를 정한 확신도">{Math.round(item.topicConfidence * 100)}%</span>
           )}
         </span>
       ) : (item.topic?.name ?? '미분류')),
@@ -191,22 +192,26 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
     {
       key: 'actions', header: '작업', noLabel: true, align: 'right',
       cell: (item) => (
-        // 행 클릭(상세 열기)과 겹치지 않게 이 칸의 클릭은 여기서 멈춘다
-        // 접히면 버튼이 세로로 쌓여 **그 행만 121px**이 된다(다른 행은 79px) — 목록 리듬이 깨진다.
+        // 행 클릭(상세 열기)과 겹치지 않게 이 칸의 클릭은 여기서 멈춘다.
+        // 글자 버튼 두 개는 좁은 폭에서 세로로 접혀 **그 행만 121px**이 됐다(다른 행 79px).
+        // nowrap으로 막으면 표가 넓어져 가로 스크롤이 난다(정책상 금지) → 내용을 아이콘으로 줄인다.
         <span onClick={(e) => e.stopPropagation()}
-          style={{ display: 'inline-flex', gap: 'var(--space-2)', flexWrap: 'nowrap', whiteSpace: 'nowrap', alignItems: 'center' }}>
+          style={{ display: 'inline-flex', gap: 'var(--space-2)', alignItems: 'center' }}>
           {(item.ingestStatus === 'failed' || item.ingestStatus === 'partial') && (
             <button
               type="button"
               className="btn-ghost"
               onClick={() => retry(item.id)}
               disabled={retrying === item.id}
+              aria-label="수집 다시 시도"
+              title={retrying === item.id ? '재시도 중…' : '재시도'}
             >
-              {retrying === item.id ? '재시도 중…' : '재시도'}
+              <RotateCcw size={15} />
             </button>
           )}
-          <Link href={item.canonicalUrl} target="_blank" rel="noreferrer" className="btn-ghost">
-            원본
+          <Link href={item.canonicalUrl} target="_blank" rel="noreferrer" className="btn-ghost"
+            aria-label="원본 페이지 열기" title="원본 열기">
+            <ExternalLink size={15} />
           </Link>
         </span>
       ),

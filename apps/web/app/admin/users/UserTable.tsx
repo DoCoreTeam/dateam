@@ -13,6 +13,7 @@ import DeleteUserButton from './DeleteUserButton'
 import EditProfileModal from './EditProfileModal'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
+import RowActions from '@/components/ui/list/RowActions'
 import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
@@ -130,12 +131,11 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
       ),
     },
     {
-      // 액션이 수정·역할변경·PW초기화·온보딩·삭제로 **5칸**이었다. 각 칸이 nowrap이라
-      // 표 최소폭이 1150px가 되어 부모(982px)를 169px 넘쳤고 "온보딩" 칸이 화면 밖으로 잘렸다.
-      // 다른 목록 화면은 액션이 한 칸이다 — 한 칸으로 합쳐 넘침과 불일치를 함께 없앤다.
-      key: 'actions', header: '관리', width: '260px', noLabel: true,
+      // 액션이 수정·역할변경·PW초기화·온보딩·삭제로 다섯이다. 한 줄에 늘어놓으면 좁은 칸에서
+      // 다섯 줄로 접혀 행이 216px가 됐다(다른 정보는 50px). RowActions가 주요 하나만 남기고 접는다.
+      key: 'actions', header: '관리', width: '120px', noLabel: true,
       cell: (p) => (
-        <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--space-2)' }}>
+        <RowActions subject={p.name ?? '구성원'}>
           <button type="button" className="btn-ghost" onClick={() => setEditTarget(p)}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)', whiteSpace: 'nowrap' }}>
             <Pencil size={12} /> 수정
@@ -144,7 +144,7 @@ export default function UserTable({ profiles, emailMap, currentUserId, ranks, po
           <ResetPasswordButton userId={p.id} userEmail={emailMap[p.id] ?? ''} userName={p.name ?? '-'} />
           <ResetOnboardingButton userId={p.id} userName={p.name ?? '-'} />
           <DeleteUserButton userId={p.id} userName={p.name ?? p.id} isSelf={p.id === currentUserId} />
-        </span>
+        </RowActions>
       ),
     },
     {

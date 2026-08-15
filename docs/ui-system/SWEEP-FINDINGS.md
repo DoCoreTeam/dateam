@@ -121,7 +121,25 @@ member 12 · admin 15 · ci 10 · GPU 탭 12 — 아래 목록은 **결함이 �
 pnpm exec playwright test apps/web/e2e/{work-ia,work-overview,work-shell-uniformity,\
   work-dashboard,patchnotes-entry,daily-dept-separation,gpu-unified-table,\
   gpu-curation-config-ladder}.spec.ts
+
+# 치수 일관성 — 43화면 순회. 위의 기능 검사와 성격이 다르니 따로 돌린다(약 5분)
+pnpm exec playwright test apps/web/e2e/ui-consistency.spec.ts
 ```
+
+### `ui-consistency.spec.ts` — 왜 별도인가 (v0.7.484)
+
+정적 가드가 볼 수 없는 것만 본다. **클래스도 토큰도 다 맞는데 그려 놓고 보면 어긋나 있는** 종류다.
+사용자가 직접 짚은 것들이 전부 여기 속했다 — "표 높이만 해도 변하자나", "드롭다운이랑 버튼이 위아래 안맞는거".
+
+| 규칙 | 무엇을 잡나 |
+|---|---|
+| 가로스크롤 | 본문 **또는 안쪽 래퍼**가 가로로 밀리는 화면(정책이 금지한 `.table-responsive` 패턴 포함) |
+| 10px미만글씨 | 렌더된 실제 font-size (§3-1) |
+| 같은줄컨트롤높이 | 같은 줄의 입력·버튼 높이 차 (textarea는 제외 — `rows`로 정해지는 게 정상) |
+| 표셀컨트롤줄바꿈 | **가로로 두려던** 컨트롤이 접힌 칸 (`flex-direction: column`은 의도적 세로 쌓기라 제외) |
+
+> 오탐을 두 번 걸러냈다. 처음 판은 ① 일부러 세로로 쌓은 칸(`/meeting-notes`)과 ② 같은 줄인데 키가 달라
+> `top`이 다른 것(`/api-keys`)을 접힘으로 잡았다. 검사기부터 검증하지 않으면 없는 위반을 쫓게 된다.
 
 ---
 

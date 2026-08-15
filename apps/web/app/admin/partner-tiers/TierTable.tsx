@@ -10,6 +10,7 @@ import { useMemo, useState } from 'react'
 import { Pencil } from 'lucide-react'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
+import RowActions from '@/components/ui/list/RowActions'
 import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
@@ -84,14 +85,16 @@ export default function TierTable({ tiers }: { tiers: PartnerTierRow[] }) {
       ),
     },
     {
-      key: 'actions', header: '관리', width: '170px',
+      // 수정·삭제 둘뿐이어도 170px 칸에서 접혀 행이 119px가 됐다 — 폭을 재서 맞추는 대신
+      // RowActions로 접힐 수 없게 만든다(칸 폭이 얼마든 한 줄).
+      key: 'actions', header: '관리', width: '120px',
       cell: (t) => (
-        <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+        <RowActions subject={t.name}>
           <button type="button" className="btn-ghost" onClick={() => setEditing(t)}>
             <Pencil size={13} /> 수정
           </button>
           <DeleteTierButton tierId={t.id} tierName={t.name} />
-        </div>
+        </RowActions>
       ),
     },
   ]

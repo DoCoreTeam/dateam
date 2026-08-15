@@ -73,6 +73,52 @@ test('목록에 상세 진입 수단이 있으면 행 자체도 열린다 — �
     `목록 행이 죽어 있다. ListSurface에 rowHref(라우트) 또는 onRowClick(그 자리)을 넘길 것:\n  ${offenders.join('\n  ')}`)
 })
 
+/**
+ * 액션 칸이 아직 `flexWrap`으로 늘어놓는 화면 — **늘리지 말 것.**
+ * 여기 있는 화면은 지금 폭에서는 접히지 않는 것을 실측으로 확인했다(`e2e/ui-consistency.spec.ts` 통과).
+ * 하지만 버튼이 하나 늘거나 라벨이 길어지면 바로 접힌다 — 건드릴 때 `RowActions`로 옮기고 여기서 지운다.
+ */
+const ROW_ACTIONS_PENDING = new Set<string>([
+  'app/(ci)/ci/assets/AssetsView.tsx',
+  'app/(ci)/ci/briefs/[id]/BriefEditor.tsx',
+  'app/(ci)/ci/inbox/InboxView.tsx',
+  'app/(ci)/ci/publish/PublishView.tsx',
+  'app/(ci)/ci/trends/TrendsView.tsx',
+  'app/(member)/accounts/page.tsx',
+  'app/(member)/api-keys/page.tsx',
+])
+
+function wrappingActionCellFiles(): string[] {
+  return sources()
+    .filter(({ src }) => /key: ['"]actions?['"]/.test(src))
+    .filter(({ src }) => {
+      const cell = src.slice(src.search(/key: ['"]actions?['"]/))
+      // 다음 컬럼 정의 전까지만 본다 — 화면 다른 곳의 flexWrap까지 끌어오면 오탐이 난다
+      const scope = cell.slice(0, cell.search(/\n\s*\{\s*\n?\s*(\/\/[^\n]*\n\s*)*key: /) + 1 || cell.length)
+      return /flexWrap: ['"]wrap['"]/.test(scope)
+    })
+    .map(({ file }) => file)
+}
+
+test('새 액션 칸은 접힐 수 없게 만든다 — RowActions를 쓴다', () => {
+  // 왜: 액션 칸을 `flexWrap: 'wrap'`으로 늘어놓으면 좁은 칸에서 접혀 **그 행만 세로로 커진다.**
+  //   실측 /admin/members 관리 칸 135px에 버튼 5개 → 5줄, 행 216px(다른 정보는 50px). 32명이면 화면이 그만큼 길어졌다.
+  //   /admin/partner-tiers는 버튼 둘뿐인데도 170px 칸에서 접혀 119px였다 — "몇 개까지는 괜찮다"가 성립하지 않는다.
+  //   폭을 재서 맞추는 건 화면마다 다시 틀린다. `RowActions`가 **접힐 수 없는 구조**로 만든다.
+  //
+  // 이 정적 가드는 "접힐 수 있는가"만 본다. **실제로 접혔는가**는 렌더된 픽셀을 재는
+  // `e2e/ui-consistency.spec.ts`(표셀컨트롤줄바꿈)가 판정한다 — 둘은 역할이 다르다.
+  const offenders = wrappingActionCellFiles().filter((f) => !ROW_ACTIONS_PENDING.has(f))
+  assert.deepEqual(offenders, [],
+    `액션 칸이 접힐 수 있다(flexWrap). components/ui/list/RowActions로 감쌀 것:\n  ${offenders.join('\n  ')}`)
+})
+
+test('ROW_ACTIONS_PENDING은 실제로 아직 flexWrap이어야 한다 (죽은 예외 방지)', () => {
+  const still = new Set(wrappingActionCellFiles())
+  const stale = [...ROW_ACTIONS_PENDING].filter((f) => !still.has(f))
+  assert.deepEqual(stale, [], `이미 이관된 파일이 예외 목록에 남아 있다. 지울 것: ${stale.join(', ')}`)
+})
+
 test('행이 열리는 목록의 액션 칸은 클릭 전파를 멈춘다 — 버튼 눌렀는데 상세가 열리는 사고 방지', () => {
   // 행 전체가 눌리면, 행 안의 버튼(재시도·지켜보기·삭제)도 같이 행 클릭을 발화시킨다.
   // 그러면 "지켜보기를 눌렀는데 상세로 튕기는" 일이 생긴다 — 실제로 promote 버튼에서 겪었다.

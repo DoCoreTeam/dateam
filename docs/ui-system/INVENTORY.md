@@ -99,9 +99,19 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 | `ci/ChannelGroupedList` / `ChannelListView` | 2 / 2 | 목록 뷰 |
 | `ui/memo/MemoListView` | 1 | 메모 목록 |
 
-### ❌ 존재하지 않는 목록 부품 (진짜 공백)
-`ListToolbar` · `ListPager`/`Pagination` · `FilterBar` · `SortControl` · `ViewSwitcher(공용)` · `useListQuery`
-→ 전수 검색 결과 **0건**. 목록형 약 40화면이 각자 자작 중.
+### 목록 부품 (v0.7.448 신설 — 예전 판의 "0건, 진짜 공백"은 해소됐다)
+| 부품 | 사용 | 무엇 |
+|---|---|---|
+| `ui/list/ListToolbar` | **26** | 검색·필터·정렬·보기전환·개수·선택작업 |
+| `ui/list/ListSurface` | **33** | 표/카드/조밀 한 벌 + 빈·로딩·오류 3상태 강제. 행 열기는 `rowHref`/`onRowClick` |
+| `ui/list/ListPager` | **28** | 페이지 이동(`pages` 기본 / 피드형만 `more`) |
+| `ui/list/RowActions` | **2** | **행 작업 묶음.** 주요 하나만 한 줄에 두고 나머지는 더보기로 접는다 |
+| `lib/ui/useListQuery` | **30** | URL이 진실인 목록 상태 |
+
+> `RowActions`가 왜 필요했나: 행 작업을 `flexWrap: 'wrap'`으로 늘어놓으면 좁은 칸에서 접혀
+> **그 행만 세로로 커진다.** 실측 `/admin/members` 관리 칸 135px에 버튼 5개 → 5줄, 행 216px(다른 정보는 50px).
+> `/admin/partner-tiers`는 버튼 둘뿐인데도 170px 칸에서 접혀 119px였다. 화면마다 폭을 재서 맞추는 대신
+> **접힐 수 없는 구조**로 바꿨다(216→88px, 119→69px). 가드: `lib/ui/interaction-standard.test.ts`.
 
 ---
 

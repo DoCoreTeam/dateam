@@ -44,6 +44,26 @@ function walk(d, a) {
 const files = []
 for (const r of roots) walk(r, files)
 
+/**
+ * `components/ui/` 안에서 실제로 쓰이는 클래스 이름들.
+ *
+ * globals.css에 새 클래스가 들어오면 "화면 전용"으로 보고 막는데, **공용 부품의 스타일**은
+ * globals.css가 있어야 할 자리다(`.list-toolbar`·`.list-cards`·`.btn-*`가 이미 거기 있다).
+ * 예전엔 이걸 손으로 관리하는 prefix 목록으로 갈랐다 — 목록이 현실과 어긋나면
+ * 만드는 사람은 매번 "새로 만드는 쪽"을 택하게 된다(CLAUDE.md §0이 지적한 바로 그 실패).
+ * 그래서 목록 대신 **사실**로 가른다: 그 클래스를 공용 부품이 쓰고 있으면 시스템 CSS다.
+ */
+const uiComponentClasses = new Set()
+for (const f of files) {
+  if (!f.includes('components/ui/')) continue
+  const text = readFileSync(f, 'utf8')
+  for (const m of text.matchAll(/className=(?:"([^"]*)"|\{`([^`]*)`\}|\{'([^']*)'\})/g)) {
+    for (const cls of (m[1] ?? m[2] ?? m[3] ?? '').split(/[\s${}?:'"]+/)) {
+      if (/^[a-z][a-z0-9-]*$/.test(cls)) uiComponentClasses.add(cls)
+    }
+  }
+}
+
 const hardHex = []          // 즉시 차단
 const swrMutate = []        // 즉시 차단 — swr 모듈 레벨 전역 mutate import
 const ratchet = []          // baseline 대조 대상 {key, desc}
@@ -167,7 +187,7 @@ if (existsSync(CSS_FILE)) {
     const top = line.match(/^\.([a-zA-Z][\w-]*)/)
     if (top) {
       const prefix = top[1].split('-')[0]
-      if (!SHARED_CSS_PREFIXES.has(prefix)) {
+      if (!SHARED_CSS_PREFIXES.has(prefix) && !uiComponentClasses.has(top[1])) {
         ratchet.push({
           key: `${CSS_FILE}::cssdomain::${top[1]}`,
           desc: `${CSS_FILE}:${i + 1}  화면 전용 CSS 신규 .${top[1]} → 도메인 폴더 CSS Module(§0-1)`,

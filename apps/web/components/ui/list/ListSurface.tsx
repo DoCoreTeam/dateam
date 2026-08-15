@@ -7,7 +7,7 @@
 // 직접 렌더(188건)하거나 오류를 그냥 삼켰다.
 // 표는 `.table-card`를 쓴다 — 모바일 카드 변환은 이미 그 클래스가 한다(가로 스크롤 금지).
 
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import EmptyState, { type EmptyStateAction } from '@/components/ui/EmptyState'
@@ -80,6 +80,20 @@ export default function ListSurface<T>({
   // 행 열기 = 라우트 이동(rowHref) 또는 그 자리 열기(onRowClick). 둘 다 같은 제스처로 동작한다.
   const openRow = rowHref ? (row: T) => router.push(rowHref(row)) : onRowClick
   const rowOpens = Boolean(openRow)
+  /**
+   * 앵커 위에서 시작한 클릭이면 행 핸들러는 비켜선다.
+   *
+   * 왜: 제목 칸은 진짜 링크(`rowHref`)라 Next `Link`가 이미 이동을 맡는다. 여기서 행까지
+   * `router.push`를 부르면 **같은 클릭에 이동 요청이 두 번** 나간다. 행 안의 다른 링크
+   * (거래처·원본 열기)는 목적지가 아예 달라서, 행이 끼어들면 **엉뚱한 곳으로 간다.**
+   * 어느 쪽이든 "그 링크가 하려던 일"이 옳다 — 행은 링크가 없는 자리에서만 대신 연다.
+   */
+  const rowClick = openRow
+    ? (row: T) => (e: MouseEvent) => {
+        if ((e.target as HTMLElement).closest('a')) return
+        openRow(row)
+      }
+    : undefined
   if (error) {
     return <ErrorState message={error.message} code={error.code} onRetry={error.onRetry} />
   }
@@ -99,7 +113,7 @@ export default function ListSurface<T>({
             <article
               key={id}
               className={`card list-card${rowOpens ? ' is-clickable' : ''}`}
-              onClick={openRow ? () => openRow(row) : undefined}
+              onClick={rowClick?.(row)}
             >
               <h3 className="list-card-title">
                 {rowHref ? <Link href={rowHref(row)}>{primary.cell(row)}</Link> : primary.cell(row)}
@@ -162,7 +176,7 @@ export default function ListSurface<T>({
             <tr
               key={id}
               className={[rowOpens ? 'is-clickable' : '', selection?.selected.has(id) ? 'is-selected' : ''].filter(Boolean).join(' ') || undefined}
-              onClick={openRow ? () => openRow(row) : undefined}
+              onClick={rowClick?.(row)}
               // rowHref면 제목 칸이 진짜 링크라 키보드는 그쪽이 받는다 — 행을 또 tab 대상으로 만들지 않는다
               role={onRowClick && !rowHref ? 'button' : undefined}
               tabIndex={onRowClick && !rowHref ? 0 : undefined}
