@@ -160,7 +160,9 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
     {
       key: 'topic', header: '주제',
       cell: (item) => (tab === 'review' ? (
-        <span style={{ display: 'inline-flex', gap: 'var(--space-1)', alignItems: 'center', flexWrap: 'wrap' }}>
+        // 접히면 셀이 두 줄이 되어 **탭마다 표 행 높이가 달라진다**(실측 79px ↔ 87px).
+        // 한 줄로 고정하고 폭은 표가 알아서 나눈다.
+        <span style={{ display: 'inline-flex', gap: 'var(--space-1)', alignItems: 'center', flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
           <label className="label" htmlFor={`t-${item.id}`} style={{ position: 'absolute', left: '-9999px' }}>주제</label>
           <select className="input-field" id={`t-${item.id}`} style={{ width: 'auto' }}
             defaultValue={item.topic?.id ?? ''}
@@ -190,8 +192,9 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
       key: 'actions', header: '작업', noLabel: true, align: 'right',
       cell: (item) => (
         // 행 클릭(상세 열기)과 겹치지 않게 이 칸의 클릭은 여기서 멈춘다
+        // 접히면 버튼이 세로로 쌓여 **그 행만 121px**이 된다(다른 행은 79px) — 목록 리듬이 깨진다.
         <span onClick={(e) => e.stopPropagation()}
-          style={{ display: 'inline-flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
+          style={{ display: 'inline-flex', gap: 'var(--space-2)', flexWrap: 'nowrap', whiteSpace: 'nowrap', alignItems: 'center' }}>
           {(item.ingestStatus === 'failed' || item.ingestStatus === 'partial') && (
             <button
               type="button"

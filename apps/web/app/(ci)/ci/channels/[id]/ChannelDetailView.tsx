@@ -136,7 +136,9 @@ export default function ChannelDetailView({ workspaceId, channel, contents }: Pr
           </div>
         </dl>
 
-        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* 라벨이 붙은 컨트롤(수집 기간)과 라벨 없는 버튼이 같은 줄에 선다.
+            center 정렬이면 라벨 높이만큼 셀렉트가 아래로 밀려 어긋난다(실측 10px) → 바닥 정렬. */}
+        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div>
             <label className="label" htmlFor="ch-window" style={{ margin: 0 }}>수집 기간</label>
             <select className="input-field" id="ch-window" style={{ width: 'auto' }}

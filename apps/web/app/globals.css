@@ -44,6 +44,7 @@
   --hairline: 1px;
   --border-w-mobile: 2px;
   --radius: 4px;
+  --control-h: 2.75rem;   /* 입력·버튼 공용 높이(터치 44px) */
   --radius-lg: 8px;
   --shadow-sm: 3px 3px 0 0 var(--shadow-color);
   --shadow-md: 4px 4px 0 0 var(--shadow-color);
@@ -484,6 +485,14 @@
     box-shadow: var(--shadow-md);
     border: var(--border-w) solid var(--border-color);
   }
+
+  /* 입력과 버튼의 공용 높이 — 같은 줄에 놓였을 때 어긋나지 않게 한 곳에서 정한다.
+     예전엔 이 규약이 없어 입력 41px · 버튼 39px로 달랐고(실측 /ci/channels 상세),
+     화면마다 `min-height: 44px`를 손으로 붙여 왔다(dup-btn·sched-btn·cockpit-*-btn …).
+     값은 CLAUDE.md의 "터치 영역 최소 44px"를 그대로 따른다. */
+  .input-field,
+  .btn-primary,
+  .btn-ghost { min-height: var(--control-h); }
 
   .btn-primary {
     display: inline-flex;

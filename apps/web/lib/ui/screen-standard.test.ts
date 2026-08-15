@@ -72,3 +72,13 @@ test('화면을 덮는 대화상자는 ESC로 닫힌다(§2-2)', () => {
     .map(({ file }) => file)
   assert.deepEqual(offenders, [], `ESC로 닫히지 않는 대화상자가 생겼다. useEscClose를 쓸 것:\n  ${offenders.join('\n  ')}`)
 })
+
+test('입력과 버튼은 공용 높이를 쓴다 — 같은 줄에서 어긋나지 않게', () => {
+  // 왜: 공용 높이 규약이 없어 입력 41px · 버튼 39px로 달랐다(실측 /ci/channels 상세에서 10px 어긋남).
+  //   그래서 화면들이 `min-height: 44px`를 각자 붙여 왔고(dup-btn·sched-btn·cockpit-*-btn …),
+  //   안 붙인 화면은 그대로 어긋났다. 값은 CLAUDE.md의 "터치 영역 최소 44px"를 따른다.
+  const css = read('app/globals.css')
+  assert.match(css, /--control-h:/, '공용 컨트롤 높이 토큰(--control-h)이 없다')
+  const rule = css.match(/\.input-field,\s*\n\s*\.btn-primary,\s*\n\s*\.btn-ghost \{ min-height: var\(--control-h\); \}/)
+  assert.ok(rule, '입력·버튼이 --control-h를 함께 쓰지 않는다 (한쪽만 바뀌면 다시 어긋난다)')
+})
