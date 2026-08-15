@@ -1159,11 +1159,12 @@ function MappingManagerModal({ mappings, competitors, onClose, onChanged }: {
           <InlineError compact>{err}</InlineError>
           <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
             {mappings.map((m) => (
-              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '6px 8px', borderRadius: 7, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--surface-bg)' }}>
-                <span style={{ fontWeight: 700, minWidth: 90 }}>{m.competitors?.name ?? '?'}</span>
-                <span style={{ flex: 1 }} title={memoryTitle(m.gpu_products?.memory, m.gpu_products?.gpu_count) || undefined}>{m.gpu_products?.model_name} {formatCardMemory(m.gpu_products?.memory, m.gpu_products?.gpu_count)}</span>
-                <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)' }}>{PRICING_MODEL_LABEL[m.pricing_model] ?? m.pricing_model}</span>
-                <button onClick={() => del(m.id)} className="gpu-btn" style={{ padding: 4, color: 'var(--gpu-red)' }}>🗑</button>
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, padding: '6px 8px', borderRadius: 7, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--surface-bg)' }}>
+                <span style={{ fontWeight: 700, flex: '0 1 auto', minWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={m.competitors?.name ?? undefined}>{m.competitors?.name ?? '?'}</span>
+                <span style={{ flex: '1 1 120px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={memoryTitle(m.gpu_products?.memory, m.gpu_products?.gpu_count) || undefined}>{m.gpu_products?.model_name} {formatCardMemory(m.gpu_products?.memory, m.gpu_products?.gpu_count)}</span>
+                <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--gpu-muted)', flexShrink: 0 }}>{PRICING_MODEL_LABEL[m.pricing_model] ?? m.pricing_model}</span>
+                {/* 삭제 버튼이 밀려 가려지면 매핑을 지울 방법이 없어진다 — 절대 줄이지 않는다 */}
+                <button onClick={() => del(m.id)} className="gpu-btn" style={{ padding: 4, color: 'var(--gpu-red)', flexShrink: 0 }} aria-label="매핑 삭제">🗑</button>
               </div>
             ))}
           </div>

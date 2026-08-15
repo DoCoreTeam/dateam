@@ -401,10 +401,10 @@ function SupplierDetailModal({ id, onClose, onChanged, onGoToPriceTable }: { id:
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {(data.contacts ?? []).map((c) => (
-                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 7, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--surface-bg)', fontSize: 12.5 }}>
-                    <span style={{ fontWeight: 700, minWidth: 90 }}>{c.name}</span>
-                    {c.title && <span style={{ color: 'var(--gpu-muted)' }}>{c.title}</span>}
-                    <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontSize: 12, color: 'var(--gpu-ink-2)' }}>{c.email ?? ''} {c.phone ?? ''}</span>
+                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '8px 10px', borderRadius: 7, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--surface-bg)', fontSize: 12.5 }}>
+                    <span style={{ fontWeight: 700, flex: '0 1 auto', minWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.name}>{c.name}</span>
+                    {c.title && <span style={{ color: 'var(--gpu-muted)', flexShrink: 0 }}>{c.title}</span>}
+                    <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontSize: 12, color: 'var(--gpu-ink-2)', flexShrink: 0 }}>{c.email ?? ''} {c.phone ?? ''}</span>
                     {editing && <button onClick={() => delContact(c.id)} className="gpu-btn" style={{ padding: 4, color: 'var(--gpu-red)' }}><Trash2 size={13} /></button>}
                   </div>
                 ))}
