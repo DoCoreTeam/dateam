@@ -136,20 +136,11 @@ export default function MeetingDetailClient({ note, people }: { note: MeetingNot
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-        {/* 본문(읽기) + AI 분석 액션 */}
-        <MeetingReadBody
-          meetingNoteId={note.id}
-          body={note.body}
-          bodyPlain={note.body_plain ?? ''}
-          initialSummary={note.summary ?? ''}
-          initialDecisions={note.decisions ?? ''}
-          people={people}
-          currentAttendees={attendeeNames}
-          currentUserIds={userIds}
-          autoAnalyze={autoAnalyze}
-        />
-
-        {/* 참석자(읽기 전용 chips) — 수정은 [편집]에서 */}
+        {/* 참석자(읽기 전용 chips) — 수정은 [편집]에서.
+            본문보다 **위**에 둔다: 회의록은 "누가 있었나"를 알고 내용을 읽는 문서다.
+            내보내는 문서 서식도 표제 → 메타(일시·작성자·참석자) → 본문 순이다
+            (lib/meeting/export-html.ts). 화면만 참석자를 맨 아래 두면 같은 회의록이
+            보는 곳마다 다른 순서가 된다. */}
         <section className="card" style={{ padding: 'var(--space-5) var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }} aria-labelledby="mn-att-h">
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <Users size={16} color="var(--brand)" />
@@ -168,6 +159,19 @@ export default function MeetingDetailClient({ note, people }: { note: MeetingNot
             </ul>
           )}
         </section>
+        {/* 본문(읽기) + AI 분석 액션 */}
+        <MeetingReadBody
+          meetingNoteId={note.id}
+          body={note.body}
+          bodyPlain={note.body_plain ?? ''}
+          initialSummary={note.summary ?? ''}
+          initialDecisions={note.decisions ?? ''}
+          people={people}
+          currentAttendees={attendeeNames}
+          currentUserIds={userIds}
+          autoAnalyze={autoAnalyze}
+        />
+
       </div>
     </div>
   )
