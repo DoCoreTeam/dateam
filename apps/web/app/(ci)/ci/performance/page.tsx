@@ -1,6 +1,6 @@
 // app/(ci)/ci/performance/page.tsx — A01 성과 (탭 3개)
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getRequestUser } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { getMinePerformance, getMarketPerformance, getLearningPerformance } from '@/lib/ci/queries/performance'
 import PageHeader from '@/components/ui/PageHeader'
@@ -15,7 +15,7 @@ export default async function PerformancePage({
   searchParams,
 }: { searchParams: Promise<{ tab?: string }> }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
   const workspace = await resolveActiveWorkspace(user.id)
   if (!workspace) redirect('/ci')

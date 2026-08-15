@@ -1,5 +1,5 @@
 import { redirect, notFound } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { TrendingUp, ArrowLeft, Calendar, Target } from 'lucide-react'
 import type { Deal, Account, Contact, DealActivity } from '@/types/database'
@@ -34,7 +34,7 @@ const ACTIVITY_ICON: Record<string, string> = {
 export default async function DealDetailPage({ params }: PageProps) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   const adminClient = createAdminClient()

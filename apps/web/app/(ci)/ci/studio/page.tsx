@@ -1,6 +1,6 @@
 // app/(ci)/ci/studio/page.tsx — 편집점 스튜디오
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getRequestUser } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import PageHeader from '@/components/ui/PageHeader'
 import StudioView from './StudioView'
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function StudioPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
   const workspace = await resolveActiveWorkspace(user.id)
   if (!workspace) redirect('/ci')

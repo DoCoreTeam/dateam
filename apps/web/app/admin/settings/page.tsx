@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { Palette, Bot, Plug, Server } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import SegmentedTabs, { type SegmentedTab } from '@/components/ui/SegmentedTabs'
@@ -48,9 +48,7 @@ export default async function AdminSettingsPage({
   const driveParam = params.drive
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   // Drive 연결 상태는 다른 연동 카드와 동일하게 **서버 렌더**로 읽는다.

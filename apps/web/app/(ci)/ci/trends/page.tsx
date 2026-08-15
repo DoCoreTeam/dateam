@@ -1,6 +1,6 @@
 // app/(ci)/ci/trends/page.tsx — R04 트렌드 (탭 4개 전부 동작)
 import { redirect } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { listContents } from '@/lib/ci/queries/contents'
 import { getMarketOverview, getPatterns, getSignals, getTimingOverview } from '@/lib/ci/queries/trends'
@@ -24,7 +24,7 @@ export default async function TrendsPage({
   }>
 }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   const workspace = await resolveActiveWorkspace(user.id)

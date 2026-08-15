@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { Inbox, KeyRound } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import type { Profile } from '@/types/database'
 import AccessRequestsPanel, { type AccessRequest } from './AccessRequestsPanel'
 import ApiKeysPanel, { type ApiKeyRow } from './ApiKeysPanel'
@@ -13,7 +13,7 @@ export default async function AdminApiPage({
   searchParams: Promise<{ tab?: string }>
 }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   const adminClient = createAdminClient()

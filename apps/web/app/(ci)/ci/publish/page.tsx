@@ -1,6 +1,6 @@
 // app/(ci)/ci/publish/page.tsx — B01 게시
 import { redirect } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { listChannels } from '@/lib/ci/queries/channels'
 import PageHeader from '@/components/ui/PageHeader'
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function PublishPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
   const workspace = await resolveActiveWorkspace(user.id)
   if (!workspace) redirect('/ci')

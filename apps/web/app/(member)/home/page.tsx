@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { getCalendarDayLogs, getMonthLogSummary } from '../daily/actions'
 import { getWeekStart, toDateString } from '@/lib/utils'
 import type { WeeklyReport } from '@/types/database'
@@ -17,7 +17,7 @@ import { isMemberOfDivisionByName } from '@/lib/org-scope'
 
 export default async function HomePage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   const adminClient = createAdminClient()

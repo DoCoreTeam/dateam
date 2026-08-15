@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import OnboardingProvider from '@/components/onboarding/OnboardingProvider'
 import AppShell from '@/components/ui/shell/AppShell'
 import type { NavGroup } from '@/components/ui/shell/AppShell'
@@ -63,7 +63,7 @@ const NAV_GROUPS: NavGroup[] = [
 
 export default async function MemberLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
 
   if (!user) redirect('/login')
 

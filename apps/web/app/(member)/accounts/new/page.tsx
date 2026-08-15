@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import SegmentedTabs, { type SegmentedTab } from '@/components/ui/SegmentedTabs'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getRequestUser } from '@/lib/supabase/server'
 import AccountForm from '../AccountForm'
 import LeadIntakeForm from '../../lead-intake/LeadIntakeForm'
 
@@ -17,7 +17,7 @@ const TABS: SegmentedTab[] = [
 export default async function NewAccountPage({ searchParams }: PageProps) {
   const { mode } = await searchParams
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   const isManual = mode === 'manual'

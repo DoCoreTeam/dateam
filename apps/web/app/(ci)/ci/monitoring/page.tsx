@@ -1,6 +1,6 @@
 // app/(ci)/ci/monitoring/page.tsx — R02 모니터링 (관심 채널)
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getRequestUser } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { listChannels } from '@/lib/ci/queries/channels'
 import PageHeader from '@/components/ui/PageHeader'
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function MonitoringPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
   const workspace = await resolveActiveWorkspace(user.id)
   if (!workspace) redirect('/ci')

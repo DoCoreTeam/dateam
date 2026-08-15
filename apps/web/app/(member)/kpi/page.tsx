@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { getWeekStart, toDateString } from '@/lib/utils'
 import { addDays } from 'date-fns'
 import { insertKpi } from './actions'
@@ -27,9 +27,7 @@ interface OkrItem {
 
 export default async function KpiPage({ searchParams }: KpiPageProps) {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getRequestUser()
 
   if (!user) redirect('/login')
 

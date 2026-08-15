@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { kstRangeToUtc, kstTodayKey } from '@/lib/datetime/kst'
 import AiUsageDashboard, { type ProviderModelRow } from './AiUsageDashboard'
 
 export default async function AiUsagePage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

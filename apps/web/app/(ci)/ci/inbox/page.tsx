@@ -1,6 +1,6 @@
 // app/(ci)/ci/inbox/page.tsx — R01 수집함 (설계서 §7.2)
 import { redirect } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { listContents } from '@/lib/ci/queries/contents'
 import InboxView from './InboxView'
@@ -13,7 +13,7 @@ export default async function InboxPage({
   searchParams,
 }: { searchParams: Promise<{ tab?: string }> }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   const workspace = await resolveActiveWorkspace(user.id)

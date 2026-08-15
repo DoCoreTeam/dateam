@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { Users, UserPlus } from 'lucide-react'
 import InviteForm from '../users/InviteForm'
 import UserTable from '../users/UserTable'
@@ -26,7 +26,7 @@ export default async function AdminMembersPage({
   searchParams: Promise<{ tab?: string }>
 }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   const adminClient = createAdminClient()

@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import AppShell from '@/components/ui/shell/AppShell'
 import type { NavGroup } from '@/components/ui/shell/AppShell'
 import PasswordChangeModal from '@/components/ui/PasswordChangeModal'
@@ -65,7 +65,7 @@ const ADMIN_NAV_GROUPS: NavGroup[] = [
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
 
   if (!user) redirect('/login')
 

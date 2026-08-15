@@ -1,7 +1,7 @@
 // app/(ci)/ci/briefs/[id]/page.tsx — P02 기획안 편집기 + P03 편집안
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import PageHeader from '@/components/ui/PageHeader'
 import BriefEditor from './BriefEditor'
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function BriefPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
   const workspace = await resolveActiveWorkspace(user.id)
   if (!workspace) redirect('/ci')

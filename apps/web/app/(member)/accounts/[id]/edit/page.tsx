@@ -1,6 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import AccountForm from '../../AccountForm'
 import type { Account } from '@/types/database'
 
@@ -9,7 +9,7 @@ interface PageProps { params: Promise<{ id: string }> }
 export default async function EditAccountPage({ params }: PageProps) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   const adminClient = createAdminClient()

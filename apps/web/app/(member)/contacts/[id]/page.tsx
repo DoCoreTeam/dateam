@@ -1,5 +1,5 @@
 import { redirect, notFound } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { ArrowLeft, Mail, Phone, Linkedin } from 'lucide-react'
 import type { Contact, Account } from '@/types/database'
@@ -13,7 +13,7 @@ type ContactWithAccount = Contact & { accounts: Pick<Account, 'id' | 'name'> | n
 export default async function ContactDetailPage({ params }: PageProps) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   const adminClient = createAdminClient()

@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import type { Profile } from '@/types/database'
 
 export async function requireAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // 같은 요청 안에서 레이아웃·페이지가 이미 물었다면 그 답을 쓴다(요청 스코프 캐시)
+  const user = await getRequestUser()
 
   if (!user) redirect('/login')
 

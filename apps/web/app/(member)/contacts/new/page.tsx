@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import SegmentedTabs, { type SegmentedTab } from '@/components/ui/SegmentedTabs'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import ContactForm from '../ContactForm'
 import type { Account } from '@/types/database'
 import LeadIntakeForm from '../../lead-intake/LeadIntakeForm'
@@ -24,7 +24,7 @@ function tabsFor(accountId?: string): SegmentedTab[] {
 export default async function NewContactPage({ searchParams }: PageProps) {
   const { account_id, mode } = await searchParams
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   const adminClient = createAdminClient()

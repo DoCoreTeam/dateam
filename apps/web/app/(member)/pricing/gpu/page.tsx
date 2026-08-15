@@ -1,5 +1,5 @@
 import GpuPricingClient from './GpuPricingClient'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { getBranding } from '@/lib/branding'
 
 export async function generateMetadata() {
@@ -36,7 +36,7 @@ async function fetchInitialSettings(): Promise<InitialSettings> {
 async function fetchIsAdmin(): Promise<boolean> {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getRequestUser()
     if (!user) return false
     const adminClient = createAdminClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

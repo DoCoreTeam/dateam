@@ -1,5 +1,5 @@
 import { redirect, notFound } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { ArrowLeft, Globe, Phone, MapPin, Users, TrendingUp } from 'lucide-react'
 import type { Account, Contact, Deal } from '@/types/database'
@@ -29,7 +29,7 @@ const STAGE_COLOR: Record<string, { color: string; bg: string }> = {
 export default async function AccountDetailPage({ params }: PageProps) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   const adminClient = createAdminClient()

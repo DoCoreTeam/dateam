@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import QueryToast from '@/components/ui/QueryToast'
 import { getWeekStart, toDateString } from '@/lib/utils'
 import { subWeeks } from 'date-fns'
@@ -40,9 +40,7 @@ interface PageProps {
 
 export default async function WeeklyReportPage({ searchParams }: PageProps) {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getRequestUser()
 
   if (!user) redirect('/login')
 

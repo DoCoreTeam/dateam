@@ -10,7 +10,7 @@ import { redirect } from 'next/navigation'
 import {
   Home, Inbox, Radar, TrendingUp, PenTool, Layers, Send, Radio, BarChart3, Settings, Scissors,
 } from 'lucide-react'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { getBranding } from '@/lib/branding'
 import { getActiveTheme, resolveTheme } from '@/lib/theme'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
@@ -71,7 +71,7 @@ function buildGroups(counts?: CiLoopMinimap): NavGroup[] {
 
 export default async function CiLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   const adminClient = createAdminClient()

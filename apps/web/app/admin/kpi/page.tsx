@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { toDateString, getWeekStart } from '@/lib/utils'
 import { BarChart2 } from 'lucide-react'
 import type { Profile, KpiEntry } from '@/types/database'
@@ -26,7 +26,7 @@ function parseTargetNumber(target: string): number {
 
 export default async function AdminKpiPage({ searchParams }: PageProps) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   const { period_start, period_end } = await searchParams

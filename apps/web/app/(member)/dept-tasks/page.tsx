@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { resolveOrgScope } from '@/lib/org-scope'
 import { listDeptTasks, getDeptTaskActors } from './actions'
 import DeptTasksClient from './DeptTasksClient'
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function DeptTasksPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   const admin = createAdminClient()

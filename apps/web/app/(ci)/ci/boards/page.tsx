@@ -1,6 +1,6 @@
 // app/(ci)/ci/boards/page.tsx — 보드 (발견물 저장함, 설계서 §8.2)
 import { redirect } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import PageHeader from '@/components/ui/PageHeader'
 import BoardsView from './BoardsView'
@@ -13,7 +13,7 @@ export default async function BoardsPage({
   searchParams,
 }: { searchParams: Promise<{ add?: string }> }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
   const workspace = await resolveActiveWorkspace(user.id)
   if (!workspace) redirect('/ci')

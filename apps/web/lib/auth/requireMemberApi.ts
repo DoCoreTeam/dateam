@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import type { Profile } from '@/types/database'
 
 /**
@@ -15,8 +15,8 @@ export async function requireMemberApi(): Promise<
   | { user: { id: string; email: string | undefined; role: 'admin' | 'member' }; error: null }
   | { user: null; error: NextResponse }
 > {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // 같은 요청 안에서 레이아웃·페이지가 이미 물었다면 그 답을 쓴다(요청 스코프 캐시)
+  const user = await getRequestUser()
 
   if (!user) {
     return { user: null, error: NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 }) }

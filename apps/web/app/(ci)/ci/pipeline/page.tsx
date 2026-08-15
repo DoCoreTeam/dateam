@@ -1,6 +1,6 @@
 // app/(ci)/ci/pipeline/page.tsx — P01 파이프라인 보드 (제작 기본 화면)
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getRequestUser } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { listIdeas } from '@/lib/ci/queries/ideas'
 import { createAdminClient } from '@/lib/supabase/server'
@@ -15,7 +15,7 @@ export default async function PipelinePage({
   searchParams,
 }: { searchParams: Promise<{ from?: string }> }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
   const workspace = await resolveActiveWorkspace(user.id)
   if (!workspace) redirect('/ci')

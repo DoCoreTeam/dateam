@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { Inbox } from 'lucide-react'
 import type { LeadIntake } from '@/types/database'
 import LeadIntakeForm from './LeadIntakeForm'
@@ -19,7 +19,7 @@ function targetLabel(target?: string) {
 export default async function LeadIntakePage({ searchParams }: PageProps) {
   const { target } = await searchParams
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   const adminClient = createAdminClient()

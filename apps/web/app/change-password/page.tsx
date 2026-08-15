@@ -1,4 +1,4 @@
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import PageHeader from '@/components/ui/PageHeader'
 import ErrorState from '@/components/ui/ErrorState'
 import { changePassword, getOrgMemberNames } from './actions'
@@ -12,7 +12,7 @@ export default async function ChangePasswordPage({ searchParams }: PageProps) {
   const { error } = await searchParams
 
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
 
   let currentName: string | null = null
   let availableNames: string[] = []

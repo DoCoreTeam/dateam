@@ -1,13 +1,13 @@
 import { redirect } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getRequestUser } from '@/lib/supabase/server'
 import { Tag, Plus } from 'lucide-react'
 import TierForm from './TierForm'
 import TierTable, { type PartnerTierRow } from './TierTable'
 
 export default async function PartnerTiersPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   const { data: tiers } = await supabase

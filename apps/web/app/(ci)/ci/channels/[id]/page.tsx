@@ -1,7 +1,7 @@
 // app/(ci)/ci/channels/[id]/page.tsx — R03 채널 상세
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getRequestUser } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { getChannel } from '@/lib/ci/queries/channels'
 import { listChannelContents } from '@/lib/ci/queries/channel-contents'
@@ -16,7 +16,7 @@ export default async function ChannelDetailPage({
   params,
 }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
   const workspace = await resolveActiveWorkspace(user.id)
   if (!workspace) redirect('/ci')

@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft, Building2, Handshake, Users, Target, ListChecks } from 'lucide-react'
 import WorkPageShell from '@/components/ui/WorkPageShell'
 import EmptyState from '@/components/ui/EmptyState'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getRequestUser } from '@/lib/supabase/server'
 import { PROJECT_SELECT } from '@/lib/work/project-fields'
 import { budgetLabel, periodLabel, statusBadge } from '@/lib/work/project-display'
 import ProjectMembersClient from './ProjectMembersClient'
@@ -16,7 +16,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   const { id } = await params
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = (await createClient()) as any
-  const { data: { user } } = await db.auth.getUser()
+  const user = await getRequestUser()
   const { data: project } = await db.from('projects').select(PROJECT_SELECT)
     .eq('id', id).is('deleted_at', null).maybeSingle()
   if (!project) notFound()

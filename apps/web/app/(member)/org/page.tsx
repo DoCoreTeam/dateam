@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import OrgPublicTree from './OrgPublicTreeClient'
 import { getBranding } from '@/lib/branding'
 import PageHeader from '@/components/ui/PageHeader'
@@ -11,7 +11,7 @@ export async function generateMetadata() {
 
 export default async function OrgPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser()
   if (!user) redirect('/login')
 
   const adminClient = createAdminClient()
