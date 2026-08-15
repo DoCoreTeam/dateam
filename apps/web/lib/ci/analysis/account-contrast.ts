@@ -33,6 +33,18 @@ export const MIN_SUPPORT = 2
 /** 길이 차이는 이 정도는 나야 말한다. 10% 차이를 "짧게 만드세요"라고 하면 소음이다. */
 export const MIN_NUMERIC_DIFF_RATIO = 0.25
 
+/** 소재는 몇 개까지 보여줄지. 채널 고정 태그가 목록을 뒤덮는 것을 막는다. */
+export const MAX_KEYWORD_FINDINGS = 4
+
+/**
+ * 신호의 세기. 1보다 큰 쪽과 작은 쪽을 대칭으로 본다 —
+ * 0.5배(절반)와 2배는 같은 세기다.
+ */
+export function effectSize(f: { lift: number }): number {
+  if (!Number.isFinite(f.lift) || f.lift <= 0) return 0
+  return f.lift >= 1 ? f.lift : 1 / f.lift
+}
+
 export interface ContrastInput {
   /** 평소 대비 배수. null이면 비교 근거가 없는 콘텐츠 — 대조에서 제외한다. */
   outlierIndex: number | null
@@ -232,10 +244,16 @@ export function buildAccountContrast(
     const uniq = Array.from(new Set((r.keywords ?? []).map(normKeyword).filter(Boolean)))
     for (const k of uniq) bKw.set(k, (bKw.get(k) ?? 0) + 1)
   }
+  // 채널이 모든 영상에 다는 고정 태그(이름·종목 등)는 잘된 쪽에도 평소에도 있어
+  // 약한 차이로 잔뜩 통과한다. 그대로 두면 목록이 그 세트로 뒤덮여
+  // 정작 중요한 요일·길이 발견이 안 보인다. 센 것 몇 개만 남긴다.
+  const kwFindings: ContrastFinding[] = []
   wKw.forEach((n, v) => {
     const f = contrastCategory('keyword', v, `"${v}" 소재`, n, wN, bKw.get(v) ?? 0, bN)
-    if (f) findings.push(f)
+    if (f) kwFindings.push(f)
   })
+  kwFindings.sort((a, b) => (b.lift - a.lift) || (b.winnerCount - a.winnerCount))
+  findings.push(...kwFindings.slice(0, MAX_KEYWORD_FINDINGS))
 
   // ── 길이 ──
   const durF = contrastNumeric(
@@ -256,7 +274,11 @@ export function buildAccountContrast(
   if (titleF) findings.push(titleF)
 
   // 차이가 큰 것부터. 같으면 근거가 많은 것부터.
-  findings.sort((a, b) => (b.lift - a.lift) || (b.winnerCount - a.winnerCount))
+  //
+  // 크기는 lift가 아니라 **효과 크기**로 잰다. "0.55배(45% 더 짧음)"는 "2배 더 김"과
+  // 같은 세기의 신호인데, lift로 정렬하면 1보다 작은 값이 전부 맨 뒤로 밀려
+  // "짧게 만들라"는 발견이 화면 밖으로 나간다.
+  findings.sort((a, b) => (effectSize(b) - effectSize(a)) || (b.winnerCount - a.winnerCount))
 
   return {
     winners: wN,

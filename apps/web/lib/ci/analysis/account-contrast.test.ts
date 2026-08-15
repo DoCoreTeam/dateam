@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
-  buildAccountContrast, MIN_WINNERS, MIN_BASELINE,
+  buildAccountContrast, effectSize, MIN_WINNERS, MIN_BASELINE, MAX_KEYWORD_FINDINGS,
   type ContrastInput,
 } from './account-contrast.ts'
 
@@ -193,7 +193,7 @@ test('차이가 큰 것이 먼저 온다 — 화면이 위에서부터 읽힌다
   const r = buildAccountContrast(rows)
   assert.ok(r.findings.length >= 2)
   for (let i = 1; i < r.findings.length; i += 1) {
-    assert.ok(r.findings[i - 1].lift >= r.findings[i].lift, '정렬이 깨졌다')
+    assert.ok(effectSize(r.findings[i - 1]) >= effectSize(r.findings[i]), '정렬이 깨졌다')
   }
 })
 
@@ -202,4 +202,33 @@ test('빈 입력도 예외 없이 처리한다', () => {
   assert.equal(r.winners, 0)
   assert.equal(r.findings.length, 0)
   assert.ok(r.insufficientReason)
+})
+
+test('★ "절반으로 짧다"가 "2배 길다"만큼 위에 온다 — 효과 크기로 정렬', () => {
+  const rows = pool(
+    Array.from({ length: 6 }, () => ({ durationSec: 40, weekday: 6 })),
+    Array.from({ length: 12 }, (_, i) => ({ durationSec: 400, weekday: i % 7 })),
+  )
+  const r = buildAccountContrast(rows)
+  const dur = r.findings.findIndex((f) => f.dimension === 'duration')
+  assert.ok(dur >= 0, '길이 차이를 못 찾았다')
+  assert.ok(dur <= 1, `길이 발견이 ${dur}번째로 밀렸다 — lift로 정렬하면 1 미만이 뒤로 간다`)
+})
+
+test('effectSize: 0.5배와 2배는 같은 세기', () => {
+  assert.equal(effectSize({ lift: 2 }), 2)
+  assert.equal(effectSize({ lift: 0.5 }), 2)
+  assert.equal(effectSize({ lift: 0 }), 0)
+})
+
+test('★ 채널 고정 태그가 목록을 뒤덮지 않는다 — 소재 발견에 상한', () => {
+  const fixed = ['이름', '종목', '브랜드', '채널명', '태그5', '태그6', '태그7', '태그8']
+  const rows = pool(
+    Array.from({ length: 6 }, () => ({ keywords: fixed })),
+    // 평소에는 절반만 달려 있어 전부 2배 lift로 통과한다
+    Array.from({ length: 12 }, (_, i) => ({ keywords: i % 2 === 0 ? fixed : [] })),
+  )
+  const r = buildAccountContrast(rows)
+  const kw = r.findings.filter((f) => f.dimension === 'keyword')
+  assert.ok(kw.length <= MAX_KEYWORD_FINDINGS, `소재 발견이 ${kw.length}개나 나왔다`)
 })
