@@ -2,6 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { parseChannelUrl } from '../ucm/url.ts'
+import { resolveExistingChannel } from './channel-resolve.ts'
 import { enqueueJob } from '../jobs/queue.ts'
 import type { CiChannelListItem } from '../contracts.ts'
 import type { CiChannelOwnership, CiPlatform } from '../types.ts'
@@ -123,14 +124,15 @@ export async function addChannel(input: {
   const adminClient = createAdminClient() as any
   const externalId = parsed.externalId ?? `handle:${parsed.handle}`
 
-  const { data: existing } = await adminClient
-    .from('ci_channels')
-    .select('id')
-    .eq('workspace_id', input.workspaceId)
-    .eq('platform', parsed.platform)
-    .eq('external_id', externalId)
-    .is('deleted_at', null)
-    .maybeSingle()
+  // "이미 있나"는 SSOT가 판정한다. 여기서 external_id 정확 일치만 보면,
+  // 훑기가 진짜 ID로 승격한 행을 못 찾아 **같은 채널을 다시 넣을 때마다 새 행**이 생긴다.
+  const existing = await resolveExistingChannel(adminClient, input.workspaceId, {
+    platform: parsed.platform,
+    externalId: parsed.externalId,
+    handle: parsed.handle,
+    profileUrl: parsed.url,
+    displayName: null,
+  })
 
   if (existing?.id) {
     if (input.monitor) {

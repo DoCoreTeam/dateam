@@ -40,9 +40,21 @@ export default function LinkIntakeBox({
         setError({ code: res.error.code, message: res.error.message })
         return
       }
+
       setResult(res.data)
       if (res.data.accepted.length > 0) setValue('')
-      onDone?.(res.data)
+      setBusy(false)
+
+      // 새로고침은 **화면을 확정한 뒤** 건다.
+      //
+      // 왜 같은 tick에 부르면 안 되는가: `router.refresh()`는 서버 컴포넌트를 다시 그리고,
+      // 그게 끝날 때까지 뒤따르는 상태 커밋을 붙잡는다(transition). 그래서 접수는 이미 끝났는데
+      // 버튼은 "보내는 중…" 그대로, 입력칸도 안 비워진 채 멈춰 보인다.
+      // (실측: API 응답 1.1초인데 화면은 7초가 지나도 그대로였다)
+      //
+      // 사용자에게 중요한 것은 "받았다"는 확인이고, 목록 갱신은 그다음이다. 순서를 그대로 지킨다.
+      setTimeout(() => onDone?.(res.data), 0)
+      return
     } catch {
       setError({ code: 'INTERNAL', message: '링크를 보내지 못했습니다. 잠시 후 다시 시도해 주세요' })
     } finally {

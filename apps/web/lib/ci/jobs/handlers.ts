@@ -20,7 +20,8 @@ import { scheduleSnapshot, type SnapshotPreset } from './snapshot.ts'
 import { resolveSettings, getResolved, type SettingRow } from '../settings/resolve.ts'
 import { enqueueJob, type ClaimedJob } from './queue.ts'
 import { nextStage, chainVersionFromKey } from './policy.ts'
-import { buildChannelKey, isProvisionalKey, provisionalKeyCandidates } from '../ucm/channel-key.ts'
+import { buildChannelKey, isProvisionalKey } from '../ucm/channel-key.ts'
+import { resolveExistingChannel } from '../queries/channel-resolve.ts'
 import type { CiPlatform } from '../types.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -208,43 +209,16 @@ async function upsertChannel(workspaceId: string, ucm: UcmContent): Promise<stri
 
   const adminClient = createAdminClient() as any
 
-  let { data: existing } = await adminClient
-    .from('ci_channels')
-    .select('id, external_id, display_name, subscriber_count')
-    .eq('workspace_id', workspaceId)
-    .eq('platform', ch.platform)
-    .eq('external_id', key.externalId)
-    .is('deleted_at', null)
-    .maybeSingle()
-
-  // 진짜 ID를 이제 얻었는데, 같은 채널이 예전에 임시 키로 만들어져 있을 수 있다.
-  // 그대로 두면 같은 채널이 두 행으로 쪼개지고 비교군까지 쪼개져 배수가 망가진다.
-  // 임시 행을 찾아 진짜 ID로 승격한다(행을 새로 만들지 않는다).
-  if (!existing?.id && key.source === 'platform_id') {
-    const candidates = provisionalKeyCandidates({
-      handle: ch.handle,
-      profileUrl: ch.profileUrl,
-      displayName: ch.displayName,
-    })
-    if (candidates.length > 0) {
-      const { data: stale } = await adminClient
-        .from('ci_channels')
-        .select('id, external_id, display_name, subscriber_count')
-        .eq('workspace_id', workspaceId)
-        .eq('platform', ch.platform)
-        .in('external_id', candidates)
-        .is('deleted_at', null)
-        .limit(1)
-        .maybeSingle()
-
-      if (stale?.id) {
-        await adminClient.from('ci_channels')
-          .update({ external_id: key.externalId })
-          .eq('id', stale.id)
-        existing = { ...stale, external_id: key.externalId }
-      }
-    }
-  }
+  // "이미 있나"와 "임시키 승격"은 SSOT가 한다(queries/channel-resolve).
+  // 예전에는 이 판정이 여기와 addChannel 두 곳에 따로 있었고, 한쪽만 승격을 봐서
+  // 사용자가 같은 채널을 다시 넣으면 행이 갈라졌다.
+  const existing = await resolveExistingChannel(adminClient, workspaceId, {
+    platform: ch.platform,
+    externalId: ch.externalId,
+    handle: ch.handle,
+    profileUrl: ch.profileUrl,
+    displayName: ch.displayName,
+  })
 
   if (existing?.id) {
     // 나중에 더 나은 정보를 얻으면 채운다. 이미 있는 값을 빈 값으로 덮지 않는다.
