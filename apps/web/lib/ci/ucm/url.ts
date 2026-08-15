@@ -57,8 +57,13 @@ export function parseContentUrl(input: string): ParsedUrl | null {
         formatHint: 'short',
       }
     }
-    // 단축 링크(vm.tiktok.com 등)는 ID를 알 수 없다 → 수집 단계에서 해석
-    if (seg[0]) {
+    // 단축 링크(vm.tiktok.com 등)는 ID를 알 수 없다 → 수집 단계에서 해석.
+    //
+    // `@핸들`은 여기서 제외한다. 프로필 주소인데 게시물로 담으면 영상 하나도 없는
+    // 깡통 콘텐츠가 생기고, 정작 그 계정은 등록되지 않는다 —
+    // 사용자는 "계정을 넣었는데 아무것도 안 모인다"고 겪는다.
+    // 프로필은 parseChannelUrl이 받아 계정으로 등록한다.
+    if (seg[0] && !seg[0].startsWith('@')) {
       return {
         platform: 'tiktok', externalId: `short:${seg[0]}`,
         canonicalUrl: u.toString(), formatHint: 'short',
@@ -169,6 +174,11 @@ export function parseAnyCiUrl(input: string): ParsedCiLink | null {
   return null
 }
 
+/** `youtube.com/@handle/…` 뒤에 올 수 있는 채널 탭. 이 밖은 채널로 보지 않는다. */
+const YOUTUBE_CHANNEL_TABS = new Set([
+  'videos', 'shorts', 'streams', 'live', 'playlists', 'community', 'about', 'featured', 'posts', 'store',
+])
+
 export function parseChannelUrl(input: string): ParsedChannelRef | null {
   const trimmed = input.trim()
   if (!trimmed) return null
@@ -186,7 +196,14 @@ export function parseChannelUrl(input: string): ParsedChannelRef | null {
 
   if (host.endsWith('youtube.com')) {
     if (seg[0]?.startsWith('@')) {
-      return { platform: 'youtube', handle: seg[0], externalId: null, url: u.toString() }
+      // `@handle` 뒤에 올 수 있는 것은 **채널 안의 탭**뿐이다.
+      // 그 밖의 것이 붙어 있으면 채널이라고 단정하지 않는다 —
+      // 게시물을 채널로 오인하면 그 한 건 대신 **계정 전체를 훑어** 엉뚱한 비용이 든다.
+      // (반대 방향 오인은 손해가 없다: 채널을 못 알아보면 사용자가 다시 넣으면 된다)
+      if (seg.length === 1 || YOUTUBE_CHANNEL_TABS.has(seg[1])) {
+        return { platform: 'youtube', handle: seg[0], externalId: null, url: u.toString() }
+      }
+      return null
     }
     if (seg[0] === 'channel' && seg[1]) {
       return { platform: 'youtube', handle: null, externalId: seg[1], url: u.toString() }

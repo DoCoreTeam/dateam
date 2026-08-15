@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseContentUrl, parseChannelUrl } from './url.ts'
+import { parseContentUrl, parseChannelUrl, parseAnyCiUrl } from './url.ts'
 
 test('YouTube 일반·쇼츠·단축·라이브 링크를 모두 같은 ID로 정규화한다', () => {
   const ids = [
@@ -74,4 +74,38 @@ test('채널 URL은 핸들과 채널ID를 구분해 인식한다', () => {
 test('채널 URL 판별이 게시물 URL을 채널로 오인하지 않는다', () => {
   assert.equal(parseChannelUrl('https://www.instagram.com/p/CxYz1/'), null)
   assert.equal(parseChannelUrl('https://www.instagram.com/reel/CxYz1/'), null)
+})
+
+test('링크 종류 판별 — 게시물이 채널보다 먼저다(오인하면 계정 전체를 훑는다)', () => {
+  assert.equal(parseAnyCiUrl('https://youtu.be/jNQXAC9IVRw')?.kind, 'content')
+  assert.equal(parseAnyCiUrl('https://www.youtube.com/watch?v=jNQXAC9IVRw')?.kind, 'content')
+  assert.equal(parseAnyCiUrl('https://www.youtube.com/shorts/abc12345678')?.kind, 'content')
+  assert.equal(parseAnyCiUrl('https://www.instagram.com/reel/ABC123/')?.kind, 'content')
+})
+
+test('링크 종류 판별 — 채널·프로필 주소와 채널 탭은 channel', () => {
+  assert.equal(parseAnyCiUrl('https://www.youtube.com/@jawed')?.kind, 'channel')
+  assert.equal(parseAnyCiUrl('https://www.youtube.com/@jawed/videos')?.kind, 'channel')
+  assert.equal(parseAnyCiUrl('https://www.youtube.com/@jawed/shorts')?.kind, 'channel')
+  assert.equal(parseAnyCiUrl('https://www.youtube.com/channel/UC4QobU6STFB0P71PMvOGN5A')?.kind, 'channel')
+  assert.equal(parseAnyCiUrl('https://www.tiktok.com/@someone')?.kind, 'channel')
+})
+
+test('★ @핸들 뒤에 모르는 경로가 붙으면 채널로 단정하지 않는다 — 잘못 훑으면 비용이 크다', () => {
+  assert.equal(parseAnyCiUrl('https://www.youtube.com/@jawed/video/abc'), null)
+  assert.equal(parseAnyCiUrl('https://www.youtube.com/@jawed/무언가/xyz'), null)
+})
+
+test('링크 종류 판별 — 지원 안 하는 주소·쓰레기는 null (거부 이유를 화면이 말한다)', () => {
+  assert.equal(parseAnyCiUrl('쓰레기'), null)
+  assert.equal(parseAnyCiUrl('https://example.com/hello'), null)
+  assert.equal(parseAnyCiUrl(''), null)
+})
+
+test('★ 틱톡 프로필은 게시물이 아니다 — 담으면 영상 0개짜리 깡통 콘텐츠가 생긴다', () => {
+  assert.equal(parseContentUrl('https://www.tiktok.com/@someone'), null)
+  assert.equal(parseAnyCiUrl('https://www.tiktok.com/@someone')?.kind, 'channel')
+  // 진짜 영상과 단축 링크는 그대로 게시물이어야 한다(과교정 방지)
+  assert.equal(parseContentUrl('https://www.tiktok.com/@someone/video/7300000000000000000')?.externalId, '7300000000000000000')
+  assert.equal(parseAnyCiUrl('https://vm.tiktok.com/ZMabcdef/')?.kind, 'content')
 })
