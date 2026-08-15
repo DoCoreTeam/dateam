@@ -50,6 +50,9 @@ export default function LinkIntakeBox({
     }
   }
 
+  const acceptedChannels = result?.accepted.filter((a) => a.kind === 'channel').length ?? 0
+  const acceptedContents = result?.accepted.filter((a) => a.kind === 'content').length ?? 0
+
   return (
     <div>
       <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'stretch' }}>
@@ -61,7 +64,7 @@ export default function LinkIntakeBox({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => { if (isEnterKey(e) && !e.shiftKey) { e.preventDefault(); submit() } }}
-          placeholder={placeholder ?? '링크를 붙여넣으세요 (여러 개는 줄바꿈이나 쉼표로 구분)'}
+          placeholder={placeholder ?? '게시물이나 채널 주소를 붙여넣으세요 (여러 개는 줄바꿈이나 쉼표로 구분)'}
           disabled={busy}
           style={{ flex: 1 }}
         />
@@ -78,9 +81,16 @@ export default function LinkIntakeBox({
 
       {result && (
         <div style={{ marginTop: 'var(--space-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-          {result.accepted.length > 0 && (
+          {/* 무엇으로 알아들었는지 밝힌다 — 채널을 넣었는데 "1건 수집"이라고만 하면
+              계정 전체를 훑는 중인지 게시물 하나만 담았는지 알 수 없다 */}
+          {acceptedChannels > 0 && (
             <p className="ci-status ci-status-ok" style={{ alignSelf: 'flex-start' }}>
-              {result.accepted.length}건 수집을 시작했습니다
+              계정 {acceptedChannels}곳을 등록하고 게시물을 훑는 중입니다
+            </p>
+          )}
+          {acceptedContents > 0 && (
+            <p className="ci-status ci-status-ok" style={{ alignSelf: 'flex-start' }}>
+              게시물 {acceptedContents}건 수집을 시작했습니다 · 그 계정의 다른 게시물도 함께 봅니다
             </p>
           )}
           {result.rejected.map((r) => (

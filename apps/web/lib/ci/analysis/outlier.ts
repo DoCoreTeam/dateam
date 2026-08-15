@@ -8,6 +8,16 @@ import {
 } from '../format/metrics.ts'
 import type { CiComparability, CiConfidence } from '../types.ts'
 
+/**
+ * "왜 잘 됐나"를 따지기 시작하는 배수.
+ *
+ * 이 값 아래는 평소와 다르다고 보기 어렵다 — 흔들림에 대고 이유를 붙이면
+ * 없는 공식을 만들어낸다. 크리에이티브 분석·계정 대조가 같은 선을 쓴다.
+ * (예전에는 stages.ts에 있었다. 서버 모듈이라 순수 분석 코드가 import할 수 없어
+ *  값이 두 벌로 갈릴 뻔했다 — 판정 기준이 화면마다 다르면 사용자가 신뢰를 잃는다.)
+ */
+export const CREATIVE_MIN_INDEX = 1.5
+
 export function median(values: readonly number[]): number | null {
   const nums = values.filter((v) => Number.isFinite(v)).slice().sort((a, b) => a - b)
   if (nums.length === 0) return null

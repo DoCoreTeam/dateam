@@ -14,6 +14,7 @@ import {
 } from './queue.ts'
 import { runJob } from './handlers.ts'
 import { runDueSnapshots, SNAPSHOT_DUE_MAX_PER_TICK } from './snapshot.ts'
+import { runDueChannelSweeps, SWEEP_DUE_MAX_PER_TICK } from './channel-sweep.ts'
 import {
   STALE_LOCK_MS, RECOVER_MAX_PER_PASS, CLAIM_BATCH,
   WEB_DRAIN_LIMIT, WEB_DRAIN_BUDGET_MS,
@@ -35,6 +36,9 @@ export interface DrainResult {
   recovered: number
   snapshotsDue: number
   snapshotsEnqueued: number
+  /** 다시 훑을 때가 된 관심 채널 수 */
+  sweepsDue: number
+  sweepsEnqueued: number
   claimed: number
   succeeded: number
   failed: number
@@ -71,6 +75,8 @@ export async function drainQueue(options: DrainOptions = {}): Promise<DrainResul
     recovered: 0,
     snapshotsDue: 0,
     snapshotsEnqueued: 0,
+    sweepsDue: 0,
+    sweepsEnqueued: 0,
     claimed: 0,
     succeeded: 0,
     failed: 0,
@@ -91,6 +97,13 @@ export async function drainQueue(options: DrainOptions = {}): Promise<DrainResul
   const snapshots = await runDueSnapshots(SNAPSHOT_DUE_MAX_PER_TICK, ws)
   result.snapshotsDue = snapshots.due
   result.snapshotsEnqueued = snapshots.enqueued
+
+  // 2-2) 지켜보는 계정을 주기적으로 다시 훑는다.
+  //      이게 없으면 "지켜보기"는 등록 시점 한 번이 전부라, 그 뒤 올라온 게시물을
+  //      시스템이 영원히 모른다 — 모니터링이라는 이름만 남는다.
+  const sweeps = await runDueChannelSweeps(SWEEP_DUE_MAX_PER_TICK, ws)
+  result.sweepsDue = sweeps.due
+  result.sweepsEnqueued = sweeps.enqueued
 
   // 3) 예산 안에서 작게 여러 번 집어 실행한다.
   const prefix = options.workerPrefix ?? (ws ? 'web' : 'srv')

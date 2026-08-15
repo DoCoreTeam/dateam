@@ -54,7 +54,10 @@ export default function HomeView({ data }: { data: CiHomeData }) {
       <LinkIntakeBox
         workspaceId={data.workspaceId}
         onDone={() => router.refresh()}
-        placeholder="무엇을 도와드릴까요. 링크를 붙여넣거나 예: 요리 주제에서 이번 주 떡상 보여줘"
+        // 이 칸은 링크만 받는다. 자연어는 어시스턴트가 받는다 —
+        // 예전 문구가 "예: 요리 주제에서 이번 주 떡상 보여줘"라고 시켜놓고
+        // 정작 문장을 넣으면 공백으로 쪼개 단어마다 오류를 뱉었다.
+        placeholder="게시물이나 채널 주소를 붙여넣으세요 — 그 계정의 게시물을 함께 모읍니다"
       />
 
       <section style={{ margin: 'var(--space-6) 0' }}>
@@ -118,11 +121,16 @@ export default function HomeView({ data }: { data: CiHomeData }) {
           padding: 'var(--space-3)',
         }}>
           <span className="ci-status ci-status-neutral">
-            {data.refresh.status === 'running' ? '진행 중'
-              : data.refresh.status === 'failed' ? '일부 실패' : '대기'}
+            {data.refresh.status === 'running' ? '수집 중'
+              : data.refresh.status === 'failed' ? '일부 실패' : '최신'}
           </span>
-          <span className="ci-basis ci-num">진행률 {data.refresh.progress}%</span>
-          <span className="ci-basis ci-num">신규 {data.refresh.newCount}</span>
+          {/* 진행률은 처리할 것이 남았을 때만 뜻이 있다. 다 끝난 상태에서 "100%"는
+              읽는 사람에게 아무 정보도 주지 않으면서 자리만 차지한다. */}
+          {data.refresh.status === 'running' && (
+            <span className="ci-basis ci-num">진행률 {data.refresh.progress}%</span>
+          )}
+          {/* 숫자에 기간을 붙인다 — "신규 263"은 무엇의 263인지 알 수 없었다 */}
+          <span className="ci-basis ci-num">최근 24시간 신규 {data.refresh.newCount}건</span>
           {data.refresh.failedCount > 0 && (
             <Link href="/ci/inbox?tab=failed" className="ci-status ci-status-danger">
               실패 {data.refresh.failedCount}건 보기

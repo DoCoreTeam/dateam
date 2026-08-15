@@ -10,8 +10,24 @@ const NEW_LAYOUT = `
 <meta property="og:image" content="https://yt3.googleusercontent.com/abc=s900">
 {"metadataParts":[{"text":{"content":"구독자 207만명"},"accessibilityLabel":"구독자 207만명"},
 {"text":{"content":"동영상 543개"}}]}
-{"channelId":"UCabcdefghijklmnopqrstuv"}
+{"channelMetadataRenderer":{"title":"추성훈 ChooSungHoon","externalId":"UCabcdefghijklmnopqrstuv"}}
 {"vanityChannelUrl":"https://www.youtube.com/@Choosunghoon_ajossi"}
+`
+
+/**
+ * 실제 채널 페이지에는 **주인 말고도** 채널 ID가 잔뜩 들어 있다 —
+ * 추천 채널, 피처드 영상의 소유자, 커뮤니티 글 작성자.
+ * 그것들은 전부 `"channelId"`로 실리고, 주인만 `externalId`·canonical에 실린다.
+ *
+ * 실측 사고: `@jawed` 페이지에서 첫 번째 channelId를 집어 남의 채널(UCPszu…)을 저장했다.
+ * 그 결과 같은 채널이 서로 다른 UC 두 개로 쪼개져 형제 콘텐츠가 흩어졌다.
+ */
+const WITH_RECOMMENDED = `
+<link rel="canonical" href="https://www.youtube.com/channel/UC4QobU6STFB0P71PMvOGN5A">
+<meta property="og:title" content="jawed">
+{"channelId":"UCPszuZ3hR89D4NqFd7g3mDQ","title":{"simpleText":"추천 채널 A"}}
+{"channelId":"UCXuqSBlHAE6Xw-yeJA0Tunw","title":{"simpleText":"추천 채널 B"}}
+{"channelMetadataRenderer":{"externalId":"UC4QobU6STFB0P71PMvOGN5A"}}
 `
 
 const OLD_LAYOUT = `
@@ -39,6 +55,26 @@ test('이름·소개문·아바타·핸들을 함께 뽑는다', () => {
   assert.ok(meta.avatarUrl?.startsWith('https://yt3.'))
   assert.equal(meta.handle, '@Choosunghoon_ajossi')
   assert.equal(meta.externalId, 'UCabcdefghijklmnopqrstuv')
+})
+
+test('채널 ID는 주인 것만 읽는다 — 추천 채널 ID를 주워 담지 않는다', () => {
+  const meta = parseChannelPage(WITH_RECOMMENDED)
+  assert.equal(meta.externalId, 'UC4QobU6STFB0P71PMvOGN5A')
+  assert.notEqual(meta.externalId, 'UCPszuZ3hR89D4NqFd7g3mDQ')
+})
+
+test('주인 ID를 확정할 근거가 없으면 null — 아무 UC나 집지 않는다', () => {
+  // 추천 채널만 있고 canonical·externalId가 없는 페이지.
+  // 틀린 ID를 저장하면 채널이 영구히 쪼개지므로, 없는 게 낫다.
+  const onlyOthers = `{"channelId":"UCPszuZ3hR89D4NqFd7g3mDQ"}<meta property="og:title" content="x">`
+  assert.equal(parseChannelPage(onlyOthers).externalId, null)
+})
+
+test('canonical 링크만 있어도 주인 ID를 읽는다 (속성 순서 무관)', () => {
+  const a = `<link rel="canonical" href="https://www.youtube.com/channel/UC4QobU6STFB0P71PMvOGN5A">`
+  const b = `<link href="https://www.youtube.com/channel/UC4QobU6STFB0P71PMvOGN5A" rel="canonical">`
+  assert.equal(parseChannelPage(a).externalId, 'UC4QobU6STFB0P71PMvOGN5A')
+  assert.equal(parseChannelPage(b).externalId, 'UC4QobU6STFB0P71PMvOGN5A')
 })
 
 test('아무것도 못 읽으면 전부 null — 지어내지 않는다', () => {

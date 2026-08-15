@@ -100,8 +100,26 @@ function unescapeJsonString(raw: string): string {
  * 항목마다 독립적으로 실패할 수 있고, 실패는 null이다 — 하나 못 읽었다고 전부 버리지 않는다.
  */
 export function parseChannelPage(html: string): ChannelMeta {
-  const idMatch = /"channelId":"(UC[\w-]{20,})"/.exec(html)
-    ?? /channel\/(UC[\w-]{20,})/.exec(html)
+  // 채널 ID는 **이 페이지의 주인**만 읽는다.
+  //
+  // 예전에는 HTML 전체에서 첫 번째 `"channelId":"UC…"`를 취했다. 그런데 채널 페이지에는
+  // 추천 채널 · 피처드 영상 소유자 · 커뮤니티 게시물 작성자의 channelId가 함께 실려 있어
+  // **남의 채널 ID를 주인 것으로 저장**했다.
+  // (실측 사고: `@jawed` → UCPszuZ3hR89D4NqFd7g3mDQ 저장. 진짜는 UC4QobU6STFB0P71PMvOGN5A.
+  //  LuisFonsiVEVO·OneRepublicVEVO도 같은 채널이 서로 다른 UC 두 개로 쪼개져 있었다.)
+  //
+  // 그래서 **주인임이 문법적으로 보장되는 자리**만 순서대로 본다:
+  //   1) channelMetadataRenderer.externalId — 페이지 메타데이터 블록(주인 확정)
+  //   2) <link rel="canonical" href=".../channel/UC…"> — 이 문서의 정본 주소(주인 확정)
+  //   3) <meta itemprop="identifier" content="UC…"> — 구조화 데이터(주인 확정)
+  //   4) og:url의 /channel/UC… — 공유용 주소(주인 확정)
+  // 전부 실패하면 **null이다.** 아무 UC나 주워 담지 않는다 — 틀린 ID는 없는 것보다 나쁘다.
+  const idMatch = /"channelMetadataRenderer":\{[^}]*?"externalId":"(UC[\w-]{20,})"/.exec(html)
+    ?? /"externalId":"(UC[\w-]{20,})"/.exec(html)
+    ?? /<link[^>]+rel="canonical"[^>]+href="[^"]*\/channel\/(UC[\w-]{20,})"/i.exec(html)
+    ?? /<link[^>]+href="[^"]*\/channel\/(UC[\w-]{20,})"[^>]+rel="canonical"/i.exec(html)
+    ?? /<meta[^>]+itemprop="identifier"[^>]+content="(UC[\w-]{20,})"/i.exec(html)
+    ?? /<meta[^>]+property="og:url"[^>]+content="[^"]*\/channel\/(UC[\w-]{20,})"/i.exec(html)
 
   const handleMatch = /"channelHandle":\{"runs":\[\{"text":"(@[^"]+)"/.exec(html)
     ?? /"canonicalBaseUrl":"\/(@[^"]+)"/.exec(html)

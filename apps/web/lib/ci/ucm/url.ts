@@ -144,6 +144,31 @@ export interface ParsedChannelRef {
   url: string
 }
 
+/**
+ * 링크 하나를 받아 **무엇인지 시스템이 판별한다** — 사용자가 종류를 알려주지 않는다.
+ *
+ * 왜 필요한가: 예전에는 수집 입구가 `parseContentUrl`만 써서 채널·프로필 링크를
+ * "지원하지 않는 주소"로 거부했다. 채널 등록은 다른 화면의 다른 API로만 가능해
+ * **입구가 둘이고 서로를 몰랐다.** 사용자가 기대한 것은 "링크를 넣으면 알아서"다.
+ *
+ * 판별 순서에 이유가 있다: **게시물이 먼저**다.
+ * `youtube.com/@handle/video/xxx` 같은 주소는 채널 판별에도 걸릴 수 있는데,
+ * 게시물을 채널로 오인하면 그 채널 전체를 훑어 엉뚱한 비용이 든다. 반대는 손해가 없다.
+ */
+export type ParsedCiLink =
+  | { kind: 'content'; content: ParsedUrl }
+  | { kind: 'channel'; channel: ParsedChannelRef }
+
+export function parseAnyCiUrl(input: string): ParsedCiLink | null {
+  const content = parseContentUrl(input)
+  if (content) return { kind: 'content', content }
+
+  const channel = parseChannelUrl(input)
+  if (channel) return { kind: 'channel', channel }
+
+  return null
+}
+
 export function parseChannelUrl(input: string): ParsedChannelRef | null {
   const trimmed = input.trim()
   if (!trimmed) return null

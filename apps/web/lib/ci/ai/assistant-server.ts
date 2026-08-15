@@ -11,8 +11,37 @@ import { getMinePerformance } from '../queries/performance.ts'
 import { addChannel } from '../queries/channels.ts'
 import { parseContentUrl } from '../ucm/url.ts'
 import { enqueueJob } from '../jobs/queue.ts'
+import { buildIntentPrompt, parseIntentResponse } from './intent-llm.ts'
+import { callGemini } from './gemini.ts'
+import { getGeminiMeta } from './meta.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+/**
+ * 규칙이 놓친 문장을 LLM에게 물어 커맨드로 옮긴다.
+ *
+ * 실패는 전부 null이다 — 키가 없든, 응답이 깨졌든, 카탈로그 밖 이름이든.
+ * 어시스턴트가 못 알아듣는 것은 불편하지만, **엉뚱한 커맨드를 실행하는 것은 사고**다.
+ * temperature 0: 같은 질문에 같은 답이 나와야 사용자가 학습할 수 있다.
+ */
+async function resolveIntentWithLlm(message: string): Promise<Intent | null> {
+  if (!message.trim()) return null
+  try {
+    const { geminiApiKey, geminiModel } = await getGeminiMeta()
+    if (!geminiApiKey) return null
+
+    const r = await callGemini({
+      apiKey: geminiApiKey,
+      model: geminiModel,
+      prompt: buildIntentPrompt(message),
+      temperature: 0,
+    })
+    if (!r.ok) return null
+    return parseIntentResponse(r.text)
+  } catch {
+    return null
+  }
+}
 
 export interface AssistantLine {
   label: string
@@ -52,7 +81,11 @@ export async function runAssistant(input: {
   message: string
   route: string
 }): Promise<AssistantReply> {
-  const intent: Intent | null = parseIntent(input.message)
+  // 규칙이 먼저다 — 흔한 말은 LLM 없이 즉시, 공짜로, 같은 답이 나온다.
+  // 규칙이 놓쳤을 때만 LLM에 물어본다. 예전에는 여기서 바로 포기해서
+  // 목록에 없는 표현이면 뭘 물어도 "모르겠다"였다.
+  let intent: Intent | null = parseIntent(input.message)
+  if (!intent) intent = await resolveIntentWithLlm(input.message)
   if (!intent) return notUnderstood()
 
   const spec = getCommand(intent.command)

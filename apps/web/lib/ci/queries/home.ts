@@ -60,35 +60,70 @@ export async function getLoopCounts(workspaceId: string): Promise<CiLoopMinimap>
   return { review, newOutliers, producing, ready, tracking }
 }
 
-/** 자동 업데이트 상태 — 잡 큐를 그대로 읽는다(침묵 실패 금지). */
+/** "최근"의 정의. 이 창 밖의 일은 지금 화면과 무관하다. */
+const RECENT_WINDOW_MS = 24 * 60 * 60 * 1000
+
+/**
+ * 자동 업데이트 상태.
+ *
+ * 예전 판은 세 군데서 거짓말을 했다:
+ *   - `newCount`가 **성공한 잡 수**였다. 잡은 콘텐츠 1건당 6개(수집→…→파생)라
+ *     콘텐츠 21건이 "신규 263"으로 보였다. 사용자는 이걸 "새로 들어온 게시물"로 읽는다.
+ *   - `progress`가 **역대 잡 200건 중 끝난 비율**이었다. 이력이 쌓이면 항상 100%라
+ *     진행 중이든 아니든 같은 숫자였다.
+ *   - `failedCount`가 **역대 죽은 잡**이라 한 번 실패하면 영원히 빨간 배지가 남았다.
+ *
+ * 지금은 각 숫자가 사용자가 읽는 그대로다:
+ *   신규 = 최근 24시간에 **처음 들어온 콘텐츠 수**
+ *   진행률 = 지금 처리 중인 일이 있을 때만 의미가 있다(없으면 100)
+ *   실패 = 최근 24시간 안에 죽은 잡(눌러서 볼 수 있는 것)
+ */
 export async function getRefreshState(workspaceId: string): Promise<CiRefreshState> {
   const fallback: CiRefreshState = {
     status: 'idle', progress: 100, newCount: 0, failedCount: 0, lastRunAt: null,
   }
   if (!workspaceId) return fallback
 
+  const sinceIso = new Date(Date.now() - RECENT_WINDOW_MS).toISOString()
+
   try {
     const adminClient = createAdminClient() as any
-    const { data } = await adminClient
-      .from('ci_jobs')
-      .select('status, updated_at')
-      .eq('workspace_id', workspaceId)
-      .order('updated_at', { ascending: false })
-      .limit(200)
 
-    const rows: { status: string; updated_at: string }[] = data ?? []
-    if (rows.length === 0) return fallback
+    const [pendingRes, recentRes, newRes, lastRes] = await Promise.all([
+      // 지금 남은 일 — 진행 중 여부의 유일한 근거
+      adminClient.from('ci_jobs')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', workspaceId).in('status', ['queued', 'running', 'failed']),
+      // 최근 창 안에서 끝난 일 — 진행률의 분모를 이 창으로 한정한다
+      adminClient.from('ci_jobs')
+        .select('status')
+        .eq('workspace_id', workspaceId).gte('updated_at', sinceIso).limit(500),
+      // 신규 = 콘텐츠. 잡이 아니다.
+      adminClient.from('ci_contents')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', workspaceId).is('deleted_at', null).gte('first_seen_at', sinceIso),
+      adminClient.from('ci_jobs')
+        .select('updated_at')
+        .eq('workspace_id', workspaceId).eq('status', 'succeeded')
+        .order('updated_at', { ascending: false }).limit(1).maybeSingle(),
+    ])
 
-    const running = rows.filter((r) => r.status === 'queued' || r.status === 'running').length
-    const dead = rows.filter((r) => r.status === 'dead').length
-    const done = rows.length - running
+    const pending = pendingRes.count ?? 0
+    const recent: { status: string }[] = recentRes.data ?? []
+    const recentDone = recent.filter((r) => r.status === 'succeeded' || r.status === 'dead').length
+    const recentDead = recent.filter((r) => r.status === 'dead').length
+
+    // 진행률은 "이번 물결"에 대해서만 말이 된다.
+    // 남은 일이 없으면 100 — 끝난 것을 87%라고 하지 않는다.
+    const total = pending + recentDone
+    const progress = pending === 0 ? 100 : total === 0 ? 0 : Math.round((recentDone / total) * 100)
 
     return {
-      status: running > 0 ? 'running' : dead > 0 ? 'failed' : 'idle',
-      progress: rows.length === 0 ? 100 : Math.round((done / rows.length) * 100),
-      newCount: rows.filter((r) => r.status === 'succeeded').length,
-      failedCount: dead,
-      lastRunAt: rows[0]?.updated_at ?? null,
+      status: pending > 0 ? 'running' : recentDead > 0 ? 'failed' : 'idle',
+      progress,
+      newCount: newRes.count ?? 0,
+      failedCount: recentDead,
+      lastRunAt: lastRes.data?.updated_at ?? null,
     }
   } catch {
     return fallback

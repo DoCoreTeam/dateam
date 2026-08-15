@@ -87,6 +87,11 @@ export function shouldRunBackstop(input: {
   dueJobs: number
   dueSnapshots: number
   stalledJobs: number
+  /** 다시 훑을 때가 된 관심 채널. 사람이 없는 동안에도 이게 밀리면 모니터링이 멈춘다. */
+  dueSweeps?: number
 }): boolean {
-  return input.dueJobs > 0 || input.dueSnapshots > 0 || input.stalledJobs > 0
+  return input.dueJobs > 0
+    || input.dueSnapshots > 0
+    || input.stalledJobs > 0
+    || (input.dueSweeps ?? 0) > 0
 }

@@ -127,7 +127,48 @@ async function handleIngest(job: ClaimedJob): Promise<HandlerResult> {
     firstSeenAt: ucm.provenance.fetchedAt,
   })
 
+  // 게시물 링크 하나로 그 **계정 전체**를 훑는다(설계 불변식 I-1).
+  //
+  // 왜 여기인가: 링크만 봐서는 채널을 모른다. 수집이 끝나야 채널 id가 생긴다.
+  // 왜 하는가: "잘 됨"은 그 계정의 평소 대비로만 정의된다. 형제가 없으면 비교군이 비어
+  // 배수가 영원히 안 나오고(최소 8건), 배수가 없으면 "왜 잘됐나"도 발화하지 않는다(1.5배 기준).
+  // 즉 이 한 줄이 없으면 링크 1건은 **아무것도 알려주지 못한다.**
+  if (channelId && job.payload?.sweepChannel) {
+    await maybeSweepChannel(content.workspace_id, channelId)
+  }
+
   return { ok: true }
+}
+
+/** 계정 훑기를 걸어도 되는 간격. 링크를 여러 개 붙여넣어도 같은 채널을 반복해 훑지 않는다. */
+export const CHANNEL_SWEEP_COOLDOWN_MS = 6 * 60 * 60 * 1000
+
+/**
+ * 이 채널을 아직 안 훑었거나 오래됐으면 훑기를 건다.
+ *
+ * 쿨다운이 필요한 이유: 같은 채널 게시물 10개를 한꺼번에 붙여넣으면 훑기 잡이 10개 걸린다.
+ * 멱등키가 버전으로 갈리므로 dedup도 안 된다 — 외부 API 쿼터를 10배로 태운다.
+ */
+async function maybeSweepChannel(workspaceId: string, channelId: string): Promise<void> {
+  const adminClient = createAdminClient() as any
+  const { data: ch } = await adminClient
+    .from('ci_channels')
+    .select('id, last_sweep_at')
+    .eq('id', channelId)
+    .maybeSingle()
+  if (!ch) return
+
+  const lastAt = ch.last_sweep_at ? Date.parse(ch.last_sweep_at) : 0
+  if (Number.isFinite(lastAt) && Date.now() - lastAt < CHANNEL_SWEEP_COOLDOWN_MS) return
+
+  // 훑기 직전에 시각을 찍는다 — 같은 배치의 형제 콘텐츠들이 동시에 여기 도달해도 한 번만 건다.
+  await adminClient.from('ci_channels')
+    .update({ last_sweep_at: new Date().toISOString() })
+    .eq('id', channelId)
+
+  await enqueueJob({
+    workspaceId, stage: 'ingest', targetType: 'channel', targetId: channelId, version: Date.now(),
+  })
 }
 
 /** 워크스페이스의 스냅샷 정밀도. 못 읽으면 가장 싼 쪽으로 — 비용은 조용히 늘어나면 안 된다. */
@@ -298,8 +339,9 @@ export async function runJob(job: ClaimedJob): Promise<HandlerResult> {
   const result = await handler(job)
 
   // 성공하면 다음 단계를 건다. 체인이 끊기면 파이프라인이 조용히 멈춘다.
+  // 대상 종류를 함께 넘긴다 — 채널 잡에 콘텐츠 전용 단계를 걸면 반드시 죽는다(policy.nextStage).
   if (result.ok && job.target_id) {
-    const next = nextStage(job.stage)
+    const next = nextStage(job.stage, job.target_type)
     if (next) {
       await enqueueJob({
         workspaceId: job.workspace_id,

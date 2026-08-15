@@ -502,7 +502,9 @@ export async function enrichChannelMetaBacklog(workspaceId: string): Promise<Sta
 }
 
 /** 이 배수를 넘긴 것만 분석한다 — 평범한 걸 분석해봐야 배울 게 없고 AI 비용만 든다. */
-export const CREATIVE_MIN_INDEX = 1.5
+// 판정 기준은 순수 분석 모듈이 갖는다. 기존 호출부를 위해 여기서 다시 내보낸다.
+export { CREATIVE_MIN_INDEX } from '../analysis/outlier.ts'
+import { CREATIVE_MIN_INDEX } from '../analysis/outlier.ts'
 /** 한 번에 분석할 상한. 15건 일괄 수집 뒤 한꺼번에 터지는 비용을 막는다. */
 export const CREATIVE_MAX_PER_PASS = 10
 

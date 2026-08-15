@@ -43,7 +43,21 @@ export function nextStatusAfterFailure(attempt: number, maxAttempts: number): Ci
 /** 파이프라인 단계 순서 — 한 단계가 끝나면 다음 단계 잡을 건다. */
 const CHAIN: CiJobStage[] = ['ingest', 'normalize', 'enrich', 'classify', 'verify', 'project']
 
-export function nextStage(current: CiJobStage): CiJobStage | null {
+/**
+ * 다음 단계. `targetType`을 함께 봐야 한다.
+ *
+ * 왜: normalize 이후 단계는 전부 **콘텐츠 한 건**을 다루는 처리다(분류·검증·파생값).
+ * 채널 대상 잡(일괄 수집)에 같은 체인을 걸면 분류 단계가 채널 id로 `ci_contents`를 찾다
+ * 실패하고, 3회 재시도 뒤 죽는다 — 훑을 때마다 실패 잡이 쌓인다.
+ * (실측: dead classify/channel 2건 · NOT_FOUND "콘텐츠를 찾을 수 없습니다")
+ *
+ * 채널 스윕은 그 자체로 끝이다. 스윕이 만든 **콘텐츠들이 각자 자기 체인**을 탄다.
+ */
+export function nextStage(
+  current: CiJobStage,
+  targetType: string = 'content',
+): CiJobStage | null {
+  if (targetType === 'channel') return null
   const i = CHAIN.indexOf(current)
   return i >= 0 && i < CHAIN.length - 1 ? CHAIN[i + 1] : null
 }

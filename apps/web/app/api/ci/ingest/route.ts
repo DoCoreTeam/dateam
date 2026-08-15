@@ -2,8 +2,9 @@ import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/server'
 import { ok, fail, failUnexpected } from '@/lib/ci/api'
 import { requireCiMemberApi, workspaceIdFromRequest } from '@/lib/ci/auth/requireCiMember'
-import { parseContentUrl } from '@/lib/ci/ucm/url'
+import { parseAnyCiUrl } from '@/lib/ci/ucm/url'
 import { enqueueJob } from '@/lib/ci/jobs/queue'
+import { addChannel } from '@/lib/ci/queries/channels'
 import type { CiIngestAccepted, CiIngestRejected } from '@/lib/ci/contracts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -18,10 +19,12 @@ const Body = z.object({
 })
 
 /**
- * 링크 투입 — 전역 추가·모바일 공유 시트·어시스턴트가 모두 쓰는 단일 입구.
+ * 링크 투입 — 콘텐츠든 프로필이든 채널이든 **하나의 입구**가 받는다.
  *
  * 동기 처리하지 않는다. 행을 만들고 잡을 걸고 즉시 반환한다.
  * (설계서 §11.1이 지목한 1차 실패의 직접 원인이 요청 경로 동기 처리였다)
+ *
+ * 링크 종류는 `parseAnyCiUrl`(SSOT)이 판별한다. 사용자가 알려주지 않는다.
  */
 export async function POST(req: Request) {
   try {
@@ -40,23 +43,52 @@ export async function POST(req: Request) {
     const rejected: CiIngestRejected[] = []
 
     for (const raw of urls) {
-      const parsedUrl = parseContentUrl(raw)
-      if (!parsedUrl) {
+      const link = parseAnyCiUrl(raw)
+      if (!link) {
         rejected.push({
           url: raw,
           code: raw.trim().startsWith('http') ? 'UNSUPPORTED_PLATFORM' : 'INVALID_URL',
-          message: '유튜브, 틱톡, 인스타, 페북, X, 스레드 링크만 받을 수 있습니다',
+          message: '유튜브, 틱톡, 인스타, 페북, X, 스레드의 게시물 또는 채널 주소를 넣어 주세요',
         })
         continue
       }
 
-      // 이미 있는 콘텐츠면 새로 만들지 않고 재수집만 건다
+      // ── 채널·프로필 링크 → 그 계정을 등록하고 게시물을 훑는다 ──
+      if (link.kind === 'channel') {
+        const r = await addChannel({
+          workspaceId: session.workspaceId,
+          urlOrHandle: link.channel.url,
+          topicId: topicId ?? null,
+          // 링크를 직접 넣은 것은 "이 계정을 보겠다"는 뜻이다. 지켜보기를 켠다.
+          // 플랜 한도에 걸리면 addChannel이 거부하고, 그 이유를 화면이 그대로 말한다.
+          monitor: true,
+        })
+        if (!r.ok) {
+          rejected.push({
+            url: raw,
+            code: r.code === 'PLAN_LIMIT_EXCEEDED' ? 'UNSUPPORTED_PLATFORM' : 'INVALID_URL',
+            message: r.message,
+          })
+          continue
+        }
+        accepted.push({
+          url: raw, kind: 'channel', channelId: r.item.id, contentId: null,
+          jobId: '', status: 'queued',
+        })
+        continue
+      }
+
+      // ── 게시물 링크 → 콘텐츠를 담고, **그 계정 전체 훑기를 동반한다** ──
+      // 왜 동반하는가: "잘 됨"은 그 계정의 평소 대비로만 정의된다. 형제 게시물이 없으면
+      // 비교군이 비어 배수가 영원히 나오지 않고, 배수가 없으면 "왜 잘됐나"도 발화하지 않는다.
+      // (실측 사고: 콘텐츠 21건 중 12건만 배수 산출, 그나마 전부 채널 1곳)
+      const url = link.content
       const { data: existing } = await adminClient
         .from('ci_contents')
         .select('id')
         .eq('workspace_id', session.workspaceId)
-        .eq('platform', parsedUrl.platform)
-        .eq('external_id', parsedUrl.externalId)
+        .eq('platform', url.platform)
+        .eq('external_id', url.externalId)
         .is('deleted_at', null)
         .maybeSingle()
 
@@ -67,10 +99,10 @@ export async function POST(req: Request) {
           .from('ci_contents')
           .insert({
             workspace_id: session.workspaceId,
-            platform: parsedUrl.platform,
-            external_id: parsedUrl.externalId,
-            canonical_url: parsedUrl.canonicalUrl,
-            format: parsedUrl.formatHint ?? 'long',
+            platform: url.platform,
+            external_id: url.externalId,
+            canonical_url: url.canonicalUrl,
+            format: url.formatHint ?? 'long',
             source,
             topic_id: topicId ?? null,
             ingest_status: 'queued',
@@ -93,11 +125,16 @@ export async function POST(req: Request) {
         stage: 'ingest',
         targetType: 'content',
         targetId: contentId!,
-        payload: { url: parsedUrl.canonicalUrl },
+        // 수집이 끝나 채널을 알아낸 뒤 그 계정을 훑으라는 표식.
+        // 여기서 채널을 미리 알 수 없으므로(링크만으로는 모른다) 수집 단계가 이어받는다.
+        payload: { url: url.canonicalUrl, sweepChannel: true },
         version,
       })
 
-      accepted.push({ url: raw, contentId: contentId!, jobId: jobId ?? '', status: 'queued' })
+      accepted.push({
+        url: raw, kind: 'content', contentId: contentId!, channelId: null,
+        jobId: jobId ?? '', status: 'queued',
+      })
     }
 
     return ok({ accepted, rejected })

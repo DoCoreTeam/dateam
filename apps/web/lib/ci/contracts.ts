@@ -173,7 +173,12 @@ export interface CiChannelListItem {
 
 export interface CiIngestAccepted {
   url: string
-  contentId: string
+  /** 링크가 무엇이었는지 — 시스템이 판별한 결과(사용자가 고르지 않는다) */
+  kind: 'content' | 'channel'
+  /** 게시물 링크였을 때만 */
+  contentId: string | null
+  /** 채널·프로필 링크였을 때만 */
+  channelId: string | null
   jobId: string
   status: 'queued'
 }
