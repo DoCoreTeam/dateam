@@ -493,17 +493,23 @@ function PartnerTierManagerModal({ tiers, onClose, onChanged }: { tiers: Partner
           {tiers.length === 0 && <div style={{ fontSize: 12, color: 'var(--gpu-faint)' }}>등록된 등급이 없습니다</div>}
           {tiers.map((t) => (
             <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, padding: '6px 8px', borderRadius: 7, background: 'var(--surface-bg)', border: 'var(--hairline) solid var(--surface-bg)' }}>
-              <input defaultValue={t.name} onBlur={(e) => e.target.value.trim() && e.target.value !== t.name && patch(t.id, { name: e.target.value.trim() })}
-                style={{ flex: 1, height: 28, fontSize: 12, border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 6, padding: '0 6px' }} />
-              <input defaultValue={String(t.discount_rate)} onBlur={(e) => Number(e.target.value) !== t.discount_rate && patch(t.id, { discount_rate: Number(e.target.value) })} inputMode="decimal"
-                style={{ width: 56, height: 28, fontSize: 12, border: 'var(--hairline) solid var(--gpu-border)', borderRadius: 6, padding: '0 6px' }} />
+              {/* 보더·배경·radius는 적지 않는다 — input-field가 토큰으로 준다.
+                  예전엔 여기서 직접 그려 어두운 테마에서 입력칸만 하얗게 떴다. */}
+              <input className="input-field" defaultValue={t.name} aria-label={`${t.name} 등급명`}
+                onBlur={(e) => e.target.value.trim() && e.target.value !== t.name && patch(t.id, { name: e.target.value.trim() })}
+                style={{ flex: 1, height: 28, fontSize: 12, padding: '0 6px' }} />
+              <input className="input-field" defaultValue={String(t.discount_rate)} aria-label={`${t.name} 할인율(%)`} inputMode="decimal"
+                onBlur={(e) => Number(e.target.value) !== t.discount_rate && patch(t.id, { discount_rate: Number(e.target.value) })}
+                style={{ width: 56, height: 28, fontSize: 12, padding: '0 6px', flexShrink: 0 }} />
               <span style={{ color: 'var(--gpu-muted)' }}>%↓</span>
               <button onClick={() => del(t.id, t.name)} className="gpu-btn" style={{ padding: 4, color: 'var(--gpu-red)' }}><Trash2 size={13} /></button>
             </div>
           ))}
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', borderTop: 'var(--hairline) solid var(--gpu-border)', paddingTop: 10 }}>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="등급명 (예: 골드)" style={{ flex: 1, height: 30, fontSize: 12.5, border: '1.5px solid var(--gpu-border)', borderRadius: 6, padding: '0 8px' }} />
-            <input value={rate} onChange={(e) => setRate(e.target.value)} placeholder="15" inputMode="decimal" style={{ width: 56, height: 30, fontSize: 12.5, border: '1.5px solid var(--gpu-border)', borderRadius: 6, padding: '0 6px' }} />
+            <input className="input-field" value={name} onChange={(e) => setName(e.target.value)} placeholder="등급명 (예: 골드)" aria-label="새 등급명"
+              style={{ flex: 1, height: 30, fontSize: 12.5, padding: '0 8px' }} />
+            <input className="input-field" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="15" inputMode="decimal" aria-label="새 등급 할인율(%)"
+              style={{ width: 56, height: 30, fontSize: 12.5, padding: '0 6px', flexShrink: 0 }} />
             <span style={{ fontSize: 12, color: 'var(--gpu-muted)' }}>%↓</span>
             <button onClick={add} disabled={busy} className="gpu-btn gpu-btn-primary" style={{ gap: 4 }}>추가</button>
           </div>
@@ -802,15 +808,18 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
           <Tag size={13} style={{ color: 'var(--gpu-muted)', flexShrink: 0 }} />
+          {/* 이름표가 없으면 스크린리더에 "무엇을 고르는 칸"인지 안 읽힌다.
+              보더·배경·radius는 input-field가 토큰으로 준다 — 여기서 다시 그리지 않는다. */}
           {partnerTiers.length > 0 && (
             <select
+              className="input-field"
+              aria-label="파트너 할인 등급"
               value={selectedTierId ?? ''}
               onChange={(e) => setSelectedTierId(e.target.value || null)}
               style={{
-                fontSize: '12px', padding: '0.3rem 0.5rem', borderRadius: 'var(--radius)',
-                border: 'var(--hairline) solid var(--gpu-border)', background: 'var(--gpu-surface)',
+                width: 'auto', fontSize: '12px', padding: '0.3rem 0.5rem',
                 color: selectedTierId ? 'var(--gpu-accent)' : 'var(--gpu-muted)',
-                cursor: 'pointer', outline: 'none', fontWeight: selectedTierId ? 600 : 400,
+                cursor: 'pointer', fontWeight: selectedTierId ? 600 : 400,
               }}
             >
               <option value="">파트너 할인 없음</option>
