@@ -115,9 +115,14 @@ export default function MobileShell({
 
   const closeMobile = useCallback(() => setMobileOpen(false), [])
 
-  // 라우트 변경 시 닫기
+  // 라우트 변경 시 닫기 + 본문 스크롤 맨 위로
   useEffect(() => {
     closeMobile()
+    // 스크롤 컨테이너가 window가 아니라 이 main이라, Next의 기본 스크롤 처리가 닿지 않는다.
+    // 그대로 두면 상세 → 편집처럼 긴 화면끼리 이동했을 때 **이전 위치가 남아 제목·뒤로가기가
+    // 화면 밖에 있는 채로** 열린다(실측: 영업기회 상세 → 편집).
+    // pathname에만 반응하므로 같은 화면의 쿼리 변경(저장 후 토스트 등)은 위치를 유지한다.
+    mainRef.current?.scrollTo({ top: 0 })
   }, [pathname, closeMobile])
 
   // body 스크롤 잠금

@@ -59,3 +59,26 @@ test('DOCK_MIGRATION_PENDING 항목은 실제로 아직 위반 상태여야 한�
   })
   assert.deepEqual(stale, [], `해소된 예외가 남아 있다. 목록에서 제거할 것: ${stale.join(', ')}`)
 })
+
+test('--dock-safe-area는 선언만 하고 끝나지 않는다 — 본문이 실제로 그 여백을 쓴다', () => {
+  // 왜: 이 토큰은 "본문이 Dock을 피해야 할 때 쓰는 여백"으로 만들어졌는데 **아무도 쓰지 않았다**.
+  //   그래서 목록 마지막 줄의 버튼이 Dock 아래에 깔려 스크롤을 끝까지 내려도 닿지 않았다
+  //   (실측 /ci/monitoring). 선언만 있는 토큰은 "해결했다"는 착각만 남긴다.
+  const css = read('app/globals.css')
+  assert.ok(/--dock-safe-area:/.test(css), '--dock-safe-area 선언이 사라졌다')
+  const consumers = css.split('\n').filter((l) => /var\(--dock-safe-area\)/.test(l))
+  assert.ok(consumers.length > 0,
+    '--dock-safe-area를 쓰는 규칙이 없다. 본문 스크롤 컨테이너의 padding-bottom에 적용할 것')
+})
+
+test('셸의 스크롤 컨테이너는 라우트가 바뀌면 맨 위로 되돌린다', () => {
+  // 왜: 스크롤 컨테이너가 window가 아니라 셸의 main이라 Next의 기본 스크롤 처리가 닿지 않는다.
+  //   그대로 두면 상세 → 편집처럼 긴 화면끼리 이동했을 때 이전 위치가 남아
+  //   **제목·뒤로가기가 화면 밖에 있는 채로** 열린다(실측: 영업기회 상세 → 편집).
+  const shell = read('components/ui/MobileShell.tsx')
+  assert.match(shell, /mainRef\.current\?\.scrollTo\(\{ *top: *0/,
+    'MobileShell이 라우트 변경 시 main 스크롤을 맨 위로 되돌리지 않는다')
+  // 같은 화면의 쿼리 변경(저장 후 토스트 등)까지 초기화하면 안 된다 → deps는 pathname이어야 한다
+  assert.match(shell, /\}, \[pathname, closeMobile\]\)/,
+    '스크롤 초기화가 pathname 외의 값에 반응하면 같은 화면의 쿼리 변경에서도 위치가 튄다')
+})

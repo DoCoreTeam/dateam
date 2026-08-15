@@ -9748,6 +9748,14 @@ label.intake-tool-btn {
 /* 본문이 Dock을 피해야 할 때 쓰는 여백(손계산 금지) */
 .app-shell { --dock-safe-area: 5.5rem; }
 
+/* 본문 끝이 Dock에 가리지 않게 한다.
+ * 이 토큰은 예전부터 선언돼 있었지만 **아무도 쓰지 않았다** — 그래서 목록 마지막 줄의
+ * '지켜보기' 같은 버튼이 Dock에 덮여 아예 눌리지 않았다(실측 /ci/monitoring).
+ * 스크롤 컨테이너는 셸의 main이므로 여백도 거기에 준다(화면마다 손으로 넣지 않는다).
+ * 일간 fullpane은 main이 스크롤하지 않고 내부 shell이 높이를 점유하므로 제외한다. */
+main.page-inner { padding-bottom: calc(var(--dock-safe-area) + var(--space-6)); }
+main.page-inner.daily-fullpane-main { padding-bottom: var(--space-6); }
+
 /* 셸 좌측하단 워크스페이스 표시 — CI처럼 워크스페이스 안에 있을 때만 */
 .shell-workspace { display: flex; flex-direction: column; gap: var(--space-2); }
 .shell-workspace-exit {
