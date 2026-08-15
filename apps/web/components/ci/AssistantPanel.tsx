@@ -5,6 +5,7 @@
 // 되돌리기 어려운 작업(guarded)은 실행하지 않고 어디서 하면 되는지만 알려준다.
 
 import { useState } from 'react'
+import { isEnterKey } from '@/lib/ui/ime'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Sparkles, X, CornerDownLeft } from 'lucide-react'
@@ -163,7 +164,7 @@ export default function AssistantPanel({ workspaceId }: { workspaceId: string })
           <input className="input-field" id="ci-assistant-input"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); send() } }}
+            onKeyDown={(e) => { if (isEnterKey(e)) { e.preventDefault(); send() } }}
             placeholder="무엇이든 물어보세요"
             disabled={busy}
             style={{ flex: 1 }}

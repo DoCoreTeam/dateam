@@ -30,15 +30,14 @@ const SYSTEM_PREFIXES = [
 
 /**
  * 이미 규칙 없이 쓰이던 클래스(GPU 화면) — **늘리지 말 것.**
- * 지금 화면에서 스타일이 빠진 채 렌더되고 있다는 뜻이다. Phase 4(GPU 정리)에서 없앤다.
+ * 지금 화면에서 스타일이 빠진 채 렌더되고 있다는 뜻이다.
+ *
+ * v0.7.469에서 비웠다. 다섯 중 넷(gpu-unified-cur·gpu-admin-tab·gpu-gate-cell-spec·
+ * gpu-input)은 **쓰는 곳이 이미 없었다** — 예외만 남아 썩고 있었다.
+ * 남은 gpu-group-header는 규칙이 없어 아무 일도 안 하면서 "내가 꾸민다"고 말만 하고 있었고
+ * (실제 모양은 같은 태그의 인라인 style이 만든다), 세 곳에서 지웠다.
  */
-const PENDING = new Set([
-  'gpu-unified-cur',
-  'gpu-admin-tab',
-  'gpu-gate-cell-spec',
-  'gpu-input',
-  'gpu-group-header',
-])
+const PENDING = new Set<string>([])
 
 /** 유틸/외부 규약 — globals.css가 아닌 곳에서 오거나 상태 표시용 */
 const IGNORE = new Set(['is-active', 'is-clickable', 'sr-only'])

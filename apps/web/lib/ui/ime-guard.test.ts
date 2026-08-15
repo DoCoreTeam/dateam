@@ -11,8 +11,10 @@ import { isEnterKey, isImeComposing } from './ime.ts'
 
 const ROOTS = ['app', 'components']
 
-// 다른 세션이 리팩터 중이라 이번 범위에서 제외한 파일. 정리되면 지운다.
-const PENDING: string[] = ['components/ci/AssistantPanel.tsx']
+// 예외 없음. v0.7.469에서 마지막 하나(components/ci/AssistantPanel.tsx)를 이관하며 비웠다 —
+// "다른 세션이 리팩터 중"이라 미뤄 뒀는데, 정작 그 화면이 이 가드가 만들어진 바로 그 버그를
+// 그대로 갖고 있었다(조합 중 Enter → 마지막 글자 중복 입력).
+const PENDING: string[] = []
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

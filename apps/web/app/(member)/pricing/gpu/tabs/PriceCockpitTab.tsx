@@ -714,7 +714,6 @@ export default function PriceCockpitTab({
                   const tierRow = (
                     <tr
                       key={`tier-${tg.tier}`}
-                      className="gpu-group-header"
                       onClick={() => toggleGroup(tKey)}
                       style={{ cursor: 'pointer', background: 'var(--surface-bg)' }}
                     >
@@ -744,7 +743,6 @@ export default function PriceCockpitTab({
                     const modelRow = (
                       <tr
                         key={`model-${mKey}`}
-                        className="gpu-group-header"
                         onClick={() => toggleGroup(mKey)}
                         style={{ cursor: 'pointer', background: 'var(--surface-bg)' }}
                       >

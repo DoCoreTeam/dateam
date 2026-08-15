@@ -1285,7 +1285,7 @@ export default function PriceTableTab({ onGoToIntake, onGoToReview, initialSearc
                 const tierCollapsed = isCollapsed(tKey)
                 const tcfg = TIER_CONFIG[tg.tier as 1 | 2 | 3]
                 const tierHeader = (
-                  <tr key={`tier-${tg.tier}`} className="gpu-group-header" onClick={() => toggleTier(tg.tier)} style={{ cursor: 'pointer', background: 'var(--surface-bg)' }}>
+                  <tr key={`tier-${tg.tier}`} onClick={() => toggleTier(tg.tier)} style={{ cursor: 'pointer', background: 'var(--surface-bg)' }}>
                     <td colSpan={colCount}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <ChevronRight size={16} style={{ transform: tierCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform 0.15s', color: 'var(--gpu-muted)' }} />
