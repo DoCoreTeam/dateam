@@ -19,7 +19,7 @@ export default async function EditAccountPage({ params }: PageProps) {
 
   return (
     <div>
-      <PageHeader title="거래처 편집" description={data.name} />
+      <PageHeader back={{ href: `/accounts/${id}`, label: '거래처 상세' }} title="거래처 편집" description={data.name} />
       <AccountForm account={data} />
     </div>
   )

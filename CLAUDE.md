@@ -296,7 +296,9 @@ git commit -m "claude v0.4.6: 거래처 목록 검색 필터 추가"  # 위치 �
 > **왜**: 이 정책이 "카드 → `NbCard`"라고 못 박아 놨는데 **`NbCard` 실사용은 0건**이고, 실제 그 일은 `.card` 클래스(196건)가 하고 있었다.
 > 정책이 가리키는 목록과 현실이 달라서, 만드는 사람은 매번 **새로 만드는 쪽**을 택했다.
 > 그 결과 v0.7.438 실측 기준 **로딩 부품 6종·탭 5종·표 4방식·빈상태 2벌·페이지헤더 2벌·정렬아이콘 2벌**이 동시에 살아 있었다.
-> (v0.7.445에서 빈상태·오류·페이지헤더·정렬아이콘·탭은 1벌로 통일했다. **표 4방식과 로딩 5종은 아직 남아 있다.**)
+> (v0.7.445에서 빈상태·오류·페이지헤더·정렬아이콘·탭은 1벌로 통일했다.
+> **v0.7.477에서 표를 1벌로 모았다** — `NbTable`·`BulkActionBar`를 삭제하고 `ListSurface`가 전체선택까지 흡수했다.
+> 페이지 헤더도 raw `<h1>` 0건으로 완전 통일했다. **로딩은 아직 혼재 5곳이 남아 있다.**)
 > (전수 근거: `docs/2026-08-12-v0.7.438-ui-system-audit/01-AUDIT.md`)
 
 **무엇을 만들지 정해지면, 코드를 쓰기 전에 반드시 이 순서를 따른다.**
@@ -346,7 +348,7 @@ newAX의 UI는 **두 축**이다. 둘 다 정상이며, **섞어서 재구현하
 | 카드 | **`className="card"`** (클래스) | 196 | ~~`NbCard`~~ (v0.7.445 삭제 — 0건이었다), 자작 박스(476건) |
 | 입력·레이블 | **`input-field` / `label`** (클래스, §2-1) | 247 / 185 | ~~`NbField`/`NbInput`/`NbSelect`/`NbTextarea`~~ (v0.7.445 삭제 — 0건이었다) |
 | 뱃지 | `NbBadge` | 10 | 인라인 pill 자작 |
-| 표 | **`ListSurface`**(표/카드/조밀 한 벌, 내부에서 `.table-card` 사용) | 신설 | 화면에서 `<table>` 직접 작성(가드가 차단), 새 표 컴포넌트 |
+| 표 | **`ListSurface`**(표/카드/조밀 한 벌 + 전체선택, 내부에서 `.table-card` 사용) | 28 | 화면에서 `<table>` 직접 작성(가드가 차단), 새 표 컴포넌트. ~~`NbTable`·`BulkActionBar`~~ (v0.7.477 삭제 — 이 둘은 화면 2개만을 위한 병렬 소계통이었다) |
 | 목록 도구 | **`ListToolbar`**(검색·필터·정렬·보기·선택) + **`ListPager`** | 신설 | 화면마다 필터바·페이지네이션 자작 |
 | 목록 상태 | **`useListQuery`** (URL이 진실) | 신설 | 로컬 `useState`로 검색·정렬 보관 |
 | 빈 상태 | `components/ui/EmptyState` | 19 (v0.7.445 1벌 통합) | "없습니다" 문구 직접 렌더(188건) |
@@ -377,6 +379,26 @@ newAX의 UI는 **두 축**이다. 둘 다 정상이며, **섞어서 재구현하
 - (c) 제목에 `className="tape-title"` (`globals.css:315`)
 - (d) 카드 그림자 = inline `boxShadow: '0 20px 60px rgba(0,0,0,0.2)'` — **`.card` 클래스 단독 사용 금지**(`.card`의 `var(--shadow-md)`는 모달용 광원형 그림자와 다름)
 - (e) backdrop = `rgba(15,23,42,0.5)` (기존 모달 통일값, `rgba(0,0,0,..)` 금지)
+
+### 2-3-1. 상호작용 표준 (필수 — 모양이 같아도 **누르는 방식**이 다르면 다른 제품이다)
+
+> **왜**: 지금까지 표준은 전부 "모양"만 봤다(색·부품·클래스). 그런데 사용자가 실제로 겪은 불일치는 행동이었다.
+> (실제 지적: "행을 누르면 동작하는 게 왜 없지?" `/ci/inbox` · "상세를 눌러야 상세가 보이는 것도 이상한데?" `/ci/monitoring` ·
+> "뒤로가기 버튼도 없고" `/ci/channels/[id]`. 실측 결과 상세 라우트 11곳이 **자작 ArrowLeft 5 · 우측 '목록으로' 1 · 아예 없음 5**로 갈려 있었다.)
+
+**(1) 목록 행은 살아 있어야 한다.** 상세가 있는 목록에서 행 클릭은 상세를 연다.
+- 라우트로 이동 → `ListSurface`의 `rowHref={(row) => '/경로'}` (제목 칸이 진짜 `<a>`가 되어 새 탭·우클릭·키보드가 전부 된다)
+- 그 자리에서 열기(시트·드로어) → `onRowClick`
+- **행이 열리면 '상세' 버튼을 따로 두지 않는다.** 두면 "행은 죽고 버튼만 사는" 상태로 되돌아간다.
+- 행 안의 액션 칸(재시도·지켜보기·삭제)은 `onClick={(e) => e.stopPropagation()}`로 감싼다. 안 그러면 버튼을 눌렀는데 상세가 열린다.
+
+**(2) 상세 화면에는 상위로 돌아갈 길이 항상 같은 자리에 있다.** `PageHeader`(또는 `WorkPageShell`)의 `back={{ href, label }}`.
+- 제목 **왼쪽 위**가 유일한 자리다. 우측 상단 버튼·본문 안 링크로 만들지 않는다.
+- 편집 화면도 상세로 돌아갈 `back`을 갖는다.
+- 되돌아갈 목록이 없는 화면(공개 공유 링크 등)만 예외이며, 가드의 `NO_PARENT_LIST`에 **이유와 함께** 적는다.
+
+**(3) 가드**: `lib/ui/interaction-standard.test.ts` — ①상세의 back 누락 ②자작 뒤로가기(`ArrowLeft` 직접 렌더) ③행이 죽은 목록 ④액션 칸 전파 미차단.
+전부 **위반 0에서 잠갔다**. 규칙은 부품이 이미 지원하는 것만 요구한다 — 화면은 상속만 하면 된다.
 
 ### 2-3. 페이지 헤더 표준 (필수 — 페이지마다 헤더 인라인 자작 시 갈라짐)
 > **왜**: 공용 *페이지헤더* 컴포넌트가 없어 각 페이지가 헤더를 인라인 작성 → 토큰을 빠뜨리면 브라우저 기본 h1로 밋밋. (실제 사고: v0.7.52 부서업무 리스트 h1이 `style={{margin:0}}`만 있어 일일/주간과 달라 보임)
@@ -477,9 +499,11 @@ newAX의 UI는 **두 축**이다. 둘 다 정상이며, **섞어서 재구현하
 
 ### 4. 강제 검증
 - 커밋/PR 전 `pnpm design:check`(=`scripts/check-design-tokens.mjs`) 통과 필수. CI(`.github/workflows/design-guard.yml`)가 PR에서 자동 차단.
-- **현재 design:check가 잡는 것**(v0.7.441 확장): ① hex 색 **즉시 차단** ② swr 모듈레벨 `mutate` **즉시 차단** ③ `rgba()` ④ 미정의 토큰(`var(--text-sm)` 등) ⑤ **raw `<input/select/textarea>`의 `input-field` 누락** ⑥ **z-index 하드코딩** ⑦ **이름색/3자리 hex(`'white'`·`#fff`)** ⑧ **자작 버튼(`<button style={{`)·자작 카드 박스** ⑨ **자작 로딩·빈상태 문구** ⑩ **`globals.css`의 10px 미만 폰트** ⑪ **`globals.css`에 화면 전용 CSS 신규 추가** — ③~⑪은 ratchet(baseline 동결, **신규 유입만 차단**).
+- **현재 design:check가 잡는 것**(v0.7.441 확장): ① hex 색 **즉시 차단** ② swr 모듈레벨 `mutate` **즉시 차단** ③ `rgba()` ④ 미정의 토큰(`var(--text-sm)` 등) ⑤ **raw `<input/select/textarea>`의 `input-field` 누락** ⑥ **z-index 하드코딩** ⑦ **이름색/3자리 hex** ⑧ **자작 버튼(`<button style={{`)·자작 카드 박스** ⑨ **자작 로딩·빈상태 문구** ⑩ **`globals.css`의 10px 미만 폰트** ⑪ **`globals.css`에 화면 전용 CSS 신규 추가** — ③~⑪은 ratchet.
+- **ratchet은 v0.7.477부터 "개수" 기준이다.** 예전엔 `파일::유형` **키의 존재 여부**만 봐서, 이미 baseline에 있는 파일에는 같은 유형을 몇 개든 더 넣어도 통과했다(실측: `LoginForm.tsx`에 자작 버튼을 새로 넣었는데 초록). 기존 화면을 고칠 때가 실제로 코드가 늘어나는 자리라, **그 구멍이 곧 "표준이 안 지켜지는" 이유**였다. 지금은 `{키: 개수}`를 기록하고 **지금보다 늘면 차단**한다. 줄이면 baseline이 **자동으로 하향**되어(되돌리기 차단) 잔여는 단조 감소한다 — 줄어든 날엔 `scripts/.design-guard-baseline.json`도 함께 커밋한다.
+- **상태 문구·이름색 판정은 `scripts/ui-phrases.mjs`(SSOT)** 를 화면 스캐너와 공유한다. 빈/로딩 문구는 **JSX 텍스트 노드일 때만** 자작으로 센다 — 줄 단위로 문구만 찾으면 `<EmptyState title="…없어요">` 같은 정상 사용까지 세어 숫자가 부풀고 완료 판정이 불가능해진다(실제로 4곳 → 22곳 오보고 사고).
 - **스캔 루트**: `apps/web/app` + `apps/web/components`(.tsx) + **`apps/web/app/globals.css`**. 예전 판의 "globals.css를 안 본다"는 v0.7.441에서 해소됐다.
-- **기존 UI 정적 가드**: `lib/ui/integration-consistency.test.ts`(연동 카드 일관성 §2-5) · `lib/ui/shell-contract.test.ts`(셸 계약·PublicSurface 면제) · `lib/ui/dock-exclusive.test.ts`(우측하단 Dock 독점) · `lib/ui/duplicate-component.test.ts`(같은 이름 2곳 export 차단) · `lib/work/mobile-layout-guard.test.ts`(업무 화면 모바일). 스캔 공용 모듈은 `lib/ui/component-scan.ts`. 새 가드는 **이것들 옆에 추가**하고 `design:check`를 확장한다. 병렬 시스템을 새로 만들지 않는다.
+- **기존 UI 정적 가드**: `lib/ui/integration-consistency.test.ts`(연동 카드 일관성 §2-5) · `lib/ui/shell-contract.test.ts`(셸 계약·PublicSurface 면제) · `lib/ui/dock-exclusive.test.ts`(우측하단 Dock 독점) · `lib/ui/duplicate-component.test.ts`(같은 이름 2곳 export 차단) · `lib/ui/list-standard.test.ts`(목록 표준 + raw `<table>` — app·components 모두 스캔) · **`lib/ui/screen-standard.test.ts`(v0.7.477 신설: raw `<h1>` 금지 §2-3 · `role="tab"` 자작 금지 · 대화상자 ESC 닫기 §2-2)** · `lib/work/mobile-layout-guard.test.ts`(업무 화면 모바일). 스캔 공용 모듈은 `lib/ui/component-scan.ts`. 새 가드는 **이것들 옆에 추가**하고 `design:check`를 확장한다. 병렬 시스템을 새로 만들지 않는다.
 - **⚠️ 새 `*.test.ts`는 `apps/web/package.json`의 `test` 목록(수기, 현재 175개)에 반드시 등재**한다. 등재 안 하면 `pnpm test`가 그 가드를 돌리지 않는다.
 - **가드는 만든 뒤 일부러 깨서 실패를 확인**한다. (v0.7.438에서 1차 가드가 부분문자열 매칭이라 위반을 통과시킨 전례)
 
@@ -506,7 +530,7 @@ newAX의 UI는 **두 축**이다. 둘 다 정상이며, **섞어서 재구현하
 - TypeScript
 
 ## 버전
-v0.7.476
+v0.7.478
 
 ## 버전 업데이트 체크리스트 (필수 — 누락 시 UI 버전 불일치 발생)
 

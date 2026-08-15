@@ -24,7 +24,7 @@ export default async function EditDealPage({ params }: PageProps) {
 
   return (
     <div>
-      <PageHeader title="영업기회 편집" description={deal.title} />
+      <PageHeader back={{ href: `/deals/${id}`, label: '영업기회 상세' }} title="영업기회 편집" description={deal.title} />
       <DealForm deal={deal} accounts={accounts ?? []} contacts={contacts ?? []} />
     </div>
   )

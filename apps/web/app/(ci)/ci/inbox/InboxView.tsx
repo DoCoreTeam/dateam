@@ -187,9 +187,11 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
       ),
     },
     {
-      key: 'actions', header: '작업',
+      key: 'actions', header: '작업', noLabel: true, align: 'right',
       cell: (item) => (
-        <span style={{ display: 'inline-flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
+        // 행 클릭(상세 열기)과 겹치지 않게 이 칸의 클릭은 여기서 멈춘다
+        <span onClick={(e) => e.stopPropagation()}
+          style={{ display: 'inline-flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
           {(item.ingestStatus === 'failed' || item.ingestStatus === 'partial') && (
             <button
               type="button"
@@ -250,6 +252,7 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
           columns={columns}
           query={query}
           rowKey={(item) => item.id}
+          onRowClick={(item) => setOpenId(item.id)}
           empty={EMPTY[tab]}
         />
       )}

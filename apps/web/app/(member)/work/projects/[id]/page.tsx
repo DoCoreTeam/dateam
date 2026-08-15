@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Building2, Handshake, Users, Target, ListChecks } from 'lucide-react'
+import { Building2, Handshake, Users, Target, ListChecks } from 'lucide-react'
 import WorkPageShell from '@/components/ui/WorkPageShell'
 import EmptyState from '@/components/ui/EmptyState'
 import { createClient, getRequestUser } from '@/lib/supabase/server'
@@ -46,10 +46,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   const badge = statusBadge(project.status)
 
   return (
-    <WorkPageShell title={project.name} description={project.description || '프로젝트 목표·관계·업무를 한 곳에서 확인합니다.'}>
-      <Link href="/work/projects" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, color: 'var(--brand)', fontWeight: 600, textDecoration: 'none', marginBottom: 'var(--space-3)' }}>
-        <ArrowLeft size={16} /> 프로젝트 목록
-      </Link>
+    <WorkPageShell back={{ href: '/work/projects', label: '프로젝트 목록' }} title={project.name} description={project.description || '프로젝트 목표·관계·업무를 한 곳에서 확인합니다.'}>
 
       <section className="responsive-grid-cols-4" style={{ display: 'grid', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
         <Summary label="상태" value={badge.label} />

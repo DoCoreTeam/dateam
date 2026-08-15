@@ -124,8 +124,6 @@ export default function ProjectsPage() {
       cell: (p) => (
         <span className="project-card-actions" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}
           onClick={(e) => e.stopPropagation()}>
-          <Link href={`/work/projects/${p.id}`} className="btn-ghost"
-            style={{ textDecoration: 'none', padding: 'var(--space-1) var(--space-3)', fontSize: 'var(--fs-xs)' }}>상세</Link>
           <button type="button" className="btn-ghost" onClick={() => setActivityFor(p)} aria-label={`${p.name} 이력`} title="저장 이력"
             style={{ padding: 'var(--space-1) var(--space-2)' }}><History size={14} /></button>
           <button type="button" className="btn-ghost" onClick={() => setEditing({ mode: 'edit', project: p })} aria-label={`${p.name} 수정`}
@@ -180,6 +178,7 @@ export default function ProjectsPage() {
               columns={columns}
               query={query}
               rowKey={(p) => p.id}
+              rowHref={(p) => `/work/projects/${p.id}`}
               onChange={set}
               loading={isLoading}
               error={error ? { message: `목록을 불러오지 못했습니다 — ${error.message ?? ''}`, onRetry: () => { void mutate() } } : null}

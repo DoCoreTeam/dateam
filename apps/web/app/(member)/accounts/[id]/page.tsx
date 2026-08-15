@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { ArrowLeft, Globe, Phone, MapPin, Users, TrendingUp } from 'lucide-react'
+import { Globe, Phone, MapPin, Users, TrendingUp } from 'lucide-react'
 import type { Account, Contact, Deal } from '@/types/database'
 import PageHeader from '@/components/ui/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
@@ -51,11 +51,9 @@ export default async function AccountDetailPage({ params }: PageProps) {
 
   return (
     <div>
-      {/* 목록 복귀 → 제목은 PageHeader(§2-3). 뱃지 줄은 제목에 종속되므로 below로 붙인다 */}
-      <Link href="/accounts" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: 'var(--brand)', fontSize: 'var(--fs-base)', fontWeight: 500, textDecoration: 'none', marginBottom: '0.75rem' }}>
-        <ArrowLeft size={14} /> 거래처 목록
-      </Link>
+      {/* 목록 복귀·제목 모두 PageHeader가 그린다(§2-3) — 뒤로가기를 화면이 자작하지 않는다 */}
       <PageHeader
+        back={{ href: '/accounts', label: '거래처 목록' }}
         title={account.name}
         actions={
           <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>

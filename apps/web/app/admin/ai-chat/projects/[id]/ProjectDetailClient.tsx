@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Upload, Trash2, FileText, MessageSquarePlus, MessageSquare } from 'lucide-react'
+import { Upload, Trash2, FileText, MessageSquarePlus, MessageSquare } from 'lucide-react'
 import type { AiChatProject, AiChatProviderId } from '@/types/database'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { PROVIDER_LABELS } from '@/lib/ai-chat/labels'
@@ -59,16 +59,11 @@ export default function ProjectDetailClient({ project, initialKnowledge, convers
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
       {/* 헤더 */}
-      <div>
-        <Link
-          href="/ai-chat/projects"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', textDecoration: 'none', marginBottom: 'var(--space-2)' }}
-        >
-          <ArrowLeft size={14} />
-          프로젝트 목록
-        </Link>
-        <PageHeader title={project.name} description={`수정 ${formatKstDateTimeShort(project.updated_at)}`} />
-      </div>
+      <PageHeader
+        back={{ href: '/ai-chat/projects', label: '프로젝트 목록' }}
+        title={project.name}
+        description={`수정 ${formatKstDateTimeShort(project.updated_at)}`}
+      />
 
       <InstructionsEditor project={project} />
 

@@ -9,7 +9,6 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import type { ApiResponse, CiChannelListItem } from '@/lib/ci/contracts'
 import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
 import ErrorState from '@/components/ui/ErrorState'
@@ -87,12 +86,9 @@ export default function ChannelListView({ workspaceId, items, mode }: ChannelLis
   const columns = useMemo<ColumnDef<CiChannelListItem>[]>(() => {
     const base: ColumnDef<CiChannelListItem>[] = [
       {
+        // 제목 칸의 링크는 ListSurface가 rowHref로 그린다 — 화면이 또 감싸면 링크가 겹친다
         key: 'name', header: '채널', primary: true, sortable: true,
-        cell: (ch) => (
-          <Link href={`/ci/channels/${ch.id}`} style={{ fontWeight: 600, color: 'var(--text)' }}>
-            {ch.displayName}
-          </Link>
-        ),
+        cell: (ch) => ch.displayName,
       },
       { key: 'platform', header: '플랫폼', sortable: true, cell: (ch) => CI_PLATFORM_LABEL[ch.platform] },
       {
@@ -115,19 +111,21 @@ export default function ChannelListView({ workspaceId, items, mode }: ChannelLis
       })
     }
 
-    base.push({
-      key: 'action', header: '작업',
-      cell: (ch) => (
-        <span style={{ display: 'inline-flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-          {mode === 'tracked' && (
+    // '상세' 버튼은 두지 않는다 — 행 전체가 상세로 열린다(rowHref).
+    // 버튼을 남기면 "행은 죽어 있고 버튼만 되는" 상태로 되돌아간다.
+    if (mode === 'tracked') {
+      base.push({
+        key: 'action', header: '작업', noLabel: true, align: 'right',
+        cell: (ch) => (
+          // 행 클릭(상세 이동)과 겹치지 않게 이 칸의 클릭은 여기서 멈춘다
+          <span onClick={(e) => e.stopPropagation()}>
             <button type="button" className="btn-ghost" onClick={() => toggleMonitor(ch)}>
               {ch.isMonitored ? '중지' : '지켜보기'}
             </button>
-          )}
-          <Link href={`/ci/channels/${ch.id}`} className="btn-ghost">상세</Link>
-        </span>
-      ),
-    })
+          </span>
+        ),
+      })
+    }
 
     return base
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -195,6 +193,7 @@ export default function ChannelListView({ workspaceId, items, mode }: ChannelLis
         columns={columns}
         query={query}
         rowKey={(ch) => ch.id}
+        rowHref={(ch) => `/ci/channels/${ch.id}`}
         onChange={set}
         empty={items.length === 0
           ? {

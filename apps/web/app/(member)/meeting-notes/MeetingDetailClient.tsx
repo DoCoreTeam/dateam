@@ -2,8 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
-import { ArrowLeft, Pencil, Trash2, CalendarClock, Users } from 'lucide-react'
+import { Pencil, Trash2, CalendarClock, Users } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import NbButton from '@/components/ui/nb/NbButton'
 import MeetingEditor from './MeetingEditor'
@@ -109,12 +108,10 @@ export default function MeetingDetailClient({ note, people }: { note: MeetingNot
   return (
     <div>
       <PageHeader
+        back={{ href: '/meeting-notes', label: '회의노트 목록' }}
         title={note.title || '(제목 없음)'}
         actions={
           <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-            <Link href="/meeting-notes" className="btn-ghost" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', textDecoration: 'none', padding: 'var(--space-2) var(--space-4)', minHeight: 44 }}>
-              <ArrowLeft size={15} /> 목록
-            </Link>
             <NbButton onClick={() => setEditing(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
               <Pencil size={15} /> 편집
             </NbButton>

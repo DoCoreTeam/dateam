@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { TrendingUp, ArrowLeft, Calendar, Target } from 'lucide-react'
+import { TrendingUp, Calendar, Target } from 'lucide-react'
 import type { Deal, Account, Contact, DealActivity } from '@/types/database'
 import PageHeader from '@/components/ui/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
@@ -55,11 +55,9 @@ export default async function DealDetailPage({ params }: PageProps) {
   return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
-        <Link href="/deals" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: 'var(--brand)', fontSize: 'var(--fs-base)', fontWeight: 500, textDecoration: 'none', marginBottom: '0.75rem' }}>
-          <ArrowLeft size={14} /> 영업기회 목록
-        </Link>
         {/* 제목은 PageHeader가 유일 렌더러(§2-3). 단계 뱃지·거래처는 제목에 종속되므로 below로 붙인다 */}
         <PageHeader
+          back={{ href: '/deals', label: '영업기회 목록' }}
           title={deal.title}
           actions={
             <Link href={`/deals/${id}/edit`} className="btn-primary" style={{ textDecoration: 'none', padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)', minHeight: '44px', display: 'flex', alignItems: 'center' }}>

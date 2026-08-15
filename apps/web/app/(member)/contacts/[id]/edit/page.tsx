@@ -23,7 +23,7 @@ export default async function EditContactPage({ params }: PageProps) {
 
   return (
     <div>
-      <PageHeader title="담당자 편집" description={contact.name} />
+      <PageHeader back={{ href: `/contacts/${id}`, label: '담당자 상세' }} title="담당자 편집" description={contact.name} />
       <ContactForm contact={contact} accounts={accounts ?? []} />
     </div>
   )

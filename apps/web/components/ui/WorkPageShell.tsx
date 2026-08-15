@@ -10,6 +10,8 @@ import PageHeader from './PageHeader'
 // fullBleed: 일일 일간뷰처럼 children이 자체 높이/스크롤 체인을 점유해야 할 때 true → 루트에 daily-shell 추가.
 interface WorkPageShellProps {
   title: string
+  /** 상세 화면의 상위 복귀 — PageHeader로 그대로 넘긴다(화면이 뒤로가기를 자작하지 않게) */
+  back?: { href: string; label: string }
   description?: string
   actions?: ReactNode
   subTabs?: ReactNode
@@ -19,14 +21,14 @@ interface WorkPageShellProps {
 }
 
 export default function WorkPageShell({
-  title, description, actions, subTabs, children, rootClassName,
+  title, back, description, actions, subTabs, children, rootClassName,
 }: WorkPageShellProps) {
   return (
     <div className={`page-inner work-page-shell${rootClassName ? ` ${rootClassName}` : ''}`}>
       <div className="work-tabbar-wrap">
         <WorkTabBar />
       </div>
-      <PageHeader title={title} description={description} actions={actions} className="work-page-header" />
+      <PageHeader title={title} back={back} description={description} actions={actions} className="work-page-header" />
       {subTabs && <div className="work-subtabs-row">{subTabs}</div>}
       {children}
     </div>

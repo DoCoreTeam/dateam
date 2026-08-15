@@ -1,6 +1,5 @@
 // app/(ci)/ci/briefs/[id]/page.tsx — P02 기획안 편집기 + P03 편집안
 import { redirect, notFound } from 'next/navigation'
-import Link from 'next/link'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import PageHeader from '@/components/ui/PageHeader'
@@ -37,7 +36,7 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
       <PageHeader
         title={brief.ci_ideas?.title ?? '기획안'}
         description={`버전 ${brief.version} · ${brief.generated_by === 'ai' ? 'AI 초안' : '직접 작성'}`}
-        actions={<Link href="/ci/pipeline" className="btn-ghost">파이프라인으로</Link>}
+        back={{ href: '/ci/pipeline', label: '파이프라인' }}
       />
       <BriefEditor
         workspaceId={workspace.id}

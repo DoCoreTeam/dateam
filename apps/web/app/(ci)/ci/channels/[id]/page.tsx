@@ -1,6 +1,5 @@
 // app/(ci)/ci/channels/[id]/page.tsx — R03 채널 상세
 import { redirect, notFound } from 'next/navigation'
-import Link from 'next/link'
 import { createClient, getRequestUser } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { getChannel } from '@/lib/ci/queries/channels'
@@ -33,11 +32,10 @@ export default async function ChannelDetailPage({
         title={channel.displayName}
         description={`${CI_PLATFORM_LABEL[channel.platform]} · ${channel.ownership === 'owned' ? '내 채널' : '관심 채널'}`}
         below={<StageNav stages={RESEARCH_STAGES} />}
-        actions={
-          <Link href={channel.ownership === 'owned' ? '/ci/my-channels' : '/ci/monitoring'} className="btn-ghost">
-            목록으로
-          </Link>
-        }
+        back={{
+          href: channel.ownership === 'owned' ? '/ci/my-channels' : '/ci/monitoring',
+          label: channel.ownership === 'owned' ? '내 채널' : '모니터링',
+        }}
       />
       <ChannelDetailView workspaceId={workspace.id} channel={channel} contents={contents} />
     </>
