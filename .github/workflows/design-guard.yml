@@ -37,3 +37,11 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
           SUPABASE_SERVICE_ROLE_KEY: placeholder-service-key
         run: pnpm --filter web exec next build
+      # E2E는 여기서 돌리지 않는다 — 로그인 세션(apps/web/e2e/auth-state.json)이 필요한데
+      # 그건 사람이 직접 로그인해 만드는 로컬 산출물이고 저장소에 없다(자격증명을 CI에 두지 않는다).
+      # 대신 **읽기 전용 8개 스펙**을 로컬에서 돌리는 것을 릴리스 전 절차로 둔다:
+      #   pnpm exec playwright test apps/web/e2e/{work-ia,work-overview,work-shell-uniformity,
+      #     work-dashboard,patchnotes-entry,daily-dept-separation,gpu-unified-table,
+      #     gpu-curation-config-ladder}.spec.ts
+      # 나머지 26개는 실데이터를 변경할 수 있어 의도적으로 제외한다.
+      # (v0.7.475: 이 8개가 사흘간 18건 실패 중이었는데 아무도 몰랐다 — 접근성 회귀였다)
