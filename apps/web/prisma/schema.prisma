@@ -1,0 +1,652 @@
+// ============================================================
+// newAX 호스트 앱 Prisma 스키마 — CRM 모듈 전용
+//
+// dacrm T0-02 (구현명세서 2.1, crm_schema_v0.1.0.prisma 병합)
+//
+// ⚠️ 이 스키마는 crm_ 테이블 24개만 관리한다.
+//    호스트의 나머지 205개 테이블은 Prisma가 **모르는 상태로 둔다**(의도).
+//    기존 테이블은 Supabase JS 클라이언트 + supabase/migrations/NNN_*.sql 이 계속 관리한다.
+//
+// ⚠️ 절대 실행 금지: `prisma migrate dev` · `prisma db push` · `prisma migrate reset`
+//    운영 DB에는 Prisma가 모르는 테이블 205개가 있다. 위 명령들은 그것을 드리프트로 판단해
+//    **리셋(전체 삭제)을 제안하거나 수행한다.** 실행하는 순간 운영 데이터가 사라진다.
+//
+// ✅ 허용된 경로 (이것만 쓴다)
+//    1) 검증        : prisma validate
+//    2) 타입 생성    : prisma generate
+//    3) DDL 생성     : prisma migrate diff --from-empty --to-schema-datamodel <schema> --script
+//                      → supabase/migrations/NNN_crm_*.sql 로 저장
+//    4) 적용        : PGPASSWORD='...' ./scripts/migrate.sh NNN_crm_*.sql   (사용자 승인 후)
+//
+//    스키마를 고칠 때는 --from-schema-datamodel(이전) --to-schema-datamodel(현재) 로
+//    증분 DDL만 뽑아 새 번호 마이그레이션으로 추가한다. 기존 마이그레이션 파일은 수정하지 않는다.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+
+enum CrmMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+  READONLY
+}
+
+enum CrmLifecycleStage {
+  LEAD
+  PROSPECT
+  CUSTOMER
+  PARTNER
+  INACTIVE
+}
+
+enum CrmDealStatus {
+  OPEN
+  WON
+  LOST
+}
+
+enum CrmStageKind {
+  OPEN
+  WON
+  LOST
+}
+
+enum CrmActivityType {
+  EMAIL
+  MEETING
+  CALL
+  NOTE
+  SYSTEM
+}
+
+enum CrmDataSource {
+  HUMAN
+  AI
+  SYNC
+  IMPORT
+}
+
+enum CrmTaskStatus {
+  TODO
+  DOING
+  DONE
+  CANCELED
+}
+
+enum CrmRecordingStatus {
+  UPLOADED
+  TRANSCRIBING
+  TRANSCRIBED
+  SUMMARIZED
+  FAILED
+}
+
+enum CrmAiRunKind {
+  MEETING_EXTRACT
+  QUICK_CREATE
+  ENRICH
+  FIELD_FILL
+  ASSISTANT
+}
+
+enum CrmAiRunStatus {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+}
+
+enum CrmSuggestionAxis {
+  WHO
+  WHAT
+  WHERE
+  RISK
+  NEXT
+}
+
+enum CrmSuggestionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  AUTO_APPLIED
+}
+
+enum CrmDealContactRole {
+  CHAMPION
+  DECISION_MAKER
+  PRACTITIONER
+  BLOCKER
+  OTHER
+}
+
+enum CrmSettingScope {
+  GLOBAL
+  WORKSPACE
+}
+
+enum CrmActorType {
+  HUMAN
+  AI
+  SYSTEM
+}
+
+enum CrmDupStatus {
+  PENDING
+  MERGED
+  DISMISSED
+}
+
+// ------------------------------------------------------------
+// 그룹 A 테넌시와 조직
+// ------------------------------------------------------------
+
+model CrmWorkspace {
+  id              String    @id @default(cuid())
+  name            String
+  defaultCurrency String    @default("KRW") @db.Char(3)
+  defaultLanguage String    @default("ko")
+  timezone        String    @default("Asia/Seoul")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  members     CrmMember[]
+  companies   CrmCompany[]
+  people      CrmPerson[]
+  pipelines   CrmPipeline[]
+  deals       CrmDeal[]
+  activities  CrmActivity[]
+  tasks       CrmTask[]
+  meetings    CrmMeeting[]
+  aiRuns      CrmAiRun[]
+  suggestions CrmAiSuggestion[]
+  budgets     CrmAiBudget[]
+
+  @@map("crm_workspace")
+}
+
+// 호스트 사용자와의 매핑. 인증은 호스트 세션, CRM 은 역할만 관리
+model CrmMember {
+  id          String        @id @default(cuid())
+  workspaceId String
+  hostUserId  String // 호스트 앱 사용자 PK 문자열, 세션에서 주입
+  role        CrmMemberRole @default(MEMBER)
+  displayName String
+  email       String
+  createdAt   DateTime      @default(now())
+  deletedAt   DateTime?
+
+  workspace CrmWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+
+  @@unique([workspaceId, hostUserId])
+  @@index([workspaceId, email])
+  @@map("crm_member")
+}
+
+// ------------------------------------------------------------
+// 그룹 B 코어 CRM
+// ------------------------------------------------------------
+
+model CrmCompany {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  name           String
+  domain         String? // 소문자 정규화 후 저장, null 허용(PG 는 null 다중 허용)
+  industry       String?
+  employeeRange  String? // 예: "1-10", "11-50"
+  region         String?
+  descriptionMd  String?
+  ownerId        String?
+  source         CrmDataSource @default(HUMAN)
+  verifiedFields Json          @default("[]") // 사람이 검증 확정한 필드명 배열, AI auto_apply 금지 대상
+  version        Int           @default(0) // 낙관적 잠금
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+
+  workspace CrmWorkspace  @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  people    CrmPerson[]
+  deals     CrmDeal[]
+  activity  CrmActivity[]
+
+  @@unique([workspaceId, domain])
+  @@index([workspaceId, name])
+  @@index([workspaceId, updatedAt])
+  @@map("crm_company")
+}
+
+model CrmPerson {
+  id             String            @id @default(cuid())
+  workspaceId    String
+  companyId      String?
+  name           String
+  email          String? // 소문자 정규화 후 저장
+  phone          String?
+  title          String?
+  lifecycleStage CrmLifecycleStage @default(LEAD) // Lead 별도 엔터티 미도입(D-02)
+  memo           String?
+  ownerId        String?
+  source         CrmDataSource     @default(HUMAN)
+  verifiedFields Json              @default("[]")
+  version        Int               @default(0)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  deletedAt      DateTime?
+
+  workspace    CrmWorkspace     @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  company      CrmCompany?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  dealContacts CrmDealContact[]
+  activity     CrmActivity[]
+
+  @@unique([workspaceId, email])
+  @@index([workspaceId, companyId])
+  @@index([workspaceId, name])
+  @@map("crm_person")
+}
+
+model CrmPipeline {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  isDefault   Boolean  @default(false)
+  position    Int      @default(0)
+  canvasJson  Json? // React Flow 캔버스 원본, 자동화의 단일 원천(D-06)
+  createdAt   DateTime @default(now())
+  deletedAt   DateTime?
+
+  workspace CrmWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  stages    CrmStage[]
+  deals     CrmDeal[]
+
+  @@unique([workspaceId, name])
+  @@map("crm_pipeline")
+}
+
+model CrmStage {
+  id                String       @id @default(cuid())
+  pipelineId        String
+  name              String
+  kind              CrmStageKind @default(OPEN)
+  position          Int
+  entryCriteriaJson Json? // 진입 조건 정의, 갭필 모달의 근거
+
+  pipeline CrmPipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  deals    CrmDeal[]
+
+  @@unique([pipelineId, position])
+  @@unique([pipelineId, id]) // CrmDeal 복합 FK 대상: 딜의 stage 가 반드시 같은 pipeline 소속임을 DB 가 보장
+  @@map("crm_stage")
+}
+
+model CrmDeal {
+  id                String        @id @default(cuid())
+  workspaceId       String
+  companyId         String
+  pipelineId        String
+  stageId           String
+  name              String
+  status            CrmDealStatus @default(OPEN)
+  amountMinor       BigInt?
+  currency          String?       @db.Char(3)
+  expectedCloseDate DateTime?
+  wonAt             DateTime?
+  lostReason        String?
+  ownerId           String?
+  healthScore       Int? // 0~100, AI 산출
+  source            CrmDataSource @default(HUMAN)
+  verifiedFields    Json          @default("[]")
+  version           Int           @default(0)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  deletedAt         DateTime?
+
+  workspace CrmWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  company   CrmCompany   @relation(fields: [companyId], references: [id], onDelete: Restrict) // DI-04: 열린 딜 보유 회사 삭제 차단
+  pipeline  CrmPipeline  @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  stage     CrmStage     @relation(fields: [pipelineId, stageId], references: [pipelineId, id]) // DI-05 복합 FK
+  contacts  CrmDealContact[]
+  history   CrmStageHistory[]
+  activity  CrmActivity[]
+
+  @@index([workspaceId, pipelineId, stageId])
+  @@index([workspaceId, status, expectedCloseDate])
+  @@index([workspaceId, ownerId])
+  @@map("crm_deal")
+}
+
+model CrmDealContact {
+  dealId    String
+  personId  String
+  role      CrmDealContactRole @default(OTHER)
+  createdAt DateTime           @default(now())
+
+  deal   CrmDeal   @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  person CrmPerson @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([dealId, personId])
+  @@map("crm_deal_contact")
+}
+
+model CrmStageHistory {
+  id          String   @id @default(cuid())
+  dealId      String
+  fromStageId String?
+  toStageId   String
+  movedById   String? // CrmMember.id, 시스템 이동은 null
+  movedAt     DateTime @default(now())
+  durationSec Int? // 직전 스테이지 체류 시간
+
+  deal CrmDeal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([dealId, movedAt])
+  @@map("crm_stage_history")
+}
+
+// ------------------------------------------------------------
+// 그룹 C 활동과 커뮤니케이션
+// ------------------------------------------------------------
+
+model CrmActivity {
+  id             String          @id @default(cuid())
+  workspaceId    String
+  type           CrmActivityType
+  occurredAt     DateTime
+  title          String
+  body           String? // NOTE 본문, EMAIL 프리뷰
+  companyId      String?
+  personId       String?
+  dealId         String?
+  meetingId      String?
+  gmailMessageId String? // 동기화 멱등 키(DI-21)
+  raw            Json?
+  source         CrmDataSource @default(HUMAN)
+  createdById    String? // CrmMember.id
+  createdAt      DateTime      @default(now())
+  deletedAt      DateTime?
+
+  workspace CrmWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  company   CrmCompany?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  person    CrmPerson?   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  deal      CrmDeal?     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  meeting   CrmMeeting?  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, gmailMessageId])
+  @@index([workspaceId, occurredAt])
+  @@index([workspaceId, dealId, occurredAt])
+  @@map("crm_activity")
+}
+
+model CrmTask {
+  id                 String        @id @default(cuid())
+  workspaceId        String
+  title              String
+  status             CrmTaskStatus @default(TODO)
+  dueAt              DateTime?
+  assigneeId         String? // CrmMember.id
+  companyId          String?
+  personId           String?
+  dealId             String?
+  sourceSuggestionId String? // AI 제안에서 생성된 경우 출처
+  createdById        String?
+  completedAt        DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  deletedAt          DateTime?
+
+  workspace CrmWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId, assigneeId, status, dueAt])
+  @@index([workspaceId, dealId])
+  @@map("crm_task")
+}
+
+model CrmMeeting {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  title         String
+  startedAt     DateTime
+  endedAt       DateTime?
+  companyId     String?
+  dealId        String?
+  location      String?
+  attendeesJson Json     @default("[]") // { memberIds: [], personIds: [], externalNames: [] }
+  summaryMd     String? // AI 요약 확정본
+  createdById   String?
+  source        CrmDataSource @default(HUMAN)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+
+  workspace  CrmWorkspace          @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  recordings CrmMeetingRecording[]
+  activity   CrmActivity[]
+
+  @@index([workspaceId, startedAt])
+  @@index([workspaceId, dealId])
+  @@map("crm_meeting")
+}
+
+model CrmMeetingRecording {
+  id          String             @id @default(cuid())
+  meetingId   String
+  fileUrl     String // Supabase Storage 경로, 서명 URL 접근만
+  durationSec Int?
+  status      CrmRecordingStatus @default(UPLOADED)
+  sttVendor   String? // clova | deepgram | mock
+  error       String?
+  retryCount  Int                @default(0)
+  createdAt   DateTime           @default(now())
+
+  meeting  CrmMeeting             @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  segments CrmTranscriptSegment[]
+
+  @@map("crm_meeting_recording")
+}
+
+model CrmTranscriptSegment {
+  id          String @id @default(cuid())
+  recordingId String
+  idx         Int
+  speaker     String // "화자1" 또는 매핑된 이름
+  startMs     Int
+  endMs       Int // CHECK (end_ms > start_ms) 는 raw SQL 마이그레이션(DI-23)
+  text        String
+
+  recording CrmMeetingRecording @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+
+  @@unique([recordingId, idx])
+  @@map("crm_transcript_segment")
+}
+
+// ------------------------------------------------------------
+// 그룹 D AI 와 데이터 품질
+// ------------------------------------------------------------
+
+model CrmAiRun {
+  id            String         @id @default(cuid())
+  workspaceId   String
+  kind          CrmAiRunKind
+  model         String // LiteLLM 모델 별칭(설정에서 주입)
+  promptVersion String // 예: "meeting_extract@v1.0.0"
+  status        CrmAiRunStatus @default(QUEUED)
+  inputRef      Json // { meetingId, recordingId } 등 참조만, 원문 미복제
+  outputJson    Json?
+  tokensIn      Int            @default(0)
+  tokensOut     Int            @default(0)
+  costMinorUsd  BigInt         @default(0) // 센트 단위
+  latencyMs     Int?
+  error         String?
+  createdAt     DateTime       @default(now())
+
+  workspace   CrmWorkspace      @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  suggestions CrmAiSuggestion[]
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, kind, createdAt])
+  @@map("crm_ai_run")
+}
+
+// AI 가 코어 데이터에 도달하는 유일한 관문
+model CrmAiSuggestion {
+  id                String              @id @default(cuid())
+  workspaceId       String
+  runId             String
+  axis              CrmSuggestionAxis
+  targetType        String // company | person | deal | deal_contact | task | meeting_summary
+  targetId          String? // 기존 레코드 갱신이면 지정, 신규 생성 제안이면 null
+  field             String? // 필드 갱신 제안이면 지정
+  currentValueJson  Json?
+  proposedValueJson Json
+  confidence        Float // 0.0 ~ 1.0
+  evidenceJson      Json // { segmentIds: [], quote: "" } 근거 필수
+  status            CrmSuggestionStatus @default(PENDING)
+  decidedById       String?
+  decidedAt         DateTime?
+  expiresAt         DateTime // 생성 + 7일
+  createdAt         DateTime            @default(now())
+
+  workspace CrmWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  run       CrmAiRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status, createdAt])
+  @@index([workspaceId, targetType, targetId])
+  @@map("crm_ai_suggestion")
+}
+
+model CrmAiFieldConfig {
+  id            String  @id @default(cuid())
+  workspaceId   String
+  targetType    String
+  field         String
+  autoApply     Boolean @default(false)
+  minConfidence Float   @default(0.85)
+
+  @@unique([workspaceId, targetType, field])
+  @@map("crm_ai_field_config")
+}
+
+model CrmDuplicateCandidate {
+  id          String       @id @default(cuid())
+  workspaceId String
+  targetType  String // company | person
+  aId         String
+  bId         String
+  score       Float
+  status      CrmDupStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+
+  @@unique([workspaceId, targetType, aId, bId])
+  @@map("crm_duplicate_candidate")
+}
+
+model CrmMergeLog {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  targetType   String
+  survivorId   String
+  mergedId     String
+  snapshotJson Json // 병합 전 원본 전체와 재연결 참조 목록, 30일 내 취소 근거(DI-11)
+  mergedById   String
+  mergedAt     DateTime  @default(now())
+  undoneAt     DateTime?
+
+  @@index([workspaceId, mergedAt])
+  @@map("crm_merge_log")
+}
+
+// ------------------------------------------------------------
+// 그룹 F 설정과 비용 (과금 없음)
+// ------------------------------------------------------------
+
+model CrmAppSetting {
+  id          String          @id @default(cuid())
+  scope       CrmSettingScope
+  workspaceId String? // GLOBAL 이면 null
+  key         String // 예: ai.model.extract, ai.model.summary, stt.vendor, budget.monthly_usd
+  valueJson   Json
+  isSecret    Boolean         @default(false) // true 면 값을 AES-GCM 암호화 문자열로 저장
+  description String?
+  updatedById String?
+  updatedAt   DateTime        @updatedAt
+
+  @@unique([scope, workspaceId, key])
+  @@map("crm_app_setting")
+}
+
+model CrmAiBudget {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  month        String    @db.Char(7) // "2026-08"
+  limitMinorUsd BigInt
+  spentMinorUsd BigInt   @default(0) // ai_run 생성과 단일 트랜잭션으로 증가(DI-14)
+  alertSentAt  DateTime?
+  blockedAt    DateTime?
+
+  workspace CrmWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+
+  @@unique([workspaceId, month])
+  @@map("crm_ai_budget")
+}
+
+// ------------------------------------------------------------
+// 그룹 G 시스템
+// ------------------------------------------------------------
+
+model CrmAuditLog {
+  id          String       @id @default(cuid())
+  workspaceId String
+  actorType   CrmActorType
+  actorId     String? // member id 또는 ai run id
+  action      String // 예: deal.stage_moved, suggestion.accepted, setting.updated
+  targetType  String
+  targetId    String
+  beforeJson  Json?
+  afterJson   Json?
+  createdAt   DateTime     @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, targetType, targetId])
+  @@map("crm_audit_log")
+}
+
+model CrmIntegrationConnection {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  memberId        String
+  provider        String // google
+  scopes          String
+  accessTokenEnc  String // AES-GCM 암호화
+  refreshTokenEnc String
+  expiresAt       DateTime?
+  gmailHistoryId  String? // 증분 동기화 커서
+  status          String    @default("active") // active | revoked | error
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([workspaceId, memberId, provider])
+  @@map("crm_integration_connection")
+}
+
+model CrmExchangeRate {
+  id    String   @id @default(cuid())
+  date  DateTime @db.Date
+  base  String   @db.Char(3)
+  quote String   @db.Char(3)
+  rate  Decimal  @db.Decimal(18, 8)
+
+  @@unique([date, base, quote])
+  @@map("crm_exchange_rate")
+}
+
+// Phase 2 예정(본 파일에 미포함): CrmAutomation, CrmAutomationRun, CrmEnrichmentCache,
+// CrmEmbedding(pgvector Unsupported 타입), CrmSavedView, CrmTag, CrmWebhook, CrmApiKey
