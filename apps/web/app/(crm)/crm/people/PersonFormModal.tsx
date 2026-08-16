@@ -1,0 +1,172 @@
+'use client'
+
+// 인물 만들기·고치기 (dacrm T1-02) — 회사 모달과 같은 골격(§2-5 동종 UI 통일)
+
+import { useEffect, useState } from 'react'
+import NbModal from '@/components/ui/nb/NbModal'
+import NbButton from '@/components/ui/nb/NbButton'
+import FormErrorBanner from '@/components/ui/FormErrorBanner'
+import { STAGE_LABEL } from './PersonListView'
+
+export interface PersonDraft {
+  id?: string
+  name?: string
+  companyId?: string | null
+  email?: string | null
+  phone?: string | null
+  title?: string | null
+  lifecycleStage?: string
+  version?: number
+}
+
+interface Props {
+  initial?: PersonDraft
+  /** 회사 상세에서 열면 그 회사로 고정된다 */
+  fixedCompanyId?: string
+  onClose: () => void
+  onSaved: (id: string) => void
+}
+
+interface CompanyOption { id: string; name: string }
+
+export default function PersonFormModal({ initial, fixedCompanyId, onClose, onSaved }: Props) {
+  const editing = Boolean(initial?.id)
+  const [name, setName] = useState(initial?.name ?? '')
+  const [email, setEmail] = useState(initial?.email ?? '')
+  const [phone, setPhone] = useState(initial?.phone ?? '')
+  const [title, setTitle] = useState(initial?.title ?? '')
+  const [stage, setStage] = useState(initial?.lifecycleStage ?? 'LEAD')
+  const [companyId, setCompanyId] = useState(fixedCompanyId ?? initial?.companyId ?? '')
+  const [companies, setCompanies] = useState<CompanyOption[]>([])
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // 소속 회사 선택지 — 목록이 길어질 수 있으므로 상한을 두고 가져온다
+  useEffect(() => {
+    if (fixedCompanyId) return
+    let alive = true
+    void (async () => {
+      try {
+        const res = await fetch('/api/crm/companies?limit=100')
+        const body = await res.json()
+        if (alive && res.ok) setCompanies(body.items ?? [])
+      } catch {
+        // 선택지를 못 불러와도 인물 저장은 막지 않는다 — 회사는 나중에 이어 붙일 수 있다
+      }
+    })()
+    return () => { alive = false }
+  }, [fixedCompanyId])
+
+  async function submit() {
+    setSaving(true)
+    setError(null)
+    try {
+      const payload: Record<string, unknown> = {
+        name,
+        email: email || null,
+        phone: phone || null,
+        title: title || null,
+        lifecycleStage: stage,
+        companyId: companyId || null,
+      }
+      if (editing) payload.version = initial?.version
+
+      const res = await fetch(
+        editing ? `/api/crm/people/${initial?.id}` : '/api/crm/people',
+        {
+          method: editing ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        },
+      )
+      const body = await res.json()
+      if (!res.ok) {
+        setError(body?.error?.message ?? '저장하지 못했습니다.')
+        return
+      }
+      onSaved(body.id)
+    } catch {
+      setError('저장하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <NbModal
+      title={editing ? '인물 수정' : '인물 추가'}
+      onClose={onClose}
+      footer={
+        <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
+          <NbButton variant="ghost" onClick={onClose} disabled={saving}>취소</NbButton>
+          <NbButton onClick={() => void submit()} disabled={saving || !name.trim()}>
+            {saving ? '저장 중…' : '저장'}
+          </NbButton>
+        </div>
+      }
+    >
+      <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
+        <FormErrorBanner message={error} />
+
+        <div>
+          <label className="label" htmlFor="crm-person-name">이름 *</label>
+          <input
+            id="crm-person-name" className="input-field" value={name}
+            onChange={(e) => setName(e.target.value)} placeholder="예: 김담당" autoFocus
+          />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+          <div>
+            <label className="label" htmlFor="crm-person-email">이메일</label>
+            <input
+              id="crm-person-email" className="input-field" value={email}
+              onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com"
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="crm-person-phone">연락처</label>
+            <input
+              id="crm-person-phone" className="input-field" value={phone}
+              onChange={(e) => setPhone(e.target.value)} placeholder="010-0000-0000"
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+          <div>
+            <label className="label" htmlFor="crm-person-title">직함</label>
+            <input
+              id="crm-person-title" className="input-field" value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="crm-person-stage">단계</label>
+            <select
+              id="crm-person-stage" className="input-field" value={stage}
+              onChange={(e) => setStage(e.target.value)}
+            >
+              {Object.entries(STAGE_LABEL).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {!fixedCompanyId && (
+          <div>
+            <label className="label" htmlFor="crm-person-company">소속 회사</label>
+            <select
+              id="crm-person-company" className="input-field" value={companyId}
+              onChange={(e) => setCompanyId(e.target.value)}
+            >
+              <option value="">선택 안 함</option>
+              {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+        )}
+      </div>
+    </NbModal>
+  )
+}
