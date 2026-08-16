@@ -19,6 +19,7 @@ import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import DealBoard, { type BoardPipeline } from './DealBoard'
 import DealTableView from './DealTableView'
 import DealFormModal from './DealFormModal'
+import QuickCreateBar from './QuickCreateBar'
 
 type Mode = 'board' | 'list'
 
@@ -78,6 +79,13 @@ export default function DealsClient() {
 
   return (
     <>
+      {/* 붙여넣기 입력은 탭보다 위에 둔다 — 명함을 받고 가장 먼저 하는 일이다 */}
+      <QuickCreateBar
+        pipelines={pipelines}
+        pipelineId={pipelineId}
+        onDone={() => setReloadKey((k) => k + 1)}
+      />
+
       <div style={{ marginBottom: 'var(--space-4)' }}>
         <SegmentedTabs
           tabs={[

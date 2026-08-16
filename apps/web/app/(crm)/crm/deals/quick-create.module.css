@@ -1,0 +1,35 @@
+/* 원터치 생성 입력 (dacrm §3.1) — 화면 전용 스타일 */
+
+.collapsed {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.hint {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+.wrap {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.buttons {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
