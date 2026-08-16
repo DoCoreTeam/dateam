@@ -32,6 +32,13 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.513', date: '2026-08-16', title: '설정이 저장되지 않던 것을 고쳤어요',
+    items: [
+      { kind: 'fix', emoji: '⚙️', headline: '콘텐츠 인텔리전스 설정이 이제 실제로 저장돼요', detail: '값을 바꿔도 "입력값을 확인해 주세요"만 뜨고 하나도 저장되지 않고 있었어요. 이제 정상적으로 저장됩니다.' },
+      { kind: 'fix', emoji: '🔄', headline: '"기본값으로"를 누르면 화면의 값도 함께 바뀌어요', detail: '되돌리기는 됐는데 입력칸에는 이전 값이 그대로 남아 있어서, 되돌아간 건지 알 수 없었어요.' },
+    ],
+  },
+  {
     version: '0.7.507', date: '2026-08-16', title: '영업 CRM을 실제로 쓸 수 있게 열었어요',
     items: [
       { kind: 'feature', emoji: '🤝', headline: '회사·인물·딜을 한곳에서 관리해요', detail: '거래처와 담당자를 넣고, 진행 중인 건을 보드나 표로 보고, 성사·실패를 닫을 수 있습니다. 왼쪽 메뉴의 영업 CRM에서 시작하세요.' },

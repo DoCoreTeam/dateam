@@ -101,7 +101,11 @@ export default function SettingsView({ workspaceId }: { workspaceId: string }) {
       const res = await fetch('/api/ci/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'X-CI-Workspace': workspaceId },
-        body: JSON.stringify({ key: item.key, value }),
+        // ⚠️ scope는 **필수**다. 안 보내면 서버가 전부 422로 막아
+        //    설정이 하나도 저장되지 않는다(실브라우저 확인 v0.7.507에서 발견).
+        //    저장 후 되읽기(load)까지 하므로 화면은 조용히 실패하지 않지만,
+        //    이 필드가 빠지면 "저장을 눌렀는데 아무 일도 안 나는" 상태가 된다.
+        body: JSON.stringify({ key: item.key, scope: item.scope, value, version: item.version }),
       }).then((r) => r.json() as Promise<ApiResponse<unknown>>)
 
       if (!res.success) { setError({ code: res.error.code, message: res.error.message }); return }
@@ -333,7 +337,13 @@ function Control({ item, disabled, onCommit }: {
   if (c.type === 'number') {
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+        {/* ⚠️ `key`가 없으면 값이 바뀌어도 화면이 안 바뀐다.
+            `defaultValue`는 **처음 한 번만** 읽히는 비제어 입력이라,
+            "기본값으로"를 눌러 서버가 24로 되돌려도 칸에는 12가 그대로 남는다
+            (실브라우저 확인 v0.7.507에서 발견 — DB는 지워졌는데 화면만 거짓말을 했다).
+            값이 바뀌면 리마운트해 새 값을 다시 읽게 한다. */}
         <input className="input-field" id={id} type="number" style={{ width: '160px' }}
+          key={`${id}-${String(item.value)}`}
           defaultValue={Number(item.value ?? 0)} disabled={disabled}
           min={c.min} max={c.max} step={c.step ?? 1}
           onBlur={(e) => {
@@ -348,6 +358,7 @@ function Control({ item, disabled, onCommit }: {
   if (c.type === 'time') {
     return (
       <input className="input-field" id={id} type="time" style={{ width: '160px' }}
+        key={`${id}-${String(item.value)}`}
         defaultValue={String(item.value ?? '')} disabled={disabled}
         onChange={(e) => { if (e.target.value) onCommit(e.target.value) }} />
     )
@@ -371,10 +382,12 @@ function Control({ item, disabled, onCommit }: {
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <label className="label" htmlFor={`${id}-s`} style={{ margin: 0 }}>시작</label>
           <input className="input-field" id={`${id}-s`} type="time" style={{ width: '130px' }}
+            key={`${id}-${String(v.start ?? '22:00')}`}
             defaultValue={v.start ?? '22:00'} disabled={disabled}
             onChange={(e) => onCommit({ ...v, start: e.target.value })} />
           <label className="label" htmlFor={`${id}-e`} style={{ margin: 0 }}>끝</label>
           <input className="input-field" id={`${id}-e`} type="time" style={{ width: '130px' }}
+            key={`${id}-${String(v.end ?? '08:00')}`}
             defaultValue={v.end ?? '08:00'} disabled={disabled}
             onChange={(e) => onCommit({ ...v, end: e.target.value })} />
         </span>
@@ -385,6 +398,7 @@ function Control({ item, disabled, onCommit }: {
   if (c.type === 'text' && c.multiline) {
     return (
       <textarea className="input-field" id={id} rows={3} placeholder={c.placeholder}
+        key={`${id}-${String(String(item.value ?? ''))}`}
         defaultValue={String(item.value ?? '')} disabled={disabled}
         onBlur={(e) => { if (e.target.value !== item.value) onCommit(e.target.value) }} />
     )
@@ -394,6 +408,7 @@ function Control({ item, disabled, onCommit }: {
     return (
       <>
         <textarea className="input-field" id={id} rows={5}
+          key={`${id}-${String(JSON.stringify(item.value, null, 2))}`}
           defaultValue={JSON.stringify(item.value, null, 2)} disabled={disabled}
           onBlur={(e) => {
             try { onCommit(JSON.parse(e.target.value)) }
@@ -406,6 +421,7 @@ function Control({ item, disabled, onCommit }: {
 
   return (
     <input className="input-field" id={id} type="text" placeholder={c.type === 'text' ? c.placeholder : undefined}
+      key={`${id}-${String(String(item.value ?? ''))}`}
       defaultValue={String(item.value ?? '')} disabled={disabled}
       onBlur={(e) => { if (e.target.value !== item.value) onCommit(e.target.value) }} />
   )
