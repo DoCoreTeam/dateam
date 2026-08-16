@@ -70,13 +70,21 @@ export async function POST(req: Request) {
     // 메타 확보 실패는 등록을 막지 않는다 — 사유만 함께 남긴다
     const meta = await fetchLinkMeta(url).catch(() => null)
 
+    // 내부망 주소만은 등록도 막는다. 남겨 두면 다른 경로가 나중에 다시 열려 든다.
+    if (meta?.blocked) {
+      return fail('VALIDATION_FAILED', meta.note ?? '내부 주소는 등록할 수 없습니다')
+    }
+
     const { data: asset, error: insErr } = await adminClient.from('ci_assets').insert({
       workspace_id: session.workspaceId,
       brief_id: parsed.data.briefId ?? null,
       kind: parsed.data.kind,
       source_kind: 'link',
-      storage_provider: 'external',
+      // 드라이브 링크는 원본이 드라이브에 있다 — 우리가 보관하진 않지만 어디 있는지는 안다.
+      storage_provider: meta?.driveFileId ? 'drive' : 'external',
       source_url: url,
+      // 파일 ID를 남겨야 우리 스트리밍 경로로 열 수 있고, 그래야 링크만으로 편집점이 성립한다.
+      drive_file_id: meta?.driveFileId ?? null,
       title: parsed.data.title?.trim() || meta?.title || null,
       thumbnail_url: meta?.thumbnailUrl ?? null,
       link_meta: meta

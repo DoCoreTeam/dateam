@@ -5,6 +5,7 @@
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
+import { resolveAnalyzeSource, streamUrlFor, type AnalyzeSource } from '../production/analyzable.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -26,6 +27,11 @@ export interface CiAssetItem {
   createdAtText: string
   /** 원본을 여는 주소(링크면 원본, 파일이면 우리 스트리밍 경로) */
   openUrl: string | null
+  /**
+   * 편집점 분석에 쓸 수 있는가 — 판정은 `lib/ci/production/analyzable.ts`(SSOT)가 한다.
+   * 목록·스튜디오·분석 실행이 같은 답을 보게 하려고 서버에서 한 번만 계산한다.
+   */
+  analyze: AnalyzeSource
 }
 
 interface Row {
@@ -70,7 +76,7 @@ export function displayTitle(row: Pick<Row, 'title' | 'storage_path' | 'source_u
   return '이름 없는 자료'
 }
 
-export function toAssetItem(row: Row): CiAssetItem {
+export function toAssetItem(row: Row, workspaceId: string): CiAssetItem {
   const meta = row.link_meta ?? {}
   return {
     id: row.id,
@@ -84,9 +90,19 @@ export function toAssetItem(row: Row): CiAssetItem {
     mime: row.mime,
     sizeText: formatBytes(row.bytes),
     createdAtText: formatKstDateTimeShort(row.created_at),
+    // 새 탭으로 여는 주소도 워크스페이스를 실어야 한다 — 헤더를 못 붙이기 때문이다.
     openUrl: row.source_kind === 'link'
       ? row.source_url
-      : (row.drive_file_id ? `/api/ci/assets/${row.id}/file` : null),
+      : (row.drive_file_id ? streamUrlFor(row.id, workspaceId) : null),
+    analyze: resolveAnalyzeSource({
+      assetId: row.id,
+      workspaceId,
+      sourceKind: row.source_kind,
+      driveFileId: row.drive_file_id,
+      sourceUrl: row.source_url,
+      mime: row.mime,
+      platform: typeof meta.platform === 'string' ? meta.platform : null,
+    }),
   }
 }
 
@@ -142,7 +158,7 @@ export async function listAssets(p: AssetListParams): Promise<AssetListResult> {
   const page = hasMore ? rows.slice(0, limit) : rows
 
   return {
-    items: page.map(toAssetItem),
+    items: page.map((r) => toAssetItem(r, p.workspaceId)),
     nextCursor: hasMore ? page[page.length - 1].created_at : null,
     total: count ?? page.length,
   }

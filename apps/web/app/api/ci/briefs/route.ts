@@ -14,6 +14,40 @@ const Body = z.object({
   fields: z.array(z.enum(['titleOptions','hook','script','caption','tags','thumbnailIdeas'])).optional(),
 })
 
+/** 목록에 한 번에 실을 기획안 수. 고르기용이라 최근 것만 있으면 된다. */
+const BRIEF_PICK_LIMIT = 30
+
+/**
+ * 기획안 목록 — 편집점을 어디에 붙일지 고르기 위한 최소 조회.
+ * 제목이 따로 없어 `title_options[0] → hook` 순으로 표시명을 만든다.
+ */
+export async function GET(req: Request) {
+  try {
+    const workspaceId = workspaceIdFromRequest(req)
+    const { session, error } = await requireCiMemberApi(workspaceId)
+    if (error) return error
+
+    const adminClient = createAdminClient() as any
+    const { data } = await adminClient.from('ci_briefs')
+      .select('id, version, hook, title_options, created_at')
+      .eq('workspace_id', session.workspaceId)
+      .order('created_at', { ascending: false })
+      .limit(BRIEF_PICK_LIMIT)
+
+    const items = ((data ?? []) as any[]).map((b) => {
+      const first = Array.isArray(b.title_options) ? b.title_options[0] : null
+      const label = (typeof first === 'string' && first.trim())
+        || (typeof b.hook === 'string' && b.hook.trim())
+        || '제목 없는 기획안'
+      return { id: b.id as string, label: String(label).slice(0, 80), version: b.version as number }
+    })
+
+    return ok(items)
+  } catch (e) {
+    return failUnexpected(e)
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const workspaceId = workspaceIdFromRequest(req)

@@ -24,6 +24,16 @@ export interface VideoSignals {
   framesSampled: number
   /** 오디오를 분석하지 못한 경우(무음 트랙·권한 등) */
   audioAnalyzed: boolean
+  /** 소리를 못 본 이유. 화면이 "왜 소리 제안이 없는지"를 말할 수 있어야 한다 */
+  audioSkipReason?: string | null
+  /** 화면을 못 본 이유(교차출처 차단 등) */
+  frameSkipReason?: string | null
+  /**
+   * 작성자가 직접 찍어 둔 구간(유튜브 설명문의 챕터).
+   * 원본 픽셀을 못 읽는 링크 경로에서 **유일하게 확실한 구조 신호**다 —
+   * 우리가 추정한 게 아니라 만든 사람이 적어 둔 것이라 신뢰도가 높다.
+   */
+  chapters?: { atSec: number; label: string }[]
 }
 
 /** 우리가 수집한 "잘된 방식". 없으면 없는 대로 동작한다. */
@@ -44,6 +54,7 @@ export type EditPointKind =
   | 'cut'         // 컷 전환을 넣을 지점
   | 'emphasis'    // 자막·확대 등 강조
   | 'length'      // 전체 길이 조정
+  | 'structure'   // 구성 — 작성자가 찍은 구간(챕터)을 근거로 한 제안
 
 export interface EditPoint {
   kind: EditPointKind
@@ -193,6 +204,67 @@ function lengthPoint(s: VideoSignals, e: SuccessEvidence): EditPoint | null {
   }
 }
 
+/** 인트로가 전체에서 이 비율을 넘으면 길다고 본다. */
+export const INTRO_OVER_RATIO = 0.15
+/** 비율이 커도 절대 시간이 짧으면 문제가 아니다(짧은 영상의 인트로 3초). */
+export const INTRO_MIN_SEC = 20
+/** 한 구간이 평균의 이 배수를 넘으면 늘어진다고 본다. */
+export const LONG_SECTION_RATIO = 2.5
+/** 그래도 이보다 짧으면 말하지 않는다. */
+export const LONG_SECTION_MIN_SEC = 90
+
+/**
+ * 구성 편집점 — 작성자가 직접 찍은 구간(챕터)이 근거다.
+ *
+ * 원본 픽셀을 못 읽는 링크 경로에서 유일하게 확실한 신호다.
+ * 챕터는 우리가 추정한 게 아니라 만든 사람이 적어 둔 것이라 근거로서 강하다.
+ */
+function chapterPoints(s: VideoSignals): EditPoint[] {
+  const chapters = s.chapters ?? []
+  if (chapters.length < 2 || s.durationSec <= 0) return []
+
+  const out: EditPoint[] = []
+
+  // ① 인트로가 긴가 — 첫 구간이 끝나는 지점이 곧 본론 시작이다
+  const introEnd = chapters[1].atSec
+  if (introEnd >= INTRO_MIN_SEC && introEnd > s.durationSec * INTRO_OVER_RATIO) {
+    out.push({
+      kind: 'structure',
+      startSec: round(chapters[0].atSec),
+      endSec: round(introEnd),
+      action: `${toTimecode(introEnd)}까지가 인트로입니다 — 더 앞에서 본론으로 넘어가세요`,
+      reason: `작성자가 찍은 구간 기준 인트로가 ${round(introEnd)}초로, 전체 ${toTimecode(s.durationSec)}의 ${Math.round((introEnd / s.durationSec) * 100)}%입니다`,
+      confidence: 0.75,
+    })
+  }
+
+  // ② 유난히 긴 구간 — 평균의 몇 배인지로 판단한다(절대 길이만 보면 긴 영상이 전부 걸린다)
+  const spans: { start: number; end: number; label: string }[] = []
+  for (let i = 0; i < chapters.length; i += 1) {
+    const end = i + 1 < chapters.length ? chapters[i + 1].atSec : s.durationSec
+    if (end > chapters[i].atSec) spans.push({ start: chapters[i].atSec, end, label: chapters[i].label })
+  }
+  if (spans.length === 0) return out
+
+  const mean = spans.reduce((a, b) => a + (b.end - b.start), 0) / spans.length
+  if (mean <= 0) return out
+
+  for (const span of spans) {
+    const len = span.end - span.start
+    if (len < LONG_SECTION_MIN_SEC || len < mean * LONG_SECTION_RATIO) continue
+    out.push({
+      kind: 'structure',
+      startSec: round(span.start),
+      endSec: round(span.end),
+      action: `"${span.label}" 구간(${round(len)}초)을 나누거나 줄이세요`,
+      reason: `다른 구간 평균 ${round(mean)}초의 ${(len / mean).toFixed(1)}배입니다. 한 구간이 길면 그 안에서 이탈이 납니다`,
+      confidence: 0.6,
+    })
+  }
+
+  return out
+}
+
 /** 편집점 상한 — 100개를 던지면 아무것도 못 고친다. */
 export const MAX_EDIT_POINTS = 24
 
@@ -207,6 +279,7 @@ export function buildEditPoints(s: VideoSignals, e: SuccessEvidence): EditPoint[
     ...hookPoints(s, e),
     ...pacingPoints(s),
     ...emphasisPoints(s),
+    ...chapterPoints(s),
   ]
   const len = lengthPoint(s, e)
   if (len) all.push(len)

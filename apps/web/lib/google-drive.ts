@@ -207,28 +207,60 @@ export async function uploadFile(
 }
 
 // ── 파일 스트리밍 ────────────────────────────────────────────
+export interface StreamFileResult {
+  stream: Readable
+  mimeType: string
+  fileName: string
+  /** 전체 크기(바이트). 못 얻으면 null */
+  size: number | null
+  /** 부분 응답일 때 그대로 내려줄 Content-Range 값 */
+  contentRange: string | null
+  /** 206이면 부분 응답이다 */
+  partial: boolean
+}
+
+/**
+ * 드라이브 파일을 흘려보낸다.
+ *
+ * `range`를 주면 그 구간만 받아 **부분 응답**으로 돌려준다.
+ * 왜 필요한가: 브라우저 `<video>`는 구간 요청(Range)이 되어야 **탐색(seek)** 을 한다.
+ * 편집점 분석은 영상을 초 단위로 건너뛰며 프레임을 뜨므로, Range가 없으면
+ * 큰 영상에서 처음부터 전부 받아야 하고 사실상 분석이 불가능해진다.
+ */
 export async function streamFile(
-  fileId: string
-): Promise<{ stream: Readable; mimeType: string; fileName: string }> {
+  fileId: string,
+  range?: string | null,
+): Promise<StreamFileResult> {
   const auth = await refreshTokenIfNeeded()
   const drive = google.drive({ version: 'v3', auth })
 
   // 메타데이터 조회
   const { data: meta } = await drive.files.get({
     fileId,
-    fields: 'id, name, mimeType',
+    fields: 'id, name, mimeType, size',
   })
 
   const mimeType = meta.mimeType ?? 'application/octet-stream'
   const fileName = meta.name ?? fileId
+  const size = meta.size != null && Number.isFinite(Number(meta.size)) ? Number(meta.size) : null
 
-  // 파일 내용 스트림
-  const { data: fileStream } = await drive.files.get(
+  // 파일 내용 스트림. Range는 드라이브에 그대로 전달한다 — 우리가 잘라내지 않는다.
+  const res = await drive.files.get(
     { fileId, alt: 'media' },
-    { responseType: 'stream' }
+    { responseType: 'stream', headers: range ? { Range: range } : undefined },
   )
 
-  return { stream: fileStream as Readable, mimeType, fileName }
+  const status = (res as { status?: number }).status ?? 200
+  const headers = (res as { headers?: Record<string, string> }).headers ?? {}
+
+  return {
+    stream: res.data as Readable,
+    mimeType,
+    fileName,
+    size,
+    contentRange: headers['content-range'] ?? null,
+    partial: status === 206,
+  }
 }
 
 // ── Drive 연동 상태 확인 ──────────────────────────────────────

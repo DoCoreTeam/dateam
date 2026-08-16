@@ -10,6 +10,8 @@
 import { parseMeta, fetchHtml } from '../connectors/meta-tags.ts'
 import { parseContentUrl } from '../ucm/url.ts'
 import { CI_PLATFORM_LABEL } from '../types.ts'
+import { checkUrlIsPublic } from '../net/ssrf.ts'
+import { parseDriveFileId } from './drive-link.ts'
 
 export interface LinkMeta {
   title: string | null
@@ -18,13 +20,20 @@ export interface LinkMeta {
   providerLabel: string | null
   platform: string | null
   externalId: string | null
+  /**
+   * 드라이브 링크면 그 파일 ID. 이게 있어야 우리 스트리밍 경로로 열 수 있고,
+   * 그래야 편집점 분석이 링크만으로 성립한다.
+   */
+  driveFileId: string | null
   /** 메타를 못 읽었으면 그 사유. 등록은 막지 않는다 */
   note: string | null
+  /** 내부망 주소라 서버가 열기를 거부했는가 — 등록 자체를 막을지 판단하는 근거 */
+  blocked: boolean
 }
 
 const EMPTY: LinkMeta = {
   title: null, thumbnailUrl: null, providerLabel: null,
-  platform: null, externalId: null, note: null,
+  platform: null, externalId: null, driveFileId: null, note: null, blocked: false,
 }
 
 /** http(s)만 받는다. javascript: 같은 스킴을 자료로 저장하지 않는다. */
@@ -54,15 +63,26 @@ export async function fetchLinkMeta(url: string): Promise<LinkMeta> {
 
   const parsed = parseContentUrl(url)
   const platform = parsed?.platform ?? null
+  const driveFileId = parseDriveFileId(url)
 
-  const html = await fetchHtml(url).catch(() => null)
+  // 사용자가 직접 넣은 주소다 — 서버가 대신 열기 전에 내부망·메타데이터 주소를 막는다(SSRF).
+  const verdict = await checkUrlIsPublic(url)
+  if (!verdict.ok) {
+    return { ...EMPTY, note: verdict.reason, blocked: verdict.code === 'PRIVATE' }
+  }
+
+  const html = await fetchHtml(url, undefined, { guard: true }).catch(() => null)
   if (!html) {
     return {
       ...EMPTY,
       platform,
+      driveFileId,
       externalId: parsed?.externalId ?? null,
       providerLabel: platform ? CI_PLATFORM_LABEL[parsed!.platform] : hostLabel(url),
-      note: '페이지를 열지 못해 제목·썸네일을 가져오지 못했습니다',
+      note: driveFileId
+        // 드라이브는 로그인 없이 열리지 않는 게 정상이다. 실패처럼 말하면 사용자가 겁먹는다.
+        ? '드라이브 파일로 등록했습니다 — 편집점에서 바로 분석할 수 있습니다'
+        : '페이지를 열지 못해 제목·썸네일을 가져오지 못했습니다',
     }
   }
 
@@ -79,6 +99,10 @@ export async function fetchLinkMeta(url: string): Promise<LinkMeta> {
     providerLabel: platform ? CI_PLATFORM_LABEL[parsed!.platform] : hostLabel(url),
     platform,
     externalId: parsed?.externalId ?? null,
-    note: meta.title ? null : '제목을 읽지 못했습니다',
+    driveFileId,
+    blocked: false,
+    note: driveFileId
+      ? '드라이브 파일로 등록했습니다 — 편집점에서 바로 분석할 수 있습니다'
+      : (meta.title ? null : '제목을 읽지 못했습니다'),
   }
 }

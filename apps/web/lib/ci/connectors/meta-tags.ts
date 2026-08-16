@@ -7,6 +7,7 @@
 
 import type { IngestMethod, UcmChannelRef, UcmContent } from './types.ts'
 import type { CiComparability, CiContentFormat, CiPlatform } from '../types.ts'
+import { guardedFetch } from '../net/ssrf.ts'
 
 const UA = 'Mozilla/5.0 (compatible; newAX-ContentIntelligence/1.0)'
 const FETCH_TIMEOUT_MS = 12_000
@@ -65,18 +66,28 @@ export function parseMeta(html: string): MetaResult {
   }
 }
 
-export async function fetchHtml(url: string, signal?: AbortSignal): Promise<string | null> {
+export interface FetchHtmlOptions {
+  /**
+   * 사용자가 직접 넣은 주소를 열 때 켠다.
+   * 켜면 내부망·메타데이터 주소를 막고 리다이렉트도 홉마다 다시 검사한다(SSRF 방어).
+   * 우리가 만든 주소(플랫폼 시청 페이지 등)에는 필요 없다.
+   */
+  guard?: boolean
+}
+
+export async function fetchHtml(
+  url: string, signal?: AbortSignal, options: FetchHtmlOptions = {},
+): Promise<string | null> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
   const onAbort = () => controller.abort()
   signal?.addEventListener('abort', onAbort)
+  const headers = { 'User-Agent': UA, 'Accept-Language': 'ko,en;q=0.8' }
   try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': UA, 'Accept-Language': 'ko,en;q=0.8' },
-      signal: controller.signal,
-      redirect: 'follow',
-    })
-    if (!res.ok) return null
+    const res = options.guard
+      ? await guardedFetch(url, { headers, signal: controller.signal })
+      : await fetch(url, { headers, signal: controller.signal, redirect: 'follow' })
+    if (!res || !res.ok) return null
     return await res.text()
   } catch {
     return null
