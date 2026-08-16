@@ -94,9 +94,35 @@ test('★ 수집값은 수정 대상이 아니다 — 손으로 고치면 배수
   for (const forbidden of ['views', 'publishedAt', 'published_at', 'channelId', 'platform', 'durationSec']) {
     assert.ok(!patch.includes(forbidden), `수집값 ${forbidden} 이 수정 가능하게 열려 있다`)
   }
-  for (const allowed of ['title', 'topicId', 'statExcluded']) {
-    assert.ok(patch.includes(allowed), `${allowed} 수정이 빠졌다`)
+  assert.ok(patch.includes('title'), '제목 수정이 빠졌다')
+})
+
+test('★ 필드마다 정본 경로는 하나다 — 두 번째 경로는 부수효과를 조용히 건너뛴다', () => {
+  // 주제 변경은 topic_source·topic_confidence·review_state까지 바꾸고 정정 이력을 남긴다.
+  // 통계 제외는 제외 사유를 남긴다. PATCH가 같은 컬럼을 건드리면 그게 전부 사라진다.
+  // (실제로 v0.7.494에서 그렇게 만들었다가 v0.7.496에서 되돌렸다)
+  const patchSrc = read('app/api/ci/contents/[id]/route.ts')
+  const patch = patchSrc.slice(patchSrc.indexOf('const Patch = z.object'), patchSrc.indexOf('export async function PATCH'))
+  for (const forbidden of ['topicId', 'topic_id', 'statExcluded', 'is_stat_excluded']) {
+    assert.ok(!patch.includes(forbidden),
+      `${forbidden} 이 PATCH에 열려 있다 — 전용 경로(topic/exclude)의 정정 이력을 건너뛴다`)
   }
+  // 전용 경로가 실제로 이력을 남기는지도 함께 잠근다
+  assert.match(read('app/api/ci/contents/[id]/topic/route.ts'), /ci_corrections/,
+    '주제 변경이 정정 이력을 남기지 않는다')
+  assert.match(read('app/api/ci/contents/[id]/exclude/route.ts'), /ci_corrections/,
+    '통계 제외가 정정 이력을 남기지 않는다')
+})
+
+test('★ 수정 API가 화면에 실제로 배선돼 있다 — 만들고 안 꽂으면 없는 기능이다', () => {
+  // 이 저장소가 반복해 온 실패 패턴이다(CLAUDE.md §2-5).
+  // v0.7.494에서 PATCH를 만들고 화면에 안 꽂아 "제목을 못 고치는" 상태였다.
+  const sheet = read('components/ci/DetailSheet.tsx')
+  assert.match(sheet, /method:\s*'PATCH'/, '상세 시트가 제목 수정을 부르지 않는다')
+  assert.match(sheet, /\/api\/ci\/contents\/\$\{contentId\}/, '제목 수정이 콘텐츠 API를 향하지 않는다')
+  // 주제 변경 경로도 화면에 살아 있어야 한다
+  assert.match(read('app/(ci)/ci/inbox/InboxView.tsx'), /contents\/\$\{contentId\}\/topic/,
+    '주제 변경이 화면에서 사라졌다')
 })
 
 test('삭제 미리보기도 지울 수 있는 사람만 본다 — 남의 구성을 엿보는 창구가 되면 안 된다', () => {

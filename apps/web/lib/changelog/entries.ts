@@ -32,6 +32,12 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.501', date: '2026-08-16', title: '게시물 제목을 고칠 수 있어요',
+    items: [
+      { kind: 'feature', emoji: '✏️', headline: '게시물 제목을 직접 고칠 수 있어요', detail: '자동으로 붙은 제목이 틀리거나 비어 있을 때 상세 화면에서 연필 버튼을 눌러 바로잡을 수 있습니다. 주제 바꾸기는 지금처럼 수집함 목록에서 하시면 됩니다.' },
+    ],
+  },
+  {
     version: '0.7.494', date: '2026-08-16', title: '이제 지울 수 있어요',
     items: [
       { kind: 'feature', emoji: '🗑️', headline: '잘못 들어온 게시물을 지울 수 있어요', detail: '예전에는 수집에 실패한 링크도 "다시 시도"만 되고 없앨 방법이 없어서 수집함에 계속 남아 있었어요. 이제 지우기 버튼으로 정리할 수 있습니다.' },

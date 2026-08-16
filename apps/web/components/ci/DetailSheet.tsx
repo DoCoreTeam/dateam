@@ -7,8 +7,9 @@
 import { useEffect, useState } from 'react'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import Link from 'next/link'
-import { X } from 'lucide-react'
+import { X, Pencil } from 'lucide-react'
 import { useEscClose } from '@/lib/use-esc-close'
+import { isEnterKey } from '@/lib/ui/ime'
 import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
 import type { CiContentListItem, CiEvidence, ApiResponse } from '@/lib/ci/contracts'
 import MetricBadge, { MetricBasis } from './MetricBadge'
@@ -65,6 +66,36 @@ export default function DetailSheet({
   const [showEvidence, setShowEvidence] = useState(false)
   const [error, setError] = useState<{ code: string; message: string } | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // 제목 고치기 — AI가 붙인 제목이 틀리거나 비어 있을 때 사람이 바로잡는다.
+  // 다른 값은 여기서 못 고친다: 주제·통계 제외는 전용 경로가 정정 이력을 남기고,
+  // 조회수·게시일 같은 수집값은 고치는 순간 배수가 거짓이 되기 때문이다.
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleDraft, setTitleDraft] = useState('')
+  const [savingTitle, setSavingTitle] = useState(false)
+  const [titleError, setTitleError] = useState<string | null>(null)
+
+  async function saveTitle() {
+    if (!contentId) return
+    const next = titleDraft.trim()
+    if (!next) { setTitleError('제목을 입력해 주세요'); return }
+    setSavingTitle(true); setTitleError(null)
+    try {
+      const res = await fetch(`/api/ci/contents/${contentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-CI-Workspace': workspaceId },
+        body: JSON.stringify({ title: next }),
+      }).then((r) => r.json() as Promise<ApiResponse<{ title: string }>>)
+      if (!res.success) { setTitleError(res.error.message); return }
+      // 서버가 돌려준 값으로 화면을 맞춘다 — 내가 보낸 값을 그대로 믿지 않는다
+      setData((prev) => (prev ? { ...prev, title: res.data.title } : prev))
+      setEditingTitle(false)
+    } catch {
+      setTitleError('저장하지 못했습니다. 잠시 후 다시 시도해 주세요')
+    } finally {
+      setSavingTitle(false)
+    }
+  }
 
   // 근거 시트가 열려 있으면 ESC는 그쪽이 먼저 받는다(중첩 모달 규약)
   useEscClose(onClose, !showEvidence)
@@ -127,9 +158,46 @@ export default function DetailSheet({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img className="ci-thumb" src={data.thumbnailUrl} alt="" width={640} height={360} />
               )}
-              <h3 style={{ fontSize: 'var(--fs-lg)', fontWeight: 700, margin: 'var(--space-3) 0 var(--space-2)' }}>
-                {data.title ?? '제목 없음'}
-              </h3>
+              {editingTitle ? (
+                <div style={{ margin: 'var(--space-3) 0 var(--space-2)' }}>
+                  <label className="label" htmlFor="ci-title-edit" style={{ position: 'absolute', left: '-9999px' }}>
+                    제목
+                  </label>
+                  <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end' }}>
+                    <input className="input-field" id="ci-title-edit"
+                      value={titleDraft}
+                      onChange={(e) => setTitleDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        // 한글 조합 중 엔터가 두 번 먹는 것을 막는다(공용 IME 가드)
+                        if (isEnterKey(e)) { e.preventDefault(); void saveTitle() }
+                        if (e.key === 'Escape') { e.preventDefault(); setEditingTitle(false) }
+                      }}
+                      disabled={savingTitle}
+                      autoFocus
+                      style={{ flex: 1 }}
+                    />
+                    <button type="button" className="btn-primary" onClick={saveTitle} disabled={savingTitle}>
+                      {savingTitle ? '저장 중…' : '저장'}
+                    </button>
+                    <button type="button" className="btn-ghost" onClick={() => setEditingTitle(false)} disabled={savingTitle}>
+                      취소
+                    </button>
+                  </div>
+                  {titleError && <p className="ci-status ci-status-danger" role="alert">{titleError}</p>}
+                </div>
+              ) : (
+                <h3 style={{
+                  fontSize: 'var(--fs-lg)', fontWeight: 700, margin: 'var(--space-3) 0 var(--space-2)',
+                  display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+                }}>
+                  <span>{data.title ?? '제목 없음'}</span>
+                  <button type="button" className="btn-ghost"
+                    onClick={() => { setTitleDraft(data.title ?? ''); setTitleError(null); setEditingTitle(true) }}
+                    aria-label="제목 고치기" title="제목 고치기">
+                    <Pencil size={14} />
+                  </button>
+                </h3>
+              )}
               <p className="ci-card-meta">
                 <span>{CI_PLATFORM_LABEL[data.platform]}</span>
                 {/* 채널을 누르면 채널 상세로 — 콘텐츠에서 채널로 가는 길을 끊지 않는다 */}

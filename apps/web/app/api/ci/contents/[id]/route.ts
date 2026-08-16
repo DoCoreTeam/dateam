@@ -87,7 +87,15 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 }
 
 /**
- * 사람이 고칠 수 있는 것만 연다.
+ * 제목만 고친다.
+ *
+ * ⚠️ **다른 필드를 여기에 얹지 않는다.** 주제와 통계 제외는 전용 경로가 따로 있고,
+ *    그 경로들은 단순 갱신이 아니라 **정정 이력(`ci_corrections`)을 남기고 재분류에 반영**한다:
+ *      · 주제      → `POST /api/ci/contents/[id]/topic`
+ *                    (topic_source='user' · topic_confidence · review_state까지 함께 바꾼다)
+ *      · 통계 제외 → `POST /api/ci/contents/[id]/exclude` (제외 사유를 남긴다)
+ *    여기서 같은 컬럼을 건드리면 **그 부수효과를 조용히 건너뛴 두 번째 경로**가 생긴다.
+ *    (실제로 v0.7.494에서 그렇게 만들었다가 v0.7.496에서 되돌렸다)
  *
  * ⚠️ **수집값(조회수·게시일·채널·플랫폼)은 열지 않는다.** 그 값들은 지표의 근거라
  *    손으로 고치는 순간 배수와 백분위가 거짓이 된다. 잘못 수집된 것은 고치는 게 아니라
@@ -95,10 +103,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
  *    (설계 근거: docs/2026-08-16-ci-crud-audit/AUDIT.md §5)
  */
 const Patch = z.object({
-  title: z.string().trim().min(1).max(500).optional(),
-  topicId: z.string().uuid().nullable().optional(),
-  /** 통계에서만 빼기 — 삭제와 다른 일이다(행은 남는다) */
-  statExcluded: z.boolean().optional(),
+  title: z.string().trim().min(1).max(500),
 })
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -111,16 +116,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     const parsed = Patch.safeParse(await req.json().catch(() => ({})))
     if (!parsed.success) return fail('VALIDATION_FAILED', '입력값을 확인해 주세요', parsed.error.issues)
 
-    const patch: Record<string, unknown> = {}
-    if (parsed.data.title !== undefined) patch.title = parsed.data.title
-    if (parsed.data.topicId !== undefined) patch.topic_id = parsed.data.topicId
-    if (parsed.data.statExcluded !== undefined) patch.is_stat_excluded = parsed.data.statExcluded
-    if (Object.keys(patch).length === 0) return fail('VALIDATION_FAILED', '변경할 내용이 없습니다')
-
     const adminClient = createAdminClient() as any
-    const { data } = await adminClient.from('ci_contents').update(patch)
+    const { data } = await adminClient.from('ci_contents')
+      .update({ title: parsed.data.title })
       .eq('id', id).eq('workspace_id', session.workspaceId)
-      .select('id, title, topic_id, is_stat_excluded').maybeSingle()
+      .select('id, title').maybeSingle()
 
     return data ? ok(data) : fail('NOT_FOUND', '게시물을 찾을 수 없습니다')
   } catch (e) {
