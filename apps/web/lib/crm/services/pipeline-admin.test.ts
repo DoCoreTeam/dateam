@@ -138,9 +138,10 @@ test('한글 조합 중 엔터로 만들어지지 않는다 — "파트너"를 �
 
 test('★ 메뉴에서 찾을 수 있는 자리에 있다 — 매일 쓰는 것 사이에 끼어 있으면 못 찾는다', () => {
   const layout = readFileSync(new URL('../../../app/(crm)/layout.tsx', import.meta.url), 'utf8')
-  // [관리] 그룹 안에 있어야 한다 — 처음 한 번 정하고 가끔 손보는 것이다
-  const admin = layout.slice(layout.indexOf("label: '관리'"))
-  assert.ok(admin.includes("href: '/crm/process'"), '관리 그룹에 없다')
+  // [설정] 그룹 안에 있어야 한다 — 처음 한 번 정하고 가끔 손보는 것이다
+  // (예전엔 [기록] 그룹에 "프로세스"라는 이름으로 8번째에 있었다)
+  const admin = layout.slice(layout.indexOf("label: '설정'"))
+  assert.ok(admin.includes("href: '/crm/process'"), '설정 그룹에 없다')
   assert.ok(layout.includes("label: '영업 단계'"), '이름이 "프로세스"인 채다')
   // 그룹 이름과 항목 이름이 같으면 같은 말이 두 번 나온다
   assert.ok(!layout.includes("label: '기록', icon: <History"), '항목 이름이 그룹과 겹친다')

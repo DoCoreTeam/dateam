@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState } from 'react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
+import { isEnterKey } from '@/lib/ui/ime'
 import type { BoardPipeline } from './DealBoard'
 
 export interface DealDraft {
@@ -45,6 +46,16 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
   const editing = Boolean(initial?.id)
   const [name, setName] = useState(initial?.name ?? '')
   const [companyId, setCompanyId] = useState(initial?.companyId ?? '')
+  /**
+   * 회사를 그 자리에서 만들기.
+   *
+   * **왜 필요한가**: 딜은 `companyId` 가 필수인데, 회사가 하나도 없으면
+   * 드롭다운이 비고 **거기서 막힌다.** 처음 온 사람은 "회사를 먼저 만들어야 한다"는 것을
+   * 아무 데서도 못 듣는다 — 화면에 그 말이 없기 때문이다.
+   * 창을 닫고 회사 화면으로 갔다가 돌아오게 하는 대신 여기서 만든다.
+   */
+  const [newCompany, setNewCompany] = useState('')
+  const [makingCompany, setMakingCompany] = useState(false)
   const [pipelineId, setPipelineId] = useState(
     initial?.pipelineId ?? pipelines.find((p) => p.isDefault)?.id ?? pipelines[0]?.id ?? '',
   )
@@ -85,6 +96,35 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
     })()
     return () => { alive = false }
   }, [])
+
+  async function createCompany() {
+    const nm = newCompany.trim()
+    if (!nm) return
+    setMakingCompany(true)
+    setCompanyError(null)
+    try {
+      const res = await fetch('/api/crm/companies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nm }),
+      })
+      const body = await res.json()
+      if (!res.ok) { setCompanyError(body?.error?.message ?? '회사를 만들지 못했습니다.'); return }
+
+      const created = body.company ?? body
+      const id = String(created.id ?? '')
+      if (!id) { setCompanyError('회사를 만들지 못했습니다.'); return }
+
+      // 만들자마자 고른 상태로 — 다시 찾아 고르게 하면 그게 또 한 걸음이다
+      setCompanies((prev) => [{ id, name: nm }, ...prev])
+      setCompanyId(id)
+      setNewCompany('')
+    } catch {
+      setCompanyError('회사를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setMakingCompany(false)
+    }
+  }
 
   const canSubmit = Boolean(name.trim() && companyId && pipelineId && stageId)
 
@@ -153,6 +193,30 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
             <option value="">회사를 고르세요</option>
             {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
+
+          {/*
+            회사가 없으면 여기서 막힌다 — 그 자리에서 만들 수 있게 한다.
+            딜이 처음인 사람에게 가장 흔한 막힘이었다.
+          */}
+          {companies.length === 0 && (
+            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', marginTop: 'var(--space-2)' }}>
+              <input
+                className="input-field"
+                value={newCompany}
+                placeholder="회사 이름을 넣고 만들면 바로 골라집니다"
+                onChange={(e) => setNewCompany(e.target.value)}
+                onKeyDown={(e) => { if (isEnterKey(e)) void createCompany() }}
+                aria-label="새 회사 이름"
+              />
+              <NbButton
+                variant="ghost"
+                onClick={() => void createCompany()}
+                disabled={makingCompany || !newCompany.trim()}
+              >
+                {makingCompany ? '만드는 중…' : '회사 만들기'}
+              </NbButton>
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>

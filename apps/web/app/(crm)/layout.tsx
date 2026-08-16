@@ -31,32 +31,43 @@ import AttentionBell from '@/components/crm/AttentionBell'
  * 사이드바 8개 항목 (구현명세서 1.1 라우트 구조 그대로).
  * 일상 동선 4개는 최상위에, 나머지는 성격별로 묶는다.
  */
+/**
+ * 매일 여는 것만 최상위에 둔다. 순서는 **여는 빈도**다.
+ *
+ * - `오늘`이 첫 화면 — "지금 손 대야 할 것". 예전엔 인박스였는데,
+ *   인박스는 AI 가 넣어 준 것을 확인하는 곳이라 **처음 온 사람에겐 늘 비어 있었다.**
+ * - `딜`이 회사·인물보다 앞 — 영업이 하루에 가장 많이 보는 것은 딜이다.
+ *   예전엔 회사 → 인물 → 딜 순서였는데 그건 **데이터 모델 순서**이지 사람의 순서가 아니다.
+ */
 const NAV_ITEMS = [
-  // 첫 화면 — "지금 손 대야 할 것". 인박스는 AI 가 넣어 준 것을 확인하는 곳이라
-  // 처음 온 사람에겐 비어 있다(그래서 예전 첫 화면이 늘 빈 화면이었다)
   { href: '/crm/today', label: '오늘', icon: <Sun size={16} /> },
   { href: '/crm/inbox', label: '인박스', icon: <Inbox size={16} /> },
+  { href: '/crm/deals', label: '딜', icon: <Handshake size={16} /> },
   { href: '/crm/companies', label: '회사', icon: <Building2 size={16} /> },
   { href: '/crm/people', label: '인물', icon: <Users size={16} /> },
-  { href: '/crm/deals', label: '딜', icon: <Handshake size={16} /> },
 ]
 
 const NAV_GROUPS: NavGroup[] = [
   {
+    // 매일은 아니지만 자주 여는 것
     label: '기록',
     items: [
       { href: '/crm/meetings', label: '미팅', icon: <Mic size={16} /> },
       { href: '/crm/tasks', label: '할 일', icon: <CheckSquare size={16} /> },
+    ],
+  },
+  {
+    // 가끔 열어 보는 것 — 변경 이력도 성격상 "본다"에 가깝다
+    label: '보기',
+    items: [
+      { href: '/crm/reports', label: '리포트', icon: <BarChart3 size={16} /> },
       // 그룹 이름이 "기록"인데 항목도 "기록"이면 같은 말이 두 번 나온다
       { href: '/crm/audit', label: '변경 이력', icon: <History size={16} /> },
     ],
   },
   {
-    label: '분석',
-    items: [{ href: '/crm/reports', label: '리포트', icon: <BarChart3 size={16} /> }],
-  },
-  {
-    label: '관리',
+    // 처음 한 번 정하고 가끔 손보는 것
+    label: '설정',
     items: [
       /**
        * 영업 단계는 **처음에 한 번 정하고 가끔 손보는 것**이다.

@@ -143,3 +143,32 @@
   flex-wrap: wrap;
   font-size: var(--fs-sm);
 }
+
+/*
+ * 안 쓰는 영업 단계 접기.
+ *
+ * 딜 0건인 파이프라인이 세로 블록을 차지하면 "0건·0건·모름"이 화면을 채워
+ * **있는 정보가 안 보인다.** 지우지 않고 접는다 — 지금 안 쓸 뿐이다.
+ */
+.showEmpty {
+  align-self: flex-start;
+  border: var(--hairline) dashed var(--border-color);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  padding: var(--space-2) var(--space-3);
+  min-height: var(--control-h);
+  cursor: pointer;
+}
+
+.showEmpty:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.emptyNote {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}

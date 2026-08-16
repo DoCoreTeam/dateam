@@ -35,15 +35,25 @@ function stages(prefix: string, rows: [string, SeedStage['kind']][]): SeedStage[
 }
 
 /**
- * 파이프라인 4종 (TASKS T0-07 지정: GPU 인프라, 파트너십, 공공, KDC 제품)
+ * 새 워크스페이스가 받는 파이프라인.
  *
- * 스테이지 이름은 명세에 없어 여기서 정한다. 규칙 두 가지만 지켰다.
- *  - 모든 파이프라인은 WON 1개와 LOST 1개를 반드시 갖는다(보드의 won/lost 드롭 대상, 명세 6.3)
+ * **왜 4개에서 1개로 줄였나**: TASKS T0-07 이 4종(GPU 인프라·파트너십·공공·KDC 제품)을
+ * 지정했고 그대로 넣었다. 그런데 실사용에서 **3개가 딜 0건인 채 화면을 차지했다** —
+ * 딜 화면 탭 3칸, 리포트 세로 3블록이 "0건 0건 0건"이었다.
+ * 그리고 사용자가 "KDC 제품이라니 전혀 연관없는 내용"이라고 지적했다.
+ *
+ * 4개를 주고 3개를 지우게 하는 것보다 **1개로 시작해 필요한 만큼 늘리는 편**이 낫다.
+ * 이제 [관리 → 영업 단계]에서 직접 만들 수 있으므로 늘리는 데 비용이 거의 없다.
+ *
+ * ⚠️ 이 목록은 **새 워크스페이스에만** 적용된다. 이미 만들어진 것은 건드리지 않는다.
+ *
+ * 스테이지 규칙 두 가지:
+ *  - 모든 파이프라인은 WON 1개와 LOST 1개를 반드시 갖는다(딜을 닫을 곳이 없으면 영원히 열려 있다)
  *  - 진행 스테이지는 "우리가 다음에 무엇을 하는가"로 이름 짓는다(고객 상태가 아니라 우리 행동)
  */
 export const SEED_PIPELINES: SeedPipeline[] = [
   {
-    id: 'pl_gpu', name: 'GPU 인프라', isDefault: true, position: 1,
+    id: 'pl_gpu', name: '영업', isDefault: true, position: 1,
     stages: stages('gpu', [
       ['리드', 'OPEN'],
       ['요구사항 파악', 'OPEN'],
@@ -51,39 +61,6 @@ export const SEED_PIPELINES: SeedPipeline[] = [
       ['기술검증(PoC)', 'OPEN'],
       ['계약 협상', 'OPEN'],
       ['수주', 'WON'],
-      ['실주', 'LOST'],
-    ]),
-  },
-  {
-    id: 'pl_partner', name: '파트너십', isDefault: false, position: 2,
-    stages: stages('partner', [
-      ['발굴', 'OPEN'],
-      ['초기 접촉', 'OPEN'],
-      ['협업 범위 협의', 'OPEN'],
-      ['계약 검토', 'OPEN'],
-      ['체결', 'WON'],
-      ['무산', 'LOST'],
-    ]),
-  },
-  {
-    id: 'pl_public', name: '공공', isDefault: false, position: 3,
-    stages: stages('public', [
-      ['사업 발굴', 'OPEN'],
-      ['사전 영업', 'OPEN'],
-      ['제안서 작성', 'OPEN'],
-      ['입찰', 'OPEN'],
-      ['낙찰', 'WON'],
-      ['유찰', 'LOST'],
-    ]),
-  },
-  {
-    id: 'pl_kdc', name: 'KDC 제품', isDefault: false, position: 4,
-    stages: stages('kdc', [
-      ['리드', 'OPEN'],
-      ['제품 데모', 'OPEN'],
-      ['견적', 'OPEN'],
-      ['도입 협의', 'OPEN'],
-      ['계약', 'WON'],
       ['실주', 'LOST'],
     ]),
   },

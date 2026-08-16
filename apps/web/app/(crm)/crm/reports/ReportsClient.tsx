@@ -99,6 +99,14 @@ export default function ReportsClient() {
   const [items, setItems] = useState<PipelineReport[]>([])
   const [velocity, setVelocity] = useState<Velocity[]>([])
   const [forecast, setForecast] = useState<Forecast[]>([])
+  /**
+   * 안 쓰는 파이프라인을 펼쳐 볼지.
+   *
+   * **왜 접나**: 딜 0건인 파이프라인이 세로 블록을 통째로 차지하면
+   * "0건 · 0건 · 모름"이 화면 대부분을 채우고, 정작 **있는 정보가 안 보인다**.
+   * 지우지 않고 접는 이유는 지금 안 쓸 뿐 나중에 쓸 수 있기 때문이다.
+   */
+  const [showEmpty, setShowEmpty] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -135,9 +143,14 @@ export default function ReportsClient() {
     )
   }
 
+  // 전체가 빈 경우는 위에서 이미 EmptyState 로 끝났다. 여기는 "일부만 비었을 때"다
+  const used = items.filter((p) => p.openCount + p.wonCount + p.lostCount > 0)
+  const unused = items.filter((p) => p.openCount + p.wonCount + p.lostCount === 0)
+  const shown = showEmpty ? [...used, ...unused] : used
+
   return (
     <div className={styles.wrap}>
-      {items.map((p) => (
+      {shown.map((p) => (
         <section key={p.pipelineId} className={`card ${styles.card}`}>
           <div className={styles.head}>
             <h2 className={styles.title}>{p.pipelineName}</h2>
@@ -264,6 +277,12 @@ export default function ReportsClient() {
           })()}
         </section>
       ))}
+      {/* 접은 것을 숨기지 않는다 — 몇 개를 접었는지는 말한다 */}
+      {!showEmpty && unused.length > 0 && (
+        <button type="button" className={styles.showEmpty} onClick={() => setShowEmpty(true)}>
+          아직 안 쓰는 영업 단계 {unused.length}개 보기
+        </button>
+      )}
     </div>
   )
 }

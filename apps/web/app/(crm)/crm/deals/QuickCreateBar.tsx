@@ -19,10 +19,18 @@ interface Props {
   pipelines: BoardPipeline[]
   pipelineId: string
   onDone: () => void
+  /**
+   * 처음부터 펼쳐 둘까.
+   *
+   * **왜 필요한가**: 이건 이 제품에서 가장 강한 기능인데(텍스트를 붙여넣으면
+   * 회사·인물·딜이 한 번에 생긴다) **접혀 있어서 처음 온 사람은 그게 뭔지 모르고 지나갔다.**
+   * 딜이 0건일 때만 펼친다 — 늘 펼쳐 두면 익숙한 사람에게는 자리만 차지한다.
+   */
+  defaultOpen?: boolean
 }
 
-export default function QuickCreateBar({ pipelines, pipelineId, onDone }: Props) {
-  const [open, setOpen] = useState(false)
+export default function QuickCreateBar({ pipelines, pipelineId, onDone, defaultOpen = false }: Props) {
+  const [open, setOpen] = useState(defaultOpen)
   const [text, setText] = useState('')
   const [withDeal, setWithDeal] = useState(false)
   const [busy, setBusy] = useState(false)

@@ -56,6 +56,15 @@ export default function DealsClient() {
 
   useEffect(() => { void load() }, [load])
 
+  /**
+   * 이 워크스페이스에 딜이 몇 건인가.
+   *
+   * 파이프라인 목록이 단계별 개수를 이미 주므로 따로 묻지 않는다 —
+   * 화면 하나에 조회가 늘면 첫 그리기가 느려진다.
+   */
+  const dealCount = pipelines.reduce(
+    (n, p) => n + p.stages.reduce((m, s) => m + (s.dealCount ?? 0), 0), 0)
+
   function setMode(next: Mode) {
     const sp = new URLSearchParams(searchParams.toString())
     if (next === 'board') sp.delete('mode')
@@ -84,6 +93,8 @@ export default function DealsClient() {
         pipelines={pipelines}
         pipelineId={pipelineId}
         onDone={() => setReloadKey((k) => k + 1)}
+        /* 딜이 하나도 없을 때는 펼쳐 둔다 — 접혀 있으면 처음 온 사람이 그냥 지나친다 */
+        defaultOpen={dealCount === 0}
       />
 
       <div style={{ marginBottom: 'var(--space-4)' }}>

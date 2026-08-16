@@ -32,6 +32,8 @@ export interface BoardStage {
   name: string
   position: number
   kind: 'OPEN' | 'WON' | 'LOST'
+  /** 이 단계에 있는 딜 수 — API 는 주고 있었는데 타입에만 없었다 */
+  dealCount?: number
 }
 export interface BoardPipeline {
   id: string
@@ -173,7 +175,24 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
             onChange={(e) => onPipelineChange(e.target.value)}
             style={{ minWidth: 200 }}
           >
-            {pipelines.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {/*
+              쓰는 것만 먼저. 딜 0건인 파이프라인이 목록을 채우면
+              **고를 때마다 빈 보드**를 만나게 된다. 지금 보고 있는 것은 항상 남긴다.
+            */}
+            {pipelines
+              .filter((p) => p.id === pipelineId || p.stages.some((s) => (s.dealCount ?? 0) > 0))
+              .map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+
+            {/* 접은 것을 숨기지 않는다 — 몇 개가 있는지는 말한다 */}
+            {(() => {
+              const hidden = pipelines.filter(
+                (p) => p.id !== pipelineId && !p.stages.some((s) => (s.dealCount ?? 0) > 0))
+              return hidden.length === 0 ? null : (
+                <optgroup label={`아직 안 쓰는 것 ${hidden.length}개`}>
+                  {hidden.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </optgroup>
+              )
+            })()}
           </select>
         </div>
         <div style={{ marginLeft: 'auto' }}>
