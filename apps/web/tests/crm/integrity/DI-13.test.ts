@@ -4,7 +4,10 @@
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { decideApply, MIN_SUGGESTION_CONFIDENCE } from '../../../lib/crm/ai/apply-policy.ts'
+import {
+  decideApply, canConfigureAutoApply,
+  MIN_SUGGESTION_CONFIDENCE, NEVER_AUTO_APPLY_FIELDS,
+} from '../../../lib/crm/ai/apply-policy.ts'
 
 const base = { targetType: 'company', isNewRecord: false, autoApply: true, minConfidence: 0.85 }
 
@@ -41,4 +44,44 @@ test('DI-13 필드별 임계값 미만이면 PENDING', () => {
 test('DI-13 조건을 모두 만족해야만 자동 반영된다', () => {
   const v = decideApply({ ...base, field: 'industry', confidence: 0.9 })
   assert.equal(v.decision, 'AUTO_APPLIED')
+})
+
+// ------------------------------------------------------------
+// 같은 관문의 나머지 두 규칙 (명세 4.3 표의 마지막 두 행)
+// ------------------------------------------------------------
+
+const MONEY_AND_STAGE = ['amountMinor', 'currency', 'stageId', 'status', 'wonAt', 'lostReason']
+
+test('DI-13 금액·스테이지·won/lost 는 코드로 막혀 있다 — 설정으로 켤 수 없다', () => {
+  // 설정으로 두면 언젠가 누가 켠다. 금액이 사람 확인 없이 바뀌면
+  // 파이프라인 합계가 조용히 틀리고 아무도 모른다(CLAUDE_dacrm 절대규칙 3).
+  for (const f of MONEY_AND_STAGE) {
+    assert.ok(NEVER_AUTO_APPLY_FIELDS.has(f), `${f} 가 금지 목록에 없다`)
+    const v = decideApply({
+      targetType: 'deal', field: f, isNewRecord: false,
+      confidence: 1.0, autoApply: true, minConfidence: 0,
+    })
+    assert.equal(v.decision, 'PENDING', `${f} 가 자동 반영됐다`)
+    assert.equal(v.reason, 'FIELD_NEVER_AUTO')
+    assert.equal(canConfigureAutoApply(f), false, `${f} 토글이 설정 UI 에 노출된다`)
+  }
+  assert.equal(canConfigureAutoApply('industry'), true, '일반 필드는 설정 가능해야 한다')
+})
+
+test('DI-13 신규 레코드 생성 제안은 confidence 무관 항상 사람이 확인한다', () => {
+  for (const t of ['company', 'person', 'deal']) {
+    const v = decideApply({
+      targetType: t, isNewRecord: true, confidence: 1.0, autoApply: true, minConfidence: 0,
+    })
+    assert.equal(v.decision, 'PENDING', `${t} 가 자동 생성됐다`)
+    assert.equal(v.reason, 'NEW_RECORD_NEEDS_HUMAN')
+  }
+})
+
+test('DI-13 금지 필드 판정이 verifiedFields 보다 먼저다 — 이유가 흐려지면 안 된다', () => {
+  const v = decideApply({
+    targetType: 'deal', field: 'amountMinor', isNewRecord: false,
+    confidence: 1.0, autoApply: true, verifiedFields: ['amountMinor'],
+  })
+  assert.equal(v.reason, 'FIELD_NEVER_AUTO')
 })
