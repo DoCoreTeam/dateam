@@ -3,6 +3,7 @@ import PageHeader from '@/components/ui/PageHeader'
 import BudgetCard from './BudgetCard'
 import SettingsCard from './SettingsCard'
 import DuplicatesCard from './DuplicatesCard'
+import IntegrationCard from './IntegrationCard'
 import styles from './settings.module.css'
 
 export const metadata = { title: '설정 · 영업 CRM' }
@@ -20,6 +21,7 @@ export default function CrmSettingsPage() {
       <div className={styles.grid}>
         <BudgetCard />
         <SettingsCard />
+        <IntegrationCard />
         <DuplicatesCard />
       </div>
     </>
