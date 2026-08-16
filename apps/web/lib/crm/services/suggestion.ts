@@ -16,6 +16,7 @@
  */
 
 import type { CrmDb } from '../db/client.ts'
+import { getCrmDb } from '../db/client.ts'
 import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
@@ -444,4 +445,24 @@ export async function expireSuggestions(workspaceId: string, now: Date = new Dat
     })
     return res.count as number
   })
+}
+
+/**
+ * 인박스에 몇 건이 기다리나 — 메뉴 뱃지용.
+ *
+ * 만료된 것은 세지 않는다. 목록에서 안 보이는데 뱃지에만 남으면
+ * 사용자는 "3건 있다"는 말을 믿고 들어갔다가 빈 화면을 본다.
+ * 그 뒤로는 뱃지를 안 믿게 되고, 뱃지가 없는 것과 같아진다.
+ */
+export async function countPendingSuggestions(workspaceId: string): Promise<number> {
+  try {
+    const db = getCrmDb(workspaceId)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return await (db as any).crmAiSuggestion.count({
+      where: { status: 'PENDING', expiresAt: { gt: new Date() } },
+    })
+  } catch {
+    // 셀 수 없으면 뱃지를 안 다는 것으로 끝낸다 — 메뉴가 못 그려지면 안 된다
+    return 0
+  }
 }

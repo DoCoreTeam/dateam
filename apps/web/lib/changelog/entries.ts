@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.525',
+    date: '2026-08-17',
+    title: '확인할 게 있으면 메뉴에서 바로 알려 줘요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🔔',
+        headline: '영업 CRM 메뉴의 인박스에 대기 건수가 붙어요',
+        detail: '전에는 인박스를 열어 봐야만 확인할 게 있는지 알 수 있었어요. 이제 메뉴에서 바로 보입니다. 기한이 지난 제안은 세지 않아서, 숫자를 보고 들어갔는데 빈 화면인 일은 없어요.',
+      },
+    ],
+  },
+  {
     version: '0.7.524',
     date: '2026-08-17',
     title: '어느 단계에서 오래 머무는지 보여요',

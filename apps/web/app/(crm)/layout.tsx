@@ -23,6 +23,7 @@ import { getRequestProfile } from '@/lib/auth/request-profile'
 import { getActiveTheme, resolveTheme } from '@/lib/theme'
 import { getRequestUser } from '@/lib/supabase/server'
 import { resolveCrmAccess, CRM_DENY_MESSAGE } from '@/lib/crm/auth/requireCrmMember'
+import { countPendingSuggestions } from '@/lib/crm/services/suggestion'
 
 /**
  * 사이드바 8개 항목 (구현명세서 1.1 라우트 구조 그대로).
@@ -124,15 +125,26 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
     return <CrmDenied reason={access.reason} />
   }
 
-  const [branding, globalTheme, user] = await Promise.all([
+  const [branding, globalTheme, user, pendingInbox] = await Promise.all([
     getBranding(),
     getActiveTheme(),
     getRequestUser(),
+    countPendingSuggestions(access.session.workspaceId),
   ])
+
+  /**
+   * 인박스에 몇 건이 기다리는지 메뉴에서 보여 준다.
+   *
+   * 없으면 사용자는 **인박스를 열어 봐야만** 할 일이 있는지 안다.
+   * 그러면 대개 안 열어 보고, AI 가 찾아낸 것은 아무도 모르는 채로 만료된다.
+   */
+  const navItems = NAV_ITEMS.map((it) => (
+    it.href === '/crm/inbox' && pendingInbox > 0 ? { ...it, badge: pendingInbox } : it
+  ))
 
   return (
     <AppShell
-      items={NAV_ITEMS}
+      items={navItems}
       groups={NAV_GROUPS}
       branding={{ logoUrl: branding.logoUrl, brandName: branding.brandName }}
       session={{

@@ -85,3 +85,18 @@ test('★ 기록 화면이 실제로 이 서비스를 쓴다 — 화면이 따�
   const ui = readFileSync(new URL('../../../app/(crm)/crm/audit/AuditClient.tsx', import.meta.url), 'utf8')
   assert.ok(ui.includes('/api/crm/audit'), '화면이 기록 API 를 부르지 않는다')
 })
+
+test('★ 인박스 뱃지는 만료된 것을 세지 않는다 — 뱃지와 목록이 어긋나면 아무도 뱃지를 안 믿는다', () => {
+  const src = readFileSync(new URL('./suggestion.ts', import.meta.url), 'utf8')
+  const at = src.indexOf('export async function countPendingSuggestions')
+  assert.ok(at > 0, '뱃지용 카운트 함수가 없다')
+  const body = src.slice(at)
+  assert.ok(body.includes("status: 'PENDING'"), '대기 중인 것만 세지 않는다')
+  assert.ok(body.includes('expiresAt: { gt: new Date() }'), '만료된 것을 걸러내지 않는다')
+})
+
+test('★ 메뉴가 실제로 그 수를 단다 — 세기만 하면 화면은 그대로다', () => {
+  const layout = readFileSync(new URL('../../../app/(crm)/layout.tsx', import.meta.url), 'utf8')
+  assert.ok(layout.includes('countPendingSuggestions('), '레이아웃이 세지 않는다')
+  assert.ok(layout.includes('badge: pendingInbox'), '메뉴에 뱃지를 달지 않는다')
+})
