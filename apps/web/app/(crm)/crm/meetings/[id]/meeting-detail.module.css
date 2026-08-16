@@ -1,0 +1,122 @@
+/* 미팅 상세 (dacrm F2) — 결론 옆에 늘 근거가 있어야 한다 */
+.notice {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  border: var(--border-w) solid var(--info-border);
+  border-radius: var(--radius);
+  background: var(--info-bg);
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+
+.failed {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  border: var(--border-w) solid var(--danger-border);
+  border-radius: var(--radius);
+  background: var(--danger-bg);
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+
+.hint {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.transcript {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 32rem;
+  overflow-y: auto;
+}
+
+.segment {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  scroll-margin-top: var(--space-6);
+}
+
+/* 근거를 누르면 그 줄이 드러난다 */
+.segmentOn {
+  background: var(--info-bg);
+  outline: var(--border-w) solid var(--info-border);
+}
+
+.speaker {
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+  min-width: 4rem;
+}
+
+.segText {
+  color: var(--text);
+}
+
+.found {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.foundItem {
+  padding: var(--space-3);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+.foundHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.conf {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  margin-left: auto;
+}
+
+.foundText {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.evidence {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-2);
+  border: none;
+  border-left: var(--border-w-2) solid var(--border-color);
+  background: var(--surface-bg);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  cursor: pointer;
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.evidence:hover,
+.evidence:focus-visible {
+  color: var(--text);
+  border-left-color: var(--brand);
+}
+
+.target {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}

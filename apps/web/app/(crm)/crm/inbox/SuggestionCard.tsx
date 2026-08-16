@@ -15,6 +15,7 @@ import { Check, Pencil, X, Undo2 } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
+import { describeSuggestionValue, TARGET_LABEL, FIELD_LABEL } from '@/lib/crm/format/suggestion'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import styles from './inbox.module.css'
 
@@ -38,17 +39,17 @@ const AXIS_LABEL: Record<string, string> = {
   WHO: '누가', WHAT: '무엇을', WHERE: '어디까지', RISK: '무엇이 막나', NEXT: '다음에',
 }
 
-const TARGET_LABEL: Record<string, string> = { company: '회사', person: '인물', deal: '딜' }
 const TARGET_HREF: Record<string, string> = {
   company: '/crm/companies', person: '/crm/people', deal: '/crm/deals',
+  meeting: '/crm/meetings',
 }
 
 /** 명세 §6.1 "거절(사유 선택: 부정확, 중복, 불필요)" */
 const REJECT_REASONS = ['부정확', '중복', '불필요'] as const
 
-function show(v: unknown): string {
-  if (v === null || v === undefined || v === '') return '(비어 있음)'
-  return typeof v === 'string' ? v : JSON.stringify(v)
+/** 표시는 SSOT 를 거친다 — 인박스가 원시 JSON 을 보여 주면 사람은 읽지 않고 승인한다 */
+function show(v: unknown, item: SuggestionItem): string {
+  return describeSuggestionValue(v, item, '(비어 있음)')
 }
 
 interface Props {
@@ -59,7 +60,7 @@ interface Props {
 
 export default function SuggestionCard({ item, targetName, onDone }: Props) {
   const [editing, setEditing] = useState(false)
-  const [value, setValue] = useState(show(item.proposedValueJson))
+  const [value, setValue] = useState(show(item.proposedValueJson, item))
   const [rejecting, setRejecting] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -90,6 +91,15 @@ export default function SuggestionCard({ item, targetName, onDone }: Props) {
   }
 
   const decided = item.status !== 'PENDING'
+  /**
+   * 고칠 수 있는 제안인가.
+   *
+   * 화면은 객체 제안(인물·할 일)을 "이지원 · 상무 · 결정권자"처럼 **한 줄로 요약**해 보여 준다.
+   * 그 한 줄을 그대로 고쳐 저장하면 인물 이름이 통째로 그 문자열이 된다.
+   * 보여 주기와 고치기는 다른 일이라, 고치기는 **값이 하나일 때만** 연다.
+   */
+  const editable = item.proposedValueJson === null
+    || ['string', 'number', 'bigint'].includes(typeof item.proposedValueJson)
 
   return (
     <li className={`card ${styles.card}`}>
@@ -107,14 +117,14 @@ export default function SuggestionCard({ item, targetName, onDone }: Props) {
               </Link>
             </>
           )}
-          {item.field && <span className={styles.field}> · {item.field}</span>}
+          {item.field && <span className={styles.field}> · {FIELD_LABEL[item.field] ?? item.field}</span>}
         </span>
         <time className={styles.at}>{formatKstDateTimeShort(item.createdAt)}</time>
       </div>
 
       {/* 현재 값 → 제안 값. 둘을 나란히 놓지 않으면 "무엇이 달라지나"를 머리로 계산해야 한다 */}
       <div className={styles.change}>
-        <span className={styles.current}>{show(item.currentValueJson)}</span>
+        <span className={styles.current}>{show(item.currentValueJson, item)}</span>
         <span className={styles.arrow} aria-hidden>→</span>
         {editing ? (
           <input
@@ -124,7 +134,7 @@ export default function SuggestionCard({ item, targetName, onDone }: Props) {
             autoFocus
           />
         ) : (
-          <strong className={styles.proposed}>{show(item.proposedValueJson)}</strong>
+          <strong className={styles.proposed}>{show(item.proposedValueJson, item)}</strong>
         )}
       </div>
 
@@ -160,13 +170,13 @@ export default function SuggestionCard({ item, targetName, onDone }: Props) {
               >
                 <Check size={14} /> {editing ? '고쳐서 반영' : '반영'}
               </NbButton>
-              {!editing && (
+              {!editing && editable && (
                 <NbButton variant="ghost" onClick={() => setEditing(true)} disabled={busy}>
                   <Pencil size={14} /> 고치기
                 </NbButton>
               )}
               {editing && (
-                <NbButton variant="ghost" onClick={() => { setEditing(false); setValue(show(item.proposedValueJson)) }} disabled={busy}>
+                <NbButton variant="ghost" onClick={() => { setEditing(false); setValue(show(item.proposedValueJson, item)) }} disabled={busy}>
                   <Undo2 size={14} /> 되돌리기
                 </NbButton>
               )}

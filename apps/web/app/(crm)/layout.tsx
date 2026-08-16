@@ -13,7 +13,7 @@ import { redirect } from 'next/navigation'
 import { redirectApiUser } from '@/lib/auth/api-user-gate'
 import {
   Inbox, Building2, Users, Handshake, Mic, Workflow, BarChart3, Settings,
-  Home, Briefcase, CalendarDays,
+  Home, Briefcase, CalendarDays, CheckSquare,
 } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import AppShell from '@/components/ui/shell/AppShell'
@@ -40,6 +40,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: '기록',
     items: [
       { href: '/crm/meetings', label: '미팅', icon: <Mic size={16} /> },
+      { href: '/crm/tasks', label: '할 일', icon: <CheckSquare size={16} /> },
       { href: '/crm/process', label: '프로세스', icon: <Workflow size={16} /> },
     ],
   },

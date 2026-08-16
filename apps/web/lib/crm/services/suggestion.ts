@@ -22,6 +22,7 @@ import { CrmError } from '../domain/errors.ts'
 import { assertTransit, type SuggestionStatus } from '../domain/state-machines.ts'
 import { decideApply, NEVER_AUTO_APPLY_FIELDS, type ApplyVerdict } from '../ai/apply-policy.ts'
 import { clampLimit } from '../db/cursor.ts'
+import { kstDateOnlyToIso } from '../../datetime/kst.ts'
 
 /**
  * 5축 (스키마 CrmSuggestionAxis 와 같아야 한다).
@@ -245,6 +246,88 @@ async function applyToRecord(tx: any, args: ApplyArgs): Promise<void> {
   })
 }
 
+
+/**
+ * 새 레코드를 만드는 제안을 수락한다.
+ *
+ * **왜 필요한가**: 미팅에서 "박보안 팀장이 반대한다"를 뽑아 놓고 등록을 못 하면,
+ * 사람은 그걸 다시 손으로 옮겨 적는다. 그러면 AI 가 읽어낸 의미가 없다.
+ * 예전에는 여기서 "아직 수락할 수 없습니다"로 막혀 있었다 — 인박스 절반이 죽어 있었다.
+ *
+ * **절대규칙과의 관계**: AI 출력이 코어 테이블에 직접 쓰는 것이 금지된 것이지,
+ * **사람이 보고 승인한 값**을 쓰는 것은 인박스의 존재 이유다.
+ * 그래서 `source: 'AI'` 와 `sourceSuggestionId` 를 남겨 나중에 출처를 답할 수 있게 한다.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function createFromSuggestion(tx: any, args: {
+  actorId: string | null
+  suggestion: { id: string; axis: string; targetType: string; proposedValueJson: unknown; runId: string; confidence: number }
+}): Promise<{ targetType: string; targetId: string }> {
+  const { suggestion: s, actorId } = args
+  const v = (s.proposedValueJson ?? {}) as Record<string, unknown>
+
+  if (s.targetType === 'person') {
+    const name = typeof v.name === 'string' ? v.name.trim() : ''
+    if (!name) {
+      throw new CrmError('VALIDATION_FAILED', '이름이 없는 인물은 만들 수 없습니다.')
+    }
+    const companyId = typeof v.companyId === 'string' ? v.companyId : null
+
+    // 같은 회사에 같은 이름이 이미 있으면 그걸 쓴다 — 미팅마다 같은 사람을 또 만들면 안 된다
+    const dup = await tx.crmPerson.findFirst({
+      where: { name, ...(companyId ? { companyId } : {}) },
+      select: { id: true },
+    })
+    if (dup) return { targetType: 'person', targetId: dup.id }
+
+    const created = await tx.crmPerson.create({
+      data: {
+        name, companyId,
+        title: typeof v.title === 'string' ? v.title : null,
+        email: typeof v.email === 'string' ? v.email.toLowerCase() : null,
+        source: 'AI',
+      },
+      select: { id: true },
+    })
+    await writeAudit(tx, {
+      actorType: 'HUMAN', actorId, action: 'person.created_from_suggestion',
+      targetType: 'person', targetId: created.id,
+      beforeJson: null,
+      afterJson: { name, source: 'ai', runId: s.runId, confidence: s.confidence, suggestionId: s.id },
+    })
+    return { targetType: 'person', targetId: created.id }
+  }
+
+  // NEXT — 다음에 할 일. 미팅에 붙어 있던 "읽을 거리"를 사람이 승인하면 진짜 할 일이 된다
+  if (s.axis === 'NEXT') {
+    const title = typeof v.title === 'string' ? v.title.trim() : ''
+    if (!title) throw new CrmError('VALIDATION_FAILED', '할 일 제목이 없습니다.')
+
+    // dueDate 는 KST 날짜다 — naive 로 저장하면 하루가 밀린다(datetime SSOT)
+    const dueAt = typeof v.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.dueDate)
+      ? new Date(kstDateOnlyToIso(v.dueDate))
+      : null
+
+    const created = await tx.crmTask.create({
+      data: { title, dueAt, sourceSuggestionId: s.id, createdById: actorId },
+      select: { id: true },
+    })
+    await writeAudit(tx, {
+      actorType: 'HUMAN', actorId, action: 'task.created_from_suggestion',
+      targetType: 'task', targetId: created.id,
+      beforeJson: null,
+      afterJson: { title, dueAt, source: 'ai', runId: s.runId, suggestionId: s.id },
+    })
+    return { targetType: 'task', targetId: created.id }
+  }
+
+  // RISK 는 값이 아니라 읽을 거리다 — 만들 레코드가 없다.
+  // 수락은 "봤다"는 뜻이고, 기록은 제안 자체에 남는다.
+  if (s.axis === 'RISK') return { targetType: 'meeting', targetId: '' }
+
+  throw new CrmError('VALIDATION_FAILED', '이 제안은 아직 여기서 수락할 수 없습니다.')
+}
+
 export interface ListSuggestionInput {
   limit?: number | null
   status?: string | null
@@ -309,16 +392,16 @@ export async function decideSuggestion(
 
     if (input.decision === 'accept') {
       if (!s.targetId || !s.field) {
-        // 신규 생성 제안은 필드 반영이 아니다 — 그 화면은 T1-10 이후에 붙는다
-        throw new CrmError('VALIDATION_FAILED',
-          '새 레코드를 만드는 제안은 아직 여기서 수락할 수 없습니다.')
+        // 필드 갱신이 아니라 **새로 만드는** 제안이다 — 인물·할 일이 여기서 생긴다
+        await createFromSuggestion(tx, { actorId, suggestion: s })
+      } else {
+        const value = input.editedValue !== undefined ? input.editedValue : s.proposedValueJson
+        await applyToRecord(tx, {
+          targetType: s.targetType, targetId: s.targetId, field: s.field,
+          value, runId: s.runId, confidence: s.confidence,
+          actorId, suggestionId: s.id, auto: false, version: input.version,
+        })
       }
-      const value = input.editedValue !== undefined ? input.editedValue : s.proposedValueJson
-      await applyToRecord(tx, {
-        targetType: s.targetType, targetId: s.targetId, field: s.field,
-        value, runId: s.runId, confidence: s.confidence,
-        actorId, suggestionId: s.id, auto: false, version: input.version,
-      })
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -31,6 +31,7 @@ export interface ChangelogNote {
 
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[
+] = [
   {
     version: '0.7.517',
     date: '2026-08-16',
@@ -56,7 +57,6 @@ export const CHANGELOG: ChangelogNote[
       },
     ],
   },
-] = [
   {
     version: '0.7.516', date: '2026-08-16', title: '영상 파일이 없어도 편집점을 낼 수 있어요',
     items: [
