@@ -1,0 +1,108 @@
+/* 리포트 v1 (T1-12) — 숫자 옆에 "무엇을 안 셌는지"가 늘 붙어 있어야 한다 */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.card {
+  padding: var(--space-5);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.title {
+  margin: 0;
+  margin-right: auto;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.totals {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+@media (max-width: 767px) {
+  .totals { grid-template-columns: 1fr; }
+}
+
+.total {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+}
+
+.totalLabel {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.totalValue {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.money {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.moneyLine {
+  font-size: var(--fs-price);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.none {
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+}
+
+.note {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.stage {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-top: var(--hairline) solid var(--border-light);
+}
+
+.stageName {
+  font-weight: 700;
+  color: var(--text);
+  min-width: 8rem;
+}
+
+.stageCount {
+  color: var(--text-muted);
+  margin-right: auto;
+}
