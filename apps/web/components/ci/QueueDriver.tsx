@@ -33,6 +33,32 @@ interface DrainResponse {
 
 type Phase = 'idle' | 'working' | 'stalled'
 
+/**
+ * 마지막으로 "할 일 없음"을 확인한 시각. 탭이 살아 있는 동안 유지된다.
+ *
+ * 왜 필요한가: 이 부품은 CI 셸에 붙어 있어 **화면을 옮길 때마다 다시 마운트**된다.
+ *   그때마다 첫 틱이 즉시 나가는데, 큐가 비어 있어도 그 요청 하나가
+ *   **인증 서버 왕복 1회 + DB 왕복 5~7회**다(좀비 회수·스냅샷·스윕 점검 때문에).
+ *   화면 다섯 개를 넘기면 아무 일도 없는데 왕복 30회를 쓴다.
+ *   (근거: docs/2026-08-16-performance-audit/PLAN.md §2-2)
+ *
+ * 모듈 변수라 새로고침하면 사라진다 — 막힌 큐를 영원히 못 보는 일은 없다.
+ */
+let lastIdleAt = 0
+
+/** 비어 있음을 확인한 뒤 이 시간 안의 재마운트는 묻지 않는다. */
+export const IDLE_REMOUNT_GRACE_MS = 30_000
+
+/**
+ * "지금 할 일이 생겼다"를 알린다 — 링크를 넣은 직후처럼.
+ *
+ * 이게 없으면 위의 유예 때문에 방금 넣은 링크가 최대 30초 동안 처리되지 않는 것처럼
+ * 보인다. 아낀 왕복보다 **넣자마자 도는 것**이 중요하다.
+ */
+export function wakeQueueDriver(): void {
+  lastIdleAt = 0
+}
+
 export default function QueueDriver({ workspaceId }: { workspaceId: string }) {
   const [phase, setPhase] = useState<Phase>('idle')
   const [remaining, setRemaining] = useState(0)
@@ -59,6 +85,8 @@ export default function QueueDriver({ workspaceId }: { workspaceId: string }) {
 
       errors.current = 0
       const left = res.data.remaining ?? 0
+      // 비어 있음을 확인한 시각을 남긴다 — 다음 화면에서 다시 묻지 않기 위해
+      lastIdleAt = left > 0 ? 0 : Date.now()
       setRemaining(left)
       setPhase(left > 0 ? 'working' : 'idle')
     } catch {
@@ -88,8 +116,13 @@ export default function QueueDriver({ workspaceId }: { workspaceId: string }) {
   }, [remaining, tick])
 
   useEffect(() => {
-    // 화면에 들어오는 순간 한 번 — 링크를 넣고 바로 결과를 보려면 첫 틱이 즉시여야 한다
-    void tick()
+    // 화면에 들어오는 순간 한 번 — 링크를 넣고 바로 결과를 보려면 첫 틱이 즉시여야 한다.
+    // 단 **방금 비어 있다고 확인했으면** 묻지 않는다(화면 전환마다 되묻는 것을 막는다).
+    // 링크 투입은 이 경로를 타지 않는다 — LinkIntakeBox가 접수 직후 새로고침을 걸고,
+    // 그때 remaining>0이 되어 lastIdleAt이 풀린다.
+    const justIdle = Date.now() - lastIdleAt < IDLE_REMOUNT_GRACE_MS
+    if (!justIdle) void tick()
+    else schedule()
 
     const onVisible = () => {
       if (document.visibilityState === 'visible' && !stopped.current) void tick()

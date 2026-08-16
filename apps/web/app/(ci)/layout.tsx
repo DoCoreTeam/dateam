@@ -11,7 +11,8 @@ import { redirectApiUser } from '@/lib/auth/api-user-gate'
 import {
   Home, Inbox, Radar, TrendingUp, PenTool, Layers, Send, Radio, BarChart3, Settings, Scissors,
 } from 'lucide-react'
-import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
+import { getRequestUser } from '@/lib/supabase/server'
+import { getRequestProfile } from '@/lib/auth/request-profile'
 import { getBranding } from '@/lib/branding'
 import { getActiveTheme, resolveTheme } from '@/lib/theme'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
@@ -23,7 +24,6 @@ import AssistantPanel from '@/components/ci/AssistantPanel'
 import NotificationBell from '@/components/ci/NotificationBell'
 import QueueDriver from '@/components/ci/QueueDriver'
 import type { CiLoopMinimap } from '@/lib/ci/contracts'
-import type { Profile } from '@/types/database'
 
 const NAV_ITEMS = [
   // 섹션 루트라 exact로 둔다 — 안 그러면 /ci/* 어디서나 '홈'이 활성으로 남는다
@@ -72,26 +72,17 @@ function buildGroups(counts?: CiLoopMinimap): NavGroup[] {
 }
 
 export default async function CiLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
   const user = await getRequestUser()
   if (!user) redirect('/login')
 
-  const adminClient = createAdminClient()
-
-  const [workspace, branding, profileResult, globalTheme] = await Promise.all([
+  // 프로필은 공용 리더(요청당 1회)를 쓴다 — 루트 layout의 테마 계산과 같은 행이라
+  // 예전엔 같은 요청에서 두 번 읽었다. (docs/2026-08-16-performance-audit/PLAN.md §2-2)
+  const [workspace, branding, profile, globalTheme] = await Promise.all([
     resolveActiveWorkspace(user.id),
     getBranding(),
-    adminClient
-      .from('profiles')
-      .select('name, role, theme_preference')
-      .eq('id', user.id)
-      .single() as unknown as Promise<{
-        data: Pick<Profile, 'name' | 'role' | 'theme_preference'> | null
-      }>,
+    getRequestProfile(),
     getActiveTheme(),
   ])
-
-  const profile = profileResult.data
   // (member)와 같은 이유 — role은 위 조회에 이미 들어 있다
   redirectApiUser(profile?.role)
   const displayName = profile?.name ?? user.user_metadata?.name ?? user.email ?? '팀원'

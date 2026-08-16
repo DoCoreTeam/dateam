@@ -1,5 +1,6 @@
 import { cache } from 'react'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { getShellSettings } from '@/lib/settings'
+import { getRequestProfile } from '@/lib/auth/request-profile'
 import { DEFAULT_THEME, isThemeId, resolveTheme, type ThemeId } from '@/lib/themes'
 
 export { resolveTheme }
@@ -8,14 +9,9 @@ export { resolveTheme }
 // cache(): 같은 요청 내 중복 호출(루트 layout + member layout) 시 1회만 조회.
 export const getActiveTheme = cache(async (): Promise<ThemeId> => {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const adminClient = createAdminClient() as any
-    const { data } = await adminClient
-      .from('system_settings')
-      .select('value')
-      .eq('key', 'active_theme')
-      .single()
-    const v = data?.value
+    // 브랜딩과 **같은 테이블**이라 같은 조회에 묶는다(lib/settings.ts SSOT).
+    // 예전엔 각자 읽어 한 화면에 system_settings 왕복이 2~3회였다.
+    const v = (await getShellSettings()).active_theme
     return isThemeId(v) ? v : DEFAULT_THEME
   } catch {
     return DEFAULT_THEME
@@ -30,17 +26,12 @@ export const getActiveTheme = cache(async (): Promise<ThemeId> => {
 export const getEffectiveTheme = cache(async (): Promise<ThemeId> => {
   const globalDefault = await getActiveTheme()
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return globalDefault
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const adminClient = createAdminClient() as any
-    const { data } = await adminClient
-      .from('profiles')
-      .select('theme_preference')
-      .eq('id', user.id)
-      .single()
-    return resolveTheme(data?.theme_preference, globalDefault)
+    // 인증·프로필 모두 **요청당 1회** 공용 리더를 쓴다.
+    // 예전엔 여기서 `auth.getUser()`와 `profiles` 조회를 직접 해서, 같은 요청에서
+    // 미들웨어·그룹 레이아웃이 이미 읽은 것을 **세 번째로** 다시 읽었다.
+    // (근거: docs/2026-08-16-performance-audit/PLAN.md §2-2)
+    const profile = await getRequestProfile()
+    return resolveTheme(profile?.theme_preference, globalDefault)
   } catch {
     return globalDefault
   }

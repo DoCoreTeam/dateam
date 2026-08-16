@@ -8,6 +8,7 @@ import { useState } from 'react'
 import type { ApiResponse, CiIngestResult } from '@/lib/ci/contracts'
 import { isEnterKey } from '@/lib/ui/ime'
 import ErrorState from '@/components/ui/ErrorState'
+import { wakeQueueDriver } from '@/components/ci/QueueDriver'
 
 interface LinkIntakeBoxProps {
   workspaceId: string
@@ -42,7 +43,11 @@ export default function LinkIntakeBox({
       }
 
       setResult(res.data)
-      if (res.data.accepted.length > 0) setValue('')
+      if (res.data.accepted.length > 0) {
+        setValue('')
+        // 큐 구동기의 유휴 유예를 푼다 — 방금 넣은 것이 바로 돌아야 한다
+        wakeQueueDriver()
+      }
       setBusy(false)
 
       // 새로고침은 **화면을 확정한 뒤** 건다.

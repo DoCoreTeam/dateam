@@ -24,6 +24,18 @@ interface Options {
 /** URL에 목록 파라미터가 하나라도 있으면 그게 사용자의 의도다 — 저장 설정으로 덮지 않는다 */
 const URL_KEYS = ['view', 'size', 'sort', 'dir'] as const
 
+/**
+ * 복원한 개인 설정을 탭이 살아 있는 동안 들고 있는다.
+ *
+ * 왜: 목록 화면을 옮길 때마다 `/api/ui-preferences`를 새로 물었다.
+ *   그 요청 하나가 **DB 왕복 1회 + 인증 서버 왕복 1회**다(실측).
+ *   개인 설정은 이 탭에서만 바뀌고, 바뀔 때 우리가 직접 쓰므로 서버에 다시 물을 이유가 없다.
+ *   (근거: docs/2026-08-16-performance-audit/PLAN.md §2-2)
+ *
+ * 탭 메모리라 새로고침하면 사라진다 — 다른 기기에서 바꾼 설정을 영원히 못 보는 일은 없다.
+ */
+const prefsCache = new Map<string, SavedListPrefs | null>()
+
 export function useListQuery(defaults: ListDefaults, options: Options = {}) {
   const router = useRouter()
   const pathname = usePathname()
@@ -43,11 +55,23 @@ export function useListQuery(defaults: ListDefaults, options: Options = {}) {
     restoreDone.current = true
     if (URL_KEYS.some((k) => searchParams.get(k))) return
 
+    const key = options.persistKey
+    if (prefsCache.has(key)) {
+      const hit = prefsCache.get(key) ?? null
+      if (hit) setRestored(hit)
+      return
+    }
+
     let alive = true
     // 복원 실패는 조용히 넘어간다 — 기본값으로 도는 게 목록을 못 보는 것보다 낫다
-    fetch(`/api/ui-preferences?scopeKey=${encodeURIComponent(options.persistKey)}`)
+    fetch(`/api/ui-preferences?scopeKey=${encodeURIComponent(key)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((body) => { if (alive && body?.value) setRestored(sanitizeSavedPrefs(body.value)) })
+      .then((body) => {
+        const value = body?.value ? sanitizeSavedPrefs(body.value) : null
+        // 없다는 사실도 캐시한다 — 안 그러면 설정을 한 번도 안 바꾼 화면은 매번 다시 묻는다
+        prefsCache.set(key, value)
+        if (alive && value) setRestored(value)
+      })
       .catch(() => {})
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -64,6 +88,8 @@ export function useListQuery(defaults: ListDefaults, options: Options = {}) {
     router.replace(`${pathname}?${listQueryToParams(next, defaults, searchParams)}`, { scroll: false })
 
     if (!options.persistKey) return
+    // 방금 쓴 값을 캐시에도 반영한다 — 안 하면 다음 방문에 옛 값으로 되돌아간다
+    prefsCache.set(options.persistKey, savedFromQuery(next))
     // 저장 실패가 화면 조작을 막으면 안 된다 — 다음 변경에서 다시 시도된다
     void fetch('/api/ui-preferences', {
       method: 'POST',
