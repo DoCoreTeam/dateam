@@ -25,6 +25,7 @@ import { getRequestUser } from '@/lib/supabase/server'
 import { resolveCrmAccess, CRM_DENY_MESSAGE } from '@/lib/crm/auth/requireCrmMember'
 import { countPendingSuggestions } from '@/lib/crm/services/suggestion'
 import CommandPalette from '@/components/crm/CommandPalette'
+import AttentionBell from '@/components/crm/AttentionBell'
 
 /**
  * 사이드바 8개 항목 (구현명세서 1.1 라우트 구조 그대로).
@@ -171,6 +172,8 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
             </strong>
           </span>
         ),
+        // 검색·전체메뉴 앞에 놓는다 — 지금 봐야 할 것이 먼저 눈에 들어와야 한다
+        headerExtra: <AttentionBell />,
       }}
     >
       <CommandPalette />

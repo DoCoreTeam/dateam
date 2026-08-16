@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.532',
+    date: '2026-08-17',
+    title: '지금 봐야 할 것을 종 하나로 모았어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🔔',
+        headline: '기한 지난 할 일·확인 기다리는 제안·멈춘 딜을 한곳에서 봐요',
+        detail: '화면을 하나씩 열어봐야 알 수 있던 것들을 상단 종 아이콘에 모았습니다. 왜 떴는지("6일 지났어요")까지 함께 적어 두었어요. 읽음 처리는 없습니다 — 할 일을 끝내거나 제안을 확인하면 목록에서 바로 사라집니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.531',
     date: '2026-08-17',
     title: 'Cmd+K로 어디든 바로 갈 수 있어요',
