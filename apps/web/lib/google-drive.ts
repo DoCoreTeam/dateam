@@ -1,7 +1,7 @@
 import { google, Auth } from 'googleapis'
 import { createAdminClient } from '@/lib/supabase/server'
 import type { OAuthTokenInsert } from '@/types/database'
-import type { Readable } from 'stream'
+import { Readable } from 'node:stream'
 
 type OAuth2Client = Auth.OAuth2Client
 
@@ -187,8 +187,10 @@ export async function uploadFile(
   const auth = await refreshTokenIfNeeded()
   const drive = google.drive({ version: 'v3', auth })
 
-  const { Readable: NodeReadable } = await import('stream')
-  const readableStream = NodeReadable.from(buffer)
+  // 정적 import를 쓴다. 동적 `import('stream')`은 번들러를 거치면서 named export가 사라져
+  // `Readable`이 undefined가 됐고, 업로드가 통째로 500이 났다
+  // (실측: "Cannot read properties of undefined (reading 'from')" — 파일 올리기가 아예 안 됐다).
+  const readableStream = Readable.from(buffer)
 
   const { data } = await drive.files.create({
     requestBody: {
@@ -217,6 +219,22 @@ export interface StreamFileResult {
   contentRange: string | null
   /** 206이면 부분 응답이다 */
   partial: boolean
+}
+
+/**
+ * 응답 헤더 하나를 꺼낸다.
+ * 왜 두 갈래인가: 구글 클라이언트가 버전에 따라 헤더를 **plain object** 로도, **Headers 인스턴스**
+ * 로도 준다. 한쪽만 가정하면 값이 조용히 null이 되고, 206을 보내면서 Content-Range를 빼먹어
+ * 브라우저가 구간을 해석하지 못한다(실측: 그래서 탐색이 안 됐다).
+ */
+function headerOf(res: unknown, name: string): string | null {
+  const raw = (res as { headers?: unknown }).headers
+  if (!raw) return null
+  if (typeof (raw as Headers).get === 'function') return (raw as Headers).get(name)
+  const bag = raw as Record<string, string | string[] | undefined>
+  const hit = bag[name] ?? bag[name.toLowerCase()]
+  if (Array.isArray(hit)) return hit[0] ?? null
+  return hit ?? null
 }
 
 /**
@@ -251,14 +269,13 @@ export async function streamFile(
   )
 
   const status = (res as { status?: number }).status ?? 200
-  const headers = (res as { headers?: Record<string, string> }).headers ?? {}
 
   return {
     stream: res.data as Readable,
     mimeType,
     fileName,
     size,
-    contentRange: headers['content-range'] ?? null,
+    contentRange: headerOf(res, 'content-range'),
     partial: status === 206,
   }
 }

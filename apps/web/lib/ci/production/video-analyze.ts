@@ -48,6 +48,17 @@ const PEAK_RATIO = 1.8
 export const MAX_ANALYZE_SEC = 900
 /** 영상이 열릴 때까지 기다리는 한계. 넘으면 못 연 것으로 보고 이유를 말한다. */
 export const MEDIA_OPEN_TIMEOUT_MS = 15_000
+/**
+ * 한 번의 탐색(seek)을 기다리는 한계.
+ * 로컬 파일은 즉시지만 **주소로 읽을 때는 서버 왕복이 들어간다** — 3초는 첫 탐색조차 못 끝낸다
+ * (실측: 드라이브 스트림에서 장면 전환이 통째로 '미확보'로 나왔다. 같은 영상이 파일로는 5회였다).
+ */
+export const SEEK_TIMEOUT_MS = 10_000
+/**
+ * 탐색이 연달아 이만큼 실패하면 화면 분석을 접는다.
+ * 한 번 실패했다고 즉시 접으면, 네트워크가 한 번 튄 것만으로 화면 신호 전체를 버린다.
+ */
+export const MAX_CONSECUTIVE_SEEK_FAILS = 3
 
 export interface AnalyzeProgress {
   phase: 'video' | 'audio' | 'done'
@@ -271,11 +282,23 @@ async function analyzeMedia(
     let frameSkipReason: string | null = null
 
     if (g && scanSec > 0) {
+      await waitForFirstFrame(video, SEEK_TIMEOUT_MS)
       const step = 1 / FRAMES_PER_SEC
+      let seekFails = 0
       for (let t = 0; t < scanSec; t += step) {
         // eslint-disable-next-line no-await-in-loop
         const seeked = await seekTo(video, t)
-        if (!seeked) break
+        if (!seeked) {
+          seekFails += 1
+          if (seekFails >= MAX_CONSECUTIVE_SEEK_FAILS) {
+            if (framesSampled === 0) {
+              frameSkipReason = '영상을 훑는 데 실패했습니다 — 소리만 분석했습니다'
+            }
+            break
+          }
+          continue
+        }
+        seekFails = 0
         let frame: Uint8ClampedArray
         try {
           g.drawImage(video, 0, 0, size.w, size.h)
@@ -415,10 +438,32 @@ function openMedia(video: HTMLVideoElement): Promise<void> {
   })
 }
 
+/**
+ * 첫 프레임이 실제로 손에 들어올 때까지 기다린다.
+ *
+ * 왜: `loadedmetadata`는 "길이·크기를 알았다"일 뿐 **화면 데이터는 아직 없다**는 뜻이다.
+ * 그 상태에서 바로 탐색하면 첫 탐색이 통째로 네트워크 왕복이 되어 시간을 다 쓴다.
+ * 못 기다려도 진행한다 — 여기서 막으면 될 분석까지 막는다.
+ */
+function waitForFirstFrame(video: HTMLVideoElement, timeoutMs: number): Promise<void> {
+  if (video.readyState >= 2) return Promise.resolve()
+  return new Promise((resolve) => {
+    const done = () => { cleanup(); resolve() }
+    const timer = setTimeout(done, timeoutMs)
+    function cleanup() {
+      clearTimeout(timer)
+      video.removeEventListener('loadeddata', done)
+      video.removeEventListener('error', done)
+    }
+    video.addEventListener('loadeddata', done)
+    video.addEventListener('error', done)
+  })
+}
+
 /** seek 완료를 기다린다. 실패하면 false — 무한 대기하지 않는다. */
 function seekTo(video: HTMLVideoElement, t: number): Promise<boolean> {
   return new Promise((resolve) => {
-    const timer = setTimeout(() => { cleanup(); resolve(false) }, 3000)
+    const timer = setTimeout(() => { cleanup(); resolve(false) }, SEEK_TIMEOUT_MS)
     function cleanup() {
       clearTimeout(timer)
       video.removeEventListener('seeked', onSeeked)
