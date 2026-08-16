@@ -1,0 +1,191 @@
+'use client'
+
+// 딜 표 (dacrm T1-03)
+//
+// 보드는 "지금 어느 단계에 몇 건"을 보는 눈이고, 표는 "무엇이 얼마짜리인가"를 보는 눈이다.
+// 닫힌 딜은 보드에서 사라지지만 표에는 남는다 — 성사·실주를 되짚는 자리가 여기다.
+//
+// 목록 표준(§2-6)을 그대로 쓴다: ListToolbar·ListSurface·ListPager + useListQuery.
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Plus } from 'lucide-react'
+import ListToolbar from '@/components/ui/list/ListToolbar'
+import ListSurface from '@/components/ui/list/ListSurface'
+import ListPager from '@/components/ui/list/ListPager'
+import type { ColumnDef, ListFilterDef } from '@/components/ui/list/types'
+import NbButton from '@/components/ui/nb/NbButton'
+import NbBadge from '@/components/ui/nb/NbBadge'
+import type { StatusKey } from '@/lib/tokens/status-colors'
+import { useListQuery } from '@/lib/ui/use-list-query'
+import {
+  TRASH_FILTER, TRASH_FILTER_KEYS, TRASH_EMPTY, isTrashView, useRestore, restoreColumn,
+} from '@/components/ui/crm/trash'
+import { formatKstDateTimeShort } from '@/lib/datetime/kst'
+import type { BoardPipeline } from './DealBoard'
+import { formatAmount } from './amount'
+
+export interface DealRowItem {
+  id: string
+  name: string
+  companyId: string
+  pipelineId: string
+  stageId: string
+  status: string
+  amountMinor: string | null
+  currency: string | null
+  expectedCloseDate: string | null
+  version: number
+  updatedAt: string
+}
+
+/**
+ * 상태는 색으로도 말한다 — 성사와 실주가 같은 회색이면 표를 훑어서는 구분이 안 된다.
+ * 색은 호스트의 상태 키에 얹는다(lib/tokens/status-colors SSOT) — 화면에서 색맵을 새로 만들지 않는다.
+ */
+const STATUS_LABEL: Record<string, { label: string; status: StatusKey }> = {
+  OPEN: { label: '진행 중', status: 'doing' },
+  WON: { label: '수주', status: 'done' },
+  LOST: { label: '실주', status: 'blocker' },
+}
+
+interface Props {
+  pipelines: BoardPipeline[]
+  onCreate: () => void
+  /** 목록을 다시 읽어야 할 때 바뀌는 값(저장 직후 등) */
+  reloadKey: number
+}
+
+export default function DealTableView({ pipelines, onCreate, reloadKey }: Props) {
+  const { query, set } = useListQuery({
+    view: 'table', size: 20, sort: { key: 'updatedAt', dir: 'desc' }, mode: 'more',
+    filterKeys: ['pipelineId', 'status', ...TRASH_FILTER_KEYS],
+  })
+  const [rows, setRows] = useState<DealRowItem[]>([])
+  const [cursor, setCursor] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const q = query.q ?? ''
+  const pipelineId = query.filters?.pipelineId ?? ''
+  const status = query.filters?.status ?? ''
+  const trash = isTrashView(query)
+
+  // 단계 이름은 파이프라인 전체에서 찾는다 — 표는 여러 파이프라인을 섞어 보여 줄 수 있다
+  const stageName = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const p of pipelines) for (const s of p.stages) map.set(s.id, s.name)
+    return map
+  }, [pipelines])
+
+  const load = useCallback(async (append: boolean, nextCursor: string | null) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const sp = new URLSearchParams()
+      if (q) sp.set('q', q)
+      if (pipelineId) sp.set('pipelineId', pipelineId)
+      if (status) sp.set('status', status)
+      if (trash) sp.set('trash', '1')
+      sp.set('limit', String(query.size))
+      if (nextCursor) sp.set('cursor', nextCursor)
+
+      const res = await fetch(`/api/crm/deals?${sp.toString()}`)
+      const body = await res.json()
+      if (!res.ok) { setError(body?.error?.message ?? '딜을 불러오지 못했습니다.'); return }
+      setRows((prev) => (append ? [...prev, ...body.items] : body.items))
+      setCursor(body.nextCursor)
+    } catch {
+      setError('딜을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setLoading(false)
+    }
+  }, [q, pipelineId, status, trash, query.size])
+
+  useEffect(() => { void load(false, null) }, [load, reloadKey])
+
+  const { restore, restoreError } = useRestore('/api/crm/deals', () => void load(false, null))
+
+  const baseColumns: ColumnDef<DealRowItem>[] = useMemo(() => [
+    { key: 'name', header: '딜 이름', primary: true, cell: (r) => r.name },
+    {
+      key: 'stage', header: '단계',
+      cell: (r) => stageName.get(r.stageId) ?? <span style={{ color: 'var(--text-faint)' }}>—</span>,
+    },
+    {
+      key: 'status', header: '상태',
+      cell: (r) => {
+        const meta = STATUS_LABEL[r.status] ?? { label: r.status, status: 'note' as StatusKey }
+        return <NbBadge status={meta.status}>{meta.label}</NbBadge>
+      },
+    },
+    {
+      key: 'amount', header: '금액', align: 'right',
+      cell: (r) => formatAmount(r.amountMinor, r.currency)
+        ?? <span style={{ color: 'var(--text-faint)' }}>미정</span>,
+    },
+    {
+      key: 'updatedAt', header: '최근 변경', hideOnCard: true,
+      cell: (r) => formatKstDateTimeShort(r.updatedAt),
+    },
+  ], [stageName])
+
+  const columns = useMemo(
+    () => (trash ? [...baseColumns, restoreColumn<DealRowItem>((id) => void restore(id))] : baseColumns),
+    [trash, baseColumns, restore],
+  )
+
+  const filters: ListFilterDef[] = useMemo(() => [
+    {
+      key: 'pipelineId', label: '파이프라인',
+      options: pipelines.map((p) => ({ value: p.id, label: p.name })),
+    },
+    {
+      key: 'status', label: '상태',
+      options: [
+        { value: 'OPEN', label: '진행 중' },
+        { value: 'WON', label: '수주' },
+        { value: 'LOST', label: '실주' },
+      ],
+    },
+    TRASH_FILTER,
+  ], [pipelines])
+
+  return (
+    <>
+      <ListToolbar
+        query={query}
+        onChange={set}
+        searchPlaceholder="딜 이름으로 검색"
+        views={['table', 'card']}
+        filters={filters}
+        showSize={false}
+        actions={<NbButton onClick={onCreate}><Plus size={16} /> 딜 추가</NbButton>}
+      />
+
+      <ListSurface
+        rows={rows}
+        columns={columns}
+        query={query}
+        onChange={set}
+        rowKey={(r) => r.id}
+        rowHref={trash ? undefined : (r) => `/crm/deals/${r.id}`}
+        loading={loading && rows.length === 0}
+        error={(error ?? restoreError) ? { message: (error ?? restoreError)!, onRetry: () => void load(false, null) } : null}
+        empty={trash ? TRASH_EMPTY : {
+          title: q || pipelineId || status ? '조건에 맞는 딜이 없어요' : '아직 딜이 없어요',
+          description: q || pipelineId || status
+            ? '검색어나 필터를 바꿔 보세요.'
+            : '영업 건을 만들면 단계별로 진행 상황을 볼 수 있습니다.',
+          action: q || pipelineId || status ? undefined : { label: '딜 추가', onClick: onCreate },
+        }}
+      />
+
+      <ListPager
+        query={query}
+        hasMore={Boolean(cursor)}
+        loading={loading}
+        onChange={() => void load(true, cursor)}
+      />
+    </>
+  )
+}

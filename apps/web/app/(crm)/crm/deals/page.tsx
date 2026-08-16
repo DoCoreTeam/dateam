@@ -1,6 +1,8 @@
 import { Handshake } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
-import EmptyState from '@/components/ui/EmptyState'
+import { Suspense } from 'react'
+import AXDotLoader from '@/components/ui/AXDotLoader'
+import DealsClient from './DealsClient'
 
 export const metadata = { title: '딜 · 영업 CRM' }
 
@@ -11,14 +13,12 @@ export default function CrmDealsPage() {
         eyebrow="영업 CRM"
         title="딜"
         icon={<Handshake size={20} />}
-        description="진행 중인 영업 건을 파이프라인으로 봅니다."
+        description="진행 중인 영업 건을 봅니다. 보드는 단계별 현황을, 표는 금액과 닫힌 건까지 보여 줍니다."
       />
-      <EmptyState
-        title="진행 중인 딜이 아직 없어요"
-        description="회사를 고르고 딜 이름만 정하면 시작됩니다. 금액은 나중에 채워도 됩니다."
-        icon={<Handshake size={28} />}
-        action={{ label: '회사 보러 가기', href: '/crm/companies' }}
-      />
+      {/* useSearchParams 는 Suspense 경계가 필요하다 — 없으면 빌드가 전체 페이지를 CSR 로 떨어뜨린다 */}
+      <Suspense fallback={<AXDotLoader />}>
+        <DealsClient />
+      </Suspense>
     </>
   )
 }
