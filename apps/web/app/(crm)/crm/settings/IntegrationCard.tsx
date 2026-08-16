@@ -7,10 +7,14 @@
 // "요즘 메일이 안 들어오네"를 몇 주 뒤에 눈치챈다 — 그 사이 기록이 통째로 빈다.
 //
 // 구성은 §2-5(3)의 넷을 따른다: 연결 상태 · 변경 · 연결 해제 · 연결 테스트.
-// 지금 없는 것은 **연결하기**뿐이고, 그건 OAuth 클라이언트가 아직 없어서다(T1-09).
-// 없는 걸 있는 척하지 않고, 왜 없는지 화면에 밝힌다.
+//
+// 연결은 **호스트에 이미 있는 Google 클라이언트**를 그대로 쓴다(`GOOGLE_CLIENT_ID`).
+// 한동안 "관리자가 클라이언트를 등록하면 버튼이 나타납니다"라고 써 뒀었는데,
+// 확인해 보니 클라이언트는 처음부터 있었고 Drive 연동이 그것으로 돌고 있었다 —
+// 없던 것은 클라이언트가 아니라 **CRM 이 그걸 쓰는 배선**이었다.
 
 import { useCallback, useEffect, useState } from 'react'
+import { withReturnTo, currentReturnTo } from '@/lib/nav/return-to'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -40,6 +44,7 @@ export default function IntegrationCard() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -57,6 +62,18 @@ export default function IntegrationCard() {
   }, [])
 
   useEffect(() => { void load() }, [load])
+
+  /**
+   * 콜백이 `?google=connected|error` 를 붙여 돌려보낸다.
+   * 이걸 화면이 읽지 않으면 연결에 실패해도 아무 말이 없다 —
+   * Drive 연동에서 실제로 그랬고(v0.7.438), 같은 사고를 되풀이하지 않는다.
+   */
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get('google')
+    if (p === 'connected') setNotice('구글 계정이 연결되었습니다. 이제 메일이 자동으로 들어옵니다.')
+    if (p === 'error') setError('구글 연결에 실패했습니다. 다시 시도해 주세요.')
+    if (p === 'cancelled') setNotice('연결을 취소했습니다.')
+  }, [])
 
   async function disconnect(id: string) {
     setBusy(id)
@@ -79,9 +96,14 @@ export default function IntegrationCard() {
     <div className={`card ${styles.card}`}>
       <div className={styles.head}>
         <h2 className={styles.title}>메일·일정 연동</h2>
+        {/* 떠났다 돌아올 자리를 함께 실어 보낸다 — 동의를 마치면 이 카드로 돌아온다(복귀 경로 SSOT) */}
+        <NbButton onClick={() => { window.location.href = withReturnTo('/api/auth/google-drive?purpose=crm', currentReturnTo()) }}>
+          {items.length > 0 ? '다시 연결' : '구글 계정 연결'}
+        </NbButton>
       </div>
 
       <FormErrorBanner message={error} />
+      {notice && <p className={styles.undo}>{notice}</p>}
 
       {/* 끊긴 연결은 카드 맨 위에서 말한다 — 목록 아래에 묻히면 못 본다 */}
       {broken.length > 0 && (
@@ -95,7 +117,7 @@ export default function IntegrationCard() {
       ) : items.length === 0 ? (
         <EmptyState
           title="아직 연결된 계정이 없어요"
-          description="구글 계정을 연결하면 주고받은 메일이 자동으로 인물·딜에 붙습니다. 연결 버튼은 관리자가 구글 클라이언트를 등록하면 나타납니다."
+          description="구글 계정을 연결하면 주고받은 메일이 자동으로 인물·딜에 붙습니다. 우리 인물 명부에 있는 사람과 주고받은 것만 저장합니다."
         />
       ) : (
         <ul className={styles.conns}>

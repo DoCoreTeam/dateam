@@ -6,7 +6,10 @@ import { appendParams, sanitizeReturnTo } from '@/lib/nav/return-to'
 import { google, type Auth } from 'googleapis'
 
 const RETURN_COOKIE = 'gdrive_return_to'
+const PURPOSE_COOKIE = 'google_oauth_purpose'
 const DEFAULT_RETURN = '/admin/settings?tab=integrations'
+/** 시작 라우트가 요청한 CRM 스코프 — 무엇에 동의받았는지 기록해 둔다 */
+const SCOPE_CRM = 'gmail.readonly calendar.readonly userinfo.email'
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url)
@@ -58,14 +61,25 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 })
   }
 
-  // admin role 재검증 — state 검증 통과 후에도 권한 확인 필수
+  // 무엇을 위해 왔는지 — 시작 라우트가 쿠키에 담아 둔 목적(§ 클라이언트 재사용)
+  const purpose = cookieStore.get(PURPOSE_COOKIE)?.value === 'crm' ? 'crm' : 'drive'
+  cookieStore.delete(PURPOSE_COOKIE)
+
+  // 권한 재검증 — state 를 통과했어도 여기서 한 번 더 본다(시작 때와 같은 기준)
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', user.id)
     .maybeSingle()
 
-  if ((profile as { role: string } | null)?.role !== 'admin') {
+  if (purpose === 'crm') {
+    const { resolveCrmAccess } = await import('@/lib/crm/auth/requireCrmMember')
+    const access = await resolveCrmAccess()
+    if (!access.ok) {
+      cookieStore.delete('gdrive_oauth_state')
+      return NextResponse.json({ error: '영업 CRM 멤버만 연동할 수 있습니다' }, { status: 403 })
+    }
+  } else if ((profile as { role: string } | null)?.role !== 'admin') {
     cookieStore.delete('gdrive_oauth_state')
     return NextResponse.json({ error: '관리자만 접근할 수 있습니다' }, { status: 403 })
   }
@@ -107,7 +121,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   auth.setCredentials(tokens)
   let accountEmail = ''
 
-  try {
+  if (purpose === 'crm') {
+    // CRM 동의에는 drive 스코프가 없다 — about.get 을 부르면 무조건 실패한다.
+    // 대신 userinfo.email 을 함께 받았으므로 그것으로 읽는다.
+    try {
+      const oauth2 = google.oauth2({ version: 'v2', auth: auth as unknown as Auth.OAuth2Client })
+      const { data: info } = await oauth2.userinfo.get()
+      accountEmail = info.email ?? ''
+    } catch (e: unknown) {
+      console.error('[google/callback:crm] 계정 조회 실패:', e)
+    }
+  } else try {
     // google-auth-library 중복 설치로 OAuth2Client 타입 동일성이 깨져,
     // googleapis가 번들한 자체 타입으로 캐스팅한다(런타임 동작 동일).
     const drive = google.drive({
@@ -133,6 +157,23 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     : new Date(Date.now() + 3600 * 1000).toISOString()
 
   try {
+    if (purpose === 'crm') {
+      /**
+       * CRM 은 **멤버별**로 연결한다(스키마 @@unique([workspaceId, memberId, provider])).
+       * Drive 처럼 조직 하나로 묶으면 "누구의 메일함인가"를 알 수 없고,
+       * 그러면 어느 담당자의 대화인지도 못 가른다.
+       */
+      const { saveCrmGoogleConnection } = await import('@/lib/crm/integrations/connect')
+      await saveCrmGoogleConnection({
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        expiresAt: new Date(tokenExpiry),
+        scopes: SCOPE_CRM,
+      })
+      cookieStore.delete(RETURN_COOKIE)
+      return back({ google: 'connected' })
+    }
+
     await saveTokens(
       {
         accessToken: tokens.access_token,
