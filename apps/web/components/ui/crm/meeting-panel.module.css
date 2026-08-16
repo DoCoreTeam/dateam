@@ -1,0 +1,41 @@
+/* 이 딜/회사의 미팅 (dacrm) */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+/* 줄 전체가 열린다 — 제목만 눌러야 하는 목록은 매번 조준하게 만든다 */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--fs-sm);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.main:hover .title {
+  color: var(--brand);
+}
+
+.meta {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}

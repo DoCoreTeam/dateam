@@ -16,6 +16,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
+import MeetingPanel from '@/components/ui/crm/MeetingPanel'
 import Timeline from '@/components/ui/crm/Timeline'
 import TaskPanel from '@/components/ui/crm/TaskPanel'
 import DealContacts from './DealContacts'
@@ -217,6 +218,11 @@ export default function DealDetail({ dealId }: { dealId: string }) {
             */}
             <RecordPanel title="이 딜의 사람들">
               <DealContacts dealId={dealId} companyId={deal?.companyId ?? null} />
+            </RecordPanel>
+
+            {/* 딜을 여는 사람이 가장 자주 하는 질문 — "지난번에 뭐라고 했지?" */}
+            <RecordPanel title="이 딜의 미팅">
+              <MeetingPanel scope={{ dealId }} />
             </RecordPanel>
           </>
         }

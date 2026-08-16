@@ -17,6 +17,7 @@ import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
 import NbButton from '@/components/ui/nb/NbButton'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
+import MeetingPanel from '@/components/ui/crm/MeetingPanel'
 import { useVerified } from '@/lib/crm/use-verified'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import Timeline from '@/components/ui/crm/Timeline'
@@ -167,6 +168,11 @@ export default function CompanyDetail({ companyId }: { companyId: string }) {
                   ))}
                 </ul>
               )}
+            </RecordPanel>
+
+            {/* 이 회사와 무슨 이야기가 오갔나 — 딜별로 흩어져 있으면 못 본다 */}
+            <RecordPanel title="이 회사의 미팅">
+              <MeetingPanel scope={{ companyId }} />
             </RecordPanel>
           </>
         }

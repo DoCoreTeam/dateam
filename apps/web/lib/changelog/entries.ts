@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.523',
+    date: '2026-08-17',
+    title: '딜을 열면 지난 미팅이 바로 보여요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🗂️',
+        headline: '딜·회사 상세에 그 건의 미팅이 함께 나와요',
+        detail: '미팅을 만들 때 회사와 딜을 골라 놓고도 정작 딜 화면에서는 볼 수 없었어요. 이제 "지난번에 뭐라고 했지?"를 딜을 연 자리에서 바로 확인할 수 있습니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.522',
     date: '2026-08-17',
     title: '인박스에 지난 제안이 쌓이지 않아요',

@@ -72,6 +72,34 @@ const MUST_BE_WIRED: { symbol: string; definedIn: string; why: string }[] = [
     why: '중복을 찾아 놓고 합칠 수 없다',
   },
   {
+    symbol: 'dismissDuplicate', definedIn: 'lib/crm/services/merge.ts',
+    why: '잘못 잡힌 짝이 영원히 남아, 사람이 진짜 중복까지 안 보게 된다',
+  },
+  {
+    symbol: 'expireSuggestions', definedIn: 'lib/crm/services/suggestion.ts',
+    why: '몇 주 전 회의의 값이 인박스에 남아 있다가 어느 날 지금 값으로 반영된다',
+  },
+  {
+    symbol: 'listAudit', definedIn: 'lib/crm/services/audit-view.ts',
+    why: '"이 값 누가 넣었지"에 답할 수 없어 AI가 채운 값을 아무도 못 믿는다',
+  },
+  {
+    symbol: 'listMembers', definedIn: 'lib/crm/services/member.ts',
+    why: '팀원을 들일 방법이 없어 한 사람만 쓸 수 있다',
+  },
+  {
+    symbol: 'setStageCriteria', definedIn: 'lib/crm/services/pipeline.ts',
+    why: '단계 진입 조건을 정할 수 없어 조건 칸이 다시 죽은 컬럼이 된다',
+  },
+  {
+    symbol: 'evaluateCriteria', definedIn: 'lib/crm/domain/entry-criteria.ts',
+    why: '조건을 정해도 딜 이동이 확인하지 않아 설정 화면일 뿐이다',
+  },
+  {
+    symbol: 'extractFiveAxis', definedIn: 'lib/crm/services/meeting.ts',
+    why: '미팅을 기록해도 AI가 읽지 않아 전사가 그냥 텍스트로 남는다',
+  },
+  {
     symbol: 'buildPipelineReport', definedIn: 'lib/crm/services/report.ts',
     why: '파이프라인에 얼마가 걸려 있는지 볼 수 없다',
   },
