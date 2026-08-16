@@ -1,6 +1,7 @@
 import { Settings } from 'lucide-react'
 import PageHeader from '@/components/ui/PageHeader'
 import BudgetCard from './BudgetCard'
+import SettingsCard from './SettingsCard'
 import styles from './settings.module.css'
 
 export const metadata = { title: '설정 · 영업 CRM' }
@@ -17,6 +18,7 @@ export default function CrmSettingsPage() {
       {/* 카드마다 저장한다(§2-5-4) — 탭 하단 일괄 저장 바를 두지 않는다 */}
       <div className={styles.grid}>
         <BudgetCard />
+        <SettingsCard />
       </div>
     </>
   )

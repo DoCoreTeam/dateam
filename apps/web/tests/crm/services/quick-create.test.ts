@@ -5,8 +5,10 @@
  * 명함 받을 때마다 같은 회사가 늘어나면 그때부터 매출 합계가 거짓이 된다.
  * 그래서 검증의 절반이 "이미 있는 것과 부딪혔을 때 어떻게 되는가"다.
  *
- * mock 어댑터를 쓴다 — 실제 모델 키는 T1-09(HUMAN GATE) 이후에 들어온다.
- * 어댑터가 바뀌어도 여기 규칙(중복 판정·트랜잭션·갭)은 그대로여야 한다.
+ * mock 어댑터를 **명시해서** 넘긴다 — 실제 모델 키는 T1-09(HUMAN GATE) 이후에 들어온다.
+ * 명시하는 이유가 하나 더 있다: 안 주면 서비스가 설정(ai.model.extract)을 읽는데,
+ * 그러면 설정 테스트가 같은 값을 바꾸는 동안 이 파일이 통째로 무너진다(실측).
+ * 어댑터를 고정해야 "모델이 무엇이든 이 규칙은 성립한다"를 검증하는 것이 된다.
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -144,7 +146,7 @@ test('무료 메일 도메인은 회사 도메인으로 쓰지 않는다', async
 // ------------------------------------------------------------
 
 test('붙여넣기 한 번으로 회사와 담당자가 만들어진다', async () => {
-  const r = await quickCreate(WS_A, 'mb_owner', { text: CARD })
+  const r = await quickCreate(WS_A, 'mb_owner', { text: CARD }, mockAdapter())
   track(r)
   const kinds = r.created.map((c) => c.type).sort()
   assert.deepEqual(kinds, ['company', 'person'])
@@ -158,7 +160,7 @@ test('★ 같은 도메인의 회사가 이미 있으면 새로 만들지 않고
   })
   MADE.companies.push(existing.id)
 
-  const r = await quickCreate(WS_A, 'mb_owner', { text: CARD })
+  const r = await quickCreate(WS_A, 'mb_owner', { text: CARD }, mockAdapter())
   track(r)
 
   assert.equal(r.created.filter((c) => c.type === 'company').length, 0, '회사가 새로 생겼다')
@@ -170,12 +172,12 @@ test('★ 같은 도메인의 회사가 이미 있으면 새로 만들지 않고
 })
 
 test('★ 같은 이메일의 인물이 이미 있으면 이어 붙이고, 빈 소속만 채운다', async () => {
-  const first = await quickCreate(WS_A, 'mb_owner', { text: CARD })
+  const first = await quickCreate(WS_A, 'mb_owner', { text: CARD }, mockAdapter())
   track(first)
   const personId = first.created.find((c) => c.type === 'person')?.id
   assert.ok(personId)
 
-  const again = await quickCreate(WS_A, 'mb_owner', { text: CARD })
+  const again = await quickCreate(WS_A, 'mb_owner', { text: CARD }, mockAdapter())
   track(again)
   assert.equal(again.created.filter((c) => c.type === 'person').length, 0)
   assert.equal(again.linked.find((c) => c.type === 'person')?.id, personId)
@@ -183,7 +185,7 @@ test('★ 같은 이메일의 인물이 이미 있으면 이어 붙이고, 빈 �
 })
 
 test('AI 가 만든 레코드는 감사 기록에 AI 로 남는다 — 사람이 넣은 것과 구분된다', async () => {
-  const r = await quickCreate(WS_A, 'mb_owner', { text: CARD })
+  const r = await quickCreate(WS_A, 'mb_owner', { text: CARD }, mockAdapter())
   track(r)
   const co = r.created.find((c) => c.type === 'company')
   const audit = await dbA.crmAuditLog.findFirst({ where: { targetId: co!.id } })
@@ -192,7 +194,7 @@ test('AI 가 만든 레코드는 감사 기록에 AI 로 남는다 — 사람이
 })
 
 test('붙여넣은 원문이 타임라인에 남는다 — 추출이 놓친 문장을 나중에 확인할 수 있다', async () => {
-  const r = await quickCreate(WS_A, 'mb_owner', { text: CARD })
+  const r = await quickCreate(WS_A, 'mb_owner', { text: CARD }, mockAdapter())
   track(r)
   const co = r.created.find((c) => c.type === 'company')
   const acts = await dbA.crmActivity.findMany({ where: { companyId: co!.id } })
@@ -203,7 +205,7 @@ test('붙여넣은 원문이 타임라인에 남는다 — 추출이 놓친 문�
 })
 
 test('회사도 사람도 못 찾으면 무엇이 필요한지 말한다 (빈 성공 금지)', async () => {
-  const r = await quickCreate(WS_A, 'mb_owner', { text: '내일 점심 먹기' })
+  const r = await quickCreate(WS_A, 'mb_owner', { text: '내일 점심 먹기' }, mockAdapter())
   track(r)
   assert.equal(r.created.length, 0)
   assert.equal(r.linked.length, 0)
@@ -228,11 +230,11 @@ test('딜은 금액이 드러날 때만 만들고, 이름이 없으면 사람에
 })
 
 test('빈 입력과 너무 긴 입력은 사람 말로 거절한다', async () => {
-  const empty = await catchError(() => quickCreate(WS_A, 'mb_owner', { text: '   ' }))
+  const empty = await catchError(() => quickCreate(WS_A, 'mb_owner', { text: '   ' }, mockAdapter()))
   assert.ok(empty instanceof CrmError)
   assert.equal((empty as CrmError).code, 'VALIDATION_FAILED')
 
-  const long = await catchError(() => quickCreate(WS_A, 'mb_owner', { text: 'ㄱ'.repeat(9000) }))
+  const long = await catchError(() => quickCreate(WS_A, 'mb_owner', { text: 'ㄱ'.repeat(9000) }, mockAdapter()))
   assert.ok(long instanceof CrmError)
   assert.match((long as CrmError).message, /너무 깁니다/)
 })

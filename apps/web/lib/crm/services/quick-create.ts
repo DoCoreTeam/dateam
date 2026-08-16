@@ -24,6 +24,7 @@ import { parseQuickCreate, type QuickCreateOutput } from '../ai/schemas/quick-cr
 import { mockAdapter } from '../ai/adapters/mock.ts'
 import type { AiAdapter } from '../ai/runner.ts'
 import { getCrmDb } from '../db/client.ts'
+import { resolveSetting } from './setting.ts'
 
 /** 만들어졌거나 이어 붙은 레코드 하나 */
 export interface TouchedRecord {
@@ -65,7 +66,8 @@ export async function quickCreate(
   workspaceId: string,
   actorId: string | null,
   input: QuickCreateInput,
-  adapter: AiAdapter = mockAdapter(),
+  /** 안 주면 설정(ai.model.extract)이 정한 어댑터를 쓴다 — 코드에 모델명을 박지 않는다(명세 4.4-1) */
+  adapter?: AiAdapter,
 ): Promise<QuickCreateResult> {
   // 원문은 **줄 구조를 지킨 채** 다룬다.
   //
@@ -81,12 +83,13 @@ export async function quickCreate(
 
   // 러너는 워크스페이스 스코프 db 를 쓴다 — ai_run 도 워크스페이스에 속한다
   const db = getCrmDb(workspaceId)
+  const chosen = adapter ?? await adapterFromSetting(db)
   const { output, runId } = await runAi<QuickCreateOutput>({
     db, workspaceId, kind: 'QUICK_CREATE',
     prompt: QUICK_CREATE_V1, input: text,
     inputRef: { chars: text.length }, // 원문은 복제하지 않는다(명세 §492)
     parse: parseQuickCreate,
-    adapter,
+    adapter: chosen,
   })
 
   return applyQuickCreate(workspaceId, actorId, output, input, runId, text)
@@ -264,4 +267,22 @@ export async function applyQuickCreate(
   }
 
   return { created, linked, gaps, runId, text: originalText }
+}
+
+/**
+ * 설정이 정한 모델로 어댑터를 고른다.
+ *
+ * 실제 모델 어댑터는 T1-09(HUMAN GATE)에서 키와 함께 들어온다.
+ * 그때까지 설정이 무엇을 가리키든 mock 으로 돈다 — **키 없이 도는 것이 기본값**이라
+ * 설정을 잘못 만졌다고 조용히 유료 호출이 나가는 일이 없다.
+ */
+async function adapterFromSetting(db: ReturnType<typeof getCrmDb>): Promise<AiAdapter> {
+  const model = await resolveSetting(db, 'ai.model.extract')
+  const name = typeof model.value === 'string' ? model.value : 'mock'
+  if (name === 'mock') return mockAdapter()
+
+  // 아직 붙지 않은 모델을 가리키면 그 사실을 말한다 — 조용히 mock 으로 돌면
+  // 사용자는 설정이 먹은 줄 알고 결과를 믿는다.
+  throw new CrmError('VALIDATION_FAILED',
+    `설정된 모델(${name})은 아직 연결되지 않았습니다. 설정에서 mock 으로 두거나 관리자에게 문의해 주세요.`)
 }
