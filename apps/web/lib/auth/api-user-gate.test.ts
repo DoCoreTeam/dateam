@@ -4,9 +4,9 @@
 //   미들웨어가 판정하려고 profiles.role을 따로 조회하던 것이 페이지 요청당 236ms였고,
 //   레이아웃은 렌더용 프로필을 가져오면서 role을 이미 읽고 있었기 때문이다.
 //
-// 그래서 지금 안전의 근거는 "모든 화면 페이지가 세 레이아웃 중 하나 아래에 있다"는 사실이다.
+// 그래서 지금 안전의 근거는 "모든 화면 페이지가 게이트 레이아웃 중 하나 아래에 있다"는 사실이다.
 // 그 사실이 깨지는 방법은 둘 뿐이고, 이 가드가 둘 다 막는다:
-//   ① 세 그룹 밖에 새 페이지가 생긴다 → api_user가 그 화면을 볼 수 있다
+//   ① 게이트 그룹 밖에 새 페이지가 생긴다 → api_user가 그 화면을 볼 수 있다
 //   ② 레이아웃에서 게이트 호출이 사라진다 → 그 그룹 전체가 뚫린다
 
 import { test } from 'node:test'
@@ -15,7 +15,10 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 /** 게이트를 반드시 부르는 레이아웃 */
-const GATED_LAYOUTS = ['app/(member)/layout.tsx', 'app/admin/layout.tsx', 'app/(ci)/layout.tsx']
+const GATED_LAYOUTS = [
+  'app/(member)/layout.tsx', 'app/admin/layout.tsx', 'app/(ci)/layout.tsx',
+  'app/(crm)/layout.tsx', // dacrm T1-01
+]
 
 /** api_user에게 원래 열려 있는 화면 — 막으면 안 된다 */
 const OPEN_TO_API_USER = ['/api-keys', '/change-password', '/develop', '/api-access', '/login']
@@ -58,7 +61,7 @@ function gatedGroupOf(pagePath: string): string | null {
   return null
 }
 
-test('세 레이아웃 모두 api_user 게이트를 부른다', () => {
+test('게이트 레이아웃 전부가 api_user 게이트를 부른다', () => {
   const missing = GATED_LAYOUTS.filter((f) => !/redirectApiUser\s*\(/.test(readFileSync(f, 'utf8')))
   assert.deepEqual(
     missing,

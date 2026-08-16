@@ -5,7 +5,10 @@
  * 파이프라인이 8개가 된다. 시드는 몇 번을 돌려도 결과가 같아야 한다.
  */
 
-export const WORKSPACE_ID = 'ws_dataalliance'
+// 워크스페이스 id 의 SSOT 는 앱 코드(lib/crm/workspace.ts)다.
+// 시드는 개발 도구지 런타임이 아니므로, 앱이 시드를 참조하는 방향이면 안 된다.
+export { DEFAULT_CRM_WORKSPACE_ID as WORKSPACE_ID } from '../lib/crm/workspace.ts'
+import { DEFAULT_CRM_WORKSPACE_ID } from '../lib/crm/workspace.ts'
 
 export interface SeedStage {
   id: string
@@ -97,7 +100,7 @@ export const SEED_OWNER = {
 }
 
 export const SEED_WORKSPACE = {
-  id: WORKSPACE_ID,
+  id: DEFAULT_CRM_WORKSPACE_ID,
   name: '데이터얼라이언스',
   defaultCurrency: 'KRW',
   defaultLanguage: 'ko',

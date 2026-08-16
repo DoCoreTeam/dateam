@@ -26,8 +26,7 @@ import {
   DollarSign,
   Tag,
   Network,
-  Sparkles,
-} from 'lucide-react'
+  Sparkles, Handshake } from 'lucide-react'
 import type { Profile } from '@/types/database'
 import SWRProvider from './SWRProvider'
 
@@ -51,6 +50,22 @@ const NAV_GROUPS: NavGroup[] = [
     label: '프로젝트관리',
     items: [
       { href: '/lead-intake', label: '프로젝트관리', icon: <Inbox size={16} /> },
+    ],
+  },
+  {
+    // dacrm 진입점 (구현명세서 1.2 허용 수정 ①). 하위 8개 항목은 CRM 셸이 그린다.
+    //
+    // 명세는 "프로젝트관리 섹션 자리에"라고 썼지만 지금 치우지 않는다 —
+    // CRM 화면이 아직 채워지는 중이라, 먼저 없애면 쓰던 기능만 사라진다.
+    // 은퇴는 T1-12(실사용 시작) 에서 판단한다.
+    //
+    // ⚠️ 아래 groups 필터가 비관리자에게 '가격정책'만 남기므로 지금은 admin 에게만 보인다.
+    //    실제 접근 판정은 CrmMember 멤버십이 한다(lib/crm/auth/requireCrmMember).
+    //    비관리자 CRM 멤버가 생기면 그때 필터가 멤버십을 함께 봐야 한다 —
+    //    지금 미리 조회하면 화면마다 왕복이 한 번 늘어난다(v0.7.492 에서 줄인 그 왕복이다).
+    label: '영업',
+    items: [
+      { href: '/crm', label: '영업 CRM', icon: <Handshake size={16} />, match: ['/crm'] },
     ],
   },
   {
