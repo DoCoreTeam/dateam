@@ -21,8 +21,14 @@ import { join } from 'node:path'
  * 실패하면 401/403 을 낸다(lib/crm/api/handler.ts).
  */
 const AUTH_HELPER = /\b(require[A-Za-z]*Api|requireCiMember[A-Za-z]*|authenticatePublicApi|verifyApiKey|withCrmApi)\s*\(/
-/** 라우트 안에서 직접 세션을 확인하는 경우 */
-const SESSION = /auth\.get(?:User|Session)\(\)/
+/**
+ * 라우트 안에서 직접 세션을 확인하는 경우.
+ *
+ * `resolveCrmAccess` 도 여기다 — **AUTH_HELPER 가 아니다.**
+ * 파일 응답처럼 JSON 봉투를 못 쓰는 라우트가 직접 부르는데,
+ * 부르기만 하고 통과시키면 인증이 아니므로 **거부(DENY)까지 있어야** 인정한다.
+ */
+const SESSION = /auth\.get(?:User|Session)\(\)|\bresolveCrmAccess\s*\(/
 /** 거부까지 하는지 — 세션을 읽고 통과시키면 인증이 아니다 */
 const DENY = /status:\s*40[13]|['"]UNAUTHORIZED['"]|['"]FORBIDDEN['"]|redirect\(/
 /** 사용자 세션이 아니라 서비스 토큰으로 인증하는 경우(크론·워커) */

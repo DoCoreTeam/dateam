@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.527',
+    date: '2026-08-17',
+    title: '영업 CRM 자료를 엑셀로 내려받을 수 있어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📗',
+        headline: '회사·인물·딜·미팅·할 일을 엑셀 파일로 받습니다',
+        detail: '보고나 정산에 쓰려면 매번 화면을 보고 다시 옮겨 적어야 했어요. 이제 설정 화면에서 종류별로 눌러 받으면 엑셀에서 바로 열립니다. 한글이 깨지지 않고, 금액은 그대로 계산에 쓸 수 있는 숫자로 들어가요.',
+      },
+    ],
+  },
+  {
     version: '0.7.526',
     date: '2026-08-17',
     title: '영업 CRM 안에서 검색하면 CRM을 찾아요',
