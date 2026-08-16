@@ -170,9 +170,9 @@ SELECT t.typname FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace
 
 | 대상 | dacrm이 만드는 것 | 호스트 기존 | 충돌 |
 |---|---|---|---|
-| 테이블 | `crm_*` 26개 | `public` 205개 중 `crm` 시작 **0개** | **0건** |
+| 테이블 | `crm_*` 24개 | `public` 205개 중 `crm` 시작 **0개** | **0건** |
 | enum 타입 | `Crm*` 16개 | 17개 전부 `ci_*` (`ci_job_status`, `ci_platform` …) | **0건** |
-| Prisma 모델명 | `Crm*` 26개 | Prisma 자체가 없음 | **0건**(해당 없음) |
+| Prisma 모델명 | `Crm*` 24개 | Prisma 자체가 없음 | **0건**(해당 없음) |
 
 ### 프리픽스가 실제로 막아 준 근접 충돌 (프리픽스가 없었다면 전부 충돌)
 
@@ -189,10 +189,11 @@ SELECT t.typname FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace
 
 → **명세서 2.1의 "프리픽스 변경 금지"는 근거가 확인되었다. 절대 변경하지 않는다.**
 
-### 확인된 26개 CRM 테이블
+### 확인된 24개 CRM 테이블 (`@@map` 전수)
 
 `crm_workspace, crm_member, crm_company, crm_person, crm_pipeline, crm_stage, crm_deal, crm_deal_contact, crm_stage_history, crm_activity, crm_task, crm_meeting, crm_meeting_recording, crm_transcript_segment, crm_ai_run, crm_ai_suggestion, crm_ai_field_config, crm_duplicate_candidate, crm_merge_log, crm_app_setting, crm_ai_budget, crm_audit_log, crm_integration_connection, crm_exchange_rate`
-(+ `crm_*` 나머지 2개 포함 총 26개 `@@map` 확인)
+
+enum 16개: `CrmMemberRole, CrmLifecycleStage, CrmDealStatus, CrmStageKind, CrmActivityType, CrmDataSource, CrmTaskStatus, CrmRecordingStatus, CrmAiRunKind, CrmAiRunStatus, CrmSuggestionAxis, CrmSuggestionStatus, CrmDealContactRole, CrmSettingScope, CrmActorType, CrmDupStatus`
 
 ---
 

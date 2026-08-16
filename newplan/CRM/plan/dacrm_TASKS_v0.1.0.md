@@ -8,8 +8,8 @@
 | ID | 버전 | 태스크 | 산출물 | 완료 기준 | 상태 |
 |---|---|---|---|---|---|
 | T0-01 | v0.5.0 | 호스트 정합 확인 | docs/host-check.md: 호스트의 Next, Prisma, Supabase 버전과 인증 세션 구조, 사이드바 메뉴 정의 파일 위치, 모델명 충돌 목록 | 문서에 5개 항목 전부 기재, 충돌 모델 0건 확인 | DONE (docs/crm/host-check.md, 충돌 0건. ⚠️ 호스트에 Prisma 부재 — T0-02~05 방침 결정 필요, 문서 5절) |
-| T0-02 | v0.5.1 | 스키마 병합 | crm_schema_v0.1.0.prisma 를 schema.prisma 에 병합, 마이그레이션 생성 | `pnpm prisma migrate dev` 성공, `pnpm prisma validate` 통과 | TODO |
-| T0-03 | v0.5.2 | raw SQL 마이그레이션 | RLS 전 테이블, CHECK 4종(명세 2.3) | 마이그레이션 적용 후 psql 로 제약 존재 확인 스크립트 통과 | TODO |
+| T0-02 | v0.5.1 | 스키마 병합 | crm_schema_v0.1.0.prisma 를 schema.prisma 에 병합, 마이그레이션 생성 | `pnpm prisma validate` 통과 + 마이그레이션 적용 (※ `migrate dev`는 운영 DB 205테이블을 드리프트로 보고 리셋을 제안하므로 **금지** → `migrate diff --from-empty` + `scripts/migrate.sh` 로 치환) | DONE (apps/web/prisma/schema.prisma, supabase/migrations/198_crm_core.sql 적용완료: 205→229테이블, enum 16, RLS 24/24 선잠금, 기존 데이터 무손상) |
+| T0-03 | v0.5.2 | raw SQL 마이그레이션 | RLS 전 테이블, CHECK 4종(명세 2.3) | 마이그레이션 적용 후 psql 로 제약 존재 확인 스크립트 통과 | DONE (199_crm_rls_check.sql 적용. `scripts/crm-check-db.sh` 9/9 통과, 음성테스트 `supabase/tests/crm_constraints_negative.sql` 6/6. ⚠️ 발견: postgres 롤이 rolbypassrls=true → RLS 는 PostgREST 경로만 보호, Prisma 경로는 앱 가드(T0-04)가 책임. T0-10 은 전용 롤 필요) |
 | T0-04 | v0.5.3 | workspace guard | modules/crm/db/{client,workspace-guard}.ts | 단위 테스트: 필터 자동 주입, 불일치 workspaceId 예외, TENANT_FREE 통과 | TODO |
 | T0-05 | v0.5.4 | withCrmTx 와 감사 | 트랜잭션 래퍼(SET LOCAL), audit 헬퍼 | 테스트: 트랜잭션 내 set_config 확인, 실패 시 audit 도 롤백 | TODO |
 | T0-06 | v0.5.5 | 상태 머신 | domain/state-machines.ts, errors.ts | 단위 테스트: 3.4 전이표 전 케이스(허용, 금지) 통과 | TODO |
