@@ -92,14 +92,22 @@ function guardWhere(model: string, where: unknown, key: string, workspaceId: str
   return { ...w, [key]: workspaceId }
 }
 
-/** create 의 data 한 건에 workspaceId 를 강제한다. */
-function guardCreateData(model: string, data: unknown, workspaceId: string): Args {
+/** create 의 data 한 건에 지정한 키를 강제한다. */
+function guardCreateData(model: string, data: unknown, workspaceId: string, key = 'workspaceId'): Args {
   const d: Args = (data && typeof data === 'object' ? { ...(data as Args) } : {})
-  const existing = d['workspaceId']
+  const existing = d[key]
   if (existing !== undefined && existing !== workspaceId) {
-    mismatch(model, 'workspaceId', existing, workspaceId)
+    mismatch(model, key, existing, workspaceId)
   }
-  return { ...d, workspaceId }
+  return { ...d, [key]: workspaceId }
+}
+
+/**
+ * WORKSPACE_SELF(CrmWorkspace) 의 create — 넣을 키는 workspaceId 가 아니라 id 다.
+ * workspaceId 를 넣으면 그런 컬럼이 없어 Prisma 가 Unknown argument 로 던진다.
+ */
+function guardSelfCreateData(model: string, data: unknown, workspaceId: string): Args {
+  return guardCreateData(model, data, workspaceId, 'id')
 }
 
 /** TENANT_NULLABLE 의 create — null(=GLOBAL)은 허용, 다른 워크스페이스 값은 거부 */
@@ -141,7 +149,7 @@ export function injectWorkspaceFilter(
     const next: Args = { ...a }
     if (cls === 'self') {
       next.where = guardWhere(model, a.where, 'id', workspaceId)
-      next.create = guardCreateData(model, a.create, workspaceId) // CrmWorkspace 의 create 는 id 를 직접 준다
+      next.create = guardSelfCreateData(model, a.create, workspaceId) // CrmWorkspace 는 id 가 곧 워크스페이스다
     } else if (cls === 'nullable') {
       next.where = guardWhere(model, a.where, 'workspaceId', workspaceId)
       next.create = guardNullableCreateData(model, a.create, workspaceId)
@@ -176,7 +184,10 @@ export function injectWorkspaceFilter(
 
   if (DATA_OPS.has(operation)) {
     const data = a.data
-    const one = cls === 'nullable' ? guardNullableCreateData : guardCreateData
+    const one =
+      cls === 'nullable' ? guardNullableCreateData
+      : cls === 'self' ? guardSelfCreateData
+      : guardCreateData
     if (Array.isArray(data)) {
       return { ...a, data: data.map((d) => one(model, d, workspaceId)) }
     }

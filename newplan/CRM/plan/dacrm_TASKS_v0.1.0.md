@@ -13,7 +13,7 @@
 | T0-04 | v0.5.3 | workspace guard | modules/crm/db/{client,workspace-guard}.ts | 단위 테스트: 필터 자동 주입, 불일치 workspaceId 예외, TENANT_FREE 통과 | DONE (apps/web/lib/crm/db/{client,workspace-guard}.ts + domain/errors.ts. 단위 25/25, 전체 1868/1868, tsc·lint·design:check 통과. 명세 2.2의 "전 테이블 workspaceId" 전제가 틀려(24중 17개) 5분류로 구현 — 분류 누락 시 실패하는 스키마 대조 가드 포함, 일부러 깨서 확인) |
 | T0-05 | v0.5.4 | withCrmTx 와 감사 | 트랜잭션 래퍼(SET LOCAL), audit 헬퍼 | 테스트: 트랜잭션 내 set_config 확인, 실패 시 audit 도 롤백 | DONE (lib/crm/db/{tx,audit}.ts. 단위 12/12 + 실DB 5/5(supabase/tests/crm_tx_setconfig.sql). set_config 3번째 인자 true 검증 포함 — false면 세션에 남아 풀 재사용 시 교차 오염됨을 실DB로 확인) |
 | T0-06 | v0.5.5 | 상태 머신 | domain/state-machines.ts, errors.ts | 단위 테스트: 3.4 전이표 전 케이스(허용, 금지) 통과 | DONE (lib/crm/domain/state-machines.ts. 28/28 — 딜 9조합·녹음 25조합·제안 25조합 전수 대조 + 예산 판정 7건. errors.ts 는 T0-04 에서 선행 생성. WON→LOST 를 허용시켜 실제로 실패시킨 뒤 원복) |
-| T0-07 | v0.5.6 | 시드 | 워크스페이스 1, 멤버(본인), 파이프라인 4종(GPU 인프라, 파트너십, 공공, KDC 제품)과 스테이지 | `pnpm prisma db seed` 후 조회 스크립트로 검증 | TODO |
+| T0-07 | v0.5.6 | 시드 | 워크스페이스 1, 멤버(본인), 파이프라인 4종(GPU 인프라, 파트너십, 공공, KDC 제품)과 스테이지 | `pnpm prisma db seed` 후 조회 스크립트로 검증 | DONE (prisma/seed.ts + seed-data.ts. 적용 완료: 워크스페이스1·멤버1(OWNER 김도현)·파이프라인4·스테이지25. 검증 21항목 통과(seed --verify-only 내장), 2회 실행 멱등 확인, 단위 10/10) |
 | T0-08 | v0.5.7 | 정합성 테스트 1차 | tests/crm/integrity/ DI-01~09 (격리, 중복, 전이) | `pnpm test integrity` 통과 | TODO |
 | T0-09 | v0.5.8 | 정합성 테스트 2차 | DI-13~18, DI-23 (관문, 예산, 잠금, 세그먼트) | `pnpm test integrity` 통과 | TODO |
 | T0-10 | v0.5.9 | RLS 격리 테스트 | 2개 워크스페이스 시드, service role 에서 set_config 만으로 격리되는지 | `pnpm test rls` 통과 | TODO |

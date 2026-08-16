@@ -161,6 +161,31 @@ test('CrmWorkspace 에 남의 id 를 주면 던진다', () => {
   )
 })
 
+test('CrmWorkspace create 는 workspaceId 가 아니라 id 에 넣는다', () => {
+  // 회귀: workspaceId 를 넣으면 그런 컬럼이 없어 Prisma 가 Unknown argument 로 던진다.
+  // 시드(T0-07)가 가장 먼저 밟는 자리다.
+  const out = injectWorkspaceFilter(
+    { data: { name: '데이터얼라이언스' } }, WS, 'create', 'CrmWorkspace',
+  ) as Record<string, any>
+  assert.deepEqual(out.data, { name: '데이터얼라이언스', id: WS })
+  assert.equal('workspaceId' in out.data, false, 'CrmWorkspace 에는 workspaceId 컬럼이 없다')
+})
+
+test('CrmWorkspace upsert 의 create 도 id 로 넣는다', () => {
+  const out = injectWorkspaceFilter(
+    { where: { id: WS }, create: { name: 'A' }, update: {} }, WS, 'upsert', 'CrmWorkspace',
+  ) as Record<string, any>
+  assert.equal(out.create.id, WS)
+  assert.equal('workspaceId' in out.create, false)
+})
+
+test('CrmWorkspace create 에 남의 id 를 심으면 던진다', () => {
+  assert.throws(
+    () => injectWorkspaceFilter({ data: { id: OTHER, name: 'A' } }, WS, 'create', 'CrmWorkspace'),
+    (e: unknown) => e instanceof CrmError && e.code === 'WORKSPACE_MISMATCH',
+  )
+})
+
 test('CrmAppSetting 읽기는 GLOBAL(null) 과 내 워크스페이스를 함께 본다', () => {
   const out = injectWorkspaceFilter({}, WS, 'findMany', 'CrmAppSetting') as Record<string, any>
   assert.deepEqual(out.where, { OR: [{ workspaceId: null }, { workspaceId: WS }] })
