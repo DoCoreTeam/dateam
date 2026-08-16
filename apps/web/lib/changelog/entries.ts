@@ -33,6 +33,31 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.539',
+    date: '2026-08-17',
+    title: 'AI가 기록을 읽고, 딜을 봐 주고, 손볼 곳을 찾아 줘요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📝',
+        headline: '남긴 기록을 AI가 읽어 줘요',
+        detail: '통화·미팅 기록 옆의 "AI로 읽기"를 누르면 그 안에 적힌 금액·다음 약속·걸림돌·새로 나온 사람을 찾아 인박스로 보내 드려요. 확인하고 반영만 하면 딜에 그대로 들어갑니다.',
+      },
+      {
+        kind: 'feature',
+        emoji: '🧭',
+        headline: '단계를 옮기면 AI가 한 번 봐 줘요',
+        detail: '딜을 다음 단계로 옮기면 "이 딜, 여기 있어도 되는 상태인가"를 근거와 함께 알려 드려요. 막지 않고 조언만 하니 옮기던 대로 옮기시면 됩니다.',
+      },
+      {
+        kind: 'feature',
+        emoji: '🔎',
+        headline: '무엇부터 손봐야 하는지 찾아 줘요',
+        detail: '설정의 "데이터 점검"을 누르면 예상 매출에서 빠지는 딜, 담당자가 없는 딜처럼 영업에 실제로 손해가 되는 곳을 찾아 무엇부터 할지 세 가지로 골라 드려요.',
+      },
+    ],
+  },
+  {
     version: '0.7.538',
     date: '2026-08-17',
     title: '처음 열어도 뭐부터 할지 알 수 있어요',

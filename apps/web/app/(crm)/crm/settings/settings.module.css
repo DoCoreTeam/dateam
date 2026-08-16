@@ -293,3 +293,58 @@
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: var(--space-2);
 }
+
+/* 데이터 점검 — 규칙이 찾고 AI 가 고른 결과 */
+.checkTop {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-w) solid var(--warning-border);
+  border-radius: var(--radius);
+  background: var(--warning-bg);
+}
+
+.checkHeadline {
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.checkPicks {
+  margin: 0;
+  padding-left: var(--space-4);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.checkPick {
+  display: grid;
+  gap: 2px;
+  font-size: var(--fs-2xs);
+}
+
+.checkTodo {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.checkBecause { color: var(--text-muted); }
+
+.checkList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.checkItem {
+  display: grid;
+  gap: 2px;
+  font-size: var(--fs-2xs);
+  padding-bottom: var(--space-2);
+  border-bottom: var(--hairline) solid var(--border-light);
+}
+
+.checkItem:last-child { border-bottom: 0; padding-bottom: 0; }
+
+.checkDetail { color: var(--text-muted); }

@@ -28,7 +28,8 @@ import { buildMeetingExtractPrompt, MEETING_EXTRACT_VERSION } from '../ai/prompt
 import type { Segment } from '../ai/prompts/meeting-extract.v1.ts'
 import { parseFiveAxis, dropUngrounded, countAxes } from '../ai/schemas/five-axis.ts'
 import type { FiveAxisOutput } from '../ai/schemas/five-axis.ts'
-import { createSuggestion } from './suggestion.ts'
+import { fiveAxisToSuggestions } from './five-axis-suggest.ts'
+import { loadExtractContext } from './extract-context.ts'
 import { kstDateKey } from '../../datetime/kst.ts'
 
 export interface MeetingInput {
@@ -295,7 +296,7 @@ export async function extractFiveAxis(
   const validIds = new Set(segments.map((s) => s.id))
 
   // 이미 아는 값을 넘겨 준다 — 같은 값을 다시 제안하면 인박스가 쓰레기로 찬다
-  const ctx = await loadContext(db, meeting.companyId, meeting.dealId)
+  const ctx = await loadExtractContext(db, meeting.companyId, meeting.dealId)
   // 회의 날짜를 알려 준다 — 없으면 "8월 25일까지"를 엉뚱한 연도로 적는다(실측: 2024)
   ctx.meetingDate = kstDateKey(meeting.startedAt)
 
@@ -318,126 +319,13 @@ export async function extractFiveAxis(
   const after = countAxes(grounded)
   const dropped = Object.keys(before).reduce((n, k) => n + (before[k] - after[k]), 0)
 
-  const suggested = await toSuggestions(workspaceId, actorId, runId, meeting, grounded)
+  // 매핑은 SSOT 를 부른다 — 활동 노트도 같은 5축을 읽으므로 두 벌이 되면 안 된다
+  const suggested = await fiveAxisToSuggestions(workspaceId, actorId, runId, {
+    companyId: meeting.companyId, dealId: meeting.dealId,
+    anchorType: 'meeting', anchorId: meeting.id,
+  }, grounded)
 
   return { runId, axes: after, suggested, dropped }
-}
-
-async function loadContext(db: CrmDb, companyId: string | null, dealId: string | null) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const company = companyId ? await (db as any).crmCompany.findFirst({
-    where: { id: companyId }, select: { name: true, domain: true, industry: true, region: true },
-  }) : null
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const deal = dealId ? await (db as any).crmDeal.findFirst({
-    where: { id: dealId }, select: { name: true, stageId: true, amountMinor: true, currency: true, pipelineId: true },
-  }) : null
-
-  let stageName: string | null = null
-  let stageNames: string[] = []
-  if (deal) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const stages = await (db as any).crmStage.findMany({
-      where: { pipelineId: deal.pipelineId }, orderBy: { position: 'asc' },
-      select: { id: true, name: true },
-    }) as { id: string; name: string }[]
-    stageNames = stages.map((s) => s.name)
-    stageName = stages.find((s) => s.id === deal.stageId)?.name ?? null
-  }
-
-  // 우리 쪽 사람 이름 — AI 가 이들을 고객사 인물로 제안하지 않게 한다
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const members = await (db as any).crmMember.findMany({
-    select: { displayName: true }, take: 200,
-  }) as { displayName: string }[]
-
-  return {
-    meetingDate: undefined as string | undefined,
-    ourNames: members.map((m) => m.displayName).filter(Boolean),
-    company,
-    deal: deal ? {
-      name: deal.name, stageName,
-      amountMinor: deal.amountMinor ? String(deal.amountMinor) : null,
-      currency: deal.currency,
-    } : null,
-    stageNames,
-  }
-}
-
-/**
- * 축별 항목을 제안으로 만든다.
- *
- * **무엇을 제안으로 보내고 무엇을 안 보내는가**가 여기서 갈린다.
- * 지금은 값으로 바로 이어지는 것만 보낸다 — 회사 산업, 딜 금액처럼.
- * 리스크·다음 행동은 값이 아니라 **읽을 거리**라, 미팅 상세에서 보여 주고
- * 사람이 할 일로 만들지 정한다(할 일 자동 생성은 명세 FR-08 자동화의 몫이다).
- */
-async function toSuggestions(
-  workspaceId: string,
-  actorId: string | null,
-  runId: string,
-  meeting: { id: string; companyId: string | null; dealId: string | null },
-  out: FiveAxisOutput,
-): Promise<number> {
-  let n = 0
-
-  const send = async (
-    axis: 'WHO' | 'WHAT' | 'WHERE' | 'RISK' | 'NEXT',
-    targetType: string, targetId: string | null,
-    field: string | null, proposedValue: unknown,
-    confidence: number, quote: string, segmentIds: string[],
-  ) => {
-    try {
-      const r = await createSuggestion(workspaceId, actorId, {
-        runId, axis, targetType, targetId, field,
-        proposedValue, confidence,
-        evidence: { quote, segmentIds },
-      })
-      if (r.suggestion) n += 1
-    } catch (e) {
-      // 제안 하나가 실패해도 나머지는 보낸다 — 미팅 전체가 헛되면 안 된다
-      console.error('[crm/meeting] 제안 생성 실패:', axis, field, e)
-    }
-  }
-
-  // WHAT — 금액. 딜이 연결돼 있을 때만(어느 딜의 금액인지 모르면 제안할 수 없다)
-  if (meeting.dealId) {
-    for (const w of out.what) {
-      if (w.amountMinor === null) continue
-      await send('WHAT', 'deal', meeting.dealId, 'amountMinor', String(w.amountMinor),
-        w.confidence, w.evidence.quote, w.evidence.segmentIds)
-    }
-  }
-
-  // WHERE — 다음 단계. 값이 아니라 이동이라 항상 사람이 본다(절대규칙 3)
-  if (meeting.dealId && out.where?.suggestedStageName) {
-    await send('WHERE', 'deal', meeting.dealId, 'stageId', out.where.suggestedStageName,
-      out.where.confidence, out.where.evidence.quote, out.where.evidence.segmentIds)
-  }
-
-  // WHO — 사람. 회사가 연결돼 있을 때만 새 인물을 제안한다
-  if (meeting.companyId) {
-    for (const p of out.who) {
-      await send('WHO', 'person', null, null,
-        { name: p.name, title: p.title, email: p.email, role: p.role, companyId: meeting.companyId },
-        p.confidence, p.evidence.quote, p.evidence.segmentIds)
-    }
-  }
-
-  // RISK·NEXT — 값이 아니라 읽을 거리다. 미팅에 붙여 두고 사람이 정한다
-  for (const r of out.risk) {
-    await send('RISK', 'meeting', meeting.id, null,
-      { kind: r.kind, polarity: r.polarity, description: r.description },
-      r.confidence, r.evidence.quote, r.evidence.segmentIds)
-  }
-  for (const t of out.next) {
-    await send('NEXT', 'meeting', meeting.id, null,
-      { title: t.title, dueDate: t.dueDate, assigneeHint: t.assigneeHint, emailDraftGist: t.emailDraftGist },
-      t.confidence, t.evidence.quote, t.evidence.segmentIds)
-  }
-
-  return n
 }
 
 export async function deleteMeeting(

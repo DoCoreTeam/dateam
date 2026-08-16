@@ -88,6 +88,38 @@
 
 .remove:hover { color: var(--danger); }
 
+/* AI 로 읽기 — 기록 옆에 둔다. 별도 화면으로 보내면 아무도 안 누른다 */
+.aiBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 0;
+  color: var(--brand);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.aiBtn:hover { text-decoration: underline; }
+
+.aiBtn:disabled {
+  color: var(--text-faint);
+  cursor: default;
+  text-decoration: none;
+}
+
+/* 읽은 결과 — 몇 건을 어디로 보냈는지 말한다. 안 말하면 눌러도 아무 일 없어 보인다 */
+.aiNote {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 .title {
   font-size: var(--fs-sm);
   color: var(--text);

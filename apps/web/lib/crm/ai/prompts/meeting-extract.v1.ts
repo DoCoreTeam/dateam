@@ -12,11 +12,38 @@
  *   ③ **모르면 null** — 빈칸을 채우는 것보다 비워 두는 게 낫다
  */
 
-export const MEETING_EXTRACT_VERSION = 'meeting_extract@v1.2.0'
+export const MEETING_EXTRACT_VERSION = 'meeting_extract@v1.3.0'
+
+/**
+ * 같은 5축을 **활동 노트**에서도 읽는다(v1.3.0).
+ *
+ * 규칙은 한 글자도 바꾸지 않는다 — 바꿔야 하는 건 부르는 말뿐이다.
+ * 노트에 대고 "전사", "이 회의가 열린 날"이라고 말하면 모델이 없는 맥락을 상상한다.
+ * 두 벌로 나누지 않는 이유는 재사용·단일구현 정책 그대로다: 규칙을 한쪽만 고치게 된다.
+ */
+const WORDING = {
+  meeting: {
+    doc: '영업 미팅 기록', body: '전사', unit: '전사 구간',
+    dateLabel: '이 회의가 열린 날',
+    dateRule: '날짜는 회의 날짜를 기준으로 읽는다',
+    dateYear: '회의가 열린 해', dateWhere: '회의 날짜는 아래에 있다', dateCompare: '회의 날짜보다',
+  },
+  note: {
+    doc: '영업 활동 기록', body: '기록', unit: '기록 줄',
+    dateLabel: '이 기록을 남긴 날',
+    dateRule: '날짜는 이 기록을 남긴 날을 기준으로 읽는다',
+    dateYear: '기록을 남긴 해', dateWhere: '그 날짜는 아래에 있다', dateCompare: '그 날짜보다',
+  },
+} as const
+
+export type ExtractSourceKind = keyof typeof WORDING
 
 export interface MeetingContext {
   /** 이 회의가 열린 날 (KST, YYYY-MM-DD) — "8월 25일까지"의 연도를 여기서 읽는다 */
   meetingDate?: string
+
+  /** 무엇을 읽는 중인가 — 안 주면 미팅(기존 동작 그대로) */
+  sourceKind?: ExtractSourceKind
 
   /** 연결된 회사의 지금 값 — 이미 아는 것을 또 제안하지 않게 */
   company?: { name: string; domain?: string | null; industry?: string | null; region?: string | null } | null
@@ -36,8 +63,9 @@ export interface Segment {
 }
 
 function contextBlock(ctx: MeetingContext): string {
+  const w = WORDING[ctx.sourceKind ?? 'meeting']
   const lines: string[] = []
-  if (ctx.meetingDate) lines.push(`이 회의가 열린 날: ${ctx.meetingDate} (KST)`)
+  if (ctx.meetingDate) lines.push(`${w.dateLabel}: ${ctx.meetingDate} (KST)`)
   if (ctx.company) {
     lines.push(`회사: ${ctx.company.name}` +
       [ctx.company.domain && `도메인 ${ctx.company.domain}`,
@@ -59,20 +87,21 @@ function contextBlock(ctx: MeetingContext): string {
   }
   return lines.length > 0
     ? lines.join('\n')
-    : '(연결된 회사·딜 없음 — 전사에서 읽어낸 것만 쓰세요)'
+    : `(연결된 회사·딜 없음 — ${WORDING[ctx.sourceKind ?? 'meeting'].body}에서 읽어낸 것만 쓰세요)`
 }
 
 export function buildMeetingExtractPrompt(segments: Segment[], ctx: MeetingContext): string {
+  const w = WORDING[ctx.sourceKind ?? 'meeting']
   const transcript = segments
     .map((s) => `[${s.id}]${s.speaker ? ` ${s.speaker}:` : ''} ${s.text}`)
     .join('\n')
 
-  return `너는 영업 미팅 기록을 읽고 CRM 에 넣을 사실만 뽑아내는 사람이다.
+  return `너는 ${w.doc}을 읽고 CRM 에 넣을 사실만 뽑아내는 사람이다.
 
 ## 반드시 지킬 것
 
 1. **근거 없이는 아무것도 쓰지 마라.**
-   모든 항목에 \`evidence.segmentIds\` 를 넣는다. 그 값을 읽어낸 전사 구간의 [id] 다.
+   모든 항목에 \`evidence.segmentIds\` 를 넣는다. 그 값을 읽어낸 ${w.unit}의 [id] 다.
    지어낸 id 를 쓰면 그 항목은 통째로 버려진다. 근거를 못 대겠으면 그 항목을 아예 넣지 마라.
 
 2. **금액은 말한 것만 쓴다.**
@@ -89,9 +118,9 @@ export function buildMeetingExtractPrompt(segments: Segment[], ctx: MeetingConte
    아래 "우리 쪽 사람" 목록에 있는 이름은 우리 영업 담당이지 고객이 아니다.
    이들을 넣으면 우리 직원이 고객사 연락처로 등록된다.
 
-6. **날짜는 회의 날짜를 기준으로 읽는다.**
-   "8월 25일까지"처럼 연도를 안 말했으면 **회의가 열린 해**를 쓴다(회의 날짜는 아래에 있다).
-   회의 날짜보다 앞선 날짜가 나오면 그 다음 해다. 연·월·일 중 하나라도 못 정하면 \`dueDate: null\`.
+6. **${w.dateRule}.**
+   "8월 25일까지"처럼 연도를 안 말했으면 **${w.dateYear}**를 쓴다(${w.dateWhere}).
+   ${w.dateCompare} 앞선 날짜가 나오면 그 다음 해다. 연·월·일 중 하나라도 못 정하면 \`dueDate: null\`.
    지난 연도를 적으면 그 할 일은 이미 지난 일로 보여 아무도 하지 않는다.
 
 ## 이미 아는 것 (이것과 같은 값은 다시 제안하지 마라)

@@ -189,9 +189,35 @@ export async function deleteActivity(
       await (tx as any).crmActivity.updateMany({ where: { id }, data: { deletedAt: new Date() } })
     }
 
+    /**
+     * 이 기록에서 나온 **아직 처리 안 된 제안**도 함께 거둔다.
+     *
+     * 노트를 AI 가 읽게 되면서(activity-extract.ts) 활동도 제안의 출처가 됐다.
+     * 안 거두면 인박스에 고아 제안이 남는다 — 근거를 눌러도 사라진 기록으로 가고,
+     * 사람이 무심코 반영하면 **지운 글에서 나온 값**이 CRM 에 들어간다.
+     * (미팅에서 똑같은 사고가 있었다: 4건을 지웠는데 제안 9건이 그대로 PENDING 이었다)
+     *
+     * 이미 사람이 판단한 것(ACCEPTED·REJECTED)은 건드리지 않는다 — 그건 사실로 일어난 일이다.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const runs = await (tx as any).crmAiRun.findMany({
+      where: { kind: 'MEETING_EXTRACT', inputRef: { path: ['activityId'], equals: id } },
+      select: { id: true },
+    }) as { id: string }[]
+    let orphans = 0
+    if (runs.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const r = await (tx as any).crmAiSuggestion.updateMany({
+        where: { runId: { in: runs.map((x) => x.id) }, status: 'PENDING' },
+        data: { status: 'EXPIRED' },
+      })
+      orphans = r.count
+    }
+
     await writeAudit(tx, {
       actorType: 'HUMAN', actorId, action: plan.auditAction,
       targetType: 'activity', targetId: id, beforeJson: before,
+      afterJson: { expiredSuggestions: orphans },
     })
   })
 }

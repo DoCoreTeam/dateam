@@ -3,6 +3,7 @@ import PageHeader from '@/components/ui/PageHeader'
 import BudgetCard from './BudgetCard'
 import SettingsCard from './SettingsCard'
 import DuplicatesCard from './DuplicatesCard'
+import DataCheckCard from './DataCheckCard'
 import IntegrationCard from './IntegrationCard'
 import AutoApplyCard from './AutoApplyCard'
 import ExportCard from './ExportCard'
@@ -27,6 +28,7 @@ export default function CrmSettingsPage() {
         <SettingsCard />
         <AutoApplyCard />
         <IntegrationCard />
+        <DataCheckCard />
         <DuplicatesCard />
         <AutomationCard />
         <ImportCard />

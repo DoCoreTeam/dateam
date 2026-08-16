@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, Clock, CheckCircle2 } from 'lucide-react'
+import { AlertTriangle, Clock, CheckCircle2, X } from 'lucide-react'
 import { Plus } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -26,6 +26,15 @@ import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import DealCloseModal from './DealCloseModal'
 import { formatAmount } from './amount'
 import styles from './board.module.css'
+
+/** 옮긴 딜을 AI 가 본 결과 — 서버(stage-review.v1)의 출력 그대로다 */
+export interface StageReview {
+  dealName: string
+  verdict: 'ready' | 'check' | 'not_ready'
+  headline: string
+  findings: { what: string; because: string }[]
+  suggestion: string | null
+}
 
 export interface BoardStage {
   id: string
@@ -79,6 +88,14 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
   const [moveError, setMoveError] = useState<string | null>(null)
   /** 옮기긴 했는데 비어 있는 것 — 오류가 아니라 알림이다 */
   const [moveNotice, setMoveNotice] = useState<string | null>(null)
+  /**
+   * 옮긴 뒤 AI 가 본 결과.
+   *
+   * 이동과 **따로** 부른다. 같이 부르면 AI 가 느린 날 드래그가 느려지고,
+   * AI 가 죽는 날 이동이 죽는다. 조언은 늦게 와도 되지만 저장은 그럴 수 없다.
+   */
+  const [review, setReview] = useState<StageReview | null>(null)
+  const [reviewing, setReviewing] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
   const [overStage, setOverStage] = useState<string | null>(null)
   const [closing, setClosing] = useState<{ deal: BoardDeal; stage: BoardStage } | null>(null)
@@ -110,6 +127,29 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
 
   const pipeline = pipelines.find((p) => p.id === pipelineId)
 
+  /**
+   * 옮긴 딜을 AI 가 본다.
+   *
+   * **실패해도 아무 말도 하지 않는다.** 이동은 이미 성공했다 —
+   * 여기서 오류를 띄우면 사람은 저장이 실패한 줄 안다.
+   * 걸리는 게 없을 때(ready)도 조용히 넘어간다. 매번 "괜찮습니다"가 뜨면 그때부터 안 읽는다.
+   */
+  async function askReview(deal: BoardDeal) {
+    setReviewing(true)
+    try {
+      const res = await fetch(`/api/crm/deals/${deal.id}/stage-review`, { method: 'POST' })
+      if (!res.ok) return
+      const body = await res.json()
+      const r = body?.review
+      if (!r || r.verdict === 'ready') return
+      setReview({ ...r, dealName: deal.name })
+    } catch {
+      // 조언은 없어도 된다 — 이동은 이미 끝났다
+    } finally {
+      setReviewing(false)
+    }
+  }
+
   async function move(deal: BoardDeal, stage: BoardStage) {
     if (deal.stageId === stage.id) return
     // 성사·실주는 필요한 값을 먼저 묻는다 — 서버 오류로 알게 하지 않는다
@@ -119,6 +159,7 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
     }
     setMoveError(null)
     setMoveNotice(null)
+    setReview(null)
     // 낙관적으로 먼저 옮겨 보여 준다 — 실패하면 되돌린다
     const prev = deals
     setDeals((rows) => rows.map((r) => (r.id === deal.id ? { ...r, stageId: stage.id } : r)))
@@ -143,6 +184,8 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
       setMoveNotice(warn.length > 0
         ? `옮겼어요. 다만 ${warn.map((w) => w.message).join(', ')}.`
         : null)
+      // 저장은 끝났다. 이제 AI 에게 "이 딜, 여기 있어도 되나"를 묻는다
+      void askReview(deal)
     } catch {
       setDeals(prev)
       setMoveError('단계를 옮기지 못했습니다. 잠시 후 다시 시도해 주세요.')
@@ -202,6 +245,44 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
 
       <FormErrorBanner message={moveError} />
       {moveNotice && <p className={styles.moveNotice}>{moveNotice}</p>}
+
+      {reviewing && !review && <p className={styles.reviewPending}>AI가 이 딜을 보는 중…</p>}
+
+      {/*
+        AI 검토 — 진입 조건표가 하던 일을 대신한다.
+        조건표는 "칸이 비었나"를 물었고 아무도 켜지 않았다. 이건 "넘어가도 되나"를 묻는다.
+        닫을 수 있어야 한다 — 못 닫으면 다음 이동까지 남아 방해가 된다.
+      */}
+      {review && (
+        <div
+          className={`${styles.review} ${review.verdict === 'not_ready' ? styles.reviewStop : styles.reviewCheck}`}
+          role="status"
+        >
+          <div className={styles.reviewHead}>
+            <AlertTriangle size={14} />
+            <strong>{review.headline}</strong>
+            <span className={styles.reviewDeal}>{review.dealName}</span>
+            <button
+              type="button" className={styles.reviewClose}
+              aria-label="검토 닫기" onClick={() => setReview(null)}
+            >
+              <X size={14} />
+            </button>
+          </div>
+          {review.findings.length > 0 && (
+            <ul className={styles.reviewList}>
+              {review.findings.map((f, i) => (
+                <li key={i}>
+                  {f.what}
+                  {/* 근거를 같이 보여 준다 — 근거 없는 지적은 잔소리다 */}
+                  <span className={styles.reviewBecause}> — {f.because}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {review.suggestion && <p className={styles.reviewNext}>👉 {review.suggestion}</p>}
+        </div>
+      )}
 
       <div className={styles.board}>
         {pipeline.stages.map((stage) => {
