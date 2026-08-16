@@ -6,6 +6,7 @@ import DuplicatesCard from './DuplicatesCard'
 import IntegrationCard from './IntegrationCard'
 import AutoApplyCard from './AutoApplyCard'
 import ExportCard from './ExportCard'
+import ImportCard from './ImportCard'
 import AutomationCard from './AutomationCard'
 import styles from './settings.module.css'
 
@@ -28,6 +29,7 @@ export default function CrmSettingsPage() {
         <IntegrationCard />
         <DuplicatesCard />
         <AutomationCard />
+        <ImportCard />
         <ExportCard />
       </div>
     </>
