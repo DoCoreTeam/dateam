@@ -32,6 +32,15 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.494', date: '2026-08-16', title: '이제 지울 수 있어요',
+    items: [
+      { kind: 'feature', emoji: '🗑️', headline: '잘못 들어온 게시물을 지울 수 있어요', detail: '예전에는 수집에 실패한 링크도 "다시 시도"만 되고 없앨 방법이 없어서 수집함에 계속 남아 있었어요. 이제 지우기 버튼으로 정리할 수 있습니다.' },
+      { kind: 'feature', emoji: '📺', headline: '관심 채널을 목록에서 없앨 수 있어요', detail: '지켜보기를 끄는 것과 목록에서 빼는 것은 다른 일인데, 예전에는 끄는 것만 됐어요. 이제 지울 수 있고, 그 채널에서 모은 게시물은 그대로 남습니다.' },
+      { kind: 'feature', emoji: '🧹', headline: '보드·아이디어·게시 기록도 지울 수 있어요', detail: '만들 수만 있고 지울 수 없어서 잘못 만든 것이 계속 쌓였어요. 이제 정리됩니다.' },
+      { kind: 'improve', emoji: '⚠️', headline: '지우기 전에 무엇이 함께 사라지는지 알려드려요', detail: '되돌릴 수 없는 일이라, 누르기 전에 함께 사라지는 것과 그대로 남는 것을 숫자로 보여드립니다.' },
+    ],
+  },
+  {
     version: '0.7.492', date: '2026-08-16', title: '화면이 훨씬 빨리 뜹니다',
     items: [
       { kind: 'improve', emoji: '⚡', headline: '글꼴을 받느라 화면이 늦게 뜨던 것을 고쳤어요', detail: '글자를 그리는 데 필요한 글꼴 파일을 바깥 서버에서 2MB짜리 한 덩어리로 받고 있었어요. 이제 우리 서버에서 필요한 부분만 나눠 받아, 받는 양이 5분의 1로 줄었습니다.' },

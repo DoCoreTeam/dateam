@@ -19,6 +19,8 @@ import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { rangeOf, type ListDefaults } from '@/lib/ui/list-query'
 import { isEnterKey } from '@/lib/ui/ime'
+import ConfirmDeleteDialog from '@/components/ui/ConfirmDeleteDialog'
+import { useCiDelete } from '@/lib/ci/use-delete'
 
 interface ChannelListViewProps {
   workspaceId: string
@@ -37,6 +39,7 @@ const SORT_OPTIONS = [
 
 export default function ChannelListView({ workspaceId, items, mode }: ChannelListViewProps) {
   const router = useRouter()
+  const del_ = useCiDelete(workspaceId, () => router.refresh())
   const { query, set } = useListQuery(LIST_DEFAULTS, {
     persistKey: mode === 'tracked' ? '/ci/monitoring' : '/ci/my-channels',
   })
@@ -122,6 +125,11 @@ export default function ChannelListView({ workspaceId, items, mode }: ChannelLis
             <button type="button" className="btn-ghost" onClick={() => toggleMonitor(ch)}>
               {ch.isMonitored ? '중지' : '지켜보기'}
             </button>
+            {/* 지켜보기를 멈추는 것과 목록에서 없애는 것은 다른 일이다.
+                예전엔 중지만 있어 그만 볼 채널이 목록에 영원히 남았다. */}
+            <button type="button" className="btn-ghost"
+              onClick={() => del_.ask({ kind: 'channel', id: ch.id, title: '이 채널을 지울까요?' })}
+              aria-label="채널 지우기" title="지우기">지우기</button>
           </span>
         ),
       })
@@ -129,7 +137,7 @@ export default function ChannelListView({ workspaceId, items, mode }: ChannelLis
 
     return base
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode])
+  }, [mode, del_])
 
   // 서버가 전체 목록을 한 번에 넘긴다 — 걸러내기·정렬·자르기는 표현 계층에서 한다(§2-6)
   const rows = useMemo(() => {
@@ -206,6 +214,18 @@ export default function ChannelListView({ workspaceId, items, mode }: ChannelLis
       />
 
       <ListPager query={query} total={rows.length} onChange={set} />
+
+      {del_.pending && (
+        <ConfirmDeleteDialog
+          title={del_.pending.title}
+          impact={del_.impact}
+          loading={del_.loading}
+          busy={del_.busy}
+          errorMessage={del_.errorMessage}
+          onConfirm={del_.confirm}
+          onClose={del_.close}
+        />
+      )}
     </>
   )
 }

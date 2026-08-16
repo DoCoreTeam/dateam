@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/server'
 import { ok, fail, failUnexpected } from '@/lib/ci/api'
 import { requireCiMemberApi, workspaceIdFromRequest } from '@/lib/ci/auth/requireCiMember'
@@ -5,6 +6,7 @@ import { toListItem } from '@/lib/ci/queries/contents'
 import { getCreative } from '@/lib/ci/queries/creative'
 import { getLatestMetrics } from '@/lib/ci/queries/metrics'
 import { allowsAssertiveNarrative, formatDuration } from '@/lib/ci/format/metrics'
+import { deleteCiEntity } from '@/lib/ci/queries/delete'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -79,6 +81,65 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       provenanceMethod: typeof provenance.method === 'string' ? provenance.method : null,
       fetchedAt: typeof provenance.fetchedAt === 'string' ? provenance.fetchedAt : null,
     })
+  } catch (e) {
+    return failUnexpected(e)
+  }
+}
+
+/**
+ * 사람이 고칠 수 있는 것만 연다.
+ *
+ * ⚠️ **수집값(조회수·게시일·채널·플랫폼)은 열지 않는다.** 그 값들은 지표의 근거라
+ *    손으로 고치는 순간 배수와 백분위가 거짓이 된다. 잘못 수집된 것은 고치는 게 아니라
+ *    **다시 수집하거나(retry) 지운다(DELETE)**.
+ *    (설계 근거: docs/2026-08-16-ci-crud-audit/AUDIT.md §5)
+ */
+const Patch = z.object({
+  title: z.string().trim().min(1).max(500).optional(),
+  topicId: z.string().uuid().nullable().optional(),
+  /** 통계에서만 빼기 — 삭제와 다른 일이다(행은 남는다) */
+  statExcluded: z.boolean().optional(),
+})
+
+export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  try {
+    const workspaceId = workspaceIdFromRequest(req)
+    const { session, error } = await requireCiMemberApi(workspaceId, 'member')
+    if (error) return error
+
+    const { id } = await ctx.params
+    const parsed = Patch.safeParse(await req.json().catch(() => ({})))
+    if (!parsed.success) return fail('VALIDATION_FAILED', '입력값을 확인해 주세요', parsed.error.issues)
+
+    const patch: Record<string, unknown> = {}
+    if (parsed.data.title !== undefined) patch.title = parsed.data.title
+    if (parsed.data.topicId !== undefined) patch.topic_id = parsed.data.topicId
+    if (parsed.data.statExcluded !== undefined) patch.is_stat_excluded = parsed.data.statExcluded
+    if (Object.keys(patch).length === 0) return fail('VALIDATION_FAILED', '변경할 내용이 없습니다')
+
+    const adminClient = createAdminClient() as any
+    const { data } = await adminClient.from('ci_contents').update(patch)
+      .eq('id', id).eq('workspace_id', session.workspaceId)
+      .select('id, title, topic_id, is_stat_excluded').maybeSingle()
+
+    return data ? ok(data) : fail('NOT_FOUND', '게시물을 찾을 수 없습니다')
+  } catch (e) {
+    return failUnexpected(e)
+  }
+}
+
+/** 진짜로 지운다. 되돌릴 수 없다 — 지표 기록·분석 결과·보드 항목이 함께 사라진다. */
+export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  try {
+    const workspaceId = workspaceIdFromRequest(req)
+    const { session, error } = await requireCiMemberApi(workspaceId, 'member')
+    if (error) return error
+
+    const { id } = await ctx.params
+    const res = await deleteCiEntity('content', id, session.workspaceId) // x
+    if (!res.ok) return fail(res.code ?? 'INTERNAL', res.errorMessage ?? '지우지 못했습니다')
+    if (res.deleted === 0) return fail('NOT_FOUND', '게시물을 찾을 수 없습니다')
+    return ok({ id, deleted: res.deleted })
   } catch (e) {
     return failUnexpected(e)
   }

@@ -4,6 +4,7 @@ import { ok, fail, failUnexpected } from '@/lib/ci/api'
 import { requireCiMemberApi, workspaceIdFromRequest } from '@/lib/ci/auth/requireCiMember'
 import { getChannel } from '@/lib/ci/queries/channels'
 import { enqueueJob } from '@/lib/ci/jobs/queue'
+import { deleteCiEntity } from '@/lib/ci/queries/delete'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -74,14 +75,18 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const workspaceId = workspaceIdFromRequest(req)
-    const { session, error } = await requireCiMemberApi(workspaceId, 'admin')
+    // CI 워크스페이스 멤버면 지운다 — 앱 전역 admin과 무관하다.
+    // 예전엔 여기만 'admin'이라 다른 변경(추가·수정)은 되는데 삭제만 막혀 있었다.
+    const { session, error } = await requireCiMemberApi(workspaceId, 'member')
     if (error) return error
     const { id } = await ctx.params
-    const adminClient = createAdminClient() as any
-    await adminClient.from('ci_channels')
-      .update({ deleted_at: new Date().toISOString(), is_monitored: false })
-      .eq('id', id).eq('workspace_id', session.workspaceId)
-    return ok({ id })
+
+    // 진짜 삭제다. 게시물은 함께 사라지지 않는다 —
+    // `ci_contents.channel_id`가 SET NULL이라 수집한 게시물과 지표는 그대로 남는다.
+    const res = await deleteCiEntity('channel', id, session.workspaceId)
+    if (!res.ok) return fail(res.code ?? 'INTERNAL', res.errorMessage ?? '지우지 못했습니다')
+    if (res.deleted === 0) return fail('NOT_FOUND', '채널을 찾을 수 없습니다')
+    return ok({ id, deleted: res.deleted })
   } catch (e) {
     return failUnexpected(e)
   }

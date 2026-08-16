@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/server'
 import { ok, fail, failUnexpected } from '@/lib/ci/api'
 import { requireCiMemberApi, workspaceIdFromRequest } from '@/lib/ci/auth/requireCiMember'
+import { deleteCiEntity } from '@/lib/ci/queries/delete'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -58,6 +59,27 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     // 같은 항목을 두 번 담아도 에러로 막지 않는다 — 이미 담긴 것이다
     if (insErr) return ok({ boardId: id, deduped: true })
     return ok({ boardId: id, deduped: false })
+  } catch (e) {
+    return failUnexpected(e)
+  }
+}
+
+/** 보드에서 빼기. 담긴 항목만 지운다 — 원본 게시물은 그대로 남는다. */
+export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  try {
+    const workspaceId = workspaceIdFromRequest(req)
+    const { session, error } = await requireCiMemberApi(workspaceId, 'member')
+    if (error) return error
+    const { id } = await ctx.params
+    if (!await assertBoard(session.workspaceId, id)) return fail('NOT_FOUND', '보드를 찾을 수 없습니다')
+
+    const itemId = new URL(req.url).searchParams.get('itemId')
+    if (!itemId) return fail('VALIDATION_FAILED', 'itemId가 필요합니다')
+
+    const res = await deleteCiEntity('boardItem', itemId, session.workspaceId)
+    if (!res.ok) return fail(res.code ?? 'INTERNAL', res.errorMessage ?? '빼지 못했습니다')
+    if (res.deleted === 0) return fail('NOT_FOUND', '항목을 찾을 수 없습니다')
+    return ok({ id: itemId, deleted: res.deleted })
   } catch (e) {
     return failUnexpected(e)
   }

@@ -6,7 +6,7 @@
 // 목록 표준(§2-6): 표는 ListSurface가 그린다(화면이 <table>을 짜지 않는다).
 // 탭·채널묶기 같은 보기 조건은 URL이 진실이다 — 링크를 공유하면 같은 화면이 열린다.
 
-import { RotateCcw, ExternalLink } from 'lucide-react'
+import { RotateCcw, ExternalLink, Trash2 } from 'lucide-react'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
@@ -24,6 +24,8 @@ import ListSurface from '@/components/ui/list/ListSurface'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import type { ListDefaults } from '@/lib/ui/list-query'
+import ConfirmDeleteDialog from '@/components/ui/ConfirmDeleteDialog'
+import { useCiDelete } from '@/lib/ci/use-delete'
 
 type Tab = 'all' | 'review' | 'failed'
 
@@ -70,6 +72,8 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
   const [openId, setOpenId] = useState<string | null>(null)
   const [retrying, setRetrying] = useState<string | null>(null)
   const [savingTopic, setSavingTopic] = useState<string | null>(null)
+  // 삭제는 진짜 삭제다 — 확인 대화상자가 유일한 안전장치라 공용 흐름을 그대로 쓴다
+  const del_ = useCiDelete(workspaceId, () => router.refresh())
 
   const grouped = query.filters.group === '1'
 
@@ -213,6 +217,12 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
             aria-label="원본 페이지 열기" title="원본 열기">
             <ExternalLink size={15} />
           </Link>
+          {/* 잘못 들어온 게시물을 없앨 길. 예전엔 재시도밖에 없어 실패한 링크가 영원히 남았다 */}
+          <button type="button" className="btn-ghost"
+            onClick={() => del_.ask({ kind: 'content', id: item.id, title: '이 게시물을 지울까요?' })}
+            aria-label="게시물 지우기" title="지우기">
+            <Trash2 size={15} />
+          </button>
         </span>
       ),
     },
@@ -271,6 +281,18 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
         onClose={() => setOpenId(null)}
         onNextStep={(id) => router.push(`/ci/pipeline?from=${id}`)}
       />
+
+      {del_.pending && (
+        <ConfirmDeleteDialog
+          title={del_.pending.title}
+          impact={del_.impact}
+          loading={del_.loading}
+          busy={del_.busy}
+          errorMessage={del_.errorMessage}
+          onConfirm={del_.confirm}
+          onClose={del_.close}
+        />
+      )}
     </>
   )
 }

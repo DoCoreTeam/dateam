@@ -10,6 +10,8 @@ import { CI_PIPELINE_STAGES, CI_STAGE_LABEL, type CiPipelineStage } from '@/lib/
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import { isEnterKey } from '@/lib/ui/ime'
+import ConfirmDeleteDialog from '@/components/ui/ConfirmDeleteDialog'
+import { useCiDelete } from '@/lib/ci/use-delete'
 
 const COLUMN_HINT: Record<CiPipelineStage, string> = {
   idea: '보드나 트렌드에서 가져오기',
@@ -26,6 +28,7 @@ interface Props {
 
 export default function PipelineView({ workspaceId, ideas, seed }: Props) {
   const router = useRouter()
+  const del_ = useCiDelete(workspaceId, () => router.refresh())
   const [title, setTitle] = useState('')
   const [busy, setBusy] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
@@ -177,6 +180,12 @@ export default function PipelineView({ workspaceId, ideas, seed }: Props) {
                           {CI_STAGE_LABEL[s]}
                         </button>
                       ))}
+                      {/* 접은 아이디어를 없앤다. 예전엔 단계만 옮길 수 있어
+                          안 할 아이디어가 보드에 계속 쌓였다.
+                          이 아이디어로 만든 기획·편집안도 함께 사라진다(대화상자가 미리 알려 준다). */}
+                      <button type="button" className="ci-metric"
+                        onClick={() => del_.ask({ kind: 'idea', id: card.id, title: '이 아이디어를 지울까요?' })}
+                        title="지우기">지우기</button>
                     </div>
                   </article>
                 ))}
@@ -189,6 +198,18 @@ export default function PipelineView({ workspaceId, ideas, seed }: Props) {
       <p className="ci-basis" style={{ marginTop: 'var(--space-4)' }}>
         카드를 끌어다 놓거나 카드 안의 버튼으로 단계를 옮길 수 있습니다. 뒤로 되돌리는 것도 됩니다.
       </p>
+
+      {del_.pending && (
+        <ConfirmDeleteDialog
+          title={del_.pending.title}
+          impact={del_.impact}
+          loading={del_.loading}
+          busy={del_.busy}
+          errorMessage={del_.errorMessage}
+          onConfirm={del_.confirm}
+          onClose={del_.close}
+        />
+      )}
     </>
   )
 }

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/server'
 import { ok, fail, failUnexpected } from '@/lib/ci/api'
 import { requireCiMemberApi, workspaceIdFromRequest } from '@/lib/ci/auth/requireCiMember'
+import { deleteCiEntity } from '@/lib/ci/queries/delete'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -50,6 +51,23 @@ export async function POST(req: Request) {
     }).select('id').single()
 
     return data ? ok(data) : fail('INTERNAL', '편집안을 만들지 못했습니다')
+  } catch (e) {
+    return failUnexpected(e)
+  }
+}
+
+/** 진짜로 지운다. 되돌릴 수 없다. */
+export async function DELETE(req: Request) {
+  try {
+    const workspaceId = workspaceIdFromRequest(req)
+    const { session, error } = await requireCiMemberApi(workspaceId, 'member')
+    if (error) return error
+    const id = new URL(req.url).searchParams.get('id')
+    if (!id) return fail('VALIDATION_FAILED', 'id가 필요합니다')
+    const res = await deleteCiEntity('editPlan', id, session.workspaceId)
+    if (!res.ok) return fail(res.code ?? 'INTERNAL', res.errorMessage ?? '지우지 못했습니다')
+    if (res.deleted === 0) return fail('NOT_FOUND', '편집안을(를) 찾을 수 없습니다')
+    return ok({ id, deleted: res.deleted })
   } catch (e) {
     return failUnexpected(e)
   }

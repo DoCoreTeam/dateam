@@ -15,6 +15,8 @@ import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { rangeOf, type ListDefaults } from '@/lib/ui/list-query'
 import { isEnterKey } from '@/lib/ui/ime'
+import ConfirmDeleteDialog from '@/components/ui/ConfirmDeleteDialog'
+import { useCiDelete } from '@/lib/ci/use-delete'
 
 interface Board { id: string; name: string; itemCount: number }
 
@@ -36,6 +38,7 @@ export default function BoardsView({
   workspaceId, boards, pendingContentId,
 }: { workspaceId: string; boards: Board[]; pendingContentId: string | null }) {
   const router = useRouter()
+  const del_ = useCiDelete(workspaceId, () => router.refresh())
   const { query, set } = useListQuery(LIST_DEFAULTS, { persistKey: '/ci/boards' })
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
@@ -102,7 +105,18 @@ export default function BoardsView({
           여기에 담기
         </button>
       ),
-    }] : []),
+    }] : [{
+      // 담을 항목을 들고 오지 않았을 때만 지우기를 보인다 —
+      // 담는 중에 지우기 버튼이 같이 있으면 잘못 누르기 쉽다(되돌릴 수 없는 일이다).
+      key: 'actions', header: '작업', noLabel: true, align: 'right' as const,
+      cell: (b: Board) => (
+        <span onClick={(e) => e.stopPropagation()}>
+          <button type="button" className="btn-ghost"
+            onClick={() => del_.ask({ kind: 'board', id: b.id, title: '이 보드를 지울까요?' })}
+            aria-label="보드 지우기" title="지우기">지우기</button>
+        </span>
+      ),
+    }]),
   ]
 
   return (
@@ -156,6 +170,18 @@ export default function BoardsView({
       />
 
       <ListPager query={query} total={filtered.length} onChange={set} />
+
+      {del_.pending && (
+        <ConfirmDeleteDialog
+          title={del_.pending.title}
+          impact={del_.impact}
+          loading={del_.loading}
+          busy={del_.busy}
+          errorMessage={del_.errorMessage}
+          onConfirm={del_.confirm}
+          onClose={del_.close}
+        />
+      )}
     </>
   )
 }

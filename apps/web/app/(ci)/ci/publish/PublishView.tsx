@@ -19,6 +19,8 @@ import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef, ListFilterDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { rangeOf, type ListDefaults } from '@/lib/ui/list-query'
+import ConfirmDeleteDialog from '@/components/ui/ConfirmDeleteDialog'
+import { useCiDelete } from '@/lib/ci/use-delete'
 
 interface PubRow {
   id: string
@@ -64,6 +66,7 @@ export default function PublishView({
   workspaceId, items, ownedChannels,
 }: { workspaceId: string; items: PubRow[]; ownedChannels: CiChannelListItem[] }) {
   const router = useRouter()
+  const del_ = useCiDelete(workspaceId, () => router.refresh())
   const { query, set } = useListQuery(LIST_DEFAULTS, { persistKey: '/ci/publish' })
   const [platform, setPlatform] = useState<CiPlatform>('youtube')
   const [date, setDate] = useState('')
@@ -139,7 +142,15 @@ export default function PublishView({
       key: 'action', header: '작업',
       // 이미 기록된 건은 할 일이 없다. 카드/모바일에서는 셀이 비면 '작업' 레이블만 덩그러니 남으므로
       // 같은 행의 다른 칸(미정·아직 기록 전)과 같은 방식으로 "없음"을 명시한다.
-      cell: (p) => (p.published_url ? <span className="ci-basis">—</span> : (
+      cell: (p) => (p.published_url ? (
+        // 이미 기록된 건도 잘못 올렸으면 없앨 수 있어야 한다.
+        // 지우는 것은 **우리 기록**이고 플랫폼의 실제 게시물은 그대로다(대화상자가 밝힌다).
+        <span onClick={(e) => e.stopPropagation()}>
+          <button type="button" className="btn-ghost"
+            onClick={() => del_.ask({ kind: 'publication', id: p.id, title: '이 게시 기록을 지울까요?' })}
+            aria-label="게시 기록 지우기" title="지우기">지우기</button>
+        </span>
+      ) : (
         <span style={{ display: 'inline-flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
           <label className="label" htmlFor={`u-${p.id}`} style={{ position: 'absolute', left: '-9999px' }}>게시 주소</label>
           <input className="input-field" id={`u-${p.id}`}
@@ -231,6 +242,18 @@ export default function PublishView({
       />
 
       <ListPager query={query} total={filtered.length} onChange={set} />
+
+      {del_.pending && (
+        <ConfirmDeleteDialog
+          title={del_.pending.title}
+          impact={del_.impact}
+          loading={del_.loading}
+          busy={del_.busy}
+          errorMessage={del_.errorMessage}
+          onConfirm={del_.confirm}
+          onClose={del_.close}
+        />
+      )}
     </>
   )
 }
