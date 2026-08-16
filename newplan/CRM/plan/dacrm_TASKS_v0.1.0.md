@@ -24,18 +24,18 @@
 
 | ID | 버전 | 태스크 | 산출물 | 완료 기준 | 상태 |
 |---|---|---|---|---|---|
-| T1-01 | v0.6.0 | CRM 레이아웃과 메뉴 | app/crm/layout.tsx, 호스트 사이드바에 CRM 섹션 8개(명세 1.2 허용 수정) | Playwright: 메뉴 진입, 권한 없는 사용자 차단 | TODO |
-| T1-02 | v0.6.1 | 회사, 인물 CRUD | 목록(커서), 레코드 3열, PATCH 낙관적 잠금 | API 테스트 + DI-02, 03, 18 재실행 통과 | TODO |
-| T1-03 | v0.6.2 | 딜 CRUD 와 보드 | 테이블과 보드 뷰, 드래그 이동, won/lost 모달 | Playwright: 드래그 이동, won 금액 강제, DI-05~08 통과 | TODO |
-| T1-04 | v0.6.3 | 태스크와 타임라인 | CrmTask CRUD, 레코드 타임라인 | API 테스트, 완료 처리 시 activity 기록 확인 | TODO |
-| T1-05 | v0.6.4 | 원터치 생성(mock AI) | quick-create 서비스 + 갭필 모달, mock 러너 픽스처 | Playwright: 텍스트 등록 → 회사, 인물, 딜 생성 → 갭필 표시 | TODO |
-| T1-06 | v0.6.5 | 제안 관문과 인박스 | suggestion.service, apply.ts, 인박스 카드(수락, 수정, 거절) | DI-12, 13 통과, Playwright 수락 플로우 | TODO |
-| T1-07 | v0.6.6 | 예산 서비스 | budget.service, 설정 UI(상한), 차단 배너 | DI-14, 15 통과, E2E 9번 시나리오 통과 | TODO |
-| T1-08 | v0.6.7 | 설정 체계 | CrmAppSetting CRUD UI, 시크릿 암호화, 감사 기록 | 테스트: 오버라이드 우선순위, 시크릿 마스킹 | TODO |
-| T1-09 | v0.6.8 | HUMAN GATE: Google OAuth | 사람: GCP 프로젝트, 내부(Internal) 동의 화면, 클라이언트 ID 발급, Workspace 조직 일치 확인(C-02) | 시크릿이 설정에 등록되면 재개 | TODO |
-| T1-10 | v0.6.9 | Gmail, Calendar 캡처 | IntegrationConnection 연결 플로우, gmail-sync 잡(3.5) | mock 픽스처로 DI-21 통과, 실계정 스모크 1회 | TODO |
-| T1-11 | v0.6.10 | 병합 | duplicate 스캔 잡, 병합 서비스, 검토 UI | DI-10, 11 통과 | TODO |
-| T1-12 | v0.7.0 | Phase 1 게이트 | 리포트 v1(파이프라인 합계), 전체 검증, 실사용 시작 | 전체 명령 통과, 본인 실데이터 1주 사용 회고 문서 | TODO |
+| T1-01 | v0.6.0 | CRM 레이아웃과 메뉴 | app/crm/layout.tsx, 호스트 사이드바에 CRM 섹션 8개(명세 1.2 허용 수정) | Playwright: 메뉴 진입, 권한 없는 사용자 차단 | DONE |
+| T1-02 | v0.6.1 | 회사, 인물 CRUD | 목록(커서), 레코드 3열, PATCH 낙관적 잠금 | API 테스트 + DI-02, 03, 18 재실행 통과 | DONE |
+| T1-03 | v0.6.2 | 딜 CRUD 와 보드 | 테이블과 보드 뷰, 드래그 이동, won/lost 모달 | Playwright: 드래그 이동, won 금액 강제, DI-05~08 통과 | DONE |
+| T1-04 | v0.6.3 | 태스크와 타임라인 | CrmTask CRUD, 레코드 타임라인 | API 테스트, 완료 처리 시 activity 기록 확인 | DONE |
+| T1-05 | v0.6.4 | 원터치 생성(mock AI) | quick-create 서비스 + 갭필 모달, mock 러너 픽스처 | Playwright: 텍스트 등록 → 회사, 인물, 딜 생성 → 갭필 표시 | DONE |
+| T1-06 | v0.6.5 | 제안 관문과 인박스 | suggestion.service, apply.ts, 인박스 카드(수락, 수정, 거절) | DI-12, 13 통과, Playwright 수락 플로우 | DONE |
+| T1-07 | v0.6.6 | 예산 서비스 | budget.service, 설정 UI(상한), 차단 배너 | DI-14, 15 통과, E2E 9번 시나리오 통과 | DONE |
+| T1-08 | v0.6.7 | 설정 체계 | CrmAppSetting CRUD UI, 시크릿 암호화, 감사 기록 | 테스트: 오버라이드 우선순위, 시크릿 마스킹 | DONE |
+| T1-09 | v0.6.8 | HUMAN GATE: Google OAuth | 사람: GCP 프로젝트, 내부(Internal) 동의 화면, 클라이언트 ID 발급, Workspace 조직 일치 확인(C-02) | 시크릿이 설정에 등록되면 재개 | BLOCKED(사람) |
+| T1-10 | v0.6.9 | Gmail, Calendar 캡처 | IntegrationConnection 연결 플로우, gmail-sync 잡(3.5) | mock 픽스처로 DI-21 통과, 실계정 스모크 1회 | DONE(실계정 스모크는 T1-09 대기) |
+| T1-11 | v0.6.10 | 병합 | duplicate 스캔 잡, 병합 서비스, 검토 UI | DI-10, 11 통과 | DONE |
+| T1-12 | v0.7.0 | Phase 1 게이트 | 리포트 v1(파이프라인 합계), 전체 검증, 실사용 시작 | 전체 명령 통과, 본인 실데이터 1주 사용 회고 문서 | DONE(1주 사용 회고는 사용 후) |
 
 ## Phase 2 이후
 
