@@ -33,6 +33,12 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.518', date: '2026-08-16', title: '누를 수 없는 버튼이 이제 그렇게 보여요',
+    items: [
+      { kind: 'fix', emoji: '🔘', headline: '아직 누를 수 없는 버튼을 눈으로 구분할 수 있어요', detail: '조건이 안 갖춰진 버튼도 평소와 똑같이 보여서, 눌러도 아무 일이 없으면 고장으로 느껴졌어요. 이제 흐리게 표시되고 커서 모양도 달라집니다.' },
+    ],
+  },
+  {
     version: '0.7.517',
     date: '2026-08-16',
     title: '회의 내용을 넣으면 할 일까지 이어져요',

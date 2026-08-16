@@ -526,6 +526,28 @@
     box-shadow: none;
   }
 
+  /* 못 누르는 버튼은 못 누르게 **보여야** 한다.
+     규칙이 없어서 disabled 버튼이 활성과 색·불투명도·커서까지 똑같이 렌더됐다
+     (실측 v0.7.517: 배경 rgb(99,102,241) 동일 · opacity 1 · cursor pointer).
+     사용자는 "눌러도 아무 일이 없다"를 고장으로 읽는다. hover·active도 함께 끈다. */
+  .btn-primary:disabled,
+  .btn-ghost:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .btn-primary:disabled:hover,
+  .btn-ghost:disabled:hover,
+  .btn-primary:disabled:active,
+  .btn-ghost:disabled:active {
+    transform: none;
+    box-shadow: none;
+    background-color: var(--color-brand);
+    filter: none;
+  }
+  .btn-ghost:disabled:hover,
+  .btn-ghost:disabled:active { background-color: transparent; }
+
   /* 파괴적 동작 — `NbButton variant="danger"`가 `btn-primary nb-danger`를 붙인다.
      이 규칙이 없어서 삭제 버튼이 일반 버튼과 똑같은 파란색으로 렌더됐다(v0.7.456 실브라우저에서 발견).
      되돌릴 수 없는 동작은 눌리기 전에 색으로 구분돼야 한다. */
