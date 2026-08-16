@@ -13,7 +13,7 @@ import { redirect } from 'next/navigation'
 import { redirectApiUser } from '@/lib/auth/api-user-gate'
 import {
   Inbox, Building2, Users, Handshake, Mic, Workflow, BarChart3, Settings,
-  Home, Briefcase, CalendarDays, CheckSquare, History,
+  Home, Briefcase, CalendarDays, CheckSquare, History, Sun
 } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import AppShell from '@/components/ui/shell/AppShell'
@@ -32,6 +32,9 @@ import AttentionBell from '@/components/crm/AttentionBell'
  * 일상 동선 4개는 최상위에, 나머지는 성격별로 묶는다.
  */
 const NAV_ITEMS = [
+  // 첫 화면 — "지금 손 대야 할 것". 인박스는 AI 가 넣어 준 것을 확인하는 곳이라
+  // 처음 온 사람에겐 비어 있다(그래서 예전 첫 화면이 늘 빈 화면이었다)
+  { href: '/crm/today', label: '오늘', icon: <Sun size={16} /> },
   { href: '/crm/inbox', label: '인박스', icon: <Inbox size={16} /> },
   { href: '/crm/companies', label: '회사', icon: <Building2 size={16} /> },
   { href: '/crm/people', label: '인물', icon: <Users size={16} /> },

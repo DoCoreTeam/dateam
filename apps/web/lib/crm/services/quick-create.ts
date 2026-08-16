@@ -311,7 +311,7 @@ export async function applyQuickCreate(
  * `mock` 은 남겨 둔다. 키가 없는 환경(테스트·초기 세팅)에서도 흐름이 돌아야
  * "AI 를 못 붙여서 아무것도 못 해 본다"가 안 된다.
  */
-async function adapterFromSetting(db: ReturnType<typeof getCrmDb>): Promise<AiAdapter> {
+export async function adapterFromSetting(db: ReturnType<typeof getCrmDb>): Promise<AiAdapter> {
   const setting = await resolveSetting(db, 'ai.model.extract')
   const name = typeof setting.value === 'string' ? setting.value.trim().toLowerCase() : 'auto'
   if (name === 'mock') return mockAdapter()

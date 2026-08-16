@@ -1,0 +1,184 @@
+/* 오늘 — 첫 화면 */
+.greeting {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-md);
+  color: var(--text);
+}
+
+/*
+ * 다음에 뭘 할지 안 정한 딜 — 영업 규율 지표.
+ * 눈에 띄어야 한다. 안 띄면 딜은 계속 조용히 멈춰 있다.
+ */
+.unplanned {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  margin-bottom: var(--space-4);
+  border: var(--hairline) solid var(--warning-border);
+  border-radius: var(--radius);
+  background: var(--warning-bg);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  min-height: var(--control-h);
+}
+
+.unplanned:hover {
+  border-color: var(--warning);
+}
+
+.unplanned > :last-child {
+  margin-left: auto;
+  color: var(--text-faint);
+}
+
+.list {
+  list-style: none;
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  min-height: var(--control-h);
+}
+
+.item:hover {
+  border-color: var(--brand);
+}
+
+.icon {
+  display: inline-flex;
+  padding-top: 2px;
+  color: var(--text-faint);
+}
+
+/* 급한 것은 색으로도 — 목록이 길면 글자를 다 안 읽는다 */
+.icon[data-kind='overdue'] {
+  color: var(--danger);
+}
+
+.icon[data-kind='due_today'] {
+  color: var(--warning);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reason {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+.kind {
+  flex-shrink: 0;
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+
+/* AI 제안 — 눌러야 오고, 받아들여야 반영된다 */
+.aiCard {
+  padding: var(--space-4);
+}
+
+.aiHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.aiTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.aiHead > :last-child {
+  margin-left: auto;
+}
+
+.aiLead {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+.aiReason {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.aiList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.aiItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+.aiBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.aiDeal {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+
+.aiDeal:hover {
+  color: var(--brand);
+}
+
+.aiAction {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* 근거 — 없으면 조언이 아니라 소음이다 */
+.aiBecause {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
