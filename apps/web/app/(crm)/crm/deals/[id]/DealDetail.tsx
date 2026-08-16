@@ -18,6 +18,7 @@ import NbBadge from '@/components/ui/nb/NbBadge'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
 import Timeline from '@/components/ui/crm/Timeline'
 import TaskPanel from '@/components/ui/crm/TaskPanel'
+import DealContacts from './DealContacts'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import { formatKstDateTimeShort, kstDateKey } from '@/lib/datetime/kst'
 import { formatAmount } from '../amount'
@@ -49,7 +50,6 @@ interface HistoryRow {
   durationSec: number | null
 }
 
-interface PersonRow { id: string; name: string; title: string | null }
 interface CompanyRow { id: string; name: string; domain: string | null }
 
 const STATUS_META: Record<string, { label: string; status: StatusKey }> = {
@@ -74,7 +74,6 @@ export default function DealDetail({ dealId }: { dealId: string }) {
   const [pipelines, setPipelines] = useState<BoardPipeline[]>([])
   const [history, setHistory] = useState<HistoryRow[]>([])
   const [company, setCompany] = useState<CompanyRow | null>(null)
-  const [people, setPeople] = useState<PersonRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
@@ -100,13 +99,10 @@ export default function DealDetail({ dealId }: { dealId: string }) {
       setPipelines((await pRes.json())?.items ?? [])
       setHistory((await hRes.json())?.items ?? [])
 
-      // 연결 패널은 실패해도 본문을 막지 않는다 — 딜 자체는 이미 보여 줄 수 있다
-      const [cRes, plRes] = await Promise.all([
-        fetch(`/api/crm/companies/${dBody.companyId}`),
-        fetch(`/api/crm/people?companyId=${dBody.companyId}&limit=20`),
-      ])
+      // 회사 카드는 실패해도 본문을 막지 않는다 — 딜 자체는 이미 보여 줄 수 있다.
+      // 참석자는 DealContacts 가 스스로 불러온다(이 딜의 사람들은 회사 인물과 다르다).
+      const cRes = await fetch(`/api/crm/companies/${dBody.companyId}`)
       if (cRes.ok) setCompany(await cRes.json())
-      if (plRes.ok) setPeople((await plRes.json())?.items ?? [])
     } catch {
       setError('딜을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -215,25 +211,12 @@ export default function DealDetail({ dealId }: { dealId: string }) {
               <TaskPanel scope={{ dealId }} onChanged={() => setTimelineKey((k) => k + 1)} />
             </RecordPanel>
 
-            <RecordPanel title="연결">
-            {people.length === 0 ? (
-              <EmptyState
-                title="연결된 인물이 없어요"
-                description="회사에 담당자를 등록하면 여기에 보입니다."
-                action={company ? { label: '회사 열기', href: `/crm/companies/${company.id}` } : undefined}
-              />
-            ) : (
-              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 'var(--space-2)' }}>
-                {people.map((p) => (
-                  <li key={p.id} style={{ fontSize: 'var(--fs-sm)' }}>
-                    <Link href={`/crm/people/${p.id}`}>{p.name}</Link>
-                    {p.title && (
-                      <span style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-2xs)' }}> · {p.title}</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
+            {/*
+              이 딜의 사람들 — 회사 인물 전체가 아니다.
+              예전엔 회사의 인물을 전부 뿌려서 "누구를 설득해야 하나"에 답을 못 했다.
+            */}
+            <RecordPanel title="이 딜의 사람들">
+              <DealContacts dealId={dealId} companyId={deal?.companyId ?? null} />
             </RecordPanel>
           </>
         }

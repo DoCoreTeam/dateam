@@ -1,0 +1,38 @@
+/* 딜 참석자 (dacrm 정정판) — 역할이 한눈에 보여야 한다 */
+.list {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: nowrap;
+  font-size: var(--fs-sm);
+}
+
+.name {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.title {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  margin-right: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
