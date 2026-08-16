@@ -13,7 +13,8 @@
     "crm:db:check": "prisma validate",
     "test:integrity": "node --test --experimental-strip-types \"tests/crm/integrity/DI-01.test.ts\" \"tests/crm/integrity/DI-02.test.ts\" \"tests/crm/integrity/DI-03.test.ts\" \"tests/crm/integrity/DI-04.test.ts\" \"tests/crm/integrity/DI-05.test.ts\" \"tests/crm/integrity/DI-06.test.ts\" \"tests/crm/integrity/DI-07.test.ts\" \"tests/crm/integrity/DI-08.test.ts\" \"tests/crm/integrity/DI-09.test.ts\" \"tests/crm/integrity/DI-13.test.ts\" \"tests/crm/integrity/DI-14.test.ts\" \"tests/crm/integrity/DI-15.test.ts\" \"tests/crm/integrity/DI-16.test.ts\" \"tests/crm/integrity/DI-17.test.ts\" \"tests/crm/integrity/DI-18.test.ts\" \"tests/crm/integrity/DI-23.test.ts\"",
     "test:rls": "node --test --experimental-strip-types \"tests/crm/rls/rls-isolation.test.ts\"",
-    "crm:migrate-v04": "node --experimental-strip-types scripts/migrate-v04.ts"
+    "crm:migrate-v04": "node --experimental-strip-types scripts/migrate-v04.ts",
+    "test:crud": "node --test --experimental-strip-types \"tests/crm/services/*.test.ts\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",

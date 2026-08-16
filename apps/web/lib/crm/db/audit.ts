@@ -26,7 +26,12 @@ export interface AuditEntry {
 /** 감사 기록에 필요한 최소 계약 — 트랜잭션 클라이언트를 그대로 받는다 */
 export interface AuditCapableTx {
   crmAuditLog: {
-    create: (args: { data: Record<string, unknown> }) => Promise<unknown>
+    // data 를 넓게 받는 이유: Prisma 가 생성한 create 타입은 Exact<> 로 좁혀져 있어
+    // Record<string, unknown> 을 거부한다. 그렇다고 Prisma 타입을 여기 박으면
+    // 이 파일이 생성 코드에 묶여 테스트에서 가짜 tx 를 넣을 수 없다.
+    // 형태 보장은 toAuditData 가 한다 — 이 인터페이스는 "쓸 수 있는 곳"만 규정한다.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    create: (args: { data: any }) => Promise<unknown>
   }
 }
 
