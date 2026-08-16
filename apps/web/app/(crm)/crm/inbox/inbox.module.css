@@ -1,0 +1,94 @@
+/* 인박스 제안 카드 (dacrm §6.1) — 화면 전용 스타일 */
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+.target { color: var(--text); }
+.field { color: var(--text-muted); }
+.at { margin-left: auto; }
+
+/* 현재 → 제안. 좁아지면 세로로 접힌다 */
+.change {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--fs-sm);
+}
+
+.current {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.arrow { color: var(--text-faint); }
+.proposed { color: var(--text); }
+
+.confidence {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.gauge {
+  flex: 0 0 120px;
+  height: 6px;
+  background: var(--border-light);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.gaugeFill {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+}
+
+.pct {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+/* 근거 인용 — 이게 없으면 확신도 숫자만 보고 찍게 된다 */
+.quote {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: var(--border-w-2) solid var(--border-light);
+  background: var(--surface-bg);
+  border-radius: var(--radius);
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  white-space: pre-wrap;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.reasonLabel {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
