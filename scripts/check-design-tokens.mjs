@@ -8,6 +8,8 @@ import { readFileSync, readdirSync, statSync, writeFileSync, existsSync } from '
 import { join } from 'node:path'
 // 상태 문구·이름색 판정은 화면 스캐너와 **같은 정의**를 쓴다(scripts/ui-phrases.mjs = SSOT).
 import { EMPTY, LOADING, NAMED_COLOR_RE, NAMED_COLOR_PROP_RE, isSelfMadeStateText, stripComments } from './ui-phrases.mjs'
+// 커밋 문맥의 판정 범위 — 공유 작업 트리에서 남의 진행 중 파일을 내 판정에 섞지 않는다.
+import { commitScope, readFromHead } from './git-scope.mjs'
 
 const ALLOW_HEX = new Set([
   '#fcd34d', '#ffffff', '#0a0a0a', '#f8f8f6', '#efede8',
@@ -19,6 +21,20 @@ const roots = ['apps/web/app', 'apps/web/components']
 const CSS_FILE = 'apps/web/app/globals.css'
 const BASELINE_PATH = 'scripts/.design-guard-baseline.json'
 const UPDATE = process.argv.includes('--update-baseline')
+// --commit-scope: 판정 대상을 **커밋된 상태 + 이번 커밋에 담기는 파일**로 좁힌다(pre-commit 훅 전용).
+// 없으면 종전대로 작업 트리 전체를 본다(수동 `pnpm design:check`·CI — CI는 애초에 깨끗한 체크아웃이라 동일).
+const COMMIT_SCOPE = process.argv.includes('--commit-scope')
+const SCOPE = COMMIT_SCOPE ? commitScope() : { skip: new Set(), fromHead: new Set() }
+
+/**
+ * 판정에 쓸 파일 내용. `--commit-scope`에서
+ *   남의 untracked → null(대상 아님) · 남의 수정 → HEAD 내용 · 그 밖 → 디스크.
+ */
+function readSource(path) {
+  if (SCOPE.skip.has(path)) return null
+  if (SCOPE.fromHead.has(path)) return readFromHead(path)
+  return existsSync(path) ? readFileSync(path, 'utf8') : null
+}
 
 // globals.css에 새로 들어와도 되는 클래스 = 시스템 공용 프리미티브 prefix.
 // 여기 없는 prefix로 새 최상위 규칙을 만들면 "화면 전용 CSS"로 보고 차단한다
@@ -56,7 +72,8 @@ for (const r of roots) walk(r, files)
 const uiComponentClasses = new Set()
 for (const f of files) {
   if (!f.includes('components/ui/')) continue
-  const text = readFileSync(f, 'utf8')
+  const text = readSource(f)
+  if (text === null) continue
   for (const m of text.matchAll(/className=(?:"([^"]*)"|\{`([^`]*)`\}|\{'([^']*)'\})/g)) {
     for (const cls of (m[1] ?? m[2] ?? m[3] ?? '').split(/[\s${}?:'"]+/)) {
       if (/^[a-z][a-z0-9-]*$/.test(cls)) uiComponentClasses.add(cls)
@@ -129,7 +146,8 @@ function inlineStyledTags(text, tagName) {
 }
 
 for (const f of files) {
-  const text = readFileSync(f, 'utf8')
+  const text = readSource(f)
+  if (text === null) continue
   // 주석 속 예시 문구는 위반이 아니다 — 판정 전에 걷어낸다.
   const lines = stripComments(text).split('\n')
   for (const m of text.matchAll(swrMutateRe)) {
@@ -167,8 +185,9 @@ for (const f of files) {
 }
 
 // ── globals.css — CSS 본체 (이전 가드의 진짜 사각지대) ────────────────────────
-if (existsSync(CSS_FILE)) {
-  const cssLines = readFileSync(CSS_FILE, 'utf8').split('\n')
+const cssSource = readSource(CSS_FILE)
+if (cssSource !== null) {
+  const cssLines = cssSource.split('\n')
   let selector = '(root)'
   cssLines.forEach((line, i) => {
     const sel = line.match(/^([.#][^{]*?)\s*\{/)
