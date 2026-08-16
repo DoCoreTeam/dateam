@@ -30,6 +30,16 @@ export default function InboxClient() {
     setLoading(true)
     setError(null)
     try {
+      /**
+       * 지난 제안부터 걷어낸다.
+       *
+       * 만료 배치는 크론이 주 경로지만, 크론이 안 붙은 환경에서도
+       * 인박스가 몇 주 전 회의의 값으로 차 있으면 안 된다.
+       * 어느 날 누가 그걸 수락하면 지난 사실이 지금 값으로 들어간다.
+       * 실패해도 목록은 보여야 하므로 조용히 흡수한다.
+       */
+      try { await fetch('/api/crm/jobs/expire-suggestions') } catch { /* 목록이 우선 */ }
+
       const res = await fetch(`/api/crm/suggestions?status=${tab}&limit=50`)
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '제안을 불러오지 못했습니다.'); return }

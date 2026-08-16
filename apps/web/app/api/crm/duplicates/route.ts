@@ -6,7 +6,7 @@
 import type { NextRequest } from 'next/server'
 import { withCrmApi } from '@/lib/crm/api/handler'
 import { getCrmDb } from '@/lib/crm/db/client'
-import { scanDuplicates, saveDuplicates, listDuplicates } from '@/lib/crm/services/merge'
+import { scanDuplicates, saveDuplicates, listDuplicates, dismissDuplicate } from '@/lib/crm/services/merge'
 import type { MergeTarget } from '@/lib/crm/services/merge'
 import { CrmError } from '@/lib/crm/domain/errors'
 
@@ -52,5 +52,20 @@ export async function POST(req: NextRequest) {
     const pairs = await scanDuplicates(db, targetType)
     const saved = await saveDuplicates(session.workspaceId, pairs)
     return { found: pairs.length, saved }
+  })
+}
+
+/**
+ * DELETE /api/crm/duplicates?id=... — "이건 중복 아니에요"
+ *
+ * 이 경로가 없으면 잘못 잡힌 짝이 **영원히 목록에 남는다**.
+ * 사람은 매번 같은 것을 보고 넘기게 되고, 그러면 진짜 중복도 같이 안 보게 된다.
+ */
+export async function DELETE(req: NextRequest) {
+  return withCrmApi('MEMBER', async ({ session }) => {
+    const id = req.nextUrl.searchParams.get('id')
+    if (!id) throw new CrmError('VALIDATION_FAILED', '어느 짝인지 알 수 없습니다.', { field: 'id' })
+    await dismissDuplicate(session.workspaceId, id)
+    return { ok: true }
   })
 }

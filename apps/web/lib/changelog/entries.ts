@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.522',
+    date: '2026-08-17',
+    title: '인박스에 지난 제안이 쌓이지 않아요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🧹',
+        headline: '오래된 AI 제안이 저절로 정리돼요',
+        detail: '제안은 일주일이 지나면 만료되도록 되어 있었는데 실제로는 정리되지 않고 계속 남아 있었어요. 이제 인박스를 열면 지난 제안이 먼저 걷힙니다. 몇 주 전 회의에서 나온 값을 무심코 반영하는 일이 없어져요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '🙅',
+        headline: '"이건 중복 아니에요"를 누를 수 있어요',
+        detail: '중복 정리에서 잘못 잡힌 짝을 치울 수 있게 됐어요. 한 번 치우면 다시 훑어도 묻지 않습니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.521',
     date: '2026-08-16',
     title: '팀원을 영업 CRM에 들일 수 있어요',

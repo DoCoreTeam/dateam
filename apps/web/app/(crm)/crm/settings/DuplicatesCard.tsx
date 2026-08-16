@@ -81,6 +81,25 @@ export default function DuplicatesCard() {
     }
   }
 
+  /** 잘못 잡힌 짝을 치운다 — 목록에서 사라지는 것 자체가 결과다(별도 안내 불필요) */
+  async function dismiss(c: Candidate) {
+    setBusy(c.id)
+    setError(null)
+    try {
+      const res = await fetch(`/api/crm/duplicates?id=${encodeURIComponent(c.id)}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        setError(body?.error?.message ?? '치우지 못했습니다.')
+        return
+      }
+      await load(target)
+    } catch {
+      setError('치우지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
   async function merge(c: Candidate, keep: Side, drop: Side) {
     setBusy(c.id)
     setError(null)
@@ -180,6 +199,15 @@ export default function DuplicatesCard() {
                     </div>
                   ))}
                 </div>
+                {/* 잘못 잡힌 짝을 치울 길 — 없으면 같은 것을 영원히 보게 되고,
+                    그러면 진짜 중복도 같이 안 보게 된다 */}
+                <NbButton
+                  variant="ghost"
+                  disabled={busy === c.id}
+                  onClick={() => void dismiss(c)}
+                >
+                  이건 중복 아니에요
+                </NbButton>
               </li>
             )
           })}
