@@ -1,0 +1,96 @@
+/* CRM 설정 (dacrm §3.6) — 화면 전용 스타일 */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-4);
+  /* 나란한 카드는 행 단위로 높이를 맞춘다(§2-5-5) — 정렬이 빈 공간보다 우선 */
+  align-items: stretch;
+}
+
+.card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  align-content: start;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.blocked {
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--danger-bg);
+  border: var(--border-w) solid var(--danger-border);
+  border-radius: var(--radius);
+  font-size: var(--fs-2xs);
+  color: var(--text);
+}
+
+.figures {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* 금액은 크게 — 이 카드에서 제일 먼저 읽어야 하는 숫자다 */
+.spent {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.of {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.month {
+  margin-left: auto;
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+.gauge {
+  display: block;
+  height: 8px;
+  background: var(--border-light);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.gaugeFill {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+}
+
+.gaugeWarn { background: var(--warning); }
+.gaugeBlocked { background: var(--danger); }
+
+.row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.field { flex: 1 1 auto; min-width: 0; }
+
+.hint {
+  margin: 0;
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
