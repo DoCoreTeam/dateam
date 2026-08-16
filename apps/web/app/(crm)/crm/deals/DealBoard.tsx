@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { AlertTriangle, Clock, CheckCircle2 } from 'lucide-react'
 import { Plus } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -46,6 +47,18 @@ export interface BoardDeal {
   amountMinor: string | null
   currency: string | null
   version: number
+  /**
+   * 다음에 할 일.
+   *
+   * **이게 없으면 보드는 정적인 목록이다.** Pipedrive 의 원칙 —
+   * "모든 열린 딜에는 다음 활동이 계획되어 있어야 한다".
+   * 없는 딜은 카드에 경고가 뜬다.
+   */
+  nextAction?: {
+    state: 'overdue' | 'today' | 'planned' | 'undated' | 'none'
+    title: string | null
+    hint: string
+  } | null
 }
 
 interface Props {
@@ -210,6 +223,29 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
                       <div className={styles.cardName}>{d.name}</div>
                       <div className={styles.cardMeta}>
                         {amount ? <span className={styles.amount}>{amount}</span> : <span>금액 미정</span>}
+                      </div>
+
+                      {/*
+                        다음에 뭘 할지 — 카드에서 바로 보여야 한다.
+                        눌러 들어가야 보이면 사람은 안 본다(그래서 예전 보드가 정적인 목록이었다).
+                      */}
+                      <div className={styles.nextAction} data-state={d.nextAction?.state ?? 'none'}>
+                        {(!d.nextAction || d.nextAction.state === 'none') ? (
+                          <>
+                            <AlertTriangle size={12} aria-hidden />
+                            <span>다음에 뭘 할지 정해 주세요</span>
+                          </>
+                        ) : (
+                          <>
+                            {d.nextAction.state === 'overdue'
+                              ? <AlertTriangle size={12} aria-hidden />
+                              : d.nextAction.state === 'today'
+                                ? <Clock size={12} aria-hidden />
+                                : <CheckCircle2 size={12} aria-hidden />}
+                            <span className={styles.nextTitle}>{d.nextAction.title}</span>
+                            <span className={styles.nextHint}>{d.nextAction.hint}</span>
+                          </>
+                        )}
                       </div>
                     </Link>
 

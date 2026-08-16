@@ -81,3 +81,19 @@
 }
 
 .toggle:hover { color: var(--text); }
+
+/*
+ * 마지막 할 일을 끝냈을 때의 한 줄.
+ *
+ * 모달로 막지 않는다 — 그건 성가시고, 성가시면 사람은 기능을 피한다.
+ * 대신 커서를 입력칸으로 옮기고 **왜 옮겼는지** 여기서 말한다.
+ */
+.askNext {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius);
+  background: var(--warning-bg);
+  border: var(--hairline) solid var(--warning-border);
+  color: var(--text);
+  font-size: var(--fs-2xs);
+}

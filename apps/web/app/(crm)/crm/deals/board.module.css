@@ -144,3 +144,46 @@
   color: var(--text);
   font-size: var(--fs-sm);
 }
+
+/*
+ * 다음에 할 일 — 카드 안 한 줄.
+ *
+ * 색으로 급한 정도를 구분한다. 목록이 길면 사람은 글자를 다 안 읽는다.
+ */
+.nextAction {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: var(--hairline) solid var(--border-light);
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  min-width: 0;
+}
+
+/* 계획이 아예 없는 딜 — Pipedrive 의 노란 삼각형 자리 */
+.nextAction[data-state='none'] {
+  color: var(--warning);
+}
+
+.nextAction[data-state='overdue'] {
+  color: var(--danger);
+}
+
+.nextAction[data-state='today'] {
+  color: var(--warning);
+}
+
+.nextTitle {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.nextHint {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--text-faint);
+}

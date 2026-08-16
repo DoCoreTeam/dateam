@@ -9,7 +9,7 @@
 // 끝난 것은 기본으로 감춘다. 남은 일이 보여야 다음 행동이 정해지고,
 // 끝난 일은 타임라인에 활동으로 남으므로 여기서 또 쌓을 이유가 없다.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Plus, Check, RotateCcw } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import EmptyState from '@/components/ui/EmptyState'
@@ -33,6 +33,15 @@ interface Props {
 }
 
 export default function TaskPanel({ scope, onChanged }: Props) {
+  /**
+   * 마지막 할 일을 끝냈을 때 입력칸으로 데려가기 위한 것.
+   *
+   * Pipedrive 는 활동을 완료하면 **즉시 다음 활동 입력창**을 띄운다 — 비워 두지 못하게.
+   * 그게 "모든 열린 딜에는 다음 활동이 있어야 한다"를 실제로 지키게 만드는 장치다.
+   * 모달로 막지는 않는다(그건 성가시다). 대신 **커서를 옮기고 한 줄로 알린다.**
+   */
+  const nextRef = useRef<HTMLInputElement>(null)
+  const [askNext, setAskNext] = useState(false)
   const [items, setItems] = useState<TaskItem[]>([])
   const [showDone, setShowDone] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -78,6 +87,7 @@ export default function TaskPanel({ scope, onChanged }: Props) {
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '추가하지 못했습니다.'); return }
       setDraft('')
+      setAskNext(false)
       setDue('')
       void load()
       onChanged?.()
@@ -101,8 +111,21 @@ export default function TaskPanel({ scope, onChanged }: Props) {
         setError(body?.error?.message ?? '바꾸지 못했습니다.')
         return
       }
+      /**
+       * 이게 마지막 남은 할 일이었다면 **딜이 조용히 멈춘다.**
+       * 그 순간 다음을 묻는다 — 나중에 알려 주면 이미 잊었다.
+       */
+      const wasLast = status === 'DONE'
+        && items.filter((t) => t.status !== 'DONE' && t.id !== id).length === 0
+        && !!scope.dealId
+
       void load()
       onChanged?.()
+
+      if (wasLast) {
+        setAskNext(true)
+        setTimeout(() => nextRef.current?.focus(), 60)
+      }
     } catch {
       setError('바꾸지 못했습니다. 잠시 후 다시 시도해 주세요.')
     }
@@ -114,8 +137,19 @@ export default function TaskPanel({ scope, onChanged }: Props) {
     <div className={styles.wrap}>
       <FormErrorBanner message={error} />
 
+      {/*
+        마지막 할 일을 끝냈다 — 지금이 다음을 정할 자리다.
+        커서만 옮기면 사용자는 왜 옮겨졌는지 모른다. 이유를 한 줄로 말한다.
+      */}
+      {askNext && (
+        <p className={styles.askNext}>
+          이게 마지막이었어요. <strong>다음에 뭘 할지</strong> 정해 두면 이 딜이 멈추지 않습니다.
+        </p>
+      )}
+
       <div className={styles.composer}>
         <input
+          ref={nextRef}
           className="input-field" value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="다음에 할 일"
