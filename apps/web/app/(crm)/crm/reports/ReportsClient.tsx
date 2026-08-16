@@ -30,6 +30,25 @@ interface StageDuration {
   standing: number
   insufficient: boolean
 }
+/** 확률을 곱한 예상 매출 — 근거가 없으면 숫자를 내지 않는다 */
+interface StageForecast {
+  stageId: string
+  stageName: string
+  openCount: number
+  pipeline: CurrencySum[]
+  winRate: number | null
+  sample: number
+  weighted: CurrencySum[]
+}
+interface Forecast {
+  pipelineId: string
+  pipelineName: string
+  stages: StageForecast[]
+  weightedTotal: CurrencySum[]
+  unknownTotal: CurrencySum[]
+  unpriced: number
+  summary: string
+}
 interface Velocity {
   pipelineId: string
   pipelineName: string
@@ -79,6 +98,7 @@ function Money({ sums, count }: { sums: CurrencySum[]; count: number }) {
 export default function ReportsClient() {
   const [items, setItems] = useState<PipelineReport[]>([])
   const [velocity, setVelocity] = useState<Velocity[]>([])
+  const [forecast, setForecast] = useState<Forecast[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -91,6 +111,7 @@ export default function ReportsClient() {
       if (!res.ok) { setError(body?.error?.message ?? '리포트를 불러오지 못했습니다.'); return }
       setItems(body.items ?? [])
       setVelocity(body.velocity ?? [])
+      setForecast(body.forecast ?? [])
     } catch {
       setError('리포트를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -183,6 +204,58 @@ export default function ReportsClient() {
                         </>
                       )}
                       {d.standing > 0 && <span className={styles.note}>지금 {d.standing}건 서 있음</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )
+          })()}
+          {/*
+            얼마나 들어올까.
+            파이프라인 총액을 그대로 답하면 거짓말이다 — 리드 10억과 계약 직전 10억은 다르다.
+            그렇다고 관례적인 확률(20%·50%·80%)을 박아 넣으면 근거 없는 숫자로
+            사람이 채용을 결정한다. 우리가 실제로 겪은 성사율만 쓰고, 모르면 모른다고 쓴다.
+          */}
+          {(() => {
+            const f = forecast.find((x) => x.pipelineId === p.pipelineId)
+            if (!f) return null
+            return (
+              <div className={styles.velocity}>
+                <h3 className={styles.subTitle}>얼마나 들어올까</h3>
+                <p className={styles.summary}>{f.summary}</p>
+
+                {f.weightedTotal.length > 0 && (
+                  <p className={styles.total}>
+                    예상 {f.weightedTotal.map((c) => formatAmount(c.totalMinor, c.currency)).join(' · ')}
+                  </p>
+                )}
+
+                {/* 근거가 부족해 못 센 금액을 숨기지 않는다 — 숨기면 합계가 조용히 작아진다 */}
+                {f.unknownTotal.length > 0 && (
+                  <p className={styles.note}>
+                    근거가 부족한 단계에 {f.unknownTotal.map((c) => formatAmount(c.totalMinor, c.currency)).join(' · ')}가
+                    걸려 있어요 (예상에 넣지 않았습니다)
+                  </p>
+                )}
+
+                <ul className={styles.durations}>
+                  {f.stages.map((d) => (
+                    <li key={d.stageId} className={styles.duration}>
+                      <span className={styles.stageName}>{d.stageName}</span>
+                      {d.winRate === null ? (
+                        <span className={styles.note}>
+                          성사율 아직 모름{d.sample > 0 ? ` (끝난 딜 ${d.sample}건)` : ''}
+                        </span>
+                      ) : (
+                        <>
+                          <span className={styles.stageCount}>성사율 {Math.round(d.winRate * 100)}%</span>
+                          <span className={styles.note}>
+                            표본 {d.sample}건
+                            {d.weighted.length > 0 && ` · 예상 ${d.weighted.map((c) => formatAmount(c.totalMinor, c.currency)).join(' · ')}`}
+                          </span>
+                        </>
+                      )}
+                      {d.openCount > 0 && <span className={styles.note}>지금 {d.openCount}건</span>}
                     </li>
                   ))}
                 </ul>

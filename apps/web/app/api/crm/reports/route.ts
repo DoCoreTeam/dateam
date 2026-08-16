@@ -7,16 +7,18 @@ import { withCrmApi } from '@/lib/crm/api/handler'
 import { getCrmDb } from '@/lib/crm/db/client'
 import { buildPipelineReport } from '@/lib/crm/services/report'
 import { buildVelocity } from '@/lib/crm/services/velocity'
+import { buildForecasts } from '@/lib/crm/services/forecast'
 
 export async function GET(req: NextRequest) {
   return withCrmApi('READONLY', async ({ session }) => {
     const pipelineId = req.nextUrl.searchParams.get('pipelineId')?.trim() || undefined
     const db = getCrmDb(session.workspaceId)
     // 합계와 속도를 한 번에 준다 — 두 번 부르면 화면이 두 시점을 섞어 보여 준다
-    const [items, velocity] = await Promise.all([
+    const [items, velocity, forecast] = await Promise.all([
       buildPipelineReport(db, pipelineId),
       buildVelocity(db, pipelineId),
+      buildForecasts(db, pipelineId),
     ])
-    return { items, velocity }
+    return { items, velocity, forecast }
   })
 }

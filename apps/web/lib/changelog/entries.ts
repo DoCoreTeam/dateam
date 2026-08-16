@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.530',
+    date: '2026-08-17',
+    title: '이번 분기에 얼마나 들어올지 보여 드려요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📈',
+        headline: '영업 리포트에 예상 매출이 생겼어요',
+        detail: '파이프라인 총액은 리드 단계 10억과 계약 직전 10억을 같은 10억으로 봅니다. 이제 단계별 성사율을 곱해 예상 매출을 냅니다. 성사율은 흔한 관례값이 아니라 우리가 실제로 성사·실패한 기록에서 나오고, 근거가 얇으면 숫자를 지어내지 않고 "아직 모른다"고 말해요.',
+      },
+    ],
+  },
+  {
     version: '0.7.529',
     date: '2026-08-17',
     title: '오래 멈춰 있는 딜을 알아서 짚어 줘요',
