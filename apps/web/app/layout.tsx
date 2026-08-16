@@ -21,6 +21,13 @@ export default async function RootLayout({
   const theme = await getEffectiveTheme()
   return (
     <html lang="ko" data-theme={theme}>
+      <head>
+        {/* 폰트는 여기서 <link>로 건다 — globals.css의 `@import`는 그 파일을 받아
+            파싱한 뒤에야 발견돼 직렬로 이어졌다. <link>는 HTML을 읽는 순간 발견돼
+            globals.css와 **병렬로** 내려온다. 같은 출처라 DNS·TLS 왕복도 없다.
+            (근거: docs/2026-08-16-performance-audit/PLAN.md §2-3) */}
+        <link rel="stylesheet" href="/fonts/fonts.css" />
+      </head>
       <body>{children}</body>
     </html>
   )

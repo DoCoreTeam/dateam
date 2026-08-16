@@ -25,7 +25,16 @@ const nextConfig = {
     NEXT_PUBLIC_APP_VERSION: version,
   },
   async headers() {
-    return [{ source: '/(.*)', headers: securityHeaders }]
+    return [
+      { source: '/(.*)', headers: securityHeaders },
+      // 폰트는 내용이 바뀌면 파일명이 바뀐다(버전 고정 산출물) → 영구 캐시.
+      // `public/`은 기본이 `max-age=0`이라 두 번째 방문에도 조건부 요청이 나간다.
+      // 폰트 조각이 185개라 그 왕복이 그대로 185번이 된다.
+      {
+        source: '/fonts/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
+    ]
   },
 }
 module.exports = nextConfig

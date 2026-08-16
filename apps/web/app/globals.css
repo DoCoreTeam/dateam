@@ -1,5 +1,7 @@
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
-@import url("https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap");
+/* 폰트는 여기서 @import 하지 않는다. `public/fonts/fonts.css`를 app/layout.tsx가
+ * <link>로 불러온다 — @import는 이 파일을 받아 파싱한 뒤에야 발견돼 **직렬**로 이어지고,
+ * 예전 구성은 그 끝에 외부 CDN의 **2.0MB 단일 폰트**가 매달려 있었다.
+ * (근거: docs/2026-08-16-performance-audit/PLAN.md §2-3) */
 
 @tailwind base;
 @tailwind components;

@@ -32,6 +32,12 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.492', date: '2026-08-16', title: '화면이 훨씬 빨리 뜹니다',
+    items: [
+      { kind: 'improve', emoji: '⚡', headline: '글꼴을 받느라 화면이 늦게 뜨던 것을 고쳤어요', detail: '글자를 그리는 데 필요한 글꼴 파일을 바깥 서버에서 2MB짜리 한 덩어리로 받고 있었어요. 이제 우리 서버에서 필요한 부분만 나눠 받아, 받는 양이 5분의 1로 줄었습니다.' },
+    ],
+  },
+  {
     version: '0.7.491', date: '2026-08-16', title: '어느 화면을 열어도 제목이 먼저 보여요',
     items: [
       { kind: 'improve', emoji: '📐', headline: '화면 이름이 탭보다 먼저 나오도록 전부 맞췄어요', detail: '업무와 거래처 쪽은 탭이 제목보다 위에 있어서, 지금 보고 있는 화면 이름을 알기 전에 다른 화면 목록부터 읽어야 했어요. 리서치 화면과 같은 "제목 → 탭 → 내용" 순서로 통일했습니다.' },
