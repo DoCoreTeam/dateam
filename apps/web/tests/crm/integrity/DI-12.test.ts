@@ -420,3 +420,9 @@ test('만료 배치는 지난 PENDING 만 EXPIRED 로 옮긴다', async () => {
   assert.equal(b?.status, 'PENDING', '만료 안 된 제안까지 치웠다')
   await cleanup()
 })
+
+test('끝난 뒤 전용 워크스페이스를 치운다 — 테스트가 만든 것은 테스트가 지운다', async () => {
+  await cleanup()
+  await dbA.$executeRawUnsafe(`DELETE FROM crm_ai_field_config WHERE "workspaceId" = $1`, WS_A)
+  await dbA.$executeRawUnsafe(`DELETE FROM crm_workspace WHERE id = $1`, WS_A)
+})
