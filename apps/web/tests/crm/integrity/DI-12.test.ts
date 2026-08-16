@@ -7,7 +7,8 @@
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { dbA, WS_A, catchError } from './_helpers.ts'
+import { dbA, catchError } from './_helpers.ts'
+import { getCrmDb } from '../../../lib/crm/db/client.ts'
 import {
   createSuggestion, decideSuggestion, listSuggestions, expireSuggestions,
   SUGGESTION_TTL_DAYS,
@@ -15,31 +16,58 @@ import {
 import { createCompany } from '../../../lib/crm/services/company.ts'
 import { CrmError } from '../../../lib/crm/domain/errors.ts'
 
+/**
+ * **전용 워크스페이스를 쓴다.**
+ *
+ * 이 테스트는 자동 반영 설정(`crm_ai_field_config`)을 켰다 껐다 하는데,
+ * 그건 **워크스페이스 단위 상태**다. 실사용 워크스페이스에서 하면
+ * 옆에서 병렬로 도는 테스트가 그 설정을 물려받아 결과가 실행 순서에 따라 갈린다(실측:
+ * 같은 명령을 세 번 돌려 실패 항목이 매번 달랐다).
+ *
+ * 전에는 이 테이블을 쓰는 프로덕션 코드가 없어 이 문제가 드러나지 않았다.
+ */
+const WS_A = 'ws_di12_test'
+const dbTest = getCrmDb(WS_A)
+
 const MADE: { companies: string[]; runs: string[]; suggestions: string[] } = {
   companies: [], runs: [], suggestions: [],
 }
 
 async function cleanup() {
   const ids = [...MADE.companies, ...MADE.suggestions]
-  if (ids.length) await dbA.crmAuditLog.deleteMany({ where: { targetId: { in: ids } } })
-  await dbA.crmAiSuggestion.deleteMany({ where: { runId: { in: MADE.runs } } })
-  if (MADE.runs.length) await dbA.crmAiRun.deleteMany({ where: { id: { in: MADE.runs } } })
+  if (ids.length) await dbTest.crmAuditLog.deleteMany({ where: { targetId: { in: ids } } })
+  await dbTest.crmAiSuggestion.deleteMany({ where: { runId: { in: MADE.runs } } })
+  if (MADE.runs.length) await dbTest.crmAiRun.deleteMany({ where: { id: { in: MADE.runs } } })
   if (MADE.companies.length) {
-    await dbA.crmCompany.deleteMany({ where: { id: { in: MADE.companies } } })
+    await dbTest.crmCompany.deleteMany({ where: { id: { in: MADE.companies } } })
   }
-  await dbA.crmAiFieldConfig.deleteMany({ where: { field: { startsWith: 'di12_' } } })
+  /**
+   * 이 테스트가 만든 자동 반영 설정을 **전부** 지운다.
+   *
+   * 예전엔 `startsWith: 'di12_'` 만 지웠는데, 실제로 만드는 것은 `field: 'industry'` 다 —
+   * 접두가 안 붙어 하나도 안 지워졌다. 그래서 "자동 반영이 켜져 있으면" 테스트가 켠 설정을
+   * "꺼져 있으면" 테스트가 물려받아, **실행 순서에 따라 결과가 갈렸다**(병렬로 돌리면 깨진다).
+   * 전에는 이 테이블을 쓰는 프로덕션 코드가 없어 드러나지 않았다.
+   */
+  await dbTest.crmAiFieldConfig.deleteMany({})
   MADE.companies = []
   MADE.runs = []
   MADE.suggestions = []
 }
 
-test('시작 전 잔여 정리', async () => {
-  await dbA.crmAiRun.deleteMany({ where: { promptVersion: 'di12@test' } })
-  await dbA.crmCompany.deleteMany({ where: { name: { startsWith: 'DI12 ' } } })
+test('시작 전 준비 — 전용 워크스페이스', async () => {
+  await dbA.$executeRawUnsafe(
+    `INSERT INTO crm_workspace (id, name, "updatedAt") VALUES ($1, $2, now())
+     ON CONFLICT (id) DO NOTHING`, WS_A, 'DI-12 테스트 전용',
+  )
+  // 앞판이 중간에 죽어 남긴 설정을 물려받으면 이번 판이 이유 없이 깨진다
+  await dbTest.crmAiFieldConfig.deleteMany({})
+  await dbTest.crmAiRun.deleteMany({ where: { promptVersion: 'di12@test' } })
+  await dbTest.crmCompany.deleteMany({ where: { name: { startsWith: 'DI12 ' } } })
 })
 
 async function newRun(): Promise<string> {
-  const run = await dbA.crmAiRun.create({
+  const run = await dbTest.crmAiRun.create({
     data: {
       workspaceId: WS_A, kind: 'MEETING_EXTRACT', model: 'mock',
       promptVersion: 'di12@test', status: 'DONE', inputRef: {},
@@ -54,7 +82,7 @@ async function newCompany(name: string, patch: Record<string, unknown> = {}) {
   const c = await createCompany(WS_A, 'mb_owner', { name })
   MADE.companies.push(c.id)
   if (Object.keys(patch).length) {
-    await dbA.crmCompany.update({ where: { id: c.id }, data: patch as never })
+    await dbTest.crmCompany.update({ where: { id: c.id }, data: patch as never })
   }
   return c
 }
@@ -87,7 +115,7 @@ test('DI-12 신뢰도 미달(0.6 미만)은 제안조차 저장하지 않는다'
   assert.equal(r.suggestion, null)
   assert.equal(r.verdict.decision, 'DISCARD')
 
-  const rows = await dbA.crmAiSuggestion.findMany({ where: { runId } })
+  const rows = await dbTest.crmAiSuggestion.findMany({ where: { runId } })
   assert.equal(rows.length, 0, '인박스가 저신뢰 제안으로 차면 아무도 안 본다')
   await cleanup()
 })
@@ -101,7 +129,7 @@ test('DI-12 자동 반영이 꺼져 있으면 값은 그대로고 제안만 쌓�
   })
   assert.equal(r.suggestion?.status, 'PENDING')
 
-  const after = await dbA.crmCompany.findFirst({ where: { id: co.id } })
+  const after = await dbTest.crmCompany.findFirst({ where: { id: co.id } })
   assert.equal(after?.industry, 'IT', 'AI 가 코어 값을 직접 바꿨다')
   await cleanup()
 })
@@ -109,7 +137,7 @@ test('DI-12 자동 반영이 꺼져 있으면 값은 그대로고 제안만 쌓�
 test('★ DI-12 자동 반영이 켜져 있으면 값·상태·감사가 한꺼번에 남는다', async () => {
   const runId = await newRun()
   const co = await newCompany('DI12 자동', { industry: 'IT' })
-  await dbA.crmAiFieldConfig.create({
+  await dbTest.crmAiFieldConfig.create({
     data: { workspaceId: WS_A, targetType: 'company', field: 'industry', autoApply: true, minConfidence: 0.85 },
   })
 
@@ -120,10 +148,10 @@ test('★ DI-12 자동 반영이 켜져 있으면 값·상태·감사가 한꺼�
   assert.equal(r.verdict.decision, 'AUTO_APPLIED')
   assert.equal(r.suggestion?.status, 'AUTO_APPLIED')
 
-  const after = await dbA.crmCompany.findFirst({ where: { id: co.id } })
+  const after = await dbTest.crmCompany.findFirst({ where: { id: co.id } })
   assert.equal(after?.industry, '제조', '자동 반영인데 값이 안 바뀌었다')
 
-  const audit = await dbA.crmAuditLog.findFirst({
+  const audit = await dbTest.crmAuditLog.findFirst({
     where: { targetId: co.id, action: 'suggestion.auto_applied' },
   })
   assert.ok(audit, '자동 반영이 감사에 안 남았다')
@@ -133,14 +161,14 @@ test('★ DI-12 자동 반영이 켜져 있으면 값·상태·감사가 한꺼�
   assert.equal(src.runId, runId)
   assert.equal(src.confidence, 0.95)
 
-  await dbA.crmAiFieldConfig.deleteMany({ where: { targetType: 'company', field: 'industry' } })
+  await dbTest.crmAiFieldConfig.deleteMany({ where: { targetType: 'company', field: 'industry' } })
   await cleanup()
 })
 
 test('★ DI-13 사람이 확정한 필드는 autoApply 가 켜져 있어도 값이 안 바뀐다', async () => {
   const runId = await newRun()
   const co = await newCompany('DI12 확정필드', { industry: 'IT', verifiedFields: ['industry'] })
-  await dbA.crmAiFieldConfig.create({
+  await dbTest.crmAiFieldConfig.create({
     data: { workspaceId: WS_A, targetType: 'company', field: 'industry', autoApply: true, minConfidence: 0.5 },
   })
 
@@ -151,10 +179,10 @@ test('★ DI-13 사람이 확정한 필드는 autoApply 가 켜져 있어도 값
   assert.equal(r.verdict.decision, 'PENDING')
   assert.equal(r.verdict.reason, 'FIELD_VERIFIED_BY_HUMAN')
 
-  const after = await dbA.crmCompany.findFirst({ where: { id: co.id } })
+  const after = await dbTest.crmCompany.findFirst({ where: { id: co.id } })
   assert.equal(after?.industry, 'IT', '사람이 확정한 값을 AI 가 덮었다')
 
-  await dbA.crmAiFieldConfig.deleteMany({ where: { targetType: 'company', field: 'industry' } })
+  await dbTest.crmAiFieldConfig.deleteMany({ where: { targetType: 'company', field: 'industry' } })
   await cleanup()
 })
 
@@ -177,15 +205,15 @@ test('★ DI-12 수락하면 필드 갱신·제안 상태·감사 3종이 함께
   assert.ok(decided.decidedAt)
   assert.equal(decided.decidedById, 'mb_owner')
 
-  const after = await dbA.crmCompany.findFirst({ where: { id: co.id } })
+  const after = await dbTest.crmCompany.findFirst({ where: { id: co.id } })
   assert.equal(after?.industry, '제조')
 
-  const applied = await dbA.crmAuditLog.findFirst({
+  const applied = await dbTest.crmAuditLog.findFirst({
     where: { targetId: co.id, action: 'suggestion.accepted' },
   })
   assert.ok(applied, '값 갱신 감사가 없다')
 
-  const decidedAudit = await dbA.crmAuditLog.findFirst({
+  const decidedAudit = await dbTest.crmAuditLog.findFirst({
     where: { targetId: suggestion!.id, action: 'suggestion.accepted' },
   })
   assert.ok(decidedAudit, '판정 감사가 없다')
@@ -205,11 +233,11 @@ test('DI-12 사람이 고친 값이 제안값을 이긴다', async () => {
     decision: 'accept', editedValue: '정밀기계',
   })
 
-  const after = await dbA.crmCompany.findFirst({ where: { id: co.id } })
+  const after = await dbTest.crmCompany.findFirst({ where: { id: co.id } })
   assert.equal(after?.industry, '정밀기계')
 
   // 사람이 고쳐서 수락했다는 사실도 남는다(명세 3.3-5)
-  const s = await dbA.crmAiSuggestion.findFirst({ where: { id: suggestion!.id } })
+  const s = await dbTest.crmAiSuggestion.findFirst({ where: { id: suggestion!.id } })
   assert.equal(s?.proposedValueJson, '정밀기계')
   await cleanup()
 })
@@ -228,10 +256,10 @@ test('DI-12 거절하면 값은 그대로고 사유가 남는다', async () => {
   })
   assert.equal(decided.status, 'REJECTED')
 
-  const after = await dbA.crmCompany.findFirst({ where: { id: co.id } })
+  const after = await dbTest.crmCompany.findFirst({ where: { id: co.id } })
   assert.equal(after?.industry, 'IT')
 
-  const audit = await dbA.crmAuditLog.findFirst({
+  const audit = await dbTest.crmAuditLog.findFirst({
     where: { targetId: suggestion!.id, action: 'suggestion.rejected' },
   })
   assert.equal((audit!.afterJson as { reason: string }).reason, '부정확')
@@ -248,7 +276,7 @@ test('★ DI-12 그 사이 사람이 값을 고쳤으면 수락이 멈춘다 (�
   MADE.suggestions.push(suggestion!.id)
 
   // 화면이 version 1 을 들고 있는 사이 다른 사람이 고쳤다
-  await dbA.crmCompany.update({
+  await dbTest.crmCompany.update({
     where: { id: co.id }, data: { industry: '금융', version: { increment: 1 } },
   })
 
@@ -258,10 +286,10 @@ test('★ DI-12 그 사이 사람이 값을 고쳤으면 수락이 멈춘다 (�
   assert.ok(e instanceof CrmError)
   assert.equal((e as CrmError).code, 'CONFLICT')
 
-  const after = await dbA.crmCompany.findFirst({ where: { id: co.id } })
+  const after = await dbTest.crmCompany.findFirst({ where: { id: co.id } })
   assert.equal(after?.industry, '금융', '충돌인데 AI 값이 덮었다')
 
-  const s = await dbA.crmAiSuggestion.findFirst({ where: { id: suggestion!.id } })
+  const s = await dbTest.crmAiSuggestion.findFirst({ where: { id: suggestion!.id } })
   assert.equal(s?.status, 'PENDING', '실패했는데 제안이 수락으로 바뀌었다 (부분 반영)')
   await cleanup()
 })
@@ -333,7 +361,7 @@ test('★ 만료된 제안은 수락할 수 없다 — 몇 주 전 값이 오늘
   })
   MADE.suggestions.push(suggestion!.id)
 
-  await dbA.crmAiSuggestion.update({
+  await dbTest.crmAiSuggestion.update({
     where: { id: suggestion!.id }, data: { expiresAt: new Date(Date.now() - 1000) },
   })
 
@@ -341,7 +369,7 @@ test('★ 만료된 제안은 수락할 수 없다 — 몇 주 전 값이 오늘
   assert.ok(e instanceof CrmError)
   assert.equal((e as CrmError).code, 'INVALID_TRANSITION')
 
-  const after = await dbA.crmCompany.findFirst({ where: { id: co.id } })
+  const after = await dbTest.crmCompany.findFirst({ where: { id: co.id } })
   assert.equal(after?.industry, 'IT')
   await cleanup()
 })
@@ -355,13 +383,13 @@ test('만료된 제안은 인박스에 뜨지 않는다 (상태 전환 전에도
   })
   MADE.suggestions.push(suggestion!.id)
 
-  const before = await listSuggestions(dbA, { targetId: co.id })
+  const before = await listSuggestions(dbTest, { targetId: co.id })
   assert.equal(before.items.length, 1)
 
-  await dbA.crmAiSuggestion.update({
+  await dbTest.crmAiSuggestion.update({
     where: { id: suggestion!.id }, data: { expiresAt: new Date(Date.now() - 1000) },
   })
-  const after = await listSuggestions(dbA, { targetId: co.id })
+  const after = await listSuggestions(dbTest, { targetId: co.id })
   assert.equal(after.items.length, 0)
   await cleanup()
 })
@@ -379,15 +407,15 @@ test('만료 배치는 지난 PENDING 만 EXPIRED 로 옮긴다', async () => {
   })
   MADE.suggestions.push(old.suggestion!.id, fresh.suggestion!.id)
 
-  await dbA.crmAiSuggestion.update({
+  await dbTest.crmAiSuggestion.update({
     where: { id: old.suggestion!.id }, data: { expiresAt: new Date(Date.now() - 1000) },
   })
 
   const n = await expireSuggestions(WS_A)
   assert.ok(n >= 1)
 
-  const a = await dbA.crmAiSuggestion.findFirst({ where: { id: old.suggestion!.id } })
-  const b = await dbA.crmAiSuggestion.findFirst({ where: { id: fresh.suggestion!.id } })
+  const a = await dbTest.crmAiSuggestion.findFirst({ where: { id: old.suggestion!.id } })
+  const b = await dbTest.crmAiSuggestion.findFirst({ where: { id: fresh.suggestion!.id } })
   assert.equal(a?.status, 'EXPIRED')
   assert.equal(b?.status, 'PENDING', '만료 안 된 제안까지 치웠다')
   await cleanup()
