@@ -8,7 +8,8 @@ export async function GET(req: NextRequest) {
   return withCrmApi('READONLY', async ({ db }) => {
     const { cursor, limit, q } = readListQuery(req)
     const companyId = new URL(req.url).searchParams.get('companyId')
-    return listPeople(db, { cursor, limit, q, companyId })
+    const trash = new URL(req.url).searchParams.get('trash') === '1'
+    return listPeople(db, { cursor, limit, q, companyId, trash })
   })
 }
 

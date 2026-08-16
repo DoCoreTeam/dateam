@@ -3,7 +3,7 @@
 // 인물 목록 (dacrm T1-02)
 // 회사 목록과 같은 표준 부품을 쓴다 — 같은 성격의 화면이 서로 다르게 보이면 안 된다(§2-5).
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
@@ -11,6 +11,9 @@ import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
 import NbButton from '@/components/ui/nb/NbButton'
 import { useListQuery } from '@/lib/ui/use-list-query'
+import {
+  TRASH_FILTER, TRASH_FILTER_KEYS, TRASH_EMPTY, isTrashView, useRestore, restoreColumn,
+} from '@/components/ui/crm/trash'
 import PersonFormModal from './PersonFormModal'
 
 export interface PersonItem {
@@ -51,6 +54,7 @@ const COLUMNS: ColumnDef<PersonItem>[] = [
 export default function PersonListView() {
   const { query, set } = useListQuery({
     view: 'table', size: 20, sort: { key: 'updatedAt', dir: 'desc' }, mode: 'more',
+    filterKeys: [...TRASH_FILTER_KEYS],
   })
   const [rows, setRows] = useState<PersonItem[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
@@ -59,6 +63,7 @@ export default function PersonListView() {
   const [formOpen, setFormOpen] = useState(false)
 
   const q = query.q ?? ''
+  const trash = isTrashView(query)
 
   const load = useCallback(async (append: boolean, nextCursor: string | null) => {
     setLoading(true)
@@ -66,6 +71,7 @@ export default function PersonListView() {
     try {
       const sp = new URLSearchParams()
       if (q) sp.set('q', q)
+      if (trash) sp.set('trash', '1')
       sp.set('limit', String(query.size))
       if (nextCursor) sp.set('cursor', nextCursor)
 
@@ -82,9 +88,15 @@ export default function PersonListView() {
     } finally {
       setLoading(false)
     }
-  }, [q, query.size])
+  }, [q, trash, query.size])
 
   useEffect(() => { void load(false, null) }, [load])
+
+  const { restore, restoreError } = useRestore('/api/crm/people', () => void load(false, null))
+  const columns = useMemo(
+    () => (trash ? [...COLUMNS, restoreColumn<PersonItem>((id) => void restore(id))] : COLUMNS),
+    [trash, restore],
+  )
 
   return (
     <>
@@ -93,6 +105,7 @@ export default function PersonListView() {
         onChange={set}
         searchPlaceholder="이름·이메일로 검색"
         views={['table', 'card']}
+        filters={[TRASH_FILTER]}
         actions={
           <NbButton onClick={() => setFormOpen(true)}>
             <Plus size={16} /> 인물 추가
@@ -102,14 +115,14 @@ export default function PersonListView() {
 
       <ListSurface
         rows={rows}
-        columns={COLUMNS}
+        columns={columns}
         query={query}
         onChange={set}
         rowKey={(r) => r.id}
-        rowHref={(r) => `/crm/people/${r.id}`}
+        rowHref={trash ? undefined : (r) => `/crm/people/${r.id}`}
         loading={loading && rows.length === 0}
-        error={error ? { message: error, onRetry: () => void load(false, null) } : null}
-        empty={{
+        error={(error ?? restoreError) ? { message: (error ?? restoreError)!, onRetry: () => void load(false, null) } : null}
+        empty={trash ? TRASH_EMPTY : {
           title: q ? '검색 결과가 없어요' : '등록된 인물이 아직 없어요',
           description: q
             ? '다른 이름이나 이메일로 찾아보세요.'

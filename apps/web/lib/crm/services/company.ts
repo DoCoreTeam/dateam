@@ -68,6 +68,14 @@ function normalizeInput(input: CompanyInput): Record<string, unknown> {
 }
 
 export interface ListCompanyInput extends CursorInput {
+  /**
+   * 휴지통만 본다.
+   *
+   * 왜 옵션인가: 가드가 기본으로 `deletedAt: null` 을 넣는다(그게 맞다).
+   * 휴지통은 **일부러 삭제된 것을 보는 화면**이라, 그 기본을 명시적으로 뒤집는다.
+   * 화면이 "30일 안에 되돌릴 수 있습니다"라고 약속했으면 되돌릴 길이 있어야 한다.
+   */
+  trash?: boolean
   /** 이름·도메인 부분 일치 */
   q?: string | null
 }
@@ -81,6 +89,7 @@ export async function listCompanies(
   const q = normalizeText(input.q)
 
   const where: Record<string, unknown> = {}
+  if (input.trash) where.deletedAt = { not: null }
   if (q) {
     where.OR = [
       { name: { contains: q, mode: 'insensitive' } },

@@ -7,7 +7,8 @@ import { listCompanies, createCompany, type CompanyInput } from '@/lib/crm/servi
 export async function GET(req: NextRequest) {
   return withCrmApi('READONLY', async ({ db }) => {
     const { cursor, limit, q } = readListQuery(req)
-    return listCompanies(db, { cursor, limit, q })
+    const trash = new URL(req.url).searchParams.get('trash') === '1'
+    return listCompanies(db, { cursor, limit, q, trash })
   })
 }
 

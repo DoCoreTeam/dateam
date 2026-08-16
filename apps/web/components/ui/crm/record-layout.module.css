@@ -1,0 +1,72 @@
+/* 레코드 3열 표준 (dacrm §6.2)
+   화면 전용이 아니라 부품 전용 스타일이므로 globals.css 가 아니라 여기 둔다(§0-1). */
+
+.record {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr) 300px;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+/* 태블릿: 연결 패널이 아래로 내려가고 속성 + 타임라인이 나란히 선다 */
+@media (max-width: 1279px) {
+  .record { grid-template-columns: 280px minmax(0, 1fr); }
+  .record > :last-child { grid-column: 1 / -1; }
+}
+
+/* 모바일: 한 줄. 좌 → 중 → 우 순서가 그대로 위에서 아래가 된다 */
+@media (max-width: 767px) {
+  .record { grid-template-columns: minmax(0, 1fr); }
+  .record > :last-child { grid-column: auto; }
+}
+
+.col, .colMain {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.panel { padding: var(--space-4); }
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.fieldList {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.field {
+  display: grid;
+  gap: 2px;
+}
+
+.fieldLabel {
+  margin: 0;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.fieldValue {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  word-break: break-word;
+}
+
+.fieldEmpty { color: var(--text-faint); }

@@ -1,0 +1,190 @@
+'use client'
+
+// 인물 상세 (dacrm T1-02, 구현명세 §6.2)
+//
+// 회사·딜 상세와 같은 3열 골격이다. 세 화면의 뼈대가 같아야 사용자가 매번 다시 찾지 않는다.
+// 우측 연결 패널은 이 사람이 속한 회사와 그 회사의 딜을 보여 준다 —
+// 인물 자체에는 딜이 직접 붙지 않으므로, 이어지는 길을 회사를 거쳐 보여 준다.
+
+import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
+import { Pencil, Trash2 } from 'lucide-react'
+import PageHeader from '@/components/ui/PageHeader'
+import AXDotLoader from '@/components/ui/AXDotLoader'
+import ErrorState from '@/components/ui/ErrorState'
+import EmptyState from '@/components/ui/EmptyState'
+import NbButton from '@/components/ui/nb/NbButton'
+import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
+import { formatKstDateTimeShort } from '@/lib/datetime/kst'
+import PersonFormModal from '../PersonFormModal'
+import DeleteRecordModal from '../../DeleteRecordModal'
+
+interface Person {
+  id: string
+  name: string
+  companyId: string | null
+  email: string | null
+  phone: string | null
+  title: string | null
+  lifecycleStage: string
+  version: number
+  updatedAt: string
+}
+
+interface CompanyRow { id: string; name: string; domain: string | null }
+interface DealRow { id: string; name: string }
+
+const STAGE_LABEL: Record<string, string> = {
+  LEAD: '리드',
+  MQL: '마케팅 검증',
+  SQL: '영업 검증',
+  CUSTOMER: '고객',
+  CHURNED: '이탈',
+}
+
+export default function PersonDetail({ personId }: { personId: string }) {
+  const [person, setPerson] = useState<Person | null>(null)
+  const [company, setCompany] = useState<CompanyRow | null>(null)
+  const [deals, setDeals] = useState<DealRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/crm/people/${personId}`)
+      const body = await res.json()
+      if (!res.ok) { setError(body?.error?.message ?? '인물을 불러오지 못했습니다.'); return }
+      setPerson(body)
+
+      // 회사가 없는 인물도 있다 — 그때는 연결 패널이 그 사실을 말한다
+      if (body.companyId) {
+        const [cRes, dRes] = await Promise.all([
+          fetch(`/api/crm/companies/${body.companyId}`),
+          fetch(`/api/crm/deals?companyId=${body.companyId}&limit=20`),
+        ])
+        if (cRes.ok) setCompany(await cRes.json())
+        if (dRes.ok) setDeals((await dRes.json())?.items ?? [])
+      } else {
+        setCompany(null)
+        setDeals([])
+      }
+    } catch {
+      setError('인물을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setLoading(false)
+    }
+  }, [personId])
+
+  useEffect(() => { void load() }, [load])
+
+  if (loading && !person) return <AXDotLoader />
+  if (error || !person) {
+    return (
+      <>
+        <PageHeader eyebrow="영업 CRM" title="인물" back={{ href: '/crm/people', label: '인물 목록' }} />
+        <ErrorState message={error ?? '인물을 찾을 수 없습니다.'} onRetry={() => void load()} />
+      </>
+    )
+  }
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="영업 CRM"
+        title={person.name}
+        back={{ href: '/crm/people', label: '인물 목록' }}
+        description={[person.title, company?.name].filter(Boolean).join(' · ') || undefined}
+        actions={
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <NbButton variant="ghost" onClick={() => setEditing(true)}><Pencil size={16} /> 수정</NbButton>
+            <NbButton variant="ghost" onClick={() => setDeleting(true)}><Trash2 size={16} /> 삭제</NbButton>
+          </div>
+        }
+      />
+
+      <RecordLayout
+        fields={
+          <RecordPanel title="속성">
+            <RecordFieldList>
+              <RecordField label="직함">{person.title}</RecordField>
+              <RecordField label="이메일">
+                {person.email ? <a href={`mailto:${person.email}`}>{person.email}</a> : null}
+              </RecordField>
+              <RecordField label="전화">
+                {person.phone ? <a href={`tel:${person.phone}`}>{person.phone}</a> : null}
+              </RecordField>
+              <RecordField label="단계">
+                {STAGE_LABEL[person.lifecycleStage] ?? person.lifecycleStage}
+              </RecordField>
+              <RecordField label="최근 변경">{formatKstDateTimeShort(person.updatedAt)}</RecordField>
+            </RecordFieldList>
+          </RecordPanel>
+        }
+        timeline={
+          <RecordPanel title="타임라인">
+            <EmptyState
+              title="아직 기록된 활동이 없어요"
+              description="미팅과 태스크를 남기면 여기에 시간 순으로 쌓입니다."
+            />
+          </RecordPanel>
+        }
+        related={
+          <>
+            <RecordPanel title="소속">
+              {company ? (
+                <div style={{ fontSize: 'var(--fs-sm)' }}>
+                  <Link href={`/crm/companies/${company.id}`}>{company.name}</Link>
+                  {company.domain && (
+                    <div style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-2xs)' }}>{company.domain}</div>
+                  )}
+                </div>
+              ) : (
+                <EmptyState
+                  title="소속 회사가 없어요"
+                  description="수정에서 회사를 지정하면 딜과 이어집니다."
+                  action={{ label: '수정', onClick: () => setEditing(true) }}
+                />
+              )}
+            </RecordPanel>
+
+            <RecordPanel title={`회사의 딜 ${deals.length}건`}>
+              {deals.length === 0 ? (
+                <EmptyState title="진행 중인 딜이 없어요" description="딜 화면에서 영업 건을 만드세요." />
+              ) : (
+                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 'var(--space-2)' }}>
+                  {deals.map((d) => (
+                    <li key={d.id} style={{ fontSize: 'var(--fs-sm)' }}>
+                      <Link href={`/crm/deals/${d.id}`}>{d.name}</Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </RecordPanel>
+          </>
+        }
+      />
+
+      {editing && (
+        <PersonFormModal
+          initial={{ ...person }}
+          onClose={() => setEditing(false)}
+          onSaved={() => { setEditing(false); void load() }}
+        />
+      )}
+
+      {deleting && (
+        <DeleteRecordModal
+          entity="인물"
+          name={person.name}
+          endpoint={`/api/crm/people/${person.id}`}
+          redirectTo="/crm/people"
+          onClose={() => setDeleting(false)}
+        />
+      )}
+    </>
+  )
+}

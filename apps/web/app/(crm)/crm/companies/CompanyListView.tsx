@@ -15,6 +15,9 @@ import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
 import type { ColumnDef } from '@/components/ui/list/types'
 import NbButton from '@/components/ui/nb/NbButton'
+import {
+  TRASH_FILTER, TRASH_FILTER_KEYS, TRASH_EMPTY, isTrashView, useRestore, restoreColumn,
+} from '@/components/ui/crm/trash'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import CompanyFormModal from './CompanyFormModal'
 
@@ -49,7 +52,10 @@ const COLUMNS: ColumnDef<CompanyItem>[] = [
 ]
 
 export default function CompanyListView() {
-  const { query, set } = useListQuery({ view: 'table', size: 20, sort: { key: 'updatedAt', dir: 'desc' }, mode: 'more' })
+  const { query, set } = useListQuery({
+    view: 'table', size: 20, sort: { key: 'updatedAt', dir: 'desc' }, mode: 'more',
+    filterKeys: [...TRASH_FILTER_KEYS],
+  })
   const [rows, setRows] = useState<CompanyItem[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -57,6 +63,7 @@ export default function CompanyListView() {
   const [formOpen, setFormOpen] = useState(false)
 
   const q = query.q ?? ''
+  const trash = isTrashView(query)
 
   const load = useCallback(async (append: boolean, nextCursor: string | null) => {
     setLoading(true)
@@ -64,6 +71,7 @@ export default function CompanyListView() {
     try {
       const sp = new URLSearchParams()
       if (q) sp.set('q', q)
+      if (trash) sp.set('trash', '1')
       sp.set('limit', String(query.size))
       if (nextCursor) sp.set('cursor', nextCursor)
 
@@ -81,12 +89,16 @@ export default function CompanyListView() {
     } finally {
       setLoading(false)
     }
-  }, [q, query.size])
+  }, [q, trash, query.size])
 
   // 검색어·개수가 바뀌면 처음부터 다시 — 커서를 이어 쓰면 조건이 섞인다
   useEffect(() => { void load(false, null) }, [load])
 
-  const columns = useMemo(() => COLUMNS, [])
+  const { restore, restoreError } = useRestore('/api/crm/companies', () => void load(false, null))
+  const columns = useMemo<ColumnDef<CompanyItem>[]>(
+    () => (trash ? [...COLUMNS, restoreColumn<CompanyItem>((id) => void restore(id))] : COLUMNS),
+    [trash, restore],
+  )
 
   return (
     <>
@@ -95,6 +107,7 @@ export default function CompanyListView() {
         onChange={set}
         searchPlaceholder="회사명·도메인으로 검색"
         views={['table', 'card']}
+        filters={[TRASH_FILTER]}
         actions={
           <NbButton onClick={() => setFormOpen(true)}>
             <Plus size={16} /> 회사 추가
@@ -108,10 +121,10 @@ export default function CompanyListView() {
         query={query}
         onChange={set}
         rowKey={(r) => r.id}
-        rowHref={(r) => `/crm/companies/${r.id}`}
+        rowHref={trash ? undefined : (r) => `/crm/companies/${r.id}`}
         loading={loading && rows.length === 0}
-        error={error ? { message: error, onRetry: () => void load(false, null) } : null}
-        empty={{
+        error={(error ?? restoreError) ? { message: (error ?? restoreError)!, onRetry: () => void load(false, null) } : null}
+        empty={trash ? TRASH_EMPTY : {
           title: q ? '검색 결과가 없어요' : '등록된 회사가 아직 없어요',
           description: q
             ? '다른 이름이나 도메인으로 찾아보세요.'

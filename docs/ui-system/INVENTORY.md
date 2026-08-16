@@ -130,6 +130,8 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 | 빈 | `ui/EmptyState` | **19** (v0.7.445 1벌) |
 | 오류(영역) | `ui/ErrorState` | **11** (v0.7.445 공용 승격, 도움 링크는 `helpHref`로 주입) |
 | 오류(폼 안) | `ui/FormErrorBanner` | 신설 v0.7.495 (dacrm) — 폼 저장 실패 한 줄. 입력값을 지우지 않고 저장 버튼 근처에서 무엇을 고칠지 말한다. **화면 전체 실패는 `ErrorState`** |
+| 레코드 상세 3열 | `ui/crm/RecordLayout` (+`RecordPanel`·`RecordField`·`RecordFieldList`) | 신설 v0.7.495 (dacrm §6.2) — 좌=속성 / 중=타임라인 / 우=연결. 회사·인물·딜 상세가 **같은 골격**을 쓴다. 화면마다 3열을 다시 짜면 속성이 어디 있는지가 화면마다 달라진다. 좁은 화면은 좌→중→우 순으로 접힌다 |
+| 삭제 확인(휴지통/영구) | `app/(crm)/crm/DeleteRecordModal` | 신설 v0.7.495 (dacrm) — 두 방식(되돌릴 수 있음/없음)을 **고른 순간 문구가 바뀐다**. 문구는 `lib/crm/domain/soft-delete`의 `describeDelete` SSOT |
 | 오류(한 줄) | **`ui/InlineError`** | **56** (v0.7.456 신설 — 폼·버튼 옆 한 줄. 예전엔 화면마다 인라인 style, 글자 크기 8종) |
 | 로딩 | `ui/LoadingSkeleton→SkelPage/SkelCard/SkelList` | **11 / 9 / 7** |
 | 로딩 | `ui/AXDotLoader` | **35** |
