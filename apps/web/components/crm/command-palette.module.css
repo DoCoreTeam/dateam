@@ -1,0 +1,131 @@
+/* 커맨드 팔레트 — 화면 위에 뜨는 얇은 층 */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  /* 화면 한가운데보다 살짝 위 — 눈이 먼저 가는 자리다 */
+  padding: 12vh var(--space-4) var(--space-4);
+}
+
+.panel {
+  width: 100%;
+  max-width: 560px;
+  background: var(--surface-bg);
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-bottom: var(--hairline) solid var(--border-light);
+  color: var(--text-muted);
+}
+
+/*
+ * 폼 표준(input-field)을 그대로 쓰고, 팔레트 안에서만 테두리를 지운다.
+ * 표준을 건너뛰면 테마가 바뀔 때 이 입력만 남는다 — 덮어쓰는 편이 안전하다.
+ */
+.input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: var(--fs-md);
+}
+
+.input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  min-height: var(--control-h);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  font-size: var(--fs-sm);
+}
+
+/* 마우스 위치와 키보드 커서가 같은 표시를 쓴다 — 둘이 다르면 어디가 실행될지 헷갈린다 */
+.item[data-active='1'] {
+  background: var(--accent);
+  color: var(--text);
+}
+
+.icon {
+  display: inline-flex;
+  color: var(--text-faint);
+}
+
+.label {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hint {
+  flex: 1;
+  color: var(--text-faint);
+  font-size: var(--fs-2xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kind {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: var(--fs-2xs);
+  flex-shrink: 0;
+}
+
+.none {
+  padding: var(--space-2) 0;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-top: var(--hairline) solid var(--border-light);
+  color: var(--text-faint);
+  font-size: var(--fs-2xs);
+}
+
+.kbd {
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 0 var(--space-1);
+  font-size: var(--fs-2xs);
+  font-family: inherit;
+}

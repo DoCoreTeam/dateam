@@ -24,6 +24,7 @@ import { getActiveTheme, resolveTheme } from '@/lib/theme'
 import { getRequestUser } from '@/lib/supabase/server'
 import { resolveCrmAccess, CRM_DENY_MESSAGE } from '@/lib/crm/auth/requireCrmMember'
 import { countPendingSuggestions } from '@/lib/crm/services/suggestion'
+import CommandPalette from '@/components/crm/CommandPalette'
 
 /**
  * 사이드바 8개 항목 (구현명세서 1.1 라우트 구조 그대로).
@@ -172,6 +173,7 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
         ),
       }}
     >
+      <CommandPalette />
       {children}
     </AppShell>
   )

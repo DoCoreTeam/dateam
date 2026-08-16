@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.531',
+    date: '2026-08-17',
+    title: 'Cmd+K로 어디든 바로 갈 수 있어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '⌨️',
+        headline: '영업 CRM에서 키보드만으로 이동해요',
+        detail: 'Cmd+K(윈도우는 Ctrl+K)를 누르고 몇 글자만 치면 화면 이동은 물론 회사·사람·딜·미팅도 바로 찾아 열립니다. 방향키로 고르고 엔터로 열어요. 한글을 치는 중 엔터를 눌러도 엉뚱한 곳으로 가지 않습니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.530',
     date: '2026-08-17',
     title: '이번 분기에 얼마나 들어올지 보여 드려요',
