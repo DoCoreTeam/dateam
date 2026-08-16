@@ -49,21 +49,21 @@ export const SETTING_DEFS: readonly SettingDef[] = [
     fallback: 'auto',
     description: '명함·미팅에서 정보를 뽑을 때 쓸 AI. auto 면 시스템 설정의 기본 AI를 따릅니다. gemini · claude · openai · mock 중에서 고를 수 있어요.',
   },
-  {
-    key: 'ai.model.summary', label: '요약에 쓸 AI', kind: 'text',
-    fallback: 'auto',
-    description: '요약처럼 가벼운 일에 쓸 AI. 비워 두면 추출과 같은 것을 씁니다.',
-  },
-  {
-    key: 'stt.vendor', label: '음성 인식 업체', kind: 'text',
-    fallback: 'mock',
-    description: '녹음을 글로 바꾸는 업체. 키가 없으면 mock 으로 둡니다.',
-  },
-  {
-    key: 'stt.api_key', label: '음성 인식 키', kind: 'secret',
-    fallback: null,
-    description: '음성 인식 업체 키. 이건 시스템 설정에 없는 연동이라 여기서 받습니다.',
-  },
+] as const
+
+/**
+ * **아직 안 쓰는 설정은 화면에 두지 않는다.**
+ *
+ * 음성 인식(`stt.vendor`·`stt.api_key`)은 미팅 녹음 기능(Phase 2)이 붙어야 쓸 데가 생긴다.
+ * 그런데 입력창을 먼저 띄워 두면 사용자는 키를 넣고 아무 일도 안 일어나는 걸 보게 된다 —
+ * 그건 빈 칸보다 나쁘다. 빈 칸은 적어도 "아직 없구나"라고 알려 준다.
+ *
+ * 녹음 기능을 붙일 때 여기 두 줄을 SETTING_DEFS 로 옮긴다.
+ */
+export const PLANNED_SETTINGS = [
+  { key: 'ai.model.summary', label: '요약에 쓸 AI', reason: '미팅 요약 기능이 붙으면 씁니다' },
+  { key: 'stt.vendor', label: '음성 인식 업체', reason: '미팅 녹음 기능이 붙으면 씁니다' },
+  { key: 'stt.api_key', label: '음성 인식 키', reason: '미팅 녹음 기능이 붙으면 씁니다' },
 ] as const
 
 const DEF_BY_KEY = new Map(SETTING_DEFS.map((d) => [d.key, d]))

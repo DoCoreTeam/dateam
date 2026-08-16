@@ -3,7 +3,9 @@
   "outputDirectory": ".next",
   "installCommand": "cd ../.. && corepack enable pnpm && pnpm install",
   "framework": "nextjs",
-  "regions": ["icn1"],
+  "regions": [
+    "icn1"
+  ],
   "git": {
     "deploymentEnabled": {
       "feature/weekly-week-continuity": false,
@@ -13,6 +15,13 @@
     }
   },
   "crons": [
-    { "path": "/api/cron/analyze-drain", "schedule": "*/5 * * * *" }
+    {
+      "path": "/api/cron/analyze-drain",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/crm/jobs/gmail-sync",
+      "schedule": "*/15 * * * *"
+    }
   ]
 }

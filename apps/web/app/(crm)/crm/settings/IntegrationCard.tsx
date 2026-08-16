@@ -90,6 +90,37 @@ export default function IntegrationCard() {
     }
   }
 
+  /**
+   * 지금 가져오기.
+   *
+   * 크론이 15분마다 돌지만, 방금 연결한 사람이 첫 메일을 보려고 15분을 기다리면
+   * "연동이 안 되는구나"로 읽는다. 눌러서 바로 확인할 수 있어야 한다.
+   */
+  async function syncNow() {
+    setBusy('sync')
+    setError(null)
+    setNotice(null)
+    try {
+      const res = await fetch('/api/crm/jobs/gmail-sync')
+      const body = await res.json()
+      if (!res.ok) { setError(body?.error?.message ?? '가져오지 못했습니다.'); return }
+
+      const created = (body.results ?? []).reduce((n: number, r: { created?: number }) => n + (r.created ?? 0), 0)
+      const skipped = (body.results ?? []).filter((r: { skipped?: string }) => r.skipped).length
+      setNotice(
+        body.connections === 0 ? '연결된 계정이 없어요.'
+          : created > 0 ? `메일 ${created}건을 가져왔어요.`
+          : skipped > 0 ? '다시 연결이 필요한 계정이 있어요.'
+          : '새로 들어온 메일이 없어요.',
+      )
+      await load()
+    } catch {
+      setError('가져오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const broken = items.filter((c) => c.status === 'error')
 
   return (
@@ -97,6 +128,11 @@ export default function IntegrationCard() {
       <div className={styles.head}>
         <h2 className={styles.title}>메일·일정 연동</h2>
         {/* 떠났다 돌아올 자리를 함께 실어 보낸다 — 동의를 마치면 이 카드로 돌아온다(복귀 경로 SSOT) */}
+        {items.length > 0 && (
+          <NbButton variant="ghost" disabled={busy === 'sync'} onClick={() => void syncNow()}>
+            {busy === 'sync' ? '가져오는 중…' : '지금 가져오기'}
+          </NbButton>
+        )}
         <NbButton onClick={() => { window.location.href = withReturnTo('/api/auth/google-drive?purpose=crm', currentReturnTo()) }}>
           {items.length > 0 ? '다시 연결' : '구글 계정 연결'}
         </NbButton>
@@ -137,7 +173,8 @@ export default function IntegrationCard() {
       )}
 
       <p className={styles.hint}>
-        연결을 해제해도 이미 담긴 메일 기록은 남습니다. 우리 인물 명부에 있는 사람과 주고받은 메일만 저장합니다.
+        15분마다 자동으로 가져옵니다. 연결을 해제해도 이미 담긴 메일 기록은 남고,
+        우리 인물 명부에 있는 사람과 주고받은 메일만 저장합니다.
       </p>
     </div>
   )

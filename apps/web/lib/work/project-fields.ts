@@ -14,7 +14,7 @@ export const PROJECT_SORT_ALLOW = new Set(['created_at', 'name', 'updated_at', '
 
 // GET list / 단건 조회 시 항상 함께 반환하는 컬럼(엔벨로프 일관).
 export const PROJECT_SELECT =
-  'id, name, description, objective, success_criteria, visibility, account_id, origin_deal_id, department_id, user_id, year, quarter, half, month, start_date, end_date, budget, currency, status, created_at, updated_at'
+  'id, name, description, objective, success_criteria, visibility, account_id, origin_deal_id, crm_company_id, crm_deal_id, department_id, user_id, year, quarter, half, month, start_date, end_date, budget, currency, status, created_at, updated_at'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -34,13 +34,17 @@ export interface ProjectMetaFields {
   success_criteria: string | null
   account_id: string | null
   origin_deal_id: string | null
+  /** 영업 CRM 회사·딜 — 구 account_id/origin_deal_id 를 대체한다(마이그 202) */
+  crm_company_id: string | null
+  crm_deal_id: string | null
   department_id: string | null
 }
 
 type Partial = globalThis.Partial<ProjectMetaFields>
 
 export function hasProjectCrmRelationInput(raw: Record<string, unknown>): boolean {
-  return ['account_id', 'origin_deal_id'].some((key) => key in raw)
+  // 새 영업 CRM 관계도 같은 권한 판정을 받아야 한다 — 구 CRM 만 보면 새 관계가 무방비가 된다
+  return ['account_id', 'origin_deal_id', 'crm_company_id', 'crm_deal_id'].some((key) => key in raw)
 }
 
 /**
@@ -113,6 +117,21 @@ export function parseProjectMeta(raw: Record<string, unknown>): { fields: Partia
     }
   }
 
+  /**
+   * 영업 CRM 관계.
+   *
+   * **id 형식이 다르다** — 호스트는 uuid 인데 CRM 은 cuid(`cmsv…`)와 이관 접두(`v04_co_…`)를 쓴다.
+   * 위 루프의 UUID_RE 로 검사하면 정상 id 가 전부 "잘못된 관계 ID"로 막힌다.
+   * 그래서 형식만 따로 본다 — 실재 여부는 DB 의 FK 가 판정한다(마이그 202).
+   */
+  for (const key of ['crm_company_id', 'crm_deal_id'] as const) {
+    if (key in raw && raw[key] !== undefined) {
+      const v = toStrOrNull(raw[key])
+      if (v !== null && !CRM_ID_RE.test(v)) return { error: '잘못된 CRM ID입니다' }
+      out[key] = v
+    }
+  }
+
   // 둘 다 이번 입력에 값으로 들어온 경우에만 순서 검증(한쪽만이면 통과 — 부분 수정 지원).
   if (out.start_date && out.end_date && out.start_date > out.end_date) {
     return { error: '종료일이 시작일보다 빠릅니다' }
@@ -122,6 +141,9 @@ export function parseProjectMeta(raw: Record<string, unknown>): { fields: Partia
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+/** CRM id — cuid(`cmsv…`) 또는 v0.4 이관분(`v04_co_<uuid>`). 아무 문자열이나 받지는 않는다 */
+const CRM_ID_RE = /^[a-z0-9_]{6,64}$|^v04_[a-z]{2}_[0-9a-f-]{36}$/i
 
 function toLimitedText(v: unknown, max: number): string | null {
   const text = toStrOrNull(v)

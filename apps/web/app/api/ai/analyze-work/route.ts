@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { matchByName, promptNames } from '@/lib/crm/link/name-match'
+import type { Candidate } from '@/lib/crm/link/name-match'
+import { loadCrmCandidates } from '@/lib/crm/link/candidates'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { logTokenUsage } from '@/lib/token-logger'
 import { recordDailyOutcome, maybeSelfTuneDaily } from '@/lib/daily-prompt-governance'
@@ -82,8 +85,25 @@ export async function POST(req: NextRequest) {
     (supabase.from('contacts') as any).select('id, name').eq('user_id', user.id).limit(200),
   ])
 
-  const accountList = (accounts ?? []) as { id: string; name: string }[]
-  const contactList = (contacts ?? []) as { id: string; name: string }[]
+  /**
+   * 후보는 **구 CRM + 영업 CRM 둘 다** 본다.
+   *
+   * 예전에는 `accounts`(구 CRM)만 봤다. 그래서 영업 CRM 에 회사를 넣어 두고
+   * 일일업무에 그 이름을 적어도 두 기록이 영원히 안 만났다.
+   * 이관이 진행 중이라 한동안 양쪽에 나뉘어 있으므로, 합쳐서 보고 CRM 을 정본으로 삼는다.
+   *
+   * CRM 조회가 실패해도 일일업무 분석은 계속돼야 한다 — 곁들이는 일이 본 일을 막으면 안 된다.
+   */
+  const crmCandidates = await loadCrmCandidates()
+
+  const accountList: Candidate[] = [
+    ...crmCandidates.companies,
+    ...((accounts ?? []) as { id: string; name: string }[]).map((a) => ({ ...a, source: 'legacy' as const })),
+  ]
+  const contactList: Candidate[] = [
+    ...crmCandidates.people,
+    ...((contacts ?? []) as { id: string; name: string }[]).map((c) => ({ ...c, source: 'legacy' as const })),
+  ]
 
   // 그날 이미 등록된 항목(제목·분류) — 중복·오분류 방지 맥락으로 프롬프트에 주입
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -117,8 +137,8 @@ export async function POST(req: NextRequest) {
     .replace('{TODAY}', date)
     .replace('{TODAY}', date)
     .replace('{TOMORROW}', tomorrowStr)
-    .replace('{ACCOUNTS}', accountList.map(a => a.name).join(', ') || '없음')
-    .replace('{CONTACTS}', contactList.map(c => c.name).join(', ') || '없음')
+    .replace('{ACCOUNTS}', promptNames(accountList))
+    .replace('{CONTACTS}', promptNames(contactList))
 
   const url = `${GEMINI_API_BASE}/models/${model}:streamGenerateContent?alt=sse`
 
@@ -191,18 +211,9 @@ export async function POST(req: NextRequest) {
                 const item = JSON.parse(trimmed) as ParsedWorkItem
                 collectedItems.push({ status: item.status, confidence: item.confidence })
 
-                if (item.accountName) {
-                  const match = accountList.find(a => a.name === item.accountName)
-                  item.accountId = match?.id ?? null
-                } else {
-                  item.accountId = null
-                }
-                if (item.contactName) {
-                  const match = contactList.find(c => c.name === item.contactName)
-                  item.contactId = match?.id ?? null
-                } else {
-                  item.contactId = null
-                }
+                // 표기가 흔들려도 찾는다(㈜·공백·대소문자). 여럿이면 안 붙인다 — 틀린 회사보다 낫다
+                item.accountId = matchByName(item.accountName, accountList).matched?.id ?? null
+                item.contactId = matchByName(item.contactName, contactList).matched?.id ?? null
 
                 // origin_group_id와 prompt 버전 정보를 클라이언트로 전달
                 const enriched = {
@@ -230,15 +241,8 @@ export async function POST(req: NextRequest) {
           const item = JSON.parse(fullText.trim()) as ParsedWorkItem
           collectedItems.push({ status: item.status, confidence: item.confidence })
           if (item.accountName) {
-            const match = accountList.find(a => a.name === item.accountName)
-            item.accountId = match?.id ?? null
-          } else {
-            item.accountId = null
-          }
-          if (item.contactName) {
-            const match = contactList.find(c => c.name === item.contactName)
-            item.contactId = match?.id ?? null
-          } else {
+item.accountId = matchByName(item.accountName, accountList).matched?.id ?? null
+            item.contactId = matchByName(item.contactName, contactList).matched?.id ?? null
             item.contactId = null
           }
           const enriched = {
