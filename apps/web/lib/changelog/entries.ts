@@ -32,6 +32,13 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.502', date: '2026-08-16', title: '통계를 흐리는 게시물을 뺄 수 있어요',
+    items: [
+      { kind: 'feature', emoji: '📊', headline: '게시물을 지우지 않고 통계에서만 뺄 수 있어요', detail: '잘못 수집돼 배수를 흐리는 게시물을, 기록은 남긴 채 집계에서만 제외할 수 있습니다. 상세 화면의 "통계에서 빼기"를 누르고 이유를 남기면 됩니다.' },
+      { kind: 'improve', emoji: '↩️', headline: '통계에서 뺀 것은 언제든 다시 넣을 수 있어요', detail: '지우기와 달리 되돌릴 수 있습니다. 지금 빠져 있는지도 상세 화면에 표시됩니다.' },
+    ],
+  },
+  {
     version: '0.7.501', date: '2026-08-16', title: '게시물 제목을 고칠 수 있어요',
     items: [
       { kind: 'feature', emoji: '✏️', headline: '게시물 제목을 직접 고칠 수 있어요', detail: '자동으로 붙은 제목이 틀리거나 비어 있을 때 상세 화면에서 연필 버튼을 눌러 바로잡을 수 있습니다. 주제 바꾸기는 지금처럼 수집함 목록에서 하시면 됩니다.' },

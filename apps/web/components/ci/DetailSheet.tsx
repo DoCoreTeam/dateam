@@ -31,6 +31,8 @@ const TABS: { id: Tab; label: string }[] = [
 
 export interface DetailSheetData extends CiContentListItem {
   caption: string | null
+  /** 통계에서 빠져 있는가 — 삭제와 다른 일이다(행은 남고 집계에서만 빠진다) */
+  isStatExcluded: boolean
   /** 근거가 부족하면 서버가 null을 준다 — 단정 문구를 만들지 않는다(§7.4) */
   analysis: string | null
   groupSiblings: { id: string; platform: string; title: string | null }[]
@@ -74,6 +76,33 @@ export default function DetailSheet({
   const [titleDraft, setTitleDraft] = useState('')
   const [savingTitle, setSavingTitle] = useState(false)
   const [titleError, setTitleError] = useState<string | null>(null)
+
+  // 통계 제외 — 지우는 게 아니라 **집계에서만 빼는** 별개의 일이다.
+  // 잘못 수집돼 배수를 흐리는 게시물을, 기록은 남긴 채 통계에서만 제외한다.
+  // 전용 경로(POST .../exclude)를 쓴다 — 그 경로가 제외 사유를 정정 이력에 남긴다.
+  const [excluding, setExcluding] = useState(false)
+  const [excludeError, setExcludeError] = useState<string | null>(null)
+  const [reasonOpen, setReasonOpen] = useState(false)
+  const [reasonDraft, setReasonDraft] = useState('')
+
+  async function setExcluded(next: boolean, reason?: string) {
+    if (!contentId) return
+    setExcluding(true); setExcludeError(null)
+    try {
+      const res = await fetch(`/api/ci/contents/${contentId}/exclude`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CI-Workspace': workspaceId },
+        body: JSON.stringify({ excluded: next, reason: reason?.trim() || undefined }),
+      }).then((r) => r.json() as Promise<ApiResponse<{ excluded: boolean }>>)
+      if (!res.success) { setExcludeError(res.error.message); return }
+      setData((prev) => (prev ? { ...prev, isStatExcluded: res.data.excluded } : prev))
+      setReasonOpen(false); setReasonDraft('')
+    } catch {
+      setExcludeError('바꾸지 못했습니다. 잠시 후 다시 시도해 주세요')
+    } finally {
+      setExcluding(false)
+    }
+  }
 
   async function saveTitle() {
     if (!contentId) return
@@ -228,6 +257,59 @@ export default function DetailSheet({
                   onOpenMissing={openEvidence}
                 />
                 <IngestStatusBadge status={data.ingestStatus} />
+                {data.isStatExcluded && (
+                  <span className="ci-status ci-status-warn" title="이 게시물은 배수·백분위 같은 집계에 들어가지 않습니다">
+                    통계 제외됨
+                  </span>
+                )}
+              </div>
+
+              {/* 통계 제외 — 지우는 것과 다른 일이다. 기록은 남기고 집계에서만 뺀다.
+                  잘못 수집돼 배수를 흐리는 게시물을 없애지 않고 바로잡는 길이다. */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+                flexWrap: 'wrap', marginBottom: 'var(--space-3)',
+              }}>
+                {data.isStatExcluded ? (
+                  <>
+                    <span className="ci-basis">이 게시물은 통계에서 빠져 있습니다</span>
+                    <button type="button" className="btn-ghost"
+                      onClick={() => setExcluded(false)} disabled={excluding}>
+                      {excluding ? '되돌리는 중…' : '다시 넣기'}
+                    </button>
+                  </>
+                ) : reasonOpen ? (
+                  <>
+                    <label className="label" htmlFor="ci-exclude-reason" style={{ position: 'absolute', left: '-9999px' }}>
+                      제외 사유
+                    </label>
+                    <input className="input-field" id="ci-exclude-reason"
+                      value={reasonDraft}
+                      onChange={(e) => setReasonDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (isEnterKey(e)) { e.preventDefault(); void setExcluded(true, reasonDraft) }
+                        if (e.key === 'Escape') { e.preventDefault(); setReasonOpen(false) }
+                      }}
+                      placeholder="왜 빼는지 (선택)"
+                      disabled={excluding}
+                      autoFocus
+                      style={{ flex: 1, minWidth: '200px' }}
+                    />
+                    <button type="button" className="btn-primary"
+                      onClick={() => setExcluded(true, reasonDraft)} disabled={excluding}>
+                      {excluding ? '빼는 중…' : '통계에서 빼기'}
+                    </button>
+                    <button type="button" className="btn-ghost"
+                      onClick={() => setReasonOpen(false)} disabled={excluding}>취소</button>
+                  </>
+                ) : (
+                  <button type="button" className="btn-ghost"
+                    onClick={() => { setExcludeError(null); setReasonDraft(''); setReasonOpen(true) }}
+                    title="지우지 않고 집계에서만 뺍니다">
+                    통계에서 빼기
+                  </button>
+                )}
+                {excludeError && <span className="ci-status ci-status-danger" role="alert">{excludeError}</span>}
               </div>
 
               <SegmentedTabs

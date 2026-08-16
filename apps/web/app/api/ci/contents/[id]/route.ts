@@ -14,7 +14,7 @@ const SELECT = `
   id, platform, title, caption, keywords, duration_sec, language,
   thumbnail_url, canonical_url, ingest_status, completeness,
   missing_fields, topic_confidence, comparability_class, published_at, first_seen_at,
-  content_group_id, provenance, channel_id,
+  content_group_id, provenance, channel_id, is_stat_excluded,
   ci_channels ( display_name ),
   ci_topics ( id, name ),
   ci_content_derived ( outlier_index, outlier_baseline_n, topic_percentile, confidence )
@@ -66,6 +66,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     return ok({
       ...base,
       caption: row.caption ?? null,
+      // 통계 제외 여부 — 화면이 현재 상태를 알아야 토글을 정확히 그린다.
+      // 예전엔 안 내려줘서 "빼기는 되는데 빠졌는지 모르는" 상태였다.
+      isStatExcluded: Boolean(row.is_stat_excluded),
       // Slice 1에는 AI 분석 서술이 없다. 근거가 충분해도 지어내지 않는다(설계서 §7.4).
       // AI 서술이 붙는 시점에도 이 게이트를 통과한 경우에만 단정 문구를 허용한다.
       analysis: null,

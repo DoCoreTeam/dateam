@@ -119,10 +119,32 @@ test('★ 수정 API가 화면에 실제로 배선돼 있다 — 만들고 안 �
   // v0.7.494에서 PATCH를 만들고 화면에 안 꽂아 "제목을 못 고치는" 상태였다.
   const sheet = read('components/ci/DetailSheet.tsx')
   assert.match(sheet, /method:\s*'PATCH'/, '상세 시트가 제목 수정을 부르지 않는다')
-  assert.match(sheet, /\/api\/ci\/contents\/\$\{contentId\}/, '제목 수정이 콘텐츠 API를 향하지 않는다')
+  assert.match(sheet, /\/api\/ci\/contents\/\$\{contentId\}`/, '제목 수정이 콘텐츠 API를 향하지 않는다')
   // 주제 변경 경로도 화면에 살아 있어야 한다
-  assert.match(read('app/(ci)/ci/inbox/InboxView.tsx'), /contents\/\$\{contentId\}\/topic/,
+  assert.match(read('app/(ci)/ci/inbox/InboxView.tsx'), /contents\/\$\{contentId\}\/topic`/,
     '주제 변경이 화면에서 사라졌다')
+  // 통계 제외도 마찬가지 — API만 있고 화면에 없던 자리다
+  assert.match(sheet, /contents\/\$\{contentId\}\/exclude`/,
+    '통계 제외가 화면에 배선돼 있지 않다')
+})
+
+test('★ 통계 제외는 현재 상태를 알 수 있어야 한다 — 모르면 토글을 정확히 그릴 수 없다', () => {
+  // 상세 API가 is_stat_excluded를 안 내려주면 "뺐는지 아닌지 모르는" 화면이 된다
+  const api = read('app/api/ci/contents/[id]/route.ts')
+  assert.match(api, /is_stat_excluded/, '상세 조회가 제외 상태를 읽지 않는다')
+  assert.match(api, /isStatExcluded:/, '상세 응답이 제외 상태를 내려주지 않는다')
+  const sheet = read('components/ci/DetailSheet.tsx')
+  assert.match(sheet, /data\.isStatExcluded/, '화면이 제외 상태를 쓰지 않는다')
+})
+
+test('★ 통계 제외와 삭제를 같은 것으로 만들지 않는다 — 하나는 되돌릴 수 있고 하나는 없다', () => {
+  const sheet = read('components/ci/DetailSheet.tsx')
+  // 제외는 되돌리는 길("다시 넣기")이 반드시 있어야 한다. 없으면 사실상 삭제다.
+  assert.match(sheet, /다시 넣기/, '통계 제외를 되돌릴 길이 없다')
+  // 그리고 확인 대화상자를 요구하지 않는다 — 되돌릴 수 있는 일에 확인을 붙이면
+  // 진짜 되돌릴 수 없는 삭제의 확인이 가벼워 보인다
+  assert.doesNotMatch(sheet, /ConfirmDeleteDialog/,
+    '되돌릴 수 있는 제외에 삭제용 확인창을 붙였다')
 })
 
 test('삭제 미리보기도 지울 수 있는 사람만 본다 — 남의 구성을 엿보는 창구가 되면 안 된다', () => {
