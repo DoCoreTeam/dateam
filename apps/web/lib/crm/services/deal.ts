@@ -21,6 +21,7 @@ import { normalizeText, requireText } from '../domain/normalize.ts'
 import { assertTransit, type DealStatus } from '../domain/state-machines.ts'
 import { toStageHistoryData, isRealMove } from '../domain/stage-history.ts'
 import { assertUpdated, lockWhere, BUMP_VERSION } from '../db/optimistic.ts'
+import { loadRules, runAutomations, type TriggerKind } from './automation.ts'
 import {
   clampLimit, decodeCursor, cursorWhere, CURSOR_ORDER, toPage,
   type CursorInput, type CursorPage,
@@ -270,6 +271,39 @@ export interface MoveStageInput {
  * 단계 이동 — 딜 갱신 + 이력이 **한 트랜잭션**이다 (DI-09).
  * 둘 중 하나만 성공하면 두 값이 서로를 반박한다.
  */
+/**
+ * 자동화를 돌린다.
+ *
+ * **절대 던지지 않는다.** 자동화가 실패했다고 딜 이동이 되돌아가면
+ * 사람은 "왜 저장이 안 되지"만 겪고 원인은 알 수 없다.
+ * 규칙이 없으면 조회 한 번으로 끝나므로, 안 쓰는 워크스페이스에는 비용이 없다.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fireAutomations(tx: any, event: TriggerKind, dealId: string, actorId: string | null) {
+  try {
+    const rules = await loadRules(tx)
+    if (rules.length === 0) return
+
+    const d = await tx.crmDeal.findFirst({
+      where: { id: dealId },
+      select: { id: true, name: true, stageId: true, amountMinor: true, company: { select: { name: true } } },
+    })
+    if (!d) return
+
+    await runAutomations(tx, {
+      rules,
+      event,
+      deal: {
+        id: d.id, name: d.name, stageId: d.stageId,
+        amountMinor: d.amountMinor, companyName: d.company?.name ?? null,
+      },
+      actorId,
+    })
+  } catch {
+    // 자동화는 부가 기능이다 — 실패해도 사용자 저장을 막지 않는다
+  }
+}
+
 export async function moveDealStage(
   workspaceId: string,
   actorId: string | null,
@@ -320,6 +354,9 @@ export async function moveDealStage(
       actorType: 'HUMAN', actorId, action: 'deal.stage_moved', targetType: 'deal', targetId: id,
       beforeJson: { stageId: before.stageId }, afterJson: { stageId: input.toStageId },
     })
+    // 단계를 옮긴 그 순간이 후속 작업을 만들 자리다 — 나중에 하려면 사람이 잊는다
+    await fireAutomations(tx, 'deal.entered_stage', id, actorId)
+
     // 경고는 이동을 막지 않지만 사람이 알아야 한다 — 조용히 넘기면 조건이 없는 것과 같다
     return { ...(after as DealRow), entryWarnings: verdict.warnings }
   })
@@ -421,6 +458,11 @@ export async function closeDeal(
       beforeJson: { status: before.status },
       afterJson: { status: input.to, reason: input.reason ?? null },
     })
+
+    // 성사·실패 뒤에도 할 일이 남는다(계약서 보내기·실패 이유 공유). 재오픈은 아직 규칙이 없다
+    if (input.to === 'WON') await fireAutomations(tx, 'deal.won', id, actorId)
+    else if (input.to === 'LOST') await fireAutomations(tx, 'deal.lost', id, actorId)
+
     return after as DealRow
   })
 }

@@ -51,6 +51,11 @@ const ACTION_LABEL: Record<string, string> = {
   'deal.updated': '딜을 바꿨어요',
   'deal.restored': '딜을 되살렸어요',
   'deal.stage_moved': '딜 단계를 옮겼어요',
+
+  // 자동화가 스스로 한 일 — 사람이 "내가 안 만들었는데 왜 있지"에 답할 수 있어야 한다
+  'automation.task_created': '자동화가 할 일을 만들었어요',
+  'automation.rules_updated': '자동화 규칙을 바꿨어요',
+  'automation.failed': '자동화가 실패했어요',
   'deal.won': '딜을 수주했어요',
   'deal.lost': '딜을 실주로 닫았어요',
   'deal.reopened': '딜을 다시 열었어요',

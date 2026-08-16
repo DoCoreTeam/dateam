@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.528',
+    date: '2026-08-17',
+    title: '딜을 옮기면 할 일이 저절로 만들어져요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '⚡',
+        headline: '영업 CRM에 자동화 규칙이 생겼어요',
+        detail: '"제안 단계에 들어오면 3일 뒤 확인 연락" 같은 규칙을 만들어 두면, 딜을 옮기는 순간 할 일이 알아서 만들어집니다. 제목에 회사·딜 이름이 자동으로 채워지고, 누가 만든 할 일인지 기록에도 남아요. 만든 규칙은 켜야 돌기 때문에 실수로 쏟아질 걱정은 없습니다.',
+      },
+    ],
+  },
+  {
     version: '0.7.527',
     date: '2026-08-17',
     title: '영업 CRM 자료를 엑셀로 내려받을 수 있어요',
