@@ -169,6 +169,7 @@ git add <경로> && git commit  /  git add -A  /  git commit -a      # ❌ 인�
 ### M-2. 트리 전체를 건드리는 명령 — 금지
 
 - **절대 금지**: `git stash`/`stash pop` · `checkout <브랜치>`/`switch`/`restore .` · `reset --hard`/`clean -fd`/`rebase`/`merge` · `push` · `pkill`/dev 서버 재시작 · `pnpm build`(dev 가동 중 — `.next` 충돌)
+- **절대 금지(DB)**: `prisma migrate dev` · `prisma db push` · `prisma migrate reset` — 운영 DB에 **비-Prisma 테이블 205개**가 함께 있어 Prisma가 드리프트로 보고 **리셋을 제안**한다. 마이그레이션은 `prisma migrate diff`로 **SQL만 뽑아** `scripts/migrate.sh`로 적용한다
 - **단독 창구 + 보드 공지**: `pnpm install`·lockfile 변경 · `scripts/migrate.sh`(운영 DB 공유, 되돌릴 수 없음 — **사용자 승인** 필요)
 - formatter·linter `--fix`는 **내 파일 경로만** 인자로 넘긴다
 
