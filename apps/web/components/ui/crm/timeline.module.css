@@ -1,0 +1,101 @@
+/* 레코드 타임라인 (dacrm §6.2) — 부품 전용 스타일 */
+
+.wrap {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* 입력줄: 좁아지면 세로로 접힌다. 라벨은 화면에 보이되 줄을 차지하지 않는다 */
+.composer {
+  display: grid;
+  grid-template-columns: auto 110px auto minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-2);
+}
+
+@media (max-width: 767px) {
+  .composer { grid-template-columns: minmax(0, 1fr); }
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.filter {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  background: transparent;
+  border: var(--border-w) solid var(--border-light);
+  border-radius: 9999px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.filter:hover { border-color: var(--brand); color: var(--text); }
+
+.filterOn {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--surface);
+  font-weight: 600;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* 시간 순서를 세로선으로 보여 준다 — 항목이 각자 떠 있으면 흐름이 안 읽힌다 */
+.item {
+  display: grid;
+  gap: 2px;
+  padding-left: var(--space-3);
+  border-left: var(--border-w-2) solid var(--border-light);
+}
+
+.itemHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+.type {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.at { margin-left: auto; }
+
+.remove {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 2px;
+}
+
+.remove:hover { color: var(--danger); }
+
+.title {
+  font-size: var(--fs-sm);
+  color: var(--text);
+  word-break: break-word;
+}
+
+.body {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  white-space: pre-wrap;
+}

@@ -15,6 +15,8 @@ import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
 import NbButton from '@/components/ui/nb/NbButton'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
+import Timeline from '@/components/ui/crm/Timeline'
+import TaskPanel from '@/components/ui/crm/TaskPanel'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import PersonFormModal from '../PersonFormModal'
 import DeleteRecordModal from '../../DeleteRecordModal'
@@ -50,6 +52,7 @@ export default function PersonDetail({ personId }: { personId: string }) {
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [timelineKey, setTimelineKey] = useState(0)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -126,14 +129,15 @@ export default function PersonDetail({ personId }: { personId: string }) {
         }
         timeline={
           <RecordPanel title="타임라인">
-            <EmptyState
-              title="아직 기록된 활동이 없어요"
-              description="미팅과 태스크를 남기면 여기에 시간 순으로 쌓입니다."
-            />
+            <Timeline key={timelineKey} scope={{ personId }} />
           </RecordPanel>
         }
         related={
           <>
+            <RecordPanel title="다음 할 일">
+              <TaskPanel scope={{ personId }} onChanged={() => setTimelineKey((k) => k + 1)} />
+            </RecordPanel>
+
             <RecordPanel title="소속">
               {company ? (
                 <div style={{ fontSize: 'var(--fs-sm)' }}>

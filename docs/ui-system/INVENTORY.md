@@ -132,6 +132,9 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 | 오류(폼 안) | `ui/FormErrorBanner` | 신설 v0.7.495 (dacrm) — 폼 저장 실패 한 줄. 입력값을 지우지 않고 저장 버튼 근처에서 무엇을 고칠지 말한다. **화면 전체 실패는 `ErrorState`** |
 | 레코드 상세 3열 | `ui/crm/RecordLayout` (+`RecordPanel`·`RecordField`·`RecordFieldList`) | 신설 v0.7.495 (dacrm §6.2) — 좌=속성 / 중=타임라인 / 우=연결. 회사·인물·딜 상세가 **같은 골격**을 쓴다. 화면마다 3열을 다시 짜면 속성이 어디 있는지가 화면마다 달라진다. 좁은 화면은 좌→중→우 순으로 접힌다 |
 | 삭제 확인(휴지통/영구) | `app/(crm)/crm/DeleteRecordModal` | 신설 v0.7.495 (dacrm) — 두 방식(되돌릴 수 있음/없음)을 **고른 순간 문구가 바뀐다**. 문구는 `lib/crm/domain/soft-delete`의 `describeDelete` SSOT |
+| 레코드 타임라인 | `ui/crm/Timeline` | 신설 v0.7.497 (dacrm §6.2 중앙) — 활동을 **일어난 시각** 역순으로. 상단 인라인 입력(노트·통화·미팅)·종류 필터·더 보기. 지우기는 사람이 남길 수 있는 종류에만 붙는다(서버 판정과 같은 기준) |
+| 열린 할 일 | `ui/crm/TaskPanel` | 신설 v0.7.497 (dacrm §6.2 우측) — 한 줄로 추가하고 체크로 완료. 기한 지난 것은 눈에 띄게. 완료하면 타임라인에 활동이 남는다 |
+| 휴지통 보기 | `ui/crm/trash` (`TRASH_FILTER`·`isTrashView`·`useRestore`·`restoreColumn`) | 신설 v0.7.496 (dacrm) — 휴지통은 **화면이 아니라 필터**다. 회사·인물·딜 목록이 같은 약속("30일 안에 되돌릴 수 있다")을 같은 방식으로 지킨다 |
 | 오류(한 줄) | **`ui/InlineError`** | **56** (v0.7.456 신설 — 폼·버튼 옆 한 줄. 예전엔 화면마다 인라인 style, 글자 크기 8종) |
 | 로딩 | `ui/LoadingSkeleton→SkelPage/SkelCard/SkelList` | **11 / 9 / 7** |
 | 로딩 | `ui/AXDotLoader` | **35** |

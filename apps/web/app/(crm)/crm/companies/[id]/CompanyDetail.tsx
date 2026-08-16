@@ -3,8 +3,7 @@
 // 회사 상세 (dacrm T1-02, 구현명세 §6.2)
 //
 // 딜 상세와 **같은 3열 골격**이다. 좌=이 회사가 무엇인가, 중=무슨 일이 있었나, 우=무엇과 이어져 있나.
-// 중앙 타임라인에 넣을 활동은 아직 없다(태스크·미팅은 T1-04 이후) — 없는 것을 있는 척하지 않고
-// 무엇을 하면 채워지는지 알려 준다.
+// 중앙 타임라인과 우측 할 일은 공용 부품이다 — 세 상세 화면이 같은 것을 쓴다(§2-5).
 //
 // 삭제는 두 갈래다(사용자 결정): 휴지통(되돌릴 수 있음)과 완전 삭제(되돌릴 수 없음).
 // 두 결과가 다르므로 확인 문구도 다르다 — describeDelete 가 그 문장의 SSOT 다.
@@ -18,6 +17,8 @@ import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
 import NbButton from '@/components/ui/nb/NbButton'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
+import Timeline from '@/components/ui/crm/Timeline'
+import TaskPanel from '@/components/ui/crm/TaskPanel'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import CompanyFormModal from '../CompanyFormModal'
 import DeleteRecordModal from '../../DeleteRecordModal'
@@ -45,6 +46,8 @@ export default function CompanyDetail({ companyId }: { companyId: string }) {
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  // 태스크를 완료하면 활동이 하나 생긴다 — 타임라인이 그걸 바로 보여줘야 한다
+  const [timelineKey, setTimelineKey] = useState(0)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -109,14 +112,15 @@ export default function CompanyDetail({ companyId }: { companyId: string }) {
         }
         timeline={
           <RecordPanel title="타임라인">
-            <EmptyState
-              title="아직 기록된 활동이 없어요"
-              description="미팅과 태스크를 남기면 여기에 시간 순으로 쌓입니다."
-            />
+            <Timeline key={timelineKey} scope={{ companyId }} />
           </RecordPanel>
         }
         related={
           <>
+            <RecordPanel title="다음 할 일">
+              <TaskPanel scope={{ companyId }} onChanged={() => setTimelineKey((k) => k + 1)} />
+            </RecordPanel>
+
             <RecordPanel title={`인물 ${people.length}명`}>
               {people.length === 0 ? (
                 <EmptyState title="담당자가 없어요" description="인물 화면에서 이 회사로 담당자를 등록하세요." />

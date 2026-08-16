@@ -3,8 +3,8 @@
 // 딜 상세 (dacrm T1-03, 구현명세 §6.2)
 //
 // 3열 표준을 그대로 쓴다 — 회사·인물 상세와 골격이 같아야 사용자가 매번 다시 찾지 않는다.
-// 중앙 타임라인은 **단계 이동 이력**이다. 지금 이 딜에 실제로 쌓이는 유일한 사실이라,
-// 없는 활동을 있는 척 채우지 않는다(태스크·미팅은 T1-04 이후 여기에 합류한다).
+// 중앙은 **단계 이동 이력 + 활동 타임라인**이다. 이력은 딜에만 있는 사실(경로)이고,
+// 타임라인은 세 상세가 공유하는 사실(무슨 일이 있었나)이라 둘 다 필요하다.
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -16,6 +16,8 @@ import EmptyState from '@/components/ui/EmptyState'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
+import Timeline from '@/components/ui/crm/Timeline'
+import TaskPanel from '@/components/ui/crm/TaskPanel'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import { formatKstDateTimeShort, kstDateKey } from '@/lib/datetime/kst'
 import { formatAmount } from '../amount'
@@ -77,6 +79,7 @@ export default function DealDetail({ dealId }: { dealId: string }) {
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [timelineKey, setTimelineKey] = useState(0)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -173,7 +176,8 @@ export default function DealDetail({ dealId }: { dealId: string }) {
           </RecordPanel>
         }
         timeline={
-          <RecordPanel title="단계 이동 이력">
+          <>
+            <RecordPanel title="단계 이동 이력">
             {history.length === 0 ? (
               <EmptyState
                 title="이동 기록이 아직 없어요"
@@ -198,10 +202,20 @@ export default function DealDetail({ dealId }: { dealId: string }) {
                 ))}
               </ol>
             )}
-          </RecordPanel>
+            </RecordPanel>
+
+            <RecordPanel title="타임라인">
+              <Timeline key={timelineKey} scope={{ dealId }} />
+            </RecordPanel>
+          </>
         }
         related={
-          <RecordPanel title="연결">
+          <>
+            <RecordPanel title="다음 할 일">
+              <TaskPanel scope={{ dealId }} onChanged={() => setTimelineKey((k) => k + 1)} />
+            </RecordPanel>
+
+            <RecordPanel title="연결">
             {people.length === 0 ? (
               <EmptyState
                 title="연결된 인물이 없어요"
@@ -220,7 +234,8 @@ export default function DealDetail({ dealId }: { dealId: string }) {
                 ))}
               </ul>
             )}
-          </RecordPanel>
+            </RecordPanel>
+          </>
         }
       />
 

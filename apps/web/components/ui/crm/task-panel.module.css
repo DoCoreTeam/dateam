@@ -1,0 +1,83 @@
+/* 열린 태스크 패널 (dacrm §6.2 우측 열) — 부품 전용 스타일 */
+
+.wrap {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.composer {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+/* 완료 토글은 터치로도 눌려야 한다 — 아이콘만 두면 손가락이 빗나간다 */
+.check {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.check:hover { border-color: var(--brand); color: var(--brand); }
+
+.checkOn {
+  background: var(--success-bg);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.title {
+  font-size: var(--fs-sm);
+  color: var(--text);
+  word-break: break-word;
+}
+
+.titleDone {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.due {
+  display: block;
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+.dueOver {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.toggle {
+  justify-self: start;
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.toggle:hover { color: var(--text); }
