@@ -57,8 +57,11 @@ async function seed(): Promise<void> {
 
   // 2) 멤버(본인) — 호스트 profiles.id 로 연결한다. 인증은 호스트 세션이 한다
   await db.crmMember.upsert({
-    where: { workspaceId_hostUserId: { workspaceId: WORKSPACE_ID, hostUserId: SEED_OWNER.hostUserId } },
+    // 복합 unique 헬퍼는 쓸 수 없다 — 유일성이 DB 의 부분 유니크 인덱스(마이그 201)로 옮겨갔다.
+    // 대신 고정 id 로 upsert 한다(멱등성은 그대로).
+    where: { id: SEED_OWNER.id },
     create: {
+      id: SEED_OWNER.id,
       // workspaceId 를 명시한다 — 가드가 주입도 하지만, Prisma 타입은 그 사실을 모른다.
       // 명시하면 가드가 '일치하는지'를 검증하므로 안전성은 그대로다(불일치면 던진다).
       workspaceId: WORKSPACE_ID,
@@ -121,9 +124,12 @@ async function verify(): Promise<boolean> {
     ])
   }
 
-  // 시드는 코어 레코드를 만들지 않는다 — 만들면 실데이터와 섞인다
-  check('회사 0건(시드는 실데이터를 만들지 않는다)', 0, await db.crmCompany.count())
-  check('딜 0건', 0, await db.crmDeal.count())
+  // 시드는 코어 레코드(회사·딜)를 만들지 않는다. 만들면 실데이터와 섞여 구분이 안 된다.
+  // "0건"으로 확인할 수는 없다 — T0-11 이관과 실사용이 그 표에 행을 넣기 때문이다.
+  // 그래서 **시드가 쓰는 id 접두사로** 확인한다(시드가 만든 것은 ws_/mb_/pl_/st_ 뿐이다).
+  check('시드가 만든 회사 0건', 0, await db.crmCompany.count({ where: { id: { startsWith: 'co_seed' } } }))
+  check('시드가 만든 딜 0건', 0, await db.crmDeal.count({ where: { id: { startsWith: 'dl_seed' } } }))
+  console.log(`   (참고: 현재 회사 ${await db.crmCompany.count()}건 · 딜 ${await db.crmDeal.count()}건 — 이관·실사용분)`)
 
   return ok
 }

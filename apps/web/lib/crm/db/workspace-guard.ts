@@ -58,6 +58,33 @@ export function isCrmModel(model: string | undefined): boolean {
   return typeof model === 'string' && model.startsWith('Crm')
 }
 
+/**
+ * 소프트 삭제(deletedAt)를 가진 모델 — 통합기획서 v0.2.1 473행 "소프트 삭제 기본"
+ *
+ * 워크스페이스 필터와 **같은 방식으로** 자동 주입한다. 이유도 같다:
+ * 화면마다 `deletedAt: null` 을 손으로 붙이게 하면 언젠가 한 곳을 빠뜨리고,
+ * 그 화면에서만 지운 데이터가 되살아난다. 붙이는 것을 잊을 수 없게 만든다.
+ *
+ * 휴지통처럼 삭제된 것을 **일부러** 보려면 호출부가 deletedAt 을 명시한다
+ * (`where: { deletedAt: { not: null } }`). 명시하면 그대로 존중한다.
+ */
+export const SOFT_DELETE_MODELS: ReadonlySet<string> = new Set([
+  'CrmWorkspace', 'CrmMember', 'CrmCompany', 'CrmPerson',
+  'CrmPipeline', 'CrmDeal', 'CrmActivity', 'CrmTask', 'CrmMeeting',
+])
+
+/**
+ * 삭제 필터를 주입할 연산.
+ * delete·deleteMany 는 **일부러 뺐다** — 휴지통 비우기(영구 삭제)는 이미 삭제된 행을 노린다.
+ * 여기에 deletedAt: null 을 넣으면 휴지통에서 영구 삭제가 0건이 되어 아무 일도 안 일어난다.
+ * create·upsert 도 뺐다 — upsert 의 where 에 넣으면 소프트 삭제된 같은 id 를 못 보고
+ * create 로 가서 PK 충돌이 난다.
+ */
+const SOFT_DELETE_OPS = new Set([
+  'findFirst', 'findFirstOrThrow', 'findUnique', 'findUniqueOrThrow', 'findMany',
+  'count', 'aggregate', 'groupBy', 'update', 'updateMany',
+])
+
 /** where 를 갖는 연산 */
 const WHERE_OPS = new Set([
   'findFirst', 'findFirstOrThrow', 'findUnique', 'findUniqueOrThrow', 'findMany',
@@ -90,6 +117,17 @@ function guardWhere(model: string, where: unknown, key: string, workspaceId: str
     mismatch(model, key, existing, workspaceId)
   }
   return { ...w, [key]: workspaceId }
+}
+
+/**
+ * 살아 있는 행만 보이게 한다. 호출부가 deletedAt 을 명시했으면 손대지 않는다(휴지통 등).
+ */
+function applySoftDelete(model: string, operation: string, where: unknown): Args {
+  const w: Args = (where && typeof where === 'object' ? { ...(where as Args) } : {})
+  if (!SOFT_DELETE_MODELS.has(model)) return w
+  if (!SOFT_DELETE_OPS.has(operation)) return w
+  if ('deletedAt' in w) return w // 호출부가 스코프를 정했다 — 존중한다
+  return { ...w, deletedAt: null }
 }
 
 /** create 의 data 한 건에 지정한 키를 강제한다. */
@@ -162,7 +200,7 @@ export function injectWorkspaceFilter(
 
   if (WHERE_OPS.has(operation)) {
     if (cls === 'self') {
-      return { ...a, where: guardWhere(model, a.where, 'id', workspaceId) }
+      return { ...a, where: applySoftDelete(model, operation, guardWhere(model, a.where, 'id', workspaceId)) }
     }
     if (cls === 'nullable') {
       // GLOBAL(null) 과 내 워크스페이스를 함께 본다. 남의 워크스페이스는 어느 쪽으로도 안 걸린다.
@@ -179,7 +217,7 @@ export function injectWorkspaceFilter(
         where: { ...w, OR: [{ workspaceId: null }, { workspaceId }] },
       }
     }
-    return { ...a, where: guardWhere(model, a.where, 'workspaceId', workspaceId) }
+    return { ...a, where: applySoftDelete(model, operation, guardWhere(model, a.where, 'workspaceId', workspaceId)) }
   }
 
   if (DATA_OPS.has(operation)) {

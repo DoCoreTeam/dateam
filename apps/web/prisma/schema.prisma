@@ -188,7 +188,9 @@ model CrmMember {
 
   workspace CrmWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
 
-  @@unique([workspaceId, hostUserId])
+  // 유일성은 DB 의 부분 유니크 인덱스가 지킨다(마이그 201) — Prisma 는 부분·함수 인덱스를 표현하지 못한다.
+  // 여기서는 조회용 인덱스로만 선언한다. upsert 는 id 기준으로, 조회는 findFirst 로 한다.
+  @@index([workspaceId, hostUserId])
   @@index([workspaceId, email])
   @@map("crm_member")
 }
@@ -219,7 +221,9 @@ model CrmCompany {
   deals     CrmDeal[]
   activity  CrmActivity[]
 
-  @@unique([workspaceId, domain])
+  // 유일성은 DB 의 부분 유니크 인덱스가 지킨다(마이그 201) — Prisma 는 부분·함수 인덱스를 표현하지 못한다.
+  // 여기서는 조회용 인덱스로만 선언한다. upsert 는 id 기준으로, 조회는 findFirst 로 한다.
+  @@index([workspaceId, domain])
   @@index([workspaceId, name])
   @@index([workspaceId, updatedAt])
   @@map("crm_company")
@@ -248,7 +252,9 @@ model CrmPerson {
   dealContacts CrmDealContact[]
   activity     CrmActivity[]
 
-  @@unique([workspaceId, email])
+  // 유일성은 DB 의 부분 유니크 인덱스가 지킨다(마이그 201) — Prisma 는 부분·함수 인덱스를 표현하지 못한다.
+  // 여기서는 조회용 인덱스로만 선언한다. upsert 는 id 기준으로, 조회는 findFirst 로 한다.
+  @@index([workspaceId, email])
   @@index([workspaceId, companyId])
   @@index([workspaceId, name])
   @@map("crm_person")
@@ -268,7 +274,9 @@ model CrmPipeline {
   stages    CrmStage[]
   deals     CrmDeal[]
 
-  @@unique([workspaceId, name])
+  // 유일성은 DB 의 부분 유니크 인덱스가 지킨다(마이그 201) — Prisma 는 부분·함수 인덱스를 표현하지 못한다.
+  // 여기서는 조회용 인덱스로만 선언한다. upsert 는 id 기준으로, 조회는 findFirst 로 한다.
+  @@index([workspaceId, name])
   @@map("crm_pipeline")
 }
 
@@ -380,7 +388,9 @@ model CrmActivity {
   deal      CrmDeal?     @relation(fields: [dealId], references: [id], onDelete: Cascade)
   meeting   CrmMeeting?  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
 
-  @@unique([workspaceId, gmailMessageId])
+  // 유일성은 DB 의 부분 유니크 인덱스가 지킨다(마이그 201) — Prisma 는 부분·함수 인덱스를 표현하지 못한다.
+  // 여기서는 조회용 인덱스로만 선언한다. upsert 는 id 기준으로, 조회는 findFirst 로 한다.
+  @@index([workspaceId, gmailMessageId])
   @@index([workspaceId, occurredAt])
   @@index([workspaceId, dealId, occurredAt])
   @@map("crm_activity")

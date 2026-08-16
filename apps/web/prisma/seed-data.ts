@@ -88,6 +88,8 @@ export const SEED_PIPELINES: SeedPipeline[] = [
 
 /** 워크스페이스 소유자 — 호스트 profiles.id 를 그대로 쓴다(CrmMember.hostUserId) */
 export const SEED_OWNER = {
+  /** 고정 id — 유일성은 DB 의 부분 유니크 인덱스(마이그 201)가 지키므로 upsert 는 id 로 한다 */
+  id: 'mb_owner',
   hostUserId: 'f687c53a-2a1e-4616-9fc4-2c4b52b77d7f',
   displayName: '김도현',
   email: 'michaelkim@data-alliance.com',

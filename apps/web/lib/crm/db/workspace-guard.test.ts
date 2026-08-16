@@ -10,6 +10,7 @@ import {
   TENANT_NULLABLE,
   WORKSPACE_SELF,
   PARENT_SCOPED,
+  SOFT_DELETE_MODELS,
 } from './workspace-guard.ts'
 import { CrmError } from '../domain/errors.ts'
 
@@ -22,7 +23,8 @@ const OTHER = 'ws_theirs'
 
 test('where 가 없으면 workspaceId 조건을 만들어 넣는다', () => {
   const out = injectWorkspaceFilter({}, WS, 'findMany', 'CrmDeal') as Record<string, any>
-  assert.deepEqual(out.where, { workspaceId: WS })
+  // deletedAt: null 도 함께 붙는다 — 소프트 삭제 모델이기 때문(아래 별도 테스트 참조)
+  assert.deepEqual(out.where, { workspaceId: WS, deletedAt: null })
 })
 
 test('where 가 이미 있으면 기존 조건을 보존한 채 workspaceId 만 더한다', () => {
@@ -30,7 +32,7 @@ test('where 가 이미 있으면 기존 조건을 보존한 채 workspaceId 만 
     { where: { status: 'OPEN' }, take: 20 },
     WS, 'findMany', 'CrmDeal',
   ) as Record<string, any>
-  assert.deepEqual(out.where, { status: 'OPEN', workspaceId: WS })
+  assert.deepEqual(out.where, { status: 'OPEN', workspaceId: WS, deletedAt: null })
   assert.equal(out.take, 20, '다른 인자는 그대로 유지되어야 한다')
 })
 
@@ -109,7 +111,7 @@ test('같은 workspaceId 를 명시하는 것은 통과한다', () => {
   const out = injectWorkspaceFilter(
     { where: { workspaceId: WS, status: 'OPEN' } }, WS, 'findMany', 'CrmDeal',
   ) as Record<string, any>
-  assert.deepEqual(out.where, { workspaceId: WS, status: 'OPEN' })
+  assert.deepEqual(out.where, { workspaceId: WS, status: 'OPEN', deletedAt: null })
 })
 
 test('workspaceId 가 빈 문자열이면 던진다 (세션 해석 실패를 조용히 넘기지 않는다)', () => {
@@ -151,7 +153,7 @@ test('Crm 으로 시작하지 않는 모델은 가드 대상이 아니다', () =
 
 test('CrmWorkspace 는 자기 id 로 판정한다', () => {
   const out = injectWorkspaceFilter({}, WS, 'findMany', 'CrmWorkspace') as Record<string, any>
-  assert.deepEqual(out.where, { id: WS })
+  assert.deepEqual(out.where, { id: WS, deletedAt: null })
 })
 
 test('CrmWorkspace 에 남의 id 를 주면 던진다', () => {
@@ -271,3 +273,63 @@ test('workspaceId 를 가진 모델은 free/parent 로 새어 나가지 않는�
     )
   }
 })
+
+// ------------------------------------------------------------
+// 소프트 삭제 자동 필터 (통합기획서 v0.2.1 473행 + 사용자 결정: 소프트 + 즉시삭제 선택)
+// ------------------------------------------------------------
+
+test('소프트 삭제 모델의 조회에는 deletedAt: null 이 자동으로 붙는다', () => {
+  for (const m of SOFT_DELETE_MODELS) {
+    const out = injectWorkspaceFilter({}, WS, 'findMany', m) as Record<string, any>
+    assert.equal(out.where.deletedAt, null, `${m} 에 삭제 필터가 안 붙었다 — 지운 것이 목록에 되살아난다`)
+  }
+})
+
+test('휴지통처럼 삭제된 것을 일부러 보려면 명시한다 — 명시하면 존중한다', () => {
+  const out = injectWorkspaceFilter(
+    { where: { deletedAt: { not: null } } }, WS, 'findMany', 'CrmCompany',
+  ) as Record<string, any>
+  assert.deepEqual(out.where.deletedAt, { not: null }, '휴지통을 열 수 없다')
+})
+
+test('영구 삭제(delete/deleteMany)에는 삭제 필터를 붙이지 않는다', () => {
+  // 붙이면 휴지통 비우기가 0건이 되어 아무 일도 안 일어난다
+  for (const op of ['delete', 'deleteMany']) {
+    const out = injectWorkspaceFilter({ where: { id: 'c1' } }, WS, op, 'CrmCompany') as Record<string, any>
+    assert.equal('deletedAt' in out.where, false, `${op} 에 삭제 필터가 붙었다`)
+  }
+})
+
+test('복구(update)는 삭제된 행을 명시해 되살릴 수 있다', () => {
+  const out = injectWorkspaceFilter(
+    { where: { id: 'c1', deletedAt: { not: null } }, data: { deletedAt: null } },
+    WS, 'update', 'CrmCompany',
+  ) as Record<string, any>
+  assert.deepEqual(out.where.deletedAt, { not: null })
+})
+
+test('deletedAt 컬럼이 없는 모델에는 붙이지 않는다 (Prisma 가 Unknown argument 로 던진다)', () => {
+  const out = injectWorkspaceFilter({}, WS, 'findMany', 'CrmAiRun') as Record<string, any>
+  assert.equal('deletedAt' in out.where, false, 'CrmAiRun 에는 deletedAt 컬럼이 없다')
+})
+
+test('소프트 삭제 분류가 스키마와 일치한다 (모델 추가 시 빠뜨림 차단)', () => {
+  const models = modelsFromSchema2()
+  for (const { name, hasDeletedAt } of models) {
+    assert.equal(
+      SOFT_DELETE_MODELS.has(name), hasDeletedAt,
+      `${name}: 스키마 deletedAt=${hasDeletedAt} 인데 분류는 ${SOFT_DELETE_MODELS.has(name)}`,
+    )
+  }
+})
+
+function modelsFromSchema2(): { name: string; hasDeletedAt: boolean }[] {
+  const src = readFileSync(SCHEMA_PATH, 'utf8')
+  const out: { name: string; hasDeletedAt: boolean }[] = []
+  const re = /^model\s+(\w+)\s*\{([\s\S]*?)^\}/gm
+  let m: RegExpExecArray | null
+  while ((m = re.exec(src)) !== null) {
+    out.push({ name: m[1], hasDeletedAt: /^\s*deletedAt\s+DateTime/m.test(m[2]) })
+  }
+  return out
+}
