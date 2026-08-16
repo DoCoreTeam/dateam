@@ -18,7 +18,7 @@
 | T0-09 | v0.5.8 | 정합성 테스트 2차 | DI-13~18, DI-23 (관문, 예산, 잠금, 세그먼트) | `pnpm test:integrity` 통과 | DONE (55/55 누적. 관문 규칙을 lib/crm/ai/apply-policy.ts 로 신설해 검증 — 명세 4.3 표를 코드로. ⚠️ DI-13·16·17 번호 배정은 재구성(원본 부재), DI-14·18·23 은 명세·스키마에 명시된 것) |
 | T0-10 | v0.5.9 | RLS 격리 테스트 | 2개 워크스페이스 시드, service role 에서 set_config 만으로 격리되는지 | `pnpm test:rls` 통과 | DONE (10/10. postgres 가 BYPASSRLS 라 그대로는 검증 불가 → 마이그 200 의 crm_rls_probe(NOLOGIN·NOBYPASSRLS)로 SET LOCAL ROLE 해 확인. SET ROLE 을 빼면 8/10 이 실패하는 것으로 테스트가 헛돌지 않음을 증명) |
 | T0-11 | v0.5.10 | 기존 데이터 이관 스크립트 | scripts/migrate-v04.ts: 기존 dacrm 데이터와 호스트 프로젝트관리의 영업 항목을 딜로 이관, 드라이런 모드 | 드라이런 리포트 생성, 왕복 검증(건수, 금액 합) 통과 | DONE (scripts/migrate-v04.ts + lib/crm/migrate/v04-map.ts. 드라이런 리포트 생성 확인, --apply 로 accounts12·contacts1·deals1 이관 후 왕복 검증 4/4 통과. 2회 실행 멱등, 원본 무변경 확인. 단위 20/20) |
-| T0-12 | v0.5.11 | Phase 0 게이트 | 전체 검증 | `pnpm typecheck && pnpm lint && pnpm test && pnpm build` 전부 통과, v0.5.0 태그 | TODO |
+| T0-12 | v0.5.11 | Phase 0 게이트 | 전체 검증 | tsc·lint·test·build 전부 통과, 태그 (※ `pnpm typecheck` 스크립트가 호스트에 없어 `pnpm exec tsc --noEmit`. build 는 dev 서버 가동 중 .next 충돌 금지(M-2)라 격리 워크트리에서 실행) | DONE (tsc 0 · lint 오류 0 · 단위 1948/1948 · 정합성 55/55 · RLS 10/10 · design:check 통과 · crm-check-db 9/9 · next build exit 0. 태그 `dacrm-v0.5.0`(호스트 v0.7.x 와 충돌 방지로 접두사, 미push)) |
 
 ## Phase 1 코어 CRM (목표 v0.6.0 ~ v0.7.0)
 
