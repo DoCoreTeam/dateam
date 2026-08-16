@@ -139,3 +139,55 @@
 .foot {
   margin-top: var(--space-4);
 }
+
+/* 파이프라인 편집 — 탭 옆에 모아 둔다(행과 섞이지 않게) */
+.pipeActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: nowrap;
+}
+
+.addRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.addRow > :first-child {
+  flex: 1;
+  max-width: 320px;
+}
+
+/* 단계 행의 액션 — 오른쪽 끝에 붙여 이름과 안 겹치게 */
+.stageActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: nowrap;
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: var(--hairline) solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.iconBtn:hover:not(:disabled) {
+  border-color: var(--border-color);
+  color: var(--text);
+}
+
+.iconBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

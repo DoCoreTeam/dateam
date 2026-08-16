@@ -44,8 +44,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/crm/meetings', label: '미팅', icon: <Mic size={16} /> },
       { href: '/crm/tasks', label: '할 일', icon: <CheckSquare size={16} /> },
-      { href: '/crm/audit', label: '기록', icon: <History size={16} /> },
-      { href: '/crm/process', label: '프로세스', icon: <Workflow size={16} /> },
+      // 그룹 이름이 "기록"인데 항목도 "기록"이면 같은 말이 두 번 나온다
+      { href: '/crm/audit', label: '변경 이력', icon: <History size={16} /> },
     ],
   },
   {
@@ -55,6 +55,13 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: '관리',
     items: [
+      /**
+       * 영업 단계는 **처음에 한 번 정하고 가끔 손보는 것**이다.
+       * 예전엔 [기록] 그룹에 "프로세스"라는 이름으로 8번째에 있었다 —
+       * 매일 쓰는 것 사이에 끼어 있어 처음 온 사람이 못 찾았다.
+       * 통상의 CRM 도 이걸 설정 안에 둔다(Pipedrive: 설정 → 회사 설정 → Pipelines and stages).
+       */
+      { href: '/crm/process', label: '영업 단계', icon: <Workflow size={16} /> },
       { href: '/crm/members', label: '멤버', icon: <Users size={16} /> },
       { href: '/crm/settings', label: '설정', icon: <Settings size={16} /> },
     ],
