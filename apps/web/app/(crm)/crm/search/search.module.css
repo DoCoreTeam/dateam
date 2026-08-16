@@ -1,0 +1,73 @@
+/* CRM 안에서 찾기 (dacrm) */
+.bar {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.bar > :first-child {
+  flex: 1;
+}
+
+.hint {
+  margin: var(--space-3) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.group {
+  margin-bottom: var(--space-5);
+}
+
+/* 종류를 먼저 밝힌다 — "삼성"이 회사인지 딜인지가 곧 답이다 */
+.groupTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.item {
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+/* 줄 전체가 링크다 — 제목만 눌러야 하면 매번 조준하게 된다 */
+.link {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2) var(--space-3);
+  min-height: var(--control-h);
+  justify-content: center;
+}
+
+.title {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.link:hover .title {
+  color: var(--brand);
+}
+
+.sub {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}

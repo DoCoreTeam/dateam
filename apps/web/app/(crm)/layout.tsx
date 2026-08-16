@@ -147,6 +147,8 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
       items={navItems}
       groups={NAV_GROUPS}
       branding={{ logoUrl: branding.logoUrl, brandName: branding.brandName }}
+      // CRM 안에서는 CRM 을 찾는다 — 밖으로 데리고 나가지 않는다
+      search={{ action: '/crm/search', placeholder: '회사·사람·딜 찾기…' }}
       session={{
         name: access.session.displayName || profile?.name || '팀원',
         email: user?.email ?? '',

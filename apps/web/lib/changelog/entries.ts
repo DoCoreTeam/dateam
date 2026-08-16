@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.526',
+    date: '2026-08-17',
+    title: '영업 CRM 안에서 검색하면 CRM을 찾아요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🔎',
+        headline: '검색창이 더 이상 엉뚱한 곳으로 데려가지 않아요',
+        detail: '영업 CRM에서 "삼성"을 치면 업무 검색으로 나가 버려서 정작 삼성SDS 회사·딜은 못 찾았어요. 이제 회사·인물·딜·미팅을 한 번에 찾아 종류별로 보여 줍니다. 회사는 도메인으로, 사람은 이메일로도 찾을 수 있어요.',
+      },
+    ],
+  },
+  {
     version: '0.7.525',
     date: '2026-08-17',
     title: '확인할 게 있으면 메뉴에서 바로 알려 줘요',

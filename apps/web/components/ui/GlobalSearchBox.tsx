@@ -8,7 +8,19 @@ import { useRouter } from 'next/navigation'
 import { Search, X } from 'lucide-react'
 import { isEnterKey } from '@/lib/ui/ime'
 
-export default function GlobalSearchBox() {
+/**
+ * 어디로 찾으러 갈지.
+ *
+ * 기본은 호스트 업무 검색이다. 다만 **워크스페이스 안(CRM 등)에서는 그 안을 찾아야** 한다 —
+ * CRM 에서 "삼성"을 쳤는데 CRM 을 떠나 업무 문서가 나오면, 사람은 검색이 고장 났다고 본다.
+ */
+export interface GlobalSearchBoxProps {
+  /** 결과 화면 경로. 검색어는 `?q=` 로 붙는다 */
+  action?: string
+  placeholder?: string
+}
+
+export default function GlobalSearchBox({ action = '/work/search', placeholder }: GlobalSearchBoxProps = {}) {
   const router = useRouter()
   const [value, setValue] = useState('')
   const [expanded, setExpanded] = useState(false) // 모바일 확장 상태
@@ -25,7 +37,7 @@ export default function GlobalSearchBox() {
       inputRef.current?.focus()
       return
     }
-    router.push(`/work/search?q=${encodeURIComponent(q)}`)
+    router.push(`${action}?q=${encodeURIComponent(q)}`)
     setExpanded(false)
   }
 
@@ -70,7 +82,7 @@ export default function GlobalSearchBox() {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="업무 통합 검색…"
+          placeholder={placeholder ?? '업무 통합 검색…'}
           aria-label="업무 통합 검색"
           enterKeyHint="search"
         />

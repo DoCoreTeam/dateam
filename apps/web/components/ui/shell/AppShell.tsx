@@ -50,6 +50,13 @@ export interface AppShellProps {
   session: ShellSession
   branding?: { logoUrl?: string | null; brandName?: string }
   workspace?: WorkspaceContext
+  /**
+   * 검색이 어디를 찾을지.
+   *
+   * 워크스페이스 안(CRM 등)에서는 그 안을 찾아야 한다 — 안 그러면 검색이
+   * 사용자를 지금 보던 곳 밖으로 데리고 나간다. 안 주면 호스트 업무 검색이다.
+   */
+  search?: { action: string; placeholder?: string }
   /** 추가는 가능, 기본 제거는 불가 */
   extras?: {
     headerLeft?: ReactNode
@@ -65,6 +72,7 @@ export default function AppShell({
   session,
   branding,
   workspace,
+  search,
   extras,
   children,
 }: AppShellProps) {
@@ -82,7 +90,7 @@ export default function AppShell({
       headerRight={
         <>
           {extras?.headerExtra}
-          <GlobalSearchBox />
+          <GlobalSearchBox action={search?.action} placeholder={search?.placeholder} />
           <QuickNav />
         </>
       }
