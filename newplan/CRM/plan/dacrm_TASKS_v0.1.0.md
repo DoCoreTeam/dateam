@@ -15,7 +15,7 @@
 | T0-06 | v0.5.5 | 상태 머신 | domain/state-machines.ts, errors.ts | 단위 테스트: 3.4 전이표 전 케이스(허용, 금지) 통과 | DONE (lib/crm/domain/state-machines.ts. 28/28 — 딜 9조합·녹음 25조합·제안 25조합 전수 대조 + 예산 판정 7건. errors.ts 는 T0-04 에서 선행 생성. WON→LOST 를 허용시켜 실제로 실패시킨 뒤 원복) |
 | T0-07 | v0.5.6 | 시드 | 워크스페이스 1, 멤버(본인), 파이프라인 4종(GPU 인프라, 파트너십, 공공, KDC 제품)과 스테이지 | `pnpm prisma db seed` 후 조회 스크립트로 검증 | DONE (prisma/seed.ts + seed-data.ts. 적용 완료: 워크스페이스1·멤버1(OWNER 김도현)·파이프라인4·스테이지25. 검증 21항목 통과(seed --verify-only 내장), 2회 실행 멱등 확인, 단위 10/10) |
 | T0-08 | v0.5.7 | 정합성 테스트 1차 | tests/crm/integrity/ DI-01~09 (격리, 중복, 전이) | `pnpm test:integrity` 통과 | DONE (29/29, 실 DB 대상. ⚠️ DI 번호 정의 원본(통합기획서 v0.2.1)이 저장소에 없어 명세·스키마의 흩어진 참조 + TASKS 가 지정한 범주로 재구성했다 — 각 파일 헤더에 근거 명시. 원본 입수 시 대조 필요) |
-| T0-09 | v0.5.8 | 정합성 테스트 2차 | DI-13~18, DI-23 (관문, 예산, 잠금, 세그먼트) | `pnpm test integrity` 통과 | TODO |
+| T0-09 | v0.5.8 | 정합성 테스트 2차 | DI-13~18, DI-23 (관문, 예산, 잠금, 세그먼트) | `pnpm test:integrity` 통과 | DONE (55/55 누적. 관문 규칙을 lib/crm/ai/apply-policy.ts 로 신설해 검증 — 명세 4.3 표를 코드로. ⚠️ DI-13·16·17 번호 배정은 재구성(원본 부재), DI-14·18·23 은 명세·스키마에 명시된 것) |
 | T0-10 | v0.5.9 | RLS 격리 테스트 | 2개 워크스페이스 시드, service role 에서 set_config 만으로 격리되는지 | `pnpm test rls` 통과 | TODO |
 | T0-11 | v0.5.10 | 기존 데이터 이관 스크립트 | scripts/migrate-v04.ts: 기존 dacrm 데이터와 호스트 프로젝트관리의 영업 항목을 딜로 이관, 드라이런 모드 | 드라이런 리포트 생성, 왕복 검증(건수, 금액 합) 통과 | TODO |
 | T0-12 | v0.5.11 | Phase 0 게이트 | 전체 검증 | `pnpm typecheck && pnpm lint && pnpm test && pnpm build` 전부 통과, v0.5.0 태그 | TODO |
