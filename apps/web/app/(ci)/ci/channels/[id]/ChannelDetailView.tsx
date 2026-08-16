@@ -9,6 +9,8 @@ import ContentCard from '@/components/ci/ContentCard'
 import DetailSheet from '@/components/ci/DetailSheet'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
+import ConfirmDeleteDialog from '@/components/ui/ConfirmDeleteDialog'
+import { useCiDelete } from '@/lib/ci/use-delete'
 
 interface Props {
   workspaceId: string
@@ -27,6 +29,9 @@ interface Props {
 
 export default function ChannelDetailView({ workspaceId, channel, contents, insight }: Props) {
   const router = useRouter()
+  // 목록에서만 지울 수 있고 상세에서는 못 지우던 것을 맞춘다 —
+  // 상세까지 들어와서 판단을 끝내는 흐름이 자연스럽다
+  const del_ = useCiDelete(workspaceId, () => router.push('/ci/monitoring'))
   const [openId, setOpenId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -167,6 +172,11 @@ export default function ChannelDetailView({ workspaceId, channel, contents, insi
               {channel.isMonitored ? '모니터링 중지' : '모니터링 시작'}
             </button>
           )}
+          {/* 지켜보기를 멈추는 것과 없애는 것은 다른 일이다.
+              내 채널이든 관심 채널이든 지울 수 있어야 목록을 정리할 수 있다. */}
+          <button type="button" className="btn-ghost"
+            onClick={() => del_.ask({ kind: 'channel', id: channel.id, title: '이 채널을 지울까요?' })}
+            disabled={busy}>지우기</button>
           {notice && <span className="ci-basis" role="status">{notice}</span>}
           {channel.metaError && !notice && !error && (
             <span className="ci-status ci-status-warn">{channel.metaError}</span>
@@ -226,6 +236,18 @@ export default function ChannelDetailView({ workspaceId, channel, contents, insi
         onClose={() => setOpenId(null)}
         onNextStep={(id) => router.push(`/ci/pipeline?from=${id}`)}
       />
+
+      {del_.pending && (
+        <ConfirmDeleteDialog
+          title={del_.pending.title}
+          impact={del_.impact}
+          loading={del_.loading}
+          busy={del_.busy}
+          errorMessage={del_.errorMessage}
+          onConfirm={del_.confirm}
+          onClose={del_.close}
+        />
+      )}
     </>
   )
 }

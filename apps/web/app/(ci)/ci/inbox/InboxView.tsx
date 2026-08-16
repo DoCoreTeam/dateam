@@ -11,7 +11,7 @@ import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import Link from 'next/link'
-import type { CiContentListItem } from '@/lib/ci/contracts'
+import type { ApiResponse, CiContentListItem } from '@/lib/ci/contracts'
 import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
 import PageHeader from '@/components/ui/PageHeader'
 import StageNav, { RESEARCH_STAGES } from '@/components/ci/StageNav'
@@ -26,6 +26,9 @@ import { useListQuery } from '@/lib/ui/use-list-query'
 import type { ListDefaults } from '@/lib/ui/list-query'
 import ConfirmDeleteDialog from '@/components/ui/ConfirmDeleteDialog'
 import { useCiDelete } from '@/lib/ci/use-delete'
+
+/** 셀렉트에서 '새로 만들기'를 뜻하는 값. 실제 id와 겹치지 않는다(uuid가 아니다). */
+const NEW_TOPIC = '__new__'
 
 type Tab = 'all' | 'review' | 'failed'
 
@@ -95,6 +98,19 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
     if (next === 'all') params.delete('tab')
     else params.set('tab', next)
     router.push(`/ci/inbox${params.toString() ? `?${params}` : ''}`, { scroll: false })
+  }
+
+  /** 셀렉트에서 "새 주제 만들기"를 고르면 이름을 받아 만들고 그대로 지정한다. */
+  async function createTopicAndAssign(contentId: string) {
+    const name = window.prompt('새 주제 이름')?.trim()
+    if (!name) { router.refresh(); return }   // 취소하면 셀렉트를 원래대로 되돌린다
+    const res = await fetch('/api/ci/topics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CI-Workspace': workspaceId },
+      body: JSON.stringify({ name }),
+    }).then((r) => r.json() as Promise<ApiResponse<{ id: string }>>)
+    if (!res.success) { router.refresh(); return }
+    await confirmTopic(contentId, res.data.id)
   }
 
   async function retry(id: string) {
@@ -172,9 +188,14 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
           <select className="input-field" id={`t-${item.id}`} style={{ width: 'auto', maxWidth: '8rem' }}
             defaultValue={item.topic?.id ?? ''}
             disabled={savingTopic === item.id}
-            onChange={(e) => confirmTopic(item.id, e.target.value || null)}>
+            onChange={(e) => (e.target.value === NEW_TOPIC
+              ? createTopicAndAssign(item.id)
+              : confirmTopic(item.id, e.target.value || null))}>
             <option value="">미분류</option>
             {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            {/* 주제를 사람이 만들 길이 없어 AI가 만든 것만 쓸 수 있었다.
+                새 부품을 만들지 않고 이미 있는 셀렉트를 늘린다. */}
+            <option value={NEW_TOPIC}>+ 새 주제 만들기…</option>
           </select>
           {item.topicConfidence != null && item.topicConfidence > 0 && (
             <span className="ci-basis ci-num" title="AI가 주제를 정한 확신도">{Math.round(item.topicConfidence * 100)}%</span>

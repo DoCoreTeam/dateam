@@ -39,6 +39,20 @@ export default function BoardsView({
 }: { workspaceId: string; boards: Board[]; pendingContentId: string | null }) {
   const router = useRouter()
   const del_ = useCiDelete(workspaceId, () => router.refresh())
+  // 이름 바꾸기 — 만들 때 오타를 내면 고칠 방법이 없었다
+  const [renaming, setRenaming] = useState<string | null>(null)
+  const [nameDraft, setNameDraft] = useState('')
+
+  async function rename(id: string) {
+    const next = nameDraft.trim()
+    if (!next) return
+    const res = await fetch(`/api/ci/boards/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-CI-Workspace': workspaceId },
+      body: JSON.stringify({ name: next }),
+    }).then((r) => r.json() as Promise<ApiResponse<{ name: string }>>)
+    if (res.success) { setRenaming(null); router.refresh() }
+  }
   const { query, set } = useListQuery(LIST_DEFAULTS, { persistKey: '/ci/boards' })
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
@@ -92,7 +106,19 @@ export default function BoardsView({
   const columns: ColumnDef<Board>[] = [
     {
       key: 'name', header: '보드', primary: true, sortable: 'name',
-      cell: (b) => <strong>{b.name}</strong>,
+      cell: (b) => (renaming === b.id ? (
+        <span onClick={(e) => e.stopPropagation()} style={{ display: 'inline-flex', gap: 'var(--space-2)' }}>
+          <label className="label" htmlFor={`bn-${b.id}`} style={{ position: 'absolute', left: '-9999px' }}>보드 이름</label>
+          <input className="input-field" id={`bn-${b.id}`} value={nameDraft} autoFocus
+            onChange={(e) => setNameDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (isEnterKey(e)) { e.preventDefault(); void rename(b.id) }
+              if (e.key === 'Escape') { e.preventDefault(); setRenaming(null) }
+            }} />
+          <button type="button" className="btn-primary" onClick={() => rename(b.id)}>저장</button>
+          <button type="button" className="btn-ghost" onClick={() => setRenaming(null)}>취소</button>
+        </span>
+      ) : <strong>{b.name}</strong>),
     },
     {
       key: 'itemCount', header: '담긴 항목', sortable: 'itemCount', align: 'right',
@@ -110,7 +136,10 @@ export default function BoardsView({
       // 담는 중에 지우기 버튼이 같이 있으면 잘못 누르기 쉽다(되돌릴 수 없는 일이다).
       key: 'actions', header: '작업', noLabel: true, align: 'right' as const,
       cell: (b: Board) => (
-        <span onClick={(e) => e.stopPropagation()}>
+        <span onClick={(e) => e.stopPropagation()} style={{ display: 'inline-flex', gap: 'var(--space-2)' }}>
+          <button type="button" className="btn-ghost"
+            onClick={() => { setNameDraft(b.name); setRenaming(b.id) }}
+            aria-label="보드 이름 바꾸기" title="이름 바꾸기">이름 바꾸기</button>
           <button type="button" className="btn-ghost"
             onClick={() => del_.ask({ kind: 'board', id: b.id, title: '이 보드를 지울까요?' })}
             aria-label="보드 지우기" title="지우기">지우기</button>
@@ -160,6 +189,9 @@ export default function BoardsView({
         query={query}
         rowKey={(b) => b.id}
         onChange={set}
+        // 상세가 있는 목록의 행은 살아 있어야 한다(§2-3-1).
+        // 담을 항목을 들고 왔을 때는 "여기에 담기"가 우선이라 링크를 끈다.
+        rowHref={pendingContentId ? undefined : (b) => `/ci/boards/${b.id}`}
         empty={query.q
           ? { title: '찾는 보드가 없어요', description: '다른 이름으로 찾아보세요', action: { label: '검색 지우기', onClick: () => set({ q: '' }) } }
           : {

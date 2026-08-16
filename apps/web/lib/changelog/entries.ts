@@ -32,6 +32,16 @@ export interface ChangelogNote {
 // 최신이 위로 — 사용자 체감 기능만 큐레이션.
 export const CHANGELOG: ChangelogNote[] = [
   {
+    version: '0.7.506', date: '2026-08-16', title: '보드를 열어볼 수 있고, 남은 곳도 고치고 지울 수 있어요',
+    items: [
+      { kind: 'feature', emoji: '📋', headline: '보드에 담은 것을 열어보고 뺄 수 있어요', detail: '예전에는 "담긴 항목 3건"이라고만 보이고 열어볼 화면이 없어서, 잘못 담은 것을 뺄 수도 없었어요. 이제 보드를 눌러 담긴 것을 보고 하나씩 뺄 수 있습니다. 빼도 원본 게시물은 그대로 남습니다.' },
+      { kind: 'feature', emoji: '🏷️', headline: '보드 이름을 바꿀 수 있어요', detail: '만들 때 오타를 내면 고칠 방법이 없었어요.' },
+      { kind: 'feature', emoji: '🗑️', headline: '채널 상세와 기획·편집안에서도 지울 수 있어요', detail: '채널은 목록에서만 지울 수 있었고, 기획과 편집안은 아예 지울 수 없었어요.' },
+      { kind: 'feature', emoji: '🆕', headline: '주제를 직접 만들 수 있어요', detail: '주제 고르는 칸에서 "새 주제 만들기"를 고르면 됩니다. 예전에는 자동으로 만들어진 주제만 쓸 수 있었어요.' },
+      { kind: 'improve', emoji: '↩️', headline: '설정을 기본값으로 되돌릴 수 있어요', detail: '바꾼 설정 옆의 "기본값으로"를 누르면 됩니다.' },
+    ],
+  },
+  {
     version: '0.7.502', date: '2026-08-16', title: '통계를 흐리는 게시물을 뺄 수 있어요',
     items: [
       { kind: 'feature', emoji: '📊', headline: '게시물을 지우지 않고 통계에서만 뺄 수 있어요', detail: '잘못 수집돼 배수를 흐리는 게시물을, 기록은 남긴 채 집계에서만 제외할 수 있습니다. 상세 화면의 "통계에서 빼기"를 누르고 이유를 남기면 됩니다.' },

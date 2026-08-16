@@ -13,6 +13,8 @@ import ListSurface from '@/components/ui/list/ListSurface'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import type { ListDefaults } from '@/lib/ui/list-query'
+import ConfirmDeleteDialog from '@/components/ui/ConfirmDeleteDialog'
+import { useCiDelete } from '@/lib/ci/use-delete'
 
 type Field = keyof BriefDraft
 
@@ -52,6 +54,13 @@ export default function BriefEditor({
   editPlans: EditPlan[]
 }) {
   const router = useRouter()
+  // 접은 기획을 없앤다. 예전엔 만들 수만 있어 안 쓸 기획이 계속 쌓였다.
+  // 이 기획으로 만든 편집안도 함께 사라진다(대화상자가 미리 알려 준다).
+  const del_ = useCiDelete(workspaceId, (done) => {
+    // 기획을 지웠으면 목록으로, 편집안만 지웠으면 이 화면을 새로고침한다
+    if (done.kind === 'brief') router.push('/ci/pipeline')
+    else router.refresh()
+  })
   // 편집안 표도 목록 부품을 쓴다 — 정렬·검색이 없으니 보기 값만 읽는다
   const { query: planQuery } = useListQuery(PLAN_DEFAULTS)
   const [state, setState] = useState<BriefState>(brief)
@@ -166,7 +175,14 @@ export default function BriefEditor({
     {
       key: 'actions', header: '작업', align: 'right',
       cell: (p) => (
-        <button type="button" className="btn-ghost" onClick={() => exportPlan(p)}>내보내기</button>
+        <span style={{ display: 'inline-flex', gap: 'var(--space-2)' }}>
+          <button type="button" className="btn-ghost" onClick={() => exportPlan(p)}>내보내기</button>
+          {/* 여러 안을 만들어 비교하는 화면이라, 버린 안을 없앨 길이 있어야 목록이 쓸모 있다 */}
+          <button type="button" className="btn-ghost"
+            onClick={() => del_.ask({ kind: 'editPlan', id: p.id, title: '이 편집안을 지울까요?' })}>
+            지우기
+          </button>
+        </span>
       ),
     },
   ]
@@ -365,9 +381,27 @@ export default function BriefEditor({
         />
       </section>
 
-      <p style={{ marginTop: 'var(--space-6)' }}>
+      <p style={{
+        marginTop: 'var(--space-6)', display: 'flex', gap: 'var(--space-2)', alignItems: 'center',
+      }}>
         <Link href="/ci/publish" className="btn-primary">게시 준비로 보내기</Link>
+        <button type="button" className="btn-ghost"
+          onClick={() => del_.ask({ kind: 'brief', id: state.id, title: '이 기획을 지울까요?' })}>
+          지우기
+        </button>
       </p>
+
+      {del_.pending && (
+        <ConfirmDeleteDialog
+          title={del_.pending.title}
+          impact={del_.impact}
+          loading={del_.loading}
+          busy={del_.busy}
+          errorMessage={del_.errorMessage}
+          onConfirm={del_.confirm}
+          onClose={del_.close}
+        />
+      )}
     </>
   )
 }

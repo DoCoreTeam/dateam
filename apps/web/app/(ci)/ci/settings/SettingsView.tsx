@@ -111,6 +111,25 @@ export default function SettingsView({ workspaceId }: { workspaceId: string }) {
     } finally { setSavingKey(null) }
   }
 
+  /**
+   * 이 설정만 기본값으로 되돌린다.
+   * 저장한 값을 지우면 상위 기본값이 다시 적용된다 — 되돌릴 수 있는 일이라 확인창을 두지 않는다.
+   * (시스템 설정은 서버가 거부한다)
+   */
+  async function revert(item: SettingItem) {
+    setSavingKey(item.key); setError(null)
+    try {
+      const res = await fetch(
+        `/api/ci/settings?key=${encodeURIComponent(item.key)}&scope=${item.scope}`,
+        { method: 'DELETE', headers: { 'X-CI-Workspace': workspaceId } },
+      ).then((r) => r.json() as Promise<ApiResponse<unknown>>)
+      if (!res.success) { setError({ code: res.error.code, message: res.error.message }); return }
+      setToast(`${item.label} 기본값으로 되돌렸습니다`)
+      setTimeout(() => setToast(null), 2000)
+      await load()
+    } finally { setSavingKey(null) }
+  }
+
   /** 검색 중에는 탭을 무시하고 전체에서 찾는다 — 어느 탭에 있는지 모를 때가 검색을 쓰는 때다. */
   const visible = useMemo(() => {
     if (!items) return []
@@ -172,7 +191,8 @@ export default function SettingsView({ workspaceId }: { workspaceId: string }) {
           )}
           {visible.map((item) => (
             <SettingRow key={item.key} item={item} saving={savingKey === item.key}
-              onSave={(v) => void save(item, v)} />
+              onSave={(v) => void save(item, v)}
+              onRevert={item.scope === 'system' ? undefined : () => void revert(item)} />
           ))}
         </div>
       )}
@@ -256,8 +276,10 @@ function OverviewPanel({ overview }: { overview: Overview | null }) {
 }
 
 /** 설정 한 줄 — 컨트롤은 레지스트리가 정한 대로 그린다. */
-function SettingRow({ item, saving, onSave }: {
+function SettingRow({ item, saving, onSave, onRevert }: {
   item: SettingItem; saving: boolean; onSave: (v: unknown) => void
+  /** 기본값으로 되돌리기. 시스템 설정처럼 되돌릴 수 없는 것은 넘기지 않는다 */
+  onRevert?: () => void
 }) {
   return (
     <section className="ci-setting-card">
@@ -266,7 +288,13 @@ function SettingRow({ item, saving, onSave }: {
           <h3 style={{ fontSize: 'var(--fs-sm)', fontWeight: 700 }}>{item.label}</h3>
           <p className="ci-basis">{item.help}</p>
         </div>
-        <span className="ci-basis">{ORIGIN_LABEL[item.origin] ?? item.origin}</span>
+        <span style={{ display: 'inline-flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+          <span className="ci-basis">{ORIGIN_LABEL[item.origin] ?? item.origin}</span>
+          {onRevert && (
+            <button type="button" className="btn-ghost" onClick={onRevert} disabled={saving}
+              title="저장한 값을 지워 기본값으로 되돌립니다">기본값으로</button>
+          )}
+        </span>
       </div>
       <div style={{ marginTop: 'var(--space-3)' }}>
         <Control item={item} disabled={saving} onCommit={onSave} />

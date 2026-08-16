@@ -39,7 +39,13 @@ export interface PendingDelete {
   title: string
 }
 
-export function useCiDelete(workspaceId: string, onDone?: () => void) {
+/**
+ * `onDone`은 **무엇을 지웠는지** 받는다.
+ * 호출부가 `del_.pending`을 되읽으면 이미 비워지는 중이라 종류를 알 수 없다 —
+ * 기획을 지웠으면 목록으로, 편집안을 지웠으면 그 자리에서 새로고침처럼
+ * **종류에 따라 다음 행동이 갈리는 화면**이 있으므로 값으로 넘긴다.
+ */
+export function useCiDelete(workspaceId: string, onDone?: (deleted: PendingDelete) => void) {
   const [pending, setPending] = useState<PendingDelete | null>(null)
   const [impact, setImpact] = useState<DeleteImpactView | null>(null)
   const [loading, setLoading] = useState(false)
@@ -81,8 +87,9 @@ export function useCiDelete(workspaceId: string, onDone?: () => void) {
 
       if (!res.success) { setErrorMessage(res.error.message); return }
 
+      const done = pending
       setPending(null); setImpact(null)
-      onDone?.()
+      onDone?.(done)
     } catch {
       setErrorMessage('지우지 못했습니다. 잠시 후 다시 시도해 주세요')
     } finally {
