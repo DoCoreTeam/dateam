@@ -1,0 +1,1102 @@
+<title>342개의 꺼진 스위치</title>
+
+<style>
+  /* ── 팔레트: 진단서. 차가운 종이 위 딥 틸 — 임상 차트의 인상 ────────── */
+  :root {
+    --ground:      #F5F7F8;
+    --surface:     #FFFFFF;
+    --surface-2:   #EDF1F2;
+    --ink:         #11151A;
+    --ink-2:       #39414C;
+    --muted:       #667180;
+    --faint:       #8C96A3;
+    --hair:        #DFE4E7;
+    --hair-strong: #C6CED3;
+    --accent:      #0E5C52;
+    --accent-ink:  #0A4740;
+    --accent-soft: #E2EFEC;
+
+    --crit:      #A82A1E;
+    --crit-soft: #FBEBE9;
+    --high:      #9A5108;
+    --high-soft: #FCF0E2;
+    --info:      #1B4FA8;
+    --info-soft: #E8EFFA;
+    --ok:        #14664A;
+    --ok-soft:   #E3F1EB;
+
+    --sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+            'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', system-ui, sans-serif;
+    --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, 'JetBrains Mono',
+            'D2Coding', 'Noto Sans Mono CJK KR', monospace;
+
+    --measure: 70ch;
+    --wide: 1000px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #0C0F12;
+      --surface:     #14191E;
+      --surface-2:   #1B2128;
+      --ink:         #E6EBEE;
+      --ink-2:       #BFC8D1;
+      --muted:       #93A0AC;
+      --faint:       #6C7986;
+      --hair:        #232A31;
+      --hair-strong: #333C45;
+      --accent:      #4FD1B8;
+      --accent-ink:  #7FE3CF;
+      --accent-soft: #10302B;
+
+      --crit:      #F2867A;
+      --crit-soft: #2E1614;
+      --high:      #E4A44A;
+      --high-soft: #2C2013;
+      --info:      #8FB4F2;
+      --info-soft: #16233A;
+      --ok:        #5CCBA5;
+      --ok-soft:   #10291F;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #0C0F12;
+    --surface:     #14191E;
+    --surface-2:   #1B2128;
+    --ink:         #E6EBEE;
+    --ink-2:       #BFC8D1;
+    --muted:       #93A0AC;
+    --faint:       #6C7986;
+    --hair:        #232A31;
+    --hair-strong: #333C45;
+    --accent:      #4FD1B8;
+    --accent-ink:  #7FE3CF;
+    --accent-soft: #10302B;
+
+    --crit:      #F2867A;
+    --crit-soft: #2E1614;
+    --high:      #E4A44A;
+    --high-soft: #2C2013;
+    --info:      #8FB4F2;
+    --info-soft: #16233A;
+    --ok:        #5CCBA5;
+    --ok-soft:   #10291F;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+    word-break: keep-all;
+  }
+
+  /* ── 뼈대 ────────────────────────────────────────────────────────── */
+  .page {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    max-width: 1360px;
+    margin: 0 auto;
+    padding: 0 20px 120px;
+  }
+
+  @media (min-width: 1120px) {
+    .page {
+      grid-template-columns: 232px minmax(0, 1fr);
+      column-gap: 56px;
+      padding: 0 40px 140px;
+    }
+  }
+
+  main { min-width: 0; }
+
+  .flow > * { margin-inline: auto; max-width: var(--measure); }
+  .flow > .wide { max-width: var(--wide); }
+
+  /* ── 목차 레일 ───────────────────────────────────────────────────── */
+  nav.toc { display: none; }
+
+  @media (min-width: 1120px) {
+    nav.toc {
+      display: block;
+      position: sticky;
+      top: 0;
+      align-self: start;
+      max-height: 100vh;
+      overflow-y: auto;
+      padding: 132px 0 40px;
+      font-size: 13.5px;
+      line-height: 1.5;
+    }
+    nav.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+    nav.toc a {
+      display: grid;
+      grid-template-columns: 20px 1fr;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 5px;
+      color: var(--muted);
+      text-decoration: none;
+      transition: background .14s ease, color .14s ease;
+    }
+    nav.toc a:hover, nav.toc a:focus-visible { background: var(--surface-2); color: var(--ink); }
+    nav.toc .n { font-family: var(--mono); font-size: 11.5px; color: var(--faint); padding-top: 2px; }
+    nav.toc .rule { height: 1px; background: var(--hair); margin: 12px 8px; }
+    nav.toc .note {
+      padding: 0 8px; color: var(--faint); font-size: 12px; line-height: 1.55;
+    }
+  }
+
+  /* ── 머리 ────────────────────────────────────────────────────────── */
+  header.mast { padding: 108px 0 0; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 20px;
+  }
+
+  h1 {
+    font-size: clamp(34px, 5.4vw, 54px);
+    line-height: 1.14;
+    letter-spacing: -.035em;
+    font-weight: 800;
+    margin: 0 0 22px;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    font-size: clamp(17px, 2vw, 19.5px);
+    line-height: 1.66;
+    color: var(--ink-2);
+    margin: 0 0 30px;
+  }
+  .standfirst strong { font-weight: 700; color: var(--ink); }
+
+  .byline {
+    display: flex; flex-wrap: wrap; gap: 8px 18px;
+    font-family: var(--mono); font-size: 12px; color: var(--faint);
+    padding-bottom: 30px; border-bottom: 1px solid var(--hair);
+  }
+  .byline b { font-weight: 500; color: var(--muted); }
+
+  /* ── 앵커 지표: 342개의 스위치 ──────────────────────────────────── */
+  .anchor {
+    margin-top: 44px;
+    background: var(--surface);
+    border: 1px solid var(--hair);
+    border-radius: 3px;
+    padding: 30px 32px 28px;
+  }
+  .anchor-head {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px;
+    margin-bottom: 22px;
+  }
+  .anchor-num {
+    font-family: var(--mono); font-weight: 700;
+    font-size: clamp(40px, 6vw, 62px); line-height: 1;
+    letter-spacing: -.045em; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .anchor-label { font-size: 15px; color: var(--ink-2); }
+  .anchor-label b { color: var(--crit); font-weight: 700; }
+
+  .switches {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 9px);
+    gap: 5px;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .switches i {
+    display: block; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--hair-strong);
+  }
+  .anchor-foot {
+    font-size: 13.5px; color: var(--muted); margin: 0;
+    padding-top: 16px; border-top: 1px solid var(--hair);
+  }
+
+  /* ── 섹션 ────────────────────────────────────────────────────────── */
+  section { padding-top: 84px; scroll-margin-top: 24px; }
+
+  h2 {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    gap: 16px;
+    font-size: clamp(24px, 3.2vw, 31px);
+    line-height: 1.22;
+    letter-spacing: -.028em;
+    font-weight: 750;
+    margin: 0 0 10px;
+    text-wrap: balance;
+  }
+  h2 .n {
+    font-family: var(--mono); font-size: 13px; font-weight: 500;
+    color: var(--accent); letter-spacing: 0;
+    padding-top: 4px;
+  }
+  .deck { color: var(--muted); font-size: 15px; margin: 0 0 30px; padding-left: 34px; }
+  @media (max-width: 640px) { h2 { grid-template-columns: 1fr; gap: 4px; } .deck { padding-left: 0; } }
+
+  h3 {
+    font-size: 18.5px; font-weight: 700; letter-spacing: -.018em;
+    margin: 42px 0 12px; text-wrap: balance;
+  }
+  h4 {
+    font-size: 15px; font-weight: 700; margin: 30px 0 8px;
+    color: var(--ink);
+  }
+
+  p { margin: 0 0 17px; }
+  p:last-child { margin-bottom: 0; }
+  strong { font-weight: 700; }
+  em { font-style: normal; background: var(--accent-soft); color: var(--accent-ink);
+       padding: .06em .32em; border-radius: 2px; font-weight: 600; }
+
+  ul, ol { margin: 0 0 18px; padding-left: 1.25em; }
+  li { margin-bottom: 7px; }
+  li::marker { color: var(--faint); }
+
+  code {
+    font-family: var(--mono); font-size: .855em;
+    background: var(--surface-2); color: var(--ink-2);
+    padding: .12em .4em; border-radius: 3px;
+    word-break: break-all;
+  }
+
+  pre {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.72;
+    background: var(--surface); color: var(--ink-2);
+    border: 1px solid var(--hair); border-radius: 3px;
+    padding: 20px 22px; margin: 0 0 22px;
+    overflow-x: auto;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+
+  blockquote {
+    margin: 0 0 22px; padding: 2px 0 2px 22px;
+    border-left: 2px solid var(--accent);
+    color: var(--ink-2); font-size: 17px;
+  }
+  blockquote p { margin-bottom: 10px; }
+  blockquote p:last-child { margin-bottom: 0; }
+
+  a { color: var(--accent-ink); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+  a:hover { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+  /* ── 표 ──────────────────────────────────────────────────────────── */
+  .tw { overflow-x: auto; margin: 0 0 24px; border: 1px solid var(--hair); border-radius: 3px; background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 480px; }
+  thead th {
+    text-align: left; font-weight: 600; font-size: 11.5px;
+    letter-spacing: .09em; text-transform: uppercase;
+    color: var(--faint); font-family: var(--mono);
+    padding: 13px 16px; border-bottom: 1px solid var(--hair-strong);
+    white-space: nowrap;
+  }
+  tbody td { padding: 13px 16px; border-bottom: 1px solid var(--hair); vertical-align: top; line-height: 1.6; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--surface-2); }
+  td.num, th.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.k { font-weight: 650; color: var(--ink); }
+
+  /* ── 상태 칩 ─────────────────────────────────────────────────────── */
+  .chip {
+    display: inline-block; font-family: var(--mono);
+    font-size: 11px; letter-spacing: .05em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 2px; white-space: nowrap; font-weight: 500;
+  }
+  .chip.crit { background: var(--crit-soft); color: var(--crit); }
+  .chip.high { background: var(--high-soft); color: var(--high); }
+  .chip.info { background: var(--info-soft); color: var(--info); }
+  .chip.ok   { background: var(--ok-soft);   color: var(--ok); }
+  .chip.none { background: var(--surface-2);  color: var(--faint); }
+
+  /* ── 진단 카드 ───────────────────────────────────────────────────── */
+  .dx {
+    background: var(--surface);
+    border: 1px solid var(--hair);
+    border-left: 3px solid var(--hair-strong);
+    border-radius: 3px;
+    padding: 22px 26px;
+    margin: 0 0 16px;
+  }
+  .dx[data-sev="crit"] { border-left-color: var(--crit); }
+  .dx[data-sev="high"] { border-left-color: var(--high); }
+  .dx[data-sev="info"] { border-left-color: var(--info); }
+  .dx-head {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    margin-bottom: 10px;
+  }
+  .dx-code {
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    color: var(--faint); letter-spacing: .06em;
+  }
+  .dx-title { font-size: 17px; font-weight: 700; letter-spacing: -.015em; margin: 0; flex: 1 1 260px; }
+  .dx p { font-size: 14.5px; }
+  .dx p:last-child { margin-bottom: 0; }
+  .dx ul { font-size: 14.5px; margin-bottom: 0; }
+
+  /* ── 근거 박스 ───────────────────────────────────────────────────── */
+  .evidence {
+    background: var(--surface-2);
+    border-radius: 3px;
+    padding: 16px 20px;
+    margin: 0 0 20px;
+    font-size: 13.5px;
+    color: var(--ink-2);
+  }
+  .evidence .lbl {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--faint);
+    display: block; margin-bottom: 8px;
+  }
+  .evidence p { margin-bottom: 8px; }
+
+  /* ── 대조 2단 ────────────────────────────────────────────────────── */
+  .versus { display: grid; gap: 16px; margin: 0 0 24px; }
+  @media (min-width: 700px) { .versus { grid-template-columns: 1fr 1fr; } }
+  .versus > div {
+    background: var(--surface); border: 1px solid var(--hair);
+    border-radius: 3px; padding: 20px 22px;
+  }
+  .versus h4 { margin-top: 0; display: flex; align-items: center; gap: 8px; }
+  .versus ul { margin-bottom: 0; font-size: 14.5px; }
+
+  /* ── 마무리 ──────────────────────────────────────────────────────── */
+  .decide {
+    counter-reset: d;
+    list-style: none; padding: 0; margin: 0;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .decide li {
+    counter-increment: d;
+    display: grid; grid-template-columns: 30px 1fr; gap: 14px;
+    background: var(--surface); border: 1px solid var(--hair);
+    border-radius: 3px; padding: 18px 22px; margin: 0;
+  }
+  .decide li::before {
+    content: counter(d);
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    color: var(--accent); padding-top: 2px;
+  }
+  .decide b { display: block; font-size: 15.5px; margin-bottom: 3px; }
+  .decide span { font-size: 14px; color: var(--muted); }
+
+  .srcs { font-size: 14px; }
+  .srcs li { margin-bottom: 9px; }
+
+  footer {
+    margin-top: 90px; padding-top: 26px;
+    border-top: 1px solid var(--hair);
+    font-family: var(--mono); font-size: 12px; color: var(--faint);
+    line-height: 1.8;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="page">
+
+  <nav class="toc" aria-label="목차">
+    <ol>
+      <li><a href="#s0"><span class="n">00</span><span>결론</span></a></li>
+      <li><a href="#s1"><span class="n">01</span><span>안 봄 / 알려 줌 / 막음</span></a></li>
+      <li><a href="#s2"><span class="n">02</span><span>전수 조사 — 병 7개</span></a></li>
+      <li><a href="#s3"><span class="n">03</span><span>말한 흐름 vs 지금</span></a></li>
+      <li><a href="#s4"><span class="n">04</span><span>외부 정설</span></a></li>
+      <li><a href="#s5"><span class="n">05</span><span>재기획</span></a></li>
+      <li><a href="#s6"><span class="n">06</span><span>무엇부터</span></a></li>
+      <li><a href="#s7"><span class="n">07</span><span>결정이 필요한 것</span></a></li>
+      <li><a href="#s8"><span class="n">부록</span><span>결함 · 방법</span></a></li>
+    </ol>
+    <div class="rule"></div>
+    <p class="note">구현하지 않았습니다.<br>읽기만 했고 데이터는 그대로입니다.</p>
+  </nav>
+
+  <main class="flow">
+
+    <header class="mast wide">
+      <p class="eyebrow">dacrm 전수 진단 · v0.7.538</p>
+      <h1>342개의 꺼진 스위치</h1>
+      <p class="standfirst">
+        영업 단계 화면에서 본 <strong>안 봄 · 알려 줌 · 막음</strong>이 무엇인지,
+        왜 아무도 알아볼 수 없게 만들어졌는지, 그리고 같은 병이 제품 어디에 또 있는지
+        전수로 조사했습니다. 마지막에 <strong>무엇부터 다시 만들지</strong>를 순서로 놓았습니다.
+      </p>
+      <div class="byline">
+        <span><b>작성</b> 2026-08-17</span>
+        <span><b>방법</b> 실브라우저 실측 · 코드 전수 · 운영 API 조회 · 외부 조사</span>
+        <span><b>범위</b> 분석과 기획 — 구현 없음</span>
+      </div>
+
+      <div class="anchor">
+        <div class="anchor-head">
+          <span class="anchor-num">342</span>
+          <span class="anchor-label">
+            영업 단계 화면의 토글 버튼 개수 &nbsp;·&nbsp; 그중 켜진 것 <b>0개</b>
+          </span>
+        </div>
+        <div class="switches" id="switchgrid" aria-hidden="true"></div>
+        <p class="anchor-foot">
+          파이프라인 3 × 단계 19 × 조건 6 × 수준 3 = 342.
+          운영 워크스페이스 실측 기준 활성 조건은 하나도 없습니다.
+          &ldquo;저걸 했을 때 뭐가 어떻게 되는지 모르겠다&rdquo;의 정답은 &mdash; <strong>아무것도 안 됩니다.</strong>
+        </p>
+      </div>
+    </header>
+
+    <!-- ══ 00 ══ -->
+    <section id="s0">
+      <h2><span class="n">00</span><span>결론</span></h2>
+      <blockquote>
+        <p>지금 dacrm은 <strong>데이터 모델은 제대로 된 CRM인데, 화면은 메뉴별 폼 모음</strong>입니다.</p>
+        <p>&ldquo;그냥 메뉴별로 폼만 낸 것 같다&rdquo;는 직관이 정확합니다. 그리고 그 병이 가장 날카롭게
+        드러난 곳이 하필 물어보신 <strong>영업 단계의 안 봄 / 알려 줌 / 막음</strong>이었습니다.</p>
+      </blockquote>
+
+      <p>
+        스키마는 좋습니다. 회사·인물·딜·활동·미팅·할일·감사로그가 제대로 관계 지어져 있고,
+        회사 상세 화면의 구성(속성 · 타임라인 · 다음 할 일 · 인물 · 딜 · 미팅)은
+        시중 CRM과 견줄 만합니다. 문제는 <em>그 위에 올린 화면이 사람의 일 순서가 아니라
+        데이터 모델의 순서를 따른다</em>는 것입니다.
+      </p>
+
+      <div class="wide tw">
+        <table>
+          <thead><tr><th>무엇</th><th class="num">규모</th><th class="num">지금 동작</th></tr></thead>
+          <tbody>
+            <tr><td class="k">영업 단계 진입 조건</td><td class="num">토글 342개</td><td class="num"><span class="chip none">켜진 것 0</span></td></tr>
+            <tr><td class="k">AI 자동 반영</td><td class="num">설정 16행</td><td class="num"><span class="chip none">켜진 것 0</span></td></tr>
+            <tr><td class="k">자동화 규칙</td><td class="num">무제한</td><td class="num"><span class="chip none">규칙 0</span></td></tr>
+            <tr><td class="k">AI 예산</td><td class="num">—</td><td class="num"><span class="chip none">0원 = AI 꺼짐</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        신규 사용자가 실제로 만나는 제품은 <strong>이 기능들이 전부 없는 제품</strong>입니다.
+        그런데 화면 문구는 도처에서 &ldquo;AI가 …해 줍니다&rdquo;라고 말합니다.
+        &ldquo;AI가 자동으로 한다는 건가?&rdquo;라는 의문은 오해가 아니라, <em>화면이 그렇게 읽히도록 만들어져 있어서</em>입니다.
+      </p>
+    </section>
+
+    <!-- ══ 01 ══ -->
+    <section id="s1">
+      <h2><span class="n">01</span><span>&ldquo;안 봄 / 알려 줌 / 막음&rdquo;이 대체 무엇인가</span></h2>
+      <p class="deck">먼저 질문에 직접 답하고, 왜 알아볼 수 없었는지를 구조로 설명합니다.</p>
+
+      <h3>실제 뜻</h3>
+      <p>
+        딜을 <strong>그 단계로 옮길 때</strong>, 여섯 가지 사실이 채워졌는지 검사할지 정하는 스위치입니다.
+        검사 대상은 <strong>금액 · 마감 예정일 · 담당자 · 고객 담당자 · 회사 · 다음 할 일</strong> 여섯 가지입니다.
+      </p>
+
+      <div class="wide tw">
+        <table>
+          <thead><tr><th>버튼</th><th>실제 동작</th><th>사람 말로 바꾸면</th></tr></thead>
+          <tbody>
+            <tr><td class="k">안 봄</td><td>이 단계에서는 검사하지 않는다</td><td>검사 안 함</td></tr>
+            <tr><td class="k">알려 줌</td><td>비어 있어도 옮겨는 주고 &ldquo;금액이 아직 없어요&rdquo;라고 말한다</td><td>비어 있으면 알려 주기</td></tr>
+            <tr><td class="k">막음</td><td>비어 있으면 그 단계로 못 옮긴다</td><td>비어 있으면 못 옮기게</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        <strong>AI와 아무 관계가 없습니다.</strong> 순수한 규칙 검사입니다.
+        업계에서는 이걸 <em>exit criteria(단계 이탈 조건)</em>라고 부르고, 개념 자체는 정당합니다 &mdash;
+        조건이 없으면 파이프라인은 카드 옮기기 놀이가 되고, &ldquo;계약 협상 10억&rdquo;이
+        실은 금액 없는 딜일 수 있으니까요. 문제는 개념이 아니라
+        <strong>이 화면이 그 개념을 사람에게 내놓은 방식</strong>입니다.
+      </p>
+
+      <h3>왜 알아볼 수 없었나 &mdash; 원인 6가지</h3>
+
+      <div class="wide">
+        <div class="dx" data-sev="high">
+          <div class="dx-head"><span class="dx-code">원인 1</span><h4 class="dx-title">주어가 없다</h4></div>
+          <p>
+            &ldquo;안 봄&rdquo;은 <em>누가</em> <em>무엇을</em> 안 보는지가 빠진 두 글자 동사입니다.
+            한국어로도 어색하고 시스템 용어도 아닌, 중간 지대의 축약어입니다.
+            설명은 화면 맨 위 한 줄과 버튼의 <code>title=</code> 툴팁뿐인데,
+            툴팁은 마우스를 올려야만 나오고 스크린리더는 대개 읽지 않습니다.
+          </p>
+        </div>
+
+        <div class="dx" data-sev="high">
+          <div class="dx-head"><span class="dx-code">원인 2</span><h4 class="dx-title">342개가 한 화면에 있다</h4></div>
+          <p>
+            조건 6개 × 수준 3개 = 18개 버튼이 <strong>단계마다 똑같이 반복</strong>됩니다.
+            단계 19개 × 파이프라인 3개. 같은 목록이 19번 반복되는 화면에서
+            사람이 읽는 것은 첫 번째뿐이고 나머지는 벽입니다.
+          </p>
+        </div>
+
+        <div class="dx" data-sev="high">
+          <div class="dx-head"><span class="dx-code">원인 3</span><h4 class="dx-title">업계와 위치가 거꾸로다</h4></div>
+          <p>
+            표준(Pipedrive)은 <strong>필드 쪽에 붙입니다</strong> &mdash;
+            <em>금액 필드</em>를 열고 &ldquo;이 필드는 어느 파이프라인·단계에서 필수인가&rdquo;를 정합니다.
+            필드는 6개뿐이니 설정 지점도 6곳입니다.
+            우리는 반대로 <em>단계</em>를 열고 그 안에 6개 필드를 전부 나열했습니다.
+            그래서 <strong>단계 수만큼 설정 지점이 증식</strong>합니다.
+          </p>
+        </div>
+
+        <div class="dx" data-sev="crit">
+          <div class="dx-head">
+            <span class="dx-code">원인 4</span>
+            <h4 class="dx-title">켜도 채울 방법이 없는 조건이 있다</h4>
+            <span class="chip crit">심각</span>
+          </div>
+          <p>
+            <strong><code>담당자</code>를 &lsquo;막음&rsquo;으로 켜면 그 단계는 영원히 잠깁니다.</strong>
+            딜의 담당자(<code>ownerId</code>)를 설정하는 UI가 CRM 전체에 <strong>0개</strong>이기 때문입니다.
+          </p>
+          <div class="evidence">
+            <span class="lbl">코드 전수 결과</span>
+            <pre style="margin:0;border:0;padding:0;background:none;"><code>lib/crm/services/deal.ts          ownerId 저장 지원   있음
+lib/crm/domain/entry-criteria.ts  owner 조건 판정     있음
+lib/crm/services/verify.ts        담당자 확정 대상    있음
+lib/crm/services/audit-view.ts    '담당자' 라벨       있음
+app/(crm)/**/*.tsx                담당자 입력 칸      0건 ←</code></pre>
+          </div>
+          <p>
+            딜 폼(이름·회사·파이프라인·단계·금액·통화·마감일)에도, 딜 상세 속성 카드에도, 회사 폼에도 담당자가 없습니다.
+            <strong>뒤는 다 됐는데 사람이 값을 넣을 창구만 없습니다.</strong>
+          </p>
+        </div>
+
+        <div class="dx" data-sev="info">
+          <div class="dx-head"><span class="dx-code">원인 5</span><h4 class="dx-title">켜기 전에 결과를 못 본다</h4></div>
+          <p>
+            &ldquo;막음으로 켜면 지금 이 단계 딜 12건 중 5건이 걸립니다&rdquo; 같은 미리보기가 없습니다.
+            효과는 나중에 <strong>누군가 딜을 옮기려다 막혔을 때</strong> 처음 나타납니다.
+            켠 사람과 막힌 사람이 다릅니다.
+          </p>
+        </div>
+
+        <div class="dx" data-sev="info">
+          <div class="dx-head"><span class="dx-code">원인 6</span><h4 class="dx-title">막혔을 때 문구가 어색하다</h4></div>
+          <p>
+            <code>이 단계로 옮기려면 금액이(가) 필요합니다</code> &mdash; 조사가 처리되지 않았습니다.
+            같은 뿌리의 문제가 단계 이름 검증에서도 재발했습니다(<code>단계 이름을(를) 입력해 주세요</code>).
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ 02 ══ -->
+    <section id="s2">
+      <h2><span class="n">02</span><span>전수 조사 &mdash; 같은 병이 어디에 또 있나</span></h2>
+      <p class="deck">진단명 7개. 모두 실측 근거가 있습니다.</p>
+
+      <div class="wide">
+        <div class="dx" data-sev="crit">
+          <div class="dx-head"><span class="dx-code">병 A</span><h4 class="dx-title">기본값이 꺼짐 &mdash; 설정은 있는데 제품은 아무 일도 안 한다</h4></div>
+          <p>
+            §00의 표 그대로입니다. 여기에 더해 <strong>말과 동작이 어긋납니다.</strong>
+          </p>
+          <ul>
+            <li>미팅 &mdash; &ldquo;회의 내용을 넣으면 <strong>AI가</strong> 누가 나왔고 무엇이 걸림돌인지 뽑아 인박스로 보냅니다&rdquo;</li>
+            <li>인박스 &mdash; &ldquo;<strong>AI가</strong> 찾아낸 제안을 확인하고 반영하는 곳입니다&rdquo;</li>
+            <li>변경 이력 &mdash; &ldquo;<strong>AI가</strong> 채운 값도 여기서 확인할 수 있어요&rdquo;</li>
+          </ul>
+          <p>말은 AI가 주인공인데 스위치는 전부 꺼져 있습니다.</p>
+        </div>
+
+        <div class="dx" data-sev="crit">
+          <div class="dx-head"><span class="dx-code">병 B</span><h4 class="dx-title">만들었는데 부르는 데가 없다</h4></div>
+          <p>이 저장소가 <code>/ci</code>에서 이미 두 번 겪은 패턴이 CRM에서 재발했습니다.</p>
+          <div class="tw" style="margin-top:14px;margin-bottom:0;">
+            <table>
+              <thead><tr><th>무엇</th><th>만든 것</th><th>부르는 곳</th></tr></thead>
+              <tbody>
+                <tr><td class="k"><code>ownerId</code> 담당자</td><td>서비스·API·진입조건·감사로그·확정대상</td><td><span class="chip crit">UI 0건</span></td></tr>
+                <tr><td class="k"><code>healthScore</code></td><td>스키마 + v04 마이그레이션이 <code>fit_score</code>를 이관까지 함</td><td><span class="chip crit">읽는 코드 0건</span></td></tr>
+                <tr><td class="k">AI 자동 반영(회사 6필드)</td><td>설정 카드 + field-config API</td><td><span class="chip high">추출축이 who/what/where/risk/next 5개뿐 → 회사 필드 안 건드림</span></td></tr>
+                <tr><td class="k">확정 자물쇠</td><td>필드별 확정 UI</td><td><span class="chip high">통제할 동작이 아직 없음</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="dx" data-sev="crit">
+          <div class="dx-head"><span class="dx-code">병 C</span><h4 class="dx-title">화면이 흐름이 아니라 &lsquo;안내판&rsquo;이다</h4></div>
+          <p>
+            &ldquo;폼만 낸 느낌&rdquo;의 정확한 구조적 정체입니다.
+            <strong>상세 화면이 행동의 종착지가 아니라, 다른 화면으로 보내는 표지판</strong>입니다.
+          </p>
+          <ul>
+            <li>회사 상세 · 인물 없음 → <code>인물 화면에서 이 회사로 담당자를 등록하세요</code> &mdash; 여기서 못 만듭니다</li>
+            <li>회사 상세 · 딜 없음 → <code>딜 화면에서 이 회사의 영업 건을 만드세요</code> &mdash; 여기서 못 만듭니다</li>
+            <li>딜 상세 · &lsquo;미팅 기록하기&rsquo;가 목록으로만 보냅니다. 보던 딜을 안 데려가서 회사·딜을 처음부터 다시 고릅니다</li>
+            <li>할 일 화면 · <code>미팅에서 나온 '다음에 할 일'을 인박스에서 반영하면 여기 쌓입니다</code> &mdash; 마치 그게 유일한 경로인 것처럼 말합니다</li>
+          </ul>
+        </div>
+
+        <div class="dx" data-sev="high">
+          <div class="dx-head"><span class="dx-code">병 D</span><h4 class="dx-title">화면이 거짓말을 한다</h4></div>
+          <p><strong>로딩 상태를 빈 상태로 렌더합니다.</strong> 회사 상세를 열고 시각별로 실측했습니다.</p>
+          <div class="tw" style="margin-top:14px;">
+            <table>
+              <thead><tr><th class="num">경과</th><th>화면이 말하는 것</th><th>진실</th></tr></thead>
+              <tbody>
+                <tr><td class="num">3초</td><td>&ldquo;딜 0건 · 진행 중인 딜이 없어요&rdquo; / &ldquo;인물 0명 · 담당자가 없어요&rdquo;</td><td>딜 1건 · 인물 1명</td></tr>
+                <tr><td class="num">6초</td><td>동일</td><td>동일</td></tr>
+                <tr><td class="num">10초</td><td>딜 1건 · 인물 1명</td><td><span class="chip ok">일치</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>초기 state가 빈 배열이라 로딩과 &ldquo;없음&rdquo;을 구분하지 않습니다. 사용자는 3초를 보고 <strong>&ldquo;데이터가 없네&rdquo; 하고 나갑니다.</strong></p>
+          <p>같은 계열:</p>
+          <ul>
+            <li><strong>딜 상세의 회사 이름이 늦게 채워집니다.</strong> 딜·파이프라인·이력은 병렬인데 회사만 그 뒤 순차입니다. 8초 시점 스크린샷에서 <code>회사 —</code>, 그 뒤에 <code>삼성SDS</code></li>
+            <li><strong>오늘 화면 &lsquo;시작하기&rsquo;</strong>의 현재 강조 단계 설명이 <strong>보라 배경 위 보라 글씨</strong>라 읽을 수 없습니다. 하필 &ldquo;지금 이것 하나만 하세요&rdquo;라고 강조한 자리입니다</li>
+          </ul>
+        </div>
+
+        <div class="dx" data-sev="info">
+          <div class="dx-head"><span class="dx-code">병 E</span><h4 class="dx-title">용어가 갈린다</h4></div>
+          <div class="tw" style="margin-bottom:14px;">
+            <table>
+              <thead><tr><th>말</th><th>뜻 1</th><th>뜻 2</th><th>뜻 3</th></tr></thead>
+              <tbody>
+                <tr><td class="k">기록</td><td>사이드바 그룹 이름(미팅·할 일)</td><td>변경 이력 화면의 <strong>제목</strong></td><td>타임라인 입력 라벨</td></tr>
+                <tr><td class="k">영업 단계</td><td>사이드바 메뉴(=파이프라인 관리)</td><td>파이프라인 안의 stage</td><td>리포트 접기 토글이 부르는 것(실제로는 파이프라인)</td></tr>
+                <tr><td class="k">변경 이력</td><td>사이드바에선 &ldquo;변경 이력&rdquo;</td><td>같은 화면 제목은 &ldquo;기록&rdquo;</td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>그리고 설정 화면 부제 <code>파이프라인·필드·AI·연동을 관리합니다</code> &mdash; <strong>파이프라인도 필드도 이 화면에 없습니다.</strong></p>
+        </div>
+
+        <div class="dx" data-sev="high">
+          <div class="dx-head"><span class="dx-code">병 F</span><h4 class="dx-title">정작 필요한 손잡이는 설정에 없다</h4></div>
+          <p>멈춘 딜 판정이 이렇게 되어 있습니다.</p>
+          <pre><code>const STALLED_DAYS = 14                        // 전 단계 공통, 하드코딩
+const cutoff = now - STALLED_DAYS * 86_400_000
+// 기준 시각: deal.updatedAt</code></pre>
+          <p>두 가지가 틀렸습니다.</p>
+          <ul>
+            <li><strong>전 단계 공통 14일.</strong> &lsquo;리드&rsquo;에서 14일과 &lsquo;계약 협상&rsquo;에서 14일은 전혀 다른 사건입니다</li>
+            <li><strong>기준이 <code>deal.updatedAt</code>입니다.</strong> 이건 <em>딜 레코드가 수정된 시각</em>이지 <em>아무 일도 없었던 기간</em>이 아닙니다. 딜 이름만 고쳐도 정체 타이머가 리셋됩니다</li>
+          </ul>
+          <p>342개 토글은 주면서, 실제로 조정하고 싶을 이 숫자 하나는 설정에 없습니다.</p>
+        </div>
+
+        <div class="dx" data-sev="info">
+          <div class="dx-head"><span class="dx-code">병 G</span><h4 class="dx-title">설정 화면 자체가 증상이다</h4></div>
+          <ul>
+            <li>카드 8장이 성격 구분 없이 흩어지고, 로딩 속도가 달라 <strong>첫 줄이 어긋난 채 뜹니다</strong>(실측)</li>
+            <li>로딩 중엔 카드 제목도 안 보여서 <strong>무슨 카드인지 모릅니다</strong></li>
+            <li>성격이 완전히 다른 것이 같은 무게로 나열됩니다 &mdash; AI 예산 / 기본 설정 / 자동 반영 / 구글 연동 / 중복 정리 / 자동화 / 들여오기 / 내보내기</li>
+            <li>영업 단계 화면은 CRM에서 <strong>유일하게</strong> <code>window.alert</code>·<code>confirm</code>을 씁니다(4회). 질감이 다르고 자동화 테스트가 이 경로를 못 밟습니다</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ 03 ══ -->
+    <section id="s3">
+      <h2><span class="n">03</span><span>말씀하신 흐름 vs 지금 제품</span></h2>
+      <p class="deck">말씀하신 순서를 그대로 축으로 놓고 하나씩 대조했습니다.</p>
+
+      <div class="wide tw">
+        <table>
+          <thead><tr><th class="num">#</th><th>말씀하신 것</th><th>지금</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="num">1</td><td class="k">인바운드/아웃바운드로 고객·딜 획득</td>
+              <td><span class="chip crit">없음</span></td>
+              <td>딜에 획득 경로 필드가 없습니다. <code>CrmDeal.source</code>는 HUMAN/AI(데이터 출처)이지 lead source가 아닙니다. 인바운드 유입구도 CRM 안에 없습니다(<code>/lead-intake</code>는 CRM 밖 별도 화면)</td>
+            </tr>
+            <tr>
+              <td class="num">2</td><td class="k">정보를 디테일하게, 또는 AI가 작성</td>
+              <td><span class="chip high">반쪽</span></td>
+              <td>딜 폼 7칸(이름·회사·파이프라인·단계·금액·통화·마감). 담당자·고객 담당자·획득 경로·경쟁사·의사결정 구조 없음. AI 작성은 기본 OFF</td>
+            </tr>
+            <tr>
+              <td class="num">3</td><td class="k">딜 활동을 주기적으로 기록</td>
+              <td><span class="chip high">반쪽</span></td>
+              <td>타임라인에 노트 입력 1개. 통화·메일·미팅 필터 탭은 있는데 넣는 경로가 빈약. Gmail 연동은 있으나 &lsquo;확인되지 않은 앱&rsquo; 경고 상태</td>
+            </tr>
+            <tr>
+              <td class="num">4</td><td class="k">안 움직이는 거 알려줌</td>
+              <td><span class="chip ok">있음(약함)</span></td>
+              <td>14일 하드코딩 + <code>updatedAt</code> 기준 (병 F)</td>
+            </tr>
+            <tr>
+              <td class="num">5</td><td class="k">매출 · 목표 · 수익</td>
+              <td><span class="chip crit">없음</span></td>
+              <td>스키마에 quota/target/cost/margin 개념이 0. 리포트에 기간 필터 0. 원가가 없어 <strong>수익을 계산할 수 없습니다</strong></td>
+            </tr>
+            <tr>
+              <td class="num">6</td><td class="k">고객 정보를 한 번에</td>
+              <td><span class="chip high">반쪽</span></td>
+              <td>회사 상세의 구조는 이 제품에서 가장 잘 된 화면입니다. 그런데 <strong>거기서 아무것도 만들 수 없습니다</strong>(병 C)</td>
+            </tr>
+            <tr>
+              <td class="num">7</td><td class="k">시점별로 정리</td>
+              <td><span class="chip crit">없음</span></td>
+              <td>리포트에 period 개념 자체가 없습니다. 이번 달/분기/전년 대비가 불가능</td>
+            </tr>
+            <tr>
+              <td class="num">8</td><td class="k">이력 확인</td>
+              <td><span class="chip high">있음(읽기 어려움)</span></td>
+              <td>감사로그가 JSON 원문 · ISO 시각(UTC) · 원시 ID를 그대로 노출</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>그리고 이 회사에만 있는 결정적 공백 &mdash; GPU 가격 시스템과의 단절</h3>
+      <p>
+        <code>lib/gpu/</code>에 이미 <strong>원가 · 추천판매가 · 마진 · 경쟁사 시세 · 구성 사다리</strong>가
+        SSOT로 있습니다. 콕핏도 있습니다. 그런데 <strong>CRM 딜과 연결이 0입니다.</strong>
+        파이프라인 id가 <code>pl_gpu</code>인 것이 전부입니다.
+      </p>
+      <ul>
+        <li>&lsquo;견적·제안&rsquo;이라는 단계가 있는데 <strong>견적을 만들 수 없습니다</strong></li>
+        <li>딜 금액은 <strong>손으로 적는 숫자</strong>입니다. 근거가 없습니다</li>
+        <li>원가가 없으니 <strong>수익(요구 5번)을 계산할 방법이 없습니다</strong></li>
+      </ul>
+      <p>
+        이건 결함이 아니라 <strong>미개척 영역</strong>이고, 동시에 이 제품이 시중 CRM 대비 가질 수 있는
+        <em>유일한 해자</em>입니다.
+      </p>
+    </section>
+
+    <!-- ══ 04 ══ -->
+    <section id="s4">
+      <h2><span class="n">04</span><span>외부 정설</span></h2>
+      <p class="deck">검색 5회로 확인한 업계 정설과 우리 상태를 나란히 놓았습니다.</p>
+
+      <div class="wide tw">
+        <table>
+          <thead><tr><th>정설</th><th>우리 상태</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>강한 단계 조건은 <strong>판매자 활동이 아니라 구매자 행동</strong>이다. &ldquo;제안서를 보냈다&rdquo;(판매자 활동) ✗ / &ldquo;결정권자에게 피드백을 받았다&rdquo;(구매자 커밋) ✓</td>
+              <td>우리 6개 조건은 전부 <em>우리 쪽 입력칸이 찼는가</em>. <strong>형식이지 진척이 아님</strong></td>
+            </tr>
+            <tr>
+              <td>필수 필드는 <strong>필드에 붙인다</strong>. Pipedrive: 설정 → 데이터 필드 → &ldquo;이 필드는 어느 파이프라인·단계에서 필수&rdquo;. 수준은 2단계</td>
+              <td>우리는 단계에 붙였고 3단계 → 설정 지점이 단계 수만큼 증식</td>
+            </tr>
+            <tr>
+              <td>&ldquo;아무도 안 채우는 20개 필드보다, 모두가 채우는 5개가 낫다&rdquo;</td>
+              <td>조건 6개를 19개 단계에 전부 노출</td>
+            </tr>
+            <tr>
+              <td><strong>도입 실패 1위 원인은 입력 부담.</strong> 영업의 60%가 판매 외 업무, CRM 입력에만 주 3.4시간. 활동 자동 캡처를 하면 주 5시간을 돌려받고 쿼터 달성률 2.2배(Gartner)</td>
+              <td>활동 입력이 전부 수동. Gmail 연동만 자동이고 그것도 경고 상태</td>
+            </tr>
+            <tr>
+              <td>현대 CRM(Attio·Folk)은 메일·캘린더를 <strong>계속 빨아들여 고객 그래프</strong>를 만들고, 그 위에서 정체 감지·다음 행동을 제안한다</td>
+              <td>사람이 채우는 폼이 기반. AI는 미팅 전사 1개 경로뿐</td>
+            </tr>
+            <tr>
+              <td>온보딩은 <strong>점진적 공개</strong>와 <strong>첫 가치까지의 시간</strong>. 역할 기반 개인화는 7일 리텐션을 최대 35% 올린다</td>
+              <td>&lsquo;시작하기&rsquo; 4단계는 좋은 시작. 그런데 <strong>1번이 하필 342 토글 화면으로 보냄</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>출처</h4>
+      <ul class="srcs">
+        <li><a href="https://www.avoma.com/blog/sales-pipeline-stages">Fix your sales pipeline stages with entry and exit rules &mdash; Avoma</a></li>
+        <li><a href="https://tomba.io/blog/crm-pipeline-stages">CRM Pipeline Stages: What Actually Forecasts &mdash; Tomba</a></li>
+        <li><a href="https://support.pipedrive.com/en/article/required-fields">Required fields &mdash; Pipedrive Knowledge Base</a></li>
+        <li><a href="https://www.pipedrive.com/en/blog/required-fields">Required Fields Announcement &mdash; Pipedrive</a></li>
+        <li><a href="https://www.backstory.ai/sales-activity-capture-cluster-pages/crm-adoption-why-it-fails-and-what-actually-fixes-it">CRM Adoption: Why It Fails and What Actually Fixes It &mdash; Backstory</a></li>
+        <li><a href="https://everready.ai/13-statistics-for-crm-data-entry-automation/">13 statistics for CRM data entry automation &mdash; EverReady</a></li>
+        <li><a href="https://www.weekcrm.com/news/2026-04-24-attio-vs-folk-vs-clay">Attio vs Folk vs Clay: The New-Wave CRM Comparison &mdash; WeekCRM</a></li>
+        <li><a href="https://www.aakashg.com/customer-onboarding-best-practices/">10 Customer Onboarding Best Practices for PMs &mdash; Aakash Gupta</a></li>
+      </ul>
+    </section>
+
+    <!-- ══ 05 ══ -->
+    <section id="s5">
+      <h2><span class="n">05</span><span>재기획</span></h2>
+      <p class="deck">원칙 4개를 세우고, 화면별로 구체안을 놓았습니다.</p>
+
+      <h3>원칙</h3>
+      <ol>
+        <li><strong>기본값이 제품이다.</strong> 켜야 동작하는 기능은 없는 기능입니다. 좋은 기본값을 켜 두고, 설정은 <em>끄는</em> 자리로 바꿉니다</li>
+        <li><strong>설정을 없애서 푼다.</strong> 342 → 목표 0. 남길 손잡이는 3개 남짓</li>
+        <li><strong>화면은 종착지다.</strong> 회사 상세에서 인물·딜·할 일·미팅을 <strong>만들 수 있어야</strong> 합니다. &ldquo;다른 화면으로 가세요&rdquo;는 금지</li>
+        <li><strong>입력을 줄이고 그래프를 채운다.</strong> 사람 입력은 최소로, 메일·미팅·활동 수집은 자동으로</li>
+      </ol>
+
+      <h3>5-1. 영업 단계 조건 재설계 &mdash; 지금 막히신 그 기능</h3>
+      <p><strong>폐기</strong>: 단계 × 조건 6 × 수준 3 격자(342개). <strong>대체</strong>: 아래 4개로 줄입니다.</p>
+
+      <div class="wide tw">
+        <table>
+          <thead><tr><th class="num"></th><th>무엇</th><th>왜</th></tr></thead>
+          <tbody>
+            <tr><td class="num k">a</td><td><strong>기본으로 켜진 규칙 하나</strong> &mdash; &ldquo;다음 할 일이 없는 딜은 표시한다&rdquo; (이미 있음, 유지)</td><td>설정 없이 즉시 동작. Pipedrive의 유일한 강제 규율과 같습니다</td></tr>
+            <tr><td class="num k">b</td><td><strong>단계마다 &lsquo;이 단계의 뜻&rsquo; 한 줄</strong> (자유 텍스트, 예: &ldquo;고객이 요구사항을 문서로 줬다&rdquo;)</td><td>이게 진짜 exit criteria입니다. <strong>검사하지 않고 보여만 줍니다.</strong> 딜을 옮길 때 그 문장을 한 번 보여 주고 &ldquo;맞나요?&rdquo;라고 묻습니다</td></tr>
+            <tr><td class="num k">c</td><td><strong>필수 값은 필드 쪽으로</strong> &mdash; 딜 폼/상세에서 필드마다 &ldquo;○○ 단계부터 필요&rdquo; 배지. 수준은 2단계(필요/아님)</td><td>업계 표준 위치. 설정 지점이 필드 수(6)로 고정됩니다</td></tr>
+            <tr><td class="num k">d</td><td><strong>기본값</strong>: 성사(WON) 단계의 <strong>금액만</strong> 필수</td><td>&ldquo;수주는 금액 없이 성립할 수 없다&rdquo;는 유일하게 무조건 참인 명제입니다</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>추가 규칙 2개:</p>
+      <ul>
+        <li><strong>켜기 전 영향 미리보기 필수</strong> &mdash; &ldquo;지금 이 단계 딜 12건 중 5건이 걸립니다&rdquo;</li>
+        <li><strong>채울 UI가 없는 조건은 목록에 띄우지 않는다</strong> &mdash; 담당자는 입력 칸이 생기기 전까지 숨깁니다</li>
+      </ul>
+      <p>
+        용어도 바꿉니다: <code>안 봄 / 알려 줌 / 막음</code> →
+        <strong>검사 안 함 / 비어 있으면 알려 주기 / 비어 있으면 못 옮기게</strong>.
+        길어도 상관없습니다 &mdash; 이건 자주 읽는 라벨이 아니라 <em>한 번 이해하면 되는 라벨</em>입니다.
+      </p>
+
+      <h3>5-2. 메뉴 · 정보구조 재편</h3>
+      <p>현재 사이드바는 15항목 / 4그룹입니다.</p>
+
+      <div class="wide versus">
+        <div>
+          <h4>지금</h4>
+          <ul>
+            <li>오늘 · 인박스 · 딜 · 회사 · 인물</li>
+            <li>[기록] 미팅 · 할 일</li>
+            <li>[보기] 리포트 · 변경 이력</li>
+            <li>[설정] 영업 단계 · 멤버 · 설정</li>
+            <li>[돌아가기] 홈 · 업무 · 캘린더</li>
+          </ul>
+        </div>
+        <div>
+          <h4>제안</h4>
+          <ul>
+            <li><strong>오늘</strong> &mdash; 인박스를 흡수</li>
+            <li><strong>딜</strong> &mdash; 획득경로 · 담당자 · 마지막 활동 표시</li>
+            <li><strong>고객</strong> &mdash; 회사 + 인물을 탭으로 통합</li>
+            <li><strong>활동</strong> &mdash; 미팅 + 할 일 + 타임라인 통합</li>
+            <li><strong>성과</strong> &mdash; 리포트 + 목표 + 수익</li>
+            <li><strong>설정</strong> &mdash; 영업단계 · 멤버 · 연동 · AI · 데이터 · 변경이력</li>
+            <li>[돌아가기] 홈 · 업무 · 캘린더 (유지)</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>핵심 변경 3가지와 이유:</p>
+      <ul>
+        <li><strong>인박스를 없앱니다</strong> → 오늘 화면의 한 구역으로. AI 제안을 별도 메뉴로 두면 &ldquo;AI 전용 방&rdquo;이 되어 아무도 안 들어갑니다</li>
+        <li><strong>회사 + 인물 → 고객.</strong> 지금은 같은 대상을 두 메뉴에서 찾습니다. &ldquo;고객정보도 한번에 찾을 수 있고&rdquo;가 여기입니다</li>
+        <li><strong>미팅 + 할 일 → 활동.</strong> &ldquo;활동을 매일이든 주기적이든 기록하고&rdquo;가 한 곳에 있어야 합니다</li>
+      </ul>
+
+      <h3>5-3. 딜 상세 재설계</h3>
+      <p><strong>지금 문제</strong>: 화면의 절반을 <code>단계 이동 이력</code>이 차지합니다. 실측한 내용이 이렇습니다.</p>
+      <pre><code>리드 → 요구사항 파악    8/16 23:37 · 첫 진입
+요구사항 파악 → 리드    8/16 23:37 · 42초 머무름
+리드 → 요구사항 파악    8/17 00:55 · 1시간 머무름
+견적·제안 → 기술검증    8/17 01:05 · 1분 머무름
+...</code></pre>
+      <p>
+        <strong>테스트하며 왔다 갔다 한 로그가 제품 화면의 주인공</strong>입니다.
+        정작 필요한 금액·마감·담당자는 왼쪽 좁은 칼럼에 <code>—</code>로 비어 있고, 채우라는 유도도 없습니다.
+      </p>
+
+      <div class="wide tw">
+        <table>
+          <thead><tr><th>위치</th><th>무엇</th><th>왜</th></tr></thead>
+          <tbody>
+            <tr><td class="k">상단</td><td><strong>이 딜의 한 줄 판정</strong> + 인라인 채우기 &mdash; &ldquo;계약 협상 12일째 · 금액 미정 · 다음 할 일 없음&rdquo;</td><td>열자마자 &ldquo;그래서 뭘 해야 하지&rdquo;에 답합니다</td></tr>
+            <tr><td class="k">중앙</td><td><strong>활동 타임라인</strong> (메일 · 미팅 · 통화 · 노트, 자동+수동)</td><td>여기가 주인공이어야 합니다. 요구 3번</td></tr>
+            <tr><td class="k">우측</td><td>사람 · 다음 할 일 · <strong>연결된 견적</strong></td><td>행동을 그 자리에서</td></tr>
+            <tr><td class="k">하단(접힘)</td><td>단계 이동 이력</td><td>감사용이지 일상용이 아닙니다</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>5-4. 신규 &mdash; 목표 · 수익 (요구 5번)</h3>
+      <p>지금 스키마에 <strong>없습니다.</strong> 추가해야 하는 최소 단위:</p>
+      <pre><code>model CrmTarget {          // 목표
+  scope       TargetScope  // WORKSPACE | MEMBER | PIPELINE
+  scopeId     String?
+  periodKey   String       // '2026-Q3' | '2026-08'
+  amountMinor BigInt
+  currency    String
+}
+
+model CrmDeal {
+  costMinor  BigInt?       // 원가 — 수익 계산의 전제
+  quoteId    String?       // GPU 견적 연결 (5-5)
+  leadSource CrmLeadSource // 획득 경로 (5-6)
+}</code></pre>
+      <p>
+        리포트에 축 3개를 추가합니다: <strong>기간(월/분기)</strong> · <strong>담당자</strong> · <strong>획득 경로</strong>.
+        지금 리포트는 이 셋이 전부 없어서 &ldquo;이번 달 목표 대비 얼마&rdquo;를 물을 수 없습니다.
+      </p>
+
+      <h3>5-5. 신규 &mdash; GPU 견적 연결 (이 제품의 유일한 해자)</h3>
+      <pre><code>딜 상세 → [견적 만들기]
+   ↓  모델 · 장수 · 기간 선택 (lib/gpu SSOT)
+   ↓  원가 · 추천판매가 · 경쟁사 시세가 딜에 붙는다
+   ↓  딜 금액이 '손으로 적은 숫자'에서 '근거 있는 금액'이 된다
+   ↓  리포트에서 수익(마진)이 나온다</code></pre>
+      <p>
+        이것 하나가 <strong>요구 2번(디테일한 정보)과 5번(수익)을 동시에 닫습니다.</strong>
+        그리고 시중 CRM이 절대 못 하는 일입니다 &mdash; 우리만 원가를 압니다.
+      </p>
+
+      <h3>5-6. 신규 &mdash; 획득 경로 (요구 1번)</h3>
+      <div class="wide tw">
+        <table>
+          <thead><tr><th>분류</th><th>값</th></tr></thead>
+          <tbody>
+            <tr><td class="k">인바운드</td><td>웹문의 · 소개 · 전시/세미나 · 기존고객 확장</td></tr>
+            <tr><td class="k">아웃바운드</td><td>콜드메일 · 콜드콜 · 링크드인</td></tr>
+            <tr><td class="k">파트너</td><td>파트너사 소개</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        리포트 축으로 쓰면 &ldquo;인바운드가 성사율이 3배 높다&rdquo; 같은 판단이 처음 가능해집니다.
+        지금은 이 구분이 <strong>데이터에 존재하지 않아서</strong> 물어볼 수조차 없습니다.
+      </p>
+
+      <h3>5-7. 정체 판정 고치기</h3>
+      <ul>
+        <li>기준 시각: <code>deal.updatedAt</code> → <strong>마지막 활동 / 할 일 / 미팅 시각</strong></li>
+        <li>임계값: 전 단계 공통 14일 → <strong>단계별</strong>(기본값 제공 + 설정 1곳)</li>
+      </ul>
+    </section>
+
+    <!-- ══ 06 ══ -->
+    <section id="s6">
+      <h2><span class="n">06</span><span>무엇부터</span></h2>
+      <p class="deck">&ldquo;뭐부터 시작해야 하는지 아직도 모르겠다&rdquo; &mdash; 우리가 고칠 순서와, 제품이 사용자에게 안내할 순서 둘 다에 답합니다.</p>
+
+      <h3>6-1. 우리가 고칠 순서</h3>
+      <div class="wide tw">
+        <table>
+          <thead><tr><th class="num">단계</th><th>무엇</th><th>왜 이 순서인가</th></tr></thead>
+          <tbody>
+            <tr><td class="num k">0</td><td><strong>거짓말부터 멈춘다</strong> &mdash; 로딩≠빈 상태, 오늘 화면 대비, 조사 처리, 용어 통일, 설정 부제 수정</td><td>신뢰의 바닥. 화면이 거짓말하는 동안엔 어떤 기능을 더해도 안 믿습니다</td></tr>
+            <tr><td class="num k">1</td><td><strong>342 토글 철거 + 조건 재설계</strong> (5-1)</td><td>지금 막히신 바로 그 지점</td></tr>
+            <tr><td class="num k">2</td><td><strong>담당자 UI + 획득 경로 + 딜 상세 재설계</strong> (5-3 · 5-6)</td><td>&ldquo;폼 모음&rdquo;에서 벗어나는 최소 단위</td></tr>
+            <tr><td class="num k">3</td><td><strong>화면을 종착지로</strong> + 메뉴 재편 (5-2)</td><td>흐름이 이어지기 시작합니다</td></tr>
+            <tr><td class="num k">4</td><td><strong>목표 · 수익 + 리포트 기간축</strong> (5-4)</td><td>요구 5 · 7번</td></tr>
+            <tr><td class="num k">5</td><td><strong>GPU 견적 연결</strong> (5-5)</td><td>여기서 이 제품이 다른 CRM과 달라집니다</td></tr>
+            <tr><td class="num k">6</td><td><strong>활동 자동 캡처 기본 ON</strong> (메일 · 캘린더)</td><td>입력 부담 제거 &mdash; 도입 실패 1위 원인</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        <strong>0~2단계까지가 &ldquo;지금 화면이 이상하다&rdquo;의 해소</strong>이고,
+        <strong>3~6단계가 &ldquo;그냥 폼 모음&rdquo;에서 벗어나는 일</strong>입니다.
+      </p>
+
+      <h3>6-2. 제품이 사용자에게 안내할 순서 (온보딩 재설계)</h3>
+      <p>현재 &lsquo;시작하기&rsquo; 4단계는 방향이 맞습니다. 다만 <strong>1번이 하필 342 토글 화면으로 보냅니다.</strong></p>
+
+      <div class="wide versus">
+        <div>
+          <h4>지금</h4>
+          <ol>
+            <li>영업 단계를 우리 회사에 맞게 정리 <span class="chip crit">← 342 토글</span></li>
+            <li>회사와 연락처를 등록</li>
+            <li>첫 딜을 만들어 보세요</li>
+            <li>딜마다 다음에 할 일을 정하세요</li>
+          </ol>
+        </div>
+        <div>
+          <h4>제안</h4>
+          <ol>
+            <li>회사와 연락처를 넣으세요 (또는 엑셀에서 가져오기)</li>
+            <li>진행 중인 영업 건을 딜로 만드세요</li>
+            <li>딜마다 다음에 할 일을 정하세요</li>
+            <li>(선택) 단계 이름을 우리 말로 바꾸세요</li>
+          </ol>
+        </div>
+      </div>
+      <p><strong>데이터부터, 설정은 마지막에.</strong> 지금은 반대입니다 &mdash; 아무 데이터도 없는 사람에게 가장 추상적인 설정을 먼저 시킵니다.</p>
+    </section>
+
+    <!-- ══ 07 ══ -->
+    <section id="s7">
+      <h2><span class="n">07</span><span>결정이 필요한 것</span></h2>
+      <p class="deck">이 넷은 코드나 외부 자료로 답이 안 나옵니다.</p>
+      <ol class="decide wide">
+        <li><span><b>목표는 누구 단위인가</b>회사 전체 / 부서 / 담당자별? 스키마 <code>TargetScope</code>가 여기서 갈립니다</span></li>
+        <li><span><b>수익의 원가를 어디서 가져오나</b>GPU 콕핏 자동 연결 / 딜에 수기 입력 / 둘 다?</span></li>
+        <li><span><b>메일·캘린더 자동 수집을 기본 ON으로 해도 되나</b>프라이버시 결정이라 제품이 정할 수 없습니다</span></li>
+        <li><span><b>파이프라인 3개를 실제로 다 쓰나</b>지금 딜은 전부 GPU 인프라에 있고, 리포트가 안 쓰는 2개를 계속 셉니다</span></li>
+      </ol>
+    </section>
+
+    <!-- ══ 부록 ══ -->
+    <section id="s8">
+      <h2><span class="n">부록</span><span>이번 조사에서 나온 결함 · 방법</span></h2>
+      <p class="deck">범위 밖이라 고치지 않았습니다. 세션 보드에 기록했습니다.</p>
+
+      <div class="wide tw">
+        <table>
+          <thead><tr><th>심각도</th><th>결함</th><th>위치</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip crit">high</span></td><td>딜 담당자(<code>ownerId</code>) 입력 UI가 0개. 조건 &lsquo;담당자&rsquo;를 막음으로 켜면 그 단계가 영원히 잠긴다</td><td class="num"><code>DealFormModal.tsx</code> ↔ <code>entry-criteria.ts:67</code></td></tr>
+            <tr><td><span class="chip crit">high</span></td><td>설정 3종 전부 기본 OFF(342/16/0 중 켜진 것 0)인데 화면 문구는 &ldquo;AI가 해 줍니다&rdquo;</td><td class="num"><code>/crm/process</code>, <code>/crm/settings</code></td></tr>
+            <tr><td><span class="chip high">medium</span></td><td>회사 상세가 로딩 중에 &ldquo;딜 0건 / 없어요&rdquo;라고 단정 (10초 뒤 1건)</td><td class="num"><code>CompanyDetail.tsx:52</code></td></tr>
+            <tr><td><span class="chip high">medium</span></td><td>멈춘 딜 판정이 <code>updatedAt</code> 기준 + 14일 하드코딩</td><td class="num"><code>attention.ts:54,119</code></td></tr>
+            <tr><td><span class="chip info">low</span></td><td>오늘 화면 &lsquo;시작하기&rsquo; 강조 단계의 설명이 보라 위 보라라 안 읽힘</td><td class="num"><code>today.module.css</code></td></tr>
+            <tr><td><span class="chip info">low</span></td><td><code>healthScore</code>가 스키마·마이그레이션에 있는데 읽는 코드 0건</td><td class="num"><code>schema.prisma:313</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        기존 QA 세션이 이미 보고한 24건(감사로그 JSON 노출, 조사 처리, <code>window.alert</code>,
+        자동화 규칙 낙관적 잠금 부재, 미팅 추출 멱등성 부재 등)은 중복 기록하지 않았습니다.
+      </p>
+
+      <h3>조사 방법</h3>
+      <ul>
+        <li><strong>실브라우저 실측</strong> &mdash; <code>/crm</code>의 process · today · deals · deals/[id] · companies · companies/[id] · reports · settings · inbox · tasks · meetings · audit. 스크린샷 + 시각별 재측정</li>
+        <li><strong>운영 워크스페이스 API 조회</strong> &mdash; pipelines · field-config · automations · deals · companies</li>
+        <li><strong>코드 전수</strong> &mdash; <code>app/(crm)/**</code> 7,518줄 · <code>lib/crm/services/**</code> 43개 · <code>prisma/schema.prisma</code> · 기획 스키마</li>
+        <li><strong>외부 조사</strong> &mdash; 검색 5회 (04장 출처)</li>
+        <li><strong>데이터 변경 없음.</strong> 읽기만 했습니다</li>
+      </ul>
+    </section>
+
+    <footer>
+      dacrm 전수 진단 + 재기획 · 2026-08-17 · 대상 v0.7.538<br>
+      원본 문서 docs/2026-08-17-crm-ux-replan/00-REPORT.md · 구현 없음
+    </footer>
+
+  </main>
+</div>
+
+<script>
+  // 342개의 스위치 — 전부 꺼짐. 보고서의 앵커 지표를 그대로 그린다.
+  (function () {
+    var grid = document.getElementById('switchgrid');
+    if (!grid) return;
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < 342; i++) frag.appendChild(document.createElement('i'));
+    grid.appendChild(frag);
+  })();
+</script>
