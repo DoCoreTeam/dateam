@@ -19,6 +19,23 @@ import { formatAmount } from '../deals/amount'
 import styles from './reports.module.css'
 
 interface CurrencySum { currency: string; totalMinor: string }
+
+/** 어디서 막히나 — 표본이 얇으면 숫자 대신 "모른다"가 온다 */
+interface StageDuration {
+  stageId: string
+  stageName: string
+  samples: number
+  medianDays: number | null
+  maxDays: number | null
+  standing: number
+  insufficient: boolean
+}
+interface Velocity {
+  pipelineId: string
+  pipelineName: string
+  stages: StageDuration[]
+  summary: string
+}
 interface StageSum {
   stageId: string
   stageName: string
@@ -61,6 +78,7 @@ function Money({ sums, count }: { sums: CurrencySum[]; count: number }) {
 
 export default function ReportsClient() {
   const [items, setItems] = useState<PipelineReport[]>([])
+  const [velocity, setVelocity] = useState<Velocity[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -72,6 +90,7 @@ export default function ReportsClient() {
       const body = await res.json()
       if (!res.ok) { setError(body?.error?.message ?? '리포트를 불러오지 못했습니다.'); return }
       setItems(body.items ?? [])
+      setVelocity(body.velocity ?? [])
     } catch {
       setError('리포트를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -136,6 +155,40 @@ export default function ReportsClient() {
               </li>
             ))}
           </ul>
+
+          {/*
+            어디서 막히나.
+            표본이 얇으면 숫자를 내지 않는다 — 딜 3건으로 "평균 12일"을 말하면
+            사람은 그걸 사실로 읽고 없는 문제를 고치러 간다.
+          */}
+          {(() => {
+            const v = velocity.find((x) => x.pipelineId === p.pipelineId)
+            if (!v) return null
+            return (
+              <div className={styles.velocity}>
+                <h3 className={styles.subTitle}>어디서 오래 머무나</h3>
+                <p className={styles.summary}>{v.summary}</p>
+                <ul className={styles.durations}>
+                  {v.stages.map((d) => (
+                    <li key={d.stageId} className={styles.duration}>
+                      <span className={styles.stageName}>{d.stageName}</span>
+                      {d.insufficient ? (
+                        <span className={styles.note}>
+                          아직 모름{d.samples > 0 ? ` (지나간 딜 ${d.samples}건)` : ''}
+                        </span>
+                      ) : (
+                        <>
+                          <span className={styles.stageCount}>보통 {d.medianDays}일</span>
+                          <span className={styles.note}>가장 오래 {d.maxDays}일 · 표본 {d.samples}건</span>
+                        </>
+                      )}
+                      {d.standing > 0 && <span className={styles.note}>지금 {d.standing}건 서 있음</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )
+          })()}
         </section>
       ))}
     </div>

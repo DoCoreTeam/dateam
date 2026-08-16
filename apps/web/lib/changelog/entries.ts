@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.524',
+    date: '2026-08-17',
+    title: '어느 단계에서 오래 머무는지 보여요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '⏱️',
+        headline: '리포트에 "어디서 오래 머무나"가 생겼어요',
+        detail: '딜이 각 단계에 보통 며칠 머무는지, 가장 오래 걸린 건 며칠인지 보여 줍니다. 어디서 막히는지 감이 아니라 숫자로 볼 수 있어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🤐',
+        headline: '근거가 얇으면 숫자를 지어내지 않아요',
+        detail: '지나간 딜이 몇 건 안 되면 "아직 모름"이라고 말합니다. 딜 서너 건으로 낸 평균을 사실처럼 보여 주면 없는 문제를 고치게 되니까요.',
+      },
+    ],
+  },
+  {
     version: '0.7.523',
     date: '2026-08-17',
     title: '딜을 열면 지난 미팅이 바로 보여요',
