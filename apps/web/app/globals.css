@@ -9989,3 +9989,23 @@ main.page-inner.daily-fullpane-main { padding-bottom: var(--space-6); }
   .list-search { flex: 1 1 100%; max-width: none; }
   .list-toolbar-right { margin-left: 0; width: 100%; }
 }
+
+/* 폼 안의 실패 한 줄 — components/ui/FormErrorBanner.tsx (dacrm T1-02)
+   화면 전용이 아니라 공용 부품의 스타일이므로 여기 둔다(§0-1 컴포넌트 축). */
+.form-error-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--danger-bg);
+  border: var(--border-w) solid var(--danger-border);
+  color: var(--danger);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+.form-error-banner__code {
+  font-size: var(--fs-2xs);
+  opacity: 0.75;
+}

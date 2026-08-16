@@ -129,6 +129,7 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 |---|---|---|
 | 빈 | `ui/EmptyState` | **19** (v0.7.445 1벌) |
 | 오류(영역) | `ui/ErrorState` | **11** (v0.7.445 공용 승격, 도움 링크는 `helpHref`로 주입) |
+| 오류(폼 안) | `ui/FormErrorBanner` | 신설 v0.7.495 (dacrm) — 폼 저장 실패 한 줄. 입력값을 지우지 않고 저장 버튼 근처에서 무엇을 고칠지 말한다. **화면 전체 실패는 `ErrorState`** |
 | 오류(한 줄) | **`ui/InlineError`** | **56** (v0.7.456 신설 — 폼·버튼 옆 한 줄. 예전엔 화면마다 인라인 style, 글자 크기 8종) |
 | 로딩 | `ui/LoadingSkeleton→SkelPage/SkelCard/SkelList` | **11 / 9 / 7** |
 | 로딩 | `ui/AXDotLoader` | **35** |

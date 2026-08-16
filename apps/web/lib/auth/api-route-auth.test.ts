@@ -14,8 +14,13 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
-/** 라우트가 인증했다고 인정하는 신호 */
-const AUTH_HELPER = /\b(require[A-Za-z]*Api|requireCiMember[A-Za-z]*|authenticatePublicApi|verifyApiKey)\s*\(/
+/**
+ * 라우트가 인증했다고 인정하는 신호.
+ * withCrmApi 는 이름 규칙(require*Api)과 다르지만 같은 일을 한다 —
+ * 안에서 resolveCrmAccess 로 로그인·api_user·삭제계정·CRM 멤버십을 판정하고
+ * 실패하면 401/403 을 낸다(lib/crm/api/handler.ts).
+ */
+const AUTH_HELPER = /\b(require[A-Za-z]*Api|requireCiMember[A-Za-z]*|authenticatePublicApi|verifyApiKey|withCrmApi)\s*\(/
 /** 라우트 안에서 직접 세션을 확인하는 경우 */
 const SESSION = /auth\.get(?:User|Session)\(\)/
 /** 거부까지 하는지 — 세션을 읽고 통과시키면 인증이 아니다 */
