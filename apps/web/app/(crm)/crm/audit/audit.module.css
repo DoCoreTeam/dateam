@@ -1,0 +1,113 @@
+/* 기록 — "이 값 어디서 왔지?"에만 답한다 (dacrm) */
+.toolbar {
+  margin-bottom: var(--space-3);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.item {
+  padding: var(--space-3);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* 사람과 AI 를 눈으로 가른다 — 이 화면을 여는 이유가 대개 "AI가 뭘 했나"다 */
+.human,
+.ai {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius);
+  white-space: nowrap;
+}
+
+.human {
+  background: var(--border-light);
+  color: var(--text-muted);
+}
+
+.ai {
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.summary {
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.link {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+.link:hover {
+  color: var(--brand);
+}
+
+.at {
+  margin-left: auto;
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.changes {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0 0 0 var(--space-3);
+  border-left: var(--border-w-2) solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.change {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--fs-2xs);
+  flex-wrap: wrap;
+}
+
+.field {
+  color: var(--text-muted);
+  min-width: 7rem;
+}
+
+/* 이전 값은 물러나고 새 값이 앞선다 — 눈이 결과를 먼저 찾는다 */
+.from {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+
+.arrow {
+  color: var(--text-faint);
+}
+
+.to {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.foot {
+  margin-top: var(--space-4);
+}

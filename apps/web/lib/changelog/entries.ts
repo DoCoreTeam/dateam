@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.520',
+    date: '2026-08-16',
+    title: '이 값 누가 넣었는지 이제 볼 수 있어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🕰️',
+        headline: '영업 CRM에 "기록" 화면이 생겼어요',
+        detail: '누가 언제 무엇을 바꿨는지 시간순으로 남습니다. "사람이 한 것"과 "AI가 한 것"을 갈라 볼 수 있어서, AI가 채운 값이 마음에 걸릴 때 바로 확인할 수 있어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '💬',
+        headline: '기록이 사람 말로 보여요',
+        detail: '"deal.stage_moved"가 아니라 "딜 단계를 옮겼어요", 단계 번호 대신 "리드 → 요구사항 파악"으로 보입니다. 무엇이 달라졌는지 이전 값과 새 값을 나란히 보여 줘요.',
+      },
+    ],
+  },
+  {
     version: '0.7.519',
     date: '2026-08-16',
     title: '단계마다 "여기 오려면 이건 있어야 해요"를 정할 수 있어요',
