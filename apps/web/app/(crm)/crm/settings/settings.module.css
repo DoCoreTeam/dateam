@@ -117,3 +117,66 @@
 }
 
 .settingHead > :global(.label) { margin: 0; }
+
+/* 중복 정리 (T1-11) — 두 쪽을 나란히 두고 사람이 남길 쪽을 고른다 */
+.undo {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3);
+  border: var(--border-w) solid var(--info-border);
+  border-radius: var(--radius);
+  background: var(--info-bg);
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+
+.dupes {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.dupe {
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+.dupeHead {
+  margin-bottom: var(--space-2);
+}
+
+.dupePair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  align-items: stretch;
+}
+
+@media (max-width: 767px) {
+  .dupePair { grid-template-columns: 1fr; }
+}
+
+.dupeSide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+}
+
+.dupeName {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.dupeSub {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  /* 남은 여백은 버튼을 바닥에 붙여 흡수한다 — 두 쪽 높이가 갈리지 않게 */
+  margin-bottom: auto;
+}
