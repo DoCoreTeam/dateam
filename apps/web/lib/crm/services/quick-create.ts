@@ -22,6 +22,9 @@ import { runAi } from '../ai/runner.ts'
 import { QUICK_CREATE_V1 } from '../ai/prompts/quick-create.v1.ts'
 import { parseQuickCreate, type QuickCreateOutput } from '../ai/schemas/quick-create.ts'
 import { mockAdapter } from '../ai/adapters/mock.ts'
+import { hostAdapter } from '../ai/adapters/host.ts'
+import { enrichFromText } from './enrich.ts'
+import type { EnrichCandidate } from './enrich.ts'
 import type { AiAdapter } from '../ai/runner.ts'
 import { getCrmDb } from '../db/client.ts'
 import { resolveSetting } from './setting.ts'
@@ -46,6 +49,8 @@ export interface Gap {
 export interface QuickCreateResult {
   created: TouchedRecord[]
   linked: TouchedRecord[]
+  /** 인박스로 보낸 제안 — 이미 있는 레코드의 빈 칸을 채우자는 이야기다 */
+  suggestion: { suggested: number; applied: number }
   gaps: Gap[]
   runId: string
   /** 아무것도 못 만들었을 때 화면이 원문을 되살려 준다(명세 3.1-8) */
@@ -111,6 +116,8 @@ export async function applyQuickCreate(
 ): Promise<QuickCreateResult> {
   const created: TouchedRecord[] = []
   const linked: TouchedRecord[] = []
+  /** 이미 있는 레코드에 붙일 새 정보 — 트랜잭션 밖에서 제안으로 만든다 */
+  const enrich: EnrichCandidate[] = []
   const gaps: Gap[] = []
 
   const companyName = normalizeText(output.company?.name)
@@ -126,11 +133,21 @@ export async function applyQuickCreate(
     if (domain) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const hit = await (tx as any).crmCompany.findFirst({
-        where: { domain }, select: { id: true, name: true },
+        where: { domain }, select: { id: true, name: true, domain: true, industry: true, region: true },
       })
       if (hit) {
         companyId = hit.id
         linked.push({ type: 'company', id: hit.id, name: hit.name })
+        // 이미 있는 회사다 — 새로 읽어낸 정보는 덮지 않고 제안으로 넘긴다(절대규칙 1)
+        enrich.push({
+          targetType: 'company', targetId: hit.id,
+          current: { domain: hit.domain, industry: hit.industry, region: hit.region },
+          proposed: {
+            domain,
+            industry: normalizeText(output.company?.industry),
+            region: normalizeText(output.company?.region),
+          },
+        })
       }
     }
 
@@ -163,11 +180,16 @@ export async function applyQuickCreate(
     if (email) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const hit = await (tx as any).crmPerson.findFirst({
-        where: { email }, select: { id: true, name: true },
+        where: { email }, select: { id: true, name: true, phone: true, title: true },
       })
       if (hit) {
         personId = hit.id
         linked.push({ type: 'person', id: hit.id, name: hit.name })
+        enrich.push({
+          targetType: 'person', targetId: hit.id,
+          current: { phone: hit.phone, title: hit.title },
+          proposed: { phone, title: normalizeText(output.person?.title) },
+        })
       }
     }
 
@@ -266,23 +288,49 @@ export async function applyQuickCreate(
     gaps.push({ target: 'company', field: 'name', label: '회사 이름', blocking: true })
   }
 
-  return { created, linked, gaps, runId, text: originalText }
+  /**
+   * 제안은 **본 등록이 끝난 뒤** 만든다.
+   *
+   * 같은 트랜잭션에 넣으면 제안 생성이 실패했을 때 방금 등록한 회사·인물까지 되돌아간다.
+   * 사용자가 원한 건 등록이지 제안이 아니다 — 곁들이는 일이 본 일을 죽이면 안 된다.
+   */
+  const suggestion = enrich.length > 0
+    ? await enrichFromText(workspaceId, actorId, runId, originalText, enrich)
+    : { suggested: 0, applied: 0 }
+
+  return { created, linked, gaps, runId, text: originalText, suggestion }
 }
 
 /**
- * 설정이 정한 모델로 어댑터를 고른다.
+ * 설정이 정한 AI 로 어댑터를 고른다.
  *
- * 실제 모델 어댑터는 T1-09(HUMAN GATE)에서 키와 함께 들어온다.
- * 그때까지 설정이 무엇을 가리키든 mock 으로 돈다 — **키 없이 도는 것이 기본값**이라
- * 설정을 잘못 만졌다고 조용히 유료 호출이 나가는 일이 없다.
+ * 키는 **호스트 시스템 설정**에 이미 있다(→ 통합의 Gemini·Claude·OpenAI).
+ * CRM 은 키를 따로 받지 않고 "어느 것을 쓸지"만 정한다 — 같은 키를 두 곳에서 받으면
+ * 한쪽만 바꿨을 때 CRM 만 조용히 옛 키로 돌기 때문이다.
+ *
+ * `mock` 은 남겨 둔다. 키가 없는 환경(테스트·초기 세팅)에서도 흐름이 돌아야
+ * "AI 를 못 붙여서 아무것도 못 해 본다"가 안 된다.
  */
 async function adapterFromSetting(db: ReturnType<typeof getCrmDb>): Promise<AiAdapter> {
-  const model = await resolveSetting(db, 'ai.model.extract')
-  const name = typeof model.value === 'string' ? model.value : 'mock'
+  const setting = await resolveSetting(db, 'ai.model.extract')
+  const name = typeof setting.value === 'string' ? setting.value.trim().toLowerCase() : 'auto'
   if (name === 'mock') return mockAdapter()
 
-  // 아직 붙지 않은 모델을 가리키면 그 사실을 말한다 — 조용히 mock 으로 돌면
-  // 사용자는 설정이 먹은 줄 알고 결과를 믿는다.
-  throw new CrmError('VALIDATION_FAILED',
-    `설정된 모델(${name})은 아직 연결되지 않았습니다. 설정에서 mock 으로 두거나 관리자에게 문의해 주세요.`)
+  return hostAdapter(readHostMeta, name)
+}
+
+/**
+ * 호스트가 보관한 AI 설정을 읽는다.
+ *
+ * 서비스롤로 읽는 이유: 이건 조직 전체의 연동 설정이라 사용자 RLS 아래에 있지 않다.
+ * (AI 채팅·GPU 추출이 쓰는 그 경로와 같다 — 새로 만들지 않는다)
+ */
+async function readHostMeta(): Promise<Record<string, unknown>> {
+  const { createAdminClient } = await import('../../supabase/server.ts')
+  const admin = createAdminClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (admin as any)
+    .from('org_content').select('value').eq('key', 'META').maybeSingle()
+  const value = (data as { value?: unknown } | null)?.value
+  return (value && typeof value === 'object') ? value as Record<string, unknown> : {}
 }

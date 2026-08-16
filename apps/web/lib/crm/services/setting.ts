@@ -11,6 +11,12 @@
  * 시크릿(API 키)은 **평문으로 두지 않는다.** 저장은 AES-256-GCM, 읽기는 두 갈래다 —
  * 서버가 쓸 때는 복호하고, 화면에 줄 때는 마스킹만 준다.
  * 화면에 한 번이라도 평문으로 내보내면 그때부터 브라우저 기록·로그에 남는다.
+ *
+ * **AI API 키는 여기에 두지 않는다.** 호스트 시스템 설정(→ 통합)에 Gemini·Claude·OpenAI
+ * 키가 이미 있고 AI 채팅·GPU 추출·회의록이 전부 그것으로 돈다. 같은 키를 두 곳에서 받으면
+ * 사용자는 같은 값을 두 번 넣어야 하고, 한쪽만 바꾸면 CRM 만 조용히 옛 키로 돈다.
+ * CRM 이 정하는 건 **어느 AI 를 쓸지**뿐이다(`ai.model.*`).
+ * 음성 인식만 여기 남는다 — 호스트에 그 연동이 없기 때문이다.
  */
 
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'node:crypto'
@@ -39,29 +45,24 @@ export interface SettingDef {
 
 export const SETTING_DEFS: readonly SettingDef[] = [
   {
-    key: 'ai.model.extract', label: '추출 모델', kind: 'text',
-    fallback: 'mock',
-    description: '미팅·붙여넣기에서 정보를 뽑을 때 쓰는 모델. 정확도가 중요한 자리라 상위 티어를 쓴다.',
+    key: 'ai.model.extract', label: '추출에 쓸 AI', kind: 'text',
+    fallback: 'auto',
+    description: '명함·미팅에서 정보를 뽑을 때 쓸 AI. auto 면 시스템 설정의 기본 AI를 따릅니다. gemini · claude · openai · mock 중에서 고를 수 있어요.',
   },
   {
-    key: 'ai.model.summary', label: '요약 모델', kind: 'text',
-    fallback: 'mock',
-    description: '요약처럼 가벼운 일에 쓰는 모델. 중위 티어로 충분하다.',
-  },
-  {
-    key: 'ai.api_key', label: 'AI API 키', kind: 'secret',
-    fallback: null,
-    description: '모델 호출에 쓰는 키. 저장하면 다시 볼 수 없고, 바꿀 수만 있다.',
+    key: 'ai.model.summary', label: '요약에 쓸 AI', kind: 'text',
+    fallback: 'auto',
+    description: '요약처럼 가벼운 일에 쓸 AI. 비워 두면 추출과 같은 것을 씁니다.',
   },
   {
     key: 'stt.vendor', label: '음성 인식 업체', kind: 'text',
     fallback: 'mock',
-    description: '녹음을 글로 바꾸는 업체. 키가 없으면 mock 으로 둔다.',
+    description: '녹음을 글로 바꾸는 업체. 키가 없으면 mock 으로 둡니다.',
   },
   {
     key: 'stt.api_key', label: '음성 인식 키', kind: 'secret',
     fallback: null,
-    description: '음성 인식 업체 키.',
+    description: '음성 인식 업체 키. 이건 시스템 설정에 없는 연동이라 여기서 받습니다.',
   },
 ] as const
 

@@ -221,7 +221,7 @@ test('딜은 금액이 드러날 때만 만들고, 이름이 없으면 사람에
   const r = await quickCreate(WS_A, 'mb_owner', {
     text: `${CARD}\n도입 규모는 3억원 정도로 보고 있습니다`,
     createDeal: true, pipelineId: pipeline!.id, stageId: stage!.id,
-  })
+  }, mockAdapter())
   track(r)
   // 금액은 읽었지만 딜 이름은 사람이 정한다 — AI 가 이름을 지어내면 목록이 비슷해진다
   assert.ok(r.gaps.some((g) => g.target === 'deal' && g.field === 'name'))

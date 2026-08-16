@@ -16,7 +16,7 @@ import {
 import { CrmError } from '../../../lib/crm/domain/errors.ts'
 
 const KEY = 'ai.model.extract'
-const SECRET_KEY = 'ai.api_key'
+const SECRET_KEY = 'stt.api_key'
 
 async function cleanup() {
   await dbA.crmAppSetting.deleteMany({ where: { key: { in: SETTING_DEFS.map((d) => d.key) } } })

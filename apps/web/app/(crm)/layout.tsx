@@ -13,6 +13,7 @@ import { redirect } from 'next/navigation'
 import { redirectApiUser } from '@/lib/auth/api-user-gate'
 import {
   Inbox, Building2, Users, Handshake, Mic, Workflow, BarChart3, Settings,
+  Home, Briefcase, CalendarDays,
 } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import AppShell from '@/components/ui/shell/AppShell'
@@ -49,6 +50,24 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: '관리',
     items: [{ href: '/crm/settings', label: '설정', icon: <Settings size={16} /> }],
+  },
+  {
+    /**
+     * CRM 밖으로 나가는 길.
+     *
+     * 이게 없으면 CRM 에 들어온 사람은 **돌아갈 방법이 없다** — 사이드바가 통째로
+     * CRM 것으로 바뀌기 때문이다(실사용에서 지적받았다: "CRM에서 업무 화면으로 가는 게 없다").
+     * 호스트에서 CRM 으로 오는 링크는 있는데 반대가 없으면 그건 문이 아니라 함정이다.
+     *
+     * 자주 쓰는 곳만 둔다 — 사이드바를 통째로 복제하면 여기가 두 번째 메뉴 정의가 되고,
+     * 호스트 메뉴가 바뀔 때마다 두 곳을 고쳐야 한다. 나머지는 상단 전체 메뉴로 간다.
+     */
+    label: '돌아가기',
+    items: [
+      { href: '/home', label: '홈', icon: <Home size={16} /> },
+      { href: '/work', label: '업무', icon: <Briefcase size={16} /> },
+      { href: '/calendar', label: '캘린더', icon: <CalendarDays size={16} /> },
+    ],
   },
 ]
 

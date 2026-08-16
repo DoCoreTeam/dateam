@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { LayoutGrid, X, Home, NotebookPen, CalendarDays, FileText, Briefcase, Users, TrendingUp, Inbox, DollarSign, Tag, Key, Code2, ChevronRight, Sparkles, Radar } from 'lucide-react'
+import { LayoutGrid, X, Home, NotebookPen, CalendarDays, FileText, Briefcase, Users, TrendingUp, Inbox, DollarSign, Tag, Key, Code2, ChevronRight, Sparkles, Radar, Handshake } from 'lucide-react'
 
 const PAGES = [
   {
@@ -12,6 +12,19 @@ const PAGES = [
       { href: '/daily', label: '일일업무', icon: <NotebookPen size={14} /> },
       { href: '/calendar', label: '캘린더', icon: <CalendarDays size={14} /> },
       { href: '/weekly-report', label: '주간보고', icon: <FileText size={14} /> },
+    ],
+  },
+  {
+    /**
+     * 영업 CRM — 전체 메뉴에서 빠져 있었다.
+     *
+     * 사이드바 링크는 admin 에게만 보이는데(레이아웃 필터), 전체 메뉴에도 없으면
+     * CRM 멤버인 비관리자는 **주소를 직접 치는 것 말고 들어갈 방법이 없다.**
+     * 접근 판정은 CRM 셸이 하므로 여기서는 길만 열어 둔다.
+     */
+    group: '영업',
+    items: [
+      { href: '/crm', label: '영업 CRM', icon: <Handshake size={14} /> },
     ],
   },
   {
