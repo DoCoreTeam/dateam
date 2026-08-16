@@ -171,6 +171,11 @@ function cmdClaim(rest, flags) {
     total: prev?.total ?? 0,
     findings: prev?.findings || [],
     log: prev?.log || [],
+    // 읽음 커서와 확인 이력은 **반드시 물려받는다**. 작업 범위가 늘어 같은 이름으로 다시 claim하는 것은
+    // 정상 절차인데(M-7 파일 소유권 갱신), 여기서 초기화되면 이미 확인한 지시가 다시 '미확인'으로 뜬다.
+    // M-14는 "도달의 근거는 보드의 📬 미확인 0"이라고 못 박았다 — 그 숫자가 거짓이 되면 규칙이 무너진다.
+    busSeen: prev?.busSeen ?? 0,
+    acks: prev?.acks || [],
     released: false,
   })
 
