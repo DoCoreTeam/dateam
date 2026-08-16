@@ -33,6 +33,19 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.529',
+    date: '2026-08-17',
+    title: '오래 멈춰 있는 딜을 알아서 짚어 줘요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '⏰',
+        headline: '한 단계에 오래 머문 딜에 확인 할 일이 생겨요',
+        detail: '아무도 안 건드리는 딜은 아무 일도 안 일어나서 잊히기 쉬워요. 이제 "며칠 이상 머물면 확인 연락" 규칙을 만들어 두면 하루 한 번 알아서 짚어 줍니다. 같은 딜에 매일 쌓이지는 않고, 설정 화면에서 "지금 확인"을 눌러 바로 돌려볼 수도 있어요.',
+      },
+    ],
+  },
+  {
     version: '0.7.528',
     date: '2026-08-17',
     title: '딜을 옮기면 할 일이 저절로 만들어져요',

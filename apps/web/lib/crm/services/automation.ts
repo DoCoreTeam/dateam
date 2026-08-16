@@ -24,6 +24,9 @@ import { kstDateKey } from '../../datetime/kst.ts'
 /** 규칙을 담아 두는 설정 키 — 워크스페이스마다 하나 */
 export const AUTOMATION_SETTING_KEY = 'automation.rules'
 
+/** 한 판에 훑는 딜 수 — 늘어나도 한 판이 서버리스 시간 제한을 안 넘게 */
+const STALLED_SCAN_LIMIT = 500
+
 /** 한 워크스페이스가 가질 수 있는 규칙 수 — 넘으면 사람이 전체를 못 읽는다 */
 export const MAX_RULES = 20
 
@@ -305,4 +308,79 @@ export function validateRules(raw: unknown): AutomationRule[] {
     )
   }
   return parsed
+}
+
+/**
+ * 오래 머문 딜을 훑어 규칙을 돌린다 (트리거 `deal.stalled`).
+ *
+ * **왜 따로 있나**: 다른 트리거는 사람이 무언가를 할 때 발화한다.
+ * 그런데 "오래 머물렀다"는 **아무 일도 안 일어난 것**이 사건이다.
+ * 아무도 안 건드리니 발화할 자리가 없다 — 그래서 하루 한 번 훑는다.
+ *
+ * **같은 딜에 매일 할 일을 만들면 안 된다.** 이레째부터 매일 하나씩 쌓이면
+ * 그 목록은 그날로 죽는다. 그래서 이 딜·이 규칙으로 이미 만든 적이 있으면 건너뛴다.
+ */
+export async function runStalledSweep(
+  db: CrmDb,
+  runTx: <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) => Promise<T>,
+  now: Date = new Date(),
+): Promise<{ scanned: number; created: number }> {
+  const rules = (await loadRules(db)).filter((r) => r.trigger === 'deal.stalled' && r.enabled)
+  if (rules.length === 0) return { scanned: 0, created: 0 }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const deals = await (db as any).crmDeal.findMany({
+    where: { status: 'OPEN' },
+    select: {
+      id: true, name: true, stageId: true, amountMinor: true,
+      updatedAt: true, company: { select: { name: true } },
+    },
+    take: STALLED_SCAN_LIMIT,
+    orderBy: { updatedAt: 'asc' },
+  }) as {
+    id: string; name: string; stageId: string; amountMinor: bigint | null
+    updatedAt: Date; company: { name: string } | null
+  }[]
+
+  let created = 0
+  for (const d of deals) {
+    // 지금 단계에 언제 들어왔는지 — 이력이 없으면 딜이 마지막으로 바뀐 때로 본다
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hist = await (db as any).crmStageHistory.findFirst({
+      where: { dealId: d.id, toStageId: d.stageId },
+      orderBy: { movedAt: 'desc' },
+      select: { movedAt: true },
+    })
+    const facts: DealFacts = {
+      id: d.id, name: d.name, stageId: d.stageId, amountMinor: d.amountMinor,
+      companyName: d.company?.name ?? null,
+      stageEnteredAt: hist?.movedAt ?? d.updatedAt,
+    }
+
+    const due = rules.filter((r) => matches(r, 'deal.stalled', facts, now))
+    if (due.length === 0) continue
+
+    // 이미 만든 적 있는 규칙은 뺀다 — 안 그러면 매일 하나씩 쌓인다
+    const fresh: AutomationRule[] = []
+    for (const r of due) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const seen = await (db as any).crmAuditLog.findFirst({
+        where: {
+          action: 'automation.task_created',
+          afterJson: { path: ['ruleId'], equals: r.id },
+        },
+        select: { id: true, afterJson: true },
+      })
+      const sameDeal = seen && (seen.afterJson as { dealId?: string } | null)?.dealId === d.id
+      if (!sameDeal) fresh.push(r)
+    }
+    if (fresh.length === 0) continue
+
+    const done = await runTx((tx) =>
+      runAutomations(tx, { rules: fresh, event: 'deal.stalled', deal: facts, actorId: null, now }),
+    )
+    created += done.length
+  }
+
+  return { scanned: deals.length, created }
 }

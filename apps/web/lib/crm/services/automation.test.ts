@@ -222,3 +222,37 @@ test('★ 기록 화면이 자동화 항목을 사람 말로 옮긴다 — 코�
     assert.ok(view.includes(`'${a}':`), `${a} 가 번역되지 않는다`)
   }
 })
+
+test('★ 오래 머문 딜을 훑는 잡이 실재한다 — 없으면 그 트리거는 영영 안 돈다', () => {
+  const route = readFileSync(
+    new URL('../../../app/api/crm/jobs/stalled-deals/route.ts', import.meta.url), 'utf8')
+  assert.ok(route.includes('runStalledSweep('), '잡이 훑기를 부르지 않는다')
+  assert.ok(route.includes('CI_WORKER_TOKEN'), '크론 입구가 잠겨 있지 않다')
+})
+
+test('★ 그 잡이 크론에 실제로 올라 있다 — 라우트만 만들면 아무도 안 부른다', () => {
+  const vercel = JSON.parse(
+    readFileSync(new URL('../../../vercel.json', import.meta.url), 'utf8')) as {
+      crons?: { path: string }[]
+    }
+  const paths = (vercel.crons ?? []).map((c) => c.path)
+  assert.ok(paths.includes('/api/crm/jobs/stalled-deals'), '체류 훑기가 크론에 없다')
+  // 같은 사고가 이미 한 번 났다 — 제안 만료도 라우트만 있고 크론에 없었다
+  assert.ok(paths.includes('/api/crm/jobs/expire-suggestions'), '제안 만료가 크론에 없다')
+})
+
+test('★ 같은 딜에 매일 만들지 않는다 — 이레째부터 하루 하나씩 쌓이면 목록이 죽는다', () => {
+  assert.ok(SRC.includes("action: 'automation.task_created'"), '이미 만들었는지 확인하지 않는다')
+  assert.ok(SRC.includes('sameDeal'), '같은 딜 여부를 보지 않는다')
+})
+
+test('훑기는 한 판에 보는 딜에 상한이 있다 — 딜이 늘어도 한 판이 안 터진다', () => {
+  assert.ok(SRC.includes('STALLED_SCAN_LIMIT'), '상한이 없다')
+  assert.ok(SRC.includes('take: STALLED_SCAN_LIMIT'), '상한을 질의에 안 건다')
+})
+
+test('★ 규칙을 만든 사람이 지금 확인할 수 있다 — 하루를 기다리라고 하면 아무도 안 믿는다', () => {
+  const ui = readFileSync(
+    new URL('../../../app/(crm)/crm/settings/AutomationCard.tsx', import.meta.url), 'utf8')
+  assert.ok(ui.includes("'/api/crm/jobs/stalled-deals'"), '화면에서 확인할 길이 없다')
+})

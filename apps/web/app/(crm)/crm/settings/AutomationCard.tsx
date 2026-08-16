@@ -11,7 +11,7 @@
 // 잘못 만든 규칙이 딜을 옮길 때마다 할 일을 쏟아내면 그때부터 아무도 할 일 목록을 안 본다.
 
 import { useCallback, useEffect, useState } from 'react'
-import { Plus, Trash2, Zap } from 'lucide-react'
+import { Plus, Trash2, Zap, Play } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -36,6 +36,7 @@ export default function AutomationCard() {
   const [stages, setStages] = useState<Stage[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [sweeping, setSweeping] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -103,6 +104,32 @@ export default function AutomationCard() {
       setSaving(false)
     }
   }
+
+  /**
+   * "오래 머문 딜"은 하루 한 번 크론이 훑는다. 그런데 규칙을 막 만든 사람에게
+   * **하루를 기다려 보라고 할 수는 없다** — 도는지 확인할 길이 없으면 아무도 안 믿는다.
+   */
+  async function sweepNow() {
+    setSweeping(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const res = await fetch('/api/crm/jobs/stalled-deals')
+      const body = await res.json()
+      if (!res.ok) { setError(body?.error?.message ?? '확인하지 못했습니다.'); return }
+      setNotice(
+        body.created > 0
+          ? `딜 ${body.scanned}건을 보고 할 일 ${body.created}건을 만들었어요.`
+          : `딜 ${body.scanned}건을 봤는데 아직 조건에 닿은 게 없어요.`,
+      )
+    } catch {
+      setError('확인하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setSweeping(false)
+    }
+  }
+
+  const hasStalled = rules.some((r) => r.enabled && r.trigger === 'deal.stalled')
 
   return (
     <div className={`card ${styles.card}`}>
@@ -224,6 +251,12 @@ export default function AutomationCard() {
             <NbButton onClick={() => void save()} disabled={saving}>
               <Zap size={14} /> {saving ? '저장 중…' : '저장'}
             </NbButton>
+            {/* 하루 한 번 도는 규칙은 사람이 지금 확인할 수 있어야 한다 */}
+            {hasStalled && (
+              <NbButton variant="ghost" onClick={() => void sweepNow()} disabled={sweeping}>
+                <Play size={14} /> {sweeping ? '확인 중…' : '지금 확인'}
+              </NbButton>
+            )}
           </div>
         </>
       )}
