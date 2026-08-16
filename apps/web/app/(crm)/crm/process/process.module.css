@@ -1,0 +1,141 @@
+/* 프로세스 — 단계 진입 조건 (dacrm) */
+.notice {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  border: var(--border-w) solid var(--info-border);
+  border-radius: var(--radius);
+  background: var(--info-bg);
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+
+.toolbar {
+  margin-bottom: var(--space-3);
+}
+
+.lead {
+  margin: 0 0 var(--space-4);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.stage {
+  padding: var(--space-4);
+}
+
+.stageHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: var(--hairline) solid var(--border-light);
+}
+
+/* 순서를 숫자로 — 단계는 흐름이고, 흐름은 순서가 전부다 */
+.pos {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--border-light);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+}
+
+.name {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.count {
+  margin-left: auto;
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--space-2) var(--space-4);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.levels {
+  display: flex;
+  gap: 0;
+  border: var(--hairline) solid var(--border-color);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.level,
+.levelOn {
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  background: var(--surface-bg);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.level + .level,
+.level + .levelOn,
+.levelOn + .level {
+  border-left: var(--hairline) solid var(--border-light);
+}
+
+.level:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.levelOn {
+  background: var(--brand);
+  color: var(--surface-bg);
+  font-weight: 700;
+}
+
+.level:disabled,
+.levelOn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.readonly {
+  margin: var(--space-4) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.foot {
+  margin-top: var(--space-4);
+}

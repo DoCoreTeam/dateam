@@ -62,6 +62,8 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [moveError, setMoveError] = useState<string | null>(null)
+  /** 옮기긴 했는데 비어 있는 것 — 오류가 아니라 알림이다 */
+  const [moveNotice, setMoveNotice] = useState<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [overStage, setOverStage] = useState<string | null>(null)
   const [closing, setClosing] = useState<{ deal: BoardDeal; stage: BoardStage } | null>(null)
@@ -101,6 +103,7 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
       return
     }
     setMoveError(null)
+    setMoveNotice(null)
     // 낙관적으로 먼저 옮겨 보여 준다 — 실패하면 되돌린다
     const prev = deals
     setDeals((rows) => rows.map((r) => (r.id === deal.id ? { ...r, stageId: stage.id } : r)))
@@ -117,6 +120,14 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
         return
       }
       setDeals((rows) => rows.map((r) => (r.id === deal.id ? { ...r, ...body } : r)))
+      /**
+       * 막지는 않았지만 비어 있는 것 — 사람이 알아야 한다.
+       * 응답에 실어 놓고 화면이 안 보여 주면 조건을 켠 적 없는 것과 같다.
+       */
+      const warn = (body.entryWarnings ?? []) as { message: string }[]
+      setMoveNotice(warn.length > 0
+        ? `옮겼어요. 다만 ${warn.map((w) => w.message).join(', ')}.`
+        : null)
     } catch {
       setDeals(prev)
       setMoveError('단계를 옮기지 못했습니다. 잠시 후 다시 시도해 주세요.')
@@ -158,6 +169,7 @@ export default function DealBoard({ pipelines, pipelineId, onPipelineChange, onC
       </div>
 
       <FormErrorBanner message={moveError} />
+      {moveNotice && <p className={styles.moveNotice}>{moveNotice}</p>}
 
       <div className={styles.board}>
         {pipeline.stages.map((stage) => {

@@ -26,6 +26,10 @@ import {
   type CursorInput, type CursorPage,
 } from '../db/cursor.ts'
 import { planDelete, type DeleteMode } from '../domain/soft-delete.ts'
+import {
+  parseCriteria, evaluateCriteria, blockingMessage,
+  type CriteriaVerdict,
+} from '../domain/entry-criteria.ts'
 
 export interface DealRow {
   id: string
@@ -42,6 +46,8 @@ export interface DealRow {
   ownerId: string | null
   version: number
   updatedAt: Date
+  /** 단계 이동에서만 채워진다 — 막지는 않았지만 사람이 알아야 하는 것 */
+  entryWarnings?: { key: string; message: string }[]
 }
 
 const SELECT = {
@@ -212,6 +218,49 @@ export async function updateDeal(
   })
 }
 
+
+/**
+ * 단계 진입 조건을 판정한다.
+ *
+ * **왜 여기서 하는가**: 조건을 화면에서만 검사하면 API 를 직접 부르는 경로로 새어 나가고,
+ * 그러면 보드에서는 막히는데 다른 데서는 통과하는 화면이 생긴다.
+ * 이동이 일어나는 **한 자리**에서 본다.
+ *
+ * **왜 막는 것과 알려 주는 것을 나누는가**: 영업은 순서대로 흐르지 않는다.
+ * 전부 막으면 사람은 조건을 지키는 대신 CRM 을 안 쓴다.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function checkEntryCriteria(tx: any, dealId: string, toStageId: string): Promise<CriteriaVerdict> {
+  const stage = await tx.crmStage.findFirst({
+    where: { id: toStageId }, select: { entryCriteriaJson: true },
+  })
+  const criteria = parseCriteria(stage?.entryCriteriaJson)
+  if (criteria.length === 0) return { ok: true, blocking: [], warnings: [] }
+
+  const deal = await tx.crmDeal.findFirst({
+    where: { id: dealId },
+    select: { amountMinor: true, expectedCloseDate: true, ownerId: true, companyId: true },
+  })
+  if (!deal) return { ok: true, blocking: [], warnings: [] }
+
+  // 필요한 조건이 있을 때만 센다 — 조건에 없으면 굳이 세지 않는다
+  const needContact = criteria.some((c) => c.key === 'contact')
+  const needTask = criteria.some((c) => c.key === 'nextTask')
+  const contactCount = needContact ? await tx.crmDealContact.count({ where: { dealId } }) : 0
+  const openTaskCount = needTask
+    ? await tx.crmTask.count({ where: { dealId, status: { in: ['TODO', 'DOING'] } } })
+    : 0
+
+  return evaluateCriteria(criteria, {
+    amountMinor: deal.amountMinor,
+    closeDate: deal.expectedCloseDate,
+    ownerId: deal.ownerId,
+    companyId: deal.companyId,
+    contactCount,
+    openTaskCount,
+  })
+}
+
 export interface MoveStageInput {
   version: number
   toStageId: string
@@ -237,6 +286,13 @@ export async function moveDealStage(
       return before as DealRow
     }
     await assertStageBelongs(tx, before.pipelineId, input.toStageId)
+
+    // 진입 조건 — 막을 것만 막고, 나머지는 결과에 실어 화면이 말하게 한다
+    const verdict = await checkEntryCriteria(tx, id, input.toStageId)
+    const blocked = blockingMessage(verdict)
+    if (blocked) {
+      throw new CrmError('VALIDATION_FAILED', blocked, { field: 'stageId', missing: verdict.blocking })
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = await (tx as any).crmDeal.updateMany({
@@ -264,7 +320,8 @@ export async function moveDealStage(
       actorType: 'HUMAN', actorId, action: 'deal.stage_moved', targetType: 'deal', targetId: id,
       beforeJson: { stageId: before.stageId }, afterJson: { stageId: input.toStageId },
     })
-    return after as DealRow
+    // 경고는 이동을 막지 않지만 사람이 알아야 한다 — 조용히 넘기면 조건이 없는 것과 같다
+    return { ...(after as DealRow), entryWarnings: verdict.warnings }
   })
 }
 

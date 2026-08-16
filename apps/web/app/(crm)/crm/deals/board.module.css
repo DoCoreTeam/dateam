@@ -132,3 +132,15 @@
 @media (max-width: 767px) {
   .column { flex-basis: 240px; }
 }
+
+/* 옮기긴 했는데 비어 있는 것 — 오류(빨강)가 아니라 알림이다.
+   빨강으로 띄우면 사람은 실패한 줄 알고 되돌리려 한다. */
+.moveNotice {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-w) solid var(--warning-border);
+  border-radius: var(--radius);
+  background: var(--warning-bg);
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
