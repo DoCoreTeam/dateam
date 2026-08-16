@@ -33,6 +33,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.7.521',
+    date: '2026-08-16',
+    title: '팀원을 영업 CRM에 들일 수 있어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '👥',
+        headline: '멤버 화면이 생겼어요',
+        detail: '회사 구성원 중에서 골라 영업 CRM에 들이고, 권한(소유자·관리자·멤버·보기만)을 정할 수 있어요. 그동안은 관리자가 직접 넣을 방법이 없어서 한 사람만 쓸 수 있었어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🔐',
+        headline: '관리자가 한 명도 없어지는 일은 막아요',
+        detail: '마지막 관리자를 내보내거나 권한을 낮추려 하면 이유를 알려 주고 막습니다. 내보낸 사람도 그 사람이 남긴 기록은 그대로 남고, 다시 들이면 원래 계정으로 돌아와요.',
+      },
+    ],
+  },
+  {
     version: '0.7.520',
     date: '2026-08-16',
     title: '이 값 누가 넣었는지 이제 볼 수 있어요',

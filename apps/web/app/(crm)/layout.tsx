@@ -51,7 +51,10 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: '관리',
-    items: [{ href: '/crm/settings', label: '설정', icon: <Settings size={16} /> }],
+    items: [
+      { href: '/crm/members', label: '멤버', icon: <Users size={16} /> },
+      { href: '/crm/settings', label: '설정', icon: <Settings size={16} /> },
+    ],
   },
   {
     /**

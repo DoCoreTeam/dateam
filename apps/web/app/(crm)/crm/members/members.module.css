@@ -1,0 +1,90 @@
+/* 멤버 (dacrm) — "누가 이 CRM 을 쓰나"에만 답한다 */
+.notice {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  border: var(--border-w) solid var(--info-border);
+  border-radius: var(--radius);
+  background: var(--info-bg);
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+
+.add {
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+/* 라벨이 붙은 컨트롤과 버튼이 한 줄에 서면 flex-end 다 — center 면 라벨 높이만큼 밀린다 */
+.addRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.addField {
+  flex: 1 1 16rem;
+}
+
+.hint {
+  margin: var(--space-2) 0 0;
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: var(--hairline) solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+  min-height: var(--control-h);
+  flex-wrap: wrap;
+}
+
+.who {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 12rem;
+  flex: 1;
+}
+
+.name {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.email {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+}
+
+.role {
+  width: auto;
+  min-width: 8rem;
+}
+
+.at {
+  font-size: var(--fs-2xs);
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.readonly {
+  margin: var(--space-4) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
