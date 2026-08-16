@@ -15,14 +15,18 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import styles from './settings.module.css'
 
+interface Choice { value: string; label: string; hint?: string }
+
 interface SettingItem {
   key: string
   label: string
-  kind: 'text' | 'number' | 'secret'
+  kind: 'text' | 'number' | 'secret' | 'choice'
   description: string
   value: string | null
   masked: string | null
   source: 'WORKSPACE' | 'GLOBAL' | 'FALLBACK'
+  /** 고를 수 있는 것 — 지금 등록된 AI 키에 따라 달라진다 */
+  choices?: Choice[]
 }
 
 /** 값이 어디서 왔는지 — "설정했는데 왜 안 바뀌지"를 없애는 유일한 표시 */
@@ -99,28 +103,61 @@ export default function SettingsCard() {
 
             <div className={styles.row}>
               <div className={styles.field}>
-                <input
-                  id={`set-${s.key}`}
-                  className="input-field"
-                  type={s.kind === 'secret' ? 'password' : 'text'}
-                  value={drafts[s.key] ?? ''}
-                  onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
-                  placeholder={s.kind === 'secret'
-                    ? (s.masked ? `저장됨 ${s.masked} — 바꾸려면 새 값을 넣으세요` : '아직 없음')
-                    : ''}
-                  autoComplete="off"
-                />
+                {/*
+                  고를 수 있는 설정은 **드롭다운**이다.
+                  예전에는 텍스트 칸에 `gemini` 라고 직접 적으라고 했다 —
+                  무엇을 적어야 하는지 모르고, 적어도 키가 없으면 그제야 실패를 듣는다.
+                  고를 수 없는 것은 목록에 아예 없다.
+                */}
+                {s.kind === 'choice' ? (
+                  <select
+                    id={`set-${s.key}`}
+                    className="input-field"
+                    value={drafts[s.key] ?? ''}
+                    onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
+                  >
+                    {(s.choices ?? []).map((c) => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    id={`set-${s.key}`}
+                    className="input-field"
+                    type={s.kind === 'secret' ? 'password' : 'text'}
+                    value={drafts[s.key] ?? ''}
+                    onChange={(e) => setDrafts((d) => ({ ...d, [s.key]: e.target.value }))}
+                    placeholder={s.kind === 'secret'
+                      ? (s.masked ? `저장됨 ${s.masked} — 바꾸려면 새 값을 넣으세요` : '아직 없음')
+                      : ''}
+                    autoComplete="off"
+                  />
+                )}
               </div>
               <NbButton onClick={() => void save(s.key)} disabled={savingKey === s.key}>
                 {savingKey === s.key ? '저장 중…' : '저장'}
               </NbButton>
             </div>
+
+            {/* 고른 것이 무슨 뜻인지 그 자리에서 말한다 — 설명이 목록 밖에 있으면 아무도 안 읽는다 */}
+            {s.kind === 'choice' && (
+              <p className={styles.hint}>
+                {(s.choices ?? []).find((c) => c.value === (drafts[s.key] ?? ''))?.hint ?? ''}
+              </p>
+            )}
           </div>
         ))}
       </div>
 
+      {items.some((s) => s.kind === 'choice' && (s.choices ?? []).length <= 2) && (
+        <p className={styles.blocked}>
+          아직 등록된 AI 키가 없어 &quot;AI 안 씀&quot;으로만 돌아갑니다.
+          시스템 설정 → 통합에서 Gemini·Claude·OpenAI 중 하나를 등록하면 여기에 나타납니다.
+        </p>
+      )}
+
       <p className={styles.hint}>
-        비워서 저장하면 공통 설정이나 기본값으로 돌아갑니다. 키는 저장 후 다시 볼 수 없고 바꿀 수만 있습니다.
+        AI 키는 시스템 설정에 등록된 것을 그대로 씁니다 — 여기서 따로 넣지 않습니다.
       </p>
     </div>
   )

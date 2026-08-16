@@ -15,6 +15,8 @@ import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
 import NbButton from '@/components/ui/nb/NbButton'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
+import { useVerified } from '@/lib/crm/use-verified'
+import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import Timeline from '@/components/ui/crm/Timeline'
 import TaskPanel from '@/components/ui/crm/TaskPanel'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
@@ -46,6 +48,11 @@ const STAGE_LABEL: Record<string, string> = {
 
 export default function PersonDetail({ personId }: { personId: string }) {
   const [person, setPerson] = useState<Person | null>(null)
+  /**
+   * 필드 확정 — "이 값은 내가 확인했다"(절대규칙 2).
+   * 잠근 칸은 AI 가 못 바꾼다. 이 스위치가 없어서 그 약속이 실행되지 않고 있었다.
+   */
+  const verify = useVerified('person', personId)
   const [company, setCompany] = useState<CompanyRow | null>(null)
   const [deals, setDeals] = useState<DealRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -109,15 +116,23 @@ export default function PersonDetail({ personId }: { personId: string }) {
         }
       />
 
+      {verify.error && <FormErrorBanner message={verify.error} />}
+
       <RecordLayout
         fields={
           <RecordPanel title="속성">
             <RecordFieldList>
-              <RecordField label="직함">{person.title}</RecordField>
-              <RecordField label="이메일">
+              <RecordField label="직함" field="title"
+                verified={verify.verified.includes('title')}
+                onToggleVerified={verify.toggle}>{person.title}</RecordField>
+              <RecordField label="이메일" field="email"
+                verified={verify.verified.includes('email')}
+                onToggleVerified={verify.toggle}>
                 {person.email ? <a href={`mailto:${person.email}`}>{person.email}</a> : null}
               </RecordField>
-              <RecordField label="전화">
+              <RecordField label="전화" field="phone"
+                verified={verify.verified.includes('phone')}
+                onToggleVerified={verify.toggle}>
                 {person.phone ? <a href={`tel:${person.phone}`}>{person.phone}</a> : null}
               </RecordField>
               <RecordField label="단계">

@@ -91,6 +91,14 @@ const MUST_BE_WIRED: { symbol: string; definedIn: string; why: string }[] = [
     symbol: 'getCrmAccessToken', definedIn: 'lib/crm/integrations/connect.ts',
     why: '토큰이 만료되면 동기화가 영영 멈춘다',
   },
+  {
+    symbol: 'setFieldVerified', definedIn: 'lib/crm/services/verify.ts',
+    why: '"사람이 확인한 값은 AI 가 못 덮는다"(절대규칙 2)가 실행되지 않는다',
+  },
+  {
+    symbol: 'listFieldConfigs', definedIn: 'lib/crm/services/field-config.ts',
+    why: "인박스의 '자동 반영됨' 탭이 구조적으로 영원히 빈다",
+  },
 ]
 
 for (const { symbol, definedIn, why } of MUST_BE_WIRED) {

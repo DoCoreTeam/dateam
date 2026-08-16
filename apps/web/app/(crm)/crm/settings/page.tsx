@@ -4,6 +4,7 @@ import BudgetCard from './BudgetCard'
 import SettingsCard from './SettingsCard'
 import DuplicatesCard from './DuplicatesCard'
 import IntegrationCard from './IntegrationCard'
+import AutoApplyCard from './AutoApplyCard'
 import styles from './settings.module.css'
 
 export const metadata = { title: '설정 · 영업 CRM' }
@@ -21,6 +22,7 @@ export default function CrmSettingsPage() {
       <div className={styles.grid}>
         <BudgetCard />
         <SettingsCard />
+        <AutoApplyCard />
         <IntegrationCard />
         <DuplicatesCard />
       </div>

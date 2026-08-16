@@ -70,3 +70,40 @@
 }
 
 .fieldEmpty { color: var(--text-faint); }
+
+/* 확정 토글 (절대규칙 2) — 자물쇠가 잠기면 AI 가 그 값을 못 바꾼다 */
+.verifyBtn {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--space-1);
+  padding: 2px;
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  border-radius: var(--radius);
+  vertical-align: middle;
+}
+
+.verifyBtn:hover,
+.verifyBtn:focus-visible {
+  color: var(--text);
+  background: var(--surface-bg);
+}
+
+/* 잠긴 것은 눈에 띄어야 한다 — 왜 AI 가 이 칸만 안 채우는지 알 수 있게 */
+.verifyOn {
+  color: var(--brand);
+}
+
+.verifySr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

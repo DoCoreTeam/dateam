@@ -37,17 +37,50 @@ export interface SettingDef {
   key: string
   label: string
   /** 값 종류 — 화면이 어떤 입력을 그릴지 정한다 */
-  kind: 'text' | 'number' | 'secret'
+  kind: 'text' | 'number' | 'secret' | 'choice'
+  /**
+   * `choice` 일 때 고를 수 있는 것.
+   *
+   * 함수인 이유: 선택지가 **지금 등록된 AI 키**에 따라 달라진다.
+   * 목록을 코드에 박아 두면 키가 없는 것까지 보여 주고, 사용자는 고른 뒤에야
+   * "그건 안 됩니다"를 듣는다. 고를 수 없는 것은 아예 안 보여야 한다.
+   */
+  choices?: (ctx: SettingContext) => { value: string; label: string; hint?: string }[]
   /** 코드 기본값 — 설정이 하나도 없어도 시스템이 돈다 */
   fallback: unknown
   description: string
 }
 
+/** 선택지를 정할 때 참고하는 것 — 지금 어떤 AI 키가 살아 있나 */
+export interface SettingContext {
+  /** 호스트 시스템 설정에 키가 등록된 프로바이더들 */
+  availableProviders: { id: string; label: string; model: string }[]
+  /** 호스트가 기본으로 쓰는 프로바이더 */
+  defaultProvider: string | null
+}
+
 export const SETTING_DEFS: readonly SettingDef[] = [
   {
-    key: 'ai.model.extract', label: '추출에 쓸 AI', kind: 'text',
+    key: 'ai.model.extract', label: '추출에 쓸 AI', kind: 'choice',
     fallback: 'auto',
-    description: '명함·미팅에서 정보를 뽑을 때 쓸 AI. auto 면 시스템 설정의 기본 AI를 따릅니다. gemini · claude · openai · mock 중에서 고를 수 있어요.',
+    description: '명함·미팅에서 정보를 뽑을 때 쓸 AI입니다. 키는 시스템 설정에 등록된 것을 그대로 씁니다.',
+    choices: (ctx) => [
+      {
+        value: 'auto',
+        label: ctx.defaultProvider
+          ? `자동 (지금은 ${ctx.availableProviders.find((p) => p.id === ctx.defaultProvider)?.label ?? ctx.defaultProvider})`
+          : '자동',
+        hint: '시스템 설정의 기본 AI를 따릅니다. 기본 AI를 바꾸면 여기도 같이 바뀝니다.',
+      },
+      // 키가 등록된 것만 — 못 쓰는 걸 보여 주면 고른 뒤에야 실패를 듣는다
+      ...ctx.availableProviders.map((p) => ({
+        value: p.id, label: p.label, hint: `모델: ${p.model}`,
+      })),
+      {
+        value: 'mock', label: 'AI 안 씀 (규칙만)',
+        hint: 'AI를 부르지 않고 정해진 규칙으로만 읽습니다. 비용이 들지 않지만 정확도가 낮습니다.',
+      },
+    ],
   },
 ] as const
 
@@ -182,7 +215,7 @@ export async function readSecret(db: CrmDb, key: string): Promise<string | null>
 }
 
 /** 설정 화면이 읽는 목록 — 시크릿은 마스킹만 나간다 */
-export async function listSettings(db: CrmDb): Promise<{
+export async function listSettings(db: CrmDb, ctx?: SettingContext): Promise<{
   key: string
   label: string
   kind: SettingDef['kind']
@@ -190,6 +223,8 @@ export async function listSettings(db: CrmDb): Promise<{
   value: string | null
   masked: string | null
   source: ResolvedSetting['source']
+  /** choice 일 때 고를 수 있는 것 — 없으면 화면이 드롭다운을 못 그린다 */
+  choices?: { value: string; label: string; hint?: string }[]
 }[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = await (db as any).crmAppSetting.findMany({
@@ -209,16 +244,25 @@ export async function listSettings(db: CrmDb): Promise<{
         // 마스킹 실패가 화면 전체를 막지 않게 한다 — 키가 깨졌다는 사실만 보이면 된다
         try { masked = maskSecret(decryptSecret(hit.valueJson)) } catch { masked = '(읽을 수 없음)' }
       }
-      return { ...pick(def), value: null, masked, source }
+      return { ...pick(def, ctx), value: null, masked, source }
     }
 
     const value = hit ? String(hit.valueJson ?? '') : (def.fallback === null ? '' : String(def.fallback))
-    return { ...pick(def), value, masked: null, source }
+    return { ...pick(def, ctx), value, masked: null, source }
   })
 }
 
-function pick(d: SettingDef) {
-  return { key: d.key, label: d.label, kind: d.kind, description: d.description }
+/**
+ * 화면에 내보낼 모양.
+ *
+ * 선택지는 **지금 등록된 AI 키**에 따라 달라지므로 ctx 를 받아 그때 만든다.
+ * 목록을 코드에 박아 두면 키가 없는 것까지 보여 주고, 사용자는 고른 뒤에야 실패를 듣는다.
+ */
+function pick(d: SettingDef, ctx?: SettingContext) {
+  return {
+    key: d.key, label: d.label, kind: d.kind, description: d.description,
+    choices: d.choices && ctx ? d.choices(ctx) : undefined,
+  }
 }
 
 // ------------------------------------------------------------

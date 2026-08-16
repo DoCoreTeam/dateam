@@ -17,6 +17,8 @@ import ErrorState from '@/components/ui/ErrorState'
 import EmptyState from '@/components/ui/EmptyState'
 import NbButton from '@/components/ui/nb/NbButton'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
+import { useVerified } from '@/lib/crm/use-verified'
+import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import Timeline from '@/components/ui/crm/Timeline'
 import TaskPanel from '@/components/ui/crm/TaskPanel'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
@@ -40,6 +42,11 @@ interface DealRow { id: string; name: string; status: string }
 
 export default function CompanyDetail({ companyId }: { companyId: string }) {
   const [company, setCompany] = useState<Company | null>(null)
+  /**
+   * 필드 확정 — "이 값은 내가 확인했다"(절대규칙 2).
+   * 잠근 칸은 AI 가 못 바꾼다. 이 스위치가 없어서 그 약속이 실행되지 않고 있었다.
+   */
+  const verify = useVerified('company', companyId)
   const [people, setPeople] = useState<PersonRow[]>([])
   const [deals, setDeals] = useState<DealRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -98,14 +105,24 @@ export default function CompanyDetail({ companyId }: { companyId: string }) {
         }
       />
 
+      {verify.error && <FormErrorBanner message={verify.error} />}
+
       <RecordLayout
         fields={
           <RecordPanel title="속성">
             <RecordFieldList>
-              <RecordField label="도메인">{company.domain}</RecordField>
-              <RecordField label="산업">{company.industry}</RecordField>
-              <RecordField label="지역">{company.region}</RecordField>
-              <RecordField label="규모">{company.employeeRange ? `${company.employeeRange}명` : null}</RecordField>
+              <RecordField label="도메인" field="domain"
+                verified={verify.verified.includes('domain')}
+                onToggleVerified={verify.toggle}>{company.domain}</RecordField>
+              <RecordField label="산업" field="industry"
+                verified={verify.verified.includes('industry')}
+                onToggleVerified={verify.toggle}>{company.industry}</RecordField>
+              <RecordField label="지역" field="region"
+                verified={verify.verified.includes('region')}
+                onToggleVerified={verify.toggle}>{company.region}</RecordField>
+              <RecordField label="규모" field="employeeRange"
+                verified={verify.verified.includes('employeeRange')}
+                onToggleVerified={verify.toggle}>{company.employeeRange ? `${company.employeeRange}명` : null}</RecordField>
               <RecordField label="최근 변경">{formatKstDateTimeShort(company.updatedAt)}</RecordField>
             </RecordFieldList>
           </RecordPanel>
