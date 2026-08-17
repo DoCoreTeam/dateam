@@ -8,7 +8,6 @@
 // 사용자는 주제를 **만드는 게 아니라 확인**한다.
 // (진단: docs/2026-08-17-ci-topic-classification-replan/00-REPORT.md §7-1)
 
-import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/server'
 import { ok, fail, failUnexpected } from '@/lib/ci/api'
 import { requireCiMemberApi, workspaceIdFromRequest } from '@/lib/ci/auth/requireCiMember'
@@ -16,22 +15,17 @@ import {
   proposeTopics, describeProposals,
   type ChannelForProposal,
 } from '@/lib/ci/analysis/topic-proposal'
-import type { ChannelIdentity } from '@/lib/ci/analysis/channel-identity'
+import {
+  computeChannelIdentity,
+  type ChannelIdentity, type ChannelSignalSample,
+} from '@/lib/ci/analysis/channel-identity'
 import { runChannelIdentity } from '@/lib/ci/jobs/stages'
+import {
+  TopicProposalBody as Body,
+  topicProposalInputMessage,
+} from '@/lib/ci/analysis/topic-proposal-input'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
-/** 한 번에 만들 수 있는 주제 수. 이보다 많으면 체계가 아니라 목록이다. */
-const MAX_CREATE = 12
-
-const Body = z.object({
-  proposals: z.array(z.object({
-    name: z.string().trim().min(1).max(40),
-    channelIds: z.array(z.string().uuid()).max(200),
-    signalPatterns: z.array(z.string().trim().min(1).max(60)).max(8),
-    categoryPatterns: z.array(z.string().trim().min(1).max(20)).max(8),
-  })).min(1).max(MAX_CREATE),
-})
 
 /** identity jsonb는 `{}`(기본값)로 시작한다 — 판정 전이면 제안 재료가 아니다. */
 function identityOf(raw: unknown): ChannelIdentity | null {
@@ -49,20 +43,38 @@ function identityOf(raw: unknown): ChannelIdentity | null {
   }
 }
 
-/** 채널별 콘텐츠 수. 제안 카드가 "이 주제로 몇 건이 들어오나"를 말하려면 필요하다. */
-async function countByChannel(
+/**
+ * 채널별 콘텐츠 수 **와 신호 표본**을 한 번에 읽는다.
+ *
+ * 왜 신호까지 읽는가: 저장된 `identity`는 정체성 잡(runChannelIdentity)만 쓴다. 그 잡이
+ * 아직 안 돈 채널은 `identity = {}`이고, 그래서 **콘텐츠가 가장 많은 채널이 제안 재료에서
+ * 통째로 빠졌다**(실측 v0.7.553 G3: 채널 9곳 중 재료가 된 것은 4곳이고 그 4곳의 콘텐츠는
+ * 0·1·0·0건, 빠진 5곳이 추성훈 311건·VEVO·psy 등 **콘텐츠 있는 쪽 전부**였다).
+ * 제안 화면은 읽기 전용 확인 화면이다 — 배경 잡이 돌았는지에 화면의 진실이 달려 있으면 안 된다.
+ * 정체성은 콘텐츠 신호에서 나오는 **파생값**이므로, 없으면 여기서 계산한다(저장하지 않는다).
+ */
+async function readChannelMaterial(
   adminClient: any, workspaceId: string,
-): Promise<Map<string, number>> {
+): Promise<{ counts: Map<string, number>; samples: Map<string, ChannelSignalSample[]> }> {
   const { data } = await adminClient
-    .from('ci_contents').select('channel_id')
+    .from('ci_contents')
+    .select('channel_id, platform_category, topic_signals, keywords')
     .eq('workspace_id', workspaceId).is('deleted_at', null)
     .limit(5000)
   const counts = new Map<string, number>()
-  for (const r of ((data ?? []) as { channel_id: string | null }[])) {
+  const samples = new Map<string, ChannelSignalSample[]>()
+  for (const r of ((data ?? []) as any[])) {
     if (!r.channel_id) continue
     counts.set(r.channel_id, (counts.get(r.channel_id) ?? 0) + 1)
+    const list = samples.get(r.channel_id) ?? []
+    list.push({
+      platformCategory: r.platform_category ?? null,
+      topicSignals: Array.isArray(r.topic_signals) ? r.topic_signals : [],
+      keywords: Array.isArray(r.keywords) ? r.keywords : [],
+    })
+    samples.set(r.channel_id, list)
   }
-  return counts
+  return { counts, samples }
 }
 
 export async function GET(req: Request) {
@@ -72,24 +84,29 @@ export async function GET(req: Request) {
     if (error) return error
 
     const adminClient = createAdminClient() as any
-    const [{ data: chRows }, counts] = await Promise.all([
+    const [{ data: chRows }, { counts, samples }] = await Promise.all([
       adminClient.from('ci_channels')
-        .select('id, display_name, identity, topic_id')
+        .select('id, display_name, identity, topic_id, platform')
         .eq('workspace_id', session.workspaceId).is('deleted_at', null),
-      countByChannel(adminClient, session.workspaceId),
+      readChannelMaterial(adminClient, session.workspaceId),
     ])
 
     const channels: ChannelForProposal[] = []
+    let assignedChannels = 0   // 이미 주제가 붙어 제안할 게 없는 채널
+    let noSignalChannels = 0   // 신호가 하나도 없어 판정할 근거가 없는 채널
     for (const c of ((chRows ?? []) as any[])) {
+      // 저장된 판정이 있으면 그것을 쓰고, 없으면 콘텐츠 신호로 지금 계산한다.
+      // 계산 결과를 저장하지는 않는다 — 쓰기는 정체성 잡의 몫이고, 여기는 읽기 화면이다.
       const identity = identityOf(c.identity)
-      if (!identity) continue
+        ?? computeChannelIdentity(c.platform ?? 'youtube', samples.get(c.id) ?? [])
+      if (identity.sampleSize === 0) { noSignalChannels += 1; continue }
       // 이미 주제가 붙은 채널은 제안하지 않는다 — 할 일이 없는 카드는 장식이다.
       //
       // 예전엔 **주제 이름**이 이미 있으면 제안을 뺐다(excludeExisting).
       // 그러면 "주제는 만들어졌는데 채널이 안 붙은" 상태에서 제안이 0개가 되어
       // 사용자가 화면에서 고칠 길이 사라진다(실측: 주제 3개 생성 후 채널 0곳 연결).
       // 기준은 이름이 아니라 **채널이 실제로 붙었는가**여야 한다.
-      if (c.topic_id) continue
+      if (c.topic_id) { assignedChannels += 1; continue }
       channels.push({
         channelId: c.id,
         displayName: c.display_name ?? null,
@@ -103,8 +120,13 @@ export async function GET(req: Request) {
     return ok({
       ...result,
       summaryText: describeProposals(result),
-      // 판정 전 채널이 몇 곳인지 밝힌다 — 제안이 비었을 때 "왜 없는지"의 답이다
-      unjudgedChannels: ((chRows ?? []) as any[]).length - channels.length,
+      // 제안이 비었을 때 "왜 없는지"의 답. **이유를 하나로 뭉치지 않는다** —
+      // 예전엔 (전체 − 재료)를 그대로 unjudgedChannels로 냈는데, 그 숫자에는
+      // '신호가 없다'와 '이미 주제가 붙었다'가 섞여 있어 사용자가 무엇을 해야 할지 알 수 없었다.
+      // 앞의 것은 수집을 더 해야 하고, 뒤의 것은 아무것도 안 해도 되는 정상 상태다.
+      unjudgedChannels: noSignalChannels,
+      assignedChannels,
+      totalChannels: ((chRows ?? []) as any[]).length,
     })
   } catch (e) {
     return failUnexpected(e)
@@ -118,7 +140,10 @@ export async function POST(req: Request) {
     if (error) return error
 
     const parsed = Body.safeParse(await req.json())
-    if (!parsed.success) return fail('VALIDATION_FAILED', '제안 내용을 확인해 주세요', parsed.error.issues)
+    if (!parsed.success) {
+      // 무엇이 틀렸는지 말해 준다 — 다섯 가지 실패가 같은 문구로 나가면 고칠 수가 없다
+      return fail('VALIDATION_FAILED', topicProposalInputMessage(parsed.error.issues), parsed.error.issues)
+    }
 
     const adminClient = createAdminClient() as any
     const createdTopics: { id: string; name: string }[] = []

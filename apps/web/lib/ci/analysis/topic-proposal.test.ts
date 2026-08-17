@@ -111,6 +111,29 @@ test('★ 제안마다 왜 이렇게 묶었는지 근거가 붙는다 — 근거
   assert.match(r.proposals[0].reason, /311건/)
 })
 
+test('★ 근거에 "왜 그 이름인지"가 들어간다 — 채널명·건수만 있으면 확인이 아니라 받아쓰기다', () => {
+  // G3 지적: reason이 "추성훈 — 게시물 311건"뿐이라, 사용자가 이 이름이 맞는지 판단할 재료가 없다.
+  // 이 기능의 취지는 "사용자는 주제를 만드는 게 아니라 **확인**한다"이므로 근거가 문장에 있어야 한다.
+  const bySignal = proposeTopics([channel('가수', 8, ['Music'], '10')])
+  assert.equal(bySignal.proposals[0].basis.kind, 'signal')
+  assert.equal(bySignal.proposals[0].basis.ratio, 1)
+  assert.match(bySignal.proposals[0].reason, /신호 '음악'이 100%/)
+
+  const byCategory = proposeTopics([mixed('잡탕', 100, [['Food', 20], ['Pets', 15]], '22')])
+  assert.equal(byCategory.proposals[0].basis.kind, 'category')
+  assert.match(byCategory.proposals[0].reason, /분류 '인물·블로그'이 100%/)
+})
+
+test('여러 채널이 합쳐지면 근거는 게시물을 가장 많이 보내는 채널의 것이다', () => {
+  // 1건짜리 채널의 근거가 311건짜리 주제를 설명하면, 화면의 숫자와 근거가 서로를 반박한다.
+  const r = proposeTopics([
+    channel('작은가수', 1, ['Music'], '10'),
+    mixed('큰가수', 300, [['Music', 200]], '10'),
+  ])
+  assert.equal(r.proposals[0].contentCount, 301)
+  assert.equal(r.proposals[0].basis.ratio, 200 / 300, '큰 채널(200/300)의 근거를 쓴다')
+})
+
 test('★ 규칙은 이름을 만든 축 하나만 쓴다 — 축을 섞으면 그 카테고리 전체가 주제로 빨려 들어온다', () => {
   // 실측 사고: 이름은 신호('음식')에서, 규칙은 카테고리('인물·블로그' 전체)에서 왔다.
   // 그래서 브이로그·반려동물·여행 영상이 전부 '음식'이 됐다. 규칙 없는 주제도 안 되지만,

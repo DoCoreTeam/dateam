@@ -32,6 +32,21 @@ export interface TopicProposal {
   categoryPatterns: string[]
   /** 왜 이렇게 묶었는지 — 화면에 그대로 뜬다 */
   reason: string
+  /**
+   * 이 이름이 어느 축에서, 얼마나 강한 근거로 나왔는지.
+   *
+   * 왜 필요한가: 채널명과 건수만 있으면 사용자는 **확인**이 아니라 **받아쓰기**를 한다.
+   * (G3 지적: reason이 "추성훈 — 게시물 311건"인데 왜 그 이름인지가 없어, 이 기능의 취지인
+   *  "사용자는 주제를 만드는 게 아니라 확인한다"에 못 미친다.)
+   * 여러 채널이 한 주제로 합쳐질 때는 **콘텐츠가 가장 많은 채널의 근거**를 쓴다 — 그 채널이
+   * 이 주제로 들어올 게시물 대부분을 만들기 때문이다.
+   */
+  basis: {
+    kind: 'signal' | 'category'
+    label: string
+    /** 그 축이 표본에서 차지한 비율(0~1) */
+    ratio: number
+  }
 }
 
 export interface ProposalResult {
@@ -75,6 +90,8 @@ const CATEGORY_AGREEMENT_MIN = IDENTITY_ASK_AGREEMENT
 export function proposeTopics(channels: readonly ChannelForProposal[]): ProposalResult {
   const buckets = new Map<string, TopicProposal>()
   const unassigned: ProposalResult['unassigned'] = []
+  /** 근거를 제공한 채널의 콘텐츠 수 — 더 큰 채널이 오면 근거를 그쪽으로 넘긴다 */
+  const basisWeight = new Map<string, number>()
 
   for (const ch of channels) {
     const id = ch.identity
@@ -107,6 +124,9 @@ export function proposeTopics(channels: readonly ChannelForProposal[]): Proposal
     // 이 주제로 빨려 들어온다(실측: '음식' 규칙에 반려동물·여행이 들어가 강아지 영상이 음식이 됐다).
     const signalPatterns = dominant ? [dominant.label] : []
     const categoryPatterns = dominant ? [] : (id.dominantCategory ? [id.dominantCategory] : [])
+    const basis: TopicProposal['basis'] = dominant
+      ? { kind: 'signal', label: dominant.label, ratio: dominant.count / id.sampleSize }
+      : { kind: 'category', label: name, ratio: id.categoryAgreement }
 
     if (existing) {
       existing.channelIds.push(ch.channelId)
@@ -117,6 +137,11 @@ export function proposeTopics(channels: readonly ChannelForProposal[]): Proposal
       }
       for (const p of categoryPatterns) {
         if (!existing.categoryPatterns.includes(p)) existing.categoryPatterns.push(p)
+      }
+      // 근거는 이 주제로 게시물을 가장 많이 보내는 채널의 것으로 유지한다
+      if (ch.contentCount > (basisWeight.get(name) ?? -1)) {
+        existing.basis = basis
+        basisWeight.set(name, ch.contentCount)
       }
     } else {
       buckets.set(name, {
@@ -130,7 +155,9 @@ export function proposeTopics(channels: readonly ChannelForProposal[]): Proposal
         signalPatterns,
         categoryPatterns,
         reason: '',
+        basis,
       })
+      basisWeight.set(name, ch.contentCount)
     }
   }
 
@@ -148,7 +175,12 @@ function buildReason(p: TopicProposal): string {
   const chPart = p.channelNames.length > 0
     ? `${p.channelNames.slice(0, 3).join(', ')}${p.channelNames.length > 3 ? ` 외 ${p.channelNames.length - 3}곳` : ''}`
     : `채널 ${p.channelIds.length}곳`
-  return `${chPart} — 게시물 ${p.contentCount}건`
+  // 근거를 함께 적는다 — 채널명과 건수만 있으면 사용자는 확인이 아니라 받아쓰기를 한다.
+  const pct = Math.round(p.basis.ratio * 100)
+  const why = p.basis.kind === 'signal'
+    ? `게시물 신호 '${p.basis.label}'이 ${pct}%`
+    : `채널 분류 '${p.basis.label}'이 ${pct}%`
+  return `${chPart} — 게시물 ${p.contentCount}건 · ${why}`
 }
 
 /**

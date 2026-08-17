@@ -30,7 +30,11 @@ interface ProposeData {
   proposals: Proposal[]
   unassigned: { channelId: string; displayName: string | null; contentCount: number }[]
   summaryText: string
+  /** 신호가 없어 판정할 근거조차 없는 채널 */
   unjudgedChannels: number
+  /** 이미 주제가 붙어 제안할 게 없는 채널 */
+  assignedChannels: number
+  totalChannels: number
 }
 
 interface BackfillData {
@@ -154,8 +158,19 @@ export default function TopicHealthPanel({ workspaceId }: { workspaceId: string 
   const missing = health?.missingSignals ?? 0
   const pickedCount = proposals.filter((p) => picked[p.name]).length
 
+  /**
+   * 제안이 0건인데 **판정할 근거가 없는 채널이 있는** 상태.
+   *
+   * 왜 따로 두는가: 0건인 것 자체는 결함이 아니지만, 화면이 **왜 0건인지 말하지 않으면**
+   * 사용자는 빈 화면을 보고 아무것도 알 수 없다(G3 발견 A: API가 이유를 계산해 보내는데
+   * 화면이 그 값을 인터페이스에 선언만 하고 버렸다). 채널이 전부 주제에 붙은 상태는
+   * 할 일이 없으므로 여전히 숨긴다 — 여기서 말해야 할 것은 **막힌 이유**뿐이다.
+   */
+  const stalled = proposals.length === 0 && (propose?.unjudgedChannels ?? 0) > 0
+  const hasTopicSection = proposals.length > 0 || stalled
+
   // 할 일이 없으면 화면을 차지하지 않는다. 알림이 뜬 직후만 결과를 보여 준다.
-  if (missing === 0 && proposals.length === 0 && !notice && !error) return null
+  if (missing === 0 && !hasTopicSection && !notice && !error) return null
 
   return (
     <section className="card" style={{ marginBottom: 'var(--space-4)' }}>
@@ -175,8 +190,8 @@ export default function TopicHealthPanel({ workspaceId }: { workspaceId: string 
           display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-end',
           justifyContent: 'space-between', flexWrap: 'wrap',
           paddingBottom: 'var(--space-3)',
-          borderBottom: proposals.length > 0 ? 'var(--hairline) solid var(--border-light)' : undefined,
-          marginBottom: proposals.length > 0 ? 'var(--space-3)' : 0,
+          borderBottom: hasTopicSection ? 'var(--hairline) solid var(--border-light)' : undefined,
+          marginBottom: hasTopicSection ? 'var(--space-3)' : 0,
         }}>
           <div style={{ minWidth: 0 }}>
             <strong className="ci-num">게시물 {missing}건</strong>
@@ -191,7 +206,25 @@ export default function TopicHealthPanel({ workspaceId }: { workspaceId: string 
         </div>
       )}
 
-      {/* ② 주제 체계 — 데이터가 이미 답을 주고 있다. 사람은 확인만 한다 */}
+      {/* ②-a 제안이 0건일 때 — 왜 없는지 말한다. 빈 화면은 사용자에게 아무것도 알려 주지 않는다 */}
+      {stalled && propose && (
+        <div>
+          <p style={{ marginBottom: 'var(--space-1)' }}>{propose.summaryText}</p>
+          <p className="ci-basis">
+            채널 <span className="ci-num">{propose.totalChannels}</span>곳 가운데{' '}
+            <span className="ci-num">{propose.unjudgedChannels}</span>곳은 게시물에 플랫폼 신호가 담기지
+            않아 무엇에 대한 채널인지 아직 판정하지 못했습니다
+            {propose.assignedChannels > 0 && (
+              <>, <span className="ci-num">{propose.assignedChannels}</span>곳은 이미 주제가 붙어 있습니다</>
+            )}
+            . {missing > 0
+              ? '위의 「신호 다시 받아오기」로 근거를 채우면 제안이 나타납니다'
+              : '게시물이 더 모이면 자동으로 제안이 나타납니다'}
+          </p>
+        </div>
+      )}
+
+      {/* ②-b 주제 체계 — 데이터가 이미 답을 주고 있다. 사람은 확인만 한다 */}
       {proposals.length > 0 && (
         <div>
           <p style={{ marginBottom: 'var(--space-2)' }}>
