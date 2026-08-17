@@ -80,6 +80,17 @@ function readAll() {
     .sort((a, b) => String(a.startedAt).localeCompare(String(b.startedAt)))
 }
 
+/** stampPeer 를 거치지 않고 그대로 쓴다 — 조회 경로가 쓰는 길(save 는 소유를 주장한다) */
+function saveRaw(session) {
+  mkdirSync(DIR, { recursive: true })
+  const ignore = join(DIR, '.gitignore')
+  if (!existsSync(ignore)) writeFileSync(ignore, '*\n', 'utf8')
+  const target = join(DIR, `${session.name}.json`)
+  const tmp = `${target}.tmp`
+  writeFileSync(tmp, JSON.stringify(session, null, 2) + '\n', 'utf8')
+  renameSync(tmp, target)
+}
+
 function save(session) {
   mkdirSync(DIR, { recursive: true })
   // 보드는 세션 로컬 상태 — 디렉터리가 스스로를 무시하게 한다.
@@ -207,13 +218,54 @@ function resolveSelfPeer() {
  * 그 상태에서 `wake crm-qa` 는 **다른 세션에 간다.** 보낸 쪽은 그 사실을 알 방법이 없다.
  * 그래서 덮어쓰되 **거쳐 간 pid 를 모두 기억**하고, 지금 둘 이상이 살아 있으면 드러낸다.
  */
-function stampPeer(session) {
+function stampPeer(session, { claiming = true } = {}) {
   const peer = resolveSelfPeer()
   if (!peer) return session
   const seen = Array.isArray(session.peerPids) ? session.peerPids : []
   session.peerPids = [...new Set([...seen, peer.pid])].slice(-8)
-  session.peer = peer
+
+  /**
+   * **조회는 주소를 빼앗지 않는다.**
+   *
+   * 예전엔 `inbox` 에서도 무조건 덮었다. 주석에 "읽기 명령이지만 등록은 부작용이 없다"고
+   * 적어 뒀는데 **그 전제가 틀렸다.** 남의 세션 이름으로 inbox 를 한 번 읽는 순간
+   * 그 이름의 주소가 내 창으로 넘어가고, 그 뒤로 **그 이름 앞으로 오는 깨우기가 전부 내게 온다.**
+   *
+   * 실측(2026-08-17): pid 98778 이 `crm-picker` 로 claim 한 뒤 `inbox crm-qa-g3` 를 읽었고,
+   * 그 결과 두 이름이 같은 주소를 가리켰다. crm-picker 앞으로 보낸 표준 질의가
+   * QA 세션에 도착했고, 받은 쪽은 "주소가 틀렸다"고 답했다 — 주소는 맞았고 **등록이 겹친 것**이다.
+   *
+   * 그래서 소유를 주장하는 명령(claim·progress·finding·broadcast·ack·release)만 덮고,
+   * 조회는 **살아 있는 다른 주소가 이미 있으면 그대로 둔다.**
+   */
+  const heldByOther = session.peer && session.peer.pid !== peer.pid
+    && session.peer.sock && existsSync(session.peer.sock)
+  if (claiming || !heldByOther) session.peer = peer
   return session
+}
+
+/**
+ * pid 하나가 **여러 이름**으로 등록돼 있나 — 이름 충돌의 반대 방향이다.
+ *
+ * 이름 충돌(두 창이 한 이름)은 v0.7.549 에서 드러냈는데, 이쪽은 못 봤다.
+ * 증상이 더 고약하다: 보낸 쪽은 **주소를 제대로 골랐는데도** 엉뚱한 역할에게 닿는다.
+ */
+function pidNameMap() {
+  const map = new Map()
+  for (const s of readAll()) {
+    const pid = s?.peer?.pid
+    if (!pid) continue
+    if (!map.has(pid)) map.set(pid, [])
+    map.get(pid).push(s.name)
+  }
+  return map
+}
+
+/** 이 세션의 주소를 다른 이름도 함께 쓰고 있으면 그 이름들 */
+function sharedNames(session) {
+  const pid = session?.peer?.pid
+  if (!pid) return []
+  return (pidNameMap().get(pid) ?? []).filter((n) => n !== session.name)
 }
 
 /** 이 이름을 지금 함께 쓰고 있는 pid들 — 2개 이상이면 이름 충돌이다. */
@@ -361,6 +413,9 @@ function cmdBroadcast(rest, flags) {
       // 여기가 주소를 실제로 복사해 가는 자리다 — 충돌 경고는 이 줄 옆에 없으면 못 본다.
       const dup = livePeerPids(s)
       if (dup.length > 1) console.log(`    ⛔ 이 이름을 쓰는 창이 ${dup.length}개입니다(pid ${dup.join(', ')}) — 이 주소는 마지막 등록분입니다`)
+      // 반대 방향도 드러낸다 — 주소를 제대로 골라도 다른 역할에게 닿는다
+      const sh = sharedNames(t)
+      if (sh.length) console.log(`    ⛔ 이 창은 '${sh.join("', '")}' 로도 등록돼 있습니다 — 보낸 것이 그 역할에 닿을 수 있습니다`)
     }
   }
   if (blind.length) {
@@ -379,9 +434,9 @@ function cmdInbox(rest, flags) {
   // 읽으라고 이미 강제하므로, 세션이 따로 기억하지 않아도 주소가 저절로 최신으로 유지된다.
   // (읽기 명령이지만 등록은 부작용이 없다. 등록을 별도 절차로 두면 아무도 안 한다.)
   if (known && !flags.json) {
-    const before = s.peer?.pid
-    stampPeer(s)
-    if (s.peer?.pid !== before) { s.updatedAt = nowIso(); save(s) }
+    const before = JSON.stringify([s.peer?.pid, s.peerPids])
+    stampPeer(s, { claiming: false })   // 읽기다 — 살아 있는 남의 주소를 빼앗지 않는다
+    if (JSON.stringify([s.peer?.pid, s.peerPids]) !== before) { s.updatedAt = nowIso(); saveRaw(s) }
   }
   const items = flags.all ? bus.filter((e) => e.from !== name) : unreadFor(s, bus)
 
@@ -422,7 +477,12 @@ function wakeLine(s) {
   const warn = dup.length > 1
     ? `\n    ⛔ 이 이름을 쓰는 창이 ${dup.length}개입니다(pid ${dup.join(', ')}) — 이 주소는 그중 마지막 등록분입니다`
     : ''
-  return `  · ${s.name} — ${badge}\n    보낼 주소: ${s.peer.addr}${warn}`
+  // 주소를 제대로 골라도 그 창이 다른 이름도 맡고 있으면 엉뚱한 역할에게 닿는다
+  const sh = sharedNames(s)
+  const shWarn = sh.length
+    ? `\n    ⛔ 이 창은 '${sh.join("', '")}' 로도 등록돼 있습니다 — 받는 쪽이 그 역할로 답할 수 있습니다`
+    : ''
+  return `  · ${s.name} — ${badge}\n    보낼 주소: ${s.peer.addr}${warn}${shWarn}`
 }
 
 function cmdWake(rest, flags) {
@@ -567,6 +627,16 @@ function cmdBoard(flags) {
     if (dup.length > 1) {
       console.log(pad('', 23) + `↳ ⛔ 이름 충돌 — 지금 ${dup.length}개 창이 '${r.s.name}'을 쓰고 있습니다 (pid ${dup.join(', ')})`)
       console.log(pad('', 23) + `↳    보고의 출처가 갈립니다. 한쪽이 다른 이름으로 claim 하세요. 깨우기는 마지막 등록분(${r.s.peer?.pid})으로만 갑니다`)
+    }
+    /**
+     * 반대 방향 — **한 창이 여러 이름**을 쓰고 있다.
+     * 이쪽이 더 고약하다: 보낸 쪽은 주소를 **제대로 골랐는데도** 엉뚱한 역할에게 닿고,
+     * 받은 쪽은 "주소가 틀렸다"고 답한다. 아무도 원인을 못 본다.
+     */
+    const shared = sharedNames(r.s)
+    if (shared.length) {
+      console.log(pad('', 23) + `↳ ⛔ 주소 겹침 — 이 창(pid ${r.s.peer.pid})은 '${shared.join("', '")}' 로도 등록돼 있습니다`)
+      console.log(pad('', 23) + `↳    그 이름 앞으로 보낸 메시지가 여기로 옵니다. 맡지 않는 이름은 release 하세요`)
     }
   }
   console.log('─'.repeat(96))
