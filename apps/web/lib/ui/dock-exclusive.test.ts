@@ -8,6 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { walkFiles, read } from './component-scan.ts'
+import { dockSafeAreaPx } from './dock-metrics.ts'
 
 /** 우측하단 좌표를 직접 정해도 되는 곳 = Dock 구현체뿐. */
 const DOCK_OWNERS = new Set([
@@ -87,6 +88,46 @@ test('여백은 Dock이 실제로 잰 높이를 쓴다 — 상수로 두면 스�
     '스택 높이는 런타임에 변한다(칩 등장) — 한 번 재고 끝내면 다시 덮인다')
   assert.match(dock, /removeProperty\(\s*['"]--dock-height['"]/,
     'Dock이 사라질 때 값을 걷지 않으면 Dock 없는 화면에 유령 여백이 남는다')
+})
+
+test('스택이 자라면 여백도 자란다 — QA가 실화면에서 못 밟은 상태를 숫자로 잠근다', () => {
+  // 왜 여기서 잠그나: '수집 중 N건' 칩이 떠 스택이 250px로 커진 순간이 정확히 사고 지점인데,
+  //   수집이 돌지 않으면 화면에 재현되지 않는다 — QA가 v0.7.550 판정에서 이 한 지점을
+  //   미검증으로 남겼다(나머지 셋은 통과: 버튼 16/16 자기수신 · 화면별 가변 · 유령여백 0).
+  //   실브라우저로 못 밟는 상태는 계산으로 밟는다.
+  const VIEWPORT = 869          // QA 실측 뷰포트
+  const CORNER = 16             // .app-dock bottom: var(--space-4)
+  const topFor = (stack: number) => VIEWPORT - CORNER - stack
+
+  // 실측 재현: 스택 176 + 코너 16 = 192 (QA가 /ci/inbox 하단에서 잰 값과 같아야 한다)
+  assert.equal(dockSafeAreaPx(VIEWPORT, topFor(176)), 192,
+    '실측 192px과 어긋난다 — 코너 여백을 빼먹었거나 높이만 재고 있다')
+
+  // 칩이 떠 250px로 자란 상태: 여백이 반드시 더 커져야 한다(상수였다면 88px로 고정)
+  const grown = dockSafeAreaPx(VIEWPORT, topFor(250))
+  assert.equal(grown, 266)
+  assert.ok(grown > dockSafeAreaPx(VIEWPORT, topFor(176)),
+    '스택이 자랐는데 여백이 안 자란다 — 이 상태가 원래 사고 지점이다')
+  assert.ok(grown > 88, '상수 5.5rem(88px)보다 작으면 그때 그 사고로 되돌아간다')
+
+  // 화면별로 다른 값이 나와야 한다(QA 실측: /calendar 84 · /ci/inbox 152·192)
+  assert.notEqual(dockSafeAreaPx(VIEWPORT, topFor(68)), dockSafeAreaPx(VIEWPORT, topFor(176)))
+
+  // 부분 픽셀은 올림 — 1px 모자라 다시 걸리는 것을 막는다
+  assert.equal(dockSafeAreaPx(869, 676.4), 193)
+
+  // 비정상 입력은 0 (측정 실패가 화면 절반을 밀어내는 여백이 되면 안 된다)
+  assert.equal(dockSafeAreaPx(Number.NaN, 100), 0)
+  assert.equal(dockSafeAreaPx(869, Number.POSITIVE_INFINITY), 0)
+  assert.equal(dockSafeAreaPx(869, 900), 0, 'Dock이 화면 밖이면 여백 0')
+})
+
+test('Dock은 여백 계산을 자기 안에서 다시 짜지 않는다 — 계산은 SSOT가 갖는다', () => {
+  const dock = read('components/ui/shell/Dock.tsx')
+  assert.match(dock, /dockSafeAreaPx/,
+    'Dock이 lib/ui/dock-metrics의 계산을 쓰지 않는다')
+  assert.ok(!/innerHeight *- *[a-z]/i.test(dock.replace(/dockSafeAreaPx\([^)]*\)/g, '')),
+    'Dock 안에 여백 계산이 다시 생겼다 — 두 벌이 되면 한쪽만 고쳐진다')
 })
 
 test('셸의 스크롤 컨테이너는 라우트가 바뀌면 맨 위로 되돌린다', () => {

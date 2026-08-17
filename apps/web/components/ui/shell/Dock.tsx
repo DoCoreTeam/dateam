@@ -12,6 +12,7 @@
 // 슬롯은 코너에서 가까운 순서로 쌓인다: primary(맨 아래) → assistant → utility(맨 위).
 
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
+import { dockSafeAreaPx } from '@/lib/ui/dock-metrics'
 
 export type DockSlot = 'primary' | 'assistant' | 'utility'
 
@@ -46,10 +47,10 @@ function usePublishDockHeight(ref: RefObject<HTMLDivElement | null>) {
     if (!el) return
     const root = document.documentElement
     const publish = () => {
-      // 화면 밑변에서 스택 맨 위까지 — 높이와 코너 여백(bottom)을 한 번에 잰다.
-      // 높이만 재면 코너 여백만큼 모자라 마지막 줄이 여전히 걸린다.
-      const top = el.getBoundingClientRect().top
-      root.style.setProperty('--dock-height', `${Math.max(0, Math.ceil(window.innerHeight - top))}px`)
+      // 계산은 lib/ui/dock-metrics.ts가 갖는다 — 여기 인라인으로 두면 검증 수단이
+      // 실브라우저뿐이고, 정작 확인해야 하는 '칩 떠서 250px' 상태는 수집이 안 돌면 재현되지 않는다.
+      const px = dockSafeAreaPx(window.innerHeight, el.getBoundingClientRect().top)
+      root.style.setProperty('--dock-height', `${px}px`)
     }
     publish()
     const ro = new ResizeObserver(publish)
