@@ -16,7 +16,7 @@
 // 그건 기능이 아니라 화면이다.
 
 import { useCallback, useEffect, useState } from 'react'
-import { Workflow, AlertTriangle, Ban, Plus, Pencil, Trash2, Star, ChevronUp, ChevronDown } from 'lucide-react'
+import { Workflow, Plus, Pencil, Trash2, Star, ChevronUp, ChevronDown } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import NbBadge from '@/components/ui/nb/NbBadge'
 import AXDotLoader from '@/components/ui/AXDotLoader'
@@ -25,25 +25,48 @@ import ErrorState from '@/components/ui/ErrorState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import { isEnterKey } from '@/lib/ui/ime'
-import { ALL_CRITERIA, CRITERION_LABEL, type CriterionKey, type CriterionLevel } from '@/lib/crm/domain/entry-criteria'
+import { eulReul, eunNeun, withJosa } from '@/lib/ui/josa'
+import {
+  CONFIGURABLE_CRITERIA, CRITERION_LABEL, MAX_MEANING_LEN,
+  type CriterionKey, type CriterionLevel,
+} from '@/lib/crm/domain/entry-criteria'
 import styles from './process.module.css'
 
 interface Criterion { key: CriterionKey; level: CriterionLevel }
 interface Stage {
   id: string; name: string; position: number; kind: string
-  criteria: Criterion[]; dealCount: number
+  criteria: Criterion[]; meaning: string; dealCount: number
+}
+/** 조건을 세게 바꾸기 직전 — 무엇이 걸리는지 세어 보여 주고 나서 묻는다 */
+interface Pending {
+  stage: Stage; key: CriterionKey; level: CriterionLevel
+  total: number; missing: number
 }
 interface Pipeline { id: string; name: string; isDefault: boolean; stages: Stage[] }
 
-/** 조건 수준 3단계 — 사람 말로. "없음"도 선택지다(대부분의 단계가 그렇다) */
-const LEVELS: { value: 'off' | CriterionLevel; label: string; hint: string }[] = [
-  { value: 'off', label: '안 봄', hint: '이 단계에서는 확인하지 않아요' },
-  { value: 'warn', label: '알려 줌', hint: '비어 있으면 알려 주되 옮기는 건 됩니다' },
-  { value: 'block', label: '막음', hint: '비어 있으면 이 단계로 못 옵니다' },
+/**
+ * 조건 수준 — **무슨 일이 일어나는지를 그대로 적는다.**
+ *
+ * 예전 라벨은 `안 봄 / 알려 줌 / 막음`이었다. 셋 다 주어가 없어서
+ * "누가 무엇을 안 보는지"를 화면에서 알 수 없었다 — 그래서 관리자는 눌러 보고 나서야 알았다.
+ */
+const LEVELS: { value: 'off' | CriterionLevel; label: string }[] = [
+  { value: 'off', label: '검사 안 함' },
+  { value: 'warn', label: '비어 있으면 알려 주기' },
+  { value: 'block', label: '비어 있으면 못 옮기게' },
 ]
+const LEVEL_LABEL = Object.fromEntries(LEVELS.map((l) => [l.value, l.label])) as Record<string, string>
 
 function levelOf(s: Stage, key: CriterionKey): 'off' | CriterionLevel {
   return s.criteria.find((c) => c.key === key)?.level ?? 'off'
+}
+
+/** 화면에 띄울 조건만 — 채울 칸이 없는 것은 켜면 그 단계가 영영 잠긴다(도메인 SSOT가 정한다) */
+const EDITABLE = CONFIGURABLE_CRITERIA
+
+/** 지금 걸려 있는 조건만, 화면 순서대로. 안 걸린 것은 요약에 넣지 않는다 */
+function activeRules(s: Stage): Criterion[] {
+  return EDITABLE.map((k) => s.criteria.find((c) => c.key === k)).filter((c): c is Criterion => !!c)
 }
 
 export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
@@ -55,6 +78,11 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
+  /** 조건은 기본으로 접어 둔다 — 대부분의 단계는 조건이 없고, 펼쳐 두면 화면이 설정표가 된다 */
+  const [openRules, setOpenRules] = useState<Set<string>>(new Set())
+  /** 뜻은 타이핑 중 값을 들고 있다가 저장 때만 서버로 간다 */
+  const [meaningDraft, setMeaningDraft] = useState<Record<string, string>>({})
+  const [pending, setPending] = useState<Pending | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -184,32 +212,50 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
       '순서를 바꿨어요.')
   }
 
-  async function setLevel(stage: Stage, key: CriterionKey, level: 'off' | CriterionLevel) {
-    const next = stage.criteria.filter((c) => c.key !== key)
-    if (level !== 'off') next.push({ key, level })
+  /** 단계의 뜻만 저장한다 — 조건은 그대로 실어 보낸다(한쪽만 저장되면 다른 쪽이 지워진다) */
+  async function saveMeaning(stage: Stage) {
+    const meaning = (meaningDraft[stage.id] ?? stage.meaning).trim()
+    if (meaning === stage.meaning) return
+    const ok = await send(`mean:${stage.id}`, `/api/crm/stages/${stage.id}`,
+      json({ criteria: stage.criteria, meaning }, 'PATCH'),
+      meaning ? `"${stage.name}"의 뜻을 적었어요.` : `"${stage.name}"의 뜻을 지웠어요.`)
+    if (ok) setMeaningDraft((d) => { const n = { ...d }; delete n[stage.id]; return n })
+  }
+
+  /**
+   * 조건을 바꾼다.
+   *
+   * **끄는 것은 바로, 켜는 것은 세어 본 뒤에.** 끄면 아무도 막히지 않지만
+   * 켜면 지금 서 있는 딜이 다음 이동에서 막힌다 — 그 수를 모르고 누르면 안 된다.
+   */
+  async function changeLevel(stage: Stage, key: CriterionKey, level: 'off' | CriterionLevel) {
+    if (level === 'off') { await commitLevel(stage, key, 'off'); return }
 
     setBusy(`${stage.id}:${key}`)
     setError(null)
-    setNotice(null)
     try {
-      const res = await fetch(`/api/crm/stages/${stage.id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ criteria: next }),
-      })
-      const body = await res.json()
-      if (!res.ok) { setError(body?.error?.message ?? '바꾸지 못했습니다.'); return }
-      setNotice(
-        level === 'off'
-          ? `"${stage.name}"에서 ${CRITERION_LABEL[key]} 확인을 껐어요.`
-          : `"${stage.name}"에 오려면 ${CRITERION_LABEL[key]}이(가) ` +
-            (level === 'block' ? '있어야 합니다.' : '없으면 알려 드릴게요.'),
-      )
-      await load()
+      const res = await fetch(`/api/crm/stages/${stage.id}?criterion=${key}`)
+      const body = await res.json().catch(() => null)
+      const im = body?.data?.impact ?? body?.impact
+      // 세지 못했으면 조용히 넘어가지 않는다 — 근거 없이 켜는 것이 애초에 문제였다
+      if (!im) { setError('지금 걸릴 딜이 몇 건인지 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.'); return }
+      setPending({ stage, key, level, total: im.total, missing: im.missing })
     } catch {
-      setError('바꾸지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      setError('지금 걸릴 딜이 몇 건인지 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
       setBusy(null)
     }
+  }
+
+  async function commitLevel(stage: Stage, key: CriterionKey, level: 'off' | CriterionLevel) {
+    const next = stage.criteria.filter((c) => c.key !== key)
+    if (level !== 'off') next.push({ key, level })
+    setPending(null)
+    await send(`${stage.id}:${key}`, `/api/crm/stages/${stage.id}`,
+      json({ criteria: next, meaning: stage.meaning }, 'PATCH'),
+      level === 'off'
+        ? `"${stage.name}"에서 ${CRITERION_LABEL[key]}${eunNeun(CRITERION_LABEL[key])} 이제 검사하지 않아요.`
+        : `"${stage.name}" — ${CRITERION_LABEL[key]}: ${LEVEL_LABEL[level]}.`)
   }
 
   if (loading && pipelines.length === 0) return <AXDotLoader />
@@ -284,8 +330,8 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
       )}
 
       <p className={styles.lead}>
-        여기서 켠 조건은 <strong>딜을 그 단계로 옮길 때 실제로 확인</strong>됩니다.
-        막으면 못 옮기고, 알려 주기로 하면 옮기되 무엇이 비었는지 말해 줍니다.
+        각 단계에 <strong>이 단계에 왔다는 게 무슨 뜻인지</strong> 한 줄로 적어 두면 팀이 같은 기준으로 딜을 옮깁니다.
+        그 문장은 검사하지 않고 보여만 줍니다 — 기계가 판정할 수 있는 것만 조건으로 겁니다.
       </p>
 
       <ol className={styles.stages}>
@@ -337,35 +383,91 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
               )}
             </div>
 
-            <div className={styles.grid}>
-              {ALL_CRITERIA.map((key) => {
-                const cur = levelOf(s, key)
-                return (
-                  <div key={key} className={styles.row}>
-                    <span className={styles.label}>
-                      {cur === 'block' && <Ban size={13} aria-hidden />}
-                      {cur === 'warn' && <AlertTriangle size={13} aria-hidden />}
-                      {CRITERION_LABEL[key]}
-                    </span>
-                    <div className={styles.levels}>
-                      {LEVELS.map((l) => (
-                        <button
-                          key={l.value}
-                          type="button"
-                          className={cur === l.value ? styles.levelOn : styles.level}
-                          onClick={() => void setLevel(s, key, l.value)}
-                          disabled={!canEdit || busy === `${s.id}:${key}`}
-                          aria-pressed={cur === l.value}
-                          title={l.hint}
-                        >
-                          {l.label}
-                        </button>
-                      ))}
+            {/* ① 이 단계의 뜻 — 사람이 읽는 한 줄. 기계는 검사하지 않는다. */}
+            {canEdit ? (
+              <label className={styles.meaning}>
+                <span className="label">이 단계에 왔다는 건</span>
+                <input
+                  className="input-field"
+                  value={meaningDraft[s.id] ?? s.meaning}
+                  maxLength={MAX_MEANING_LEN}
+                  placeholder="예: 고객이 예산을 확인해 줬다"
+                  onChange={(e) => setMeaningDraft((d) => ({ ...d, [s.id]: e.target.value }))}
+                  onBlur={() => void saveMeaning(s)}
+                  onKeyDown={(e) => { if (isEnterKey(e)) e.currentTarget.blur() }}
+                  disabled={busy === `mean:${s.id}`}
+                />
+              </label>
+            ) : s.meaning ? (
+              <p className={styles.meaningRead}>{s.meaning}</p>
+            ) : null}
+
+            {/* ② 조건 — 걸린 것만 한 줄로. 대부분의 단계는 여기서 끝난다. */}
+            <div className={styles.rules}>
+              <span className={styles.rulesSummary}>
+                {activeRules(s).length === 0
+                  ? '조건 없음 — 언제든 옮길 수 있어요'
+                  // 막는 것은 blocker, 알려만 주는 것은 note — 색이 세기를 그대로 말한다
+                  : activeRules(s).map((c) => (
+                    <NbBadge key={c.key} status={c.level === 'block' ? 'blocker' : 'note'}>
+                      {CRITERION_LABEL[c.key]} · {LEVEL_LABEL[c.level]}
+                    </NbBadge>
+                  ))}
+              </span>
+              {canEdit && (
+                <button type="button" className={styles.rulesToggle}
+                  aria-expanded={openRules.has(s.id)}
+                  onClick={() => setOpenRules((o) => {
+                    const n = new Set(o)
+                    if (n.has(s.id)) n.delete(s.id); else n.add(s.id)
+                    return n
+                  })}>
+                  {openRules.has(s.id) ? '조건 접기' : '조건 정하기'}
+                </button>
+              )}
+            </div>
+
+            {canEdit && openRules.has(s.id) && (
+              <div className={styles.ruleEdit}>
+                {EDITABLE.map((key) => (
+                  <label key={key} className={styles.ruleRow}>
+                    <span className={styles.ruleName}>{CRITERION_LABEL[key]}</span>
+                    <select
+                      className="input-field"
+                      value={levelOf(s, key)}
+                      disabled={busy === `${s.id}:${key}`}
+                      onChange={(e) => void changeLevel(s, key, e.target.value as 'off' | CriterionLevel)}
+                    >
+                      {LEVELS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+                    </select>
+                  </label>
+                ))}
+
+                {/* ③ 켜기 전 확인 — 무엇이 걸리는지 세어 보여 주고 나서 묻는다 */}
+                {pending?.stage.id === s.id && (
+                  <div className={styles.preview} role="status">
+                    <p className={styles.previewLine}>
+                      {pending.total === 0
+                        ? `지금 "${s.name}"에 딜이 없어요. 앞으로 옮겨 오는 딜부터 적용됩니다.`
+                        : pending.missing === 0
+                          ? `지금 여기 있는 ${pending.total}건은 ${withJosa(CRITERION_LABEL[pending.key], eulReul)} 모두 채웠어요.`
+                          : `지금 여기 있는 ${pending.total}건 중 ${pending.missing}건이 ` +
+                            `${withJosa(CRITERION_LABEL[pending.key], eulReul)} 안 채웠어요.` +
+                            (pending.level === 'block'
+                              ? ' 켜면 그 딜들은 다음에 옮길 때 막힙니다.'
+                              : ' 옮기는 건 되지만 무엇이 비었는지 알려 줍니다.')}
+                    </p>
+                    <div className={styles.previewActions}>
+                      <NbButton onClick={() => void commitLevel(pending.stage, pending.key, pending.level)}
+                        disabled={busy === `${s.id}:${pending.key}`}>
+                        {LEVEL_LABEL[pending.level]}로 켜기
+                      </NbButton>
+                      <NbButton variant="ghost" onClick={() => setPending(null)}>그대로 두기</NbButton>
                     </div>
                   </div>
-                )
-              })}
-            </div>
+                )}
+              </div>
+            )}
           </li>
         ))}
       </ol>

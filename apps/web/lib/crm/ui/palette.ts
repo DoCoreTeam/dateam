@@ -40,6 +40,7 @@ export const STATIC_COMMANDS: PaletteCommand[] = [
   { id: 'go:companies', kind: 'go', label: '회사', href: '/crm/companies', keywords: ['company', '거래처', '고객사'] },
   { id: 'go:people', kind: 'go', label: '인물', href: '/crm/people', keywords: ['person', '연락처', '담당자'] },
   { id: 'go:deals', kind: 'go', label: '딜', href: '/crm/deals', keywords: ['deal', '보드', '파이프라인', '영업'] },
+  { id: 'go:quotes', kind: 'go', label: '견적', href: '/crm/quotes', keywords: ['quote', '견적서', '제안', '금액', '단가'] },
   { id: 'go:meetings', kind: 'go', label: '미팅', href: '/crm/meetings', keywords: ['meeting', '회의', '녹음'] },
   { id: 'go:tasks', kind: 'go', label: '할 일', href: '/crm/tasks', keywords: ['task', 'todo', '태스크'] },
   { id: 'go:reports', kind: 'go', label: '리포트', href: '/crm/reports', keywords: ['report', '예상', '매출', '성사율'] },

@@ -28,6 +28,10 @@ import { assertTransit, type QuoteStatus } from '../domain/state-machines.ts'
 import { assertUpdated, lockWhere, BUMP_VERSION } from '../db/optimistic.ts'
 import { planDelete, type DeleteMode } from '../domain/soft-delete.ts'
 import {
+  clampLimit, decodeCursor, cursorWhere, CURSOR_ORDER, toPage, countIfFirstPage,
+  type CursorInput, type CursorPage,
+} from '../db/cursor.ts'
+import {
   computeLine, computeTotals, needsApproval, discountRateOf,
   formatQuoteNo, seqOfQuoteNo, isExpired,
   DEFAULT_DISCOUNT_APPROVAL_PCT,
@@ -200,6 +204,103 @@ export async function listQuotesByDeal(
 function markExpired(row: Pick<QuoteRow, 'status' | 'validUntil'>, now: Date): boolean {
   if (row.status !== 'SENT') return false
   return isExpired(row.validUntil, now)
+}
+
+/** 견적 목록 한 줄 — 딜·회사 이름을 함께 준다(번호만 보면 무슨 건인지 모른다) */
+export interface QuoteListRow extends QuoteRow {
+  dealName: string
+  companyName: string | null
+}
+
+/**
+ * 목록 필터로 받을 수 있는 상태 전부.
+ *
+ * 'EXPIRED' 는 DB enum 에 없다 — 저장된 상태는 SENT 인 채로 유효기간만 지난 것이다.
+ * 그래도 **사용자는 그걸 상태로 부른다.** 그래서 필터에서는 받고, 아래에서 조건으로 번역한다.
+ */
+const ALL_QUOTE_STATUS = ['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'EXPIRED']
+
+export interface ListQuoteInput extends CursorInput {
+  /** 견적번호·제목·딜 이름 부분 일치 */
+  q?: string | null
+  /** 상태 하나로 좁히기. 'EXPIRED' 는 저장된 상태가 아니라 **읽는 시점 판정**이라 따로 다룬다 */
+  status?: string | null
+  trash?: boolean
+}
+
+/**
+ * 워크스페이스 전체 견적 목록.
+ *
+ * **왜 열었나**: 예전엔 `dealId` 없이 부르면 거절했다("어느 딜의 견적인지 알려 주세요").
+ * 그래서 견적은 딜 상세 안에서만 존재했고, 사이드바에서는 보이지 않았다 —
+ * 사용자가 "견적도 아직 없고"라고 말한 게 이것이다. 물건은 있는데 갈 길이 없었다.
+ *
+ * `listQuotesByDeal` 은 그대로 둔다(딜 상세는 커서가 필요 없다). 여기만 추가한다.
+ */
+export async function listQuotes(
+  db: CrmDb,
+  input: ListQuoteInput = {},
+): Promise<CursorPage<QuoteListRow>> {
+  const limit = clampLimit(input.limit)
+  const decoded = decodeCursor(input.cursor)
+  const q = normalizeText(input.q)
+
+  const status = normalizeText(input.status)
+  /**
+   * 모르는 상태는 **여기서 막는다.**
+   * 그대로 넘기면 Prisma 가 enum 에서 던지고 화면은 500 에 "잠시 후 다시 시도해 주세요"를 받는다 —
+   * 다시 시도해도 영원히 같다. 무엇이 잘못됐는지 사람이 읽을 수 있어야 고칠 수 있다.
+   */
+  if (status && !ALL_QUOTE_STATUS.includes(status)) {
+    throw new CrmError(
+      'VALIDATION_FAILED',
+      `모르는 견적 상태입니다: ${status}. ${ALL_QUOTE_STATUS.join(' · ')} 중에서 골라 주세요.`,
+      { field: 'status' },
+    )
+  }
+
+  const where: Record<string, unknown> = {}
+  if (input.trash) where.deletedAt = { not: null }
+  if (status && status !== 'EXPIRED') where.status = status
+  // 만료는 컬럼이 아니다 — SENT 중 기간이 지난 것을 DB 에서 좁혀 두고, 최종 판정은 아래에서 한다
+  if (status === 'EXPIRED') {
+    where.status = 'SENT'
+    where.validUntil = { lt: new Date() }
+  }
+  if (q) {
+    where.OR = [
+      { quoteNo: { contains: q, mode: 'insensitive' } },
+      { title: { contains: q, mode: 'insensitive' } },
+      { deal: { is: { name: { contains: q, mode: 'insensitive' } } } },
+    ]
+  }
+  const cur = cursorWhere(decoded)
+  const finalWhere = cur ? { AND: [where, cur] } : where
+
+  const [rows, total] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (db as any).crmQuote.findMany({
+      where: finalWhere,
+      // 딜·회사 이름은 조인으로 한 번에 가져온다 — 목록에서 견적마다 따로 읽으면 N+1 이다
+      select: { ...SELECT, deal: { select: { name: true, company: { select: { name: true } } } } },
+      orderBy: CURSOR_ORDER,
+      take: limit + 1,
+    }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    countIfFirstPage((db as any).crmQuote, where, decoded),
+  ]) as [(QuoteRow & { deal: { name: string; company: { name: string } | null } | null })[], number | undefined]
+
+  const now = new Date()
+  const items = rows.map((r) => {
+    const { deal, ...rest } = r
+    return {
+      ...rest,
+      expired: markExpired(r, now),
+      dealName: deal?.name ?? '(딜 없음)',
+      companyName: deal?.company?.name ?? null,
+    }
+  })
+  return toPage(items, limit, total)
 }
 
 export async function getQuote(db: CrmDb, id: string): Promise<QuoteRow> {

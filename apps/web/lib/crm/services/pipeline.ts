@@ -11,7 +11,10 @@ import type { CrmDb } from '../db/client.ts'
 import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
-import { normalizeCriteria, parseCriteria, type Criterion } from '../domain/entry-criteria.ts'
+import {
+  evaluateCriteria, normalizeCriteria, normalizeMeaning, parseStageRules, toStageRulesJson,
+  type Criterion, type CriterionKey,
+} from '../domain/entry-criteria.ts'
 
 export interface StageRow {
   id: string
@@ -19,6 +22,11 @@ export interface StageRow {
   position: number
   kind: string
   criteria: Criterion[]
+  /**
+   * 이 단계에 왔다는 게 무슨 뜻인가 — 사람 말 한 줄. 검사하지 않고 보여만 준다.
+   * 빈 문자열이 정상이다(안 적은 단계가 대부분이다).
+   */
+  meaning: string
   /** 지금 이 단계에 몇 건이 서 있나 — 조건을 바꾸기 전에 영향 범위를 알아야 한다 */
   dealCount: number
 }
@@ -57,15 +65,78 @@ export async function listPipelines(db: CrmDb): Promise<PipelineRow[]> {
     id: p.id,
     name: p.name,
     isDefault: p.isDefault,
-    stages: p.stages.map((s) => ({
-      id: s.id,
-      name: s.name,
-      position: s.position,
-      kind: s.kind,
-      criteria: parseCriteria(s.entryCriteriaJson),
-      dealCount: countOf.get(s.id) ?? 0,
-    })),
+    stages: p.stages.map((s) => {
+      // 옛 형태(배열)와 새 형태({meaning, criteria})를 한 곳에서 읽는다 — 화면이 모양을 몰라도 된다.
+      const rules = parseStageRules(s.entryCriteriaJson)
+      return {
+        id: s.id,
+        name: s.name,
+        position: s.position,
+        kind: s.kind,
+        criteria: rules.criteria,
+        meaning: rules.meaning,
+        dealCount: countOf.get(s.id) ?? 0,
+      }
+    }),
   }))
+}
+
+/**
+ * 이 조건을 켜면 **지금 이 단계에 서 있는 딜 중 몇 건이 못 채웠나**.
+ *
+ * **왜 필요한가**: 예전 화면은 조건을 켜는 버튼만 있고 결과를 안 보여 줬다.
+ * 관리자는 무엇이 걸릴지 모른 채 눌렀고, 며칠 뒤 영업이 "딜이 안 옮겨진다"고 왔다.
+ * 켜기 전에 숫자를 보면 그 대화가 앞으로 당겨진다.
+ *
+ * **판정은 다시 짜지 않는다.** 딜 이동이 쓰는 `evaluateCriteria` 를 그대로 부른다 —
+ * 두 벌이면 미리보기와 실제 결과가 갈리고, 그때부터 아무도 미리보기를 안 믿는다.
+ */
+export async function previewCriterionImpact(
+  db: CrmDb,
+  stageId: string,
+  key: CriterionKey,
+): Promise<{ total: number; missing: number }> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const deals = await (db as any).crmDeal.findMany({
+    where: { stageId, status: 'OPEN' },
+    select: { id: true, amountMinor: true, expectedCloseDate: true, ownerId: true, companyId: true },
+    take: PREVIEW_SCAN_LIMIT,
+  }) as {
+    id: string; amountMinor: bigint | null; expectedCloseDate: Date | null
+    ownerId: string | null; companyId: string | null
+  }[]
+  if (deals.length === 0) return { total: 0, missing: 0 }
+
+  // 사람·할 일은 개수를 따로 세야 한다 — 필요한 조건일 때만 센다(안 그러면 딜마다 왕복이 는다)
+  const ids = deals.map((d) => d.id)
+  const contactBy = key === 'contact' ? await countBy(db, 'crmDealContact', { dealId: { in: ids } }) : new Map()
+  const taskBy = key === 'nextTask'
+    ? await countBy(db, 'crmTask', { dealId: { in: ids }, status: { in: ['TODO', 'DOING'] } })
+    : new Map()
+
+  const one = [{ key, level: 'block' as const }]
+  const missing = deals.filter((d) => !evaluateCriteria(one, {
+    amountMinor: d.amountMinor,
+    closeDate: d.expectedCloseDate,
+    ownerId: d.ownerId,
+    companyId: d.companyId,
+    contactCount: contactBy.get(d.id) ?? 0,
+    openTaskCount: taskBy.get(d.id) ?? 0,
+  }).ok).length
+
+  return { total: deals.length, missing }
+}
+
+/** 한 단계가 아무리 커도 미리보기 한 번이 터지지 않게 — 넘으면 본 만큼만 말한다 */
+const PREVIEW_SCAN_LIMIT = 200
+
+/** 딜별 개수를 한 번에 세어 맵으로 — 딜마다 세면 200번 왕복한다 */
+async function countBy(db: CrmDb, model: string, where: unknown): Promise<Map<string, number>> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await (db as any)[model].groupBy({
+    by: ['dealId'], where, _count: { _all: true },
+  }) as { dealId: string | null; _count: { _all: number } }[]
+  return new Map(rows.filter((r) => r.dealId).map((r) => [r.dealId as string, r._count._all]))
 }
 
 /**
@@ -79,8 +150,12 @@ export async function setStageCriteria(
   actorId: string | null,
   stageId: string,
   input: unknown,
-): Promise<{ id: string; criteria: Criterion[] }> {
-  const criteria = normalizeCriteria(input)
+): Promise<{ id: string; criteria: Criterion[]; meaning: string }> {
+  // 옛 호출(배열)과 새 호출({criteria, meaning})을 둘 다 받는다 — 추가 전용(M-4).
+  const isBag = !!input && typeof input === 'object' && !Array.isArray(input)
+  const bag = (isBag ? input : { criteria: input }) as Record<string, unknown>
+  const criteria = normalizeCriteria(bag.criteria)
+  const meaning = normalizeMeaning(bag.meaning)
 
   return withCrmTx(workspaceId, async (tx) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,16 +178,16 @@ export async function setStageCriteria(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (tx as any).crmStage.updateMany({
       where: { id: stageId },
-      data: { entryCriteriaJson: criteria as never },
+      data: { entryCriteriaJson: toStageRulesJson({ meaning, criteria }) as never },
     })
 
     await writeAudit(tx, {
       actorType: 'HUMAN', actorId, action: 'stage.criteria_changed',
       targetType: 'stage', targetId: stageId,
-      beforeJson: { criteria: parseCriteria(before.entryCriteriaJson) },
-      afterJson: { criteria, stageName: before.name },
+      beforeJson: parseStageRules(before.entryCriteriaJson),
+      afterJson: { criteria, meaning, stageName: before.name },
     })
 
-    return { id: stageId, criteria }
+    return { id: stageId, criteria, meaning }
   })
 }

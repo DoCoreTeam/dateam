@@ -67,67 +67,96 @@
   color: var(--text-faint);
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
-  gap: var(--space-2) var(--space-4);
-}
-
-.row {
+/* 이 단계의 뜻 — 카드에서 가장 먼저 읽히는 줄. 조건보다 위에 둔다. */
+.meaning {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  min-height: var(--control-h);
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
-.label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
+.meaningRead {
+  margin: 0;
   font-size: var(--fs-sm);
   color: var(--text);
 }
 
-.levels {
+/* 조건 요약 — 걸린 것만 뱃지로. 대부분의 단계는 "조건 없음" 한 줄로 끝난다. */
+.rules {
   display: flex;
-  gap: 0;
-  border: var(--hairline) solid var(--border-color);
-  border-radius: var(--radius);
-  overflow: hidden;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
-.level,
-.levelOn {
-  padding: var(--space-1) var(--space-2);
-  border: none;
-  background: var(--surface-bg);
+.rulesSummary {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
   color: var(--text-muted);
-  font-size: var(--fs-2xs);
+}
+
+.rulesToggle {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--brand);
+  font-size: var(--fs-sm);
   cursor: pointer;
-  white-space: nowrap;
+  text-decoration: underline;
+  min-height: var(--control-h);
 }
 
-.level + .level,
-.level + .levelOn,
-.levelOn + .level {
-  border-left: var(--hairline) solid var(--border-light);
+/* 조건 편집 — 펼쳤을 때만. 한 줄에 하나씩이라 무엇을 고르는지가 분명하다. */
+.ruleEdit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--hairline) solid var(--border-light);
 }
 
-.level:hover:not(:disabled) {
+.ruleRow {
+  display: grid;
+  grid-template-columns: 1fr minmax(12rem, 18rem);
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ruleName {
+  font-size: var(--fs-sm);
   color: var(--text);
 }
 
-.levelOn {
-  background: var(--brand);
-  color: var(--surface-bg);
-  font-weight: 700;
+/* 켜기 전 확인 — 숫자를 먼저 보여 주고 나서 묻는다 */
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--hairline) solid var(--warning-border);
+  border-radius: var(--radius);
+  background: var(--warning-bg);
 }
 
-.level:disabled,
-.levelOn:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
+.previewLine {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.previewActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (max-width: 767px) {
+  .ruleRow {
+    grid-template-columns: 1fr;
+  }
 }
 
 .readonly {

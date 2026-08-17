@@ -79,6 +79,19 @@ test('막힌 이유는 무엇을 하라는 말로 나온다 — "amount 없음"�
   assert.equal(blockingMessage({ ok: true, blocking: [], warnings: [] }), null)
 })
 
+test('★ 막힌 이유 문장에 조사를 병기하지 않는다 — 실제로 "금액이(가) 필요합니다"가 화면에 나갔다', () => {
+  const only = (key: 'amount' | 'company') =>
+    blockingMessage(evaluateCriteria([{ key, level: 'block' }], facts()))
+
+  // 받침 있음 → '이', 없음 → '가'. 괄호 병기가 다시 들어오면 여기서 걸린다
+  assert.equal(only('amount'), '이 단계로 옮기려면 금액이 필요합니다.')
+  assert.equal(only('company'), '이 단계로 옮기려면 회사가 필요합니다.')
+  for (const key of ALL_CRITERIA) {
+    const msg = blockingMessage(evaluateCriteria([{ key, level: 'block' }], facts()))
+    assert.ok(msg && !msg.includes('('), `${key}: 조사를 병기했다 — ${msg}`)
+  }
+})
+
 test('★ 손상된 정의 때문에 딜 이동이 통째로 막히지 않는다 — 모르는 것은 조용히 버린다', () => {
   assert.deepEqual(parseCriteria(null), [])
   assert.deepEqual(parseCriteria('rubbish'), [])

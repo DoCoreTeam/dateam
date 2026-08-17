@@ -16,8 +16,8 @@ import NbBadge from '@/components/ui/nb/NbBadge'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import AXDotLoader from '@/components/ui/AXDotLoader'
-import type { StatusKey } from '@/lib/tokens/status-colors'
 import { kstDateKey, formatKstDateTimeShort } from '@/lib/datetime/kst'
+import { quoteStatusMeta } from '@/lib/crm/ui/quote-status'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import QuoteEditorModal, { newQuoteDraft, type QuoteDraft } from './QuoteEditorModal'
 import styles from './quote-panel.module.css'
@@ -51,14 +51,6 @@ interface Quote {
   version: number
   updatedAt: string
   lines?: QuoteLine[]
-}
-
-const STATUS_META: Record<string, { label: string; status: StatusKey }> = {
-  DRAFT: { label: '초안', status: 'note' },
-  SENT: { label: '보냄', status: 'doing' },
-  ACCEPTED: { label: '수락', status: 'done' },
-  REJECTED: { label: '거절', status: 'blocker' },
-  EXPIRED: { label: '기한 지남', status: 'blocker' },
 }
 
 interface Props {
@@ -205,9 +197,8 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
         <>
           <ul className={styles.list}>
             {items.map((q) => {
-              // 기한이 지난 건 서버가 읽는 시점에 판정해 준다 — 배지에 그대로 반영한다
-              const key = q.expired && q.status === 'SENT' ? 'EXPIRED' : q.status
-              const meta = STATUS_META[key] ?? { label: key, status: 'note' as StatusKey }
+              // 기한이 지난 건 서버가 읽는 시점에 판정해 준다 — 말과 색은 SSOT 가 정한다
+              const meta = quoteStatusMeta(q)
               const busy = busyId === q.id
               return (
                 <li className={styles.item} key={q.id}>

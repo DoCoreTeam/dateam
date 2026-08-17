@@ -13,7 +13,7 @@ import { redirect } from 'next/navigation'
 import { redirectApiUser } from '@/lib/auth/api-user-gate'
 import {
   Inbox, Building2, Users, Handshake, Mic, Workflow, BarChart3, Settings,
-  Home, Briefcase, CalendarDays, CheckSquare, History, Sun
+  CheckSquare, History, Sun, FileText
 } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import AppShell from '@/components/ui/shell/AppShell'
@@ -43,6 +43,9 @@ const NAV_ITEMS = [
   { href: '/crm/today', label: '오늘', icon: <Sun size={16} /> },
   { href: '/crm/inbox', label: '인박스', icon: <Inbox size={16} /> },
   { href: '/crm/deals', label: '딜', icon: <Handshake size={16} /> },
+  // 견적이 딜 바로 뒤 — 견적은 딜 금액의 **근거 문서**라 둘은 같이 본다.
+  // 예전엔 딜 상세 안에만 있어서 사이드바에서 보이지 않았고, 그래서 "견적이 없다"고 읽혔다.
+  { href: '/crm/quotes', label: '견적', icon: <FileText size={16} /> },
   { href: '/crm/companies', label: '회사', icon: <Building2 size={16} /> },
   { href: '/crm/people', label: '인물', icon: <Users size={16} /> },
 ]
@@ -80,24 +83,21 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/crm/settings', label: '설정', icon: <Settings size={16} /> },
     ],
   },
-  {
-    /**
-     * CRM 밖으로 나가는 길.
-     *
-     * 이게 없으면 CRM 에 들어온 사람은 **돌아갈 방법이 없다** — 사이드바가 통째로
-     * CRM 것으로 바뀌기 때문이다(실사용에서 지적받았다: "CRM에서 업무 화면으로 가는 게 없다").
-     * 호스트에서 CRM 으로 오는 링크는 있는데 반대가 없으면 그건 문이 아니라 함정이다.
-     *
-     * 자주 쓰는 곳만 둔다 — 사이드바를 통째로 복제하면 여기가 두 번째 메뉴 정의가 되고,
-     * 호스트 메뉴가 바뀔 때마다 두 곳을 고쳐야 한다. 나머지는 상단 전체 메뉴로 간다.
-     */
-    label: '돌아가기',
-    items: [
-      { href: '/home', label: '홈', icon: <Home size={16} /> },
-      { href: '/work', label: '업무', icon: <Briefcase size={16} /> },
-      { href: '/calendar', label: '캘린더', icon: <CalendarDays size={16} /> },
-    ],
-  },
+  /**
+   * **밖으로 나가는 길은 사이드바에 두지 않는다** (v0.7.540, 사용자 지시:
+   * "돌아가기도 콘텐츠 인텔리전스랑 동일하게").
+   *
+   * 예전엔 [돌아가기] 그룹에 홈·업무·캘린더 3개를 뒀다. 이유는 있었다 —
+   * 사이드바가 통째로 CRM 것으로 바뀌어 나갈 문이 없다는 지적을 받았기 때문이다.
+   * 그런데 그렇게 고치니 **메뉴가 15개가 됐다.** 매일 쓰는 5개가
+   * 가끔 쓰는 것·나가는 문과 같은 무게로 늘어서서, 목록이 길어질수록
+   * 정작 매일 여는 것이 눈에 안 들어온다(사용자 지적: "메뉴가 너무 나열되어 있다").
+   *
+   * 콘텐츠 인텔리전스는 같은 문제를 다르게 풀었다 — **나가는 문을 상단
+   * `전체 메뉴`에 두고 사이드바는 그 표면의 일만 담는다.** 그 메뉴에 홈·일일업무·
+   * 캘린더·주간보고가 이미 다 있으므로(QuickNav) 나갈 길은 그대로 살아 있다.
+   * 함정이 되지 않으면서 사이드바는 12개로 줄어든다 — CI 와 같은 수다.
+   */
 ]
 
 /**
