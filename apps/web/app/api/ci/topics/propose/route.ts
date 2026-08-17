@@ -13,11 +13,11 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { ok, fail, failUnexpected } from '@/lib/ci/api'
 import { requireCiMemberApi, workspaceIdFromRequest } from '@/lib/ci/auth/requireCiMember'
 import {
-  proposeTopics, describeProposals, excludeExisting,
+  proposeTopics, describeProposals,
   type ChannelForProposal,
 } from '@/lib/ci/analysis/topic-proposal'
 import type { ChannelIdentity } from '@/lib/ci/analysis/channel-identity'
-import { enqueueJob } from '@/lib/ci/jobs/queue'
+import { runChannelIdentity } from '@/lib/ci/jobs/stages'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -72,13 +72,10 @@ export async function GET(req: Request) {
     if (error) return error
 
     const adminClient = createAdminClient() as any
-    const [{ data: chRows }, { data: topicRows }, counts] = await Promise.all([
+    const [{ data: chRows }, counts] = await Promise.all([
       adminClient.from('ci_channels')
-        .select('id, display_name, identity')
+        .select('id, display_name, identity, topic_id')
         .eq('workspace_id', session.workspaceId).is('deleted_at', null),
-      adminClient.from('ci_topics')
-        .select('name').eq('workspace_id', session.workspaceId)
-        .is('deleted_at', null).is('merged_into_id', null),
       countByChannel(adminClient, session.workspaceId),
     ])
 
@@ -86,6 +83,13 @@ export async function GET(req: Request) {
     for (const c of ((chRows ?? []) as any[])) {
       const identity = identityOf(c.identity)
       if (!identity) continue
+      // 이미 주제가 붙은 채널은 제안하지 않는다 — 할 일이 없는 카드는 장식이다.
+      //
+      // 예전엔 **주제 이름**이 이미 있으면 제안을 뺐다(excludeExisting).
+      // 그러면 "주제는 만들어졌는데 채널이 안 붙은" 상태에서 제안이 0개가 되어
+      // 사용자가 화면에서 고칠 길이 사라진다(실측: 주제 3개 생성 후 채널 0곳 연결).
+      // 기준은 이름이 아니라 **채널이 실제로 붙었는가**여야 한다.
+      if (c.topic_id) continue
       channels.push({
         channelId: c.id,
         displayName: c.display_name ?? null,
@@ -94,8 +98,7 @@ export async function GET(req: Request) {
       })
     }
 
-    const existingNames = ((topicRows ?? []) as { name: string }[]).map((t) => t.name)
-    const result = excludeExisting(proposeTopics(channels), existingNames)
+    const result = proposeTopics(channels)
 
     return ok({
       ...result,
@@ -123,43 +126,69 @@ export async function POST(req: Request) {
     const skipped: string[] = []
 
     for (const p of parsed.data.proposals) {
-      const { data: topic, error: insErr } = await adminClient.from('ci_topics').insert({
+      const { data: inserted } = await adminClient.from('ci_topics').insert({
         workspace_id: session.workspaceId,
         name: p.name,
         slug: p.name.toLowerCase().replace(/\s+/g, '-'),
       }).select('id, name').single()
 
-      // 같은 이름이 이미 있으면 만들지 않는다 — 같은 이름 주제가 둘이면 분류가 갈린다
-      if (insErr || !topic?.id) { skipped.push(p.name); continue }
-      createdTopics.push({ id: topic.id, name: topic.name })
+      // 같은 이름이 이미 있으면 **새로 만들지 않고 그것을 쓴다.**
+      // 예전엔 여기서 그냥 건너뛰었다. 그러면 주제만 만들어지고 채널이 안 붙은 상태(실측)가
+      // 다시 눌러도 영영 안 고쳐진다 — "이미 있어 건너뜀"은 사용자에게 아무 길도 남기지 않는다.
+      // 같은 이름 주제를 둘 만들지 않는다는 원칙은 그대로다.
+      let topic = inserted as { id: string; name: string } | null
+      let isNew = Boolean(topic?.id)
+      if (!topic?.id) {
+        const { data: existing } = await adminClient.from('ci_topics')
+          .select('id, name')
+          .eq('workspace_id', session.workspaceId).eq('name', p.name)
+          .is('deleted_at', null).maybeSingle()
+        topic = (existing as { id: string; name: string } | null) ?? null
+        isNew = false
+      }
+      if (!topic?.id) { skipped.push(p.name); continue }
+      if (isNew) createdTopics.push({ id: topic.id, name: topic.name })
+      else skipped.push(p.name)
 
       // 규칙을 함께 넣는다. 규칙 없는 주제는 다음 게시물부터 다시 못 알아본다.
-      const rules = [
-        ...p.signalPatterns.map((pattern) => ({ topic_id: topic.id, kind: 'signal', pattern })),
-        ...p.categoryPatterns.map((pattern) => ({ topic_id: topic.id, kind: 'category', pattern })),
-      ]
+      // 이미 있던 주제면 규칙은 건드리지 않는다(사람이 손봤을 수 있다).
+      const rules = isNew ? [
+        ...p.signalPatterns.map((pattern) => ({ topic_id: topic!.id, kind: 'signal', pattern })),
+        ...p.categoryPatterns.map((pattern) => ({ topic_id: topic!.id, kind: 'category', pattern })),
+      ] : []
       if (rules.length > 0) await adminClient.from('ci_topic_rules').insert(rules)
 
       // 채널에 붙인다. 사람이 이미 확정한 채널은 건드리지 않는다.
       if (p.channelIds.length > 0) {
-        await adminClient.from('ci_channels').update({
+        const { data: updated } = await adminClient.from('ci_channels').update({
           topic_id: topic.id,
-          topic_confidence: 0.85,
-          topic_source: 'auto',
+          topic_confidence: 1,
+          // 'auto'가 아니라 'user'다 — 이 주제는 사람이 제안을 보고 확인해 만든 것이다.
+          // 'auto'로 두면 곧바로 이어지는 채널 재판정이 표본이 얇은 채널(1건짜리)에서
+          // 자동 판정에 실패해 **방금 사람이 붙인 주제를 null로 덮는다**(실측: 5곳 중 2곳 유실).
+          topic_source: 'user',
         }).in('id', p.channelIds)
           .eq('workspace_id', session.workspaceId)
-          .neq('topic_source', 'user')
-        for (const id of p.channelIds) touchedChannels.add(id)
+          // 사람이 확정한 채널만 건너뛴다.
+          // `.neq('topic_source','user')`만 쓰면 안 된다 — SQL에서 NULL <> 'user'는 참이 아니라
+          // NULL이라, **아직 아무도 정하지 않은 채널이 통째로 빠진다**(실측: 9곳 중 0곳만 갱신됐다).
+          .or('topic_source.is.null,topic_source.neq.user')
+          .select('id')
+        // **실제로 갱신된 채널만** 센다. 요청에 실린 id를 그대로 세면 없는 채널·남의 채널·
+        // 사람이 이미 확정한 채널까지 "붙였습니다"에 들어가 화면이 거짓말을 한다
+        // (실측: 존재하지 않는 uuid 하나를 보냈더니 "채널 1곳에 붙였습니다"가 떴다).
+        for (const c of ((updated ?? []) as { id: string }[])) touchedChannels.add(c.id)
       }
     }
 
-    // 채널 재판정을 잡으로 건다 — 상속이 여기서 일어나 소속 게시물이 함께 풀린다.
-    // 인라인으로 돌리면 채널 하나에 수천 건이라 요청이 끊긴다.
+    // 채널을 그 자리에서 다시 판정한다 — 상속이 여기서 일어나 소속 게시물이 함께 풀린다.
+    //
+    // 예전엔 잡으로 걸었다. 그러면 사용자가 주제를 만든 직후 화면은 여전히 옛 분류를 보여 주고,
+    // 큐가 브라우저에서 돌아 반영되기까지 몇 분이 걸린다("빨리 고쳤으면 빨리 변경이 되어야지").
+    // 재분류가 채널당 한 번의 읽기 + 병렬 쓰기로 바뀌어(reclassifyChannelContents)
+    // 311건짜리 채널도 1초 안에 끝나므로 요청 안에서 끝낼 수 있다.
     for (const channelId of Array.from(touchedChannels)) {
-      await enqueueJob({
-        workspaceId: session.workspaceId, stage: 'classify',
-        targetType: 'channel', targetId: channelId, version: Date.now(),
-      }).catch(() => null)
+      await runChannelIdentity(session.workspaceId, channelId).catch(() => null)
     }
 
     return ok({

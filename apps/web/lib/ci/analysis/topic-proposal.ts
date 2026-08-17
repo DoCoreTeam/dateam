@@ -129,17 +129,8 @@ export function describeProposals(r: ProposalResult): string {
   return head + tail
 }
 
-/**
- * 기존 주제와 겹치는 제안은 뺀다.
- * 이름이 같으면 이미 있는 것이다 — 같은 이름의 주제를 두 개 만들면 분류가 갈린다.
- */
-export function excludeExisting(
-  r: ProposalResult,
-  existingNames: readonly string[],
-): ProposalResult {
-  const taken = new Set(existingNames.map((n) => n.trim().toLowerCase()))
-  return {
-    proposals: r.proposals.filter((p) => !taken.has(p.name.trim().toLowerCase())),
-    unassigned: r.unassigned,
-  }
-}
+// 예전엔 여기에 excludeExisting(같은 이름의 주제가 있으면 제안을 뺀다)이 있었다.
+// 삭제했다 — 이름으로 거르면 "주제는 있는데 채널이 안 붙은" 상태에서 제안이 0개가 되어
+// 사용자가 화면에서 고칠 길이 사라진다(실측). 거르는 기준은 호출자(propose GET)가
+// **채널에 주제가 붙었는가**로 판단한다. 같은 이름 주제를 둘 만들지 않는 일은
+// propose POST가 기존 주제를 재사용하는 것으로 지킨다.

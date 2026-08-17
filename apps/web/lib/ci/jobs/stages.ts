@@ -8,7 +8,7 @@ import { getGeminiMeta } from '../ai/meta.ts'
 import { callGemini } from '../ai/gemini.ts'
 import {
   classifyByRules, shouldCallAi, buildClassifyPrompt, parseLlmVerdict,
-  type TopicCandidate, type BasisRung,
+  type TopicCandidate, type BasisRung, type ClassifyVerdict,
 } from '../analysis/classify.ts'
 import {
   computeChannelIdentity, judgeIdentity, identityConfidence, describeIdentity, describeSample,
@@ -263,13 +263,26 @@ export async function runClassify(workspaceId: string, contentId: string): Promi
     }
   }
 
-  // ── 저장 ──────────────────────────────────────────────────────
-  //
-  // 검토 큐로 보내는 조건이 바뀌었다.
-  //   예전: 임계 미달이면 전부 pending → 96.6%가 큐에 쌓였다
-  //   지금: **판단이 갈릴 때만** pending. 근거가 약한 것은 '추정'으로 쓰고 넘어간다.
-  // 검토는 정말 난해할 때 하는 것이지, 확신이 조금 모자랄 때마다 하는 것이 아니다.
-  await adminClient.from('ci_contents').update({
+  await adminClient.from('ci_contents')
+    .update(buildClassifyUpdate(verdict, rungs))
+    .eq('id', contentId)
+
+  return { ok: true }
+}
+
+/**
+ * 판정 결과를 저장 컬럼으로. **한 곳에서만 만든다** —
+ * 단건 분류(runClassify)와 채널 일괄 재분류가 다른 모양으로 쓰면
+ * 어느 경로를 탔느냐에 따라 같은 게시물이 다르게 보인다.
+ *
+ * 검토 큐로 보내는 조건이 바뀌었다.
+ *   예전: 임계 미달이면 전부 pending → 96.6%가 큐에 쌓였다
+ *   지금: **판단이 갈릴 때만** pending. 근거가 약한 것은 '추정'으로 쓰고 넘어간다.
+ */
+function buildClassifyUpdate(
+  verdict: ClassifyVerdict, rungs: BasisRung[],
+): Record<string, unknown> {
+  return {
     topic_id: verdict.topicId,
     // 주제를 고르지 못했으면 확신도는 0이다. 미분류에 확신도 1.0을 남기면 화면이 거짓말을 한다.
     topic_confidence: verdict.topicId ? verdict.confidence : 0,
@@ -287,9 +300,72 @@ export async function runClassify(workspaceId: string, contentId: string): Promi
       needsHuman: verdict.needsHuman,
       at: new Date().toISOString(),
     },
-  }).eq('id', contentId)
+  }
+}
 
-  return { ok: true }
+/**
+ * 채널 소속 게시물을 **한 번에** 다시 판정한다.
+ *
+ * 왜 따로 있나: runClassify를 게시물마다 부르면 주제·임계·채널 맥락을 매번 다시 읽는다.
+ * 311건짜리 채널이면 왕복이 1,000번을 넘어 "눌렀는데 화면은 그대로"가 된다(실측).
+ * 판정 로직은 여전히 classifyByRules 하나뿐이고, 여기서는 **읽기를 한 번으로 줄일 뿐**이다.
+ *
+ * AI(L3)는 부르지 않는다 — 수백 건에 AI를 거는 것은 이 자리에서 할 일이 아니다.
+ * 애매한 건은 needsHuman으로 남아 검토 화면에서 개별로 다시 판정된다.
+ */
+export async function reclassifyChannelContents(
+  workspaceId: string, channelId: string,
+): Promise<number> {
+  const adminClient = createAdminClient() as any
+
+  const [topics, channel] = await Promise.all([
+    loadTopics(workspaceId),
+    loadChannelContext(channelId),
+  ])
+  if (topics.length === 0) return 0
+
+  const { data: rows } = await adminClient
+    .from('ci_contents')
+    .select('id, platform, title, caption, keywords, platform_category, topic_signals')
+    .eq('channel_id', channelId).eq('workspace_id', workspaceId)
+    // NULL <> 'user'는 참이 아니라 NULL이다 — neq만 쓰면 아직 판정된 적 없는 게시물이 빠진다
+    .or('topic_source.is.null,topic_source.neq.user')
+    .is('deleted_at', null)
+    .limit(2000)
+
+  const targets = (rows ?? []) as any[]
+  if (targets.length === 0) return 0
+
+  const updates = targets.map((c) => {
+    const verdict = classifyByRules({
+      title: c.title,
+      caption: c.caption,
+      channelTopicId: channel?.topicId ?? null,
+      channelTopicConfidence: channel?.topicConfidence ?? null,
+      channelIdentity: channel?.identity ?? null,
+      signals: {
+        platformCategory: c.platform_category ?? null,
+        topicSignals: Array.isArray(c.topic_signals) ? c.topic_signals : [],
+        keywords: Array.isArray(c.keywords) ? c.keywords : [],
+      },
+      platform: c.platform,
+      topics,
+    })
+    return { id: c.id as string, patch: buildClassifyUpdate(verdict, verdict.rungs) }
+  })
+
+  // 쓰기는 병렬로 흘린다. 순차로 보내면 왕복 지연이 그대로 쌓여 수백 초가 된다.
+  const CONCURRENCY = 20
+  let written = 0
+  for (let i = 0; i < updates.length; i += CONCURRENCY) {
+    const wave = updates.slice(i, i + CONCURRENCY)
+    const results = await Promise.all(wave.map((u) =>
+      adminClient.from('ci_contents').update(u.patch).eq('id', u.id)
+        .then((r: { error: unknown }) => !r.error)
+        .catch(() => false)))
+    written += results.filter(Boolean).length
+  }
+  return written
 }
 
 /**
@@ -344,20 +420,13 @@ export async function runChannelIdentity(workspaceId: string, channelId: string)
     }),
   }).eq('id', channelId)
 
-  // 채널 주제가 정해졌으면 소속 콘텐츠를 다시 판정한다 — 상속이 여기서 일어난다.
-  // 사용자가 확정한 콘텐츠는 제외한다(남의 판단을 덮지 않는다).
-  if (topicId) {
-    const { data: targets } = await adminClient
-      .from('ci_contents')
-      .select('id')
-      .eq('channel_id', channelId).eq('workspace_id', workspaceId)
-      .neq('topic_source', 'user').is('deleted_at', null)
-      .limit(2000)
-
-    for (const t of ((targets ?? []) as { id: string }[])) {
-      await runClassify(workspaceId, t.id).catch(() => null)
-    }
-  }
+  // 소속 콘텐츠를 **항상** 다시 판정한다.
+  //
+  // 예전엔 `if (topicId)`로 막아 뒀다. 그런데 채널 주제를 못 찾는 경우가 바로
+  // **낡은 판정이 남아 있는 경우**다 — 주제 체계가 '요리' 하나뿐이면 음악 채널은 매칭에
+  // 실패하고, 그래서 재판정을 건너뛰고, 321건이 계속 '요리'로 남았다(실측).
+  // 채널 정체성이 새로 잡혔으면 옳든 그르든 다시 판정해야 화면이 진실을 말한다.
+  await reclassifyChannelContents(workspaceId, channelId)
 
   return { ok: true }
 }

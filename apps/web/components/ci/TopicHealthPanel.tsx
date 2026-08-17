@@ -39,23 +39,17 @@ interface BackfillData {
 }
 
 interface BackfillResult {
-  contents: number
-  queued: number
+  scanned: number
+  filled: number
   channels: number
-  delaySeconds: number
-  truncated: boolean
+  remaining: number | null
+  reason: 'no_api_key' | null
 }
 
 interface ProposeResult {
   created: { id: string; name: string }[]
   channels: number
   skipped: string[]
-}
-
-/** 초를 사람이 읽는 대기 시간으로. "1800초"는 아무 뜻이 없다. */
-function waitText(seconds: number): string {
-  const m = Math.ceil(seconds / 60)
-  return m <= 1 ? '1분쯤' : `${m}분쯤`
 }
 
 export default function TopicHealthPanel({ workspaceId }: { workspaceId: string }) {
@@ -101,10 +95,17 @@ export default function TopicHealthPanel({ workspaceId }: { workspaceId: string 
         .then((r) => r.json() as Promise<ApiResponse<BackfillResult>>)
       if (!res.success) { setError(res.error.message); return }
       const d = res.data
+      if (d.reason === 'no_api_key') {
+        setError('유튜브 API 키가 설정되지 않아 신호를 받아올 수 없어요. 설정에서 키를 넣어 주세요')
+        return
+      }
       setNotice(
-        d.contents === 0
-          ? '다시 받아올 게시물이 이미 하나도 남지 않았어요'
-          : `게시물 ${d.contents}건을 다시 읽습니다. 채널 ${d.channels}곳은 ${waitText(d.delaySeconds)} 뒤에 다시 판정합니다${d.truncated ? ' (남은 건 다음에 이어서 처리합니다)' : ''}`,
+        d.filled === 0
+          ? (d.scanned === 0
+            ? '다시 받아올 게시물이 이미 하나도 남지 않았어요'
+            : `게시물 ${d.scanned}건을 확인했지만 플랫폼이 주제 신호를 주지 않았어요`)
+          : `게시물 ${d.filled}건에 신호를 채우고 채널 ${d.channels}곳을 다시 판정했어요`
+            + (d.remaining ? ` (남은 ${d.remaining}건은 한 번 더 누르면 이어서 채웁니다)` : ''),
       )
       await load()
       router.refresh()
@@ -133,7 +134,7 @@ export default function TopicHealthPanel({ workspaceId }: { workspaceId: string 
       if (!res.success) { setError(res.error.message); return }
       const d = res.data
       setNotice(
-        `주제 ${d.created.length}개를 만들고 채널 ${d.channels}곳에 붙였습니다. 게시물 재판정은 잠시 뒤 반영됩니다`
+        `주제 ${d.created.length}개를 만들고 채널 ${d.channels}곳에 붙였습니다. 게시물도 함께 다시 판정했어요`
         + (d.skipped.length > 0 ? ` (이미 같은 이름이 있어 건너뜀: ${d.skipped.join(', ')})` : ''),
       )
       await load()
@@ -179,7 +180,7 @@ export default function TopicHealthPanel({ workspaceId }: { workspaceId: string 
         }}>
           <div style={{ minWidth: 0 }}>
             <strong className="ci-num">게시물 {missing}건</strong>
-            <span> 은 플랫폼 신호 없이 담겼습니다 (전체 <span className="ci-num">{health?.total ?? 0}</span>건)</span>
+            <span>은 플랫폼 신호 없이 담겼습니다 (전체 <span className="ci-num">{health?.total ?? 0}</span>건)</span>
             <p className="ci-basis">
               담을 때 카테고리·태그를 받아오지 않던 시절의 게시물입니다. 다시 읽어 오면 판정 근거가 생깁니다
             </p>

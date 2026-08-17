@@ -10,7 +10,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  proposeTopics, describeProposals, excludeExisting,
+  proposeTopics, describeProposals,
   type ChannelForProposal,
 } from './topic-proposal.ts'
 import { computeChannelIdentity, type ChannelSignalSample } from './channel-identity.ts'
@@ -95,19 +95,9 @@ test('신호가 범용뿐이면 그 이름이라도 쓰되 규칙은 비우지 �
   assert.ok(r.proposals[0].signalPatterns.length > 0)
 })
 
-test('★ 이미 있는 주제는 다시 제안하지 않는다 — 같은 이름이 둘이면 분류가 갈린다', () => {
-  const r = proposeTopics([
-    channel('가수', 10, ['Music'], '10'),
-    channel('먹방러', 20, ['Food'], '26'),
-  ])
-  const filtered = excludeExisting(r, ['음악'])
-  assert.deepEqual(filtered.proposals.map((p) => p.name), ['음식'])
-})
-
-test('이름 비교는 공백·대소문자를 무시한다 — 표기가 흔들려도 같은 주제다', () => {
-  const r = proposeTopics([channel('가수', 10, ['Music'], '10')])
-  assert.equal(excludeExisting(r, ['  음악  ']).proposals.length, 0)
-})
+// 제안에서 빼는 기준은 "이름이 이미 있는가"가 아니라 **채널에 주제가 붙었는가**로 바뀌었다
+// (propose GET이 topic_id로 거른다). 이름으로 걸렀더니 "주제는 있는데 채널이 안 붙은"
+// 상태에서 제안이 0개가 되어 화면에서 고칠 길이 사라졌다 — excludeExisting과 함께 삭제했다.
 
 test('제안이 없으면 없다고 말한다 — 0을 발견처럼 그리지 않는다', () => {
   assert.match(describeProposals({ proposals: [], unassigned: [] }), /신호가 모이지 않았습니다/)

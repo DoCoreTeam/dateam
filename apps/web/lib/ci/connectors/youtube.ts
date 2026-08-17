@@ -317,3 +317,48 @@ export const youtubeConnector: Connector = {
     )
   },
 }
+
+// ── 신호만 대량으로 받아오기 ──────────────────────────────────────
+//
+// 왜 따로 있나: 이미 담긴 게시물의 **주제 신호만** 뒤늦게 채울 때, 게시물 1건당
+// 잡 1개로 다시 수집하면 321건이 12분 걸린다(실측). videos.list는 id를 **50개까지**
+// 한 번에 받고 요금은 1유닛 그대로다 — 같은 일이 7번의 호출로 끝난다.
+//
+// 이 함수는 신호만 읽는다. 제목·조회수 같은 나머지 필드는 건드리지 않는다 —
+// 뒤늦은 백필이 기존 수집값을 덮어써서 지표가 흔들리면 안 된다.
+
+/** videos.list가 한 번에 받는 id 상한 (YouTube Data API v3 규격) */
+export const VIDEOS_LIST_MAX_IDS = 50
+
+export interface YoutubeSignals {
+  platformCategory: string | null
+  topicSignals: string[]
+  keywords: string[]
+}
+
+/**
+ * 영상 id 묶음 → 주제 신호. 못 찾은 id는 결과에 없다(없는 것을 지어내지 않는다).
+ * 50개를 넘겨 부르면 잘라 쓴다 — 넘겨 부르면 API가 통째로 거부한다.
+ */
+export async function fetchYoutubeSignalsBulk(
+  ids: readonly string[], apiKey: string, signal?: AbortSignal,
+): Promise<Map<string, YoutubeSignals>> {
+  const out = new Map<string, YoutubeSignals>()
+  const batch = ids.slice(0, VIDEOS_LIST_MAX_IDS)
+  if (batch.length === 0 || !apiKey) return out
+
+  const url = `${API_BASE}/videos?part=snippet,topicDetails&id=${batch.map(encodeURIComponent).join(',')}&key=${apiKey}`
+  const res = await fetch(url, { signal })
+  if (!res.ok) return out
+
+  const json = await res.json() as { items?: YtVideoItem[] }
+  for (const item of json.items ?? []) {
+    if (!item?.id) continue
+    out.set(item.id, {
+      platformCategory: item.snippet?.categoryId ?? null,
+      topicSignals: parseTopicCategories(item.topicDetails?.topicCategories),
+      keywords: item.snippet?.tags ?? extractHashtags(item.snippet?.description ?? null),
+    })
+  }
+  return out
+}
