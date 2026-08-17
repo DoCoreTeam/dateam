@@ -16,8 +16,14 @@ import { addKstDays, kstTodayKey } from '../datetime/kst.ts'
 /** 하한 — 이보다 과거는 오타로 본다(회사 설립 이전 날짜를 실수로 저장할 이유가 없다). */
 export const DATE_MIN = '2000-01-01'
 
-/** 상한까지의 여유 — 오늘 + 10년. 6자리 연도는 이 상한을 넘으므로 무효가 된다. */
-const MAX_AHEAD_DAYS = 3650
+/**
+ * 상한 — 오늘로부터 10년. 6자리 연도는 이 상한을 넘으므로 무효가 된다.
+ *
+ * 날짜로 세지 않는다. 3650일은 윤일 때문에 10년보다 **2~3일 짧아**
+ * 문서에 적힌 '오늘+10년'과 화면의 max 가 어긋난다(실측 지적: 2036-08-14 vs 2036-08-17).
+ * 연도만 더하면 윤년과 무관하게 정확히 10년이다.
+ */
+const MAX_AHEAD_YEARS = 10
 
 /** 오늘(KST) 'YYYY-MM-DD'. 화면의 기본값 계산은 이걸 쓴다. */
 export function today(): string {
@@ -29,9 +35,15 @@ export function todayPlus(days: number): string {
   return addKstDays(kstTodayKey(), days)
 }
 
-/** 상한 기본값 — 오늘 + 10년. */
+/** 상한 기본값 — 오늘 + 10년(같은 월·일). */
 export function dateMax(): string {
-  return addKstDays(kstTodayKey(), MAX_AHEAD_DAYS)
+  const [y, rest] = splitYear(kstTodayKey())
+  return `${y + MAX_AHEAD_YEARS}${rest}`
+}
+
+/** 'YYYY-MM-DD' → [연도, '-MM-DD']. 윤일 계산 없이 연도만 옮기기 위해. */
+function splitYear(key: string): [number, string] {
+  return [Number(key.slice(0, 4)), key.slice(4)]
 }
 
 /**

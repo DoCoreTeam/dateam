@@ -56,8 +56,19 @@ const DateField = forwardRef<HTMLInputElement, DateFieldProps>(function DateFiel
       max={hi}
       onChange={(e) => {
         const next = e.target.value
+        // **빈 값에는 두 가지 뜻이 있다.** 브라우저 날짜 칸은 연·월·일이 다 차기 전에는
+        // 무엇을 치고 있든 value 로 빈 문자열을 준다. 그래서 '사용자가 지웠다'와
+        // '아직 치는 중이다'가 같은 값으로 도착한다.
+        //
+        // 이 둘을 안 가르면 연도를 이어 칠 때 중간 상태가 그대로 부모 상태에 실려
+        // **이미 있던 날짜가 통째로 지워진다** — 사용자는 월·일까지 잃고 안내도 못 받는다.
+        // (실측: 재현 100%. "범위 밖이면 직전 값으로 되돌아간다"는 이 경로에서 성립하지 않았다.
+        //  범위검사는 빈 값을 '미지정'으로 허용하므로 애초에 걸리지 않기 때문이다.)
+        //
+        // 가르는 기준은 badInput 이다 — 칸에 해석 불가능한 입력이 남아 있으면 true.
+        // 지운 칸은 비어 있을 뿐 잘못된 입력이 아니므로 false 다.
+        if (next === '' && e.target.validity.badInput) return
         // 범위 밖이면 상태를 바꾸지 않는다 → 통제 컴포넌트라 칸이 직전 값으로 되돌아간다.
-        // 사용자는 "안 받아들여졌다"를 즉시 보고, 저장에는 애초에 닿지 않는다.
         if (!isInRange(next, lo, hi)) return
         onValueChange?.(next)
       }}
