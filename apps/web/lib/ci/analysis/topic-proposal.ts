@@ -9,7 +9,7 @@
 //
 // 이 파일도 순수 계산이다. DB·AI를 부르지 않는다.
 
-import type { ChannelIdentity } from './channel-identity.ts'
+import { IDENTITY_ASK_AGREEMENT, type ChannelIdentity } from './channel-identity.ts'
 import { isGenericSignal } from './signal-taxonomy.ts'
 
 export interface ChannelForProposal {
@@ -50,8 +50,15 @@ export interface ProposalResult {
  */
 const SIGNAL_DOMINANCE_MIN = 0.5
 
-/** 카테고리로 채널을 대표하려면 이만큼은 같은 카테고리여야 한다. */
-const CATEGORY_AGREEMENT_MIN = 0.6
+/**
+ * 카테고리로 채널을 대표하려면 이만큼은 같은 카테고리여야 한다.
+ *
+ * 값을 새로 정하지 않고 채널 정체성 판정의 임계를 그대로 쓴다 —
+ * "채널 성격을 물어볼 만하다"고 본 수준(IDENTITY_ASK_AGREEMENT)보다 낮은 일치도로
+ * 주제를 제안하면, 정체성 쪽은 "모르겠다"는데 제안 쪽은 이름을 붙이는 모순이 생긴다.
+ * 숫자를 여기 다시 적으면 한쪽만 고쳐져 두 판정이 갈린다.
+ */
+const CATEGORY_AGREEMENT_MIN = IDENTITY_ASK_AGREEMENT
 
 /**
  * 채널 정체성들을 모아 주제 후보를 만든다.
