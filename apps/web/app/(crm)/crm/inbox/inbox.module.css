@@ -179,3 +179,120 @@
   gap: var(--space-2);
   margin-top: var(--space-2);
 }
+
+/* ── 리드 큐 일괄 처리 (v0.7.540) ─────────────────────────────────────────
+   380건짜리 큐를 사람이 끝내려면 목록만으론 안 된다 —
+   골라서, 미리 보고, 한 번에 처리하고, 다음 장으로 넘어갈 수 있어야 한다. */
+
+.leadToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.leadSearch { flex: 1 1 12rem; min-width: 10rem; }
+.leadSelect { flex: 0 0 auto; width: auto; }
+
+.leadTabs {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* 고른 것에 대한 작업 줄. 고른 게 없으면 렌더하지 않는다 —
+   비어 있는 도구 줄이 늘 떠 있으면 그 자리를 아무도 안 본다. */
+.leadBulkBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+  border: var(--border-w) solid var(--brand);
+  border-radius: var(--radius);
+  background: var(--surface-bg);
+}
+
+.leadBulkCount {
+  font-weight: 700;
+  color: var(--text);
+  margin-right: auto;
+}
+
+.leadPreview {
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+  background: var(--surface-bg);
+}
+
+.leadPreviewGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.leadStat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.leadStatValue {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.leadStatLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.leadBlockedList {
+  margin: 0;
+  padding-left: var(--space-4);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.leadCheck {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.leadItemSelected {
+  border-color: var(--brand);
+  background: var(--surface-bg);
+}
+
+.leadPager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.leadFitBadge {
+  margin-left: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.leadResult {
+  font-size: var(--fs-sm);
+  color: var(--text);
+  margin: 0 0 var(--space-2);
+}
