@@ -9778,8 +9778,12 @@ label.intake-tool-btn {
 }
 .app-dock-slot { pointer-events: auto; }
 
-/* 본문이 Dock을 피해야 할 때 쓰는 여백(손계산 금지) */
-.app-shell { --dock-safe-area: 5.5rem; }
+/* 본문이 Dock을 피해야 할 때 쓰는 여백(손계산 금지).
+ * 값은 Dock이 자기 스택을 재서 --dock-height로 알려 준다(Dock.tsx). 5.5rem은 **바닥값**이다 —
+ * 측정 전 첫 페인트와 Dock이 없는 화면을 위한 것이고, 실제 스택이 그보다 크면 그쪽을 쓴다.
+ * 왜 상수를 버렸나: 88px 고정이라 실측 176px(칩 뜨면 250px) 스택의 절반뿐이었고,
+ * 끝까지 스크롤해도 마지막 행 버튼이 Dock 아래 남아 클릭이 어시스턴트로 갔다(#73). */
+.app-shell { --dock-safe-area: max(5.5rem, var(--dock-height, 0px)); }
 
 /* 본문 끝이 Dock에 가리지 않게 한다.
  * 이 토큰은 예전부터 선언돼 있었지만 **아무도 쓰지 않았다** — 그래서 목록 마지막 줄의

@@ -71,7 +71,10 @@ export default function LinkIntakeBox({
   const acceptedContents = result?.accepted.filter((a) => a.kind === 'content').length ?? 0
 
   return (
-    <div>
+    // 아래 형제와 붙지 않게 이 부품이 자기 아래 여백을 갖는다 — 화면마다 넣으면 한 화면만 빠진다.
+    // 실측(#72 [6]): /ci/inbox 입력창 bottom 260 · 주제 점검 카드 top 260 → 간격 0px.
+    // 같은 구조가 /ci 홈에도 있어 화면이 아니라 부품에서 고친다(TopicHealthPanel과 같은 규약).
+    <div style={{ marginBottom: 'var(--space-4)' }}>
       <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'stretch' }}>
         <label className="label" htmlFor="ci-link-intake" style={{ position: 'absolute', left: '-9999px' }}>
           링크 붙여넣기

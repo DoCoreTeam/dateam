@@ -71,6 +71,24 @@ test('--dock-safe-area는 선언만 하고 끝나지 않는다 — 본문이 실
     '--dock-safe-area를 쓰는 규칙이 없다. 본문 스크롤 컨테이너의 padding-bottom에 적용할 것')
 })
 
+test('여백은 Dock이 실제로 잰 높이를 쓴다 — 상수로 두면 스택이 자랄 때 다시 덮는다', () => {
+  // 왜: 5.5rem(88px) 고정이었는데 실측 스택은 176px, '수집 중 N건' 칩이 뜨면 250px이었다.
+  //   여백이 절반이라 끝까지 스크롤해도 마지막 행 아이콘 버튼이 Dock 아래 남았고,
+  //   누르면 그 자리의 어시스턴트·+ 버튼이 대신 받았다 — "안 눌린다"가 아니라 **다른 게 눌린다**
+  //   (실측 /ci/inbox v0.7.547: 3행 열기·삭제, 4행 삭제). 상수로는 이 사고를 못 막는다.
+  const css = read('app/globals.css')
+  assert.match(css, /--dock-safe-area:[^;]*var\(--dock-height/,
+    '--dock-safe-area가 Dock이 잰 --dock-height를 쓰지 않는다(상수로 되돌아갔다)')
+
+  const dock = read('components/ui/shell/Dock.tsx')
+  assert.match(dock, /setProperty\(\s*['"]--dock-height['"]/,
+    'Dock이 자기 스택 높이를 --dock-height로 알려주지 않는다')
+  assert.match(dock, /ResizeObserver/,
+    '스택 높이는 런타임에 변한다(칩 등장) — 한 번 재고 끝내면 다시 덮인다')
+  assert.match(dock, /removeProperty\(\s*['"]--dock-height['"]/,
+    'Dock이 사라질 때 값을 걷지 않으면 Dock 없는 화면에 유령 여백이 남는다')
+})
+
 test('셸의 스크롤 컨테이너는 라우트가 바뀌면 맨 위로 되돌린다', () => {
   // 왜: 스크롤 컨테이너가 window가 아니라 셸의 main이라 Next의 기본 스크롤 처리가 닿지 않는다.
   //   그대로 두면 상세 → 편집처럼 긴 화면끼리 이동했을 때 이전 위치가 남아

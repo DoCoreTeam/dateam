@@ -11,7 +11,7 @@
 //
 // 슬롯은 코너에서 가까운 순서로 쌓인다: primary(맨 아래) → assistant → utility(맨 위).
 
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
 
 export type DockSlot = 'primary' | 'assistant' | 'utility'
 
@@ -29,7 +29,44 @@ export interface DockItem {
 
 const SLOT_RANK: Record<DockSlot, number> = { primary: 0, assistant: 1, utility: 2 }
 
+/**
+ * 스택이 실제로 몇 px인지 본문에 알려 준다 — 상수로는 못 맞춘다.
+ *
+ * 왜: `--dock-safe-area`는 5.5rem(88px) 고정이었는데, 실측 스택은 176px이고
+ * '수집 중 36건 남음' 칩이 뜨면 250px까지 자란다. 여백이 절반뿐이라 **끝까지 스크롤해도**
+ * 목록 마지막 행의 아이콘 버튼이 Dock 아래에 남았고, 누르면 그 자리의 어시스턴트·+ 버튼이
+ * 대신 받았다(실측 /ci/inbox v0.7.547: 3행 열기·삭제, 4행 삭제). "안 눌린다"가 아니라
+ * **다른 게 눌린다** — 삭제를 눌렀는데 어시스턴트가 열리는 쪽이 더 나쁘다.
+ *
+ * 좌표 규칙은 그대로다(Dock만 좌표를 안다). 여기서 내보내는 것은 좌표가 아니라 **자기 높이**다.
+ */
+function usePublishDockHeight(ref: RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const root = document.documentElement
+    const publish = () => {
+      // 화면 밑변에서 스택 맨 위까지 — 높이와 코너 여백(bottom)을 한 번에 잰다.
+      // 높이만 재면 코너 여백만큼 모자라 마지막 줄이 여전히 걸린다.
+      const top = el.getBoundingClientRect().top
+      root.style.setProperty('--dock-height', `${Math.max(0, Math.ceil(window.innerHeight - top))}px`)
+    }
+    publish()
+    const ro = new ResizeObserver(publish)
+    ro.observe(el)
+    window.addEventListener('resize', publish)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', publish)
+      root.style.removeProperty('--dock-height')
+    }
+  }, [ref])
+}
+
 export default function Dock({ items }: { items: readonly DockItem[] }) {
+  const ref = useRef<HTMLDivElement>(null)
+  usePublishDockHeight(ref)
+
   if (items.length === 0) return null
 
   const sorted = items
@@ -42,7 +79,7 @@ export default function Dock({ items }: { items: readonly DockItem[] }) {
     })
 
   return (
-    <div className="app-dock">
+    <div className="app-dock" ref={ref}>
       {sorted.map(({ item, index }) => (
         <div key={`${item.slot}-${index}`} className="app-dock-slot">
           {item.node}
