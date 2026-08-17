@@ -1,0 +1,219 @@
+/* 견적 — 패널(딜 상세 우측)과 편집기(모달) 전용 스타일
+ *
+ * 화면 전용 CSS 를 globals.css 에 넣지 않는다(CLAUDE.md §0-1). 부품 옆에 둔다.
+ */
+
+/* ── 패널 ───────────────────────────────────────────── */
+
+.wrap {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.item {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--surface);
+  border: var(--border-w) solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+.itemTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.quoteNo {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.itemTitle {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-word;
+}
+
+/* 금액은 이 화면에서 사람이 가장 먼저 보는 값이다 — 작게 쓰지 않는다(§3-1) */
+.amount {
+  font-size: var(--fs-price);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.meta {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+.itemActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+/* 보기 전환 — 화면을 나누지 않고 같은 자리에서 휴지통을 본다 */
+.trashToggle {
+  justify-self: start;
+  min-height: var(--control-h);
+  padding: 0 var(--space-1);
+  background: none;
+  border: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.trashToggle:hover { color: var(--text); }
+
+/* ── 편집기 ─────────────────────────────────────────── */
+
+.form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.headFields {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .headFields { grid-template-columns: 2fr 1fr; }
+}
+
+.field {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.linesHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.sectionTitle {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.lines {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* 한 항목 = 한 카드. 모바일에서는 세로로 쌓이고 데스크탑에서는 한 줄로 선다.
+   가로 스크롤 표를 만들지 않는다(CLAUDE.md 반응형 정책). */
+.line {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface);
+  border: var(--border-w) solid var(--border-light);
+  border-radius: var(--radius);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 900px) {
+  .line {
+    grid-template-columns: minmax(0, 3fr) 88px 84px minmax(0, 1.6fr) 84px 84px auto;
+    align-items: flex-end;
+  }
+}
+
+.lineTotal {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  padding-top: var(--space-1);
+}
+
+/* 삭제 버튼은 입력칸과 같은 높이로 선다 — 안 그러면 그 줄만 어긋난다(§2-3-1 (3)) */
+.lineRemove {
+  min-height: var(--control-h);
+  min-width: var(--control-h);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: var(--border-w) solid var(--border-color);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.lineRemove:hover { border-color: var(--danger); color: var(--danger); }
+
+/* 합계 — 사용자가 저장 전에 확인하는 미리보기다 */
+.totals {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--surface-bg);
+  border: var(--border-w) solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+.totalRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.totalRow span:last-child { font-variant-numeric: tabular-nums; color: var(--text); }
+
+.grandRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+  margin-top: var(--space-1);
+  border-top: var(--border-w) solid var(--border-color);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.grandRow span:last-child {
+  font-size: var(--fs-price);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 승인이 필요해지면 저장 전에 알린다 — 보내려다 막히는 것보다 먼저 아는 편이 낫다 */
+.approvalNote {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--warning-bg);
+  border: var(--border-w) solid var(--warning-border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: var(--fs-sm);
+}

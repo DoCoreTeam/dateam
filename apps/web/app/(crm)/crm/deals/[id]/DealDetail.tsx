@@ -19,6 +19,7 @@ import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/compo
 import MeetingPanel from '@/components/ui/crm/MeetingPanel'
 import Timeline from '@/components/ui/crm/Timeline'
 import TaskPanel from '@/components/ui/crm/TaskPanel'
+import QuotePanel from '@/components/ui/crm/QuotePanel'
 import DealContacts from './DealContacts'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import { formatKstDateTimeShort, kstDateKey } from '@/lib/datetime/kst'
@@ -210,6 +211,19 @@ export default function DealDetail({ dealId }: { dealId: string }) {
           <>
             <RecordPanel title="다음 할 일">
               <TaskPanel scope={{ dealId }} onChanged={() => setTimelineKey((k) => k + 1)} />
+            </RecordPanel>
+
+            {/*
+              견적 — 딜 금액이 어디서 나왔는지에 대한 답.
+              수락된 견적의 총액은 딜 금액으로 옮겨지므로, 바뀌면 상세를 다시 읽는다.
+            */}
+            <RecordPanel title="견적">
+              <QuotePanel
+                dealId={dealId}
+                dealName={deal.name}
+                dealCurrency={deal.currency}
+                onChanged={() => { setTimelineKey((k) => k + 1); void load() }}
+              />
             </RecordPanel>
 
             {/*

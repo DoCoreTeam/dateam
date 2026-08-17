@@ -41,6 +41,8 @@ export const PARENT_SCOPED: ReadonlySet<string> = new Set([
   'CrmStageHistory',
   'CrmMeetingRecording',
   'CrmTranscriptSegment',
+  // 견적 항목은 견적을 통해서만 닿는다 — 항목만 따로 조회하는 화면은 없다
+  'CrmQuoteLine',
 ])
 
 /** ⑤ 위 어디에도 없으면 workspaceId 를 직접 가진 모델로 본다(17 - CrmAppSetting = 16개). */
@@ -71,6 +73,9 @@ export function isCrmModel(model: string | undefined): boolean {
 export const SOFT_DELETE_MODELS: ReadonlySet<string> = new Set([
   'CrmWorkspace', 'CrmMember', 'CrmCompany', 'CrmPerson',
   'CrmPipeline', 'CrmDeal', 'CrmActivity', 'CrmTask', 'CrmMeeting',
+  // 견적·상품도 휴지통을 갖는다 — 보낸 견적을 실수로 지웠을 때 되돌릴 수 있어야 한다.
+  // (항목 CrmQuoteLine 은 견적을 따라가므로 자체 삭제 시각을 두지 않는다)
+  'CrmProduct', 'CrmQuote',
 ])
 
 /**

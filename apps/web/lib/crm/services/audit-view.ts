@@ -71,6 +71,16 @@ const ACTION_LABEL: Record<string, string> = {
   'suggestion.accepted': 'AI 제안을 반영했어요',
   'suggestion.rejected': 'AI 제안을 물렸어요',
   'suggestion.auto_applied': 'AI가 바로 반영했어요',
+  'quote.created': '견적을 만들었어요',
+  'quote.updated': '견적을 고쳤어요',
+  'quote.approved': '할인을 승인했어요',
+  'quote.sent': '견적을 보냈어요',
+  'quote.accepted': '고객이 견적을 수락했어요',
+  'quote.rejected': '고객이 견적을 거절했어요',
+  'quote.expired': '견적 기한이 지났어요',
+  'quote.draft': '견적을 초안으로 되돌렸어요',
+  'quote.restored': '견적을 되살렸어요',
+  'deal.amount_from_quote': '수락된 견적 금액을 딜에 옮겼어요',
   'setting.updated': '설정을 바꿨어요',
   'stage.criteria_changed': '단계 진입 조건을 바꿨어요',
   'budget.limit_changed': 'AI 예산 상한을 바꿨어요',
@@ -104,7 +114,7 @@ const FIELD_LABEL: Record<string, string> = {
 
 const TARGET_LABEL: Record<string, string> = {
   company: '회사', person: '인물', deal: '딜', task: '할 일',
-  meeting: '미팅', suggestion: '제안', setting: '설정', stage: '단계',
+  meeting: '미팅', suggestion: '제안', setting: '설정', stage: '단계', quote: '견적',
   integration: '연동', person_field: '인물 항목', company_field: '회사 항목',
 }
 

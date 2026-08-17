@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   canTransit, assertTransit,
-  canTransitDeal, canTransitRecording, canTransitSuggestion,
+  canTransitDeal, canTransitRecording, canTransitSuggestion, canTransitQuote,
   evaluateBudget, RECORDING_MAX_RETRY, BUDGET_ALERT_RATIO,
   type DealStatus, type RecordingStatus, type SuggestionStatus,
 } from './state-machines.ts'
@@ -271,4 +271,76 @@ test('assertTransit 의 문장이 무엇이 부족한지 알려준다', () => {
 
 test('허용되는 전이에서는 던지지 않는다', () => {
   assert.doesNotThrow(() => assertTransit('deal', 'OPEN', 'LOST', { lostReason: '예산' }))
+})
+
+// ------------------------------------------------------------
+// 견적
+// ------------------------------------------------------------
+
+test('견적: 항목이 없으면 보낼 수 없다', () => {
+  const v = canTransitQuote('DRAFT', 'SENT', { lineCount: 0 })
+  assert.equal(v.ok, false)
+  assert.equal(v.reason, 'EMPTY_QUOTE')
+})
+
+test('★ 견적: 승인이 필요한데 승인이 없으면 보낼 수 없다', () => {
+  const v = canTransitQuote('DRAFT', 'SENT', { lineCount: 2, approvalRequired: true })
+  assert.equal(v.ok, false)
+  assert.equal(v.reason, 'NEEDS_APPROVAL')
+
+  const ok = canTransitQuote('DRAFT', 'SENT', {
+    lineCount: 2, approvalRequired: true, approvedAt: new Date(),
+  })
+  assert.equal(ok.ok, true, '승인을 받으면 보낼 수 있다')
+})
+
+test('견적: 승인이 필요 없으면 그냥 보낸다', () => {
+  assert.equal(canTransitQuote('DRAFT', 'SENT', { lineCount: 1 }).ok, true)
+})
+
+test('견적: 보낸 뒤에는 수락·거절할 수 있다', () => {
+  assert.equal(canTransitQuote('SENT', 'ACCEPTED').ok, true)
+  assert.equal(canTransitQuote('SENT', 'REJECTED').ok, true)
+})
+
+test('★ 견적: 기간이 안 지났는데 만료로 두지 않는다 — 살아 있는 견적이 사라진다', () => {
+  const now = new Date('2026-08-17T00:00:00Z')
+  assert.equal(canTransitQuote('SENT', 'EXPIRED', { validUntil: '2026-08-31T00:00:00Z', now }).ok, false)
+  assert.equal(canTransitQuote('SENT', 'EXPIRED', { validUntil: '2026-08-01T00:00:00Z', now }).ok, true)
+  assert.equal(canTransitQuote('SENT', 'EXPIRED', { now }).ok, false, '기간이 없으면 만료도 없다')
+})
+
+test('견적: 만료된 것은 초안으로 되돌려 고친다', () => {
+  assert.equal(canTransitQuote('EXPIRED', 'DRAFT').ok, true)
+  assert.equal(canTransitQuote('EXPIRED', 'SENT').ok, false, '고치지 않고 바로 다시 보낼 수는 없다')
+})
+
+test('★ 견적: 수락·거절은 종료다 — 고객 손의 문서를 뒤집지 않는다', () => {
+  assert.equal(canTransitQuote('ACCEPTED', 'DRAFT').reason, 'TERMINAL_STATE')
+  assert.equal(canTransitQuote('ACCEPTED', 'REJECTED').reason, 'TERMINAL_STATE')
+  assert.equal(canTransitQuote('REJECTED', 'SENT').reason, 'TERMINAL_STATE')
+})
+
+test('견적: 초안에서 바로 수락으로 건너뛸 수 없다', () => {
+  assert.equal(canTransitQuote('DRAFT', 'ACCEPTED').ok, false)
+})
+
+test('견적: 같은 상태로의 전이는 전이가 아니다', () => {
+  assert.equal(canTransitQuote('DRAFT', 'DRAFT').reason, 'SAME_STATE')
+})
+
+test('견적: 공통 진입점 canTransit 으로도 같은 판정이 나온다', () => {
+  assert.equal(canTransit('quote', 'DRAFT', 'SENT', { lineCount: 0 }).reason, 'EMPTY_QUOTE')
+  assert.equal(canTransit('quote', 'SENT', 'ACCEPTED').ok, true)
+})
+
+test('견적: 거부 문장이 무엇을 해야 하는지 알려준다', () => {
+  try {
+    assertTransit('quote', 'DRAFT', 'SENT', { lineCount: 3, approvalRequired: true })
+    assert.fail('던졌어야 한다')
+  } catch (e) {
+    assert.ok(e instanceof CrmError)
+    assert.equal(e.status, 422)
+    assert.match(e.message, /승인/)
+  }
 })

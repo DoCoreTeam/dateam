@@ -171,6 +171,8 @@ model CrmWorkspace {
   aiRuns      CrmAiRun[]
   suggestions CrmAiSuggestion[]
   budgets     CrmAiBudget[]
+  products    CrmProduct[]
+  quotes      CrmQuote[]
 
   @@map("crm_workspace")
 }
@@ -325,6 +327,7 @@ model CrmDeal {
   contacts  CrmDealContact[]
   history   CrmStageHistory[]
   activity  CrmActivity[]
+  quotes    CrmQuote[]
 
   @@index([workspaceId, pipelineId, stageId])
   @@index([workspaceId, status, expectedCloseDate])
@@ -656,6 +659,134 @@ model CrmExchangeRate {
 
   @@unique([date, base, quote])
   @@map("crm_exchange_rate")
+}
+
+// ------------------------------------------------------------
+// 그룹 H 견적 (v0.7.540 신설)
+//
+// **왜 지금 만드나**: 딜에 금액 칸은 있는데 그 금액이 어디서 나왔는지 적을 곳이 없었다.
+// 영업은 "얼마"를 항목으로 쪼개 제시하고(무엇을 몇 개, 단가 얼마, 할인 얼마),
+// 그 문서가 곧 협상의 기준이 된다. 그 자리가 없으면 금액은 사람 머릿속에만 남는다.
+// (사용자 지적: "견적 작성하는 기능은 존재하지도 않고")
+//
+// 설계 판단 셋
+//   1) 금액은 전부 **minor 단위 BigInt** — CrmDeal.amountMinor 와 같은 규약이다.
+//      소수 통화 계산을 부동소수로 하면 합계가 1원씩 어긋난다.
+//   2) 합계 칸(subtotal·discount·tax·total)은 **저장하되 서버만 계산한다.**
+//      화면이 보낸 합계를 그대로 믿으면 항목과 총액이 다른 견적서가 만들어진다.
+//   3) 할인은 **임계를 넘으면 승인 없이는 보낼 수 없다.** 막는 게 아니라
+//      "보내기"만 막는다 — 초안은 얼마든지 써 볼 수 있어야 협상 준비가 된다.
+// ------------------------------------------------------------
+
+enum CrmQuoteStatus {
+  DRAFT // 작성 중 — 얼마든지 고칠 수 있다
+  SENT // 보냄 — 고객에게 나간 상태
+  ACCEPTED // 수락 — 딜 금액에 반영된다
+  REJECTED // 거절
+  EXPIRED // 유효기간 지남
+}
+
+/// 상품·서비스 카탈로그. 견적 항목이 여기서 단가를 가져온다(가져온 뒤엔 항목이 스스로 들고 있다).
+model CrmProduct {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  name           String
+  sku            String?
+  /// 기본 단가. 견적에 넣는 순간 **항목으로 복사**된다 — 나중에 카탈로그 값이 바뀌어도
+  /// 이미 보낸 견적서의 금액은 변하지 않아야 한다.
+  unitPriceMinor BigInt   @default(0)
+  currency       String   @db.Char(3)
+  /// 부가세율(%). 0 이면 면세. 소수 세율을 위해 Decimal.
+  taxRate        Decimal  @default(10) @db.Decimal(5, 2)
+  unit           String? // '식', '개월', 'GPU/월' 같은 단위 표기
+  descriptionMd  String?
+  isActive       Boolean  @default(true)
+  version        Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  workspace CrmWorkspace    @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  lines     CrmQuoteLine[]
+
+  @@index([workspaceId, isActive, name])
+  @@map("crm_product")
+}
+
+model CrmQuote {
+  id          String         @id @default(cuid())
+  workspaceId String
+  dealId      String
+  /// 사람이 부르는 번호(Q-2026-0001). 워크스페이스 안에서 유일하다.
+  quoteNo     String
+  title       String
+  status      CrmQuoteStatus @default(DRAFT)
+  currency    String         @db.Char(3)
+  /// 유효기간. 지나면 EXPIRED 로 본다(배치가 아니라 읽는 시점에 판정 — 배치는 놓치면 조용히 틀린다).
+  validUntil  DateTime?
+
+  /// ── 합계 (서버 계산 결과의 저장본) ──────────────────────────────
+  /// 다시 계산하면 되는 값을 왜 저장하나: 목록에서 견적 100건의 총액을 보여줄 때
+  /// 항목을 전부 읽어 더하면 조회가 100배가 된다. 쓰기는 한 곳(recalcQuote)뿐이라 어긋나지 않는다.
+  subtotalMinor BigInt @default(0)
+  discountMinor BigInt @default(0)
+  taxMinor      BigInt @default(0)
+  totalMinor    BigInt @default(0)
+
+  /// 할인 승인 — 임계를 넘은 견적은 승인 전까지 보낼 수 없다
+  approvalRequired Boolean   @default(false)
+  approvedById     String? // CrmMember.id
+  approvedAt       DateTime?
+
+  notesMd     String?
+  ownerId     String? // CrmMember.id
+  sentAt      DateTime?
+  decidedAt   DateTime? // 수락·거절 시각
+  version     Int       @default(0)
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  workspace CrmWorkspace   @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  deal      CrmDeal        @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  lines     CrmQuoteLine[]
+
+  @@unique([workspaceId, quoteNo])
+  @@index([workspaceId, dealId, createdAt])
+  @@index([workspaceId, status])
+  @@map("crm_quote")
+}
+
+model CrmQuoteLine {
+  id      String @id @default(cuid())
+  quoteId String
+  /// 카탈로그에서 골랐으면 그 흔적을 남긴다. 직접 입력한 항목은 null.
+  /// 카탈로그가 지워져도 견적서는 남아야 하므로 SetNull 이다.
+  productId String?
+
+  /// 이름·단가는 **항목이 스스로 들고 있다**(카탈로그 참조가 아니다).
+  /// 보낸 견적서의 금액이 나중에 바뀌면 그건 다른 문서다.
+  name           String
+  descriptionMd  String?
+  quantity       Decimal @default(1) @db.Decimal(12, 3)
+  unit           String?
+  unitPriceMinor BigInt  @default(0)
+  /// 항목 할인율(%). 금액 할인이 아니라 비율인 이유: 수량이 바뀌면 같이 따라가야 한다.
+  discountPercent Decimal @default(0) @db.Decimal(5, 2)
+  taxRate         Decimal @default(10) @db.Decimal(5, 2)
+  /// 서버가 계산한 이 줄의 합계(할인 반영, 세금 제외)
+  lineTotalMinor  BigInt  @default(0)
+  position        Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  quote   CrmQuote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product CrmProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([quoteId, position])
+  @@map("crm_quote_line")
 }
 
 // Phase 2 예정(본 파일에 미포함): CrmAutomation, CrmAutomationRun, CrmEnrichmentCache,

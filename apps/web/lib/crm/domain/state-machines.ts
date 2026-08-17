@@ -28,6 +28,8 @@ export interface TransitVerdict {
     | 'RETRY_EXHAUSTED'
     | 'TERMINAL_STATE'
     | 'EXPIRED'
+    | 'EMPTY_QUOTE'
+    | 'NEEDS_APPROVAL'
 }
 
 const OK: TransitVerdict = { ok: true }
@@ -168,6 +170,63 @@ export function canTransitSuggestion(
 }
 
 // ------------------------------------------------------------
+// 견적
+//   DRAFT → SENT (항목이 있어야 하고, 할인이 임계를 넘으면 승인이 있어야 한다)
+//   SENT → ACCEPTED | REJECTED | EXPIRED
+//   EXPIRED → DRAFT (기간이 지난 견적은 고쳐서 다시 보낸다)
+//   ACCEPTED · REJECTED 는 종료 — 뒤집으려면 새 견적을 만든다
+//
+// 왜 되돌리기를 막나: 이미 보낸 문서가 고객 손에 있다.
+// 그 문서를 조용히 바꾸면 우리 화면과 고객이 든 종이가 서로 다른 말을 한다.
+// ------------------------------------------------------------
+
+export type QuoteStatus = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED'
+
+export interface QuoteTransitCtx {
+  /** 견적 항목 수 — 빈 견적을 보낼 수는 없다 */
+  lineCount?: number
+  /** 할인이 임계를 넘어 승인이 필요한가 */
+  approvalRequired?: boolean
+  /** 승인된 시각. 필요한데 없으면 보낼 수 없다 */
+  approvedAt?: Date | string | null
+  /** 유효기간. 만료 처리는 이 시각이 지나야 한다 */
+  validUntil?: Date | string | null
+  now?: Date
+}
+
+export function canTransitQuote(
+  from: QuoteStatus,
+  to: QuoteStatus,
+  ctx: QuoteTransitCtx = {},
+): TransitVerdict {
+  if (from === to) return no('SAME_STATE')
+
+  if (from === 'DRAFT' && to === 'SENT') {
+    if ((ctx.lineCount ?? 0) <= 0) return no('EMPTY_QUOTE')
+    if (ctx.approvalRequired && !ctx.approvedAt) return no('NEEDS_APPROVAL')
+    return OK
+  }
+
+  if (from === 'SENT') {
+    if (to === 'ACCEPTED' || to === 'REJECTED') return OK
+    if (to === 'EXPIRED') {
+      // 기간이 안 지났는데 만료로 두면 살아 있는 견적이 사라진다
+      if (!ctx.validUntil) return no('NOT_ALLOWED')
+      const exp = ctx.validUntil instanceof Date ? ctx.validUntil : new Date(ctx.validUntil)
+      return (ctx.now ?? new Date()).getTime() >= exp.getTime() ? OK : no('NOT_ALLOWED')
+    }
+    return no('NOT_ALLOWED')
+  }
+
+  // 만료된 견적은 초안으로 되돌려 고칠 수 있다 — 새로 다 쓰게 하지 않는다
+  if (from === 'EXPIRED' && to === 'DRAFT') return OK
+
+  if (from === 'ACCEPTED' || from === 'REJECTED') return no('TERMINAL_STATE')
+
+  return no('NOT_ALLOWED')
+}
+
+// ------------------------------------------------------------
 // 예산 (명세 3.4 / 3.6) — 전이가 아니라 판정이다
 //   spent < limit 정상 / >= 80% 경보 1회 / >= 100% 소프트 차단 / 상한 상향 시 즉시 해제
 // ------------------------------------------------------------
@@ -229,7 +288,7 @@ export function evaluateBudget(state: BudgetState): BudgetVerdict {
 // 서비스 계층이 쓰는 진입점
 // ------------------------------------------------------------
 
-export type TransitKind = 'deal' | 'recording' | 'suggestion'
+export type TransitKind = 'deal' | 'recording' | 'suggestion' | 'quote'
 
 /**
  * 명세 3.4 의 단일 진입점. true 일 때만 진행하고, false 면 422 INVALID_TRANSITION.
@@ -238,7 +297,7 @@ export function canTransit(
   kind: TransitKind,
   from: string,
   to: string,
-  ctx: DealTransitCtx & RecordingTransitCtx & SuggestionTransitCtx = {},
+  ctx: DealTransitCtx & RecordingTransitCtx & SuggestionTransitCtx & QuoteTransitCtx = {},
 ): TransitVerdict {
   switch (kind) {
     case 'deal':
@@ -247,6 +306,8 @@ export function canTransit(
       return canTransitRecording(from as RecordingStatus, to as RecordingStatus, ctx)
     case 'suggestion':
       return canTransitSuggestion(from as SuggestionStatus, to as SuggestionStatus, ctx)
+    case 'quote':
+      return canTransitQuote(from as QuoteStatus, to as QuoteStatus, ctx)
     default:
       // 새 종류를 추가하고 여기를 빼먹으면 조용히 통과시키지 않는다.
       return no('NOT_ALLOWED')
@@ -263,6 +324,8 @@ const REASON_MESSAGE: Record<NonNullable<TransitVerdict['reason']>, string> = {
   RETRY_EXHAUSTED: '재시도 횟수를 모두 사용했습니다.',
   TERMINAL_STATE: '이미 종료된 항목은 상태를 바꿀 수 없습니다.',
   EXPIRED: '기한이 지난 제안입니다.',
+  EMPTY_QUOTE: '항목이 없는 견적은 보낼 수 없습니다. 먼저 항목을 추가해 주세요.',
+  NEEDS_APPROVAL: '할인율이 승인 기준을 넘었습니다. 승인을 받은 뒤 보낼 수 있습니다.',
 }
 
 /** 판정이 false 면 CrmError(INVALID_TRANSITION, 422)를 던진다 */
@@ -270,7 +333,7 @@ export function assertTransit(
   kind: TransitKind,
   from: string,
   to: string,
-  ctx: DealTransitCtx & RecordingTransitCtx & SuggestionTransitCtx = {},
+  ctx: DealTransitCtx & RecordingTransitCtx & SuggestionTransitCtx & QuoteTransitCtx = {},
 ): void {
   const verdict = canTransit(kind, from, to, ctx)
   if (verdict.ok) return
