@@ -112,6 +112,36 @@ export interface QuoteLineData {
   taxRate?: number | string | null
 }
 
+/**
+ * 이 요청에 써도 되는 이름들.
+ *
+ * **왜 화이트리스트인가**: 예전엔 모르는 필드를 조용히 버렸다. 그래서 `unitPrice` 처럼
+ * 이름을 한 글자 틀리면 단가가 **0 으로 들어가고 200 이 떨어졌다** — 0원짜리 견적이
+ * 아무 말 없이 생긴다(G3 실측: 본인 입력 오류로 겪음).
+ * 0원 항목 자체는 정당하다(무상 제공). 그러니 **0을 막는 게 아니라 오타를 막는다.**
+ */
+const LINE_KEYS = new Set([
+  'id', 'productId', 'name', 'descriptionMd', 'quantity', 'unit',
+  'unitPriceMinor', 'discountPercent', 'taxRate',
+])
+const QUOTE_KEYS = new Set([
+  'dealId', 'title', 'currency', 'validUntil', 'notesMd', 'ownerId', 'lines',
+  // 수정 경로가 함께 보내는 것들
+  'version', 'status',
+])
+
+/** 모르는 이름이 섞여 있으면 **거절한다** — 조용히 버리면 보낸 쪽은 반영된 줄 안다 */
+function rejectUnknownKeys(obj: unknown, allowed: Set<string>, where: string): void {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return
+  const unknown = Object.keys(obj as Record<string, unknown>).filter((k) => !allowed.has(k))
+  if (unknown.length === 0) return
+  throw new CrmError(
+    'VALIDATION_FAILED',
+    `${where}에 모르는 항목이 있습니다: ${unknown.join(', ')}. 이름을 확인해 주세요.`,
+    { field: unknown[0] },
+  )
+}
+
 /** 금액은 문자열로 받는다 — number 로 받으면 2^53 을 넘는 원 단위 금액이 조용히 틀어진다 */
 function toMinor(v: number | string | null | undefined, field: string): bigint {
   if (v === null || v === undefined || v === '') return BigInt(0)
@@ -147,6 +177,7 @@ function toQuantity(v: number | string | null | undefined): number {
 
 /** 항목 하나를 DB 에 넣을 모양으로. 합계는 여기서 **서버가** 계산한다 */
 function toLineData(line: QuoteLineData, position: number): Record<string, unknown> {
+  rejectUnknownKeys(line, LINE_KEYS, `${position + 1}번째 항목`)
   const name = requireText(line.name)
   if (!name) {
     throw new CrmError('VALIDATION_FAILED', '항목 이름을 입력해 주세요.', { field: 'name' })
@@ -261,21 +292,41 @@ export async function listQuotes(
 
   const where: Record<string, unknown> = {}
   if (input.trash) where.deletedAt = { not: null }
-  if (status && status !== 'EXPIRED') where.status = status
-  // 만료는 컬럼이 아니다 — SENT 중 기간이 지난 것을 DB 에서 좁혀 두고, 최종 판정은 아래에서 한다
+  if (status && status !== 'SENT' && status !== 'EXPIRED') where.status = status
+  /**
+   * '보냄' 과 '기한 지남' 은 **겹치지 않는다.**
+   *
+   * 만료는 컬럼이 아니다 — 저장된 status 는 SENT 인 채로 유효기간만 지난 것이다.
+   * 예전엔 그래서 같은 견적이 두 필터에 다 나왔고, **목록의 배지는 '기한 지남'인데
+   * 그걸 뽑아낸 필터는 '보냄'** 이었다. 화면이 자기 말을 뒤집는 셈이다(G3 관찰 ①).
+   * 이제 '보냄'은 나가 있고 **아직 살아 있는 것**, '기한 지남'은 나갔는데 **끝난 것**이다.
+   */
+  const now = new Date()
+  if (status === 'SENT') {
+    where.status = 'SENT'
+    where.NOT = { validUntil: { lt: now } }   // 기한이 지난 것만 뺀다(기한 없음은 남는다)
+  }
   if (status === 'EXPIRED') {
     where.status = 'SENT'
-    where.validUntil = { lt: new Date() }
+    where.validUntil = { lt: now }
   }
-  if (q) {
-    where.OR = [
-      { quoteNo: { contains: q, mode: 'insensitive' } },
-      { title: { contains: q, mode: 'insensitive' } },
-      { deal: { is: { name: { contains: q, mode: 'insensitive' } } } },
-    ]
-  }
+  /**
+   * 검색은 **AND 로 따로 묶는다.**
+   * where.OR 에 그냥 넣으면 상태 조건이 쓰는 OR 를 덮어써서
+   * "보냄 + 검색어"가 조용히 "검색어만"이 된다 — 필터를 걸었는데 안 걸린 결과가 나온다.
+   */
+  const search = q
+    ? {
+      OR: [
+        { quoteNo: { contains: q, mode: 'insensitive' } },
+        { title: { contains: q, mode: 'insensitive' } },
+        { deal: { is: { name: { contains: q, mode: 'insensitive' } } } },
+      ],
+    }
+    : null
   const cur = cursorWhere(decoded)
-  const finalWhere = cur ? { AND: [where, cur] } : where
+  const parts = [where, search, cur].filter(Boolean) as Record<string, unknown>[]
+  const finalWhere = parts.length > 1 ? { AND: parts } : where
 
   const [rows, total] = await Promise.all([
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -286,11 +337,11 @@ export async function listQuotes(
       orderBy: CURSOR_ORDER,
       take: limit + 1,
     }),
+    // 총 건수는 커서만 빼고 **같은 조건**으로 센다 — 검색을 빼먹으면 화면이 "3건 중 1건"처럼 어긋난다
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    countIfFirstPage((db as any).crmQuote, where, decoded),
+    countIfFirstPage((db as any).crmQuote, search ? { AND: [where, search] } : where, decoded),
   ]) as [(QuoteRow & { deal: { name: string; company: { name: string } | null } | null })[], number | undefined]
 
-  const now = new Date()
   const items = rows.map((r) => {
     const { deal, ...rest } = r
     return {
@@ -363,6 +414,7 @@ export async function createQuote(
   actorId: string | null,
   input: CreateQuoteInput,
 ): Promise<QuoteRow> {
+  rejectUnknownKeys(input, QUOTE_KEYS, '견적')
   if (!input.dealId) {
     throw new CrmError('VALIDATION_FAILED', '견적을 붙일 딜을 선택해 주세요.', { field: 'dealId' })
   }
