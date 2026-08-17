@@ -8,6 +8,7 @@ import { STANDARD_LADDER } from '@/lib/gpu/config-ladder'
 import { X, Pencil } from 'lucide-react'
 import ImpactDeleteDialog from './ImpactDeleteDialog'
 import InlineError from '@/components/ui/InlineError'
+import DateField from '@/components/ui/DateField'
 
 type GpuCount = (typeof STANDARD_LADDER)[number]
 
@@ -230,11 +231,10 @@ export default function QuoteEditModal({ quote, productId, onClose, onSaved }: Q
             {/* 유효 기한 */}
             <div>
               <label htmlFor="qe-valid-until" className="gpu-field-label">유효 기한</label>
-              <input
+              <DateField
                 id="qe-valid-until"
-                type="date"
                 value={validUntil}
-                onChange={(e) => setValidUntil(e.target.value)}
+                onValueChange={setValidUntil}
                 className="gpu-field-input"
               />
             </div>

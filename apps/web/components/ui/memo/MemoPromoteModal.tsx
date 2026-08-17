@@ -7,6 +7,7 @@ import { promoteMemoToTask } from '@/app/(member)/daily/actions'
 import type { MemoListItem } from './memoUtils'
 import InlineError from '@/components/ui/InlineError'
 import NbModal from '@/components/ui/nb/NbModal'
+import DateField from '@/components/ui/DateField'
 
 interface Props {
   memo: MemoListItem
@@ -62,7 +63,7 @@ export default function MemoPromoteModal({ memo, onClose, onDone }: Props) {
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>목표일 (선택)</span>
-            <input className="input-field" type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)}
+            <DateField value={targetDate} onValueChange={setTargetDate}
               style={{ padding: 'var(--space-2) var(--space-3)', border: 'var(--hairline) solid var(--border-color)', borderRadius: 'var(--radius)', fontSize: 'var(--fs-base)' }} />
           </label>
 

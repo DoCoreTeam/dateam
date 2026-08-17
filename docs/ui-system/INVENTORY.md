@@ -136,6 +136,7 @@ newAX의 UI는 **두 축**으로 되어 있다. 어느 쪽을 쓸지는 아래 �
 | 열린 할 일 | `ui/crm/TaskPanel` | 신설 v0.7.497 (dacrm §6.2 우측) — 한 줄로 추가하고 체크로 완료. 기한 지난 것은 눈에 띄게. 완료하면 타임라인에 활동이 남는다 |
 | 휴지통 보기 | `ui/crm/trash` (`TRASH_FILTER`·`isTrashView`·`useRestore`·`restoreColumn`) | 신설 v0.7.496 (dacrm) — 휴지통은 **화면이 아니라 필터**다. 회사·인물·딜 목록이 같은 약속("30일 안에 되돌릴 수 있다")을 같은 방식으로 지킨다 |
 | 오류(한 줄) | **`ui/InlineError`** | **56** (v0.7.456 신설 — 폼·버튼 옆 한 줄. 예전엔 화면마다 인라인 style, 글자 크기 8종) |
+| 날짜 입력 | **`ui/DateField`** | **15** (v0.7.542 신설 — 화면이 날짜 입력을 직접 짜지 않는다. 브라우저 기본 날짜 칸은 연도 6자리를 그대로 받아 `202609`년이 저장됐다. `min`/`max`(2000-01-01 ~ 오늘+10년) + 범위검사가 부품에 붙어 있고, 오늘·오늘+N은 `lib/ui/date-range`가 KST SSOT를 거쳐 계산한다. 가드 `lib/ui/date-input-standard.test.ts` |
 | 로딩 | `ui/LoadingSkeleton→SkelPage/SkelCard/SkelList` | **11 / 9 / 7** |
 | 로딩 | `ui/AXDotLoader` | **35** |
 | 로딩 | `ui/AXLoadingOverlay` | 7 |
@@ -247,6 +248,7 @@ CI의 삭제는 **물리 삭제**라 되돌리기가 없다(사용자 결정 202
 | `lib/ui/dock-exclusive.test.ts` | 우측하단 좌표 독점 · `bottom` 매직넘버 금지 | 정적 스캔 |
 | `lib/ui/duplicate-component.test.ts` | 같은 export 이름을 2곳이 내보내는 중복 구현 차단 | 정적 스캔 |
 | `lib/work/mobile-layout-guard.test.ts` | 업무 화면 모바일 레이아웃 | 정적 스캔 |
+| `lib/ui/date-input-standard.test.ts` | 날짜 입력 자작 금지(`DateField`) · 6자리 연도 거부 · 오늘 계산이 KST SSOT 경유 | 정적 스캔 + 단위 (위반 0에서 잠금) |
 
 **⚠️ 알려진 사각지대 (실측 확인)**
 - `check-design-tokens.mjs`의 스캔 루트는 `apps/web/app` + `apps/web/components` 뿐 → **`globals.css`를 안 본다.**

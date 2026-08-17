@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
+import DateField from '@/components/ui/DateField'
 import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { toDateString, getWeekStart } from '@/lib/utils'
 import { BarChart2 } from 'lucide-react'
@@ -118,11 +119,11 @@ export default async function AdminKpiPage({ searchParams }: PageProps) {
         <form style={{ display: 'flex', gap: 'var(--space-4)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div>
             <label htmlFor="period_start" className="label">기간 시작</label>
-            <input id="period_start" name="period_start" type="date" defaultValue={selectedStart} className="input-field" style={{ width: 'clamp(140px, 100%, 160px)' }} />
+            <DateField id="period_start" name="period_start" defaultValue={selectedStart} style={{ width: 'clamp(140px, 100%, 160px)' }} />
           </div>
           <div>
             <label htmlFor="period_end" className="label">기간 종료</label>
-            <input id="period_end" name="period_end" type="date" defaultValue={selectedEnd} className="input-field" style={{ width: 'clamp(140px, 100%, 160px)' }} />
+            <DateField id="period_end" name="period_end" defaultValue={selectedEnd} style={{ width: 'clamp(140px, 100%, 160px)' }} />
           </div>
           <button type="submit" className="btn-primary">조회</button>
         </form>

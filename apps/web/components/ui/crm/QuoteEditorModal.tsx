@@ -15,6 +15,7 @@ import { Plus, X } from 'lucide-react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
+import DateField, { todayPlus } from '@/components/ui/DateField'
 import { computeLine, computeTotals, needsApproval, DEFAULT_DISCOUNT_APPROVAL_PCT } from '@/lib/crm/domain/quote-math'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import styles from './quote-panel.module.css'
@@ -55,7 +56,9 @@ export function newQuoteDraft(dealName: string, currency: string | null): QuoteD
   return {
     title: `${dealName} 견적`,
     currency: (currency ?? 'KRW').toUpperCase(),
-    validUntil: '',
+    // 빈 칸으로 두면 사용자가 연도부터 타이핑하게 되고, 거기서 6자리 연도가 들어간다.
+    // 견적 유효기간의 관례값(30일)을 미리 넣어 두고 필요하면 고치게 한다.
+    validUntil: todayPlus(30),
     notesMd: '',
     lines: [emptyLine()],
   }
@@ -169,12 +172,10 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           </div>
           <div className={styles.field}>
             <label className="label" htmlFor="quote-valid">유효기간</label>
-            <input
+            <DateField
               id="quote-valid"
-              type="date"
-              className="input-field"
               value={draft.validUntil}
-              onChange={(e) => setDraft((d) => ({ ...d, validUntil: e.target.value }))}
+              onValueChange={(v) => setDraft((d) => ({ ...d, validUntil: v }))}
             />
           </div>
         </div>

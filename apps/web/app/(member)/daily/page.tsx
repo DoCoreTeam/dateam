@@ -10,6 +10,7 @@ import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import EmptyState from '@/components/ui/EmptyState'
 import AXDotLoader from '@/components/ui/AXDotLoader'
+import DateField from '@/components/ui/DateField'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
 import PromoteToDeptButton from './PromoteToDeptButton'
 const KnowledgeGraphView = dynamic(() => import('./KnowledgeGraphView').then(m => ({ default: m.KnowledgeGraphView })), { ssr: false })
@@ -1112,10 +1113,9 @@ function LogList({
                   />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: '0.375rem', flexWrap: 'wrap' }}>
                     <label style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>일정 날짜</label>
-                    <input className="input-field"
-                      type="date"
+                    <DateField
                       value={editTargetDate}
-                      onChange={(e) => onEditTargetDateChange(e.target.value)}
+                      onValueChange={onEditTargetDateChange}
                       style={{
                         // input-field의 width:100%를 되돌린다 — 날짜 칸은 한 줄 안에서 내용만큼만 차지한다
                         width: 'auto',

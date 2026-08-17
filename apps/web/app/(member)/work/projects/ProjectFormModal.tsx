@@ -7,6 +7,7 @@ import {
   PROJECT_STATUS_OPTIONS, CURRENCY_OPTIONS, type ProjectMeta,
 } from '@/lib/work/project-display'
 import { PROJECT_VISIBILITY, type ProjectVisibility } from '@/lib/work/project-fields'
+import DateField from '@/components/ui/DateField'
 
 // 프로젝트 생성/수정 공용 모달. 이름 + 날짜체계 + 기간 + 예산/통화 + 상태.
 // mode='create'→POST /api/projects, 'edit'→PATCH. 모달 표준(§2-2) 준수.
@@ -248,11 +249,12 @@ export default function ProjectFormModal({ mode, projectId, initial, onClose, on
               </div>
               <div>
                 <label className="label" htmlFor="project-start">시작일</label>
-                <input id="project-start" className="input-field" type="date" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} style={{ minHeight: 44 }} />
+                <DateField id="project-start" value={form.startDate} onValueChange={(v) => set('startDate', v)} style={{ minHeight: 44 }} />
               </div>
               <div>
                 <label className="label" htmlFor="project-end">종료일</label>
-                <input id="project-end" className="input-field" type="date" value={form.endDate} onChange={(e) => set('endDate', e.target.value)} style={{ minHeight: 44 }} />
+                {/* 시작일보다 앞선 종료일은 애초에 못 고르게 한다. */}
+                <DateField id="project-end" value={form.endDate} onValueChange={(v) => set('endDate', v)} min={form.startDate || undefined} style={{ minHeight: 44 }} />
               </div>
             </div>
           </fieldset>

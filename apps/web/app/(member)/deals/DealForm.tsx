@@ -7,6 +7,7 @@ import { DEAL_NATURES, LEAD_TYPES, PRODUCTS, probabilityForStage } from '@/lib/c
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
 import InlineError from '@/components/ui/InlineError'
+import DateField from '@/components/ui/DateField'
 
 const STAGES = ['신규', '검증', '컨택', 'PoC', '제안', '협상', '수주', '실패'] as const
 
@@ -139,7 +140,7 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
           </div>
           <div>
             <label className="label">예상 마감일</label>
-            <input className="input-field" type="date" value={form.close_date} onChange={(e) => set('close_date', e.target.value)} style={inputStyle} />
+            <DateField value={form.close_date} onValueChange={(v) => set('close_date', v)} style={inputStyle} />
           </div>
           <div>
             <label className="label">예상시기·발주시기</label>
@@ -188,7 +189,7 @@ export default function DealForm({ deal, accounts, contacts, defaultAccountId }:
           </div>
           <div>
             <label className="label">액션 날짜</label>
-            <input className="input-field" type="date" value={form.next_action_date} onChange={(e) => set('next_action_date', e.target.value)} style={inputStyle} />
+            <DateField value={form.next_action_date} onValueChange={(v) => set('next_action_date', v)} style={inputStyle} />
           </div>
           <div>
             <label className="label">재원</label>

@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState } from 'react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
+import DateField from '@/components/ui/DateField'
 import { isEnterKey } from '@/lib/ui/ime'
 import type { BoardPipeline } from './DealBoard'
 
@@ -270,9 +271,10 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
 
         <div>
           <label className="label" htmlFor="crm-deal-close">예상 마감일</label>
-          <input
-            id="crm-deal-close" className="input-field" type="date" value={expectedCloseDate ?? ''}
-            onChange={(e) => setExpectedCloseDate(e.target.value)}
+          {/* 선택 항목이라 기본값을 넣지 않는다 — 오늘을 찍으면 '오늘 마감되는 딜'로 읽혀 예측이 오염된다. */}
+          <DateField
+            id="crm-deal-close" value={expectedCloseDate ?? ''}
+            onValueChange={setExpectedCloseDate}
           />
         </div>
       </div>

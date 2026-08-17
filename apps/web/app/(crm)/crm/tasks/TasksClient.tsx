@@ -19,6 +19,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import SegmentedTabs from '@/components/ui/SegmentedTabs'
+import DateField from '@/components/ui/DateField'
 import { kstTodayKey, kstDateKey, formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { isEnterKey } from '@/lib/ui/ime'
 import styles from './tasks.module.css'
@@ -141,11 +142,8 @@ export default function TasksClient() {
           onKeyDown={(e) => { if (isEnterKey(e)) void add() }}
           aria-label="할 일"
         />
-        <input
-          className="input-field" type="date" value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
-          aria-label="마감일"
-        />
+        {/* 선택 항목이라 기본값을 넣지 않는다 — '마감 없음'과 '오늘 마감'은 다른 뜻이다. */}
+        <DateField value={dueDate} onValueChange={setDueDate} aria-label="마감일" />
         <NbButton onClick={() => void add()} disabled={busy === 'new'}>
           {busy === 'new' ? '만드는 중…' : '추가'}
         </NbButton>

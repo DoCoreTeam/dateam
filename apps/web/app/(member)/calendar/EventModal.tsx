@@ -7,6 +7,7 @@ import { createCalendarEvent } from './actions'
 import { kstWallToIso, kstDateOnlyToIso } from '@/lib/datetime/kst'
 import { useFormCore } from '@/lib/forms/useFormCore'
 import DraftRestoreBanner from '@/components/ui/DraftRestoreBanner'
+import DateField from '@/components/ui/DateField'
 import { isEnterKey } from '@/lib/ui/ime'
 
 interface Props {
@@ -117,7 +118,7 @@ export default function EventModal({ date, onClose, onSaved }: Props) {
         <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: '0.75rem', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 130 }}>
             <label className="label" htmlFor="cal-ev-date">날짜</label>
-            <input id="cal-ev-date" type="date" className="input-field" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            <DateField id="cal-ev-date" value={startDate} onValueChange={setStartDate} />
           </div>
           {!allDay && (
             <>

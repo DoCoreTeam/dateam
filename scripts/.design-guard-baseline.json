@@ -1323,7 +1323,7 @@
   "apps/web/components/pricing/gpu/ProductAddModal.tsx::rawinput::select": 2,
   "apps/web/components/pricing/gpu/ProductEditModal.tsx::rawinput::input": 3,
   "apps/web/components/pricing/gpu/ProductEditModal.tsx::rawinput::select": 2,
-  "apps/web/components/pricing/gpu/QuoteEditModal.tsx::rawinput::input": 4,
+  "apps/web/components/pricing/gpu/QuoteEditModal.tsx::rawinput::input": 3,
   "apps/web/components/pricing/gpu/cockpit/DrawerSections.tsx::emptytext": 4,
   "apps/web/components/pricing/gpu/cockpit/GcubeSiteCell.tsx::rawinput::input": 1,
   "apps/web/components/pricing/gpu/cockpit/StrategicCell.tsx::rawinput::input": 1,

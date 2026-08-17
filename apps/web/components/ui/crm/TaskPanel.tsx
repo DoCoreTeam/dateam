@@ -14,6 +14,7 @@ import { Plus, Check, RotateCcw } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import EmptyState from '@/components/ui/EmptyState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
+import DateField from '@/components/ui/DateField'
 import { kstDateKey, kstTodayKey } from '@/lib/datetime/kst'
 import type { TimelineScope } from './Timeline'
 import styles from './task-panel.module.css'
@@ -155,11 +156,8 @@ export default function TaskPanel({ scope, onChanged }: Props) {
           placeholder="다음에 할 일"
           aria-label="다음에 할 일"
         />
-        <input
-          className="input-field" type="date" value={due}
-          onChange={(e) => setDue(e.target.value)}
-          aria-label="마감일"
-        />
+        {/* 선택 항목이라 기본값을 넣지 않는다 — '마감 없음'과 '오늘 마감'은 다른 뜻이다. */}
+        <DateField value={due} onValueChange={setDue} aria-label="마감일" />
         <NbButton onClick={() => void add()} disabled={saving || !draft.trim()}>
           <Plus size={14} /> 추가
         </NbButton>

@@ -11,6 +11,7 @@ import { PRIORITY_KEYS, PRIORITY_COLORS } from '@/lib/tokens/status-colors'
 import { createDeptTask, updateDeptTask, listAssigneeCandidates } from './actions'
 import type { DeptOption } from './DeptTasksClient'
 import InlineError from '@/components/ui/InlineError'
+import DateField from '@/components/ui/DateField'
 
 interface Props {
   creatableDepts: DeptOption[]
@@ -120,7 +121,7 @@ export default function DeptTaskFormModal({ creatableDepts, onClose, onSaved, ta
             </div>
             <div>
               <label className="label">마감일</label>
-              <input className="input-field" type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} style={{ minHeight: 44 }} />
+              <DateField value={targetDate} onValueChange={setTargetDate} style={{ minHeight: 44 }} />
             </div>
           </div>
           {!isEdit && (

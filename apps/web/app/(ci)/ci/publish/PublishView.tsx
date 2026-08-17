@@ -13,6 +13,7 @@ import type { ApiResponse, CiChannelListItem } from '@/lib/ci/contracts'
 import { CI_PLATFORMS, CI_PLATFORM_LABEL, type CiPlatform } from '@/lib/ci/types'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import ErrorState from '@/components/ui/ErrorState'
+import DateField from '@/components/ui/DateField'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
@@ -199,7 +200,8 @@ export default function PublishView({
         </div>
         <div>
           <label className="label" htmlFor="ci-pub-date">예약일 (선택)</label>
-          <input className="input-field" id="ci-pub-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          {/* '(선택)'이라 기본값 없음 — 채우면 예약 안 한 게시물이 전부 예약으로 바뀐다. */}
+          <DateField id="ci-pub-date" value={date} onValueChange={setDate} />
         </div>
         <div>
           <label className="label" htmlFor="ci-pub-time">시각</label>

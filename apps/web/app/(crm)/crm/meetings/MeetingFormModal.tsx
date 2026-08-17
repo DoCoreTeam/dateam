@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
+import DateField from '@/components/ui/DateField'
 import { kstTodayKey } from '@/lib/datetime/kst'
 
 interface Option { id: string; name: string }
@@ -91,8 +92,7 @@ export default function MeetingFormModal({ onClose, onSaved, fixedDealId, fixedC
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginTop: 'var(--space-3)' }}>
         <div>
           <label className="label" htmlFor="meeting-date">날짜</label>
-          <input id="meeting-date" className="input-field" type="date" value={date}
-            onChange={(e) => setDate(e.target.value)} />
+          <DateField id="meeting-date" value={date} onValueChange={setDate} />
         </div>
         <div>
           <label className="label" htmlFor="meeting-time">시각</label>

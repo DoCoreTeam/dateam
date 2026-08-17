@@ -10,6 +10,7 @@ import { useState } from 'react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
+import DateField from '@/components/ui/DateField'
 import { kstTodayKey } from '@/lib/datetime/kst'
 import type { BoardDeal, BoardStage } from './DealBoard'
 
@@ -108,10 +109,7 @@ export default function DealCloseModal({ deal, stage, onClose, onDone }: Props) 
             </div>
             <div>
               <label className="label" htmlFor="crm-close-date">성사일 *</label>
-              <input
-                id="crm-close-date" className="input-field" type="date" value={wonAt}
-                onChange={(e) => setWonAt(e.target.value)}
-              />
+              <DateField id="crm-close-date" value={wonAt} onValueChange={setWonAt} />
             </div>
           </>
         ) : (
