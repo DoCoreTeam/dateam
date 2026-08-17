@@ -29,6 +29,9 @@ export async function GET(req: NextRequest) {
     return {
       items: items.map((d) => ({ ...d, nextAction: actions.get(String(d.id)) ?? null })),
       nextCursor: page.nextCursor,
+      // 응답을 손으로 다시 조립하는 곳이라 total 을 빠뜨리기 쉽다 —
+      // 실제로 회사·인물만 총 건수가 뜨고 딜만 안 뜨는 상태였다
+      total: page.total,
     }
   })
 }

@@ -62,6 +62,8 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
   })
   const [rows, setRows] = useState<DealRowItem[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
+  // 서버는 첫 페이지에서만 총 건수를 준다 — 이어 볼 때는 이미 아는 값을 그대로 쓴다
+  const [total, setTotal] = useState<number | undefined>(undefined)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -94,6 +96,7 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
       if (!res.ok) { setError(body?.error?.message ?? '딜을 불러오지 못했습니다.'); return }
       setRows((prev) => (append ? [...prev, ...body.items] : body.items))
       setCursor(body.nextCursor)
+      if (!append) setTotal(typeof body.total === 'number' ? body.total : undefined)
     } catch {
       setError('딜을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -182,6 +185,8 @@ export default function DealTableView({ pipelines, onCreate, reloadKey }: Props)
 
       <ListPager
         query={query}
+        total={total}
+        loaded={rows.length}
         hasMore={Boolean(cursor)}
         loading={loading}
         onChange={() => void load(true, cursor)}

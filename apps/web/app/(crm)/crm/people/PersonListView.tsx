@@ -58,6 +58,8 @@ export default function PersonListView() {
   })
   const [rows, setRows] = useState<PersonItem[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
+  // 서버는 첫 페이지에서만 총 건수를 준다 — 이어 볼 때는 이미 아는 값을 그대로 쓴다
+  const [total, setTotal] = useState<number | undefined>(undefined)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
@@ -83,6 +85,7 @@ export default function PersonListView() {
       }
       setRows((prev) => (append ? [...prev, ...body.items] : body.items))
       setCursor(body.nextCursor)
+      if (!append) setTotal(typeof body.total === 'number' ? body.total : undefined)
     } catch {
       setError('목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -133,6 +136,8 @@ export default function PersonListView() {
 
       <ListPager
         query={query}
+        total={total}
+        loaded={rows.length}
         hasMore={Boolean(cursor)}
         loading={loading}
         onChange={() => void load(true, cursor)}

@@ -16,16 +16,32 @@ interface Props {
   total?: number
   /** 총 건수를 모르는 목록(커서 API) — 더 볼 게 있는지만 안다 */
   hasMore?: boolean
+  /**
+   * 지금까지 화면에 그려진 건수.
+   *
+   * 커서형 목록은 '더 보기'를 눌러도 `query.page` 가 올라가지 않는다(URL 에 커서를 싣지 않으므로).
+   * 그래서 `size × page` 로 진행량을 계산하면 몇 번을 눌러도 "20/372" 에 멈춘 것처럼 보인다.
+   * 실제로 몇 건을 들고 있는지는 목록만 알고 있으니 그 값을 받는다.
+   */
+  loaded?: number
   onChange: (patch: Partial<ListQuery>) => void
   loading?: boolean
 }
 
-export default function ListPager({ query, total, hasMore, onChange, loading }: Props) {
+export default function ListPager({ query, total, hasMore, loaded, onChange, loading }: Props) {
   if (query.mode === 'more') {
     const known = typeof total === 'number'
-    const shown = known ? Math.min(total, query.size * query.page) : undefined
-    // 총 건수를 아는 목록은 남은 양을 보여주고, 커서형은 더 있는지만 말한다
-    const more = known ? (shown as number) < (total as number) : !!hasMore
+    const shown = known
+      ? Math.min(total, typeof loaded === 'number' ? loaded : query.size * query.page)
+      : undefined
+    /**
+     * 더 볼 게 있느냐는 **서버가 준 커서**가 먼저다.
+     * 숫자만으로 판정하면(shown < total) 그 사이 다른 사람이 회사를 하나 만든 순간
+     * 커서는 끝났는데 버튼은 남아, 눌러도 아무것도 안 늘어나는 버튼이 된다.
+     */
+    const more = typeof hasMore === 'boolean'
+      ? hasMore
+      : known && (shown as number) < (total as number)
     if (!more) return null
     return (
       <div className="list-pager list-pager-more">

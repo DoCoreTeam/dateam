@@ -5,8 +5,10 @@
 // 호스트 목록 표준(§2-6)을 그대로 쓴다 — ListToolbar·ListSurface·ListPager + useListQuery.
 // 새 목록 부품을 만들지 않는다. 검색어·보기는 URL 이 진실이라 링크를 공유하면 같은 화면이 열린다.
 //
-// 페이지 이동은 'more' 모드다: 서버가 커서 API 라서 총 건수를 모른다.
-// 총 건수를 세려면 매 요청마다 count 를 쳐야 하고, 목록이 커질수록 느려진다.
+// 페이지 이동은 'more' 모드다(커서 API — 목록이 움직여도 같은 회사를 두 번 보지 않는다).
+// 다만 **총 건수는 보여 준다.** 예전엔 그마저 없어서 372건이 들어와도 화면은
+// 20건씩 '더 보기'만 반복하고 규모를 알 길이 없었다 — 끝이 안 보이는 목록은 사람이 끝낼 수 없다.
+// count 는 첫 페이지 1회뿐이다(lib/crm/db/cursor.ts countIfFirstPage).
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
@@ -58,6 +60,8 @@ export default function CompanyListView() {
   })
   const [rows, setRows] = useState<CompanyItem[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
+  // 서버는 첫 페이지에서만 총 건수를 준다 — 이어 볼 때는 이미 아는 값을 그대로 쓴다
+  const [total, setTotal] = useState<number | undefined>(undefined)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
@@ -84,6 +88,7 @@ export default function CompanyListView() {
       }
       setRows((prev) => (append ? [...prev, ...body.items] : body.items))
       setCursor(body.nextCursor)
+      if (!append) setTotal(typeof body.total === 'number' ? body.total : undefined)
     } catch {
       setError('목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
@@ -135,6 +140,8 @@ export default function CompanyListView() {
 
       <ListPager
         query={query}
+        total={total}
+        loaded={rows.length}
         hasMore={Boolean(cursor)}
         loading={loading}
         onChange={() => void load(true, cursor)}

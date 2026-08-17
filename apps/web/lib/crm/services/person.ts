@@ -13,7 +13,7 @@ import { CrmError } from '../domain/errors.ts'
 import { normalizeEmail, normalizePhone, normalizeText, requireText } from '../domain/normalize.ts'
 import { assertUpdated, lockWhere, BUMP_VERSION } from '../db/optimistic.ts'
 import {
-  clampLimit, decodeCursor, cursorWhere, CURSOR_ORDER, toPage,
+  clampLimit, decodeCursor, cursorWhere, CURSOR_ORDER, toPage, countIfFirstPage,
   type CursorInput, type CursorPage,
 } from '../db/cursor.ts'
 import { planDelete, type DeleteMode } from '../domain/soft-delete.ts'
@@ -104,11 +104,15 @@ export async function listPeople(
   const cur = cursorWhere(decoded)
   const finalWhere = cur ? { AND: [where, cur] } : where
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows = await (db as any).crmPerson.findMany({
-    where: finalWhere, select: SELECT, orderBy: CURSOR_ORDER, take: limit + 1,
-  })
-  return toPage(rows as PersonRow[], limit)
+  const [rows, total] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (db as any).crmPerson.findMany({
+      where: finalWhere, select: SELECT, orderBy: CURSOR_ORDER, take: limit + 1,
+    }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    countIfFirstPage((db as any).crmPerson, where, decoded),
+  ])
+  return toPage(rows as PersonRow[], limit, total)
 }
 
 export async function getPerson(db: CrmDb, id: string): Promise<PersonRow> {

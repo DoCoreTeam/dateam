@@ -23,7 +23,7 @@ import { toStageHistoryData, isRealMove } from '../domain/stage-history.ts'
 import { assertUpdated, lockWhere, BUMP_VERSION } from '../db/optimistic.ts'
 import { loadRules, runAutomations, type TriggerKind } from './automation.ts'
 import {
-  clampLimit, decodeCursor, cursorWhere, CURSOR_ORDER, toPage,
+  clampLimit, decodeCursor, cursorWhere, CURSOR_ORDER, toPage, countIfFirstPage,
   type CursorInput, type CursorPage,
 } from '../db/cursor.ts'
 import { planDelete, type DeleteMode } from '../domain/soft-delete.ts'
@@ -127,11 +127,15 @@ export async function listDeals(db: CrmDb, input: ListDealInput = {}): Promise<C
   const cur = cursorWhere(decoded)
   const finalWhere = cur ? { AND: [where, cur] } : where
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows = await (db as any).crmDeal.findMany({
-    where: finalWhere, select: SELECT, orderBy: CURSOR_ORDER, take: limit + 1,
-  })
-  return toPage(rows as DealRow[], limit)
+  const [rows, total] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (db as any).crmDeal.findMany({
+      where: finalWhere, select: SELECT, orderBy: CURSOR_ORDER, take: limit + 1,
+    }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    countIfFirstPage((db as any).crmDeal, where, decoded),
+  ])
+  return toPage(rows as DealRow[], limit, total)
 }
 
 export async function getDeal(db: CrmDb, id: string): Promise<DealRow> {

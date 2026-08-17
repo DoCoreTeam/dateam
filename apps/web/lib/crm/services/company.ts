@@ -17,7 +17,7 @@ import { CrmError } from '../domain/errors.ts'
 import { normalizeDomain, normalizeText, requireText } from '../domain/normalize.ts'
 import { assertUpdated, lockWhere, BUMP_VERSION } from '../db/optimistic.ts'
 import {
-  clampLimit, decodeCursor, cursorWhere, CURSOR_ORDER, toPage,
+  clampLimit, decodeCursor, cursorWhere, CURSOR_ORDER, toPage, countIfFirstPage,
   type CursorInput, type CursorPage,
 } from '../db/cursor.ts'
 import { planDelete, type DeleteMode } from '../domain/soft-delete.ts'
@@ -100,14 +100,20 @@ export async function listCompanies(
   // 커서 조건도 OR 을 쓰므로 검색 OR 과 섞이면 안 된다 — AND 로 감싼다
   const finalWhere = cur ? { AND: [where, cur] } : where
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows = await (db as any).crmCompany.findMany({
-    where: finalWhere,
-    select: SELECT,
-    orderBy: CURSOR_ORDER,
-    take: limit + 1,
-  })
-  return toPage(rows as CompanyRow[], limit)
+  // 목록과 총 건수를 같이 친다 — 순서대로 기다리면 첫 페이지가 두 배로 느려진다
+  const [rows, total] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (db as any).crmCompany.findMany({
+      where: finalWhere,
+      select: SELECT,
+      orderBy: CURSOR_ORDER,
+      take: limit + 1,
+    }),
+    // 총 건수는 커서 조건을 빼고 센다 — 커서를 넣으면 "남은 개수"가 되어 버린다
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    countIfFirstPage((db as any).crmCompany, where, decoded),
+  ])
+  return toPage(rows as CompanyRow[], limit, total)
 }
 
 export async function getCompany(db: CrmDb, id: string): Promise<CompanyRow> {
