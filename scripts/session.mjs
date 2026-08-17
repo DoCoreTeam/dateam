@@ -22,10 +22,24 @@
  *   node scripts/session.mjs broadcast <보낸세션> --what "지시 원문" [--kind directive|notice|ask] [--why "..."] [--files "..."]
  *   node scripts/session.mjs inbox <이름> [--all] [--json]
  *   node scripts/session.mjs ack <이름> --note "내 작업에 어떻게 반영했는지(해당없으면 이유)"
+ *
+ * 깨우기 — 버스는 우편함이지 초인종이 아니다.
+ * broadcast는 파일에 쓸 뿐이고 상대가 스스로 inbox를 열어야 보인다.
+ * (실측 2026-08-17: M-15 관문 요청 3건을 올렸으나 ack 0건. 원인은 미도달이 아니라 '안 읽음'이었고,
+ *  보낸 쪽에는 그 둘을 구분할 수단도, 상대를 부를 주소도 없었다.)
+ * 세션은 각자 /tmp/cc-socks/<pid>.sock 을 갖고 그 경로가 곧 메시지 주소다.
+ * 이 스크립트는 세션의 자식 프로세스이므로 ppid 사슬로 자기 주소를 찾아 **쓰기 명령마다 자동 등록**한다.
+ *
+ *   node scripts/session.mjs wake [<이름>…]   # 생략하면 미확인 지시가 있는 세션 전부
+ *   node scripts/session.mjs peers            # 살아 있는 창 ↔ 보드 세션 대조 (유령·미등록 표시)
+ *
+ * 소켓에 직접 쓰지는 않는다 — 프로토콜은 Claude Code의 것이고, 반쯤 아는 채로 밀어 넣으면
+ * 남의 세션을 깨우는 게 아니라 망가뜨린다. 여기서는 주소를 확정해 주고 발신은 호출자가 자기 도구로 한다.
  */
 import { readFileSync, writeFileSync, appendFileSync, readdirSync, mkdirSync, unlinkSync, renameSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { execFileSync } from 'node:child_process'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const DIR = join(ROOT, '.sessions')
@@ -72,6 +86,9 @@ function save(session) {
   // 루트 .gitignore는 M-5 충돌 핫스팟이라 건드리지 않는다(남의 미커밋 줄과 얽힌다).
   const ignore = join(DIR, '.gitignore')
   if (!existsSync(ignore)) writeFileSync(ignore, '*\n', 'utf8')
+  // 쓰기 명령마다 내 주소를 갱신한다 — 세션이 따로 '등록'을 기억할 필요가 없게.
+  // 등록을 별도 절차로 두면 아무도 안 한다(그게 지금까지 주소가 0개였던 이유다).
+  stampPeer(session)
   const target = join(DIR, `${session.name}.json`)
   const tmp = `${target}.tmp`
   writeFileSync(tmp, JSON.stringify(session, null, 2) + '\n', 'utf8')
@@ -136,6 +153,62 @@ function appendBus(entry) {
 
 const busSeen = (s) => Number(s?.busSeen ?? 0)
 const unreadFor = (s, bus) => bus.filter((e) => e.seq > busSeen(s) && e.from !== s.name)
+
+// ── 깨우기 (peer 주소) ────────────────────────────────────────────────────────
+//
+// **왜 필요한가**: 버스는 우편함이지 초인종이 아니다. `broadcast`는 파일에 쓸 뿐이고,
+// 상대가 스스로 `inbox`를 열어야만 보인다. 그래서 M-15가 "관문에 요청하라"고 정해 놔도
+// **상대를 부를 방법이 없었다.** (실측 2026-08-17: 관문 요청 3건을 올렸는데 ack 0건.
+//  원인은 미도달이 아니라 '안 읽음'이었고, 요청한 쪽은 그 둘을 구분할 수단조차 없었다.)
+//
+// **어떻게 부르나**: Claude Code 세션은 각자 `/tmp/cc-socks/<pid>.sock` 유닉스 소켓을 갖고,
+// 그 경로가 그대로 세션 간 메시지 주소(`uds:<경로>`)다. 이 스크립트는 세션 프로세스의
+// **자식으로 실행**되므로 ppid 사슬을 거슬러 올라가면 자기 소켓을 찾을 수 있다.
+// 찾은 주소를 세션 파일에 적어 두면 다른 세션이 `wake`로 그 주소를 꺼내 쓴다.
+//
+// 이 스크립트가 직접 소켓에 쓰지는 않는다 — 프로토콜은 Claude Code의 것이고,
+// 반쯤 아는 상태로 밀어 넣으면 남의 세션을 깨우는 게 아니라 망가뜨린다.
+// 여기서는 **주소를 확정해 주고**, 실제 발신은 호출한 에이전트가 자기 도구로 한다.
+const SOCK_DIR = '/tmp/cc-socks'
+
+function liveSockPids() {
+  if (!existsSync(SOCK_DIR)) return new Set()
+  return new Set(
+    readdirSync(SOCK_DIR)
+      .filter((f) => f.endsWith('.sock'))
+      .map((f) => Number(f.slice(0, -5)))
+      .filter((n) => Number.isFinite(n)),
+  )
+}
+
+/** 내 프로세스의 조상 중 살아 있는 세션 소켓을 가진 pid를 찾는다. 못 찾으면 null. */
+function resolveSelfPeer() {
+  const socks = liveSockPids()
+  if (!socks.size) return null
+  let pid = process.pid
+  for (let hop = 0; hop < 12 && pid > 1; hop++) {
+    if (socks.has(pid)) return { pid, sock: join(SOCK_DIR, `${pid}.sock`), addr: `uds:${join(SOCK_DIR, `${pid}.sock`)}`, cwd: ROOT, at: nowIso() }
+    try {
+      const out = execFileSync('ps', ['-o', 'ppid=', '-p', String(pid)], { encoding: 'utf8' }).trim()
+      const ppid = Number(out)
+      if (!Number.isFinite(ppid) || ppid === pid) break
+      pid = ppid
+    } catch { break }
+  }
+  return null
+}
+
+/** 세션 파일에 내 주소를 갱신한다. 쓰기 명령마다 불러 주소를 신선하게 유지한다. */
+function stampPeer(session) {
+  const peer = resolveSelfPeer()
+  if (peer) session.peer = peer
+  return session
+}
+
+/** 기록된 주소가 아직 살아 있나. 소켓 파일이 사라졌으면 그 세션 창은 닫힌 것이다. */
+function peerAlive(session) {
+  return !!(session?.peer?.sock && existsSync(session.peer.sock))
+}
 
 function fmtBusEntry(e) {
   const mark = e.kind === 'directive' ? '📌' : e.kind === 'ask' ? '❓' : '📣'
@@ -253,6 +326,21 @@ function cmdBroadcast(rest, flags) {
   }
   console.log(`  확인해야 할 활성 세션 ${live.length}개: ${live.map((s) => s.name).join(', ')}`)
   console.log('  각 세션은 `inbox <이름>`으로 읽고 `ack <이름> --note "반영 방법"`으로 응답합니다.')
+
+  // 버스는 우편함이지 초인종이 아니다 — 쓴 것만으로는 아무도 모른다.
+  // 그래서 전파 직후에 **깨울 주소를 바로 보여 준다.** 한 단계 더 가야 하는 일은 사람이 잊는다.
+  const reachable = live.filter(peerAlive)
+  const blind = live.filter((s) => !peerAlive(s))
+  console.log('')
+  if (reachable.length) {
+    console.log(`🔔 지금 깨울 수 있는 주소 ${reachable.length}개 — SendMessage로 찔러야 실제로 읽습니다:`)
+    for (const s of reachable) console.log(`  · ${s.name}  →  ${s.peer.addr}`)
+  }
+  if (blind.length) {
+    console.log(`⚠ 주소를 모르는 세션 ${blind.length}개: ${blind.map((s) => s.name).join(', ')}`)
+    console.log('  그 창에서 session.mjs를 한 번 돌리면 주소가 등록됩니다. 그전까지는 도달을 보장할 수 없습니다.')
+  }
+  console.log('  도달의 근거는 상대의 `ack`뿐입니다 — 보낸 것과 읽힌 것은 다릅니다(M-14).')
 }
 
 function cmdInbox(rest, flags) {
@@ -260,6 +348,14 @@ function cmdInbox(rest, flags) {
   const bus = readBus()
   const known = existsSync(join(DIR, `${name}.json`))
   const s = known ? load(name) : { name, busSeen: 0 }
+  // 주소 등록은 여기에 붙인다 — 정책이 inbox를 **착수 전·노드마다·커밋 전·종료 전** 4지점에서
+  // 읽으라고 이미 강제하므로, 세션이 따로 기억하지 않아도 주소가 저절로 최신으로 유지된다.
+  // (읽기 명령이지만 등록은 부작용이 없다. 등록을 별도 절차로 두면 아무도 안 한다.)
+  if (known && !flags.json) {
+    const before = s.peer?.pid
+    stampPeer(s)
+    if (s.peer?.pid !== before) { s.updatedAt = nowIso(); save(s) }
+  }
   const items = flags.all ? bus.filter((e) => e.from !== name) : unreadFor(s, bus)
 
   if (flags.json) { console.log(JSON.stringify(items, null, 2)); return }
@@ -288,6 +384,79 @@ function cmdAck(rest, flags) {
   s.updatedAt = nowIso()
   save(s)
   console.log(`✔ ${name}: #${upto}까지 확인 (${unread.length}건) — ${note}`)
+}
+
+function wakeLine(s) {
+  const unread = s.__unread ?? 0
+  const badge = unread ? `📬 미확인 ${unread}건` : '미확인 0'
+  return `  · ${s.name} — ${badge}\n    보낼 주소: ${s.peer.addr}`
+}
+
+function cmdWake(rest, flags) {
+  const bus = readBus()
+  const all = readAll().filter((s) => !s.released)
+  const from = flags.from ? slug(String(flags.from)) : null
+  const targets = rest.length
+    ? rest.map((r) => {
+        const name = slug(r)
+        const s = all.find((x) => x.name === name)
+        if (!s) die(`세션 '${name}'이 보드에 없습니다. board로 이름을 확인하세요.`)
+        return s
+      })
+    : all.filter((s) => s.name !== from && unreadFor(s, bus).length > 0)
+
+  for (const s of targets) s.__unread = unreadFor(s, bus).length
+
+  const reachable = targets.filter(peerAlive)
+  const unreachable = targets.filter((s) => !peerAlive(s))
+
+  if (!targets.length) {
+    console.log('📭 깨울 세션이 없습니다 — 미확인 지시를 가진 활성 세션이 없습니다.')
+    return
+  }
+
+  if (reachable.length) {
+    console.log(`🔔 깨울 수 있는 세션 ${reachable.length}개 — 아래 주소로 SendMessage 하세요.`)
+    console.log('─'.repeat(96))
+    for (const s of reachable) console.log(wakeLine(s))
+    console.log('─'.repeat(96))
+    console.log('보낼 내용에는 **무엇을 판정받고 싶은지**를 적습니다. "확인해 주세요"는 요청이 아닙니다(M-15).')
+    console.log(`권장 문구: "버스에 요청을 올렸습니다 — node scripts/session.mjs inbox <당신이름> 으로 확인 부탁드립니다."`)
+  }
+
+  if (unreachable.length) {
+    console.log('')
+    console.log(`⚠ 주소를 모르는 세션 ${unreachable.length}개 — 그 창에서 아무 session.mjs 명령이나 한 번 돌리면 등록됩니다.`)
+    for (const s of unreachable) {
+      const why = s.peer ? '창이 닫혔습니다(소켓 없음)' : '주소를 등록한 적이 없습니다'
+      console.log(`  · ${s.name} — ${why}${s.__unread ? ` · 📬 미확인 ${s.__unread}건` : ''}`)
+    }
+    console.log('  등록: 그 창에서 node scripts/session.mjs inbox <이름> — 정책상 어차피 돌려야 하는 명령입니다')
+  }
+}
+
+function cmdPeers() {
+  const socks = [...liveSockPids()].sort((a, b) => a - b)
+  const sessions = readAll().filter((s) => !s.released)
+  const claimed = new Map(sessions.filter((s) => s.peer?.pid).map((s) => [s.peer.pid, s]))
+
+  console.log(`📡 살아 있는 세션 소켓 ${socks.length}개`)
+  console.log('─'.repeat(96))
+  for (const pid of socks) {
+    const s = claimed.get(pid)
+    const me = resolveSelfPeer()?.pid === pid ? ' (나)' : ''
+    console.log(`  uds:${join(SOCK_DIR, `${pid}.sock`)}  →  ${s ? s.name : '보드에 없음 — 다른 저장소이거나 claim 안 한 창'}${me}`)
+  }
+  console.log('─'.repeat(96))
+  const ghosts = sessions.filter((s) => s.peer?.pid && !socks.includes(s.peer.pid))
+  if (ghosts.length) {
+    console.log(`⚠ 보드에는 있는데 창이 닫힌 세션 ${ghosts.length}개: ${ghosts.map((s) => s.name).join(', ')}`)
+    console.log('  이 세션들의 claim은 유효하지 않습니다 — release 되지 않은 채 창만 사라진 상태입니다.')
+  }
+  const noaddr = sessions.filter((s) => !s.peer)
+  if (noaddr.length) {
+    console.log(`ℹ 주소 미등록 ${noaddr.length}개: ${noaddr.map((s) => s.name).join(', ')} — 그 창에서 session.mjs를 한 번 돌리면 등록됩니다.`)
+  }
 }
 
 function cmdRelease(rest) {
@@ -355,6 +524,11 @@ function cmdBoard(flags) {
     console.log(pad('', 23) + `↳ 파일: ${(r.s.files || []).join(', ')}${r.s.exclusive ? '  [배타]' : ''}`)
     const unread = unreadFor(r.s, bus)
     if (unread.length) console.log(pad('', 23) + `↳ 📬 미확인 지시 ${unread.length}건 (#${unread.map((e) => e.seq).join(', #')}) — inbox ${r.s.name}`)
+    // 미확인이 있는데 부를 주소가 없으면 그 세션은 **영영 안 읽는다** — 보드에서 바로 드러낸다.
+    if (unread.length) {
+      if (peerAlive(r.s)) console.log(pad('', 23) + `↳ 🔔 깨우기: ${r.s.peer.addr}`)
+      else console.log(pad('', 23) + `↳ 🔕 주소 없음 — ${r.s.peer ? '창이 닫혔습니다' : '아직 등록 전'} (그 창에서 inbox 1회 실행 시 등록)`)
+    }
   }
   console.log('─'.repeat(96))
 
@@ -421,6 +595,8 @@ switch (cmd) {
   case 'broadcast': cmdBroadcast(rest, flags); break
   case 'inbox': cmdInbox(rest, flags); break
   case 'ack': cmdAck(rest, flags); break
+  case 'wake': cmdWake(rest, flags); break
+  case 'peers': cmdPeers(); break
   case 'release': cmdRelease(rest); break
   case 'board': case undefined: cmdBoard(flags); break
   default:
