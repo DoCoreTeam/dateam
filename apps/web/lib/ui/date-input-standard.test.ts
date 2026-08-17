@@ -49,6 +49,37 @@ test('DateField는 연도 범위를 잠근다 — 6자리 연도가 통과하지
   assert.equal(isInRange(max, DATE_MIN, max), true, '상한 경계는 포함한다')
 })
 
+// 아래 두 사고는 **서로 반대 방향**이라 한쪽만 막으면 다른 쪽이 열린다.
+// 실제로 v0.7.542에서 ①이 나고, 그걸 막은 v0.7.547에서 ②가 났다. 둘을 같이 잠근다.
+test('치는 중의 빈 값은 안 싣는다 — 이미 있던 날짜가 통째로 날아가면 안 된다(v0.7.542 사고)', async () => {
+  const { shouldCommit, DATE_MIN, dateMax } = await import('./date-range.ts')
+  const o = { min: DATE_MIN, max: dateMax() }
+
+  // 연도를 이어 치는 동안: 값은 비었고 칸에는 해석 불가능한 입력이 남아 있다
+  assert.equal(shouldCommit('', { ...o, deleting: false, badInput: true }), false)
+})
+
+test('지우는 중의 빈 값은 싣는다 — 마감 없음으로 되돌릴 길이 막히면 안 된다(v0.7.547 회귀)', async () => {
+  const { shouldCommit, DATE_MIN, dateMax } = await import('./date-range.ts')
+  const o = { min: DATE_MIN, max: dateMax() }
+
+  // Backspace 는 세그먼트를 하나씩 지운다 — 지우는 도중에도 badInput 은 참이다.
+  // 여기서 막으면 '전부 빈 상태'에 영영 도달하지 못한다.
+  assert.equal(shouldCommit('', { ...o, deleting: true, badInput: true }), true)
+  // 다 지워져 칸이 완전히 빈 뒤(badInput=false)도 당연히 통과한다
+  assert.equal(shouldCommit('', { ...o, deleting: true, badInput: false }), true)
+  // 달력 위젯의 '지우기'처럼 키 입력 없이 비는 경우도 통과한다
+  assert.equal(shouldCommit('', { ...o, deleting: false, badInput: false }), true)
+})
+
+test('지우기 중이라도 범위 밖 값은 안 싣는다 — 예외가 구멍이 되면 안 된다', async () => {
+  const { shouldCommit, DATE_MIN, dateMax } = await import('./date-range.ts')
+  const o = { min: DATE_MIN, max: dateMax() }
+
+  assert.equal(shouldCommit('202609-08-17', { ...o, deleting: true, badInput: false }), false)
+  assert.equal(shouldCommit('2026-08-17', { ...o, deleting: true, badInput: false }), true)
+})
+
 test('오늘·오늘+N은 KST SSOT를 거친다 — UTC 절단으로 하루가 밀리지 않는다', async () => {
   const { today, todayPlus } = await import("./date-range.ts")
   const { kstTodayKey, addKstDays } = await import('../datetime/kst.ts')

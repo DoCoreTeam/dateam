@@ -17,10 +17,10 @@
 
 // 범위 로직은 `lib/ui/date-range.ts`에 있다 — node:test가 JSX를 못 읽어서
 // 컴포넌트 안에 두면 가드가 검증할 수 없다.
-import { forwardRef } from 'react'
-import { DATE_MIN, dateMax, isInRange } from '@/lib/ui/date-range'
+import { forwardRef, useRef } from 'react'
+import { DATE_MIN, dateMax, shouldCommit } from '@/lib/ui/date-range'
 
-export { DATE_MIN, dateMax, isInRange, today, todayPlus } from '@/lib/ui/date-range'
+export { DATE_MIN, dateMax, isInRange, shouldCommit, today, todayPlus } from '@/lib/ui/date-range'
 
 type NativeProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange'>
 
@@ -40,11 +40,23 @@ export interface DateFieldProps extends NativeProps {
  * `min`/`max`를 안 넘기면 DATE_MIN ~ 오늘+10년으로 잠긴다.
  */
 const DateField = forwardRef<HTMLInputElement, DateFieldProps>(function DateField(
-  { value, onValueChange, className, min, max, ...rest },
+  { value, onValueChange, className, min, max, onKeyDown, ...rest },
   ref,
 ) {
   const lo = typeof min === 'string' ? min : DATE_MIN
   const hi = typeof max === 'string' ? max : dateMax()
+
+  // **빈 값에는 두 가지 뜻이 있다.** 브라우저 날짜 칸은 연·월·일이 다 차기 전에는
+  // 무엇을 하고 있든 value 로 빈 문자열을 준다. 그래서 **'지우는 중'과 '치는 중'이
+  // 똑같은 값으로 도착한다** — 그런데 둘은 정반대로 다뤄야 한다.
+  //   치는 중  → 무시해야 한다. 안 그러면 이미 있던 날짜가 통째로 날아간다(실측 100% 재현).
+  //   지우는 중 → 통과시켜야 한다. 안 그러면 '마감 없음'으로 되돌릴 방법이 사라진다(실측 100% 재현).
+  //
+  // **값만 봐서는 못 가른다.** badInput 도 못 가른다 —
+  // Backspace 는 세그먼트를 하나씩 지우므로 지우는 도중에도 나머지 칸이 남아 badInput=true 다.
+  // 실제 구분점은 **사용자가 직전에 무엇을 눌렀는가**다. 그래서 그것만 기억한다.
+  const deletingRef = useRef(false)
+
   return (
     <input
       {...rest}
@@ -54,22 +66,19 @@ const DateField = forwardRef<HTMLInputElement, DateFieldProps>(function DateFiel
       {...(value === undefined ? {} : { value })}
       min={lo}
       max={hi}
+      onKeyDown={(e) => {
+        deletingRef.current = e.key === 'Backspace' || e.key === 'Delete'
+        onKeyDown?.(e)
+      }}
       onChange={(e) => {
         const next = e.target.value
-        // **빈 값에는 두 가지 뜻이 있다.** 브라우저 날짜 칸은 연·월·일이 다 차기 전에는
-        // 무엇을 치고 있든 value 로 빈 문자열을 준다. 그래서 '사용자가 지웠다'와
-        // '아직 치는 중이다'가 같은 값으로 도착한다.
-        //
-        // 이 둘을 안 가르면 연도를 이어 칠 때 중간 상태가 그대로 부모 상태에 실려
-        // **이미 있던 날짜가 통째로 지워진다** — 사용자는 월·일까지 잃고 안내도 못 받는다.
-        // (실측: 재현 100%. "범위 밖이면 직전 값으로 되돌아간다"는 이 경로에서 성립하지 않았다.
-        //  범위검사는 빈 값을 '미지정'으로 허용하므로 애초에 걸리지 않기 때문이다.)
-        //
-        // 가르는 기준은 badInput 이다 — 칸에 해석 불가능한 입력이 남아 있으면 true.
-        // 지운 칸은 비어 있을 뿐 잘못된 입력이 아니므로 false 다.
-        if (next === '' && e.target.validity.badInput) return
-        // 범위 밖이면 상태를 바꾸지 않는다 → 통제 컴포넌트라 칸이 직전 값으로 되돌아간다.
-        if (!isInRange(next, lo, hi)) return
+        // 한 번 쓰고 즉시 내린다 — 지우기 직후의 change 한 번에만 적용되어야 한다.
+        const deleting = deletingRef.current
+        deletingRef.current = false
+
+        // 실을지 말지는 lib/ui/date-range 가 정한다 — 판정을 화면에 두면 가드가 검증할 수 없다.
+        // 안 실으면 통제 컴포넌트라 칸이 직전 값으로 되돌아간다.
+        if (!shouldCommit(next, { deleting, badInput: e.target.validity.badInput, min: lo, max: hi })) return
         onValueChange?.(next)
       }}
     />

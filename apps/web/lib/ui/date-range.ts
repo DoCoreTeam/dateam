@@ -58,3 +58,26 @@ export function isInRange(value: string, min: string, max: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false // 5자리 이상 연도는 여기서 걸린다
   return value >= min && value <= max // 'YYYY-MM-DD'는 사전순 비교 = 시간순 비교
 }
+
+/**
+ * 이 값을 부모 상태에 실을 것인가.
+ *
+ * **빈 값에는 두 가지 뜻이 있고, 정반대로 다뤄야 한다.**
+ * 브라우저 날짜 칸은 연·월·일이 다 차기 전에는 무엇을 하고 있든 빈 문자열을 준다.
+ *
+ * | 상황 | 실으면 | 안 실으면 |
+ * |---|---|---|
+ * | 연도를 이어 치는 중 | **이미 있던 날짜가 통째로 날아간다** | 정상 |
+ * | Backspace 로 지우는 중 | 정상 | **'마감 없음'으로 되돌릴 방법이 사라진다** |
+ *
+ * 둘 다 실측 100% 재현된 사고다. 값만으로도, `badInput` 만으로도 가를 수 없다 —
+ * Backspace 는 세그먼트를 하나씩 지우므로 **지우는 도중에도** 나머지 칸이 남아 `badInput` 이 참이다.
+ * 실제 구분점은 **직전에 지우기 키를 눌렀는가**뿐이라 호출부가 그것을 넘겨준다.
+ */
+export function shouldCommit(
+  next: string,
+  o: { deleting: boolean; badInput: boolean; min: string; max: string },
+): boolean {
+  if (next === '' && !o.deleting && o.badInput) return false // 아직 치는 중
+  return isInRange(next, o.min, o.max)
+}
