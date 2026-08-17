@@ -199,10 +199,28 @@ function resolveSelfPeer() {
 }
 
 /** 세션 파일에 내 주소를 갱신한다. 쓰기 명령마다 불러 주소를 신선하게 유지한다. */
+/**
+ * 세션 파일에 내 주소를 갱신한다. 쓰기 명령마다 불러 주소를 신선하게 유지한다.
+ *
+ * **한 이름을 두 세션이 쓰면 주소가 조용히 넘어간다.** 그게 실제로 났다 —
+ * `crm-qa` 를 두 창이 동시에 쓰고 있었고, 주소는 나중에 등록한 쪽으로 덮여 있었다.
+ * 그 상태에서 `wake crm-qa` 는 **다른 세션에 간다.** 보낸 쪽은 그 사실을 알 방법이 없다.
+ * 그래서 덮어쓰되 **거쳐 간 pid 를 모두 기억**하고, 지금 둘 이상이 살아 있으면 드러낸다.
+ */
 function stampPeer(session) {
   const peer = resolveSelfPeer()
-  if (peer) session.peer = peer
+  if (!peer) return session
+  const seen = Array.isArray(session.peerPids) ? session.peerPids : []
+  session.peerPids = [...new Set([...seen, peer.pid])].slice(-8)
+  session.peer = peer
   return session
+}
+
+/** 이 이름을 지금 함께 쓰고 있는 pid들 — 2개 이상이면 이름 충돌이다. */
+function livePeerPids(session) {
+  const socks = liveSockPids()
+  const pids = Array.isArray(session?.peerPids) ? session.peerPids : []
+  return pids.filter((p) => socks.has(p))
 }
 
 /** 기록된 주소가 아직 살아 있나. 소켓 파일이 사라졌으면 그 세션 창은 닫힌 것이다. */
@@ -311,6 +329,10 @@ function cmdBroadcast(rest, flags) {
     seq: (bus.at(-1)?.seq ?? 0) + 1,
     at: nowIso(),
     from,
+    // **누가 썼는지는 이름만으로 알 수 없다.** 한 이름을 두 세션이 쓰면 그 순간
+    // "누가 무엇을 봤는지"의 추적이 끊긴다(실측: crm-qa 이름으로 두 세션이 서로 다른
+    // 실측값을 올렸고, 받는 쪽은 한 세션의 보고로 읽었다). pid 는 그걸 되살리는 유일한 단서다.
+    fromPid: resolveSelfPeer()?.pid ?? null,
     kind,
     what: String(what),
     why: flags.why ? String(flags.why) : null,
@@ -389,7 +411,13 @@ function cmdAck(rest, flags) {
 function wakeLine(s) {
   const unread = s.__unread ?? 0
   const badge = unread ? `📬 미확인 ${unread}건` : '미확인 0'
-  return `  · ${s.name} — ${badge}\n    보낼 주소: ${s.peer.addr}`
+  const dup = livePeerPids(s)
+  // 이름이 겹치면 이 주소가 **내가 부르려던 그 세션이 아닐 수 있다.**
+  // 보내기 직전에 말하지 않으면 보낸 쪽은 영영 모른다.
+  const warn = dup.length > 1
+    ? `\n    ⛔ 이 이름을 쓰는 창이 ${dup.length}개입니다(pid ${dup.join(', ')}) — 이 주소는 그중 마지막 등록분입니다`
+    : ''
+  return `  · ${s.name} — ${badge}\n    보낼 주소: ${s.peer.addr}${warn}`
 }
 
 function cmdWake(rest, flags) {
@@ -528,6 +556,12 @@ function cmdBoard(flags) {
     if (unread.length) {
       if (peerAlive(r.s)) console.log(pad('', 23) + `↳ 🔔 깨우기: ${r.s.peer.addr}`)
       else console.log(pad('', 23) + `↳ 🔕 주소 없음 — ${r.s.peer ? '창이 닫혔습니다' : '아직 등록 전'} (그 창에서 inbox 1회 실행 시 등록)`)
+    }
+    // 이름 충돌은 미확인 지시가 없어도 드러내야 한다 — 조용하면 영영 모른다.
+    const dup = livePeerPids(r.s)
+    if (dup.length > 1) {
+      console.log(pad('', 23) + `↳ ⛔ 이름 충돌 — 지금 ${dup.length}개 창이 '${r.s.name}'을 쓰고 있습니다 (pid ${dup.join(', ')})`)
+      console.log(pad('', 23) + `↳    보고의 출처가 갈립니다. 한쪽이 다른 이름으로 claim 하세요. 깨우기는 마지막 등록분(${r.s.peer?.pid})으로만 갑니다`)
     }
   }
   console.log('─'.repeat(96))
