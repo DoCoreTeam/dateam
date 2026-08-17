@@ -356,7 +356,12 @@ function cmdBroadcast(rest, flags) {
   console.log('')
   if (reachable.length) {
     console.log(`🔔 지금 깨울 수 있는 주소 ${reachable.length}개 — SendMessage로 찔러야 실제로 읽습니다:`)
-    for (const s of reachable) console.log(`  · ${s.name}  →  ${s.peer.addr}`)
+    for (const s of reachable) {
+      console.log(`  · ${s.name}  →  ${s.peer.addr}`)
+      // 여기가 주소를 실제로 복사해 가는 자리다 — 충돌 경고는 이 줄 옆에 없으면 못 본다.
+      const dup = livePeerPids(s)
+      if (dup.length > 1) console.log(`    ⛔ 이 이름을 쓰는 창이 ${dup.length}개입니다(pid ${dup.join(', ')}) — 이 주소는 마지막 등록분입니다`)
+    }
   }
   if (blind.length) {
     console.log(`⚠ 주소를 모르는 세션 ${blind.length}개: ${blind.map((s) => s.name).join(', ')}`)
