@@ -42,7 +42,16 @@ import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const DIR = join(ROOT, '.sessions')
+/**
+ * 보드가 사는 곳. 평소엔 `<repo>/.sessions` 이고, **테스트만** SESSION_DIR 로 갈아탄다.
+ *
+ * **왜 뚫어 두나**: 이 파일의 오류는 `node --check` 로 안 잡힌다 — 문법이 아니라
+ * 실행돼야 드러나는 것들이다(실측: 루프 변수를 `s` 대신 `t` 로 써서 broadcast 가
+ * 기록은 마친 뒤 주소 목록을 찍다 죽었다. 호출한 쪽은 **성공을 실패로 읽고 같은 지시를 두 번 올렸다**).
+ * 그렇다고 진짜 보드에 대고 스모크를 돌리면 남의 세션 파일과 버스를 더럽힌다.
+ * 그래서 경로만 갈아탈 수 있게 두고, 가드는 임시 디렉터리에서 명령을 **실제로 실행**한다.
+ */
+const DIR = process.env.SESSION_DIR || join(ROOT, '.sessions')
 /** 지시 버스 — append-only. 세션 파일과 분리해 둔다(누가 죽어도 지시는 남아야 한다). */
 const BUS = join(DIR, '_bus.jsonl')
 /** 이 시간 넘게 갱신이 없으면 죽은 세션으로 본다 — TTL 없는 영구 claim은 보드를 쓸모없게 만든다. */
@@ -414,7 +423,7 @@ function cmdBroadcast(rest, flags) {
       const dup = livePeerPids(s)
       if (dup.length > 1) console.log(`    ⛔ 이 이름을 쓰는 창이 ${dup.length}개입니다(pid ${dup.join(', ')}) — 이 주소는 마지막 등록분입니다`)
       // 반대 방향도 드러낸다 — 주소를 제대로 골라도 다른 역할에게 닿는다
-      const sh = sharedNames(t)
+      const sh = sharedNames(s)
       if (sh.length) console.log(`    ⛔ 이 창은 '${sh.join("', '")}' 로도 등록돼 있습니다 — 보낸 것이 그 역할에 닿을 수 있습니다`)
     }
   }
