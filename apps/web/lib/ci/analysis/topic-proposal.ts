@@ -11,6 +11,7 @@
 
 import { IDENTITY_ASK_AGREEMENT, type ChannelIdentity } from './channel-identity.ts'
 import { isGenericSignal } from './signal-taxonomy.ts'
+import { iGa } from '../../ui/josa.ts'
 
 export interface ChannelForProposal {
   channelId: string
@@ -177,9 +178,12 @@ function buildReason(p: TopicProposal): string {
     : `채널 ${p.channelIds.length}곳`
   // 근거를 함께 적는다 — 채널명과 건수만 있으면 사용자는 확인이 아니라 받아쓰기를 한다.
   const pct = Math.round(p.basis.ratio * 100)
+  // 조사는 라벨의 받침에 따라 갈린다. 고정 '이'로 두면 "'인물·블로그'이 100%"가 그대로 나간다
+  // (실측 G3 #107). 라벨은 플랫폼이 주는 말이라 무엇이 올지 우리가 정할 수 없다 → SSOT로 판정한다.
+  const ga = iGa(p.basis.label)
   const why = p.basis.kind === 'signal'
-    ? `게시물 신호 '${p.basis.label}'이 ${pct}%`
-    : `채널 분류 '${p.basis.label}'이 ${pct}%`
+    ? `게시물 신호 '${p.basis.label}'${ga} ${pct}%`
+    : `채널 분류 '${p.basis.label}'${ga} ${pct}%`
   return `${chPart} — 게시물 ${p.contentCount}건 · ${why}`
 }
 

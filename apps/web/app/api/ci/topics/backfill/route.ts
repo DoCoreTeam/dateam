@@ -10,6 +10,10 @@
 // 그래서 잡을 걸지 않고 여기서 직접 채우고, 채널 재판정까지 이 요청 안에서 끝낸다.
 //
 // 되돌릴 수 있는 형태다: 신호를 채우고 다시 판정할 뿐, 지우는 것이 없다.
+//
+// **세는 조건과 훑는 조건은 같은 함수를 쓴다**(lib/ci/signal-gap.ts). 예전엔 GET이 플랫폼을
+// 안 보고 POST만 youtube를 봐서, 유튜브가 아닌 게시물이 "1건 남았습니다"로 세어지면서
+// 버튼은 "하나도 남지 않았어요"라고 답했다 — 눌러도 영원히 안 변하는 화면이었다.
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { ok, failUnexpected } from '@/lib/ci/api'
@@ -17,6 +21,7 @@ import { requireCiMemberApi, workspaceIdFromRequest } from '@/lib/ci/auth/requir
 import { getGeminiMeta } from '@/lib/ci/ai/meta'
 import { fetchYoutubeSignalsBulk, VIDEOS_LIST_MAX_IDS } from '@/lib/ci/connectors/youtube'
 import { runChannelIdentity } from '@/lib/ci/jobs/stages'
+import { whereMissingSignals, whereRefillable } from '@/lib/ci/signal-gap'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -36,18 +41,23 @@ export async function GET(req: Request) {
     if (error) return error
 
     const adminClient = createAdminClient() as any
-    const [{ count: total }, { count: missing }] = await Promise.all([
-      adminClient.from('ci_contents').select('id', { count: 'exact', head: true })
-        .eq('workspace_id', session.workspaceId).is('deleted_at', null),
-      adminClient.from('ci_contents').select('id', { count: 'exact', head: true })
-        .eq('workspace_id', session.workspaceId).is('deleted_at', null)
-        .eq('topic_signals', '{}').is('platform_category', null),
+    /** 이 워크스페이스의 살아 있는 게시물 — 세 질문이 같은 모집단을 본다 */
+    const inWorkspace = () => adminClient.from('ci_contents')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', session.workspaceId).is('deleted_at', null)
+
+    const [{ count: total }, { count: missing }, { count: refillable }] = await Promise.all([
+      inWorkspace(),
+      whereMissingSignals(inWorkspace()),
+      whereRefillable(inWorkspace()),
     ])
 
     return ok({
       total: total ?? 0,
-      // 신호가 비어 있는 게시물 수 — 이 숫자가 곧 "판단 근거가 없는 게시물"이다
-      missingSignals: missing ?? 0,
+      // **버튼이 실제로 채울 수 있는 것만** 센다. 셀 수 있는데 못 채우면 그 줄은 영원히 남는다.
+      missingSignals: refillable ?? 0,
+      // 못 채우는 것은 숨기지 않고 따로 밝힌다 — 커넥터가 없는 플랫폼의 게시물이다.
+      unfillable: Math.max(0, (missing ?? 0) - (refillable ?? 0)),
     })
   } catch (e) {
     return failUnexpected(e)
@@ -67,13 +77,14 @@ export async function POST(req: Request) {
       return ok({ filled: 0, scanned: 0, channels: 0, remaining: null, reason: 'no_api_key' })
     }
 
-    // 신호가 비어 있는 유튜브 게시물만 고른다 — 이미 채워진 것을 다시 부르면 쿼터만 태운다
-    const { data: targets } = await adminClient.from('ci_contents')
-      .select('id, external_id, channel_id')
-      .eq('workspace_id', session.workspaceId).is('deleted_at', null)
-      .eq('platform', 'youtube')
-      .eq('topic_signals', '{}').is('platform_category', null)
-      .limit(MAX_CONTENTS)
+    // 다시 받아올 수 있는 게시물만 고른다 — GET이 센 것과 **같은 조건**이다(signal-gap SSOT).
+    const { data: targets, error: targetErr } = await whereRefillable(
+      adminClient.from('ci_contents')
+        .select('id, external_id, channel_id')
+        .eq('workspace_id', session.workspaceId).is('deleted_at', null),
+    ).limit(MAX_CONTENTS)
+    // 조회가 실패하면 0건으로 흘려보내지 않는다 — 정상 완료와 똑같이 보여 원인을 못 찾는다.
+    if (targetErr) return failUnexpected(targetErr)
 
     const rows = (targets ?? []) as Row[]
     let filled = 0
@@ -116,12 +127,13 @@ export async function POST(req: Request) {
       if (r?.ok) channels++
     }
 
-    // "신호 없음"의 정의는 GET과 같아야 한다. topic_signals만 보면 카테고리가 찬 게시물을
-    // 계속 미보유로 세어, 누를 때마다 같은 게시물에 쿼터를 다시 태운다(실측 77건 재조회).
-    const { count: remaining } = await adminClient.from('ci_contents')
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', session.workspaceId).is('deleted_at', null)
-      .eq('topic_signals', '{}').is('platform_category', null)
+    // 남은 것도 **채울 수 있는 것**으로 센다. 못 채우는 것을 남은 것으로 세면
+    // "한 번 더 누르면 이어서 채웁니다"가 영원히 지켜지지 않는 약속이 된다.
+    const { count: remaining } = await whereRefillable(
+      adminClient.from('ci_contents')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', session.workspaceId).is('deleted_at', null),
+    )
 
     return ok({
       scanned: rows.length,

@@ -114,6 +114,8 @@ test('★ 제안마다 왜 이렇게 묶었는지 근거가 붙는다 — 근거
 test('★ 근거에 "왜 그 이름인지"가 들어간다 — 채널명·건수만 있으면 확인이 아니라 받아쓰기다', () => {
   // G3 지적: reason이 "추성훈 — 게시물 311건"뿐이라, 사용자가 이 이름이 맞는지 판단할 재료가 없다.
   // 이 기능의 취지는 "사용자는 주제를 만드는 게 아니라 **확인**한다"이므로 근거가 문장에 있어야 한다.
+  // 조사는 라벨의 받침을 따른다. '음악'은 받침이 있어 '이', '블로그'는 없어 '가'다.
+  // 고정 '이'로 두면 "'인물·블로그'이 100%"가 화면에 그대로 나간다(G3 #107 실측).
   const bySignal = proposeTopics([channel('가수', 8, ['Music'], '10')])
   assert.equal(bySignal.proposals[0].basis.kind, 'signal')
   assert.equal(bySignal.proposals[0].basis.ratio, 1)
@@ -121,7 +123,7 @@ test('★ 근거에 "왜 그 이름인지"가 들어간다 — 채널명·건수
 
   const byCategory = proposeTopics([mixed('잡탕', 100, [['Food', 20], ['Pets', 15]], '22')])
   assert.equal(byCategory.proposals[0].basis.kind, 'category')
-  assert.match(byCategory.proposals[0].reason, /분류 '인물·블로그'이 100%/)
+  assert.match(byCategory.proposals[0].reason, /분류 '인물·블로그'가 100%/)
 })
 
 test('여러 채널이 합쳐지면 근거는 게시물을 가장 많이 보내는 채널의 것이다', () => {
@@ -223,4 +225,14 @@ test('채널이 하나도 없어도 예외 없이 빈 결과', () => {
   const r = proposeTopics([])
   assert.deepEqual(r.proposals, [])
   assert.deepEqual(r.unassigned, [])
+})
+
+test('★ 근거의 조사가 라벨 받침을 따른다 — 화면에 "인물·블로그이 100%"가 그대로 나갔다', () => {
+  // 라벨은 플랫폼이 주는 말이라 무엇이 올지 우리가 못 정한다. 고정 '이'로 두면 절반이 틀린다.
+  // 받침 없는 라벨(인물·블로그) → '가'
+  const noJong = proposeTopics([channel('블로거', 300, [], '22')])
+  assert.match(noJong.proposals[0].reason, /'인물·블로그'가 100%/)
+  // 받침 있는 라벨(음식) → '이'. 한쪽을 고치다 반대쪽이 틀리면 그것도 같은 결함이다.
+  const withJong = proposeTopics([channel('먹방러', 300, ['Food'], '26')])
+  assert.match(withJong.proposals[0].reason, /'음식'이 100%/)
 })
