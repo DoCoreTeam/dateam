@@ -41,11 +41,29 @@ export interface ProposalResult {
 }
 
 /**
+ * 신호가 채널을 대표한다고 인정하는 최소 지배력.
+ *
+ * 왜 필요한가: 이게 없으면 **소수 신호가 채널 전체를 대표한다.**
+ * (실측: 추성훈 채널 311건 중 '음식' 신호는 71건(23%)뿐인데 채널 이름이 '음식'이 되고,
+ *  그 주제가 311건 전부에 붙었다 — 이름만 '요리'에서 '음식'으로 바뀐 셈이었다.)
+ * 절반을 넘지 못하는 신호는 그 채널의 성격이 아니라 그 채널이 다루는 **여러 소재 중 하나**다.
+ */
+const SIGNAL_DOMINANCE_MIN = 0.5
+
+/** 카테고리로 채널을 대표하려면 이만큼은 같은 카테고리여야 한다. */
+const CATEGORY_AGREEMENT_MIN = 0.6
+
+/**
  * 채널 정체성들을 모아 주제 후보를 만든다.
  *
- * 묶는 기준은 **대표 신호**다. 카테고리로만 묶으면 YouTube의 '인물·블로그'(22)처럼
- * 성격이 다른 채널이 전부 한 덩어리가 된다 — 그건 지금 모든 게 '요리'인 것과 같은 실패다.
- * 그래서 구체 신호를 먼저 쓰고, 구체 신호가 없을 때만 카테고리로 내려간다.
+ * **주제는 하나의 축에서만 나오고, 규칙도 그 축만 쓴다.**
+ * 축을 섞으면 이름과 규칙이 다른 것을 가리킨다 — 실측 사고가 정확히 그것이었다:
+ * 이름은 신호('음식')에서, 규칙은 카테고리('인물·블로그' 전체)에서 와서
+ * 브이로그·반려동물·여행 영상이 전부 '음식'이 됐다.
+ *
+ * ① 구체 신호가 채널을 지배하면(과반) → 신호 주제. 규칙은 그 신호 하나.
+ * ② 아니면 카테고리 일치도가 높으면 → 카테고리 주제. 규칙은 그 카테고리 하나.
+ * ③ 둘 다 아니면 제안하지 않는다 — 억지로 묶는 것이 이 사고의 시작이다.
  */
 export function proposeTopics(channels: readonly ChannelForProposal[]): ProposalResult {
   const buckets = new Map<string, TopicProposal>()
@@ -53,9 +71,20 @@ export function proposeTopics(channels: readonly ChannelForProposal[]): Proposal
 
   for (const ch of channels) {
     const id = ch.identity
-    // 구체 신호 → 범용 신호 → 카테고리 순으로 이름을 찾는다
-    const specific = id.topSignals.find((s) => !isGenericSignal(s.label))?.label ?? null
-    const name = specific ?? id.dominantCategoryLabel ?? id.topSignals[0]?.label ?? null
+
+    // ① 구체 신호 중 지배적인 것 — 표본의 절반을 넘어야 "이 채널은 그것"이라 말할 수 있다
+    const dominant = id.sampleSize > 0
+      ? id.topSignals.find((s) =>
+        !isGenericSignal(s.label) && s.count / id.sampleSize >= SIGNAL_DOMINANCE_MIN)
+      : undefined
+
+    // ② 지배적 신호가 없으면 카테고리로 — 이때 이름도 규칙도 카테고리다
+    const useCategory = !dominant
+      && Boolean(id.dominantCategory)
+      && Boolean(id.dominantCategoryLabel)
+      && id.categoryAgreement >= CATEGORY_AGREEMENT_MIN
+
+    const name = dominant?.label ?? (useCategory ? id.dominantCategoryLabel : null)
 
     if (!name || id.sampleSize === 0) {
       unassigned.push({
@@ -67,11 +96,10 @@ export function proposeTopics(channels: readonly ChannelForProposal[]): Proposal
     }
 
     const existing = buckets.get(name)
-    const signalPatterns = id.topSignals
-      .filter((s) => !isGenericSignal(s.label))
-      .slice(0, 4)
-      .map((s) => s.label)
-    const categoryPatterns = id.dominantCategory ? [id.dominantCategory] : []
+    // 규칙은 **이름을 만든 축 하나만**. 다른 신호를 함께 넣으면 그 신호를 가진 게시물까지
+    // 이 주제로 빨려 들어온다(실측: '음식' 규칙에 반려동물·여행이 들어가 강아지 영상이 음식이 됐다).
+    const signalPatterns = dominant ? [dominant.label] : []
+    const categoryPatterns = dominant ? [] : (id.dominantCategory ? [id.dominantCategory] : [])
 
     if (existing) {
       existing.channelIds.push(ch.channelId)
@@ -89,7 +117,10 @@ export function proposeTopics(channels: readonly ChannelForProposal[]): Proposal
         channelIds: [ch.channelId],
         channelNames: ch.displayName ? [ch.displayName] : [],
         contentCount: ch.contentCount,
-        signalPatterns: signalPatterns.length > 0 ? signalPatterns : [name],
+        // 비어 있으면 비운 채로 둔다. 예전엔 `[name]`으로 채웠는데, 카테고리가 이름을 만든
+        // 주제에 이름을 신호 규칙으로 붙이는 것이라 **이름과 다른 축의 규칙**이 됐다.
+        // 규칙이 하나도 없는 주제는 여기서 나오지 않는다 — 두 축 중 하나는 항상 채워진다.
+        signalPatterns,
         categoryPatterns,
         reason: '',
       })

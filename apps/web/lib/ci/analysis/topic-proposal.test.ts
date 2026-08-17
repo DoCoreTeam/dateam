@@ -36,6 +36,34 @@ function channel(
   }
 }
 
+/**
+ * 신호가 섞인 채널 하나. `signals`에 [라벨, 건수]를 주면 그만큼만 그 신호를 갖고,
+ * 나머지 표본은 범용 신호로 채운다 — 실제 채널이 그렇다.
+ *
+ * 채우는 이유: `sampleSize`는 "신호를 하나라도 가진 표본 수"다. 나머지를 비워 두면
+ * 71건이 표본 71건의 100%가 되어 "23%가 채널을 대표한 사고"를 재현할 수 없다.
+ */
+function mixed(
+  name: string, total: number,
+  signals: readonly (readonly [string, number])[], category: string | null,
+): ChannelForProposal {
+  const samples: ChannelSignalSample[] = []
+  for (const [label, count] of signals) {
+    for (let i = 0; i < count; i++) {
+      samples.push(sample({ platformCategory: category, topicSignals: [label] }))
+    }
+  }
+  while (samples.length < total) {
+    samples.push(sample({ platformCategory: category, topicSignals: ['Entertainment'] }))
+  }
+  return {
+    channelId: `ch-${name}`,
+    displayName: name,
+    contentCount: total,
+    identity: computeChannelIdentity('youtube', samples),
+  }
+}
+
 test('★ 구체 신호로 묶는다 — 카테고리로만 묶으면 성격이 다른 채널이 한 덩어리가 된다', () => {
   // 둘 다 YouTube 카테고리는 '인물·블로그'(22)지만 실제 성격은 음악과 음식으로 다르다.
   const r = proposeTopics([
@@ -83,16 +111,60 @@ test('★ 제안마다 왜 이렇게 묶었는지 근거가 붙는다 — 근거
   assert.match(r.proposals[0].reason, /311건/)
 })
 
-test('규칙(신호·카테고리)을 함께 만든다 — 규칙 없는 주제는 다음 게시물부터 못 알아본다', () => {
-  const r = proposeTopics([channel('가수', 10, ['Music'], '10')])
-  assert.deepEqual(r.proposals[0].signalPatterns, ['음악'])
-  assert.deepEqual(r.proposals[0].categoryPatterns, ['10'])
+test('★ 규칙은 이름을 만든 축 하나만 쓴다 — 축을 섞으면 그 카테고리 전체가 주제로 빨려 들어온다', () => {
+  // 실측 사고: 이름은 신호('음식')에서, 규칙은 카테고리('인물·블로그' 전체)에서 왔다.
+  // 그래서 브이로그·반려동물·여행 영상이 전부 '음식'이 됐다. 규칙 없는 주제도 안 되지만,
+  // **이름과 다른 축의 규칙**은 그보다 나쁘다 — 틀린 것을 자동으로 늘린다.
+  const bySignal = proposeTopics([channel('가수', 10, ['Music'], '10')])
+  assert.deepEqual(bySignal.proposals[0].signalPatterns, ['음악'])
+  assert.deepEqual(bySignal.proposals[0].categoryPatterns, [], '신호가 이름을 만들면 카테고리 규칙은 비운다')
+
+  // 반대 방향: 지배 신호가 없어 카테고리가 이름을 만들면 규칙도 카테고리 하나뿐이다
+  const byCategory = proposeTopics([mixed('잡탕', 100, [['Food', 20], ['Pets', 15]], '22')])
+  assert.equal(byCategory.proposals[0].name, '인물·블로그')
+  assert.deepEqual(byCategory.proposals[0].categoryPatterns, ['22'])
+  assert.deepEqual(byCategory.proposals[0].signalPatterns, [], '카테고리가 이름을 만들면 신호 규칙은 비운다')
 })
 
-test('신호가 범용뿐이면 그 이름이라도 쓰되 규칙은 비우지 않는다', () => {
+test('★ 소수 신호는 채널을 대표하지 못한다 — 23%가 311건 전부에 붙은 것이 이 사고였다', () => {
+  // 실측(2026-08-17): 추성훈 채널 표본 311건 중 '음식' 신호는 71건(23%)뿐인데
+  // 채널 주제가 '음식'이 되어 311건 전부에 붙었다. 이름만 '요리'에서 '음식'으로 바뀐 셈이었다.
+  const r = proposeTopics([mixed('추성훈', 311, [['Food', 71]], '22')])
+  assert.notEqual(r.proposals[0]?.name, '음식', '과반이 안 되는 신호로 채널을 대표하지 않는다')
+  assert.ok(
+    !r.proposals.some((p) => p.signalPatterns.includes('음식')),
+    '대표하지 못한 신호가 규칙으로도 새어 나가지 않는다',
+  )
+})
+
+test('★ 지배 신호도 없고 카테고리도 흩어져 있으면 제안하지 않는다 — 억지로 묶는 것이 사고의 시작이다', () => {
+  const r = proposeTopics([
+    {
+      channelId: 'ch-scatter', displayName: '잡탕', contentCount: 40,
+      identity: computeChannelIdentity('youtube', [
+        sample({ platformCategory: '22', topicSignals: ['Food'] }),
+        sample({ platformCategory: '10', topicSignals: ['Music'] }),
+        sample({ platformCategory: '24', topicSignals: ['Pets'] }),
+        sample({ platformCategory: '17', topicSignals: ['Sport'] }),
+      ]),
+    },
+  ])
+  assert.equal(r.proposals.length, 0)
+  assert.deepEqual(r.unassigned.map((u) => u.channelId), ['ch-scatter'])
+})
+
+test('신호가 범용뿐이면 카테고리가 이름을 만들고, 규칙도 그 카테고리 하나다', () => {
+  // 범용 신호(Entertainment)는 지배 신호로 인정하지 않으므로 카테고리 축으로 넘어간다.
+  // 예전엔 이름을 신호 규칙에 그대로 넣어(`[name]`) 규칙 없는 주제를 막았는데,
+  // 그게 곧 축 섞기였다. 규칙은 여전히 비지 않는다 — 카테고리 쪽이 채운다.
   const r = proposeTopics([channel('예능', 10, ['Entertainment'], '24')])
   assert.equal(r.proposals[0].name, '엔터테인먼트')
-  assert.ok(r.proposals[0].signalPatterns.length > 0)
+  assert.deepEqual(r.proposals[0].categoryPatterns, ['24'])
+  assert.deepEqual(r.proposals[0].signalPatterns, [])
+  assert.ok(
+    r.proposals[0].signalPatterns.length + r.proposals[0].categoryPatterns.length > 0,
+    '규칙이 하나도 없는 주제는 제안하지 않는다',
+  )
 })
 
 // 제안에서 빼는 기준은 "이름이 이미 있는가"가 아니라 **채널에 주제가 붙었는가**로 바뀌었다
