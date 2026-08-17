@@ -146,3 +146,43 @@ test('★ 메뉴에서 찾을 수 있는 자리에 있다 — 매일 쓰는 것 
   // 그룹 이름과 항목 이름이 같으면 같은 말이 두 번 나온다
   assert.ok(!layout.includes("label: '기록', icon: <History"), '항목 이름이 그룹과 겹친다')
 })
+
+// ── G3 실사용 검증(v0.7.555)에서 나온 발견 4건을 여기서 잠근다 ──────────────
+//
+// 넷 다 "틀린 요청·못 읽는 화면이 **성공처럼 보이는**" 성격이다.
+// 화면은 멀쩡해 보이는데 사용자만 잘못 안다 — 그래서 정적으로라도 재유입을 막는다.
+
+const PIPE = readFileSync(new URL('./pipeline.ts', import.meta.url), 'utf8')
+const STAGE_ROUTE = readFileSync(
+  new URL('../../../app/api/crm/stages/[id]/route.ts', import.meta.url), 'utf8')
+
+test('★ 없는 단계의 미리보기는 "0건"이 아니라 404다 — 지워진 단계에 거짓 안심을 주지 않는다', () => {
+  const fn = PIPE.slice(PIPE.indexOf('export async function previewCriterionImpact'))
+  const body = fn.slice(0, fn.indexOf('\n}\n'))
+  // 딜을 세기 **전에** 단계 존재를 확인해야 한다 — 순서가 뒤집히면 빈 배열이 0건으로 보인다
+  const check = body.indexOf('crmStage.findFirst')
+  const count = body.indexOf('crmDeal.findMany')
+  assert.ok(check > 0, '단계 존재를 확인하지 않는다')
+  assert.ok(check < count, '딜을 먼저 세고 있다 — 없는 단계가 0건으로 보인다')
+  assert.ok(body.includes("'NOT_FOUND'"), '없는 단계에 404 를 주지 않는다')
+})
+
+test('★ 모르는 조건 이름은 거절한다 — 조용히 usage 로 흘러가면 미리보기가 말없이 안 뜬다', () => {
+  assert.ok(STAGE_ROUTE.includes('ALL_CRITERIA.includes'), '조건 이름을 검증하지 않는다')
+  assert.ok(STAGE_ROUTE.includes("'VALIDATION_FAILED'"), '틀린 이름에 400 을 주지 않는다')
+  // 옛 코드: `if (criterion && ALL_CRITERIA.includes(...))` — 틀리면 아래 usage 로 떨어졌다
+  assert.ok(
+    !/if\s*\(\s*criterion\s*&&\s*ALL_CRITERIA\.includes/.test(STAGE_ROUTE),
+    '틀린 조건 이름이 usage 응답으로 새어 나간다',
+  )
+})
+
+test('★ 조건 select 5개가 스크린리더에서 서로 구분된다 — 전부 "검사 안 함"으로 읽혔다', () => {
+  // label 로 감싸도 접근 이름에 select 의 선택값이 섞여 들어간다(G3 실측)
+  assert.ok(UI.includes('aria-label={CRITERION_LABEL[key]}'), '조건 select 에 이름이 없다')
+})
+
+test('★ 뜻이 잘렸으면 말해 준다 — 조용히 자르면 뒤가 왜 없는지 알 수 없다', () => {
+  assert.ok(UI.includes('MAX_MEANING_LEN'), '상한을 화면이 모른다')
+  assert.ok(UI.includes('자만 남겼습니다'), '잘린 사실을 알리지 않는다')
+})

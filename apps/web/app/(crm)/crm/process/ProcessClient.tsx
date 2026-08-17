@@ -84,6 +84,10 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
   const [meaningDraft, setMeaningDraft] = useState<Record<string, string>>({})
   const [pending, setPending] = useState<Pending | null>(null)
 
+  /** 지금 상한을 몇 자 넘었나 — 0이면 안 넘었다 */
+  const over = (s: Stage) =>
+    Math.max(0, (meaningDraft[s.id] ?? s.meaning).trim().length - MAX_MEANING_LEN)
+
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -216,9 +220,19 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
   async function saveMeaning(stage: Stage) {
     const meaning = (meaningDraft[stage.id] ?? stage.meaning).trim()
     if (meaning === stage.meaning) return
+    /**
+     * 서버는 길면 자른다(120자). 화면 입력칸도 같은 수에서 막지만 그건 화면 사정이고,
+     * 붙여넣기·API·자동완성으로 더 긴 글이 들어오는 길이 있다. **잘렸으면 말해 준다** —
+     * 조용히 자르면 사용자는 자기가 적은 문장이 왜 뒤가 없는지 모른다.
+     */
+    const cut = meaning.length > MAX_MEANING_LEN
     const ok = await send(`mean:${stage.id}`, `/api/crm/stages/${stage.id}`,
       json({ criteria: stage.criteria, meaning }, 'PATCH'),
-      meaning ? `"${stage.name}"의 뜻을 적었어요.` : `"${stage.name}"의 뜻을 지웠어요.`)
+      !meaning
+        ? `"${stage.name}"의 뜻을 지웠어요.`
+        : cut
+          ? `"${stage.name}"의 뜻을 적었어요. 너무 길어서 앞 ${MAX_MEANING_LEN}자만 남겼습니다.`
+          : `"${stage.name}"의 뜻을 적었어요.`)
     if (ok) setMeaningDraft((d) => { const n = { ...d }; delete n[stage.id]; return n })
   }
 
@@ -390,13 +404,24 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
                 <input
                   className="input-field"
                   value={meaningDraft[s.id] ?? s.meaning}
-                  maxLength={MAX_MEANING_LEN}
+                  /**
+                   * `maxLength` 를 걸지 않는다.
+                   *
+                   * 상한에서 타자를 **소리 없이 삼키는** 것도 조용한 절단이다 —
+                   * 사용자는 키보드가 고장 난 줄 안다. 대신 넘어서면 남은 수를 세어 주고,
+                   * 저장할 때 앞 120자만 남겼다고 말한다(saveMeaning).
+                   */
                   placeholder="예: 고객이 예산을 확인해 줬다"
                   onChange={(e) => setMeaningDraft((d) => ({ ...d, [s.id]: e.target.value }))}
                   onBlur={() => void saveMeaning(s)}
                   onKeyDown={(e) => { if (isEnterKey(e)) e.currentTarget.blur() }}
                   disabled={busy === `mean:${s.id}`}
                 />
+                {over(s) > 0 && (
+                  <span className={styles.meaningOver}>
+                    {over(s)}자 넘었어요 — 저장하면 앞 {MAX_MEANING_LEN}자만 남습니다
+                  </span>
+                )}
               </label>
             ) : s.meaning ? (
               <p className={styles.meaningRead}>{s.meaning}</p>
@@ -434,6 +459,13 @@ export default function ProcessClient({ canEdit }: { canEdit: boolean }) {
                     <span className={styles.ruleName}>{CRITERION_LABEL[key]}</span>
                     <select
                       className="input-field"
+                      /**
+                       * label 로 감쌌는데도 이름을 따로 준다.
+                       * 감싼 label 의 접근 이름 계산에 select 의 **선택된 값**이 섞여 들어가서,
+                       * 스크린리더로 5개가 전부 "검사 안 함"으로 읽혔다(G3 실측).
+                       * 어느 조건인지 모르면 이 화면은 소리로 쓸 수 없다.
+                       */
+                      aria-label={CRITERION_LABEL[key]}
                       value={levelOf(s, key)}
                       disabled={busy === `${s.id}:${key}`}
                       onChange={(e) => void changeLevel(s, key, e.target.value as 'off' | CriterionLevel)}

@@ -74,6 +74,12 @@
   gap: var(--space-1);
 }
 
+/* 상한을 넘었을 때만 뜬다 — 타자를 막는 대신 몇 자 넘었는지 말해 준다 */
+.meaningOver {
+  font-size: var(--fs-xs);
+  color: var(--warning);
+}
+
 .meaningRead {
   margin: 0;
   font-size: var(--fs-sm);

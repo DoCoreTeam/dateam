@@ -96,6 +96,17 @@ export async function previewCriterionImpact(
   stageId: string,
   key: CriterionKey,
 ): Promise<{ total: number; missing: number }> {
+  /**
+   * 단계가 정말 있는지 먼저 본다.
+   *
+   * 없는 단계도 findMany 는 빈 배열을 준다 — 그러면 화면은 "0건이 못 채웠어요"라는
+   * **거짓 안심 문장**을 띄운다. 지워진 단계에 대고 "아무도 안 걸려요"라고 말하는 셈이다.
+   * 없는 것과 0건인 것은 다른 말이고, 사용자가 다음에 할 행동도 다르다.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const stage = await (db as any).crmStage.findFirst({ where: { id: stageId }, select: { id: true } })
+  if (!stage) throw new CrmError('NOT_FOUND', '단계를 찾을 수 없습니다.')
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const deals = await (db as any).crmDeal.findMany({
     where: { stageId, status: 'OPEN' },
