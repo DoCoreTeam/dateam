@@ -167,6 +167,20 @@ export interface CiChannelListItem {
   metaError: string | null
   /** 이 채널에서 가져올 기간 ('1m'|'3m'|'1y'|'all') */
   collectWindow: string
+  /**
+   * 채널 주제 판정 근거 (L1). 사람이 확정했으면 source='user'.
+   *
+   * 왜 계약에 넣나: 사람이 답할 질문은 "이 채널 뭐 하는 채널이에요?" 하나이고,
+   * 그 판단에 필요한 근거가 화면에 없으면 물어봐도 답할 수가 없다.
+   */
+  topicConfidence: number | null
+  topicSource: 'auto' | 'ai_verified' | 'user' | null
+  /** 신호 집계를 사람 말로 옮긴 한 문장. 판정 못 하면 null */
+  identityText: string | null
+  /** 최빈 카테고리 일치도 0~1. 1.0이면 전 게시물이 같은 카테고리다 */
+  identityAgreement: number | null
+  /** 판정에 쓰인 게시물 수 */
+  identitySampleSize: number | null
 }
 
 // ── 수집 ─────────────────────────────────────────────────────────

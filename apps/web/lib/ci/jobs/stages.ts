@@ -7,9 +7,13 @@ import { logTokenUsage } from '@/lib/token-logger'
 import { getGeminiMeta } from '../ai/meta.ts'
 import { callGemini } from '../ai/gemini.ts'
 import {
-  classifyByRules, shouldAutoConfirm, buildClassifyPrompt, parseLlmVerdict,
-  type TopicCandidate,
+  classifyByRules, shouldCallAi, buildClassifyPrompt, parseLlmVerdict,
+  type TopicCandidate, type BasisRung,
 } from '../analysis/classify.ts'
+import {
+  computeChannelIdentity, judgeIdentity, identityConfidence, describeIdentity, describeSample,
+  type ChannelIdentity, type ChannelSignalSample,
+} from '../analysis/channel-identity.ts'
 import { computePatterns, type PatternSample } from '../analysis/patterns.ts'
 import { buildCorrectionExamples, type CorrectionRecord } from '../analysis/corrections.ts'
 import { resolveSettings, type SettingRow } from '../settings/resolve.ts'
@@ -101,16 +105,56 @@ async function loadTopics(workspaceId: string): Promise<TopicCandidate[]> {
 
   return ((data ?? []) as any[]).map((t) => {
     const rules = (t.ci_topic_rules ?? []) as { kind: string; pattern: string }[]
+    const of = (kind: string) => rules.filter((r) => r.kind === kind).map((r) => r.pattern)
+    const include = of('include')
+    const signal = of('signal')
     return {
       id: t.id,
       name: t.name,
       // 규칙이 없으면 주제 이름 자체를 포함 키워드로 쓴다 — 설정 없이도 동작해야 한다
-      includePatterns: rules.filter((r) => r.kind === 'include').map((r) => r.pattern).concat(
-        rules.some((r) => r.kind === 'include') ? [] : [t.name],
-      ),
-      excludePatterns: rules.filter((r) => r.kind === 'exclude').map((r) => r.pattern),
+      includePatterns: include.length > 0 ? include : [t.name],
+      excludePatterns: of('exclude'),
+      // 신호 규칙도 같다. 주제가 '음악'이면 signalLabel이 '음악'인 신호에 걸린다 —
+      // 주제를 만들자마자 플랫폼 신호가 붙도록 기본값을 준다.
+      signalPatterns: signal.length > 0 ? signal : [t.name],
+      categoryPatterns: of('category'),
     }
   })
+}
+
+/**
+ * 채널의 신호 표본과 정체성. 분류(L1)와 채널 판정이 함께 쓴다.
+ * 실패하면 null — 채널 정보를 못 읽는 것과 분류가 죽는 것은 다르다.
+ */
+async function loadChannelContext(channelId: string | null): Promise<{
+  platform: string
+  topicId: string | null
+  topicConfidence: number | null
+  displayName: string | null
+  description: string | null
+  identity: ChannelIdentity | null
+} | null> {
+  if (!channelId) return null
+  try {
+    const adminClient = createAdminClient() as any
+    const { data: ch } = await adminClient
+      .from('ci_channels')
+      .select('id, platform, topic_id, topic_confidence, display_name, description, identity')
+      .eq('id', channelId).is('deleted_at', null).maybeSingle()
+    if (!ch) return null
+
+    const stored = ch.identity as ChannelIdentity | null
+    return {
+      platform: ch.platform,
+      topicId: ch.topic_id ?? null,
+      topicConfidence: ch.topic_confidence != null ? Number(ch.topic_confidence) : null,
+      displayName: ch.display_name ?? null,
+      description: ch.description ?? null,
+      identity: stored && typeof stored === 'object' && 'sampleSize' in stored ? stored : null,
+    }
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -122,36 +166,58 @@ export async function runClassify(workspaceId: string, contentId: string): Promi
 
   const { data: content } = await adminClient
     .from('ci_contents')
-    .select('id, title, caption, topic_id, topic_source, ci_channels ( topic_id )')
+    .select('id, platform, title, caption, topic_id, topic_source, channel_id, keywords, platform_category, topic_signals')
     .eq('id', contentId).maybeSingle()
   if (!content) return { ok: false, errorCode: 'NOT_FOUND', errorMessage: '콘텐츠를 찾을 수 없습니다' }
 
   // 사용자가 직접 정한 주제는 건드리지 않는다
   if (content.topic_source === 'user') return { ok: true }
 
-  const [topics, threshold] = await Promise.all([loadTopics(workspaceId), loadThreshold(workspaceId)])
+  const [topics, threshold, channel] = await Promise.all([
+    loadTopics(workspaceId),
+    loadThreshold(workspaceId),
+    loadChannelContext(content.channel_id ?? null),
+  ])
   if (topics.length === 0) return { ok: true }   // 주제가 없으면 분류할 것도 없다
+
+  const signals: ChannelSignalSample = {
+    platformCategory: content.platform_category ?? null,
+    topicSignals: Array.isArray(content.topic_signals) ? content.topic_signals : [],
+    keywords: Array.isArray(content.keywords) ? content.keywords : [],
+  }
 
   let verdict = classifyByRules({
     title: content.title,
     caption: content.caption,
-    channelTopicId: content.ci_channels?.topic_id ?? null,
+    channelTopicId: channel?.topicId ?? null,
+    channelTopicConfidence: channel?.topicConfidence ?? null,
+    channelIdentity: channel?.identity ?? null,
+    signals,
+    platform: content.platform,
     topics,
   })
-  const attempts: string[] = [`규칙 판정: ${verdict.reason} (확신도 ${verdict.confidence.toFixed(2)})`]
+  const rungs: BasisRung[] = [...verdict.rungs]
 
-  // 2차 — 저확신 구간만 LLM
-  if (!shouldAutoConfirm(verdict.confidence, threshold)) {
+  // ── L3 · AI ───────────────────────────────────────────────────
+  // 후보가 1개 이하면 부르지 않는다. "요리인가 아닌가"를 물으면서 정답지에 요리만 놓으면
+  // AI가 무엇을 답해도 정보가 늘지 않는다(실측: 그 상태로 15건 호출, 15건 모두 같은 답).
+  if (shouldCallAi(topics.length, verdict, threshold)) {
     const meta = await getGeminiMeta()
     if (meta.geminiApiKey) {
       // 사용자가 고친 것을 AI에게 돌려준다 — 정정을 쌓아만 두면 같은 실수를 영원히 반복한다.
       const correctionExamples = await loadCorrectionExamples(workspaceId, topics)
-      if (correctionExamples.length > 0) {
-        attempts.push(`지금까지의 정정 ${correctionExamples.length}건을 근거로 함께 넘겼습니다`)
-      }
       const prompt = buildClassifyPrompt({
-        title: content.title, caption: content.caption,
+        title: content.title,
+        caption: content.caption,
         topics: topics.map((t) => ({ id: t.id, name: t.name })),
+        // 채널 맥락 — 예전 프롬프트에는 이것이 통째로 빠져 있었다.
+        // 그래서 AI가 규칙과 같은 것을 보고 같은 답을 냈다.
+        channel: channel ? {
+          name: channel.displayName,
+          description: channel.description,
+          identityText: channel.identity ? describeIdentity(channel.identity) : null,
+        } : null,
+        signalText: describeSample(content.platform, signals),
         correctionExamples,
       })
       const res = await callGemini({ apiKey: meta.geminiApiKey, model: meta.geminiModel, prompt })
@@ -163,45 +229,169 @@ export async function runClassify(workspaceId: string, contentId: string): Promi
         })
         const llm = parseLlmVerdict(res.text, topics.map((t) => t.id))
         if (llm) {
-          attempts.push(`AI 판정: ${llm.reason} (확신도 ${llm.confidence.toFixed(2)})`)
           // AI가 주제를 고른 경우에만 채택한다.
           // "고를 주제가 없다"는 답의 확신도를 "이 주제가 맞다"는 확신도와 비교하면
           // 규칙이 찾아낸 주제가 지워진다(실제 사고: 확신도 1.0의 null이 0.55의 매칭을 덮어씀).
           if (llm.topicId && llm.confidence > verdict.confidence) {
-            verdict = { topicId: llm.topicId, confidence: llm.confidence, source: 'ai_verified', reason: llm.reason }
-          } else if (!llm.topicId) {
-            attempts.push('AI도 맞는 주제를 찾지 못해 규칙 판정을 유지했습니다')
+            rungs.push({ level: 'L3', ok: true, detail: `AI 판정: ${llm.reason}` })
+            verdict = {
+              ...verdict,
+              topicId: llm.topicId,
+              confidence: llm.confidence,
+              source: 'ai_verified',
+              reason: llm.reason,
+              // AI가 판단해 준 것은 더 이상 사람에게 묻지 않는다
+              needsHuman: llm.confidence < 0.5,
+            }
+          } else {
+            rungs.push({
+              level: 'L3',
+              ok: false,
+              detail: llm.topicId
+                ? 'AI 판정이 규칙 판정보다 약해 채택하지 않았습니다'
+                : 'AI도 맞는 주제를 찾지 못했습니다',
+            })
           }
         } else {
-          attempts.push('AI 응답 형식이 올바르지 않아 채택하지 않았습니다')
+          rungs.push({ level: 'L3', ok: false, detail: 'AI 응답 형식이 올바르지 않아 채택하지 않았습니다' })
         }
       } else {
-        attempts.push(`AI 판정을 시도했으나 실패했습니다: ${res.error}`)
+        rungs.push({ level: 'L3', ok: false, detail: `AI 판정 실패: ${res.error}` })
       }
     } else {
-      attempts.push('AI 키가 없어 2차 판정을 건너뛰었습니다')
+      rungs.push({ level: 'L3', ok: false, detail: 'AI 키가 없어 2차 판정을 건너뛰었습니다' })
     }
   }
 
-  const auto = shouldAutoConfirm(verdict.confidence, threshold) && verdict.topicId != null
-
+  // ── 저장 ──────────────────────────────────────────────────────
+  //
+  // 검토 큐로 보내는 조건이 바뀌었다.
+  //   예전: 임계 미달이면 전부 pending → 96.6%가 큐에 쌓였다
+  //   지금: **판단이 갈릴 때만** pending. 근거가 약한 것은 '추정'으로 쓰고 넘어간다.
+  // 검토는 정말 난해할 때 하는 것이지, 확신이 조금 모자랄 때마다 하는 것이 아니다.
   await adminClient.from('ci_contents').update({
     topic_id: verdict.topicId,
     // 주제를 고르지 못했으면 확신도는 0이다. 미분류에 확신도 1.0을 남기면 화면이 거짓말을 한다.
     topic_confidence: verdict.topicId ? verdict.confidence : 0,
     topic_source: verdict.source,
-    // 자동 확정 못 하면 검토 큐로. 사용자는 최종 심판이지 분류 노동자가 아니므로
-    // 무엇을 시도했는지 근거를 함께 남긴다.
-    review_state: auto ? 'none' : 'pending',
+    secondary_topic_ids: verdict.topicId
+      ? verdict.secondaryTopicIds.filter((id) => id !== verdict.topicId)
+      : [],
+    review_state: verdict.needsHuman ? 'pending' : 'none',
+    // 근거를 콘텐츠에 남긴다. 예전엔 ci_jobs.payload에 있어 목록에서 볼 수 없었고,
+    // 그래서 사용자는 "이거 하드코딩이니 AI니"를 물을 수밖에 없었다.
+    topic_basis: {
+      reason: verdict.reason,
+      rungs,
+      decidedBy: verdict.source,
+      needsHuman: verdict.needsHuman,
+      at: new Date().toISOString(),
+    },
   }).eq('id', contentId)
 
-  if (!auto) {
-    await adminClient.from('ci_jobs')
-      .update({ payload: { ai_attempts: attempts } })
-      .eq('target_id', contentId).eq('stage', 'classify')
+  return { ok: true }
+}
+
+/**
+ * L1 · 채널 정체성 판정.
+ *
+ * 채널이 올린 콘텐츠들의 플랫폼 신호를 모아 "이 채널은 무엇인가"를 정하고,
+ * 확정되면 그 채널 콘텐츠를 **한꺼번에** 재분류한다.
+ *
+ * 이것이 "게시물 1만 개를 사람이 검토해?"에 대한 답이다 —
+ * 채널 하나를 판정하면 그 채널 콘텐츠 전량이 함께 풀린다.
+ */
+export async function runChannelIdentity(workspaceId: string, channelId: string): Promise<StageResult> {
+  const adminClient = createAdminClient() as any
+
+  const { data: ch } = await adminClient
+    .from('ci_channels')
+    .select('id, platform, display_name, topic_id, topic_source')
+    .eq('id', channelId).eq('workspace_id', workspaceId).is('deleted_at', null).maybeSingle()
+  if (!ch) return { ok: false, errorCode: 'NOT_FOUND', errorMessage: '채널을 찾을 수 없습니다' }
+
+  const { data: rows } = await adminClient
+    .from('ci_contents')
+    .select('platform_category, topic_signals, keywords')
+    .eq('channel_id', channelId).is('deleted_at', null)
+    .limit(500)
+
+  const samples: ChannelSignalSample[] = ((rows ?? []) as any[]).map((r) => ({
+    platformCategory: r.platform_category ?? null,
+    topicSignals: Array.isArray(r.topic_signals) ? r.topic_signals : [],
+    keywords: Array.isArray(r.keywords) ? r.keywords : [],
+  }))
+
+  const identity = computeChannelIdentity(ch.platform, samples)
+  const verdict = judgeIdentity(identity)
+  const confidence = identityConfidence(identity)
+
+  // 사람이 확정한 채널 주제는 건드리지 않는다
+  const keepTopic = ch.topic_source === 'user'
+
+  let topicId: string | null = keepTopic ? ch.topic_id : null
+  if (!keepTopic && verdict === 'auto') {
+    topicId = await matchTopicForIdentity(workspaceId, identity)
+  }
+
+  await adminClient.from('ci_channels').update({
+    identity: identity as unknown as Record<string, unknown>,
+    identity_at: new Date().toISOString(),
+    ...(keepTopic ? {} : {
+      topic_id: topicId,
+      topic_confidence: topicId ? confidence : null,
+      topic_source: topicId ? 'auto' : null,
+    }),
+  }).eq('id', channelId)
+
+  // 채널 주제가 정해졌으면 소속 콘텐츠를 다시 판정한다 — 상속이 여기서 일어난다.
+  // 사용자가 확정한 콘텐츠는 제외한다(남의 판단을 덮지 않는다).
+  if (topicId) {
+    const { data: targets } = await adminClient
+      .from('ci_contents')
+      .select('id')
+      .eq('channel_id', channelId).eq('workspace_id', workspaceId)
+      .neq('topic_source', 'user').is('deleted_at', null)
+      .limit(2000)
+
+    for (const t of ((targets ?? []) as { id: string }[])) {
+      await runClassify(workspaceId, t.id).catch(() => null)
+    }
   }
 
   return { ok: true }
+}
+
+/**
+ * 채널 정체성에 맞는 기존 주제를 찾는다.
+ * 없으면 null — **주제를 자동으로 만들지 않는다.** 주제 체계를 늘리는 것은 사람의 결정이고,
+ * 제안은 topic-proposal이 화면에서 한다(사용자가 확인하고 만든다).
+ */
+async function matchTopicForIdentity(
+  workspaceId: string, identity: ChannelIdentity,
+): Promise<string | null> {
+  const topics = await loadTopics(workspaceId)
+  if (topics.length === 0) return null
+
+  const wanted = new Set<string>()
+  if (identity.dominantSignal) wanted.add(identity.dominantSignal.toLowerCase())
+  for (const s of identity.topSignals) wanted.add(s.label.toLowerCase())
+
+  // 신호 규칙이 맞는 주제를 먼저
+  for (const t of topics) {
+    if (t.signalPatterns.some((p) => wanted.has(p.trim().toLowerCase()))) return t.id
+  }
+  // 카테고리 규칙
+  if (identity.dominantCategory) {
+    for (const t of topics) {
+      if (t.categoryPatterns.includes(identity.dominantCategory)) return t.id
+    }
+  }
+  // 주제 이름이 신호 이름과 같으면
+  for (const t of topics) {
+    if (wanted.has(t.name.trim().toLowerCase())) return t.id
+  }
+  return null
 }
 
 /**
@@ -407,6 +597,20 @@ export async function runChannelSweep(workspaceId: string, channelId: string): P
     // 수집 범위의 한계는 오류가 아니지만 숨기면 안 된다. 같은 자리에 남겨 화면이 말하게 한다.
     sweep_error: coverageNote,
   }).eq('id', channelId)
+
+  // 게시물을 모았으면 채널이 무엇인지 다시 판정한다(L1).
+  //
+  // 왜 잡으로 미루나: 콘텐츠 수집(ingest)이 끝나야 신호가 찬다. 여기서 바로 집계하면
+  // 방금 만든 행들이 아직 title뿐이라 "신호 없음"으로 판정된다.
+  //
+  // 왜 stage='classify'인가: 채널을 분류하는 일이라 의미가 맞고, policy.nextStage가
+  // 채널 대상 잡의 체인을 이미 끊어 준다(콘텐츠 전용 단계로 흘러가지 않는다).
+  // 잡 단계 enum에 값을 새로 추가하면 되돌릴 수 없어(PostgreSQL은 enum 값 제거 불가)
+  // 있는 단계를 쓰는 쪽을 골랐다.
+  await enqueueJob({
+    workspaceId, stage: 'classify', targetType: 'channel', targetId: channelId,
+    version: Date.now(),
+  }).catch(() => null)
 
   const winLabel = COLLECT_WINDOWS.find((w) => w.id === win)?.label ?? '최근 1년'
   const scope = full?.ok

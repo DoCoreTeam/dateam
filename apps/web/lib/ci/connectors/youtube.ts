@@ -9,6 +9,7 @@ import type {
 } from './types.ts'
 import { ConnectorError } from './types.ts'
 import { fetchWatchMetrics, extractHashtags } from './youtube-page.ts'
+import { parseTopicCategories } from '../analysis/signal-taxonomy.ts'
 import type { CiContentFormat } from '../types.ts'
 
 const API_BASE = 'https://www.googleapis.com/youtube/v3'
@@ -31,10 +32,17 @@ interface YtVideoItem {
     defaultAudioLanguage?: string
     defaultLanguage?: string
     tags?: string[]
+    categoryId?: string
     thumbnails?: Record<string, { url?: string }>
   }
   contentDetails?: { duration?: string }
   statistics?: { viewCount?: string; likeCount?: string; commentCount?: string }
+  /**
+   * 주제 신호. Wikipedia URL 배열로 온다.
+   * part에 topicDetails를 넣지 않으면 이 필드가 통째로 오지 않는다 —
+   * 실제로 그래서 321건이 주제 근거 없이 분류됐다.
+   */
+  topicDetails?: { topicCategories?: string[] }
 }
 
 /** ISO8601 기간(PT1M30S)을 초로. 파싱 실패는 null — 0으로 위장하지 않는다. */
@@ -98,7 +106,10 @@ async function viaOfficialApi(
   if (!ctx.apiKey) return null
   attempted.push('official_api')
 
-  const url = `${API_BASE}/videos?part=snippet,contentDetails,statistics&id=${encodeURIComponent(externalId)}&key=${ctx.apiKey}`
+  // topicDetails는 **같은 호출**에 얹힌다 — videos.list는 part 개수와 무관하게 1유닛이므로
+  // 주제 신호를 얻는 데 드는 추가 쿼터는 0이다. 예전엔 이걸 빼고 부르면서
+  // "주제를 알 수 없다"며 96.6%를 사람에게 넘겼다.
+  const url = `${API_BASE}/videos?part=snippet,contentDetails,statistics,topicDetails&id=${encodeURIComponent(externalId)}&key=${ctx.apiKey}`
   const res = await fetch(url, { signal: ctx.signal })
   ctx.onQuotaSpend?.(VIDEOS_LIST_UNITS)
 
@@ -141,6 +152,8 @@ async function viaOfficialApi(
     title: core.title,
     caption: item.snippet?.description ?? null,
     keywords: item.snippet?.tags ?? extractHashtags(item.snippet?.description ?? null),
+    platformCategory: item.snippet?.categoryId ?? null,
+    topicSignals: parseTopicCategories(item.topicDetails?.topicCategories),
     publishedAt: core.publishedAt,
     durationSec,
     language: item.snippet?.defaultAudioLanguage ?? item.snippet?.defaultLanguage ?? null,

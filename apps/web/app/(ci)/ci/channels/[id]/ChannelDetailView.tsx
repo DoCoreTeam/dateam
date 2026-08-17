@@ -25,9 +25,11 @@ interface Props {
    * 분석은 대상을 알고 난 뒤에 읽는 것이라 정체(아바타·구독자·수집 현황) 다음에 둔다.
    */
   insight?: ReactNode
+  /** 이 워크스페이스의 주제 목록 — 채널 주제를 고르려면 고를 것이 화면에 있어야 한다 */
+  topics: { id: string; name: string }[]
 }
 
-export default function ChannelDetailView({ workspaceId, channel, contents, insight }: Props) {
+export default function ChannelDetailView({ workspaceId, channel, contents, insight, topics }: Props) {
   const router = useRouter()
   // 목록에서만 지울 수 있고 상세에서는 못 지우던 것을 맞춘다 —
   // 상세까지 들어와서 판단을 끝내는 흐름이 자연스럽다
@@ -71,6 +73,39 @@ export default function ChannelDetailView({ workspaceId, channel, contents, insi
         body: JSON.stringify({ collectWindow }),
       })
       setNotice('수집 기간을 바꿨습니다. 다시 훑는 중입니다')
+      router.refresh()
+    } finally { setBusy(false) }
+  }
+
+  /**
+   * 채널 주제 확정 — 사람이 답할 질문은 이것 하나다.
+   *
+   * 왜 여기인가: 예전엔 확정 창구가 게시물 하나뿐이라 311건이면 클릭이 311번이었다.
+   * 채널에서 한 번 고르면 그 채널 게시물이 함께 다시 판정된다.
+   */
+  async function changeTopic(topicId: string) {
+    setBusy(true); setNotice(null); setError(null)
+    try {
+      const res = await fetch(`/api/ci/channels/${channel.id}/topic`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CI-Workspace': workspaceId },
+        body: JSON.stringify({ topicId: topicId || null }),
+      }).then((r) => r.json() as Promise<{
+        success: boolean
+        data?: { applied: number; truncated: boolean }
+        error?: { message: string }
+      }>)
+      if (res.success) {
+        // 몇 건이 바뀌었는지 밝힌다 — 안 밝히면 눌러도 아무 일 없어 보인다
+        const n = res.data?.applied ?? 0
+        setNotice(
+          n > 0
+            ? `주제를 확정했습니다. 게시물 ${n}건에 함께 반영했습니다${res.data?.truncated ? ' (나머지는 이어서 처리합니다)' : ''}`
+            : '주제를 확정했습니다',
+        )
+      } else {
+        setError(res.error?.message ?? '주제를 바꾸지 못했습니다')
+      }
       router.refresh()
     } finally { setBusy(false) }
   }
@@ -190,6 +225,46 @@ export default function ChannelDetailView({ workspaceId, channel, contents, insi
             helpHref="/ci/settings"
           />
         )}
+      </section>
+
+      {/* 사람에게 물어야 할 질문은 이것 하나다 — "이 채널 뭐 하는 채널이에요?"
+          게시물마다 묻지 않는다. 여기서 한 번 고르면 소속 게시물이 함께 다시 판정된다. */}
+      <section className="card" style={{ marginBottom: 'var(--space-6)' }}>
+        <div style={{
+          display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap',
+          alignItems: 'flex-end', justifyContent: 'space-between',
+        }}>
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{
+              fontSize: 'var(--fs-md)', fontWeight: 700,
+              marginBottom: 'var(--space-1)',
+              display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+            }}>
+              채널 주제
+              <span className={`ci-status ${channel.topicSource === 'user' ? 'ci-status-info' : 'ci-status-warn'}`}>
+                {channel.topicSource === 'user' ? '확정' : channel.topic ? '추정' : '미분류'}
+              </span>
+            </h2>
+            {/* 근거를 같이 보여준다 — 근거 없이 물으면 사용자도 답할 수가 없다 */}
+            <p className="ci-basis">
+              {channel.identityText ?? '아직 판정할 만큼 신호가 모이지 않았습니다'}
+              {channel.identityAgreement != null && channel.identitySampleSize != null && (
+                ` · 일치도 ${Math.round(channel.identityAgreement * 100)}% · 게시물 ${channel.identitySampleSize}건 기준`
+              )}
+            </p>
+          </div>
+          <div>
+            <label className="label" htmlFor="ch-topic" style={{ margin: 0 }}>주제 고르기</label>
+            <select className="input-field" id="ch-topic" style={{ width: 'auto' }}
+              value={channel.topic?.id ?? ''} disabled={busy}
+              onChange={(e) => void changeTopic(e.target.value)}>
+              <option value="">주제 없음</option>
+              {topics.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
       </section>
 
       {insight}

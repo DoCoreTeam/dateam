@@ -1,6 +1,6 @@
 // app/(ci)/ci/channels/[id]/page.tsx — R03 채널 상세
 import { redirect, notFound } from 'next/navigation'
-import { createClient, getRequestUser } from '@/lib/supabase/server'
+import { createClient, createAdminClient, getRequestUser } from '@/lib/supabase/server'
 import { resolveActiveWorkspace } from '@/lib/ci/workspace'
 import { getChannel } from '@/lib/ci/queries/channels'
 import { listChannelContents } from '@/lib/ci/queries/channel-contents'
@@ -26,11 +26,18 @@ export default async function ChannelDetailPage({
   const channel = await getChannel(workspace.id, id)
   if (!channel) notFound()
 
-  // 목록과 대조는 서로를 기다릴 이유가 없다
-  const [contents, contrast] = await Promise.all([
+  // 목록·대조·주제 목록은 서로를 기다릴 이유가 없다
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  const adminClient = createAdminClient() as any
+  const [contents, contrast, topicRes] = await Promise.all([
     listChannelContents(workspace.id, id),
     getAccountContrast(workspace.id, id),
+    // 채널 주제를 고르려면 고를 것이 화면에 있어야 한다 — 목록을 함께 내려보낸다
+    adminClient.from('ci_topics')
+      .select('id, name').eq('workspace_id', workspace.id)
+      .is('deleted_at', null).is('merged_into_id', null).order('name'),
   ])
+  const topics = (topicRes?.data ?? []) as { id: string; name: string }[]
 
   return (
     <>
@@ -49,6 +56,7 @@ export default async function ChannelDetailPage({
         workspaceId={workspace.id}
         channel={channel}
         contents={contents}
+        topics={topics}
         insight={<AccountWhyPanel contrast={contrast} />}
       />
     </>

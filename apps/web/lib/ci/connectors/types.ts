@@ -42,6 +42,16 @@ export interface UcmContent {
   caption: string | null
   /** 플랫폼이 노출하는 키워드/태그. 개념이 없거나 못 읽은 커넥터는 생략한다. */
   keywords?: string[]
+  /**
+   * 플랫폼 원문 카테고리 코드 (YouTube snippet.categoryId 등).
+   * 플랫폼마다 체계가 다르므로 번역하지 않고 원문을 옮긴다 — 번역은 signal-taxonomy가 한다.
+   */
+  platformCategory?: string | null
+  /**
+   * 플랫폼이 준 주제 신호 (YouTube topicDetails.topicCategories의 말단).
+   * 추론값이 아니라 플랫폼이 말한 것만 담는다. 안 주면 빈 배열.
+   */
+  topicSignals?: string[]
   publishedAt: string | null
   durationSec: number | null
   language: string | null

@@ -16,6 +16,7 @@ import { CI_PLATFORM_LABEL } from '@/lib/ci/types'
 import PageHeader from '@/components/ui/PageHeader'
 import StageNav, { RESEARCH_STAGES } from '@/components/ci/StageNav'
 import LinkIntakeBox from '@/components/ci/LinkIntakeBox'
+import TopicHealthPanel from '@/components/ci/TopicHealthPanel'
 import DetailSheet from '@/components/ci/DetailSheet'
 import ChannelGroupedList from '@/components/ci/ChannelGroupedList'
 import MetricBadge from '@/components/ci/MetricBadge'
@@ -258,6 +259,10 @@ export default function InboxView({ workspaceId, tab, items, counts, topics }: I
       />
 
       <LinkIntakeBox workspaceId={workspaceId} onDone={() => router.refresh()} />
+
+      {/* "모든 게 요리"가 보이는 자리가 여기라, 고칠 수단도 여기 둔다.
+          할 일이 없으면 스스로 그리지 않으므로 평소엔 화면을 차지하지 않는다. */}
+      <TopicHealthPanel workspaceId={workspaceId} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', margin: 'var(--space-6) 0 var(--space-4)', flexWrap: 'wrap' }}>
         <SegmentedTabs

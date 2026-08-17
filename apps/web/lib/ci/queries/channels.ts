@@ -4,10 +4,16 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { parseChannelUrl } from '../ucm/url.ts'
 import { resolveExistingChannel } from './channel-resolve.ts'
 import { enqueueJob } from '../jobs/queue.ts'
+import { describeIdentity } from '../analysis/channel-identity.ts'
+import type { ChannelIdentity } from '../analysis/channel-identity.ts'
 import type { CiChannelListItem } from '../contracts.ts'
 import type { CiChannelOwnership, CiPlatform } from '../types.ts'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+/** 채널 조회에서 항상 같은 칸을 읽는다 — 목록과 상세가 다른 칸을 읽으면 화면마다 다른 말을 한다 */
+const CHANNEL_COLUMNS =
+  'id, platform, display_name, handle, avatar_url, subscriber_count, is_monitored, ownership, size_band, last_seen_at, description, video_count, profile_url, subscriber_provenance, meta_fetched_at, meta_error, collect_window, topic_confidence, topic_source, identity, ci_topics ( id, name )'
 
 interface Row {
   id: string
@@ -27,10 +33,29 @@ interface Row {
   meta_fetched_at: string | null
   meta_error: string | null
   collect_window: string | null
+  topic_confidence: number | null
+  topic_source: 'auto' | 'ai_verified' | 'user' | null
+  identity: Partial<ChannelIdentity> | null
   ci_topics: { id: string; name: string } | null
 }
 
+/** identity jsonb는 `{}`(기본값)로 시작한다 — 판정 전이면 문장을 만들지 않는다 */
+function identityOf(raw: Partial<ChannelIdentity> | null): ChannelIdentity | null {
+  if (!raw || typeof raw !== 'object' || typeof raw.sampleSize !== 'number') return null
+  return {
+    dominantCategory: raw.dominantCategory ?? null,
+    dominantCategoryLabel: raw.dominantCategoryLabel ?? null,
+    categoryAgreement: raw.categoryAgreement ?? 0,
+    topSignals: raw.topSignals ?? [],
+    dominantSignal: raw.dominantSignal ?? null,
+    keywordProfile: raw.keywordProfile ?? [],
+    sampleSize: raw.sampleSize,
+    unknownCount: raw.unknownCount ?? 0,
+  }
+}
+
 function toItem(r: Row): CiChannelListItem {
+  const identity = identityOf(r.identity)
   return {
     id: r.id,
     platform: r.platform,
@@ -50,6 +75,11 @@ function toItem(r: Row): CiChannelListItem {
     metaFetchedAt: r.meta_fetched_at,
     metaError: r.meta_error,
     collectWindow: r.collect_window ?? '1y',
+    topicConfidence: r.topic_confidence,
+    topicSource: r.topic_source,
+    identityText: identity ? describeIdentity(identity) : null,
+    identityAgreement: identity ? identity.categoryAgreement : null,
+    identitySampleSize: identity ? identity.sampleSize : null,
   }
 }
 
@@ -60,7 +90,7 @@ export async function listChannels(
   const adminClient = createAdminClient() as any
   let q = adminClient
     .from('ci_channels')
-    .select('id, platform, display_name, handle, avatar_url, subscriber_count, is_monitored, ownership, size_band, last_seen_at, description, video_count, profile_url, subscriber_provenance, meta_fetched_at, meta_error, collect_window, ci_topics ( id, name )')
+    .select(CHANNEL_COLUMNS)
     .eq('workspace_id', workspaceId)
     .is('deleted_at', null)
     .order('is_monitored', { ascending: false })
@@ -79,7 +109,7 @@ export async function getChannel(
   const adminClient = createAdminClient() as any
   const { data } = await adminClient
     .from('ci_channels')
-    .select('id, platform, display_name, handle, avatar_url, subscriber_count, is_monitored, ownership, size_band, last_seen_at, description, video_count, profile_url, subscriber_provenance, meta_fetched_at, meta_error, collect_window, ci_topics ( id, name )')
+    .select(CHANNEL_COLUMNS)
     .eq('workspace_id', workspaceId).eq('id', channelId).is('deleted_at', null)
     .maybeSingle()
   return data ? toItem(data as Row) : null

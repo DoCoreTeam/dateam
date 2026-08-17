@@ -12,7 +12,7 @@ import { getGeminiMeta } from '../ai/meta.ts'
 import { computeDerived, recomputeChannelDerived } from '../analysis/derive.ts'
 import {
   runClassify, runVerify, runPatterns, runChannelSweep, runCreativeBacklog,
-  enrichChannelMetaBacklog,
+  enrichChannelMetaBacklog, runChannelIdentity,
 } from './stages.ts'
 import { enrichContextBacklog } from '../analysis/context-enrich.ts'
 import { runAlertBacklog } from '../alerts/evaluate.ts'
@@ -92,6 +92,10 @@ async function handleIngest(job: ClaimedJob): Promise<HandlerResult> {
     title: ucm.title,
     caption: ucm.caption,
     keywords: ucm.keywords ?? [],
+    // 주제 판정의 1차 증거(L0). 커넥터가 못 주면 빈 값 그대로 둔다 —
+    // 없는 신호를 추측으로 채우면 분류가 그 추측 위에 쌓인다.
+    platform_category: ucm.platformCategory ?? null,
+    topic_signals: ucm.topicSignals ?? [],
     published_at: ucm.publishedAt,
     duration_sec: ucm.durationSec,
     language: ucm.language,
@@ -289,6 +293,11 @@ async function handlePassthrough(): Promise<HandlerResult> {
 
 async function handleClassify(job: ClaimedJob): Promise<HandlerResult> {
   if (!job.workspace_id || !job.target_id) return { ok: true }
+  // 대상이 채널이면 채널 정체성(L1)을 판정한다 — 그리고 그 결과가 소속 콘텐츠로 상속된다.
+  // 채널 하나를 판정하면 콘텐츠 수백 건이 함께 풀리는 것이 이 설계의 요점이다.
+  if (job.target_type === 'channel') {
+    return runChannelIdentity(job.workspace_id, job.target_id)
+  }
   return runClassify(job.workspace_id, job.target_id)
 }
 
