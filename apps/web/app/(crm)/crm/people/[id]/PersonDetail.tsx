@@ -189,7 +189,8 @@ export default function PersonDetail({ personId }: { personId: string }) {
 
       {editing && (
         <PersonFormModal
-          initial={{ ...person }}
+          // 이름까지 넘겨야 고르기 칸이 "무엇이 골라져 있는지"를 보여 준다 — id만으론 못 그린다
+          initial={{ ...person, companyName: company?.name ?? null }}
           onClose={() => setEditing(false)}
           onSaved={() => { setEditing(false); void load() }}
         />

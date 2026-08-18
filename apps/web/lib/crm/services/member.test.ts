@@ -80,5 +80,8 @@ test('★ 화면이 후보 목록을 받는다 — 관리자가 이름을 외워
   const api = readFileSync(new URL('../../../app/api/crm/members/route.ts', import.meta.url), 'utf8')
   assert.ok(api.includes('candidates'), '아직 안 들인 사람을 주지 않는다')
   const ui = readFileSync(new URL('../../../app/(crm)/crm/members/MembersClient.tsx', import.meta.url), 'utf8')
-  assert.ok(ui.includes('candidates.map('), '화면이 후보를 그리지 않는다')
+  // 예전엔 `<select>{candidates.map(...)}`였다. 지금은 RecordPickerField 의 검색이 그 자리를 맡는다 —
+  // 그리는 방법은 바뀌어도 지켜야 할 것은 같다: **화면이 후보 목록을 소비한다**(외워서 치게 두지 않는다).
+  assert.ok(ui.includes('search={searchCandidates}'), '고르는 자리에 후보 검색이 안 붙었다')
+  assert.ok(/candidates[\s\S]{0,120}\.filter\(|candidates\.map\(/.test(ui), '화면이 후보 목록을 쓰지 않는다')
 })

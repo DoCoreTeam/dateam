@@ -24,6 +24,8 @@ import styles from './quote-panel.module.css'
 
 interface QuoteLine {
   id: string
+  /** 카탈로그의 어느 품목인지. 손으로 적기만 한 옛 항목은 null 이다 */
+  productId: string | null
   name: string
   quantity: string
   unit: string | null
@@ -156,6 +158,8 @@ export default function QuotePanel({ dealId, dealName, dealCurrency, onChanged }
         status: body.status,
         lines: (body.lines ?? []).map((l: QuoteLine) => ({
           id: l.id,
+          // 카탈로그 연결을 들고 가지 않으면 저장하는 순간 손으로 친 이름으로 되돌아간다
+          productId: l.productId ?? null,
           name: l.name,
           quantity: String(l.quantity),
           unit: l.unit ?? '',

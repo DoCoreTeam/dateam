@@ -139,7 +139,10 @@ export async function createSuggestion(
       field: input.field,
       targetType: input.targetType,
       isNewRecord: !input.targetId,
-      autoApply: cfg?.autoApply ?? false,
+      axis: input.axis,
+      // 설정 행이 없으면 정책 기본값을 쓴다. 예전엔 여기가 `?? false` 라서
+      // 워크스페이스에 설정을 안 만든 사람은 자동 반영이 영원히 꺼져 있었다(실측 22건 만료).
+      autoApply: cfg?.autoApply ?? undefined,
       minConfidence: cfg?.minConfidence ?? undefined,
       verifiedFields: verified,
     })
@@ -166,12 +169,26 @@ export async function createSuggestion(
     })
 
     if (verdict.decision === 'AUTO_APPLIED') {
-      await applyToRecord(tx, {
-        targetType: input.targetType, targetId: input.targetId!, field: input.field!,
-        value: input.proposedValue, runId: input.runId,
-        confidence: input.confidence, actorId, suggestionId: created.id,
-        auto: true,
-      })
+      if (!input.targetId) {
+        // 신규 생성 자동 반영(v0.7.540). 사람이 수락할 때와 **같은 함수**를 쓴다 —
+        // 두 벌로 만들면 한쪽만 중복 검사를 하게 되고, 미팅마다 같은 사람이 또 생긴다.
+        await createFromSuggestion(tx, {
+          actorId,
+          actorType: 'AI',
+          suggestion: {
+            id: created.id, axis: input.axis, targetType: input.targetType,
+            proposedValueJson: input.proposedValue, runId: input.runId,
+            confidence: input.confidence,
+          },
+        })
+      } else {
+        await applyToRecord(tx, {
+          targetType: input.targetType, targetId: input.targetId, field: input.field!,
+          value: input.proposedValue, runId: input.runId,
+          confidence: input.confidence, actorId, suggestionId: created.id,
+          auto: true,
+        })
+      }
     }
 
     return { suggestion: created as SuggestionRow, verdict }
@@ -262,9 +279,12 @@ async function applyToRecord(tx: any, args: ApplyArgs): Promise<void> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function createFromSuggestion(tx: any, args: {
   actorId: string | null
+  /** 누가 만들었나. 자동 반영이면 'AI' — 기록에 사람이 한 것처럼 남기면 출처를 못 답한다 */
+  actorType?: 'HUMAN' | 'AI'
   suggestion: { id: string; axis: string; targetType: string; proposedValueJson: unknown; runId: string; confidence: number }
 }): Promise<{ targetType: string; targetId: string }> {
   const { suggestion: s, actorId } = args
+  const actorType = args.actorType ?? 'HUMAN'
   const v = (s.proposedValueJson ?? {}) as Record<string, unknown>
 
   if (s.targetType === 'person') {
@@ -291,7 +311,7 @@ async function createFromSuggestion(tx: any, args: {
       select: { id: true },
     })
     await writeAudit(tx, {
-      actorType: 'HUMAN', actorId, action: 'person.created_from_suggestion',
+      actorType, actorId, action: 'person.created_from_suggestion',
       targetType: 'person', targetId: created.id,
       beforeJson: null,
       afterJson: { name, source: 'ai', runId: s.runId, confidence: s.confidence, suggestionId: s.id },
@@ -314,7 +334,7 @@ async function createFromSuggestion(tx: any, args: {
       select: { id: true },
     })
     await writeAudit(tx, {
-      actorType: 'HUMAN', actorId, action: 'task.created_from_suggestion',
+      actorType, actorId, action: 'task.created_from_suggestion',
       targetType: 'task', targetId: created.id,
       beforeJson: null,
       afterJson: { title, dueAt, source: 'ai', runId: s.runId, suggestionId: s.id },

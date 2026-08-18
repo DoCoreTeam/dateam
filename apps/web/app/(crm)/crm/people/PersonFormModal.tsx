@@ -2,16 +2,19 @@
 
 // 인물 만들기·고치기 (dacrm T1-02) — 회사 모달과 같은 골격(§2-5 동종 UI 통일)
 
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
+import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPicker'
 import { STAGE_LABEL } from './PersonListView'
 
 export interface PersonDraft {
   id?: string
   name?: string
   companyId?: string | null
+  /** 수정으로 열 때 고른 회사의 이름 — 없으면 칸이 id만 알고 이름을 못 보여 준다 */
+  companyName?: string | null
   email?: string | null
   phone?: string | null
   title?: string | null
@@ -27,8 +30,6 @@ interface Props {
   onSaved: (id: string) => void
 }
 
-interface CompanyOption { id: string; name: string }
-
 export default function PersonFormModal({ initial, fixedCompanyId, onClose, onSaved }: Props) {
   const editing = Boolean(initial?.id)
   const [name, setName] = useState(initial?.name ?? '')
@@ -37,25 +38,21 @@ export default function PersonFormModal({ initial, fixedCompanyId, onClose, onSa
   const [title, setTitle] = useState(initial?.title ?? '')
   const [stage, setStage] = useState(initial?.lifecycleStage ?? 'LEAD')
   const [companyId, setCompanyId] = useState(fixedCompanyId ?? initial?.companyId ?? '')
-  const [companies, setCompanies] = useState<CompanyOption[]>([])
+  const [companyName, setCompanyName] = useState(initial?.companyName ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // 소속 회사 선택지 — 목록이 길어질 수 있으므로 상한을 두고 가져온다
-  useEffect(() => {
-    if (fixedCompanyId) return
-    let alive = true
-    void (async () => {
-      try {
-        const res = await fetch('/api/crm/companies?limit=100')
-        const body = await res.json()
-        if (alive && res.ok) setCompanies(body.items ?? [])
-      } catch {
-        // 선택지를 못 불러와도 인물 저장은 막지 않는다 — 회사는 나중에 이어 붙일 수 있다
-      }
-    })()
-    return () => { alive = false }
-  }, [fixedCompanyId])
+  /**
+   * 소속 회사 찾기는 **서버가 한다.**
+   * 예전엔 `?limit=100`으로 통째로 받아 `<select>`에 쏟았다 —
+   * 101번째 회사는 화면에 아예 없었고, 그 사실이 어디에도 안 적혀 있었다.
+   */
+  const searchCompanies = useCallback(async (q: string, signal: AbortSignal): Promise<RecordOption[]> => {
+    const res = await fetch(`/api/crm/companies?limit=20${q ? `&q=${encodeURIComponent(q)}` : ''}`, { signal })
+    const body = await res.json()
+    if (!res.ok) throw new Error(body?.error?.message ?? '회사를 불러오지 못했습니다.')
+    return (body.items ?? []).map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))
+  }, [])
 
   async function submit() {
     setSaving(true)
@@ -157,13 +154,15 @@ export default function PersonFormModal({ initial, fixedCompanyId, onClose, onSa
         {!fixedCompanyId && (
           <div>
             <label className="label" htmlFor="crm-person-company">소속 회사</label>
-            <select
-              id="crm-person-company" className="input-field" value={companyId}
-              onChange={(e) => setCompanyId(e.target.value)}
-            >
-              <option value="">선택 안 함</option>
-              {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <RecordPickerField
+              id="crm-person-company"
+              noun="회사"
+              value={companyId}
+              valueName={companyName}
+              placeholder="선택 안 함"
+              onChange={(opt) => { setCompanyId(opt?.id ?? ''); setCompanyName(opt?.name ?? '') }}
+              search={searchCompanies}
+            />
           </div>
         )}
       </div>

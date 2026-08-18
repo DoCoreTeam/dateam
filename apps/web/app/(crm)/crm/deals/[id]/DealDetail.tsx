@@ -247,6 +247,8 @@ export default function DealDetail({ dealId }: { dealId: string }) {
           pipelines={pipelines}
           initial={{
             id: deal.id, name: deal.name, companyId: deal.companyId,
+            // 이름까지 넘겨야 고르기 칸이 "무엇이 골라져 있는지"를 보여 준다 — id만으론 못 그린다
+            companyName: company?.name,
             pipelineId: deal.pipelineId, stageId: deal.stageId,
             amountMinor: deal.amountMinor, currency: deal.currency,
             expectedCloseDate: deal.expectedCloseDate?.slice(0, 10) ?? '',

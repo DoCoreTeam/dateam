@@ -32,6 +32,8 @@ const FORM = readFileSync(
   new URL('../../../app/(crm)/crm/deals/DealFormModal.tsx', import.meta.url), 'utf8')
 const REPORTS = readFileSync(
   new URL('../../../app/(crm)/crm/reports/ReportsClient.tsx', import.meta.url), 'utf8')
+const PICKER = readFileSync(
+  new URL('../../../components/ui/RecordPicker.tsx', import.meta.url), 'utf8')
 
 /** 상태를 흉내 내는 가짜 DB */
 function fakeDb(o: {
@@ -168,11 +170,13 @@ test('★ 딜이 0건일 때 붙여넣기 입력을 펼친다 — 접혀 있으�
   assert.ok(DEALS.includes('defaultOpen={dealCount === 0}'), '딜이 없어도 접혀 있다')
 })
 
-test('★ 회사가 없으면 그 자리에서 만든다 (실측: 만들자마자 자동 선택)', () => {
-  assert.ok(FORM.includes('async function createCompany'), '인라인 생성이 없다')
-  assert.ok(FORM.includes('companies.length === 0 &&'), '항상 떠서 자리를 차지한다')
-  assert.ok(FORM.includes('setCompanyId(id)'), '만든 회사가 자동 선택되지 않는다')
-  assert.ok(FORM.includes('isEnterKey(e)'), '한글 조합 중 엔터로 만들어진다')
+test('★ 찾는 회사가 없으면 그 자리에서 만든다 (실측: 만들자마자 자동 선택)', () => {
+  // 예전엔 회사가 **0개일 때만** 만들기 줄이 보였다 — 1개라도 있으면 새 회사를 넣을 길이 없었다.
+  // 지금은 고르기 모달이 언제나 만들기를 들고 있다. 그래서 판정도 그 자리로 옮긴다.
+  assert.ok(FORM.includes('const createCompany'), '인라인 생성이 없다')
+  assert.ok(FORM.includes('onCreate={createCompany}'), '만들기가 고르기 칸에 연결되지 않았다')
+  assert.ok(PICKER.includes('onPick(made)'), '만든 것이 자동 선택되지 않는다')
+  assert.ok(PICKER.includes('isEnterKey(e)'), '한글 조합 중 엔터로 만들어진다')
 })
 
 // ── 사이드바 ───────────────────────────────────────────────

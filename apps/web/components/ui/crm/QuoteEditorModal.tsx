@@ -10,24 +10,38 @@
 // 두 곳이 같은 함수를 쓰므로 눈에 보이는 값과 저장되는 값이 갈리지 않고,
 // 브라우저를 조작해도 총액은 바뀌지 않는다.
 
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import DateField, { todayPlus } from '@/components/ui/DateField'
+import RecordPickerField, { type RecordOption, type RecordSearch } from '@/components/ui/RecordPicker'
 import { computeLine, computeTotals, needsApproval, DEFAULT_DISCOUNT_APPROVAL_PCT } from '@/lib/crm/domain/quote-math'
 import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import styles from './quote-panel.module.css'
 
 export interface QuoteLineDraft {
   id?: string | null
+  /** 카탈로그의 어느 품목인지. 손으로 적기만 한 옛 항목은 null 이다 */
+  productId?: string | null
   name: string
   quantity: string
   unit: string
   unitPriceMinor: string
   discountPercent: string
   taxRate: string
+}
+
+/** `/api/crm/products` 가 주는 모양 (금액은 BigInt 라 문자열로 온다) */
+interface ProductJson {
+  id: string
+  name: string
+  sku: string | null
+  unitPriceMinor: string
+  currency: string
+  taxRate: string
+  unit: string | null
 }
 
 export interface QuoteDraft {
@@ -48,8 +62,13 @@ interface Props {
   onSaved: () => void
 }
 
+/** 고르는 목록에 실리는 모양 — SKU 는 이름이 겹칠 때 구분해 주는 보조 정보다 */
+function toOption(p: ProductJson): RecordOption {
+  return { id: p.id, name: p.name, hint: p.sku || undefined }
+}
+
 function emptyLine(): QuoteLineDraft {
-  return { name: '', quantity: '1', unit: '', unitPriceMinor: '', discountPercent: '0', taxRate: '10' }
+  return { productId: null, name: '', quantity: '1', unit: '', unitPriceMinor: '', discountPercent: '0', taxRate: '10' }
 }
 
 export function newQuoteDraft(dealName: string, currency: string | null): QuoteDraft {
@@ -81,6 +100,61 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
     }))
   }
 
+  /**
+   * 검색·생성으로 스쳐 간 품목의 원본을 들고 있는다.
+   * 고르는 부품은 id·이름·힌트만 나르므로, 단가·단위·세율은 여기서 꺼내야 한다.
+   */
+  const catalog = useRef<Map<string, ProductJson>>(new Map())
+
+  /**
+   * **신원이 고정돼야 한다.** 이 함수는 고르는 모달의 effect 의존성이라
+   * 렌더마다 새 함수를 주면 검색이 끝없이 다시 돈다.
+   */
+  const searchProducts = useCallback<RecordSearch>(async (query, signal) => {
+    const res = await fetch(`/api/crm/products?q=${encodeURIComponent(query)}`, { signal })
+    const body = await res.json()
+    if (!res.ok) throw new Error(body?.error?.message ?? '품목을 불러오지 못했습니다.')
+    const items = (body.items ?? []) as ProductJson[]
+    items.forEach((p) => catalog.current.set(p.id, p))
+    return items.map(toOption)
+  }, [])
+
+  /** 고른 품목의 단가·단위·세율을 그 줄에 옮긴다 — 카탈로그를 만든 이유가 이것이다 */
+  const pickProduct = (i: number, opt: RecordOption | null) => {
+    if (!opt) { setLine(i, { productId: null }); return }
+    const p = catalog.current.get(opt.id)
+    const patch: Partial<QuoteLineDraft> = { productId: opt.id, name: opt.name }
+    // 단가 0 은 "아직 안 정했다"는 뜻이다 — 사람이 친 금액을 0 으로 덮으면 그게 손해다
+    if (p && p.unitPriceMinor !== '0') patch.unitPriceMinor = p.unitPriceMinor
+    if (p?.unit) patch.unit = p.unit
+    if (p?.taxRate) patch.taxRate = p.taxRate
+    setLine(i, patch)
+  }
+
+  /**
+   * 카탈로그에 없으면 그 자리에서 만든다.
+   * 설정 화면으로 보내면 쓰던 견적을 잃는다 — 그래서 지금 친 단가·단위·세율을 함께 실어 보낸다.
+   */
+  const createProduct = async (i: number, name: string): Promise<RecordOption | null> => {
+    const line = draft.lines[i]
+    const res = await fetch('/api/crm/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        currency: draft.currency,
+        unitPriceMinor: line?.unitPriceMinor || '0',
+        unit: line?.unit || null,
+        taxRate: line?.taxRate || '10',
+      }),
+    })
+    const body = await res.json()
+    if (!res.ok) throw new Error(body?.error?.message ?? '품목을 만들지 못했습니다.')
+    const made = body as ProductJson
+    catalog.current.set(made.id, made)
+    return toOption(made)
+  }
+
   const totals = useMemo(
     () => computeTotals(draft.lines.map((l) => ({
       quantity: l.quantity || 0,
@@ -101,6 +175,8 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
       .filter((l) => l.name.trim().length > 0)
       .map((l) => ({
         id: l.id ?? null,
+        // 카탈로그와의 연결 — 안 실으면 고른 품목이 저장 순간 다시 손으로 친 이름이 된다
+        productId: l.productId ?? null,
         name: l.name.trim(),
         quantity: l.quantity || '1',
         unit: l.unit.trim() || null,
@@ -210,12 +286,20 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
               <div className={styles.line} key={line.id ?? `new-${i}`}>
                 <div className={styles.field}>
                   <label className="label" htmlFor={`ln-name-${i}`}>품목</label>
-                  <input
+                  {/*
+                    카탈로그에서 고른다 — 늘어나는 목록이라 검색 모달이 표준이다.
+                    value 에 이름을 폴백으로 넣는 이유: 옛 항목은 productId 가 없어
+                    id 만 보면 "아직 안 고름"으로 읽히고 품목이 사라진 것처럼 보인다.
+                  */}
+                  <RecordPickerField
                     id={`ln-name-${i}`}
-                    className="input-field"
-                    value={line.name}
+                    noun="품목"
+                    value={line.productId || line.name}
+                    valueName={line.name}
+                    onChange={(opt) => pickProduct(i, opt)}
+                    search={searchProducts}
+                    onCreate={(name) => createProduct(i, name)}
                     disabled={linesLocked}
-                    onChange={(e) => setLine(i, { name: e.target.value })}
                     placeholder="예: H100 80GB SXM"
                   />
                 </div>

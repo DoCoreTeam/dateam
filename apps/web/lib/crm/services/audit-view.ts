@@ -65,6 +65,7 @@ const ACTION_LABEL: Record<string, string> = {
   'task.restored': '할 일을 되살렸어요',
   'task.created_from_suggestion': 'AI 제안을 받아 할 일을 만들었어요',
   'activity.created': '활동을 남겼어요',
+  'product.created': '품목을 카탈로그에 넣었어요',
   'meeting.created': '미팅을 기록했어요',
   'meeting.deleted': '미팅을 지웠어요',
   'meeting.transcribed': '미팅 전사를 넣었어요',

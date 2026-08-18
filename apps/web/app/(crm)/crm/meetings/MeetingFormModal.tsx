@@ -8,14 +8,13 @@
 // 다만 **둘 다 없어도 저장된다.** 첫 만남은 회사가 아직 CRM 에 없을 때가 많다 —
 // 그때 기록을 못 남기게 하면 사람은 다른 곳에 적고, 그 기록은 영영 안 들어온다.
 
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import DateField from '@/components/ui/DateField'
+import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPicker'
 import { kstTodayKey } from '@/lib/datetime/kst'
-
-interface Option { id: string; name: string }
 
 interface Props {
   onClose: () => void
@@ -32,24 +31,29 @@ export default function MeetingFormModal({ onClose, onSaved, fixedDealId, fixedC
   const [companyId, setCompanyId] = useState(fixedCompanyId ?? '')
   const [dealId, setDealId] = useState(fixedDealId ?? '')
   const [location, setLocation] = useState('')
-  const [companies, setCompanies] = useState<Option[]>([])
-  const [deals, setDeals] = useState<Option[]>([])
+  const [companyName, setCompanyName] = useState('')
+  const [dealName, setDealName] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const [c, d] = await Promise.all([
-          fetch('/api/crm/companies?limit=100').then((r) => r.json()),
-          fetch('/api/crm/deals?limit=100').then((r) => r.json()),
-        ])
-        setCompanies(c.items ?? [])
-        setDeals(d.items ?? [])
-      } catch {
-        // 목록을 못 불러와도 제목·시각만으로 저장할 수 있어야 한다
-      }
-    })()
+  /**
+   * 찾기는 **서버가 한다.**
+   * 예전엔 회사·딜을 각각 `?limit=100`으로 통째로 받아 `<select>`에 쏟았다 —
+   * 101번째부터는 화면에 아예 없었고(없다는 말도 없이), 목록이 길어지면 눈으로 훑는 것 말고는
+   * 고를 방법이 없었다.
+   */
+  const searchCompanies = useCallback(async (q: string, signal: AbortSignal): Promise<RecordOption[]> => {
+    const res = await fetch(`/api/crm/companies?limit=20${q ? `&q=${encodeURIComponent(q)}` : ''}`, { signal })
+    const body = await res.json()
+    if (!res.ok) throw new Error(body?.error?.message ?? '회사를 불러오지 못했습니다.')
+    return (body.items ?? []).map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))
+  }, [])
+
+  const searchDeals = useCallback(async (q: string, signal: AbortSignal): Promise<RecordOption[]> => {
+    const res = await fetch(`/api/crm/deals?limit=20${q ? `&q=${encodeURIComponent(q)}` : ''}`, { signal })
+    const body = await res.json()
+    if (!res.ok) throw new Error(body?.error?.message ?? '딜을 불러오지 못했습니다.')
+    return (body.items ?? []).map((d: { id: string; name: string }) => ({ id: d.id, name: d.name }))
   }, [])
 
   async function save() {
@@ -104,22 +108,30 @@ export default function MeetingFormModal({ onClose, onSaved, fixedDealId, fixedC
       {!fixedCompanyId && (
         <>
           <label className="label" htmlFor="meeting-company" style={{ marginTop: 'var(--space-3)' }}>회사</label>
-          <select id="meeting-company" className="input-field" value={companyId}
-            onChange={(e) => setCompanyId(e.target.value)}>
-            <option value="">(아직 없음)</option>
-            {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <RecordPickerField
+            id="meeting-company"
+            noun="회사"
+            value={companyId}
+            valueName={companyName}
+            placeholder="(아직 없음)"
+            onChange={(opt) => { setCompanyId(opt?.id ?? ''); setCompanyName(opt?.name ?? '') }}
+            search={searchCompanies}
+          />
         </>
       )}
 
       {!fixedDealId && (
         <>
           <label className="label" htmlFor="meeting-deal" style={{ marginTop: 'var(--space-3)' }}>딜</label>
-          <select id="meeting-deal" className="input-field" value={dealId}
-            onChange={(e) => setDealId(e.target.value)}>
-            <option value="">(아직 없음)</option>
-            {deals.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
+          <RecordPickerField
+            id="meeting-deal"
+            noun="딜"
+            value={dealId}
+            valueName={dealName}
+            placeholder="(아직 없음)"
+            onChange={(opt) => { setDealId(opt?.id ?? ''); setDealName(opt?.name ?? '') }}
+            search={searchDeals}
+          />
         </>
       )}
 

@@ -18,6 +18,7 @@ import AXDotLoader from '@/components/ui/AXDotLoader'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
+import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPicker'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
 import { ROLES, ROLE_LABEL, ROLE_HINT } from '@/lib/crm/services/member'
 import styles from './members.module.css'
@@ -32,6 +33,7 @@ export default function MembersClient({ canEdit, myMemberId }: { canEdit: boolea
   const [items, setItems] = useState<Member[]>([])
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [pick, setPick] = useState('')
+  const [pickName, setPickName] = useState('')
   const [pickRole, setPickRole] = useState('MEMBER')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
@@ -55,6 +57,14 @@ export default function MembersClient({ canEdit, myMemberId }: { canEdit: boolea
   }, [])
 
   useEffect(() => { void load() }, [load])
+
+  // 후보는 목록 API 가 통째로 내려준다(검색 파라미터가 없다) — 받아 둔 배열에서 걸러 쓴다.
+  const searchCandidates = useCallback(async (q: string): Promise<RecordOption[]> => {
+    const needle = q.trim().toLowerCase()
+    return candidates
+      .filter((c) => !needle || c.name.toLowerCase().includes(needle) || c.email.toLowerCase().includes(needle))
+      .map((c) => ({ id: c.id, name: c.name, hint: c.email }))
+  }, [candidates])
 
   async function call(url: string, init: RequestInit, ok: string, key: string) {
     setBusy(key)
@@ -82,7 +92,7 @@ export default function MembersClient({ canEdit, myMemberId }: { canEdit: boolea
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ hostUserId: c.id, displayName: c.name, email: c.email, role: pickRole }),
     }, `${c.name} 님을 들였어요.`, 'add')
-    if (ok) setPick('')
+    if (ok) { setPick(''); setPickName('') }
   }
 
   if (loading && items.length === 0) return <AXDotLoader />
@@ -98,17 +108,16 @@ export default function MembersClient({ canEdit, myMemberId }: { canEdit: boolea
           <div className={styles.addRow}>
             <div className={styles.addField}>
               <label className="label" htmlFor="member-pick">누구를 들일까요</label>
-              <select
-                id="member-pick" className="input-field" value={pick}
-                onChange={(e) => setPick(e.target.value)}
-              >
-                <option value="">고르기</option>
-                {candidates.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}{c.email ? ` · ${c.email}` : ''}
-                  </option>
-                ))}
-              </select>
+              {/* 후보는 직원 수만큼 자란다 — 드롭다운으로 두면 이름을 눈으로 훑어야 한다 */}
+              <RecordPickerField
+                id="member-pick"
+                noun="사람"
+                value={pick}
+                valueName={pickName}
+                placeholder="고르기"
+                onChange={(opt) => { setPick(opt?.id ?? ''); setPickName(opt?.name ?? '') }}
+                search={searchCandidates}
+              />
             </div>
             <div className={styles.addField}>
               <label className="label" htmlFor="member-role">권한</label>

@@ -9,29 +9,26 @@
 // 단계 선택지는 고른 파이프라인의 것만 보여 준다(DI-05).
 // 다른 파이프라인 단계를 고를 수 있게 두면 서버가 거절할 것을 화면이 먼저 권하는 꼴이다.
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import DateField from '@/components/ui/DateField'
-import { isEnterKey } from '@/lib/ui/ime'
+import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPicker'
 import type { BoardPipeline } from './DealBoard'
 
 export interface DealDraft {
   id?: string
   name?: string
   companyId?: string
+  /** 수정으로 열 때 고른 회사의 이름 — 없으면 칸이 id만 알고 이름을 못 보여 준다 */
+  companyName?: string
   pipelineId?: string
   stageId?: string
   amountMinor?: string | null
   currency?: string | null
   expectedCloseDate?: string | null
   version?: number
-}
-
-interface CompanyOption {
-  id: string
-  name: string
 }
 
 interface Props {
@@ -47,16 +44,7 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
   const editing = Boolean(initial?.id)
   const [name, setName] = useState(initial?.name ?? '')
   const [companyId, setCompanyId] = useState(initial?.companyId ?? '')
-  /**
-   * 회사를 그 자리에서 만들기.
-   *
-   * **왜 필요한가**: 딜은 `companyId` 가 필수인데, 회사가 하나도 없으면
-   * 드롭다운이 비고 **거기서 막힌다.** 처음 온 사람은 "회사를 먼저 만들어야 한다"는 것을
-   * 아무 데서도 못 듣는다 — 화면에 그 말이 없기 때문이다.
-   * 창을 닫고 회사 화면으로 갔다가 돌아오게 하는 대신 여기서 만든다.
-   */
-  const [newCompany, setNewCompany] = useState('')
-  const [makingCompany, setMakingCompany] = useState(false)
+  const [companyName, setCompanyName] = useState(initial?.companyName ?? '')
   const [pipelineId, setPipelineId] = useState(
     initial?.pipelineId ?? pipelines.find((p) => p.isDefault)?.id ?? pipelines[0]?.id ?? '',
   )
@@ -64,8 +52,6 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
   const [amount, setAmount] = useState(initial?.amountMinor ?? '')
   const [currency, setCurrency] = useState(initial?.currency ?? 'KRW')
   const [expectedCloseDate, setExpectedCloseDate] = useState(initial?.expectedCloseDate ?? '')
-  const [companies, setCompanies] = useState<CompanyOption[]>([])
-  const [companyError, setCompanyError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -82,50 +68,37 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
     if (!openStages.some((s) => s.id === stageId)) setStageId(openStages[0].id)
   }, [openStages, stageId])
 
-  useEffect(() => {
-    let alive = true
-    void (async () => {
-      try {
-        const res = await fetch('/api/crm/companies?limit=100')
-        const body = await res.json()
-        if (!alive) return
-        if (!res.ok) { setCompanyError(body?.error?.message ?? '회사를 불러오지 못했습니다.'); return }
-        setCompanies(body.items ?? [])
-      } catch {
-        if (alive) setCompanyError('회사를 불러오지 못했습니다.')
-      }
-    })()
-    return () => { alive = false }
+  /**
+   * 회사 찾기는 **서버가 한다.**
+   * 예전엔 `?limit=100`으로 통째로 받아 `<select>`에 쏟았다. 그래서 ①목록이 모달 밖으로 넘쳐
+   * 고를 수가 없었고 ②101번째 회사는 화면에 아예 없었다(없다는 말도 없이).
+   */
+  const searchCompanies = useCallback(async (q: string, signal: AbortSignal): Promise<RecordOption[]> => {
+    const res = await fetch(`/api/crm/companies?limit=20${q ? `&q=${encodeURIComponent(q)}` : ''}`, { signal })
+    const body = await res.json()
+    if (!res.ok) throw new Error(body?.error?.message ?? '회사를 불러오지 못했습니다.')
+    return (body.items ?? []).map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))
   }, [])
 
-  async function createCompany() {
-    const nm = newCompany.trim()
-    if (!nm) return
-    setMakingCompany(true)
-    setCompanyError(null)
-    try {
-      const res = await fetch('/api/crm/companies', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: nm }),
-      })
-      const body = await res.json()
-      if (!res.ok) { setCompanyError(body?.error?.message ?? '회사를 만들지 못했습니다.'); return }
-
-      const created = body.company ?? body
-      const id = String(created.id ?? '')
-      if (!id) { setCompanyError('회사를 만들지 못했습니다.'); return }
-
-      // 만들자마자 고른 상태로 — 다시 찾아 고르게 하면 그게 또 한 걸음이다
-      setCompanies((prev) => [{ id, name: nm }, ...prev])
-      setCompanyId(id)
-      setNewCompany('')
-    } catch {
-      setCompanyError('회사를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.')
-    } finally {
-      setMakingCompany(false)
-    }
-  }
+  /**
+   * 회사를 그 자리에서 만들기.
+   *
+   * **왜 필요한가**: 딜은 `companyId` 가 필수인데, 찾는 회사가 아직 CRM 에 없으면 **거기서 막힌다.**
+   * 창을 닫고 회사 화면으로 갔다가 돌아오게 하는 대신 여기서 만든다.
+   * (예전엔 회사가 **0개일 때만** 만들기 줄이 보였다 — 1개라도 있으면 새 회사를 넣을 길이 없었다.)
+   */
+  const createCompany = useCallback(async (name: string): Promise<RecordOption | null> => {
+    const res = await fetch('/api/crm/companies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+    const body = await res.json()
+    if (!res.ok) throw new Error(body?.error?.message ?? '회사를 만들지 못했습니다.')
+    const created = body.company ?? body
+    const id = String(created.id ?? '')
+    return id ? { id, name } : null
+  }, [])
 
   const canSubmit = Boolean(name.trim() && companyId && pipelineId && stageId)
 
@@ -174,7 +147,7 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
       }
     >
       <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
-        <FormErrorBanner message={error ?? companyError} />
+        <FormErrorBanner message={error} />
 
         <div>
           <label className="label" htmlFor="crm-deal-name">딜 이름 *</label>
@@ -187,37 +160,17 @@ export default function DealFormModal({ pipelines, initial, onClose, onSaved }: 
 
         <div>
           <label className="label" htmlFor="crm-deal-company">회사 *</label>
-          <select
-            id="crm-deal-company" className="input-field" value={companyId}
-            onChange={(e) => setCompanyId(e.target.value)}
-          >
-            <option value="">회사를 고르세요</option>
-            {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-
-          {/*
-            회사가 없으면 여기서 막힌다 — 그 자리에서 만들 수 있게 한다.
-            딜이 처음인 사람에게 가장 흔한 막힘이었다.
-          */}
-          {companies.length === 0 && (
-            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end', marginTop: 'var(--space-2)' }}>
-              <input
-                className="input-field"
-                value={newCompany}
-                placeholder="회사 이름을 넣고 만들면 바로 골라집니다"
-                onChange={(e) => setNewCompany(e.target.value)}
-                onKeyDown={(e) => { if (isEnterKey(e)) void createCompany() }}
-                aria-label="새 회사 이름"
-              />
-              <NbButton
-                variant="ghost"
-                onClick={() => void createCompany()}
-                disabled={makingCompany || !newCompany.trim()}
-              >
-                {makingCompany ? '만드는 중…' : '회사 만들기'}
-              </NbButton>
-            </div>
-          )}
+          {/* 드롭다운이 아니라 고르기 창이다 — 회사는 개수가 자라는 목록이라 검색이 있어야 찾는다 */}
+          <RecordPickerField
+            id="crm-deal-company"
+            noun="회사"
+            value={companyId}
+            valueName={companyName}
+            required
+            onChange={(opt) => { setCompanyId(opt?.id ?? ''); setCompanyName(opt?.name ?? '') }}
+            search={searchCompanies}
+            onCreate={createCompany}
+          />
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
