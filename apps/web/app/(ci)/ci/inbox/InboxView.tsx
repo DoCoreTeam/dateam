@@ -18,13 +18,14 @@ import StageNav, { RESEARCH_STAGES } from '@/components/ci/StageNav'
 import LinkIntakeBox from '@/components/ci/LinkIntakeBox'
 import TopicHealthPanel from '@/components/ci/TopicHealthPanel'
 import DetailSheet from '@/components/ci/DetailSheet'
-import ChannelGroupedList from '@/components/ci/ChannelGroupedList'
+import ChannelGroupedList, { type ChannelGroup } from '@/components/ci/ChannelGroupedList'
 import MetricBadge from '@/components/ci/MetricBadge'
 import { MissingFieldsBadge, IngestStatusBadge } from '@/components/ci/StatusBadge'
 import ListSurface from '@/components/ui/list/ListSurface'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListPager from '@/components/ui/list/ListPager'
 import SearchHit from '@/components/ci/SearchHit'
+import EmptyState from '@/components/ui/EmptyState'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import type { ListDefaults } from '@/lib/ui/list-query'
@@ -46,6 +47,10 @@ interface InboxViewProps {
   total?: number
   page?: number
   size?: number
+  /** 채널별 보기일 때 서버가 만든 채널 목록. 평평한 보기면 null */
+  groups?: ChannelGroup[] | null
+  /** 전체 채널 수 — 그룹 모드의 페이지 수는 이것으로 정해진다 */
+  groupTotal?: number
 }
 
 const PLATFORMS = ['유튜브', '틱톡', '인스타', '페북', 'X', '스레드']
@@ -86,6 +91,22 @@ const LIST_DEFAULTS: ListDefaults = {
  */
 const PAGE_RESET_KEYS = new Set(['q', 'sort', 'topic', 'platform', 'format', 'size'])
 
+/**
+ * 채널을 펼 때 자식 조회에 함께 넘길 조건.
+ * 페이지·보기·묶기는 부모의 것이므로 넘기지 않는다 — 자식은 자기 페이지를 따로 센다.
+ */
+function expandParams(current: URLSearchParams, tab: Tab): Record<string, string> {
+  const out: Record<string, string> = {}
+  // URL 키와 API 키가 다른 것이 하나 있다 — 이름이 어긋나면 필터가 조용히 무시된다
+  const KEY_MAP: Record<string, string> = { topic: 'topicId' }
+  for (const k of ['q', 'sort', 'topic', 'platform', 'format']) {
+    const v = current.get(k)
+    if (v) out[KEY_MAP[k] ?? k] = v
+  }
+  if (tab !== 'all') out.tab = tab
+  return out
+}
+
 function applyListParams(
   current: URLSearchParams, patch: Record<string, string | null>,
 ): string {
@@ -120,6 +141,7 @@ const EMPTY: Record<Tab, { title: string; description: string; action?: { label:
 
 export default function InboxView({
   workspaceId, tab, items, counts, topics, total, page = 1, size = 20,
+  groups = null, groupTotal = 0,
 }: InboxViewProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -131,7 +153,10 @@ export default function InboxView({
   // 삭제는 진짜 삭제다 — 확인 대화상자가 유일한 안전장치라 공용 흐름을 그대로 쓴다
   const del_ = useCiDelete(workspaceId, () => router.refresh())
 
-  const grouped = query.filters.group === '1'
+  // 서버가 그룹을 만들어 내려줬으면 그룹 모드다 — 화면이 따로 판정하지 않는다.
+  const grouped = groups != null
+  /** 그룹 모드에서는 세는 단위가 다르다 — 게시물이 아니라 채널이다. */
+  const shownTotal = grouped ? groupTotal : total
 
   /** 주제 확정 — 사용자가 최종 심판이다. 정정은 학습에 쌓인다. */
   async function confirmTopic(contentId: string, topicId: string | null) {
@@ -401,7 +426,7 @@ export default function InboxView({
 
       <ListToolbar
         query={query}
-        total={total}
+        total={shownTotal}
         views={['table']}
         searchPlaceholder="제목·설명·영상 대사·화면 자막에서 찾기"
         sortOptions={SORT_OPTIONS}
@@ -437,12 +462,25 @@ export default function InboxView({
         </p>
       )}
 
-      {grouped && items.length > 0 ? (
-        <ChannelGroupedList
-          items={items}
-          onOpen={setOpenId}
-          onNextStep={(id) => router.push(`/ci/pipeline?from=${id}`)}
-        />
+      {grouped ? (
+        groups!.length > 0 ? (
+          <ChannelGroupedList
+            groups={groups!}
+            workspaceId={workspaceId}
+            // 목록이 건 조건을 자식에도 그대로 건다 — 검색으로 좁힌 그룹을 펴면
+            // 검색에 걸린 게시물만 나와야 한다
+            listParams={expandParams(searchParams, tab)}
+            onOpen={setOpenId}
+            onNextStep={(id) => router.push(`/ci/pipeline?from=${id}`)}
+          />
+        ) : (
+          <EmptyState
+            title={query.q.trim() ? '검색과 맞는 채널이 없습니다' : EMPTY[tab].title}
+            description={query.q.trim()
+              ? '다른 말로 찾아보거나 필터를 지워 보세요.'
+              : EMPTY[tab].description}
+          />
+        )
       ) : (
         <ListSurface
           rows={items}
@@ -456,10 +494,10 @@ export default function InboxView({
 
       {/* 1,018건이 있는데 첫 묶음만 보이고 더 볼 방법이 없던 것을 고친다(사용자 지적 2026-08-18).
           §2-6 (2): 페이지 이동은 ListPager 한 벌로 그린다. */}
-      {(total ?? 0) > size && (
+      {(shownTotal ?? 0) > size && (
         <ListPager
           query={{ ...query, size: size as never, page }}
-          total={total}
+          total={shownTotal}
           onChange={(patch) => {
             if (patch.page == null) return
             const qs = applyListParams(searchParams, {

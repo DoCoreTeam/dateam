@@ -92,3 +92,11 @@
   gap: var(--space-2);
   margin-bottom: var(--space-3);
 }
+
+/* 채널 안에서 이어 받는 줄.
+ * 목록 페이지를 넘기지 않는다 — 그룹을 펴면 자식은 부모와 같은 페이지에 있어야 한다. */
+.moreBar {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-3) 0 var(--space-4);
+}

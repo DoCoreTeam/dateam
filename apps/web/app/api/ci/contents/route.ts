@@ -23,10 +23,14 @@ export async function GET(req: Request) {
       topicId: url.searchParams.get('topicId'),
       platform: url.searchParams.get('platform') as CiPlatform | null,
       format: url.searchParams.get('format') as CiContentFormat | null,
-      sort: 'recent',
+      sort: (['outlier', 'velocity'].includes(url.searchParams.get('sort') ?? '')
+        ? url.searchParams.get('sort')
+        : 'recent') as never,
       // 제목뿐 아니라 영상 대사·화면 자막까지 함께 찾는다(마이그 212·213).
       // 숏폼은 제목이 짧아 제목 검색만으로는 사실상 아무것도 못 찾는다.
       q: url.searchParams.get('q'),
+      // 채널별 보기에서 그룹을 펼 때 — 검색·필터가 자식에도 그대로 걸려야 한다
+      channelId: url.searchParams.get('channelId'),
       limit,
       cursor,
     })

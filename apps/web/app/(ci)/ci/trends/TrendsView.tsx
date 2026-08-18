@@ -21,7 +21,7 @@ import { CI_PLATFORMS, CI_PLATFORM_LABEL } from '@/lib/ci/types'
 import PageHeader from '@/components/ui/PageHeader'
 import StageNav, { RESEARCH_STAGES } from '@/components/ci/StageNav'
 import ContentCard from '@/components/ci/ContentCard'
-import ChannelGroupedList from '@/components/ci/ChannelGroupedList'
+import ChannelGroupedList, { groupByChannel as toChannelGroups } from '@/components/ci/ChannelGroupedList'
 import DetailSheet from '@/components/ci/DetailSheet'
 import { ConfidenceBadge } from '@/components/ci/StatusBadge'
 import EmptyState from '@/components/ui/EmptyState'
@@ -492,7 +492,10 @@ export default function TrendsView(p: Props) {
               )}
               {groupByChannel ? (
                 <ChannelGroupedList
-                  items={p.items}
+                  // 떡상은 고정 30건이라 페이지가 없다 — 손에 든 것을 그대로 묶는다.
+                  // (수집함은 1,600건이 페이지로 나뉘므로 서버가 채널을 집계한다)
+                  groups={toChannelGroups(p.items)}
+                  workspaceId={p.workspaceId}
                   onOpen={setOpenId}
                   onNextStep={(id) => router.push(`/ci/pipeline?from=${id}`)}
                   onAddToBoard={(id) => router.push(`/ci/boards?add=${id}`)}

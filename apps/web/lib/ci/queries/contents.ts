@@ -104,6 +104,12 @@ export interface ContentListParams {
    * 사실상 아무것도 못 찾는다. 대사를 읽어 둔 것이 여기서 값을 한다.
    */
   q?: string | null
+  /**
+   * 한 채널로 좁힌다. 채널별 보기에서 그룹을 펼 때 쓴다 —
+   * 채널 전용 조회를 따로 두면 검색·필터·정렬이 목록과 갈린다
+   * (실측: 그룹은 검색으로 좁혔는데 펴 보면 그 채널 전부가 나왔다).
+   */
+  channelId?: string | null
 }
 
 export interface ContentListResult {
@@ -188,6 +194,7 @@ export async function listContents(p: ContentListParams): Promise<ContentListRes
   // 댓글 수 하나 못 얻은 것까지 실패로 보여 제품이 고장난 것처럼 보인다.
   if (p.tab === 'failed') q = q.eq('ingest_status', 'failed')
   if (searchHits) q = q.in('id', Array.from(searchHits.keys()))
+  if (p.channelId) q = q.eq('channel_id', p.channelId)
   if (p.topicId) q = q.eq('topic_id', p.topicId)
   if (p.platform) q = q.eq('platform', p.platform)
   if (p.format) q = q.eq('format', p.format)
